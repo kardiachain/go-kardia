@@ -13,3 +13,6 @@
 
 # JetBrain IDE files
 .idea/
+
+#dep
+vendor/
