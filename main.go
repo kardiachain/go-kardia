@@ -5,9 +5,9 @@ import (
 )
 
 func main() {
-	n, err := NewNode()
+	n, err := NewNode("node1")
 
 	if err == nil {
-		fmt.Println(len(n.Blockchain))
+		fmt.Println(len(n.blockchain))
 	}
 }
