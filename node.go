@@ -29,7 +29,7 @@ type Node struct {
 
 func NewNode(name string) (*Node, error) {
 	node := new(Node)
-
+	node.log = log.New()
 	// node.serverConfig.PrivateKey = the private key type
 	node.serverConfig.Name = name
 	node.serverConfig.Logger = node.log
