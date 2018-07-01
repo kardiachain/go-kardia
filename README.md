@@ -10,3 +10,11 @@ cd $GOPATH/src
 go get github.com/ethereum/go-ethereum
 cp -r github.com/ethereum/go-ethereum/crypto/secp256k1/ conceptchain/vendor/github.com/ethereum/go-ethereum/crypto/
 ```
+
+# Run
+```
+cd $GOPATH/src/conceptchain
+go install
+cd $GOPATH/bin
+./conceptchain
+```

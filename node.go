@@ -1,11 +1,12 @@
 package main
 
 import (
-	"sync"
+	"conceptchain/log"
+	"conceptchain/p2p"
 	"errors"
-	"github.com/ethereum/go-ethereum/p2p"
+	"sync"
 	// TODO: Should have been conceptchain/log but not compatible with serverConfig
-	"github.com/ethereum/go-ethereum/log"
+	//"github.com/ethereum/go-ethereum/log"
 )
 
 // TODO: move to a blockstore.
@@ -21,10 +22,10 @@ type Node struct {
 	blockchain []Block
 
 	serverConfig p2p.Config
-	server *p2p.Server
+	server       *p2p.Server
 
 	lock sync.RWMutex
-	log log.Logger
+	log  log.Logger
 }
 
 func NewNode(name string) (*Node, error) {
