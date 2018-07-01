@@ -16,21 +16,12 @@
 [[projects]]
   name = "github.com/ethereum/go-ethereum"
   packages = [
-    "common",
     "common/hexutil",
     "common/math",
-    "common/mclock",
-    "crypto",
     "crypto/secp256k1",
     "crypto/sha3",
-    "event",
     "log",
-    "metrics",
-    "p2p/discover",
-    "p2p/discv5",
-    "p2p/nat",
-    "p2p/netutil",
-    "rlp"
+    "p2p/nat"
   ]
   revision = "dea1ce052a10cd7d401a5c04f83f371a06fe293c"
   version = "v1.8.11"
@@ -123,6 +114,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a79d5f1349ff902bd60e1e1ccc0a3867be52b3f29d49e1ea36eb41dd6b98afdd"
+  inputs-digest = "5daa1abefe167812fa082f8e13b20fff435415b2ffa8ca6a8fdf37d7c9907951"
   solver-name = "gps-cdcl"
   solver-version = 1
