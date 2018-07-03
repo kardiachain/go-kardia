@@ -6,14 +6,13 @@ import (
 )
 
 func main() {
-	n, err := node.NewNode("node1")
+	n, err := node.NewNode(&node.DefaultConfig)
 
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	n.Start()
-	fmt.Println(n.server.PeerCount())
 	fmt.Println(n.Server.Peers())
 	n.Stop()
 }

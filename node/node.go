@@ -7,6 +7,11 @@ import (
 	"sync"
 )
 
+var (
+	ErrNodeStopped = errors.New("node not started")
+	ErrNodeRunning = errors.New("node already running")
+)
+
 // TODO: move to a blockstore.
 type Block struct {
 	Index        int
@@ -15,12 +20,11 @@ type Block struct {
 	Content      string
 }
 
-
 // Wrapper for a running node.
 type Node struct {
 	blockchain []Block
 
-	config *NodeConfig
+	config       *NodeConfig
 	serverConfig p2p.Config
 	Server       *p2p.Server
 
@@ -28,13 +32,11 @@ type Node struct {
 	log  log.Logger
 }
 
-func NewNode(name string) (*Node, error) {
+func NewNode(config *NodeConfig) (*Node, error) {
 	node := new(Node)
-	node.config = &DefaultConfig
+	node.config = config
 	node.log = log.New()
-	// node.serverConfig.PrivateKey = the private key type
-	node.serverConfig.Name = name
-	node.serverConfig.Logger = node.log
+	// TODO: input check on the config
 
 	return node, nil
 }
@@ -44,10 +46,11 @@ func (n *Node) Start() error {
 	defer n.lock.Unlock()
 
 	if n.Server != nil {
-		return errors.New("server already exists")
+		return ErrNodeRunning
 	}
 
 	n.serverConfig = n.config.P2P
+	n.serverConfig.Logger = n.log
 	n.serverConfig.Name = n.config.NodeName()
 	n.serverConfig.PrivateKey = n.config.NodeKey()
 	// TODO: all node list will be empty, start adding peer data to config dir.
@@ -74,7 +77,7 @@ func (n *Node) Stop() error {
 	defer n.lock.Unlock()
 
 	if n.Server == nil {
-		return errors.New("try to stop but server is not running")
+		return ErrNodeStopped
 	}
 
 	n.Server.Stop()
