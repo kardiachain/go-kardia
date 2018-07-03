@@ -1,12 +1,10 @@
-package main
+package node
 
 import (
 	"conceptchain/log"
 	"conceptchain/p2p"
 	"errors"
 	"sync"
-	// TODO: Should have been conceptchain/log but not compatible with serverConfig
-	//"github.com/ethereum/go-ethereum/log"
 )
 
 // TODO: move to a blockstore.
@@ -17,12 +15,14 @@ type Block struct {
 	Content      string
 }
 
+
 // Wrapper for a running node.
 type Node struct {
 	blockchain []Block
 
+	config *NodeConfig
 	serverConfig p2p.Config
-	server       *p2p.Server
+	Server       *p2p.Server
 
 	lock sync.RWMutex
 	log  log.Logger
@@ -30,6 +30,7 @@ type Node struct {
 
 func NewNode(name string) (*Node, error) {
 	node := new(Node)
+	node.config = &DefaultConfig
 	node.log = log.New()
 	// node.serverConfig.PrivateKey = the private key type
 	node.serverConfig.Name = name
@@ -38,15 +39,19 @@ func NewNode(name string) (*Node, error) {
 	return node, nil
 }
 
-func (n *Node) start() error {
+func (n *Node) Start() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	if n.server != nil {
+	if n.Server != nil {
 		return errors.New("server already exists")
 	}
 
-	// n.serverConfig.StaticNodes = ...
+	n.serverConfig = n.config.P2P
+	n.serverConfig.Name = n.config.NodeName()
+	n.serverConfig.PrivateKey = n.config.NodeKey()
+	// TODO: all node list will be empty, start adding peer data to config dir.
+	// n.serverConfig.StaticNodes = []
 	// n.serverConfig.TrustedNodes = ...
 	// n.serverConfig.NodeDatabase = ...
 
@@ -60,20 +65,20 @@ func (n *Node) start() error {
 	// Next is to start all the API services for this node (talk with user and others)
 	// if any error when starting, call the running.Stop()
 
-	n.server = running
+	n.Server = running
 	return nil
 }
 
-func (n *Node) stop() error {
+func (n *Node) Stop() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	if n.server == nil {
+	if n.Server == nil {
 		return errors.New("try to stop but server is not running")
 	}
 
-	n.server.Stop()
-	n.server = nil
+	n.Server.Stop()
+	n.Server = nil
 
 	return nil
 }
