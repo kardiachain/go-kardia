@@ -5,6 +5,8 @@ import (
 	"conceptchain/p2p"
 	"errors"
 	"sync"
+	"conceptchain/p2p/discover"
+	"fmt"
 )
 
 var (
@@ -53,7 +55,21 @@ func (n *Node) Start() error {
 	n.serverConfig.Logger = n.log
 	n.serverConfig.Name = n.config.NodeName()
 	n.serverConfig.PrivateKey = n.config.NodeKey()
-	// TODO: all node list will be empty, start adding peer data to config dir.
+
+	// TODO: use json file in datadir to load the node list
+	var nodes []*discover.Node
+	n.log.Info("Reading peer data")
+	peer, err := discover.ParseNode("enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@127.0.0.1:3000")
+
+	if err != nil {
+		n.log.Error(err.Error())
+		panic(err)
+	}
+	fmt.Printf("Peer: %s \n", peer)
+	fmt.Printf("Peer incomplete status %t \n", peer.Incomplete())
+	nodes = append(nodes, peer)
+
+	n.serverConfig.StaticNodes = nodes
 	// n.serverConfig.StaticNodes = []
 	// n.serverConfig.TrustedNodes = ...
 	// n.serverConfig.NodeDatabase = ...
