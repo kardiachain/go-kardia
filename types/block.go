@@ -38,6 +38,9 @@ type Header struct {
 	// hashes of block data
 	LastCommitHash common.Hash `json:"last_commit_hash"    gencodec:"required"` // commit from validators from the last block
 	TxHash         common.Hash `json:"data_hash"           gencodec:"required"` // transactions
+	Root           common.Hash `json:"stateRoot"           gencodec:"required"` // state root
+	ReceiptHash    common.Hash `json:"receiptsRoot"        gencodec:"required"` // receipt root
+	Bloom          Bloom       `json:"logsBloom"           gencodec:"required"`
 
 	// hashes from the app output from the prev block
 	//@huny ValidatorsHash  common.Hash `json:"validators_hash"`   // validators for the current block
@@ -90,7 +93,7 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(header *Header, txs []*Transaction) *Block {
+func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt) *Block {
 	b := &Block{header: CopyHeader(header)}
 
 	if len(txs) == 0 {
@@ -100,6 +103,13 @@ func NewBlock(header *Header, txs []*Transaction) *Block {
 		b.header.NumTxs = uint64(len(txs))
 		b.transactions = make(Transactions, len(txs))
 		copy(b.transactions, txs)
+	}
+
+	if len(receipts) == 0 {
+		b.header.ReceiptHash = EmptyRootHash
+	} else {
+		b.header.ReceiptHash = DeriveSha(Receipts(receipts))
+		b.header.Bloom = CreateBloom(receipts)
 	}
 
 	return b
@@ -161,6 +171,9 @@ func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
 func (b *Block) LastCommitHash() common.Hash { return b.header.LastCommitHash }
 func (b *Block) TxHash() common.Hash         { return b.header.TxHash }
+func (b *Block) Root() common.Hash           { return b.header.Root }
+func (b *Block) ReceiptHash() common.Hash    { return b.header.ReceiptHash }
+func (b *Block) Bloom() Bloom                { return b.header.Bloom }
 
 func (b *Block) Header() *Header { return CopyHeader(b.header) }
 
