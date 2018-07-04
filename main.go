@@ -3,17 +3,15 @@ package main
 import (
 	"conceptchain/node"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
+	"conceptchain/log"
 	"os"
 	"flag"
 )
 
 func main() {
-	// setup max log verbosity.
-	logger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
-	logger.Verbosity(log.Lvl(6))
-	logger.Vmodule("")
-	log.Root().SetHandler(logger)
+	// setup log to stdout.
+	handler := log.StreamHandler(os.Stdout, log.TerminalFormat(false))
+	log.Root().SetHandler(handler)
 
 	// args
 	listenAddr := flag.String("addr", ":30301", "listen address")
