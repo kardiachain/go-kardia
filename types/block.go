@@ -10,13 +10,7 @@ import (
 	"conceptchain/common"
 	"conceptchain/crypto/sha3"
 	"conceptchain/rlp"
-	//"github.com/ethereum/go-ethereum/trie"
-	/*
-		"github.com/ethereum/go-ethereum/common"
-		"github.com/ethereum/go-ethereum/common/hexutil"
-		"github.com/ethereum/go-ethereum/crypto/sha3"
-		"github.com/ethereum/go-ethereum/rlp"
-	*/)
+)
 
 var (
 	EmptyRootHash = DeriveSha(Transactions{})
@@ -27,10 +21,10 @@ var (
 // Header represents a block header in the Kardia blockchain.
 type Header struct {
 	// basic block info
-	//@huny ChainID string    `json:"chain_id"`
-	Height uint64    `json:"height"       gencodec:"required"`
-	Time   time.Time `json:"time"         gencodec:"required"`
-	NumTxs uint64    `json:"num_txs"      gencodec:"required`
+	ChainID string    `json:"chain_id"	  gencodec:"required"`
+	Height  uint64    `json:"height"       gencodec:"required"`
+	Time    time.Time `json:"time"         gencodec:"required"`
+	NumTxs  uint64    `json:"num_txs"      gencodec:"required`
 
 	GasLimit uint64 `json:"gasLimit"         gencodec:"required"`
 	GasUsed  uint64 `json:"gasUsed"          gencodec:"required"`
@@ -156,6 +150,7 @@ func (b *Block) Transaction(hash common.Hash) *Transaction {
 	return nil
 }
 
+func (b *Block) ChainID() string  { return b.header.ChainID }
 func (b *Block) Height() uint64   { return b.header.Height }
 func (b *Block) GasLimit() uint64 { return b.header.GasLimit }
 func (b *Block) GasUsed() uint64  { return b.header.GasUsed }
