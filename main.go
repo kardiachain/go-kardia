@@ -12,9 +12,12 @@ func main() {
 	// setup log to stdout.
 	handler := log.StreamHandler(os.Stdout, log.TerminalFormat(false))
 	log.Root().SetHandler(handler)
+	logger := log.New()
 
 	// args
 	listenAddr := flag.String("addr", ":30301", "listen address")
+	peerUrl := flag.String("peer", "", "enode URL of static peer")
+
 	flag.Parse()
 
 	config := &node.DefaultConfig
@@ -23,11 +26,20 @@ func main() {
 	n, err := node.NewNode(config)
 
 	if err != nil {
-		fmt.Println(err)
+		logger.Error("Cannot create node", "err", err)
 		return
 	}
+
 	n.Start()
-	fmt.Println(n.Server.Peers())
+
+	if *peerUrl != "" {
+		success, err := n.AddPeer(*peerUrl)
+		if !success {
+			logger.Error("Fail to add peer", "err", err, "peerUrl", peerUrl)
+		}
+	}
+
+	fmt.Println(n.Server().Peers())
 	blockForever()
 }
 
