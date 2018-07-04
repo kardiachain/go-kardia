@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"io"
 	"sort"
 	"sync/atomic"
@@ -10,6 +11,7 @@ import (
 	"conceptchain/common"
 	"conceptchain/crypto/sha3"
 	"conceptchain/rlp"
+	"conceptchain/trie"
 )
 
 var (
@@ -224,7 +226,6 @@ type DerivableList interface {
 }
 
 func DeriveSha(list DerivableList) common.Hash {
-	/*@huny: FIXME: temporary disable until Trie is fully implemented
 	keybuf := new(bytes.Buffer)
 	trie := new(trie.Trie)
 	for i := 0; i < list.Len(); i++ {
@@ -233,6 +234,6 @@ func DeriveSha(list DerivableList) common.Hash {
 		trie.Update(keybuf.Bytes(), list.GetRlp(i))
 	}
 	return trie.Hash()
-	*/
-	return common.BytesToHash([]byte(""))
+
+	//return common.BytesToHash([]byte(""))
 }
