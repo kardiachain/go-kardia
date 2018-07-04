@@ -3,16 +3,10 @@ package kai
 import (
 	"fmt"
 	"io"
-	//	"math/big"
 
 	"conceptchain/common"
 	"conceptchain/rlp"
-	"github.com/ethereum/go-ethereum/core/types"
-	/*
-		"github.com/ethereum/go-ethereum/core"
-		"github.com/ethereum/go-ethereum/core/types"
-		"github.com/ethereum/go-ethereum/event"
-	*/)
+)
 
 // Constants to match up protocol versions and messages
 const (
@@ -66,15 +60,6 @@ var errorToString = map[int]string{
 	ErrNoStatusMsg:             "No status message",
 	ErrExtraStatusMsg:          "Extra status message",
 	ErrSuspendedPeer:           "Suspended peer",
-}
-
-type txPool interface {
-	// AddRemotes should add the given transactions to the pool.
-	AddRemotes([]*types.Transaction) []error
-
-	// Pending should return pending transactions.
-	// The slice should be modifiable by the caller.
-	Pending() (map[common.Address]types.Transactions, error)
 }
 
 // statusData is the network packet for the status message.
