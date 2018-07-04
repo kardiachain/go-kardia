@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 
 	"conceptchain/common"
-	"conceptchain/common/hexutil"
-	"conceptchain/crypto/sha3"
 	"conceptchain/rlp"
 )
 
@@ -41,17 +39,6 @@ type txdata struct {
 
 	// This is only used when marshaling to JSON.
 	Hash *common.Hash `json:"hash" rlp:"-"`
-}
-
-type txdataMarshaling struct {
-	AccountNonce hexutil.Uint64
-	Price        *hexutil.Big
-	GasLimit     hexutil.Uint64
-	Amount       *hexutil.Big
-	Payload      hexutil.Bytes
-	V            *hexutil.Big
-	R            *hexutil.Big
-	S            *hexutil.Big
 }
 
 func NewTransaction(nonce uint64, to common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
@@ -166,18 +153,19 @@ func (tx *Transaction) RawSignatureValues() (*big.Int, *big.Int, *big.Int) {
 	return tx.data.V, tx.data.R, tx.data.S
 }
 
-func rlpHash(x interface{}) (h common.Hash) {
-	hw := sha3.NewKeccak256()
-	rlp.Encode(hw, x)
-	hw.Sum(h[:0])
-	return h
-}
+// Transactions is a Transaction slice type for basic sorting.
+type Transactions []*Transaction
 
-type writeCounter common.StorageSize
+// Len returns the length of s.
+func (s Transactions) Len() int { return len(s) }
 
-func (c *writeCounter) Write(b []byte) (int, error) {
-	*c += writeCounter(len(b))
-	return len(b), nil
+// Swap swaps the i'th and the j'th element in s.
+func (s Transactions) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+// GetRlp implements Rlpable and returns the i'th element of s in rlp.
+func (s Transactions) GetRlp(i int) []byte {
+	enc, _ := rlp.EncodeToBytes(s[i])
+	return enc
 }
 
 // Deal with transaction_signing logic
