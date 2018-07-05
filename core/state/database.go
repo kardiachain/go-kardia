@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"sync"
 
 	"conceptchain/common"
@@ -25,6 +26,9 @@ const (
 type Database interface {
 	// OpenTrie opens the main account trie.
 	OpenTrie(root common.Hash) (Trie, error)
+
+	// CopyTrie returns an independent copy of the given trie.
+	CopyTrie(Trie) Trie
 }
 
 // Trie is a Kardia Merkle Trie.
@@ -75,6 +79,18 @@ func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
 		return nil, err
 	}
 	return cachedTrie{tr, db}, nil
+}
+
+// CopyTrie returns an independent copy of the given trie.
+func (db *cachingDB) CopyTrie(t Trie) Trie {
+	switch t := t.(type) {
+	case cachedTrie:
+		return cachedTrie{t.SecureTrie.Copy(), db}
+	case *trie.SecureTrie:
+		return t.Copy()
+	default:
+		panic(fmt.Errorf("unknown trie type %T", t))
+	}
 }
 
 func (db *cachingDB) pushTrie(t *trie.SecureTrie) {

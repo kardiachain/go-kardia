@@ -12,12 +12,10 @@ import (
 	"conceptchain/types"
 )
 
-/*@huny
 type revision struct {
 	id           int
 	journalIndex int
 }
-*/
 
 var (
 	// emptyState is the known hash of an empty state trie entry.
@@ -59,9 +57,9 @@ type StateDB struct {
 
 	// Journal of state modifications. This is the backbone of
 	// Snapshot and RevertToSnapshot.
-	//@huny journal        *journal
-	//@huny validRevisions []revision
-	//@huny nextRevisionId int
+	journal        *journal
+	validRevisions []revision
+	nextRevisionId int
 
 	lock sync.Mutex
 }
@@ -79,8 +77,83 @@ func New(root common.Hash, db Database) (*StateDB, error) {
 		stateObjectsDirty: make(map[common.Address]struct{}),
 		logs:              make(map[common.Hash][]*types.Log),
 		preimages:         make(map[common.Hash][]byte),
-		//@huny journal:           newJournal(),
+		journal:           newJournal(),
 	}, nil
+}
+
+// Retrieve a state object or create a new state object if nil.
+func (self *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
+	stateObject := self.getStateObject(addr)
+	if stateObject == nil || stateObject.deleted {
+		stateObject, _ = self.createObject(addr)
+	}
+	return stateObject
+}
+
+// createObject creates a new state object. If there is an existing account with
+// the given address, it is overwritten and returned as the second return value.
+func (self *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) {
+	prev = self.getStateObject(addr)
+	newobj = newObject(self, addr, Account{})
+	newobj.setNonce(0) // sets the object to dirty
+	if prev == nil {
+		self.journal.append(createObjectChange{account: &addr})
+	} else {
+		self.journal.append(resetObjectChange{prev: prev})
+	}
+	self.setStateObject(newobj)
+	return newobj, prev
+}
+
+// Copy creates a deep, independent copy of the state.
+// Snapshots of the copied state cannot be applied to the copy.
+func (self *StateDB) Copy() *StateDB {
+	self.lock.Lock()
+	defer self.lock.Unlock()
+
+	// Copy all the basic fields, initialize the memory ones
+	state := &StateDB{
+		db:                self.db,
+		trie:              self.db.CopyTrie(self.trie),
+		stateObjects:      make(map[common.Address]*stateObject, len(self.journal.dirties)),
+		stateObjectsDirty: make(map[common.Address]struct{}, len(self.journal.dirties)),
+		refund:            self.refund,
+		logs:              make(map[common.Hash][]*types.Log, len(self.logs)),
+		logSize:           self.logSize,
+		preimages:         make(map[common.Hash][]byte),
+		journal:           newJournal(),
+	}
+
+	// Copy the dirty states, logs, and preimages
+	for addr := range self.journal.dirties {
+		// As documented [here](https://github.com/ethereum/go-ethereum/pull/16485#issuecomment-380438527),
+		// and in the Finalise-method, there is a case where an object is in the journal but not
+		// in the stateObjects: OOG after touch on ripeMD prior to Byzantium. Thus, we need to check for
+		// nil
+		if object, exist := self.stateObjects[addr]; exist {
+			state.stateObjects[addr] = object.deepCopy(state)
+			state.stateObjectsDirty[addr] = struct{}{}
+		}
+	}
+
+	// Above, we don't copy the actual journal. This means that if the copy is copied, the
+	// loop above will be a no-op, since the copy's journal is empty.
+	// Thus, here we iterate over stateObjects, to enable copies of copies
+	for addr := range self.stateObjectsDirty {
+		if _, exist := state.stateObjects[addr]; !exist {
+			state.stateObjects[addr] = self.stateObjects[addr].deepCopy(state)
+			state.stateObjectsDirty[addr] = struct{}{}
+		}
+	}
+
+	for hash, logs := range self.logs {
+		state.logs[hash] = make([]*types.Log, len(logs))
+		copy(state.logs[hash], logs)
+	}
+	for hash, preimage := range self.preimages {
+		state.preimages[hash] = preimage
+	}
+	return state
 }
 
 // Empty returns whether the state object is either non-existent

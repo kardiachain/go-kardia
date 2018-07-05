@@ -102,6 +102,20 @@ func newObject(db *StateDB, address common.Address, data Account) *stateObject {
 	}
 }
 
+func (self *stateObject) deepCopy(db *StateDB) *stateObject {
+	stateObject := newObject(db, self.address, self.data)
+	if self.trie != nil {
+		stateObject.trie = db.db.CopyTrie(self.trie)
+	}
+	stateObject.code = self.code
+	stateObject.dirtyStorage = self.dirtyStorage.Copy()
+	stateObject.cachedStorage = self.dirtyStorage.Copy()
+	stateObject.suicided = self.suicided
+	stateObject.dirtyCode = self.dirtyCode
+	stateObject.deleted = self.deleted
+	return stateObject
+}
+
 //
 // Attribute accessors
 //
@@ -117,4 +131,16 @@ func (self *stateObject) Balance() *big.Int {
 
 func (self *stateObject) Nonce() uint64 {
 	return self.data.Nonce
+}
+
+func (self *stateObject) SetNonce(nonce uint64) {
+	self.db.journal.append(nonceChange{
+		account: &self.address,
+		prev:    self.data.Nonce,
+	})
+	self.setNonce(nonce)
+}
+
+func (self *stateObject) setNonce(nonce uint64) {
+	self.data.Nonce = nonce
 }

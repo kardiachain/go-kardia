@@ -178,9 +178,9 @@ type TxPool struct {
 	signer       types.Signer
 	mu           sync.RWMutex
 
-	currentState *state.StateDB // Current state in the blockchain head
-	//@huny pendingState  *state.ManagedState // Pending state tracking virtual nonces
-	currentMaxGas uint64 // Current gas limit for transaction caps
+	currentState  *state.StateDB      // Current state in the blockchain head
+	pendingState  *state.ManagedState // Pending state tracking virtual nonces
+	currentMaxGas uint64              // Current gas limit for transaction caps
 
 	locals *accountSet // Set of local transaction to exempt from eviction rules
 	//@huny journal *txJournal  // Journal of local transaction to back up to disk
@@ -414,13 +414,12 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	// higher gas price)
 	pool.demoteUnexecutables()
 
-	/*@huny
 	// Update all accounts to the latest known pending nonce
 	for addr, list := range pool.pending {
 		txs := list.Flatten() // Heavy but will be cached and is needed by the miner anyway
 		pool.pendingState.SetNonce(addr, txs[len(txs)-1].Nonce()+1)
 	}
-	*/
+
 	// Check the queue and move transactions over to the pending if possible
 	// or remove those that have become invalid
 	pool.promoteExecutables(nil)
@@ -470,7 +469,6 @@ func (pool *TxPool) SetGasPrice(price *big.Int) {
 	log.Info("Transaction pool price threshold updated", "price", price)
 }
 
-/*@huny
 // State returns the virtual managed state of the transaction pool.
 func (pool *TxPool) State() *state.ManagedState {
 	pool.mu.RLock()
@@ -479,6 +477,7 @@ func (pool *TxPool) State() *state.ManagedState {
 	return pool.pendingState
 }
 
+/*
 // Stats retrieves the current pool stats, namely the number of pending and the
 // number of queued (non-executable) transactions.
 func (pool *TxPool) Stats() (int, int) {
@@ -754,7 +753,7 @@ func (pool *TxPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 	}
 	// Set the potentially new pending nonce and notify any subsystems of the new tx
 	pool.beats[addr] = time.Now()
-	//@huny pool.pendingState.SetNonce(addr, tx.Nonce()+1)
+	pool.pendingState.SetNonce(addr, tx.Nonce()+1)
 
 	return true
 }
@@ -891,12 +890,12 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 			for _, tx := range invalids {
 				pool.enqueueTx(tx.Hash(), tx)
 			}
-			/*@huny
+
 			// Update the account nonce if needed
 			if nonce := tx.Nonce(); pool.pendingState.GetNonce(addr) > nonce {
 				pool.pendingState.SetNonce(addr, nonce)
 			}
-			*/
+
 			return
 		}
 	}
@@ -946,7 +945,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			pool.priced.Removed()
 			queuedNofundsCounter.Inc(1)
 		}
-		/*@huny
+
 		// Gather all executable transactions and promote them
 		for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {
 			hash := tx.Hash()
@@ -955,7 +954,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 				promoted = append(promoted, tx)
 			}
 		}
-		*/
+
 		// Drop all transactions over the allowed limit
 		if !pool.locals.contains(addr) {
 			for _, tx := range list.Cap(int(pool.config.AccountQueue)) {
@@ -1011,12 +1010,12 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 							hash := tx.Hash()
 							pool.all.Remove(hash)
 							pool.priced.Removed()
-							/*@huny
+
 							// Update the account nonce to the dropped transaction
 							if nonce := tx.Nonce(); pool.pendingState.GetNonce(offenders[i]) > nonce {
 								pool.pendingState.SetNonce(offenders[i], nonce)
 							}
-							*/
+
 							log.Trace("Removed fairness-exceeding pending transaction", "hash", hash)
 						}
 						pending--
@@ -1035,12 +1034,11 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 						pool.all.Remove(hash)
 						pool.priced.Removed()
 
-						/*@huny
 						// Update the account nonce to the dropped transaction
 						if nonce := tx.Nonce(); pool.pendingState.GetNonce(addr) > nonce {
 							pool.pendingState.SetNonce(addr, nonce)
 						}
-						*/
+
 						log.Trace("Removed fairness-exceeding pending transaction", "hash", hash)
 					}
 					pending--
