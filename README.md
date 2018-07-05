@@ -23,9 +23,9 @@ cd $GOPATH/bin
 Run two nodes in different ports and use enode url to connect.  
 First terminal
 ```
-./conceptchain --addr :3000
+./conceptchain --addr :3000 --name node1
 ```
-Second terminal
+Second terminal, set peer args as the enode url displayed in first terminal
 ```
- ./conceptchain --addr :30001 --peer enode://1dd9d65c4552b5eb43d5ad55a2ee3f56c6cbc1c64a5c8d659f51fcd51bace24351232b8d7821617d2b29b54b81cdefb9b3e9c37d7fd5f63270bcc9e1a6f6a439@127.0.0.1:3000
+./conceptchain --addr :30001 --name node2 --peer enode://4b7f6c7274881a6c7fd3068c1a147d3e9d003a964c3e3490814942dd7cbb975e0424db335881962239dd8170a9cc5b09a9f4c81babd57ac10df0d6465a58dd67@[::]:3000
 ```

@@ -1,11 +1,12 @@
 package main
 
 import (
-	"conceptchain/node"
-	"fmt"
 	"conceptchain/log"
-	"os"
+	"conceptchain/node"
 	"flag"
+	"fmt"
+	"os"
+	"time"
 )
 
 func main() {
@@ -17,11 +18,13 @@ func main() {
 	// args
 	listenAddr := flag.String("addr", ":30301", "listen address")
 	peerUrl := flag.String("peer", "", "enode URL of static peer")
+	name := flag.String("name", "", "Name of node")
 
 	flag.Parse()
 
 	config := &node.DefaultConfig
 	config.P2P.ListenAddr = *listenAddr
+	config.Name = *name
 
 	n, err := node.NewNode(config)
 
@@ -39,10 +42,19 @@ func main() {
 		}
 	}
 
-	fmt.Println(n.Server().Peers())
+	go displayPeers(n)
+
 	blockForever()
 }
 
+func displayPeers(n *node.Node) {
+	for {
+		fmt.Println("Peer list: ", n.Server().PeerCount())
+		time.Sleep(10 * time.Second)
+	}
+
+}
+
 func blockForever() {
-	select{ }
+	select {}
 }
