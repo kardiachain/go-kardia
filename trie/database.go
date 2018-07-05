@@ -6,10 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"conceptchain/common"
-	kaidb "conceptchain/database"
-	"conceptchain/log"
-	"conceptchain/rlp"
+	"github.com/kardiachain/go-kardia/common"
+	kaidb "github.com/kardiachain/go-kardia/database"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/rlp"
 	"github.com/ethereum/go-ethereum/metrics"
 )
 

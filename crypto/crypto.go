@@ -12,8 +12,8 @@ import (
 	"math/big"
 	"os"
 
-	"conceptchain/common"
-	"conceptchain/rlp"
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/rlp"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 )

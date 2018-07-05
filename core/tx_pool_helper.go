@@ -7,9 +7,9 @@ import (
 	"runtime"
 	"sort"
 
-	"conceptchain/common"
-	"conceptchain/log"
-	"conceptchain/types"
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // nonceHeap is a heap.Interface implementation over 64bit unsigned integers for

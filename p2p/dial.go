@@ -8,9 +8,9 @@ import (
 	"net"
 	"time"
 
-	"conceptchain/log"
-	"conceptchain/p2p/discover"
-	"conceptchain/p2p/netutil"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/p2p/discover"
+	"github.com/kardiachain/go-kardia/p2p/netutil"
 )
 
 const (

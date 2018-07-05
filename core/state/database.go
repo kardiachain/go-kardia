@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"sync"
 
-	"conceptchain/common"
-	kaidb "conceptchain/database"
-	"conceptchain/trie"
+	"github.com/kardiachain/go-kardia/common"
+	kaidb "github.com/kardiachain/go-kardia/database"
+	"github.com/kardiachain/go-kardia/trie"
 	lru "github.com/hashicorp/golang-lru"
 )
 

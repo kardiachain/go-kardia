@@ -1,11 +1,11 @@
 package node
 
 import (
-	"conceptchain/log"
-	"conceptchain/p2p"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/p2p"
 	"errors"
 	"sync"
-	"conceptchain/p2p/discover"
+	"github.com/kardiachain/go-kardia/p2p/discover"
 	"fmt"
 )
 

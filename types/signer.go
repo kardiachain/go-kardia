@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"conceptchain/common"
-	"conceptchain/crypto"
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/crypto"
 )
 
 var (

@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"sync/atomic"
 
-	"conceptchain/common"
-	"conceptchain/rlp"
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/rlp"
 )
 
 //go:generate gencodec -type txdata -field-override txdataMarshaling -out gen_tx_json.go

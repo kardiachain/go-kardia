@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"conceptchain/crypto"
-	"conceptchain/log"
-	"conceptchain/rlp"
+	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/iterator"

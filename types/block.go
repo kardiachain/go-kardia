@@ -8,10 +8,10 @@ import (
 	"time"
 	"unsafe"
 
-	"conceptchain/common"
-	"conceptchain/crypto/sha3"
-	"conceptchain/rlp"
-	"conceptchain/trie"
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/crypto/sha3"
+	"github.com/kardiachain/go-kardia/rlp"
+	"github.com/kardiachain/go-kardia/trie"
 )
 
 var (

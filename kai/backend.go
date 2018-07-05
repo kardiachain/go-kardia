@@ -2,8 +2,8 @@
 package kai
 
 import (
-	"conceptchain/log"
-	"conceptchain/p2p"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/p2p"
 )
 
 type KaiServer interface {

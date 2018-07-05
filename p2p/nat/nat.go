@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"conceptchain/log"
+	"github.com/kardiachain/go-kardia/log"
 	"github.com/jackpal/go-nat-pmp"
 )
 

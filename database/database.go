@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"conceptchain/log"
+	"github.com/kardiachain/go-kardia/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"

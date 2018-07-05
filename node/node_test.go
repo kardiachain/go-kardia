@@ -1,8 +1,8 @@
 package node
 
 import (
-	"conceptchain/crypto"
-	"conceptchain/p2p"
+	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/p2p"
 	"testing"
 )
 

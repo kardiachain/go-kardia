@@ -5,11 +5,11 @@ import (
 	"math/big"
 	"sync"
 
-	"conceptchain/common"
-	"conceptchain/crypto"
-	"conceptchain/log"
-	"conceptchain/rlp"
-	"conceptchain/types"
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/rlp"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 type revision struct {

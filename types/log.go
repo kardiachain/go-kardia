@@ -3,8 +3,8 @@ package types
 import (
 	"io"
 
-	"conceptchain/common"
-	"conceptchain/rlp"
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/rlp"
 )
 
 //go:generate gencodec -type Log -field-override logMarshaling -out gen_log_json.go

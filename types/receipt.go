@@ -6,9 +6,9 @@ import (
 	"io"
 	"unsafe"
 
-	"conceptchain/common"
-	"conceptchain/common/hexutil"
-	"conceptchain/rlp"
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/common/hexutil"
+	"github.com/kardiachain/go-kardia/rlp"
 )
 
 //go:generate gencodec -type Receipt -field-override receiptMarshaling -out gen_receipt_json.go

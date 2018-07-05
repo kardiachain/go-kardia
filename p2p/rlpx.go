@@ -19,11 +19,11 @@ import (
 	"sync"
 	"time"
 
-	"conceptchain/crypto"
-	"conceptchain/crypto/ecies"
-	"conceptchain/crypto/sha3"
-	"conceptchain/p2p/discover"
-	"conceptchain/rlp"
+	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/crypto/ecies"
+	"github.com/kardiachain/go-kardia/crypto/sha3"
+	"github.com/kardiachain/go-kardia/p2p/discover"
+	"github.com/kardiachain/go-kardia/rlp"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/golang/snappy"
 )

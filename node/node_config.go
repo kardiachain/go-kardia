@@ -1,9 +1,9 @@
 package node
 
 import (
-	"conceptchain/crypto"
-	"conceptchain/log"
-	"conceptchain/p2p"
+	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/p2p"
 	"crypto/ecdsa"
 	"fmt"
 	"os"

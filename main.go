@@ -1,10 +1,10 @@
 package main
 
 import (
-	"conceptchain/log"
-	"conceptchain/node"
 	"flag"
 	"fmt"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/node"
 	"os"
 	"time"
 )

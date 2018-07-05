@@ -7,7 +7,7 @@ import (
 	"crypto/elliptic"
 	"fmt"
 
-	"conceptchain/common/math"
+	"github.com/kardiachain/go-kardia/common/math"
 	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 

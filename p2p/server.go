@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	"conceptchain/common"
-	"conceptchain/common/mclock"
-	"conceptchain/event"
-	"conceptchain/log"
-	"conceptchain/p2p/discover"
-	"conceptchain/p2p/netutil"
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/common/mclock"
+	"github.com/kardiachain/go-kardia/event"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/p2p/discover"
+	"github.com/kardiachain/go-kardia/p2p/netutil"
 	//"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 )

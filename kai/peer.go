@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"conceptchain/p2p"
+	"github.com/kardiachain/go-kardia/p2p"
 )
 
 var (

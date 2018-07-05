@@ -5,8 +5,8 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"conceptchain/p2p"
-	"conceptchain/p2p/nat"
+	"github.com/kardiachain/go-kardia/p2p"
+	"github.com/kardiachain/go-kardia/p2p/nat"
 )
 
 const (

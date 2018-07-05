@@ -9,11 +9,11 @@ import (
 	"net"
 	"time"
 
-	"conceptchain/crypto"
-	"conceptchain/log"
-	"conceptchain/p2p/nat"
-	"conceptchain/p2p/netutil"
-	"conceptchain/rlp"
+	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/p2p/nat"
+	"github.com/kardiachain/go-kardia/p2p/netutil"
+	"github.com/kardiachain/go-kardia/rlp"
 )
 
 const Version = 4

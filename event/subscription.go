@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"conceptchain/common/mclock"
+	"github.com/kardiachain/go-kardia/common/mclock"
 )
 
 // Subscription represents a stream of events. The carrier of the events is typically a

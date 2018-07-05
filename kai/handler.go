@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"conceptchain/log"
-	"conceptchain/p2p"
-	"conceptchain/p2p/discover"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/p2p"
+	"github.com/kardiachain/go-kardia/p2p/discover"
 )
 
 const (

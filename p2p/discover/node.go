@@ -1,8 +1,8 @@
 package discover
 
 import (
-	"conceptchain/common"
-	"conceptchain/crypto"
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/hex"

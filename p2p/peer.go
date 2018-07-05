@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"conceptchain/common/mclock"
-	"conceptchain/event"
-	"conceptchain/log"
-	"conceptchain/p2p/discover"
-	"conceptchain/rlp"
+	"github.com/kardiachain/go-kardia/common/mclock"
+	"github.com/kardiachain/go-kardia/event"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/p2p/discover"
+	"github.com/kardiachain/go-kardia/rlp"
 )
 
 var (

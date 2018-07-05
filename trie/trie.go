@@ -5,9 +5,9 @@ import (
 	"bytes"
 	"fmt"
 
-	"conceptchain/common"
-	"conceptchain/crypto"
-	"conceptchain/log"
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/log"
 
 	"github.com/ethereum/go-ethereum/metrics"
 )

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"conceptchain/crypto"
+	"github.com/kardiachain/go-kardia/crypto"
 )
 
 type bytesBacked interface {

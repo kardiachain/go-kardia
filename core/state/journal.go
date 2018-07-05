@@ -3,7 +3,7 @@ package state
 import (
 	//"math/big"
 
-	"conceptchain/common"
+	"github.com/kardiachain/go-kardia/common"
 )
 
 // journalEntry is a modification entry in the state change journal that can be

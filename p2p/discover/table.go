@@ -17,10 +17,10 @@ import (
 	"sync"
 	"time"
 
-	"conceptchain/common"
-	"conceptchain/crypto"
-	"conceptchain/log"
-	"conceptchain/p2p/netutil"
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/p2p/netutil"
 )
 
 const (
