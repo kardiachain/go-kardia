@@ -17,7 +17,7 @@ func main() {
 
 	// args
 	listenAddr := flag.String("addr", ":30301", "listen address")
-	peerUrl := flag.String("peer", "", "enode URL of static peer")
+	peerURL := flag.String("peer", "", "enode URL of static peer")
 	name := flag.String("name", "", "Name of node")
 
 	flag.Parse()
@@ -35,10 +35,10 @@ func main() {
 
 	n.Start()
 
-	if *peerUrl != "" {
-		success, err := n.AddPeer(*peerUrl)
+	if *peerURL != "" {
+		success, err := n.AddPeer(*peerURL)
 		if !success {
-			logger.Error("Fail to add peer", "err", err, "peerUrl", peerUrl)
+			logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
 		}
 	}
 
