@@ -64,6 +64,15 @@ func (h *Header) Size() common.StorageSize {
 	return common.StorageSize(unsafe.Sizeof(*h))
 }
 
+// Body is a simple (mutable, non-safe) data container for storing and moving
+// a block's data contents (transactions) together.
+type Body struct {
+	Transactions []*Transaction
+}
+
+// Body returns the non-header content of the block.
+func (b *Block) Body() *Body { return &Body{b.transactions} }
+
 func rlpHash(x interface{}) (h common.Hash) {
 	hw := sha3.NewKeccak256()
 	rlp.Encode(hw, x)
