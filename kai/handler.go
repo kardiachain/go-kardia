@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/core"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
+	"github.com/kardiachain/go-kardia/params"
 )
 
 const (
@@ -30,6 +33,9 @@ type ProtocolManager struct {
 
 	peers *peerSet
 
+	blockchain  *core.BlockChain
+	chainconfig *params.ChainConfig
+
 	SubProtocols []p2p.Protocol
 
 	// channels for fetcher, syncer, txsyncLoop
@@ -43,10 +49,12 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Kardia sub protocol manager. The Kardia sub protocol manages peers capable
 // with the Kardia network.
-func NewProtocolManager(networkID uint64) (*ProtocolManager, error) {
+func NewProtocolManager(networkID uint64, blockchain *core.BlockChain, config *params.ChainConfig) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkID:   networkID,
+		blockchain:  blockchain,
+		chainconfig: config,
 		peers:       newPeerSet(),
 		newPeerCh:   make(chan *peer),
 		noMorePeers: make(chan struct{}),
@@ -143,7 +151,14 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	}
 	p.Log().Debug("Kardia peer connected", "name", p.Name())
 
-	if err := p.Handshake(pm.networkID); err != nil {
+	// Execute the Kardia handshake
+	var (
+		genesis = pm.blockchain.Genesis()
+		hash    = pm.blockchain.CurrentHeader().Hash()
+		height  = pm.blockchain.CurrentBlock().Height()
+	)
+
+	if err := p.Handshake(pm.networkID, height, hash, genesis.Hash()); err != nil {
 		p.Log().Debug("Kardia handshake failed", "err", err)
 		return err
 	}
@@ -192,12 +207,20 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 // NodeInfo represents a short summary of the Kardia sub-protocol metadata
 // known about the host peer.
 type NodeInfo struct {
-	Network uint64 `json:"network"` // Kardia network ID
+	Network uint64              `json:"network"` // Kardia network ID
+	Height  uint64              `json:"height"`  // Height of the blockchain
+	Genesis common.Hash         `json:"genesis"` // SHA3 hash of the host's genesis block
+	Config  *params.ChainConfig `json:"config"`  // Chain configuration for the fork rules
+	Head    common.Hash         `json:"head"`    // SHA3 hash of the host's best owned block
 }
 
 // NodeInfo retrieves some protocol metadata about the running host node.
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	return &NodeInfo{
 		Network: pm.networkID,
+		Height:  pm.blockchain.CurrentBlock().Height(),
+		Genesis: pm.blockchain.Genesis().Hash(),
+		Config:  pm.blockchain.Config(),
+		Head:    pm.blockchain.CurrentBlock().Hash(),
 	}
 }

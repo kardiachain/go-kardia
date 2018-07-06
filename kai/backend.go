@@ -2,8 +2,10 @@
 package kai
 
 import (
+	"github.com/kardiachain/go-kardia/core"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/p2p"
+	"github.com/kardiachain/go-kardia/params"
 )
 
 type KaiServer interface {
@@ -14,7 +16,8 @@ type KaiServer interface {
 
 // Kardia implements the Kardia full node service.
 type Kardia struct {
-	config *Config
+	config      *Config
+	chainConfig *params.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool // Channel for shutting down the Ethereum
@@ -22,6 +25,7 @@ type Kardia struct {
 	// Handlers
 	protocolManager *ProtocolManager
 	kaiServer       KaiServer
+	blockchain      *core.BlockChain
 
 	networkID uint64
 }
@@ -44,7 +48,8 @@ func New(config *Config) (*Kardia, error) {
 	log.Info("Initialising Kardia protocol", "versions", ProtocolVersions, "network", config.NetworkId)
 
 	var err error
-	if kai.protocolManager, err = NewProtocolManager(config.NetworkId); err != nil {
+	// TODO(huny@): temporarily use nil for blockchain and chainconfig until genesis is properly setup
+	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, nil, nil); err != nil {
 		return nil, err
 	}
 

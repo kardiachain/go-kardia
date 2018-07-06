@@ -66,6 +66,9 @@ var errorToString = map[int]string{
 type statusData struct {
 	ProtocolVersion uint32
 	NetworkId       uint64
+	Height          uint64
+	CurrentBlock    common.Hash
+	GenesisBlock    common.Hash
 }
 
 // hashOrNumber is a combined field for specifying an origin block.

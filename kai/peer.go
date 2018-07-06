@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/p2p"
 )
 
@@ -59,7 +60,7 @@ func (p *peer) Info() *PeerInfo {
 
 // Handshake executes the kardia protocol handshake, negotiating version number,
 // network IDs, head and genesis blocks.
-func (p *peer) Handshake(network uint64) error {
+func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesis common.Hash) error {
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
 	var status statusData // safe to read after two values have been received from errc
@@ -68,10 +69,13 @@ func (p *peer) Handshake(network uint64) error {
 		errc <- p2p.Send(p.rw, StatusMsg, &statusData{
 			ProtocolVersion: uint32(p.version),
 			NetworkId:       network,
+			Height:          height,
+			CurrentBlock:    head,
+			GenesisBlock:    genesis,
 		})
 	}()
 	go func() {
-		errc <- p.readStatus(network, &status)
+		errc <- p.readStatus(network, &status, genesis)
 	}()
 	timeout := time.NewTimer(handshakeTimeout)
 	defer timeout.Stop()
@@ -88,7 +92,7 @@ func (p *peer) Handshake(network uint64) error {
 	return nil
 }
 
-func (p *peer) readStatus(network uint64, status *statusData) (err error) {
+func (p *peer) readStatus(network uint64, status *statusData, genesis common.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
 		return err
@@ -103,7 +107,9 @@ func (p *peer) readStatus(network uint64, status *statusData) (err error) {
 	if err := msg.Decode(&status); err != nil {
 		return errResp(ErrDecode, "msg %v: %v", msg, err)
 	}
-
+	if status.GenesisBlock != genesis {
+		return errResp(ErrGenesisBlockMismatch, "%x (!= %x)", status.GenesisBlock[:8], genesis[:8])
+	}
 	if status.NetworkId != network {
 		return errResp(ErrNetworkIdMismatch, "%d (!= %d)", status.NetworkId, network)
 	}
