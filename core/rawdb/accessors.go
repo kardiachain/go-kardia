@@ -23,6 +23,11 @@ type DatabaseWriter interface {
 	Put(key []byte, value []byte) error
 }
 
+// DatabaseDeleter wraps the Delete method of a backing data store.
+type DatabaseDeleter interface {
+	Delete(key []byte) error
+}
+
 // ReadCanonicalHash retrieves the hash assigned to a canonical block height.
 func ReadCanonicalHash(db DatabaseReader, height uint64) common.Hash {
 	data, _ := db.Get(headerHashKey(height))
@@ -219,4 +224,37 @@ func ReadHeaderHeight(db DatabaseReader, hash common.Hash) *uint64 {
 	}
 	height := binary.BigEndian.Uint64(data)
 	return &height
+}
+
+// ReadHeadHeaderHash retrieves the hash of the current canonical head header.
+func ReadHeadHeaderHash(db DatabaseReader) common.Hash {
+	data, _ := db.Get(headHeaderKey)
+	if len(data) == 0 {
+		return common.Hash{}
+	}
+	return common.BytesToHash(data)
+}
+
+// DeleteBody removes all block body data associated with a hash.
+func DeleteBody(db DatabaseDeleter, hash common.Hash, height uint64) {
+	if err := db.Delete(blockBodyKey(height, hash)); err != nil {
+		log.Crit("Failed to delete block body", "err", err)
+	}
+}
+
+// DeleteHeader removes all block header data associated with a hash.
+func DeleteHeader(db DatabaseDeleter, hash common.Hash, height uint64) {
+	if err := db.Delete(headerKey(height, hash)); err != nil {
+		log.Crit("Failed to delete header", "err", err)
+	}
+	if err := db.Delete(headerHeightKey(hash)); err != nil {
+		log.Crit("Failed to delete hash to height mapping", "err", err)
+	}
+}
+
+// DeleteCanonicalHash removes the number to hash canonical mapping.
+func DeleteCanonicalHash(db DatabaseDeleter, number uint64) {
+	if err := db.Delete(headerHashKey(number)); err != nil {
+		log.Crit("Failed to delete number to hash mapping", "err", err)
+	}
 }

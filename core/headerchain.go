@@ -118,3 +118,57 @@ func (hc *HeaderChain) GetBlockHeight(hash common.Hash) *uint64 {
 	}
 	return height
 }
+
+// SetCurrentHeader sets the current head header of the canonical chain.
+func (hc *HeaderChain) SetCurrentHeader(head *types.Header) {
+	rawdb.WriteHeadHeaderHash(hc.chainDb, head.Hash())
+
+	hc.currentHeader.Store(head)
+	hc.currentHeaderHash = head.Hash()
+}
+
+// SetGenesis sets a new genesis block header for the chain
+func (hc *HeaderChain) SetGenesis(head *types.Header) {
+	hc.genesisHeader = head
+}
+
+// DeleteCallback is a callback function that is called by SetHead before
+// each header is deleted.
+type DeleteCallback func(rawdb.DatabaseDeleter, common.Hash, uint64)
+
+// SetHead rewinds the local chain to a new head. Everything above the new head
+// will be deleted and the new one set.
+func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
+	height := uint64(0)
+
+	if hdr := hc.CurrentHeader(); hdr != nil {
+		height = hdr.Height
+	}
+	batch := hc.chainDb.NewBatch()
+	for hdr := hc.CurrentHeader(); hdr != nil && hdr.Height > head; hdr = hc.CurrentHeader() {
+		hash := hdr.Hash()
+		height := hdr.Height
+		if delFn != nil {
+			delFn(batch, hash, height)
+		}
+		rawdb.DeleteHeader(batch, hash, height)
+
+		hc.currentHeader.Store(hc.GetHeader(hdr.LastCommitHash, hdr.Height-1))
+	}
+	// Roll back the canonical chain numbering
+	for i := height; i > head; i-- {
+		rawdb.DeleteCanonicalHash(batch, i)
+	}
+	batch.Write()
+
+	// Clear out any stale content from the caches
+	hc.headerCache.Purge()
+	hc.heightCache.Purge()
+
+	if hc.CurrentHeader() == nil {
+		hc.currentHeader.Store(hc.genesisHeader)
+	}
+	hc.currentHeaderHash = hc.CurrentHeader().Hash()
+
+	rawdb.WriteHeadHeaderHash(hc.chainDb, hc.currentHeaderHash)
+}
