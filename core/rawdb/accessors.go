@@ -1,7 +1,10 @@
 package rawdb
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
+
 	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/params"
@@ -20,9 +23,9 @@ type DatabaseWriter interface {
 	Put(key []byte, value []byte) error
 }
 
-// ReadCanonicalHash retrieves the hash assigned to a canonical block number.
-func ReadCanonicalHash(db DatabaseReader, number uint64) common.Hash {
-	data, _ := db.Get(headerHashKey(number))
+// ReadCanonicalHash retrieves the hash assigned to a canonical block height.
+func ReadCanonicalHash(db DatabaseReader, height uint64) common.Hash {
+	data, _ := db.Get(headerHashKey(height))
 	if len(data) == 0 {
 		return common.Hash{}
 	}
@@ -73,24 +76,24 @@ func WriteBody(db DatabaseWriter, hash common.Hash, height uint64, body *types.B
 }
 
 // WriteBodyRLP stores an RLP encoded block body into the database.
-func WriteBodyRLP(db DatabaseWriter, hash common.Hash, number uint64, rlp rlp.RawValue) {
-	if err := db.Put(blockBodyKey(number, hash), rlp); err != nil {
+func WriteBodyRLP(db DatabaseWriter, hash common.Hash, height uint64, rlp rlp.RawValue) {
+	if err := db.Put(blockBodyKey(height, hash), rlp); err != nil {
 		log.Crit("Failed to store block body", "err", err)
 	}
 }
 
 // WriteHeader stores a block header into the database and also stores the hash-
-// to-number mapping.
+// to-height mapping.
 func WriteHeader(db DatabaseWriter, header *types.Header) {
-	// Write the hash -> number mapping
+	// Write the hash -> height mapping
 	var (
 		hash    = header.Hash()
 		height  = header.Height
-		encoded = encodeBlockNumber(height)
+		encoded = encodeBlockHeight(height)
 	)
-	key := headerNumberKey(hash)
+	key := headerHeightKey(hash)
 	if err := db.Put(key, encoded); err != nil {
-		log.Crit("Failed to store hash to number mapping", "err", err)
+		log.Crit("Failed to store hash to height mapping", "err", err)
 	}
 	// Write the encoded header
 	data, err := rlp.EncodeToBytes(header)
@@ -104,7 +107,7 @@ func WriteHeader(db DatabaseWriter, header *types.Header) {
 }
 
 // WriteReceipts stores all the transaction receipts belonging to a block.
-func WriteReceipts(db DatabaseWriter, hash common.Hash, number uint64, receipts types.Receipts) {
+func WriteReceipts(db DatabaseWriter, hash common.Hash, height uint64, receipts types.Receipts) {
 	// Convert the receipts into their storage form and serialize them
 	storageReceipts := make([]*types.ReceiptForStorage, len(receipts))
 	for i, receipt := range receipts {
@@ -115,15 +118,15 @@ func WriteReceipts(db DatabaseWriter, hash common.Hash, number uint64, receipts 
 		log.Crit("Failed to encode block receipts", "err", err)
 	}
 	// Store the flattened receipt slice
-	if err := db.Put(blockReceiptsKey(number, hash), bytes); err != nil {
+	if err := db.Put(blockReceiptsKey(height, hash), bytes); err != nil {
 		log.Crit("Failed to store block receipts", "err", err)
 	}
 }
 
-// WriteCanonicalHash stores the hash assigned to a canonical block number.
-func WriteCanonicalHash(db DatabaseWriter, hash common.Hash, number uint64) {
-	if err := db.Put(headerHashKey(number), hash.Bytes()); err != nil {
-		log.Crit("Failed to store number to hash mapping", "err", err)
+// WriteCanonicalHash stores the hash assigned to a canonical block height.
+func WriteCanonicalHash(db DatabaseWriter, hash common.Hash, height uint64) {
+	if err := db.Put(headerHashKey(height), hash.Bytes()); err != nil {
+		log.Crit("Failed to store height to hash mapping", "err", err)
 	}
 }
 
@@ -139,4 +142,81 @@ func WriteHeadHeaderHash(db DatabaseWriter, hash common.Hash) {
 	if err := db.Put(headHeaderKey, hash.Bytes()); err != nil {
 		log.Crit("Failed to store last header's hash", "err", err)
 	}
+}
+
+// ReadBlock retrieves an entire block corresponding to the hash, assembling it
+// back from the stored header and body. If either the header or body could not
+// be retrieved nil is returned.
+//
+// Note, due to concurrent download of header and block body the header and thus
+// canonical hash can be stored in the database but the body data not (yet).
+func ReadBlock(db DatabaseReader, hash common.Hash, height uint64) *types.Block {
+	header := ReadHeader(db, hash, height)
+	if header == nil {
+		return nil
+	}
+	body := ReadBody(db, hash, height)
+	if body == nil {
+		return nil
+	}
+	return types.NewBlockWithHeader(header).WithBody(body.Transactions)
+}
+
+// ReadHeader retrieves the block header corresponding to the hash.
+func ReadHeader(db DatabaseReader, hash common.Hash, height uint64) *types.Header {
+	data := ReadHeaderRLP(db, hash, height)
+	if len(data) == 0 {
+		return nil
+	}
+	header := new(types.Header)
+	if err := rlp.Decode(bytes.NewReader(data), header); err != nil {
+		log.Error("Invalid block header RLP", "hash", hash, "err", err)
+		return nil
+	}
+	return header
+}
+
+// ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
+func ReadHeaderRLP(db DatabaseReader, hash common.Hash, height uint64) rlp.RawValue {
+	data, _ := db.Get(headerKey(height, hash))
+	return data
+}
+
+// ReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
+func ReadBodyRLP(db DatabaseReader, hash common.Hash, height uint64) rlp.RawValue {
+	data, _ := db.Get(blockBodyKey(height, hash))
+	return data
+}
+
+// ReadBody retrieves the block body corresponding to the hash.
+func ReadBody(db DatabaseReader, hash common.Hash, height uint64) *types.Body {
+	data := ReadBodyRLP(db, hash, height)
+	if len(data) == 0 {
+		return nil
+	}
+	body := new(types.Body)
+	if err := rlp.Decode(bytes.NewReader(data), body); err != nil {
+		log.Error("Invalid block body RLP", "hash", hash, "err", err)
+		return nil
+	}
+	return body
+}
+
+// ReadHeadBlockHash retrieves the hash of the current canonical head block.
+func ReadHeadBlockHash(db DatabaseReader) common.Hash {
+	data, _ := db.Get(headBlockKey)
+	if len(data) == 0 {
+		return common.Hash{}
+	}
+	return common.BytesToHash(data)
+}
+
+// ReadHeaderheight returns the header height assigned to a hash.
+func ReadHeaderHeight(db DatabaseReader, hash common.Hash) *uint64 {
+	data, _ := db.Get(headerHeightKey(hash))
+	if len(data) != 8 {
+		return nil
+	}
+	height := binary.BigEndian.Uint64(data)
+	return &height
 }

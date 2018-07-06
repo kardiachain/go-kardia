@@ -1,5 +1,9 @@
 package kai
 
+import (
+	"github.com/kardiachain/go-kardia/core"
+)
+
 // DefaultConfig contains default settings for use on the Kardia main net.
 var DefaultConfig = Config{
 
@@ -11,4 +15,8 @@ var DefaultConfig = Config{
 type Config struct {
 	// Protocol options
 	NetworkId uint64 // Network
+
+	// The genesis block, which is inserted if the database is empty.
+	// If nil, the Ethereum main net block is used.
+	Genesis *core.Genesis `toml:",omitempty"`
 }

@@ -171,6 +171,16 @@ func (b *Block) Transaction(hash common.Hash) *Transaction {
 	return nil
 }
 
+// WithBody returns a new block with the given transaction.
+func (b *Block) WithBody(transactions []*Transaction) *Block {
+	block := &Block{
+		header:       CopyHeader(b.header),
+		transactions: make([]*Transaction, len(transactions)),
+	}
+	copy(block.transactions, transactions)
+	return block
+}
+
 func (b *Block) ChainID() string  { return b.header.ChainID }
 func (b *Block) Height() uint64   { return b.header.Height }
 func (b *Block) GasLimit() uint64 { return b.header.GasLimit }

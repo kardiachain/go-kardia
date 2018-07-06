@@ -17,7 +17,7 @@ var (
 	// Data item prefixes (use single byte to avoid mixing data types, avoid `i`, used for indexes).
 	headerPrefix       = []byte("h") // headerPrefix + num (uint64 big endian) + hash -> header
 	headerHashSuffix   = []byte("n") // headerPrefix + num (uint64 big endian) + headerHashSuffix -> hash
-	headerNumberPrefix = []byte("H") // headerNumberPrefix + hash -> num (uint64 big endian)
+	headerHeightPrefix = []byte("H") // headerHeightPrefix + hash -> num (uint64 big endian)
 
 	blockBodyPrefix = []byte("b") // blockBodyPrefix + num (uint64 big endian) + hash -> block body
 
@@ -26,36 +26,36 @@ var (
 	configPrefix = []byte("kardia-config-") // config prefix for the db
 )
 
-// encodeBlockNumber encodes a block number as big endian uint64
-func encodeBlockNumber(number uint64) []byte {
+// encodeBlockHeight encodes a block height as big endian uint64
+func encodeBlockHeight(height uint64) []byte {
 	enc := make([]byte, 8)
-	binary.BigEndian.PutUint64(enc, number)
+	binary.BigEndian.PutUint64(enc, height)
 	return enc
 }
 
 // headerHashKey = headerPrefix + num (uint64 big endian) + headerHashSuffix
-func headerHashKey(number uint64) []byte {
-	return append(append(headerPrefix, encodeBlockNumber(number)...), headerHashSuffix...)
+func headerHashKey(height uint64) []byte {
+	return append(append(headerPrefix, encodeBlockHeight(height)...), headerHashSuffix...)
 }
 
 // headerKey = headerPrefix + num (uint64 big endian) + hash
-func headerKey(number uint64, hash common.Hash) []byte {
-	return append(append(headerPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
+func headerKey(height uint64, hash common.Hash) []byte {
+	return append(append(headerPrefix, encodeBlockHeight(height)...), hash.Bytes()...)
 }
 
-// headerNumberKey = headerNumberPrefix + hash
-func headerNumberKey(hash common.Hash) []byte {
-	return append(headerNumberPrefix, hash.Bytes()...)
+// headerheightKey = headerheightPrefix + hash
+func headerHeightKey(hash common.Hash) []byte {
+	return append(headerHeightPrefix, hash.Bytes()...)
 }
 
 // blockBodyKey = blockBodyPrefix + num (uint64 big endian) + hash
-func blockBodyKey(number uint64, hash common.Hash) []byte {
-	return append(append(blockBodyPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
+func blockBodyKey(height uint64, hash common.Hash) []byte {
+	return append(append(blockBodyPrefix, encodeBlockHeight(height)...), hash.Bytes()...)
 }
 
 // blockReceiptsKey = blockReceiptsPrefix + num (uint64 big endian) + hash
-func blockReceiptsKey(number uint64, hash common.Hash) []byte {
-	return append(append(blockReceiptsPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
+func blockReceiptsKey(height uint64, hash common.Hash) []byte {
+	return append(append(blockReceiptsPrefix, encodeBlockHeight(height)...), hash.Bytes()...)
 }
 
 // configKey = configPrefix + hash

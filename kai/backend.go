@@ -3,6 +3,7 @@ package kai
 
 import (
 	"github.com/kardiachain/go-kardia/core"
+	kaidb "github.com/kardiachain/go-kardia/database"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/params"
@@ -22,6 +23,9 @@ type Kardia struct {
 	// Channel for shutting down the service
 	shutdownChan chan bool // Channel for shutting down the Ethereum
 
+	// DB interfaces
+	chainDb kaidb.Database // Block chain database
+
 	// Handlers
 	protocolManager *ProtocolManager
 	kaiServer       KaiServer
@@ -37,19 +41,37 @@ func (s *Kardia) AddKaiServer(ks KaiServer) {
 // New creates a new Kardia object (including the
 // initialisation of the common Kardia object)
 func New(config *Config) (*Kardia, error) {
+	// TODO(huny): Create proper chain database
+	chainDb, err := kaidb.NewLDBDatabase("chaindata", 16, 16)
+	if err != nil {
+		return nil, err
+	}
+
+	chainConfig, _, genesisErr := core.SetupGenesisBlock(chainDb, config.Genesis)
+	if genesisErr != nil {
+		return nil, genesisErr
+	}
+	log.Info("Initialised chain configuration", "config", chainConfig)
 
 	kai := &Kardia{
-		config: config,
-
+		config:       config,
+		chainDb:      chainDb,
+		chainConfig:  chainConfig,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 	}
 
 	log.Info("Initialising Kardia protocol", "versions", ProtocolVersions, "network", config.NetworkId)
 
-	var err error
-	// TODO(huny@): temporarily use nil for blockchain and chainconfig until genesis is properly setup
-	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, nil, nil); err != nil {
+	// TODO(huny@): Do we need to check for blockchain version mismatch ?
+
+	// Create a new blockchain to attach to this Kardia object
+	kai.blockchain, err = core.NewBlockChain(chainDb, kai.chainConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig); err != nil {
 		return nil, err
 	}
 
