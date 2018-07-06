@@ -1,7 +1,7 @@
 package state
 
 import (
-	//"math/big"
+	"math/big"
 
 	"github.com/kardiachain/go-kardia/common"
 )
@@ -39,6 +39,13 @@ func (j *journal) append(entry journalEntry) {
 	}
 }
 
+// dirty explicitly sets an address to dirty, even if the change entries would
+// otherwise suggest it as clean. This method is an ugly hack to handle the RIPEMD
+// precompile consensus exception.
+func (j *journal) dirty(addr common.Address) {
+	j.dirties[addr]++
+}
+
 type (
 	// Changes to the account trie.
 	createObjectChange struct {
@@ -53,7 +60,38 @@ type (
 		account *common.Address
 		prev    uint64
 	}
+
+	// Changes to individual accounts.
+	balanceChange struct {
+		account *common.Address
+		prev    *big.Int
+	}
+
+	touchChange struct {
+		account   *common.Address
+		prev      bool
+		prevDirty bool
+	}
+
+	storageChange struct {
+		account       *common.Address
+		key, prevalue common.Hash
+	}
+
+	codeChange struct {
+		account            *common.Address
+		prevcode, prevhash []byte
+	}
 )
+
+var ripemd = common.HexToAddress("0000000000000000000000000000000000000003")
+
+func (ch touchChange) revert(s *StateDB) {
+}
+
+func (ch touchChange) dirtied() *common.Address {
+	return ch.account
+}
 
 func (ch createObjectChange) revert(s *StateDB) {
 	delete(s.stateObjects, *ch.account)
@@ -77,5 +115,29 @@ func (ch nonceChange) revert(s *StateDB) {
 }
 
 func (ch nonceChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch balanceChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setBalance(ch.prev)
+}
+
+func (ch balanceChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch codeChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setCode(common.BytesToHash(ch.prevhash), ch.prevcode)
+}
+
+func (ch codeChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch storageChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setState(ch.key, ch.prevalue)
+}
+
+func (ch storageChange) dirtied() *common.Address {
 	return ch.account
 }

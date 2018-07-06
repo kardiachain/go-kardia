@@ -7,6 +7,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/rlp"
 )
 
 var emptyCodeHash = crypto.Keccak256(nil)
@@ -125,10 +126,82 @@ func (c *stateObject) Address() common.Address {
 	return c.address
 }
 
+////////////////////////////////////////////////////
+// Code state
+////////////////////////////////////////////////////
+func (self *stateObject) SetCode(codeHash common.Hash, code []byte) {
+	prevcode := self.Code(self.db.db)
+	self.db.journal.append(codeChange{
+		account:  &self.address,
+		prevhash: self.CodeHash(),
+		prevcode: prevcode,
+	})
+	self.setCode(codeHash, code)
+}
+
+func (self *stateObject) setCode(codeHash common.Hash, code []byte) {
+	self.code = code
+	self.data.CodeHash = codeHash[:]
+	self.dirtyCode = true
+}
+
+// Code returns the contract code associated with this object, if any.
+func (self *stateObject) Code(db Database) []byte {
+	if self.code != nil {
+		return self.code
+	}
+	if bytes.Equal(self.CodeHash(), emptyCodeHash) {
+		return nil
+	}
+	code, err := db.ContractCode(self.addrHash, common.BytesToHash(self.CodeHash()))
+	if err != nil {
+		self.setError(fmt.Errorf("can't load code hash %x: %v", self.CodeHash(), err))
+	}
+	self.code = code
+	return code
+}
+
+func (self *stateObject) CodeHash() []byte {
+	return self.data.CodeHash
+}
+
+////////////////////////////////////////////////////
+// Balance state
+////////////////////////////////////////////////////
 func (self *stateObject) Balance() *big.Int {
 	return self.data.Balance
 }
 
+// AddBalance removes amount from c's balance.
+// It is used to add funds to the destination account of a transfer.
+func (c *stateObject) AddBalance(amount *big.Int) {
+	// EIP158: We must check emptiness for the objects such that the account
+	// clearing (0,0,0 objects) can take effect.
+	if amount.Sign() == 0 {
+		if c.empty() {
+			c.touch()
+		}
+
+		return
+	}
+	c.SetBalance(new(big.Int).Add(c.Balance(), amount))
+}
+
+func (self *stateObject) SetBalance(amount *big.Int) {
+	self.db.journal.append(balanceChange{
+		account: &self.address,
+		prev:    new(big.Int).Set(self.data.Balance),
+	})
+	self.setBalance(amount)
+}
+
+func (self *stateObject) setBalance(amount *big.Int) {
+	self.data.Balance = amount
+}
+
+////////////////////////////////////////////////////
+// Balance state
+////////////////////////////////////////////////////
 func (self *stateObject) Nonce() uint64 {
 	return self.data.Nonce
 }
@@ -141,6 +214,116 @@ func (self *stateObject) SetNonce(nonce uint64) {
 	self.setNonce(nonce)
 }
 
+////////////////////////////////////////////////////
+// State state
+////////////////////////////////////////////////////
+// GetState returns a value in account storage.
+func (self *stateObject) GetState(db Database, key common.Hash) common.Hash {
+	value, exists := self.cachedStorage[key]
+	if exists {
+		return value
+	}
+	// Load from DB in case it is missing.
+	enc, err := self.getTrie(db).TryGet(key[:])
+	if err != nil {
+		self.setError(err)
+		return common.Hash{}
+	}
+	if len(enc) > 0 {
+		_, content, _, err := rlp.Split(enc)
+		if err != nil {
+			self.setError(err)
+		}
+		value.SetBytes(content)
+	}
+	self.cachedStorage[key] = value
+	return value
+}
+
+// SetState updates a value in account storage.
+func (self *stateObject) SetState(db Database, key, value common.Hash) {
+	self.db.journal.append(storageChange{
+		account:  &self.address,
+		key:      key,
+		prevalue: self.GetState(db, key),
+	})
+	self.setState(key, value)
+}
+
+func (self *stateObject) setState(key, value common.Hash) {
+	self.cachedStorage[key] = value
+	self.dirtyStorage[key] = value
+}
+
+////////////////////////////////////////////////////
+// Nonce state
+////////////////////////////////////////////////////
 func (self *stateObject) setNonce(nonce uint64) {
 	self.data.Nonce = nonce
+}
+
+func (c *stateObject) touch() {
+	c.db.journal.append(touchChange{
+		account: &c.address,
+	})
+	if c.address == ripemd {
+		// Explicitly put it in the dirty-cache, which is otherwise generated from
+		// flattened journals.
+		c.db.journal.dirty(c.address)
+	}
+}
+
+// setError remembers the first non-nil error it is called with.
+func (self *stateObject) setError(err error) {
+	if self.dbErr == nil {
+		self.dbErr = err
+	}
+}
+
+func (c *stateObject) getTrie(db Database) Trie {
+	if c.trie == nil {
+		var err error
+		c.trie, err = db.OpenStorageTrie(c.addrHash, c.data.Root)
+		if err != nil {
+			c.trie, _ = db.OpenStorageTrie(c.addrHash, common.Hash{})
+			c.setError(fmt.Errorf("can't create storage trie: %v", err))
+		}
+	}
+	return c.trie
+}
+
+// updateTrie writes cached storage modifications into the object's storage trie.
+func (self *stateObject) updateTrie(db Database) Trie {
+	tr := self.getTrie(db)
+	for key, value := range self.dirtyStorage {
+		delete(self.dirtyStorage, key)
+		if (value == common.Hash{}) {
+			self.setError(tr.TryDelete(key[:]))
+			continue
+		}
+		// Encoding []byte cannot fail, ok to ignore the error.
+		v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], "\x00"))
+		self.setError(tr.TryUpdate(key[:], v))
+	}
+	return tr
+}
+
+// CommitTrie the storage trie of the object to db.
+// This updates the trie root.
+func (self *stateObject) CommitTrie(db Database) error {
+	self.updateTrie(db)
+	if self.dbErr != nil {
+		return self.dbErr
+	}
+	root, err := self.trie.Commit(nil)
+	if err == nil {
+		self.data.Root = root
+	}
+	return err
+}
+
+// UpdateRoot sets the trie root to the current root hash of
+func (self *stateObject) updateRoot(db Database) {
+	self.updateTrie(db)
+	self.data.Root = self.trie.Hash()
 }
