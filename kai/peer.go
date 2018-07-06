@@ -8,6 +8,8 @@ import (
 
 	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/p2p"
+	"github.com/kardiachain/go-kardia/types"
+	"gopkg.in/fatih/set.v0"
 )
 
 var (
@@ -18,6 +20,12 @@ var (
 
 const (
 	handshakeTimeout = 5 * time.Second
+	maxKnownTxs      = 32768 // Maximum transactions hashes to keep in the known list (prevent DOS)
+
+	// maxQueuedTxs is the maximum number of transaction lists to queue up before
+	// dropping broadcasts. This is a sensitive number as a transaction list might
+	// contain a single transaction, or thousands.
+	maxQueuedTxs = 128
 )
 
 // PeerInfo represents a short summary of the Ethereum sub-protocol metadata known
@@ -34,15 +42,21 @@ type peer struct {
 
 	version int // Protocol version negotiated
 
+	knownTxs *set.Set // Set of transaction hashes known to be known by this peer
+
+	queuedTxs chan []*types.Transaction // Queue of transactions to broadcast to the peer
+
 	lock sync.RWMutex
 }
 
 func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 	return &peer{
-		Peer:    p,
-		rw:      rw,
-		version: version,
-		id:      fmt.Sprintf("%x", p.ID().Bytes()[:8]),
+		Peer:      p,
+		rw:        rw,
+		version:   version,
+		id:        fmt.Sprintf("%x", p.ID().Bytes()[:8]),
+		queuedTxs: make(chan []*types.Transaction, maxQueuedTxs),
+		knownTxs:  set.New(),
 	}
 }
 
@@ -201,4 +215,42 @@ func (ps *peerSet) Close() {
 		p.Disconnect(p2p.DiscQuitting)
 	}
 	ps.closed = true
+}
+
+// MarkTransaction marks a transaction as known for the peer, ensuring that it
+// will never be propagated to this particular peer.
+func (p *peer) MarkTransaction(hash common.Hash) {
+	// If we reached the memory allowance, drop a previously known transaction hash
+	for p.knownTxs.Size() >= maxKnownTxs {
+		p.knownTxs.Pop()
+	}
+	p.knownTxs.Add(hash)
+}
+
+// PeersWithoutTx retrieves a list of peers that do not have a given transaction
+// in their set of known hashes.
+func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
+	ps.lock.RLock()
+	defer ps.lock.RUnlock()
+
+	list := make([]*peer, 0, len(ps.peers))
+	for _, p := range ps.peers {
+		if !p.knownTxs.Has(hash) {
+			list = append(list, p)
+		}
+	}
+	return list
+}
+
+// AsyncSendTransactions queues list of transactions propagation to a remote
+// peer. If the peer's broadcast queue is full, the event is silently dropped.
+func (p *peer) AsyncSendTransactions(txs []*types.Transaction) {
+	select {
+	case p.queuedTxs <- txs:
+		for _, tx := range txs {
+			p.knownTxs.Add(tx.Hash())
+		}
+	default:
+		p.Log().Debug("Dropping transaction propagation", "count", len(txs))
+	}
 }

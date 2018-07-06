@@ -8,7 +8,9 @@ import (
 	"github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/core/rawdb"
+	"github.com/kardiachain/go-kardia/core/state"
 	kaidb "github.com/kardiachain/go-kardia/database"
+	"github.com/kardiachain/go-kardia/event"
 	"github.com/kardiachain/go-kardia/params"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -28,11 +30,15 @@ type BlockChain struct {
 	db kaidb.Database // Blockchain database
 	hc *HeaderChain
 
+	chainHeadFeed event.Feed
+	scope         event.SubscriptionScope
+
 	genesisBlock *types.Block
 
 	currentBlock atomic.Value // Current head of the block chain
 
-	blockCache *lru.Cache // Cache for the most recent entire blocks
+	stateCache state.Database // State database to reuse between imports (contains state cache)
+	blockCache *lru.Cache     // Cache for the most recent entire blocks
 
 }
 
@@ -65,6 +71,7 @@ func NewBlockChain(db kaidb.Database, chainConfig *params.ChainConfig) (*BlockCh
 	bc := &BlockChain{
 		chainConfig: chainConfig,
 		db:          db,
+		stateCache:  state.NewDatabase(db),
 		blockCache:  blockCache,
 	}
 
@@ -114,4 +121,14 @@ func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	// Cache the found block for next time and return
 	bc.blockCache.Add(block.Hash(), block)
 	return block
+}
+
+// StateAt returns a new mutable state based on a particular point in time.
+func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
+	return state.New(root, bc.stateCache)
+}
+
+// SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
+func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
+	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
 }

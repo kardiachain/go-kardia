@@ -27,6 +27,7 @@ type Kardia struct {
 	chainDb kaidb.Database // Block chain database
 
 	// Handlers
+	txPool          *core.TxPool
 	protocolManager *ProtocolManager
 	kaiServer       KaiServer
 	blockchain      *core.BlockChain
@@ -71,7 +72,9 @@ func New(config *Config) (*Kardia, error) {
 		return nil, err
 	}
 
-	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig); err != nil {
+	kai.txPool = core.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
+
+	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool); err != nil {
 		return nil, err
 	}
 
