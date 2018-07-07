@@ -52,9 +52,11 @@ func (n *Node) Start() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
+	// Starts p2p server.
 	if n.server != nil {
 		return ErrNodeRunning
 	}
+	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 
 	n.serverConfig = n.config.P2P
 	n.serverConfig.Logger = n.log
@@ -66,17 +68,57 @@ func (n *Node) Start() error {
 	// n.serverConfig.TrustedNodes = ...
 	// n.serverConfig.NodeDatabase = ...
 
-	running := &p2p.Server{Config: n.serverConfig}
-	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
+	newServer := &p2p.Server{Config: n.serverConfig}
 
-	if err := running.Start(); err != nil {
+	// Starts protocol services.
+	services := make(map[reflect.Type]Service)
+	for _, serviceConstructor := range n.serviceConstructors {
+		// Creates context as parameter for constructor
+		ctx := &ServiceContext{
+			config:         n.config,
+			services:       make(map[reflect.Type]Service),
+		}
+		for serviceType, s := range services { // full map copy in each ServiceContext, for concurrent access
+			ctx.services[serviceType] = s
+		}
+		service, err := serviceConstructor(ctx)
+		if err != nil {
+			return err
+		}
+		serviceType := reflect.TypeOf(service)
+		if _, exists := services[serviceType]; exists {
+			return fmt.Errorf("duplicated service of type %s", serviceType)
+		}
+		services[serviceType] = service
+	}
+	// Gather the protocols and start the freshly assembled P2P server
+	for _, service := range services {
+		newServer.Protocols = append(newServer.Protocols, service.Protocols()...)
+	}
+
+	if err := newServer.Start(); err != nil {
 		return err
 	}
 
-	// Next is to start all the API services for this node (talk with user and others)
-	// if any error when starting, call the running.Stop()
+	// Start each of the services
+	var startedServices []Service
+	for _, service := range services {
+		// Start the next service, stopping all previous upon failure
+		if err := service.Start(newServer); err != nil {
+			for _, startedService := range startedServices {
+				startedService.Stop()
+			}
+			newServer.Stop()
 
-	n.server = running
+			return err
+		}
+		// Mark the service started for potential cleanup
+		startedServices = append(startedServices, service)
+	}
+
+	// TODO: starts RPC services.
+
+	n.server = newServer
 	return nil
 }
 
