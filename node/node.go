@@ -1,17 +1,19 @@
 package node
 
 import (
+	"errors"
+	"fmt"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/p2p"
-	"errors"
-	"sync"
 	"github.com/kardiachain/go-kardia/p2p/discover"
-	"fmt"
+	"reflect"
+	"sync"
 )
 
 var (
-	ErrNodeStopped = errors.New("node not started")
-	ErrNodeRunning = errors.New("node already running")
+	ErrNodeStopped    = errors.New("node not started")
+	ErrNodeRunning    = errors.New("node already running")
+	ErrServiceUnknown = errors.New("service unknown")
 )
 
 // TODO: move to a blockstore.
@@ -29,6 +31,9 @@ type Node struct {
 	config       *NodeConfig
 	serverConfig p2p.Config
 	server       *p2p.Server
+
+	services            map[reflect.Type]Service // Running services
+	serviceConstructors []ServiceConstructor
 
 	lock sync.RWMutex
 	log  log.Logger
@@ -95,6 +100,17 @@ func (n *Node) Server() *p2p.Server {
 	defer n.lock.RUnlock()
 
 	return n.server
+}
+
+func (n *Node) RegisterService(constructor ServiceConstructor) error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	if n.server != nil {
+		return ErrNodeRunning
+	}
+	n.serviceConstructors = append(n.serviceConstructors, constructor)
+	return nil
 }
 
 // Add a remote node as static peer, maintaining the new
