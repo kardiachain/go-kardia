@@ -4,15 +4,25 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/core"
+	"github.com/kardiachain/go-kardia/event"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
+	"github.com/kardiachain/go-kardia/params"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
 	softResponseLimit = 2 * 1024 * 1024 // Target maximum size of returned blocks, headers or node data.
 	estHeaderRlpSize  = 500             // Approximate size of an RLP encoded block header
+
+	// txChanSize is the size of channel listening to NewTxsEvent.
+	// The number is referenced from the size of tx pool.
+	txChanSize = 4096
 )
 
 // errIncompatibleConfig is returned if the requested protocols and configs are
@@ -26,15 +36,25 @@ func errResp(code errCode, format string, v ...interface{}) error {
 type ProtocolManager struct {
 	networkID uint64
 
+	acceptTxs uint32 // Flag whether we're considered synchronised (enables transaction processing)
+
 	maxPeers int
 
 	peers *peerSet
+
+	txpool txPool
+
+	blockchain  *core.BlockChain
+	chainconfig *params.ChainConfig
 
 	SubProtocols []p2p.Protocol
 
 	// channels for fetcher, syncer, txsyncLoop
 	newPeerCh   chan *peer
 	noMorePeers chan struct{}
+
+	txsCh  chan core.NewTxsEvent
+	txsSub event.Subscription
 
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
@@ -43,10 +63,13 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Kardia sub protocol manager. The Kardia sub protocol manages peers capable
 // with the Kardia network.
-func NewProtocolManager(networkID uint64) (*ProtocolManager, error) {
+func NewProtocolManager(networkID uint64, blockchain *core.BlockChain, config *params.ChainConfig, txpool txPool) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkID:   networkID,
+		txpool:      txpool,
+		blockchain:  blockchain,
+		chainconfig: config,
 		peers:       newPeerSet(),
 		newPeerCh:   make(chan *peer),
 		noMorePeers: make(chan struct{}),
@@ -108,6 +131,11 @@ func (pm *ProtocolManager) removePeer(id string) {
 
 func (pm *ProtocolManager) Start(maxPeers int) {
 	pm.maxPeers = maxPeers
+
+	// broadcast transactions
+	pm.txsCh = make(chan core.NewTxsEvent, txChanSize)
+	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
+	go pm.txBroadcastLoop()
 }
 
 func (pm *ProtocolManager) Stop() {
@@ -143,7 +171,14 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	}
 	p.Log().Debug("Kardia peer connected", "name", p.Name())
 
-	if err := p.Handshake(pm.networkID); err != nil {
+	// Execute the Kardia handshake
+	var (
+		genesis = pm.blockchain.Genesis()
+		hash    = pm.blockchain.CurrentHeader().Hash()
+		height  = pm.blockchain.CurrentBlock().Height()
+	)
+
+	if err := p.Handshake(pm.networkID, height, hash, genesis.Hash()); err != nil {
 		p.Log().Debug("Kardia handshake failed", "err", err)
 		return err
 	}
@@ -182,22 +217,79 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	case msg.Code == StatusMsg:
 		// Status messages should never arrive after the handshake
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
-
+	case msg.Code == TxMsg:
+		// Transactions arrived, make sure we have a valid and fresh chain to handle them
+		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
+			break
+		}
+		// Transactions can be processed, parse all of them and deliver to the pool
+		var txs []*types.Transaction
+		if err := msg.Decode(&txs); err != nil {
+			return errResp(ErrDecode, "msg %v: %v", msg, err)
+		}
+		for i, tx := range txs {
+			// Validate and mark the remote transaction
+			if tx == nil {
+				return errResp(ErrDecode, "transaction %d is nil", i)
+			}
+			p.MarkTransaction(tx.Hash())
+		}
+		pm.txpool.AddRemotes(txs)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
 	return nil
 }
 
+func (pm *ProtocolManager) txBroadcastLoop() {
+	for {
+		select {
+		case event := <-pm.txsCh:
+			pm.BroadcastTxs(event.Txs)
+
+		// Err() channel will be closed when unsubscribing.
+		case <-pm.txsSub.Err():
+			return
+		}
+	}
+}
+
+// BroadcastTxs will propagate a batch of transactions to all peers which are not known to
+// already have the given transaction.
+func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
+	var txset = make(map[*peer]types.Transactions)
+
+	// Broadcast transactions to a batch of peers not knowing about it
+	for _, tx := range txs {
+		peers := pm.peers.PeersWithoutTx(tx.Hash())
+		for _, peer := range peers {
+			txset[peer] = append(txset[peer], tx)
+		}
+		log.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
+	}
+	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
+	for peer, txs := range txset {
+		peer.AsyncSendTransactions(txs)
+	}
+}
+
 // NodeInfo represents a short summary of the Kardia sub-protocol metadata
 // known about the host peer.
 type NodeInfo struct {
-	Network uint64 `json:"network"` // Kardia network ID
+	Network uint64              `json:"network"` // Kardia network ID
+	Height  uint64              `json:"height"`  // Height of the blockchain
+	Genesis common.Hash         `json:"genesis"` // SHA3 hash of the host's genesis block
+	Config  *params.ChainConfig `json:"config"`  // Chain configuration for the fork rules
+	Head    common.Hash         `json:"head"`    // SHA3 hash of the host's best owned block
 }
 
 // NodeInfo retrieves some protocol metadata about the running host node.
 func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 	return &NodeInfo{
 		Network: pm.networkID,
+		Height:  pm.blockchain.CurrentBlock().Height(),
+		Genesis: pm.blockchain.Genesis().Hash(),
+		Config:  pm.blockchain.Config(),
+		Head:    pm.blockchain.CurrentBlock().Hash(),
 	}
 }

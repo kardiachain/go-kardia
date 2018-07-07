@@ -102,7 +102,7 @@ const (
 type blockChain interface {
 	CurrentBlock() *types.Block
 	GetBlock(hash common.Hash, number uint64) *types.Block
-	//@huny StateAt(root common.Hash) (*state.StateDB, error)
+	StateAt(root common.Hash) (*state.StateDB, error)
 
 	SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription
 }
@@ -182,8 +182,8 @@ type TxPool struct {
 	pendingState  *state.ManagedState // Pending state tracking virtual nonces
 	currentMaxGas uint64              // Current gas limit for transaction caps
 
-	locals *accountSet // Set of local transaction to exempt from eviction rules
-	//@huny journal *txJournal  // Journal of local transaction to back up to disk
+	locals  *accountSet // Set of local transaction to exempt from eviction rules
+	journal *txJournal  // Journal of local transaction to back up to disk
 
 	pending map[common.Address]*txList   // All currently processable transactions
 	queue   map[common.Address]*txList   // Queued but non-processable transactions
@@ -217,8 +217,6 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 	pool.priced = newTxPricedList(pool.all)
 	pool.reset(nil, chain.CurrentBlock().Header())
 
-	// If local transactions and journaling is enabled, load from disk
-	/* TODO(huny): Implement this optimization later
 	if !config.NoLocals && config.Journal != "" {
 		pool.journal = newTxJournal(config.Journal)
 
@@ -229,7 +227,6 @@ func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain block
 			log.Warn("Failed to rotate transaction journal", "err", err)
 		}
 	}
-	*/
 
 	// Subscribe events from blockchain
 	pool.chainHeadSub = pool.chain.SubscribeChainHeadEvent(pool.chainHeadCh)
@@ -258,10 +255,8 @@ func (pool *TxPool) loop() {
 	evict := time.NewTicker(evictionInterval)
 	defer evict.Stop()
 
-	/*@huny
 	journal := time.NewTicker(pool.config.Rejournal)
 	defer journal.Stop()
-	*/
 
 	// Track the previous head headers for transaction reorgs
 	head := pool.chain.CurrentBlock()
@@ -313,17 +308,15 @@ func (pool *TxPool) loop() {
 			}
 			pool.mu.Unlock()
 
-			/*@huny
-			// Handle local transaction journal rotation
-			case <-journal.C:
-				if pool.journal != nil {
-					pool.mu.Lock()
-					if err := pool.journal.rotate(pool.local()); err != nil {
-						log.Warn("Failed to rotate local tx journal", "err", err)
-					}
-					pool.mu.Unlock()
+		// Handle local transaction journal rotation
+		case <-journal.C:
+			if pool.journal != nil {
+				pool.mu.Lock()
+				if err := pool.journal.rotate(pool.local()); err != nil {
+					log.Warn("Failed to rotate local tx journal", "err", err)
 				}
-			*/
+				pool.mu.Unlock()
+			}
 		}
 	}
 }
@@ -392,7 +385,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	if newHead == nil {
 		newHead = pool.chain.CurrentBlock().Header() // Special case during testing
 	}
-	/*@huny
+
 	statedb, err := pool.chain.StateAt(newHead.Root)
 	if err != nil {
 		log.Error("Failed to reset txpool state", "err", err)
@@ -400,7 +393,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	}
 	pool.currentState = statedb
 	pool.pendingState = state.ManageState(statedb)
-	*/
+
 	pool.currentMaxGas = newHead.GasLimit
 
 	// Inject any transactions discarded due to reorgs
@@ -434,11 +427,9 @@ func (pool *TxPool) Stop() {
 	pool.chainHeadSub.Unsubscribe()
 	pool.wg.Wait()
 
-	/*@huny
 	if pool.journal != nil {
 		pool.journal.close()
 	}
-	*/
 	log.Info("Transaction pool stopped")
 }
 
@@ -652,7 +643,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 		}
 		pool.all.Add(tx)
 		pool.priced.Put(tx)
-		//@huny pool.journalTx(from, tx)
+		pool.journalTx(from, tx)
 
 		log.Trace("Pooled new executable transaction", "hash", hash, "from", from, "to", tx.To())
 
@@ -671,7 +662,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	if local {
 		pool.locals.add(from)
 	}
-	//@huny pool.journalTx(from, tx)
+	pool.journalTx(from, tx)
 
 	log.Trace("Pooled new future transaction", "hash", hash, "from", from, "to", tx.To())
 	return replace, nil
@@ -705,7 +696,6 @@ func (pool *TxPool) enqueueTx(hash common.Hash, tx *types.Transaction) (bool, er
 	return old != nil, nil
 }
 
-/*@huny
 // journalTx adds the specified transaction to the local disk journal if it is
 // deemed to have been sent from a local account.
 func (pool *TxPool) journalTx(from common.Address, tx *types.Transaction) {
@@ -717,7 +707,6 @@ func (pool *TxPool) journalTx(from common.Address, tx *types.Transaction) {
 		log.Warn("Failed to journal local transaction", "err", err)
 	}
 }
-*/
 
 // promoteTx adds a transaction to the pending (processable) list of transactions
 // and returns whether it was inserted or an older was better.

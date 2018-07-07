@@ -3,15 +3,16 @@ package params
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/kardiachain/go-kardia/common"
 )
 
-/* TODO(huny): Get the proper genesis hash for Kardia when ready
+// TODO(huny): Get the proper genesis hash for Kardia when ready
 // Genesis hashes to enforce below configs on.
 var (
 	MainnetGenesisHash = common.HexToHash("0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3")
 	TestnetGenesisHash = common.HexToHash("0x41941023680923e0fe4d74a34bdac8141f2540e3ae90623718e47d66d1ca4a2d")
 )
-*/
 
 var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
@@ -25,7 +26,7 @@ var (
 
 	// TestnetChainConfig contains the chain parameters to run a node on the test network.
 	TestnetChainConfig = &ChainConfig{
-		ChainID: big.NewInt(3),
+		ChainID: big.NewInt(2),
 		Kaicon: &KaiconConfig{
 			Period: 15,
 			Epoch:  30000,

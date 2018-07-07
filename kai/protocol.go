@@ -5,7 +5,10 @@ import (
 	"io"
 
 	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/core"
+	"github.com/kardiachain/go-kardia/event"
 	"github.com/kardiachain/go-kardia/rlp"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // Constants to match up protocol versions and messages
@@ -62,10 +65,26 @@ var errorToString = map[int]string{
 	ErrSuspendedPeer:           "Suspended peer",
 }
 
+type txPool interface {
+	// AddRemotes should add the given transactions to the pool.
+	AddRemotes([]*types.Transaction) []error
+
+	// Pending should return pending transactions.
+	// The slice should be modifiable by the caller.
+	Pending() (map[common.Address]types.Transactions, error)
+
+	// SubscribeNewTxsEvent should return an event subscription of
+	// NewTxsEvent and send events to the given channel.
+	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
+}
+
 // statusData is the network packet for the status message.
 type statusData struct {
 	ProtocolVersion uint32
 	NetworkId       uint64
+	Height          uint64
+	CurrentBlock    common.Hash
+	GenesisBlock    common.Hash
 }
 
 // hashOrNumber is a combined field for specifying an origin block.
