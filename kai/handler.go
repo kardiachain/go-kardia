@@ -107,7 +107,10 @@ func (pm *ProtocolManager) removePeer(id string) {
 }
 
 func (pm *ProtocolManager) Start(maxPeers int) {
+	log.Info("Start Kardia Protocol Manager", "maxPeers", maxPeers)
 	pm.maxPeers = maxPeers
+
+	go syncNetwork(pm)
 }
 
 func (pm *ProtocolManager) Stop() {
