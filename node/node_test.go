@@ -20,7 +20,7 @@ func (s *TrivialService) Stop() error {
 	s.Started = false
 	return nil
 }
-func newTrivialService(*ServiceContext) (Service, error) { return new(TrivialService), nil }
+func newTrivialService(ctx *ServiceContext) (Service, error) { return new(TrivialService), nil }
 
 var (
 	testNodeKey, _ = crypto.GenerateKey()
