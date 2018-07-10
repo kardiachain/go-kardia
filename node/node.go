@@ -32,7 +32,7 @@ type Node struct {
 	serverConfig p2p.Config
 	server       *p2p.Server
 
-	services            map[reflect.Type]Service // Running services
+	services            map[string]Service // Map of type names to running services
 	serviceConstructors []ServiceConstructor
 
 	lock sync.RWMutex
@@ -71,28 +71,28 @@ func (n *Node) Start() error {
 	newServer := &p2p.Server{Config: n.serverConfig}
 
 	// Starts protocol services.
-	services := make(map[reflect.Type]Service)
+	newServices := make(map[string]Service)
 	for _, serviceConstructor := range n.serviceConstructors {
 		// Creates context as parameter for constructor
 		ctx := &ServiceContext{
-			config:         n.config,
-			services:       make(map[reflect.Type]Service),
+			config:   n.config,
+			services: make(map[string]Service),
 		}
-		for serviceType, s := range services { // full map copy in each ServiceContext, for concurrent access
+		for serviceType, s := range newServices { // full map copy in each ServiceContext, for concurrent access
 			ctx.services[serviceType] = s
 		}
 		service, err := serviceConstructor(ctx)
 		if err != nil {
 			return err
 		}
-		serviceType := reflect.TypeOf(service)
-		if _, exists := services[serviceType]; exists {
-			return fmt.Errorf("duplicated service of type %s", serviceType)
+		serviceTypeName := reflect.TypeOf(service).Elem().Name()
+		if _, exists := newServices[serviceTypeName]; exists {
+			return fmt.Errorf("duplicated service of type %s", serviceTypeName)
 		}
-		services[serviceType] = service
+		newServices[serviceTypeName] = service
 	}
 	// Gather the protocols and start the freshly assembled P2P server
-	for _, service := range services {
+	for _, service := range newServices {
 		newServer.Protocols = append(newServer.Protocols, service.Protocols()...)
 	}
 
@@ -102,7 +102,7 @@ func (n *Node) Start() error {
 
 	// Start each of the services
 	var startedServices []Service
-	for _, service := range services {
+	for _, service := range newServices {
 		// Start the next service, stopping all previous upon failure
 		if err := service.Start(newServer); err != nil {
 			for _, startedService := range startedServices {
@@ -118,6 +118,7 @@ func (n *Node) Start() error {
 
 	// TODO: starts RPC services.
 
+	n.services = newServices
 	n.server = newServer
 	return nil
 }
@@ -155,7 +156,7 @@ func (n *Node) RegisterService(constructor ServiceConstructor) error {
 	return nil
 }
 
-// Add a remote node as static peer, maintaining the new
+// Adds a remote node as static peer, maintaining the new
 // connection at all times, even reconnecting if it is lost.
 // Only accepts complete node for now.
 func (n *Node) AddPeer(url string) (bool, error) {
@@ -177,4 +178,26 @@ func (n *Node) AddPeer(url string) (bool, error) {
 	server.AddPeer(node)
 
 	return true, nil
+}
+
+// Gets running service with given type name
+func (n *Node) Service(typeName string) (Service, error) {
+	n.lock.RLock()
+	defer n.lock.RUnlock()
+
+	if n.server == nil {
+		return nil, ErrNodeStopped
+	}
+	if registeredS, ok := n.services[typeName]; ok {
+		return registeredS, nil
+	}
+	return nil, ErrServiceUnknown
+}
+
+// Gets map of all running service
+func (n *Node) ServiceMap() map[string]Service {
+	n.lock.RLock()
+	defer n.lock.RUnlock()
+
+	return n.services
 }

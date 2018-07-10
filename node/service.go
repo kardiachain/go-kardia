@@ -1,8 +1,6 @@
 package node
 
 import (
-	"reflect"
-
 	//"github.com/kardiachain/go-kardia/event"
 	"github.com/kardiachain/go-kardia/p2p"
 )
@@ -10,21 +8,18 @@ import (
 // Wrapper of config data passed from node to all services to be used in service operations.
 type ServiceContext struct {
 	config   *NodeConfig
-	services map[reflect.Type]Service // Map of type to constructed services
+	services map[string]Service // Map of type name to constructed services
 	// EventMux *event.TypeMux           // Event multiplexer
 }
 
 // TODO: Database endpoint.
 
 // Retrieves the currently running service for a specific type.
-// TODO: Considers map of enum/str name to service, instead of types that need reflection
-func (ctx *ServiceContext) Service(service interface{}) error {
-	element := reflect.ValueOf(service).Elem()
-	if running, ok := ctx.services[element.Type()]; ok {
-		element.Set(reflect.ValueOf(running))
-		return nil
+func (ctx *ServiceContext) GetService(typeName string) (Service, error) {
+	if running, ok := ctx.services[typeName]; ok {
+		return running, nil
 	}
-	return ErrServiceUnknown
+	return nil, ErrServiceUnknown
 }
 
 // ServiceConstructor is the function signature of the constructors needed to be
