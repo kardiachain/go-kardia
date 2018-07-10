@@ -63,6 +63,32 @@ func (t *SecureTrie) TryGet(key []byte) ([]byte, error) {
 	return t.trie.TryGet(t.hashKey(key))
 }
 
+// TryUpdate associates key with value in the trie. Subsequent calls to
+// Get will return value. If value has length zero, any existing value
+// is deleted from the trie and calls to Get will return nil.
+//
+// The value bytes must not be modified by the caller while they are
+// stored in the trie.
+//
+// If a node was not found in the database, a MissingNodeError is returned.
+func (t *SecureTrie) TryUpdate(key, value []byte) error {
+	hk := t.hashKey(key)
+	err := t.trie.TryUpdate(hk, value)
+	if err != nil {
+		return err
+	}
+	t.getSecKeyCache()[string(hk)] = common.CopyBytes(key)
+	return nil
+}
+
+// TryDelete removes any existing value for key from the trie.
+// If a node was not found in the database, a MissingNodeError is returned.
+func (t *SecureTrie) TryDelete(key []byte) error {
+	hk := t.hashKey(key)
+	delete(t.getSecKeyCache(), string(hk))
+	return t.trie.TryDelete(hk)
+}
+
 // Commit writes all nodes and the secure hash pre-images to the trie's database.
 // Nodes are stored with their sha3 hash as the key.
 //

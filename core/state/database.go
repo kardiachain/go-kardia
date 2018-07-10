@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"sync"
 
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardia/common"
 	kaidb "github.com/kardiachain/go-kardia/database"
 	"github.com/kardiachain/go-kardia/trie"
-	lru "github.com/hashicorp/golang-lru"
 )
 
 // Trie cache generation limit after which to evict trie nodes from memory.
@@ -27,22 +27,29 @@ type Database interface {
 	// OpenTrie opens the main account trie.
 	OpenTrie(root common.Hash) (Trie, error)
 
+	// OpenStorageTrie opens the storage trie of an account.
+	OpenStorageTrie(addrHash, root common.Hash) (Trie, error)
+
 	// CopyTrie returns an independent copy of the given trie.
 	CopyTrie(Trie) Trie
+
+	// ContractCode retrieves a particular contract's code.
+	ContractCode(addrHash, codeHash common.Hash) ([]byte, error)
+
+	// TrieDB retrieves the low level trie database used for data storage.
+	TrieDB() *trie.Database
 }
 
 // Trie is a Kardia Merkle Trie.
 type Trie interface {
 	TryGet(key []byte) ([]byte, error)
-	/*@huny
 	TryUpdate(key, value []byte) error
 	TryDelete(key []byte) error
 	Commit(onleaf trie.LeafCallback) (common.Hash, error)
 	Hash() common.Hash
-	NodeIterator(startKey []byte) trie.NodeIterator
-	GetKey([]byte) []byte // TODO(fjl): remove this when SecureTrie is removed
-	Prove(key []byte, fromLevel uint, proofDb kaidb.Putter) error
-	*/
+	//NodeIterator(startKey []byte) trie.NodeIterator
+	//GetKey([]byte) []byte // TODO(fjl): remove this when SecureTrie is removed
+	//Prove(key []byte, fromLevel uint, proofDb kaidb.Putter) error
 }
 
 // NewDatabase creates a backing store for state. The returned database is safe for
@@ -81,6 +88,11 @@ func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
 	return cachedTrie{tr, db}, nil
 }
 
+// OpenStorageTrie opens the storage trie of an account.
+func (db *cachingDB) OpenStorageTrie(addrHash, root common.Hash) (Trie, error) {
+	return trie.NewSecure(root, db.db, 0)
+}
+
 // CopyTrie returns an independent copy of the given trie.
 func (db *cachingDB) CopyTrie(t Trie) Trie {
 	switch t := t.(type) {
@@ -91,6 +103,20 @@ func (db *cachingDB) CopyTrie(t Trie) Trie {
 	default:
 		panic(fmt.Errorf("unknown trie type %T", t))
 	}
+}
+
+// ContractCode retrieves a particular contract's code.
+func (db *cachingDB) ContractCode(addrHash, codeHash common.Hash) ([]byte, error) {
+	code, err := db.db.Node(codeHash)
+	if err == nil {
+		db.codeSizeCache.Add(codeHash, len(code))
+	}
+	return code, err
+}
+
+// TrieDB retrieves any intermediate trie-node caching layer.
+func (db *cachingDB) TrieDB() *trie.Database {
+	return db.db
 }
 
 func (db *cachingDB) pushTrie(t *trie.SecureTrie) {

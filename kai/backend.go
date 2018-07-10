@@ -2,8 +2,11 @@
 package kai
 
 import (
+	"github.com/kardiachain/go-kardia/core"
+	kaidb "github.com/kardiachain/go-kardia/database"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/p2p"
+	"github.com/kardiachain/go-kardia/params"
 	"github.com/kardiachain/go-kardia/node"
 )
 
@@ -17,14 +20,20 @@ type KaiServer interface {
 
 // Kardia implements the Kardia full node service.
 type Kardia struct {
-	config *Config
+	config      *Config
+	chainConfig *params.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool // Channel for shutting down the Ethereum
 
+	// DB interfaces
+	chainDb kaidb.Database // Block chain database
+
 	// Handlers
+	txPool          *core.TxPool
 	protocolManager *ProtocolManager
 	kaiServer       KaiServer
+	blockchain      *core.BlockChain
 
 	networkID uint64
 }
@@ -36,18 +45,39 @@ func (s *Kardia) AddKaiServer(ks KaiServer) {
 // New creates a new Kardia object (including the
 // initialisation of the common Kardia object)
 func newKardia(config *Config) (*Kardia, error) {
+	// TODO(huny): Create proper chain database
+	chainDb, err := kaidb.NewLDBDatabase("chaindata", 16, 16)
+	if err != nil {
+		return nil, err
+	}
+
+	chainConfig, _, genesisErr := core.SetupGenesisBlock(chainDb, config.Genesis)
+	if genesisErr != nil {
+		return nil, genesisErr
+	}
+	log.Info("Initialised chain configuration", "config", chainConfig)
 
 	kai := &Kardia{
-		config: config,
-
+		config:       config,
+		chainDb:      chainDb,
+		chainConfig:  chainConfig,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 	}
 
 	log.Info("Initialising Kardia protocol", "versions", ProtocolVersions, "network", config.NetworkId)
 
-	var err error
-	if kai.protocolManager, err = NewProtocolManager(config.NetworkId); err != nil {
+	// TODO(huny@): Do we need to check for blockchain version mismatch ?
+
+	// Create a new blockchain to attach to this Kardia object
+	kai.blockchain, err = core.NewBlockChain(chainDb, kai.chainConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	kai.txPool = core.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
+
+	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool); err != nil {
 		return nil, err
 	}
 
