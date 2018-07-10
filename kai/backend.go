@@ -7,7 +7,10 @@ import (
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/params"
+	"github.com/kardiachain/go-kardia/node"
 )
+
+const DefaultNetworkID = 100
 
 type KaiServer interface {
 	Start(srvr *p2p.Server)
@@ -41,7 +44,7 @@ func (s *Kardia) AddKaiServer(ks KaiServer) {
 
 // New creates a new Kardia object (including the
 // initialisation of the common Kardia object)
-func New(config *Config) (*Kardia, error) {
+func newKardia(config *Config) (*Kardia, error) {
 	// TODO(huny): Create proper chain database
 	chainDb, err := kaidb.NewLDBDatabase("chaindata", 16, 16)
 	if err != nil {
@@ -78,6 +81,15 @@ func New(config *Config) (*Kardia, error) {
 		return nil, err
 	}
 
+	return kai, nil
+}
+
+// Implements node.ServiceConstructor, return a Kardia node service from node service context.
+func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
+	kai, err := newKardia(&Config{NetworkId: DefaultNetworkID})
+	if err != nil {
+		return nil, err
+	}
 	return kai, nil
 }
 

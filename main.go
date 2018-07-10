@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardia/kai"
 	"os"
 	"time"
 )
@@ -33,6 +34,7 @@ func main() {
 		return
 	}
 
+	n.RegisterService(kai.NewKardiaService)
 	n.Start()
 
 	if *peerURL != "" {

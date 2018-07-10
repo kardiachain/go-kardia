@@ -6,6 +6,22 @@ import (
 	"testing"
 )
 
+// Signatures of a simple test service.
+type TrivialService struct {
+	Started bool
+}
+
+func (s *TrivialService) Protocols() []p2p.Protocol {
+	s.Started = true
+	return nil
+}
+func (s *TrivialService) Start(*p2p.Server) error { return nil }
+func (s *TrivialService) Stop() error {
+	s.Started = false
+	return nil
+}
+func newTrivialService(ctx *ServiceContext) (Service, error) { return new(TrivialService), nil }
+
 var (
 	testNodeKey, _ = crypto.GenerateKey()
 )
@@ -17,11 +33,11 @@ func testNodeConfig() *NodeConfig {
 	}
 }
 
-// Tests that an empty protocol stack can be started, restarted and stopped.
+// Tests that an empty node without service can be started, restarted and stopped.
 func TestNodeLifeCycle(t *testing.T) {
 	node, err := NewNode(testNodeConfig())
 	if err != nil {
-		t.Fatalf("fail when create node: %v", err)
+		t.Fatalf("failed to create node: %v", err)
 	}
 	// Tests stopping node that not running.
 	if err := node.Stop(); err != ErrNodeStopped {
@@ -30,16 +46,35 @@ func TestNodeLifeCycle(t *testing.T) {
 
 	// Tests starting node 2 times
 	if err := node.Start(); err != nil {
-		t.Fatalf("fail when start node: %v", err)
+		t.Fatalf("failed to start node: %v", err)
 	}
 	if err := node.Start(); err != ErrNodeRunning {
 		t.Fatalf("unexpected start error: %v instead of %v ", err, ErrNodeRunning)
 	}
 	// Tests stopping node 2 times
 	if err := node.Stop(); err != nil {
-		t.Fatalf("fail when stop node: %v", err)
+		t.Fatalf("failed to stop node: %v", err)
 	}
 	if err := node.Stop(); err != ErrNodeStopped {
 		t.Fatalf("unexpected stop error: %v instead of %v ", err, ErrNodeStopped)
+	}
+}
+
+func TestNodeRegisteringService(t *testing.T) {
+	node, err := NewNode(testNodeConfig())
+	if err != nil {
+		t.Fatalf("failed to create node: %v", err)
+	}
+
+	if err := node.RegisterService(newTrivialService); err != nil {
+		t.Fatalf("failed to register TrivialService: %v", err)
+	}
+
+	if err := node.Start(); err != nil {
+		t.Fatalf("failed to start node: %v", err)
+	}
+
+	if _, err := node.Service("TrivialService"); err != nil {
+		t.Fatalf("TrivialService is not in service list of node")
 	}
 }

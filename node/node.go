@@ -1,17 +1,19 @@
 package node
 
 import (
+	"errors"
+	"fmt"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/p2p"
-	"errors"
-	"sync"
 	"github.com/kardiachain/go-kardia/p2p/discover"
-	"fmt"
+	"reflect"
+	"sync"
 )
 
 var (
-	ErrNodeStopped = errors.New("node not started")
-	ErrNodeRunning = errors.New("node already running")
+	ErrNodeStopped    = errors.New("node not started")
+	ErrNodeRunning    = errors.New("node already running")
+	ErrServiceUnknown = errors.New("service unknown")
 )
 
 // TODO: move to a blockstore.
@@ -30,6 +32,9 @@ type Node struct {
 	serverConfig p2p.Config
 	server       *p2p.Server
 
+	services            map[string]Service // Map of type names to running services
+	serviceConstructors []ServiceConstructor
+
 	lock sync.RWMutex
 	log  log.Logger
 }
@@ -47,9 +52,11 @@ func (n *Node) Start() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
+	// Starts p2p server.
 	if n.server != nil {
 		return ErrNodeRunning
 	}
+	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 
 	n.serverConfig = n.config.P2P
 	n.serverConfig.Logger = n.log
@@ -61,17 +68,58 @@ func (n *Node) Start() error {
 	// n.serverConfig.TrustedNodes = ...
 	// n.serverConfig.NodeDatabase = ...
 
-	running := &p2p.Server{Config: n.serverConfig}
-	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
+	newServer := &p2p.Server{Config: n.serverConfig}
 
-	if err := running.Start(); err != nil {
+	// Starts protocol services.
+	newServices := make(map[string]Service)
+	for _, serviceConstructor := range n.serviceConstructors {
+		// Creates context as parameter for constructor
+		ctx := &ServiceContext{
+			config:   n.config,
+			services: make(map[string]Service),
+		}
+		for serviceType, s := range newServices { // full map copy in each ServiceContext, for concurrent access
+			ctx.services[serviceType] = s
+		}
+		service, err := serviceConstructor(ctx)
+		if err != nil {
+			return err
+		}
+		serviceTypeName := reflect.TypeOf(service).Elem().Name()
+		if _, exists := newServices[serviceTypeName]; exists {
+			return fmt.Errorf("duplicated service of type %s", serviceTypeName)
+		}
+		newServices[serviceTypeName] = service
+	}
+	// Gather the protocols and start the freshly assembled P2P server
+	for _, service := range newServices {
+		newServer.Protocols = append(newServer.Protocols, service.Protocols()...)
+	}
+
+	if err := newServer.Start(); err != nil {
 		return err
 	}
 
-	// Next is to start all the API services for this node (talk with user and others)
-	// if any error when starting, call the running.Stop()
+	// Start each of the services
+	var startedServices []Service
+	for _, service := range newServices {
+		// Start the next service, stopping all previous upon failure
+		if err := service.Start(newServer); err != nil {
+			for _, startedService := range startedServices {
+				startedService.Stop()
+			}
+			newServer.Stop()
 
-	n.server = running
+			return err
+		}
+		// Mark the service started for potential cleanup
+		startedServices = append(startedServices, service)
+	}
+
+	// TODO: starts RPC services.
+
+	n.services = newServices
+	n.server = newServer
 	return nil
 }
 
@@ -97,7 +145,18 @@ func (n *Node) Server() *p2p.Server {
 	return n.server
 }
 
-// Add a remote node as static peer, maintaining the new
+func (n *Node) RegisterService(constructor ServiceConstructor) error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	if n.server != nil {
+		return ErrNodeRunning
+	}
+	n.serviceConstructors = append(n.serviceConstructors, constructor)
+	return nil
+}
+
+// Adds a remote node as static peer, maintaining the new
 // connection at all times, even reconnecting if it is lost.
 // Only accepts complete node for now.
 func (n *Node) AddPeer(url string) (bool, error) {
@@ -119,4 +178,26 @@ func (n *Node) AddPeer(url string) (bool, error) {
 	server.AddPeer(node)
 
 	return true, nil
+}
+
+// Gets running service with given type name
+func (n *Node) Service(typeName string) (Service, error) {
+	n.lock.RLock()
+	defer n.lock.RUnlock()
+
+	if n.server == nil {
+		return nil, ErrNodeStopped
+	}
+	if registeredS, ok := n.services[typeName]; ok {
+		return registeredS, nil
+	}
+	return nil, ErrServiceUnknown
+}
+
+// Gets map of all running service
+func (n *Node) ServiceMap() map[string]Service {
+	n.lock.RLock()
+	defer n.lock.RUnlock()
+
+	return n.services
 }

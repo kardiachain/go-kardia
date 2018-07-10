@@ -97,17 +97,22 @@ func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesi
 		select {
 		case err := <-errc:
 			if err != nil {
+				p.Log().Info("Handshake return err", "err", err)
 				return err
 			}
 		case <-timeout.C:
+			p.Log().Info("Handshake return read timeout")
 			return p2p.DiscReadTimeout
 		}
 	}
+	p.Log().Info("Handshake return null")
 	return nil
 }
 
 func (p *peer) readStatus(network uint64, status *statusData, genesis common.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
+	p.Log().Info("readStatus from peer", "peer", *p)
+	p.Log().Info("Read Status", "msg.Code", msg.Code, "err", err, "status", status)
 	if err != nil {
 		return err
 	}
@@ -124,6 +129,9 @@ func (p *peer) readStatus(network uint64, status *statusData, genesis common.Has
 	if status.GenesisBlock != genesis {
 		return errResp(ErrGenesisBlockMismatch, "%x (!= %x)", status.GenesisBlock[:8], genesis[:8])
 	}
+
+	p.Log().Info("Decoded data", "msg", msg, "status", status)
+
 	if status.NetworkId != network {
 		return errResp(ErrNetworkIdMismatch, "%d (!= %d)", status.NetworkId, network)
 	}
