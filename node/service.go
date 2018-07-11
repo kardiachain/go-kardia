@@ -7,7 +7,7 @@ import (
 
 // Wrapper of config data passed from node to all services to be used in service operations.
 type ServiceContext struct {
-	config   *NodeConfig
+	Config   *NodeConfig
 	services map[string]Service // Map of type name to constructed services
 	// EventMux *event.TypeMux           // Event multiplexer
 }

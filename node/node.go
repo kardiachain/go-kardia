@@ -75,7 +75,7 @@ func (n *Node) Start() error {
 	for _, serviceConstructor := range n.serviceConstructors {
 		// Creates context as parameter for constructor
 		ctx := &ServiceContext{
-			config:   n.config,
+			Config:   n.config,
 			services: make(map[string]Service),
 		}
 		for serviceType, s := range newServices { // full map copy in each ServiceContext, for concurrent access

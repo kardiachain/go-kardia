@@ -122,6 +122,12 @@
   version = "v0.3.0"
 
 [[projects]]
+  name = "gopkg.in/fatih/set.v0"
+  packages = ["."]
+  revision = "57907de300222151a123d29255ed17f5ed43fad3"
+  version = "v0.1.0"
+
+[[projects]]
   branch = "v2"
   name = "gopkg.in/karalabe/cookiejar.v2"
   packages = ["collections/prque"]
@@ -130,6 +136,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a6603e13091beb3cb668e8a7e958c5fddaf7f6a08ef69bea8d6ce23a08e17e90"
+  inputs-digest = "d2b5eb44eeaad3bcd44c8f0adc5c5da92e4a79b342f1db0297366d2fcca6ee5b"
   solver-name = "gps-cdcl"
   solver-version = 1

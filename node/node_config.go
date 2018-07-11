@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"github.com/kardiachain/go-kardia/database"
 )
 
 const (
@@ -49,13 +50,13 @@ type NodeConfig struct {
 	KeyStoreDir string `toml:",omitempty"`
 }
 
-// Returns the devp2p node identifier.
+// NodeName returns the devp2p node identifier.
 func (c *NodeConfig) NodeName() string {
 	// TODO: add version & OS to name
 	return c.name()
 }
 
-// Retrieves the currently configured private key of the node, checking
+// NodeKey retrieves the configured private key of the node,
 // first any manually set key, falling back to the one found in the configured
 // data folder. If no key can be found, a new one is generated.
 func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
@@ -91,6 +92,14 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 		log.Error(fmt.Sprintf("Failed to persist node key: %v", err))
 	}
 	return key
+}
+
+// StartDatabase starts a new or existed database in the node data directory, or in-memory database.
+func (c * NodeConfig) StartDatabase(name string, cache int, handles int) (database.Database, error) {
+	if c.DataDir == "" {
+		 return database.NewMemDatabase(), nil
+	}
+	return database.NewLDBDatabase(c.resolvePath(name), cache, handles)
 }
 
 // Return saved name or executable file name.
