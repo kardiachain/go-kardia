@@ -226,6 +226,8 @@ func (b *Block) Hash() common.Hash {
 	return v
 }
 
+type BlockID common.Hash
+
 type Blocks []*Block
 
 type BlockBy func(b1, b2 *Block) bool
