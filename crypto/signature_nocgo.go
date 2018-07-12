@@ -1,6 +1,7 @@
-// +build nacl js nocgo
-
 package crypto
+
+// Crypto operations using elliptic curve secp256k1.
+// Uses btcec instead of libsecp256k1 to avoid C code dependency.
 
 import (
 	"crypto/ecdsa"
@@ -13,6 +14,7 @@ import (
 )
 
 // Ecrecover returns the uncompressed public key that created the given signature.
+// This is similar to function RecoverPubkey in libsecp256k1.
 func Ecrecover(hash, sig []byte) ([]byte, error) {
 	pub, err := SigToPub(hash, sig)
 	if err != nil {

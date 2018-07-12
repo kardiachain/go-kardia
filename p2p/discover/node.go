@@ -1,14 +1,13 @@
 package discover
 
 import (
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/crypto"
 	"math/big"
 	"math/rand"
 	"net"
@@ -315,7 +314,7 @@ func (id NodeID) Pubkey() (*ecdsa.PublicKey, error) {
 // recoverNodeID computes the public key used to sign the
 // given hash from the signature.
 func recoverNodeID(hash, sig []byte) (id NodeID, err error) {
-	pubkey, err := secp256k1.RecoverPubkey(hash, sig)
+	pubkey, err := crypto.Ecrecover(hash, sig)
 	if err != nil {
 		return id, err
 	}

@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/kardiachain/go-kardia/kai"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/node"
-	"github.com/kardiachain/go-kardia/kai"
 	"os"
 	"time"
 )
@@ -35,7 +35,10 @@ func main() {
 	}
 
 	n.RegisterService(kai.NewKardiaService)
-	n.Start()
+	if err := n.Start(); err != nil {
+		logger.Error("Cannot start node", "err", err)
+		return
+	}
 
 	if *peerURL != "" {
 		success, err := n.AddPeer(*peerURL)
