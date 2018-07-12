@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/log"
 	"github.com/jackpal/go-nat-pmp"
+	"github.com/kardiachain/go-kardia/log"
 )
 
 // An implementation of nat.Interface can map local ports to ports

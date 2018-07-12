@@ -24,7 +24,8 @@ type Block struct {
 	Content      string
 }
 
-// Wrapper for a running node.
+// Node is the highest level container for a full Kardia node.
+// It keeps all config data and services.
 type Node struct {
 	blockchain []Block
 
@@ -137,7 +138,7 @@ func (n *Node) Stop() error {
 	return nil
 }
 
-// Gets p2p server of node.
+// Server returns p2p server of node.
 func (n *Node) Server() *p2p.Server {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
@@ -145,6 +146,7 @@ func (n *Node) Server() *p2p.Server {
 	return n.server
 }
 
+// RegisterService adds a new service to node.
 func (n *Node) RegisterService(constructor ServiceConstructor) error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
@@ -156,7 +158,7 @@ func (n *Node) RegisterService(constructor ServiceConstructor) error {
 	return nil
 }
 
-// Adds a remote node as static peer, maintaining the new
+// AddPeer adds a remote node as static peer, maintaining the new
 // connection at all times, even reconnecting if it is lost.
 // Only accepts complete node for now.
 func (n *Node) AddPeer(url string) (bool, error) {
@@ -180,7 +182,7 @@ func (n *Node) AddPeer(url string) (bool, error) {
 	return true, nil
 }
 
-// Gets running service with given type name
+// Service returns running service with given type name.
 func (n *Node) Service(typeName string) (Service, error) {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
@@ -194,7 +196,7 @@ func (n *Node) Service(typeName string) (Service, error) {
 	return nil, ErrServiceUnknown
 }
 
-// Gets map of all running service
+// ServiceMap returns map of all running services.
 func (n *Node) ServiceMap() map[string]Service {
 	n.lock.RLock()
 	defer n.lock.RUnlock()

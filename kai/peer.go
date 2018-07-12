@@ -111,7 +111,6 @@ func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesi
 
 func (p *peer) readStatus(network uint64, status *statusData, genesis common.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
-	p.Log().Info("readStatus from peer", "peer", *p)
 	p.Log().Info("Read Status", "msg.Code", msg.Code, "err", err, "status", status)
 	if err != nil {
 		return err

@@ -5,7 +5,7 @@ import (
 	"github.com/kardiachain/go-kardia/p2p"
 )
 
-// Wrapper of config data passed from node to all services to be used in service operations.
+// ServiceContext wraps config data passed from node to all services to be used in service operations.
 type ServiceContext struct {
 	Config   *NodeConfig
 	services map[string]Service // Map of type name to constructed services
@@ -14,7 +14,7 @@ type ServiceContext struct {
 
 // TODO: Database endpoint.
 
-// Retrieves the currently running service for a specific type.
+// GetService returns the currently running service for a specific type.
 func (ctx *ServiceContext) GetService(typeName string) (Service, error) {
 	if running, ok := ctx.services[typeName]; ok {
 		return running, nil

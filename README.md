@@ -2,25 +2,23 @@
 
 Golang implementation of concepts for Kardia chain
 
-# Installs
-### Installs dependency
-Make sure to install [dep](https://github.com/golang/dep) for dependency management first before running this.
+# Setup & build
+### Go environment setup
+Installs [Go](https://golang.org/doc/install) to $HOME directory. Sets environment vars:  
+> export GOPATH=$HOME/go  
+> export PATH=$PATH:$GOPATH/bin
+
+### Build
+Installs [dep](https://github.com/golang/dep) tool for dependency management.  
+Downloads library dependency and builds Kardia binary.
 ```
 cd $GOPATH/src/github.com/kardiachain/go-kardia
 dep ensure
 go install
 ```
-### Solve potential build problem
-If there is error about missing secp256k1, downloads missing C files to vendor directory  
-```
-cd $GOPATH/src
-go get github.com/ethereum/go-ethereum
-cp -r github.com/ethereum/go-ethereum/crypto/secp256k1/ github.com/kardiachain/go-kardia/vendor/github.com/ethereum/go-ethereum/crypto/
-```
 # Run
+Kardia executable is in Go binary directory. If $PATH is setup as above, go-karida can be run on any paths.
 ```
-cd $GOPATH/src/github.com/kardiachain/go-kardia
-go install
 cd $GOPATH/bin
 ./go-kardia
 ```

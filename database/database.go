@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/log"
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/kardiachain/go-kardia/log"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/filter"

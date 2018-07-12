@@ -6,11 +6,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/kardiachain/go-kardia/common"
 	kaidb "github.com/kardiachain/go-kardia/database"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/rlp"
-	"github.com/ethereum/go-ethereum/metrics"
 )
 
 var (

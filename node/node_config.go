@@ -1,15 +1,15 @@
 package node
 
 import (
-	"github.com/kardiachain/go-kardia/crypto"
-	"github.com/kardiachain/go-kardia/log"
-	"github.com/kardiachain/go-kardia/p2p"
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/database"
+	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/p2p"
 	"os"
 	"path/filepath"
 	"strings"
-	"github.com/kardiachain/go-kardia/database"
 )
 
 const (
@@ -95,9 +95,9 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 }
 
 // StartDatabase starts a new or existed database in the node data directory, or in-memory database.
-func (c * NodeConfig) StartDatabase(name string, cache int, handles int) (database.Database, error) {
+func (c *NodeConfig) StartDatabase(name string, cache int, handles int) (database.Database, error) {
 	if c.DataDir == "" {
-		 return database.NewMemDatabase(), nil
+		return database.NewMemDatabase(), nil
 	}
 	return database.NewLDBDatabase(c.resolvePath(name), cache, handles)
 }
