@@ -42,7 +42,7 @@ type ProtocolManager struct {
 
 	peers *peerSet
 
-	txpool txPool
+	txpool *core.TxPool
 
 	blockchain  *core.BlockChain
 	chainconfig *params.ChainConfig
@@ -63,7 +63,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Kardia sub protocol manager. The Kardia sub protocol manages peers capable
 // with the Kardia network.
-func NewProtocolManager(networkID uint64, blockchain *core.BlockChain, config *params.ChainConfig, txpool txPool) (*ProtocolManager, error) {
+func NewProtocolManager(networkID uint64, blockchain *core.BlockChain, config *params.ChainConfig, txpool *core.TxPool) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkID:   networkID,
@@ -247,8 +247,8 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 func (pm *ProtocolManager) txBroadcastLoop() {
 	for {
 		select {
-		case event := <-pm.txsCh:
-			pm.BroadcastTxs(event.Txs)
+		case txEvent := <-pm.txsCh:
+			pm.BroadcastTxs(txEvent.Txs)
 
 		// Err() channel will be closed when unsubscribing.
 		case <-pm.txsSub.Err():

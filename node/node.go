@@ -16,19 +16,9 @@ var (
 	ErrServiceUnknown = errors.New("service unknown")
 )
 
-// TODO: move to a blockstore.
-type Block struct {
-	Index        int
-	Hash         string
-	PreviousHash string
-	Content      string
-}
-
 // Node is the highest level container for a full Kardia node.
 // It keeps all config data and services.
 type Node struct {
-	blockchain []Block
-
 	config       *NodeConfig
 	serverConfig p2p.Config
 	server       *p2p.Server
