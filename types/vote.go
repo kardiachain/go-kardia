@@ -33,7 +33,7 @@ type Vote struct {
 	Timestamp        time.Time      `json:"timestamp"`
 	Type             byte           `json:"type"`
 	BlockID          BlockID        `json:"block_id"` // zero if vote is nil.
-	//@huny Signature        crypto.Signature `json:"signature"`
+	Signature        []byte         `json:"signature"`
 }
 
 // TODO(huny@): Implement SignBytes
