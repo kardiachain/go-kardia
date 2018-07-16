@@ -137,3 +137,5 @@ func (s *Kardia) Stop() error {
 
 	return nil
 }
+
+func (s *Kardia) TxPool() *core.TxPool { return s.txPool }

@@ -3,9 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/kai"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/node"
+
+	"github.com/kardiachain/go-kardia/types"
+	"math/big"
 	"os"
 	"time"
 )
@@ -39,6 +43,19 @@ func main() {
 		logger.Error("Cannot start node", "err", err)
 		return
 	}
+
+	emptyTx := types.NewTransaction(
+		0,
+		common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"),
+		big.NewInt(0), 0, big.NewInt(0),
+		nil,
+	)
+	var kService *kai.Kardia
+	if err := n.Service(&kService); err != nil {
+		logger.Error("Cannot get Kardia Serivce", "err", err)
+		return
+	}
+	kService.TxPool().AddLocal(emptyTx)
 
 	if *peerURL != "" {
 		success, err := n.AddPeer(*peerURL)
