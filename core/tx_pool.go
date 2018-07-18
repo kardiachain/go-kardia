@@ -1242,3 +1242,9 @@ type ChainHeadEvent struct{ Block *types.Block }
 
 // NewTxsEvent is posted when a batch of transactions enter the transaction pool.
 type NewTxsEvent struct{ Txs []*types.Transaction }
+
+// PoolSigner returns the signer in pool setup.
+// This is for debugging purposes.
+func (pool *TxPool) PoolSigner() *types.Signer {
+	return &pool.signer
+}

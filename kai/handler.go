@@ -261,7 +261,7 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 // already have the given transaction.
 func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	var txset = make(map[*peer]types.Transactions)
-
+	log.Info("Start broadcast txn", "txn", txs)
 	// Broadcast transactions to a batch of peers not knowing about it
 	for _, tx := range txs {
 		peers := pm.peers.PeersWithoutTx(tx.Hash())

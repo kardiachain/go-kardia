@@ -138,4 +138,6 @@ func (s *Kardia) Stop() error {
 	return nil
 }
 
-func (s *Kardia) TxPool() *core.TxPool { return s.txPool }
+func (s *Kardia) TxPool() *core.TxPool             { return s.txPool }
+func (s *Kardia) BlockChain() *core.BlockChain     { return s.blockchain }
+func (s *Kardia) ChainConfig() *params.ChainConfig { return s.chainConfig }

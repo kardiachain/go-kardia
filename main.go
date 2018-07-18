@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/crypto"
 	"github.com/kardiachain/go-kardia/kai"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/node"
@@ -24,6 +25,7 @@ func main() {
 	listenAddr := flag.String("addr", ":30301", "listen address")
 	peerURL := flag.String("peer", "", "enode URL of static peer")
 	name := flag.String("name", "", "Name of node")
+	addTxn := flag.Bool("txn", false, "whether to add a fake txn")
 
 	flag.Parse()
 
@@ -44,18 +46,25 @@ func main() {
 		return
 	}
 
-	emptyTx := types.NewTransaction(
-		0,
-		common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"),
-		big.NewInt(0), 0, big.NewInt(0),
-		nil,
-	)
 	var kService *kai.Kardia
 	if err := n.Service(&kService); err != nil {
 		logger.Error("Cannot get Kardia Serivce", "err", err)
 		return
 	}
-	kService.TxPool().AddLocal(emptyTx)
+	if *addTxn {
+		logger.Info("Adding local txn")
+		emptyTx := types.NewTransaction(
+			0,
+			common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"),
+			big.NewInt(0), 0, big.NewInt(0),
+			nil,
+		)
+		txPool := kService.TxPool()
+		key, _ := crypto.GenerateKey()
+		signedTx, _ := types.SignTx(emptyTx, *txPool.PoolSigner(), key)
+
+		txPool.AddLocal(signedTx)
+	}
 
 	if *peerURL != "" {
 		success, err := n.AddPeer(*peerURL)
