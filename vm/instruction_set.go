@@ -264,6 +264,36 @@ func newInstructionSet() [256]operation {
 			memorySize:    memoryExtCodeCopy,
 			valid:         true,
 		},
+		BLOCKHASH: {
+			execute:       opBlockhash,
+			gasCost:       constGasFunc(GasExtStep),
+			validateStack: makeStackFunc(1, 1),
+			valid:         true,
+		},
+		COINBASE: {
+			execute:       opCoinbase,
+			gasCost:       constGasFunc(GasQuickStep),
+			validateStack: makeStackFunc(0, 1),
+			valid:         true,
+		},
+		TIMESTAMP: {
+			execute:       opTimestamp,
+			gasCost:       constGasFunc(GasQuickStep),
+			validateStack: makeStackFunc(0, 1),
+			valid:         true,
+		},
+		NUMBER: {
+			execute:       opNumber,
+			gasCost:       constGasFunc(GasQuickStep),
+			validateStack: makeStackFunc(0, 1),
+			valid:         true,
+		},
+		GASLIMIT: {
+			execute:       opGasLimit,
+			gasCost:       constGasFunc(GasQuickStep),
+			validateStack: makeStackFunc(0, 1),
+			valid:         true,
+		},
 		/* TODO(huny@): Enable these as newer OpCodes
 		DELEGATECALL: {
 			execute:       opDelegateCall,

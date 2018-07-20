@@ -482,3 +482,36 @@ func opGasprice(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack 
 	stack.push(kvm.interpreter.intPool.get().Set(kvm.GasPrice))
 	return nil, nil
 }
+
+func opBlockhash(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	num := stack.pop()
+
+	n := kvm.interpreter.intPool.get().Sub(new(big.Int).SetUint64(kvm.BlockHeight), common.Big257)
+	if num.Cmp(n) > 0 && num.Cmp(new(big.Int).SetUint64(kvm.BlockHeight)) < 0 {
+		stack.push(kvm.GetHash(num.Uint64()).Big())
+	} else {
+		stack.push(kvm.interpreter.intPool.getZero())
+	}
+	kvm.interpreter.intPool.put(num, n)
+	return nil, nil
+}
+
+func opCoinbase(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(kvm.Coinbase.Big())
+	return nil, nil
+}
+
+func opTimestamp(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(math.U256(kvm.interpreter.intPool.get().Set(kvm.Time)))
+	return nil, nil
+}
+
+func opNumber(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(math.U256(kvm.interpreter.intPool.get().Set(new(big.Int).SetUint64(kvm.BlockHeight))))
+	return nil, nil
+}
+
+func opGasLimit(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(math.U256(kvm.interpreter.intPool.get().SetUint64(kvm.GasLimit)))
+	return nil, nil
+}
