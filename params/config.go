@@ -32,6 +32,15 @@ var (
 			Epoch:  30000,
 		},
 	}
+
+	// TestChainConfig contains the chain parameters to run unit test.
+	TestChainConfig = &ChainConfig{
+		ChainID: big.NewInt(3),
+		Kaicon: &KaiconConfig{
+			Period: 15,
+			Epoch:  30000,
+		},
+	}
 )
 
 // ChainConfig is the core config which determines the blockchain settings.

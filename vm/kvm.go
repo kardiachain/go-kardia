@@ -61,6 +61,9 @@ type KVM struct {
 	// virtual machine configuration options used to initialise the
 	// evm.
 	vmConfig Config
+	// global (to this context) ethereum virtual machine
+	// used throughout the execution of the tx.
+	interpreter *Interpreter
 }
 
 // NewKVM returns a new KVM. The returned KVM is not thread safe and should
@@ -72,6 +75,8 @@ func NewKVM(ctx Context, statedb StateDB, chainConfig *params.ChainConfig, vmCon
 		vmConfig:    vmConfig,
 		chainConfig: chainConfig,
 	}
+	kvm.interpreter = NewInterpreter(kvm, vmConfig)
+
 	return kvm
 }
 
@@ -84,5 +89,4 @@ func (kvm *KVM) ChainConfig() *params.ChainConfig { return kvm.chainConfig }
 
 // StateDB is an KVM database for full state querying.
 type StateDB interface {
-	// TODO(huny@): Add more
 }

@@ -3,6 +3,8 @@ package vm
 import (
 	"fmt"
 	"math/big"
+
+	"github.com/kardiachain/go-kardia/params"
 )
 
 // Stack is an object for basic stack operations. Items popped to the stack are
@@ -76,4 +78,17 @@ func (st *Stack) Print() {
 		fmt.Println("-- empty --")
 	}
 	fmt.Println("#############")
+}
+
+func makeStackFunc(pop, push int) stackValidationFunc {
+	return func(stack *Stack) error {
+		if err := stack.require(pop); err != nil {
+			return err
+		}
+
+		if stack.len()+push-pop > int(params.StackLimit) {
+			return fmt.Errorf("stack limit reached %d (%d)", stack.len(), params.StackLimit)
+		}
+		return nil
+	}
 }

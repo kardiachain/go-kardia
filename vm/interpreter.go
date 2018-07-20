@@ -17,6 +17,7 @@ type Interpreter struct {
 	kvm      *KVM
 	cfg      Config
 	gasTable params.GasTable
+	intPool  *intPool
 
 	readOnly   bool   // Whether to throw on stateful modifications
 	returnData []byte // Last CALL's return data for subsequent reuse

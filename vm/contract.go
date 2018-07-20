@@ -187,15 +187,3 @@ func codeBitmap(code []byte) bitvec {
 	}
 	return bits
 }
-
-//====================================================================================
-// Utils func
-//====================================================================================
-func allZero(b []byte) bool {
-	for _, byte := range b {
-		if byte != 0 {
-			return false
-		}
-	}
-	return true
-}
