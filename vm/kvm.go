@@ -89,4 +89,9 @@ func (kvm *KVM) ChainConfig() *params.ChainConfig { return kvm.chainConfig }
 
 // StateDB is an KVM database for full state querying.
 type StateDB interface {
+	GetBalance(common.Address) *big.Int
+
+	GetCode(common.Address) []byte
+
+	GetCodeSize(common.Address) int
 }

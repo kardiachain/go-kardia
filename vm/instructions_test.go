@@ -213,6 +213,7 @@ func BenchmarkOpAdd64(b *testing.B) {
 	opBenchmark(b, opAdd, x, y)
 }
 
+/*
 func BenchmarkOpAdd128(b *testing.B) {
 	x := "ffffffffffffffff"
 	y := "f5470b43c6549b016288e9a65629687"
@@ -413,3 +414,4 @@ func BenchmarkOpIsZero(b *testing.B) {
 	x := "FBCDEF090807060504030201ffffffffFBCDEF090807060504030201ffffffff"
 	opBenchmark(b, opIszero, x)
 }
+*/

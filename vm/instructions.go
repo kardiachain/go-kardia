@@ -365,3 +365,120 @@ func opSha3(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Sta
 func opStop(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	return nil, nil
 }
+
+func opAddress(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(contract.Address().Big())
+	return nil, nil
+}
+
+func opBalance(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	slot := stack.peek()
+	slot.Set(kvm.StateDB.GetBalance(common.BigToAddress(slot)))
+	return nil, nil
+}
+
+func opOrigin(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(kvm.Origin.Big())
+	return nil, nil
+}
+
+func opCaller(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(contract.Caller().Big())
+	return nil, nil
+}
+
+func opCallValue(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(kvm.interpreter.intPool.get().Set(contract.value))
+	return nil, nil
+}
+
+func opCallDataLoad(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(kvm.interpreter.intPool.get().SetBytes(getDataBig(contract.Input, stack.pop(), big32)))
+	return nil, nil
+}
+
+func opCallDataSize(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(kvm.interpreter.intPool.get().SetInt64(int64(len(contract.Input))))
+	return nil, nil
+}
+
+func opCallDataCopy(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	var (
+		memOffset  = stack.pop()
+		dataOffset = stack.pop()
+		length     = stack.pop()
+	)
+	memory.Set(memOffset.Uint64(), length.Uint64(), getDataBig(contract.Input, dataOffset, length))
+
+	kvm.interpreter.intPool.put(memOffset, dataOffset, length)
+	return nil, nil
+}
+
+func opReturnDataSize(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(kvm.interpreter.intPool.get().SetUint64(uint64(len(kvm.interpreter.returnData))))
+	return nil, nil
+}
+
+func opReturnDataCopy(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	var (
+		memOffset  = stack.pop()
+		dataOffset = stack.pop()
+		length     = stack.pop()
+
+		end = kvm.interpreter.intPool.get().Add(dataOffset, length)
+	)
+	defer kvm.interpreter.intPool.put(memOffset, dataOffset, length, end)
+
+	if end.BitLen() > 64 || uint64(len(kvm.interpreter.returnData)) < end.Uint64() {
+		return nil, errReturnDataOutOfBounds
+	}
+	memory.Set(memOffset.Uint64(), length.Uint64(), kvm.interpreter.returnData[dataOffset.Uint64():end.Uint64()])
+
+	return nil, nil
+}
+
+func opExtCodeSize(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	slot := stack.peek()
+	slot.SetUint64(uint64(kvm.StateDB.GetCodeSize(common.BigToAddress(slot))))
+
+	return nil, nil
+}
+
+func opCodeSize(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	l := kvm.interpreter.intPool.get().SetInt64(int64(len(contract.Code)))
+	stack.push(l)
+
+	return nil, nil
+}
+
+func opCodeCopy(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	var (
+		memOffset  = stack.pop()
+		codeOffset = stack.pop()
+		length     = stack.pop()
+	)
+	codeCopy := getDataBig(contract.Code, codeOffset, length)
+	memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
+
+	kvm.interpreter.intPool.put(memOffset, codeOffset, length)
+	return nil, nil
+}
+
+func opExtCodeCopy(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	var (
+		addr       = common.BigToAddress(stack.pop())
+		memOffset  = stack.pop()
+		codeOffset = stack.pop()
+		length     = stack.pop()
+	)
+	codeCopy := getDataBig(kvm.StateDB.GetCode(addr), codeOffset, length)
+	memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
+
+	kvm.interpreter.intPool.put(memOffset, codeOffset, length)
+	return nil, nil
+}
+
+func opGasprice(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(kvm.interpreter.intPool.get().Set(kvm.GasPrice))
+	return nil, nil
+}

@@ -10,6 +10,10 @@ import (
 	"golang.org/x/crypto/ripemd160"
 )
 
+var (
+	big32 = big.NewInt(32)
+)
+
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
 // contract.

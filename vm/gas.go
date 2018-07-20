@@ -7,7 +7,7 @@ import (
 
 // Gas costs
 const (
-	//GasQuickStep   uint64 = 2
+	GasQuickStep   uint64 = 2
 	GasFastestStep uint64 = 3
 	GasFastStep    uint64 = 5
 	GasMidStep     uint64 = 8
@@ -95,4 +95,114 @@ func gasSha3(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem
 		return 0, errGasUintOverflow
 	}
 	return gas, nil
+}
+
+func gasBalance(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	return gt.Balance, nil
+}
+
+func gasCallDataCopy(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	gas, err := memoryGasCost(mem, memorySize)
+	if err != nil {
+		return 0, err
+	}
+
+	var overflow bool
+	if gas, overflow = math.SafeAdd(gas, GasFastestStep); overflow {
+		return 0, errGasUintOverflow
+	}
+
+	words, overflow := bigUint64(stack.Back(2))
+	if overflow {
+		return 0, errGasUintOverflow
+	}
+
+	if words, overflow = math.SafeMul(toWordSize(words), params.CopyGas); overflow {
+		return 0, errGasUintOverflow
+	}
+
+	if gas, overflow = math.SafeAdd(gas, words); overflow {
+		return 0, errGasUintOverflow
+	}
+	return gas, nil
+}
+
+func gasReturnDataCopy(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	gas, err := memoryGasCost(mem, memorySize)
+	if err != nil {
+		return 0, err
+	}
+
+	var overflow bool
+	if gas, overflow = math.SafeAdd(gas, GasFastestStep); overflow {
+		return 0, errGasUintOverflow
+	}
+
+	words, overflow := bigUint64(stack.Back(2))
+	if overflow {
+		return 0, errGasUintOverflow
+	}
+
+	if words, overflow = math.SafeMul(toWordSize(words), params.CopyGas); overflow {
+		return 0, errGasUintOverflow
+	}
+
+	if gas, overflow = math.SafeAdd(gas, words); overflow {
+		return 0, errGasUintOverflow
+	}
+	return gas, nil
+}
+
+func gasCodeCopy(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	gas, err := memoryGasCost(mem, memorySize)
+	if err != nil {
+		return 0, err
+	}
+
+	var overflow bool
+	if gas, overflow = math.SafeAdd(gas, GasFastestStep); overflow {
+		return 0, errGasUintOverflow
+	}
+
+	wordGas, overflow := bigUint64(stack.Back(2))
+	if overflow {
+		return 0, errGasUintOverflow
+	}
+	if wordGas, overflow = math.SafeMul(toWordSize(wordGas), params.CopyGas); overflow {
+		return 0, errGasUintOverflow
+	}
+	if gas, overflow = math.SafeAdd(gas, wordGas); overflow {
+		return 0, errGasUintOverflow
+	}
+	return gas, nil
+}
+
+func gasExtCodeCopy(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	gas, err := memoryGasCost(mem, memorySize)
+	if err != nil {
+		return 0, err
+	}
+
+	var overflow bool
+	if gas, overflow = math.SafeAdd(gas, gt.ExtcodeCopy); overflow {
+		return 0, errGasUintOverflow
+	}
+
+	wordGas, overflow := bigUint64(stack.Back(3))
+	if overflow {
+		return 0, errGasUintOverflow
+	}
+
+	if wordGas, overflow = math.SafeMul(toWordSize(wordGas), params.CopyGas); overflow {
+		return 0, errGasUintOverflow
+	}
+
+	if gas, overflow = math.SafeAdd(gas, wordGas); overflow {
+		return 0, errGasUintOverflow
+	}
+	return gas, nil
+}
+
+func gasExtCodeSize(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	return gt.ExtcodeSize, nil
 }

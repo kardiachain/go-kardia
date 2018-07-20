@@ -183,6 +183,87 @@ func newInstructionSet() [256]operation {
 			memorySize:    memorySha3,
 			valid:         true,
 		},
+		ADDRESS: {
+			execute:       opAddress,
+			gasCost:       constGasFunc(GasQuickStep),
+			validateStack: makeStackFunc(0, 1),
+			valid:         true,
+		},
+		BALANCE: {
+			execute:       opBalance,
+			gasCost:       gasBalance,
+			validateStack: makeStackFunc(1, 1),
+			valid:         true,
+		},
+		ORIGIN: {
+			execute:       opOrigin,
+			gasCost:       constGasFunc(GasQuickStep),
+			validateStack: makeStackFunc(0, 1),
+			valid:         true,
+		},
+		CALLER: {
+			execute:       opCaller,
+			gasCost:       constGasFunc(GasQuickStep),
+			validateStack: makeStackFunc(0, 1),
+			valid:         true,
+		},
+		CALLVALUE: {
+			execute:       opCallValue,
+			gasCost:       constGasFunc(GasQuickStep),
+			validateStack: makeStackFunc(0, 1),
+			valid:         true,
+		},
+		CALLDATALOAD: {
+			execute:       opCallDataLoad,
+			gasCost:       constGasFunc(GasFastestStep),
+			validateStack: makeStackFunc(1, 1),
+			valid:         true,
+		},
+		CALLDATASIZE: {
+			execute:       opCallDataSize,
+			gasCost:       constGasFunc(GasQuickStep),
+			validateStack: makeStackFunc(0, 1),
+			valid:         true,
+		},
+		CALLDATACOPY: {
+			execute:       opCallDataCopy,
+			gasCost:       gasCallDataCopy,
+			validateStack: makeStackFunc(3, 0),
+			memorySize:    memoryCallDataCopy,
+			valid:         true,
+		},
+		CODESIZE: {
+			execute:       opCodeSize,
+			gasCost:       constGasFunc(GasQuickStep),
+			validateStack: makeStackFunc(0, 1),
+			valid:         true,
+		},
+		CODECOPY: {
+			execute:       opCodeCopy,
+			gasCost:       gasCodeCopy,
+			validateStack: makeStackFunc(3, 0),
+			memorySize:    memoryCodeCopy,
+			valid:         true,
+		},
+		GASPRICE: {
+			execute:       opGasprice,
+			gasCost:       constGasFunc(GasQuickStep),
+			validateStack: makeStackFunc(0, 1),
+			valid:         true,
+		},
+		EXTCODESIZE: {
+			execute:       opExtCodeSize,
+			gasCost:       gasExtCodeSize,
+			validateStack: makeStackFunc(1, 1),
+			valid:         true,
+		},
+		EXTCODECOPY: {
+			execute:       opExtCodeCopy,
+			gasCost:       gasExtCodeCopy,
+			validateStack: makeStackFunc(4, 0),
+			memorySize:    memoryExtCodeCopy,
+			valid:         true,
+		},
 		/* TODO(huny@): Enable these as newer OpCodes
 		DELEGATECALL: {
 			execute:       opDelegateCall,
@@ -200,6 +281,7 @@ func newInstructionSet() [256]operation {
 			valid:         true,
 			returns:       true,
 		},
+		*/
 		RETURNDATASIZE: {
 			execute:       opReturnDataSize,
 			gasCost:       constGasFunc(GasQuickStep),
@@ -213,15 +295,16 @@ func newInstructionSet() [256]operation {
 			memorySize:    memoryReturnDataCopy,
 			valid:         true,
 		},
-		REVERT: {
-			execute:       opRevert,
-			gasCost:       gasRevert,
-			validateStack: makeStackFunc(2, 0),
-			memorySize:    memoryRevert,
-			valid:         true,
-			reverts:       true,
-			returns:       true,
-		},
+		/*
+			REVERT: {
+				execute:       opRevert,
+				gasCost:       gasRevert,
+				validateStack: makeStackFunc(2, 0),
+				memorySize:    memoryRevert,
+				valid:         true,
+				reverts:       true,
+				returns:       true,
+			},
 		*/
 		SHL: {
 			execute:       opSHL,
