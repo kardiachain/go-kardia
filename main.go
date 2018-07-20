@@ -11,17 +11,12 @@ import (
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
-	"os"
 	"time"
 )
 
 func main() {
-	// setup log to stdout.
-	handler := log.StreamHandler(os.Stdout, log.TerminalFormat(false))
-	log.Root().SetHandler(handler)
-	logger := log.New()
-
 	// args
+	logLevel := flag.String("loglevel", "info", "minimum log verbosity to display")
 	listenAddr := flag.String("addr", ":30301", "listen address")
 	peerURL := flag.String("peer", "", "enode URL of static peer")
 	name := flag.String("name", "", "Name of node")
@@ -30,6 +25,17 @@ func main() {
 
 	flag.Parse()
 
+	// Setups log to Stdout.
+	level, err := log.LvlFromString(*logLevel)
+	if err != nil {
+		fmt.Printf("invalid log level argument: %v \n", err)
+		return
+	}
+	handler := log.LvlFilterHandler(level, log.StdoutHandler)
+	log.Root().SetHandler(handler)
+	logger := log.New()
+
+	// Setups config.
 	config := &node.DefaultConfig
 	config.P2P.ListenAddr = *listenAddr
 	config.Name = *name
@@ -85,16 +91,25 @@ func main() {
 		if err := ethNode.Start(); err != nil {
 			logger.Error("Fail to start Eth sub node", "err", err)
 		}
-		go displayPeers(ethNode)
+		go displayEthPeers(ethNode)
 
 	}
 
+	go displayKardiaPeers(n)
 	waitForever()
 }
 
-func displayPeers(n *dual.EthKardia) {
+func displayEthPeers(n *dual.EthKardia) {
 	for {
-		fmt.Println("Peer list: ", n.EthNode().Server().PeerCount())
+		log.Info("Ethereum peers: ", "count", n.EthNode().Server().PeerCount())
+		time.Sleep(10 * time.Second)
+	}
+
+}
+
+func displayKardiaPeers(n *node.Node) {
+	for {
+		log.Info("Kardia peers: ", "count", n.Server().PeerCount())
 		time.Sleep(10 * time.Second)
 	}
 
