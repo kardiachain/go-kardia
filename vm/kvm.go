@@ -75,13 +75,12 @@ func NewKVM(ctx Context, statedb StateDB, chainConfig *params.ChainConfig, vmCon
 	return kvm
 }
 
+// ChainConfig returns the environment's chain configuration
+func (kvm *KVM) ChainConfig() *params.ChainConfig { return kvm.chainConfig }
+
 //================================================================================================
 // Interfaces
 //=================================================================================================
-// Config are the configuration options for the Interpreter
-type Config struct {
-	// TODO(huny@): Add more
-}
 
 // StateDB is an KVM database for full state querying.
 type StateDB interface {

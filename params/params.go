@@ -3,6 +3,8 @@ package params
 const (
 	GenesisGasLimit uint64 = 4712388 // Gas limit of the Genesis block.
 
+	StackLimit uint64 = 1024 // Maximum size of VM stack allowed.
+
 	// Precompiled contract gas prices
 	EcrecoverGas        uint64 = 3000 // Elliptic curve sender recovery gas price
 	Sha256BaseGas       uint64 = 60   // Base price for a SHA256 operation
