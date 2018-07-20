@@ -47,16 +47,19 @@ type peer struct {
 	queuedTxs chan []*types.Transaction // Queue of transactions to broadcast to the peer
 
 	lock sync.RWMutex
+
+	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
 }
 
 func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 	return &peer{
-		Peer:      p,
-		rw:        rw,
-		version:   version,
-		id:        fmt.Sprintf("%x", p.ID().Bytes()[:8]),
-		queuedTxs: make(chan []*types.Transaction, maxQueuedTxs),
-		knownTxs:  set.New(),
+		Peer:       p,
+		rw:         rw,
+		version:    version,
+		id:         fmt.Sprintf("%x", p.ID().Bytes()[:8]),
+		queuedTxs:  make(chan []*types.Transaction, maxQueuedTxs),
+		knownTxs:   set.New(),
+		terminated: make(chan struct{}),
 	}
 }
 
@@ -224,6 +227,22 @@ func (ps *peerSet) Close() {
 	ps.closed = true
 }
 
+// broadcast is a async write loop that send messages to remote peers.
+func (p *peer) broadcast() {
+	for {
+		select {
+		case txs := <-p.queuedTxs:
+			if err := p.SendTransactions(txs); err != nil {
+				return
+			}
+			p.Log().Trace("Broadcast transactions", "count", len(txs))
+
+		case <-p.terminated:
+			return
+		}
+	}
+}
+
 // MarkTransaction marks a transaction as known for the peer, ensuring that it
 // will never be propagated to this particular peer.
 func (p *peer) MarkTransaction(hash common.Hash) {
@@ -249,9 +268,18 @@ func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
 	return list
 }
 
+// SendTransactions sends transactions to the peer, adds the txn hashes to known txn set.
+func (p *peer) SendTransactions(txs types.Transactions) error {
+	for _, tx := range txs {
+		p.knownTxs.Add(tx.Hash())
+	}
+	return p2p.Send(p.rw, TxMsg, txs)
+}
+
 // AsyncSendTransactions queues list of transactions propagation to a remote
 // peer. If the peer's broadcast queue is full, the event is silently dropped.
 func (p *peer) AsyncSendTransactions(txs []*types.Transaction) {
+	// Tx will be actually sent in SendTransactions() trigger by broadcast() routine
 	select {
 	case p.queuedTxs <- txs:
 		for _, tx := range txs {

@@ -193,6 +193,8 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	}
 	defer pm.removePeer(p.id)
 
+	// TODO(thientn): send all pending transactions to this new peer. New txns after this will be sent through broadcast.
+
 	// main loop. handle incoming messages.
 	for {
 		if err := pm.handleMsg(p); err != nil {
