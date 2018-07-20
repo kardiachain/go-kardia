@@ -92,3 +92,11 @@ func makeStackFunc(pop, push int) stackValidationFunc {
 		return nil
 	}
 }
+
+func makeDupStackFunc(n int) stackValidationFunc {
+	return makeStackFunc(n, n+1)
+}
+
+func makeSwapStackFunc(n int) stackValidationFunc {
+	return makeStackFunc(n, n)
+}

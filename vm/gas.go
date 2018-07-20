@@ -61,6 +61,36 @@ func constGasFunc(gas uint64) gasFunc {
 	}
 }
 
+func makeGasLog(n uint64) gasFunc {
+	return func(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+		requestedSize, overflow := bigUint64(stack.Back(1))
+		if overflow {
+			return 0, errGasUintOverflow
+		}
+
+		gas, err := memoryGasCost(mem, memorySize)
+		if err != nil {
+			return 0, err
+		}
+
+		if gas, overflow = math.SafeAdd(gas, params.LogGas); overflow {
+			return 0, errGasUintOverflow
+		}
+		if gas, overflow = math.SafeAdd(gas, n*params.LogTopicGas); overflow {
+			return 0, errGasUintOverflow
+		}
+
+		var memorySizeGas uint64
+		if memorySizeGas, overflow = math.SafeMul(requestedSize, params.LogDataGas); overflow {
+			return 0, errGasUintOverflow
+		}
+		if gas, overflow = math.SafeAdd(gas, memorySizeGas); overflow {
+			return 0, errGasUintOverflow
+		}
+		return gas, nil
+	}
+}
+
 func gasExp(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	expByteLen := uint64((stack.data[stack.len()-2].BitLen() + 7) / 8)
 
@@ -268,4 +298,16 @@ func gasSStore(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, m
 		// non 0 => non 0 (or 0 => 0)
 		return params.SstoreResetGas, nil
 	}
+}
+
+func gasPush(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	return GasFastestStep, nil
+}
+
+func gasSwap(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	return GasFastestStep, nil
+}
+
+func gasDup(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	return GasFastestStep, nil
 }

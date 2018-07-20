@@ -5,6 +5,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/params"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 type (
@@ -97,6 +98,8 @@ type StateDB interface {
 
 	GetState(common.Address, common.Hash) common.Hash
 	SetState(common.Address, common.Hash, common.Hash)
+
+	AddLog(*types.Log)
 
 	AddRefund(uint64)
 }

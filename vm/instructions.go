@@ -8,6 +8,7 @@ import (
 	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/common/math"
 	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 var (
@@ -608,4 +609,69 @@ func opMsize(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *St
 func opGas(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	stack.push(kvm.interpreter.intPool.get().SetUint64(contract.Gas))
 	return nil, nil
+}
+
+// make push instruction function
+func makePush(size uint64, pushByteSize int) executionFunc {
+	return func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+		codeLen := len(contract.Code)
+
+		startMin := codeLen
+		if int(*pc+1) < startMin {
+			startMin = int(*pc + 1)
+		}
+
+		endMin := codeLen
+		if startMin+pushByteSize < endMin {
+			endMin = startMin + pushByteSize
+		}
+
+		integer := kvm.interpreter.intPool.get()
+		stack.push(integer.SetBytes(common.RightPadBytes(contract.Code[startMin:endMin], pushByteSize)))
+
+		*pc += size
+		return nil, nil
+	}
+}
+
+// make dup instruction function
+func makeDup(size int64) executionFunc {
+	return func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+		stack.dup(kvm.interpreter.intPool, int(size))
+		return nil, nil
+	}
+}
+
+// make swap instruction function
+func makeSwap(size int64) executionFunc {
+	// switch n + 1 otherwise n would be swapped with n
+	size++
+	return func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+		stack.swap(int(size))
+		return nil, nil
+	}
+}
+
+// make log instruction function
+func makeLog(size int) executionFunc {
+	return func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+		topics := make([]common.Hash, size)
+		mStart, mSize := stack.pop(), stack.pop()
+		for i := 0; i < size; i++ {
+			topics[i] = common.BigToHash(stack.pop())
+		}
+
+		d := memory.Get(mStart.Int64(), mSize.Int64())
+		kvm.StateDB.AddLog(&types.Log{
+			Address: contract.Address(),
+			Topics:  topics,
+			Data:    d,
+			// This is a non-consensus field, but assigned here because
+			// core/state doesn't know the current block height.
+			BlockHeight: kvm.BlockHeight,
+		})
+
+		kvm.interpreter.intPool.put(mStart, mSize)
+		return nil, nil
+	}
 }

@@ -61,6 +61,13 @@ func (m *Memory) Get(offset, size int64) (cpy []byte) {
 	return
 }
 
+// Resize resizes the memory to size
+func (m *Memory) Resize(size uint64) {
+	if uint64(m.Len()) < size {
+		m.store = append(m.store, make([]byte, size-uint64(m.Len()))...)
+	}
+}
+
 // Len returns the length of the backing slice
 func (m *Memory) Len() int {
 	return len(m.store)
@@ -99,4 +106,9 @@ func memoryMStore8(stack *Stack) *big.Int {
 
 func memoryMStore(stack *Stack) *big.Int {
 	return calcMemSize(stack.Back(0), big.NewInt(32))
+}
+
+func memoryLog(stack *Stack) *big.Int {
+	mSize, mStart := stack.Back(1), stack.Back(0)
+	return calcMemSize(mStart, mSize)
 }
