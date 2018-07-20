@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/dual"
 	"github.com/kardiachain/go-kardia/kai"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/node"
-
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
 	"os"
@@ -26,6 +26,7 @@ func main() {
 	peerURL := flag.String("peer", "", "enode URL of static peer")
 	name := flag.String("name", "", "Name of node")
 	addTxn := flag.Bool("txn", false, "whether to add a fake txn")
+	dualMode := flag.Bool("dual", false, "whether to run in dual mode")
 
 	flag.Parse()
 
@@ -73,19 +74,32 @@ func main() {
 		}
 	}
 
-	go displayPeers(n)
+	// go displayPeers(n)
 
-	blockForever()
+	if *dualMode {
+		ethNode, err := dual.NewEthKardia()
+		if err != nil {
+			logger.Error("Fail to create Eth sub node", "err", err)
+			return
+		}
+		if err := ethNode.Start(); err != nil {
+			logger.Error("Fail to start Eth sub node", "err", err)
+		}
+		go displayPeers(ethNode)
+
+	}
+
+	waitForever()
 }
 
-func displayPeers(n *node.Node) {
+func displayPeers(n *dual.EthKardia) {
 	for {
-		fmt.Println("Peer list: ", n.Server().PeerCount())
+		fmt.Println("Peer list: ", n.EthNode().Server().PeerCount())
 		time.Sleep(10 * time.Second)
 	}
 
 }
 
-func blockForever() {
+func waitForever() {
 	select {}
 }
