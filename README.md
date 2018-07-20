@@ -25,9 +25,10 @@ cd $GOPATH/bin
 
 # Test p2p connection
 Run two nodes in different ports and use enode url to connect.  
+Uses `txn` flag in one node to create a sample transaction and sees the node sync the transaction in debug logging.  
 First terminal
 ```
-./go-kardia --addr :3000 --name node1
+./go-kardia --addr :3000 --name node1 --txn
 ```
 Second terminal, set peer args as the enode url displayed in first terminal
 ```
