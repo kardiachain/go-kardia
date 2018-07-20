@@ -2,15 +2,13 @@ package common
 
 import (
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"math/rand"
 	"reflect"
-	"strings"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"github.com/kardiachain/go-kardia/common/hexutil"
+	"github.com/kardiachain/go-kardia/crypto/sha3"
 )
 
 // Lengths of hashes and addresses in bytes.
@@ -70,21 +68,6 @@ func (h Hash) Format(s fmt.State, c rune) {
 	fmt.Fprintf(s, "%"+string(c), h[:])
 }
 
-// UnmarshalText parses a hash in hex syntax.
-func (h *Hash) UnmarshalText(input []byte) error {
-	return hexutil.UnmarshalFixedText("Hash", input, h[:])
-}
-
-// UnmarshalJSON parses a hash in hex syntax.
-func (h *Hash) UnmarshalJSON(input []byte) error {
-	return hexutil.UnmarshalFixedJSON(hashT, input, h[:])
-}
-
-// MarshalText returns the hex representation of h.
-func (h Hash) MarshalText() ([]byte, error) {
-	return hexutil.Bytes(h[:]).MarshalText()
-}
-
 // SetBytes sets the hash to the value of b.
 // If b is larger than len(h), b will be cropped from the left.
 func (h *Hash) SetBytes(b []byte) {
@@ -107,19 +90,9 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 // UnprefixedHash allows marshaling a Hash without 0x prefix.
 type UnprefixedHash Hash
 
-// UnmarshalText decodes the hash from hex. The 0x prefix is optional.
-func (h *UnprefixedHash) UnmarshalText(input []byte) error {
-	return hexutil.UnmarshalFixedUnprefixedText("UnprefixedHash", input, h[:])
-}
-
-// MarshalText encodes the hash as hex.
-func (h UnprefixedHash) MarshalText() ([]byte, error) {
-	return []byte(hex.EncodeToString(h[:])), nil
-}
-
 /////////// Address
 
-// Address represents the 20 byte address of an Ethereum account.
+// Address represents the 20 byte address of an kardia account.
 type Address [AddressLength]byte
 
 // BytesToAddress returns Address with value b.
@@ -139,7 +112,7 @@ func BigToAddress(b *big.Int) Address { return BytesToAddress(b.Bytes()) }
 func HexToAddress(s string) Address { return BytesToAddress(FromHex(s)) }
 
 // IsHexAddress verifies whether a string can represent a valid hex-encoded
-// Ethereum address or not.
+// kardia address or not.
 func IsHexAddress(s string) bool {
 	if hasHexPrefix(s) {
 		s = s[2:]
@@ -198,34 +171,6 @@ func (a *Address) SetBytes(b []byte) {
 	copy(a[AddressLength-len(b):], b)
 }
 
-// MarshalText returns the hex representation of a.
-func (a Address) MarshalText() ([]byte, error) {
-	return hexutil.Bytes(a[:]).MarshalText()
-}
-
-// UnmarshalText parses a hash in hex syntax.
-func (a *Address) UnmarshalText(input []byte) error {
-	return hexutil.UnmarshalFixedText("Address", input, a[:])
-}
-
-// UnmarshalJSON parses a hash in hex syntax.
-func (a *Address) UnmarshalJSON(input []byte) error {
-	return hexutil.UnmarshalFixedJSON(addressT, input, a[:])
-}
-
-// UnprefixedAddress allows marshaling an Address without 0x prefix.
-type UnprefixedAddress Address
-
-// UnmarshalText decodes the address from hex. The 0x prefix is optional.
-func (a *UnprefixedAddress) UnmarshalText(input []byte) error {
-	return hexutil.UnmarshalFixedUnprefixedText("UnprefixedAddress", input, a[:])
-}
-
-// MarshalText encodes the address as hex.
-func (a UnprefixedAddress) MarshalText() ([]byte, error) {
-	return []byte(hex.EncodeToString(a[:])), nil
-}
-
 // MixedcaseAddress retains the original string, which may or may not be
 // correctly checksummed
 type MixedcaseAddress struct {
@@ -245,22 +190,6 @@ func NewMixedcaseAddressFromString(hexaddr string) (*MixedcaseAddress, error) {
 	}
 	a := FromHex(hexaddr)
 	return &MixedcaseAddress{addr: BytesToAddress(a), original: hexaddr}, nil
-}
-
-// UnmarshalJSON parses MixedcaseAddress
-func (ma *MixedcaseAddress) UnmarshalJSON(input []byte) error {
-	if err := hexutil.UnmarshalFixedJSON(addressT, input, ma.addr[:]); err != nil {
-		return err
-	}
-	return json.Unmarshal(input, &ma.original)
-}
-
-// MarshalJSON marshals the original value
-func (ma *MixedcaseAddress) MarshalJSON() ([]byte, error) {
-	if strings.HasPrefix(ma.original, "0x") || strings.HasPrefix(ma.original, "0X") {
-		return json.Marshal(fmt.Sprintf("0x%s", ma.original[2:]))
-	}
-	return json.Marshal(fmt.Sprintf("0x%s", ma.original))
 }
 
 // Address returns the address
