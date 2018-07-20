@@ -193,12 +193,13 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	}
 	defer pm.removePeer(p.id)
 
-	// TODO(thientn): send all pending transactions to this new peer. New txns after this will be sent through broadcast.
+	// TODO(thientn): performance optimization. This function should be reliable since it's before the main loop.
+	pm.syncTransactions(p)
 
 	// main loop. handle incoming messages.
 	for {
 		if err := pm.handleMsg(p); err != nil {
-			p.Log().Debug("Kardia message handling failed", "err", err)
+			p.Log().Warn("Kardia message handling failed", "err", err)
 			return err
 		}
 	}
@@ -223,8 +224,10 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		// Status messages should never arrive after the handshake
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
 	case msg.Code == TxMsg:
+		p.Log().Trace("Transactions received")
 		// Transactions arrived, make sure we have a valid and fresh chain to handle them
 		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
+			p.Log().Trace("Skip received txs, acceptTxs flag is false")
 			break
 		}
 		// Transactions can be processed, parse all of them and deliver to the pool
@@ -240,10 +243,29 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			p.MarkTransaction(tx.Hash())
 		}
 		pm.txpool.AddRemotes(txs)
+		p.Log().Trace("Transactions added to pool", "txs", txs)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
 	return nil
+}
+
+// syncTransactions sends all pending transactions to the new peer.
+func (pm *ProtocolManager) syncTransactions(p *peer) {
+	log.Trace("Sync txns to new peer", "peer", p)
+	// TODO(thientn): sends transactions in chunks. This may send a large number of transactions.
+	// Breaks them to chunks here or inside AsyncSend to not overload the pipeline.
+	txsMap, _ := pm.txpool.Pending()
+	var txs types.Transactions
+
+	for _, list := range txsMap {
+		txs = append(txs, list...)
+	}
+	if len(txs) == 0 {
+		return
+	}
+	log.Trace("Start sending pending transactions", "count", len(txs))
+	p.AsyncSendTransactions(txs)
 }
 
 func (pm *ProtocolManager) txBroadcastLoop() {

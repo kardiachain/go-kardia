@@ -20,7 +20,7 @@ var ProtocolName = "kai"
 var ProtocolVersions = []uint{kai1}
 
 // ProtocolLengths are the number of implemented message corresponding to different protocol versions.
-var ProtocolLengths = []uint64{1}
+var ProtocolLengths = []uint64{2}
 
 const ProtocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a protocol message
 

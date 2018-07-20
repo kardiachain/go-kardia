@@ -108,7 +108,6 @@ func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesi
 			return p2p.DiscReadTimeout
 		}
 	}
-	p.Log().Info("Handshake return null")
 	return nil
 }
 
@@ -179,6 +178,7 @@ func (ps *peerSet) Register(p *peer) error {
 		return errAlreadyRegistered
 	}
 	ps.peers[p.id] = p
+	go p.broadcast()
 
 	return nil
 }
@@ -233,9 +233,10 @@ func (p *peer) broadcast() {
 		select {
 		case txs := <-p.queuedTxs:
 			if err := p.SendTransactions(txs); err != nil {
+				p.Log().Error("Send txs failed", "err", err, "count", len(txs))
 				return
 			}
-			p.Log().Trace("Broadcast transactions", "count", len(txs))
+			p.Log().Trace("Transactions sent", "count", len(txs))
 
 		case <-p.terminated:
 			return
