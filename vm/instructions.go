@@ -2,6 +2,7 @@ package vm
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/kardiachain/go-kardia/common"
@@ -513,5 +514,98 @@ func opNumber(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *S
 
 func opGasLimit(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	stack.push(math.U256(kvm.interpreter.intPool.get().SetUint64(kvm.GasLimit)))
+	return nil, nil
+}
+
+func opPop(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	kvm.interpreter.intPool.put(stack.pop())
+	return nil, nil
+}
+
+func opMload(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	offset := stack.pop()
+	val := kvm.interpreter.intPool.get().SetBytes(memory.Get(offset.Int64(), 32))
+	stack.push(val)
+
+	kvm.interpreter.intPool.put(offset)
+	return nil, nil
+}
+
+func opMstore(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	// pop value of the stack
+	mStart, val := stack.pop(), stack.pop()
+	memory.Set32(mStart.Uint64(), val)
+
+	kvm.interpreter.intPool.put(mStart, val)
+	return nil, nil
+}
+
+func opMstore8(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	off, val := stack.pop().Int64(), stack.pop().Int64()
+	memory.store[off] = byte(val & 0xff)
+
+	return nil, nil
+}
+
+func opSload(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	loc := stack.peek()
+	val := kvm.StateDB.GetState(contract.Address(), common.BigToHash(loc))
+	loc.SetBytes(val.Bytes())
+	return nil, nil
+}
+
+func opSstore(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	loc := common.BigToHash(stack.pop())
+	val := stack.pop()
+	kvm.StateDB.SetState(contract.Address(), loc, common.BigToHash(val))
+
+	kvm.interpreter.intPool.put(val)
+	return nil, nil
+}
+
+func opJump(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	pos := stack.pop()
+	if !contract.jumpdests.has(contract.CodeHash, contract.Code, pos) {
+		nop := contract.GetOp(pos.Uint64())
+		return nil, fmt.Errorf("invalid jump destination (%v) %v", nop, pos)
+	}
+	*pc = pos.Uint64()
+
+	kvm.interpreter.intPool.put(pos)
+	return nil, nil
+}
+
+func opJumpi(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	pos, cond := stack.pop(), stack.pop()
+	if cond.Sign() != 0 {
+		if !contract.jumpdests.has(contract.CodeHash, contract.Code, pos) {
+			nop := contract.GetOp(pos.Uint64())
+			return nil, fmt.Errorf("invalid jump destination (%v) %v", nop, pos)
+		}
+		*pc = pos.Uint64()
+	} else {
+		*pc++
+	}
+
+	kvm.interpreter.intPool.put(pos, cond)
+	return nil, nil
+}
+
+func opJumpdest(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	return nil, nil
+}
+
+func opPc(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(kvm.interpreter.intPool.get().SetUint64(*pc))
+	return nil, nil
+}
+
+func opMsize(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(kvm.interpreter.intPool.get().SetInt64(int64(memory.Len())))
+	return nil, nil
+}
+
+func opGas(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	stack.push(kvm.interpreter.intPool.get().SetUint64(contract.Gas))
 	return nil, nil
 }

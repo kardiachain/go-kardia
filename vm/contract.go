@@ -96,6 +96,11 @@ func (c *Contract) GetByte(n uint64) byte {
 	return 0
 }
 
+// GetOp returns the n'th element in the contract's byte array
+func (c *Contract) GetOp(n uint64) OpCode {
+	return OpCode(c.GetByte(n))
+}
+
 // Caller returns the caller of the contract.
 //
 // Caller will recursively call caller when the contract is a delegate
@@ -142,6 +147,23 @@ func (c *Contract) SetCallCode(addr *common.Address, hash common.Hash, code []by
 // The maps contain an entry for each location of a JUMPDEST
 // instruction.
 type destinations map[common.Hash]bitvec
+
+// has checks whether code has a JUMPDEST at dest.
+func (d destinations) has(codehash common.Hash, code []byte, dest *big.Int) bool {
+	// PC cannot go beyond len(code) and certainly can't be bigger than 63bits.
+	// Don't bother checking for JUMPDEST in that case.
+	udest := dest.Uint64()
+	if dest.BitLen() >= 63 || udest >= uint64(len(code)) {
+		return false
+	}
+
+	m, analysed := d[codehash]
+	if !analysed {
+		m = codeBitmap(code)
+		d[codehash] = m
+	}
+	return OpCode(code[udest]) == JUMPDEST && m.codeSegment(udest)
+}
 
 // bitvec is a bit vector which maps bytes in a program.
 // An unset bit means the byte is an opcode, a set bit means

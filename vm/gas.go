@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/common/math"
 	"github.com/kardiachain/go-kardia/params"
 )
@@ -205,4 +206,66 @@ func gasExtCodeCopy(gt params.GasTable, kvm *KVM, contract *Contract, stack *Sta
 
 func gasExtCodeSize(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	return gt.ExtcodeSize, nil
+}
+
+func gasMLoad(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	var overflow bool
+	gas, err := memoryGasCost(mem, memorySize)
+	if err != nil {
+		return 0, errGasUintOverflow
+	}
+	if gas, overflow = math.SafeAdd(gas, GasFastestStep); overflow {
+		return 0, errGasUintOverflow
+	}
+	return gas, nil
+}
+
+func gasMStore8(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	var overflow bool
+	gas, err := memoryGasCost(mem, memorySize)
+	if err != nil {
+		return 0, errGasUintOverflow
+	}
+	if gas, overflow = math.SafeAdd(gas, GasFastestStep); overflow {
+		return 0, errGasUintOverflow
+	}
+	return gas, nil
+}
+
+func gasMStore(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	var overflow bool
+	gas, err := memoryGasCost(mem, memorySize)
+	if err != nil {
+		return 0, errGasUintOverflow
+	}
+	if gas, overflow = math.SafeAdd(gas, GasFastestStep); overflow {
+		return 0, errGasUintOverflow
+	}
+	return gas, nil
+}
+
+func gasSLoad(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	return gt.SLoad, nil
+}
+
+func gasSStore(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	var (
+		y, x = stack.Back(1), stack.Back(0)
+		val  = kvm.StateDB.GetState(contract.Address(), common.BigToHash(x))
+	)
+	// This checks for 3 scenario's and calculates gas accordingly
+	// 1. From a zero-value address to a non-zero value         (NEW VALUE)
+	// 2. From a non-zero value address to a zero-value address (DELETE)
+	// 3. From a non-zero to a non-zero                         (CHANGE)
+	if val == (common.Hash{}) && y.Sign() != 0 {
+		// 0 => non 0
+		return params.SstoreSetGas, nil
+	} else if val != (common.Hash{}) && y.Sign() == 0 {
+		// non 0 => 0
+		kvm.StateDB.AddRefund(params.SstoreRefundGas)
+		return params.SstoreClearGas, nil
+	} else {
+		// non 0 => non 0 (or 0 => 0)
+		return params.SstoreResetGas, nil
+	}
 }

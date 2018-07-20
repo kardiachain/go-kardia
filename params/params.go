@@ -20,6 +20,7 @@ const (
 	LogGas          uint64 = 375   // Per LOG* operation.
 	LogTopicGas     uint64 = 375   // Multiplied by the * of the LOG*, per LOG transaction. e.g. LOG0 incurs 0 * c_txLogTopicGas, LOG4 incurs 4 * c_txLogTopicGas.
 	CreateGas       uint64 = 32000 // Once per CREATE operation & contract-creation transaction.
+	JumpdestGas     uint64 = 1     // Refunded gas, once per SSTORE operation if the zeroness changes to zero.
 
 	// Precompiled contract gas prices
 	EcrecoverGas        uint64 = 3000 // Elliptic curve sender recovery gas price
