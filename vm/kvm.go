@@ -382,6 +382,7 @@ type StateDB interface {
 	CreateAccount(common.Address)
 
 	AddBalance(common.Address, *big.Int)
+	SubBalance(common.Address, *big.Int)
 	GetBalance(common.Address) *big.Int
 
 	GetCodeHash(common.Address) common.Hash

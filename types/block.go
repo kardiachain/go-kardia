@@ -35,6 +35,8 @@ type Header struct {
 	//@huny LastBlockID BlockID `json:"last_block_id"`
 	//@huny TotalTxs    uint64   `json:"total_txs"`
 
+	Coinbase common.Address `json:"miner"            gencodec:"required"`
+
 	// hashes of block data
 	LastCommitHash common.Hash `json:"last_commit_hash"    gencodec:"required"` // commit from validators from the last block
 	TxHash         common.Hash `json:"data_hash"           gencodec:"required"` // transactions
