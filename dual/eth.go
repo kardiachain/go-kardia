@@ -8,7 +8,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
-	elog "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
@@ -53,9 +52,6 @@ func homeDir() string {
 
 // EthKardia creates a Ethereum node with
 func NewEthKardia() (*EthKardia, error) {
-	handler := elog.LvlFilterHandler(elog.LvlInfo, elog.StdoutHandler)
-	elog.Root().SetHandler(handler)
-
 	datadir := DefaultEthDataDir()
 
 	// Creates datadir with testnet follow eth standards.

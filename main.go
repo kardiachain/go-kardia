@@ -18,7 +18,7 @@ import (
 func main() {
 	// args
 	logLevel := flag.String("loglevel", "info", "minimum log verbosity to display")
-	ethLogLevel := flag.String("ethloglevel", "info", "minimum Eth log verbosity to display")
+	ethLogLevel := flag.String("ethloglevel", "warn", "minimum Eth log verbosity to display")
 	listenAddr := flag.String("addr", ":30301", "listen address")
 	peerURL := flag.String("peer", "", "enode URL of static peer")
 	name := flag.String("name", "", "Name of node")
@@ -36,7 +36,6 @@ func main() {
 	log.Root().SetHandler(log.LvlFilterHandler(level, log.StdoutHandler))
 	logger := log.New()
 
-	// TODO(thientn): elog level has no effect.
 	elevel, err := elog.LvlFromString(*ethLogLevel)
 	if err != nil {
 		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
