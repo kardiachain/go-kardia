@@ -59,8 +59,8 @@ func NewEthKardia() (*EthKardia, error) {
 	datadir := DefaultEthDataDir()
 
 	// Creates datadir with testnet follow eth standards.
-	datadir = filepath.Join(datadir, "testnet")
 	// TODO(thientn) : options to choose different networks.
+	datadir = filepath.Join(datadir, "rinkeby")
 	bootUrls := params.RinkebyBootnodes
 	bootstrapNodes := make([]*discover.Node, 0, len(bootUrls))
 	for _, url := range bootUrls {
@@ -86,6 +86,10 @@ func NewEthKardia() (*EthKardia, error) {
 		MaxPeers:       NodeMaxPeers,
 	}
 
+	// TODO(thientn): set eth config to match with Rinkeby or other test networks.
+	// verify on cmd/utils/flags.go
+	// DefaultConfig use prod networkid & ehash.
+	// similar to cmd/eth/config.go/makeConfigNode
 	ethConf := &eth.DefaultConfig
 
 	ethNode, err := node.New(nodeConfig)
@@ -115,8 +119,6 @@ func (n *EthKardia) EthNode() *node.Node {
 
 // Client return the KardiaEthClient to acess Eth subnode.
 func (n *EthKardia) Client() (*KardiaEthClient, error) {
-	// TODO(thientn) : we can parse/wrap this to our own API.
-
 	rpcClient, err := n.geth.Attach()
 	if err != nil {
 		return nil, err
