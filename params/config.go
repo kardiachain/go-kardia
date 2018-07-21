@@ -32,6 +32,15 @@ var (
 			Epoch:  30000,
 		},
 	}
+
+	// TestChainConfig contains the chain parameters to run unit test.
+	TestChainConfig = &ChainConfig{
+		ChainID: big.NewInt(3),
+		Kaicon: &KaiconConfig{
+			Period: 15,
+			Epoch:  30000,
+		},
+	}
 )
 
 // ChainConfig is the core config which determines the blockchain settings.
@@ -109,7 +118,7 @@ var (
 // GasTable returns the gas table corresponding to the current phase.
 //
 // The returned GasTable's fields shouldn't, under any circumstances, be changed.
-func (c *ChainConfig) GasTable(num *big.Int) GasTable {
+func (c *ChainConfig) GasTable(num uint64) GasTable {
 	return GasTableV0
 }
 
