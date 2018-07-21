@@ -7,11 +7,12 @@ import (
 	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/ethclient"
+	elog "github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/kardiachain/go-kardia/log"
 )
 
@@ -52,6 +53,8 @@ func homeDir() string {
 
 // EthKardia creates a Ethereum node with
 func NewEthKardia() (*EthKardia, error) {
+	handler := elog.LvlFilterHandler(elog.LvlInfo, elog.StdoutHandler)
+	elog.Root().SetHandler(handler)
 
 	datadir := DefaultEthDataDir()
 
@@ -110,8 +113,13 @@ func (n *EthKardia) EthNode() *node.Node {
 	return n.geth
 }
 
-// AttachRPC connects to IPC APIs, and returns the rpc Client.
-func (n *EthKardia) AttachRPC() (*rpc.Client, error) {
+// Client return the KardiaEthClient to acess Eth subnode.
+func (n *EthKardia) Client() (*KardiaEthClient, error) {
 	// TODO(thientn) : we can parse/wrap this to our own API.
-	return n.geth.Attach()
+
+	rpcClient, err := n.geth.Attach()
+	if err != nil {
+		return nil, err
+	}
+	return &KardiaEthClient{ethClient: ethclient.NewClient(rpcClient), stack: n.geth}, nil
 }

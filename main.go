@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	elog "github.com/ethereum/go-ethereum/log"
 	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/crypto"
 	"github.com/kardiachain/go-kardia/dual"
@@ -17,6 +18,7 @@ import (
 func main() {
 	// args
 	logLevel := flag.String("loglevel", "info", "minimum log verbosity to display")
+	ethLogLevel := flag.String("ethloglevel", "info", "minimum Eth log verbosity to display")
 	listenAddr := flag.String("addr", ":30301", "listen address")
 	peerURL := flag.String("peer", "", "enode URL of static peer")
 	name := flag.String("name", "", "Name of node")
@@ -28,12 +30,19 @@ func main() {
 	// Setups log to Stdout.
 	level, err := log.LvlFromString(*logLevel)
 	if err != nil {
-		fmt.Printf("invalid log level argument: %v \n", err)
-		return
+		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
+		level = log.LvlInfo
 	}
-	handler := log.LvlFilterHandler(level, log.StdoutHandler)
-	log.Root().SetHandler(handler)
+	log.Root().SetHandler(log.LvlFilterHandler(level, log.StdoutHandler))
 	logger := log.New()
+
+	// TODO(thientn): elog level has no effect.
+	elevel, err := elog.LvlFromString(*ethLogLevel)
+	if err != nil {
+		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
+		elevel = elog.LvlInfo
+	}
+	elog.Root().SetHandler(elog.LvlFilterHandler(elevel, elog.StdoutHandler))
 
 	// Setups config.
 	config := &node.DefaultConfig
@@ -90,9 +99,16 @@ func main() {
 		}
 		if err := ethNode.Start(); err != nil {
 			logger.Error("Fail to start Eth sub node", "err", err)
+			return
 		}
 		go displayEthPeers(ethNode)
 
+		client, err := ethNode.Client()
+		if err != nil {
+			logger.Error("Fail to create EthKardia client", "err", err)
+			return
+		}
+		go displaySyncStatus(client)
 	}
 
 	go displayKardiaPeers(n)
@@ -102,7 +118,7 @@ func main() {
 func displayEthPeers(n *dual.EthKardia) {
 	for {
 		log.Info("Ethereum peers: ", "count", n.EthNode().Server().PeerCount())
-		time.Sleep(10 * time.Second)
+		time.Sleep(20 * time.Second)
 	}
 
 }
@@ -110,9 +126,21 @@ func displayEthPeers(n *dual.EthKardia) {
 func displayKardiaPeers(n *node.Node) {
 	for {
 		log.Info("Kardia peers: ", "count", n.Server().PeerCount())
-		time.Sleep(10 * time.Second)
+		time.Sleep(20 * time.Second)
 	}
 
+}
+
+func displaySyncStatus(client *dual.KardiaEthClient) {
+	for {
+		status, err := client.NodeSyncStatus()
+		if err != nil {
+			log.Error("Fail to check sync status of EthKarida", "err", err)
+		} else {
+			log.Info("Sync status", "sync", status)
+		}
+		time.Sleep(20 * time.Second)
+	}
 }
 
 func waitForever() {
