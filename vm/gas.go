@@ -1,6 +1,8 @@
 package vm
 
 import (
+	"math/big"
+
 	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/common/math"
 	"github.com/kardiachain/go-kardia/params"
@@ -14,11 +16,27 @@ const (
 	GasMidStep     uint64 = 8
 	GasSlowStep    uint64 = 10
 	GasExtStep     uint64 = 20
-
-	//GasReturn       uint64 = 0
-	//GasStop         uint64 = 0
-	//GasContractByte uint64 = 200
 )
+
+// calcGas returns the actual gas cost of the call.
+//
+func callGas(gasTable params.GasTable, availableGas, base uint64, callCost *big.Int) (uint64, error) {
+	if gasTable.CreateBySuicide > 0 {
+		availableGas = availableGas - base
+		gas := availableGas - availableGas/64
+		// If the bit length exceeds 64 bit we know that the newly calculated "gas" for EIP150
+		// is smaller than the requested amount. Therefor we return the new gas instead
+		// of returning an error.
+		if callCost.BitLen() > 64 || gas < callCost.Uint64() {
+			return gas, nil
+		}
+	}
+	if callCost.BitLen() > 64 {
+		return 0, errGasUintOverflow
+	}
+
+	return callCost.Uint64(), nil
+}
 
 // memoryGasCosts calculates the quadratic gas for memory expansion. It does so
 // only for the memory region that is expanded, not the total memory.
@@ -123,6 +141,18 @@ func gasSha3(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem
 		return 0, errGasUintOverflow
 	}
 	if gas, overflow = math.SafeAdd(gas, wordGas); overflow {
+		return 0, errGasUintOverflow
+	}
+	return gas, nil
+}
+
+func gasCreate(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	var overflow bool
+	gas, err := memoryGasCost(mem, memorySize)
+	if err != nil {
+		return 0, err
+	}
+	if gas, overflow = math.SafeAdd(gas, params.CreateGas); overflow {
 		return 0, errGasUintOverflow
 	}
 	return gas, nil
@@ -298,6 +328,124 @@ func gasSStore(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, m
 		// non 0 => non 0 (or 0 => 0)
 		return params.SstoreResetGas, nil
 	}
+}
+
+func gasCall(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	var (
+		gas            = gt.Calls
+		transfersValue = stack.Back(2).Sign() != 0
+		address        = common.BigToAddress(stack.Back(1))
+	)
+	if transfersValue && kvm.StateDB.Empty(address) {
+		gas += params.CallNewAccountGas
+	}
+	if transfersValue {
+		gas += params.CallValueTransferGas
+	}
+	memoryGas, err := memoryGasCost(mem, memorySize)
+	if err != nil {
+		return 0, err
+	}
+	var overflow bool
+	if gas, overflow = math.SafeAdd(gas, memoryGas); overflow {
+		return 0, errGasUintOverflow
+	}
+
+	kvm.callGasTemp, err = callGas(gt, contract.Gas, gas, stack.Back(0))
+	if err != nil {
+		return 0, err
+	}
+	if gas, overflow = math.SafeAdd(gas, kvm.callGasTemp); overflow {
+		return 0, errGasUintOverflow
+	}
+	return gas, nil
+}
+
+func gasCallCode(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	gas := gt.Calls
+	if stack.Back(2).Sign() != 0 {
+		gas += params.CallValueTransferGas
+	}
+	memoryGas, err := memoryGasCost(mem, memorySize)
+	if err != nil {
+		return 0, err
+	}
+	var overflow bool
+	if gas, overflow = math.SafeAdd(gas, memoryGas); overflow {
+		return 0, errGasUintOverflow
+	}
+
+	kvm.callGasTemp, err = callGas(gt, contract.Gas, gas, stack.Back(0))
+	if err != nil {
+		return 0, err
+	}
+	if gas, overflow = math.SafeAdd(gas, kvm.callGasTemp); overflow {
+		return 0, errGasUintOverflow
+	}
+	return gas, nil
+}
+
+func gasReturn(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	return memoryGasCost(mem, memorySize)
+}
+
+func gasRevert(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	return memoryGasCost(mem, memorySize)
+}
+
+func gasSuicide(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	gas := gt.Suicide
+	address := common.BigToAddress(stack.Back(0))
+
+	// if empty and transfers value
+	if kvm.StateDB.Empty(address) && kvm.StateDB.GetBalance(contract.Address()).Sign() != 0 {
+		gas += gt.CreateBySuicide
+	}
+
+	if !kvm.StateDB.HasSuicided(contract.Address()) {
+		kvm.StateDB.AddRefund(params.SuicideRefundGas)
+	}
+	return gas, nil
+}
+
+func gasDelegateCall(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	gas, err := memoryGasCost(mem, memorySize)
+	if err != nil {
+		return 0, err
+	}
+	var overflow bool
+	if gas, overflow = math.SafeAdd(gas, gt.Calls); overflow {
+		return 0, errGasUintOverflow
+	}
+
+	kvm.callGasTemp, err = callGas(gt, contract.Gas, gas, stack.Back(0))
+	if err != nil {
+		return 0, err
+	}
+	if gas, overflow = math.SafeAdd(gas, kvm.callGasTemp); overflow {
+		return 0, errGasUintOverflow
+	}
+	return gas, nil
+}
+
+func gasStaticCall(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
+	gas, err := memoryGasCost(mem, memorySize)
+	if err != nil {
+		return 0, err
+	}
+	var overflow bool
+	if gas, overflow = math.SafeAdd(gas, gt.Calls); overflow {
+		return 0, errGasUintOverflow
+	}
+
+	kvm.callGasTemp, err = callGas(gt, contract.Gas, gas, stack.Back(0))
+	if err != nil {
+		return 0, err
+	}
+	if gas, overflow = math.SafeAdd(gas, kvm.callGasTemp); overflow {
+		return 0, errGasUintOverflow
+	}
+	return gas, nil
 }
 
 func gasPush(gt params.GasTable, kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {

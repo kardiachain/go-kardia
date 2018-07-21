@@ -35,7 +35,7 @@ type operation struct {
 }
 
 // NewInstructionSet returns the instructions that are supported by Kardia interpreter.
-func newInstructionSet() [256]operation {
+func newKardiaInstructionSet() [256]operation {
 	return [256]operation{
 		STOP: {
 			execute:       opStop,
@@ -797,7 +797,48 @@ func newInstructionSet() [256]operation {
 			valid:         true,
 			writes:        true,
 		},
-		/* TODO(huny@): Enable these as newer OpCodes
+
+		CREATE: {
+			execute:       opCreate,
+			gasCost:       gasCreate,
+			validateStack: makeStackFunc(3, 1),
+			memorySize:    memoryCreate,
+			valid:         true,
+			writes:        true,
+			returns:       true,
+		},
+		CALL: {
+			execute:       opCall,
+			gasCost:       gasCall,
+			validateStack: makeStackFunc(7, 1),
+			memorySize:    memoryCall,
+			valid:         true,
+			returns:       true,
+		},
+		CALLCODE: {
+			execute:       opCallCode,
+			gasCost:       gasCallCode,
+			validateStack: makeStackFunc(7, 1),
+			memorySize:    memoryCall,
+			valid:         true,
+			returns:       true,
+		},
+		RETURN: {
+			execute:       opReturn,
+			gasCost:       gasReturn,
+			validateStack: makeStackFunc(2, 0),
+			memorySize:    memoryReturn,
+			halts:         true,
+			valid:         true,
+		},
+		SELFDESTRUCT: {
+			execute:       opSuicide,
+			gasCost:       gasSuicide,
+			validateStack: makeStackFunc(1, 0),
+			halts:         true,
+			valid:         true,
+			writes:        true,
+		},
 		DELEGATECALL: {
 			execute:       opDelegateCall,
 			gasCost:       gasDelegateCall,
@@ -814,7 +855,6 @@ func newInstructionSet() [256]operation {
 			valid:         true,
 			returns:       true,
 		},
-		*/
 		RETURNDATASIZE: {
 			execute:       opReturnDataSize,
 			gasCost:       constGasFunc(GasQuickStep),
@@ -828,17 +868,15 @@ func newInstructionSet() [256]operation {
 			memorySize:    memoryReturnDataCopy,
 			valid:         true,
 		},
-		/*
-			REVERT: {
-				execute:       opRevert,
-				gasCost:       gasRevert,
-				validateStack: makeStackFunc(2, 0),
-				memorySize:    memoryRevert,
-				valid:         true,
-				reverts:       true,
-				returns:       true,
-			},
-		*/
+		REVERT: {
+			execute:       opRevert,
+			gasCost:       gasRevert,
+			validateStack: makeStackFunc(2, 0),
+			memorySize:    memoryRevert,
+			valid:         true,
+			reverts:       true,
+			returns:       true,
+		},
 		SHL: {
 			execute:       opSHL,
 			gasCost:       constGasFunc(GasFastestStep),

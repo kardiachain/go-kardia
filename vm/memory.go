@@ -73,6 +73,19 @@ func (m *Memory) Len() int {
 	return len(m.store)
 }
 
+// GetPtr returns the offset + size
+func (m *Memory) GetPtr(offset, size int64) []byte {
+	if size == 0 {
+		return nil
+	}
+
+	if len(m.store) > int(offset) {
+		return m.store[offset : offset+size]
+	}
+
+	return nil
+}
+
 //==============================================================================
 // Memory table
 //==============================================================================
@@ -111,4 +124,37 @@ func memoryMStore(stack *Stack) *big.Int {
 func memoryLog(stack *Stack) *big.Int {
 	mSize, mStart := stack.Back(1), stack.Back(0)
 	return calcMemSize(mStart, mSize)
+}
+
+func memoryCreate(stack *Stack) *big.Int {
+	return calcMemSize(stack.Back(1), stack.Back(2))
+}
+
+func memoryCall(stack *Stack) *big.Int {
+	x := calcMemSize(stack.Back(5), stack.Back(6))
+	y := calcMemSize(stack.Back(3), stack.Back(4))
+
+	return math.BigMax(x, y)
+}
+
+func memoryDelegateCall(stack *Stack) *big.Int {
+	x := calcMemSize(stack.Back(4), stack.Back(5))
+	y := calcMemSize(stack.Back(2), stack.Back(3))
+
+	return math.BigMax(x, y)
+}
+
+func memoryStaticCall(stack *Stack) *big.Int {
+	x := calcMemSize(stack.Back(4), stack.Back(5))
+	y := calcMemSize(stack.Back(2), stack.Back(3))
+
+	return math.BigMax(x, y)
+}
+
+func memoryReturn(stack *Stack) *big.Int {
+	return calcMemSize(stack.Back(0), stack.Back(1))
+}
+
+func memoryRevert(stack *Stack) *big.Int {
+	return calcMemSize(stack.Back(0), stack.Back(1))
 }

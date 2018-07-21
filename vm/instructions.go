@@ -8,6 +8,7 @@ import (
 	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/common/math"
 	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/params"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -608,6 +609,162 @@ func opMsize(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *St
 
 func opGas(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	stack.push(kvm.interpreter.intPool.get().SetUint64(contract.Gas))
+	return nil, nil
+}
+
+func opCreate(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	var (
+		value        = stack.pop()
+		offset, size = stack.pop(), stack.pop()
+		input        = memory.Get(offset.Int64(), size.Int64())
+		gas          = contract.Gas
+	)
+
+	contract.UseGas(gas)
+	res, addr, returnGas, suberr := kvm.Create(contract, input, gas, value)
+	if suberr != nil {
+		stack.push(kvm.interpreter.intPool.getZero())
+	} else {
+		stack.push(addr.Big())
+	}
+	contract.Gas += returnGas
+	kvm.interpreter.intPool.put(value, offset, size)
+
+	if suberr == errExecutionReverted {
+		return res, nil
+	}
+	return nil, nil
+}
+
+func opCall(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	// Pop gas. The actual gas in in kvm.callGasTemp.
+	kvm.interpreter.intPool.put(stack.pop())
+	gas := kvm.callGasTemp
+	// Pop other call parameters.
+	addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
+	toAddr := common.BigToAddress(addr)
+	value = math.U256(value)
+	// Get the arguments from the memory.
+	args := memory.Get(inOffset.Int64(), inSize.Int64())
+
+	if value.Sign() != 0 {
+		gas += params.CallStipend
+	}
+	ret, returnGas, err := kvm.Call(contract, toAddr, args, gas, value)
+	if err != nil {
+		stack.push(kvm.interpreter.intPool.getZero())
+	} else {
+		stack.push(kvm.interpreter.intPool.get().SetUint64(1))
+	}
+	if err == nil || err == errExecutionReverted {
+		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+	}
+	contract.Gas += returnGas
+
+	kvm.interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)
+	return ret, nil
+}
+
+func opCallCode(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	// Pop gas. The actual gas is in kvm.callGasTemp.
+	kvm.interpreter.intPool.put(stack.pop())
+	gas := kvm.callGasTemp
+	// Pop other call parameters.
+	addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
+	toAddr := common.BigToAddress(addr)
+	value = math.U256(value)
+	// Get arguments from the memory.
+	args := memory.Get(inOffset.Int64(), inSize.Int64())
+
+	if value.Sign() != 0 {
+		gas += params.CallStipend
+	}
+	ret, returnGas, err := kvm.CallCode(contract, toAddr, args, gas, value)
+	if err != nil {
+		stack.push(kvm.interpreter.intPool.getZero())
+	} else {
+		stack.push(kvm.interpreter.intPool.get().SetUint64(1))
+	}
+	if err == nil || err == errExecutionReverted {
+		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+	}
+	contract.Gas += returnGas
+
+	kvm.interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)
+	return ret, nil
+}
+
+func opDelegateCall(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	// Pop gas. The actual gas is in kvm.callGasTemp.
+	kvm.interpreter.intPool.put(stack.pop())
+	gas := kvm.callGasTemp
+	// Pop other call parameters.
+	addr, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
+	toAddr := common.BigToAddress(addr)
+	// Get arguments from the memory.
+	args := memory.Get(inOffset.Int64(), inSize.Int64())
+
+	ret, returnGas, err := kvm.DelegateCall(contract, toAddr, args, gas)
+	if err != nil {
+		stack.push(kvm.interpreter.intPool.getZero())
+	} else {
+		stack.push(kvm.interpreter.intPool.get().SetUint64(1))
+	}
+	if err == nil || err == errExecutionReverted {
+		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+	}
+	contract.Gas += returnGas
+
+	kvm.interpreter.intPool.put(addr, inOffset, inSize, retOffset, retSize)
+	return ret, nil
+}
+
+func opStaticCall(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	// Pop gas. The actual gas is in kvm.callGasTemp.
+	kvm.interpreter.intPool.put(stack.pop())
+	gas := kvm.callGasTemp
+	// Pop other call parameters.
+	addr, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
+	toAddr := common.BigToAddress(addr)
+	// Get arguments from the memory.
+	args := memory.Get(inOffset.Int64(), inSize.Int64())
+
+	ret, returnGas, err := kvm.StaticCall(contract, toAddr, args, gas)
+	if err != nil {
+		stack.push(kvm.interpreter.intPool.getZero())
+	} else {
+		stack.push(kvm.interpreter.intPool.get().SetUint64(1))
+	}
+	if err == nil || err == errExecutionReverted {
+		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+	}
+	contract.Gas += returnGas
+
+	kvm.interpreter.intPool.put(addr, inOffset, inSize, retOffset, retSize)
+	return ret, nil
+}
+
+func opReturn(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	offset, size := stack.pop(), stack.pop()
+	ret := memory.GetPtr(offset.Int64(), size.Int64())
+
+	kvm.interpreter.intPool.put(offset, size)
+	return ret, nil
+}
+
+func opRevert(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	offset, size := stack.pop(), stack.pop()
+	ret := memory.GetPtr(offset.Int64(), size.Int64())
+
+	kvm.interpreter.intPool.put(offset, size)
+	return ret, nil
+}
+
+func opSuicide(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	balance := kvm.StateDB.GetBalance(contract.Address())
+	kvm.StateDB.AddBalance(common.BigToAddress(stack.pop()), balance)
+
+	kvm.StateDB.Suicide(contract.Address())
 	return nil, nil
 }
 
