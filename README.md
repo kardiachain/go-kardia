@@ -1,4 +1,4 @@
-# Go Kardia
+# Go Kardia!!!
 
 Golang implementation of concepts for Kardia chain
 
