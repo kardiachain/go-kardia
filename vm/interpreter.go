@@ -45,7 +45,7 @@ func NewInterpreter(kvm *KVM, cfg Config) *Interpreter {
 	return &Interpreter{
 		kvm:      kvm,
 		cfg:      cfg,
-		gasTable: kvm.ChainConfig().GasTable(kvm.BlockHeight),
+		gasTable: params.GasTableV0,
 	}
 }
 
