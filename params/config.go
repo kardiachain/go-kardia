@@ -109,13 +109,6 @@ var (
 	}
 )
 
-// GasTable returns the gas table corresponding to the current phase.
-//
-// The returned GasTable's fields shouldn't, under any circumstances, be changed.
-func (c *ChainConfig) GasTable(num uint64) GasTable {
-	return GasTableV0
-}
-
 func configNumEqual(x, y *big.Int) bool {
 	if x == nil {
 		return y == nil

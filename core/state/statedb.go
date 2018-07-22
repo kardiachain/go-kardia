@@ -93,6 +93,14 @@ func (self *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 	return stateObject
 }
 
+// Prepare sets the current transaction hash and index and block hash which is
+// used when the EVM emits new state logs.
+func (self *StateDB) Prepare(thash, bhash common.Hash, ti int) {
+	self.thash = thash
+	self.bhash = bhash
+	self.txIndex = ti
+}
+
 // CreateAccount explicitly creates a state object. If a state object with the address
 // already exists the balance is carried over to the new account.
 //
@@ -186,6 +194,10 @@ func (self *StateDB) Empty(addr common.Address) bool {
 // Database retrieves the low level database supporting the lower level trie ops.
 func (self *StateDB) Database() Database {
 	return self.db
+}
+
+func (self *StateDB) GetLogs(hash common.Hash) []*types.Log {
+	return self.logs[hash]
 }
 
 // Retrieve the balance from the given address or 0 if object not found
@@ -339,6 +351,11 @@ func (self *StateDB) updateStateObject(stateObject *stateObject) {
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
 	}
 	self.setError(self.trie.TryUpdate(addr[:], data))
+}
+
+// GetRefund returns the current value of the refund counter.
+func (self *StateDB) GetRefund() uint64 {
+	return self.refund
 }
 
 func (s *StateDB) clearJournalAndRefund() {
