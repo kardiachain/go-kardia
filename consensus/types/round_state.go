@@ -71,3 +71,17 @@ type RoundState struct {
 	CommitRound   int                 `json:"commit_round"` //
 	LastCommit    *types.VoteSet      `json:"last_commit"`  // Last precommits at Height-1
 }
+
+// RoundStateEvent returns the H/R/S of the RoundState as an event.
+func (rs *RoundState) RoundStateEvent() types.EventDataRoundState {
+	// XXX: copy the RoundState
+	// if we want to avoid this, we may need synchronous events after all
+	rsCopy := *rs
+	edrs := types.EventDataRoundState{
+		Height:     rs.Height,
+		Round:      rs.Round,
+		Step:       rs.Step.String(),
+		RoundState: &rsCopy,
+	}
+	return edrs
+}

@@ -2,16 +2,22 @@ package consensus
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
-	"reflect"
-	"runtime/debug"
 	"sync"
-	"time"
 
+	cstypes "github.com/kardiachain/go-kardia/consensus/types"
+	"github.com/kardiachain/go-kardia/discover"
+	cmn "github.com/kardiachain/go-kardia/libs/common"
+	libevents "github.com/kardiachain/go-kardia/libs/events"
 	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
 )
+
+// msgs from the reactor which may update the state
+type msgInfo struct {
+	Msg    ConsensusMessage `json:"msg"`
+	PeerID discover.NodeID  `json:"peer_key"`
+}
 
 // ConsensusState handles execution of the consensus algorithm.
 // It processes votes and proposals, and upon reaching agreement,
@@ -21,56 +27,107 @@ import (
 type ConsensusState struct {
 	Logger log.Logger
 
-	// config details
-	config        *cfg.ConsensusConfig
 	privValidator types.PrivValidator // for signing votes
 
-	// services for creating and executing blocks
+	// Services for creating and executing blocks
 	// TODO: encapsulate all of this in one "BlockManager"
 	blockExec  *sm.BlockExecutor
 	blockStore sm.BlockStore
-	mempool    sm.Mempool
-	evpool     sm.EvidencePool
+	// TODO(namdoh): Add mem pool.
+	evpool EvidencePool
 
 	// internal state
 	mtx sync.Mutex
 	cstypes.RoundState
-	state sm.State // State until height-1.
+	state state.LastestBlockState // State until height-1.
 
-	// state changes may be triggered by: msgs from peers,
+	// State changes may be triggered by: msgs from peers,
 	// msgs from ourself, or by timeouts
 	peerMsgQueue     chan msgInfo
 	internalMsgQueue chan msgInfo
-	timeoutTicker    TimeoutTicker
+	// TODO(namdoh): Adds timeout ticker.
 
-	// we use eventBus to trigger msg broadcasts in the reactor,
-	// and to notify external subscribers, eg. through a websocket
-	eventBus *types.EventBus
-
-	// a Write-Ahead Log ensures we can recover from any kind of crash
-	// and helps us avoid signing conflicting votes
-	wal          WAL
-	replayMode   bool // so we don't log signing errors during replay
-	doWALCatchup bool // determines if we even try to do the catchup
-
-	// for tests where we want to limit the number of transitions the state makes
+	// For tests where we want to limit the number of transitions the state makes
 	nSteps int
 
-	// some functions can be overwritten for testing
-	decideProposal func(height int64, round int)
-	doPrevote      func(height int64, round int)
-	setProposal    func(proposal *types.Proposal) error
-
-	// closed when we finish shutting down
-	done chan struct{}
-
-	// synchronous pubsub between consensus state and reactor.
-	// state only emits EventNewRoundStep, EventVote and EventProposalHeartbeat
-	evsw tmevents.EventSwitch
-
-	// for reporting metrics
-	metrics *Metrics
+	// Synchronous pubsub between consensus state and reactor.
+	// State only emits EventNewRoundStep, EventVote and EventProposalHeartbeat
+	evsw libevents.EventSwitch
 }
+
+// ------- HELPER METHODS -------- //
+
+// Send a msg into the receiveRoutine regarding our own proposal, block part, or vote
+func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
+	select {
+	case cs.internalMsgQueue <- mi:
+	default:
+		// NOTE: using the go-routine means our votes can
+		// be processed out of order.
+		// TODO: use CList here for strict determinism and
+		// attempt push to internalMsgQueue in receiveRoutine
+		cs.Logger.Info("Internal msg queue is full. Using a go-routine")
+		go func() { cs.internalMsgQueue <- mi }()
+	}
+}
+
+// Signs vote.
+func (cs *ConsensusState) signVote(type_ byte, hash []byte, header types.PartSetHeader) (*types.Vote, error) {
+	addr := cs.privValidator.GetAddress()
+	valIndex, _ := cs.Validators.GetByAddress(addr)
+	vote := &types.Vote{
+		ValidatorAddress: addr,
+		ValidatorIndex:   valIndex,
+		Height:           cs.Height,
+		Round:            cs.Round,
+		Timestamp:        time.Now().UTC(),
+		Type:             type_,
+		BlockID:          types.BlockID{hash, header},
+	}
+	err := cs.privValidator.SignVote(cs.state.ChainID, vote)
+	return vote, err
+}
+
+// Signs the vote and publish on internalMsgQueue
+func (cs *ConsensusState) signAddVote(type_ byte, hash []byte, header types.PartSetHeader) *types.Vote {
+	// if we don't have a key or we're not in the validator set, do nothing
+	if cs.privValidator == nil || !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
+		return nil
+	}
+	vote, err := cs.signVote(type_, hash, header)
+	if err == nil {
+		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, ""})
+		cs.Logger.Info("Signed and pushed vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
+		return vote
+	}
+	//if !cs.replayMode {
+	cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
+	//}
+	return nil
+}
+
+// Updates ConsensusState to the current round and round step.
+func (cs *ConsensusState) updateRoundStep(round int, step cstypes.RoundStepType) {
+	cs.Round = round
+	cs.Step = step
+}
+
+// Advances to a new step.
+func (cs *ConsensusState) newStep() {
+	rs := cs.RoundStateEvent()
+	//  TODO(namdoh): Add support for WAL later on.
+	//cs.wal.Write(rs)
+
+	cs.nSteps++
+	// newStep is called by updateToState in NewConsensusState before the
+	// eventBus is set!
+	if cs.eventBus != nil {
+		cs.eventBus.PublishEventNewRoundStep(rs)
+		cs.evsw.FireEvent(types.EventNewRoundStep, &cs.RoundState)
+	}
+}
+
+// -------- STATE METHODS ------ //
 
 // Creates the next block to propose and returns it. Returns nil block upon
 // error.
@@ -90,10 +147,105 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 		return
 	}
 
-	// Mempool validated transactions
-	txs := cs.mempool.Reap(cs.state.ConsensusParams.BlockSize.MaxTxs)
-	block, parts := cs.state.MakeBlock(cs.Height, txs, commit)
+	// TODO(namdoh): Adds mem pool validated transactions
+	block := cs.state.MakeBlock(cs.Height, txs, commit)
 	evidence := cs.evpool.PendingEvidence()
 	block.AddEvidence(evidence)
 	return block, parts
+}
+
+// Enter: `timeoutPrevote` after any +2/3 prevotes.
+// Enter: +2/3 precomits for block or nil.
+// Enter: any +2/3 precommits for next round.
+// Lock & precommit the ProposalBlock if we have enough prevotes for it (a POL in this round)
+// else, unlock an existing lock and precommit nil if +2/3 of prevotes were nil,
+// else, precommit nil otherwise.
+func (cs *ConsensusState) enterPrecommit(height int64, round int) {
+	logger := cs.Logger.With("enterPrecommit", "height", height, "round", round)
+
+	if cs.Height != height || round < cs.Round || (cs.Round == round && cstypes.RoundStepPrecommit <= cs.Step) {
+		logger.Debug(cmn.Fmt("enterPrecommit(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
+		return
+	}
+
+	logger.Info(cmn.Fmt("enterPrecommit(%v/%v). Current: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
+
+	defer func() {
+		// Done enterPrecommit:
+		cs.updateRoundStep(round, cstypes.RoundStepPrecommit)
+		cs.newStep()
+	}()
+
+	/****** EOD 07/20 12:40 am *******/
+
+	// check for a polka
+	blockID, ok := cs.Votes.Prevotes(round).TwoThirdsMajority()
+
+	// If we don't have a polka, we must precommit nil.
+	if !ok {
+		if cs.LockedBlock != nil {
+			logger.Info("enterPrecommit: No +2/3 prevotes during enterPrecommit while we're locked. Precommitting nil")
+		} else {
+			logger.Info("enterPrecommit: No +2/3 prevotes during enterPrecommit. Precommitting nil.")
+		}
+		cs.signAddVote(types.VoteTypePrecommit, nil)
+		return
+	}
+
+	// At this point +2/3 prevoted for a particular block or nil.
+	cs.eventBus.PublishEventPolka(cs.RoundStateEvent())
+
+	// the latest POLRound should be this round.
+	polRound, _ := cs.Votes.POLInfo()
+	if polRound < round {
+		cmn.PanicSanity(cmn.Fmt("This POLRound should be %v but got %", round, polRound))
+	}
+
+	// +2/3 prevoted nil. Unlock and precommit nil.
+	if blockID == nil {
+		if cs.LockedBlock == nil {
+			logger.Info("enterPrecommit: +2/3 prevoted for nil.")
+		} else {
+			logger.Info("enterPrecommit: +2/3 prevoted for nil. Unlocking")
+			cs.LockedRound = 0
+			cs.LockedBlock = nil
+			cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
+		}
+		cs.signAddVote(types.VoteTypePrecommit, nil)
+		return
+	}
+
+	// At this point, +2/3 prevoted for a particular block.
+
+	// If we're already locked on that block, precommit it, and update the LockedRound
+	if cs.LockedBlock.HashesTo(blockID) {
+		logger.Info("enterPrecommit: +2/3 prevoted locked block. Relocking")
+		cs.LockedRound = round
+		cs.eventBus.PublishEventRelock(cs.RoundStateEvent())
+		cs.signAddVote(types.VoteTypePrecommit, blockID)
+		return
+	}
+
+	// If +2/3 prevoted for proposal block, stage and precommit it
+	if cs.ProposalBlock.Hash().Equal(blockID) {
+		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID.Hash)
+		// Validate the block.
+		if err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
+			cmn.PanicConsensus(cmn.Fmt("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
+		}
+		cs.LockedRound = round
+		cs.LockedBlock = cs.ProposalBlock
+		cs.eventBus.PublishEventLock(cs.RoundStateEvent())
+		cs.signAddVote(types.VoteTypePrecommit, blockID.Hash)
+		return
+	}
+
+	// There was a polka in this round for a block we don't have.
+	// Fetch that block, unlock, and precommit nil.
+	// The +2/3 prevotes for this round is the POL for our unlock.
+	// TODO: In the future save the POL prevotes for justification.
+	cs.LockedRound = 0
+	cs.LockedBlock = nil
+	cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
+	cs.signAddVote(types.VoteTypePrecommit, nil)
 }

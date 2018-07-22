@@ -3,6 +3,7 @@ package types
 import (
 	"sync"
 
+	cmn "github.com/kardiachain/go-kardia/libs/common"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -33,4 +34,43 @@ type HeightVoteSet struct {
 	roundVoteSets map[int]RoundVoteSet // keys: [0...round]
 	// TODO(huny@): Do we need the peer catch up rounds?
 	// peerCatchupRounds map[p2p.ID][]int     // keys: peer.ID; values: at most 2 rounds
+}
+
+// Get all prevotes of the specified round.
+func (hvs *HeightVoteSet) Prevotes(round int) *types.VoteSet {
+	hvs.mtx.Lock()
+	defer hvs.mtx.Unlock()
+	return hvs.getVoteSet(round, types.VoteTypePrevote)
+}
+
+// Get vote set of the given round for specific type.
+func (hvs *HeightVoteSet) getVoteSet(round int, type_ byte) *types.VoteSet {
+	rvs, ok := hvs.roundVoteSets[round]
+	if !ok {
+		return nil
+	}
+	switch type_ {
+	case types.VoteTypePrevote:
+		return rvs.Prevotes
+	case types.VoteTypePrecommit:
+		return rvs.Precommits
+	default:
+		cmn.PanicSanity(cmn.Fmt("Unexpected vote type %X", type_))
+		return nil
+	}
+}
+
+// Returns last round and blockID that has +2/3 prevotes for a particular block
+// or nil. Returns -1 if no such round exists.
+func (hvs *HeightVoteSet) POLInfo() (polRound int, polBlockID types.BlockID) {
+	hvs.mtx.Lock()
+	defer hvs.mtx.Unlock()
+	for r := hvs.round; r >= 0; r-- {
+		rvs := hvs.getVoteSet(r, types.VoteTypePrevote)
+		polBlockID, ok := rvs.TwoThirdsMajority()
+		if ok {
+			return r, polBlockID
+		}
+	}
+	return -1, types.BlockID{}
 }

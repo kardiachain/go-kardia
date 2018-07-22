@@ -1,9 +1,11 @@
 package types
 
 import (
-	"github.com/kardiachain/go-kardia/common"
 	"sync"
 	"time"
+
+	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/nlp"
 )
 
 // Types of votes
@@ -36,7 +38,19 @@ type Vote struct {
 	Signature        []byte         `json:"signature"`
 }
 
-// TODO(huny@): Implement SignBytes
+type CanonicalVote struct {
+	chainID string
+	vote    Vote
+}
+
+// TODO(namdoh): Add comment.
+func (vote *Vote) SignBytes(chainID string) []byte {
+	bz, err := rlp.EncodeToBytes(CanonicalVote{chainID, vote})
+	if err != nil {
+		panic(err)
+	}
+	return bz
+}
 
 func (vote *Vote) Copy() *Vote {
 	voteCopy := *vote
@@ -86,7 +100,7 @@ type VoteSet struct {
 	votesBitArray *common.BitArray
 	votes         []*Vote                // Primary votes to share
 	sum           int64                  // Sum of voting power for seen votes, discounting conflicts
-	maj23         *BlockID               // First 2/3 majority seen
+	maj23         BlockID                // First 2/3 majority seen
 	votesByBlock  map[string]*blockVotes // string(blockHash|blockParts) -> blockVotes
 	peerMaj23s    map[P2PID]BlockID      // Maj23 for each peer
 }
@@ -203,14 +217,14 @@ func (voteSet *VoteSet) HasAll() bool {
 // Else, return the empty BlockID{} and false.
 func (voteSet *VoteSet) TwoThirdsMajority() (blockID BlockID, ok bool) {
 	if voteSet == nil {
-		return BlockID{}, false
+		return nil, false
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 	if voteSet.maj23 != nil {
 		return *voteSet.maj23, true
 	}
-	return BlockID{}, false
+	return nil, false
 }
 
 //--------------------------------------------------------------------------------

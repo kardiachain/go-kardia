@@ -52,6 +52,10 @@ func (h Hash) Big() *big.Int { return new(big.Int).SetBytes(h[:]) }
 // Hex converts a hash to a hex string.
 func (h Hash) Hex() string { return hexutil.Encode(h[:]) }
 
+// Compares with another Hash
+// Hex converts a hash to a hex string.
+func (h Hash) Equal(anotherHash hash) bool { return bytes.Equal(h, anotherHash) }
+
 // TerminalString implements log.TerminalStringer, formatting a string for console
 // output during logging.
 func (h Hash) TerminalString() string {
