@@ -522,9 +522,8 @@ var senderCacher = newTxSenderCacher(runtime.NumCPU())
 // which is used to feed the same underlying input array to different threads but
 // ensure they process the early transactions fast.
 type txSenderCacherRequest struct {
-	signer types.Signer
-	txs    []*types.Transaction
-	inc    int
+	txs []*types.Transaction
+	inc int
 }
 
 // txSenderCacher is a helper structure to concurrently ecrecover transaction
@@ -552,7 +551,7 @@ func newTxSenderCacher(threads int) *txSenderCacher {
 func (cacher *txSenderCacher) cache() {
 	for task := range cacher.tasks {
 		for i := 0; i < len(task.txs); i += task.inc {
-			types.Sender(task.signer, task.txs[i])
+			types.Sender(task.txs[i])
 		}
 	}
 }
@@ -560,7 +559,7 @@ func (cacher *txSenderCacher) cache() {
 // recover recovers the senders from a batch of transactions and caches them
 // back into the same data structures. There is no validation being done, nor
 // any reaction to invalid signatures. That is up to calling code later.
-func (cacher *txSenderCacher) recover(signer types.Signer, txs []*types.Transaction) {
+func (cacher *txSenderCacher) recover(txs []*types.Transaction) {
 	// If there's nothing to recover, abort
 	if len(txs) == 0 {
 		return
@@ -572,9 +571,8 @@ func (cacher *txSenderCacher) recover(signer types.Signer, txs []*types.Transact
 	}
 	for i := 0; i < tasks; i++ {
 		cacher.tasks <- &txSenderCacherRequest{
-			signer: signer,
-			txs:    txs[i:],
-			inc:    tasks,
+			txs: txs[i:],
+			inc: tasks,
 		}
 	}
 }
@@ -582,7 +580,7 @@ func (cacher *txSenderCacher) recover(signer types.Signer, txs []*types.Transact
 // recoverFromBlocks recovers the senders from a batch of blocks and caches them
 // back into the same data structures. There is no validation being done, nor
 // any reaction to invalid signatures. That is up to calling code later.
-func (cacher *txSenderCacher) recoverFromBlocks(signer types.Signer, blocks []*types.Block) {
+func (cacher *txSenderCacher) recoverFromBlocks(blocks []*types.Block) {
 	count := 0
 	for _, block := range blocks {
 		count += len(block.Transactions())
@@ -591,7 +589,7 @@ func (cacher *txSenderCacher) recoverFromBlocks(signer types.Signer, blocks []*t
 	for _, block := range blocks {
 		txs = append(txs, block.Transactions()...)
 	}
-	cacher.recover(signer, txs)
+	cacher.recover(txs)
 }
 
 //==============================================================================================

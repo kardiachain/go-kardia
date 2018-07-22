@@ -61,7 +61,7 @@ func main() {
 		)
 		txPool := kService.TxPool()
 		key, _ := crypto.GenerateKey()
-		signedTx, _ := types.SignTx(emptyTx, *txPool.PoolSigner(), key)
+		signedTx, _ := types.SignTx(emptyTx, key)
 
 		txPool.AddLocal(signedTx)
 	}
