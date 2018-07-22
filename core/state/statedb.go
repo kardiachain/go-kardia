@@ -4,6 +4,7 @@ package state
 import (
 	"fmt"
 	"math/big"
+	"sort"
 	"sync"
 
 	"github.com/kardiachain/go-kardia/common"
@@ -92,6 +93,23 @@ func (self *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 	return stateObject
 }
 
+// CreateAccount explicitly creates a state object. If a state object with the address
+// already exists the balance is carried over to the new account.
+//
+// CreateAccount is called during the KVM CREATE operation. The situation might arise that
+// a contract does the following:
+//
+//   1. sends funds to sha(account ++ (nonce + 1))
+//   2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
+//
+// Carrying over the balance ensures that Kai doesn't disappear.
+func (self *StateDB) CreateAccount(addr common.Address) {
+	new, prev := self.createObject(addr)
+	if prev != nil {
+		new.setBalance(prev.data.Balance)
+	}
+}
+
 // createObject creates a new state object. If there is an existing account with
 // the given address, it is overwritten and returned as the second return value.
 func (self *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) {
@@ -177,6 +195,14 @@ func (self *StateDB) GetBalance(addr common.Address) *big.Int {
 		return stateObject.Balance()
 	}
 	return common.Big0
+}
+
+// SubBalance subtracts amount from the account associated with addr.
+func (self *StateDB) SubBalance(addr common.Address, amount *big.Int) {
+	stateObject := self.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SubBalance(amount)
+	}
 }
 
 func (self *StateDB) GetNonce(addr common.Address) uint64 {
@@ -368,4 +394,117 @@ func (s *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) 
 	})
 	log.Debug("Trie cache stats after commit", "misses", trie.CacheMisses(), "unloads", trie.CacheUnloads())
 	return root, err
+}
+
+func (self *StateDB) AddLog(log *types.Log) {
+	self.journal.append(addLogChange{txhash: self.thash})
+
+	log.TxHash = self.thash
+	log.BlockHash = self.bhash
+	log.TxIndex = uint(self.txIndex)
+	log.Index = self.logSize
+	self.logs[self.thash] = append(self.logs[self.thash], log)
+	self.logSize++
+}
+
+func (self *StateDB) AddRefund(gas uint64) {
+	self.journal.append(refundChange{prev: self.refund})
+	self.refund += gas
+}
+
+// Exist reports whether the given account address exists in the state.
+// Notably this also returns true for suicided accounts.
+func (self *StateDB) Exist(addr common.Address) bool {
+	return self.getStateObject(addr) != nil
+}
+
+func (self *StateDB) GetCode(addr common.Address) []byte {
+	stateObject := self.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.Code(self.db)
+	}
+	return nil
+}
+
+func (self *StateDB) GetCodeHash(addr common.Address) common.Hash {
+	stateObject := self.getStateObject(addr)
+	if stateObject == nil {
+		return common.Hash{}
+	}
+	return common.BytesToHash(stateObject.CodeHash())
+}
+
+func (self *StateDB) GetCodeSize(addr common.Address) int {
+	stateObject := self.getStateObject(addr)
+	if stateObject == nil {
+		return 0
+	}
+	if stateObject.code != nil {
+		return len(stateObject.code)
+	}
+	size, err := self.db.ContractCodeSize(stateObject.addrHash, common.BytesToHash(stateObject.CodeHash()))
+	if err != nil {
+		self.setError(err)
+	}
+	return size
+}
+
+func (self *StateDB) GetState(addr common.Address, bhash common.Hash) common.Hash {
+	stateObject := self.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.GetState(self.db, bhash)
+	}
+	return common.Hash{}
+}
+
+// Suicide marks the given account as suicided.
+// This clears the account balance.
+//
+// The account's state object is still available until the state is committed,
+// getStateObject will return a non-nil account after Suicide.
+func (self *StateDB) Suicide(addr common.Address) bool {
+	stateObject := self.getStateObject(addr)
+	if stateObject == nil {
+		return false
+	}
+	self.journal.append(suicideChange{
+		account:     &addr,
+		prev:        stateObject.suicided,
+		prevbalance: new(big.Int).Set(stateObject.Balance()),
+	})
+	stateObject.markSuicided()
+	stateObject.data.Balance = new(big.Int)
+
+	return true
+}
+
+func (self *StateDB) HasSuicided(addr common.Address) bool {
+	stateObject := self.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.suicided
+	}
+	return false
+}
+
+// RevertToSnapshot reverts all state changes made since the given revision.
+func (self *StateDB) RevertToSnapshot(revid int) {
+	// Find the snapshot in the stack of valid snapshots.
+	idx := sort.Search(len(self.validRevisions), func(i int) bool {
+		return self.validRevisions[i].id >= revid
+	})
+	if idx == len(self.validRevisions) || self.validRevisions[idx].id != revid {
+		panic(fmt.Errorf("revision id %v cannot be reverted", revid))
+	}
+	snapshot := self.validRevisions[idx].journalIndex
+
+	// Replay the journal to undo changes and remove invalidated snapshots
+	self.journal.revert(self, snapshot)
+}
+
+// Snapshot returns an identifier for the current revision of the state.
+func (self *StateDB) Snapshot() int {
+	id := self.nextRevisionId
+	self.nextRevisionId++
+	self.validRevisions = append(self.validRevisions, revision{id, self.journal.length()})
+	return id
 }

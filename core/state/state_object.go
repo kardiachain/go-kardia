@@ -187,6 +187,15 @@ func (c *stateObject) AddBalance(amount *big.Int) {
 	c.SetBalance(new(big.Int).Add(c.Balance(), amount))
 }
 
+// SubBalance removes amount from c's balance.
+// It is used to remove funds from the origin account of a transfer.
+func (c *stateObject) SubBalance(amount *big.Int) {
+	if amount.Sign() == 0 {
+		return
+	}
+	c.SetBalance(new(big.Int).Sub(c.Balance(), amount))
+}
+
 func (self *stateObject) SetBalance(amount *big.Int) {
 	self.db.journal.append(balanceChange{
 		account: &self.address,
@@ -278,6 +287,10 @@ func (self *stateObject) setError(err error) {
 	if self.dbErr == nil {
 		self.dbErr = err
 	}
+}
+
+func (self *stateObject) markSuicided() {
+	self.suicided = true
 }
 
 func (c *stateObject) getTrie(db Database) Trie {
