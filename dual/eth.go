@@ -6,8 +6,10 @@ import (
 	"os/user"
 	"path/filepath"
 
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/ethstats"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
@@ -18,7 +20,7 @@ import (
 const (
 	NodeName     = "GethKardia" // Client for Eth network
 	NodePort     = 30303
-	NodeMaxPeers = 25 // Default Eth max peers
+	NodeMaxPeers = 4 // Eth max peers
 )
 
 // EthKarida is a full Ethereum node running inside Karida
@@ -51,7 +53,7 @@ func homeDir() string {
 }
 
 // EthKardia creates a Ethereum node with
-func NewEthKardia() (*EthKardia, error) {
+func NewEthKardia(reportStat bool) (*EthKardia, error) {
 	datadir := DefaultEthDataDir()
 
 	// Creates datadir with testnet follow eth standards.
@@ -84,9 +86,10 @@ func NewEthKardia() (*EthKardia, error) {
 
 	// TODO(thientn): set eth config to match with Rinkeby or other test networks.
 	// verify on cmd/utils/flags.go
-	// DefaultConfig use prod networkid & ehash.
 	// similar to cmd/eth/config.go/makeConfigNode
 	ethConf := &eth.DefaultConfig
+	ethConf.NetworkId = 4 // Rinkeby Id
+	ethConf.Genesis = core.DefaultRinkebyGenesisBlock()
 
 	ethNode, err := node.New(nodeConfig)
 	if err != nil {
@@ -94,6 +97,20 @@ func NewEthKardia() (*EthKardia, error) {
 	}
 	if err := ethNode.Register(func(ctx *node.ServiceContext) (node.Service, error) { return eth.New(ctx, ethConf) }); err != nil {
 		return nil, fmt.Errorf("ethereum service: %v", err)
+	}
+
+	// Registers ethstats service to report node stat to testnet system.
+	if reportStat {
+		url := "[EthKardia]eth-kardia-1:Respect my authoritah!@stats.rinkeby.io"
+		if err := ethNode.Register(func(ctx *node.ServiceContext) (node.Service, error) {
+			// Retrieve both eth and les services
+			var ethServ *eth.Ethereum
+			ctx.Service(&ethServ)
+
+			return ethstats.New(url, ethServ, nil)
+		}); err != nil {
+			log.Error("Failed to register the Ethereum Stats service", "err", err)
+		}
 	}
 	return &EthKardia{geth: ethNode}, nil
 }

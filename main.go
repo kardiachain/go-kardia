@@ -24,6 +24,7 @@ func main() {
 	name := flag.String("name", "", "Name of node")
 	addTxn := flag.Bool("txn", false, "whether to add a fake txn")
 	dualMode := flag.Bool("dual", false, "whether to run in dual mode")
+	ethstat := flag.Bool("ethstat", false, "report eth stats to network")
 
 	flag.Parse()
 
@@ -91,7 +92,7 @@ func main() {
 	// go displayPeers(n)
 
 	if *dualMode {
-		ethNode, err := dual.NewEthKardia()
+		ethNode, err := dual.NewEthKardia(*ethstat)
 		if err != nil {
 			logger.Error("Fail to create Eth sub node", "err", err)
 			return
