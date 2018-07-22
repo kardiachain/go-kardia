@@ -129,6 +129,67 @@ func (cs *ConsensusState) newStep() {
 
 // -------- STATE METHODS ------ //
 
+// Enter: `timeoutNewHeight` by startTime (commitTime+timeoutCommit),
+// 	or, if SkipTimeout==true, after receiving all precommits from (height,round-1)
+// Enter: `timeoutPrecommits` after any +2/3 precommits from (height,round-1)
+// Enter: +2/3 precommits for nil at (height,round-1)
+// Enter: +2/3 prevotes any or +2/3 precommits for block or any from (height, round)
+// NOTE: cs.StartTime was already set for height.
+func (cs *ConsensusState) enterNewRound(height int64, round int) {
+	logger := cs.Logger.With("height", height, "round", round)
+
+	if cs.Height != height || round < cs.Round || (cs.Round == round && cs.Step != cstypes.RoundStepNewHeight) {
+		logger.Debug(cmn.Fmt("enterNewRound(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
+		return
+	}
+
+	if now := time.Now(); cs.StartTime.After(now) {
+		logger.Info("Need to set a buffer and log message here for sanity.", "startTime", cs.StartTime, "now", now)
+	}
+
+	logger.Info(cmn.Fmt("enterNewRound(%v/%v). Current: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
+
+	// Increment validators if necessary
+	validators := cs.Validators
+	if cs.Round < round {
+		validators = validators.Copy()
+		validators.IncrementAccum(round - cs.Round)
+	}
+
+	// Setup new round
+	// we don't fire newStep for this step,
+	// but we fire an event, so update the round step first
+	cs.updateRoundStep(round, cstypes.RoundStepNewRound)
+	cs.Validators = validators
+	if round == 0 {
+		// We've already reset these upon new height,
+		// and meanwhile we might have received a proposal
+		// for round 0.
+	} else {
+		logger.Info("Resetting Proposal info")
+		cs.Proposal = nil
+		cs.ProposalBlock = nil
+		cs.ProposalBlockParts = nil
+	}
+	cs.Votes.SetRound(round + 1) // also track next round (round+1) to allow round-skipping
+
+	cs.eventBus.PublishEventNewRound(cs.RoundStateEvent())
+	cs.metrics.Rounds.Set(float64(round))
+
+	// Wait for txs to be available in the mempool
+	// before we enterPropose in round 0. If the last block changed the app hash,
+	// we may need an empty "proof" block, and enterPropose immediately.
+	waitForTxs := cs.config.WaitForTxs() && round == 0 && !cs.needProofBlock(height)
+	if waitForTxs {
+		if cs.config.CreateEmptyBlocksInterval > 0 {
+			cs.scheduleTimeout(cs.config.EmptyBlocksInterval(), height, round, cstypes.RoundStepNewRound)
+		}
+		go cs.proposalHeartbeat(height, round)
+	} else {
+		cs.enterPropose(height, round)
+	}
+}
+
 // Creates the next block to propose and returns it. Returns nil block upon
 // error.
 func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
@@ -175,8 +236,6 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 		cs.updateRoundStep(round, cstypes.RoundStepPrecommit)
 		cs.newStep()
 	}()
-
-	/****** EOD 07/20 12:40 am *******/
 
 	// check for a polka
 	blockID, ok := cs.Votes.Prevotes(round).TwoThirdsMajority()

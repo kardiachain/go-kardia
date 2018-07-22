@@ -73,7 +73,7 @@ type RoundState struct {
 }
 
 // RoundStateEvent returns the H/R/S of the RoundState as an event.
-func (rs *RoundState) RoundStateEvent() types.EventDataRoundState {
+func (rs *RoundState) RoundStateEvent() types.git EventDataRoundState {
 	// XXX: copy the RoundState
 	// if we want to avoid this, we may need synchronous events after all
 	rsCopy := *rs
