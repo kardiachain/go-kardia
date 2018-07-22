@@ -65,9 +65,13 @@
     "eth/tracers/internal/tracers",
     "ethclient",
     "ethdb",
+    "ethstats",
     "event",
     "internal/debug",
     "internal/ethapi",
+    "les",
+    "les/flowcontrol",
+    "light",
     "log",
     "log/term",
     "metrics",
@@ -84,8 +88,8 @@
     "rpc",
     "trie"
   ]
-  revision = "dea1ce052a10cd7d401a5c04f83f371a06fe293c"
-  version = "v1.8.11"
+  revision = "37685930d953bcbe023f9bc65b135a8d8b8f1488"
+  version = "v1.8.12"
 
 [[projects]]
   branch = "master"
@@ -291,6 +295,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "1f3f67e740a7c0a9568a86b364877b1edf7a01a773c9718b6a04dc959fb3bb48"
+  inputs-digest = "f7368ee456a5c3b252a0e1c4e04b8610b70da486a3f760ce0ff0cea9763d5d96"
   solver-name = "gps-cdcl"
   solver-version = 1

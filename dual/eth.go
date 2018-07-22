@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethstats"
+	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
@@ -53,7 +54,7 @@ func homeDir() string {
 }
 
 // EthKardia creates a Ethereum node with
-func NewEthKardia(reportStat bool) (*EthKardia, error) {
+func NewEthKardia(lightNode bool, reportStat bool) (*EthKardia, error) {
 	datadir := DefaultEthDataDir()
 
 	// Creates datadir with testnet follow eth standards.
@@ -88,6 +89,10 @@ func NewEthKardia(reportStat bool) (*EthKardia, error) {
 	// verify on cmd/utils/flags.go
 	// similar to cmd/eth/config.go/makeConfigNode
 	ethConf := &eth.DefaultConfig
+	// By default memory cache is 1GB, 75% db, 25% trie
+	// Tests increase it to 2GB
+	ethConf.DatabaseCache = ethConf.DatabaseCache * 2
+	ethConf.TrieCache = ethConf.TrieCache * 2
 	ethConf.NetworkId = 4 // Rinkeby Id
 	ethConf.Genesis = core.DefaultRinkebyGenesisBlock()
 
@@ -95,8 +100,14 @@ func NewEthKardia(reportStat bool) (*EthKardia, error) {
 	if err != nil {
 		return nil, fmt.Errorf("protocol node: %v", err)
 	}
-	if err := ethNode.Register(func(ctx *node.ServiceContext) (node.Service, error) { return eth.New(ctx, ethConf) }); err != nil {
-		return nil, fmt.Errorf("ethereum service: %v", err)
+	if lightNode {
+		if err := ethNode.Register(func(ctx *node.ServiceContext) (node.Service, error) { return les.New(ctx, ethConf) }); err != nil {
+			return nil, fmt.Errorf("ethereum service: %v", err)
+		}
+	} else {
+		if err := ethNode.Register(func(ctx *node.ServiceContext) (node.Service, error) { return eth.New(ctx, ethConf) }); err != nil {
+			return nil, fmt.Errorf("ethereum service: %v", err)
+		}
 	}
 
 	// Registers ethstats service to report node stat to testnet system.
@@ -107,7 +118,10 @@ func NewEthKardia(reportStat bool) (*EthKardia, error) {
 			var ethServ *eth.Ethereum
 			ctx.Service(&ethServ)
 
-			return ethstats.New(url, ethServ, nil)
+			var lesServ *les.LightEthereum
+			ctx.Service(&lesServ)
+
+			return ethstats.New(url, ethServ, lesServ)
 		}); err != nil {
 			log.Error("Failed to register the Ethereum Stats service", "err", err)
 		}
