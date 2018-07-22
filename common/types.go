@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -54,7 +55,9 @@ func (h Hash) Hex() string { return hexutil.Encode(h[:]) }
 
 // Compares with another Hash
 // Hex converts a hash to a hex string.
-func (h Hash) Equal(anotherHash hash) bool { return bytes.Equal(h, anotherHash) }
+func (h Hash) Equal(anotherHash Hash) bool {
+	return bytes.Equal(h[:], anotherHash[:])
+}
 
 // TerminalString implements log.TerminalStringer, formatting a string for console
 // output during logging.

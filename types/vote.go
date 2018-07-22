@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/nlp"
+	"github.com/kardiachain/go-kardia/rlp"
 )
 
 // Types of votes
@@ -45,7 +45,7 @@ type CanonicalVote struct {
 
 // TODO(namdoh): Add comment.
 func (vote *Vote) SignBytes(chainID string) []byte {
-	bz, err := rlp.EncodeToBytes(CanonicalVote{chainID, vote})
+	bz, err := rlp.EncodeToBytes(CanonicalVote{chainID, *vote})
 	if err != nil {
 		panic(err)
 	}
@@ -119,7 +119,7 @@ func NewVoteSet(chainID string, height int64, round int, type_ byte, valSet *Val
 		votesBitArray: common.NewBitArray(valSet.Size()),
 		votes:         make([]*Vote, valSet.Size()),
 		sum:           0,
-		maj23:         nil,
+		maj23:         NilBlockID(),
 		votesByBlock:  make(map[string]*blockVotes, valSet.Size()),
 		peerMaj23s:    make(map[P2PID]BlockID),
 	}
@@ -195,7 +195,7 @@ func (voteSet *VoteSet) HasTwoThirdsMajority() bool {
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
-	return voteSet.maj23 != nil
+	return !voteSet.maj23.IsNil()
 }
 
 func (voteSet *VoteSet) HasTwoThirdsAny() bool {
@@ -217,14 +217,14 @@ func (voteSet *VoteSet) HasAll() bool {
 // Else, return the empty BlockID{} and false.
 func (voteSet *VoteSet) TwoThirdsMajority() (blockID BlockID, ok bool) {
 	if voteSet == nil {
-		return nil, false
+		return NilBlockID(), false
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
-	if voteSet.maj23 != nil {
-		return *voteSet.maj23, true
+	if !voteSet.maj23.IsNil() {
+		return voteSet.maj23, true
 	}
-	return nil, false
+	return NilBlockID(), false
 }
 
 //--------------------------------------------------------------------------------

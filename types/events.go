@@ -1,9 +1,5 @@
 package types
 
-import (
-	"fmt"
-)
-
 // Reserved event types
 const (
 	EventBond              = "Bond"
@@ -36,3 +32,11 @@ type EventDataRoundState struct {
 	// private, not exposed to websockets
 	RoundState interface{} `json:"-"`
 }
+
+// implements events.EventData
+type KaiEventData interface {
+	AssertIsKaiEventData()
+	// empty interface
+}
+
+func (_ EventDataRoundState) AssertIsKaiEventData() {}

@@ -84,6 +84,7 @@ func rlpHash(x interface{}) (h common.Hash) {
 type Block struct {
 	header       *Header
 	transactions Transactions
+	lastCommit   *Commit
 
 	// caches
 	hash atomic.Value
@@ -102,8 +103,8 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt) *Block {
-	b := &Block{header: CopyHeader(header)}
+func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit) *Block {
+	b := &Block{header: CopyHeader(header), lastCommit: CopyCommit(commit)}
 
 	if len(txs) == 0 {
 		b.header.TxHash = EmptyRootHash
@@ -135,6 +136,13 @@ func NewBlockWithHeader(header *Header) *Block {
 // modifying a header variable.
 func CopyHeader(h *Header) *Header {
 	cpy := *h
+	return &cpy
+}
+
+// CopyHeader creates a deep copy of a block commit to prevent side effects from
+// modifying a commit variable.
+func CopyCommit(c *Commit) *Commit {
+	cpy := *c
 	return &cpy
 }
 
@@ -227,6 +235,16 @@ func (b *Block) Hash() common.Hash {
 }
 
 type BlockID common.Hash
+
+func NilBlockID() BlockID {
+	return BlockID{}
+}
+
+func (b *BlockID) IsNil() bool {
+	// TODO(namdoh): Find a cleaner way to test is a block is nil.
+	nilBlock := NilBlockID()
+	return bytes.Equal(b[:], nilBlock[:])
+}
 
 type Blocks []*Block
 

@@ -143,6 +143,8 @@ func (cs *ConsensusState) enterNewRound(height int64, round int) {
 		return
 	}
 
+	// ---- namdoh stops coding here at 7/21 19:56 -----/
+
 	if now := time.Now(); cs.StartTime.After(now) {
 		logger.Info("Need to set a buffer and log message here for sanity.", "startTime", cs.StartTime, "now", now)
 	}
@@ -209,7 +211,8 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	}
 
 	// TODO(namdoh): Adds mem pool validated transactions
-	block := cs.state.MakeBlock(cs.Height, txs, commit)
+	// TODO(namdoh): Replace transactions with sth here.
+	block := cs.state.MakeBlock(cs.Height, nil, commit)
 	evidence := cs.evpool.PendingEvidence()
 	block.AddEvidence(evidence)
 	return block, parts

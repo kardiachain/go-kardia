@@ -2,7 +2,6 @@ package common
 
 import (
 	"fmt"
-	"runtime"
 )
 
 // A panic resulting from a sanity check means there is a programmer error

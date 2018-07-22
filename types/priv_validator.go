@@ -1,20 +1,18 @@
 package types
 
 import (
-	"fmt"
-
 	"github.com/kardiachain/go-kardia/crypto"
 )
 
 // PrivValidator defines the functionality of a local Kardia validator
 // that signs votes, proposals, and heartbeats, and never double signs.
 type PrivValidator interface {
-	GetAddress() Address // redundant since .PubKey().Address()
 	GetPubKey() crypto.PubKey
 
 	SignVote(chainID string, vote *Vote) error
 	SignProposal(chainID string, proposal *Proposal) error
-	SignHeartbeat(chainID string, heartbeat *Heartbeat) error
+	// TODO(namdoh): Add heartbeat later on.
+	//SignHeartbeat(chainID string, heartbeat *Heartbeat) error
 }
 
 // MockPV implements PrivValidator without any safety or persistence.

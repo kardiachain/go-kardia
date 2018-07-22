@@ -3,6 +3,7 @@ package log
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-stack/stack"
@@ -121,6 +122,7 @@ type Logger interface {
 	Warn(msg string, ctx ...interface{})
 	Error(msg string, ctx ...interface{})
 	Crit(msg string, ctx ...interface{})
+	With(keyVals ...interface{}) Logger
 }
 
 type logger struct {
@@ -180,6 +182,16 @@ func (l *logger) Error(msg string, ctx ...interface{}) {
 func (l *logger) Crit(msg string, ctx ...interface{}) {
 	l.write(msg, LvlCrit, ctx, skipLevel)
 	os.Exit(1)
+}
+
+func (l *logger) With(keyvals ...interface{}) Logger {
+	// TODO(namdoh): Allow choosing different log channel.
+	s := make([]string, len(keyvals))
+	for i, v := range keyvals {
+		s[i] = fmt.Sprint(v)
+	}
+	l.write(strings.Join(s, ","), LvlInfo, nil, skipLevel)
+	return l
 }
 
 func (l *logger) GetHandler() Handler {
