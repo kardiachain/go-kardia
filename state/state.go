@@ -1,7 +1,6 @@
-package states
+package state
 
 import (
-	"bytes"
 	"time"
 	
 	"github.com/kardiachain/go-kardia/types"
@@ -22,6 +21,15 @@ type LastestBlockState struct {
 	LastBlockTotalTx int64
 	LastBlockID      types.BlockID
 	LastBlockTime    time.Time
+	
+	// LastValidators is used to validate block.LastCommit.
+	// Validators are persisted to the database separately every time they change,
+	// so we can query for historical validator sets.
+	// Note that if s.LastBlockHeight causes a valset change,
+	// we set s.LastHeightValidatorsChanged = s.LastBlockHeight + 1
+	Validators                  *types.ValidatorSet
+	LastValidators              *types.ValidatorSet
+	LastHeightValidatorsChanged int64
 
 	// TODO(namdoh): Add consensus parameters used for validating blocks.
 	// Changes returned by EndBlock and updated after Commit.
@@ -36,19 +44,25 @@ type LastestBlockState struct {
 
 // Creates a block from the latest state.
 // MakeBlock builds a block with the given txs and commit from the current state.
-func (state State) MakeBlock(height int64, txs []*types.Transaction, commit *types.Commit) (*types.Block) {
+func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction, commit *types.Commit) (*types.Block) {
 	// build base block
 	// TODO(huny@): Fill receipt in making a new block.
-	block := types.NewBlock(height, txs, nil, commit)
+	header := types.Header{
+		ChainID: state.ChainID,
+		Height: uint64(height),
+		Time: time.Now(),
+		NumTxs: uint64(len(txs)),
+		LastBlockID: state.LastBlockID,
+		ValidatorsHash: state.Validators.Hash(),
+	}
+	block := types.NewBlock(&header, txs, nil, commit)
 
-	// fill header with state data
-	block.ChainID = state.ChainID
-	block.TotalTxs = state.LastBlockTotalTx + block.NumTxs
-	block.LastBlockID = state.LastBlockID
-	block.ValidatorsHash = state.Validators.Hash()
-	block.AppHash = state.AppHash
-	block.ConsensusHash = state.ConsensusParams.Hash()
-	block.LastResultsHash = state.LastResultsHash
+	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
+	// LastResultHash.
 
 	return block
+}
+// IsEmpty returns true if the State is equal to the empty State.
+func (state LastestBlockState) IsEmpty() bool {
+	return state.Validators == nil // XXX can't compare to Empty
 }

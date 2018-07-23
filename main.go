@@ -3,11 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"time"
+
+	cs "github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/node"
-	"os"
-	"time"
 )
 
 func main() {
@@ -46,6 +48,15 @@ func main() {
 			logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
 		}
 	}
+
+	// TODO(namdoh): Temporarily hook up consensus state here for compiling
+	// check purposes.
+	consensusState := cs.NewConsensusState(
+		nil,
+		nil,
+		nil,
+	)
+	consensusState.DoNothing()
 
 	go displayPeers(n)
 

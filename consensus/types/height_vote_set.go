@@ -36,6 +36,56 @@ type HeightVoteSet struct {
 	// peerCatchupRounds map[p2p.ID][]int     // keys: peer.ID; values: at most 2 rounds
 }
 
+func NewHeightVoteSet(chainID string, height int64, valSet *types.ValidatorSet) *HeightVoteSet {
+	hvs := &HeightVoteSet{
+		chainID: chainID,
+	}
+	hvs.Reset(height, valSet)
+	return hvs
+}
+
+func (hvs *HeightVoteSet) Reset(height int64, valSet *types.ValidatorSet) {
+	hvs.mtx.Lock()
+	defer hvs.mtx.Unlock()
+
+	hvs.height = height
+	hvs.valSet = valSet
+	hvs.roundVoteSets = make(map[int]RoundVoteSet)
+	//namdoh@ hvs.peerCatchupRounds = make(map[p2p.ID][]int)
+
+	hvs.addRound(0)
+	hvs.round = 0
+}
+
+func (hvs *HeightVoteSet) addRound(round int) {
+	if _, ok := hvs.roundVoteSets[round]; ok {
+		cmn.PanicSanity("addRound() for an existing round")
+	}
+	// log.Debug("addRound(round)", "round", round)
+	prevotes := types.NewVoteSet(hvs.chainID, hvs.height, round, types.VoteTypePrevote, hvs.valSet)
+	precommits := types.NewVoteSet(hvs.chainID, hvs.height, round, types.VoteTypePrecommit, hvs.valSet)
+	hvs.roundVoteSets[round] = RoundVoteSet{
+		Prevotes:   prevotes,
+		Precommits: precommits,
+	}
+}
+
+// Create more RoundVoteSets up to round.
+func (hvs *HeightVoteSet) SetRound(round int) {
+	hvs.mtx.Lock()
+	defer hvs.mtx.Unlock()
+	if hvs.round != 0 && (round < hvs.round+1) {
+		cmn.PanicSanity("SetRound() must increment hvs.round")
+	}
+	for r := hvs.round + 1; r <= round; r++ {
+		if _, ok := hvs.roundVoteSets[r]; ok {
+			continue // Already exists because peerCatchupRounds.
+		}
+		hvs.addRound(r)
+	}
+	hvs.round = round
+}
+
 // Get all prevotes of the specified round.
 func (hvs *HeightVoteSet) Prevotes(round int) *types.VoteSet {
 	hvs.mtx.Lock()
@@ -73,4 +123,11 @@ func (hvs *HeightVoteSet) POLInfo() (polRound int, polBlockID types.BlockID) {
 		}
 	}
 	return -1, types.BlockID{}
+}
+
+
+func (hvs *HeightVoteSet) Precommits(round int) *types.VoteSet {
+	hvs.mtx.Lock()
+	defer hvs.mtx.Unlock()
+	return hvs.getVoteSet(round, types.VoteTypePrecommit)
 }

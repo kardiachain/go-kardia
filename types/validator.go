@@ -32,6 +32,8 @@ func (v *Validator) Copy() *Validator {
 	return &vCopy
 }
 
+// --------- ValidatorSet ----------
+
 // ValidatorSet represent a set of *Validator at a given height.
 // The validators can be fetched by address or index.
 // The index is in order of .Address, so the indices are fixed
@@ -148,6 +150,98 @@ func (valSet *ValidatorSet) findNextProposer() *Validator {
 // TODO(huny@): Probably use Merkle proof tree with Validators as leaves?
 func (valSet *ValidatorSet) Hash() common.Hash {
 	return rlpHash(valSet)
+}
+
+// Copy each validator into a new ValidatorSet
+func (valSet *ValidatorSet) Copy() *ValidatorSet {
+	validators := make([]*Validator, len(valSet.Validators))
+	for i, val := range valSet.Validators {
+		// NOTE: must copy, since IncrementAccum updates in place.
+		validators[i] = val.Copy()
+	}
+	return &ValidatorSet{
+		Validators:       validators,
+		Proposer:         valSet.Proposer,
+		totalVotingPower: valSet.totalVotingPower,
+	}
+}
+
+// IncrementAccum increments accum of each validator and updates the
+// proposer. Panics if validator set is empty.
+func (valSet *ValidatorSet) IncrementAccum(times int) {
+	// TODO(namdoh): Implement.
+	// Add VotingPower * times to each validator and order into heap.
+	//validatorsHeap := cmn.NewHeap()
+	//for _, val := range valSet.Validators {
+	//	// check for overflow both multiplication and sum
+	//	val.Accum = safeAddClip(val.Accum, safeMulClip(val.VotingPower, int64(times)))
+	//	validatorsHeap.PushComparable(val, accumComparable{val})
+	//}
+	//
+	//// Decrement the validator with most accum times times
+	//for i := 0; i < times; i++ {
+	//	mostest := validatorsHeap.Peek().(*Validator)
+	//	// mind underflow
+	//	mostest.Accum = safeSubClip(mostest.Accum, valSet.TotalVotingPower())
+	//
+	//	if i == times-1 {
+	//		valSet.Proposer = mostest
+	//	} else {
+	//		validatorsHeap.Update(mostest, accumComparable{mostest})
+	//	}
+	//}
+
+	// For now, allow same node to propose.
+	return
+
+}
+
+// Verify that +2/3 of the set had signed the given signBytes
+func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height int64, commit *Commit) error {
+	panic("Not yet implemented")
+	return nil
+	//if valSet.Size() != len(commit.Precommits) {
+	//	return fmt.Errorf("Invalid commit -- wrong set size: %v vs %v", valSet.Size(), len(commit.Precommits))
+	//}
+	//if height != commit.Height() {
+	//	return fmt.Errorf("Invalid commit -- wrong height: %v vs %v", height, commit.Height())
+	//}
+	//
+	//talliedVotingPower := int64(0)
+	//round := commit.Round()
+	//
+	//for idx, precommit := range commit.Precommits {
+	//	// may be nil if validator skipped.
+	//	if precommit == nil {
+	//		continue
+	//	}
+	//	if precommit.Height != height {
+	//		return fmt.Errorf("Invalid commit -- wrong height: %v vs %v", height, precommit.Height)
+	//	}
+	//	if precommit.Round != round {
+	//		return fmt.Errorf("Invalid commit -- wrong round: %v vs %v", round, precommit.Round)
+	//	}
+	//	if precommit.Type != VoteTypePrecommit {
+	//		return fmt.Errorf("Invalid commit -- not precommit @ index %v", idx)
+	//	}
+	//	_, val := valSet.GetByIndex(idx)
+	//	// Validate signature
+	//	precommitSignBytes := precommit.SignBytes(chainID)
+	//	if !val.PubKey.VerifyBytes(precommitSignBytes, precommit.Signature) {
+	//		return fmt.Errorf("Invalid commit -- invalid signature: %v", precommit)
+	//	}
+	//	if !blockID.Equals(precommit.BlockID) {
+	//		continue // Not an error, but doesn't count
+	//	}
+	//	// Good precommit!
+	//	talliedVotingPower += val.VotingPower
+	//}
+	//
+	//if talliedVotingPower > valSet.TotalVotingPower()*2/3 {
+	//	return nil
+	//}
+	//return fmt.Errorf("Invalid commit -- insufficient voting power: got %v, needed %v",
+	//	talliedVotingPower, (valSet.TotalVotingPower()*2/3 + 1))
 }
 
 //-------------------------------------

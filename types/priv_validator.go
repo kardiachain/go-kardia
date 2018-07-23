@@ -1,12 +1,14 @@
 package types
 
 import (
+	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/crypto"
 )
 
 // PrivValidator defines the functionality of a local Kardia validator
 // that signs votes, proposals, and heartbeats, and never double signs.
 type PrivValidator interface {
+	GetAddress() common.Address // redundant since .PubKey().Address()
 	GetPubKey() crypto.PubKey
 
 	SignVote(chainID string, vote *Vote) error

@@ -19,6 +19,10 @@ func (b *EventBus) PublishEventNewRoundStep(event EventDataRoundState) error {
 	return b.Publish(EventNewRoundStep, event)
 }
 
+func (b *EventBus) PublishEventNewRound(event EventDataRoundState) error {
+	return b.Publish(EventNewRound, event)
+}
+
 func (b *EventBus) PublishEventPolka(event EventDataRoundState) error {
 	return b.Publish(EventPolka, event)
 }
@@ -29,4 +33,8 @@ func (b *EventBus) PublishEventUnlock(event EventDataRoundState) error {
 
 func (b *EventBus) PublishEventRelock(event EventDataRoundState) error {
 	return b.Publish(EventRelock, event)
+}
+
+func (b *EventBus) PublishEventLock(event EventDataRoundState) error {
+	return b.Publish(EventLock, event)
 }

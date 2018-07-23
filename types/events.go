@@ -40,3 +40,20 @@ type KaiEventData interface {
 }
 
 func (_ EventDataRoundState) AssertIsKaiEventData() {}
+
+// ------- EventDataNewBlock ---------
+type EventDataNewBlock struct {
+	Block *Block `json:"block"`
+}
+
+// light weight event for benchmarking
+type EventDataNewBlockHeader struct {
+	Header *Header `json:"header"`
+}
+
+// BlockEventPublisher publishes all block related events
+type BlockEventPublisher interface {
+	PublishEventNewBlock(block EventDataNewBlock) error
+	PublishEventNewBlockHeader(header EventDataNewBlockHeader) error
+	//namdoh@ PublishEventTx(EventDataTx) error
+}

@@ -17,3 +17,10 @@ var Fmt = func(format string, a ...interface{}) string {
 	}
 	return fmt.Sprintf(format, a...)
 }
+
+// Indicates a failure of consensus. Someone was malicious or something has
+// gone horribly wrong. These should really boot us into an "emergency-recover" mode
+// XXX DEPRECATED
+func PanicConsensus(v interface{}) {
+	panic(Fmt("Panicked on a Consensus Failure: %v", v))
+}

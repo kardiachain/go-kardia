@@ -90,3 +90,10 @@ func (commit *Commit) GetByIndex(index int) *Vote {
 func (commit *Commit) IsCommit() bool {
 	return len(commit.Precommits) != 0
 }
+
+// Hash returns the hash of the commit
+func (commit *Commit) Hash() common.Hash {
+	// TODO(namdoh): Implement hash.
+	panic("Commit hash isn't implemented yet.")
+	return common.NilHash()
+}

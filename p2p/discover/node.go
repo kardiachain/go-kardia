@@ -208,6 +208,10 @@ func (n *Node) UnmarshalText(text []byte) error {
 // The node identifier is a marshaled elliptic curve public key.
 type NodeID [NodeIDBits / 8]byte
 
+func EmptyNodeID() NodeID {
+	return NodeID{}
+}
+
 // Bytes returns a byte slice representation of the NodeID
 func (n NodeID) Bytes() []byte {
 	return n[:]
