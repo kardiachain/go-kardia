@@ -5,6 +5,7 @@ import (
 	"fmt"
 	elog "github.com/ethereum/go-ethereum/log"
 	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/common/fdlimit"
 	"github.com/kardiachain/go-kardia/crypto"
 	"github.com/kardiachain/go-kardia/dual"
 	"github.com/kardiachain/go-kardia/kai"
@@ -12,8 +13,23 @@ import (
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
+	"runtime"
 	"time"
 )
+
+func runtimeSystemSettings() error {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	limit, err := fdlimit.Current()
+	if err != nil {
+		return err
+	}
+	if limit < 2048 {
+		if err := fdlimit.Raise(2048); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func main() {
 	// args
@@ -26,6 +42,7 @@ func main() {
 	dualMode := flag.Bool("dual", false, "whether to run in dual mode")
 	ethstat := flag.Bool("ethstat", false, "report eth stats to network")
 	lightNode := flag.Bool("light", false, "connect to Eth as light node")
+	cacheSize := flag.Int("cacheSize", 1024, "cache memory size for Eth node")
 
 	flag.Parse()
 
@@ -44,6 +61,12 @@ func main() {
 		elevel = elog.LvlInfo
 	}
 	elog.Root().SetHandler(elog.LvlFilterHandler(elevel, elog.StdoutHandler))
+
+	// System settings
+	if err := runtimeSystemSettings(); err != nil {
+		logger.Error("Fail to update system settings", "err", err)
+		return
+	}
 
 	// Setups config.
 	config := &node.DefaultConfig
@@ -93,7 +116,12 @@ func main() {
 	// go displayPeers(n)
 
 	if *dualMode {
-		ethNode, err := dual.NewEthKardia(*lightNode, *ethstat)
+		config := &dual.DefaultEthKardiaConfig
+		config.LightNode = *lightNode
+		config.ReportStats = *ethstat
+		config.CacheSize = *cacheSize
+
+		ethNode, err := dual.NewEthKardia(config)
 		if err != nil {
 			logger.Error("Fail to create Eth sub node", "err", err)
 			return

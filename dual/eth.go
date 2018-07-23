@@ -14,93 +14,96 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
+	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/kardiachain/go-kardia/log"
 )
 
-const (
-	NodeName     = "GethKardia" // Client for Eth network
-	NodePort     = 30303
-	NodeMaxPeers = 4 // Eth max peers
-)
+var DefaultEthKardiaConfig = EthKardiaConfig{
+	Name:       "GethKardia",
+	ListenAddr: ":30303",
+	MaxPeers:   10,
+	CacheSize:  1024,
+}
+
+// EthKardiaConfig provides configuration when starting Eth subnode.
+type EthKardiaConfig struct {
+
+	// Network configs
+	Name        string
+	ListenAddr  string
+	MaxPeers    int
+	LightNode   bool // Starts with light sync, otherwise starts with fast sync.
+	ReportStats bool // Reports node statistics to network centralized statistics collection system.
+
+	// Performance configs
+	CacheSize int // Cache memory size in MB for database & trie. This must be small enough to leave enough memory for separate Kardia chain cache.
+}
 
 // EthKarida is a full Ethereum node running inside Karida
 type EthKardia struct {
 	geth *node.Node
 }
 
-// DefaultEthDataDir is the default data directory for Ethereum.
-func DefaultEthDataDir() string {
-	// Try to place the data folder in the user's home dir
-	home := homeDir()
-	if home != "" {
-		return filepath.Join(home, ".ethereum")
-
-		// TODO: may need to handle non-unix OS.
-	}
-	// As we cannot guess a stable location, return empty and handle later
-	return ""
-}
-
-// Copy from go-kardia/node
-func homeDir() string {
-	if home := os.Getenv("HOME"); home != "" {
-		return home
-	}
-	if usr, err := user.Current(); err == nil {
-		return usr.HomeDir
-	}
-	return ""
-}
-
-// EthKardia creates a Ethereum node with
-func NewEthKardia(lightNode bool, reportStat bool) (*EthKardia, error) {
-	datadir := DefaultEthDataDir()
+// EthKardia creates a Ethereum sub node.
+func NewEthKardia(config *EthKardiaConfig) (*EthKardia, error) {
+	datadir := defaultEthDataDir()
 
 	// Creates datadir with testnet follow eth standards.
 	// TODO(thientn) : options to choose different networks.
 	datadir = filepath.Join(datadir, "rinkeby")
 	bootUrls := params.RinkebyBootnodes
 	bootstrapNodes := make([]*discover.Node, 0, len(bootUrls))
+	bootstrapNodesV5 := make([]*discv5.Node, 0, len(bootUrls)) // rinkeby set default bootnodes as also discv5 nodes.
 	for _, url := range bootUrls {
-		node, err := discover.ParseNode(url)
+		peer, err := discover.ParseNode(url)
 		if err != nil {
 			log.Error("Bootstrap URL invalid", "enode", url, "err", err)
 			continue
 		}
-		bootstrapNodes = append(bootstrapNodes, node)
+		bootstrapNodes = append(bootstrapNodes, peer)
+
+		peerV5, err := discv5.ParseNode(url)
+		if err != nil {
+			log.Error("BootstrapV5 URL invalid", "enode", url, "err", err)
+			continue
+		}
+		bootstrapNodesV5 = append(bootstrapNodesV5, peerV5)
 	}
 
 	// similar to utils.SetNodeConfig
 	nodeConfig := &node.Config{
 		DataDir: datadir,
 		IPCPath: "geth.ipc",
-		Name:    NodeName,
+		Name:    config.Name,
 	}
 
 	// similar to utils.SetP2PConfig
 	nodeConfig.P2P = p2p.Config{
-		BootstrapNodes: bootstrapNodes,
-		ListenAddr:     fmt.Sprintf(":%d", NodePort),
-		MaxPeers:       NodeMaxPeers,
+		BootstrapNodes:   bootstrapNodes,
+		ListenAddr:       config.ListenAddr,
+		MaxPeers:         config.MaxPeers,
+		DiscoveryV5:      config.LightNode, // Force using discovery if light node, as in flags.go.
+		BootstrapNodesV5: bootstrapNodesV5,
 	}
 
-	// TODO(thientn): set eth config to match with Rinkeby or other test networks.
-	// verify on cmd/utils/flags.go
 	// similar to cmd/eth/config.go/makeConfigNode
 	ethConf := &eth.DefaultConfig
-	// By default memory cache is 1GB, 75% db, 25% trie
-	// Tests increase it to 2GB
-	ethConf.DatabaseCache = ethConf.DatabaseCache * 2
-	ethConf.TrieCache = ethConf.TrieCache * 2
 	ethConf.NetworkId = 4 // Rinkeby Id
 	ethConf.Genesis = core.DefaultRinkebyGenesisBlock()
 
+	// similar to cmd/utils/flags.go
+	ethConf.DatabaseCache = config.CacheSize * 75 / 100
+	ethConf.TrieCache = config.CacheSize * 25 / 100
+	// Hardcode to 50% of 2048 file descriptor limit for whole process, as in flags.go/makeDatabaseHandles()
+	ethConf.DatabaseHandles = 1024
+
+	// Creates new node.
 	ethNode, err := node.New(nodeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("protocol node: %v", err)
 	}
-	if lightNode {
+	if config.LightNode {
 		if err := ethNode.Register(func(ctx *node.ServiceContext) (node.Service, error) { return les.New(ctx, ethConf) }); err != nil {
 			return nil, fmt.Errorf("ethereum service: %v", err)
 		}
@@ -111,7 +114,7 @@ func NewEthKardia(lightNode bool, reportStat bool) (*EthKardia, error) {
 	}
 
 	// Registers ethstats service to report node stat to testnet system.
-	if reportStat {
+	if config.ReportStats {
 		url := "[EthKardia]eth-kardia-1:Respect my authoritah!@stats.rinkeby.io"
 		if err := ethNode.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 			// Retrieve both eth and les services
@@ -127,6 +130,27 @@ func NewEthKardia(lightNode bool, reportStat bool) (*EthKardia, error) {
 		}
 	}
 	return &EthKardia{geth: ethNode}, nil
+}
+
+// defaultEthDataDir returns default Eth root datadir.
+func defaultEthDataDir() string {
+	// Try to place the data folder in the user's home dir
+	home := homeDir()
+	if home == "" {
+		panic("Fail to get OS home directory")
+	}
+	return filepath.Join(home, ".ethereum")
+}
+
+// Copy from go-kardia/node
+func homeDir() string {
+	if home := os.Getenv("HOME"); home != "" {
+		return home
+	}
+	if usr, err := user.Current(); err == nil {
+		return usr.HomeDir
+	}
+	return ""
 }
 
 // Start starts the Ethereum node.
