@@ -24,7 +24,7 @@ var DefaultEthKardiaConfig = EthKardiaConfig{
 	ListenAddr: ":30303",
 	MaxPeers:   10,
 	LightNode:  false,
-	LightPeers: 10,
+	LightPeers: 5,
 	LightServ:  0,
 	StatName:   "eth-kardia-1",
 
