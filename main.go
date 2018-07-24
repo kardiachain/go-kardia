@@ -3,32 +3,74 @@ package main
 import (
 	"flag"
 	"fmt"
+	elog "github.com/ethereum/go-ethereum/log"
 	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/common/fdlimit"
 	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/dual"
 	"github.com/kardiachain/go-kardia/kai"
 	"github.com/kardiachain/go-kardia/log"
 	"github.com/kardiachain/go-kardia/node"
-
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
-	"os"
+	"runtime"
 	"time"
 )
 
-func main() {
-	// setup log to stdout.
-	handler := log.StreamHandler(os.Stdout, log.TerminalFormat(false))
-	log.Root().SetHandler(handler)
-	logger := log.New()
+func runtimeSystemSettings() error {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	limit, err := fdlimit.Current()
+	if err != nil {
+		return err
+	}
+	if limit < 2048 {
+		if err := fdlimit.Raise(2048); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
+func main() {
 	// args
+	logLevel := flag.String("loglevel", "info", "minimum log verbosity to display")
+	ethLogLevel := flag.String("ethloglevel", "warn", "minimum Eth log verbosity to display")
 	listenAddr := flag.String("addr", ":30301", "listen address")
 	peerURL := flag.String("peer", "", "enode URL of static peer")
 	name := flag.String("name", "", "Name of node")
 	addTxn := flag.Bool("txn", false, "whether to add a fake txn")
+	dualMode := flag.Bool("dual", false, "whether to run in dual mode")
+	ethStat := flag.Bool("ethstat", false, "report eth stats to network")
+	ethStatName := flag.String("ethstatname", "", "name to use when reporting eth stats")
+	lightNode := flag.Bool("light", false, "connect to Eth as light node")
+	lightServ := flag.Int("lightserv", 0, "max percentage of time serving light client reqs")
+	cacheSize := flag.Int("cacheSize", 1024, "cache memory size for Eth node")
 
 	flag.Parse()
 
+	// Setups log to Stdout.
+	level, err := log.LvlFromString(*logLevel)
+	if err != nil {
+		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
+		level = log.LvlInfo
+	}
+	log.Root().SetHandler(log.LvlFilterHandler(level, log.StdoutHandler))
+	logger := log.New()
+
+	elevel, err := elog.LvlFromString(*ethLogLevel)
+	if err != nil {
+		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
+		elevel = elog.LvlInfo
+	}
+	elog.Root().SetHandler(elog.LvlFilterHandler(elevel, elog.StdoutHandler))
+
+	// System settings
+	if err := runtimeSystemSettings(); err != nil {
+		logger.Error("Fail to update system settings", "err", err)
+		return
+	}
+
+	// Setups config.
 	config := &node.DefaultConfig
 	config.P2P.ListenAddr = *listenAddr
 	config.Name = *name
@@ -73,19 +115,69 @@ func main() {
 		}
 	}
 
-	go displayPeers(n)
+	// go displayPeers(n)
 
-	blockForever()
+	if *dualMode {
+		config := &dual.DefaultEthKardiaConfig
+		config.LightNode = *lightNode
+		config.LightServ = *lightServ
+		config.ReportStats = *ethStat
+		if *ethStatName != "" {
+			config.StatName = *ethStatName
+		}
+		config.CacheSize = *cacheSize
+
+		ethNode, err := dual.NewEthKardia(config)
+		if err != nil {
+			logger.Error("Fail to create Eth sub node", "err", err)
+			return
+		}
+		if err := ethNode.Start(); err != nil {
+			logger.Error("Fail to start Eth sub node", "err", err)
+			return
+		}
+		go displayEthPeers(ethNode)
+
+		client, err := ethNode.Client()
+		if err != nil {
+			logger.Error("Fail to create EthKardia client", "err", err)
+			return
+		}
+		go displaySyncStatus(client)
+	}
+
+	go displayKardiaPeers(n)
+	waitForever()
 }
 
-func displayPeers(n *node.Node) {
+func displayEthPeers(n *dual.EthKardia) {
 	for {
-		fmt.Println("Peer list: ", n.Server().PeerCount())
-		time.Sleep(10 * time.Second)
+		log.Info("Ethereum peers: ", "count", n.EthNode().Server().PeerCount())
+		time.Sleep(20 * time.Second)
 	}
 
 }
 
-func blockForever() {
+func displayKardiaPeers(n *node.Node) {
+	for {
+		log.Info("Kardia peers: ", "count", n.Server().PeerCount())
+		time.Sleep(20 * time.Second)
+	}
+
+}
+
+func displaySyncStatus(client *dual.KardiaEthClient) {
+	for {
+		status, err := client.NodeSyncStatus()
+		if err != nil {
+			log.Error("Fail to check sync status of EthKarida", "err", err)
+		} else {
+			log.Info("Sync status", "sync", status)
+		}
+		time.Sleep(20 * time.Second)
+	}
+}
+
+func waitForever() {
 	select {}
 }
