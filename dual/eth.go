@@ -20,10 +20,15 @@ import (
 )
 
 var DefaultEthKardiaConfig = EthKardiaConfig{
-	Name:       "GethKardia",
+	Name:       "GethKardia", // Don't need to change, default instance name for geth is "geth".
 	ListenAddr: ":30303",
 	MaxPeers:   10,
-	CacheSize:  1024,
+	LightNode:  false,
+	LightPeers: 10,
+	LightServ:  0,
+	StatName:   "eth-kardia-1",
+
+	CacheSize: 1024,
 }
 
 // EthKardiaConfig provides configuration when starting Eth subnode.
@@ -33,8 +38,11 @@ type EthKardiaConfig struct {
 	Name        string
 	ListenAddr  string
 	MaxPeers    int
-	LightNode   bool // Starts with light sync, otherwise starts with fast sync.
-	ReportStats bool // Reports node statistics to network centralized statistics collection system.
+	LightNode   bool   // Starts with light sync, otherwise starts with fast sync.
+	LightPeers  int    // Max number of light peers.
+	LightServ   int    // Max percentage of time allowed for serving LES requests (0-90)"
+	ReportStats bool   // Reports node statistics to network centralized statistics collection system.
+	StatName    string // Node name to use when report to Rinkeby stats collection.
 
 	// Performance configs
 	CacheSize int // Cache memory size in MB for database & trie. This must be small enough to leave enough memory for separate Kardia chain cache.
@@ -92,6 +100,9 @@ func NewEthKardia(config *EthKardiaConfig) (*EthKardia, error) {
 	ethConf.NetworkId = 4 // Rinkeby Id
 	ethConf.Genesis = core.DefaultRinkebyGenesisBlock()
 
+	ethConf.LightServ = config.LightServ
+	ethConf.LightPeers = config.LightPeers
+
 	// similar to cmd/utils/flags.go
 	ethConf.DatabaseCache = config.CacheSize * 75 / 100
 	ethConf.TrieCache = config.CacheSize * 25 / 100
@@ -115,7 +126,7 @@ func NewEthKardia(config *EthKardiaConfig) (*EthKardia, error) {
 
 	// Registers ethstats service to report node stat to testnet system.
 	if config.ReportStats {
-		url := "[EthKardia]eth-kardia-1:Respect my authoritah!@stats.rinkeby.io"
+		url := fmt.Sprintf("[EthKardia]%s:Respect my authoritah!@stats.rinkeby.io", config.StatName)
 		if err := ethNode.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 			// Retrieve both eth and les services
 			var ethServ *eth.Ethereum

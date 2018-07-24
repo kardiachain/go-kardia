@@ -40,8 +40,10 @@ func main() {
 	name := flag.String("name", "", "Name of node")
 	addTxn := flag.Bool("txn", false, "whether to add a fake txn")
 	dualMode := flag.Bool("dual", false, "whether to run in dual mode")
-	ethstat := flag.Bool("ethstat", false, "report eth stats to network")
+	ethStat := flag.Bool("ethstat", false, "report eth stats to network")
+	ethStatName := flag.String("ethstatname", "", "name to use when reporting eth stats")
 	lightNode := flag.Bool("light", false, "connect to Eth as light node")
+	lightServ := flag.Int("lightserv", 0, "max percentage of time serving light client reqs")
 	cacheSize := flag.Int("cacheSize", 1024, "cache memory size for Eth node")
 
 	flag.Parse()
@@ -118,7 +120,11 @@ func main() {
 	if *dualMode {
 		config := &dual.DefaultEthKardiaConfig
 		config.LightNode = *lightNode
-		config.ReportStats = *ethstat
+		config.LightServ = *lightServ
+		config.ReportStats = *ethStat
+		if *ethStatName != "" {
+			config.StatName = *ethStatName
+		}
 		config.CacheSize = *cacheSize
 
 		ethNode, err := dual.NewEthKardia(config)
