@@ -39,11 +39,33 @@ func (j *journal) append(entry journalEntry) {
 	}
 }
 
+// revert undoes a batch of journalled modifications along with any reverted
+// dirty handling too.
+func (j *journal) revert(statedb *StateDB, snapshot int) {
+	for i := len(j.entries) - 1; i >= snapshot; i-- {
+		// Undo the changes made by the operation
+		j.entries[i].revert(statedb)
+
+		// Drop any dirty tracking induced by the change
+		if addr := j.entries[i].dirtied(); addr != nil {
+			if j.dirties[*addr]--; j.dirties[*addr] == 0 {
+				delete(j.dirties, *addr)
+			}
+		}
+	}
+	j.entries = j.entries[:snapshot]
+}
+
 // dirty explicitly sets an address to dirty, even if the change entries would
 // otherwise suggest it as clean. This method is an ugly hack to handle the RIPEMD
 // precompile consensus exception.
 func (j *journal) dirty(addr common.Address) {
 	j.dirties[addr]++
+}
+
+// length returns the current number of entries in the journal.
+func (j *journal) length() int {
+	return len(j.entries)
 }
 
 type (
@@ -78,9 +100,24 @@ type (
 		key, prevalue common.Hash
 	}
 
+	// Changes to other state values.
+	refundChange struct {
+		prev uint64
+	}
+
+	addLogChange struct {
+		txhash common.Hash
+	}
+
 	codeChange struct {
 		account            *common.Address
 		prevcode, prevhash []byte
+	}
+
+	suicideChange struct {
+		account     *common.Address
+		prev        bool // whether account had already suicided
+		prevbalance *big.Int
 	}
 )
 
@@ -139,5 +176,39 @@ func (ch storageChange) revert(s *StateDB) {
 }
 
 func (ch storageChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch addLogChange) revert(s *StateDB) {
+	logs := s.logs[ch.txhash]
+	if len(logs) == 1 {
+		delete(s.logs, ch.txhash)
+	} else {
+		s.logs[ch.txhash] = logs[:len(logs)-1]
+	}
+	s.logSize--
+}
+
+func (ch addLogChange) dirtied() *common.Address {
+	return nil
+}
+
+func (ch refundChange) revert(s *StateDB) {
+	s.refund = ch.prev
+}
+
+func (ch refundChange) dirtied() *common.Address {
+	return nil
+}
+
+func (ch suicideChange) revert(s *StateDB) {
+	obj := s.getStateObject(*ch.account)
+	if obj != nil {
+		obj.suicided = ch.prev
+		obj.setBalance(ch.prevbalance)
+	}
+}
+
+func (ch suicideChange) dirtied() *common.Address {
 	return ch.account
 }

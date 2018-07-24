@@ -17,7 +17,6 @@ var (
 var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &ChainConfig{
-		ChainID: big.NewInt(1),
 		Kaicon: &KaiconConfig{
 			Period: 15,
 			Epoch:  30000,
@@ -26,7 +25,6 @@ var (
 
 	// TestnetChainConfig contains the chain parameters to run a node on the test network.
 	TestnetChainConfig = &ChainConfig{
-		ChainID: big.NewInt(2),
 		Kaicon: &KaiconConfig{
 			Period: 15,
 			Epoch:  30000,
@@ -35,7 +33,6 @@ var (
 
 	// TestChainConfig contains the chain parameters to run unit test.
 	TestChainConfig = &ChainConfig{
-		ChainID: big.NewInt(3),
 		Kaicon: &KaiconConfig{
 			Period: 15,
 			Epoch:  30000,
@@ -49,8 +46,6 @@ var (
 // that any network, identified by its genesis block, can have its own
 // set of configuration options.
 type ChainConfig struct {
-	ChainID *big.Int `json:"chainId"` // chainId identifies the current chain and is used for replay protection
-
 	// Various consensus engines
 	Kaicon *KaiconConfig `json:"kaicon,omitempty"`
 }
@@ -76,8 +71,7 @@ func (c *ChainConfig) String() string {
 	default:
 		engine = "unknown"
 	}
-	return fmt.Sprintf("{ChainID: %v Engine: %v}",
-		c.ChainID,
+	return fmt.Sprintf("{Engine: %v}",
 		engine,
 	)
 }
@@ -114,13 +108,6 @@ var (
 		ExpByte:     10,
 	}
 )
-
-// GasTable returns the gas table corresponding to the current phase.
-//
-// The returned GasTable's fields shouldn't, under any circumstances, be changed.
-func (c *ChainConfig) GasTable(num uint64) GasTable {
-	return GasTableV0
-}
 
 func configNumEqual(x, y *big.Int) bool {
 	if x == nil {

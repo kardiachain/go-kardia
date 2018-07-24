@@ -137,7 +137,6 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 	}
 	root := statedb.IntermediateRoot(false)
 	head := &types.Header{
-		// TODO(huny@): ChainID ?
 		//@huny: convert timestamp here
 		// Time:           g.Timestamp,
 		GasLimit: g.GasLimit,

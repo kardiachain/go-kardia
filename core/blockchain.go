@@ -132,6 +132,12 @@ func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	return block
 }
 
+// GetHeader retrieves a block header from the database by hash and height,
+// caching it if found.
+func (bc *BlockChain) GetHeader(hash common.Hash, height uint64) *types.Header {
+	return bc.hc.GetHeader(hash, height)
+}
+
 // StateAt returns a new mutable state based on a particular point in time.
 func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
 	return state.New(root, bc.stateCache)

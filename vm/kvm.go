@@ -73,8 +73,6 @@ type KVM struct {
 	// Depth is the current call stack
 	depth int
 
-	// chainConfig contains information about the current chain
-	chainConfig *params.ChainConfig
 	// virtual machine configuration options used to initialise the
 	// kvm.
 	vmConfig Config
@@ -92,12 +90,11 @@ type KVM struct {
 
 // NewKVM returns a new KVM. The returned KVM is not thread safe and should
 // only ever be used *once*.
-func NewKVM(ctx Context, statedb StateDB, chainConfig *params.ChainConfig, vmConfig Config) *KVM {
+func NewKVM(ctx Context, statedb StateDB, vmConfig Config) *KVM {
 	kvm := &KVM{
-		Context:     ctx,
-		StateDB:     statedb,
-		vmConfig:    vmConfig,
-		chainConfig: chainConfig,
+		Context:  ctx,
+		StateDB:  statedb,
+		vmConfig: vmConfig,
 	}
 	kvm.interpreter = NewInterpreter(kvm, vmConfig)
 
@@ -370,9 +367,6 @@ func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	return ret, contract.Gas, err
 }
 
-// ChainConfig returns the environment's chain configuration
-func (kvm *KVM) ChainConfig() *params.ChainConfig { return kvm.chainConfig }
-
 //================================================================================================
 // Interfaces
 //=================================================================================================
@@ -382,6 +376,7 @@ type StateDB interface {
 	CreateAccount(common.Address)
 
 	AddBalance(common.Address, *big.Int)
+	SubBalance(common.Address, *big.Int)
 	GetBalance(common.Address) *big.Int
 
 	GetCodeHash(common.Address) common.Hash
@@ -394,6 +389,8 @@ type StateDB interface {
 
 	GetNonce(common.Address) uint64
 	SetNonce(common.Address, uint64)
+
+	GetRefund() uint64
 
 	Suicide(common.Address) bool
 	HasSuicided(common.Address) bool

@@ -36,6 +36,9 @@ type Database interface {
 	// ContractCode retrieves a particular contract's code.
 	ContractCode(addrHash, codeHash common.Hash) ([]byte, error)
 
+	// ContractCodeSize retrieves a particular contracts code's size.
+	ContractCodeSize(addrHash, codeHash common.Hash) (int, error)
+
 	// TrieDB retrieves the low level trie database used for data storage.
 	TrieDB() *trie.Database
 }
@@ -112,6 +115,15 @@ func (db *cachingDB) ContractCode(addrHash, codeHash common.Hash) ([]byte, error
 		db.codeSizeCache.Add(codeHash, len(code))
 	}
 	return code, err
+}
+
+// ContractCodeSize retrieves a particular contracts code's size.
+func (db *cachingDB) ContractCodeSize(addrHash, codeHash common.Hash) (int, error) {
+	if cached, ok := db.codeSizeCache.Get(codeHash); ok {
+		return cached.(int), nil
+	}
+	code, err := db.ContractCode(addrHash, codeHash)
+	return len(code), err
 }
 
 // TrieDB retrieves any intermediate trie-node caching layer.
