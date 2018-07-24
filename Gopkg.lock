@@ -175,6 +175,12 @@
   version = "v1.1"
 
 [[projects]]
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/prometheus/prometheus"
   packages = ["util/flock"]
   revision = "85f23d82a045d103ea7f3c89a91fba4a93e6367a"
@@ -191,6 +197,15 @@
   packages = ["."]
   revision = "ca016a06a5753f8ba03029c0aa5e54afb1bf713f"
   version = "v1.4.0"
+
+[[projects]]
+  name = "github.com/stretchr/testify"
+  packages = [
+    "assert",
+    "require"
+  ]
+  revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
+  version = "v1.2.2"
 
 [[projects]]
   branch = "master"
@@ -295,6 +310,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f7368ee456a5c3b252a0e1c4e04b8610b70da486a3f760ce0ff0cea9763d5d96"
+  inputs-digest = "09e6c9848b6514b2bcd0044164c3c0c806f73c3810909a340200b746e794292d"
   solver-name = "gps-cdcl"
   solver-version = 1

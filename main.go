@@ -90,7 +90,7 @@ func main() {
 
 	var kService *kai.Kardia
 	if err := n.Service(&kService); err != nil {
-		logger.Error("Cannot get Kardia Serivce", "err", err)
+		logger.Error("Cannot get Kardia Service", "err", err)
 		return
 	}
 	if *addTxn {
@@ -109,6 +109,7 @@ func main() {
 	}
 
 	if *peerURL != "" {
+		logger.Info("Adding static peer")
 		success, err := n.AddPeer(*peerURL)
 		if !success {
 			logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
