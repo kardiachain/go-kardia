@@ -4,7 +4,6 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
@@ -16,7 +15,7 @@ type twoOperandTest struct {
 
 func testTwoOperandOp(t *testing.T, tests []twoOperandTest, opFn func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error)) {
 	var (
-		env   = NewKVM(Context{}, nil, configs.TestChainConfig, Config{})
+		env   = NewKVM(Context{}, nil, Config{})
 		stack = newstack()
 		pc    = uint64(0)
 	)
@@ -54,7 +53,7 @@ func testTwoOperandOp(t *testing.T, tests []twoOperandTest, opFn func(pc *uint64
 
 func TestByteOp(t *testing.T) {
 	var (
-		env   = NewKVM(Context{}, nil, configs.TestChainConfig, Config{})
+		env   = NewKVM(Context{}, nil, Config{})
 		stack = newstack()
 	)
 	env.interpreter.intPool = poolOfIntPools.get()
@@ -186,7 +185,7 @@ func TestSLT(t *testing.T) {
 
 func opBenchmark(bench *testing.B, op func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error), args ...string) {
 	var (
-		env   = NewKVM(Context{}, nil, configs.TestChainConfig, Config{})
+		env   = NewKVM(Context{}, nil, Config{})
 		stack = newstack()
 	)
 	// convert args
@@ -416,7 +415,7 @@ func BenchmarkOpIsZero(b *testing.B) {
 
 func TestOpMstore(t *testing.T) {
 	var (
-		env   = NewKVM(Context{}, nil, configs.TestChainConfig, Config{})
+		env   = NewKVM(Context{}, nil, Config{})
 		stack = newstack()
 		mem   = NewMemory()
 	)
@@ -439,7 +438,7 @@ func TestOpMstore(t *testing.T) {
 
 func BenchmarkOpMstore(bench *testing.B) {
 	var (
-		env   = NewKVM(Context{}, nil, configs.TestChainConfig, Config{})
+		env   = NewKVM(Context{}, nil, Config{})
 		stack = newstack()
 		mem   = NewMemory()
 	)
