@@ -4,15 +4,15 @@ import (
 	"math/big"
 	"testing"
 
-	kaidb "github.com/kardiachain/go-kardia/database"
 	"github.com/kardiachain/go-kardia/lib/common"
+	kaidb "github.com/kardiachain/go-kardia/storage"
 )
 
 // Tests that updating a state trie does not leak any database writes prior to
 // actually committing the state.
 func TestUpdateLeaks(t *testing.T) {
 	// Create an empty state database
-	db := kaidb.NewMemDatabase()
+	db := kaidb.NewMemStore()
 	state, _ := New(common.Hash{}, NewDatabase(db))
 
 	// Update it with some accounts
@@ -39,8 +39,8 @@ func TestUpdateLeaks(t *testing.T) {
 // only the one right before the commit.
 func TestIntermediateLeaks(t *testing.T) {
 	// Create two state databases, one transitioning to the final state, the other final from the beginning
-	transDb := kaidb.NewMemDatabase()
-	finalDb := kaidb.NewMemDatabase()
+	transDb := kaidb.NewMemStore()
+	finalDb := kaidb.NewMemStore()
 	transState, _ := New(common.Hash{}, NewDatabase(transDb))
 	finalState, _ := New(common.Hash{}, NewDatabase(finalDb))
 
@@ -95,7 +95,7 @@ func TestIntermediateLeaks(t *testing.T) {
 // https://github.com/ethereum/go-ethereum/pull/15549.
 func TestCopy(t *testing.T) {
 	// Create a random state test to copy and modify "independently"
-	orig, _ := New(common.Hash{}, NewDatabase(kaidb.NewMemDatabase()))
+	orig, _ := New(common.Hash{}, NewDatabase(kaidb.NewMemStore()))
 
 	for i := byte(0); i < 255; i++ {
 		obj := orig.GetOrNewStateObject(common.BytesToAddress([]byte{i}))
@@ -143,7 +143,7 @@ func TestCopy(t *testing.T) {
 // TestCopyOfCopy tests that modified objects are carried over to the copy, and the copy of the copy.
 // See https://github.com/kardia/go-kardia/pull/15225#issuecomment-380191512
 func TestCopyOfCopy(t *testing.T) {
-	sdb, _ := New(common.Hash{}, NewDatabase(kaidb.NewMemDatabase()))
+	sdb, _ := New(common.Hash{}, NewDatabase(kaidb.NewMemStore()))
 	addr := common.HexToAddress("aaaa")
 	sdb.AddBalance(addr, big.NewInt(42))
 

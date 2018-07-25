@@ -104,7 +104,7 @@ func TestNodeIteratorCoverage(t *testing.T) {
 			}
 		}
 	}
-	for _, key := range db.diskdb.(*kaidb.MemDatabase).Keys() {
+	for _, key := range db.diskdb.(*kaidb.MemStore).Keys() {
 		if _, ok := hashes[common.BytesToHash(key)]; !ok {
 			t.Errorf("state entry not reported %x", key)
 		}
@@ -286,7 +286,7 @@ func TestIteratorContinueAfterErrorDisk(t *testing.T)    { testIteratorContinueA
 func TestIteratorContinueAfterErrorMemonly(t *testing.T) { testIteratorContinueAfterError(t, true) }
 
 func testIteratorContinueAfterError(t *testing.T, memonly bool) {
-	diskdb := kaidb.NewMemDatabase()
+	diskdb := kaidb.NewMemStore()
 	triedb := NewDatabase(diskdb)
 
 	tr, _ := New(common.Hash{}, triedb)
@@ -373,7 +373,7 @@ func TestIteratorContinueAfterSeekErrorMemonly(t *testing.T) {
 
 func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 	// Commit test trie to db, then remove the node containing "bars".
-	diskdb := kaidb.NewMemDatabase()
+	diskdb := kaidb.NewMemStore()
 	triedb := NewDatabase(diskdb)
 
 	ctr, _ := New(common.Hash{}, triedb)
@@ -421,7 +421,7 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 // makeTestTrie create a sample test trie to test node-wise reconstruction.
 func makeTestTrie() (*Database, *Trie, map[string][]byte) {
 	// Create an empty trie
-	triedb := NewDatabase(kaidb.NewMemDatabase())
+	triedb := NewDatabase(kaidb.NewMemStore())
 	trie, _ := New(common.Hash{}, triedb)
 
 	// Fill it with some arbitrary data

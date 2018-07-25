@@ -10,24 +10,24 @@ import (
 /*
  * This is a test memory database. Do not use for any production it does not get persisted
  */
-type MemDatabase struct {
+type MemStore struct {
 	db   map[string][]byte
 	lock sync.RWMutex
 }
 
-func NewMemDatabase() *MemDatabase {
-	return &MemDatabase{
+func NewMemStore() *MemStore {
+	return &MemStore{
 		db: make(map[string][]byte),
 	}
 }
 
-func NewMemDatabaseWithCap(size int) *MemDatabase {
-	return &MemDatabase{
+func NewMemStoreWithCap(size int) *MemStore {
+	return &MemStore{
 		db: make(map[string][]byte, size),
 	}
 }
 
-func (db *MemDatabase) Put(key []byte, value []byte) error {
+func (db *MemStore) Put(key []byte, value []byte) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
@@ -35,7 +35,7 @@ func (db *MemDatabase) Put(key []byte, value []byte) error {
 	return nil
 }
 
-func (db *MemDatabase) Has(key []byte) (bool, error) {
+func (db *MemStore) Has(key []byte) (bool, error) {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
@@ -43,7 +43,7 @@ func (db *MemDatabase) Has(key []byte) (bool, error) {
 	return ok, nil
 }
 
-func (db *MemDatabase) Get(key []byte) ([]byte, error) {
+func (db *MemStore) Get(key []byte) ([]byte, error) {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
@@ -53,7 +53,7 @@ func (db *MemDatabase) Get(key []byte) ([]byte, error) {
 	return nil, errors.New("not found")
 }
 
-func (db *MemDatabase) Keys() [][]byte {
+func (db *MemStore) Keys() [][]byte {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
@@ -64,7 +64,7 @@ func (db *MemDatabase) Keys() [][]byte {
 	return keys
 }
 
-func (db *MemDatabase) Delete(key []byte) error {
+func (db *MemStore) Delete(key []byte) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
@@ -72,18 +72,18 @@ func (db *MemDatabase) Delete(key []byte) error {
 	return nil
 }
 
-func (db *MemDatabase) Close() {}
+func (db *MemStore) Close() {}
 
-func (db *MemDatabase) NewBatch() Batch {
+func (db *MemStore) NewBatch() Batch {
 	return &memBatch{db: db}
 }
 
-func (db *MemDatabase) Len() int { return len(db.db) }
+func (db *MemStore) Len() int { return len(db.db) }
 
 type kv struct{ k, v []byte }
 
 type memBatch struct {
-	db     *MemDatabase
+	db     *MemStore
 	writes []kv
 	size   int
 }
