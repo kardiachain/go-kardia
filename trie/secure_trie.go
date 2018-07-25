@@ -1,7 +1,10 @@
 package trie
 
 import (
+	"fmt"
+
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // SecureTrie wraps a trie with key hashing. In a secure trie, all
@@ -56,6 +59,16 @@ func (t *SecureTrie) Copy() *SecureTrie {
 	return &cpy
 }
 
+// Get returns the value for key stored in the trie.
+// The value bytes must not be modified by the caller.
+func (t *SecureTrie) Get(key []byte) []byte {
+	res, err := t.TryGet(key)
+	if err != nil {
+		log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
+	}
+	return res
+}
+
 // TryGet returns the value for key stored in the trie.
 // The value bytes must not be modified by the caller.
 // If a node was not found in the database, a MissingNodeError is returned.
@@ -71,6 +84,18 @@ func (t *SecureTrie) GetKey(shaKey []byte) []byte {
 	}
 	key, _ := t.trie.db.preimage(common.BytesToHash(shaKey))
 	return key
+}
+
+// Update associates key with value in the trie. Subsequent calls to
+// Get will return value. If value has length zero, any existing value
+// is deleted from the trie and calls to Get will return nil.
+//
+// The value bytes must not be modified by the caller while they are
+// stored in the trie.
+func (t *SecureTrie) Update(key, value []byte) {
+	if err := t.TryUpdate(key, value); err != nil {
+		log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
+	}
 }
 
 // TryUpdate associates key with value in the trie. Subsequent calls to
@@ -89,6 +114,13 @@ func (t *SecureTrie) TryUpdate(key, value []byte) error {
 	}
 	t.getSecKeyCache()[string(hk)] = common.CopyBytes(key)
 	return nil
+}
+
+// Delete removes any existing value for key from the trie.
+func (t *SecureTrie) Delete(key []byte) {
+	if err := t.TryDelete(key); err != nil {
+		log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
+	}
 }
 
 // TryDelete removes any existing value for key from the trie.
