@@ -4,8 +4,7 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/common/math"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // packNum packs the given number (using the reflect value) and will cast it to appropriate number representation
@@ -39,9 +38,9 @@ func packElement(t Type, reflectValue reflect.Value) []byte {
 		return common.LeftPadBytes(reflectValue.Bytes(), 32)
 	case BoolTy:
 		if reflectValue.Bool() {
-			return math.PaddedBigBytes(common.Big1, 32)
+			return common.PaddedBigBytes(common.Big1, 32)
 		}
-		return math.PaddedBigBytes(common.Big0, 32)
+		return common.PaddedBigBytes(common.Big0, 32)
 	case BytesTy:
 		if reflectValue.Kind() == reflect.Array {
 			reflectValue = mustArrayToByteSlice(reflectValue)

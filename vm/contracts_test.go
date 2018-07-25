@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // precompiledTest defines the input/output pairs for precompiled contract tests.

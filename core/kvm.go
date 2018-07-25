@@ -3,7 +3,7 @@ package core
 import (
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/vm"
 )

@@ -4,9 +4,9 @@ import (
 	"hash"
 	"sync"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/crypto/sha3"
-	"github.com/kardiachain/go-kardia/rlp"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto/sha3"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 type hasher struct {

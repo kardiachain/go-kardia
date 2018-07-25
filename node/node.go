@@ -3,7 +3,7 @@ package node
 import (
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
 	"reflect"

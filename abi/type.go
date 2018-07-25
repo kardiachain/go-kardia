@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/common/math"
+	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 var (
@@ -216,7 +216,7 @@ var (
 
 // U256 converts a big Int into a 256bit KVM number.
 func U256(n *big.Int) []byte {
-	return math.PaddedBigBytes(math.U256(n), 32)
+	return common.PaddedBigBytes(math.U256(n), 32)
 }
 
 // formatSliceString formats the reflection kind with the given slice size

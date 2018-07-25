@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"hash"
 
-	ethcrypto "github.com/kardiachain/go-kardia/crypto"
+	ethcrypto "github.com/kardiachain/go-kardia/lib/crypto"
 )
 
 var (

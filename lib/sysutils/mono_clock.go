@@ -1,5 +1,5 @@
-// Package mclock is a wrapper for a monotonic clock source
-package mclock
+// Wrapper for a monotonic clock source
+package sysutils
 
 import (
 	"time"

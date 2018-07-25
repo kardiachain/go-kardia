@@ -6,10 +6,10 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/core/state"
-	"github.com/kardiachain/go-kardia/crypto"
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/params"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/vm"

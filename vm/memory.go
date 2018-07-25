@@ -3,7 +3,7 @@ package vm
 import (
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/common/math"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // Memory implements a simple memory model for the ethereum virtual machine.
@@ -42,7 +42,7 @@ func (m *Memory) Set32(offset uint64, val *big.Int) {
 	// Zero the memory area
 	copy(m.store[offset:offset+32], []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 	// Fill in relevant bits
-	math.ReadBits(val, m.store[offset:offset+32])
+	common.ReadBits(val, m.store[offset:offset+32])
 }
 
 // Get returns offset + size as a new slice
@@ -134,21 +134,21 @@ func memoryCall(stack *Stack) *big.Int {
 	x := calcMemSize(stack.Back(5), stack.Back(6))
 	y := calcMemSize(stack.Back(3), stack.Back(4))
 
-	return math.BigMax(x, y)
+	return common.BigMax(x, y)
 }
 
 func memoryDelegateCall(stack *Stack) *big.Int {
 	x := calcMemSize(stack.Back(4), stack.Back(5))
 	y := calcMemSize(stack.Back(2), stack.Back(3))
 
-	return math.BigMax(x, y)
+	return common.BigMax(x, y)
 }
 
 func memoryStaticCall(stack *Stack) *big.Int {
 	x := calcMemSize(stack.Back(4), stack.Back(5))
 	y := calcMemSize(stack.Back(2), stack.Back(3))
 
-	return math.BigMax(x, y)
+	return common.BigMax(x, y)
 }
 
 func memoryReturn(stack *Stack) *big.Int {

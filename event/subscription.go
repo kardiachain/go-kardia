@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/common/mclock"
+	"github.com/kardiachain/go-kardia/lib/sysutils"
 )
 
 // Subscription represents a stream of events. The carrier of the events is typically a
@@ -98,7 +98,7 @@ type resubscribeSub struct {
 	err                  chan error
 	unsub                chan struct{}
 	unsubOnce            sync.Once
-	lastTry              mclock.AbsTime
+	lastTry              sysutils.AbsTime
 	waitTime, backoffMax time.Duration
 }
 
@@ -131,7 +131,7 @@ func (s *resubscribeSub) subscribe() Subscription {
 	var sub Subscription
 retry:
 	for {
-		s.lastTry = mclock.Now()
+		s.lastTry = sysutils.Now()
 		ctx, cancel := context.WithCancel(context.Background())
 		go func() {
 			rsub, err := s.fn(ctx)
@@ -170,7 +170,7 @@ func (s *resubscribeSub) waitForError(sub Subscription) bool {
 }
 
 func (s *resubscribeSub) backoffWait() bool {
-	if time.Duration(mclock.Now()-s.lastTry) > s.backoffMax {
+	if time.Duration(sysutils.Now()-s.lastTry) > s.backoffMax {
 		s.waitTime = s.backoffMax / 10
 	} else {
 		s.waitTime *= 2

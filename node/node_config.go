@@ -3,9 +3,9 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/kardiachain/go-kardia/crypto"
 	"github.com/kardiachain/go-kardia/database"
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"os"
 	"path/filepath"

@@ -3,7 +3,7 @@ package state
 import (
 	"sync"
 
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 type account struct {

@@ -11,7 +11,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 )
 
 var dumpEnc bool

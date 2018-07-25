@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/kardiachain/go-kardia/abi"
-	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/core/state"
 	kaidb "github.com/kardiachain/go-kardia/database"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/vm"
 )
 

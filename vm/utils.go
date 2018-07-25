@@ -3,8 +3,7 @@ package vm
 import (
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/common/math"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // calculates the memory size required for a step
@@ -21,15 +20,15 @@ func calcMemSize(off, l *big.Int) *big.Int {
 func getDataBig(data []byte, start *big.Int, size *big.Int) []byte {
 	dlen := big.NewInt(int64(len(data)))
 
-	s := math.BigMin(start, dlen)
-	e := math.BigMin(new(big.Int).Add(s, size), dlen)
+	s := common.BigMin(start, dlen)
+	e := common.BigMin(new(big.Int).Add(s, size), dlen)
 	return common.RightPadBytes(data[s.Uint64():e.Uint64()], int(size.Uint64()))
 }
 
 // toWordSize returns the ceiled word size required for memory expansion.
 func toWordSize(size uint64) uint64 {
-	if size > math.MaxUint64-31 {
-		return math.MaxUint64/32 + 1
+	if size > common.MaxUint64-31 {
+		return common.MaxUint64/32 + 1
 	}
 
 	return (size + 31) / 32

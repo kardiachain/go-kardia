@@ -1,5 +1,5 @@
 // Package math provides integer math utilities.
-package math
+package common
 
 import (
 	"fmt"

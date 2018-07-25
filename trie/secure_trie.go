@@ -1,7 +1,7 @@
 package trie
 
 import (
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // SecureTrie wraps a trie with key hashing. In a secure trie, all

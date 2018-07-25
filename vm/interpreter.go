@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/common/math"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/params"
 )
 
@@ -162,7 +162,7 @@ func (in *Interpreter) Run(contract *Contract, input []byte) (ret []byte, err er
 			}
 			// memory is expanded in words of 32 bytes. Gas
 			// is also calculated in words.
-			if memorySize, overflow = math.SafeMul(toWordSize(memSize), 32); overflow {
+			if memorySize, overflow = common.SafeMul(toWordSize(memSize), 32); overflow {
 				return nil, errGasUintOverflow
 			}
 		}

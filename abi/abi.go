@@ -7,8 +7,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 )
 
 // The ABI holds information about a contract's context and available

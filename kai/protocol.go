@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/rlp"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 // Constants to match up protocol versions and messages

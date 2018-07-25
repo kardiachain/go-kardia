@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/core/state"
 	"github.com/kardiachain/go-kardia/event"
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/params"
 	"github.com/kardiachain/go-kardia/types"
 

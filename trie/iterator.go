@@ -5,8 +5,8 @@ import (
 	"container/heap"
 	"errors"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/rlp"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 // Iterator is a key-value trie iterator that traverses a Trie.

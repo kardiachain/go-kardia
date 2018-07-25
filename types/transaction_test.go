@@ -6,9 +6,9 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/crypto"
-	"github.com/kardiachain/go-kardia/rlp"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 // The values in those tests are from the Transaction Tests

@@ -4,7 +4,7 @@ import (
 	"github.com/hashicorp/golang-lru"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/params"
 
 	"github.com/kardiachain/go-kardia/core/rawdb"

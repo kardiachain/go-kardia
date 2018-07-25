@@ -1,4 +1,4 @@
-package hexutil
+package common
 
 import (
 	"bytes"

@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 const (

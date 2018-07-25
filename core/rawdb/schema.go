@@ -3,7 +3,7 @@ package rawdb
 
 import (
 	"encoding/binary"
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // The fields below define the low level database schema prefixing.

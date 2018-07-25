@@ -1,4 +1,4 @@
-package math
+package common
 
 // Integer limit values.
 const (

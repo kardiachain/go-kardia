@@ -4,12 +4,12 @@ import (
 	"flag"
 	"fmt"
 	elog "github.com/ethereum/go-ethereum/log"
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/common/fdlimit"
-	"github.com/kardiachain/go-kardia/crypto"
 	"github.com/kardiachain/go-kardia/dual"
 	"github.com/kardiachain/go-kardia/kai"
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
@@ -19,12 +19,12 @@ import (
 
 func runtimeSystemSettings() error {
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	limit, err := fdlimit.Current()
+	limit, err := sysutils.FDCurrent()
 	if err != nil {
 		return err
 	}
 	if limit < 2048 {
-		if err := fdlimit.Raise(2048); err != nil {
+		if err := sysutils.FDRaise(2048); err != nil {
 			return err
 		}
 	}

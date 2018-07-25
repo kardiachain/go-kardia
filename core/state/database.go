@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/kardiachain/go-kardia/common"
 	kaidb "github.com/kardiachain/go-kardia/database"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/trie"
 )
 

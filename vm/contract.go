@@ -4,7 +4,7 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // List execution errors

@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 
 	kaidb "github.com/kardiachain/go-kardia/database"
 

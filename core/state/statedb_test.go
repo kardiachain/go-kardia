@@ -4,8 +4,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/common"
 	kaidb "github.com/kardiachain/go-kardia/database"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // Tests that updating a state trie does not leak any database writes prior to

@@ -4,7 +4,7 @@ package kai
 import (
 	"github.com/kardiachain/go-kardia/core"
 	kaidb "github.com/kardiachain/go-kardia/database"
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/params"

@@ -5,11 +5,11 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/go-kardia/common"
 	"github.com/kardiachain/go-kardia/core"
 	"github.com/kardiachain/go-kardia/core/state"
-	"github.com/kardiachain/go-kardia/crypto"
 	kaidb "github.com/kardiachain/go-kardia/database"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/params"
 	"github.com/kardiachain/go-kardia/vm"
 )

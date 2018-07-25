@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/stretchr/testify/require"
 )
 

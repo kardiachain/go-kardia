@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/types"
 	"gopkg.in/fatih/set.v0"
