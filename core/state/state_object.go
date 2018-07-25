@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"math/big"
 
 	"github.com/kardiachain/go-kardia/common"
@@ -117,6 +118,11 @@ func (self *stateObject) deepCopy(db *StateDB) *stateObject {
 	return stateObject
 }
 
+// EncodeRLP implements rlp.Encoder.
+func (c *stateObject) EncodeRLP(w io.Writer) error {
+	return rlp.Encode(w, c.data)
+}
+
 //
 // Attribute accessors
 //
@@ -172,16 +178,15 @@ func (self *stateObject) Balance() *big.Int {
 	return self.data.Balance
 }
 
-// AddBalance removes amount from c's balance.
+// AddBalance adds amount to c's balance.
 // It is used to add funds to the destination account of a transfer.
 func (c *stateObject) AddBalance(amount *big.Int) {
-	// EIP158: We must check emptiness for the objects such that the account
+	// We must check emptiness for the objects such that the account
 	// clearing (0,0,0 objects) can take effect.
 	if amount.Sign() == 0 {
 		if c.empty() {
 			c.touch()
 		}
-
 		return
 	}
 	c.SetBalance(new(big.Int).Add(c.Balance(), amount))

@@ -94,7 +94,7 @@ func (self *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
 }
 
 // Prepare sets the current transaction hash and index and block hash which is
-// used when the EVM emits new state logs.
+// used when the KVM emits new state logs.
 func (self *StateDB) Prepare(thash, bhash common.Hash, ti int) {
 	self.thash = thash
 	self.bhash = bhash
@@ -209,14 +209,6 @@ func (self *StateDB) GetBalance(addr common.Address) *big.Int {
 	return common.Big0
 }
 
-// SubBalance subtracts amount from the account associated with addr.
-func (self *StateDB) SubBalance(addr common.Address, amount *big.Int) {
-	stateObject := self.GetOrNewStateObject(addr)
-	if stateObject != nil {
-		stateObject.SubBalance(amount)
-	}
-}
-
 func (self *StateDB) GetNonce(addr common.Address) uint64 {
 	stateObject := self.getStateObject(addr)
 	if stateObject != nil {
@@ -226,15 +218,19 @@ func (self *StateDB) GetNonce(addr common.Address) uint64 {
 	return 0
 }
 
-/*
- * SETTERS
- */
-
 // AddBalance adds amount to the account associated with addr.
 func (self *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 	stateObject := self.GetOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.AddBalance(amount)
+	}
+}
+
+// SubBalance subtracts amount from the account associated with addr.
+func (self *StateDB) SubBalance(addr common.Address, amount *big.Int) {
+	stateObject := self.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SubBalance(amount)
 	}
 }
 
@@ -257,6 +253,26 @@ func (self *StateDB) SetState(addr common.Address, key, value common.Hash) {
 	if stateObject != nil {
 		stateObject.SetState(self.db, key, value)
 	}
+}
+
+// Reset clears out all ephemeral state objects from the state db, but keeps
+// the underlying state trie to avoid reloading data for the next operations.
+func (self *StateDB) Reset(root common.Hash) error {
+	tr, err := self.db.OpenTrie(root)
+	if err != nil {
+		return err
+	}
+	self.trie = tr
+	self.stateObjects = make(map[common.Address]*stateObject)
+	self.stateObjectsDirty = make(map[common.Address]struct{})
+	self.thash = common.Hash{}
+	self.bhash = common.Hash{}
+	self.txIndex = 0
+	self.logs = make(map[common.Hash][]*types.Log)
+	self.logSize = 0
+	self.preimages = make(map[common.Hash][]byte)
+	self.clearJournalAndRefund()
+	return nil
 }
 
 // IntermediateRoot computes the current root hash of the state trie.
