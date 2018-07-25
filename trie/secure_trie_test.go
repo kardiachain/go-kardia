@@ -12,14 +12,14 @@ import (
 )
 
 func newEmptySecure() *SecureTrie {
-	trie, _ := NewSecure(common.Hash{}, NewDatabase(kaidb.NewMemDatabase()), 0)
+	trie, _ := NewSecure(common.Hash{}, NewDatabase(kaidb.NewMemStore()), 0)
 	return trie
 }
 
 // makeTestSecureTrie creates a large enough secure trie for testing.
 func makeTestSecureTrie() (*Database, *SecureTrie, map[string][]byte) {
 	// Create an empty trie
-	triedb := NewDatabase(kaidb.NewMemDatabase())
+	triedb := NewDatabase(kaidb.NewMemStore())
 
 	trie, _ := NewSecure(common.Hash{}, triedb, 0)
 

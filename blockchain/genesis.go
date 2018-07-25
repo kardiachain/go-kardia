@@ -124,7 +124,7 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *configs.ChainConfig {
 // to the given database (or discards it if nil).
 func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 	if db == nil {
-		db = kaidb.NewMemDatabase()
+		db = kaidb.NewMemStore()
 	}
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
 	for addr, account := range g.Alloc {

@@ -27,7 +27,7 @@ func init() {
 
 // Used for testing
 func newEmpty() *Trie {
-	trie, _ := New(common.Hash{}, NewDatabase(kaidb.NewMemDatabase()))
+	trie, _ := New(common.Hash{}, NewDatabase(kaidb.NewMemStore()))
 	return trie
 }
 
@@ -51,7 +51,7 @@ func TestNull(t *testing.T) {
 }
 
 func TestMissingRoot(t *testing.T) {
-	trie, err := New(common.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"), NewDatabase(kaidb.NewMemDatabase()))
+	trie, err := New(common.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"), NewDatabase(kaidb.NewMemStore()))
 	if trie != nil {
 		t.Error("New returned non-nil trie for invalid root")
 	}
@@ -64,7 +64,7 @@ func TestMissingNodeDisk(t *testing.T)    { testMissingNode(t, false) }
 func TestMissingNodeMemonly(t *testing.T) { testMissingNode(t, true) }
 
 func testMissingNode(t *testing.T, memonly bool) {
-	diskdb := kaidb.NewMemDatabase()
+	diskdb := kaidb.NewMemStore()
 	triedb := NewDatabase(diskdb)
 
 	trie, _ := New(common.Hash{}, triedb)
@@ -405,7 +405,7 @@ func (randTest) Generate(r *rand.Rand, size int) reflect.Value {
 }
 
 func runRandTest(rt randTest) bool {
-	triedb := NewDatabase(kaidb.NewMemDatabase())
+	triedb := NewDatabase(kaidb.NewMemStore())
 
 	tr, _ := New(common.Hash{}, triedb)
 	values := make(map[string]string) // tracks content of the trie
@@ -533,7 +533,7 @@ func benchGet(b *testing.B, commit bool) {
 	b.StopTimer()
 
 	if commit {
-		ldb := trie.db.diskdb.(*kaidb.LDBDatabase)
+		ldb := trie.db.diskdb.(*kaidb.LDBStore)
 		ldb.Close()
 		os.RemoveAll(ldb.Path())
 	}
@@ -589,7 +589,7 @@ func tempDB() (string, *Database) {
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary directory: %v", err))
 	}
-	diskdb, err := kaidb.NewLDBDatabase(dir, 256, 0)
+	diskdb, err := kaidb.NewLDBStore(dir, 256, 0)
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}
