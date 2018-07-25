@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/metrics"
-	kaidb "github.com/kardiachain/go-kardia/database"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
+	kaidb "github.com/kardiachain/go-kardia/storage"
 )
 
 var (

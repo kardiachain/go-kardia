@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/event"
+	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/lib/sysutils"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/params"
+	"github.com/kardiachain/go-kardia/configs"
 )
 
 // Stack is an object for basic stack operations. Items popped to the stack are
@@ -86,8 +86,8 @@ func makeStackFunc(pop, push int) stackValidationFunc {
 			return err
 		}
 
-		if stack.len()+push-pop > int(params.StackLimit) {
-			return fmt.Errorf("stack limit reached %d (%d)", stack.len(), params.StackLimit)
+		if stack.len()+push-pop > int(configs.StackLimit) {
+			return fmt.Errorf("stack limit reached %d (%d)", stack.len(), configs.StackLimit)
 		}
 		return nil
 	}

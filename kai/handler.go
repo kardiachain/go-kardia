@@ -6,13 +6,13 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/core"
-	"github.com/kardiachain/go-kardia/event"
+	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
-	"github.com/kardiachain/go-kardia/params"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -42,10 +42,10 @@ type ProtocolManager struct {
 
 	peers *peerSet
 
-	txpool *core.TxPool
+	txpool *blockchain.TxPool
 
-	blockchain  *core.BlockChain
-	chainconfig *params.ChainConfig
+	blockchain  *blockchain.BlockChain
+	chainconfig *configs.ChainConfig
 
 	SubProtocols []p2p.Protocol
 
@@ -53,7 +53,7 @@ type ProtocolManager struct {
 	newPeerCh   chan *peer
 	noMorePeers chan struct{}
 
-	txsCh  chan core.NewTxsEvent
+	txsCh  chan blockchain.NewTxsEvent
 	txsSub event.Subscription
 
 	// wait group is used for graceful shutdowns during downloading
@@ -63,7 +63,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Kardia sub protocol manager. The Kardia sub protocol manages peers capable
 // with the Kardia network.
-func NewProtocolManager(networkID uint64, blockchain *core.BlockChain, config *params.ChainConfig, txpool *core.TxPool) (*ProtocolManager, error) {
+func NewProtocolManager(networkID uint64, blockchain *blockchain.BlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkID:   networkID,
@@ -134,7 +134,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	pm.maxPeers = maxPeers
 
 	// broadcast transactions
-	pm.txsCh = make(chan core.NewTxsEvent, txChanSize)
+	pm.txsCh = make(chan blockchain.NewTxsEvent, txChanSize)
 	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
 	go pm.txBroadcastLoop()
 
@@ -303,11 +303,11 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 // NodeInfo represents a short summary of the Kardia sub-protocol metadata
 // known about the host peer.
 type NodeInfo struct {
-	Network uint64              `json:"network"` // Kardia network ID
-	Height  uint64              `json:"height"`  // Height of the blockchain
-	Genesis common.Hash         `json:"genesis"` // SHA3 hash of the host's genesis block
-	Config  *params.ChainConfig `json:"config"`  // Chain configuration for the fork rules
-	Head    common.Hash         `json:"head"`    // SHA3 hash of the host's best owned block
+	Network uint64               `json:"network"` // Kardia network ID
+	Height  uint64               `json:"height"`  // Height of the blockchain
+	Genesis common.Hash          `json:"genesis"` // SHA3 hash of the host's genesis block
+	Config  *configs.ChainConfig `json:"config"`  // Chain configuration for the fork rules
+	Head    common.Hash          `json:"head"`    // SHA3 hash of the host's best owned block
 }
 
 // NodeInfo retrieves some protocol metadata about the running host node.

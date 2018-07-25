@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/params"
 )
 
 // Config are the configuration options for the Interpreter
@@ -27,7 +27,7 @@ type Config struct {
 type Interpreter struct {
 	kvm      *KVM
 	cfg      Config
-	gasTable params.GasTable
+	gasTable configs.GasTable
 	intPool  *intPool
 
 	readOnly   bool   // Whether to throw on stateful modifications
@@ -45,7 +45,7 @@ func NewInterpreter(kvm *KVM, cfg Config) *Interpreter {
 	return &Interpreter{
 		kvm:      kvm,
 		cfg:      cfg,
-		gasTable: params.GasTableV0,
+		gasTable: configs.GasTableV0,
 	}
 }
 

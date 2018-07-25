@@ -3,10 +3,10 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/kardiachain/go-kardia/database"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
+	"github.com/kardiachain/go-kardia/storage"
 	"os"
 	"path/filepath"
 	"strings"
@@ -95,11 +95,11 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 }
 
 // StartDatabase starts a new or existed database in the node data directory, or in-memory database.
-func (c *NodeConfig) StartDatabase(name string, cache int, handles int) (database.Database, error) {
+func (c *NodeConfig) StartDatabase(name string, cache int, handles int) (storage.Database, error) {
 	if c.DataDir == "" {
-		return database.NewMemDatabase(), nil
+		return storage.NewMemDatabase(), nil
 	}
-	return database.NewLDBDatabase(c.resolvePath(name), cache, handles)
+	return storage.NewLDBDatabase(c.resolvePath(name), cache, handles)
 }
 
 // Return saved name or executable file name.

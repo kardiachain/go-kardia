@@ -1,4 +1,4 @@
-package core
+package blockchain
 
 import (
 	"errors"
@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/core/state"
-	"github.com/kardiachain/go-kardia/event"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/params"
+	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
 
 	"github.com/ethereum/go-ethereum/metrics"
@@ -168,7 +168,7 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 // two states over time as they are received and processed.
 type TxPool struct {
 	config       TxPoolConfig
-	chainconfig  *params.ChainConfig
+	chainconfig  *configs.ChainConfig
 	chain        blockChain
 	gasPrice     *big.Int
 	txFeed       event.Feed
@@ -195,7 +195,7 @@ type TxPool struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(config TxPoolConfig, chainconfig *params.ChainConfig, chain blockChain) *TxPool {
+func NewTxPool(config TxPoolConfig, chainconfig *configs.ChainConfig, chain blockChain) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 

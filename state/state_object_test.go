@@ -8,7 +8,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 
-	kaidb "github.com/kardiachain/go-kardia/database"
+	kaidb "github.com/kardiachain/go-kardia/storage"
 
 	checker "gopkg.in/check.v1"
 )

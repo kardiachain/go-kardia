@@ -3,9 +3,9 @@ package vm
 import (
 	"math/big"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/params"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -106,7 +106,7 @@ func (kvm *KVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
-	if kvm.depth > int(params.CallCreateDepth) {
+	if kvm.depth > int(configs.CallCreateDepth) {
 		return nil, common.Address{}, gas, ErrDepth
 	}
 	if !kvm.CanTransfer(kvm.StateDB, caller.Address(), value) {
@@ -148,13 +148,13 @@ func (kvm *KVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	ret, err = run(kvm, contract, nil)
 
 	// check whether the max code size has been exceeded
-	maxCodeSizeExceeded := len(ret) > params.MaxCodeSize
+	maxCodeSizeExceeded := len(ret) > configs.MaxCodeSize
 	// if the contract creation ran successfully and no errors were returned
 	// calculate the gas required to store the code. If the code could not
 	// be stored due to not enough gas set an error and let it be handled
 	// by the error checking condition below.
 	if err == nil && !maxCodeSizeExceeded {
-		createDataGas := uint64(len(ret)) * params.CreateDataGas
+		createDataGas := uint64(len(ret)) * configs.CreateDataGas
 		if contract.UseGas(createDataGas) {
 			kvm.StateDB.SetCode(contractAddr, ret)
 		} else {
@@ -192,7 +192,7 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	}
 
 	// Fail if we're trying to execute above the call depth limit
-	if kvm.depth > int(params.CallCreateDepth) {
+	if kvm.depth > int(configs.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
@@ -264,7 +264,7 @@ func (kvm *KVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	}
 
 	// Fail if we're trying to execute above the call depth limit
-	if kvm.depth > int(params.CallCreateDepth) {
+	if kvm.depth > int(configs.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
@@ -302,7 +302,7 @@ func (kvm *KVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 		return nil, gas, nil
 	}
 	// Fail if we're trying to execute above the call depth limit
-	if kvm.depth > int(params.CallCreateDepth) {
+	if kvm.depth > int(configs.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
 
@@ -334,7 +334,7 @@ func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 		return nil, gas, nil
 	}
 	// Fail if we're trying to execute above the call depth limit
-	if kvm.depth > int(params.CallCreateDepth) {
+	if kvm.depth > int(configs.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
 	// Make sure the readonly is only set if we aren't in readonly yet

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/params"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -647,7 +647,7 @@ func opCall(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Sta
 	args := memory.Get(inOffset.Int64(), inSize.Int64())
 
 	if value.Sign() != 0 {
-		gas += params.CallStipend
+		gas += configs.CallStipend
 	}
 	ret, returnGas, err := kvm.Call(contract, toAddr, args, gas, value)
 	if err != nil {
@@ -676,7 +676,7 @@ func opCallCode(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack 
 	args := memory.Get(inOffset.Int64(), inSize.Int64())
 
 	if value.Sign() != 0 {
-		gas += params.CallStipend
+		gas += configs.CallStipend
 	}
 	ret, returnGas, err := kvm.CallCode(contract, toAddr, args, gas, value)
 	if err != nil {

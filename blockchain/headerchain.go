@@ -1,14 +1,14 @@
-package core
+package blockchain
 
 import (
 	"github.com/hashicorp/golang-lru"
 	"sync/atomic"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/params"
 
-	"github.com/kardiachain/go-kardia/core/rawdb"
-	kaidb "github.com/kardiachain/go-kardia/database"
+	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -19,7 +19,7 @@ const (
 
 //TODO(huny@): Add detailed description
 type HeaderChain struct {
-	config *params.ChainConfig
+	config *configs.ChainConfig
 
 	chainDb kaidb.Database
 
@@ -42,7 +42,7 @@ func (hc *HeaderChain) CurrentHeader() *types.Header {
 //  getValidator should return the parent's validator
 //  procInterrupt points to the parent's interrupt semaphore
 //  wg points to the parent's shutdown wait group
-func NewHeaderChain(chainDb kaidb.Database, config *params.ChainConfig) (*HeaderChain, error) {
+func NewHeaderChain(chainDb kaidb.Database, config *configs.ChainConfig) (*HeaderChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	heightCache, _ := lru.New(heightCacheLimit)
 

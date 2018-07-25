@@ -5,19 +5,19 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/go-kardia/core"
-	"github.com/kardiachain/go-kardia/core/state"
-	kaidb "github.com/kardiachain/go-kardia/database"
+	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/params"
+	"github.com/kardiachain/go-kardia/state"
+	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/vm"
 )
 
 // Config is a basic type specifying certain configuration flags for running
 // the KVM.
 type Config struct {
-	ChainConfig *params.ChainConfig
+	ChainConfig *configs.ChainConfig
 	Origin      common.Address
 	Coinbase    common.Address
 	BlockHeight uint64
@@ -35,7 +35,7 @@ type Config struct {
 // sets defaults on the config
 func setDefaults(cfg *Config) {
 	if cfg.ChainConfig == nil {
-		cfg.ChainConfig = &params.ChainConfig{
+		cfg.ChainConfig = &configs.ChainConfig{
 			ChainID: big.NewInt(1),
 		}
 	}
@@ -63,8 +63,8 @@ func setDefaults(cfg *Config) {
 
 func NewEnv(cfg *Config) *vm.KVM {
 	context := vm.Context{
-		CanTransfer: core.CanTransfer,
-		Transfer:    core.Transfer,
+		CanTransfer: blockchain.CanTransfer,
+		Transfer:    blockchain.Transfer,
 		GetHash:     func(uint64) common.Hash { return common.Hash{} },
 
 		Origin:      cfg.Origin,

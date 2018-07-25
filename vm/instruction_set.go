@@ -4,12 +4,12 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/params"
+	"github.com/kardiachain/go-kardia/configs"
 )
 
 type (
 	executionFunc       func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error)
-	gasFunc             func(params.GasTable, *KVM, *Contract, *Stack, *Memory, uint64) (uint64, error) // last parameter is the requested memory size as a uint64
+	gasFunc             func(configs.GasTable, *KVM, *Contract, *Stack, *Memory, uint64) (uint64, error) // last parameter is the requested memory size as a uint64
 	stackValidationFunc func(*Stack) error
 	memorySizeFunc      func(*Stack) *big.Int
 )
@@ -369,7 +369,7 @@ func newKardiaInstructionSet() [256]operation {
 		},
 		JUMPDEST: {
 			execute:       opJumpdest,
-			gasCost:       constGasFunc(params.JumpdestGas),
+			gasCost:       constGasFunc(configs.JumpdestGas),
 			validateStack: makeStackFunc(0, 0),
 			valid:         true,
 		},

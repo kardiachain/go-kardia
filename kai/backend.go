@@ -2,12 +2,12 @@
 package kai
 
 import (
-	"github.com/kardiachain/go-kardia/core"
-	kaidb "github.com/kardiachain/go-kardia/database"
+	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/p2p"
-	"github.com/kardiachain/go-kardia/params"
+	kaidb "github.com/kardiachain/go-kardia/storage"
 )
 
 const DefaultNetworkID = 100
@@ -22,7 +22,7 @@ type KardiaSubService interface {
 // Kardia implements node.Service for running full Kardia full protocol.
 type Kardia struct {
 	config      *Config
-	chainConfig *params.ChainConfig
+	chainConfig *configs.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool // Channel for shutting down the Ethereum
@@ -31,9 +31,9 @@ type Kardia struct {
 	chainDb kaidb.Database // Block chain database
 
 	// Handlers
-	txPool          *core.TxPool
+	txPool          *blockchain.TxPool
 	protocolManager *ProtocolManager
-	blockchain      *core.BlockChain
+	blockchain      *blockchain.BlockChain
 
 	subService KardiaSubService
 
@@ -53,7 +53,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 		return nil, err
 	}
 
-	chainConfig, _, genesisErr := core.SetupGenesisBlock(chainDb, config.Genesis)
+	chainConfig, _, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
@@ -72,12 +72,12 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
 	// Create a new blockchain to attach to this Kardia object
-	kai.blockchain, err = core.NewBlockChain(chainDb, kai.chainConfig)
+	kai.blockchain, err = blockchain.NewBlockChain(chainDb, kai.chainConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	kai.txPool = core.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
+	kai.txPool = blockchain.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 
 	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool); err != nil {
 		return nil, err
@@ -138,6 +138,6 @@ func (s *Kardia) Stop() error {
 	return nil
 }
 
-func (s *Kardia) TxPool() *core.TxPool             { return s.txPool }
-func (s *Kardia) BlockChain() *core.BlockChain     { return s.blockchain }
-func (s *Kardia) ChainConfig() *params.ChainConfig { return s.chainConfig }
+func (s *Kardia) TxPool() *blockchain.TxPool         { return s.txPool }
+func (s *Kardia) BlockChain() *blockchain.BlockChain { return s.blockchain }
+func (s *Kardia) ChainConfig() *configs.ChainConfig  { return s.chainConfig }

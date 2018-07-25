@@ -1,4 +1,4 @@
-package core
+package blockchain
 
 import (
 	"errors"
@@ -6,13 +6,13 @@ import (
 	"sync/atomic"
 
 	"github.com/hashicorp/golang-lru"
-	"github.com/kardiachain/go-kardia/core/rawdb"
-	"github.com/kardiachain/go-kardia/core/state"
-	kaidb "github.com/kardiachain/go-kardia/database"
-	"github.com/kardiachain/go-kardia/event"
+	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/params"
+	"github.com/kardiachain/go-kardia/state"
+	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -29,7 +29,7 @@ var (
 
 // TODO(huny@): Add detailed description for Kardia blockchain
 type BlockChain struct {
-	chainConfig *params.ChainConfig // Chain & network configuration
+	chainConfig *configs.ChainConfig // Chain & network configuration
 
 	db kaidb.Database // Blockchain database
 	hc *HeaderChain
@@ -68,12 +68,12 @@ func (bc *BlockChain) CurrentBlock() *types.Block {
 }
 
 // Config retrieves the blockchain's chain configuration.
-func (bc *BlockChain) Config() *params.ChainConfig { return bc.chainConfig }
+func (bc *BlockChain) Config() *configs.ChainConfig { return bc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Ethereum Validator and
 // Processor.
-func NewBlockChain(db kaidb.Database, chainConfig *params.ChainConfig) (*BlockChain, error) {
+func NewBlockChain(db kaidb.Database, chainConfig *configs.ChainConfig) (*BlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 

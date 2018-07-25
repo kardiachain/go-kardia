@@ -1,4 +1,4 @@
-package core
+package blockchain
 
 import (
 	"errors"
@@ -6,11 +6,11 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/core/state"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/params"
+	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/vm"
 )
@@ -155,9 +155,9 @@ func IntrinsicGas(data []byte, contractCreation bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
 	if contractCreation {
-		gas = params.TxGasContractCreation
+		gas = configs.TxGasContractCreation
 	} else {
-		gas = params.TxGas
+		gas = configs.TxGas
 	}
 	// Bump the required gas by the amount of transactional data
 	if len(data) > 0 {
@@ -169,16 +169,16 @@ func IntrinsicGas(data []byte, contractCreation bool) (uint64, error) {
 			}
 		}
 		// Make sure we don't exceed uint64 for all data combinations
-		if (math.MaxUint64-gas)/params.TxDataNonZeroGas < nz {
+		if (math.MaxUint64-gas)/configs.TxDataNonZeroGas < nz {
 			return 0, vm.ErrOutOfGas
 		}
-		gas += nz * params.TxDataNonZeroGas
+		gas += nz * configs.TxDataNonZeroGas
 
 		z := uint64(len(data)) - nz
-		if (math.MaxUint64-gas)/params.TxDataZeroGas < z {
+		if (math.MaxUint64-gas)/configs.TxDataZeroGas < z {
 			return 0, vm.ErrOutOfGas
 		}
-		gas += z * params.TxDataZeroGas
+		gas += z * configs.TxDataZeroGas
 	}
 	return gas, nil
 }

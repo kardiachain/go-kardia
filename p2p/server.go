@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/event"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/p2p/discover"

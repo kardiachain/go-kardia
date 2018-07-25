@@ -1,4 +1,4 @@
-package core
+package blockchain
 
 import (
 	"errors"
@@ -6,13 +6,13 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/kardiachain/go-kardia/core/rawdb"
-	"github.com/kardiachain/go-kardia/core/state"
-	kaidb "github.com/kardiachain/go-kardia/database"
+	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/params"
+	"github.com/kardiachain/go-kardia/state"
+	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -23,10 +23,10 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
-	Config    *params.ChainConfig `json:"config"`
-	Timestamp uint64              `json:"timestamp"`
-	GasLimit  uint64              `json:"gasLimit"   gencodec:"required"`
-	Alloc     GenesisAlloc        `json:"alloc"      gencodec:"required"`
+	Config    *configs.ChainConfig `json:"config"`
+	Timestamp uint64               `json:"timestamp"`
+	GasLimit  uint64               `json:"gasLimit"   gencodec:"required"`
+	Alloc     GenesisAlloc         `json:"alloc"      gencodec:"required"`
 
 	// TODO(huny@): Add default validators?
 }
@@ -61,10 +61,10 @@ func (e *GenesisMismatchError) Error() string {
 //     db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*params.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		// TODO(huny@): should we return another default config?
-		return params.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
+		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
 	}
 
 	// Just commit the new block if there is no stored genesis block.
@@ -99,7 +99,7 @@ func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*params.ChainConfig
 	// Special case: don't change the existing config of a non-mainnet chain if no new
 	// config is supplied. These chains would get AllProtocolChanges (and a compat error)
 	// if we just continued here.
-	if genesis == nil && stored != params.MainnetGenesisHash {
+	if genesis == nil && stored != configs.MainnetGenesisHash {
 		return storedcfg, stored, nil
 	}
 
@@ -107,16 +107,16 @@ func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*params.ChainConfig
 	return newcfg, stored, nil
 }
 
-func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
+func (g *Genesis) configOrDefault(ghash common.Hash) *configs.ChainConfig {
 	switch {
 	case g != nil:
 		return g.Config
-	case ghash == params.MainnetGenesisHash:
-		return params.MainnetChainConfig
-	case ghash == params.TestnetGenesisHash:
-		return params.TestnetChainConfig
+	case ghash == configs.MainnetGenesisHash:
+		return configs.MainnetChainConfig
+	case ghash == configs.TestnetGenesisHash:
+		return configs.TestnetChainConfig
 	default:
-		return params.TestnetChainConfig
+		return configs.TestnetChainConfig
 	}
 }
 
@@ -143,7 +143,7 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 		Root:     root,
 	}
 	if g.GasLimit == 0 {
-		head.GasLimit = params.GenesisGasLimit
+		head.GasLimit = configs.GenesisGasLimit
 	}
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
@@ -166,7 +166,7 @@ func (g *Genesis) Commit(db kaidb.Database) (*types.Block, error) {
 
 	config := g.Config
 	if config == nil {
-		config = params.TestnetChainConfig
+		config = configs.TestnetChainConfig
 	}
 	rawdb.WriteChainConfig(db, block.Hash(), config)
 	return block, nil
@@ -175,7 +175,7 @@ func (g *Genesis) Commit(db kaidb.Database) (*types.Block, error) {
 // DefaultGenesisBlock returns the Ethereum main net genesis block.
 func DefaultGenesisBlock() *Genesis {
 	return &Genesis{
-		Config:   params.MainnetChainConfig,
+		Config:   configs.MainnetChainConfig,
 		GasLimit: 5000,
 		//@huny Alloc:    decodePrealloc(mainnetAllocData),
 	}
@@ -184,7 +184,7 @@ func DefaultGenesisBlock() *Genesis {
 // DefaultTestnetGenesisBlock returns the Ropsten network genesis block.
 func DefaultTestnetGenesisBlock() *Genesis {
 	return &Genesis{
-		Config:   params.TestnetChainConfig,
+		Config:   configs.TestnetChainConfig,
 		GasLimit: 16777216,
 		//@huny Alloc:    decodePrealloc(testnetAllocData),
 	}
