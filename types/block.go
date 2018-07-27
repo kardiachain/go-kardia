@@ -105,6 +105,10 @@ type extblock struct {
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
 func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit) *Block {
+	if commit == nil {
+		// Currently fails when calling from genesis.go ToBlock, with nil commit
+		panic("Hasn't implement calling NewBlock with nil commit yet")
+	}
 	b := &Block{header: CopyHeader(header), lastCommit: CopyCommit(commit)}
 
 	if len(txs) == 0 {
