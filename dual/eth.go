@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethstats"
@@ -17,6 +18,11 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/kardiachain/go-kardia/lib/log"
+)
+
+const (
+	// // headChannelSize is the size of channel listening to ChainHeadEvent.
+	headChannelSize = 5
 )
 
 var DefaultEthKardiaConfig = EthKardiaConfig{
@@ -50,7 +56,8 @@ type EthKardiaConfig struct {
 
 // EthKarida is a full Ethereum node running inside Karida
 type EthKardia struct {
-	geth *node.Node
+	geth   *node.Node
+	config *EthKardiaConfig
 }
 
 // EthKardia creates a Ethereum sub node.
@@ -140,7 +147,7 @@ func NewEthKardia(config *EthKardiaConfig) (*EthKardia, error) {
 			log.Error("Failed to register the Ethereum Stats service", "err", err)
 		}
 	}
-	return &EthKardia{geth: ethNode}, nil
+	return &EthKardia{geth: ethNode, config: config}, nil
 }
 
 // defaultEthDataDir returns default Eth root datadir.
@@ -166,7 +173,13 @@ func homeDir() string {
 
 // Start starts the Ethereum node.
 func (n *EthKardia) Start() error {
-	return n.geth.Start()
+	err := n.geth.Start()
+
+	if err != nil {
+		return err
+	}
+	go n.syncHead()
+	return nil
 }
 
 // Stop shut down the Ethereum node.
@@ -186,4 +199,74 @@ func (n *EthKardia) Client() (*KardiaEthClient, error) {
 		return nil, err
 	}
 	return &KardiaEthClient{ethClient: ethclient.NewClient(rpcClient), stack: n.geth}, nil
+}
+
+// syncHead syncs with latest events from Eth network to Kardia.
+func (n *EthKardia) syncHead() {
+	var ethService *eth.Ethereum
+
+	n.geth.Service(&ethService)
+
+	if ethService == nil {
+		log.Error("Not implement dual sync for Eth light mode yet")
+		return
+	}
+
+	blockchain := ethService.BlockChain()
+
+	chainHeadEventCh := make(chan core.ChainHeadEvent, headChannelSize)
+	headSubCh := blockchain.SubscribeChainHeadEvent(chainHeadEventCh)
+	defer headSubCh.Unsubscribe()
+
+	blockCh := make(chan *types.Block, 1)
+
+	// Follow other examples.
+	// Listener to exhaust extra event while sending block to our channel.
+	go func() {
+	ListenerLoop:
+		for {
+			select {
+			// Gets chain head events, drop if overload.
+			case head := <-chainHeadEventCh:
+				select {
+				case blockCh <- head.Block:
+					// Block field would be nil here.
+				default:
+					// TODO(thientn): improves performance/handling here.
+				}
+			case <-headSubCh.Err():
+				break ListenerLoop
+			}
+		}
+	}()
+
+	// Handler loop for new blocks.
+	for {
+		select {
+		case block := <-blockCh:
+			go n.handleBlock(block)
+		}
+	}
+}
+
+func (n *EthKardia) handleBlock(block *types.Block) {
+	// TODO(thientn): block from this event is not guaranteed newly update. May already handled before.
+
+	// Some events has nil block.
+	if block == nil {
+		// TODO(thientn): could call blockchain.CurrentBlock() here.
+		log.Info("handleBlock with nil block")
+		return
+	}
+
+	header := block.Header()
+	txns := block.Transactions()
+
+	log.Info("handleBlock...", "header", header, "txns size", len(txns))
+
+	for _, txn := range block.Transactions() {
+		if txn.To() != nil {
+			log.Info("transfer txn", "txn", txn, "To", txn.To(), "Value", txn.Value())
+		}
+	}
 }
