@@ -14,9 +14,10 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 	}
 
 	// validate basic info
-	if block.Header().ChainID != state.ChainID {
-		return fmt.Errorf("Wrong Block.Header.ChainID. Expected %v, got %v", state.ChainID, block.ChainID)
-	}
+	// TODO(huny/namdoh): Chain ID is removed in huny previous commit, need to use network ID instead.
+	//if block.Header().ChainID != state.ChainID {
+	//	return fmt.Errorf("Wrong Block.Header.ChainID. Expected %v, got %v", state.ChainID, block.ChainID)
+	//}
 	if block.Header().Height != uint64(state.LastBlockHeight)+1 {
 		return fmt.Errorf("Wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight+1, block.Height)
 	}

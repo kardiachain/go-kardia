@@ -3,7 +3,7 @@ package types
 import (
 	"sync"
 
-	cmn "github.com/kardiachain/go-kardia/libs/common"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -124,7 +124,6 @@ func (hvs *HeightVoteSet) POLInfo() (polRound int, polBlockID types.BlockID) {
 	}
 	return -1, types.BlockID{}
 }
-
 
 func (hvs *HeightVoteSet) Precommits(round int) *types.VoteSet {
 	hvs.mtx.Lock()

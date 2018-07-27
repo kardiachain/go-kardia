@@ -2,7 +2,7 @@ package state
 
 import (
 	"time"
-	
+
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -21,7 +21,7 @@ type LastestBlockState struct {
 	LastBlockTotalTx int64
 	LastBlockID      types.BlockID
 	LastBlockTime    time.Time
-	
+
 	// LastValidators is used to validate block.LastCommit.
 	// Validators are persisted to the database separately every time they change,
 	// so we can query for historical validator sets.
@@ -44,15 +44,15 @@ type LastestBlockState struct {
 
 // Creates a block from the latest state.
 // MakeBlock builds a block with the given txs and commit from the current state.
-func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction, commit *types.Commit) (*types.Block) {
+func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction, commit *types.Commit) *types.Block {
 	// build base block
 	// TODO(huny@): Fill receipt in making a new block.
 	header := types.Header{
-		ChainID: state.ChainID,
-		Height: uint64(height),
-		Time: time.Now(),
-		NumTxs: uint64(len(txs)),
-		LastBlockID: state.LastBlockID,
+		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
+		Height:         uint64(height),
+		Time:           time.Now(),
+		NumTxs:         uint64(len(txs)),
+		LastBlockID:    state.LastBlockID,
 		ValidatorsHash: state.Validators.Hash(),
 	}
 	block := types.NewBlock(&header, txs, nil, commit)
@@ -62,6 +62,7 @@ func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction,
 
 	return block
 }
+
 // IsEmpty returns true if the State is equal to the empty State.
 func (state LastestBlockState) IsEmpty() bool {
 	return state.Validators == nil // XXX can't compare to Empty

@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 )
 
 // Evidence represents any provable malicious activity by a validator

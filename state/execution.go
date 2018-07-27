@@ -1,7 +1,7 @@
 package state
 
 import (
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
 )
 

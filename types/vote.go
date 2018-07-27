@@ -4,9 +4,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/common"
-	cmn "github.com/kardiachain/go-kardia/libs/common"
-	"github.com/kardiachain/go-kardia/rlp"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 // Types of votes
@@ -230,14 +229,14 @@ func (voteSet *VoteSet) TwoThirdsMajority() (blockID BlockID, ok bool) {
 
 func (voteSet *VoteSet) MakeCommit() *Commit {
 	if voteSet.type_ != VoteTypePrecommit {
-		cmn.PanicSanity("Cannot MakeCommit() unless VoteSet.Type is VoteTypePrecommit")
+		common.PanicSanity("Cannot MakeCommit() unless VoteSet.Type is VoteTypePrecommit")
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 
 	// Make sure we have a 2/3 majority
 	if voteSet.maj23.IsNil() {
-		cmn.PanicSanity("Cannot MakeCommit() unless a blockhash has +2/3")
+		common.PanicSanity("Cannot MakeCommit() unless a blockhash has +2/3")
 	}
 
 	// For every validator, get the precommit

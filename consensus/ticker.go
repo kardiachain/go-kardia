@@ -1,7 +1,7 @@
 package consensus
 
 import (
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // TimeoutTicker is a timer that schedules timeouts

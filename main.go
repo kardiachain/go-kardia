@@ -3,8 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-	"time"
 
 	elog "github.com/ethereum/go-ethereum/log"
 	cs "github.com/kardiachain/go-kardia/consensus"

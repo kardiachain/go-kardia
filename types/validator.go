@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"sort"
 
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // Volatile state for each Validator

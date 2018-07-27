@@ -6,9 +6,9 @@ import (
 
 	cfg "github.com/kardiachain/go-kardia/config"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
-	cmn "github.com/kardiachain/go-kardia/libs/common"
-	libevents "github.com/kardiachain/go-kardia/libs/events"
-	"github.com/kardiachain/go-kardia/log"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
+	libevents "github.com/kardiachain/go-kardia/lib/events"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p/discover"
 	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"

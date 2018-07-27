@@ -1,8 +1,8 @@
 package types
 
 import (
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 )
 
 // PrivValidator defines the functionality of a local Kardia validator

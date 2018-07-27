@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // Commit contains the evidence that a block was committed by a set of validators.
