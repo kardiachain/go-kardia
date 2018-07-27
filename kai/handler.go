@@ -6,13 +6,13 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/core"
-	"github.com/kardiachain/go-kardia/event"
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
-	"github.com/kardiachain/go-kardia/params"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -42,10 +42,10 @@ type ProtocolManager struct {
 
 	peers *peerSet
 
-	txpool txPool
+	txpool *blockchain.TxPool
 
-	blockchain  *core.BlockChain
-	chainconfig *params.ChainConfig
+	blockchain  *blockchain.BlockChain
+	chainconfig *configs.ChainConfig
 
 	SubProtocols []p2p.Protocol
 
@@ -53,7 +53,7 @@ type ProtocolManager struct {
 	newPeerCh   chan *peer
 	noMorePeers chan struct{}
 
-	txsCh  chan core.NewTxsEvent
+	txsCh  chan blockchain.NewTxsEvent
 	txsSub event.Subscription
 
 	// wait group is used for graceful shutdowns during downloading
@@ -63,7 +63,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Kardia sub protocol manager. The Kardia sub protocol manages peers capable
 // with the Kardia network.
-func NewProtocolManager(networkID uint64, blockchain *core.BlockChain, config *params.ChainConfig, txpool txPool) (*ProtocolManager, error) {
+func NewProtocolManager(networkID uint64, blockchain *blockchain.BlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkID:   networkID,
@@ -134,7 +134,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	pm.maxPeers = maxPeers
 
 	// broadcast transactions
-	pm.txsCh = make(chan core.NewTxsEvent, txChanSize)
+	pm.txsCh = make(chan blockchain.NewTxsEvent, txChanSize)
 	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
 	go pm.txBroadcastLoop()
 
@@ -193,10 +193,13 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	}
 	defer pm.removePeer(p.id)
 
+	// TODO(thientn): performance optimization. This function should be reliable since it's before the main loop.
+	pm.syncTransactions(p)
+
 	// main loop. handle incoming messages.
 	for {
 		if err := pm.handleMsg(p); err != nil {
-			p.Log().Debug("Kardia message handling failed", "err", err)
+			p.Log().Warn("Kardia message handling failed", "err", err)
 			return err
 		}
 	}
@@ -221,8 +224,10 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		// Status messages should never arrive after the handshake
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
 	case msg.Code == TxMsg:
+		p.Log().Trace("Transactions received")
 		// Transactions arrived, make sure we have a valid and fresh chain to handle them
 		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
+			p.Log().Trace("Skip received txs, acceptTxs flag is false")
 			break
 		}
 		// Transactions can be processed, parse all of them and deliver to the pool
@@ -238,17 +243,36 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			p.MarkTransaction(tx.Hash())
 		}
 		pm.txpool.AddRemotes(txs)
+		p.Log().Trace("Transactions added to pool", "txs", txs)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
 	return nil
 }
 
+// syncTransactions sends all pending transactions to the new peer.
+func (pm *ProtocolManager) syncTransactions(p *peer) {
+	log.Trace("Sync txns to new peer", "peer", p)
+	// TODO(thientn): sends transactions in chunks. This may send a large number of transactions.
+	// Breaks them to chunks here or inside AsyncSend to not overload the pipeline.
+	txsMap, _ := pm.txpool.Pending()
+	var txs types.Transactions
+
+	for _, list := range txsMap {
+		txs = append(txs, list...)
+	}
+	if len(txs) == 0 {
+		return
+	}
+	log.Trace("Start sending pending transactions", "count", len(txs))
+	p.AsyncSendTransactions(txs)
+}
+
 func (pm *ProtocolManager) txBroadcastLoop() {
 	for {
 		select {
-		case event := <-pm.txsCh:
-			pm.BroadcastTxs(event.Txs)
+		case txEvent := <-pm.txsCh:
+			pm.BroadcastTxs(txEvent.Txs)
 
 		// Err() channel will be closed when unsubscribing.
 		case <-pm.txsSub.Err():
@@ -261,7 +285,7 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 // already have the given transaction.
 func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	var txset = make(map[*peer]types.Transactions)
-
+	log.Info("Start broadcast txn", "txn", txs)
 	// Broadcast transactions to a batch of peers not knowing about it
 	for _, tx := range txs {
 		peers := pm.peers.PeersWithoutTx(tx.Hash())
@@ -279,11 +303,11 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 // NodeInfo represents a short summary of the Kardia sub-protocol metadata
 // known about the host peer.
 type NodeInfo struct {
-	Network uint64              `json:"network"` // Kardia network ID
-	Height  uint64              `json:"height"`  // Height of the blockchain
-	Genesis common.Hash         `json:"genesis"` // SHA3 hash of the host's genesis block
-	Config  *params.ChainConfig `json:"config"`  // Chain configuration for the fork rules
-	Head    common.Hash         `json:"head"`    // SHA3 hash of the host's best owned block
+	Network uint64               `json:"network"` // Kardia network ID
+	Height  uint64               `json:"height"`  // Height of the blockchain
+	Genesis common.Hash          `json:"genesis"` // SHA3 hash of the host's genesis block
+	Config  *configs.ChainConfig `json:"config"`  // Chain configuration for the fork rules
+	Head    common.Hash          `json:"head"`    // SHA3 hash of the host's best owned block
 }
 
 // NodeInfo retrieves some protocol metadata about the running host node.

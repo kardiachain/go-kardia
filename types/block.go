@@ -8,9 +8,9 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/crypto/sha3"
-	"github.com/kardiachain/go-kardia/rlp"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto/sha3"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/trie"
 )
 
@@ -23,10 +23,9 @@ var (
 // Header represents a block header in the Kardia blockchain.
 type Header struct {
 	// basic block info
-	ChainID string    `json:"chain_id"	  gencodec:"required"`
-	Height  uint64    `json:"height"       gencodec:"required"`
-	Time    time.Time `json:"time"         gencodec:"required"`
-	NumTxs  uint64    `json:"num_txs"      gencodec:"required`
+	Height uint64    `json:"height"       gencodec:"required"`
+	Time   time.Time `json:"time"         gencodec:"required"`
+	NumTxs uint64    `json:"num_txs"      gencodec:"required`
 
 	GasLimit uint64 `json:"gasLimit"         gencodec:"required"`
 	GasUsed  uint64 `json:"gasUsed"          gencodec:"required"`
@@ -34,6 +33,8 @@ type Header struct {
 	// prev block info
 	LastBlockID BlockID `json:"last_block_id"`
 	//@huny TotalTxs    uint64   `json:"total_txs"`
+
+	Coinbase common.Address `json:"miner"            gencodec:"required"`
 
 	// hashes of block data
 	LastCommitHash common.Hash `json:"last_commit_hash"    gencodec:"required"` // commit from validators from the last block
@@ -195,7 +196,6 @@ func (b *Block) WithBody(transactions []*Transaction) *Block {
 	return block
 }
 
-func (b *Block) ChainID() string  { return b.header.ChainID }
 func (b *Block) Height() uint64   { return b.header.Height }
 func (b *Block) GasLimit() uint64 { return b.header.GasLimit }
 func (b *Block) GasUsed() uint64  { return b.header.GasUsed }

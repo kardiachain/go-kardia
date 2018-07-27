@@ -9,13 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/common/mclock"
-	"github.com/kardiachain/go-kardia/event"
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/p2p/discover"
 	"github.com/kardiachain/go-kardia/p2p/netutil"
-	//"github.com/ethereum/go-ethereum/p2p/discv5"
+
 	"github.com/ethereum/go-ethereum/p2p/nat"
 )
 
@@ -655,7 +655,7 @@ running:
 			}
 		case pd := <-srv.delpeer:
 			// A peer disconnected.
-			d := common.PrettyDuration(mclock.Now() - pd.created)
+			d := common.PrettyDuration(sysutils.Now() - pd.created)
 			pd.log.Debug("Removing p2p peer", "duration", d, "peers", len(peers)-1, "req", pd.requested, "err", pd.err)
 			delete(peers, pd.ID())
 			if pd.Inbound() {

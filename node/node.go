@@ -3,7 +3,7 @@ package node
 import (
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
 	"reflect"
@@ -11,24 +11,15 @@ import (
 )
 
 var (
-	ErrNodeStopped    = errors.New("node not started")
-	ErrNodeRunning    = errors.New("node already running")
-	ErrServiceUnknown = errors.New("service unknown")
+	ErrNodeStopped     = errors.New("node not started")
+	ErrNodeRunning     = errors.New("node already running")
+	ErrServiceUnknown  = errors.New("service unknown")
+	ErrNodeStopFailure = errors.New("node failed to stop gracefully")
 )
-
-// TODO: move to a blockstore.
-type Block struct {
-	Index        int
-	Hash         string
-	PreviousHash string
-	Content      string
-}
 
 // Node is the highest level container for a full Kardia node.
 // It keeps all config data and services.
 type Node struct {
-	blockchain []Block
-
 	config       *NodeConfig
 	serverConfig p2p.Config
 	server       *p2p.Server
@@ -132,8 +123,22 @@ func (n *Node) Stop() error {
 		return ErrNodeStopped
 	}
 
+	sFailures := make(map[string]error)
+
+	for typeName, service := range n.services {
+		if err := service.Stop(); err != nil {
+			sFailures[typeName] = err
+		}
+	}
+
 	n.server.Stop()
+	n.services = nil
 	n.server = nil
+
+	if len(sFailures) > 0 {
+		n.log.Error("Failed to stop node services: %v", sFailures)
+		return ErrNodeStopFailure
+	}
 
 	return nil
 }
@@ -182,18 +187,26 @@ func (n *Node) AddPeer(url string) (bool, error) {
 	return true, nil
 }
 
-// Service returns running service with given type name.
-func (n *Node) Service(typeName string) (Service, error) {
+// Service returns running service with given type.
+// returnedService should be **Service pointer.
+func (n *Node) Service(returnedService interface{}) error {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 
 	if n.server == nil {
-		return nil, ErrNodeStopped
+		return ErrNodeStopped
 	}
-	if registeredS, ok := n.services[typeName]; ok {
-		return registeredS, nil
+
+	// Get pointer with *Service type.
+	pointer := reflect.ValueOf(returnedService).Elem()
+	serviceName := pointer.Type().Elem().Name()
+
+	if registeredS, ok := n.services[serviceName]; ok {
+		pointer.Set(reflect.ValueOf(registeredS))
+
+		return nil
 	}
-	return nil, ErrServiceUnknown
+	return ErrServiceUnknown
 }
 
 // ServiceMap returns map of all running services.

@@ -6,9 +6,8 @@ import (
 	"io"
 	"unsafe"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/common/hexutil"
-	"github.com/kardiachain/go-kardia/rlp"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 //go:generate gencodec -type Receipt -field-override receiptMarshaling -out gen_receipt_json.go
@@ -42,10 +41,10 @@ type Receipt struct {
 }
 
 type receiptMarshaling struct {
-	PostState         hexutil.Bytes
-	Status            hexutil.Uint64
-	CumulativeGasUsed hexutil.Uint64
-	GasUsed           hexutil.Uint64
+	PostState         common.Bytes
+	Status            common.Uint64
+	CumulativeGasUsed common.Uint64
+	GasUsed           common.Uint64
 }
 
 // receiptRLP is the consensus encoding of a receipt.

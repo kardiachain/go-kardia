@@ -3,8 +3,8 @@ package types
 import (
 	"io"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/rlp"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 //go:generate gencodec -type Log -field-override logMarshaling -out gen_log_json.go
@@ -23,7 +23,7 @@ type Log struct {
 	// Derived fields. These fields are filled in by the node
 	// but not secured by consensus.
 	// block in which the transaction was included
-	BlockNumber uint64 `json:"blockNumber"`
+	BlockHeight uint64 `json:"blockHeight"`
 	// hash of the transaction
 	TxHash common.Hash `json:"transactionHash" gencodec:"required"`
 	// index of the transaction in the block
@@ -48,7 +48,7 @@ type rlpStorageLog struct {
 	Address     common.Address
 	Topics      []common.Hash
 	Data        []byte
-	BlockNumber uint64
+	BlockHeight uint64
 	TxHash      common.Hash
 	TxIndex     uint
 	BlockHash   common.Hash
@@ -80,7 +80,7 @@ func (l *LogForStorage) EncodeRLP(w io.Writer) error {
 		Address:     l.Address,
 		Topics:      l.Topics,
 		Data:        l.Data,
-		BlockNumber: l.BlockNumber,
+		BlockHeight: l.BlockHeight,
 		TxHash:      l.TxHash,
 		TxIndex:     l.TxIndex,
 		BlockHash:   l.BlockHash,
@@ -97,7 +97,7 @@ func (l *LogForStorage) DecodeRLP(s *rlp.Stream) error {
 			Address:     dec.Address,
 			Topics:      dec.Topics,
 			Data:        dec.Data,
-			BlockNumber: dec.BlockNumber,
+			BlockHeight: dec.BlockHeight,
 			TxHash:      dec.TxHash,
 			TxIndex:     dec.TxIndex,
 			BlockHash:   dec.BlockHash,

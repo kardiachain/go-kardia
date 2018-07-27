@@ -1,7 +1,7 @@
 package node
 
 import (
-	"github.com/kardiachain/go-kardia/crypto"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/p2p"
 	"testing"
 )
@@ -12,10 +12,12 @@ type TrivialService struct {
 }
 
 func (s *TrivialService) Protocols() []p2p.Protocol {
+	return nil
+}
+func (s *TrivialService) Start(*p2p.Server) error {
 	s.Started = true
 	return nil
 }
-func (s *TrivialService) Start(*p2p.Server) error { return nil }
 func (s *TrivialService) Stop() error {
 	s.Started = false
 	return nil
@@ -74,7 +76,18 @@ func TestNodeRegisteringService(t *testing.T) {
 		t.Fatalf("failed to start node: %v", err)
 	}
 
-	if _, err := node.Service("TrivialService"); err != nil {
-		t.Fatalf("TrivialService is not in service list of node")
+	var service *TrivialService
+
+	if err := node.Service(&service); err != nil {
+		t.Fatalf("TrivialService is not in service list of node: %v", err)
+	}
+	if !service.Started {
+		t.Fatalf("TrivialService didn't run Start()")
+	}
+	if err := node.Stop(); err != nil {
+		t.Fatalf("failed to stop node: %v", err)
+	}
+	if service.Started {
+		t.Fatalf("TrivialService didn't run Stop()")
 	}
 }

@@ -20,11 +20,11 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
-	"github.com/kardiachain/go-kardia/crypto"
-	"github.com/kardiachain/go-kardia/crypto/ecies"
-	"github.com/kardiachain/go-kardia/crypto/sha3"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/crypto/ecies"
+	"github.com/kardiachain/go-kardia/lib/crypto/sha3"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/p2p/discover"
-	"github.com/kardiachain/go-kardia/rlp"
 )
 
 const (

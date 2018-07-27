@@ -2,26 +2,27 @@
 package kai
 
 import (
-	"github.com/kardiachain/go-kardia/core"
-	kaidb "github.com/kardiachain/go-kardia/database"
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/p2p"
-	"github.com/kardiachain/go-kardia/params"
+	kaidb "github.com/kardiachain/go-kardia/storage"
 )
 
 const DefaultNetworkID = 100
 
-type KaiServer interface {
+// TODO: evaluates using this subservice as dual mode or light subprotocol.
+type KardiaSubService interface {
 	Start(srvr *p2p.Server)
 	Stop()
 	Protocols() []p2p.Protocol
 }
 
-// Kardia implements the Kardia full node service.
+// Kardia implements node.Service for running full Kardia full protocol.
 type Kardia struct {
 	config      *Config
-	chainConfig *params.ChainConfig
+	chainConfig *configs.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool // Channel for shutting down the Ethereum
@@ -30,16 +31,17 @@ type Kardia struct {
 	chainDb kaidb.Database // Block chain database
 
 	// Handlers
-	txPool          *core.TxPool
+	txPool          *blockchain.TxPool
 	protocolManager *ProtocolManager
-	kaiServer       KaiServer
-	blockchain      *core.BlockChain
+	blockchain      *blockchain.BlockChain
+
+	subService KardiaSubService
 
 	networkID uint64
 }
 
-func (s *Kardia) AddKaiServer(ks KaiServer) {
-	s.kaiServer = ks
+func (s *Kardia) AddKaiServer(ks KardiaSubService) {
+	s.subService = ks
 }
 
 // New creates a new Kardia object (including the
@@ -51,7 +53,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 		return nil, err
 	}
 
-	chainConfig, _, genesisErr := core.SetupGenesisBlock(chainDb, config.Genesis)
+	chainConfig, _, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
@@ -70,12 +72,12 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
 	// Create a new blockchain to attach to this Kardia object
-	kai.blockchain, err = core.NewBlockChain(chainDb, kai.chainConfig)
+	kai.blockchain, err = blockchain.NewBlockChain(chainDb, kai.chainConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	kai.txPool = core.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
+	kai.txPool = blockchain.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 
 	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool); err != nil {
 		return nil, err
@@ -101,22 +103,24 @@ func (s *Kardia) NetVersion() uint64 { return s.networkID }
 // Protocols implements node.Service, returning all the currently configured
 // network protocols to start.
 func (s *Kardia) Protocols() []p2p.Protocol {
-	if s.kaiServer == nil {
+	if s.subService == nil {
 		return s.protocolManager.SubProtocols
 	}
-	return append(s.protocolManager.SubProtocols, s.kaiServer.Protocols()...)
+	return append(s.protocolManager.SubProtocols, s.subService.Protocols()...)
 }
 
 // Start implements node.Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
 func (s *Kardia) Start(srvr *p2p.Server) error {
-	// Figure out a max peers count based on the server limits
+	// Figures out a max peers count based on the server limits.
 	maxPeers := srvr.MaxPeers
 
-	// Start the networking layer and the light server if requested
+	// Starts the networking layer.
 	s.protocolManager.Start(maxPeers)
-	if s.kaiServer != nil {
-		s.kaiServer.Start(srvr)
+
+	// Starts optional subservice.
+	if s.subService != nil {
+		s.subService.Start(srvr)
 	}
 	return nil
 }
@@ -125,11 +129,15 @@ func (s *Kardia) Start(srvr *p2p.Server) error {
 // Kardia protocol.
 func (s *Kardia) Stop() error {
 	s.protocolManager.Stop()
-	if s.kaiServer != nil {
-		s.kaiServer.Stop()
+	if s.subService != nil {
+		s.subService.Stop()
 	}
 
 	close(s.shutdownChan)
 
 	return nil
 }
+
+func (s *Kardia) TxPool() *blockchain.TxPool         { return s.txPool }
+func (s *Kardia) BlockChain() *blockchain.BlockChain { return s.blockchain }
+func (s *Kardia) ChainConfig() *configs.ChainConfig  { return s.chainConfig }

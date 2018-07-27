@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/common/mclock"
-	"github.com/kardiachain/go-kardia/event"
-	"github.com/kardiachain/go-kardia/log"
+	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/p2p/discover"
-	"github.com/kardiachain/go-kardia/rlp"
 )
 
 var (
@@ -87,7 +87,7 @@ type Peer struct {
 	rw      *conn
 	running map[string]*protoRW
 	log     log.Logger
-	created mclock.AbsTime
+	created sysutils.AbsTime
 
 	wg       sync.WaitGroup
 	protoErr chan error
@@ -157,7 +157,7 @@ func newPeer(conn *conn, protocols []Protocol) *Peer {
 	p := &Peer{
 		rw:       conn,
 		running:  protomap,
-		created:  mclock.Now(),
+		created:  sysutils.Now(),
 		disc:     make(chan DiscReason),
 		protoErr: make(chan error, len(protomap)+1), // protocols + pingLoop
 		closed:   make(chan struct{}),

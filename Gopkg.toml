@@ -1,42 +1,28 @@
-# Gopkg.toml example
-#
-# Refer to https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md
-# for detailed Gopkg.toml documentation.
-#
-# required = ["github.com/user/thing/cmd/thing"]
-# ignored = ["github.com/user/project/pkgX", "bitbucket.org/user/project/pkgA/pkgY"]
-#
-# [[constraint]]
-#   name = "github.com/user/project"
-#   version = "1.0.0"
-#
-# [[constraint]]
-#   name = "github.com/user/project2"
-#   branch = "dev"
-#   source = "github.com/myfork/project2"
-#
-# [[override]]
-#   name = "github.com/x/y"
-#   version = "2.4.0"
-#
-# [prune]
-#   non-go = false
-#   go-tests = true
-#   unused-packages = true
-
-
 [[constraint]]
   name = "github.com/ethereum/go-ethereum"
-  version = "1.8.11"
+  version = "1.8.12"
 
 [[constraint]]
   name = "github.com/go-stack/stack"
   version = "1.7.0"
 
+[[constraint]]
+  branch = "master"
+  name = "github.com/btcsuite/btcd"
+
 [prune]
   go-tests = true
   unused-packages = true
 
-[[constraint]]
-  branch = "master"
-  name = "github.com/btcsuite/btcd"
+# Bug on dep that remove of C files even without setting prune non-go
+# Tempory fix is to enable unused-package for dep project with C-files directory.
+# https://github.com/golang/dep/issues/1725
+# https://github.com/golang/dep/issues/1306
+
+[[prune.project]]
+  name = "github.com/ethereum/go-ethereum"
+  unused-packages = false
+
+[[prune.project]]
+  name = "github.com/karalabe/hid"
+  unused-packages = false
