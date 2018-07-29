@@ -181,6 +181,15 @@ func (s *Kardia) Stop() error {
 	return nil
 }
 
+func (s *Kardia) ConnectReactor(reactor Reactor) {
+	s.protocolManager.ConnectReactor(reactor)
+	reactor.SetProtocolManager(s.protocolManager)
+}
+
+func (s *Kardia) APIs() []rpc.API {
+	// TODO: define endpoints
+}
+
 func (s *Kardia) TxPool() *blockchain.TxPool         { return s.txPool }
 func (s *Kardia) BlockChain() *blockchain.BlockChain { return s.blockchain }
 func (s *Kardia) ChainConfig() *configs.ChainConfig  { return s.chainConfig }
