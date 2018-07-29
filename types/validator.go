@@ -198,7 +198,7 @@ func (valSet *ValidatorSet) IncrementAccum(times int) {
 
 // Verify that +2/3 of the set had signed the given signBytes
 func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height int64, commit *Commit) error {
-	panic("Not yet implemented")
+	panic("validator.VerifyCommit - Not yet implemented")
 	return nil
 	//if valSet.Size() != len(commit.Precommits) {
 	//	return fmt.Errorf("Invalid commit -- wrong set size: %v vs %v", valSet.Size(), len(commit.Precommits))

@@ -93,7 +93,6 @@ func (commit *Commit) IsCommit() bool {
 
 // Hash returns the hash of the commit
 func (commit *Commit) Hash() common.Hash {
-	// TODO(namdoh): Implement hash.
-	panic("Commit hash isn't implemented yet.")
-	return common.NilHash()
+	// TODO(namdoh): Cache hash so we don't have to re-hash all the time.
+	return rlpHash(commit)
 }

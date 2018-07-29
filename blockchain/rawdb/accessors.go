@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -30,6 +31,7 @@ type DatabaseDeleter interface {
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block height.
 func ReadCanonicalHash(db DatabaseReader, height uint64) common.Hash {
+	log.Debug(fmt.Sprintf("headerKey=%v", headerHashKey(height)))
 	data, _ := db.Get(headerHashKey(height))
 	if len(data) == 0 {
 		return common.Hash{}

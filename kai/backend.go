@@ -76,6 +76,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Info("#debug10")
 
 	kai.txPool = blockchain.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 
@@ -83,6 +84,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 		return nil, err
 	}
 
+	log.Info("#debug11")
 	return kai, nil
 }
 

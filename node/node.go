@@ -3,11 +3,12 @@ package node
 import (
 	"errors"
 	"fmt"
+	"reflect"
+	"sync"
+
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
-	"reflect"
-	"sync"
 )
 
 var (
@@ -151,7 +152,7 @@ func (n *Node) Server() *p2p.Server {
 	return n.server
 }
 
-// RegisterService adds a new service to node.
+// Service adds a new service to node.
 func (n *Node) RegisterService(constructor ServiceConstructor) error {
 	n.lock.Lock()
 	defer n.lock.Unlock()

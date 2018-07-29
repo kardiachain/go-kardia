@@ -105,10 +105,6 @@ type extblock struct {
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
 func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit) *Block {
-	if commit == nil {
-		// Currently fails when calling from genesis.go ToBlock, with nil commit
-		panic("Hasn't implement calling NewBlock with nil commit yet")
-	}
 	b := &Block{header: CopyHeader(header), lastCommit: CopyCommit(commit)}
 
 	if len(txs) == 0 {
@@ -153,6 +149,9 @@ func CopyHeader(h *Header) *Header {
 // CopyHeader creates a deep copy of a block commit to prevent side effects from
 // modifying a commit variable.
 func CopyCommit(c *Commit) *Commit {
+	if c == nil {
+		return c
+	}
 	cpy := *c
 	return &cpy
 }
@@ -233,6 +232,8 @@ func (b *Block) Size() common.StorageSize {
 // ValidateBasic performs basic validation that doesn't involve state data.
 // It checks the internal consistency of the block.
 func (b *Block) ValidateBasic() error {
+	panic("block.ValidateBasic - Not yet implemented.")
+	return nil
 	// TODO(namdoh): Implements.
 	//if b == nil {
 	//	return errors.New("Nil blocks are invalid")
@@ -258,8 +259,6 @@ func (b *Block) ValidateBasic() error {
 	//if !bytes.Equal(b.EvidenceHash, b.Evidence.Hash()) {
 	//	return errors.New(cmn.Fmt("Wrong Block.Header.EvidenceHash.  Expected %v, got %v", b.EvidenceHash, b.Evidence.Hash()))
 	//}
-	panic("Not yet implemented.")
-	return nil
 }
 
 type writeCounter common.StorageSize

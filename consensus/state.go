@@ -85,7 +85,7 @@ func NewConsensusState(
 	state *state.LastestBlockState,
 	//namdoh@ blockExec *sm.BlockExecutor,
 	//namdoh@ blockStore sm.BlockStore,
-	evpool *evidence.EvidencePool,
+	//namdoh@ evpool evidence.EvidencePool,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		config: config,
@@ -95,11 +95,13 @@ func NewConsensusState(
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
 		timeoutTicker:    NewTimeoutTicker(),
 		done:             make(chan struct{}),
-		evpool:           *evpool,
-		evsw:             libevents.NewEventSwitch(),
+		//namdoh@ evpool:           evpool,
+		evsw: libevents.NewEventSwitch(),
 	}
 
-	cs.updateToState(*state)
+	// TODO(namdoh@): Re-enable this once reactor is connected.
+	//cs.updateToState(*state)
+
 	// Don't call scheduleRound0 yet.
 	// We do that upon Start().
 	// TODO(namdoh): Re-enable to allows node to fully re-store its consensus state

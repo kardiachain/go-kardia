@@ -3,6 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math/big"
+	"runtime"
+	"time"
 
 	elog "github.com/ethereum/go-ethereum/log"
 	cs "github.com/kardiachain/go-kardia/consensus"
@@ -14,9 +17,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/types"
-	"math/big"
-	"runtime"
-	"time"
 )
 
 func runtimeSystemSettings() error {
@@ -121,7 +121,6 @@ func main() {
 	// TODO(namdoh): Temporarily hook up consensus state here for compiling
 	// check purposes.
 	consensusState := cs.NewConsensusState(
-		nil,
 		nil,
 		nil,
 	)
