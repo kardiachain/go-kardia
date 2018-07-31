@@ -1,15 +1,16 @@
-package node
+package kai
 
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/storage"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 const (

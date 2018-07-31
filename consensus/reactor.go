@@ -5,6 +5,8 @@ import (
 	"time"
 
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
+	"github.com/kardiachain/go-kardia/kai"
+	// TODO(namdoh): Remove kai/common dependency
 	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -34,7 +36,7 @@ func (pc *PeerConnection) SendConsensusMessage(msg ConsensusMessage) error {
 
 // ConsensusReactor defines a reactor for the consensus service.
 type ConsensusReactor struct {
-	//p2p.BaseReactor // BaseService + p2p.Switch
+	kai.BaseReactor
 
 	conS *ConsensusState
 
@@ -98,16 +100,27 @@ func (conR *ConsensusReactor) AddPeer(p *p2p.Peer, rw p2p.MsgReadWriter) {
 	//}
 }
 
+func (conR *ConsensusReactor) RemovePeer(p *p2p.Peer, reason interface{}) {
+	log.Error("ConsensusReactor.RemovePeer - not yet implemented")
+}
+
 // ------------ Message handlers ---------
 
 // Handles received NewRoundStepMessage
-func (conR *ConsensusReactor) ReceiveNewRoundStepMessage(msg NewRoundStepMessage, src *p2p.Peer) {
-	log.Trace("Consensus reactor receive", "src", src, "msg", msg)
+func (conR *ConsensusReactor) Receive(generalMsg p2p.Msg, src *p2p.Peer) {
+	log.Trace("Consensus reactor receive", "src", src, "msg", generalMsg)
 
 	if !conR.running {
 		log.Trace("Consensus reactor isn't running.")
 		return
 	}
+
+	var msg NewRoundStepMessage
+	if err := generalMsg.Decode(&msg); err != nil {
+		log.Error("Invalid message", "msg", generalMsg, "err", err)
+		return
+	}
+	log.Trace("Decoded msg", "msg", msg)
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)

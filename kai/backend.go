@@ -2,18 +2,12 @@
 package kai
 
 import (
-	"time"
-
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/consensus"
 	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/p2p"
-	"github.com/kardiachain/go-kardia/state"
 	kaidb "github.com/kardiachain/go-kardia/storage"
-	"github.com/kardiachain/go-kardia/types"
 )
 
 const DefaultNetworkID = 100
@@ -25,7 +19,7 @@ type KardiaSubService interface {
 	Protocols() []p2p.Protocol
 }
 
-// Kardia implements node.Service for running full Kardia full protocol.
+// Kardia implements Service for running full Kardia full protocol.
 type Kardia struct {
 	config      *Config
 	chainConfig *configs.ChainConfig
@@ -52,7 +46,7 @@ func (s *Kardia) AddKaiServer(ks KardiaSubService) {
 
 // New creates a new Kardia object (including the
 // initialisation of the common Kardia object)
-func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
+func newKardia(ctx *ServiceContext, config *Config) (*Kardia, error) {
 	// TODO(thientn): Uses config for database parameters
 	chainDb, err := ctx.Config.StartDatabase("chaindata", 16, 16)
 	if err != nil {
@@ -85,49 +79,16 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 
 	kai.txPool = blockchain.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 
-	// Initialization for consensus.
-	startTime, _ := time.Parse(time.UnixDate, "Monday July 30 00:00:00 PST 2018")
-	state := state.LastestBlockState{
-		ChainID:                     "kaicon",
-		LastBlockHeight:             0,
-		LastBlockID:                 types.BlockID{},
-		LastBlockTime:               startTime,
-		Validators:                  types.NewValidatorSet(nil),
-		LastValidators:              types.NewValidatorSet(nil),
-		LastHeightValidatorsChanged: 1,
-	}
-	// Consensus config is imported from:
-	// http://tendermint.readthedocs.io/en/master/specification/configuration.html
-	// TODO(namdoh): Move this to config loader.
-	csConfig := configs.ConsensusConfig{
-		TimeoutPropose:            3000,
-		TimeoutProposeDelta:       500,
-		TimeoutPrevote:            1000,
-		TimeoutPrevoteDelta:       500,
-		TimeoutPrecommit:          1000,
-		TimeoutPrecommitDelta:     500,
-		TimeoutCommit:             1000,
-		SkipTimeoutCommit:         false,
-		CreateEmptyBlocks:         true,
-		CreateEmptyBlocksInterval: 0,
-	}
-	consensusState := consensus.NewConsensusState(
-		&csConfig,
-		state,
-	)
-	// Intialize consensus for Kardia node
-	csReactor := consensus.NewConsensusReactor(consensusState)
-
-	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, csReactor); err != nil {
+	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool); err != nil {
 		return nil, err
 	}
 
 	return kai, nil
 }
 
-// Implements node.ServiceConstructor, return a Kardia node service from node service context.
+// Implements ServiceConstructor, return a Kardia node service from node service context.
 // TODO: move this outside of kai package to customize kai.Config
-func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
+func NewKardiaService(ctx *ServiceContext) (Service, error) {
 	kai, err := newKardia(ctx, &Config{NetworkId: DefaultNetworkID})
 	if err != nil {
 		return nil, err
@@ -139,7 +100,7 @@ func (s *Kardia) IsListening() bool  { return true } // Always listening
 func (s *Kardia) KaiVersion() int    { return int(s.protocolManager.SubProtocols[0].Version) }
 func (s *Kardia) NetVersion() uint64 { return s.networkID }
 
-// Protocols implements node.Service, returning all the currently configured
+// Protocols implements Service, returning all the currently configured
 // network protocols to start.
 func (s *Kardia) Protocols() []p2p.Protocol {
 	if s.subService == nil {
@@ -148,7 +109,7 @@ func (s *Kardia) Protocols() []p2p.Protocol {
 	return append(s.protocolManager.SubProtocols, s.subService.Protocols()...)
 }
 
-// Start implements node.Service, starting all internal goroutines needed by the
+// Start implements Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
 func (s *Kardia) Start(srvr *p2p.Server) error {
 	// Figures out a max peers count based on the server limits.
@@ -164,7 +125,7 @@ func (s *Kardia) Start(srvr *p2p.Server) error {
 	return nil
 }
 
-// Stop implements node.Service, terminating all internal goroutines used by the
+// Stop implements Service, terminating all internal goroutines used by the
 // Kardia protocol.
 func (s *Kardia) Stop() error {
 	s.protocolManager.Stop()
@@ -175,6 +136,11 @@ func (s *Kardia) Stop() error {
 	close(s.shutdownChan)
 
 	return nil
+}
+
+func (s *Kardia) ConnectReactor(reactor Reactor) {
+	s.protocolManager.ConnectReactor(reactor)
+	reactor.SetProtocolManager(s.protocolManager)
 }
 
 func (s *Kardia) TxPool() *blockchain.TxPool         { return s.txPool }

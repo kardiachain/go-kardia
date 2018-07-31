@@ -8,7 +8,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/consensus"
 	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
@@ -21,10 +20,10 @@ import (
 const (
 	softResponseLimit = 2 * 1024 * 1024 // Target maximum size of returned blocks, headers or node data.
 	estHeaderRlpSize  = 500             // Approximate size of an RLP encoded block header
-
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
+	csChanSize = 4096 // Consensus channel size.
 )
 
 // errIncompatibleConfig is returned if the requested protocols and configs are
@@ -59,8 +58,10 @@ type ProtocolManager struct {
 	txsCh  chan blockchain.NewTxsEvent
 	txsSub event.Subscription
 
-	// Consensus stuffs
-	csReactor *consensus.ConsensusReactor
+	// Consensus stuff
+	reactor Reactor
+	//csCh    chan consensus.NewCsEvent
+	csSub event.Subscription
 
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
@@ -69,7 +70,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Kardia sub protocol manager. The Kardia sub protocol manages peers capable
 // with the Kardia network.
-func NewProtocolManager(networkID uint64, blockchain *blockchain.BlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool, csReactor *consensus.ConsensusReactor) (*ProtocolManager, error) {
+func NewProtocolManager(networkID uint64, blockchain *blockchain.BlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkID:   networkID,
@@ -79,7 +80,6 @@ func NewProtocolManager(networkID uint64, blockchain *blockchain.BlockChain, con
 		peers:       newPeerSet(),
 		newPeerCh:   make(chan *peer),
 		noMorePeers: make(chan struct{}),
-		csReactor:   csReactor,
 	}
 
 	// Initiate a sub-protocol for every implemented version we can handle
@@ -143,16 +143,20 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	// broadcast transactions
 	pm.txsCh = make(chan blockchain.NewTxsEvent, txChanSize)
 	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
-	pm.csReactor.Start()
+
+	pm.reactor.Start()
+	//namdoh@ pm.csCh = make(chan consensus.NewCsEvent, csChanSize)
 
 	go pm.txBroadcastLoop()
+	//namdoh@ go pm.csBroadcastLoop()
 	go syncNetwork(pm)
 }
 
 func (pm *ProtocolManager) Stop() {
 	log.Info("Stopping Kardia protocol")
 
-	pm.csReactor.Stop()
+	pm.reactor.Stop()
+	pm.txsSub.Unsubscribe() // quits txBroadcastLoop
 
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.
@@ -170,9 +174,13 @@ func (pm *ProtocolManager) Stop() {
 	log.Info("Kardia protocol stopped")
 }
 
+func (pm *ProtocolManager) ConnectReactor(reactor Reactor) {
+	pm.reactor = reactor
+}
+
 func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 	//@huny return newPeer(pv, p, newMeteredMsgWriter(rw))
-	return newPeer(pv, p, rw, pm.csReactor)
+	return newPeer(pv, p, rw, pm.reactor)
 }
 
 // handle is the callback invoked to manage the life cycle of a kai peer. When
@@ -256,11 +264,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		p.Log().Trace("Transactions added to pool", "txs", txs)
 	case msg.Code == kcmn.CsMsg:
 		p.Log().Trace("Consensus event received")
-		var csEvent consensus.NewRoundStepMessage
-		if err := msg.Decode(&csEvent); err != nil {
-			return errResp(ErrDecode, "msg %v: %va", msg, err)
-		}
-		pm.csReactor.ReceiveNewRoundStepMessage(csEvent, p.Peer)
+		pm.reactor.Receive(msg, p.Peer)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}

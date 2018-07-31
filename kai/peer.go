@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/consensus"
 	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/p2p"
@@ -49,13 +48,13 @@ type peer struct {
 	knownTxs  *set.Set                  // Set of transaction hashes known to be known by this peer
 	queuedTxs chan []*types.Transaction // Queue of transactions to broadcast to the peer
 
-	csReactor *consensus.ConsensusReactor
+	reactor Reactor
 
 	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
 
 }
 
-func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, csReactor *consensus.ConsensusReactor) *peer {
+func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, reactor Reactor) *peer {
 	return &peer{
 		Peer:       p,
 		rw:         rw,
@@ -63,7 +62,7 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, csReactor *consensu
 		id:         fmt.Sprintf("%x", p.ID().Bytes()[:8]),
 		queuedTxs:  make(chan []*types.Transaction, maxQueuedTxs),
 		knownTxs:   set.New(),
-		csReactor:  csReactor,
+		reactor:    reactor,
 		terminated: make(chan struct{}),
 	}
 }
@@ -187,7 +186,7 @@ func (ps *peerSet) Register(p *peer) error {
 	}
 	ps.peers[p.id] = p
 	go p.broadcast()
-	p.csReactor.AddPeer(p.Peer, p.rw)
+	p.reactor.AddPeer(p.Peer, p.rw)
 
 	return nil
 }
@@ -202,6 +201,7 @@ func (ps *peerSet) Unregister(id string) error {
 	if !ok {
 		return errNotRegistered
 	}
+	p.reactor.RemovePeer(p.Peer, nil)
 	delete(ps.peers, id)
 	p.close()
 
@@ -298,9 +298,4 @@ func (p *peer) AsyncSendTransactions(txs []*types.Transaction) {
 	default:
 		p.Log().Debug("Dropping transaction propagation", "count", len(txs))
 	}
-}
-
-// Sends consensus message to the peer.
-func (p *peer) SendConsensusMessage(csMsg consensus.ConsensusMessage) error {
-	return p2p.Send(p.rw, kcmn.CsMsg, csMsg)
 }
