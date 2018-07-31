@@ -2,9 +2,11 @@ package consensus
 
 import (
 	"sync"
+	"time"
 
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 	kcmn "github.com/kardiachain/go-kardia/kai/common"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/types"
@@ -32,14 +34,7 @@ type consensusMessageAndChannel struct {
 }
 
 func (pc *PeerConnection) SendConsensusMessage(msg ConsensusMessage) error {
-	//return p2p.Send(pc.rw, kcmn.CsMsg, msg)
-	return p2p.Send(pc.rw, kcmn.CsMsg, &NewRoundStepMessage{
-		Height: 0,
-		Round:  0,
-		Step:   0,
-		SecondsSinceStartTime: 10,
-		LastCommitRound:       0,
-	})
+	return p2p.Send(pc.rw, kcmn.CsMsg, msg)
 }
 
 // ConsensusReactor defines a reactor for the consensus service.
@@ -50,6 +45,8 @@ type ConsensusReactor struct {
 
 	mtx sync.RWMutex
 	//eventBus *types.EventBus
+
+	running bool
 }
 
 // NewConsensusReactor returns a new ConsensusReactor with the given
@@ -67,14 +64,16 @@ func NewConsensusReactor(consensusState *ConsensusState) *ConsensusReactor {
 	//return conR
 }
 
-// Receive implements Reactor
-// NOTE: We process these messages even when we're fast_syncing.
-// Messages affect either a peer state or the consensus state.
-// Peer state updates can happen in parallel, but processing of
-// proposals, block parts, and votes are ordered by the receiveRoutine
-// NOTE: blocks on consensus state for proposals, block parts, and votes
-func (conR *ConsensusReactor) Receive(msg ConsensusMessage, src *p2p.Peer) {
-	log.Trace("Consensus reactor receive", "src", src, "msg", msg)
+func (conR *ConsensusReactor) Start() {
+	log.Error("ConsensusReactor.Start - not yet implemented.")
+
+	conR.running = true
+}
+
+func (conR *ConsensusReactor) Stop() {
+	log.Error("ConsensusReactor.Stop - not yet implemented.")
+
+	conR.running = false
 }
 
 // AddPeer implements Reactor
@@ -89,8 +88,8 @@ func (conR *ConsensusReactor) AddPeer(p *p2p.Peer, rw p2p.MsgReadWriter) {
 	//}
 	//
 	//// Create peerState for peer
-	//peerState := NewPeerState(peer).SetLogger(conR.Logger)
-	//peer.Set(types.PeerStateKey, peerState)
+	peerState := NewPeerState(p)
+	p.Set(p2p.PeerStateKey, peerState)
 	//
 	//// Begin routines for this peer.
 	//go conR.gossipDataRoutine(peer, peerState)
@@ -104,20 +103,88 @@ func (conR *ConsensusReactor) AddPeer(p *p2p.Peer, rw p2p.MsgReadWriter) {
 	//}
 }
 
+// ------------ Message handlers ---------
+
+// Handles received NewRoundStepMessage
+func (conR *ConsensusReactor) ReceiveNewRoundStepMessage(msg NewRoundStepMessage, src *p2p.Peer) {
+	log.Trace("Consensus reactor receive", "src", src, "msg", msg)
+
+	if !conR.running {
+		log.Trace("Consensus reactor isn't running.")
+		return
+	}
+
+	// Get peer states
+	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
+	if !ok {
+		log.Error("Downcast failed!!")
+		return
+	}
+
+	ps.mtx.Lock()
+	defer ps.mtx.Unlock()
+
+	// Ignore duplicates or decreases
+	if CompareHRS(msg.Height, msg.Round, msg.Step, ps.PRS.Height, ps.PRS.Round, ps.PRS.Step) <= 0 {
+		return
+	}
+
+	// Just remember these values.
+	psHeight := ps.PRS.Height
+	psRound := ps.PRS.Round
+	//psStep := ps.PRS.Step
+	psCatchupCommitRound := ps.PRS.CatchupCommitRound
+	psCatchupCommit := ps.PRS.CatchupCommit
+
+	startTime := time.Now().Add(-1 * time.Duration(msg.SecondsSinceStartTime) * time.Second)
+	ps.PRS.Height = msg.Height
+	ps.PRS.Round = msg.Round
+	ps.PRS.Step = msg.Step
+	ps.PRS.StartTime = startTime
+	if !psHeight.Equals(msg.Height) || !psRound.Equals(msg.Round) {
+		ps.PRS.Proposal = false
+		ps.PRS.ProposalBlockHeader = cmn.Hash{}
+		ps.PRS.ProposalPOLRound = cmn.NewBigInt(-1)
+		ps.PRS.ProposalPOL = nil
+		// We'll update the BitArray capacity later.
+		ps.PRS.Prevotes = nil
+		ps.PRS.Precommits = nil
+	}
+	if psHeight == msg.Height && psRound != msg.Round && msg.Round == psCatchupCommitRound {
+		// Peer caught up to CatchupCommitRound.
+		// Preserve psCatchupCommit!
+		// NOTE: We prefer to use prs.Precommits if
+		// pr.Round matches pr.CatchupCommitRound.
+		ps.PRS.Precommits = psCatchupCommit
+	}
+	if psHeight != msg.Height {
+		// Shift Precommits to LastCommit.
+		if psHeight.Add(1).Equals(msg.Height) && psRound.Equals(msg.LastCommitRound) {
+			ps.PRS.LastCommitRound = msg.LastCommitRound
+			ps.PRS.LastCommit = ps.PRS.Precommits
+		} else {
+			ps.PRS.LastCommitRound = msg.LastCommitRound
+			ps.PRS.LastCommit = nil
+		}
+		// We'll update the BitArray capacity later.
+		ps.PRS.CatchupCommitRound = cmn.NewBigInt(-1)
+		ps.PRS.CatchupCommit = nil
+	}
+}
+
+// ------------ Message Helpers -----------
+
 func (conR *ConsensusReactor) sendNewRoundStepMessages(pc PeerConnection) {
 	log.Debug("reactor - sendNewRoundStepMessages")
 	nrsMsg := &NewRoundStepMessage{
-		Height: 0,
-		Round:  0,
+		Height: cmn.NewBigInt(0),
+		Round:  cmn.NewBigInt(0),
 		Step:   0,
 		SecondsSinceStartTime: 10,
-		LastCommitRound:       0,
+		LastCommitRound:       cmn.NewBigInt(0),
 	}
 
-	if err := pc.SendConsensusMessage(&consensusMessageAndChannel{
-		channelID: StateChannel,
-		msg:       nrsMsg,
-	}); err != nil {
+	if err := pc.SendConsensusMessage(nrsMsg); err != nil {
 		log.Debug("sendNewRoundStepMessages failed", "err", err)
 	}
 
@@ -158,9 +225,35 @@ type ProposalMessage struct {
 // NewRoundStepMessage is sent for every step taken in the ConsensusState.
 // For every height/round/step transition
 type NewRoundStepMessage struct {
-	Height                uint64                `json:"height" gencodoc:"required"`
-	Round                 uint64                `json:"round" gencodoc:"required"`
+	Height                *cmn.BigInt           `json:"height" gencodoc:"required"`
+	Round                 *cmn.BigInt           `json:"round" gencodoc:"required"`
 	Step                  cstypes.RoundStepType `json:"step" gencodoc:"required"`
-	SecondsSinceStartTime uint64                `json:"elapsed" gencodoc:"required"`
-	LastCommitRound       uint64                `json:"lastCommitRound" gencodoc:"required"`
+	SecondsSinceStartTime uint                  `json:"elapsed" gencodoc:"required"`
+	LastCommitRound       *cmn.BigInt           `json:"lastCommitRound" gencodoc:"required"`
+}
+
+// ---------  PeerState ---------
+// PeerState contains the known state of a peer, including its connection and
+// threadsafe access to its PeerRoundState.
+// NOTE: THIS GETS DUMPED WITH rpc/core/consensus.go.
+// Be mindful of what you Expose.
+type PeerState struct {
+	peer p2p.Peer
+
+	mtx sync.Mutex             `json:"-"`           // NOTE: Modify below using setters, never directly.
+	PRS cstypes.PeerRoundState `json:"round_state"` // Exposed.
+}
+
+// NewPeerState returns a new PeerState for the given Peer
+func NewPeerState(peer *p2p.Peer) *PeerState {
+	return &PeerState{
+		peer: *peer,
+		PRS: cstypes.PeerRoundState{
+			Height:             cmn.NewBigInt(0),
+			Round:              cmn.NewBigInt(-1),
+			ProposalPOLRound:   cmn.NewBigInt(-1),
+			LastCommitRound:    cmn.NewBigInt(-1),
+			CatchupCommitRound: cmn.NewBigInt(-1),
+		},
+	}
 }

@@ -16,7 +16,9 @@ const (
 	MaxUint64 = 1<<64 - 1
 )
 
-// NOTE: The following methods need to be optimised using either bit checking or asm
+// -----------------------------------------------------------------------------
+// The following methods need to be optimised using either bit checking or asm
+// -----------------------------------------------------------------------------
 
 // SafeSub returns subtraction result and whether overflow occurred.
 func SafeSub(x, y uint64) (uint64, bool) {

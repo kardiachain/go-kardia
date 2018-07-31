@@ -506,3 +506,22 @@ func (cs *ConsensusState) enterPrecommit(height int64, round int) {
 	cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 	cs.signAddVote(types.VoteTypePrecommit, types.NilBlockID())
 }
+
+func CompareHRS(h1 *cmn.BigInt, r1 *cmn.BigInt, s1 cstypes.RoundStepType, h2 *cmn.BigInt, r2 *cmn.BigInt, s2 cstypes.RoundStepType) int {
+	if h1.IsLessThan(h2) {
+		return -1
+	} else if h1.IsGreaterThan(h2) {
+		return 1
+	}
+	if r1.IsLessThan(r2) {
+		return -1
+	} else if r1.IsGreaterThan(r2) {
+		return 1
+	}
+	if s1 < s2 {
+		return -1
+	} else if s1 > s2 {
+		return 1
+	}
+	return 0
+}

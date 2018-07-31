@@ -8,7 +8,6 @@ import (
 	"time"
 
 	elog "github.com/ethereum/go-ethereum/log"
-	cs "github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/dual"
 	"github.com/kardiachain/go-kardia/kai"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -117,14 +116,6 @@ func main() {
 			logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
 		}
 	}
-
-	// TODO(namdoh): Temporarily hook up consensus state here for compiling
-	// check purposes.
-	consensusState := cs.NewConsensusState(
-		nil,
-		nil,
-	)
-	consensusState.DoNothing()
 
 	// go displayPeers(n)
 

@@ -143,13 +143,16 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	// broadcast transactions
 	pm.txsCh = make(chan blockchain.NewTxsEvent, txChanSize)
 	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
-	go pm.txBroadcastLoop()
+	pm.csReactor.Start()
 
+	go pm.txBroadcastLoop()
 	go syncNetwork(pm)
 }
 
 func (pm *ProtocolManager) Stop() {
 	log.Info("Stopping Kardia protocol")
+
+	pm.csReactor.Stop()
 
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.
@@ -257,7 +260,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&csEvent); err != nil {
 			return errResp(ErrDecode, "msg %v: %va", msg, err)
 		}
-		pm.csReactor.Receive(csEvent, p.Peer)
+		pm.csReactor.ReceiveNewRoundStepMessage(csEvent, p.Peer)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
