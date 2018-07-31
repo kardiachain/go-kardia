@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	cfg "github.com/kardiachain/go-kardia/config"
+	cfg "github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	libevents "github.com/kardiachain/go-kardia/lib/events"
@@ -99,8 +99,7 @@ func NewConsensusState(
 		evsw: libevents.NewEventSwitch(),
 	}
 
-	// TODO(namdoh): Re-enable this.
-	//cs.updateToState(state)
+	cs.updateToState(state)
 
 	// Don't call scheduleRound0 yet.
 	// We do that upon Start().

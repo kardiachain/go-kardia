@@ -85,26 +85,37 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 
 	kai.txPool = blockchain.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 
+	// Initialization for consensus.
 	startTime, _ := time.Parse(time.UnixDate, "Monday July 30 00:00:00 PST 2018")
 	state := state.LastestBlockState{
-
-		ChainID: "kaicon",
-
-		LastBlockHeight: 0,
-		LastBlockID:     types.BlockID{},
-		LastBlockTime:   startTime,
-
+		ChainID:                     "kaicon",
+		LastBlockHeight:             0,
+		LastBlockID:                 types.BlockID{},
+		LastBlockTime:               startTime,
 		Validators:                  types.NewValidatorSet(nil),
 		LastValidators:              types.NewValidatorSet(nil),
 		LastHeightValidatorsChanged: 1,
 	}
+	// Consensus config is imported from:
+	// http://tendermint.readthedocs.io/en/master/specification/configuration.html
+	// TODO(namdoh): Move this to config loader.
+	csConfig := configs.ConsensusConfig{
+		TimeoutPropose:            3000,
+		TimeoutProposeDelta:       500,
+		TimeoutPrevote:            1000,
+		TimeoutPrevoteDelta:       500,
+		TimeoutPrecommit:          1000,
+		TimeoutPrecommitDelta:     500,
+		TimeoutCommit:             1000,
+		SkipTimeoutCommit:         false,
+		CreateEmptyBlocks:         true,
+		CreateEmptyBlocksInterval: 0,
+	}
 	consensusState := consensus.NewConsensusState(
-		nil,
+		&csConfig,
 		state,
 	)
-
 	// Intialize consensus for Kardia node
-	// TODO(namdoh): Initialize consensus state and pass it in.
 	csReactor := consensus.NewConsensusReactor(consensusState)
 
 	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, csReactor); err != nil {

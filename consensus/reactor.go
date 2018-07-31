@@ -48,7 +48,7 @@ type ConsensusReactor struct {
 // consensusState.
 func NewConsensusReactor(consensusState *ConsensusState) *ConsensusReactor {
 	return &ConsensusReactor{
-		conS: consensusState,
+		conS: nil,
 	}
 	// TODO(namdoh): Re-anable this.
 	//conR := &ConsensusReactor{
@@ -56,7 +56,7 @@ func NewConsensusReactor(consensusState *ConsensusState) *ConsensusReactor {
 	//	fastSync: fastSync,
 	//}
 	//conR.BaseReactor = *p2p.NewBaseReactor("ConsensusReactor", conR)
-	//return conR
+	//r eturn conR
 }
 
 func (conR *ConsensusReactor) Start() {
