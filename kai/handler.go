@@ -8,6 +8,8 @@ import (
 
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/consensus"
+	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -53,8 +55,12 @@ type ProtocolManager struct {
 	newPeerCh   chan *peer
 	noMorePeers chan struct{}
 
+	// transaction channel and subscriptions
 	txsCh  chan blockchain.NewTxsEvent
 	txsSub event.Subscription
+
+	// Consensus stuffs
+	csReactor *consensus.ConsensusReactor
 
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
@@ -63,7 +69,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Kardia sub protocol manager. The Kardia sub protocol manages peers capable
 // with the Kardia network.
-func NewProtocolManager(networkID uint64, blockchain *blockchain.BlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool) (*ProtocolManager, error) {
+func NewProtocolManager(networkID uint64, blockchain *blockchain.BlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool, csReactor *consensus.ConsensusReactor) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkID:   networkID,
@@ -73,17 +79,18 @@ func NewProtocolManager(networkID uint64, blockchain *blockchain.BlockChain, con
 		peers:       newPeerSet(),
 		newPeerCh:   make(chan *peer),
 		noMorePeers: make(chan struct{}),
+		csReactor:   csReactor,
 	}
 
 	// Initiate a sub-protocol for every implemented version we can handle
-	manager.SubProtocols = make([]p2p.Protocol, 0, len(ProtocolVersions))
-	for i, version := range ProtocolVersions {
+	manager.SubProtocols = make([]p2p.Protocol, 0, len(kcmn.ProtocolVersions))
+	for i, version := range kcmn.ProtocolVersions {
 		// Compatible; initialise the sub-protocol
 		version := version // Closure for the run
 		manager.SubProtocols = append(manager.SubProtocols, p2p.Protocol{
-			Name:    ProtocolName,
+			Name:    kcmn.ProtocolName,
 			Version: version,
-			Length:  ProtocolLengths[i],
+			Length:  kcmn.ProtocolLengths[i],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 				peer := manager.newPeer(int(version), p, rw)
 				select {
@@ -162,7 +169,7 @@ func (pm *ProtocolManager) Stop() {
 
 func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 	//@huny return newPeer(pv, p, newMeteredMsgWriter(rw))
-	return newPeer(pv, p, rw)
+	return newPeer(pv, p, rw, pm.csReactor)
 }
 
 // handle is the callback invoked to manage the life cycle of a kai peer. When
@@ -213,17 +220,17 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	if err != nil {
 		return err
 	}
-	if msg.Size > ProtocolMaxMsgSize {
-		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, ProtocolMaxMsgSize)
+	if msg.Size > kcmn.ProtocolMaxMsgSize {
+		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, kcmn.ProtocolMaxMsgSize)
 	}
 	defer msg.Discard()
 
 	// Handle the message depending on its contents
 	switch {
-	case msg.Code == StatusMsg:
+	case msg.Code == kcmn.StatusMsg:
 		// Status messages should never arrive after the handshake
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
-	case msg.Code == TxMsg:
+	case msg.Code == kcmn.TxMsg:
 		p.Log().Trace("Transactions received")
 		// Transactions arrived, make sure we have a valid and fresh chain to handle them
 		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
@@ -244,6 +251,13 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 		pm.txpool.AddRemotes(txs)
 		p.Log().Trace("Transactions added to pool", "txs", txs)
+	case msg.Code == kcmn.CsMsg:
+		p.Log().Trace("Consensus event received")
+		var csEvent consensus.NewRoundStepMessage
+		if err := msg.Decode(&csEvent); err != nil {
+			return errResp(ErrDecode, "msg %v: %va", msg, err)
+		}
+		pm.csReactor.Receive(csEvent, p.Peer)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
@@ -279,6 +293,20 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 			return
 		}
 	}
+}
+
+// A loop for broadcasting consensus events.
+func (pm *ProtocolManager) consensusBroadcastLoop() {
+	//for {
+	//	select {
+	//	case txEvent := <-pm.txsCh:
+	//		pm.BroadcastTxs(txEvent.Txs)
+	//
+	//	// Err() channel will be closed when unsubscribing.
+	//	case <-pm.txsSub.Err():
+	//		return
+	//	}
+	//}
 }
 
 // BroadcastTxs will propagate a batch of transactions to all peers which are not known to

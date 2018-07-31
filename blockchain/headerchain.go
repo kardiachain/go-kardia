@@ -44,7 +44,7 @@ func (hc *HeaderChain) CurrentHeader() *types.Header {
 //  procInterrupt points to the parent's interrupt semaphore
 //  wg points to the parent's shutdown wait group
 func NewHeaderChain(chainDb kaidb.Database, config *configs.ChainConfig) (*HeaderChain, error) {
-	log.Debug("NewHeaderChain")
+	log.Trace("NewHeaderChain")
 	headerCache, _ := lru.New(headerCacheLimit)
 	heightCache, _ := lru.New(heightCacheLimit)
 
@@ -57,10 +57,8 @@ func NewHeaderChain(chainDb kaidb.Database, config *configs.ChainConfig) (*Heade
 
 	hc.genesisHeader = hc.GetHeaderByHeight(0)
 	if hc.genesisHeader == nil {
-		log.Debug("#debug30")
 		return nil, ErrNoGenesis
 	}
-	log.Debug("#debug31")
 
 	hc.currentHeader.Store(hc.genesisHeader)
 	if head := rawdb.ReadHeadBlockHash(chainDb); head != (common.Hash{}) {
@@ -70,14 +68,12 @@ func NewHeaderChain(chainDb kaidb.Database, config *configs.ChainConfig) (*Heade
 	}
 	hc.currentHeaderHash = hc.CurrentHeader().Hash()
 
-	log.Debug("#debug32")
 	return hc, nil
 }
 
 // GetHeaderByheight retrieves a block header from the database by height,
 // caching it (associated with its hash) if found.
 func (hc *HeaderChain) GetHeaderByHeight(height uint64) *types.Header {
-	log.Debug("debug#20")
 	hash := rawdb.ReadCanonicalHash(hc.chainDb, height)
 	if hash == (common.Hash{}) {
 		return nil

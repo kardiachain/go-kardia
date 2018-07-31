@@ -4,6 +4,8 @@ package kai
 import (
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/consensus"
+	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/p2p"
@@ -67,7 +69,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 		networkID:    config.NetworkId,
 	}
 
-	log.Info("Initialising Kardia protocol", "versions", ProtocolVersions, "network", config.NetworkId)
+	log.Info("Initialising Kardia protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
 
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
@@ -76,15 +78,17 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Info("#debug10")
 
 	kai.txPool = blockchain.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 
-	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool); err != nil {
+	// Intialize consensus for Kardia node
+	// TODO(namdoh): Initialize consensus state and pass it in.
+	csReactor := consensus.NewConsensusReactor(nil)
+
+	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, csReactor); err != nil {
 		return nil, err
 	}
 
-	log.Info("#debug11")
 	return kai, nil
 }
 

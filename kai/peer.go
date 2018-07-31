@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardia/consensus"
+	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/types"
@@ -37,21 +39,23 @@ type PeerInfo struct {
 type peer struct {
 	id string
 
+	lock sync.RWMutex
+
 	*p2p.Peer
 	rw p2p.MsgReadWriter
 
 	version int // Protocol version negotiated
 
-	knownTxs *set.Set // Set of transaction hashes known to be known by this peer
-
+	knownTxs  *set.Set                  // Set of transaction hashes known to be known by this peer
 	queuedTxs chan []*types.Transaction // Queue of transactions to broadcast to the peer
 
-	lock sync.RWMutex
+	csReactor *consensus.ConsensusReactor
 
 	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
+
 }
 
-func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
+func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, csReactor *consensus.ConsensusReactor) *peer {
 	return &peer{
 		Peer:       p,
 		rw:         rw,
@@ -59,6 +63,7 @@ func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 		id:         fmt.Sprintf("%x", p.ID().Bytes()[:8]),
 		queuedTxs:  make(chan []*types.Transaction, maxQueuedTxs),
 		knownTxs:   set.New(),
+		csReactor:  csReactor,
 		terminated: make(chan struct{}),
 	}
 }
@@ -78,12 +83,13 @@ func (p *peer) Info() *PeerInfo {
 // Handshake executes the kardia protocol handshake, negotiating version number,
 // network IDs, head and genesis blocks.
 func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesis common.Hash) error {
+	p.Log().Trace("Handshake starts...")
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
 	var status statusData // safe to read after two values have been received from errc
 
 	go func() {
-		errc <- p2p.Send(p.rw, StatusMsg, &statusData{
+		errc <- p2p.Send(p.rw, kcmn.StatusMsg, &statusData{
 			ProtocolVersion: uint32(p.version),
 			NetworkId:       network,
 			Height:          height,
@@ -103,6 +109,7 @@ func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesi
 				p.Log().Info("Handshake return err", "err", err)
 				return err
 			}
+			p.Log().Trace("Handshake returns no err")
 		case <-timeout.C:
 			p.Log().Info("Handshake return read timeout")
 			return p2p.DiscReadTimeout
@@ -117,11 +124,11 @@ func (p *peer) readStatus(network uint64, status *statusData, genesis common.Has
 	if err != nil {
 		return err
 	}
-	if msg.Code != StatusMsg {
-		return errResp(ErrNoStatusMsg, "first msg has code %x (!= %x)", msg.Code, StatusMsg)
+	if msg.Code != kcmn.StatusMsg {
+		return errResp(ErrNoStatusMsg, "first msg has code %x (!= %x)", msg.Code, kcmn.StatusMsg)
 	}
-	if msg.Size > ProtocolMaxMsgSize {
-		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, ProtocolMaxMsgSize)
+	if msg.Size > kcmn.ProtocolMaxMsgSize {
+		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, kcmn.ProtocolMaxMsgSize)
 	}
 	// Decode the handshake and make sure everything matches
 	if err := msg.Decode(&status); err != nil {
@@ -168,6 +175,7 @@ func newPeerSet() *peerSet {
 // peer is already known. If a new peer it registered, its broadcast loop is also
 // started.
 func (ps *peerSet) Register(p *peer) error {
+	p.Log().Debug("Registering a peer to peer set", "name", p.Name())
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
@@ -179,6 +187,7 @@ func (ps *peerSet) Register(p *peer) error {
 	}
 	ps.peers[p.id] = p
 	go p.broadcast()
+	p.csReactor.AddPeer(p.Peer, p.rw)
 
 	return nil
 }
@@ -274,7 +283,7 @@ func (p *peer) SendTransactions(txs types.Transactions) error {
 	for _, tx := range txs {
 		p.knownTxs.Add(tx.Hash())
 	}
-	return p2p.Send(p.rw, TxMsg, txs)
+	return p2p.Send(p.rw, kcmn.TxMsg, txs)
 }
 
 // AsyncSendTransactions queues list of transactions propagation to a remote
@@ -289,4 +298,9 @@ func (p *peer) AsyncSendTransactions(txs []*types.Transaction) {
 	default:
 		p.Log().Debug("Dropping transaction propagation", "count", len(txs))
 	}
+}
+
+// Sends consensus message to the peer.
+func (p *peer) SendConsensusMessage(csMsg consensus.ConsensusMessage) error {
+	return p2p.Send(p.rw, kcmn.CsMsg, csMsg)
 }
