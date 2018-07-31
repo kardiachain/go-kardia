@@ -32,14 +32,12 @@ type LastestBlockState struct {
 	LastHeightValidatorsChanged int64
 
 	// TODO(namdoh): Add consensus parameters used for validating blocks.
-	// Changes returned by EndBlock and updated after Commit.
-	LastHeightConsensusParamsChanged int64
 
 	// Merkle root of the results from executing prev block
-	LastResultsHash []byte
+	//namdoh@ LastResultsHash []byte
 
 	// The latest AppHash we've received from calling abci.Commit()
-	AppHash []byte
+	//namdoh@ AppHash []byte
 }
 
 // Creates a block from the latest state.

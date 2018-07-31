@@ -82,7 +82,7 @@ type ConsensusState struct {
 // NewConsensusState returns a new ConsensusState.
 func NewConsensusState(
 	config *cfg.ConsensusConfig,
-	state *state.LastestBlockState,
+	state state.LastestBlockState,
 	//namdoh@ blockExec *sm.BlockExecutor,
 	//namdoh@ blockStore sm.BlockStore,
 	//namdoh@ evpool evidence.EvidencePool,
@@ -99,8 +99,8 @@ func NewConsensusState(
 		evsw: libevents.NewEventSwitch(),
 	}
 
-	// TODO(namdoh@): Re-enable this once reactor is connected.
-	//cs.updateToState(*state)
+	// TODO(namdoh): Re-enable this.
+	//cs.updateToState(state)
 
 	// Don't call scheduleRound0 yet.
 	// We do that upon Start().

@@ -28,11 +28,6 @@ type PeerConnection struct {
 	rw   p2p.MsgReadWriter
 }
 
-type consensusMessageAndChannel struct {
-	channelID byte        `json:"channelID" gencodoc:"required"`
-	msg       interface{} `json:"msg" gencodoc:"required"`
-}
-
 func (pc *PeerConnection) SendConsensusMessage(msg ConsensusMessage) error {
 	return p2p.Send(pc.rw, kcmn.CsMsg, msg)
 }
@@ -53,7 +48,7 @@ type ConsensusReactor struct {
 // consensusState.
 func NewConsensusReactor(consensusState *ConsensusState) *ConsensusReactor {
 	return &ConsensusReactor{
-		conS: nil,
+		conS: consensusState,
 	}
 	// TODO(namdoh): Re-anable this.
 	//conR := &ConsensusReactor{
@@ -200,14 +195,6 @@ func (conR *ConsensusReactor) sendNewRoundStepMessages(pc PeerConnection) {
 }
 
 // -------- Consensus Messages ------------
-// Specifies an event in BFT consensus to send between peers. We prefer to use
-// oneof instead of flatten all events. However, we have to settle with this
-// suboptimal choice since our serialization is done by RLP instead of protobuf.
-// TODO(namdoh): Improve this with something cleaner/more efficient.
-type ConsensusEvent struct {
-	ChannelID byte             `json:"channelID" gencodoc:"required"`
-	Msg       ConsensusMessage `json:"msg" gencodoc:"required"`
-}
 
 // ConsensusMessage is a message that can be sent and received on the ConsensusReactor
 type ConsensusMessage interface{}
