@@ -1,15 +1,16 @@
-package node
+package kai
 
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/storage"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 const (
@@ -94,7 +95,7 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 	return key
 }
 
-// StartDatabase starts a new or existed database in the node data directory, or in-memory database.
+// Database starts a new or existed database in the node data directory, or in-memory database.
 func (c *NodeConfig) StartDatabase(name string, cache int, handles int) (storage.Database, error) {
 	if c.DataDir == "" {
 		return storage.NewMemStore(), nil

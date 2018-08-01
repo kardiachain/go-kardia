@@ -194,3 +194,50 @@ func Exp(base, exponent *big.Int) *big.Int {
 	}
 	return result
 }
+
+type BigInt struct {
+	*big.Int
+}
+
+func NewBigInt(x int64) *BigInt {
+	return &BigInt{big.NewInt(x)}
+}
+
+// IsGreaterThan returns true if x is greater than y
+func (x *BigInt) IsGreaterThan(y *BigInt) bool {
+	return x.Cmp(y.Int) > 0
+}
+
+// IsGreaterThan returns true if x is greater than y
+func (x *BigInt) IsGreaterThanInt(y int) bool {
+	return x.Int64() > int64(y)
+}
+
+// IsLessThan returns true if x is less than y
+func (x *BigInt) IsLessThan(y *BigInt) bool {
+	return x.Cmp(y.Int) < 0
+}
+
+// IsLessThan returns true if x is less than y
+func (x *BigInt) IsLessThanOrEquals(y *BigInt) bool {
+	return x.Cmp(y.Int) <= 0
+}
+
+// Equals returns true if x equals to y
+func (x *BigInt) Equals(y *BigInt) bool {
+	return x.Cmp(y.Int) == 0
+}
+
+// Equals returns true if x equals to y
+func (x *BigInt) EqualsInt(y int) bool {
+	return x.Int64() == int64(y)
+}
+
+// Equals returns true if x equals to y
+func (x *BigInt) Add(y int64) *BigInt {
+	return NewBigInt(x.Int64() + y)
+}
+
+func (x *BigInt) Int32() int {
+	return int(x.Int64())
+}

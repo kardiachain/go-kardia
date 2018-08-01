@@ -82,6 +82,7 @@ func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfi
 
 	// Check whether the genesis block is already written.
 	if genesis != nil {
+		log.Info("Create new genesis block")
 		hash := genesis.ToBlock(nil).Hash()
 		if hash != stored {
 			return genesis.Config, hash, &GenesisMismatchError{stored, hash}
@@ -148,7 +149,7 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 
-	return types.NewBlock(head, nil, nil)
+	return types.NewBlock(head, nil, nil, nil)
 }
 
 // Commit writes the block and state of a genesis specification to the database.

@@ -5,6 +5,7 @@ import (
 	"os/user"
 	"path/filepath"
 
+	"github.com/kardiachain/go-kardia/kai"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/nat"
 )
@@ -17,7 +18,7 @@ const (
 )
 
 // DefaultConfig contains reasonable default settings.
-var DefaultConfig = NodeConfig{
+var DefaultConfig = kai.NodeConfig{
 	DataDir: DefaultDataDir(),
 	//HTTPPort: DefaultHTTPPort,
 	//HTTPModules:      []string{"net", "web3"},

@@ -3,39 +3,74 @@ package node
 import (
 	"errors"
 	"fmt"
+	"reflect"
+	"sync"
+	"time"
+
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/kai"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
-	"reflect"
-	"sync"
-)
-
-var (
-	ErrNodeStopped     = errors.New("node not started")
-	ErrNodeRunning     = errors.New("node already running")
-	ErrServiceUnknown  = errors.New("service unknown")
-	ErrNodeStopFailure = errors.New("node failed to stop gracefully")
+	"github.com/kardiachain/go-kardia/state"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // Node is the highest level container for a full Kardia node.
 // It keeps all config data and services.
 type Node struct {
-	config       *NodeConfig
+	config       *kai.NodeConfig
 	serverConfig p2p.Config
 	server       *p2p.Server
 
-	services            map[string]Service // Map of type names to running services
-	serviceConstructors []ServiceConstructor
+	services            map[string]kai.Service // Map of type names to running services
+	serviceConstructors []kai.ServiceConstructor
+
+	csReactor *consensus.ConsensusReactor
 
 	lock sync.RWMutex
 	log  log.Logger
 }
 
-func NewNode(config *NodeConfig) (*Node, error) {
+func NewNode(config *kai.NodeConfig) (*Node, error) {
 	node := new(Node)
 	node.config = config
 	node.log = log.New()
 	// TODO: input check on the config
+
+	// Initialization for consensus.
+	startTime, _ := time.Parse(time.UnixDate, "Monday July 30 00:00:00 PST 2018")
+	state := state.LastestBlockState{
+		ChainID:                     "kaicon",
+		LastBlockHeight:             cmn.NewBigInt(0),
+		LastBlockID:                 types.BlockID{},
+		LastBlockTime:               startTime,
+		Validators:                  types.NewValidatorSet(nil),
+		LastValidators:              types.NewValidatorSet(nil),
+		LastHeightValidatorsChanged: cmn.NewBigInt(1),
+	}
+	// Consensus config is imported from:
+	// http://tendermint.readthedocs.io/en/master/specification/configuration.html
+	// TODO(namdoh): Move this to config loader.
+	csConfig := configs.ConsensusConfig{
+		TimeoutPropose:            3000,
+		TimeoutProposeDelta:       500,
+		TimeoutPrevote:            1000,
+		TimeoutPrevoteDelta:       500,
+		TimeoutPrecommit:          1000,
+		TimeoutPrecommitDelta:     500,
+		TimeoutCommit:             1000,
+		SkipTimeoutCommit:         false,
+		CreateEmptyBlocks:         true,
+		CreateEmptyBlocksInterval: 0,
+	}
+	consensusState := consensus.NewConsensusState(
+		&csConfig,
+		state,
+	)
+	node.csReactor = consensus.NewConsensusReactor(consensusState)
 
 	return node, nil
 }
@@ -46,7 +81,7 @@ func (n *Node) Start() error {
 
 	// Starts p2p server.
 	if n.server != nil {
-		return ErrNodeRunning
+		return kai.ErrNodeRunning
 	}
 	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 
@@ -63,17 +98,18 @@ func (n *Node) Start() error {
 	newServer := &p2p.Server{Config: n.serverConfig}
 
 	// Starts protocol services.
-	newServices := make(map[string]Service)
+	newServices := make(map[string]kai.Service)
 	for _, serviceConstructor := range n.serviceConstructors {
 		// Creates context as parameter for constructor
-		ctx := &ServiceContext{
+		ctx := &kai.ServiceContext{
 			Config:   n.config,
-			services: make(map[string]Service),
+			Services: make(map[string]kai.Service),
 		}
 		for serviceType, s := range newServices { // full map copy in each ServiceContext, for concurrent access
-			ctx.services[serviceType] = s
+			ctx.Services[serviceType] = s
 		}
 		service, err := serviceConstructor(ctx)
+		service.ConnectReactor(n.csReactor)
 		if err != nil {
 			return err
 		}
@@ -93,7 +129,7 @@ func (n *Node) Start() error {
 	}
 
 	// Start each of the services
-	var startedServices []Service
+	var startedServices []kai.Service
 	for _, service := range newServices {
 		// Start the next service, stopping all previous upon failure
 		if err := service.Start(newServer); err != nil {
@@ -120,7 +156,7 @@ func (n *Node) Stop() error {
 	defer n.lock.Unlock()
 
 	if n.server == nil {
-		return ErrNodeStopped
+		return kai.ErrNodeStopped
 	}
 
 	sFailures := make(map[string]error)
@@ -137,7 +173,7 @@ func (n *Node) Stop() error {
 
 	if len(sFailures) > 0 {
 		n.log.Error("Failed to stop node services: %v", sFailures)
-		return ErrNodeStopFailure
+		return kai.ErrNodeStopFailure
 	}
 
 	return nil
@@ -151,13 +187,13 @@ func (n *Node) Server() *p2p.Server {
 	return n.server
 }
 
-// RegisterService adds a new service to node.
-func (n *Node) RegisterService(constructor ServiceConstructor) error {
+// Service adds a new service to node.
+func (n *Node) RegisterService(constructor kai.ServiceConstructor) error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
 	if n.server != nil {
-		return ErrNodeRunning
+		return kai.ErrNodeRunning
 	}
 	n.serviceConstructors = append(n.serviceConstructors, constructor)
 	return nil
@@ -171,7 +207,7 @@ func (n *Node) AddPeer(url string) (bool, error) {
 	server := n.Server()
 
 	if server == nil {
-		return false, ErrNodeStopped
+		return false, kai.ErrNodeStopped
 	}
 	// Try to add the url as a static peer and return
 	node, err := discover.ParseNode(url)
@@ -194,7 +230,7 @@ func (n *Node) Service(returnedService interface{}) error {
 	defer n.lock.RUnlock()
 
 	if n.server == nil {
-		return ErrNodeStopped
+		return kai.ErrNodeStopped
 	}
 
 	// Get pointer with *Service type.
@@ -206,11 +242,11 @@ func (n *Node) Service(returnedService interface{}) error {
 
 		return nil
 	}
-	return ErrServiceUnknown
+	return kai.ErrServiceUnknown
 }
 
 // ServiceMap returns map of all running services.
-func (n *Node) ServiceMap() map[string]Service {
+func (n *Node) ServiceMap() map[string]kai.Service {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 

@@ -1,14 +1,23 @@
-package node
+package kai
 
 import (
+	"errors"
+	
 	//"github.com/kardiachain/go-kardia/event"
 	"github.com/kardiachain/go-kardia/p2p"
+)
+
+var (
+	ErrNodeStopped     = errors.New("node not started")
+	ErrNodeRunning     = errors.New("node already running")
+	ErrServiceUnknown  = errors.New("service unknown")
+	ErrNodeStopFailure = errors.New("node failed to stop gracefully")
 )
 
 // ServiceContext wraps config data passed from node to all services to be used in service operations.
 type ServiceContext struct {
 	Config   *NodeConfig
-	services map[string]Service // Map of type name to constructed services
+	Services map[string]Service // Map of type name to constructed services
 	// EventMux *event.TypeMux           // Event multiplexer
 }
 
@@ -16,7 +25,7 @@ type ServiceContext struct {
 
 // GetService returns the currently running service for a specific type.
 func (ctx *ServiceContext) GetService(typeName string) (Service, error) {
-	if running, ok := ctx.services[typeName]; ok {
+	if running, ok := ctx.Services[typeName]; ok {
 		return running, nil
 	}
 	return nil, ErrServiceUnknown
@@ -49,4 +58,6 @@ type Service interface {
 	// Stop terminates all goroutines belonging to the service, blocking until they
 	// are all terminated.
 	Stop() error
+
+	ConnectReactor(reactor Reactor)
 }

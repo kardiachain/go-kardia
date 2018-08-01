@@ -31,7 +31,7 @@ type Header struct {
 	GasUsed  uint64 `json:"gasUsed"          gencodec:"required"`
 
 	// prev block info
-	//@huny LastBlockID BlockID `json:"last_block_id"`
+	LastBlockID BlockID `json:"last_block_id"`
 	//@huny TotalTxs    uint64   `json:"total_txs"`
 
 	Coinbase common.Address `json:"miner"            gencodec:"required"`
@@ -44,8 +44,8 @@ type Header struct {
 	Bloom          Bloom       `json:"logsBloom"           gencodec:"required"`
 
 	// hashes from the app output from the prev block
-	//@huny ValidatorsHash  common.Hash `json:"validators_hash"`   // validators for the current block
-	//@huny ConsensusHash   common.Hash `json:"consensus_hash"`    // consensus params for current block
+	ValidatorsHash common.Hash `json:"validators_hash"` // validators for the current block
+	ConsensusHash  common.Hash `json:"consensus_hash"`  // consensus params for current block
 	//@huny AppHash         common.Hash `json:"app_hash"`          // state after txs from the previous block
 	//@huny LastResultsHash common.Hash `json:"last_results_hash"` // root hash of all results from the txs from the previous block
 
@@ -85,6 +85,7 @@ func rlpHash(x interface{}) (h common.Hash) {
 type Block struct {
 	header       *Header
 	transactions Transactions
+	lastCommit   *Commit
 
 	// caches
 	hash atomic.Value
@@ -103,8 +104,8 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt) *Block {
-	b := &Block{header: CopyHeader(header)}
+func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit) *Block {
+	b := &Block{header: CopyHeader(header), lastCommit: CopyCommit(commit)}
 
 	if len(txs) == 0 {
 		b.header.TxHash = EmptyRootHash
@@ -122,6 +123,12 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt) *Block {
 		b.header.Bloom = CreateBloom(receipts)
 	}
 
+	if b.header.LastCommitHash.IsNil() {
+		b.header.LastCommitHash = commit.Hash()
+	}
+
+	// TODO(namdoh): Store evidence hash.
+
 	return b
 }
 
@@ -136,6 +143,16 @@ func NewBlockWithHeader(header *Header) *Block {
 // modifying a header variable.
 func CopyHeader(h *Header) *Header {
 	cpy := *h
+	return &cpy
+}
+
+// CopyHeader creates a deep copy of a block commit to prevent side effects from
+// modifying a commit variable.
+func CopyCommit(c *Commit) *Commit {
+	if c == nil {
+		return c
+	}
+	cpy := *c
 	return &cpy
 }
 
@@ -193,8 +210,12 @@ func (b *Block) TxHash() common.Hash         { return b.header.TxHash }
 func (b *Block) Root() common.Hash           { return b.header.Root }
 func (b *Block) ReceiptHash() common.Hash    { return b.header.ReceiptHash }
 func (b *Block) Bloom() Bloom                { return b.header.Bloom }
+func (b *Block) LastCommit() *Commit         { return b.lastCommit }
 
 func (b *Block) Header() *Header { return CopyHeader(b.header) }
+func (b *Block) HashesTo(id BlockID) bool {
+	return b.Hash().Equal(common.Hash(id))
+}
 
 // Size returns the true RLP encoded storage size of the block, either by encoding
 // and returning it, or returning a previsouly cached value.
@@ -206,6 +227,38 @@ func (b *Block) Size() common.StorageSize {
 	rlp.Encode(&c, b)
 	b.size.Store(common.StorageSize(c))
 	return common.StorageSize(c)
+}
+
+// ValidateBasic performs basic validation that doesn't involve state data.
+// It checks the internal consistency of the block.
+func (b *Block) ValidateBasic() error {
+	panic("block.ValidateBasic - Not yet implemented.")
+	return nil
+	// TODO(namdoh): Implements.
+	//if b == nil {
+	//	return errors.New("Nil blocks are invalid")
+	//}
+	//b.mtx.Lock()
+	//defer b.mtx.Unlock()
+	//
+	//newTxs := int64(len(b.Data.Txs))
+	//if b.NumTxs != newTxs {
+	//	return fmt.Errorf("Wrong Block.Header.NumTxs. Expected %v, got %v", newTxs, b.NumTxs)
+	//}
+	//if !bytes.Equal(b.LastCommitHash, b.LastCommit.Hash()) {
+	//	return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v", b.LastCommitHash, b.LastCommit.Hash())
+	//}
+	//if b.Header.Height != 1 {
+	//	if err := b.LastCommit.ValidateBasic(); err != nil {
+	//		return err
+	//	}
+	//}
+	//if !bytes.Equal(b.DataHash, b.Data.Hash()) {
+	//	return fmt.Errorf("Wrong Block.Header.DataHash.  Expected %v, got %v", b.DataHash, b.Data.Hash())
+	//}
+	//if !bytes.Equal(b.EvidenceHash, b.Evidence.Hash()) {
+	//	return errors.New(cmn.Fmt("Wrong Block.Header.EvidenceHash.  Expected %v, got %v", b.EvidenceHash, b.Evidence.Hash()))
+	//}
 }
 
 type writeCounter common.StorageSize
@@ -224,6 +277,20 @@ func (b *Block) Hash() common.Hash {
 	v := b.header.Hash()
 	b.hash.Store(v)
 	return v
+}
+
+type BlockID common.Hash
+
+func NilBlockID() BlockID {
+	return BlockID{}
+}
+
+func (b *BlockID) IsNil() bool {
+	return b.IsNil()
+}
+
+func (b *BlockID) Equal(id BlockID) bool {
+	return common.Hash(*b).Equal(common.Hash(id))
 }
 
 type Blocks []*Block

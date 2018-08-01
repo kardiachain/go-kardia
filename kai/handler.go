@@ -8,6 +8,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
+	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -19,10 +20,10 @@ import (
 const (
 	softResponseLimit = 2 * 1024 * 1024 // Target maximum size of returned blocks, headers or node data.
 	estHeaderRlpSize  = 500             // Approximate size of an RLP encoded block header
-
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
 	txChanSize = 4096
+	csChanSize = 4096 // Consensus channel size.
 )
 
 // errIncompatibleConfig is returned if the requested protocols and configs are
@@ -53,8 +54,14 @@ type ProtocolManager struct {
 	newPeerCh   chan *peer
 	noMorePeers chan struct{}
 
+	// transaction channel and subscriptions
 	txsCh  chan blockchain.NewTxsEvent
 	txsSub event.Subscription
+
+	// Consensus stuff
+	reactor Reactor
+	//csCh    chan consensus.NewCsEvent
+	csSub event.Subscription
 
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
@@ -76,14 +83,14 @@ func NewProtocolManager(networkID uint64, blockchain *blockchain.BlockChain, con
 	}
 
 	// Initiate a sub-protocol for every implemented version we can handle
-	manager.SubProtocols = make([]p2p.Protocol, 0, len(ProtocolVersions))
-	for i, version := range ProtocolVersions {
+	manager.SubProtocols = make([]p2p.Protocol, 0, len(kcmn.ProtocolVersions))
+	for i, version := range kcmn.ProtocolVersions {
 		// Compatible; initialise the sub-protocol
 		version := version // Closure for the run
 		manager.SubProtocols = append(manager.SubProtocols, p2p.Protocol{
-			Name:    ProtocolName,
+			Name:    kcmn.ProtocolName,
 			Version: version,
-			Length:  ProtocolLengths[i],
+			Length:  kcmn.ProtocolLengths[i],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 				peer := manager.newPeer(int(version), p, rw)
 				select {
@@ -136,13 +143,20 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	// broadcast transactions
 	pm.txsCh = make(chan blockchain.NewTxsEvent, txChanSize)
 	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
-	go pm.txBroadcastLoop()
 
+	pm.reactor.Start()
+	//namdoh@ pm.csCh = make(chan consensus.NewCsEvent, csChanSize)
+
+	go pm.txBroadcastLoop()
+	//namdoh@ go pm.csBroadcastLoop()
 	go syncNetwork(pm)
 }
 
 func (pm *ProtocolManager) Stop() {
 	log.Info("Stopping Kardia protocol")
+
+	pm.reactor.Stop()
+	pm.txsSub.Unsubscribe() // quits txBroadcastLoop
 
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.
@@ -160,9 +174,13 @@ func (pm *ProtocolManager) Stop() {
 	log.Info("Kardia protocol stopped")
 }
 
+func (pm *ProtocolManager) ConnectReactor(reactor Reactor) {
+	pm.reactor = reactor
+}
+
 func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 	//@huny return newPeer(pv, p, newMeteredMsgWriter(rw))
-	return newPeer(pv, p, rw)
+	return newPeer(pv, p, rw, pm.reactor)
 }
 
 // handle is the callback invoked to manage the life cycle of a kai peer. When
@@ -213,17 +231,17 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	if err != nil {
 		return err
 	}
-	if msg.Size > ProtocolMaxMsgSize {
-		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, ProtocolMaxMsgSize)
+	if msg.Size > kcmn.ProtocolMaxMsgSize {
+		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, kcmn.ProtocolMaxMsgSize)
 	}
 	defer msg.Discard()
 
 	// Handle the message depending on its contents
 	switch {
-	case msg.Code == StatusMsg:
+	case msg.Code == kcmn.StatusMsg:
 		// Status messages should never arrive after the handshake
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
-	case msg.Code == TxMsg:
+	case msg.Code == kcmn.TxMsg:
 		p.Log().Trace("Transactions received")
 		// Transactions arrived, make sure we have a valid and fresh chain to handle them
 		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
@@ -244,6 +262,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 		pm.txpool.AddRemotes(txs)
 		p.Log().Trace("Transactions added to pool", "txs", txs)
+	case msg.Code == kcmn.CsMsg:
+		p.Log().Trace("Consensus event received")
+		pm.reactor.Receive(msg, p.Peer)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
@@ -279,6 +300,21 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 			return
 		}
 	}
+}
+
+// A loop for broadcasting consensus events.
+func (pm *ProtocolManager) Broadcast(msg interface{}) {
+	panic("Not yet implemented")
+	//for {
+	//	select {
+	//	case txEvent := <-pm.txsCh:
+	//		pm.BroadcastTxs(txEvent.Txs)
+	//
+	//	// Err() channel will be closed when unsubscribing.
+	//	case <-pm.txsSub.Err():
+	//		return
+	//	}
+	//}
 }
 
 // BroadcastTxs will propagate a batch of transactions to all peers which are not known to

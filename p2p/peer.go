@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
@@ -18,6 +19,10 @@ import (
 
 var (
 	ErrShuttingDown = errors.New("shutting down")
+)
+
+const (
+	PeerStateKey = "ConsensusReactor.peerState"
 )
 
 const (
@@ -96,6 +101,9 @@ type Peer struct {
 
 	// events receives message send / receive events if set
 	events *event.Feed
+
+	// Peer data
+	Data *common.CMap
 }
 
 // NewPeer returns a peer for testing purposes.
@@ -152,6 +160,16 @@ func (p *Peer) Inbound() bool {
 	return p.rw.flags&inboundConn != 0
 }
 
+// Get the data for a given key.
+func (p *Peer) Get(key string) interface{} {
+	return p.Data.Get(key)
+}
+
+// Set sets the data for the given key.
+func (p *Peer) Set(key string, data interface{}) {
+	p.Data.Set(key, data)
+}
+
 func newPeer(conn *conn, protocols []Protocol) *Peer {
 	protomap := matchProtocols(protocols, conn.caps, conn)
 	p := &Peer{
@@ -162,6 +180,7 @@ func newPeer(conn *conn, protocols []Protocol) *Peer {
 		protoErr: make(chan error, len(protomap)+1), // protocols + pingLoop
 		closed:   make(chan struct{}),
 		log:      log.New("id", conn.id, "conn", conn.flags),
+		Data:     common.NewCMap(),
 	}
 	return p
 }

@@ -3,6 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math/big"
+	"runtime"
+	"time"
+
 	elog "github.com/ethereum/go-ethereum/log"
 	"github.com/kardiachain/go-kardia/dual"
 	"github.com/kardiachain/go-kardia/kai"
@@ -12,9 +16,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/types"
-	"math/big"
-	"runtime"
-	"time"
 )
 
 func runtimeSystemSettings() error {
@@ -156,7 +157,6 @@ func displayEthPeers(n *dual.EthKardia) {
 		log.Info("Ethereum peers: ", "count", n.EthNode().Server().PeerCount())
 		time.Sleep(20 * time.Second)
 	}
-
 }
 
 func displayKardiaPeers(n *node.Node) {

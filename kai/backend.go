@@ -4,8 +4,8 @@ package kai
 import (
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
+	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/p2p"
 	kaidb "github.com/kardiachain/go-kardia/storage"
 )
@@ -19,7 +19,7 @@ type KardiaSubService interface {
 	Protocols() []p2p.Protocol
 }
 
-// Kardia implements node.Service for running full Kardia full protocol.
+// Kardia implements Service for running full Kardia full protocol.
 type Kardia struct {
 	config      *Config
 	chainConfig *configs.ChainConfig
@@ -46,7 +46,7 @@ func (s *Kardia) AddKaiServer(ks KardiaSubService) {
 
 // New creates a new Kardia object (including the
 // initialisation of the common Kardia object)
-func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
+func newKardia(ctx *ServiceContext, config *Config) (*Kardia, error) {
 	// TODO(thientn): Uses config for database parameters
 	chainDb, err := ctx.Config.StartDatabase("chaindata", 16, 16)
 	if err != nil {
@@ -67,7 +67,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 		networkID:    config.NetworkId,
 	}
 
-	log.Info("Initialising Kardia protocol", "versions", ProtocolVersions, "network", config.NetworkId)
+	log.Info("Initialising Kardia protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
 
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
@@ -86,9 +86,9 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	return kai, nil
 }
 
-// Implements node.ServiceConstructor, return a Kardia node service from node service context.
+// Implements ServiceConstructor, return a Kardia node service from node service context.
 // TODO: move this outside of kai package to customize kai.Config
-func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
+func NewKardiaService(ctx *ServiceContext) (Service, error) {
 	kai, err := newKardia(ctx, &Config{NetworkId: DefaultNetworkID})
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func (s *Kardia) IsListening() bool  { return true } // Always listening
 func (s *Kardia) KaiVersion() int    { return int(s.protocolManager.SubProtocols[0].Version) }
 func (s *Kardia) NetVersion() uint64 { return s.networkID }
 
-// Protocols implements node.Service, returning all the currently configured
+// Protocols implements Service, returning all the currently configured
 // network protocols to start.
 func (s *Kardia) Protocols() []p2p.Protocol {
 	if s.subService == nil {
@@ -109,7 +109,7 @@ func (s *Kardia) Protocols() []p2p.Protocol {
 	return append(s.protocolManager.SubProtocols, s.subService.Protocols()...)
 }
 
-// Start implements node.Service, starting all internal goroutines needed by the
+// Start implements Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
 func (s *Kardia) Start(srvr *p2p.Server) error {
 	// Figures out a max peers count based on the server limits.
@@ -125,7 +125,7 @@ func (s *Kardia) Start(srvr *p2p.Server) error {
 	return nil
 }
 
-// Stop implements node.Service, terminating all internal goroutines used by the
+// Stop implements Service, terminating all internal goroutines used by the
 // Kardia protocol.
 func (s *Kardia) Stop() error {
 	s.protocolManager.Stop()
@@ -136,6 +136,11 @@ func (s *Kardia) Stop() error {
 	close(s.shutdownChan)
 
 	return nil
+}
+
+func (s *Kardia) ConnectReactor(reactor Reactor) {
+	s.protocolManager.ConnectReactor(reactor)
+	reactor.SetProtocolManager(s.protocolManager)
 }
 
 func (s *Kardia) TxPool() *blockchain.TxPool         { return s.txPool }
