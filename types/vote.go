@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/lib/common"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
@@ -28,14 +28,14 @@ func IsVoteTypeValid(type_ byte) bool {
 
 // Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
-	ValidatorAddress common.Address `json:"validator_address"`
-	ValidatorIndex   int            `json:"validator_index"`
-	Height           int64          `json:"height"`
-	Round            int            `json:"round"`
-	Timestamp        time.Time      `json:"timestamp"`
-	Type             byte           `json:"type"`
-	BlockID          BlockID        `json:"block_id"` // zero if vote is nil.
-	Signature        []byte         `json:"signature"`
+	ValidatorAddress cmn.Address `json:"validator_address"`
+	ValidatorIndex   *cmn.BigInt `json:"validator_index"`
+	Height           *cmn.BigInt `json:"height"`
+	Round            *cmn.BigInt `json:"round"`
+	Timestamp        time.Time   `json:"timestamp"`
+	Type             byte        `json:"type"`
+	BlockID          BlockID     `json:"block_id"` // zero if vote is nil.
+	Signature        []byte      `json:"signature"`
 }
 
 type CanonicalVote struct {
@@ -91,23 +91,23 @@ type P2PID string
 */
 type VoteSet struct {
 	chainID string
-	height  int64
-	round   int
+	height  *cmn.BigInt
+	round   *cmn.BigInt
 	type_   byte
 	valSet  *ValidatorSet
 
 	mtx           sync.Mutex
-	votesBitArray *common.BitArray
+	votesBitArray *cmn.BitArray
 	votes         []*Vote                // Primary votes to share
-	sum           int64                  // Sum of voting power for seen votes, discounting conflicts
+	sum           *cmn.BigInt            // Sum of voting power for seen votes, discounting conflicts
 	maj23         BlockID                // First 2/3 majority seen
 	votesByBlock  map[string]*blockVotes // string(blockHash|blockParts) -> blockVotes
 	peerMaj23s    map[P2PID]BlockID      // Maj23 for each peer
 }
 
 // Constructs a new VoteSet struct used to accumulate votes for given height/round.
-func NewVoteSet(chainID string, height int64, round int, type_ byte, valSet *ValidatorSet) *VoteSet {
-	if height == 0 {
+func NewVoteSet(chainID string, height *cmn.BigInt, round *cmn.BigInt, type_ byte, valSet *ValidatorSet) *VoteSet {
+	if height.EqualsInt(0) {
 		panic("Cannot make VoteSet for height == 0, doesn't make sense.")
 	}
 	return &VoteSet{
@@ -116,9 +116,9 @@ func NewVoteSet(chainID string, height int64, round int, type_ byte, valSet *Val
 		round:         round,
 		type_:         type_,
 		valSet:        valSet,
-		votesBitArray: common.NewBitArray(valSet.Size()),
+		votesBitArray: cmn.NewBitArray(valSet.Size()),
 		votes:         make([]*Vote, valSet.Size()),
-		sum:           0,
+		sum:           cmn.NewBigInt(0),
 		maj23:         NilBlockID(),
 		votesByBlock:  make(map[string]*blockVotes, valSet.Size()),
 		peerMaj23s:    make(map[P2PID]BlockID),
@@ -129,16 +129,16 @@ func (voteSet *VoteSet) ChainID() string {
 	return voteSet.chainID
 }
 
-func (voteSet *VoteSet) Height() int64 {
+func (voteSet *VoteSet) Height() *cmn.BigInt {
 	if voteSet == nil {
-		return 0
+		return cmn.NewBigInt(0)
 	}
 	return voteSet.height
 }
 
-func (voteSet *VoteSet) Round() int {
+func (voteSet *VoteSet) Round() *cmn.BigInt {
 	if voteSet == nil {
-		return -1
+		return cmn.NewBigInt(-1)
 	}
 	return voteSet.round
 }
@@ -157,7 +157,7 @@ func (voteSet *VoteSet) Size() int {
 	return voteSet.valSet.Size()
 }
 
-func (voteSet *VoteSet) BitArray() *common.BitArray {
+func (voteSet *VoteSet) BitArray() *cmn.BitArray {
 	if voteSet == nil {
 		return nil
 	}
@@ -176,7 +176,7 @@ func (voteSet *VoteSet) GetByIndex(valIndex int) *Vote {
 	return voteSet.votes[valIndex]
 }
 
-func (voteSet *VoteSet) GetByAddress(address common.Address) *Vote {
+func (voteSet *VoteSet) GetByAddress(address cmn.Address) *Vote {
 	if voteSet == nil {
 		return nil
 	}
@@ -204,13 +204,13 @@ func (voteSet *VoteSet) HasTwoThirdsAny() bool {
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
-	return voteSet.sum > voteSet.valSet.TotalVotingPower()*2/3
+	return voteSet.sum.IsGreaterThan(cmn.NewBigInt(voteSet.valSet.TotalVotingPower() * 2 / 3))
 }
 
 func (voteSet *VoteSet) HasAll() bool {
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
-	return voteSet.sum == voteSet.valSet.TotalVotingPower()
+	return voteSet.sum.Equals(cmn.NewBigInt(voteSet.valSet.TotalVotingPower()))
 }
 
 // If there was a +2/3 majority for blockID, return blockID and true.
@@ -229,14 +229,14 @@ func (voteSet *VoteSet) TwoThirdsMajority() (blockID BlockID, ok bool) {
 
 func (voteSet *VoteSet) MakeCommit() *Commit {
 	if voteSet.type_ != VoteTypePrecommit {
-		common.PanicSanity("Cannot MakeCommit() unless VoteSet.Type is VoteTypePrecommit")
+		cmn.PanicSanity("Cannot MakeCommit() unless VoteSet.Type is VoteTypePrecommit")
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 
 	// Make sure we have a 2/3 majority
 	if voteSet.maj23.IsNil() {
-		common.PanicSanity("Cannot MakeCommit() unless a blockhash has +2/3")
+		cmn.PanicSanity("Cannot MakeCommit() unless a blockhash has +2/3")
 	}
 
 	// For every validator, get the precommit
@@ -257,8 +257,8 @@ func (voteSet *VoteSet) MakeCommit() *Commit {
 	2. A peer claims to have a 2/3 majority w/ blockKey (peerMaj23=true)
 */
 type blockVotes struct {
-	peerMaj23 bool             // peer claims to have maj23
-	bitArray  *common.BitArray // valIndex -> hasVote?
-	votes     []*Vote          // valIndex -> *Vote
-	sum       int64            // vote sum
+	peerMaj23 bool          // peer claims to have maj23
+	bitArray  *cmn.BitArray // valIndex -> hasVote?
+	votes     []*Vote       // valIndex -> *Vote
+	sum       int64         // vote sum
 }

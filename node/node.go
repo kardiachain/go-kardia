@@ -10,6 +10,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
@@ -43,12 +44,12 @@ func NewNode(config *kai.NodeConfig) (*Node, error) {
 	startTime, _ := time.Parse(time.UnixDate, "Monday July 30 00:00:00 PST 2018")
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon",
-		LastBlockHeight:             0,
+		LastBlockHeight:             cmn.NewBigInt(0),
 		LastBlockID:                 types.BlockID{},
 		LastBlockTime:               startTime,
 		Validators:                  types.NewValidatorSet(nil),
 		LastValidators:              types.NewValidatorSet(nil),
-		LastHeightValidatorsChanged: 1,
+		LastHeightValidatorsChanged: cmn.NewBigInt(1),
 	}
 	// Consensus config is imported from:
 	// http://tendermint.readthedocs.io/en/master/specification/configuration.html

@@ -1,5 +1,9 @@
 package types
 
+import (
+	cmn "github.com/kardiachain/go-kardia/lib/common"
+)
+
 // Reserved event types
 const (
 	EventBond              = "Bond"
@@ -25,9 +29,9 @@ const (
 
 // NOTE: This goes into the replay WAL
 type EventDataRoundState struct {
-	Height int64  `json:"height"`
-	Round  int    `json:"round"`
-	Step   string `json:"step"`
+	Height *cmn.BigInt `json:"height"`
+	Round  *cmn.BigInt `json:"round"`
+	Step   string      `json:"step"`
 
 	// private, not exposed to websockets
 	RoundState interface{} `json:"-"`

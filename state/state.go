@@ -3,6 +3,7 @@ package state
 import (
 	"time"
 
+	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -17,8 +18,8 @@ type LastestBlockState struct {
 	ChainID string
 
 	// LastBlockHeight=0 at genesis (ie. block(H=0) does not exist)
-	LastBlockHeight  int64
-	LastBlockTotalTx int64
+	LastBlockHeight  *cmn.BigInt
+	LastBlockTotalTx *cmn.BigInt
 	LastBlockID      types.BlockID
 	LastBlockTime    time.Time
 
@@ -29,7 +30,7 @@ type LastestBlockState struct {
 	// we set s.LastHeightValidatorsChanged = s.LastBlockHeight + 1
 	Validators                  *types.ValidatorSet
 	LastValidators              *types.ValidatorSet
-	LastHeightValidatorsChanged int64
+	LastHeightValidatorsChanged *cmn.BigInt
 
 	// TODO(namdoh): Add consensus parameters used for validating blocks.
 

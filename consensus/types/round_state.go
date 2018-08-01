@@ -3,6 +3,7 @@ package types
 import (
 	"time"
 
+	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -51,24 +52,24 @@ func (rs RoundStepType) String() string {
 
 //-----------------------------------------------------------------------------
 
-// RoundState defines the internal consensus state.
+// RoundState defines the *cmn.BigInternal consensus state.
 // NOTE: Not thread safe. Should only be manipulated by functions downstream
 // of the cs.receiveRoutine
 type RoundState struct {
-	Height         int64               `json:"height"` // Height we are working on
-	Round          int                 `json:"round"`
+	Height         *cmn.BigInt         `json:"height"` // Height we are working on
+	Round          *cmn.BigInt         `json:"round"`
 	Step           RoundStepType       `json:"step"`
 	StartTime      time.Time           `json:"start_time"`
 	CommitTime     time.Time           `json:"commit_time"` // Subjective time when +2/3 precommits for Block at Round were found
 	Validators     *types.ValidatorSet `json:"validators"`  // TODO(huny@): Assume static validator set for now
 	Proposal       *types.Proposal     `json:"proposal"`
 	ProposalBlock  *types.Block        `json:"proposal_block"`
-	LockedRound    int                 `json:"locked_round"`
+	LockedRound    *cmn.BigInt         `json:"locked_round"`
 	LockedBlock    *types.Block        `json:"locked_block"`
-	ValidRound     int                 `json:"valid_round"` // Last known round with POL for non-nil valid block.
+	ValidRound     *cmn.BigInt         `json:"valid_round"` // Last known round with POL for non-nil valid block.
 	ValidBlock     *types.Block        `json:"valid_block"` // Last known block of POL mentioned above.
 	Votes          *HeightVoteSet      `json:"votes"`
-	CommitRound    int                 `json:"commit_round"` //
+	CommitRound    *cmn.BigInt         `json:"commit_round"` //
 	LastCommit     *types.VoteSet      `json:"last_commit"`  // Last precommits at Height-1
 	LastValidators *types.ValidatorSet `json:"last_validators"`
 }

@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/kardiachain/go-kardia/lib/common"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
 )
 
 // Commit contains the evidence that a block was committed by a set of validators.
@@ -15,8 +15,8 @@ type Commit struct {
 
 	// Volatile
 	firstPrecommit *Vote
-	hash           common.Hash
-	bitArray       *common.BitArray
+	hash           cmn.Hash
+	bitArray       *cmn.BitArray
 }
 
 // FirstPrecommit returns the first non-nil precommit in the commit.
@@ -40,17 +40,17 @@ func (commit *Commit) FirstPrecommit() *Vote {
 }
 
 // Height returns the height of the commit
-func (commit *Commit) Height() int64 {
+func (commit *Commit) Height() *cmn.BigInt {
 	if len(commit.Precommits) == 0 {
-		return 0
+		return cmn.NewBigInt(0)
 	}
 	return commit.FirstPrecommit().Height
 }
 
 // Round returns the round of the commit
-func (commit *Commit) Round() int {
+func (commit *Commit) Round() *cmn.BigInt {
 	if len(commit.Precommits) == 0 {
-		return 0
+		return cmn.NewBigInt(0)
 	}
 	return commit.FirstPrecommit().Round
 }
@@ -69,9 +69,9 @@ func (commit *Commit) Size() int {
 }
 
 // BitArray returns a BitArray of which validators voted in this commit
-func (commit *Commit) BitArray() *common.BitArray {
+func (commit *Commit) BitArray() *cmn.BitArray {
 	if commit.bitArray == nil {
-		commit.bitArray = common.NewBitArray(len(commit.Precommits))
+		commit.bitArray = cmn.NewBitArray(len(commit.Precommits))
 		for i, precommit := range commit.Precommits {
 			// TODO: need to check the BlockID otherwise we could be counting conflicts,
 			// not just the one with +2/3 !
@@ -92,7 +92,7 @@ func (commit *Commit) IsCommit() bool {
 }
 
 // Hash returns the hash of the commit
-func (commit *Commit) Hash() common.Hash {
+func (commit *Commit) Hash() cmn.Hash {
 	// TODO(namdoh): Cache hash so we don't have to re-hash all the time.
 	return rlpHash(commit)
 }

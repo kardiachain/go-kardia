@@ -48,31 +48,28 @@ func NewTimeoutTicker() TimeoutTicker {
 
 // Starts the timeout routine.
 func (t *timeoutTicker) Start() error {
-	panic("ticker.Start - Not yet implemented.")
-	//go t.timeoutRoutine()
-	//
-	//return nil
+	go t.timeoutRoutine()
+
+	return nil
 }
 
 // Stops the timeout routine.
 func (t *timeoutTicker) Stop() error {
-	panic("ticker.Stop - Not yet implemented.")
-	//t.stopTimer()
-	//return nil
+	t.stopTimer()
+
+	return nil
 }
 
 // ScheduleTimeout schedules a new timeout by sending on the internal tickChan.
 // The timeoutRoutine is always available to read from tickChan, so this won't block.
 // The scheduling may fail if the timeoutRoutine has already scheduled a timeout for a later height/round/step.
 func (t *timeoutTicker) ScheduleTimeout(ti timeoutInfo) {
-	panic("ticker.ScheduleTimeout - Not yet implemented.")
-	//t.tickChan <- ti
+	t.tickChan <- ti
 }
 
 // Chan returns a channel on which timeouts are sent.
 func (t *timeoutTicker) Chan() <-chan timeoutInfo {
-	panic("ticker.Chan - Not yet implemented.")
-	//return t.tockChan
+	return t.tockChan
 }
 
 // Sets a logger.
@@ -88,6 +85,49 @@ func (t *timeoutTicker) stopTimer() {
 		case <-t.timer.C:
 		default:
 			t.Logger.Debug("Timer already stopped")
+		}
+	}
+}
+
+// send on tickChan to start a new timer.
+// timers are interupted and replaced by new ticks from later steps
+// timeouts of 0 on the tickChan will be immediately relayed to the tockChan
+func (t *timeoutTicker) timeoutRoutine() {
+	t.Logger.Debug("Starting timeout routine")
+	ti := EmptyTimeoutInfo()
+	for {
+		select {
+		case newti := <-t.tickChan:
+			t.Logger.Debug("Received tick", "old_ti", ti, "new_ti", newti)
+
+			// ignore tickers for old height/round/step
+			if newti.Height.IsLessThan(ti.Height) {
+				continue
+			} else if newti.Height.Equals(ti.Height) {
+				if newti.Round.IsLessThan(ti.Round) {
+					continue
+				} else if newti.Round.Equals(ti.Round) {
+					if ti.Step > 0 && newti.Step <= ti.Step {
+						continue
+					}
+				}
+			}
+
+			// stop the last timer
+			t.stopTimer()
+
+			// update timeoutInfo and reset timer
+			// NOTE time.Timer allows duration to be non-positive
+			ti = &newti
+			t.timer.Reset(ti.Duration)
+			t.Logger.Debug("Scheduled timeout", "dur", ti.Duration, "height", ti.Height, "round", ti.Round, "step", ti.Step)
+		case <-t.timer.C:
+			t.Logger.Info("Timed out", "dur", ti.Duration, "height", ti.Height, "round", ti.Round, "step", ti.Step)
+			// go routine here guarantees timeoutRoutine doesn't block.
+			// Determinism comes from playback in the receiveRoutine.
+			// We can eliminate it by merging the timeoutRoutine into receiveRoutine
+			//  and managing the timeouts ourselves with a millisecond ticker
+			go func(toi timeoutInfo) { t.tockChan <- toi }(*ti)
 		}
 	}
 }
