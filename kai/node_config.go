@@ -98,11 +98,9 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 // Database starts a new or existed database in the node data directory, or in-memory database.
 func (c *NodeConfig) StartDatabase(name string, cache int, handles int) (storage.Database, error) {
 	if c.DataDir == "" {
-		return storage.NewMemDatabase(), nil
+		return storage.NewMemStore(), nil
 	}
-	log.Debug(fmt.Sprintf("DataDir=%v", c.DataDir))
-	log.Debug(fmt.Sprintf("Start database at %v", c.resolvePath(name)))
-	return storage.NewLDBDatabase(c.resolvePath(name), cache, handles)
+	return storage.NewLDBStore(c.resolvePath(name), cache, handles)
 }
 
 // Return saved name or executable file name.

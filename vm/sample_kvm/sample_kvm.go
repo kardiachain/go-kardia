@@ -34,11 +34,6 @@ type Config struct {
 
 // sets defaults on the config
 func setDefaults(cfg *Config) {
-	if cfg.ChainConfig == nil {
-		cfg.ChainConfig = &configs.ChainConfig{
-			ChainID: big.NewInt(1),
-		}
-	}
 	if cfg.Time == nil {
 		cfg.Time = big.NewInt(time.Now().Unix())
 	}
@@ -75,7 +70,7 @@ func NewEnv(cfg *Config) *vm.KVM {
 		GasPrice:    cfg.GasPrice,
 	}
 
-	return vm.NewKVM(context, cfg.State, cfg.ChainConfig, cfg.KVMConfig)
+	return vm.NewKVM(context, cfg.State, cfg.KVMConfig)
 }
 
 // Execute executes the code using the input as call data during the execution.
@@ -90,7 +85,7 @@ func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemDatabase()))
+		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	}
 	var (
 		address = common.BytesToAddress([]byte("contract"))
@@ -120,7 +115,7 @@ func Create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemDatabase()))
+		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	}
 	var (
 		vmenv  = NewEnv(cfg)
