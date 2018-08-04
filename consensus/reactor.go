@@ -12,6 +12,7 @@ import (
 	libevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
+	"github.com/kardiachain/go-kardia/p2p/discover"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -60,6 +61,10 @@ func NewConsensusReactor(consensusState *ConsensusState) *ConsensusReactor {
 	//}
 	//conR.BaseReactor = *p2p.NewBaseReactor("ConsensusReactor", conR)
 	//r eturn conR
+}
+
+func (conR *ConsensusReactor) SetNodeID(nodeID discover.NodeID) {
+	conR.conS.SetNodeID(nodeID)
 }
 
 func (conR *ConsensusReactor) Start() {
@@ -226,16 +231,14 @@ func (conR *ConsensusReactor) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 
 func (conR *ConsensusReactor) sendNewRoundStepMessages(pc PeerConnection) {
 	log.Debug("reactor - sendNewRoundStepMessages")
-	nrsMsg := &NewRoundStepMessage{
-		Height: cmn.NewBigInt(0),
-		Round:  cmn.NewBigInt(0),
-		Step:   0,
-		SecondsSinceStartTime: 10,
-		LastCommitRound:       cmn.NewBigInt(0),
-	}
 
-	if err := pc.SendConsensusMessage(nrsMsg); err != nil {
-		log.Debug("sendNewRoundStepMessages failed", "err", err)
+	rs := conR.conS.GetRoundState()
+	nrsMsg, _ := makeRoundStepMessages(rs)
+	log.Trace("makeRoundStepMessages", "nrsMsg", nrsMsg)
+	if nrsMsg != nil {
+		if err := pc.SendConsensusMessage(nrsMsg); err != nil {
+			log.Debug("sendNewRoundStepMessages failed", "err", err)
+		}
 	}
 
 	// TODO(namdoh): Re-anable this.

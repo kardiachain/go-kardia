@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"bytes"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -87,6 +88,10 @@ type ConsensusState struct {
 
 	// closed when we finish shutting down
 	done chan struct{}
+
+	// Temproray storage of the node id.
+	// TODO(namdoh): Remove this once proposal selection is done.
+	nodeID discover.NodeID
 }
 
 // NewConsensusState returns a new ConsensusState.
@@ -123,6 +128,10 @@ func NewConsensusState(
 	// after crash.
 	//cs.reconstructLastCommit(state)
 	return cs
+}
+
+func (cs *ConsensusState) SetNodeID(nodeID discover.NodeID) {
+	cs.nodeID = nodeID
 }
 
 // It loads the latest state via the WAL, and starts the timeout and receive routines.
@@ -268,7 +277,7 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 //	cs.LastCommit = lastPrecommits
 //}
 
-func (cs *ConsensusState) decideProposal(height int64, round int) {
+func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) {
 	var block *types.Block
 
 	// Decide on block
@@ -288,7 +297,7 @@ func (cs *ConsensusState) decideProposal(height int64, round int) {
 
 	// Make proposal
 	polRound, polBlockID := cs.Votes.POLInfo()
-	proposal := types.NewProposal(height, round, block, polRound, polBlockID)
+	proposal := types.NewProposal(height, round, block, cmn.NewBigInt(int64(polRound)), polBlockID)
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
 		// Set fields
 		/*  fields set by setProposal and addBlockPart
@@ -375,6 +384,7 @@ func (cs *ConsensusState) updateRoundStep(round *cmn.BigInt, step cstypes.RoundS
 
 // Advances to a new step.
 func (cs *ConsensusState) newStep() {
+	cs.Logger.Trace("enter newStep()")
 	//rs := cs.RoundStateEvent()
 	//  TODO(namdoh): Add support for WAL later on.
 	//cs.wal.Write(rs)
@@ -406,7 +416,6 @@ func (cs *ConsensusState) GetRoundState() *cstypes.RoundState {
 // Enter: +2/3 prevotes any or +2/3 precommits for block or any from (height, round)
 // NOTE: cs.StartTime was already set for height.
 func (cs *ConsensusState) enterNewRound(height *cmn.BigInt, round *cmn.BigInt) {
-	cs.Logger.Trace("enterNewRound", "height", height, "round", round)
 	logger := cs.Logger.New("height", height, "round", round)
 
 	if !cs.Height.Equals(height) || round.IsLessThan(cs.Round) || (cs.Round.Equals(round) && cs.Step != cstypes.RoundStepNewHeight) {
@@ -457,8 +466,62 @@ func (cs *ConsensusState) enterNewRound(height *cmn.BigInt, round *cmn.BigInt) {
 	//	}
 	//	go cs.proposalHeartbeat(height, round)
 	//} else {
-	//	cs.enterPropose(height, round)
+	cs.enterPropose(height, round)
 	//}
+}
+
+// Enter (CreateEmptyBlocks): from enterNewRound(height,round)
+// Enter (CreateEmptyBlocks, CreateEmptyBlocksInterval > 0 ): after enterNewRound(height,round), after timeout of CreateEmptyBlocksInterval
+// Enter (!CreateEmptyBlocks) : after enterNewRound(height,round), once txs are in the mempool
+func (cs *ConsensusState) enterPropose(height *cmn.BigInt, round *cmn.BigInt) {
+	logger := cs.Logger.New("height", height, "round", round)
+
+	if !cs.Height.Equals(height) || round.IsLessThan(cs.Round) || (cs.Round.Equals(round) && cstypes.RoundStepPropose <= cs.Step) {
+		logger.Debug(cmn.Fmt("enterPropose(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
+		return
+	}
+	logger.Info(cmn.Fmt("enterPropose(%v/%v). Current: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
+
+	defer func() {
+		// Done enterPropose:
+		cs.updateRoundStep(round, cstypes.RoundStepPropose)
+		cs.newStep()
+
+		// If we have the whole proposal + POL, then goto Prevote now.
+		// else, we'll enterPrevote when the rest of the proposal is received (in AddProposalBlockPart),
+		// or else after timeoutPropose
+		if cs.isProposalComplete() {
+			// TODO(namdoh) 8/3 22:23pm TEMPORARY DISABLE FOR NOW
+			//cs.enterPrevote(height, cs.Round)
+		}
+	}()
+
+	// If we don't get the proposal and all block parts quick enough, enterPrevote
+	cs.scheduleTimeout(cs.config.Propose(round.Int32()), height, round, cstypes.RoundStepPropose)
+
+	// TODO(namdoh): For now this any node is a validator. Remove it once we
+	// restrict who can be validator.
+	// Nothing more to do if we're not a validator
+	//if cs.privValidator == nil {
+	//	logger.Debug("This node is not a validator")
+	//	return
+	//}
+	// if not a validator, we're done
+	//if !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
+	//	logger.Debug("This node is not a validator", "addr", cs.privValidator.GetAddress(), "vals", cs.Validators)
+	//	return
+	//}
+
+	logger.Debug("This node is a validator")
+	logger.Trace("enterPropose", "nodeID", cs.nodeID)
+	if cs.isProposer() {
+		logger.Debug("Our turn to propose")
+		//namdoh@ logger.Info("enterPropose: Our turn to propose", "proposer", cs.Validators.GetProposer().Address, "privValidator", cs.privValidator)
+		cs.decideProposal(height, round)
+	} else {
+		logger.Debug("Not our turn to propose")
+		//namdoh@ logger.Info("enterPropose: Not our turn to propose", "proposer", cs.Validators.GetProposer().Address, "privValidator", cs.privValidator)
+	}
 }
 
 // Enter: `timeoutPrevote` after any +2/3 prevotes.
@@ -581,6 +644,27 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	//evidence := cs.evpool.PendingEvidence()
 	//block.AddEvidence(evidence)
 	return block
+}
+
+// Returns true if the proposal block is complete &&
+// (if POLRound was proposed, we have +2/3 prevotes from there).
+func (cs *ConsensusState) isProposalComplete() bool {
+	if cs.Proposal == nil || cs.ProposalBlock == nil {
+		return false
+	}
+	// we have the proposal. if there's a POLRound,
+	// make sure we have the prevotes from it too
+	if cs.Proposal.POLRound.IsLessThanInt(0) {
+		return true
+	}
+	// if this is false the proposer is lying or we haven't received the POL yet
+	return cs.Votes.Prevotes(cs.Proposal.POLRound.Int32()).HasTwoThirdsMajority()
+}
+
+func (cs *ConsensusState) isProposer() bool {
+	// TODO(namdoh): Use a single proposer for now. Make this dynamic later.
+	defaultProposerNode, _ := discover.HexID("70ede4769998a9c0fb639cf7e80fe23cc9e44fb52dd84888aaf2983a4ba74d83bf4ba71046009e6dbb4f729789180f4fe537dde9e27abd327ed886c4700dc2ab")
+	return bytes.Equal(cs.nodeID[:], defaultProposerNode[:])
 }
 
 // ----------- Other helpers -----------

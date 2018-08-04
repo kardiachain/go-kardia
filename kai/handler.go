@@ -304,7 +304,7 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 
 // A loop for broadcasting consensus events.
 func (pm *ProtocolManager) Broadcast(msg interface{}) {
-	panic("Not yet implemented")
+	panic("Broadcast - Not yet implemented")
 	//for {
 	//	select {
 	//	case txEvent := <-pm.txsCh:
