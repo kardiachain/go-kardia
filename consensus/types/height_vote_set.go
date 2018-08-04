@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -74,6 +75,7 @@ func (hvs *HeightVoteSet) addRound(round int) {
 func (hvs *HeightVoteSet) SetRound(round int) {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
+	log.Trace("Set round", "hvs.round", hvs.round, "round", round)
 	if !hvs.round.EqualsInt(0) && hvs.round.Add(1).IsGreaterThanInt(round) {
 		cmn.PanicSanity("SetRound() must increment hvs.round")
 	}

@@ -622,6 +622,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 // Creates the next block to propose and returns it. Returns nil block upon
 // error.
 func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
+	cs.Logger.Debug("createProposalBlock")
 	var commit *types.Commit
 	if cs.Height.EqualsInt(1) {
 		// We're creating a proposal for the first block.
@@ -662,8 +663,9 @@ func (cs *ConsensusState) isProposalComplete() bool {
 }
 
 func (cs *ConsensusState) isProposer() bool {
+	//return false
 	// TODO(namdoh): Use a single proposer for now. Make this dynamic later.
-	defaultProposerNode, _ := discover.HexID("70ede4769998a9c0fb639cf7e80fe23cc9e44fb52dd84888aaf2983a4ba74d83bf4ba71046009e6dbb4f729789180f4fe537dde9e27abd327ed886c4700dc2ab")
+	defaultProposerNode, _ := discover.HexID("7860dc85ef4d06e6c3f147c79e4ef77217254e2b1ac352fecb6218f675f623d4edfe6def1d6f8d444691581682bad483a64cc53b816853f5e715fdfbabe08f4b")
 	return bytes.Equal(cs.nodeID[:], defaultProposerNode[:])
 }
 

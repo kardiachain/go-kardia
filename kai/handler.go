@@ -304,17 +304,14 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 
 // A loop for broadcasting consensus events.
 func (pm *ProtocolManager) Broadcast(msg interface{}) {
-	panic("Broadcast - Not yet implemented")
-	//for {
-	//	select {
-	//	case txEvent := <-pm.txsCh:
-	//		pm.BroadcastTxs(txEvent.Txs)
-	//
-	//	// Err() channel will be closed when unsubscribing.
-	//	case <-pm.txsSub.Err():
-	//		return
-	//	}
-	//}
+	log.Info("Start broadcast consensus message")
+	for _, p := range pm.peers.peers {
+		pm.wg.Add(1)
+		go func(p *peer) {
+			defer pm.wg.Done()
+			p2p.Send(p.rw, kcmn.CsMsg, msg)
+		}(p)
+	}
 }
 
 // BroadcastTxs will propagate a batch of transactions to all peers which are not known to

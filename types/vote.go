@@ -100,7 +100,7 @@ type VoteSet struct {
 	votesBitArray *cmn.BitArray
 	votes         []*Vote                // Primary votes to share
 	sum           *cmn.BigInt            // Sum of voting power for seen votes, discounting conflicts
-	maj23         BlockID                // First 2/3 majority seen
+	maj23         *BlockID               // First 2/3 majority seen
 	votesByBlock  map[string]*blockVotes // string(blockHash|blockParts) -> blockVotes
 	peerMaj23s    map[P2PID]BlockID      // Maj23 for each peer
 }
@@ -119,7 +119,7 @@ func NewVoteSet(chainID string, height *cmn.BigInt, round *cmn.BigInt, type_ byt
 		votesBitArray: cmn.NewBitArray(valSet.Size()),
 		votes:         make([]*Vote, valSet.Size()),
 		sum:           cmn.NewBigInt(0),
-		maj23:         NilBlockID(),
+		maj23:         nil,
 		votesByBlock:  make(map[string]*blockVotes, valSet.Size()),
 		peerMaj23s:    make(map[P2PID]BlockID),
 	}
@@ -195,7 +195,7 @@ func (voteSet *VoteSet) HasTwoThirdsMajority() bool {
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
-	return !voteSet.maj23.IsNil()
+	return voteSet.maj23 != nil
 }
 
 func (voteSet *VoteSet) HasTwoThirdsAny() bool {
@@ -221,8 +221,8 @@ func (voteSet *VoteSet) TwoThirdsMajority() (blockID BlockID, ok bool) {
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
-	if !voteSet.maj23.IsNil() {
-		return voteSet.maj23, true
+	if voteSet.maj23 != nil {
+		return *voteSet.maj23, true
 	}
 	return NilBlockID(), false
 }
@@ -235,7 +235,7 @@ func (voteSet *VoteSet) MakeCommit() *Commit {
 	defer voteSet.mtx.Unlock()
 
 	// Make sure we have a 2/3 majority
-	if voteSet.maj23.IsNil() {
+	if voteSet.maj23 == nil {
 		cmn.PanicSanity("Cannot MakeCommit() unless a blockhash has +2/3")
 	}
 
@@ -243,7 +243,7 @@ func (voteSet *VoteSet) MakeCommit() *Commit {
 	votesCopy := make([]*Vote, len(voteSet.votes))
 	copy(votesCopy, voteSet.votes)
 	return &Commit{
-		BlockID:    voteSet.maj23,
+		BlockID:    *voteSet.maj23,
 		Precommits: votesCopy,
 	}
 }
