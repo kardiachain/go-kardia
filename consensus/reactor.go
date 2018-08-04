@@ -226,16 +226,21 @@ func (conR *ConsensusReactor) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 
 func (conR *ConsensusReactor) sendNewRoundStepMessages(pc PeerConnection) {
 	log.Debug("reactor - sendNewRoundStepMessages")
-	nrsMsg := &NewRoundStepMessage{
-		Height: cmn.NewBigInt(0),
-		Round:  cmn.NewBigInt(0),
-		Step:   0,
-		SecondsSinceStartTime: 10,
-		LastCommitRound:       cmn.NewBigInt(0),
-	}
+	//nrsMsg := &NewRoundStepMessage{
+	//	Height: cmn.NewBigInt(-1),
+	//	Round:  cmn.NewBigInt(0),
+	//	Step:   0,
+	//	SecondsSinceStartTime: 10,
+	//	LastCommitRound:       cmn.NewBigInt(3),
+	//}
 
-	if err := pc.SendConsensusMessage(nrsMsg); err != nil {
-		log.Debug("sendNewRoundStepMessages failed", "err", err)
+	rs := conR.conS.GetRoundState()
+	nrsMsg, _ := makeRoundStepMessages(rs)
+	log.Trace("makeRoundStepMessages", "nrsMsg", nrsMsg)
+	if nrsMsg != nil {
+		if err := pc.SendConsensusMessage(nrsMsg); err != nil {
+			log.Debug("sendNewRoundStepMessages failed", "err", err)
+		}
 	}
 
 	// TODO(namdoh): Re-anable this.

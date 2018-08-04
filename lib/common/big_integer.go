@@ -196,16 +196,21 @@ func Exp(base, exponent *big.Int) *big.Int {
 }
 
 type BigInt struct {
-	*big.Int
+	value uint64 `json:"value"       gencodec:"required"`
+	pos   bool   `json:"pos"         gencodec:"required"`
 }
 
 func NewBigInt(x int64) *BigInt {
-	return &BigInt{big.NewInt(x)}
+	if x < 0 {
+		return &BigInt{value: uint64(-x), pos: false}
+	}
+
+	return &BigInt{value: uint64(x), pos: true}
 }
 
 // IsGreaterThan returns true if x is greater than y
 func (x *BigInt) IsGreaterThan(y *BigInt) bool {
-	return x.Cmp(y.Int) > 0
+	return x.Int64() > y.Int64()
 }
 
 // IsGreaterThan returns true if x is greater than y
@@ -215,17 +220,17 @@ func (x *BigInt) IsGreaterThanInt(y int) bool {
 
 // IsLessThan returns true if x is less than y
 func (x *BigInt) IsLessThan(y *BigInt) bool {
-	return x.Cmp(y.Int) < 0
+	return x.Int64() < y.Int64()
 }
 
 // IsLessThan returns true if x is less than y
 func (x *BigInt) IsLessThanOrEquals(y *BigInt) bool {
-	return x.Cmp(y.Int) <= 0
+	return x.Int64() <= y.Int64()
 }
 
 // Equals returns true if x equals to y
 func (x *BigInt) Equals(y *BigInt) bool {
-	return x.Cmp(y.Int) == 0
+	return x.Int64() == y.Int64()
 }
 
 // Equals returns true if x equals to y
@@ -240,4 +245,15 @@ func (x *BigInt) Add(y int64) *BigInt {
 
 func (x *BigInt) Int32() int {
 	return int(x.Int64())
+}
+
+func (x *BigInt) Int64() int64 {
+	if x.pos {
+		return int64(x.value)
+	}
+	return int64(x.value) * -1
+}
+
+func (x *BigInt) String() string {
+	return fmt.Sprintf("%v", x.Int64())
 }
