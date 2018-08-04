@@ -224,6 +224,11 @@ func (x *BigInt) IsLessThan(y *BigInt) bool {
 }
 
 // IsLessThan returns true if x is less than y
+func (x *BigInt) IsLessThanInt(y int) bool {
+	return x.Int32() < y
+}
+
+// IsLessThan returns true if x is less than y
 func (x *BigInt) IsLessThanOrEquals(y *BigInt) bool {
 	return x.Int64() <= y.Int64()
 }

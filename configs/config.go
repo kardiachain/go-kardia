@@ -146,3 +146,8 @@ type ConsensusConfig struct {
 func (cfg *ConsensusConfig) Commit(t time.Time) time.Time {
 	return t.Add(time.Duration(cfg.TimeoutCommit) * time.Millisecond)
 }
+
+// Propose returns the amount of time to wait for a proposal
+func (cfg *ConsensusConfig) Propose(round int) time.Duration {
+	return time.Duration(cfg.TimeoutPropose+cfg.TimeoutProposeDelta*round) * time.Millisecond
+}

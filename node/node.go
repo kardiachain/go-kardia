@@ -148,6 +148,7 @@ func (n *Node) Start() error {
 
 	n.services = newServices
 	n.server = newServer
+	n.csReactor.SetNodeID(n.server.Self().ID)
 	return nil
 }
 
