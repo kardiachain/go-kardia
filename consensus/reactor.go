@@ -143,24 +143,24 @@ func (conR *ConsensusReactor) unsubscribeFromBroadcastEvents() {
 
 // Handles received NewRoundStepMessage
 func (conR *ConsensusReactor) Receive(generalMsg p2p.Msg, src *p2p.Peer) {
-	log.Trace("Consensus reactor receive", "src", src, "msg", generalMsg)
+	conR.conS.Logger.Trace("Consensus reactor received", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		log.Trace("Consensus reactor isn't running.")
+		conR.conS.Logger.Trace("Consensus reactor isn't running.")
 		return
 	}
 
 	var msg NewRoundStepMessage
 	if err := generalMsg.Decode(&msg); err != nil {
-		log.Error("Invalid message", "msg", generalMsg, "err", err)
+		conR.conS.Logger.Error("Invalid message", "msg", generalMsg, "err", err)
 		return
 	}
-	log.Trace("Decoded msg", "msg", msg)
+	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
 	if !ok {
-		log.Error("Downcast failed!!")
+		conR.conS.Logger.Error("Downcast failed!!")
 		return
 	}
 
@@ -219,6 +219,7 @@ func (conR *ConsensusReactor) Receive(generalMsg p2p.Msg, src *p2p.Peer) {
 
 func (conR *ConsensusReactor) broadcastNewRoundStepMessages(rs *cstypes.RoundState) {
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
+	conR.conS.Logger.Trace("broadcastNewRoundStepMessages", "nrsMsg", nrsMsg)
 	if nrsMsg != nil {
 		conR.ProtocolManager.Broadcast(nrsMsg)
 	}
@@ -230,14 +231,16 @@ func (conR *ConsensusReactor) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 // ------------ Send message helpers -----------
 
 func (conR *ConsensusReactor) sendNewRoundStepMessages(pc PeerConnection) {
-	log.Debug("reactor - sendNewRoundStepMessages")
+	conR.conS.Logger.Debug("reactor - sendNewRoundStepMessages")
 
 	rs := conR.conS.GetRoundState()
 	nrsMsg, _ := makeRoundStepMessages(rs)
-	log.Trace("makeRoundStepMessages", "nrsMsg", nrsMsg)
+	conR.conS.Logger.Trace("makeRoundStepMessages", "nrsMsg", nrsMsg)
 	if nrsMsg != nil {
 		if err := pc.SendConsensusMessage(nrsMsg); err != nil {
-			log.Debug("sendNewRoundStepMessages failed", "err", err)
+			conR.conS.Logger.Debug("sendNewRoundStepMessages failed", "err", err)
+		} else {
+			conR.conS.Logger.Debug("sendNewRoundStepMessages success")
 		}
 	}
 

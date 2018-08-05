@@ -196,16 +196,16 @@ func Exp(base, exponent *big.Int) *big.Int {
 }
 
 type BigInt struct {
-	value uint64 `json:"value"       gencodec:"required"`
-	pos   bool   `json:"pos"         gencodec:"required"`
+	Value uint64 `json:"value"`
+	Pos   bool   `json:"pos"`
 }
 
 func NewBigInt(x int64) *BigInt {
 	if x < 0 {
-		return &BigInt{value: uint64(-x), pos: false}
+		return &BigInt{Value: uint64(-x), Pos: false}
 	}
 
-	return &BigInt{value: uint64(x), pos: true}
+	return &BigInt{Value: uint64(x), Pos: true}
 }
 
 // IsGreaterThan returns true if x is greater than y
@@ -253,10 +253,10 @@ func (x *BigInt) Int32() int {
 }
 
 func (x *BigInt) Int64() int64 {
-	if x.pos {
-		return int64(x.value)
+	if x.Pos {
+		return int64(x.Value)
 	}
-	return int64(x.value) * -1
+	return int64(x.Value) * -1
 }
 
 func (x *BigInt) String() string {
