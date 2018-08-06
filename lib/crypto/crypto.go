@@ -12,7 +12,7 @@ import (
 	"math/big"
 	"os"
 
-	"github.com/ethereum/go-ethereum/common/math"
+	"go-kardia/lib/math"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/rlp"
