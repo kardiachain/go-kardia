@@ -116,30 +116,6 @@ func (keyStore *KeyStore)createKeyStore(auth string) (bool, error) {
 }
 
 
-func encrypt(key, privateKey, iv []byte) ([]byte, error) {
-	aesBlock, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	stream := cipher.NewCTR(aesBlock, iv)
-	cipherText := make([]byte, len(privateKey))
-	stream.XORKeyStream(cipherText, privateKey)
-	return cipherText, nil
-}
-
-
-func decrypt(key, cipherText, iv []byte) ([]byte, error) {
-	aesBlock, err := aes.NewCipher(key)
-	if err != nil {
-		return nil, err
-	}
-	stream := cipher.NewCTR(aesBlock, iv)
-	privateKey := make([]byte, len(cipherText))
-	stream.XORKeyStream(privateKey, cipherText)
-	return privateKey, nil
-}
-
-
 /*
 	get keystore by address and password
  */
