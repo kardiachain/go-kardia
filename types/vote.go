@@ -217,14 +217,14 @@ func (voteSet *VoteSet) HasAll() bool {
 // Else, return the empty BlockID{} and false.
 func (voteSet *VoteSet) TwoThirdsMajority() (blockID BlockID, ok bool) {
 	if voteSet == nil {
-		return NilBlockID(), false
+		return NewZeroBlockID(), false
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 	if voteSet.maj23 != nil {
 		return *voteSet.maj23, true
 	}
-	return NilBlockID(), false
+	return NewZeroBlockID(), false
 }
 
 func (voteSet *VoteSet) MakeCommit() *Commit {

@@ -25,11 +25,11 @@ var (
 // Hash represents the 32 byte Keccak256 hash of arbitrary data.
 type Hash [HashLength]byte
 
-func NilHash() Hash {
+func NewZeroHash() Hash {
 	return Hash{}
 }
 
-func (h *Hash) IsNil() bool {
+func (h *Hash) IsZero() bool {
 	return len(h) == 0
 }
 

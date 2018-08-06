@@ -649,7 +649,7 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 	// If ProposalBlock is nil, prevote nil.
 	if cs.ProposalBlock == nil {
 		logger.Info("enterPrevote: ProposalBlock is nil")
-		cs.signAddVote(types.VoteTypePrevote, types.NilBlockID())
+		cs.signAddVote(types.VoteTypePrevote, types.NewZeroBlockID())
 		return
 	}
 
@@ -658,7 +658,7 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 	if err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
-		cs.signAddVote(types.VoteTypePrevote, types.NilBlockID())
+		cs.signAddVote(types.VoteTypePrevote, types.NewZeroBlockID())
 		return
 	}
 
@@ -702,7 +702,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 		} else {
 			logger.Info("enterPrecommit: No +2/3 prevotes during enterPrecommit. Precommitting nil.")
 		}
-		cs.signAddVote(types.VoteTypePrecommit, types.NilBlockID())
+		cs.signAddVote(types.VoteTypePrecommit, types.NewZeroBlockID())
 		return
 	}
 
@@ -725,7 +725,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 			cs.LockedBlock = nil
 			cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 		}
-		cs.signAddVote(types.VoteTypePrecommit, types.NilBlockID())
+		cs.signAddVote(types.VoteTypePrecommit, types.NewZeroBlockID())
 		return
 	}
 
@@ -761,7 +761,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	cs.LockedRound = cmn.NewBigInt(0)
 	cs.LockedBlock = nil
 	cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
-	cs.signAddVote(types.VoteTypePrecommit, types.NilBlockID())
+	cs.signAddVote(types.VoteTypePrecommit, types.NewZeroBlockID())
 }
 
 // If we have the block AND +2/3 commits for it, finalize.

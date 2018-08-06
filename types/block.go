@@ -123,7 +123,7 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *C
 		b.header.Bloom = CreateBloom(receipts)
 	}
 
-	if b.header.LastCommitHash.IsNil() {
+	if b.header.LastCommitHash.IsZero() {
 		b.header.LastCommitHash = commit.Hash()
 	}
 
@@ -285,7 +285,7 @@ func (b *Block) Hash() common.Hash {
 
 type BlockID common.Hash
 
-func NilBlockID() BlockID {
+func NewZeroBlockID() BlockID {
 	return BlockID{}
 }
 
