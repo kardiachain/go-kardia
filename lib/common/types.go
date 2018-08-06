@@ -25,14 +25,12 @@ var (
 // Hash represents the 32 byte Keccak256 hash of arbitrary data.
 type Hash [HashLength]byte
 
-func NilHash() Hash {
+func NewZeroHash() Hash {
 	return Hash{}
 }
 
-func (h *Hash) IsNil() bool {
-	// TODO(namdoh): Find a cleaner way to test is a hash is nil.
-	nilHash := NilHash()
-	return bytes.Equal(h[:], nilHash[:])
+func (h *Hash) IsZero() bool {
+	return len(h) == 0
 }
 
 // BytesToHash sets b to hash.

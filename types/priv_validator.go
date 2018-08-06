@@ -1,35 +1,44 @@
 package types
 
 import (
+	"crypto/ecdsa"
+
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 )
 
 // PrivValidator defines the functionality of a local Kardia validator
 // that signs votes, proposals, and heartbeats, and never double signs.
-type PrivValidator interface {
-	GetAddress() common.Address // redundant since .PubKey().Address()
-	GetPubKey() crypto.PubKey
-
-	SignVote(chainID string, vote *Vote) error
-	SignProposal(chainID string, proposal *Proposal) error
-	// TODO(namdoh): Add heartbeat later on.
-	//SignHeartbeat(chainID string, heartbeat *Heartbeat) error
+type PrivValidator struct {
+	privKey *ecdsa.PrivateKey
 }
 
-// MockPV implements PrivValidator without any safety or persistence.
-// Only use it for testing.
-type MockPV struct {
-	privKey crypto.PrivKey
-}
-
-// Implements PrivValidator.
-func (pv *MockPV) SignVote(chainID string, vote *Vote) error {
-	signBytes := vote.SignBytes(chainID)
-	sig, err := pv.privKey.Sign(signBytes)
-	if err != nil {
-		return err
+func NewPrivValidator(privKey *ecdsa.PrivateKey) *PrivValidator {
+	return &PrivValidator{
+		privKey: privKey,
 	}
-	vote.Signature = sig
-	return nil
 }
+
+func (privVal *PrivValidator) GetAddress() common.Address {
+	return crypto.PubkeyToAddress(privVal.GetPubKey())
+}
+
+func (privVal *PrivValidator) GetPubKey() ecdsa.PublicKey {
+	return privVal.privKey.PublicKey
+}
+
+func (privVal *PrivValidator) GetPrivKey() *ecdsa.PrivateKey {
+	return privVal.privKey
+}
+
+func (privVal *PrivValidator) SignVote(chainID string, vote *Vote) error {
+	panic("SignVote - not yet implemented")
+}
+
+func (privVal *PrivValidator) SignProposal(chainID string, proposal *Proposal) error {
+	panic("SignProposal - not yet implemented")
+}
+
+//func (privVal *PrivValidator) SignHeartbeat(chainID string, heartbeat *Heartbeat) error {
+//	panic("SignHeartbeat - not yet implemented")
+//}

@@ -2,21 +2,28 @@ package types
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"sort"
 
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 )
 
 // Volatile state for each Validator
 type Validator struct {
-	Address     common.Address `json:"address"`
-	VotingPower int64          `json:"voting_power"`
+	Address     common.Address  `json:"address"`
+	PubKey      ecdsa.PublicKey `json:"pub_key"`
+	VotingPower int64           `json:"voting_power"`
+
+	Accum int64 `json:"accum"`
 }
 
-func NewValidator(address common.Address, votingPower int64) *Validator {
+func NewValidator(pubKey ecdsa.PublicKey, votingPower int64) *Validator {
 	return &Validator{
-		Address:     address,
+		Address:     crypto.PubkeyToAddress(pubKey),
+		PubKey:      pubKey,
 		VotingPower: votingPower,
+		Accum:       0,
 	}
 }
 

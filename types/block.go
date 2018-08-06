@@ -123,7 +123,7 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *C
 		b.header.Bloom = CreateBloom(receipts)
 	}
 
-	if b.header.LastCommitHash.IsNil() {
+	if b.header.LastCommitHash.IsZero() {
 		b.header.LastCommitHash = commit.Hash()
 	}
 
@@ -268,6 +268,10 @@ func (c *writeCounter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
+func (b *Block) BlockID() BlockID {
+	return BlockID(b.Hash())
+}
+
 // Hash returns the keccak256 hash of b's header.
 // The hash is computed on the first call and cached thereafter.
 func (b *Block) Hash() common.Hash {
@@ -281,12 +285,12 @@ func (b *Block) Hash() common.Hash {
 
 type BlockID common.Hash
 
-func NilBlockID() BlockID {
+func NewZeroBlockID() BlockID {
 	return BlockID{}
 }
 
-func (b *BlockID) IsNil() bool {
-	return b.IsNil()
+func (b *BlockID) IsZero() bool {
+	return len(b) == 0
 }
 
 func (b *BlockID) Equal(id BlockID) bool {

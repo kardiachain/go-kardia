@@ -28,7 +28,8 @@ type Node struct {
 	services            map[string]kai.Service // Map of type names to running services
 	serviceConstructors []kai.ServiceConstructor
 
-	csReactor *consensus.ConsensusReactor
+	csReactor     *consensus.ConsensusReactor
+	privValidator *types.PrivValidator
 
 	lock sync.RWMutex
 	log  log.Logger
@@ -70,6 +71,7 @@ func NewNode(config *kai.NodeConfig) (*Node, error) {
 		&csConfig,
 		state,
 	)
+
 	node.csReactor = consensus.NewConsensusReactor(consensusState)
 
 	return node, nil
@@ -85,10 +87,14 @@ func (n *Node) Start() error {
 	}
 	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 
+	// Generate node PrivKey
+	nodeKey := n.config.NodeKey()
 	n.serverConfig = n.config.P2P
 	n.serverConfig.Logger = n.log
 	n.serverConfig.Name = n.config.NodeName()
-	n.serverConfig.PrivateKey = n.config.NodeKey()
+	n.serverConfig.PrivateKey = nodeKey
+	n.privValidator = types.NewPrivValidator(nodeKey)
+	n.csReactor.SetPrivValidator(n.privValidator)
 
 	// TODO: use json file in datadir to load the node list
 	// n.serverConfig.StaticNodes = []
@@ -148,6 +154,7 @@ func (n *Node) Start() error {
 
 	n.services = newServices
 	n.server = newServer
+	n.csReactor.SetNodeID(n.server.Self().ID)
 	return nil
 }
 
