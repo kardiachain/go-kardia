@@ -262,9 +262,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 		pm.txpool.AddRemotes(txs)
 		p.Log().Trace("Transactions added to pool", "txs", txs)
-	case msg.Code == kcmn.CsMsg:
+	case msg.Code == kcmn.CsNewRoundStepMsg:
 		p.Log().Trace("Consensus event received")
-		pm.reactor.Receive(msg, p.Peer)
+		pm.reactor.ReceiveNewRoundStep(msg, p.Peer)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
@@ -304,17 +304,14 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 
 // A loop for broadcasting consensus events.
 func (pm *ProtocolManager) Broadcast(msg interface{}) {
-	panic("Not yet implemented")
-	//for {
-	//	select {
-	//	case txEvent := <-pm.txsCh:
-	//		pm.BroadcastTxs(txEvent.Txs)
-	//
-	//	// Err() channel will be closed when unsubscribing.
-	//	case <-pm.txsSub.Err():
-	//		return
-	//	}
-	//}
+	log.Info("Start broadcast consensus message")
+	for _, p := range pm.peers.peers {
+		pm.wg.Add(1)
+		go func(p *peer) {
+			defer pm.wg.Done()
+			p2p.Send(p.rw, kcmn.CsNewRoundStepMsg, msg)
+		}(p)
+	}
 }
 
 // BroadcastTxs will propagate a batch of transactions to all peers which are not known to

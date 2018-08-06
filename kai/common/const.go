@@ -19,7 +19,7 @@ const ProtocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a prot
 // kai protocol message codes
 const (
 	// Protocol messages belonging to kai1
-	StatusMsg = 0x00
-	TxMsg     = 0x01
-	CsMsg     = 0x02 // Consensus message
+	StatusMsg         = 0x00
+	TxMsg             = 0x01
+	CsNewRoundStepMsg = 0x02 // Consensus message
 )

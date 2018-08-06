@@ -41,6 +41,26 @@ type LastestBlockState struct {
 	//namdoh@ AppHash []byte
 }
 
+// Copy makes a copy of the State for mutating.
+func (state LastestBlockState) Copy() LastestBlockState {
+	return LastestBlockState{
+		ChainID: state.ChainID,
+
+		LastBlockHeight:  state.LastBlockHeight,
+		LastBlockTotalTx: state.LastBlockTotalTx,
+		LastBlockID:      state.LastBlockID,
+		LastBlockTime:    state.LastBlockTime,
+
+		Validators:                  state.Validators.Copy(),
+		LastValidators:              state.LastValidators.Copy(),
+		LastHeightValidatorsChanged: state.LastHeightValidatorsChanged,
+
+		//namdoh@ AppHash: state.AppHash,
+
+		//namdoh@ LastResultsHash: state.LastResultsHash,
+	}
+}
+
 // Creates a block from the latest state.
 // MakeBlock builds a block with the given txs and commit from the current state.
 func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction, commit *types.Commit) *types.Block {
