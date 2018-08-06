@@ -4,6 +4,7 @@ import (
 	"time"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 // Proposal defines a block proposal for the consensus.
@@ -33,4 +34,11 @@ func NewProposal(height *cmn.BigInt, round *cmn.BigInt, block *Block, polRound *
 	}
 }
 
-// TODO(huny@): Implement signature
+// SignBytes returns the Proposal bytes for signing
+func (p *Proposal) SignBytes(chainID string) []byte {
+	bz, err := rlp.EncodeToBytes(CreateCanonicalProposal(chainID, p))
+	if err != nil {
+		panic(err)
+	}
+	return bz
+}

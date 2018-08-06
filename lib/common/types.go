@@ -30,9 +30,7 @@ func NilHash() Hash {
 }
 
 func (h *Hash) IsNil() bool {
-	// TODO(namdoh): Find a cleaner way to test is a hash is nil.
-	nilHash := NilHash()
-	return bytes.Equal(h[:], nilHash[:])
+	return len(h) == 0
 }
 
 // BytesToHash sets b to hash.

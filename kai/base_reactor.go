@@ -19,7 +19,7 @@ type Reactor interface {
 	//
 	// NOTE reactor can not keep msgBytes around after Receive completes without
 	// copying.
-	Receive(msg p2p.Msg, src *p2p.Peer)
+	ReceiveNewRoundStep(msg p2p.Msg, src *p2p.Peer)
 
 	Start()
 	Stop()

@@ -2,13 +2,17 @@ package consensus
 
 import (
 	"bytes"
+	"errors"
 	"runtime/debug"
 	"sync"
 	"time"
 
+	fail "github.com/ebuchman/fail-test"
+
 	cfg "github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	libevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p/discover"
@@ -19,6 +23,13 @@ import (
 
 var (
 	msgQueueSize = 1000
+)
+
+var (
+	ErrInvalidProposalSignature = errors.New("Error invalid proposal signature")
+	ErrInvalidProposalPOLRound  = errors.New("Error invalid proposal POL round")
+	ErrAddingVote               = errors.New("Error adding vote")
+	ErrVoteHeightMismatch       = errors.New("Error vote height mismatch")
 )
 
 // msgs from the reactor which may update the state
@@ -53,7 +64,7 @@ type ConsensusState struct {
 	Logger log.Logger
 
 	config        *cfg.ConsensusConfig
-	privValidator types.PrivValidator // for signing votes
+	privValidator *types.PrivValidator // for signing votes
 
 	// Services for creating and executing blocks
 	// TODO: encapsulate all of this in one "BlockManager"
@@ -132,6 +143,13 @@ func NewConsensusState(
 
 func (cs *ConsensusState) SetNodeID(nodeID discover.NodeID) {
 	cs.nodeID = nodeID
+}
+
+// SetPrivValidator sets the private validator account for signing votes.
+func (cs *ConsensusState) SetPrivValidator(priv *types.PrivValidator) {
+	cs.mtx.Lock()
+	defer cs.mtx.Unlock()
+	cs.privValidator = priv
 }
 
 // It loads the latest state via the WAL, and starts the timeout and receive routines.
@@ -311,6 +329,67 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 		cs.Logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
 		cs.Logger.Debug(cmn.Fmt("Signed proposal block: %v", block))
 	}
+}
+
+func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
+	// Already have one
+	// TODO: possibly catch double proposals
+	if cs.Proposal != nil {
+		return nil
+	}
+
+	// Does not apply
+	if !proposal.Height.Equals(cs.Height) || !proposal.Round.Equals(cs.Round) {
+		return nil
+	}
+
+	// We don't care about the proposal if we're already in cstypes.RoundStepCommit.
+	if cstypes.RoundStepCommit <= cs.Step {
+		return nil
+	}
+
+	// Verify POLRound, which must be -1 or between 0 and proposal.Round exclusive.
+	if !proposal.POLRound.EqualsInt(-1) &&
+		(proposal.POLRound.IsLessThanInt(0) || proposal.Round.IsLessThanOrEquals(proposal.POLRound)) {
+		return ErrInvalidProposalPOLRound
+	}
+
+	// Verify signature
+	if !crypto.VerifySignature(cs.Validators.GetProposer().PubKey, proposal.SignBytes(cs.state.ChainID), proposal.Signature) {
+		return ErrInvalidProposalSignature
+	}
+
+	cs.Proposal = proposal
+	cs.Logger.Info("Received proposal", "proposal", proposal)
+	cs.ProposalBlock = proposal.Block
+	// NOTE: it's possible to receive complete proposal blocks for future rounds without having the proposal
+	cs.Logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height, "hash", cs.ProposalBlock.Hash())
+
+	// Update Valid* if we can.
+	prevotes := cs.Votes.Prevotes(cs.Round.Int32())
+	blockID, hasTwoThirds := prevotes.TwoThirdsMajority()
+	if hasTwoThirds && !blockID.IsZero() && (cs.ValidRound.IsLessThan(cs.Round)) {
+		if cs.ProposalBlock.HashesTo(blockID) {
+			cs.Logger.Info("Updating valid block to new proposal block",
+				"valid-round", cs.Round, "valid-block-hash", cs.ProposalBlock.Hash())
+			cs.ValidRound = cs.Round
+			cs.ValidBlock = cs.ProposalBlock
+		}
+		// TODO: In case there is +2/3 majority in Prevotes set for some
+		// block and cs.ProposalBlock contains different block, either
+		// proposer is faulty or voting power of faulty processes is more
+		// than 1/3. We should trigger in the future accountability
+		// procedure at this point.
+	}
+
+	if cs.Step <= cstypes.RoundStepPropose && cs.isProposalComplete() {
+		// Move onto the next step
+		cs.enterPrevote(proposal.Height, cs.Round)
+	} else if cs.Step == cstypes.RoundStepCommit {
+		// If we're waiting on the proposal block...
+		cs.tryFinalizeCommit(proposal.Height)
+	}
+	return nil
 }
 
 // ------- HELPER METHODS -------- //
@@ -524,6 +603,72 @@ func (cs *ConsensusState) enterPropose(height *cmn.BigInt, round *cmn.BigInt) {
 	}
 }
 
+// Enter: `timeoutPropose` after entering Propose.
+// Enter: proposal block and POL is ready.
+// Enter: any +2/3 prevotes for future round.
+// Prevote for LockedBlock if we're locked, or ProposalBlock if valid.
+// Otherwise vote nil.
+func (cs *ConsensusState) enterPrevote(height *cmn.BigInt, round *cmn.BigInt) {
+	if !cs.Height.Equals(height) || round.IsLessThan(cs.Round) || (cs.Round.Equals(round) && cstypes.RoundStepPrevote <= cs.Step) {
+		cs.Logger.Debug(cmn.Fmt("enterPrevote(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
+		return
+	}
+
+	defer func() {
+		// Done enterPrevote:
+		cs.updateRoundStep(round, cstypes.RoundStepPrevote)
+		cs.newStep()
+	}()
+
+	// fire event for how we got here
+	if cs.isProposalComplete() {
+		cs.eventBus.PublishEventCompleteProposal(cs.RoundStateEvent())
+	} else {
+		// we received +2/3 prevotes for a future round
+		// TODO: catchup event?
+	}
+
+	cs.Logger.Info(cmn.Fmt("enterPrevote(%v/%v). Current: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
+
+	// Sign and broadcast vote as necessary
+	cs.doPrevote(height, round)
+
+	// Once `addVote` hits any +2/3 prevotes, we will go to PrevoteWait
+	// (so we have more time to try and collect +2/3 prevotes for a single block)
+}
+
+func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
+	logger := cs.Logger.New("height", height, "round", round)
+	// If a block is locked, prevote that.
+	if cs.LockedBlock != nil {
+		logger.Info("enterPrevote: Block was locked")
+		cs.signAddVote(types.VoteTypePrevote, cs.LockedBlock.BlockID())
+		return
+	}
+
+	// If ProposalBlock is nil, prevote nil.
+	if cs.ProposalBlock == nil {
+		logger.Info("enterPrevote: ProposalBlock is nil")
+		cs.signAddVote(types.VoteTypePrevote, types.NilBlockID())
+		return
+	}
+
+	// Validate proposal block
+	err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock)
+	if err != nil {
+		// ProposalBlock is invalid, prevote nil.
+		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
+		cs.signAddVote(types.VoteTypePrevote, types.NilBlockID())
+		return
+	}
+
+	// Prevote cs.ProposalBlock
+	// NOTE: the proposal signature is validated when it is received,
+	// and the proposal block parts are validated as they are received (against the merkle hash in the proposal)
+	logger.Info("enterPrevote: ProposalBlock is valid")
+	cs.signAddVote(types.VoteTypePrevote, cs.ProposalBlock.BlockID())
+}
+
 // Enter: `timeoutPrevote` after any +2/3 prevotes.
 // Enter: +2/3 precomits for block or nil.
 // Enter: any +2/3 precommits for next round.
@@ -571,7 +716,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	}
 
 	// +2/3 prevoted nil. Unlock and precommit nil.
-	if blockID.IsNil() {
+	if blockID.IsZero() {
 		if cs.LockedBlock == nil {
 			logger.Info("enterPrecommit: +2/3 prevoted for nil.")
 		} else {
@@ -619,10 +764,125 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	cs.signAddVote(types.VoteTypePrecommit, types.NilBlockID())
 }
 
+// If we have the block AND +2/3 commits for it, finalize.
+func (cs *ConsensusState) tryFinalizeCommit(height *cmn.BigInt) {
+	logger := cs.Logger.New("height", height)
+
+	if cs.Height != height {
+		cmn.PanicSanity(cmn.Fmt("tryFinalizeCommit() cs.Height: %v vs height: %v", cs.Height, height))
+	}
+
+	blockID, ok := cs.Votes.Precommits(cs.CommitRound.Int32()).TwoThirdsMajority()
+	if !ok || len(blockID) == 0 {
+		logger.Error("Attempt to finalize failed. There was no +2/3 majority, or +2/3 was for <nil>.")
+		return
+	}
+	if !cs.ProposalBlock.HashesTo(blockID) {
+		// TODO: this happens every time if we're not a validator (ugly logs)
+		// TODO: ^^ wait, why does it matter that we're a validator?
+		logger.Info("Attempt to finalize failed. We don't have the commit block.", "proposal-block", cs.ProposalBlock.BlockID(), "commit-block", blockID)
+		return
+	}
+
+	//	go
+	cs.finalizeCommit(height)
+}
+
+// Increment height and goto cstypes.RoundStepNewHeight
+func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
+	if !cs.Height.Equals(height) || cs.Step != cstypes.RoundStepCommit {
+		cs.Logger.Debug(cmn.Fmt("finalizeCommit(%v): Invalid args. Current step: %v/%v/%v", height, cs.Height, cs.Round, cs.Step))
+		return
+	}
+
+	blockID, ok := cs.Votes.Precommits(cs.CommitRound.Int32()).TwoThirdsMajority()
+	block := cs.ProposalBlock
+
+	if !ok {
+		cmn.PanicSanity(cmn.Fmt("Cannot finalizeCommit, commit does not have two thirds majority"))
+	}
+	if !block.HashesTo(blockID) {
+		cmn.PanicSanity(cmn.Fmt("Cannot finalizeCommit, ProposalBlock does not hash to commit hash"))
+	}
+	if err := cs.blockExec.ValidateBlock(cs.state, block); err != nil {
+		cmn.PanicConsensus(cmn.Fmt("+2/3 committed an invalid block: %v", err))
+	}
+
+	cs.Logger.Info(cmn.Fmt("Finalizing commit of block with %d txs", block.NumTxs),
+		"height", block.Height, "hash", block.Hash())
+	cs.Logger.Info(cmn.Fmt("%v", block))
+
+	fail.Fail() // XXX
+
+	// TODO(namdoh): Re-enable this.
+	// Save to blockStore.
+	//if cs.blockStore.Height() < block.Height {
+	//	// NOTE: the seenCommit is local justification to commit this block,
+	//	// but may differ from the LastCommit included in the next block
+	//	precommits := cs.Votes.Precommits(cs.CommitRound)
+	//	seenCommit := precommits.MakeCommit()
+	//	cs.blockStore.SaveBlock(block, blockParts, seenCommit)
+	//} else {
+	//	// Happens during replay if we already saved the block but didn't commit
+	//	cs.Logger.Info("Calling finalizeCommit on already stored block", "height", block.Height)
+	//}
+
+	fail.Fail() // XXX
+
+	// Write EndHeightMessage{} for this height, implying that the blockstore
+	// has saved the block.
+	//
+	// If we crash before writing this EndHeightMessage{}, we will recover by
+	// running ApplyBlock during the ABCI handshake when we restart.  If we
+	// didn't save the block to the blockstore before writing
+	// EndHeightMessage{}, we'd have to change WAL replay -- currently it
+	// complains about replaying for heights where an #ENDHEIGHT entry already
+	// exists.
+	//
+	// Either way, the ConsensusState should not be resumed until we
+	// successfully call ApplyBlock (ie. later here, or in Handshake after
+	// restart).
+	//namdoh@ cs.wal.WriteSync(EndHeightMessage{height}) // NOTE: fsync
+
+	fail.Fail() // XXX
+
+	// Create a copy of the state for staging and an event cache for txs.
+	stateCopy := cs.state.Copy()
+
+	// Execute and commit the block, update and save the state, and update the mempool.
+	// NOTE The block.AppHash wont reflect these txs until the next block.
+	var err error
+	stateCopy, err = cs.blockExec.ApplyBlock(stateCopy, block.BlockID(), block)
+	if err != nil {
+		cs.Logger.Error("Error on ApplyBlock. Did the application crash? Please restart tendermint", "err", err)
+		err := cmn.Kill()
+		if err != nil {
+			cs.Logger.Error("Failed to kill this process - please do so manually", "err", err)
+		}
+		return
+	}
+
+	fail.Fail() // XXX
+
+	// NewHeightStep!
+	cs.updateToState(stateCopy)
+
+	fail.Fail() // XXX
+
+	// cs.StartTime is already set.
+	// Schedule Round0 to start soon.
+	cs.scheduleRound0(&cs.RoundState)
+
+	// By here,
+	// * cs.Height has been increment to height+1
+	// * cs.Step is now cstypes.RoundStepNewHeight
+	// * cs.StartTime is set to when we will start round0.
+}
+
 // Creates the next block to propose and returns it. Returns nil block upon
 // error.
 func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
-	cs.Logger.Debug("createProposalBlock")
+	cs.Logger.Trace("createProposalBlock")
 	var commit *types.Commit
 	if cs.Height.EqualsInt(1) {
 		// We're creating a proposal for the first block.
@@ -740,7 +1000,10 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 
 // state transitions on complete-proposal, 2/3-any, 2/3-one
 func (cs *ConsensusState) handleMsg(mi msgInfo) {
-	panic("ConsensusState - handleMsg - not yet implemented")
+	panic("ConsensusState.handleMsg - Not yet implemented")
+
+	// TODO(namdoh): Continue the work the stopped on 8/4 23:19pm
+	//cs.Logger.Trace("handleMsg", "msgInfo", mi)
 	//cs.mtx.Lock()
 	//defer cs.mtx.Unlock()
 	//
@@ -751,13 +1014,13 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 	//	// will not cause transition.
 	//	// once proposal is set, we can receive block parts
 	//	err = cs.setProposal(msg.Proposal)
-	//case *BlockPartMessage:
-	//	// if the proposal is complete, we'll enterPrevote or tryFinalizeCommit
-	//	_, err = cs.addProposalBlockPart(msg, peerID)
-	//	if err != nil && msg.Round != cs.Round {
-	//		cs.Logger.Debug("Received block part from wrong round", "height", cs.Height, "csRound", cs.Round, "blockRound", msg.Round)
-	//		err = nil
-	//	}
+	////case *BlockPartMessage:
+	////	// if the proposal is complete, we'll enterPrevote or tryFinalizeCommit
+	////	_, err = cs.addProposalBlockPart(msg, peerID)
+	////	if err != nil && msg.Round != cs.Round {
+	////		cs.Logger.Debug("Received block part from wrong round", "height", cs.Height, "csRound", cs.Round, "blockRound", msg.Round)
+	////		err = nil
+	////	}
 	//case *VoteMessage:
 	//	// attempt to add the vote and dupeout the validator if its a duplicate signature
 	//	// if the vote gives us a 2/3-any or 2/3-one, we transition
@@ -767,7 +1030,6 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 	//		// We probably don't want to stop the peer here. The vote does not
 	//		// necessarily comes from a malicious peer but can be just broadcasted by
 	//		// a typical peer.
-	//		// https://github.com/tendermint/tendermint/issues/1281
 	//	}
 	//
 	//	// NOTE: the vote is broadcast to peers by the reactor listening

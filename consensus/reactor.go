@@ -33,7 +33,7 @@ type PeerConnection struct {
 }
 
 func (pc *PeerConnection) SendConsensusMessage(msg ConsensusMessage) error {
-	return p2p.Send(pc.rw, kcmn.CsMsg, msg)
+	return p2p.Send(pc.rw, kcmn.CsNewRoundStepMsg, msg)
 }
 
 // ConsensusReactor defines a reactor for the consensus service.
@@ -65,6 +65,10 @@ func NewConsensusReactor(consensusState *ConsensusState) *ConsensusReactor {
 
 func (conR *ConsensusReactor) SetNodeID(nodeID discover.NodeID) {
 	conR.conS.SetNodeID(nodeID)
+}
+
+func (conR *ConsensusReactor) SetPrivValidator(priv *types.PrivValidator) {
+	conR.conS.SetPrivValidator(priv)
 }
 
 func (conR *ConsensusReactor) Start() {
@@ -142,8 +146,8 @@ func (conR *ConsensusReactor) unsubscribeFromBroadcastEvents() {
 // ------------ Message handlers ---------
 
 // Handles received NewRoundStepMessage
-func (conR *ConsensusReactor) Receive(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus reactor received", "src", src, "msg", generalMsg)
+func (conR *ConsensusReactor) ReceiveNewRoundStep(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus reactor received NewRoundStep", "src", src, "msg", generalMsg)
 
 	if !conR.running {
 		conR.conS.Logger.Trace("Consensus reactor isn't running.")

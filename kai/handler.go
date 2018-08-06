@@ -262,9 +262,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 		pm.txpool.AddRemotes(txs)
 		p.Log().Trace("Transactions added to pool", "txs", txs)
-	case msg.Code == kcmn.CsMsg:
+	case msg.Code == kcmn.CsNewRoundStepMsg:
 		p.Log().Trace("Consensus event received")
-		pm.reactor.Receive(msg, p.Peer)
+		pm.reactor.ReceiveNewRoundStep(msg, p.Peer)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
@@ -309,7 +309,7 @@ func (pm *ProtocolManager) Broadcast(msg interface{}) {
 		pm.wg.Add(1)
 		go func(p *peer) {
 			defer pm.wg.Done()
-			p2p.Send(p.rw, kcmn.CsMsg, msg)
+			p2p.Send(p.rw, kcmn.CsNewRoundStepMsg, msg)
 		}(p)
 	}
 }
