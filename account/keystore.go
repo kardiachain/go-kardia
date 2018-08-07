@@ -9,7 +9,7 @@ import (
 	"encoding/hex"
 	"go-kardia/lib/crypto/sha3"
 	"golang.org/x/crypto/scrypt"
-	"go-kardia/lib/math"
+	"go-kardia/lib/common"
 	"crypto/cipher"
 	"time"
 	"os"
@@ -91,7 +91,7 @@ func (keyStore *KeyStore)createKeyStore(auth string) (bool, error) {
 
 	// generate encrypted key, cipher text and mac
 	encryptKey := derivedKey[:16]
-	keyBytes := math.PaddedBigBytes(privateKey.D, 32)
+	keyBytes := common.PaddedBigBytes(privateKey.D, 32)
 	cipherText, err := aesCTRXOR(encryptKey, keyBytes, iv)
 	if err != nil {
 		return false, err
