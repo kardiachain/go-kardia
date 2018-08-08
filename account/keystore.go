@@ -2,12 +2,10 @@ package account
 
 import (
 	"crypto/aes"
-	"go-ethereum/crypto/randentropy"
 	"crypto/ecdsa"
 	"go-kardia/lib/crypto"
-	crand "crypto/rand"
+	"crypto/rand"
 	"encoding/hex"
-	"go-kardia/lib/crypto/sha3"
 	"golang.org/x/crypto/scrypt"
 	"go-kardia/lib/common"
 	"crypto/cipher"
@@ -17,6 +15,8 @@ import (
 	"io/ioutil"
 	"encoding/json"
 	"fmt"
+	"io"
+	"errors"
 )
 
 const (
@@ -31,33 +31,8 @@ const (
 
 type KeyStore struct {
 	Path string
-	Address Address
+	Address common.Address
 	PrivateKey ecdsa.PrivateKey
-}
-
-
-type Address [AddressLength]byte
-
-// Hex returns an EIP55-compliant hex string representation of the address.
-func (a Address) Hex() string {
-	unchecksummed := hex.EncodeToString(a[:])
-	sha := sha3.NewKeccak256()
-	sha.Write([]byte(unchecksummed))
-	hash := sha.Sum(nil)
-
-	result := []byte(unchecksummed)
-	for i := 0; i < len(result); i++ {
-		hashByte := hash[i/2]
-		if i%2 == 0 {
-			hashByte = hashByte >> 4
-		} else {
-			hashByte &= 0xf
-		}
-		if result[i] > '9' && hashByte > 7 {
-			result[i] -= 32
-		}
-	}
-	return "0x" + string(result)
 }
 
 
@@ -65,31 +40,37 @@ func (a Address) Hex() string {
 	Create new keystore based on path, password
  */
 func (keyStore *KeyStore)createKeyStore(auth string) (bool, error) {
-	// convert auth (password) to byte array
+	// Convert auth (password) to byte array
 	authArray := []byte(auth)
 
-	// get random iv
-	iv := randentropy.GetEntropyCSPRNG(aes.BlockSize)
-
-	// get random private key
-	privateKey, err := ecdsa.GenerateKey(crypto.S256(), crand.Reader)
+	// Get random iv
+	iv, err := GetRandomBytes(aes.BlockSize)
 	if err != nil {
 		return false, err
 	}
-	// get address from private key
+
+	// Get random salt
+	salt, err := GetRandomBytes(scryptDKLen)
+	if err != nil {
+		return false, err
+	}
+
+	// Get random private key
+	privateKey, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+	if err != nil {
+		return false, err
+	}
+	// Get address from private key
 	keyStore.PrivateKey = *privateKey
-	keyStore.Address = Address(crypto.PubkeyToAddress(privateKey.PublicKey))
+	keyStore.Address = common.Address(crypto.PubkeyToAddress(privateKey.PublicKey))
 
-	// get random salt
-	salt := randentropy.GetEntropyCSPRNG(scryptDKLen)
-
-	// derived key - cipher text
+	// Derived key
 	derivedKey, err := scrypt.Key(authArray, salt, scryptN, scryptR, scryptP, scryptDKLen)
 	if err != nil {
 		return false, err
 	}
 
-	// generate encrypted key, cipher text and mac
+	// Generate encrypted key, cipher text and mac
 	encryptKey := derivedKey[:16]
 	keyBytes := common.PaddedBigBytes(privateKey.D, 32)
 	cipherText, err := aesCTRXOR(encryptKey, keyBytes, iv)
@@ -98,7 +79,7 @@ func (keyStore *KeyStore)createKeyStore(auth string) (bool, error) {
 	}
 	mac := crypto.Keccak256(derivedKey[16:32], cipherText, iv)
 
-	// process iv, private key, salt and address to return json data and save it to path with name 'address'
+	// Add iv, private key, salt and address to KeyStoreJson and save it to path with name 'address'
 	ks := KeyStoreJson{
 		keyStore.Address.Hex(),
 		"aes-128-ctr",
@@ -117,7 +98,20 @@ func (keyStore *KeyStore)createKeyStore(auth string) (bool, error) {
 
 
 /*
-	get keystore by address and password
+	Create a random byte array based on input len
+ */
+func GetRandomBytes(len int) ([]byte, error){
+	value := make([]byte, len)
+	if _, err := io.ReadFull(rand.Reader, value); err != nil {
+		return nil, errors.New("reading from crypto/rand failed: " + err.Error())
+	}
+
+	return value, nil
+}
+
+
+/*
+	Get keystore by password
  */
 func (keyStore *KeyStore)GetKey(auth string) error {
 
