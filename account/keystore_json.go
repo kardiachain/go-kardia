@@ -9,7 +9,6 @@ import (
 	"go-kardia/lib/crypto"
 	"crypto/aes"
 	"crypto/ecdsa"
-
 )
 
 
@@ -89,9 +88,9 @@ func (keyStore *KeyStoreJson) GetPrivateKey(auth string) (*ecdsa.PrivateKey, err
 
 
 /*
-	store marshaled keystoreJson into filename
+	Add marshaled keystoreJson into filename
 */
-func (keystore KeyStoreJson) StoreKey(filename string) error {
+func (keystore *KeyStoreJson) StoreKey(filename string) error {
 	content, err := json.Marshal(keystore)
 	if err != nil {
 		return err
