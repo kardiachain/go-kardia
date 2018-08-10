@@ -46,6 +46,7 @@ func main() {
 	lightNode := flag.Bool("light", false, "connect to Eth as light node")
 	lightServ := flag.Int("lightserv", 0, "max percentage of time serving light client reqs")
 	cacheSize := flag.Int("cacheSize", 1024, "cache memory size for Eth node")
+	isProposer := flag.Bool("isProposer", false, "specify node is proposer")
 
 	flag.Parse()
 
@@ -75,6 +76,7 @@ func main() {
 	config := &node.DefaultConfig
 	config.P2P.ListenAddr = *listenAddr
 	config.Name = *name
+	config.IsProposer = *isProposer
 
 	n, err := node.NewNode(config)
 
@@ -94,6 +96,9 @@ func main() {
 		logger.Error("Cannot get Kardia Service", "err", err)
 		return
 	}
+
+	logger.Info("Node is proposer:", isProposer)
+
 	if *addTxn {
 		logger.Info("Adding local txn")
 		emptyTx := types.NewTransaction(

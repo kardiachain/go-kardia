@@ -49,6 +49,9 @@ type NodeConfig struct {
 	// DataDir. If DataDir is unspecified and KeyStoreDir is empty, an ephemeral directory
 	// is created by New and destroyed when the node is stopped.
 	KeyStoreDir string `toml:",omitempty"`
+
+	//configuration to specify node is proposer or not
+	IsProposer bool
 }
 
 // NodeName returns the devp2p node identifier.
