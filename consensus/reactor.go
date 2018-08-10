@@ -219,6 +219,90 @@ func (conR *ConsensusReactor) ReceiveNewRoundStep(generalMsg p2p.Msg, src *p2p.P
 	}
 }
 
+// dummy handler to handle new proposal
+func (conR *ConsensusReactor) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus reactor received Proposal", "src", src, "msg", generalMsg)
+
+	if !conR.running {
+		conR.conS.Logger.Trace("Consensus reactor isn't running.")
+		return
+	}
+
+	var msg ProposalMessage
+	if err := generalMsg.Decode(&msg); err != nil {
+		conR.conS.Logger.Error("Invalid proposal message", "msg", generalMsg, "err", err)
+		return
+	}
+	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+
+	// Get peer states
+	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
+	if !ok {
+		conR.conS.Logger.Error("Downcast failed!!")
+		return
+	}
+	ps.mtx.Lock()
+	//handle proposal logic
+	return
+	defer ps.mtx.Unlock()
+}
+
+// dummy handler to handle new vote
+func (conR *ConsensusReactor) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus reactor received vote", "src", src, "msg", generalMsg)
+
+	if !conR.running {
+		conR.conS.Logger.Trace("Consensus reactor isn't running.")
+		return
+	}
+
+	var msg VoteMessage
+	if err := generalMsg.Decode(&msg); err != nil {
+		conR.conS.Logger.Error("Invalid vote message", "msg", generalMsg, "err", err)
+		return
+	}
+	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+
+	// Get peer states
+	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
+	if !ok {
+		conR.conS.Logger.Error("Downcast failed!!")
+		return
+	}
+	ps.mtx.Lock()
+	//handle vote logic
+	return
+	defer ps.mtx.Unlock()
+}
+
+// dummy handler to handle new commit
+func (conR *ConsensusReactor) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus reactor received vote", "src", src, "msg", generalMsg)
+
+	if !conR.running {
+		conR.conS.Logger.Trace("Consensus reactor isn't running.")
+		return
+	}
+
+	var msg CommitStepMessage
+	if err := generalMsg.Decode(&msg); err != nil {
+		conR.conS.Logger.Error("Invalid commit step message", "msg", generalMsg, "err", err)
+		return
+	}
+	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+
+	// Get peer states
+	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
+	if !ok {
+		conR.conS.Logger.Error("Downcast failed!!")
+		return
+	}
+	ps.mtx.Lock()
+	//handle commit logic
+	return
+	defer ps.mtx.Unlock()
+}
+
 // ------------ Broadcast messages ------------
 
 func (conR *ConsensusReactor) broadcastNewRoundStepMessages(rs *cstypes.RoundState) {
