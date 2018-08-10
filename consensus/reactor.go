@@ -71,6 +71,10 @@ func (conR *ConsensusReactor) SetPrivValidator(priv *types.PrivValidator) {
 	conR.conS.SetPrivValidator(priv)
 }
 
+func (conR *ConsensusReactor) SetProposerNodeID(nodeID discover.NodeID) {
+	conR.conS.SetProposerNodeID(nodeID)
+}
+
 func (conR *ConsensusReactor) Start() {
 	conR.running = true
 

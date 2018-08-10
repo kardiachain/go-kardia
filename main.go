@@ -97,8 +97,6 @@ func main() {
 		return
 	}
 
-	logger.Info("Node is proposer", "isProposer", isProposer)
-
 	if *addTxn {
 		logger.Info("Adding local txn")
 		emptyTx := types.NewTransaction(

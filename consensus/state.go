@@ -103,6 +103,9 @@ type ConsensusState struct {
 	// Temproray storage of the node id.
 	// TODO(namdoh): Remove this once proposal selection is done.
 	nodeID discover.NodeID
+
+	// proposer node id
+	proposerNodeID discover.NodeID
 }
 
 // NewConsensusState returns a new ConsensusState.
@@ -150,6 +153,10 @@ func (cs *ConsensusState) SetPrivValidator(priv *types.PrivValidator) {
 	cs.mtx.Lock()
 	defer cs.mtx.Unlock()
 	cs.privValidator = priv
+}
+
+func (cs *ConsensusState) SetProposerNodeID(nodeID discover.NodeID) {
+	cs.proposerNodeID = nodeID
 }
 
 // It loads the latest state via the WAL, and starts the timeout and receive routines.
@@ -925,7 +932,8 @@ func (cs *ConsensusState) isProposalComplete() bool {
 func (cs *ConsensusState) isProposer() bool {
 	//return false
 	// TODO(namdoh): Use a single proposer for now. Make this dynamic later.
-	defaultProposerNode, _ := discover.HexID("7860dc85ef4d06e6c3f147c79e4ef77217254e2b1ac352fecb6218f675f623d4edfe6def1d6f8d444691581682bad483a64cc53b816853f5e715fdfbabe08f4b")
+
+	defaultProposerNode, _ := discover.HexID(cs.proposerNodeID.String())
 	return bytes.Equal(cs.nodeID[:], defaultProposerNode[:])
 }
 

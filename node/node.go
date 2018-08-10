@@ -155,6 +155,10 @@ func (n *Node) Start() error {
 	n.services = newServices
 	n.server = newServer
 	n.csReactor.SetNodeID(n.server.Self().ID)
+	// if node is proposer, set the proposer node id
+	if (n.config.IsProposer) {
+		n.csReactor.SetProposerNodeID(n.server.Self().ID)
+	}
 	return nil
 }
 
