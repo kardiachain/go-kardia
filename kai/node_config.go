@@ -51,7 +51,13 @@ type NodeConfig struct {
 	// is created by New and destroyed when the node is stopped.
 	KeyStoreDir string `toml:",omitempty"`
 
+	// ======== DEV ENVIRONMENT CONFIG =========
+	// Additional config of this node when running in dev environment.
 	DevNodeConfig *dev.DevNodeConfig
+	// Additional config of this environment when running as dev.
+	DevEnvConfig *dev.DevEnvironmentConfig
+	// Number of validators.
+	NumValidators int
 }
 
 // NodeName returns the devp2p node identifier.
@@ -86,12 +92,13 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 	var key *ecdsa.PrivateKey
 	if c.DevNodeConfig != nil {
 		// Load dev node key if running in dev environment.
-		key = c.DevNodeConfig.NodeKey
+		key = c.DevNodeConfig.PrivKey
 	} else {
-		key, err := crypto.GenerateKey()
+		k, err := crypto.GenerateKey()
 		if err != nil {
 			log.Crit(fmt.Sprintf("Failed to generate node key: %v", err))
 		}
+		key = k
 	}
 	instanceDir := filepath.Join(c.DataDir, c.name())
 	if err := os.MkdirAll(instanceDir, 0700); err != nil {

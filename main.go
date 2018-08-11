@@ -49,6 +49,8 @@ func main() {
 	lightServ := flag.Int("lightserv", 0, "max percentage of time serving light client reqs")
 	cacheSize := flag.Int("cacheSize", 1024, "cache memory size for Eth node")
 	dev := flag.Bool("dev", false, "deploy node with dev environment")
+	numValid := flag.Int("numValid", 0,
+		"number of total validators in dev environment. Note that this flag only has effect when --dev flag is")
 
 	flag.Parse()
 
@@ -91,7 +93,10 @@ func main() {
 			logger.Error(fmt.Sprintf("Node index must be within %v and %v", 1, devEnv.GetNodeSize()))
 
 		}
+		// Substract 1 from the index because we specify node starting from 1 onward.
 		config.DevNodeConfig = devEnv.GetDevNodeConfig(index - 1)
+		config.DevEnvConfig = devEnv
+		config.NumValidators = *numValid
 	}
 
 	n, err := node.NewNode(config)
