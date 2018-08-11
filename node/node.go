@@ -44,7 +44,6 @@ func NewNode(config *kai.NodeConfig) (*Node, error) {
 	// Initialization for consensus.
 	startTime, _ := time.Parse(time.UnixDate, "Monday July 30 00:00:00 PST 2018")
 	validatorSet := config.DevEnvConfig.GetValidatorSet(config.NumValidators)
-	node.log.Trace("NewNode", "validatorSet", validatorSet)
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon",
 		LastBlockHeight:             cmn.NewBigInt(0),
