@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
@@ -49,6 +50,8 @@ type NodeConfig struct {
 	// DataDir. If DataDir is unspecified and KeyStoreDir is empty, an ephemeral directory
 	// is created by New and destroyed when the node is stopped.
 	KeyStoreDir string `toml:",omitempty"`
+
+	DevNodeConfig *dev.DevNodeConfig
 }
 
 // NodeName returns the devp2p node identifier.
@@ -77,6 +80,10 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 	keyfile := c.resolvePath(datadirPrivateKey)
 	if key, err := crypto.LoadECDSA(keyfile); err == nil {
 		return key
+	}
+	// Load dev node key if running in dev environment.
+	if c.DevNodeConfig != nil {
+		return c.DevNodeConfig.NodeKey
 	}
 	// No persistent key found, generate and store a new one.
 	key, err := crypto.GenerateKey()
