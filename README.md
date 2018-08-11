@@ -25,13 +25,13 @@ cd $GOPATH/bin
 # Test p2p connection
 Runs two nodes in different ports and use enode url to connect.  
 Uses `txn` flag in one node to create a sample transaction and sees the node sync the transaction in debug logging.  
-First terminal
+First terminal. Note: you would need to customize the number of validators via --numValid.
 ```
-./go-kardia --addr :3000 --name node1 --txn
+./go-kardia --dev --numValid 2 --addr :3000 --name node1 --txn
 ```
-Second terminal, set peer args as the enode url displayed in first terminal
+Second terminal. Note that the peer node is fixed when running with --dev setting.
 ```
-./go-kardia --addr :30001 --name node2 --peer enode://4b7f6c7274881a6c7fd3068c1a147d3e9d003a964c3e3490814942dd7cbb975e0424db335881962239dd8170a9cc5b09a9f4c81babd57ac10df0d6465a58dd67@[::]:3000
+./go-kardia --dev --numValid 2 --addr :30001 --name node2 --peer enode://724fbdc7067814bdd60315d836f28175ff9c72e4e1d86513a2b578f9cd769e688d6337550778b89e4861a42580613f1f1dec23f17f7a1627aa99104cc4204eb1@[::]:3000
 ```
 # Test dual node
 Runs node with `dual` flag to start dual mode, acting as a full node syncing on both Kardia network and Ethereum Rinkeby testnet.  

@@ -43,13 +43,14 @@ func NewNode(config *kai.NodeConfig) (*Node, error) {
 
 	// Initialization for consensus.
 	startTime, _ := time.Parse(time.UnixDate, "Monday July 30 00:00:00 PST 2018")
+	validatorSet := config.DevEnvConfig.GetValidatorSet(config.NumValidators)
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon",
 		LastBlockHeight:             cmn.NewBigInt(0),
 		LastBlockID:                 types.BlockID{},
 		LastBlockTime:               startTime,
-		Validators:                  types.NewValidatorSet(nil),
-		LastValidators:              types.NewValidatorSet(nil),
+		Validators:                  validatorSet,
+		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt(1),
 	}
 	// Consensus config is imported from:

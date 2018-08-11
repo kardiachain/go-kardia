@@ -265,6 +265,15 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	case msg.Code == kcmn.CsNewRoundStepMsg:
 		p.Log().Trace("Consensus event received")
 		pm.reactor.ReceiveNewRoundStep(msg, p.Peer)
+	case msg.Code == kcmn.CsProposalMsg:
+		p.Log().Trace("Proposal messsage received")
+		pm.reactor.ReceiveNewProposal(msg, p.Peer)
+	case msg.Code == kcmn.CsVoteMsg:
+		p.Log().Trace("Vote messsage received")
+		pm.reactor.ReceiveNewVote(msg, p.Peer)
+	case msg.Code == kcmn.CsCommitStepMsg:
+		p.Log().Trace("Commit step message received")
+		pm.reactor.ReceiveNewCommit(msg, p.Peer)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}

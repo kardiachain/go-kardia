@@ -22,4 +22,7 @@ const (
 	StatusMsg         = 0x00
 	TxMsg             = 0x01
 	CsNewRoundStepMsg = 0x02 // Consensus message
+	CsProposalMsg     = 0x03 // Proposal message
+	CsVoteMsg = 0x04 // Vote message
+	CsCommitStepMsg = 0x05 // Commit step message
 )
