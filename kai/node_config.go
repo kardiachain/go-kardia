@@ -81,14 +81,17 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 	if key, err := crypto.LoadECDSA(keyfile); err == nil {
 		return key
 	}
-	// Load dev node key if running in dev environment.
-	if c.DevNodeConfig != nil {
-		return c.DevNodeConfig.NodeKey
-	}
+
 	// No persistent key found, generate and store a new one.
-	key, err := crypto.GenerateKey()
-	if err != nil {
-		log.Crit(fmt.Sprintf("Failed to generate node key: %v", err))
+	var key *ecdsa.PrivateKey
+	if c.DevNodeConfig != nil {
+		// Load dev node key if running in dev environment.
+		key = c.DevNodeConfig.NodeKey
+	} else {
+		key, err := crypto.GenerateKey()
+		if err != nil {
+			log.Crit(fmt.Sprintf("Failed to generate node key: %v", err))
+		}
 	}
 	instanceDir := filepath.Join(c.DataDir, c.name())
 	if err := os.MkdirAll(instanceDir, 0700); err != nil {

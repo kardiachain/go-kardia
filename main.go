@@ -48,7 +48,7 @@ func main() {
 	lightNode := flag.Bool("light", false, "connect to Eth as light node")
 	lightServ := flag.Int("lightserv", 0, "max percentage of time serving light client reqs")
 	cacheSize := flag.Int("cacheSize", 1024, "cache memory size for Eth node")
-	dev := flag.Bool("dev", true, "deploy node with dev environment")
+	dev := flag.Bool("dev", false, "deploy node with dev environment")
 
 	flag.Parse()
 
