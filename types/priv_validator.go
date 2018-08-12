@@ -5,6 +5,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // PrivValidator defines the functionality of a local Kardia validator
@@ -32,11 +33,25 @@ func (privVal *PrivValidator) GetPrivKey() *ecdsa.PrivateKey {
 }
 
 func (privVal *PrivValidator) SignVote(chainID string, vote *Vote) error {
-	panic("SignVote - not yet implemented")
+	hash := rlpHash(vote.SignBytes(chainID))
+	sig, err := crypto.Sign(hash[:], privVal.privKey)
+	if err != nil {
+		log.Trace("Signing vote failed", "err", err)
+		return err
+	}
+	vote.Signature = sig
+	return nil
 }
 
 func (privVal *PrivValidator) SignProposal(chainID string, proposal *Proposal) error {
-	panic("SignProposal - not yet implemented")
+	hash := rlpHash(proposal.SignBytes(chainID))
+	sig, err := crypto.Sign(hash[:], privVal.privKey)
+	if err != nil {
+		log.Trace("Signing proposal failed", "err", err)
+		return err
+	}
+	proposal.Signature = sig
+	return nil
 }
 
 //func (privVal *PrivValidator) SignHeartbeat(chainID string, heartbeat *Heartbeat) error {

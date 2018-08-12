@@ -1,6 +1,10 @@
 package types
 
 import (
+	"errors"
+	"fmt"
+	"strings"
+
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 )
 
@@ -95,4 +99,57 @@ func (commit *Commit) IsCommit() bool {
 func (commit *Commit) Hash() cmn.Hash {
 	// TODO(namdoh): Cache hash so we don't have to re-hash all the time.
 	return rlpHash(commit)
+}
+
+// ValidateBasic performs basic validation that doesn't involve state data.
+func (commit *Commit) ValidateBasic() error {
+	if commit.BlockID.IsZero() {
+		return errors.New("Commit cannot be for nil block")
+	}
+	if len(commit.Precommits) == 0 {
+		return errors.New("No precommits in commit")
+	}
+	height, round := commit.Height(), commit.Round()
+
+	// validate the precommits
+	for _, precommit := range commit.Precommits {
+		// It's OK for precommits to be missing.
+		if precommit == nil {
+			continue
+		}
+		// Ensure that all votes are precommits
+		if precommit.Type != VoteTypePrecommit {
+			return fmt.Errorf("Invalid commit vote. Expected precommit, got %v",
+				precommit.Type)
+		}
+		// Ensure that all heights are the same
+		if precommit.Height != height {
+			return fmt.Errorf("Invalid commit precommit height. Expected %v, got %v",
+				height, precommit.Height)
+		}
+		// Ensure that all rounds are the same
+		if precommit.Round != round {
+			return fmt.Errorf("Invalid commit precommit round. Expected %v, got %v",
+				round, precommit.Round)
+		}
+	}
+	return nil
+}
+
+// StringIndented returns a string representation of the commit
+func (commit *Commit) StringIndented(indent string) string {
+	if commit == nil {
+		return "nil-Commit"
+	}
+	precommitStrings := make([]string, len(commit.Precommits))
+	for i, precommit := range commit.Precommits {
+		precommitStrings[i] = precommit.String()
+	}
+	return fmt.Sprintf(`Commit{
+%s  BlockID:    %v
+%s  Precommits: %v
+%s}#%v`,
+		indent, commit.BlockID,
+		indent, strings.Join(precommitStrings, "\n"+indent+"  "),
+		indent, commit.hash)
 }

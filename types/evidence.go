@@ -14,3 +14,10 @@ type Evidence interface {
 
 	String() string
 }
+
+// DuplicateVoteEvidence contains evidence a validator signed two conflicting votes.
+type DuplicateVoteEvidence struct {
+	PubKey ecdsa.PublicKey
+	VoteA  *Vote
+	VoteB  *Vote
+}

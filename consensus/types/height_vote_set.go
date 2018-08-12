@@ -5,6 +5,7 @@ import (
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/p2p/discover"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -86,6 +87,32 @@ func (hvs *HeightVoteSet) SetRound(round int) {
 		hvs.addRound(r)
 	}
 	hvs.round = cmn.NewBigInt(int64(round))
+}
+
+// Duplicate votes return added=false, err=nil.
+// By convention, peerID is "" if origin is self.
+func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID discover.NodeID) (added bool, err error) {
+	hvs.mtx.Lock()
+	defer hvs.mtx.Unlock()
+	if !types.IsVoteTypeValid(vote.Type) {
+		return
+	}
+	voteSet := hvs.getVoteSet(vote.Round.Int32(), vote.Type)
+	if voteSet == nil {
+		panic("HeightVoteSet.AddVote - not yet implemented")
+		// TODO(namdoh): Re-enable this later.
+		//if rndz := hvs.peerCatchupRounds[peerID]; len(rndz) < 2 {
+		//	hvs.addRound(vote.Round)
+		//	voteSet = hvs.getVoteSet(vote.Round, vote.Type)
+		//	hvs.peerCatchupRounds[peerID] = append(rndz, vote.Round)
+		//} else {
+		//	// punish peer
+		//	err = GotVoteFromUnwantedRoundError
+		//	return
+		//}
+	}
+	added, err = voteSet.AddVote(vote)
+	return
 }
 
 // Get all prevotes of the specified round.

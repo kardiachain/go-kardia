@@ -2,14 +2,18 @@ package types
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"io"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto/sha3"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/trie"
 )
@@ -83,6 +87,7 @@ func rlpHash(x interface{}) (h common.Hash) {
 
 // Block represents an entire block in the Ethereum blockchain.
 type Block struct {
+	mtx          sync.Mutex
 	header       *Header
 	transactions Transactions
 	lastCommit   *Commit
@@ -124,7 +129,11 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *C
 	}
 
 	if b.header.LastCommitHash.IsZero() {
-		b.header.LastCommitHash = commit.Hash()
+		if commit == nil {
+			b.header.LastCommitHash = common.NewZeroHash()
+		} else {
+			b.header.LastCommitHash = commit.Hash()
+		}
 	}
 
 	// TODO(namdoh): Store evidence hash.
@@ -212,6 +221,14 @@ func (b *Block) ReceiptHash() common.Hash    { return b.header.ReceiptHash }
 func (b *Block) Bloom() Bloom                { return b.header.Bloom }
 func (b *Block) LastCommit() *Commit         { return b.lastCommit }
 
+// TODO(namdoh): This is a hack due to rlp nature of decode both nil or empty
+// struct pointer as nil. After encoding an empty struct and send it over to
+// another node, decoding it would become nil.
+func (b *Block) SetLastCommit(c *Commit) {
+	log.Error("SetLastCommit is a hack. Remove asap!!")
+	b.lastCommit = c
+}
+
 func (b *Block) Header() *Header { return CopyHeader(b.header) }
 func (b *Block) HashesTo(id BlockID) bool {
 	return b.Hash().Equal(common.Hash(id))
@@ -232,33 +249,37 @@ func (b *Block) Size() common.StorageSize {
 // ValidateBasic performs basic validation that doesn't involve state data.
 // It checks the internal consistency of the block.
 func (b *Block) ValidateBasic() error {
-	panic("block.ValidateBasic - Not yet implemented.")
-	return nil
-	// TODO(namdoh): Implements.
-	//if b == nil {
-	//	return errors.New("Nil blocks are invalid")
-	//}
-	//b.mtx.Lock()
-	//defer b.mtx.Unlock()
-	//
-	//newTxs := int64(len(b.Data.Txs))
-	//if b.NumTxs != newTxs {
-	//	return fmt.Errorf("Wrong Block.Header.NumTxs. Expected %v, got %v", newTxs, b.NumTxs)
-	//}
-	//if !bytes.Equal(b.LastCommitHash, b.LastCommit.Hash()) {
-	//	return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v", b.LastCommitHash, b.LastCommit.Hash())
-	//}
-	//if b.Header.Height != 1 {
-	//	if err := b.LastCommit.ValidateBasic(); err != nil {
-	//		return err
-	//	}
-	//}
+	if b == nil {
+		return errors.New("Nil blocks are invalid")
+	}
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+
+	newTxs := uint64(len(b.transactions))
+	if b.header.NumTxs != newTxs {
+		return fmt.Errorf("Wrong Block.Header.NumTxs. Expected %v, got %v", newTxs, b.NumTxs)
+	}
+
+	if b.lastCommit == nil && !b.header.LastCommitHash.IsZero() {
+		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  lastCommit is nil, but expect zero hash, but got: %v", b.header.LastCommitHash)
+	} else if b.lastCommit != nil && !b.header.LastCommitHash.Equal(b.lastCommit.Hash()) {
+		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v", b.header.LastCommitHash, b.lastCommit.Hash())
+	}
+	if b.header.Height != 1 {
+		if err := b.lastCommit.ValidateBasic(); err != nil {
+			return err
+		}
+	}
+	// TODO(namdoh): Re-enable check for Data hash.
+	log.Error("Block.ValidateBasic() - not yet implement validating data hash.")
 	//if !bytes.Equal(b.DataHash, b.Data.Hash()) {
 	//	return fmt.Errorf("Wrong Block.Header.DataHash.  Expected %v, got %v", b.DataHash, b.Data.Hash())
 	//}
 	//if !bytes.Equal(b.EvidenceHash, b.Evidence.Hash()) {
 	//	return errors.New(cmn.Fmt("Wrong Block.Header.EvidenceHash.  Expected %v, got %v", b.EvidenceHash, b.Evidence.Hash()))
 	//}
+
+	return nil
 }
 
 type writeCounter common.StorageSize
@@ -295,6 +316,11 @@ func (b *BlockID) IsZero() bool {
 
 func (b *BlockID) Equal(id BlockID) bool {
 	return common.Hash(*b).Equal(common.Hash(id))
+}
+
+// Key returns a machine-readable string representation of the BlockID
+func (blockID *BlockID) Key() string {
+	return string(blockID[:])
 }
 
 type Blocks []*Block

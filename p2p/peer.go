@@ -104,6 +104,8 @@ type Peer struct {
 
 	// Peer data
 	Data *common.CMap
+
+	IsAlive bool
 }
 
 // NewPeer returns a peer for testing purposes.
@@ -113,6 +115,12 @@ func NewPeer(id discover.NodeID, name string, caps []Cap) *Peer {
 	peer := newPeer(conn, nil)
 	close(peer.closed) // ensures Disconnect doesn't block
 	return peer
+}
+
+// TODO(namdoh): Temporary hack to expose MsgReadWriter for consensus to send
+// message. Find a cleaner way to do this.
+func (p *Peer) GetRW() MsgReadWriter {
+	return p.rw
 }
 
 // ID returns the node's public key.

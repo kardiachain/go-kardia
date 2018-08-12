@@ -22,6 +22,7 @@ type Reactor interface {
 	ReceiveNewRoundStep(msg p2p.Msg, src *p2p.Peer)
 	ReceiveNewProposal(msg p2p.Msg, src *p2p.Peer)
 	ReceiveNewVote(msg p2p.Msg, src *p2p.Peer)
+	ReceiveHasVote(msg p2p.Msg, src *p2p.Peer)
 	ReceiveNewCommit(msg p2p.Msg, src *p2p.Peer)
 	Start()
 	Stop()

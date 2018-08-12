@@ -44,6 +44,7 @@ type KaiEventData interface {
 }
 
 func (_ EventDataRoundState) AssertIsKaiEventData() {}
+func (_ EventDataVote) AssertIsKaiEventData()       {}
 
 // ------- EventDataNewBlock ---------
 type EventDataNewBlock struct {
@@ -53,6 +54,10 @@ type EventDataNewBlock struct {
 // light weight event for benchmarking
 type EventDataNewBlockHeader struct {
 	Header *Header `json:"header"`
+}
+
+type EventDataVote struct {
+	Vote *Vote
 }
 
 // BlockEventPublisher publishes all block related events
