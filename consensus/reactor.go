@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -127,11 +128,11 @@ func (conR *ConsensusReactor) subscribeToBroadcastEvents() {
 			conR.broadcastNewRoundStepMessages(data.(*cstypes.RoundState))
 		})
 
-	//namdoh@ conR.conS.evsw.AddListenerForEvent(subscriber, types.EventVote,
-	//namdoh@ 	func(data libevents.EventData) {
-	//namdoh@ 		conR.broadcastHasVoteMessage(data.(*types.Vote))
-	//namdoh@ 	})
-	//namdoh@
+	conR.conS.evsw.AddListenerForEvent(subscriber, types.EventVote,
+		func(data libevents.EventData) {
+			conR.broadcastHasVoteMessage(data.(*types.Vote))
+		})
+
 	//namdoh@ conR.conS.evsw.AddListenerForEvent(subscriber, types.EventProposalHeartbeat,
 	//namdoh@ 	func(data libevents.EventData) {
 	//namdoh@ 		conR.broadcastProposalHeartbeatMessage(data.(*types.Heartbeat))
@@ -309,11 +310,38 @@ func (conR *ConsensusReactor) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
 	conR.conS.Logger.Trace("broadcastNewRoundStepMessages", "nrsMsg", nrsMsg)
 	if nrsMsg != nil {
-		conR.ProtocolManager.Broadcast(nrsMsg)
+		conR.ProtocolManager.Broadcast(nrsMsg, kcmn.CsNewRoundStepMsg)
 	}
 	if csMsg != nil {
-		conR.ProtocolManager.Broadcast(csMsg)
+		conR.ProtocolManager.Broadcast(csMsg, kcmn.CsCommitStepMsg)
 	}
+}
+
+// Broadcasts HasVoteMessage to peers that care.
+func (conR *ConsensusReactor) broadcastHasVoteMessage(vote *types.Vote) {
+	msg := &HasVoteMessage{
+		Height: vote.Height,
+		Round:  vote.Round,
+		Type:   vote.Type,
+		Index:  vote.ValidatorIndex,
+	}
+	conR.conS.Logger.Trace("broadcastHasVoteMessage", "msg", msg)
+	conR.ProtocolManager.Broadcast(msg, kcmn.CsHasVoteMsg)
+	/*
+		// TODO: Make this broadcast more selective.
+		for _, peer := range conR.Switch.Peers().List() {
+			ps := peer.Get(PeerStateKey).(*PeerState)
+			prs := ps.GetRoundState()
+			if prs.Height == vote.Height {
+				// TODO: Also filter on round?
+				peer.TrySend(StateChannel, struct{ ConsensusMessage }{msg})
+			} else {
+				// Height doesn't match
+				// TODO: check a field, maybe CatchupCommitRound?
+				// TODO: But that requires changing the struct field comment.
+			}
+		}
+	*/
 }
 
 // ------------ Send message helpers -----------
@@ -384,6 +412,19 @@ type NewRoundStepMessage struct {
 	Step                  cstypes.RoundStepType `json:"step" gencodoc:"required"`
 	SecondsSinceStartTime uint                  `json:"elapsed" gencodoc:"required"`
 	LastCommitRound       *cmn.BigInt           `json:"lastCommitRound" gencodoc:"required"`
+}
+
+// HasVoteMessage is sent to indicate that a particular vote has been received.
+type HasVoteMessage struct {
+	Height *cmn.BigInt
+	Round  *cmn.BigInt
+	Type   byte
+	Index  *cmn.BigInt
+}
+
+// String returns a string representation.
+func (m *HasVoteMessage) String() string {
+	return fmt.Sprintf("[HasVote VI:%v V:{%v/%02d/%v}]", m.Index, m.Height, m.Round, m.Type)
 }
 
 // CommitStepMessage is sent when a block is committed.
