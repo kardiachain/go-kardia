@@ -68,5 +68,8 @@ func (devEnv *DevEnvironmentConfig) GetValidatorSet(numVal int) *types.Validator
 		validators[i] = types.NewValidator(node.PrivKey.PublicKey, node.VotingPower)
 	}
 
-	return types.NewValidatorSet(validators)
+	validatorSet := types.NewValidatorSet(validators)
+	validatorSet.TurnOnKeepSameProposer()
+	validatorSet.SetProposer(validators[0])
+	return validatorSet
 }

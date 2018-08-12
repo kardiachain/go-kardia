@@ -9,6 +9,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // Volatile state for each Validator
@@ -63,6 +64,14 @@ func (v *Validator) CompareAccum(other *Validator) *Validator {
 	}
 }
 
+func (v *Validator) VerifySignature(chainID string, proposal *Proposal) bool {
+	hash := rlpHash(proposal.SignBytes(chainID))
+	pubKey, _ := crypto.SigToPub(hash[:], proposal.Signature[:])
+	// TODO(thientn): Verifying signature shouldn't be this complicated. After
+	// cleaning up our crypto package, clean up this as well.
+	return bytes.Equal(crypto.CompressPubkey(pubKey), crypto.CompressPubkey(&v.PubKey))
+}
+
 func (v *Validator) String() string {
 	if v == nil {
 		return "nil-Validator"
@@ -91,6 +100,9 @@ type ValidatorSet struct {
 
 	// cached (unexported)
 	totalVotingPower int64
+
+	// ======== DEV ENVIRONMENT CONFIG =========
+	KeepSameProposer bool `json:"keep_same_proposer"`
 }
 
 func NewValidatorSet(vals []*Validator) *ValidatorSet {
@@ -108,6 +120,22 @@ func NewValidatorSet(vals []*Validator) *ValidatorSet {
 	}
 
 	return vs
+}
+
+// NOTE: This function should only be used only in dev environment.
+func (valSet *ValidatorSet) TurnOnKeepSameProposer() {
+	valSet.KeepSameProposer = true
+}
+
+// NOTE: This function should only be used in dev environment and when
+// KeepSameProposer is set to true. For testnet, or mainnet proposer should be
+// set automatically.
+func (valSet *ValidatorSet) SetProposer(proposer *Validator) {
+	if !valSet.KeepSameProposer {
+		common.PanicSanity(
+			"SetProposer should never be called when KeepSameProposer is off")
+	}
+	valSet.Proposer = proposer
 }
 
 // HasAddress returns true if address given is in the validator set, false -
@@ -175,6 +203,9 @@ func (valSet *ValidatorSet) GetProposer() (proposer *Validator) {
 func (valSet *ValidatorSet) findNextProposer() *Validator {
 	if valSet.Proposer == nil {
 		return valSet.Validators[0]
+	}
+	if valSet.KeepSameProposer {
+		return valSet.Proposer
 	}
 	for i, val := range valSet.Validators {
 		if bytes.Equal(val.Address.Bytes(), valSet.Proposer.Address.Bytes()) {

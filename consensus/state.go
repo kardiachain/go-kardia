@@ -3,6 +3,7 @@ package consensus
 import (
 	"bytes"
 	"errors"
+	"reflect"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -12,7 +13,6 @@ import (
 	cfg "github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
 	libevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p/discover"
@@ -309,6 +309,7 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 		// Create a new proposal block from state/txs from the mempool.
 		block = cs.createProposalBlock()
 		if block == nil { // on error
+			cs.Logger.Trace("Create proposal block failed")
 			return
 		}
 	}
@@ -332,6 +333,7 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 }
 
 func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
+	cs.Logger.Trace("setProposal()", "proposal", proposal)
 	// Already have one
 	// TODO: possibly catch double proposals
 	if cs.Proposal != nil {
@@ -355,7 +357,7 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 	}
 
 	// Verify signature
-	if !crypto.VerifySignature(cs.Validators.GetProposer().PubKey, proposal.SignBytes(cs.state.ChainID), proposal.Signature) {
+	if !cs.Validators.GetProposer().VerifySignature(cs.state.ChainID, proposal) {
 		return ErrInvalidProposalSignature
 	}
 
@@ -570,8 +572,7 @@ func (cs *ConsensusState) enterPropose(height *cmn.BigInt, round *cmn.BigInt) {
 		// else, we'll enterPrevote when the rest of the proposal is received (in AddProposalBlockPart),
 		// or else after timeoutPropose
 		if cs.isProposalComplete() {
-			// TODO(namdoh) 8/3 22:23pm TEMPORARY DISABLE FOR NOW
-			//cs.enterPrevote(height, cs.Round)
+			cs.enterPrevote(height, cs.Round)
 		}
 	}()
 
@@ -784,7 +785,6 @@ func (cs *ConsensusState) tryFinalizeCommit(height *cmn.BigInt) {
 		return
 	}
 
-	//	go
 	cs.finalizeCommit(height)
 }
 
@@ -923,10 +923,8 @@ func (cs *ConsensusState) isProposalComplete() bool {
 }
 
 func (cs *ConsensusState) isProposer() bool {
-	//return false
-	// TODO(namdoh): Use a single proposer for now. Make this dynamic later.
-	defaultProposerNode, _ := discover.HexID("7860dc85ef4d06e6c3f147c79e4ef77217254e2b1ac352fecb6218f675f623d4edfe6def1d6f8d444691581682bad483a64cc53b816853f5e715fdfbabe08f4b")
-	return bytes.Equal(cs.nodeID[:], defaultProposerNode[:])
+	privValidatorAddress := cs.privValidator.GetAddress()
+	return bytes.Equal(cs.Validators.GetProposer().Address[:], privValidatorAddress[:])
 }
 
 // ----------- Other helpers -----------
@@ -1000,50 +998,49 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 
 // state transitions on complete-proposal, 2/3-any, 2/3-one
 func (cs *ConsensusState) handleMsg(mi msgInfo) {
-	panic("ConsensusState.handleMsg - Not yet implemented")
+	cs.Logger.Trace("handleMsg", "msgInfo", mi)
+	cs.mtx.Lock()
+	defer cs.mtx.Unlock()
 
-	// TODO(namdoh): Continue the work the stopped on 8/4 23:19pm
-	//cs.Logger.Trace("handleMsg", "msgInfo", mi)
-	//cs.mtx.Lock()
-	//defer cs.mtx.Unlock()
-	//
-	//var err error
-	//msg, peerID := mi.Msg, mi.PeerID
-	//switch msg := msg.(type) {
-	//case *ProposalMessage:
-	//	// will not cause transition.
-	//	// once proposal is set, we can receive block parts
-	//	err = cs.setProposal(msg.Proposal)
-	////case *BlockPartMessage:
-	////	// if the proposal is complete, we'll enterPrevote or tryFinalizeCommit
-	////	_, err = cs.addProposalBlockPart(msg, peerID)
-	////	if err != nil && msg.Round != cs.Round {
-	////		cs.Logger.Debug("Received block part from wrong round", "height", cs.Height, "csRound", cs.Round, "blockRound", msg.Round)
-	////		err = nil
-	////	}
-	//case *VoteMessage:
-	//	// attempt to add the vote and dupeout the validator if its a duplicate signature
-	//	// if the vote gives us a 2/3-any or 2/3-one, we transition
-	//	err := cs.tryAddVote(msg.Vote, peerID)
-	//	if err == ErrAddingVote {
-	//		// TODO: punish peer
-	//		// We probably don't want to stop the peer here. The vote does not
-	//		// necessarily comes from a malicious peer but can be just broadcasted by
-	//		// a typical peer.
+	var err error
+	msg, peerID := mi.Msg, mi.PeerID
+	switch msg := msg.(type) {
+	case *ProposalMessage:
+		cs.Logger.Trace("handling ProposalMessage")
+		// will not cause transition.
+		// once proposal is set, we can receive block parts
+		err = cs.setProposal(msg.Proposal)
+	//case *BlockPartMessage:
+	//	// if the proposal is complete, we'll enterPrevote or tryFinalizeCommit
+	//	_, err = cs.addProposalBlockPart(msg, peerID)
+	//	if err != nil && msg.Round != cs.Round {
+	//		cs.Logger.Debug("Received block part from wrong round", "height", cs.Height, "csRound", cs.Round, "blockRound", msg.Round)
+	//		err = nil
 	//	}
-	//
-	//	// NOTE: the vote is broadcast to peers by the reactor listening
-	//	// for vote events
-	//
-	//	// TODO: If rs.Height == vote.Height && rs.Round < vote.Round,
-	//	// the peer is sending us CatchupCommit precommits.
-	//	// We could make note of this and help filter in broadcastHasVoteMessage().
-	//default:
-	//	cs.Logger.Error("Unknown msg type", reflect.TypeOf(msg))
-	//}
-	//if err != nil {
-	//	cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round, "type", reflect.TypeOf(msg), "peer", peerID, "err", err, "msg", msg)
-	//}
+	case *VoteMessage:
+		panic("handleMsg - VoteMessage: not yet implemented")
+		//// attempt to add the vote and dupeout the validator if its a duplicate signature
+		//// if the vote gives us a 2/3-any or 2/3-one, we transition
+		//err := cs.tryAddVote(msg.Vote, peerID)
+		//if err == ErrAddingVote {
+		//	// TODO: punish peer
+		//	// We probably don't want to stop the peer here. The vote does not
+		//	// necessarily comes from a malicious peer but can be just broadcasted by
+		//	// a typical peer.
+		//}
+		//
+		//// NOTE: the vote is broadcast to peers by the reactor listening
+		//// for vote events
+		//
+		//// TODO: If rs.Height == vote.Height && rs.Round < vote.Round,
+		//// the peer is sending us CatchupCommit precommits.
+		//// We could make note of this and help filter in broadcastHasVoteMessage().
+	default:
+		cs.Logger.Error("Unknown msg type", reflect.TypeOf(msg))
+	}
+	if err != nil {
+		cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round, "type", reflect.TypeOf(msg), "peer", peerID, "err", err, "msg", msg)
+	}
 }
 
 func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
