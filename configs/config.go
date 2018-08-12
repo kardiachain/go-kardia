@@ -151,3 +151,13 @@ func (cfg *ConsensusConfig) Commit(t time.Time) time.Time {
 func (cfg *ConsensusConfig) Propose(round int) time.Duration {
 	return time.Duration(cfg.TimeoutPropose+cfg.TimeoutProposeDelta*round) * time.Millisecond
 }
+
+// Prevote returns the amount of time to wait for straggler votes after receiving any +2/3 prevotes
+func (cfg *ConsensusConfig) Prevote(round int) time.Duration {
+	return time.Duration(cfg.TimeoutPrevote+cfg.TimeoutPrevoteDelta*round) * time.Millisecond
+}
+
+// Precommit returns the amount of time to wait for straggler votes after receiving any +2/3 precommits
+func (cfg *ConsensusConfig) Precommit(round int) time.Duration {
+	return time.Duration(cfg.TimeoutPrecommit+cfg.TimeoutPrecommitDelta*round) * time.Millisecond
+}

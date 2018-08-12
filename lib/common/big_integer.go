@@ -213,9 +213,14 @@ func (x *BigInt) IsGreaterThan(y *BigInt) bool {
 	return x.Int64() > y.Int64()
 }
 
-// IsGreaterThan returns true if x is greater than y
+// IsGreaterThanInt returns true if x is greater than y
 func (x *BigInt) IsGreaterThanInt(y int) bool {
 	return x.Int64() > int64(y)
+}
+
+// IsGreaterOrEqualThanInt returns true if x is greater than y
+func (x *BigInt) IsGreaterThanOrEqualThanInt(y int) bool {
+	return x.Int64() >= int64(y)
 }
 
 // IsLessThan returns true if x is less than y

@@ -165,6 +165,10 @@ func (a Address) Hex() string {
 	return "0x" + string(result)
 }
 
+func (a Address) Equal(anotherAdd Address) bool {
+	return bytes.Equal(a[:], anotherAdd[:])
+}
+
 // String implements fmt.Stringer.
 func (a Address) String() string {
 	return a.Hex()

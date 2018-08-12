@@ -9,7 +9,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // Volatile state for each Validator
@@ -64,9 +63,17 @@ func (v *Validator) CompareAccum(other *Validator) *Validator {
 	}
 }
 
-func (v *Validator) VerifySignature(chainID string, proposal *Proposal) bool {
+func (v *Validator) VerifyProposalSignature(chainID string, proposal *Proposal) bool {
 	hash := rlpHash(proposal.SignBytes(chainID))
 	pubKey, _ := crypto.SigToPub(hash[:], proposal.Signature[:])
+	// TODO(thientn): Verifying signature shouldn't be this complicated. After
+	// cleaning up our crypto package, clean up this as well.
+	return bytes.Equal(crypto.CompressPubkey(pubKey), crypto.CompressPubkey(&v.PubKey))
+}
+
+func (v *Validator) VerifyVoteSignature(chainID string, vote *Vote) bool {
+	hash := rlpHash(vote.SignBytes(chainID))
+	pubKey, _ := crypto.SigToPub(hash[:], vote.Signature[:])
 	// TODO(thientn): Verifying signature shouldn't be this complicated. After
 	// cleaning up our crypto package, clean up this as well.
 	return bytes.Equal(crypto.CompressPubkey(pubKey), crypto.CompressPubkey(&v.PubKey))

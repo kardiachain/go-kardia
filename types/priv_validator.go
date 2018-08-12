@@ -33,7 +33,14 @@ func (privVal *PrivValidator) GetPrivKey() *ecdsa.PrivateKey {
 }
 
 func (privVal *PrivValidator) SignVote(chainID string, vote *Vote) error {
-	panic("SignVote - not yet implemented")
+	hash := rlpHash(vote.SignBytes(chainID))
+	sig, err := crypto.Sign(hash[:], privVal.privKey)
+	if err != nil {
+		log.Trace("Signing vote failed", "err", err)
+		return err
+	}
+	vote.Signature = sig
+	return nil
 }
 
 func (privVal *PrivValidator) SignProposal(chainID string, proposal *Proposal) error {
