@@ -73,6 +73,9 @@ func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction,
 		NumTxs:         uint64(len(txs)),
 		LastBlockID:    state.LastBlockID,
 		ValidatorsHash: state.Validators.Hash(),
+		// Even for the first block, precommit would be empty, not nil. So we
+		// have to get empty hash.
+		LastCommitHash: (&types.Commit{}).Hash(),
 	}
 	block := types.NewBlock(&header, txs, nil, commit)
 
