@@ -128,10 +128,12 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *C
 		b.header.Bloom = CreateBloom(receipts)
 	}
 
-	log.Trace("debug#1", "last_commit_hash", b.header.LastCommitHash, "commit", commit)
 	if b.header.LastCommitHash.IsZero() {
-		b.header.LastCommitHash = commit.Hash()
-		log.Trace("debug#2", "commit_hash", commit.Hash(), "last_commit_hash", b.header.LastCommitHash)
+		if commit == nil {
+			b.header.LastCommitHash = common.NewZeroHash()
+		} else {
+			b.header.LastCommitHash = commit.Hash()
+		}
 	}
 
 	// TODO(namdoh): Store evidence hash.
@@ -219,6 +221,14 @@ func (b *Block) ReceiptHash() common.Hash    { return b.header.ReceiptHash }
 func (b *Block) Bloom() Bloom                { return b.header.Bloom }
 func (b *Block) LastCommit() *Commit         { return b.lastCommit }
 
+// TODO(namdoh): This is a hack due to rlp nature of decode both nil or empty
+// struct pointer as nil. After encoding an empty struct and send it over to
+// another node, decoding it would become nil.
+func (b *Block) SetLastCommit(c *Commit) {
+	log.Error("SetLastCommit is a hack. Remove asap!!")
+	b.lastCommit = c
+}
+
 func (b *Block) Header() *Header { return CopyHeader(b.header) }
 func (b *Block) HashesTo(id BlockID) bool {
 	return b.Hash().Equal(common.Hash(id))
@@ -249,8 +259,10 @@ func (b *Block) ValidateBasic() error {
 	if b.header.NumTxs != newTxs {
 		return fmt.Errorf("Wrong Block.Header.NumTxs. Expected %v, got %v", newTxs, b.NumTxs)
 	}
-	log.Trace("debug#A1", "last_commit", b.lastCommit, "hash", b.lastCommit.Hash(), "last_commit_hash", b.header.LastCommitHash)
-	if !b.header.LastCommitHash.Equal(b.lastCommit.Hash()) {
+
+	if b.lastCommit == nil && !b.header.LastCommitHash.IsZero() {
+		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  lastCommit is nil, but expect zero hash, but got: %v", b.header.LastCommitHash)
+	} else if b.lastCommit != nil && !b.header.LastCommitHash.Equal(b.lastCommit.Hash()) {
 		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v", b.header.LastCommitHash, b.lastCommit.Hash())
 	}
 	if b.header.Height != 1 {

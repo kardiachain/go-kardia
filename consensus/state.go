@@ -378,7 +378,7 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 	cs.Logger.Info("Received proposal", "proposal", proposal)
 	cs.ProposalBlock = proposal.Block
 	// NOTE: it's possible to receive complete proposal blocks for future rounds without having the proposal
-	cs.Logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height, "hash", cs.ProposalBlock.Hash())
+	cs.Logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height(), "hash", cs.ProposalBlock.Hash())
 
 	// Update Valid* if we can.
 	prevotes := cs.Votes.Prevotes(cs.Round.Int32())
@@ -1161,6 +1161,8 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	if cs.Height.EqualsInt(1) {
 		// We're creating a proposal for the first block.
 		// The commit is empty, but not nil.
+		// NOTE: Change to this must change to MakeBlock in
+		// state/state.go
 		commit = &types.Commit{}
 	} else if cs.LastCommit.HasTwoThirdsMajority() {
 		// Make the commit from LastCommit

@@ -30,7 +30,8 @@ func NewZeroHash() Hash {
 }
 
 func (h *Hash) IsZero() bool {
-	return len(h) == 0
+	zero := Hash{}
+	return bytes.Equal(h[:], zero[:])
 }
 
 // BytesToHash sets b to hash.
