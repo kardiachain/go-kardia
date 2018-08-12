@@ -81,6 +81,27 @@ func (vote *Vote) Copy() *Vote {
 	return &voteCopy
 }
 
+func (vote *Vote) String() string {
+	if vote == nil {
+		return "nil-Vote"
+	}
+	var typeString string
+	switch vote.Type {
+	case VoteTypePrevote:
+		typeString = "Prevote"
+	case VoteTypePrecommit:
+		typeString = "Precommit"
+	default:
+		cmn.PanicSanity("Unknown vote type")
+	}
+
+	return fmt.Sprintf("Vote{%v:%X %v/%02d/%v(%v) %X %v @ %s}",
+		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
+		vote.Height, vote.Round, vote.Type, typeString,
+		cmn.Fingerprint(vote.BlockID[:]), vote.Signature,
+		vote.Timestamp)
+}
+
 // UNSTABLE
 // XXX: duplicate of p2p.ID to avoid dependence between packages.
 // Perhaps we can have a minimal types package containing this (and other things?)

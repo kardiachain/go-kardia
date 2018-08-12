@@ -326,6 +326,7 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 		block = cs.ValidBlock
 	} else {
 		// Create a new proposal block from state/txs from the mempool.
+		// Decide on block
 		block = cs.createProposalBlock()
 		if block == nil { // on error
 			cs.Logger.Trace("Create proposal block failed")
@@ -337,14 +338,7 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 	polRound, polBlockID := cs.Votes.POLInfo()
 	proposal := types.NewProposal(height, round, block, cmn.NewBigInt(int64(polRound)), polBlockID)
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
-		// Set fields
-		/*  fields set by setProposal and addBlockPart
-		cs.Proposal = proposal
-		cs.ProposalBlock = block
-		cs.ProposalBlockParts = blockParts
-		*/
-
-		// send proposal and block parts on internal msg queue
+		// Send proposal on internal msg queue
 		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, discover.EmptyNodeID()})
 		cs.Logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
 		cs.Logger.Debug(cmn.Fmt("Signed proposal block: %v", block))
@@ -1316,7 +1310,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		// the peer is sending us CatchupCommit precommits.
 		// We could make note of this and help filter in broadcastHasVoteMessage().
 	default:
-		cs.Logger.Error("Unknown msg type", reflect.TypeOf(msg))
+		cs.Logger.Error("Unknown msg type", "msg_type", reflect.TypeOf(msg))
 	}
 	if err != nil {
 		cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round, "type", reflect.TypeOf(msg), "peer", peerID, "err", err, "msg", msg)

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"time"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
@@ -41,4 +42,12 @@ func (p *Proposal) SignBytes(chainID string) []byte {
 		panic(err)
 	}
 	return bz
+}
+
+// String returns a string representation of the Proposal.
+func (p *Proposal) String() string {
+	return fmt.Sprintf("Proposal{%v/%v %v (%v,%v) %X @ %s}",
+		p.Height, p.Round, p.Block, p.POLRound,
+		p.POLBlockID,
+		cmn.Fingerprint(p.Signature), p.Timestamp)
 }

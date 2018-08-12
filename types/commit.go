@@ -3,6 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 )
@@ -133,4 +134,22 @@ func (commit *Commit) ValidateBasic() error {
 		}
 	}
 	return nil
+}
+
+// StringIndented returns a string representation of the commit
+func (commit *Commit) StringIndented(indent string) string {
+	if commit == nil {
+		return "nil-Commit"
+	}
+	precommitStrings := make([]string, len(commit.Precommits))
+	for i, precommit := range commit.Precommits {
+		precommitStrings[i] = precommit.String()
+	}
+	return fmt.Sprintf(`Commit{
+%s  BlockID:    %v
+%s  Precommits: %v
+%s}#%v`,
+		indent, commit.BlockID,
+		indent, strings.Join(precommitStrings, "\n"+indent+"  "),
+		indent, commit.hash)
 }

@@ -140,6 +140,28 @@ type ConsensusConfig struct {
 	// EmptyBlocks mode and possible interval between empty blocks in seconds
 	CreateEmptyBlocks         bool `mapstructure:"create_empty_blocks"`
 	CreateEmptyBlocksInterval int  `mapstructure:"create_empty_blocks_interval"`
+
+	// Reactor sleep duration parameters are in milliseconds
+	PeerGossipSleepDuration     int `mapstructure:"peer_gossip_sleep_duration"`
+	PeerQueryMaj23SleepDuration int `mapstructure:"peer_query_maj23_sleep_duration"`
+}
+
+// DefaultConsensusConfig returns a default configuration for the consensus service
+func DefaultConsensusConfig() *ConsensusConfig {
+	return &ConsensusConfig{
+		TimeoutPropose:              3000,
+		TimeoutProposeDelta:         500,
+		TimeoutPrevote:              1000,
+		TimeoutPrevoteDelta:         500,
+		TimeoutPrecommit:            1000,
+		TimeoutPrecommitDelta:       500,
+		TimeoutCommit:               1000,
+		SkipTimeoutCommit:           false,
+		CreateEmptyBlocks:           true,
+		CreateEmptyBlocksInterval:   0,
+		PeerGossipSleepDuration:     100,
+		PeerQueryMaj23SleepDuration: 2000,
+	}
 }
 
 // Commit returns the amount of time to wait for straggler votes after receiving +2/3 precommits for a single block (ie. a commit).
@@ -160,4 +182,9 @@ func (cfg *ConsensusConfig) Prevote(round int) time.Duration {
 // Precommit returns the amount of time to wait for straggler votes after receiving any +2/3 precommits
 func (cfg *ConsensusConfig) Precommit(round int) time.Duration {
 	return time.Duration(cfg.TimeoutPrecommit+cfg.TimeoutPrecommitDelta*round) * time.Millisecond
+}
+
+// PeerGossipSleep returns the amount of time to sleep if there is nothing to send from the ConsensusReactor
+func (cfg *ConsensusConfig) PeerGossipSleep() time.Duration {
+	return time.Duration(cfg.PeerGossipSleepDuration) * time.Millisecond
 }

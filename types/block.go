@@ -128,8 +128,10 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *C
 		b.header.Bloom = CreateBloom(receipts)
 	}
 
+	log.Trace("debug#1", "last_commit_hash", b.header.LastCommitHash, "commit", commit)
 	if b.header.LastCommitHash.IsZero() {
 		b.header.LastCommitHash = commit.Hash()
+		log.Trace("debug#2", "commit_hash", commit.Hash(), "last_commit_hash", b.header.LastCommitHash)
 	}
 
 	// TODO(namdoh): Store evidence hash.
@@ -247,6 +249,7 @@ func (b *Block) ValidateBasic() error {
 	if b.header.NumTxs != newTxs {
 		return fmt.Errorf("Wrong Block.Header.NumTxs. Expected %v, got %v", newTxs, b.NumTxs)
 	}
+	log.Trace("debug#A1", "last_commit", b.lastCommit, "hash", b.lastCommit.Hash(), "last_commit_hash", b.header.LastCommitHash)
 	if !b.header.LastCommitHash.Equal(b.lastCommit.Hash()) {
 		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v", b.header.LastCommitHash, b.lastCommit.Hash())
 	}

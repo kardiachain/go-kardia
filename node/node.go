@@ -53,23 +53,8 @@ func NewNode(config *kai.NodeConfig) (*Node, error) {
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt(1),
 	}
-	// Consensus config is imported from:
-	// http://tendermint.readthedocs.io/en/master/specification/configuration.html
-	// TODO(namdoh): Move this to config loader.
-	csConfig := configs.ConsensusConfig{
-		TimeoutPropose:            3000,
-		TimeoutProposeDelta:       500,
-		TimeoutPrevote:            1000,
-		TimeoutPrevoteDelta:       500,
-		TimeoutPrecommit:          1000,
-		TimeoutPrecommitDelta:     500,
-		TimeoutCommit:             1000,
-		SkipTimeoutCommit:         false,
-		CreateEmptyBlocks:         true,
-		CreateEmptyBlocksInterval: 0,
-	}
 	consensusState := consensus.NewConsensusState(
-		&csConfig,
+		configs.DefaultConsensusConfig(),
 		state,
 	)
 
