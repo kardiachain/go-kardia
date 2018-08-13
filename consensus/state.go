@@ -468,17 +468,14 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 
 	// A precommit for the previous height?
 	// These come in while we wait timeoutCommit
-	cs.Logger.Trace("debug#0")
 	if vote.Height.Add(1).Equals(cs.Height) {
 		if !(cs.Step == cstypes.RoundStepNewHeight && vote.Type == types.VoteTypePrecommit) {
 			// TODO: give the reason ..
 			// fmt.Errorf("tryAddVote: Wrong height, not a LastCommit straggler commit.")
-			cs.Logger.Trace("debug#1")
 			return added, ErrVoteHeightMismatch
 		}
 		added, err = cs.LastCommit.AddVote(vote)
 		if !added {
-			cs.Logger.Trace("debug#2")
 			return added, err
 		}
 
@@ -493,7 +490,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 			cs.enterNewRound(cs.Height, cmn.NewBigInt(0))
 		}
 
-		cs.Logger.Trace("debug#3")
 		return
 	}
 
@@ -502,16 +498,13 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 	if !vote.Height.Equals(cs.Height) {
 		err = ErrVoteHeightMismatch
 		cs.Logger.Info("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", cs.Height, "err", err)
-		cs.Logger.Trace("debug#4")
 		return
 	}
 
 	height := cs.Height
 	added, err = cs.Votes.AddVote(vote, peerID)
-	cs.Logger.Trace("debug#5")
 	if !added {
 		// Either duplicate, or error upon cs.Votes.AddByIndex()
-		cs.Logger.Trace("debug#6")
 		return
 	}
 
