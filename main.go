@@ -50,7 +50,8 @@ func main() {
 	cacheSize := flag.Int("cacheSize", 1024, "cache memory size for Eth node")
 	dev := flag.Bool("dev", false, "deploy node with dev environment")
 	numValid := flag.Int("numValid", 0,
-		"number of total validators in dev environment. Note that this flag only has effect when --dev flag is")
+		"number of total validators in dev environment. Note that this flag only has effect when --dev flag is set.")
+	proposal := flag.Int("proposal", 1, "specify which node is the proposer. The index starts from 1, and every node needs to use the same proposer index. Note that this flag only has effect when --dev flag is set")
 
 	flag.Parse()
 
@@ -94,6 +95,7 @@ func main() {
 
 		}
 		// Substract 1 from the index because we specify node starting from 1 onward.
+		devEnv.SetProposerIndex(*proposal - 1)
 		config.DevNodeConfig = devEnv.GetDevNodeConfig(index - 1)
 		config.DevEnvConfig = devEnv
 		config.NumValidators = *numValid
@@ -117,6 +119,7 @@ func main() {
 		logger.Error("Cannot get Kardia Service", "err", err)
 		return
 	}
+
 	if *addTxn {
 		logger.Info("Adding local txn")
 		emptyTx := types.NewTransaction(

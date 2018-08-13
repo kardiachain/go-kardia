@@ -13,7 +13,6 @@ import (
 	libevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
-	"github.com/kardiachain/go-kardia/p2p/discover"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -53,10 +52,6 @@ func NewConsensusReactor(consensusState *ConsensusState) *ConsensusReactor {
 	//}
 	//conR.BaseReactor = *p2p.NewBaseReactor("ConsensusReactor", conR)
 	//r eturn conR
-}
-
-func (conR *ConsensusReactor) SetNodeID(nodeID discover.NodeID) {
-	conR.conS.SetNodeID(nodeID)
 }
 
 func (conR *ConsensusReactor) SetPrivValidator(priv *types.PrivValidator) {
