@@ -18,6 +18,8 @@ type DevNodeConfig struct {
 
 type DevEnvironmentConfig struct {
 	DevNodeSet []DevNodeConfig
+
+	proposalIndex int
 }
 
 type node struct {
@@ -40,6 +42,7 @@ var nodes = []node{
 
 func CreateDevEnvironmentConfig() *DevEnvironmentConfig {
 	var devEnv DevEnvironmentConfig
+	devEnv.proposalIndex = 0 // Default to 0-th node as the proposer.
 	devEnv.DevNodeSet = make([]DevNodeConfig, len(nodes))
 	for i, n := range nodes {
 		privKey, _ := crypto.ToECDSA([]byte(n.key[:32]))
@@ -48,6 +51,13 @@ func CreateDevEnvironmentConfig() *DevEnvironmentConfig {
 	}
 
 	return &devEnv
+}
+
+func (devEnv *DevEnvironmentConfig) SetProposerIndex(index int) {
+	if index < 0 || index >= devEnv.GetNodeSize() {
+		log.Error(fmt.Sprintf("Proposer index must be within %v and %v", 0, devEnv.GetNodeSize()))
+	}
+	devEnv.proposalIndex = index
 }
 
 func (devEnv *DevEnvironmentConfig) GetDevNodeConfig(index int) *DevNodeConfig {
@@ -70,6 +80,6 @@ func (devEnv *DevEnvironmentConfig) GetValidatorSet(numVal int) *types.Validator
 
 	validatorSet := types.NewValidatorSet(validators)
 	validatorSet.TurnOnKeepSameProposer()
-	validatorSet.SetProposer(validators[0])
+	validatorSet.SetProposer(validators[devEnv.proposalIndex])
 	return validatorSet
 }

@@ -99,10 +99,6 @@ type ConsensusState struct {
 
 	// closed when we finish shutting down
 	done chan struct{}
-
-	// Temproray storage of the node id.
-	// TODO(namdoh): Remove this once proposal selection is done.
-	nodeID discover.NodeID
 }
 
 // NewConsensusState returns a new ConsensusState.
@@ -139,10 +135,6 @@ func NewConsensusState(
 	// after crash.
 	//cs.reconstructLastCommit(state)
 	return cs
-}
-
-func (cs *ConsensusState) SetNodeID(nodeID discover.NodeID) {
-	cs.nodeID = nodeID
 }
 
 // SetPrivValidator sets the private validator account for signing votes.
@@ -769,14 +761,13 @@ func (cs *ConsensusState) enterPropose(height *cmn.BigInt, round *cmn.BigInt) {
 	//	return
 	//}
 
-	logger.Debug("This node is a validator")
-	logger.Trace("enterPropose", "nodeID", cs.nodeID)
+	logger.Trace("This node is a validator")
 	if cs.isProposer() {
-		logger.Debug("Our turn to propose")
+		logger.Trace("Our turn to propose")
 		//namdoh@ logger.Info("enterPropose: Our turn to propose", "proposer", cs.Validators.GetProposer().Address, "privValidator", cs.privValidator)
 		cs.decideProposal(height, round)
 	} else {
-		logger.Debug("Not our turn to propose")
+		logger.Trace("Not our turn to propose")
 		//namdoh@ logger.Info("enterPropose: Not our turn to propose", "proposer", cs.Validators.GetProposer().Address, "privValidator", cs.privValidator)
 	}
 }
