@@ -43,32 +43,18 @@ func NewNode(config *kai.NodeConfig) (*Node, error) {
 
 	// Initialization for consensus.
 	startTime, _ := time.Parse(time.UnixDate, "Monday July 30 00:00:00 PST 2018")
+	validatorSet := config.DevEnvConfig.GetValidatorSet(config.NumValidators)
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon",
 		LastBlockHeight:             cmn.NewBigInt(0),
 		LastBlockID:                 types.BlockID{},
 		LastBlockTime:               startTime,
-		Validators:                  types.NewValidatorSet(nil),
-		LastValidators:              types.NewValidatorSet(nil),
+		Validators:                  validatorSet,
+		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt(1),
 	}
-	// Consensus config is imported from:
-	// http://tendermint.readthedocs.io/en/master/specification/configuration.html
-	// TODO(namdoh): Move this to config loader.
-	csConfig := configs.ConsensusConfig{
-		TimeoutPropose:            3000,
-		TimeoutProposeDelta:       500,
-		TimeoutPrevote:            1000,
-		TimeoutPrevoteDelta:       500,
-		TimeoutPrecommit:          1000,
-		TimeoutPrecommitDelta:     500,
-		TimeoutCommit:             1000,
-		SkipTimeoutCommit:         false,
-		CreateEmptyBlocks:         true,
-		CreateEmptyBlocksInterval: 0,
-	}
 	consensusState := consensus.NewConsensusState(
-		&csConfig,
+		configs.DefaultConsensusConfig(),
 		state,
 	)
 
@@ -154,11 +140,6 @@ func (n *Node) Start() error {
 
 	n.services = newServices
 	n.server = newServer
-	n.csReactor.SetNodeID(n.server.Self().ID)
-	// if node is proposer, set the proposer node id
-	if (n.config.IsProposer) {
-		n.csReactor.SetProposerNodeID(n.server.Self().ID)
-	}
 	return nil
 }
 

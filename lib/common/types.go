@@ -30,7 +30,8 @@ func NewZeroHash() Hash {
 }
 
 func (h *Hash) IsZero() bool {
-	return len(h) == 0
+	zero := Hash{}
+	return bytes.Equal(h[:], zero[:])
 }
 
 // BytesToHash sets b to hash.
@@ -163,6 +164,10 @@ func (a Address) Hex() string {
 		}
 	}
 	return "0x" + string(result)
+}
+
+func (a Address) Equal(anotherAdd Address) bool {
+	return bytes.Equal(a[:], anotherAdd[:])
 }
 
 // String implements fmt.Stringer.

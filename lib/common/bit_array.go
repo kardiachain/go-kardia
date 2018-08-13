@@ -206,6 +206,51 @@ func (bA *BitArray) IsFull() bool {
 	return (lastElem+1)&((uint64(1)<<uint(lastElemBits))-1) == 0
 }
 
+// PickRandom returns a random index in the bit array, and its value.
+// It uses the global randomness in `random.go` to get this index.
+func (bA *BitArray) PickRandom() (int, bool) {
+	if bA == nil {
+		return 0, false
+	}
+	bA.mtx.Lock()
+	defer bA.mtx.Unlock()
+
+	length := len(bA.Elems)
+	if length == 0 {
+		return 0, false
+	}
+	randElemStart := RandIntn(length)
+	for i := 0; i < length; i++ {
+		elemIdx := ((i + randElemStart) % length)
+		if elemIdx < length-1 {
+			if bA.Elems[elemIdx] > 0 {
+				randBitStart := RandIntn(64)
+				for j := 0; j < 64; j++ {
+					bitIdx := ((j + randBitStart) % 64)
+					if (bA.Elems[elemIdx] & (uint64(1) << uint(bitIdx))) > 0 {
+						return 64*elemIdx + bitIdx, true
+					}
+				}
+				PanicSanity("should not happen")
+			}
+		} else {
+			// Special case for last elem, to ignore straggler bits
+			elemBits := bA.Bits % 64
+			if elemBits == 0 {
+				elemBits = 64
+			}
+			randBitStart := RandIntn(elemBits)
+			for j := 0; j < elemBits; j++ {
+				bitIdx := ((j + randBitStart) % elemBits)
+				if (bA.Elems[elemIdx] & (uint64(1) << uint(bitIdx))) > 0 {
+					return 64*elemIdx + bitIdx, true
+				}
+			}
+		}
+	}
+	return 0, false
+}
+
 // String returns a string representation of BitArray: BA{<bit-string>},
 // where <bit-string> is a sequence of 'x' (1) and '_' (0).
 // The <bit-string> includes spaces and newlines to help people.

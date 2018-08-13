@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"math/big"
 	"runtime"
+	"strconv"
 	"time"
 
 	elog "github.com/ethereum/go-ethereum/log"
 	"github.com/kardiachain/go-kardia/dual"
 	"github.com/kardiachain/go-kardia/kai"
+	development "github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -46,7 +48,10 @@ func main() {
 	lightNode := flag.Bool("light", false, "connect to Eth as light node")
 	lightServ := flag.Int("lightserv", 0, "max percentage of time serving light client reqs")
 	cacheSize := flag.Int("cacheSize", 1024, "cache memory size for Eth node")
-	isProposer := flag.Bool("isProposer", false, "specify node is proposer")
+	dev := flag.Bool("dev", false, "deploy node with dev environment")
+	numValid := flag.Int("numValid", 0,
+		"number of total validators in dev environment. Note that this flag only has effect when --dev flag is set.")
+	proposal := flag.Int("proposal", 1, "specify which node is the proposer. The index starts from 1, and every node needs to use the same proposer index. Note that this flag only has effect when --dev flag is set")
 
 	flag.Parse()
 
@@ -76,7 +81,25 @@ func main() {
 	config := &node.DefaultConfig
 	config.P2P.ListenAddr = *listenAddr
 	config.Name = *name
-	config.IsProposer = *isProposer
+	if *dev {
+		if len(*name) == 0 {
+			logger.Error("Invalid node name in dev environment", "name", *name)
+		}
+		index, err := strconv.Atoi((*name)[len(*name)-1:])
+		if err != nil {
+			logger.Error("Node name in dev environment must be formmated as \"\\c*\\d{1,2}\"", "name", *name)
+		}
+		devEnv := development.CreateDevEnvironmentConfig()
+		if index < 1 && index > devEnv.GetNodeSize() {
+			logger.Error(fmt.Sprintf("Node index must be within %v and %v", 1, devEnv.GetNodeSize()))
+
+		}
+		// Substract 1 from the index because we specify node starting from 1 onward.
+		devEnv.SetProposerIndex(*proposal - 1)
+		config.DevNodeConfig = devEnv.GetDevNodeConfig(index - 1)
+		config.DevEnvConfig = devEnv
+		config.NumValidators = *numValid
+	}
 
 	n, err := node.NewNode(config)
 

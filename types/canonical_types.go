@@ -17,6 +17,16 @@ type CanonicalProposal struct {
 	Timestamp  time.Time   `json:"timestamp"`
 }
 
+type CanonicalVote struct {
+	ChainID   string      `json:"@chain_id"`
+	Type      string      `json:"@type"`
+	BlockID   BlockID     `json:"block_id"`
+	Height    *cmn.BigInt `json:"height"`
+	Round     *cmn.BigInt `json:"round"`
+	Timestamp time.Time   `json:"timestamp"`
+	VoteType  byte        `json:"type"`
+}
+
 // ------- Helper functions to create canonical types --------------
 func CreateCanonicalProposal(chainID string, proposal *Proposal) CanonicalProposal {
 	return CanonicalProposal{
@@ -28,5 +38,17 @@ func CreateCanonicalProposal(chainID string, proposal *Proposal) CanonicalPropos
 		POLBlockID: proposal.POLBlockID,
 		POLRound:   proposal.POLRound,
 		Round:      proposal.Round,
+	}
+}
+
+func CreateCanonicalVote(chainID string, vote *Vote) CanonicalVote {
+	return CanonicalVote{
+		ChainID:   chainID,
+		Type:      "vote",
+		BlockID:   vote.BlockID,
+		Height:    vote.Height,
+		Round:     vote.Round,
+		Timestamp: vote.Timestamp,
+		VoteType:  vote.Type,
 	}
 }

@@ -104,6 +104,8 @@ type Peer struct {
 
 	// Peer data
 	Data *common.CMap
+
+	IsAlive bool
 }
 
 // NewPeer returns a peer for testing purposes.

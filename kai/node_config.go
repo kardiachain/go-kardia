@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
@@ -50,8 +51,13 @@ type NodeConfig struct {
 	// is created by New and destroyed when the node is stopped.
 	KeyStoreDir string `toml:",omitempty"`
 
-	//configuration to specify node is proposer or not
-	IsProposer bool
+	// ======== DEV ENVIRONMENT CONFIG =========
+	// Additional config of this node when running in dev environment.
+	DevNodeConfig *dev.DevNodeConfig
+	// Additional config of this environment when running as dev.
+	DevEnvConfig *dev.DevEnvironmentConfig
+	// Number of validators.
+	NumValidators int
 }
 
 // NodeName returns the devp2p node identifier.
@@ -81,10 +87,18 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 	if key, err := crypto.LoadECDSA(keyfile); err == nil {
 		return key
 	}
+
 	// No persistent key found, generate and store a new one.
-	key, err := crypto.GenerateKey()
-	if err != nil {
-		log.Crit(fmt.Sprintf("Failed to generate node key: %v", err))
+	var key *ecdsa.PrivateKey
+	if c.DevNodeConfig != nil {
+		// Load dev node key if running in dev environment.
+		key = c.DevNodeConfig.PrivKey
+	} else {
+		k, err := crypto.GenerateKey()
+		if err != nil {
+			log.Crit(fmt.Sprintf("Failed to generate node key: %v", err))
+		}
+		key = k
 	}
 	instanceDir := filepath.Join(c.DataDir, c.name())
 	if err := os.MkdirAll(instanceDir, 0700); err != nil {

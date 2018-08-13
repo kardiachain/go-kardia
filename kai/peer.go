@@ -187,6 +187,7 @@ func (ps *peerSet) Register(p *peer) error {
 	ps.peers[p.id] = p
 	go p.broadcast()
 	p.reactor.AddPeer(p.Peer, p.rw)
+	p.IsAlive = true
 
 	return nil
 }
@@ -201,6 +202,7 @@ func (ps *peerSet) Unregister(id string) error {
 	if !ok {
 		return errNotRegistered
 	}
+	p.IsAlive = false
 	p.reactor.RemovePeer(p.Peer, nil)
 	delete(ps.peers, id)
 	p.close()

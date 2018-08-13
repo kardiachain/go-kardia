@@ -12,7 +12,7 @@ var ProtocolName = "kai"
 var ProtocolVersions = []uint{kai1}
 
 // ProtocolLengths are the number of implemented message corresponding to different protocol versions.
-var ProtocolLengths = []uint64{3}
+var ProtocolLengths = []uint64{8}
 
 const ProtocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a protocol message
 
@@ -22,4 +22,9 @@ const (
 	StatusMsg         = 0x00
 	TxMsg             = 0x01
 	CsNewRoundStepMsg = 0x02 // Consensus message
+	CsProposalMsg     = 0x03 // Proposal message
+	CsVoteMsg         = 0x04 // Vote message
+	CsCommitStepMsg   = 0x05 // Commit step message
+	CsHasVoteMsg      = 0x06 // Has vote message
+	CsProposalPOLMsg  = 0x07 // Proposal message
 )

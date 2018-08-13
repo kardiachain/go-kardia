@@ -263,8 +263,20 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		pm.txpool.AddRemotes(txs)
 		p.Log().Trace("Transactions added to pool", "txs", txs)
 	case msg.Code == kcmn.CsNewRoundStepMsg:
-		p.Log().Trace("Consensus event received")
+		p.Log().Trace("NewRoundStep message received")
 		pm.reactor.ReceiveNewRoundStep(msg, p.Peer)
+	case msg.Code == kcmn.CsProposalMsg:
+		p.Log().Trace("Proposal message received")
+		pm.reactor.ReceiveNewProposal(msg, p.Peer)
+	case msg.Code == kcmn.CsVoteMsg:
+		p.Log().Trace("Vote messsage received")
+		pm.reactor.ReceiveNewVote(msg, p.Peer)
+	case msg.Code == kcmn.CsHasVoteMsg:
+		p.Log().Trace("HasVote messsage received")
+		pm.reactor.ReceiveHasVote(msg, p.Peer)
+	case msg.Code == kcmn.CsCommitStepMsg:
+		p.Log().Trace("CommitStep message received")
+		pm.reactor.ReceiveNewCommit(msg, p.Peer)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
@@ -303,13 +315,13 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 }
 
 // A loop for broadcasting consensus events.
-func (pm *ProtocolManager) Broadcast(msg interface{}) {
-	log.Info("Start broadcast consensus message")
+func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
+	log.Info("Start broadcast consensus message", "msg", msg, "msgType", msgType)
 	for _, p := range pm.peers.peers {
 		pm.wg.Add(1)
 		go func(p *peer) {
 			defer pm.wg.Done()
-			p2p.Send(p.rw, kcmn.CsNewRoundStepMsg, msg)
+			p2p.Send(p.rw, msgType, msg)
 		}(p)
 	}
 }

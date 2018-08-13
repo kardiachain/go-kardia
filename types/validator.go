@@ -3,6 +3,8 @@ package types
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"fmt"
+	"math"
 	"sort"
 
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -39,6 +41,55 @@ func (v *Validator) Copy() *Validator {
 	return &vCopy
 }
 
+// Returns the one with higher Accum.
+func (v *Validator) CompareAccum(other *Validator) *Validator {
+	if v == nil {
+		return other
+	}
+	if v.Accum > other.Accum {
+		return v
+	} else if v.Accum < other.Accum {
+		return other
+	} else {
+		result := bytes.Compare(v.Address[:], other.Address[:])
+		if result < 0 {
+			return v
+		} else if result > 0 {
+			return other
+		} else {
+			common.PanicSanity("Cannot compare identical validators")
+			return nil
+		}
+	}
+}
+
+func (v *Validator) VerifyProposalSignature(chainID string, proposal *Proposal) bool {
+	hash := rlpHash(proposal.SignBytes(chainID))
+	pubKey, _ := crypto.SigToPub(hash[:], proposal.Signature[:])
+	// TODO(thientn): Verifying signature shouldn't be this complicated. After
+	// cleaning up our crypto package, clean up this as well.
+	return bytes.Equal(crypto.CompressPubkey(pubKey), crypto.CompressPubkey(&v.PubKey))
+}
+
+func (v *Validator) VerifyVoteSignature(chainID string, vote *Vote) bool {
+	hash := rlpHash(vote.SignBytes(chainID))
+	pubKey, _ := crypto.SigToPub(hash[:], vote.Signature[:])
+	// TODO(thientn): Verifying signature shouldn't be this complicated. After
+	// cleaning up our crypto package, clean up this as well.
+	return bytes.Equal(crypto.CompressPubkey(pubKey), crypto.CompressPubkey(&v.PubKey))
+}
+
+func (v *Validator) String() string {
+	if v == nil {
+		return "nil-Validator"
+	}
+	return fmt.Sprintf("Validator{%v %v VP:%v A:%v}",
+		v.Address,
+		v.PubKey,
+		v.VotingPower,
+		v.Accum)
+}
+
 // --------- ValidatorSet ----------
 
 // ValidatorSet represent a set of *Validator at a given height.
@@ -56,6 +107,9 @@ type ValidatorSet struct {
 
 	// cached (unexported)
 	totalVotingPower int64
+
+	// ======== DEV ENVIRONMENT CONFIG =========
+	KeepSameProposer bool `json:"keep_same_proposer"`
 }
 
 func NewValidatorSet(vals []*Validator) *ValidatorSet {
@@ -73,6 +127,22 @@ func NewValidatorSet(vals []*Validator) *ValidatorSet {
 	}
 
 	return vs
+}
+
+// NOTE: This function should only be used only in dev environment.
+func (valSet *ValidatorSet) TurnOnKeepSameProposer() {
+	valSet.KeepSameProposer = true
+}
+
+// NOTE: This function should only be used in dev environment and when
+// KeepSameProposer is set to true. For testnet, or mainnet proposer should be
+// set automatically.
+func (valSet *ValidatorSet) SetProposer(proposer *Validator) {
+	if !valSet.KeepSameProposer {
+		common.PanicSanity(
+			"SetProposer should never be called when KeepSameProposer is off")
+	}
+	valSet.Proposer = proposer
 }
 
 // HasAddress returns true if address given is in the validator set, false -
@@ -141,6 +211,9 @@ func (valSet *ValidatorSet) findNextProposer() *Validator {
 	if valSet.Proposer == nil {
 		return valSet.Validators[0]
 	}
+	if valSet.KeepSameProposer {
+		return valSet.Proposer
+	}
 	for i, val := range valSet.Validators {
 		if bytes.Equal(val.Address.Bytes(), valSet.Proposer.Address.Bytes()) {
 			if i == valSet.Size()-1 {
@@ -176,31 +249,26 @@ func (valSet *ValidatorSet) Copy() *ValidatorSet {
 // IncrementAccum increments accum of each validator and updates the
 // proposer. Panics if validator set is empty.
 func (valSet *ValidatorSet) IncrementAccum(times int) {
-	// TODO(namdoh): Implement.
 	// Add VotingPower * times to each validator and order into heap.
-	//validatorsHeap := cmn.NewHeap()
-	//for _, val := range valSet.Validators {
-	//	// check for overflow both multiplication and sum
-	//	val.Accum = safeAddClip(val.Accum, safeMulClip(val.VotingPower, int64(times)))
-	//	validatorsHeap.PushComparable(val, accumComparable{val})
-	//}
-	//
-	//// Decrement the validator with most accum times times
-	//for i := 0; i < times; i++ {
-	//	mostest := validatorsHeap.Peek().(*Validator)
-	//	// mind underflow
-	//	mostest.Accum = safeSubClip(mostest.Accum, valSet.TotalVotingPower())
-	//
-	//	if i == times-1 {
-	//		valSet.Proposer = mostest
-	//	} else {
-	//		validatorsHeap.Update(mostest, accumComparable{mostest})
-	//	}
-	//}
+	validatorsHeap := common.NewHeap()
+	for _, val := range valSet.Validators {
+		// check for overflow both multiplication and sum
+		val.Accum = safeAddClip(val.Accum, safeMulClip(val.VotingPower, int64(times)))
+		validatorsHeap.PushComparable(val, accumComparable{val})
+	}
 
-	// For now, allow same node to propose.
-	return
+	// Decrement the validator with most accum times times
+	for i := 0; i < times; i++ {
+		mostest := validatorsHeap.Peek().(*Validator)
+		// mind underflow
+		mostest.Accum = safeSubClip(mostest.Accum, valSet.TotalVotingPower())
 
+		if i == times-1 {
+			valSet.Proposer = mostest
+		} else {
+			validatorsHeap.Update(mostest, accumComparable{mostest})
+		}
+	}
 }
 
 // Verify that +2/3 of the set had signed the given signBytes
@@ -269,4 +337,89 @@ func (vs ValidatorsByAddress) Swap(i, j int) {
 	it := vs[i]
 	vs[i] = vs[j]
 	vs[j] = it
+}
+
+//-------------------------------------
+// Use with Heap for sorting validators by accum
+
+type accumComparable struct {
+	*Validator
+}
+
+// We want to find the validator with the greatest accum.
+func (ac accumComparable) Less(o interface{}) bool {
+	other := o.(accumComparable).Validator
+	larger := ac.CompareAccum(other)
+	return bytes.Equal(larger.Address[:], ac.Address[:])
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Safe multiplication and addition/subtraction
+
+func safeMul(a, b int64) (int64, bool) {
+	if a == 0 || b == 0 {
+		return 0, false
+	}
+	if a == 1 {
+		return b, false
+	}
+	if b == 1 {
+		return a, false
+	}
+	if a == math.MinInt64 || b == math.MinInt64 {
+		return -1, true
+	}
+	c := a * b
+	return c, c/b != a
+}
+
+func safeAdd(a, b int64) (int64, bool) {
+	if b > 0 && a > math.MaxInt64-b {
+		return -1, true
+	} else if b < 0 && a < math.MinInt64-b {
+		return -1, true
+	}
+	return a + b, false
+}
+
+func safeSub(a, b int64) (int64, bool) {
+	if b > 0 && a < math.MinInt64+b {
+		return -1, true
+	} else if b < 0 && a > math.MaxInt64+b {
+		return -1, true
+	}
+	return a - b, false
+}
+
+func safeMulClip(a, b int64) int64 {
+	c, overflow := safeMul(a, b)
+	if overflow {
+		if (a < 0 || b < 0) && !(a < 0 && b < 0) {
+			return math.MinInt64
+		}
+		return math.MaxInt64
+	}
+	return c
+}
+
+func safeAddClip(a, b int64) int64 {
+	c, overflow := safeAdd(a, b)
+	if overflow {
+		if b < 0 {
+			return math.MinInt64
+		}
+		return math.MaxInt64
+	}
+	return c
+}
+
+func safeSubClip(a, b int64) int64 {
+	c, overflow := safeSub(a, b)
+	if overflow {
+		if b > 0 {
+			return math.MinInt64
+		}
+		return math.MaxInt64
+	}
+	return c
 }
