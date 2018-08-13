@@ -286,6 +286,18 @@ func (voteSet *VoteSet) GetByIndex(valIndex uint) *Vote {
 	return voteSet.votes[valIndex]
 }
 
+func (voteSet *VoteSet) IsCommit() bool {
+	if voteSet == nil {
+		return false
+	}
+	if voteSet.type_ != VoteTypePrecommit {
+		return false
+	}
+	voteSet.mtx.Lock()
+	defer voteSet.mtx.Unlock()
+	return voteSet.maj23 != nil
+}
+
 func (voteSet *VoteSet) GetByAddress(address cmn.Address) *Vote {
 	if voteSet == nil {
 		return nil
@@ -414,4 +426,15 @@ func (vs *blockVotes) getByIndex(index int) *Vote {
 		return nil
 	}
 	return vs.votes[index]
+}
+
+// Common interface between *consensus.VoteSet and types.Commit
+type VoteSetReader interface {
+	Height() *cmn.BigInt
+	Round() *cmn.BigInt
+	Type() byte
+	Size() int
+	BitArray() *cmn.BitArray
+	GetByIndex(uint) *Vote
+	IsCommit() bool
 }

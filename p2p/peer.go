@@ -117,12 +117,6 @@ func NewPeer(id discover.NodeID, name string, caps []Cap) *Peer {
 	return peer
 }
 
-// TODO(namdoh): Temporary hack to expose MsgReadWriter for consensus to send
-// message. Find a cleaner way to do this.
-func (p *Peer) GetRW() MsgReadWriter {
-	return p.rw
-}
-
 // ID returns the node's public key.
 func (p *Peer) ID() discover.NodeID {
 	return p.rw.id
