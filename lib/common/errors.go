@@ -24,3 +24,11 @@ var Fmt = func(format string, a ...interface{}) string {
 func PanicConsensus(v interface{}) {
 	panic(Fmt("Panicked on a Consensus Failure: %v", v))
 }
+
+// A panic here means something has gone horribly wrong, in the form of data corruption or
+// failure of the operating system. In a correct/healthy system, these should never fire.
+// If they do, it's indicative of a much more serious problem.
+// XXX DEPRECATED
+func PanicCrisis(v interface{}) {
+	panic(Fmt("Panicked on a Crisis: %v", v))
+}

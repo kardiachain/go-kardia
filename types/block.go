@@ -311,7 +311,8 @@ func NewZeroBlockID() BlockID {
 }
 
 func (b *BlockID) IsZero() bool {
-	return len(b) == 0
+	zero := BlockID{}
+	return bytes.Equal(b[:], zero[:])
 }
 
 func (b *BlockID) Equal(id BlockID) bool {

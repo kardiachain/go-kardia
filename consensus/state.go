@@ -383,7 +383,7 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 	// Update Valid* if we can.
 	prevotes := cs.Votes.Prevotes(cs.Round.Int32())
 	blockID, hasTwoThirds := prevotes.TwoThirdsMajority()
-	if hasTwoThirds && !blockID.IsZero() && (cs.ValidRound.IsLessThan(cs.Round)) {
+	if hasTwoThirds && !blockID.IsZero() && cs.ValidRound.IsLessThan(cs.Round) {
 		if cs.ProposalBlock.HashesTo(blockID) {
 			cs.Logger.Info("Updating valid block to new proposal block",
 				"valid-round", cs.Round, "valid-block-hash", cs.ProposalBlock.Hash())
@@ -499,7 +499,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 
 	// Height mismatch is ignored.
 	// Not necessarily a bad peer, but not favourable behaviour.
-	if vote.Height != cs.Height {
+	if !vote.Height.Equals(cs.Height) {
 		err = ErrVoteHeightMismatch
 		cs.Logger.Info("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", cs.Height, "err", err)
 		cs.Logger.Trace("debug#4")
@@ -885,7 +885,7 @@ func (cs *ConsensusState) enterPrevoteWait(height *cmn.BigInt, round *cmn.BigInt
 // else, precommit nil otherwise.
 func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) {
 	cs.Logger.Trace("enterPrecommit", "height", height, "round", round)
-	logger := cs.Logger.New("enterPrecommit", "height", height, "round", round)
+	logger := cs.Logger.New("height", height, "round", round)
 
 	if !cs.Height.Equals(height) || round.IsLessThan(cs.Round) || (cs.Round.Equals(round) && cstypes.RoundStepPrecommit <= cs.Step) {
 		logger.Debug(cmn.Fmt("enterPrecommit(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
@@ -940,7 +940,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	// At this point, +2/3 prevoted for a particular block.
 
 	// If we're already locked on that block, precommit it, and update the LockedRound
-	if cs.LockedBlock.HashesTo(blockID) {
+	if cs.LockedBlock != nil && cs.LockedBlock.HashesTo(blockID) {
 		logger.Info("enterPrecommit: +2/3 prevoted locked block. Relocking")
 		cs.LockedRound = round
 		cs.eventBus.PublishEventRelock(cs.RoundStateEvent())
