@@ -11,8 +11,6 @@ import (
 	"io/ioutil"
 	"math/big"
 	"os"
-
-	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/rlp"
@@ -105,7 +103,7 @@ func FromECDSA(priv *ecdsa.PrivateKey) []byte {
 	if priv == nil {
 		return nil
 	}
-	return math.PaddedBigBytes(priv.D, priv.Params().BitSize/8)
+	return common.PaddedBigBytes(priv.D, priv.Params().BitSize/8)
 }
 
 // UnmarshalPubkey converts bytes to a secp256k1 public key.
