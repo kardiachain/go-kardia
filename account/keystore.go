@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io"
 	"errors"
+	"go-kardia/types"
 )
 
 const (
@@ -136,7 +137,7 @@ func (keyStore *KeyStore)GetKey(auth string) error {
 		return fmt.Errorf("key content mismatch: have address %x, want %x", key.Address, keyStore.Address.Hex())
 	}
 
-	privateKey, err := key.GetPrivateKey(auth)
+	privateKey, err := GetKeyFromJSON(key, auth)
 	if err != nil {
 		return err
 	}
@@ -145,6 +146,19 @@ func (keyStore *KeyStore)GetKey(auth string) error {
 	return nil
 }
 
+
+/*
+	Get PrivateKey from KeyStoreJSON
+	This function is used for testing case or cases that there aren't any keystores stored in local storage
+ */
+func GetKeyFromJSON(jsonData *KeyStoreJson, auth string) (*ecdsa.PrivateKey, error) {
+
+	if jsonData == nil {
+		return nil, errors.New("jsonData is empty")
+	}
+
+	return jsonData.GetPrivateKey(auth)
+}
 
 func aesCTRXOR(key, inText, iv []byte) ([]byte, error) {
 	// AES-128 is selected due to size of encryptKey.
@@ -191,3 +205,13 @@ func (keystore *KeyStoreJson)writeKeyFile(file string, content []byte) error {
 	f.Close()
 	return os.Rename(f.Name(), file)
 }
+
+
+/*
+	Sign a transaction with current keystore
+	TODO(kiendn@): Should we implement lock/unlock account?
+ */
+func (keyStore *KeyStore) SignTransaction(transaction *types.Transaction) (*types.Transaction, error) {
+	return types.SignTx(transaction, &keyStore.PrivateKey)
+}
+
