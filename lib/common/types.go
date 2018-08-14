@@ -110,6 +110,9 @@ type UnprefixedHash Hash
 // Address represents the 20 byte address of an kardia account.
 type Address [AddressLength]byte
 
+// StringToAddress returns Address with value b as a string
+func StringToAddress(s string) Address { return BytesToAddress([]byte(s)) }
+
 // BytesToAddress returns Address with value b.
 // If b is larger than len(h), b will be cropped from the left.
 func BytesToAddress(b []byte) Address {

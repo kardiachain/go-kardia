@@ -4,16 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
-
 	"github.com/kardiachain/go-kardia/blockchain/rawdb"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/state"
 	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
+	"encoding/json"
 )
 
 //go:generate gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go
@@ -191,14 +189,24 @@ func DefaultTestnetGenesisBlock() *Genesis {
 	}
 }
 
-func decodePrealloc(data string) GenesisAlloc {
-	var p []struct{ Addr, Balance *big.Int }
-	if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
-		panic(err)
+func GenesisAllocFromData(data string) (GenesisAlloc, error) {
+	var p []struct{
+		Addr string `json:"address"`
+		Balance int64 `json:"balance"`
 	}
+	//if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
+	//	panic(err)
+	//}
+	err := json.Unmarshal([]byte(data), &p)
+
+	if err != nil {
+		return nil, err
+	}
+
 	ga := make(GenesisAlloc, len(p))
 	for _, account := range p {
-		ga[common.BigToAddress(account.Addr)] = GenesisAccount{Balance: account.Balance}
+		ga[common.HexToAddress(account.Addr)] = GenesisAccount{Balance: big.NewInt(account.Balance)}
 	}
-	return ga
+
+	return ga, nil
 }
