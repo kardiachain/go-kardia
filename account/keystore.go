@@ -3,7 +3,6 @@ package account
 import (
 	"crypto/aes"
 	"crypto/ecdsa"
-	"go-kardia/lib/crypto"
 	"crypto/rand"
 	"encoding/hex"
 	"golang.org/x/crypto/scrypt"
@@ -16,7 +15,8 @@ import (
 	"fmt"
 	"io"
 	"errors"
-	"go-kardia/types"
+	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 

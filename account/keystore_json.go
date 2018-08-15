@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"encoding/hex"
 	"golang.org/x/crypto/scrypt"
-	"go-kardia/lib/crypto"
 	"crypto/aes"
 	"crypto/ecdsa"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 )
 
 
