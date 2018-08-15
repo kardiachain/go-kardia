@@ -3,8 +3,6 @@ package blockchain
 import (
 	"testing"
 	"go-kardia/account"
-	"html/template"
-	"strings"
 	"fmt"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
@@ -12,7 +10,7 @@ import (
 
 const (
 	password = "KardiaChain"
-	tmpl = `{"address": "{{.Address}}", "balance": 100000000000}`
+	tmpl = `"{{.Address}}": 100000000000`
 )
 
 
@@ -33,6 +31,7 @@ func TestGenesisAllocFromData(t *testing.T) {
 		"0x36BE7365e6037bD0FDa455DC4d197B07A2002547",
 	}
 
+	balance := int64(100000000)
 	privKeys := [10]string{
 		"8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06",
 		"77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79",
@@ -46,8 +45,8 @@ func TestGenesisAllocFromData(t *testing.T) {
 		"e049a09c992c882bc2deb780323a247c6ee0951f8b4c5c1dd0fc2fc22ce6493d",
 	}
 
-	data := "["
-	for i, pk := range privKeys {
+	var data = make(map[string]int64, len(privKeys))
+	for _, pk := range privKeys {
 		keystore := account.KeyStore{Path: ""}
 		keystoreJson, err := keystore.NewKeyStoreJSON(password, &pk)
 
@@ -55,26 +54,10 @@ func TestGenesisAllocFromData(t *testing.T) {
 			t.Error("Cannot create new keystore")
 		}
 
-		params := map[string]interface{}{
-			"Address": keystoreJson.Address,
-		}
-
+		data[keystoreJson.Address] = balance
 		fmt.Println(keystoreJson.Address)
-
-		temp := template.Must(template.New("genesisAccount").Parse(tmpl))
-		builder := &strings.Builder{}
-		if err := temp.Execute(builder, params); err != nil {
-			t.Error(err)
-		}
-
-		if i > 0 {
-			data += ","
-		}
-
-		data += builder.String()
 	}
 
-	data += "]"
 	ga, err := GenesisAllocFromData(data)
 	if err != nil {
 		t.Error(err)
