@@ -180,18 +180,24 @@ func DefaultGenesisBlock() *Genesis {
 }
 
 // DefaultTestnetGenesisBlock returns the Ropsten network genesis block.
-func DefaultTestnetGenesisBlock() *Genesis {
+func DefaultTestnetGenesisBlock(allocData map[string]int64) *Genesis {
+
+	ga, err := GenesisAllocFromData(allocData)
+	if err != nil {
+		return nil
+	}
+
 	return &Genesis{
 		Config:   configs.TestnetChainConfig,
 		GasLimit: 16777216,
-		//@huny Alloc:    decodePrealloc(testnetAllocData),
+		Alloc: ga,
 	}
 }
 
 func GenesisAllocFromData(data map[string]int64) (GenesisAlloc, error) {
 	ga := make(GenesisAlloc, len(data))
 	for address, balance := range data {
-		ga[common.HexToAddress(address)] = GenesisAccount{Balance: big.NewInt(balance)}
+		ga[common.StringToAddress(address)] = GenesisAccount{Balance: big.NewInt(balance)}
 	}
 
 	return ga, nil
