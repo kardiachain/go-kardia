@@ -11,7 +11,6 @@ import (
 	"github.com/kardiachain/go-kardia/state"
 	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
-	"encoding/json"
 )
 
 //go:generate gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go
@@ -189,23 +188,10 @@ func DefaultTestnetGenesisBlock() *Genesis {
 	}
 }
 
-func GenesisAllocFromData(data string) (GenesisAlloc, error) {
-	var p []struct{
-		Addr string `json:"address"`
-		Balance int64 `json:"balance"`
-	}
-	//if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
-	//	panic(err)
-	//}
-	err := json.Unmarshal([]byte(data), &p)
-
-	if err != nil {
-		return nil, err
-	}
-
-	ga := make(GenesisAlloc, len(p))
-	for _, account := range p {
-		ga[common.HexToAddress(account.Addr)] = GenesisAccount{Balance: big.NewInt(account.Balance)}
+func GenesisAllocFromData(data map[string]int64) (GenesisAlloc, error) {
+	ga := make(GenesisAlloc, len(data))
+	for address, balance := range data {
+		ga[common.HexToAddress(address)] = GenesisAccount{Balance: big.NewInt(balance)}
 	}
 
 	return ga, nil
