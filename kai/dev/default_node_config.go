@@ -16,8 +16,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
-	cstypes "github.com/kardiachain/go-kardia/consensus/types"
-
 )
 
 type DevNodeConfig struct {
@@ -40,8 +38,8 @@ type node struct {
 type VotingStrategy struct {
 	Height		*cmn.BigInt
 	Round   	*cmn.BigInt
-	Step    	cstypes.RoundStepType
-	VoteType 	*cmn.BigInt
+	VoteType 	byte
+	Result 		*cmn.BigInt
 }
 
 var nodes = []node{
@@ -84,42 +82,41 @@ func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
 			}
 			var height, _ = strconv.ParseInt(line[0], 10, 64)
 			var round, _ = strconv.ParseInt(line[1],10, 64)
-			var step, _ = strconv.ParseInt(line[2],10, 64)
-			var voteType, _ = strconv.ParseInt(line[3],10, 64)
+			var voteType, _ = strconv.ParseInt(line[2],10, 64)
+			var result, _ = strconv.ParseInt(line[3],10, 64)
 
 			devEnv.VotingStrategy = append(devEnv.VotingStrategy, VotingStrategy{
 				Height: 	cmn.NewBigInt(height),
 				Round:  	cmn.NewBigInt(round),
-				Step: 		cstypes.RoundStepType(step),
-				VoteType: 	cmn.NewBigInt(voteType),
+				VoteType: 	byte(voteType),
+				Result:		cmn.NewBigInt(result),
 			})
 		}
 	}
 
 }
 
-func (devEnv *DevEnvironmentConfig) DecideVoteStrategy(height *cmn.BigInt, round *cmn.BigInt, step cstypes.RoundStepType) int {
+func (devEnv *DevEnvironmentConfig) DecideVoteStrategy(height *cmn.BigInt, round *cmn.BigInt, voteType byte) int {
 	var vote = VotingStrategy {
 		Height: 	height,
 		Round:  	round,
-		Step: 		step,
-		VoteType: 	nil,
+		VoteType: 	voteType,
 	}
 
 	for _, strategy := range devEnv.VotingStrategy {
-		if vote.Height == strategy.Height && vote.Round == strategy.Round && vote.Step == strategy.Step {
-			vote.VoteType = strategy.VoteType
-			break
+		if vote.Height == strategy.Height && vote.Round == strategy.Round && vote.VoteType == strategy.VoteType {
+			break;
 		}
 	}
 
-	if vote.VoteType.Equals(cmn.NewBigInt(0)) {
+	if vote.Result.Equals(cmn.NewBigInt(0)) {
 		return 0
-	} else if vote.VoteType.Equals(cmn.NewBigInt(1)) {
+	} else if vote.Result.Equals(cmn.NewBigInt(1)) {
 		return 1
-	} else if vote.VoteType.Equals(cmn.NewBigInt(-1)) {
+	} else if vote.Result.Equals(cmn.NewBigInt(-1)) {
 		return -1
 	}
+
 	return 0
 }
 

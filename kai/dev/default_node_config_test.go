@@ -4,18 +4,17 @@ import (
 	"testing"
 	"os"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
-	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 )
 
 var votingStrategyTests = []struct {
 	Height		*cmn.BigInt
 	Round   	*cmn.BigInt
-	Step    	cstypes.RoundStepType
-	VoteType 	*cmn.BigInt
+	VoteType 	byte
+	Result 		*cmn.BigInt
 }{
-	{cmn.NewBigInt(1), cmn.NewBigInt(0),4, cmn.NewBigInt(0)},
-	{cmn.NewBigInt(1), cmn.NewBigInt(0),6, cmn.NewBigInt(1)},
-	{cmn.NewBigInt(1), cmn.NewBigInt(0),4, cmn.NewBigInt(-1)},
+	{cmn.NewBigInt(1), cmn.NewBigInt(0),1, cmn.NewBigInt(0)},
+	{cmn.NewBigInt(1), cmn.NewBigInt(0),2, cmn.NewBigInt(1)},
+	{cmn.NewBigInt(1), cmn.NewBigInt(0),1, cmn.NewBigInt(-1)},
 }
 
 func TestDevEnvironmentConfig_SetVotingStrategy(t *testing.T) {
@@ -26,8 +25,9 @@ func TestDevEnvironmentConfig_SetVotingStrategy(t *testing.T) {
 		votingStrategy := devEnv.VotingStrategy[i]
 		height := test.Height
 		round := test.Round
-		step := test.Step
 		voteType := test.VoteType
+		result := test.Result
+
 
 		if !height.Equals(votingStrategy.Height) {
 			t.Errorf("Expected height %v got %v", height, votingStrategy.Height)
@@ -35,25 +35,15 @@ func TestDevEnvironmentConfig_SetVotingStrategy(t *testing.T) {
 		if !round.Equals(votingStrategy.Round) {
 			t.Errorf("Expected round %v got %v", round, votingStrategy.Round)
 		}
-		if step != votingStrategy.Step {
-			t.Errorf("Expected step %v got %v", step, votingStrategy.Step)
+
+		if voteType != votingStrategy.VoteType {
+			t.Errorf("Expected round %v got %v", voteType, votingStrategy.VoteType)
 		}
 
-		if !voteType.Equals(votingStrategy.VoteType) {
-			t.Errorf("Expected voteType %v got %v", voteType, votingStrategy.VoteType)
+		if !result.Equals(votingStrategy.Result) {
+			t.Errorf("Expected result %v got %v", result, votingStrategy.Result)
 		}
 
-		if voteType.Equals(cmn.NewBigInt(0)) {
-			t.Logf("VoteType is %v - No vote", voteType.Value)
-		}
-
-		if voteType.Equals(cmn.NewBigInt(1)) {
-			t.Logf("VoteType is %v - Good vote", voteType.Value)
-		}
-
-		if voteType.Equals(cmn.NewBigInt(-1)) {
-			t.Logf("VoteType is %v - Bad vote", voteType.Value)
-		}
 	}
 }
 
@@ -63,9 +53,9 @@ func TestDevEnvironmentConfig_DecideVoteStrategy(t *testing.T) {
 	devEnv.SetVotingStrategy("voting_strategy.csv")
 	for i, test := range votingStrategyTests {
 		votingStrategy := devEnv.VotingStrategy[i]
-		var voteType = devEnv.DecideVoteStrategy(test.Height,test.Round, test.Step)
-		if (voteType != votingStrategy.VoteType.Int32()) {
-			t.Errorf("Expected voteType %v got %v", voteType, votingStrategy.VoteType.Int32)
+		var result = devEnv.DecideVoteStrategy(test.Height,test.Round, test.VoteType)
+		if (result != votingStrategy.Result.Int32()) {
+			t.Errorf("Expected result %v got %v", result, votingStrategy.Result.Int32)
 		}
 
 	}
