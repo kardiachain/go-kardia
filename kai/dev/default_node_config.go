@@ -5,10 +5,19 @@ package dev
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"strings"
+	"os"
+	"encoding/csv"
+	"bufio"
+	"io"
+	"strconv"
 
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
+	con "github.com/kardiachain/go-kardia/consensus/types"
+
 )
 
 type DevNodeConfig struct {
@@ -20,11 +29,19 @@ type DevEnvironmentConfig struct {
 	DevNodeSet []DevNodeConfig
 
 	proposalIndex int
+	VotingStrategy []VotingStrategy
 }
 
 type node struct {
 	key         string
 	votingPower int64
+}
+
+type VotingStrategy struct {
+	Height		*cmn.BigInt
+	Round   	*cmn.BigInt
+	Step    	con.RoundStepType
+	VoteType 	*cmn.BigInt
 }
 
 var nodes = []node{
@@ -51,6 +68,34 @@ func CreateDevEnvironmentConfig() *DevEnvironmentConfig {
 	}
 
 	return &devEnv
+}
+
+
+func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
+	if strings.HasSuffix(votingStrategy, "csv") {
+		csvFile, _ := os.Open(votingStrategy)
+		reader := csv.NewReader(bufio.NewReader(csvFile))
+		for {
+			line, error := reader.Read()
+			if error == io.EOF {
+				break
+			} else if error != nil {
+				log.Error("error", error)
+			}
+			var height, _ = strconv.ParseInt(line[0], 10, 64)
+			var round, _ = strconv.ParseInt(line[1],10, 64)
+			var step, _ = strconv.ParseInt(line[2],10, 64)
+			var voteType, _ = strconv.ParseInt(line[3],10, 64)
+
+			devEnv.VotingStrategy = append(devEnv.VotingStrategy, VotingStrategy{
+				Height: 	cmn.NewBigInt(height),
+				Round:  	cmn.NewBigInt(round),
+				Step: 		con.RoundStepType(step),
+				VoteType: 	cmn.NewBigInt(voteType),
+			})
+		}
+	}
+
 }
 
 func (devEnv *DevEnvironmentConfig) SetProposerIndex(index int) {
