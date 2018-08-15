@@ -3,12 +3,19 @@ package node
 import (
 	"errors"
 	"fmt"
+
+	"net"
 	"reflect"
 	"sync"
 
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/kai"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
+	"github.com/kardiachain/go-kardia/rpc"
 )
 
 // Node is the highest level container for a full Kardia node.
@@ -18,8 +25,11 @@ type Node struct {
 	serverConfig p2p.Config
 	server       *p2p.Server
 
-	services            map[string]Service // Map of type names to running services
-	serviceConstructors []ServiceConstructor
+	services            map[string]kai.Service // Map of type names to running services
+	serviceConstructors []kai.ServiceConstructor
+
+	csReactor     *consensus.ConsensusReactor
+	privValidator *types.PrivValidator
 
 	lock sync.RWMutex
 	log  log.Logger
@@ -135,6 +145,39 @@ func (n *Node) Stop() error {
 		return ErrNodeStopFailure
 	}
 
+	return nil
+}
+
+// startRPC is a helper method to start all the various RPC endpoint during node
+// startup. It's not meant to be called at any time afterwards as it makes certain
+// assumptions about the state of the node.
+func (n *Node) startRPC(services map[reflect.Type]Service) error {
+	// Gather all the possible APIs to surface
+	apis := n.apis()
+	for _, service := range services {
+		apis = append(apis, service.APIs()...)
+	}
+	// Start the various API endpoints, terminating all in case of errors
+	if err := n.startInProc(apis); err != nil {
+		return err
+	}
+	if err := n.startIPC(apis); err != nil {
+		n.stopInProc()
+		return err
+	}
+	if err := n.startHTTP(n.httpEndpoint, apis, n.config.HTTPModules, n.config.HTTPCors, n.config.HTTPVirtualHosts); err != nil {
+		n.stopIPC()
+		n.stopInProc()
+		return err
+	}
+	if err := n.startWS(n.wsEndpoint, apis, n.config.WSModules, n.config.WSOrigins, n.config.WSExposeAll); err != nil {
+		n.stopHTTP()
+		n.stopIPC()
+		n.stopInProc()
+		return err
+	}
+	// All API endpoints started successfully
+	n.rpcAPIs = apis
 	return nil
 }
 
