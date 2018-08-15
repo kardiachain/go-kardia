@@ -3,6 +3,7 @@ package dev
 import (
 	"testing"
 	"os"
+	"path/filepath"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 )
 
@@ -14,11 +15,13 @@ var votingStrategyTests = []struct {
 }{
 	{cmn.NewBigInt(1), cmn.NewBigInt(0),1, cmn.NewBigInt(0)},
 	{cmn.NewBigInt(1), cmn.NewBigInt(0),2, cmn.NewBigInt(1)},
-	{cmn.NewBigInt(1), cmn.NewBigInt(0),1, cmn.NewBigInt(-1)},
+	{cmn.NewBigInt(1), cmn.NewBigInt(1),2, cmn.NewBigInt(-1)},
 }
 
+var dir, _ = filepath.Abs("./" + "../../")
+
 func TestDevEnvironmentConfig_SetVotingStrategy(t *testing.T) {
-	os.Chdir("../..")
+	os.Chdir(dir)
 	devEnv := CreateDevEnvironmentConfig()
 	devEnv.SetVotingStrategy("voting_strategy.csv")
 	for i, test := range votingStrategyTests {
@@ -27,7 +30,6 @@ func TestDevEnvironmentConfig_SetVotingStrategy(t *testing.T) {
 		round := test.Round
 		voteType := test.VoteType
 		result := test.Result
-
 
 		if !height.Equals(votingStrategy.Height) {
 			t.Errorf("Expected height %v got %v", height, votingStrategy.Height)
@@ -39,25 +41,23 @@ func TestDevEnvironmentConfig_SetVotingStrategy(t *testing.T) {
 		if voteType != votingStrategy.VoteType {
 			t.Errorf("Expected round %v got %v", voteType, votingStrategy.VoteType)
 		}
-
 		if !result.Equals(votingStrategy.Result) {
 			t.Errorf("Expected result %v got %v", result, votingStrategy.Result)
 		}
-
 	}
 }
 
 func TestDevEnvironmentConfig_DecideVoteStrategy(t *testing.T) {
-	os.Chdir("../..")
+	os.Chdir(dir)
 	devEnv := CreateDevEnvironmentConfig()
 	devEnv.SetVotingStrategy("voting_strategy.csv")
 	for i, test := range votingStrategyTests {
 		votingStrategy := devEnv.VotingStrategy[i]
-		var result = devEnv.DecideVoteStrategy(test.Height,test.Round, test.VoteType)
-		if (result != votingStrategy.Result.Int32()) {
-			t.Errorf("Expected result %v got %v", result, votingStrategy.Result.Int32)
+
+		var result = devEnv.DecideVoteStrategy(test.Height, test.Round, test.VoteType)
+
+		if !result.Equals(votingStrategy.Result) {
+			t.Errorf("Expected result %v got %v", result, votingStrategy.Result)
 		}
-
 	}
-
 }

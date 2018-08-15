@@ -84,7 +84,6 @@ func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
 			var round, _ = strconv.ParseInt(line[1],10, 64)
 			var voteType, _ = strconv.ParseInt(line[2],10, 64)
 			var result, _ = strconv.ParseInt(line[3],10, 64)
-
 			devEnv.VotingStrategy = append(devEnv.VotingStrategy, VotingStrategy{
 				Height: 	cmn.NewBigInt(height),
 				Round:  	cmn.NewBigInt(round),
@@ -96,28 +95,24 @@ func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
 
 }
 
-func (devEnv *DevEnvironmentConfig) DecideVoteStrategy(height *cmn.BigInt, round *cmn.BigInt, voteType byte) int {
+func (devEnv *DevEnvironmentConfig) DecideVoteStrategy(height *cmn.BigInt, round *cmn.BigInt, voteType byte) *cmn.BigInt {
 	var vote = VotingStrategy {
 		Height: 	height,
 		Round:  	round,
 		VoteType: 	voteType,
+		Result:     cmn.NewBigInt(0),
 	}
 
 	for _, strategy := range devEnv.VotingStrategy {
-		if vote.Height == strategy.Height && vote.Round == strategy.Round && vote.VoteType == strategy.VoteType {
+		if vote.Height.Equals(strategy.Height) &&
+			vote.Round.Equals(strategy.Round) &&
+			vote.VoteType == strategy.VoteType {
+			vote.Result = strategy.Result
 			break;
 		}
 	}
 
-	if vote.Result.Equals(cmn.NewBigInt(0)) {
-		return 0
-	} else if vote.Result.Equals(cmn.NewBigInt(1)) {
-		return 1
-	} else if vote.Result.Equals(cmn.NewBigInt(-1)) {
-		return -1
-	}
-
-	return 0
+	return vote.Result
 }
 
 
