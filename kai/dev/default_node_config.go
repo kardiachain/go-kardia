@@ -16,7 +16,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
-	con "github.com/kardiachain/go-kardia/consensus/types"
+	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 
 )
 
@@ -40,7 +40,7 @@ type node struct {
 type VotingStrategy struct {
 	Height		*cmn.BigInt
 	Round   	*cmn.BigInt
-	Step    	con.RoundStepType
+	Step    	cstypes.RoundStepType
 	VoteType 	*cmn.BigInt
 }
 
@@ -90,13 +90,39 @@ func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
 			devEnv.VotingStrategy = append(devEnv.VotingStrategy, VotingStrategy{
 				Height: 	cmn.NewBigInt(height),
 				Round:  	cmn.NewBigInt(round),
-				Step: 		con.RoundStepType(step),
+				Step: 		cstypes.RoundStepType(step),
 				VoteType: 	cmn.NewBigInt(voteType),
 			})
 		}
 	}
 
 }
+
+func (devEnv *DevEnvironmentConfig) DecideVoteStrategy(height *cmn.BigInt, round *cmn.BigInt, step cstypes.RoundStepType) int {
+	var vote = VotingStrategy {
+		Height: 	height,
+		Round:  	round,
+		Step: 		step,
+		VoteType: 	nil,
+	}
+
+	for _, strategy := range devEnv.VotingStrategy {
+		if vote.Height == strategy.Height && vote.Round == strategy.Round && vote.Step == strategy.Step {
+			vote.VoteType = strategy.VoteType
+			break
+		}
+	}
+
+	if vote.VoteType.Equals(cmn.NewBigInt(0)) {
+		return 0
+	} else if vote.VoteType.Equals(cmn.NewBigInt(1)) {
+		return 1
+	} else if vote.VoteType.Equals(cmn.NewBigInt(-1)) {
+		return -1
+	}
+	return 0
+}
+
 
 func (devEnv *DevEnvironmentConfig) SetProposerIndex(index int) {
 	if index < 0 || index >= devEnv.GetNodeSize() {
