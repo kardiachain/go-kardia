@@ -15,7 +15,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
 )
 
 type DevNodeConfig struct {
@@ -27,7 +26,7 @@ type DevEnvironmentConfig struct {
 	DevNodeSet []DevNodeConfig
 
 	proposalIndex int
-	VotingStrategy []VotingStrategy
+	VotingStrategy map[int]VotingStrategy
 }
 
 type node struct {
@@ -36,10 +35,10 @@ type node struct {
 }
 
 type VotingStrategy struct {
-	Height		*cmn.BigInt
-	Round   	*cmn.BigInt
+	Height		int64
+	Round   	int64
 	VoteType 	byte
-	Result 		*cmn.BigInt
+	Result 		int64
 }
 
 var nodes = []node{
@@ -71,8 +70,10 @@ func CreateDevEnvironmentConfig() *DevEnvironmentConfig {
 
 func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
 	if strings.HasSuffix(votingStrategy, "csv") {
+		devEnv.VotingStrategy = map[int]VotingStrategy{}
 		csvFile, _ := os.Open(votingStrategy)
 		reader := csv.NewReader(bufio.NewReader(csvFile))
+		i:= 0
 		for {
 			line, error := reader.Read()
 			if error == io.EOF {
@@ -84,35 +85,21 @@ func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
 			var round, _ = strconv.ParseInt(line[1],10, 64)
 			var voteType, _ = strconv.ParseInt(line[2],10, 64)
 			var result, _ = strconv.ParseInt(line[3],10, 64)
-			devEnv.VotingStrategy = append(devEnv.VotingStrategy, VotingStrategy{
-				Height: 	cmn.NewBigInt(height),
-				Round:  	cmn.NewBigInt(round),
-				VoteType: 	byte(voteType),
-				Result:		cmn.NewBigInt(result),
-			})
+			devEnv.VotingStrategy[i] = VotingStrategy{height,round, byte(voteType), result}
+			i++
 		}
 	}
-
 }
 
-func (devEnv *DevEnvironmentConfig) DecideVoteStrategy(height *cmn.BigInt, round *cmn.BigInt, voteType byte) *cmn.BigInt {
-	var vote = VotingStrategy {
-		Height: 	height,
-		Round:  	round,
-		VoteType: 	voteType,
-		Result:     cmn.NewBigInt(0),
-	}
-
+func (devEnv *DevEnvironmentConfig) GetScriptedVote(height int64, round int64, voteType byte) int64 {
 	for _, strategy := range devEnv.VotingStrategy {
-		if vote.Height.Equals(strategy.Height) &&
-			vote.Round.Equals(strategy.Round) &&
-			vote.VoteType == strategy.VoteType {
-			vote.Result = strategy.Result
-			break;
+		if height == strategy.Height &&
+			round == strategy.Round &&
+			voteType == strategy.VoteType {
+			return strategy.Result
 		}
 	}
-
-	return vote.Result
+	return 0
 }
 
 
