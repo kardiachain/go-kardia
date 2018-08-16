@@ -24,4 +24,13 @@ type Config struct {
 
 	// Transaction pool options
 	TxPool blockchain.TxPoolConfig
+
+	// chaindata
+	ChainData string
+
+	// DB caches
+	DbCaches int
+
+	// DB handles
+	DbHandles int
 }

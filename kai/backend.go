@@ -47,8 +47,7 @@ func (s *Kardia) AddKaiServer(ks KardiaSubService) {
 // New creates a new Kardia object (including the
 // initialisation of the common Kardia object)
 func newKardia(ctx *ServiceContext, config *Config) (*Kardia, error) {
-	// TODO(thientn): Uses config for database parameters
-	chainDb, err := ctx.Config.StartDatabase("chaindata", 16, 16)
+	chainDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
 	if err != nil {
 		return nil, err
 	}
@@ -89,10 +88,19 @@ func newKardia(ctx *ServiceContext, config *Config) (*Kardia, error) {
 // Implements ServiceConstructor, return a Kardia node service from node service context.
 // TODO: move this outside of kai package to customize kai.Config
 func NewKardiaService(ctx *ServiceContext) (Service, error) {
-	kai, err := newKardia(ctx, &Config{NetworkId: DefaultNetworkID})
+	nodeConfig := ctx.Config
+	kai, err := newKardia(ctx, &Config{
+		NetworkId: DefaultNetworkID,
+		ChainData: nodeConfig.ChainData,
+		DbHandles: nodeConfig.DbHandles,
+		DbCaches: nodeConfig.DbCache,
+		Genesis: nodeConfig.Genesis,
+	})
+
 	if err != nil {
 		return nil, err
 	}
+
 	return kai, nil
 }
 

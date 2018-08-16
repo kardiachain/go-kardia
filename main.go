@@ -18,6 +18,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/blockchain"
 )
 
 func runtimeSystemSettings() error {
@@ -102,6 +103,14 @@ func main() {
 		devEnv.SetVotingStrategy(*votingStrategy)
 		config.DevEnvConfig = devEnv
 		config.NumValidators = *numValid
+
+		// Setup config for kardia service
+		config.ChainData = development.ChainData
+		config.DbHandles = development.DbHandles
+		config.DbCache = development.DbCache
+
+		// Create genesis block with dev.genesisAccounts
+		config.Genesis = blockchain.DefaultTestnetGenesisBlock(development.GenesisAccounts)
 	}
 
 	n, err := node.NewNode(config)
