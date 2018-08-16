@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-var votingStrategyTests = map[int]VotingStrategy{
+var votingStrategyTests = map[int]VoteTurn{
 	0: {1,0,byte(1),0 },
 	1: {1,0,byte(2),1 },
 	2: {1,1,byte(2),-1},

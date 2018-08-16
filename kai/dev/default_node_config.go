@@ -26,7 +26,7 @@ type DevEnvironmentConfig struct {
 	DevNodeSet []DevNodeConfig
 
 	proposalIndex int
-	VotingStrategy map[int]VotingStrategy
+	VotingStrategy map[int]VoteTurn
 }
 
 type node struct {
@@ -34,7 +34,7 @@ type node struct {
 	votingPower int64
 }
 
-type VotingStrategy struct {
+type VoteTurn struct {
 	Height		int64
 	Round   	int64
 	VoteType 	byte
@@ -70,7 +70,7 @@ func CreateDevEnvironmentConfig() *DevEnvironmentConfig {
 
 func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
 	if strings.HasSuffix(votingStrategy, "csv") {
-		devEnv.VotingStrategy = map[int]VotingStrategy{}
+		devEnv.VotingStrategy = map[int]VoteTurn{}
 		csvFile, _ := os.Open(votingStrategy)
 		reader := csv.NewReader(bufio.NewReader(csvFile))
 		i:= 0
@@ -85,7 +85,7 @@ func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
 			var round, _ = strconv.ParseInt(line[1],10, 64)
 			var voteType, _ = strconv.ParseInt(line[2],10, 64)
 			var result, _ = strconv.ParseInt(line[3],10, 64)
-			devEnv.VotingStrategy[i] = VotingStrategy{height,round, byte(voteType), result}
+			devEnv.VotingStrategy[i] = VoteTurn{height,round, byte(voteType), result}
 			i++
 		}
 	}
