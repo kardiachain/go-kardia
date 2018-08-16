@@ -12,6 +12,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/storage"
+	"github.com/kardiachain/go-kardia/blockchain"
 )
 
 const (
@@ -58,6 +59,18 @@ type NodeConfig struct {
 	DevEnvConfig *dev.DevEnvironmentConfig
 	// Number of validators.
 	NumValidators int
+
+	// ChainData is directory that stores levelDB data
+	ChainData string
+
+	// DbCache is a param used to start levelDB
+	DbCache int
+
+	// DbHandles is a param used to start levelDB
+	DbHandles int
+
+	// Genesis is genesis block which contain initial Block and accounts
+	Genesis *blockchain.Genesis
 }
 
 // NodeName returns the devp2p node identifier.

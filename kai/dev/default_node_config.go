@@ -27,8 +27,13 @@ type node struct {
 	votingPower int64
 }
 
-// password is used to get keystore
-const password = "KardiaChain"
+const (
+	// password is used to get keystore
+	password = "KardiaChain"
+	ChainData = "chaindata"
+	DbCache = 16
+	DbHandles = 16
+)
 
 // GenesisAccounts are used to initialized accounts in genesis block
 var GenesisAccounts = map[string]int64{
