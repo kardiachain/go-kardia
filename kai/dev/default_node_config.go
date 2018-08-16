@@ -35,9 +35,9 @@ type node struct {
 }
 
 type VoteTurn struct {
-	Height		int64
-	Round   	int64
-	VoteType 	int64
+	Height		int
+	Round   	int
+	VoteType 	int
 }
 
 var nodes = []node{
@@ -80,16 +80,16 @@ func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
 			} else if error != nil {
 				log.Error("error", error)
 			}
-			var height, _ = strconv.ParseInt(line[0], 10, 64)
-			var round, _ = strconv.ParseInt(line[1],10, 64)
-			var voteType, _ = strconv.ParseInt(line[2],10, 64)
+			var height, _ = strconv.Atoi(line[0])
+			var round, _ = strconv.Atoi(line[1])
+			var voteType, _ = strconv.Atoi(line[2])
 			var result, _ = strconv.Atoi(line[3])
 			devEnv.VotingStrategy[VoteTurn{height,round, voteType}] = result
 		}
 	}
 }
 
-func (devEnv *DevEnvironmentConfig) GetScriptedVote(height int64, round int64, voteType int64) int {
+func (devEnv *DevEnvironmentConfig) GetScriptedVote(height int, round int, voteType int) int {
 	for strategy, i  := range devEnv.VotingStrategy {
 		if height == strategy.Height &&
 			round == strategy.Round &&
