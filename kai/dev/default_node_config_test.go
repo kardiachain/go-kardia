@@ -4,50 +4,26 @@ import (
 	"testing"
 )
 
-var votingStrategyTests = map[int]VoteTurn{
-	0: {1,0,byte(1),0 },
-	1: {1,0,byte(2),1 },
-	2: {1,1,byte(2),-1},
+var expected_votes = map[VoteTurn]int {
+	{1,0,1}: 0,
+	{1,0,2}: 1,
+	{1,1,2}: -1,
 }
 
-func TestDevEnvironmentConfig_SetVotingStrategy(t *testing.T) {
+func TestDevEnvironmentConfig_SetVotingStrategy_GetScriptVote(t *testing.T) {
 	devEnv := CreateDevEnvironmentConfig()
 	devEnv.SetVotingStrategy("voting_scripts/voting_strategy.csv")
-	for i, test := range votingStrategyTests {
-		votingStrategy := devEnv.VotingStrategy[i]
-		height := test.Height
-		round := test.Round
-		voteType := test.VoteType
-		result := test.Result
 
-		if height != votingStrategy.Height {
-			t.Errorf("Expected height %v got %v", height, votingStrategy.Height)
+	for test, result := range expected_votes {
+
+		if (devEnv.VotingStrategy[test] != result) {
+			t.Errorf("Expected result %v got %v", result, devEnv.VotingStrategy[test])
 		}
 
-		if round != votingStrategy.Round {
-			t.Errorf("Expected round %v got %v", round, votingStrategy.Round)
-		}
+		var r = devEnv.GetScriptedVote(test.Height, test.Round, test.VoteType)
 
-		if voteType != votingStrategy.VoteType {
-			t.Errorf("Expected voteType %v got %v", voteType, votingStrategy.VoteType)
-		}
-
-		if result != votingStrategy.Result {
-			t.Errorf("Expected result %v got %v", result, votingStrategy.Result)
-		}
-	}
-}
-
-func TestDevEnvironmentConfig_GetScriptedVote(t *testing.T) {
-	devEnv := CreateDevEnvironmentConfig()
-	devEnv.SetVotingStrategy("voting_scripts/voting_strategy.csv")
-	for i, test := range votingStrategyTests {
-		votingStrategy := devEnv.VotingStrategy[i]
-
-		var result = devEnv.GetScriptedVote(test.Height, test.Round, test.VoteType)
-
-		if result != votingStrategy.Result {
-			t.Errorf("Expected result %v got %v", votingStrategy.Result, result)
+		if r != result {
+			t.Errorf("Expected result %v got %v", result, r)
 		}
 	}
 }
