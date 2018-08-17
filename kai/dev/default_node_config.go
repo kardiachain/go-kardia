@@ -84,16 +84,22 @@ func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
 			var round, _ = strconv.Atoi(line[1])
 			var voteType, _ = strconv.Atoi(line[2])
 			var result, _ = strconv.Atoi(line[3])
-			devEnv.VotingStrategy[VoteTurn{height,round, voteType}] = result
+
+			var _, ok = devEnv.GetScriptedVote(height, round, voteType)
+			if ok {
+				log.Error(fmt.Sprintf("VoteTurn already exists with height = %v, round = %v, voteType = %v", height, round, voteType))
+			} else {
+				devEnv.VotingStrategy[VoteTurn{height,round, voteType}] = result
+			}
 		}
 	}
 }
 
-func (devEnv *DevEnvironmentConfig) GetScriptedVote(height int, round int, voteType int) int {
+func (devEnv *DevEnvironmentConfig) GetScriptedVote(height int, round int, voteType int) (int, bool) {
 	if val, ok := devEnv.VotingStrategy[VoteTurn{height, round, voteType}]; ok {
-		return val
+		return val, ok
 	}
-	return 0
+	return 0, false
 }
 
 
