@@ -8,28 +8,35 @@ import (
 	"math/big"
 )
 
-// GenerateRandomTx generate an array of random transactions with numberOfTx, senderAccount, receiver.
-// numberOfTx (default: 10)
-// senderAccount is instance of keyStore if  sender is Nil, it will use default sender to create tx.
-// receiver is instance of common.Address, if address is empty, it will use default sender
-func GenerateRandomTx(numberOfTx int, senderAccount *account.KeyStore, receiver common.Address) []types.Transaction {
-	if numberOfTx <= 0 {
-		numberOfTx = 10
+const (
+	defaultNumTx      = 10
+	defaultReceiver   = "095e7baea6a6c7c4c2dfeb977efac326af552d87"
+	defaultPrivateKey = "45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8"
+	defaultGas        = 22000 // currently we don't care about tx fee and cost so just add it's a prefer number (ex: tx fee is 21000 wei to send eth)
+)
+
+// GenerateRandomTx generate an array of random transactions with numTx, senderAcc, receiver.
+// numTx: number of transactions to send, default to 10
+// senderAcc: is instance of keyStore if  sender is Nil, it will use default sender to create tx.
+// receiver: is instance of common.Address, if address is empty, it will use default sender
+func GenerateRandomTx(numTx int, senderAcc *account.KeyStore, receiver common.Address) []types.Transaction {
+	if numTx <= 0 {
+		numTx = defaultNumTx
 	}
-	key, _ := crypto.HexToECDSA("45a915e4d060149eb4365960e6a7a45f334393093061116b197e3240065ff2d8")
-	if senderAccount != nil {
-		key = &senderAccount.PrivateKey
+	key, _ := crypto.HexToECDSA(defaultPrivateKey)
+	if senderAcc != nil {
+		key = &senderAcc.PrivateKey
 	}
 	if receiver == common.BytesToAddress([]byte{}) {
-		receiver = common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
+		receiver = common.HexToAddress(defaultReceiver)
 	}
-	result := make([]types.Transaction, numberOfTx)
-	for i := 0; i < numberOfTx; i++ {
+	result := make([]types.Transaction, numTx)
+	for i := 0; i < numTx; i++ {
 		tx, _ := types.SignTx(types.NewTransaction(
 			uint64(i+1),
 			receiver,
 			big.NewInt(10),
-			22000,
+			defaultGas,
 			big.NewInt(10),
 			nil,
 		), key)
