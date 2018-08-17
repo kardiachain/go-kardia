@@ -5,6 +5,7 @@ import (
 
 	//"github.com/kardiachain/go-kardia/event"
 	"github.com/kardiachain/go-kardia/p2p"
+	"github.com/kardiachain/go-kardia/rpc"
 )
 
 var (

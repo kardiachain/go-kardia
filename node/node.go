@@ -16,6 +16,8 @@ import (
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
 	"github.com/kardiachain/go-kardia/rpc"
+	"github.com/kardiachain/go-kardia/state"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // Node is the highest level container for a full Kardia node.
@@ -30,6 +32,12 @@ type Node struct {
 
 	csReactor     *consensus.ConsensusReactor
 	privValidator *types.PrivValidator
+
+	rpcAPIs       []rpc.API    // List of APIs currently provided by the node
+	httpEndpoint  string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
+	httpWhitelist []string     // HTTP RPC modules to allow through this endpoint
+	httpListener  net.Listener // HTTP RPC listener socket to server API requests
+	httpHandler   *rpc.Server  // HTTP RPC request handler to process the API requests
 
 	lock sync.RWMutex
 	log  log.Logger
@@ -114,7 +122,15 @@ func (n *Node) Start() error {
 	}
 
 	// TODO: starts RPC services.
+	if err := n.startRPC(newServices); err != nil {
+		for _, service := range newServices {
+			service.Stop()
+		}
+		newServer.Stop()
+		return err
+	}
 
+	// Finish init startup
 	n.services = newServices
 	n.server = newServer
 	return nil
@@ -148,37 +164,76 @@ func (n *Node) Stop() error {
 	return nil
 }
 
+// TODO: Edit this method to only add HTTP RPC endpoints for now + Set up RPC server
 // startRPC is a helper method to start all the various RPC endpoint during node
 // startup. It's not meant to be called at any time afterwards as it makes certain
 // assumptions about the state of the node.
-func (n *Node) startRPC(services map[reflect.Type]Service) error {
+func (n *Node) startRPC(services map[string]Service) error {
 	// Gather all the possible APIs to surface
 	apis := n.apis()
 	for _, service := range services {
 		apis = append(apis, service.APIs()...)
 	}
-	// Start the various API endpoints, terminating all in case of errors
-	if err := n.startInProc(apis); err != nil {
-		return err
-	}
-	if err := n.startIPC(apis); err != nil {
-		n.stopInProc()
-		return err
-	}
+	// // Start the various API endpoints, terminating all in case of errors
+	// if err := n.startInProc(apis); err != nil {
+	// 	return err
+	// }
+	// if err := n.startIPC(apis); err != nil {
+	// 	n.stopInProc()
+	// 	return err
+	// }
+
 	if err := n.startHTTP(n.httpEndpoint, apis, n.config.HTTPModules, n.config.HTTPCors, n.config.HTTPVirtualHosts); err != nil {
-		n.stopIPC()
-		n.stopInProc()
 		return err
+
+		// After adding endpoints for InProc and IPC, uncomment these lines to terminate all API in case error.
+		// n.stopIPC()
+		// n.stopInProc()
+
 	}
-	if err := n.startWS(n.wsEndpoint, apis, n.config.WSModules, n.config.WSOrigins, n.config.WSExposeAll); err != nil {
-		n.stopHTTP()
-		n.stopIPC()
-		n.stopInProc()
-		return err
-	}
+	// if err := n.startWS(n.wsEndpoint, apis, n.config.WSModules, n.config.WSOrigins, n.config.WSExposeAll); err != nil {
+	// 	n.stopHTTP()
+	// 	n.stopIPC()
+	// 	n.stopInProc()
+	// 	return err
+	// }
+
 	// All API endpoints started successfully
 	n.rpcAPIs = apis
 	return nil
+}
+
+// startHTTP initializes and starts the HTTP RPC endpoint.
+func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string) error {
+	// Short circuit if the HTTP endpoint isn't being exposed
+	if endpoint == "" {
+		return nil
+	}
+	listener, handler, err := rpc.StartHTTPEndpoint(endpoint, apis, modules, cors, vhosts)
+	if err != nil {
+		return err
+	}
+	n.log.Info("HTTP endpoint opened", "url", fmt.Sprintf("http://%s", endpoint), "cors", strings.Join(cors, ","), "vhosts", strings.Join(vhosts, ","))
+	// All listeners booted successfully
+	n.httpEndpoint = endpoint
+	n.httpListener = listener
+	n.httpHandler = handler
+
+	return nil
+}
+
+// stopHTTP terminates the HTTP RPC endpoint.
+func (n *Node) stopHTTP() {
+	if n.httpListener != nil {
+		n.httpListener.Close()
+		n.httpListener = nil
+
+		n.log.Info("HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.httpEndpoint))
+	}
+	if n.httpHandler != nil {
+		n.httpHandler.Stop()
+		n.httpHandler = nil
+	}
 }
 
 // Server returns p2p server of node.
@@ -253,4 +308,15 @@ func (n *Node) ServiceMap() map[string]Service {
 	defer n.lock.RUnlock()
 
 	return n.services
+}
+
+func (n *Node) apis() []rpc.API {
+	return []rpc.API{
+		{
+			Namespace: "web3",
+			Version:   "1.0",
+			Service:   NewPublicWeb3API(n),
+			Public:    true,
+		},
+	}
 }
