@@ -1,6 +1,8 @@
 package tool
 
 import (
+	"fmt"
+	development "github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 	"testing"
@@ -13,12 +15,18 @@ func TestGenerateTx(t *testing.T) {
 	}
 	for _, tx := range result {
 		from, _ := types.Sender(&tx)
-		to := tx.To()
-		if from.String() != "0xa94f5374Fce5edBC8E2a8697C15331677e6EbF0B" {
-			t.Error("default sender should be 0xa94f5374Fce5edBC8E2a8697C15331677e6EbF0B")
-		}
-		if to.String() != "0x095E7BAea6a6c7c4c2DfeB977eFac326aF552d87" {
-			t.Error("default receiver should be 0x095E7BAea6a6c7c4c2DfeB977eFac326aF552d87")
+		fmt.Println(tx.To().String())
+		if containsInGenesis(from.String()) == false {
+			t.Error("default sender should be in genesis block")
 		}
 	}
+}
+
+func containsInGenesis(address string) bool {
+	for k := range development.GenesisAccounts {
+		if k == address {
+			return true
+		}
+	}
+	return false
 }
