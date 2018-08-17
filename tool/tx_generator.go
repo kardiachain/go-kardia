@@ -32,23 +32,25 @@ var privKeys = []string{
 
 // GenerateRandomTx generate an array of random transactions with numTx, senderAcc, receiver.
 // numTx: number of transactions to send, default to 10.
-// senderAcc: is instance of keyStore if  sender is Nil, it will get random from genesis account.
-// receiver: is instance of common.Address, if address is empty, it will random address.
-func GenerateRandomTx(numTx int, senderAcc *account.KeyStore, receiver common.Address) []types.Transaction {
+// senderAcc: instance of keyStore if  sender is Nil, it will get random from genesis account.
+// receiverAddr: instance of common.Address, if address is empty, it will random address.
+func GenerateRandomTx(numTx int, senderAcc *account.KeyStore, receiverAddr common.Address) []types.Transaction {
 	if numTx <= 0 {
 		numTx = defaultNumTx
 	}
 	result := make([]types.Transaction, numTx)
 	for i := 0; i < numTx; i++ {
 		var to common.Address
-		key := randomSenderPrivateKey()
+		var key *ecdsa.PrivateKey
 		if senderAcc != nil {
 			key = &senderAcc.PrivateKey
+		} else {
+			key = randomSenderPrivateKey()
 		}
-		if receiver == common.BytesToAddress([]byte{}) { // empty address
+		if receiverAddr == common.BytesToAddress([]byte{}) { // empty address
 			to = randomAddress()
 		} else {
-			to = receiver
+			to = receiverAddr
 		}
 		tx, _ := types.SignTx(types.NewTransaction(
 			uint64(i+1),

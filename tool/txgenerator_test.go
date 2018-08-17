@@ -1,7 +1,6 @@
 package tool
 
 import (
-	"fmt"
 	development "github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
@@ -15,7 +14,6 @@ func TestGenerateTx(t *testing.T) {
 	}
 	for _, tx := range result {
 		from, _ := types.Sender(&tx)
-		fmt.Println(tx.To().String())
 		if containsInGenesis(from.String()) == false {
 			t.Error("default sender should be in genesis block")
 		}
