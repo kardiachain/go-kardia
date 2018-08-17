@@ -5,6 +5,12 @@ package dev
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"strings"
+	"os"
+	"encoding/csv"
+	"bufio"
+	"io"
+	"strconv"
 
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -20,11 +26,18 @@ type DevEnvironmentConfig struct {
 	DevNodeSet []DevNodeConfig
 
 	proposalIndex int
+	VotingStrategy map[VoteTurn]int
 }
 
 type node struct {
 	key         string
 	votingPower int64
+}
+
+type VoteTurn struct {
+	Height		int
+	Round   	int
+	VoteType 	int
 }
 
 var nodes = []node{
@@ -52,6 +65,43 @@ func CreateDevEnvironmentConfig() *DevEnvironmentConfig {
 
 	return &devEnv
 }
+
+
+func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
+	if strings.HasSuffix(votingStrategy, "csv") {
+		devEnv.VotingStrategy = map[VoteTurn]int{}
+		csvFile, _ := os.Open(votingStrategy)
+		reader := csv.NewReader(bufio.NewReader(csvFile))
+
+		for {
+			line, error := reader.Read()
+			if error == io.EOF {
+				break
+			} else if error != nil {
+				log.Error("error", error)
+			}
+			var height, _ = strconv.Atoi(line[0])
+			var round, _ = strconv.Atoi(line[1])
+			var voteType, _ = strconv.Atoi(line[2])
+			var result, _ = strconv.Atoi(line[3])
+
+			var _, ok = devEnv.GetScriptedVote(height, round, voteType)
+			if ok {
+				log.Error(fmt.Sprintf("VoteTurn already exists with height = %v, round = %v, voteType = %v", height, round, voteType))
+			} else {
+				devEnv.VotingStrategy[VoteTurn{height,round, voteType}] = result
+			}
+		}
+	}
+}
+
+func (devEnv *DevEnvironmentConfig) GetScriptedVote(height int, round int, voteType int) (int, bool) {
+	if val, ok := devEnv.VotingStrategy[VoteTurn{height, round, voteType}]; ok {
+		return val, ok
+	}
+	return 0, false
+}
+
 
 func (devEnv *DevEnvironmentConfig) SetProposerIndex(index int) {
 	if index < 0 || index >= devEnv.GetNodeSize() {
