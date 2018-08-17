@@ -16,7 +16,7 @@ const (
 func TestKeyStore(t *testing.T) {
 	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
 	keystore := KeyStore{Path: dir}
-	_ , err := keystore.createKeyStore(password)
+	err := keystore.createKeyStore(password, nil)
 
 	if err != nil {
 		t.Error(err)

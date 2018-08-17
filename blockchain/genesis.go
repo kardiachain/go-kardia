@@ -4,13 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strings"
-
 	"github.com/kardiachain/go-kardia/blockchain/rawdb"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/state"
 	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
@@ -183,22 +180,25 @@ func DefaultGenesisBlock() *Genesis {
 }
 
 // DefaultTestnetGenesisBlock returns the Ropsten network genesis block.
-func DefaultTestnetGenesisBlock() *Genesis {
+func DefaultTestnetGenesisBlock(allocData map[string]int64) *Genesis {
+
+	ga, err := GenesisAllocFromData(allocData)
+	if err != nil {
+		return nil
+	}
+
 	return &Genesis{
 		Config:   configs.TestnetChainConfig,
 		GasLimit: 16777216,
-		//@huny Alloc:    decodePrealloc(testnetAllocData),
+		Alloc: ga,
 	}
 }
 
-func decodePrealloc(data string) GenesisAlloc {
-	var p []struct{ Addr, Balance *big.Int }
-	if err := rlp.NewStream(strings.NewReader(data), 0).Decode(&p); err != nil {
-		panic(err)
+func GenesisAllocFromData(data map[string]int64) (GenesisAlloc, error) {
+	ga := make(GenesisAlloc, len(data))
+	for address, balance := range data {
+		ga[common.StringToAddress(address)] = GenesisAccount{Balance: big.NewInt(balance)}
 	}
-	ga := make(GenesisAlloc, len(p))
-	for _, account := range p {
-		ga[common.BigToAddress(account.Addr)] = GenesisAccount{Balance: account.Balance}
-	}
-	return ga
+
+	return ga, nil
 }

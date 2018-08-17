@@ -3,11 +3,9 @@ package account
 import (
 	"crypto/aes"
 	"crypto/ecdsa"
-	"go-kardia/lib/crypto"
 	"crypto/rand"
 	"encoding/hex"
 	"golang.org/x/crypto/scrypt"
-	"go-kardia/lib/common"
 	"crypto/cipher"
 	"time"
 	"os"
@@ -17,7 +15,9 @@ import (
 	"fmt"
 	"io"
 	"errors"
-	"go-kardia/types"
+	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 const (
@@ -36,31 +36,41 @@ type KeyStore struct {
 	PrivateKey ecdsa.PrivateKey
 }
 
-
 /*
-	Create new keystore based on path, password
+	New KeyStoreJSON from auth string
  */
-func (keyStore *KeyStore)createKeyStore(auth string) (bool, error) {
+func (keyStore *KeyStore)NewKeyStoreJSON(auth string, pk *string) (*KeyStoreJson, error) {
 	// Convert auth (password) to byte array
 	authArray := []byte(auth)
 
 	// Get random iv
 	iv, err := GetRandomBytes(aes.BlockSize)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	// Get random salt
 	salt, err := GetRandomBytes(scryptDKLen)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
+	var privateKey *ecdsa.PrivateKey
 	// Get random private key
-	privateKey, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
-	if err != nil {
-		return false, err
+	if pk == nil {
+		privateKey, err = ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		pkByte, err := hex.DecodeString(*pk)
+		if err != nil {
+			return nil, err
+		}
+		privateKey = crypto.ToECDSAUnsafe(pkByte)
 	}
+
+
 	// Get address from private key
 	keyStore.PrivateKey = *privateKey
 	keyStore.Address = common.Address(crypto.PubkeyToAddress(privateKey.PublicKey))
@@ -68,7 +78,7 @@ func (keyStore *KeyStore)createKeyStore(auth string) (bool, error) {
 	// Derived key
 	derivedKey, err := scrypt.Key(authArray, salt, scryptN, scryptR, scryptP, scryptDKLen)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	// Generate encrypted key, cipher text and mac
@@ -76,7 +86,7 @@ func (keyStore *KeyStore)createKeyStore(auth string) (bool, error) {
 	keyBytes := common.PaddedBigBytes(privateKey.D, 32)
 	cipherText, err := aesCTRXOR(encryptKey, keyBytes, iv)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 	mac := crypto.Keccak256(derivedKey[16:32], cipherText, iv)
 
@@ -93,8 +103,22 @@ func (keyStore *KeyStore)createKeyStore(auth string) (bool, error) {
 		0,
 	}
 
+	return &ks, nil
+}
+
+
+/*
+	Create new keystore based on path, password
+ */
+func (keyStore *KeyStore)createKeyStore(auth string, privateKey *string) error {
+	ks, err := keyStore.NewKeyStoreJSON(auth, privateKey)
+
+	if err != nil {
+		return err
+	}
+
 	ks.StoreKey(keyStore.joinPath())
-	return true, nil
+	return nil
 }
 
 
@@ -174,7 +198,7 @@ func aesCTRXOR(key, inText, iv []byte) ([]byte, error) {
 
 
 /*
-	join Path and Address into a path that stores keystore
+	Join Path and Address into a path that stores keystore
 */
 func (keyStore *KeyStore) joinPath() string {
 	if filepath.IsAbs(keyStore.Address.Hex()) {

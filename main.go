@@ -18,6 +18,9 @@ import (
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/blockchain"
+	"os"
+	"path/filepath"
 )
 
 func runtimeSystemSettings() error {
@@ -31,6 +34,26 @@ func runtimeSystemSettings() error {
 			return err
 		}
 	}
+	return nil
+}
+
+func RemoveContents(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+	names, err := d.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	for _, name := range names {
+		err = os.RemoveAll(filepath.Join(dir, name))
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -53,6 +76,7 @@ func main() {
 		"number of total validators in dev environment. Note that this flag only has effect when --dev flag is set.")
 	proposal := flag.Int("proposal", 1, "specify which node is the proposer. The index starts from 1, and every node needs to use the same proposer index. Note that this flag only has effect when --dev flag is set")
 	votingStrategy := flag.String("votingStrategy", "", "specify the voting script or strategy to simulate voting. Note that this flag only has effect when --dev flag is set")
+	clearDataDir := flag.Bool("clearDataDir", false, "remove contents in data dir")
 
 	flag.Parse()
 
@@ -102,6 +126,23 @@ func main() {
 		devEnv.SetVotingStrategy(*votingStrategy)
 		config.DevEnvConfig = devEnv
 		config.NumValidators = *numValid
+
+		// Setup config for kardia service
+		config.ChainData = development.ChainData
+		config.DbHandles = development.DbHandles
+		config.DbCache = development.DbCache
+
+		// Create genesis block with dev.genesisAccounts
+		config.Genesis = blockchain.DefaultTestnetGenesisBlock(development.GenesisAccounts)
+	}
+
+	if *clearDataDir {
+		// Clear all contents within data dir
+		err := RemoveContents(config.DataDir)
+		if err != nil {
+			logger.Error("Cannot remove contents in directory", config.DataDir)
+			return
+		}
 	}
 
 	n, err := node.NewNode(config)
