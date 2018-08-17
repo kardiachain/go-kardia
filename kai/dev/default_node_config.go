@@ -90,12 +90,8 @@ func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
 }
 
 func (devEnv *DevEnvironmentConfig) GetScriptedVote(height int, round int, voteType int) int {
-	for strategy, i  := range devEnv.VotingStrategy {
-		if height == strategy.Height &&
-			round == strategy.Round &&
-			voteType == strategy.VoteType {
-			return i
-		}
+	if val, ok := devEnv.VotingStrategy[VoteTurn{height, round, voteType}]; ok {
+		return val
 	}
 	return 0
 }
