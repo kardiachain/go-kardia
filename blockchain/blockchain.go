@@ -146,6 +146,11 @@ func (bc *BlockChain) GetHeader(hash common.Hash, height uint64) *types.Header {
 	return bc.hc.GetHeader(hash, height)
 }
 
+// State returns a new mutatable state at head block.
+func (bc *BlockChain) State() (*state.StateDB, error) {
+	return bc.StateAt(bc.CurrentBlock().Root())
+}
+
 // StateAt returns a new mutable state based on a particular point in time.
 func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
 	return state.New(root, bc.stateCache)

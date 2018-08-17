@@ -12,10 +12,8 @@ import (
 	"github.com/kardiachain/go-kardia/vm"
 )
 
-// Operations for proposer node, may need to move further to consensus
-
-// Proposer is main object, keeps the current state data
-type Proposer struct {
+// Operation keeps current state and provides blockchain operatons to be called by consensus engine.
+type Operation struct {
 	config      *configs.ChainConfig
 	state       *state.StateDB    // State DB to apply state changes
 	chainDb     *storage.Database // Blockchain database
@@ -31,8 +29,8 @@ type Proposer struct {
 	// need private key to sign
 }
 
-func NewProposer(n *Node) *Proposer {
-	p := &Proposer{}
+func NewOperation(n *Node) *Operation {
+	p := &Operation{}
 
 	var kService *kai.Kardia
 	if err := n.Service(&kService); err != nil {
@@ -44,17 +42,23 @@ func NewProposer(n *Node) *Proposer {
 	p.blockchain = kService.BlockChain()
 	p.txPool = kService.TxPool()
 
+	currentState, err := p.blockchain.State()
+	if err != nil {
+		log.Error("Fail to get head state", "err", err)
+		return nil
+	}
+	p.state = currentState
+
 	// TODO: finds variable for gas limit from header
 	var gasLimit uint64 = 100
 	p.gasPool = new(blockchain.GasPool).AddGas(gasLimit)
 
-	// FIXME: getting current state
 	// FIXME: create header
 	return p
 }
 
 // CollectTransactions creates list of proposed transactions from the pool, also cache this list.
-func (p *Proposer) CollectTransactions() []*types.Transaction {
+func (p *Operation) CollectTransactions() []*types.Transaction {
 	pending, err := p.txPool.Pending()
 	if err != nil {
 		log.Error("Fail to get pending txns", "err", err)
@@ -74,7 +78,7 @@ func (p *Proposer) CollectTransactions() []*types.Transaction {
 }
 
 // CommitTransactions execute & commit the cache list of pending transactions.
-func (p *Proposer) CommitTransactions() (types.Receipts, uint64, error) {
+func (p *Operation) CommitTransactions() (types.Receipts, uint64, error) {
 	var (
 		receipts types.Receipts
 		usedGas  = new(uint64)
@@ -97,9 +101,4 @@ func (p *Proposer) CommitTransactions() (types.Receipts, uint64, error) {
 
 	p.receipts = &receipts
 	return receipts, *usedGas, nil
-}
-
-func (p *Proposer) FinalizeBlock() (*types.Block, error) {
-	// TODO: build block with txns & receipt
-	return &types.Block{}, nil
 }
