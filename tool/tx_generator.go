@@ -6,6 +6,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
+	"math/rand"
 )
 
 const (
@@ -27,14 +28,18 @@ func GenerateRandomTx(numTx int, senderAcc *account.KeyStore, receiver common.Ad
 	if senderAcc != nil {
 		key = &senderAcc.PrivateKey
 	}
-	if receiver == common.BytesToAddress([]byte{}) {
-		receiver = common.HexToAddress(defaultReceiver)
-	}
+
 	result := make([]types.Transaction, numTx)
 	for i := 0; i < numTx; i++ {
+		var to common.Address
+		if receiver == common.BytesToAddress([]byte{}) { // empty address
+			to = randomAddress()
+		} else {
+			to = receiver
+		}
 		tx, _ := types.SignTx(types.NewTransaction(
 			uint64(i+1),
-			receiver,
+			to,
 			big.NewInt(10),
 			defaultGas,
 			big.NewInt(10),
@@ -43,4 +48,10 @@ func GenerateRandomTx(numTx int, senderAcc *account.KeyStore, receiver common.Ad
 		result[i] = *tx
 	}
 	return result
+}
+
+func randomAddress() common.Address {
+	address := make([]byte, 20)
+	rand.Read(address)
+	return common.BytesToAddress(address)
 }
