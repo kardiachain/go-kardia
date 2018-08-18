@@ -48,6 +48,8 @@ type BlockChain struct {
 	futureBlocks *lru.Cache     // future blocks are blocks added for later processing
 
 	quit chan struct{} // blockchain quit channel
+
+	processor *StateProcessor // block processor
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -65,6 +67,10 @@ func (bc *BlockChain) CurrentHeader() *types.Header {
 // block is retrieved from the blockchain's internal cache.
 func (bc *BlockChain) CurrentBlock() *types.Block {
 	return bc.currentBlock.Load().(*types.Block)
+}
+
+func (bc *BlockChain) Processor() *StateProcessor {
+	return bc.processor
 }
 
 // Config retrieves the blockchain's chain configuration.
@@ -103,6 +109,8 @@ func NewBlockChain(db kaidb.Database, chainConfig *configs.ChainConfig) (*BlockC
 	// Take ownership of this particular state
 	//@huny go bc.update()
 
+	bc.processor = NewStateProcessor(bc)
+
 	return bc, nil
 }
 
@@ -136,6 +144,11 @@ func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 // caching it if found.
 func (bc *BlockChain) GetHeader(hash common.Hash, height uint64) *types.Header {
 	return bc.hc.GetHeader(hash, height)
+}
+
+// State returns a new mutatable state at head block.
+func (bc *BlockChain) State() (*state.StateDB, error) {
+	return bc.StateAt(bc.CurrentBlock().Root())
 }
 
 // StateAt returns a new mutable state based on a particular point in time.

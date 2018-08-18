@@ -1,6 +1,8 @@
 package node
 
 import (
+	"github.com/kardiachain/go-kardia/kai"
+	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/p2p"
 	"testing"
@@ -22,16 +24,22 @@ func (s *TrivialService) Stop() error {
 	s.Started = false
 	return nil
 }
-func newTrivialService(ctx *ServiceContext) (Service, error) { return new(TrivialService), nil }
+
+func (s *TrivialService) ConnectReactor(reactor kai.Reactor) {
+}
+
+func newTrivialService(ctx *kai.ServiceContext) (kai.Service, error) { return new(TrivialService), nil }
 
 var (
 	testNodeKey, _ = crypto.GenerateKey()
 )
 
-func testNodeConfig() *NodeConfig {
-	return &NodeConfig{
-		Name: "test node",
-		P2P:  p2p.Config{PrivateKey: testNodeKey},
+func testNodeConfig() *kai.NodeConfig {
+	return &kai.NodeConfig{
+		Name:          "test node",
+		P2P:           p2p.Config{PrivateKey: testNodeKey},
+		NumValidators: 1,
+		DevEnvConfig:  dev.CreateDevEnvironmentConfig(),
 	}
 }
 
@@ -42,23 +50,23 @@ func TestNodeLifeCycle(t *testing.T) {
 		t.Fatalf("failed to create node: %v", err)
 	}
 	// Tests stopping node that not running.
-	if err := node.Stop(); err != ErrNodeStopped {
-		t.Fatalf("unexpected stop error: %v instead of %v", err, ErrNodeStopped)
+	if err := node.Stop(); err != kai.ErrNodeStopped {
+		t.Fatalf("unexpected stop error: %v instead of %v", err, kai.ErrNodeStopped)
 	}
 
 	// Tests starting node 2 times
 	if err := node.Start(); err != nil {
 		t.Fatalf("failed to start node: %v", err)
 	}
-	if err := node.Start(); err != ErrNodeRunning {
-		t.Fatalf("unexpected start error: %v instead of %v ", err, ErrNodeRunning)
+	if err := node.Start(); err != kai.ErrNodeRunning {
+		t.Fatalf("unexpected start error: %v instead of %v ", err, kai.ErrNodeRunning)
 	}
 	// Tests stopping node 2 times
 	if err := node.Stop(); err != nil {
 		t.Fatalf("failed to stop node: %v", err)
 	}
-	if err := node.Stop(); err != ErrNodeStopped {
-		t.Fatalf("unexpected stop error: %v instead of %v ", err, ErrNodeStopped)
+	if err := node.Stop(); err != kai.ErrNodeStopped {
+		t.Fatalf("unexpected stop error: %v instead of %v ", err, kai.ErrNodeStopped)
 	}
 }
 
