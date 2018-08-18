@@ -245,7 +245,12 @@ func (x *BigInt) Equals(y *BigInt) bool {
 
 // Equals returns true if x equals to y
 func (x *BigInt) EqualsInt(y int) bool {
-	return x.Int64() == int64(y)
+	return x.Int32() == y
+}
+
+// Equals returns true if x equals to y
+func (x *BigInt) EqualsInt64(y int64) bool {
+	return x.Int64() == y
 }
 
 // Equals returns true if x equals to y

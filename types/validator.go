@@ -273,50 +273,47 @@ func (valSet *ValidatorSet) IncrementAccum(times int) {
 
 // Verify that +2/3 of the set had signed the given signBytes
 func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height int64, commit *Commit) error {
-	panic("validator.VerifyCommit - Not yet implemented")
-	return nil
-	//if valSet.Size() != len(commit.Precommits) {
-	//	return fmt.Errorf("Invalid commit -- wrong set size: %v vs %v", valSet.Size(), len(commit.Precommits))
-	//}
-	//if height != commit.Height() {
-	//	return fmt.Errorf("Invalid commit -- wrong height: %v vs %v", height, commit.Height())
-	//}
-	//
-	//talliedVotingPower := int64(0)
-	//round := commit.Round()
-	//
-	//for idx, precommit := range commit.Precommits {
-	//	// may be nil if validator skipped.
-	//	if precommit == nil {
-	//		continue
-	//	}
-	//	if precommit.Height != height {
-	//		return fmt.Errorf("Invalid commit -- wrong height: %v vs %v", height, precommit.Height)
-	//	}
-	//	if precommit.Round != round {
-	//		return fmt.Errorf("Invalid commit -- wrong round: %v vs %v", round, precommit.Round)
-	//	}
-	//	if precommit.Type != VoteTypePrecommit {
-	//		return fmt.Errorf("Invalid commit -- not precommit @ index %v", idx)
-	//	}
-	//	_, val := valSet.GetByIndex(idx)
-	//	// Validate signature
-	//	precommitSignBytes := precommit.SignBytes(chainID)
-	//	if !val.PubKey.VerifyBytes(precommitSignBytes, precommit.Signature) {
-	//		return fmt.Errorf("Invalid commit -- invalid signature: %v", precommit)
-	//	}
-	//	if !blockID.Equals(precommit.BlockID) {
-	//		continue // Not an error, but doesn't count
-	//	}
-	//	// Good precommit!
-	//	talliedVotingPower += val.VotingPower
-	//}
-	//
-	//if talliedVotingPower > valSet.TotalVotingPower()*2/3 {
-	//	return nil
-	//}
-	//return fmt.Errorf("Invalid commit -- insufficient voting power: got %v, needed %v",
-	//	talliedVotingPower, (valSet.TotalVotingPower()*2/3 + 1))
+	if valSet.Size() != len(commit.Precommits) {
+		return fmt.Errorf("Invalid commit -- wrong set size: %v vs %v", valSet.Size(), len(commit.Precommits))
+	}
+	if !commit.Height().EqualsInt64(height) {
+		return fmt.Errorf("Invalid commit -- wrong height: %v vs %v", height, commit.Height())
+	}
+
+	talliedVotingPower := int64(0)
+	round := commit.Round()
+
+	for idx, precommit := range commit.Precommits {
+		// may be nil if validator skipped.
+		if precommit == nil {
+			continue
+		}
+		if !precommit.Height.EqualsInt64(height) {
+			return fmt.Errorf("Invalid commit -- wrong height: %v vs %v", height, precommit.Height)
+		}
+		if !precommit.Round.Equals(round) {
+			return fmt.Errorf("Invalid commit -- wrong round: %v vs %v", round, precommit.Round)
+		}
+		if precommit.Type != VoteTypePrecommit {
+			return fmt.Errorf("Invalid commit -- not precommit @ index %v", idx)
+		}
+		_, val := valSet.GetByIndex(idx)
+		// Validate signature
+		if !val.VerifyVoteSignature(chainID, precommit) {
+			return fmt.Errorf("Invalid commit -- invalid signature: %v", precommit)
+		}
+		if !blockID.Equal(precommit.BlockID) {
+			continue // Not an error, but doesn't count
+		}
+		// Good precommit!
+		talliedVotingPower += val.VotingPower
+	}
+
+	if talliedVotingPower > valSet.TotalVotingPower()*2/3 {
+		return nil
+	}
+	return fmt.Errorf("Invalid commit -- insufficient voting power: got %v, needed %v",
+		talliedVotingPower, (valSet.TotalVotingPower()*2/3 + 1))
 }
 
 //-------------------------------------
