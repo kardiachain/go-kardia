@@ -73,7 +73,7 @@ func (h *Header) String() string {
 	if h == nil {
 		return "nil-Header"
 	}
-	return fmt.Sprintf(`Header{Height=%v  Time=%v  NumTxs=%v  LastBlockID=%v  LastCommitHash=%v  TxHash=%v  ValidatorsHash=%v  ConsensusHash=%v}#%v`,
+	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
 		h.Height, h.Time, h.NumTxs, h.LastBlockID, h.LastCommitHash, h.TxHash, h.ValidatorsHash, h.ConsensusHash, h.Hash())
 
 }
@@ -297,7 +297,7 @@ func (b *Block) String() string {
 	if b == nil {
 		return "nil-Block"
 	}
-	return fmt.Sprintf(`Block{%v  %v  %v}#%v`,
+	return fmt.Sprintf("Block{%v  %v  %v}#%v",
 		b.header, b.transactions, b.lastCommit, b.Hash())
 }
 

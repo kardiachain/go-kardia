@@ -931,19 +931,9 @@ func (ps *PeerState) ApplyHasVoteMessage(msg *HasVoteMessage) {
 
 // String returns a string representation of the PeerState
 func (ps *PeerState) String() string {
-	return ps.StringIndented("")
-}
-
-// StringIndented returns a string representation of the PeerState
-func (ps *PeerState) StringIndented(indent string) string {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
-	return fmt.Sprintf(`PeerState{
-%s  Key        %v
-%s  RoundState %v
-%s  Stats      %v
-%s}`,
-		indent, ps.peer.ID(),
-		indent, ps.PRS.StringIndented(indent+"  "),
-		indent)
+	return fmt.Sprintf("PeerState{Key:%v  RoundState:%v}",
+		ps.peer.ID(),
+		ps.PRS)
 }

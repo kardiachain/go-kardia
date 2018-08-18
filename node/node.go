@@ -101,10 +101,10 @@ func (n *Node) Start() error {
 			ctx.Services[serviceType] = s
 		}
 		service, err := serviceConstructor(ctx)
-		service.ConnectReactor(n.csReactor)
 		if err != nil {
 			return err
 		}
+		service.ConnectReactor(n.csReactor)
 		serviceTypeName := reflect.TypeOf(service).Elem().Name()
 		if _, exists := newServices[serviceTypeName]; exists {
 			return fmt.Errorf("duplicated service of type %s", serviceTypeName)

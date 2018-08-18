@@ -256,19 +256,12 @@ func (bA *BitArray) PickRandom() (int, bool) {
 // The <bit-string> includes spaces and newlines to help people.
 // Example: "BA{_x_}" or "nil-BitArray" for nil.
 func (bA *BitArray) String() string {
-	return bA.StringIndented("")
-}
-
-func (bA *BitArray) StringIndented(indent string) string {
 	if bA == nil {
 		return "nil-BitArray"
 	}
 	bA.mtx.Lock()
 	defer bA.mtx.Unlock()
-	return bA.stringIndented(indent)
-}
 
-func (bA *BitArray) stringIndented(indent string) string {
 	lines := []string{}
 	bits := ""
 	for i := 0; i < bA.Bits; i++ {
@@ -282,16 +275,17 @@ func (bA *BitArray) stringIndented(indent string) string {
 			bits = ""
 		}
 		if i%10 == 9 {
-			bits += indent
+			bits += "  "
 		}
 		if i%50 == 49 {
-			bits += indent
+			bits += "  "
 		}
 	}
 	if len(bits) > 0 {
 		lines = append(lines, bits)
 	}
-	return fmt.Sprintf("BA{%v:%v}", bA.Bits, strings.Join(lines, indent))
+	return fmt.Sprintf("BA{%v:%v}", bA.Bits, strings.Join(lines, " "))
+
 }
 
 func (bA *BitArray) Bytes() []byte {

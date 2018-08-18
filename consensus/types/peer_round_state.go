@@ -28,26 +28,12 @@ type PeerRoundState struct {
 
 // String returns a string representation of the PeerRoundState
 func (prs PeerRoundState) String() string {
-	return prs.StringIndented("")
-}
-
-// StringIndented returns a string representation of the PeerRoundState
-func (prs PeerRoundState) StringIndented(indent string) string {
-	return fmt.Sprintf(`PeerRoundState{
-%s  %v/%v/%v @%v
-%s  Proposal %v
-%s  POL      %v (round %v)
-%s  Prevotes   %v
-%s  Precommits %v
-%s  LastCommit %v (round %v)
-%s  Catchup    %v (round %v)
-%s}`,
-		indent, prs.Height, prs.Round, prs.Step, prs.StartTime,
-		indent, prs.ProposalBlockHeader,
-		indent, prs.ProposalPOL, prs.ProposalPOLRound,
-		indent, prs.Prevotes,
-		indent, prs.Precommits,
-		indent, prs.LastCommit, prs.LastCommitRound,
-		indent, prs.CatchupCommit, prs.CatchupCommitRound,
-		indent)
+	return fmt.Sprintf("PeerRoundState{%v/%v/%v @%v  Proposal:%v  POL:%v (round %v)  Prevotes:%v  Precommits:%v  LastCommit:%v (round %v)  Catchup:%v (round %v)}",
+		prs.Height, prs.Round, prs.Step, prs.StartTime,
+		prs.ProposalBlockHeader,
+		prs.ProposalPOL, prs.ProposalPOLRound,
+		prs.Prevotes,
+		prs.Precommits,
+		prs.LastCommit, prs.LastCommitRound,
+		prs.CatchupCommit, prs.CatchupCommitRound)
 }
