@@ -171,7 +171,9 @@ func (conR *ConsensusReactor) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 		return
 	}
 	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
-	msg.Proposal.Block.SetLastCommit(&types.Commit{})
+	if msg.Proposal.Block.LastCommit() == nil {
+		msg.Proposal.Block.SetLastCommit(&types.Commit{})
+	}
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
