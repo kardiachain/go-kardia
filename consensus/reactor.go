@@ -154,55 +154,7 @@ func (conR *ConsensusReactor) ReceiveNewRoundStep(generalMsg p2p.Msg, src *p2p.P
 		return
 	}
 
-	ps.mtx.Lock()
-	defer ps.mtx.Unlock()
-
-	// Ignore duplicates or decreases
-	if CompareHRS(msg.Height, msg.Round, msg.Step, ps.PRS.Height, ps.PRS.Round, ps.PRS.Step) <= 0 {
-		return
-	}
-
-	// Just remember these values.
-	psHeight := ps.PRS.Height
-	psRound := ps.PRS.Round
-	//psStep := ps.PRS.Step
-	psCatchupCommitRound := ps.PRS.CatchupCommitRound
-	psCatchupCommit := ps.PRS.CatchupCommit
-
-	startTime := time.Now().Add(-1 * time.Duration(msg.SecondsSinceStartTime) * time.Second)
-	ps.PRS.Height = msg.Height
-	ps.PRS.Round = msg.Round
-	ps.PRS.Step = msg.Step
-	ps.PRS.StartTime = startTime
-	if !psHeight.Equals(msg.Height) || !psRound.Equals(msg.Round) {
-		ps.PRS.Proposal = false
-		ps.PRS.ProposalBlockHeader = cmn.Hash{}
-		ps.PRS.ProposalPOLRound = cmn.NewBigInt(-1)
-		ps.PRS.ProposalPOL = nil
-		// We'll update the BitArray capacity later.
-		ps.PRS.Prevotes = nil
-		ps.PRS.Precommits = nil
-	}
-	if psHeight.Equals(msg.Height) && !psRound.Equals(msg.Round) && msg.Round.Equals(psCatchupCommitRound) {
-		// Peer caught up to CatchupCommitRound.
-		// Preserve psCatchupCommit!
-		// NOTE: We prefer to use prs.Precommits if
-		// pr.Round matches pr.CatchupCommitRound.
-		ps.PRS.Precommits = psCatchupCommit
-	}
-	if !psHeight.Equals(msg.Height) {
-		// Shift Precommits to LastCommit.
-		if psHeight.Add(1).Equals(msg.Height) && psRound.Equals(msg.LastCommitRound) {
-			ps.PRS.LastCommitRound = msg.LastCommitRound
-			ps.PRS.LastCommit = ps.PRS.Precommits
-		} else {
-			ps.PRS.LastCommitRound = msg.LastCommitRound
-			ps.PRS.LastCommit = nil
-		}
-		// We'll update the BitArray capacity later.
-		ps.PRS.CatchupCommitRound = cmn.NewBigInt(-1)
-		ps.PRS.CatchupCommit = nil
-	}
+	ps.ApplyNewRoundStepMessage(&msg)
 }
 
 func (conR *ConsensusReactor) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Peer) {
@@ -219,7 +171,9 @@ func (conR *ConsensusReactor) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 		return
 	}
 	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
-	msg.Proposal.Block.SetLastCommit(&types.Commit{})
+	if msg.Proposal.Block.LastCommit() == nil {
+		msg.Proposal.Block.SetLastCommit(&types.Commit{})
+	}
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
@@ -318,10 +272,8 @@ func (conR *ConsensusReactor) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 		conR.conS.Logger.Error("Downcast failed!!")
 		return
 	}
-	ps.mtx.Lock()
-	defer ps.mtx.Unlock()
-	//handle commit logic
-	return
+
+	ps.ApplyCommitStepMessage(&msg)
 }
 
 // ------------ Broadcast messages ------------
@@ -370,25 +322,23 @@ func (conR *ConsensusReactor) sendNewRoundStepMessages(rw p2p.MsgReadWriter) {
 	conR.conS.Logger.Debug("reactor - sendNewRoundStepMessages")
 
 	rs := conR.conS.GetRoundState()
-	nrsMsg, _ := makeRoundStepMessages(rs)
+	nrsMsg, csMsg := makeRoundStepMessages(rs)
 	conR.conS.Logger.Trace("makeRoundStepMessages", "nrsMsg", nrsMsg)
 	if nrsMsg != nil {
 		if err := p2p.Send(rw, kcmn.CsNewRoundStepMsg, nrsMsg); err != nil {
-			conR.conS.Logger.Debug("sendNewRoundStepMessages failed", "err", err)
+			conR.conS.Logger.Warn("send NewRoundStepMessage failed", "err", err)
 		} else {
-			conR.conS.Logger.Debug("sendNewRoundStepMessages success")
+			conR.conS.Logger.Trace("send NewRoundStepMessage success")
 		}
 	}
 
-	// TODO(namdoh): Re-anable this.
-	//rs := conR.conS.GetRoundState()
-	//nrsMsg, csMsg := makeRoundStepMessages(rs)
-	//if nrsMsg != nil {
-	//	peer.Send(StateChannel, cdc.MustMarshalBinaryBare(nrsMsg))
-	//}
-	//if csMsg != nil {
-	//	peer.Send(StateChannel, cdc.MustMarshalBinaryBare(csMsg))
-	//}
+	if csMsg != nil {
+		if err := p2p.Send(rw, kcmn.CsCommitStepMsg, csMsg); err != nil {
+			conR.conS.Logger.Warn("send CommitStepMessage failed", "err", err)
+		} else {
+			conR.conS.Logger.Trace("send CommitStepMessage success")
+		}
+	}
 }
 
 // ------------ Helpers to create messages -----
@@ -426,7 +376,9 @@ OUTER_LOOP:
 
 		// If the peer is on a previous height, help catch up.
 		if (prs.Height.IsGreaterThanInt(0)) && (prs.Height.IsLessThan(rs.Height)) {
+			logger.Trace("peer is on previous height", "prs.Height", prs.Height, "rs.Height", rs.Height)
 			//heightLogger := logger.New("height", prs.Height)
+			time.Sleep(10000 * time.Millisecond)
 
 			panic("gossipDataRoutine - not yet implemented")
 			//// if we never received the commit message from the peer, the block parts wont be initialized
@@ -898,6 +850,71 @@ func (ps *PeerState) setHasVote(height *cmn.BigInt, round *cmn.BigInt, type_ byt
 	if psVotes != nil {
 		psVotes.SetIndex(index.Int32(), true)
 	}
+}
+
+// ApplyNewRoundStepMessage updates the peer state for the new round.
+func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
+	ps.mtx.Lock()
+	defer ps.mtx.Unlock()
+
+	// Ignore duplicates or decreases
+	if CompareHRS(msg.Height, msg.Round, msg.Step, ps.PRS.Height, ps.PRS.Round, ps.PRS.Step) <= 0 {
+		return
+	}
+
+	// Just remember these values.
+	psHeight := ps.PRS.Height
+	psRound := ps.PRS.Round
+	//psStep := ps.PRS.Step
+	psCatchupCommitRound := ps.PRS.CatchupCommitRound
+	psCatchupCommit := ps.PRS.CatchupCommit
+
+	startTime := time.Now().Add(-1 * time.Duration(msg.SecondsSinceStartTime) * time.Second)
+	ps.PRS.Height = msg.Height
+	ps.PRS.Round = msg.Round
+	ps.PRS.Step = msg.Step
+	ps.PRS.StartTime = startTime
+	if !psHeight.Equals(msg.Height) || !psRound.Equals(msg.Round) {
+		ps.PRS.Proposal = false
+		ps.PRS.ProposalBlockHeader = cmn.Hash{}
+		ps.PRS.ProposalPOLRound = cmn.NewBigInt(-1)
+		ps.PRS.ProposalPOL = nil
+		// We'll update the BitArray capacity later.
+		ps.PRS.Prevotes = nil
+		ps.PRS.Precommits = nil
+	}
+	if psHeight.Equals(msg.Height) && !psRound.Equals(msg.Round) && msg.Round.Equals(psCatchupCommitRound) {
+		// Peer caught up to CatchupCommitRound.
+		// Preserve psCatchupCommit!
+		// NOTE: We prefer to use prs.Precommits if
+		// pr.Round matches pr.CatchupCommitRound.
+		ps.PRS.Precommits = psCatchupCommit
+	}
+	if !psHeight.Equals(msg.Height) {
+		// Shift Precommits to LastCommit.
+		if psHeight.Add(1).Equals(msg.Height) && psRound.Equals(msg.LastCommitRound) {
+			ps.PRS.LastCommitRound = msg.LastCommitRound
+			ps.PRS.LastCommit = ps.PRS.Precommits
+		} else {
+			ps.PRS.LastCommitRound = msg.LastCommitRound
+			ps.PRS.LastCommit = nil
+		}
+		// We'll update the BitArray capacity later.
+		ps.PRS.CatchupCommitRound = cmn.NewBigInt(-1)
+		ps.PRS.CatchupCommit = nil
+	}
+}
+
+// ApplyCommitStepMessage updates the peer state for the new commit.
+func (ps *PeerState) ApplyCommitStepMessage(msg *CommitStepMessage) {
+	ps.mtx.Lock()
+	defer ps.mtx.Unlock()
+
+	if !ps.PRS.Height.Equals(msg.Height) {
+		return
+	}
+
+	ps.PRS.ProposalBlockHeader = msg.Block.Header().Hash()
 }
 
 // ApplyHasVoteMessage updates the peer state for the new vote.

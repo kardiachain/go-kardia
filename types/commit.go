@@ -123,12 +123,12 @@ func (commit *Commit) ValidateBasic() error {
 				precommit.Type)
 		}
 		// Ensure that all heights are the same
-		if precommit.Height != height {
+		if !precommit.Height.Equals(height) {
 			return fmt.Errorf("Invalid commit precommit height. Expected %v, got %v",
 				height, precommit.Height)
 		}
 		// Ensure that all rounds are the same
-		if precommit.Round != round {
+		if !precommit.Round.Equals(round) {
 			return fmt.Errorf("Invalid commit precommit round. Expected %v, got %v",
 				round, precommit.Round)
 		}
