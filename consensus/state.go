@@ -1144,13 +1144,12 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	var commit *types.Commit
 	if cs.Height.EqualsInt(1) {
 		// We're creating a proposal for the first block.
-		// The commit is empty, but not nil.
-		// NOTE: Change to this must change to MakeBlock in
-		// state/state.go
 		commit = &types.Commit{}
+		cs.Logger.Trace(`enterPropose: First height, use empty Commit.`)
 	} else if cs.LastCommit.HasTwoThirdsMajority() {
 		// Make the commit from LastCommit
 		commit = cs.LastCommit.MakeCommit()
+		cs.Logger.Error(`enterPropose: Subsequent height, use last commit.`, "commit", commit)
 	} else {
 		// This shouldn't happen.
 		cs.Logger.Error(`enterPropose: Cannot propose anything: No commit for 
@@ -1161,6 +1160,7 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	// TODO(namdoh): Adds mem pool validated transactions
 	// TODO(namdoh): Replace transactions with sth here.
 	block = cs.state.MakeBlock(cs.Height.Int64(), nil, commit)
+	cs.Logger.Trace("Make block to propose", "block", block)
 	// TODO(namdoh): Add evidence to block.
 	//evidence := cs.evpool.PendingEvidence()
 	//block.AddEvidence(evidence)

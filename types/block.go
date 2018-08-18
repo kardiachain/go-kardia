@@ -69,6 +69,15 @@ func (h *Header) Size() common.StorageSize {
 	return common.StorageSize(unsafe.Sizeof(*h))
 }
 
+func (h *Header) String() string {
+	if h == nil {
+		return "nil-Header"
+	}
+	return fmt.Sprintf(`Header{Height=%v  Time=%v  NumTxs=%v  LastBlockID=%v  LastCommitHash=%v  TxHash=%v  ValidatorsHash=%v  ConsensusHash=%v}#%v`,
+		h.Height, h.Time, h.NumTxs, h.LastBlockID, h.LastCommitHash, h.TxHash, h.ValidatorsHash, h.ConsensusHash, h.Hash())
+
+}
+
 // Body is a simple (mutable, non-safe) data container for storing and moving
 // a block's data contents (transactions) together.
 type Body struct {
@@ -99,8 +108,9 @@ type Block struct {
 
 // "external" block encoding. used for Kardia protocol, etc.
 type extblock struct {
-	Header *Header
-	Txs    []*Transaction
+	Header     *Header
+	Txs        []*Transaction
+	LastCommit *Commit
 }
 
 // NewBlock creates a new block. The input data is copied,
@@ -130,8 +140,10 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *C
 
 	if b.header.LastCommitHash.IsZero() {
 		if commit == nil {
+			log.Error("NewBlock - commit should never be nil.")
 			b.header.LastCommitHash = common.NewZeroHash()
 		} else {
+			log.Error("Compute last commit hash", "commit", commit)
 			b.header.LastCommitHash = commit.Hash()
 		}
 	}
@@ -172,7 +184,7 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	if err := s.Decode(&eb); err != nil {
 		return err
 	}
-	b.header, b.transactions = eb.Header, eb.Txs
+	b.header, b.transactions, b.lastCommit = eb.Header, eb.Txs, eb.LastCommit
 	b.size.Store(common.StorageSize(rlp.ListSize(size)))
 	return nil
 }
@@ -180,12 +192,11 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 // EncodeRLP serializes b into the Ethereum RLP block format.
 func (b *Block) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, extblock{
-		Header: b.header,
-		Txs:    b.transactions,
+		Header:     b.header,
+		Txs:        b.transactions,
+		LastCommit: b.lastCommit,
 	})
 }
-
-// TODO: copies
 
 func (b *Block) Transactions() Transactions { return b.transactions }
 
@@ -280,6 +291,14 @@ func (b *Block) ValidateBasic() error {
 	//}
 
 	return nil
+}
+
+func (b *Block) String() string {
+	if b == nil {
+		return "nil-Block"
+	}
+	return fmt.Sprintf(`Block{%v  %v  %v}#%v`,
+		b.header, b.transactions, b.lastCommit, b.Hash())
 }
 
 type writeCounter common.StorageSize
