@@ -3,7 +3,6 @@ package blockchain
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"github.com/kardiachain/go-kardia/blockchain/rawdb"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -11,6 +10,7 @@ import (
 	"github.com/kardiachain/go-kardia/state"
 	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
+	"math/big"
 )
 
 //go:generate gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go
@@ -125,6 +125,9 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 		db = kaidb.NewMemStore()
 	}
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
+
+	accountStates := make(types.AccountStates, 0)
+
 	for addr, account := range g.Alloc {
 		statedb.AddBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)
@@ -132,6 +135,9 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 		for key, value := range account.Storage {
 			statedb.SetState(addr, key, value)
 		}
+
+		blockAccount := types.BlockAccount{Addr: &addr, Balance: account.Balance}
+		accountStates = append(accountStates, &blockAccount)
 	}
 	root := statedb.IntermediateRoot(false)
 	head := &types.Header{
@@ -146,7 +152,7 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 
-	return types.NewBlock(head, nil, nil, nil)
+	return types.NewBlock(head, nil, nil, &types.Commit{}, &accountStates)
 }
 
 // Commit writes the block and state of a genesis specification to the database.
@@ -167,10 +173,11 @@ func (g *Genesis) Commit(db kaidb.Database) (*types.Block, error) {
 		config = configs.TestnetChainConfig
 	}
 	rawdb.WriteChainConfig(db, block.Hash(), config)
+
 	return block, nil
 }
 
-// DefaultGenesisBlock returns the Ethereum main net genesis block.
+// DefaultGenesisBlock returns the main net genesis block.
 func DefaultGenesisBlock() *Genesis {
 	return &Genesis{
 		Config:   configs.MainnetChainConfig,
@@ -179,7 +186,7 @@ func DefaultGenesisBlock() *Genesis {
 	}
 }
 
-// DefaultTestnetGenesisBlock returns the Ropsten network genesis block.
+// DefaultTestnetGenesisBlock returns the test network genesis block from configs.
 func DefaultTestnetGenesisBlock(allocData map[string]int64) *Genesis {
 
 	ga, err := GenesisAllocFromData(allocData)
@@ -190,7 +197,7 @@ func DefaultTestnetGenesisBlock(allocData map[string]int64) *Genesis {
 	return &Genesis{
 		Config:   configs.TestnetChainConfig,
 		GasLimit: 16777216,
-		Alloc: ga,
+		Alloc:    ga,
 	}
 }
 

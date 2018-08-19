@@ -2,44 +2,43 @@ package account
 
 import (
 	"crypto/aes"
+	"crypto/cipher"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/types"
 	"golang.org/x/crypto/scrypt"
-	"crypto/cipher"
-	"time"
+	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
-	"io/ioutil"
-	"encoding/json"
-	"fmt"
-	"io"
-	"errors"
-	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/common"
+	"time"
 )
 
 const (
-	kdfHeader = "scrypt"
-	scryptN = 1 << 18
-	scryptR = 1 << 3
-	scryptP = 1
-	scryptDKLen = 1 << 5
+	kdfHeader     = "scrypt"
+	scryptN       = 1 << 18
+	scryptR       = 1 << 3
+	scryptP       = 1
+	scryptDKLen   = 1 << 5
 	AddressLength = 20
 )
 
-
 type KeyStore struct {
-	Path string
-	Address common.Address
+	Path       string
+	Address    common.Address
 	PrivateKey ecdsa.PrivateKey
 }
 
 /*
 	New KeyStoreJSON from auth string
- */
-func (keyStore *KeyStore)NewKeyStoreJSON(auth string, pk *string) (*KeyStoreJson, error) {
+*/
+func (keyStore *KeyStore) NewKeyStoreJSON(auth string, pk *string) (*KeyStoreJson, error) {
 	// Convert auth (password) to byte array
 	authArray := []byte(auth)
 
@@ -70,7 +69,6 @@ func (keyStore *KeyStore)NewKeyStoreJSON(auth string, pk *string) (*KeyStoreJson
 		privateKey = crypto.ToECDSAUnsafe(pkByte)
 	}
 
-
 	// Get address from private key
 	keyStore.PrivateKey = *privateKey
 	keyStore.Address = common.Address(crypto.PubkeyToAddress(privateKey.PublicKey))
@@ -99,18 +97,17 @@ func (keyStore *KeyStore)NewKeyStoreJSON(auth string, pk *string) (*KeyStoreJson
 		hex.EncodeToString(iv),
 		hex.EncodeToString(salt),
 		hex.EncodeToString(mac),
-		time.Now().UnixNano()/int64(time.Millisecond),
+		time.Now().UnixNano() / int64(time.Millisecond),
 		0,
 	}
 
 	return &ks, nil
 }
 
-
 /*
 	Create new keystore based on path, password
- */
-func (keyStore *KeyStore)createKeyStore(auth string, privateKey *string) error {
+*/
+func (keyStore *KeyStore) createKeyStore(auth string, privateKey *string) error {
 	ks, err := keyStore.NewKeyStoreJSON(auth, privateKey)
 
 	if err != nil {
@@ -121,11 +118,10 @@ func (keyStore *KeyStore)createKeyStore(auth string, privateKey *string) error {
 	return nil
 }
 
-
 /*
 	Create a random byte array based on input len
- */
-func GetRandomBytes(len int) ([]byte, error){
+*/
+func GetRandomBytes(len int) ([]byte, error) {
 	value := make([]byte, len)
 	if _, err := io.ReadFull(rand.Reader, value); err != nil {
 		return nil, errors.New("reading from crypto/rand failed: " + err.Error())
@@ -134,11 +130,10 @@ func GetRandomBytes(len int) ([]byte, error){
 	return value, nil
 }
 
-
 /*
 	Get keystore by password
- */
-func (keyStore *KeyStore)GetKey(auth string) error {
+*/
+func (keyStore *KeyStore) GetKey(auth string) error {
 
 	// check if address exists in path or not
 	filename := keyStore.joinPath()
@@ -170,11 +165,10 @@ func (keyStore *KeyStore)GetKey(auth string) error {
 	return nil
 }
 
-
 /*
 	Get PrivateKey from KeyStoreJSON
 	This function is used for testing case or cases that there aren't any keystores stored in local storage
- */
+*/
 func GetKeyFromJSON(jsonData *KeyStoreJson, auth string) (*ecdsa.PrivateKey, error) {
 
 	if jsonData == nil {
@@ -196,7 +190,6 @@ func aesCTRXOR(key, inText, iv []byte) ([]byte, error) {
 	return outText, err
 }
 
-
 /*
 	Join Path and Address into a path that stores keystore
 */
@@ -207,8 +200,7 @@ func (keyStore *KeyStore) joinPath() string {
 	return filepath.Join(keyStore.Path, keyStore.Address.Hex())
 }
 
-
-func (keystore *KeyStoreJson)writeKeyFile(file string, content []byte) error {
+func (keystore *KeyStoreJson) writeKeyFile(file string, content []byte) error {
 	// Create the keystore directory with appropriate permissions
 	// in case it is not present yet.
 	const dirPerm = 0700
@@ -230,12 +222,10 @@ func (keystore *KeyStoreJson)writeKeyFile(file string, content []byte) error {
 	return os.Rename(f.Name(), file)
 }
 
-
 /*
 	Sign a transaction with current keystore
 	TODO(kiendn@): Should we implement lock/unlock account?
- */
+*/
 func (keyStore *KeyStore) SignTransaction(transaction *types.Transaction) (*types.Transaction, error) {
 	return types.SignTx(transaction, &keyStore.PrivateKey)
 }
-

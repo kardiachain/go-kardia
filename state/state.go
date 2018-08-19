@@ -5,6 +5,7 @@ import (
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
+	"math/big"
 )
 
 // It keeps all information necessary to validate new blocks,
@@ -21,7 +22,7 @@ type LastestBlockState struct {
 	LastBlockHeight  *cmn.BigInt
 	LastBlockTotalTx *cmn.BigInt
 	LastBlockID      types.BlockID
-	LastBlockTime    time.Time
+	LastBlockTime    *big.Int
 
 	// LastValidators is used to validate block.LastCommit.
 	// Validators are persisted to the database separately every time they change,
@@ -63,18 +64,18 @@ func (state LastestBlockState) Copy() LastestBlockState {
 
 // Creates a block from the latest state.
 // MakeBlock builds a block with the given txs and commit from the current state.
-func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction, commit *types.Commit) *types.Block {
+func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction, commit *types.Commit, accounts *types.AccountStates) *types.Block {
 	// build base block
 	// TODO(huny@): Fill receipt in making a new block.
 	header := types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:         uint64(height),
-		Time:           time.Now(),
+		Time:           big.NewInt(time.Now().Unix()),
 		NumTxs:         uint64(len(txs)),
 		LastBlockID:    state.LastBlockID,
 		ValidatorsHash: state.Validators.Hash(),
 	}
-	block := types.NewBlock(&header, txs, nil, commit)
+	block := types.NewBlock(&header, txs, nil, commit, accounts)
 
 	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
 	// LastResultHash.

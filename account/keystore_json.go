@@ -1,16 +1,15 @@
 package account
 
 import (
-	"errors"
 	"bytes"
-	"encoding/json"
-	"encoding/hex"
-	"golang.org/x/crypto/scrypt"
 	"crypto/aes"
 	"crypto/ecdsa"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"golang.org/x/crypto/scrypt"
 )
-
 
 type KeyStoreJson struct {
 	Address    string `json:"address"`
@@ -24,7 +23,6 @@ type KeyStoreJson struct {
 	Version    int8   `json:"version"`
 }
 
-
 type DecodedKeyStoreJson struct {
 	CipherText []byte
 	IV         []byte
@@ -32,9 +30,7 @@ type DecodedKeyStoreJson struct {
 	MAC        []byte
 }
 
-
 var ErrDecrypt = errors.New("could not decrypt key with given passphrase")
-
 
 func (keyStore *KeyStoreJson) decode() (*DecodedKeyStoreJson, error) {
 	cipherText, err := hex.DecodeString(keyStore.CipherText)
@@ -57,9 +53,8 @@ func (keyStore *KeyStoreJson) decode() (*DecodedKeyStoreJson, error) {
 		return nil, err
 	}
 
-	return &DecodedKeyStoreJson{CipherText:cipherText, IV:iv, Salt:salt, MAC:mac}, nil
+	return &DecodedKeyStoreJson{CipherText: cipherText, IV: iv, Salt: salt, MAC: mac}, nil
 }
-
 
 func (keyStore *KeyStoreJson) GetPrivateKey(auth string) (*ecdsa.PrivateKey, error) {
 	decoded, err := keyStore.decode()
@@ -86,7 +81,6 @@ func (keyStore *KeyStoreJson) GetPrivateKey(auth string) (*ecdsa.PrivateKey, err
 
 }
 
-
 /*
 	Add marshaled keystoreJson into filename
 */
@@ -100,7 +94,7 @@ func (keystore *KeyStoreJson) StoreKey(filename string) error {
 
 /*
 	Get private key from derivedKey, cipherText, iv
- */
+*/
 func GetPrivateKey(derivedKey, cipherText, iv []byte) (*ecdsa.PrivateKey, error) {
 
 	key := derivedKey[:16]

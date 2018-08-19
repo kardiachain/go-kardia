@@ -1,17 +1,14 @@
 package account
 
-
 import (
-	"testing"
-	"path/filepath"
 	"os"
+	"path/filepath"
+	"testing"
 )
-
 
 const (
 	password = "KardiaChain"
 )
-
 
 func TestKeyStore(t *testing.T) {
 	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
