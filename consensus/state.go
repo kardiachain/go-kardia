@@ -3,6 +3,7 @@ package consensus
 import (
 	"bytes"
 	"errors"
+	"math/big"
 	"reflect"
 	"runtime/debug"
 	"sync"
@@ -599,7 +600,7 @@ func (cs *ConsensusState) signVote(type_ byte, hash types.BlockID) (*types.Vote,
 		ValidatorIndex:   cmn.NewBigInt(int64(valIndex)),
 		Height:           cs.Height,
 		Round:            cs.Round,
-		Timestamp:        time.Now().UTC(),
+		Timestamp:        big.NewInt(time.Now().Unix()),
 		Type:             type_,
 		BlockID:          hash,
 	}

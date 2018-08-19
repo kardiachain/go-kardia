@@ -27,4 +27,6 @@ const (
 	CsCommitStepMsg   = 0x05 // Commit step message
 	CsHasVoteMsg      = 0x06 // Has vote message
 	CsProposalPOLMsg  = 0x07 // Proposal message
+	// TODO(namdoh): Consider if this is needed.
+	//CsBlockMsg = 0x08 // Block message
 )

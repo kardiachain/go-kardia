@@ -3,7 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
-	"time"
+	"math/big"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -62,7 +62,7 @@ type Vote struct {
 	ValidatorIndex   *cmn.BigInt `json:"validator_index"`
 	Height           *cmn.BigInt `json:"height"`
 	Round            *cmn.BigInt `json:"round"`
-	Timestamp        time.Time   `json:"timestamp"`
+	Timestamp        *big.Int    `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
 	Type             byte        `json:"type"`
 	BlockID          BlockID     `json:"block_id"` // zero if vote is nil.
 	Signature        []byte      `json:"signature"`

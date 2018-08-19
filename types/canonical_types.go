@@ -1,7 +1,7 @@
 package types
 
 import (
-	"time"
+	"math/big"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 )
@@ -14,7 +14,7 @@ type CanonicalProposal struct {
 	POLBlockID BlockID     `json:"pol_block_id"`
 	POLRound   *cmn.BigInt `json:"pol_round"`
 	Round      *cmn.BigInt `json:"round"`
-	Timestamp  time.Time   `json:"timestamp"`
+	Timestamp  *big.Int    `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
 }
 
 type CanonicalVote struct {
@@ -23,7 +23,7 @@ type CanonicalVote struct {
 	BlockID   BlockID     `json:"block_id"`
 	Height    *cmn.BigInt `json:"height"`
 	Round     *cmn.BigInt `json:"round"`
-	Timestamp time.Time   `json:"timestamp"`
+	Timestamp *big.Int    `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
 	VoteType  byte        `json:"type"`
 }
 

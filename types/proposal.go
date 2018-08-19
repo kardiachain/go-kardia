@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"math/big"
 	"time"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
@@ -15,7 +16,7 @@ import (
 type Proposal struct {
 	Height     *cmn.BigInt `json:"height"`
 	Round      *cmn.BigInt `json:"round"`
-	Timestamp  time.Time   `json:"timestamp"`
+	Timestamp  *big.Int    `json:"timestamp"`    // TODO(thientn/namdoh): epoch seconds, change to milis.
 	Block      *Block      `json:"block"`        // TODO(huny@): Should we use hash instead?
 	POLRound   *cmn.BigInt `json:"pol_round"`    // -1 if null.
 	POLBlockID BlockID     `json:"pol_block_id"` // zero if null.
@@ -28,7 +29,7 @@ func NewProposal(height *cmn.BigInt, round *cmn.BigInt, block *Block, polRound *
 	return &Proposal{
 		Height:     height,
 		Round:      round,
-		Timestamp:  time.Now().UTC(),
+		Timestamp:  big.NewInt(time.Now().Unix()),
 		Block:      block,
 		POLRound:   polRound,
 		POLBlockID: polBlockID,

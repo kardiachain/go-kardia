@@ -63,6 +63,12 @@ func (bs *BlockStore) SaveBlock(block *types.Block, seenCommit *types.Commit) {
 	bs.mtx.Unlock()
 }
 
+// LoadBlock returns the Block for the given height.
+// If no block is found for the given height, it returns nil.
+func (bs *BlockStore) LoadBlock(height uint64) *types.Block {
+    return bs.blockchain.GetBlockByHeight(height)
+}
+
 // LoadSeenCommit returns the locally seen Commit for the given height.
 // This is useful when we've seen a commit, but there has not yet been
 // a new block at `height + 1` that includes this commit in its block.LastCommit.

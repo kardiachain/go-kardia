@@ -181,7 +181,6 @@ func (conR *ConsensusReactor) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }
 
-// dummy handler to handle new vote
 func (conR *ConsensusReactor) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) {
 	conR.conS.Logger.Trace("Consensus reactor received NewVote", "src", src, "msg", generalMsg)
 
@@ -245,7 +244,6 @@ func (conR *ConsensusReactor) ReceiveHasVote(generalMsg p2p.Msg, src *p2p.Peer) 
 	ps.ApplyHasVoteMessage(&msg)
 }
 
-// dummy handler to handle new commit
 func (conR *ConsensusReactor) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer) {
 	conR.conS.Logger.Trace("Consensus reactor received vote", "src", src, "msg", generalMsg)
 
@@ -271,15 +269,52 @@ func (conR *ConsensusReactor) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 	ps.ApplyCommitStepMessage(&msg)
 }
 
+// TODO(namdoh): Consider if this is even needed.
+//func (conR *ConsensusReactor) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
+//	conR.conS.Logger.Trace("Consensus reactor received block msg", "src", src, "msg", generalMsg)
+//
+//	if !conR.running {
+//		conR.conS.Logger.Trace("Consensus reactor isn't running.")
+//		return
+//	}
+//
+//	var msg BlockMessage
+//	if err := generalMsg.Decode(&msg); err != nil {
+//		conR.conS.Logger.Error("Invalid commit block message", "msg", generalMsg, "err", err)
+//		return
+//	}
+//	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+//
+//	// Get peer states
+//	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
+//	if !ok {
+//		conR.conS.Logger.Error("Downcast failed!!")
+//		return
+//	}
+//
+//	ps.mtx.Lock()
+//	defer ps.mtx.Unlock()
+//
+//	if ps.PRS.Height.Equals(height) && ps.PRS.Round.Equals(round) {
+//		return
+//	}
+//	ps.SetHasProposalBlockPart(msg.Height, msg.Round, msg.Part.Index)
+//	if numBlocks := ps.RecordBlockPart(msg); numBlocks%blocksToContributeToBecomeGoodPeer == 0 {
+//		conR.Switch.MarkPeerAsGood(src)
+//	}
+//	conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
+//}
+
 // ------------ Broadcast messages ------------
 
 func (conR *ConsensusReactor) broadcastNewRoundStepMessages(rs *cstypes.RoundState) {
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
-	conR.conS.Logger.Trace("broadcastNewRoundStepMessages", "nrsMsg", nrsMsg)
 	if nrsMsg != nil {
+		conR.conS.Logger.Trace("broadcastNewRoundStepMessages", "nrsMsg", nrsMsg)
 		conR.protocol.Broadcast(nrsMsg, kcmn.CsNewRoundStepMsg)
 	}
 	if csMsg != nil {
+		conR.conS.Logger.Trace("broadcastCommitStepMessages", "csMsg", csMsg)
 		conR.protocol.Broadcast(csMsg, kcmn.CsCommitStepMsg)
 	}
 }
@@ -371,24 +406,29 @@ OUTER_LOOP:
 
 		// If the peer is on a previous height, help catch up.
 		if (prs.Height.IsGreaterThanInt(0)) && (prs.Height.IsLessThan(rs.Height)) {
-			logger.Trace("peer is on previous height", "prs.Height", prs.Height, "rs.Height", rs.Height)
-			//heightLogger := logger.New("height", prs.Height)
 			time.Sleep(10000 * time.Millisecond)
-
 			panic("gossipDataRoutine - not yet implemented")
-			//// if we never received the commit message from the peer, the block parts wont be initialized
-			//if prs.ProposalBlockParts == nil {
-			//	blockMeta := conR.conS.blockStore.LoadBlockMeta(prs.Height)
-			//	if blockMeta == nil {
-			//		cmn.PanicCrisis(cmn.Fmt("Failed to load block %v when blockStore is at %v",
-			//			prs.Height, conR.conS.blockStore.Height()))
-			//	}
-			//	ps.InitProposalBlockParts(blockMeta.BlockID.PartsHeader)
-			//	// continue the loop since prs is a copy and not effected by this initialization
-			//	continue OUTER_LOOP
-			//}
-			//conR.gossipDataForCatchup(heightLogger, rs, prs, ps, peer)
-			//continue OUTER_LOOP
+
+			/*
+				heightLogger := logger.New("height", prs.Height)
+				heightLogger.Trace("peer is on previous height", "prs.Height", prs.Height, "rs.Height", rs.Height)
+				// if we never received the commit message from the peer, the block parts wont be initialized
+				if prs.ProposalBlockHeader.IsZero() {
+					block := conR.conS.blockStore.LoadBlock(uint64(prs.Height.Int64()))
+					if block == nil {
+						cmn.PanicCrisis(cmn.Fmt("Failed to load block %v when blockStore is at %v",
+							prs.Height, conR.conS.blockStore.Height()))
+					}
+					msg := &BlockMessage{Height: prs.Height, Round: prs.Round, Block: block}
+					logger.Debug("Sending block for catchup", "height", prs.Height, "round", prs.Round)
+					p2p.Send(ps.rw, kcmn.CsBlockMsg, msg)
+					ps.InitProposalBlock(block.Header().Hash())
+					// continue the loop since prs is a copy and not effected by this initialization
+					continue OUTER_LOOP
+				}
+				time.Sleep(conR.conS.config.PeerGossipSleep())
+				continue OUTER_LOOP
+			*/
 		}
 
 		// If height and round don't match, sleep.
@@ -593,6 +633,18 @@ func (m *ProposalPOLMessage) String() string {
 	return fmt.Sprintf("[ProposalPOL H:%v POLR:%v POL:%v]", m.Height, m.ProposalPOLRound, m.ProposalPOL)
 }
 
+// BlockMessage is sent when gossipping a proposed block.
+type BlockMessage struct {
+	Height *cmn.BigInt
+	Round  *cmn.BigInt
+	Block  *types.Block
+}
+
+// String returns a string representation.
+func (m *BlockMessage) String() string {
+	return fmt.Sprintf("[Block H:%v R:%v B:%v]", m.Height, m.Round, m.Block)
+}
+
 // NewRoundStepMessage is sent for every step taken in the ConsensusState.
 // For every height/round/step transition
 type NewRoundStepMessage struct {
@@ -685,6 +737,19 @@ func (ps *PeerState) SetHasProposal(proposal *types.Proposal) {
 	ps.PRS.ProposalPOLRound = proposal.POLRound
 	ps.PRS.ProposalPOL = nil // Nil until ProposalPOLMessage received.
 }
+
+// TODO(namdoh): Consider if this is even needed because we don't send block parts.
+//// InitProposalBlockParts initializes the peer's proposal block parts header and bit array.
+//func (ps *PeerState) InitProposalBlock(blockHeaderHash cmn.Hash) {
+//	ps.mtx.Lock()
+//	defer ps.mtx.Unlock()
+//
+//	if !ps.PRS.ProposalBlockHeader.IsZero() {
+//		return
+//	}
+//
+//	ps.PRS.ProposalBlockHeader = blockHeaderHash
+//}
 
 // PickSendVote picks a vote and sends it to the peer.
 // Returns true if vote was sent.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -271,6 +272,16 @@ func (valSet *ValidatorSet) IncrementAccum(times int) {
 	}
 }
 
+// Iterate will run the given function over the set.
+func (valSet *ValidatorSet) Iterate(fn func(index int, val *Validator) bool) {
+	for i, val := range valSet.Validators {
+		stop := fn(i, val.Copy())
+		if stop {
+			break
+		}
+	}
+}
+
 // Verify that +2/3 of the set had signed the given signBytes
 func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height int64, commit *Commit) error {
 	if valSet.Size() != len(commit.Precommits) {
@@ -314,6 +325,20 @@ func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height
 	}
 	return fmt.Errorf("Invalid commit -- insufficient voting power: got %v, needed %v",
 		talliedVotingPower, (valSet.TotalVotingPower()*2/3 + 1))
+}
+
+func (valSet *ValidatorSet) String() string {
+	if valSet == nil {
+		return "nil-ValidatorSet"
+	}
+	valStrings := []string{}
+	valSet.Iterate(func(index int, val *Validator) bool {
+		valStrings = append(valStrings, val.String())
+		return false
+	})
+	return fmt.Sprintf("ValidatorSet{Proposer:%v  Validators:%v}",
+		valSet.GetProposer(), strings.Join(valStrings, "  "))
+
 }
 
 //-------------------------------------
