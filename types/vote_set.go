@@ -356,7 +356,7 @@ func (voteSet *VoteSet) StringShort() string {
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 	_, _, frac := voteSet.sumTotalFrac()
-	return fmt.Sprintf(`VoteSet{H:%v R:%v T:%v +2/3:%v(%v) %v %v}`,
+	return fmt.Sprintf("VoteSet{H:%v R:%v T:%v +2/3:%v(%v) %v %v}",
 		voteSet.height, voteSet.round, voteSet.type_, voteSet.maj23, frac, voteSet.votesBitArray, voteSet.peerMaj23s)
 }
 

@@ -130,11 +130,11 @@ func NewConsensusState(
 	cs.updateToState(state)
 	cs.timeoutTicker.SetLogger(cs.Logger)
 
-	// Don't call scheduleRound0 yet.
-	// We do that upon Start().
-	// TODO(namdoh): Re-enable to allows node to fully re-store its consensus state
-	// after crash.
-	//cs.reconstructLastCommit(state)
+	// Reconstruct LastCommit from db after a crash.
+	cs.reconstructLastCommit(state)
+
+	// Don't call scheduleRound0 yet. We do that upon Start().
+
 	return cs
 }
 
@@ -282,31 +282,6 @@ func (cs *ConsensusState) AddVote(vote *types.Vote, peerID discover.NodeID) (add
 	return false, nil
 }
 
-// TODO(namdoh): Re-enable to allows node to fully re-store its consensus state
-// after crash.
-// Reconstruct LastCommit from SeenCommit, which we saved along with the block,
-// (which happens even before saving the state)
-//func (cs *ConsensusState) reconstructLastCommit(state state.State) {
-//	if state.LastBlockHeight == 0 {
-//		return
-//	}
-//	seenCommit := cs.blockStore.LoadSeenCommit(state.LastBlockHeight)
-//	lastPrecommits := types.NewVoteSet(state.ChainID, state.LastBlockHeight, seenCommit.Round(), types.VoteTypePrecommit, state.LastValidators)
-//	for _, precommit := range seenCommit.Precommits {
-//		if precommit == nil {
-//			continue
-//		}
-//		added, err := lastPrecommits.AddVote(precommit)
-//		if !added || err != nil {
-//			cmn.PanicCrisis(cmn.Fmt("Failed to reconstruct LastCommit: %v", err))
-//		}
-//	}
-//	if !lastPrecommits.HasTwoThirdsMajority() {
-//		cmn.PanicSanity("Failed to reconstruct LastCommit: Does not have +2/3 maj")
-//	}
-//	cs.LastCommit = lastPrecommits
-//}
-
 func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) {
 	var block *types.Block
 
@@ -426,6 +401,29 @@ func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 		cs.Logger.Info("Internal msg queue is full. Using a go-routine")
 		go func() { cs.internalMsgQueue <- mi }()
 	}
+}
+
+// Reconstruct LastCommit from SeenCommit, which we saved along with the block,
+// (which happens even before saving the state)
+func (cs *ConsensusState) reconstructLastCommit(state state.LastestBlockState) {
+	if state.LastBlockHeight.EqualsInt64(0) {
+		return
+	}
+	seenCommit := cs.blockStore.LoadSeenCommit(uint64(state.LastBlockHeight.Int64()))
+	lastPrecommits := types.NewVoteSet(state.ChainID, state.LastBlockHeight, seenCommit.Round(), types.VoteTypePrecommit, state.LastValidators)
+	for _, precommit := range seenCommit.Precommits {
+		if precommit == nil {
+			continue
+		}
+		added, err := lastPrecommits.AddVote(precommit)
+		if !added || err != nil {
+			cmn.PanicCrisis(cmn.Fmt("Failed to reconstruct LastCommit: %v", err))
+		}
+	}
+	if !lastPrecommits.HasTwoThirdsMajority() {
+		cmn.PanicSanity("Failed to reconstruct LastCommit: Does not have +2/3 maj")
+	}
+	cs.LastCommit = lastPrecommits
 }
 
 // Attempt to add the vote. if its a duplicate signature, dupeout the validator
@@ -1079,6 +1077,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 		// but may differ from the LastCommit included in the next block
 		precommits := cs.Votes.Precommits(cs.CommitRound.Int32())
 		seenCommit := precommits.MakeCommit()
+		cs.Logger.Trace("Save new block", "block", block, "seenCommit", seenCommit)
 		cs.blockStore.SaveBlock(block, seenCommit)
 	} else {
 		// Happens during replay if we already saved the block but didn't commit
@@ -1145,15 +1144,14 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	if cs.Height.EqualsInt(1) {
 		// We're creating a proposal for the first block.
 		commit = &types.Commit{}
-		cs.Logger.Trace(`enterPropose: First height, use empty Commit.`)
+		cs.Logger.Trace("enterPropose: First height, use empty Commit.")
 	} else if cs.LastCommit.HasTwoThirdsMajority() {
 		// Make the commit from LastCommit
 		commit = cs.LastCommit.MakeCommit()
-		cs.Logger.Error(`enterPropose: Subsequent height, use last commit.`, "commit", commit)
+		cs.Logger.Error("enterPropose: Subsequent height, use last commit.", "commit", commit)
 	} else {
 		// This shouldn't happen.
-		cs.Logger.Error(`enterPropose: Cannot propose anything: No commit for 
-		                 the previous block.`)
+		cs.Logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
 		return
 	}
 

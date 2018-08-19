@@ -29,7 +29,7 @@ func (bs *BlockStore) Height() uint64 {
     return bs.height
 }
 
-// SaveBlock persists the given block, blockParts, and seenCommit to the underlying db.
+// SaveBlock persists the given block and seenCommit to the underlying db.
 // seenCommit: The +2/3 precommits that were seen which committed at height.
 //             If all the nodes restart after committing a block,
 //             we need this to reload the precommits to catch-up nodes to the
@@ -47,8 +47,8 @@ func (bs *BlockStore) SaveBlock(block *types.Block, seenCommit *types.Commit) {
 	if height != bs.Height()+1 {
 		cmn.PanicSanity(cmn.Fmt("BlockStore can only save contiguous blocks. Wanted %v, got %v", bs.Height()+1, height))
 	}
-	// TODO(namdoh): Save block to db here.
-	log.Error("Implement save block here.")
+	// Save block.
+	bs.blockchain.WriteBlockWithoutState(block)
 
 	// Save block commit (duplicate and separate from the Block)
 	bs.blockchain.WriteCommit(height-1, block.LastCommit())
@@ -63,3 +63,14 @@ func (bs *BlockStore) SaveBlock(block *types.Block, seenCommit *types.Commit) {
 	bs.mtx.Unlock()
 }
 
+// LoadSeenCommit returns the locally seen Commit for the given height.
+// This is useful when we've seen a commit, but there has not yet been
+// a new block at `height + 1` that includes this commit in its block.LastCommit.
+func (bs *BlockStore) LoadSeenCommit(height uint64) *types.Commit {
+    commit := bs.blockchain.ReadCommit(height)
+    if commit == nil {
+        log.Error("LoadSeenCommit return nothing", "height", height)
+    }
+    
+    return commit
+}
