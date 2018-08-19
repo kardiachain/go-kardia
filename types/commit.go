@@ -136,8 +136,7 @@ func (commit *Commit) ValidateBasic() error {
 	return nil
 }
 
-// StringIndented returns a string representation of the commit
-func (commit *Commit) StringIndented(indent string) string {
+func (commit *Commit) String() string {
 	if commit == nil {
 		return "nil-Commit"
 	}
@@ -145,11 +144,8 @@ func (commit *Commit) StringIndented(indent string) string {
 	for i, precommit := range commit.Precommits {
 		precommitStrings[i] = precommit.String()
 	}
-	return fmt.Sprintf(`Commit{
-%s  BlockID:    %v
-%s  Precommits: %v
-%s}#%v`,
-		indent, commit.BlockID,
-		indent, strings.Join(precommitStrings, "\n"+indent+"  "),
-		indent, commit.hash)
+	return fmt.Sprintf("Commit{BlockID:%v  Precommits:%v}#%v",
+		commit.BlockID,
+		strings.Join(precommitStrings, "  "),
+		commit.hash)
 }

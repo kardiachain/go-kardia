@@ -1,4 +1,4 @@
-package kai
+package node
 
 import (
 	"crypto/ecdsa"

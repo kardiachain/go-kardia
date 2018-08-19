@@ -1,9 +1,9 @@
-package node
+package kai
 
 import (
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai"
+	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
@@ -18,7 +18,7 @@ type Operation struct {
 	state       *state.StateDB    // State DB to apply state changes
 	chainDb     *storage.Database // Blockchain database
 	blockchain  *blockchain.BlockChain
-	kaiService  *kai.Kardia
+	kaiService  *Kardia
 	txPool      *blockchain.TxPool
 	pendingTxns []*types.Transaction
 
@@ -29,10 +29,10 @@ type Operation struct {
 	// need private key to sign
 }
 
-func NewOperation(n *Node) *Operation {
+func NewOperation(n *node.Node) *Operation {
 	p := &Operation{}
 
-	var kService *kai.Kardia
+	var kService *Kardia
 	if err := n.Service(&kService); err != nil {
 		log.Error("Cannot get Kardia Service", "err", err)
 		return p
