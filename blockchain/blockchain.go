@@ -328,3 +328,8 @@ func (bc *BlockChain) insert(block *types.Block) {
 		bc.hc.SetCurrentHeader(block.Header())
 	}
 }
+
+// Writes a commit to db.
+func (bc *BlockChain) WriteCommit(height uint64, commit *types.Commit) {
+	rawdb.WriteCommit(bc.db, height, commit)
+}

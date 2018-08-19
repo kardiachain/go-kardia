@@ -10,6 +10,7 @@ import (
 
 	fail "github.com/ebuchman/fail-test"
 
+	"github.com/kardiachain/go-kardia/blockchain"
 	cfg "github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
@@ -67,10 +68,8 @@ type ConsensusState struct {
 	privValidator *types.PrivValidator // for signing votes
 
 	// Services for creating and executing blocks
-	// TODO: encapsulate all of this in one "BlockManager"
-	// TODO(namdoh): Add RPC for block store later.
-	blockExec *state.BlockExecutor
-	//namdoh@ blockStore sm.BlockStore
+	blockExec  *state.BlockExecutor
+	blockStore *BlockStore
 	// TODO(namdoh): Add mem pool.
 	evpool evidence.EvidencePool
 
@@ -106,14 +105,16 @@ func NewConsensusState(
 	config *cfg.ConsensusConfig,
 	state state.LastestBlockState,
 	//namdoh@ blockExec *sm.BlockExecutor,
-	//namdoh@ blockStore sm.BlockStore,
+	blockchain *blockchain.BlockChain,
 	//namdoh@ evpool evidence.EvidencePool,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		Logger: log.New("module", "consensus"),
 		config: config,
 		//namdoh@ blockExec:        blockExec,
-		//namdoh@ blockStore:       blockStore,
+		blockStore: &BlockStore{
+			blockchain: blockchain,
+		},
 		peerMsgQueue:     make(chan msgInfo, msgQueueSize),
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
 		timeoutTicker:    NewTimeoutTicker(),
@@ -1072,19 +1073,17 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 
 	fail.Fail() // XXX
 
-	// TODO(namdoh): Re-enable this.
-	cs.Logger.Error("finalizeCommit - Enable SaveBlock().")
-	// Save to blockStore.
-	//if cs.blockStore.Height() < block.Height {
-	//	// NOTE: the seenCommit is local justification to commit this block,
-	//	// but may differ from the LastCommit included in the next block
-	//	precommits := cs.Votes.Precommits(cs.CommitRound)
-	//	seenCommit := precommits.MakeCommit()
-	//	cs.blockStore.SaveBlock(block, blockParts, seenCommit)
-	//} else {
-	//	// Happens during replay if we already saved the block but didn't commit
-	//	cs.Logger.Info("Calling finalizeCommit on already stored block", "height", block.Height)
-	//}
+	// Save block.
+	if cs.blockStore.Height() < block.Height() {
+		// NOTE: the seenCommit is local justification to commit this block,
+		// but may differ from the LastCommit included in the next block
+		precommits := cs.Votes.Precommits(cs.CommitRound.Int32())
+		seenCommit := precommits.MakeCommit()
+		cs.blockStore.SaveBlock(block, seenCommit)
+	} else {
+		// Happens during replay if we already saved the block but didn't commit
+		cs.Logger.Info("Calling finalizeCommit on already stored block", "height", block.Height())
+	}
 
 	fail.Fail() // XXX
 

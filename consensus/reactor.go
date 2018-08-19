@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/blockchain"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 	kcmn "github.com/kardiachain/go-kardia/kai/common" // TODO(namdoh): Remove kai/common dependency
 	cmn "github.com/kardiachain/go-kardia/lib/common"
@@ -32,8 +31,6 @@ type ConsensusReactor struct {
 
 	conS *ConsensusState
 
-	store *Store
-
 	mtx sync.RWMutex
 	//eventBus *types.EventBus
 
@@ -42,12 +39,9 @@ type ConsensusReactor struct {
 
 // NewConsensusReactor returns a new ConsensusReactor with the given
 // consensusState.
-func NewConsensusReactor(consensusState *ConsensusState, blockchain *blockchain.BlockChain) *ConsensusReactor {
+func NewConsensusReactor(consensusState *ConsensusState) *ConsensusReactor {
 	return &ConsensusReactor{
 		conS: consensusState,
-		store: &Store{
-			blockchain: blockchain,
-		},
 	}
 }
 

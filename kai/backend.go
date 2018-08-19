@@ -99,8 +99,9 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	consensusState := consensus.NewConsensusState(
 		configs.DefaultConsensusConfig(),
 		state,
+		kai.blockchain,
 	)
-	kai.csReactor = consensus.NewConsensusReactor(consensusState, kai.blockchain)
+	kai.csReactor = consensus.NewConsensusReactor(consensusState)
 	// Set private validator for consensus reactor.
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
 	kai.csReactor.SetPrivValidator(privValidator)
