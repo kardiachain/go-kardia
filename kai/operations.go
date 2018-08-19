@@ -3,9 +3,9 @@ package kai
 import (
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
@@ -101,4 +101,11 @@ func (p *Operation) CommitTransactions() (types.Receipts, uint64, error) {
 
 	p.receipts = &receipts
 	return receipts, *usedGas, nil
+}
+
+func (p *Operation) WriteBlock(b *types.Block) {
+
+	// Currently write without state to use account state on block itself.
+	// In the future uses WriteBlockWithState.
+	p.blockchain.WriteBlockWithoutState(b)
 }
