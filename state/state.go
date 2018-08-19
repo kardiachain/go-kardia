@@ -5,6 +5,7 @@ import (
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
+	"math/big"
 )
 
 // It keeps all information necessary to validate new blocks,
@@ -21,7 +22,7 @@ type LastestBlockState struct {
 	LastBlockHeight  *cmn.BigInt
 	LastBlockTotalTx *cmn.BigInt
 	LastBlockID      types.BlockID
-	LastBlockTime    time.Time
+	LastBlockTime    *big.Int
 
 	// LastValidators is used to validate block.LastCommit.
 	// Validators are persisted to the database separately every time they change,
@@ -69,7 +70,7 @@ func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction,
 	header := types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:         uint64(height),
-		Time:           time.Now(),
+		Time:           big.NewInt(time.Now().Unix()),
 		NumTxs:         uint64(len(txs)),
 		LastBlockID:    state.LastBlockID,
 		ValidatorsHash: state.Validators.Hash(),

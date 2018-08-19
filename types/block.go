@@ -8,7 +8,6 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
-	"time"
 	"unsafe"
 
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -28,9 +27,9 @@ var (
 // Header represents a block header in the Kardia blockchain.
 type Header struct {
 	// basic block info
-	Height uint64    `json:"height"       gencodec:"required"`
-	Time   time.Time `json:"time"         gencodec:"required"`
-	NumTxs uint64    `json:"num_txs"      gencodec:"required`
+	Height uint64   `json:"height"       gencodec:"required"`
+	Time   *big.Int `json:"time"         gencodec:"required"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+	NumTxs uint64   `json:"num_txs"      gencodec:"required`
 
 	GasLimit uint64 `json:"gasLimit"         gencodec:"required"`
 	GasUsed  uint64 `json:"gasUsed"          gencodec:"required"`
@@ -254,7 +253,7 @@ func (b *Block) WithBody(body *Body) *Block {
 func (b *Block) Height() uint64   { return b.header.Height }
 func (b *Block) GasLimit() uint64 { return b.header.GasLimit }
 func (b *Block) GasUsed() uint64  { return b.header.GasUsed }
-func (b *Block) Time() time.Time  { return b.header.Time }
+func (b *Block) Time() *big.Int   { return b.header.Time }
 func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
 func (b *Block) LastCommitHash() common.Hash { return b.header.LastCommitHash }

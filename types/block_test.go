@@ -6,10 +6,14 @@ import (
 	"math/big"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestBlockEncodeDecode(t *testing.T) {
 	header := Header{}
+	header.Height = 1
+	header.Time = big.NewInt(time.Now().Unix())
+
 	addr := common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
 	addr2 := common.HexToAddress("0xfb6916095ca1df60bb79ce92ce3ea74c37c5d359")
 
@@ -51,7 +55,7 @@ func TestBlockEncodeDecode(t *testing.T) {
 			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
 		}
 	}
-
+	check("Time", block.Time(), decodedBlock.Time())
 	check("Header", block.Header(), decodedBlock.Header())
 	check("emptyTx", block.Transactions()[0].Hash(), decodedBlock.Transactions()[0].Hash())
 	check("Commit", block.LastCommit().String(), decodedBlock.LastCommit().String())

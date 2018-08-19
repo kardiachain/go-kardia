@@ -102,7 +102,7 @@ func ApplyTransactionsToAccountState(txs []*types.Transaction, accounts *types.A
 
 	for i, oldAccount := range *accounts {
 		newBalance := accountMap[*oldAccount.Addr]
-		newState[i] = &types.BlockAccount{Addr: oldAccount.Addr, Balance: &newBalance}
+		newState[i] = &types.BlockAccount{Addr: oldAccount.Addr, Balance: newBalance}
 	}
 
 	return &newState, nil
