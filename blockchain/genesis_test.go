@@ -1,18 +1,17 @@
 package blockchain
 
 import (
-	"testing"
+	"github.com/kardiachain/go-kardia/account"
+	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/state"
+	"github.com/kardiachain/go-kardia/storage"
+	"github.com/pborman/uuid"
 	"os"
 	"path/filepath"
-	"github.com/pborman/uuid"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/account"
-	"github.com/kardiachain/go-kardia/storage"
-	"github.com/kardiachain/go-kardia/kai/dev"
-	"github.com/kardiachain/go-kardia/state"
-	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"testing"
 )
-
 
 const (
 	password = "KardiaChain"
@@ -44,9 +43,8 @@ var (
 		"e049a09c992c882bc2deb780323a247c6ee0951f8b4c5c1dd0fc2fc22ce6493d",
 	}
 	balance = int64(100000000)
-	folder = uuid.New()
+	folder  = uuid.New()
 )
-
 
 func TestGenesisAllocFromData(t *testing.T) {
 
@@ -73,7 +71,6 @@ func TestGenesisAllocFromData(t *testing.T) {
 		}
 	}
 }
-
 
 func TestCreateGenesisBlock(t *testing.T) {
 	// Test generate genesis block
@@ -117,7 +114,6 @@ func TestCreateGenesisBlock(t *testing.T) {
 	}
 }
 
-
 func TestMain(m *testing.M) {
 
 	retCode := m.Run()
@@ -128,7 +124,6 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(retCode)
 }
-
 
 func RemoveDir(dir string) error {
 	d, err := os.Open(dir)

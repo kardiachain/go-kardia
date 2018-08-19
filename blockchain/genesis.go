@@ -3,7 +3,6 @@ package blockchain
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"github.com/kardiachain/go-kardia/blockchain/rawdb"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -11,6 +10,7 @@ import (
 	"github.com/kardiachain/go-kardia/state"
 	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
+	"math/big"
 )
 
 //go:generate gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go
@@ -190,7 +190,7 @@ func DefaultTestnetGenesisBlock(allocData map[string]int64) *Genesis {
 	return &Genesis{
 		Config:   configs.TestnetChainConfig,
 		GasLimit: 16777216,
-		Alloc: ga,
+		Alloc:    ga,
 	}
 }
 

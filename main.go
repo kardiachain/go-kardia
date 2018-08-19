@@ -9,6 +9,7 @@ import (
 	"time"
 
 	elog "github.com/ethereum/go-ethereum/log"
+	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/dual"
 	"github.com/kardiachain/go-kardia/kai"
 	development "github.com/kardiachain/go-kardia/kai/dev"
@@ -18,7 +19,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/blockchain"
 	"os"
 	"path/filepath"
 )
