@@ -307,6 +307,43 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	return bc.loadLastState()
 }
 
+// WriteBlockWithoutState writes only new block to database.
+func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) {
+	// Makes sure no inconsistent state is leaked during insertion
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
+	rawdb.WriteBlock(bc.db, block)
+	// Skips updating state & receipt storage
+	bc.insert(block)
+	bc.futureBlocks.Remove(block.Hash())
+}
+
+// WriteBlockWithState writes the block and all associated state to the database.
+func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) error {
+	// Makes sure no inconsistent state is leaked during insertion
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
+	// Write block data in batch.
+	batch := bc.db.NewBatch()
+	rawdb.WriteBlock(batch, block)
+	root, err := state.Commit(true)
+	if err != nil {
+		return err
+	}
+	triedb := bc.stateCache.TrieDB()
+	if err := triedb.Commit(root, false); err != nil {
+		return err
+	}
+	rawdb.WriteReceipts(batch, block.Hash(), block.Header().Height, receipts)
+	if err := batch.Write(); err != nil {
+		return err
+	}
+	// Set new head.
+	bc.insert(block)
+	bc.futureBlocks.Remove(block.Hash())
+	return nil
+}
+
 // insert injects a new head block into the current block chain. This method
 // assumes that the block is indeed a true head. It will also reset the head
 // header to this very same block if they are older
