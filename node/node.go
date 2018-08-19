@@ -3,21 +3,15 @@ package node
 import (
 	"errors"
 	"fmt"
-
 	"net"
 	"reflect"
+	"strings"
 	"sync"
 
-	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/consensus"
-	"github.com/kardiachain/go-kardia/kai"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
 	"github.com/kardiachain/go-kardia/rpc"
-	"github.com/kardiachain/go-kardia/state"
-	"github.com/kardiachain/go-kardia/types"
 )
 
 // Node is the highest level container for a full Kardia node.
@@ -27,11 +21,8 @@ type Node struct {
 	serverConfig p2p.Config
 	server       *p2p.Server
 
-	services            map[string]kai.Service // Map of type names to running services
-	serviceConstructors []kai.ServiceConstructor
-
-	csReactor     *consensus.ConsensusReactor
-	privValidator *types.PrivValidator
+	services            map[string]Service // Map of type names to running services
+	serviceConstructors []ServiceConstructor
 
 	rpcAPIs       []rpc.API    // List of APIs currently provided by the node
 	httpEndpoint  string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
@@ -313,9 +304,9 @@ func (n *Node) ServiceMap() map[string]Service {
 func (n *Node) apis() []rpc.API {
 	return []rpc.API{
 		{
-			Namespace: "web3",
+			Namespace: "KaiAPI",
 			Version:   "1.0",
-			Service:   NewPublicWeb3API(n),
+			Service:   NewPublicKaiAPI(n),
 			Public:    true,
 		},
 	}
