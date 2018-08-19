@@ -2,7 +2,7 @@ package kai
 
 import (
 	"errors"
-	
+
 	//"github.com/kardiachain/go-kardia/event"
 	"github.com/kardiachain/go-kardia/p2p"
 )
@@ -58,6 +58,4 @@ type Service interface {
 	// Stop terminates all goroutines belonging to the service, blocking until they
 	// are all terminated.
 	Stop() error
-
-	ConnectReactor(reactor Reactor)
 }

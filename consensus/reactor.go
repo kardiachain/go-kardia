@@ -6,7 +6,6 @@ import (
 	"time"
 
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
-	"github.com/kardiachain/go-kardia/kai"
 	// TODO(namdoh): Remove kai/common dependency
 	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
@@ -29,7 +28,7 @@ const (
 
 // ConsensusReactor defines a reactor for the consensus service.
 type ConsensusReactor struct {
-	kai.BaseReactor
+	protocol BaseProtocol
 
 	conS *ConsensusState
 
@@ -52,6 +51,10 @@ func NewConsensusReactor(consensusState *ConsensusState) *ConsensusReactor {
 	//}
 	//conR.BaseReactor = *p2p.NewBaseReactor("ConsensusReactor", conR)
 	//r eturn conR
+}
+
+func (conR *ConsensusReactor) SetProtocol(protocol BaseProtocol) {
+	conR.protocol = protocol
 }
 
 func (conR *ConsensusReactor) SetPrivValidator(priv *types.PrivValidator) {
@@ -282,10 +285,10 @@ func (conR *ConsensusReactor) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
 	conR.conS.Logger.Trace("broadcastNewRoundStepMessages", "nrsMsg", nrsMsg)
 	if nrsMsg != nil {
-		conR.ProtocolManager.Broadcast(nrsMsg, kcmn.CsNewRoundStepMsg)
+		conR.protocol.Broadcast(nrsMsg, kcmn.CsNewRoundStepMsg)
 	}
 	if csMsg != nil {
-		conR.ProtocolManager.Broadcast(csMsg, kcmn.CsCommitStepMsg)
+		conR.protocol.Broadcast(csMsg, kcmn.CsCommitStepMsg)
 	}
 }
 
@@ -298,7 +301,7 @@ func (conR *ConsensusReactor) broadcastHasVoteMessage(vote *types.Vote) {
 		Index:  vote.ValidatorIndex,
 	}
 	conR.conS.Logger.Trace("broadcastHasVoteMessage", "msg", msg)
-	conR.ProtocolManager.Broadcast(msg, kcmn.CsHasVoteMsg)
+	conR.protocol.Broadcast(msg, kcmn.CsHasVoteMsg)
 	/*
 		// TODO: Make this broadcast more selective.
 		for _, peer := range conR.Switch.Peers().List() {

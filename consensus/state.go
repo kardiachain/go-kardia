@@ -1073,6 +1073,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	fail.Fail() // XXX
 
 	// TODO(namdoh): Re-enable this.
+	cs.Logger.Error("finalizeCommit - Enable SaveBlock().")
 	// Save to blockStore.
 	//if cs.blockStore.Height() < block.Height {
 	//	// NOTE: the seenCommit is local justification to commit this block,

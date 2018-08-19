@@ -5,17 +5,11 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-	"time"
 
-	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
-	"github.com/kardiachain/go-kardia/state"
-	"github.com/kardiachain/go-kardia/types"
 )
 
 // Node is the highest level container for a full Kardia node.
@@ -28,9 +22,6 @@ type Node struct {
 	services            map[string]kai.Service // Map of type names to running services
 	serviceConstructors []kai.ServiceConstructor
 
-	csReactor     *consensus.ConsensusReactor
-	privValidator *types.PrivValidator
-
 	lock sync.RWMutex
 	log  log.Logger
 }
@@ -40,25 +31,6 @@ func NewNode(config *kai.NodeConfig) (*Node, error) {
 	node.config = config
 	node.log = log.New()
 	// TODO: input check on the config
-
-	// Initialization for consensus.
-	startTime, _ := time.Parse(time.UnixDate, "Monday July 30 00:00:00 PST 2018")
-	validatorSet := config.DevEnvConfig.GetValidatorSet(config.NumValidators)
-	state := state.LastestBlockState{
-		ChainID:                     "kaicon",
-		LastBlockHeight:             cmn.NewBigInt(0),
-		LastBlockID:                 types.BlockID{},
-		LastBlockTime:               startTime,
-		Validators:                  validatorSet,
-		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: cmn.NewBigInt(1),
-	}
-	consensusState := consensus.NewConsensusState(
-		configs.DefaultConsensusConfig(),
-		state,
-	)
-
-	node.csReactor = consensus.NewConsensusReactor(consensusState)
 
 	return node, nil
 }
@@ -74,13 +46,10 @@ func (n *Node) Start() error {
 	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 
 	// Generate node PrivKey
-	nodeKey := n.config.NodeKey()
 	n.serverConfig = n.config.P2P
 	n.serverConfig.Logger = n.log
 	n.serverConfig.Name = n.config.NodeName()
-	n.serverConfig.PrivateKey = nodeKey
-	n.privValidator = types.NewPrivValidator(nodeKey)
-	n.csReactor.SetPrivValidator(n.privValidator)
+	n.serverConfig.PrivateKey = n.config.NodeKey()
 
 	// TODO: use json file in datadir to load the node list
 	// n.serverConfig.StaticNodes = []
@@ -104,7 +73,6 @@ func (n *Node) Start() error {
 		if err != nil {
 			return err
 		}
-		service.ConnectReactor(n.csReactor)
 		serviceTypeName := reflect.TypeOf(service).Elem().Name()
 		if _, exists := newServices[serviceTypeName]; exists {
 			return fmt.Errorf("duplicated service of type %s", serviceTypeName)
