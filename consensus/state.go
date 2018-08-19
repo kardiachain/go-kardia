@@ -1159,7 +1159,8 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 
 	// TODO(namdoh): Adds mem pool validated transactions
 	// TODO(namdoh): Replace transactions with sth here.
-	block = cs.state.MakeBlock(cs.Height.Int64(), nil, commit)
+	// TODO(thientn/namdoh): Adds latest types.AccountStates
+	block = cs.state.MakeBlock(cs.Height.Int64(), nil, commit, nil)
 	cs.Logger.Trace("Make block to propose", "block", block)
 	// TODO(namdoh): Add evidence to block.
 	//evidence := cs.evpool.PendingEvidence()

@@ -164,6 +164,8 @@ func main() {
 		return
 	}
 
+	logger.Info("Genesis block", "genesis", *kService.BlockChain().Genesis())
+
 	if *addTxn {
 		logger.Info("Adding local txn")
 		emptyTx := types.NewTransaction(
