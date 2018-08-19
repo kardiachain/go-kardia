@@ -5,9 +5,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardia/blockchain"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
-	// TODO(namdoh): Remove kai/common dependency
-	kcmn "github.com/kardiachain/go-kardia/kai/common"
+	kcmn "github.com/kardiachain/go-kardia/kai/common" // TODO(namdoh): Remove kai/common dependency
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	libevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -32,6 +32,8 @@ type ConsensusReactor struct {
 
 	conS *ConsensusState
 
+	store *Store
+
 	mtx sync.RWMutex
 	//eventBus *types.EventBus
 
@@ -40,17 +42,13 @@ type ConsensusReactor struct {
 
 // NewConsensusReactor returns a new ConsensusReactor with the given
 // consensusState.
-func NewConsensusReactor(consensusState *ConsensusState) *ConsensusReactor {
+func NewConsensusReactor(consensusState *ConsensusState, blockchain *blockchain.BlockChain) *ConsensusReactor {
 	return &ConsensusReactor{
 		conS: consensusState,
+		store: &Store{
+			blockchain: blockchain,
+		},
 	}
-	// TODO(namdoh): Re-anable this.
-	//conR := &ConsensusReactor{
-	//	conS:     consensusState,
-	//	fastSync: fastSync,
-	//}
-	//conR.BaseReactor = *p2p.NewBaseReactor("ConsensusReactor", conR)
-	//r eturn conR
 }
 
 func (conR *ConsensusReactor) SetProtocol(protocol BaseProtocol) {
