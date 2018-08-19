@@ -63,7 +63,7 @@ func (state LastestBlockState) Copy() LastestBlockState {
 
 // Creates a block from the latest state.
 // MakeBlock builds a block with the given txs and commit from the current state.
-func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction, commit *types.Commit) *types.Block {
+func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction, commit *types.Commit, accounts *types.AccountStates) *types.Block {
 	// build base block
 	// TODO(huny@): Fill receipt in making a new block.
 	header := types.Header{
@@ -74,7 +74,7 @@ func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction,
 		LastBlockID:    state.LastBlockID,
 		ValidatorsHash: state.Validators.Hash(),
 	}
-	block := types.NewBlock(&header, txs, nil, commit)
+	block := types.NewBlock(&header, txs, nil, commit, accounts)
 
 	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
 	// LastResultHash.

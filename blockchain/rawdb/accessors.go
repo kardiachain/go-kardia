@@ -182,7 +182,7 @@ func ReadBlock(db DatabaseReader, hash common.Hash, height uint64) *types.Block 
 	if body == nil {
 		return nil
 	}
-	return types.NewBlockWithHeader(header).WithBody(body.Transactions)
+	return types.NewBlockWithHeader(header).WithBody(body)
 }
 
 // ReadHeader retrieves the block header corresponding to the hash.
