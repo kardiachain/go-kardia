@@ -10,6 +10,7 @@ import (
 	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/state"
 	kaidb "github.com/kardiachain/go-kardia/storage"
@@ -53,7 +54,7 @@ func (s *Kardia) AddKaiServer(ks KardiaSubService) {
 
 // New creates a new Kardia object (including the
 // initialisation of the common Kardia object)
-func newKardia(ctx *ServiceContext, config *Config) (*Kardia, error) {
+func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	chainDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
 	if err != nil {
 		return nil, err
@@ -117,7 +118,7 @@ func newKardia(ctx *ServiceContext, config *Config) (*Kardia, error) {
 
 // Implements ServiceConstructor, return a Kardia node service from node service context.
 // TODO: move this outside of kai package to customize kai.Config
-func NewKardiaService(ctx *ServiceContext) (Service, error) {
+func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	nodeConfig := ctx.Config
 	kai, err := newKardia(ctx, &Config{
 		NetworkId: DefaultNetworkID,

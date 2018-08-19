@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/kardiachain/go-kardia/kai"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
@@ -15,18 +14,18 @@ import (
 // Node is the highest level container for a full Kardia node.
 // It keeps all config data and services.
 type Node struct {
-	config       *kai.NodeConfig
+	config       *NodeConfig
 	serverConfig p2p.Config
 	server       *p2p.Server
 
-	services            map[string]kai.Service // Map of type names to running services
-	serviceConstructors []kai.ServiceConstructor
+	services            map[string]Service // Map of type names to running services
+	serviceConstructors []ServiceConstructor
 
 	lock sync.RWMutex
 	log  log.Logger
 }
 
-func NewNode(config *kai.NodeConfig) (*Node, error) {
+func NewNode(config *NodeConfig) (*Node, error) {
 	node := new(Node)
 	node.config = config
 	node.log = log.New()
@@ -41,7 +40,7 @@ func (n *Node) Start() error {
 
 	// Starts p2p server.
 	if n.server != nil {
-		return kai.ErrNodeRunning
+		return ErrNodeRunning
 	}
 	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 
@@ -59,12 +58,12 @@ func (n *Node) Start() error {
 	newServer := &p2p.Server{Config: n.serverConfig}
 
 	// Starts protocol services.
-	newServices := make(map[string]kai.Service)
+	newServices := make(map[string]Service)
 	for _, serviceConstructor := range n.serviceConstructors {
 		// Creates context as parameter for constructor
-		ctx := &kai.ServiceContext{
+		ctx := &ServiceContext{
 			Config:   n.config,
-			Services: make(map[string]kai.Service),
+			Services: make(map[string]Service),
 		}
 		for serviceType, s := range newServices { // full map copy in each ServiceContext, for concurrent access
 			ctx.Services[serviceType] = s
@@ -89,7 +88,7 @@ func (n *Node) Start() error {
 	}
 
 	// Start each of the services
-	var startedServices []kai.Service
+	var startedServices []Service
 	for _, service := range newServices {
 		// Start the next service, stopping all previous upon failure
 		if err := service.Start(newServer); err != nil {
@@ -116,7 +115,7 @@ func (n *Node) Stop() error {
 	defer n.lock.Unlock()
 
 	if n.server == nil {
-		return kai.ErrNodeStopped
+		return ErrNodeStopped
 	}
 
 	sFailures := make(map[string]error)
@@ -133,7 +132,7 @@ func (n *Node) Stop() error {
 
 	if len(sFailures) > 0 {
 		n.log.Error("Failed to stop node services: %v", sFailures)
-		return kai.ErrNodeStopFailure
+		return ErrNodeStopFailure
 	}
 
 	return nil
@@ -148,12 +147,12 @@ func (n *Node) Server() *p2p.Server {
 }
 
 // Service adds a new service to node.
-func (n *Node) RegisterService(constructor kai.ServiceConstructor) error {
+func (n *Node) RegisterService(constructor ServiceConstructor) error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
 	if n.server != nil {
-		return kai.ErrNodeRunning
+		return ErrNodeRunning
 	}
 	n.serviceConstructors = append(n.serviceConstructors, constructor)
 	return nil
@@ -167,7 +166,7 @@ func (n *Node) AddPeer(url string) (bool, error) {
 	server := n.Server()
 
 	if server == nil {
-		return false, kai.ErrNodeStopped
+		return false, ErrNodeStopped
 	}
 	// Try to add the url as a static peer and return
 	node, err := discover.ParseNode(url)
@@ -190,7 +189,7 @@ func (n *Node) Service(returnedService interface{}) error {
 	defer n.lock.RUnlock()
 
 	if n.server == nil {
-		return kai.ErrNodeStopped
+		return ErrNodeStopped
 	}
 
 	// Get pointer with *Service type.
@@ -202,11 +201,11 @@ func (n *Node) Service(returnedService interface{}) error {
 
 		return nil
 	}
-	return kai.ErrServiceUnknown
+	return ErrServiceUnknown
 }
 
 // ServiceMap returns map of all running services.
-func (n *Node) ServiceMap() map[string]kai.Service {
+func (n *Node) ServiceMap() map[string]Service {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 
