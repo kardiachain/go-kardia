@@ -6,8 +6,7 @@ import (
 	"time"
 
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
-	// TODO(namdoh): Remove kai/common dependency
-	kcmn "github.com/kardiachain/go-kardia/kai/common"
+	kcmn "github.com/kardiachain/go-kardia/kai/common" // TODO(namdoh): Remove kai/common dependency
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	libevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -44,13 +43,6 @@ func NewConsensusReactor(consensusState *ConsensusState) *ConsensusReactor {
 	return &ConsensusReactor{
 		conS: consensusState,
 	}
-	// TODO(namdoh): Re-anable this.
-	//conR := &ConsensusReactor{
-	//	conS:     consensusState,
-	//	fastSync: fastSync,
-	//}
-	//conR.BaseReactor = *p2p.NewBaseReactor("ConsensusReactor", conR)
-	//r eturn conR
 }
 
 func (conR *ConsensusReactor) SetProtocol(protocol BaseProtocol) {

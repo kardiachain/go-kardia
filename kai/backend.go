@@ -2,8 +2,6 @@
 package kai
 
 import (
-	"time"
-
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
@@ -87,20 +85,21 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	kai.txPool = blockchain.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 
 	// Initialization for consensus.
-	startTime, _ := time.Parse(time.UnixDate, "Monday July 30 00:00:00 PST 2018")
+	block := kai.blockchain.CurrentBlock()
 	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSet(ctx.Config.NumValidators)
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon",
-		LastBlockHeight:             cmn.NewBigInt(0),
-		LastBlockID:                 types.BlockID{},
-		LastBlockTime:               startTime,
+		LastBlockHeight:             cmn.NewBigInt(int64(block.Height())),
+		LastBlockID:                 block.BlockID(),
+		LastBlockTime:               block.Time(),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: cmn.NewBigInt(1),
+		LastHeightValidatorsChanged: cmn.NewBigInt(-1),
 	}
 	consensusState := consensus.NewConsensusState(
 		configs.DefaultConsensusConfig(),
 		state,
+		kai.blockchain,
 	)
 	kai.csReactor = consensus.NewConsensusReactor(consensusState)
 	// Set private validator for consensus reactor.

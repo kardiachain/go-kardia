@@ -19,9 +19,10 @@ var (
 	headerHashSuffix   = []byte("n") // headerPrefix + num (uint64 big endian) + headerHashSuffix -> hash
 	headerHeightPrefix = []byte("H") // headerHeightPrefix + hash -> num (uint64 big endian)
 
-	blockBodyPrefix = []byte("b") // blockBodyPrefix + num (uint64 big endian) + hash -> block body
-
+	blockBodyPrefix     = []byte("b") // blockBodyPrefix + num (uint64 big endian) + hash -> block body
 	blockReceiptsPrefix = []byte("r") // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
+
+	commitPrefix = []byte("c") // commitPrefix + num (uint64 big endian) -> commit
 
 	configPrefix = []byte("kardia-config-") // config prefix for the db
 )
@@ -56,6 +57,11 @@ func blockBodyKey(height uint64, hash common.Hash) []byte {
 // blockReceiptsKey = blockReceiptsPrefix + num (uint64 big endian) + hash
 func blockReceiptsKey(height uint64, hash common.Hash) []byte {
 	return append(append(blockReceiptsPrefix, encodeBlockHeight(height)...), hash.Bytes()...)
+}
+
+// commitKey = commitPrefix + ":" + height
+func commitKey(height uint64) []byte {
+	return append(commitPrefix, encodeBlockHeight(height)...)
 }
 
 // configKey = configPrefix + hash

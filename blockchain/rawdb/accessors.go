@@ -73,7 +73,7 @@ func WriteBlock(db DatabaseWriter, block *types.Block) {
 	WriteHeader(db, block.Header())
 }
 
-// WriteBody storea a block body into the database.
+// WriteBody stores a block body into the database.
 func WriteBody(db DatabaseWriter, hash common.Hash, height uint64, body *types.Body) {
 	data, err := rlp.EncodeToBytes(body)
 	if err != nil {
@@ -148,6 +148,22 @@ func WriteHeadBlockHash(db DatabaseWriter, hash common.Hash) {
 func WriteHeadHeaderHash(db DatabaseWriter, hash common.Hash) {
 	if err := db.Put(headHeaderKey, hash.Bytes()); err != nil {
 		log.Crit("Failed to store last header's hash", "err", err)
+	}
+}
+
+// WriteCommit stores a commit into the database.
+func WriteCommit(db DatabaseWriter, height uint64, commit *types.Commit) {
+	data, err := rlp.EncodeToBytes(commit)
+	if err != nil {
+		log.Crit("Failed to RLP encode commit", "err", err)
+	}
+	WriteCommitRLP(db, height, data)
+}
+
+// WriteCommitRLP stores an RLP encoded commit into the database.
+func WriteCommitRLP(db DatabaseWriter, height uint64, rlp rlp.RawValue) {
+	if err := db.Put(commitKey(height), rlp); err != nil {
+		log.Crit("Failed to store commit", "err", err)
 	}
 }
 
@@ -235,6 +251,26 @@ func ReadHeadHeaderHash(db DatabaseReader) common.Hash {
 		return common.Hash{}
 	}
 	return common.BytesToHash(data)
+}
+
+// ReadCommitRLP retrieves the commit in RLP encoding.
+func ReadCommitRLP(db DatabaseReader, height uint64) rlp.RawValue {
+	data, _ := db.Get(commitKey(height))
+	return data
+}
+
+// ReadBody retrieves the commit at a given height.
+func ReadCommit(db DatabaseReader, height uint64) *types.Commit {
+	data := ReadCommitRLP(db, height)
+	if len(data) == 0 {
+		return nil
+	}
+	commit := new(types.Commit)
+	if err := rlp.Decode(bytes.NewReader(data), commit); err != nil {
+		log.Error("Invalid commit RLP", "err", err)
+		return nil
+	}
+	return commit
 }
 
 // DeleteBody removes all block body data associated with a hash.
