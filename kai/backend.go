@@ -10,6 +10,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/p2p"
+	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/state"
 	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
@@ -181,13 +182,8 @@ func (s *Kardia) Stop() error {
 	return nil
 }
 
-func (s *Kardia) ConnectReactor(reactor Reactor) {
-	s.protocolManager.ConnectReactor(reactor)
-	reactor.SetProtocolManager(s.protocolManager)
-}
-
 func (s *Kardia) APIs() []rpc.API {
-	// TODO: define endpoints
+	return nil
 }
 
 func (s *Kardia) TxPool() *blockchain.TxPool         { return s.txPool }

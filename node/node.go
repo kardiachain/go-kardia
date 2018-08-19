@@ -197,6 +197,8 @@ func (n *Node) startRPC(services map[string]Service) error {
 // startHTTP initializes and starts the HTTP RPC endpoint.
 func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string) error {
 	// Short circuit if the HTTP endpoint isn't being exposed
+	log.Info("Node starting HTTP endpoint")
+	endpoint = "localhost:3000"
 	if endpoint == "" {
 		return nil
 	}
