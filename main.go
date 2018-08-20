@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"encoding/hex"
 	elog "github.com/ethereum/go-ethereum/log"
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/dual"
@@ -86,7 +87,8 @@ func main() {
 		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
 		level = log.LvlInfo
 	}
-	log.Root().SetHandler(log.LvlFilterHandler(level, log.StdoutHandler))
+	log.Root().SetHandler(log.LvlFilterHandler(level, log.StreamHandler(os.Stdout, log.TerminalFormat(false))))
+
 	logger := log.New()
 
 	elevel, err := elog.LvlFromString(*ethLogLevel)
@@ -167,18 +169,28 @@ func main() {
 	logger.Info("Genesis block", "genesis", *kService.BlockChain().Genesis())
 
 	if *addTxn {
-		logger.Info("Adding local txn")
-		emptyTx := types.NewTransaction(
+		logger.Info("Adding local txn to send 10 coin from addr0 to addr1")
+		//sender is account[0] in dev genesis
+		senderByteK, _ := hex.DecodeString("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
+		senderKey := crypto.ToECDSAUnsafe(senderByteK)
+
+		// account[1] in dev genesis
+		receiverAddr := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+
+		simpleTx := types.NewTransaction(
 			0,
-			common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87"),
-			big.NewInt(0), 0, big.NewInt(0),
+			receiverAddr,
+			big.NewInt(10),
+			23000, big.NewInt(10),
 			nil,
 		)
 		txPool := kService.TxPool()
-		key, _ := crypto.GenerateKey()
-		signedTx, _ := types.SignTx(emptyTx, key)
+		signedTx, _ := types.SignTx(simpleTx, senderKey)
 
-		txPool.AddLocal(signedTx)
+		err := txPool.AddLocal(signedTx)
+		if err != nil {
+			logger.Error("Txn add error", "err", err)
+		}
 	}
 
 	if *peerURL != "" {
