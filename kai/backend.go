@@ -183,7 +183,13 @@ func (s *Kardia) Stop() error {
 }
 
 func (s *Kardia) APIs() []rpc.API {
-	return nil
+	return []rpc.API{
+		{
+			Namespace: "kai",
+			Version:   "1.0",
+			Service:   NewPublicKaiAPI(s),
+			Public:    true,
+		}}
 }
 
 func (s *Kardia) TxPool() *blockchain.TxPool         { return s.txPool }

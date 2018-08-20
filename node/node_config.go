@@ -173,6 +173,20 @@ func (c *NodeConfig) name() string {
 	return c.Name
 }
 
+// and port parameters.
+func (c *NodeConfig) HTTPEndpoint() string {
+	if c.HTTPHost == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s:%d", c.HTTPHost, c.HTTPPort)
+}
+
+// DefaultHTTPEndpoint returns the HTTP endpoint used by default.
+func DefaultHTTPEndpoint() string {
+	config := &NodeConfig{HTTPHost: DefaultHTTPHost, HTTPPort: DefaultHTTPPort}
+	return config.HTTPEndpoint()
+}
+
 func (c *NodeConfig) instanceDir() string {
 	if c.DataDir == "" {
 		return ""

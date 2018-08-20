@@ -53,6 +53,9 @@ func (n *Node) Start() error {
 	}
 	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 
+	// RPC Endpoint
+	n.httpEndpoint = n.config.HTTPEndpoint()
+
 	// Generate node PrivKey
 	n.serverConfig = n.config.P2P
 	n.serverConfig.Logger = n.log
@@ -197,8 +200,6 @@ func (n *Node) startRPC(services map[string]Service) error {
 // startHTTP initializes and starts the HTTP RPC endpoint.
 func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string) error {
 	// Short circuit if the HTTP endpoint isn't being exposed
-	log.Info("Node starting HTTP endpoint")
-	endpoint = "localhost:3000"
 	if endpoint == "" {
 		return nil
 	}
@@ -306,7 +307,7 @@ func (n *Node) ServiceMap() map[string]Service {
 func (n *Node) apis() []rpc.API {
 	return []rpc.API{
 		{
-			Namespace: "KaiAPI",
+			Namespace: "kai",
 			Version:   "1.0",
 			Service:   NewPublicKaiAPI(n),
 			Public:    true,

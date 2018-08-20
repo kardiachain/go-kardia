@@ -69,6 +69,9 @@ func main() {
 	listenAddr := flag.String("addr", ":30301", "listen address")
 	name := flag.String("name", "", "Name of node")
 	addTxn := flag.Bool("txn", false, "whether to add a fake txn")
+	rpcEnabled := flag.Bool("rpc", false, "whether to open HTTP RPC endpoints")
+	rpcAddr := flag.String("rpcaddr", "", "HTTP-RPC server listening interface")
+	rpcPort := flag.Int("rpcport", 8545, "HTTP-RPC server listening port")
 	dualMode := flag.Bool("dual", false, "whether to run in dual mode")
 	ethStat := flag.Bool("ethstat", false, "report eth stats to network")
 	ethStatName := flag.String("ethstatname", "", "name to use when reporting eth stats")
@@ -123,6 +126,16 @@ func main() {
 	config.P2P.ListenAddr = *listenAddr
 	config.Name = *name
 	var devEnv *development.DevEnvironmentConfig
+
+	if *rpcEnabled {
+		config.HTTPHost = "127.0.0.1"
+		config.HTTPPort = *rpcPort
+
+		if len(*rpcAddr) != 0 {
+			config.HTTPHost = *rpcAddr
+		}
+	}
+
 	if *dev {
 		devEnv = development.CreateDevEnvironmentConfig()
 		if nodeIndex < 0 && nodeIndex >= devEnv.GetNodeSize() {
