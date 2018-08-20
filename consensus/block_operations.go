@@ -97,3 +97,21 @@ func (b *BlockOperations) GenerateNewAccountStates(txns []*types.Transaction) (*
 	accounts := b.blockchain.CurrentBlock().Accounts()
 	return blockchain.ApplyTransactionsToAccountState(txns, accounts)
 }
+
+// LoadBlock returns the Block for the given height.
+// If no block is found for the given height, it returns nil.
+func (b *BlockOperations) LoadBlock(height uint64) *types.Block {
+	return b.blockchain.GetBlockByHeight(height)
+}
+
+// LoadSeenCommit returns the locally seen Commit for the given height.
+// This is useful when we've seen a commit, but there has not yet been
+// a new block at `height + 1` that includes this commit in its block.LastCommit.
+func (b *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
+	commit := b.blockchain.ReadCommit(height)
+	if commit == nil {
+		log.Error("LoadSeenCommit return nothing", "height", height)
+	}
+
+	return commit
+}

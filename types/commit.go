@@ -140,12 +140,18 @@ func (commit *Commit) String() string {
 	if commit == nil {
 		return "nil-Commit"
 	}
-	precommitStrings := make([]string, len(commit.Precommits))
-	for i, precommit := range commit.Precommits {
-		precommitStrings[i] = precommit.String()
+	var precommitStr string
+	if len(commit.Precommits) == 0 {
+		precommitStr = "empty-Commit"
+	} else {
+		precommitStrings := make([]string, len(commit.Precommits))
+		for i, precommit := range commit.Precommits {
+			precommitStrings[i] = precommit.String()
+		}
+		precommitStr = strings.Join(precommitStrings, "##")
 	}
 	return fmt.Sprintf("Commit{BlockID:%v  Precommits:%v}#%v",
 		commit.BlockID,
-		strings.Join(precommitStrings, "  "),
+		precommitStr,
 		commit.hash)
 }

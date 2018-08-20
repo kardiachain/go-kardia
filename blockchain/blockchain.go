@@ -366,7 +366,12 @@ func (bc *BlockChain) insert(block *types.Block) {
 	}
 }
 
-// Writes a commit to db.
+// Writes commit to db.
 func (bc *BlockChain) WriteCommit(height uint64, commit *types.Commit) {
 	rawdb.WriteCommit(bc.db, height, commit)
+}
+
+// Reads commit from db.
+func (bc *BlockChain) ReadCommit(height uint64) *types.Commit {
+	return rawdb.ReadCommit(bc.db, height)
 }

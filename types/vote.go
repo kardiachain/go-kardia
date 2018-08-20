@@ -3,6 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
@@ -62,7 +63,7 @@ type Vote struct {
 	ValidatorIndex   *cmn.BigInt `json:"validator_index"`
 	Height           *cmn.BigInt `json:"height"`
 	Round            *cmn.BigInt `json:"round"`
-	Timestamp        time.Time   `json:"timestamp"`
+	Timestamp        *big.Int    `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
 	Type             byte        `json:"type"`
 	BlockID          BlockID     `json:"block_id"` // zero if vote is nil.
 	Signature        []byte      `json:"signature"`
@@ -95,11 +96,11 @@ func (vote *Vote) String() string {
 		cmn.PanicSanity("Unknown vote type")
 	}
 
-	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X %v @ %s}",
+	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X %v @ %v}",
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, typeString,
 		cmn.Fingerprint(vote.BlockID[:]), vote.Signature,
-		vote.Timestamp)
+		time.Unix(vote.Timestamp.Int64(), 0))
 }
 
 // UNSTABLE
