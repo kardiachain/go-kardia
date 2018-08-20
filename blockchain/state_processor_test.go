@@ -28,7 +28,7 @@ func TestApplyTransactionsToAccountState(t *testing.T) {
 	txns := []*types.Transaction{emptyTx}
 
 	// account1: 100 ; account2: 100
-	newAccounts, err := ApplyTransactionsToAccountState(txns, &accounts)
+	newAccounts, err := ApplyTransactionsToAccountState(txns, accounts)
 	if err != nil {
 		t.Fatal("apply tx error: ", err)
 	}
@@ -40,9 +40,9 @@ func TestApplyTransactionsToAccountState(t *testing.T) {
 		}
 	}
 
-	check("Addr", accounts[0].Addr, (*newAccounts)[0].Addr)
+	check("Addr", accounts[0].Addr, (newAccounts)[0].Addr)
 	check("Balance", accounts[0].Balance, big.NewInt(90))
 
-	check("Addr", accounts[1].Addr, (*newAccounts)[1].Addr)
+	check("Addr", accounts[1].Addr, (newAccounts)[1].Addr)
 	check("Balance", accounts[1].Balance, big.NewInt(110))
 }

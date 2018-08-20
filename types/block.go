@@ -84,7 +84,7 @@ func (h *Header) String() string {
 type Body struct {
 	Transactions []*Transaction
 	LastCommit   *Commit
-	Accounts     *AccountStates
+	Accounts     AccountStates
 }
 
 // Body returns the non-header content of the block.
@@ -102,12 +102,13 @@ func rlpHash(x interface{}) (h common.Hash) {
 // AccountStates keeps the world state of accounts.
 type AccountStates []*BlockAccount
 
-func (a *AccountStates) String() string {
+func (a AccountStates) String() string {
 	var accountsS string
-	if a != nil || len(*(a)) > 0 {
+	if a != nil || len(a) > 0 {
 		var buffer bytes.Buffer
-		for index, account := range *a {
-			buffer.WriteString(fmt.Sprintf("Acc%d:%d,", index, account.Balance.Int64()))
+		for _, account := range a {
+			hexS := account.Addr.Hex()
+			buffer.WriteString(fmt.Sprintf("[%v]:%d,", hexS[len(hexS)-5:len(hexS)], account.Balance.Int64()))
 		}
 		accountsS = fmt.Sprintf("AccountStates:[%v]", buffer.String())
 	} else {
@@ -128,8 +129,8 @@ type BlockAccount struct {
 	Balance *big.Int
 }
 
-func (s *AccountStates) GetAccount(address *common.Address) *BlockAccount {
-	for _, account := range *s {
+func (s AccountStates) GetAccount(address *common.Address) *BlockAccount {
+	for _, account := range s {
 		if account.Addr.String() == address.String() {
 			return account
 		}
@@ -143,7 +144,7 @@ type Block struct {
 	header       *Header
 	transactions Transactions
 	lastCommit   *Commit
-	accounts     *AccountStates
+	accounts     AccountStates
 
 	// caches
 	hash atomic.Value
@@ -155,7 +156,7 @@ type extblock struct {
 	Header     *Header
 	Txs        []*Transaction
 	LastCommit *Commit
-	Accounts   *AccountStates
+	Accounts   AccountStates
 }
 
 // NewBlock creates a new block. The input data is copied,
@@ -164,7 +165,7 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit, accounts *AccountStates) *Block {
+func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit, accounts AccountStates) *Block {
 	b := &Block{header: CopyHeader(header), lastCommit: CopyCommit(commit)}
 
 	if len(txs) == 0 {
@@ -282,7 +283,7 @@ func (b *Block) Root() common.Hash           { return b.header.Root }
 func (b *Block) ReceiptHash() common.Hash    { return b.header.ReceiptHash }
 func (b *Block) Bloom() Bloom                { return b.header.Bloom }
 func (b *Block) LastCommit() *Commit         { return b.lastCommit }
-func (b *Block) Accounts() *AccountStates    { return b.accounts }
+func (b *Block) Accounts() AccountStates     { return b.accounts }
 
 // TODO(namdoh): This is a hack due to rlp nature of decode both nil or empty
 // struct pointer as nil. After encoding an empty struct and send it over to

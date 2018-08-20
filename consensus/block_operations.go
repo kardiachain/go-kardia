@@ -92,7 +92,7 @@ func (b *BlockOperations) CollectTransactions() []*types.Transaction {
 }
 
 // GenerateNewAccountStates generates new accountStates by executing given txns on the account state of blockchain head.
-func (b *BlockOperations) GenerateNewAccountStates(txns []*types.Transaction) (*types.AccountStates, error) {
+func (b *BlockOperations) GenerateNewAccountStates(txns []*types.Transaction) (types.AccountStates, error) {
 	// use accountState of latest block
 	accounts := b.blockchain.CurrentBlock().Accounts()
 	return blockchain.ApplyTransactionsToAccountState(txns, accounts)

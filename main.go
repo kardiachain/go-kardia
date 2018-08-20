@@ -189,7 +189,7 @@ func main() {
 			0,
 			receiverAddr,
 			big.NewInt(10),
-			23000, big.NewInt(10),
+			10, big.NewInt(10),
 			nil,
 		)
 		txPool := kService.TxPool()
