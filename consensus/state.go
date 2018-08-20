@@ -3,6 +3,7 @@ package consensus
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"reflect"
 	"runtime/debug"
 	"sync"
@@ -68,8 +69,8 @@ type ConsensusState struct {
 	privValidator *types.PrivValidator // for signing votes
 
 	// Services for creating and executing blocks
-	blockExec  *state.BlockExecutor
-	blockStore *BlockStore
+	blockExec       *state.BlockExecutor
+	blockOperations *BlockOperations
 	// TODO(namdoh): Add mem pool.
 	evpool evidence.EvidencePool
 
@@ -107,13 +108,15 @@ func NewConsensusState(
 	//namdoh@ blockExec *sm.BlockExecutor,
 	blockchain *blockchain.BlockChain,
 	//namdoh@ evpool evidence.EvidencePool,
+	txPool *blockchain.TxPool,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		Logger: log.New("module", "consensus"),
 		config: config,
 		//namdoh@ blockExec:        blockExec,
-		blockStore: &BlockStore{
+		blockOperations: &BlockOperations{
 			blockchain: blockchain,
+			txPool:     txPool,
 		},
 		peerMsgQueue:     make(chan msgInfo, msgQueueSize),
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
@@ -1074,12 +1077,12 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	fail.Fail() // XXX
 
 	// Save block.
-	if cs.blockStore.Height() < block.Height() {
+	if cs.blockOperations.Height() < block.Height() {
 		// NOTE: the seenCommit is local justification to commit this block,
 		// but may differ from the LastCommit included in the next block
 		precommits := cs.Votes.Precommits(cs.CommitRound.Int32())
 		seenCommit := precommits.MakeCommit()
-		cs.blockStore.SaveBlock(block, seenCommit)
+		cs.blockOperations.SaveBlock(block, seenCommit)
 	} else {
 		// Happens during replay if we already saved the block but didn't commit
 		cs.Logger.Info("Calling finalizeCommit on already stored block", "height", block.Height())
@@ -1157,10 +1160,18 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 		return
 	}
 
-	// TODO(namdoh): Adds mem pool validated transactions
-	// TODO(namdoh): Replace transactions with sth here.
-	// TODO(thientn/namdoh): Adds latest types.AccountStates
-	block = cs.state.MakeBlock(cs.Height.Int64(), nil, commit, nil)
+	// Gets all txns in pending pools and execute them to get new account states.
+	// Txn execution can happen in parallel with voting or precommitted.
+	// For simpilicity, this code executes txn before sending proposal,
+	//  so the proposal block already contains account state results from the proposed txns.
+
+	txs := cs.blockOperations.CollectTransactions()
+	newAccountStates, err := cs.blockOperations.GenerateNewAccountStates(txs)
+	if err != nil {
+		panic(fmt.Sprintf("Cannot execute txns: %v", err))
+	}
+
+	block = cs.state.MakeBlock(cs.Height.Int64(), txs, commit, newAccountStates)
 	cs.Logger.Trace("Make block to propose", "block", block)
 	// TODO(namdoh): Add evidence to block.
 	//evidence := cs.evpool.PendingEvidence()
