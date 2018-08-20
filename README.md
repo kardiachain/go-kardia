@@ -26,7 +26,7 @@ cd $GOPATH/bin
 Important:
   - Always include `dev` flag in test p2p.
   - Node name starts from `node1`, `node2`, etc.
-  - Port number starts from `3000` for `node1` and so on.
+  - Port number starts from `3000` for `node1`, `3001` for `node2`, and so on.
 
 Runs two nodes in different ports and use enode url to connect.  
 Uses `txn` flag in one node to create a sample transaction and sees the node sync the transaction in debug logging.  
