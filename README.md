@@ -23,6 +23,11 @@ cd $GOPATH/bin
 ./go-kardia
 ```
 # Test p2p connection
+Important:
+  - Always include `dev` flag in test p2p.
+  - Node name starts from `node1`, `node2`, etc.
+  - Port number starts from `3000` for `node1` and so on.
+
 Runs two nodes in different ports and use enode url to connect.  
 Uses `txn` flag in one node to create a sample transaction and sees the node sync the transaction in debug logging.  
 First terminal. Note: you would need to customize the number of validators via `numValid`.
@@ -31,8 +36,23 @@ First terminal. Note: you would need to customize the number of validators via `
 ```
 Second terminal. Note that the peer node is fixed when running with --dev setting.
 ```
-./go-kardia --dev --numValid 2 --addr :30001 --name node2 --clearDataDir --peer enode://724fbdc7067814bdd60315d836f28175ff9c72e4e1d86513a2b578f9cd769e688d6337550778b89e4861a42580613f1f1dec23f17f7a1627aa99104cc4204eb1@[::]:3000
+./go-kardia --dev --numValid 2 --addr :30001 --name node2 --clearDataDir
 ```
+# Test multiple nodes
+`numValid` flag must be set to the total number of nodes you plan to run. For example, in a 3-node scenario:
+First terminal:
+```
+./go-kardia --dev --numValid 3 --addr :3000 --name node1 --txn --clearDataDir
+```
+Second terminal:
+```
+./go-kardia --dev --numValid 3 --addr :3001 --name node2 --txn --clearDataDir
+```
+Third terminal:
+```
+./go-kardia --dev --numValid 3 --addr :3002 --name node3 --txn --clearDataDir
+```
+
 # Test dual node
 Runs node with `dual` flag to start dual mode, acting as a full node syncing on both Kardia network and Ethereum Rinkeby testnet.  
 Dual node may use 10GB+ storage.
