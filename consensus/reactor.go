@@ -2,6 +2,7 @@ package consensus
 
 import (
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -377,7 +378,7 @@ func makeRoundStepMessages(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage,
 		Height: rs.Height,
 		Round:  rs.Round,
 		Step:   rs.Step,
-		SecondsSinceStartTime: uint(time.Since(rs.StartTime).Seconds()),
+		SecondsSinceStartTime: uint(time.Now().Unix() - rs.StartTime.Int64()),
 		LastCommitRound:       rs.LastCommit.Round(),
 	}
 	if rs.Step == cstypes.RoundStepCommit {
@@ -406,8 +407,8 @@ OUTER_LOOP:
 
 		// If the peer is on a previous height, help catch up.
 		if (prs.Height.IsGreaterThanInt(0)) && (prs.Height.IsLessThan(rs.Height)) {
-			time.Sleep(10000 * time.Millisecond)
-			panic("gossipDataRoutine - not yet implemented")
+			//time.Sleep(10000 * time.Millisecond)
+			//panic("gossipDataRoutine - not yet implemented")
 
 			/*
 				heightLogger := logger.New("height", prs.Height)
@@ -699,6 +700,7 @@ func NewPeerState(peer *p2p.Peer, rw p2p.MsgReadWriter) *PeerState {
 			ProposalPOLRound:   cmn.NewBigInt(-1),
 			LastCommitRound:    cmn.NewBigInt(-1),
 			CatchupCommitRound: cmn.NewBigInt(-1),
+			StartTime:          big.NewInt(0),
 		},
 	}
 }
@@ -929,7 +931,7 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 	psCatchupCommitRound := ps.PRS.CatchupCommitRound
 	psCatchupCommit := ps.PRS.CatchupCommit
 
-	startTime := time.Now().Add(-1 * time.Duration(msg.SecondsSinceStartTime) * time.Second)
+	startTime := big.NewInt(time.Now().Unix() - int64(msg.SecondsSinceStartTime))
 	ps.PRS.Height = msg.Height
 	ps.PRS.Round = msg.Round
 	ps.PRS.Step = msg.Step

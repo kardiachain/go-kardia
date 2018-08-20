@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"time"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -95,11 +96,11 @@ func (vote *Vote) String() string {
 		cmn.PanicSanity("Unknown vote type")
 	}
 
-	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X %v @ %s}",
+	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X %v @ %v}",
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, typeString,
 		cmn.Fingerprint(vote.BlockID[:]), vote.Signature,
-		vote.Timestamp)
+		time.Unix(vote.Timestamp.Int64(), 0))
 }
 
 // UNSTABLE

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -74,7 +75,7 @@ func (h *Header) String() string {
 		return "nil-Header"
 	}
 	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
-		h.Height, h.Time, h.NumTxs, h.LastBlockID, h.LastCommitHash, h.TxHash, h.ValidatorsHash, h.ConsensusHash, h.Hash())
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash, h.TxHash, h.ValidatorsHash, h.ConsensusHash, h.Hash())
 
 }
 

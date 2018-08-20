@@ -269,6 +269,11 @@ func (x *BigInt) Int64() int64 {
 	return int64(x.Value) * -1
 }
 
+func (x *BigInt) Copy() *BigInt {
+	cpy := *x
+	return &cpy
+}
+
 func (x *BigInt) String() string {
 	return fmt.Sprintf("%v", x.Int64())
 }

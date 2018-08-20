@@ -94,7 +94,7 @@ func (t *timeoutTicker) stopTimer() {
 // timeouts of 0 on the tickChan will be immediately relayed to the tockChan
 func (t *timeoutTicker) timeoutRoutine() {
 	t.Logger.Debug("Starting timeout routine")
-	ti := EmptyTimeoutInfo()
+	ti := *EmptyTimeoutInfo()
 	for {
 		select {
 		case newti := <-t.tickChan:
@@ -118,7 +118,7 @@ func (t *timeoutTicker) timeoutRoutine() {
 
 			// update timeoutInfo and reset timer
 			// NOTE time.Timer allows duration to be non-positive
-			ti = &newti
+			ti = newti
 			t.timer.Reset(ti.Duration)
 			t.Logger.Debug("Scheduled timeout", "dur", ti.Duration, "height", ti.Height, "round", ti.Round, "step", ti.Step)
 		case <-t.timer.C:
@@ -127,7 +127,7 @@ func (t *timeoutTicker) timeoutRoutine() {
 			// Determinism comes from playback in the receiveRoutine.
 			// We can eliminate it by merging the timeoutRoutine into receiveRoutine
 			//  and managing the timeouts ourselves with a millisecond ticker
-			go func(toi timeoutInfo) { t.tockChan <- toi }(*ti)
+			go func(toi timeoutInfo) { t.tockChan <- toi }(ti)
 		}
 	}
 }

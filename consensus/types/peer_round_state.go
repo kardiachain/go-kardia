@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"math/big"
 	"time"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
@@ -13,7 +14,7 @@ type PeerRoundState struct {
 	Height              *cmn.BigInt   `json:"height"`                      // Height peer is at
 	Round               *cmn.BigInt   `json:"round"`                       // Round peer is at, -1 if unknown.
 	Step                RoundStepType `json:"step"`                        // Step peer is at
-	StartTime           time.Time     `json:"start_time"`                  // Estimated start of round 0 at this height
+	StartTime           *big.Int      `json:"start_time"`                  // Estimated start of round 0 at this height
 	Proposal            bool          `json:"proposal"`                    // True if peer has proposal for this round
 	ProposalBlockHeader cmn.Hash      `json:"proposal_block_parts_header"` //
 	ProposalPOLRound    *cmn.BigInt   `json:"proposal_pol_round"`          // Proposal's POL round. -1 if none.
@@ -29,7 +30,7 @@ type PeerRoundState struct {
 // String returns a string representation of the PeerRoundState
 func (prs PeerRoundState) String() string {
 	return fmt.Sprintf("PeerRoundState{%v/%v/%v @%v  Proposal:%v  POL:%v (round %v)  Prevotes:%v  Precommits:%v  LastCommit:%v (round %v)  Catchup:%v (round %v)}",
-		prs.Height, prs.Round, prs.Step, prs.StartTime,
+		prs.Height, prs.Round, prs.Step, time.Unix(prs.StartTime.Int64(), 0),
 		prs.ProposalBlockHeader,
 		prs.ProposalPOL, prs.ProposalPOLRound,
 		prs.Prevotes,

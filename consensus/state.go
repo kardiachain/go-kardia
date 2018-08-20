@@ -125,6 +125,8 @@ func NewConsensusState(
 		RoundState: cstypes.RoundState{
 			CommitRound: cmn.NewBigInt(0),
 			Height:      cmn.NewBigInt(0),
+			StartTime:   big.NewInt(0),
+			CommitTime:  big.NewInt(0),
 		},
 	}
 
@@ -235,15 +237,16 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 	// RoundState fields
 	cs.updateHeight(height)
 	cs.updateRoundStep(cmn.NewBigInt(0), cstypes.RoundStepNewHeight)
-	if cs.CommitTime.IsZero() {
+	if cs.CommitTime.Int64() == 0 {
 		// "Now" makes it easier to sync up dev nodes.
 		// We add timeoutCommit to allow transactions
 		// to be gathered for the first block.
 		// And alternative solution that relies on clocks:
 		//  cs.StartTime = state.LastBlockTime.Add(timeoutCommit)
-		cs.StartTime = cs.config.Commit(time.Now())
+		cs.Logger.Trace("cs.CommitTime is 0")
+		cs.StartTime = big.NewInt(cs.config.Commit(time.Now()).Unix())
 	} else {
-		cs.StartTime = cs.config.Commit(cs.CommitTime)
+		cs.StartTime = big.NewInt(cs.config.Commit(time.Unix(cs.CommitTime.Int64(), 0)).Unix())
 	}
 
 	cs.Validators = validators
@@ -380,14 +383,14 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 
 // enterNewRound(height, 0) at cs.StartTime.
 func (cs *ConsensusState) scheduleRound0(rs *cstypes.RoundState) {
-	//cs.Logger.Info("scheduleRound0", "now", time.Now(), "startTime", cs.StartTime)
-	sleepDuration := rs.StartTime.Sub(time.Now()) // nolint: gotype, gosimple
+	cs.Logger.Info("scheduleRound0", "now", time.Now(), "startTime", time.Unix(cs.StartTime.Int64(), 0))
+	sleepDuration := time.Duration(rs.StartTime.Int64() - time.Now().Unix()) // nolint: gotype, gosimple
 	cs.scheduleTimeout(sleepDuration, rs.Height, cmn.NewBigInt(0), cstypes.RoundStepNewHeight)
 }
 
 // Attempt to schedule a timeout (by sending timeoutInfo on the tickChan)
 func (cs *ConsensusState) scheduleTimeout(duration time.Duration, height *cmn.BigInt, round *cmn.BigInt, step cstypes.RoundStepType) {
-	cs.timeoutTicker.ScheduleTimeout(timeoutInfo{duration, height, round, step})
+	cs.timeoutTicker.ScheduleTimeout(timeoutInfo{duration, height.Copy(), round.Copy(), step})
 }
 
 // Send a msg into the receiveRoutine regarding our own proposal, block part, or vote
@@ -673,8 +676,8 @@ func (cs *ConsensusState) enterNewRound(height *cmn.BigInt, round *cmn.BigInt) {
 		return
 	}
 
-	if now := time.Now(); cs.StartTime.After(now) {
-		logger.Info("Need to set a buffer and log message here for sanity.", "startTime", cs.StartTime, "now", now)
+	if now := time.Now().Unix(); cs.StartTime.Int64() > now {
+		logger.Info("Need to set a buffer and log message here for sanity.", "startTime", time.Unix(cs.StartTime.Int64(), 0), "now", time.Unix(now, 0))
 	}
 
 	logger.Info(cmn.Fmt("enterNewRound(%v/%v). Current: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
@@ -994,7 +997,7 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 		// keep cs.Round the same, commitRound points to the right Precommits set.
 		cs.updateRoundStep(cs.Round, cstypes.RoundStepCommit)
 		cs.CommitRound = commitRound
-		cs.CommitTime = time.Now()
+		cs.CommitTime = big.NewInt(time.Now().Unix())
 		cs.newStep()
 
 		// Maybe finalize immediately.

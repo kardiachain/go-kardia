@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+	"math/big"
 	"time"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
@@ -59,8 +61,8 @@ type RoundState struct {
 	Height         *cmn.BigInt         `json:"height"` // Height we are working on
 	Round          *cmn.BigInt         `json:"round"`
 	Step           RoundStepType       `json:"step"`
-	StartTime      time.Time           `json:"start_time"`
-	CommitTime     time.Time           `json:"commit_time"` // Subjective time when +2/3 precommits for Block at Round were found
+	StartTime      *big.Int            `json:"start_time"`
+	CommitTime     *big.Int            `json:"commit_time"` // Subjective time when +2/3 precommits for Block at Round were found
 	Validators     *types.ValidatorSet `json:"validators"`  // TODO(huny@): Assume static validator set for now
 	Proposal       *types.Proposal     `json:"proposal"`
 	ProposalBlock  *types.Block        `json:"proposal_block"`
@@ -86,4 +88,21 @@ func (rs *RoundState) RoundStateEvent() types.EventDataRoundState {
 		RoundState: &rsCopy,
 	}
 	return edrs
+}
+
+func (rs *RoundState) String() string {
+	return fmt.Sprintf("RoundState{H:%v R:%v S:%v  StartTime:%v  CommitTime:%v  Validators:%v   Proposal:%v  ProposalBlock:%v  LockedRound:%v  LockedBlock:%v  ValidRound:%v  ValidBlock:%v  Votes:%v  LastCommit:%v  LastValidators:%v}",
+		rs.Height, rs.Round, rs.Step,
+		time.Unix(rs.StartTime.Int64(), 0),
+		time.Unix(rs.CommitTime.Int64(), 0),
+		rs.Validators,
+		rs.Proposal,
+		rs.ProposalBlock,
+		rs.LockedRound,
+		rs.LockedBlock,
+		rs.ValidRound,
+		rs.ValidBlock,
+		rs.Votes,
+		rs.LastCommit,
+		rs.LastValidators)
 }
