@@ -397,7 +397,7 @@ func (cs *ConsensusState) scheduleTimeout(duration time.Duration, height *cmn.Bi
 	cs.timeoutTicker.ScheduleTimeout(timeoutInfo{duration, height.Copy(), round.Copy(), step})
 }
 
-// Send a msg into the receiveRoutine regarding our own proposal, block part, or vote
+// Send a msg into the receiveRoutine regarding our own proposal, or vote
 func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 	select {
 	case cs.internalMsgQueue <- mi:
@@ -744,15 +744,14 @@ func (cs *ConsensusState) enterPropose(height *cmn.BigInt, round *cmn.BigInt) {
 		cs.updateRoundStep(round, cstypes.RoundStepPropose)
 		cs.newStep()
 
-		// If we have the whole proposal + POL, then goto Prevote now.
-		// else, we'll enterPrevote when the rest of the proposal is received (in AddProposalBlockPart),
-		// or else after timeoutPropose
+		// If we have the proposal + POL, then goto Prevote now.
+		// Else after timeoutPropose
 		if cs.isProposalComplete() {
 			cs.enterPrevote(height, cs.Round)
 		}
 	}()
 
-	// If we don't get the proposal and all block parts quick enough, enterPrevote
+	// If we don't get the proposal quick enough, enterPrevote
 	cs.scheduleTimeout(cs.config.Propose(round.Int32()), height, round, cstypes.RoundStepPropose)
 
 	// TODO(namdoh): For now this any node is a validator. Remove it once we
@@ -840,7 +839,7 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 
 	// Prevote cs.ProposalBlock
 	// NOTE: the proposal signature is validated when it is received,
-	// and the proposal block parts are validated as they are received (against the merkle hash in the proposal)
+	// and the proposal block is validated as it is received (against the merkle hash in the proposal)
 	logger.Info("enterPrevote: ProposalBlock is valid")
 	cs.signAddVote(types.VoteTypePrevote, cs.ProposalBlock.BlockID())
 }
@@ -1025,7 +1024,7 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 	if !cs.ProposalBlock.HashesTo(blockID) {
 		logger.Info("Commit is for a block we don't know about. Set ProposalBlock=nil", "proposal", cs.ProposalBlock.Hash(), "commit", blockID)
 		// We're getting the wrong block.
-		// Set up ProposalBlockParts and keep waiting.
+		// Set up ProposalBlock and keep waiting.
 		cs.ProposalBlock = nil
 	}
 }
@@ -1257,12 +1256,12 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 		//namdoh@ 	cs.handleTxsAvailable()
 		case mi = <-cs.peerMsgQueue:
 			//namdoh@ cs.wal.Write(mi)
-			// handles proposals, block parts, votes
+			// handles proposals, votes
 			// may generate internal events (votes, complete proposals, 2/3 majorities)
 			cs.handleMsg(mi)
 		case mi = <-cs.internalMsgQueue:
 			//namdoh@ cs.wal.WriteSync(mi) // NOTE: fsync
-			// handles proposals, block parts, votes
+			// handles proposals, votes
 			cs.handleMsg(mi)
 		case ti := <-cs.timeoutTicker.Chan(): // tockChan:
 			//namdoh@ cs.wal.Write(ti)
@@ -1284,16 +1283,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 	switch msg := msg.(type) {
 	case *ProposalMessage:
 		cs.Logger.Trace("handling ProposalMessage")
-		// will not cause transition.
-		// once proposal is set, we can receive block parts
 		err = cs.setProposal(msg.Proposal)
-	//case *BlockPartMessage:
-	//	// if the proposal is complete, we'll enterPrevote or tryFinalizeCommit
-	//	_, err = cs.addProposalBlockPart(msg, peerID)
-	//	if err != nil && msg.Round != cs.Round {
-	//		cs.Logger.Debug("Received block part from wrong round", "height", cs.Height, "csRound", cs.Round, "blockRound", msg.Round)
-	//		err = nil
-	//	}
 	case *VoteMessage:
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition

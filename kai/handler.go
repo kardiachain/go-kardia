@@ -275,10 +275,6 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	case msg.Code == kcmn.CsCommitStepMsg:
 		p.Log().Trace("CommitStep message received")
 		pm.csReactor.ReceiveNewCommit(msg, p.Peer)
-	// TODO(namdoh): Consider if this is even needed.
-	//case msg.Code == kcmn.CsBlockMsg:
-	//	p.Log().Trace("Block message received")
-	//	pm.csReactor.ReceiveBlock(msg, p.Peer)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
