@@ -87,7 +87,8 @@ func main() {
 		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
 		level = log.LvlInfo
 	}
-	log.Root().SetHandler(log.LvlFilterHandler(level, log.StdoutHandler))
+	log.Root().SetHandler(log.LvlFilterHandler(level, log.StreamHandler(os.Stdout, log.TerminalFormat(false))))
+
 	logger := log.New()
 
 	elevel, err := elog.LvlFromString(*ethLogLevel)
