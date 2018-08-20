@@ -117,7 +117,8 @@ func TerminalFormat(usecolor bool) Format {
 				align = len(location)
 				atomic.StoreUint32(&locationLength, uint32(align))
 			}
-			padding := strings.Repeat(" ", align-len(location))
+			// padding := strings.Repeat(" ", align-len(location))
+			padding := " "
 
 			// Assemble and print the log heading
 			if color > 0 {
@@ -182,6 +183,7 @@ func logfmt(buf *bytes.Buffer, ctx []interface{}, color int, term bool) {
 			fieldPadding[k] = padding
 			fieldPaddingLock.Unlock()
 		}
+		padding = 1
 		if color > 0 {
 			fmt.Fprintf(buf, "\x1b[%dm%s\x1b[0m=", color, k)
 		} else {
@@ -190,7 +192,7 @@ func logfmt(buf *bytes.Buffer, ctx []interface{}, color int, term bool) {
 		}
 		buf.WriteString(v)
 		if i < len(ctx)-2 {
-			buf.Write(bytes.Repeat([]byte{' '}, padding-length))
+			buf.Write(bytes.Repeat([]byte{' '}, 1))
 		}
 	}
 	buf.WriteByte('\n')

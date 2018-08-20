@@ -102,6 +102,25 @@ func rlpHash(x interface{}) (h common.Hash) {
 // AccountStates keeps the world state of accounts.
 type AccountStates []*BlockAccount
 
+func (a *AccountStates) String() string {
+	var accountsS string
+	if a != nil || len(*(a)) > 0 {
+		var buffer bytes.Buffer
+		for index, account := range *a {
+			buffer.WriteString(fmt.Sprintf("Acc%d:%d,", index, account.Balance.Int64()))
+		}
+		accountsS = fmt.Sprintf("AccountStates:[%v]", buffer.String())
+	} else {
+		if a == nil {
+			accountsS = "AccountStates:nil"
+		} else {
+			accountsS = "AccountStates:[]"
+		}
+	}
+
+	return accountsS
+}
+
 // BlockAccount stores basic data of an account in block.
 type BlockAccount struct {
 	// Cannot use map because of RLP.
@@ -330,6 +349,7 @@ func (b *Block) String() string {
 	if b == nil {
 		return "nil-Block"
 	}
+
 	return fmt.Sprintf("Block{%v  %v  %v %v}#%v",
 		b.header, b.transactions, b.lastCommit, b.accounts, b.Hash())
 }
