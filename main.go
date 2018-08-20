@@ -58,12 +58,15 @@ func RemoveContents(dir string) error {
 	return nil
 }
 
+func GetNodeIndex(nodeName string) (int, error) {
+	return strconv.Atoi((nodeName)[len(nodeName)-1:])
+}
+
 func main() {
 	// args
 	logLevel := flag.String("loglevel", "info", "minimum log verbosity to display")
 	ethLogLevel := flag.String("ethloglevel", "warn", "minimum Eth log verbosity to display")
 	listenAddr := flag.String("addr", ":30301", "listen address")
-	peerURL := flag.String("peer", "", "enode URL of static peer")
 	name := flag.String("name", "", "Name of node")
 	addTxn := flag.Bool("txn", false, "whether to add a fake txn")
 	dualMode := flag.Bool("dual", false, "whether to run in dual mode")
@@ -104,26 +107,31 @@ func main() {
 		return
 	}
 
+	var nodeIndex int
+	if len(*name) == 0 {
+		logger.Error("Invalid node name", "name", *name)
+	} else {
+		index, err := GetNodeIndex(*name)
+		if err != nil {
+			logger.Error("Node name must be formmated as \"\\c*\\d{1,2}\"", "name", *name)
+		}
+		nodeIndex = index - 1
+	}
+
 	// Setups config.
 	config := &node.DefaultConfig
 	config.P2P.ListenAddr = *listenAddr
 	config.Name = *name
+	var devEnv *development.DevEnvironmentConfig
 	if *dev {
-		if len(*name) == 0 {
-			logger.Error("Invalid node name in dev environment", "name", *name)
-		}
-		index, err := strconv.Atoi((*name)[len(*name)-1:])
-		if err != nil {
-			logger.Error("Node name in dev environment must be formmated as \"\\c*\\d{1,2}\"", "name", *name)
-		}
-		devEnv := development.CreateDevEnvironmentConfig()
-		if index < 1 && index > devEnv.GetNodeSize() {
-			logger.Error(fmt.Sprintf("Node index must be within %v and %v", 1, devEnv.GetNodeSize()))
+		devEnv = development.CreateDevEnvironmentConfig()
+		if nodeIndex < 0 && nodeIndex >= devEnv.GetNodeSize() {
+			logger.Error(fmt.Sprintf("Node index %v must be within %v and %v", nodeIndex+1, 1, devEnv.GetNodeSize()))
 
 		}
 		// Substract 1 from the index because we specify node starting from 1 onward.
 		devEnv.SetProposerIndex(*proposal - 1)
-		config.DevNodeConfig = devEnv.GetDevNodeConfig(index - 1)
+		config.DevNodeConfig = devEnv.GetDevNodeConfig(nodeIndex)
 		// Simulate the voting strategy
 		devEnv.SetVotingStrategy(*votingStrategy)
 		config.DevEnvConfig = devEnv
@@ -193,11 +201,15 @@ func main() {
 		}
 	}
 
-	if *peerURL != "" {
-		logger.Info("Adding static peer")
-		success, err := n.AddPeer(*peerURL)
-		if !success {
-			logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
+	// Connect with other peers.
+	if *dev {
+		for i := 0; i < nodeIndex; i++ {
+			peerURL := devEnv.GetDevNodeConfig(i).NodeID
+			logger.Info("Adding static peer", "peerURL", peerURL)
+			success, err := n.AddPeer(peerURL)
+			if !success {
+				logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
+			}
 		}
 	}
 
