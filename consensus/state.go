@@ -152,6 +152,7 @@ func (cs *ConsensusState) SetPrivValidator(priv *types.PrivValidator) {
 
 // It loads the latest state via the WAL, and starts the timeout and receive routines.
 func (cs *ConsensusState) Start() {
+	cs.Logger.Trace("Consensus state starts!")
 	// we may set the WAL in testing before calling Start,
 	// so only OpenWAL if its still the nilWAL
 	//if _, ok := cs.wal.(nilWAL); ok {
@@ -194,7 +195,8 @@ func (cs *ConsensusState) Start() {
 
 // It stops all routines and waits for the WAL to finish.
 func (cs *ConsensusState) Stop() {
-	//cs.timeoutTicker.Stop()
+	cs.timeoutTicker.Stop()
+	cs.Logger.Trace("Consensus state stops!")
 }
 
 // Updates ConsensusState and increments height to match that of state.

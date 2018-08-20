@@ -55,6 +55,12 @@ func (conR *ConsensusReactor) SetPrivValidator(priv *types.PrivValidator) {
 }
 
 func (conR *ConsensusReactor) Start() {
+	cs.Logger.Trace("Consensus reactor starts!")
+
+	if con.running {
+		cs.Logger.Error("ConsensusReactor already started. Shouldn't start again.")
+		return
+	}
 	conR.running = true
 
 	conR.subscribeToBroadcastEvents()
@@ -62,11 +68,15 @@ func (conR *ConsensusReactor) Start() {
 }
 
 func (conR *ConsensusReactor) Stop() {
+	if !con.running {
+		cs.Logger.Error("ConsensusReactor hasn't started yet. Shouldn't be asked to stop.")
+	}
 
 	conR.conS.Stop()
 	conR.unsubscribeFromBroadcastEvents()
 
 	conR.running = false
+	cs.Logger.Trace("Consensus reactor stops!")
 }
 
 // AddPeer implements Reactor

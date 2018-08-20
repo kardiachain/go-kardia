@@ -148,7 +148,6 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	pm.txsCh = make(chan blockchain.NewTxsEvent, txChanSize)
 	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
 
-	pm.csReactor.Start()
 	//namdoh@ pm.csCh = make(chan consensus.NewCsEvent, csChanSize)
 
 	go pm.txBroadcastLoop()
@@ -159,7 +158,6 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 func (pm *ProtocolManager) Stop() {
 	log.Info("Stopping Kardia protocol")
 
-	pm.csReactor.Stop()
 	pm.txsSub.Unsubscribe() // quits txBroadcastLoop
 
 	// Quit the sync loop.
