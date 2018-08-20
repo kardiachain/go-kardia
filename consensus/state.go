@@ -1165,8 +1165,11 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	// For simpilicity, this code executes txn before sending proposal,
 	//  so the proposal block already contains account state results from the proposed txns.
 
+	log.Error("HEREEEEEEEEEEEEEEEEE")
 	txs := cs.blockOperations.CollectTransactions()
+	log.Error("TXN", "txs", txs)
 	newAccountStates, err := cs.blockOperations.GenerateNewAccountStates(txs)
+	log.Error("BYEEEEEEE")
 	if err != nil {
 		panic(fmt.Sprintf("Cannot execute txns: %v", err))
 	}

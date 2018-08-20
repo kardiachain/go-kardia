@@ -4,34 +4,34 @@ import (
 	"sync"
 
 	"github.com/kardiachain/go-kardia/blockchain"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
 )
 
 // TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
 // These files should be consolidated in the future.
 
 type BlockOperations struct {
-	mtx    sync.RWMutex
+	mtx sync.RWMutex
 
 	blockchain *blockchain.BlockChain
-	txPool *blockchain.TxPool
-	height uint64
+	txPool     *blockchain.TxPool
+	height     uint64
 }
 
 // NewBlockOperations returns a new BlockOperations with latest chain & ,
 // initialized to the last height that was committed to the DB.
 func NewBlockOperations(blockchain *blockchain.BlockChain, txPool *blockchain.TxPool) *BlockOperations {
 	return &BlockOperations{
-		blockchain:     blockchain,
-		txPool: txPool,
-		height: blockchain.CurrentHeader().Height,
+		blockchain: blockchain,
+		txPool:     txPool,
+		height:     blockchain.CurrentHeader().Height,
 	}
 }
 
 func (bs *BlockOperations) Height() uint64 {
-    return bs.height
+	return bs.height
 }
 
 // SaveBlock persists the given block, blockParts, and seenCommit to the underlying db.
@@ -52,7 +52,7 @@ func (bs *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commi
 	if height != bs.Height()+1 {
 		cmn.PanicSanity(cmn.Fmt("BlockStore can only save contiguous blocks. Wanted %v, got %v", bs.Height()+1, height))
 	}
-	
+
 	bs.blockchain.WriteBlockWithoutState(block)
 
 	// Save block commit (duplicate and separate from the Block)
@@ -77,6 +77,8 @@ func (b *BlockOperations) CollectTransactions() []*types.Transaction {
 		log.Error("Fail to get pending txns", "err", err)
 		return nil
 	}
+
+	log.Info("Pending tx pool", "txs", pending)
 
 	// TODO: do basic verification & check with gas & sort by nonce
 	// check code NewTransactionsByPriceAndNonce
