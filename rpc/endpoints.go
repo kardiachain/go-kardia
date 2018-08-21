@@ -7,24 +7,21 @@ import (
 
 // StartHTTPEndpoint starts the HTTP RPC endpoint, configured with cors/vhosts/modules
 func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []string, vhosts []string) (net.Listener, *Server, error) {
-	// Generate the whitelist based on the allowed modules
+	// Generate the whitelist based on the allowed modules.
 	whitelist := make(map[string]bool)
 	for _, module := range modules {
 		whitelist[module] = true
 	}
 
-	// Register all the APIs exposed by the services
-	log.Info("Len of APIs: ", len(apis))
+	// Register all the APIs
 	handler := NewServer()
 	for _, api := range apis {
-		log.Info("GOT HERE = ", apis)
 
 		if whitelist[api.Namespace] || (len(whitelist) == 0 && api.Public) {
-			log.Info("GOT WHITELISTED = ", apis)
 			if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
 				return nil, nil, err
 			}
-			log.Info("HTTP registered", "namespace", api.Namespace)
+			log.Debug("HTTP registered", "namespace", api.Namespace)
 		}
 	}
 	// All APIs registered, start the HTTP listener
@@ -32,6 +29,8 @@ func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []str
 		listener net.Listener
 		err      error
 	)
+
+	// Listen on the endpoint using TCP
 	if listener, err = net.Listen("tcp", endpoint); err != nil {
 		return nil, nil, err
 	}

@@ -16,7 +16,7 @@ const (
 
 // DefaultConfig contains reasonable default settings.
 var DefaultConfig = NodeConfig{
-	DataDir:  DefaultDataDir(),
+	DataDir: DefaultDataDir(),
 	HTTPPort: DefaultHTTPPort,
 	HTTPModules:      []string{"net", "kai"},
 	HTTPVirtualHosts: []string{"localhost"},

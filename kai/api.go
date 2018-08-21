@@ -16,7 +16,8 @@ func NewPublicKaiAPI(kaiService *Kardia) *PublicKaiAPI {
 }
 
 // BlockNumber returns the block number of the chain head.
+// THIS FUNCTION NOW ALWAYS RETURN 100
+// TODO: Implement actual logic to get blocknumber here.
 func (s *PublicKaiAPI) BlockNumber() common.Uint64 {
-	// TODO: Implement actual logic to get blocknumber here.
 	return common.Uint64(100)
 }

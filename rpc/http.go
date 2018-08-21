@@ -1,13 +1,10 @@
 package rpc
 
 import (
-	// "bytes"
 	"context"
-	// "encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	// "io/ioutil"
 	"mime"
 	"net"
 	"net/http"
@@ -26,13 +23,11 @@ const (
 var nullAddr, _ = net.ResolveTCPAddr("tcp", "127.0.0.1:0")
 
 type httpConn struct {
-	// client    *http.Client
 	req       *http.Request
 	closeOnce sync.Once
 	closed    chan struct{}
 }
 
-// httpConn is treated specially by Client.
 func (hc *httpConn) LocalAddr() net.Addr              { return nullAddr }
 func (hc *httpConn) RemoteAddr() net.Addr             { return nullAddr }
 func (hc *httpConn) SetReadDeadline(time.Time) error  { return nil }
@@ -49,70 +44,6 @@ func (hc *httpConn) Close() error {
 	hc.closeOnce.Do(func() { close(hc.closed) })
 	return nil
 }
-
-// // DialHTTPWithClient creates a new RPC client that connects to an RPC server over HTTP
-// // using the provided HTTP Client.
-// func DialHTTPWithClient(endpoint string, client *http.Client) (*Client, error) {
-// 	req, err := http.NewRequest(http.MethodPost, endpoint, nil)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	req.Header.Set("Content-Type", contentType)
-// 	req.Header.Set("Accept", contentType)
-
-// 	initctx := context.Background()
-// 	return newClient(initctx, func(context.Context) (net.Conn, error) {
-// 		return &httpConn{client: client, req: req, closed: make(chan struct{})}, nil
-// 	})
-// }
-
-// // DialHTTP creates a new RPC client that connects to an RPC server over HTTP.
-// func DialHTTP(endpoint string) (*Client, error) {
-// 	return DialHTTPWithClient(endpoint, new(http.Client))
-// }
-
-// func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) error {
-// 	hc := c.writeConn.(*httpConn)
-// 	respBody, err := hc.doRequest(ctx, msg)
-// 	if respBody != nil {
-// 		defer respBody.Close()
-// 	}
-
-// 	if err != nil {
-// 		if respBody != nil {
-// 			buf := new(bytes.Buffer)
-// 			if _, err2 := buf.ReadFrom(respBody); err2 == nil {
-// 				return fmt.Errorf("%v %v", err, buf.String())
-// 			}
-// 		}
-// 		return err
-// 	}
-// 	var respmsg jsonrpcMessage
-// 	if err := json.NewDecoder(respBody).Decode(&respmsg); err != nil {
-// 		return err
-// 	}
-// 	op.resp <- &respmsg
-// 	return nil
-// }
-
-// func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadCloser, error) {
-// 	body, err := json.Marshal(msg)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	req := hc.req.WithContext(ctx)
-// 	req.Body = ioutil.NopCloser(bytes.NewReader(body))
-// 	req.ContentLength = int64(len(body))
-
-// 	resp, err := hc.client.Do(req)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-// 		return resp.Body, errors.New(resp.Status)
-// 	}
-// 	return resp.Body, nil
-// }
 
 // httpReadWriteNopCloser wraps a io.Reader and io.Writer with a NOP Close method.
 type httpReadWriteNopCloser struct {

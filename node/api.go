@@ -4,18 +4,19 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
-// PublicWeb3API offers helper utils
+// PublicKaiAPI offers helper utils
 type PublicKaiAPI struct {
 	stack *Node
 }
 
-// NewPublicWeb3API creates a new Web3Service instance
+// NewPublicKaiAPI creates a new KaiService instance
 func NewPublicKaiAPI(stack *Node) *PublicKaiAPI {
 	return &PublicKaiAPI{stack}
 }
 
 // BlockNumber returns the block number of the chain head.
+// THIS FUNCTION NOW ALWAYS RETURN 100
+// TODO: Implement actual logic to get blocknumber here.
 func (s *PublicKaiAPI) BlockNumber() common.Uint64 {
-	// 	header, _ := s.b.HeaderByNumber(context.Background(), rpc.LatestBlockNumber) // latest header should always be available
 	return common.Uint64(100)
 }

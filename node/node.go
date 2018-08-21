@@ -158,12 +158,9 @@ func (n *Node) Stop() error {
 	return nil
 }
 
-// TODO: Edit this method to only add HTTP RPC endpoints for now + Set up RPC server
-// startRPC is a helper method to start all the various RPC endpoint during node
-// startup. It's not meant to be called at any time afterwards as it makes certain
-// assumptions about the state of the node.
+// startRPC: start all the various RPC endpoint during node startup ONLY.
+// DO NOT CALL AFTERWARDS
 func (n *Node) startRPC(services map[string]Service) error {
-	// Gather all the possible APIs to surface
 	apis := n.apis()
 	for _, service := range services {
 		apis = append(apis, service.APIs()...)
@@ -173,14 +170,12 @@ func (n *Node) startRPC(services map[string]Service) error {
 		return err
 	}
 
-	// All API endpoints started successfully
 	n.rpcAPIs = apis
 	return nil
 }
 
 // startHTTP initializes and starts the HTTP RPC endpoint.
 func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string) error {
-	// Short circuit if the HTTP endpoint isn't being exposed
 	if endpoint == "" {
 		return nil
 	}
@@ -189,7 +184,7 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 		return err
 	}
 	n.log.Info("HTTP endpoint opened", "url", fmt.Sprintf("http://%s", endpoint), "cors", strings.Join(cors, ","), "vhosts", strings.Join(vhosts, ","))
-	// All listeners booted successfully
+
 	n.httpEndpoint = endpoint
 	n.httpListener = listener
 	n.httpHandler = handler
@@ -285,6 +280,8 @@ func (n *Node) ServiceMap() map[string]Service {
 	return n.services
 }
 
+// All endpoints of the node.
+// TODO: Add more APIs
 func (n *Node) apis() []rpc.API {
 	return []rpc.API{
 		{

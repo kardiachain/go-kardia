@@ -50,7 +50,7 @@ type Service interface {
 	// Protocols retrieves the P2P protocols the service wishes to start.
 	Protocols() []p2p.Protocol
 
-	// APIs retrieves the list of RPC descriptors the service provides
+	// List of all APIs
 	APIs() []rpc.API
 
 	// Start is called after all services have been constructed and the networking
