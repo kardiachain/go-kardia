@@ -39,7 +39,17 @@ func runtimeSystemSettings() error {
 	return nil
 }
 
-func RemoveContents(dir string) error {
+func RemoveDirContents(dir string) error {
+	log.Info("Remove directory", "dir", dir)
+	_, err := os.Stat(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Info("Directory does not exist", "dir", dir)
+			return nil
+		} else {
+			return err
+		}
+	}
 	d, err := os.Open(dir)
 	if err != nil {
 		return err
@@ -151,9 +161,10 @@ func main() {
 
 	if *clearDataDir {
 		// Clear all contents within data dir
-		err := RemoveContents(config.DataDir)
+		dir := filepath.Join(config.DataDir, config.Name)
+		err := RemoveDirContents(dir)
 		if err != nil {
-			logger.Error("Cannot remove contents in directory", config.DataDir)
+			logger.Error("Cannot remove contents in directory", "dir", dir, "err", err)
 			return
 		}
 	}
