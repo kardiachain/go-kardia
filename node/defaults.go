@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	DefaultHTTPHost = "localhost" // Default host interface for the HTTP RPC server
+	DefaultHTTPHost = "0.0.0.0" // Default host interface for the HTTP RPC server
 	DefaultHTTPPort = 8545        // Default TCP port for the HTTP RPC server
 )
 
@@ -19,7 +19,7 @@ var DefaultConfig = NodeConfig{
 	DataDir: DefaultDataDir(),
 	HTTPPort: DefaultHTTPPort,
 	HTTPModules:      []string{"net", "kai"},
-	HTTPVirtualHosts: []string{"localhost"},
+	HTTPVirtualHosts: []string{"0.0.0.0", "localhost"},
 	P2P: p2p.Config{
 		ListenAddr: ":30303",
 		MaxPeers:   5,

@@ -71,7 +71,7 @@ func main() {
 	addTxn := flag.Bool("txn", false, "whether to add a fake txn")
 	rpcEnabled := flag.Bool("rpc", false, "whether to open HTTP RPC endpoints")
 	rpcAddr := flag.String("rpcaddr", "", "HTTP-RPC server listening interface")
-	rpcPort := flag.Int("rpcport", 8545, "HTTP-RPC server listening port")
+	rpcPort := flag.Int("rpcport", node.DefaultHTTPPort, "HTTP-RPC server listening port")
 	dualMode := flag.Bool("dual", false, "whether to run in dual mode")
 	ethStat := flag.Bool("ethstat", false, "report eth stats to network")
 	ethStatName := flag.String("ethstatname", "", "name to use when reporting eth stats")
@@ -128,12 +128,10 @@ func main() {
 	var devEnv *development.DevEnvironmentConfig
 
 	if *rpcEnabled {
-		config.HTTPHost = "localhost"
-		config.HTTPPort = *rpcPort
-
-		if len(*rpcAddr) != 0 {
-			config.HTTPHost = *rpcAddr
+		if config.HTTPHost = *rpcAddr; config.HTTPHost == "" {
+			config.HTTPHost = node.DefaultHTTPHost
 		}
+		config.HTTPPort = *rpcPort
 	}
 
 	if *dev {
