@@ -71,7 +71,7 @@ func main() {
 	name := flag.String("name", "", "Name of node")
 	addTxn := flag.Bool("txn", false, "whether to add a transfer txn")
 	genNewTxs := flag.Bool("genNewTxs", false, "whether to run routine that regularly add new transactions.")
-	newTxDelay := flag.Int("newTxDelay", 30, "how often new txs are added.")
+	newTxDelay := flag.Int("newTxDelay", 10, "how often new txs are added.")
 	dualMode := flag.Bool("dual", false, "whether to run in dual mode")
 	ethStat := flag.Bool("ethstat", false, "report eth stats to network")
 	ethStatName := flag.String("ethstatname", "", "name to use when reporting eth stats")
