@@ -168,29 +168,10 @@ func (n *Node) startRPC(services map[string]Service) error {
 	for _, service := range services {
 		apis = append(apis, service.APIs()...)
 	}
-	// // Start the various API endpoints, terminating all in case of errors
-	// if err := n.startInProc(apis); err != nil {
-	// 	return err
-	// }
-	// if err := n.startIPC(apis); err != nil {
-	// 	n.stopInProc()
-	// 	return err
-	// }
 
 	if err := n.startHTTP(n.httpEndpoint, apis, n.config.HTTPModules, n.config.HTTPCors, n.config.HTTPVirtualHosts); err != nil {
 		return err
-
-		// After adding endpoints for InProc and IPC, uncomment these lines to terminate all API in case error.
-		// n.stopIPC()
-		// n.stopInProc()
-
 	}
-	// if err := n.startWS(n.wsEndpoint, apis, n.config.WSModules, n.config.WSOrigins, n.config.WSExposeAll); err != nil {
-	// 	n.stopHTTP()
-	// 	n.stopIPC()
-	// 	n.stopInProc()
-	// 	return err
-	// }
 
 	// All API endpoints started successfully
 	n.rpcAPIs = apis

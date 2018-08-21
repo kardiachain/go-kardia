@@ -61,6 +61,7 @@ func (s *RPCService) Modules() map[string]string {
 // match the criteria to be either a RPC method or a subscription an error is returned. Otherwise a new service is
 // created and added to the service collection this server instance serves.
 func (s *Server) RegisterName(name string, rcvr interface{}) error {
+	log.Info("Server register service: ", name);
 	if s.services == nil {
 		s.services = make(serviceRegistry)
 	}
@@ -359,11 +360,12 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 		}
 
 		if svc, ok = s.services[r.service]; !ok { // rpc method isn't available
+			log.Info("fail here")
 			requests[i] = &serverRequest{id: r.id, err: &methodNotFoundError{r.service, r.method}}
 			continue
 		}
 
-		if r.isPubSub { // eth_subscribe, r.method contains the subscription method name
+		if r.isPubSub { // kai_subscribe, r.method contains the subscription method name
 			if callb, ok := svc.subscriptions[r.method]; ok {
 				requests[i] = &serverRequest{id: r.id, svcname: svc.name, callb: callb}
 				if r.params != nil && len(callb.argTypes) > 0 {

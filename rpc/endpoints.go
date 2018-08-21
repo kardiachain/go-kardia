@@ -12,14 +12,19 @@ func StartHTTPEndpoint(endpoint string, apis []API, modules []string, cors []str
 	for _, module := range modules {
 		whitelist[module] = true
 	}
+
 	// Register all the APIs exposed by the services
+	log.Info("Len of APIs: ", len(apis))
 	handler := NewServer()
 	for _, api := range apis {
+		log.Info("GOT HERE = ", apis)
+
 		if whitelist[api.Namespace] || (len(whitelist) == 0 && api.Public) {
+			log.Info("GOT WHITELISTED = ", apis)
 			if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
 				return nil, nil, err
 			}
-			log.Debug("HTTP registered", "namespace", api.Namespace)
+			log.Info("HTTP registered", "namespace", api.Namespace)
 		}
 	}
 	// All APIs registered, start the HTTP listener

@@ -128,7 +128,7 @@ func main() {
 	var devEnv *development.DevEnvironmentConfig
 
 	if *rpcEnabled {
-		config.HTTPHost = "127.0.0.1"
+		config.HTTPHost = "localhost"
 		config.HTTPPort = *rpcPort
 
 		if len(*rpcAddr) != 0 {
