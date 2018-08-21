@@ -150,26 +150,21 @@ func checkReqId(reqId json.RawMessage) error {
 
 // return the parsed request from raw message
 func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
-	log.Info("Got to parse Request");
 	var in jsonRequest
 	if err := json.Unmarshal(incomingMsg, &in); err != nil {
-		log.Info("fail in Unmarshal");
 		return nil, false, &invalidMessageError{err.Error()}
 	}
 
 	if err := checkReqId(in.Id); err != nil {
-		log.Info("fail in checkReqId");
 		return nil, false, &invalidMessageError{err.Error()}
 	}
 
 	// subscribe are special, they will always use `subscribeMethod` as first param in the payload
 	if strings.HasSuffix(in.Method, subscribeMethodSuffix) {
-		log.Info("fail in hasSuffix");
 		reqs := []rpcRequest{{id: &in.Id, isPubSub: true}}
 		if len(in.Payload) > 0 {
 			// first param must be subscription name
 			var subscribeMethod [1]string
-			log.Info("subscribeMethod = ", subscribeMethod)
 			if err := json.Unmarshal(in.Payload, &subscribeMethod); err != nil {
 				log.Debug(fmt.Sprintf("Unable to parse subscription method: %v\n", err))
 				return nil, false, &invalidRequestError{"Unable to parse subscription request"}
@@ -183,11 +178,9 @@ func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
 	}
 
 	if strings.HasSuffix(in.Method, unsubscribeMethodSuffix) {
-		log.Info("return rpc hasSuffix");
 		return []rpcRequest{{id: &in.Id, isPubSub: true,
 			method: in.Method, params: in.Payload}}, false, nil
 	}
-	log.Info("in.Method = ", in.Method)
 	elems := strings.Split(in.Method, serviceMethodSeparator)
 	if len(elems) != 2 {
 		return nil, false, &methodNotFoundError{in.Method, ""}
@@ -196,12 +189,9 @@ func parseRequest(incomingMsg json.RawMessage) ([]rpcRequest, bool, Error) {
 	// regular RPC call
 
 	if len(in.Payload) == 0 {
-		log.Info("len of inPayload = 0 ")
 		return []rpcRequest{{service: elems[0], method: elems[1], id: &in.Id}}, false, nil
 	}
-	log.Info("len of inPayload != 0 ")
-	log.Info(" elem[0] = ", elems[0])
-	log.Info(" elem[1] = ", elems[1])
+
 	return []rpcRequest{{service: elems[0], method: elems[1], id: &in.Id, params: in.Payload}}, false, nil
 }
 
