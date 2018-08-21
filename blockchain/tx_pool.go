@@ -942,7 +942,6 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		if list == nil {
 			continue // Just in case someone calls with a non existing account
 		}
-
 		// Drop all transactions that are deemed too old (low nonce)
 		for _, tx := range list.Forward(pool.currentState.GetNonce(addr)) {
 			hash := tx.Hash()
@@ -950,22 +949,27 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			pool.all.Remove(hash)
 			pool.priced.Removed()
 		}
-		// Drop all transactions that are too costly (low balance or out of gas)
-		drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
-		for _, tx := range drops {
-			hash := tx.Hash()
-			log.Info("Removed unpayable queued transaction", "hash", hash)
-			pool.all.Remove(hash)
-			pool.priced.Removed()
-			queuedNofundsCounter.Inc(1)
-		}
+		/*
+			// Drop all transactions that are too costly (low balance or out of gas)
+			drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+			for _, tx := range drops {
+				hash := tx.Hash()
+				log.Info("Removed unpayable queued transaction", "hash", hash)
+				pool.all.Remove(hash)
+				pool.priced.Removed()
+				queuedNofundsCounter.Inc(1)
+			}
+		*/
 
 		// Gather all executable transactions and promote them
 		for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {
 			hash := tx.Hash()
+			log.Info("Promoting tx", "tx", tx)
 			if pool.promoteTx(addr, hash, tx) {
 				log.Info("Promoting queued transaction", "hash", hash)
 				promoted = append(promoted, tx)
+			} else {
+				log.Error("Fail to promote tx", "tx", tx)
 			}
 		}
 
@@ -1121,6 +1125,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			pool.priced.Removed()
 		}
 
+		/* FIXME(thientn): StateDB not found accounts from generated txs, although it should be in genesis block.
 		// Drop all transactions that are deemed too old (low nonce)
 		for _, tx := range list.Forward(nonce) {
 			hash := tx.Hash()
@@ -1128,21 +1133,21 @@ func (pool *TxPool) demoteUnexecutables() {
 			pool.all.Remove(hash)
 			pool.priced.Removed()
 		}
-
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
 		drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
 		for _, tx := range drops {
 			hash := tx.Hash()
-			log.Trace("Removed unpayable pending transaction", "hash", hash)
+			log.Info("Removed unpayable pending transaction", "hash", hash)
 			pool.all.Remove(hash)
 			pool.priced.Removed()
 			pendingNofundsCounter.Inc(1)
 		}
 		for _, tx := range invalids {
 			hash := tx.Hash()
-			log.Trace("Demoting pending transaction", "hash", hash)
+			log.Info("Demoting pending transaction", "hash", hash)
 			pool.enqueueTx(hash, tx)
 		}
+		*/
 
 		// If there's a gap in front, alert (should never happen) and postpone all transactions
 		if list.Len() > 0 && list.txs.Get(nonce) == nil {

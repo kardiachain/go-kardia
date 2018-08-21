@@ -74,6 +74,7 @@ func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction,
 		NumTxs:         uint64(len(txs)),
 		LastBlockID:    state.LastBlockID,
 		ValidatorsHash: state.Validators.Hash(),
+		GasLimit:       10000,
 	}
 	block := types.NewBlock(&header, txs, nil, commit, accounts)
 
