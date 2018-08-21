@@ -74,8 +74,9 @@ func (h *Header) String() string {
 	if h == nil {
 		return "nil-Header"
 	}
+	// TODO(thientn): check why String() of common.Hash is not called when logging, and have to call Hex() instead.
 	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
-		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash, h.TxHash, h.ValidatorsHash, h.ConsensusHash, h.Hash())
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Hex(), h.TxHash.Hex(), h.ValidatorsHash.Hex(), h.ConsensusHash.Hex(), h.Hash().Hex())
 
 }
 
@@ -110,7 +111,7 @@ func (a AccountStates) String() string {
 			hexS := account.Addr.Hex()
 			buffer.WriteString(fmt.Sprintf("[%v]:%d,", hexS[len(hexS)-5:len(hexS)], account.Balance.Int64()))
 		}
-		accountsS = fmt.Sprintf("AccountStates:[%v]", buffer.String())
+		accountsS = fmt.Sprintf("AccountStates:(%v)", buffer.String())
 	} else {
 		if a == nil {
 			accountsS = "AccountStates:nil"
@@ -352,7 +353,7 @@ func (b *Block) String() string {
 	}
 
 	return fmt.Sprintf("Block{%v  %v  %v %v}#%v",
-		b.header, b.transactions, b.lastCommit, b.accounts, b.Hash())
+		b.header, b.transactions, b.lastCommit, b.accounts, b.Hash().Hex())
 }
 
 type writeCounter common.StorageSize
@@ -378,6 +379,11 @@ func (b *Block) Hash() common.Hash {
 }
 
 type BlockID common.Hash
+
+func (id BlockID) String() string {
+	return common.Hash(id).Hex()
+	return common.Hash(id).Hex()
+}
 
 func NewZeroBlockID() BlockID {
 	return BlockID{}

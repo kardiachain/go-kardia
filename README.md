@@ -29,7 +29,7 @@ Important:
   - Port number starts from `3000` for `node1`, `3001` for `node2`, and so on.
 
 Runs two nodes in different ports and use enode url to connect.  
-Uses `txn` flag in one node to create a sample transaction and sees the node sync the transaction in debug logging.  
+Uses `txn` flag in one node to create a sample transfer transaction and will be execute on the blockchain.  
 First terminal. Note: you would need to customize the number of validators via `numValid`.
 ```
 ./go-kardia --dev --numValid 2 --addr :3000 --name node1 --txn --clearDataDir
@@ -46,11 +46,11 @@ First terminal:
 ```
 Second terminal:
 ```
-./go-kardia --dev --numValid 3 --addr :3001 --name node2 --txn --clearDataDir
+./go-kardia --dev --numValid 3 --addr :3001 --name node2 --clearDataDir
 ```
 Third terminal:
 ```
-./go-kardia --dev --numValid 3 --addr :3002 --name node3 --txn --clearDataDir
+./go-kardia --dev --numValid 3 --addr :3002 --name node3 --clearDataDir
 ```
 
 # Test dual node
