@@ -360,7 +360,7 @@ func (s *Server) readRequest(codec ServerCodec) ([]*serverRequest, bool, Error) 
 		}
 
 		if svc, ok = s.services[r.service]; !ok { // rpc method isn't available
-			log.Info("fail here")
+			log.Info("RPC service called was not registered in the ServiceRegistry")
 			requests[i] = &serverRequest{id: r.id, err: &methodNotFoundError{r.service, r.method}}
 			continue
 		}
