@@ -38,6 +38,25 @@ Second terminal. Note that the peer node is fixed when running with --dev settin
 ```
 ./go-kardia --dev --numValid 2 --addr :30001 --name node2 --clearDataDir
 ```
+
+# Test json-rpc API request
+The default address of the rpc server is http://localhost:8545
+
+Runs the node with `--rpc` flag:
+```
+./go-kardia --dev --numValid 2 --addr :3000 --name node1 --txn --clearDataDir --rpc
+```
+
+Send a json-rpc request to the node using curl:
+```
+curl -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"kai_blockNumber","params":[],"id":1}' localhost:8545
+```
+The response will be in the following form:
+```
+{"jsonrpc":"2.0","id":1,"result":100}
+```
+
+
 # Test multiple nodes
 `numValid` flag must be set to the total number of nodes you plan to run. For example, in a 3-node scenario:
 First terminal:
@@ -54,7 +73,7 @@ Third terminal:
 ```
 
 # Test dual node
-Runs node with `dual` flag to start dual mode, acting as a full node syncing on both Kardia network and Ethereum Rinkeby testnet.  
+Runs node with `dual` flag to start dual mode, acting as a full node syncing on both Kardia network and Ethereum Rinkeby testnet.
 Dual node may use 10GB+ storage.
 ```
 ./go-kardia --dual --name node1
