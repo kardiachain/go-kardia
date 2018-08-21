@@ -3,7 +3,6 @@ package blockchain
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"sort"
 	"sync"
@@ -334,53 +333,58 @@ func (pool *TxPool) lockedReset(oldHead, newHead *types.Header) {
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
-	// If we're reorging an old state, reinject all dropped transactions
-	var reinject types.Transactions
+	log.Error("CALLING TXN POOL RESET.")
 
-	if oldHead != nil && oldHead.Hash() != newHead.LastCommitHash {
-		// If the reorg is too deep, avoid doing it (will happen during fast sync)
-		oldHeight := oldHead.Height
-		newHeight := newHead.Height
+	// Note: Disables feature of recreate dropped transaction, will evaluate this for mainnet.
+	/*
+		// If we're reorging an old state, reinject all dropped transactions
+		var reinject types.Transactions
 
-		if depth := uint64(math.Abs(float64(oldHeight) - float64(newHeight))); depth > 64 {
-			log.Debug("Skipping deep transaction reorg", "depth", depth)
-		} else {
-			// Reorg seems shallow enough to pull in all transactions into memory
-			var discarded, included types.Transactions
+			if oldHead != nil && oldHead.Hash() != newHead.LastCommitHash {
+				// If the reorg is too deep, avoid doing it (will happen during fast sync)
+				oldHeight := oldHead.Height
+				newHeight := newHead.Height
 
-			var (
-				rem = pool.chain.GetBlock(oldHead.Hash(), oldHead.Height)
-				add = pool.chain.GetBlock(newHead.Hash(), newHead.Height)
-			)
-			for rem.Height() > add.Height() {
-				discarded = append(discarded, rem.Transactions()...)
-				if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
-					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
-					return
+				if depth := uint64(math.Abs(float64(oldHeight) - float64(newHeight))); depth > 64 {
+					log.Debug("Skipping deep transaction reorg", "depth", depth)
+				} else {
+					// Reorg seems shallow enough to pull in all transactions into memory
+					var discarded, included types.Transactions
+
+					var (
+						rem = pool.chain.GetBlock(oldHead.Hash(), oldHead.Height)
+						add = pool.chain.GetBlock(newHead.Hash(), newHead.Height)
+					)
+					for rem.Height() > add.Height() {
+						discarded = append(discarded, rem.Transactions()...)
+						if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
+							log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
+							return
+						}
+					}
+					for add.Height() > rem.Height() {
+						included = append(included, add.Transactions()...)
+						if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
+							log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
+							return
+						}
+					}
+					for rem.Hash() != add.Hash() {
+						discarded = append(discarded, rem.Transactions()...)
+						if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
+							log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
+							return
+						}
+						included = append(included, add.Transactions()...)
+						if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
+							log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
+							return
+						}
+					}
+					reinject = types.TxDifference(discarded, included)
 				}
 			}
-			for add.Height() > rem.Height() {
-				included = append(included, add.Transactions()...)
-				if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
-					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
-					return
-				}
-			}
-			for rem.Hash() != add.Hash() {
-				discarded = append(discarded, rem.Transactions()...)
-				if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
-					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
-					return
-				}
-				included = append(included, add.Transactions()...)
-				if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
-					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
-					return
-				}
-			}
-			reinject = types.TxDifference(discarded, included)
-		}
-	}
+	*/
 
 	// Initialize the internal state to the current head
 	if newHead == nil {
@@ -400,9 +404,9 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	pool.currentMaxGas = newHead.GasLimit
 
 	// Inject any transactions discarded due to reorgs
-	log.Debug("Reinjecting stale transactions", "count", len(reinject))
-	senderCacher.recover(reinject)
-	pool.addTxsLocked(reinject, false)
+	//log.Debug("Reinjecting stale transactions", "count", len(reinject))
+	//senderCacher.recover(reinject)
+	//pool.addTxsLocked(reinject, false)
 
 	// validate the pool of pending transactions, this will remove
 	// any transactions that have been included in the block or
@@ -1110,6 +1114,16 @@ func (pool *TxPool) demoteUnexecutables() {
 	for addr, list := range pool.pending {
 		nonce := pool.currentState.GetNonce(addr)
 
+		// TODO(thientn): Evaluate this for future phases. Geth does not delete block txns directly, because block is not surely confirmed.
+		// Drop transactions included in latest block, assume it's committed and saved.
+		// This function is only called when TxPool detect new height.
+		for _, tx := range pool.chain.CurrentBlock().Transactions() {
+			hash := tx.Hash()
+			log.Info("TxPool to remove committed tx", "hash", hash)
+			pool.all.Remove(hash)
+			pool.priced.Removed()
+		}
+
 		// Drop all transactions that are deemed too old (low nonce)
 		for _, tx := range list.Forward(nonce) {
 			hash := tx.Hash()
@@ -1257,8 +1271,3 @@ func (t *txLookup) Remove(hash common.Hash) {
 
 	delete(t.all, hash)
 }
-
-type ChainHeadEvent struct{ Block *types.Block }
-
-// NewTxsEvent is posted when a batch of transactions enter the transaction pool.
-type NewTxsEvent struct{ Txs []*types.Transaction }
