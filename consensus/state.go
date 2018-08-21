@@ -105,16 +105,17 @@ type ConsensusState struct {
 // NewConsensusState returns a new ConsensusState.
 func NewConsensusState(
 	config *cfg.ConsensusConfig,
+	devConfig *dev.DevEnvironmentConfig,
 	state state.LastestBlockState,
 	//namdoh@ blockExec *sm.BlockExecutor,
 	blockchain *blockchain.BlockChain,
 	//namdoh@ evpool evidence.EvidencePool,
 	txPool *blockchain.TxPool,
-	devConfig *dev.DevEnvironmentConfig,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		Logger: log.New("module", "consensus"),
 		config: config,
+		devConfig: devConfig,
 		//namdoh@ blockExec:        blockExec,
 		blockOperations: &BlockOperations{
 			blockchain: blockchain,
@@ -132,7 +133,6 @@ func NewConsensusState(
 			StartTime:   big.NewInt(0),
 			CommitTime:  big.NewInt(0),
 		},
-		devConfig: devConfig,
 	}
 
 	cs.updateToState(state)
