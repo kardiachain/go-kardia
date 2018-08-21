@@ -2,20 +2,22 @@ package tool
 
 import (
 	development "github.com/kardiachain/go-kardia/kai/dev"
-	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 	"testing"
 )
 
 func TestGenerateTx(t *testing.T) {
-	result := GenerateRandomTx(0, nil, common.BytesToAddress([]byte{}))
-	if len(result) != 10 {
-		t.Error("default result len should be 10")
-	}
+	result := GenerateRandomTx(1000)
 	for _, tx := range result {
-		from, _ := types.Sender(&tx)
-		if containsInGenesis(from.String()) == false {
-			t.Error("default sender should be in genesis block")
+		from, _ := types.Sender(tx)
+		if !containsInGenesis(from.String()) {
+			t.Error("Sender addr should be in genesis block")
+		}
+		if !containsInGenesis(tx.To().String()) {
+			t.Error("Receiver addr should be in genesis")
+		}
+		if from == *tx.To() {
+			t.Error("Sender & receiver addrs should not be the same")
 		}
 	}
 }

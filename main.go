@@ -19,6 +19,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 	"os"
 	"path/filepath"
@@ -68,7 +69,9 @@ func main() {
 	ethLogLevel := flag.String("ethloglevel", "warn", "minimum Eth log verbosity to display")
 	listenAddr := flag.String("addr", ":30301", "listen address")
 	name := flag.String("name", "", "Name of node")
-	addTxn := flag.Bool("txn", false, "whether to add a fake txn")
+	addTxn := flag.Bool("txn", false, "whether to add a transfer txn")
+	genNewTxs := flag.Bool("genNewTxs", false, "whether to run routine that regularly add new transactions.")
+	newTxDelay := flag.Int("newTxDelay", 30, "how often new txs are added.")
 	dualMode := flag.Bool("dual", false, "whether to run in dual mode")
 	ethStat := flag.Bool("ethstat", false, "report eth stats to network")
 	ethStatName := flag.String("ethstatname", "", "name to use when reporting eth stats")
@@ -201,6 +204,10 @@ func main() {
 		}
 	}
 
+	if *genNewTxs {
+		go runTxCreationLoop(kService.TxPool(), *newTxDelay)
+	}
+
 	// Connect with other peers.
 	if *dev {
 		for i := 0; i < nodeIndex; i++ {
@@ -272,6 +279,20 @@ func displaySyncStatus(client *dual.KardiaEthClient) {
 			log.Info("Sync status", "sync", status)
 		}
 		time.Sleep(20 * time.Second)
+	}
+}
+
+func runTxCreationLoop(txPool *blockchain.TxPool, delay int) {
+	for {
+		txs := tool.GenerateRandomTx(1)
+		log.Info("Adding new transactions", "txs", txs)
+		errs := txPool.AddLocals(txs)
+		for _, err := range errs {
+			if err != nil {
+				log.Error("Fail to add transaction list", "err", err, "txs", txs)
+			}
+		}
+		time.Sleep(time.Duration(delay) * time.Second)
 	}
 }
 
