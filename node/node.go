@@ -3,12 +3,15 @@ package node
 import (
 	"errors"
 	"fmt"
+	"net"
 	"reflect"
+	"strings"
 	"sync"
 
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/p2p/discover"
+	"github.com/kardiachain/go-kardia/rpc"
 )
 
 // Node is the highest level container for a full Kardia node.
@@ -20,6 +23,12 @@ type Node struct {
 
 	services            map[string]Service // Map of type names to running services
 	serviceConstructors []ServiceConstructor
+
+	rpcAPIs       []rpc.API    // List of APIs currently provided by the node
+	httpEndpoint  string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
+	httpWhitelist []string     // HTTP RPC modules to allow through this endpoint
+	httpListener  net.Listener // HTTP RPC listener socket to server API requests
+	httpHandler   *rpc.Server  // HTTP RPC request handler to process the API requests
 
 	lock sync.RWMutex
 	log  log.Logger
@@ -43,6 +52,9 @@ func (n *Node) Start() error {
 		return ErrNodeRunning
 	}
 	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
+
+	// RPC Endpoint
+	n.httpEndpoint = n.config.HTTPEndpoint()
 
 	// Generate node PrivKey
 	n.serverConfig = n.config.P2P
@@ -104,7 +116,15 @@ func (n *Node) Start() error {
 	}
 
 	// TODO: starts RPC services.
+	if err := n.startRPC(newServices); err != nil {
+		for _, service := range newServices {
+			service.Stop()
+		}
+		newServer.Stop()
+		return err
+	}
 
+	// Finish init startup
 	n.services = newServices
 	n.server = newServer
 	return nil
@@ -136,6 +156,54 @@ func (n *Node) Stop() error {
 	}
 
 	return nil
+}
+
+// startRPC: start all the various RPC endpoint during node startup ONLY.
+// DO NOT CALL AFTERWARDS
+func (n *Node) startRPC(services map[string]Service) error {
+	apis := n.apis()
+	for _, service := range services {
+		apis = append(apis, service.APIs()...)
+	}
+
+	if err := n.startHTTP(n.httpEndpoint, apis, n.config.HTTPModules, n.config.HTTPCors, n.config.HTTPVirtualHosts); err != nil {
+		return err
+	}
+
+	n.rpcAPIs = apis
+	return nil
+}
+
+// startHTTP initializes and starts the HTTP RPC endpoint.
+func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors []string, vhosts []string) error {
+	if endpoint == "" {
+		return nil
+	}
+	listener, handler, err := rpc.StartHTTPEndpoint(endpoint, apis, modules, cors, vhosts)
+	if err != nil {
+		return err
+	}
+	n.log.Info("HTTP endpoint opened", "url", fmt.Sprintf("http://%s", endpoint), "cors", strings.Join(cors, ","), "vhosts", strings.Join(vhosts, ","))
+
+	n.httpEndpoint = endpoint
+	n.httpListener = listener
+	n.httpHandler = handler
+
+	return nil
+}
+
+// stopHTTP terminates the HTTP RPC endpoint.
+func (n *Node) stopHTTP() {
+	if n.httpListener != nil {
+		n.httpListener.Close()
+		n.httpListener = nil
+
+		n.log.Info("HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.httpEndpoint))
+	}
+	if n.httpHandler != nil {
+		n.httpHandler.Stop()
+		n.httpHandler = nil
+	}
 }
 
 // Server returns p2p server of node.
@@ -210,4 +278,17 @@ func (n *Node) ServiceMap() map[string]Service {
 	defer n.lock.RUnlock()
 
 	return n.services
+}
+
+// All endpoints of the node.
+// TODO: Add more APIs
+func (n *Node) apis() []rpc.API {
+	return []rpc.API{
+		{
+			Namespace: "kai",
+			Version:   "1.0",
+			Service:   NewPublicKaiAPI(n),
+			Public:    true,
+		},
+	}
 }

@@ -79,6 +79,9 @@ func main() {
 	ethLogLevel := flag.String("ethloglevel", "warn", "minimum Eth log verbosity to display")
 	listenAddr := flag.String("addr", ":30301", "listen address")
 	name := flag.String("name", "", "Name of node")
+	rpcEnabled := flag.Bool("rpc", false, "whether to open HTTP RPC endpoints")
+	rpcAddr := flag.String("rpcaddr", "", "HTTP-RPC server listening interface")
+	rpcPort := flag.Int("rpcport", node.DefaultHTTPPort, "HTTP-RPC server listening port")
 	addTxn := flag.Bool("txn", false, "whether to add a transfer txn")
 	genNewTxs := flag.Bool("genNewTxs", false, "whether to run routine that regularly add new transactions.")
 	newTxDelay := flag.Int("newTxDelay", 10, "how often new txs are added.")
@@ -136,6 +139,14 @@ func main() {
 	config.P2P.ListenAddr = *listenAddr
 	config.Name = *name
 	var devEnv *development.DevEnvironmentConfig
+
+	if *rpcEnabled {
+		if config.HTTPHost = *rpcAddr; config.HTTPHost == "" {
+			config.HTTPHost = node.DefaultHTTPHost
+		}
+		config.HTTPPort = *rpcPort
+	}
+
 	if *dev {
 		devEnv = development.CreateDevEnvironmentConfig()
 		if nodeIndex < 0 && nodeIndex >= devEnv.GetNodeSize() {

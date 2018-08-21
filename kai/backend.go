@@ -10,6 +10,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/p2p"
+	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/state"
 	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
@@ -179,6 +180,16 @@ func (s *Kardia) Stop() error {
 	close(s.shutdownChan)
 
 	return nil
+}
+
+func (s *Kardia) APIs() []rpc.API {
+	return []rpc.API{
+		{
+			Namespace: "kai",
+			Version:   "1.0",
+			Service:   NewPublicKaiAPI(s),
+			Public:    true,
+		}}
 }
 
 func (s *Kardia) TxPool() *blockchain.TxPool         { return s.txPool }
