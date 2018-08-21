@@ -70,10 +70,10 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	return receipts, allLogs, *usedGas, nil
 }
 
-func ApplyTransactionsToAccountState(txs []*types.Transaction, accounts *types.AccountStates) (*types.AccountStates, error) {
+func ApplyTransactionsToAccountState(txs []*types.Transaction, accounts types.AccountStates) (types.AccountStates, error) {
 	// converts to map.
-	accountMap := make(map[common.Address]*big.Int, len(*accounts))
-	for _, account := range *accounts {
+	accountMap := make(map[common.Address]*big.Int, len(accounts))
+	for _, account := range accounts {
 		accountMap[*account.Addr] = account.Balance
 	}
 
@@ -98,14 +98,14 @@ func ApplyTransactionsToAccountState(txs []*types.Transaction, accounts *types.A
 		toBalance.Add(toBalance, tx.Value())
 	}
 
-	newState := make(types.AccountStates, len(*accounts))
+	newState := make(types.AccountStates, len(accounts))
 
-	for i, oldAccount := range *accounts {
+	for i, oldAccount := range accounts {
 		newBalance := accountMap[*oldAccount.Addr]
 		newState[i] = &types.BlockAccount{Addr: oldAccount.Addr, Balance: newBalance}
 	}
 
-	return &newState, nil
+	return newState, nil
 }
 
 // ApplyTransaction attempts to apply a transaction to the given state database
