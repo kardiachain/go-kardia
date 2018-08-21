@@ -333,8 +333,6 @@ func (pool *TxPool) lockedReset(oldHead, newHead *types.Header) {
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
-	log.Error("CALLING TXN POOL RESET.")
-
 	// Note: Disables feature of recreate dropped transaction, will evaluate this for mainnet.
 	/*
 		// If we're reorging an old state, reinject all dropped transactions
@@ -392,7 +390,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	}
 
 	statedb, err := pool.chain.StateAt(newHead.Root)
-	log.Info("TxPool reset state to", "root", newHead.Root)
+	log.Info("TxPool reset state to new head block", "height", newHead.Height, "root", newHead.Root)
 	if err != nil {
 		log.Error("Failed to reset txpool state", "err", err)
 		return
@@ -928,7 +926,6 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 // future queue to the set of pending transactions. During this process, all
 // invalidated transactions (low nonce, low balance) are deleted.
 func (pool *TxPool) promoteExecutables(accounts []common.Address) {
-	log.Info("Start promoteExecutables")
 	// Track the promoted transactions to broadcast them at once
 	var promoted []*types.Transaction
 

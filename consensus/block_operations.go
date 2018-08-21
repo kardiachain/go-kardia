@@ -78,8 +78,6 @@ func (b *BlockOperations) CollectTransactions() []*types.Transaction {
 		return nil
 	}
 
-	log.Info("Pending tx pool", "txs", pending)
-
 	// TODO: do basic verification & check with gas & sort by nonce
 	// check code NewTransactionsByPriceAndNonce
 	pendingTxns := make([]*types.Transaction, 0)
