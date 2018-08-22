@@ -7,14 +7,12 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/storage"
-	"github.com/pborman/uuid"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
 const (
 	password = "KardiaChain"
+	balance  = int64(100000000)
 )
 
 var (
@@ -42,8 +40,6 @@ var (
 		"b34bd81838a4a335fb3403d0bf616eca1eb9a4b4716c7dda7c617503cfeaab67",
 		"e049a09c992c882bc2deb780323a247c6ee0951f8b4c5c1dd0fc2fc22ce6493d",
 	}
-	balance = int64(100000000)
-	folder  = uuid.New()
 )
 
 func TestGenesisAllocFromData(t *testing.T) {
@@ -66,8 +62,8 @@ func TestGenesisAllocFromData(t *testing.T) {
 	}
 
 	for _, el := range addresses {
-		if _, ok := ga[common.StringToAddress(el)]; ok == false {
-			t.Error("address ", el, " is not found")
+		if _, ok := ga[common.HexToAddress(el)]; ok == false {
+			t.Error("address ", el, " is not valid")
 		}
 	}
 }
@@ -77,10 +73,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 	// allocData is get from genesisAccounts in default_node_config
 
 	// Init kai database
-	db, err := storage.NewLDBStore(folder, 16, 16)
-	if err != nil {
-		t.Error(err)
-	}
+	db := storage.NewMemStore()
 
 	// Create genesis block with dev.genesisAccounts
 	genesis := DefaultTestnetGenesisBlock(dev.GenesisAccounts)
@@ -104,43 +97,24 @@ func TestCreateGenesisBlock(t *testing.T) {
 		t.Error(err)
 	} else {
 		// Get balance from addresses
-		for _, address := range addresses {
-			b := s.GetBalance(common.StringToAddress(address)).Int64()
+		for addr := range dev.GenesisAccounts {
+			b := s.GetBalance(common.HexToAddress(addr)).Int64()
 			if b != balance {
-				t.Error("Balance does not match")
+				t.Error("Balance does not match", "state balance", b, "balance", balance)
 			}
 		}
 
 	}
-}
 
-func TestMain(m *testing.M) {
-
-	retCode := m.Run()
-	// Remove folder
-	err := RemoveDir(folder)
-	if err != nil {
-		println(err)
-	}
-	os.Exit(retCode)
-}
-
-func RemoveDir(dir string) error {
-	d, err := os.Open(dir)
-	if err != nil {
-		return err
-	}
-	defer d.Close()
-	names, err := d.Readdirnames(-1)
-	if err != nil {
-		return err
-	}
-	for _, name := range names {
-		err = os.RemoveAll(filepath.Join(dir, name))
-		if err != nil {
-			return err
+	// Checks accountStates.
+	accounts := block.Accounts()
+	for addrS := range dev.GenesisAccounts {
+		addr := common.HexToAddress(addrS)
+		account := accounts.GetAccount(&addr)
+		if account == nil {
+			t.Errorf("Genesis account not found: %v", addrS)
+		} else if account.Balance.Int64() != balance {
+			t.Error("Balanced does not match in blockaccount", "account balance", account.Balance, "balance", balance)
 		}
 	}
-
-	return os.Remove(dir)
 }

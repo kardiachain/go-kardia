@@ -251,9 +251,9 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 		// And alternative solution that relies on clocks:
 		//  cs.StartTime = state.LastBlockTime.Add(timeoutCommit)
 		cs.Logger.Trace("cs.CommitTime is 0")
-		cs.StartTime = big.NewInt(cs.config.Commit(time.Now()).Unix())
+		cs.StartTime = big.NewInt(cs.config.Commit(time.Now()).Unix() + 10)
 	} else {
-		cs.StartTime = big.NewInt(cs.config.Commit(time.Unix(cs.CommitTime.Int64(), 0)).Unix())
+		cs.StartTime = big.NewInt(cs.config.Commit(time.Unix(cs.CommitTime.Int64(), 0)).Unix() + 10)
 	}
 
 	cs.Validators = validators
@@ -1133,7 +1133,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	var err error
 	stateCopy, err = cs.blockExec.ApplyBlock(stateCopy, block.BlockID(), block)
 	if err != nil {
-		cs.Logger.Error("Error on ApplyBlock. Did the application crash? Please restart tendermint", "err", err)
+		cs.Logger.Error("Error on ApplyBlock. Did the application crash? Please restart node", "err", err)
 		err := cmn.Kill()
 		if err != nil {
 			cs.Logger.Error("Failed to kill this process - please do so manually", "err", err)
@@ -1330,7 +1330,7 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 
 	//// timeouts must be for current height, round, step
 	if !ti.Height.Equals(rs.Height) || ti.Round.IsLessThan(rs.Round) || (ti.Round.Equals(rs.Round) && ti.Step < rs.Step) {
-		cs.Logger.Debug("Ignoring tock because we're ahead", "height", rs.Height, "round", rs.Round, "step", rs.Step)
+		cs.Logger.Debug("Ignoring tick because we're ahead", "height", rs.Height, "round", rs.Round, "step", rs.Step)
 		return
 	}
 

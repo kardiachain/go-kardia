@@ -29,7 +29,7 @@ func TestBlockEncodeDecode(t *testing.T) {
 	accounts[1] = &BlockAccount{Addr: &addr2, Balance: big.NewInt(100)}
 
 	// TODO(thientn/namdoh): adds all details for a block here
-	block := NewBlock(&header, txns, nil, &Commit{}, &accounts)
+	block := NewBlock(&header, txns, nil, &Commit{}, accounts)
 
 	// TODO: enable validate after adding data to field Commit.
 	//if err := block.ValidateBasic(); err != nil {

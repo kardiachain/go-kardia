@@ -3,7 +3,6 @@ package blockchain
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/big"
 	"sort"
 	"sync"
@@ -177,9 +176,12 @@ type TxPool struct {
 	chainHeadSub event.Subscription
 	mu           sync.RWMutex
 
-	currentState  *state.StateDB      // Current state in the blockchain head
-	pendingState  *state.ManagedState // Pending state tracking virtual nonces
-	currentMaxGas uint64              // Current gas limit for transaction caps
+	currentState *state.StateDB      // Current state in the blockchain head
+	pendingState *state.ManagedState // Pending state tracking virtual nonces
+
+	accountStates *types.AccountStates // Current account state in blockchain head
+
+	currentMaxGas uint64 // Current gas limit for transaction caps
 
 	locals  *accountSet // Set of local transaction to exempt from eviction rules
 	journal *txJournal  // Journal of local transaction to back up to disk
@@ -331,53 +333,56 @@ func (pool *TxPool) lockedReset(oldHead, newHead *types.Header) {
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
-	// If we're reorging an old state, reinject all dropped transactions
-	var reinject types.Transactions
+	// Note: Disables feature of recreate dropped transaction, will evaluate this for mainnet.
+	/*
+		// If we're reorging an old state, reinject all dropped transactions
+		var reinject types.Transactions
 
-	if oldHead != nil && oldHead.Hash() != newHead.LastCommitHash {
-		// If the reorg is too deep, avoid doing it (will happen during fast sync)
-		oldHeight := oldHead.Height
-		newHeight := newHead.Height
+			if oldHead != nil && oldHead.Hash() != newHead.LastCommitHash {
+				// If the reorg is too deep, avoid doing it (will happen during fast sync)
+				oldHeight := oldHead.Height
+				newHeight := newHead.Height
 
-		if depth := uint64(math.Abs(float64(oldHeight) - float64(newHeight))); depth > 64 {
-			log.Debug("Skipping deep transaction reorg", "depth", depth)
-		} else {
-			// Reorg seems shallow enough to pull in all transactions into memory
-			var discarded, included types.Transactions
+				if depth := uint64(math.Abs(float64(oldHeight) - float64(newHeight))); depth > 64 {
+					log.Debug("Skipping deep transaction reorg", "depth", depth)
+				} else {
+					// Reorg seems shallow enough to pull in all transactions into memory
+					var discarded, included types.Transactions
 
-			var (
-				rem = pool.chain.GetBlock(oldHead.Hash(), oldHead.Height)
-				add = pool.chain.GetBlock(newHead.Hash(), newHead.Height)
-			)
-			for rem.Height() > add.Height() {
-				discarded = append(discarded, rem.Transactions()...)
-				if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
-					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
-					return
+					var (
+						rem = pool.chain.GetBlock(oldHead.Hash(), oldHead.Height)
+						add = pool.chain.GetBlock(newHead.Hash(), newHead.Height)
+					)
+					for rem.Height() > add.Height() {
+						discarded = append(discarded, rem.Transactions()...)
+						if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
+							log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
+							return
+						}
+					}
+					for add.Height() > rem.Height() {
+						included = append(included, add.Transactions()...)
+						if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
+							log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
+							return
+						}
+					}
+					for rem.Hash() != add.Hash() {
+						discarded = append(discarded, rem.Transactions()...)
+						if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
+							log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
+							return
+						}
+						included = append(included, add.Transactions()...)
+						if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
+							log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
+							return
+						}
+					}
+					reinject = types.TxDifference(discarded, included)
 				}
 			}
-			for add.Height() > rem.Height() {
-				included = append(included, add.Transactions()...)
-				if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
-					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
-					return
-				}
-			}
-			for rem.Hash() != add.Hash() {
-				discarded = append(discarded, rem.Transactions()...)
-				if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
-					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
-					return
-				}
-				included = append(included, add.Transactions()...)
-				if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
-					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
-					return
-				}
-			}
-			reinject = types.TxDifference(discarded, included)
-		}
-	}
+	*/
 
 	// Initialize the internal state to the current head
 	if newHead == nil {
@@ -385,19 +390,21 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	}
 
 	statedb, err := pool.chain.StateAt(newHead.Root)
+	log.Info("TxPool reset state to new head block", "height", newHead.Height, "root", newHead.Root)
 	if err != nil {
 		log.Error("Failed to reset txpool state", "err", err)
 		return
 	}
+
 	pool.currentState = statedb
 	pool.pendingState = state.ManageState(statedb)
 
 	pool.currentMaxGas = newHead.GasLimit
 
 	// Inject any transactions discarded due to reorgs
-	log.Debug("Reinjecting stale transactions", "count", len(reinject))
-	senderCacher.recover(reinject)
-	pool.addTxsLocked(reinject, false)
+	//log.Debug("Reinjecting stale transactions", "count", len(reinject))
+	//senderCacher.recover(reinject)
+	//pool.addTxsLocked(reinject, false)
 
 	// validate the pool of pending transactions, this will remove
 	// any transactions that have been included in the block or
@@ -566,15 +573,35 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 
 	// Ensure the transaction adheres to nonce ordering
-	if pool.currentState.GetNonce(from) > tx.Nonce() {
-		return ErrNonceTooLow
-	}
+	// TODO(thientn): reenable nonce protection
+	//if pool.currentState.GetNonce(from) > tx.Nonce() {
+	//	return ErrNonceTooLow
+	//}
 
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+	// TODO(thientn): switch back to use balance in stateDB in the future.
+
+	accounts := pool.chain.CurrentBlock().Accounts()
+	account := accounts.GetAccount(&from)
+	if account == nil {
+		return fmt.Errorf("transaction sender addr not found %v", from.Hex())
+	}
+	if tx.To() != nil {
+		if accounts.GetAccount(tx.To()) == nil {
+			return fmt.Errorf("transaction receiver addr not found %v", tx.To().Hex())
+		}
+	}
+	if account.Balance.Cmp(tx.Cost()) < 0 {
+		log.Error("Bad transaction cost", "balance", account.Balance, "cost", tx.Cost(), "from", from.Hex())
 		return ErrInsufficientFunds
 	}
+	/*
+		if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+			log.Error("Bad txn cost", "balance", pool.currentState.GetBalance(from), "cost", tx.Cost(), "from", from)
+			return ErrInsufficientFunds
+		}
+	*/
 	/*@huny
 	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, pool.homestead)
 	if err != nil {
@@ -915,30 +942,34 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		if list == nil {
 			continue // Just in case someone calls with a non existing account
 		}
-
 		// Drop all transactions that are deemed too old (low nonce)
 		for _, tx := range list.Forward(pool.currentState.GetNonce(addr)) {
 			hash := tx.Hash()
-			log.Trace("Removed old queued transaction", "hash", hash)
+			log.Info("Removed old queued transaction", "hash", hash)
 			pool.all.Remove(hash)
 			pool.priced.Removed()
 		}
-		// Drop all transactions that are too costly (low balance or out of gas)
-		drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
-		for _, tx := range drops {
-			hash := tx.Hash()
-			log.Trace("Removed unpayable queued transaction", "hash", hash)
-			pool.all.Remove(hash)
-			pool.priced.Removed()
-			queuedNofundsCounter.Inc(1)
-		}
+		/*
+			// Drop all transactions that are too costly (low balance or out of gas)
+			drops, _ := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+			for _, tx := range drops {
+				hash := tx.Hash()
+				log.Info("Removed unpayable queued transaction", "hash", hash)
+				pool.all.Remove(hash)
+				pool.priced.Removed()
+				queuedNofundsCounter.Inc(1)
+			}
+		*/
 
 		// Gather all executable transactions and promote them
 		for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {
 			hash := tx.Hash()
+			log.Info("Promoting tx", "tx", tx)
 			if pool.promoteTx(addr, hash, tx) {
-				log.Trace("Promoting queued transaction", "hash", hash)
+				log.Info("Promoting queued transaction", "hash", hash)
 				promoted = append(promoted, tx)
+			} else {
+				log.Error("Fail to promote tx", "tx", tx)
 			}
 		}
 
@@ -949,7 +980,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 				pool.all.Remove(hash)
 				pool.priced.Removed()
 				queuedRateLimitCounter.Inc(1)
-				log.Trace("Removed cap-exceeding queued transaction", "hash", hash)
+				log.Info("Removed cap-exceeding queued transaction", "hash", hash)
 			}
 		}
 		// Delete the entire queue entry if it became empty.
@@ -1003,7 +1034,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 								pool.pendingState.SetNonce(offenders[i], nonce)
 							}
 
-							log.Trace("Removed fairness-exceeding pending transaction", "hash", hash)
+							log.Info("Removed fairness-exceeding pending transaction", "hash", hash)
 						}
 						pending--
 					}
@@ -1026,7 +1057,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 							pool.pendingState.SetNonce(addr, nonce)
 						}
 
-						log.Trace("Removed fairness-exceeding pending transaction", "hash", hash)
+						log.Info("Removed fairness-exceeding pending transaction", "hash", hash)
 					}
 					pending--
 				}
@@ -1084,6 +1115,17 @@ func (pool *TxPool) demoteUnexecutables() {
 	for addr, list := range pool.pending {
 		nonce := pool.currentState.GetNonce(addr)
 
+		// TODO(thientn): Evaluate this for future phases. Geth does not delete block txns directly, because block is not surely confirmed.
+		// Drop transactions included in latest block, assume it's committed and saved.
+		// This function is only called when TxPool detect new height.
+		for _, tx := range pool.chain.CurrentBlock().Transactions() {
+			hash := tx.Hash()
+			log.Info("TxPool to remove committed tx", "hash", hash)
+			pool.all.Remove(hash)
+			pool.priced.Removed()
+		}
+
+		/* FIXME(thientn): StateDB not found accounts from generated txs, although it should be in genesis block.
 		// Drop all transactions that are deemed too old (low nonce)
 		for _, tx := range list.Forward(nonce) {
 			hash := tx.Hash()
@@ -1091,21 +1133,21 @@ func (pool *TxPool) demoteUnexecutables() {
 			pool.all.Remove(hash)
 			pool.priced.Removed()
 		}
-
 		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
 		drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
 		for _, tx := range drops {
 			hash := tx.Hash()
-			log.Trace("Removed unpayable pending transaction", "hash", hash)
+			log.Info("Removed unpayable pending transaction", "hash", hash)
 			pool.all.Remove(hash)
 			pool.priced.Removed()
 			pendingNofundsCounter.Inc(1)
 		}
 		for _, tx := range invalids {
 			hash := tx.Hash()
-			log.Trace("Demoting pending transaction", "hash", hash)
+			log.Info("Demoting pending transaction", "hash", hash)
 			pool.enqueueTx(hash, tx)
 		}
+		*/
 
 		// If there's a gap in front, alert (should never happen) and postpone all transactions
 		if list.Len() > 0 && list.txs.Get(nonce) == nil {
@@ -1231,8 +1273,3 @@ func (t *txLookup) Remove(hash common.Hash) {
 
 	delete(t.all, hash)
 }
-
-type ChainHeadEvent struct{ Block *types.Block }
-
-// NewTxsEvent is posted when a batch of transactions enter the transaction pool.
-type NewTxsEvent struct{ Txs []*types.Transaction }

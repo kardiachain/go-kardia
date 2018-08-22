@@ -78,8 +78,6 @@ func (b *BlockOperations) CollectTransactions() []*types.Transaction {
 		return nil
 	}
 
-	log.Info("Pending tx pool", "txs", pending)
-
 	// TODO: do basic verification & check with gas & sort by nonce
 	// check code NewTransactionsByPriceAndNonce
 	pendingTxns := make([]*types.Transaction, 0)
@@ -92,7 +90,7 @@ func (b *BlockOperations) CollectTransactions() []*types.Transaction {
 }
 
 // GenerateNewAccountStates generates new accountStates by executing given txns on the account state of blockchain head.
-func (b *BlockOperations) GenerateNewAccountStates(txns []*types.Transaction) (*types.AccountStates, error) {
+func (b *BlockOperations) GenerateNewAccountStates(txns []*types.Transaction) (types.AccountStates, error) {
 	// use accountState of latest block
 	accounts := b.blockchain.CurrentBlock().Accounts()
 	return blockchain.ApplyTransactionsToAccountState(txns, accounts)

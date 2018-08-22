@@ -316,6 +316,9 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) {
 	// Skips updating state & receipt storage
 	bc.insert(block)
 	bc.futureBlocks.Remove(block.Hash())
+
+	// Sends new head event
+	bc.chainHeadFeed.Send(ChainHeadEvent{Block: block})
 }
 
 // WriteBlockWithState writes the block and all associated state to the database.
@@ -341,6 +344,9 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	// Set new head.
 	bc.insert(block)
 	bc.futureBlocks.Remove(block.Hash())
+
+	// Sends new head event
+	bc.chainHeadFeed.Send(ChainHeadEvent{Block: block})
 	return nil
 }
 

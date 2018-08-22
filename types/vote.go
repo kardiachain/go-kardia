@@ -96,7 +96,7 @@ func (vote *Vote) String() string {
 		cmn.PanicSanity("Unknown vote type")
 	}
 
-	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X %v @ %v}",
+	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X , %v @ %v}",
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, typeString,
 		cmn.Fingerprint(vote.BlockID[:]), vote.Signature,
