@@ -4,6 +4,7 @@ import (
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/p2p"
+	"github.com/kardiachain/go-kardia/rpc"
 	"testing"
 )
 
@@ -21,6 +22,10 @@ func (s *TrivialService) Start(*p2p.Server) error {
 }
 func (s *TrivialService) Stop() error {
 	s.Started = false
+	return nil
+}
+
+func (s *TrivialService) APIs() []rpc.API {
 	return nil
 }
 
