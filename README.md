@@ -61,7 +61,7 @@ The response will be in the following form:
 ```
 {"jsonrpc":"2.0","id":1,"result":100}
 ```
-
+# Test dual node
 Runs node with `dual` flag to start dual mode, acting as a full node syncing on both Kardia network and Ethereum Rinkeby testnet.  
 Dual node may use 10GB+ storage and needs SSD storage.
 ```
