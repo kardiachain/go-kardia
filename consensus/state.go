@@ -67,6 +67,7 @@ type ConsensusState struct {
 	Logger log.Logger
 
 	config        *cfg.ConsensusConfig
+	devMode		  bool
 	devConfig     *dev.DevEnvironmentConfig
 	privValidator *types.PrivValidator // for signing votes
 	// Services for creating and executing blocks
@@ -105,6 +106,7 @@ type ConsensusState struct {
 // NewConsensusState returns a new ConsensusState.
 func NewConsensusState(
 	config *cfg.ConsensusConfig,
+	devMode bool,
 	devConfig *dev.DevEnvironmentConfig,
 	state state.LastestBlockState,
 	//namdoh@ blockExec *sm.BlockExecutor,
@@ -115,6 +117,7 @@ func NewConsensusState(
 	cs := &ConsensusState{
 		Logger: log.New("module", "consensus"),
 		config: config,
+		devMode : devMode,
 		devConfig: devConfig,
 		//namdoh@ blockExec:        blockExec,
 		blockOperations: &BlockOperations{
@@ -606,12 +609,15 @@ func (cs *ConsensusState) signVote(type_ byte, hash types.BlockID) (*types.Vote,
 	addr := cs.privValidator.GetAddress()
 	valIndex, _ := cs.Validators.GetByAddress(addr)
 	// Simulate voting strategy
-	votingStrategy, ok := cs.devConfig.GetScriptedVote(cs.Height.Int32(), cs.Round.Int32(), int(type_))
-	if ok {
-		log.Info("Simulate voting strategy", "Height", cs.Height, "Round", cs.Round, "Step", cs.Step, "VotingStrategy", votingStrategy)
-		if votingStrategy == 0 {
-			hash = cs.state.MakeBlock(cs.Height.Int64(), nil, &types.Commit{}, nil).BlockID()
+	if cs.devMode {
+		votingStrategy, ok := cs.devConfig.GetScriptedVote(cs.Height.Int32(), cs.Round.Int32(), int(type_))
+		if ok {
+			log.Info("Simulate voting strategy", "Height", cs.Height, "Round", cs.Round, "Step", cs.Step, "VotingStrategy", votingStrategy)
+			if votingStrategy == 0 {
+				hash = cs.state.MakeBlock(cs.Height.Int64(), nil, &types.Commit{}, nil).BlockID()
+			}
 		}
+
 	}
 
 	vote := &types.Vote{

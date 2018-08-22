@@ -98,6 +98,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	}
 	consensusState := consensus.NewConsensusState(
 		configs.DefaultConsensusConfig(),
+		ctx.Config.DevMode,
 		ctx.Config.DevEnvConfig,
 		state,
 		kai.blockchain,
