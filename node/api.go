@@ -4,19 +4,17 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
-// PublicKaiAPI offers helper utils
-type PublicKaiAPI struct {
-	stack *Node
+// PublicNodeAPI offers helper utils
+type PublicNodeAPI struct {
+	node *Node
 }
 
-// NewPublicKaiAPI creates a new KaiService instance
-func NewPublicKaiAPI(stack *Node) *PublicKaiAPI {
-	return &PublicKaiAPI{stack}
+// NewPublicNodeAPI creates a new PublicNodeAPI instance
+func NewPublicNodeAPI(node *Node) *PublicNodeAPI {
+	return &PublicNodeAPI{node}
 }
 
-// BlockNumber returns the block number of the chain head.
-// THIS FUNCTION NOW ALWAYS RETURN 100
-// TODO: Implement actual logic to get blocknumber here.
-func (s *PublicKaiAPI) BlockNumber() common.Uint64 {
+// PeersList returns the number of peers that current node can connect to.
+func (s *PublicNodeAPI) PeersList() common.Uint64 {
 	return common.Uint64(100)
 }

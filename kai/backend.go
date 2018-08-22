@@ -189,7 +189,14 @@ func (s *Kardia) APIs() []rpc.API {
 			Version:   "1.0",
 			Service:   NewPublicKaiAPI(s),
 			Public:    true,
-		}}
+		},
+		{
+			Namespace: "tx",
+			Version: "1.0",
+			Service: NewPublicTransactionAPI(s),
+			Public: true,
+		},
+	}
 }
 
 func (s *Kardia) TxPool() *blockchain.TxPool         { return s.txPool }

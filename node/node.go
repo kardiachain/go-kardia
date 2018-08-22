@@ -162,7 +162,10 @@ func (n *Node) Stop() error {
 // DO NOT CALL AFTERWARDS
 func (n *Node) startRPC(services map[string]Service) error {
 	apis := n.apis()
-	for _, service := range services {
+	n.log.Info("StartRPC")
+	n.log.Debug("Add Services APIs to node")
+	for name, service := range services {
+		n.log.Debug(fmt.Sprintf("Add APIs from services: %s, len: %v", name, len(service.APIs())))
 		apis = append(apis, service.APIs()...)
 	}
 
@@ -287,7 +290,7 @@ func (n *Node) apis() []rpc.API {
 		{
 			Namespace: "kai",
 			Version:   "1.0",
-			Service:   NewPublicKaiAPI(n),
+			Service:   NewPublicNodeAPI(n),
 			Public:    true,
 		},
 	}
