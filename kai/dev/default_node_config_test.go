@@ -6,10 +6,9 @@ import (
 
 func TestDevEnvironmentConfig_SetVotingStrategy_GetScriptVote(t *testing.T) {
 	var expected_votes = map[VoteTurn]int {
-		{1,0,1}: 1,
-		{2,0,1}: 0,
-		{4,0,1}: 0,
-		{4,0,2}: 0,
+		{2,0,1}: -1,
+		{4,0,1}: -1,
+		{4,0,2}: -1,
 		{5,0,1}: -1,
 	}
 

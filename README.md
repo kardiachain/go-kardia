@@ -48,11 +48,10 @@ Third terminal:
 # Test consensus with bad actors
   - Simulate the voting strategy by `votingStrategy` flag in csv file `kai/dev/voting_scripts/voting_strategy_*.csv`): 
     Example:
-     * 1,0,1,1 (height=1/round=0/voteType=Prevote/good) 
-     * 2,0,1,0 (height=2/round=0/voteType=Prevote/novote)
-     * 4,0,1,0 (height=4/round=0/voteType=Prevote/novote)
-     * 4,0,2,0 (height=4/round=0/voteType=Precommit/novote) 
-     * 5,0,1,-1 (height=4/round=0/voteType=Prevote/bad)
+     * 2,0,1,-1 (height=2/round=0/voteType=Prevote/bad)
+     * 4,0,1,-1 (height=4/round=0/voteType=Prevote/bad)
+     * 4,0,2,-1 (height=4/round=0/voteType=Precommit/bad) 
+     * 5,0,1,-1 (height=5/round=0/voteType=Prevote/bad)
     
 Example, 3-nodes network:  
 First terminal:
@@ -67,20 +66,6 @@ Third terminal:
 ```
 ./go-kardia --dev --numValid 3 --addr :3002 --name node3 --clearDataDir --votingStrategy kai/dev/voting_scripts/voting_strategy_3.csv
 ``` 
-
-# Test JSON-RPC API request
-The default address of the rpc server is http://localhost:8545
-
-Runs the node with `--rpc` flag:
-```
-./go-kardia --dev --numValid 2 --addr :3000 --name node1 --txn --clearDataDir --rpc
-```
-./go-kardia --dev --numValid 3 --addr :3001 --name node2 --clearDataDir
-```
-Third terminal:
-```
-./go-kardia --dev --numValid 3 --addr :3002 --name node3 --clearDataDir
-```
 
 # Test JSON-RPC API request
 The default address of the rpc server is http://localhost:8545

@@ -67,7 +67,6 @@ type ConsensusState struct {
 	Logger log.Logger
 
 	config        *cfg.ConsensusConfig
-	devConfig     *dev.DevEnvironmentConfig
 	privValidator *types.PrivValidator // for signing votes
 	// Services for creating and executing blocks
 	blockExec       *state.BlockExecutor
@@ -100,22 +99,27 @@ type ConsensusState struct {
 
 	// closed when we finish shutting down
 	done chan struct{}
+
+	// Simulate voting strategy
+	votingStrategy map[dev.VoteTurn]int
+
+	// Development config, only used in dev/test environment
+	devConfig     *dev.DevEnvironmentConfig
 }
 
 // NewConsensusState returns a new ConsensusState.
 func NewConsensusState(
 	config *cfg.ConsensusConfig,
-	devConfig *dev.DevEnvironmentConfig,
 	state state.LastestBlockState,
 	//namdoh@ blockExec *sm.BlockExecutor,
 	blockchain *blockchain.BlockChain,
 	//namdoh@ evpool evidence.EvidencePool,
 	txPool *blockchain.TxPool,
+	votingStrategy map[dev.VoteTurn]int,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		Logger: log.New("module", "consensus"),
 		config: config,
-		devConfig: devConfig,
 		//namdoh@ blockExec:        blockExec,
 		blockOperations: &BlockOperations{
 			blockchain: blockchain,
@@ -133,6 +137,7 @@ func NewConsensusState(
 			StartTime:   big.NewInt(0),
 			CommitTime:  big.NewInt(0),
 		},
+		votingStrategy: votingStrategy,
 	}
 
 	cs.updateToState(state)
@@ -601,20 +606,26 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 	return
 }
 
+// Get script vote
+func (cs *ConsensusState) scriptedVote(height int, round int, voteType int) (int, bool) {
+	if val, ok := cs.votingStrategy[dev.VoteTurn{height, round, voteType}]; ok {
+		return val, ok
+	}
+	return 0, false
+}
+
 // Signs vote.
 func (cs *ConsensusState) signVote(type_ byte, hash types.BlockID) (*types.Vote, error) {
 	addr := cs.privValidator.GetAddress()
 	valIndex, _ := cs.Validators.GetByAddress(addr)
 	// Simulate voting strategy
-	if cs.devConfig.VotingStrategy != nil {
-		votingStrategy, ok := cs.devConfig.GetScriptedVote(cs.Height.Int32(), cs.Round.Int32(), int(type_))
-		if ok {
-			log.Info("Simulate voting strategy", "Height", cs.Height, "Round", cs.Round, "VoteType", cs.Step, "VotingStrategy", votingStrategy)
-			if votingStrategy == 0 {
+	if cs.votingStrategy != nil {
+		if votingStrategy, ok := cs.scriptedVote(cs.Height.Int32(), cs.Round.Int32(), int(type_)); ok {
+			if ok && votingStrategy == -1 {
+				log.Info("Simulate voting strategy", "Height", cs.Height, "Round", cs.Round, "VoteType", cs.Step, "VotingStrategy", votingStrategy)
 				hash = types.NewZeroBlockID()
 			}
 		}
-
 	}
 
 	vote := &types.Vote{

@@ -138,7 +138,6 @@ func main() {
 	config := &node.DefaultConfig
 	config.P2P.ListenAddr = *listenAddr
 	config.Name = *name
-	config.DevMode = *dev
 	var devEnv *development.DevEnvironmentConfig
 
 	if *rpcEnabled {

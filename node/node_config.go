@@ -81,7 +81,6 @@ type NodeConfig struct {
 	KeyStoreDir string `toml:",omitempty"`
 
 	// ======== DEV ENVIRONMENT CONFIG =========
-	DevMode bool
 	// Additional config of this node when running in dev environment.
 	DevNodeConfig *dev.DevNodeConfig
 	// Additional config of this environment when running as dev.
