@@ -20,6 +20,12 @@
   version = "v1.1.0"
 
 [[projects]]
+  name = "github.com/deckarep/golang-set"
+  packages = ["."]
+  revision = "1d4478f51bed434f1dadf96dcd9b43aabac66795"
+  version = "v1.7"
+
+[[projects]]
   branch = "master"
   name = "github.com/ebuchman/fail-test"
   packages = ["."]
@@ -340,6 +346,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "e469189feb39bba1061f88616d009a1828da0b3c5286f46bb59032e92c9064f6"
+  inputs-digest = "3b0f2a4fcc31800404e87258cd1727a97887d1ab311df33c605ed5cd7bca1bf5"
   solver-name = "gps-cdcl"
   solver-version = 1
