@@ -6,10 +6,11 @@ import (
 
 func TestDevEnvironmentConfig_SetVotingStrategy_GetScriptVote(t *testing.T) {
 	var expected_votes = map[VoteTurn]int {
+		{1,0,1}: 1,
 		{2,0,1}: 0,
 		{4,0,1}: 0,
 		{4,0,2}: 0,
-		{5,0,1}: 0,
+		{5,0,1}: -1,
 	}
 
 	devEnv := CreateDevEnvironmentConfig()
