@@ -196,6 +196,12 @@ func (s *Kardia) APIs() []rpc.API {
 			Service: NewPublicTransactionAPI(s),
 			Public: true,
 		},
+		{
+			Namespace: "account",
+			Version: "1.0",
+			Service: NewPublicAccountAPI(s),
+			Public: true,
+		},
 	}
 }
 

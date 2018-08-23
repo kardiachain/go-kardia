@@ -338,6 +338,7 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 		return err
 	}
 	rawdb.WriteReceipts(batch, block.Hash(), block.Header().Height, receipts)
+	rawdb.WriteTxLookupEntries(batch, block)
 	if err := batch.Write(); err != nil {
 		return err
 	}

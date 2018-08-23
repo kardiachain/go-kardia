@@ -6,6 +6,8 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"encoding/hex"
 )
 
 
@@ -30,13 +32,7 @@ type BlockJSON struct {
 }
 
 
-// BlockHeaderJSON represents Block Header in JSON format
-type BlockHeaderJSON struct {
-
-}
-
-
-// PublicKaiAPI provides an API to access Kai full node-related
+// PublicKaiAPI provides APIs to access Kai full node-related
 // information.
 type PublicKaiAPI struct {
 	kaiService *Kardia
@@ -130,6 +126,18 @@ type PublicTransactionJSON struct {
 	Value            *common.Big    `json:"value"`
 }
 
+type Log struct {
+	Address      string           `json:"address"`
+	Topics       []string         `json:"topics"` // use Hash.Hex()
+	Data         string           `json:"data"` // use Hex.Encode
+	BlockHeight  uint64           `json:"blockHeight"`
+	TxHash       string           `json:"transactionHash"`
+	TxIndex      uint             `json:"transactionIndex"`
+	BlockHash    string           `json:"blockHash"`
+	Index        uint             `json:"logIndex"`
+	Removed      bool             `json:"removed"`
+}
+
 
 // newPublicTransaction returns a transaction that will serialize to the RPC
 // representation, with the given location metadata set (if available).
@@ -219,4 +227,101 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransactionJSON, 
 	}
 
 	return transactions, nil
+}
+
+
+func (a *PublicTransactionAPI) getReceipts(hash common.Hash) (types.Receipts, error) {
+	height := rawdb.ReadHeaderNumber(a.s.chainDb, hash)
+	if height == nil {
+		return nil, nil
+	}
+	return rawdb.ReadReceipts(a.s.chainDb, hash, *height), nil
+}
+
+
+// GetTransactionReceipt returns the transaction receipt for the given transaction hash.
+func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash string) (map[string]interface{}, error) {
+	txHash := common.HexToHash(hash)
+	tx, blockHash, height, index := rawdb.ReadTransaction(a.s.chainDb, txHash)
+	if tx == nil {
+		return nil, nil
+	}
+	receipts, err := a.getReceipts(blockHash)
+	if err != nil {
+		return nil, err
+	}
+	if len(receipts) <= int(index) {
+		return nil, nil
+	}
+	receipt := receipts[index]
+	from, _ := types.Sender(tx)
+	logs := make([]Log, 0)
+
+	if receipt.Logs != nil {
+		logs := make([]Log, 0, len(receipt.Logs))
+		for _, log := range receipt.Logs {
+			topics := make([]string, 0, len(log.Topics))
+			for _, topic := range log.Topics {
+				topics = append(topics, topic.Hex())
+			}
+			logs = append(logs, Log{
+				Address:     log.Address.Hex(),
+				Topics:      topics,
+				Data:        hex.EncodeToString(log.Data),
+				BlockHeight: log.BlockHeight,
+				TxHash:      log.TxHash.Hex(),
+				TxIndex:     log.TxIndex,
+				BlockHash:   log.BlockHash.Hex(),
+				Index:       log.Index,
+				Removed:     log.Removed,
+			})
+		}
+	}
+
+
+	fields := map[string]interface{}{
+		"blockHash":         blockHash,
+		"blockHeight":       uint64(height),
+		"transactionHash":   hash,
+		"transactionIndex":  uint64(index),
+		"from":              from.Hex(),
+		"to":                tx.To().Hex(),
+		"gasUsed":           uint64(receipt.GasUsed),
+		"cumulativeGasUsed": uint64(receipt.CumulativeGasUsed),
+		"contractAddress":   nil,
+		"logs":              logs,
+		"logsBloom":         receipt.Bloom.Big().Int64(),
+	}
+
+	// Assign receipt status or post state.
+	if len(receipt.PostState) > 0 {
+		fields["root"] = common.Bytes(receipt.PostState)
+	} else {
+		fields["status"] = uint(receipt.Status)
+	}
+	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
+	if receipt.ContractAddress != (common.Address{}) {
+		fields["contractAddress"] = receipt.ContractAddress
+	}
+	return fields, nil
+}
+
+
+// PublicAccountAPI provides APIs support getting account's info
+type PublicAccountAPI struct {
+	kaiService *Kardia
+}
+
+
+// NewPublicAccountAPI is a constructor that init new PublicAccountAPI
+func NewPublicAccountAPI(kaiService *Kardia) *PublicAccountAPI {
+	return &PublicAccountAPI{kaiService}
+}
+
+
+// Balance returns address's balance
+func (a *PublicAccountAPI)Balance(address string) *big.Int {
+	addr := common.HexToAddress(address)
+	state, _ := a.kaiService.blockchain.State()
+	return state.GetBalance(addr)
 }
