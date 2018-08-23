@@ -117,7 +117,6 @@ func NewPublicTransactionJSON(tx *PublicTransaction) *PublicTransactionJSON {
 
 // SendRawTransaction decode encoded data into tx and then add tx into pool
 func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs string) (string, error) {
-	log.Info(fmt.Sprintf("RawTransaction: %v", txs))
 	tx := new(types.Transaction)
 	encodedTx := common.FromHex(txs)
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
