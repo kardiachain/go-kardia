@@ -288,7 +288,7 @@ func (n *Node) ServiceMap() map[string]Service {
 func (n *Node) apis() []rpc.API {
 	return []rpc.API{
 		{
-			Namespace: "kai",
+			Namespace: "node",
 			Version:   "1.0",
 			Service:   NewPublicNodeAPI(n),
 			Public:    true,

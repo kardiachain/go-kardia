@@ -18,7 +18,7 @@ const (
 var DefaultConfig = NodeConfig{
 	DataDir: DefaultDataDir(),
 	HTTPPort: DefaultHTTPPort,
-	HTTPModules:      []string{"net", "kai", "tx"},
+	HTTPModules:      []string{"node", "kai", "tx"},
 	HTTPVirtualHosts: []string{"0.0.0.0", "localhost"},
 	P2P: p2p.Config{
 		ListenAddr: ":30303",

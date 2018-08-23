@@ -1,9 +1,5 @@
 package node
 
-import (
-	"github.com/kardiachain/go-kardia/lib/common"
-)
-
 // PublicNodeAPI offers helper utils
 type PublicNodeAPI struct {
 	node *Node
@@ -15,6 +11,6 @@ func NewPublicNodeAPI(node *Node) *PublicNodeAPI {
 }
 
 // PeersList returns the number of peers that current node can connect to.
-func (s *PublicNodeAPI) PeersList() common.Uint64 {
-	return common.Uint64(100)
+func (s *PublicNodeAPI) PeersCount() int {
+	return s.node.server.PeerCount()
 }
