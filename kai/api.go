@@ -128,8 +128,8 @@ type PublicTransactionJSON struct {
 
 type Log struct {
 	Address      string           `json:"address"`
-	Topics       []string         `json:"topics"` // use Hash.Hex()
-	Data         string           `json:"data"` // use Hex.Encode
+	Topics       []string         `json:"topics"`
+	Data         string           `json:"data"`
 	BlockHeight  uint64           `json:"blockHeight"`
 	TxHash       string           `json:"transactionHash"`
 	TxIndex      uint             `json:"transactionIndex"`
@@ -227,6 +227,14 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransactionJSON, 
 	}
 
 	return transactions, nil
+}
+
+
+// GetTransaction gets transaction by transaction hash
+func (a *PublicTransactionAPI) GetTransaction(hash string) *PublicTransactionJSON {
+	txHash := common.HexToHash(hash)
+	tx, blockHash, height, index := rawdb.ReadTransaction(a.s.chainDb, txHash)
+	return NewPublicTransactionJSON(newPublicTransaction(tx, blockHash, height, index))
 }
 
 
