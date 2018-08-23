@@ -127,3 +127,133 @@ func BenchmarkCall(b *testing.B) {
 		}
 	}
 }
+
+// testing call a simple smart contract return static value
+func TestSimpleCalcContract(t *testing.T) {
+	var definition = `[
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "dm",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "x",
+				"type": "uint8"
+			},
+			{
+				"name": "y",
+				"type": "uint8"
+			}
+		],
+		"name": "plus",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "pure",
+		"type": "function"
+	}
+]`
+	var code = common.Hex2Bytes("60806040526004361060485763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416636f98b63c8114604d578063916f4029146075575b600080fd5b348015605857600080fd5b50605f6093565b6040805160ff9092168252519081900360200190f35b348015608057600080fd5b50605f60ff600435811690602435166098565b600a90565b01905600a165627a7a7230582042b9a30f60b4653c09c79c16d1976b003e7f6965ee65d924893fe488d87234c10029")
+	abi, err := abi.JSON(strings.NewReader(definition))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// cplus, err := abi.Pack("plus", uint8(5), uint8(6))
+	cplus, err := abi.Pack("dm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, _, err := Execute(code, cplus, nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	//print(uint8(ret))cplus, err := abi.Pack("plus", uint8(5), uint8(6))
+
+	num := new(big.Int).SetBytes(ret)
+	if num.Cmp(big.NewInt(10)) != 0 {
+		t.Error("Expected 10, got", num)
+	}
+
+}
+
+// testing call a simple smart contract return sum of 2 parameters
+func TestSimpleCalcContract1(t *testing.T) {
+	var definition = `[
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "dm",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "x",
+				"type": "uint8"
+			},
+			{
+				"name": "y",
+				"type": "uint8"
+			}
+		],
+		"name": "plus",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "pure",
+		"type": "function"
+	}
+]`
+	var code = common.Hex2Bytes("60806040526004361060485763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416636f98b63c8114604d578063916f4029146075575b600080fd5b348015605857600080fd5b50605f6093565b6040805160ff9092168252519081900360200190f35b348015608057600080fd5b50605f60ff600435811690602435166098565b600a90565b01905600a165627a7a7230582042b9a30f60b4653c09c79c16d1976b003e7f6965ee65d924893fe488d87234c10029")
+	abi, err := abi.JSON(strings.NewReader(definition))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// cplus, err := abi.Pack("plus", uint8(5), uint8(6))
+	cplus, err := abi.Pack("plus", uint8(1), uint8(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, _, err := Execute(code, cplus, nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	//print(uint8(ret))cplus, err := abi.Pack("plus", uint8(5), uint8(6))
+
+	num := new(big.Int).SetBytes(ret)
+	if num.Cmp(big.NewInt(3)) != 0 {
+		t.Error("Expected 3, got", num)
+	}
+
+}
