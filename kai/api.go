@@ -139,13 +139,9 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransactionJSON, 
 	// loop through pending txs
 	// stores tx hash into map to track duplicated txs
 	for _, txs := range pending {
-		m := make(map[common.Hash]int)
 		for _, tx := range txs {
-			if _, ok := m[tx.Hash()]; !ok {
-				jsonData := NewPublicTransactionJSON(newPublicTransaction(tx, common.Hash{}, 0, 0))
-				transactions = append(transactions, jsonData)
-				m[tx.Hash()] = 0
-			}
+			jsonData := NewPublicTransactionJSON(newPublicTransaction(tx, common.Hash{}, 0, 0))
+			transactions = append(transactions, jsonData)
 		}
 	}
 
