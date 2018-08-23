@@ -1,14 +1,40 @@
 package kai
 
 import (
-	"fmt"
 	"math/big"
 	"context"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
 )
+
+
+// BlockJSON represents Block in JSON format
+type BlockJSON struct {
+	Hash           string                      `json:"hash"`
+	Height         uint64                      `json:"height"`
+	LastBlock      string                      `json:"lastBlock"`
+	CommitHash     string                      `json:"commitHash"`
+	Time           *big.Int                    `json:"time"`
+	NumTxs         uint64                      `json:"num_txs"`
+	GasLimit       uint64                      `json:"gasLimit"`
+	GasUsed        uint64                      `json:"gasUsed"`
+	Validator      string                      `json:"validator"`
+	TxHash         string                      `json:"data_hash"` // transactions
+	Root           string                      `json:"stateRoot"` // state root
+	ReceiptHash    string                      `json:"receiptsRoot"` // receipt root
+	Bloom          int64                       `json:"logsBloom"`
+	ValidatorsHash string                      `json:"validators_hash"` // validators for the current block
+	ConsensusHash  string                      `json:"consensus_hash"`
+	Txs            []*PublicTransactionJSON    `json:"txs"`
+}
+
+
+// BlockHeaderJSON represents Block Header in JSON format
+type BlockHeaderJSON struct {
+
+}
+
 
 // PublicKaiAPI provides an API to access Kai full node-related
 // information.
@@ -21,8 +47,57 @@ func NewPublicKaiAPI(kaiService *Kardia) *PublicKaiAPI {
 	return &PublicKaiAPI{kaiService}
 }
 
-func (s *PublicKaiAPI) SendSignedTransaction() common.Uint64 {
-	return common.Uint64(100)
+
+// NewBlockJSON creates a new Block JSON data from Block
+func NewBlockJSON(block types.Block) *BlockJSON {
+	txs := block.Transactions()
+	transactions := make([]*PublicTransactionJSON, 0, len(txs))
+	for index, tx := range txs {
+		json := NewPublicTransactionJSON(newPublicTransaction(tx, block.Hash(), block.Height(), uint64(index)))
+		transactions = append(transactions, json)
+	}
+
+	return &BlockJSON{
+		Hash: block.Hash().Hex(),
+		Height: block.Height(),
+		LastBlock: block.Header().LastBlockID.String(),
+		Txs: transactions,
+		CommitHash: block.LastCommitHash().Hex(),
+		Time: block.Header().Time,
+		NumTxs: block.Header().NumTxs,
+		GasLimit: block.Header().GasLimit,
+		GasUsed: block.Header().GasUsed,
+		Validator: block.Header().Coinbase.Hex(),
+		TxHash: block.Header().TxHash.Hex(),
+		Root: block.Header().Root.Hex(),
+		ReceiptHash: block.Header().ReceiptHash.Hex(),
+		Bloom: block.Header().Bloom.Big().Int64(),
+		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
+		ConsensusHash: block.Header().ConsensusHash.Hex(),
+	}
+}
+
+
+// BlockNumber returns current block number
+func (s *PublicKaiAPI) BlockNumber() uint64 {
+	return s.kaiService.blockchain.CurrentBlock().Height()
+}
+
+
+// GetBlockByHash returns block by block hash
+func (s *PublicKaiAPI) GetBlockByHash(blockHash string) *BlockJSON {
+	if blockHash[0:2] == "0x" {
+		blockHash = blockHash[2:]
+	}
+	block := s.kaiService.blockchain.GetBlockByHash(common.HexToHash(blockHash))
+	return NewBlockJSON(*block)
+}
+
+
+// GetBlockByNumber returns block by block number
+func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) *BlockJSON {
+	block := s.kaiService.blockchain.GetBlockByHeight(blockNumber)
+	return NewBlockJSON(*block)
 }
 
 
