@@ -7,7 +7,9 @@ import (
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"github.com/kardiachain/go-kardia/state"
 	"encoding/hex"
+
 )
 
 
@@ -205,7 +207,10 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}.Hex(), err
 	}
-	return tx.Hash().Hex(), a.s.TxPool().AddRemote(tx)
+	if err := a.s.TxPool().AddRemote(tx); err != nil {
+		return common.Hash{}.Hex(), err
+	}
+	return tx.Hash().Hex(), nil
 }
 
 
@@ -328,8 +333,23 @@ func NewPublicAccountAPI(kaiService *Kardia) *PublicAccountAPI {
 
 
 // Balance returns address's balance
-func (a *PublicAccountAPI)Balance(address string) *big.Int {
+func (a *PublicAccountAPI)Balance(address string, hash string, height int64) (int64, error) {
 	addr := common.HexToAddress(address)
-	state, _ := a.kaiService.blockchain.State()
-	return state.GetBalance(addr)
+
+	block := new(types.Block)
+	if len(hash) > 0 && height >= 0 {
+		block = a.kaiService.blockchain.GetBlock(common.HexToHash(hash), uint64(height))
+	} else if len(hash) > 0 {
+		block = a.kaiService.blockchain.GetBlockByHash(common.HexToHash(hash))
+	} else if height >= 0 {
+		block = a.kaiService.blockchain.GetBlockByHeight(uint64(height))
+	}
+
+	// Init new State with current BlockHash
+	s, err := state.New(block.Root(), state.NewDatabase(a.kaiService.chainDb))
+	if err != nil {
+		return 0, err
+	}
+
+	return s.GetBalance(addr).Int64(), nil
 }
