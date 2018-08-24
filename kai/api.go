@@ -7,7 +7,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/blockchain/rawdb"
-	"github.com/kardiachain/go-kardia/state"
 	"encoding/hex"
 
 )
@@ -333,9 +332,8 @@ func NewPublicAccountAPI(kaiService *Kardia) *PublicAccountAPI {
 
 
 // Balance returns address's balance
-func (a *PublicAccountAPI)Balance(address string, hash string, height int64) (int64, error) {
+func (a *PublicAccountAPI)Balance(address string, hash string, height int64) int64 {
 	addr := common.HexToAddress(address)
-
 	block := new(types.Block)
 	if len(hash) > 0 && height >= 0 {
 		block = a.kaiService.blockchain.GetBlock(common.HexToHash(hash), uint64(height))
@@ -343,13 +341,9 @@ func (a *PublicAccountAPI)Balance(address string, hash string, height int64) (in
 		block = a.kaiService.blockchain.GetBlockByHash(common.HexToHash(hash))
 	} else if height >= 0 {
 		block = a.kaiService.blockchain.GetBlockByHeight(uint64(height))
+	} else {
+		block = a.kaiService.blockchain.CurrentBlock()
 	}
-
-	// Init new State with current BlockHash
-	s, err := state.New(block.Root(), state.NewDatabase(a.kaiService.chainDb))
-	if err != nil {
-		return 0, err
-	}
-
-	return s.GetBalance(addr).Int64(), nil
+	ba := block.Accounts().GetAccount(&addr)
+	return ba.Balance.Int64()
 }
