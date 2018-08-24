@@ -14,3 +14,9 @@ func NewPublicNodeAPI(node *Node) *PublicNodeAPI {
 func (s *PublicNodeAPI) PeersCount() int {
 	return s.node.server.PeerCount()
 }
+
+
+// NodeName returns name of current node
+func (s *PublicNodeAPI) NodeName() string {
+	return s.node.config.Name
+}
