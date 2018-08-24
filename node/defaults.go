@@ -20,6 +20,7 @@ var DefaultConfig = NodeConfig{
 	HTTPPort: DefaultHTTPPort,
 	HTTPModules:      []string{"node", "kai", "tx", "account"},
 	HTTPVirtualHosts: []string{"0.0.0.0", "localhost"},
+	HTTPCors: []string{"*"},
 	P2P: p2p.Config{
 		ListenAddr: ":30303",
 		MaxPeers:   5,
