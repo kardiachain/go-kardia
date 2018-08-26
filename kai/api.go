@@ -5,6 +5,7 @@ import (
 	"context"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/blockchain/rawdb"
 	"encoding/hex"
@@ -201,15 +202,13 @@ func NewPublicTransactionJSON(tx *PublicTransaction) *PublicTransactionJSON {
 
 // SendRawTransaction decode encoded data into tx and then add tx into pool
 func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs string) (string, error) {
+	log.Info("SendRawTransaction", "data", txs)
 	tx := new(types.Transaction)
 	encodedTx := common.FromHex(txs)
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}.Hex(), err
 	}
-	if err := a.s.TxPool().AddRemote(tx); err != nil {
-		return common.Hash{}.Hex(), err
-	}
-	return tx.Hash().Hex(), nil
+	return tx.Hash().Hex(), a.s.TxPool().AddRemote(tx)
 }
 
 
@@ -271,21 +270,21 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 
 	if receipt.Logs != nil {
 		logs := make([]Log, 0, len(receipt.Logs))
-		for _, log := range receipt.Logs {
-			topics := make([]string, 0, len(log.Topics))
-			for _, topic := range log.Topics {
+		for _, l := range receipt.Logs {
+			topics := make([]string, 0, len(l.Topics))
+			for _, topic := range l.Topics {
 				topics = append(topics, topic.Hex())
 			}
 			logs = append(logs, Log{
-				Address:     log.Address.Hex(),
+				Address:     l.Address.Hex(),
 				Topics:      topics,
-				Data:        hex.EncodeToString(log.Data),
-				BlockHeight: log.BlockHeight,
-				TxHash:      log.TxHash.Hex(),
-				TxIndex:     log.TxIndex,
-				BlockHash:   log.BlockHash.Hex(),
-				Index:       log.Index,
-				Removed:     log.Removed,
+				Data:        hex.EncodeToString(l.Data),
+				BlockHeight: l.BlockHeight,
+				TxHash:      l.TxHash.Hex(),
+				TxIndex:     l.TxIndex,
+				BlockHash:   l.BlockHash.Hex(),
+				Index:       l.Index,
+				Removed:     l.Removed,
 			})
 		}
 	}

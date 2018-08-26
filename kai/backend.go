@@ -112,6 +112,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csReactor); err != nil {
 		return nil, err
 	}
+	kai.protocolManager.acceptTxs = config.AcceptTxs
 	kai.csReactor.SetProtocol(kai.protocolManager)
 
 	return kai, nil
@@ -127,6 +128,8 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		DbHandles: nodeConfig.DbHandles,
 		DbCaches:  nodeConfig.DbCache,
 		Genesis:   nodeConfig.Genesis,
+		TxPool: nodeConfig.TxPool,
+		AcceptTxs: nodeConfig.AcceptTxs,
 	})
 
 	if err != nil {

@@ -97,6 +97,7 @@ func main() {
 	proposal := flag.Int("proposal", 1, "specify which node is the proposer. The index starts from 1, and every node needs to use the same proposer index. Note that this flag only has effect when --dev flag is set")
 	votingStrategy := flag.String("votingStrategy", "", "specify the voting script or strategy to simulate voting. Note that this flag only has effect when --dev flag is set")
 	clearDataDir := flag.Bool("clearDataDir", false, "remove contents in data dir")
+	acceptTxs := flag.Int("acceptTxs", 1, "accept process tx or not, 1 is yes and 0 is no")
 
 	flag.Parse()
 
@@ -106,7 +107,7 @@ func main() {
 		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
 		level = log.LvlInfo
 	}
-	log.Root().SetHandler(log.LvlFilterHandler(level, log.StreamHandler(os.Stdout, log.TerminalFormat(false))))
+	log.Root().SetHandler(log.LvlFilterHandler(level, log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
 
 	logger := log.New()
 
@@ -138,6 +139,7 @@ func main() {
 	config := &node.DefaultConfig
 	config.P2P.ListenAddr = *listenAddr
 	config.Name = *name
+	config.AcceptTxs = uint32(*acceptTxs)
 	var devEnv *development.DevEnvironmentConfig
 
 	if *rpcEnabled {
@@ -170,12 +172,14 @@ func main() {
 		config.Genesis = blockchain.DefaultTestnetGenesisBlock(development.GenesisAccounts)
 	}
 
+	nodeDir := filepath.Join(config.DataDir, config.Name)
+	config.TxPool = *blockchain.GetDefaultTxPoolConfig(nodeDir)
+
 	if *clearDataDir {
 		// Clear all contents within data dir
-		dir := filepath.Join(config.DataDir, config.Name)
-		err := RemoveDirContents(dir)
+		err := RemoveDirContents(nodeDir)
 		if err != nil {
-			logger.Error("Cannot remove contents in directory", "dir", dir, "err", err)
+			logger.Error("Cannot remove contents in directory", "dir", nodeDir, "err", err)
 			return
 		}
 	}

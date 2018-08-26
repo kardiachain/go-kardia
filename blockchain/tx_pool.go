@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
+	"path/filepath"
 )
 
 const (
@@ -138,6 +139,17 @@ var DefaultTxPoolConfig = TxPoolConfig{
 
 	Lifetime: 3 * time.Hour,
 }
+
+
+// GetDefaultTxPoolConfig returns default txPoolConfig with given dir path
+func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
+	conf := DefaultTxPoolConfig
+	if len(path) > 0 {
+		conf.Journal = filepath.Join(path, conf.Journal)
+	}
+	return &conf
+}
+
 
 // sanitize checks the provided user configurations and changes anything that's
 // unreasonable or unworkable.
