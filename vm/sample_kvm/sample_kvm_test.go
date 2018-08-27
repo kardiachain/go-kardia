@@ -338,3 +338,104 @@ func TestCreateContractWithInput(t *testing.T){
 		t.Error("Expected 7, got", num)
 	}
 }
+
+// the following test case is failing because invalid RETURN opcode
+// https://github.com/kardiachain/go-kardia/issues/63
+/*func TestCreateContractWithStorage(t *testing.T) {
+	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	address := common.HexToAddress("0x0b")
+	var code = common.Hex2Bytes("60806040526000805460ff1916600517905534801561001d57600080fd5b5060a08061002c6000396000f300608060405260043610603e5763ffffffff7c0100000000000000000000000000000000000000000000000000000000600035041663de29278981146043575b600080fd5b348015604e57600080fd5b506055606b565b6040805160ff9092168252519081900360200190f35b60005460ff16905600a165627a7a72305820999359c62faede362eee89d721a94faf3d1bb1ac48b98b9772641a65e703b4e50029")
+	state.SetCode(address, code)
+	var definition = `[
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "getResult",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	}
+]`
+	abi, err := abi.JSON(strings.NewReader(definition))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	// cplus, err := abi.Pack("plus", uint8(5), uint8(6))
+	getResult, err := abi.Pack("getResult")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, _, err := Call(address, getResult, &Config{State: state})
+	result1 := new(big.Int).SetBytes(ret)
+	if result1.Cmp(big.NewInt(5)) != 0 {
+		t.Error("Expected 5, got", result1)
+	}
+}*/
+
+func TestChangeBalance(t *testing.T) {
+	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	var address = common.HexToAddress("0x0b")
+	state.CreateAccount(address)
+	state.AddBalance(address, big.NewInt(500))
+
+	var balance = state.GetBalance(address)
+	if balance.Cmp(big.NewInt(500)) != 0 {
+		t.Error("error setting balance, expect 500, got", balance)
+	}
+
+	state.SubBalance(address, big.NewInt(100))
+	balance = state.GetBalance(address)
+	if balance.Cmp(big.NewInt(400)) != 0 {
+		t.Error("error subtract balance, expect 400, got", balance)
+	}
+}
+
+func TestCallSmcDeductBalance(t *testing.T) {
+	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	var sender = common.HexToAddress("0x0b")
+	state.CreateAccount(sender)
+	state.AddBalance(sender, big.NewInt(500))
+
+	address := common.HexToAddress("0x0a")
+
+	state.SetCode(address, []byte{
+		byte(vm.PUSH1), 10,
+		byte(vm.PUSH1), 0,
+		byte(vm.MSTORE),
+		byte(vm.PUSH1), 32,
+		byte(vm.PUSH1), 0,
+		byte(vm.RETURN),
+	})
+	ret, _, err := Call(address, nil, &Config{State: state, Origin: sender, Value: big.NewInt(50)})
+	if err != nil {
+		t.Fatal("didn't expect error", err)
+	}
+
+	num := new(big.Int).SetBytes(ret)
+	if num.Cmp(big.NewInt(10)) != 0 {
+		t.Error("Expected 10, got", num)
+	}
+	var sender_balance = state.GetBalance(sender)
+	if sender_balance.Cmp(big.NewInt(450)) != 0 {
+		t.Error("Invalid remaining balance, expect 450, got", sender_balance)
+	}
+	var contract_balance = state.GetBalance(address)
+	if contract_balance.Cmp(big.NewInt(50)) != 0 {
+		t.Error("Invalid contract balance, expect 50, got", contract_balance)
+	}
+}
