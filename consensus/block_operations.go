@@ -7,6 +7,7 @@ import (
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
+	"fmt"
 )
 
 // TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
@@ -53,7 +54,10 @@ func (bs *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commi
 		cmn.PanicSanity(cmn.Fmt("BlockStore can only save contiguous blocks. Wanted %v, got %v", bs.Height()+1, height))
 	}
 
-	bs.blockchain.WriteBlockWithoutState(block)
+	// TODO(kiendn): WriteBlockWithoutState returns an error, write logic check if error appears
+	if err := bs.blockchain.WriteBlockWithoutState(block); err != nil {
+		cmn.PanicSanity(cmn.Fmt("WriteBlockWithoutState fails with error %v", err))
+	}
 
 	// Save block commit (duplicate and separate from the Block)
 	bs.blockchain.WriteCommit(height-1, block.LastCommit())
@@ -63,7 +67,11 @@ func (bs *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commi
 	bs.blockchain.WriteCommit(height, seenCommit)
 
 	// TODO(thientn/namdoh): remove the committed transactions from tx pool.
-
+	// @kiendn: remove all txs in block from tx pool
+	txs := block.Transactions()
+	for _, tx := range txs {
+		bs.txPool.RemoveTx(tx.Hash(), true)
+	}
 	// Done!
 	bs.mtx.Lock()
 	bs.height = height
@@ -92,8 +100,11 @@ func (b *BlockOperations) CollectTransactions() []*types.Transaction {
 // GenerateNewAccountStates generates new accountStates by executing given txns on the account state of blockchain head.
 func (b *BlockOperations) GenerateNewAccountStates(txns []*types.Transaction) (types.AccountStates, error) {
 	// use accountState of latest block
-	accounts := b.blockchain.CurrentBlock().Accounts()
-	return blockchain.ApplyTransactionsToAccountState(txns, accounts)
+	if len(txns) > 0 {
+		accounts := b.blockchain.CurrentBlock().Accounts()
+		return blockchain.ApplyTransactionsToAccountState(txns, accounts)
+	}
+	return nil, fmt.Errorf("transactions list is empty")
 }
 
 // LoadBlock returns the Block for the given height.

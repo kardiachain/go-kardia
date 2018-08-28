@@ -72,11 +72,10 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 
 func ApplyTransactionsToAccountState(txs []*types.Transaction, accounts types.AccountStates) (types.AccountStates, error) {
 	// converts to map.
-	accountMap := make(map[common.Address]*big.Int, len(accounts))
+	accountMap := make(map[common.Address]*big.Int)
 	for _, account := range accounts {
 		accountMap[*account.Addr] = account.Balance
 	}
-
 	// applying txs.
 	for _, tx := range txs {
 		from, err := types.Sender(tx)
@@ -91,7 +90,10 @@ func ApplyTransactionsToAccountState(txs []*types.Transaction, accounts types.Ac
 		}
 		toBalance, found := accountMap[*to]
 		if !found {
-			return nil, fmt.Errorf("receiver account %v is not found when applying transaction", *to)
+			//return nil, fmt.Errorf("receiver account %v is not found when applying transaction", *to)
+			balance := big.NewInt(0)
+			accounts = append(accounts, &types.BlockAccount{Addr: to, Balance: balance})
+			accountMap[*to] = balance.Add(balance, tx.Value())
 		}
 
 		fromBalance.Sub(fromBalance, tx.Value())

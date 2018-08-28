@@ -102,30 +102,30 @@ func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) *BlockJSON {
 // PublicTransaction represents a transaction that will serialize to the RPC representation of a transaction
 type PublicTransaction struct {
 	BlockHash        common.Hash     `json:"blockHash"`
-	BlockNumber      *common.Big     `json:"blockNumber"`
+	BlockNumber      common.Uint64   `json:"blockNumber"`
 	From             common.Address  `json:"from"`
 	Gas              common.Uint64   `json:"gas"`
-	GasPrice         *common.Big     `json:"gasPrice"`
+	GasPrice         common.Uint64   `json:"gasPrice"`
 	Hash             common.Hash     `json:"hash"`
 	Input            common.Bytes    `json:"input"`
 	Nonce            common.Uint64   `json:"nonce"`
 	To               *common.Address `json:"to"`
 	TransactionIndex uint            `json:"transactionIndex"`
-	Value            *common.Big     `json:"value"`
+	Value            common.Uint64   `json:"value"`
 }
 
 type PublicTransactionJSON struct {
 	BlockHash        string     	`json:"blockHash"`
-	BlockNumber      *common.Big    `json:"blockNumber"`
+	BlockNumber      common.Uint64  `json:"blockNumber"`
 	From             string     	`json:"from"`
 	Gas              common.Uint64  `json:"gas"`
-	GasPrice         *common.Big    `json:"gasPrice"`
+	GasPrice         common.Uint64  `json:"gasPrice"`
 	Hash             string     	`json:"hash"`
 	Input            string     	`json:"input"`
 	Nonce            common.Uint64  `json:"nonce"`
 	To               string     	`json:"to"`
     TransactionIndex uint       	`json:"transactionIndex"`
-	Value            *common.Big    `json:"value"`
+	Value            common.Uint64  `json:"value"`
 }
 
 type Log struct {
@@ -149,16 +149,16 @@ func newPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNum
 	result := &PublicTransaction{
 		From:     from,
 		Gas:      common.Uint64(tx.Gas()),
-		GasPrice: (*common.Big)(tx.GasPrice()),
+		GasPrice: common.Uint64(tx.GasPrice().Int64()),
 		Hash:     tx.Hash(),
 		Input:    common.Bytes(tx.Data()),
 		Nonce:    common.Uint64(tx.Nonce()),
 		To:       tx.To(),
-		Value:    (*common.Big)(tx.Value()),
+		Value:    common.Uint64(tx.Value().Int64()),
 	}
 	if blockHash != (common.Hash{}) {
 		result.BlockHash = blockHash
-		result.BlockNumber = (*common.Big)(new(big.Int).SetUint64(blockNumber))
+		result.BlockNumber = common.Uint64(blockNumber)
 		result.TransactionIndex = uint(index)
 	}
 	return result
