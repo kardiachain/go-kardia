@@ -30,7 +30,7 @@ type BlockJSON struct {
 	Bloom          int64                       `json:"logsBloom"`
 	ValidatorsHash string                      `json:"validators_hash"` // validators for the current block
 	ConsensusHash  string                      `json:"consensus_hash"`
-	Txs            []*PublicTransactionJSON    `json:"txs"`
+	Txs            []*PublicTransaction        `json:"txs"`
 }
 
 
@@ -49,9 +49,9 @@ func NewPublicKaiAPI(kaiService *Kardia) *PublicKaiAPI {
 // NewBlockJSON creates a new Block JSON data from Block
 func NewBlockJSON(block types.Block) *BlockJSON {
 	txs := block.Transactions()
-	transactions := make([]*PublicTransactionJSON, 0, len(txs))
+	transactions := make([]*PublicTransaction, 0, len(txs))
 	for index, tx := range txs {
-		json := NewPublicTransactionJSON(newPublicTransaction(tx, block.Hash(), block.Height(), uint64(index)))
+		json := NewPublicTransaction(tx, block.Hash(), block.Height(), uint64(index))
 		transactions = append(transactions, json)
 	}
 
@@ -99,22 +99,35 @@ func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) *BlockJSON {
 }
 
 
-// PublicTransaction represents a transaction that will serialize to the RPC representation of a transaction
-type PublicTransaction struct {
-	BlockHash        common.Hash     `json:"blockHash"`
-	BlockNumber      common.Uint64   `json:"blockNumber"`
-	From             common.Address  `json:"from"`
-	Gas              common.Uint64   `json:"gas"`
-	GasPrice         common.Uint64   `json:"gasPrice"`
-	Hash             common.Hash     `json:"hash"`
-	Input            common.Bytes    `json:"input"`
-	Nonce            common.Uint64   `json:"nonce"`
-	To               *common.Address `json:"to"`
-	TransactionIndex uint            `json:"transactionIndex"`
-	Value            common.Uint64   `json:"value"`
+// Validator returns node's validator, nil if current node is not a validator
+func (s *PublicKaiAPI) Validator() map[string]interface{} {
+	if val := s.kaiService.csReactor.Validator(); val != nil {
+		return map[string]interface{}{
+			"address": val.Address.Hex(),
+			"votingPower": val.VotingPower,
+		}
+	}
+	return nil
 }
 
-type PublicTransactionJSON struct {
+
+// Validators returns a list of validator
+func (s *PublicKaiAPI) Validators() []map[string]interface{} {
+	if vals := s.kaiService.csReactor.Validators(); vals != nil && len(vals) > 0 {
+		results := make([]map[string]interface{}, len(vals))
+		for i, val := range vals {
+			results[i] = map[string]interface{} {
+				"address": val.Address.Hex(),
+				"votingPower": val.VotingPower,
+			}
+		}
+		return results
+	}
+	return nil
+}
+
+
+type PublicTransaction struct {
 	BlockHash        string     	`json:"blockHash"`
 	BlockNumber      common.Uint64  `json:"blockNumber"`
 	From             string     	`json:"from"`
@@ -141,23 +154,23 @@ type Log struct {
 }
 
 
-// newPublicTransaction returns a transaction that will serialize to the RPC
+// NewPublicTransaction returns a transaction that will serialize to the RPC
 // representation, with the given location metadata set (if available).
-func newPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64) *PublicTransaction {
+func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64) *PublicTransaction {
 	from, _ := types.Sender(tx)
 
 	result := &PublicTransaction{
-		From:     from,
+		From:     from.Hex(),
 		Gas:      common.Uint64(tx.Gas()),
 		GasPrice: common.Uint64(tx.GasPrice().Int64()),
-		Hash:     tx.Hash(),
-		Input:    common.Bytes(tx.Data()),
+		Hash:     tx.Hash().Hex(),
+		Input:    common.Encode(tx.Data()),
 		Nonce:    common.Uint64(tx.Nonce()),
-		To:       tx.To(),
+		To:       tx.To().Hex(),
 		Value:    common.Uint64(tx.Value().Int64()),
 	}
 	if blockHash != (common.Hash{}) {
-		result.BlockHash = blockHash
+		result.BlockHash = blockHash.Hex()
 		result.BlockNumber = common.Uint64(blockNumber)
 		result.TransactionIndex = uint(index)
 	}
@@ -177,29 +190,6 @@ func NewPublicTransactionAPI(service *Kardia) *PublicTransactionAPI {
 }
 
 
-// NewPublicTransactionJSON is a constructor of PublicTransactionJSON
-func NewPublicTransactionJSON(tx *PublicTransaction) *PublicTransactionJSON {
-	result := &PublicTransactionJSON{
-		From: tx.From.Hex(),
-		Gas: tx.Gas,
-		GasPrice: tx.GasPrice,
-		Hash: tx.Hash.Hex(),
-		Input: common.Encode(tx.Input),
-		Nonce: tx.Nonce,
-		To: tx.To.Hex(),
-		Value: tx.Value,
-	}
-
-	if tx.BlockHash != (common.Hash{}) {
-		result.BlockHash = tx.BlockHash.Hex()
-		result.BlockNumber = tx.BlockNumber
-		result.TransactionIndex = tx.TransactionIndex
-	}
-
-	return result
-}
-
-
 // SendRawTransaction decode encoded data into tx and then add tx into pool
 func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs string) (string, error) {
 	log.Info("SendRawTransaction", "data", txs)
@@ -213,18 +203,18 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 
 
 // PendingTransactions returns pending transactions
-func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransactionJSON, error) {
+func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, error) {
 	pending, err := a.s.TxPool().Pending()
 	if err != nil {
 		return nil, err
 	}
 
-	transactions := make([]*PublicTransactionJSON, 0, len(pending))
+	transactions := make([]*PublicTransaction, 0, len(pending))
 
 	// loop through pending txs
 	for _, txs := range pending {
 		for _, tx := range txs {
-			jsonData := NewPublicTransactionJSON(newPublicTransaction(tx, common.Hash{}, 0, 0))
+			jsonData := NewPublicTransaction(tx, common.Hash{}, 0, 0)
 			transactions = append(transactions, jsonData)
 		}
 	}
@@ -234,10 +224,10 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransactionJSON, 
 
 
 // GetTransaction gets transaction by transaction hash
-func (a *PublicTransactionAPI) GetTransaction(hash string) *PublicTransactionJSON {
+func (a *PublicTransactionAPI) GetTransaction(hash string) *PublicTransaction {
 	txHash := common.HexToHash(hash)
 	tx, blockHash, height, index := rawdb.ReadTransaction(a.s.chainDb, txHash)
-	return NewPublicTransactionJSON(newPublicTransaction(tx, blockHash, height, index))
+	return NewPublicTransaction(tx, blockHash, height, index)
 }
 
 
