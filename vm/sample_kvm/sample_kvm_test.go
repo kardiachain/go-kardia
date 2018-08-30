@@ -257,6 +257,101 @@ func TestSimpleCalcContract1(t *testing.T) {
 	}
 }
 
+/*
+pragma solidity ^0.4.0;
+contract SimpleCalc {
+
+    function plus(uint8 x, uint8 y) public pure returns (uint8) {
+        return x + y;
+    }
+
+    function dm() public pure returns (uint8) {
+        return 10;
+    }
+}
+
+Compiled version: 0.4.24+commit.e67f0147.Emscripten.clang
+ */
+// testing call a simple smart contract return sum of 2 parameters
+func TestSimpleCalcContract2(t *testing.T) {
+	var definition = `[
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "dm",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "pure",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "x",
+				"type": "uint8"
+			},
+			{
+				"name": "y",
+				"type": "uint8"
+			}
+		],
+		"name": "plus",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "pure",
+		"type": "function"
+	}
+]`
+	var code = common.Hex2Bytes("6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680636f98b63c14604e578063916f402914607c575b600080fd5b348015605957600080fd5b50606060d0565b604051808260ff1660ff16815260200191505060405180910390f35b348015608757600080fd5b5060b4600480360381019080803560ff169060200190929190803560ff16906020019092919050505060d9565b604051808260ff1660ff16815260200191505060405180910390f35b6000600a905090565b60008183019050929150505600a165627a7a72305820128a36bc73a2b03d029970cd0b39a2ac5a0a992e2dadfc767c72ccc64128a1e00029")
+	abi, err := abi.JSON(strings.NewReader(definition))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// cplus, err := abi.Pack("plus", uint8(5), uint8(6))
+	cplus, err := abi.Pack("plus", uint8(1), uint8(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, _, err := Execute(code, cplus, nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	//print(uint8(ret))cplus, err := abi.Pack("plus", uint8(5), uint8(6))
+
+	num := new(big.Int).SetBytes(ret)
+	if num.Cmp(big.NewInt(3)) != 0 {
+		t.Error("Expected 3, got", num)
+	}
+
+
+	dm, err := abi.Pack("dm")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret1, _, err := Execute(code, dm, nil)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	//print(uint8(ret))cplus, err := abi.Pack("plus", uint8(5), uint8(6))
+
+	num1 := new(big.Int).SetBytes(ret1)
+	if num1.Cmp(big.NewInt(10)) != 0 {
+		t.Error("Expected 10, got", num)
+	}
+}
 // the following test case fails now
 // as when the contract get executed, it stops at REVERT opcodes
 /*
@@ -427,6 +522,108 @@ func TestCreateContractWithStorage(t *testing.T) {
 		t.Fatal(err)
 	}
 	ret, _, err := Call(address, getResult, &Config{State: state})
+	result1 := new(big.Int).SetBytes(ret)
+	if result1.Cmp(big.NewInt(10)) != 0 {
+		t.Error("Expected 10, got", result1)
+	}
+}
+/*
+
+ */
+func TestSimpleCounter(t *testing.T) {
+	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	address := common.HexToAddress("0x0c")
+	state.SetCode(address, common.Hex2Bytes("608060405260056000806101000a81548160ff021916908360ff16021790555034801561002b57600080fd5b5061011c8061003b6000396000f3006080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680631c6ec4ac14604e578063371303c0146095575b600080fd5b348015605957600080fd5b506079600480360381019080803560ff16906020019092919050505060a9565b604051808260ff1660ff16815260200191505060405180910390f35b34801560a057600080fd5b5060a760c1565b005b60008060009054906101000a900460ff169050919050565b60016000808282829054906101000a900460ff160192506101000a81548160ff021916908360ff1602179055505600a165627a7a723058201a15742f83edaa9025630fd001fdf13d1bdc6e0a6f615966b221c9cbc0d0b9e90029"))
+	var def = `[
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "c",
+				"type": "uint8"
+			}
+		],
+		"name": "display",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [],
+		"name": "inc",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]`
+	abi, err := abi.JSON(strings.NewReader(def))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	getResult, err := abi.Pack("display", uint8(10))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, _, err := Call(address, getResult, &Config{State: state})
+
+	result1 := new(big.Int).SetBytes(ret)
+	if result1.Cmp(big.NewInt(5)) != 0 {
+		t.Error("Expected 5, got", result1)
+	}
+}
+
+func TestReflect(t *testing.T) {
+	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	address := common.HexToAddress("0x0d")
+	state.SetCode(address, common.Hex2Bytes("608060405234801561001057600080fd5b5060a08061001f6000396000f300608060405260043610603e5763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416631c6ec4ac81146043575b600080fd5b348015604e57600080fd5b50605b60ff600435166071565b6040805160ff9092168252519081900360200190f35b905600a165627a7a72305820a58011575df315bc395a325e71075ecefa50558944dc093ab0d5d9bbf7b7bba10029"))
+	var def = `[
+	{
+		"inputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "c",
+				"type": "uint8"
+			}
+		],
+		"name": "display",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"payable": false,
+		"stateMutability": "pure",
+		"type": "function"
+	}
+]`
+	abi, err := abi.JSON(strings.NewReader(def))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	getResult, err := abi.Pack("display", uint8(10))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ret, _, err := Call(address, getResult, &Config{State: state})
+	println("Length :", len(ret))
+	println(ret)
 	result1 := new(big.Int).SetBytes(ret)
 	if result1.Cmp(big.NewInt(10)) != 0 {
 		t.Error("Expected 10, got", result1)
