@@ -18,6 +18,9 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
+	"path/filepath"
+	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	kaidb "github.com/kardiachain/go-kardia/storage"
 )
 
 const (
@@ -102,7 +105,7 @@ type blockChain interface {
 	CurrentBlock() *types.Block
 	GetBlock(hash common.Hash, number uint64) *types.Block
 	StateAt(root common.Hash) (*state.StateDB, error)
-
+	DB() kaidb.Database
 	SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription
 }
 
@@ -138,6 +141,17 @@ var DefaultTxPoolConfig = TxPoolConfig{
 
 	Lifetime: 3 * time.Hour,
 }
+
+
+// GetDefaultTxPoolConfig returns default txPoolConfig with given dir path
+func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
+	conf := DefaultTxPoolConfig
+	if len(path) > 0 {
+		conf.Journal = filepath.Join(path, conf.Journal)
+	}
+	return &conf
+}
+
 
 // sanitize checks the provided user configurations and changes anything that's
 // unreasonable or unworkable.
@@ -302,7 +316,7 @@ func (pool *TxPool) loop() {
 				// Any non-locals old enough should be removed
 				if time.Since(pool.beats[addr]) > pool.config.Lifetime {
 					for _, tx := range pool.queue[addr].Flatten() {
-						pool.removeTx(tx.Hash(), true)
+						pool.RemoveTx(tx.Hash(), true)
 					}
 				}
 			}
@@ -460,7 +474,7 @@ func (pool *TxPool) SetGasPrice(price *big.Int) {
 
 	pool.gasPrice = price
 	for _, tx := range pool.priced.Cap(price, pool.locals) {
-		pool.removeTx(tx.Hash(), false)
+		pool.RemoveTx(tx.Hash(), false)
 	}
 	log.Info("Transaction pool price threshold updated", "price", price)
 }
@@ -625,7 +639,9 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	// If the transaction is already known, discard it
 	hash := tx.Hash()
-	if pool.all.Get(hash) != nil {
+
+	// If transaction exists in pool or DB, discard it
+	if t, _, _, _ := rawdb.ReadTransaction(pool.chain.DB(), hash); pool.all.Get(hash) != nil || t != nil {
 		log.Trace("Discarding already known transaction", "hash", hash)
 		return false, fmt.Errorf("known transaction: %x", hash)
 	}
@@ -648,7 +664,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 		for _, tx := range drop {
 			log.Trace("Discarding freshly underpriced transaction", "hash", tx.Hash(), "price", tx.GasPrice())
 			underpricedTxCounter.Inc(1)
-			pool.removeTx(tx.Hash(), false)
+			pool.RemoveTx(tx.Hash(), false)
 		}
 	}
 	// If the transaction is replacing an already pending one, do directly
@@ -877,9 +893,9 @@ func (pool *TxPool) Get(hash common.Hash) *types.Transaction {
 	return pool.all.Get(hash)
 }
 
-// removeTx removes a single transaction from the queue, moving all subsequent
+// RemoveTx removes a single transaction from the queue, moving all subsequent
 // transactions back to the future queue.
-func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
+func (pool *TxPool) RemoveTx(hash common.Hash, outofbound bool) {
 	// Fetch the transaction we wish to delete
 	tx := pool.all.Get(hash)
 	if tx == nil {
@@ -1090,7 +1106,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			// Drop all transactions if they are less than the overflow
 			if size := uint64(list.Len()); size <= drop {
 				for _, tx := range list.Flatten() {
-					pool.removeTx(tx.Hash(), true)
+					pool.RemoveTx(tx.Hash(), true)
 				}
 				drop -= size
 				queuedRateLimitCounter.Inc(int64(size))
@@ -1099,7 +1115,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			// Otherwise drop only last few transactions
 			txs := list.Flatten()
 			for i := len(txs) - 1; i >= 0 && drop > 0; i-- {
-				pool.removeTx(txs[i].Hash(), true)
+				pool.RemoveTx(txs[i].Hash(), true)
 				drop--
 				queuedRateLimitCounter.Inc(1)
 			}

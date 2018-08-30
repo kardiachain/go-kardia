@@ -38,7 +38,7 @@ type KeyStore struct {
 /*
 	New KeyStoreJSON from auth string
 */
-func (keyStore *KeyStore) NewKeyStoreJSON(auth string, pk *string) (*KeyStoreJson, error) {
+func (keyStore *KeyStore) NewKeyStoreJSON(auth string, pk string) (*KeyStoreJson, error) {
 	// Convert auth (password) to byte array
 	authArray := []byte(auth)
 
@@ -56,13 +56,13 @@ func (keyStore *KeyStore) NewKeyStoreJSON(auth string, pk *string) (*KeyStoreJso
 
 	var privateKey *ecdsa.PrivateKey
 	// Get random private key
-	if pk == nil {
+	if len(pk) == 0 {
 		privateKey, err = ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		pkByte, err := hex.DecodeString(*pk)
+		pkByte, err := hex.DecodeString(pk)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +107,7 @@ func (keyStore *KeyStore) NewKeyStoreJSON(auth string, pk *string) (*KeyStoreJso
 /*
 	Create new keystore based on path, password
 */
-func (keyStore *KeyStore) createKeyStore(auth string, privateKey *string) error {
+func (keyStore *KeyStore) createKeyStore(auth string, privateKey string) error {
 	ks, err := keyStore.NewKeyStoreJSON(auth, privateKey)
 
 	if err != nil {

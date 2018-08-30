@@ -1194,9 +1194,10 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	//  so the proposal block already contains account state results from the proposed txns.
 
 	txs := cs.blockOperations.CollectTransactions()
-	log.Error("Collected transactions", "txs", txs)
+	log.Debug("Collected transactions", "txs", txs)
+
 	newAccountStates, err := cs.blockOperations.GenerateNewAccountStates(txs)
-	if err != nil {
+	if err != nil || newAccountStates == nil {
 		log.Error("Failed to execute txns, use AccountStates from last block", "err", err)
 		newAccountStates = cs.blockOperations.blockchain.CurrentBlock().Accounts()
 	}

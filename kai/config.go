@@ -33,4 +33,7 @@ type Config struct {
 
 	// DB handles
 	DbHandles int
+
+	// acceptTxs accept tx sync processes
+	AcceptTxs uint32
 }

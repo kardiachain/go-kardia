@@ -73,6 +73,10 @@ func (bc *BlockChain) Processor() *StateProcessor {
 	return bc.processor
 }
 
+func (bc *BlockChain) DB() kaidb.Database {
+	return bc.db
+}
+
 // Config retrieves the blockchain's chain configuration.
 func (bc *BlockChain) Config() *configs.ChainConfig { return bc.chainConfig }
 
@@ -308,17 +312,27 @@ func (bc *BlockChain) SetHead(head uint64) error {
 }
 
 // WriteBlockWithoutState writes only new block to database.
-func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) {
+func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) error{
 	// Makes sure no inconsistent state is leaked during insertion
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
-	rawdb.WriteBlock(bc.db, block)
+	// Write block data in batch
+	batch := bc.db.NewBatch()
+	rawdb.WriteBlock(batch, block)
+
+	// Convert all txs into txLookupEntries and store to db
+	rawdb.WriteTxLookupEntries(batch, block)
+	if err := batch.Write(); err != nil {
+		return err
+	}
+
 	// Skips updating state & receipt storage
 	bc.insert(block)
 	bc.futureBlocks.Remove(block.Hash())
 
 	// Sends new head event
 	bc.chainHeadFeed.Send(ChainHeadEvent{Block: block})
+	return nil
 }
 
 // WriteBlockWithState writes the block and all associated state to the database.
@@ -338,6 +352,7 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 		return err
 	}
 	rawdb.WriteReceipts(batch, block.Hash(), block.Header().Height, receipts)
+	rawdb.WriteTxLookupEntries(batch, block)
 	if err := batch.Write(); err != nil {
 		return err
 	}

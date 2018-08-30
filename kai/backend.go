@@ -113,6 +113,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csReactor); err != nil {
 		return nil, err
 	}
+	kai.protocolManager.acceptTxs = config.AcceptTxs
 	kai.csReactor.SetProtocol(kai.protocolManager)
 
 	return kai, nil
@@ -128,6 +129,8 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		DbHandles: nodeConfig.DbHandles,
 		DbCaches:  nodeConfig.DbCache,
 		Genesis:   nodeConfig.Genesis,
+		TxPool: nodeConfig.TxPool,
+		AcceptTxs: nodeConfig.AcceptTxs,
 	})
 
 	if err != nil {
@@ -190,7 +193,20 @@ func (s *Kardia) APIs() []rpc.API {
 			Version:   "1.0",
 			Service:   NewPublicKaiAPI(s),
 			Public:    true,
-		}}
+		},
+		{
+			Namespace: "tx",
+			Version: "1.0",
+			Service: NewPublicTransactionAPI(s),
+			Public: true,
+		},
+		{
+			Namespace: "account",
+			Version: "1.0",
+			Service: NewPublicAccountAPI(s),
+			Public: true,
+		},
+	}
 }
 
 func (s *Kardia) TxPool() *blockchain.TxPool         { return s.txPool }

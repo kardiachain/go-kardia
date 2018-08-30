@@ -47,7 +47,7 @@ func TestGenesisAllocFromData(t *testing.T) {
 	var data = make(map[string]int64, len(privKeys))
 	for _, pk := range privKeys {
 		keystore := account.KeyStore{Path: ""}
-		keystoreJson, err := keystore.NewKeyStoreJSON(password, &pk)
+		keystoreJson, err := keystore.NewKeyStoreJSON(password, pk)
 
 		if err != nil {
 			t.Error("Cannot create new keystore")

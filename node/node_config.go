@@ -99,6 +99,12 @@ type NodeConfig struct {
 
 	// Genesis is genesis block which contain initial Block and accounts
 	Genesis *blockchain.Genesis
+
+	// Transaction pool options
+	TxPool blockchain.TxPoolConfig
+
+	// AcceptTxs accept tx sync process or not (1 is yes and 0 is no)
+	AcceptTxs uint32
 }
 
 // NodeName returns the devp2p node identifier.

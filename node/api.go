@@ -1,22 +1,33 @@
 package node
 
-import (
-	"github.com/kardiachain/go-kardia/lib/common"
-)
-
-// PublicKaiAPI offers helper utils
-type PublicKaiAPI struct {
-	stack *Node
+// PublicNodeAPI offers helper utils
+type PublicNodeAPI struct {
+	node *Node
 }
 
-// NewPublicKaiAPI creates a new KaiService instance
-func NewPublicKaiAPI(stack *Node) *PublicKaiAPI {
-	return &PublicKaiAPI{stack}
+// NewPublicNodeAPI creates a new PublicNodeAPI instance
+func NewPublicNodeAPI(node *Node) *PublicNodeAPI {
+	return &PublicNodeAPI{node}
 }
 
-// BlockNumber returns the block number of the chain head.
-// THIS FUNCTION NOW ALWAYS RETURN 100
-// TODO: Implement actual logic to get blocknumber here.
-func (s *PublicKaiAPI) BlockNumber() common.Uint64 {
-	return common.Uint64(100)
+// PeersCount returns the number of peers that current node can connect to.
+func (s *PublicNodeAPI) PeersCount() int {
+	return s.node.server.PeerCount()
+}
+
+
+// Peers returns a list of peers
+func (s *PublicNodeAPI) Peers() map[string]string{
+	peers := s.node.server.Peers()
+	results := make(map[string]string)
+	for _, peer := range peers {
+		results[peer.Name()] = peer.RemoteAddr().String()
+	}
+	return results
+}
+
+
+// NodeName returns name of current node
+func (s *PublicNodeAPI) NodeName() string {
+	return s.node.config.Name
 }
