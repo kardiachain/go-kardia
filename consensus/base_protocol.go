@@ -13,5 +13,5 @@ type BaseProtocol interface {
 	RemovePeer(p *p2p.Peer, reason interface{})
 
 	// Broadcast message to all other peers.
-    Broadcast(msg interface{}, msgType uint64)
+	Broadcast(msg interface{}, msgType uint64)
 }

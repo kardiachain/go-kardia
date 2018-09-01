@@ -129,7 +129,7 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		DbHandles: nodeConfig.DbHandles,
 		DbCaches:  nodeConfig.DbCache,
 		Genesis:   nodeConfig.Genesis,
-		TxPool: nodeConfig.TxPool,
+		TxPool:    nodeConfig.TxPool,
 		AcceptTxs: nodeConfig.AcceptTxs,
 	})
 
@@ -196,15 +196,15 @@ func (s *Kardia) APIs() []rpc.API {
 		},
 		{
 			Namespace: "tx",
-			Version: "1.0",
-			Service: NewPublicTransactionAPI(s),
-			Public: true,
+			Version:   "1.0",
+			Service:   NewPublicTransactionAPI(s),
+			Public:    true,
 		},
 		{
 			Namespace: "account",
-			Version: "1.0",
-			Service: NewPublicAccountAPI(s),
-			Public: true,
+			Version:   "1.0",
+			Service:   NewPublicAccountAPI(s),
+			Public:    true,
 		},
 	}
 }

@@ -52,7 +52,7 @@ func (conR *ConsensusReactor) SetPrivValidator(priv *types.PrivValidator) {
 	conR.conS.SetPrivValidator(priv)
 }
 
-func (conR *ConsensusReactor) Validator() *types.Validator{
+func (conR *ConsensusReactor) Validator() *types.Validator {
 	if _, val := conR.conS.Validators.GetByAddress(conR.conS.privValidator.GetAddress()); val != nil {
 		return val
 	}

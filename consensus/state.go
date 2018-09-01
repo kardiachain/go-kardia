@@ -14,6 +14,7 @@ import (
 	"github.com/kardiachain/go-kardia/blockchain"
 	cfg "github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
+	"github.com/kardiachain/go-kardia/kai/dev"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	libevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -21,7 +22,6 @@ import (
 	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/types/evidence"
-	"github.com/kardiachain/go-kardia/kai/dev"
 )
 
 var (
@@ -104,7 +104,7 @@ type ConsensusState struct {
 	votingStrategy map[dev.VoteTurn]int
 
 	// Development config, only used in dev/test environment
-	devConfig     *dev.DevEnvironmentConfig
+	devConfig *dev.DevEnvironmentConfig
 }
 
 // NewConsensusState returns a new ConsensusState.
@@ -855,12 +855,20 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 	}
 
 	// Validate proposal block
-	err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock)
-	if err != nil {
+	// This checks the block contents without executing txs.
+	if err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
 		cs.signAddVote(types.VoteTypePrevote, types.NewZeroBlockID())
 		return
+	}
+	// Executes txs to verify the block state root. New statedb is committed if success.
+	if err := cs.blockOperations.CommitAndValidateBlockTxs(cs.ProposalBlock); err != nil {
+		logger.Error("enterPrevote: fail to commit & verify txs", "err", err)
+		cs.signAddVote(types.VoteTypePrevote, types.NewZeroBlockID())
+		return
+	} else {
+		logger.Info("Successfully executes and commits block txs")
 	}
 
 	// Prevote cs.ProposalBlock
@@ -1196,13 +1204,16 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	txs := cs.blockOperations.CollectTransactions()
 	log.Debug("Collected transactions", "txs", txs)
 
-	newAccountStates, err := cs.blockOperations.GenerateNewAccountStates(txs)
-	if err != nil || newAccountStates == nil {
-		log.Error("Failed to execute txns, use AccountStates from last block", "err", err)
-		newAccountStates = cs.blockOperations.blockchain.CurrentBlock().Accounts()
-	}
+	header := cs.blockOperations.NewHeader(cs.Height.Int64(), uint64(len(txs)), cs.state.LastBlockID, cs.state.LastValidators.Hash())
+	log.Info("Creates new header", "header", header)
 
-	block = cs.state.MakeBlock(cs.Height.Int64(), txs, commit, newAccountStates)
+	stateRoot, receipts, err := cs.blockOperations.CommitTransactions(txs, header)
+	if err != nil {
+		log.Error("Fail to commit transactions", "err", err)
+	}
+	header.Root = stateRoot
+
+	block = cs.blockOperations.NewBlock(header, txs, receipts, commit)
 	cs.Logger.Trace("Make block to propose", "block", block)
 	// TODO(namdoh): Add evidence to block.
 	//evidence := cs.evpool.PendingEvidence()

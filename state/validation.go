@@ -19,7 +19,7 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 	//	return fmt.Errorf("Wrong Block.Header.ChainID. Expected %v, got %v", state.ChainID, block.ChainID)
 	//}
 	if int64(block.Header().Height) != state.LastBlockHeight.Int64()+1 {
-		return fmt.Errorf("Wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight.Int64()+1, block.Height)
+		return fmt.Errorf("wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight.Int64()+1, block.Height())
 	}
 	/*	TODO: Determine bounds for Time
 		See blockchain/reactor "stopSyncingDurationMinutes"
@@ -56,11 +56,11 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 	// Validate block LastCommit.
 	if block.Header().Height == 1 {
 		if len(block.LastCommit().Precommits) != 0 {
-			return errors.New("Block at height 1 (first block) should have no LastCommit precommits")
+			return errors.New("block at height 1 (first block) should have no LastCommit precommits")
 		}
 	} else {
 		if len(block.LastCommit().Precommits) != state.LastValidators.Size() {
-			return fmt.Errorf("Invalid block commit size. Expected %v, got %v",
+			return fmt.Errorf("invalid block commit size. Expected %v, got %v",
 				state.LastValidators.Size(), len(block.LastCommit().Precommits))
 		}
 		err := state.LastValidators.VerifyCommit(
