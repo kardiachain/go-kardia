@@ -118,3 +118,37 @@ func TestCreateGenesisBlock(t *testing.T) {
 		}
 	}
 }
+
+func TestCreateContractInGenesis(t *testing.T) {
+	db := storage.NewMemStore()
+	// Create genesis block with dev.genesisAccounts
+	genesis := DefaultTestnetGenesisBlockWithContract(dev.GenesisContracts)
+	_, hash, err := SetupGenesisBlock(db, genesis)
+
+	// There are 2 ways of getting current blockHash
+	// ReadHeadBlockHash or ReadCanonicalHash
+	headBlockHash := rawdb.ReadHeadBlockHash(db)
+	canonicalHash := rawdb.ReadCanonicalHash(db, 0)
+
+	if !hash.Equal(headBlockHash) || !hash.Equal(canonicalHash) {
+		t.Error("Current BlockHash does not match")
+	}
+
+	// Get block by hash and height
+	block := rawdb.ReadBlock(db, hash, 0)
+
+	// Init new State with current BlockHash
+	s, err := state.New(block.Root(), state.NewDatabase(db))
+	if err != nil {
+		t.Error(err)
+	} else {
+		// Get code from addresses
+		for address, code := range dev.GenesisContracts {
+			smc_code := common.Encode(s.GetCode(common.HexToAddress(address)))
+
+			if smc_code != "0x" + code {
+				t.Errorf("Code does not match, expected %v \n got %v", smc_code, code)
+			}
+		}
+	}
+}
