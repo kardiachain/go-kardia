@@ -1,38 +1,35 @@
 package kai
 
 import (
-	"math/big"
 	"context"
-	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/blockchain/rawdb"
 	"encoding/hex"
-
+	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardia/types"
+	"math/big"
 )
-
 
 // BlockJSON represents Block in JSON format
 type BlockJSON struct {
-	Hash           string                      `json:"hash"`
-	Height         uint64                      `json:"height"`
-	LastBlock      string                      `json:"lastBlock"`
-	CommitHash     string                      `json:"commitHash"`
-	Time           *big.Int                    `json:"time"`
-	NumTxs         uint64                      `json:"num_txs"`
-	GasLimit       uint64                      `json:"gasLimit"`
-	GasUsed        uint64                      `json:"gasUsed"`
-	Validator      string                      `json:"validator"`
-	TxHash         string                      `json:"data_hash"` // transactions
-	Root           string                      `json:"stateRoot"` // state root
-	ReceiptHash    string                      `json:"receiptsRoot"` // receipt root
-	Bloom          int64                       `json:"logsBloom"`
-	ValidatorsHash string                      `json:"validators_hash"` // validators for the current block
-	ConsensusHash  string                      `json:"consensus_hash"`
-	Txs            []*PublicTransaction        `json:"txs"`
+	Hash           string               `json:"hash"`
+	Height         uint64               `json:"height"`
+	LastBlock      string               `json:"lastBlock"`
+	CommitHash     string               `json:"commitHash"`
+	Time           *big.Int             `json:"time"`
+	NumTxs         uint64               `json:"num_txs"`
+	GasLimit       uint64               `json:"gasLimit"`
+	GasUsed        uint64               `json:"gasUsed"`
+	Validator      string               `json:"validator"`
+	TxHash         string               `json:"data_hash"`    // transactions
+	Root           string               `json:"stateRoot"`    // state root
+	ReceiptHash    string               `json:"receiptsRoot"` // receipt root
+	Bloom          int64                `json:"logsBloom"`
+	ValidatorsHash string               `json:"validators_hash"` // validators for the current block
+	ConsensusHash  string               `json:"consensus_hash"`
+	Txs            []*PublicTransaction `json:"txs"`
 }
-
 
 // PublicKaiAPI provides APIs to access Kai full node-related
 // information.
@@ -45,7 +42,6 @@ func NewPublicKaiAPI(kaiService *Kardia) *PublicKaiAPI {
 	return &PublicKaiAPI{kaiService}
 }
 
-
 // NewBlockJSON creates a new Block JSON data from Block
 func NewBlockJSON(block types.Block) *BlockJSON {
 	txs := block.Transactions()
@@ -56,31 +52,29 @@ func NewBlockJSON(block types.Block) *BlockJSON {
 	}
 
 	return &BlockJSON{
-		Hash: block.Hash().Hex(),
-		Height: block.Height(),
-		LastBlock: block.Header().LastBlockID.String(),
-		Txs: transactions,
-		CommitHash: block.LastCommitHash().Hex(),
-		Time: block.Header().Time,
-		NumTxs: block.Header().NumTxs,
-		GasLimit: block.Header().GasLimit,
-		GasUsed: block.Header().GasUsed,
-		Validator: block.Header().Coinbase.Hex(),
-		TxHash: block.Header().TxHash.Hex(),
-		Root: block.Header().Root.Hex(),
-		ReceiptHash: block.Header().ReceiptHash.Hex(),
-		Bloom: block.Header().Bloom.Big().Int64(),
+		Hash:           block.Hash().Hex(),
+		Height:         block.Height(),
+		LastBlock:      block.Header().LastBlockID.String(),
+		Txs:            transactions,
+		CommitHash:     block.LastCommitHash().Hex(),
+		Time:           block.Header().Time,
+		NumTxs:         block.Header().NumTxs,
+		GasLimit:       block.Header().GasLimit,
+		GasUsed:        block.Header().GasUsed,
+		Validator:      block.Header().Coinbase.Hex(),
+		TxHash:         block.Header().TxHash.Hex(),
+		Root:           block.Header().Root.Hex(),
+		ReceiptHash:    block.Header().ReceiptHash.Hex(),
+		Bloom:          block.Header().Bloom.Big().Int64(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
-		ConsensusHash: block.Header().ConsensusHash.Hex(),
+		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 	}
 }
-
 
 // BlockNumber returns current block number
 func (s *PublicKaiAPI) BlockNumber() uint64 {
 	return s.kaiService.blockchain.CurrentBlock().Height()
 }
-
 
 // GetBlockByHash returns block by block hash
 func (s *PublicKaiAPI) GetBlockByHash(blockHash string) *BlockJSON {
@@ -91,33 +85,30 @@ func (s *PublicKaiAPI) GetBlockByHash(blockHash string) *BlockJSON {
 	return NewBlockJSON(*block)
 }
 
-
 // GetBlockByNumber returns block by block number
 func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) *BlockJSON {
 	block := s.kaiService.blockchain.GetBlockByHeight(blockNumber)
 	return NewBlockJSON(*block)
 }
 
-
 // Validator returns node's validator, nil if current node is not a validator
 func (s *PublicKaiAPI) Validator() map[string]interface{} {
 	if val := s.kaiService.csReactor.Validator(); val != nil {
 		return map[string]interface{}{
-			"address": val.Address.Hex(),
+			"address":     val.Address.Hex(),
 			"votingPower": val.VotingPower,
 		}
 	}
 	return nil
 }
 
-
 // Validators returns a list of validator
 func (s *PublicKaiAPI) Validators() []map[string]interface{} {
 	if vals := s.kaiService.csReactor.Validators(); vals != nil && len(vals) > 0 {
 		results := make([]map[string]interface{}, len(vals))
 		for i, val := range vals {
-			results[i] = map[string]interface{} {
-				"address": val.Address.Hex(),
+			results[i] = map[string]interface{}{
+				"address":     val.Address.Hex(),
 				"votingPower": val.VotingPower,
 			}
 		}
@@ -126,33 +117,31 @@ func (s *PublicKaiAPI) Validators() []map[string]interface{} {
 	return nil
 }
 
-
 type PublicTransaction struct {
-	BlockHash        string     	`json:"blockHash"`
-	BlockNumber      common.Uint64  `json:"blockNumber"`
-	From             string     	`json:"from"`
-	Gas              common.Uint64  `json:"gas"`
-	GasPrice         common.Uint64  `json:"gasPrice"`
-	Hash             string     	`json:"hash"`
-	Input            string     	`json:"input"`
-	Nonce            common.Uint64  `json:"nonce"`
-	To               string     	`json:"to"`
-    TransactionIndex uint       	`json:"transactionIndex"`
-	Value            common.Uint64  `json:"value"`
+	BlockHash        string        `json:"blockHash"`
+	BlockNumber      common.Uint64 `json:"blockNumber"`
+	From             string        `json:"from"`
+	Gas              common.Uint64 `json:"gas"`
+	GasPrice         common.Uint64 `json:"gasPrice"`
+	Hash             string        `json:"hash"`
+	Input            string        `json:"input"`
+	Nonce            common.Uint64 `json:"nonce"`
+	To               string        `json:"to"`
+	TransactionIndex uint          `json:"transactionIndex"`
+	Value            common.Uint64 `json:"value"`
 }
 
 type Log struct {
-	Address      string           `json:"address"`
-	Topics       []string         `json:"topics"`
-	Data         string           `json:"data"`
-	BlockHeight  uint64           `json:"blockHeight"`
-	TxHash       string           `json:"transactionHash"`
-	TxIndex      uint             `json:"transactionIndex"`
-	BlockHash    string           `json:"blockHash"`
-	Index        uint             `json:"logIndex"`
-	Removed      bool             `json:"removed"`
+	Address     string   `json:"address"`
+	Topics      []string `json:"topics"`
+	Data        string   `json:"data"`
+	BlockHeight uint64   `json:"blockHeight"`
+	TxHash      string   `json:"transactionHash"`
+	TxIndex     uint     `json:"transactionIndex"`
+	BlockHash   string   `json:"blockHash"`
+	Index       uint     `json:"logIndex"`
+	Removed     bool     `json:"removed"`
 }
-
 
 // NewPublicTransaction returns a transaction that will serialize to the RPC
 // representation, with the given location metadata set (if available).
@@ -177,18 +166,15 @@ func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNum
 	return result
 }
 
-
 // PublicTransactionAPI provides public apis relate to transactions
 type PublicTransactionAPI struct {
 	s *Kardia
 }
 
-
 // NewPublicTransactionAPI is a constructor of PublicTransactionAPI
 func NewPublicTransactionAPI(service *Kardia) *PublicTransactionAPI {
 	return &PublicTransactionAPI{service}
 }
-
 
 // SendRawTransaction decode encoded data into tx and then add tx into pool
 func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs string) (string, error) {
@@ -200,7 +186,6 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 	}
 	return tx.Hash().Hex(), a.s.TxPool().AddRemote(tx)
 }
-
 
 // PendingTransactions returns pending transactions
 func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, error) {
@@ -222,14 +207,12 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, erro
 	return transactions, nil
 }
 
-
 // GetTransaction gets transaction by transaction hash
 func (a *PublicTransactionAPI) GetTransaction(hash string) *PublicTransaction {
 	txHash := common.HexToHash(hash)
 	tx, blockHash, height, index := rawdb.ReadTransaction(a.s.chainDb, txHash)
 	return NewPublicTransaction(tx, blockHash, height, index)
 }
-
 
 func (a *PublicTransactionAPI) getReceipts(hash common.Hash) (types.Receipts, error) {
 	height := rawdb.ReadHeaderNumber(a.s.chainDb, hash)
@@ -238,7 +221,6 @@ func (a *PublicTransactionAPI) getReceipts(hash common.Hash) (types.Receipts, er
 	}
 	return rawdb.ReadReceipts(a.s.chainDb, hash, *height), nil
 }
-
 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash string) (map[string]interface{}, error) {
@@ -279,7 +261,6 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 		}
 	}
 
-
 	fields := map[string]interface{}{
 		"blockHash":         blockHash,
 		"blockHeight":       uint64(height),
@@ -307,22 +288,20 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 	return fields, nil
 }
 
-
 // PublicAccountAPI provides APIs support getting account's info
 type PublicAccountAPI struct {
 	kaiService *Kardia
 }
-
 
 // NewPublicAccountAPI is a constructor that init new PublicAccountAPI
 func NewPublicAccountAPI(kaiService *Kardia) *PublicAccountAPI {
 	return &PublicAccountAPI{kaiService}
 }
 
-
 // Balance returns address's balance
-func (a *PublicAccountAPI)Balance(address string, hash string, height int64) int64 {
+func (a *PublicAccountAPI) Balance(address string, hash string, height int64) int64 {
 	addr := common.HexToAddress(address)
+	log.Info("Addr", "addr", addr.Hex())
 	block := new(types.Block)
 	if len(hash) > 0 && height >= 0 {
 		block = a.kaiService.blockchain.GetBlock(common.HexToHash(hash), uint64(height))
@@ -333,6 +312,10 @@ func (a *PublicAccountAPI)Balance(address string, hash string, height int64) int
 	} else {
 		block = a.kaiService.blockchain.CurrentBlock()
 	}
-	ba := block.Accounts().GetAccount(&addr)
-	return ba.Balance.Int64()
+	state, err := a.kaiService.blockchain.StateAt(block.Root())
+	if err != nil {
+		log.Error("Fail to get state from block", "err", err, "block", block)
+		return -1
+	}
+	return state.GetBalance(addr).Int64()
 }

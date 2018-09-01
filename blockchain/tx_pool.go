@@ -17,10 +17,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/metrics"
 
-	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
-	"path/filepath"
 	"github.com/kardiachain/go-kardia/blockchain/rawdb"
 	kaidb "github.com/kardiachain/go-kardia/storage"
+	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
+	"path/filepath"
 )
 
 const (
@@ -142,7 +142,6 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	Lifetime: 3 * time.Hour,
 }
 
-
 // GetDefaultTxPoolConfig returns default txPoolConfig with given dir path
 func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
 	conf := DefaultTxPoolConfig
@@ -151,7 +150,6 @@ func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
 	}
 	return &conf
 }
-
 
 // sanitize checks the provided user configurations and changes anything that's
 // unreasonable or unworkable.
@@ -192,8 +190,6 @@ type TxPool struct {
 
 	currentState *state.StateDB      // Current state in the blockchain head
 	pendingState *state.ManagedState // Pending state tracking virtual nonces
-
-	accountStates *types.AccountStates // Current account state in blockchain head
 
 	currentMaxGas uint64 // Current gas limit for transaction caps
 
@@ -587,35 +583,17 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 	}
 
 	// Ensure the transaction adheres to nonce ordering
-	// TODO(thientn): reenable nonce protection
-	//if pool.currentState.GetNonce(from) > tx.Nonce() {
-	//	return ErrNonceTooLow
-	//}
+	if pool.currentState.GetNonce(from) > tx.Nonce() {
+		return ErrNonceTooLow
+	}
 
 	// Transactor should have enough funds to cover the costs
 	// cost == V + GP * GL
-	// TODO(thientn): switch back to use balance in stateDB in the future.
-
-	accounts := pool.chain.CurrentBlock().Accounts()
-	account := accounts.GetAccount(&from)
-	if account == nil {
-		return fmt.Errorf("transaction sender addr not found %v", from.Hex())
-	}
-	if tx.To() != nil {
-		if accounts.GetAccount(tx.To()) == nil {
-			return fmt.Errorf("transaction receiver addr not found %v", tx.To().Hex())
-		}
-	}
-	if account.Balance.Cmp(tx.Cost()) < 0 {
-		log.Error("Bad transaction cost", "balance", account.Balance, "cost", tx.Cost(), "from", from.Hex())
+	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+		log.Error("Bad txn cost", "balance", pool.currentState.GetBalance(from), "cost", tx.Cost(), "from", from)
 		return ErrInsufficientFunds
 	}
-	/*
-		if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-			log.Error("Bad txn cost", "balance", pool.currentState.GetBalance(from), "cost", tx.Cost(), "from", from)
-			return ErrInsufficientFunds
-		}
-	*/
+
 	/*@huny
 	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, pool.homestead)
 	if err != nil {

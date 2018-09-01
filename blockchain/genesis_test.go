@@ -105,18 +105,6 @@ func TestCreateGenesisBlock(t *testing.T) {
 		}
 
 	}
-
-	// Checks accountStates.
-	accounts := block.Accounts()
-	for addrS := range dev.GenesisAccounts {
-		addr := common.HexToAddress(addrS)
-		account := accounts.GetAccount(&addr)
-		if account == nil {
-			t.Errorf("Genesis account not found: %v", addrS)
-		} else if account.Balance.Int64() != balance {
-			t.Error("Balanced does not match in blockaccount", "account balance", account.Balance, "balance", balance)
-		}
-	}
 }
 
 func TestCreateContractInGenesis(t *testing.T) {
@@ -146,7 +134,7 @@ func TestCreateContractInGenesis(t *testing.T) {
 		for address, code := range dev.GenesisContracts {
 			smc_code := common.Encode(s.GetCode(common.HexToAddress(address)))
 
-			if smc_code != "0x" + code {
+			if smc_code != "0x"+code {
 				t.Errorf("Code does not match, expected %v \n got %v", smc_code, code)
 			}
 		}

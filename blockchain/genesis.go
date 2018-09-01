@@ -126,7 +126,6 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 	}
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
 
-	accountStates := make(types.AccountStates, 0)
 	for addr, account := range g.Alloc {
 		statedb.AddBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)
@@ -134,8 +133,6 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 		for key, value := range account.Storage {
 			statedb.SetState(addr, key, value)
 		}
-		copyAddr := common.BytesToAddress(addr.Bytes())
-		accountStates = append(accountStates, &types.BlockAccount{Addr: &copyAddr, Balance: account.Balance})
 	}
 	root := statedb.IntermediateRoot(false)
 	head := &types.Header{
@@ -150,7 +147,7 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 
-	return types.NewBlock(head, nil, nil, &types.Commit{}, accountStates)
+	return types.NewBlock(head, nil, nil, &types.Commit{})
 }
 
 // Commit writes the block and state of a genesis specification to the database.

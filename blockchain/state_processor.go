@@ -70,46 +70,6 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	return receipts, allLogs, *usedGas, nil
 }
 
-func ApplyTransactionsToAccountState(txs []*types.Transaction, accounts types.AccountStates) (types.AccountStates, error) {
-	// converts to map.
-	accountMap := make(map[common.Address]*big.Int)
-	for _, account := range accounts {
-		accountMap[*account.Addr] = account.Balance
-	}
-	// applying txs.
-	for _, tx := range txs {
-		from, err := types.Sender(tx)
-		if err != nil {
-			return nil, err
-		}
-		to := tx.To()
-
-		fromBalance, found := accountMap[from]
-		if !found {
-			return nil, fmt.Errorf("sender account %v is not found when applying transaction", from)
-		}
-		toBalance, found := accountMap[*to]
-		if !found {
-			//return nil, fmt.Errorf("receiver account %v is not found when applying transaction", *to)
-			balance := big.NewInt(0)
-			accounts = append(accounts, &types.BlockAccount{Addr: to, Balance: balance})
-			accountMap[*to] = balance.Add(balance, tx.Value())
-		}
-
-		fromBalance.Sub(fromBalance, tx.Value())
-		toBalance.Add(toBalance, tx.Value())
-	}
-
-	newState := make(types.AccountStates, len(accounts))
-
-	for i, oldAccount := range accounts {
-		newBalance := accountMap[*oldAccount.Addr]
-		newState[i] = &types.BlockAccount{Addr: oldAccount.Addr, Balance: newBalance}
-	}
-
-	return newState, nil
-}
-
 // ApplyTransaction attempts to apply a transaction to the given state database
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
@@ -327,7 +287,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		ret, st.gas, vmerr = kvm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
 	if vmerr != nil {
-		log.Debug("VM returned with error", "err", vmerr)
+		log.Error("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
 		// sufficient balance to make the transfer happen. The first
 		// balance transfer may never fail.

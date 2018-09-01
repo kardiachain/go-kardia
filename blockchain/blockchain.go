@@ -312,7 +312,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 }
 
 // WriteBlockWithoutState writes only new block to database.
-func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) error{
+func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) error {
 	// Makes sure no inconsistent state is leaked during insertion
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
@@ -326,7 +326,8 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) error{
 		return err
 	}
 
-	// Skips updating state & receipt storage
+	// StateDb for this block should be already written.
+
 	bc.insert(block)
 	bc.futureBlocks.Remove(block.Hash())
 
@@ -363,6 +364,12 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	// Sends new head event
 	bc.chainHeadFeed.Send(ChainHeadEvent{Block: block})
 	return nil
+}
+
+// CommitTrie commits trie node such as statedb forcefully to disk.
+func (bc BlockChain) CommitTrie(root common.Hash) error {
+	triedb := bc.stateCache.TrieDB()
+	return triedb.Commit(root, false)
 }
 
 // insert injects a new head block into the current block chain. This method
