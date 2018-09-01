@@ -119,7 +119,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 	}
 }
 
-func TestCreateAddressInGenesis(t *testing.T) {
+func TestCreateContractInGenesis(t *testing.T) {
 	db := storage.NewMemStore()
 	// Create genesis block with dev.genesisAccounts
 	genesis := DefaultTestnetGenesisBlockWithContract(dev.GenesisContracts)
