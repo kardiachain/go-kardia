@@ -39,12 +39,11 @@ func TestGenerateRandomTxWithState(t *testing.T) {
 		if from == *tx.To() {
 			t.Error("Sender & receiver addrs should not be the same")
 		}
-		if tx.Nonce() != state.GetNonce(from) + 1 {
-			t.Error("Nonce should be bigger than currrent nonce by 1")
+		if tx.Nonce() != state.GetNonce(from) {
+			t.Error("Nonce should be same as nonce from state")
 		}
 	}
 }
-
 
 func containsInGenesis(address string) bool {
 	for k := range development.GenesisAccounts {
