@@ -10,6 +10,7 @@ import (
 
 	"encoding/hex"
 	elog "github.com/ethereum/go-ethereum/log"
+	"github.com/kardiachain/go-kardia/abi"
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/dual"
 	"github.com/kardiachain/go-kardia/kai"
@@ -23,6 +24,7 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func runtimeSystemSettings() error {
@@ -169,7 +171,7 @@ func main() {
 		config.DbCache = development.DbCache
 
 		// Create genesis block with dev.genesisAccounts
-		config.Genesis = blockchain.DefaultTestnetGenesisBlock(development.GenesisAccounts)
+		config.Genesis = blockchain.DefaulTestnetFullGenesisBlock(development.GenesisAccounts, development.GenesisContracts)
 	}
 
 	nodeDir := filepath.Join(config.DataDir, config.Name)
@@ -218,7 +220,8 @@ func main() {
 			0,
 			receiverAddr,
 			big.NewInt(10),
-			10, big.NewInt(10),
+			10,
+			big.NewInt(10),
 			nil,
 		)
 		txPool := kService.TxPool()
@@ -227,6 +230,30 @@ func main() {
 		err := txPool.AddLocal(signedTx)
 		if err != nil {
 			logger.Error("Txn add error", "err", err)
+		}
+		// Get first contract in genesis contracts
+		smcGenesisAddress := devEnv.GetContractAddressAt(0)
+		smcAbi := devEnv.GetContractAbiByAddress(smcGenesisAddress.String())
+		statedb, err := kService.BlockChain().State()
+		// Caller is account[1] in genesis
+		callerByteK, _ := hex.DecodeString("77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79")
+		callerKey := crypto.ToECDSAUnsafe(callerByteK)
+
+		abi, err := abi.JSON(strings.NewReader(smcAbi))
+		if err != nil {
+			logger.Error("Can not read abi", err)
+		}
+		input, err := abi.Pack("set", uint8(5))
+		if err != nil {
+			logger.Error("Cannot pack method call", err)
+		}
+		simpleContractCall := tool.GenerateSmcCall(callerKey, smcGenesisAddress, input, statedb)
+		signedSmcCall, _ := types.SignTx(simpleContractCall, callerKey)
+		err = txPool.AddLocal(signedSmcCall)
+		if err!= nil {
+			logger.Error("Error adding contract call", "err", err)
+		} else {
+			logger.Info("Adding contract call successfully")
 		}
 	}
 

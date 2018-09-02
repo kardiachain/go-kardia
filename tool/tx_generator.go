@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/kardiachain/go-kardia/kai/dev"
-	"github.com/kardiachain/go-kardia/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/types"
@@ -13,7 +12,6 @@ import (
 	"math/rand"
 	"time"
 	"github.com/kardiachain/go-kardia/state"
-	"strings"
 )
 
 const (
@@ -42,8 +40,8 @@ func GenerateRandomTx(numTx int) []*types.Transaction {
 			0, // TODO: need to set valid nonce after improving tx handling to handling nonce.
 			toAddr,
 			defaultAmount,
-			defaultGasLimit,
-			defaultGasPrice,
+			1000,
+			big.NewInt(1),
 			nil,
 		), senderKey)
 		if err != nil {
@@ -79,25 +77,16 @@ func GenerateRandomTxWithState(numTx int, stateDb *state.StateDB) []*types.Trans
 	return result
 }
 
-func GenerateRandomSmcCall(address common.Address, abiString string, stateDb *state.StateDB, method string, args... interface{}) *types.Transaction {
-	senderKey := randomGenesisPrivateKey()
+func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input []byte, stateDb *state.StateDB) *types.Transaction {
 	senderAddress := crypto.PubkeyToAddress(senderKey.PublicKey)
 	nonce := stateDb.GetNonce(senderAddress)
-	abi, err := abi.JSON(strings.NewReader(abiString))
-	if err != nil {
-		panic(fmt.Sprintf("Fail to generate smc call: %v", err))
-	}
-	data, err := abi.Pack(method, args)
-	if err != nil {
-		panic(fmt.Sprintf("Fail to generate smc call: %v", err))
-	}
 	tx, err := types.SignTx(types.NewTransaction(
 		nonce,
 		address,
 		defaultAmount,
-		defaultGasLimit,
-		defaultGasPrice,
-		data,
+		22000,
+		big.NewInt(1),
+		input,
 	), senderKey)
 	if err != nil {
 		panic(fmt.Sprintf("Fail to generate smc call: %v", err))
