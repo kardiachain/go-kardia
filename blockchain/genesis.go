@@ -196,6 +196,19 @@ func DefaultTestnetGenesisBlock(allocData map[string]int64) *Genesis {
 	}
 }
 
+// DefaultTestnetFullGenesisBlock return turn the test network genesis block with both account and smc from configs
+func DefaulTestnetFullGenesisBlock(accountData map[string]int64, contractData map[string]string) *Genesis {
+	ga, err := GenesisAllocFromAccountAndContract(accountData, contractData)
+	if err != nil {
+		return nil
+	}
+	return &Genesis{
+		Config:   configs.TestnetChainConfig,
+		GasLimit: 16777216,
+		Alloc:    ga,
+	}
+}
+
 func GenesisAllocFromData(data map[string]int64) (GenesisAlloc, error) {
 	ga := make(GenesisAlloc, len(data))
 
@@ -224,6 +237,18 @@ func GenesisAllocFromContractData(data map[string]string) (GenesisAlloc, error) 
 	ga := make(GenesisAlloc, len(data))
 
 	for address, code := range data {
+		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: big.NewInt(100)}
+	}
+	return ga, nil
+}
+
+func GenesisAllocFromAccountAndContract(accountData map[string]int64, contractData map[string]string) (GenesisAlloc, error) {
+	ga := make(GenesisAlloc, len(accountData) + len(contractData))
+
+	for address, balance := range accountData {
+		ga[common.HexToAddress(address)] = GenesisAccount{Balance: big.NewInt(balance)}
+	}
+	for address, code := range contractData {
 		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: big.NewInt(100)}
 	}
 	return ga, nil

@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"math/rand"
 	"time"
+	"github.com/kardiachain/go-kardia/state"
 )
 
 const (
@@ -37,6 +38,31 @@ func GenerateRandomTx(numTx int) []*types.Transaction {
 
 		tx, err := types.SignTx(types.NewTransaction(
 			0, // TODO: need to set valid nonce after improving tx handling to handling nonce.
+			toAddr,
+			defaultAmount,
+			defaultGasLimit,
+			defaultGasPrice,
+			nil,
+		), senderKey)
+		if err != nil {
+			panic(fmt.Sprintf("Fail to sign generated tx: %v", err))
+		}
+		result[i] = tx
+	}
+	return result
+}
+
+func GenerateRandomTxWithState(numTx int, state *state.StateDB) []*types.Transaction {
+	if numTx <= 0 {
+		numTx = defaultNumTx
+	}
+
+	result := make([]*types.Transaction, numTx)
+	for i := 0; i < numTx; i++ {
+		senderKey, toAddr := randomTxAddresses()
+		nonce := state.GetNonce(crypto.PubkeyToAddress(senderKey.PublicKey))
+		tx, err := types.SignTx(types.NewTransaction(
+			nonce + 1,
 			toAddr,
 			defaultAmount,
 			defaultGasLimit,
