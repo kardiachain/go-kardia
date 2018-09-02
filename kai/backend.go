@@ -12,7 +12,7 @@ import (
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/state"
-	kaidb "github.com/kardiachain/go-kardia/storage"
+	"github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -34,7 +34,7 @@ type Kardia struct {
 	shutdownChan chan bool // Channel for shutting down the Ethereum
 
 	// DB interfaces
-	chainDb kaidb.Database // Block chain database
+	kaiDb storage.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
 	txPool          *blockchain.TxPool
@@ -54,12 +54,12 @@ func (s *Kardia) AddKaiServer(ks KardiaSubService) {
 // New creates a new Kardia object (including the
 // initialisation of the common Kardia object)
 func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
-	chainDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
+	kaiDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
 	if err != nil {
 		return nil, err
 	}
 
-	chainConfig, _, genesisErr := blockchain.SetupGenesisBlock(chainDb, config.Genesis)
+	chainConfig, _, genesisErr := blockchain.SetupGenesisBlock(kaiDb, config.Genesis)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
@@ -67,7 +67,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 
 	kai := &Kardia{
 		config:       config,
-		chainDb:      chainDb,
+		kaiDb:        kaiDb,
 		chainConfig:  chainConfig,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
@@ -78,7 +78,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
 	// Create a new blockchain to attach to this Kardia object
-	kai.blockchain, err = blockchain.NewBlockChain(chainDb, kai.chainConfig)
+	kai.blockchain, err = blockchain.NewBlockChain(kaiDb, kai.chainConfig)
 	if err != nil {
 		return nil, err
 	}

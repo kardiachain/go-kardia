@@ -1,5 +1,5 @@
 // Package rawdb contains a collection of low level database accessors.
-package rawdb
+package chaindb
 
 import (
 	"encoding/binary"
@@ -24,9 +24,9 @@ var (
 
 	commitPrefix = []byte("c") // commitPrefix + num (uint64 big endian) -> commit
 
-	configPrefix = []byte("kardia-config-") // config prefix for the db
-	txLookupPrefix  = []byte("l") // txLookupPrefix + hash -> transaction/receipt lookup metadata
-	bloomBitsPrefix = []byte("B") // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
+	configPrefix    = []byte("kardia-config-") // config prefix for the db
+	txLookupPrefix  = []byte("l")              // txLookupPrefix + hash -> transaction/receipt lookup metadata
+	bloomBitsPrefix = []byte("B")              // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
 )
 
 // TxLookupEntry is a positional metadata to help looking up the data content of
