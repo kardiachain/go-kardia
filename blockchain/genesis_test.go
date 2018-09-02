@@ -140,3 +140,40 @@ func TestCreateContractInGenesis(t *testing.T) {
 		}
 	}
 }
+
+func TestGenesisAllocFromAccountAndContract(t *testing.T) {
+	db := storage.NewMemStore()
+	// Create genesis block with dev.genesisAccounts
+	genesis := DefaulTestnetFullGenesisBlock(dev.GenesisAccounts, dev.GenesisContracts)
+	_, hash, err := SetupGenesisBlock(db, genesis)
+	headBlockHash := chaindb.ReadHeadBlockHash(db)
+	canonicalHash := chaindb.ReadCanonicalHash(db, 0)
+
+	if !hash.Equal(headBlockHash) || !hash.Equal(canonicalHash) {
+		t.Error("Current BlockHash does not match")
+	}
+	// Get block by hash and height
+	block := chaindb.ReadBlock(db, hash, 0)
+
+	// Init new State with current BlockHash
+	s, err := state.New(block.Root(), state.NewDatabase(db))
+	if err != nil {
+		t.Error(err)
+	} else {
+		// Get code from addresses
+		for address, code := range dev.GenesisContracts {
+			smc_code := common.Encode(s.GetCode(common.HexToAddress(address)))
+
+			if smc_code != "0x"+code {
+				t.Errorf("Code does not match, expected %v \n got %v", smc_code, code)
+			}
+		}
+		// Get balance from addresses
+		for addr := range dev.GenesisAccounts {
+			b := s.GetBalance(common.HexToAddress(addr)).Int64()
+			if b != balance {
+				t.Error("Balance does not match", "state balance", b, "balance", balance)
+			}
+		}
+	}
+}
