@@ -3,7 +3,7 @@ package kai
 import (
 	"context"
 	"encoding/hex"
-	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"github.com/kardiachain/go-kardia/blockchain/chaindb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
@@ -210,22 +210,22 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, erro
 // GetTransaction gets transaction by transaction hash
 func (a *PublicTransactionAPI) GetTransaction(hash string) *PublicTransaction {
 	txHash := common.HexToHash(hash)
-	tx, blockHash, height, index := rawdb.ReadTransaction(a.s.chainDb, txHash)
+	tx, blockHash, height, index := chaindb.ReadTransaction(a.s.kaiDb, txHash)
 	return NewPublicTransaction(tx, blockHash, height, index)
 }
 
 func (a *PublicTransactionAPI) getReceipts(hash common.Hash) (types.Receipts, error) {
-	height := rawdb.ReadHeaderNumber(a.s.chainDb, hash)
+	height := chaindb.ReadHeaderNumber(a.s.kaiDb, hash)
 	if height == nil {
 		return nil, nil
 	}
-	return rawdb.ReadReceipts(a.s.chainDb, hash, *height), nil
+	return chaindb.ReadReceipts(a.s.kaiDb, hash, *height), nil
 }
 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash string) (map[string]interface{}, error) {
 	txHash := common.HexToHash(hash)
-	tx, blockHash, height, index := rawdb.ReadTransaction(a.s.chainDb, txHash)
+	tx, blockHash, height, index := chaindb.ReadTransaction(a.s.kaiDb, txHash)
 	if tx == nil {
 		return nil, nil
 	}
@@ -318,4 +318,16 @@ func (a *PublicAccountAPI) Balance(address string, hash string, height int64) in
 		return -1
 	}
 	return state.GetBalance(addr).Int64()
+}
+
+// Nonce return address's nonce
+func (a *PublicAccountAPI) Nonce(address string) (uint64, error) {
+	addr := common.HexToAddress(address)
+	block := a.kaiService.blockchain.CurrentBlock()
+	state, err := a.kaiService.blockchain.StateAt(block.Root())
+	if err != nil {
+		log.Error("Fail to get state from block", "err", err, "block", block)
+		return 0, err
+	}
+	return state.GetNonce(addr), nil
 }

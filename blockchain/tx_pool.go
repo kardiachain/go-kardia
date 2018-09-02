@@ -17,7 +17,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/metrics"
 
-	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"github.com/kardiachain/go-kardia/blockchain/chaindb"
 	kaidb "github.com/kardiachain/go-kardia/storage"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 	"path/filepath"
@@ -619,7 +619,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 	hash := tx.Hash()
 
 	// If transaction exists in pool or DB, discard it
-	if t, _, _, _ := rawdb.ReadTransaction(pool.chain.DB(), hash); pool.all.Get(hash) != nil || t != nil {
+	if t, _, _, _ := chaindb.ReadTransaction(pool.chain.DB(), hash); pool.all.Get(hash) != nil || t != nil {
 		log.Trace("Discarding already known transaction", "hash", hash)
 		return false, fmt.Errorf("known transaction: %x", hash)
 	}

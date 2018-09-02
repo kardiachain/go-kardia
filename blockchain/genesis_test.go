@@ -2,7 +2,7 @@ package blockchain
 
 import (
 	"github.com/kardiachain/go-kardia/account"
-	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"github.com/kardiachain/go-kardia/blockchain/chaindb"
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/state"
@@ -81,15 +81,15 @@ func TestCreateGenesisBlock(t *testing.T) {
 
 	// There are 2 ways of getting current blockHash
 	// ReadHeadBlockHash or ReadCanonicalHash
-	headBlockHash := rawdb.ReadHeadBlockHash(db)
-	canonicalHash := rawdb.ReadCanonicalHash(db, 0)
+	headBlockHash := chaindb.ReadHeadBlockHash(db)
+	canonicalHash := chaindb.ReadCanonicalHash(db, 0)
 
 	if !hash.Equal(headBlockHash) || !hash.Equal(canonicalHash) {
 		t.Error("Current BlockHash does not match")
 	}
 
 	// Get block by hash and height
-	block := rawdb.ReadBlock(db, hash, 0)
+	block := chaindb.ReadBlock(db, hash, 0)
 
 	// Init new State with current BlockHash
 	s, err := state.New(block.Root(), state.NewDatabase(db))
@@ -115,15 +115,15 @@ func TestCreateContractInGenesis(t *testing.T) {
 
 	// There are 2 ways of getting current blockHash
 	// ReadHeadBlockHash or ReadCanonicalHash
-	headBlockHash := rawdb.ReadHeadBlockHash(db)
-	canonicalHash := rawdb.ReadCanonicalHash(db, 0)
+	headBlockHash := chaindb.ReadHeadBlockHash(db)
+	canonicalHash := chaindb.ReadCanonicalHash(db, 0)
 
 	if !hash.Equal(headBlockHash) || !hash.Equal(canonicalHash) {
 		t.Error("Current BlockHash does not match")
 	}
 
 	// Get block by hash and height
-	block := rawdb.ReadBlock(db, hash, 0)
+	block := chaindb.ReadBlock(db, hash, 0)
 
 	// Init new State with current BlockHash
 	s, err := state.New(block.Root(), state.NewDatabase(db))

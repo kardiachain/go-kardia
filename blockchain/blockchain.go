@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/hashicorp/golang-lru"
-	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"github.com/kardiachain/go-kardia/blockchain/chaindb"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
@@ -121,7 +121,7 @@ func NewBlockChain(db kaidb.Database, chainConfig *configs.ChainConfig) (*BlockC
 // GetBlockByNumber retrieves a block from the database by number, caching it
 // (associated with its hash) if found.
 func (bc *BlockChain) GetBlockByHeight(height uint64) *types.Block {
-	hash := rawdb.ReadCanonicalHash(bc.db, height)
+	hash := chaindb.ReadCanonicalHash(bc.db, height)
 	if hash == (common.Hash{}) {
 		return nil
 	}
@@ -135,7 +135,7 @@ func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	if block, ok := bc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
 	}
-	block := rawdb.ReadBlock(bc.db, hash, number)
+	block := chaindb.ReadBlock(bc.db, hash, number)
 	if block == nil {
 		return nil
 	}
@@ -169,7 +169,7 @@ func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Su
 // assumes that the chain manager mutex is held.
 func (bc *BlockChain) loadLastState() error {
 	// Restore the last known head block
-	head := rawdb.ReadHeadBlockHash(bc.db)
+	head := chaindb.ReadHeadBlockHash(bc.db)
 	if head == (common.Hash{}) {
 		// Corrupt or empty database, init from scratch
 		log.Warn("Empty database, resetting chain")
@@ -195,7 +195,7 @@ func (bc *BlockChain) loadLastState() error {
 
 	// Restore the last known head header
 	currentHeader := currentBlock.Header()
-	if head := rawdb.ReadHeadHeaderHash(bc.db); head != (common.Hash{}) {
+	if head := chaindb.ReadHeadHeaderHash(bc.db); head != (common.Hash{}) {
 		if header := bc.GetHeaderByHash(head); header != nil {
 			currentHeader = header
 		}
@@ -223,7 +223,7 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
-	rawdb.WriteBlock(bc.db, genesis)
+	chaindb.WriteBlock(bc.db, genesis)
 
 	bc.genesisBlock = genesis
 	bc.insert(bc.genesisBlock)
@@ -278,8 +278,8 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	defer bc.mu.Unlock()
 
 	// Rewind the header chain, deleting all block bodies until then
-	delFn := func(db rawdb.DatabaseDeleter, hash common.Hash, height uint64) {
-		rawdb.DeleteBody(db, hash, height)
+	delFn := func(db chaindb.DatabaseDeleter, hash common.Hash, height uint64) {
+		chaindb.DeleteBody(db, hash, height)
 	}
 	bc.hc.SetHead(head, delFn)
 	currentHeader := bc.hc.CurrentHeader()
@@ -306,7 +306,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 
 	currentBlock := bc.CurrentBlock()
 
-	rawdb.WriteHeadBlockHash(bc.db, currentBlock.Hash())
+	chaindb.WriteHeadBlockHash(bc.db, currentBlock.Hash())
 
 	return bc.loadLastState()
 }
@@ -318,10 +318,10 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) error {
 	defer bc.mu.Unlock()
 	// Write block data in batch
 	batch := bc.db.NewBatch()
-	rawdb.WriteBlock(batch, block)
+	chaindb.WriteBlock(batch, block)
 
 	// Convert all txs into txLookupEntries and store to db
-	rawdb.WriteTxLookupEntries(batch, block)
+	chaindb.WriteTxLookupEntries(batch, block)
 	if err := batch.Write(); err != nil {
 		return err
 	}
@@ -343,7 +343,7 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	defer bc.mu.Unlock()
 	// Write block data in batch.
 	batch := bc.db.NewBatch()
-	rawdb.WriteBlock(batch, block)
+	chaindb.WriteBlock(batch, block)
 	root, err := state.Commit(true)
 	if err != nil {
 		return err
@@ -352,8 +352,8 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	if err := triedb.Commit(root, false); err != nil {
 		return err
 	}
-	rawdb.WriteReceipts(batch, block.Hash(), block.Header().Height, receipts)
-	rawdb.WriteTxLookupEntries(batch, block)
+	chaindb.WriteReceipts(batch, block.Hash(), block.Header().Height, receipts)
+	chaindb.WriteTxLookupEntries(batch, block)
 	if err := batch.Write(); err != nil {
 		return err
 	}
@@ -380,11 +380,11 @@ func (bc BlockChain) CommitTrie(root common.Hash) error {
 // Note, this function assumes that the `mu` mutex is held!
 func (bc *BlockChain) insert(block *types.Block) {
 	// If the block is on a side chain or an unknown one, force other heads onto it too
-	updateHeads := rawdb.ReadCanonicalHash(bc.db, block.Height()) != block.Hash()
+	updateHeads := chaindb.ReadCanonicalHash(bc.db, block.Height()) != block.Hash()
 
 	// Add the block to the canonical chain number scheme and mark as the head
-	rawdb.WriteCanonicalHash(bc.db, block.Hash(), block.Height())
-	rawdb.WriteHeadBlockHash(bc.db, block.Hash())
+	chaindb.WriteCanonicalHash(bc.db, block.Hash(), block.Height())
+	chaindb.WriteHeadBlockHash(bc.db, block.Hash())
 
 	bc.currentBlock.Store(block)
 
@@ -396,10 +396,10 @@ func (bc *BlockChain) insert(block *types.Block) {
 
 // Writes commit to db.
 func (bc *BlockChain) WriteCommit(height uint64, commit *types.Commit) {
-	rawdb.WriteCommit(bc.db, height, commit)
+	chaindb.WriteCommit(bc.db, height, commit)
 }
 
 // Reads commit from db.
 func (bc *BlockChain) ReadCommit(height uint64) *types.Commit {
-	return rawdb.ReadCommit(bc.db, height)
+	return chaindb.ReadCommit(bc.db, height)
 }
