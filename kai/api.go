@@ -319,3 +319,15 @@ func (a *PublicAccountAPI) Balance(address string, hash string, height int64) in
 	}
 	return state.GetBalance(addr).Int64()
 }
+
+// Nonce return address's nonce
+func (a *PublicAccountAPI) Nonce(address string) (uint64, error) {
+	addr := common.HexToAddress(address)
+	block := a.kaiService.blockchain.CurrentBlock()
+	state, err := a.kaiService.blockchain.StateAt(block.Root())
+	if err != nil {
+		log.Error("Fail to get state from block", "err", err, "block", block)
+		return 0, err
+	}
+	return state.GetNonce(addr), nil
+}
