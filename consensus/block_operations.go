@@ -48,7 +48,7 @@ func (bs *BlockOperations) NewHeader(height int64, numTxs uint64, blockId types.
 		NumTxs:         numTxs,
 		LastBlockID:    blockId,
 		ValidatorsHash: validatorsHash,
-		GasLimit:       10000,
+		GasLimit:       100000,
 	}
 }
 
@@ -158,6 +158,7 @@ func (b *BlockOperations) CommitTransactions(txs types.Transactions, header *typ
 	}
 
 	// GasPool
+	log.Info("header gas limit", "limit", header.GasLimit)
 	gasPool := new(blockchain.GasPool).AddGas(header.GasLimit)
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
