@@ -4,7 +4,6 @@ WORKDIR /go/src/github.com/kardiachain/go-kardia
 RUN apt-get update && apt-get install -y vim
 ADD . .
 RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-RUN echo $GOPATH && echo $GOROOT
 RUN dep ensure
 RUN go install
 WORKDIR /go/bin
