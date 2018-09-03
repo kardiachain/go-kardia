@@ -36,4 +36,11 @@ See the [dual](https://github.com/kardiachain/go-kardia/tree/master/dual) for mo
 See the [docker](https://github.com/kardiachain/go-kardia/tree/master/docker) for more information.
 
 # Test Kardia Virtual Machine
-See the [vm/sample_kvm](https://github.com/kardiachain/go-kardia/tree/master/vm/sample_kvm) for more information. 
+
+See the [vm/sample_kvm](https://github.com/kardiachain/go-kardia/tree/master/vm/sample_kvm) for more information.
+
+# Monitor with Kardia Scan
+
+- Setup [JSON-RPC](https://github.com/kardiachain/go-kardia/tree/master/rpc) request
+- Update config to [kardia Scan config ](https://github.com/kardiachain/KardiaScan#update-node-config)
+- Launch [KardiaScan](https://github.com/kardiachain/KardiaScan#run-development-mode)
