@@ -4,12 +4,12 @@ Golang implementation of concepts for Kardia chain
 
 # Setup & build
 ### Go environment setup
-Installs [Go](https://golang.org/doc/install) to $HOME directory. Sets environment vars:  
+Installs [Go](https://golang.org/doc/install) v1.10 to $HOME directory. Sets environment vars:  
 > export GOPATH=$HOME/go  
 > export PATH=$PATH:$GOPATH/bin
 
 ### Build
-Installs [dep](https://github.com/golang/dep) tool for dependency management.  
+Installs [dep](https://github.com/golang/dep) v0.5 tool for dependency management.  
 Downloads library dependency and builds Kardia binary.
 ```
 cd $GOPATH/src/github.com/kardiachain/go-kardia
