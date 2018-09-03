@@ -36,6 +36,20 @@ func NewProposal(height *cmn.BigInt, round *cmn.BigInt, block *Block, polRound *
 	}
 }
 
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "before" sending the object to other peers.
+func (p *Proposal) MakeNilEmpty() {
+	p.Block.MakeNilEmpty()
+}
+
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "after" receiving the object to other peers.
+func (p *Proposal) MakeEmptyNil() {
+	p.Block.MakeEmptyNil()
+}
+
 // SignBytes returns the Proposal bytes for signing
 func (p *Proposal) SignBytes(chainID string) []byte {
 	bz, err := rlp.EncodeToBytes(CreateCanonicalProposal(chainID, p))

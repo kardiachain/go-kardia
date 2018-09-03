@@ -376,6 +376,24 @@ func (b *Block) Hash() common.Hash {
 	return v
 }
 
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "before" sending the object to other peers.
+func (b *Block) MakeNilEmpty() {
+	if b.lastCommit != nil {
+		b.lastCommit.MakeNilEmpty()
+	}
+}
+
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "after" receiving the object to other peers.
+func (b *Block) MakeEmptyNil() {
+	if b.lastCommit != nil {
+		b.lastCommit.MakeEmptyNil()
+	}
+}
+
 type BlockID common.Hash
 
 func NewZeroBlockID() BlockID {

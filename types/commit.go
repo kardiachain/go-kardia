@@ -136,6 +136,31 @@ func (commit *Commit) ValidateBasic() error {
 	return nil
 }
 
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "before" sending the object to other peers.
+func (commit *Commit) MakeNilEmpty() {
+	for i := 0; i < len(commit.Precommits); i++ {
+		if commit.Precommits[i] != nil {
+			continue
+		}
+		commit.Precommits[i] = CreateEmptyVote()
+	}
+}
+
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "after" receiving the object to other peers.
+func (commit *Commit) MakeEmptyNil() {
+	for i := 0; i < len(commit.Precommits); i++ {
+		if commit.Precommits[i] == nil {
+			continue
+		}
+		if commit.Precommits[i].IsEmpty() {
+			commit.Precommits[i] = nil
+		}
+	}
+}
 func (commit *Commit) String() string {
 	if commit == nil {
 		return "nil-Commit"

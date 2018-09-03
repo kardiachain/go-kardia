@@ -1155,7 +1155,7 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	} else if cs.LastCommit.HasTwoThirdsMajority() {
 		// Make the commit from LastCommit
 		commit = cs.LastCommit.MakeCommit()
-		cs.Logger.Error("enterPropose: Subsequent height, use last commit.", "commit", commit)
+		cs.Logger.Trace("enterPropose: Subsequent height, use last commit.", "commit", commit)
 	} else {
 		// This shouldn't happen.
 		cs.Logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
@@ -1282,11 +1282,12 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 	msg, peerID := mi.Msg, mi.PeerID
 	switch msg := msg.(type) {
 	case *ProposalMessage:
-		cs.Logger.Trace("handling ProposalMessage")
+		cs.Logger.Trace("handling ProposalMessage", "ProposalMessage", msg)
 		err = cs.setProposal(msg.Proposal)
 	case *VoteMessage:
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
+		cs.Logger.Trace("handling AddVote", "VoteMessage", msg)
 		err := cs.tryAddVote(msg.Vote, peerID)
 		if err == ErrAddingVote {
 			cs.Logger.Trace("trying to add vote failed", "err", err)

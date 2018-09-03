@@ -21,6 +21,8 @@ const (
 	VoteChannel        = byte(0x22)
 	VoteSetBitsChannel = byte(0x23)
 
+	maxMsgSize = 1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
+
 	blocksToContributeToBecomeGoodPeer = 10000
 )
 
@@ -174,6 +176,8 @@ func (conR *ConsensusReactor) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 		conR.conS.Logger.Error("Invalid proposal message", "msg", generalMsg, "err", err)
 		return
 	}
+	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
+	msg.Proposal.MakeEmptyNil()
 	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
 	if msg.Proposal.Block.LastCommit() == nil {
 		msg.Proposal.Block.SetLastCommit(&types.Commit{})
@@ -393,11 +397,14 @@ OUTER_LOOP:
 		if rs.Proposal != nil && !prs.Proposal {
 			// Proposal: share the proposal metadata with peer.
 			{
-				msg := &ProposalMessage{Proposal: rs.Proposal}
+				// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
+				rs.Proposal.MakeNilEmpty()
 				logger.Debug("Sending proposal", "height", prs.Height, "round", prs.Round)
-				if err := p2p.Send(ps.rw, kcmn.CsProposalMsg, msg); err != nil {
+				if err := p2p.Send(ps.rw, kcmn.CsProposalMsg, &ProposalMessage{Proposal: rs.Proposal}); err != nil {
 					logger.Trace("Sending proposal failed", "err", err)
 				}
+				// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
+				rs.Proposal.MakeEmptyNil()
 				ps.SetHasProposal(rs.Proposal)
 			}
 			// ProposalPOL: lets peer know which POL votes we have so far.
