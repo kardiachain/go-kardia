@@ -74,8 +74,9 @@ func (h *Header) String() string {
 	if h == nil {
 		return "nil-Header"
 	}
-	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
-		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash, h.TxHash, h.ValidatorsHash, h.ConsensusHash, h.Hash())
+	// TODO(thientn): check why String() of common.Hash is not called when logging, and have to call Hex() instead.
+	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Hex(), h.TxHash.Hex(), h.Root.Hex(), h.ValidatorsHash.Hex(), h.ConsensusHash.Hex(), h.Hash().Hex())
 
 }
 
@@ -84,12 +85,11 @@ func (h *Header) String() string {
 type Body struct {
 	Transactions []*Transaction
 	LastCommit   *Commit
-	Accounts     *AccountStates
 }
 
 // Body returns the non-header content of the block.
 func (b *Block) Body() *Body {
-	return &Body{Transactions: b.transactions, LastCommit: b.lastCommit, Accounts: b.accounts}
+	return &Body{Transactions: b.transactions, LastCommit: b.lastCommit}
 }
 
 func rlpHash(x interface{}) (h common.Hash) {
@@ -99,42 +99,11 @@ func rlpHash(x interface{}) (h common.Hash) {
 	return h
 }
 
-// AccountStates keeps the world state of accounts.
-type AccountStates []*BlockAccount
-
-func (a *AccountStates) String() string {
-	var accountsS string
-	if a != nil || len(*(a)) > 0 {
-		var buffer bytes.Buffer
-		for index, account := range *a {
-			buffer.WriteString(fmt.Sprintf("Acc%d:%d,", index, account.Balance.Int64()))
-		}
-		accountsS = fmt.Sprintf("AccountStates:[%v]", buffer.String())
-	} else {
-		if a == nil {
-			accountsS = "AccountStates:nil"
-		} else {
-			accountsS = "AccountStates:[]"
-		}
-	}
-
-	return accountsS
-}
-
 // BlockAccount stores basic data of an account in block.
 type BlockAccount struct {
 	// Cannot use map because of RLP.
 	Addr    *common.Address
 	Balance *big.Int
-}
-
-func (s *AccountStates) GetAccount(address *common.Address) *BlockAccount {
-	for _, account := range *s {
-		if account.Addr.String() == address.String() {
-			return account
-		}
-	}
-	return nil
 }
 
 // Block represents an entire block in the Ethereum blockchain.
@@ -143,7 +112,6 @@ type Block struct {
 	header       *Header
 	transactions Transactions
 	lastCommit   *Commit
-	accounts     *AccountStates
 
 	// caches
 	hash atomic.Value
@@ -155,7 +123,6 @@ type extblock struct {
 	Header     *Header
 	Txs        []*Transaction
 	LastCommit *Commit
-	Accounts   *AccountStates
 }
 
 // NewBlock creates a new block. The input data is copied,
@@ -164,7 +131,7 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit, accounts *AccountStates) *Block {
+func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit) *Block {
 	b := &Block{header: CopyHeader(header), lastCommit: CopyCommit(commit)}
 
 	if len(txs) == 0 {
@@ -192,9 +159,6 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *C
 			b.header.LastCommitHash = commit.Hash()
 		}
 	}
-
-	// TODO(thientn): Creates and save a copy.
-	b.accounts = accounts
 
 	// TODO(namdoh): Store evidence hash.
 
@@ -232,7 +196,7 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	if err := s.Decode(&eb); err != nil {
 		return err
 	}
-	b.header, b.transactions, b.lastCommit, b.accounts = eb.Header, eb.Txs, eb.LastCommit, eb.Accounts
+	b.header, b.transactions, b.lastCommit = eb.Header, eb.Txs, eb.LastCommit
 	b.size.Store(common.StorageSize(rlp.ListSize(size)))
 	return nil
 }
@@ -243,7 +207,6 @@ func (b *Block) EncodeRLP(w io.Writer) error {
 		Header:     b.header,
 		Txs:        b.transactions,
 		LastCommit: b.lastCommit,
-		Accounts:   b.accounts,
 	})
 }
 
@@ -264,7 +227,6 @@ func (b *Block) WithBody(body *Body) *Block {
 		header:       CopyHeader(b.header),
 		transactions: make([]*Transaction, len(body.Transactions)),
 		lastCommit:   body.LastCommit,
-		accounts:     body.Accounts,
 	}
 	copy(block.transactions, body.Transactions)
 	return block
@@ -282,7 +244,6 @@ func (b *Block) Root() common.Hash           { return b.header.Root }
 func (b *Block) ReceiptHash() common.Hash    { return b.header.ReceiptHash }
 func (b *Block) Bloom() Bloom                { return b.header.Bloom }
 func (b *Block) LastCommit() *Commit         { return b.lastCommit }
-func (b *Block) Accounts() *AccountStates    { return b.accounts }
 
 // TODO(namdoh): This is a hack due to rlp nature of decode both nil or empty
 // struct pointer as nil. After encoding an empty struct and send it over to
@@ -313,14 +274,14 @@ func (b *Block) Size() common.StorageSize {
 // It checks the internal consistency of the block.
 func (b *Block) ValidateBasic() error {
 	if b == nil {
-		return errors.New("Nil blocks are invalid")
+		return errors.New("nil block")
 	}
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
 	newTxs := uint64(len(b.transactions))
 	if b.header.NumTxs != newTxs {
-		return fmt.Errorf("Wrong Block.Header.NumTxs. Expected %v, got %v", newTxs, b.header.NumTxs)
+		return fmt.Errorf("wrong Block.Header.NumTxs. Expected %v, got %v", newTxs, b.header.NumTxs)
 	}
 
 	if b.lastCommit == nil && !b.header.LastCommitHash.IsZero() {
@@ -334,7 +295,7 @@ func (b *Block) ValidateBasic() error {
 		}
 	}
 	// TODO(namdoh): Re-enable check for Data hash.
-	log.Error("Block.ValidateBasic() - not yet implement validating data hash.")
+	log.Info("Block.ValidateBasic() - not yet implement validating data hash.")
 	//if !bytes.Equal(b.DataHash, b.Data.Hash()) {
 	//	return fmt.Errorf("Wrong Block.Header.DataHash.  Expected %v, got %v", b.DataHash, b.Data.Hash())
 	//}
@@ -350,8 +311,8 @@ func (b *Block) String() string {
 		return "nil-Block"
 	}
 
-	return fmt.Sprintf("Block{%v  %v  %v %v}#%v",
-		b.header, b.transactions, b.lastCommit, b.accounts, b.Hash())
+	return fmt.Sprintf("Block{%v  %v  %v}#%v",
+		b.header, b.transactions, b.lastCommit, b.Hash().Hex())
 }
 
 type writeCounter common.StorageSize
@@ -395,6 +356,11 @@ func (b *Block) MakeEmptyNil() {
 }
 
 type BlockID common.Hash
+
+func (id BlockID) String() string {
+	return common.Hash(id).Hex()
+	return common.Hash(id).Hex()
+}
 
 func NewZeroBlockID() BlockID {
 	return BlockID{}

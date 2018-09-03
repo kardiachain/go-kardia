@@ -1,5 +1,5 @@
 // Package rawdb contains a collection of low level database accessors.
-package rawdb
+package chaindb
 
 import (
 	"encoding/binary"
@@ -24,8 +24,18 @@ var (
 
 	commitPrefix = []byte("c") // commitPrefix + num (uint64 big endian) -> commit
 
-	configPrefix = []byte("kardia-config-") // config prefix for the db
+	configPrefix    = []byte("kardia-config-") // config prefix for the db
+	txLookupPrefix  = []byte("l")              // txLookupPrefix + hash -> transaction/receipt lookup metadata
+	bloomBitsPrefix = []byte("B")              // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
 )
+
+// TxLookupEntry is a positional metadata to help looking up the data content of
+// a transaction or receipt given only its hash.
+type TxLookupEntry struct {
+	BlockHash  common.Hash
+	BlockIndex uint64
+	Index      uint64
+}
 
 // encodeBlockHeight encodes a block height as big endian uint64
 func encodeBlockHeight(height uint64) []byte {
@@ -67,4 +77,19 @@ func commitKey(height uint64) []byte {
 // configKey = configPrefix + hash
 func configKey(hash common.Hash) []byte {
 	return append(configPrefix, hash.Bytes()...)
+}
+
+// txLookupKey = txLookupPrefix + hash
+func txLookupKey(hash common.Hash) []byte {
+	return append(txLookupPrefix, hash.Bytes()...)
+}
+
+// bloomBitsKey = bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash
+func bloomBitsKey(bit uint, section uint64, hash common.Hash) []byte {
+	key := append(append(bloomBitsPrefix, make([]byte, 10)...), hash.Bytes()...)
+
+	binary.BigEndian.PutUint16(key[1:], uint16(bit))
+	binary.BigEndian.PutUint64(key[3:], section)
+
+	return key
 }

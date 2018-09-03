@@ -2,19 +2,17 @@ package blockchain
 
 import (
 	"github.com/kardiachain/go-kardia/account"
-	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"github.com/kardiachain/go-kardia/blockchain/chaindb"
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/storage"
-	"github.com/pborman/uuid"
-	"os"
-	"path/filepath"
 	"testing"
 )
 
 const (
 	password = "KardiaChain"
+	balance  = int64(100000000)
 )
 
 var (
@@ -42,8 +40,6 @@ var (
 		"b34bd81838a4a335fb3403d0bf616eca1eb9a4b4716c7dda7c617503cfeaab67",
 		"e049a09c992c882bc2deb780323a247c6ee0951f8b4c5c1dd0fc2fc22ce6493d",
 	}
-	balance = int64(100000000)
-	folder  = uuid.New()
 )
 
 func TestGenesisAllocFromData(t *testing.T) {
@@ -51,7 +47,7 @@ func TestGenesisAllocFromData(t *testing.T) {
 	var data = make(map[string]int64, len(privKeys))
 	for _, pk := range privKeys {
 		keystore := account.KeyStore{Path: ""}
-		keystoreJson, err := keystore.NewKeyStoreJSON(password, &pk)
+		keystoreJson, err := keystore.NewKeyStoreJSON(password, pk)
 
 		if err != nil {
 			t.Error("Cannot create new keystore")
@@ -66,8 +62,8 @@ func TestGenesisAllocFromData(t *testing.T) {
 	}
 
 	for _, el := range addresses {
-		if _, ok := ga[common.StringToAddress(el)]; ok == false {
-			t.Error("address ", el, " is not found")
+		if _, ok := ga[common.HexToAddress(el)]; ok == false {
+			t.Error("address ", el, " is not valid")
 		}
 	}
 }
@@ -77,10 +73,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 	// allocData is get from genesisAccounts in default_node_config
 
 	// Init kai database
-	db, err := storage.NewLDBStore(folder, 16, 16)
-	if err != nil {
-		t.Error(err)
-	}
+	db := storage.NewMemStore()
 
 	// Create genesis block with dev.genesisAccounts
 	genesis := DefaultTestnetGenesisBlock(dev.GenesisAccounts)
@@ -88,15 +81,15 @@ func TestCreateGenesisBlock(t *testing.T) {
 
 	// There are 2 ways of getting current blockHash
 	// ReadHeadBlockHash or ReadCanonicalHash
-	headBlockHash := rawdb.ReadHeadBlockHash(db)
-	canonicalHash := rawdb.ReadCanonicalHash(db, 0)
+	headBlockHash := chaindb.ReadHeadBlockHash(db)
+	canonicalHash := chaindb.ReadCanonicalHash(db, 0)
 
 	if !hash.Equal(headBlockHash) || !hash.Equal(canonicalHash) {
 		t.Error("Current BlockHash does not match")
 	}
 
 	// Get block by hash and height
-	block := rawdb.ReadBlock(db, hash, 0)
+	block := chaindb.ReadBlock(db, hash, 0)
 
 	// Init new State with current BlockHash
 	s, err := state.New(block.Root(), state.NewDatabase(db))
@@ -104,43 +97,46 @@ func TestCreateGenesisBlock(t *testing.T) {
 		t.Error(err)
 	} else {
 		// Get balance from addresses
-		for _, address := range addresses {
-			b := s.GetBalance(common.StringToAddress(address)).Int64()
+		for addr := range dev.GenesisAccounts {
+			b := s.GetBalance(common.HexToAddress(addr)).Int64()
 			if b != balance {
-				t.Error("Balance does not match")
+				t.Error("Balance does not match", "state balance", b, "balance", balance)
 			}
 		}
 
 	}
 }
 
-func TestMain(m *testing.M) {
+func TestCreateContractInGenesis(t *testing.T) {
+	db := storage.NewMemStore()
+	// Create genesis block with dev.genesisAccounts
+	genesis := DefaultTestnetGenesisBlockWithContract(dev.GenesisContracts)
+	_, hash, err := SetupGenesisBlock(db, genesis)
 
-	retCode := m.Run()
-	// Remove folder
-	err := RemoveDir(folder)
-	if err != nil {
-		println(err)
-	}
-	os.Exit(retCode)
-}
+	// There are 2 ways of getting current blockHash
+	// ReadHeadBlockHash or ReadCanonicalHash
+	headBlockHash := chaindb.ReadHeadBlockHash(db)
+	canonicalHash := chaindb.ReadCanonicalHash(db, 0)
 
-func RemoveDir(dir string) error {
-	d, err := os.Open(dir)
-	if err != nil {
-		return err
+	if !hash.Equal(headBlockHash) || !hash.Equal(canonicalHash) {
+		t.Error("Current BlockHash does not match")
 	}
-	defer d.Close()
-	names, err := d.Readdirnames(-1)
+
+	// Get block by hash and height
+	block := chaindb.ReadBlock(db, hash, 0)
+
+	// Init new State with current BlockHash
+	s, err := state.New(block.Root(), state.NewDatabase(db))
 	if err != nil {
-		return err
-	}
-	for _, name := range names {
-		err = os.RemoveAll(filepath.Join(dir, name))
-		if err != nil {
-			return err
+		t.Error(err)
+	} else {
+		// Get code from addresses
+		for address, code := range dev.GenesisContracts {
+			smc_code := common.Encode(s.GetCode(common.HexToAddress(address)))
+
+			if smc_code != "0x"+code {
+				t.Errorf("Code does not match, expected %v \n got %v", smc_code, code)
+			}
 		}
 	}
-
-	return os.Remove(dir)
 }

@@ -6,13 +6,14 @@ import (
 
 func TestDevEnvironmentConfig_SetVotingStrategy_GetScriptVote(t *testing.T) {
 	var expected_votes = map[VoteTurn]int {
-		{1,0,1}: 0,
-		{1,0,2}: 1,
-		{1,1,2}: -1,
+		{2,0,1}: -1,
+		{4,0,1}: -1,
+		{4,0,2}: -1,
+		{5,0,1}: -1,
 	}
 
 	devEnv := CreateDevEnvironmentConfig()
-	devEnv.SetVotingStrategy("voting_scripts/voting_strategy.csv")
+	devEnv.SetVotingStrategy("voting_scripts/voting_strategy_1.csv")
 
 	for test, result := range expected_votes {
 		if (devEnv.VotingStrategy[test] != result) {

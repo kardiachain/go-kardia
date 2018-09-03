@@ -14,6 +14,7 @@ import (
 	"github.com/kardiachain/go-kardia/blockchain"
 	cfg "github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
+	"github.com/kardiachain/go-kardia/kai/dev"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	libevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -67,7 +68,6 @@ type ConsensusState struct {
 
 	config        *cfg.ConsensusConfig
 	privValidator *types.PrivValidator // for signing votes
-
 	// Services for creating and executing blocks
 	blockExec       *state.BlockExecutor
 	blockOperations *BlockOperations
@@ -99,6 +99,12 @@ type ConsensusState struct {
 
 	// closed when we finish shutting down
 	done chan struct{}
+
+	// Simulate voting strategy
+	votingStrategy map[dev.VoteTurn]int
+
+	// Development config, only used in dev/test environment
+	devConfig *dev.DevEnvironmentConfig
 }
 
 // NewConsensusState returns a new ConsensusState.
@@ -109,6 +115,7 @@ func NewConsensusState(
 	blockchain *blockchain.BlockChain,
 	//namdoh@ evpool evidence.EvidencePool,
 	txPool *blockchain.TxPool,
+	votingStrategy map[dev.VoteTurn]int,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		Logger: log.New("module", "consensus"),
@@ -130,6 +137,7 @@ func NewConsensusState(
 			StartTime:   big.NewInt(0),
 			CommitTime:  big.NewInt(0),
 		},
+		votingStrategy: votingStrategy,
 	}
 
 	cs.updateToState(state)
@@ -248,9 +256,9 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 		// And alternative solution that relies on clocks:
 		//  cs.StartTime = state.LastBlockTime.Add(timeoutCommit)
 		cs.Logger.Trace("cs.CommitTime is 0")
-		cs.StartTime = big.NewInt(cs.config.Commit(time.Now()).Unix())
+		cs.StartTime = big.NewInt(cs.config.Commit(time.Now()).Unix() + 10)
 	} else {
-		cs.StartTime = big.NewInt(cs.config.Commit(time.Unix(cs.CommitTime.Int64(), 0)).Unix())
+		cs.StartTime = big.NewInt(cs.config.Commit(time.Unix(cs.CommitTime.Int64(), 0)).Unix() + 10)
 	}
 
 	cs.Validators = validators
@@ -598,10 +606,28 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 	return
 }
 
+// Get script vote
+func (cs *ConsensusState) scriptedVote(height int, round int, voteType int) (int, bool) {
+	if val, ok := cs.votingStrategy[dev.VoteTurn{height, round, voteType}]; ok {
+		return val, ok
+	}
+	return 0, false
+}
+
 // Signs vote.
 func (cs *ConsensusState) signVote(type_ byte, hash types.BlockID) (*types.Vote, error) {
 	addr := cs.privValidator.GetAddress()
 	valIndex, _ := cs.Validators.GetByAddress(addr)
+	// Simulate voting strategy
+	if cs.votingStrategy != nil {
+		if votingStrategy, ok := cs.scriptedVote(cs.Height.Int32(), cs.Round.Int32(), int(type_)); ok {
+			if ok && votingStrategy == -1 {
+				log.Info("Simulate voting strategy", "Height", cs.Height, "Round", cs.Round, "VoteType", cs.Step, "VotingStrategy", votingStrategy)
+				hash = types.NewZeroBlockID()
+			}
+		}
+	}
+
 	vote := &types.Vote{
 		ValidatorAddress: addr,
 		ValidatorIndex:   cmn.NewBigInt(int64(valIndex)),
@@ -829,12 +855,20 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 	}
 
 	// Validate proposal block
-	err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock)
-	if err != nil {
+	// This checks the block contents without executing txs.
+	if err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
 		cs.signAddVote(types.VoteTypePrevote, types.NewZeroBlockID())
 		return
+	}
+	// Executes txs to verify the block state root. New statedb is committed if success.
+	if err := cs.blockOperations.CommitAndValidateBlockTxs(cs.ProposalBlock); err != nil {
+		logger.Error("enterPrevote: fail to commit & verify txs", "err", err)
+		cs.signAddVote(types.VoteTypePrevote, types.NewZeroBlockID())
+		return
+	} else {
+		logger.Info("Successfully executes and commits block txs")
 	}
 
 	// Prevote cs.ProposalBlock
@@ -1118,7 +1152,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	var err error
 	stateCopy, err = cs.blockExec.ApplyBlock(stateCopy, block.BlockID(), block)
 	if err != nil {
-		cs.Logger.Error("Error on ApplyBlock. Did the application crash? Please restart tendermint", "err", err)
+		cs.Logger.Error("Error on ApplyBlock. Did the application crash? Please restart node", "err", err)
 		err := cmn.Kill()
 		if err != nil {
 			cs.Logger.Error("Failed to kill this process - please do so manually", "err", err)
@@ -1168,14 +1202,18 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	//  so the proposal block already contains account state results from the proposed txns.
 
 	txs := cs.blockOperations.CollectTransactions()
-	log.Error("Collected transactions", "txs", txs)
-	newAccountStates, err := cs.blockOperations.GenerateNewAccountStates(txs)
-	if err != nil {
-		log.Error("Failed to execute txns, use AccountStates from last block", "err", err)
-		newAccountStates = cs.blockOperations.blockchain.CurrentBlock().Accounts()
-	}
+	log.Debug("Collected transactions", "txs", txs)
 
-	block = cs.state.MakeBlock(cs.Height.Int64(), txs, commit, newAccountStates)
+	header := cs.blockOperations.NewHeader(cs.Height.Int64(), uint64(len(txs)), cs.state.LastBlockID, cs.state.LastValidators.Hash())
+	log.Info("Creates new header", "header", header)
+
+	stateRoot, receipts, err := cs.blockOperations.CommitTransactions(txs, header)
+	if err != nil {
+		log.Error("Fail to commit transactions", "err", err)
+	}
+	header.Root = stateRoot
+
+	block = cs.blockOperations.NewBlock(header, txs, receipts, commit)
 	cs.Logger.Trace("Make block to propose", "block", block)
 	// TODO(namdoh): Add evidence to block.
 	//evidence := cs.evpool.PendingEvidence()
@@ -1316,7 +1354,7 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 
 	//// timeouts must be for current height, round, step
 	if !ti.Height.Equals(rs.Height) || ti.Round.IsLessThan(rs.Round) || (ti.Round.Equals(rs.Round) && ti.Step < rs.Step) {
-		cs.Logger.Debug("Ignoring tock because we're ahead", "height", rs.Height, "round", rs.Round, "step", rs.Step)
+		cs.Logger.Debug("Ignoring tick because we're ahead", "height", rs.Height, "round", rs.Round, "step", rs.Step)
 		return
 	}
 

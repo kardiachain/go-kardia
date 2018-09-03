@@ -206,6 +206,7 @@ func (self *StateDB) GetBalance(addr common.Address) *big.Int {
 	if stateObject != nil {
 		return stateObject.Balance()
 	}
+	log.Error("StateDB addr not found", "addr", addr)
 	return common.Big0
 }
 

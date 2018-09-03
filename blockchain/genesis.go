@@ -3,7 +3,7 @@ package blockchain
 import (
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"github.com/kardiachain/go-kardia/blockchain/chaindb"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -65,7 +65,7 @@ func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfi
 	}
 
 	// Just commit the new block if there is no stored genesis block.
-	stored := rawdb.ReadCanonicalHash(db, 0)
+	stored := chaindb.ReadCanonicalHash(db, 0)
 	if (stored == common.Hash{}) {
 		if genesis == nil {
 			log.Info("Writing default main-net genesis block")
@@ -88,10 +88,10 @@ func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfi
 
 	// Get the existing chain configuration.
 	newcfg := genesis.configOrDefault(stored)
-	storedcfg := rawdb.ReadChainConfig(db, stored)
+	storedcfg := chaindb.ReadChainConfig(db, stored)
 	if storedcfg == nil {
 		log.Warn("Found genesis block without chain config")
-		rawdb.WriteChainConfig(db, stored, newcfg)
+		chaindb.WriteChainConfig(db, stored, newcfg)
 		return newcfg, stored, nil
 	}
 	// Special case: don't change the existing config of a non-mainnet chain if no new
@@ -101,7 +101,7 @@ func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfi
 		return storedcfg, stored, nil
 	}
 
-	rawdb.WriteChainConfig(db, stored, newcfg)
+	chaindb.WriteChainConfig(db, stored, newcfg)
 	return newcfg, stored, nil
 }
 
@@ -126,8 +126,6 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 	}
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
 
-	accountStates := make(types.AccountStates, 0)
-
 	for addr, account := range g.Alloc {
 		statedb.AddBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)
@@ -135,9 +133,6 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 		for key, value := range account.Storage {
 			statedb.SetState(addr, key, value)
 		}
-
-		blockAccount := types.BlockAccount{Addr: &addr, Balance: account.Balance}
-		accountStates = append(accountStates, &blockAccount)
 	}
 	root := statedb.IntermediateRoot(false)
 	head := &types.Header{
@@ -152,7 +147,7 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 
-	return types.NewBlock(head, nil, nil, &types.Commit{}, &accountStates)
+	return types.NewBlock(head, nil, nil, &types.Commit{})
 }
 
 // Commit writes the block and state of a genesis specification to the database.
@@ -162,17 +157,17 @@ func (g *Genesis) Commit(db kaidb.Database) (*types.Block, error) {
 	if block.Height() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with height > 0")
 	}
-	rawdb.WriteBlock(db, block)
-	rawdb.WriteReceipts(db, block.Hash(), block.Height(), nil)
-	rawdb.WriteCanonicalHash(db, block.Hash(), block.Height())
-	rawdb.WriteHeadBlockHash(db, block.Hash())
-	rawdb.WriteHeadHeaderHash(db, block.Hash())
+	chaindb.WriteBlock(db, block)
+	chaindb.WriteReceipts(db, block.Hash(), block.Height(), nil)
+	chaindb.WriteCanonicalHash(db, block.Hash(), block.Height())
+	chaindb.WriteHeadBlockHash(db, block.Hash())
+	chaindb.WriteHeadHeaderHash(db, block.Hash())
 
 	config := g.Config
 	if config == nil {
 		config = configs.TestnetChainConfig
 	}
-	rawdb.WriteChainConfig(db, block.Hash(), config)
+	chaindb.WriteChainConfig(db, block.Hash(), config)
 
 	return block, nil
 }
@@ -203,9 +198,33 @@ func DefaultTestnetGenesisBlock(allocData map[string]int64) *Genesis {
 
 func GenesisAllocFromData(data map[string]int64) (GenesisAlloc, error) {
 	ga := make(GenesisAlloc, len(data))
+
 	for address, balance := range data {
-		ga[common.StringToAddress(address)] = GenesisAccount{Balance: big.NewInt(balance)}
+		ga[common.HexToAddress(address)] = GenesisAccount{Balance: big.NewInt(balance)}
 	}
 
+	return ga, nil
+}
+
+//same as DefaultTestnetGenesisBlock, but with smart contract data
+func DefaultTestnetGenesisBlockWithContract(allocData map[string]string) *Genesis {
+	ga, err := GenesisAllocFromContractData(allocData)
+	if err != nil {
+		return nil
+	}
+
+	return &Genesis{
+		Config:   configs.TestnetChainConfig,
+		GasLimit: 16777216,
+		Alloc:    ga,
+	}
+}
+
+func GenesisAllocFromContractData(data map[string]string) (GenesisAlloc, error) {
+	ga := make(GenesisAlloc, len(data))
+
+	for address, code := range data {
+		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: big.NewInt(100)}
+	}
 	return ga, nil
 }

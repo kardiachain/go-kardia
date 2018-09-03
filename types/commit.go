@@ -178,5 +178,5 @@ func (commit *Commit) String() string {
 	return fmt.Sprintf("Commit{BlockID:%v  Precommits:%v}#%v",
 		commit.BlockID,
 		precommitStr,
-		commit.hash)
+		commit.hash.Hex())
 }
