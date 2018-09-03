@@ -23,6 +23,21 @@ type Commit struct {
 	bitArray       *cmn.BitArray
 }
 
+func (commit *Commit) Copy() *Commit {
+	commitCopy := *commit
+	if commit.firstPrecommit != nil {
+		commitCopy.firstPrecommit = commit.firstPrecommit.Copy()
+	}
+	commitCopy.Precommits = make([]*Vote, len(commit.Precommits))
+	for i := 0; i < len(commit.Precommits); i++ {
+		if commit.Precommits[i] == nil {
+			continue
+		}
+		commitCopy.Precommits[i] = commit.Precommits[i].Copy()
+	}
+	return &commitCopy
+}
+
 // FirstPrecommit returns the first non-nil precommit in the commit.
 // If all precommits are nil, it returns an empty precommit with height 0.
 func (commit *Commit) FirstPrecommit() *Vote {

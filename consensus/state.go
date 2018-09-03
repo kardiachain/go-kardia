@@ -1104,6 +1104,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	}
 	if err := cs.blockExec.ValidateBlock(cs.state, block); err != nil {
 		cmn.PanicConsensus(cmn.Fmt("+2/3 committed an invalid block: %v", err))
+		panic("Block validation failed")
 	}
 
 	cs.Logger.Info(cmn.Fmt("Finalizing commit of block with %d txs", block.NumTxs),

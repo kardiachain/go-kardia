@@ -92,6 +92,10 @@ func (vote *Vote) SignBytes(chainID string) []byte {
 
 func (vote *Vote) Copy() *Vote {
 	voteCopy := *vote
+	voteCopy.ValidatorIndex = vote.ValidatorIndex.Copy()
+	voteCopy.Height = vote.Height.Copy()
+	voteCopy.Round = vote.Round.Copy()
+	voteCopy.Timestamp = big.NewInt(vote.Timestamp.Int64())
 	return &voteCopy
 }
 
