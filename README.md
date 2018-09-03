@@ -88,3 +88,6 @@ Dual node may use 10GB+ storage and needs SSD storage.
 ```
 ./go-kardia --dual --name node1
 ```
+
+# Test docker environment 
+Reference: [Installation guide](https://github.com/kardiachain/go-kardia/tree/master/docker)
