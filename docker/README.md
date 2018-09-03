@@ -12,7 +12,7 @@ docker build -t kardiachain/go-kardia ../
 Example, 3-nodes network: 
 
 ```
-./start_kardia_network {NUMBER_OF_NODES}
+./start_kardia_network.sh {NUMBER_OF_NODES}
 ```
 
 or run in terminal
