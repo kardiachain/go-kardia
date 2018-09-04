@@ -28,8 +28,19 @@ func TestBlockEncodeDecode(t *testing.T) {
 
 	txns := []*Transaction{signedTx}
 
-	// TODO(thientn/namdoh): adds all details for a block here
-	block := NewBlock(&header, txns, nil, &Commit{})
+	vote := &Vote{
+		ValidatorIndex: common.NewBigInt(1),
+		Height:         common.NewBigInt(2),
+		Round:          common.NewBigInt(1),
+		Timestamp:      big.NewInt(100),
+		Type:           VoteTypePrecommit,
+	}
+	lastCommit := &Commit{
+		Precommits: []*Vote{vote, nil},
+	}
+
+	// TODO: add more details to block.
+	block := NewBlock(&header, txns, nil, lastCommit)
 
 	// TODO: enable validate after adding data to field Commit.
 	//if err := block.ValidateBasic(); err != nil {
@@ -55,8 +66,53 @@ func TestBlockEncodeDecode(t *testing.T) {
 			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
 		}
 	}
+
 	check("Time", block.Time(), decodedBlock.Time())
 	check("Header", block.Header(), decodedBlock.Header())
 	check("emptyTx", block.Transactions()[0].Hash(), decodedBlock.Transactions()[0].Hash())
 	check("Commit", block.LastCommit().String(), decodedBlock.LastCommit().String())
+}
+
+func TestBodyEncodeDecode(t *testing.T) {
+	body := &Body{}
+
+	addr := common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
+	key, _ := crypto.GenerateKey()
+	emptyTx := NewTransaction(
+		0,
+		addr,
+		big.NewInt(0), 0, big.NewInt(0),
+		nil,
+	)
+	signedTx, _ := SignTx(emptyTx, key)
+
+	vote := &Vote{
+		ValidatorIndex: common.NewBigInt(1),
+		Height:         common.NewBigInt(2),
+		Round:          common.NewBigInt(1),
+		Timestamp:      big.NewInt(100),
+		Type:           VoteTypePrecommit,
+	}
+
+	body.Transactions = []*Transaction{signedTx}
+	body.LastCommit = &Commit{Precommits: []*Vote{vote, nil}}
+
+	encodedBody, err := rlp.EncodeToBytes(body)
+	if err != nil {
+		t.Fatal("encode error: ", err)
+	}
+
+	var decodedBody Body
+	if err := rlp.DecodeBytes(encodedBody, &decodedBody); err != nil {
+		t.Fatal("decode error: ", err)
+	}
+
+	check := func(f string, got, want interface{}) {
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
+		}
+	}
+
+	check("Txs", body.Transactions[0].Hash(), decodedBody.Transactions[0].Hash())
+	check("Commit", body.LastCommit.Hash(), decodedBody.LastCommit.Hash())
 }
