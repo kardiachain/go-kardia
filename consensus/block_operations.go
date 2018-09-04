@@ -48,7 +48,7 @@ func (bs *BlockOperations) NewHeader(height int64, numTxs uint64, blockId types.
 		NumTxs:         numTxs,
 		LastBlockID:    blockId,
 		ValidatorsHash: validatorsHash,
-		GasLimit:       1000000,
+		GasLimit:       10000000,
 	}
 }
 

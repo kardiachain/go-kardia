@@ -70,6 +70,26 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	return receipts, allLogs, *usedGas, nil
 }
 
+// Execute exec a message that calls to a smartcontract without modifying the state
+func (p *StateProcessor) CallContract(msg *types.CallMsg, statedb *state.StateDB) ([]byte, error ) {
+	return ExecuteStaticCall(p.bc, statedb, p.bc.CurrentHeader(), msg, vm.Config{})
+}
+
+// ExecuteStaticCall call to StaticCall of KVM in read only mode which restrict all operations which modifies the state
+func ExecuteStaticCall(bc ChainContext, statedb *state.StateDB, header *types.Header, msg *types.CallMsg, cfg vm.Config) ([]byte, error) {
+
+	sender := vm.AccountRef(msg.From)
+	// Create a new context to be used in the KVM environment
+	context := NewKVMContextFromCallMsg(msg, header, bc)
+	// Create a new environment which holds all relevant information
+	// about the transaction and calling mechanisms.
+	vmenv := vm.NewKVM(context, statedb, cfg)
+	ret, _, err := vmenv.StaticCall(sender, msg.GetTo(), msg.Data, msg.Gas)
+	if err != nil {
+		return nil, err
+	}
+	return ret, nil
+}
 // ApplyTransaction attempts to apply a transaction to the given state database
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
