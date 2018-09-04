@@ -153,17 +153,6 @@ func (cs *ConsensusState) SetPrivValidator(priv *types.PrivValidator) {
 // It loads the latest state via the WAL, and starts the timeout and receive routines.
 func (cs *ConsensusState) Start() {
 	cs.Logger.Trace("Consensus state starts!")
-	// we may set the WAL in testing before calling Start,
-	// so only OpenWAL if its still the nilWAL
-	//if _, ok := cs.wal.(nilWAL); ok {
-	//	walFile := cs.config.WalFile()
-	//	wal, err := cs.OpenWAL(walFile)
-	//	if err != nil {
-	//		cs.Logger.Error("Error loading ConsensusState wal", "err", err.Error())
-	//		return err
-	//	}
-	//	cs.wal = wal
-	//}
 
 	// we need the timeoutRoutine for replay so
 	// we don't block on the tick chan.
@@ -174,16 +163,6 @@ func (cs *ConsensusState) Start() {
 		cs.Logger.Error("ConsensusState - Start", "err", err)
 		return
 	}
-
-	// we may have lost some votes if the process crashed
-	// reload from consensus log to catchup
-	//if cs.doWALCatchup {
-	//	if err := cs.catchupReplay(cs.Height); err != nil {
-	//		cs.Logger.Error("Error on catchup replay. Proceeding to start ConsensusState anyway", "err", err.Error())
-	//		// NOTE: if we ever do return an error here,
-	//		// make sure to stop the timeoutTicker
-	//	}
-	//}
 
 	// now start the receiveRoutine
 	go cs.receiveRoutine(0)
@@ -404,8 +383,6 @@ func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 	default:
 		// NOTE: using the go-routine means our votes can
 		// be processed out of order.
-		// TODO: use CList here for strict determinism and
-		// attempt push to internalMsgQueue in receiveRoutine
 		cs.Logger.Info("Internal msg queue is full. Using a go-routine")
 		go func() { cs.internalMsgQueue <- mi }()
 	}
@@ -447,7 +424,7 @@ func (cs *ConsensusState) addProposalBlock(msg *BlockMessage, peerID discover.No
 
 	cs.ProposalBlock = msg.Block
 	// NOTE: it's possible to receive complete proposal blocks for future rounds without having the proposal
-	cs.Logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height(), "round", "hash", cs.ProposalBlock.Hash())
+	cs.Logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height(), "hash", cs.ProposalBlock.Hash())
 
 	// Update Valid* if we can.
 	prevotes := cs.Votes.Prevotes(cs.Round.Int32())
@@ -513,8 +490,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 	// These come in while we wait timeoutCommit
 	if vote.Height.Add(1).Equals(cs.Height) {
 		if !(cs.Step == cstypes.RoundStepNewHeight && vote.Type == types.VoteTypePrecommit) {
-			// TODO: give the reason ..
-			// fmt.Errorf("tryAddVote: Wrong height, not a LastCommit straggler commit.")
 			return added, ErrVoteHeightMismatch
 		}
 		added, err = cs.LastCommit.AddVote(vote)
@@ -615,12 +590,9 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 		cs.Logger.Info("Added to precommit", "vote", vote, "precommits", precommits.StringShort())
 		blockID, ok := precommits.TwoThirdsMajority()
 		if ok {
-			cs.Logger.Trace("debug#A2")
 			if blockID.IsZero() {
-				cs.Logger.Trace("debug#A3")
 				cs.enterNewRound(height, vote.Round.Add(1))
-			} else if cs.ProposalBlock != nil && cs.ProposalBlock.HashesTo(blockID) {
-				cs.Logger.Trace("debug#A4")
+			} else if cs.ProposalBlock != nil && cs.ProposalBlock.HashesTo(blockID) { // TODO(namdoh): Comment out if statement for catchup.
 				cs.enterNewRound(height, vote.Round)
 				cs.enterPrecommit(height, vote.Round)
 				cs.enterCommit(height, vote.Round)
@@ -634,7 +606,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 
 			}
 		} else if cs.Round.IsLessThanOrEquals(vote.Round) && precommits.HasTwoThirdsAny() {
-			cs.Logger.Trace("debug#A5")
 			cs.enterNewRound(height, vote.Round)
 			cs.enterPrecommit(height, vote.Round)
 			cs.enterPrecommitWait(height, vote.Round)
@@ -708,9 +679,6 @@ func (cs *ConsensusState) updateRoundStep(round *cmn.BigInt, step cstypes.RoundS
 // Advances to a new step.
 func (cs *ConsensusState) newStep() {
 	cs.Logger.Trace("enter newStep()")
-	//rs := cs.RoundStateEvent()
-	//  TODO(namdoh): Add support for WAL later on.
-	//cs.wal.Write(rs)
 
 	cs.nSteps++
 	cs.evsw.FireEvent(types.EventNewRoundStep, &cs.RoundState)
@@ -729,8 +697,6 @@ func (cs *ConsensusState) GetRoundState() *cstypes.RoundState {
 	rs := cs.RoundState // copy
 	return &rs
 }
-
-// -------- STATE METHODS ------ //
 
 // Enter: `timeoutNewHeight` by startTime (commitTime+timeoutCommit),
 // 	or, if SkipTimeout==true, after receiving all precommits from (height,round-1)
@@ -776,21 +742,8 @@ func (cs *ConsensusState) enterNewRound(height *cmn.BigInt, round *cmn.BigInt) {
 	cs.Votes.SetRound(round.Int32() + 1) // also track next round (round+1) to allow round-skipping
 
 	cs.eventBus.PublishEventNewRound(cs.RoundStateEvent())
-	//namdoh@ cs.metrics.Rounds.Set(float64(round))
 
-	// TODO(namdoh): Re-enable transactions
-	// Wait for txs to be available in the mempool
-	// before we enterPropose in round 0. If the last block changed the app hash,
-	// we may need an empty "proof" block, and enterPropose immediately.
-	//waitForTxs := cs.config.WaitForTxs() && round == 0 && !cs.needProofBlock(height)
-	//if waitForTxs {
-	//	if cs.config.CreateEmptyBlocksInterval > 0 {
-	//		cs.scheduleTimeout(cs.config.EmptyBlocksInterval(), height, round, cstypes.RoundStepNewRound)
-	//	}
-	//	go cs.proposalHeartbeat(height, round)
-	//} else {
 	cs.enterPropose(height, round)
-	//}
 }
 
 // Enter (CreateEmptyBlocks): from enterNewRound(height,round)
@@ -1172,23 +1125,6 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 
 	fail.Fail() // XXX
 
-	// Write EndHeightMessage{} for this height, implying that the blockstore
-	// has saved the block.
-	//
-	// If we crash before writing this EndHeightMessage{}, we will recover by
-	// running ApplyBlock during the ABCI handshake when we restart.  If we
-	// didn't save the block to the blockstore before writing
-	// EndHeightMessage{}, we'd have to change WAL replay -- currently it
-	// complains about replaying for heights where an #ENDHEIGHT entry already
-	// exists.
-	//
-	// Either way, the ConsensusState should not be resumed until we
-	// successfully call ApplyBlock (ie. later here, or in Handshake after
-	// restart).
-	//namdoh@ cs.wal.WriteSync(EndHeightMessage{height}) // NOTE: fsync
-
-	fail.Fail() // XXX
-
 	// Create a copy of the state for staging and an event cache for txs.
 	stateCopy := cs.state.Copy()
 
@@ -1216,10 +1152,10 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	// Schedule Round0 to start soon.
 	cs.scheduleRound0(&cs.RoundState)
 
-	// By here,
-	// * cs.Height has been increment to height+1
-	// * cs.Step is now cstypes.RoundStepNewHeight
-	// * cs.StartTime is set to when we will start round0.
+	// By now,
+	// - cs.Height has been increment to height+1
+	// - cs.Step is now cstypes.RoundStepNewHeight
+	// - cs.StartTime is set to when we will start round0.
 }
 
 // Creates the next block to propose and returns it. Returns nil block upon
@@ -1304,10 +1240,6 @@ func CompareHRS(h1 *cmn.BigInt, r1 *cmn.BigInt, s1 cstypes.RoundStepType, h2 *cm
 	return 0
 }
 
-// -------- Routines -----------
-//-----------------------------------------
-// the main go routines
-
 // receiveRoutine handles messages which may cause state transitions.
 // it's argument (n) is the number of messages to process before exiting - use 0 to run forever
 // It keeps the RoundState and is the only thing that updates it.
@@ -1332,19 +1264,14 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 		var mi msgInfo
 
 		select {
-		//namdoh@ case <-cs.mempool.TxsAvailable():
-		//namdoh@ 	cs.handleTxsAvailable()
 		case mi = <-cs.peerMsgQueue:
-			//namdoh@ cs.wal.Write(mi)
 			// handles proposals, votes
 			// may generate internal events (votes, complete proposals, 2/3 majorities)
 			cs.handleMsg(mi)
 		case mi = <-cs.internalMsgQueue:
-			//namdoh@ cs.wal.WriteSync(mi) // NOTE: fsync
 			// handles proposals, votes
 			cs.handleMsg(mi)
 		case ti := <-cs.timeoutTicker.Chan(): // tockChan:
-			//namdoh@ cs.wal.Write(ti)
 			// if the timeout is relevant to the rs
 			// go to the next step
 			cs.handleTimeout(ti, rs)
@@ -1371,18 +1298,8 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		err := cs.tryAddVote(msg.Vote, peerID)
 		if err == ErrAddingVote {
 			cs.Logger.Trace("trying to add vote failed", "err", err)
-			// TODO: punish peer
-			// We probably don't want to stop the peer here. The vote does not
-			// necessarily comes from a malicious peer but can be just broadcasted by
-			// a typical peer.
+			cs.Logger.Warn("TODO - punish peer.")
 		}
-
-		// NOTE: the vote is broadcast to peers by the reactor listening
-		// for vote events
-
-		// TODO: If rs.Height == vote.Height && rs.Round < vote.Round,
-		// the peer is sending us CatchupCommit precommits.
-		// We could make note of this and help filter in broadcastHasVoteMessage().
 	case *BlockMessage:
 		cs.Logger.Trace("handling BlockMessage", "msg", msg)
 		_, err = cs.addProposalBlock(msg, peerID)
@@ -1414,21 +1331,16 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 	switch ti.Step {
 	case cstypes.RoundStepNewHeight:
 		// NewRound event fired from enterNewRound.
-		// XXX: should we fire timeout here (for timeout commit)?
 		cs.enterNewRound(ti.Height, cmn.NewBigInt(0))
 	case cstypes.RoundStepNewRound:
-		//namdoh@ cs.enterPropose(ti.Height, cmn.NewBigInt(0))
+		cs.enterPropose(ti.Height, cmn.NewBigInt(0))
 	case cstypes.RoundStepPropose:
-		//cs.eventBus.PublishEventTimeoutPropose(cs.RoundStateEvent())
-		//namdoh@ cs.enterPrevote(ti.Height, ti.Round)
+		cs.enterPrevote(ti.Height, ti.Round)
 	case cstypes.RoundStepPrevoteWait:
-		//cs.eventBus.PublishEventTimeoutWait(cs.RoundStateEvent())
 		cs.enterPrecommit(ti.Height, ti.Round)
 	case cstypes.RoundStepPrecommitWait:
-		//cs.eventBus.PublishEventTimeoutWait(cs.RoundStateEvent())
 		cs.enterNewRound(ti.Height, ti.Round.Add(1))
 	default:
 		panic(cmn.Fmt("Invalid timeout step: %v", ti.Step))
 	}
-
 }
