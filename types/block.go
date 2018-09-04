@@ -87,6 +87,14 @@ type Body struct {
 	LastCommit   *Commit
 }
 
+func (b *Body) Copy() *Body {
+	var bodyCopy Body
+	bodyCopy.LastCommit = b.LastCommit.Copy()
+	bodyCopy.Transactions = make([]*Transaction, len(b.Transactions))
+	copy(bodyCopy.Transactions, b.Transactions)
+	return &bodyCopy
+}
+
 // Body returns the non-header content of the block.
 func (b *Block) Body() *Body {
 	return &Body{Transactions: b.transactions, LastCommit: b.lastCommit}

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"sync"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
@@ -137,6 +138,23 @@ func (hvs *HeightVoteSet) getVoteSet(round int, type_ byte) *types.VoteSet {
 		cmn.PanicSanity(cmn.Fmt("Unexpected vote type %X", type_))
 		return nil
 	}
+}
+
+// If a peer claims that it has 2/3 majority for given blockKey, call this.
+// NOTE: if there are too many peers, or too much peer churn,
+// this can cause memory issues.
+// TODO: implement ability to remove peers too
+func (hvs *HeightVoteSet) SetPeerMaj23(round int, type_ byte, peerID discover.NodeID, blockID types.BlockID) error {
+	hvs.mtx.Lock()
+	defer hvs.mtx.Unlock()
+	if !types.IsVoteTypeValid(type_) {
+		return fmt.Errorf("SetPeerMaj23: Invalid vote type %v", type_)
+	}
+	voteSet := hvs.getVoteSet(round, type_)
+	if voteSet == nil {
+		return nil // something we don't know about yet
+	}
+	return voteSet.SetPeerMaj23(peerID, blockID)
 }
 
 // Returns last round and blockID that has +2/3 prevotes for a particular block

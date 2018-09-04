@@ -101,7 +101,7 @@ func (commit *Commit) BitArray() *cmn.BitArray {
 }
 
 // GetByIndex returns the vote corresponding to a given validator index
-func (commit *Commit) GetByIndex(index int) *Vote {
+func (commit *Commit) GetByIndex(index uint) *Vote {
 	return commit.Precommits[index]
 }
 

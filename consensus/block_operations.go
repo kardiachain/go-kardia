@@ -130,6 +130,17 @@ func (b *BlockOperations) LoadBlock(height uint64) *types.Block {
 	return b.blockchain.GetBlockByHeight(height)
 }
 
+// LoadBlock returns the Block for the given height.
+// If no block is found for the given height, it returns nil.
+func (b *BlockOperations) LoadBlockCommit(height uint64) *types.Commit {
+	block := b.blockchain.GetBlockByHeight(height + 1)
+	if block == nil {
+		return nil
+	}
+
+	return block.LastCommit()
+}
+
 // LoadSeenCommit returns the locally seen Commit for the given height.
 // This is useful when we've seen a commit, but there has not yet been
 // a new block at `height + 1` that includes this commit in its block.LastCommit.

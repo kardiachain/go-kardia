@@ -1,13 +1,12 @@
 package discover
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
 	"math/big"
 	"math/rand"
 	"net"
@@ -16,6 +15,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 )
 
 const NodeIDBits = 512
@@ -208,13 +210,19 @@ func (n *Node) UnmarshalText(text []byte) error {
 // The node identifier is a marshaled elliptic curve public key.
 type NodeID [NodeIDBits / 8]byte
 
-func EmptyNodeID() NodeID {
+func ZeroNodeID() NodeID {
 	return NodeID{}
 }
 
 // Bytes returns a byte slice representation of the NodeID
 func (n NodeID) Bytes() []byte {
 	return n[:]
+}
+
+func (n NodeID) IsZero() bool {
+	zero := NodeID{}
+	return bytes.Equal(n[:], zero[:])
+
 }
 
 // NodeID prints as a long hexadecimal number.

@@ -149,7 +149,7 @@ type ConsensusConfig struct {
 // DefaultConsensusConfig returns a default configuration for the consensus service
 func DefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
-		TimeoutPropose:              10000,
+		TimeoutPropose:              5000,
 		TimeoutProposeDelta:         500,
 		TimeoutPrevote:              1000,
 		TimeoutPrevoteDelta:         500,
@@ -187,4 +187,9 @@ func (cfg *ConsensusConfig) Precommit(round int) time.Duration {
 // PeerGossipSleep returns the amount of time to sleep if there is nothing to send from the ConsensusReactor
 func (cfg *ConsensusConfig) PeerGossipSleep() time.Duration {
 	return time.Duration(cfg.PeerGossipSleepDuration) * time.Millisecond
+}
+
+// PeerQueryMaj23Sleep returns the amount of time to sleep after each VoteSetMaj23Message is sent in the ConsensusReactor
+func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
+	return time.Duration(cfg.PeerQueryMaj23SleepDuration) * time.Millisecond
 }
