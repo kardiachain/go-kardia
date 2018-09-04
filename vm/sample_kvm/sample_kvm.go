@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/state"
@@ -17,7 +16,6 @@ import (
 // Config is a basic type specifying certain configuration flags for running
 // the KVM.
 type Config struct {
-	ChainConfig *configs.ChainConfig
 	Origin      common.Address
 	Coinbase    common.Address
 	BlockHeight uint64

@@ -10,6 +10,7 @@ import (
 
 	"encoding/hex"
 	elog "github.com/ethereum/go-ethereum/log"
+	"github.com/kardiachain/go-kardia/abi"
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/dual"
 	"github.com/kardiachain/go-kardia/kai"
@@ -23,6 +24,7 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 func runtimeSystemSettings() error {
@@ -83,6 +85,7 @@ func main() {
 	rpcAddr := flag.String("rpcaddr", "", "HTTP-RPC server listening interface")
 	rpcPort := flag.Int("rpcport", node.DefaultHTTPPort, "HTTP-RPC server listening port")
 	addTxn := flag.Bool("txn", false, "whether to add a transfer txn")
+	addSmcCall := flag.Bool("smc", false, "where to add smart contract call")
 	genNewTxs := flag.Bool("genNewTxs", false, "whether to run routine that regularly add new transactions.")
 	newTxDelay := flag.Int("newTxDelay", 10, "how often new txs are added.")
 	dualMode := flag.Bool("dual", false, "whether to run in dual mode")
@@ -169,7 +172,7 @@ func main() {
 		config.DbCache = development.DbCache
 
 		// Create genesis block with dev.genesisAccounts
-		config.Genesis = blockchain.DefaultTestnetGenesisBlock(development.GenesisAccounts)
+		config.Genesis = blockchain.DefaulTestnetFullGenesisBlock(development.GenesisAccounts, development.GenesisContracts)
 	}
 
 	nodeDir := filepath.Join(config.DataDir, config.Name)
@@ -218,7 +221,8 @@ func main() {
 			0,
 			receiverAddr,
 			big.NewInt(10),
-			10, big.NewInt(10),
+			10,
+			big.NewInt(10),
 			nil,
 		)
 		txPool := kService.TxPool()
@@ -227,6 +231,63 @@ func main() {
 		err := txPool.AddLocal(signedTx)
 		if err != nil {
 			logger.Error("Txn add error", "err", err)
+		}
+	}
+
+	if *addSmcCall {
+		txPool := kService.TxPool()
+		statedb, err := kService.BlockChain().State()
+		if err != nil {
+			logger.Error("Cannot get state", "state", err)
+		}
+		// Get first contract in genesis contracts
+		/*counterSmcAddress := devEnv.GetContractAddressAt(1)
+		smcAbi := devEnv.GetContractAbiByAddress(counterSmcAddress.String())
+		statedb, err := kService.BlockChain().State()
+		// Caller is account[1] in genesis
+		callerByteK, _ := hex.DecodeString("77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79")
+		callerKey := crypto.ToECDSAUnsafe(callerByteK)
+
+		counterAbi, err := abi.JSON(strings.NewReader(smcAbi))
+		if err != nil {
+			logger.Error("Can not read abi", err)
+		}
+		input, err := counterAbi.Pack("set", uint8(5))
+		if err != nil {
+			logger.Error("Cannot pack method call", err)
+		}
+		simpleContractCall := tool.GenerateSmcCall(callerKey, counterSmcAddress, input, statedb)
+		signedSmcCall, _ := types.SignTx(simpleContractCall, callerKey)
+
+		err = txPool.AddLocal(signedSmcCall)
+		if err!= nil {
+			logger.Error("Error adding contract call", "err", err)
+		} else {
+			logger.Info("Adding counter contract call successfully")
+		}
+		*/
+		// Get voting contract address, this smc is created in genesis block
+		votingSmcAddress := devEnv.GetContractAddressAt(0)
+		votingAbiStr := devEnv.GetContractAbiByAddress(votingSmcAddress.String())
+		votingAbi, err := abi.JSON(strings.NewReader(votingAbiStr))
+		if err != nil {
+			logger.Error("Can not read abi", err)
+		}
+		// Caller2 is account[2] in genesis
+		caller2ByteK, _ := hex.DecodeString("98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb")
+		caller2Key := crypto.ToECDSAUnsafe(caller2ByteK)
+		voteInput, err := votingAbi.Pack("vote", uint8(1))
+		if err != nil {
+			logger.Error("Can not read abi", err)
+		}
+
+		votingContractCall := tool.GenerateSmcCall(caller2Key, votingSmcAddress, voteInput, statedb)
+		signedSmcCall2, _ := types.SignTx(votingContractCall, caller2Key)
+		err = txPool.AddLocal(signedSmcCall2)
+		if err!= nil {
+			logger.Error("Error adding contract call", "err", err)
+		} else {
+			logger.Info("Adding voting contract call successfully")
 		}
 	}
 

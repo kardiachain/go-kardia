@@ -48,7 +48,7 @@ func (bs *BlockOperations) NewHeader(height int64, numTxs uint64, blockId types.
 		NumTxs:         numTxs,
 		LastBlockID:    blockId,
 		ValidatorsHash: validatorsHash,
-		GasLimit:       10000,
+		GasLimit:       1000000,
 	}
 }
 
@@ -169,6 +169,7 @@ func (b *BlockOperations) CommitTransactions(txs types.Transactions, header *typ
 	}
 
 	// GasPool
+	log.Info("header gas limit", "limit", header.GasLimit)
 	gasPool := new(blockchain.GasPool).AddGas(header.GasLimit)
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
@@ -176,7 +177,7 @@ func (b *BlockOperations) CommitTransactions(txs types.Transactions, header *typ
 		state.Prepare(tx.Hash(), common.Hash{}, counter)
 		snap := state.Snapshot()
 		// TODO(thientn): confirms nil coinbase is acceptable.
-		receipt, _, err := blockchain.ApplyTransaction(b.blockchain, nil, gasPool, state, header, tx, usedGas, vm.Config{})
+		receipt, _, err := blockchain.ApplyTransaction(b.blockchain, gasPool, state, header, tx, usedGas, vm.Config{})
 		if err != nil {
 			state.RevertToSnapshot(snap)
 			// TODO(thientn): check error type and jump to next tx if possible

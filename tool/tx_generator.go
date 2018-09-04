@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"math/rand"
 	"time"
+	"github.com/kardiachain/go-kardia/state"
 )
 
 const (
@@ -39,6 +40,31 @@ func GenerateRandomTx(numTx int) []*types.Transaction {
 			0, // TODO: need to set valid nonce after improving tx handling to handling nonce.
 			toAddr,
 			defaultAmount,
+			1000,
+			big.NewInt(1),
+			nil,
+		), senderKey)
+		if err != nil {
+			panic(fmt.Sprintf("Fail to sign generated tx: %v", err))
+		}
+		result[i] = tx
+	}
+	return result
+}
+
+func GenerateRandomTxWithState(numTx int, stateDb *state.StateDB) []*types.Transaction {
+	if numTx <= 0 {
+		numTx = defaultNumTx
+	}
+
+	result := make([]*types.Transaction, numTx)
+	for i := 0; i < numTx; i++ {
+		senderKey, toAddr := randomTxAddresses()
+		nonce := stateDb.GetNonce(crypto.PubkeyToAddress(senderKey.PublicKey))
+		tx, err := types.SignTx(types.NewTransaction(
+			nonce,
+			toAddr,
+			defaultAmount,
 			defaultGasLimit,
 			defaultGasPrice,
 			nil,
@@ -49,6 +75,40 @@ func GenerateRandomTx(numTx int) []*types.Transaction {
 		result[i] = tx
 	}
 	return result
+}
+
+func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input []byte, stateDb *state.StateDB) *types.Transaction {
+	senderAddress := crypto.PubkeyToAddress(senderKey.PublicKey)
+	nonce := stateDb.GetNonce(senderAddress)
+	tx, err := types.SignTx(types.NewTransaction(
+		nonce,
+		address,
+		big.NewInt(0),
+		60000,
+		big.NewInt(1),
+		input,
+	), senderKey)
+	if err != nil {
+		panic(fmt.Sprintf("Fail to generate smc call: %v", err))
+	}
+	return tx
+}
+
+func GenerateCreateSmcCall(senderKey *ecdsa.PrivateKey, input []byte, stateDb *state.StateDB) *types.Transaction {
+	senderAddress := crypto.PubkeyToAddress(senderKey.PublicKey)
+	nonce := stateDb.GetNonce(senderAddress)
+	tx, err := types.SignTx(types.NewTransaction(
+		nonce,
+		common.HexToAddress(""),
+		defaultAmount,
+		60000,
+		big.NewInt(1),
+		input,
+	), senderKey)
+	if err != nil {
+		panic(fmt.Sprintf("Fail to generate smc call: %v", err))
+	}
+	return tx
 }
 
 func randomTxAddresses() (senderKey *ecdsa.PrivateKey, toAddr common.Address) {
