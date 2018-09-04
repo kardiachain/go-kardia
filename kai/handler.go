@@ -272,9 +272,21 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	case msg.Code == kcmn.CsHasVoteMsg:
 		p.Log().Trace("HasVote messsage received")
 		pm.csReactor.ReceiveHasVote(msg, p.Peer)
+	case msg.Code == kcmn.CsProposalPOLMsg:
+		p.Log().Trace("ProposalPOL messsage received")
+		pm.csReactor.ReceiveProposalPOL(msg, p.Peer)
 	case msg.Code == kcmn.CsCommitStepMsg:
 		p.Log().Trace("CommitStep message received")
 		pm.csReactor.ReceiveNewCommit(msg, p.Peer)
+	case msg.Code == kcmn.CsBlockMsg:
+		p.Log().Trace("Block message received")
+		pm.csReactor.ReceiveBlock(msg, p.Peer)
+	case msg.Code == kcmn.CsVoteSetMaj23Message:
+		p.Log().Trace("VoteSetMaj23 message received")
+		pm.csReactor.ReceiveVoteSetMaj23(msg, p.Peer)
+	case msg.Code == kcmn.CsVoteSetBitsMessage:
+		p.Log().Trace("VoteSetBits message received")
+		pm.csReactor.ReceiveVoteSetBits(msg, p.Peer)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}

@@ -9,26 +9,6 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
-//-----------------------------------------------------------------------------
-// BlockExecutor handles block execution and state updates.
-// It exposes ApplyBlock(), which validates & executes the block, updates state w/ ABCI responses,
-// then commits and updates the mempool atomically, then saves state.
-
-// BlockExecutor provides the context and accessories for properly executing a block.
-type BlockExecutor struct {
-	// TODO(namdoh): Save state, validators, consensus params in db.
-	//db dbm.DB
-
-	// events
-	eventBus types.BlockEventPublisher
-
-	// update these with block results after commit
-	//namdoh@ mempool Mempool
-	evpool EvidencePool
-
-	logger log.Logger
-}
-
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.
 type EvidencePool interface {
 	PendingEvidence() []types.Evidence
@@ -38,29 +18,18 @@ type EvidencePool interface {
 // If the block is invalid, it returns an error.
 // Validation does not mutate state, but does require historical information from the stateDB,
 // ie. to verify evidence from a validator at an old height.
-func (blockExec *BlockExecutor) ValidateBlock(state LastestBlockState, block *types.Block) error {
+func ValidateBlock(state LastestBlockState, block *types.Block) error {
 	return validateBlock(state, block)
 }
 
-// ApplyBlock validates the block against the state, executes it against the app,
-// fires the relevant events, commits the app, and saves the new state and responses.
+// ApplyBlock validates the block against the state, and saves the new state.
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
-func (blockExec *BlockExecutor) ApplyBlock(state LastestBlockState, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
-	if err := blockExec.ValidateBlock(state, block); err != nil {
+func ApplyBlock(state LastestBlockState, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
+	if err := ValidateBlock(state, block); err != nil {
 		return state, ErrInvalidBlock(err)
 	}
-
-	//namdoh@ abciResponses, err := execBlockOnProxyApp(blockExec.logger, blockExec.proxyApp, block, state.LastValidators, blockExec.db)
-	//namdoh@ if err != nil {
-	//namdoh@ 	return state, ErrProxyAppConn(err)
-	//namdoh@ }
-
-	fail.Fail() // XXX
-
-	// save the results before we commit
-	//namdoh@ saveABCIResponses(blockExec.db, block.Height, abciResponses)
 
 	fail.Fail() // XXX
 
@@ -71,20 +40,8 @@ func (blockExec *BlockExecutor) ApplyBlock(state LastestBlockState, blockID type
 		return state, fmt.Errorf("Commit failed for application: %v", err)
 	}
 
-	// lock mempool, commit app state, update mempoool
-	//namdoh@ appHash, err := blockExec.Commit(block)
-	//namdoh@ if err != nil {
-	//namdoh@ 	return state, fmt.Errorf("Commit failed for application: %v", err)
-	//namdoh@ }
-
-	// Update evpool with the block and state.
-	//namdoh@ blockExec.evpool.Update(block, state)
-
+	log.Warn("Update evidence pool.")
 	fail.Fail() // XXX
-
-	// events are fired after everything else
-	// NOTE: if we crash between Commit and Save, events wont be fired during replay
-	//namdoh@ fireEvents(blockExec.logger, blockExec.eventBus, block, abciResponses)
 
 	return state, nil
 }

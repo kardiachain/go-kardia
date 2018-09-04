@@ -220,6 +220,7 @@ func ReadBody(db DatabaseReader, hash common.Hash, height uint64) *types.Body {
 		log.Error("Invalid block body RLP", "hash", hash, "err", err)
 		return nil
 	}
+
 	return body
 }
 
