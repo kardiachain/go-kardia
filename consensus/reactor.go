@@ -21,6 +21,8 @@ const (
 	VoteChannel        = byte(0x22)
 	VoteSetBitsChannel = byte(0x23)
 
+	maxMsgSize = 1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
+
 	blocksToContributeToBecomeGoodPeer = 10000
 )
 
@@ -294,11 +296,11 @@ func (conR *ConsensusReactor) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 func (conR *ConsensusReactor) broadcastNewRoundStepMessages(rs *cstypes.RoundState) {
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
 	if nrsMsg != nil {
-		conR.conS.Logger.Trace("broadcastNewRoundStepMessages", "nrsMsg", nrsMsg)
+		conR.conS.Logger.Trace("broadcastNewRoundStepMessage", "nrsMsg", nrsMsg)
 		conR.protocol.Broadcast(nrsMsg, kcmn.CsNewRoundStepMsg)
 	}
 	if csMsg != nil {
-		conR.conS.Logger.Trace("broadcastCommitStepMessages", "csMsg", csMsg)
+		conR.conS.Logger.Trace("broadcastCommitStepMessage", "csMsg", csMsg)
 		conR.protocol.Broadcast(csMsg, kcmn.CsCommitStepMsg)
 	}
 }
@@ -347,6 +349,7 @@ func (conR *ConsensusReactor) sendNewRoundStepMessages(rw p2p.MsgReadWriter) {
 	}
 
 	if csMsg != nil {
+		conR.conS.Logger.Trace("Send CommitStepMsg", "csMsg", csMsg)
 		if err := p2p.Send(rw, kcmn.CsCommitStepMsg, csMsg); err != nil {
 			conR.conS.Logger.Warn("send CommitStepMessage failed", "err", err)
 		} else {
@@ -404,9 +407,8 @@ OUTER_LOOP:
 		if rs.Proposal != nil && !prs.Proposal {
 			// Proposal: share the proposal metadata with peer.
 			{
-				msg := &ProposalMessage{Proposal: rs.Proposal}
 				logger.Debug("Sending proposal", "height", prs.Height, "round", prs.Round)
-				if err := p2p.Send(ps.rw, kcmn.CsProposalMsg, msg); err != nil {
+				if err := p2p.Send(ps.rw, kcmn.CsProposalMsg, &ProposalMessage{Proposal: rs.Proposal}); err != nil {
 					logger.Trace("Sending proposal failed", "err", err)
 				}
 				ps.SetHasProposal(rs.Proposal)
@@ -479,13 +481,11 @@ OUTER_LOOP:
 
 		// Catchup logic
 		// If peer is lagging by more than 1, send Commit.
-		if !prs.Height.EqualsInt(0) && rs.Height.IsGreaterThanInt(prs.Height.Int32()+2) {
-			logger.Error("gossipVotesRoutine- ERROR!!!")
-			panic("Catchup isn't implemented yet.")
-			// TODO(namdoh): Re-enable this.
-			//// Load the block commit for prs.Height,
-			//// which contains precommit signatures for prs.Height.
-			//commit := conR.conS.blockStore.LoadBlockCommit(prs.Height)
+		if !prs.Height.EqualsInt(0) && rs.Height.IsGreaterThanInt64(prs.Height.Int64()+2) {
+			panic("Catchup logic - Not yet implemented")
+			// Load the block commit for prs.Height,
+			// which contains precommit signatures for prs.Height.
+			//commit := conR.conS.blockOperations.LoadBlockCommit(uint64(prs.Height.Int64()))
 			//if ps.PickSendVote(commit) {
 			//	logger.Debug("Picked Catchup commit to send", "height", prs.Height)
 			//	continue OUTER_LOOP

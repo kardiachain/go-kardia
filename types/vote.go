@@ -69,6 +69,19 @@ type Vote struct {
 	Signature        []byte      `json:"signature"`
 }
 
+func CreateEmptyVote() *Vote {
+	return &Vote{
+		ValidatorIndex: cmn.NewBigInt(-1),
+		Height:         cmn.NewBigInt(-1),
+		Round:          cmn.NewBigInt(-1),
+		Timestamp:      big.NewInt(0),
+	}
+}
+
+func (vote *Vote) IsEmpty() bool {
+	return vote.ValidatorIndex.EqualsInt(-1) && vote.Height.EqualsInt(-1) && vote.Height.EqualsInt(-1) && vote.Timestamp.Int64() == 0
+}
+
 func (vote *Vote) SignBytes(chainID string) []byte {
 	bz, err := rlp.EncodeToBytes(CreateCanonicalVote(chainID, vote))
 	if err != nil {
@@ -79,12 +92,19 @@ func (vote *Vote) SignBytes(chainID string) []byte {
 
 func (vote *Vote) Copy() *Vote {
 	voteCopy := *vote
+	voteCopy.ValidatorIndex = vote.ValidatorIndex.Copy()
+	voteCopy.Height = vote.Height.Copy()
+	voteCopy.Round = vote.Round.Copy()
+	voteCopy.Timestamp = big.NewInt(vote.Timestamp.Int64())
 	return &voteCopy
 }
 
 func (vote *Vote) String() string {
 	if vote == nil {
 		return "nil-Vote"
+	}
+	if vote.IsEmpty() {
+		return "empty-Vote"
 	}
 	var typeString string
 	switch vote.Type {

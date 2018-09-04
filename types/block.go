@@ -155,7 +155,7 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *C
 			log.Error("NewBlock - commit should never be nil.")
 			b.header.LastCommitHash = common.NewZeroHash()
 		} else {
-			log.Error("Compute last commit hash", "commit", commit)
+			log.Trace("Compute last commit hash", "commit", commit)
 			b.header.LastCommitHash = commit.Hash()
 		}
 	}
@@ -196,6 +196,9 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	if err := s.Decode(&eb); err != nil {
 		return err
 	}
+	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
+	eb.LastCommit.MakeEmptyNil()
+
 	b.header, b.transactions, b.lastCommit = eb.Header, eb.Txs, eb.LastCommit
 	b.size.Store(common.StorageSize(rlp.ListSize(size)))
 	return nil
@@ -203,10 +206,13 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 
 // EncodeRLP serializes b into the Ethereum RLP block format.
 func (b *Block) EncodeRLP(w io.Writer) error {
+	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
+	lastCommitCopy := b.lastCommit.Copy()
+	lastCommitCopy.MakeNilEmpty()
 	return rlp.Encode(w, extblock{
 		Header:     b.header,
 		Txs:        b.transactions,
-		LastCommit: b.lastCommit,
+		LastCommit: lastCommitCopy,
 	})
 }
 
@@ -287,7 +293,7 @@ func (b *Block) ValidateBasic() error {
 	if b.lastCommit == nil && !b.header.LastCommitHash.IsZero() {
 		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  lastCommit is nil, but expect zero hash, but got: %v", b.header.LastCommitHash)
 	} else if b.lastCommit != nil && !b.header.LastCommitHash.Equal(b.lastCommit.Hash()) {
-		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v", b.header.LastCommitHash, b.lastCommit.Hash())
+		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v.  Last commit %v", b.header.LastCommitHash, b.lastCommit.Hash(), b.lastCommit)
 	}
 	if b.header.Height != 1 {
 		if err := b.lastCommit.ValidateBasic(); err != nil {
@@ -335,6 +341,24 @@ func (b *Block) Hash() common.Hash {
 	v := b.header.Hash()
 	b.hash.Store(v)
 	return v
+}
+
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "before" sending the object to other peers.
+func (b *Block) MakeNilEmpty() {
+	if b.lastCommit != nil {
+		b.lastCommit.MakeNilEmpty()
+	}
+}
+
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "after" receiving the object to other peers.
+func (b *Block) MakeEmptyNil() {
+	if b.lastCommit != nil {
+		b.lastCommit.MakeEmptyNil()
+	}
 }
 
 type BlockID common.Hash

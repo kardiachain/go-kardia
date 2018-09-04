@@ -23,6 +23,21 @@ type Commit struct {
 	bitArray       *cmn.BitArray
 }
 
+func (commit *Commit) Copy() *Commit {
+	commitCopy := *commit
+	if commit.firstPrecommit != nil {
+		commitCopy.firstPrecommit = commit.firstPrecommit.Copy()
+	}
+	commitCopy.Precommits = make([]*Vote, len(commit.Precommits))
+	for i := 0; i < len(commit.Precommits); i++ {
+		if commit.Precommits[i] == nil {
+			continue
+		}
+		commitCopy.Precommits[i] = commit.Precommits[i].Copy()
+	}
+	return &commitCopy
+}
+
 // FirstPrecommit returns the first non-nil precommit in the commit.
 // If all precommits are nil, it returns an empty precommit with height 0.
 func (commit *Commit) FirstPrecommit() *Vote {
@@ -136,6 +151,31 @@ func (commit *Commit) ValidateBasic() error {
 	return nil
 }
 
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "before" sending the object to other peers.
+func (commit *Commit) MakeNilEmpty() {
+	for i := 0; i < len(commit.Precommits); i++ {
+		if commit.Precommits[i] != nil {
+			continue
+		}
+		commit.Precommits[i] = CreateEmptyVote()
+	}
+}
+
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "after" receiving the object to other peers.
+func (commit *Commit) MakeEmptyNil() {
+	for i := 0; i < len(commit.Precommits); i++ {
+		if commit.Precommits[i] == nil {
+			continue
+		}
+		if commit.Precommits[i].IsEmpty() {
+			commit.Precommits[i] = nil
+		}
+	}
+}
 func (commit *Commit) String() string {
 	if commit == nil {
 		return "nil-Commit"

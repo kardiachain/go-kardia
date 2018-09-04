@@ -149,7 +149,7 @@ type ConsensusConfig struct {
 // DefaultConsensusConfig returns a default configuration for the consensus service
 func DefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
-		TimeoutPropose:              3000,
+		TimeoutPropose:              10000,
 		TimeoutProposeDelta:         500,
 		TimeoutPrevote:              1000,
 		TimeoutPrevoteDelta:         500,
