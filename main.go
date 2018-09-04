@@ -85,6 +85,7 @@ func main() {
 	rpcAddr := flag.String("rpcaddr", "", "HTTP-RPC server listening interface")
 	rpcPort := flag.Int("rpcport", node.DefaultHTTPPort, "HTTP-RPC server listening port")
 	addTxn := flag.Bool("txn", false, "whether to add a transfer txn")
+	addSmcCall := flag.Bool("smc", false, "where to add smart contract call")
 	genNewTxs := flag.Bool("genNewTxs", false, "whether to run routine that regularly add new transactions.")
 	newTxDelay := flag.Int("newTxDelay", 10, "how often new txs are added.")
 	dualMode := flag.Bool("dual", false, "whether to run in dual mode")
@@ -231,8 +232,15 @@ func main() {
 		if err != nil {
 			logger.Error("Txn add error", "err", err)
 		}
+	}
+	if *addSmcCall {
+		txPool := kService.TxPool()
+		statedb, err := kService.BlockChain().State()
+		if err != nil {
+			logger.Error("Cannot get state", "state", err)
+		}
 		// Get first contract in genesis contracts
-		counterSmcAddress := devEnv.GetContractAddressAt(1)
+		/*counterSmcAddress := devEnv.GetContractAddressAt(1)
 		smcAbi := devEnv.GetContractAbiByAddress(counterSmcAddress.String())
 		statedb, err := kService.BlockChain().State()
 		// Caller is account[1] in genesis
@@ -249,13 +257,14 @@ func main() {
 		}
 		simpleContractCall := tool.GenerateSmcCall(callerKey, counterSmcAddress, input, statedb)
 		signedSmcCall, _ := types.SignTx(simpleContractCall, callerKey)
+
 		err = txPool.AddLocal(signedSmcCall)
 		if err!= nil {
 			logger.Error("Error adding contract call", "err", err)
 		} else {
 			logger.Info("Adding counter contract call successfully")
 		}
-
+		*/
 		// Get voting contract address
 		votingSmcAddress := devEnv.GetContractAddressAt(0)
 		println("Voting smc address :", votingSmcAddress.String())
@@ -272,7 +281,7 @@ func main() {
 			logger.Error("Can not read abi", err)
 		}
 
-		votingContractCall := tool.GenerateSmcCall(callerKey, votingSmcAddress, voteInput, statedb)
+		votingContractCall := tool.GenerateSmcCall(caller2Key, votingSmcAddress, voteInput, statedb)
 		signedSmcCall2, _ := types.SignTx(votingContractCall, caller2Key)
 		err = txPool.AddLocal(signedSmcCall2)
 		if err!= nil {
@@ -280,7 +289,6 @@ func main() {
 		} else {
 			logger.Info("Adding voting contract call successfully")
 		}
-
 	}
 
 	if *genNewTxs {
