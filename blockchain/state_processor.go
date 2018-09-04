@@ -72,11 +72,11 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 
 // Execute exec a message that calls to a smartcontract without modifying the state
 func (p *StateProcessor) CallContract(msg *types.CallMsg, statedb *state.StateDB) ([]byte, error ) {
-	return ExcecuteStaticCall(p.bc, statedb, p.bc.CurrentHeader(), msg, vm.Config{})
+	return ExecuteStaticCall(p.bc, statedb, p.bc.CurrentHeader(), msg, vm.Config{})
 }
 
 // ExecuteStaticCall call to StaticCall of KVM in read only mode which restrict all operations which modifies the state
-func ExcecuteStaticCall(bc ChainContext, statedb *state.StateDB, header *types.Header, msg *types.CallMsg, cfg vm.Config) ([]byte, error) {
+func ExecuteStaticCall(bc ChainContext, statedb *state.StateDB, header *types.Header, msg *types.CallMsg, cfg vm.Config) ([]byte, error) {
 
 	sender := vm.AccountRef(msg.From)
 	// Create a new context to be used in the KVM environment

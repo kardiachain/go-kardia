@@ -213,11 +213,13 @@ func (b *SimulatedBackend) CallContract(ctx context.Context, call ethereum.CallM
 	return rval, err
 }
  */
-func (a *PublicTransactionAPI) KardiaCall(ctx context.Context, call types.CallMsg, blockNumber *big.Int) ([]byte, error) {
+
+func (a *PublicTransactionAPI) KardiaCall(ctx context.Context, call types.CallMsgJSON, blockNumber *big.Int) (string, error) {
 	var (
 		statedb *state.StateDB
 		err error
 	)
+	callMsg := types.NewCallMsg(call)
 	if blockNumber != nil {
 		statedb, err = a.s.blockchain.State()
 	} else {
@@ -225,14 +227,14 @@ func (a *PublicTransactionAPI) KardiaCall(ctx context.Context, call types.CallMs
 	}
 
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	ret, err := a.s.blockchain.Processor().CallContract(&call, statedb)
+	ret, err := a.s.blockchain.Processor().CallContract(callMsg, statedb)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return ret, nil
+	return common.Encode(ret), nil
 }
 
 // PendingTransactions returns pending transactions
