@@ -8,14 +8,15 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"strconv"
 	"strings"
 
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 type DevNodeConfig struct {
@@ -56,16 +57,18 @@ const (
 	DbHandles = 16
 )
 
+var initValue = int64(math.Pow10(15))
+
 // GenesisAccounts are used to initialized accounts in genesis block
 var GenesisAccounts = map[string]int64{
-	"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": 100000000,
-	"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": 100000000,
-	"0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd": 100000000,
-	"0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28": 100000000,
-	"0x94FD535AAB6C01302147Be7819D07817647f7B63": 100000000,
-	"0xa8073C95521a6Db54f4b5ca31a04773B093e9274": 100000000,
-	"0xe94517a4f6f45e80CbAaFfBb0b845F4c0FDD7547": 100000000,
-	"0xBA30505351c17F4c818d94a990eDeD95e166474b": 100000000,
+	"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
+	"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
+	"0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd": initValue,
+	"0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28": initValue,
+	"0x94FD535AAB6C01302147Be7819D07817647f7B63": initValue,
+	"0xa8073C95521a6Db54f4b5ca31a04773B093e9274": initValue,
+	"0xe94517a4f6f45e80CbAaFfBb0b845F4c0FDD7547": initValue,
+	"0xBA30505351c17F4c818d94a990eDeD95e166474b": initValue,
 	//"0x212a83C0D7Db5C526303f873D9CeaA32382b55D0": 100000000,
 	// TODO(namdoh): Re-enable after parsing node index fixed in main.go
 	//"0x36BE7365e6037bD0FDa455DC4d197B07A2002547": 100000000,
@@ -73,6 +76,7 @@ var GenesisAccounts = map[string]int64{
 
 // RawByteCode used for creating simple counter contract
 var RawByteCode = "608060405234801561001057600080fd5b50610108806100206000396000f3006080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806324b8ba5f14604e5780636d4ce63c14607b575b600080fd5b348015605957600080fd5b506079600480360381019080803560ff16906020019092919050505060a9565b005b348015608657600080fd5b50608d60c6565b604051808260ff1660ff16815260200191505060405180910390f35b806000806101000a81548160ff021916908360ff16021790555050565b60008060009054906101000a900460ff169050905600a165627a7a7230582083f88bef40b78ed8ab5f620a7a1fb7953640a541335c5c352ff0877be0ecd0c60029"
+
 // GenesisContract are used to initialize contract in genesis block
 var GenesisContracts = map[string]string{
 	//"0x00000000000000000000000000000000736d6331": "60806040526004361060485763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166324b8ba5f8114604d5780636d4ce63c146067575b600080fd5b348015605857600080fd5b50606560ff60043516608f565b005b348015607257600080fd5b50607960a5565b6040805160ff9092168252519081900360200190f35b6000805460ff191660ff92909216919091179055565b60005460ff16905600a165627a7a723058206cc1a54f543612d04d3f16b0bbb49e9ded9ccf6d47f7789fe3577260346ed44d0029",
@@ -122,6 +126,7 @@ var GenesisContractAbis = map[string]string{
 		{"constant": false,"inputs": [{"name": "toProposal","type": "uint8"}],"name": "vote","outputs": [],"payable": false,"stateMutability": "nonpayable","type": "function"}
 	]`,
 }
+
 //  GenesisAddrKeys maps genesis account addresses to private keys.
 var GenesisAddrKeys = map[string]string{
 	"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": "8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06",
@@ -238,7 +243,7 @@ func (devEnv *DevEnvironmentConfig) GetContractAddressAt(index int) common.Addre
 		if count == index {
 			return common.HexToAddress(address)
 		}
-		count ++
+		count++
 	}
 	panic("impossible failure")
 }
@@ -246,7 +251,7 @@ func (devEnv *DevEnvironmentConfig) GetContractAddressAt(index int) common.Addre
 func (devEnv *DevEnvironmentConfig) GetContractAbiByAddress(address string) string {
 	println(address)
 	for add, abi := range GenesisContractAbis {
-		if strings.EqualFold(add, address){
+		if strings.EqualFold(add, address) {
 			return abi
 		}
 	}
