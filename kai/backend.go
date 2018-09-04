@@ -31,7 +31,7 @@ type Kardia struct {
 	chainConfig *configs.ChainConfig
 
 	// Channel for shutting down the service
-	shutdownChan chan bool // Channel for shutting down the Ethereum
+	shutdownChan chan bool
 
 	// DB interfaces
 	kaiDb storage.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.

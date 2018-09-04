@@ -19,7 +19,7 @@ type Config struct {
 	NetworkId uint64 // Network
 
 	// The genesis block, which is inserted if the database is empty.
-	// If nil, the Ethereum main net block is used.
+	// If nil, the Kardia main net block is used.
 	Genesis *blockchain.Genesis `toml:",omitempty"`
 
 	// Transaction pool options

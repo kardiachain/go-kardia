@@ -114,7 +114,7 @@ type BlockAccount struct {
 	Balance *big.Int
 }
 
-// Block represents an entire block in the Ethereum blockchain.
+// Block represents an entire block in the Kardia blockchain.
 type Block struct {
 	mtx          sync.Mutex
 	header       *Header

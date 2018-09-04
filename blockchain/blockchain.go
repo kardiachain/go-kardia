@@ -81,8 +81,7 @@ func (bc *BlockChain) DB() kaidb.Database {
 func (bc *BlockChain) Config() *configs.ChainConfig { return bc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
-// available in the database. It initialises the default Ethereum Validator and
-// Processor.
+// available in the database. It initialises the default Kardia Validator and Processor.
 func NewBlockChain(db kaidb.Database, chainConfig *configs.ChainConfig) (*BlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)

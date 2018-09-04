@@ -1,6 +1,6 @@
 /*
 Package hexutil implements hex encoding with 0x prefix.
-This encoding is used by the Ethereum RPC API to transport binary data in JSON payloads.
+This encoding is used by the Kardia RPC API to transport binary data in JSON payloads.
 Encoding Rules
 All hex data must have prefix "0x".
 For byte slices, the hex data must be of even length. An empty byte slice

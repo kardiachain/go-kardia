@@ -30,10 +30,10 @@ const (
 	maxQueuedTxs = 128
 )
 
-// PeerInfo represents a short summary of the Ethereum sub-protocol metadata known
+// PeerInfo represents a short summary of the Kai sub-protocol metadata known
 // about a connected peer.
 type PeerInfo struct {
-	Version int `json:"version"` // Ethereum protocol version negotiated
+	Version int `json:"version"` // Kai protocol version negotiated
 }
 
 type peer struct {
