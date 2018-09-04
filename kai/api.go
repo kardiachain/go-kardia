@@ -9,6 +9,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
+	"github.com/kardiachain/go-kardia/state"
 )
 
 // BlockJSON represents Block in JSON format
@@ -185,6 +186,43 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 		return common.Hash{}.Hex(), err
 	}
 	return tx.Hash().Hex(), a.s.TxPool().AddRemote(tx)
+}
+
+// Contract Calling
+
+// CallContract executes a message call transaction, which is directly executed in the VM
+// of the node, but never mined into the blockchain.
+//
+// blockNumber selects the block height at which the call runs. It can be nil, in which
+// case the code is taken from the latest known block. Note that state from very old
+// blocks might not be available.
+
+func (a *PublicTransactionAPI) KardiaCall(ctx context.Context, txs string, blockNumber int) (string, error) {
+	log.Info("SendKardiaCall", "data", txs)
+	tx := new(types.Transaction)
+	encodedTx := common.FromHex(txs)
+	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
+		return common.Hash{}.Hex(), err
+	}
+	var (
+		statedb *state.StateDB
+		err error
+	)
+	if blockNumber == 0 {
+		statedb, err =  a.s.blockchain.State()
+	} else  {
+		statedb, err = a.s.blockchain.StateAt(a.s.blockchain.GetBlockByHeight(uint64(blockNumber)).Hash())
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	ret, err := a.s.blockchain.Processor().Execute(tx, statedb)
+	if err != nil {
+		return "", err
+	}
+	return common.Encode(ret), nil
 }
 
 // PendingTransactions returns pending transactions
