@@ -31,7 +31,7 @@ func NewKVMContext(msg Message, header *types.Header, chain ChainContext, author
 		Origin:      msg.From(),
 		Coinbase:    beneficiary,
 		BlockHeight: header.Height,
-		//@huny Time:        new(big.Int).Set(header.Time),
+		Time:        new(big.Int).Set(header.Time),
 		GasLimit: header.GasLimit,
 		GasPrice: new(big.Int).Set(msg.GasPrice()),
 	}

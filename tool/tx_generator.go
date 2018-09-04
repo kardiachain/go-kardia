@@ -83,8 +83,25 @@ func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input 
 	tx, err := types.SignTx(types.NewTransaction(
 		nonce,
 		address,
+		big.NewInt(0),
+		60000,
+		big.NewInt(1),
+		input,
+	), senderKey)
+	if err != nil {
+		panic(fmt.Sprintf("Fail to generate smc call: %v", err))
+	}
+	return tx
+}
+
+func GenerateCreateSmcCall(senderKey *ecdsa.PrivateKey, input []byte, stateDb *state.StateDB) *types.Transaction {
+	senderAddress := crypto.PubkeyToAddress(senderKey.PublicKey)
+	nonce := stateDb.GetNonce(senderAddress)
+	tx, err := types.SignTx(types.NewTransaction(
+		nonce,
+		common.HexToAddress(""),
 		defaultAmount,
-		22000,
+		60000,
 		big.NewInt(1),
 		input,
 	), senderKey)
