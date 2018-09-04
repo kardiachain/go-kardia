@@ -197,7 +197,7 @@ func CopyCommit(c *Commit) *Commit {
 	return &cpy
 }
 
-// DecodeRLP decodes the Kardia
+//  DecodeRLP implements rlp.Decoder, decodes RLP stream to Block struct.
 func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	var eb extblock
 	_, size, _ := s.Kind()
@@ -212,7 +212,7 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	return nil
 }
 
-// EncodeRLP serializes b into the Ethereum RLP block format.
+// EncodeRLP serializes Block into the RLP stream.
 func (b *Block) EncodeRLP(w io.Writer) error {
 	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
 	lastCommitCopy := b.lastCommit.Copy()
@@ -220,6 +220,30 @@ func (b *Block) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, extblock{
 		Header:     b.header,
 		Txs:        b.transactions,
+		LastCommit: lastCommitCopy,
+	})
+}
+
+//  DecodeRLP implements rlp.Decoder, decodes RLP stream to Body struct.
+// Custom Encode/Decode for Body because of LastCommit RLP issue#73, otherwise Body can use RLP default decoder.
+func (b *Body) DecodeRLP(s *rlp.Stream) error {
+	var eb extblock
+	if err := s.Decode(&eb); err != nil {
+		return err
+	}
+	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
+	eb.LastCommit.MakeEmptyNil()
+
+	b.Transactions, b.LastCommit = eb.Txs, eb.LastCommit
+	return nil
+}
+
+func (b *Body) EncodeRLP(w io.Writer) error {
+	lastCommitCopy := b.LastCommit.Copy()
+	lastCommitCopy.MakeNilEmpty()
+	return rlp.Encode(w, extblock{
+		Header:     &Header{},
+		Txs:        b.Transactions,
 		LastCommit: lastCommitCopy,
 	})
 }
@@ -273,7 +297,7 @@ func (b *Block) HashesTo(id BlockID) bool {
 }
 
 // Size returns the true RLP encoded storage size of the block, either by encoding
-// and returning it, or returning a previsouly cached value.
+// and returning it, or returning a previously cached value.
 func (b *Block) Size() common.StorageSize {
 	if size := b.size.Load(); size != nil {
 		return size.(common.StorageSize)
