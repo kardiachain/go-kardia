@@ -11,7 +11,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/trie"
+	"github.com/kardiachain/go-kardia/lib/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -112,9 +112,9 @@ func (self *StateDB) Prepare(thash, bhash common.Hash, ti int) {
 //
 // Carrying over the balance ensures that Kai doesn't disappear.
 func (self *StateDB) CreateAccount(addr common.Address) {
-	new, prev := self.createObject(addr)
+	newState, prev := self.createObject(addr)
 	if prev != nil {
-		new.setBalance(prev.data.Balance)
+		newState.setBalance(prev.data.Balance)
 	}
 }
 
