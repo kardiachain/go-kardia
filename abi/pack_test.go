@@ -2,13 +2,12 @@ package abi
 
 import (
 	"bytes"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"math"
 	"math/big"
 	"reflect"
 	"strings"
 	"testing"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 func TestPack(t *testing.T) {
