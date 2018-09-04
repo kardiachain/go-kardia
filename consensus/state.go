@@ -21,7 +21,6 @@ import (
 	"github.com/kardiachain/go-kardia/p2p/discover"
 	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/types/evidence"
 )
 
 var (
@@ -66,13 +65,10 @@ func EmptyTimeoutInfo() *timeoutInfo {
 type ConsensusState struct {
 	Logger log.Logger
 
-	config        *cfg.ConsensusConfig
-	privValidator *types.PrivValidator // for signing votes
-	// Services for creating and executing blocks
-	blockExec       *state.BlockExecutor
+	config          *cfg.ConsensusConfig
+	privValidator   *types.PrivValidator // for signing votes
 	blockOperations *BlockOperations
-	// TODO(namdoh): Add mem pool.
-	evpool evidence.EvidencePool
+	//evpool evidence.EvidencePool 	// TODO(namdoh): Add mem pool.
 
 	// internal state
 	mtx sync.RWMutex
@@ -84,7 +80,6 @@ type ConsensusState struct {
 	// msgs from ourself, or by timeouts
 	peerMsgQueue     chan msgInfo
 	internalMsgQueue chan msgInfo
-	// TODO(namdoh): Adds timeout ticker.
 
 	// we use eventBus to trigger msg broadcasts in the reactor,
 	// and to notify external subscribers, eg. through a websocket
@@ -111,9 +106,7 @@ type ConsensusState struct {
 func NewConsensusState(
 	config *cfg.ConsensusConfig,
 	state state.LastestBlockState,
-	//namdoh@ blockExec *sm.BlockExecutor,
 	blockchain *blockchain.BlockChain,
-	//namdoh@ evpool evidence.EvidencePool,
 	txPool *blockchain.TxPool,
 	votingStrategy map[dev.VoteTurn]int,
 ) *ConsensusState {
@@ -129,8 +122,7 @@ func NewConsensusState(
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
 		timeoutTicker:    NewTimeoutTicker(),
 		done:             make(chan struct{}),
-		//namdoh@ evpool:           evpool,
-		evsw: libevents.NewEventSwitch(),
+		evsw:             libevents.NewEventSwitch(),
 		RoundState: cstypes.RoundState{
 			CommitRound: cmn.NewBigInt(0),
 			Height:      cmn.NewBigInt(0),
@@ -462,6 +454,7 @@ func (cs *ConsensusState) addProposalBlock(msg *BlockMessage, peerID discover.No
 	blockID, hasTwoThirds := prevotes.TwoThirdsMajority()
 	cs.Logger.Trace("debug#A7", "blockID", blockID, "hasTwoThirds", hasTwoThirds)
 	if hasTwoThirds && !blockID.IsZero() && cs.ValidRound.IsLessThan(cs.Round) {
+		cs.Logger.Trace("debug#A8")
 		if cs.ProposalBlock.HashesTo(blockID) {
 			cs.Logger.Info("Updating valid block to new proposal block",
 				"valid-round", cs.Round, "valid-block-hash", cs.ProposalBlock.Hash())
@@ -476,6 +469,7 @@ func (cs *ConsensusState) addProposalBlock(msg *BlockMessage, peerID discover.No
 	}
 
 	if cs.Step <= cstypes.RoundStepPropose && cs.isProposalComplete() {
+		cs.Logger.Trace("debug#A8")
 		// Move onto the next step
 		cs.enterPrevote(msg.Height, cs.Round)
 	} else if cs.Step == cstypes.RoundStepCommit {
@@ -500,8 +494,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID discover.NodeID) e
 				return err
 			}
 			// TODO(namdoh): Re-enable this later.
-			cs.Logger.Warn("evidence isn't added to evpool")
-			//cs.evpool.AddEvidence(voteErr.DuplicateVoteEvidence)
+			cs.Logger.Warn("Add vote error to evidence pool later")
 			return err
 		} else {
 			// Probably an invalid signature / Bad peer.
@@ -903,7 +896,7 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 
 	// Validate proposal block
 	// This checks the block contents without executing txs.
-	if err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
+	if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
 		cs.signAddVote(types.VoteTypePrevote, types.NewZeroBlockID())
@@ -1024,7 +1017,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	if cs.ProposalBlock.HashesTo(blockID) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID)
 		// Validate the block.
-		if err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
+		if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 			cmn.PanicConsensus(cmn.Fmt("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
 		}
 		cs.LockedRound = round
@@ -1153,7 +1146,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	if !block.HashesTo(blockID) {
 		cmn.PanicSanity(cmn.Fmt("Cannot finalizeCommit, ProposalBlock does not hash to commit hash"))
 	}
-	if err := cs.blockExec.ValidateBlock(cs.state, block); err != nil {
+	if err := state.ValidateBlock(cs.state, block); err != nil {
 		cmn.PanicConsensus(cmn.Fmt("+2/3 committed an invalid block: %v", err))
 		panic("Block validation failed")
 	}
@@ -1202,7 +1195,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	// Execute and commit the block, update and save the state, and update the mempool.
 	// NOTE The block.AppHash wont reflect these txs until the next block.
 	var err error
-	stateCopy, err = cs.blockExec.ApplyBlock(stateCopy, block.BlockID(), block)
+	stateCopy, err = state.ApplyBlock(stateCopy, block.BlockID(), block)
 	if err != nil {
 		cs.Logger.Error("Error on ApplyBlock. Did the application crash? Please restart node", "err", err)
 		err := cmn.Kill()
@@ -1267,9 +1260,6 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 
 	block = cs.blockOperations.NewBlock(header, txs, receipts, commit)
 	cs.Logger.Trace("Make block to propose", "block", block)
-	// TODO(namdoh): Add evidence to block.
-	//evidence := cs.evpool.PendingEvidence()
-	//block.AddEvidence(evidence)
 	return block
 }
 

@@ -73,11 +73,7 @@ func WriteBlock(db DatabaseWriter, block *types.Block) {
 
 // WriteBody stores a block body into the database.
 func WriteBody(db DatabaseWriter, hash common.Hash, height uint64, body *types.Body) {
-	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
-	bodyCopy := body.Copy()
-	bodyCopy.LastCommit.MakeNilEmpty()
-
-	data, err := rlp.EncodeToBytes(bodyCopy)
+	data, err := rlp.EncodeToBytes(body)
 	if err != nil {
 		log.Crit("Failed to RLP encode body", "err", err)
 	}
@@ -224,8 +220,6 @@ func ReadBody(db DatabaseReader, hash common.Hash, height uint64) *types.Body {
 		log.Error("Invalid block body RLP", "hash", hash, "err", err)
 		return nil
 	}
-	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
-	body.LastCommit.MakeEmptyNil()
 
 	return body
 }

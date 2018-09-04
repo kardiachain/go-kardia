@@ -7,23 +7,12 @@ import (
 	"time"
 
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
-	kcmn "github.com/kardiachain/go-kardia/kai/common" // TODO(namdoh): Remove kai/common dependency
+	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	libevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/types"
-)
-
-const (
-	StateChannel       = byte(0x20)
-	DataChannel        = byte(0x21)
-	VoteChannel        = byte(0x22)
-	VoteSetBitsChannel = byte(0x23)
-
-	maxMsgSize = 1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
-
-	blocksToContributeToBecomeGoodPeer = 10000
 )
 
 // ConsensusReactor defines a reactor for the consensus service.
@@ -93,7 +82,6 @@ func (conR *ConsensusReactor) Stop() {
 // AddPeer implements Reactor
 func (conR *ConsensusReactor) AddPeer(p *p2p.Peer, rw p2p.MsgReadWriter) {
 	log.Info("Add peer to reactor.")
-	conR.conS.Logger.Error("Find out why passing p.GetRW() doesn't work.")
 	conR.sendNewRoundStepMessages(rw)
 
 	if !conR.running {
@@ -108,12 +96,6 @@ func (conR *ConsensusReactor) AddPeer(p *p2p.Peer, rw p2p.MsgReadWriter) {
 	go conR.gossipDataRoutine(p, peerState)
 	go conR.gossipVotesRoutine(p, peerState)
 	go conR.queryMaj23Routine(p, peerState)
-
-	//// Send our state to peer.
-	//// If we're fast_syncing, broadcast a RoundStepMessage later upon SwitchToConsensus().
-	//if !conR.FastSync() {
-	//	conR.sendNewRoundStepMessages(peer)
-	//}
 }
 
 func (conR *ConsensusReactor) RemovePeer(p *p2p.Peer, reason interface{}) {
@@ -134,11 +116,6 @@ func (conR *ConsensusReactor) subscribeToBroadcastEvents() {
 		func(data libevents.EventData) {
 			conR.broadcastHasVoteMessage(data.(*types.Vote))
 		})
-
-	//namdoh@ conR.conS.evsw.AddListenerForEvent(subscriber, types.EventProposalHeartbeat,
-	//namdoh@ 	func(data libevents.EventData) {
-	//namdoh@ 		conR.broadcastProposalHeartbeatMessage(data.(*types.Heartbeat))
-	//namdoh@ 	})
 }
 
 func (conR *ConsensusReactor) unsubscribeFromBroadcastEvents() {
@@ -232,11 +209,7 @@ func (conR *ConsensusReactor) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) 
 	ps.EnsureVoteBitArrays(height, valSize)
 	ps.EnsureVoteBitArrays(height.Add(-1), lastCommitSize)
 	ps.SetHasVote(msg.Vote)
-	// TODO(namdoh): Reanble this to mark peer as good.
-	conR.conS.Logger.Error("RecordVote has yet implemented.")
-	//if blocks := ps.RecordVote(msg.Vote); blocks%blocksToContributeToBecomeGoodPeer == 0 {
-	//	conR.Switch.MarkPeerAsGood(src)
-	//}
+	conR.conS.Logger.Warn("Implement RecordVote here to mark peer as good.")
 
 	cs.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }
@@ -298,8 +271,6 @@ func (conR *ConsensusReactor) ReceiveProposalPOL(generalMsg p2p.Msg, src *p2p.Pe
 		return
 	}
 
-	// TODO: Merge onto existing ps.PRS.ProposalPOL?
-	// We might have sent some prevotes in the meantime.
 	ps.PRS.ProposalPOL = msg.ProposalPOL
 }
 
@@ -478,21 +449,6 @@ func (conR *ConsensusReactor) broadcastHasVoteMessage(vote *types.Vote) {
 	}
 	conR.conS.Logger.Trace("broadcastHasVoteMessage", "msg", msg)
 	conR.protocol.Broadcast(msg, kcmn.CsHasVoteMsg)
-	/*
-		// TODO: Make this broadcast more selective.
-		for _, peer := range conR.Switch.Peers().List() {
-			ps := peer.Get(PeerStateKey).(*PeerState)
-			prs := ps.GetRoundState()
-			if prs.Height == vote.Height {
-				// TODO: Also filter on round?
-				peer.TrySend(StateChannel, struct{ ConsensusMessage }{msg})
-			} else {
-				// Height doesn't match
-				// TODO: check a field, maybe CatchupCommitRound?
-				// TODO: But that requires changing the struct field comment.
-			}
-		}
-	*/
 }
 
 // ------------ Send message helpers -----------
@@ -736,8 +692,6 @@ func (conR *ConsensusReactor) gossipVotesForHeight(logger log.Logger, rs *cstype
 	return false
 }
 
-// NOTE: `queryMaj23Routine` has a simple crude design since it only comes
-// into play for liveness when there's a signature DDoS attack happening.
 func (conR *ConsensusReactor) queryMaj23Routine(peer *p2p.Peer, ps *PeerState) {
 	logger := conR.conS.Logger.New("peer", peer)
 
@@ -799,9 +753,6 @@ OUTER_LOOP:
 				}
 			}
 		}
-
-		// Little point sending LastCommitRound/LastCommit,
-		// These are fleeting and non-blocking.
 
 		// Send Height/CatchupCommitRound/CatchupCommit.
 		{
@@ -1046,15 +997,14 @@ func (ps *PeerState) getVoteBitArray(height *cmn.BigInt, round *cmn.BigInt, type
 				return ps.PRS.Precommits
 			}
 		}
-		// TODO(namdoh): Re-eable this once catchup is turned on.
-		//if ps.PRS.CatchupCommitRound.Equals(round) {
-		//	switch type_ {
-		//	case types.VoteTypePrevote:
-		//		return nil
-		//	case types.VoteTypePrecommit:
-		//		return ps.PRS.CatchupCommit
-		//	}
-		//}
+		if ps.PRS.CatchupCommitRound.Equals(round) {
+			switch type_ {
+			case types.VoteTypePrevote:
+				return nil
+			case types.VoteTypePrecommit:
+				return ps.PRS.CatchupCommit
+			}
+		}
 		if ps.PRS.ProposalPOLRound.Equals(round) {
 			switch type_ {
 			case types.VoteTypePrevote:
@@ -1084,15 +1034,8 @@ func (ps *PeerState) ensureCatchupCommitRound(height *cmn.BigInt, round *cmn.Big
 	if !ps.PRS.Height.Equals(height) {
 		return
 	}
-	/*
-		NOTE: This is wrong, 'round' could change.
-		e.g. if orig round is not the same as block LastCommit round.
-		if ps.CatchupCommitRound != -1 && ps.CatchupCommitRound != round {
-			cmn.PanicSanity(cmn.Fmt("Conflicting CatchupCommitRound. Height: %v, Orig: %v, New: %v", height, ps.CatchupCommitRound, round))
-		}
-	*/
 	if ps.PRS.CatchupCommitRound.Equals(round) {
-		return // Nothing to do!
+		return
 	}
 	ps.PRS.CatchupCommitRound = round
 	if round.Equals(ps.PRS.Round) {
@@ -1145,7 +1088,6 @@ func (ps *PeerState) setHasVote(height *cmn.BigInt, round *cmn.BigInt, type_ byt
 	logger := ps.logger.New("peerH/R", cmn.Fmt("%v/%v", ps.PRS.Height, ps.PRS.Round), "H/R", cmn.Fmt("%v/%v", height, round))
 	logger.Debug("setHasVote", "type", type_, "index", index)
 
-	// NOTE: some may be nil BitArrays -> no side effects.
 	psVotes := ps.getVoteBitArray(height, round, type_)
 	if psVotes != nil {
 		psVotes.SetIndex(index.Int32(), true)
@@ -1184,10 +1126,6 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 		ps.PRS.Precommits = nil
 	}
 	if psHeight.Equals(msg.Height) && !psRound.Equals(msg.Round) && msg.Round.Equals(psCatchupCommitRound) {
-		// Peer caught up to CatchupCommitRound.
-		// Preserve psCatchupCommit!
-		// NOTE: We prefer to use prs.Precommits if
-		// pr.Round matches pr.CatchupCommitRound.
 		ps.PRS.Precommits = psCatchupCommit
 	}
 	if !psHeight.Equals(msg.Height) {
@@ -1199,7 +1137,6 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 			ps.PRS.LastCommitRound = msg.LastCommitRound
 			ps.PRS.LastCommit = nil
 		}
-		// We'll update the BitArray capacity later.
 		ps.PRS.CatchupCommitRound = cmn.NewBigInt(-1)
 		ps.PRS.CatchupCommit = nil
 	}
