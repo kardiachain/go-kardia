@@ -1,10 +1,11 @@
-// Package p2p implements the Ethereum p2p network protocols.
+// Package p2p implements p2p network protocols.
 package p2p
 
 import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/kardiachain/go-kardia/p2p/nat"
 	"net"
 	"sync"
 	"time"
@@ -15,8 +16,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/p2p/discover"
 	"github.com/kardiachain/go-kardia/p2p/netutil"
-
-	"github.com/ethereum/go-ethereum/p2p/nat"
 )
 
 const (

@@ -41,14 +41,14 @@ func (x *SimpleSet) Equal(y *SimpleSet) bool {
 
 func EncodeThenDecode(t *testing.T, x interface{}) *SimpleSet {
 	b := new(bytes.Buffer)
-	if err := rlp.Encode(b, x); err != nil {
+	if err := Encode(b, x); err != nil {
 		t.Fatalf("Encode error: %v", err)
 	}
 
 	fmt.Println("decoded byte", b.Bytes())
 
 	var y SimpleSet
-	if err := rlp.Decode(bytes.NewReader(b.Bytes()), &y); err != nil {
+	if err := Decode(bytes.NewReader(b.Bytes()), &y); err != nil {
 		t.Fatalf("Decode error: %v", err)
 	}
 	return &y
