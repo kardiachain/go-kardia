@@ -29,12 +29,44 @@ type Transaction struct {
 
 type CallMsg struct {
 	From     common.Address  // the sender of the 'transaction'
-	To       common.Address // the destination contract (nil for contract creation)
+	To       *common.Address // the destination contract (nil for contract creation)
 	Gas      uint64          // if 0, the call executes with near-infinite gas
 	GasPrice *big.Int        // wei <-> gas exchange ratio
 	Value    big.Int        // amount of wei sent along with the call
 	Data     []byte          // input data, usually an ABI-encoded contract method invocation
 }
+
+
+// NewCallMsg creates an empty contract call parameter list.
+func NewCallMsg() *CallMsg {
+	return new(CallMsg)
+}
+
+func (msg *CallMsg) GetFrom() *common.Address    { return &msg.From }
+func (msg *CallMsg) GetGas() int64        { return int64(msg.Gas) }
+func (msg *CallMsg) GetGasPrice() *big.Int { return msg.GasPrice }
+func (msg *CallMsg) GetValue() big.Int    { return msg.Value }
+func (msg *CallMsg) GetData() []byte      { return msg.Data }
+func (msg *CallMsg) GetTo() common.Address {
+	if to := msg.To; to.String() != "0x" {
+		return common.BytesToAddress(common.CopyBytes(msg.To.Bytes()))
+	}
+	return common.HexToAddress("0x")
+}
+
+func (msg *CallMsg) SetFrom(address common.Address)  { msg.From = address }
+func (msg *CallMsg) SetGas(gas int64)          { msg.Gas = uint64(gas) }
+func (msg *CallMsg) SetGasPrice(price big.Int) { msg.GasPrice = &price}
+func (msg *CallMsg) SetValue(value big.Int)    { msg.Value = value }
+func (msg *CallMsg) SetData(data []byte)       { msg.Data = common.CopyBytes(data) }
+func (msg *CallMsg) SetTo(address common.Address) {
+	if address.String() == "0x" {
+		msg.To = nil
+		return
+	}
+	msg.To = &address
+}
+
 
 type txdata struct {
 	AccountNonce uint64          `json:"nonce"    gencodec:"required"`

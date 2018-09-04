@@ -84,7 +84,7 @@ func ExcecuteStaticCall(bc ChainContext, statedb *state.StateDB, header *types.H
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
 	vmenv := vm.NewKVM(context, statedb, cfg)
-	ret, _, err := vmenv.StaticCall(sender, msg.To, msg.Data, msg.Gas)
+	ret, _, err := vmenv.StaticCall(sender, msg.GetTo(), msg.Data, msg.Gas)
 	if err != nil {
 		return nil, err
 	}
