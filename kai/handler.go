@@ -62,7 +62,7 @@ type ProtocolManager struct {
 	txsSub event.Subscription
 
 	// Consensus stuff
-	csReactor *consensus.ConsensusReactor
+	csReactor *consensus.ConsensusManager
 	//csCh    chan consensus.NewCsEvent
 	csSub event.Subscription
 
@@ -73,7 +73,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Kardia sub protocol manager. The Kardia sub protocol manages peers capable
 // with the Kardia network.
-func NewProtocolManager(networkID uint64, blockchain *blockchain.BlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool, csReactor *consensus.ConsensusReactor) (*ProtocolManager, error) {
+func NewProtocolManager(networkID uint64, blockchain *blockchain.BlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool, csReactor *consensus.ConsensusManager) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		networkID:   networkID,

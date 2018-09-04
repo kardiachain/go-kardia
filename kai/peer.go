@@ -49,13 +49,13 @@ type peer struct {
 	knownTxs  *set.Set                  // Set of transaction hashes known to be known by this peer
 	queuedTxs chan []*types.Transaction // Queue of transactions to broadcast to the peer
 
-	csReactor *consensus.ConsensusReactor
+	csReactor *consensus.ConsensusManager
 
 	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
 
 }
 
-func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, csReactor *consensus.ConsensusReactor) *peer {
+func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, csReactor *consensus.ConsensusManager) *peer {
 	return &peer{
 		Peer:       p,
 		rw:         rw,

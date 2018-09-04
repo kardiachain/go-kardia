@@ -34,7 +34,7 @@ var (
 	ErrVoteHeightMismatch       = errors.New("Error vote height mismatch")
 )
 
-// msgs from the reactor which may update the state
+// msgs from the manager which may update the state
 type msgInfo struct {
 	Msg    ConsensusMessage `json:"msg"`
 	PeerID discover.NodeID  `json:"peer_key"`
@@ -81,14 +81,14 @@ type ConsensusState struct {
 	peerMsgQueue     chan msgInfo
 	internalMsgQueue chan msgInfo
 
-	// we use eventBus to trigger msg broadcasts in the reactor,
+	// we use eventBus to trigger msg broadcasts in the manager,
 	// and to notify external subscribers, eg. through a websocket
 	eventBus *types.EventBus
 
 	// For tests where we want to limit the number of transitions the state makes
 	nSteps int
 
-	// Synchronous pubsub between consensus state and reactor.
+	// Synchronous pubsub between consensus state and manager.
 	// State only emits EventNewRoundStep, EventVote and EventProposalHeartbeat
 	evsw libevents.EventSwitch
 
@@ -194,7 +194,7 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 	}
 
 	// If state isn't further out than cs.state, just ignore.
-	// This happens when SwitchToConsensus() is called in the reactor.
+	// This happens when SwitchToConsensus() is called in the manager.
 	// We don't want to reset e.g. the Votes, but we still want to
 	// signal the new round step, because other services (eg. mempool)
 	// depend on having an up-to-date peer state!

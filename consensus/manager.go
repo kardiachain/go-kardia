@@ -15,8 +15,8 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
-// ConsensusReactor defines a reactor for the consensus service.
-type ConsensusReactor struct {
+// ConsensusManager defines a manager for the consensus service.
+type ConsensusManager struct {
 	protocol BaseProtocol
 
 	conS *ConsensusState
@@ -27,38 +27,38 @@ type ConsensusReactor struct {
 	running bool
 }
 
-// NewConsensusReactor returns a new ConsensusReactor with the given
+// NewConsensusManager returns a new ConsensusManager with the given
 // consensusState.
-func NewConsensusReactor(consensusState *ConsensusState) *ConsensusReactor {
-	return &ConsensusReactor{
+func NewConsensusManager(consensusState *ConsensusState) *ConsensusManager {
+	return &ConsensusManager{
 		conS: consensusState,
 	}
 }
 
-func (conR *ConsensusReactor) SetProtocol(protocol BaseProtocol) {
+func (conR *ConsensusManager) SetProtocol(protocol BaseProtocol) {
 	conR.protocol = protocol
 }
 
-func (conR *ConsensusReactor) SetPrivValidator(priv *types.PrivValidator) {
+func (conR *ConsensusManager) SetPrivValidator(priv *types.PrivValidator) {
 	conR.conS.SetPrivValidator(priv)
 }
 
-func (conR *ConsensusReactor) Validator() *types.Validator {
+func (conR *ConsensusManager) Validator() *types.Validator {
 	if _, val := conR.conS.Validators.GetByAddress(conR.conS.privValidator.GetAddress()); val != nil {
 		return val
 	}
 	return nil
 }
 
-func (conR *ConsensusReactor) Validators() []*types.Validator {
+func (conR *ConsensusManager) Validators() []*types.Validator {
 	return conR.conS.Validators.Validators
 }
 
-func (conR *ConsensusReactor) Start() {
-	conR.conS.Logger.Trace("Consensus reactor starts!")
+func (conR *ConsensusManager) Start() {
+	conR.conS.Logger.Trace("Consensus manager starts!")
 
 	if conR.running {
-		conR.conS.Logger.Error("ConsensusReactor already started. Shouldn't start again.")
+		conR.conS.Logger.Error("ConsensusManager already started. Shouldn't start again.")
 		return
 	}
 	conR.running = true
@@ -67,21 +67,21 @@ func (conR *ConsensusReactor) Start() {
 	conR.conS.Start()
 }
 
-func (conR *ConsensusReactor) Stop() {
+func (conR *ConsensusManager) Stop() {
 	if !conR.running {
-		conR.conS.Logger.Error("ConsensusReactor hasn't started yet. Shouldn't be asked to stop.")
+		conR.conS.Logger.Error("ConsensusManager hasn't started yet. Shouldn't be asked to stop.")
 	}
 
 	conR.conS.Stop()
 	conR.unsubscribeFromBroadcastEvents()
 
 	conR.running = false
-	conR.conS.Logger.Trace("Consensus reactor stops!")
+	conR.conS.Logger.Trace("Consensus manager stops!")
 }
 
-// AddPeer implements Reactor
-func (conR *ConsensusReactor) AddPeer(p *p2p.Peer, rw p2p.MsgReadWriter) {
-	log.Info("Add peer to reactor.")
+// AddPeer implements manager
+func (conR *ConsensusManager) AddPeer(p *p2p.Peer, rw p2p.MsgReadWriter) {
+	log.Info("Add peer to manager.")
 	conR.sendNewRoundStepMessages(rw)
 
 	if !conR.running {
@@ -98,15 +98,15 @@ func (conR *ConsensusReactor) AddPeer(p *p2p.Peer, rw p2p.MsgReadWriter) {
 	go conR.queryMaj23Routine(p, peerState)
 }
 
-func (conR *ConsensusReactor) RemovePeer(p *p2p.Peer, reason interface{}) {
-	log.Error("ConsensusReactor.RemovePeer - not yet implemented")
+func (conR *ConsensusManager) RemovePeer(p *p2p.Peer, reason interface{}) {
+	log.Error("ConsensusManager.RemovePeer - not yet implemented")
 }
 
 // subscribeToBroadcastEvents subscribes for new round steps, votes and
 // proposal heartbeats using internal pubsub defined on state to broadcast
 // them to peers upon receiving.
-func (conR *ConsensusReactor) subscribeToBroadcastEvents() {
-	const subscriber = "consensus-reactor"
+func (conR *ConsensusManager) subscribeToBroadcastEvents() {
+	const subscriber = "consensus-manager"
 	conR.conS.evsw.AddListenerForEvent(subscriber, types.EventNewRoundStep,
 		func(data libevents.EventData) {
 			conR.broadcastNewRoundStepMessages(data.(*cstypes.RoundState))
@@ -118,19 +118,19 @@ func (conR *ConsensusReactor) subscribeToBroadcastEvents() {
 		})
 }
 
-func (conR *ConsensusReactor) unsubscribeFromBroadcastEvents() {
-	const subscriber = "consensus-reactor"
+func (conR *ConsensusManager) unsubscribeFromBroadcastEvents() {
+	const subscriber = "consensus-manager"
 	conR.conS.evsw.RemoveListener(subscriber)
 }
 
 // ------------ Message handlers ---------
 
 // Handles received NewRoundStepMessage
-func (conR *ConsensusReactor) ReceiveNewRoundStep(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus reactor received NewRoundStep", "src", src, "msg", generalMsg)
+func (conR *ConsensusManager) ReceiveNewRoundStep(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus manager received NewRoundStep", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus reactor isn't running.")
+		conR.conS.Logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
@@ -151,11 +151,11 @@ func (conR *ConsensusReactor) ReceiveNewRoundStep(generalMsg p2p.Msg, src *p2p.P
 	ps.ApplyNewRoundStepMessage(&msg)
 }
 
-func (conR *ConsensusReactor) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus reactor received Proposal", "src", src, "msg", generalMsg)
+func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus manager received Proposal", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus reactor isn't running.")
+		conR.conS.Logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
@@ -180,11 +180,11 @@ func (conR *ConsensusReactor) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }
 
-func (conR *ConsensusReactor) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus reactor received NewVote", "src", src, "msg", generalMsg)
+func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus manager received NewVote", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus reactor isn't running.")
+		conR.conS.Logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
@@ -214,11 +214,11 @@ func (conR *ConsensusReactor) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) 
 	cs.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }
 
-func (conR *ConsensusReactor) ReceiveHasVote(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus reactor received HasVote", "src", src, "msg", generalMsg)
+func (conR *ConsensusManager) ReceiveHasVote(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus manager received HasVote", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus reactor isn't running.")
+		conR.conS.Logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
@@ -239,11 +239,11 @@ func (conR *ConsensusReactor) ReceiveHasVote(generalMsg p2p.Msg, src *p2p.Peer) 
 	ps.ApplyHasVoteMessage(&msg)
 }
 
-func (conR *ConsensusReactor) ReceiveProposalPOL(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus reactor received ProposalPOLMessage", "src", src, "msg", generalMsg)
+func (conR *ConsensusManager) ReceiveProposalPOL(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus manager received ProposalPOLMessage", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus reactor isn't running.")
+		conR.conS.Logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
@@ -274,11 +274,11 @@ func (conR *ConsensusReactor) ReceiveProposalPOL(generalMsg p2p.Msg, src *p2p.Pe
 	ps.PRS.ProposalPOL = msg.ProposalPOL
 }
 
-func (conR *ConsensusReactor) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus reactor received vote", "src", src, "msg", generalMsg)
+func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus manager received vote", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus reactor isn't running.")
+		conR.conS.Logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
@@ -299,11 +299,11 @@ func (conR *ConsensusReactor) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 	ps.ApplyCommitStepMessage(&msg)
 }
 
-func (conR *ConsensusReactor) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus reactor received block", "src", src, "msg", generalMsg)
+func (conR *ConsensusManager) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus manager received block", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus reactor isn't running.")
+		conR.conS.Logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
@@ -325,11 +325,11 @@ func (conR *ConsensusReactor) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
 	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }
 
-func (conR *ConsensusReactor) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus reactor received VoteSetMaj23", "src", src, "msg", generalMsg)
+func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus manager received VoteSetMaj23", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus reactor isn't running.")
+		conR.conS.Logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
@@ -381,11 +381,11 @@ func (conR *ConsensusReactor) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.P
 	})
 }
 
-func (conR *ConsensusReactor) ReceiveVoteSetBits(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus reactor received VoteSetBits", "src", src, "msg", generalMsg)
+func (conR *ConsensusManager) ReceiveVoteSetBits(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus manager received VoteSetBits", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus reactor isn't running.")
+		conR.conS.Logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
@@ -427,7 +427,7 @@ func (conR *ConsensusReactor) ReceiveVoteSetBits(generalMsg p2p.Msg, src *p2p.Pe
 
 // ------------ Broadcast messages ------------
 
-func (conR *ConsensusReactor) broadcastNewRoundStepMessages(rs *cstypes.RoundState) {
+func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundState) {
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
 	if nrsMsg != nil {
 		conR.conS.Logger.Trace("broadcastNewRoundStepMessage", "nrsMsg", nrsMsg)
@@ -440,7 +440,7 @@ func (conR *ConsensusReactor) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 }
 
 // Broadcasts HasVoteMessage to peers that care.
-func (conR *ConsensusReactor) broadcastHasVoteMessage(vote *types.Vote) {
+func (conR *ConsensusManager) broadcastHasVoteMessage(vote *types.Vote) {
 	msg := &HasVoteMessage{
 		Height: vote.Height,
 		Round:  vote.Round,
@@ -453,8 +453,8 @@ func (conR *ConsensusReactor) broadcastHasVoteMessage(vote *types.Vote) {
 
 // ------------ Send message helpers -----------
 
-func (conR *ConsensusReactor) sendNewRoundStepMessages(rw p2p.MsgReadWriter) {
-	conR.conS.Logger.Debug("reactor - sendNewRoundStepMessages")
+func (conR *ConsensusManager) sendNewRoundStepMessages(rw p2p.MsgReadWriter) {
+	conR.conS.Logger.Debug("manager - sendNewRoundStepMessages")
 
 	rs := conR.conS.GetRoundState()
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
@@ -496,7 +496,7 @@ func makeRoundStepMessages(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage,
 }
 
 // ----------- Gossip routines ---------------
-func (conR *ConsensusReactor) gossipDataRoutine(peer *p2p.Peer, ps *PeerState) {
+func (conR *ConsensusManager) gossipDataRoutine(peer *p2p.Peer, ps *PeerState) {
 	logger := conR.conS.Logger.New("peer", peer)
 	logger.Trace("Start gossipDataRoutine for peer")
 
@@ -565,7 +565,7 @@ OUTER_LOOP:
 	}
 }
 
-func (conR *ConsensusReactor) gossipVotesRoutine(peer *p2p.Peer, ps *PeerState) {
+func (conR *ConsensusManager) gossipVotesRoutine(peer *p2p.Peer, ps *PeerState) {
 	logger := conR.conS.Logger.New("peer", peer)
 	logger.Trace("Start gossipVotesRoutine for peer")
 
@@ -637,7 +637,7 @@ OUTER_LOOP:
 	}
 }
 
-func (conR *ConsensusReactor) gossipVotesForHeight(logger log.Logger, rs *cstypes.RoundState, prs *cstypes.PeerRoundState, ps *PeerState) bool {
+func (conR *ConsensusManager) gossipVotesForHeight(logger log.Logger, rs *cstypes.RoundState, prs *cstypes.PeerRoundState, ps *PeerState) bool {
 	//logger.Trace("Start gossipVotesForHeight for peer")
 
 	// If there are lastCommits to send...
@@ -692,7 +692,7 @@ func (conR *ConsensusReactor) gossipVotesForHeight(logger log.Logger, rs *cstype
 	return false
 }
 
-func (conR *ConsensusReactor) queryMaj23Routine(peer *p2p.Peer, ps *PeerState) {
+func (conR *ConsensusManager) queryMaj23Routine(peer *p2p.Peer, ps *PeerState) {
 	logger := conR.conS.Logger.New("peer", peer)
 
 OUTER_LOOP:
@@ -777,7 +777,7 @@ OUTER_LOOP:
 
 // ----------- Consensus Messages ------------
 
-// ConsensusMessage is a message that can be sent and received on the ConsensusReactor
+// ConsensusMessage is a message that can be sent and received on the ConsensusManager
 type ConsensusMessage interface{}
 
 // VoteMessage is sent when voting for a proposal (or lack thereof).

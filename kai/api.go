@@ -93,7 +93,7 @@ func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) *BlockJSON {
 
 // Validator returns node's validator, nil if current node is not a validator
 func (s *PublicKaiAPI) Validator() map[string]interface{} {
-	if val := s.kaiService.csReactor.Validator(); val != nil {
+	if val := s.kaiService.csManager.Validator(); val != nil {
 		return map[string]interface{}{
 			"address":     val.Address.Hex(),
 			"votingPower": val.VotingPower,
@@ -104,7 +104,7 @@ func (s *PublicKaiAPI) Validator() map[string]interface{} {
 
 // Validators returns a list of validator
 func (s *PublicKaiAPI) Validators() []map[string]interface{} {
-	if vals := s.kaiService.csReactor.Validators(); vals != nil && len(vals) > 0 {
+	if vals := s.kaiService.csManager.Validators(); vals != nil && len(vals) > 0 {
 		results := make([]map[string]interface{}, len(vals))
 		for i, val := range vals {
 			results[i] = map[string]interface{}{

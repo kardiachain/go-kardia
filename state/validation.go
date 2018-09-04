@@ -18,7 +18,7 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 		return fmt.Errorf("wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight.Int64()+1, block.Height())
 	}
 	/*	TODO: Determine bounds for Time
-		See blockchain/reactor "stopSyncingDurationMinutes"
+		See blockchain/manager "stopSyncingDurationMinutes"
 		if !block.Time.After(lastBlockTime) {
 			return errors.New("Invalid Block.Header.Time")
 		}

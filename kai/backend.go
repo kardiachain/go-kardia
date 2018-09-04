@@ -40,7 +40,7 @@ type Kardia struct {
 	txPool          *blockchain.TxPool
 	protocolManager *ProtocolManager
 	blockchain      *blockchain.BlockChain
-	csReactor       *consensus.ConsensusReactor
+	csManager       *consensus.ConsensusManager
 
 	subService KardiaSubService
 
@@ -104,17 +104,17 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 		kai.txPool,
 		ctx.Config.DevEnvConfig.VotingStrategy,
 	)
-	kai.csReactor = consensus.NewConsensusReactor(consensusState)
-	// Set private validator for consensus reactor.
+	kai.csManager = consensus.NewConsensusManager(consensusState)
+	// Set private validator for consensus manager.
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
-	kai.csReactor.SetPrivValidator(privValidator)
+	kai.csManager.SetPrivValidator(privValidator)
 
 	// Initialize protocol manager.
-	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csReactor); err != nil {
+	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csManager); err != nil {
 		return nil, err
 	}
 	kai.protocolManager.acceptTxs = config.AcceptTxs
-	kai.csReactor.SetProtocol(kai.protocolManager)
+	kai.csManager.SetProtocol(kai.protocolManager)
 
 	return kai, nil
 }
@@ -162,8 +162,8 @@ func (s *Kardia) Start(srvr *p2p.Server) error {
 	// Starts the networking layer.
 	s.protocolManager.Start(maxPeers)
 
-	// Start consensus reactor.
-	s.csReactor.Start()
+	// Start consensus manager.
+	s.csManager.Start()
 
 	// Starts optional subservice.
 	if s.subService != nil {
@@ -175,7 +175,7 @@ func (s *Kardia) Start(srvr *p2p.Server) error {
 // Stop implements Service, terminating all internal goroutines used by the
 // Kardia protocol.
 func (s *Kardia) Stop() error {
-	s.csReactor.Stop()
+	s.csManager.Stop()
 	s.protocolManager.Stop()
 	if s.subService != nil {
 		s.subService.Stop()
