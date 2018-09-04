@@ -233,6 +233,7 @@ func main() {
 			logger.Error("Txn add error", "err", err)
 		}
 	}
+
 	if *addSmcCall {
 		txPool := kService.TxPool()
 		statedb, err := kService.BlockChain().State()
@@ -265,9 +266,8 @@ func main() {
 			logger.Info("Adding counter contract call successfully")
 		}
 		*/
-		// Get voting contract address
+		// Get voting contract address, this smc is created in genesis block
 		votingSmcAddress := devEnv.GetContractAddressAt(0)
-		println("Voting smc address :", votingSmcAddress.String())
 		votingAbiStr := devEnv.GetContractAbiByAddress(votingSmcAddress.String())
 		votingAbi, err := abi.JSON(strings.NewReader(votingAbiStr))
 		if err != nil {
