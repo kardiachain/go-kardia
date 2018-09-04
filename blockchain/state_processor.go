@@ -70,24 +70,21 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	return receipts, allLogs, *usedGas, nil
 }
 
-// Execute exec a tx that calls to a smartcontract without modifying the state
-func (p *StateProcessor) Execute(tx *types.Transaction, statedb *state.StateDB) ([]byte, error ) {
-	return ExcecuteStaticCall(p.bc, statedb, p.bc.CurrentHeader(), tx, vm.Config{})
+// Execute exec a message that calls to a smartcontract without modifying the state
+func (p *StateProcessor) CallContract(msg *types.CallMsg, statedb *state.StateDB) ([]byte, error ) {
+	return ExcecuteStaticCall(p.bc, statedb, p.bc.CurrentHeader(), msg, vm.Config{})
 }
 
 // ExecuteStaticCall call to StaticCall of KVM in read only mode which restrict all operations which modifies the state
-func ExcecuteStaticCall(bc ChainContext, statedb *state.StateDB, header *types.Header, tx *types.Transaction, cfg vm.Config) ([]byte, error) {
-	msg, err := tx.AsMessage()
-	if err != nil {
-		return nil, err
-	}
-	sender := vm.AccountRef(msg.From())
+func ExcecuteStaticCall(bc ChainContext, statedb *state.StateDB, header *types.Header, msg *types.CallMsg, cfg vm.Config) ([]byte, error) {
+
+	sender := vm.AccountRef(msg.From)
 	// Create a new context to be used in the KVM environment
-	context := NewKVMContext(msg, header, bc)
+	context := NewKVMContextFromCallMsg(msg, header, bc)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
 	vmenv := vm.NewKVM(context, statedb, cfg)
-	ret, _, err := vmenv.StaticCall(sender, *msg.To(), msg.Data(), msg.Gas())
+	ret, _, err := vmenv.StaticCall(sender, msg.To, msg.Data, msg.Gas)
 	if err != nil {
 		return nil, err
 	}

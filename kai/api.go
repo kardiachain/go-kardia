@@ -197,32 +197,42 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 // case the code is taken from the latest known block. Note that state from very old
 // blocks might not be available.
 
-func (a *PublicTransactionAPI) KardiaCall(ctx context.Context, txs string, blockNumber int) (string, error) {
-	log.Info("SendKardiaCall", "data", txs)
-	tx := new(types.Transaction)
-	encodedTx := common.FromHex(txs)
-	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
-		return common.Hash{}.Hex(), err
+/*
+func (b *SimulatedBackend) CallContract(ctx context.Context, call ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if blockNumber != nil && blockNumber.Cmp(b.blockchain.CurrentBlock().Number()) != 0 {
+		return nil, errBlockNumberUnsupported
 	}
+	state, err := b.blockchain.State()
+	if err != nil {
+		return nil, err
+	}
+	rval, _, _, err := b.callContract(ctx, call, b.blockchain.CurrentBlock(), state)
+	return rval, err
+}
+ */
+func (a *PublicTransactionAPI) KardiaCall(ctx context.Context, call types.CallMsg, blockNumber *big.Int) ([]byte, error) {
 	var (
 		statedb *state.StateDB
 		err error
 	)
-	if blockNumber == 0 {
-		statedb, err =  a.s.blockchain.State()
-	} else  {
-		statedb, err = a.s.blockchain.StateAt(a.s.blockchain.GetBlockByHeight(uint64(blockNumber)).Hash())
+	if blockNumber != nil {
+		statedb, err = a.s.blockchain.State()
+	} else {
+		statedb, err = a.s.blockchain.StateAt(a.s.blockchain.GetBlockByHeight(blockNumber.Uint64()).Hash())
 	}
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	ret, err := a.s.blockchain.Processor().Execute(tx, statedb)
+	ret, err := a.s.blockchain.Processor().CallContract(&call, statedb)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return common.Encode(ret), nil
+	return ret, nil
 }
 
 // PendingTransactions returns pending transactions

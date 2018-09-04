@@ -27,6 +27,15 @@ type Transaction struct {
 	from atomic.Value
 }
 
+type CallMsg struct {
+	From     common.Address  // the sender of the 'transaction'
+	To       common.Address // the destination contract (nil for contract creation)
+	Gas      uint64          // if 0, the call executes with near-infinite gas
+	GasPrice *big.Int        // wei <-> gas exchange ratio
+	Value    big.Int        // amount of wei sent along with the call
+	Data     []byte          // input data, usually an ABI-encoded contract method invocation
+}
+
 type txdata struct {
 	AccountNonce uint64          `json:"nonce"    gencodec:"required"`
 	Price        *big.Int        `json:"gasPrice" gencodec:"required"`
