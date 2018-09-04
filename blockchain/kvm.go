@@ -16,24 +16,17 @@ type ChainContext interface {
 }
 
 // NewKVMContext creates a new context for use in the KVM.
-func NewKVMContext(msg Message, header *types.Header, chain ChainContext, author *common.Address) vm.Context {
-	// If we don't have an explicit author (i.e. not mining), extract from the header
-	var beneficiary common.Address
-	if author == nil {
-		beneficiary = header.Coinbase
-	} else {
-		beneficiary = *author
-	}
+func NewKVMContext(msg Message, header *types.Header, chain ChainContext) vm.Context {
 	return vm.Context{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
 		GetHash:     GetHashFn(header, chain),
 		Origin:      msg.From(),
-		Coinbase:    beneficiary,
+		Coinbase:    header.Coinbase,
 		BlockHeight: header.Height,
-		//@huny Time:        new(big.Int).Set(header.Time),
-		GasLimit: header.GasLimit,
-		GasPrice: new(big.Int).Set(msg.GasPrice()),
+		Time:        new(big.Int).Set(header.Time),
+		GasLimit:    header.GasLimit,
+		GasPrice:    new(big.Int).Set(msg.GasPrice()),
 	}
 }
 

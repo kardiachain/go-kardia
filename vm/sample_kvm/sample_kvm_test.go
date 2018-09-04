@@ -125,7 +125,7 @@ func TestCreateSimpleCounterSmc(t *testing.T) {
 
 // Test executing the counter smart contract on KVM
 // Note: Call uses the runtime_bytecode from the compiler, unlike the raw bytecode as in the previous unit test
-func TestExecuteSimpleCounterSmc(t *testing.T) {
+func TestCallSimpleCounterSmc(t *testing.T) {
 	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	address := common.HexToAddress("0x0a")
 
@@ -219,6 +219,7 @@ func TestCallSmcDeductBalance(t *testing.T) {
 		t.Error("Invalid contract balance, expect 50, got", contract_balance)
 	}
 }
+
 // Simple voting smart contract to be used for below tests:
 /*
 - ballot.sol:
@@ -359,7 +360,6 @@ func TestExecuteVoteSmc(t *testing.T) {
 	}
 }
 
-
 // Test executing the voting smart contract on KVM using different senders
 // Note: Call uses the runtime_bytecode from the compiler, unlike the raw bytecode as in the previous unit test
 func TestExecuteVoteSmcMultipleTime(t *testing.T) {
@@ -445,7 +445,7 @@ func TestExecuteVoteSmcMultipleTime(t *testing.T) {
 	var sender1 = common.HexToAddress("0x0b")
 	state.CreateAccount(sender1)
 	state.AddBalance(sender1, big.NewInt(500))
-	result, _, err = Call(address, vote, &Config{State: state, Origin:sender1})
+	result, _, err = Call(address, vote, &Config{State: state, Origin: sender1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -455,7 +455,7 @@ func TestExecuteVoteSmcMultipleTime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, _, err = Call(address, getProposal, &Config{State: state, Origin:sender1})
+	result, _, err = Call(address, getProposal, &Config{State: state, Origin: sender1})
 
 	num = new(big.Int).SetBytes(result)
 	if num.Cmp(big.NewInt(1)) != 0 {
@@ -466,7 +466,7 @@ func TestExecuteVoteSmcMultipleTime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, _, err = Call(address, vote, &Config{State: state, Origin:sender1})
+	result, _, err = Call(address, vote, &Config{State: state, Origin: sender1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -491,11 +491,11 @@ func TestExecuteVoteSmcMultipleTime(t *testing.T) {
 	state.CreateAccount(sender3)
 	state.AddBalance(sender3, big.NewInt(500))
 	vote, err = abi.Pack("vote", uint8(2))
-	result, _, err = Call(address, vote, &Config{State: state, Origin:sender2})
+	result, _, err = Call(address, vote, &Config{State: state, Origin: sender2})
 	if err != nil {
 		t.Fatal(err)
 	}
-	result, _, err = Call(address, vote, &Config{State: state, Origin:sender3})
+	result, _, err = Call(address, vote, &Config{State: state, Origin: sender3})
 	if err != nil {
 		t.Fatal(err)
 	}

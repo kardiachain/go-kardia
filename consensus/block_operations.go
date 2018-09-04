@@ -165,7 +165,7 @@ func (b *BlockOperations) CommitTransactions(txs types.Transactions, header *typ
 		state.Prepare(tx.Hash(), common.Hash{}, counter)
 		snap := state.Snapshot()
 		// TODO(thientn): confirms nil coinbase is acceptable.
-		receipt, _, err := blockchain.ApplyTransaction(b.blockchain, nil, gasPool, state, header, tx, usedGas, vm.Config{})
+		receipt, _, err := blockchain.ApplyTransaction(b.blockchain, gasPool, state, header, tx, usedGas, vm.Config{})
 		if err != nil {
 			state.RevertToSnapshot(snap)
 			// TODO(thientn): check error type and jump to next tx if possible
