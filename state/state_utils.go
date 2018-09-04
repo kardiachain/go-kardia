@@ -6,7 +6,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/trie"
+	"github.com/kardiachain/go-kardia/lib/trie"
 )
 
 type DumpAccount struct {
@@ -56,10 +56,10 @@ func (self *StateDB) RawDump() Dump {
 }
 
 func (self *StateDB) Dump() []byte {
-	json, err := json.MarshalIndent(self.RawDump(), "", "    ")
+	j, err := json.MarshalIndent(self.RawDump(), "", "    ")
 	if err != nil {
 		fmt.Println("dump err", err)
 	}
 
-	return json
+	return j
 }

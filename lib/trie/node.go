@@ -49,8 +49,8 @@ func (n *fullNode) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, nodes)
 }
 
-func (n *fullNode) copy() *fullNode   { copy := *n; return &copy }
-func (n *shortNode) copy() *shortNode { copy := *n; return &copy }
+func (n *fullNode) copy() *fullNode   { c := *n; return &c }
+func (n *shortNode) copy() *shortNode { c := *n; return &c }
 
 // nodeFlag contains caching-related metadata about a node.
 type nodeFlag struct {

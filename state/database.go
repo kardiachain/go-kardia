@@ -6,8 +6,8 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/trie"
 	kaidb "github.com/kardiachain/go-kardia/storage"
-	"github.com/kardiachain/go-kardia/trie"
 )
 
 // Trie cache generation limit after which to evict trie nodes from memory.
