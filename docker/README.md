@@ -1,5 +1,7 @@
 # Prerequisites
-Install Docker following the installation guide for your platform: [https://docs.docker.com/engine/installation/](https://docs.docker.com/engine/installation/)
+Install Docker following the installation guide for Linux OS: [https://docs.docker.com/engine/installation/](https://docs.docker.com/engine/installation/)
+* [CentOS](https://docs.docker.com/install/linux/docker-ce/centos) 
+* [Ubuntu](https://docs.docker.com/install/linux/docker-ce/ubuntu)
 
 # Test docker environment 
 
