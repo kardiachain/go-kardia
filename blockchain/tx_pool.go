@@ -312,7 +312,7 @@ func (pool *TxPool) loop() {
 				// Any non-locals old enough should be removed
 				if time.Since(pool.beats[addr]) > pool.config.Lifetime {
 					for _, tx := range pool.queue[addr].Flatten() {
-						pool.RemoveTx(tx.Hash(), true)
+						pool.removeTxInternal(tx.Hash(), true)
 					}
 				}
 			}
@@ -470,7 +470,7 @@ func (pool *TxPool) SetGasPrice(price *big.Int) {
 
 	pool.gasPrice = price
 	for _, tx := range pool.priced.Cap(price, pool.locals) {
-		pool.RemoveTx(tx.Hash(), false)
+		pool.removeTxInternal(tx.Hash(), false)
 	}
 	log.Info("Transaction pool price threshold updated", "price", price)
 }
@@ -642,7 +642,7 @@ func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
 		for _, tx := range drop {
 			log.Trace("Discarding freshly underpriced transaction", "hash", tx.Hash(), "price", tx.GasPrice())
 			underpricedTxCounter.Inc(1)
-			pool.RemoveTx(tx.Hash(), false)
+			pool.removeTxInternal(tx.Hash(), false)
 		}
 	}
 	// If the transaction is replacing an already pending one, do directly
@@ -871,9 +871,23 @@ func (pool *TxPool) Get(hash common.Hash) *types.Transaction {
 	return pool.all.Get(hash)
 }
 
-// RemoveTx removes a single transaction from the queue, moving all subsequent
-// transactions back to the future queue.
-func (pool *TxPool) RemoveTx(hash common.Hash, outofbound bool) {
+// RemoveTx removes transactions from pending queue.
+// This function is mainly for caller in blockchain/consensus to directly remove committed txs.
+//
+func (pool *TxPool) RemoveTxs(txs types.Transactions) {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	for _, tx := range txs {
+		pool.all.Remove(tx.Hash())
+		pool.priced.Removed()
+	}
+}
+
+// removeTxInternal removes a single transaction from the queue, moving all subsequent
+// transactions back to the future queue. Pool pendingState is also reset.
+// Caller is assumed to hold pool.mu.Lock()
+func (pool *TxPool) removeTxInternal(hash common.Hash, outofbound bool) {
 	// Fetch the transaction we wish to delete
 	tx := pool.all.Get(hash)
 	if tx == nil {
@@ -1084,7 +1098,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			// Drop all transactions if they are less than the overflow
 			if size := uint64(list.Len()); size <= drop {
 				for _, tx := range list.Flatten() {
-					pool.RemoveTx(tx.Hash(), true)
+					pool.removeTxInternal(tx.Hash(), true)
 				}
 				drop -= size
 				queuedRateLimitCounter.Inc(int64(size))
@@ -1093,7 +1107,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			// Otherwise drop only last few transactions
 			txs := list.Flatten()
 			for i := len(txs) - 1; i >= 0 && drop > 0; i-- {
-				pool.RemoveTx(txs[i].Hash(), true)
+				pool.removeTxInternal(txs[i].Hash(), true)
 				drop--
 				queuedRateLimitCounter.Inc(1)
 			}
@@ -1109,7 +1123,8 @@ func (pool *TxPool) demoteUnexecutables() {
 	for addr, list := range pool.pending {
 		nonce := pool.currentState.GetNonce(addr)
 
-		// TODO(thientn): Evaluate this for future phases. Geth does not delete block txns directly, because block is not surely confirmed.
+		// TODO(thientn): Evaluate this for future phases.
+		// These txs should also dropped by below loop because of low nonce.
 		// Drop transactions included in latest block, assume it's committed and saved.
 		// This function is only called when TxPool detect new height.
 		for _, tx := range pool.chain.CurrentBlock().Transactions() {
@@ -1119,28 +1134,29 @@ func (pool *TxPool) demoteUnexecutables() {
 			pool.priced.Removed()
 		}
 
-		/* FIXME(thientn): StateDB not found accounts from generated txs, although it should be in genesis block.
 		// Drop all transactions that are deemed too old (low nonce)
 		for _, tx := range list.Forward(nonce) {
 			hash := tx.Hash()
-			log.Trace("Removed old pending transaction", "hash", hash)
+			log.Info("Removed old pending transaction", "hash", hash)
 			pool.all.Remove(hash)
 			pool.priced.Removed()
 		}
-		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
-		drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
-		for _, tx := range drops {
-			hash := tx.Hash()
-			log.Info("Removed unpayable pending transaction", "hash", hash)
-			pool.all.Remove(hash)
-			pool.priced.Removed()
-			pendingNofundsCounter.Inc(1)
-		}
-		for _, tx := range invalids {
-			hash := tx.Hash()
-			log.Info("Demoting pending transaction", "hash", hash)
-			pool.enqueueTx(hash, tx)
-		}
+		// TODO(thientn): Evaluates enable this.
+		/*
+			// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
+			drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+			for _, tx := range drops {
+				hash := tx.Hash()
+				log.Info("Removed unpayable pending transaction", "hash", hash)
+				pool.all.Remove(hash)
+				pool.priced.Removed()
+				pendingNofundsCounter.Inc(1)
+			}
+			for _, tx := range invalids {
+				hash := tx.Hash()
+				log.Info("Demoting pending transaction", "hash", hash)
+				pool.enqueueTx(hash, tx)
+			}
 		*/
 
 		// If there's a gap in front, alert (should never happen) and postpone all transactions

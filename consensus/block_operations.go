@@ -93,12 +93,8 @@ func (bs *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commi
 	// NOTE: we can delete this at a later height
 	bs.blockchain.WriteCommit(height, seenCommit)
 
-	// TODO(thientn/namdoh): remove the committed transactions from tx pool.
-	// @kiendn: remove all txs in block from tx pool
-	txs := block.Transactions()
-	for _, tx := range txs {
-		bs.txPool.RemoveTx(tx.Hash(), true)
-	}
+	// TODO(thientn/kiendn): Evaluates remove txs directly here, or depending on txPool.reset() when receiving new block event.
+	bs.txPool.RemoveTxs(block.Transactions())
 
 	bs.mtx.Lock()
 	bs.height = height
