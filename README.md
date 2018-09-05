@@ -1,6 +1,6 @@
 # Go-Kardia
 
-Golang implementation of Kardia chain following the specs in [Technical Paper](http://www.kardiachain.io/paper)
+Golang implementation of Kardia chain following the specs in [Technical Paper](http://www.kardiachain.io/paper.pdf)
 
 # Kardia private-net
 - Release: [kardia-milestone2-20180904](https://github.com/kardiachain/go-kardia/releases/tag/kardia-milestone2-20180904)
