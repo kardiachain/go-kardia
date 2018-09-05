@@ -338,6 +338,7 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 	// Update Valid* if we can.
 	prevotes := cs.Votes.Prevotes(cs.Round.Int32())
 	blockID, hasTwoThirds := prevotes.TwoThirdsMajority()
+	cs.Logger.Info("SetProposal Block to Hash", "block", cs.ProposalBlock.String())
 	if hasTwoThirds && !blockID.IsZero() && cs.ValidRound.IsLessThan(cs.Round) {
 		if cs.ProposalBlock.HashesTo(blockID) {
 			cs.Logger.Info("Updating valid block to new proposal block",
@@ -430,6 +431,7 @@ func (cs *ConsensusState) addProposalBlock(msg *BlockMessage, peerID discover.No
 	prevotes := cs.Votes.Prevotes(cs.Round.Int32())
 	blockID, hasTwoThirds := prevotes.TwoThirdsMajority()
 	cs.Logger.Trace("debug#A7", "blockID", blockID, "hasTwoThirds", hasTwoThirds)
+	cs.Logger.Info("addProposalBlock","block", cs.ProposalBlock.String())
 	if hasTwoThirds && !blockID.IsZero() && cs.ValidRound.IsLessThan(cs.Round) {
 		cs.Logger.Trace("debug#A8")
 		if cs.ProposalBlock.HashesTo(blockID) {
@@ -543,6 +545,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 
 			// Unlock if `cs.LockedRound < vote.Round <= cs.Round`
 			// NOTE: If vote.Round > cs.Round, we'll deal with it when we get to vote.Round
+			cs.Logger.Info("Added to prevote", "block", cs.LockedBlock.String())
 			if (cs.LockedBlock != nil) &&
 				cs.LockedRound.IsLessThan(vote.Round) &&
 				vote.Round.IsLessThanOrEquals(cs.Round) &&
@@ -942,6 +945,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	}
 
 	// +2/3 prevoted nil. Unlock and precommit nil.
+	logger.Info("Enter precommit", "BlockID", blockID.String())
 	if blockID.IsZero() {
 		if cs.LockedBlock == nil {
 			logger.Info("enterPrecommit: +2/3 prevoted for nil.")
@@ -953,12 +957,25 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 		}
 		cs.signAddVote(types.VoteTypePrecommit, types.NewZeroBlockID())
 		return
-	}
+	} /*else {
+		logger.Info("BlockID is not zero", "blockID", blockID.String())
+		if cs.LockedBlock == nil {
+			logger.Info("enterPrecommit: +2/3 prevoted for nil. Sign vote for nil")
+			cs.LockedRound = cmn.NewBigInt(0)
+			cs.LockedBlock = nil
+			cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
+			cs.signAddVote(types.VoteTypePrecommit, types.NewZeroBlockID())
+			return
+		}
+	}*/
 
 	// At this point, +2/3 prevoted for a particular block.
 
 	// If we're already locked on that block, precommit it, and update the LockedRound
+	logger.Info("EnterPrecommit Block to Hash", "block", cs.LockedBlock.String())
+
 	if cs.LockedBlock != nil && cs.LockedBlock.HashesTo(blockID) {
+
 		logger.Info("enterPrecommit: +2/3 prevoted locked block. Relocking")
 		cs.LockedRound = round
 		cs.eventBus.PublishEventRelock(cs.RoundStateEvent())
@@ -967,6 +984,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	}
 
 	// If +2/3 prevoted for proposal block, stage and precommit it
+	logger.Info("EnterPrecommit Proposal Block", "block", cs.ProposalBlock.String())
 	if cs.ProposalBlock.HashesTo(blockID) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID)
 		// Validate the block.
@@ -1043,12 +1061,14 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 	// The Locked* fields no longer matter.
 	// Move them over to ProposalBlock if they match the commit hash,
 	// otherwise they'll be cleared in updateToState.
+	logger.Info("Enter Commit Block to Hash", "block", cs.LockedBlock.String())
 	if cs.LockedBlock.HashesTo(blockID) {
 		logger.Info("Commit is for locked block. Set ProposalBlock=LockedBlock", "blockHash", blockID)
 		cs.ProposalBlock = cs.LockedBlock
 	}
 
 	// If we don't have the block being committed, set up to get it.
+	logger.Info("Enter Commit Proposal to Block", "block", cs.ProposalBlock.String())
 	if !cs.ProposalBlock.HashesTo(blockID) {
 		logger.Info("Commit is for a block we don't know about. Set ProposalBlock=nil", "proposal", cs.ProposalBlock.Hash(), "commit", blockID)
 		// We're getting the wrong block.
@@ -1075,6 +1095,7 @@ func (cs *ConsensusState) tryFinalizeCommit(height *cmn.BigInt) {
 		return
 
 	}
+	logger.Info("Try FinalizeCommit Proposal to Block", "block", cs.ProposalBlock.String())
 	if !cs.ProposalBlock.HashesTo(blockID) {
 		logger.Info("Attempt to finalize failed. We don't have the commit block.", "proposal-block", cs.ProposalBlock.BlockID(), "commit-block", blockID)
 		return
@@ -1096,6 +1117,9 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	if !ok {
 		cmn.PanicSanity(cmn.Fmt("Cannot finalizeCommit, commit does not have two thirds majority"))
 	}
+
+	cs.Logger.Info("Finalize Block to Hash", "block", block.String())
+
 	if !block.HashesTo(blockID) {
 		cmn.PanicSanity(cmn.Fmt("Cannot finalizeCommit, ProposalBlock does not hash to commit hash"))
 	}
