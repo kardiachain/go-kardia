@@ -2,7 +2,12 @@
 
 Golang implementation of Kardia chain following the specs in [Technical Paper](http://www.kardiachain.io/paper)
 
-# Setup & build
+# Kardia private-net
+- Release: [kardia-milestone2-20180904](https://github.com/kardiachain/go-kardia/releases/tag/kardia-milestone2-20180904)
+- Build: [Jenkins](http://35.198.226.189:8080/job/go-kardia/)
+- UI: [Kardiascan](http://scan.kardiachain.io/)
+
+# Quickstart
 ### Go environment setup
 Install [Go](https://golang.org/doc/install) v1.10 to $HOME directory. Sets environment vars:  
 > export GOPATH=$HOME/go  
