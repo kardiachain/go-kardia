@@ -367,7 +367,6 @@ func (b *Block) BlockID() BlockID {
 // Hash returns the keccak256 hash of b's header.
 // The hash is computed on the first call and cached thereafter.
 func (b *Block) Hash() common.Hash {
-	//fmt.Sprintln("Block to Hash() %v", b.String())
 	if b == nil {
 		return common.Hash{}
 	}
