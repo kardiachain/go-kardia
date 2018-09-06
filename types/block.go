@@ -370,8 +370,6 @@ func (b *Block) Hash() common.Hash {
 	if b == nil {
 		return common.Hash{}
 	}
-	b.mtx.Lock()
-	defer b.mtx.Unlock()
 
 	if hash := b.hash.Load(); hash != nil {
 		return hash.(common.Hash)
