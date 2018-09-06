@@ -1043,12 +1043,14 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 	// The Locked* fields no longer matter.
 	// Move them over to ProposalBlock if they match the commit hash,
 	// otherwise they'll be cleared in updateToState.
-	if cs.LockedBlock.HashesTo(blockID) {
+	// cs.LockedBlock is nil if node did precommit nil.
+	if cs.LockedBlock != nil && cs.LockedBlock.HashesTo(blockID) {
 		logger.Info("Commit is for locked block. Set ProposalBlock=LockedBlock", "blockHash", blockID)
 		cs.ProposalBlock = cs.LockedBlock
 	}
 
 	// If we don't have the block being committed, set up to get it.
+	// cs.ProposalBlock is confirmed not nil from caller.
 	if !cs.ProposalBlock.HashesTo(blockID) {
 		logger.Info("Commit is for a block we don't know about. Set ProposalBlock=nil", "proposal", cs.ProposalBlock.Hash(), "commit", blockID)
 		// We're getting the wrong block.
