@@ -156,8 +156,12 @@ func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNum
 		Hash:     tx.Hash().Hex(),
 		Input:    common.Encode(tx.Data()),
 		Nonce:    common.Uint64(tx.Nonce()),
-		To:       tx.To().Hex(),
 		Value:    common.Uint64(tx.Value().Int64()),
+	}
+	if tx.To() != nil {
+		result.To = tx.To().Hex()
+	} else {
+		result.To = "0x"
 	}
 	if blockHash != (common.Hash{}) {
 		result.BlockHash = blockHash.Hex()
