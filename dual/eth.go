@@ -2,6 +2,7 @@ package dual
 
 import (
 	"fmt"
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -187,7 +188,7 @@ func (n *EthKardia) Stop() error {
 	return n.geth.Stop()
 }
 
-// GethNode returns the standard Eth Node.
+// EthNode returns the standard Eth Node.
 func (n *EthKardia) EthNode() *node.Node {
 	return n.geth
 }
@@ -199,6 +200,12 @@ func (n *EthKardia) Client() (*KardiaEthClient, error) {
 		return nil, err
 	}
 	return &KardiaEthClient{ethClient: ethclient.NewClient(rpcClient), stack: n.geth}, nil
+}
+
+func (n *EthKardia) BlockChain() *core.BlockChain {
+	var ethService *eth.Ethereum
+	n.geth.Service(&ethService)
+	return ethService.BlockChain()
 }
 
 // syncHead syncs with latest events from Eth network to Kardia.
@@ -244,10 +251,14 @@ func (n *EthKardia) syncHead() {
 	for {
 		select {
 		case block := <-blockCh:
-			go n.handleBlock(block)
+			if !n.config.LightNode {
+				go n.handleBlock(block)
+			}
 		}
 	}
 }
+
+var destAccountHex = "0x3688aad7025f17f64eaf8a8de250d3e67f60d9f7"
 
 func (n *EthKardia) handleBlock(block *types.Block) {
 	// TODO(thientn): block from this event is not guaranteed newly update. May already handled before.
@@ -264,9 +275,19 @@ func (n *EthKardia) handleBlock(block *types.Block) {
 
 	log.Info("handleBlock...", "header", header, "txns size", len(txns))
 
-	for _, txn := range block.Transactions() {
-		if txn.To() != nil {
-			log.Info("transfer txn", "txn", txn, "To", txn.To(), "Value", txn.Value())
+	b := n.BlockChain()
+	state, err := b.State()
+	if err != nil {
+		log.Error("Get Geth state() error", "err", err)
+		return
+	}
+
+	destAddress := ethCommon.HexToAddress(destAccountHex)
+
+	for _, tx := range block.Transactions() {
+		if tx.To() != nil && *tx.To() == destAddress {
+			// This can be used to check contract address balance, and get contract storage if needed.
+			log.Error("New tx detected, updated destination account balance", "balance", state.GetBalance(destAddress))
 		}
 	}
 }
