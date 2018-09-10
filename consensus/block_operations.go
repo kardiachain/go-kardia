@@ -69,16 +69,16 @@ func (bs *BlockOperations) NewBlock(header *types.Header, txs []*types.Transacti
 //             most recent height.  Otherwise they'd stall at H-1.
 func (bs *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commit) {
 	if block == nil {
-		common.PanicSanity("BlockStore can only save a non-nil block")
+		common.PanicSanity("BlockOperations try to save a nil block")
 	}
 	height := block.Height()
 	if g, w := height, bs.Height()+1; g != w {
-		common.PanicSanity(common.Fmt("BlockStore can only save contiguous blocks. Wanted %v, got %v", w, g))
+		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", w, g))
 	}
 
 	// Save block
 	if height != bs.Height()+1 {
-		common.PanicSanity(common.Fmt("BlockStore can only save contiguous blocks. Wanted %v, got %v", bs.Height()+1, height))
+		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", bs.Height()+1, height))
 	}
 
 	// TODO(kiendn): WriteBlockWithoutState returns an error, write logic check if error appears
@@ -105,19 +105,19 @@ func (bs *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commi
 func (b *BlockOperations) CollectTransactions() []*types.Transaction {
 	pending, err := b.txPool.Pending()
 	if err != nil {
-		log.Error("Fail to get pending txns", "err", err)
+		log.Error("Fail to get pending txs", "err", err)
 		return nil
 	}
 
 	// TODO: do basic verification & check with gas & sort by nonce
 	// check code NewTransactionsByPriceAndNonce
-	pendingTxns := make([]*types.Transaction, 0)
-	for _, txns := range pending {
-		for _, txn := range txns {
-			pendingTxns = append(pendingTxns, txn)
+	pendingTxs := make([]*types.Transaction, 0)
+	for _, txs := range pending {
+		for _, tx := range txs {
+			pendingTxs = append(pendingTxs, tx)
 		}
 	}
-	return pendingTxns
+	return pendingTxs
 }
 
 // LoadBlock returns the Block for the given height.
@@ -194,21 +194,30 @@ func (b *BlockOperations) CommitTransactions(txs types.Transactions, header *typ
 		return common.Hash{}, nil, err
 	}
 
-	// TODO(thientn): write receipts to rawdb separately
-	// receipt require block hash which is not built yet. This should be a separate function.
-	// rawdb.WriteReceipts(batch, block.Hash(), block.Header().Height, receipts)
-
 	return root, receipts, nil
 }
 
+// SaveReceipts saves receipts of block transactions to storage.
+func (bs *BlockOperations) SaveReceipts(receipts types.Receipts, block *types.Block) {
+	bs.blockchain.WriteReceipts(receipts, block)
+}
+
+// CommitAndValidateBlockTxs executes and commits the transactions in the given block.
+// Transactions & receipts are saved to storage.
+// This also validate the new state root against the block root.
 func (bs *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
-	root, _, err := bs.CommitTransactions(block.Transactions(), block.Header())
+	root, receipts, err := bs.CommitTransactions(block.Transactions(), block.Header())
 	if err != nil {
 		return err
 	}
 	if root != block.Root() {
 		return fmt.Errorf("different new state root: Block root: %s, Execution result: %s", block.Root().Hex(), root.Hex())
 	}
-	// TODO(thientn): compare receipts.
+	receiptsHash := types.DeriveSha(receipts)
+	if receiptsHash != block.ReceiptHash() {
+		return fmt.Errorf("different receipt hash: Block receipt: %s, receipt from execution: %s", block.ReceiptHash().Hex(), receiptsHash.Hex())
+	}
+	bs.SaveReceipts(receipts, block)
+
 	return nil
 }

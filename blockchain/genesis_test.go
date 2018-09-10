@@ -7,12 +7,12 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/storage"
+	"math"
 	"testing"
 )
 
 const (
 	password = "KardiaChain"
-	balance  = int64(100000000)
 )
 
 var (
@@ -40,6 +40,7 @@ var (
 		"b34bd81838a4a335fb3403d0bf616eca1eb9a4b4716c7dda7c617503cfeaab67",
 		"e049a09c992c882bc2deb780323a247c6ee0951f8b4c5c1dd0fc2fc22ce6493d",
 	}
+	balance = int64(math.Pow10(15))
 )
 
 func TestGenesisAllocFromData(t *testing.T) {

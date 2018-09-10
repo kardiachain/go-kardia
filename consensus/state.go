@@ -1179,10 +1179,10 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 		return
 	}
 
-	// Gets all txns in pending pools and execute them to get new account states.
-	// Txn execution can happen in parallel with voting or precommitted.
-	// For simpilicity, this code executes txn before sending proposal,
-	//  so the proposal block already contains account state results from the proposed txns.
+	// Gets all transactions in pending pools and execute them to get new account states.
+	// Tx execution can happen in parallel with voting or precommitted.
+	// For simplicity, this code executes & commits txs before sending proposal,
+	//  so statedb of proposal node already contains the new state and txs receipts of this proposal block.
 
 	txs := cs.blockOperations.CollectTransactions()
 	log.Debug("Collected transactions", "txs", txs)
@@ -1198,6 +1198,9 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 
 	block = cs.blockOperations.NewBlock(header, txs, receipts, commit)
 	cs.Logger.Trace("Make block to propose", "block", block)
+
+	cs.blockOperations.SaveReceipts(receipts, block)
+
 	return block
 }
 
