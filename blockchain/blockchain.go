@@ -335,6 +335,14 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) error {
 	return nil
 }
 
+// WriteReceipts writes the transactions receipt from execution of the transactions in the given block.
+func (bc *BlockChain) WriteReceipts(receipts types.Receipts, block *types.Block) {
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
+
+	chaindb.WriteReceipts(bc.db, block.Hash(), block.Header().Height, receipts)
+}
+
 // WriteBlockWithState writes the block and all associated state to the database.
 func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) error {
 	// Makes sure no inconsistent state is leaked during insertion

@@ -7,11 +7,11 @@ import (
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
 	"math/rand"
 	"time"
-	"github.com/kardiachain/go-kardia/state"
 )
 
 const (
@@ -97,9 +97,8 @@ func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input 
 func GenerateCreateSmcCall(senderKey *ecdsa.PrivateKey, input []byte, stateDb *state.StateDB) *types.Transaction {
 	senderAddress := crypto.PubkeyToAddress(senderKey.PublicKey)
 	nonce := stateDb.GetNonce(senderAddress)
-	tx, err := types.SignTx(types.NewTransaction(
+	tx, err := types.SignTx(types.NewContractCreation(
 		nonce,
-		common.HexToAddress(""),
 		defaultAmount,
 		60000,
 		big.NewInt(1),

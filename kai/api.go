@@ -7,9 +7,9 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
-	"github.com/kardiachain/go-kardia/state"
 )
 
 // BlockJSON represents Block in JSON format
@@ -216,12 +216,12 @@ func (b *SimulatedBackend) CallContract(ctx context.Context, call ethereum.CallM
 	rval, _, _, err := b.callContract(ctx, call, b.blockchain.CurrentBlock(), state)
 	return rval, err
 }
- */
+*/
 
 func (a *PublicTransactionAPI) KardiaCall(ctx context.Context, call types.CallMsgJSON, blockNumber *big.Int) (string, error) {
 	var (
 		statedb *state.StateDB
-		err error
+		err     error
 	)
 	callMsg := types.NewCallMsg(call)
 	if blockNumber != nil {
@@ -316,12 +316,12 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 	}
 
 	fields := map[string]interface{}{
-		"blockHash":         blockHash,
+		"blockHash":         blockHash.Hex(),
 		"blockHeight":       uint64(height),
 		"transactionHash":   hash,
 		"transactionIndex":  uint64(index),
 		"from":              from.Hex(),
-		"to":                tx.To().Hex(),
+		"to":                nil,
 		"gasUsed":           uint64(receipt.GasUsed),
 		"cumulativeGasUsed": uint64(receipt.CumulativeGasUsed),
 		"contractAddress":   nil,
@@ -329,6 +329,10 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 		"logsBloom":         receipt.Bloom.Big().Int64(),
 	}
 
+	// To field is nil for contract creation tx.
+	if tx.To() != nil {
+		fields["to"] = tx.To().Hex()
+	}
 	// Assign receipt status or post state.
 	if len(receipt.PostState) > 0 {
 		fields["root"] = common.Bytes(receipt.PostState)
@@ -337,7 +341,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 	}
 	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
 	if receipt.ContractAddress != (common.Address{}) {
-		fields["contractAddress"] = receipt.ContractAddress
+		fields["contractAddress"] = receipt.ContractAddress.Hex()
 	}
 	return fields, nil
 }
