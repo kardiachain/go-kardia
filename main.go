@@ -336,10 +336,40 @@ func main() {
 			return
 		}
 		go displaySyncStatus(client)
+		logger.Info("Start polling smc")
+		exchangeContractAddress := devEnv.GetContractAddressAt(2)
+		exchangeContractAbi := devEnv.GetContractAbiByAddress(exchangeContractAddress.String())
+		go pollingSmcCall(kService.BlockChain(), exchangeContractAddress, exchangeContractAbi)
 	}
 
 	go displayKardiaPeers(n)
 	waitForever()
+}
+
+func pollingSmcCall(b *blockchain.BlockChain, exchangeSmcAddress common.Address, exchangeAbiStr string) {
+	for {
+		log.Info("Polling smc")
+		statedb, err := b.State()
+
+		if err != nil {
+			log.Error("Error getting state. Cannot make contract call")
+		} else {
+			log.Info("Preparing to tracking master smc")
+		}
+		senderAddr := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+		abi, err := abi.JSON(strings.NewReader(exchangeAbiStr))
+		if err != nil {
+			log.Error("Can not read abi", err)
+			continue
+		}
+		getEthToSend, err := abi.Pack("getEthToSend")
+		if err != nil {
+			log.Error("Error getting abi", "error", err)
+			continue
+		}
+
+		dual.CallKardiaMasterSmc(senderAddr, exchangeSmcAddress, b, getEthToSend, statedb)
+	}
 }
 
 func displayEthPeers(n *dual.EthKardia) {
