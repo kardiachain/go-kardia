@@ -4,6 +4,7 @@ import (
 	"fmt"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/kardiachain/go-kardia/dual/ethsmc"
+	"math/big"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -261,8 +262,6 @@ func (n *EthKardia) syncHead() {
 	}
 }
 
-var destAccountHex = "0x3688aad7025f17f64eaf8a8de250d3e67f60d9f7"
-
 func (n *EthKardia) handleBlock(block *types.Block) {
 	// TODO(thientn): block from this event is not guaranteed newly update. May already handled before.
 
@@ -295,4 +294,8 @@ func (n *EthKardia) handleBlock(block *types.Block) {
 			// TODO(thientn): parse input & create Kardia tx
 		}
 	}
+}
+
+func (n *EthKardia) SendEthFromContract(value *big.Int) {
+	// TODO(thientn): implement create tx to call Eth smc release(address ethReceiver, uint256 ethAmount)
 }

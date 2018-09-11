@@ -1,10 +1,10 @@
 package ethsmc
 
 // Address of the deployed contract on Rinkeby.
-var EthContractAddress string = "0xa131f8ef263527892d1e2971efc8ced85537b068"
+var EthContractAddress = "0xa131f8ef263527892d1e2971efc8ced85537b068"
 
 // ABI of the deployed Eth contract.
-var EthExchangeAbi string = `[
+var EthExchangeAbi = `[
     {
         "constant": false,
         "inputs": [
