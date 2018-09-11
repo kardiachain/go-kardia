@@ -122,6 +122,22 @@ func (abi ABI) Unpack(v interface{}, name string, output []byte) (err error) {
 	return fmt.Errorf("abi: could not locate named method or event")
 }
 
+// UnpackInput unpacks inputs of Method to v according to the abi specification
+func (abi ABI) UnpackInput(v interface{}, name string, output []byte) (err error) {
+	if len(output) == 0 {
+		return fmt.Errorf("abi: unmarshalling empty output")
+	}
+	// since there can't be naming collisions with contracts and events,
+	// we need to decide whether we're calling a method or an event
+	if method, ok := abi.Methods[name]; ok {
+		if len(output)%32 != 0 {
+			return fmt.Errorf("abi: improperly formatted output")
+		}
+		return method.Inputs.Unpack(v, output)
+	}
+	return fmt.Errorf("abi: could not locate named method or event")
+}
+
 // MethodById looks up a method by the 4-byte id
 // returns nil if none found
 func (abi *ABI) MethodById(sigdata []byte) (*Method, error) {
