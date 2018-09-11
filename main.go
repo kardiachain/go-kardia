@@ -236,12 +236,12 @@ func main() {
 
 	if *addSmcCall {
 		txPool := kService.TxPool()
-		// statedb, err := kService.BlockChain().State()
+		statedb, err := kService.BlockChain().State()
 		if err != nil {
 			logger.Error("Cannot get state", "state", err)
 		}
 		// Get first contract in genesis contracts
-		counterSmcAddress := devEnv.GetContractAddressAt(1)
+		/*counterSmcAddress := devEnv.GetContractAddressAt(1)
 		smcAbi := devEnv.GetContractAbiByAddress(counterSmcAddress.String())
 		statedb, err := kService.BlockChain().State()
 		// Caller is account[1] in genesis
@@ -256,52 +256,39 @@ func main() {
 		if err != nil {
 			logger.Error("Cannot pack method call", err)
 		}
-
-		method, _ := counterAbi.MethodById(input[0:4])
-		logger.Info("Unpack Method", "method", method.Name)
-		var output uint8
-		if err := counterAbi.UnpackInput(&output, method.Name, input[4:]); err != nil {
-			log.Error("Unpack error", "err", err, "input", input)
-			panic(err)
-		} else {
-			log.Info("Unpack output", "output", output)
-		}
-
 		simpleContractCall := tool.GenerateSmcCall(callerKey, counterSmcAddress, input, statedb)
 		signedSmcCall, _ := types.SignTx(simpleContractCall, callerKey)
 
 		err = txPool.AddLocal(signedSmcCall)
-		if err != nil {
+		if err!= nil {
 			logger.Error("Error adding contract call", "err", err)
 		} else {
 			logger.Info("Adding counter contract call successfully")
 		}
-
-		// Get voting contract address, this smc is created in genesis block
-		/*
-			votingSmcAddress := devEnv.GetContractAddressAt(0)
-			votingAbiStr := devEnv.GetContractAbiByAddress(votingSmcAddress.String())
-			votingAbi, err := abi.JSON(strings.NewReader(votingAbiStr))
-			if err != nil {
-				logger.Error("Can not read abi", err)
-			}
-			// Caller2 is account[2] in genesis
-			caller2ByteK, _ := hex.DecodeString("98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb")
-			caller2Key := crypto.ToECDSAUnsafe(caller2ByteK)
-			voteInput, err := votingAbi.Pack("vote", uint8(1))
-			if err != nil {
-				logger.Error("Can not read abi", err)
-			}
-
-			votingContractCall := tool.GenerateSmcCall(caller2Key, votingSmcAddress, voteInput, statedb)
-			signedSmcCall2, _ := types.SignTx(votingContractCall, caller2Key)
-			err = txPool.AddLocal(signedSmcCall2)
-			if err!= nil {
-				logger.Error("Error adding contract call", "err", err)
-			} else {
-				logger.Info("Adding voting contract call successfully")
-			}
 		*/
+		// Get voting contract address, this smc is created in genesis block
+		votingSmcAddress := devEnv.GetContractAddressAt(0)
+		votingAbiStr := devEnv.GetContractAbiByAddress(votingSmcAddress.String())
+		votingAbi, err := abi.JSON(strings.NewReader(votingAbiStr))
+		if err != nil {
+			logger.Error("Can not read abi", err)
+		}
+		// Caller2 is account[2] in genesis
+		caller2ByteK, _ := hex.DecodeString("98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb")
+		caller2Key := crypto.ToECDSAUnsafe(caller2ByteK)
+		voteInput, err := votingAbi.Pack("vote", uint8(1))
+		if err != nil {
+			logger.Error("Can not read abi", err)
+		}
+
+		votingContractCall := tool.GenerateSmcCall(caller2Key, votingSmcAddress, voteInput, statedb)
+		signedSmcCall2, _ := types.SignTx(votingContractCall, caller2Key)
+		err = txPool.AddLocal(signedSmcCall2)
+		if err!= nil {
+			logger.Error("Error adding contract call", "err", err)
+		} else {
+			logger.Info("Adding voting contract call successfully")
+		}
 	}
 
 	if *genNewTxs {

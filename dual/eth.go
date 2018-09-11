@@ -3,6 +3,7 @@ package dual
 import (
 	"fmt"
 	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/kardiachain/go-kardia/dual/ethsmc"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -27,19 +28,21 @@ const (
 )
 
 var DefaultEthKardiaConfig = EthKardiaConfig{
-	Name:       "GethKardia", // Don't need to change, default instance name for geth is "geth".
-	ListenAddr: ":30303",
-	MaxPeers:   10,
-	LightNode:  false,
-	LightPeers: 5,
-	LightServ:  0,
-	StatName:   "eth-kardia-1",
+	Name:            "GethKardia", // Don't need to change, default instance name for geth is "geth".
+	ListenAddr:      ":30303",
+	MaxPeers:        10,
+	LightNode:       false,
+	LightPeers:      5,
+	LightServ:       0,
+	StatName:        "eth-kardia-1",
+	ContractAddress: ethsmc.EthContractAddress,
 
 	CacheSize: 1024,
 }
 
 // EthKardiaConfig provides configuration when starting Eth subnode.
 type EthKardiaConfig struct {
+	ContractAddress string // address of Eth smart contract to watch.
 
 	// Network configs
 	Name        string
@@ -275,19 +278,21 @@ func (n *EthKardia) handleBlock(block *types.Block) {
 
 	log.Info("handleBlock...", "header", header, "txns size", len(txns))
 
+	/* Can be use to check contract state, but currently has memory leak.
 	b := n.BlockChain()
 	state, err := b.State()
 	if err != nil {
 		log.Error("Get Geth state() error", "err", err)
 		return
 	}
+	*/
 
-	destAddress := ethCommon.HexToAddress(destAccountHex)
+	contractAddr := ethCommon.HexToAddress(n.config.ContractAddress)
 
 	for _, tx := range block.Transactions() {
-		if tx.To() != nil && *tx.To() == destAddress {
-			// This can be used to check contract address balance, and get contract storage if needed.
-			log.Error("New tx detected, updated destination account balance", "balance", state.GetBalance(destAddress))
+		if tx.To() != nil && *tx.To() == contractAddr {
+			log.Error("New tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
+			// TODO(thientn): parse input & create Kardia tx
 		}
 	}
 }
