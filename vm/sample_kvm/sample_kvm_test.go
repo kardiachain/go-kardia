@@ -520,3 +520,81 @@ func TestExecuteVoteSmcMultipleTime(t *testing.T) {
 		t.Error("Expected 2, got", num)
 	}
 }
+
+// Test behaviour of master exchange contract to exchange ETH <-> NEO
+// Please find solidity source code in smc/Exchange.sol
+func TestExecuteMasterExchangeContract(t *testing.T) {
+	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	address := common.HexToAddress("0x0a")
+
+	// Add runtime_bytecode for Exchange.sol to execute the smc:
+	var code = common.Hex2Bytes("6080604052600436106100775763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416630a0306b1811461007c578063323a9243146100a357806344af18e8146100bd5780636e63987d146100d557806386dca334146100ed578063fa8513de14610105575b600080fd5b34801561008857600080fd5b5061009161011a565b60408051918252519081900360200190f35b3480156100af57600080fd5b506100bb600435610139565b005b3480156100c957600080fd5b506100bb600435610154565b3480156100e157600080fd5b506100bb60043561016f565b3480156100f957600080fd5b506100bb60043561017a565b34801561011157600080fd5b50610091610185565b600060015460005411156101315750600154610136565b506000545b90565b60015481111561014857600080fd5b60018054919091039055565b60005481111561016357600080fd5b60008054919091039055565b600180549091019055565b600080549091019055565b60008054600154111561019b5750600054610136565b50600154905600a165627a7a72305820f07bf8b0278729f61585fdeb608ea6ab12a34ae7871ea92bfd2f4199cc5bfd0d0029")
+	state.SetCode(address, code)
+	var definition = `[
+						{"constant": false,"inputs": [{"name": "eth","type": "uint256"}],"name": "matchEth","outputs": [],"payable": false,"stateMutability": "nonpayable","type": "function"},
+						{"constant": false,"inputs": [{"name": "neo","type": "uint256"}],"name": "matchNeo","outputs": [],"payable": false,"stateMutability": "nonpayable","type": "function"},
+						{"constant": false,"inputs": [{"name": "eth","type": "uint256"}],"name": "removeEth","outputs": [],"payable": false,"stateMutability": "nonpayable","type": "function"},
+						{"constant": false,"inputs": [{"name": "neo","type": "uint256"}],"name": "removeNeo","outputs": [],"payable": false,"stateMutability": "nonpayable","type": "function"},
+						{"constant": true,"inputs": [],"name": "getEthToSend","outputs": [{"name": "","type": "uint256"}],"payable": false,"stateMutability": "view","type": "function"},
+						{"constant": true,"inputs": [],"name": "getNeoToSend","outputs": [{"name": "","type": "uint256"}],"payable": false,"stateMutability": "view","type": "function"}
+					]`
+	abi, err := abi.JSON(strings.NewReader(definition))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Deposit 10 ETH to exchange for 10 NEO
+	matchEthInput, err := abi.Pack("matchEth", big.NewInt(10))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = Call(address, matchEthInput, &Config{State: state})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Deposit 5 NEO to exchange for 5 ETH
+	matchNeoInput, err := abi.Pack("matchNeo", big.NewInt(5))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _, err = Call(address, matchNeoInput, &Config{State: state})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Get number of matching ETH quantity
+	getEthInput, err := abi.Pack("getEthToSend")
+	result, _, err := Call(address, getEthInput, &Config{State: state})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ethAmount = new(big.Int).SetBytes(result)
+	if ethAmount.Cmp(big.NewInt(5)) != 0 {
+		t.Error("Expected 5, got", ethAmount)
+	}
+
+	// Assume ETH has been release successfully, update the order list
+	removeEthInput, err := abi.Pack("removeEth", big.NewInt(5))
+	_, _, err = Call(address, removeEthInput, &Config{State: state})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	removeNeoInput, err := abi.Pack("removeNeo", big.NewInt(5))
+	_, _, err = Call(address, removeNeoInput, &Config{State: state})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Get number of matching ETH quantity again, it should be 0 because no more NEO order is match
+	getEthInput, err = abi.Pack("getEthToSend")
+	result, _, err = Call(address, getEthInput, &Config{State: state})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ethAmount = new(big.Int).SetBytes(result)
+	if ethAmount.Cmp(big.NewInt(0)) != 0 {
+		t.Error("Expected 0, got", ethAmount)
+	}
+}

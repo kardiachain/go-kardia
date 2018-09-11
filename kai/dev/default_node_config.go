@@ -84,46 +84,31 @@ var GenesisContracts = map[string]string{
 	"0x00000000000000000000000000000000736D6332": "608060405260043610610057576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063124474a71461005c578063609ff1bd146100a0578063b3f98adc146100d1575b600080fd5b34801561006857600080fd5b5061008a600480360381019080803560ff169060200190929190505050610101565b6040518082815260200191505060405180910390f35b3480156100ac57600080fd5b506100b5610138565b604051808260ff1660ff16815260200191505060405180910390f35b3480156100dd57600080fd5b506100ff600480360381019080803560ff16906020019092919050505061019e565b005b600060048260ff161015156101195760009050610133565b60018260ff1660048110151561012b57fe5b016000015490505b919050565b6000806000809150600090505b60048160ff161015610199578160018260ff1660048110151561016457fe5b0160000154111561018c5760018160ff1660048110151561018157fe5b016000015491508092505b8080600101915050610145565b505090565b60008060003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002090508060000160009054906101000a900460ff1680610201575060048260ff1610155b1561020b5761026a565b60018160000160006101000a81548160ff021916908315150217905550818160000160016101000a81548160ff021916908360ff1602179055506001808360ff1660048110151561025857fe5b01600001600082825401925050819055505b50505600a165627a7a72305820c93a970449b32fe53b59e0ed7cfeda5d52acafd2d1bdd3f2f67093f076acf1c60029",
 	// Counter contract bytecode in genesis block, source code in smc/SimpleCounter.sol
 	"0x00000000000000000000000000000000736D6331": "6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806324b8ba5f14604e5780636d4ce63c14607b575b600080fd5b348015605957600080fd5b506079600480360381019080803560ff16906020019092919050505060a9565b005b348015608657600080fd5b50608d60c6565b604051808260ff1660ff16815260200191505060405180910390f35b806000806101000a81548160ff021916908360ff16021790555050565b60008060009054906101000a900460ff169050905600a165627a7a7230582083f88bef40b78ed8ab5f620a7a1fb7953640a541335c5c352ff0877be0ecd0c60029",
+	// Exchange master contract bytecode in genesis block, source code in smc/Exchange.sol
+	"0x00000000000000000000000000000000736D6333": "6080604052600436106100775763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416630a0306b1811461007c578063323a9243146100a357806344af18e8146100bd5780636e63987d146100d557806386dca334146100ed578063fa8513de14610105575b600080fd5b34801561008857600080fd5b5061009161011a565b60408051918252519081900360200190f35b3480156100af57600080fd5b506100bb600435610139565b005b3480156100c957600080fd5b506100bb600435610154565b3480156100e157600080fd5b506100bb60043561016f565b3480156100f957600080fd5b506100bb60043561017a565b34801561011157600080fd5b50610091610185565b600060015460005411156101315750600154610136565b506000545b90565b60015481111561014857600080fd5b60018054919091039055565b60005481111561016357600080fd5b60008054919091039055565b600180549091019055565b600080549091019055565b60008054600154111561019b5750600054610136565b50600154905600a165627a7a72305820f07bf8b0278729f61585fdeb608ea6ab12a34ae7871ea92bfd2f4199cc5bfd0d0029",
 }
 
 // abi for contract in genesis block
 var GenesisContractAbis = map[string]string{
 	// This is abi for counter contract
 	"0x00000000000000000000000000000000736d6331": `[
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"name": "x",
-				"type": "uint8"
-			}
-		],
-		"name": "set",
-		"outputs": [],
-		"payable": false,
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [],
-		"name": "get",
-		"outputs": [
-			{
-				"name": "",
-				"type": "uint8"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	}
-]`,
+		{"constant": false,"inputs": [{"name": "x","type": "uint8"}],"name": "set","outputs": [],"payable": false,"stateMutability": "nonpayable","type": "function"},
+		{"constant": true,"inputs": [],"name": "get","outputs": [{"name": "","type": "uint8"}],"payable": false,"stateMutability": "view","type": "function"}
+	]`,
 	// This is abi for simple voting contract
 	"0x00000000000000000000000000000000736d6332": `[
 		{"constant": true,"inputs": [{"name": "toProposal","type": "uint8"}],"name": "getVote","outputs": [{"name": "","type": "uint256"}],"payable": false,"stateMutability": "view","type": "function"},
 		{"constant": true,"inputs": [],"name": "winningProposal","outputs": [{"name": "_winningProposal","type": "uint8"}],"payable": false,"stateMutability": "view","type": "function"},
 		{"constant": false,"inputs": [{"name": "toProposal","type": "uint8"}],"name": "vote","outputs": [],"payable": false,"stateMutability": "nonpayable","type": "function"}
+	]`,
+	// This is abi for master exchange contract
+	"0x00000000000000000000000000000000736d6333": `[
+		{"constant": false,"inputs": [{"name": "eth","type": "uint256"}],"name": "matchEth","outputs": [],"payable": false,"stateMutability": "nonpayable","type": "function"},
+		{"constant": false,"inputs": [{"name": "neo","type": "uint256"}],"name": "matchNeo","outputs": [],"payable": false,"stateMutability": "nonpayable","type": "function"},
+		{"constant": false,"inputs": [{"name": "eth","type": "uint256"}],"name": "removeEth","outputs": [],"payable": false,"stateMutability": "nonpayable","type": "function"},
+		{"constant": false,"inputs": [{"name": "neo","type": "uint256"}],"name": "removeNeo","outputs": [],"payable": false,"stateMutability": "nonpayable","type": "function"},
+		{"constant": true,"inputs": [],"name": "getEthToSend","outputs": [{"name": "","type": "uint256"}],"payable": false,"stateMutability": "view","type": "function"},
+		{"constant": true,"inputs": [],"name": "getNeoToSend","outputs": [{"name": "","type": "uint256"}],"payable": false,"stateMutability": "view","type": "function"}
 	]`,
 }
 

@@ -45,6 +45,20 @@ func NewKVMContextFromCallMsg(msg *types.CallMsg, header *types.Header, chain Ch
 	}
 }
 
+// NewKVMContext creates a new context for dual node to call smc in the KVM.
+func NewKVMContextFromDualNodeCall(from common.Address, header *types.Header, chain ChainContext) vm.Context {
+	return vm.Context{
+		CanTransfer: CanTransfer,
+		Transfer:    Transfer,
+		GetHash:     GetHashFn(header, chain),
+		Origin:      from,
+		Coinbase:    header.Coinbase,
+		BlockHeight: header.Height,
+		Time:        new(big.Int).Set(header.Time),
+		GasLimit:    header.GasLimit,
+		GasPrice:    big.NewInt(1),
+	}
+}
 // GetHashFn returns a GetHashFunc which retrieves header hashes by height
 func GetHashFn(ref *types.Header, chain ChainContext) func(n uint64) common.Hash {
 	var cache map[uint64]common.Hash
