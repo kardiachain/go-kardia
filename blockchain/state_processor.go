@@ -109,6 +109,7 @@ func ApplyTransaction(bc ChainContext, gp *GasPool, statedb *state.StateDB, head
 	if err != nil {
 		return nil, 0, err
 	}
+	log.Info("Applying msg successfully", "rep", msg.To().String())
 	// Update the state with pending changes
 	root := statedb.IntermediateRoot(true).Bytes()
 	*usedGas += gas

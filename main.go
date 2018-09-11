@@ -267,8 +267,8 @@ func main() {
 		}
 		*/
 		// Get voting contract address, this smc is created in genesis block
-		votingSmcAddress := devEnv.GetContractAddressAt(0)
-		votingAbiStr := devEnv.GetContractAbiByAddress(votingSmcAddress.String())
+		votingSmcAddress := development.GetContractAddressAt(0)
+		votingAbiStr := development.GetContractAbiByAddress(votingSmcAddress.String())
 		votingAbi, err := abi.JSON(strings.NewReader(votingAbiStr))
 		if err != nil {
 			logger.Error("Can not read abi", err)
@@ -337,16 +337,15 @@ func main() {
 		}
 		go displaySyncStatus(client)
 		logger.Info("Start polling smc")
-		exchangeContractAddress := devEnv.GetContractAddressAt(2)
-		exchangeContractAbi := devEnv.GetContractAbiByAddress(exchangeContractAddress.String())
-		go pollingSmcCall(kService.BlockChain(), exchangeContractAddress, exchangeContractAbi)
+		go callAmountToSend(kService.BlockChain())
+		go updateAmountToSend(kService.BlockChain(), kService.TxPool())
 	}
 
 	go displayKardiaPeers(n)
 	waitForever()
 }
 
-func pollingSmcCall(b *blockchain.BlockChain, exchangeSmcAddress common.Address, exchangeAbiStr string) {
+func callAmountToSend(b *blockchain.BlockChain) {
 	for {
 		log.Info("Polling smc")
 		statedb, err := b.State()
@@ -357,18 +356,37 @@ func pollingSmcCall(b *blockchain.BlockChain, exchangeSmcAddress common.Address,
 			log.Info("Preparing to tracking master smc")
 		}
 		senderAddr := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-		abi, err := abi.JSON(strings.NewReader(exchangeAbiStr))
+		ethToSend := dual.CallKardiaMasterGetEthToSend(senderAddr, b, statedb)
+		log.Info("eth to send", "master smc", ethToSend)
+		neoToSend := dual.CallKardiaMasterGetNeoToSend(senderAddr, b, statedb)
+		log.Info("neo to send", "master smc", neoToSend)
+		time.Sleep(10 * time.Second)
+	}
+}
+
+func updateAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool) {
+	for {
+		log.Info("Polling smc")
+		statedb, err := b.State()
+
 		if err != nil {
-			log.Error("Can not read abi", err)
-			continue
-		}
-		getEthToSend, err := abi.Pack("getEthToSend")
-		if err != nil {
-			log.Error("Error getting abi", "error", err)
-			continue
+			log.Error("Error getting state. Cannot make contract call")
+		} else {
+			log.Info("Preparing to tracking master smc")
 		}
 
-		dual.CallKardiaMasterSmc(senderAddr, exchangeSmcAddress, b, getEthToSend, statedb)
+		caller2ByteK, _ := hex.DecodeString("98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb")
+		caller2Key := crypto.ToECDSAUnsafe(caller2ByteK)
+		rand := common.NewRand()
+		quantity := rand.Intn(100)
+		tx1 := dual.CallKardiaMasterMatchAmount(caller2Key, statedb, quantity, 1 )
+		txPool.AddLocal(tx1)
+		log.Info("Match eth", "quantity successfully", quantity)
+		quantity = rand.Intn(100)
+		tx2 := dual.CallKardiaMasterMatchAmount(caller2Key, statedb, quantity, 2 )
+		txPool.AddLocal(tx2)
+		log.Info("Match neo", "quantity successfully", quantity)
+		time.Sleep(20 * time.Second)
 	}
 }
 
