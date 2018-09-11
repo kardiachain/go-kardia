@@ -380,12 +380,18 @@ func updateAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool) {
 		rand := common.NewRand()
 		quantity := rand.Intn(100)
 		tx1 := dual.CallKardiaMasterMatchAmount(caller2Key, statedb, quantity, 1 )
-		txPool.AddLocal(tx1)
-		log.Info("Match eth", "quantity successfully", quantity)
+		// txPool.AddLocal(tx1)
+		log.Info("Match eth", "quantity successfully", quantity,  "txhash:", tx1.Hash())
 		quantity = rand.Intn(100)
-		tx2 := dual.CallKardiaMasterMatchAmount(caller2Key, statedb, quantity, 2 )
-		txPool.AddLocal(tx2)
-		log.Info("Match neo", "quantity successfully", quantity)
+		caller3ByteK, _ := hex.DecodeString("32f5c0aef7f9172044a472478421c63fd8492640ff2d0eaab9562389db3a8efe")
+		caller3Key := crypto.ToECDSAUnsafe(caller3ByteK)
+		tx2 := dual.CallKardiaMasterMatchAmount(caller3Key, statedb, quantity, 2 )
+		txs := make(types.Transactions, 2)
+		txs[0] = tx1
+		txs[1] = tx2
+		// txPool.AddLocal(tx2)
+		txPool.AddLocals(txs)
+		log.Info("Match neo", "quantity successfully", quantity, "txhash:", tx2.Hash())
 		time.Sleep(20 * time.Second)
 	}
 }

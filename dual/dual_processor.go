@@ -66,7 +66,7 @@ func CallKardiaMasterGetEthToSend(from common.Address, blockchain *bc.BlockChain
 		log.Error("Error calling master exchange contract", "error", err)
 		return big.NewInt(0)
 	}
-	return big.NewInt(0).SetBytes(ret)
+	return new(big.Int).SetBytes(ret)
 }
 
 func CallKardiaMasterGetNeoToSend(from common.Address, blockchain *bc.BlockChain, statedb *state.StateDB) *big.Int {
@@ -89,7 +89,7 @@ func CallKardiaMasterGetNeoToSend(from common.Address, blockchain *bc.BlockChain
 		log.Error("Error calling master exchange contract", "error", err)
 		return big.NewInt(0)
 	}
-	return big.NewInt(0).SetBytes(ret)
+	return new(big.Int).SetBytes(ret)
 }
 
 // Call to update matching amount
