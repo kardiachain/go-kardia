@@ -2,6 +2,9 @@ package dual
 
 import (
 	"fmt"
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/kardiachain/go-kardia/dual/ethsmc"
+	"math/big"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -26,19 +29,21 @@ const (
 )
 
 var DefaultEthKardiaConfig = EthKardiaConfig{
-	Name:       "GethKardia", // Don't need to change, default instance name for geth is "geth".
-	ListenAddr: ":30303",
-	MaxPeers:   10,
-	LightNode:  false,
-	LightPeers: 5,
-	LightServ:  0,
-	StatName:   "eth-kardia-1",
+	Name:            "GethKardia", // Don't need to change, default instance name for geth is "geth".
+	ListenAddr:      ":30303",
+	MaxPeers:        10,
+	LightNode:       false,
+	LightPeers:      5,
+	LightServ:       0,
+	StatName:        "eth-kardia-1",
+	ContractAddress: ethsmc.EthContractAddress,
 
 	CacheSize: 1024,
 }
 
 // EthKardiaConfig provides configuration when starting Eth subnode.
 type EthKardiaConfig struct {
+	ContractAddress string // address of Eth smart contract to watch.
 
 	// Network configs
 	Name        string
@@ -187,7 +192,7 @@ func (n *EthKardia) Stop() error {
 	return n.geth.Stop()
 }
 
-// GethNode returns the standard Eth Node.
+// EthNode returns the standard Eth Node.
 func (n *EthKardia) EthNode() *node.Node {
 	return n.geth
 }
@@ -199,6 +204,12 @@ func (n *EthKardia) Client() (*KardiaEthClient, error) {
 		return nil, err
 	}
 	return &KardiaEthClient{ethClient: ethclient.NewClient(rpcClient), stack: n.geth}, nil
+}
+
+func (n *EthKardia) BlockChain() *core.BlockChain {
+	var ethService *eth.Ethereum
+	n.geth.Service(&ethService)
+	return ethService.BlockChain()
 }
 
 // syncHead syncs with latest events from Eth network to Kardia.
@@ -244,7 +255,9 @@ func (n *EthKardia) syncHead() {
 	for {
 		select {
 		case block := <-blockCh:
-			go n.handleBlock(block)
+			if !n.config.LightNode {
+				go n.handleBlock(block)
+			}
 		}
 	}
 }
@@ -264,9 +277,25 @@ func (n *EthKardia) handleBlock(block *types.Block) {
 
 	log.Info("handleBlock...", "header", header, "txns size", len(txns))
 
-	for _, txn := range block.Transactions() {
-		if txn.To() != nil {
-			log.Info("transfer txn", "txn", txn, "To", txn.To(), "Value", txn.Value())
+	/* Can be use to check contract state, but currently has memory leak.
+	b := n.BlockChain()
+	state, err := b.State()
+	if err != nil {
+		log.Error("Get Geth state() error", "err", err)
+		return
+	}
+	*/
+
+	contractAddr := ethCommon.HexToAddress(n.config.ContractAddress)
+
+	for _, tx := range block.Transactions() {
+		if tx.To() != nil && *tx.To() == contractAddr {
+			log.Error("New tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
+			// TODO(thientn): parse input & create Kardia tx
 		}
 	}
+}
+
+func (n *EthKardia) SendEthFromContract(value *big.Int) {
+	// TODO(thientn): implement create tx to call Eth smc release(address ethReceiver, uint256 ethAmount)
 }

@@ -88,7 +88,7 @@ func main() {
 	addSmcCall := flag.Bool("smc", false, "where to add smart contract call")
 	genNewTxs := flag.Bool("genNewTxs", false, "whether to run routine that regularly add new transactions.")
 	newTxDelay := flag.Int("newTxDelay", 10, "how often new txs are added.")
-	dualMode := flag.Bool("dual", false, "whether to run in dual mode")
+	ethDual := flag.Bool("dual", false, "whether to run in dual mode")
 	ethStat := flag.Bool("ethstat", false, "report eth stats to network")
 	ethStatName := flag.String("ethstatname", "", "name to use when reporting eth stats")
 	lightNode := flag.Bool("light", false, "connect to Eth as light node")
@@ -284,7 +284,7 @@ func main() {
 		votingContractCall := tool.GenerateSmcCall(caller2Key, votingSmcAddress, voteInput, statedb)
 		signedSmcCall2, _ := types.SignTx(votingContractCall, caller2Key)
 		err = txPool.AddLocal(signedSmcCall2)
-		if err!= nil {
+		if err != nil {
 			logger.Error("Error adding contract call", "err", err)
 		} else {
 			logger.Info("Adding voting contract call successfully")
@@ -309,7 +309,22 @@ func main() {
 
 	// go displayPeers(n)
 
-	if *dualMode {
+	var dualP *dual.DualProcessor
+
+	// TODO: This should trigger for either Eth dual or Neo dual flag, so  *ethDual || *neoDual
+	if *ethDual {
+		exchangeContractAddress := development.GetContractAddressAt(2)
+		exchangeContractAbi := development.GetContractAbiByAddress(exchangeContractAddress.String())
+		dualP, err = dual.NewDualProcessor(kService.BlockChain(), &exchangeContractAddress, exchangeContractAbi)
+		if err != nil {
+			log.Error("Fail to initialize DualProcessor", "error", err)
+		} else {
+			dualP.Start()
+		}
+	}
+
+	// Run Eth-Kardia dual node
+	if *ethDual {
 		config := &dual.DefaultEthKardiaConfig
 		config.LightNode = *lightNode
 		config.LightServ = *lightServ
@@ -335,10 +350,14 @@ func main() {
 			logger.Error("Fail to create EthKardia client", "err", err)
 			return
 		}
+
+		// Register to dual processor
+		dualP.RegisterEthDualNode(ethNode)
+
 		go displaySyncStatus(client)
-		logger.Info("Start polling smc")
 		go callAmountToSend(kService.BlockChain())
 		go updateAmountToSend(kService.BlockChain(), kService.TxPool())
+
 	}
 
 	go displayKardiaPeers(n)
