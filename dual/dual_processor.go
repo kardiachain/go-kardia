@@ -191,7 +191,7 @@ func CallKardiaMasterGetNeoToSend(from common.Address, blockchain *bc.BlockChain
 // Call to update matching amount
 // type = 1: ETH
 // type = 2: NEO
-func CallKardiaMasterMatchAmount(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity int, matchType int) *types.Transaction{
+func CallKardiaMasterMatchAmount(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction{
 	masterSmcAddr := dev.GetContractAddressAt(2)
 	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())
 	abi, err := abi.JSON(strings.NewReader(masterSmcAbi))
@@ -201,9 +201,35 @@ func CallKardiaMasterMatchAmount(senderKey *ecdsa.PrivateKey, statedb *state.Sta
 	}
 	var getAmountToSend []byte
 	if matchType == 1 {
-		getAmountToSend, err = abi.Pack("matchEth", big.NewInt(int64(quantity)))
+		getAmountToSend, err = abi.Pack("matchEth", quantity)
 	} else {
-		getAmountToSend, err = abi.Pack("matchNeo", big.NewInt(int64(quantity)))
+		getAmountToSend, err = abi.Pack("matchNeo", quantity)
+	}
+
+	if err != nil {
+		log.Error("Error getting abi", "error", err, "address", masterSmcAddr)
+
+	}
+	return CallUpdateKardiaMasterSmc(senderKey, masterSmcAddr, getAmountToSend, statedb)
+}
+
+// Call to remove amount of ETH / NEO on master smc
+// type = 1: ETH
+// type = 2: NEO
+
+func CallKardiaMasterRemoveAmount(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction{
+	masterSmcAddr := dev.GetContractAddressAt(2)
+	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())
+	abi, err := abi.JSON(strings.NewReader(masterSmcAbi))
+
+	if err != nil {
+		log.Error("Error reading abi", "err", err)
+	}
+	var getAmountToSend []byte
+	if matchType == 1 {
+		getAmountToSend, err = abi.Pack("removeEth", quantity)
+	} else {
+		getAmountToSend, err = abi.Pack("removeNeo", quantity)
 	}
 
 	if err != nil {

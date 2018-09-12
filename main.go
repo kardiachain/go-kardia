@@ -355,8 +355,7 @@ func main() {
 		dualP.RegisterEthDualNode(ethNode)
 
 		go displaySyncStatus(client)
-		go callAmountToSend(kService.BlockChain())
-		go updateAmountToSend(kService.BlockChain(), kService.TxPool())
+		go callAmountToSend(kService.BlockChain(), kService.TxPool())
 
 	}
 
@@ -364,7 +363,7 @@ func main() {
 	waitForever()
 }
 
-func callAmountToSend(b *blockchain.BlockChain) {
+func callAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool) {
 	for {
 		log.Info("Polling smc")
 		statedb, err := b.State()
@@ -379,40 +378,71 @@ func callAmountToSend(b *blockchain.BlockChain) {
 		log.Info("eth to send", "master smc", ethToSend)
 		neoToSend := dual.CallKardiaMasterGetNeoToSend(senderAddr, b, statedb)
 		log.Info("neo to send", "master smc", neoToSend)
+		if ethToSend.Cmp(big.NewInt(0)) > 0 {
+			log.Info("There are some ETH to send, remove it")
+			removeAmountToSend(b, txPool, ethToSend)
+		} else {
+			log.Info("There are no ETH to send, update it")
+			updateAmountToSend(b, txPool)
+		}
 		time.Sleep(10 * time.Second)
 	}
 }
 
 func updateAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool) {
-	for {
-		log.Info("Polling smc")
-		statedb, err := b.State()
+	statedb, err := b.State()
 
-		if err != nil {
-			log.Error("Error getting state. Cannot make contract call")
-		} else {
-			log.Info("Preparing to tracking master smc")
-		}
-
-		caller2ByteK, _ := hex.DecodeString("98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb")
-		caller2Key := crypto.ToECDSAUnsafe(caller2ByteK)
-		rand := common.NewRand()
-		quantity := rand.Intn(100)
-		tx1 := dual.CallKardiaMasterMatchAmount(caller2Key, statedb, quantity, 1 )
-		// txPool.AddLocal(tx1)
-		log.Info("Match eth", "quantity successfully", quantity,  "txhash:", tx1.Hash())
-		quantity = rand.Intn(100)
-		caller3ByteK, _ := hex.DecodeString("32f5c0aef7f9172044a472478421c63fd8492640ff2d0eaab9562389db3a8efe")
-		caller3Key := crypto.ToECDSAUnsafe(caller3ByteK)
-		tx2 := dual.CallKardiaMasterMatchAmount(caller3Key, statedb, quantity, 2 )
-		txs := make(types.Transactions, 2)
-		txs[0] = tx1
-		txs[1] = tx2
-		// txPool.AddLocal(tx2)
-		txPool.AddLocals(txs)
-		log.Info("Match neo", "quantity successfully", quantity, "txhash:", tx2.Hash())
-		time.Sleep(20 * time.Second)
+	if err != nil {
+		log.Error("Error getting state. Cannot make contract call")
+		return
+	} else {
+		log.Info("Preparing to update amount in master smc")
 	}
+
+	caller2ByteK, _ := hex.DecodeString("98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb")
+	caller2Key := crypto.ToECDSAUnsafe(caller2ByteK)
+	rand := common.NewRand()
+	quantity := big.NewInt(rand.Int63n(100))
+	tx1 := dual.CallKardiaMasterMatchAmount(caller2Key, statedb, quantity, 1 )
+	// txPool.AddLocal(tx1)
+	log.Info("Match eth", "quantity successfully", quantity,  "txhash:", tx1.Hash())
+
+	caller3ByteK, _ := hex.DecodeString("32f5c0aef7f9172044a472478421c63fd8492640ff2d0eaab9562389db3a8efe")
+	caller3Key := crypto.ToECDSAUnsafe(caller3ByteK)
+	tx2 := dual.CallKardiaMasterMatchAmount(caller3Key, statedb, quantity, 2 )
+	txs := make(types.Transactions, 2)
+	txs[0] = tx1
+	txs[1] = tx2
+	// txPool.AddLocal(tx2)
+	txPool.AddLocals(txs)
+	log.Info("Match neo", "quantity successfully", quantity, "txhash:", tx2.Hash())
+}
+
+func removeAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool, quantity *big.Int) {
+	statedb, err := b.State()
+
+	if err != nil {
+		log.Error("Error getting state. Cannot make contract call")
+		return
+	} else {
+		log.Info("Preparing to remove amount in master smc")
+	}
+
+	caller2ByteK, _ := hex.DecodeString("98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb")
+	caller2Key := crypto.ToECDSAUnsafe(caller2ByteK)
+
+	tx1 := dual.CallKardiaMasterRemoveAmount(caller2Key, statedb, quantity, 1 )
+	// txPool.AddLocal(tx1)
+	log.Info("Remove eth", "quantity successfully", quantity,  "txhash:", tx1.Hash())
+	caller3ByteK, _ := hex.DecodeString("32f5c0aef7f9172044a472478421c63fd8492640ff2d0eaab9562389db3a8efe")
+	caller3Key := crypto.ToECDSAUnsafe(caller3ByteK)
+	tx2 := dual.CallKardiaMasterRemoveAmount(caller3Key, statedb, quantity, 2 )
+	txs := make(types.Transactions, 2)
+	txs[0] = tx1
+	txs[1] = tx2
+	// txPool.AddLocal(tx2)
+	txPool.AddLocals(txs)
+	log.Info("Remove neo", "quantity successfully", quantity, "txhash:", tx2.Hash())
 }
 
 func displayEthPeers(n *dual.EthKardia) {
