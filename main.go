@@ -62,7 +62,7 @@ func RemoveDirContents(dir string) error {
 		return err
 	}
 	for _, name := range names {
-		if name == "rinkeby" {
+		if name == "rinkeby" || name == "ethereum" {
 			continue
 		}
 		err = os.RemoveAll(filepath.Join(dir, name))

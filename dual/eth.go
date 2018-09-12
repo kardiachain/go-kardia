@@ -222,6 +222,12 @@ func (n *EthKardia) BlockChain() *core.BlockChain {
 	return ethService.BlockChain()
 }
 
+func (n *EthKardia) TxPool() *core.TxPool {
+	var ethService *eth.Ethereum
+	n.geth.Service(&ethService)
+	return ethService.TxPool()
+}
+
 // syncHead syncs with latest events from Eth network to Kardia.
 func (n *EthKardia) syncHead() {
 	var ethService *eth.Ethereum
@@ -347,5 +353,20 @@ func (n *EthKardia) sendKardiaMatchEth(amount *big.Int) {
 }
 
 func (n *EthKardia) SendEthFromContract(value *big.Int) {
-	// TODO(thientn): implement create tx to call Eth smc release(address ethReceiver, uint256 ethAmount)
+
+	statedb, err := n.BlockChain().State()
+	if err != nil {
+		log.Error("Fail to get Ethereum state to create release tx", "err", err)
+		return
+	}
+	contractAddr := ethCommon.HexToAddress(ethsmc.EthContractAddress)
+	nonce := statedb.GetNonce(contractAddr)
+	if nonce == 0 {
+		log.Error("Eth state return 0 for nonce of contract address, SKIPPING TX CREATION", "addr", ethsmc.EthContractAddress)
+	}
+	tx := n.ethSmc.CreateEthReleaseTx(value, nonce)
+
+	if err := n.TxPool().AddLocal(tx); err != nil {
+		log.Error("Fail to add Ether tx", "error", err)
+	}
 }

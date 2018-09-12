@@ -1,10 +1,12 @@
 package ethsmc
 
 import (
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"math/big"
 	"testing"
 )
 
-func TestEthSmcInputUnpack(t *testing.T) {
+func TestEthSmcDepositUnpack(t *testing.T) {
 	smc := NewEthSmc()
 
 	neoAddr := "AddZkjqPoPyhDhWoA8f9CXQeHQRDr8HbPo"
@@ -29,4 +31,23 @@ func TestEthSmcInputUnpack(t *testing.T) {
 	if param != neoAddr {
 		t.Errorf("Unpacked param mismatched: Expected: %v, See: %v", neoAddr, param)
 	}
+}
+
+func TestEthSmc_packReleaseInput(t *testing.T) {
+	smc := NewEthSmc()
+	inputBytes := smc.packReleaseInput(big.NewInt(100000000000000000))
+	inputHex := hexutil.Encode(inputBytes)
+
+	expectedInput := "0x0357371d000000000000000000000000ff6781f2cc6f9b6b4a68a0afc3aae89133bbb236000000000000000000000000000000000000000000000000016345785d8a0000"
+
+	if inputHex != expectedInput {
+		t.Errorf("Unexpected packed release input: %v", inputHex)
+	}
+}
+
+func TestEthSmc_CreateEthReleaseTx(t *testing.T) {
+	smc := NewEthSmc()
+	tx := smc.CreateEthReleaseTx(big.NewInt(100000000000000000), 233)
+
+	t.Logf("Created tx: %v", tx)
 }

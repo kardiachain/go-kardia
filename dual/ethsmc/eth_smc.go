@@ -1,16 +1,19 @@
 package ethsmc
 
 import (
+	"encoding/hex"
 	"fmt"
 	ethabi "github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/kardiachain/go-kardia/abi"
+	"math/big"
 	"strings"
 )
 
 // Address of the deployed contract on Rinkeby.
 var EthContractAddress = "0xffd56f189a9e67aeee5220f3b66146c63d7fcb10"
-
-var EthReleaseAccount = "0x1abf127ee9147465db237ec986dc316985e03e3a"
 
 // ABI of the deployed Eth contract.
 var EthExchangeAbi = `[
@@ -188,6 +191,9 @@ var EthExchangeAbi = `[
     }
 ]`
 
+var EthAccountRelease = "0xff6781f2cc6f9b6b4a68a0afc3aae89133bbb236"
+var EthAccountAddr = "457D86F3AFAA8159D7C8356BF3F195CF7AED35AF84C7DC40C4D9AA27846ED9DC"
+
 type EthSmc struct {
 	ethABI ethabi.ABI
 	kABI   abi.ABI
@@ -229,4 +235,35 @@ func (e *EthSmc) UnpackDepositInput(input []byte) (string, error) {
 		return "", err
 	}
 	return param, nil
+}
+
+func (e *EthSmc) packReleaseInput(amount *big.Int) []byte {
+	releaseAddr := common.HexToAddress(EthAccountRelease)
+	input, err := e.ethABI.Pack("release", releaseAddr, amount)
+	if err != nil {
+		panic(err)
+	}
+
+	return input
+}
+
+func (e *EthSmc) CreateEthReleaseTx(amount *big.Int, nonce uint64) *types.Transaction {
+	contractAddr := common.HexToAddress(EthContractAddress)
+	keyBytes, err := hex.DecodeString(EthAccountAddr)
+	if err != nil {
+		panic(err)
+	}
+	key := crypto.ToECDSAUnsafe(keyBytes)
+	data := e.packReleaseInput(amount)
+	gasLimit := uint64(40000)
+	gasPrice := big.NewInt(5000000000) // 5gwei
+	tx, err := types.SignTx(
+		types.NewTransaction(nonce, contractAddr, big.NewInt(0), gasLimit, gasPrice, data),
+		types.HomesteadSigner{},
+		key)
+	if err != nil {
+		panic(err)
+	}
+
+	return tx
 }
