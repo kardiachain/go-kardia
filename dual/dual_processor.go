@@ -101,7 +101,7 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 	}
 	log.Info("Detect smc update, running VM call to check sending value")
 
-	statedb, err := p.blockchain.StateAt(block.Hash())
+	statedb, err := p.blockchain.StateAt(block.Root())
 	if err != nil {
 		log.Error("Error getting block state in dual process", "height", block.Height())
 		return
@@ -112,6 +112,7 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 	if p.ethKardia != nil {
 		// Eth dual node
 		ethSendValue := p.CallKardiaMasterGetEthToSend(p.smcCallSenderAddr, statedb)
+		log.Info("Kardia smc calls getEthToSend", "eth", ethSendValue)
 		if ethSendValue != nil && ethSendValue.Cmp(big.NewInt(0)) != 0 {
 			p.ethKardia.SendEthFromContract(ethSendValue)
 
@@ -127,7 +128,8 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 		}
 	} else {
 		// Neo dual node
-		neoSendValue := p.CallKardiaMasterGetEthToSend(p.smcCallSenderAddr, statedb)
+		neoSendValue := p.CallKardiaMasterGetNeoToSend(p.smcCallSenderAddr, statedb)
+		log.Info("Kardia smc calls getNeoToSend", "neo", neoSendValue)
 		if neoSendValue != nil && neoSendValue.Cmp(big.NewInt(0)) != 0 {
 			// TODO: create new NEO tx to send NEO
 		}

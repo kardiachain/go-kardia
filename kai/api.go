@@ -89,6 +89,9 @@ func (s *PublicKaiAPI) GetBlockByHash(blockHash string) *BlockJSON {
 // GetBlockByNumber returns block by block number
 func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) *BlockJSON {
 	block := s.kaiService.blockchain.GetBlockByHeight(blockNumber)
+	if block == nil {
+		return nil
+	}
 	return NewBlockJSON(*block)
 }
 
@@ -225,9 +228,10 @@ func (a *PublicTransactionAPI) KardiaCall(ctx context.Context, call types.CallMs
 	)
 	callMsg := types.NewCallMsg(call)
 	if blockNumber != nil {
-		statedb, err = a.s.blockchain.State()
+		statedb, err = a.s.blockchain.StateAt(a.s.blockchain.GetBlockByHeight(blockNumber.Uint64()).Root())
+
 	} else {
-		statedb, err = a.s.blockchain.StateAt(a.s.blockchain.GetBlockByHeight(blockNumber.Uint64()).Hash())
+		statedb, err = a.s.blockchain.State()
 	}
 
 	if err != nil {

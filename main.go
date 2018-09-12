@@ -154,6 +154,7 @@ func main() {
 			config.HTTPHost = node.DefaultHTTPHost
 		}
 		config.HTTPPort = *rpcPort
+		config.HTTPVirtualHosts = []string{"*"} // accepting RPCs from all source hosts
 	}
 
 	if *dev {
