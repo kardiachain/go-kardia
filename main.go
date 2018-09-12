@@ -319,7 +319,7 @@ func main() {
 	if *ethDual || *neoDual {
 		exchangeContractAddress := development.GetContractAddressAt(2)
 		exchangeContractAbi := development.GetContractAbiByAddress(exchangeContractAddress.String())
-		dualP, err = dual.NewDualProcessor(kService.BlockChain(), &exchangeContractAddress, exchangeContractAbi)
+		dualP, err = dual.NewDualProcessor(kService.BlockChain(), kService.TxPool(), &exchangeContractAddress, exchangeContractAbi)
 		if err != nil {
 			log.Error("Fail to initialize DualProcessor", "error", err)
 		} else {

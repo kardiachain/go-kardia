@@ -1,10 +1,12 @@
 package dual
 
 import (
+	"encoding/hex"
 	"github.com/kardiachain/go-kardia/abi"
 	bc "github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
@@ -19,6 +21,7 @@ import (
 
 type DualProcessor struct {
 	blockchain        *bc.BlockChain
+	txPool            *bc.TxPool
 	smcAddress        *common.Address
 	smcABI            *abi.ABI
 	smcCallSenderAddr common.Address
@@ -32,7 +35,7 @@ type DualProcessor struct {
 	chainHeadSub event.Subscription
 }
 
-func NewDualProcessor(chain *bc.BlockChain, smcAddr *common.Address, smcABIStr string) (*DualProcessor, error) {
+func NewDualProcessor(chain *bc.BlockChain, txPool *bc.TxPool, smcAddr *common.Address, smcABIStr string) (*DualProcessor, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
@@ -40,6 +43,7 @@ func NewDualProcessor(chain *bc.BlockChain, smcAddr *common.Address, smcABIStr s
 
 	processor := &DualProcessor{
 		blockchain:        chain,
+		txPool:            txPool,
 		smcAddress:        smcAddr,
 		smcABI:            &smcABI,
 		smcCallSenderAddr: common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5"),
@@ -110,6 +114,16 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 		ethSendValue := p.CallKardiaMasterGetEthToSend(p.smcCallSenderAddr, statedb)
 		if ethSendValue != nil && ethSendValue.Cmp(big.NewInt(0)) != 0 {
 			p.ethKardia.SendEthFromContract(ethSendValue)
+
+			// Create Kardia tx removeEth right away to acknowledge the ethsend
+			gAccount := "0xe94517a4f6f45e80CbAaFfBb0b845F4c0FDD7547"
+			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
+			addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
+
+			tx := CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, 1)
+			if err := p.txPool.AddLocal(tx); err != nil {
+				log.Error("Fail to add Kardia tx to removeEth", err, "tx", tx)
+			}
 		}
 	} else {
 		// Neo dual node
@@ -191,7 +205,7 @@ func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.State
 // type = 1: ETH
 // type = 2: NEO
 
-func CreateKardiaRemoveAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction{
+func CreateKardiaRemoveAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction {
 	masterSmcAddr := dev.GetContractAddressAt(2)
 	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())
 	abi, err := abi.JSON(strings.NewReader(masterSmcAbi))
@@ -212,4 +226,3 @@ func CreateKardiaRemoveAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.Stat
 	}
 	return tool.GenerateSmcCall(senderKey, masterSmcAddr, amountToRemove, statedb)
 }
-
