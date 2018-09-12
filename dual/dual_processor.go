@@ -165,7 +165,7 @@ func callStaticKardiaMasterSmc(from common.Address, to common.Address, blockchai
 // CreateKardiaMatchAmountTx creates Kardia tx to report new matching amount from Eth/Neo network.
 // type = 1: ETH
 // type = 2: NEO
-func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity int, matchType int) *types.Transaction {
+func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction {
 	masterSmcAddr := dev.GetContractAddressAt(2)
 	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())
 	kABI, err := abi.JSON(strings.NewReader(masterSmcAbi))
@@ -175,9 +175,9 @@ func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.State
 	}
 	var getAmountToSend []byte
 	if matchType == 1 {
-		getAmountToSend, err = kABI.Pack("matchEth", big.NewInt(int64(quantity)))
+		getAmountToSend, err = kABI.Pack("matchEth", quantity)
 	} else {
-		getAmountToSend, err = kABI.Pack("matchNeo", big.NewInt(int64(quantity)))
+		getAmountToSend, err = kABI.Pack("matchNeo", quantity)
 	}
 
 	if err != nil {
@@ -186,3 +186,30 @@ func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.State
 	}
 	return tool.GenerateSmcCall(senderKey, masterSmcAddr, getAmountToSend, statedb)
 }
+
+// Call to remove amount of ETH / NEO on master smc
+// type = 1: ETH
+// type = 2: NEO
+
+func CreateKardiaRemoveAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction{
+	masterSmcAddr := dev.GetContractAddressAt(2)
+	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())
+	abi, err := abi.JSON(strings.NewReader(masterSmcAbi))
+
+	if err != nil {
+		log.Error("Error reading abi", "err", err)
+	}
+	var amountToRemove []byte
+	if matchType == 1 {
+		amountToRemove, err = abi.Pack("removeEth", quantity)
+	} else {
+		amountToRemove, err = abi.Pack("removeNeo", quantity)
+	}
+
+	if err != nil {
+		log.Error("Error getting abi", "error", err, "address", masterSmcAddr)
+
+	}
+	return tool.GenerateSmcCall(senderKey, masterSmcAddr, amountToRemove, statedb)
+}
+
