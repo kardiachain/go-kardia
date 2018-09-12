@@ -1,7 +1,16 @@
 package ethsmc
 
+import (
+	"fmt"
+	ethabi "github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/kardiachain/go-kardia/abi"
+	"strings"
+)
+
 // Address of the deployed contract on Rinkeby.
 var EthContractAddress = "0xffd56f189a9e67aeee5220f3b66146c63d7fcb10"
+
+var EthReleaseAccount = "0x1abf127ee9147465db237ec986dc316985e03e3a"
 
 // ABI of the deployed Eth contract.
 var EthExchangeAbi = `[
@@ -178,3 +187,46 @@ var EthExchangeAbi = `[
         "type": "event"
     }
 ]`
+
+type EthSmc struct {
+	ethABI ethabi.ABI
+	kABI   abi.ABI
+}
+
+func NewEthSmc() *EthSmc {
+	smc := &EthSmc{}
+	eABI, err := ethabi.JSON(strings.NewReader(EthExchangeAbi))
+	if err != nil {
+		panic(fmt.Sprintf("Geth ABI library fail to read abi def: %v", err))
+	}
+	smc.ethABI = eABI
+
+	kABI, err := abi.JSON(strings.NewReader(EthExchangeAbi))
+	if err != nil {
+		panic(fmt.Sprintf("Kardia ABI library fail to read abi def: %v", err))
+	}
+	smc.kABI = kABI
+
+	return smc
+}
+
+func (e *EthSmc) etherABI() ethabi.ABI {
+	return e.ethABI
+}
+
+func (e *EthSmc) InputMethodName(input []byte) (string, error) {
+	method, err := e.ethABI.MethodById(input[0:4])
+	if err != nil {
+		return "", err
+	}
+	return method.Name, nil
+}
+
+func (e *EthSmc) UnpackDepositInput(input []byte) (string, error) {
+	var param string
+
+	if err := e.kABI.UnpackInput(&param, "deposit", input[4:]); err != nil {
+		return "", err
+	}
+	return param, nil
+}

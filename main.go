@@ -338,7 +338,7 @@ func main() {
 		}
 		config.CacheSize = *cacheSize
 
-		ethNode, err := dual.NewEthKardia(config)
+		ethNode, err := dual.NewEthKardia(config, kService.BlockChain(), kService.TxPool())
 		if err != nil {
 			logger.Error("Fail to create Eth sub node", "err", err)
 			return
