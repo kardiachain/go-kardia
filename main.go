@@ -62,7 +62,7 @@ func RemoveDirContents(dir string) error {
 		return err
 	}
 	for _, name := range names {
-		if name == "rinkeby" {
+		if name == "rinkeby" || name == "ethereum" {
 			continue
 		}
 		err = os.RemoveAll(filepath.Join(dir, name))
@@ -319,7 +319,7 @@ func main() {
 	if *ethDual || *neoDual {
 		exchangeContractAddress := development.GetContractAddressAt(2)
 		exchangeContractAbi := development.GetContractAbiByAddress(exchangeContractAddress.String())
-		dualP, err = dual.NewDualProcessor(kService.BlockChain(), &exchangeContractAddress, exchangeContractAbi)
+		dualP, err = dual.NewDualProcessor(kService.BlockChain(), kService.TxPool(), &exchangeContractAddress, exchangeContractAbi)
 		if err != nil {
 			log.Error("Fail to initialize DualProcessor", "error", err)
 		} else {
@@ -338,7 +338,7 @@ func main() {
 		}
 		config.CacheSize = *cacheSize
 
-		ethNode, err := dual.NewEthKardia(config)
+		ethNode, err := dual.NewEthKardia(config, kService.BlockChain(), kService.TxPool())
 		if err != nil {
 			logger.Error("Fail to create Eth sub node", "err", err)
 			return
