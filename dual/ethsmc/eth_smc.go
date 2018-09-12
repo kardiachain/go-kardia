@@ -1,7 +1,7 @@
 package ethsmc
 
 // Address of the deployed contract on Rinkeby.
-var EthContractAddress = "0xa131f8ef263527892d1e2971efc8ced85537b068"
+var EthContractAddress = "0xffd56f189a9e67aeee5220f3b66146c63d7fcb10"
 
 // ABI of the deployed Eth contract.
 var EthExchangeAbi = `[
@@ -27,7 +27,7 @@ var EthExchangeAbi = `[
         "constant": false,
         "inputs": [
             {
-                "name": "id",
+                "name": "matchedId",
                 "type": "uint256"
             },
             {
@@ -59,7 +59,7 @@ var EthExchangeAbi = `[
         "constant": true,
         "inputs": [
             {
-                "name": "id",
+                "name": "infoId",
                 "type": "uint256"
             }
         ],
@@ -87,10 +87,29 @@ var EthExchangeAbi = `[
         "type": "function"
     },
     {
+        "constant": true,
+        "inputs": [],
+        "name": "id",
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "payable": false,
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
         "inputs": [],
         "payable": false,
         "stateMutability": "nonpayable",
         "type": "constructor"
+    },
+    {
+        "payable": true,
+        "stateMutability": "payable",
+        "type": "fallback"
     },
     {
         "anonymous": false,
