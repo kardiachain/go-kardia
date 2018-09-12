@@ -62,6 +62,9 @@ func RemoveDirContents(dir string) error {
 		return err
 	}
 	for _, name := range names {
+		if name == "rinkeby" {
+			continue
+		}
 		err = os.RemoveAll(filepath.Join(dir, name))
 		if err != nil {
 			return err
@@ -356,7 +359,7 @@ func main() {
 		dualP.RegisterEthDualNode(ethNode)
 
 		go displaySyncStatus(client)
-		go callAmountToSend(kService.BlockChain(), kService.TxPool(), dualP)
+		// go callAmountToSend(kService.BlockChain(), kService.TxPool(), dualP)
 	}
 
 	go displayKardiaPeers(n)
@@ -403,13 +406,13 @@ func updateAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool) {
 	caller2Key := crypto.ToECDSAUnsafe(caller2ByteK)
 	rand := common.NewRand()
 	quantity := big.NewInt(rand.Int63n(100))
-	tx1 := dual.CreateKardiaMatchAmountTx(caller2Key, statedb, quantity, 1 )
+	tx1 := dual.CreateKardiaMatchAmountTx(caller2Key, statedb, quantity, 1)
 	// txPool.AddLocal(tx1)
-	log.Info("Match eth", "quantity successfully", quantity,  "txhash:", tx1.Hash())
+	log.Info("Match eth", "quantity successfully", quantity, "txhash:", tx1.Hash())
 
 	caller3ByteK, _ := hex.DecodeString("32f5c0aef7f9172044a472478421c63fd8492640ff2d0eaab9562389db3a8efe")
 	caller3Key := crypto.ToECDSAUnsafe(caller3ByteK)
-	tx2 := dual.CreateKardiaMatchAmountTx(caller3Key, statedb, quantity, 2 )
+	tx2 := dual.CreateKardiaMatchAmountTx(caller3Key, statedb, quantity, 2)
 	txs := make(types.Transactions, 2)
 	txs[0] = tx1
 	txs[1] = tx2
@@ -431,12 +434,12 @@ func removeAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool, qua
 	caller2ByteK, _ := hex.DecodeString("98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb")
 	caller2Key := crypto.ToECDSAUnsafe(caller2ByteK)
 
-	tx1 := dual.CreateKardiaRemoveAmountTx(caller2Key, statedb, quantity, 1 )
+	tx1 := dual.CreateKardiaRemoveAmountTx(caller2Key, statedb, quantity, 1)
 	// txPool.AddLocal(tx1)
-	log.Info("Remove eth", "quantity successfully", quantity,  "txhash:", tx1.Hash())
+	log.Info("Remove eth", "quantity successfully", quantity, "txhash:", tx1.Hash())
 	caller3ByteK, _ := hex.DecodeString("32f5c0aef7f9172044a472478421c63fd8492640ff2d0eaab9562389db3a8efe")
 	caller3Key := crypto.ToECDSAUnsafe(caller3ByteK)
-	tx2 := dual.CreateKardiaRemoveAmountTx(caller3Key, statedb, quantity, 2 )
+	tx2 := dual.CreateKardiaRemoveAmountTx(caller3Key, statedb, quantity, 2)
 	txs := make(types.Transactions, 2)
 	txs[0] = tx1
 	txs[1] = tx2
