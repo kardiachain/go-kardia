@@ -3,15 +3,18 @@ package dual
 import (
 	"github.com/kardiachain/go-kardia/abi"
 	bc "github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
+	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/vm"
-	"strings"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
+	"crypto/ecdsa"
 	"math/big"
+	"strings"
 )
 
 type DualProcessor struct {
@@ -76,6 +79,7 @@ func (p *DualProcessor) loop() {
 }
 
 func (p *DualProcessor) checkNewBlock(block *types.Block) {
+	smcUpdate := false
 	for _, tx := range block.Transactions() {
 		if tx.To() != nil && *tx.To() == *p.smcAddress {
 			// New tx that updates smc, check input method for more filter.
@@ -85,38 +89,100 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 				return
 			}
 			log.Info("Detect tx updating smc", "method", method.Name, "Value", tx.Value())
-
-			statedb, err := p.blockchain.StateAt(block.Hash())
-			if err != nil {
-				log.Error("Error getting block state in dual process", "height", block.Height())
-				return
-			}
-
-			// Trigger the logic depend on what type of dual node
-			// In the future this can be a common interface with a single method
-			if p.ethKardia != nil {
-				getEthToSend, err := p.smcABI.Pack("getEthToSend")
-				if err != nil {
-					log.Error("Error packing ABI func getEthToSend", "error", err)
-					return
-				}
-				ethSendValue := callKardiaMasterSmc(p.smcCallSenderAddr, *p.smcAddress, p.blockchain, getEthToSend, statedb)
-				p.ethKardia.SendEthFromContract(ethSendValue)
-			}
+			smcUpdate = true
 		}
+	}
+	if !smcUpdate {
+		return
+	}
+	log.Info("Detect smc update, running VM call to check sending value")
+
+	statedb, err := p.blockchain.StateAt(block.Hash())
+	if err != nil {
+		log.Error("Error getting block state in dual process", "height", block.Height())
+		return
+	}
+
+	// Trigger the logic depend on what type of dual node
+	// In the future this can be a common interface with a single method
+	if p.ethKardia != nil {
+		// Eth dual node
+		ethSendValue := p.CallKardiaMasterGetEthToSend(p.smcCallSenderAddr, statedb)
+		if ethSendValue != nil && ethSendValue.Cmp(big.NewInt(0)) != 0 {
+			p.ethKardia.SendEthFromContract(ethSendValue)
+		}
+	} else {
+		// Neo dual node
+		neoSendValue := p.CallKardiaMasterGetEthToSend(p.smcCallSenderAddr, statedb)
+		if neoSendValue != nil && neoSendValue.Cmp(big.NewInt(0)) != 0 {
+			// TODO: create new NEO tx to send NEO
+		}
+
 	}
 
 }
 
-func callKardiaMasterSmc(from common.Address, to common.Address, blockchain *bc.BlockChain, input []byte, statedb *state.StateDB) *big.Int {
+func (p *DualProcessor) CallKardiaMasterGetEthToSend(from common.Address, statedb *state.StateDB) *big.Int {
+	getEthToSend, err := p.smcABI.Pack("getEthToSend")
+	if err != nil {
+		log.Error("Fail to pack Kardia smc getEthToSend", "error", err)
+		return big.NewInt(0)
+	}
+	ret, err := callStaticKardiaMasterSmc(from, *p.smcAddress, p.blockchain, getEthToSend, statedb)
+	if err != nil {
+		log.Error("Error calling master exchange contract", "error", err)
+		return big.NewInt(0)
+	}
+	return new(big.Int).SetBytes(ret)
+}
+
+func (p *DualProcessor) CallKardiaMasterGetNeoToSend(from common.Address, statedb *state.StateDB) *big.Int {
+	getNeoToSend, err := p.smcABI.Pack("getNeoToSend")
+	if err != nil {
+		log.Error("Fail to pack Kardia smc getEthToSend", "error", err)
+		return big.NewInt(0)
+	}
+	ret, err := callStaticKardiaMasterSmc(from, *p.smcAddress, p.blockchain, getNeoToSend, statedb)
+	if err != nil {
+		log.Error("Error calling master exchange contract", "error", err)
+		return big.NewInt(0)
+	}
+	return new(big.Int).SetBytes(ret)
+}
+
+// The following function is just call the master smc and return result in bytes format
+func callStaticKardiaMasterSmc(from common.Address, to common.Address, blockchain *bc.BlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
 	context := bc.NewKVMContextFromDualNodeCall(from, blockchain.CurrentHeader(), blockchain)
 	vmenv := vm.NewKVM(context, statedb, vm.Config{})
 	sender := vm.AccountRef(from)
 	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(100000))
 	if err != nil {
-		log.Info("Error calling smart contract", "err", err)
+		return make([]byte, 0), err
 	}
-	result := big.NewInt(0).SetBytes(ret)
-	log.Info("Kardia SMC call result", "result", result)
-	return result
+	return ret, nil
+}
+
+// CreateKardiaMatchAmountTx creates Kardia tx to report new matching amount from Eth/Neo network.
+// type = 1: ETH
+// type = 2: NEO
+func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity int, matchType int) *types.Transaction {
+	masterSmcAddr := dev.GetContractAddressAt(2)
+	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())
+	kABI, err := abi.JSON(strings.NewReader(masterSmcAbi))
+
+	if err != nil {
+		log.Error("Error reading abi", "err", err)
+	}
+	var getAmountToSend []byte
+	if matchType == 1 {
+		getAmountToSend, err = kABI.Pack("matchEth", big.NewInt(int64(quantity)))
+	} else {
+		getAmountToSend, err = kABI.Pack("matchNeo", big.NewInt(int64(quantity)))
+	}
+
+	if err != nil {
+		log.Error("Error getting abi", "error", err, "address", masterSmcAddr)
+
+	}
+	return tool.GenerateSmcCall(senderKey, masterSmcAddr, getAmountToSend, statedb)
 }

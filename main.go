@@ -89,6 +89,7 @@ func main() {
 	genNewTxs := flag.Bool("genNewTxs", false, "whether to run routine that regularly add new transactions.")
 	newTxDelay := flag.Int("newTxDelay", 10, "how often new txs are added.")
 	ethDual := flag.Bool("dual", false, "whether to run in dual mode")
+	neoDual := flag.Bool("neodual", false, "whether to run in dual mode")
 	ethStat := flag.Bool("ethstat", false, "report eth stats to network")
 	ethStatName := flag.String("ethstatname", "", "name to use when reporting eth stats")
 	lightNode := flag.Bool("light", false, "connect to Eth as light node")
@@ -267,8 +268,8 @@ func main() {
 		}
 		*/
 		// Get voting contract address, this smc is created in genesis block
-		votingSmcAddress := devEnv.GetContractAddressAt(0)
-		votingAbiStr := devEnv.GetContractAbiByAddress(votingSmcAddress.String())
+		votingSmcAddress := development.GetContractAddressAt(0)
+		votingAbiStr := development.GetContractAbiByAddress(votingSmcAddress.String())
 		votingAbi, err := abi.JSON(strings.NewReader(votingAbiStr))
 		if err != nil {
 			logger.Error("Can not read abi", err)
@@ -312,9 +313,9 @@ func main() {
 	var dualP *dual.DualProcessor
 
 	// TODO: This should trigger for either Eth dual or Neo dual flag, so  *ethDual || *neoDual
-	if *ethDual {
-		exchangeContractAddress := devEnv.GetContractAddressAt(2)
-		exchangeContractAbi := devEnv.GetContractAbiByAddress(exchangeContractAddress.String())
+	if *ethDual || *neoDual {
+		exchangeContractAddress := development.GetContractAddressAt(2)
+		exchangeContractAbi := development.GetContractAbiByAddress(exchangeContractAddress.String())
 		dualP, err = dual.NewDualProcessor(kService.BlockChain(), &exchangeContractAddress, exchangeContractAbi)
 		if err != nil {
 			log.Error("Fail to initialize DualProcessor", "error", err)
@@ -355,10 +356,64 @@ func main() {
 		dualP.RegisterEthDualNode(ethNode)
 
 		go displaySyncStatus(client)
+		// go callAmountToSend(kService.BlockChain())
+		// go updateAmountToSend(kService.BlockChain(), kService.TxPool())
+
 	}
 
 	go displayKardiaPeers(n)
 	waitForever()
+}
+
+func callAmountToSend(b *blockchain.BlockChain, dualP *dual.DualProcessor) {
+	for {
+		log.Info("Polling smc")
+		statedb, err := b.State()
+
+		if err != nil {
+			log.Error("Error getting state. Cannot make contract call")
+		} else {
+			log.Info("Preparing to tracking master smc")
+		}
+		senderAddr := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+		ethToSend := dualP.CallKardiaMasterGetEthToSend(senderAddr, statedb)
+		log.Info("eth to send", "master smc", ethToSend)
+		neoToSend := dualP.CallKardiaMasterGetNeoToSend(senderAddr, statedb)
+		log.Info("neo to send", "master smc", neoToSend)
+		time.Sleep(10 * time.Second)
+	}
+}
+
+func updateAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool) {
+	for {
+		log.Info("Polling smc")
+		statedb, err := b.State()
+
+		if err != nil {
+			log.Error("Error getting state. Cannot make contract call")
+		} else {
+			log.Info("Preparing to tracking master smc")
+		}
+
+		caller2ByteK, _ := hex.DecodeString("98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb")
+		caller2Key := crypto.ToECDSAUnsafe(caller2ByteK)
+		rand := common.NewRand()
+		quantity := rand.Intn(100)
+		tx1 := dual.CreateKardiaMatchAmountTx(caller2Key, statedb, quantity, 1)
+		// txPool.AddLocal(tx1)
+		log.Info("Match eth", "quantity successfully", quantity, "txhash:", tx1.Hash())
+		quantity = rand.Intn(100)
+		caller3ByteK, _ := hex.DecodeString("32f5c0aef7f9172044a472478421c63fd8492640ff2d0eaab9562389db3a8efe")
+		caller3Key := crypto.ToECDSAUnsafe(caller3ByteK)
+		tx2 := dual.CreateKardiaMatchAmountTx(caller3Key, statedb, quantity, 2)
+		txs := make(types.Transactions, 2)
+		txs[0] = tx1
+		txs[1] = tx2
+		// txPool.AddLocal(tx2)
+		txPool.AddLocals(txs)
+		log.Info("Match neo", "quantity successfully", quantity, "txhash:", tx2.Hash())
+		time.Sleep(20 * time.Second)
+	}
 }
 
 func displayEthPeers(n *dual.EthKardia) {

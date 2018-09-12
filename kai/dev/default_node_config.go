@@ -74,6 +74,12 @@ var GenesisAccounts = map[string]int64{
 	//"0x36BE7365e6037bD0FDa455DC4d197B07A2002547": 100000000,
 }
 
+var GenesisContractAddress = []string {
+	"0x00000000000000000000000000000000736D6332",
+	"0x00000000000000000000000000000000736D6331",
+	"0x00000000000000000000000000000000736D6333",
+}
+
 // RawByteCode used for creating simple counter contract
 var RawByteCode = "608060405234801561001057600080fd5b50610108806100206000396000f3006080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806324b8ba5f14604e5780636d4ce63c14607b575b600080fd5b348015605957600080fd5b506079600480360381019080803560ff16906020019092919050505060a9565b005b348015608657600080fd5b50608d60c6565b604051808260ff1660ff16815260200191505060405180910390f35b806000806101000a81548160ff021916908360ff16021790555050565b60008060009054906101000a900460ff169050905600a165627a7a7230582083f88bef40b78ed8ab5f620a7a1fb7953640a541335c5c352ff0877be0ecd0c60029"
 
@@ -223,19 +229,16 @@ func (devEnv *DevEnvironmentConfig) GetValidatorSet(numVal int) *types.Validator
 	return validatorSet
 }
 
-func (devEnv *DevEnvironmentConfig) GetContractAddressAt(index int) common.Address {
-	var count = 0
-	for address, _ := range GenesisContracts {
-		if count == index {
-			return common.HexToAddress(address)
-		}
-		count++
+func GetContractAddressAt(index int) common.Address {
+	if index >= len(GenesisContractAddress) {
+		return common.Address{}
 	}
+	return common.HexToAddress(GenesisContractAddress[index])
 	panic("impossible failure")
 }
 
-func (devEnv *DevEnvironmentConfig) GetContractAbiByAddress(address string) string {
-	println(address)
+func GetContractAbiByAddress(address string) string {
+	// log.Info("Getting abi for address",  "address", address)
 	for add, abi := range GenesisContractAbis {
 		if strings.EqualFold(add, address) {
 			return abi
