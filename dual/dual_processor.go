@@ -93,6 +93,11 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 				return
 			}
 			log.Info("Detect tx updating smc", "method", method.Name, "Value", tx.Value())
+			if method.Name == "removeEth" || method.Name == "removeNeo" {
+				// Not set flag here. If the block contains only the removeEth/removeNeo, skip look up the amount to avoid infinite loop.
+				log.Info("Skip tx updating smc to remove Eth/Neo", "method", method.Name)
+				continue
+			}
 			smcUpdate = true
 		}
 	}
@@ -124,6 +129,8 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 			tx := CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, 1)
 			if err := p.txPool.AddLocal(tx); err != nil {
 				log.Error("Fail to add Kardia tx to removeEth", err, "tx", tx)
+			} else {
+				log.Info("Creates removeEth tx", tx.Hash().Hex())
 			}
 		}
 	} else {
@@ -132,6 +139,18 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 		log.Info("Kardia smc calls getNeoToSend", "neo", neoSendValue)
 		if neoSendValue != nil && neoSendValue.Cmp(big.NewInt(0)) != 0 {
 			// TODO: create new NEO tx to send NEO
+
+			// Create Kardia tx removeNeo to acknowledge the neosend, otherwise getEthToSend will keep return >0
+			gAccount := "0xBA30505351c17F4c818d94a990eDeD95e166474b"
+			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
+			addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
+
+			tx := CreateKardiaRemoveAmountTx(addrKey, statedb, neoSendValue, 2)
+			if err := p.txPool.AddLocal(tx); err != nil {
+				log.Error("Fail to add Kardia tx to removeNeo", err, "tx", tx)
+			} else {
+				log.Info("Creates removeNeo tx", tx.Hash().Hex())
+			}
 		}
 
 	}
