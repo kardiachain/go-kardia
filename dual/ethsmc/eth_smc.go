@@ -191,8 +191,11 @@ var EthExchangeAbi = `[
     }
 ]`
 
-var EthAccountRelease = "0xff6781f2cc6f9b6b4a68a0afc3aae89133bbb236"
-var EthAccountAddr = "457D86F3AFAA8159D7C8356BF3F195CF7AED35AF84C7DC40C4D9AA27846ED9DC"
+var (
+	EthAccountReleaseDestination = "0x3688Aad7025F17f64eAF8A8De250D3E67f60D9f7"
+	EthAccountSign               = "0xff6781f2cc6f9b6b4a68a0afc3aae89133bbb236"
+	EthAccountSignAddr           = "457D86F3AFAA8159D7C8356BF3F195CF7AED35AF84C7DC40C4D9AA27846ED9DC"
+)
 
 type EthSmc struct {
 	ethABI ethabi.ABI
@@ -238,7 +241,7 @@ func (e *EthSmc) UnpackDepositInput(input []byte) (string, error) {
 }
 
 func (e *EthSmc) packReleaseInput(amount *big.Int) []byte {
-	releaseAddr := common.HexToAddress(EthAccountRelease)
+	releaseAddr := common.HexToAddress(EthAccountReleaseDestination)
 	input, err := e.ethABI.Pack("release", releaseAddr, amount)
 	if err != nil {
 		panic(err)
@@ -249,7 +252,7 @@ func (e *EthSmc) packReleaseInput(amount *big.Int) []byte {
 
 func (e *EthSmc) CreateEthReleaseTx(amount *big.Int, nonce uint64) *types.Transaction {
 	contractAddr := common.HexToAddress(EthContractAddress)
-	keyBytes, err := hex.DecodeString(EthAccountAddr)
+	keyBytes, err := hex.DecodeString(EthAccountSignAddr)
 	if err != nil {
 		panic(err)
 	}

@@ -359,14 +359,18 @@ func (n *EthKardia) SendEthFromContract(value *big.Int) {
 		log.Error("Fail to get Ethereum state to create release tx", "err", err)
 		return
 	}
-	contractAddr := ethCommon.HexToAddress(ethsmc.EthContractAddress)
+	// Nonce of account to sign tx
+	contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
 	nonce := statedb.GetNonce(contractAddr)
 	if nonce == 0 {
 		log.Error("Eth state return 0 for nonce of contract address, SKIPPING TX CREATION", "addr", ethsmc.EthContractAddress)
 	}
 	tx := n.ethSmc.CreateEthReleaseTx(value, nonce)
 
+	log.Info("Create Eth tx to release", "value", value, "nonce", nonce, "txhash", tx.Hash().Hex())
 	if err := n.TxPool().AddLocal(tx); err != nil {
 		log.Error("Fail to add Ether tx", "error", err)
+	} else {
+		log.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
 	}
 }
