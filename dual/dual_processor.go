@@ -269,6 +269,7 @@ func CallReleaseNeo(address string, amount *big.Int) (string, error) {
   "params": ["` + address +`",` + amount.String() + `],
   "id": 1
 }`)
+	log.Info("Release neo", "message", string(body))
 	rs, err := http.Post(dev.NeoSubmitTxUrl, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		return "", err
@@ -312,6 +313,8 @@ func checkTxNeo(txid string) bool {
 
 // retry send and loop checking tx status until it is successful
 func retryTx(address string, amount *big.Int) {
+	attempt := 0
+	interval := 30
 	for {
 		log.Info("retrying tx ...", "addr", address, "amount", amount)
 		txid, err := CallReleaseNeo(address, amount)
@@ -327,7 +330,14 @@ func retryTx(address string, amount *big.Int) {
 		} else {
 			log.Info("Posting tx failed, retry in 5 seconds", "txid", txid)
 		}
-		time.Sleep(5 * time.Second)
+		attempt ++
+		if attempt > 1 {
+			log.Info("Trying 2 time but still fail, give up now", "txid", txid)
+			return
+		}
+		sleepDuration := time.Duration(interval) * time.Second
+		time.Sleep(sleepDuration)
+		interval += 30
 	}
 }
 
