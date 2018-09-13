@@ -13,10 +13,15 @@ import (
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/vm"
-
 	"crypto/ecdsa"
 	"math/big"
 	"strings"
+	"time"
+	"net/http"
+	"bytes"
+	"io/ioutil"
+	"encoding/json"
+
 )
 
 type DualProcessor struct {
@@ -139,7 +144,8 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 		log.Info("Kardia smc calls getNeoToSend", "neo", neoSendValue)
 		if neoSendValue != nil && neoSendValue.Cmp(big.NewInt(0)) != 0 {
 			// TODO: create new NEO tx to send NEO
-
+			// Temporarily hard code the recipient
+			go p.ReleaseNeo("APCarJ7aYRqfakPmRHsNGByWR3MMemUyBn", neoSendValue )
 			// Create Kardia tx removeNeo to acknowledge the neosend, otherwise getEthToSend will keep return >0
 			gAccount := "0xBA30505351c17F4c818d94a990eDeD95e166474b"
 			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
@@ -154,7 +160,6 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 		}
 
 	}
-
 }
 
 func (p *DualProcessor) CallKardiaMasterGetEthToSend(from common.Address, statedb *state.StateDB) *big.Int {
@@ -246,4 +251,109 @@ func CreateKardiaRemoveAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.Stat
 
 	}
 	return tool.GenerateSmcCall(senderKey, masterSmcAddr, amountToRemove, statedb)
+}
+
+// Call Api to release Neo
+func CallReleaseNeo(address string, amount *big.Int) (string, error) {
+	body := []byte(`{
+  "jsonrpc": "2.0",
+  "method": "dual_sendeth",
+  "params": ["` + address +`",` + amount.String() + `],
+  "id": 1
+}`)
+	rs, err := http.Post(dev.NeoSubmitTxUrl, "application/json", bytes.NewBuffer(body))
+	if err != nil {
+		return "", err
+	}
+	bytesRs, err := ioutil.ReadAll(rs.Body)
+	if err != nil {
+		return "", err
+	}
+	var f interface{}
+	json.Unmarshal(bytesRs, &f)
+	m := f.(map[string]interface{})
+	var txid string
+	txid = m["result"].(string)
+	return txid, nil
+}
+
+// Call Neo api to check status
+// txid is "not found" : pending tx or tx is failed, need to loop checking
+// to cover both case
+func checkTxNeo(txid string) bool {
+	log.Info("Checking tx id", "txid", txid)
+	url := dev.NeoCheckTxUrl + txid
+	rs, err := http.Get(url)
+	if err != nil {
+		return false
+	}
+	bytesRs, err := ioutil.ReadAll(rs.Body)
+	if err != nil {
+		return false
+	}
+	var f interface{}
+	json.Unmarshal(bytesRs, &f)
+	m := f.(map[string]interface{})
+	txid = m["txid"].(string)
+	if txid != "not found" {
+		return true
+	} else {
+		return false
+	}
+}
+
+// retry send and loop checking tx status until it is successful
+func retryTx(address string, amount *big.Int) {
+	for {
+		log.Info("retrying tx ...", "addr", address, "amount", amount)
+		txid, err := CallReleaseNeo(address, amount)
+		if err == nil && txid != "fail" {
+			log.Info("Send successfully", "txid", txid)
+			result := loopCheckingTx(txid)
+			if result {
+				log.Info("tx is successful")
+				return
+			} else {
+				log.Info("tx is not successful, retry in 5 sconds", "txid", txid)
+			}
+		} else {
+			log.Info("Posting tx failed, retry in 5 seconds", "txid", txid)
+		}
+		time.Sleep(5 * time.Second)
+	}
+}
+
+// Continually check tx status for 10 times, interval is 10 seconds
+func loopCheckingTx(txid string) bool {
+	attempt := 0
+	for {
+		time.Sleep(10 * time.Second)
+		attempt ++
+		success := checkTxNeo(txid)
+		if !success && attempt > 10 {
+			log.Info("Tx fail, need to retry", "attempt", attempt)
+			return false
+		}
+
+		if success {
+			log.Info("Tx is successful", "txid", txid)
+			return true
+		}
+	}
+}
+
+func(p *DualProcessor) ReleaseNeo(address string, amount *big.Int) {
+	txid, err := CallReleaseNeo(address, amount)
+	if err != nil {
+		log.Error("Error calling rpc", "err", err)
+	}
+	log.Info("Tx submitted", "txid", txid)
+	if txid == "fail" {
+		retryTx(address, amount)
+	} else {
+		txStatus := loopCheckingTx(txid)
+		if !txStatus {
+			retryTx(address, amount)
+		}
+	}
 }
