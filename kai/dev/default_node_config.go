@@ -57,6 +57,8 @@ const (
 	DbHandles = 16
 )
 
+var NeoSubmitTxUrl = "http://35.240.175.184:5000"
+var NeoCheckTxUrl = "http://35.240.175.184:4000/api/main_net/v1/get_transaction/"
 var initValue = int64(math.Pow10(15))
 
 // GenesisAccounts are used to initialized accounts in genesis block
