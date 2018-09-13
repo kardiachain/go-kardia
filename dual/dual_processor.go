@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"encoding/json"
 
+	"github.com/shopspring/decimal"
 )
 
 type DualProcessor struct {
@@ -145,18 +146,24 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 		if neoSendValue != nil && neoSendValue.Cmp(big.NewInt(0)) != 0 {
 			// TODO: create new NEO tx to send NEO
 			// Temporarily hard code the recipient
-			go p.ReleaseNeo("APCarJ7aYRqfakPmRHsNGByWR3MMemUyBn", neoSendValue )
-			// Create Kardia tx removeNeo to acknowledge the neosend, otherwise getEthToSend will keep return >0
-			gAccount := "0xBA30505351c17F4c818d94a990eDeD95e166474b"
-			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
-			addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-
-			tx := CreateKardiaRemoveAmountTx(addrKey, statedb, neoSendValue, 2)
-			if err := p.txPool.AddLocal(tx); err != nil {
-				log.Error("Fail to add Kardia tx to removeNeo", err, "tx", tx)
+			amountToRelease := decimal.NewFromBigInt(neoSendValue, 10).Div(decimal.NewFromBigInt(common.BigPow(10, 18), 10))
+			if amountToRelease.IntPart() < 1 {
+				log.Info("Too little amount to send")
 			} else {
-				log.Info("Creates removeNeo tx", tx.Hash().Hex())
+				go p.ReleaseNeo("APCarJ7aYRqfakPmRHsNGByWR3MMemUyBn", big.NewInt(amountToRelease.IntPart()))
+				// Create Kardia tx removeNeo to acknowledge the neosend, otherwise getEthToSend will keep return >0
+				gAccount := "0xBA30505351c17F4c818d94a990eDeD95e166474b"
+				addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
+				addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
+
+				tx := CreateKardiaRemoveAmountTx(addrKey, statedb, neoSendValue, 2)
+				if err := p.txPool.AddLocal(tx); err != nil {
+					log.Error("Fail to add Kardia tx to removeNeo", err, "tx", tx)
+				} else {
+					log.Info("Creates removeNeo tx", tx.Hash().Hex())
+				}
 			}
+
 		}
 
 	}
@@ -187,6 +194,7 @@ func (p *DualProcessor) CallKardiaMasterGetNeoToSend(from common.Address, stated
 		log.Error("Error calling master exchange contract", "error", err)
 		return big.NewInt(0)
 	}
+
 	return new(big.Int).SetBytes(ret)
 }
 
@@ -343,6 +351,7 @@ func loopCheckingTx(txid string) bool {
 }
 
 func(p *DualProcessor) ReleaseNeo(address string, amount *big.Int) {
+	log.Info("Release: ", "amount", amount, "address", address)
 	txid, err := CallReleaseNeo(address, amount)
 	if err != nil {
 		log.Error("Error calling rpc", "err", err)
