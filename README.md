@@ -51,3 +51,6 @@ Test Solidity smart contracts via [vm/sample_kvm](https://github.com/kardiachain
 ### JSON-RPC API
 APIs to communicate with running Kardia node.  
 See [rpc](https://github.com/kardiachain/go-kardia/tree/master/rpc) for more details.
+
+## License
+This software is available under Apache 2.0 license (see [LICENSE](https://github.com/kardiachain/go-kardia/tree/master/LICENSE)) and uses third party libraries that are distributed under their own terms (see [LICENSE-3RD-PARTY](https://github.com/kardiachain/go-kardia/tree/master/LICENSE-3RD-PARTY.txt))

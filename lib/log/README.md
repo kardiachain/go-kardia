@@ -79,4 +79,6 @@ srvlog.Warn("abnormal conn rate", log.Ctx{"rate": curRate, "low": lowRate, "high
 ```
 
 ## License
-Apache
+licensed under the
+[Apache 2.0](http://www.apache.org/licenses/LICENSE-2.0), also
+included in this repository in the `LICENSE-3RD-PARTY.txt` file.
