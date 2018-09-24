@@ -271,7 +271,13 @@ func CallReleaseNeo(address string, amount *big.Int) (string, error) {
   "id": 1
 }`)
 	log.Info("Release neo", "message", string(body))
-	rs, err := http.Post(dev.NeoSubmitTxUrl, "application/json", bytes.NewBuffer(body))
+	var submitUrl string
+	if dev.IsUsingNeoTestNet {
+		submitUrl = dev.TestnetNeoSubmitUrl
+	} else {
+		submitUrl = dev.NeoSubmitTxUrl
+	}
+	rs, err := http.Post(submitUrl, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		return "", err
 	}
@@ -292,7 +298,13 @@ func CallReleaseNeo(address string, amount *big.Int) (string, error) {
 // to cover both case
 func checkTxNeo(txid string) bool {
 	log.Info("Checking tx id", "txid", txid)
-	url := dev.NeoCheckTxUrl + txid
+	var checkTxUrl string
+	if dev.IsUsingNeoTestNet {
+		checkTxUrl = dev.TestnetNeoCheckTxUrl
+	} else {
+		checkTxUrl = dev.NeoCheckTxUrl
+	}
+	url := checkTxUrl + txid
 	rs, err := http.Get(url)
 	if err != nil {
 		return false

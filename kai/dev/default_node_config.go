@@ -56,9 +56,11 @@ const (
 	DbCache   = 16
 	DbHandles = 16
 )
-
+var IsUsingNeoTestNet = true
 var NeoSubmitTxUrl = "http://35.240.175.184:5000"
 var NeoCheckTxUrl = "http://35.240.175.184:4000/api/main_net/v1/get_transaction/"
+var TestnetNeoSubmitUrl = "http://35.185.187.119:5000"
+var TestnetNeoCheckTxUrl = "https://neoscan-testnet.io/api/test_net/v1/get_transaction/"
 var initValue = int64(math.Pow10(15))
 
 // GenesisAccounts are used to initialized accounts in genesis block
