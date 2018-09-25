@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 
 	"github.com/shopspring/decimal"
+	"errors"
 )
 
 type DualProcessor struct {
@@ -290,8 +291,14 @@ func CallReleaseNeo(address string, amount *big.Int) (string, error) {
 	}
 	var f interface{}
 	json.Unmarshal(bytesRs, &f)
+	if f == nil {
+		return "", errors.New("Nil return")
+	}
 	m := f.(map[string]interface{})
 	var txid string
+	if m["result"] == nil {
+		return "", errors.New("Nil return")
+	}
 	txid = m["result"].(string)
 	log.Info("tx result neo", "txid", txid, "neodual", "neodual")
 	return txid, nil
@@ -323,7 +330,7 @@ func checkTxNeo(txid string) bool {
 	if f == nil {
 		return false
 	}
-	
+
 	m := f.(map[string]interface{})
 
 	if m["txid"] == nil {
@@ -396,7 +403,8 @@ func(p *DualProcessor) ReleaseNeo(address string, amount *big.Int) {
 		log.Error("Error calling rpc", "err", err, "neodual", "neodual")
 	}
 	log.Info("Tx submitted", "txid", txid, "neodual", "neodual")
-	if txid == "fail" {
+	if txid == "fail" || txid == "" {
+		log.Info("Failed to release, retry tx", "txid", txid)
 		retryTx(address, amount)
 	} else {
 		txStatus := loopCheckingTx(txid)
