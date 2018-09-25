@@ -15,3 +15,9 @@ Check [Rinkeby stat website](https://www.rinkeby.io/#stats) to see node with spe
 Node should be connected to other Eth peers and start syncing blocks.
 
 Use [Kardiascan](https://github.com/kardiachain/KardiaScan#run-development-mode) to monitor Kardia stats. 
+
+### Config NEO testnet for exchange demo:
+https://github.com/kardiachain/go-kardia/blob/d41df715aa457ab272d14f7e9f633d7687884f33/kai/dev/default_node_config.go#L59
+The flag IsUsingNeoTestNet decides whether NeoTestNet is used, if it's false then private testnet is used.
+Please configure NEO address to receive NEO by modify NeoReceiverAddress at : 
+https://github.com/kardiachain/go-kardia/blob/d41df715aa457ab272d14f7e9f633d7687884f33/kai/dev/default_node_config.go#L64
