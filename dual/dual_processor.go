@@ -147,13 +147,15 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 			// TODO: create new NEO tx to send NEO
 			// Temporarily hard code the recipient
 			amountToRelease := decimal.NewFromBigInt(neoSendValue, 10).Div(decimal.NewFromBigInt(common.BigPow(10, 18), 10))
-			log.Info("Amount neo to release", "amount", amountToRelease)
-			if amountToRelease.IntPart() * 10 == 0 {
+			log.Info("Original amount neo to release", "amount", amountToRelease, "neodual", "neodual")
+			convertedAmount := amountToRelease.Mul(decimal.NewFromBigInt(big.NewInt(10), 0))
+			log.Info("Converted amount to release", "converted", convertedAmount, "neodual", "neodual")
+			if convertedAmount.LessThan(decimal.NewFromFloat(1.0)) {
 				log.Info("Too little amount to send", "amount",amountToRelease.IntPart() * 10, "neodual", "neodual")
 			} else {
 				// temporarily hard code for the exchange rate
 				log.Info("Sending to neo", "amount", amountToRelease, "neodual", "neodual")
-				go p.ReleaseNeo("APCarJ7aYRqfakPmRHsNGByWR3MMemUyBn", big.NewInt(amountToRelease.IntPart() * 10))
+				go p.ReleaseNeo("APCarJ7aYRqfakPmRHsNGByWR3MMemUyBn", big.NewInt(convertedAmount.IntPart()))
 				// Create Kardia tx removeNeo to acknowledge the neosend, otherwise getEthToSend will keep return >0
 				gAccount := "0xBA30505351c17F4c818d94a990eDeD95e166474b"
 				addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
