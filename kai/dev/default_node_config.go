@@ -61,6 +61,7 @@ var NeoSubmitTxUrl = "http://35.240.175.184:5000"
 var NeoCheckTxUrl = "http://35.240.175.184:4000/api/main_net/v1/get_transaction/"
 var TestnetNeoSubmitUrl = "http://35.185.187.119:5000"
 var TestnetNeoCheckTxUrl = "https://neoscan-testnet.io/api/test_net/v1/get_transaction/"
+var NeoReceiverAddress = "AaXPGsJhyRb55r8tREPWWNcaTHq4iiTFAH"
 var initValue = int64(math.Pow10(15))
 
 // GenesisAccounts are used to initialized accounts in genesis block

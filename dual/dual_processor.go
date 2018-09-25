@@ -151,11 +151,11 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 			convertedAmount := amountToRelease.Mul(decimal.NewFromBigInt(big.NewInt(10), 0))
 			log.Info("Converted amount to release", "converted", convertedAmount, "neodual", "neodual")
 			if convertedAmount.LessThan(decimal.NewFromFloat(1.0)) {
-				log.Info("Too little amount to send", "amount",amountToRelease.IntPart() * 10, "neodual", "neodual")
+				log.Info("Too little amount to send", "amount", convertedAmount, "neodual", "neodual")
 			} else {
 				// temporarily hard code for the exchange rate
-				log.Info("Sending to neo", "amount", amountToRelease, "neodual", "neodual")
-				go p.ReleaseNeo("APCarJ7aYRqfakPmRHsNGByWR3MMemUyBn", big.NewInt(convertedAmount.IntPart()))
+				log.Info("Sending to neo", "amount", convertedAmount, "neodual", "neodual")
+				go p.ReleaseNeo(dev.NeoReceiverAddress, big.NewInt(convertedAmount.IntPart()))
 				// Create Kardia tx removeNeo to acknowledge the neosend, otherwise getEthToSend will keep return >0
 				gAccount := "0xBA30505351c17F4c818d94a990eDeD95e166474b"
 				addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
@@ -319,7 +319,17 @@ func checkTxNeo(txid string) bool {
 	}
 	var f interface{}
 	json.Unmarshal(bytesRs, &f)
+
+	if f == nil {
+		return false
+	}
+	
 	m := f.(map[string]interface{})
+
+	if m["txid"] == nil {
+		return false
+	}
+
 	txid = m["txid"].(string)
 	if txid != "not found" {
 		log.Info("Checking tx result neo", "txid", txid, "neodual", "neodual")
