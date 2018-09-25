@@ -2,6 +2,9 @@
 
 Golang implementation of Kardia chain following the specs in [Technical Paper](http://www.kardiachain.io/paper.pdf)
 
+# License
+This software is available under Apache 2.0 license (see [LICENSE](https://github.com/kardiachain/go-kardia/tree/master/LICENSE)) and uses third party libraries that are distributed under their own terms (see [LICENSE-3RD-PARTY](https://github.com/kardiachain/go-kardia/tree/master/LICENSE-3RD-PARTY.txt))
+
 # Kardia private-net
 - Release: [kardia-milestone2-20180904](https://github.com/kardiachain/go-kardia/releases/tag/kardia-milestone2-20180904)
 - Build: [Jenkins](http://35.185.187.119:8080/job/go-kardia/)
@@ -51,6 +54,3 @@ Test Solidity smart contracts via [vm/sample_kvm](https://github.com/kardiachain
 ### JSON-RPC API
 APIs to communicate with running Kardia node.  
 See [rpc](https://github.com/kardiachain/go-kardia/tree/master/rpc) for more details.
-
-## License
-This software is available under Apache 2.0 license (see [LICENSE](https://github.com/kardiachain/go-kardia/tree/master/LICENSE)) and uses third party libraries that are distributed under their own terms (see [LICENSE-3RD-PARTY](https://github.com/kardiachain/go-kardia/tree/master/LICENSE-3RD-PARTY.txt))
