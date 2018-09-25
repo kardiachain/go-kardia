@@ -147,10 +147,12 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 			// TODO: create new NEO tx to send NEO
 			// Temporarily hard code the recipient
 			amountToRelease := decimal.NewFromBigInt(neoSendValue, 10).Div(decimal.NewFromBigInt(common.BigPow(10, 18), 10))
-			if amountToRelease.IntPart() < 1 {
-				log.Info("Too little amount to send")
+			log.Info("Amount neo to release", "amount", amountToRelease)
+			if amountToRelease.IntPart() * 10 == 0 {
+				log.Info("Too little amount to send", "amount",amountToRelease.IntPart() * 10, "neodual", "neodual")
 			} else {
 				// temporarily hard code for the exchange rate
+				log.Info("Sending to neo", "amount", amountToRelease, "neodual", "neodual")
 				go p.ReleaseNeo("APCarJ7aYRqfakPmRHsNGByWR3MMemUyBn", big.NewInt(amountToRelease.IntPart() * 10))
 				// Create Kardia tx removeNeo to acknowledge the neosend, otherwise getEthToSend will keep return >0
 				gAccount := "0xBA30505351c17F4c818d94a990eDeD95e166474b"
@@ -159,14 +161,12 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 
 				tx := CreateKardiaRemoveAmountTx(addrKey, statedb, neoSendValue, 2)
 				if err := p.txPool.AddLocal(tx); err != nil {
-					log.Error("Fail to add Kardia tx to removeNeo", err, "tx", tx)
+					log.Error("Fail to add Kardia tx to removeNeo", err, "tx", tx, "neodual", "neodual")
 				} else {
-					log.Info("Creates removeNeo tx", tx.Hash().Hex())
+					log.Info("Creates removeNeo tx", tx.Hash().Hex(), "neodual", "neodual")
 				}
 			}
-
 		}
-
 	}
 }
 
@@ -187,12 +187,12 @@ func (p *DualProcessor) CallKardiaMasterGetEthToSend(from common.Address, stated
 func (p *DualProcessor) CallKardiaMasterGetNeoToSend(from common.Address, statedb *state.StateDB) *big.Int {
 	getNeoToSend, err := p.smcABI.Pack("getNeoToSend")
 	if err != nil {
-		log.Error("Fail to pack Kardia smc getEthToSend", "error", err)
+		log.Error("Fail to pack Kardia smc getEthToSend", "error", err, "neodual", "neodual")
 		return big.NewInt(0)
 	}
 	ret, err := callStaticKardiaMasterSmc(from, *p.smcAddress, p.blockchain, getNeoToSend, statedb)
 	if err != nil {
-		log.Error("Error calling master exchange contract", "error", err)
+		log.Error("Error calling master exchange contract", "error", err, "neodual", "neodual")
 		return big.NewInt(0)
 	}
 
@@ -230,7 +230,7 @@ func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.State
 	}
 
 	if err != nil {
-		log.Error("Error getting abi", "error", err, "address", masterSmcAddr)
+		log.Error("Error getting abi", "error", err, "address", masterSmcAddr, "dual", "dual")
 
 	}
 	return tool.GenerateSmcCall(senderKey, masterSmcAddr, getAmountToSend, statedb)
@@ -253,10 +253,11 @@ func CreateKardiaRemoveAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.Stat
 		amountToRemove, err = abi.Pack("removeEth", quantity)
 	} else {
 		amountToRemove, err = abi.Pack("removeNeo", quantity)
+		log.Info("byte to send to remove", "byte", string(amountToRemove), "neodual", "neodual" )
 	}
 
 	if err != nil {
-		log.Error("Error getting abi", "error", err, "address", masterSmcAddr)
+		log.Error("Error getting abi", "error", err, "address", masterSmcAddr, "dual", "dual")
 
 	}
 	return tool.GenerateSmcCall(senderKey, masterSmcAddr, amountToRemove, statedb)
@@ -270,7 +271,7 @@ func CallReleaseNeo(address string, amount *big.Int) (string, error) {
   "params": ["` + address +`",` + amount.String() + `],
   "id": 1
 }`)
-	log.Info("Release neo", "message", string(body))
+	log.Info("Release neo", "message", string(body), "neodual", "neodual")
 	var submitUrl string
 	if dev.IsUsingNeoTestNet {
 		submitUrl = dev.TestnetNeoSubmitUrl
@@ -290,6 +291,7 @@ func CallReleaseNeo(address string, amount *big.Int) (string, error) {
 	m := f.(map[string]interface{})
 	var txid string
 	txid = m["result"].(string)
+	log.Info("tx result neo", "txid", txid, "neodual", "neodual")
 	return txid, nil
 }
 
@@ -318,8 +320,10 @@ func checkTxNeo(txid string) bool {
 	m := f.(map[string]interface{})
 	txid = m["txid"].(string)
 	if txid != "not found" {
+		log.Info("Checking tx result neo", "txid", txid, "neodual", "neodual")
 		return true
 	} else {
+		log.Info("Checking tx result neo failed", "neodual", "neodual")
 		return false
 	}
 }
@@ -329,23 +333,23 @@ func retryTx(address string, amount *big.Int) {
 	attempt := 0
 	interval := 30
 	for {
-		log.Info("retrying tx ...", "addr", address, "amount", amount)
+		log.Info("retrying tx ...", "addr", address, "amount", amount, "neodual", "neodual")
 		txid, err := CallReleaseNeo(address, amount)
 		if err == nil && txid != "fail" {
-			log.Info("Send successfully", "txid", txid)
+			log.Info("Send successfully", "txid", txid, "neodual", "neodual")
 			result := loopCheckingTx(txid)
 			if result {
-				log.Info("tx is successful")
+				log.Info("tx is successful", "neodual", "neodual")
 				return
 			} else {
-				log.Info("tx is not successful, retry in 5 sconds", "txid", txid)
+				log.Info("tx is not successful, retry in 5 sconds", "txid", txid, "neodual", "neodual")
 			}
 		} else {
-			log.Info("Posting tx failed, retry in 5 seconds", "txid", txid)
+			log.Info("Posting tx failed, retry in 5 seconds", "txid", txid, "neodual", "neodual")
 		}
 		attempt ++
 		if attempt > 1 {
-			log.Info("Trying 2 time but still fail, give up now", "txid", txid)
+			log.Info("Trying 2 time but still fail, give up now", "txid", txid, "neodual", "neodual")
 			return
 		}
 		sleepDuration := time.Duration(interval) * time.Second
@@ -362,24 +366,24 @@ func loopCheckingTx(txid string) bool {
 		attempt ++
 		success := checkTxNeo(txid)
 		if !success && attempt > 10 {
-			log.Info("Tx fail, need to retry", "attempt", attempt)
+			log.Info("Tx fail, need to retry", "attempt", attempt, "neodual", "neodual")
 			return false
 		}
 
 		if success {
-			log.Info("Tx is successful", "txid", txid)
+			log.Info("Tx is successful", "txid", txid, "neodual", "neodual")
 			return true
 		}
 	}
 }
 
 func(p *DualProcessor) ReleaseNeo(address string, amount *big.Int) {
-	log.Info("Release: ", "amount", amount, "address", address)
+	log.Info("Release: ", "amount", amount, "address", address, "neodual", "neodual")
 	txid, err := CallReleaseNeo(address, amount)
 	if err != nil {
-		log.Error("Error calling rpc", "err", err)
+		log.Error("Error calling rpc", "err", err, "neodual", "neodual")
 	}
-	log.Info("Tx submitted", "txid", txid)
+	log.Info("Tx submitted", "txid", txid, "neodual", "neodual")
 	if txid == "fail" {
 		retryTx(address, amount)
 	} else {
