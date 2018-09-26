@@ -1,7 +1,6 @@
 package ethsmc
 
 import (
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"math/big"
 	"testing"
 )
@@ -13,35 +12,36 @@ func TestEthSmcDepositUnpack(t *testing.T) {
 
 	inputBytes, err := smc.ethABI.Pack("deposit", neoAddr)
 	if err != nil {
-		t.Errorf("Cannot pack Eth method call deposit: %v", err)
+		t.Fatalf("Cannot pack Eth method call deposit: %v", err)
 	}
 
 	method, err := smc.InputMethodName(inputBytes)
 	if err != nil {
-		t.Errorf("ABI fail to parse method name: %v ", err)
+		t.Fatalf("ABI fail to parse method name: %v ", err)
 	}
 	if method != "deposit" {
-		t.Errorf("Parsed Method name mismatched: Expected 'deposit', see: %v", method)
+		t.Fatalf("Parsed Method name mismatched: Expected 'deposit', see: %v", method)
 	}
 
 	param, err := smc.UnpackDepositInput(inputBytes)
 	if err != nil {
-		t.Errorf("Kardia API fail to unpack input: %v", err)
+		t.Fatalf("Kardia API fail to unpack input: %v", err)
 	}
 	if param != neoAddr {
-		t.Errorf("Unpacked param mismatched: Expected: %v, See: %v", neoAddr, param)
+		t.Fatalf("Unpacked param mismatched: Expected: %v, See: %v", neoAddr, param)
 	}
 }
 
 func TestEthSmc_packReleaseInput(t *testing.T) {
 	smc := NewEthSmc()
 	inputBytes := smc.packReleaseInput(big.NewInt(100000000000000000))
-	inputHex := hexutil.Encode(inputBytes)
 
-	expectedInput := "0x0357371d000000000000000000000000ff6781f2cc6f9b6b4a68a0afc3aae89133bbb236000000000000000000000000000000000000000000000000016345785d8a0000"
-
-	if inputHex != expectedInput {
-		t.Errorf("Unexpected packed release input: %v", inputHex)
+	method, err := smc.InputMethodName(inputBytes)
+	if err != nil {
+		t.Fatalf("ABI fail to parse method name: %v ", err)
+	}
+	if method != "release" {
+		t.Fatalf("Expected Method name 'release', see: %v", method)
 	}
 }
 
