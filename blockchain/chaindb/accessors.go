@@ -269,6 +269,7 @@ func ReadCommit(db DatabaseReader, height uint64) *types.Commit {
 		log.Error("Invalid commit RLP", "err", err)
 		return nil
 	}
+	commit.MakeEmptyNil()
 	return commit
 }
 
