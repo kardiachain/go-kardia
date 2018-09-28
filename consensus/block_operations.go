@@ -89,6 +89,9 @@ func (bs *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commi
 	// Save block commit (duplicate and separate from the Block)
 	bs.blockchain.WriteCommit(height-1, block.LastCommit())
 
+	// (@kiendn, issue#73)Use this function to prevent nil commits
+	seenCommit.MakeNilEmpty()
+
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
 	bs.blockchain.WriteCommit(height, seenCommit)

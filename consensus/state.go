@@ -114,10 +114,7 @@ func NewConsensusState(
 		Logger: log.New("module", "consensus"),
 		config: config,
 		//namdoh@ blockExec:        blockExec,
-		blockOperations: &BlockOperations{
-			blockchain: blockchain,
-			txPool:     txPool,
-		},
+		blockOperations: NewBlockOperations(blockchain, txPool),
 		peerMsgQueue:     make(chan msgInfo, msgQueueSize),
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
 		timeoutTicker:    NewTimeoutTicker(),
