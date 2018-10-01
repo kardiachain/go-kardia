@@ -57,6 +57,20 @@ func IsVoteTypeValid(type_ byte) bool {
 	}
 }
 
+func GetReadableVoteTypeString(type_ byte) string {
+	var typeString string
+	switch type_ {
+	case VoteTypePrevote:
+		typeString = "Prevote"
+	case VoteTypePrecommit:
+		typeString = "Precommit"
+	default:
+		cmn.PanicSanity("Unknown vote type")
+	}
+
+	return typeString
+}
+
 // Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
 	ValidatorAddress cmn.Address `json:"validator_address"`
@@ -106,19 +120,10 @@ func (vote *Vote) String() string {
 	if vote.IsEmpty() {
 		return "empty-Vote"
 	}
-	var typeString string
-	switch vote.Type {
-	case VoteTypePrevote:
-		typeString = "Prevote"
-	case VoteTypePrecommit:
-		typeString = "Precommit"
-	default:
-		cmn.PanicSanity("Unknown vote type")
-	}
 
 	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X , %v @ %v}",
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
-		vote.Height, vote.Round, vote.Type, typeString,
+		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		cmn.Fingerprint(vote.BlockID[:]), vote.Signature,
 		time.Unix(vote.Timestamp.Int64(), 0))
 }

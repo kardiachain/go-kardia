@@ -180,6 +180,24 @@ func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }
 
+func (conR *ConsensusManager) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.conS.Logger.Trace("Consensus manager received block", "src", src, "msg", generalMsg)
+
+	if !conR.running {
+		conR.conS.Logger.Trace("Consensus manager isn't running.")
+		return
+	}
+
+	var msg BlockMessage
+	if err := generalMsg.Decode(&msg); err != nil {
+		conR.conS.Logger.Error("Invalid BlockMessage", "msg", generalMsg, "err", err)
+		return
+	}
+	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+
+	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
+}
+
 func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) {
 	conR.conS.Logger.Trace("Consensus manager received NewVote", "src", src, "msg", generalMsg)
 
@@ -299,34 +317,8 @@ func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 	ps.ApplyCommitStepMessage(&msg)
 }
 
-func (conR *ConsensusManager) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus manager received block", "src", src, "msg", generalMsg)
-
-	if !conR.running {
-		conR.conS.Logger.Trace("Consensus manager isn't running.")
-		return
-	}
-
-	var msg BlockMessage
-	if err := generalMsg.Decode(&msg); err != nil {
-		conR.conS.Logger.Error("Invalid BlockMessage", "msg", generalMsg, "err", err)
-		return
-	}
-	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
-
-	// Get peer states
-	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
-	if !ok {
-		conR.conS.Logger.Error("Downcast failed!!")
-		return
-	}
-
-	ps.SetProposalBlock(msg.Height, msg.Round, msg.Block.Header().Hash())
-	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
-}
-
 func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus manager received VoteSetMaj23", "src", src, "msg", generalMsg)
+	conR.conS.Logger.Trace("Consensus manager received VoteSetMaj23Message", "src", src, "msg", generalMsg)
 
 	if !conR.running {
 		conR.conS.Logger.Trace("Consensus manager isn't running.")
@@ -338,7 +330,7 @@ func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.P
 		conR.conS.Logger.Error("Invalid VoteSetMaj23Message", "msg", generalMsg, "err", err)
 		return
 	}
-	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+	conR.conS.Logger.Trace("Decoded msg", "msg", &msg)
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
@@ -352,6 +344,7 @@ func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.P
 	height, votes := cs.Height, cs.Votes
 	cs.mtx.Unlock()
 	if !height.Equals(msg.Height) {
+		conR.conS.Logger.Trace("ReceiveVoteSetMaj23 - height doesn't match", "height", height, "msg.Height", msg.Height)
 		return
 	}
 	// Peer claims to have a maj23 for some BlockID at H,R,S,
@@ -369,7 +362,7 @@ func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.P
 	case types.VoteTypePrecommit:
 		ourVotes = votes.Precommits(msg.Round.Int32()).BitArrayByBlockID(msg.BlockID)
 	default:
-		conR.conS.Logger.Error("Bad VoteSetBitsMessage field Type")
+		conR.conS.Logger.Error("Bad VoteSetMaj23Message field Type")
 		return
 	}
 	p2p.Send(ps.rw, kcmn.CsVoteSetBitsMessage, &VoteSetBitsMessage{
@@ -486,7 +479,7 @@ func makeRoundStepMessages(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage,
 		SecondsSinceStartTime: uint(time.Now().Unix() - rs.StartTime.Int64()),
 		LastCommitRound:       rs.LastCommit.Round(),
 	}
-	if rs.Step == cstypes.RoundStepCommit {
+	if rs.Step == cstypes.RoundStepCommit && rs.ProposalBlock != nil {
 		csMsg = &CommitStepMessage{
 			Height: rs.Height,
 			Block:  rs.ProposalBlock,
@@ -611,7 +604,7 @@ OUTER_LOOP:
 
 		// Catchup logic
 		// If peer is lagging by more than 1, send Commit.
-		if !prs.Height.EqualsInt(0) && rs.Height.IsGreaterThanInt64(prs.Height.Int64()+2) {
+		if !prs.Height.EqualsInt(0) && rs.Height.IsGreaterThanOrEqualToInt64(prs.Height.Int64()+2) {
 			// Load the block commit for prs.Height,
 			// which contains precommit signatures for prs.Height.
 			commit := conR.conS.blockOperations.LoadBlockCommit(uint64(prs.Height.Int64()))
@@ -829,7 +822,7 @@ type HasVoteMessage struct {
 
 // String returns a string representation.
 func (m *HasVoteMessage) String() string {
-	return fmt.Sprintf("[HasVote VI:%v V:{%v/%v/%v}]", m.Index, m.Height, m.Round, m.Type)
+	return fmt.Sprintf("[HasVote VI:%v V:{%v/%v/%v(%v)}]", m.Index, m.Height, m.Round, m.Type, types.GetReadableVoteTypeString(m.Type))
 }
 
 // VoteSetMaj23Message is sent to indicate that a given BlockID has seen +2/3 votes.
@@ -842,7 +835,7 @@ type VoteSetMaj23Message struct {
 
 // String returns a string representation.
 func (m *VoteSetMaj23Message) String() string {
-	return fmt.Sprintf("[VSM23 %v/%02v/%v %v]", m.Height, m.Round, m.Type, m.BlockID)
+	return fmt.Sprintf("[VSM23 %v/%v/%v(%v) %v]", m.Height, m.Round, m.Type, types.GetReadableVoteTypeString(m.Type), m.BlockID)
 }
 
 // VoteSetBitsMessage is sent to communicate the bit-array of votes seen for the BlockID.
@@ -871,7 +864,7 @@ type CommitStepMessage struct {
 // NOTE: THIS GETS DUMPED WITH rpc/core/consensus.go.
 // Be mindful of what you Expose.
 type PeerState struct {
-	peer   p2p.Peer
+	peer   *p2p.Peer
 	rw     p2p.MsgReadWriter
 	logger log.Logger
 
@@ -882,7 +875,7 @@ type PeerState struct {
 // NewPeerState returns a new PeerState for the given Peer
 func NewPeerState(peer *p2p.Peer, rw p2p.MsgReadWriter) *PeerState {
 	return &PeerState{
-		peer: *peer,
+		peer: peer,
 		rw:   rw,
 		PRS: cstypes.PeerRoundState{
 			Height:             cmn.NewBigInt(0),
@@ -930,24 +923,12 @@ func (ps *PeerState) SetHasProposal(proposal *types.Proposal) {
 	ps.PRS.ProposalPOL = nil // Nil until ProposalPOLMessage received.
 }
 
-// SetProposalBlock sets the given block as known for the peer.
-func (ps *PeerState) SetProposalBlock(height *cmn.BigInt, round *cmn.BigInt, blockHeader cmn.Hash) {
-	ps.mtx.Lock()
-	defer ps.mtx.Unlock()
-
-	if !ps.PRS.Height.Equals(height) || !ps.PRS.Round.Equals(round) {
-		return
-	}
-
-	ps.PRS.ProposalBlockHeader = blockHeader
-}
-
 // PickSendVote picks a vote and sends it to the peer.
 // Returns true if vote was sent.
 func (ps *PeerState) PickSendVote(votes types.VoteSetReader) bool {
 	if vote, ok := ps.PickVoteToSend(votes); ok {
 		msg := &VoteMessage{vote}
-		ps.logger.Debug("Sending vote message", "ps", ps, "vote", vote)
+		ps.logger.Trace("Sending vote message", "peer", ps.peer, "ps", ps, "vote", vote)
 		return p2p.Send(ps.rw, kcmn.CsVoteMsg, msg) == nil
 	}
 	return false
