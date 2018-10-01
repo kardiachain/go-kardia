@@ -64,10 +64,15 @@ shall terminate as of the date such litigation is filed.
 ------------------------------------------------------------------------------
                 LGPL License
 
-  Applies to used go-ethereum codes & logics in:
+  Applies to used go-ethereum codes & logic in:
+   . abi/
+   . p2p/
+   . lib/common/
+   . lib/event/
    . lib/rlp/
+   . lib/trie/
+   . rpc/
    . vm/
-   . dual/
 
                    GNU LESSER GENERAL PUBLIC LICENSE
                        Version 3, 29 June 2007

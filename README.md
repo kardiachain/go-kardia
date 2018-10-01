@@ -3,7 +3,8 @@
 Golang implementation of Kardia chain following the specs in [Technical Paper](http://www.kardiachain.io/paper.pdf)
 
 # License
-This software is available under Apache 2.0 license (see [LICENSE](https://github.com/kardiachain/go-kardia/tree/master/LICENSE)) and uses third party libraries that are distributed under their own terms (see [LICENSE-3RD-PARTY](https://github.com/kardiachain/go-kardia/tree/master/LICENSE-3RD-PARTY.txt))
+This software is licensed under GNU Lesser General Public License v3.0 (see [COPYING.LESSER](https://github.com/kardiachain/go-kardia/tree/master/COPYING.LESSER))
+  and uses third party libraries that are distributed under their own terms (see [LICENSE-3RD-PARTY](https://github.com/kardiachain/go-kardia/tree/master/LICENSE-3RD-PARTY.txt))
 
 # Kardia private-net
 - Release: [kardia-milestone2-20180904](https://github.com/kardiachain/go-kardia/releases/tag/kardia-milestone2-20180904)

@@ -1,3 +1,19 @@
+// Copyright 2015 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+
 package rpc
 
 import (
@@ -61,7 +77,7 @@ func (s *RPCService) Modules() map[string]string {
 // match the criteria to be either a RPC method or a subscription an error is returned. Otherwise a new service is
 // created and added to the service collection this server instance serves.
 func (s *Server) RegisterName(name string, rcvr interface{}) error {
-	log.Info("Server register service: ", name);
+	log.Info("Server register service: ", name)
 	if s.services == nil {
 		s.services = make(serviceRegistry)
 	}

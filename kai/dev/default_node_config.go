@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 // Defines default configs used for initializing nodes in dev settings.
 
 package dev
@@ -56,6 +74,7 @@ const (
 	DbCache   = 16
 	DbHandles = 16
 )
+
 var IsUsingNeoTestNet = true
 var NeoSubmitTxUrl = "http://35.240.175.184:5000"
 var NeoCheckTxUrl = "http://35.240.175.184:4000/api/main_net/v1/get_transaction/"
@@ -79,7 +98,7 @@ var GenesisAccounts = map[string]int64{
 	//"0x36BE7365e6037bD0FDa455DC4d197B07A2002547": 100000000,
 }
 
-var GenesisContractAddress = []string {
+var GenesisContractAddress = []string{
 	"0x00000000000000000000000000000000736D6332",
 	"0x00000000000000000000000000000000736D6331",
 	"0x00000000000000000000000000000000736D6333",

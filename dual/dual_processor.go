@@ -1,7 +1,28 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package dual
 
 import (
+	"bytes"
+	"crypto/ecdsa"
 	"encoding/hex"
+	"encoding/json"
 	"github.com/kardiachain/go-kardia/abi"
 	bc "github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/kai/dev"
@@ -13,17 +34,14 @@ import (
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/vm"
-	"crypto/ecdsa"
+	"io/ioutil"
 	"math/big"
+	"net/http"
 	"strings"
 	"time"
-	"net/http"
-	"bytes"
-	"io/ioutil"
-	"encoding/json"
 
-	"github.com/shopspring/decimal"
 	"errors"
+	"github.com/shopspring/decimal"
 )
 
 type DualProcessor struct {
@@ -256,7 +274,7 @@ func CreateKardiaRemoveAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.Stat
 		amountToRemove, err = abi.Pack("removeEth", quantity)
 	} else {
 		amountToRemove, err = abi.Pack("removeNeo", quantity)
-		log.Info("byte to send to remove", "byte", string(amountToRemove), "neodual", "neodual" )
+		log.Info("byte to send to remove", "byte", string(amountToRemove), "neodual", "neodual")
 	}
 
 	if err != nil {
@@ -271,7 +289,7 @@ func CallReleaseNeo(address string, amount *big.Int) (string, error) {
 	body := []byte(`{
   "jsonrpc": "2.0",
   "method": "dual_sendeth",
-  "params": ["` + address +`",` + amount.String() + `],
+  "params": ["` + address + `",` + amount.String() + `],
   "id": 1
 }`)
 	log.Info("Release neo", "message", string(body), "neodual", "neodual")
@@ -366,7 +384,7 @@ func retryTx(address string, amount *big.Int) {
 		} else {
 			log.Info("Posting tx failed, retry in 5 seconds", "txid", txid, "neodual", "neodual")
 		}
-		attempt ++
+		attempt++
 		if attempt > 1 {
 			log.Info("Trying 2 time but still fail, give up now", "txid", txid, "neodual", "neodual")
 			return
@@ -382,7 +400,7 @@ func loopCheckingTx(txid string) bool {
 	attempt := 0
 	for {
 		time.Sleep(10 * time.Second)
-		attempt ++
+		attempt++
 		success := checkTxNeo(txid)
 		if !success && attempt > 10 {
 			log.Info("Tx fail, need to retry", "attempt", attempt, "neodual", "neodual")
@@ -396,7 +414,7 @@ func loopCheckingTx(txid string) bool {
 	}
 }
 
-func(p *DualProcessor) ReleaseNeo(address string, amount *big.Int) {
+func (p *DualProcessor) ReleaseNeo(address string, amount *big.Int) {
 	log.Info("Release: ", "amount", amount, "address", address, "neodual", "neodual")
 	txid, err := CallReleaseNeo(address, amount)
 	if err != nil {
