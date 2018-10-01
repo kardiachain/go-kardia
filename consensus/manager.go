@@ -506,8 +506,9 @@ OUTER_LOOP:
 		// If the peer is on a previous height, help catch up.
 		if prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThan(rs.Height) {
 			block := conR.conS.blockOperations.LoadBlock(uint64(prs.Height.Int64()))
+			logger.Trace("Block is finalized at round", "round", block.LastCommit().Round())
 			logger.Trace("Sending BlockMessage", "height", prs.Height, "block", block)
-			if err := p2p.Send(ps.rw, kcmn.CsBlockMsg, &BlockMessage{Height: prs.Height, Round: prs.Round, Block: block}); err != nil {
+			if err := p2p.Send(ps.rw, kcmn.CsBlockMsg, &BlockMessage{Height: prs.Height, Round: block.LastCommit().Round(), Block: block}); err != nil {
 				logger.Trace("Sending block message failed", "err", err)
 			}
 			time.Sleep(conR.conS.config.PeerGossipSleep())
