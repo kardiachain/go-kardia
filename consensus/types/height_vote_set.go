@@ -100,7 +100,9 @@ func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID discover.NodeID) (add
 	}
 	voteSet := hvs.getVoteSet(vote.Round.Int32(), vote.Type)
 	if voteSet == nil {
-		panic("HeightVoteSet.AddVote - not yet implemented")
+		//panic("HeightVoteSet.AddVote - not yet implemented")
+		log.Error("HeightVoteSet.AddVote - not yet implemented")
+		//return
 		// TODO(namdoh): Re-enable this later.
 		//if rndz := hvs.peerCatchupRounds[peerID]; len(rndz) < 2 {
 		//	hvs.addRound(vote.Round)
@@ -111,7 +113,12 @@ func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID discover.NodeID) (add
 		//	err = GotVoteFromUnwantedRoundError
 		//	return
 		//}
+		hvs.mtx.Unlock()
+		hvs.SetRound(vote.Round.Int32())
+		voteSet = hvs.getVoteSet(vote.Round.Int32(), vote.Type)
+		hvs.mtx.Lock()
 	}
+
 	added, err = voteSet.AddVote(vote)
 	return
 }
