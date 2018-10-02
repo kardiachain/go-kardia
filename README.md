@@ -1,6 +1,6 @@
 # Go-Kardia
 
-Golang implementation of Kardia chain following the specs in [Technical Paper](http://www.kardiachain.io/paper.pdf)
+Golang implementation of Kardia chain following the specs in [Technical Paper](http://dl.kardiachain.io/paper.pdf)
 
 # License
 This software is licensed under GNU Lesser General Public License v3.0 (see [COPYING.LESSER](https://github.com/kardiachain/go-kardia/tree/master/COPYING.LESSER))
