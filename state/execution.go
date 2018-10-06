@@ -44,7 +44,7 @@ func ValidateBlock(state LastestBlockState, block *types.Block) error {
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
-func ApplyBlock(state LastestBlockState, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
+func ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
 	if err := ValidateBlock(state, block); err != nil {
 		return state, ErrInvalidBlock(err)
 	}
@@ -53,20 +53,20 @@ func ApplyBlock(state LastestBlockState, blockID types.BlockID, block *types.Blo
 
 	// update the state with the block and responses
 	var err error
-	state, err = updateState(state, blockID, block.Header())
+	state, err = updateState(logger, state, blockID, block.Header())
 	if err != nil {
 		return state, fmt.Errorf("Commit failed for application: %v", err)
 	}
 
-	log.Warn("Update evidence pool.")
+	logger.Warn("Update evidence pool.")
 	fail.Fail() // XXX
 
 	return state, nil
 }
 
 // updateState returns a new State updated according to the header and responses.
-func updateState(state LastestBlockState, blockID types.BlockID, header *types.Header) (LastestBlockState, error) {
-	log.Trace("updateState", "state", state, "blockID", blockID, "header", header)
+func updateState(logger log.Logger, state LastestBlockState, blockID types.BlockID, header *types.Header) (LastestBlockState, error) {
+	logger.Trace("updateState", "state", state, "blockID", blockID, "header", header)
 
 	// copy the valset so we can apply changes from EndBlock
 	// and update s.LastValidators and s.Validators

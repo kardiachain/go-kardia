@@ -102,7 +102,7 @@ func (conR *ConsensusManager) Stop() {
 
 // AddPeer implements manager
 func (conR *ConsensusManager) AddPeer(p *p2p.Peer, rw p2p.MsgReadWriter) {
-	log.Info("Add peer to manager.")
+	conR.logger.Info("Add peer to manager.")
 	conR.sendNewRoundStepMessages(rw)
 
 	if !conR.running {

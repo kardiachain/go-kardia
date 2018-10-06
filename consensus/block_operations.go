@@ -35,6 +35,8 @@ import (
 // These files should be consolidated in the future.
 
 type BlockOperations struct {
+	logger log.Logger
+
 	mtx sync.RWMutex
 
 	blockchain *blockchain.BlockChain
@@ -44,21 +46,22 @@ type BlockOperations struct {
 
 // NewBlockOperations returns a new BlockOperations with latest chain & ,
 // initialized to the last height that was committed to the DB.
-func NewBlockOperations(blockchain *blockchain.BlockChain, txPool *blockchain.TxPool) *BlockOperations {
+func NewBlockOperations(logger log.Logger, blockchain *blockchain.BlockChain, txPool *blockchain.TxPool) *BlockOperations {
 	return &BlockOperations{
+		logger:     logger,
 		blockchain: blockchain,
 		txPool:     txPool,
 		height:     blockchain.CurrentHeader().Height,
 	}
 }
 
-func (bs *BlockOperations) Height() uint64 {
-	return bs.height
+func (bo *BlockOperations) Height() uint64 {
+	return bo.height
 }
 
 // NewHeader creates new block header from given data.
 // Some header fields are not ready at this point.
-func (bs *BlockOperations) NewHeader(height int64, numTxs uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header {
+func (bo *BlockOperations) NewHeader(height int64, numTxs uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:         uint64(height),
@@ -71,7 +74,7 @@ func (bs *BlockOperations) NewHeader(height int64, numTxs uint64, blockId types.
 }
 
 // NewBlock creates new block from given data.
-func (bs *BlockOperations) NewBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
+func (bo *BlockOperations) NewBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
 	block := types.NewBlock(header, txs, receipts, commit)
 
 	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
@@ -85,48 +88,48 @@ func (bs *BlockOperations) NewBlock(header *types.Header, txs []*types.Transacti
 //             If all the nodes restart after committing a block,
 //             we need this to reload the precommits to catch-up nodes to the
 //             most recent height.  Otherwise they'd stall at H-1.
-func (bs *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commit) {
+func (bo *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commit) {
 	if block == nil {
 		common.PanicSanity("BlockOperations try to save a nil block")
 	}
 	height := block.Height()
-	if g, w := height, bs.Height()+1; g != w {
+	if g, w := height, bo.Height()+1; g != w {
 		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", w, g))
 	}
 
 	// Save block
-	if height != bs.Height()+1 {
-		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", bs.Height()+1, height))
+	if height != bo.Height()+1 {
+		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", bo.Height()+1, height))
 	}
 
 	// TODO(kiendn): WriteBlockWithoutState returns an error, write logic check if error appears
-	if err := bs.blockchain.WriteBlockWithoutState(block); err != nil {
+	if err := bo.blockchain.WriteBlockWithoutState(block); err != nil {
 		common.PanicSanity(common.Fmt("WriteBlockWithoutState fails with error %v", err))
 	}
 
 	// Save block commit (duplicate and separate from the Block)
-	bs.blockchain.WriteCommit(height-1, block.LastCommit())
+	bo.blockchain.WriteCommit(height-1, block.LastCommit())
 
 	// (@kiendn, issue#73)Use this function to prevent nil commits
 	seenCommit.MakeNilEmpty()
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
-	bs.blockchain.WriteCommit(height, seenCommit)
+	bo.blockchain.WriteCommit(height, seenCommit)
 
 	// TODO(thientn/kiendn): Evaluates remove txs directly here, or depending on txPool.reset() when receiving new block event.
-	bs.txPool.RemoveTxs(block.Transactions())
+	bo.txPool.RemoveTxs(block.Transactions())
 
-	bs.mtx.Lock()
-	bs.height = height
-	bs.mtx.Unlock()
+	bo.mtx.Lock()
+	bo.height = height
+	bo.mtx.Unlock()
 }
 
 // CollectTransactions queries list of pending transactions from tx pool.
-func (b *BlockOperations) CollectTransactions() []*types.Transaction {
-	pending, err := b.txPool.Pending()
+func (bo *BlockOperations) CollectTransactions() []*types.Transaction {
+	pending, err := bo.txPool.Pending()
 	if err != nil {
-		log.Error("Fail to get pending txs", "err", err)
+		bo.logger.Error("Fail to get pending txs", "err", err)
 		return nil
 	}
 
@@ -143,14 +146,14 @@ func (b *BlockOperations) CollectTransactions() []*types.Transaction {
 
 // LoadBlock returns the Block for the given height.
 // If no block is found for the given height, it returns nil.
-func (b *BlockOperations) LoadBlock(height uint64) *types.Block {
-	return b.blockchain.GetBlockByHeight(height)
+func (bo *BlockOperations) LoadBlock(height uint64) *types.Block {
+	return bo.blockchain.GetBlockByHeight(height)
 }
 
 // LoadBlock returns the Block for the given height.
 // If no block is found for the given height, it returns nil.
-func (b *BlockOperations) LoadBlockCommit(height uint64) *types.Commit {
-	block := b.blockchain.GetBlockByHeight(height + 1)
+func (bo *BlockOperations) LoadBlockCommit(height uint64) *types.Commit {
+	block := bo.blockchain.GetBlockByHeight(height + 1)
 	if block == nil {
 		return nil
 	}
@@ -161,17 +164,17 @@ func (b *BlockOperations) LoadBlockCommit(height uint64) *types.Commit {
 // LoadSeenCommit returns the locally seen Commit for the given height.
 // This is useful when we've seen a commit, but there has not yet been
 // a new block at `height + 1` that includes this commit in its block.LastCommit.
-func (b *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
-	commit := b.blockchain.ReadCommit(height)
+func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
+	commit := bo.blockchain.ReadCommit(height)
 	if commit == nil {
-		log.Error("LoadSeenCommit return nothing", "height", height)
+		bo.logger.Error("LoadSeenCommit return nothing", "height", height)
 	}
 
 	return commit
 }
 
 // CommitTransactions executes the given transactions and commits the result stateDB to disk.
-func (b *BlockOperations) CommitTransactions(txs types.Transactions, header *types.Header) (common.Hash, types.Receipts, error) {
+func (bo *BlockOperations) CommitTransactions(txs types.Transactions, header *types.Header) (common.Hash, types.Receipts, error) {
 	var (
 		receipts = types.Receipts{}
 		usedGas  = new(uint64)
@@ -179,14 +182,14 @@ func (b *BlockOperations) CommitTransactions(txs types.Transactions, header *typ
 	counter := 0
 
 	// Blockchain state at head block.
-	state, err := b.blockchain.State()
+	state, err := bo.blockchain.State()
 	if err != nil {
-		log.Error("Fail to get blockchain head state", "err", err)
+		bo.logger.Error("Fail to get blockchain head state", "err", err)
 		return common.Hash{}, nil, err
 	}
 
 	// GasPool
-	log.Info("header gas limit", "limit", header.GasLimit)
+	bo.logger.Info("header gas limit", "limit", header.GasLimit)
 	gasPool := new(blockchain.GasPool).AddGas(header.GasLimit)
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
@@ -194,7 +197,7 @@ func (b *BlockOperations) CommitTransactions(txs types.Transactions, header *typ
 		state.Prepare(tx.Hash(), common.Hash{}, counter)
 		snap := state.Snapshot()
 		// TODO(thientn): confirms nil coinbase is acceptable.
-		receipt, _, err := blockchain.ApplyTransaction(b.blockchain, gasPool, state, header, tx, usedGas, vm.Config{})
+		receipt, _, err := blockchain.ApplyTransaction(bo.blockchain, gasPool, state, header, tx, usedGas, vm.Config{})
 		if err != nil {
 			state.RevertToSnapshot(snap)
 			// TODO(thientn): check error type and jump to next tx if possible
@@ -206,12 +209,12 @@ func (b *BlockOperations) CommitTransactions(txs types.Transactions, header *typ
 	root, err := state.Commit(true)
 
 	if err != nil {
-		log.Error("Fail to commit new statedb after txs", "err", err)
+		bo.logger.Error("Fail to commit new statedb after txs", "err", err)
 		return common.Hash{}, nil, err
 	}
-	err = b.blockchain.CommitTrie(root)
+	err = bo.blockchain.CommitTrie(root)
 	if err != nil {
-		log.Error("Fail to write statedb trie to disk", "err", err)
+		bo.logger.Error("Fail to write statedb trie to disk", "err", err)
 		return common.Hash{}, nil, err
 	}
 
@@ -219,15 +222,15 @@ func (b *BlockOperations) CommitTransactions(txs types.Transactions, header *typ
 }
 
 // SaveReceipts saves receipts of block transactions to storage.
-func (bs *BlockOperations) SaveReceipts(receipts types.Receipts, block *types.Block) {
-	bs.blockchain.WriteReceipts(receipts, block)
+func (bo *BlockOperations) SaveReceipts(receipts types.Receipts, block *types.Block) {
+	bo.blockchain.WriteReceipts(receipts, block)
 }
 
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
 // Transactions & receipts are saved to storage.
 // This also validate the new state root against the block root.
-func (bs *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
-	root, receipts, err := bs.CommitTransactions(block.Transactions(), block.Header())
+func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
+	root, receipts, err := bo.CommitTransactions(block.Transactions(), block.Header())
 	if err != nil {
 		return err
 	}
@@ -238,7 +241,7 @@ func (bs *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
 	if receiptsHash != block.ReceiptHash() {
 		return fmt.Errorf("different receipt hash: Block receipt: %s, receipt from execution: %s", block.ReceiptHash().Hex(), receiptsHash.Hex())
 	}
-	bs.SaveReceipts(receipts, block)
+	bo.SaveReceipts(receipts, block)
 
 	return nil
 }

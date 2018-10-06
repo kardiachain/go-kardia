@@ -135,7 +135,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	kai.csManager.SetPrivValidator(privValidator)
 
 	// Initialize protocol manager.
-	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csManager); err != nil {
+	if kai.protocolManager, err = NewProtocolManager(kai.logger, config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csManager); err != nil {
 		return nil, err
 	}
 	kai.protocolManager.acceptTxs = config.AcceptTxs

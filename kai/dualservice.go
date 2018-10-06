@@ -102,7 +102,7 @@ func newDualService(ctx *node.ServiceContext, config *Config) (*DualService, err
 	dualS.csManager.SetPrivValidator(privValidator)
 
 	// Initialize protocol manager.
-	if dualS.protocolManager, err = NewProtocolManager(config.NetworkId, dualS.blockchain, dualS.chainConfig, dualS.txPool, dualS.csManager); err != nil {
+	if dualS.protocolManager, err = NewProtocolManager(dualS.logger, config.NetworkId, dualS.blockchain, dualS.chainConfig, dualS.txPool, dualS.csManager); err != nil {
 		return nil, err
 	}
 	dualS.protocolManager.acceptTxs = config.AcceptTxs

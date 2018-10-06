@@ -134,7 +134,7 @@ func NewConsensusState(
 		Logger: logger,
 		config: config,
 		//namdoh@ blockExec:        blockExec,
-		blockOperations:  NewBlockOperations(blockchain, txPool),
+		blockOperations:  NewBlockOperations(logger, blockchain, txPool),
 		peerMsgQueue:     make(chan msgInfo, msgQueueSize),
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
 		timeoutTicker:    NewTimeoutTicker(),
@@ -1146,7 +1146,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	// Execute and commit the block, update and save the state, and update the mempool.
 	// NOTE The block.AppHash wont reflect these txs until the next block.
 	var err error
-	stateCopy, err = state.ApplyBlock(stateCopy, block.BlockID(), block)
+	stateCopy, err = state.ApplyBlock(cs.Logger, stateCopy, block.BlockID(), block)
 	if err != nil {
 		cs.Logger.Error("Error on ApplyBlock. Did the application crash? Please restart node", "err", err)
 		err := cmn.Kill()
