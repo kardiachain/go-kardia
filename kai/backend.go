@@ -122,6 +122,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 		kai.txPool,
 		ctx.Config.DevEnvConfig.VotingStrategy,
 	)
+	consensusState.Logger.AddTag("KARDIA")
 	kai.csManager = consensus.NewConsensusManager(consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
