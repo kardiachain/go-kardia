@@ -55,10 +55,10 @@ var (
 
 func testNodeConfig() *NodeConfig {
 	return &NodeConfig{
-		Name:          "test node",
-		P2P:           p2p.Config{PrivateKey: testNodeKey},
-		NumValidators: 1,
-		DevEnvConfig:  dev.CreateDevEnvironmentConfig(),
+		Name:            "test node",
+		P2P:             p2p.Config{PrivateKey: testNodeKey},
+		DevEnvConfig:    dev.CreateDevEnvironmentConfig(),
+		MainChainConfig: ChainConfig{NumValidators: 1},
 	}
 }
 

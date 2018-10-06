@@ -105,7 +105,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
-	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSet(ctx.Config.NumValidators)
+	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSet(ctx.Config.MainChainConfig.NumValidators)
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon",
 		LastBlockHeight:             cmn.NewBigInt(int64(block.Height())),
@@ -141,15 +141,15 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 // Implements ServiceConstructor, return a Kardia node service from node service context.
 // TODO: move this outside of kai package to customize kai.Config
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
-	nodeConfig := ctx.Config
+	chainConfig := ctx.Config.MainChainConfig
 	kai, err := newKardia(ctx, &Config{
 		NetworkId: DefaultNetworkID,
-		ChainData: nodeConfig.ChainData,
-		DbHandles: nodeConfig.DbHandles,
-		DbCaches:  nodeConfig.DbCache,
-		Genesis:   nodeConfig.Genesis,
-		TxPool:    nodeConfig.TxPool,
-		AcceptTxs: nodeConfig.AcceptTxs,
+		ChainData: chainConfig.ChainData,
+		DbHandles: chainConfig.DbHandles,
+		DbCaches:  chainConfig.DbCache,
+		Genesis:   chainConfig.Genesis,
+		TxPool:    chainConfig.TxPool,
+		AcceptTxs: chainConfig.AcceptTxs,
 	})
 
 	if err != nil {
