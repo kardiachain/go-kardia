@@ -35,6 +35,8 @@ import (
 
 // ConsensusManager defines a manager for the consensus service.
 type ConsensusManager struct {
+	logger log.Logger // Please use this logger for all consensus activities.
+
 	protocol BaseProtocol
 
 	conS *ConsensusState
@@ -49,7 +51,8 @@ type ConsensusManager struct {
 // consensusState.
 func NewConsensusManager(consensusState *ConsensusState) *ConsensusManager {
 	return &ConsensusManager{
-		conS: consensusState,
+		logger: consensusState.Logger,
+		conS:   consensusState,
 	}
 }
 
@@ -73,10 +76,10 @@ func (conR *ConsensusManager) Validators() []*types.Validator {
 }
 
 func (conR *ConsensusManager) Start() {
-	conR.conS.Logger.Trace("Consensus manager starts!")
+	conR.logger.Trace("Consensus manager starts!")
 
 	if conR.running {
-		conR.conS.Logger.Error("ConsensusManager already started. Shouldn't start again.")
+		conR.logger.Error("ConsensusManager already started. Shouldn't start again.")
 		return
 	}
 	conR.running = true
@@ -87,14 +90,14 @@ func (conR *ConsensusManager) Start() {
 
 func (conR *ConsensusManager) Stop() {
 	if !conR.running {
-		conR.conS.Logger.Error("ConsensusManager hasn't started yet. Shouldn't be asked to stop.")
+		conR.logger.Error("ConsensusManager hasn't started yet. Shouldn't be asked to stop.")
 	}
 
 	conR.conS.Stop()
 	conR.unsubscribeFromBroadcastEvents()
 
 	conR.running = false
-	conR.conS.Logger.Trace("Consensus manager stops!")
+	conR.logger.Trace("Consensus manager stops!")
 }
 
 // AddPeer implements manager
@@ -107,7 +110,7 @@ func (conR *ConsensusManager) AddPeer(p *p2p.Peer, rw p2p.MsgReadWriter) {
 	}
 
 	//// Create peerState for peer
-	peerState := NewPeerState(p, rw).SetLogger(conR.conS.Logger)
+	peerState := NewPeerState(p, rw).SetLogger(conR.logger)
 	p.Set(p2p.PeerStateKey, peerState)
 
 	// Begin routines for this peer.
@@ -117,7 +120,7 @@ func (conR *ConsensusManager) AddPeer(p *p2p.Peer, rw p2p.MsgReadWriter) {
 }
 
 func (conR *ConsensusManager) RemovePeer(p *p2p.Peer, reason interface{}) {
-	log.Error("ConsensusManager.RemovePeer - not yet implemented")
+	conR.logger.Error("ConsensusManager.RemovePeer - not yet implemented")
 }
 
 // subscribeToBroadcastEvents subscribes for new round steps, votes and
@@ -145,24 +148,24 @@ func (conR *ConsensusManager) unsubscribeFromBroadcastEvents() {
 
 // Handles received NewRoundStepMessage
 func (conR *ConsensusManager) ReceiveNewRoundStep(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus manager received NewRoundStep", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received NewRoundStep", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus manager isn't running.")
+		conR.logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
 	var msg NewRoundStepMessage
 	if err := generalMsg.Decode(&msg); err != nil {
-		conR.conS.Logger.Error("Invalid message", "msg", generalMsg, "err", err)
+		conR.logger.Error("Invalid message", "msg", generalMsg, "err", err)
 		return
 	}
-	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", msg)
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
 	if !ok {
-		conR.conS.Logger.Error("Downcast failed!!")
+		conR.logger.Error("Downcast failed!!")
 		return
 	}
 
@@ -170,19 +173,19 @@ func (conR *ConsensusManager) ReceiveNewRoundStep(generalMsg p2p.Msg, src *p2p.P
 }
 
 func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus manager received Proposal", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received Proposal", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus manager isn't running.")
+		conR.logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
 	var msg ProposalMessage
 	if err := generalMsg.Decode(&msg); err != nil {
-		conR.conS.Logger.Error("Invalid proposal message", "msg", generalMsg, "err", err)
+		conR.logger.Error("Invalid proposal message", "msg", generalMsg, "err", err)
 		return
 	}
-	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", msg)
 	if msg.Proposal.Block.LastCommit() == nil {
 		msg.Proposal.Block.SetLastCommit(&types.Commit{})
 	}
@@ -190,7 +193,7 @@ func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
 	if !ok {
-		conR.conS.Logger.Error("Downcast failed!!")
+		conR.logger.Error("Downcast failed!!")
 		return
 	}
 
@@ -199,42 +202,42 @@ func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 }
 
 func (conR *ConsensusManager) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus manager received block", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received block", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus manager isn't running.")
+		conR.logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
 	var msg BlockMessage
 	if err := generalMsg.Decode(&msg); err != nil {
-		conR.conS.Logger.Error("Invalid BlockMessage", "msg", generalMsg, "err", err)
+		conR.logger.Error("Invalid BlockMessage", "msg", generalMsg, "err", err)
 		return
 	}
-	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", msg)
 
 	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }
 
 func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus manager received NewVote", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received NewVote", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus manager isn't running.")
+		conR.logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
 	var msg VoteMessage
 	if err := generalMsg.Decode(&msg); err != nil {
-		conR.conS.Logger.Error("Invalid vote message", "msg", generalMsg, "err", err)
+		conR.logger.Error("Invalid vote message", "msg", generalMsg, "err", err)
 		return
 	}
-	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", msg)
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
 	if !ok {
-		conR.conS.Logger.Error("Downcast failed!!")
+		conR.logger.Error("Downcast failed!!")
 		return
 	}
 
@@ -245,30 +248,30 @@ func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) 
 	ps.EnsureVoteBitArrays(height, valSize)
 	ps.EnsureVoteBitArrays(height.Add(-1), lastCommitSize)
 	ps.SetHasVote(msg.Vote)
-	conR.conS.Logger.Warn("Implement RecordVote here to mark peer as good.")
+	conR.logger.Warn("Implement RecordVote here to mark peer as good.")
 
 	cs.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }
 
 func (conR *ConsensusManager) ReceiveHasVote(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus manager received HasVote", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received HasVote", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus manager isn't running.")
+		conR.logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
 	var msg HasVoteMessage
 	if err := generalMsg.Decode(&msg); err != nil {
-		conR.conS.Logger.Error("Invalid HasVoteMessage", "msg", generalMsg, "err", err)
+		conR.logger.Error("Invalid HasVoteMessage", "msg", generalMsg, "err", err)
 		return
 	}
-	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", msg)
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
 	if !ok {
-		conR.conS.Logger.Error("Downcast failed!!")
+		conR.logger.Error("Downcast failed!!")
 		return
 	}
 
@@ -276,24 +279,24 @@ func (conR *ConsensusManager) ReceiveHasVote(generalMsg p2p.Msg, src *p2p.Peer) 
 }
 
 func (conR *ConsensusManager) ReceiveProposalPOL(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus manager received ProposalPOLMessage", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received ProposalPOLMessage", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus manager isn't running.")
+		conR.logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
 	var msg ProposalPOLMessage
 	if err := generalMsg.Decode(&msg); err != nil {
-		conR.conS.Logger.Error("Invalid ProposalPOLMessage", "msg", generalMsg, "err", err)
+		conR.logger.Error("Invalid ProposalPOLMessage", "msg", generalMsg, "err", err)
 		return
 	}
-	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", msg)
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
 	if !ok {
-		conR.conS.Logger.Error("Downcast failed!!")
+		conR.logger.Error("Downcast failed!!")
 		return
 	}
 
@@ -311,24 +314,24 @@ func (conR *ConsensusManager) ReceiveProposalPOL(generalMsg p2p.Msg, src *p2p.Pe
 }
 
 func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus manager received vote", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received vote", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus manager isn't running.")
+		conR.logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
 	var msg CommitStepMessage
 	if err := generalMsg.Decode(&msg); err != nil {
-		conR.conS.Logger.Error("Invalid commit step message", "msg", generalMsg, "err", err)
+		conR.logger.Error("Invalid commit step message", "msg", generalMsg, "err", err)
 		return
 	}
-	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", msg)
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
 	if !ok {
-		conR.conS.Logger.Error("Downcast failed!!")
+		conR.logger.Error("Downcast failed!!")
 		return
 	}
 
@@ -336,24 +339,24 @@ func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 }
 
 func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus manager received VoteSetMaj23Message", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received VoteSetMaj23Message", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus manager isn't running.")
+		conR.logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
 	var msg VoteSetMaj23Message
 	if err := generalMsg.Decode(&msg); err != nil {
-		conR.conS.Logger.Error("Invalid VoteSetMaj23Message", "msg", generalMsg, "err", err)
+		conR.logger.Error("Invalid VoteSetMaj23Message", "msg", generalMsg, "err", err)
 		return
 	}
-	conR.conS.Logger.Trace("Decoded msg", "msg", &msg)
+	conR.logger.Trace("Decoded msg", "msg", &msg)
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
 	if !ok {
-		conR.conS.Logger.Error("Downcast failed!!")
+		conR.logger.Error("Downcast failed!!")
 		return
 	}
 
@@ -362,13 +365,13 @@ func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.P
 	height, votes := cs.Height, cs.Votes
 	cs.mtx.Unlock()
 	if !height.Equals(msg.Height) {
-		conR.conS.Logger.Trace("ReceiveVoteSetMaj23 - height doesn't match", "height", height, "msg.Height", msg.Height)
+		conR.logger.Trace("ReceiveVoteSetMaj23 - height doesn't match", "height", height, "msg.Height", msg.Height)
 		return
 	}
 	// Peer claims to have a maj23 for some BlockID at H,R,S,
 	err := votes.SetPeerMaj23(msg.Round.Int32(), msg.Type, ps.peer.ID(), msg.BlockID)
 	if err != nil {
-		conR.conS.Logger.Error("SetPeerMaj23 failed", "err", err)
+		conR.logger.Error("SetPeerMaj23 failed", "err", err)
 		return
 	}
 	// Respond with a VoteSetBitsMessage showing which votes we have.
@@ -380,7 +383,7 @@ func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.P
 	case types.VoteTypePrecommit:
 		ourVotes = votes.Precommits(msg.Round.Int32()).BitArrayByBlockID(msg.BlockID)
 	default:
-		conR.conS.Logger.Error("Bad VoteSetMaj23Message field Type")
+		conR.logger.Error("Bad VoteSetMaj23Message field Type")
 		return
 	}
 	p2p.Send(ps.rw, kcmn.CsVoteSetBitsMessage, &VoteSetBitsMessage{
@@ -393,24 +396,24 @@ func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.P
 }
 
 func (conR *ConsensusManager) ReceiveVoteSetBits(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.conS.Logger.Trace("Consensus manager received VoteSetBits", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received VoteSetBits", "src", src, "msg", generalMsg)
 
 	if !conR.running {
-		conR.conS.Logger.Trace("Consensus manager isn't running.")
+		conR.logger.Trace("Consensus manager isn't running.")
 		return
 	}
 
 	var msg VoteSetBitsMessage
 	if err := generalMsg.Decode(&msg); err != nil {
-		conR.conS.Logger.Error("Invalid VoteSetBitsMessage", "msg", generalMsg, "err", err)
+		conR.logger.Error("Invalid VoteSetBitsMessage", "msg", generalMsg, "err", err)
 		return
 	}
-	conR.conS.Logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", msg)
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
 	if !ok {
-		conR.conS.Logger.Error("Downcast failed!!")
+		conR.logger.Error("Downcast failed!!")
 		return
 	}
 
@@ -427,7 +430,7 @@ func (conR *ConsensusManager) ReceiveVoteSetBits(generalMsg p2p.Msg, src *p2p.Pe
 		case types.VoteTypePrecommit:
 			ourVotes = votes.Precommits(msg.Round.Int32()).BitArrayByBlockID(msg.BlockID)
 		default:
-			conR.conS.Logger.Error("Bad VoteSetBitsMessage field Type")
+			conR.logger.Error("Bad VoteSetBitsMessage field Type")
 			return
 		}
 		ps.ApplyVoteSetBitsMessage(&msg, ourVotes)
@@ -441,11 +444,11 @@ func (conR *ConsensusManager) ReceiveVoteSetBits(generalMsg p2p.Msg, src *p2p.Pe
 func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundState) {
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
 	if nrsMsg != nil {
-		conR.conS.Logger.Trace("broadcastNewRoundStepMessage", "nrsMsg", nrsMsg)
+		conR.logger.Trace("broadcastNewRoundStepMessage", "nrsMsg", nrsMsg)
 		conR.protocol.Broadcast(nrsMsg, kcmn.CsNewRoundStepMsg)
 	}
 	if csMsg != nil {
-		conR.conS.Logger.Trace("broadcastCommitStepMessage", "csMsg", csMsg)
+		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", csMsg)
 		conR.protocol.Broadcast(csMsg, kcmn.CsCommitStepMsg)
 	}
 }
@@ -458,32 +461,32 @@ func (conR *ConsensusManager) broadcastHasVoteMessage(vote *types.Vote) {
 		Type:   vote.Type,
 		Index:  vote.ValidatorIndex,
 	}
-	conR.conS.Logger.Trace("broadcastHasVoteMessage", "msg", msg)
+	conR.logger.Trace("broadcastHasVoteMessage", "msg", msg)
 	conR.protocol.Broadcast(msg, kcmn.CsHasVoteMsg)
 }
 
 // ------------ Send message helpers -----------
 
 func (conR *ConsensusManager) sendNewRoundStepMessages(rw p2p.MsgReadWriter) {
-	conR.conS.Logger.Debug("manager - sendNewRoundStepMessages")
+	conR.logger.Debug("manager - sendNewRoundStepMessages")
 
 	rs := conR.conS.GetRoundState()
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
-	conR.conS.Logger.Trace("makeRoundStepMessages", "nrsMsg", nrsMsg)
+	conR.logger.Trace("makeRoundStepMessages", "nrsMsg", nrsMsg)
 	if nrsMsg != nil {
 		if err := p2p.Send(rw, kcmn.CsNewRoundStepMsg, nrsMsg); err != nil {
-			conR.conS.Logger.Warn("send NewRoundStepMessage failed", "err", err)
+			conR.logger.Warn("send NewRoundStepMessage failed", "err", err)
 		} else {
-			conR.conS.Logger.Trace("send NewRoundStepMessage success")
+			conR.logger.Trace("send NewRoundStepMessage success")
 		}
 	}
 
 	if csMsg != nil {
-		conR.conS.Logger.Trace("Send CommitStepMsg", "csMsg", csMsg)
+		conR.logger.Trace("Send CommitStepMsg", "csMsg", csMsg)
 		if err := p2p.Send(rw, kcmn.CsCommitStepMsg, csMsg); err != nil {
-			conR.conS.Logger.Warn("send CommitStepMessage failed", "err", err)
+			conR.logger.Warn("send CommitStepMessage failed", "err", err)
 		} else {
-			conR.conS.Logger.Trace("send CommitStepMessage success")
+			conR.logger.Trace("send CommitStepMessage success")
 		}
 	}
 }
@@ -508,7 +511,7 @@ func makeRoundStepMessages(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage,
 
 // ----------- Gossip routines ---------------
 func (conR *ConsensusManager) gossipDataRoutine(peer *p2p.Peer, ps *PeerState) {
-	logger := conR.conS.Logger.New("peer", peer)
+	logger := conR.logger.New("peer", peer)
 	logger.Trace("Start gossipDataRoutine for peer")
 
 OUTER_LOOP:
@@ -578,7 +581,7 @@ OUTER_LOOP:
 }
 
 func (conR *ConsensusManager) gossipVotesRoutine(peer *p2p.Peer, ps *PeerState) {
-	logger := conR.conS.Logger.New("peer", peer)
+	logger := conR.logger.New("peer", peer)
 	logger.Trace("Start gossipVotesRoutine for peer")
 
 	// Simple hack to throttle logs upon sleep.
@@ -705,7 +708,7 @@ func (conR *ConsensusManager) gossipVotesForHeight(logger log.Logger, rs *cstype
 }
 
 func (conR *ConsensusManager) queryMaj23Routine(peer *p2p.Peer, ps *PeerState) {
-	logger := conR.conS.Logger.New("peer", peer)
+	logger := conR.logger.New("peer", peer)
 
 OUTER_LOOP:
 	for {

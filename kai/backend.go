@@ -45,6 +45,9 @@ type KardiaSubService interface {
 
 // Kardia implements Service for running full Kardia full protocol.
 type Kardia struct {
+	// TODO(namdoh): Refactor out logger to a based Service type.
+	logger log.Logger // Logger for Kardia service
+
 	config      *Config
 	chainConfig *configs.ChainConfig
 
@@ -72,6 +75,8 @@ func (s *Kardia) AddKaiServer(ks KardiaSubService) {
 // New creates a new Kardia object (including the
 // initialisation of the common Kardia object)
 func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
+	log.Info("newKardia", "chaindata", config.ChainData)
+
 	kaiDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
 	if err != nil {
 		return nil, err
@@ -81,17 +86,18 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
-	log.Info("Initialised chain configuration", "config", chainConfig)
+	log.Info("Initialised Kardia chain configuration", "config", chainConfig)
 
 	kai := &Kardia{
+		logger:       log.New(),
 		config:       config,
 		kaiDb:        kaiDb,
 		chainConfig:  chainConfig,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 	}
-
-	log.Info("Initialising Kardia protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
+	kai.logger.AddTag("KARDIA")
+	kai.logger.Info("Initialising protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
 
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
@@ -116,13 +122,13 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 		LastHeightValidatorsChanged: cmn.NewBigInt(-1),
 	}
 	consensusState := consensus.NewConsensusState(
+		kai.logger,
 		configs.DefaultConsensusConfig(),
 		state,
 		kai.blockchain,
 		kai.txPool,
 		ctx.Config.DevEnvConfig.VotingStrategy,
 	)
-	consensusState.Logger.AddTag("KARDIA")
 	kai.csManager = consensus.NewConsensusManager(consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())

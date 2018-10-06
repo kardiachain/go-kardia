@@ -21,6 +21,9 @@ const DualNetworkID = 200 // TODO: change this to be diff than main kardia servi
 
 // DualService implements Service for running full dual group protocol, for group consensus.
 type DualService struct {
+	// TODO(namdoh): Refactor out logger to a based Service type.
+	logger log.Logger // Logger for Dual service
+
 	config      *Config
 	chainConfig *configs.ChainConfig
 
@@ -42,7 +45,7 @@ type DualService struct {
 // New creates a new DualService object (including the
 // initialisation of the common DualService object)
 func newDualService(ctx *node.ServiceContext, config *Config) (*DualService, error) {
-	log.Info("db", "chaindata", config.ChainData)
+	log.Info("newDualService", "chaindata", config.ChainData)
 	groupDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
 	if err != nil {
 		return nil, err
@@ -52,17 +55,18 @@ func newDualService(ctx *node.ServiceContext, config *Config) (*DualService, err
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
-	log.Info("Initialised chain configuration", "config", chainConfig)
+	log.Info("Initialised dual chain configuration", "config", chainConfig)
 
 	dualS := &DualService{
+		logger:       log.New(),
 		config:       config,
 		groupDb:      groupDb,
 		chainConfig:  chainConfig,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 	}
-
-	log.Info("Initialising Dual protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
+	dualS.logger.AddTag("DUAL")
+	dualS.logger.Info("Initialising protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
 
 	// Create a new blockchain to attach to this GroupService struct
 	dualS.blockchain, err = blockchain.NewBlockChain(groupDb, dualS.chainConfig)
@@ -85,13 +89,13 @@ func newDualService(ctx *node.ServiceContext, config *Config) (*DualService, err
 		LastHeightValidatorsChanged: cmn.NewBigInt(-1),
 	}
 	consensusState := consensus.NewConsensusState(
+		dualS.logger,
 		configs.DefaultConsensusConfig(),
 		state,
 		dualS.blockchain,
 		dualS.txPool,
 		ctx.Config.DevEnvConfig.VotingStrategy,
 	)
-	consensusState.Logger.AddTag("DUAL")
 	dualS.csManager = consensus.NewConsensusManager(consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())

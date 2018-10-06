@@ -123,6 +123,7 @@ type ConsensusState struct {
 
 // NewConsensusState returns a new ConsensusState.
 func NewConsensusState(
+	logger log.Logger,
 	config *cfg.ConsensusConfig,
 	state state.LastestBlockState,
 	blockchain *blockchain.BlockChain,
@@ -130,7 +131,7 @@ func NewConsensusState(
 	votingStrategy map[dev.VoteTurn]int,
 ) *ConsensusState {
 	cs := &ConsensusState{
-		Logger: log.New("module", "consensus"),
+		Logger: logger,
 		config: config,
 		//namdoh@ blockExec:        blockExec,
 		blockOperations:  NewBlockOperations(blockchain, txPool),
@@ -635,7 +636,7 @@ func (cs *ConsensusState) signVote(type_ byte, hash types.BlockID) (*types.Vote,
 	if cs.votingStrategy != nil {
 		if votingStrategy, ok := cs.scriptedVote(cs.Height.Int32(), cs.Round.Int32(), int(type_)); ok {
 			if ok && votingStrategy == -1 {
-				log.Info("Simulate voting strategy", "Height", cs.Height, "Round", cs.Round, "VoteType", cs.Step, "VotingStrategy", votingStrategy)
+				cs.Logger.Info("Simulate voting strategy", "Height", cs.Height, "Round", cs.Round, "VoteType", cs.Step, "VotingStrategy", votingStrategy)
 				hash = types.NewZeroBlockID()
 			}
 		}
@@ -1196,14 +1197,14 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	// For simplicity, this code executes & commits txs before sending proposal,
 	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
 	txs := cs.blockOperations.CollectTransactions()
-	log.Debug("Collected transactions", "txs", txs)
+	cs.Logger.Debug("Collected transactions", "txs", txs)
 
 	header := cs.blockOperations.NewHeader(cs.Height.Int64(), uint64(len(txs)), cs.state.LastBlockID, cs.state.LastValidators.Hash())
-	log.Info("Creates new header", "header", header)
+	cs.Logger.Info("Creates new header", "header", header)
 
 	stateRoot, receipts, err := cs.blockOperations.CommitTransactions(txs, header)
 	if err != nil {
-		log.Error("Fail to commit transactions", "err", err)
+		cs.Logger.Error("Fail to commit transactions", "err", err)
 	}
 	header.Root = stateRoot
 
