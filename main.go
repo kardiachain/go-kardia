@@ -81,6 +81,7 @@ func GetNodeIndex(nodeName string) (int, error) {
 func main() {
 	// args
 	logLevel := flag.String("loglevel", "info", "minimum log verbosity to display")
+	logTag := flag.String("logtag", "", "for log record with log, use this to further filter records based on the tag value")
 	ethLogLevel := flag.String("ethloglevel", "warn", "minimum Eth log verbosity to display")
 	listenAddr := flag.String("addr", ":30301", "listen address")
 	name := flag.String("name", "", "Name of node")
@@ -114,7 +115,11 @@ func main() {
 		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
 		level = log.LvlInfo
 	}
-	log.Root().SetHandler(log.LvlFilterHandler(level, log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
+	if len(*logTag) > 0 {
+		log.Root().SetHandler(log.LvlAndTagFilterHandler(level, *logTag, log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
+	} else {
+		log.Root().SetHandler(log.LvlFilterHandler(level, log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
+	}
 
 	logger := log.New()
 
