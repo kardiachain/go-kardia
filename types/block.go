@@ -197,10 +197,14 @@ func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []
 	return b
 }
 
+func (b *Block) SetLogger(logger log.Logger) {
+	b.logger = logger
+}
+
 // NewBlockWithHeader creates a block with the given header data. The
 // header data is copied, changes to header and to the field values
 // will not affect the block.
-func NewBlockWithHeader(header *Header) *Block {
+func NewBlockWithHeader(logger log.Logger, header *Header) *Block {
 	return &Block{header: CopyHeader(header)}
 }
 
@@ -286,6 +290,7 @@ func (b *Block) Transaction(hash common.Hash) *Transaction {
 // WithBody returns a new block with the given transaction.
 func (b *Block) WithBody(body *Body) *Block {
 	block := &Block{
+		logger:       b.logger,
 		header:       CopyHeader(b.header),
 		transactions: make([]*Transaction, len(body.Transactions)),
 		lastCommit:   body.LastCommit,

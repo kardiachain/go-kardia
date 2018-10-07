@@ -155,7 +155,7 @@ func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	if block, ok := bc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
 	}
-	block := chaindb.ReadBlock(bc.db, hash, number)
+	block := chaindb.ReadBlock(bc.logger, bc.db, hash, number)
 	if block == nil {
 		return nil
 	}

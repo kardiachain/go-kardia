@@ -120,7 +120,7 @@ func (conR *ConsensusManager) AddPeer(p *p2p.Peer, rw p2p.MsgReadWriter) {
 }
 
 func (conR *ConsensusManager) RemovePeer(p *p2p.Peer, reason interface{}) {
-	conR.logger.Error("ConsensusManager.RemovePeer - not yet implemented")
+	conR.logger.Warn("ConsensusManager.RemovePeer - not yet implemented")
 }
 
 // subscribeToBroadcastEvents subscribes for new round steps, votes and
@@ -185,6 +185,8 @@ func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 		conR.logger.Error("Invalid proposal message", "msg", generalMsg, "err", err)
 		return
 	}
+	msg.Proposal.Block.SetLogger(conR.logger)
+
 	conR.logger.Trace("Decoded msg", "msg", msg)
 	if msg.Proposal.Block.LastCommit() == nil {
 		msg.Proposal.Block.SetLastCommit(&types.Commit{})
@@ -214,6 +216,8 @@ func (conR *ConsensusManager) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
 		conR.logger.Error("Invalid BlockMessage", "msg", generalMsg, "err", err)
 		return
 	}
+	msg.Block.SetLogger(conR.logger)
+
 	conR.logger.Trace("Decoded msg", "msg", msg)
 
 	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
@@ -326,6 +330,8 @@ func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 		conR.logger.Error("Invalid commit step message", "msg", generalMsg, "err", err)
 		return
 	}
+	msg.Block.SetLogger(conR.logger)
+
 	conR.logger.Trace("Decoded msg", "msg", msg)
 
 	// Get peer states
