@@ -36,6 +36,8 @@ import (
 
 const DefaultNetworkID = 100
 
+const kaiProtocolName = "kaiptc"
+
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
 type KardiaSubService interface {
 	Start(srvr *p2p.Server)
@@ -45,6 +47,9 @@ type KardiaSubService interface {
 
 // Kardia implements Service for running full Kardia full protocol.
 type Kardia struct {
+	// TODO(namdoh): Refactor out logger to a based Service type.
+	logger log.Logger // Logger for Kardia service
+
 	config      *Config
 	chainConfig *configs.ChainConfig
 
@@ -72,40 +77,46 @@ func (s *Kardia) AddKaiServer(ks KardiaSubService) {
 // New creates a new Kardia object (including the
 // initialisation of the common Kardia object)
 func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
+	log.Info("newKardia", "chaindata", config.ChainData)
+
+	// Create a specific logger for KARDIA service.
+	logger := log.New()
+	logger.AddTag("KARDIA")
+
 	kaiDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
 	if err != nil {
 		return nil, err
 	}
 
-	chainConfig, _, genesisErr := blockchain.SetupGenesisBlock(kaiDb, config.Genesis)
+	chainConfig, _, genesisErr := blockchain.SetupGenesisBlock(logger, kaiDb, config.Genesis)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
-	log.Info("Initialised chain configuration", "config", chainConfig)
+	logger.Info("Initialised Kardia chain configuration", "config", chainConfig)
 
 	kai := &Kardia{
+		logger:       logger,
 		config:       config,
 		kaiDb:        kaiDb,
 		chainConfig:  chainConfig,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 	}
-
-	log.Info("Initialising Kardia protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
+	logger.Info("Initialising protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
 
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
 	// Create a new blockchain to attach to this Kardia object
-	kai.blockchain, err = blockchain.NewBlockChain(kaiDb, kai.chainConfig)
+	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	kai.txPool = blockchain.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
+	kai.txPool = blockchain.NewTxPool(logger, config.TxPool, kai.chainConfig, kai.blockchain)
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
-	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSet(ctx.Config.NumValidators)
+	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSet(ctx.Config.MainChainConfig.NumValidators)
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon",
 		LastBlockHeight:             cmn.NewBigInt(int64(block.Height())),
@@ -116,20 +127,21 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 		LastHeightValidatorsChanged: cmn.NewBigInt(-1),
 	}
 	consensusState := consensus.NewConsensusState(
+		kai.logger,
 		configs.DefaultConsensusConfig(),
 		state,
 		kai.blockchain,
 		kai.txPool,
 		ctx.Config.DevEnvConfig.VotingStrategy,
 	)
-	consensusState.Logger.AddTag("KARDIA")
 	kai.csManager = consensus.NewConsensusManager(consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
 	kai.csManager.SetPrivValidator(privValidator)
 
 	// Initialize protocol manager.
-	if kai.protocolManager, err = NewProtocolManager(config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csManager); err != nil {
+
+	if kai.protocolManager, err = NewProtocolManager(kaiProtocolName, kai.logger, config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csManager); err != nil {
 		return nil, err
 	}
 	kai.protocolManager.acceptTxs = config.AcceptTxs
@@ -141,15 +153,15 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 // Implements ServiceConstructor, return a Kardia node service from node service context.
 // TODO: move this outside of kai package to customize kai.Config
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
-	nodeConfig := ctx.Config
+	chainConfig := ctx.Config.MainChainConfig
 	kai, err := newKardia(ctx, &Config{
 		NetworkId: DefaultNetworkID,
-		ChainData: nodeConfig.ChainData,
-		DbHandles: nodeConfig.DbHandles,
-		DbCaches:  nodeConfig.DbCache,
-		Genesis:   nodeConfig.Genesis,
-		TxPool:    nodeConfig.TxPool,
-		AcceptTxs: nodeConfig.AcceptTxs,
+		ChainData: chainConfig.ChainData,
+		DbHandles: chainConfig.DbHandles,
+		DbCaches:  chainConfig.DbCache,
+		Genesis:   chainConfig.Genesis,
+		TxPool:    chainConfig.TxPool,
+		AcceptTxs: chainConfig.AcceptTxs,
 	})
 
 	if err != nil {

@@ -26,7 +26,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/kardiachain/go-kardia/blockchain/chaindb"
-	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -62,7 +61,6 @@ func (hc *HeaderChain) CurrentHeader() *types.Header {
 //  procInterrupt points to the parent's interrupt semaphore
 //  wg points to the parent's shutdown wait group
 func NewHeaderChain(kaiDb storage.Database, config *configs.ChainConfig) (*HeaderChain, error) {
-	log.Trace("NewHeaderChain")
 	headerCache, _ := lru.New(headerCacheLimit)
 	heightCache, _ := lru.New(heightCacheLimit)
 

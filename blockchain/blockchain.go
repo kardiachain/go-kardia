@@ -47,6 +47,8 @@ var (
 
 // TODO(huny@): Add detailed description for Kardia blockchain
 type BlockChain struct {
+	logger log.Logger
+
 	chainConfig *configs.ChainConfig // Chain & network configuration
 
 	db kaidb.Database // Blockchain database
@@ -100,11 +102,12 @@ func (bc *BlockChain) Config() *configs.ChainConfig { return bc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(db kaidb.Database, chainConfig *configs.ChainConfig) (*BlockChain, error) {
+func NewBlockChain(logger log.Logger, db kaidb.Database, chainConfig *configs.ChainConfig) (*BlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 
 	bc := &BlockChain{
+		logger:       logger,
 		chainConfig:  chainConfig,
 		db:           db,
 		stateCache:   state.NewDatabase(db),
@@ -130,7 +133,7 @@ func NewBlockChain(db kaidb.Database, chainConfig *configs.ChainConfig) (*BlockC
 	// Take ownership of this particular state
 	//@huny go bc.update()
 
-	bc.processor = NewStateProcessor(bc)
+	bc.processor = NewStateProcessor(logger, bc)
 
 	return bc, nil
 }
@@ -152,7 +155,7 @@ func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	if block, ok := bc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
 	}
-	block := chaindb.ReadBlock(bc.db, hash, number)
+	block := chaindb.ReadBlock(bc.logger, bc.db, hash, number)
 	if block == nil {
 		return nil
 	}
@@ -174,7 +177,7 @@ func (bc *BlockChain) State() (*state.StateDB, error) {
 
 // StateAt returns a new mutable state based on a particular point in time.
 func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
-	return state.New(root, bc.stateCache)
+	return state.New(bc.logger, root, bc.stateCache)
 }
 
 // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
@@ -189,20 +192,20 @@ func (bc *BlockChain) loadLastState() error {
 	head := chaindb.ReadHeadBlockHash(bc.db)
 	if head == (common.Hash{}) {
 		// Corrupt or empty database, init from scratch
-		log.Warn("Empty database, resetting chain")
+		bc.logger.Warn("Empty database, resetting chain")
 		return bc.Reset()
 	}
 	// Make sure the entire head block is available
 	currentBlock := bc.GetBlockByHash(head)
 	if currentBlock == nil {
 		// Corrupt or empty database, init from scratch
-		log.Warn("Head block missing, resetting chain", "hash", head)
+		bc.logger.Warn("Head block missing, resetting chain", "hash", head)
 		return bc.Reset()
 	}
 	// Make sure the state associated with the block is available
-	if _, err := state.New(currentBlock.Root(), bc.stateCache); err != nil {
+	if _, err := state.New(bc.logger, currentBlock.Root(), bc.stateCache); err != nil {
 		// Dangling block without a state associated, init from scratch
-		log.Warn("Head state missing, repairing chain", "height", currentBlock.Height(), "hash", currentBlock.Hash())
+		bc.logger.Warn("Head state missing, repairing chain", "height", currentBlock.Height(), "hash", currentBlock.Hash())
 		if err := bc.repair(&currentBlock); err != nil {
 			return err
 		}
@@ -219,8 +222,8 @@ func (bc *BlockChain) loadLastState() error {
 	}
 	bc.hc.SetCurrentHeader(currentHeader)
 
-	log.Info("Loaded most recent local header", "height", currentHeader.Height, "hash", currentHeader.Hash())
-	log.Info("Loaded most recent local full block", "height", currentBlock.Height(), "hash", currentBlock.Hash())
+	bc.logger.Info("Loaded most recent local header", "height", currentHeader.Height, "hash", currentHeader.Hash())
+	bc.logger.Info("Loaded most recent local full block", "height", currentBlock.Height(), "hash", currentBlock.Hash())
 
 	return nil
 }
@@ -260,8 +263,8 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 func (bc *BlockChain) repair(head **types.Block) error {
 	for {
 		// Abort if we've rewound to a head block that does have associated state
-		if _, err := state.New((*head).Root(), bc.stateCache); err == nil {
-			log.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
+		if _, err := state.New(bc.logger, (*head).Root(), bc.stateCache); err == nil {
+			bc.logger.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
 			return nil
 		}
 		// Otherwise rewind one block and recheck state availability there
@@ -289,7 +292,7 @@ func (bc *BlockChain) GetHeaderByHash(hash common.Hash) *types.Header {
 // though, the head may be further rewound if block bodies are missing (non-archive
 // nodes after a fast sync).
 func (bc *BlockChain) SetHead(head uint64) error {
-	log.Warn("Rewinding blockchain", "target", head)
+	bc.logger.Warn("Rewinding blockchain", "target", head)
 
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
@@ -310,7 +313,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 		bc.currentBlock.Store(bc.GetBlock(currentHeader.Hash(), currentHeader.Height))
 	}
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil {
-		if _, err := state.New(currentBlock.Root(), bc.stateCache); err != nil {
+		if _, err := state.New(bc.logger, currentBlock.Root(), bc.stateCache); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			bc.currentBlock.Store(bc.genesisBlock)
 		}

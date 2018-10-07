@@ -54,6 +54,8 @@ func errResp(code errCode, format string, v ...interface{}) error {
 }
 
 type ProtocolManager struct {
+	logger log.Logger
+
 	consensus.BaseProtocol
 
 	networkID uint64
@@ -91,9 +93,11 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Kardia sub protocol manager. The Kardia sub protocol manages peers capable
 // with the Kardia network.
-func NewProtocolManager(networkID uint64, blockchain *blockchain.BlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool, csReactor *consensus.ConsensusManager) (*ProtocolManager, error) {
+func NewProtocolManager(protocolName string, logger log.Logger, networkID uint64, blockchain *blockchain.BlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool, csReactor *consensus.ConsensusManager) (*ProtocolManager, error) {
+
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
+		logger:      logger,
 		networkID:   networkID,
 		txpool:      txpool,
 		blockchain:  blockchain,
@@ -110,7 +114,7 @@ func NewProtocolManager(networkID uint64, blockchain *blockchain.BlockChain, con
 		// Compatible; initialise the sub-protocol
 		version := version // Closure for the run
 		manager.SubProtocols = append(manager.SubProtocols, p2p.Protocol{
-			Name:    kcmn.ProtocolName,
+			Name:    protocolName,
 			Version: version,
 			Length:  kcmn.ProtocolLengths[i],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
@@ -146,11 +150,11 @@ func (pm *ProtocolManager) removePeer(id string) {
 	if peer == nil {
 		return
 	}
-	log.Debug("Removing Kardia peer", "peer", id)
+	pm.logger.Debug("Removing Kardia peer", "peer", id)
 
 	// Unregister the peer from the Kardia peer set
 	if err := pm.peers.Unregister(id); err != nil {
-		log.Error("Peer removal failed", "peer", id, "err", err)
+		pm.logger.Error("Peer removal failed", "peer", id, "err", err)
 	}
 	// Hard disconnect at the networking layer
 	if peer != nil {
@@ -159,7 +163,7 @@ func (pm *ProtocolManager) removePeer(id string) {
 }
 
 func (pm *ProtocolManager) Start(maxPeers int) {
-	log.Info("Start Kardia Protocol Manager", "maxPeers", maxPeers)
+	pm.logger.Info("Start Kardia Protocol Manager", "maxPeers", maxPeers)
 	pm.maxPeers = maxPeers
 
 	// broadcast transactions
@@ -174,7 +178,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 }
 
 func (pm *ProtocolManager) Stop() {
-	log.Info("Stopping Kardia protocol")
+	pm.logger.Info("Stopping Kardia protocol")
 
 	pm.txsSub.Unsubscribe() // quits txBroadcastLoop
 
@@ -191,12 +195,12 @@ func (pm *ProtocolManager) Stop() {
 	// Wait for all peer handler goroutines and the loops to come down.
 	pm.wg.Wait()
 
-	log.Info("Kardia protocol stopped")
+	pm.logger.Info("Kardia protocol stopped")
 }
 
 func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 	//@huny return newPeer(pv, p, newMeteredMsgWriter(rw))
-	return newPeer(pv, p, rw, pm.csReactor)
+	return newPeer(pm.logger, pv, p, rw, pm.csReactor)
 }
 
 // handle is the callback invoked to manage the life cycle of a kai peer. When
@@ -206,7 +210,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	if pm.peers.Len() >= pm.maxPeers && !p.Peer.Info().Network.Trusted {
 		return p2p.DiscTooManyPeers
 	}
-	p.Log().Debug("Kardia peer connected", "name", p.Name())
+	pm.logger.Debug("Kardia peer connected", "name", p.Name())
 
 	// Execute the Kardia handshake
 	var (
@@ -216,13 +220,13 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	)
 
 	if err := p.Handshake(pm.networkID, height, hash, genesis.Hash()); err != nil {
-		p.Log().Debug("Kardia handshake failed", "err", err)
+		pm.logger.Debug("Kardia handshake failed", "err", err)
 		return err
 	}
 
 	// Register the peer locally
 	if err := pm.peers.Register(p); err != nil {
-		p.Log().Error("Kardia peer registration failed", "err", err)
+		pm.logger.Error("Kardia peer registration failed", "err", err)
 		return err
 	}
 	defer pm.removePeer(p.id)
@@ -233,7 +237,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	// main loop. handle incoming messages.
 	for {
 		if err := pm.handleMsg(p); err != nil {
-			p.Log().Warn("Kardia message handling failed", "err", err)
+			pm.logger.Warn("Kardia message handling failed", "err", err)
 			return err
 		}
 	}
@@ -258,10 +262,10 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		// Status messages should never arrive after the handshake
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
 	case msg.Code == kcmn.TxMsg:
-		p.Log().Trace("Transactions received")
+		pm.logger.Trace("Transactions received")
 		// Transactions arrived, make sure we have a valid and fresh chain to handle them
 		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
-			p.Log().Trace("Skip received txs, acceptTxs flag is false")
+			pm.logger.Trace("Skip received txs, acceptTxs flag is false")
 			break
 		}
 		// Transactions can be processed, parse all of them and deliver to the pool
@@ -277,33 +281,33 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			p.MarkTransaction(tx.Hash())
 		}
 		pm.txpool.AddRemotes(txs)
-		p.Log().Trace("Transactions added to pool", "txs", txs)
+		pm.logger.Trace("Transactions added to pool", "txs", txs)
 	case msg.Code == kcmn.CsNewRoundStepMsg:
-		p.Log().Trace("NewRoundStep message received")
+		pm.logger.Trace("NewRoundStep message received")
 		pm.csReactor.ReceiveNewRoundStep(msg, p.Peer)
 	case msg.Code == kcmn.CsProposalMsg:
-		p.Log().Trace("Proposal message received")
+		pm.logger.Trace("Proposal message received")
 		pm.csReactor.ReceiveNewProposal(msg, p.Peer)
 	case msg.Code == kcmn.CsVoteMsg:
-		p.Log().Trace("Vote messsage received")
+		pm.logger.Trace("Vote messsage received")
 		pm.csReactor.ReceiveNewVote(msg, p.Peer)
 	case msg.Code == kcmn.CsHasVoteMsg:
-		p.Log().Trace("HasVote messsage received")
+		pm.logger.Trace("HasVote messsage received")
 		pm.csReactor.ReceiveHasVote(msg, p.Peer)
 	case msg.Code == kcmn.CsProposalPOLMsg:
-		p.Log().Trace("ProposalPOL messsage received")
+		pm.logger.Trace("ProposalPOL messsage received")
 		pm.csReactor.ReceiveProposalPOL(msg, p.Peer)
 	case msg.Code == kcmn.CsCommitStepMsg:
-		p.Log().Trace("CommitStep message received")
+		pm.logger.Trace("CommitStep message received")
 		pm.csReactor.ReceiveNewCommit(msg, p.Peer)
 	case msg.Code == kcmn.CsBlockMsg:
-		p.Log().Trace("Block message received")
+		pm.logger.Trace("Block message received")
 		pm.csReactor.ReceiveBlock(msg, p.Peer)
 	case msg.Code == kcmn.CsVoteSetMaj23Message:
-		p.Log().Trace("VoteSetMaj23 message received")
+		pm.logger.Trace("VoteSetMaj23 message received")
 		pm.csReactor.ReceiveVoteSetMaj23(msg, p.Peer)
 	case msg.Code == kcmn.CsVoteSetBitsMessage:
-		p.Log().Trace("VoteSetBits message received")
+		pm.logger.Trace("VoteSetBits message received")
 		pm.csReactor.ReceiveVoteSetBits(msg, p.Peer)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
@@ -313,7 +317,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 // syncTransactions sends all pending transactions to the new peer.
 func (pm *ProtocolManager) syncTransactions(p *peer) {
-	log.Trace("Sync txns to new peer", "peer", p)
+	pm.logger.Trace("Sync txns to new peer", "peer", p)
 	// TODO(thientn): sends transactions in chunks. This may send a large number of transactions.
 	// Breaks them to chunks here or inside AsyncSend to not overload the pipeline.
 	txsMap, _ := pm.txpool.Pending()
@@ -325,7 +329,7 @@ func (pm *ProtocolManager) syncTransactions(p *peer) {
 	if len(txs) == 0 {
 		return
 	}
-	log.Trace("Start sending pending transactions", "count", len(txs))
+	pm.logger.Trace("Start sending pending transactions", "count", len(txs))
 	p.AsyncSendTransactions(txs)
 }
 
@@ -344,7 +348,7 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 
 // A loop for broadcasting consensus events.
 func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
-	log.Info("Start broadcast consensus message", "msg", msg, "msgType", msgType)
+	pm.logger.Info("Start broadcast consensus message", "msg", msg, "msgType", msgType)
 	for _, p := range pm.peers.peers {
 		pm.wg.Add(1)
 		go func(p *peer) {
@@ -358,14 +362,14 @@ func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
 // already have the given transaction.
 func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	var txset = make(map[*peer]types.Transactions)
-	log.Info("Start broadcast txn", "txn", txs)
+	pm.logger.Info("Start broadcast txn", "txn", txs)
 	// Broadcast transactions to a batch of peers not knowing about it
 	for _, tx := range txs {
 		peers := pm.peers.PeersWithoutTx(tx.Hash())
 		for _, peer := range peers {
 			txset[peer] = append(txset[peer], tx)
 		}
-		log.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
+		pm.logger.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
 	}
 	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
 	for peer, txs := range txset {

@@ -153,7 +153,7 @@ func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 }
 
 func (l *logger) New(ctx ...interface{}) Logger {
-	child := &logger{newContext(l.ctx, ctx), new(swapHandler), nil}
+	child := &logger{newContext(l.ctx, ctx), new(swapHandler), l.tag}
 	child.SetHandler(l.h)
 	return child
 }

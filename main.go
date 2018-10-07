@@ -124,6 +124,9 @@ func main() {
 	votingStrategy := flag.String("votingStrategy", "", "specify the voting script or strategy to simulate voting. Note that this flag only has effect when --dev flag is set")
 	clearDataDir := flag.Bool("clearDataDir", false, "remove contents in data dir")
 	acceptTxs := flag.Int("acceptTxs", 1, "accept process tx or not, 1 is yes and 0 is no")
+	// TODO(thientn): remove dualChain & dualChainValidator flags when finish development
+	dualChain := flag.Bool("dualchain", false, "run dual chain for group concensus")
+	dualChainNumValid := flag.Int("dualvalidators", 0, "validators for group concensus")
 
 	flag.Parse()
 
@@ -169,7 +172,7 @@ func main() {
 	config := &node.DefaultConfig
 	config.P2P.ListenAddr = *listenAddr
 	config.Name = *name
-	config.AcceptTxs = uint32(*acceptTxs)
+	config.MainChainConfig.AcceptTxs = uint32(*acceptTxs)
 	var devEnv *development.DevEnvironmentConfig
 
 	if *rpcEnabled {
@@ -192,19 +195,37 @@ func main() {
 		// Simulate the voting strategy
 		devEnv.SetVotingStrategy(*votingStrategy)
 		config.DevEnvConfig = devEnv
-		config.NumValidators = *numValid
+		config.MainChainConfig.NumValidators = *numValid
 
 		// Setup config for kardia service
-		config.ChainData = development.ChainData
-		config.DbHandles = development.DbHandles
-		config.DbCache = development.DbCache
+		config.MainChainConfig.ChainData = development.ChainData
+		config.MainChainConfig.DbHandles = development.DbHandles
+		config.MainChainConfig.DbCache = development.DbCache
 
 		// Create genesis block with dev.genesisAccounts
-		config.Genesis = blockchain.DefaulTestnetFullGenesisBlock(development.GenesisAccounts, development.GenesisContracts)
+		config.MainChainConfig.Genesis = blockchain.DefaulTestnetFullGenesisBlock(development.GenesisAccounts, development.GenesisContracts)
 	}
 
 	nodeDir := filepath.Join(config.DataDir, config.Name)
-	config.TxPool = *blockchain.GetDefaultTxPoolConfig(nodeDir)
+	config.MainChainConfig.TxPool = *blockchain.GetDefaultTxPoolConfig(nodeDir)
+
+	if *dualChain {
+		if *dualChainNumValid > 0 {
+			config.DualChainConfig.NumValidators = *dualChainNumValid
+		} else {
+			config.DualChainConfig.NumValidators = *numValid
+		}
+
+		config.DualChainConfig.ChainData = "dualdata"
+		config.DualChainConfig.DbHandles = development.DbHandles
+		config.DualChainConfig.DbCache = development.DbCache
+		txPoolPath := filepath.Join(nodeDir, "dualchain")
+		if err := os.MkdirAll(txPoolPath, 0700); err != nil {
+			log.Error("fail to create dualchain tx path", "txPoolPath", txPoolPath)
+			return
+		}
+		config.DualChainConfig.TxPool = *blockchain.GetDefaultTxPoolConfig(txPoolPath)
+	}
 
 	if *clearDataDir {
 		// Clear all contents within data dir
@@ -223,6 +244,9 @@ func main() {
 	}
 
 	n.RegisterService(kai.NewKardiaService)
+	if *dualChain {
+		n.RegisterService(kai.NewDualService)
+	}
 	if err := n.Start(); err != nil {
 		logger.Error("Cannot start node", "err", err)
 		return

@@ -21,11 +21,11 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/kardiachain/go-kardia/blockchain"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -37,6 +37,30 @@ const (
 	datadirPrivateKey      = "nodekey"  // Path within the datadir to the node's private key
 	datadirDefaultKeyStore = "keystore" // Path within the datadir to the keystore
 )
+
+type ChainConfig struct {
+	// Mainchain
+	// Number of validators.
+	NumValidators int
+
+	// ChainData is directory that stores levelDB data
+	ChainData string
+
+	// DbCache is a param used to start levelDB
+	DbCache int
+
+	// DbHandles is a param used to start levelDB
+	DbHandles int
+
+	// Genesis is genesis block which contain initial Block and accounts
+	Genesis *blockchain.Genesis
+
+	// Transaction pool options
+	TxPool blockchain.TxPoolConfig
+
+	// AcceptTxs accept tx sync process or not (1 is yes and 0 is no)
+	AcceptTxs uint32
+}
 
 type NodeConfig struct {
 	// Name sets the instance name of the node. It must not contain the / character and is
@@ -103,26 +127,11 @@ type NodeConfig struct {
 	DevNodeConfig *dev.DevNodeConfig
 	// Additional config of this environment when running as dev.
 	DevEnvConfig *dev.DevEnvironmentConfig
-	// Number of validators.
-	NumValidators int
 
-	// ChainData is directory that stores levelDB data
-	ChainData string
+	// TODO(thientn/namdoh): evaluate refactor this further
+	MainChainConfig ChainConfig
 
-	// DbCache is a param used to start levelDB
-	DbCache int
-
-	// DbHandles is a param used to start levelDB
-	DbHandles int
-
-	// Genesis is genesis block which contain initial Block and accounts
-	Genesis *blockchain.Genesis
-
-	// Transaction pool options
-	TxPool blockchain.TxPoolConfig
-
-	// AcceptTxs accept tx sync process or not (1 is yes and 0 is no)
-	AcceptTxs uint32
+	DualChainConfig ChainConfig
 }
 
 // NodeName returns the devp2p node identifier.

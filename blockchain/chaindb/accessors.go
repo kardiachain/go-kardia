@@ -189,7 +189,7 @@ func WriteCommitRLP(db DatabaseWriter, height uint64, rlp rlp.RawValue) {
 //
 // Note, due to concurrent download of header and block body the header and thus
 // canonical hash can be stored in the database but the body data not (yet).
-func ReadBlock(db DatabaseReader, hash common.Hash, height uint64) *types.Block {
+func ReadBlock(logger log.Logger, db DatabaseReader, hash common.Hash, height uint64) *types.Block {
 	header := ReadHeader(db, hash, height)
 	if header == nil {
 		return nil
@@ -198,7 +198,7 @@ func ReadBlock(db DatabaseReader, hash common.Hash, height uint64) *types.Block 
 	if body == nil {
 		return nil
 	}
-	return types.NewBlockWithHeader(header).WithBody(body)
+	return types.NewBlockWithHeader(logger, header).WithBody(body)
 }
 
 // ReadHeader retrieves the block header corresponding to the hash.
