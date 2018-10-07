@@ -51,7 +51,7 @@ type ConsensusManager struct {
 // consensusState.
 func NewConsensusManager(consensusState *ConsensusState) *ConsensusManager {
 	return &ConsensusManager{
-		logger: consensusState.Logger,
+		logger: consensusState.logger,
 		conS:   consensusState,
 	}
 }
