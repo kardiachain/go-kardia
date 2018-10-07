@@ -209,7 +209,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	if pm.peers.Len() >= pm.maxPeers && !p.Peer.Info().Network.Trusted {
 		return p2p.DiscTooManyPeers
 	}
-	p.Log().Debug("Kardia peer connected", "name", p.Name())
+	pm.logger.Debug("Kardia peer connected", "name", p.Name())
 
 	// Execute the Kardia handshake
 	var (
@@ -219,13 +219,13 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	)
 
 	if err := p.Handshake(pm.networkID, height, hash, genesis.Hash()); err != nil {
-		p.Log().Debug("Kardia handshake failed", "err", err)
+		pm.logger.Debug("Kardia handshake failed", "err", err)
 		return err
 	}
 
 	// Register the peer locally
 	if err := pm.peers.Register(p); err != nil {
-		p.Log().Error("Kardia peer registration failed", "err", err)
+		pm.logger.Error("Kardia peer registration failed", "err", err)
 		return err
 	}
 	defer pm.removePeer(p.id)
@@ -236,7 +236,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	// main loop. handle incoming messages.
 	for {
 		if err := pm.handleMsg(p); err != nil {
-			p.Log().Warn("Kardia message handling failed", "err", err)
+			pm.logger.Warn("Kardia message handling failed", "err", err)
 			return err
 		}
 	}
@@ -261,10 +261,10 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		// Status messages should never arrive after the handshake
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
 	case msg.Code == kcmn.TxMsg:
-		p.Log().Trace("Transactions received")
+		pm.logger.Trace("Transactions received")
 		// Transactions arrived, make sure we have a valid and fresh chain to handle them
 		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
-			p.Log().Trace("Skip received txs, acceptTxs flag is false")
+			pm.logger.Trace("Skip received txs, acceptTxs flag is false")
 			break
 		}
 		// Transactions can be processed, parse all of them and deliver to the pool
@@ -280,33 +280,33 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			p.MarkTransaction(tx.Hash())
 		}
 		pm.txpool.AddRemotes(txs)
-		p.Log().Trace("Transactions added to pool", "txs", txs)
+		pm.logger.Trace("Transactions added to pool", "txs", txs)
 	case msg.Code == kcmn.CsNewRoundStepMsg:
-		p.Log().Trace("NewRoundStep message received")
+		pm.logger.Trace("NewRoundStep message received")
 		pm.csReactor.ReceiveNewRoundStep(msg, p.Peer)
 	case msg.Code == kcmn.CsProposalMsg:
-		p.Log().Trace("Proposal message received")
+		pm.logger.Trace("Proposal message received")
 		pm.csReactor.ReceiveNewProposal(msg, p.Peer)
 	case msg.Code == kcmn.CsVoteMsg:
-		p.Log().Trace("Vote messsage received")
+		pm.logger.Trace("Vote messsage received")
 		pm.csReactor.ReceiveNewVote(msg, p.Peer)
 	case msg.Code == kcmn.CsHasVoteMsg:
-		p.Log().Trace("HasVote messsage received")
+		pm.logger.Trace("HasVote messsage received")
 		pm.csReactor.ReceiveHasVote(msg, p.Peer)
 	case msg.Code == kcmn.CsProposalPOLMsg:
-		p.Log().Trace("ProposalPOL messsage received")
+		pm.logger.Trace("ProposalPOL messsage received")
 		pm.csReactor.ReceiveProposalPOL(msg, p.Peer)
 	case msg.Code == kcmn.CsCommitStepMsg:
-		p.Log().Trace("CommitStep message received")
+		pm.logger.Trace("CommitStep message received")
 		pm.csReactor.ReceiveNewCommit(msg, p.Peer)
 	case msg.Code == kcmn.CsBlockMsg:
-		p.Log().Trace("Block message received")
+		pm.logger.Trace("Block message received")
 		pm.csReactor.ReceiveBlock(msg, p.Peer)
 	case msg.Code == kcmn.CsVoteSetMaj23Message:
-		p.Log().Trace("VoteSetMaj23 message received")
+		pm.logger.Trace("VoteSetMaj23 message received")
 		pm.csReactor.ReceiveVoteSetMaj23(msg, p.Peer)
 	case msg.Code == kcmn.CsVoteSetBitsMessage:
-		p.Log().Trace("VoteSetBits message received")
+		pm.logger.Trace("VoteSetBits message received")
 		pm.csReactor.ReceiveVoteSetBits(msg, p.Peer)
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)

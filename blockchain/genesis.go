@@ -76,7 +76,7 @@ func (e *GenesisMismatchError) Error() string {
 //     db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(logger log.Logger, db kaidb.Database, genesis *Genesis) (*configs.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		// TODO(huny@): should we return another default config?
 		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
@@ -86,19 +86,19 @@ func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfi
 	stored := chaindb.ReadCanonicalHash(db, 0)
 	if (stored == common.Hash{}) {
 		if genesis == nil {
-			log.Info("Writing default main-net genesis block")
+			logger.Info("Writing default main-net genesis block")
 			genesis = DefaultGenesisBlock()
 		} else {
-			log.Info("Writing custom genesis block")
+			logger.Info("Writing custom genesis block")
 		}
-		block, err := genesis.Commit(db)
+		block, err := genesis.Commit(logger, db)
 		return genesis.Config, block.Hash(), err
 	}
 
 	// Check whether the genesis block is already written.
 	if genesis != nil {
-		log.Info("Create new genesis block")
-		hash := genesis.ToBlock(nil).Hash()
+		logger.Info("Create new genesis block")
+		hash := genesis.ToBlock(logger, nil).Hash()
 		if hash != stored {
 			return genesis.Config, hash, &GenesisMismatchError{stored, hash}
 		}
@@ -108,7 +108,7 @@ func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfi
 	newcfg := genesis.configOrDefault(stored)
 	storedcfg := chaindb.ReadChainConfig(db, stored)
 	if storedcfg == nil {
-		log.Warn("Found genesis block without chain config")
+		logger.Warn("Found genesis block without chain config")
 		chaindb.WriteChainConfig(db, stored, newcfg)
 		return newcfg, stored, nil
 	}
@@ -138,11 +138,11 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *configs.ChainConfig {
 
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
-func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
+func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 	if db == nil {
 		db = kaidb.NewMemStore()
 	}
-	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
+	statedb, _ := state.New(logger, common.Hash{}, state.NewDatabase(db))
 
 	for addr, account := range g.Alloc {
 		statedb.AddBalance(addr, account.Balance)
@@ -165,13 +165,13 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 
-	return types.NewBlock(head, nil, nil, &types.Commit{})
+	return types.NewBlock(logger, head, nil, nil, &types.Commit{})
 }
 
 // Commit writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
-func (g *Genesis) Commit(db kaidb.Database) (*types.Block, error) {
-	block := g.ToBlock(db)
+func (g *Genesis) Commit(logger log.Logger, db kaidb.Database) (*types.Block, error) {
+	block := g.ToBlock(logger, db)
 	if block.Height() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with height > 0")
 	}

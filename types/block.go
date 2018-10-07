@@ -134,6 +134,8 @@ type BlockAccount struct {
 
 // Block represents an entire block in the Kardia blockchain.
 type Block struct {
+	logger log.Logger
+
 	mtx          sync.Mutex
 	header       *Header
 	transactions Transactions
@@ -157,8 +159,12 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit) *Block {
-	b := &Block{header: CopyHeader(header), lastCommit: CopyCommit(commit)}
+func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit) *Block {
+	b := &Block{
+		logger:     logger,
+		header:     CopyHeader(header),
+		lastCommit: CopyCommit(commit),
+	}
 
 	if len(txs) == 0 {
 		b.header.TxHash = EmptyRootHash
@@ -178,10 +184,10 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *C
 
 	if b.header.LastCommitHash.IsZero() {
 		if commit == nil {
-			log.Error("NewBlock - commit should never be nil.")
+			b.logger.Error("NewBlock - commit should never be nil.")
 			b.header.LastCommitHash = common.NewZeroHash()
 		} else {
-			log.Trace("Compute last commit hash", "commit", commit)
+			b.logger.Trace("Compute last commit hash", "commit", commit)
 			b.header.LastCommitHash = commit.Hash()
 		}
 	}
@@ -305,7 +311,7 @@ func (b *Block) LastCommit() *Commit         { return b.lastCommit }
 // struct pointer as nil. After encoding an empty struct and send it over to
 // another node, decoding it would become nil.
 func (b *Block) SetLastCommit(c *Commit) {
-	log.Error("SetLastCommit is a hack. Remove asap!!")
+	b.logger.Error("SetLastCommit is a hack. Remove asap!!")
 	b.lastCommit = c
 }
 
@@ -351,7 +357,7 @@ func (b *Block) ValidateBasic() error {
 		}
 	}
 	// TODO(namdoh): Re-enable check for Data hash.
-	log.Info("Block.ValidateBasic() - not yet implement validating data hash.")
+	b.logger.Info("Block.ValidateBasic() - not yet implement validating data hash.")
 	//if !bytes.Equal(b.DataHash, b.Data.Hash()) {
 	//	return fmt.Errorf("Wrong Block.Header.DataHash.  Expected %v, got %v", b.DataHash, b.Data.Hash())
 	//}
@@ -386,7 +392,7 @@ func (b *Block) BlockID() BlockID {
 // The hash is computed on the first call and cached thereafter.
 func (b *Block) Hash() common.Hash {
 	if b == nil {
-		log.Warn("Hashing nil block")
+		b.logger.Warn("Hashing nil block")
 		return common.Hash{}
 	}
 

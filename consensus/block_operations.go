@@ -75,7 +75,7 @@ func (bo *BlockOperations) NewHeader(height int64, numTxs uint64, blockId types.
 
 // NewBlock creates new block from given data.
 func (bo *BlockOperations) NewBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
-	block := types.NewBlock(header, txs, receipts, commit)
+	block := types.NewBlock(bo.logger, header, txs, receipts, commit)
 
 	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
 	// LastResultHash.
@@ -197,7 +197,7 @@ func (bo *BlockOperations) CommitTransactions(txs types.Transactions, header *ty
 		state.Prepare(tx.Hash(), common.Hash{}, counter)
 		snap := state.Snapshot()
 		// TODO(thientn): confirms nil coinbase is acceptable.
-		receipt, _, err := blockchain.ApplyTransaction(bo.blockchain, gasPool, state, header, tx, usedGas, vm.Config{})
+		receipt, _, err := blockchain.ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, vm.Config{})
 		if err != nil {
 			state.RevertToSnapshot(snap)
 			// TODO(thientn): check error type and jump to next tx if possible

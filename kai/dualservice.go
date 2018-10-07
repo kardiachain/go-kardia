@@ -46,35 +46,39 @@ type DualService struct {
 // initialisation of the common DualService object)
 func newDualService(ctx *node.ServiceContext, config *Config) (*DualService, error) {
 	log.Info("newDualService", "chaindata", config.ChainData)
+
+	// Create a specific logger for KARDIA service.
+	logger := log.New()
+	logger.AddTag("DUAL")
+
 	groupDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
 	if err != nil {
 		return nil, err
 	}
 
-	chainConfig, _, genesisErr := blockchain.SetupGenesisBlock(groupDb, config.Genesis)
+	chainConfig, _, genesisErr := blockchain.SetupGenesisBlock(logger, groupDb, config.Genesis)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
-	log.Info("Initialised dual chain configuration", "config", chainConfig)
+	logger.Info("Initialised dual chain configuration", "config", chainConfig)
 
 	dualS := &DualService{
-		logger:       log.New(),
+		logger:       logger,
 		config:       config,
 		groupDb:      groupDb,
 		chainConfig:  chainConfig,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 	}
-	dualS.logger.AddTag("DUAL")
-	dualS.logger.Info("Initialising protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
+	logger.Info("Initialising protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
 
 	// Create a new blockchain to attach to this GroupService struct
-	dualS.blockchain, err = blockchain.NewBlockChain(groupDb, dualS.chainConfig)
+	dualS.blockchain, err = blockchain.NewBlockChain(logger, groupDb, dualS.chainConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	dualS.txPool = blockchain.NewTxPool(config.TxPool, dualS.chainConfig, dualS.blockchain)
+	dualS.txPool = blockchain.NewTxPool(logger, config.TxPool, dualS.chainConfig, dualS.blockchain)
 
 	// Initialization for consensus.
 	block := dualS.blockchain.CurrentBlock()

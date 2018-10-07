@@ -46,6 +46,7 @@ We let each peer provide us with up to 2 unexpected "catchup" rounds.
 One for their LastCommit round, and another for the official commit round.
 */
 type HeightVoteSet struct {
+	logger  log.Logger
 	chainID string
 	height  *cmn.BigInt
 	valSet  *types.ValidatorSet
@@ -57,8 +58,9 @@ type HeightVoteSet struct {
 	// peerCatchupRounds map[p2p.ID][]int     // keys: peer.ID; values: at most 2 rounds
 }
 
-func NewHeightVoteSet(chainID string, height *cmn.BigInt, valSet *types.ValidatorSet) *HeightVoteSet {
+func NewHeightVoteSet(logger log.Logger, chainID string, height *cmn.BigInt, valSet *types.ValidatorSet) *HeightVoteSet {
 	hvs := &HeightVoteSet{
+		logger:  logger,
 		chainID: chainID,
 	}
 	hvs.Reset(height, valSet)
@@ -82,7 +84,7 @@ func (hvs *HeightVoteSet) addRound(round int) {
 	if _, ok := hvs.roundVoteSets[round]; ok {
 		cmn.PanicSanity("addRound() for an existing round")
 	}
-	// log.Debug("addRound(round)", "round", round)
+	// hvs.logger.Debug("addRound(round)", "round", round)
 	prevotes := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt(int64(round)), types.VoteTypePrevote, hvs.valSet)
 	precommits := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt(int64(round)), types.VoteTypePrecommit, hvs.valSet)
 	hvs.roundVoteSets[round] = RoundVoteSet{
@@ -95,7 +97,7 @@ func (hvs *HeightVoteSet) addRound(round int) {
 func (hvs *HeightVoteSet) SetRound(round int) {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
-	log.Trace("Set round", "hvs.round", hvs.round, "round", round)
+	hvs.logger.Trace("Set round", "hvs.round", hvs.round, "round", round)
 	if !hvs.round.EqualsInt(0) && hvs.round.Add(1).IsGreaterThanInt(round) {
 		cmn.PanicSanity("SetRound() must increment hvs.round")
 	}
@@ -119,7 +121,7 @@ func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID discover.NodeID) (add
 	voteSet := hvs.getVoteSet(vote.Round.Int32(), vote.Type)
 	if voteSet == nil {
 		//panic("HeightVoteSet.AddVote - not yet implemented")
-		log.Error("HeightVoteSet.AddVote - not yet implemented")
+		hvs.logger.Error("HeightVoteSet.AddVote - not yet implemented")
 		//return
 		// TODO(namdoh): Re-enable this later.
 		//if rndz := hvs.peerCatchupRounds[peerID]; len(rndz) < 2 {

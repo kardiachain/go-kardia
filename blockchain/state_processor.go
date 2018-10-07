@@ -50,13 +50,15 @@ var (
 //
 // StateProcessor implements Processor.
 type StateProcessor struct {
-	bc *BlockChain // Canonical block chain
+	logger log.Logger
+	bc     *BlockChain // Canonical block chain
 }
 
 // NewStateProcessor initialises a new StateProcessor.
-func NewStateProcessor(bc *BlockChain) *StateProcessor {
+func NewStateProcessor(logger log.Logger, bc *BlockChain) *StateProcessor {
 	return &StateProcessor{
-		bc: bc,
+		logger: logger,
+		bc:     bc,
 	}
 }
 
@@ -77,7 +79,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		receipt, _, err := ApplyTransaction(p.bc, gp, statedb, header, tx, usedGas, cfg)
+		receipt, _, err := ApplyTransaction(p.logger, p.bc, gp, statedb, header, tx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, 0, err
 		}
@@ -113,7 +115,7 @@ func ExecuteStaticCall(bc ChainContext, statedb *state.StateDB, header *types.He
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(bc ChainContext, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
+func ApplyTransaction(logger log.Logger, bc ChainContext, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
 	msg, err := tx.AsMessage()
 	if err != nil {
 		return nil, 0, err
@@ -128,7 +130,7 @@ func ApplyTransaction(bc ChainContext, gp *GasPool, statedb *state.StateDB, head
 	if err != nil {
 		return nil, 0, err
 	}
-	log.Info("Applying msg successfully", "rep", msg.To().String())
+	logger.Info("Applying msg successfully", "rep", msg.To().String())
 	// Update the state with pending changes
 	root := statedb.IntermediateRoot(true).Bytes()
 	*usedGas += gas

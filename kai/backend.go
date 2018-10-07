@@ -77,37 +77,40 @@ func (s *Kardia) AddKaiServer(ks KardiaSubService) {
 func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	log.Info("newKardia", "chaindata", config.ChainData)
 
+	// Create a specific logger for KARDIA service.
+	logger := log.New()
+	logger.AddTag("KARDIA")
+
 	kaiDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
 	if err != nil {
 		return nil, err
 	}
 
-	chainConfig, _, genesisErr := blockchain.SetupGenesisBlock(kaiDb, config.Genesis)
+	chainConfig, _, genesisErr := blockchain.SetupGenesisBlock(logger, kaiDb, config.Genesis)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
-	log.Info("Initialised Kardia chain configuration", "config", chainConfig)
+	logger.Info("Initialised Kardia chain configuration", "config", chainConfig)
 
 	kai := &Kardia{
-		logger:       log.New(),
+		logger:       logger,
 		config:       config,
 		kaiDb:        kaiDb,
 		chainConfig:  chainConfig,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 	}
-	kai.logger.AddTag("KARDIA")
-	kai.logger.Info("Initialising protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
+	logger.Info("Initialising protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
 
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
 	// Create a new blockchain to attach to this Kardia object
-	kai.blockchain, err = blockchain.NewBlockChain(kaiDb, kai.chainConfig)
+	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	kai.txPool = blockchain.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
+	kai.txPool = blockchain.NewTxPool(logger, config.TxPool, kai.chainConfig, kai.blockchain)
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()

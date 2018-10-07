@@ -257,7 +257,7 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 	cs.LockedBlock = nil
 	cs.ValidRound = cmn.NewBigInt(0)
 	cs.ValidBlock = nil
-	cs.Votes = cstypes.NewHeightVoteSet(state.ChainID, height, validators)
+	cs.Votes = cstypes.NewHeightVoteSet(cs.Logger, state.ChainID, height, validators)
 	cs.CommitRound = cmn.NewBigInt(-1)
 	cs.LastCommit = lastPrecommits
 	cs.LastValidators = state.LastValidators
