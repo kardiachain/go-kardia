@@ -15,7 +15,9 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
-const DualNetworkID = 200 // TODO: change this to be diff than main kardia service or the same
+const DualNetworkID = 100 // TODO: change this to be diff than main kardia service or the same
+
+const dualProtocolName = "dualptc"
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
 
@@ -105,8 +107,7 @@ func newDualService(ctx *node.ServiceContext, config *Config) (*DualService, err
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
 	dualS.csManager.SetPrivValidator(privValidator)
 
-	// Initialize protocol manager.
-	if dualS.protocolManager, err = NewProtocolManager(dualS.logger, config.NetworkId, dualS.blockchain, dualS.chainConfig, dualS.txPool, dualS.csManager); err != nil {
+	if dualS.protocolManager, err = NewProtocolManager(dualProtocolName, dualS.logger, config.NetworkId, dualS.blockchain, dualS.chainConfig, dualS.txPool, dualS.csManager); err != nil {
 		return nil, err
 	}
 	dualS.protocolManager.acceptTxs = config.AcceptTxs

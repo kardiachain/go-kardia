@@ -36,6 +36,8 @@ import (
 
 const DefaultNetworkID = 100
 
+const kaiProtocolName = "kaiptc"
+
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
 type KardiaSubService interface {
 	Start(srvr *p2p.Server)
@@ -138,7 +140,8 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	kai.csManager.SetPrivValidator(privValidator)
 
 	// Initialize protocol manager.
-	if kai.protocolManager, err = NewProtocolManager(kai.logger, config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csManager); err != nil {
+
+	if kai.protocolManager, err = NewProtocolManager(kaiProtocolName, kai.logger, config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csManager); err != nil {
 		return nil, err
 	}
 	kai.protocolManager.acceptTxs = config.AcceptTxs

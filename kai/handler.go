@@ -93,7 +93,8 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Kardia sub protocol manager. The Kardia sub protocol manages peers capable
 // with the Kardia network.
-func NewProtocolManager(logger log.Logger, networkID uint64, blockchain *blockchain.BlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool, csReactor *consensus.ConsensusManager) (*ProtocolManager, error) {
+func NewProtocolManager(protocolName string, logger log.Logger, networkID uint64, blockchain *blockchain.BlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool, csReactor *consensus.ConsensusManager) (*ProtocolManager, error) {
+
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		logger:      logger,
@@ -113,7 +114,7 @@ func NewProtocolManager(logger log.Logger, networkID uint64, blockchain *blockch
 		// Compatible; initialise the sub-protocol
 		version := version // Closure for the run
 		manager.SubProtocols = append(manager.SubProtocols, p2p.Protocol{
-			Name:    kcmn.ProtocolName,
+			Name:    protocolName,
 			Version: version,
 			Length:  kcmn.ProtocolLengths[i],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
