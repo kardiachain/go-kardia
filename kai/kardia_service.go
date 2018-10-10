@@ -119,12 +119,12 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSet(ctx.Config.MainChainConfig.NumValidators)
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon",
-		LastBlockHeight:             cmn.NewBigInt(int64(block.Height())),
+		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
 		LastBlockID:                 block.BlockID(),
 		LastBlockTime:               block.Time(),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: cmn.NewBigInt(-1),
+		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
 	}
 	consensusState := consensus.NewConsensusState(
 		kai.logger,

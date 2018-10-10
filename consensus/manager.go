@@ -644,7 +644,7 @@ OUTER_LOOP:
 		if !prs.Height.EqualsInt(0) && rs.Height.IsGreaterThanOrEqualToInt64(prs.Height.Int64()+2) {
 			// Load the block commit for prs.Height,
 			// which contains precommit signatures for prs.Height.
-			commit := conR.conS.blockOperations.LoadBlockCommit(uint64(prs.Height.Int64()))
+			commit := conR.conS.blockOperations.LoadBlockCommit(prs.Height.Uint64())
 			if ps.PickSendVote(commit) {
 				logger.Debug("Picked Catchup commit to send", "height", prs.Height)
 				continue OUTER_LOOP
@@ -788,7 +788,7 @@ OUTER_LOOP:
 		{
 			prs := ps.GetRoundState()
 			if !prs.CatchupCommitRound.EqualsInt(-1) && prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThanInt64(int64(conR.conS.blockOperations.Height())) {
-				commit := conR.conS.blockOperations.LoadBlockCommit(uint64(prs.Height.Int64()))
+				commit := conR.conS.blockOperations.LoadBlockCommit(prs.Height.Uint64())
 				p2p.Send(ps.rw, kcmn.CsVoteSetMaj23Message, &VoteSetMaj23Message{
 					Height:  prs.Height,
 					Round:   commit.Round(),
@@ -915,11 +915,11 @@ func NewPeerState(peer *p2p.Peer, rw p2p.MsgReadWriter) *PeerState {
 		peer: peer,
 		rw:   rw,
 		PRS: cstypes.PeerRoundState{
-			Height:             cmn.NewBigInt(0),
-			Round:              cmn.NewBigInt(-1),
-			ProposalPOLRound:   cmn.NewBigInt(-1),
-			LastCommitRound:    cmn.NewBigInt(-1),
-			CatchupCommitRound: cmn.NewBigInt(-1),
+			Height:             cmn.NewBigInt32(0),
+			Round:              cmn.NewBigInt32(-1),
+			ProposalPOLRound:   cmn.NewBigInt32(-1),
+			LastCommitRound:    cmn.NewBigInt32(-1),
+			CatchupCommitRound: cmn.NewBigInt32(-1),
 			StartTime:          big.NewInt(0),
 		},
 	}
@@ -995,7 +995,7 @@ func (ps *PeerState) PickVoteToSend(votes types.VoteSetReader) (vote *types.Vote
 		return nil, false // Not something worth sending
 	}
 	if index, ok := votes.BitArray().Sub(psVotes).PickRandom(); ok {
-		ps.setHasVote(height, round, type_, cmn.NewBigInt(int64(index)))
+		ps.setHasVote(height, round, type_, cmn.NewBigInt32(index))
 		return votes.GetByIndex(uint(index)), true
 	}
 	return nil, false
@@ -1137,7 +1137,7 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 	if !psHeight.Equals(msg.Height) || !psRound.Equals(msg.Round) {
 		ps.PRS.Proposal = false
 		ps.PRS.ProposalBlockHeader = cmn.Hash{}
-		ps.PRS.ProposalPOLRound = cmn.NewBigInt(-1)
+		ps.PRS.ProposalPOLRound = cmn.NewBigInt32(-1)
 		ps.PRS.ProposalPOL = nil
 		// We'll update the BitArray capacity later.
 		ps.PRS.Prevotes = nil
@@ -1155,7 +1155,7 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 			ps.PRS.LastCommitRound = msg.LastCommitRound
 			ps.PRS.LastCommit = nil
 		}
-		ps.PRS.CatchupCommitRound = cmn.NewBigInt(-1)
+		ps.PRS.CatchupCommitRound = cmn.NewBigInt32(-1)
 		ps.PRS.CatchupCommit = nil
 	}
 }

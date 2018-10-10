@@ -87,12 +87,12 @@ func newDualService(ctx *node.ServiceContext, config *Config) (*DualService, err
 	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSet(ctx.Config.DualChainConfig.NumValidators)
 	state := state.LastestBlockState{
 		ChainID:                     "kaigroupcon",
-		LastBlockHeight:             cmn.NewBigInt(int64(block.Height())),
+		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
 		LastBlockID:                 block.BlockID(),
 		LastBlockTime:               block.Time(),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: cmn.NewBigInt(-1),
+		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
 	}
 	consensusState := consensus.NewConsensusState(
 		dualS.logger,
