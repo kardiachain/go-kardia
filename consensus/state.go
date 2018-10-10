@@ -1059,7 +1059,7 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 	// If we don't have the block being committed, set up to get it.
 	// cs.ProposalBlock is confirmed not nil from caller.
 	if cs.ProposalBlock == nil || !cs.ProposalBlock.HashesTo(blockID) {
-		logger.Info("Commit is for a block we don't know about. Set ProposalBlock=nil", "proposal", cs.ProposalBlock.Hash(), "commit", blockID)
+		logger.Info("Commit is for a block we don't know about. Set ProposalBlock=nil", "commit", blockID)
 		// We're getting the wrong block.
 		// Set up ProposalBlock and keep waiting.
 		if !cs.ProposalBlockID.Equal(blockID) {
