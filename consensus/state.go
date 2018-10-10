@@ -20,6 +20,7 @@ package consensus
 
 import (
 	"bytes"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -311,6 +312,7 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 	polRound, polBlockID := cs.Votes.POLInfo()
 	proposal := types.NewProposal(height, round, block, cmn.NewBigInt(int64(polRound)), polBlockID)
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
+
 		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
 		// Send proposal on internal msg queue
 		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, discover.ZeroNodeID()})
@@ -535,7 +537,13 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 	switch vote.Type {
 	case types.VoteTypePrevote:
 		prevotes := cs.Votes.Prevotes(vote.Round.Int32())
-		cs.logger.Info("Added to prevote", "vote", vote, "prevotes", prevotes.StringShort())
+		voteBlockID := vote.BlockID.String()[len(vote.BlockID.String())-12:]
+		voteSignatureToString := hex.EncodeToString(vote.Signature)
+		voteSignature := voteSignatureToString[len(voteSignatureToString)-12:]
+		voteValidatorAddress := vote.ValidatorAddress.String()[len(vote.ValidatorAddress.String())-12:]
+
+		cs.logger.Info("Added to prevote", "voteHeight", vote.Height, "voteBlockID", voteBlockID, "voteRound", vote.Round, "voteSignature", voteSignature, "voteTimestamp", vote.Timestamp, "voteType",
+			vote.Type, "voteValidatorAddress", voteValidatorAddress, "voteValidatorIndex", vote.ValidatorIndex, "prevotes", prevotes.StringShort())
 
 		// If +2/3 prevotes for a block or nil for *any* round:
 		if blockID, ok := prevotes.TwoThirdsMajority(); ok {
@@ -590,7 +598,13 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 
 	case types.VoteTypePrecommit:
 		precommits := cs.Votes.Precommits(vote.Round.Int32())
-		cs.logger.Info("Added to precommit", "vote", vote, "precommits", precommits.StringShort())
+		voteBlockID := vote.BlockID.String()[len(vote.BlockID.String())-12:]
+		voteSignatureToString := hex.EncodeToString(vote.Signature)
+		voteSignature := voteSignatureToString[len(voteSignatureToString)-12:]
+		voteValidatorAddress := vote.ValidatorAddress.String()[len(vote.ValidatorAddress.String())-12:]
+
+		cs.logger.Info("Added to precommit", "voteHeight", vote.Height, "voteBlockID", voteBlockID, "voteRound", vote.Round, "voteSignature", voteSignature, "voteTimestamp", vote.Timestamp, "voteType",
+			vote.Type, "voteValidatorAddress", voteValidatorAddress, "voteValidatorIndex", vote.ValidatorIndex, "precommits", precommits.StringShort())
 		blockID, ok := precommits.TwoThirdsMajority()
 		if ok {
 			if blockID.IsZero() {
