@@ -300,6 +300,10 @@ func (x *BigInt) Int64() int64 {
 	return int64(x.Value) * -1
 }
 
+func (x *BigInt) Uint64() uint64 {
+	return uint64(x.Int64())
+}
+
 func (x *BigInt) Copy() *BigInt {
 	cpy := *x
 	return &cpy
