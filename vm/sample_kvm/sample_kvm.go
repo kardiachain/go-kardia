@@ -8,6 +8,7 @@ import (
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
 	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/vm"
@@ -83,7 +84,7 @@ func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+		cfg.State, _ = state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	}
 	var (
 		address = common.BytesToAddress([]byte("contract"))
@@ -113,7 +114,7 @@ func Create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+		cfg.State, _ = state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	}
 	var (
 		vmenv  = NewEnv(cfg)

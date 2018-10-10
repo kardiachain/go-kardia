@@ -19,12 +19,14 @@
 package tool
 
 import (
+	"testing"
+
 	development "github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
 	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
-	"testing"
 )
 
 func TestGenerateTx(t *testing.T) {
@@ -44,7 +46,7 @@ func TestGenerateTx(t *testing.T) {
 }
 
 func TestGenerateRandomTxWithState(t *testing.T) {
-	statedb, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	result := GenerateRandomTxWithState(10, statedb)
 	for _, tx := range result {
 		from, _ := types.Sender(tx)
