@@ -82,12 +82,12 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 	if state.LastBlockTotalTx == nil {
 		totalTx = nil
 	} else {
-		totalTx = state.LastBlockTotalTx.Add(int64(header.NumTxs))
+		totalTx = state.LastBlockTotalTx.AddUint64(header.NumTxs)
 	}
 
 	return LastestBlockState{
 		ChainID:                     state.ChainID,
-		LastBlockHeight:             cmn.NewBigInt(int64(header.Height)),
+		LastBlockHeight:             cmn.NewBigUint64(header.Height),
 		LastBlockTotalTx:            totalTx,
 		LastBlockID:                 blockID,
 		LastBlockTime:               header.Time,

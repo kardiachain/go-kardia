@@ -81,7 +81,7 @@ func (hvs *HeightVoteSet) Reset(height *cmn.BigInt, valSet *types.ValidatorSet) 
 	hvs.peerCatchupRounds = make(map[discover.NodeID][]int)
 
 	hvs.addRound(0)
-	hvs.round = cmn.NewBigInt(0)
+	hvs.round = cmn.NewBigInt32(0)
 }
 
 func (hvs *HeightVoteSet) addRound(round int) {
@@ -89,8 +89,8 @@ func (hvs *HeightVoteSet) addRound(round int) {
 		cmn.PanicSanity("addRound() for an existing round")
 	}
 	hvs.logger.Trace("addRound(round)", "round", round)
-	prevotes := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt(int64(round)), types.VoteTypePrevote, hvs.valSet)
-	precommits := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt(int64(round)), types.VoteTypePrecommit, hvs.valSet)
+	prevotes := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt32(round), types.VoteTypePrevote, hvs.valSet)
+	precommits := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt32(round), types.VoteTypePrecommit, hvs.valSet)
 	hvs.roundVoteSets[round] = RoundVoteSet{
 		Prevotes:   prevotes,
 		Precommits: precommits,
@@ -111,7 +111,7 @@ func (hvs *HeightVoteSet) SetRound(round int) {
 		}
 		hvs.addRound(r)
 	}
-	hvs.round = cmn.NewBigInt(int64(round))
+	hvs.round = cmn.NewBigInt32(round)
 }
 
 // Duplicate votes return added=false, err=nil.

@@ -70,8 +70,8 @@ type timeoutInfo struct {
 func EmptyTimeoutInfo() *timeoutInfo {
 	return &timeoutInfo{
 		Duration: 0,
-		Height:   cmn.NewBigInt(0),
-		Round:    cmn.NewBigInt(0),
+		Height:   cmn.NewBigInt32(0),
+		Round:    cmn.NewBigInt32(0),
 		Step:     0,
 	}
 }
@@ -141,8 +141,8 @@ func NewConsensusState(
 		done:             make(chan struct{}),
 		evsw:             libevents.NewEventSwitch(),
 		RoundState: cstypes.RoundState{
-			CommitRound: cmn.NewBigInt(0),
-			Height:      cmn.NewBigInt(0),
+			CommitRound: cmn.NewBigInt32(0),
+			Height:      cmn.NewBigInt32(0),
 			StartTime:   big.NewInt(0),
 			CommitTime:  big.NewInt(0),
 		},
@@ -236,7 +236,7 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 
 	// RoundState fields
 	cs.updateHeight(height)
-	cs.updateRoundStep(cmn.NewBigInt(0), cstypes.RoundStepNewHeight)
+	cs.updateRoundStep(cmn.NewBigInt32(0), cstypes.RoundStepNewHeight)
 	if cs.CommitTime.Int64() == 0 {
 		// "Now" makes it easier to sync up dev nodes.
 		// We add timeoutCommit to allow transactions
@@ -253,12 +253,12 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 	cs.Proposal = nil
 	cs.ProposalBlock = nil
 	cs.ProposalBlockID = types.NewZeroBlockID()
-	cs.LockedRound = cmn.NewBigInt(0)
+	cs.LockedRound = cmn.NewBigInt32(0)
 	cs.LockedBlock = nil
-	cs.ValidRound = cmn.NewBigInt(0)
+	cs.ValidRound = cmn.NewBigInt32(0)
 	cs.ValidBlock = nil
 	cs.Votes = cstypes.NewHeightVoteSet(cs.logger, state.ChainID, height, validators)
-	cs.CommitRound = cmn.NewBigInt(-1)
+	cs.CommitRound = cmn.NewBigInt32(-1)
 	cs.LastCommit = lastPrecommits
 	cs.LastValidators = state.LastValidators
 
@@ -309,7 +309,7 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 
 	// Make proposal
 	polRound, polBlockID := cs.Votes.POLInfo()
-	proposal := types.NewProposal(height, round, block, cmn.NewBigInt(int64(polRound)), polBlockID)
+	proposal := types.NewProposal(height, round, block, cmn.NewBigInt32(polRound), polBlockID)
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
 		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
 		// Send proposal on internal msg queue
@@ -361,7 +361,7 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 func (cs *ConsensusState) scheduleRound0(rs *cstypes.RoundState) {
 	cs.logger.Info("scheduleRound0", "now", time.Now(), "startTime", time.Unix(cs.StartTime.Int64(), 0))
 	sleepDuration := time.Duration(rs.StartTime.Int64() - time.Now().Unix()) // nolint: gotype, gosimple
-	cs.scheduleTimeout(sleepDuration, rs.Height, cmn.NewBigInt(0), cstypes.RoundStepNewHeight)
+	cs.scheduleTimeout(sleepDuration, rs.Height, cmn.NewBigInt32(0), cstypes.RoundStepNewHeight)
 }
 
 // Attempt to schedule a timeout (by sending timeoutInfo on the tickChan)
@@ -387,7 +387,7 @@ func (cs *ConsensusState) reconstructLastCommit(state state.LastestBlockState) {
 	if state.LastBlockHeight.EqualsInt64(0) {
 		return
 	}
-	seenCommit := cs.blockOperations.LoadSeenCommit(uint64(state.LastBlockHeight.Int64()))
+	seenCommit := cs.blockOperations.LoadSeenCommit(state.LastBlockHeight.Uint64())
 	lastPrecommits := types.NewVoteSet(state.ChainID, state.LastBlockHeight, seenCommit.Round(), types.VoteTypePrecommit, state.LastValidators)
 	for _, precommit := range seenCommit.Precommits {
 		if precommit == nil {
@@ -451,10 +451,10 @@ func (cs *ConsensusState) setProposalBlock(block *types.Block) (added bool, err 
 
 	if cs.Step <= cstypes.RoundStepPropose && cs.isProposalComplete() {
 		// Move onto the next step
-		cs.enterPrevote(cmn.NewBigInt(int64(block.Height())), cs.Round)
+		cs.enterPrevote(cmn.NewBigUint64(block.Height()), cs.Round)
 	} else if cs.Step == cstypes.RoundStepCommit {
 		// If we're waiting on the proposal block...
-		cs.tryFinalizeCommit(cmn.NewBigInt(int64(block.Height())))
+		cs.tryFinalizeCommit(cmn.NewBigUint64(block.Height()))
 	}
 	return true, nil
 }
@@ -508,7 +508,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 		if cs.config.SkipTimeoutCommit && cs.LastCommit.HasAll() {
 			// go straight to new round (skip timeout commit)
 			// cs.scheduleTimeout(time.Duration(0), cs.Height, 0, cstypes.RoundStepNewHeight)
-			cs.enterNewRound(cs.Height, cmn.NewBigInt(0))
+			cs.enterNewRound(cs.Height, cmn.NewBigInt32(0))
 		}
 
 		return
@@ -552,7 +552,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 				!cs.LockedBlock.HashesTo(blockID) {
 
 				cs.logger.Info("Unlocking because of POL.", "lockedRound", cs.LockedRound, "POLRound", vote.Round)
-				cs.LockedRound = cmn.NewBigInt(0)
+				cs.LockedRound = cmn.NewBigInt32(0)
 				cs.LockedBlock = nil
 				cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 			}
@@ -604,7 +604,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 					// if we have all the votes now,
 					// go straight to new round (skip timeout commit)
 					// cs.scheduleTimeout(time.Duration(0), cs.Height, 0, cstypes.RoundStepNewHeight)
-					cs.enterNewRound(cs.Height, cmn.NewBigInt(0))
+					cs.enterNewRound(cs.Height, cmn.NewBigInt32(0))
 				}
 
 			}
@@ -644,7 +644,7 @@ func (cs *ConsensusState) signVote(type_ byte, hash types.BlockID) (*types.Vote,
 
 	vote := &types.Vote{
 		ValidatorAddress: addr,
-		ValidatorIndex:   cmn.NewBigInt(int64(valIndex)),
+		ValidatorIndex:   cmn.NewBigInt32(valIndex),
 		Height:           cs.Height,
 		Round:            cs.Round,
 		Timestamp:        big.NewInt(time.Now().Unix()),
@@ -950,7 +950,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 			logger.Info("enterPrecommit: +2/3 prevoted for nil.")
 		} else {
 			logger.Info("enterPrecommit: +2/3 prevoted for nil. Unlocking")
-			cs.LockedRound = cmn.NewBigInt(0)
+			cs.LockedRound = cmn.NewBigInt32(0)
 			cs.LockedBlock = nil
 			cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 		}
@@ -987,7 +987,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	// Fetch that block, unlock, and precommit nil.
 	// The +2/3 prevotes for this round is the POL for our unlock.
 	// TODO: In the future save the POL prevotes for justification.
-	cs.LockedRound = cmn.NewBigInt(0)
+	cs.LockedRound = cmn.NewBigInt32(0)
 	cs.LockedBlock = nil
 	if !cs.ProposalBlockID.Equal(blockID) {
 		cs.ProposalBlock = nil
@@ -1348,9 +1348,9 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 	switch ti.Step {
 	case cstypes.RoundStepNewHeight:
 		// NewRound event fired from enterNewRound.
-		cs.enterNewRound(ti.Height, cmn.NewBigInt(0))
+		cs.enterNewRound(ti.Height, cmn.NewBigInt32(0))
 	case cstypes.RoundStepNewRound:
-		cs.enterPropose(ti.Height, cmn.NewBigInt(0))
+		cs.enterPropose(ti.Height, cmn.NewBigInt32(0))
 	case cstypes.RoundStepPropose:
 		cs.enterPrevote(ti.Height, ti.Round)
 	case cstypes.RoundStepPrevoteWait:
