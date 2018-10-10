@@ -19,13 +19,15 @@
 package types
 
 import (
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/rlp"
 	"math/big"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 func TestBlockEncodeDecode(t *testing.T) {
@@ -58,7 +60,7 @@ func TestBlockEncodeDecode(t *testing.T) {
 	}
 
 	// TODO: add more details to block.
-	block := NewBlock(&header, txns, nil, lastCommit)
+	block := NewBlock(log.New(), &header, txns, nil, lastCommit)
 
 	// TODO: enable validate after adding data to field Commit.
 	//if err := block.ValidateBasic(); err != nil {

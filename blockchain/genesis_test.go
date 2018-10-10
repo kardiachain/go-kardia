@@ -23,6 +23,7 @@ import (
 	"github.com/kardiachain/go-kardia/blockchain/chaindb"
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/storage"
 	"math"
@@ -96,7 +97,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 
 	// Create genesis block with dev.genesisAccounts
 	genesis := DefaultTestnetGenesisBlock(dev.GenesisAccounts)
-	_, hash, err := SetupGenesisBlock(db, genesis)
+	_, hash, err := SetupGenesisBlock(log.New(), db, genesis)
 
 	// There are 2 ways of getting current blockHash
 	// ReadHeadBlockHash or ReadCanonicalHash
@@ -108,10 +109,10 @@ func TestCreateGenesisBlock(t *testing.T) {
 	}
 
 	// Get block by hash and height
-	block := chaindb.ReadBlock(db, hash, 0)
+	block := chaindb.ReadBlock(log.New(), db, hash, 0)
 
 	// Init new State with current BlockHash
-	s, err := state.New(block.Root(), state.NewDatabase(db))
+	s, err := state.New(log.New(), block.Root(), state.NewDatabase(db))
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -130,7 +131,7 @@ func TestCreateContractInGenesis(t *testing.T) {
 	db := storage.NewMemStore()
 	// Create genesis block with dev.genesisAccounts
 	genesis := DefaultTestnetGenesisBlockWithContract(dev.GenesisContracts)
-	_, hash, err := SetupGenesisBlock(db, genesis)
+	_, hash, err := SetupGenesisBlock(log.New(), db, genesis)
 
 	// There are 2 ways of getting current blockHash
 	// ReadHeadBlockHash or ReadCanonicalHash
@@ -142,10 +143,10 @@ func TestCreateContractInGenesis(t *testing.T) {
 	}
 
 	// Get block by hash and height
-	block := chaindb.ReadBlock(db, hash, 0)
+	block := chaindb.ReadBlock(log.New(), db, hash, 0)
 
 	// Init new State with current BlockHash
-	s, err := state.New(block.Root(), state.NewDatabase(db))
+	s, err := state.New(log.New(), block.Root(), state.NewDatabase(db))
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -164,7 +165,7 @@ func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 	db := storage.NewMemStore()
 	// Create genesis block with dev.genesisAccounts
 	genesis := DefaulTestnetFullGenesisBlock(dev.GenesisAccounts, dev.GenesisContracts)
-	_, hash, err := SetupGenesisBlock(db, genesis)
+	_, hash, err := SetupGenesisBlock(log.New(), db, genesis)
 	headBlockHash := chaindb.ReadHeadBlockHash(db)
 	canonicalHash := chaindb.ReadCanonicalHash(db, 0)
 
@@ -172,10 +173,10 @@ func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 		t.Error("Current BlockHash does not match")
 	}
 	// Get block by hash and height
-	block := chaindb.ReadBlock(db, hash, 0)
+	block := chaindb.ReadBlock(log.New(), db, hash, 0)
 
 	// Init new State with current BlockHash
-	s, err := state.New(block.Root(), state.NewDatabase(db))
+	s, err := state.New(log.New(), block.Root(), state.NewDatabase(db))
 	if err != nil {
 		t.Error(err)
 	} else {

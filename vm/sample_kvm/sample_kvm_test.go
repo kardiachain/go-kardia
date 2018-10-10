@@ -7,6 +7,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
 	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/vm"
@@ -73,7 +74,7 @@ func TestExecute(t *testing.T) {
 }
 
 func TestCall(t *testing.T) {
-	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	address := common.HexToAddress("0x0a")
 	state.SetCode(address, []byte{
 		byte(vm.PUSH1), 10,
@@ -126,7 +127,7 @@ func TestCreateSimpleCounterSmc(t *testing.T) {
 // Test executing the counter smart contract on KVM
 // Note: Call uses the runtime_bytecode from the compiler, unlike the raw bytecode as in the previous unit test
 func TestCallSimpleCounterSmc(t *testing.T) {
-	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	address := common.HexToAddress("0x0a")
 
 	// Add runtime_bytecode for counter.sol to execute the smc:
@@ -168,7 +169,7 @@ func TestCallSimpleCounterSmc(t *testing.T) {
 }
 
 func TestChangeBalance(t *testing.T) {
-	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	var address = common.HexToAddress("0x0b")
 	state.CreateAccount(address)
 	state.AddBalance(address, big.NewInt(500))
@@ -186,7 +187,7 @@ func TestChangeBalance(t *testing.T) {
 }
 
 func TestCallSmcDeductBalance(t *testing.T) {
-	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	var sender = common.HexToAddress("0x0b")
 	state.CreateAccount(sender)
 	state.AddBalance(sender, big.NewInt(500))
@@ -267,7 +268,7 @@ func TestCallSmcDeductBalance(t *testing.T) {
 // Test executing the voting smart contract on KVM
 // Note: Call uses the runtime_bytecode from the compiler, unlike the raw bytecode as in the previous unit test
 func TestExecuteVoteSmc(t *testing.T) {
-	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	address := common.HexToAddress("0x0a")
 
 	// Add runtime_bytecode for ballot.sol to execute the smc:
@@ -363,7 +364,7 @@ func TestExecuteVoteSmc(t *testing.T) {
 // Test executing the voting smart contract on KVM using different senders
 // Note: Call uses the runtime_bytecode from the compiler, unlike the raw bytecode as in the previous unit test
 func TestExecuteVoteSmcMultipleTime(t *testing.T) {
-	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	address := common.HexToAddress("0x0a")
 
 	// Add runtime_bytecode for ballot.sol to execute the smc:
@@ -524,7 +525,7 @@ func TestExecuteVoteSmcMultipleTime(t *testing.T) {
 // Test behaviour of master exchange contract to exchange ETH <-> NEO
 // Please find solidity source code in smc/Exchange.sol
 func TestExecuteMasterExchangeContract(t *testing.T) {
-	state, _ := state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	address := common.HexToAddress("0x0a")
 
 	// Add runtime_bytecode for Exchange.sol to execute the smc:
