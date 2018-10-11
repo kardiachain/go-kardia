@@ -30,7 +30,6 @@ import (
 
 	"github.com/ebuchman/fail-test"
 
-	"github.com/kardiachain/go-kardia/blockchain"
 	cfg "github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 	"github.com/kardiachain/go-kardia/kai/dev"
@@ -86,7 +85,7 @@ type ConsensusState struct {
 
 	config          *cfg.ConsensusConfig
 	privValidator   *types.PrivValidator // for signing votes
-	blockOperations *BlockOperations
+	blockOperations BaseBlockOperations
 	//evpool evidence.EvidencePool 	// TODO(namdoh): Add mem pool.
 
 	// internal state
@@ -126,15 +125,14 @@ func NewConsensusState(
 	logger log.Logger,
 	config *cfg.ConsensusConfig,
 	state state.LastestBlockState,
-	blockchain *blockchain.BlockChain,
-	txPool *blockchain.TxPool,
+	blockOperations BaseBlockOperations,
 	votingStrategy map[dev.VoteTurn]int,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		logger: logger,
 		config: config,
 		//namdoh@ blockExec:        blockExec,
-		blockOperations:  NewBlockOperations(logger, blockchain, txPool),
+		blockOperations:  blockOperations,
 		peerMsgQueue:     make(chan msgInfo, msgQueueSize),
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
 		timeoutTicker:    NewTimeoutTicker(),

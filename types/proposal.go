@@ -34,8 +34,8 @@ import (
 type Proposal struct {
 	Height     *cmn.BigInt `json:"height"`
 	Round      *cmn.BigInt `json:"round"`
-	Timestamp  *big.Int    `json:"timestamp"`    // TODO(thientn/namdoh): epoch seconds, change to milis.
-	Block      *Block      `json:"block"`        // TODO(huny@): Should we use hash instead?
+	Timestamp  *big.Int    `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+	Block      *Block      `json:"block"`
 	POLRound   *cmn.BigInt `json:"pol_round"`    // -1 if null.
 	POLBlockID BlockID     `json:"pol_block_id"` // zero if null.
 	Signature  []byte      `json:"signature"`

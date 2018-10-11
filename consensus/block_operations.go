@@ -19,16 +19,16 @@
 package consensus
 
 import (
-	"github.com/kardiachain/go-kardia/vm"
+	"fmt"
 	"math/big"
 	"sync"
 	"time"
 
-	"fmt"
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/vm"
 )
 
 // TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/

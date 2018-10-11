@@ -197,6 +197,34 @@ func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []
 	return b
 }
 
+// NewDualBlock creates a new block for dual chain. The input data is copied,
+// changes to header and to the field values will not affect the
+// block.
+func NewDualBlock(logger log.Logger, header *Header, commit *Commit) *Block {
+	b := &Block{
+		logger:     logger,
+		header:     CopyHeader(header),
+		lastCommit: CopyCommit(commit),
+	}
+
+	b.header.TxHash = EmptyRootHash
+	b.header.ReceiptHash = EmptyRootHash
+
+	if b.header.LastCommitHash.IsZero() {
+		if commit == nil {
+			b.logger.Error("NewBlock - commit should never be nil.")
+			b.header.LastCommitHash = common.NewZeroHash()
+		} else {
+			b.logger.Trace("Compute last commit hash", "commit", commit)
+			b.header.LastCommitHash = commit.Hash()
+		}
+	}
+
+	// TODO(namdoh): Store evidence hash.
+
+	return b
+}
+
 func (b *Block) SetLogger(logger log.Logger) {
 	b.logger = logger
 }
