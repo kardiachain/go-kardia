@@ -14,11 +14,11 @@ docker build -t kardiachain/go-kardia ../
 Example, 6-nodes network with ETH dual node is node1, NEO dual node is node2
 
 ```
-./start_kardia_network.sh {NUMBER_OF_NODES} {ETH_NODE_INDEX} {NEO_NODE_INDEX}
+./start_kardia_network.sh -n {NUMBER_OF_NODES} -eth {ETH_NODE_INDEX} -neo {NEO_NODE_INDEX} -dual
 ```
 
 ```
-./start_kardia_network.sh 6 1 2
+./start_kardia_network.sh -n 6 -eth 1 -neo 2 -dual
 ```
 
 or run in terminal
