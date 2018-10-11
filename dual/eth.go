@@ -89,6 +89,7 @@ type EthKardia struct {
 	config *EthKardiaConfig
 	ethSmc *ethsmc.EthSmc
 	kChain *blockchain.BlockChain
+	// TODO(namdoh, #115): Rename to kardiaPool
 	txPool *blockchain.TxPool
 }
 
@@ -367,7 +368,6 @@ func (n *EthKardia) sendKardiaMatchEth(amount *big.Int) {
 	} else {
 		log.Info("Added Kardia tx MatchEth", "tx", tx.Hash().Hex())
 	}
-
 }
 
 func (n *EthKardia) SendEthFromContract(value *big.Int) {

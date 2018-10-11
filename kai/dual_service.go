@@ -15,8 +15,8 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
+const DualServiceName = "DUAL"
 const DualNetworkID = 100 // TODO: change this to be diff than main kardia service or the same
-
 const dualProtocolName = "dualptc"
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
@@ -47,11 +47,10 @@ type DualService struct {
 // New creates a new DualService object (including the
 // initialisation of the common DualService object)
 func newDualService(ctx *node.ServiceContext, config *Config) (*DualService, error) {
-	log.Info("newDualService", "chaindata", config.ChainData)
-
-	// Create a specific logger for KARDIA service.
+	// Create a specific logger for DUAL service.
 	logger := log.New()
-	logger.AddTag("DUAL")
+	logger.AddTag(DualServiceName)
+	logger.Info("newDualService", "chaindata", config.ChainData)
 
 	groupDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
 	if err != nil {
@@ -102,7 +101,7 @@ func newDualService(ctx *node.ServiceContext, config *Config) (*DualService, err
 		dualS.txPool,
 		ctx.Config.DevEnvConfig.VotingStrategy,
 	)
-	dualS.csManager = consensus.NewConsensusManager(consensusState)
+	dualS.csManager = consensus.NewConsensusManager(DualServiceName, consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
 	dualS.csManager.SetPrivValidator(privValidator)

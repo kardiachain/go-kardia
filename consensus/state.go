@@ -407,11 +407,11 @@ func (cs *ConsensusState) reconstructLastCommit(state state.LastestBlockState) {
 // NOTE: block is not necessarily valid.
 // Asynchronously triggers either enterPrevote (before we timeout of propose) or tryFinalizeCommit, once we have the full block.
 func (cs *ConsensusState) handleBlockMessage(msg *BlockMessage, peerID discover.NodeID) (added bool, err error) {
-	cs.logger.Trace("setProposalBlock", "msg", msg, "peerID", peerID)
+	cs.logger.Trace("setProposalBlock", "peerID", peerID, "msg", msg)
 
 	// Blocks might be reused, so round mismatch is OK
 	if !cs.Height.Equals(msg.Height) {
-		cs.logger.Debug("Received block from wrong height", "msg.height", msg.Height, "msg.Round", msg.Round, "cs.Height", cs.Height, "cs.Round", cs.Round)
+		cs.logger.Debug("Received block from wrong height", "peerID", peerID, "msg.height", msg.Height, "msg.Round", msg.Round, "cs.Height", cs.Height, "cs.Round", cs.Round)
 		return false, nil
 	}
 
@@ -419,7 +419,7 @@ func (cs *ConsensusState) handleBlockMessage(msg *BlockMessage, peerID discover.
 		// NOTE: this can happen when we've gone to a higher round and
 		// then receive parts from the previous round - not necessarily a bad peer.
 		cs.logger.Info("Received a block when we're not expecting any",
-			"height", msg.Height, "round", msg.Round, "peer", peerID)
+			"peer", peerID, "height", msg.Height, "round", msg.Round)
 		return false, nil
 	}
 
@@ -701,6 +701,16 @@ func (cs *ConsensusState) GetRoundState() *cstypes.RoundState {
 	return &rs
 }
 
+// LoadCommit loads the commit for a given height.
+func (cs *ConsensusState) LoadCommit(height *cmn.BigInt) *types.Commit {
+	cs.mtx.RLock()
+	defer cs.mtx.RUnlock()
+	if height.EqualsUint64(cs.blockOperations.Height()) {
+		return cs.blockOperations.LoadSeenCommit(height.Uint64())
+	}
+	return cs.blockOperations.LoadBlockCommit(height.Uint64())
+}
+
 // Enter: `timeoutNewHeight` by startTime (commitTime+timeoutCommit),
 // 	or, if SkipTimeout==true, after receiving all precommits from (height,round-1)
 // Enter: `timeoutPrecommits` after any +2/3 precommits from (height,round-1)
@@ -865,7 +875,7 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 		cs.signAddVote(types.VoteTypePrevote, types.NewZeroBlockID())
 		return
 	} else {
-		logger.Info("Successfully executes and commits block txs")
+		logger.Info("enterPrevote: successfully executes and commits block txs")
 	}
 
 	// Prevote cs.ProposalBlock
