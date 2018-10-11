@@ -6,26 +6,63 @@ RPC_PORT=8545
 IMAGE_NAME=kardiachain/go-kardia
 ETH_NODE_INDEX=1
 NEO_NODE_INDEX=2
+PACKAGE=start_kardia_network.sh
+DUALCHAIN=
 
-if [ -z $1 ]; then
-	echo "=> No number of nodes. Default number of nodes = 6"
-else
-    NODES=$1
-	echo "=> The number of nodes = $NODES"
-fi
-
-if [ -z $2 ]; then
-    echo "=> No eth dual was defined. Default eth dual node index = 1"
-else
-    ETH_NODE_INDEX=$2
-fi
-
-
-if [ -z $3 ]; then
-   echo "=> No neo dual was defined. Default neo dual node index = 2"
-else
-   NEO_NODE_INDEX=$3
-fi
+while test $# -gt 0; do
+        case "$1" in
+                -h|--help)
+                        echo "$PACKAGE - Starts a Kardia network"
+                        echo " "
+                        echo "$PACKAGE [options]"
+                        echo " "
+                        echo "options:"
+                        echo "-h, --help                      Show brief help"
+                        echo "-n, --num_nodes=NUMBER          Specify how many nodes to bring up"
+                        echo "-eth, --ether_node_index=INDEX  Index of ether node"
+                        echo "-neo, --neo_node_index=INDEX    Index of neo node"
+                        echo "-dual, --dual_chain             Enable running dual chains"
+                        exit 0
+                        ;;
+                -n|--num_nodes)
+                        shift
+                        if test $# -gt 0; then
+                                NODES=$1
+                        else
+                                echo "Number of nodes not specified"
+                                exit 1
+                        fi
+                        shift
+                        ;;
+                -eth|--ether_node_index)
+                        shift
+                        if test $# -gt 0; then
+                                ETH_NODE_INDEX=$1
+                        else
+                                echo "Ether node index not specified"
+                                exit 1
+                        fi
+                        shift
+                        ;;
+                -neo|--neo_node_index)
+                        shift
+                        if test $# -gt 0; then
+                                NEO_NODE_INDEX=$1
+                        else
+                                echo "Neo node index not specified"
+                                exit 1
+                        fi
+                        shift
+                        ;;
+                -dual)
+                        DUALCHAIN=--dualchain
+                        shift
+                        ;;
+                *)
+                        break
+                        ;;
+        esac
+done
 
 # Remove container
 docker ps -a | grep ${IMAGE_NAME} | awk '{print $1}' | xargs docker rm -f
@@ -36,11 +73,11 @@ while [ $NODE_INDEX -le $NODES ]
 do
     if [ $NODE_INDEX -eq $ETH_NODE_INDEX ]; then
         mkdir -p ~/.kardiachain/node${NODE_INDEX}/data/ethereum
-        docker run --rm -d --name node${NODE_INDEX} -v ~/.kardiachain/node${NODE_INDEX}/data/ethereum:/root/.ethereum --net=host $IMAGE_NAME --dev --numValid ${NODES} --dual --ethstat --ethstatname eth-dual-test-${NODE_INDEX} --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --txn --clearDataDir
+        docker run --rm -d --name node${NODE_INDEX} -v ~/.kardiachain/node${NODE_INDEX}/data/ethereum:/root/.ethereum --net=host $IMAGE_NAME $DUALCHAIN --dev --numValid ${NODES} --dual --ethstat --ethstatname eth-dual-test-${NODE_INDEX} --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --txn --clearDataDir
     elif [ $NODE_INDEX -eq $NEO_NODE_INDEX ]; then
-        docker run --rm -d --name node${NODE_INDEX} --net=host $IMAGE_NAME --dev --numValid ${NODES} --neodual --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --clearDataDir
+        docker run --rm -d --name node${NODE_INDEX} --net=host $IMAGE_NAME $DUALCHAIN --dev --numValid ${NODES} --neodual --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --clearDataDir
     else
-        docker run --rm -d --name node${NODE_INDEX} --net=host $IMAGE_NAME --dev --numValid ${NODES} --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --clearDataDir
+        docker run --rm -d --name node${NODE_INDEX} --net=host $IMAGE_NAME $DUALCHAIN --dev --numValid ${NODES} --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --clearDataDir
     fi
     ((NODE_INDEX++))
     ((PORT++))
