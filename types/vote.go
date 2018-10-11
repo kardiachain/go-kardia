@@ -19,6 +19,7 @@
 package types
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -143,6 +144,25 @@ func (vote *Vote) String() string {
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		cmn.Fingerprint(vote.BlockID[:]), vote.Signature,
+		time.Unix(vote.Timestamp.Int64(), 0))
+}
+
+// ShortString simplifies vote.Signature, array of bytes, to hex and gets the first 14 characters
+func (vote *Vote) ShortString() string {
+	if vote == nil {
+		return "nil-vote"
+	}
+	if vote.IsEmpty() {
+		return "empty-vote"
+	}
+
+	voteSignatureToString := hex.EncodeToString(vote.Signature)
+	voteSignature := voteSignatureToString[0:14]
+
+	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X , %v @ %v}",
+		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
+		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
+		cmn.Fingerprint(vote.BlockID[:]), voteSignature,
 		time.Unix(vote.Timestamp.Int64(), 0))
 }
 

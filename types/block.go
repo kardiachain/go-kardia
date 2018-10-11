@@ -98,6 +98,22 @@ func (h *Header) String() string {
 
 }
 
+// Shortstring returns a short string representing block header by simplifying byte array to hex, and truncate the first 14 character of hex string
+func (h *Header) ShortString() string {
+	if h == nil {
+		return "nil-Header"
+	}
+
+	lastBlockID := fmt.Sprintf("%v", h.LastBlockID)[0:14]
+	lastCommitHash := fmt.Sprintf("%v", h.LastCommitHash.Hex())[0:14]
+	txHash := fmt.Sprintf("%v", h.TxHash.Hex())[0:14]
+	root := fmt.Sprintf("%v", h.Root.Hex())[0:14]
+	validatorsHash := fmt.Sprintf("%v", h.ValidatorsHash.Hex())[0:14]
+
+	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, lastBlockID, lastCommitHash, txHash, root, validatorsHash, h.ConsensusHash.Hex(), h.Hash().Hex())
+}
+
 // Body is a simple (mutable, non-safe) data container for storing and moving
 // a block's data contents together.
 type Body struct {
@@ -380,6 +396,16 @@ func (b *Block) String() string {
 
 	return fmt.Sprintf("Block{%v  %v  %v}#%v",
 		b.header, b.transactions, b.lastCommit, b.Hash().Hex())
+}
+
+// ShortString returns a short string representing block by simplifying block header and lastcommit
+func (b *Block) ShortString() string {
+	if b == nil {
+		return "nil-Block"
+	}
+
+	return fmt.Sprintf("Block{%v  %v  %v}#%v",
+		b.header.ShortString(), b.transactions, b.lastCommit.ShortString(), b.Hash().Hex())
 }
 
 type writeCounter common.StorageSize

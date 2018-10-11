@@ -537,12 +537,14 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 	switch vote.Type {
 	case types.VoteTypePrevote:
 		prevotes := cs.Votes.Prevotes(vote.Round.Int32())
-		voteBlockID := vote.BlockID.String()[len(vote.BlockID.String())-12:]
-		voteSignatureToString := hex.EncodeToString(vote.Signature)
-		voteSignature := voteSignatureToString[len(voteSignatureToString)-12:]
-		voteValidatorAddress := vote.ValidatorAddress.String()[len(vote.ValidatorAddress.String())-12:]
 
-		cs.logger.Info("Added to prevote", "voteHeight", vote.Height, "voteBlockID", voteBlockID, "voteRound", vote.Round, "voteSignature", voteSignature, "voteTimestamp", vote.Timestamp, "voteType",
+		// Truncate to the first 14 hex characters
+		voteBlockID := vote.BlockID.String()[0:14]
+		voteSignatureToString := hex.EncodeToString(vote.Signature)
+		voteSignature := voteSignatureToString[0:14]
+		voteValidatorAddress := vote.ValidatorAddress.String()[0:14]
+
+		cs.logger.Info("Added to prevote", "voteHeight", vote.Height, "voteBlockID", voteBlockID, "voteRound", vote.Round, "voteSignature", voteSignature, "voteTimestamp", time.Unix(vote.Timestamp.Int64(), 0), "voteType",
 			vote.Type, "voteValidatorAddress", voteValidatorAddress, "voteValidatorIndex", vote.ValidatorIndex, "prevotes", prevotes.StringShort())
 
 		// If +2/3 prevotes for a block or nil for *any* round:
@@ -598,12 +600,14 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 
 	case types.VoteTypePrecommit:
 		precommits := cs.Votes.Precommits(vote.Round.Int32())
-		voteBlockID := vote.BlockID.String()[len(vote.BlockID.String())-12:]
-		voteSignatureToString := hex.EncodeToString(vote.Signature)
-		voteSignature := voteSignatureToString[len(voteSignatureToString)-12:]
-		voteValidatorAddress := vote.ValidatorAddress.String()[len(vote.ValidatorAddress.String())-12:]
 
-		cs.logger.Info("Added to precommit", "voteHeight", vote.Height, "voteBlockID", voteBlockID, "voteRound", vote.Round, "voteSignature", voteSignature, "voteTimestamp", vote.Timestamp, "voteType",
+		// Truncate to the first 14 hex characters
+		voteBlockID := vote.BlockID.String()[0:14]
+		voteSignatureToString := hex.EncodeToString(vote.Signature)
+		voteSignature := voteSignatureToString[0:14]
+		voteValidatorAddress := vote.ValidatorAddress.String()[0:14]
+
+		cs.logger.Info("Added to precommit", "voteHeight", vote.Height, "voteBlockID", voteBlockID, "voteRound", vote.Round, "voteSignature", voteSignature, "voteTimestamp", time.Unix(vote.Timestamp.Int64(), 0), "voteType",
 			vote.Type, "voteValidatorAddress", voteValidatorAddress, "voteValidatorIndex", vote.ValidatorIndex, "precommits", precommits.StringShort())
 		blockID, ok := precommits.TwoThirdsMajority()
 		if ok {
@@ -1145,7 +1149,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 		// but may differ from the LastCommit included in the next block
 		precommits := cs.Votes.Precommits(cs.CommitRound.Int32())
 		seenCommit := precommits.MakeCommit()
-		cs.logger.Trace("Save new block", "block", block, "seenCommit", seenCommit)
+		cs.logger.Trace("Save new block", "block", block, "seenCommit", seenCommit.ShortString())
 		cs.blockOperations.SaveBlock(block, seenCommit)
 	} else {
 		// Happens during replay if we already saved the block but didn't commit
@@ -1223,7 +1227,7 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	header.Root = stateRoot
 
 	block = cs.blockOperations.NewBlock(header, txs, receipts, commit)
-	cs.logger.Trace("Make block to propose", "block", block)
+	cs.logger.Trace("Make block to propose", "block", block.ShortString())
 
 	cs.blockOperations.SaveReceipts(receipts, block)
 

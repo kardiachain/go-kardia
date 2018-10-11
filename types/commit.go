@@ -213,3 +213,24 @@ func (commit *Commit) String() string {
 		precommitStr,
 		commit.hash.Hex())
 }
+
+// ShortString returns a short string representing commit by simplifying byte array to hex
+func (commit *Commit) ShortString() string {
+	if commit == nil {
+		return "nil-commit"
+	}
+	var precommitStr string
+	if len(commit.Precommits) == 0 {
+		precommitStr = "empty-Commit"
+	} else {
+		precommitStrings := make([]string, len(commit.Precommits))
+		for i, precommit := range commit.Precommits {
+			precommitStrings[i] = precommit.ShortString()
+		}
+		precommitStr = strings.Join(precommitStrings, "##")
+	}
+	return fmt.Sprintf("Commit{BlockID:%v  Precommits:%v}#%v",
+		commit.BlockID,
+		precommitStr,
+		commit.hash.Hex())
+}
