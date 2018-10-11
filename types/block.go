@@ -397,7 +397,8 @@ func (b *Block) BlockID() BlockID {
 // The hash is computed on the first call and cached thereafter.
 func (b *Block) Hash() common.Hash {
 	if b == nil {
-		b.logger.Warn("Hashing nil block")
+		//b.logger.Warn("Hashing nil block")
+		// TODO set warning logger for nil block
 		return common.Hash{}
 	}
 
