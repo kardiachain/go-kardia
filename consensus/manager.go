@@ -19,7 +19,6 @@
 package consensus
 
 import (
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"sync"
@@ -219,7 +218,7 @@ func (conR *ConsensusManager) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
 	}
 	msg.Block.SetLogger(conR.logger)
 
-	conR.logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("Height:%v   Round:%v   Block:%v", msg.Height, msg.Round, msg.Block.StringShort()))
 
 	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }
@@ -237,7 +236,7 @@ func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) 
 		conR.logger.Error("Invalid vote message", "msg", generalMsg, "err", err)
 		return
 	}
-	conR.logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", msg.Vote.StringShort())
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
@@ -333,7 +332,7 @@ func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 	}
 	msg.Block.SetLogger(conR.logger)
 
-	conR.logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("{Height:%v  Block:%v}", msg.Height, msg.Block.StringShort()))
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
@@ -455,7 +454,7 @@ func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 		conR.protocol.Broadcast(nrsMsg, kcmn.CsNewRoundStepMsg)
 	}
 	if csMsg != nil {
-		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", csMsg)
+		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", fmt.Sprintf("{Height:%v  Block:%v}", csMsg.Height, csMsg.Block.StringShort()))
 		conR.protocol.Broadcast(csMsg, kcmn.CsCommitStepMsg)
 	}
 }
@@ -535,15 +534,7 @@ OUTER_LOOP:
 		if prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThan(rs.Height) {
 			block := conR.conS.blockOperations.LoadBlock(uint64(prs.Height.Int64()))
 			logger.Trace("Block is finalized at round", "round", block.LastCommit().Round())
-			logger.Trace("Sending BlockMessage", "Height", prs.Height, "Block.Header", block.Header().Height,
-				"Time", time.Unix(block.Header().Time.Int64(), 0),
-				"NumTxs", block.Header().NumTxs,
-				"LastBlockID", fmt.Sprintf("%v", block.Header().LastBlockID)[0:14],
-				"LastCommitHash", fmt.Sprintf("%v", block.Header().LastCommitHash.Hex())[0:14],
-				"TxHash", fmt.Sprintf("%v", block.Header().TxHash.Hex())[0:14],
-				"Root", fmt.Sprintf("%v", block.Header().Root.Hex())[0:14],
-				"ValidatorsHash", fmt.Sprintf("%v", block.Header().ValidatorsHash.Hex())[0:14],
-				"ConsensusHash", fmt.Sprintf("%v}#%v", block.Header().ConsensusHash.Hex(), block.Header().Hash().Hex()))
+			logger.Trace("Sending BlockMessage", "Height", prs.Height, "Block", block.StringShort())
 			if err := p2p.Send(ps.rw, kcmn.CsBlockMsg, &BlockMessage{Height: prs.Height, Round: block.LastCommit().Round(), Block: block}); err != nil {
 				logger.Trace("Sending block message failed", "err", err)
 			}
@@ -966,16 +957,7 @@ func (ps *PeerState) PickSendVote(votes types.VoteSetReader) bool {
 	if vote, ok := ps.PickVoteToSend(votes); ok {
 		msg := &VoteMessage{vote}
 
-		// Truncate to the first 14 hex characters
-		voteBlockID := vote.BlockID.String()[0:14]
-		voteSignatureToString := hex.EncodeToString(vote.Signature)
-		voteSignature := voteSignatureToString[0:14]
-		voteValidatorAddress := vote.ValidatorAddress.String()[0:14]
-
-		ps.logger.Trace("Sending vote message", "peer", ps.peer, "ps.PRS.Height", ps.PRS.Height, "ps.PRS.Round", ps.PRS.Round, "ps.PRS.Step", ps.PRS.Step, "ps.PRS.ProposalBlockHeader", ps.PRS.ProposalBlockHeader,
-			"ps.PRS.ProposalPOL", ps.PRS.ProposalPOL, "ps.PRS.Prevotes", ps.PRS.Prevotes, "ps.PRS.Precommits", ps.PRS.Precommits, "ps.PRS.LastCommitRound", ps.PRS.LastCommitRound, "ps.PRS.CatchupCommitRound", ps.PRS.CatchupCommitRound,
-			"ps.PRS.StartTime", ps.PRS.StartTime, "vote.Height", vote.Height, "vote.BlockID", voteBlockID, "vote.Round", vote.Round, "vote.Signature", voteSignature, "vote.Timestamp", time.Unix(vote.Timestamp.Int64(), 0), "vote.Type",
-			vote.Type, "vote.ValidatorAddress", voteValidatorAddress, "vote.ValidatorIndex", vote.ValidatorIndex)
+		ps.logger.Trace("Sending vote message", "peer", ps.peer, "prs", ps.PRS.StringShort(), "vote", vote.StringShort())
 		return p2p.Send(ps.rw, kcmn.CsVoteMsg, msg) == nil
 	}
 	return false

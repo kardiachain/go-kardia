@@ -214,8 +214,8 @@ func (commit *Commit) String() string {
 		commit.hash.Hex())
 }
 
-// ShortString returns a short string representing commit by simplifying byte array to hex
-func (commit *Commit) ShortString() string {
+// StringShort returns a short string representing commit by simplifying byte array to hex
+func (commit *Commit) StringShort() string {
 	if commit == nil {
 		return "nil-commit"
 	}
@@ -225,12 +225,12 @@ func (commit *Commit) ShortString() string {
 	} else {
 		precommitStrings := make([]string, len(commit.Precommits))
 		for i, precommit := range commit.Precommits {
-			precommitStrings[i] = precommit.ShortString()
+			precommitStrings[i] = precommit.StringShort()
 		}
 		precommitStr = strings.Join(precommitStrings, "##")
 	}
-	return fmt.Sprintf("Commit{BlockID:%v  Precommits:%v}#%v",
-		commit.BlockID,
+	return fmt.Sprintf("Commit{BlockID:%X  Precommits:%v}#%v",
+		cmn.Fingerprint(commit.BlockID[:]),
 		precommitStr,
 		commit.hash.Hex())
 }

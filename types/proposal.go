@@ -84,3 +84,11 @@ func (p *Proposal) String() string {
 		p.POLBlockID,
 		cmn.Fingerprint(p.Signature), p.Timestamp)
 }
+
+// String returns a short string representing the Proposal
+func (p *Proposal) StringShort() string {
+	return fmt.Sprintf("Proposal{%v/%v %v (%v,%X) %X @%s}",
+		p.Height, p.Round, p.Block.StringShort(), p.POLRound,
+		cmn.Fingerprint(p.POLBlockID[:]),
+		cmn.Fingerprint(p.Signature[:]), p.Timestamp)
+}
