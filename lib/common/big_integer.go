@@ -277,6 +277,11 @@ func (x *BigInt) IsLessThanOrEquals(y *BigInt) bool {
 	return x.Int64() <= y.Int64()
 }
 
+// IsLessThan returns true if x is less than y
+func (x *BigInt) IsLessThanOrEqualsUint64(y uint64) bool {
+	return x.Uint64() <= y
+}
+
 // Equals returns true if x equals to y
 func (x *BigInt) Equals(y *BigInt) bool {
 	return x.Int64() == y.Int64()
@@ -290,6 +295,11 @@ func (x *BigInt) EqualsInt(y int) bool {
 // Equals returns true if x equals to y
 func (x *BigInt) EqualsInt64(y int64) bool {
 	return x.Int64() == y
+}
+
+// Equals returns true if x equals to y
+func (x *BigInt) EqualsUint64(y uint64) bool {
+	return x.Uint64() == y
 }
 
 // Equals returns true if x equals to y

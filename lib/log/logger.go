@@ -136,6 +136,17 @@ type TagType struct {
 	tags []string
 }
 
+func (t *TagType) Copy() *TagType {
+	if t == nil {
+		return nil
+	}
+
+	copiedTag := TagType{}
+	copiedTag.tags = make([]string, len(t.tags))
+	copy(copiedTag.tags, t.tags)
+	return &copiedTag
+}
+
 func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 	l.h.Log(&Record{
 		Time: time.Now(),
@@ -153,8 +164,11 @@ func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 }
 
 func (l *logger) New(ctx ...interface{}) Logger {
-	child := &logger{newContext(l.ctx, ctx), new(swapHandler), l.tag}
+	child := &logger{newContext(l.ctx, ctx), new(swapHandler), nil}
 	child.SetHandler(l.h)
+	if l.tag != nil {
+		child.tag = l.tag.Copy()
+	}
 	return child
 }
 
