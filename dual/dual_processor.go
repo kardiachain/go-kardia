@@ -107,6 +107,7 @@ func (p *DualProcessor) loop() {
 	}
 }
 
+// TODO(namdoh, #115): Rename this to handleBlock to be consistent with eth.go
 func (p *DualProcessor) checkNewBlock(block *types.Block) {
 	smcUpdate := false
 	for _, tx := range block.Transactions() {
@@ -144,6 +145,11 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 		ethSendValue := p.CallKardiaMasterGetEthToSend(p.smcCallSenderAddr, statedb)
 		log.Info("Kardia smc calls getEthToSend", "eth", ethSendValue)
 		if ethSendValue != nil && ethSendValue.Cmp(big.NewInt(0)) != 0 {
+			// TODO(namdoh, #115): Remember this txs event to dual service's pool
+
+			// TODO(namdoh, #115): Split this into two part 1) create an Ether tx and propose it and 2)
+			// once its block is commit, the next proposer will submit it.
+			// Create and submit a Kardia tx.
 			p.ethKardia.SendEthFromContract(ethSendValue)
 
 			// Create Kardia tx removeEth right away to acknowledge the ethsend
@@ -151,6 +157,9 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
 			addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 
+			// TODO(namdoh, #115): Split this into two part 1) create a Kardia tx and propose it and 2)
+			// once its block is commit, the next proposer will execute it.
+			// Create and submit a Kardia tx.
 			tx := CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, 1)
 			if err := p.txPool.AddLocal(tx); err != nil {
 				log.Error("Fail to add Kardia tx to removeEth", err, "tx", tx)

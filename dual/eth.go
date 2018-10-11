@@ -324,9 +324,14 @@ func (n *EthKardia) handleBlock(block *types.Block) {
 	contractAddr := ethCommon.HexToAddress(n.config.ContractAddress)
 
 	for _, tx := range block.Transactions() {
+		// TODO(thientn): Make this tx matcher more robust.
 		if tx.To() != nil && *tx.To() == contractAddr {
-			log.Error("New tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
-			// TODO(thientn): parse input & create Kardia tx
+			log.Info("New tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
+			// TODO(namdoh, #115): Remember this txs event to dual service's pool
+
+			// TODO(namdoh, #115): Split this into two part 1) create a Kardia tx and propose it and 2)
+			// once its block is commit, the next proposer will submit it.
+			// Create and submit a Kardia tx.
 			go n.updateKardiaSmc(tx)
 		}
 	}
