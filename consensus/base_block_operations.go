@@ -28,11 +28,7 @@ type BaseBlockOperations interface {
 	LoadBlock(height uint64) *types.Block
 	LoadBlockCommit(height uint64) *types.Commit
 	LoadSeenCommit(height uint64) *types.Commit
+	CreateProposalBlock(height int64, lastBlockID types.BlockID, lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block)
 	CommitAndValidateBlockTxs(block *types.Block) error
 	SaveBlock(block *types.Block, seenCommit *types.Commit)
-	CollectTransactions() []*types.Transaction
-	NewHeader(height int64, numTxs uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header
-	CommitTransactions(txs types.Transactions, header *types.Header) (common.Hash, types.Receipts, error)
-	NewBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block
-	SaveReceipts(receipts types.Receipts, block *types.Block)
 }

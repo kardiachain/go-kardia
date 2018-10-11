@@ -55,9 +55,9 @@ func (dbo *DualBlockOperations) Height() uint64 {
 	return dbo.height
 }
 
-// NewHeader creates new block header from given data.
+// newHeader creates new block header from given data.
 // Some header fields are not ready at this point.
-func (dbo *DualBlockOperations) NewHeader(height int64, numTxs uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header {
+func (dbo *DualBlockOperations) newHeader(height int64, numTxs uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:         uint64(height),
@@ -67,12 +67,39 @@ func (dbo *DualBlockOperations) NewHeader(height int64, numTxs uint64, blockId t
 	}
 }
 
-// NewBlock creates new block from given data.
-func (dbo *DualBlockOperations) NewBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
+// newBlock creates new block from given data.
+func (dbo *DualBlockOperations) newBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
 	block := types.NewDualBlock(dbo.logger, header, commit)
 
 	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
 	// LastResultHash.
+
+	return block
+}
+
+// Proposes a new block.
+func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID, lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
+	// Gets all transactions in pending pools and execute them to get new account states.
+	// Tx execution can happen in parallel with voting or precommitted.
+	// For simplicity, this code executes & commits txs before sending proposal,
+	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
+	txs := dbo.collectTransactions()
+	dbo.logger.Debug("Collected transactions", "txs", txs)
+
+	header := dbo.newHeader(height, uint64(len(txs)), lastBlockID, lastValidatorHash)
+	dbo.logger.Info("Creates new header", "header", header)
+
+	stateRoot, receipts, err := dbo.commitTransactions(txs, header)
+	if err != nil {
+		dbo.logger.Error("Fail to commit transactions", "err", err)
+		return nil
+	}
+	header.Root = stateRoot
+
+	block = dbo.newBlock(header, txs, receipts, commit)
+	dbo.logger.Trace("Make block to propose", "block", block)
+
+	dbo.saveReceipts(receipts, block)
 
 	return block
 }
@@ -117,8 +144,8 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, seenCommit *types.
 }
 
 // TODO(namdoh@): This isn't needed. Figure out how to remove this.
-// CollectTransactions queries list of pending transactions from tx pool.
-func (dbo *DualBlockOperations) CollectTransactions() []*types.Transaction {
+// collectTransactions queries list of pending transactions from tx pool.
+func (dbo *DualBlockOperations) collectTransactions() []*types.Transaction {
 	return []*types.Transaction{}
 }
 
@@ -153,14 +180,14 @@ func (dbo *DualBlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 
 // TODO(namdoh@): This isn't needed. Figure out how to remove this.
 // LoadBlock returns the Block for the given height.
-// CommitTransactions executes the given transactions and commits the result stateDB to disk.
-func (dbo *DualBlockOperations) CommitTransactions(txs types.Transactions, header *types.Header) (common.Hash, types.Receipts, error) {
+// commitTransactions executes the given transactions and commits the result stateDB to disk.
+func (dbo *DualBlockOperations) commitTransactions(txs types.Transactions, header *types.Header) (common.Hash, types.Receipts, error) {
 	return common.Hash{}, types.Receipts{}, nil
 }
 
 // TODO(namdoh@): This isn't needed. Figure out how to remove this.
-// SaveReceipts saves receipts of block transactions to storage.
-func (dbo *DualBlockOperations) SaveReceipts(receipts types.Receipts, block *types.Block) {
+// saveReceipts saves receipts of block transactions to storage.
+func (dbo *DualBlockOperations) saveReceipts(receipts types.Receipts, block *types.Block) {
 }
 
 // TODO(namdoh@): This isn't needed. Figure out how to remove this.

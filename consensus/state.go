@@ -1197,31 +1197,10 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	} else {
 		// This shouldn't happen.
 		cs.logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
-		return
+		return nil
 	}
 
-	// Gets all transactions in pending pools and execute them to get new account states.
-	// Tx execution can happen in parallel with voting or precommitted.
-	// For simplicity, this code executes & commits txs before sending proposal,
-	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
-	txs := cs.blockOperations.CollectTransactions()
-	cs.logger.Debug("Collected transactions", "txs", txs)
-
-	header := cs.blockOperations.NewHeader(cs.Height.Int64(), uint64(len(txs)), cs.state.LastBlockID, cs.state.LastValidators.Hash())
-	cs.logger.Info("Creates new header", "header", header)
-
-	stateRoot, receipts, err := cs.blockOperations.CommitTransactions(txs, header)
-	if err != nil {
-		cs.logger.Error("Fail to commit transactions", "err", err)
-	}
-	header.Root = stateRoot
-
-	block = cs.blockOperations.NewBlock(header, txs, receipts, commit)
-	cs.logger.Trace("Make block to propose", "block", block)
-
-	cs.blockOperations.SaveReceipts(receipts, block)
-
-	return block
+	return cs.blockOperations.CreateProposalBlock(cs.Height.Int64(), cs.state.LastBlockID, cs.state.LastValidators.Hash(), commit)
 }
 
 // Returns true if the proposal block is complete &&
