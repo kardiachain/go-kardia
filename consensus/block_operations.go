@@ -19,16 +19,16 @@
 package consensus
 
 import (
-	"github.com/kardiachain/go-kardia/vm"
+	"fmt"
 	"math/big"
 	"sync"
 	"time"
 
-	"fmt"
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/vm"
 )
 
 // TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
@@ -59,9 +59,9 @@ func (bo *BlockOperations) Height() uint64 {
 	return bo.height
 }
 
-// NewHeader creates new block header from given data.
+// newHeader creates new block header from given data.
 // Some header fields are not ready at this point.
-func (bo *BlockOperations) NewHeader(height int64, numTxs uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header {
+func (bo *BlockOperations) newHeader(height int64, numTxs uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:         uint64(height),
@@ -74,11 +74,38 @@ func (bo *BlockOperations) NewHeader(height int64, numTxs uint64, blockId types.
 }
 
 // NewBlock creates new block from given data.
-func (bo *BlockOperations) NewBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
+func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
 	block := types.NewBlock(bo.logger, header, txs, receipts, commit)
 
 	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
 	// LastResultHash.
+
+	return block
+}
+
+// Proposal a new block.
+func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID, lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
+	// Gets all transactions in pending pools and execute them to get new account states.
+	// Tx execution can happen in parallel with voting or precommitted.
+	// For simplicity, this code executes & commits txs before sending proposal,
+	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
+	txs := bo.collectTransactions()
+	bo.logger.Debug("Collected transactions", "txs", txs)
+
+	header := bo.newHeader(height, uint64(len(txs)), lastBlockID, lastValidatorHash)
+	bo.logger.Info("Creates new header", "header", header)
+
+	stateRoot, receipts, err := bo.commitTransactions(txs, header)
+	if err != nil {
+		bo.logger.Error("Fail to commit transactions", "err", err)
+		return nil
+	}
+	header.Root = stateRoot
+
+	block = bo.newBlock(header, txs, receipts, commit)
+	bo.logger.Trace("Make block to propose", "block", block)
+
+	bo.saveReceipts(receipts, block)
 
 	return block
 }
@@ -125,8 +152,8 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commi
 	bo.mtx.Unlock()
 }
 
-// CollectTransactions queries list of pending transactions from tx pool.
-func (bo *BlockOperations) CollectTransactions() []*types.Transaction {
+// collectTransactions queries list of pending transactions from tx pool.
+func (bo *BlockOperations) collectTransactions() []*types.Transaction {
 	pending, err := bo.txPool.Pending()
 	if err != nil {
 		bo.logger.Error("Fail to get pending txs", "err", err)
@@ -173,8 +200,8 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 	return commit
 }
 
-// CommitTransactions executes the given transactions and commits the result stateDB to disk.
-func (bo *BlockOperations) CommitTransactions(txs types.Transactions, header *types.Header) (common.Hash, types.Receipts, error) {
+// commitTransactions executes the given transactions and commits the result stateDB to disk.
+func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *types.Header) (common.Hash, types.Receipts, error) {
 	var (
 		receipts = types.Receipts{}
 		usedGas  = new(uint64)
@@ -221,8 +248,8 @@ func (bo *BlockOperations) CommitTransactions(txs types.Transactions, header *ty
 	return root, receipts, nil
 }
 
-// SaveReceipts saves receipts of block transactions to storage.
-func (bo *BlockOperations) SaveReceipts(receipts types.Receipts, block *types.Block) {
+// saveReceipts saves receipts of block transactions to storage.
+func (bo *BlockOperations) saveReceipts(receipts types.Receipts, block *types.Block) {
 	bo.blockchain.WriteReceipts(receipts, block)
 }
 
@@ -230,7 +257,7 @@ func (bo *BlockOperations) SaveReceipts(receipts types.Receipts, block *types.Bl
 // Transactions & receipts are saved to storage.
 // This also validate the new state root against the block root.
 func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
-	root, receipts, err := bo.CommitTransactions(block.Transactions(), block.Header())
+	root, receipts, err := bo.commitTransactions(block.Transactions(), block.Header())
 	if err != nil {
 		return err
 	}
@@ -241,7 +268,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
 	if receiptsHash != block.ReceiptHash() {
 		return fmt.Errorf("different receipt hash: Block receipt: %s, receipt from execution: %s", block.ReceiptHash().Hex(), receiptsHash.Hex())
 	}
-	bo.SaveReceipts(receipts, block)
+	bo.saveReceipts(receipts, block)
 
 	return nil
 }

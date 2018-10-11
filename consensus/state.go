@@ -30,7 +30,6 @@ import (
 
 	"github.com/ebuchman/fail-test"
 
-	"github.com/kardiachain/go-kardia/blockchain"
 	cfg "github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 	"github.com/kardiachain/go-kardia/kai/dev"
@@ -86,7 +85,7 @@ type ConsensusState struct {
 
 	config          *cfg.ConsensusConfig
 	privValidator   *types.PrivValidator // for signing votes
-	blockOperations *BlockOperations
+	blockOperations BaseBlockOperations
 	//evpool evidence.EvidencePool 	// TODO(namdoh): Add mem pool.
 
 	// internal state
@@ -126,15 +125,14 @@ func NewConsensusState(
 	logger log.Logger,
 	config *cfg.ConsensusConfig,
 	state state.LastestBlockState,
-	blockchain *blockchain.BlockChain,
-	txPool *blockchain.TxPool,
+	blockOperations BaseBlockOperations,
 	votingStrategy map[dev.VoteTurn]int,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		logger: logger,
 		config: config,
 		//namdoh@ blockExec:        blockExec,
-		blockOperations:  NewBlockOperations(logger, blockchain, txPool),
+		blockOperations:  blockOperations,
 		peerMsgQueue:     make(chan msgInfo, msgQueueSize),
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
 		timeoutTicker:    NewTimeoutTicker(),
@@ -1199,31 +1197,10 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	} else {
 		// This shouldn't happen.
 		cs.logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
-		return
+		return nil
 	}
 
-	// Gets all transactions in pending pools and execute them to get new account states.
-	// Tx execution can happen in parallel with voting or precommitted.
-	// For simplicity, this code executes & commits txs before sending proposal,
-	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
-	txs := cs.blockOperations.CollectTransactions()
-	cs.logger.Debug("Collected transactions", "txs", txs)
-
-	header := cs.blockOperations.NewHeader(cs.Height.Int64(), uint64(len(txs)), cs.state.LastBlockID, cs.state.LastValidators.Hash())
-	cs.logger.Info("Creates new header", "header", header)
-
-	stateRoot, receipts, err := cs.blockOperations.CommitTransactions(txs, header)
-	if err != nil {
-		cs.logger.Error("Fail to commit transactions", "err", err)
-	}
-	header.Root = stateRoot
-
-	block = cs.blockOperations.NewBlock(header, txs, receipts, commit)
-	cs.logger.Trace("Make block to propose", "block", block)
-
-	cs.blockOperations.SaveReceipts(receipts, block)
-
-	return block
+	return cs.blockOperations.CreateProposalBlock(cs.Height.Int64(), cs.state.LastBlockID, cs.state.LastValidators.Hash(), commit)
 }
 
 // Returns true if the proposal block is complete &&
