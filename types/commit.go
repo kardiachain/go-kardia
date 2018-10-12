@@ -219,16 +219,16 @@ func (commit *Commit) StringShort() string {
 	if commit == nil {
 		return "nil-commit"
 	}
-	var precommitStr string
 	if len(commit.Precommits) == 0 {
-		precommitStr = "empty-Commit"
-	} else {
-		precommitStrings := make([]string, len(commit.Precommits))
-		for i, precommit := range commit.Precommits {
-			precommitStrings[i] = precommit.StringShort()
-		}
-		precommitStr = strings.Join(precommitStrings, "##")
+		return "empty-Commit"
 	}
+
+	precommitStrings := make([]string, len(commit.Precommits))
+	for i, precommit := range commit.Precommits {
+		precommitStrings[i] = precommit.StringShort()
+	}
+	precommitStr := strings.Join(precommitStrings, "##")
+
 	return fmt.Sprintf("Commit{BlockID:%X  Precommits:%v}#%X",
 		cmn.Fingerprint(commit.BlockID[:]),
 		precommitStr,
