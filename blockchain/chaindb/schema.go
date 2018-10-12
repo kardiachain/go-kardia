@@ -42,10 +42,19 @@ var (
 
 	commitPrefix = []byte("c") // commitPrefix + num (uint64 big endian) -> commit
 
-	configPrefix    = []byte("kardia-config-") // config prefix for the db
-	txLookupPrefix  = []byte("l")              // txLookupPrefix + hash -> transaction/receipt lookup metadata
-	bloomBitsPrefix = []byte("B")              // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
+	configPrefix          = []byte("kardia-config-") // config prefix for the db
+	txLookupPrefix        = []byte("l")              // txLookupPrefix + hash -> transaction/receipt lookup metadata
+	dualEventLookupPrefix = []byte("de")             // dualEventLookupPrefix + hash -> dual's event lookup metadata
+	bloomBitsPrefix       = []byte("B")              // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
 )
+
+// A positional metadata to help looking up the data content of
+// a dual's event given only its hash.
+type DualEventLookupEntry struct {
+	BlockHash  common.Hash
+	BlockIndex uint64
+	Index      uint64
+}
 
 // TxLookupEntry is a positional metadata to help looking up the data content of
 // a transaction or receipt given only its hash.
@@ -100,6 +109,11 @@ func configKey(hash common.Hash) []byte {
 // txLookupKey = txLookupPrefix + hash
 func txLookupKey(hash common.Hash) []byte {
 	return append(txLookupPrefix, hash.Bytes()...)
+}
+
+// dualEventLookupKey = dualEventLookupPrefix + hash
+func dualEventLookupKey(hash common.Hash) []byte {
+	return append(dualEventLookupPrefix, hash.Bytes()...)
 }
 
 // bloomBitsKey = bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash

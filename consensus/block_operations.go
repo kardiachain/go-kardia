@@ -83,7 +83,7 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 	return block
 }
 
-// Proposal a new block.
+// Proposes a new block.
 func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID, lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.

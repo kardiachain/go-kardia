@@ -21,16 +21,18 @@ package dual
 import (
 	"encoding/hex"
 	"fmt"
-	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/dual/ethsmc"
-	"github.com/kardiachain/go-kardia/kai/dev"
-	"github.com/kardiachain/go-kardia/lib/crypto"
 	"math/big"
 	"os"
 	"os/user"
 	"path/filepath"
 
+	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/blockchain/dual"
+	"github.com/kardiachain/go-kardia/dual/ethsmc"
+	"github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
@@ -90,7 +92,8 @@ type EthKardia struct {
 	ethSmc *ethsmc.EthSmc
 	kChain *blockchain.BlockChain
 	// TODO(namdoh, #115): Rename to kardiaPool
-	txPool *blockchain.TxPool
+	txPool    *blockchain.TxPool
+	eventPool *dual.EventPool // Event pool of DUAL service.
 }
 
 // EthKardia creates a Ethereum sub node.

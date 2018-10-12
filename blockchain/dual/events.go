@@ -20,5 +20,8 @@ package dual
 
 import "github.com/kardiachain/go-kardia/types"
 
+// Posted when a batch of transactions enter the dual's event pool.
+type NewDualEventsEvent struct{ Events []*types.DualEvent }
+
 // ChainHeadEvent is posted when a new head block is saved to the block chain.
 type ChainHeadEvent struct{ Block *types.Block }
