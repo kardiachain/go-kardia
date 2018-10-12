@@ -65,6 +65,9 @@ type DualConfig struct {
 	// If nil, the Dual main net block is used.
 	DualGenesis *dual.DualGenesis `toml:",omitempty"`
 
+	// Dual's event pool options
+	DualEventPool dual.EventPoolConfig
+
 	// chaindata
 	ChainData string
 

@@ -97,7 +97,7 @@ type EthKardia struct {
 }
 
 // EthKardia creates a Ethereum sub node.
-func NewEthKardia(config *EthKardiaConfig, kChain *blockchain.BlockChain, txPool *blockchain.TxPool) (*EthKardia, error) {
+func NewEthKardia(config *EthKardiaConfig, kChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualEventPool *dual.EventPool) (*EthKardia, error) {
 	datadir := defaultEthDataDir()
 
 	// Creates datadir with testnet follow eth standards.
@@ -184,7 +184,7 @@ func NewEthKardia(config *EthKardiaConfig, kChain *blockchain.BlockChain, txPool
 		}
 	}
 	return &EthKardia{
-		geth: ethNode, config: config, ethSmc: ethsmc.NewEthSmc(), kChain: kChain, txPool: txPool}, nil
+		geth: ethNode, config: config, ethSmc: ethsmc.NewEthSmc(), kChain: kChain, txPool: txPool, eventPool: dualEventPool}, nil
 }
 
 // defaultEthDataDir returns default Eth root datadir.

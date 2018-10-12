@@ -79,6 +79,9 @@ type DualChainConfig struct {
 
 	// Genesis is genesis block which contain initial Block and accounts
 	DualGenesis *dual.DualGenesis
+
+	// Dual's event pool options
+	DualEventPool dual.EventPoolConfig
 }
 
 type NodeConfig struct {
