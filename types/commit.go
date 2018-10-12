@@ -194,28 +194,31 @@ func (commit *Commit) MakeEmptyNil() {
 		}
 	}
 }
-func (commit *Commit) String() string {
+
+// StringLong returns a long string representing full info about Commit
+func (commit *Commit) StringLong() string {
 	if commit == nil {
 		return "nil-Commit"
 	}
-	var precommitStr string
+
 	if len(commit.Precommits) == 0 {
-		precommitStr = "empty-Commit"
-	} else {
-		precommitStrings := make([]string, len(commit.Precommits))
-		for i, precommit := range commit.Precommits {
-			precommitStrings[i] = precommit.String()
-		}
-		precommitStr = strings.Join(precommitStrings, "##")
+		return "empty-Commit"
 	}
+
+	precommitStrings := make([]string, len(commit.Precommits))
+	for i, precommit := range commit.Precommits {
+		precommitStrings[i] = precommit.String()
+	}
+	precommitStr := strings.Join(precommitStrings, "##")
+
 	return fmt.Sprintf("Commit{BlockID:%v  Precommits:%v}#%v",
 		commit.BlockID,
 		precommitStr,
 		commit.hash.Hex())
 }
 
-// StringShort returns a short string representing commit by simplifying byte array to hex
-func (commit *Commit) StringShort() string {
+// String returns a short string representing commit by simplifying byte array to hex
+func (commit *Commit) String() string {
 	if commit == nil {
 		return "nil-commit"
 	}
@@ -225,12 +228,12 @@ func (commit *Commit) StringShort() string {
 
 	precommitStrings := make([]string, len(commit.Precommits))
 	for i, precommit := range commit.Precommits {
-		precommitStrings[i] = precommit.StringShort()
+		precommitStrings[i] = precommit.String()
 	}
 	precommitStr := strings.Join(precommitStrings, "##")
 
-	return fmt.Sprintf("Commit{BlockID:%X  Precommits:%v}#%X",
-		cmn.Fingerprint(commit.BlockID[:]),
+	return fmt.Sprintf("Commit{BlockID:%X  Precommits:%v}#%v",
+		commit.BlockID.FingerPrint(),
 		precommitStr,
-		cmn.Fingerprint(commit.hash[:]))
+		commit.hash.FingerPrint())
 }

@@ -354,7 +354,7 @@ func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
 
 	// If ok is true, then simplify the log
 	if ok {
-		pm.logger.Info("Start broadcast consensus message", "msg", fmt.Sprintf("{Height:%v  Block:%v}", v.Height, v.Block.StringShort()), "msgType", msgType)
+		pm.logger.Info("Start broadcast consensus message", "Height", v.Height, "Block", v.Block.String(), "msgType", msgType)
 	} else {
 		pm.logger.Info("Start broadcast consensus message", "msg", msg, "msgType", msgType)
 	}

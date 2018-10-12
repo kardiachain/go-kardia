@@ -131,7 +131,8 @@ func (vote *Vote) Copy() *Vote {
 	return &voteCopy
 }
 
-func (vote *Vote) String() string {
+// StringLong returns a long string representing full info about Vote
+func (vote *Vote) StringLong() string {
 	if vote == nil {
 		return "nil-Vote"
 	}
@@ -146,8 +147,8 @@ func (vote *Vote) String() string {
 		time.Unix(vote.Timestamp.Int64(), 0))
 }
 
-// ShortString simplifies vote.Signature, array of bytes, to hex and gets the first 14 characters
-func (vote *Vote) StringShort() string {
+// String simplifies vote.Signature, array of bytes, to hex and gets the first 14 characters
+func (vote *Vote) String() string {
 	if vote == nil {
 		return "nil-vote"
 	}
@@ -155,10 +156,10 @@ func (vote *Vote) StringShort() string {
 		return "empty-vote"
 	}
 
-	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X , %X @%v}",
+	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %v , %X @%v}",
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
-		cmn.Fingerprint(vote.BlockID[:]), cmn.Fingerprint(vote.Signature[:]),
+		vote.BlockID.FingerPrint(), cmn.Fingerprint(vote.Signature[:]),
 		time.Unix(vote.Timestamp.Int64(), 0))
 }
 

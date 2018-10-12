@@ -98,7 +98,8 @@ func (v *Validator) VerifyVoteSignature(chainID string, vote *Vote) bool {
 	return bytes.Equal(crypto.CompressPubkey(pubKey), crypto.CompressPubkey(&v.PubKey))
 }
 
-func (v *Validator) String() string {
+// StringLong returns a long string representing full info about Validator
+func (v *Validator) StringLong() string {
 	if v == nil {
 		return "nil-Validator"
 	}
@@ -109,8 +110,8 @@ func (v *Validator) String() string {
 		v.Accum)
 }
 
-// StringShort returns a short string representing validator
-func (v *Validator) StringShort() string {
+// StringShort returns a short string representing Validator
+func (v *Validator) String() string {
 	if v == nil {
 		return "nil-Validator"
 	}
@@ -357,7 +358,8 @@ func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height
 		talliedVotingPower, (valSet.TotalVotingPower()*2/3 + 1))
 }
 
-func (valSet *ValidatorSet) String() string {
+// StringLong returns a long string representing full info about Validator
+func (valSet *ValidatorSet) StringLong() string {
 	if valSet == nil {
 		return "nil-ValidatorSet"
 	}
@@ -372,17 +374,17 @@ func (valSet *ValidatorSet) String() string {
 }
 
 // StringShort returns a short string representing of ValidatorSet
-func (valSet *ValidatorSet) StringShort() string {
+func (valSet *ValidatorSet) String() string {
 	if valSet == nil {
 		return "nil-ValidatorSet"
 	}
 	valStrings := []string{}
 	valSet.Iterate(func(index int, val *Validator) bool {
-		valStrings = append(valStrings, val.StringShort())
+		valStrings = append(valStrings, val.String())
 		return false
 	})
 	return fmt.Sprintf("ValidatorSet{Proposer:%v  Validators:%v}",
-		valSet.GetProposer().StringShort(), strings.Join(valStrings, "  "))
+		valSet.GetProposer().String(), strings.Join(valStrings, "  "))
 }
 
 //-------------------------------------

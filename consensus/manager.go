@@ -187,7 +187,7 @@ func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 	}
 	msg.Proposal.Block.SetLogger(conR.logger)
 
-	conR.logger.Trace("Decoded msg", "msg", msg.Proposal.StringShort())
+	conR.logger.Trace("Decoded msg", "msg", msg.Proposal.String())
 	if msg.Proposal.Block.LastCommit() == nil {
 		msg.Proposal.Block.SetLastCommit(&types.Commit{})
 	}
@@ -218,7 +218,7 @@ func (conR *ConsensusManager) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
 	}
 	msg.Block.SetLogger(conR.logger)
 
-	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("Height:%v   Round:%v   Block:%v", msg.Height, msg.Round, msg.Block.StringShort()))
+	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("Height:%v   Round:%v   Block:%v", msg.Height, msg.Round, msg.Block.String()))
 
 	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }
@@ -236,7 +236,7 @@ func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) 
 		conR.logger.Error("Invalid vote message", "msg", generalMsg, "err", err)
 		return
 	}
-	conR.logger.Trace("Decoded msg", "msg", msg.Vote.StringShort())
+	conR.logger.Trace("Decoded msg", "msg", msg.Vote.String())
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
@@ -332,7 +332,7 @@ func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 	}
 	msg.Block.SetLogger(conR.logger)
 
-	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("{Height:%v  Block:%v}", msg.Height, msg.Block.StringShort()))
+	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("{Height:%v  Block:%v}", msg.Height, msg.Block.String()))
 
 	// Get peer states
 	ps, ok := src.Get(p2p.PeerStateKey).(*PeerState)
@@ -454,7 +454,7 @@ func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 		conR.protocol.Broadcast(nrsMsg, kcmn.CsNewRoundStepMsg)
 	}
 	if csMsg != nil {
-		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", fmt.Sprintf("{Height:%v  Block:%v}", csMsg.Height, csMsg.Block.StringShort()))
+		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", fmt.Sprintf("{Height:%v  Block:%v}", csMsg.Height, csMsg.Block.String()))
 		conR.protocol.Broadcast(csMsg, kcmn.CsCommitStepMsg)
 	}
 }
@@ -534,7 +534,7 @@ OUTER_LOOP:
 		if prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThan(rs.Height) {
 			block := conR.conS.blockOperations.LoadBlock(uint64(prs.Height.Int64()))
 			logger.Trace("Block is finalized at round", "round", block.LastCommit().Round())
-			logger.Trace("Sending BlockMessage", "Height", prs.Height, "Block", block.StringShort())
+			logger.Trace("Sending BlockMessage", "Height", prs.Height, "Block", block.String())
 			if err := p2p.Send(ps.rw, kcmn.CsBlockMsg, &BlockMessage{Height: prs.Height, Round: block.LastCommit().Round(), Block: block}); err != nil {
 				logger.Trace("Sending block message failed", "err", err)
 			}
@@ -957,7 +957,7 @@ func (ps *PeerState) PickSendVote(votes types.VoteSetReader) bool {
 	if vote, ok := ps.PickVoteToSend(votes); ok {
 		msg := &VoteMessage{vote}
 
-		ps.logger.Trace("Sending vote message", "peer", ps.peer, "prs", ps.PRS.StringShort(), "vote", vote.StringShort())
+		ps.logger.Trace("Sending vote message", "peer", ps.peer, "prs", ps.PRS.String(), "vote", vote.String())
 		return p2p.Send(ps.rw, kcmn.CsVoteMsg, msg) == nil
 	}
 	return false

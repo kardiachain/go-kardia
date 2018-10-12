@@ -93,6 +93,11 @@ func (h Hash) String() string {
 	return h.Hex()
 }
 
+// FingerPrint returns the first 12 characters of the string representation of Hash
+func (h Hash) FingerPrint() string {
+	return fmt.Sprintf("%X", Fingerprint(h[:]))
+}
+
 // Format implements fmt.Formatter, forcing the byte slice to be formatted as is,
 // without going through the stringer interface used for logging.
 func (h Hash) Format(s fmt.State, c rune) {

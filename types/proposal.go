@@ -77,18 +77,20 @@ func (p *Proposal) SignBytes(chainID string) []byte {
 	return bz
 }
 
-// String returns a string representation of the Proposal.
-func (p *Proposal) String() string {
+// StringLong returns a long string representing full info about Vote
+func (p *Proposal) StringLong() string {
 	return fmt.Sprintf("Proposal{%v/%v %v (%v,%v) %X @ %s}",
 		p.Height, p.Round, p.Block, p.POLRound,
 		p.POLBlockID,
-		cmn.Fingerprint(p.Signature), p.Timestamp)
+		cmn.Fingerprint(p.Signature[:]),
+		time.Unix(p.Timestamp.Int64(), 0))
 }
 
 // String returns a short string representing the Proposal
-func (p *Proposal) StringShort() string {
-	return fmt.Sprintf("Proposal{%v/%v %v (%v,%X) %X @%s}",
-		p.Height, p.Round, p.Block.StringShort(), p.POLRound,
-		cmn.Fingerprint(p.POLBlockID[:]),
-		cmn.Fingerprint(p.Signature[:]), p.Timestamp)
+func (p *Proposal) String() string {
+	return fmt.Sprintf("Proposal{%v/%v %v (%v,%v) %X @%v}",
+		p.Height, p.Round, p.Block.String(), p.POLRound,
+		p.POLBlockID.FingerPrint(),
+		cmn.Fingerprint(p.Signature[:]),
+		time.Unix(p.Timestamp.Int64(), 0))
 }

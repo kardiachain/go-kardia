@@ -88,7 +88,8 @@ func (h *Header) Size() common.StorageSize {
 	return common.StorageSize(unsafe.Sizeof(*h))
 }
 
-func (h *Header) String() string {
+// StringLong returns a long string representing full info about Header
+func (h *Header) StringLong() string {
 	if h == nil {
 		return "nil-Header"
 	}
@@ -98,15 +99,15 @@ func (h *Header) String() string {
 
 }
 
-// StringShort returns a short string representing block header by simplifying byte array to hex, and truncate the first 12 character of hex string
-func (h *Header) StringShort() string {
+// String returns a short string representing Header by simplifying byte array to hex, and truncate the first 12 character of hex string
+func (h *Header) String() string {
 	if h == nil {
 		return "nil-Header"
 	}
 	headerHash := h.Hash()
-	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%X  LastCommitHash:%X  TxHash:%X  Root:%X  ValidatorsHash:%X  ConsensusHash:%X}#%X",
-		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, common.Fingerprint(h.LastBlockID[:]), common.Fingerprint(h.LastCommitHash[:]),
-		common.Fingerprint(h.TxHash[:]), common.Fingerprint(h.Root[:]), common.Fingerprint(h.ValidatorsHash[:]), common.Fingerprint(h.ConsensusHash[:]), common.Fingerprint(headerHash[:]))
+	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID.FingerPrint(), h.LastCommitHash.FingerPrint(),
+		h.TxHash.FingerPrint(), h.Root.FingerPrint(), h.ValidatorsHash.FingerPrint(), h.ConsensusHash.FingerPrint(), headerHash.FingerPrint())
 }
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
@@ -198,7 +199,7 @@ func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []
 			b.logger.Error("NewBlock - commit should never be nil.")
 			b.header.LastCommitHash = common.NewZeroHash()
 		} else {
-			b.logger.Trace("Compute last commit hash", "commit", commit.StringShort())
+			b.logger.Trace("Compute last commit hash", "commit", commit.String())
 			b.header.LastCommitHash = commit.Hash()
 		}
 	}
@@ -384,7 +385,8 @@ func (b *Block) ValidateBasic() error {
 	return nil
 }
 
-func (b *Block) String() string {
+// StringLong returns a long string representing full info about Block
+func (b *Block) StringLong() string {
 	if b == nil {
 		return "nil-Block"
 	}
@@ -393,14 +395,14 @@ func (b *Block) String() string {
 		b.header, b.transactions, b.lastCommit, b.Hash().Hex())
 }
 
-// StringShort returns a short string representing block by simplifying block header and lastcommit
-func (b *Block) StringShort() string {
+// String returns a short string representing block by simplifying block header and lastcommit
+func (b *Block) String() string {
 	if b == nil {
 		return "nil-Block"
 	}
 	blockHash := b.Hash()
-	return fmt.Sprintf("Block{%v  %v  %v}#%X",
-		b.header.StringShort(), b.transactions, b.lastCommit.StringShort(), common.Fingerprint(blockHash[:]))
+	return fmt.Sprintf("Block{%v  %v  %v}#%v",
+		b.header.String(), b.transactions, b.lastCommit.String(), blockHash.FingerPrint())
 }
 
 type writeCounter common.StorageSize
@@ -471,6 +473,11 @@ func (b *BlockID) Equal(id BlockID) bool {
 // Key returns a machine-readable string representation of the BlockID
 func (blockID *BlockID) Key() string {
 	return string(blockID[:])
+}
+
+// Fingerprint returns the first 12 characters of hex string representation of the BlockID
+func (blockID *BlockID) FingerPrint() string {
+	return fmt.Sprintf("%X", common.Fingerprint(blockID[:]))
 }
 
 type Blocks []*Block
