@@ -109,6 +109,18 @@ func (v *Validator) String() string {
 		v.Accum)
 }
 
+// StringShort returns a short string representing validator
+func (v *Validator) StringShort() string {
+	if v == nil {
+		return "nil-Validator"
+	}
+	return fmt.Sprintf("Validator{%X %v VP:%v A:%v}",
+		common.Fingerprint(v.Address[:]),
+		v.PubKey,
+		v.VotingPower,
+		v.Accum)
+}
+
 // --------- ValidatorSet ----------
 
 // ValidatorSet represent a set of *Validator at a given height.
@@ -357,6 +369,20 @@ func (valSet *ValidatorSet) String() string {
 	return fmt.Sprintf("ValidatorSet{Proposer:%v  Validators:%v}",
 		valSet.GetProposer(), strings.Join(valStrings, "  "))
 
+}
+
+// StringShort returns a short string representing of ValidatorSet
+func (valSet *ValidatorSet) StringShort() string {
+	if valSet == nil {
+		return "nil-ValidatorSet"
+	}
+	valStrings := []string{}
+	valSet.Iterate(func(index int, val *Validator) bool {
+		valStrings = append(valStrings, val.StringShort())
+		return false
+	})
+	return fmt.Sprintf("ValidatorSet{Proposer:%v  Validators:%v}",
+		valSet.GetProposer().StringShort(), strings.Join(valStrings, "  "))
 }
 
 //-------------------------------------

@@ -66,7 +66,7 @@ func ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockI
 
 // updateState returns a new State updated according to the header and responses.
 func updateState(logger log.Logger, state LastestBlockState, blockID types.BlockID, header *types.Header) (LastestBlockState, error) {
-	logger.Trace("updateState", "state", state, "blockID", blockID, "header", header)
+	logger.Trace("updateState", "state", state.StringShort(), "blockID", fmt.Sprintf("%X", cmn.Fingerprint(blockID[:])), "header", header.StringShort())
 
 	// copy the valset so we can apply changes from EndBlock
 	// and update s.LastValidators and s.Validators

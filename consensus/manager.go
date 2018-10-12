@@ -187,7 +187,7 @@ func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 	}
 	msg.Proposal.Block.SetLogger(conR.logger)
 
-	conR.logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", msg.Proposal.StringShort())
 	if msg.Proposal.Block.LastCommit() == nil {
 		msg.Proposal.Block.SetLastCommit(&types.Commit{})
 	}

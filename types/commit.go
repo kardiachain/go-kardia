@@ -229,8 +229,8 @@ func (commit *Commit) StringShort() string {
 		}
 		precommitStr = strings.Join(precommitStrings, "##")
 	}
-	return fmt.Sprintf("Commit{BlockID:%X  Precommits:%v}#%v",
+	return fmt.Sprintf("Commit{BlockID:%X  Precommits:%v}#%X",
 		cmn.Fingerprint(commit.BlockID[:]),
 		precommitStr,
-		commit.hash.Hex())
+		cmn.Fingerprint(commit.hash[:]))
 }

@@ -103,14 +103,10 @@ func (h *Header) StringShort() string {
 	if h == nil {
 		return "nil-Header"
 	}
-
-	lastCommitHash := fmt.Sprintf("%v", h.LastCommitHash.Hex())[0:14]
-	txHash := fmt.Sprintf("%v", h.TxHash.Hex())[0:14]
-	root := fmt.Sprintf("%v", h.Root.Hex())[0:14]
-	validatorsHash := fmt.Sprintf("%v", h.ValidatorsHash.Hex())[0:14]
-
-	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%X  LastCommitHash:%v  TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
-		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, common.Fingerprint(h.LastBlockID[:]), lastCommitHash, txHash, root, validatorsHash, h.ConsensusHash.Hex(), h.Hash().Hex())
+	headerHash := h.Hash()
+	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%X  LastCommitHash:%X  TxHash:%X  Root:%X  ValidatorsHash:%X  ConsensusHash:%X}#%X",
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, common.Fingerprint(h.LastBlockID[:]), common.Fingerprint(h.LastCommitHash[:]),
+		common.Fingerprint(h.TxHash[:]), common.Fingerprint(h.Root[:]), common.Fingerprint(h.ValidatorsHash[:]), common.Fingerprint(h.ConsensusHash[:]), common.Fingerprint(headerHash[:]))
 }
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
@@ -202,7 +198,7 @@ func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []
 			b.logger.Error("NewBlock - commit should never be nil.")
 			b.header.LastCommitHash = common.NewZeroHash()
 		} else {
-			b.logger.Trace("Compute last commit hash", "commit", commit)
+			b.logger.Trace("Compute last commit hash", "commit", commit.StringShort())
 			b.header.LastCommitHash = commit.Hash()
 		}
 	}
@@ -402,9 +398,9 @@ func (b *Block) StringShort() string {
 	if b == nil {
 		return "nil-Block"
 	}
-
-	return fmt.Sprintf("Block{%v  %v  %v}#%v",
-		b.header.StringShort(), b.transactions, b.lastCommit.StringShort(), b.Hash().Hex())
+	blockHash := b.Hash()
+	return fmt.Sprintf("Block{%v  %v  %v}#%X",
+		b.header.StringShort(), b.transactions, b.lastCommit.StringShort(), common.Fingerprint(blockHash[:]))
 }
 
 type writeCounter common.StorageSize

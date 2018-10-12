@@ -58,9 +58,9 @@ func (prs PeerRoundState) String() string {
 }
 
 func (prs *PeerRoundState) StringShort() string {
-	return fmt.Sprintf("PeerRoundState{%v/%v/%v @%v  Proposal:%v  POL:%v (round %v)  Prevotes:%v  Precommits:%v  LastCommit:%v (round %v)  Catchup:%v (round %v)}",
+	return fmt.Sprintf("PeerRoundState{%v/%v/%v @%v  Proposal:%X  POL:%v (round %v)  Prevotes:%v  Precommits:%v  LastCommit:%v (round %v)  Catchup:%v (round %v)}",
 		prs.Height, prs.Round, prs.Step, time.Unix(prs.StartTime.Int64(), 0),
-		fmt.Sprintf("%v", prs.ProposalBlockHeader.Hex())[0:14],
+		cmn.Fingerprint(prs.ProposalBlockHeader[:]),
 		prs.ProposalPOL,
 		prs.ProposalPOLRound,
 		prs.Prevotes,
