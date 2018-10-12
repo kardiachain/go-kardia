@@ -21,16 +21,18 @@ package dual
 import (
 	"encoding/hex"
 	"fmt"
-	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/dual/ethsmc"
-	"github.com/kardiachain/go-kardia/kai/dev"
-	"github.com/kardiachain/go-kardia/lib/crypto"
 	"math/big"
 	"os"
 	"os/user"
 	"path/filepath"
 
+	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/blockchain/dual"
+	"github.com/kardiachain/go-kardia/dual/ethsmc"
+	"github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+
+	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
@@ -90,7 +92,8 @@ type EthKardia struct {
 	ethSmc *ethsmc.EthSmc
 	kChain *blockchain.BlockChain
 	// TODO(namdoh, #115): Rename to kardiaPool
-	txPool *blockchain.TxPool
+	txPool    *blockchain.TxPool
+	eventPool *dual.EventPool // Event pool of DUAL service.
 }
 
 // EthKardia creates a Ethereum sub node.
@@ -324,9 +327,14 @@ func (n *EthKardia) handleBlock(block *types.Block) {
 	contractAddr := ethCommon.HexToAddress(n.config.ContractAddress)
 
 	for _, tx := range block.Transactions() {
+		// TODO(thientn): Make this tx matcher more robust.
 		if tx.To() != nil && *tx.To() == contractAddr {
-			log.Error("New tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
-			// TODO(thientn): parse input & create Kardia tx
+			log.Info("New tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
+			// TODO(namdoh, #115): Remember this txs event to dual service's pool
+
+			// TODO(namdoh, #115): Split this into two part 1) create a Kardia tx and propose it and 2)
+			// once its block is commit, the next proposer will submit it.
+			// Create and submit a Kardia tx.
 			go n.updateKardiaSmc(tx)
 		}
 	}
