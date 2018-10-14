@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package blockchain
 
 import (
@@ -32,13 +50,15 @@ var (
 //
 // StateProcessor implements Processor.
 type StateProcessor struct {
-	bc *BlockChain // Canonical block chain
+	logger log.Logger
+	bc     *BlockChain // Canonical block chain
 }
 
 // NewStateProcessor initialises a new StateProcessor.
-func NewStateProcessor(bc *BlockChain) *StateProcessor {
+func NewStateProcessor(logger log.Logger, bc *BlockChain) *StateProcessor {
 	return &StateProcessor{
-		bc: bc,
+		logger: logger,
+		bc:     bc,
 	}
 }
 
@@ -59,7 +79,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
-		receipt, _, err := ApplyTransaction(p.bc, nil, gp, statedb, header, tx, usedGas, cfg)
+		receipt, _, err := ApplyTransaction(p.logger, p.bc, gp, statedb, header, tx, usedGas, cfg)
 		if err != nil {
 			return nil, nil, 0, err
 		}
@@ -70,55 +90,38 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	return receipts, allLogs, *usedGas, nil
 }
 
-func ApplyTransactionsToAccountState(txs []*types.Transaction, accounts *types.AccountStates) (*types.AccountStates, error) {
-	// converts to map.
-	accountMap := make(map[common.Address]*big.Int, len(*accounts))
-	for _, account := range *accounts {
-		accountMap[*account.Addr] = account.Balance
+// Execute exec a message that calls to a smartcontract without modifying the state
+func (p *StateProcessor) CallContract(msg *types.CallMsg, statedb *state.StateDB) ([]byte, error) {
+	return ExecuteStaticCall(p.bc, statedb, p.bc.CurrentHeader(), msg, vm.Config{})
+}
+
+// ExecuteStaticCall call to StaticCall of KVM in read only mode which restrict all operations which modifies the state
+func ExecuteStaticCall(bc ChainContext, statedb *state.StateDB, header *types.Header, msg *types.CallMsg, cfg vm.Config) ([]byte, error) {
+
+	sender := vm.AccountRef(msg.From)
+	// Create a new context to be used in the KVM environment
+	context := NewKVMContextFromCallMsg(msg, header, bc)
+	// Create a new environment which holds all relevant information
+	// about the transaction and calling mechanisms.
+	vmenv := vm.NewKVM(context, statedb, cfg)
+	ret, _, err := vmenv.StaticCall(sender, msg.GetTo(), msg.Data, msg.Gas)
+	if err != nil {
+		return nil, err
 	}
-
-	// applying txs.
-	for _, tx := range txs {
-		from, err := types.Sender(tx)
-		if err != nil {
-			return nil, err
-		}
-		to := tx.To()
-
-		fromBalance, found := accountMap[from]
-		if !found {
-			return nil, fmt.Errorf("sender account %v is not found when applying transaction", from)
-		}
-		toBalance, found := accountMap[*to]
-		if !found {
-			return nil, fmt.Errorf("receiver account %v is not found when applying transaction", *to)
-		}
-
-		fromBalance.Sub(fromBalance, tx.Value())
-		toBalance.Add(toBalance, tx.Value())
-	}
-
-	newState := make(types.AccountStates, len(*accounts))
-
-	for i, oldAccount := range *accounts {
-		newBalance := accountMap[*oldAccount.Addr]
-		newState[i] = &types.BlockAccount{Addr: oldAccount.Addr, Balance: newBalance}
-	}
-
-	return &newState, nil
+	return ret, nil
 }
 
 // ApplyTransaction attempts to apply a transaction to the given state database
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(bc ChainContext, author *common.Address, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
+func ApplyTransaction(logger log.Logger, bc ChainContext, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg vm.Config) (*types.Receipt, uint64, error) {
 	msg, err := tx.AsMessage()
 	if err != nil {
 		return nil, 0, err
 	}
 	// Create a new context to be used in the KVM environment
-	context := NewKVMContext(msg, header, bc, author)
+	context := NewKVMContext(msg, header, bc)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
 	vmenv := vm.NewKVM(context, statedb, cfg)
@@ -127,6 +130,7 @@ func ApplyTransaction(bc ChainContext, author *common.Address, gp *GasPool, stat
 	if err != nil {
 		return nil, 0, err
 	}
+	logger.Info("Applying msg successfully", "rep", msg.To().String())
 	// Update the state with pending changes
 	root := statedb.IntermediateRoot(true).Bytes()
 	*usedGas += gas
@@ -325,7 +329,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		ret, st.gas, vmerr = kvm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
 	if vmerr != nil {
-		log.Debug("VM returned with error", "err", vmerr)
+		log.Error("VM returned with error", "err", vmerr)
 		// The only possible consensus-error would be if there wasn't
 		// sufficient balance to make the transfer happen. The first
 		// balance transfer may never fail.

@@ -1,6 +1,25 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package types
 
 import (
+	"fmt"
 	"sync"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
@@ -27,6 +46,7 @@ We let each peer provide us with up to 2 unexpected "catchup" rounds.
 One for their LastCommit round, and another for the official commit round.
 */
 type HeightVoteSet struct {
+	logger  log.Logger
 	chainID string
 	height  *cmn.BigInt
 	valSet  *types.ValidatorSet
@@ -38,8 +58,9 @@ type HeightVoteSet struct {
 	// peerCatchupRounds map[p2p.ID][]int     // keys: peer.ID; values: at most 2 rounds
 }
 
-func NewHeightVoteSet(chainID string, height *cmn.BigInt, valSet *types.ValidatorSet) *HeightVoteSet {
+func NewHeightVoteSet(logger log.Logger, chainID string, height *cmn.BigInt, valSet *types.ValidatorSet) *HeightVoteSet {
 	hvs := &HeightVoteSet{
+		logger:  logger,
 		chainID: chainID,
 	}
 	hvs.Reset(height, valSet)
@@ -63,7 +84,7 @@ func (hvs *HeightVoteSet) addRound(round int) {
 	if _, ok := hvs.roundVoteSets[round]; ok {
 		cmn.PanicSanity("addRound() for an existing round")
 	}
-	// log.Debug("addRound(round)", "round", round)
+	// hvs.logger.Debug("addRound(round)", "round", round)
 	prevotes := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt(int64(round)), types.VoteTypePrevote, hvs.valSet)
 	precommits := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt(int64(round)), types.VoteTypePrecommit, hvs.valSet)
 	hvs.roundVoteSets[round] = RoundVoteSet{
@@ -76,7 +97,7 @@ func (hvs *HeightVoteSet) addRound(round int) {
 func (hvs *HeightVoteSet) SetRound(round int) {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
-	log.Trace("Set round", "hvs.round", hvs.round, "round", round)
+	hvs.logger.Trace("Set round", "hvs.round", hvs.round, "round", round)
 	if !hvs.round.EqualsInt(0) && hvs.round.Add(1).IsGreaterThanInt(round) {
 		cmn.PanicSanity("SetRound() must increment hvs.round")
 	}
@@ -99,7 +120,9 @@ func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID discover.NodeID) (add
 	}
 	voteSet := hvs.getVoteSet(vote.Round.Int32(), vote.Type)
 	if voteSet == nil {
-		panic("HeightVoteSet.AddVote - not yet implemented")
+		//panic("HeightVoteSet.AddVote - not yet implemented")
+		hvs.logger.Error("HeightVoteSet.AddVote - not yet implemented")
+		//return
 		// TODO(namdoh): Re-enable this later.
 		//if rndz := hvs.peerCatchupRounds[peerID]; len(rndz) < 2 {
 		//	hvs.addRound(vote.Round)
@@ -110,7 +133,12 @@ func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID discover.NodeID) (add
 		//	err = GotVoteFromUnwantedRoundError
 		//	return
 		//}
+		hvs.mtx.Unlock()
+		hvs.SetRound(vote.Round.Int32())
+		voteSet = hvs.getVoteSet(vote.Round.Int32(), vote.Type)
+		hvs.mtx.Lock()
 	}
+
 	added, err = voteSet.AddVote(vote)
 	return
 }
@@ -137,6 +165,23 @@ func (hvs *HeightVoteSet) getVoteSet(round int, type_ byte) *types.VoteSet {
 		cmn.PanicSanity(cmn.Fmt("Unexpected vote type %X", type_))
 		return nil
 	}
+}
+
+// If a peer claims that it has 2/3 majority for given blockKey, call this.
+// NOTE: if there are too many peers, or too much peer churn,
+// this can cause memory issues.
+// TODO: implement ability to remove peers too
+func (hvs *HeightVoteSet) SetPeerMaj23(round int, type_ byte, peerID discover.NodeID, blockID types.BlockID) error {
+	hvs.mtx.Lock()
+	defer hvs.mtx.Unlock()
+	if !types.IsVoteTypeValid(type_) {
+		return fmt.Errorf("SetPeerMaj23: Invalid vote type %v", type_)
+	}
+	voteSet := hvs.getVoteSet(round, type_)
+	if voteSet == nil {
+		return nil // something we don't know about yet
+	}
+	return voteSet.SetPeerMaj23(peerID, blockID)
 }
 
 // Returns last round and blockID that has +2/3 prevotes for a particular block

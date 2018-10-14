@@ -1,13 +1,31 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package node
 
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/kardiachain/go-kardia/blockchain"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -19,6 +37,30 @@ const (
 	datadirPrivateKey      = "nodekey"  // Path within the datadir to the node's private key
 	datadirDefaultKeyStore = "keystore" // Path within the datadir to the keystore
 )
+
+type ChainConfig struct {
+	// Mainchain
+	// Number of validators.
+	NumValidators int
+
+	// ChainData is directory that stores levelDB data
+	ChainData string
+
+	// DbCache is a param used to start levelDB
+	DbCache int
+
+	// DbHandles is a param used to start levelDB
+	DbHandles int
+
+	// Genesis is genesis block which contain initial Block and accounts
+	Genesis *blockchain.Genesis
+
+	// Transaction pool options
+	TxPool blockchain.TxPoolConfig
+
+	// AcceptTxs accept tx sync process or not (1 is yes and 0 is no)
+	AcceptTxs uint32
+}
 
 type NodeConfig struct {
 	// Name sets the instance name of the node. It must not contain the / character and is
@@ -43,6 +85,34 @@ type NodeConfig struct {
 	// Configuration of peer-to-peer networking.
 	P2P p2p.Config
 
+	// HTTPHost is the host interface on which to start the HTTP RPC server. If this
+	// field is empty, no HTTP API endpoint will be started.
+	HTTPHost string `toml:",omitempty"`
+
+	// HTTPPort is the TCP port number on which to start the HTTP RPC server. The
+	// default zero value is/ valid and will pick a port number randomly (useful
+	// for ephemeral nodes).
+	HTTPPort int `toml:",omitempty"`
+
+	// HTTPCors is the Cross-Origin Resource Sharing header to send to requesting
+	// clients. Please be aware that CORS is a browser enforced security, it's fully
+	// useless for custom HTTP clients.
+	HTTPCors []string `toml:",omitempty"`
+
+	// HTTPVirtualHosts is the list of virtual hostnames which are allowed on incoming requests.
+	// This is by default {'localhost'}. Using this prevents attacks like
+	// DNS rebinding, which bypasses SOP by simply masquerading as being within the same
+	// origin. These attacks do not utilize CORS, since they are not cross-domain.
+	// By explicitly checking the Host-header, the server will not allow requests
+	// made against the  server with a malicious host domain.
+	// Requests using ip address directly are not affected
+	HTTPVirtualHosts []string `toml:",omitempty"`
+
+	// HTTPModules is a list of API modules to expose via the HTTP RPC interface.
+	// If the module list is empty, all RPC API endpoints designated public will be
+	// exposed.
+	HTTPModules []string `toml:",omitempty"`
+
 	// KeyStoreDir is the file system folder that contains private keys. The directory can
 	// be specified as a relative path, in which case it is resolved relative to the
 	// current directory.
@@ -57,20 +127,11 @@ type NodeConfig struct {
 	DevNodeConfig *dev.DevNodeConfig
 	// Additional config of this environment when running as dev.
 	DevEnvConfig *dev.DevEnvironmentConfig
-	// Number of validators.
-	NumValidators int
 
-	// ChainData is directory that stores levelDB data
-	ChainData string
+	// TODO(thientn/namdoh): evaluate refactor this further
+	MainChainConfig ChainConfig
 
-	// DbCache is a param used to start levelDB
-	DbCache int
-
-	// DbHandles is a param used to start levelDB
-	DbHandles int
-
-	// Genesis is genesis block which contain initial Block and accounts
-	Genesis *blockchain.Genesis
+	DualChainConfig ChainConfig
 }
 
 // NodeName returns the devp2p node identifier.
@@ -143,6 +204,20 @@ func (c *NodeConfig) name() string {
 		return progname
 	}
 	return c.Name
+}
+
+// and port parameters.
+func (c *NodeConfig) HTTPEndpoint() string {
+	if c.HTTPHost == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s:%d", c.HTTPHost, c.HTTPPort)
+}
+
+// DefaultHTTPEndpoint returns the HTTP endpoint used by default.
+func DefaultHTTPEndpoint() string {
+	config := &NodeConfig{HTTPHost: DefaultHTTPHost, HTTPPort: DefaultHTTPPort}
+	return config.HTTPEndpoint()
 }
 
 func (c *NodeConfig) instanceDir() string {

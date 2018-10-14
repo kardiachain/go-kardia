@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package kai
 
 import (
@@ -9,6 +27,7 @@ import (
 	"github.com/kardiachain/go-kardia/consensus"
 	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/types"
 	"gopkg.in/fatih/set.v0"
@@ -30,13 +49,16 @@ const (
 	maxQueuedTxs = 128
 )
 
-// PeerInfo represents a short summary of the Ethereum sub-protocol metadata known
+// PeerInfo represents a short summary of the Kai sub-protocol metadata known
 // about a connected peer.
 type PeerInfo struct {
-	Version int `json:"version"` // Ethereum protocol version negotiated
+	Version int `json:"version"` // Kai protocol version negotiated
 }
 
 type peer struct {
+	// TODO(namdoh): De-dup this logger duplicates with the log in p2p.Peer
+	logger log.Logger
+
 	id string
 
 	lock sync.RWMutex
@@ -49,14 +71,15 @@ type peer struct {
 	knownTxs  *set.Set                  // Set of transaction hashes known to be known by this peer
 	queuedTxs chan []*types.Transaction // Queue of transactions to broadcast to the peer
 
-	csReactor *consensus.ConsensusReactor
+	csReactor *consensus.ConsensusManager
 
 	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
 
 }
 
-func newPeer(version int, p *p2p.Peer, rw p2p.MsgReadWriter, csReactor *consensus.ConsensusReactor) *peer {
+func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, csReactor *consensus.ConsensusManager) *peer {
 	return &peer{
+		logger:     logger,
 		Peer:       p,
 		rw:         rw,
 		version:    version,
@@ -83,7 +106,7 @@ func (p *peer) Info() *PeerInfo {
 // Handshake executes the kardia protocol handshake, negotiating version number,
 // network IDs, head and genesis blocks.
 func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesis common.Hash) error {
-	p.Log().Trace("Handshake starts...")
+	p.logger.Trace("Handshake starts...")
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
 	var status statusData // safe to read after two values have been received from errc
@@ -106,12 +129,12 @@ func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesi
 		select {
 		case err := <-errc:
 			if err != nil {
-				p.Log().Info("Handshake return err", "err", err)
+				p.logger.Warn("Handshake return err", "err", err)
 				return err
 			}
-			p.Log().Trace("Handshake returns no err")
+			p.logger.Trace("Handshake returns no err")
 		case <-timeout.C:
-			p.Log().Info("Handshake return read timeout")
+			p.logger.Warn("Handshake return read timeout")
 			return p2p.DiscReadTimeout
 		}
 	}
@@ -120,7 +143,8 @@ func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesi
 
 func (p *peer) readStatus(network uint64, status *statusData, genesis common.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
-	p.Log().Info("Read Status", "msg.Code", msg.Code, "err", err, "status", status)
+	p.logger.Info("Read Status", "msg.Code", msg.Code, "err", err, "status", fmt.Sprintf("{ProtocolVersion:%v NetworkId:%v Height:%v CurrentBlock:%X GenesisBlock:%X",
+		status.ProtocolVersion, status.NetworkId, status.Height, status.CurrentBlock[:12], status.GenesisBlock[:12]))
 	if err != nil {
 		return err
 	}
@@ -138,7 +162,8 @@ func (p *peer) readStatus(network uint64, status *statusData, genesis common.Has
 		return errResp(ErrGenesisBlockMismatch, "%x (!= %x)", status.GenesisBlock[:8], genesis[:8])
 	}
 
-	p.Log().Info("Decoded data", "msg", msg, "status", status)
+	p.logger.Info("Decoded data", "msg", msg, "status", fmt.Sprintf("{ProtocolVersion:%v NetworkId:%v Height:%v CurrentBlock:%X GenesisBlock:%X",
+		status.ProtocolVersion, status.NetworkId, status.Height, status.CurrentBlock[:12], status.GenesisBlock[:12]))
 
 	if status.NetworkId != network {
 		return errResp(ErrNetworkIdMismatch, "%d (!= %d)", status.NetworkId, network)
@@ -175,7 +200,7 @@ func newPeerSet() *peerSet {
 // peer is already known. If a new peer it registered, its broadcast loop is also
 // started.
 func (ps *peerSet) Register(p *peer) error {
-	p.Log().Debug("Registering a peer to peer set", "name", p.Name())
+	p.logger.Debug("Registering a peer to peer set", "name", p.Name())
 	ps.lock.Lock()
 	defer ps.lock.Unlock()
 
@@ -245,10 +270,10 @@ func (p *peer) broadcast() {
 		select {
 		case txs := <-p.queuedTxs:
 			if err := p.SendTransactions(txs); err != nil {
-				p.Log().Error("Send txs failed", "err", err, "count", len(txs))
+				p.logger.Error("Send txs failed", "err", err, "count", len(txs))
 				return
 			}
-			p.Log().Trace("Transactions sent", "count", len(txs))
+			p.logger.Trace("Transactions sent", "count", len(txs))
 
 		case <-p.terminated:
 			return
@@ -299,6 +324,6 @@ func (p *peer) AsyncSendTransactions(txs []*types.Transaction) {
 			p.knownTxs.Add(tx.Hash())
 		}
 	default:
-		p.Log().Debug("Dropping transaction propagation", "count", len(txs))
+		p.logger.Debug("Dropping transaction propagation", "count", len(txs))
 	}
 }

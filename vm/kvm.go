@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-ethereum library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package vm
 
 import (
@@ -133,7 +151,7 @@ func (kvm *KVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	// only.
 	contract := NewContract(caller, AccountRef(contractAddr), value, gas)
 	contract.SetCallCode(&contractAddr, crypto.Keccak256Hash(code), code)
-
+	println("CONTRACT ADDRESS:", contractAddr.String())
 	if kvm.vmConfig.NoRecursion && kvm.depth > 0 {
 		return nil, contractAddr, gas, nil
 	}

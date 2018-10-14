@@ -1,7 +1,32 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package dual
 
 import (
+	"encoding/hex"
 	"fmt"
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/dual/ethsmc"
+	"github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"math/big"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -23,22 +48,26 @@ import (
 const (
 	// // headChannelSize is the size of channel listening to ChainHeadEvent.
 	headChannelSize = 5
+	// GenesisAccount used for matchEth tx
+	genesisAccount = "0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28"
 )
 
 var DefaultEthKardiaConfig = EthKardiaConfig{
-	Name:       "GethKardia", // Don't need to change, default instance name for geth is "geth".
-	ListenAddr: ":30303",
-	MaxPeers:   10,
-	LightNode:  false,
-	LightPeers: 5,
-	LightServ:  0,
-	StatName:   "eth-kardia-1",
+	Name:            "GethKardia", // Don't need to change, default instance name for geth is "geth".
+	ListenAddr:      ":30303",
+	MaxPeers:        10,
+	LightNode:       false,
+	LightPeers:      5,
+	LightServ:       0,
+	StatName:        "eth-kardia-1",
+	ContractAddress: ethsmc.EthContractAddress,
 
 	CacheSize: 1024,
 }
 
 // EthKardiaConfig provides configuration when starting Eth subnode.
 type EthKardiaConfig struct {
+	ContractAddress string // address of Eth smart contract to watch.
 
 	// Network configs
 	Name        string
@@ -58,10 +87,13 @@ type EthKardiaConfig struct {
 type EthKardia struct {
 	geth   *node.Node
 	config *EthKardiaConfig
+	ethSmc *ethsmc.EthSmc
+	kChain *blockchain.BlockChain
+	txPool *blockchain.TxPool
 }
 
 // EthKardia creates a Ethereum sub node.
-func NewEthKardia(config *EthKardiaConfig) (*EthKardia, error) {
+func NewEthKardia(config *EthKardiaConfig, kChain *blockchain.BlockChain, txPool *blockchain.TxPool) (*EthKardia, error) {
 	datadir := defaultEthDataDir()
 
 	// Creates datadir with testnet follow eth standards.
@@ -147,7 +179,8 @@ func NewEthKardia(config *EthKardiaConfig) (*EthKardia, error) {
 			log.Error("Failed to register the Ethereum Stats service", "err", err)
 		}
 	}
-	return &EthKardia{geth: ethNode, config: config}, nil
+	return &EthKardia{
+		geth: ethNode, config: config, ethSmc: ethsmc.NewEthSmc(), kChain: kChain, txPool: txPool}, nil
 }
 
 // defaultEthDataDir returns default Eth root datadir.
@@ -187,7 +220,7 @@ func (n *EthKardia) Stop() error {
 	return n.geth.Stop()
 }
 
-// GethNode returns the standard Eth Node.
+// EthNode returns the standard Eth Node.
 func (n *EthKardia) EthNode() *node.Node {
 	return n.geth
 }
@@ -201,6 +234,18 @@ func (n *EthKardia) Client() (*KardiaEthClient, error) {
 	return &KardiaEthClient{ethClient: ethclient.NewClient(rpcClient), stack: n.geth}, nil
 }
 
+func (n *EthKardia) BlockChain() *core.BlockChain {
+	var ethService *eth.Ethereum
+	n.geth.Service(&ethService)
+	return ethService.BlockChain()
+}
+
+func (n *EthKardia) TxPool() *core.TxPool {
+	var ethService *eth.Ethereum
+	n.geth.Service(&ethService)
+	return ethService.TxPool()
+}
+
 // syncHead syncs with latest events from Eth network to Kardia.
 func (n *EthKardia) syncHead() {
 	var ethService *eth.Ethereum
@@ -212,10 +257,10 @@ func (n *EthKardia) syncHead() {
 		return
 	}
 
-	blockchain := ethService.BlockChain()
+	ethChain := ethService.BlockChain()
 
 	chainHeadEventCh := make(chan core.ChainHeadEvent, headChannelSize)
-	headSubCh := blockchain.SubscribeChainHeadEvent(chainHeadEventCh)
+	headSubCh := ethChain.SubscribeChainHeadEvent(chainHeadEventCh)
 	defer headSubCh.Unsubscribe()
 
 	blockCh := make(chan *types.Block, 1)
@@ -244,7 +289,9 @@ func (n *EthKardia) syncHead() {
 	for {
 		select {
 		case block := <-blockCh:
-			go n.handleBlock(block)
+			if !n.config.LightNode {
+				go n.handleBlock(block)
+			}
 		}
 	}
 }
@@ -264,9 +311,84 @@ func (n *EthKardia) handleBlock(block *types.Block) {
 
 	log.Info("handleBlock...", "header", header, "txns size", len(txns))
 
-	for _, txn := range block.Transactions() {
-		if txn.To() != nil {
-			log.Info("transfer txn", "txn", txn, "To", txn.To(), "Value", txn.Value())
+	/* Can be use to check contract state, but currently has memory leak.
+	b := n.BlockChain()
+	state, err := b.State()
+	if err != nil {
+		log.Error("Get Geth state() error", "err", err)
+		return
+	}
+	*/
+
+	contractAddr := ethCommon.HexToAddress(n.config.ContractAddress)
+
+	for _, tx := range block.Transactions() {
+		if tx.To() != nil && *tx.To() == contractAddr {
+			log.Error("New tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
+			// TODO(thientn): parse input & create Kardia tx
+			go n.updateKardiaSmc(tx)
 		}
+	}
+}
+
+func (n *EthKardia) updateKardiaSmc(tx *types.Transaction) {
+	input := tx.Data()
+	method, err := n.ethSmc.InputMethodName(input)
+	if err != nil {
+		log.Error("Error when unpack Eth smc input", "error", err)
+		return
+	}
+	if method == "deposit" {
+		ethValue := tx.Value()
+		neoAddr, err := n.ethSmc.UnpackDepositInput(input)
+		if err != nil {
+			log.Error("Error when unpack Eth deposit tx input", "error", err, "tx", tx)
+		}
+		log.Info("Create Kardia tx to update matchEth", "value", ethValue, "neoAddr", neoAddr, "eth tx hash", tx.Hash().Hex())
+		n.sendKardiaMatchEth(ethValue)
+
+	} else if method == "release" {
+		log.Info("Confirmed Eth release tx", "tx", tx)
+	}
+}
+
+func (n *EthKardia) sendKardiaMatchEth(amount *big.Int) {
+	statedb, err := n.kChain.State()
+	if err != nil {
+		log.Error("fail to get Kardia state to send MatchEth", "error", err)
+		return
+	}
+
+	addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[genesisAccount])
+	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
+	tx := CreateKardiaMatchAmountTx(addrKey, statedb, amount, 1)
+	if err := n.txPool.AddLocal(tx); err != nil {
+		log.Error("Fail to add Kardia MatchEth tx", "error", err)
+	} else {
+		log.Info("Added Kardia tx MatchEth", "tx", tx.Hash().Hex())
+	}
+
+}
+
+func (n *EthKardia) SendEthFromContract(value *big.Int) {
+
+	statedb, err := n.BlockChain().State()
+	if err != nil {
+		log.Error("Fail to get Ethereum state to create release tx", "err", err)
+		return
+	}
+	// Nonce of account to sign tx
+	contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
+	nonce := statedb.GetNonce(contractAddr)
+	if nonce == 0 {
+		log.Error("Eth state return 0 for nonce of contract address, SKIPPING TX CREATION", "addr", ethsmc.EthContractAddress)
+	}
+	tx := n.ethSmc.CreateEthReleaseTx(value, nonce)
+
+	log.Info("Create Eth tx to release", "value", value, "nonce", nonce, "txhash", tx.Hash().Hex())
+	if err := n.TxPool().AddLocal(tx); err != nil {
+		log.Error("Fail to add Ether tx", "error", err)
+	} else {
+		log.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
 	}
 }

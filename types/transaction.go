@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package types
 
 import (
@@ -341,3 +359,57 @@ func (m Message) Gas() uint64          { return m.gasLimit }
 func (m Message) Nonce() uint64        { return m.nonce }
 func (m Message) Data() []byte         { return m.data }
 func (m Message) CheckNonce() bool     { return m.checkNonce }
+
+type CallMsgJSON struct {
+	From     string   `json:"from"`     // the sender of the 'transaction'
+	To       string   `json:"to"`       // the destination contract (nil for contract creation)
+	Gas      uint64   `json:"gas"`      // if 0, the call executes with near-infinite gas
+	GasPrice *big.Int `json:"gasPrice"` // wei <-> gas exchange ratio
+	Value    big.Int  `json:"value"`    // amount of wei sent along with the call
+	Data     string   `json:"data"`     // input data, usually an ABI-encoded contract method invocation
+}
+type CallMsg struct {
+	From     common.Address  `json:"from"`     // the sender of the 'transaction'
+	To       *common.Address `json:"to"`       // the destination contract (nil for contract creation)
+	Gas      uint64          `json:"gas"`      // if 0, the call executes with near-infinite gas
+	GasPrice *big.Int        `json:"gasPrice"` // wei <-> gas exchange ratio
+	Value    big.Int         `json:"value"`    // amount of wei sent along with the call
+	Data     []byte          `json:"data"`     // input data, usually an ABI-encoded contract method invocation
+}
+
+// NewCallMsg creates an empty contract call parameter list.
+func NewCallMsg(json CallMsgJSON) *CallMsg {
+	msg := new(CallMsg)
+	address := common.HexToAddress(json.To)
+	msg.To = &address
+	msg.Gas = json.Gas
+	msg.GasPrice = json.GasPrice
+	msg.Data = common.FromHex(json.Data)
+	msg.Value = json.Value
+	return msg
+}
+
+func (msg *CallMsg) GetFrom() *common.Address { return &msg.From }
+func (msg *CallMsg) GetGas() int64            { return int64(msg.Gas) }
+func (msg *CallMsg) GetGasPrice() *big.Int    { return msg.GasPrice }
+func (msg *CallMsg) GetValue() big.Int        { return msg.Value }
+func (msg *CallMsg) GetData() []byte          { return msg.Data }
+func (msg *CallMsg) GetTo() common.Address {
+	if to := msg.To; to.String() != "0x" {
+		return common.BytesToAddress(common.CopyBytes(msg.To.Bytes()))
+	}
+	return common.HexToAddress("0x")
+}
+
+func (msg *CallMsg) SetFrom(address common.Address) { msg.From = address }
+func (msg *CallMsg) SetGas(gas int64)               { msg.Gas = uint64(gas) }
+func (msg *CallMsg) SetGasPrice(price big.Int)      { msg.GasPrice = &price }
+func (msg *CallMsg) SetValue(value big.Int)         { msg.Value = value }
+func (msg *CallMsg) SetData(data []byte)            { msg.Data = common.CopyBytes(data) }
+func (msg *CallMsg) SetTo(address common.Address) {
+	if address.String() == "0x" {
+		msg.To = nil
+		return
+	}
+	msg.To = &address
+}

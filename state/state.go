@@ -1,11 +1,29 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package state
 
 import (
-	"time"
-
+	"fmt"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
+	"time"
 )
 
 // It keeps all information necessary to validate new blocks,
@@ -62,28 +80,14 @@ func (state LastestBlockState) Copy() LastestBlockState {
 	}
 }
 
-// Creates a block from the latest state.
-// MakeBlock builds a block with the given txs and commit from the current state.
-func (state LastestBlockState) MakeBlock(height int64, txs []*types.Transaction, commit *types.Commit, accounts *types.AccountStates) *types.Block {
-	// build base block
-	// TODO(huny@): Fill receipt in making a new block.
-	header := types.Header{
-		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
-		Height:         uint64(height),
-		Time:           big.NewInt(time.Now().Unix()),
-		NumTxs:         uint64(len(txs)),
-		LastBlockID:    state.LastBlockID,
-		ValidatorsHash: state.Validators.Hash(),
-	}
-	block := types.NewBlock(&header, txs, nil, commit, accounts)
-
-	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
-	// LastResultHash.
-
-	return block
-}
-
 // IsEmpty returns true if the State is equal to the empty State.
 func (state LastestBlockState) IsEmpty() bool {
 	return state.Validators == nil // XXX can't compare to Empty
+}
+
+// Stringshort returns a short string representing State
+func (state LastestBlockState) String() string {
+	return fmt.Sprintf("{ChainID:%v LastBlockHeight:%v LastBlockTotalTx:%v LastBlockID:%v LastBlockTime:%v Validators:%v LastValidators:%v LastHeightValidatorsChanged:%v",
+		state.ChainID, state.LastBlockHeight, state.LastBlockTotalTx, state.LastBlockID.FingerPrint(), time.Unix(state.LastBlockTime.Int64(), 0),
+		state.Validators.String(), state.LastValidators.String(), state.LastHeightValidatorsChanged)
 }

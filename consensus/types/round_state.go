@@ -1,6 +1,26 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package types
 
 import (
+	"fmt"
+	"math/big"
 	"time"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
@@ -56,22 +76,23 @@ func (rs RoundStepType) String() string {
 // NOTE: Not thread safe. Should only be manipulated by functions downstream
 // of the cs.receiveRoutine
 type RoundState struct {
-	Height         *cmn.BigInt         `json:"height"` // Height we are working on
-	Round          *cmn.BigInt         `json:"round"`
-	Step           RoundStepType       `json:"step"`
-	StartTime      time.Time           `json:"start_time"`
-	CommitTime     time.Time           `json:"commit_time"` // Subjective time when +2/3 precommits for Block at Round were found
-	Validators     *types.ValidatorSet `json:"validators"`  // TODO(huny@): Assume static validator set for now
-	Proposal       *types.Proposal     `json:"proposal"`
-	ProposalBlock  *types.Block        `json:"proposal_block"`
-	LockedRound    *cmn.BigInt         `json:"locked_round"`
-	LockedBlock    *types.Block        `json:"locked_block"`
-	ValidRound     *cmn.BigInt         `json:"valid_round"` // Last known round with POL for non-nil valid block.
-	ValidBlock     *types.Block        `json:"valid_block"` // Last known block of POL mentioned above.
-	Votes          *HeightVoteSet      `json:"votes"`
-	CommitRound    *cmn.BigInt         `json:"commit_round"` //
-	LastCommit     *types.VoteSet      `json:"last_commit"`  // Last precommits at Height-1
-	LastValidators *types.ValidatorSet `json:"last_validators"`
+	Height          *cmn.BigInt         `json:"height"` // Height we are working on
+	Round           *cmn.BigInt         `json:"round"`
+	Step            RoundStepType       `json:"step"`
+	StartTime       *big.Int            `json:"start_time"`
+	CommitTime      *big.Int            `json:"commit_time"` // Subjective time when +2/3 precommits for Block at Round were found
+	Validators      *types.ValidatorSet `json:"validators"`  // TODO(huny@): Assume static validator set for now
+	Proposal        *types.Proposal     `json:"proposal"`
+	ProposalBlock   *types.Block        `json:"proposal_block"`    // Simply cache the block from Proposal
+	ProposalBlockID types.BlockID       `json:"proposal_block_ID"` // Used mostly for catchup when proposal isn't sent but only proposed block's header
+	LockedRound     *cmn.BigInt         `json:"locked_round"`
+	LockedBlock     *types.Block        `json:"locked_block"`
+	ValidRound      *cmn.BigInt         `json:"valid_round"` // Last known round with POL for non-nil valid block.
+	ValidBlock      *types.Block        `json:"valid_block"` // Last known block of POL mentioned above.
+	Votes           *HeightVoteSet      `json:"votes"`
+	CommitRound     *cmn.BigInt         `json:"commit_round"` //
+	LastCommit      *types.VoteSet      `json:"last_commit"`  // Last precommits at Height-1
+	LastValidators  *types.ValidatorSet `json:"last_validators"`
 }
 
 // RoundStateEvent returns the H/R/S of the RoundState as an event.
@@ -86,4 +107,21 @@ func (rs *RoundState) RoundStateEvent() types.EventDataRoundState {
 		RoundState: &rsCopy,
 	}
 	return edrs
+}
+
+func (rs *RoundState) String() string {
+	return fmt.Sprintf("RoundState{H:%v R:%v S:%v  StartTime:%v  CommitTime:%v  Validators:%v   Proposal:%v  ProposalBlock:%v  LockedRound:%v  LockedBlock:%v  ValidRound:%v  ValidBlock:%v  Votes:%v  LastCommit:%v  LastValidators:%v}",
+		rs.Height, rs.Round, rs.Step,
+		time.Unix(rs.StartTime.Int64(), 0),
+		time.Unix(rs.CommitTime.Int64(), 0),
+		rs.Validators,
+		rs.Proposal,
+		rs.ProposalBlock,
+		rs.LockedRound,
+		rs.LockedBlock,
+		rs.ValidRound,
+		rs.ValidBlock,
+		rs.Votes,
+		rs.LastCommit,
+		rs.LastValidators)
 }

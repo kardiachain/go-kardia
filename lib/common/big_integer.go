@@ -1,3 +1,19 @@
+// Copyright 2017 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+
 // Package math provides integer math utilities.
 package common
 
@@ -218,9 +234,19 @@ func (x *BigInt) IsGreaterThanInt(y int) bool {
 	return x.Int64() > int64(y)
 }
 
-// IsGreaterOrEqualThanInt returns true if x is greater than y
-func (x *BigInt) IsGreaterThanOrEqualThanInt(y int) bool {
+// IsGreaterThanInt returns true if x is greater than y
+func (x *BigInt) IsGreaterThanInt64(y int64) bool {
+	return x.Int64() > y
+}
+
+// IsGreaterOrEqualThanInt returns true if x is greater than or equals to y
+func (x *BigInt) IsGreaterThanOrEqualToInt(y int) bool {
 	return x.Int64() >= int64(y)
+}
+
+// IsGreaterOrEqualThanInt64 returns true if x is greater than or equals to y
+func (x *BigInt) IsGreaterThanOrEqualToInt64(y int64) bool {
+	return x.Int64() >= y
 }
 
 // IsLessThan returns true if x is less than y
@@ -231,6 +257,11 @@ func (x *BigInt) IsLessThan(y *BigInt) bool {
 // IsLessThan returns true if x is less than y
 func (x *BigInt) IsLessThanInt(y int) bool {
 	return x.Int32() < y
+}
+
+// IsLessThan returns true if x is less than y
+func (x *BigInt) IsLessThanInt64(y int64) bool {
+	return x.Int64() < y
 }
 
 // IsLessThan returns true if x is less than y
@@ -267,6 +298,11 @@ func (x *BigInt) Int64() int64 {
 		return int64(x.Value)
 	}
 	return int64(x.Value) * -1
+}
+
+func (x *BigInt) Copy() *BigInt {
+	cpy := *x
+	return &cpy
 }
 
 func (x *BigInt) String() string {

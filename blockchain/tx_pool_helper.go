@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package blockchain
 
 import (
@@ -386,16 +404,18 @@ func (h *priceHeap) Pop() interface{} {
 // txPricedList is a price-sorted heap to allow operating on transactions pool
 // contents in a price-incrementing way.
 type txPricedList struct {
+	logger log.Logger
 	all    *txLookup  // Pointer to the map of all transactions
 	items  *priceHeap // Heap of prices of all the stored transactions
 	stales int        // Number of stale price points to (re-heap trigger)
 }
 
 // newTxPricedList creates a new price-sorted transaction heap.
-func newTxPricedList(all *txLookup) *txPricedList {
+func newTxPricedList(logger log.Logger, all *txLookup) *txPricedList {
 	return &txPricedList{
-		all:   all,
-		items: new(priceHeap),
+		logger: logger,
+		all:    all,
+		items:  new(priceHeap),
 	}
 }
 
@@ -474,7 +494,7 @@ func (l *txPricedList) Underpriced(tx *types.Transaction, local *accountSet) boo
 	}
 	// Check if the transaction is underpriced or not
 	if len(*l.items) == 0 {
-		log.Error("Pricing query for empty pool") // This cannot happen, print to catch programming errors
+		l.logger.Error("Pricing query for empty pool") // This cannot happen, print to catch programming errors
 		return false
 	}
 	cheapest := []*types.Transaction(*l.items)[0]
@@ -611,14 +631,16 @@ func (*devNull) Close() error                      { return nil }
 // txJournal is a rotating log of transactions with the aim of storing locally
 // created transactions to allow non-executed ones to survive node restarts.
 type txJournal struct {
+	logger log.Logger
 	path   string         // Filesystem path to store the transactions at
 	writer io.WriteCloser // Output stream to write new transactions into
 }
 
 // newTxJournal creates a new transaction journal to
-func newTxJournal(path string) *txJournal {
+func newTxJournal(logger log.Logger, path string) *txJournal {
 	return &txJournal{
-		path: path,
+		logger: logger,
+		path:   path,
 	}
 }
 
@@ -650,7 +672,7 @@ func (journal *txJournal) load(add func([]*types.Transaction) []error) error {
 	loadBatch := func(txs types.Transactions) {
 		for _, err := range add(txs) {
 			if err != nil {
-				log.Debug("Failed to add journaled transaction", "err", err)
+				journal.logger.Debug("Failed to add journaled transaction", "err", err)
 				dropped++
 			}
 		}
@@ -679,7 +701,7 @@ func (journal *txJournal) load(add func([]*types.Transaction) []error) error {
 			batch = batch[:0]
 		}
 	}
-	log.Info("Loaded local transaction journal", "transactions", total, "dropped", dropped)
+	journal.logger.Info("Loaded local transaction journal", "transactions", total, "dropped", dropped)
 
 	return failure
 }
@@ -731,7 +753,7 @@ func (journal *txJournal) rotate(all map[common.Address]types.Transactions) erro
 		return err
 	}
 	journal.writer = sink
-	log.Info("Regenerated local transaction journal", "transactions", journaled, "accounts", len(all))
+	journal.logger.Info("Regenerated local transaction journal", "transactions", journaled, "accounts", len(all))
 
 	return nil
 }

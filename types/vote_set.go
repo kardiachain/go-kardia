@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package types
 
 import (
@@ -6,6 +24,7 @@ import (
 	"sync"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/p2p/discover"
 	"github.com/pkg/errors"
 )
 
@@ -44,11 +63,11 @@ type VoteSet struct {
 
 	mtx           sync.Mutex
 	votesBitArray *cmn.BitArray
-	votes         []*Vote                // Primary votes to share
-	sum           uint64                 // Sum of voting power for seen votes, discounting conflicts
-	maj23         *BlockID               // First 2/3 majority seen
-	votesByBlock  map[string]*blockVotes // string(blockHash|blockParts) -> blockVotes
-	peerMaj23s    map[P2PID]BlockID      // Maj23 for each peer
+	votes         []*Vote                     // Primary votes to share
+	sum           uint64                      // Sum of voting power for seen votes, discounting conflicts
+	maj23         *BlockID                    // First 2/3 majority seen
+	votesByBlock  map[string]*blockVotes      // string(blockHash|blockParts) -> blockVotes
+	peerMaj23s    map[discover.NodeID]BlockID // Maj23 for each peer
 }
 
 // Constructs a new VoteSet struct used to accumulate votes for given height/round.
@@ -67,7 +86,7 @@ func NewVoteSet(chainID string, height *cmn.BigInt, round *cmn.BigInt, type_ byt
 		sum:           0,
 		maj23:         nil,
 		votesByBlock:  make(map[string]*blockVotes, valSet.Size()),
-		peerMaj23s:    make(map[P2PID]BlockID),
+		peerMaj23s:    make(map[discover.NodeID]BlockID),
 	}
 }
 
@@ -235,6 +254,46 @@ func (voteSet *VoteSet) addVerifiedVote(vote *Vote, blockKey string, votingPower
 	return true, conflicting
 }
 
+// If a peer claims that it has 2/3 majority for given blockKey, call this.
+// NOTE: if there are too many peers, or too much peer churn,
+// this can cause memory issues.
+// TODO: implement ability to remove peers too
+// NOTE: VoteSet must not be nil
+func (voteSet *VoteSet) SetPeerMaj23(peerID discover.NodeID, blockID BlockID) error {
+	if voteSet == nil {
+		cmn.PanicSanity("SetPeerMaj23() on nil VoteSet")
+	}
+	voteSet.mtx.Lock()
+	defer voteSet.mtx.Unlock()
+
+	blockKey := blockID.Key()
+
+	// Make sure peer hasn't already told us something.
+	if existing, ok := voteSet.peerMaj23s[peerID]; ok {
+		if existing.Equal(blockID) {
+			return nil // Nothing to do
+		}
+		return fmt.Errorf("SetPeerMaj23: Received conflicting blockID from peer %v. Got %v, expected %v",
+			peerID, blockID, existing)
+	}
+	voteSet.peerMaj23s[peerID] = blockID
+
+	// Create .votesByBlock entry if needed.
+	votesByBlock, ok := voteSet.votesByBlock[blockKey]
+	if ok {
+		if votesByBlock.peerMaj23 {
+			return nil // Nothing to do
+		}
+		votesByBlock.peerMaj23 = true
+		// No need to copy votes, already there.
+	} else {
+		votesByBlock = newBlockVotes(true, voteSet.valSet.Size())
+		voteSet.votesByBlock[blockKey] = votesByBlock
+		// No need to copy votes, no votes to copy over.
+	}
+	return nil
+}
+
 func (voteSet *VoteSet) ChainID() string {
 	return voteSet.chainID
 }
@@ -274,6 +333,19 @@ func (voteSet *VoteSet) BitArray() *cmn.BitArray {
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 	return voteSet.votesBitArray.Copy()
+}
+
+func (voteSet *VoteSet) BitArrayByBlockID(blockID BlockID) *cmn.BitArray {
+	if voteSet == nil {
+		return nil
+	}
+	voteSet.mtx.Lock()
+	defer voteSet.mtx.Unlock()
+	votesByBlock, ok := voteSet.votesByBlock[blockID.Key()]
+	if ok {
+		return votesByBlock.bitArray.Copy()
+	}
+	return nil
 }
 
 // NOTE: if validator has conflicting votes, returns "canonical" vote
@@ -356,7 +428,7 @@ func (voteSet *VoteSet) StringShort() string {
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
 	_, _, frac := voteSet.sumTotalFrac()
-	return fmt.Sprintf(`VoteSet{H:%v R:%v T:%v +2/3:%v(%v) %v %v}`,
+	return fmt.Sprintf("VoteSet{H:%v R:%v T:%v +2/3:%v(%v) %v %v}",
 		voteSet.height, voteSet.round, voteSet.type_, voteSet.maj23, frac, voteSet.votesBitArray, voteSet.peerMaj23s)
 }
 

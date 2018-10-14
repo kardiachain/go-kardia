@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package configs
 
 import (
@@ -149,7 +167,7 @@ type ConsensusConfig struct {
 // DefaultConsensusConfig returns a default configuration for the consensus service
 func DefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
-		TimeoutPropose:              3000,
+		TimeoutPropose:              5000,
 		TimeoutProposeDelta:         500,
 		TimeoutPrevote:              1000,
 		TimeoutPrevoteDelta:         500,
@@ -159,7 +177,7 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		SkipTimeoutCommit:           false,
 		CreateEmptyBlocks:           true,
 		CreateEmptyBlocksInterval:   0,
-		PeerGossipSleepDuration:     100,
+		PeerGossipSleepDuration:     3000,
 		PeerQueryMaj23SleepDuration: 2000,
 	}
 }
@@ -187,4 +205,9 @@ func (cfg *ConsensusConfig) Precommit(round int) time.Duration {
 // PeerGossipSleep returns the amount of time to sleep if there is nothing to send from the ConsensusReactor
 func (cfg *ConsensusConfig) PeerGossipSleep() time.Duration {
 	return time.Duration(cfg.PeerGossipSleepDuration) * time.Millisecond
+}
+
+// PeerQueryMaj23Sleep returns the amount of time to sleep after each VoteSetMaj23Message is sent in the ConsensusReactor
+func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
+	return time.Duration(cfg.PeerQueryMaj23SleepDuration) * time.Millisecond
 }

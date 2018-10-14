@@ -1,8 +1,27 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package types
 
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
@@ -56,16 +75,43 @@ func IsVoteTypeValid(type_ byte) bool {
 	}
 }
 
+func GetReadableVoteTypeString(type_ byte) string {
+	var typeString string
+	switch type_ {
+	case VoteTypePrevote:
+		typeString = "Prevote"
+	case VoteTypePrecommit:
+		typeString = "Precommit"
+	default:
+		cmn.PanicSanity("Unknown vote type")
+	}
+
+	return typeString
+}
+
 // Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
 	ValidatorAddress cmn.Address `json:"validator_address"`
 	ValidatorIndex   *cmn.BigInt `json:"validator_index"`
 	Height           *cmn.BigInt `json:"height"`
 	Round            *cmn.BigInt `json:"round"`
-	Timestamp        time.Time   `json:"timestamp"`
+	Timestamp        *big.Int    `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
 	Type             byte        `json:"type"`
 	BlockID          BlockID     `json:"block_id"` // zero if vote is nil.
 	Signature        []byte      `json:"signature"`
+}
+
+func CreateEmptyVote() *Vote {
+	return &Vote{
+		ValidatorIndex: cmn.NewBigInt(-1),
+		Height:         cmn.NewBigInt(-1),
+		Round:          cmn.NewBigInt(-1),
+		Timestamp:      big.NewInt(0),
+	}
+}
+
+func (vote *Vote) IsEmpty() bool {
+	return vote.ValidatorIndex.EqualsInt(-1) && vote.Height.EqualsInt(-1) && vote.Height.EqualsInt(-1) && vote.Timestamp.Int64() == 0
 }
 
 func (vote *Vote) SignBytes(chainID string) []byte {
@@ -78,28 +124,43 @@ func (vote *Vote) SignBytes(chainID string) []byte {
 
 func (vote *Vote) Copy() *Vote {
 	voteCopy := *vote
+	voteCopy.ValidatorIndex = vote.ValidatorIndex.Copy()
+	voteCopy.Height = vote.Height.Copy()
+	voteCopy.Round = vote.Round.Copy()
+	voteCopy.Timestamp = big.NewInt(vote.Timestamp.Int64())
 	return &voteCopy
 }
 
-func (vote *Vote) String() string {
+// StringLong returns a long string representing full info about Vote
+func (vote *Vote) StringLong() string {
 	if vote == nil {
 		return "nil-Vote"
 	}
-	var typeString string
-	switch vote.Type {
-	case VoteTypePrevote:
-		typeString = "Prevote"
-	case VoteTypePrecommit:
-		typeString = "Precommit"
-	default:
-		cmn.PanicSanity("Unknown vote type")
+	if vote.IsEmpty() {
+		return "empty-Vote"
 	}
 
-	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X %v @ %s}",
+	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X , %v @ %v}",
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
-		vote.Height, vote.Round, vote.Type, typeString,
+		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		cmn.Fingerprint(vote.BlockID[:]), vote.Signature,
-		vote.Timestamp)
+		time.Unix(vote.Timestamp.Int64(), 0))
+}
+
+// String simplifies vote.Signature, array of bytes, to hex and gets the first 14 characters
+func (vote *Vote) String() string {
+	if vote == nil {
+		return "nil-vote"
+	}
+	if vote.IsEmpty() {
+		return "empty-vote"
+	}
+
+	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %v , %X @%v}",
+		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
+		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
+		vote.BlockID.FingerPrint(), cmn.Fingerprint(vote.Signature[:]),
+		time.Unix(vote.Timestamp.Int64(), 0))
 }
 
 // UNSTABLE

@@ -1,9 +1,27 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package blockchain
 
 import (
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardia/blockchain/rawdb"
+	"github.com/kardiachain/go-kardia/blockchain/chaindb"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -58,29 +76,29 @@ func (e *GenesisMismatchError) Error() string {
 //     db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(logger log.Logger, db kaidb.Database, genesis *Genesis) (*configs.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		// TODO(huny@): should we return another default config?
 		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
 	}
 
 	// Just commit the new block if there is no stored genesis block.
-	stored := rawdb.ReadCanonicalHash(db, 0)
+	stored := chaindb.ReadCanonicalHash(db, 0)
 	if (stored == common.Hash{}) {
 		if genesis == nil {
-			log.Info("Writing default main-net genesis block")
+			logger.Info("Writing default main-net genesis block")
 			genesis = DefaultGenesisBlock()
 		} else {
-			log.Info("Writing custom genesis block")
+			logger.Info("Writing custom genesis block")
 		}
-		block, err := genesis.Commit(db)
+		block, err := genesis.Commit(logger, db)
 		return genesis.Config, block.Hash(), err
 	}
 
 	// Check whether the genesis block is already written.
 	if genesis != nil {
-		log.Info("Create new genesis block")
-		hash := genesis.ToBlock(nil).Hash()
+		logger.Info("Create new genesis block")
+		hash := genesis.ToBlock(logger, nil).Hash()
 		if hash != stored {
 			return genesis.Config, hash, &GenesisMismatchError{stored, hash}
 		}
@@ -88,10 +106,10 @@ func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfi
 
 	// Get the existing chain configuration.
 	newcfg := genesis.configOrDefault(stored)
-	storedcfg := rawdb.ReadChainConfig(db, stored)
+	storedcfg := chaindb.ReadChainConfig(db, stored)
 	if storedcfg == nil {
-		log.Warn("Found genesis block without chain config")
-		rawdb.WriteChainConfig(db, stored, newcfg)
+		logger.Warn("Found genesis block without chain config")
+		chaindb.WriteChainConfig(db, stored, newcfg)
 		return newcfg, stored, nil
 	}
 	// Special case: don't change the existing config of a non-mainnet chain if no new
@@ -101,7 +119,7 @@ func SetupGenesisBlock(db kaidb.Database, genesis *Genesis) (*configs.ChainConfi
 		return storedcfg, stored, nil
 	}
 
-	rawdb.WriteChainConfig(db, stored, newcfg)
+	chaindb.WriteChainConfig(db, stored, newcfg)
 	return newcfg, stored, nil
 }
 
@@ -120,13 +138,11 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *configs.ChainConfig {
 
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
-func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
+func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 	if db == nil {
 		db = kaidb.NewMemStore()
 	}
-	statedb, _ := state.New(common.Hash{}, state.NewDatabase(db))
-
-	accountStates := make(types.AccountStates, 0)
+	statedb, _ := state.New(logger, common.Hash{}, state.NewDatabase(db))
 
 	for addr, account := range g.Alloc {
 		statedb.AddBalance(addr, account.Balance)
@@ -135,9 +151,6 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 		for key, value := range account.Storage {
 			statedb.SetState(addr, key, value)
 		}
-
-		blockAccount := types.BlockAccount{Addr: &addr, Balance: account.Balance}
-		accountStates = append(accountStates, &blockAccount)
 	}
 	root := statedb.IntermediateRoot(false)
 	head := &types.Header{
@@ -152,27 +165,27 @@ func (g *Genesis) ToBlock(db kaidb.Database) *types.Block {
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 
-	return types.NewBlock(head, nil, nil, &types.Commit{}, &accountStates)
+	return types.NewBlock(logger, head, nil, nil, &types.Commit{})
 }
 
 // Commit writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
-func (g *Genesis) Commit(db kaidb.Database) (*types.Block, error) {
-	block := g.ToBlock(db)
+func (g *Genesis) Commit(logger log.Logger, db kaidb.Database) (*types.Block, error) {
+	block := g.ToBlock(logger, db)
 	if block.Height() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with height > 0")
 	}
-	rawdb.WriteBlock(db, block)
-	rawdb.WriteReceipts(db, block.Hash(), block.Height(), nil)
-	rawdb.WriteCanonicalHash(db, block.Hash(), block.Height())
-	rawdb.WriteHeadBlockHash(db, block.Hash())
-	rawdb.WriteHeadHeaderHash(db, block.Hash())
+	chaindb.WriteBlock(db, block)
+	chaindb.WriteReceipts(db, block.Hash(), block.Height(), nil)
+	chaindb.WriteCanonicalHash(db, block.Hash(), block.Height())
+	chaindb.WriteHeadBlockHash(db, block.Hash())
+	chaindb.WriteHeadHeaderHash(db, block.Hash())
 
 	config := g.Config
 	if config == nil {
 		config = configs.TestnetChainConfig
 	}
-	rawdb.WriteChainConfig(db, block.Hash(), config)
+	chaindb.WriteChainConfig(db, block.Hash(), config)
 
 	return block, nil
 }
@@ -201,11 +214,60 @@ func DefaultTestnetGenesisBlock(allocData map[string]int64) *Genesis {
 	}
 }
 
+// DefaultTestnetFullGenesisBlock return turn the test network genesis block with both account and smc from configs
+func DefaulTestnetFullGenesisBlock(accountData map[string]int64, contractData map[string]string) *Genesis {
+	ga, err := GenesisAllocFromAccountAndContract(accountData, contractData)
+	if err != nil {
+		return nil
+	}
+	return &Genesis{
+		Config:   configs.TestnetChainConfig,
+		GasLimit: 16777216,
+		Alloc:    ga,
+	}
+}
+
 func GenesisAllocFromData(data map[string]int64) (GenesisAlloc, error) {
 	ga := make(GenesisAlloc, len(data))
+
 	for address, balance := range data {
-		ga[common.StringToAddress(address)] = GenesisAccount{Balance: big.NewInt(balance)}
+		ga[common.HexToAddress(address)] = GenesisAccount{Balance: big.NewInt(balance)}
 	}
 
+	return ga, nil
+}
+
+//same as DefaultTestnetGenesisBlock, but with smart contract data
+func DefaultTestnetGenesisBlockWithContract(allocData map[string]string) *Genesis {
+	ga, err := GenesisAllocFromContractData(allocData)
+	if err != nil {
+		return nil
+	}
+
+	return &Genesis{
+		Config:   configs.TestnetChainConfig,
+		GasLimit: 16777216,
+		Alloc:    ga,
+	}
+}
+
+func GenesisAllocFromContractData(data map[string]string) (GenesisAlloc, error) {
+	ga := make(GenesisAlloc, len(data))
+
+	for address, code := range data {
+		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: big.NewInt(100)}
+	}
+	return ga, nil
+}
+
+func GenesisAllocFromAccountAndContract(accountData map[string]int64, contractData map[string]string) (GenesisAlloc, error) {
+	ga := make(GenesisAlloc, len(accountData)+len(contractData))
+
+	for address, balance := range accountData {
+		ga[common.HexToAddress(address)] = GenesisAccount{Balance: big.NewInt(balance)}
+	}
+	for address, code := range contractData {
+		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: big.NewInt(100)}
+	}
 	return ga, nil
 }

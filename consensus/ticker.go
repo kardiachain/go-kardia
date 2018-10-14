@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package consensus
 
 import (
@@ -94,7 +112,7 @@ func (t *timeoutTicker) stopTimer() {
 // timeouts of 0 on the tickChan will be immediately relayed to the tockChan
 func (t *timeoutTicker) timeoutRoutine() {
 	t.Logger.Debug("Starting timeout routine")
-	ti := EmptyTimeoutInfo()
+	ti := *EmptyTimeoutInfo()
 	for {
 		select {
 		case newti := <-t.tickChan:
@@ -118,7 +136,7 @@ func (t *timeoutTicker) timeoutRoutine() {
 
 			// update timeoutInfo and reset timer
 			// NOTE time.Timer allows duration to be non-positive
-			ti = &newti
+			ti = newti
 			t.timer.Reset(ti.Duration)
 			t.Logger.Debug("Scheduled timeout", "dur", ti.Duration, "height", ti.Height, "round", ti.Round, "step", ti.Step)
 		case <-t.timer.C:
@@ -127,7 +145,7 @@ func (t *timeoutTicker) timeoutRoutine() {
 			// Determinism comes from playback in the receiveRoutine.
 			// We can eliminate it by merging the timeoutRoutine into receiveRoutine
 			//  and managing the timeouts ourselves with a millisecond ticker
-			go func(toi timeoutInfo) { t.tockChan <- toi }(*ti)
+			go func(toi timeoutInfo) { t.tockChan <- toi }(ti)
 		}
 	}
 }

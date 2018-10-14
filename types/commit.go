@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package types
 
 import (
@@ -21,6 +39,21 @@ type Commit struct {
 	firstPrecommit *Vote
 	hash           cmn.Hash
 	bitArray       *cmn.BitArray
+}
+
+func (commit *Commit) Copy() *Commit {
+	commitCopy := *commit
+	if commit.firstPrecommit != nil {
+		commitCopy.firstPrecommit = commit.firstPrecommit.Copy()
+	}
+	commitCopy.Precommits = make([]*Vote, len(commit.Precommits))
+	for i := 0; i < len(commit.Precommits); i++ {
+		if commit.Precommits[i] == nil {
+			continue
+		}
+		commitCopy.Precommits[i] = commit.Precommits[i].Copy()
+	}
+	return &commitCopy
 }
 
 // FirstPrecommit returns the first non-nil precommit in the commit.
@@ -86,7 +119,7 @@ func (commit *Commit) BitArray() *cmn.BitArray {
 }
 
 // GetByIndex returns the vote corresponding to a given validator index
-func (commit *Commit) GetByIndex(index int) *Vote {
+func (commit *Commit) GetByIndex(index uint) *Vote {
 	return commit.Precommits[index]
 }
 
@@ -136,16 +169,71 @@ func (commit *Commit) ValidateBasic() error {
 	return nil
 }
 
-func (commit *Commit) String() string {
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "before" sending the object to other peers.
+func (commit *Commit) MakeNilEmpty() {
+	for i := 0; i < len(commit.Precommits); i++ {
+		if commit.Precommits[i] != nil {
+			continue
+		}
+		commit.Precommits[i] = CreateEmptyVote()
+	}
+}
+
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "after" receiving the object to other peers.
+func (commit *Commit) MakeEmptyNil() {
+	for i := 0; i < len(commit.Precommits); i++ {
+		if commit.Precommits[i] == nil {
+			continue
+		}
+		if commit.Precommits[i].IsEmpty() {
+			commit.Precommits[i] = nil
+		}
+	}
+}
+
+// StringLong returns a long string representing full info about Commit
+func (commit *Commit) StringLong() string {
 	if commit == nil {
 		return "nil-Commit"
 	}
+
+	if len(commit.Precommits) == 0 {
+		return "empty-Commit"
+	}
+
 	precommitStrings := make([]string, len(commit.Precommits))
 	for i, precommit := range commit.Precommits {
 		precommitStrings[i] = precommit.String()
 	}
+	precommitStr := strings.Join(precommitStrings, "##")
+
 	return fmt.Sprintf("Commit{BlockID:%v  Precommits:%v}#%v",
 		commit.BlockID,
-		strings.Join(precommitStrings, "  "),
-		commit.hash)
+		precommitStr,
+		commit.hash.Hex())
+}
+
+// String returns a short string representing commit by simplifying byte array to hex
+func (commit *Commit) String() string {
+	if commit == nil {
+		return "nil-commit"
+	}
+	if len(commit.Precommits) == 0 {
+		return "empty-Commit"
+	}
+
+	precommitStrings := make([]string, len(commit.Precommits))
+	for i, precommit := range commit.Precommits {
+		precommitStrings[i] = precommit.String()
+	}
+	precommitStr := strings.Join(precommitStrings, "##")
+
+	return fmt.Sprintf("Commit{BlockID:%X  Precommits:%v}#%v",
+		commit.BlockID.FingerPrint(),
+		precommitStr,
+		commit.hash.FingerPrint())
 }

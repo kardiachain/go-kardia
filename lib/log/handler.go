@@ -193,6 +193,14 @@ func LvlFilterHandler(maxLvl Lvl, h Handler) Handler {
 	}, h)
 }
 
+// LvlAndTagFilterHandler is similar to LvlFilterHandler; however, if the record
+// has tag, it also filters if the record's tag doesn't match.
+func LvlAndTagFilterHandler(maxLvl Lvl, tag1 string, h Handler) Handler {
+	return FilterHandler(func(r *Record) (pass bool) {
+		return r.Lvl <= maxLvl && (r.Tag == nil || (r.Tag != nil && r.Tag.tags[0] == tag1))
+	}, h)
+}
+
 // MultiHandler dispatches any write to each of its handlers.
 // This is useful for writing different types of log information
 // to different locations. For example, to log to a file and

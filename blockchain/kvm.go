@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package blockchain
 
 import (
@@ -16,24 +34,47 @@ type ChainContext interface {
 }
 
 // NewKVMContext creates a new context for use in the KVM.
-func NewKVMContext(msg Message, header *types.Header, chain ChainContext, author *common.Address) vm.Context {
-	// If we don't have an explicit author (i.e. not mining), extract from the header
-	var beneficiary common.Address
-	if author == nil {
-		beneficiary = header.Coinbase
-	} else {
-		beneficiary = *author
-	}
+func NewKVMContext(msg Message, header *types.Header, chain ChainContext) vm.Context {
 	return vm.Context{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
 		GetHash:     GetHashFn(header, chain),
 		Origin:      msg.From(),
-		Coinbase:    beneficiary,
+		Coinbase:    header.Coinbase,
 		BlockHeight: header.Height,
-		//@huny Time:        new(big.Int).Set(header.Time),
-		GasLimit: header.GasLimit,
-		GasPrice: new(big.Int).Set(msg.GasPrice()),
+		Time:        new(big.Int).Set(header.Time),
+		GasLimit:    header.GasLimit,
+		GasPrice:    new(big.Int).Set(msg.GasPrice()),
+	}
+}
+
+// NewKVMContext creates a new context for use in the KVM.
+func NewKVMContextFromCallMsg(msg *types.CallMsg, header *types.Header, chain ChainContext) vm.Context {
+	return vm.Context{
+		CanTransfer: CanTransfer,
+		Transfer:    Transfer,
+		GetHash:     GetHashFn(header, chain),
+		Origin:      msg.From,
+		Coinbase:    header.Coinbase,
+		BlockHeight: header.Height,
+		Time:        new(big.Int).Set(header.Time),
+		GasLimit:    header.GasLimit,
+		GasPrice:    new(big.Int).Set(msg.GasPrice),
+	}
+}
+
+// NewKVMContext creates a new context for dual node to call smc in the KVM.
+func NewKVMContextFromDualNodeCall(from common.Address, header *types.Header, chain ChainContext) vm.Context {
+	return vm.Context{
+		CanTransfer: CanTransfer,
+		Transfer:    Transfer,
+		GetHash:     GetHashFn(header, chain),
+		Origin:      from,
+		Coinbase:    header.Coinbase,
+		BlockHeight: header.Height,
+		Time:        new(big.Int).Set(header.Time),
+		GasLimit:    header.GasLimit,
+		GasPrice:    big.NewInt(1),
 	}
 }
 

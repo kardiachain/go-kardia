@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
 	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/vm"
@@ -17,7 +17,6 @@ import (
 // Config is a basic type specifying certain configuration flags for running
 // the KVM.
 type Config struct {
-	ChainConfig *configs.ChainConfig
 	Origin      common.Address
 	Coinbase    common.Address
 	BlockHeight uint64
@@ -85,7 +84,7 @@ func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+		cfg.State, _ = state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	}
 	var (
 		address = common.BytesToAddress([]byte("contract"))
@@ -115,7 +114,7 @@ func Create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+		cfg.State, _ = state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	}
 	var (
 		vmenv  = NewEnv(cfg)

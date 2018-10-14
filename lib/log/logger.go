@@ -94,6 +94,7 @@ type Record struct {
 	Ctx      []interface{}
 	Call     stack.Call
 	KeyNames RecordKeyNames
+	Tag      *TagType
 }
 
 // RecordKeyNames gets stored in a Record when the write function is executed.
@@ -107,6 +108,8 @@ type RecordKeyNames struct {
 type Logger interface {
 	// New returns a new Logger that has this logger's context plus the given context
 	New(ctx ...interface{}) Logger
+	// Add tag so we can different one Logger from another.
+	AddTag(tag string)
 
 	// GetHandler gets the handler associated with the logger.
 	GetHandler() Handler
@@ -126,6 +129,11 @@ type Logger interface {
 type logger struct {
 	ctx []interface{}
 	h   *swapHandler
+	tag *TagType
+}
+
+type TagType struct {
+	tags []string
 }
 
 func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
@@ -140,11 +148,12 @@ func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 			Msg:  msgKey,
 			Lvl:  lvlKey,
 		},
+		Tag: l.tag,
 	})
 }
 
 func (l *logger) New(ctx ...interface{}) Logger {
-	child := &logger{newContext(l.ctx, ctx), new(swapHandler)}
+	child := &logger{newContext(l.ctx, ctx), new(swapHandler), l.tag}
 	child.SetHandler(l.h)
 	return child
 }
@@ -155,6 +164,13 @@ func newContext(prefix []interface{}, suffix []interface{}) []interface{} {
 	n := copy(newCtx, prefix)
 	copy(newCtx[n:], normalizedSuffix)
 	return newCtx
+}
+
+func (l *logger) AddTag(tag string) {
+	if l.tag == nil {
+		l.tag = &TagType{}
+	}
+	l.tag.tags = append(l.tag.tags, tag)
 }
 
 func (l *logger) Trace(msg string, ctx ...interface{}) {

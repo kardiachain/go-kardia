@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package account
 
 import (
@@ -38,7 +56,7 @@ type KeyStore struct {
 /*
 	New KeyStoreJSON from auth string
 */
-func (keyStore *KeyStore) NewKeyStoreJSON(auth string, pk *string) (*KeyStoreJson, error) {
+func (keyStore *KeyStore) NewKeyStoreJSON(auth string, pk string) (*KeyStoreJson, error) {
 	// Convert auth (password) to byte array
 	authArray := []byte(auth)
 
@@ -56,13 +74,13 @@ func (keyStore *KeyStore) NewKeyStoreJSON(auth string, pk *string) (*KeyStoreJso
 
 	var privateKey *ecdsa.PrivateKey
 	// Get random private key
-	if pk == nil {
+	if len(pk) == 0 {
 		privateKey, err = ecdsa.GenerateKey(crypto.S256(), rand.Reader)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		pkByte, err := hex.DecodeString(*pk)
+		pkByte, err := hex.DecodeString(pk)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +125,7 @@ func (keyStore *KeyStore) NewKeyStoreJSON(auth string, pk *string) (*KeyStoreJso
 /*
 	Create new keystore based on path, password
 */
-func (keyStore *KeyStore) createKeyStore(auth string, privateKey *string) error {
+func (keyStore *KeyStore) createKeyStore(auth string, privateKey string) error {
 	ks, err := keyStore.NewKeyStoreJSON(auth, privateKey)
 
 	if err != nil {

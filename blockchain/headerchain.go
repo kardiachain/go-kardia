@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package blockchain
 
 import (
@@ -7,9 +25,8 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 
-	"github.com/kardiachain/go-kardia/blockchain/rawdb"
-	"github.com/kardiachain/go-kardia/lib/log"
-	kaidb "github.com/kardiachain/go-kardia/storage"
+	"github.com/kardiachain/go-kardia/blockchain/chaindb"
+	"github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -22,7 +39,7 @@ const (
 type HeaderChain struct {
 	config *configs.ChainConfig
 
-	chainDb kaidb.Database
+	kaiDb storage.Database
 
 	genesisHeader *types.Header
 
@@ -43,14 +60,13 @@ func (hc *HeaderChain) CurrentHeader() *types.Header {
 //  getValidator should return the parent's validator
 //  procInterrupt points to the parent's interrupt semaphore
 //  wg points to the parent's shutdown wait group
-func NewHeaderChain(chainDb kaidb.Database, config *configs.ChainConfig) (*HeaderChain, error) {
-	log.Trace("NewHeaderChain")
+func NewHeaderChain(kaiDb storage.Database, config *configs.ChainConfig) (*HeaderChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	heightCache, _ := lru.New(heightCacheLimit)
 
 	hc := &HeaderChain{
 		config:      config,
-		chainDb:     chainDb,
+		kaiDb:       kaiDb,
 		headerCache: headerCache,
 		heightCache: heightCache,
 	}
@@ -61,7 +77,7 @@ func NewHeaderChain(chainDb kaidb.Database, config *configs.ChainConfig) (*Heade
 	}
 
 	hc.currentHeader.Store(hc.genesisHeader)
-	if head := rawdb.ReadHeadBlockHash(chainDb); head != (common.Hash{}) {
+	if head := chaindb.ReadHeadBlockHash(kaiDb); head != (common.Hash{}) {
 		if chead := hc.GetHeaderByHash(head); chead != nil {
 			hc.currentHeader.Store(chead)
 		}
@@ -74,7 +90,7 @@ func NewHeaderChain(chainDb kaidb.Database, config *configs.ChainConfig) (*Heade
 // GetHeaderByheight retrieves a block header from the database by height,
 // caching it (associated with its hash) if found.
 func (hc *HeaderChain) GetHeaderByHeight(height uint64) *types.Header {
-	hash := rawdb.ReadCanonicalHash(hc.chainDb, height)
+	hash := chaindb.ReadCanonicalHash(hc.kaiDb, height)
 	if hash == (common.Hash{}) {
 		return nil
 	}
@@ -88,7 +104,7 @@ func (hc *HeaderChain) GetHeader(hash common.Hash, height uint64) *types.Header 
 	if header, ok := hc.headerCache.Get(hash); ok {
 		return header.(*types.Header)
 	}
-	header := rawdb.ReadHeader(hc.chainDb, hash, height)
+	header := chaindb.ReadHeader(hc.kaiDb, hash, height)
 	if header == nil {
 		return nil
 	}
@@ -114,7 +130,7 @@ func (hc *HeaderChain) GetBlockHeight(hash common.Hash) *uint64 {
 		height := cached.(uint64)
 		return &height
 	}
-	height := rawdb.ReadHeaderHeight(hc.chainDb, hash)
+	height := chaindb.ReadHeaderHeight(hc.kaiDb, hash)
 	if height != nil {
 		hc.heightCache.Add(hash, *height)
 	}
@@ -123,7 +139,7 @@ func (hc *HeaderChain) GetBlockHeight(hash common.Hash) *uint64 {
 
 // SetCurrentHeader sets the current head header of the canonical chain.
 func (hc *HeaderChain) SetCurrentHeader(head *types.Header) {
-	rawdb.WriteHeadHeaderHash(hc.chainDb, head.Hash())
+	chaindb.WriteHeadHeaderHash(hc.kaiDb, head.Hash())
 
 	hc.currentHeader.Store(head)
 	hc.currentHeaderHash = head.Hash()
@@ -136,7 +152,7 @@ func (hc *HeaderChain) SetGenesis(head *types.Header) {
 
 // DeleteCallback is a callback function that is called by SetHead before
 // each header is deleted.
-type DeleteCallback func(rawdb.DatabaseDeleter, common.Hash, uint64)
+type DeleteCallback func(chaindb.DatabaseDeleter, common.Hash, uint64)
 
 // SetHead rewinds the local chain to a new head. Everything above the new head
 // will be deleted and the new one set.
@@ -146,20 +162,20 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	if hdr := hc.CurrentHeader(); hdr != nil {
 		height = hdr.Height
 	}
-	batch := hc.chainDb.NewBatch()
+	batch := hc.kaiDb.NewBatch()
 	for hdr := hc.CurrentHeader(); hdr != nil && hdr.Height > head; hdr = hc.CurrentHeader() {
 		hash := hdr.Hash()
 		height := hdr.Height
 		if delFn != nil {
 			delFn(batch, hash, height)
 		}
-		rawdb.DeleteHeader(batch, hash, height)
+		chaindb.DeleteHeader(batch, hash, height)
 
 		hc.currentHeader.Store(hc.GetHeader(hdr.LastCommitHash, hdr.Height-1))
 	}
 	// Roll back the canonical chain numbering
 	for i := height; i > head; i-- {
-		rawdb.DeleteCanonicalHash(batch, i)
+		chaindb.DeleteCanonicalHash(batch, i)
 	}
 	batch.Write()
 
@@ -172,5 +188,5 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	}
 	hc.currentHeaderHash = hc.CurrentHeader().Hash()
 
-	rawdb.WriteHeadHeaderHash(hc.chainDb, hc.currentHeaderHash)
+	chaindb.WriteHeadHeaderHash(hc.kaiDb, hc.currentHeaderHash)
 }

@@ -22,7 +22,7 @@ const (
 
 // locationTrims are trimmed for display to avoid unwieldy log lines.
 var locationTrims = []string{
-	"github.com/ethereum/go-ethereum/",
+	"github.com/kardiachain/go-kardia/",
 }
 
 // PrintOrigins sets or unsets log location (file:line) printing for terminal
@@ -77,7 +77,7 @@ type TerminalStringer interface {
 // a terminal with color-coded level output and terser human friendly timestamp.
 // This format should only be used for interactive programs or while developing.
 //
-//     [TIME] [LEVEL] MESAGE key=value key=value ...
+//     [TIME] [LEVEL] [TAG] MESAGE key=value key=value ...
 //
 // Example:
 //
@@ -105,6 +105,10 @@ func TerminalFormat(usecolor bool) Format {
 
 		b := &bytes.Buffer{}
 		lvl := r.Lvl.AlignedString()
+		tag := ""
+		if r.Tag != nil && len(r.Tag.tags) > 0 {
+			tag = r.Tag.tags[0]
+		}
 		if atomic.LoadUint32(&locationEnabled) != 0 {
 			// Log origin printing was requested, format the location path and line number
 			location := fmt.Sprintf("%+v", r.Call)
@@ -122,15 +126,15 @@ func TerminalFormat(usecolor bool) Format {
 
 			// Assemble and print the log heading
 			if color > 0 {
-				fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s|%s]%s %s ", color, lvl, r.Time.Format(termTimeFormat), location, padding, r.Msg)
+				fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s|%s]\x1b[95m%s\x1b[0m%s %s ", color, lvl, r.Time.Format(termTimeFormat), tag, location, padding, r.Msg)
 			} else {
-				fmt.Fprintf(b, "%s[%s|%s]%s %s ", lvl, r.Time.Format(termTimeFormat), location, padding, r.Msg)
+				fmt.Fprintf(b, "%s[%s|%s]\x1b[95m%s\x1b[0m%s %s ", lvl, r.Time.Format(termTimeFormat), tag, location, padding, r.Msg)
 			}
 		} else {
 			if color > 0 {
-				fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s] %s ", color, lvl, r.Time.Format(termTimeFormat), r.Msg)
+				fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s]\x1b[95m%s\x1b[0m %s ", color, lvl, r.Time.Format(termTimeFormat), tag, r.Msg)
 			} else {
-				fmt.Fprintf(b, "%s[%s] %s ", lvl, r.Time.Format(termTimeFormat), r.Msg)
+				fmt.Fprintf(b, "%s[%s]\x1b[95m%s\x1b[0m %s ", lvl, r.Time.Format(termTimeFormat), tag, r.Msg)
 			}
 		}
 		// try to justify the log output for short messages

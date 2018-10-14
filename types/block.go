@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package types
 
 import (
@@ -8,13 +26,14 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto/sha3"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/trie"
+	"github.com/kardiachain/go-kardia/lib/trie"
 	"math/big"
 )
 
@@ -69,13 +88,26 @@ func (h *Header) Size() common.StorageSize {
 	return common.StorageSize(unsafe.Sizeof(*h))
 }
 
+// StringLong returns a long string representing full info about Header
+func (h *Header) StringLong() string {
+	if h == nil {
+		return "nil-Header"
+	}
+	// TODO(thientn): check why String() of common.Hash is not called when logging, and have to call Hex() instead.
+	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Hex(), h.TxHash.Hex(), h.Root.Hex(), h.ValidatorsHash.Hex(), h.ConsensusHash.Hex(), h.Hash().Hex())
+
+}
+
+// String returns a short string representing Header by simplifying byte array to hex, and truncate the first 12 character of hex string
 func (h *Header) String() string {
 	if h == nil {
 		return "nil-Header"
 	}
-	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
-		h.Height, h.Time, h.NumTxs, h.LastBlockID, h.LastCommitHash, h.TxHash, h.ValidatorsHash, h.ConsensusHash, h.Hash())
-
+	headerHash := h.Hash()
+	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID.FingerPrint(), h.LastCommitHash.FingerPrint(),
+		h.TxHash.FingerPrint(), h.Root.FingerPrint(), h.ValidatorsHash.FingerPrint(), h.ConsensusHash.FingerPrint(), headerHash.FingerPrint())
 }
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
@@ -83,12 +115,19 @@ func (h *Header) String() string {
 type Body struct {
 	Transactions []*Transaction
 	LastCommit   *Commit
-	Accounts     *AccountStates
+}
+
+func (b *Body) Copy() *Body {
+	var bodyCopy Body
+	bodyCopy.LastCommit = b.LastCommit.Copy()
+	bodyCopy.Transactions = make([]*Transaction, len(b.Transactions))
+	copy(bodyCopy.Transactions, b.Transactions)
+	return &bodyCopy
 }
 
 // Body returns the non-header content of the block.
 func (b *Block) Body() *Body {
-	return &Body{Transactions: b.transactions, LastCommit: b.lastCommit, Accounts: b.accounts}
+	return &Body{Transactions: b.transactions, LastCommit: b.lastCommit}
 }
 
 func rlpHash(x interface{}) (h common.Hash) {
@@ -98,28 +137,6 @@ func rlpHash(x interface{}) (h common.Hash) {
 	return h
 }
 
-// AccountStates keeps the world state of accounts.
-type AccountStates []*BlockAccount
-
-func (a *AccountStates) String() string {
-	var accountsS string
-	if a != nil || len(*(a)) > 0 {
-		var buffer bytes.Buffer
-		for index, account := range *a {
-			buffer.WriteString(fmt.Sprintf("Acc%d:%d,", index, account.Balance.Int64()))
-		}
-		accountsS = fmt.Sprintf("AccountStates:[%v]", buffer.String())
-	} else {
-		if a == nil {
-			accountsS = "AccountStates:nil"
-		} else {
-			accountsS = "AccountStates:[]"
-		}
-	}
-
-	return accountsS
-}
-
 // BlockAccount stores basic data of an account in block.
 type BlockAccount struct {
 	// Cannot use map because of RLP.
@@ -127,22 +144,14 @@ type BlockAccount struct {
 	Balance *big.Int
 }
 
-func (s *AccountStates) GetAccount(address *common.Address) *BlockAccount {
-	for _, account := range *s {
-		if account.Addr.String() == address.String() {
-			return account
-		}
-	}
-	return nil
-}
-
-// Block represents an entire block in the Ethereum blockchain.
+// Block represents an entire block in the Kardia blockchain.
 type Block struct {
+	logger log.Logger
+
 	mtx          sync.Mutex
 	header       *Header
 	transactions Transactions
 	lastCommit   *Commit
-	accounts     *AccountStates
 
 	// caches
 	hash atomic.Value
@@ -154,7 +163,6 @@ type extblock struct {
 	Header     *Header
 	Txs        []*Transaction
 	LastCommit *Commit
-	Accounts   *AccountStates
 }
 
 // NewBlock creates a new block. The input data is copied,
@@ -163,8 +171,12 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit, accounts *AccountStates) *Block {
-	b := &Block{header: CopyHeader(header), lastCommit: CopyCommit(commit)}
+func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit) *Block {
+	b := &Block{
+		logger:     logger,
+		header:     CopyHeader(header),
+		lastCommit: CopyCommit(commit),
+	}
 
 	if len(txs) == 0 {
 		b.header.TxHash = EmptyRootHash
@@ -184,26 +196,27 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *C
 
 	if b.header.LastCommitHash.IsZero() {
 		if commit == nil {
-			log.Error("NewBlock - commit should never be nil.")
+			b.logger.Error("NewBlock - commit should never be nil.")
 			b.header.LastCommitHash = common.NewZeroHash()
 		} else {
-			log.Error("Compute last commit hash", "commit", commit)
+			b.logger.Trace("Compute last commit hash", "commit", commit.String())
 			b.header.LastCommitHash = commit.Hash()
 		}
 	}
-
-	// TODO(thientn): Creates and save a copy.
-	b.accounts = accounts
 
 	// TODO(namdoh): Store evidence hash.
 
 	return b
 }
 
+func (b *Block) SetLogger(logger log.Logger) {
+	b.logger = logger
+}
+
 // NewBlockWithHeader creates a block with the given header data. The
 // header data is copied, changes to header and to the field values
 // will not affect the block.
-func NewBlockWithHeader(header *Header) *Block {
+func NewBlockWithHeader(logger log.Logger, header *Header) *Block {
 	return &Block{header: CopyHeader(header)}
 }
 
@@ -224,25 +237,54 @@ func CopyCommit(c *Commit) *Commit {
 	return &cpy
 }
 
-// DecodeRLP decodes the Kardia
+//  DecodeRLP implements rlp.Decoder, decodes RLP stream to Block struct.
 func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	var eb extblock
 	_, size, _ := s.Kind()
 	if err := s.Decode(&eb); err != nil {
 		return err
 	}
-	b.header, b.transactions, b.lastCommit, b.accounts = eb.Header, eb.Txs, eb.LastCommit, eb.Accounts
+	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
+	eb.LastCommit.MakeEmptyNil()
+
+	b.header, b.transactions, b.lastCommit = eb.Header, eb.Txs, eb.LastCommit
 	b.size.Store(common.StorageSize(rlp.ListSize(size)))
 	return nil
 }
 
-// EncodeRLP serializes b into the Ethereum RLP block format.
+// EncodeRLP serializes Block into the RLP stream.
 func (b *Block) EncodeRLP(w io.Writer) error {
+	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
+	lastCommitCopy := b.lastCommit.Copy()
+	lastCommitCopy.MakeNilEmpty()
 	return rlp.Encode(w, extblock{
 		Header:     b.header,
 		Txs:        b.transactions,
-		LastCommit: b.lastCommit,
-		Accounts:   b.accounts,
+		LastCommit: lastCommitCopy,
+	})
+}
+
+//  DecodeRLP implements rlp.Decoder, decodes RLP stream to Body struct.
+// Custom Encode/Decode for Body because of LastCommit RLP issue#73, otherwise Body can use RLP default decoder.
+func (b *Body) DecodeRLP(s *rlp.Stream) error {
+	var eb extblock
+	if err := s.Decode(&eb); err != nil {
+		return err
+	}
+	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
+	eb.LastCommit.MakeEmptyNil()
+
+	b.Transactions, b.LastCommit = eb.Txs, eb.LastCommit
+	return nil
+}
+
+func (b *Body) EncodeRLP(w io.Writer) error {
+	lastCommitCopy := b.LastCommit.Copy()
+	lastCommitCopy.MakeNilEmpty()
+	return rlp.Encode(w, extblock{
+		Header:     &Header{},
+		Txs:        b.Transactions,
+		LastCommit: lastCommitCopy,
 	})
 }
 
@@ -260,10 +302,10 @@ func (b *Block) Transaction(hash common.Hash) *Transaction {
 // WithBody returns a new block with the given transaction.
 func (b *Block) WithBody(body *Body) *Block {
 	block := &Block{
+		logger:       b.logger,
 		header:       CopyHeader(b.header),
 		transactions: make([]*Transaction, len(body.Transactions)),
 		lastCommit:   body.LastCommit,
-		accounts:     body.Accounts,
 	}
 	copy(block.transactions, body.Transactions)
 	return block
@@ -281,13 +323,12 @@ func (b *Block) Root() common.Hash           { return b.header.Root }
 func (b *Block) ReceiptHash() common.Hash    { return b.header.ReceiptHash }
 func (b *Block) Bloom() Bloom                { return b.header.Bloom }
 func (b *Block) LastCommit() *Commit         { return b.lastCommit }
-func (b *Block) Accounts() *AccountStates    { return b.accounts }
 
 // TODO(namdoh): This is a hack due to rlp nature of decode both nil or empty
 // struct pointer as nil. After encoding an empty struct and send it over to
 // another node, decoding it would become nil.
 func (b *Block) SetLastCommit(c *Commit) {
-	log.Error("SetLastCommit is a hack. Remove asap!!")
+	b.logger.Error("SetLastCommit is a hack. Remove asap!!")
 	b.lastCommit = c
 }
 
@@ -297,7 +338,7 @@ func (b *Block) HashesTo(id BlockID) bool {
 }
 
 // Size returns the true RLP encoded storage size of the block, either by encoding
-// and returning it, or returning a previsouly cached value.
+// and returning it, or returning a previously cached value.
 func (b *Block) Size() common.StorageSize {
 	if size := b.size.Load(); size != nil {
 		return size.(common.StorageSize)
@@ -312,20 +353,20 @@ func (b *Block) Size() common.StorageSize {
 // It checks the internal consistency of the block.
 func (b *Block) ValidateBasic() error {
 	if b == nil {
-		return errors.New("Nil blocks are invalid")
+		return errors.New("nil block")
 	}
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
 	newTxs := uint64(len(b.transactions))
 	if b.header.NumTxs != newTxs {
-		return fmt.Errorf("Wrong Block.Header.NumTxs. Expected %v, got %v", newTxs, b.header.NumTxs)
+		return fmt.Errorf("wrong Block.Header.NumTxs. Expected %v, got %v", newTxs, b.header.NumTxs)
 	}
 
 	if b.lastCommit == nil && !b.header.LastCommitHash.IsZero() {
 		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  lastCommit is nil, but expect zero hash, but got: %v", b.header.LastCommitHash)
 	} else if b.lastCommit != nil && !b.header.LastCommitHash.Equal(b.lastCommit.Hash()) {
-		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v", b.header.LastCommitHash, b.lastCommit.Hash())
+		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v.  Last commit %v", b.header.LastCommitHash, b.lastCommit.Hash(), b.lastCommit)
 	}
 	if b.header.Height != 1 {
 		if err := b.lastCommit.ValidateBasic(); err != nil {
@@ -333,7 +374,7 @@ func (b *Block) ValidateBasic() error {
 		}
 	}
 	// TODO(namdoh): Re-enable check for Data hash.
-	log.Error("Block.ValidateBasic() - not yet implement validating data hash.")
+	b.logger.Info("Block.ValidateBasic() - not yet implement validating data hash.")
 	//if !bytes.Equal(b.DataHash, b.Data.Hash()) {
 	//	return fmt.Errorf("Wrong Block.Header.DataHash.  Expected %v, got %v", b.DataHash, b.Data.Hash())
 	//}
@@ -344,13 +385,24 @@ func (b *Block) ValidateBasic() error {
 	return nil
 }
 
-func (b *Block) String() string {
+// StringLong returns a long string representing full info about Block
+func (b *Block) StringLong() string {
 	if b == nil {
 		return "nil-Block"
 	}
 
-	return fmt.Sprintf("Block{%v  %v  %v %v}#%v",
-		b.header, b.transactions, b.lastCommit, b.accounts, b.Hash())
+	return fmt.Sprintf("Block{%v  %v  %v}#%v",
+		b.header, b.transactions, b.lastCommit, b.Hash().Hex())
+}
+
+// String returns a short string representing block by simplifying block header and lastcommit
+func (b *Block) String() string {
+	if b == nil {
+		return "nil-Block"
+	}
+	blockHash := b.Hash()
+	return fmt.Sprintf("Block{%v  %v  %v}#%v",
+		b.header.String(), b.transactions, b.lastCommit.String(), blockHash.FingerPrint())
 }
 
 type writeCounter common.StorageSize
@@ -367,6 +419,11 @@ func (b *Block) BlockID() BlockID {
 // Hash returns the keccak256 hash of b's header.
 // The hash is computed on the first call and cached thereafter.
 func (b *Block) Hash() common.Hash {
+	if b == nil {
+		b.logger.Warn("Hashing nil block")
+		return common.Hash{}
+	}
+
 	if hash := b.hash.Load(); hash != nil {
 		return hash.(common.Hash)
 	}
@@ -375,7 +432,30 @@ func (b *Block) Hash() common.Hash {
 	return v
 }
 
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "before" sending the object to other peers.
+func (b *Block) MakeNilEmpty() {
+	if b.lastCommit != nil {
+		b.lastCommit.MakeNilEmpty()
+	}
+}
+
+// This function is used to address RLP's diosyncrasies (issues#73), enabling
+// RLP encoding/decoding to pass.
+// Note: Use this "after" receiving the object to other peers.
+func (b *Block) MakeEmptyNil() {
+	if b.lastCommit != nil {
+		b.lastCommit.MakeEmptyNil()
+	}
+}
+
 type BlockID common.Hash
+
+func (id BlockID) String() string {
+	return common.Hash(id).Hex()
+	return common.Hash(id).Hex()
+}
 
 func NewZeroBlockID() BlockID {
 	return BlockID{}
@@ -393,6 +473,11 @@ func (b *BlockID) Equal(id BlockID) bool {
 // Key returns a machine-readable string representation of the BlockID
 func (blockID *BlockID) Key() string {
 	return string(blockID[:])
+}
+
+// Fingerprint returns the first 12 characters of hex string representation of the BlockID
+func (blockID *BlockID) FingerPrint() string {
+	return fmt.Sprintf("%X", common.Fingerprint(blockID[:]))
 }
 
 type Blocks []*Block
@@ -428,13 +513,13 @@ type DerivableList interface {
 
 func DeriveSha(list DerivableList) common.Hash {
 	keybuf := new(bytes.Buffer)
-	trie := new(trie.Trie)
+	t := new(trie.Trie)
 	for i := 0; i < list.Len(); i++ {
 		keybuf.Reset()
 		rlp.Encode(keybuf, uint(i))
-		trie.Update(keybuf.Bytes(), list.GetRlp(i))
+		t.Update(keybuf.Bytes(), list.GetRlp(i))
 	}
-	return trie.Hash()
+	return t.Hash()
 
 	//return common.BytesToHash([]byte(""))
 }

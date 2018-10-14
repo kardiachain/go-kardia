@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package node
 
 import (
@@ -10,20 +28,17 @@ import (
 )
 
 const (
-	DefaultHTTPHost = "localhost" // Default host interface for the HTTP RPC server
-	DefaultHTTPPort = 8545        // Default TCP port for the HTTP RPC server
-	DefaultWSHost   = "localhost" // Default host interface for the websocket RPC server
-	DefaultWSPort   = 8546        // Default TCP port for the websocket RPC server
+	DefaultHTTPHost = "0.0.0.0" // Default host interface for the HTTP RPC server
+	DefaultHTTPPort = 8545      // Default TCP port for the HTTP RPC server
 )
 
 // DefaultConfig contains reasonable default settings.
 var DefaultConfig = NodeConfig{
-	DataDir: DefaultDataDir(),
-	//HTTPPort: DefaultHTTPPort,
-	//HTTPModules:      []string{"net", "web3"},
-	//HTTPVirtualHosts: []string{"localhost"},
-	//WSPort:           DefaultWSPort,
-	//WSModules:        []string{"net", "web3"},
+	DataDir:          DefaultDataDir(),
+	HTTPPort:         DefaultHTTPPort,
+	HTTPModules:      []string{"node", "kai", "tx", "account"},
+	HTTPVirtualHosts: []string{"0.0.0.0", "localhost"},
+	HTTPCors:         []string{"*"},
 	P2P: p2p.Config{
 		ListenAddr: ":30303",
 		MaxPeers:   5,

@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package types
 
 import (
@@ -6,6 +24,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -79,12 +98,25 @@ func (v *Validator) VerifyVoteSignature(chainID string, vote *Vote) bool {
 	return bytes.Equal(crypto.CompressPubkey(pubKey), crypto.CompressPubkey(&v.PubKey))
 }
 
-func (v *Validator) String() string {
+// StringLong returns a long string representing full info about Validator
+func (v *Validator) StringLong() string {
 	if v == nil {
 		return "nil-Validator"
 	}
 	return fmt.Sprintf("Validator{%v %v VP:%v A:%v}",
 		v.Address,
+		v.PubKey,
+		v.VotingPower,
+		v.Accum)
+}
+
+// StringShort returns a short string representing Validator
+func (v *Validator) String() string {
+	if v == nil {
+		return "nil-Validator"
+	}
+	return fmt.Sprintf("Validator{%X %v VP:%v A:%v}",
+		common.Fingerprint(v.Address[:]),
 		v.PubKey,
 		v.VotingPower,
 		v.Accum)
@@ -271,6 +303,16 @@ func (valSet *ValidatorSet) IncrementAccum(times int) {
 	}
 }
 
+// Iterate will run the given function over the set.
+func (valSet *ValidatorSet) Iterate(fn func(index int, val *Validator) bool) {
+	for i, val := range valSet.Validators {
+		stop := fn(i, val.Copy())
+		if stop {
+			break
+		}
+	}
+}
+
 // Verify that +2/3 of the set had signed the given signBytes
 func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height int64, commit *Commit) error {
 	if valSet.Size() != len(commit.Precommits) {
@@ -314,6 +356,35 @@ func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height
 	}
 	return fmt.Errorf("Invalid commit -- insufficient voting power: got %v, needed %v",
 		talliedVotingPower, (valSet.TotalVotingPower()*2/3 + 1))
+}
+
+// StringLong returns a long string representing full info about Validator
+func (valSet *ValidatorSet) StringLong() string {
+	if valSet == nil {
+		return "nil-ValidatorSet"
+	}
+	valStrings := []string{}
+	valSet.Iterate(func(index int, val *Validator) bool {
+		valStrings = append(valStrings, val.String())
+		return false
+	})
+	return fmt.Sprintf("ValidatorSet{Proposer:%v  Validators:%v}",
+		valSet.GetProposer(), strings.Join(valStrings, "  "))
+
+}
+
+// StringShort returns a short string representing of ValidatorSet
+func (valSet *ValidatorSet) String() string {
+	if valSet == nil {
+		return "nil-ValidatorSet"
+	}
+	valStrings := []string{}
+	valSet.Iterate(func(index int, val *Validator) bool {
+		valStrings = append(valStrings, val.String())
+		return false
+	})
+	return fmt.Sprintf("ValidatorSet{Proposer:%v  Validators:%v}",
+		valSet.GetProposer().String(), strings.Join(valStrings, "  "))
 }
 
 //-------------------------------------

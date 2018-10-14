@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	root          = &logger{[]interface{}{}, new(swapHandler)}
+	root          = &logger{[]interface{}{}, new(swapHandler), nil}
 	StdoutHandler = StreamHandler(os.Stdout, LogfmtFormat())
 	StderrHandler = StreamHandler(os.Stderr, LogfmtFormat())
 )

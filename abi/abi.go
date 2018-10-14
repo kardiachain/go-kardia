@@ -1,3 +1,19 @@
+// Copyright 2015 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+
 package abi
 
 import (
@@ -118,6 +134,22 @@ func (abi ABI) Unpack(v interface{}, name string, output []byte) (err error) {
 		return method.Outputs.Unpack(v, output)
 	} else if event, ok := abi.Events[name]; ok {
 		return event.Inputs.Unpack(v, output)
+	}
+	return fmt.Errorf("abi: could not locate named method or event")
+}
+
+// UnpackInput unpacks inputs of Method to v according to the abi specification
+func (abi ABI) UnpackInput(v interface{}, name string, output []byte) (err error) {
+	if len(output) == 0 {
+		return fmt.Errorf("abi: unmarshalling empty output")
+	}
+	// since there can't be naming collisions with contracts and events,
+	// we need to decide whether we're calling a method or an event
+	if method, ok := abi.Methods[name]; ok {
+		if len(output)%32 != 0 {
+			return fmt.Errorf("abi: improperly formatted output")
+		}
+		return method.Inputs.Unpack(v, output)
 	}
 	return fmt.Errorf("abi: could not locate named method or event")
 }

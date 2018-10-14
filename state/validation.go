@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package state
 
 import (
@@ -14,15 +32,11 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 	}
 
 	// validate basic info
-	// TODO(huny/namdoh): Chain ID is removed in huny previous commit, need to use network ID instead.
-	//if block.Header().ChainID != state.ChainID {
-	//	return fmt.Errorf("Wrong Block.Header.ChainID. Expected %v, got %v", state.ChainID, block.ChainID)
-	//}
 	if int64(block.Header().Height) != state.LastBlockHeight.Int64()+1 {
-		return fmt.Errorf("Wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight.Int64()+1, block.Height)
+		return fmt.Errorf("wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight.Int64()+1, block.Height())
 	}
 	/*	TODO: Determine bounds for Time
-		See blockchain/reactor "stopSyncingDurationMinutes"
+		See blockchain/manager "stopSyncingDurationMinutes"
 		if !block.Time.After(lastBlockTime) {
 			return errors.New("Invalid Block.Header.Time")
 		}
@@ -56,11 +70,11 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 	// Validate block LastCommit.
 	if block.Header().Height == 1 {
 		if len(block.LastCommit().Precommits) != 0 {
-			return errors.New("Block at height 1 (first block) should have no LastCommit precommits")
+			return errors.New("block at height 1 (first block) should have no LastCommit precommits")
 		}
 	} else {
 		if len(block.LastCommit().Precommits) != state.LastValidators.Size() {
-			return fmt.Errorf("Invalid block commit size. Expected %v, got %v",
+			return fmt.Errorf("invalid block commit size. Expected %v, got %v",
 				state.LastValidators.Size(), len(block.LastCommit().Precommits))
 		}
 		err := state.LastValidators.VerifyCommit(
