@@ -68,7 +68,7 @@ type ProtocolManager struct {
 
 	txpool *blockchain.TxPool
 
-	blockchain  *blockchain.BlockChain
+	blockchain  blockchain.BaseBlockChain
 	chainconfig *configs.ChainConfig
 
 	SubProtocols []p2p.Protocol
@@ -93,7 +93,7 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Kardia sub protocol manager. The Kardia sub protocol manages peers capable
 // with the Kardia network.
-func NewProtocolManager(protocolName string, logger log.Logger, networkID uint64, blockchain *blockchain.BlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool, csReactor *consensus.ConsensusManager) (*ProtocolManager, error) {
+func NewProtocolManager(protocolName string, logger log.Logger, networkID uint64, blockchain blockchain.BaseBlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool, csReactor *consensus.ConsensusManager) (*ProtocolManager, error) {
 
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
@@ -166,13 +166,16 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	pm.logger.Info("Start Kardia Protocol Manager", "maxPeers", maxPeers)
 	pm.maxPeers = maxPeers
 
-	// broadcast transactions
-	pm.txsCh = make(chan blockchain.NewTxsEvent, txChanSize)
-	pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
+	// TODO(namdoh@,thientn@): Refactor this so we won't have to check this for dual service.
+	if pm.txpool != nil {
+		// broadcast transactions
+		pm.txsCh = make(chan blockchain.NewTxsEvent, txChanSize)
+		pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
 
-	//namdoh@ pm.csCh = make(chan consensus.NewCsEvent, csChanSize)
+		//namdoh@ pm.csCh = make(chan consensus.NewCsEvent, csChanSize)
 
-	go pm.txBroadcastLoop()
+		go pm.txBroadcastLoop()
+	}
 	//namdoh@ go pm.csBroadcastLoop()
 	go syncNetwork(pm)
 }
@@ -180,7 +183,9 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 func (pm *ProtocolManager) Stop() {
 	pm.logger.Info("Stopping Kardia protocol")
 
-	pm.txsSub.Unsubscribe() // quits txBroadcastLoop
+	if pm.txpool != nil {
+		pm.txsSub.Unsubscribe() // quits txBroadcastLoop
+	}
 
 	// Quit the sync loop.
 	// After this send has completed, no new peers will be accepted.
@@ -263,6 +268,12 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
 	case msg.Code == kcmn.TxMsg:
 		pm.logger.Trace("Transactions received")
+		// TODO(namdoh@,thientn@): Refactor this so we won't have to check this for dual service.
+		if pm.txpool == nil {
+			pm.logger.Info("This service doesn't accept incoming transactions")
+			return nil
+		}
+
 		// Transactions arrived, make sure we have a valid and fresh chain to handle them
 		if atomic.LoadUint32(&pm.acceptTxs) == 0 {
 			pm.logger.Trace("Skip received txs, acceptTxs flag is false")
@@ -317,6 +328,10 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 
 // syncTransactions sends all pending transactions to the new peer.
 func (pm *ProtocolManager) syncTransactions(p *peer) {
+	// TODO(namdoh@,thientn@): Refactor this so we won't have to check this for dual service.
+	if pm.txpool == nil {
+		return
+	}
 	pm.logger.Trace("Sync txns to new peer", "peer", p)
 	// TODO(thientn): sends transactions in chunks. This may send a large number of transactions.
 	// Breaks them to chunks here or inside AsyncSend to not overload the pipeline.

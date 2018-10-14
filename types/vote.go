@@ -103,9 +103,9 @@ type Vote struct {
 
 func CreateEmptyVote() *Vote {
 	return &Vote{
-		ValidatorIndex: cmn.NewBigInt(-1),
-		Height:         cmn.NewBigInt(-1),
-		Round:          cmn.NewBigInt(-1),
+		ValidatorIndex: cmn.NewBigInt64(-1),
+		Height:         cmn.NewBigInt64(-1),
+		Round:          cmn.NewBigInt64(-1),
 		Timestamp:      big.NewInt(0),
 	}
 }

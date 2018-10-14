@@ -21,11 +21,12 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"github.com/kardiachain/go-kardia/blockchain"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/blockchain/dual"
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -60,6 +61,24 @@ type ChainConfig struct {
 
 	// AcceptTxs accept tx sync process or not (1 is yes and 0 is no)
 	AcceptTxs uint32
+}
+
+type DualChainConfig struct {
+	// Mainchain
+	// Number of validators.
+	NumValidators int
+
+	// ChainData is directory that stores levelDB data
+	ChainData string
+
+	// DbCache is a param used to start levelDB
+	DbCache int
+
+	// DbHandles is a param used to start levelDB
+	DbHandles int
+
+	// Genesis is genesis block which contain initial Block and accounts
+	DualGenesis *dual.DualGenesis
 }
 
 type NodeConfig struct {
@@ -131,7 +150,7 @@ type NodeConfig struct {
 	// TODO(thientn/namdoh): evaluate refactor this further
 	MainChainConfig ChainConfig
 
-	DualChainConfig ChainConfig
+	DualChainConfig DualChainConfig
 }
 
 // NodeName returns the devp2p node identifier.

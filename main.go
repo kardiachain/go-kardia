@@ -219,12 +219,6 @@ func main() {
 		config.DualChainConfig.ChainData = "dualdata"
 		config.DualChainConfig.DbHandles = development.DbHandles
 		config.DualChainConfig.DbCache = development.DbCache
-		txPoolPath := filepath.Join(nodeDir, "dualchain")
-		if err := os.MkdirAll(txPoolPath, 0700); err != nil {
-			log.Error("fail to create dualchain tx path", "txPoolPath", txPoolPath)
-			return
-		}
-		config.DualChainConfig.TxPool = *blockchain.GetDefaultTxPoolConfig(txPoolPath)
 	}
 
 	if *clearDataDir {

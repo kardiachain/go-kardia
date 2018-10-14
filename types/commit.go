@@ -79,7 +79,7 @@ func (commit *Commit) FirstPrecommit() *Vote {
 // Height returns the height of the commit
 func (commit *Commit) Height() *cmn.BigInt {
 	if len(commit.Precommits) == 0 {
-		return cmn.NewBigInt(0)
+		return cmn.NewBigInt64(0)
 	}
 	return commit.FirstPrecommit().Height
 }
@@ -87,7 +87,7 @@ func (commit *Commit) Height() *cmn.BigInt {
 // Round returns the round of the commit
 func (commit *Commit) Round() *cmn.BigInt {
 	if len(commit.Precommits) == 0 {
-		return cmn.NewBigInt(0)
+		return cmn.NewBigInt64(0)
 	}
 	return commit.FirstPrecommit().Round
 }

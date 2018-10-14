@@ -34,8 +34,8 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
+const KardiaServiceName = "KARDIA"
 const DefaultNetworkID = 100
-
 const kaiProtocolName = "kaiptc"
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
@@ -77,11 +77,10 @@ func (s *Kardia) AddKaiServer(ks KardiaSubService) {
 // New creates a new Kardia object (including the
 // initialisation of the common Kardia object)
 func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
-	log.Info("newKardia", "chaindata", config.ChainData)
-
 	// Create a specific logger for KARDIA service.
 	logger := log.New()
-	logger.AddTag("KARDIA")
+	logger.AddTag(KardiaServiceName)
+	logger.Info("newKardia", "chaindata", config.ChainData)
 
 	kaiDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
 	if err != nil {
@@ -119,22 +118,21 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSet(ctx.Config.MainChainConfig.NumValidators)
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon",
-		LastBlockHeight:             cmn.NewBigInt(int64(block.Height())),
+		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
 		LastBlockID:                 block.BlockID(),
 		LastBlockTime:               block.Time(),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: cmn.NewBigInt(-1),
+		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
 	}
 	consensusState := consensus.NewConsensusState(
 		kai.logger,
 		configs.DefaultConsensusConfig(),
 		state,
-		kai.blockchain,
-		kai.txPool,
+		consensus.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
 		ctx.Config.DevEnvConfig.VotingStrategy,
 	)
-	kai.csManager = consensus.NewConsensusManager(consensusState)
+	kai.csManager = consensus.NewConsensusManager(KardiaServiceName, consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
 	kai.csManager.SetPrivValidator(privValidator)

@@ -114,6 +114,7 @@ func (h *Header) String() string {
 // a block's data contents together.
 type Body struct {
 	Transactions []*Transaction
+	DualEvents   []*DualEvent
 	LastCommit   *Commit
 }
 
@@ -122,12 +123,14 @@ func (b *Body) Copy() *Body {
 	bodyCopy.LastCommit = b.LastCommit.Copy()
 	bodyCopy.Transactions = make([]*Transaction, len(b.Transactions))
 	copy(bodyCopy.Transactions, b.Transactions)
+	bodyCopy.DualEvents = make([]*DualEvent, len(b.DualEvents))
+	copy(bodyCopy.DualEvents, b.DualEvents)
 	return &bodyCopy
 }
 
 // Body returns the non-header content of the block.
 func (b *Block) Body() *Body {
-	return &Body{Transactions: b.transactions, LastCommit: b.lastCommit}
+	return &Body{Transactions: b.transactions, DualEvents: b.dualEvents, LastCommit: b.lastCommit}
 }
 
 func rlpHash(x interface{}) (h common.Hash) {
@@ -151,6 +154,7 @@ type Block struct {
 	mtx          sync.Mutex
 	header       *Header
 	transactions Transactions
+	dualEvents   DualEvents
 	lastCommit   *Commit
 
 	// caches
@@ -162,6 +166,7 @@ type Block struct {
 type extblock struct {
 	Header     *Header
 	Txs        []*Transaction
+	DualEvents []*DualEvent
 	LastCommit *Commit
 }
 
@@ -209,6 +214,34 @@ func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []
 	return b
 }
 
+// NewDualBlock creates a new block for dual chain. The input data is copied,
+// changes to header and to the field values will not affect the
+// block.
+func NewDualBlock(logger log.Logger, header *Header, commit *Commit) *Block {
+	b := &Block{
+		logger:     logger,
+		header:     CopyHeader(header),
+		lastCommit: CopyCommit(commit),
+	}
+
+	b.header.TxHash = EmptyRootHash
+	b.header.ReceiptHash = EmptyRootHash
+
+	if b.header.LastCommitHash.IsZero() {
+		if commit == nil {
+			b.logger.Error("NewBlock - commit should never be nil.")
+			b.header.LastCommitHash = common.NewZeroHash()
+		} else {
+			b.logger.Trace("Compute last commit hash", "commit", commit)
+			b.header.LastCommitHash = commit.Hash()
+		}
+	}
+
+	// TODO(namdoh): Store evidence hash.
+
+	return b
+}
+
 func (b *Block) SetLogger(logger log.Logger) {
 	b.logger = logger
 }
@@ -247,7 +280,7 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
 	eb.LastCommit.MakeEmptyNil()
 
-	b.header, b.transactions, b.lastCommit = eb.Header, eb.Txs, eb.LastCommit
+	b.header, b.transactions, b.dualEvents, b.lastCommit = eb.Header, eb.Txs, eb.DualEvents, eb.LastCommit
 	b.size.Store(common.StorageSize(rlp.ListSize(size)))
 	return nil
 }
@@ -260,6 +293,7 @@ func (b *Block) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, extblock{
 		Header:     b.header,
 		Txs:        b.transactions,
+		DualEvents: b.dualEvents,
 		LastCommit: lastCommitCopy,
 	})
 }
@@ -274,7 +308,7 @@ func (b *Body) DecodeRLP(s *rlp.Stream) error {
 	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
 	eb.LastCommit.MakeEmptyNil()
 
-	b.Transactions, b.LastCommit = eb.Txs, eb.LastCommit
+	b.Transactions, b.DualEvents, b.LastCommit = eb.Txs, eb.DualEvents, eb.LastCommit
 	return nil
 }
 
@@ -284,6 +318,7 @@ func (b *Body) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, extblock{
 		Header:     &Header{},
 		Txs:        b.Transactions,
+		DualEvents: b.DualEvents,
 		LastCommit: lastCommitCopy,
 	})
 }
@@ -299,15 +334,19 @@ func (b *Block) Transaction(hash common.Hash) *Transaction {
 	return nil
 }
 
+func (b *Block) DualEvents() DualEvents { return b.dualEvents }
+
 // WithBody returns a new block with the given transaction.
 func (b *Block) WithBody(body *Body) *Block {
 	block := &Block{
 		logger:       b.logger,
 		header:       CopyHeader(b.header),
 		transactions: make([]*Transaction, len(body.Transactions)),
+		dualEvents:   make([]*DualEvent, len(body.DualEvents)),
 		lastCommit:   body.LastCommit,
 	}
 	copy(block.transactions, body.Transactions)
+	copy(block.dualEvents, body.DualEvents)
 	return block
 }
 
@@ -382,6 +421,8 @@ func (b *Block) ValidateBasic() error {
 	//	return errors.New(cmn.Fmt("Wrong Block.Header.EvidenceHash.  Expected %v, got %v", b.EvidenceHash, b.Evidence.Hash()))
 	//}
 
+	b.logger.Error("Block.ValidateBasic() - implement validate DualEvents.")
+
 	return nil
 }
 
@@ -391,8 +432,8 @@ func (b *Block) StringLong() string {
 		return "nil-Block"
 	}
 
-	return fmt.Sprintf("Block{%v  %v  %v}#%v",
-		b.header, b.transactions, b.lastCommit, b.Hash().Hex())
+	return fmt.Sprintf("Block{%v  %v  %v  %v}#%v",
+		b.header, b.transactions, b.dualEvents, b.lastCommit, b.Hash().Hex())
 }
 
 // String returns a short string representing block by simplifying block header and lastcommit
@@ -420,7 +461,7 @@ func (b *Block) BlockID() BlockID {
 // The hash is computed on the first call and cached thereafter.
 func (b *Block) Hash() common.Hash {
 	if b == nil {
-		b.logger.Warn("Hashing nil block")
+		log.Warn("Hashing nil block")
 		return common.Hash{}
 	}
 

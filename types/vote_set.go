@@ -300,14 +300,14 @@ func (voteSet *VoteSet) ChainID() string {
 
 func (voteSet *VoteSet) Height() *cmn.BigInt {
 	if voteSet == nil {
-		return cmn.NewBigInt(0)
+		return cmn.NewBigInt64(0)
 	}
 	return voteSet.height
 }
 
 func (voteSet *VoteSet) Round() *cmn.BigInt {
 	if voteSet == nil {
-		return cmn.NewBigInt(-1)
+		return cmn.NewBigInt64(-1)
 	}
 	return voteSet.round
 }

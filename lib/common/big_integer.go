@@ -216,12 +216,20 @@ type BigInt struct {
 	Pos   bool   `json:"pos"`
 }
 
-func NewBigInt(x int64) *BigInt {
+func NewBigInt64(x int64) *BigInt {
 	if x < 0 {
 		return &BigInt{Value: uint64(-x), Pos: false}
 	}
 
 	return &BigInt{Value: uint64(x), Pos: true}
+}
+
+func NewBigUint64(x uint64) *BigInt {
+	return NewBigInt64(int64(x))
+}
+
+func NewBigInt32(x int) *BigInt {
+	return NewBigInt64(int64(x))
 }
 
 // IsGreaterThan returns true if x is greater than y
@@ -269,6 +277,11 @@ func (x *BigInt) IsLessThanOrEquals(y *BigInt) bool {
 	return x.Int64() <= y.Int64()
 }
 
+// IsLessThan returns true if x is less than y
+func (x *BigInt) IsLessThanOrEqualsUint64(y uint64) bool {
+	return x.Uint64() <= y
+}
+
 // Equals returns true if x equals to y
 func (x *BigInt) Equals(y *BigInt) bool {
 	return x.Int64() == y.Int64()
@@ -285,8 +298,18 @@ func (x *BigInt) EqualsInt64(y int64) bool {
 }
 
 // Equals returns true if x equals to y
+func (x *BigInt) EqualsUint64(y uint64) bool {
+	return x.Uint64() == y
+}
+
+// Equals returns true if x equals to y
 func (x *BigInt) Add(y int64) *BigInt {
-	return NewBigInt(x.Int64() + y)
+	return NewBigInt64(x.Int64() + y)
+}
+
+// Equals returns true if x equals to y
+func (x *BigInt) AddUint64(y uint64) *BigInt {
+	return x.Add(int64(y))
 }
 
 func (x *BigInt) Int32() int {
@@ -298,6 +321,10 @@ func (x *BigInt) Int64() int64 {
 		return int64(x.Value)
 	}
 	return int64(x.Value) * -1
+}
+
+func (x *BigInt) Uint64() uint64 {
+	return uint64(x.Int64())
 }
 
 func (x *BigInt) Copy() *BigInt {

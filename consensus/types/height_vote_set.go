@@ -19,6 +19,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -32,6 +33,10 @@ type RoundVoteSet struct {
 	Prevotes   *types.VoteSet
 	Precommits *types.VoteSet
 }
+
+var (
+	GotVoteFromUnwantedRoundError = errors.New("Peer has sent a vote that does not match our round for more than one round")
+)
 
 /*
 Keeps track of all VoteSets from round 0 to round 'round'.
@@ -51,11 +56,10 @@ type HeightVoteSet struct {
 	height  *cmn.BigInt
 	valSet  *types.ValidatorSet
 
-	mtx           sync.Mutex
-	round         *cmn.BigInt          // max tracked round
-	roundVoteSets map[int]RoundVoteSet // keys: [0...round]
-	// TODO(huny@): Do we need the peer catch up rounds?
-	// peerCatchupRounds map[p2p.ID][]int     // keys: peer.ID; values: at most 2 rounds
+	mtx               sync.Mutex
+	round             *cmn.BigInt               // max tracked round
+	roundVoteSets     map[int]RoundVoteSet      // keys: [0...round]
+	peerCatchupRounds map[discover.NodeID][]int // keys: peer.ID; values: at most 2 rounds
 }
 
 func NewHeightVoteSet(logger log.Logger, chainID string, height *cmn.BigInt, valSet *types.ValidatorSet) *HeightVoteSet {
@@ -74,19 +78,19 @@ func (hvs *HeightVoteSet) Reset(height *cmn.BigInt, valSet *types.ValidatorSet) 
 	hvs.height = height
 	hvs.valSet = valSet
 	hvs.roundVoteSets = make(map[int]RoundVoteSet)
-	//namdoh@ hvs.peerCatchupRounds = make(map[p2p.ID][]int)
+	hvs.peerCatchupRounds = make(map[discover.NodeID][]int)
 
 	hvs.addRound(0)
-	hvs.round = cmn.NewBigInt(0)
+	hvs.round = cmn.NewBigInt32(0)
 }
 
 func (hvs *HeightVoteSet) addRound(round int) {
 	if _, ok := hvs.roundVoteSets[round]; ok {
 		cmn.PanicSanity("addRound() for an existing round")
 	}
-	// hvs.logger.Debug("addRound(round)", "round", round)
-	prevotes := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt(int64(round)), types.VoteTypePrevote, hvs.valSet)
-	precommits := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt(int64(round)), types.VoteTypePrecommit, hvs.valSet)
+	hvs.logger.Trace("addRound(round)", "round", round)
+	prevotes := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt32(round), types.VoteTypePrevote, hvs.valSet)
+	precommits := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt32(round), types.VoteTypePrecommit, hvs.valSet)
 	hvs.roundVoteSets[round] = RoundVoteSet{
 		Prevotes:   prevotes,
 		Precommits: precommits,
@@ -107,7 +111,7 @@ func (hvs *HeightVoteSet) SetRound(round int) {
 		}
 		hvs.addRound(r)
 	}
-	hvs.round = cmn.NewBigInt(int64(round))
+	hvs.round = cmn.NewBigInt32(round)
 }
 
 // Duplicate votes return added=false, err=nil.
@@ -120,23 +124,16 @@ func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID discover.NodeID) (add
 	}
 	voteSet := hvs.getVoteSet(vote.Round.Int32(), vote.Type)
 	if voteSet == nil {
-		//panic("HeightVoteSet.AddVote - not yet implemented")
-		hvs.logger.Error("HeightVoteSet.AddVote - not yet implemented")
-		//return
-		// TODO(namdoh): Re-enable this later.
-		//if rndz := hvs.peerCatchupRounds[peerID]; len(rndz) < 2 {
-		//	hvs.addRound(vote.Round)
-		//	voteSet = hvs.getVoteSet(vote.Round, vote.Type)
-		//	hvs.peerCatchupRounds[peerID] = append(rndz, vote.Round)
-		//} else {
-		//	// punish peer
-		//	err = GotVoteFromUnwantedRoundError
-		//	return
-		//}
-		hvs.mtx.Unlock()
-		hvs.SetRound(vote.Round.Int32())
-		voteSet = hvs.getVoteSet(vote.Round.Int32(), vote.Type)
-		hvs.mtx.Lock()
+		hvs.logger.Trace("Retrived VoteSet is nil", "H/R/T", cmn.Fmt("%v/%v/%v", vote.Height, vote.Round, types.GetReadableVoteTypeString(vote.Type)))
+		if rndz := hvs.peerCatchupRounds[peerID]; len(rndz) < 2 {
+			hvs.addRound(vote.Round.Int32())
+			voteSet = hvs.getVoteSet(vote.Round.Int32(), vote.Type)
+			hvs.peerCatchupRounds[peerID] = append(rndz, vote.Round.Int32())
+		} else {
+			// punish peer
+			err = GotVoteFromUnwantedRoundError
+			return
+		}
 	}
 
 	added, err = voteSet.AddVote(vote)

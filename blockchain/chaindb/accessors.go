@@ -389,6 +389,36 @@ func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, c
 	return body.Transactions[txIndex], blockHash, blockNumber, txIndex
 }
 
+// Retrieves the positional metadata associated with a dual's event
+// hash to allow retrieving the event by hash.
+func ReadDualEventLookupEntry(db DatabaseReader, hash common.Hash) (common.Hash, uint64, uint64) {
+	data, _ := db.Get(dualEventLookupKey(hash))
+	if len(data) == 0 {
+		return common.Hash{}, 0, 0
+	}
+	var entry DualEventLookupEntry
+	if err := rlp.DecodeBytes(data, &entry); err != nil {
+		log.Error("Invalid dual's event lookup entry RLP", "hash", hash, "err", err)
+		return common.Hash{}, 0, 0
+	}
+	return entry.BlockHash, entry.BlockIndex, entry.Index
+}
+
+// Retrieves a specific dual's event from the database, along with
+// its added positional metadata.
+func ReadDualEvent(db DatabaseReader, hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
+	blockHash, blockNumber, eventIndex := ReadDualEventLookupEntry(db, hash)
+	if blockHash == (common.Hash{}) {
+		return nil, common.Hash{}, 0, 0
+	}
+	body := ReadBody(db, blockHash, blockNumber)
+	if body == nil || len(body.DualEvents) <= int(eventIndex) {
+		log.Error("Dual event referenced missing", "number", blockNumber, "hash", blockHash, "index", eventIndex)
+		return nil, common.Hash{}, 0, 0
+	}
+	return body.DualEvents[eventIndex], blockHash, blockNumber, eventIndex
+}
+
 // ReadReceipt retrieves a specific transaction receipt from the database, along with
 // its added positional metadata.
 func ReadReceipt(db DatabaseReader, hash common.Hash) (*types.Receipt, common.Hash, uint64, uint64) {
