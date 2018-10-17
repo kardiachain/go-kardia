@@ -39,6 +39,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardia/p2p/discover"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 	"os"
@@ -118,6 +119,8 @@ func main() {
 	lightNode := flag.Bool("light", false, "connect to Eth as light node")
 	lightServ := flag.Int("lightserv", 0, "max percentage of time serving light client reqs")
 	cacheSize := flag.Int("cacheSize", 1024, "cache memory size for Eth node")
+	bootnodes := flag.String("bootnodes", "", "Comma separated enode URLs for P2P discovery bootstrap")
+	peer := flag.String("peer", "", "Comma separated enode URLs for P2P static peer")
 	dev := flag.Bool("dev", false, "deploy node with dev environment")
 	numValid := flag.Int("numValid", 0,
 		"number of total validators in dev environment. Note that this flag only has effect when --dev flag is set.")
@@ -175,6 +178,20 @@ func main() {
 	config.Name = *name
 	config.MainChainConfig.AcceptTxs = uint32(*acceptTxs)
 	var devEnv *development.DevEnvironmentConfig
+
+	// Setup bootnodes
+	if len(*bootnodes) > 0 {
+		urls := strings.Split(*bootnodes, ",")
+		config.P2P.BootstrapNodes = make([]*discover.Node, 0, len(urls))
+		for _, url := range urls {
+			node, err := discover.ParseNode(url)
+			if err != nil {
+				logger.Error("Bootstrap URL invalid", "enode", url, "err", err)
+			} else {
+				config.P2P.BootstrapNodes = append(config.P2P.BootstrapNodes, node)
+			}
+		}
+	}
 
 	if *rpcEnabled {
 		if config.HTTPHost = *rpcAddr; config.HTTPHost == "" {
@@ -253,11 +270,12 @@ func main() {
 		return
 	}
 	var dualService *kai.DualService
-	if err := n.Service(&dualService); err != nil {
-		logger.Error("Cannot get Dual Service", "err", err)
-		return
+	if *dualChain {
+		if err := n.Service(&dualService); err != nil {
+			logger.Error("Cannot get Dual Service", "err", err)
+			return
+		}
 	}
-
 	logger.Info("Genesis block", "genesis", *kardiaService.BlockChain().Genesis())
 
 	if *addTxn {
@@ -359,6 +377,16 @@ func main() {
 		}
 	}
 
+	if len(*peer) > 0 {
+		urls := strings.Split(*peer, ",")
+		for _, peerURL := range urls {
+			logger.Info("Adding static peer", "peerURL", peerURL)
+			success, err := n.AddPeer(peerURL)
+			if !success {
+				logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
+			}
+		}
+	}
 	// go displayPeers(n)
 
 	var dualP *dual.DualProcessor
