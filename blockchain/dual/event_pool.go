@@ -21,22 +21,25 @@ package dual
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
-	"path/filepath"
 
 	"github.com/ethereum/go-ethereum/metrics"
 
+	"github.com/kardiachain/go-kardia/blockchain/chaindb"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
-	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/blockchain/chaindb"
 	kaidb "github.com/kardiachain/go-kardia/storage"
+	"github.com/kardiachain/go-kardia/types"
 )
 
+const (
+	DualStateAddressHex = "68b53a92d846baafdc782cb9cad65d77020c8d747eca7b621370b52b18c91f9a"
+)
 
 const (
 	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
@@ -44,9 +47,9 @@ const (
 )
 
 var (
-	evictionInterval    = time.Hour     // Time interval to check for evictable events
+	evictionInterval    = time.Hour       // Time interval to check for evictable events
 	statsReportInterval = 8 * time.Second // Time interval to report event pool stats
-    dualStateAddress = common.HexToAddress("68b53a92d846baafdc782cb9cad65d77020c8d747eca7b621370b52b18c91f9a")
+	dualStateAddress    = common.HexToAddress(DualStateAddressHex)
 )
 
 var (
@@ -64,14 +67,14 @@ var (
 
 var (
 	// Metrics for the pending pool
-	pendingDiscardCounter   = metrics.NewRegisteredCounter("eventpool/pending/discard", nil)
+	pendingDiscardCounter = metrics.NewRegisteredCounter("eventpool/pending/discard", nil)
 
 	// Metrics for the queued pool
 	queuedDiscardCounter   = metrics.NewRegisteredCounter("eventpool/queued/discard", nil)
 	queuedRateLimitCounter = metrics.NewRegisteredCounter("eventpool/queued/ratelimit", nil) // Dropped due to rate limiting
 
 	// General dual's event metrics
-	invalidEventCounter     = metrics.NewRegisteredCounter("eventpool/invalid", nil)
+	invalidEventCounter         = metrics.NewRegisteredCounter("eventpool/invalid", nil)
 	discardEventFullPoolCounter = metrics.NewRegisteredCounter("eventpool/fullpool", nil)
 )
 
@@ -96,11 +99,11 @@ type blockChain interface {
 
 // EventPoolConfig are the configuration parameters of the event pool.
 type EventPoolConfig struct {
-	Journal   string        // Journal of local event to survive node restarts
-	Rejournal time.Duration // Time interval to regenerate the local event journal
+	Journal   string        // Journal of dual's event to survive node restarts
+	Rejournal time.Duration // Time interval to regenerate the dual's event journal
 
-	QueueSize int // Maximum number of queued events
-	Lifetime time.Duration // Maximum amount of time events are queued
+	QueueSize int           // Maximum number of queued events
+	Lifetime  time.Duration // Maximum amount of time events are queued
 }
 
 // DefaultEventPoolConfig contains the default configurations for the event
@@ -109,8 +112,8 @@ var DefaultEventPoolConfig = EventPoolConfig{
 	Journal:   "dual_events.rlp",
 	Rejournal: time.Hour,
 
-	QueueSize:  4096,
-	Lifetime: 3 * time.Hour,
+	QueueSize: 4096,
+	Lifetime:  3 * time.Hour,
 }
 
 // GetEventPoolConfig returns default eventPoolConfig with given dir path
@@ -139,19 +142,19 @@ func (config *EventPoolConfig) sanitize(logger log.Logger) EventPoolConfig {
 type EventPool struct {
 	logger log.Logger
 
-	config       EventPoolConfig
-	chainconfig  *configs.ChainConfig
-	chain        blockChain
-	dualEventFeed    event.Feed
-	scope        event.SubscriptionScope
-	chainHeadCh  chan ChainHeadEvent
-	chainHeadSub event.Subscription
-	mu           sync.RWMutex
+	config        EventPoolConfig
+	chainconfig   *configs.ChainConfig
+	chain         blockChain
+	dualEventFeed event.Feed
+	scope         event.SubscriptionScope
+	chainHeadCh   chan ChainHeadEvent
+	chainHeadSub  event.Subscription
+	mu            sync.RWMutex
 
 	currentState *state.StateDB      // Current state in the blockchain head
 	pendingState *state.ManagedState // Pending state tracking virtual nonces
 
-	journal *eventJournal  // Journal of events to back up to disk
+	journal *eventJournal // Journal of events to back up to disk
 
 	pending *eventList   // All currently processable dual's events
 	queue   *eventList   // Queued but non-processable dual's events
@@ -181,10 +184,10 @@ func NewEventPool(logger log.Logger, config EventPoolConfig, chainconfig *config
 	if config.Journal != "" {
 		pool.journal = newEventJournal(logger, config.Journal)
 
-		if err := pool.journal.load(pool.AddLocals); err != nil {
+		if err := pool.journal.load(pool.AddEvents); err != nil {
 			logger.Warn("Failed to load dual's event journal", "err", err)
 		}
-		if err := pool.journal.rotate(pool.local()); err != nil {
+		if err := pool.journal.rotate(pool.getEvents()); err != nil {
 			logger.Warn("Failed to rotate dual's event journal", "err", err)
 		}
 	}
@@ -248,14 +251,14 @@ func (pool *EventPool) loop() {
 
 		// Handle inactive account dual's event eviction
 		case <-evict.C:
-		    // TODO(namdoh): Implement eviction policy here.
+			// TODO(namdoh): Implement eviction policy here.
 
-		// Handle local dual's event journal rotation
+		// Handle dual's event journal rotation
 		case <-journal.C:
 			if pool.journal != nil {
 				pool.mu.Lock()
-				if err := pool.journal.rotate(pool.local()); err != nil {
-					pool.logger.Warn("Failed to rotate local event journal", "err", err)
+				if err := pool.journal.rotate(pool.getEvents()); err != nil {
+					pool.logger.Warn("Failed to rotate event journal", "err", err)
 				}
 				pool.mu.Unlock()
 			}
@@ -354,7 +357,7 @@ func (pool *EventPool) reset(oldHead, newHead *types.Header) {
 	// Update to the latest known pending nonce
 	events := pool.pending.Flatten() // Heavy but will be cached and is needed by the miner anyway
 	if len(events) > 0 {
-	    pool.pendingState.SetNonce(dualStateAddress, events[len(events)-1].Nonce()+1)
+		pool.pendingState.SetNonce(dualStateAddress, events[len(events)-1].Nonce()+1)
 	}
 
 	// Check the queue and move dual's events over to the pending if possible
@@ -437,9 +440,9 @@ func (pool *EventPool) Pending() (types.DualEvents, error) {
 	return pending, nil
 }
 
-// Retrieves all currently known local dual's events, sorted by nonce. The returned dual's event set is a copy and
+// Retrieves all currently known dual's events, sorted by nonce. The returned dual's event set is a copy and
 // can be freely modified by calling code.
-func (pool *EventPool) local() types.DualEvents {
+func (pool *EventPool) getEvents() types.DualEvents {
 	events := pool.pending.Flatten()
 	events = append(events, pool.queue.Flatten()...)
 	return events
@@ -448,46 +451,46 @@ func (pool *EventPool) local() types.DualEvents {
 // validateTx checks whether a dual's event is valid according to the consensus
 // rules.
 func (pool *EventPool) validateTx(tx *types.DualEvent) error {
-    pool.logger.Error("Not yet implement EventPool.validateTx()")
-    return nil
-    /*
-	// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
-	if tx.Size() > 32*1024 {
-		return ErrOversizedData
-	}
-	// Transactions can't be negative. This may never happen using RLP decoded
-	// transactions but may occur if you create a transaction using the RPC.
-	if tx.Value().Sign() < 0 {
-		return ErrNegativeValue
-	}
-	// Ensure the transaction doesn't exceed the current block limit gas.
-	if pool.currentMaxGas < tx.Gas() {
-		return ErrGasLimit
-	}
-	// Make sure the transaction is signed properly
-	from, err := types.Sender(tx)
-	if err != nil {
-		return ErrInvalidSender
-	}
-	// Drop non-local transactions under our own minimal accepted gas price
-	local = local || pool.locals.contains(from) // account may be local even if the transaction arrived from the network
-	if !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 {
-		return ErrUnderpriced
-	}
-
-	// Ensure the transaction adheres to nonce ordering
-	if pool.currentState.GetNonce(from) > tx.Nonce() {
-		return ErrNonceTooLow
-	}
-
-	// Transactor should have enough funds to cover the costs
-	// cost == V + GP * GL
-	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-		pool.logger.Error("Bad txn cost", "balance", pool.currentState.GetBalance(from), "cost", tx.Cost(), "from", from)
-		return ErrInsufficientFunds
-	}
-
+	pool.logger.Error("Not yet implement EventPool.validateTx()")
 	return nil
+	/*
+		// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
+		if tx.Size() > 32*1024 {
+			return ErrOversizedData
+		}
+		// Transactions can't be negative. This may never happen using RLP decoded
+		// transactions but may occur if you create a transaction using the RPC.
+		if tx.Value().Sign() < 0 {
+			return ErrNegativeValue
+		}
+		// Ensure the transaction doesn't exceed the current block limit gas.
+		if pool.currentMaxGas < tx.Gas() {
+			return ErrGasLimit
+		}
+		// Make sure the transaction is signed properly
+		from, err := types.Sender(tx)
+		if err != nil {
+			return ErrInvalidSender
+		}
+		// Drop non-local transactions under our own minimal accepted gas price
+		local = local || pool.locals.contains(from) // account may be local even if the transaction arrived from the network
+		if !local && pool.gasPrice.Cmp(tx.GasPrice()) > 0 {
+			return ErrUnderpriced
+		}
+
+		// Ensure the transaction adheres to nonce ordering
+		if pool.currentState.GetNonce(from) > tx.Nonce() {
+			return ErrNonceTooLow
+		}
+
+		// Transactor should have enough funds to cover the costs
+		// cost == V + GP * GL
+		if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+			pool.logger.Error("Bad txn cost", "balance", pool.currentState.GetBalance(from), "cost", tx.Cost(), "from", from)
+			return ErrInsufficientFunds
+		}
+
+		return nil
 	*/
 }
 
@@ -512,7 +515,7 @@ func (pool *EventPool) add(event *types.DualEvent) (bool, error) {
 	}
 	// If the event pool is full, discard the new dual's event
 	if pool.all.Count() >= pool.config.QueueSize {
-	    pool.logger.Error("EventPool is full. Discard incoming events.")
+		pool.logger.Error("EventPool is full. Discard incoming events.")
 		discardEventFullPoolCounter.Inc(1)
 		return false, ErrPoolFull
 	}
@@ -585,17 +588,12 @@ func (pool *EventPool) promoteEvent(hash common.Hash, event *types.DualEvent) bo
 }
 
 // Enqueues a single dual's event into the pool if it is valid.
-func (pool *EventPool) AddRemote(event *types.DualEvent) error {
+func (pool *EventPool) AddEvent(event *types.DualEvent) error {
 	return pool.addEvent(event)
 }
 
 // Enqueues a batch of dual's events into the pool if they are valid.
-func (pool *EventPool) AddLocals(events []*types.DualEvent) []error {
-	return pool.addEvents(events)
-}
-
-// Enqueues a batch of dual's events into the pool if they are valid.
-func (pool *EventPool) AddRemotes(events []*types.DualEvent) []error {
+func (pool *EventPool) AddEvents(events []*types.DualEvent) []error {
 	return pool.addEvents(events)
 }
 
@@ -731,14 +729,14 @@ func (pool *EventPool) promoteExecutables() {
 	}
 	// If we've queued more dual's events than the hard limit, drop oldest ones
 	if pool.queue.Len() > pool.config.QueueSize {
-		// Drop dual's events until the total is below the limit or only locals remain
+		// Drop dual's events until the total is below the limit
 		drop := pool.queue.Len() - pool.config.QueueSize
-			events := pool.queue.Flatten()
-			for i := len(events) - 1; i >= 0 && drop > 0; i-- {
-				pool.removeEventInternal(events[i].Hash())
-				drop--
-				queuedRateLimitCounter.Inc(1)
-			}
+		events := pool.queue.Flatten()
+		for i := len(events) - 1; i >= 0 && drop > 0; i-- {
+			pool.removeEventInternal(events[i].Hash())
+			drop--
+			queuedRateLimitCounter.Inc(1)
+		}
 	}
 }
 

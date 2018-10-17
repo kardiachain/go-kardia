@@ -26,15 +26,9 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/blockchain/dual"
-	"github.com/kardiachain/go-kardia/dual/ethsmc"
-	"github.com/kardiachain/go-kardia/kai/dev"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethstats"
@@ -45,6 +39,14 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/kardiachain/go-kardia/lib/log"
+
+	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/blockchain/dual"
+	"github.com/kardiachain/go-kardia/dual/ethsmc"
+	"github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
@@ -87,13 +89,12 @@ type EthKardiaConfig struct {
 
 // EthKarida is a full Ethereum node running inside Karida
 type EthKardia struct {
-	geth   *node.Node
-	config *EthKardiaConfig
-	ethSmc *ethsmc.EthSmc
-	kChain *blockchain.BlockChain
-	// TODO(namdoh, #115): Rename to kardiaPool
-	txPool    *blockchain.TxPool
-	eventPool *dual.EventPool // Event pool of DUAL service.
+	geth      *node.Node
+	config    *EthKardiaConfig
+	ethSmc    *ethsmc.EthSmc
+	kChain    *blockchain.BlockChain
+	txPool    *blockchain.TxPool // Transaction pool of KARDIA service.
+	eventPool *dual.EventPool    // Event pool of DUAL service.
 }
 
 // EthKardia creates a Ethereum sub node.
@@ -267,7 +268,7 @@ func (n *EthKardia) syncHead() {
 	headSubCh := ethChain.SubscribeChainHeadEvent(chainHeadEventCh)
 	defer headSubCh.Unsubscribe()
 
-	blockCh := make(chan *types.Block, 1)
+	blockCh := make(chan *ethTypes.Block, 1)
 
 	// Follow other examples.
 	// Listener to exhaust extra event while sending block to our channel.
@@ -300,7 +301,7 @@ func (n *EthKardia) syncHead() {
 	}
 }
 
-func (n *EthKardia) handleBlock(block *types.Block) {
+func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 	// TODO(thientn): block from this event is not guaranteed newly update. May already handled before.
 
 	// Some events has nil block.
@@ -330,17 +331,30 @@ func (n *EthKardia) handleBlock(block *types.Block) {
 		// TODO(thientn): Make this tx matcher more robust.
 		if tx.To() != nil && *tx.To() == contractAddr {
 			log.Info("New tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
-			// TODO(namdoh, #115): Remember this txs event to dual service's pool
+			statedb, err := n.BlockChain().State()
+			if err != nil {
+				log.Error("Fail to get DUAL's service statedb", "err", err)
+				return
+			}
+			nonce := statedb.GetNonce(ethCommon.HexToAddress(dual.DualStateAddressHex))
+			ethTxHash := tx.Hash()
+			txHash := common.BytesToHash(ethTxHash[:])
+			dualEvent := types.NewDualEvent(nonce, "ETH", &txHash)
 
-			// TODO(namdoh, #115): Split this into two part 1) create a Kardia tx and propose it and 2)
-			// once its block is commit, the next proposer will submit it.
-			// Create and submit a Kardia tx.
+			log.Info("Create dual's event", "dualEvent", dualEvent)
+			if err := n.eventPool.AddEvent(dualEvent); err != nil {
+				log.Error("Fail to add dual's event", "error", err)
+			} else {
+				log.Info("Add dual's event to event pool successfully", "eventHash", dualEvent.Hash().Hex())
+			}
+
+			// TODO(namdoh, #115): Refactor this into a group consensus
 			go n.updateKardiaSmc(tx)
 		}
 	}
 }
 
-func (n *EthKardia) updateKardiaSmc(tx *types.Transaction) {
+func (n *EthKardia) updateKardiaSmc(tx *ethTypes.Transaction) {
 	input := tx.Data()
 	method, err := n.ethSmc.InputMethodName(input)
 	if err != nil {

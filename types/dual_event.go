@@ -34,8 +34,9 @@ type DualEvent struct {
 }
 
 type eventdata struct {
-	Nonce   uint64 `json:"nonce"    gencodec:"required"`
-	Payload []byte `json:"input"    gencodec:"required"`
+	Nonce    uint64       `json:"nonce"    gencodec:"required"`
+	TxSource string       `json:"txSource" gencodoc:"required"`
+	TxHash   *common.Hash `json:"txHash"   gencodec:"required"`
 
 	// Signature values
 	V *big.Int `json:"v" gencodec:"required"`
@@ -44,6 +45,16 @@ type eventdata struct {
 
 	// This is only used when marshaling to JSON.
 	Hash *common.Hash `json:"hash" rlp:"-"`
+}
+
+func NewDualEvent(nonce uint64, txSource string, txHash *common.Hash) *DualEvent {
+	return &DualEvent{
+		data: eventdata{
+			Nonce:    nonce,
+			TxSource: txSource,
+			TxHash:   txHash,
+		},
+	}
 }
 
 func (de *DualEvent) Nonce() uint64 { return de.data.Nonce }
