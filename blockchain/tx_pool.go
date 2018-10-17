@@ -994,7 +994,9 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {
 			hash := tx.Hash()
 			pool.logger.Info("Promoting tx", "tx", tx)
-			pool.logger.Info("Tx recipient", "recipient", tx.To().String())
+			if tx.To() != nil {
+				pool.logger.Info("Tx recipient", "recipient", tx.To().String())
+			}
 			if pool.promoteTx(addr, hash, tx) {
 				pool.logger.Info("Promoting queued transaction", "hash", hash)
 				promoted = append(promoted, tx)
