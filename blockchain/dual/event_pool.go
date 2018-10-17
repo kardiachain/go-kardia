@@ -23,6 +23,9 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"path/filepath"
+
+	"github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -30,12 +33,8 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
-
-	"github.com/ethereum/go-ethereum/metrics"
-
 	"github.com/kardiachain/go-kardia/blockchain/chaindb"
 	kaidb "github.com/kardiachain/go-kardia/storage"
-	"path/filepath"
 )
 
 
@@ -173,8 +172,8 @@ func NewEventPool(logger log.Logger, config EventPoolConfig, chainconfig *config
 		config:      config,
 		chainconfig: chainconfig,
 		chain:       chain,
-		pending:     nil,
-		queue:       nil,
+		pending:     newEventList(),
+		queue:       newEventList(),
 		chainHeadCh: make(chan ChainHeadEvent, chainHeadChanSize),
 	}
 	pool.reset(nil, chain.CurrentBlock().Header())
@@ -354,7 +353,9 @@ func (pool *EventPool) reset(oldHead, newHead *types.Header) {
 
 	// Update to the latest known pending nonce
 	events := pool.pending.Flatten() // Heavy but will be cached and is needed by the miner anyway
-	pool.pendingState.SetNonce(dualStateAddress, events[len(events)-1].Nonce()+1)
+	if len(events) > 0 {
+	    pool.pendingState.SetNonce(dualStateAddress, events[len(events)-1].Nonce()+1)
+	}
 
 	// Check the queue and move dual's events over to the pending if possible
 	// or remove those that have become invalid
@@ -516,7 +517,7 @@ func (pool *EventPool) add(event *types.DualEvent) (bool, error) {
 		return false, ErrPoolFull
 	}
 	// If the dual's event is replacing an already pending one, do directly
-	if pool.pending != nil && pool.pending.Overlaps(event) {
+	if pool.pending.Overlaps(event) {
 		pendingDiscardCounter.Inc(1)
 		return false, ErrAddExistingEvent
 	}
@@ -536,9 +537,6 @@ func (pool *EventPool) add(event *types.DualEvent) (bool, error) {
 //
 // Note, this method assumes the pool lock is held!
 func (pool *EventPool) enqueueEvent(hash common.Hash, event *types.DualEvent) (bool, error) {
-	if pool.queue == nil {
-		pool.queue = newEventList()
-	}
 	inserted := pool.queue.Add(event)
 	if !inserted {
 		// An older dual's event was better, discard this
@@ -568,9 +566,6 @@ func (pool *EventPool) journalEvent(event *types.DualEvent) {
 // Note, this method assumes the pool lock is held!
 func (pool *EventPool) promoteEvent(hash common.Hash, event *types.DualEvent) bool {
 	// Try to insert the dual's event into the pending queue
-	if pool.pending == nil {
-		pool.pending = newEventList()
-	}
 	inserted := pool.pending.Add(event)
 	if !inserted {
 		// An older dual's event was better, discard this
@@ -646,7 +641,7 @@ func (pool *EventPool) Status(hashes []common.Hash) []EventStatus {
 	status := make([]EventStatus, len(hashes))
 	for i, hash := range hashes {
 		if event := pool.all.Get(hash); event != nil {
-			if pool.pending != nil && pool.pending.events.items[event.Nonce()] != nil {
+			if pool.pending.events.items[event.Nonce()] != nil {
 				status[i] = EventStatusPending
 			} else {
 				status[i] = EventStatusQueued
@@ -687,28 +682,21 @@ func (pool *EventPool) removeEventInternal(hash common.Hash) {
 	// Remove it from the list of known dual's events
 	pool.all.Remove(hash)
 	// Remove the dual's event from the pending lists and reset the account nonce
-	if pool.pending != nil {
-		if removed := pool.pending.Remove(event); removed {
-			// If no more pending dual's events are left, remove the list
-			if pool.pending.Empty() {
-				pool.pending = nil
-			}
-
-			// Update the account nonce if needed
-			if nonce := event.Nonce(); pool.pendingState.GetNonce(dualStateAddress) > nonce {
-				pool.pendingState.SetNonce(dualStateAddress, nonce)
-			}
-
-			return
+	if removed := pool.pending.Remove(event); removed {
+		// If no more pending dual's events are left, remove the list
+		if pool.pending.Empty() {
+			pool.pending = nil
 		}
+
+		// Update the account nonce if needed
+		if nonce := event.Nonce(); pool.pendingState.GetNonce(dualStateAddress) > nonce {
+			pool.pendingState.SetNonce(dualStateAddress, nonce)
+		}
+
+		return
 	}
 	// Dual's event is in the future queue
-	if pool.queue != nil {
-		pool.queue.Remove(event)
-		if pool.queue.Empty() {
-			pool.queue = nil
-		}
-	}
+	pool.queue.Remove(event)
 }
 
 // Moves dual's events that have become processable from the
@@ -718,32 +706,25 @@ func (pool *EventPool) promoteExecutables() {
 	// Track the promoted transactions to broadcast them at once
 	var promoted []*types.DualEvent
 
-	// Iterate over all events and promote any executable events
-	if pool.queue != nil {
-		// Drop all dual's events that are deemed too old (low nonce)
-		for _, event := range pool.queue.Forward(pool.currentState.GetNonce(dualStateAddress)) {
-			hash := event.Hash()
-			pool.logger.Info("Removed old queued dual's event", "hash", hash)
-			pool.all.Remove(hash)
-		}
+	// Drop all dual's events that are deemed too old (low nonce)
+	for _, event := range pool.queue.Forward(pool.currentState.GetNonce(dualStateAddress)) {
+		hash := event.Hash()
+		pool.logger.Info("Removed old queued dual's event", "hash", hash)
+		pool.all.Remove(hash)
+	}
 
-		// Gather all executable dual's events and promote them
-		for _, event := range pool.queue.Ready(pool.pendingState.GetNonce(dualStateAddress)) {
-			hash := event.Hash()
-			pool.logger.Info("Promoting event", "event", event)
-			if pool.promoteEvent(hash, event) {
-				pool.logger.Info("Promoting queued dual's event", "hash", hash)
-				promoted = append(promoted, event)
-			} else {
-				pool.logger.Error("Fail to promote event", "event", event)
-			}
-		}
-
-		// Delete the entire queue entry if it became empty.
-		if pool.queue.Empty() {
-			pool.queue = nil
+	// Gather all executable dual's events and promote them
+	for _, event := range pool.queue.Ready(pool.pendingState.GetNonce(dualStateAddress)) {
+		hash := event.Hash()
+		pool.logger.Info("Promoting event", "event", event)
+		if pool.promoteEvent(hash, event) {
+			pool.logger.Info("Promoting queued dual's event", "hash", hash)
+			promoted = append(promoted, event)
+		} else {
+			pool.logger.Error("Fail to promote event", "event", event)
 		}
 	}
+
 	// Notify subsystem for new promoted dual's events.
 	if len(promoted) > 0 {
 		go pool.dualEventFeed.Send(NewDualEventsEvent{promoted})
@@ -765,54 +746,50 @@ func (pool *EventPool) promoteExecutables() {
 // executable/pending queue and any subsequent dual's events that become unexecutable
 // are moved back into the future queue.
 func (pool *EventPool) demoteUnexecutables() {
-		nonce := pool.currentState.GetNonce(dualStateAddress)
+	nonce := pool.currentState.GetNonce(dualStateAddress)
 
-		// TODO(thientn): Evaluate this for future phases.
-		// These txs should also dropped by below loop because of low nonce.
-		// Drop transactions included in latest block, assume it's committed and saved.
-		// This function is only called when TxPool detect new height.
-		for _, event := range pool.chain.CurrentBlock().DualEvents() {
-			hash := event.Hash()
-			pool.logger.Info("EventPool to remove committed dual's event", "hash", hash)
+	// TODO(thientn): Evaluate this for future phases.
+	// These txs should also dropped by below loop because of low nonce.
+	// Drop transactions included in latest block, assume it's committed and saved.
+	// This function is only called when TxPool detect new height.
+	for _, event := range pool.chain.CurrentBlock().DualEvents() {
+		hash := event.Hash()
+		pool.logger.Info("EventPool to remove committed dual's event", "hash", hash)
+		pool.all.Remove(hash)
+	}
+
+	// Drop all transactions that are deemed too old (low nonce)
+	for _, event := range pool.pending.Forward(nonce) {
+		hash := event.Hash()
+		pool.logger.Info("Removed old pending dual's event", "hash", hash)
+		pool.all.Remove(hash)
+	}
+	// TODO(thientn): Evaluates enable this.
+	/*
+		// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
+		drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
+		for _, tx := range drops {
+			hash := tx.Hash()
+			pool.logger.Info("Removed unpayable pending transaction", "hash", hash)
 			pool.all.Remove(hash)
+			pool.priced.Removed()
+			pendingNofundsCounter.Inc(1)
 		}
+		for _, tx := range invalids {
+			hash := tx.Hash()
+			pool.logger.Info("Demoting pending transaction", "hash", hash)
+			pool.enqueueTx(hash, tx)
+		}
+	*/
 
-		// Drop all transactions that are deemed too old (low nonce)
-		for _, event := range pool.pending.Forward(nonce) {
+	// If there's a gap in front, alert (should never happen) and postpone all transactions
+	if pool.pending.Len() > 0 && pool.pending.events.Get(nonce) == nil {
+		for _, event := range pool.pending.Cap(0) {
 			hash := event.Hash()
-			pool.logger.Info("Removed old pending dual's event", "hash", hash)
-			pool.all.Remove(hash)
+			pool.logger.Error("Demoting invalidated dual's event", "hash", hash)
+			pool.enqueueEvent(hash, event)
 		}
-		// TODO(thientn): Evaluates enable this.
-		/*
-			// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
-			drops, invalids := list.Filter(pool.currentState.GetBalance(addr), pool.currentMaxGas)
-			for _, tx := range drops {
-				hash := tx.Hash()
-				pool.logger.Info("Removed unpayable pending transaction", "hash", hash)
-				pool.all.Remove(hash)
-				pool.priced.Removed()
-				pendingNofundsCounter.Inc(1)
-			}
-			for _, tx := range invalids {
-				hash := tx.Hash()
-				pool.logger.Info("Demoting pending transaction", "hash", hash)
-				pool.enqueueTx(hash, tx)
-			}
-		*/
-
-		// If there's a gap in front, alert (should never happen) and postpone all transactions
-		if pool.pending.Len() > 0 && pool.pending.events.Get(nonce) == nil {
-			for _, event := range pool.pending.Cap(0) {
-				hash := event.Hash()
-				pool.logger.Error("Demoting invalidated dual's event", "hash", hash)
-				pool.enqueueEvent(hash, event)
-			}
-		}
-		// Delete the entire queue entry if it became empty.
-		if pool.pending.Empty() {
-			pool.pending = nil
-		}
+	}
 }
 
 // eventLookup is used internally by EventPool to track dual's events while allowing lookup without

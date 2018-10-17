@@ -38,43 +38,23 @@ type DualBlockOperations struct {
 	mtx sync.RWMutex
 
 	blockchain *dual.DualBlockChain
+	eventPool  *dual.EventPool
 	height     uint64
 }
 
-// NewBlockOperations returns a new BlockOperations with latest chain & ,
+// Returns a new DualBlockOperations with latest chain & ,
 // initialized to the last height that was committed to the DB.
-func NewDualBlockOperations(logger log.Logger, blockchain *dual.DualBlockChain) *DualBlockOperations {
+func NewDualBlockOperations(logger log.Logger, blockchain *dual.DualBlockChain, eventPool *dual.EventPool) *DualBlockOperations {
 	return &DualBlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
+		eventPool:  eventPool,
 		height:     blockchain.CurrentHeader().Height,
 	}
 }
 
 func (dbo *DualBlockOperations) Height() uint64 {
 	return dbo.height
-}
-
-// newHeader creates new block header from given data.
-// Some header fields are not ready at this point.
-func (dbo *DualBlockOperations) newHeader(height int64, numTxs uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header {
-	return &types.Header{
-		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
-		Height:         uint64(height),
-		Time:           big.NewInt(time.Now().Unix()),
-		LastBlockID:    blockId,
-		ValidatorsHash: validatorsHash,
-	}
-}
-
-// newBlock creates new block from given data.
-func (dbo *DualBlockOperations) newBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
-	block := types.NewDualBlock(dbo.logger, header, commit)
-
-	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
-	// LastResultHash.
-
-	return block
 }
 
 // Proposes a new block.
@@ -104,23 +84,31 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 	return block
 }
 
-// SaveBlock persists the given block, blockParts, and seenCommit to the underlying db.
+// TODO(namdoh@): This isn't needed. Figure out how to remove this.
+// Executes and commits the transactions in the given block.
+// Transactions & receipts are saved to storage.
+// This also validate the new state root against the block root.
+func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
+	return nil
+}
+
+// Persists the given block, blockParts, and seenCommit to the underlying db.
 // seenCommit: The +2/3 precommits that were seen which committed at height.
 //             If all the nodes restart after committing a block,
 //             we need this to reload the precommits to catch-up nodes to the
 //             most recent height.  Otherwise they'd stall at H-1.
 func (dbo *DualBlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commit) {
 	if block == nil {
-		common.PanicSanity("BlockOperations try to save a nil block")
+		common.PanicSanity("DualBlockOperations try to save a nil block")
 	}
 	height := block.Height()
 	if g, w := height, dbo.Height()+1; g != w {
-		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", w, g))
+		common.PanicSanity(common.Fmt("DualBlockOperations can only save contiguous blocks. Wanted %v, got %v", w, g))
 	}
 
 	// Save block
 	if height != dbo.Height()+1 {
-		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", dbo.Height()+1, height))
+		common.PanicSanity(common.Fmt("DualBlockOperations can only save contiguous blocks. Wanted %v, got %v", dbo.Height()+1, height))
 	}
 
 	// TODO(kiendn): WriteBlockWithoutState returns an error, write logic check if error appears
@@ -143,19 +131,13 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, seenCommit *types.
 	dbo.mtx.Unlock()
 }
 
-// TODO(namdoh@): This isn't needed. Figure out how to remove this.
-// collectTransactions queries list of pending transactions from tx pool.
-func (dbo *DualBlockOperations) collectTransactions() []*types.Transaction {
-	return []*types.Transaction{}
-}
-
-// LoadBlock returns the Block for the given height.
+// Returns the Block for the given height.
 // If no block is found for the given height, it returns nil.
 func (dbo *DualBlockOperations) LoadBlock(height uint64) *types.Block {
 	return dbo.blockchain.GetBlockByHeight(height)
 }
 
-// LoadBlock returns the Block for the given height.
+// Returns the Block for the given height.
 // If no block is found for the given height, it returns nil.
 func (dbo *DualBlockOperations) LoadBlockCommit(height uint64) *types.Commit {
 	block := dbo.blockchain.GetBlockByHeight(height + 1)
@@ -166,7 +148,7 @@ func (dbo *DualBlockOperations) LoadBlockCommit(height uint64) *types.Commit {
 	return block.LastCommit()
 }
 
-// LoadSeenCommit returns the locally seen Commit for the given height.
+// Returns the locally seen Commit for the given height.
 // This is useful when we've seen a commit, but there has not yet been
 // a new block at `height + 1` that includes this commit in its block.LastCommit.
 func (dbo *DualBlockOperations) LoadSeenCommit(height uint64) *types.Commit {
@@ -176,6 +158,34 @@ func (dbo *DualBlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 	}
 
 	return commit
+}
+
+// Creates new block header from given data.
+// Some header fields are not ready at this point.
+func (dbo *DualBlockOperations) newHeader(height int64, numTxs uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header {
+	return &types.Header{
+		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
+		Height:         uint64(height),
+		Time:           big.NewInt(time.Now().Unix()),
+		LastBlockID:    blockId,
+		ValidatorsHash: validatorsHash,
+	}
+}
+
+// Creates new block from given data.
+func (dbo *DualBlockOperations) newBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
+	block := types.NewDualBlock(dbo.logger, header, commit)
+
+	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
+	// LastResultHash.
+
+	return block
+}
+
+// TODO(namdoh@): This isn't needed. Figure out how to remove this.
+// collectTransactions queries list of pending transactions from tx pool.
+func (dbo *DualBlockOperations) collectTransactions() []*types.Transaction {
+	return []*types.Transaction{}
 }
 
 // TODO(namdoh@): This isn't needed. Figure out how to remove this.
@@ -188,12 +198,4 @@ func (dbo *DualBlockOperations) commitTransactions(txs types.Transactions, heade
 // TODO(namdoh@): This isn't needed. Figure out how to remove this.
 // saveReceipts saves receipts of block transactions to storage.
 func (dbo *DualBlockOperations) saveReceipts(receipts types.Receipts, block *types.Block) {
-}
-
-// TODO(namdoh@): This isn't needed. Figure out how to remove this.
-// CommitAndValidateBlockTxs executes and commits the transactions in the given block.
-// Transactions & receipts are saved to storage.
-// This also validate the new state root against the block root.
-func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
-	return nil
 }

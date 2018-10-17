@@ -36,6 +36,7 @@ type DualService struct {
 	groupDb storage.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
+	eventPool       *dual.EventPool
 	protocolManager *ProtocolManager
 	blockchain      *dual.DualBlockChain
 	csManager       *consensus.ConsensusManager
@@ -78,6 +79,8 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		return nil, err
 	}
 
+	dualService.eventPool = dual.NewEventPool(logger, config.DualEventPool, dualService.chainConfig, dualService.blockchain)
+
 	// Initialization for consensus.
 	block := dualService.blockchain.CurrentBlock()
 	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSet(ctx.Config.DualChainConfig.NumValidators)
@@ -94,7 +97,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		dualService.logger,
 		configs.DefaultConsensusConfig(),
 		state,
-		consensus.NewDualBlockOperations(dualService.logger, dualService.blockchain),
+		consensus.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool),
 		ctx.Config.DevEnvConfig.VotingStrategy,
 	)
 	dualService.csManager = consensus.NewConsensusManager(DualServiceName, consensusState)
@@ -115,11 +118,12 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.DualChainConfig
 	kai, err := newDualService(ctx, &DualConfig{
-		NetworkId:   DualNetworkID,
-		ChainData:   chainConfig.ChainData,
-		DbHandles:   chainConfig.DbHandles,
-		DbCaches:    chainConfig.DbCache,
-		DualGenesis: chainConfig.DualGenesis,
+		NetworkId:     DualNetworkID,
+		ChainData:     chainConfig.ChainData,
+		DbHandles:     chainConfig.DbHandles,
+		DbCaches:      chainConfig.DbCache,
+		DualEventPool: chainConfig.DualEventPool,
+		DualGenesis:   chainConfig.DualGenesis,
 	})
 
 	if err != nil {
@@ -191,5 +195,6 @@ func (s *DualService) APIs() []rpc.API {
 */
 func (s *DualService) APIs() []rpc.API { return []rpc.API{} }
 
+func (s *DualService) EventPool() *dual.EventPool            { return s.eventPool }
 func (s *DualService) BlockChain() *dual.DualBlockChain      { return s.blockchain }
 func (s *DualService) DualChainConfig() *configs.ChainConfig { return s.chainConfig }

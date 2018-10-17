@@ -30,6 +30,7 @@ import (
 	elog "github.com/ethereum/go-ethereum/log"
 	"github.com/kardiachain/go-kardia/abi"
 	"github.com/kardiachain/go-kardia/blockchain"
+	dualbc "github.com/kardiachain/go-kardia/blockchain/dual"
 	"github.com/kardiachain/go-kardia/dual"
 	"github.com/kardiachain/go-kardia/kai"
 	development "github.com/kardiachain/go-kardia/kai/dev"
@@ -205,7 +206,6 @@ func main() {
 		// Create genesis block with dev.genesisAccounts
 		config.MainChainConfig.Genesis = blockchain.DefaulTestnetFullGenesisBlock(development.GenesisAccounts, development.GenesisContracts)
 	}
-
 	nodeDir := filepath.Join(config.DataDir, config.Name)
 	config.MainChainConfig.TxPool = *blockchain.GetDefaultTxPoolConfig(nodeDir)
 
@@ -220,6 +220,7 @@ func main() {
 		config.DualChainConfig.DbHandles = development.DbHandles
 		config.DualChainConfig.DbCache = development.DbCache
 	}
+	config.DualChainConfig.DualEventPool = *dualbc.GetDefaultEventPoolConfig(nodeDir)
 
 	if *clearDataDir {
 		// Clear all contents within data dir
@@ -246,13 +247,18 @@ func main() {
 		return
 	}
 
-	var kService *kai.Kardia
-	if err := n.Service(&kService); err != nil {
+	var kardiaService *kai.Kardia
+	if err := n.Service(&kardiaService); err != nil {
 		logger.Error("Cannot get Kardia Service", "err", err)
 		return
 	}
+	var dualService *kai.DualService
+	if err := n.Service(&dualService); err != nil {
+		logger.Error("Cannot get Dual Service", "err", err)
+		return
+	}
 
-	logger.Info("Genesis block", "genesis", *kService.BlockChain().Genesis())
+	logger.Info("Genesis block", "genesis", *kardiaService.BlockChain().Genesis())
 
 	if *addTxn {
 		logger.Info("Adding local txn to send 10 coin from addr0 to addr1")
@@ -271,7 +277,7 @@ func main() {
 			big.NewInt(10),
 			nil,
 		)
-		txPool := kService.TxPool()
+		txPool := kardiaService.TxPool()
 		signedTx, _ := types.SignTx(simpleTx, senderKey)
 
 		err := txPool.AddLocal(signedTx)
@@ -281,15 +287,15 @@ func main() {
 	}
 
 	if *addSmcCall {
-		txPool := kService.TxPool()
-		statedb, err := kService.BlockChain().State()
+		txPool := kardiaService.TxPool()
+		statedb, err := kardiaService.BlockChain().State()
 		if err != nil {
 			logger.Error("Cannot get state", "state", err)
 		}
 		// Get first contract in genesis contracts
 		/*counterSmcAddress := devEnv.GetContractAddressAt(1)
 		smcAbi := devEnv.GetContractAbiByAddress(counterSmcAddress.String())
-		statedb, err := kService.BlockChain().State()
+		statedb, err := kardiaService.BlockChain().State()
 		// Caller is account[1] in genesis
 		callerByteK, _ := hex.DecodeString("77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79")
 		callerKey := crypto.ToECDSAUnsafe(callerByteK)
@@ -338,7 +344,7 @@ func main() {
 	}
 
 	if *genNewTxs {
-		go runTxCreationLoop(kService.TxPool(), *newTxDelay)
+		go runTxCreationLoop(kardiaService.TxPool(), *newTxDelay)
 	}
 
 	// Connect with other peers.
@@ -361,7 +367,7 @@ func main() {
 	if *ethDual || *neoDual {
 		exchangeContractAddress := development.GetContractAddressAt(2)
 		exchangeContractAbi := development.GetContractAbiByAddress(exchangeContractAddress.String())
-		dualP, err = dual.NewDualProcessor(kService.BlockChain(), kService.TxPool(), &exchangeContractAddress, exchangeContractAbi)
+		dualP, err = dual.NewDualProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), &exchangeContractAddress, exchangeContractAbi)
 		if err != nil {
 			log.Error("Fail to initialize DualProcessor", "error", err)
 		} else {
@@ -380,7 +386,7 @@ func main() {
 		}
 		config.CacheSize = *cacheSize
 
-		ethNode, err := dual.NewEthKardia(config, kService.BlockChain(), kService.TxPool())
+		ethNode, err := dual.NewEthKardia(config, kardiaService.BlockChain(), kardiaService.TxPool(), dualService.EventPool())
 		if err != nil {
 			logger.Error("Fail to create Eth sub node", "err", err)
 			return
@@ -401,7 +407,7 @@ func main() {
 		dualP.RegisterEthDualNode(ethNode)
 
 		go displaySyncStatus(client)
-		// go callAmountToSend(kService.BlockChain(), kService.TxPool(), dualP)
+		// go callAmountToSend(kardiaService.BlockChain(), kardiaService.TxPool(), dualP)
 	}
 
 	go displayKardiaPeers(n)
