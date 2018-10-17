@@ -25,39 +25,44 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
+// An event pertaining to the current dual node's interests and its derived tx's
+// metadata.
 type DualEvent struct {
-	data eventdata
+	Nonce          uint64    `json:"nonce"  		gencodec:"required"`
+	TriggeredEvent EventData `json:"triggeredEvent" gencodec:"required"`
+	//PendingTx      TxData    `json:"pendingTx"      gencodec:"required"`
+
 	// caches
 	hash atomic.Value
 	size atomic.Value
 	from atomic.Value
 }
 
-type eventdata struct {
-	Nonce    uint64       `json:"nonce"    gencodec:"required"`
-	TxSource string       `json:"txSource" gencodoc:"required"`
-	TxHash   *common.Hash `json:"txHash"   gencodec:"required"`
-
-	// Signature values
-	V *big.Int `json:"v" gencodec:"required"`
-	R *big.Int `json:"r" gencodec:"required"`
-	S *big.Int `json:"s" gencodec:"required"`
-
-	// This is only used when marshaling to JSON.
-	Hash *common.Hash `json:"hash" rlp:"-"`
+// Data relevant to the event (either from external or internal blockchain)
+// that pertains to the current dual node's interests.
+type EventData struct {
+	TxHash   common.Hash
+	TxSource string
+	Data     EventSummary
 }
 
-func NewDualEvent(nonce uint64, txSource string, txHash *common.Hash) *DualEvent {
+// Relevant bits for necessary for computing internal tx (ie. Kardia's tx)
+// or external tx (ie. Ether's tx, Neo's tx).
+type EventSummary struct {
+	TxMethod string   // Smc's method
+	TxValue  *big.Int // Amount of the tx
+}
+
+func NewDualEvent(nonce uint64, txSource string, txHash *common.Hash, summary *EventSummary) *DualEvent {
 	return &DualEvent{
-		data: eventdata{
-			Nonce:    nonce,
+		Nonce: nonce,
+		TriggeredEvent: EventData{
+			TxHash:   *txHash,
 			TxSource: txSource,
-			TxHash:   txHash,
+			Data:     *summary,
 		},
 	}
 }
-
-func (de *DualEvent) Nonce() uint64 { return de.data.Nonce }
 
 // Hash hashes the RLP encoding of tx.
 // It uniquely identifies the transaction.
@@ -81,5 +86,5 @@ func (d DualEvents) Len() int { return len(d) }
 type DualEventByNonce DualEvents
 
 func (d DualEventByNonce) Len() int           { return len(d) }
-func (d DualEventByNonce) Less(i, j int) bool { return d[i].data.Nonce < d[j].data.Nonce }
+func (d DualEventByNonce) Less(i, j int) bool { return d[i].Nonce < d[j].Nonce }
 func (d DualEventByNonce) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }

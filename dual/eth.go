@@ -339,7 +339,14 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 			nonce := statedb.GetNonce(ethCommon.HexToAddress(dual.DualStateAddressHex))
 			ethTxHash := tx.Hash()
 			txHash := common.BytesToHash(ethTxHash[:])
-			dualEvent := types.NewDualEvent(nonce, "ETH", &txHash)
+			eventSummary, err := n.ExtractEthTxSummary(tx)
+			if err != nil {
+				log.Error("Error when extracting Eth's tx summary.")
+				// TODO(#140): Handle smart contract failure correctly.
+				panic("Not yet implemented!")
+			}
+
+			dualEvent := types.NewDualEvent(nonce, "ETH", &txHash, &eventSummary)
 
 			log.Info("Create dual's event", "dualEvent", dualEvent)
 			if err := n.eventPool.AddEvent(dualEvent); err != nil {
@@ -347,33 +354,45 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 			} else {
 				log.Info("Add dual's event to event pool successfully", "eventHash", dualEvent.Hash().Hex())
 			}
-
-			// TODO(namdoh, #115): Refactor this into a group consensus
-			go n.updateKardiaSmc(tx)
 		}
 	}
 }
 
-func (n *EthKardia) updateKardiaSmc(tx *ethTypes.Transaction) {
+func (n *EthKardia) ExtractEthTxSummary(tx *ethTypes.Transaction) (types.EventSummary, error) {
 	input := tx.Data()
 	method, err := n.ethSmc.InputMethodName(input)
 	if err != nil {
 		log.Error("Error when unpack Eth smc input", "error", err)
-		return
+		return types.EventSummary{}, err
 	}
-	if method == "deposit" {
-		ethValue := tx.Value()
-		neoAddr, err := n.ethSmc.UnpackDepositInput(input)
-		if err != nil {
-			log.Error("Error when unpack Eth deposit tx input", "error", err, "tx", tx)
-		}
-		log.Info("Create Kardia tx to update matchEth", "value", ethValue, "neoAddr", neoAddr, "eth tx hash", tx.Hash().Hex())
-		n.sendKardiaMatchEth(ethValue)
 
-	} else if method == "release" {
-		log.Info("Confirmed Eth release tx", "tx", tx)
-	}
+	return types.EventSummary{
+		TxMethod: method,
+		TxValue:  tx.Value(),
+	}, nil
 }
+
+// TODO(#115, namdoh@): Remove this method.
+//func (n *EthKardia) updateKardiaSmc(tx *ethTypes.Transaction) {
+//	input := tx.Data()
+//	method, err := n.ethSmc.InputMethodName(input)
+//	if err != nil {
+//		log.Error("Error when unpack Eth smc input", "error", err)
+//		return
+//	}
+//	if method == "deposit" {
+//		ethValue := tx.Value()
+//		neoAddr, err := n.ethSmc.UnpackDepositInput(input)
+//		if err != nil {
+//			log.Error("Error when unpack Eth deposit tx input", "error", err, "tx", tx)
+//		}
+//		log.Info("Create Kardia tx to update matchEth", "value", ethValue, "neoAddr", neoAddr, "eth tx hash", tx.Hash().Hex())
+//		n.sendKardiaMatchEth(ethValue)
+//
+//	} else if method == "release" {
+//		log.Info("Confirmed Eth release tx", "tx", tx)
+//	}
+//}
 
 func (n *EthKardia) sendKardiaMatchEth(amount *big.Int) {
 	statedb, err := n.kChain.State()

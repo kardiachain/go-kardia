@@ -357,7 +357,7 @@ func (pool *EventPool) reset(oldHead, newHead *types.Header) {
 	// Update to the latest known pending nonce
 	events := pool.pending.Flatten() // Heavy but will be cached and is needed by the miner anyway
 	if len(events) > 0 {
-		pool.pendingState.SetNonce(dualStateAddress, events[len(events)-1].Nonce()+1)
+		pool.pendingState.SetNonce(dualStateAddress, events[len(events)-1].Nonce+1)
 	}
 
 	// Check the queue and move dual's events over to the pending if possible
@@ -552,9 +552,9 @@ func (pool *EventPool) enqueueEvent(hash common.Hash, event *types.DualEvent) (b
 	return true, nil
 }
 
-// Adds the specified dual's event to the local disk journal.
+// Adds the specified dual's event to the disk journal.
 func (pool *EventPool) journalEvent(event *types.DualEvent) {
-	// Only journal if it's enabled and the transaction is local
+	// Only journal if it's enabled
 	if pool.journal == nil {
 		return
 	}
@@ -582,7 +582,7 @@ func (pool *EventPool) promoteEvent(hash common.Hash, event *types.DualEvent) bo
 		pool.all.Add(event)
 	}
 	// Set the potentially new pending nonce and notify any subsystems of the new dual's event
-	pool.pendingState.SetNonce(dualStateAddress, event.Nonce()+1)
+	pool.pendingState.SetNonce(dualStateAddress, event.Nonce+1)
 
 	return true
 }
@@ -639,7 +639,7 @@ func (pool *EventPool) Status(hashes []common.Hash) []EventStatus {
 	status := make([]EventStatus, len(hashes))
 	for i, hash := range hashes {
 		if event := pool.all.Get(hash); event != nil {
-			if pool.pending.events.items[event.Nonce()] != nil {
+			if pool.pending.events.items[event.Nonce] != nil {
 				status[i] = EventStatusPending
 			} else {
 				status[i] = EventStatusQueued
@@ -687,8 +687,8 @@ func (pool *EventPool) removeEventInternal(hash common.Hash) {
 		}
 
 		// Update the account nonce if needed
-		if nonce := event.Nonce(); pool.pendingState.GetNonce(dualStateAddress) > nonce {
-			pool.pendingState.SetNonce(dualStateAddress, nonce)
+		if pool.pendingState.GetNonce(dualStateAddress) > event.Nonce {
+			pool.pendingState.SetNonce(dualStateAddress, event.Nonce)
 		}
 
 		return
