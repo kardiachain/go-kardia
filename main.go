@@ -120,6 +120,7 @@ func main() {
 	lightServ := flag.Int("lightserv", 0, "max percentage of time serving light client reqs")
 	cacheSize := flag.Int("cacheSize", 1024, "cache memory size for Eth node")
 	bootnodes := flag.String("bootnodes", "", "Comma separated enode URLs for P2P discovery bootstrap")
+	peer := flag.String("peer", "", "Comma separated enode URLs for P2P static peer")
 	dev := flag.Bool("dev", false, "deploy node with dev environment")
 	numValid := flag.Int("numValid", 0,
 		"number of total validators in dev environment. Note that this flag only has effect when --dev flag is set.")
@@ -376,6 +377,16 @@ func main() {
 		}
 	}
 
+	if len(*peer) > 0 {
+		urls := strings.Split(*peer, ",")
+		for _, peerURL := range urls {
+			logger.Info("Adding static peer", "peerURL", peerURL)
+			success, err := n.AddPeer(peerURL)
+			if !success {
+				logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
+			}
+		}
+	}
 	// go displayPeers(n)
 
 	var dualP *dual.DualProcessor
