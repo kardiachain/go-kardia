@@ -244,6 +244,7 @@ func callStaticKardiaMasterSmc(from common.Address, to common.Address, blockchai
 // CreateKardiaMatchAmountTx creates Kardia tx to report new matching amount from Eth/Neo network.
 // type = 1: ETH
 // type = 2: NEO
+// TODO(namdoh@): Make type of matchType an enum instead of an int.
 func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction {
 	masterSmcAddr := dev.GetContractAddressAt(2)
 	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())

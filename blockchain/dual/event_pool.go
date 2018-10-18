@@ -95,6 +95,8 @@ type blockChain interface {
 	StateAt(root common.Hash) (*state.StateDB, error)
 	DB() kaidb.Database
 	SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription
+	StoreHash(hash *common.Hash)
+	CheckHash(hash *common.Hash) bool
 }
 
 // EventPoolConfig are the configuration parameters of the event pool.
@@ -602,11 +604,8 @@ func (pool *EventPool) addEvent(event *types.DualEvent) error {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
-	// Try to inject the dual's event and update any state
-	_, err := pool.add(event)
-	if err != nil {
-		return err
-	}
+	pool.addEventLocked(event)
+
 	return nil
 }
 
@@ -625,9 +624,33 @@ func (pool *EventPool) addEventsLocked(events []*types.DualEvent) []error {
 	errs := make([]error, len(events))
 
 	for i, event := range events {
-		_, errs[i] = pool.add(event)
+		errs[i] = pool.addEventLocked(event)
 	}
 	return errs
+}
+
+// Attempts to queue a dual's event if they are valid, whilst assuming the event pool lock is
+// already held.
+func (pool *EventPool) addEventLocked(event *types.DualEvent) error {
+	eventHash := event.TriggeredEvent.TxHash
+	if pool.chain.CheckHash(&eventHash) {
+		// TODO(#121): Consider removing this error when we move to beta net.
+		pool.logger.Error("Attempting to add a dual's event that was previously added to EventPool. Abort adding event.")
+		return ErrAddExistingEvent
+	}
+
+	// Try to inject the dual's event and update any state
+	_, err := pool.add(event)
+	if err != nil {
+		return err
+	}
+	pool.chain.StoreHash(&eventHash)
+	// TODO(namdoh@): Consider storing this under a different key (from the event hash) to avoid
+	// collision.
+	if !event.PendingTx.TxHash.IsZero() {
+		pool.chain.StoreHash(&event.PendingTx.TxHash)
+	}
+	return nil
 }
 
 // Status returns the status (unknown/pending/queued) of a batch of dual's events
