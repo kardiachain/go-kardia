@@ -457,3 +457,16 @@ func ReadHeaderNumber(db DatabaseReader, hash common.Hash) *uint64 {
 	number := binary.BigEndian.Uint64(data)
 	return &number
 }
+
+// Stores a hash into the database.
+func StoreHash(db DatabaseWriter, hash *common.Hash) {
+	if err := db.Put(hashKey(hash), encodeBoolean(true)); err != nil {
+		log.Crit("Failed to store hash", "err", err)
+	}
+}
+
+// Returns true if a hash already exists in the database.
+func CheckHash(db DatabaseReader, hash *common.Hash) bool {
+	data, _ := db.Get(hashKey(hash))
+	return decodeBoolean(data)
+}

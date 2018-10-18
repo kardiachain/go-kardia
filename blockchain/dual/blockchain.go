@@ -428,3 +428,21 @@ func (dbc *DualBlockChain) WriteCommit(height uint64, commit *types.Commit) {
 func (dbc *DualBlockChain) ReadCommit(height uint64) *types.Commit {
 	return chaindb.ReadCommit(dbc.db, height)
 }
+
+// Writes a hash into db.
+// TODO(namdoh@): The hashKey is primarily used for persistently store a tx hash in db, so we
+// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
+// tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
+// it under chaindb).
+func (dbc *DualBlockChain) StoreHash(hash *common.Hash) {
+	chaindb.StoreHash(dbc.db, hash)
+}
+
+// Returns true if a hash already exists.
+// TODO(namdoh@): The hashKey is primarily used for persistently store a tx hash in db, so we
+// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
+// tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
+// it under chaindb).
+func (dbc *DualBlockChain) CheckHash(hash *common.Hash) bool {
+	return chaindb.CheckHash(dbc.db, hash)
+}

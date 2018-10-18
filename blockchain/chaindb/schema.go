@@ -42,6 +42,12 @@ var (
 
 	commitPrefix = []byte("c") // commitPrefix + num (uint64 big endian) -> commit
 
+	// TODO(namdoh@): The hashKey is primarily used for persistently store a tx hash in db, so we
+	// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
+	// tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
+	// it under chaindb).
+	hashPrefix = []byte("hash") // hashPrefix + hash -> hash key
+
 	configPrefix          = []byte("kardia-config-") // config prefix for the db
 	txLookupPrefix        = []byte("l")              // txLookupPrefix + hash -> transaction/receipt lookup metadata
 	dualEventLookupPrefix = []byte("de")             // dualEventLookupPrefix + hash -> dual's event lookup metadata
@@ -69,6 +75,29 @@ func encodeBlockHeight(height uint64) []byte {
 	enc := make([]byte, 8)
 	binary.BigEndian.PutUint64(enc, height)
 	return enc
+}
+
+// Encodes a boolean value as big endian uint16
+func encodeBoolean(val bool) []byte {
+	encoded := make([]byte, 2)
+	if val {
+		binary.BigEndian.PutUint16(encoded, 1)
+	} else {
+		binary.BigEndian.PutUint16(encoded, 0)
+	}
+	return encoded
+}
+
+// Decodes a big endian uint16 as boolean value
+func decodeBoolean(data []byte) bool {
+	if len(data) != 2 {
+		return false
+	}
+	decoded := binary.BigEndian.Uint16(data)
+	if decoded == 0 {
+		return false
+	}
+	return true
 }
 
 // headerHashKey = headerPrefix + num (uint64 big endian) + headerHashSuffix
@@ -124,4 +153,9 @@ func bloomBitsKey(bit uint, section uint64, hash common.Hash) []byte {
 	binary.BigEndian.PutUint64(key[3:], section)
 
 	return key
+}
+
+// hashKey = hashPrefix + hash
+func hashKey(hash *common.Hash) []byte {
+	return append(headerPrefix, hash.Bytes()...)
 }
