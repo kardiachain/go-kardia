@@ -20,7 +20,7 @@ package kai
 
 import (
 	"github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/blockchain/dual"
+	"github.com/kardiachain/go-kardia/dual/blockchain"
 )
 
 // DefaultConfig contains default settings for use on the Kardia main net.

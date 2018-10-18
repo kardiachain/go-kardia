@@ -23,6 +23,13 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"io/ioutil"
+	"math/big"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/kardiachain/go-kardia/abi"
 	bc "github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/kai/dev"
@@ -34,13 +41,6 @@ import (
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/vm"
-	"io/ioutil"
-	"math/big"
-	"net/http"
-	"strings"
-	"time"
-
-	"errors"
 	"github.com/shopspring/decimal"
 )
 
@@ -244,6 +244,7 @@ func callStaticKardiaMasterSmc(from common.Address, to common.Address, blockchai
 // CreateKardiaMatchAmountTx creates Kardia tx to report new matching amount from Eth/Neo network.
 // type = 1: ETH
 // type = 2: NEO
+// TODO(namdoh@): Make type of matchType an enum instead of an int.
 func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction {
 	masterSmcAddr := dev.GetContractAddressAt(2)
 	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())

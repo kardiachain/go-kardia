@@ -1,9 +1,9 @@
 package kai
 
 import (
-	"github.com/kardiachain/go-kardia/blockchain/dual"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/dual/blockchain"
 	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"

@@ -26,15 +26,9 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/blockchain/dual"
-	"github.com/kardiachain/go-kardia/dual/ethsmc"
-	"github.com/kardiachain/go-kardia/kai/dev"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/ethstats"
@@ -45,6 +39,14 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/kardiachain/go-kardia/lib/log"
+
+	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/dual/blockchain"
+	"github.com/kardiachain/go-kardia/dual/ethsmc"
+	"github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
@@ -87,17 +89,16 @@ type EthKardiaConfig struct {
 
 // EthKarida is a full Ethereum node running inside Karida
 type EthKardia struct {
-	geth   *node.Node
-	config *EthKardiaConfig
-	ethSmc *ethsmc.EthSmc
-	kChain *blockchain.BlockChain
-	// TODO(namdoh, #115): Rename to kardiaPool
-	txPool    *blockchain.TxPool
-	eventPool *dual.EventPool // Event pool of DUAL service.
+	geth        *node.Node
+	config      *EthKardiaConfig
+	ethSmc      *ethsmc.EthSmc
+	kardiaChain *blockchain.BlockChain
+	txPool      *blockchain.TxPool // Transaction pool of KARDIA service.
+	eventPool   *dual.EventPool    // Event pool of DUAL service.
 }
 
 // EthKardia creates a Ethereum sub node.
-func NewEthKardia(config *EthKardiaConfig, kChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualEventPool *dual.EventPool) (*EthKardia, error) {
+func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualEventPool *dual.EventPool) (*EthKardia, error) {
 	datadir := defaultEthDataDir()
 
 	// Creates datadir with testnet follow eth standards.
@@ -184,7 +185,7 @@ func NewEthKardia(config *EthKardiaConfig, kChain *blockchain.BlockChain, txPool
 		}
 	}
 	return &EthKardia{
-		geth: ethNode, config: config, ethSmc: ethsmc.NewEthSmc(), kChain: kChain, txPool: txPool, eventPool: dualEventPool}, nil
+		geth: ethNode, config: config, ethSmc: ethsmc.NewEthSmc(), kardiaChain: kardiaChain, txPool: txPool, eventPool: dualEventPool}, nil
 }
 
 // defaultEthDataDir returns default Eth root datadir.
@@ -267,7 +268,7 @@ func (n *EthKardia) syncHead() {
 	headSubCh := ethChain.SubscribeChainHeadEvent(chainHeadEventCh)
 	defer headSubCh.Unsubscribe()
 
-	blockCh := make(chan *types.Block, 1)
+	blockCh := make(chan *ethTypes.Block, 1)
 
 	// Follow other examples.
 	// Listener to exhaust extra event while sending block to our channel.
@@ -300,7 +301,7 @@ func (n *EthKardia) syncHead() {
 	}
 }
 
-func (n *EthKardia) handleBlock(block *types.Block) {
+func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 	// TODO(thientn): block from this event is not guaranteed newly update. May already handled before.
 
 	// Some events has nil block.
@@ -330,52 +331,60 @@ func (n *EthKardia) handleBlock(block *types.Block) {
 		// TODO(thientn): Make this tx matcher more robust.
 		if tx.To() != nil && *tx.To() == contractAddr {
 			log.Info("New tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
-			// TODO(namdoh, #115): Remember this txs event to dual service's pool
+			statedb, err := n.BlockChain().State()
+			if err != nil {
+				log.Error("Fail to get DUAL's service statedb", "err", err)
+				return
+			}
+			nonce := statedb.GetNonce(ethCommon.HexToAddress(dual.DualStateAddressHex))
+			ethTxHash := tx.Hash()
+			txHash := common.BytesToHash(ethTxHash[:])
+			eventSummary, err := n.ExtractEthTxSummary(tx)
+			if err != nil {
+				log.Error("Error when extracting Eth's tx summary.")
+				// TODO(#140): Handle smart contract failure correctly.
+				panic("Not yet implemented!")
+			}
+			dualEvent := types.NewDualEvent(nonce, "ETH", &txHash, &eventSummary)
 
-			// TODO(namdoh, #115): Split this into two part 1) create a Kardia tx and propose it and 2)
-			// once its block is commit, the next proposer will submit it.
-			// Create and submit a Kardia tx.
-			go n.updateKardiaSmc(tx)
+			// TODO(namdoh@): Move the creation of Kardia Tx to under a util func.
+			// Compute Kardia's tx from the Eth's event.
+			kardiaStateDB, err := n.kardiaChain.State()
+			if err != nil {
+				log.Error("Fail to get Kardia state", "error", err)
+				return
+			}
+			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[genesisAccount])
+			addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
+			// TODO(namdoh@): Pass eventSummary.TxSource to matchType.
+			kardiaTx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, eventSummary.TxValue, 1)
+			dualEvent.PendingTx = types.TxData{
+				TxHash: kardiaTx.Hash(),
+				Target: "KARDIA",
+			}
+
+			log.Info("Create dual's event", "dualEvent", dualEvent)
+			if err := n.eventPool.AddEvent(dualEvent); err != nil {
+				log.Error("Fail to add dual's event", "error", err)
+				return
+			}
+			log.Info("Add dual's event to event pool successfully", "eventHash", dualEvent.Hash().Hex())
 		}
 	}
 }
 
-func (n *EthKardia) updateKardiaSmc(tx *types.Transaction) {
+func (n *EthKardia) ExtractEthTxSummary(tx *ethTypes.Transaction) (types.EventSummary, error) {
 	input := tx.Data()
 	method, err := n.ethSmc.InputMethodName(input)
 	if err != nil {
 		log.Error("Error when unpack Eth smc input", "error", err)
-		return
-	}
-	if method == "deposit" {
-		ethValue := tx.Value()
-		neoAddr, err := n.ethSmc.UnpackDepositInput(input)
-		if err != nil {
-			log.Error("Error when unpack Eth deposit tx input", "error", err, "tx", tx)
-		}
-		log.Info("Create Kardia tx to update matchEth", "value", ethValue, "neoAddr", neoAddr, "eth tx hash", tx.Hash().Hex())
-		n.sendKardiaMatchEth(ethValue)
-
-	} else if method == "release" {
-		log.Info("Confirmed Eth release tx", "tx", tx)
-	}
-}
-
-func (n *EthKardia) sendKardiaMatchEth(amount *big.Int) {
-	statedb, err := n.kChain.State()
-	if err != nil {
-		log.Error("fail to get Kardia state to send MatchEth", "error", err)
-		return
+		return types.EventSummary{}, err
 	}
 
-	addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[genesisAccount])
-	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-	tx := CreateKardiaMatchAmountTx(addrKey, statedb, amount, 1)
-	if err := n.txPool.AddLocal(tx); err != nil {
-		log.Error("Fail to add Kardia MatchEth tx", "error", err)
-	} else {
-		log.Info("Added Kardia tx MatchEth", "tx", tx.Hash().Hex())
-	}
+	return types.EventSummary{
+		TxMethod: method,
+		TxValue:  tx.Value(),
+	}, nil
 }
 
 func (n *EthKardia) SendEthFromContract(value *big.Int) {

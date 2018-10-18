@@ -74,7 +74,7 @@ func (m *eventSortedMap) Get(nonce uint64) *types.DualEvent {
 // Put inserts a new dual's event into the map, also updating the map's nonce
 // index. If a dual's event already exists with the same nonce, it's overwritten.
 func (m *eventSortedMap) Put(event *types.DualEvent) {
-	nonce := event.Nonce()
+	nonce := event.Nonce
 	if m.items[nonce] == nil {
 		heap.Push(m.index, nonce)
 	}
@@ -234,14 +234,14 @@ func newEventList() *eventList {
 // Returns whether the dual's event specified has the same nonce as one
 // already contained within the list.
 func (l *eventList) Overlaps(event *types.DualEvent) bool {
-	return l.events.Get(event.Nonce()) != nil
+	return l.events.Get(event.Nonce) != nil
 }
 
 // Tries to insert a new dual's event into the list, returning whether the
 // dual's event was inserted.
 func (l *eventList) Add(event *types.DualEvent) bool {
 	// If there's an existing dual's event, abort
-	if existing := l.events.Get(event.Nonce()); existing != nil {
+	if existing := l.events.Get(event.Nonce); existing != nil {
 		return false
 	}
 
@@ -266,8 +266,7 @@ func (l *eventList) Cap(threshold int) types.DualEvents {
 // event was found.
 func (l *eventList) Remove(event *types.DualEvent) bool {
 	// Remove the dual's event from the set
-	nonce := event.Nonce()
-	if removed := l.events.Remove(nonce); !removed {
+	if removed := l.events.Remove(event.Nonce); !removed {
 		return false
 	}
 	return true
