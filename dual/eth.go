@@ -41,7 +41,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 
 	"github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/blockchain/dual"
+	"github.com/kardiachain/go-kardia/dual/blockchain"
 	"github.com/kardiachain/go-kardia/dual/ethsmc"
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"

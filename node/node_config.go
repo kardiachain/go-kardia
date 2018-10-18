@@ -26,7 +26,7 @@ import (
 	"strings"
 
 	"github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/blockchain/dual"
+	"github.com/kardiachain/go-kardia/dual/blockchain"
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
