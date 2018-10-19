@@ -49,9 +49,9 @@ func TestBlockEncodeDecode(t *testing.T) {
 	txns := []*Transaction{signedTx}
 
 	vote := &Vote{
-		ValidatorIndex: common.NewBigInt(1),
-		Height:         common.NewBigInt(2),
-		Round:          common.NewBigInt(1),
+		ValidatorIndex: common.NewBigInt64(1),
+		Height:         common.NewBigInt64(2),
+		Round:          common.NewBigInt64(1),
 		Timestamp:      big.NewInt(100),
 		Type:           VoteTypePrecommit,
 	}
@@ -107,9 +107,9 @@ func TestBodyEncodeDecode(t *testing.T) {
 	signedTx, _ := SignTx(emptyTx, key)
 
 	vote := &Vote{
-		ValidatorIndex: common.NewBigInt(1),
-		Height:         common.NewBigInt(2),
-		Round:          common.NewBigInt(1),
+		ValidatorIndex: common.NewBigInt64(1),
+		Height:         common.NewBigInt64(2),
+		Round:          common.NewBigInt64(1),
 		Timestamp:      big.NewInt(100),
 		Type:           VoteTypePrecommit,
 	}
