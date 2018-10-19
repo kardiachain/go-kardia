@@ -154,7 +154,7 @@ func (conR *ConsensusManager) unsubscribeFromBroadcastEvents() {
 
 // Handles received NewRoundStepMessage
 func (conR *ConsensusManager) ReceiveNewRoundStep(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received NewRoundStep", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received NewRoundStep", "peer", src)
 
 	if !conR.running {
 		conR.logger.Trace("Consensus manager isn't running.")
@@ -179,7 +179,7 @@ func (conR *ConsensusManager) ReceiveNewRoundStep(generalMsg p2p.Msg, src *p2p.P
 }
 
 func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received Proposal", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received Proposal", "peer", src)
 
 	if !conR.running {
 		conR.logger.Trace("Consensus manager isn't running.")
@@ -193,7 +193,7 @@ func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 	}
 	msg.Proposal.Block.SetLogger(conR.logger)
 
-	conR.logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", msg.Proposal)
 	if msg.Proposal.Block.LastCommit() == nil {
 		msg.Proposal.Block.SetLastCommit(&types.Commit{})
 	}
@@ -210,7 +210,7 @@ func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 }
 
 func (conR *ConsensusManager) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received block", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received block", "peer", src)
 
 	if !conR.running {
 		conR.logger.Trace("Consensus manager isn't running.")
@@ -224,13 +224,13 @@ func (conR *ConsensusManager) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
 	}
 	msg.Block.SetLogger(conR.logger)
 
-	conR.logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("Height:%v   Round:%v   Block:%v", msg.Height, msg.Round, msg.Block))
 
 	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }
 
 func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received NewVote", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received NewVote", "peer", src)
 
 	if !conR.running {
 		conR.logger.Trace("Consensus manager isn't running.")
@@ -242,7 +242,7 @@ func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) 
 		conR.logger.Error("Invalid vote message", "msg", generalMsg, "err", err)
 		return
 	}
-	conR.logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", msg.Vote)
 
 	// Get peer states
 	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
@@ -264,7 +264,7 @@ func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) 
 }
 
 func (conR *ConsensusManager) ReceiveHasVote(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received HasVote", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received HasVote", "peer", src)
 
 	if !conR.running {
 		conR.logger.Trace("Consensus manager isn't running.")
@@ -289,7 +289,7 @@ func (conR *ConsensusManager) ReceiveHasVote(generalMsg p2p.Msg, src *p2p.Peer) 
 }
 
 func (conR *ConsensusManager) ReceiveProposalPOL(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received ProposalPOLMessage", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received ProposalPOLMessage", "peer", src)
 
 	if !conR.running {
 		conR.logger.Trace("Consensus manager isn't running.")
@@ -324,7 +324,7 @@ func (conR *ConsensusManager) ReceiveProposalPOL(generalMsg p2p.Msg, src *p2p.Pe
 }
 
 func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received vote", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received vote", "peer", src)
 
 	if !conR.running {
 		conR.logger.Trace("Consensus manager isn't running.")
@@ -338,7 +338,7 @@ func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 	}
 	msg.Block.SetLogger(conR.logger)
 
-	conR.logger.Trace("Decoded msg", "msg", msg)
+	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("{Height:%v  Block:%v}", msg.Height, msg.Block))
 
 	// Get peer states
 	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
@@ -351,7 +351,7 @@ func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 }
 
 func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received VoteSetMaj23Message", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received VoteSetMaj23Message", "peer", src)
 
 	if !conR.running {
 		conR.logger.Trace("Consensus manager isn't running.")
@@ -408,7 +408,7 @@ func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.P
 }
 
 func (conR *ConsensusManager) ReceiveVoteSetBits(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received VoteSetBits", "src", src, "msg", generalMsg)
+	conR.logger.Trace("Consensus manager received VoteSetBits", "peer", src)
 
 	if !conR.running {
 		conR.logger.Trace("Consensus manager isn't running.")
@@ -460,7 +460,7 @@ func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 		conR.protocol.Broadcast(nrsMsg, kcmn.CsNewRoundStepMsg)
 	}
 	if csMsg != nil {
-		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", csMsg)
+		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", fmt.Sprintf("{Height:%v  Block:%v}", csMsg.Height, csMsg.Block))
 		conR.protocol.Broadcast(csMsg, kcmn.CsCommitStepMsg)
 	}
 }
@@ -968,7 +968,8 @@ func (ps *PeerState) SetHasProposal(proposal *types.Proposal) {
 func (ps *PeerState) PickSendVote(votes types.VoteSetReader) bool {
 	if vote, ok := ps.PickVoteToSend(votes); ok {
 		msg := &VoteMessage{vote}
-		ps.logger.Trace("Sending vote message", "peer", ps.peer, "ps", ps, "vote", vote)
+
+		ps.logger.Trace("Sending vote message", "peer", ps.peer, "prs", ps.PRS, "vote", vote)
 		return p2p.Send(ps.rw, kcmn.CsVoteMsg, msg) == nil
 	}
 	return false

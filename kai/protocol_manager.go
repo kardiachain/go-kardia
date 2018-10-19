@@ -363,7 +363,17 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 
 // A loop for broadcasting consensus events.
 func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
-	pm.logger.Info("Start broadcast consensus message", "msg", msg, "msgType", msgType)
+
+	// If msg's type is *consensus.CommitStepMessage, v will hold the instance and ok will be true
+	v, ok := msg.(*consensus.CommitStepMessage)
+
+	// If ok is true, then simplify the log
+	if ok {
+		pm.logger.Info("Start broadcast consensus message", "Height", v.Height, "Block", v.Block.String(), "msgType", msgType)
+	} else {
+		pm.logger.Info("Start broadcast consensus message", "msg", msg, "msgType", msgType)
+	}
+
 	for _, p := range pm.peers.peers {
 		pm.wg.Add(1)
 		go func(p *peer) {

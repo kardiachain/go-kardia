@@ -309,6 +309,7 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 	polRound, polBlockID := cs.Votes.POLInfo()
 	proposal := types.NewProposal(height, round, block, cmn.NewBigInt32(polRound), polBlockID)
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
+
 		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
 		// Send proposal on internal msg queue
 		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, discover.ZeroNodeID()})
@@ -405,7 +406,7 @@ func (cs *ConsensusState) reconstructLastCommit(state state.LastestBlockState) {
 // NOTE: block is not necessarily valid.
 // Asynchronously triggers either enterPrevote (before we timeout of propose) or tryFinalizeCommit, once we have the full block.
 func (cs *ConsensusState) handleBlockMessage(msg *BlockMessage, peerID discover.NodeID) (added bool, err error) {
-	cs.logger.Trace("setProposalBlock", "peerID", peerID, "msg", msg)
+	cs.logger.Trace("setProposalBlock", "msg", msg.Block, "peerID", peerID)
 
 	// Blocks might be reused, so round mismatch is OK
 	if !cs.Height.Equals(msg.Height) {
@@ -533,6 +534,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 	switch vote.Type {
 	case types.VoteTypePrevote:
 		prevotes := cs.Votes.Prevotes(vote.Round.Int32())
+
 		cs.logger.Info("Added to prevote", "vote", vote, "prevotes", prevotes.StringShort())
 
 		// If +2/3 prevotes for a block or nil for *any* round:
@@ -588,6 +590,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 
 	case types.VoteTypePrecommit:
 		precommits := cs.Votes.Precommits(vote.Round.Int32())
+
 		cs.logger.Info("Added to precommit", "vote", vote, "precommits", precommits.StringShort())
 		blockID, ok := precommits.TwoThirdsMajority()
 		if ok {
@@ -979,7 +982,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 
 	// If +2/3 prevoted for proposal block, stage and precommit it
 	if cs.ProposalBlock.HashesTo(blockID) {
-		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID)
+		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID.FingerPrint())
 		// Validate the block.
 		if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 			cmn.PanicConsensus(cmn.Fmt("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
@@ -1059,7 +1062,7 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 	// Move them over to ProposalBlock if they match the commit hash,
 	// otherwise they'll be cleared in updateToState.
 	if cs.LockedBlock != nil && cs.LockedBlock.HashesTo(blockID) {
-		logger.Info("Commit is for locked block. Set ProposalBlock=LockedBlock", "blockHash", blockID)
+		logger.Info("Commit is for locked block. Set ProposalBlock=LockedBlock", "blockHash", blockID.FingerPrint())
 		cs.ProposalBlock = cs.LockedBlock
 		cs.ProposalBlockID = blockID
 	}
@@ -1067,7 +1070,7 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 	// If we don't have the block being committed, set up to get it.
 	// cs.ProposalBlock is confirmed not nil from caller.
 	if cs.ProposalBlock == nil || !cs.ProposalBlock.HashesTo(blockID) {
-		logger.Info("Commit is for a block we don't know about. Set ProposalBlock=nil", "commit", blockID)
+		logger.Info("Commit is for a block we don't know about. Set ProposalBlock=nil", "commit", blockID.FingerPrint())
 		// We're getting the wrong block.
 		// Set up ProposalBlock and keep waiting.
 		if !cs.ProposalBlockID.Equal(blockID) {
@@ -1096,7 +1099,7 @@ func (cs *ConsensusState) tryFinalizeCommit(height *cmn.BigInt) {
 	}
 
 	if !cs.ProposalBlock.HashesTo(blockID) {
-		logger.Info("Attempt to finalize failed. We don't have the commit block.", "proposal-block", cs.ProposalBlock.BlockID(), "commit-block", blockID)
+		logger.Info("Attempt to finalize failed. We don't have the commit block.", "proposal-block", cs.ProposalBlock.BlockID(), "commit-block", blockID.FingerPrint())
 		return
 	}
 
@@ -1293,19 +1296,19 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 	msg, peerID := mi.Msg, mi.PeerID
 	switch msg := msg.(type) {
 	case *ProposalMessage:
-		cs.logger.Trace("handling ProposalMessage", "ProposalMessage", msg)
+		cs.logger.Trace("handling ProposalMessage", "ProposalMessage", msg.Proposal)
 		err = cs.setProposal(msg.Proposal)
 	case *VoteMessage:
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
-		cs.logger.Trace("handling AddVote", "VoteMessage", msg)
+		cs.logger.Trace("handling AddVote", "VoteMessage", msg.Vote)
 		err := cs.tryAddVote(msg.Vote, peerID)
 		if err == ErrAddingVote {
 			cs.logger.Trace("trying to add vote failed", "err", err)
 			cs.logger.Warn("TODO - punish peer.")
 		}
 	case *BlockMessage:
-		cs.logger.Trace("handling BlockMessage", "msg", msg)
+		cs.logger.Trace("handling BlockMessage", "msg", msg.Block)
 		_, err = cs.handleBlockMessage(msg, peerID)
 		if err != nil && !msg.Round.Equals(cs.Round) {
 			cs.logger.Debug("Received block from wrong round", "height", cs.Height, "csRound", cs.Round, "blockRound", msg.Round)

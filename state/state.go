@@ -19,9 +19,11 @@
 package state
 
 import (
+	"fmt"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
+	"time"
 )
 
 // It keeps all information necessary to validate new blocks,
@@ -81,4 +83,11 @@ func (state LastestBlockState) Copy() LastestBlockState {
 // IsEmpty returns true if the State is equal to the empty State.
 func (state LastestBlockState) IsEmpty() bool {
 	return state.Validators == nil // XXX can't compare to Empty
+}
+
+// Stringshort returns a short string representing State
+func (state LastestBlockState) String() string {
+	return fmt.Sprintf("{ChainID:%v LastBlockHeight:%v LastBlockTotalTx:%v LastBlockID:%v LastBlockTime:%v Validators:%v LastValidators:%v LastHeightValidatorsChanged:%v",
+		state.ChainID, state.LastBlockHeight, state.LastBlockTotalTx, state.LastBlockID.FingerPrint(), time.Unix(state.LastBlockTime.Int64(), 0),
+		state.Validators.String(), state.LastValidators.String(), state.LastHeightValidatorsChanged)
 }

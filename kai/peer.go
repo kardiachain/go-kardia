@@ -143,7 +143,8 @@ func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesi
 
 func (p *peer) readStatus(network uint64, status *statusData, genesis common.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
-	p.logger.Info("Read Status", "msg.Code", msg.Code, "err", err, "status", status)
+	p.logger.Info("Read Status", "msg.Code", msg.Code, "err", err, "status", fmt.Sprintf("{ProtocolVersion:%v NetworkId:%v Height:%v CurrentBlock:%X GenesisBlock:%X",
+		status.ProtocolVersion, status.NetworkId, status.Height, status.CurrentBlock[:12], status.GenesisBlock[:12]))
 	if err != nil {
 		return err
 	}
@@ -161,7 +162,8 @@ func (p *peer) readStatus(network uint64, status *statusData, genesis common.Has
 		return errResp(ErrGenesisBlockMismatch, "%x (!= %x)", status.GenesisBlock[:8], genesis[:8])
 	}
 
-	p.logger.Info("Decoded data", "msg", msg, "status", status)
+	p.logger.Info("Decoded data", "msg", msg, "status", fmt.Sprintf("{ProtocolVersion:%v NetworkId:%v Height:%v CurrentBlock:%X GenesisBlock:%X",
+		status.ProtocolVersion, status.NetworkId, status.Height, status.CurrentBlock[:12], status.GenesisBlock[:12]))
 
 	if status.NetworkId != network {
 		return errResp(ErrNetworkIdMismatch, "%d (!= %d)", status.NetworkId, network)

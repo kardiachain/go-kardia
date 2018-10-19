@@ -45,12 +45,25 @@ type PeerRoundState struct {
 	CatchupCommit       *cmn.BitArray `json:"catchup_commit"`        // All commit precommits peer has for this height & CatchupCommitRound
 }
 
-// String returns a string representation of the PeerRoundState
-func (prs PeerRoundState) String() string {
+// StringLong returns a string representation of the PeerRoundState
+func (prs PeerRoundState) StringLong() string {
 	return fmt.Sprintf("PeerRoundState{%v/%v/%v @%v  Proposal:%v  POL:%v (round %v)  Prevotes:%v  Precommits:%v  LastCommit:%v (round %v)  Catchup:%v (round %v)}",
 		prs.Height, prs.Round, prs.Step, time.Unix(prs.StartTime.Int64(), 0),
 		prs.ProposalBlockHeader,
 		prs.ProposalPOL, prs.ProposalPOLRound,
+		prs.Prevotes,
+		prs.Precommits,
+		prs.LastCommit, prs.LastCommitRound,
+		prs.CatchupCommit, prs.CatchupCommitRound)
+}
+
+// String returns a short string representing PeerRoundState
+func (prs *PeerRoundState) String() string {
+	return fmt.Sprintf("PeerRoundState{%v/%v/%v @%v  Proposal:%X  POL:%v (round %v)  Prevotes:%v  Precommits:%v  LastCommit:%v (round %v)  Catchup:%v (round %v)}",
+		prs.Height, prs.Round, prs.Step, time.Unix(prs.StartTime.Int64(), 0),
+		prs.ProposalBlockHeader.FingerPrint(),
+		prs.ProposalPOL,
+		prs.ProposalPOLRound,
 		prs.Prevotes,
 		prs.Precommits,
 		prs.LastCommit, prs.LastCommitRound,
