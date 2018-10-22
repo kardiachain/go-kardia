@@ -40,6 +40,9 @@ See the [docker](https://github.com/kardiachain/go-kardia/tree/master/docker) fo
 - Update config to [Kardiascan config ](https://github.com/kardiachain/KardiaScan#update-node-config)
 - Launch [Kardiascan](https://github.com/kardiachain/KardiaScan#run-development-mode)
 
+### Cloud provider deployment
+See [deployment](https://github.com/kardiachain/go-kardia/tree/master/deployment) for more details.
+
 # Key features
 ### Consensus DPOS-PBFT
 Simulate [PBFT](http://pmg.csail.mit.edu/papers/osdi99.pdf) consensus with multiple nodes and different voting strategies.  
