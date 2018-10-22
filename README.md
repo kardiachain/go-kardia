@@ -55,3 +55,6 @@ Test Solidity smart contracts via [vm/sample_kvm](https://github.com/kardiachain
 ### JSON-RPC API
 APIs to communicate with running Kardia node.  
 See [rpc](https://github.com/kardiachain/go-kardia/tree/master/rpc) for more details.
+
+### Build status 
+[![Build Status](http://ci.kardiachain.io:8080/job/go-kardia/badge/icon)](http://ci.kardiachain.io:8080/job/go-kardia/)
