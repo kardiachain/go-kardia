@@ -51,7 +51,7 @@ type DevEnvironmentConfig struct {
 }
 
 type node struct {
-	key         string
+	key			string
 	votingPower int64
 	nodeID      string
 }
@@ -238,13 +238,15 @@ func (devEnv *DevEnvironmentConfig) GetNodeSize() int {
 	return len(devEnv.DevNodeSet)
 }
 
-func (devEnv *DevEnvironmentConfig) GetValidatorSet(numVal int) *types.ValidatorSet {
-	if numVal < 0 || numVal >= devEnv.GetNodeSize() {
-		log.Error(fmt.Sprintf("Number of validator must be within %v and %v", 0, devEnv.GetNodeSize()))
+// GetValidatorSetByIndex takes an array of indexes of validators and returns an array of validators with the order respectively to index of input
+func (devEnv *DevEnvironmentConfig) GetValidatorSetByIndex(valIndex []int) *types.ValidatorSet {
+	if len(valIndex) >= devEnv.GetNodeSize() {
+		log.Error(fmt.Sprintf("Number of validators must be within %v and %v", 1, devEnv.GetNodeSize()))
 	}
-	validators := make([]*types.Validator, numVal)
-	for i := 0; i < numVal; i++ {
-		node := devEnv.DevNodeSet[i]
+	
+	validators := make([]*types.Validator, len(valIndex))
+	for i := 0; i < len(valIndex); i++ {
+		node := devEnv.DevNodeSet[valIndex[i]]
 		validators[i] = types.NewValidator(node.PrivKey.PublicKey, node.VotingPower)
 	}
 

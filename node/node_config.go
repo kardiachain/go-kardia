@@ -39,10 +39,11 @@ const (
 	datadirDefaultKeyStore = "keystore" // Path within the datadir to the keystore
 )
 
-type ChainConfig struct {
+type MainChainConfig struct {
 	// Mainchain
-	// Number of validators.
-	NumValidators int
+
+	// Index of validators
+	ValidatorIndices []int
 
 	// ChainData is directory that stores levelDB data
 	ChainData string
@@ -65,9 +66,9 @@ type ChainConfig struct {
 
 type DualChainConfig struct {
 	// Mainchain
-	// Number of validators.
-	NumValidators int
-
+	// Index of validators
+	ValidatorIndices []int
+	
 	// ChainData is directory that stores levelDB data
 	ChainData string
 
@@ -151,7 +152,7 @@ type NodeConfig struct {
 	DevEnvConfig *dev.DevEnvironmentConfig
 
 	// TODO(thientn/namdoh): evaluate refactor this further
-	MainChainConfig ChainConfig
+	MainChainConfig MainChainConfig
 
 	DualChainConfig DualChainConfig
 }

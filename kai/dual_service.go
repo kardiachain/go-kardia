@@ -83,7 +83,8 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	// Initialization for consensus.
 	block := dualService.blockchain.CurrentBlock()
-	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSet(ctx.Config.DualChainConfig.NumValidators)
+	log.Info("DUAL Validators: ", "valIndex", ctx.Config.DualChainConfig.ValidatorIndices)
+	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSetByIndex(ctx.Config.DualChainConfig.ValidatorIndices)
 	state := state.LastestBlockState{
 		ChainID:                     "kaigroupcon",
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),

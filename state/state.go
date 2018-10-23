@@ -88,6 +88,6 @@ func (state LastestBlockState) IsEmpty() bool {
 // Stringshort returns a short string representing State
 func (state LastestBlockState) String() string {
 	return fmt.Sprintf("{ChainID:%v LastBlockHeight:%v LastBlockTotalTx:%v LastBlockID:%v LastBlockTime:%v Validators:%v LastValidators:%v LastHeightValidatorsChanged:%v",
-		state.ChainID, state.LastBlockHeight, state.LastBlockTotalTx, state.LastBlockID.FingerPrint(), time.Unix(state.LastBlockTime.Int64(), 0),
-		state.Validators.String(), state.LastValidators.String(), state.LastHeightValidatorsChanged)
+		state.ChainID, state.LastBlockHeight, state.LastBlockTotalTx, state.LastBlockID, time.Unix(state.LastBlockTime.Int64(), 0),
+		state.Validators, state.LastValidators, state.LastHeightValidatorsChanged)
 }

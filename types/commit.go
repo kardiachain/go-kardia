@@ -232,8 +232,8 @@ func (commit *Commit) String() string {
 	}
 	precommitStr := strings.Join(precommitStrings, "##")
 
-	return fmt.Sprintf("Commit{BlockID:%X  Precommits:%v}#%v",
-		commit.BlockID.FingerPrint(),
+	return fmt.Sprintf("Commit{BlockID:%v  Precommits:%v}#%v",
+		commit.BlockID,
 		precommitStr,
-		commit.hash.FingerPrint())
+		commit.hash.Fingerprint())
 }

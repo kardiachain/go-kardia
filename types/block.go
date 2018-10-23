@@ -106,8 +106,8 @@ func (h *Header) String() string {
 	}
 	headerHash := h.Hash()
 	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
-		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID.FingerPrint(), h.LastCommitHash.FingerPrint(),
-		h.TxHash.FingerPrint(), h.Root.FingerPrint(), h.ValidatorsHash.FingerPrint(), h.ConsensusHash.FingerPrint(), headerHash.FingerPrint())
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Fingerprint(),
+		h.TxHash.Fingerprint(), h.Root.Fingerprint(), h.ValidatorsHash.Fingerprint(), h.ConsensusHash.Fingerprint(), headerHash.Fingerprint())
 }
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
@@ -204,7 +204,7 @@ func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []
 			b.logger.Error("NewBlock - commit should never be nil.")
 			b.header.LastCommitHash = common.NewZeroHash()
 		} else {
-			b.logger.Trace("Compute last commit hash", "commit", commit.String())
+			b.logger.Trace("Compute last commit hash", "commit", commit)
 			b.header.LastCommitHash = commit.Hash()
 		}
 	}
@@ -443,7 +443,7 @@ func (b *Block) String() string {
 	}
 	blockHash := b.Hash()
 	return fmt.Sprintf("Block{%v  %v  %v}#%v",
-		b.header.String(), b.transactions, b.lastCommit.String(), blockHash.FingerPrint())
+		b.header, b.transactions, b.lastCommit, blockHash.Fingerprint())
 }
 
 type writeCounter common.StorageSize
@@ -493,11 +493,6 @@ func (b *Block) MakeEmptyNil() {
 
 type BlockID common.Hash
 
-func (id BlockID) String() string {
-	return common.Hash(id).Hex()
-	return common.Hash(id).Hex()
-}
-
 func NewZeroBlockID() BlockID {
 	return BlockID{}
 }
@@ -516,9 +511,13 @@ func (blockID *BlockID) Key() string {
 	return string(blockID[:])
 }
 
-// Fingerprint returns the first 12 characters of hex string representation of the BlockID
-func (blockID *BlockID) FingerPrint() string {
-	return fmt.Sprintf("%X", common.Fingerprint(blockID[:]))
+// String returns the first 12 characters of hex string representation of the BlockID
+func (blockID BlockID) String() string {
+	return common.Hash(blockID).Fingerprint()
+}
+
+func (blockID BlockID) StringLong() string {
+	return common.Hash(blockID).Hex()
 }
 
 type Blocks []*Block

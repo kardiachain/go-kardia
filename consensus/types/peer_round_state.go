@@ -58,10 +58,10 @@ func (prs PeerRoundState) StringLong() string {
 }
 
 // String returns a short string representing PeerRoundState
-func (prs *PeerRoundState) String() string {
-	return fmt.Sprintf("PeerRoundState{%v/%v/%v @%v  Proposal:%X  POL:%v (round %v)  Prevotes:%v  Precommits:%v  LastCommit:%v (round %v)  Catchup:%v (round %v)}",
+func (prs PeerRoundState) String() string {
+	return fmt.Sprintf("PeerRoundState{%v/%v/%v @%v  Proposal:%v  POL:%v (round %v)  Prevotes:%v  Precommits:%v  LastCommit:%v (round %v)  Catchup:%v (round %v)}",
 		prs.Height, prs.Round, prs.Step, time.Unix(prs.StartTime.Int64(), 0),
-		prs.ProposalBlockHeader.FingerPrint(),
+		prs.ProposalBlockHeader.Fingerprint(),
 		prs.ProposalPOL,
 		prs.ProposalPOLRound,
 		prs.Prevotes,
