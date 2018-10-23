@@ -60,4 +60,4 @@ APIs to communicate with running Kardia node.
 See [rpc](https://github.com/kardiachain/go-kardia/tree/master/rpc) for more details.
 
 ### Build status 
-[![Build Status](http://ci.kardiachain.io:8080/job/go-kardia/badge/icon)](http://ci.kardiachain.io:8080/job/go-kardia/)
+[![Build Status](http://ci.kardiachain.io:8080/buildStatus/icon?job=go-kardia)](http://ci.kardiachain.io:8080/job/go-kardia/)
