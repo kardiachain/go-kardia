@@ -58,7 +58,7 @@ func testNodeConfig() *NodeConfig {
 		Name:            "test node",
 		P2P:             p2p.Config{PrivateKey: testNodeKey},
 		DevEnvConfig:    dev.CreateDevEnvironmentConfig(),
-		MainChainConfig: ChainConfig{NumValidators: 1},
+		MainChainConfig: MainChainConfig{},
 	}
 }
 
