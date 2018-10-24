@@ -2,6 +2,12 @@
 
 Golang implementation of Kardia chain following the specs in [Technical Paper](http://dl.kardiachain.io/paper.pdf)
 
+### Build status 
+
+Branch    | Tests | Coverage
+----------|-------|----------
+master    | [![CircleCI](https://circleci.com/gh/kardiachain/go-kardia.svg?style=shield&circle-token=3163b86cadff994c8e322dc3aedf57c61f541c42)](https://circleci.com/gh/kardiachain/go-kardia) | 
+
 # License
 This software is licensed under GNU Lesser General Public License v3.0 (see [COPYING.LESSER](https://github.com/kardiachain/go-kardia/tree/master/COPYING.LESSER))
   and uses third party libraries that are distributed under their own terms (see [LICENSE-3RD-PARTY](https://github.com/kardiachain/go-kardia/tree/master/LICENSE-3RD-PARTY.txt))
@@ -58,6 +64,3 @@ Test Solidity smart contracts via [vm/sample_kvm](https://github.com/kardiachain
 ### JSON-RPC API
 APIs to communicate with running Kardia node.  
 See [rpc](https://github.com/kardiachain/go-kardia/tree/master/rpc) for more details.
-
-### Build status 
-[![Build Status](http://ci.kardiachain.io:8080/buildStatus/icon?job=go-kardia)](http://ci.kardiachain.io:8080/job/go-kardia/)
