@@ -5,6 +5,8 @@ if [ "$#" -ne 1 ]; then
   exit 1
 fi
 
+IMAGE_NAME=gcr.io/strategic-ivy-130823/go-kardia:milestone3
+
 gcloud beta compute instances create-with-container $1 \
 --machine-type=n1-standard-1 \
 --subnet=default \
@@ -17,10 +19,10 @@ gcloud beta compute instances create-with-container $1 \
 --boot-disk-size=30GB \
 --boot-disk-type=pd-standard \
 --boot-disk-device-name=$1 \
---container-image=gcr.io/strategic-ivy-130823/go-kardia:latest \
+--container-image=$IMAGE_NAME \
 --container-restart-policy=on-failure \
 --container-privileged \
 --container-arg="-name=$1" \
---container-arg="-dev" --container-arg="-mainChainValIndex=1" \
+--container-arg="-dev" --container-arg="-numValid=3" \
 --container-arg="-rpc" --container-arg="-rpcport=8545"
 
