@@ -12,11 +12,10 @@ Users can choose this image during their setup, or use below end-2-end scripts.
 
   `./aws_deploy_testnet.sh`
 
-## Google Cloud Platform
- [GCloud CLI](https://cloud.google.com/sdk/gcloud/) script to deploy Karida node on Google cloud.  
+## Google Cloud Platform deploy testnet
+ [GCloud CLI](https://cloud.google.com/sdk/gcloud/) script to deploy Karida testnet on Google cloud.  
     . Starts new GCE virtual machine with required specs & network.  
     . Downloads Milestone3 Docker image from GCR.  
-    . Starts Kardia node.  
+    . Starts small testnet of multiple Kardia nodes including Kardia-Eth dual node.  
   
-  `./gce_deploy_one_node.sh new-test-node`
-  
+  `./gce_deploy_testnet.sh`

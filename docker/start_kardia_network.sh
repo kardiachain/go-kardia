@@ -73,11 +73,11 @@ while [ $NODE_INDEX -le $NODES ]
 do
     if [ $NODE_INDEX -eq $ETH_NODE_INDEX ]; then
         mkdir -p ~/.kardiachain/node${NODE_INDEX}/data/ethereum
-        docker run --rm -d --name node${NODE_INDEX} -v ~/.kardiachain/node${NODE_INDEX}/data/ethereum:/root/.ethereum --net=host $IMAGE_NAME $DUALCHAIN --dev --numValid ${NODES} --dual --ethstat --ethstatname eth-dual-test-${NODE_INDEX} --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --txn --clearDataDir
+        docker run --rm -d --name node${NODE_INDEX} -v ~/.kardiachain/node${NODE_INDEX}/data/ethereum:/root/.ethereum --net=host $IMAGE_NAME $DUALCHAIN --dev --mainChainValIndex 1 --mainChainValIndex 2 --mainChainValIndex ${NODES} --dual --ethstat --ethstatname eth-dual-test-${NODE_INDEX} --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --txn --clearDataDir
     elif [ $NODE_INDEX -eq $NEO_NODE_INDEX ]; then
-        docker run --rm -d --name node${NODE_INDEX} --net=host $IMAGE_NAME $DUALCHAIN --dev --numValid ${NODES} --neodual --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --clearDataDir
+        docker run --rm -d --name node${NODE_INDEX} --net=host $IMAGE_NAME $DUALCHAIN --dev --mainChainValIndex 1 --mainChainValIndex 2 --mainChainValIndex ${NODES} --neodual --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --clearDataDir
     else
-        docker run --rm -d --name node${NODE_INDEX} --net=host $IMAGE_NAME $DUALCHAIN --dev --numValid ${NODES} --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --clearDataDir
+        docker run --rm -d --name node${NODE_INDEX} --net=host $IMAGE_NAME $DUALCHAIN --dev --mainChainValIndex 1 --mainChainValIndex 2 --mainChainValIndex ${NODES} --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --clearDataDir
     fi
     ((NODE_INDEX++))
     ((PORT++))
