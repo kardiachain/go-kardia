@@ -14,8 +14,8 @@ Official Golang implementation of Kardia chain following the specs in [Technical
 
 
 # Quickstart
-### One-command-deployment to cloud providers
-End-to-end script to create a cloud VM and start Kardia testnet. See [deployment](https://github.com/kardiachain/go-kardia/tree/master/deployment) for more details.  
+### One-command-deployment to supported cloud providers
+Copy and execute the below script to create a cloud VM and start Kardia testnet without checking out the source code. See [deployment](https://github.com/kardiachain/go-kardia/tree/master/deployment) for more details.  
 - **Google GCP**  
 [`./gce_deploy_testnet.sh`](https://github.com/kardiachain/go-kardia/blob/master/deployment/gce_deploy_testnet.sh)   
 - **Amazon AWS**  
