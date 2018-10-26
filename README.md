@@ -1,17 +1,35 @@
 # Go-Kardia
 
-Golang implementation of Kardia chain following the specs in [Technical Paper](http://dl.kardiachain.io/paper.pdf)
+[![version](https://img.shields.io/github/release/qubyte/rubidium.svg)](https://github.com/kardiachain/go-kardia/releases/latest)
+[![Go version](https://img.shields.io/badge/go-1.10.4-blue.svg)](https://github.com/moovweb/gvm)
+[![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
+[![CircleCI](https://circleci.com/gh/kardiachain/go-kardia.svg?style=shield&circle-token=3163b86cadff994c8e322dc3aedf57c61f541c42)](https://circleci.com/gh/kardiachain/go-kardia)
+[![codecov](https://codecov.io/gh/kardiachain/go-kardia/branch/master/graph/badge.svg?token=9HzVclw3dp)](https://codecov.io/gh/kardiachain/go-kardia)
 
-# License
-This software is licensed under GNU Lesser General Public License v3.0 (see [COPYING.LESSER](https://github.com/kardiachain/go-kardia/tree/master/COPYING.LESSER))
-  and uses third party libraries that are distributed under their own terms (see [LICENSE-3RD-PARTY](https://github.com/kardiachain/go-kardia/tree/master/LICENSE-3RD-PARTY.txt))
+Official Golang implementation of Kardia chain following the specs in [Technical Paper](http://dl.kardiachain.io/paper.pdf)
 
-# Kardia private-net
-- Release: [kardia-milestone2-20180904](https://github.com/kardiachain/go-kardia/releases/tag/kardia-milestone2-20180904)
-- Build: [Jenkins](http://35.185.187.119:8080/job/go-kardia/)
-- UI: [Kardiascan](http://scan.kardiachain.io/)
+# Kardia private testnet
+- Block explorer UI: [Kardiascan](http://scan.kardiachain.io/)
+- Release: [kardia-milestone3-20181001](https://github.com/kardiachain/go-kardia/releases/tag/kardia-milestone3-20181001)
+
 
 # Quickstart
+### One-command-deployment to supported cloud providers
+Copy and execute the below script to create a cloud VM and start Kardia testnet without checking out the source code. See [deployment](https://github.com/kardiachain/go-kardia/tree/master/deployment) for more details.  
+- **Google GCP**  
+[`./gce_deploy_testnet.sh`](https://github.com/kardiachain/go-kardia/blob/master/deployment/gce_deploy_testnet.sh)   
+- **Amazon AWS**  
+[`./aws_deploy_testnet.sh`](https://github.com/kardiachain/go-kardia/blob/master/deployment/aws_deploy_testnet.sh)
+
+### Run local testnet with docker
+- See [docker](https://github.com/kardiachain/go-kardia/tree/master/docker) for more details.
+
+### Monitor blocks with Kardiascan
+- Setup [JSON-RPC](https://github.com/kardiachain/go-kardia/tree/master/rpc) request
+- Update config to [Kardiascan config](https://github.com/kardiachain/KardiaScan#update-node-config)
+- Launch [Kardiascan](https://github.com/kardiachain/KardiaScan#run-development-mode)
+
+# Development
 ### Go environment setup
 Install [Go](https://golang.org/doc/install) v1.10 to $HOME directory. Sets environment vars:  
 > export GOPATH=$HOME/go  
@@ -31,33 +49,8 @@ go install
 cd $GOPATH/src/github.com/kardiachain/go-kardia
 go test ./...
 ```
-# Run
-### Start with docker
-See the [docker](https://github.com/kardiachain/go-kardia/tree/master/docker) for more details.
 
-### Monitor with Kardiascan
-- Setup [JSON-RPC](https://github.com/kardiachain/go-kardia/tree/master/rpc) request
-- Update config to [Kardiascan config ](https://github.com/kardiachain/KardiaScan#update-node-config)
-- Launch [Kardiascan](https://github.com/kardiachain/KardiaScan#run-development-mode)
-
-### Cloud provider deployment
-See [deployment](https://github.com/kardiachain/go-kardia/tree/master/deployment) for more details.
-
-# Key features
-### Consensus DPOS-PBFT
-Simulate [PBFT](http://pmg.csail.mit.edu/papers/osdi99.pdf) consensus with multiple nodes and different voting strategies.  
-See [consensus](https://github.com/kardiachain/go-kardia/tree/master/consensus) for more details.
-
-### Ether-Kardia Dual node
-Simulate node participating in both Ether [Rinkeby](https://www.rinkeby.io/#stats) and Kardia network.  
-See [dual](https://github.com/kardiachain/go-kardia/tree/master/dual) for more details.
-
-### Kardia Virtual Machine (KVM)
-Test Solidity smart contracts via [vm/sample_kvm](https://github.com/kardiachain/go-kardia/tree/master/vm/sample_kvm).
-
-### JSON-RPC API
-APIs to communicate with running Kardia node.  
-See [rpc](https://github.com/kardiachain/go-kardia/tree/master/rpc) for more details.
-
-### Build status 
-[![Build Status](http://ci.kardiachain.io:8080/job/go-kardia/badge/icon)](http://ci.kardiachain.io:8080/job/go-kardia/)
+### Start Kardia node
+```
+./go-kardia --dualchain --dev --mainChainValIndex  1 --addr :3000 --name node1 --rpc --rpcport 8545 --clearDataDir
+```
