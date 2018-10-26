@@ -30,11 +30,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
+	"encoding/hex"
 )
 
 type DevNodeConfig struct {
@@ -179,8 +179,11 @@ func CreateDevEnvironmentConfig() *DevEnvironmentConfig {
 	devEnv.proposalIndex = 0 // Default to 0-th node as the proposer.
 	devEnv.DevNodeSet = make([]DevNodeConfig, len(nodes))
 	for i, n := range nodes {
-		privKey, _ := crypto.ToECDSA([]byte(n.key[:32]))
-		devEnv.DevNodeSet[i].PrivKey = privKey
+		pkByte, err := hex.DecodeString(n.key)
+		if err != nil {
+			continue
+		}
+		devEnv.DevNodeSet[i].PrivKey = crypto.ToECDSAUnsafe(pkByte)
 		devEnv.DevNodeSet[i].VotingPower = n.votingPower
 		devEnv.DevNodeSet[i].NodeID = n.nodeID
 	}
