@@ -6,8 +6,7 @@ gcloud compute instances create kardia-testnet \
 --machine-type=n1-standard-1 \
 --subnet=default \
 --network-tier=PREMIUM \
---metadata=google-logging-enabled=true \
---metadata-from-file startup-script="gce_startup.sh" \
+--metadata=google-logging-enabled=true,startup-script-url=https://storage.googleapis.com/kardia-startup-scripts/gce_startup.sh \
 --maintenance-policy=MIGRATE \
 --tags=http-server,https-server \
 --image=cos-stable-70-11021-51-0 \
