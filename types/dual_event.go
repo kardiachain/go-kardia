@@ -23,6 +23,7 @@ import (
 	"sync/atomic"
 
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 // An event pertaining to the current dual node's interests and its derived tx's
@@ -87,6 +88,12 @@ type DualEvents []*DualEvent
 
 // Len returns the length of s.
 func (d DualEvents) Len() int { return len(d) }
+
+// GetRlp implements Rlpable and returns the i'th element of d in rlp.
+func (d DualEvents) GetRlp(i int) []byte {
+	enc, _ := rlp.EncodeToBytes(d[i])
+	return enc
+}
 
 // DualEventByNonce implements the sort interface to allow sorting a list of dual's events
 // by their nonces.

@@ -424,6 +424,7 @@ func (n *EthKardia) mockBlockGenerationRoutine(triggeringConfig *dev.TriggeringC
 	for {
 		for timeout := range triggeringConfig.TimeIntervals {
 			time.Sleep(time.Duration(timeout) * time.Millisecond)
+
 			block := triggeringConfig.GenerateEthBlock(contractAddr)
 			log.Info("Generating an Eth block to trigger a new DualEvent", "block", block)
 			blockCh <- block
