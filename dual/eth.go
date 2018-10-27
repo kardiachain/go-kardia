@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"time"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -85,6 +86,10 @@ type EthKardiaConfig struct {
 
 	// Performance configs
 	CacheSize int // Cache memory size in MB for database & trie. This must be small enough to leave enough memory for separate Kardia chain cache.
+
+	// ======== DEV ENVIRONMENT CONFIG =========
+	// Configuration of this node when running in dev environment.
+	DualNodeConfig *dev.DualNodeConfig
 }
 
 // EthKarida is a full Ethereum node running inside Karida
@@ -103,7 +108,7 @@ func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, t
 
 	// Creates datadir with testnet follow eth standards.
 	// TODO(thientn) : options to choose different networks.
-	datadir = filepath.Join(datadir, "rinkeby")
+	datadir = filepath.Join(datadir, "rinkeby", config.Name)
 	bootUrls := params.RinkebyBootnodes
 	bootstrapNodes := make([]*discover.Node, 0, len(bootUrls))
 	bootstrapNodesV5 := make([]*discv5.Node, 0, len(bootUrls)) // rinkeby set default bootnodes as also discv5 nodes.
@@ -290,6 +295,10 @@ func (n *EthKardia) syncHead() {
 		}
 	}()
 
+	if n.config.DualNodeConfig != nil {
+		go n.mockBlockGenerationRoutine(n.config.DualNodeConfig.Triggering, blockCh)
+	}
+
 	// Handler loop for new blocks.
 	for {
 		select {
@@ -407,5 +416,21 @@ func (n *EthKardia) SendEthFromContract(value *big.Int) {
 		log.Error("Fail to add Ether tx", "error", err)
 	} else {
 		log.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
+	}
+}
+
+func (n *EthKardia) mockBlockGenerationRoutine(triggeringConfig *dev.TriggeringConfig, blockCh chan *ethTypes.Block) {
+	contractAddr := ethCommon.HexToAddress(n.config.ContractAddress)
+	for {
+		for timeout := range triggeringConfig.TimeIntervals {
+			time.Sleep(time.Duration(timeout) * time.Millisecond)
+			block := triggeringConfig.GenerateEthBlock(contractAddr)
+			log.Info("Generating an Eth block to trigger a new DualEvent", "block", block)
+			blockCh <- block
+		}
+
+		if !triggeringConfig.RepeatInfinitely {
+			break
+		}
 	}
 }

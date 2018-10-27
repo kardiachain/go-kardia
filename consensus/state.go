@@ -800,7 +800,7 @@ func (cs *ConsensusState) enterPropose(height *cmn.BigInt, round *cmn.BigInt) {
 		logger.Debug("This node is not a validator", "addr", cs.privValidator.GetAddress(), "vals", cs.Validators)
 		return
 	}
-	
+
 	logger.Debug("This node is a validator")
 	if cs.isProposer() {
 		logger.Trace("Our turn to propose")

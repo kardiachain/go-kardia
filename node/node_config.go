@@ -68,7 +68,7 @@ type DualChainConfig struct {
 	// Mainchain
 	// Index of validators
 	ValidatorIndices []int
-	
+
 	// ChainData is directory that stores levelDB data
 	ChainData string
 
@@ -145,16 +145,17 @@ type NodeConfig struct {
 	// is created by New and destroyed when the node is stopped.
 	KeyStoreDir string `toml:",omitempty"`
 
-	// ======== DEV ENVIRONMENT CONFIG =========
-	// Additional config of this node when running in dev environment.
-	DevNodeConfig *dev.DevNodeConfig
-	// Additional config of this environment when running as dev.
-	DevEnvConfig *dev.DevEnvironmentConfig
-
-	// TODO(thientn/namdoh): evaluate refactor this further
+	// Configuration of the Kardia's blockchain (or main chain).
 	MainChainConfig MainChainConfig
 
+	// Configuration of the dual's blockchain.
 	DualChainConfig DualChainConfig
+
+	// ======== DEV ENVIRONMENT CONFIG =========
+	// Configuration of this node when running in dev environment.
+	DevNodeConfig *dev.DevNodeConfig
+	// Configuration of this environment when running in dev environment.
+	DevEnvConfig *dev.DevEnvironmentConfig
 }
 
 // NodeName returns the devp2p node identifier.

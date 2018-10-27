@@ -33,7 +33,7 @@ import (
 	"github.com/kardiachain/go-kardia/dual"
 	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
 	"github.com/kardiachain/go-kardia/kai"
-	development "github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -98,12 +98,12 @@ func GetNodeIndex(nodeName string) (int, error) {
 	return strconv.Atoi((nodeName)[len(nodeName)-1:])
 }
 
-// flag.Value takes values from arg input and puts them in an array of strings 
+// flag.Value takes values from arg input and puts them in an array of strings
 type StringArrayFlag []string
 
 // String is a method of StringArrayFlag - must be implemented
 func (stringArrayFlag *StringArrayFlag) String() string {
-    return fmt.Sprintf("%v", *stringArrayFlag)
+	return fmt.Sprintf("%v", *stringArrayFlag)
 }
 
 // Set is a method of StringArrayFlag - must be implemented
@@ -112,14 +112,14 @@ func (stringArrayFlag *StringArrayFlag) Set(value string) error {
 	if _, err := strconv.Atoi(value); err != nil {
 		panic(err)
 	}
-    *stringArrayFlag = append(*stringArrayFlag, value)
-    return nil
+	*stringArrayFlag = append(*stringArrayFlag, value)
+	return nil
 }
 
 // getIntArray converts string array to int array
 func getIntArray(stringArrayFlag StringArrayFlag) []int {
 	var a []int
-	
+
 	// keys - hashmap used to check duplicate inputs
 	keys := make(map[string]bool)
 	for _, stringVal := range stringArrayFlag {
@@ -138,41 +138,53 @@ func getIntArray(stringArrayFlag StringArrayFlag) []int {
 
 // args
 type flagArgs struct {
-	logLevel			string
-	logTag				string
-	ethLogLevel 		string
-	listenAddr			string
-	name				string
-	rpcEnabled			bool
-	rpcAddr 			string
-	rpcPort 			int
-	addTxn				bool
-	addSmcCall			bool
-	genNewTxs			bool
-	newTxDelay			int
-	ethDual 			bool
-	neoDual 			bool
-	ethStat 			bool
-	ethStatName 		string
-	lightNode			bool
-	lightServ			int
-	cacheSize			int
-	bootnodes			string
-	peer				string
-	dev 				bool
-	proposal			int
-	votingStrategy		string
-	clearDataDir		bool
-	acceptTxs			int
-	mainChainValIndex	StringArrayFlag
-	dualChain			bool
-	dualChainValIndex	StringArrayFlag
+	logLevel string
+	logTag   string
+
+	// Kardia node's related flags
+	listenAddr        string
+	name              string
+	rpcEnabled        bool
+	rpcAddr           string
+	rpcPort           int
+	addTxn            bool
+	addSmcCall        bool
+	genNewTxs         bool
+	newTxDelay        int
+	lightNode         bool
+	lightServ         int
+	cacheSize         int
+	bootnodes         string
+	peer              string
+	clearDataDir      bool
+	mainChainValIndex StringArrayFlag
+	acceptTxs         int
+
+	// Ether/Kardia dualnode related flags
+	ethDual       bool
+	ethStat       bool
+	ethStatName   string
+	ethLogLevel   string
+	ethListenAddr string
+
+	// Neo/Kardia dualnode related flags
+	neoDual bool
+
+	// Dualnode's related flags
+	dualChain         bool
+	dualChainValIndex StringArrayFlag
+
+	// Development's related flags
+	dev            bool
+	proposal       int
+	votingStrategy string
+	mockDualEvent  bool
 }
 
 var args flagArgs
 
 func init() {
-	flag.StringVar(&args.logLevel,"loglevel", "info", "minimum log verbosity to display")
+	flag.StringVar(&args.logLevel, "loglevel", "info", "minimum log verbosity to display")
 	flag.StringVar(&args.logTag, "logtag", "", "for log record with log, use this to further filter records based on the tag value")
 	flag.StringVar(&args.ethLogLevel, "ethloglevel", "warn", "minimum Eth log verbosity to display")
 	flag.StringVar(&args.listenAddr, "addr", ":30301", "listen address")
@@ -185,6 +197,7 @@ func init() {
 	flag.BoolVar(&args.genNewTxs, "genNewTxs", false, "whether to run routine that regularly add new transactions.")
 	flag.IntVar(&args.newTxDelay, "newTxDelay", 10, "how often new txs are added.")
 	flag.BoolVar(&args.ethDual, "dual", false, "whether to run in dual mode")
+	flag.StringVar(&args.ethListenAddr, "ethAddr", ":30302", "listen address for eth")
 	flag.BoolVar(&args.neoDual, "neodual", false, "whether to run in dual mode")
 	flag.BoolVar(&args.ethStat, "ethstat", false, "report eth stats to network")
 	flag.StringVar(&args.ethStatName, "ethstatname", "", "name to use when reporting eth stats")
@@ -193,19 +206,22 @@ func init() {
 	flag.IntVar(&args.cacheSize, "cacheSize", 1024, "cache memory size for Eth node")
 	flag.StringVar(&args.bootnodes, "bootnodes", "", "Comma separated enode URLs for P2P discovery bootstrap")
 	flag.StringVar(&args.peer, "peer", "", "Comma separated enode URLs for P2P static peer")
-	flag.BoolVar(&args.dev, "dev", false, "deploy node with dev environment")
-	flag.IntVar(&args.proposal, "proposal", 1, "specify which node is the proposer. The index starts from 1, and every node needs to use the same proposer index. Note that this flag only has effect when --dev flag is set")
-	flag.StringVar(&args.votingStrategy, "votingStrategy", "", "specify the voting script or strategy to simulate voting. Note that this flag only has effect when --dev flag is set")
 	flag.BoolVar(&args.clearDataDir, "clearDataDir", false, "remove contents in data dir")
 	flag.IntVar(&args.acceptTxs, "acceptTxs", 1, "accept process tx or not, 1 is yes and 0 is no")
-	flag.Var(&args.mainChainValIndex, "mainChainValIndex", "index of Main chain validator") 
 	flag.BoolVar(&args.dualChain, "dualchain", false, "run dual chain for group concensus")
+	flag.Var(&args.mainChainValIndex, "mainChainValIndex", "index of Main chain validator")
 	flag.Var(&args.dualChainValIndex, "dualChainValIndex", "index of Dual chain validator")
+	// NOTE: The flags below are only applicable for dev environment. Please add the applicable ones
+	// here and DO NOT add non-dev flags.
+	flag.BoolVar(&args.dev, "dev", false, "deploy node with dev environment")
+	flag.StringVar(&args.votingStrategy, "votingStrategy", "", "specify the voting script or strategy to simulate voting. Note that this flag only has effect when --dev flag is set")
+	flag.IntVar(&args.proposal, "proposal", 1, "specify which node is the proposer. The index starts from 1, and every node needs to use the same proposer index. Note that this flag only has effect when --dev flag is set")
+	flag.BoolVar(&args.mockDualEvent, "mockDualEvent", false, "generate fake dual events to trigger dual consensus. Note that this flag only has effect when --dev flag is set.")
 }
 
 func main() {
 	flag.Parse()
-	
+
 	// Setups log to Stdout.
 	level, err := log.LvlFromString(args.logLevel)
 	if err != nil {
@@ -249,7 +265,7 @@ func main() {
 	config.P2P.ListenAddr = args.listenAddr
 	config.Name = args.name
 	config.MainChainConfig.AcceptTxs = uint32(args.acceptTxs)
-	var devEnv *development.DevEnvironmentConfig
+	var devEnv *dev.DevEnvironmentConfig
 
 	// Setup bootnodes
 	if len(args.bootnodes) > 0 {
@@ -274,7 +290,7 @@ func main() {
 	}
 
 	if args.dev {
-		devEnv = development.CreateDevEnvironmentConfig()
+		devEnv = dev.CreateDevEnvironmentConfig()
 		if nodeIndex < 0 && nodeIndex >= devEnv.GetNodeSize() {
 			logger.Error(fmt.Sprintf("Node index %v must be within %v and %v", nodeIndex+1, 1, devEnv.GetNodeSize()))
 
@@ -288,12 +304,12 @@ func main() {
 		config.MainChainConfig.ValidatorIndices = getIntArray(args.mainChainValIndex)
 
 		// Setup config for kardia service
-		config.MainChainConfig.ChainData = development.ChainData
-		config.MainChainConfig.DbHandles = development.DbHandles
-		config.MainChainConfig.DbCache = development.DbCache
+		config.MainChainConfig.ChainData = dev.ChainData
+		config.MainChainConfig.DbHandles = dev.DbHandles
+		config.MainChainConfig.DbCache = dev.DbCache
 
 		// Create genesis block with dev.genesisAccounts
-		config.MainChainConfig.Genesis = blockchain.DefaulTestnetFullGenesisBlock(development.GenesisAccounts, development.GenesisContracts)
+		config.MainChainConfig.Genesis = blockchain.DefaulTestnetFullGenesisBlock(dev.GenesisAccounts, dev.GenesisContracts)
 	}
 	nodeDir := filepath.Join(config.DataDir, config.Name)
 	config.MainChainConfig.TxPool = *blockchain.GetDefaultTxPoolConfig(nodeDir)
@@ -306,8 +322,8 @@ func main() {
 		}
 
 		config.DualChainConfig.ChainData = "dualdata"
-		config.DualChainConfig.DbHandles = development.DbHandles
-		config.DualChainConfig.DbCache = development.DbCache
+		config.DualChainConfig.DbHandles = dev.DbHandles
+		config.DualChainConfig.DbCache = dev.DbCache
 	}
 	config.DualChainConfig.DualEventPool = *dualbc.GetDefaultEventPoolConfig(nodeDir)
 
@@ -407,8 +423,8 @@ func main() {
 		}
 		*/
 		// Get voting contract address, this smc is created in genesis block
-		votingSmcAddress := development.GetContractAddressAt(0)
-		votingAbiStr := development.GetContractAbiByAddress(votingSmcAddress.String())
+		votingSmcAddress := dev.GetContractAddressAt(0)
+		votingAbiStr := dev.GetContractAbiByAddress(votingSmcAddress.String())
 		votingAbi, err := abi.JSON(strings.NewReader(votingAbiStr))
 		if err != nil {
 			logger.Error("Can not read abi", err)
@@ -463,8 +479,8 @@ func main() {
 
 	// TODO: This should trigger for either Eth dual or Neo dual flag, so  *ethDual || *neoDual
 	if args.ethDual || args.neoDual {
-		exchangeContractAddress := development.GetContractAddressAt(2)
-		exchangeContractAbi := development.GetContractAbiByAddress(exchangeContractAddress.String())
+		exchangeContractAddress := dev.GetContractAddressAt(2)
+		exchangeContractAbi := dev.GetContractAbiByAddress(exchangeContractAddress.String())
 		dualP, err = dual.NewDualProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), &exchangeContractAddress, exchangeContractAbi)
 		if err != nil {
 			log.Error("Fail to initialize DualProcessor", "error", err)
@@ -476,6 +492,8 @@ func main() {
 	// Run Eth-Kardia dual node
 	if args.ethDual {
 		config := &dual.DefaultEthKardiaConfig
+		config.Name = "GethKardia-" + args.name
+		config.ListenAddr = args.ethListenAddr
 		config.LightNode = args.lightNode
 		config.LightServ = args.lightServ
 		config.ReportStats = args.ethStat
@@ -483,6 +501,9 @@ func main() {
 			config.StatName = args.ethStatName
 		}
 		config.CacheSize = args.cacheSize
+		if args.dev && args.mockDualEvent {
+			config.DualNodeConfig = dev.CreateDualNodeConfig()
+		}
 
 		ethNode, err := dual.NewEthKardia(config, kardiaService.BlockChain(), kardiaService.TxPool(), dualService.EventPool())
 		if err != nil {

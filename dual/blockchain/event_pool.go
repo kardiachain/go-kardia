@@ -179,6 +179,7 @@ func NewEventPool(logger log.Logger, config EventPoolConfig, chainconfig *config
 		chain:       chain,
 		pending:     newEventList(),
 		queue:       newEventList(),
+		all:         newEventLookup(),
 		chainHeadCh: make(chan ChainHeadEvent, chainHeadChanSize),
 	}
 	pool.reset(nil, chain.CurrentBlock().Header())

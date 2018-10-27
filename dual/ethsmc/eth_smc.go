@@ -21,13 +21,14 @@ package ethsmc
 import (
 	"encoding/hex"
 	"fmt"
+	"math/big"
+	"strings"
+
 	ethabi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/kardiachain/go-kardia/abi"
-	"math/big"
-	"strings"
 )
 
 // Address of the deployed contract on Rinkeby.
@@ -268,6 +269,15 @@ func (e *EthSmc) packReleaseInput(amount *big.Int) []byte {
 	return input
 }
 
+func (e *EthSmc) packDepositInput(address common.Address) []byte {
+	input, err := e.ethABI.Pack("deposit", address.Hex())
+	if err != nil {
+		panic(err)
+	}
+
+	return input
+}
+
 func (e *EthSmc) CreateEthReleaseTx(amount *big.Int, nonce uint64) *types.Transaction {
 	contractAddr := common.HexToAddress(EthContractAddress)
 	keyBytes, err := hex.DecodeString(EthAccountSignAddr)
@@ -280,6 +290,26 @@ func (e *EthSmc) CreateEthReleaseTx(amount *big.Int, nonce uint64) *types.Transa
 	gasPrice := big.NewInt(5000000000) // 5gwei
 	tx, err := types.SignTx(
 		types.NewTransaction(nonce, contractAddr, big.NewInt(0), gasLimit, gasPrice, data),
+		types.HomesteadSigner{},
+		key)
+	if err != nil {
+		panic(err)
+	}
+
+	return tx
+}
+
+func (e *EthSmc) CreateEthDepositTx(amount *big.Int, address common.Address, nonce uint64) *types.Transaction {
+	keyBytes, err := hex.DecodeString(EthAccountSignAddr)
+	if err != nil {
+		panic(err)
+	}
+	key := crypto.ToECDSAUnsafe(keyBytes)
+	data := e.packDepositInput(address)
+	gasLimit := uint64(40000)
+	gasPrice := big.NewInt(5000000000) // 5gwei
+	tx, err := types.SignTx(
+		types.NewTransaction(nonce, address, amount, gasLimit, gasPrice, data),
 		types.HomesteadSigner{},
 		key)
 	if err != nil {
