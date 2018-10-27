@@ -138,9 +138,10 @@ func getIntArray(stringArrayFlag StringArrayFlag) []int {
 
 // args
 type flagArgs struct {
-	logLevel          string
-	logTag            string
-	ethLogLevel       string
+	logLevel string
+	logTag   string
+
+	// Kardia node's related flags
 	listenAddr        string
 	name              string
 	rpcEnabled        bool
@@ -150,24 +151,34 @@ type flagArgs struct {
 	addSmcCall        bool
 	genNewTxs         bool
 	newTxDelay        int
-	ethDual           bool
-	neoDual           bool
-	ethStat           bool
-	ethStatName       string
 	lightNode         bool
 	lightServ         int
 	cacheSize         int
 	bootnodes         string
 	peer              string
-	dev               bool
-	proposal          int
-	votingStrategy    string
 	clearDataDir      bool
-	acceptTxs         int
 	mainChainValIndex StringArrayFlag
+	acceptTxs         int
+
+	// Ether/Kardia dualnode related flags
+	ethDual       bool
+	ethStat       bool
+	ethStatName   string
+	ethLogLevel   string
+	ethListenAddr string
+
+	// Neo/Kardia dualnode related flags
+	neoDual bool
+
+	// Dualnode's related flags
 	dualChain         bool
 	dualChainValIndex StringArrayFlag
-	mockDualEvent     bool
+
+	// Development's related flags
+	dev            bool
+	proposal       int
+	votingStrategy string
+	mockDualEvent  bool
 }
 
 var args flagArgs
@@ -186,6 +197,7 @@ func init() {
 	flag.BoolVar(&args.genNewTxs, "genNewTxs", false, "whether to run routine that regularly add new transactions.")
 	flag.IntVar(&args.newTxDelay, "newTxDelay", 10, "how often new txs are added.")
 	flag.BoolVar(&args.ethDual, "dual", false, "whether to run in dual mode")
+	flag.StringVar(&args.ethListenAddr, "ethAddr", ":30302", "listen address for eth")
 	flag.BoolVar(&args.neoDual, "neodual", false, "whether to run in dual mode")
 	flag.BoolVar(&args.ethStat, "ethstat", false, "report eth stats to network")
 	flag.StringVar(&args.ethStatName, "ethstatname", "", "name to use when reporting eth stats")
@@ -197,11 +209,11 @@ func init() {
 	flag.BoolVar(&args.clearDataDir, "clearDataDir", false, "remove contents in data dir")
 	flag.IntVar(&args.acceptTxs, "acceptTxs", 1, "accept process tx or not, 1 is yes and 0 is no")
 	flag.BoolVar(&args.dualChain, "dualchain", false, "run dual chain for group concensus")
+	flag.Var(&args.mainChainValIndex, "mainChainValIndex", "index of Main chain validator")
+	flag.Var(&args.dualChainValIndex, "dualChainValIndex", "index of Dual chain validator")
 	// NOTE: The flags below are only applicable for dev environment. Please add the applicable ones
 	// here and DO NOT add non-dev flags.
 	flag.BoolVar(&args.dev, "dev", false, "deploy node with dev environment")
-	flag.Var(&args.mainChainValIndex, "mainChainValIndex", "index of Main chain validator")
-	flag.Var(&args.dualChainValIndex, "dualChainValIndex", "index of Dual chain validator")
 	flag.StringVar(&args.votingStrategy, "votingStrategy", "", "specify the voting script or strategy to simulate voting. Note that this flag only has effect when --dev flag is set")
 	flag.IntVar(&args.proposal, "proposal", 1, "specify which node is the proposer. The index starts from 1, and every node needs to use the same proposer index. Note that this flag only has effect when --dev flag is set")
 	flag.BoolVar(&args.mockDualEvent, "mockDualEvent", false, "generate fake dual events to trigger dual consensus. Note that this flag only has effect when --dev flag is set.")
@@ -481,6 +493,7 @@ func main() {
 	if args.ethDual {
 		config := &dual.DefaultEthKardiaConfig
 		config.Name = "GethKardia-" + args.name
+		config.ListenAddr = args.ethListenAddr
 		config.LightNode = args.lightNode
 		config.LightServ = args.lightServ
 		config.ReportStats = args.ethStat
