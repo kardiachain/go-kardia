@@ -108,7 +108,7 @@ func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, t
 
 	// Creates datadir with testnet follow eth standards.
 	// TODO(thientn) : options to choose different networks.
-	datadir = filepath.Join(datadir, "rinkeby")
+	datadir = filepath.Join(datadir, "rinkeby", config.Name)
 	bootUrls := params.RinkebyBootnodes
 	bootstrapNodes := make([]*discover.Node, 0, len(bootUrls))
 	bootstrapNodesV5 := make([]*discv5.Node, 0, len(bootUrls)) // rinkeby set default bootnodes as also discv5 nodes.

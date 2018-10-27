@@ -409,6 +409,7 @@ func main() {
 	// Run Eth-Kardia dual node
 	if *ethDual {
 		config := &dual.DefaultEthKardiaConfig
+		config.Name = "GethKardia-" + *name
 		config.LightNode = *lightNode
 		config.LightServ = *lightServ
 		config.ReportStats = *ethStat
