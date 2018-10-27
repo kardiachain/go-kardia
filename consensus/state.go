@@ -791,17 +791,17 @@ func (cs *ConsensusState) enterPropose(height *cmn.BigInt, round *cmn.BigInt) {
 	// TODO(namdoh): For now this any node is a validator. Remove it once we
 	// restrict who can be validator.
 	// Nothing more to do if we're not a validator
-	//if cs.privValidator == nil {
-	//	logger.Debug("This node is not a validator")
-	//	return
-	//}
+	if cs.privValidator == nil {
+		logger.Debug("This node is not a validator")
+		return
+	}
 	// if not a validator, we're done
-	//if !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
-	//	logger.Debug("This node is not a validator", "addr", cs.privValidator.GetAddress(), "vals", cs.Validators)
-	//	return
-	//}
+	if !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
+		logger.Debug("This node is not a validator", "addr", cs.privValidator.GetAddress(), "vals", cs.Validators)
+		return
+	}
 
-	logger.Trace("This node is a validator")
+	logger.Debug("This node is a validator")
 	if cs.isProposer() {
 		logger.Trace("Our turn to propose")
 		//namdoh@ logger.Info("enterPropose: Our turn to propose", "proposer", cs.Validators.GetProposer().Address, "privValidator", cs.privValidator)
@@ -982,7 +982,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 
 	// If +2/3 prevoted for proposal block, stage and precommit it
 	if cs.ProposalBlock.HashesTo(blockID) {
-		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID.FingerPrint())
+		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID)
 		// Validate the block.
 		if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 			cmn.PanicConsensus(cmn.Fmt("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
@@ -1062,7 +1062,7 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 	// Move them over to ProposalBlock if they match the commit hash,
 	// otherwise they'll be cleared in updateToState.
 	if cs.LockedBlock != nil && cs.LockedBlock.HashesTo(blockID) {
-		logger.Info("Commit is for locked block. Set ProposalBlock=LockedBlock", "blockHash", blockID.FingerPrint())
+		logger.Info("Commit is for locked block. Set ProposalBlock=LockedBlock", "blockHash", blockID)
 		cs.ProposalBlock = cs.LockedBlock
 		cs.ProposalBlockID = blockID
 	}
@@ -1070,7 +1070,7 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 	// If we don't have the block being committed, set up to get it.
 	// cs.ProposalBlock is confirmed not nil from caller.
 	if cs.ProposalBlock == nil || !cs.ProposalBlock.HashesTo(blockID) {
-		logger.Info("Commit is for a block we don't know about. Set ProposalBlock=nil", "commit", blockID.FingerPrint())
+		logger.Info("Commit is for a block we don't know about. Set ProposalBlock=nil", "commit", blockID)
 		// We're getting the wrong block.
 		// Set up ProposalBlock and keep waiting.
 		if !cs.ProposalBlockID.Equal(blockID) {
@@ -1099,7 +1099,7 @@ func (cs *ConsensusState) tryFinalizeCommit(height *cmn.BigInt) {
 	}
 
 	if !cs.ProposalBlock.HashesTo(blockID) {
-		logger.Info("Attempt to finalize failed. We don't have the commit block.", "proposal-block", cs.ProposalBlock.BlockID(), "commit-block", blockID.FingerPrint())
+		logger.Info("Attempt to finalize failed. We don't have the commit block.", "proposal-block", cs.ProposalBlock.BlockID(), "commit-block", blockID)
 		return
 	}
 

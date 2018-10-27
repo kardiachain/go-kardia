@@ -94,7 +94,7 @@ func (h Hash) String() string {
 }
 
 // FingerPrint returns the first 12 characters of the string representation of Hash
-func (h Hash) FingerPrint() string {
+func (h Hash) Fingerprint() string {
 	return fmt.Sprintf("%X", Fingerprint(h[:]))
 }
 

@@ -134,7 +134,8 @@ func ApplyTransaction(logger log.Logger, bc ChainContext, gp *GasPool, statedb *
 		logger.Info("Applying msg successfully", "rep", msg.To().String())
 	}
 	// Update the state with pending changes
-	root := statedb.IntermediateRoot(true).Bytes()
+	var root []byte
+	statedb.Finalise(true)
 	*usedGas += gas
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx,

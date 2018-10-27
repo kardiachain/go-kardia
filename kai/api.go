@@ -315,9 +315,8 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 	receipt := receipts[index]
 	from, _ := types.Sender(tx)
 	logs := make([]Log, 0)
-
 	if receipt.Logs != nil {
-		logs := make([]Log, 0, len(receipt.Logs))
+		logs = make([]Log, 0, len(receipt.Logs))
 		for _, l := range receipt.Logs {
 			topics := make([]string, 0, len(l.Topics))
 			for _, topic := range l.Topics {

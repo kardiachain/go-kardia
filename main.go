@@ -98,60 +98,133 @@ func GetNodeIndex(nodeName string) (int, error) {
 	return strconv.Atoi((nodeName)[len(nodeName)-1:])
 }
 
-func main() {
-	// args
-	logLevel := flag.String("loglevel", "info", "minimum log verbosity to display")
-	logTag := flag.String("logtag", "", "for log record with log, use this to further filter records based on the tag value")
-	ethLogLevel := flag.String("ethloglevel", "warn", "minimum Eth log verbosity to display")
-	listenAddr := flag.String("addr", ":30301", "listen address")
-	name := flag.String("name", "", "Name of node")
-	rpcEnabled := flag.Bool("rpc", false, "whether to open HTTP RPC endpoints")
-	rpcAddr := flag.String("rpcaddr", "", "HTTP-RPC server listening interface")
-	rpcPort := flag.Int("rpcport", node.DefaultHTTPPort, "HTTP-RPC server listening port")
-	addTxn := flag.Bool("txn", false, "whether to add a transfer txn")
-	addSmcCall := flag.Bool("smc", false, "where to add smart contract call")
-	genNewTxs := flag.Bool("genNewTxs", false, "whether to run routine that regularly add new transactions.")
-	newTxDelay := flag.Int("newTxDelay", 10, "how often new txs are added.")
-	ethDual := flag.Bool("dual", false, "whether to run in dual mode")
-	neoDual := flag.Bool("neodual", false, "whether to run in dual mode")
-	ethStat := flag.Bool("ethstat", false, "report eth stats to network")
-	ethStatName := flag.String("ethstatname", "", "name to use when reporting eth stats")
-	lightNode := flag.Bool("light", false, "connect to Eth as light node")
-	lightServ := flag.Int("lightserv", 0, "max percentage of time serving light client reqs")
-	cacheSize := flag.Int("cacheSize", 1024, "cache memory size for Eth node")
-	bootnodes := flag.String("bootnodes", "", "Comma separated enode URLs for P2P discovery bootstrap")
-	peer := flag.String("peer", "", "Comma separated enode URLs for P2P static peer")
-	clearDataDir := flag.Bool("clearDataDir", false, "remove contents in data dir")
-	acceptTxs := flag.Int("acceptTxs", 1, "accept process tx or not, 1 is yes and 0 is no")
-	// TODO(thientn): remove dualChain & dualChainValidator flags when finish development
-	dualChain := flag.Bool("dualchain", false, "run dual chain for group concensus")
-	dualChainNumValid := flag.Int("dualvalidators", 0, "validators for group concensus")
+// flag.Value takes values from arg input and puts them in an array of strings
+type StringArrayFlag []string
+
+// String is a method of StringArrayFlag - must be implemented
+func (stringArrayFlag *StringArrayFlag) String() string {
+	return fmt.Sprintf("%v", *stringArrayFlag)
+}
+
+// Set is a method of StringArrayFlag - must be implemented
+func (stringArrayFlag *StringArrayFlag) Set(value string) error {
+	// check if input is valid
+	if _, err := strconv.Atoi(value); err != nil {
+		panic(err)
+	}
+	*stringArrayFlag = append(*stringArrayFlag, value)
+	return nil
+}
+
+// getIntArray converts string array to int array
+func getIntArray(stringArrayFlag StringArrayFlag) []int {
+	var a []int
+
+	// keys - hashmap used to check duplicate inputs
+	keys := make(map[string]bool)
+	for _, stringVal := range stringArrayFlag {
+		// if input is not seen yet
+		if _, seen := keys[stringVal]; !seen {
+			keys[stringVal] = true
+			intVal, err := strconv.Atoi(stringVal)
+			if err != nil {
+				log.Error("Failed to convert string to int: ", err)
+			}
+			a = append(a, intVal-1)
+		}
+	}
+	return a
+}
+
+// args
+type flagArgs struct {
+	logLevel          string
+	logTag            string
+	ethLogLevel       string
+	listenAddr        string
+	name              string
+	rpcEnabled        bool
+	rpcAddr           string
+	rpcPort           int
+	addTxn            bool
+	addSmcCall        bool
+	genNewTxs         bool
+	newTxDelay        int
+	ethDual           bool
+	neoDual           bool
+	ethStat           bool
+	ethStatName       string
+	lightNode         bool
+	lightServ         int
+	cacheSize         int
+	bootnodes         string
+	peer              string
+	dev               bool
+	proposal          int
+	votingStrategy    string
+	clearDataDir      bool
+	acceptTxs         int
+	mainChainValIndex StringArrayFlag
+	dualChain         bool
+	dualChainValIndex StringArrayFlag
+	mockDualEvent     bool
+}
+
+var args flagArgs
+
+func init() {
+	flag.StringVar(&args.logLevel, "loglevel", "info", "minimum log verbosity to display")
+	flag.StringVar(&args.logTag, "logtag", "", "for log record with log, use this to further filter records based on the tag value")
+	flag.StringVar(&args.ethLogLevel, "ethloglevel", "warn", "minimum Eth log verbosity to display")
+	flag.StringVar(&args.listenAddr, "addr", ":30301", "listen address")
+	flag.StringVar(&args.name, "name", "", "Name of node")
+	flag.BoolVar(&args.rpcEnabled, "rpc", false, "whether to open HTTP RPC endpoints")
+	flag.StringVar(&args.rpcAddr, "rpcaddr", "", "HTTP-RPC server listening interface")
+	flag.IntVar(&args.rpcPort, "rpcport", node.DefaultHTTPPort, "HTTP-RPC server listening port")
+	flag.BoolVar(&args.addTxn, "txn", false, "whether to add a transfer txn")
+	flag.BoolVar(&args.addSmcCall, "smc", false, "where to add smart contract call")
+	flag.BoolVar(&args.genNewTxs, "genNewTxs", false, "whether to run routine that regularly add new transactions.")
+	flag.IntVar(&args.newTxDelay, "newTxDelay", 10, "how often new txs are added.")
+	flag.BoolVar(&args.ethDual, "dual", false, "whether to run in dual mode")
+	flag.BoolVar(&args.neoDual, "neodual", false, "whether to run in dual mode")
+	flag.BoolVar(&args.ethStat, "ethstat", false, "report eth stats to network")
+	flag.StringVar(&args.ethStatName, "ethstatname", "", "name to use when reporting eth stats")
+	flag.BoolVar(&args.lightNode, "light", false, "connect to Eth as light node")
+	flag.IntVar(&args.lightServ, "lightserv", 0, "max percentage of time serving light client reqs")
+	flag.IntVar(&args.cacheSize, "cacheSize", 1024, "cache memory size for Eth node")
+	flag.StringVar(&args.bootnodes, "bootnodes", "", "Comma separated enode URLs for P2P discovery bootstrap")
+	flag.StringVar(&args.peer, "peer", "", "Comma separated enode URLs for P2P static peer")
+	flag.BoolVar(&args.clearDataDir, "clearDataDir", false, "remove contents in data dir")
+	flag.IntVar(&args.acceptTxs, "acceptTxs", 1, "accept process tx or not, 1 is yes and 0 is no")
+	flag.BoolVar(&args.dualChain, "dualchain", false, "run dual chain for group concensus")
 	// NOTE: The flags below are only applicable for dev environment. Please add the applicable ones
 	// here and DO NOT add non-dev flags.
-	devEnabled := flag.Bool("dev", false, "deploy node with dev environment")
-	numValid := flag.Int("numValid", 0,
-		"number of total validators in dev environment. Note that this flag only has effect when --dev flag is set.")
-	proposal := flag.Int("proposal", 1, "specify which node is the proposer. The index starts from 1, and every node needs to use the same proposer index. Note that this flag only has effect when --dev flag is set")
-	votingStrategy := flag.String("votingStrategy", "", "specify the voting script or strategy to simulate voting. Note that this flag only has effect when --dev flag is set")
-	mockDualEvent := flag.Bool("mockDualEvent", false, "generate fake dual events to trigger dual consensus. Note that this flag only has effect when --dev flag is set.")
+	flag.BoolVar(&args.dev, "dev", false, "deploy node with dev environment")
+	flag.Var(&args.mainChainValIndex, "mainChainValIndex", "index of Main chain validator")
+	flag.Var(&args.dualChainValIndex, "dualChainValIndex", "index of Dual chain validator")
+	flag.StringVar(&args.votingStrategy, "votingStrategy", "", "specify the voting script or strategy to simulate voting. Note that this flag only has effect when --dev flag is set")
+	flag.IntVar(&args.proposal, "proposal", 1, "specify which node is the proposer. The index starts from 1, and every node needs to use the same proposer index. Note that this flag only has effect when --dev flag is set")
+	flag.BoolVar(&args.mockDualEvent, "mockDualEvent", false, "generate fake dual events to trigger dual consensus. Note that this flag only has effect when --dev flag is set.")
+}
 
+func main() {
 	flag.Parse()
 
 	// Setups log to Stdout.
-	level, err := log.LvlFromString(*logLevel)
+	level, err := log.LvlFromString(args.logLevel)
 	if err != nil {
 		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
 		level = log.LvlInfo
 	}
-	if len(*logTag) > 0 {
-		log.Root().SetHandler(log.LvlAndTagFilterHandler(level, *logTag, log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
+	if len(args.logTag) > 0 {
+		log.Root().SetHandler(log.LvlAndTagFilterHandler(level, args.logTag, log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
 	} else {
 		log.Root().SetHandler(log.LvlFilterHandler(level, log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
 	}
 
 	logger := log.New()
 
-	elevel, err := elog.LvlFromString(*ethLogLevel)
+	elevel, err := elog.LvlFromString(args.ethLogLevel)
 	if err != nil {
 		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
 		elevel = elog.LvlInfo
@@ -165,26 +238,26 @@ func main() {
 	}
 
 	var nodeIndex int
-	if len(*name) == 0 {
-		logger.Error("Invalid node name", "name", *name)
+	if len(args.name) == 0 {
+		logger.Error("Invalid node name", "name", args.name)
 	} else {
-		index, err := GetNodeIndex(*name)
+		index, err := GetNodeIndex(args.name)
 		if err != nil {
-			logger.Error("Node name must be formmated as \"\\c*\\d{1,2}\"", "name", *name)
+			logger.Error("Node name must be formmated as \"\\c*\\d{1,2}\"", "name", args.name)
 		}
 		nodeIndex = index - 1
 	}
 
 	// Setups config.
 	config := &node.DefaultConfig
-	config.P2P.ListenAddr = *listenAddr
-	config.Name = *name
-	config.MainChainConfig.AcceptTxs = uint32(*acceptTxs)
+	config.P2P.ListenAddr = args.listenAddr
+	config.Name = args.name
+	config.MainChainConfig.AcceptTxs = uint32(args.acceptTxs)
 	var devEnv *dev.DevEnvironmentConfig
 
 	// Setup bootnodes
-	if len(*bootnodes) > 0 {
-		urls := strings.Split(*bootnodes, ",")
+	if len(args.bootnodes) > 0 {
+		urls := strings.Split(args.bootnodes, ",")
 		config.P2P.BootstrapNodes = make([]*discover.Node, 0, len(urls))
 		for _, url := range urls {
 			node, err := discover.ParseNode(url)
@@ -196,27 +269,27 @@ func main() {
 		}
 	}
 
-	if *rpcEnabled {
-		if config.HTTPHost = *rpcAddr; config.HTTPHost == "" {
+	if args.rpcEnabled {
+		if config.HTTPHost = args.rpcAddr; config.HTTPHost == "" {
 			config.HTTPHost = node.DefaultHTTPHost
 		}
-		config.HTTPPort = *rpcPort
+		config.HTTPPort = args.rpcPort
 		config.HTTPVirtualHosts = []string{"*"} // accepting RPCs from all source hosts
 	}
 
-	if *devEnabled {
+	if args.dev {
 		devEnv = dev.CreateDevEnvironmentConfig()
 		if nodeIndex < 0 && nodeIndex >= devEnv.GetNodeSize() {
 			logger.Error(fmt.Sprintf("Node index %v must be within %v and %v", nodeIndex+1, 1, devEnv.GetNodeSize()))
 
 		}
 		// Substract 1 from the index because we specify node starting from 1 onward.
-		devEnv.SetProposerIndex(*proposal - 1)
+		devEnv.SetProposerIndex(args.proposal - 1)
 		config.DevNodeConfig = devEnv.GetDevNodeConfig(nodeIndex)
 		// Simulate the voting strategy
-		devEnv.SetVotingStrategy(*votingStrategy)
+		devEnv.SetVotingStrategy(args.votingStrategy)
 		config.DevEnvConfig = devEnv
-		config.MainChainConfig.NumValidators = *numValid
+		config.MainChainConfig.ValidatorIndices = getIntArray(args.mainChainValIndex)
 
 		// Setup config for kardia service
 		config.MainChainConfig.ChainData = dev.ChainData
@@ -229,11 +302,11 @@ func main() {
 	nodeDir := filepath.Join(config.DataDir, config.Name)
 	config.MainChainConfig.TxPool = *blockchain.GetDefaultTxPoolConfig(nodeDir)
 
-	if *dualChain {
-		if *dualChainNumValid > 0 {
-			config.DualChainConfig.NumValidators = *dualChainNumValid
+	if args.dualChain {
+		if len(args.dualChainValIndex) > 0 {
+			config.DualChainConfig.ValidatorIndices = getIntArray(args.dualChainValIndex)
 		} else {
-			config.DualChainConfig.NumValidators = *numValid
+			config.DualChainConfig.ValidatorIndices = getIntArray(args.mainChainValIndex)
 		}
 
 		config.DualChainConfig.ChainData = "dualdata"
@@ -242,7 +315,7 @@ func main() {
 	}
 	config.DualChainConfig.DualEventPool = *dualbc.GetDefaultEventPoolConfig(nodeDir)
 
-	if *clearDataDir {
+	if args.clearDataDir {
 		// Clear all contents within data dir
 		err := RemoveDirContents(nodeDir)
 		if err != nil {
@@ -259,7 +332,7 @@ func main() {
 	}
 
 	n.RegisterService(kai.NewKardiaService)
-	if *dualChain {
+	if args.dualChain {
 		n.RegisterService(kai.NewDualService)
 	}
 	if err := n.Start(); err != nil {
@@ -273,7 +346,7 @@ func main() {
 		return
 	}
 	var dualService *kai.DualService
-	if *dualChain {
+	if args.dualChain {
 		if err := n.Service(&dualService); err != nil {
 			logger.Error("Cannot get Dual Service", "err", err)
 			return
@@ -281,7 +354,7 @@ func main() {
 	}
 	logger.Info("Genesis block", "genesis", *kardiaService.BlockChain().Genesis())
 
-	if *addTxn {
+	if args.addTxn {
 		logger.Info("Adding local txn to send 10 coin from addr0 to addr1")
 		//sender is account[0] in dev genesis
 		senderByteK, _ := hex.DecodeString("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
@@ -307,7 +380,7 @@ func main() {
 		}
 	}
 
-	if *addSmcCall {
+	if args.addSmcCall {
 		txPool := kardiaService.TxPool()
 		statedb, err := kardiaService.BlockChain().State()
 		if err != nil {
@@ -320,7 +393,6 @@ func main() {
 		// Caller is account[1] in genesis
 		callerByteK, _ := hex.DecodeString("77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79")
 		callerKey := crypto.ToECDSAUnsafe(callerByteK)
-
 		counterAbi, err := abi.JSON(strings.NewReader(smcAbi))
 		if err != nil {
 			logger.Error("Can not read abi", err)
@@ -331,7 +403,6 @@ func main() {
 		}
 		simpleContractCall := tool.GenerateSmcCall(callerKey, counterSmcAddress, input, statedb)
 		signedSmcCall, _ := types.SignTx(simpleContractCall, callerKey)
-
 		err = txPool.AddLocal(signedSmcCall)
 		if err!= nil {
 			logger.Error("Error adding contract call", "err", err)
@@ -364,12 +435,12 @@ func main() {
 		}
 	}
 
-	if *genNewTxs {
-		go runTxCreationLoop(kardiaService.TxPool(), *newTxDelay)
+	if args.genNewTxs {
+		go runTxCreationLoop(kardiaService.TxPool(), args.newTxDelay)
 	}
 
 	// Connect with other peers.
-	if *devEnabled {
+	if args.dev {
 		for i := 0; i < nodeIndex; i++ {
 			peerURL := devEnv.GetDevNodeConfig(i).NodeID
 			logger.Info("Adding static peer", "peerURL", peerURL)
@@ -380,8 +451,8 @@ func main() {
 		}
 	}
 
-	if len(*peer) > 0 {
-		urls := strings.Split(*peer, ",")
+	if len(args.peer) > 0 {
+		urls := strings.Split(args.peer, ",")
 		for _, peerURL := range urls {
 			logger.Info("Adding static peer", "peerURL", peerURL)
 			success, err := n.AddPeer(peerURL)
@@ -395,7 +466,7 @@ func main() {
 	var dualP *dual.DualProcessor
 
 	// TODO: This should trigger for either Eth dual or Neo dual flag, so  *ethDual || *neoDual
-	if *ethDual || *neoDual {
+	if args.ethDual || args.neoDual {
 		exchangeContractAddress := dev.GetContractAddressAt(2)
 		exchangeContractAbi := dev.GetContractAbiByAddress(exchangeContractAddress.String())
 		dualP, err = dual.NewDualProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), &exchangeContractAddress, exchangeContractAbi)
@@ -407,17 +478,17 @@ func main() {
 	}
 
 	// Run Eth-Kardia dual node
-	if *ethDual {
+	if args.ethDual {
 		config := &dual.DefaultEthKardiaConfig
-		config.Name = "GethKardia-" + *name
-		config.LightNode = *lightNode
-		config.LightServ = *lightServ
-		config.ReportStats = *ethStat
-		if *ethStatName != "" {
-			config.StatName = *ethStatName
+		config.Name = "GethKardia-" + args.name
+		config.LightNode = args.lightNode
+		config.LightServ = args.lightServ
+		config.ReportStats = args.ethStat
+		if args.ethStatName != "" {
+			config.StatName = args.ethStatName
 		}
-		config.CacheSize = *cacheSize
-		if *devEnabled && *mockDualEvent {
+		config.CacheSize = args.cacheSize
+		if args.dev && args.mockDualEvent {
 			config.DualNodeConfig = dev.CreateDualNodeConfig()
 		}
 

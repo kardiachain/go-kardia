@@ -159,7 +159,7 @@ func (vote *Vote) String() string {
 	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %v , %X @%v}",
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
-		vote.BlockID.FingerPrint(), cmn.Fingerprint(vote.Signature[:]),
+		vote.BlockID, cmn.Fingerprint(vote.Signature[:]),
 		time.Unix(vote.Timestamp.Int64(), 0))
 }
 

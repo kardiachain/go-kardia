@@ -1,0 +1,43 @@
+version: 2
+jobs:
+  build:
+    branches:
+      only:
+        - master
+    docker:
+      - image: circleci/golang:1.10.4
+    working_directory: /go/src/github.com/kardiachain/go-kardia
+
+    environment:
+      CODECOV_TOKEN: 7b55d1cf-771a-4787-8f11-c234e1f21ace
+
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - v1-pkg-cache
+      - run:
+          name: get dependencies
+          command: |
+            go get -u github.com/golang/dep/cmd/dep
+            dep ensure
+
+      - run:
+          name: run unit tests
+          command: |
+            bash .circleci/test.sh
+
+      - run:
+          name: upload coverage
+          command: bash <(curl -s https://codecov.io/bash) -f coverage.txt
+
+      - save_cache:
+          key: v1-pkg-cache
+          paths:
+            - "/go/pkg"
+
+      - run:
+          name: run build
+          command: |
+            go build -v

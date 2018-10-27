@@ -30,11 +30,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
+	"encoding/hex"
 )
 
 type DevNodeConfig struct {
@@ -51,7 +51,7 @@ type DevEnvironmentConfig struct {
 }
 
 type node struct {
-	key         string
+	key			string
 	votingPower int64
 	nodeID      string
 }
@@ -179,8 +179,11 @@ func CreateDevEnvironmentConfig() *DevEnvironmentConfig {
 	devEnv.proposalIndex = 0 // Default to 0-th node as the proposer.
 	devEnv.DevNodeSet = make([]DevNodeConfig, len(nodes))
 	for i, n := range nodes {
-		privKey, _ := crypto.ToECDSA([]byte(n.key[:32]))
-		devEnv.DevNodeSet[i].PrivKey = privKey
+		pkByte, err := hex.DecodeString(n.key)
+		if err != nil {
+			continue
+		}
+		devEnv.DevNodeSet[i].PrivKey = crypto.ToECDSAUnsafe(pkByte)
 		devEnv.DevNodeSet[i].VotingPower = n.votingPower
 		devEnv.DevNodeSet[i].NodeID = n.nodeID
 	}
@@ -238,13 +241,15 @@ func (devEnv *DevEnvironmentConfig) GetNodeSize() int {
 	return len(devEnv.DevNodeSet)
 }
 
-func (devEnv *DevEnvironmentConfig) GetValidatorSet(numVal int) *types.ValidatorSet {
-	if numVal < 0 || numVal >= devEnv.GetNodeSize() {
-		log.Error(fmt.Sprintf("Number of validator must be within %v and %v", 0, devEnv.GetNodeSize()))
+// GetValidatorSetByIndex takes an array of indexes of validators and returns an array of validators with the order respectively to index of input
+func (devEnv *DevEnvironmentConfig) GetValidatorSetByIndex(valIndex []int) *types.ValidatorSet {
+	if len(valIndex) >= devEnv.GetNodeSize() {
+		log.Error(fmt.Sprintf("Number of validators must be within %v and %v", 1, devEnv.GetNodeSize()))
 	}
-	validators := make([]*types.Validator, numVal)
-	for i := 0; i < numVal; i++ {
-		node := devEnv.DevNodeSet[i]
+	
+	validators := make([]*types.Validator, len(valIndex))
+	for i := 0; i < len(valIndex); i++ {
+		node := devEnv.DevNodeSet[valIndex[i]]
 		validators[i] = types.NewValidator(node.PrivKey.PublicKey, node.VotingPower)
 	}
 

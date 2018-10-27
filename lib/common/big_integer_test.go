@@ -36,7 +36,7 @@ var encodingTests = []struct {
 
 func TestRlpEncodeDecode(t *testing.T) {
 	for i, test := range encodingTests {
-		x := NewBigInt(test.input)
+		x := NewBigInt64(test.input)
 		encoded, err := rlp.EncodeToBytes(x)
 		if err != nil {
 			t.Errorf("test %d: encoding %v failed", i, test.input)
