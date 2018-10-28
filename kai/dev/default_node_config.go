@@ -37,6 +37,11 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
+const (
+	// GenesisAccount used for matchEth tx
+	MockKardiaAccountForMatchEthTx = "0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28"
+)
+
 type DevNodeConfig struct {
 	PrivKey     *ecdsa.PrivateKey
 	VotingPower int64
@@ -51,7 +56,7 @@ type DevEnvironmentConfig struct {
 }
 
 type node struct {
-	key			string
+	key         string
 	votingPower int64
 	nodeID      string
 }
@@ -243,7 +248,7 @@ func (devEnv *DevEnvironmentConfig) GetValidatorSetByIndex(valIndex []int) *type
 	if len(valIndex) >= devEnv.GetNodeSize() {
 		log.Error(fmt.Sprintf("Number of validators must be within %v and %v", 1, devEnv.GetNodeSize()))
 	}
-	
+
 	validators := make([]*types.Validator, len(valIndex))
 	for i := 0; i < len(valIndex); i++ {
 		node := devEnv.DevNodeSet[valIndex[i]]

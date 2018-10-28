@@ -20,6 +20,7 @@ package dual
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"os"
@@ -28,7 +29,7 @@ import (
 	"time"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
+	ethCore "github.com/ethereum/go-ethereum/core"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -53,8 +54,11 @@ import (
 const (
 	// // headChannelSize is the size of channel listening to ChainHeadEvent.
 	headChannelSize = 5
-	// GenesisAccount used for matchEth tx
-	genesisAccount = "0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28"
+)
+
+var (
+	ErrCreateTx = errors.New("Fail to create Eth's tx from DualEvent")
+	ErrAddEthTx = errors.New("Fail to add tx to Ether's TxPool")
 )
 
 var DefaultEthKardiaConfig = EthKardiaConfig{
@@ -68,6 +72,27 @@ var DefaultEthKardiaConfig = EthKardiaConfig{
 	ContractAddress: ethsmc.EthContractAddress,
 
 	CacheSize: 1024,
+}
+
+// defaultEthDataDir returns default Eth root datadir.
+func defaultEthDataDir() string {
+	// Try to place the data folder in the user's home dir
+	home := homeDir()
+	if home == "" {
+		panic("Fail to get OS home directory")
+	}
+	return filepath.Join(home, ".ethereum")
+}
+
+// Copy from go-kardia/node
+func homeDir() string {
+	if home := os.Getenv("HOME"); home != "" {
+		return home
+	}
+	if usr, err := user.Current(); err == nil {
+		return usr.HomeDir
+	}
+	return ""
 }
 
 // EthKardiaConfig provides configuration when starting Eth subnode.
@@ -147,7 +172,7 @@ func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, t
 	// similar to cmd/eth/config.go/makeConfigNode
 	ethConf := &eth.DefaultConfig
 	ethConf.NetworkId = 4 // Rinkeby Id
-	ethConf.Genesis = core.DefaultRinkebyGenesisBlock()
+	ethConf.Genesis = ethCore.DefaultRinkebyGenesisBlock()
 
 	ethConf.LightServ = config.LightServ
 	ethConf.LightPeers = config.LightPeers
@@ -193,25 +218,20 @@ func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, t
 		geth: ethNode, config: config, ethSmc: ethsmc.NewEthSmc(), kardiaChain: kardiaChain, txPool: txPool, eventPool: dualEventPool}, nil
 }
 
-// defaultEthDataDir returns default Eth root datadir.
-func defaultEthDataDir() string {
-	// Try to place the data folder in the user's home dir
-	home := homeDir()
-	if home == "" {
-		panic("Fail to get OS home directory")
+func (n *EthKardia) SubmitTx(event *types.EventData) error {
+	tx := n.CreateEthTxFromDualEvent(event)
+	if tx == nil {
+		log.Error("Fail to create Eth's tx from DualEvent")
+		return ErrCreateTx
 	}
-	return filepath.Join(home, ".ethereum")
-}
 
-// Copy from go-kardia/node
-func homeDir() string {
-	if home := os.Getenv("HOME"); home != "" {
-		return home
+	if err := n.EthTxPool().AddLocal(tx); err != nil {
+		log.Error("Fail to add Eth tx", "error", err)
+		return ErrAddEthTx
 	}
-	if usr, err := user.Current(); err == nil {
-		return usr.HomeDir
-	}
-	return ""
+	log.Info("Add Eth tx successfully", "txhash", tx.Hash().Hex())
+
+	return nil
 }
 
 // Start starts the Ethereum node.
@@ -244,13 +264,13 @@ func (n *EthKardia) Client() (*KardiaEthClient, error) {
 	return &KardiaEthClient{ethClient: ethclient.NewClient(rpcClient), stack: n.geth}, nil
 }
 
-func (n *EthKardia) BlockChain() *core.BlockChain {
+func (n *EthKardia) EthBlockChain() *ethCore.BlockChain {
 	var ethService *eth.Ethereum
 	n.geth.Service(&ethService)
 	return ethService.BlockChain()
 }
 
-func (n *EthKardia) TxPool() *core.TxPool {
+func (n *EthKardia) EthTxPool() *ethCore.TxPool {
 	var ethService *eth.Ethereum
 	n.geth.Service(&ethService)
 	return ethService.TxPool()
@@ -269,7 +289,7 @@ func (n *EthKardia) syncHead() {
 
 	ethChain := ethService.BlockChain()
 
-	chainHeadEventCh := make(chan core.ChainHeadEvent, headChannelSize)
+	chainHeadEventCh := make(chan ethCore.ChainHeadEvent, headChannelSize)
 	headSubCh := ethChain.SubscribeChainHeadEvent(chainHeadEventCh)
 	defer headSubCh.Unsubscribe()
 
@@ -326,7 +346,7 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 	log.Info("handleBlock...", "header", header, "txns size", len(txns))
 
 	/* Can be use to check contract state, but currently has memory leak.
-	b := n.BlockChain()
+	b := n.EthBlockChain()
 	state, err := b.State()
 	if err != nil {
 		log.Error("Get Geth state() error", "err", err)
@@ -340,7 +360,7 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 		// TODO(thientn): Make this tx matcher more robust.
 		if tx.To() != nil && *tx.To() == contractAddr {
 			log.Info("New tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
-			statedb, err := n.BlockChain().State()
+			statedb, err := n.EthBlockChain().State()
 			if err != nil {
 				log.Error("Fail to get DUAL's service statedb", "err", err)
 				return
@@ -354,7 +374,7 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 				// TODO(#140): Handle smart contract failure correctly.
 				panic("Not yet implemented!")
 			}
-			dualEvent := types.NewDualEvent(nonce, "ETH", &txHash, &eventSummary)
+			dualEvent := types.NewDualEvent(nonce, true /* externalChain */, "ETH", &txHash, &eventSummary)
 
 			// TODO(namdoh@): Move the creation of Kardia Tx to under a util func.
 			// Compute Kardia's tx from the Eth's event.
@@ -363,11 +383,12 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 				log.Error("Fail to get Kardia state", "error", err)
 				return
 			}
-			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[genesisAccount])
+			// TODO(thientn,namdoh): Remove hard-coded genesisAccount here.
+			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[dev.MockKardiaAccountForMatchEthTx])
 			addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 			// TODO(namdoh@): Pass eventSummary.TxSource to matchType.
 			kardiaTx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, eventSummary.TxValue, 1)
-			dualEvent.PendingTx = types.TxData{
+			dualEvent.PendingTx = &types.TxData{
 				TxHash: kardiaTx.Hash(),
 				Target: "KARDIA",
 			}
@@ -396,9 +417,26 @@ func (n *EthKardia) ExtractEthTxSummary(tx *ethTypes.Transaction) (types.EventSu
 	}, nil
 }
 
+func (n *EthKardia) CreateEthTxFromDualEvent(event *types.EventData) *ethTypes.Transaction {
+	statedb, err := n.EthBlockChain().State()
+	if err != nil {
+		log.Error("Fail to get Ethereum state to create release tx", "err", err)
+		return nil
+	}
+	// Nonce of account to sign tx
+	contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
+	nonce := statedb.GetNonce(contractAddr)
+	if nonce == 0 {
+		log.Error("Eth state return 0 for nonce of contract address, SKIPPING TX CREATION", "addr", ethsmc.EthContractAddress)
+	}
+
+	return n.ethSmc.CreateEthReleaseTx(event.Data.TxValue, nonce)
+}
+
+// TODO(namdoh): Deprecate this once consensus's integration with dual node is completed.
 func (n *EthKardia) SendEthFromContract(value *big.Int) {
 
-	statedb, err := n.BlockChain().State()
+	statedb, err := n.EthBlockChain().State()
 	if err != nil {
 		log.Error("Fail to get Ethereum state to create release tx", "err", err)
 		return
@@ -412,7 +450,7 @@ func (n *EthKardia) SendEthFromContract(value *big.Int) {
 	tx := n.ethSmc.CreateEthReleaseTx(value, nonce)
 
 	log.Info("Create Eth tx to release", "value", value, "nonce", nonce, "txhash", tx.Hash().Hex())
-	if err := n.TxPool().AddLocal(tx); err != nil {
+	if err := n.EthTxPool().AddLocal(tx); err != nil {
 		log.Error("Fail to add Ether tx", "error", err)
 	} else {
 		log.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())

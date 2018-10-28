@@ -506,6 +506,9 @@ func main() {
 		}
 
 		ethNode, err := dual.NewEthKardia(config, kardiaService.BlockChain(), kardiaService.TxPool(), dualService.EventPool())
+		bcManager := dual.NewDualBlockChainManager(kardiaService, ethNode)
+		dualService.SetDualBlockChainManager(bcManager)
+
 		if err != nil {
 			logger.Error("Fail to create Eth sub node", "err", err)
 			return

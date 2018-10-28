@@ -19,32 +19,40 @@
 package consensus
 
 import (
+	"errors"
 	"math/big"
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/dual/blockchain"
+	"github.com/kardiachain/go-kardia/dual"
+	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
 )
 
+var (
+	ErrNilDualBlockChainManager = errors.New("DualBlockChainManager isn't set yet")
+)
+
 // TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
 // These files should be consolidated in the future.
-
 type DualBlockOperations struct {
 	logger log.Logger
 
 	mtx sync.RWMutex
 
-	blockchain *dual.DualBlockChain
-	eventPool  *dual.EventPool
-	height     uint64
+	blockchain *dualbc.DualBlockChain
+	eventPool  *dualbc.EventPool
+
+	bcManager *dual.DualBlockChainManager
+
+	height uint64
 }
 
 // Returns a new DualBlockOperations with latest chain & ,
 // initialized to the last height that was committed to the DB.
-func NewDualBlockOperations(logger log.Logger, blockchain *dual.DualBlockChain, eventPool *dual.EventPool) *DualBlockOperations {
+func NewDualBlockOperations(logger log.Logger, blockchain *dualbc.DualBlockChain, eventPool *dualbc.EventPool) *DualBlockOperations {
 	return &DualBlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
@@ -53,11 +61,15 @@ func NewDualBlockOperations(logger log.Logger, blockchain *dual.DualBlockChain, 
 	}
 }
 
+func (dbo *DualBlockOperations) SetDualBlockChainManager(bcManager *dual.DualBlockChainManager) {
+	dbo.bcManager = bcManager
+}
+
 func (dbo *DualBlockOperations) Height() uint64 {
 	return dbo.height
 }
 
-// Proposes a new block.
+// Proposes a new block for dual's blockchain.
 func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID, lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
 	// Gets all dual's events in pending pools and them to the new block.
 	// TODO(namdoh@): Since there may be a small latency for other dual peers to see the same set of
@@ -68,12 +80,22 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 	header := dbo.newHeader(height, uint64(len(events)), lastBlockID, lastValidatorHash)
 	dbo.logger.Info("Creates new header", "header", header)
 
-	stateRoot, _ := dbo.submitDualEvents(events, header)
-	//if err != nil {
-	//	dbo.logger.Error("Fail to submit dual events", "err", err)
-	//	return nil
-	//}
-	header.Root = stateRoot
+	if height > 0 {
+		previousBlock := dbo.blockchain.GetBlockByHeight(uint64(height) - 1)
+		if previousBlock == nil {
+			dbo.logger.Error("Get previous block N-1 failed", "proposedHeight", height)
+			return nil
+		}
+		// TODO(#169,namdoh): Break this propose step into two passes--first is to propose
+		// pending DualEvents, second is to propose submission receipts of N-1 DualEvent-derived Txs
+		// to other blockchains.
+		stateRoot, err := dbo.submitDualEvents(previousBlock.DualEvents())
+		if err != nil {
+			dbo.logger.Error("Fail to submit dual events", "err", err)
+			return nil
+		}
+		header.Root = stateRoot
+	}
 
 	block = dbo.newBlock(header, events, commit)
 	dbo.logger.Trace("Make block to propose", "block", block)
@@ -187,8 +209,25 @@ func (dbo *DualBlockOperations) collectDualEvents() []*types.DualEvent {
 	return pending
 }
 
-// Submit txs derived from a dual events list to other blockchain.
-func (dbo *DualBlockOperations) submitDualEvents(event types.DualEvents, header *types.Header) (common.Hash, error) {
+// Submits txs derived from a dual events list to other blockchain.
+func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) (common.Hash, error) {
+	if len(events) == 0 {
+		return common.Hash{}, nil
+	}
+
+	if dbo.bcManager == nil {
+		dbo.logger.Error("DualBlockChainManager isn't set yet.")
+		return common.Hash{}, ErrNilDualBlockChainManager
+	}
+
+	for _, event := range events {
+		err := dbo.bcManager.SubmitTx(event.TriggeredEvent)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		// TODO(namdoh): Properly handle error here.
+	}
+	dbo.logger.Error("Not yet implemented - getting submit DualEvent receipt")
 	return common.Hash{}, nil
 }
 

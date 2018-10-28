@@ -29,9 +29,9 @@ import (
 // An event pertaining to the current dual node's interests and its derived tx's
 // metadata.
 type DualEvent struct {
-	Nonce          uint64    `json:"nonce"  		gencodec:"required"`
-	TriggeredEvent EventData `json:"triggeredEvent" gencodec:"required"`
-	PendingTx      TxData    `json:"pendingTx"      gencodec:"required"`
+	Nonce          uint64     `json:"nonce"  	 	 gencodec:"required"`
+	TriggeredEvent *EventData `json:"triggeredEvent" gencodec:"required"`
+	PendingTx      *TxData    `json:"pendingTx"      gencodec:"required"`
 
 	// caches
 	hash atomic.Value
@@ -42,9 +42,10 @@ type DualEvent struct {
 // Data relevant to the event (either from external or internal blockchain)
 // that pertains to the current dual node's interests.
 type EventData struct {
-	TxHash   common.Hash
-	TxSource string
-	Data     EventSummary
+	TxHash       common.Hash
+	TxSource     string
+	FromExternal bool
+	Data         *EventSummary
 }
 
 // Relevant bits for necessary for computing internal tx (ie. Kardia's tx)
@@ -61,13 +62,14 @@ type TxData struct {
 	Target string
 }
 
-func NewDualEvent(nonce uint64, txSource string, txHash *common.Hash, summary *EventSummary) *DualEvent {
+func NewDualEvent(nonce uint64, fromExternal bool, txSource string, txHash *common.Hash, summary *EventSummary) *DualEvent {
 	return &DualEvent{
 		Nonce: nonce,
-		TriggeredEvent: EventData{
-			TxHash:   *txHash,
-			TxSource: txSource,
-			Data:     *summary,
+		TriggeredEvent: &EventData{
+			TxHash:       *txHash,
+			TxSource:     txSource,
+			FromExternal: fromExternal,
+			Data:         summary,
 		},
 	}
 }

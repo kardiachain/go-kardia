@@ -20,7 +20,6 @@ package dual
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -38,7 +37,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
-	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/vm"
 	"github.com/shopspring/decimal"
@@ -239,59 +237,6 @@ func callStaticKardiaMasterSmc(from common.Address, to common.Address, blockchai
 		return make([]byte, 0), err
 	}
 	return ret, nil
-}
-
-// CreateKardiaMatchAmountTx creates Kardia tx to report new matching amount from Eth/Neo network.
-// type = 1: ETH
-// type = 2: NEO
-// TODO(namdoh@): Make type of matchType an enum instead of an int.
-func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction {
-	masterSmcAddr := dev.GetContractAddressAt(2)
-	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())
-	kABI, err := abi.JSON(strings.NewReader(masterSmcAbi))
-
-	if err != nil {
-		log.Error("Error reading abi", "err", err)
-	}
-	var getAmountToSend []byte
-	if matchType == 1 {
-		getAmountToSend, err = kABI.Pack("matchEth", quantity)
-	} else {
-		getAmountToSend, err = kABI.Pack("matchNeo", quantity)
-	}
-
-	if err != nil {
-		log.Error("Error getting abi", "error", err, "address", masterSmcAddr, "dual", "dual")
-
-	}
-	return tool.GenerateSmcCall(senderKey, masterSmcAddr, getAmountToSend, statedb)
-}
-
-// Call to remove amount of ETH / NEO on master smc
-// type = 1: ETH
-// type = 2: NEO
-
-func CreateKardiaRemoveAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction {
-	masterSmcAddr := dev.GetContractAddressAt(2)
-	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())
-	abi, err := abi.JSON(strings.NewReader(masterSmcAbi))
-
-	if err != nil {
-		log.Error("Error reading abi", "err", err)
-	}
-	var amountToRemove []byte
-	if matchType == 1 {
-		amountToRemove, err = abi.Pack("removeEth", quantity)
-	} else {
-		amountToRemove, err = abi.Pack("removeNeo", quantity)
-		log.Info("byte to send to remove", "byte", string(amountToRemove), "neodual", "neodual")
-	}
-
-	if err != nil {
-		log.Error("Error getting abi", "error", err, "address", masterSmcAddr, "dual", "dual")
-
-	}
-	return tool.GenerateSmcCall(senderKey, masterSmcAddr, amountToRemove, statedb)
 }
 
 // Call Api to release Neo
