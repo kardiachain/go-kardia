@@ -192,6 +192,19 @@ func (tx *Transaction) Cost() *big.Int {
 	return total
 }
 
+// Prints summary of a transaction.
+func (tx *Transaction) String() string {
+	if tx == nil {
+		return "nil-Transaction"
+	}
+
+	return fmt.Sprintf("Transaction{Nonce:%v  Recipient:%v  Amount:%v}#%v",
+		tx.data.AccountNonce,
+		tx.data.Recipient,
+		tx.data.Amount,
+		tx.Hash().Fingerprint())
+}
+
 // Transactions is a Transaction slice type for basic sorting.
 type Transactions []*Transaction
 

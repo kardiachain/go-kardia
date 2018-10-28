@@ -104,7 +104,7 @@ func (n *Kardia) SubmitTx(event *types.EventData) error {
 		log.Error("Fail to add Kardia's tx", "error", err)
 		return ErrAddKardiaTx
 	}
-	log.Info("Add Kardia's tx successfully", "txHash", tx.Hash().Hex())
+	log.Info("Add Kardia's tx successfully", "txHash", tx.Hash().Fingerprint())
 
 	return nil
 }

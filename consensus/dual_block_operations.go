@@ -89,6 +89,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 		// TODO(#169,namdoh): Break this propose step into two passes--first is to propose
 		// pending DualEvents, second is to propose submission receipts of N-1 DualEvent-derived Txs
 		// to other blockchains.
+		dbo.logger.Debug("Submitting dual's events from N-1", "events", previousBlock.DualEvents())
 		stateRoot, err := dbo.submitDualEvents(previousBlock.DualEvents())
 		if err != nil {
 			dbo.logger.Error("Fail to submit dual events", "err", err)
@@ -146,6 +147,8 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, seenCommit *types.
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
 	dbo.blockchain.WriteCommit(height, seenCommit)
+
+	dbo.eventPool.RemoveEvents(block.DualEvents())
 
 	dbo.mtx.Lock()
 	dbo.height = height

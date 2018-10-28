@@ -19,6 +19,7 @@
 package types
 
 import (
+	"fmt"
 	"math/big"
 	"sync/atomic"
 
@@ -46,6 +47,14 @@ type EventData struct {
 	TxSource     string
 	FromExternal bool
 	Data         *EventSummary
+}
+
+func (ed *EventData) String() string {
+	return fmt.Sprintf("EventData{TxHash:%v  TxSource:%v  FromExternal:%v}",
+		ed.TxHash.Fingerprint(),
+		ed.TxSource,
+		ed.FromExternal)
+
 }
 
 // Relevant bits for necessary for computing internal tx (ie. Kardia's tx)
@@ -83,6 +92,17 @@ func (de *DualEvent) Hash() common.Hash {
 	v := rlpHash(de)
 	de.hash.Store(v)
 	return v
+}
+
+// Returns a short string representing DualEvent
+func (de *DualEvent) String() string {
+	if de == nil {
+		return "nil-DualEvent"
+	}
+	return fmt.Sprintf("DualEvent{Nonce:%v  TriggeredEvent:%v}#%v",
+		de.Nonce,
+		de.TriggeredEvent,
+		de.Hash().Fingerprint())
 }
 
 // Transactions is a Transaction slice type for basic sorting.

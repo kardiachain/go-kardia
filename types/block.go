@@ -454,8 +454,8 @@ func (b *Block) String() string {
 		return "nil-Block"
 	}
 	blockHash := b.Hash()
-	return fmt.Sprintf("Block{%v  %v  %v}#%v",
-		b.header, b.transactions, b.lastCommit, blockHash.Fingerprint())
+	return fmt.Sprintf("Block{h:%v  tx:%v  de:%v  c:%v}#%v",
+		b.header, b.transactions, b.dualEvents, b.lastCommit, blockHash.Fingerprint())
 }
 
 type writeCounter common.StorageSize
