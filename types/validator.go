@@ -41,7 +41,7 @@ type Validator struct {
 
 func NewValidator(pubKey ecdsa.PublicKey, votingPower int64) *Validator {
 	return &Validator{
-		Address:     common.Address(crypto.PubkeyToAddress(pubKey)),
+		Address:     crypto.PubkeyToAddress(pubKey),
 		PubKey:      pubKey,
 		VotingPower: votingPower,
 		Accum:       0,
