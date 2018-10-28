@@ -599,3 +599,74 @@ func TestExecuteMasterExchangeContract(t *testing.T) {
 		t.Error("Expected 0, got", ethAmount)
 	}
 }
+
+// Test call a contract from inside another contract
+// The source code of 2 contracts are in smc/intersmc.
+// Contract A is callee, B is caller
+func TestExecuteInterContract(t *testing.T) {
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	addressA := common.HexToAddress("0x0a")
+	addressB := common.HexToAddress("0x0b")
+	// Add runtime_bytecode
+	// Contract B
+	var codeA = common.Hex2Bytes("60806040526004361060485763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166373d4a13a8114604d578063da358a3c146071575b600080fd5b348015605857600080fd5b50605f6088565b60408051918252519081900360200190f35b348015607c57600080fd5b506086600435608e565b005b60005481565b6000555600a165627a7a72305820408349f58cb50ba37a5c1f89b5c4dacc1077449c09ab590360ea2866dcbc0a460029")
+	state.SetCode(addressA, codeA)
+	var definitionA = `[{"constant":true,"inputs":[],"name":"data","outputs":[{"name":"","type":"int256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_data","type":"int256"}],"name":"setData","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}]`
+
+	abiA, err := abi.JSON(strings.NewReader(definitionA))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Contract B
+	var codeB = common.Hex2Bytes("60806040526004361061004b5763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416635adc75af8114610050578063d32fe93414610077575b600080fd5b34801561005c57600080fd5b506100656100aa565b60408051918252519081900360200190f35b34801561008357600080fd5b506100a873ffffffffffffffffffffffffffffffffffffffff600435166024356100b0565b005b60005481565b60008290508073ffffffffffffffffffffffffffffffffffffffff1663da358a3c836040518263ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040180828152602001915050600060405180830381600087803b15801561012457600080fd5b505af1158015610138573d6000803e3d6000fd5b5050506000929092555050505600a165627a7a723058205824e91fcb7a1f7034282bc72a1641ff48abe2e8a99e0ef68c941da88fdc21a30029")
+	state.SetCode(addressB, codeB)
+	var definitionB = `[{"constant":true,"inputs":[],"name":"datab","outputs":[{"name":"","type":"int256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"aAddr","type":"address"},{"name":"_data","type":"int256"}],"name":"testData","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}]`
+	abiB, err := abi.JSON(strings.NewReader(definitionB))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//add default data to A
+	setData, err1 := abiA.Pack("setData", big.NewInt(100))
+	if err1 != nil {
+		t.Fatal(err1)
+	}
+	_, _, err1 = Call(addressA, setData, &Config{State: state})
+	if err1 != nil {
+		t.Fatal(err1)
+	}
+
+	// check value of A
+	getData, err := abiA.Pack("data")
+	rgetData, _, errData := Call(addressA, getData, &Config{State: state})
+
+	if errData != nil {
+		t.Fatal(errData)
+	}
+	getValue := new(big.Int).SetBytes(rgetData)
+	if getValue.Cmp(big.NewInt(100)) != 0 {
+		t.Error("Error get value, expected 100 got ", getValue)
+	}
+	// test Data
+	testData, err := abiB.Pack("testData", addressA, big.NewInt(10))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err = Call(addressB, testData, &Config{State: state})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	getData, err = abiA.Pack("data")
+	rgetData, _, errData = Call(addressA, getData, &Config{State: state})
+
+	getValue = new(big.Int).SetBytes(rgetData)
+	if errData != nil {
+		t.Fatal(errData)
+	}
+	if getValue.Cmp(big.NewInt(10)) != 0 {
+		t.Error("Error get value, expected 100 got ", getValue)
+	}
+}
