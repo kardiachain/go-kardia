@@ -183,7 +183,7 @@ func CreateDevEnvironmentConfig() *DevEnvironmentConfig {
 		if err != nil {
 			continue
 		}
-		privKey, _ := crypto.ToECDSA([]byte(pkByte))
+		privKey, _ := crypto.ToECDSA(pkByte)
 		devEnv.DevNodeSet[i].PrivKey = privKey
 		devEnv.DevNodeSet[i].VotingPower = n.votingPower
 		devEnv.DevNodeSet[i].NodeID = n.nodeID
