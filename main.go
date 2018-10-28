@@ -506,6 +506,9 @@ func main() {
 		}
 
 		ethNode, err := dual.NewEthKardia(config, kardiaService.BlockChain(), kardiaService.TxPool(), dualService.EventPool())
+
+		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
+		// submit tx to either internal or external blockchain.
 		bcManager := dual.NewDualBlockChainManager(kardiaService, ethNode)
 		dualService.SetDualBlockChainManager(bcManager)
 

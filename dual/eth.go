@@ -40,7 +40,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/kardiachain/go-kardia/lib/log"
 
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/dual/blockchain"
@@ -48,6 +47,7 @@ import (
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -219,7 +219,15 @@ func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, t
 }
 
 func (n *EthKardia) SubmitTx(event *types.EventData) error {
-	tx := n.CreateEthTxFromDualEvent(event)
+	statedb, err := n.EthBlockChain().State()
+	if err != nil {
+		log.Error("Fail to get Ethereum state to create release tx", "err", err)
+		return err
+	}
+
+	// TODO(thientn,namdoh): Remove hard-coded address.
+	contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
+	tx := CreateEthReleaseAmountTx(contractAddr, statedb, event.Data.TxValue, n.ethSmc)
 	if tx == nil {
 		log.Error("Fail to create Eth's tx from DualEvent")
 		return ErrCreateTx
@@ -415,22 +423,6 @@ func (n *EthKardia) ExtractEthTxSummary(tx *ethTypes.Transaction) (types.EventSu
 		TxMethod: method,
 		TxValue:  tx.Value(),
 	}, nil
-}
-
-func (n *EthKardia) CreateEthTxFromDualEvent(event *types.EventData) *ethTypes.Transaction {
-	statedb, err := n.EthBlockChain().State()
-	if err != nil {
-		log.Error("Fail to get Ethereum state to create release tx", "err", err)
-		return nil
-	}
-	// Nonce of account to sign tx
-	contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
-	nonce := statedb.GetNonce(contractAddr)
-	if nonce == 0 {
-		log.Error("Eth state return 0 for nonce of contract address, SKIPPING TX CREATION", "addr", ethsmc.EthContractAddress)
-	}
-
-	return n.ethSmc.CreateEthReleaseTx(event.Data.TxValue, nonce)
 }
 
 // TODO(namdoh): Deprecate this once consensus's integration with dual node is completed.

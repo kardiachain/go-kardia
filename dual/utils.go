@@ -23,7 +23,12 @@ import (
 	"math/big"
 	"strings"
 
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethState "github.com/ethereum/go-ethereum/core/state"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/kardiachain/go-kardia/abi"
+	"github.com/kardiachain/go-kardia/dual/ethsmc"
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
@@ -81,4 +86,15 @@ func CreateKardiaRemoveAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.Stat
 
 	}
 	return tool.GenerateSmcCall(senderKey, masterSmcAddr, amountToRemove, statedb)
+}
+
+//
+func CreateEthReleaseAmountTx(recipientAddr ethCommon.Address, statedb *ethState.StateDB, quantity *big.Int, ethSmc *ethsmc.EthSmc) *ethTypes.Transaction {
+	// Nonce of account to sign tx
+	nonce := statedb.GetNonce(recipientAddr)
+	if nonce == 0 {
+		log.Error("Eth state return 0 for nonce of contract address, SKIPPING TX CREATION", "addr", ethsmc.EthContractAddress)
+	}
+
+	return ethSmc.CreateEthReleaseTx(quantity, nonce)
 }
