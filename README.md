@@ -52,5 +52,5 @@ go test ./...
 
 ### Start Kardia node
 ```
-./go-kardia --dualchain --dev --mainChainValIndex  1 --addr :3000 --name node1 --rpc --rpcport 8545 --clearDataDir
+./go-kardia --dualchain --dev --mainChainValIndexes  1 --addr :3000 --name node1 --rpc --rpcport 8545 --clearDataDir
 ```

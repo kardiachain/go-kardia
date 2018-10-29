@@ -115,8 +115,8 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
-	log.Info("KARDIA Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndices)
-	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSetByIndex(ctx.Config.MainChainConfig.ValidatorIndices)
+	log.Info("KARDIA Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
+	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSetByIndex(ctx.Config.MainChainConfig.ValidatorIndexes)
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon",
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),

@@ -98,31 +98,14 @@ func GetNodeIndex(nodeName string) (int, error) {
 	return strconv.Atoi((nodeName)[len(nodeName)-1:])
 }
 
-// flag.Value takes values from arg input and puts them in an array of strings
-type StringArrayFlag []string
-
-// String is a method of StringArrayFlag - must be implemented
-func (stringArrayFlag *StringArrayFlag) String() string {
-	return fmt.Sprintf("%v", *stringArrayFlag)
-}
-
-// Set is a method of StringArrayFlag - must be implemented
-func (stringArrayFlag *StringArrayFlag) Set(value string) error {
-	// check if input is valid
-	if _, err := strconv.Atoi(value); err != nil {
-		panic(err)
-	}
-	*stringArrayFlag = append(*stringArrayFlag, value)
-	return nil
-}
-
 // getIntArray converts string array to int array
-func getIntArray(stringArrayFlag StringArrayFlag) []int {
+func getIntArray(valIndex string) []int {
+	valIndexArray := strings.Split(valIndex, ",")
 	var a []int
 
 	// keys - hashmap used to check duplicate inputs
 	keys := make(map[string]bool)
-	for _, stringVal := range stringArrayFlag {
+	for _, stringVal := range valIndexArray {
 		// if input is not seen yet
 		if _, seen := keys[stringVal]; !seen {
 			keys[stringVal] = true
@@ -142,23 +125,23 @@ type flagArgs struct {
 	logTag   string
 
 	// Kardia node's related flags
-	listenAddr        string
-	name              string
-	rpcEnabled        bool
-	rpcAddr           string
-	rpcPort           int
-	addTxn            bool
-	addSmcCall        bool
-	genNewTxs         bool
-	newTxDelay        int
-	lightNode         bool
-	lightServ         int
-	cacheSize         int
-	bootnodes         string
-	peer              string
-	clearDataDir      bool
-	mainChainValIndex StringArrayFlag
-	acceptTxs         int
+	listenAddr      	string
+	name            	string
+	rpcEnabled      	bool
+	rpcAddr         	string
+	rpcPort         	int
+	addTxn          	bool
+	addSmcCall      	bool
+	genNewTxs       	bool
+	newTxDelay      	int
+	lightNode       	bool
+	lightServ       	int
+	cacheSize       	int
+	bootnodes       	string
+	peer            	string
+	clearDataDir    	bool
+	mainChainValIndexes 	string
+	acceptTxs       	int
 
 	// Ether/Kardia dualnode related flags
 	ethDual       bool
@@ -171,8 +154,8 @@ type flagArgs struct {
 	neoDual bool
 
 	// Dualnode's related flags
-	dualChain         bool
-	dualChainValIndex StringArrayFlag
+	dualChain       	bool
+	dualChainValIndexes 	string
 
 	// Development's related flags
 	dev            bool
@@ -209,8 +192,8 @@ func init() {
 	flag.BoolVar(&args.clearDataDir, "clearDataDir", false, "remove contents in data dir")
 	flag.IntVar(&args.acceptTxs, "acceptTxs", 1, "accept process tx or not, 1 is yes and 0 is no")
 	flag.BoolVar(&args.dualChain, "dualchain", false, "run dual chain for group concensus")
-	flag.Var(&args.mainChainValIndex, "mainChainValIndex", "index of Main chain validator")
-	flag.Var(&args.dualChainValIndex, "dualChainValIndex", "index of Dual chain validator")
+	flag.StringVar(&args.mainChainValIndexes, "mainChainValIndexes", "1,2,3", "Indexes of Main chain validator")
+	flag.StringVar(&args.dualChainValIndexes, "dualChainValIndexes", "", "Indexes of Dual chain validator")
 	// NOTE: The flags below are only applicable for dev environment. Please add the applicable ones
 	// here and DO NOT add non-dev flags.
 	flag.BoolVar(&args.dev, "dev", false, "deploy node with dev environment")
@@ -301,7 +284,7 @@ func main() {
 		// Simulate the voting strategy
 		devEnv.SetVotingStrategy(args.votingStrategy)
 		config.DevEnvConfig = devEnv
-		config.MainChainConfig.ValidatorIndices = getIntArray(args.mainChainValIndex)
+		config.MainChainConfig.ValidatorIndexes = getIntArray(args.mainChainValIndexes)
 
 		// Setup config for kardia service
 		config.MainChainConfig.ChainData = dev.ChainData
@@ -315,10 +298,10 @@ func main() {
 	config.MainChainConfig.TxPool = *blockchain.GetDefaultTxPoolConfig(nodeDir)
 
 	if args.dualChain {
-		if len(args.dualChainValIndex) > 0 {
-			config.DualChainConfig.ValidatorIndices = getIntArray(args.dualChainValIndex)
+		if len(args.dualChainValIndexes) > 0 {
+			config.DualChainConfig.ValidatorIndexes = getIntArray(args.dualChainValIndexes)
 		} else {
-			config.DualChainConfig.ValidatorIndices = getIntArray(args.mainChainValIndex)
+			config.DualChainConfig.ValidatorIndexes = getIntArray(args.mainChainValIndexes)
 		}
 
 		config.DualChainConfig.ChainData = "dualdata"

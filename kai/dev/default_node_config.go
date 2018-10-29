@@ -239,14 +239,17 @@ func (devEnv *DevEnvironmentConfig) GetNodeSize() int {
 }
 
 // GetValidatorSetByIndex takes an array of indexes of validators and returns an array of validators with the order respectively to index of input
-func (devEnv *DevEnvironmentConfig) GetValidatorSetByIndex(valIndex []int) *types.ValidatorSet {
-	if len(valIndex) >= devEnv.GetNodeSize() {
+func (devEnv *DevEnvironmentConfig) GetValidatorSetByIndex(valIndexes []int) *types.ValidatorSet {
+	if len(valIndexes) > devEnv.GetNodeSize() {
 		log.Error(fmt.Sprintf("Number of validators must be within %v and %v", 1, devEnv.GetNodeSize()))
 	}
 	
-	validators := make([]*types.Validator, len(valIndex))
-	for i := 0; i < len(valIndex); i++ {
-		node := devEnv.DevNodeSet[valIndex[i]]
+	validators := make([]*types.Validator, len(valIndexes))
+	for i := 0; i < len(valIndexes); i++ {
+		if valIndexes[i] < 0 || valIndexes[i] >= devEnv.GetNodeSize() { 
+			log.Error(fmt.Sprintf("Value of validator must be within %v and %v", 1, devEnv.GetNodeSize()))
+		}
+		node := devEnv.DevNodeSet[valIndexes[i]]
 		validators[i] = types.NewValidator(node.PrivKey.PublicKey, node.VotingPower)
 	}
 
