@@ -613,59 +613,65 @@ func TestExecuteInterContract(t *testing.T) {
 	state.SetCode(addressA, codeA)
 	var definitionA = `[{"constant":true,"inputs":[],"name":"data","outputs":[{"name":"","type":"int256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_data","type":"int256"}],"name":"setData","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}]`
 
-	abiA, err := abi.JSON(strings.NewReader(definitionA))
-	if err != nil {
-		t.Fatal(err)
+	abiA, errParseA := abi.JSON(strings.NewReader(definitionA))
+	if errParseA != nil {
+		t.Fatal(errParseA)
 	}
 	// Contract B
 	var codeB = common.Hex2Bytes("60806040526004361061004b5763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416635adc75af8114610050578063d32fe93414610077575b600080fd5b34801561005c57600080fd5b506100656100aa565b60408051918252519081900360200190f35b34801561008357600080fd5b506100a873ffffffffffffffffffffffffffffffffffffffff600435166024356100b0565b005b60005481565b60008290508073ffffffffffffffffffffffffffffffffffffffff1663da358a3c836040518263ffffffff167c010000000000000000000000000000000000000000000000000000000002815260040180828152602001915050600060405180830381600087803b15801561012457600080fd5b505af1158015610138573d6000803e3d6000fd5b5050506000929092555050505600a165627a7a723058205824e91fcb7a1f7034282bc72a1641ff48abe2e8a99e0ef68c941da88fdc21a30029")
 	state.SetCode(addressB, codeB)
 	var definitionB = `[{"constant":true,"inputs":[],"name":"datab","outputs":[{"name":"","type":"int256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"aAddr","type":"address"},{"name":"_data","type":"int256"}],"name":"testData","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"}]`
-	abiB, err := abi.JSON(strings.NewReader(definitionB))
-	if err != nil {
-		t.Fatal(err)
+	abiB, errParseB := abi.JSON(strings.NewReader(definitionB))
+	if errParseB != nil {
+		t.Fatal(errParseB)
 	}
 
-	//add default data to A
-	setData, err1 := abiA.Pack("setData", big.NewInt(100))
-	if err1 != nil {
-		t.Fatal(err1)
+	// Add default data to A to be 100
+	setData, errPackSetData := abiA.Pack("setData", big.NewInt(100))
+	if errPackSetData != nil {
+		t.Fatal(errPackSetData)
 	}
-	_, _, err1 = Call(addressA, setData, &Config{State: state})
-	if err1 != nil {
-		t.Fatal(err1)
+	_, _, errCallSetData := Call(addressA, setData, &Config{State: state})
+	if errCallSetData != nil {
+		t.Error(errCallSetData)
 	}
 
-	// check value of A
-	getData, err := abiA.Pack("data")
-	rgetData, _, errData := Call(addressA, getData, &Config{State: state})
+	getData, errPackGetData := abiA.Pack("data")
 
-	if errData != nil {
-		t.Fatal(errData)
+	if errPackGetData != nil {
+		t.Fatal(errPackGetData)
 	}
+
+	rgetData, _, errCallGetData := Call(addressA, getData, &Config{State: state})
+	if errCallSetData != nil {
+		t.Error(errCallGetData)
+	}
+
 	getValue := new(big.Int).SetBytes(rgetData)
+	// Check value of A to check whether it's 100
 	if getValue.Cmp(big.NewInt(100)) != 0 {
 		t.Error("Error get value, expected 100 got ", getValue)
 	}
-	// test Data
-	testData, err := abiB.Pack("testData", addressA, big.NewInt(10))
-	if err != nil {
-		t.Fatal(err)
+
+	// Try to test set Data to A from B, data is set to be 10
+	testData, errTestData := abiB.Pack("testData", addressA, big.NewInt(10))
+	if errTestData != nil {
+		t.Fatal(errTestData)
 	}
 
-	_, _, err = Call(addressB, testData, &Config{State: state})
+	_, _, errCallTestData := Call(addressB, testData, &Config{State: state})
 
-	if err != nil {
-		t.Fatal(err)
+	if errCallTestData != nil {
+		t.Fatal(errCallTestData)
 	}
+	// Now we call getData from A again, to check whether it's set to 10
+	rgetData2, _, errCallGetData := Call(addressA, getData, &Config{State: state})
 
-	getData, err = abiA.Pack("data")
-	rgetData, _, errData = Call(addressA, getData, &Config{State: state})
-
-	getValue = new(big.Int).SetBytes(rgetData)
-	if errData != nil {
-		t.Fatal(errData)
+	getValue = new(big.Int).SetBytes(rgetData2)
+	if errCallGetData != nil {
+		t.Fatal(errCallGetData)
 	}
+	// Data should be 10 after be set from B
 	if getValue.Cmp(big.NewInt(10)) != 0 {
 		t.Error("Error get value, expected 100 got ", getValue)
 	}
