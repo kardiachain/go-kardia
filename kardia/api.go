@@ -23,7 +23,7 @@ import (
 	"encoding/hex"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/kardia/blockchain/chaindb"
+	"github.com/kardiachain/go-kardia/common/chaindb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"

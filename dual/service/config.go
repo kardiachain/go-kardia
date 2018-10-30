@@ -28,10 +28,10 @@ type DualConfig struct {
 
 	// The genesis block of dual blockchain, which is inserted if the database is empty.
 	// If nil, the Dual main net block is used.
-	DualGenesis *dual.DualGenesis `toml:",omitempty"`
+	DualGenesis *blockchain.DualGenesis `toml:",omitempty"`
 
 	// Dual's event pool options
-	DualEventPool dual.EventPoolConfig
+	DualEventPool blockchain.EventPoolConfig
 
 	// chaindata
 	ChainData string

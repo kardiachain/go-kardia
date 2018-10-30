@@ -21,8 +21,8 @@ package blockchain
 import (
 	"errors"
 	"fmt"
+	"github.com/kardiachain/go-kardia/common/chaindb"
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kardia/blockchain/chaindb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"

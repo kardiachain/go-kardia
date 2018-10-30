@@ -44,7 +44,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/abi"
 	"github.com/kardiachain/go-kardia/dev"
-	"github.com/kardiachain/go-kardia/dual/blockchain"
+	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
 	"github.com/kardiachain/go-kardia/dual/ethsmc"
 	"github.com/kardiachain/go-kardia/kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -129,15 +129,15 @@ type EthKardia struct {
 	txPool      *blockchain.TxPool // Transaction pool of KARDIA service.
 
 	// Dual blockchain related fields
-	dualChain *dual.DualBlockChain
-	eventPool *dual.EventPool // Event pool of DUAL service.
+	dualChain *dualbc.DualBlockChain
+	eventPool *dualbc.EventPool // Event pool of DUAL service.
 
 	smcABI     *abi.ABI
 	smcAddress *common.Address
 }
 
 // EthKardia creates a Ethereum sub node.
-func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualChain *dual.DualBlockChain, dualEventPool *dual.EventPool, smcAddr *common.Address, smcABIStr string) (*EthKardia, error) {
+func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualChain *dualbc.DualBlockChain, dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string) (*EthKardia, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
@@ -434,7 +434,7 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 				log.Error("Fail to get Kardia state", "error", err)
 				return
 			}
-			nonce := dualStateDB.GetNonce(common.HexToAddress(dual.DualStateAddressHex))
+			nonce := dualStateDB.GetNonce(common.HexToAddress(dualbc.DualStateAddressHex))
 			ethTxHash := tx.Hash()
 			txHash := common.BytesToHash(ethTxHash[:])
 			dualEvent := types.NewDualEvent(nonce, true /* externalChain */, types.ETHEREUM, &txHash, &eventSummary)

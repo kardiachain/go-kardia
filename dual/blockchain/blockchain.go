@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package dual
+package blockchain
 
 import (
 	"errors"
@@ -24,8 +24,8 @@ import (
 	"sync/atomic"
 
 	"github.com/hashicorp/golang-lru"
+	"github.com/kardiachain/go-kardia/common/chaindb"
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kardia/blockchain/chaindb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
