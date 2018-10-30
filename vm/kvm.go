@@ -25,6 +25,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/types"
+	"sync/atomic"
 )
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
@@ -382,6 +383,12 @@ func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 		}
 	}
 	return ret, contract.Gas, err
+}
+
+// Cancel cancels any running KVM operation. This may be called concurrently and
+// it's safe to be called multiple times.
+func (kvm *KVM) Cancel() {
+	atomic.StoreInt32(&kvm.abort, 1)
 }
 
 //================================================================================================

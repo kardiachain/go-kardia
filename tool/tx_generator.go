@@ -173,3 +173,16 @@ func randomGenesisPrivateKey() *ecdsa.PrivateKey {
 	}
 	panic("impossible failure")
 }
+
+func GetRandomGenesisAccount() common.Address {
+	size := len(dev.GenesisAccounts)
+	randomI := rand.Intn(size)
+	index := 0
+	for addrS := range dev.GenesisAccounts {
+		if index == randomI {
+			return common.HexToAddress(addrS)
+		}
+		index++
+	}
+	panic("impossible failure")
+}
