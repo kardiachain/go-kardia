@@ -35,7 +35,8 @@ import (
 	"github.com/kardiachain/go-kardia/abi"
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
-	"github.com/kardiachain/go-kardia/dual/ethsmc"
+	"github.com/kardiachain/go-kardia/dual/external/eth/ethsmc"
+	"github.com/kardiachain/go-kardia/dual/service"
 	kardiabc "github.com/kardiachain/go-kardia/kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -213,7 +214,7 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 				addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
 				addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 
-				tx := CreateKardiaRemoveAmountTx(addrKey, statedb, neoSendValue, 2)
+				tx := service.CreateKardiaRemoveAmountTx(addrKey, statedb, neoSendValue, 2)
 				if err := p.txPool.AddLocal(tx); err != nil {
 					log.Error("Fail to add Kardia tx to removeNeo", err, "tx", tx, "neodual", "neodual")
 				} else {

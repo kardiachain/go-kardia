@@ -30,8 +30,8 @@ import (
 	elog "github.com/ethereum/go-ethereum/log"
 	"github.com/kardiachain/go-kardia/abi"
 	"github.com/kardiachain/go-kardia/dev"
-	"github.com/kardiachain/go-kardia/dual"
 	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
+	dualeth "github.com/kardiachain/go-kardia/dual/external/eth"
 	dualservice "github.com/kardiachain/go-kardia/dual/service"
 	"github.com/kardiachain/go-kardia/kardia"
 	"github.com/kardiachain/go-kardia/kardia/blockchain"
@@ -459,14 +459,14 @@ func main() {
 	}
 	// go displayPeers(n)
 
-	var dualP *dual.DualProcessor
+	var dualP *dualeth.DualProcessor
 
 	// TODO(namdoh): Remove the hard-code below
 	exchangeContractAddress := dev.GetContractAddressAt(2)
 	exchangeContractAbi := dev.GetContractAbiByAddress(exchangeContractAddress.String())
 	// TODO: This should trigger for either Eth dual or Neo dual flag, so  *ethDual || *neoDual
 	if args.ethDual || args.neoDual {
-		dualP, err = dual.NewDualProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+		dualP, err = dualeth.NewDualProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
 		if err != nil {
 			log.Error("Fail to initialize DualProcessor", "error", err)
 		} else {
@@ -476,7 +476,7 @@ func main() {
 
 	// Run Eth-Kardia dual node
 	if args.ethDual {
-		config := &dual.DefaultEthKardiaConfig
+		config := &dualeth.DefaultEthKardiaConfig
 		config.Name = "GethKardia-" + args.name
 		config.ListenAddr = args.ethListenAddr
 		config.LightNode = args.lightNode
@@ -490,7 +490,7 @@ func main() {
 			config.DualNodeConfig = dev.CreateDualNodeConfig()
 		}
 
-		ethNode, err := dual.NewEthKardia(config, kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+		ethNode, err := dualeth.NewEthKardia(config, kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
 
 		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 		// submit tx to either internal or external blockchain.
@@ -537,13 +537,13 @@ func updateAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool) {
 	caller2Key := crypto.ToECDSAUnsafe(caller2ByteK)
 	rand := common.NewRand()
 	quantity := big.NewInt(rand.Int63n(100))
-	tx1 := dual.CreateKardiaMatchAmountTx(caller2Key, statedb, quantity, 1)
+	tx1 := dualservice.CreateKardiaMatchAmountTx(caller2Key, statedb, quantity, 1)
 	// txPool.AddLocal(tx1)
 	log.Info("Match eth", "quantity successfully", quantity, "txhash:", tx1.Hash())
 
 	caller3ByteK, _ := hex.DecodeString("32f5c0aef7f9172044a472478421c63fd8492640ff2d0eaab9562389db3a8efe")
 	caller3Key := crypto.ToECDSAUnsafe(caller3ByteK)
-	tx2 := dual.CreateKardiaMatchAmountTx(caller3Key, statedb, quantity, 2)
+	tx2 := dualservice.CreateKardiaMatchAmountTx(caller3Key, statedb, quantity, 2)
 	txs := make(types.Transactions, 2)
 	txs[0] = tx1
 	txs[1] = tx2
@@ -565,12 +565,12 @@ func removeAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool, qua
 	caller2ByteK, _ := hex.DecodeString("98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb")
 	caller2Key := crypto.ToECDSAUnsafe(caller2ByteK)
 
-	tx1 := dual.CreateKardiaRemoveAmountTx(caller2Key, statedb, quantity, 1)
+	tx1 := dualservice.CreateKardiaRemoveAmountTx(caller2Key, statedb, quantity, 1)
 	// txPool.AddLocal(tx1)
 	log.Info("Remove eth", "quantity successfully", quantity, "txhash:", tx1.Hash())
 	caller3ByteK, _ := hex.DecodeString("32f5c0aef7f9172044a472478421c63fd8492640ff2d0eaab9562389db3a8efe")
 	caller3Key := crypto.ToECDSAUnsafe(caller3ByteK)
-	tx2 := dual.CreateKardiaRemoveAmountTx(caller3Key, statedb, quantity, 2)
+	tx2 := dualservice.CreateKardiaRemoveAmountTx(caller3Key, statedb, quantity, 2)
 	txs := make(types.Transactions, 2)
 	txs[0] = tx1
 	txs[1] = tx2
@@ -579,7 +579,7 @@ func removeAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool, qua
 	log.Info("Remove neo", "quantity successfully", quantity, "txhash:", tx2.Hash())
 }
 
-func displayEthPeers(n *dual.EthKardia) {
+func displayEthPeers(n *dualeth.EthKardia) {
 	for {
 		log.Info("Ethereum peers: ", "count", n.EthNode().Server().PeerCount())
 		time.Sleep(20 * time.Second)
@@ -594,7 +594,7 @@ func displayKardiaPeers(n *node.Node) {
 
 }
 
-func displaySyncStatus(client *dual.KardiaEthClient) {
+func displaySyncStatus(client *dualeth.KardiaEthClient) {
 	for {
 		status, err := client.NodeSyncStatus()
 		if err != nil {

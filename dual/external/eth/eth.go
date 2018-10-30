@@ -45,7 +45,8 @@ import (
 	"github.com/kardiachain/go-kardia/abi"
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
-	"github.com/kardiachain/go-kardia/dual/ethsmc"
+	"github.com/kardiachain/go-kardia/dual/external/eth/ethsmc"
+	dualservice "github.com/kardiachain/go-kardia/dual/service"
 	"github.com/kardiachain/go-kardia/kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -259,7 +260,7 @@ func (n *EthKardia) SubmitTx(event *types.EventData) error {
 		addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
 		addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 
-		tx := CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, 1)
+		tx := dualservice.CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, 1)
 		if err := n.txPool.AddLocal(tx); err != nil {
 			log.Error("Fail to add Kardia tx to removeEth", err, "tx", tx)
 		} else {
@@ -449,7 +450,7 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 				return
 			}
 			// TODO(namdoh@): Pass eventSummary.TxSource to matchType.
-			kardiaTx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, eventSummary.TxValue, 1)
+			kardiaTx := dualservice.CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, eventSummary.TxValue, 1)
 			dualEvent.PendingTx = &types.TxData{
 				TxHash: kardiaTx.Hash(),
 				Target: types.KARDIA,

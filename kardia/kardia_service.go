@@ -28,7 +28,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/dev"
-	"github.com/kardiachain/go-kardia/dual"
+	dualservice "github.com/kardiachain/go-kardia/dual/service"
 	"github.com/kardiachain/go-kardia/kardia/blockchain"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -95,7 +95,7 @@ func (n *Kardia) SubmitTx(event *types.EventData) error {
 	// TODO(thientn,namdoh): Remove hard-coded genesisAccount here.
 	addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[dev.MockKardiaAccountForMatchEthTx])
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-	tx := dual.CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, 1)
+	tx := dualservice.CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, 1)
 	if tx == nil {
 		n.logger.Error("Fail to create Kardia's tx from DualEvent")
 		return ErrCreateKardiaTx
