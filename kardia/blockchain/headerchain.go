@@ -24,9 +24,9 @@ import (
 	"github.com/hashicorp/golang-lru"
 
 	"github.com/kardiachain/go-kardia/common/chaindb"
+	"github.com/kardiachain/go-kardia/common/storage"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
 )
 

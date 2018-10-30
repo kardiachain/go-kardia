@@ -25,6 +25,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/common/service"
 	serviceconst "github.com/kardiachain/go-kardia/common/service/const"
+	"github.com/kardiachain/go-kardia/common/storage"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/dev"
@@ -37,7 +38,6 @@ import (
 	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/state"
-	"github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
 )
 

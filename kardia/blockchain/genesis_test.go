@@ -21,11 +21,11 @@ package blockchain
 import (
 	"github.com/kardiachain/go-kardia/account"
 	"github.com/kardiachain/go-kardia/common/chaindb"
+	"github.com/kardiachain/go-kardia/common/storage"
 	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
-	"github.com/kardiachain/go-kardia/storage"
 	"math"
 	"testing"
 )
