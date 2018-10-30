@@ -16,30 +16,29 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package dual
+package service
 
 import (
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/dual/blockchain"
 )
 
-// Manages the internal blockchain (i.e Kardia) and one of the external blockchain (e.g. Ethereum,
-// Neo, etc.). Provides all necessary methods to interact with either one.
-type DualBlockChainManager struct {
-	externalBlockChain BlockChainAdapter
-	internalBlockChain BlockChainAdapter
-}
+type DualConfig struct {
+	// Protocol options
+	NetworkId uint64 // Network
 
-func NewDualBlockChainManager(internal BlockChainAdapter, external BlockChainAdapter) *DualBlockChainManager {
-	return &DualBlockChainManager{
-		internalBlockChain: internal,
-		externalBlockChain: external,
-	}
-}
+	// The genesis block of dual blockchain, which is inserted if the database is empty.
+	// If nil, the Dual main net block is used.
+	DualGenesis *blockchain.DualGenesis `toml:",omitempty"`
 
-func (d *DualBlockChainManager) SubmitTx(event *types.EventData) error {
-	if event.FromExternal {
-		return d.internalBlockChain.SubmitTx(event)
-	}
+	// Dual's event pool options
+	DualEventPool blockchain.EventPoolConfig
 
-	return d.externalBlockChain.SubmitTx(event)
+	// chaindata
+	ChainData string
+
+	// DB caches
+	DbCaches int
+
+	// DB handles
+	DbHandles int
 }

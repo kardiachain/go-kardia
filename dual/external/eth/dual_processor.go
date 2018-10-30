@@ -33,10 +33,11 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/kardiachain/go-kardia/abi"
-	bc "github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/dual/blockchain"
-	"github.com/kardiachain/go-kardia/dual/ethsmc"
-	"github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/dev"
+	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
+	"github.com/kardiachain/go-kardia/dual/external/eth/ethsmc"
+	"github.com/kardiachain/go-kardia/dual/service"
+	kardiabc "github.com/kardiachain/go-kardia/kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/event"
@@ -47,8 +48,8 @@ import (
 
 type DualProcessor struct {
 	// TODO(namdoh): Remove reference to kardiaBc, only Kardia's TxPool is needed here.
-	kardiaBc   *bc.BlockChain
-	txPool     *bc.TxPool
+	kardiaBc   *kardiabc.BlockChain
+	txPool     *kardiabc.TxPool
 	smcAddress *common.Address
 	smcABI     *abi.ABI
 
@@ -57,15 +58,15 @@ type DualProcessor struct {
 	// TODO: add struct when running dual node to Neo
 
 	// Dual blockchain related fields
-	dualBc    *dual.DualBlockChain
-	eventPool *dual.EventPool // Event pool of DUAL service.
+	dualBc    *dualbc.DualBlockChain
+	eventPool *dualbc.EventPool // Event pool of DUAL service.
 
 	// Chain head subscription for new blocks.
-	chainHeadCh  chan bc.ChainHeadEvent
+	chainHeadCh  chan kardiabc.ChainHeadEvent
 	chainHeadSub event.Subscription
 }
 
-func NewDualProcessor(kardiaBc *bc.BlockChain, txPool *bc.TxPool, dualBc *dual.DualBlockChain, dualEventPool *dual.EventPool, smcAddr *common.Address, smcABIStr string) (*DualProcessor, error) {
+func NewDualProcessor(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dualBc *dualbc.DualBlockChain, dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string) (*DualProcessor, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
@@ -79,7 +80,7 @@ func NewDualProcessor(kardiaBc *bc.BlockChain, txPool *bc.TxPool, dualBc *dual.D
 		smcAddress: smcAddr,
 		smcABI:     &smcABI,
 
-		chainHeadCh: make(chan bc.ChainHeadEvent, 5),
+		chainHeadCh: make(chan kardiabc.ChainHeadEvent, 5),
 	}
 
 	// Start subscription to blockchain head event.
@@ -138,7 +139,7 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 				log.Error("Fail to get Kardia state", "error", err)
 				return
 			}
-			nonce := dualStateDB.GetNonce(common.HexToAddress(dual.DualStateAddressHex))
+			nonce := dualStateDB.GetNonce(common.HexToAddress(dualbc.DualStateAddressHex))
 			kardiaTxHash := tx.Hash()
 			txHash := common.BytesToHash(kardiaTxHash[:])
 			dualEvent := types.NewDualEvent(nonce, false /* externalChain */, types.KARDIA, &txHash, &eventSummary)
@@ -213,7 +214,7 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 				addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
 				addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 
-				tx := CreateKardiaRemoveAmountTx(addrKey, statedb, neoSendValue, 2)
+				tx := service.CreateKardiaRemoveAmountTx(addrKey, statedb, neoSendValue, 2)
 				if err := p.txPool.AddLocal(tx); err != nil {
 					log.Error("Fail to add Kardia tx to removeNeo", err, "tx", tx, "neodual", "neodual")
 				} else {

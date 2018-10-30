@@ -16,14 +16,30 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package dual
+package blockchain
 
 import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
-// An adapter that provide a unified interface for dual node to interact with external (or
-// even internal Kardia) blockchains.
-type BlockChainAdapter interface {
-	SubmitTx(event *types.EventData) error
+// Manages the internal blockchain (i.e Kardia) and one of the external blockchain (e.g. Ethereum,
+// Neo, etc.). Provides all necessary methods to interact with either one.
+type DualBlockChainManager struct {
+	externalBlockChain BlockChainAdapter
+	internalBlockChain BlockChainAdapter
+}
+
+func NewDualBlockChainManager(internal BlockChainAdapter, external BlockChainAdapter) *DualBlockChainManager {
+	return &DualBlockChainManager{
+		internalBlockChain: internal,
+		externalBlockChain: external,
+	}
+}
+
+func (d *DualBlockChainManager) SubmitTx(event *types.EventData) error {
+	if event.FromExternal {
+		return d.internalBlockChain.SubmitTx(event)
+	}
+
+	return d.externalBlockChain.SubmitTx(event)
 }

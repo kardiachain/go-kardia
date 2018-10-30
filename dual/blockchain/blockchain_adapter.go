@@ -18,10 +18,12 @@
 
 package blockchain
 
-import "github.com/kardiachain/go-kardia/types"
+import (
+	"github.com/kardiachain/go-kardia/types"
+)
 
-// Posted when a batch of transactions enter the dual's event pool.
-type NewDualEventsEvent struct{ Events []*types.DualEvent }
-
-// ChainHeadEvent is posted when a new head block is saved to the block chain.
-type ChainHeadEvent struct{ Block *types.Block }
+// An adapter that provide a unified interface for dual node to interact with external (or
+// even internal Kardia) blockchains.
+type BlockChainAdapter interface {
+	SubmitTx(event *types.EventData) error
+}

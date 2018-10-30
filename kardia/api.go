@@ -26,8 +26,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/blockchain/chaindb"
+	"github.com/kardiachain/go-kardia/common/chaindb"
+	"github.com/kardiachain/go-kardia/kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	defaultGasPrice = 50 * params.Shannon
+	defaultGasPrice             = 50 * params.Shannon
 	defaultTimeOutForStaticCall = 5
 )
 
@@ -230,7 +230,7 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 // onto the blockchain
 func (s *PublicKaiAPI) KardiaCall(ctx context.Context, call types.CallArgsJSON, blockNumber uint64) (string, error) {
 	args := types.NewArgs(call)
-	result, _, _, err := s.doCall(ctx, args, blockNumber, vm.Config{}, defaultTimeOutForStaticCall * time.Second)
+	result, _, _, err := s.doCall(ctx, args, blockNumber, vm.Config{}, defaultTimeOutForStaticCall*time.Second)
 	return common.Encode(result), err
 }
 

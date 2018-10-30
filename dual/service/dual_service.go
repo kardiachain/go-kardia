@@ -1,11 +1,29 @@
-package kai
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
+package service
 
 import (
+	"github.com/kardiachain/go-kardia/common/service"
+	serviceconst "github.com/kardiachain/go-kardia/common/service/const"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
-	"github.com/kardiachain/go-kardia/dual"
-	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
-	kcmn "github.com/kardiachain/go-kardia/kai/common"
+	blockchain "github.com/kardiachain/go-kardia/dual/blockchain"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/node"
@@ -37,11 +55,11 @@ type DualService struct {
 	groupDb storage.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
-	eventPool           *dualbc.EventPool
-	protocolManager     *ProtocolManager
-	blockchain          *dualbc.DualBlockChain
+	eventPool           *blockchain.EventPool
+	protocolManager     *service.ProtocolManager
+	blockchain          *blockchain.DualBlockChain
 	csManager           *consensus.ConsensusManager
-	dualBlockOperations *consensus.DualBlockOperations
+	dualBlockOperations *blockchain.DualBlockOperations
 
 	networkID uint64
 }
@@ -59,7 +77,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		return nil, err
 	}
 
-	chainConfig, _, genesisErr := dualbc.SetupGenesisBlock(logger, groupDb, config.DualGenesis)
+	chainConfig, _, genesisErr := blockchain.SetupGenesisBlock(logger, groupDb, config.DualGenesis)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
@@ -73,15 +91,15 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 	}
-	logger.Info("Initialising protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
+	logger.Info("Initialising protocol", "versions", serviceconst.ProtocolVersions, "network", config.NetworkId)
 
 	// Create a new blockchain to attach to this GroupService struct
-	dualService.blockchain, err = dualbc.NewBlockChain(logger, groupDb, dualService.chainConfig)
+	dualService.blockchain, err = blockchain.NewBlockChain(logger, groupDb, dualService.chainConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	dualService.eventPool = dualbc.NewEventPool(logger, config.DualEventPool, dualService.chainConfig, dualService.blockchain)
+	dualService.eventPool = blockchain.NewEventPool(logger, config.DualEventPool, dualService.chainConfig, dualService.blockchain)
 
 	// Initialization for consensus.
 	block := dualService.blockchain.CurrentBlock()
@@ -96,7 +114,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
 	}
-	dualService.dualBlockOperations = consensus.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool)
+	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool)
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
 		configs.DefaultConsensusConfig(),
@@ -109,7 +127,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
 	dualService.csManager.SetPrivValidator(privValidator)
 
-	if dualService.protocolManager, err = NewProtocolManager(dualProtocolName, dualService.logger, config.NetworkId, dualService.blockchain, dualService.chainConfig, nil, dualService.csManager); err != nil {
+	if dualService.protocolManager, err = service.NewProtocolManager(dualProtocolName, dualService.logger, config.NetworkId, dualService.blockchain, dualService.chainConfig, nil, dualService.csManager); err != nil {
 		return nil, err
 	}
 	//namdoh@ dualService.protocolManager.acceptTxs = config.AcceptTxs
@@ -137,7 +155,7 @@ func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 	return kai, nil
 }
 
-func (s *DualService) SetDualBlockChainManager(bcManager *dual.DualBlockChainManager) {
+func (s *DualService) SetDualBlockChainManager(bcManager *blockchain.DualBlockChainManager) {
 	s.dualBlockOperations.SetDualBlockChainManager(bcManager)
 }
 
@@ -203,6 +221,6 @@ func (s *DualService) APIs() []rpc.API {
 */
 func (s *DualService) APIs() []rpc.API { return []rpc.API{} }
 
-func (s *DualService) EventPool() *dualbc.EventPool          { return s.eventPool }
-func (s *DualService) BlockChain() *dualbc.DualBlockChain    { return s.blockchain }
-func (s *DualService) DualChainConfig() *configs.ChainConfig { return s.chainConfig }
+func (s *DualService) EventPool() *blockchain.EventPool       { return s.eventPool }
+func (s *DualService) BlockChain() *blockchain.DualBlockChain { return s.blockchain }
+func (s *DualService) DualChainConfig() *configs.ChainConfig  { return s.chainConfig }

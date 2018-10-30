@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package kai
+package service
 
 import (
 	"errors"
@@ -24,10 +24,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/blockchain"
+	serviceconst "github.com/kardiachain/go-kardia/common/service/const"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
-	kcmn "github.com/kardiachain/go-kardia/kai/common"
+	"github.com/kardiachain/go-kardia/kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -109,14 +109,14 @@ func NewProtocolManager(protocolName string, logger log.Logger, networkID uint64
 	}
 
 	// Initiate a sub-protocol for every implemented version we can handle
-	manager.SubProtocols = make([]p2p.Protocol, 0, len(kcmn.ProtocolVersions))
-	for i, version := range kcmn.ProtocolVersions {
+	manager.SubProtocols = make([]p2p.Protocol, 0, len(serviceconst.ProtocolVersions))
+	for i, version := range serviceconst.ProtocolVersions {
 		// Compatible; initialise the sub-protocol
 		version := version // Closure for the run
 		manager.SubProtocols = append(manager.SubProtocols, p2p.Protocol{
 			Name:    protocolName,
 			Version: version,
-			Length:  kcmn.ProtocolLengths[i],
+			Length:  serviceconst.ProtocolLengths[i],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 				peer := manager.newPeer(int(version), p, rw)
 				select {
@@ -256,17 +256,17 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	if err != nil {
 		return err
 	}
-	if msg.Size > kcmn.ProtocolMaxMsgSize {
-		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, kcmn.ProtocolMaxMsgSize)
+	if msg.Size > serviceconst.ProtocolMaxMsgSize {
+		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, serviceconst.ProtocolMaxMsgSize)
 	}
 	defer msg.Discard()
 
 	// Handle the message depending on its contents
 	switch {
-	case msg.Code == kcmn.StatusMsg:
+	case msg.Code == serviceconst.StatusMsg:
 		// Status messages should never arrive after the handshake
 		return errResp(ErrExtraStatusMsg, "uncontrolled status message")
-	case msg.Code == kcmn.TxMsg:
+	case msg.Code == serviceconst.TxMsg:
 		pm.logger.Trace("Transactions received")
 		// TODO(namdoh@,thientn@): Refactor this so we won't have to check this for dual service.
 		if pm.txpool == nil {
@@ -293,31 +293,31 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 		pm.txpool.AddRemotes(txs)
 		pm.logger.Trace("Transactions added to pool", "txs", txs)
-	case msg.Code == kcmn.CsNewRoundStepMsg:
+	case msg.Code == serviceconst.CsNewRoundStepMsg:
 		pm.logger.Trace("NewRoundStep message received")
 		pm.csReactor.ReceiveNewRoundStep(msg, p.Peer)
-	case msg.Code == kcmn.CsProposalMsg:
+	case msg.Code == serviceconst.CsProposalMsg:
 		pm.logger.Trace("Proposal message received")
 		pm.csReactor.ReceiveNewProposal(msg, p.Peer)
-	case msg.Code == kcmn.CsVoteMsg:
+	case msg.Code == serviceconst.CsVoteMsg:
 		pm.logger.Trace("Vote messsage received")
 		pm.csReactor.ReceiveNewVote(msg, p.Peer)
-	case msg.Code == kcmn.CsHasVoteMsg:
+	case msg.Code == serviceconst.CsHasVoteMsg:
 		pm.logger.Trace("HasVote messsage received")
 		pm.csReactor.ReceiveHasVote(msg, p.Peer)
-	case msg.Code == kcmn.CsProposalPOLMsg:
+	case msg.Code == serviceconst.CsProposalPOLMsg:
 		pm.logger.Trace("ProposalPOL messsage received")
 		pm.csReactor.ReceiveProposalPOL(msg, p.Peer)
-	case msg.Code == kcmn.CsCommitStepMsg:
+	case msg.Code == serviceconst.CsCommitStepMsg:
 		pm.logger.Trace("CommitStep message received")
 		pm.csReactor.ReceiveNewCommit(msg, p.Peer)
-	case msg.Code == kcmn.CsBlockMsg:
+	case msg.Code == serviceconst.CsBlockMsg:
 		pm.logger.Trace("Block message received")
 		pm.csReactor.ReceiveBlock(msg, p.Peer)
-	case msg.Code == kcmn.CsVoteSetMaj23Message:
+	case msg.Code == serviceconst.CsVoteSetMaj23Message:
 		pm.logger.Trace("VoteSetMaj23 message received")
 		pm.csReactor.ReceiveVoteSetMaj23(msg, p.Peer)
-	case msg.Code == kcmn.CsVoteSetBitsMessage:
+	case msg.Code == serviceconst.CsVoteSetBitsMessage:
 		pm.logger.Trace("VoteSetBits message received")
 		pm.csReactor.ReceiveVoteSetBits(msg, p.Peer)
 	default:
@@ -421,4 +421,12 @@ func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 		Config:  pm.blockchain.Config(),
 		Head:    pm.blockchain.CurrentBlock().Hash(),
 	}
+}
+
+func (pm *ProtocolManager) AcceptTxs() uint32 {
+	return pm.acceptTxs
+}
+
+func (pm *ProtocolManager) SetAcceptTxs(acceptTxs uint32) {
+	pm.acceptTxs = acceptTxs
 }

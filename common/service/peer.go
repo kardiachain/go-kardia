@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package kai
+package service
 
 import (
 	"errors"
@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
+	serviceconst "github.com/kardiachain/go-kardia/common/service/const"
 	"github.com/kardiachain/go-kardia/consensus"
-	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
@@ -112,7 +112,7 @@ func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesi
 	var status statusData // safe to read after two values have been received from errc
 
 	go func() {
-		errc <- p2p.Send(p.rw, kcmn.StatusMsg, &statusData{
+		errc <- p2p.Send(p.rw, serviceconst.StatusMsg, &statusData{
 			ProtocolVersion: uint32(p.version),
 			NetworkId:       network,
 			Height:          height,
@@ -148,11 +148,11 @@ func (p *peer) readStatus(network uint64, status *statusData, genesis common.Has
 	if err != nil {
 		return err
 	}
-	if msg.Code != kcmn.StatusMsg {
-		return errResp(ErrNoStatusMsg, "first msg has code %x (!= %x)", msg.Code, kcmn.StatusMsg)
+	if msg.Code != serviceconst.StatusMsg {
+		return errResp(ErrNoStatusMsg, "first msg has code %x (!= %x)", msg.Code, serviceconst.StatusMsg)
 	}
-	if msg.Size > kcmn.ProtocolMaxMsgSize {
-		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, kcmn.ProtocolMaxMsgSize)
+	if msg.Size > serviceconst.ProtocolMaxMsgSize {
+		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, serviceconst.ProtocolMaxMsgSize)
 	}
 	// Decode the handshake and make sure everything matches
 	if err := msg.Decode(&status); err != nil {
@@ -311,7 +311,7 @@ func (p *peer) SendTransactions(txs types.Transactions) error {
 	for _, tx := range txs {
 		p.knownTxs.Add(tx.Hash())
 	}
-	return p2p.Send(p.rw, kcmn.TxMsg, txs)
+	return p2p.Send(p.rw, serviceconst.TxMsg, txs)
 }
 
 // AsyncSendTransactions queues list of transactions propagation to a remote

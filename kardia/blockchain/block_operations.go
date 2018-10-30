@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package consensus
+package blockchain
 
 import (
 	"fmt"
@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -39,14 +38,14 @@ type BlockOperations struct {
 
 	mtx sync.RWMutex
 
-	blockchain *blockchain.BlockChain
-	txPool     *blockchain.TxPool
+	blockchain *BlockChain
+	txPool     *TxPool
 	height     uint64
 }
 
 // Returns a new BlockOperations with latest chain & ,
 // initialized to the last height that was committed to the DB.
-func NewBlockOperations(logger log.Logger, blockchain *blockchain.BlockChain, txPool *blockchain.TxPool) *BlockOperations {
+func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *TxPool) *BlockOperations {
 	return &BlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
@@ -237,14 +236,14 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 
 	// GasPool
 	bo.logger.Info("header gas limit", "limit", header.GasLimit)
-	gasPool := new(blockchain.GasPool).AddGas(header.GasLimit)
+	gasPool := new(GasPool).AddGas(header.GasLimit)
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
 	for _, tx := range txs {
 		state.Prepare(tx.Hash(), common.Hash{}, counter)
 		snap := state.Snapshot()
 		// TODO(thientn): confirms nil coinbase is acceptable.
-		receipt, _, err := blockchain.ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, vm.Config{})
+		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, vm.Config{})
 		if err != nil {
 			state.RevertToSnapshot(snap)
 			// TODO(thientn): check error type and jump to next tx if possible

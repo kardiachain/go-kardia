@@ -43,10 +43,11 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/kardiachain/go-kardia/abi"
-	"github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/dual/blockchain"
-	"github.com/kardiachain/go-kardia/dual/ethsmc"
-	"github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/dev"
+	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
+	"github.com/kardiachain/go-kardia/dual/external/eth/ethsmc"
+	dualservice "github.com/kardiachain/go-kardia/dual/service"
+	"github.com/kardiachain/go-kardia/kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -129,15 +130,15 @@ type EthKardia struct {
 	txPool      *blockchain.TxPool // Transaction pool of KARDIA service.
 
 	// Dual blockchain related fields
-	dualChain *dual.DualBlockChain
-	eventPool *dual.EventPool // Event pool of DUAL service.
+	dualChain *dualbc.DualBlockChain
+	eventPool *dualbc.EventPool // Event pool of DUAL service.
 
 	smcABI     *abi.ABI
 	smcAddress *common.Address
 }
 
 // EthKardia creates a Ethereum sub node.
-func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualChain *dual.DualBlockChain, dualEventPool *dual.EventPool, smcAddr *common.Address, smcABIStr string) (*EthKardia, error) {
+func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualChain *dualbc.DualBlockChain, dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string) (*EthKardia, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
@@ -259,7 +260,7 @@ func (n *EthKardia) SubmitTx(event *types.EventData) error {
 		addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
 		addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 
-		tx := CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, 1)
+		tx := dualservice.CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, 1)
 		if err := n.txPool.AddLocal(tx); err != nil {
 			log.Error("Fail to add Kardia tx to removeEth", err, "tx", tx)
 		} else {
@@ -434,7 +435,7 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 				log.Error("Fail to get Kardia state", "error", err)
 				return
 			}
-			nonce := dualStateDB.GetNonce(common.HexToAddress(dual.DualStateAddressHex))
+			nonce := dualStateDB.GetNonce(common.HexToAddress(dualbc.DualStateAddressHex))
 			ethTxHash := tx.Hash()
 			txHash := common.BytesToHash(ethTxHash[:])
 			dualEvent := types.NewDualEvent(nonce, true /* externalChain */, types.ETHEREUM, &txHash, &eventSummary)
@@ -449,7 +450,7 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 				return
 			}
 			// TODO(namdoh@): Pass eventSummary.TxSource to matchType.
-			kardiaTx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, eventSummary.TxValue, 1)
+			kardiaTx := dualservice.CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, eventSummary.TxValue, 1)
 			dualEvent.PendingTx = &types.TxData{
 				TxHash: kardiaTx.Hash(),
 				Target: types.KARDIA,

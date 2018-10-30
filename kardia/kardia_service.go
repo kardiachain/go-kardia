@@ -23,12 +23,13 @@ import (
 	"encoding/hex"
 	"errors"
 
-	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/common/service"
+	serviceconst "github.com/kardiachain/go-kardia/common/service/const"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
-	"github.com/kardiachain/go-kardia/dual"
-	kcmn "github.com/kardiachain/go-kardia/kai/common"
-	"github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/dev"
+	dualservice "github.com/kardiachain/go-kardia/dual/service"
+	"github.com/kardiachain/go-kardia/kardia/blockchain"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -75,7 +76,7 @@ type Kardia struct {
 
 	// Handlers
 	txPool          *blockchain.TxPool
-	protocolManager *ProtocolManager
+	protocolManager *service.ProtocolManager
 	blockchain      *blockchain.BlockChain
 	csManager       *consensus.ConsensusManager
 
@@ -94,7 +95,7 @@ func (n *Kardia) SubmitTx(event *types.EventData) error {
 	// TODO(thientn,namdoh): Remove hard-coded genesisAccount here.
 	addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[dev.MockKardiaAccountForMatchEthTx])
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-	tx := dual.CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, 1)
+	tx := dualservice.CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, 1)
 	if tx == nil {
 		n.logger.Error("Fail to create Kardia's tx from DualEvent")
 		return ErrCreateKardiaTx
@@ -140,7 +141,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 	}
-	logger.Info("Initialising protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
+	logger.Info("Initialising protocol", "versions", serviceconst.ProtocolVersions, "network", config.NetworkId)
 
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
@@ -169,7 +170,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 		kai.logger,
 		configs.DefaultConsensusConfig(),
 		state,
-		consensus.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
+		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
 		ctx.Config.DevEnvConfig.VotingStrategy,
 	)
 	kai.csManager = consensus.NewConsensusManager(KardiaServiceName, consensusState)
@@ -179,10 +180,10 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 
 	// Initialize protocol manager.
 
-	if kai.protocolManager, err = NewProtocolManager(kaiProtocolName, kai.logger, config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csManager); err != nil {
+	if kai.protocolManager, err = service.NewProtocolManager(kaiProtocolName, kai.logger, config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csManager); err != nil {
 		return nil, err
 	}
-	kai.protocolManager.acceptTxs = config.AcceptTxs
+	kai.protocolManager.SetAcceptTxs(config.AcceptTxs)
 	kai.csManager.SetProtocol(kai.protocolManager)
 
 	return kai, nil

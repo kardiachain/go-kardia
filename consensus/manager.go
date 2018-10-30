@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
+	service "github.com/kardiachain/go-kardia/common/service/const"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
-	kcmn "github.com/kardiachain/go-kardia/kai/common"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	libevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -398,7 +398,7 @@ func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.P
 		conR.logger.Error("Bad VoteSetMaj23Message field Type")
 		return
 	}
-	p2p.Send(ps.rw, kcmn.CsVoteSetBitsMessage, &VoteSetBitsMessage{
+	p2p.Send(ps.rw, service.CsVoteSetBitsMessage, &VoteSetBitsMessage{
 		Height:  msg.Height,
 		Round:   msg.Round,
 		Type:    msg.Type,
@@ -457,11 +457,11 @@ func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
 	if nrsMsg != nil {
 		conR.logger.Trace("broadcastNewRoundStepMessage", "nrsMsg", nrsMsg)
-		conR.protocol.Broadcast(nrsMsg, kcmn.CsNewRoundStepMsg)
+		conR.protocol.Broadcast(nrsMsg, service.CsNewRoundStepMsg)
 	}
 	if csMsg != nil {
 		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", fmt.Sprintf("{Height:%v  Block:%v}", csMsg.Height, csMsg.Block))
-		conR.protocol.Broadcast(csMsg, kcmn.CsCommitStepMsg)
+		conR.protocol.Broadcast(csMsg, service.CsCommitStepMsg)
 	}
 }
 
@@ -474,7 +474,7 @@ func (conR *ConsensusManager) broadcastHasVoteMessage(vote *types.Vote) {
 		Index:  vote.ValidatorIndex,
 	}
 	conR.logger.Trace("broadcastHasVoteMessage", "msg", msg)
-	conR.protocol.Broadcast(msg, kcmn.CsHasVoteMsg)
+	conR.protocol.Broadcast(msg, service.CsHasVoteMsg)
 }
 
 // ------------ Send message helpers -----------
@@ -486,7 +486,7 @@ func (conR *ConsensusManager) sendNewRoundStepMessages(rw p2p.MsgReadWriter) {
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
 	conR.logger.Trace("makeRoundStepMessages", "nrsMsg", nrsMsg)
 	if nrsMsg != nil {
-		if err := p2p.Send(rw, kcmn.CsNewRoundStepMsg, nrsMsg); err != nil {
+		if err := p2p.Send(rw, service.CsNewRoundStepMsg, nrsMsg); err != nil {
 			conR.logger.Warn("send NewRoundStepMessage failed", "err", err)
 		} else {
 			conR.logger.Trace("send NewRoundStepMessage success")
@@ -495,7 +495,7 @@ func (conR *ConsensusManager) sendNewRoundStepMessages(rw p2p.MsgReadWriter) {
 
 	if csMsg != nil {
 		conR.logger.Trace("Send CommitStepMsg", "csMsg", csMsg)
-		if err := p2p.Send(rw, kcmn.CsCommitStepMsg, csMsg); err != nil {
+		if err := p2p.Send(rw, service.CsCommitStepMsg, csMsg); err != nil {
 			conR.logger.Warn("send CommitStepMessage failed", "err", err)
 		} else {
 			conR.logger.Trace("send CommitStepMessage success")
@@ -547,7 +547,7 @@ OUTER_LOOP:
 				panic(cmn.Fmt("Loaded block's height and loaded lastCommit's height aren't the same: %v vs. %v", lastCommit.Height(), lastCommit.Height()))
 			}
 			logger.Trace("Sending BlockMessage for peer to catchup", "rsH/R", cmn.Fmt("%v/%v", rs.Height, rs.Round), "peerH/R", cmn.Fmt("%v/%v", prs.Height, prs.Round), "blockH/R", cmn.Fmt("%v/%v", prs.Height, lastCommit.Round()))
-			if err := p2p.Send(ps.rw, kcmn.CsBlockMsg, &BlockMessage{Height: prs.Height, Round: lastCommit.Round(), Block: block}); err != nil {
+			if err := p2p.Send(ps.rw, service.CsBlockMsg, &BlockMessage{Height: prs.Height, Round: lastCommit.Round(), Block: block}); err != nil {
 				logger.Trace("Sending block message failed", "err", err)
 			}
 			time.Sleep(conR.conS.config.PeerGossipSleep())
@@ -571,7 +571,7 @@ OUTER_LOOP:
 			// Proposal: share the proposal metadata with peer.
 			{
 				logger.Debug("Sending proposal", "height", prs.Height, "round", prs.Round)
-				if err := p2p.Send(ps.rw, kcmn.CsProposalMsg, &ProposalMessage{Proposal: rs.Proposal}); err != nil {
+				if err := p2p.Send(ps.rw, service.CsProposalMsg, &ProposalMessage{Proposal: rs.Proposal}); err != nil {
 					logger.Trace("Sending proposal failed", "err", err)
 				}
 				ps.SetHasProposal(rs.Proposal)
@@ -587,7 +587,7 @@ OUTER_LOOP:
 					ProposalPOL:      rs.Votes.Prevotes(rs.Proposal.POLRound.Int32()).BitArray(),
 				}
 				logger.Debug("Sending POL", "height", prs.Height, "round", prs.Round)
-				p2p.Send(ps.rw, kcmn.CsProposalPOLMsg, msg)
+				p2p.Send(ps.rw, service.CsProposalPOLMsg, msg)
 			}
 			continue OUTER_LOOP
 		}
@@ -742,7 +742,7 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if rs.Height.Equals(prs.Height) {
 				if maj23, ok := rs.Votes.Prevotes(prs.Round.Int32()).TwoThirdsMajority(); ok {
-					p2p.Send(ps.rw, kcmn.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+					p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   prs.Round,
 						Type:    types.VoteTypePrevote,
@@ -759,7 +759,7 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if rs.Height.Equals(prs.Height) {
 				if maj23, ok := rs.Votes.Precommits(prs.Round.Int32()).TwoThirdsMajority(); ok {
-					p2p.Send(ps.rw, kcmn.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+					p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   prs.Round,
 						Type:    types.VoteTypePrecommit,
@@ -776,7 +776,7 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if rs.Height.Equals(prs.Height) && prs.ProposalPOLRound.IsGreaterThanOrEqualToInt(0) {
 				if maj23, ok := rs.Votes.Prevotes(prs.ProposalPOLRound.Int32()).TwoThirdsMajority(); ok {
-					p2p.Send(ps.rw, kcmn.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+					p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   prs.ProposalPOLRound,
 						Type:    types.VoteTypePrevote,
@@ -792,7 +792,7 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if !prs.CatchupCommitRound.EqualsInt(-1) && prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThanOrEqualsUint64(conR.conS.blockOperations.Height()) {
 				commit := conR.conS.LoadCommit(prs.Height)
-				p2p.Send(ps.rw, kcmn.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+				p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
 					Height:  prs.Height,
 					Round:   commit.Round(),
 					Type:    types.VoteTypePrecommit,
@@ -970,7 +970,7 @@ func (ps *PeerState) PickSendVote(votes types.VoteSetReader) bool {
 		msg := &VoteMessage{vote}
 
 		ps.logger.Trace("Sending vote message", "peer", ps.peer, "prs", ps.PRS, "vote", vote)
-		return p2p.Send(ps.rw, kcmn.CsVoteMsg, msg) == nil
+		return p2p.Send(ps.rw, service.CsVoteMsg, msg) == nil
 	}
 	return false
 }

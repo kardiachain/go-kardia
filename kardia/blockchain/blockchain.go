@@ -24,7 +24,7 @@ import (
 	"sync/atomic"
 
 	"github.com/hashicorp/golang-lru"
-	"github.com/kardiachain/go-kardia/blockchain/chaindb"
+	"github.com/kardiachain/go-kardia/common/chaindb"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"

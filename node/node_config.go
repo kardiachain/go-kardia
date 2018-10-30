@@ -25,9 +25,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/dual/blockchain"
-	"github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/dev"
+	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
+	"github.com/kardiachain/go-kardia/kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/p2p"
@@ -79,10 +79,10 @@ type DualChainConfig struct {
 	DbHandles int
 
 	// Genesis is genesis block which contain initial Block and accounts
-	DualGenesis *dual.DualGenesis
+	DualGenesis *dualbc.DualGenesis
 
 	// Dual's event pool options
-	DualEventPool dual.EventPoolConfig
+	DualEventPool dualbc.EventPoolConfig
 }
 
 type NodeConfig struct {
