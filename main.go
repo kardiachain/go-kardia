@@ -482,7 +482,7 @@ func main() {
 	exchangeContractAbi := dev.GetContractAbiByAddress(exchangeContractAddress.String())
 	// TODO: This should trigger for either Eth dual or Neo dual flag, so  *ethDual || *neoDual
 	if args.ethDual || args.neoDual {
-		dualP, err = dual.NewDualProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+		dualP, err = dual.NewDualProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
 		if err != nil {
 			log.Error("Fail to initialize DualProcessor", "error", err)
 		} else {
@@ -506,7 +506,7 @@ func main() {
 			config.DualNodeConfig = dev.CreateDualNodeConfig()
 		}
 
-		ethNode, err := dual.NewEthKardia(config, kardiaService.BlockChain(), kardiaService.TxPool(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+		ethNode, err := dual.NewEthKardia(config, kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
 
 		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 		// submit tx to either internal or external blockchain.

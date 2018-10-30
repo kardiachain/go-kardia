@@ -46,7 +46,8 @@ import (
 )
 
 type DualProcessor struct {
-	blockchain *bc.BlockChain
+	// TODO(namdoh): Remove reference to kardiaBc, only Kardia's TxPool is needed here.
+	kardiaBc   *bc.BlockChain
 	txPool     *bc.TxPool
 	smcAddress *common.Address
 	smcABI     *abi.ABI
@@ -56,6 +57,7 @@ type DualProcessor struct {
 	// TODO: add struct when running dual node to Neo
 
 	// Dual blockchain related fields
+	dualBc    *dual.DualBlockChain
 	eventPool *dual.EventPool // Event pool of DUAL service.
 
 	// Chain head subscription for new blocks.
@@ -63,15 +65,16 @@ type DualProcessor struct {
 	chainHeadSub event.Subscription
 }
 
-func NewDualProcessor(chain *bc.BlockChain, txPool *bc.TxPool, dualEventPool *dual.EventPool, smcAddr *common.Address, smcABIStr string) (*DualProcessor, error) {
+func NewDualProcessor(kardiaBc *bc.BlockChain, txPool *bc.TxPool, dualBc *dual.DualBlockChain, dualEventPool *dual.EventPool, smcAddr *common.Address, smcABIStr string) (*DualProcessor, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
 	}
 
 	processor := &DualProcessor{
-		blockchain: chain,
+		kardiaBc:   kardiaBc,
 		txPool:     txPool,
+		dualBc:     dualBc,
 		eventPool:  dualEventPool,
 		smcAddress: smcAddr,
 		smcABI:     &smcABI,
@@ -80,7 +83,7 @@ func NewDualProcessor(chain *bc.BlockChain, txPool *bc.TxPool, dualEventPool *du
 	}
 
 	// Start subscription to blockchain head event.
-	processor.chainHeadSub = chain.SubscribeChainHeadEvent(processor.chainHeadCh)
+	processor.chainHeadSub = kardiaBc.SubscribeChainHeadEvent(processor.chainHeadCh)
 
 	return processor, nil
 }
@@ -130,12 +133,12 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 			}
 
 			// TODO(namdoh): Use dual's blockchain state instead.
-			kardiaStateDB, err := p.blockchain.State()
+			dualStateDB, err := p.dualBc.State()
 			if err != nil {
 				log.Error("Fail to get Kardia state", "error", err)
 				return
 			}
-			nonce := kardiaStateDB.GetNonce(common.HexToAddress(dual.DualStateAddressHex))
+			nonce := dualStateDB.GetNonce(common.HexToAddress(dual.DualStateAddressHex))
 			kardiaTxHash := tx.Hash()
 			txHash := common.BytesToHash(kardiaTxHash[:])
 			dualEvent := types.NewDualEvent(nonce, false /* externalChain */, types.KARDIA, &txHash, &eventSummary)
@@ -157,12 +160,12 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 				}
 			}
 
-			log.Info("Create dual's event", "dualEvent", dualEvent)
+			log.Info("Create DualEvent for Kardia's Tx", "dualEvent", dualEvent)
 			if err := p.eventPool.AddEvent(dualEvent); err != nil {
 				log.Error("Fail to add dual's event", "error", err)
 				return
 			}
-			log.Info("Add dual's event to event pool successfully", "eventHash", dualEvent.Hash().Fingerprint())
+			log.Info("Submitted Kardia's DualEvent to event pool successfully", "txHash", tx.Hash().Fingerprint(), "eventHash", dualEvent.Hash().Fingerprint())
 
 			smcUpdate = true
 		}
@@ -179,7 +182,7 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 	}
 	log.Info("Detect smc update, running VM call to check sending value")
 
-	statedb, err := p.blockchain.StateAt(block.Root())
+	statedb, err := p.kardiaBc.StateAt(block.Root())
 	if err != nil {
 		log.Error("Error getting block state in dual process", "height", block.Height())
 		return
@@ -229,7 +232,7 @@ func (p *DualProcessor) CallKardiaMasterGetNeoToSend(from common.Address, stated
 		log.Error("Fail to pack Kardia smc getEthToSend", "error", err, "neodual", "neodual")
 		return big.NewInt(0)
 	}
-	ret, err := callStaticKardiaMasterSmc(from, *p.smcAddress, p.blockchain, getNeoToSend, statedb)
+	ret, err := callStaticKardiaMasterSmc(from, *p.smcAddress, p.kardiaBc, getNeoToSend, statedb)
 	if err != nil {
 		log.Error("Error calling master exchange contract", "error", err, "neodual", "neodual")
 		return big.NewInt(0)

@@ -87,7 +87,7 @@ type Kardia struct {
 func (n *Kardia) SubmitTx(event *types.EventData) error {
 	kardiaStateDB, err := n.blockchain.State()
 	if err != nil {
-		log.Error("Fail to get Kardia state", "error", err)
+		n.logger.Error("Fail to get Kardia state", "error", err)
 		return ErrFailedGetState
 	}
 
@@ -96,15 +96,15 @@ func (n *Kardia) SubmitTx(event *types.EventData) error {
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 	tx := dual.CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, 1)
 	if tx == nil {
-		log.Error("Fail to create Kardia's tx from DualEvent")
+		n.logger.Error("Fail to create Kardia's tx from DualEvent")
 		return ErrCreateKardiaTx
 	}
 
 	if err := n.txPool.AddLocal(tx); err != nil {
-		log.Error("Fail to add Kardia's tx", "error", err)
+		n.logger.Error("Fail to add Kardia's tx", "error", err)
 		return ErrAddKardiaTx
 	}
-	log.Info("Add Kardia's tx successfully", "txHash", tx.Hash().Fingerprint())
+	n.logger.Info("Submit Kardia's tx successfully", "txHash", tx.Hash().Fingerprint())
 
 	return nil
 }

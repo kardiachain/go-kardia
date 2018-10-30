@@ -127,14 +127,17 @@ type EthKardia struct {
 	ethSmc      *ethsmc.EthSmc
 	kardiaChain *blockchain.BlockChain
 	txPool      *blockchain.TxPool // Transaction pool of KARDIA service.
-	eventPool   *dual.EventPool    // Event pool of DUAL service.
+
+	// Dual blockchain related fields
+	dualChain *dual.DualBlockChain
+	eventPool *dual.EventPool // Event pool of DUAL service.
 
 	smcABI     *abi.ABI
 	smcAddress *common.Address
 }
 
 // EthKardia creates a Ethereum sub node.
-func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualEventPool *dual.EventPool, smcAddr *common.Address, smcABIStr string) (*EthKardia, error) {
+func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualChain *dual.DualBlockChain, dualEventPool *dual.EventPool, smcAddr *common.Address, smcABIStr string) (*EthKardia, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
@@ -231,6 +234,7 @@ func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, t
 		ethSmc:      ethsmc.NewEthSmc(),
 		kardiaChain: kardiaChain,
 		txPool:      txPool,
+		dualChain:   dualChain,
 		eventPool:   dualEventPool,
 		smcAddress:  smcAddr,
 		smcABI:      &smcABI,
@@ -248,11 +252,6 @@ func (n *EthKardia) SubmitTx(event *types.EventData) error {
 	ethSendValue := n.CallKardiaMasterGetEthToSend(senderAddr, statedb)
 	log.Info("Kardia smc calls getEthToSend", "eth", ethSendValue)
 	if ethSendValue != nil && ethSendValue.Cmp(big.NewInt(0)) != 0 {
-		// TODO(namdoh, #115): Remember this txs event to dual service's pool
-
-		// TODO(namdoh, #115): Split this into two part 1) create an Ether tx and propose it and 2)
-		// once its block is commit, the next proposer will submit it.
-		// Create and submit a Kardia tx.
 		n.submitEthReleaseTx(ethSendValue)
 
 		// Create Kardia tx removeEth right away to acknowledge the ethsend
@@ -260,14 +259,11 @@ func (n *EthKardia) SubmitTx(event *types.EventData) error {
 		addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
 		addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 
-		// TODO(namdoh, #115): Split this into two part 1) create a Kardia tx and propose it and 2)
-		// once its block is commit, the next proposer will execute it.
-		// Create and submit a Kardia tx.
 		tx := CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, 1)
 		if err := n.txPool.AddLocal(tx); err != nil {
 			log.Error("Fail to add Kardia tx to removeEth", err, "tx", tx)
 		} else {
-			log.Info("Creates removeEth tx", tx.Hash().Hex())
+			log.Info("Submitted Eth's removeEth tx to its tx pool successfully", tx.Hash().Hex())
 		}
 	}
 
@@ -433,12 +429,12 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 			}
 
 			// TODO(namdoh): Use dual's blockchain state instead.
-			kardiaStateDB, err := n.kardiaChain.State()
+			dualStateDB, err := n.dualChain.State()
 			if err != nil {
 				log.Error("Fail to get Kardia state", "error", err)
 				return
 			}
-			nonce := kardiaStateDB.GetNonce(common.HexToAddress(dual.DualStateAddressHex))
+			nonce := dualStateDB.GetNonce(common.HexToAddress(dual.DualStateAddressHex))
 			ethTxHash := tx.Hash()
 			txHash := common.BytesToHash(ethTxHash[:])
 			dualEvent := types.NewDualEvent(nonce, true /* externalChain */, types.ETHEREUM, &txHash, &eventSummary)
@@ -447,6 +443,11 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 			// TODO(thientn,namdoh): Remove hard-coded account address here.
 			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[dev.MockKardiaAccountForMatchEthTx])
 			addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
+			kardiaStateDB, err := n.kardiaChain.State()
+			if err != nil {
+				log.Error("Fail to get Kardia state", "error", err)
+				return
+			}
 			// TODO(namdoh@): Pass eventSummary.TxSource to matchType.
 			kardiaTx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, eventSummary.TxValue, 1)
 			dualEvent.PendingTx = &types.TxData{
@@ -454,12 +455,12 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 				Target: types.KARDIA,
 			}
 
-			log.Info("Create dual's event", "dualEvent", dualEvent)
+			log.Info("Create DualEvent for Eth's Tx", "dualEvent", dualEvent)
 			if err := n.eventPool.AddEvent(dualEvent); err != nil {
 				log.Error("Fail to add dual's event", "error", err)
 				return
 			}
-			log.Info("Add dual's event to event pool successfully", "eventHash", dualEvent.Hash().Fingerprint())
+			log.Info("Submitted Eth's DualEvent to event pool successfully", "eventHash", dualEvent.Hash().Fingerprint())
 		}
 	}
 }

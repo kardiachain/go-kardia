@@ -80,6 +80,13 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 	header := dbo.newHeader(height, uint64(len(events)), lastBlockID, lastValidatorHash)
 	dbo.logger.Info("Creates new header", "header", header)
 
+	stateRoot, err := dbo.commitDualEvents(events)
+	if err != nil {
+		dbo.logger.Error("Fail to commit dual's events", "err", err)
+		return nil
+	}
+	header.Root = stateRoot
+
 	if height > 0 {
 		previousBlock := dbo.blockchain.GetBlockByHeight(uint64(height) - 1)
 		if previousBlock == nil {
@@ -90,18 +97,16 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 		// pending DualEvents, second is to propose submission receipts of N-1 DualEvent-derived Txs
 		// to other blockchains.
 		dbo.logger.Debug("Submitting dual's events from N-1", "events", previousBlock.DualEvents())
-		stateRoot, err := dbo.submitDualEvents(previousBlock.DualEvents())
+		_, err := dbo.submitDualEvents(previousBlock.DualEvents())
 		if err != nil {
 			dbo.logger.Error("Fail to submit dual events", "err", err)
 			return nil
 		}
-		header.Root = stateRoot
+		dbo.logger.Error("Not yet implemented - Update state root with the DualEvent's submission receipt")
 	}
 
 	block = dbo.newBlock(header, events, commit)
 	dbo.logger.Trace("Make block to propose", "block", block)
-
-	dbo.logger.Error("Not yet implement -- save the receipt of dual's event submission to other blockchain to the proposed block")
 
 	return block
 }
@@ -148,6 +153,7 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, seenCommit *types.
 	// NOTE: we can delete this at a later height
 	dbo.blockchain.WriteCommit(height, seenCommit)
 
+	dbo.logger.Trace("After commited to blockchain, removing these DualEvent's", "events", block.DualEvents())
 	dbo.eventPool.RemoveEvents(block.DualEvents())
 
 	dbo.mtx.Lock()
@@ -232,6 +238,39 @@ func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) (commo
 	}
 	dbo.logger.Error("Not yet implemented - getting submit DualEvent receipt")
 	return common.Hash{}, nil
+}
+
+// Commit dual's events result stateDB to disk.
+// TODO(namdoh): Simplify this function since the only thing we need is to set new nonce correctly.
+func (dbo *DualBlockOperations) commitDualEvents(events types.DualEvents) (common.Hash, error) {
+	// Blockchain state at head block.
+	state, err := dbo.blockchain.State()
+	if err != nil {
+		dbo.logger.Error("Fail to get blockchain head state", "err", err)
+		return common.Hash{}, err
+	}
+
+	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
+	counter := 0
+	nodeAddr := common.HexToAddress(dualbc.DualStateAddressHex)
+	for _, event := range events {
+		state.Prepare(event.Hash(), common.Hash{}, counter)
+		state.SetNonce(nodeAddr, state.GetNonce(nodeAddr)+1)
+		state.Finalise(true)
+		counter++
+	}
+	root, err := state.Commit(true)
+	if err != nil {
+		dbo.logger.Error("Fail to commit new statedb", "err", err)
+		return common.Hash{}, err
+	}
+	err = dbo.blockchain.CommitTrie(root)
+	if err != nil {
+		dbo.logger.Error("Fail to write statedb trie to disk", "err", err)
+		return common.Hash{}, err
+	}
+
+	return root, nil
 }
 
 // TODO(namdoh@): This isn't needed. Figure out how to remove this.

@@ -65,9 +65,9 @@ type Header struct {
 	LastCommitHash common.Hash `json:"last_commit_hash"    gencodec:"required"` // commit from validators from the last block
 	TxHash         common.Hash `json:"data_hash"           gencodec:"required"` // transactions
 	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
-	DualEventsHash common.Hash `json:"dual_events_hash"           gencodec:"required"` // dual's events
-	Root           common.Hash `json:"stateRoot"           gencodec:"required"`        // state root
-	ReceiptHash    common.Hash `json:"receiptsRoot"        gencodec:"required"`        // receipt root
+	DualEventsHash common.Hash `json:"dual_events_hash"    gencodec:"required"` // dual's events
+	Root           common.Hash `json:"stateRoot"           gencodec:"required"` // state root
+	ReceiptHash    common.Hash `json:"receiptsRoot"        gencodec:"required"` // receipt root
 	Bloom          Bloom       `json:"logsBloom"           gencodec:"required"`
 
 	// hashes from the app output from the prev block
