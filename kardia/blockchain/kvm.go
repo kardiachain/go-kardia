@@ -48,21 +48,6 @@ func NewKVMContext(msg Message, header *types.Header, chain ChainContext) vm.Con
 	}
 }
 
-// NewKVMContext creates a new context for use in the KVM.
-func NewKVMContextFromCallMsg(msg *types.CallMsg, header *types.Header, chain ChainContext) vm.Context {
-	return vm.Context{
-		CanTransfer: CanTransfer,
-		Transfer:    Transfer,
-		GetHash:     GetHashFn(header, chain),
-		Origin:      msg.From,
-		Coinbase:    header.Coinbase,
-		BlockHeight: header.Height,
-		Time:        new(big.Int).Set(header.Time),
-		GasLimit:    header.GasLimit,
-		GasPrice:    new(big.Int).Set(msg.GasPrice),
-	}
-}
-
 // NewKVMContext creates a new context for dual node to call smc in the KVM.
 func NewKVMContextFromDualNodeCall(from common.Address, header *types.Header, chain ChainContext) vm.Context {
 	return vm.Context{
