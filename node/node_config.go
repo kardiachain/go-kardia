@@ -24,7 +24,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
+	"regexp"
+	"strconv"
 	"github.com/kardiachain/go-kardia/common/storage"
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
@@ -260,4 +261,10 @@ func (c *NodeConfig) resolvePath(path string) string {
 		return ""
 	}
 	return filepath.Join(c.instanceDir(), path)
+}
+
+// GetNodeIndex returns the index of node based on last digits in string
+func GetNodeIndex(nodeName string) (int, error) {
+	reg, _ := regexp.Compile("[0-9]+\\z")
+	return strconv.Atoi(reg.FindString(nodeName))
 }

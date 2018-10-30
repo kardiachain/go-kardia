@@ -95,10 +95,6 @@ func RemoveDirContents(dir string) error {
 	return nil
 }
 
-func GetNodeIndex(nodeName string) (int, error) {
-	return strconv.Atoi((nodeName)[len(nodeName)-1:])
-}
-
 // getIntArray converts string array to int array
 func getIntArray(valIndex string) []int {
 	valIndexArray := strings.Split(valIndex, ",")
@@ -237,7 +233,7 @@ func main() {
 	if len(args.name) == 0 {
 		logger.Error("Invalid node name", "name", args.name)
 	} else {
-		index, err := GetNodeIndex(args.name)
+		index, err := node.GetNodeIndex(args.name)
 		if err != nil {
 			logger.Error("Node name must be formmated as \"\\c*\\d{1,2}\"", "name", args.name)
 		}
