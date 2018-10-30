@@ -25,6 +25,8 @@ import (
 
 	"github.com/kardiachain/go-kardia/common/service"
 	serviceconst "github.com/kardiachain/go-kardia/common/service/const"
+	"github.com/kardiachain/go-kardia/common/state"
+	"github.com/kardiachain/go-kardia/common/storage"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/dev"
@@ -33,11 +35,9 @@ import (
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/node"
-	"github.com/kardiachain/go-kardia/p2p"
 	"github.com/kardiachain/go-kardia/rpc"
-	"github.com/kardiachain/go-kardia/state"
-	"github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
 )
 

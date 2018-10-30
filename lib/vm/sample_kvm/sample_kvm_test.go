@@ -5,12 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/abi"
+	"github.com/kardiachain/go-kardia/common/state"
+	kaidb "github.com/kardiachain/go-kardia/common/storage"
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/state"
-	kaidb "github.com/kardiachain/go-kardia/storage"
-	"github.com/kardiachain/go-kardia/vm"
+	"github.com/kardiachain/go-kardia/lib/vm"
 )
 
 func TestDefaults(t *testing.T) {

@@ -27,7 +27,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 
-	kaidb "github.com/kardiachain/go-kardia/storage"
+	kaidb "github.com/kardiachain/go-kardia/common/storage"
 
 	checker "gopkg.in/check.v1"
 )

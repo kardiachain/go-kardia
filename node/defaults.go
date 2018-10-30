@@ -23,8 +23,8 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/kardiachain/go-kardia/p2p"
-	"github.com/kardiachain/go-kardia/p2p/nat"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/lib/p2p/nat"
 )
 
 const (

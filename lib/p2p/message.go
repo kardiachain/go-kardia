@@ -26,8 +26,8 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/p2p/discover"
 )
 
 // Msg defines the structure of a p2p message.

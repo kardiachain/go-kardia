@@ -22,9 +22,9 @@ import (
 	"sync"
 	"testing"
 
+	kaidb "github.com/kardiachain/go-kardia/common/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	kaidb "github.com/kardiachain/go-kardia/storage"
 )
 
 func newEmptySecure() *SecureTrie {

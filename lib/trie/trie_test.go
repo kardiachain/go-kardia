@@ -30,10 +30,11 @@ import (
 	"testing/quick"
 
 	"github.com/davecgh/go-spew/spew"
+
+	kaidb "github.com/kardiachain/go-kardia/common/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	kaidb "github.com/kardiachain/go-kardia/storage"
 )
 
 func init() {

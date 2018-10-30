@@ -22,8 +22,8 @@ import (
 	"math/rand"
 	"testing"
 
+	kaidb "github.com/kardiachain/go-kardia/common/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
-	kaidb "github.com/kardiachain/go-kardia/storage"
 )
 
 func TestIterator(t *testing.T) {

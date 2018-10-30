@@ -23,9 +23,9 @@ import (
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru"
+	kaidb "github.com/kardiachain/go-kardia/common/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/trie"
-	kaidb "github.com/kardiachain/go-kardia/storage"
 )
 
 // Trie cache generation limit after which to evict trie nodes from memory.

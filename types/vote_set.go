@@ -24,7 +24,7 @@ import (
 	"sync"
 
 	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/p2p/discover"
+	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/pkg/errors"
 )
 

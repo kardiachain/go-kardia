@@ -23,11 +23,11 @@ import (
 	"fmt"
 
 	"github.com/kardiachain/go-kardia/common/chaindb"
+	"github.com/kardiachain/go-kardia/common/state"
+	kaidb "github.com/kardiachain/go-kardia/common/storage"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/state"
-	kaidb "github.com/kardiachain/go-kardia/storage"
 	"github.com/kardiachain/go-kardia/types"
 )
 
