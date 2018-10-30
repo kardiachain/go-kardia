@@ -19,9 +19,9 @@
 package blockchain
 
 import (
+	"github.com/kardiachain/go-kardia/common/state"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
 )
 

@@ -21,9 +21,9 @@ package evidence
 import (
 	"sync"
 
+	"github.com/kardiachain/go-kardia/common/state"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
 )
 

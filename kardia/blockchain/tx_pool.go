@@ -31,12 +31,12 @@ import (
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 
 	"github.com/kardiachain/go-kardia/common/chaindb"
+	"github.com/kardiachain/go-kardia/common/state"
 	kaidb "github.com/kardiachain/go-kardia/common/storage"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
 )
 

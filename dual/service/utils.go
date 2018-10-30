@@ -23,10 +23,10 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/kardiachain/go-kardia/common/state"
 	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 )

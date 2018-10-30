@@ -21,11 +21,11 @@ package tool
 import (
 	"testing"
 
+	"github.com/kardiachain/go-kardia/common/state"
 	kaidb "github.com/kardiachain/go-kardia/common/storage"
 	development "github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
 )
 
