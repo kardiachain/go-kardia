@@ -11,7 +11,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/vm"
+	"github.com/kardiachain/go-kardia/lib/vm"
 )
 
 // Config is a basic type specifying certain configuration flags for running

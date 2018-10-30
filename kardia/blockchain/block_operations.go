@@ -26,8 +26,8 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/vm"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/vm"
 )
 
 // TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
