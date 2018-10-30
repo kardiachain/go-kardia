@@ -5,35 +5,35 @@ Important:
   - Always include `dev` flag in test p2p. Peer address are fixed when running in dev settings.
   - Node name starts from `node1`, `node2`, etc.
   - Port number starts from `3000` for `node1`, `3001` for `node2`, and so on.
-  - `mainChainValIndex` required flag to set Kardia chain validator index, e.g. set node2 as Kardia validator by --mainChainValIndex 2
-  - `dualChainValIndex` required flag to set Dual chain validator index, e.g. set node2 as Dual validator by --dualChainValIndex 2
+  - `mainChainValIndexes` required flag to set Kardia chain validator index, e.g. set node 1 and node 2 as Kardia validators by --mainChainValIndexes 1,2
+  - `dualChainValIndexes` required flag to set Dual chain validator index, e.g. set node 1 and node 2 as Dual validators by --dualChainValIndexes 1,2
   - `txn` optional flag to add one transfer transaction when node starts.
   - `logtag` optional flag, --logtag KARDIA shows log of KARDIA and --logtag DUAL shows log of DUAL 
   
 Example, network of 3-Kardia-validators (node 1, 2 and 3), 2-Dual-validators (node 2 and 4), and 2-Kardia-nonvalidator(node 5 and 6):  
 - Terminal 1:
 ```
-$GOPATH/bin/go-kardia --dev --addr :3000 --name node1 -txn --mainChainValIndex 2 --dualChainValIndex 2 --mainChainValIndex 3 --mainChainValIndex 1 --dualChainValIndex 4 --clearDataDir --dualchain --logtag KARDIA
+go install; $GOPATH/bin/go-kardia --dev --addr :3000 --name node1 -txn --mainChainValIndexes 1,2,5 --dualChainValIndexes 3,4 --loglevel trace --clearDataDir --dualchain --logtag KARDIA
 ```
 - Terminal 2:
 ```
-$GOPATH/bin/go-kardia --dev --addr :3001 --name node2 --mainChainValIndex 2 --dualChainValIndex 2 --mainChainValIndex 3 --mainChainValIndex 1 --dualChainValIndex 4 --clearDataDir --dualchain --logtag DUAL
+go install; $GOPATH/bin/go-kardia --dev --addr :3001 --name node2 --mainChainValIndexes 1,2,5 --dualChainValIndexes 3,4 --loglevel trace --clearDataDir --dualchain --logtag KARDIA
 ```
 - Terminal 3:
 ```
-$GOPATH/bin/go-kardia --dev --addr :3002 --name node3 --mainChainValIndex 2 --dualChainValIndex 2 --mainChainValIndex 3 --mainChainValIndex 1 --dualChainValIndex 4 --clearDataDir --dualchain --logtag KARDIA
+go install; $GOPATH/bin/go-kardia --dev --addr :3002 --name node3 --mainChainValIndexes 1,2,5 --dualChainValIndexes 3,4 --loglevel trace --clearDataDir --dualchain --logtag DUAL
 ```
 - Terminal 4:
 ```
-$GOPATH/bin/go-kardia --dev --addr :3003 --name node4 --mainChainValIndex 2 --dualChainValIndex 2 --mainChainValIndex 3 --mainChainValIndex 1 --dualChainValIndex 4 --clearDataDir --dualchain --logtag DUAL
+go install; $GOPATH/bin/go-kardia --dev --addr :3003 --name node4 --mainChainValIndexes 1,2,5 --dualChainValIndexes 3,4 --loglevel trace --clearDataDir --dualchain --logtag DUAL
 ```
 - Terminal 5:
 ```
-$GOPATH/bin/go-kardia --dev --addr :3004 --name node5 --mainChainValIndex 2 --dualChainValIndex 2 --mainChainValIndex 3 --mainChainValIndex 1 --dualChainValIndex 4 --clearDataDir --dualchain
+go install; $GOPATH/bin/go-kardia --dev --addr :3004 --name node5 --mainChainValIndexes 1,2,5 --dualChainValIndexes 3,4 --loglevel trace --clearDataDir --dualchain --logtag KARDIA
 ```
 - Terminal 6:
 ```
-$GOPATH/bin/go-kardia --dev --addr :3005 --name node6 --mainChainValIndex 2 --dualChainValIndex 2 --mainChainValIndex 3 --mainChainValIndex 1 --dualChainValIndex 4 --clearDataDir --dualchain
+go install; $GOPATH/bin/go-kardia --dev --addr :3005 --name node6 --mainChainValIndexes 1,2,5 --dualChainValIndexes 3,4 --loglevel trace --clearDataDir --dualchain
 ```
 
 ### Test consensus with bad actors
@@ -47,13 +47,13 @@ $GOPATH/bin/go-kardia --dev --addr :3005 --name node6 --mainChainValIndex 2 --du
 Example, 3-nodes network:  
 - Terminal 1:
 ```
-$GOPATH/bin/go-kardia --dev --addr :3000 --name node1 -txn --mainChainValIndex 2  --mainChainValIndex 3 --mainChainValIndex 1 --clearDataDir --dualchain --logtag KARDIA --votingStrategy kai/dev/voting_scripts/voting_strategy_1.csv
+$GOPATH/bin/go-kardia --dev --addr :3000 --name node1 -txn --mainChainValIndexes 1,2,3 --clearDataDir --dualchain --logtag KARDIA --votingStrategy kai/dev/voting_scripts/voting_strategy_1.csv
 ```
 - Terminal 2:
 ```
-$GOPATH/bin/go-kardia --dev --addr :3001 --name node2 --mainChainValIndex 2  --mainChainValIndex 3 --mainChainValIndex 1 --clearDataDir --dualchain --logtag KARDIA --votingStrategy kai/dev/voting_scripts/voting_strategy_2.csv
+$GOPATH/bin/go-kardia --dev --addr :3001 --name node2 --mainChainValIndexes 1,2,3 --clearDataDir --dualchain --logtag KARDIA --votingStrategy kai/dev/voting_scripts/voting_strategy_2.csv
 ```
 - Terminal 3:
 ```
-$GOPATH/bin/go-kardia --dev --addr :3002 --name node3 --mainChainValIndex 2  --mainChainValIndex 3 --mainChainValIndex 1 --clearDataDir --dualchain --logtag KARDIA --votingStrategy kai/dev/voting_scripts/voting_strategy_3.csv
+$GOPATH/bin/go-kardia --dev --addr :3002 --name node3 --mainChainValIndexes 1,2,3 --clearDataDir --dualchain --logtag KARDIA --votingStrategy kai/dev/voting_scripts/voting_strategy_3.csv
 ``` 

@@ -43,7 +43,7 @@ type MainChainConfig struct {
 	// Mainchain
 
 	// Index of validators
-	ValidatorIndices []int
+	ValidatorIndexes []int
 
 	// ChainData is directory that stores levelDB data
 	ChainData string
@@ -67,7 +67,7 @@ type MainChainConfig struct {
 type DualChainConfig struct {
 	// Mainchain
 	// Index of validators
-	ValidatorIndices []int
+	ValidatorIndexes []int
 
 	// ChainData is directory that stores levelDB data
 	ChainData string

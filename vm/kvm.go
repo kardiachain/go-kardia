@@ -151,7 +151,6 @@ func (kvm *KVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	// only.
 	contract := NewContract(caller, AccountRef(contractAddr), value, gas)
 	contract.SetCallCode(&contractAddr, crypto.Keccak256Hash(code), code)
-	println("CONTRACT ADDRESS:", contractAddr.String())
 	if kvm.vmConfig.NoRecursion && kvm.depth > 0 {
 		return nil, contractAddr, gas, nil
 	}
