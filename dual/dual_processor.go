@@ -33,10 +33,10 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/kardiachain/go-kardia/abi"
-	bc "github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/dual/blockchain"
 	"github.com/kardiachain/go-kardia/dual/ethsmc"
-	"github.com/kardiachain/go-kardia/kai/dev"
+	bc "github.com/kardiachain/go-kardia/kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/event"

@@ -29,12 +29,12 @@ import (
 	"encoding/hex"
 	elog "github.com/ethereum/go-ethereum/log"
 	"github.com/kardiachain/go-kardia/abi"
-	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/dual"
 	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
 	dualservice "github.com/kardiachain/go-kardia/dual/service"
-	"github.com/kardiachain/go-kardia/kai"
-	"github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/kardia"
+	"github.com/kardiachain/go-kardia/kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -494,7 +494,7 @@ func main() {
 
 		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 		// submit tx to either internal or external blockchain.
-		bcManager := dual.NewDualBlockChainManager(kardiaService, ethNode)
+		bcManager := dualbc.NewDualBlockChainManager(kardiaService, ethNode)
 		dualService.SetDualBlockChainManager(bcManager)
 
 		if err != nil {

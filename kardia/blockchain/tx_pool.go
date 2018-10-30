@@ -22,23 +22,22 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"path/filepath"
 	"sort"
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/metrics"
+	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
+
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kardia/blockchain/chaindb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
-	"github.com/kardiachain/go-kardia/types"
-
-	"github.com/ethereum/go-ethereum/metrics"
-
-	"github.com/kardiachain/go-kardia/blockchain/chaindb"
 	kaidb "github.com/kardiachain/go-kardia/storage"
-	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
-	"path/filepath"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (

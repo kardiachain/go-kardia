@@ -28,8 +28,8 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/kardiachain/go-kardia/abi"
+	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/dual/ethsmc"
-	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/tool"

@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package consensus
+package dual
 
 import (
 	"errors"
@@ -24,8 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/dual"
-	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -42,17 +40,17 @@ type DualBlockOperations struct {
 
 	mtx sync.RWMutex
 
-	blockchain *dualbc.DualBlockChain
-	eventPool  *dualbc.EventPool
+	blockchain *DualBlockChain
+	eventPool  *EventPool
 
-	bcManager *dual.DualBlockChainManager
+	bcManager *DualBlockChainManager
 
 	height uint64
 }
 
 // Returns a new DualBlockOperations with latest chain & ,
 // initialized to the last height that was committed to the DB.
-func NewDualBlockOperations(logger log.Logger, blockchain *dualbc.DualBlockChain, eventPool *dualbc.EventPool) *DualBlockOperations {
+func NewDualBlockOperations(logger log.Logger, blockchain *DualBlockChain, eventPool *EventPool) *DualBlockOperations {
 	return &DualBlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
@@ -61,7 +59,7 @@ func NewDualBlockOperations(logger log.Logger, blockchain *dualbc.DualBlockChain
 	}
 }
 
-func (dbo *DualBlockOperations) SetDualBlockChainManager(bcManager *dual.DualBlockChainManager) {
+func (dbo *DualBlockOperations) SetDualBlockChainManager(bcManager *DualBlockChainManager) {
 	dbo.bcManager = bcManager
 }
 
@@ -252,7 +250,7 @@ func (dbo *DualBlockOperations) commitDualEvents(events types.DualEvents) (commo
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
 	counter := 0
-	nodeAddr := common.HexToAddress(dualbc.DualStateAddressHex)
+	nodeAddr := common.HexToAddress(DualStateAddressHex)
 	for _, event := range events {
 		state.Prepare(event.Hash(), common.Hash{}, counter)
 		state.SetNonce(nodeAddr, state.GetNonce(nodeAddr)+1)

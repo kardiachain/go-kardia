@@ -21,7 +21,7 @@ package tool
 import (
 	"testing"
 
-	development "github.com/kardiachain/go-kardia/kai/dev"
+	development "github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"

@@ -23,13 +23,13 @@ import (
 	"encoding/hex"
 	"errors"
 
-	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/common/service"
+	serviceconst "github.com/kardiachain/go-kardia/common/service/const"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/dual"
-	kcmn "github.com/kardiachain/go-kardia/kai/common"
-	"github.com/kardiachain/go-kardia/kai/dev"
+	"github.com/kardiachain/go-kardia/kardia/blockchain"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -141,7 +141,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 	}
-	logger.Info("Initialising protocol", "versions", kcmn.ProtocolVersions, "network", config.NetworkId)
+	logger.Info("Initialising protocol", "versions", serviceconst.ProtocolVersions, "network", config.NetworkId)
 
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
@@ -170,7 +170,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 		kai.logger,
 		configs.DefaultConsensusConfig(),
 		state,
-		consensus.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
+		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
 		ctx.Config.DevEnvConfig.VotingStrategy,
 	)
 	kai.csManager = consensus.NewConsensusManager(KardiaServiceName, consensusState)
