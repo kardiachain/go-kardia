@@ -28,6 +28,7 @@ import (
 
 	"encoding/hex"
 	elog "github.com/ethereum/go-ethereum/log"
+	"github.com/kardiachain/go-kardia/common/tool"
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
 	dualeth "github.com/kardiachain/go-kardia/dual/external/eth"
@@ -41,7 +42,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/node"
-	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 	"os"
 	"path/filepath"
