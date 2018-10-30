@@ -42,12 +42,12 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/params"
 
-	"github.com/kardiachain/go-kardia/abi"
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
 	"github.com/kardiachain/go-kardia/dual/external/eth/ethsmc"
 	dualservice "github.com/kardiachain/go-kardia/dual/service"
 	"github.com/kardiachain/go-kardia/kardia/blockchain"
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"

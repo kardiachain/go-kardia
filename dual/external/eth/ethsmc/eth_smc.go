@@ -28,7 +28,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/kardiachain/go-kardia/abi"
+
+	"github.com/kardiachain/go-kardia/lib/abi"
 )
 
 // Address of the deployed contract on Rinkeby.

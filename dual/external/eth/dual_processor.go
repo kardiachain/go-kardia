@@ -32,12 +32,12 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 
-	"github.com/kardiachain/go-kardia/abi"
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
 	"github.com/kardiachain/go-kardia/dual/external/eth/ethsmc"
 	"github.com/kardiachain/go-kardia/dual/service"
 	kardiabc "github.com/kardiachain/go-kardia/kardia/blockchain"
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/event"
