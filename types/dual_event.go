@@ -27,6 +27,15 @@ import (
 	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
+type BlockchainSymbol string
+
+// Enum for
+const (
+	KARDIA   = BlockchainSymbol("KAI")
+	ETHEREUM = BlockchainSymbol("ETH")
+	NEO      = BlockchainSymbol("Neo")
+)
+
 // An event pertaining to the current dual node's interests and its derived tx's
 // metadata.
 type DualEvent struct {
@@ -44,7 +53,7 @@ type DualEvent struct {
 // that pertains to the current dual node's interests.
 type EventData struct {
 	TxHash       common.Hash
-	TxSource     string
+	TxSource     BlockchainSymbol
 	FromExternal bool
 	Data         *EventSummary
 }
@@ -68,10 +77,10 @@ type EventSummary struct {
 // or externally).
 type TxData struct {
 	TxHash common.Hash
-	Target string
+	Target BlockchainSymbol
 }
 
-func NewDualEvent(nonce uint64, fromExternal bool, txSource string, txHash *common.Hash, summary *EventSummary) *DualEvent {
+func NewDualEvent(nonce uint64, fromExternal bool, txSource BlockchainSymbol, txHash *common.Hash, summary *EventSummary) *DualEvent {
 	return &DualEvent{
 		Nonce: nonce,
 		TriggeredEvent: &EventData{

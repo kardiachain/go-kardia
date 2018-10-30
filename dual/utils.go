@@ -95,6 +95,8 @@ func CreateEthReleaseAmountTx(recipientAddr ethCommon.Address, statedb *ethState
 	if nonce == 0 {
 		log.Error("Eth state return 0 for nonce of contract address, SKIPPING TX CREATION", "addr", ethsmc.EthContractAddress)
 	}
+	tx := ethSmc.CreateEthReleaseTx(quantity, nonce)
+	log.Info("Create Eth tx to release", "quantity", quantity, "nonce", nonce, "txhash", tx.Hash().Hex())
 
-	return ethSmc.CreateEthReleaseTx(quantity, nonce)
+	return tx
 }

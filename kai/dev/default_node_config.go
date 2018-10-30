@@ -40,6 +40,8 @@ import (
 const (
 	// GenesisAccount used for matchEth tx
 	MockKardiaAccountForMatchEthTx = "0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28"
+	// GenesisAccount used for matchEth tx
+	MockSmartContractCallSenderAccount = "0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5"
 )
 
 type DevNodeConfig struct {

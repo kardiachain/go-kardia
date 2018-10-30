@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"time"
 
 	ethCommon "github.com/ethereum/go-ethereum/common"
@@ -41,6 +42,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/params"
 
+	"github.com/kardiachain/go-kardia/abi"
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/dual/blockchain"
 	"github.com/kardiachain/go-kardia/dual/ethsmc"
@@ -48,7 +50,9 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/vm"
 )
 
 const (
@@ -57,7 +61,6 @@ const (
 )
 
 var (
-	ErrCreateTx = errors.New("Fail to create Eth's tx from DualEvent")
 	ErrAddEthTx = errors.New("Fail to add tx to Ether's TxPool")
 )
 
@@ -125,10 +128,18 @@ type EthKardia struct {
 	kardiaChain *blockchain.BlockChain
 	txPool      *blockchain.TxPool // Transaction pool of KARDIA service.
 	eventPool   *dual.EventPool    // Event pool of DUAL service.
+
+	smcABI     *abi.ABI
+	smcAddress *common.Address
 }
 
 // EthKardia creates a Ethereum sub node.
-func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualEventPool *dual.EventPool) (*EthKardia, error) {
+func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualEventPool *dual.EventPool, smcAddr *common.Address, smcABIStr string) (*EthKardia, error) {
+	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
+	if err != nil {
+		return nil, err
+	}
+
 	datadir := defaultEthDataDir()
 
 	// Creates datadir with testnet follow eth standards.
@@ -215,31 +226,73 @@ func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, t
 		}
 	}
 	return &EthKardia{
-		geth: ethNode, config: config, ethSmc: ethsmc.NewEthSmc(), kardiaChain: kardiaChain, txPool: txPool, eventPool: dualEventPool}, nil
+		geth:        ethNode,
+		config:      config,
+		ethSmc:      ethsmc.NewEthSmc(),
+		kardiaChain: kardiaChain,
+		txPool:      txPool,
+		eventPool:   dualEventPool,
+		smcAddress:  smcAddr,
+		smcABI:      &smcABI,
+	}, nil
 }
 
 func (n *EthKardia) SubmitTx(event *types.EventData) error {
+	statedb, err := n.kardiaChain.State()
+	if err != nil {
+		log.Error("Fail to get Kardia state", "error", err)
+		return err
+	}
+
+	senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
+	ethSendValue := n.CallKardiaMasterGetEthToSend(senderAddr, statedb)
+	log.Info("Kardia smc calls getEthToSend", "eth", ethSendValue)
+	if ethSendValue != nil && ethSendValue.Cmp(big.NewInt(0)) != 0 {
+		// TODO(namdoh, #115): Remember this txs event to dual service's pool
+
+		// TODO(namdoh, #115): Split this into two part 1) create an Ether tx and propose it and 2)
+		// once its block is commit, the next proposer will submit it.
+		// Create and submit a Kardia tx.
+		n.submitEthReleaseTx(ethSendValue)
+
+		// Create Kardia tx removeEth right away to acknowledge the ethsend
+		gAccount := "0xe94517a4f6f45e80CbAaFfBb0b845F4c0FDD7547"
+		addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
+		addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
+
+		// TODO(namdoh, #115): Split this into two part 1) create a Kardia tx and propose it and 2)
+		// once its block is commit, the next proposer will execute it.
+		// Create and submit a Kardia tx.
+		tx := CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, 1)
+		if err := n.txPool.AddLocal(tx); err != nil {
+			log.Error("Fail to add Kardia tx to removeEth", err, "tx", tx)
+		} else {
+			log.Info("Creates removeEth tx", tx.Hash().Hex())
+		}
+	}
+
+	return nil
+}
+
+func (n *EthKardia) submitEthReleaseTx(value *big.Int) {
 	statedb, err := n.EthBlockChain().State()
 	if err != nil {
 		log.Error("Fail to get Ethereum state to create release tx", "err", err)
-		return err
+		return
 	}
 
 	// TODO(thientn,namdoh): Remove hard-coded address.
 	contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
-	tx := CreateEthReleaseAmountTx(contractAddr, statedb, event.Data.TxValue, n.ethSmc)
+	tx := CreateEthReleaseAmountTx(contractAddr, statedb, value, n.ethSmc)
 	if tx == nil {
-		log.Error("Fail to create Eth's tx from DualEvent")
-		return ErrCreateTx
+		log.Error("Fail to create Eth's tx")
 	}
 
 	if err := n.EthTxPool().AddLocal(tx); err != nil {
-		log.Error("Fail to add Eth tx", "error", err)
-		return ErrAddEthTx
+		log.Error("Fail to add Ether tx", "error", err)
+	} else {
+		log.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
 	}
-	log.Info("Add Eth tx successfully", "txhash", tx.Hash().Hex())
-
-	return nil
 }
 
 // Start starts the Ethereum node.
@@ -282,6 +335,10 @@ func (n *EthKardia) EthTxPool() *ethCore.TxPool {
 	var ethService *eth.Ethereum
 	n.geth.Service(&ethService)
 	return ethService.TxPool()
+}
+
+func (n *EthKardia) EthSmc() *ethsmc.EthSmc {
+	return n.ethSmc
 }
 
 // syncHead syncs with latest events from Eth network to Kardia.
@@ -367,38 +424,34 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 	for _, tx := range block.Transactions() {
 		// TODO(thientn): Make this tx matcher more robust.
 		if tx.To() != nil && *tx.To() == contractAddr {
-			log.Info("New tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
-			statedb, err := n.EthBlockChain().State()
-			if err != nil {
-				log.Error("Fail to get DUAL's service statedb", "err", err)
-				return
-			}
-			nonce := statedb.GetNonce(ethCommon.HexToAddress(dual.DualStateAddressHex))
-			ethTxHash := tx.Hash()
-			txHash := common.BytesToHash(ethTxHash[:])
+			log.Info("New Eth's tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
 			eventSummary, err := n.ExtractEthTxSummary(tx)
 			if err != nil {
 				log.Error("Error when extracting Eth's tx summary.")
 				// TODO(#140): Handle smart contract failure correctly.
 				panic("Not yet implemented!")
 			}
-			dualEvent := types.NewDualEvent(nonce, true /* externalChain */, "ETH", &txHash, &eventSummary)
 
-			// TODO(namdoh@): Move the creation of Kardia Tx to under a util func.
-			// Compute Kardia's tx from the Eth's event.
+			// TODO(namdoh): Use dual's blockchain state instead.
 			kardiaStateDB, err := n.kardiaChain.State()
 			if err != nil {
 				log.Error("Fail to get Kardia state", "error", err)
 				return
 			}
-			// TODO(thientn,namdoh): Remove hard-coded genesisAccount here.
+			nonce := kardiaStateDB.GetNonce(common.HexToAddress(dual.DualStateAddressHex))
+			ethTxHash := tx.Hash()
+			txHash := common.BytesToHash(ethTxHash[:])
+			dualEvent := types.NewDualEvent(nonce, true /* externalChain */, types.ETHEREUM, &txHash, &eventSummary)
+
+			// Compute Kardia's tx from the DualEvent.
+			// TODO(thientn,namdoh): Remove hard-coded account address here.
 			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[dev.MockKardiaAccountForMatchEthTx])
 			addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 			// TODO(namdoh@): Pass eventSummary.TxSource to matchType.
 			kardiaTx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, eventSummary.TxValue, 1)
 			dualEvent.PendingTx = &types.TxData{
 				TxHash: kardiaTx.Hash(),
-				Target: "KARDIA",
+				Target: types.KARDIA,
 			}
 
 			log.Info("Create dual's event", "dualEvent", dualEvent)
@@ -406,7 +459,7 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 				log.Error("Fail to add dual's event", "error", err)
 				return
 			}
-			log.Info("Add dual's event to event pool successfully", "eventHash", dualEvent.Hash().Hex())
+			log.Info("Add dual's event to event pool successfully", "eventHash", dualEvent.Hash().Fingerprint())
 		}
 	}
 }
@@ -425,28 +478,33 @@ func (n *EthKardia) ExtractEthTxSummary(tx *ethTypes.Transaction) (types.EventSu
 	}, nil
 }
 
-// TODO(namdoh): Deprecate this once consensus's integration with dual node is completed.
-func (n *EthKardia) SendEthFromContract(value *big.Int) {
-
-	statedb, err := n.EthBlockChain().State()
+func (n *EthKardia) CallKardiaMasterGetEthToSend(from common.Address, statedb *state.StateDB) *big.Int {
+	getEthToSend, err := n.smcABI.Pack("getEthToSend")
 	if err != nil {
-		log.Error("Fail to get Ethereum state to create release tx", "err", err)
-		return
+		log.Error("Fail to pack Kardia smc getEthToSend", "error", err)
+		return big.NewInt(0)
 	}
-	// Nonce of account to sign tx
-	contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
-	nonce := statedb.GetNonce(contractAddr)
-	if nonce == 0 {
-		log.Error("Eth state return 0 for nonce of contract address, SKIPPING TX CREATION", "addr", ethsmc.EthContractAddress)
+	ret, err := callStaticKardiaMasterSmc(from, *n.smcAddress, n.kardiaChain, getEthToSend, statedb)
+	if err != nil {
+		log.Error("Error calling master exchange contract", "error", err)
+		return big.NewInt(0)
 	}
-	tx := n.ethSmc.CreateEthReleaseTx(value, nonce)
+	return new(big.Int).SetBytes(ret)
+}
 
-	log.Info("Create Eth tx to release", "value", value, "nonce", nonce, "txhash", tx.Hash().Hex())
-	if err := n.EthTxPool().AddLocal(tx); err != nil {
-		log.Error("Fail to add Ether tx", "error", err)
-	} else {
-		log.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
+func (n *EthKardia) CallKardiaMasterGetNeoToSend(from common.Address, statedb *state.StateDB) *big.Int {
+	getNeoToSend, err := n.smcABI.Pack("getNeoToSend")
+	if err != nil {
+		log.Error("Fail to pack Kardia smc getEthToSend", "error", err, "neodual", "neodual")
+		return big.NewInt(0)
 	}
+	ret, err := callStaticKardiaMasterSmc(from, *n.smcAddress, n.kardiaChain, getNeoToSend, statedb)
+	if err != nil {
+		log.Error("Error calling master exchange contract", "error", err, "neodual", "neodual")
+		return big.NewInt(0)
+	}
+
+	return new(big.Int).SetBytes(ret)
 }
 
 func (n *EthKardia) mockBlockGenerationRoutine(triggeringConfig *dev.TriggeringConfig, blockCh chan *ethTypes.Block) {
@@ -464,4 +522,16 @@ func (n *EthKardia) mockBlockGenerationRoutine(triggeringConfig *dev.TriggeringC
 			break
 		}
 	}
+}
+
+// The following function is just call the master smc and return result in bytes format
+func callStaticKardiaMasterSmc(from common.Address, to common.Address, bc *blockchain.BlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
+	context := blockchain.NewKVMContextFromDualNodeCall(from, bc.CurrentHeader(), bc)
+	vmenv := vm.NewKVM(context, statedb, vm.Config{})
+	sender := vm.AccountRef(from)
+	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(100000))
+	if err != nil {
+		return make([]byte, 0), err
+	}
+	return ret, nil
 }
