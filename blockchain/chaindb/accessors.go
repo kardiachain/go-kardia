@@ -470,3 +470,16 @@ func CheckHash(db DatabaseReader, hash *common.Hash) bool {
 	data, _ := db.Get(hashKey(hash))
 	return decodeBoolean(data)
 }
+
+// Stores a tx hash into the database.
+func StoreTxHash(db DatabaseWriter, hash *common.Hash) {
+	if err := db.Put(txHashKey(hash), encodeBoolean(true)); err != nil {
+		log.Crit("Failed to store hash", "err", err)
+	}
+}
+
+// Returns true if a tx hash already exists in the database.
+func CheckTxHash(db DatabaseReader, hash *common.Hash) bool {
+	data, _ := db.Get(txHashKey(hash))
+	return decodeBoolean(data)
+}

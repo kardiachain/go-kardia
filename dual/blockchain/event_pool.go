@@ -97,6 +97,8 @@ type blockChain interface {
 	SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription
 	StoreHash(hash *common.Hash)
 	CheckHash(hash *common.Hash) bool
+	StoreTxHash(hash *common.Hash)
+	CheckTxHash(hash *common.Hash) bool
 }
 
 // EventPoolConfig are the configuration parameters of the event pool.
@@ -360,7 +362,7 @@ func (pool *EventPool) reset(oldHead, newHead *types.Header) {
 	// Update to the latest known pending nonce
 	events := pool.pending.Flatten() // Heavy but will be cached and is needed by the miner anyway
 	if len(events) > 0 {
-		pool.pendingState.SetNonce(dualStateAddress, events[len(events)-1].Nonce+1)
+		pool.currentState.SetNonce(dualStateAddress, events[len(events)-1].Nonce+1)
 	}
 
 	// Check the queue and move dual's events over to the pending if possible
@@ -606,6 +608,7 @@ func (pool *EventPool) addEvent(event *types.DualEvent) error {
 	defer pool.mu.Unlock()
 
 	pool.addEventLocked(event)
+	pool.promoteExecutables()
 
 	return nil
 }
@@ -627,6 +630,8 @@ func (pool *EventPool) addEventsLocked(events []*types.DualEvent) []error {
 	for i, event := range events {
 		errs[i] = pool.addEventLocked(event)
 	}
+	pool.promoteExecutables()
+
 	return errs
 }
 
@@ -636,7 +641,7 @@ func (pool *EventPool) addEventLocked(event *types.DualEvent) error {
 	eventHash := event.TriggeredEvent.TxHash
 	if pool.chain.CheckHash(&eventHash) {
 		// TODO(#121): Consider removing this error when we move to beta net.
-		pool.logger.Error("Attempting to add a dual's event that was previously added to EventPool. Abort adding event.")
+		pool.logger.Error("Attempting to add a dual's event that was previously added to EventPool. Abort adding event.", "event", event)
 		return ErrAddExistingEvent
 	}
 
@@ -649,7 +654,7 @@ func (pool *EventPool) addEventLocked(event *types.DualEvent) error {
 	// TODO(namdoh@): Consider storing this under a different key (from the event hash) to avoid
 	// collision.
 	if !event.PendingTx.TxHash.IsZero() {
-		pool.chain.StoreHash(&event.PendingTx.TxHash)
+		pool.chain.StoreTxHash(&event.PendingTx.TxHash)
 	}
 	return nil
 }
@@ -776,7 +781,7 @@ func (pool *EventPool) demoteUnexecutables() {
 	// This function is only called when TxPool detect new height.
 	for _, event := range pool.chain.CurrentBlock().DualEvents() {
 		hash := event.Hash()
-		pool.logger.Info("EventPool to remove committed dual's event", "hash", hash)
+		pool.logger.Info("EventPool to remove committed dual's event", "hash", hash.Fingerprint())
 		pool.all.Remove(hash)
 	}
 

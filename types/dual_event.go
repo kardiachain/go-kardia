@@ -19,18 +19,29 @@
 package types
 
 import (
+	"fmt"
 	"math/big"
 	"sync/atomic"
 
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/rlp"
+)
+
+type BlockchainSymbol string
+
+// Enum for
+const (
+	KARDIA   = BlockchainSymbol("KAI")
+	ETHEREUM = BlockchainSymbol("ETH")
+	NEO      = BlockchainSymbol("Neo")
 )
 
 // An event pertaining to the current dual node's interests and its derived tx's
 // metadata.
 type DualEvent struct {
-	Nonce          uint64    `json:"nonce"  		gencodec:"required"`
-	TriggeredEvent EventData `json:"triggeredEvent" gencodec:"required"`
-	PendingTx      TxData    `json:"pendingTx"      gencodec:"required"`
+	Nonce          uint64     `json:"nonce"  	 	 gencodec:"required"`
+	TriggeredEvent *EventData `json:"triggeredEvent" gencodec:"required"`
+	PendingTx      *TxData    `json:"pendingTx"      gencodec:"required"`
 
 	// caches
 	hash atomic.Value
@@ -41,9 +52,18 @@ type DualEvent struct {
 // Data relevant to the event (either from external or internal blockchain)
 // that pertains to the current dual node's interests.
 type EventData struct {
-	TxHash   common.Hash
-	TxSource string
-	Data     EventSummary
+	TxHash       common.Hash
+	TxSource     BlockchainSymbol
+	FromExternal bool
+	Data         *EventSummary
+}
+
+func (ed *EventData) String() string {
+	return fmt.Sprintf("EventData{TxHash:%v  TxSource:%v  FromExternal:%v}",
+		ed.TxHash.Fingerprint(),
+		ed.TxSource,
+		ed.FromExternal)
+
 }
 
 // Relevant bits for necessary for computing internal tx (ie. Kardia's tx)
@@ -57,16 +77,17 @@ type EventSummary struct {
 // or externally).
 type TxData struct {
 	TxHash common.Hash
-	Target string
+	Target BlockchainSymbol
 }
 
-func NewDualEvent(nonce uint64, txSource string, txHash *common.Hash, summary *EventSummary) *DualEvent {
+func NewDualEvent(nonce uint64, fromExternal bool, txSource BlockchainSymbol, txHash *common.Hash, summary *EventSummary) *DualEvent {
 	return &DualEvent{
 		Nonce: nonce,
-		TriggeredEvent: EventData{
-			TxHash:   *txHash,
-			TxSource: txSource,
-			Data:     *summary,
+		TriggeredEvent: &EventData{
+			TxHash:       *txHash,
+			TxSource:     txSource,
+			FromExternal: fromExternal,
+			Data:         summary,
 		},
 	}
 }
@@ -82,11 +103,28 @@ func (de *DualEvent) Hash() common.Hash {
 	return v
 }
 
+// Returns a short string representing DualEvent
+func (de *DualEvent) String() string {
+	if de == nil {
+		return "nil-DualEvent"
+	}
+	return fmt.Sprintf("DualEvent{Nonce:%v  TriggeredEvent:%v}#%v",
+		de.Nonce,
+		de.TriggeredEvent,
+		de.Hash().Fingerprint())
+}
+
 // Transactions is a Transaction slice type for basic sorting.
 type DualEvents []*DualEvent
 
 // Len returns the length of s.
 func (d DualEvents) Len() int { return len(d) }
+
+// GetRlp implements Rlpable and returns the i'th element of d in rlp.
+func (d DualEvents) GetRlp(i int) []byte {
+	enc, _ := rlp.EncodeToBytes(d[i])
+	return enc
+}
 
 // DualEventByNonce implements the sort interface to allow sorting a list of dual's events
 // by their nonces.

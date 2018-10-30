@@ -446,3 +446,21 @@ func (dbc *DualBlockChain) StoreHash(hash *common.Hash) {
 func (dbc *DualBlockChain) CheckHash(hash *common.Hash) bool {
 	return chaindb.CheckHash(dbc.db, hash)
 }
+
+// Writes a tx hash into db.
+// TODO(namdoh@): The hashKey is primarily used for persistently store a tx hash in db, so we
+// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
+// tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
+// it under chaindb).
+func (dbc *DualBlockChain) StoreTxHash(hash *common.Hash) {
+	chaindb.StoreTxHash(dbc.db, hash)
+}
+
+// Returns true if a tx hash already exists.
+// TODO(namdoh@): The hashKey is primarily used for persistently store a tx hash in db, so we
+// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
+// tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
+// it under chaindb).
+func (dbc *DualBlockChain) CheckTxHash(hash *common.Hash) bool {
+	return chaindb.CheckTxHash(dbc.db, hash)
+}

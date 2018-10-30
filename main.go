@@ -460,11 +460,12 @@ func main() {
 
 	var dualP *dual.DualProcessor
 
+	// TODO(namdoh): Remove the hard-code below
+	exchangeContractAddress := dev.GetContractAddressAt(2)
+	exchangeContractAbi := dev.GetContractAbiByAddress(exchangeContractAddress.String())
 	// TODO: This should trigger for either Eth dual or Neo dual flag, so  *ethDual || *neoDual
 	if args.ethDual || args.neoDual {
-		exchangeContractAddress := dev.GetContractAddressAt(2)
-		exchangeContractAbi := dev.GetContractAbiByAddress(exchangeContractAddress.String())
-		dualP, err = dual.NewDualProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), &exchangeContractAddress, exchangeContractAbi)
+		dualP, err = dual.NewDualProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
 		if err != nil {
 			log.Error("Fail to initialize DualProcessor", "error", err)
 		} else {
@@ -488,7 +489,13 @@ func main() {
 			config.DualNodeConfig = dev.CreateDualNodeConfig()
 		}
 
-		ethNode, err := dual.NewEthKardia(config, kardiaService.BlockChain(), kardiaService.TxPool(), dualService.EventPool())
+		ethNode, err := dual.NewEthKardia(config, kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+
+		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
+		// submit tx to either internal or external blockchain.
+		bcManager := dual.NewDualBlockChainManager(kardiaService, ethNode)
+		dualService.SetDualBlockChainManager(bcManager)
+
 		if err != nil {
 			logger.Error("Fail to create Eth sub node", "err", err)
 			return
@@ -509,37 +516,10 @@ func main() {
 		dualP.RegisterEthDualNode(ethNode)
 
 		go displaySyncStatus(client)
-		// go callAmountToSend(kardiaService.BlockChain(), kardiaService.TxPool(), dualP)
 	}
 
 	go displayKardiaPeers(n)
 	waitForever()
-}
-
-func callAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool, dualP *dual.DualProcessor) {
-	for {
-		log.Info("Polling smc")
-		statedb, err := b.State()
-
-		if err != nil {
-			log.Error("Error getting state. Cannot make contract call")
-		} else {
-			log.Info("Preparing to tracking master smc")
-		}
-		senderAddr := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-		ethToSend := dualP.CallKardiaMasterGetEthToSend(senderAddr, statedb)
-		log.Info("eth to send", "master smc", ethToSend)
-		neoToSend := dualP.CallKardiaMasterGetNeoToSend(senderAddr, statedb)
-		log.Info("neo to send", "master smc", neoToSend)
-		if ethToSend.Cmp(big.NewInt(0)) > 0 {
-			log.Info("There are some ETH to send, remove it")
-			removeAmountToSend(b, txPool, ethToSend)
-		} else {
-			log.Info("There are no ETH to send, update it")
-			updateAmountToSend(b, txPool)
-		}
-		time.Sleep(10 * time.Second)
-	}
 }
 
 func updateAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool) {

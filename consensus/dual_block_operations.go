@@ -19,32 +19,40 @@
 package consensus
 
 import (
+	"errors"
 	"math/big"
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/dual/blockchain"
+	"github.com/kardiachain/go-kardia/dual"
+	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
 )
 
+var (
+	ErrNilDualBlockChainManager = errors.New("DualBlockChainManager isn't set yet")
+)
+
 // TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
 // These files should be consolidated in the future.
-
 type DualBlockOperations struct {
 	logger log.Logger
 
 	mtx sync.RWMutex
 
-	blockchain *dual.DualBlockChain
-	eventPool  *dual.EventPool
-	height     uint64
+	blockchain *dualbc.DualBlockChain
+	eventPool  *dualbc.EventPool
+
+	bcManager *dual.DualBlockChainManager
+
+	height uint64
 }
 
 // Returns a new DualBlockOperations with latest chain & ,
 // initialized to the last height that was committed to the DB.
-func NewDualBlockOperations(logger log.Logger, blockchain *dual.DualBlockChain, eventPool *dual.EventPool) *DualBlockOperations {
+func NewDualBlockOperations(logger log.Logger, blockchain *dualbc.DualBlockChain, eventPool *dualbc.EventPool) *DualBlockOperations {
 	return &DualBlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
@@ -53,33 +61,52 @@ func NewDualBlockOperations(logger log.Logger, blockchain *dual.DualBlockChain, 
 	}
 }
 
+func (dbo *DualBlockOperations) SetDualBlockChainManager(bcManager *dual.DualBlockChainManager) {
+	dbo.bcManager = bcManager
+}
+
 func (dbo *DualBlockOperations) Height() uint64 {
 	return dbo.height
 }
 
-// Proposes a new block.
+// Proposes a new block for dual's blockchain.
 func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID, lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
-	// Gets all transactions in pending pools and execute them to get new account states.
-	// Tx execution can happen in parallel with voting or precommitted.
-	// For simplicity, this code executes & commits txs before sending proposal,
-	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
-	txs := dbo.collectTransactions()
-	dbo.logger.Debug("Collected transactions", "txs", txs)
+	// Gets all dual's events in pending pools and them to the new block.
+	// TODO(namdoh@): Since there may be a small latency for other dual peers to see the same set of
+	// dual's events, we may need to wait a bit here.
+	events := dbo.collectDualEvents()
+	dbo.logger.Debug("Collected dual's events", "events", events)
 
-	header := dbo.newHeader(height, uint64(len(txs)), lastBlockID, lastValidatorHash)
+	header := dbo.newHeader(height, uint64(len(events)), lastBlockID, lastValidatorHash)
 	dbo.logger.Info("Creates new header", "header", header)
 
-	stateRoot, receipts, err := dbo.commitTransactions(txs, header)
+	stateRoot, err := dbo.commitDualEvents(events)
 	if err != nil {
-		dbo.logger.Error("Fail to commit transactions", "err", err)
+		dbo.logger.Error("Fail to commit dual's events", "err", err)
 		return nil
 	}
 	header.Root = stateRoot
 
-	block = dbo.newBlock(header, txs, receipts, commit)
-	dbo.logger.Trace("Make block to propose", "block", block)
+	if height > 0 {
+		previousBlock := dbo.blockchain.GetBlockByHeight(uint64(height) - 1)
+		if previousBlock == nil {
+			dbo.logger.Error("Get previous block N-1 failed", "proposedHeight", height)
+			return nil
+		}
+		// TODO(#169,namdoh): Break this propose step into two passes--first is to propose
+		// pending DualEvents, second is to propose submission receipts of N-1 DualEvent-derived Txs
+		// to other blockchains.
+		dbo.logger.Debug("Submitting dual's events from N-1", "events", previousBlock.DualEvents())
+		_, err := dbo.submitDualEvents(previousBlock.DualEvents())
+		if err != nil {
+			dbo.logger.Error("Fail to submit dual events", "err", err)
+			return nil
+		}
+		dbo.logger.Error("Not yet implemented - Update state root with the DualEvent's submission receipt")
+	}
 
-	dbo.saveReceipts(receipts, block)
+	block = dbo.newBlock(header, events, commit)
+	dbo.logger.Trace("Make block to propose", "block", block)
 
 	return block
 }
@@ -126,6 +153,9 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, seenCommit *types.
 	// NOTE: we can delete this at a later height
 	dbo.blockchain.WriteCommit(height, seenCommit)
 
+	dbo.logger.Trace("After commited to blockchain, removing these DualEvent's", "events", block.DualEvents())
+	dbo.eventPool.RemoveEvents(block.DualEvents())
+
 	dbo.mtx.Lock()
 	dbo.height = height
 	dbo.mtx.Unlock()
@@ -162,10 +192,11 @@ func (dbo *DualBlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 
 // Creates new block header from given data.
 // Some header fields are not ready at this point.
-func (dbo *DualBlockOperations) newHeader(height int64, numTxs uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header {
+func (dbo *DualBlockOperations) newHeader(height int64, numEvents uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:         uint64(height),
+		NumDualEvents:  numEvents,
 		Time:           big.NewInt(time.Now().Unix()),
 		LastBlockID:    blockId,
 		ValidatorsHash: validatorsHash,
@@ -173,29 +204,77 @@ func (dbo *DualBlockOperations) newHeader(height int64, numTxs uint64, blockId t
 }
 
 // Creates new block from given data.
-func (dbo *DualBlockOperations) newBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
-	block := types.NewDualBlock(dbo.logger, header, commit)
-
-	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
-	// LastResultHash.
-
-	return block
+func (dbo *DualBlockOperations) newBlock(header *types.Header, events types.DualEvents, commit *types.Commit) *types.Block {
+	return types.NewDualBlock(dbo.logger, header, events, commit)
 }
 
-// TODO(namdoh@): This isn't needed. Figure out how to remove this.
-// collectTransactions queries list of pending transactions from tx pool.
-func (dbo *DualBlockOperations) collectTransactions() []*types.Transaction {
-	return []*types.Transaction{}
+// Queries list of pending dual's events from EventPool.
+func (dbo *DualBlockOperations) collectDualEvents() []*types.DualEvent {
+	pending, err := dbo.eventPool.Pending()
+	if err != nil {
+		dbo.logger.Error("Fail to get pending events", "err", err)
+		return nil
+	}
+	return pending
 }
 
-// TODO(namdoh@): This isn't needed. Figure out how to remove this.
-// LoadBlock returns the Block for the given height.
-// commitTransactions executes the given transactions and commits the result stateDB to disk.
-func (dbo *DualBlockOperations) commitTransactions(txs types.Transactions, header *types.Header) (common.Hash, types.Receipts, error) {
-	return common.Hash{}, types.Receipts{}, nil
+// Submits txs derived from a dual events list to other blockchain.
+func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) (common.Hash, error) {
+	if len(events) == 0 {
+		return common.Hash{}, nil
+	}
+
+	if dbo.bcManager == nil {
+		dbo.logger.Error("DualBlockChainManager isn't set yet.")
+		return common.Hash{}, ErrNilDualBlockChainManager
+	}
+
+	for _, event := range events {
+		err := dbo.bcManager.SubmitTx(event.TriggeredEvent)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		// TODO(namdoh): Properly handle error here.
+	}
+	dbo.logger.Error("Not yet implemented - getting submit DualEvent receipt")
+	return common.Hash{}, nil
+}
+
+// Commit dual's events result stateDB to disk.
+// TODO(namdoh): Simplify this function since the only thing we need is to set new nonce correctly.
+func (dbo *DualBlockOperations) commitDualEvents(events types.DualEvents) (common.Hash, error) {
+	// Blockchain state at head block.
+	state, err := dbo.blockchain.State()
+	if err != nil {
+		dbo.logger.Error("Fail to get blockchain head state", "err", err)
+		return common.Hash{}, err
+	}
+
+	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
+	counter := 0
+	nodeAddr := common.HexToAddress(dualbc.DualStateAddressHex)
+	for _, event := range events {
+		state.Prepare(event.Hash(), common.Hash{}, counter)
+		state.SetNonce(nodeAddr, state.GetNonce(nodeAddr)+1)
+		state.Finalise(true)
+		counter++
+	}
+	root, err := state.Commit(true)
+	if err != nil {
+		dbo.logger.Error("Fail to commit new statedb", "err", err)
+		return common.Hash{}, err
+	}
+	err = dbo.blockchain.CommitTrie(root)
+	if err != nil {
+		dbo.logger.Error("Fail to write statedb trie to disk", "err", err)
+		return common.Hash{}, err
+	}
+
+	return root, nil
 }
 
 // TODO(namdoh@): This isn't needed. Figure out how to remove this.
 // saveReceipts saves receipts of block transactions to storage.
 func (dbo *DualBlockOperations) saveReceipts(receipts types.Receipts, block *types.Block) {
+	dbo.logger.Error("Not yet implement DualBlockOperations.submitDualEvents()")
 }

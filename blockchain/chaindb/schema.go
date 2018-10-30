@@ -46,7 +46,8 @@ var (
 	// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
 	// tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
 	// it under chaindb).
-	hashPrefix = []byte("hash") // hashPrefix + hash -> hash key
+	hashPrefix   = []byte("hash")   // hashPrefix + hash -> hash key
+	txHashPrefix = []byte("txHash") // txHashPrefix + hash -> hash key
 
 	configPrefix          = []byte("kardia-config-") // config prefix for the db
 	txLookupPrefix        = []byte("l")              // txLookupPrefix + hash -> transaction/receipt lookup metadata
@@ -157,5 +158,10 @@ func bloomBitsKey(bit uint, section uint64, hash common.Hash) []byte {
 
 // hashKey = hashPrefix + hash
 func hashKey(hash *common.Hash) []byte {
-	return append(headerPrefix, hash.Bytes()...)
+	return append(hashPrefix, hash.Bytes()...)
+}
+
+// txHashKey = txHashPrefix + hash
+func txHashKey(hash *common.Hash) []byte {
+	return append(txHashPrefix, hash.Bytes()...)
 }

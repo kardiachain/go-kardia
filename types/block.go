@@ -48,7 +48,9 @@ type Header struct {
 	// basic block info
 	Height uint64   `json:"height"       gencodec:"required"`
 	Time   *big.Int `json:"time"         gencodec:"required"` // TODO(thientn/namdoh): epoch seconds, change to milis.
-	NumTxs uint64   `json:"num_txs"      gencodec:"required`
+	NumTxs uint64   `json:"num_txs"      gencodec:"required"`
+	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
+	NumDualEvents uint64 `json:"num_dual_events" gencodec:"required"`
 
 	GasLimit uint64 `json:"gasLimit"         gencodec:"required"`
 	GasUsed  uint64 `json:"gasUsed"          gencodec:"required"`
@@ -62,6 +64,8 @@ type Header struct {
 	// hashes of block data
 	LastCommitHash common.Hash `json:"last_commit_hash"    gencodec:"required"` // commit from validators from the last block
 	TxHash         common.Hash `json:"data_hash"           gencodec:"required"` // transactions
+	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
+	DualEventsHash common.Hash `json:"dual_events_hash"    gencodec:"required"` // dual's events
 	Root           common.Hash `json:"stateRoot"           gencodec:"required"` // state root
 	ReceiptHash    common.Hash `json:"receiptsRoot"        gencodec:"required"` // receipt root
 	Bloom          Bloom       `json:"logsBloom"           gencodec:"required"`
@@ -217,15 +221,14 @@ func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []
 // NewDualBlock creates a new block for dual chain. The input data is copied,
 // changes to header and to the field values will not affect the
 // block.
-func NewDualBlock(logger log.Logger, header *Header, commit *Commit) *Block {
+func NewDualBlock(logger log.Logger, header *Header, events DualEvents, commit *Commit) *Block {
 	b := &Block{
 		logger:     logger,
 		header:     CopyHeader(header),
 		lastCommit: CopyCommit(commit),
 	}
 
-	b.header.TxHash = EmptyRootHash
-	b.header.ReceiptHash = EmptyRootHash
+	b.header.DualEventsHash = EmptyRootHash
 
 	if b.header.LastCommitHash.IsZero() {
 		if commit == nil {
@@ -235,6 +238,15 @@ func NewDualBlock(logger log.Logger, header *Header, commit *Commit) *Block {
 			b.logger.Trace("Compute last commit hash", "commit", commit)
 			b.header.LastCommitHash = commit.Hash()
 		}
+	}
+
+	if len(events) == 0 {
+		b.header.DualEventsHash = EmptyRootHash
+	} else {
+		b.header.DualEventsHash = DeriveSha(DualEvents(events))
+		b.header.NumDualEvents = uint64(len(events))
+		b.dualEvents = make(DualEvents, len(events))
+		copy(b.dualEvents, events)
 	}
 
 	// TODO(namdoh): Store evidence hash.
@@ -442,8 +454,8 @@ func (b *Block) String() string {
 		return "nil-Block"
 	}
 	blockHash := b.Hash()
-	return fmt.Sprintf("Block{%v  %v  %v}#%v",
-		b.header, b.transactions, b.lastCommit, blockHash.Fingerprint())
+	return fmt.Sprintf("Block{h:%v  tx:%v  de:%v  c:%v}#%v",
+		b.header, b.transactions, b.dualEvents, b.lastCommit, blockHash.Fingerprint())
 }
 
 type writeCounter common.StorageSize

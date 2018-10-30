@@ -20,7 +20,6 @@ package dual
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -30,54 +29,61 @@ import (
 	"strings"
 	"time"
 
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	"github.com/shopspring/decimal"
+
 	"github.com/kardiachain/go-kardia/abi"
 	bc "github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/dual/blockchain"
+	"github.com/kardiachain/go-kardia/dual/ethsmc"
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"
-	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/vm"
-	"github.com/shopspring/decimal"
 )
 
 type DualProcessor struct {
-	blockchain        *bc.BlockChain
-	txPool            *bc.TxPool
-	smcAddress        *common.Address
-	smcABI            *abi.ABI
-	smcCallSenderAddr common.Address
+	// TODO(namdoh): Remove reference to kardiaBc, only Kardia's TxPool is needed here.
+	kardiaBc   *bc.BlockChain
+	txPool     *bc.TxPool
+	smcAddress *common.Address
+	smcABI     *abi.ABI
 
 	// For when running dual node to Eth network
 	ethKardia *EthKardia
 	// TODO: add struct when running dual node to Neo
+
+	// Dual blockchain related fields
+	dualBc    *dual.DualBlockChain
+	eventPool *dual.EventPool // Event pool of DUAL service.
 
 	// Chain head subscription for new blocks.
 	chainHeadCh  chan bc.ChainHeadEvent
 	chainHeadSub event.Subscription
 }
 
-func NewDualProcessor(chain *bc.BlockChain, txPool *bc.TxPool, smcAddr *common.Address, smcABIStr string) (*DualProcessor, error) {
+func NewDualProcessor(kardiaBc *bc.BlockChain, txPool *bc.TxPool, dualBc *dual.DualBlockChain, dualEventPool *dual.EventPool, smcAddr *common.Address, smcABIStr string) (*DualProcessor, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
 	}
 
 	processor := &DualProcessor{
-		blockchain:        chain,
-		txPool:            txPool,
-		smcAddress:        smcAddr,
-		smcABI:            &smcABI,
-		smcCallSenderAddr: common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5"),
+		kardiaBc:   kardiaBc,
+		txPool:     txPool,
+		dualBc:     dualBc,
+		eventPool:  dualEventPool,
+		smcAddress: smcAddr,
+		smcABI:     &smcABI,
 
 		chainHeadCh: make(chan bc.ChainHeadEvent, 5),
 	}
 
 	// Start subscription to blockchain head event.
-	processor.chainHeadSub = chain.SubscribeChainHeadEvent(processor.chainHeadCh)
+	processor.chainHeadSub = kardiaBc.SubscribeChainHeadEvent(processor.chainHeadCh)
 
 	return processor, nil
 }
@@ -98,7 +104,7 @@ func (p *DualProcessor) loop() {
 			if ev.Block != nil {
 				// New block
 				// TODO(thietn): concurrency improvement. Consider call new go routine, or have height atomic counter.
-				p.checkNewBlock(ev.Block)
+				p.handleBlock(ev.Block)
 			}
 		case err := <-p.chainHeadSub.Err():
 			log.Error("Error while listening to new blocks", "error", err)
@@ -107,32 +113,76 @@ func (p *DualProcessor) loop() {
 	}
 }
 
-// TODO(namdoh, #115): Rename this to handleBlock to be consistent with eth.go
-func (p *DualProcessor) checkNewBlock(block *types.Block) {
+func (p *DualProcessor) handleBlock(block *types.Block) {
 	smcUpdate := false
 	for _, tx := range block.Transactions() {
 		if tx.To() != nil && *tx.To() == *p.smcAddress {
-			// New tx that updates smc, check input method for more filter.
-			method, err := p.smcABI.MethodById(tx.Data()[0:4])
+			eventSummary, err := p.ExtractKardiaTxSummary(tx)
 			if err != nil {
-				log.Error("Fail to unpack smc update method in tx", "tx", tx, "error", err)
-				return
+				log.Error("Error when extracting Eth's tx summary.")
+				// TODO(#140): Handle smart contract failure correctly.
+				panic("Not yet implemented!")
 			}
-			log.Info("Detect tx updating smc", "method", method.Name, "Value", tx.Value())
-			if method.Name == "removeEth" || method.Name == "removeNeo" {
+			log.Info("Detect Kardia's tx updating smc", "method", eventSummary.TxMethod, "value", eventSummary.TxValue, "hash", tx.Hash().Fingerprint())
+
+			// New tx that updates smc, check input method for more filter.
+			if eventSummary.TxMethod == "removeEth" || eventSummary.TxMethod == "removeNeo" {
 				// Not set flag here. If the block contains only the removeEth/removeNeo, skip look up the amount to avoid infinite loop.
-				log.Info("Skip tx updating smc to remove Eth/Neo", "method", method.Name)
+				log.Info("Skip tx updating smc to remove Eth/Neo", "method", eventSummary.TxMethod)
 				continue
 			}
+
+			// TODO(namdoh): Use dual's blockchain state instead.
+			dualStateDB, err := p.dualBc.State()
+			if err != nil {
+				log.Error("Fail to get Kardia state", "error", err)
+				return
+			}
+			nonce := dualStateDB.GetNonce(common.HexToAddress(dual.DualStateAddressHex))
+			kardiaTxHash := tx.Hash()
+			txHash := common.BytesToHash(kardiaTxHash[:])
+			dualEvent := types.NewDualEvent(nonce, false /* externalChain */, types.KARDIA, &txHash, &eventSummary)
+
+			if p.ethKardia != nil {
+				statedb, err := p.ethKardia.EthBlockChain().State()
+				if err != nil {
+					log.Error("Fail to get Ethereum state to create release tx", "err", err)
+					return
+				}
+				// Compute Eth's tx from the DualEvent.
+				// TODO(thientn,namdoh): Remove hard-coded account address here.
+				contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
+				ethTx := CreateEthReleaseAmountTx(contractAddr, statedb, eventSummary.TxValue, p.ethKardia.EthSmc())
+				ethTxHash := ethTx.Hash()
+				dualEvent.PendingTx = &types.TxData{
+					TxHash: common.Hash(ethTxHash),
+					Target: types.ETHEREUM,
+				}
+			}
+
+			log.Info("Create DualEvent for Kardia's Tx", "dualEvent", dualEvent)
+			if err := p.eventPool.AddEvent(dualEvent); err != nil {
+				log.Error("Fail to add dual's event", "error", err)
+				return
+			}
+			log.Info("Submitted Kardia's DualEvent to event pool successfully", "txHash", tx.Hash().Fingerprint(), "eventHash", dualEvent.Hash().Fingerprint())
+
 			smcUpdate = true
 		}
 	}
+
+	if p.ethKardia != nil {
+		return
+	}
+
+	// TODO(namdoh): Remove everything below here once Neo's code path is refactored. Currently it
+	// is kept to not break the existing Neo's flow.
 	if !smcUpdate {
 		return
 	}
 	log.Info("Detect smc update, running VM call to check sending value")
 
-	statedb, err := p.blockchain.StateAt(block.Root())
+	statedb, err := p.kardiaBc.StateAt(block.Root())
 	if err != nil {
 		log.Error("Error getting block state in dual process", "height", block.Height())
 		return
@@ -140,36 +190,10 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 
 	// Trigger the logic depend on what type of dual node
 	// In the future this can be a common interface with a single method
-	if p.ethKardia != nil {
-		// Eth dual node
-		ethSendValue := p.CallKardiaMasterGetEthToSend(p.smcCallSenderAddr, statedb)
-		log.Info("Kardia smc calls getEthToSend", "eth", ethSendValue)
-		if ethSendValue != nil && ethSendValue.Cmp(big.NewInt(0)) != 0 {
-			// TODO(namdoh, #115): Remember this txs event to dual service's pool
-
-			// TODO(namdoh, #115): Split this into two part 1) create an Ether tx and propose it and 2)
-			// once its block is commit, the next proposer will submit it.
-			// Create and submit a Kardia tx.
-			p.ethKardia.SendEthFromContract(ethSendValue)
-
-			// Create Kardia tx removeEth right away to acknowledge the ethsend
-			gAccount := "0xe94517a4f6f45e80CbAaFfBb0b845F4c0FDD7547"
-			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
-			addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-
-			// TODO(namdoh, #115): Split this into two part 1) create a Kardia tx and propose it and 2)
-			// once its block is commit, the next proposer will execute it.
-			// Create and submit a Kardia tx.
-			tx := CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, 1)
-			if err := p.txPool.AddLocal(tx); err != nil {
-				log.Error("Fail to add Kardia tx to removeEth", err, "tx", tx)
-			} else {
-				log.Info("Creates removeEth tx", tx.Hash().Hex())
-			}
-		}
-	} else {
+	if p.ethKardia == nil {
 		// Neo dual node
-		neoSendValue := p.CallKardiaMasterGetNeoToSend(p.smcCallSenderAddr, statedb)
+		senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
+		neoSendValue := p.CallKardiaMasterGetNeoToSend(senderAddr, statedb)
 		log.Info("Kardia smc calls getNeoToSend", "neo", neoSendValue)
 		if neoSendValue != nil && neoSendValue.Cmp(big.NewInt(0)) != 0 {
 			// TODO: create new NEO tx to send NEO
@@ -200,27 +224,15 @@ func (p *DualProcessor) checkNewBlock(block *types.Block) {
 	}
 }
 
-func (p *DualProcessor) CallKardiaMasterGetEthToSend(from common.Address, statedb *state.StateDB) *big.Int {
-	getEthToSend, err := p.smcABI.Pack("getEthToSend")
-	if err != nil {
-		log.Error("Fail to pack Kardia smc getEthToSend", "error", err)
-		return big.NewInt(0)
-	}
-	ret, err := callStaticKardiaMasterSmc(from, *p.smcAddress, p.blockchain, getEthToSend, statedb)
-	if err != nil {
-		log.Error("Error calling master exchange contract", "error", err)
-		return big.NewInt(0)
-	}
-	return new(big.Int).SetBytes(ret)
-}
-
+// TODO(namdoh): Remove this function once Neo's code path is refactored. Currently it
+// is kept to not break the existing Neo's flow.
 func (p *DualProcessor) CallKardiaMasterGetNeoToSend(from common.Address, statedb *state.StateDB) *big.Int {
 	getNeoToSend, err := p.smcABI.Pack("getNeoToSend")
 	if err != nil {
 		log.Error("Fail to pack Kardia smc getEthToSend", "error", err, "neodual", "neodual")
 		return big.NewInt(0)
 	}
-	ret, err := callStaticKardiaMasterSmc(from, *p.smcAddress, p.blockchain, getNeoToSend, statedb)
+	ret, err := callStaticKardiaMasterSmc(from, *p.smcAddress, p.kardiaBc, getNeoToSend, statedb)
 	if err != nil {
 		log.Error("Error calling master exchange contract", "error", err, "neodual", "neodual")
 		return big.NewInt(0)
@@ -229,69 +241,18 @@ func (p *DualProcessor) CallKardiaMasterGetNeoToSend(from common.Address, stated
 	return new(big.Int).SetBytes(ret)
 }
 
-// The following function is just call the master smc and return result in bytes format
-func callStaticKardiaMasterSmc(from common.Address, to common.Address, blockchain *bc.BlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
-	context := bc.NewKVMContextFromDualNodeCall(from, blockchain.CurrentHeader(), blockchain)
-	vmenv := vm.NewKVM(context, statedb, vm.Config{})
-	sender := vm.AccountRef(from)
-	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(100000))
+func (p *DualProcessor) ExtractKardiaTxSummary(tx *types.Transaction) (types.EventSummary, error) {
+	// New tx that updates smc, check input method for more filter.
+	method, err := p.smcABI.MethodById(tx.Data()[0:4])
 	if err != nil {
-		return make([]byte, 0), err
-	}
-	return ret, nil
-}
-
-// CreateKardiaMatchAmountTx creates Kardia tx to report new matching amount from Eth/Neo network.
-// type = 1: ETH
-// type = 2: NEO
-// TODO(namdoh@): Make type of matchType an enum instead of an int.
-func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction {
-	masterSmcAddr := dev.GetContractAddressAt(2)
-	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())
-	kABI, err := abi.JSON(strings.NewReader(masterSmcAbi))
-
-	if err != nil {
-		log.Error("Error reading abi", "err", err)
-	}
-	var getAmountToSend []byte
-	if matchType == 1 {
-		getAmountToSend, err = kABI.Pack("matchEth", quantity)
-	} else {
-		getAmountToSend, err = kABI.Pack("matchNeo", quantity)
+		log.Error("Fail to unpack smc update method in tx", "tx", tx, "error", err)
+		return types.EventSummary{}, err
 	}
 
-	if err != nil {
-		log.Error("Error getting abi", "error", err, "address", masterSmcAddr, "dual", "dual")
-
-	}
-	return tool.GenerateSmcCall(senderKey, masterSmcAddr, getAmountToSend, statedb)
-}
-
-// Call to remove amount of ETH / NEO on master smc
-// type = 1: ETH
-// type = 2: NEO
-
-func CreateKardiaRemoveAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction {
-	masterSmcAddr := dev.GetContractAddressAt(2)
-	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())
-	abi, err := abi.JSON(strings.NewReader(masterSmcAbi))
-
-	if err != nil {
-		log.Error("Error reading abi", "err", err)
-	}
-	var amountToRemove []byte
-	if matchType == 1 {
-		amountToRemove, err = abi.Pack("removeEth", quantity)
-	} else {
-		amountToRemove, err = abi.Pack("removeNeo", quantity)
-		log.Info("byte to send to remove", "byte", string(amountToRemove), "neodual", "neodual")
-	}
-
-	if err != nil {
-		log.Error("Error getting abi", "error", err, "address", masterSmcAddr, "dual", "dual")
-
-	}
-	return tool.GenerateSmcCall(senderKey, masterSmcAddr, amountToRemove, statedb)
+	return types.EventSummary{
+		TxMethod: method.Name,
+		TxValue:  tx.Value(),
+	}, nil
 }
 
 // Call Api to release Neo
