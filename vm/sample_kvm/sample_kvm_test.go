@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/abi"
 	kaidb "github.com/kardiachain/go-kardia/common/storage"
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/state"

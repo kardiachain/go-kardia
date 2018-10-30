@@ -27,8 +27,8 @@ import (
 	"sync"
 
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/p2p"
-	"github.com/kardiachain/go-kardia/p2p/discover"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/rpc"
 )
 

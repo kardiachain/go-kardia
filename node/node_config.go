@@ -31,7 +31,7 @@ import (
 	"github.com/kardiachain/go-kardia/kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/p2p"
+	"github.com/kardiachain/go-kardia/lib/p2p"
 )
 
 const (

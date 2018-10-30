@@ -21,7 +21,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardia/p2p/nat"
 	"net"
 	"sync"
 	"time"
@@ -29,9 +28,10 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/p2p/discover"
+	"github.com/kardiachain/go-kardia/lib/p2p/nat"
+	"github.com/kardiachain/go-kardia/lib/p2p/netutil"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
-	"github.com/kardiachain/go-kardia/p2p/discover"
-	"github.com/kardiachain/go-kardia/p2p/netutil"
 )
 
 const (

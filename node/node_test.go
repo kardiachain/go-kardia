@@ -21,7 +21,7 @@ package node
 import (
 	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/p2p"
+	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/rpc"
 	"testing"
 )

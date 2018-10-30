@@ -36,7 +36,7 @@ import (
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	libevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/p2p/discover"
+	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/types"
 )
