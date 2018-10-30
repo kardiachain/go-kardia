@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package kai
+package service
 
 import (
 	"errors"
@@ -421,4 +421,12 @@ func (pm *ProtocolManager) NodeInfo() *NodeInfo {
 		Config:  pm.blockchain.Config(),
 		Head:    pm.blockchain.CurrentBlock().Hash(),
 	}
+}
+
+func (pm *ProtocolManager) AcceptTxs() uint32 {
+	return pm.acceptTxs
+}
+
+func (pm *ProtocolManager) SetAcceptTxs(acceptTxs uint32)  {
+	pm.acceptTxs = acceptTxs
 }

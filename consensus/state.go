@@ -286,6 +286,8 @@ func (cs *ConsensusState) AddVote(vote *types.Vote, peerID discover.NodeID) (add
 }
 
 func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) {
+	time.Sleep(4000 * time.Millisecond)
+
 	var block *types.Block
 
 	// Decide on block

@@ -24,6 +24,7 @@ import (
 	"errors"
 
 	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/common/service"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/dual"
@@ -75,7 +76,7 @@ type Kardia struct {
 
 	// Handlers
 	txPool          *blockchain.TxPool
-	protocolManager *ProtocolManager
+	protocolManager *service.ProtocolManager
 	blockchain      *blockchain.BlockChain
 	csManager       *consensus.ConsensusManager
 
@@ -179,10 +180,10 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 
 	// Initialize protocol manager.
 
-	if kai.protocolManager, err = NewProtocolManager(kaiProtocolName, kai.logger, config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csManager); err != nil {
+	if kai.protocolManager, err = service.NewProtocolManager(kaiProtocolName, kai.logger, config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csManager); err != nil {
 		return nil, err
 	}
-	kai.protocolManager.acceptTxs = config.AcceptTxs
+	kai.protocolManager.SetAcceptTxs(config.AcceptTxs)
 	kai.csManager.SetProtocol(kai.protocolManager)
 
 	return kai, nil

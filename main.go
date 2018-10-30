@@ -32,6 +32,7 @@ import (
 	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/dual"
 	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
+	dualservice "github.com/kardiachain/go-kardia/dual/service"
 	"github.com/kardiachain/go-kardia/kai"
 	"github.com/kardiachain/go-kardia/kai/dev"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -125,23 +126,23 @@ type flagArgs struct {
 	logTag   string
 
 	// Kardia node's related flags
-	listenAddr      	string
-	name            	string
-	rpcEnabled      	bool
-	rpcAddr         	string
-	rpcPort         	int
-	addTxn          	bool
-	addSmcCall      	bool
-	genNewTxs       	bool
-	newTxDelay      	int
-	lightNode       	bool
-	lightServ       	int
-	cacheSize       	int
-	bootnodes       	string
-	peer            	string
-	clearDataDir    	bool
-	mainChainValIndexes 	string
-	acceptTxs       	int
+	listenAddr          string
+	name                string
+	rpcEnabled          bool
+	rpcAddr             string
+	rpcPort             int
+	addTxn              bool
+	addSmcCall          bool
+	genNewTxs           bool
+	newTxDelay          int
+	lightNode           bool
+	lightServ           int
+	cacheSize           int
+	bootnodes           string
+	peer                string
+	clearDataDir        bool
+	mainChainValIndexes string
+	acceptTxs           int
 
 	// Ether/Kardia dualnode related flags
 	ethDual       bool
@@ -154,8 +155,8 @@ type flagArgs struct {
 	neoDual bool
 
 	// Dualnode's related flags
-	dualChain       	bool
-	dualChainValIndexes 	string
+	dualChain           bool
+	dualChainValIndexes string
 
 	// Development's related flags
 	dev            bool
@@ -328,7 +329,7 @@ func main() {
 
 	n.RegisterService(kai.NewKardiaService)
 	if args.dualChain {
-		n.RegisterService(kai.NewDualService)
+		n.RegisterService(dualservice.NewDualService)
 	}
 	if err := n.Start(); err != nil {
 		logger.Error("Cannot start node", "err", err)
@@ -340,7 +341,7 @@ func main() {
 		logger.Error("Cannot get Kardia Service", "err", err)
 		return
 	}
-	var dualService *kai.DualService
+	var dualService *dualservice.DualService
 	if args.dualChain {
 		if err := n.Service(&dualService); err != nil {
 			logger.Error("Cannot get Dual Service", "err", err)

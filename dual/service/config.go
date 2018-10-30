@@ -16,32 +16,22 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package kai
+package service
 
 import (
-	"github.com/kardiachain/go-kardia/blockchain"
+	"github.com/kardiachain/go-kardia/dual/blockchain"
 )
 
-// DefaultConfig contains default settings for use on the Kardia main net.
-var DefaultConfig = Config{
-
-	NetworkId: 1,
-
-	TxPool: blockchain.DefaultTxPoolConfig,
-}
-
-//go:generate gencodec -type Config -field-override configMarshaling -formats toml -out gen_config.go
-
-type Config struct {
+type DualConfig struct {
 	// Protocol options
 	NetworkId uint64 // Network
 
-	// The genesis block, which is inserted if the database is empty.
-	// If nil, the Kardia main net block is used.
-	Genesis *blockchain.Genesis `toml:",omitempty"`
+	// The genesis block of dual blockchain, which is inserted if the database is empty.
+	// If nil, the Dual main net block is used.
+	DualGenesis *dual.DualGenesis `toml:",omitempty"`
 
-	// Transaction pool options
-	TxPool blockchain.TxPoolConfig
+	// Dual's event pool options
+	DualEventPool dual.EventPoolConfig
 
 	// chaindata
 	ChainData string
@@ -51,7 +41,4 @@ type Config struct {
 
 	// DB handles
 	DbHandles int
-
-	// acceptTxs accept tx sync processes
-	AcceptTxs uint32
 }
