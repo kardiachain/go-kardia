@@ -133,18 +133,17 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 				continue
 			}
 
-			// TODO(namdoh): Use dual's blockchain state instead.
-			dualStateDB, err := p.dualBc.State()
-			if err != nil {
-				log.Error("Fail to get Kardia state", "error", err)
-				return
-			}
-			nonce := dualStateDB.GetNonce(common.HexToAddress(dualbc.DualStateAddressHex))
-			kardiaTxHash := tx.Hash()
-			txHash := common.BytesToHash(kardiaTxHash[:])
-			dualEvent := types.NewDualEvent(nonce, false /* externalChain */, types.KARDIA, &txHash, &eventSummary)
-
 			if p.ethKardia != nil {
+				dualStateDB, err := p.dualBc.State()
+				if err != nil {
+					log.Error("Fail to get Kardia state", "error", err)
+					return
+				}
+				nonce := dualStateDB.GetNonce(common.HexToAddress(dualbc.DualStateAddressHex))
+				kardiaTxHash := tx.Hash()
+				txHash := common.BytesToHash(kardiaTxHash[:])
+				dualEvent := types.NewDualEvent(nonce, false /* externalChain */, types.KARDIA, &txHash, &eventSummary)
+
 				statedb, err := p.ethKardia.EthBlockChain().State()
 				if err != nil {
 					log.Error("Fail to get Ethereum state to create release tx", "err", err)
@@ -159,14 +158,15 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 					TxHash: common.Hash(ethTxHash),
 					Target: types.ETHEREUM,
 				}
-			}
 
-			log.Info("Create DualEvent for Kardia's Tx", "dualEvent", dualEvent)
-			if err := p.eventPool.AddEvent(dualEvent); err != nil {
-				log.Error("Fail to add dual's event", "error", err)
-				return
+				log.Info("Create DualEvent for Kardia's Tx", "dualEvent", dualEvent)
+				if err := p.eventPool.AddEvent(dualEvent); err != nil {
+					log.Error("Fail to add dual's event", "error", err)
+					return
+				}
+				log.Info("Submitted Kardia's DualEvent to event pool successfully", "txHash", tx.Hash().Fingerprint(), "eventHash", dualEvent.Hash().Fingerprint())
+
 			}
-			log.Info("Submitted Kardia's DualEvent to event pool successfully", "txHash", tx.Hash().Fingerprint(), "eventHash", dualEvent.Hash().Fingerprint())
 
 			smcUpdate = true
 		}
