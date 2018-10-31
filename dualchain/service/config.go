@@ -16,32 +16,29 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package evidence
+package service
 
 import (
-	"sync"
-
-	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/dualchain/blockchain"
 )
 
-// ---------- EvidencePool -----------
-// EvidencePool maintains a pool of valid evidence
-// in an EvidenceStore.
-type EvidencePool struct {
-	logger log.Logger
+type DualConfig struct {
+	// Protocol options
+	NetworkId uint64 // Network
 
-	evidenceStore *EvidenceStore
-	evidenceList  *common.CList // concurrent linked-list of evidence
+	// The genesis block of dual blockchain, which is inserted if the database is empty.
+	// If nil, the Dual main net block is used.
+	DualGenesis *blockchain.DualGenesis `toml:",omitempty"`
 
-	// latest state
-	mtx   sync.Mutex
-	state state.LastestBlockState
-}
+	// Dual's event pool options
+	DualEventPool blockchain.EventPoolConfig
 
-// PendingEvidence returns all uncommitted evidence.
-func (evpool *EvidencePool) PendingEvidence() []types.Evidence {
-	return evpool.evidenceStore.PendingEvidence()
+	// chaindata
+	ChainData string
+
+	// DB caches
+	DbCaches int
+
+	// DB handles
+	DbHandles int
 }

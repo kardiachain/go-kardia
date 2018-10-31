@@ -16,32 +16,27 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package evidence
+package dual
 
 import (
-	"sync"
+	"math/big"
 
-	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/lib/common"
+	ethCommon "github.com/ethereum/go-ethereum/common"
+	ethState "github.com/ethereum/go-ethereum/core/state"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
+
+	"github.com/kardiachain/go-kardia/dualchain/external/eth/ethsmc"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
 )
 
-// ---------- EvidencePool -----------
-// EvidencePool maintains a pool of valid evidence
-// in an EvidenceStore.
-type EvidencePool struct {
-	logger log.Logger
+func CreateEthReleaseAmountTx(recipientAddr ethCommon.Address, statedb *ethState.StateDB, quantity *big.Int, ethSmc *ethsmc.EthSmc) *ethTypes.Transaction {
+	// Nonce of account to sign tx
+	nonce := statedb.GetNonce(recipientAddr)
+	if nonce == 0 {
+		log.Error("Eth state return 0 for nonce of contract address, SKIPPING TX CREATION", "addr", ethsmc.EthContractAddress)
+	}
+	tx := ethSmc.CreateEthReleaseTx(quantity, nonce)
+	log.Info("Create Eth tx to release", "quantity", quantity, "nonce", nonce, "txhash", tx.Hash().Hex())
 
-	evidenceStore *EvidenceStore
-	evidenceList  *common.CList // concurrent linked-list of evidence
-
-	// latest state
-	mtx   sync.Mutex
-	state state.LastestBlockState
-}
-
-// PendingEvidence returns all uncommitted evidence.
-func (evpool *EvidencePool) PendingEvidence() []types.Evidence {
-	return evpool.evidenceStore.PendingEvidence()
+	return tx
 }

@@ -31,7 +31,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
-	kaidb "github.com/kardiachain/go-kardia/common/storage"
+	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/rlp"

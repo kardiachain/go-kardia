@@ -24,10 +24,9 @@ import (
 	"sync"
 	"time"
 
-	service "github.com/kardiachain/go-kardia/common/service/const"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
+	service "github.com/kardiachain/go-kardia/kai/service/const"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
-	libevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/types"
@@ -135,12 +134,12 @@ func (conR *ConsensusManager) GetPeerStateKey() string {
 func (conR *ConsensusManager) subscribeToBroadcastEvents() {
 	const subscriber = "consensus-manager"
 	conR.conS.evsw.AddListenerForEvent(subscriber, types.EventNewRoundStep,
-		func(data libevents.EventData) {
+		func(data EventData) {
 			conR.broadcastNewRoundStepMessages(data.(*cstypes.RoundState))
 		})
 
 	conR.conS.evsw.AddListenerForEvent(subscriber, types.EventVote,
-		func(data libevents.EventData) {
+		func(data EventData) {
 			conR.broadcastHasVoteMessage(data.(*types.Vote))
 		})
 }

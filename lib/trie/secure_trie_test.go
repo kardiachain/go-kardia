@@ -22,7 +22,7 @@ import (
 	"sync"
 	"testing"
 
-	kaidb "github.com/kardiachain/go-kardia/common/storage"
+	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 )

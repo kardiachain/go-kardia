@@ -16,32 +16,42 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package evidence
+package kai
 
 import (
-	"sync"
-
-	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 )
 
-// ---------- EvidencePool -----------
-// EvidencePool maintains a pool of valid evidence
-// in an EvidenceStore.
-type EvidencePool struct {
-	logger log.Logger
+// DefaultConfig contains default settings for use on the Kardia main net.
+var DefaultConfig = Config{
 
-	evidenceStore *EvidenceStore
-	evidenceList  *common.CList // concurrent linked-list of evidence
+	NetworkId: 1,
 
-	// latest state
-	mtx   sync.Mutex
-	state state.LastestBlockState
+	TxPool: blockchain.DefaultTxPoolConfig,
 }
 
-// PendingEvidence returns all uncommitted evidence.
-func (evpool *EvidencePool) PendingEvidence() []types.Evidence {
-	return evpool.evidenceStore.PendingEvidence()
+//go:generate gencodec -type Config -field-override configMarshaling -formats toml -out gen_config.go
+
+type Config struct {
+	// Protocol options
+	NetworkId uint64 // Network
+
+	// The genesis block, which is inserted if the database is empty.
+	// If nil, the Kardia main net block is used.
+	Genesis *blockchain.Genesis `toml:",omitempty"`
+
+	// Transaction pool options
+	TxPool blockchain.TxPoolConfig
+
+	// chaindata
+	ChainData string
+
+	// DB caches
+	DbCaches int
+
+	// DB handles
+	DbHandles int
+
+	// acceptTxs accept tx sync processes
+	AcceptTxs uint32
 }

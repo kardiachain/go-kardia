@@ -30,12 +30,11 @@ import (
 
 	"github.com/ebuchman/fail-test"
 
-	"github.com/kardiachain/go-kardia/common/state"
 	cfg "github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 	"github.com/kardiachain/go-kardia/dev"
+	"github.com/kardiachain/go-kardia/kai/state"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
-	libevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/types"
@@ -108,7 +107,7 @@ type ConsensusState struct {
 
 	// Synchronous pubsub between consensus state and manager.
 	// State only emits EventNewRoundStep, EventVote and EventProposalHeartbeat
-	evsw libevents.EventSwitch
+	evsw EventSwitch
 
 	// closed when we finish shutting down
 	done chan struct{}
@@ -137,7 +136,7 @@ func NewConsensusState(
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
 		timeoutTicker:    NewTimeoutTicker(),
 		done:             make(chan struct{}),
-		evsw:             libevents.NewEventSwitch(),
+		evsw:             NewEventSwitch(),
 		RoundState: cstypes.RoundState{
 			CommitRound: cmn.NewBigInt32(0),
 			Height:      cmn.NewBigInt32(0),

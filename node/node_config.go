@@ -21,18 +21,18 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
-	"regexp"
-	"strconv"
-	"github.com/kardiachain/go-kardia/common/storage"
 	"github.com/kardiachain/go-kardia/dev"
-	dualbc "github.com/kardiachain/go-kardia/dual/blockchain"
-	"github.com/kardiachain/go-kardia/kardia/blockchain"
+	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
+	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
 )
 
 const (

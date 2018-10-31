@@ -26,7 +26,7 @@ import (
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 
-	"github.com/kardiachain/go-kardia/dual/external/eth/ethsmc"
+	"github.com/kardiachain/go-kardia/dualchain/external/eth/ethsmc"
 )
 
 const (
