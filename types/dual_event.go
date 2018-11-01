@@ -39,9 +39,9 @@ const (
 // An event pertaining to the current dual node's interests and its derived tx's
 // metadata.
 type DualEvent struct {
-	Nonce          uint64     `json:"nonce"  	 	 gencodec:"required"`
-	TriggeredEvent *EventData `json:"triggeredEvent" gencodec:"required"`
-	PendingTx      *TxData    `json:"pendingTx"      gencodec:"required"`
+	Nonce             uint64      `json:"nonce"  	 			 gencodec:"required"`
+	TriggeredEvent    *EventData  `json:"triggeredEvent"		 gencodec:"required"`
+	PendingTxMetadata *TxMetadata `json:"pendingTxMetadata"      gencodec:"required"`
 
 	// caches
 	hash atomic.Value
@@ -75,7 +75,7 @@ type EventSummary struct {
 
 // Metadata relevant to the tx that will be submit to other blockchain (internally
 // or externally).
-type TxData struct {
+type TxMetadata struct {
 	TxHash common.Hash
 	Target BlockchainSymbol
 }

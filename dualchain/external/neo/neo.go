@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package dual
+package neo
 
 import (
 	"bytes"
@@ -29,13 +29,11 @@ import (
 	"strings"
 	"time"
 
-	ethCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/shopspring/decimal"
 
 	"github.com/kardiachain/go-kardia/dev"
+	"github.com/kardiachain/go-kardia/dualchain/kardia"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
-	"github.com/kardiachain/go-kardia/dualchain/external/eth/ethsmc"
-	"github.com/kardiachain/go-kardia/dualchain/service"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -52,10 +50,6 @@ type DualProcessor struct {
 	txPool     *kardiabc.TxPool
 	smcAddress *common.Address
 	smcABI     *abi.ABI
-
-	// For when running dual node to Eth network
-	ethKardia *EthKardia
-	// TODO: add struct when running dual node to Neo
 
 	// Dual blockchain related fields
 	dualBc    *dualbc.DualBlockChain
@@ -94,10 +88,6 @@ func (p *DualProcessor) Start() {
 	go p.loop()
 }
 
-func (p *DualProcessor) RegisterEthDualNode(ethKardia *EthKardia) {
-	p.ethKardia = ethKardia
-}
-
 func (p *DualProcessor) loop() {
 	for {
 		select {
@@ -120,60 +110,21 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 		if tx.To() != nil && *tx.To() == *p.smcAddress {
 			eventSummary, err := p.ExtractKardiaTxSummary(tx)
 			if err != nil {
-				log.Error("Error when extracting Eth's tx summary.")
+				log.Error("Error when extracting Kardia's tx summary.")
 				// TODO(#140): Handle smart contract failure correctly.
 				panic("Not yet implemented!")
 			}
 			log.Info("Detect Kardia's tx updating smc", "method", eventSummary.TxMethod, "value", eventSummary.TxValue, "hash", tx.Hash().Fingerprint())
 
 			// New tx that updates smc, check input method for more filter.
-			if eventSummary.TxMethod == "removeEth" || eventSummary.TxMethod == "removeNeo" {
+			if eventSummary.TxMethod == "removeNeo" {
 				// Not set flag here. If the block contains only the removeEth/removeNeo, skip look up the amount to avoid infinite loop.
 				log.Info("Skip tx updating smc to remove Eth/Neo", "method", eventSummary.TxMethod)
 				continue
 			}
 
-			if p.ethKardia != nil {
-				dualStateDB, err := p.dualBc.State()
-				if err != nil {
-					log.Error("Fail to get Kardia state", "error", err)
-					return
-				}
-				nonce := dualStateDB.GetNonce(common.HexToAddress(dualbc.DualStateAddressHex))
-				kardiaTxHash := tx.Hash()
-				txHash := common.BytesToHash(kardiaTxHash[:])
-				dualEvent := types.NewDualEvent(nonce, false /* externalChain */, types.KARDIA, &txHash, &eventSummary)
-
-				statedb, err := p.ethKardia.EthBlockChain().State()
-				if err != nil {
-					log.Error("Fail to get Ethereum state to create release tx", "err", err)
-					return
-				}
-				// Compute Eth's tx from the DualEvent.
-				// TODO(thientn,namdoh): Remove hard-coded account address here.
-				contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
-				ethTx := CreateEthReleaseAmountTx(contractAddr, statedb, eventSummary.TxValue, p.ethKardia.EthSmc())
-				ethTxHash := ethTx.Hash()
-				dualEvent.PendingTx = &types.TxData{
-					TxHash: common.Hash(ethTxHash),
-					Target: types.ETHEREUM,
-				}
-
-				log.Info("Create DualEvent for Kardia's Tx", "dualEvent", dualEvent)
-				if err := p.eventPool.AddEvent(dualEvent); err != nil {
-					log.Error("Fail to add dual's event", "error", err)
-					return
-				}
-				log.Info("Submitted Kardia's DualEvent to event pool successfully", "txHash", tx.Hash().Fingerprint(), "eventHash", dualEvent.Hash().Fingerprint())
-
-			}
-
 			smcUpdate = true
 		}
-	}
-
-	if p.ethKardia != nil {
-		return
 	}
 
 	// TODO(namdoh): Remove everything below here once Neo's code path is refactored. Currently it
@@ -189,37 +140,33 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 		return
 	}
 
-	// Trigger the logic depend on what type of dual node
-	// In the future this can be a common interface with a single method
-	if p.ethKardia == nil {
-		// Neo dual node
-		senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
-		neoSendValue := p.CallKardiaMasterGetNeoToSend(senderAddr, statedb)
-		log.Info("Kardia smc calls getNeoToSend", "neo", neoSendValue)
-		if neoSendValue != nil && neoSendValue.Cmp(big.NewInt(0)) != 0 {
-			// TODO: create new NEO tx to send NEO
-			// Temporarily hard code the recipient
-			amountToRelease := decimal.NewFromBigInt(neoSendValue, 10).Div(decimal.NewFromBigInt(common.BigPow(10, 18), 10))
-			log.Info("Original amount neo to release", "amount", amountToRelease, "neodual", "neodual")
-			convertedAmount := amountToRelease.Mul(decimal.NewFromBigInt(big.NewInt(10), 0))
-			log.Info("Converted amount to release", "converted", convertedAmount, "neodual", "neodual")
-			if convertedAmount.LessThan(decimal.NewFromFloat(1.0)) {
-				log.Info("Too little amount to send", "amount", convertedAmount, "neodual", "neodual")
-			} else {
-				// temporarily hard code for the exchange rate
-				log.Info("Sending to neo", "amount", convertedAmount, "neodual", "neodual")
-				go p.ReleaseNeo(dev.NeoReceiverAddress, big.NewInt(convertedAmount.IntPart()))
-				// Create Kardia tx removeNeo to acknowledge the neosend, otherwise getEthToSend will keep return >0
-				gAccount := "0xBA30505351c17F4c818d94a990eDeD95e166474b"
-				addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
-				addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
+	// Neo dual node
+	senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
+	neoSendValue := p.CallKardiaMasterGetNeoToSend(senderAddr, statedb)
+	log.Info("Kardia smc calls getNeoToSend", "neo", neoSendValue)
+	if neoSendValue != nil && neoSendValue.Cmp(big.NewInt(0)) != 0 {
+		// TODO: create new NEO tx to send NEO
+		// Temporarily hard code the recipient
+		amountToRelease := decimal.NewFromBigInt(neoSendValue, 10).Div(decimal.NewFromBigInt(common.BigPow(10, 18), 10))
+		log.Info("Original amount neo to release", "amount", amountToRelease, "neodual", "neodual")
+		convertedAmount := amountToRelease.Mul(decimal.NewFromBigInt(big.NewInt(10), 0))
+		log.Info("Converted amount to release", "converted", convertedAmount, "neodual", "neodual")
+		if convertedAmount.LessThan(decimal.NewFromFloat(1.0)) {
+			log.Info("Too little amount to send", "amount", convertedAmount, "neodual", "neodual")
+		} else {
+			// temporarily hard code for the exchange rate
+			log.Info("Sending to neo", "amount", convertedAmount, "neodual", "neodual")
+			go p.ReleaseNeo(dev.NeoReceiverAddress, big.NewInt(convertedAmount.IntPart()))
+			// Create Kardia tx removeNeo to acknowledge the neosend, otherwise getEthToSend will keep return >0
+			gAccount := "0xBA30505351c17F4c818d94a990eDeD95e166474b"
+			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
+			addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 
-				tx := service.CreateKardiaRemoveAmountTx(addrKey, statedb, neoSendValue, 2)
-				if err := p.txPool.AddLocal(tx); err != nil {
-					log.Error("Fail to add Kardia tx to removeNeo", err, "tx", tx, "neodual", "neodual")
-				} else {
-					log.Info("Creates removeNeo tx", tx.Hash().Hex(), "neodual", "neodual")
-				}
+			tx := kardia.CreateKardiaRemoveAmountTx(addrKey, statedb, neoSendValue, 2)
+			if err := p.txPool.AddLocal(tx); err != nil {
+				log.Error("Fail to add Kardia tx to removeNeo", err, "tx", tx, "neodual", "neodual")
+			} else {
+				log.Info("Creates removeNeo tx", tx.Hash().Hex(), "neodual", "neodual")
 			}
 		}
 	}
@@ -233,7 +180,7 @@ func (p *DualProcessor) CallKardiaMasterGetNeoToSend(from common.Address, stated
 		log.Error("Fail to pack Kardia smc getEthToSend", "error", err, "neodual", "neodual")
 		return big.NewInt(0)
 	}
-	ret, err := callStaticKardiaMasterSmc(from, *p.smcAddress, p.kardiaBc, getNeoToSend, statedb)
+	ret, err := kardia.CallStaticKardiaMasterSmc(from, *p.smcAddress, p.kardiaBc, getNeoToSend, statedb)
 	if err != nil {
 		log.Error("Error calling master exchange contract", "error", err, "neodual", "neodual")
 		return big.NewInt(0)

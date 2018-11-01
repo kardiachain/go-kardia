@@ -651,10 +651,8 @@ func (pool *EventPool) addEventLocked(event *types.DualEvent) error {
 		return err
 	}
 	pool.chain.StoreHash(&eventHash)
-	// TODO(namdoh@): Consider storing this under a different key (from the event hash) to avoid
-	// collision.
-	if !event.PendingTx.TxHash.IsZero() {
-		pool.chain.StoreTxHash(&event.PendingTx.TxHash)
+	if !event.PendingTxMetadata.TxHash.IsZero() {
+		pool.chain.StoreTxHash(&event.PendingTxMetadata.TxHash)
 	}
 	return nil
 }

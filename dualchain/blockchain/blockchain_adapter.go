@@ -25,5 +25,9 @@ import (
 // An adapter that provide a unified interface for dual node to interact with external (or
 // even internal Kardia) blockchains.
 type BlockChainAdapter interface {
+	// Computes Tx from the given event, and submit it to the blockchain.
 	SubmitTx(event *types.EventData) error
+
+	// Computes Tx from the given event, and returns its metadata.
+	ComputeTxMetadata(event *types.EventData) *types.TxMetadata
 }
