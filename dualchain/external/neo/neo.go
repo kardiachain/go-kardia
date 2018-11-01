@@ -45,7 +45,6 @@ import (
 )
 
 type DualProcessor struct {
-	// TODO(namdoh): Remove reference to kardiaBc, only Kardia's TxPool is needed here.
 	kardiaBc   *kardiabc.BlockChain
 	txPool     *kardiabc.TxPool
 	smcAddress *common.Address
@@ -108,7 +107,7 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 	smcUpdate := false
 	for _, tx := range block.Transactions() {
 		if tx.To() != nil && *tx.To() == *p.smcAddress {
-			eventSummary, err := p.ExtractKardiaTxSummary(tx)
+			eventSummary, err := p.extractKardiaTxSummary(tx)
 			if err != nil {
 				log.Error("Error when extracting Kardia's tx summary.")
 				// TODO(#140): Handle smart contract failure correctly.
@@ -119,7 +118,7 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 			// New tx that updates smc, check input method for more filter.
 			if eventSummary.TxMethod == "removeNeo" {
 				// Not set flag here. If the block contains only the removeEth/removeNeo, skip look up the amount to avoid infinite loop.
-				log.Info("Skip tx updating smc to remove Eth/Neo", "method", eventSummary.TxMethod)
+				log.Info("Skip tx updating smc to remove Neo", "method", eventSummary.TxMethod)
 				continue
 			}
 
@@ -127,8 +126,6 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 		}
 	}
 
-	// TODO(namdoh): Remove everything below here once Neo's code path is refactored. Currently it
-	// is kept to not break the existing Neo's flow.
 	if !smcUpdate {
 		return
 	}
@@ -140,9 +137,8 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 		return
 	}
 
-	// Neo dual node
 	senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
-	neoSendValue := p.CallKardiaMasterGetNeoToSend(senderAddr, statedb)
+	neoSendValue := p.callKardiaMasterGetNeoToSend(senderAddr, statedb)
 	log.Info("Kardia smc calls getNeoToSend", "neo", neoSendValue)
 	if neoSendValue != nil && neoSendValue.Cmp(big.NewInt(0)) != 0 {
 		// TODO: create new NEO tx to send NEO
@@ -156,7 +152,7 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 		} else {
 			// temporarily hard code for the exchange rate
 			log.Info("Sending to neo", "amount", convertedAmount, "neodual", "neodual")
-			go p.ReleaseNeo(dev.NeoReceiverAddress, big.NewInt(convertedAmount.IntPart()))
+			go p.releaseNeo(dev.NeoReceiverAddress, big.NewInt(convertedAmount.IntPart()))
 			// Create Kardia tx removeNeo to acknowledge the neosend, otherwise getEthToSend will keep return >0
 			gAccount := "0xBA30505351c17F4c818d94a990eDeD95e166474b"
 			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
@@ -174,7 +170,7 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 
 // TODO(namdoh): Remove this function once Neo's code path is refactored. Currently it
 // is kept to not break the existing Neo's flow.
-func (p *DualProcessor) CallKardiaMasterGetNeoToSend(from common.Address, statedb *state.StateDB) *big.Int {
+func (p *DualProcessor) callKardiaMasterGetNeoToSend(from common.Address, statedb *state.StateDB) *big.Int {
 	getNeoToSend, err := p.smcABI.Pack("getNeoToSend")
 	if err != nil {
 		log.Error("Fail to pack Kardia smc getEthToSend", "error", err, "neodual", "neodual")
@@ -189,7 +185,7 @@ func (p *DualProcessor) CallKardiaMasterGetNeoToSend(from common.Address, stated
 	return new(big.Int).SetBytes(ret)
 }
 
-func (p *DualProcessor) ExtractKardiaTxSummary(tx *types.Transaction) (types.EventSummary, error) {
+func (p *DualProcessor) extractKardiaTxSummary(tx *types.Transaction) (types.EventSummary, error) {
 	// New tx that updates smc, check input method for more filter.
 	method, err := p.smcABI.MethodById(tx.Data()[0:4])
 	if err != nil {
@@ -203,8 +199,26 @@ func (p *DualProcessor) ExtractKardiaTxSummary(tx *types.Transaction) (types.Eve
 	}, nil
 }
 
+func (p *DualProcessor) releaseNeo(address string, amount *big.Int) {
+	log.Info("Release: ", "amount", amount, "address", address, "neodual", "neodual")
+	txid, err := callReleaseNeo(address, amount)
+	if err != nil {
+		log.Error("Error calling rpc", "err", err, "neodual", "neodual")
+	}
+	log.Info("Tx submitted", "txid", txid, "neodual", "neodual")
+	if txid == "fail" || txid == "" {
+		log.Info("Failed to release, retry tx", "txid", txid)
+		retryTx(address, amount)
+	} else {
+		txStatus := loopCheckingTx(txid)
+		if !txStatus {
+			retryTx(address, amount)
+		}
+	}
+}
+
 // Call Api to release Neo
-func CallReleaseNeo(address string, amount *big.Int) (string, error) {
+func callReleaseNeo(address string, amount *big.Int) (string, error) {
 	body := []byte(`{
   "jsonrpc": "2.0",
   "method": "dual_sendeth",
@@ -290,7 +304,7 @@ func retryTx(address string, amount *big.Int) {
 	interval := 30
 	for {
 		log.Info("retrying tx ...", "addr", address, "amount", amount, "neodual", "neodual")
-		txid, err := CallReleaseNeo(address, amount)
+		txid, err := callReleaseNeo(address, amount)
 		if err == nil && txid != "fail" {
 			log.Info("Send successfully", "txid", txid, "neodual", "neodual")
 			result := loopCheckingTx(txid)
@@ -329,24 +343,6 @@ func loopCheckingTx(txid string) bool {
 		if success {
 			log.Info("Tx is successful", "txid", txid, "neodual", "neodual")
 			return true
-		}
-	}
-}
-
-func (p *DualProcessor) ReleaseNeo(address string, amount *big.Int) {
-	log.Info("Release: ", "amount", amount, "address", address, "neodual", "neodual")
-	txid, err := CallReleaseNeo(address, amount)
-	if err != nil {
-		log.Error("Error calling rpc", "err", err, "neodual", "neodual")
-	}
-	log.Info("Tx submitted", "txid", txid, "neodual", "neodual")
-	if txid == "fail" || txid == "" {
-		log.Info("Failed to release, retry tx", "txid", txid)
-		retryTx(address, amount)
-	} else {
-		txStatus := loopCheckingTx(txid)
-		if !txStatus {
-			retryTx(address, amount)
 		}
 	}
 }
