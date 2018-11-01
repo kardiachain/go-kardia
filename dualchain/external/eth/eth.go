@@ -243,27 +243,6 @@ func (n *Eth) RegisterInternalChain(internalChain dualbc.BlockChainAdapter) {
 	n.internalChain = internalChain
 }
 
-func (n *Eth) submitEthReleaseTx(value *big.Int) {
-	statedb, err := n.ethBlockChain().State()
-	if err != nil {
-		log.Error("Fail to get Ethereum state to create release tx", "err", err)
-		return
-	}
-
-	// TODO(thientn,namdoh): Remove hard-coded address.
-	contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
-	tx := CreateEthReleaseAmountTx(contractAddr, statedb, value, n.ethSmc)
-	if tx == nil {
-		log.Error("Fail to create Eth's tx")
-	}
-
-	if err := n.ethTxPool().AddLocal(tx); err != nil {
-		log.Error("Fail to add Ether tx", "error", err)
-	} else {
-		log.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
-	}
-}
-
 // Start starts the Ethereum node.
 func (n *Eth) Start() error {
 	err := n.geth.Start()
@@ -292,6 +271,27 @@ func (n *Eth) Client() (*EthClient, error) {
 		return nil, err
 	}
 	return &EthClient{ethClient: ethclient.NewClient(rpcClient), stack: n.geth}, nil
+}
+
+func (n *Eth) submitEthReleaseTx(value *big.Int) {
+	statedb, err := n.ethBlockChain().State()
+	if err != nil {
+		log.Error("Fail to get Ethereum state to create release tx", "err", err)
+		return
+	}
+
+	// TODO(thientn,namdoh): Remove hard-coded address.
+	contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
+	tx := CreateEthReleaseAmountTx(contractAddr, statedb, value, n.ethSmc)
+	if tx == nil {
+		log.Error("Fail to create Eth's tx")
+	}
+
+	if err := n.ethTxPool().AddLocal(tx); err != nil {
+		log.Error("Fail to add Ether tx", "error", err)
+	} else {
+		log.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
+	}
 }
 
 func (n *Eth) ethBlockChain() *ethCore.BlockChain {
@@ -361,6 +361,10 @@ func (n *Eth) syncHead() {
 }
 
 func (n *Eth) handleBlock(block *ethTypes.Block) {
+	if n.internalChain == nil {
+		panic("Internal chain needs not to be nil.")
+	}
+
 	// TODO(thientn): block from this event is not guaranteed newly update. May already handled before.
 
 	// Some events has nil block.
