@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package service
+package kardia
 
 import (
 	"crypto/ecdsa"
@@ -25,11 +25,26 @@ import (
 
 	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 )
+
+// The following function is just call the master smc and return result in bytes format
+func CallStaticKardiaMasterSmc(from common.Address, to common.Address, bc *blockchain.BlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
+	context := blockchain.NewKVMContextFromDualNodeCall(from, bc.CurrentHeader(), bc)
+	vmenv := kvm.NewKVM(context, statedb, kvm.Config{})
+	sender := kvm.AccountRef(from)
+	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(100000))
+	if err != nil {
+		return make([]byte, 0), err
+	}
+	return ret, nil
+}
 
 // Creates a Kardia tx to report new matching amount from Eth/Neo network.
 // type = 1: ETH

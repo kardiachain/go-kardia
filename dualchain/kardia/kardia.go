@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package dual
+package kardia
 
 import (
 	"encoding/hex"
@@ -25,7 +25,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
-	dualservice "github.com/kardiachain/go-kardia/dualchain/service"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -42,19 +41,18 @@ var (
 )
 
 type KardiaChainProcessor struct {
+    // Kardia's mainchain stuffs.
 	kardiaBc   *kardiabc.BlockChain
 	txPool     *kardiabc.TxPool
-
-	// The external blockchain that this dual node's interacting with.
-	externalChain dualbc.BlockChainAdapter
+	chainHeadCh  chan kardiabc.ChainHeadEvent // Used to subscribe for new blocks.
+	chainHeadSub event.Subscription
 
 	// Dual blockchain related fields
 	dualBc    *dualbc.DualBlockChain
-	eventPool *dualbc.EventPool // Event pool of DUAL service.
+	eventPool *dualbc.EventPool
 
-	// Chain head subscription for new blocks.
-	chainHeadCh  chan kardiabc.ChainHeadEvent
-	chainHeadSub event.Subscription
+	// The external blockchain that this dual node's interacting with.
+	externalChain dualbc.BlockChainAdapter
 
     // TODO(namdoh,thientn): Hard-coded for prototyping. This need to be passed dynamically.
 	smcAddress *common.Address
@@ -94,7 +92,7 @@ func (p *KardiaChainProcessor) SubmitTx(event *types.EventData) error {
 	// TODO(thientn,namdoh): Remove hard-coded genesisAccount here.
 	addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[dev.MockKardiaAccountForMatchEthTx])
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-	tx := dualservice.CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, 1)
+	tx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, 1)
 	if tx == nil {
 		log.Error("Fail to create Kardia's tx from DualEvent")
 		return ErrCreateKardiaTx
@@ -120,7 +118,7 @@ func (n *KardiaChainProcessor) ComputeTxMetadata(event *types.EventData) *types.
 		return nil
 	}
 	// TODO(namdoh@): Pass eventSummary.TxSource to matchType.
-	kardiaTx := dualservice.CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, 1)
+	kardiaTx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, 1)
 	return &types.TxMetadata{
 		TxHash: kardiaTx.Hash(),
 		Target: types.KARDIA,
@@ -159,7 +157,7 @@ func (p *KardiaChainProcessor) loop() {
 func (p *KardiaChainProcessor) handleBlock(block *types.Block) {
 	for _, tx := range block.Transactions() {
 		if tx.To() != nil && *tx.To() == *p.smcAddress {
-			eventSummary, err := p.ExtractKardiaTxSummary(tx)
+			eventSummary, err := p.extractKardiaTxSummary(tx)
 			if err != nil {
 				log.Error("Error when extracting Kardia main chain's tx summary.")
 				// TODO(#140): Handle smart contract failure correctly.
@@ -196,7 +194,7 @@ func (p *KardiaChainProcessor) handleBlock(block *types.Block) {
 	}
 }
 
-func (p *KardiaChainProcessor) ExtractKardiaTxSummary(tx *types.Transaction) (types.EventSummary, error) {
+func (p *KardiaChainProcessor) extractKardiaTxSummary(tx *types.Transaction) (types.EventSummary, error) {
 	// New tx that updates smc, check input method for more filter.
 	method, err := p.smcABI.MethodById(tx.Data()[0:4])
 	if err != nil {

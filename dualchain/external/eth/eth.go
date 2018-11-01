@@ -16,19 +16,19 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package dual
+package eth
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
-	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum"
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethCore "github.com/ethereum/go-ethereum/core"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -45,9 +45,8 @@ import (
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
 	"github.com/kardiachain/go-kardia/dualchain/external/eth/ethsmc"
-	dualservice "github.com/kardiachain/go-kardia/dualchain/service"
+	"github.com/kardiachain/go-kardia/dualchain/kardia"
 	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -65,82 +64,34 @@ var (
 	ErrAddEthTx = errors.New("Fail to add tx to Ether's TxPool")
 )
 
-var DefaultEthKardiaConfig = EthKardiaConfig{
-	Name:            "GethKardia", // Don't need to change, default instance name for geth is "geth".
-	ListenAddr:      ":30303",
-	MaxPeers:        10,
-	LightNode:       false,
-	LightPeers:      5,
-	LightServ:       0,
-	StatName:        "eth-kardia-1",
-	ContractAddress: ethsmc.EthContractAddress,
-
-	CacheSize: 1024,
-}
-
-// defaultEthDataDir returns default Eth root datadir.
-func defaultEthDataDir() string {
-	// Try to place the data folder in the user's home dir
-	home := homeDir()
-	if home == "" {
-		panic("Fail to get OS home directory")
-	}
-	return filepath.Join(home, ".ethereum")
-}
-
-// Copy from go-kardia/node
-func homeDir() string {
-	if home := os.Getenv("HOME"); home != "" {
-		return home
-	}
-	if usr, err := user.Current(); err == nil {
-		return usr.HomeDir
-	}
-	return ""
-}
-
-// EthKardiaConfig provides configuration when starting Eth subnode.
-type EthKardiaConfig struct {
-	ContractAddress string // address of Eth smart contract to watch.
-
-	// Network configs
-	Name        string
-	ListenAddr  string
-	MaxPeers    int
-	LightNode   bool   // Starts with light sync, otherwise starts with fast sync.
-	LightPeers  int    // Max number of light peers.
-	LightServ   int    // Max percentage of time allowed for serving LES requests (0-90)"
-	ReportStats bool   // Reports node statistics to network centralized statistics collection system.
-	StatName    string // Node name to use when report to Rinkeby stats collection.
-
-	// Performance configs
-	CacheSize int // Cache memory size in MB for database & trie. This must be small enough to leave enough memory for separate Kardia chain cache.
-
-	// ======== DEV ENVIRONMENT CONFIG =========
-	// Configuration of this node when running in dev environment.
-	DualNodeConfig *dev.DualNodeConfig
-}
-
 // EthKarida is a full Ethereum node running inside Karida
-type EthKardia struct {
+type Eth struct {
+	// Eth's blockchain stuffs.
 	geth   *node.Node
-	config *EthKardiaConfig
+	config *EthConfig
 	ethSmc *ethsmc.EthSmc
-	// TODO(namdoh): Deprecate this
-	kardiaChain *blockchain.BlockChain
-	txPool      *blockchain.TxPool // Transaction pool of KARDIA service.
 
 	// Dual blockchain related fields
-	dualChain     *dualbc.DualBlockChain
-	eventPool     *dualbc.EventPool // Event pool of DUAL service.
+	dualChain *dualbc.DualBlockChain
+	eventPool *dualbc.EventPool
+
+	// The internal blockchain (i.e. Kardia's mainchain) that this dual node's interacting with.
 	internalChain dualbc.BlockChainAdapter
 
+	// TODO(namdoh,thientn): Deprecate this. This is needed solely to get Kardia's state in order
+	// to get Eth's amount from Kardia's smart contract.
+	kardiaChain *blockchain.BlockChain
+	// TODO(namdoh,thientn): Deprecate this. This is needed solely submit remove amount Tx to
+	// Karida's tx pool.
+	txPool *blockchain.TxPool
+
+	// TODO(namdoh,thientn): Hard-coded for prototyping. This need to be passed dynamically.
 	smcABI     *abi.ABI
 	smcAddress *common.Address
 }
 
-// EthKardia creates a Ethereum sub node.
-func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualChain *dualbc.DualBlockChain, dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string) (*EthKardia, error) {
+// Eth creates a Ethereum sub node.
+func NewEth(config *EthConfig, kardiaChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualChain *dualbc.DualBlockChain, dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string) (*Eth, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
@@ -217,7 +168,7 @@ func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, t
 
 	// Registers ethstats service to report node stat to testnet system.
 	if config.ReportStats {
-		url := fmt.Sprintf("[EthKardia]%s:Respect my authoritah!@stats.rinkeby.io", config.StatName)
+		url := fmt.Sprintf("[Eth]%s:Respect my authoritah!@stats.rinkeby.io", config.StatName)
 		if err := ethNode.Register(func(ctx *node.ServiceContext) (node.Service, error) {
 			// Retrieve both eth and les services
 			var ethServ *eth.Ethereum
@@ -231,7 +182,7 @@ func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, t
 			log.Error("Failed to register the Ethereum Stats service", "err", err)
 		}
 	}
-	return &EthKardia{
+	return &Eth{
 		geth:        ethNode,
 		config:      config,
 		ethSmc:      ethsmc.NewEthSmc(),
@@ -244,7 +195,7 @@ func NewEthKardia(config *EthKardiaConfig, kardiaChain *blockchain.BlockChain, t
 	}, nil
 }
 
-func (n *EthKardia) SubmitTx(event *types.EventData) error {
+func (n *Eth) SubmitTx(event *types.EventData) error {
 	statedb, err := n.kardiaChain.State()
 	if err != nil {
 		log.Error("Fail to get Kardia state", "error", err)
@@ -262,7 +213,7 @@ func (n *EthKardia) SubmitTx(event *types.EventData) error {
 		addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
 		addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 
-		tx := dualservice.CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, 1)
+		tx := kardia.CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, 1)
 		if err := n.txPool.AddLocal(tx); err != nil {
 			log.Error("Fail to add Kardia tx to removeEth", err, "tx", tx)
 		} else {
@@ -273,7 +224,7 @@ func (n *EthKardia) SubmitTx(event *types.EventData) error {
 	return nil
 }
 
-func (n *EthKardia) ComputeTxMetadata(event *types.EventData) *types.TxMetadata {
+func (n *Eth) ComputeTxMetadata(event *types.EventData) *types.TxMetadata {
 	statedb, err := n.ethBlockChain().State()
 	if err != nil {
 		log.Error("Fail to get Ethereum state to create release tx", "err", err)
@@ -288,11 +239,11 @@ func (n *EthKardia) ComputeTxMetadata(event *types.EventData) *types.TxMetadata 
 	}
 }
 
-func (n *EthKardia) RegisterInternalChain(internalChain dualbc.BlockChainAdapter) {
+func (n *Eth) RegisterInternalChain(internalChain dualbc.BlockChainAdapter) {
 	n.internalChain = internalChain
 }
 
-func (n *EthKardia) submitEthReleaseTx(value *big.Int) {
+func (n *Eth) submitEthReleaseTx(value *big.Int) {
 	statedb, err := n.ethBlockChain().State()
 	if err != nil {
 		log.Error("Fail to get Ethereum state to create release tx", "err", err)
@@ -314,7 +265,7 @@ func (n *EthKardia) submitEthReleaseTx(value *big.Int) {
 }
 
 // Start starts the Ethereum node.
-func (n *EthKardia) Start() error {
+func (n *Eth) Start() error {
 	err := n.geth.Start()
 
 	if err != nil {
@@ -325,38 +276,38 @@ func (n *EthKardia) Start() error {
 }
 
 // Stop shut down the Ethereum node.
-func (n *EthKardia) Stop() error {
+func (n *Eth) Stop() error {
 	return n.geth.Stop()
 }
 
 // EthNode returns the standard Eth Node.
-func (n *EthKardia) EthNode() *node.Node {
+func (n *Eth) EthNode() *node.Node {
 	return n.geth
 }
 
-// Client return the KardiaEthClient to acess Eth subnode.
-func (n *EthKardia) Client() (*KardiaEthClient, error) {
+// Returns the EthClient to acccess Eth subnode.
+func (n *Eth) Client() (*EthClient, error) {
 	rpcClient, err := n.geth.Attach()
 	if err != nil {
 		return nil, err
 	}
-	return &KardiaEthClient{ethClient: ethclient.NewClient(rpcClient), stack: n.geth}, nil
+	return &EthClient{ethClient: ethclient.NewClient(rpcClient), stack: n.geth}, nil
 }
 
-func (n *EthKardia) ethBlockChain() *ethCore.BlockChain {
+func (n *Eth) ethBlockChain() *ethCore.BlockChain {
 	var ethService *eth.Ethereum
 	n.geth.Service(&ethService)
 	return ethService.BlockChain()
 }
 
-func (n *EthKardia) ethTxPool() *ethCore.TxPool {
+func (n *Eth) ethTxPool() *ethCore.TxPool {
 	var ethService *eth.Ethereum
 	n.geth.Service(&ethService)
 	return ethService.TxPool()
 }
 
 // syncHead syncs with latest events from Eth network to Kardia.
-func (n *EthKardia) syncHead() {
+func (n *Eth) syncHead() {
 	var ethService *eth.Ethereum
 
 	n.geth.Service(&ethService)
@@ -409,7 +360,7 @@ func (n *EthKardia) syncHead() {
 	}
 }
 
-func (n *EthKardia) handleBlock(block *ethTypes.Block) {
+func (n *Eth) handleBlock(block *ethTypes.Block) {
 	// TODO(thientn): block from this event is not guaranteed newly update. May already handled before.
 
 	// Some events has nil block.
@@ -439,7 +390,7 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 		// TODO(thientn): Make this tx matcher more robust.
 		if tx.To() != nil && *tx.To() == contractAddr {
 			log.Info("New Eth's tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
-			eventSummary, err := n.ExtractEthTxSummary(tx)
+			eventSummary, err := n.extractEthTxSummary(tx)
 			if err != nil {
 				log.Error("Error when extracting Eth's tx summary.")
 				// TODO(#140): Handle smart contract failure correctly.
@@ -468,7 +419,7 @@ func (n *EthKardia) handleBlock(block *ethTypes.Block) {
 	}
 }
 
-func (n *EthKardia) ExtractEthTxSummary(tx *ethTypes.Transaction) (types.EventSummary, error) {
+func (n *Eth) extractEthTxSummary(tx *ethTypes.Transaction) (types.EventSummary, error) {
 	input := tx.Data()
 	method, err := n.ethSmc.InputMethodName(input)
 	if err != nil {
@@ -482,13 +433,13 @@ func (n *EthKardia) ExtractEthTxSummary(tx *ethTypes.Transaction) (types.EventSu
 	}, nil
 }
 
-func (n *EthKardia) callKardiaMasterGetEthToSend(from common.Address, statedb *state.StateDB) *big.Int {
+func (n *Eth) callKardiaMasterGetEthToSend(from common.Address, statedb *state.StateDB) *big.Int {
 	getEthToSend, err := n.smcABI.Pack("getEthToSend")
 	if err != nil {
 		log.Error("Fail to pack Kardia smc getEthToSend", "error", err)
 		return big.NewInt(0)
 	}
-	ret, err := callStaticKardiaMasterSmc(from, *n.smcAddress, n.kardiaChain, getEthToSend, statedb)
+	ret, err := kardia.CallStaticKardiaMasterSmc(from, *n.smcAddress, n.kardiaChain, getEthToSend, statedb)
 	if err != nil {
 		log.Error("Error calling master exchange contract", "error", err)
 		return big.NewInt(0)
@@ -496,19 +447,7 @@ func (n *EthKardia) callKardiaMasterGetEthToSend(from common.Address, statedb *s
 	return new(big.Int).SetBytes(ret)
 }
 
-// The following function is just call the master smc and return result in bytes format
-func callStaticKardiaMasterSmc(from common.Address, to common.Address, bc *blockchain.BlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
-	context := blockchain.NewKVMContextFromDualNodeCall(from, bc.CurrentHeader(), bc)
-	vmenv := kvm.NewKVM(context, statedb, kvm.Config{})
-	sender := kvm.AccountRef(from)
-	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(100000))
-	if err != nil {
-		return make([]byte, 0), err
-	}
-	return ret, nil
-}
-
-func (n *EthKardia) mockBlockGenerationRoutine(triggeringConfig *dev.TriggeringConfig, blockCh chan *ethTypes.Block) {
+func (n *Eth) mockBlockGenerationRoutine(triggeringConfig *dev.TriggeringConfig, blockCh chan *ethTypes.Block) {
 	contractAddr := ethCommon.HexToAddress(n.config.ContractAddress)
 	for {
 		for timeout := range triggeringConfig.TimeIntervals {
@@ -523,4 +462,18 @@ func (n *EthKardia) mockBlockGenerationRoutine(triggeringConfig *dev.TriggeringC
 			break
 		}
 	}
+}
+
+/****************************** EthClient ******************************/
+
+// Provides read/write functions to data in Ethereum subnode.
+// This is implements with a mixture of direct access on the node , or internal RPC calls.
+type EthClient struct {
+	ethClient *ethclient.Client
+	stack     *node.Node // The running Ethereum node
+}
+
+// SyncDetails returns the current sync status of the node.
+func (e *EthClient) NodeSyncStatus() (*ethereum.SyncProgress, error) {
+	return e.ethClient.SyncProgress(context.Background())
 }

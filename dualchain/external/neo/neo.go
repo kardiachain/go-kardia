@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package dual
+package neo
 
 import (
 	"bytes"
@@ -32,8 +32,8 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/kardiachain/go-kardia/dev"
+	"github.com/kardiachain/go-kardia/dualchain/kardia"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
-	"github.com/kardiachain/go-kardia/dualchain/service"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -162,7 +162,7 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
 			addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 
-			tx := service.CreateKardiaRemoveAmountTx(addrKey, statedb, neoSendValue, 2)
+			tx := kardia.CreateKardiaRemoveAmountTx(addrKey, statedb, neoSendValue, 2)
 			if err := p.txPool.AddLocal(tx); err != nil {
 				log.Error("Fail to add Kardia tx to removeNeo", err, "tx", tx, "neodual", "neodual")
 			} else {
@@ -180,7 +180,7 @@ func (p *DualProcessor) CallKardiaMasterGetNeoToSend(from common.Address, stated
 		log.Error("Fail to pack Kardia smc getEthToSend", "error", err, "neodual", "neodual")
 		return big.NewInt(0)
 	}
-	ret, err := callStaticKardiaMasterSmc(from, *p.smcAddress, p.kardiaBc, getNeoToSend, statedb)
+	ret, err := kardia.CallStaticKardiaMasterSmc(from, *p.smcAddress, p.kardiaBc, getNeoToSend, statedb)
 	if err != nil {
 		log.Error("Error calling master exchange contract", "error", err, "neodual", "neodual")
 		return big.NewInt(0)
