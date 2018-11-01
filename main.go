@@ -29,6 +29,7 @@ import (
 	"encoding/hex"
 	elog "github.com/ethereum/go-ethereum/log"
 	"github.com/kardiachain/go-kardia/dev"
+	"github.com/kardiachain/go-kardia/dualchain"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
 	dualeth "github.com/kardiachain/go-kardia/dualchain/external/eth"
 	dualservice "github.com/kardiachain/go-kardia/dualchain/service"
@@ -455,19 +456,17 @@ func main() {
 	}
 	// go displayPeers(n)
 
-	var dualP *dualeth.DualProcessor
-
 	// TODO(namdoh): Remove the hard-code below
 	exchangeContractAddress := dev.GetContractAddressAt(2)
 	exchangeContractAbi := dev.GetContractAbiByAddress(exchangeContractAddress.String())
-	// TODO: This should trigger for either Eth dual or Neo dual flag, so  *ethDual || *neoDual
-	if args.ethDual || args.neoDual {
-		dualP, err = dualeth.NewDualProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+	if args.neoDual {
+		dualP, err := dualeth.NewDualProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
 		if err != nil {
 			log.Error("Fail to initialize DualProcessor", "error", err)
 		} else {
 			dualP.Start()
 		}
+
 	}
 
 	// Run Eth-Kardia dual node
@@ -487,12 +486,6 @@ func main() {
 		}
 
 		ethNode, err := dualeth.NewEthKardia(config, kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
-
-		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
-		// submit tx to either internal or external blockchain.
-		bcManager := dualbc.NewDualBlockChainManager(kardiaService, ethNode)
-		dualService.SetDualBlockChainManager(bcManager)
-
 		if err != nil {
 			logger.Error("Fail to create Eth sub node", "err", err)
 			return
@@ -509,10 +502,24 @@ func main() {
 			return
 		}
 
-		// Register to dual processor
-		dualP.RegisterEthDualNode(ethNode)
+		var kardiaProcessor *dual.KardiaChainProcessor
+		kardiaProcessor, err = dual.NewKardiaChainProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+		if err != nil {
+			log.Error("Fail to initialize KardiaChainProcessor", "error", err)
+		}
+
+		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
+		// submit tx to either internal or external blockchain.
+		bcManager := dualbc.NewDualBlockChainManager(kardiaProcessor, ethNode)
+		dualService.SetDualBlockChainManager(bcManager)
+
+		// Register the 'other' blockchain to each internal/external blockchain. This is needed
+		// for generate Tx to submit to the other blockchain.
+		kardiaProcessor.RegisterExternalChain(ethNode)
+		ethNode.RegisterInternalChain(kardiaProcessor)
 
 		go displaySyncStatus(client)
+		kardiaProcessor.Start()
 	}
 
 	go displayKardiaPeers(n)

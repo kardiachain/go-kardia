@@ -20,19 +20,13 @@
 package kai
 
 import (
-	"encoding/hex"
-	"errors"
-
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
-	"github.com/kardiachain/go-kardia/dev"
-	dualservice "github.com/kardiachain/go-kardia/dualchain/service"
 	"github.com/kardiachain/go-kardia/kai/service"
 	serviceconst "github.com/kardiachain/go-kardia/kai/service/const"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
@@ -45,12 +39,6 @@ const (
 	KardiaServiceName = "KARDIA"
 	DefaultNetworkID  = 100
 	kaiProtocolName   = "kaiptc"
-)
-
-var (
-	ErrFailedGetState = errors.New("Fail to get Kardia state")
-	ErrCreateKardiaTx = errors.New("Fail to create Kardia's Tx from DualEvent")
-	ErrAddKardiaTx    = errors.New("Fail to add Tx to Kardia's TxPool")
 )
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
@@ -83,31 +71,6 @@ type Kardia struct {
 	subService KardiaSubService
 
 	networkID uint64
-}
-
-func (n *Kardia) SubmitTx(event *types.EventData) error {
-	kardiaStateDB, err := n.blockchain.State()
-	if err != nil {
-		n.logger.Error("Fail to get Kardia state", "error", err)
-		return ErrFailedGetState
-	}
-
-	// TODO(thientn,namdoh): Remove hard-coded genesisAccount here.
-	addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[dev.MockKardiaAccountForMatchEthTx])
-	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-	tx := dualservice.CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, 1)
-	if tx == nil {
-		n.logger.Error("Fail to create Kardia's tx from DualEvent")
-		return ErrCreateKardiaTx
-	}
-
-	if err := n.txPool.AddLocal(tx); err != nil {
-		n.logger.Error("Fail to add Kardia's tx", "error", err)
-		return ErrAddKardiaTx
-	}
-	n.logger.Info("Submit Kardia's tx successfully", "txHash", tx.Hash().Fingerprint())
-
-	return nil
 }
 
 func (s *Kardia) AddKaiServer(ks KardiaSubService) {
