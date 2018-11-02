@@ -40,7 +40,8 @@ var (
 	ErrAddKardiaTx    = errors.New("Fail to add Tx to Kardia's TxPool")
 )
 
-// Representation of Kardia's node when interfacing with dual's chain.
+// Proxy of Kardia's chain to interface with dual's node, responsible for listening to the chain's
+// new block and submiting Kardia's transaction .
 type KardiaProxy struct {
     // Kardia's mainchain stuffs.
 	kardiaBc   *kardiabc.BlockChain

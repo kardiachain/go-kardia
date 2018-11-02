@@ -64,7 +64,8 @@ var (
 	ErrAddEthTx = errors.New("Fail to add tx to Ether's TxPool")
 )
 
-// EthKarida is a full Ethereum node running inside Karida
+// A full Ethereum node. In additional, it provides additional interface with dual's node,
+// responsible for listening to Eth blockchain's new block and submiting Eth's transaction .
 type Eth struct {
 	// Eth's blockchain stuffs.
 	geth   *node.Node
