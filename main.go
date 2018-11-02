@@ -126,6 +126,7 @@ type flagArgs struct {
 
 	// Kardia node's related flags
 	listenAddr          string
+	maxPeers            int
 	name                string
 	rpcEnabled          bool
 	rpcAddr             string
@@ -200,6 +201,7 @@ func init() {
 	flag.StringVar(&args.votingStrategy, "votingStrategy", "", "specify the voting script or strategy to simulate voting. Note that this flag only has effect when --dev flag is set")
 	flag.IntVar(&args.proposal, "proposal", 1, "specify which node is the proposer. The index starts from 1, and every node needs to use the same proposer index. Note that this flag only has effect when --dev flag is set")
 	flag.BoolVar(&args.mockDualEvent, "mockDualEvent", false, "generate fake dual events to trigger dual consensus. Note that this flag only has effect when --dev flag is set.")
+	flag.IntVar(&args.maxPeers, "maxpeers", 16, "maximum number of network peers (network disabled if set to 0. Note that this flag only has effect when --dev flag is set")
 }
 
 func main() {
@@ -274,13 +276,17 @@ func main() {
 
 	if args.dev {
 		devEnv = dev.CreateDevEnvironmentConfig()
-		if nodeIndex < 0 && nodeIndex >= devEnv.GetNodeSize() {
-			logger.Error(fmt.Sprintf("Node index %v must be within %v and %v", nodeIndex+1, 1, devEnv.GetNodeSize()))
-
+		// Set P2P max peers for testing on dev environment
+		config.P2P.MaxPeers = args.maxPeers
+		if nodeIndex < 0 {
+			logger.Error(fmt.Sprintf("Node index %v must greater than 0", nodeIndex + 1))
 		}
 		// Substract 1 from the index because we specify node starting from 1 onward.
 		devEnv.SetProposerIndex(args.proposal - 1)
-		config.DevNodeConfig = devEnv.GetDevNodeConfig(nodeIndex)
+		// Only set DevNodeConfig if this is a known node from Kardia default set
+		if nodeIndex < devEnv.GetNodeSize() {
+			config.DevNodeConfig = devEnv.GetDevNodeConfig(nodeIndex)
+		}
 		// Simulate the voting strategy
 		devEnv.SetVotingStrategy(args.votingStrategy)
 		config.DevEnvConfig = devEnv
@@ -436,7 +442,7 @@ func main() {
 
 	// Connect with other peers.
 	if args.dev {
-		for i := 0; i < nodeIndex; i++ {
+		for i := 0; i < devEnv.GetNodeSize(); i++ {
 			peerURL := devEnv.GetDevNodeConfig(i).NodeID
 			logger.Info("Adding static peer", "peerURL", peerURL)
 			success, err := n.AddPeer(peerURL)
