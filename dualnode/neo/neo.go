@@ -42,9 +42,16 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	kardiabc "github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/types"
+	"fmt"
 )
 
-type DualProcessor struct {
+// The method from master contract that does not need to be handled
+const SkippedMethod = "removeNeo"
+const KardiaAccountToCallSmc = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
+
+// DualNeo provides interfaces for Neo Dual node, responsible for detecting updates
+// that relates to NEO from Kardia, sending tx to NEO network and check tx status
+type DualNeo struct {
 	kardiaBc   *kardiabc.BlockChain
 	txPool     *kardiabc.TxPool
 	smcAddress *common.Address
@@ -57,15 +64,20 @@ type DualProcessor struct {
 	// Chain head subscription for new blocks.
 	chainHeadCh  chan kardiabc.ChainHeadEvent
 	chainHeadSub event.Subscription
+
+	// Neo related URLs and address
+	submitTxUrl        string
+	checkTxUrl         string
+	neoReceiverAddress string
 }
 
-func NewDualProcessor(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dualBc *dualbc.DualBlockChain, dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string) (*DualProcessor, error) {
+func NewDualNeo(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dualBc *dualbc.DualBlockChain, dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string, ) (*DualNeo, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
 	}
 
-	processor := &DualProcessor{
+	processor := &DualNeo{
 		kardiaBc:   kardiaBc,
 		txPool:     txPool,
 		dualBc:     dualBc,
@@ -74,6 +86,10 @@ func NewDualProcessor(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, du
 		smcABI:     &smcABI,
 
 		chainHeadCh: make(chan kardiabc.ChainHeadEvent, 5),
+
+		submitTxUrl:        DefaultNeoConfig.SubmitTxUrl,
+		checkTxUrl:         DefaultNeoConfig.CheckTxUrl,
+		neoReceiverAddress: DefaultNeoConfig.ReceiverAddress,
 	}
 
 	// Start subscription to blockchain head event.
@@ -82,12 +98,32 @@ func NewDualProcessor(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, du
 	return processor, nil
 }
 
-func (p *DualProcessor) Start() {
+// Set URL to submit tx to NEO
+func (p *DualNeo) SetSubmitTxUrl(url string) {
+	p.submitTxUrl = url
+}
+
+// Set URL to retrieve tx status from NEO
+func (p *DualNeo) SetCheckTxUrl(url string) {
+	p.checkTxUrl = url
+}
+
+// Set NEO address receiver
+func (p *DualNeo) SetNeoReceiver(address string) {
+	p.neoReceiverAddress = address
+}
+
+// Returns Neo related configs set to this instance
+func (p *DualNeo) ReportConfig() string {
+	return fmt.Sprintf("CheckTX URL : %v SubmitTX URL : %v Receiver: %v", p.checkTxUrl, p.submitTxUrl, p.neoReceiverAddress)
+}
+
+func (p *DualNeo) Start() {
 	// Start event loop
 	go p.loop()
 }
 
-func (p *DualProcessor) loop() {
+func (p *DualNeo) loop() {
 	for {
 		select {
 		case ev := <-p.chainHeadCh:
@@ -103,7 +139,7 @@ func (p *DualProcessor) loop() {
 	}
 }
 
-func (p *DualProcessor) handleBlock(block *types.Block) {
+func (p *DualNeo) handleBlock(block *types.Block) {
 	smcUpdate := false
 	for _, tx := range block.Transactions() {
 		if tx.To() != nil && *tx.To() == *p.smcAddress {
@@ -116,7 +152,7 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 			log.Info("Detect Kardia's tx updating smc", "method", eventSummary.TxMethod, "value", eventSummary.TxValue, "hash", tx.Hash().Fingerprint())
 
 			// New tx that updates smc, check input method for more filter.
-			if eventSummary.TxMethod == "removeNeo" {
+			if eventSummary.TxMethod == SkippedMethod {
 				// Not set flag here. If the block contains only the removeEth/removeNeo, skip look up the amount to avoid infinite loop.
 				log.Info("Skip tx updating smc to remove Neo", "method", eventSummary.TxMethod)
 				continue
@@ -152,9 +188,9 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 		} else {
 			// temporarily hard code for the exchange rate
 			log.Info("Sending to neo", "amount", convertedAmount, "neodual", "neodual")
-			go p.releaseNeo(dev.NeoReceiverAddress, big.NewInt(convertedAmount.IntPart()))
+			go p.releaseNeo(p.neoReceiverAddress, big.NewInt(convertedAmount.IntPart()))
 			// Create Kardia tx removeNeo to acknowledge the neosend, otherwise getEthToSend will keep return >0
-			gAccount := "0xBA30505351c17F4c818d94a990eDeD95e166474b"
+			gAccount := KardiaAccountToCallSmc
 			addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
 			addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 
@@ -170,7 +206,7 @@ func (p *DualProcessor) handleBlock(block *types.Block) {
 
 // TODO(namdoh): Remove this function once Neo's code path is refactored. Currently it
 // is kept to not break the existing Neo's flow.
-func (p *DualProcessor) callKardiaMasterGetNeoToSend(from common.Address, statedb *state.StateDB) *big.Int {
+func (p *DualNeo) callKardiaMasterGetNeoToSend(from common.Address, statedb *state.StateDB) *big.Int {
 	getNeoToSend, err := p.smcABI.Pack("getNeoToSend")
 	if err != nil {
 		log.Error("Fail to pack Kardia smc getEthToSend", "error", err, "neodual", "neodual")
@@ -185,7 +221,7 @@ func (p *DualProcessor) callKardiaMasterGetNeoToSend(from common.Address, stated
 	return new(big.Int).SetBytes(ret)
 }
 
-func (p *DualProcessor) extractKardiaTxSummary(tx *types.Transaction) (types.EventSummary, error) {
+func (p *DualNeo) extractKardiaTxSummary(tx *types.Transaction) (types.EventSummary, error) {
 	// New tx that updates smc, check input method for more filter.
 	method, err := p.smcABI.MethodById(tx.Data()[0:4])
 	if err != nil {
@@ -199,26 +235,26 @@ func (p *DualProcessor) extractKardiaTxSummary(tx *types.Transaction) (types.Eve
 	}, nil
 }
 
-func (p *DualProcessor) releaseNeo(address string, amount *big.Int) {
+func (p *DualNeo) releaseNeo(address string, amount *big.Int) {
 	log.Info("Release: ", "amount", amount, "address", address, "neodual", "neodual")
-	txid, err := callReleaseNeo(address, amount)
+	txid, err := p.callReleaseNeo(address, amount)
 	if err != nil {
 		log.Error("Error calling rpc", "err", err, "neodual", "neodual")
 	}
 	log.Info("Tx submitted", "txid", txid, "neodual", "neodual")
 	if txid == "fail" || txid == "" {
 		log.Info("Failed to release, retry tx", "txid", txid)
-		retryTx(address, amount)
+		p.retryTx(address, amount)
 	} else {
-		txStatus := loopCheckingTx(txid)
+		txStatus := p.loopCheckingTx(txid)
 		if !txStatus {
-			retryTx(address, amount)
+			p.retryTx(address, amount)
 		}
 	}
 }
 
 // Call Api to release Neo
-func callReleaseNeo(address string, amount *big.Int) (string, error) {
+func (p *DualNeo) callReleaseNeo(address string, amount *big.Int) (string, error) {
 	body := []byte(`{
   "jsonrpc": "2.0",
   "method": "dual_sendeth",
@@ -226,13 +262,8 @@ func callReleaseNeo(address string, amount *big.Int) (string, error) {
   "id": 1
 }`)
 	log.Info("Release neo", "message", string(body), "neodual", "neodual")
-	var submitUrl string
-	if dev.IsUsingNeoTestNet {
-		submitUrl = dev.TestnetNeoSubmitUrl
-	} else {
-		submitUrl = dev.NeoSubmitTxUrl
-	}
-	rs, err := http.Post(submitUrl, "application/json", bytes.NewBuffer(body))
+
+	rs, err := http.Post(p.submitTxUrl, "application/json", bytes.NewBuffer(body))
 	if err != nil {
 		return "", err
 	}
@@ -258,15 +289,9 @@ func callReleaseNeo(address string, amount *big.Int) (string, error) {
 // Call Neo api to check status
 // txid is "not found" : pending tx or tx is failed, need to loop checking
 // to cover both case
-func checkTxNeo(txid string) bool {
+func (p *DualNeo) checkTxNeo(txid string) bool {
 	log.Info("Checking tx id", "txid", txid)
-	var checkTxUrl string
-	if dev.IsUsingNeoTestNet {
-		checkTxUrl = dev.TestnetNeoCheckTxUrl
-	} else {
-		checkTxUrl = dev.NeoCheckTxUrl
-	}
-	url := checkTxUrl + txid
+	url := p.checkTxUrl + txid
 	rs, err := http.Get(url)
 	if err != nil {
 		return false
@@ -299,15 +324,15 @@ func checkTxNeo(txid string) bool {
 }
 
 // retry send and loop checking tx status until it is successful
-func retryTx(address string, amount *big.Int) {
+func (p *DualNeo) retryTx(address string, amount *big.Int) {
 	attempt := 0
 	interval := 30
 	for {
 		log.Info("retrying tx ...", "addr", address, "amount", amount, "neodual", "neodual")
-		txid, err := callReleaseNeo(address, amount)
+		txid, err := p.callReleaseNeo(address, amount)
 		if err == nil && txid != "fail" {
 			log.Info("Send successfully", "txid", txid, "neodual", "neodual")
-			result := loopCheckingTx(txid)
+			result := p.loopCheckingTx(txid)
 			if result {
 				log.Info("tx is successful", "neodual", "neodual")
 				return
@@ -329,12 +354,12 @@ func retryTx(address string, amount *big.Int) {
 }
 
 // Continually check tx status for 10 times, interval is 10 seconds
-func loopCheckingTx(txid string) bool {
+func (p *DualNeo) loopCheckingTx(txid string) bool {
 	attempt := 0
 	for {
 		time.Sleep(10 * time.Second)
 		attempt++
-		success := checkTxNeo(txid)
+		success := p.checkTxNeo(txid)
 		if !success && attempt > 10 {
 			log.Info("Tx fail, need to retry", "attempt", attempt, "neodual", "neodual")
 			return false

@@ -152,7 +152,10 @@ type flagArgs struct {
 	ethListenAddr string
 
 	// Neo/Kardia dualnode related flags
-	neoDual bool
+	neoDual 			bool
+	neoSubmitTxUrl 		string
+	neoCheckTxUrl 		string
+	neoReceiverAddress 	string
 
 	// Dualnode's related flags
 	dualChain           bool
@@ -195,6 +198,9 @@ func init() {
 	flag.BoolVar(&args.dualChain, "dualchain", false, "run dual chain for group concensus")
 	flag.StringVar(&args.mainChainValIndexes, "mainChainValIndexes", "1,2,3", "Indexes of Main chain validator")
 	flag.StringVar(&args.dualChainValIndexes, "dualChainValIndexes", "", "Indexes of Dual chain validator")
+	flag.StringVar(&args.neoSubmitTxUrl, "neoSubmitTxUrl", "", "url to submit tx to neo")
+	flag.StringVar(&args.neoCheckTxUrl, "neoCheckTxUrl", "", "url to check tx status from neo")
+	flag.StringVar(&args.neoReceiverAddress, "neoReceiverAddress", "", "neo address to release to")
 	// NOTE: The flags below are only applicable for dev environment. Please add the applicable ones
 	// here and DO NOT add non-dev flags.
 	flag.BoolVar(&args.dev, "dev", false, "deploy node with dev environment")
@@ -202,6 +208,7 @@ func init() {
 	flag.IntVar(&args.proposal, "proposal", 1, "specify which node is the proposer. The index starts from 1, and every node needs to use the same proposer index. Note that this flag only has effect when --dev flag is set")
 	flag.BoolVar(&args.mockDualEvent, "mockDualEvent", false, "generate fake dual events to trigger dual consensus. Note that this flag only has effect when --dev flag is set.")
 	flag.IntVar(&args.maxPeers, "maxpeers", 25, "maximum number of network peers (network disabled if set to 0. Note that this flag only has effect when --dev flag is set")
+
 }
 
 func main() {
@@ -468,10 +475,20 @@ func main() {
 	exchangeContractAddress := dev.GetContractAddressAt(2)
 	exchangeContractAbi := dev.GetContractAbiByAddress(exchangeContractAddress.String())
 	if args.neoDual {
-		dualP, err := neo.NewDualProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+		dualP, err := neo.NewDualNeo(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
 		if err != nil {
-			log.Error("Fail to initialize DualProcessor", "error", err)
+			log.Error("Fail to initialize DualNeo", "error", err)
 		} else {
+			if args.neoReceiverAddress != "" {
+				dualP.SetNeoReceiver(args.neoReceiverAddress)
+			}
+			if args.neoCheckTxUrl != "" {
+				dualP.SetCheckTxUrl(args.neoCheckTxUrl)
+			}
+			if args.neoSubmitTxUrl != "" {
+				dualP.SetSubmitTxUrl(args.neoSubmitTxUrl)
+			}
+			logger.Info("Neo config", "config", dualP.ReportConfig())
 			dualP.Start()
 		}
 
