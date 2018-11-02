@@ -32,7 +32,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/kardiachain/go-kardia/dev"
-	"github.com/kardiachain/go-kardia/dualchain/kardia"
+	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"

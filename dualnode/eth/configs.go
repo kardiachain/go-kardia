@@ -24,7 +24,7 @@ import (
 	"path/filepath"
 
 	"github.com/kardiachain/go-kardia/dev"
-	"github.com/kardiachain/go-kardia/dualchain/external/eth/ethsmc"
+	"github.com/kardiachain/go-kardia/dualnode/eth/ethsmc"
 )
 
 var DefaultEthConfig = EthConfig{

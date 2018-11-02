@@ -40,7 +40,8 @@ var (
 	ErrAddKardiaTx    = errors.New("Fail to add Tx to Kardia's TxPool")
 )
 
-type KardiaChainProcessor struct {
+// Representation of Kardia's node when interfacing with dual's chain.
+type KardiaProxy struct {
     // Kardia's mainchain stuffs.
 	kardiaBc   *kardiabc.BlockChain
 	txPool     *kardiabc.TxPool
@@ -59,13 +60,13 @@ type KardiaChainProcessor struct {
 	smcABI     *abi.ABI
 }
 
-func NewKardiaChainProcessor(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dualBc *dualbc.DualBlockChain, dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string) (*KardiaChainProcessor, error) {
+func NewKardiaProxy(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dualBc *dualbc.DualBlockChain, dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string) (*KardiaProxy, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
 	}
 
-	processor := &KardiaChainProcessor{
+	processor := &KardiaProxy{
 		kardiaBc:   kardiaBc,
 		txPool: txPool,
 		dualBc:     dualBc,
@@ -82,7 +83,7 @@ func NewKardiaChainProcessor(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxP
 	return processor, nil
 }
 
-func (p *KardiaChainProcessor) SubmitTx(event *types.EventData) error {
+func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 	kardiaStateDB, err := p.kardiaBc.State()
 	if err != nil {
 		log.Error("Fail to get Kardia state", "error", err)
@@ -107,7 +108,7 @@ func (p *KardiaChainProcessor) SubmitTx(event *types.EventData) error {
 	return nil
 }
 
-func (n *KardiaChainProcessor) ComputeTxMetadata(event *types.EventData) *types.TxMetadata {
+func (n *KardiaProxy) ComputeTxMetadata(event *types.EventData) *types.TxMetadata {
 	// Compute Kardia's tx from the DualEvent.
 	// TODO(thientn,namdoh): Remove hard-coded account address here.
 	addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[dev.MockKardiaAccountForMatchEthTx])
@@ -125,16 +126,16 @@ func (n *KardiaChainProcessor) ComputeTxMetadata(event *types.EventData) *types.
 	}
 }
 
-func (p *KardiaChainProcessor) Start() {
+func (p *KardiaProxy) Start() {
 	// Start event loop
 	go p.loop()
 }
 
-func (p *KardiaChainProcessor) RegisterExternalChain(externalChain dualbc.BlockChainAdapter) {
+func (p *KardiaProxy) RegisterExternalChain(externalChain dualbc.BlockChainAdapter) {
 	p.externalChain = externalChain
 }
 
-func (p *KardiaChainProcessor) loop() {
+func (p *KardiaProxy) loop() {
 	if p.externalChain == nil {
 	    panic("External chain needs not to be nil.")
 	}
@@ -154,7 +155,7 @@ func (p *KardiaChainProcessor) loop() {
 	}
 }
 
-func (p *KardiaChainProcessor) handleBlock(block *types.Block) {
+func (p *KardiaProxy) handleBlock(block *types.Block) {
 	for _, tx := range block.Transactions() {
 		if tx.To() != nil && *tx.To() == *p.smcAddress {
 			eventSummary, err := p.extractKardiaTxSummary(tx)
@@ -194,7 +195,7 @@ func (p *KardiaChainProcessor) handleBlock(block *types.Block) {
 	}
 }
 
-func (p *KardiaChainProcessor) extractKardiaTxSummary(tx *types.Transaction) (types.EventSummary, error) {
+func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.EventSummary, error) {
 	// New tx that updates smc, check input method for more filter.
 	method, err := p.smcABI.MethodById(tx.Data()[0:4])
 	if err != nil {

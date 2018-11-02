@@ -34,10 +34,10 @@ import (
 
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
-	"github.com/kardiachain/go-kardia/dualchain/external/eth"
-	"github.com/kardiachain/go-kardia/dualchain/external/neo"
-	"github.com/kardiachain/go-kardia/dualchain/kardia"
 	dualservice "github.com/kardiachain/go-kardia/dualchain/service"
+	"github.com/kardiachain/go-kardia/dualnode/eth"
+	"github.com/kardiachain/go-kardia/dualnode/kardia"
+	"github.com/kardiachain/go-kardia/dualnode/neo"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -279,7 +279,7 @@ func main() {
 		// Set P2P max peers for testing on dev environment
 		config.P2P.MaxPeers = args.maxPeers
 		if nodeIndex < 0 {
-			logger.Error(fmt.Sprintf("Node index %v must greater than 0", nodeIndex + 1))
+			logger.Error(fmt.Sprintf("Node index %v must greater than 0", nodeIndex+1))
 		}
 		// Substract 1 from the index because we specify node starting from 1 onward.
 		devEnv.SetProposerIndex(args.proposal - 1)
@@ -510,24 +510,24 @@ func main() {
 			return
 		}
 
-		var kardiaProcessor *kardia.KardiaChainProcessor
-		kardiaProcessor, err = kardia.NewKardiaChainProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+		var kardiaProxy *kardia.KardiaProxy
+		kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
 		if err != nil {
 			log.Error("Fail to initialize KardiaChainProcessor", "error", err)
 		}
 
 		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 		// submit tx to either internal or external blockchain.
-		bcManager := dualbc.NewDualBlockChainManager(kardiaProcessor, ethNode)
+		bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, ethNode)
 		dualService.SetDualBlockChainManager(bcManager)
 
 		// Register the 'other' blockchain to each internal/external blockchain. This is needed
 		// for generate Tx to submit to the other blockchain.
-		kardiaProcessor.RegisterExternalChain(ethNode)
-		ethNode.RegisterInternalChain(kardiaProcessor)
+		kardiaProxy.RegisterExternalChain(ethNode)
+		ethNode.RegisterInternalChain(kardiaProxy)
 
 		go displaySyncStatus(client)
-		kardiaProcessor.Start()
+		kardiaProxy.Start()
 	}
 
 	go displayKardiaPeers(n)

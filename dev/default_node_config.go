@@ -24,6 +24,7 @@ import (
 	"bufio"
 	"crypto/ecdsa"
 	"encoding/csv"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math"
@@ -31,7 +32,6 @@ import (
 	"strconv"
 	"strings"
 
-	"encoding/hex"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
