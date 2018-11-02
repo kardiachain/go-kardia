@@ -201,7 +201,7 @@ func init() {
 	flag.StringVar(&args.votingStrategy, "votingStrategy", "", "specify the voting script or strategy to simulate voting. Note that this flag only has effect when --dev flag is set")
 	flag.IntVar(&args.proposal, "proposal", 1, "specify which node is the proposer. The index starts from 1, and every node needs to use the same proposer index. Note that this flag only has effect when --dev flag is set")
 	flag.BoolVar(&args.mockDualEvent, "mockDualEvent", false, "generate fake dual events to trigger dual consensus. Note that this flag only has effect when --dev flag is set.")
-	flag.IntVar(&args.maxPeers, "maxpeers", 16, "maximum number of network peers (network disabled if set to 0. Note that this flag only has effect when --dev flag is set")
+	flag.IntVar(&args.maxPeers, "maxpeers", 25, "maximum number of network peers (network disabled if set to 0. Note that this flag only has effect when --dev flag is set")
 }
 
 func main() {

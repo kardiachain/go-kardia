@@ -41,7 +41,7 @@ var DefaultConfig = NodeConfig{
 	HTTPCors:         []string{"*"},
 	P2P: p2p.Config{
 		ListenAddr: ":30303",
-		MaxPeers:   16,
+		MaxPeers:   25,
 		NAT:        nat.Any(),
 	},
 }
