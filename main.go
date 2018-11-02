@@ -34,10 +34,10 @@ import (
 
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
-	"github.com/kardiachain/go-kardia/dualchain/external/eth"
-	"github.com/kardiachain/go-kardia/dualchain/external/neo"
-	"github.com/kardiachain/go-kardia/dualchain/kardia"
 	dualservice "github.com/kardiachain/go-kardia/dualchain/service"
+	"github.com/kardiachain/go-kardia/dualnode/eth"
+	"github.com/kardiachain/go-kardia/dualnode/kardia"
+	"github.com/kardiachain/go-kardia/dualnode/neo"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -279,7 +279,7 @@ func main() {
 		// Set P2P max peers for testing on dev environment
 		config.P2P.MaxPeers = args.maxPeers
 		if nodeIndex < 0 {
-			logger.Error(fmt.Sprintf("Node index %v must greater than 0", nodeIndex + 1))
+			logger.Error(fmt.Sprintf("Node index %v must greater than 0", nodeIndex+1))
 		}
 		// Substract 1 from the index because we specify node starting from 1 onward.
 		devEnv.SetProposerIndex(args.proposal - 1)
@@ -510,24 +510,24 @@ func main() {
 			return
 		}
 
-		var kardiaProcessor *kardia.KardiaChainProcessor
-		kardiaProcessor, err = kardia.NewKardiaChainProcessor(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+		var kardiaProxy *kardia.KardiaProxy
+		kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
 		if err != nil {
 			log.Error("Fail to initialize KardiaChainProcessor", "error", err)
 		}
 
 		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 		// submit tx to either internal or external blockchain.
-		bcManager := dualbc.NewDualBlockChainManager(kardiaProcessor, ethNode)
+		bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, ethNode)
 		dualService.SetDualBlockChainManager(bcManager)
 
 		// Register the 'other' blockchain to each internal/external blockchain. This is needed
 		// for generate Tx to submit to the other blockchain.
-		kardiaProcessor.RegisterExternalChain(ethNode)
-		ethNode.RegisterInternalChain(kardiaProcessor)
+		kardiaProxy.RegisterExternalChain(ethNode)
+		ethNode.RegisterInternalChain(kardiaProxy)
 
 		go displaySyncStatus(client)
-		kardiaProcessor.Start()
+		kardiaProxy.Start()
 	}
 
 	go displayKardiaPeers(n)
@@ -561,33 +561,6 @@ func updateAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool) {
 	// txPool.AddLocal(tx2)
 	txPool.AddLocals(txs)
 	log.Info("Match neo", "quantity successfully", quantity, "txhash:", tx2.Hash())
-}
-
-func removeAmountToSend(b *blockchain.BlockChain, txPool *blockchain.TxPool, quantity *big.Int) {
-	statedb, err := b.State()
-
-	if err != nil {
-		log.Error("Error getting state. Cannot make contract call")
-		return
-	} else {
-		log.Info("Preparing to remove amount in master smc")
-	}
-
-	caller2ByteK, _ := hex.DecodeString("98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb")
-	caller2Key := crypto.ToECDSAUnsafe(caller2ByteK)
-
-	tx1 := kardia.CreateKardiaRemoveAmountTx(caller2Key, statedb, quantity, 1)
-	// txPool.AddLocal(tx1)
-	log.Info("Remove eth", "quantity successfully", quantity, "txhash:", tx1.Hash())
-	caller3ByteK, _ := hex.DecodeString("32f5c0aef7f9172044a472478421c63fd8492640ff2d0eaab9562389db3a8efe")
-	caller3Key := crypto.ToECDSAUnsafe(caller3ByteK)
-	tx2 := kardia.CreateKardiaRemoveAmountTx(caller3Key, statedb, quantity, 2)
-	txs := make(types.Transactions, 2)
-	txs[0] = tx1
-	txs[1] = tx2
-	// txPool.AddLocal(tx2)
-	txPool.AddLocals(txs)
-	log.Info("Remove neo", "quantity successfully", quantity, "txhash:", tx2.Hash())
 }
 
 func displayEthPeers(n *eth.Eth) {

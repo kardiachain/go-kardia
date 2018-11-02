@@ -44,8 +44,8 @@ import (
 
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
-	"github.com/kardiachain/go-kardia/dualchain/external/eth/ethsmc"
-	"github.com/kardiachain/go-kardia/dualchain/kardia"
+	"github.com/kardiachain/go-kardia/dualnode/eth/ethsmc"
+	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -64,7 +64,8 @@ var (
 	ErrAddEthTx = errors.New("Fail to add tx to Ether's TxPool")
 )
 
-// EthKarida is a full Ethereum node running inside Karida
+// A full Ethereum node. In additional, it provides additional interface with dual's node,
+// responsible for listening to Eth blockchain's new block and submiting Eth's transaction .
 type Eth struct {
 	// Eth's blockchain stuffs.
 	geth   *node.Node
