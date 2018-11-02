@@ -222,7 +222,7 @@ do
       run_cmd="mkdir -p /var/kardiachain/node${node_index}/ethereum; docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} -v /var/kardiachain/node${node_index}/ethereum:/root/.ethereum ${IMAGE_NAME} --dev --dual --dualchain --dualChainValIndexes 1,2,3 --mainChainValIndexes 2,3,4,5,6,7,8 --ethstat --ethstatname eth-dual-test-${node_index} --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --txn --clearDataDir --peer ${peers}"
   elif [ ${node_index} -eq $[${ETH_NODES} + 1] ]; then
       # cmd to run instance hosting Neo node
-      run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${IMAGE_NAME} --dev --neodual --dualChainValIndexes 1,2,3 --mainChainValIndexes 2,3,4,5,6,7,8 --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers}"
+      run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${IMAGE_NAME} --dev --dualchain --neodual --dualChainValIndexes 1,2,3 --mainChainValIndexes 2,3,4,5,6,7,8 --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers}"
   else
       # cmd to run instance hosting Kardia node
       run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${IMAGE_NAME} --dev --dualChainValIndexes 1,2,3 --mainChainValIndexes 2,3,4,5,6,7,8 --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers}"
