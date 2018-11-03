@@ -3,7 +3,7 @@
 # Create instances on GCE to host Kardia testnet nodes
 
 # Docker image
-IMAGE_NAME=gcr.io/strategic-ivy-130823/go-kardia:milestone4
+    IMAGE_NAME=gcr.io/strategic-ivy-130823/go-kardia:dual-neo-test
 
 # Number of nodes and prefix name
 NODES=15
@@ -23,6 +23,13 @@ IMAGE="cos-stable-70-11021-62-0"
 ETH_CUSTOM_CPU=2
 ETH_CUSTOM_MEMORY="10GB"
 ETH_BOOT_DISK_SIZE="50GB"
+
+# URL config for NEO dual node
+NEO_API_URL="http://127.0.0.1:5000"
+NEO_CHECK_TX_URL="https://neoscan-testnet.io/api/test_net/v1/get_transaction/"
+# FIXME receiver address should be created dynamically
+NEO_RECEIVER_ADDRESS="AaXPGsJhyRb55r8tREPWWNcaTHq4iiTFAH"
+KARDIA_URL="127.0.0.1:3000"
 
 ENODES=("enode://7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860@"
 	 "enode://660889e39b37ade58f789933954123e56d6498986a0cd9ca63d223e866d5521aaedc9e5298e2f4828a5c90f4c58fb24e19613a462ca0210dd962821794f630f0@"
@@ -222,7 +229,9 @@ do
       run_cmd="mkdir -p /var/kardiachain/node${node_index}/ethereum; docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} -v /var/kardiachain/node${node_index}/ethereum:/root/.ethereum ${IMAGE_NAME} --dev --dual --dualchain --dualChainValIndexes 1,2,3 --mainChainValIndexes 2,3,4,5,6,7,8 --ethstat --ethstatname eth-dual-test-${node_index} --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --txn --clearDataDir --peer ${peers}"
   elif [ ${node_index} -eq $[${ETH_NODES} + 1] ]; then
       # cmd to run instance hosting Neo node
-      run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${IMAGE_NAME} --dev --dualchain --neodual --dualChainValIndexes 1,2,3 --mainChainValIndexes 2,3,4,5,6,7,8 --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers}"
+      run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${IMAGE_NAME} --dev --dualchain --neodual --dualChainValIndexes 1,2,3 --mainChainValIndexes 2,3,4,5,6,7,8 --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers} --neoSubmitTxUrl=${NEO_API_URL} --neoCheckTxUrl=${NEO_CHECK_TX_URL} --neoReceiverAddress=${NEO_RECEIVER_ADDRESS}"
+      # cmd to run neo api server
+      run_cmd="$run_cmd;docker pull kardiachain/neo_api_server_testnet;docker run -d --name neo-api-server --env kardia=${KARDIA_URL} -p 0.0.0.0:5000:5000 -p 0.0.0.0:8080:8080 kardiachain/neo_api_server_testnet:latest"
   else
       # cmd to run instance hosting Kardia node
       run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${IMAGE_NAME} --dev --dualChainValIndexes 1,2,3 --mainChainValIndexes 2,3,4,5,6,7,8 --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers}"
