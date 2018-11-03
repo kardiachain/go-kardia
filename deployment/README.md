@@ -13,7 +13,7 @@ Users can choose this image during their setup, or use below end-2-end scripts.
    . Starts small testnet of multiple Kardia nodes including Kardia-Eth dual node.  
 
 ## Google Cloud Platform join testnet   
-  [GCloud CLI](https://cloud.google.com/sdk/gcloud/) script to join Karida testnet on Google cloud.
+  [GCloud CLI](https://cloud.google.com/sdk/gcloud/) script to join Karida testnet on Google cloud.  
   `./gce_join_testnet.sh`
    
    . Starts new GCE virtual machine with latest Docker image from GCR.   
