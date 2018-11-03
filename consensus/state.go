@@ -1129,7 +1129,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 		panic("Block validation failed")
 	}
 
-	cs.logger.Info(cmn.Fmt("Finalizing commit of block with %d txs", block.NumTxs),
+	cs.logger.Info("Finalizing commit of block", "tx number", block.NumTxs(),
 		"height", block.Height, "hash", block.Hash())
 	cs.logger.Info(cmn.Fmt("%v", block))
 
@@ -1137,6 +1137,14 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 
 	// Save block.
 	if cs.blockOperations.Height() < block.Height() {
+
+		// TODO(#201): quickfix for issue with catching up node never commit txs & save new state
+		// this code will make most nodes execute txs & save state 2 times each rounds.
+		err := cs.blockOperations.CommitAndValidateBlockTxs(block)
+		if err != nil {
+			cs.logger.Error("Failure to commit txs in finalizecommit", "err", err)
+		}
+
 		// NOTE: the seenCommit is local justification to commit this block,
 		// but may differ from the LastCommit included in the next block
 		precommits := cs.Votes.Precommits(cs.CommitRound.Int32())
