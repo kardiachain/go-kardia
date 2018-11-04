@@ -2,13 +2,18 @@
 #
 # Create instances on GCE to host Kardia testnet nodes
 
-# Docker image
-    IMAGE_NAME=gcr.io/strategic-ivy-130823/go-kardia:dual-neo-test
+# Docker images
+KARDIA_GO_IMAGE=gcr.io/strategic-ivy-130823/go-kardia:dual-neo-test
+KARDIA_SCAN_IMAGE=gcr.io/strategic-ivy-130823/kardia-scan
 
 # Number of nodes and prefix name
 NODES=15
 ETH_NODES=3
 NAME_PREFIX="kardia-testnet-"
+
+# Indexes of Dual chain and main chain validator nodes
+DUAL_CHAIN_VAL_INDEXES="1,2,3"
+MAIN_CHAIN_VAL_INDEXES="2,3,4,5,6,7,8"
 
 # ports
 PORT=3000
@@ -23,6 +28,9 @@ IMAGE="cos-stable-70-11021-62-0"
 ETH_CUSTOM_CPU=2
 ETH_CUSTOM_MEMORY="10GB"
 ETH_BOOT_DISK_SIZE="50GB"
+
+# Index of instance hosting Kardia-scan
+KARDIA_SCAN_NODE=3
 
 # URL config for NEO dual node
 NEO_API_URL="http://127.0.0.1:5000"
@@ -68,9 +76,9 @@ cloud_create_instances() {
   ether_dual_nodes=()
 
   # Create a sequence of node names, used to create instances
-  if [ $num_nodes -eq 1 ]; then
+  if [ "$num_nodes" -eq 1 ]; then
     nodes=("$name_prefix")
-  elif [ $eth_num_nodes -gt 0 ]; then
+  elif [ "$eth_num_nodes" -gt 0 ]; then
       # Trailing zeros are added to make GCE sort instances by name correctly
       # Sequence of Ethereum node names, e.g. 3 Ethereum nodes: ([prefix]001 [prefix]002 [prefix]003)
       ether_dual_nodes=($(seq -f "${name_prefix}%03g" 1 $eth_num_nodes))
@@ -203,6 +211,7 @@ echo "instances: ${#instances[@]}"
 
 # Store address of instance in format: [enode][private_ip]:[PORT]
 addresses=()
+public_ips=()
 for (( i=0; i<$NODES; i++ ));
 do
     # instance[i] is a string "$name:$public_ip:$private_ip"
@@ -211,30 +220,39 @@ do
     IFS=: read -r name public_ip private_ip <<< "${instances[$i]}"
 
     addresses+=("${ENODES[$i]}${private_ip}:${PORT}")
+    public_ips+=("http://${public_ip}:${RPC_PORT}")
 done
 
 # Concatenate addresses
 peers=$(IFS=, ; echo "${addresses[*]}")
+rpc_hosts=$(IFS=, ; echo "${public_ips[*]}")
 
 node_index=1
-docker_cmd="docker pull ${IMAGE_NAME}; docker ps -a | grep ${IMAGE_NAME} | awk '{print $1}' | xargs docker rm -f"
+docker_cmd="docker pull ${KARDIA_GO_IMAGE}; docker ps -a | grep ${KARDIA_GO_IMAGE} | awk '{print $1}' | xargs docker rm -f"
 for info in "${instances[@]}"; 
 do
   IFS=: read -r name public_ip private_ip <<< "$info"
   
   run_cmd=
 
-  if [ ${node_index} -le ${ETH_NODES} ]; then
+  if [ "$node_index" -le "$ETH_NODES" ]; then
       # cmd to run instance hosting Ethereum node
-      run_cmd="mkdir -p /var/kardiachain/node${node_index}/ethereum; docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} -v /var/kardiachain/node${node_index}/ethereum:/root/.ethereum ${IMAGE_NAME} --dev --dual --dualchain --dualChainValIndexes 1,2,3 --mainChainValIndexes 2,3,4,5,6,7,8 --ethstat --ethstatname eth-dual-test-${node_index} --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --txn --clearDataDir --peer ${peers}"
-  elif [ ${node_index} -eq $[${ETH_NODES} + 1] ]; then
+      run_cmd="mkdir -p /var/kardiachain/node${node_index}/ethereum; docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} -v /var/kardiachain/node${node_index}/ethereum:/root/.ethereum ${KARDIA_GO_IMAGE} --dev --dual --dualchain --dualChainValIndexes ${DUAL_CHAIN_VAL_INDEXES} --mainChainValIndexes ${MAIN_CHAIN_VAL_INDEXES} --ethstat --ethstatname eth-dual-test-${node_index} --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers}"
+
+      # instance 3 hosts kardia-scan frontend
+      # use http://${public_ip}:8080 to see the kardia-scan frontend
+      if [ "$node_index" -eq "$KARDIA_SCAN_NODE" ]; then
+        run_cmd+="; docker pull ${KARDIA_SCAN_IMAGE}; docker run  -e "RPC_HOSTS=${rpc_hosts}" -e "publicIP=http://${public_ip}:8080" -p 8080:80 ${KARDIA_SCAN_IMAGE}"
+      fi
+  elif [ "$node_index" -eq "($ETH_NODES + 1)" ]; then
       # cmd to run instance hosting Neo node
-      run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${IMAGE_NAME} --dev --dualchain --neodual --dualChainValIndexes 1,2,3 --mainChainValIndexes 2,3,4,5,6,7,8 --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers} --neoSubmitTxUrl=${NEO_API_URL} --neoCheckTxUrl=${NEO_CHECK_TX_URL} --neoReceiverAddress=${NEO_RECEIVER_ADDRESS}"
+      run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${KARDIA_GO_IMAGE} --dev --dualchain --neodual --dualChainValIndexes ${DUAL_CHAIN_VAL_INDEXES} --mainChainValIndexes ${MAIN_CHAIN_VAL_INDEXES} --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers} --neoSubmitTxUrl=${NEO_API_URL} --neoCheckTxUrl=${NEO_CHECK_TX_URL} --neoReceiverAddress=${NEO_RECEIVER_ADDRESS}"
       # cmd to run neo api server
       run_cmd="$run_cmd;docker pull kardiachain/neo_api_server_testnet;docker run -d --name neo-api-server --env kardia=${KARDIA_URL} -p 0.0.0.0:5000:5000 -p 0.0.0.0:8080:8080 kardiachain/neo_api_server_testnet:latest"
+
   else
       # cmd to run instance hosting Kardia node
-      run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${IMAGE_NAME} --dev --dualChainValIndexes 1,2,3 --mainChainValIndexes 2,3,4,5,6,7,8 --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers}"
+      run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${KARDIA_GO_IMAGE} --dev --dualChainValIndexes ${DUAL_CHAIN_VAL_INDEXES} --mainChainValIndexes ${MAIN_CHAIN_VAL_INDEXES} --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers}"
   fi    
 
   # SSH to instance 
