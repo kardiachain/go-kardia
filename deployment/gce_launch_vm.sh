@@ -5,6 +5,7 @@
 # Docker images
 KARDIA_GO_IMAGE=gcr.io/strategic-ivy-130823/go-kardia:dual-neo-test
 KARDIA_SCAN_IMAGE=gcr.io/strategic-ivy-130823/kardia-scan
+NEO_API_SERVER_IMAGE=neo_api_server_testnet
 
 # Number of nodes and prefix name
 NODES=15
@@ -248,8 +249,8 @@ do
       # cmd to run instance hosting Neo node
       run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${KARDIA_GO_IMAGE} --dev --dualchain --neodual --dualChainValIndexes ${DUAL_CHAIN_VAL_INDEXES} --mainChainValIndexes ${MAIN_CHAIN_VAL_INDEXES} --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers} --neoSubmitTxUrl=${NEO_API_URL} --neoCheckTxUrl=${NEO_CHECK_TX_URL} --neoReceiverAddress=${NEO_RECEIVER_ADDRESS}"
       # cmd to run neo api server
-      run_cmd="$run_cmd;docker pull kardiachain/neo_api_server_testnet;docker run -d --name neo-api-server --env kardia=${KARDIA_URL} -p 0.0.0.0:5000:5000 -p 0.0.0.0:8080:8080 kardiachain/neo_api_server_testnet:latest"
-
+      run_cmd="$run_cmd;docker pull kardiachain/${NEO_API_SERVER_IMAGE};docker ps -a | grep ${NEO_API_SERVER_IMAGE} | awk '{print $1}' | xargs docker rm -f"
+      run_cmd="$run_cmd;docker run -d --name neo-api-server --env kardia=${KARDIA_URL} -p 0.0.0.0:5000:5000 -p 0.0.0.0:8080:8080 kardiachain/neo_api_server_testnet:latest"
   else
       # cmd to run instance hosting Kardia node
       run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${KARDIA_GO_IMAGE} --dev --dualChainValIndexes ${DUAL_CHAIN_VAL_INDEXES} --mainChainValIndexes ${MAIN_CHAIN_VAL_INDEXES} --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers}"
