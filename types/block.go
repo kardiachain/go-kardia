@@ -433,7 +433,7 @@ func (b *Block) ValidateBasic() error {
 	//	return errors.New(cmn.Fmt("Wrong Block.Header.EvidenceHash.  Expected %v, got %v", b.EvidenceHash, b.Evidence.Hash()))
 	//}
 
-	b.logger.Error("Block.ValidateBasic() - implement validate DualEvents.")
+	b.logger.Info("Block.ValidateBasic() - implement validate DualEvents.")
 
 	return nil
 }

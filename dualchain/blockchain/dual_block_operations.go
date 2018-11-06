@@ -20,6 +20,7 @@ package blockchain
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"sync"
 	"time"
@@ -100,7 +101,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 			dbo.logger.Error("Fail to submit dual events", "err", err)
 			return nil
 		}
-		dbo.logger.Error("Not yet implemented - Update state root with the DualEvent's submission receipt")
+		dbo.logger.Info("Not yet implemented - Update state root with the DualEvent's submission receipt")
 	}
 
 	block = dbo.newBlock(header, events, commit)
@@ -109,11 +110,17 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 	return block
 }
 
-// TODO(namdoh@): This isn't needed. Figure out how to remove this.
-// Executes and commits the transactions in the given block.
-// Transactions & receipts are saved to storage.
+// Executes and commits the new state from events in the given block.
 // This also validate the new state root against the block root.
+// FIXME(#201): Part of unoptimized quickfix.
 func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
+	root, err := dbo.commitDualEvents(block.DualEvents())
+	if err != nil {
+		return err
+	}
+	if root != block.Root() {
+		return fmt.Errorf("different new dualchain state root: Block root: %s, Execution result: %s", block.Root().Hex(), root.Hex())
+	}
 	return nil
 }
 
@@ -234,7 +241,7 @@ func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) (commo
 		}
 		// TODO(namdoh): Properly handle error here.
 	}
-	dbo.logger.Error("Not yet implemented - getting submit DualEvent receipt")
+	dbo.logger.Info("Not yet implemented - getting submit DualEvent receipt")
 	return common.Hash{}, nil
 }
 
@@ -274,5 +281,5 @@ func (dbo *DualBlockOperations) commitDualEvents(events types.DualEvents) (commo
 // TODO(namdoh@): This isn't needed. Figure out how to remove this.
 // saveReceipts saves receipts of block transactions to storage.
 func (dbo *DualBlockOperations) saveReceipts(receipts types.Receipts, block *types.Block) {
-	dbo.logger.Error("Not yet implement DualBlockOperations.submitDualEvents()")
+	dbo.logger.Info("Not yet implement DualBlockOperations.submitDualEvents()")
 }

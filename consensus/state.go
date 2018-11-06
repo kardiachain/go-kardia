@@ -1138,7 +1138,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	// Save block.
 	if cs.blockOperations.Height() < block.Height() {
 
-		// TODO(#201): quickfix for issue with catching up node never commit txs & save new state
+		// FIXME(#201): Unoptimized quickfix for issue with catching up node never commit txs & save new state
 		// this code will make most nodes execute txs & save state 2 times each rounds.
 		err := cs.blockOperations.CommitAndValidateBlockTxs(block)
 		if err != nil {
