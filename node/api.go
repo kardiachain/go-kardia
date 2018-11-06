@@ -18,6 +18,10 @@
 
 package node
 
+import (
+	"github.com/kardiachain/go-kardia/lib/crypto"
+)
+
 // PublicNodeAPI offers helper utils
 type PublicNodeAPI struct {
 	node *Node
@@ -46,4 +50,25 @@ func (s *PublicNodeAPI) Peers() map[string]string {
 // NodeName returns name of current node
 func (s *PublicNodeAPI) NodeName() string {
 	return s.node.config.Name
+}
+
+// NodeInfo returns infomation of current node
+func (s *PublicNodeAPI) NodeInfo() map[string]interface{} {
+	name := s.node.server.NodeInfo().Name
+	address := crypto.PubkeyToAddress(s.node.config.NodeKey().PublicKey).Hex()
+	enode := s.node.server.NodeInfo().Enode
+	ip := s.node.server.NodeInfo().IP
+	id := s.node.server.NodeInfo().ID
+	listenAddr := s.node.server.NodeInfo().ListenAddr
+	ports := s.node.server.NodeInfo().Ports
+	
+	return map[string]interface{}{
+		"name":			name,
+		"address":		address,
+		"enode":		enode,
+		"id":			id,
+		"ip":			ip,
+		"listenAddr":		listenAddr,
+		"ports":		ports,
+	}
 }
