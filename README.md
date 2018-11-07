@@ -25,7 +25,7 @@ Copy and execute below script to start Kardia testnet without checking out the s
 - **Google GCP**  
 [`./gce_deploy_testnet.sh`](https://github.com/kardiachain/go-kardia/blob/master/deployment/gce_deploy_testnet.sh)   
 - **Amazon AWS**  
-[`./aws_deploy_testnet.sh`](https://github.com/kardiachain/go-kardia/blob/master/deployment/aws_deploy_testnet.sh)   
+[`./aws_deploy_single_machine_testnet.sh`](https://github.com/kardiachain/go-kardia/blob/master/deployment/aws_deploy_single_machine_testnet.sh)   
 
 See [deployment](https://github.com/kardiachain/go-kardia/tree/master/deployment) for more details.  
 
