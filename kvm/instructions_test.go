@@ -204,6 +204,7 @@ func opBenchmark(bench *testing.B, op func(pc *uint64, kvm *KVM, contract *Contr
 		env   = NewKVM(Context{}, nil, Config{})
 		stack = newstack()
 	)
+	env.interpreter.intPool = poolOfIntPools.get()
 	// convert args
 	byteArgs := make([][]byte, len(args))
 	for i, arg := range args {
@@ -458,6 +459,7 @@ func BenchmarkOpMstore(bench *testing.B) {
 		stack = newstack()
 		mem   = NewMemory()
 	)
+	env.interpreter.intPool = poolOfIntPools.get()
 	mem.Resize(64)
 	pc := uint64(0)
 	memStart := big.NewInt(0)

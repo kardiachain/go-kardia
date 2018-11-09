@@ -17,15 +17,11 @@
 package kvm
 
 import (
-	"fmt"
 	"math/big"
 	"sync"
 )
 
-var checkVal = big.NewInt(-42)
-
 const poolLimit = 256
-const verifyPool = true
 
 // intPool is a pool of big integers that
 // can be reused for all big.Int operations.
@@ -56,7 +52,7 @@ func (p *intPool) getZero() *big.Int {
 }
 
 // put returns an allocated big int to the pool to be later reused by get calls.
-// Note, the values as saved as is; neither put nor get zeroes the ints out!
+// Note, the values as saved as is; put() & get() do not modify the int values.
 func (p *intPool) put(is ...*big.Int) {
 	if len(p.pool.data) > poolLimit {
 		return
@@ -64,9 +60,6 @@ func (p *intPool) put(is ...*big.Int) {
 	for _, i := range is {
 		// verifyPool is a build flag. Pool verification makes sure the integrity
 		// of the integer pool by comparing values to a default value.
-		if verifyPool {
-			i.Set(checkVal)
-		}
 		p.pool.push(i)
 	}
 }
@@ -104,13 +97,5 @@ func (ipp *intPoolPool) put(ip *intPool) {
 
 	if len(ipp.pools) < cap(ipp.pools) {
 		ipp.pools = append(ipp.pools, ip)
-	}
-}
-
-func verifyIntegerPool(ip *intPool) {
-	for i, item := range ip.pool.data {
-		if item.Cmp(checkVal) != 0 {
-			panic(fmt.Sprintf("%d'th item failed aggressive pool check. Value was modified", i))
-		}
 	}
 }

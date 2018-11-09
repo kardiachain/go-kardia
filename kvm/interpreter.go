@@ -199,11 +199,7 @@ func (in *Interpreter) Run(contract *Contract, input []byte) (ret []byte, err er
 		*/
 		// execute the operation
 		res, err := operation.execute(&pc, in.kvm, contract, mem, stack)
-		// verifyPool is a build flag. Pool verification makes sure the integrity
-		// of the integer pool by comparing values to a default value.
-		if verifyPool {
-			verifyIntegerPool(in.intPool)
-		}
+
 		// if the operation clears the return data (e.g. it has returning data)
 		// set the last return to the result of the operation.
 		if operation.returns {
