@@ -47,6 +47,17 @@ dep ensure
 go install
 ```
 
+### Directory structure
+Most of the top-level directories are self-explanatory. Here are the core directories:
+* consensus - consensus engine
+* dev - configs that can be enabled in dev environment/runtime to mock different behaviors seen in real decentralized nodes, such as: malicious nodes, crashed nodes, etc. It can even mock block generation of external chain to speed up development.
+* dualchain - dual node's blockchain and service
+* dualnode - interface layer to external blockchains, e.g. Ethererum, Neo, etc.
+* kai - shared libraries specific to Kardia
+* kvm - Kardia's virtual machine
+* lib - 3rd party libraries
+* mainchain - main Kardia's blockchain and service
+
 ### Unit tests
 ```
 cd $GOPATH/src/github.com/kardiachain/go-kardia
