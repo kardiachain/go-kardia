@@ -77,10 +77,7 @@ type account struct {
 
 const (
 	// password is used to get keystore
-	password  = "KardiaChain"
-	ChainData = "chaindata"
-	DbCache   = 16
-	DbHandles = 16
+	password = "KardiaChain"
 )
 
 var IsUsingNeoTestNet = true
@@ -279,7 +276,6 @@ func GetContractAddressAt(index int) common.Address {
 		return common.Address{}
 	}
 	return common.HexToAddress(GenesisContractAddress[index])
-	panic("impossible failure")
 }
 
 func GetContractAbiByAddress(address string) string {

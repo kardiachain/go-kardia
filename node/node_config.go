@@ -46,13 +46,13 @@ type MainChainConfig struct {
 	// Index of validators
 	ValidatorIndexes []int
 
-	// ChainData is directory that stores levelDB data
-	ChainData string
+	// ChainDataDir is directory that stores levelDB data
+	ChainDataDir string
 
-	// DbCache is a param used to start levelDB
+	// DbCache is size in MB of allocated levelDB cache, minimum 16
 	DbCache int
 
-	// DbHandles is a param used to start levelDB
+	// DbHandles is number of allocated levelDB file handlers, minium 16
 	DbHandles int
 
 	// Genesis is genesis block which contain initial Block and accounts
@@ -70,13 +70,13 @@ type DualChainConfig struct {
 	// Index of validators
 	ValidatorIndexes []int
 
-	// ChainData is directory that stores levelDB data
-	ChainData string
+	// ChainDataDir is directory that stores levelDB data
+	ChainDataDir string
 
-	// DbCache is a param used to start levelDB
+	// DbCache is size in MB of allocated levelDB cache, minimum 16
 	DbCache int
 
-	// DbHandles is a param used to start levelDB
+	// DbHandles is number of allocated levelDB file handlers, minium 16
 	DbHandles int
 
 	// Genesis is genesis block which contain initial Block and accounts

@@ -158,7 +158,7 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.MainChainConfig
 	kai, err := newKardia(ctx, &Config{
 		NetworkId: DefaultNetworkID,
-		ChainData: chainConfig.ChainData,
+		ChainData: chainConfig.ChainDataDir,
 		DbHandles: chainConfig.DbHandles,
 		DbCaches:  chainConfig.DbCache,
 		Genesis:   chainConfig.Genesis,

@@ -31,7 +31,7 @@ var DefaultEthConfig = EthConfig{
 	Name:            "GethKardia", // Don't need to change, default instance name for geth is "geth".
 	ListenAddr:      ":30303",
 	MaxPeers:        10,
-	LightNode:       false,
+	LightNode:       false, // Need Eth full node to support dual node mechanism.
 	LightPeers:      5,
 	LightServ:       0,
 	StatName:        "eth-kardia-1",

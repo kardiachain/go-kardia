@@ -499,7 +499,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 		}
 
 		cs.logger.Info(cmn.Fmt("Added to lastPrecommits: %v", cs.LastCommit.StringShort()))
-		cs.eventBus.PublishEventVote(types.EventDataVote{vote})
+		cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote})
 		cs.evsw.FireEvent(types.EventVote, vote)
 
 		// if we can skip timeoutCommit and have all the votes now,
@@ -527,7 +527,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 		return
 	}
 
-	cs.eventBus.PublishEventVote(types.EventDataVote{vote})
+	cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote})
 	cs.evsw.FireEvent(types.EventVote, vote)
 
 	switch vote.Type {
@@ -622,7 +622,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 
 // Get script vote
 func (cs *ConsensusState) scriptedVote(height int, round int, voteType int) (int, bool) {
-	if val, ok := cs.votingStrategy[dev.VoteTurn{height, round, voteType}]; ok {
+	if val, ok := cs.votingStrategy[dev.VoteTurn{Height: height, Round: round, VoteType: voteType}]; ok {
 		return val, ok
 	}
 	return 0, false

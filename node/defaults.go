@@ -30,6 +30,12 @@ import (
 const (
 	DefaultHTTPHost = "0.0.0.0" // Default host interface for the HTTP RPC server
 	DefaultHTTPPort = 8545      // Default TCP port for the HTTP RPC server
+
+	DefaultDbCache   = 16 // 16MB memory allocated for leveldb cache, for each chains
+	DefaultDbHandles = 32 // 32 file handlers allocated for leveldb, for each chains
+
+	MainChainDataDir = "chaindata" // directory of database storage for main chain data
+	DualChainDataDir = "dualdata"  // directory of database storage for dual chain data
 )
 
 // DefaultConfig contains reasonable default settings.
@@ -43,6 +49,17 @@ var DefaultConfig = NodeConfig{
 		ListenAddr: ":30303",
 		MaxPeers:   25,
 		NAT:        nat.Any(),
+	},
+	MainChainConfig: MainChainConfig{
+		ChainDataDir: MainChainDataDir,
+		DbCache:      DefaultDbCache,
+		DbHandles:    DefaultDbHandles,
+		AcceptTxs:    1, // 1 is to allow new transactions, 0 is not
+	},
+	DualChainConfig: DualChainConfig{
+		ChainDataDir: DualChainDataDir,
+		DbCache:      DefaultDbCache,
+		DbHandles:    DefaultDbHandles,
 	},
 }
 
