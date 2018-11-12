@@ -42,7 +42,7 @@ const (
 var DefaultConfig = NodeConfig{
 	DataDir:          DefaultDataDir(),
 	HTTPPort:         DefaultHTTPPort,
-	HTTPModules:      []string{"node", "kai", "tx", "account"},
+	HTTPModules:      []string{"node", "kai", "tx", "account", "dual"},
 	HTTPVirtualHosts: []string{"0.0.0.0", "localhost"},
 	HTTPCors:         []string{"*"},
 	P2P: p2p.Config{

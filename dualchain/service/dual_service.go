@@ -34,9 +34,11 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
-const DualServiceName = "DUAL"
-const DualNetworkID = 100 // TODO: change this to be diff than main kardia service or the same
-const dualProtocolName = "dualptc"
+const (
+	DualServiceName = "DUAL"
+	DualNetworkID = 100 // TODO: change this to be diff than main kardia service or the same
+	dualProtocolName = "dualptc"
+)
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
 
@@ -204,31 +206,17 @@ func (s *DualService) Stop() error {
 	return nil
 }
 
-/* TODO: API for this service
 func (s *DualService) APIs() []rpc.API {
 	return []rpc.API{
 		{
-			Namespace: "kai",
+			Namespace: "dual",
 			Version:   "1.0",
 			Service:   NewPublicKaiAPI(s),
 			Public:    true,
 		},
-		{
-			Namespace: "tx",
-			Version:   "1.0",
-			Service:   NewPublicTransactionAPI(s),
-			Public:    true,
-		},
-		{
-			Namespace: "account",
-			Version:   "1.0",
-			Service:   NewPublicAccountAPI(s),
-			Public:    true,
-		},
 	}
 }
-*/
-func (s *DualService) APIs() []rpc.API { return []rpc.API{} }
+
 
 func (s *DualService) EventPool() *blockchain.EventPool       { return s.eventPool }
 func (s *DualService) BlockChain() *blockchain.DualBlockChain { return s.blockchain }
