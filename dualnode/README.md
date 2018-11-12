@@ -1,5 +1,5 @@
 # Dual node
-Currently support Ether-Kardia dual node.  
+Currently support Ether-Kardia dual node. Neo-Kardia dual node is WIP.
 
 ### Connects to Ether Rinkeby testnet
 Runs node with `--dual` flag to start dual mode, acting as a full node syncing on both Kardia network and Ethereum Rinkeby testnet.  
