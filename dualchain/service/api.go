@@ -22,6 +22,8 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/params"
+	
+	"github.com/kardiachain/go-kardia/kai/chaindb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -50,19 +52,19 @@ type BlockJSON struct {
 	ConsensusHash  string               `json:"consensus_hash"`
 }
 
-// PublicKaiAPI provides APIs to access Kai full node-related
+// PublicDualAPI provides APIs to access Dual full node-related
 // information.
-type PublicKaiAPI struct {
+type PublicDualAPI struct {
 	dualService *DualService
 }
 
-// NewPublicKaiAPI creates a new Kai protocol API for full nodes.
-func NewPublicKaiAPI(dualService *DualService) *PublicKaiAPI {
-	return &PublicKaiAPI{dualService}
+// NewPublicDualAPI creates a new Dual protocol API for full nodes.
+func NewPublicDualAPI(dualService *DualService) *PublicDualAPI {
+	return &PublicDualAPI{dualService}
 }
 
 // NewBlockJSON creates a new Block JSON data from Block
-func NewBlockJSON(block types.Block) *BlockJSON {
+func NewBlockJSON(block *types.Block) *BlockJSON {
 
 	return &BlockJSON{
 		Hash:           block.Hash().Hex(),
@@ -84,30 +86,30 @@ func NewBlockJSON(block types.Block) *BlockJSON {
 }
 
 // BlockNumber returns current block number
-func (s *PublicKaiAPI) BlockNumber() uint64 {
+func (s *PublicDualAPI) BlockNumber() uint64 {
 	return s.dualService.blockchain.CurrentBlock().Height()
 }
 
 // GetBlockByHash returns block by block hash
-func (s *PublicKaiAPI) GetBlockByHash(blockHash string) *BlockJSON {
+func (s *PublicDualAPI) GetBlockByHash(blockHash string) *BlockJSON {
 	if blockHash[0:2] == "0x" {
 		blockHash = blockHash[2:]
 	}
 	block := s.dualService.blockchain.GetBlockByHash(common.HexToHash(blockHash))
-	return NewBlockJSON(*block)
+	return NewBlockJSON(block)
 }
 
 // GetBlockByNumber returns block by block number
-func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) *BlockJSON {
+func (s *PublicDualAPI) GetBlockByNumber(blockNumber uint64) *BlockJSON {
 	block := s.dualService.blockchain.GetBlockByHeight(blockNumber)
 	if block == nil {
 		return nil
 	}
-	return NewBlockJSON(*block)
+	return NewBlockJSON(block)
 }
 
 // Validator returns node's validator, nil if current node is not a validator
-func (s *PublicKaiAPI) Validator() map[string]interface{} {
+func (s *PublicDualAPI) Validator() map[string]interface{} {
 	if val := s.dualService.csManager.Validator(); val != nil {
 		return map[string]interface{}{
 			"address":     val.Address.Hex(),
@@ -118,7 +120,7 @@ func (s *PublicKaiAPI) Validator() map[string]interface{} {
 }
 
 // Validators returns a list of validator
-func (s *PublicKaiAPI) Validators() []map[string]interface{} {
+func (s *PublicDualAPI) Validators() []map[string]interface{} {
 	if vals := s.dualService.csManager.Validators(); vals != nil && len(vals) > 0 {
 		results := make([]map[string]interface{}, len(vals))
 		for i, val := range vals {
@@ -132,4 +134,89 @@ func (s *PublicKaiAPI) Validators() []map[string]interface{} {
 	return nil
 }
 
+type PublicDualEvent struct {
+	BlockHash				string				`json:"blockHash"`
+	BlockNumber				common.Uint64		`json:"blockNumber"`
+	Nonce           		uint64      		`json:"nonce"`
+	TriggeredEvent  		string				`json:"triggeredEvent"`
+	PendingTxMetadata		string				`json:"pendingTxMetadata"`
+	Hash					string				`json:"hash"`
+	EventIndex				uint				`json:"eventIndex"`
+}
+
+// NewPublicDualEvent returns a dual event that will serialize to the RPC
+// representation, with the given location metadata set (if available).
+func NewPublicDualEvent(dualEvent *types.DualEvent, blockHash common.Hash, blockNumber uint64, eventIndex uint64) *PublicDualEvent {
+	result := &PublicDualEvent{
+		Nonce:				dualEvent.Nonce,    	
+		TriggeredEvent:		dualEvent.TriggeredEvent.String(),
+		PendingTxMetadata:	dualEvent.PendingTxMetadata.String(),
+		Hash:				dualEvent.Hash().Hex(),
+	}
+	if blockHash != (common.Hash{}) {
+		result.BlockHash = blockHash.Hex()
+		result.BlockNumber = common.Uint64(blockNumber)
+		result.EventIndex = uint(eventIndex)
+	}
+	return result
+}
+
+type PublicDualEventAPI struct {
+	dualService *DualService
+}
+
+func NewPublicDualEventAPI(dualService *DualService) *PublicDualEventAPI {
+	return &PublicDualEventAPI{dualService}
+}
+
+// GetDualEvent gets dual event by event hash
+func (s *PublicDualEventAPI) GetDualEvent(hash string) *PublicDualEvent {
+	dualEventHash := common.HexToHash(hash)
+	dualEvent, blockHash, blockNumber, eventIndex := chaindb.ReadDualEvent(s.dualService.groupDb, dualEventHash)
+	return NewPublicDualEvent(dualEvent, blockHash, blockNumber, eventIndex)
+}
+
+// PendingDualEvents returns pending dual events
+func (s *PublicDualEventAPI) PendingDualEvents() ([]*PublicDualEvent, error) {
+	pending, err := s.dualService.EventPool().Pending()
+	if err != nil {
+		return nil, err
+	}
+	
+	dualEvents := make([]*PublicDualEvent, len(pending))
+	
+	for _, dualEvent := range pending {
+		jsonData := NewPublicDualEvent(dualEvent, common.Hash{}, 0, 0)
+		dualEvents = append(dualEvents, jsonData)
+	} 
+	
+	return dualEvents, nil
+}
+
+// GetContentDualEvents retrieves the data content of the dual's event pool, 
+// returning all the pending as well as queued dual's events, sorted by nonce.
+func (s *PublicDualEventAPI) GetContentDualEvents() ([]*PublicDualEvent, []*PublicDualEvent) {
+	pending, queued := s.dualService.EventPool().Content()
+	
+	pendingEvents := make([]*PublicDualEvent, len(pending))
+	queuedEvents := make([]*PublicDualEvent, len(queued))
+	
+	for _, dualEvent := range pending {
+		jsonData := NewPublicDualEvent(dualEvent, common.Hash{}, 0, 0)
+		pendingEvents = append(pendingEvents, jsonData)
+	}
+	
+	for _, dualEvent := range queued {
+		jsonData := NewPublicDualEvent(dualEvent, common.Hash{}, 0, 0)
+		queuedEvents = append(queuedEvents, jsonData)
+	}
+	
+	return pendingEvents, queuedEvents
+}
+
+// GetStatusDualEvents returns the status (unknown/pending/queued) of a batch 
+// of dual's events identified by their hashes.
+func (s *PublicDualEventAPI) GetStatusDualEvent(hash string) map[string]string {
+	
+}
 

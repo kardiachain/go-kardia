@@ -80,6 +80,12 @@ type TxMetadata struct {
 	Target BlockchainSymbol
 }
 
+// String returns a string representation of TxMetadata
+func (txMetadata *TxMetadata) String() string {
+	return fmt.Sprintf("TxMetadata{TxHash:%v  Target:%v}", 
+		txMetadata.TxHash.Fingerprint(), txMetadata.Target)
+}
+
 func NewDualEvent(nonce uint64, fromExternal bool, txSource BlockchainSymbol, txHash *common.Hash, summary *EventSummary) *DualEvent {
 	return &DualEvent{
 		Nonce: nonce,
