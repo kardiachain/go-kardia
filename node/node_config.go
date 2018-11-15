@@ -66,7 +66,10 @@ type MainChainConfig struct {
 }
 
 type DualChainConfig struct {
-	// Mainchain
+	// Dualchain
+
+	ChainId uint64 // ID of dual chain unique to a dualnode group, such as for dual eth.
+
 	// Index of validators
 	ValidatorIndexes []int
 

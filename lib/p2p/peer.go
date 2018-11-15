@@ -369,14 +369,17 @@ func (p *Peer) startProtocols(writeStart <-chan struct{}, writeErr chan<- error)
 		if p.events != nil {
 			rw = newMsgEventer(rw, p.events, p.ID(), proto.Name)
 		}
-		p.log.Trace(fmt.Sprintf("Starting protocol %s/%d", proto.Name, proto.Version))
+		p.log.Trace(fmt.Sprintf("Starting protocol %s/%d", proto.Name, proto.Version), "peer", p.Name())
 		go func() {
 			err := proto.Run(p, rw)
 			if err == nil {
-				p.log.Trace(fmt.Sprintf("Protocol %s/%d returned", proto.Name, proto.Version))
-				err = errProtocolReturned
+				p.log.Trace(fmt.Sprintf("Protocol %s/%d returned", proto.Name, proto.Version), "peer", p.Name())
+				// kardia protocols either fail with error or return gracefully without need to retry
+				//err = errProtocolReturned
+				p.wg.Done()
+				return
 			} else if err != io.EOF {
-				p.log.Trace(fmt.Sprintf("Protocol %s/%d failed", proto.Name, proto.Version), "err", err)
+				p.log.Trace(fmt.Sprintf("Protocol %s/%d failed", proto.Name, proto.Version), "err", err, "peer", p.Name())
 			}
 			p.protoErr <- err
 			p.wg.Done()

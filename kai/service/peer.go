@@ -37,6 +37,7 @@ var (
 	errClosed            = errors.New("peer set is closed")
 	errAlreadyRegistered = errors.New("peer is already registered")
 	errNotRegistered     = errors.New("peer is not registered")
+	errDiffChainID       = errors.New("diff chain id")
 )
 
 const (
@@ -105,7 +106,8 @@ func (p *peer) Info() *PeerInfo {
 
 // Handshake executes the kardia protocol handshake, negotiating version number,
 // network IDs, head and genesis blocks.
-func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesis common.Hash) error {
+// Handshake can return error, or nil error but accept=false when peer is valid but gracefully rejected.
+func (p *peer) Handshake(network uint64, chainID uint64, height uint64, head common.Hash, genesis common.Hash) (accept bool, err error) {
 	p.logger.Trace("Handshake starts...")
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
@@ -115,13 +117,14 @@ func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesi
 		errc <- p2p.Send(p.rw, serviceconst.StatusMsg, &statusData{
 			ProtocolVersion: uint32(p.version),
 			NetworkId:       network,
+			ChainID:         chainID,
 			Height:          height,
 			CurrentBlock:    head,
 			GenesisBlock:    genesis,
 		})
 	}()
 	go func() {
-		errc <- p.readStatus(network, &status, genesis)
+		errc <- p.readStatus(network, chainID, &status, genesis)
 	}()
 	timeout := time.NewTimer(handshakeTimeout)
 	defer timeout.Stop()
@@ -129,22 +132,27 @@ func (p *peer) Handshake(network uint64, height uint64, head common.Hash, genesi
 		select {
 		case err := <-errc:
 			if err != nil {
+				if err == errDiffChainID {
+					p.logger.Info("Reject peer with different ChainID", "peer", p.Name())
+					return false, nil
+				}
 				p.logger.Warn("Handshake return err", "err", err)
-				return err
+				return false, err
 			}
 			p.logger.Trace("Handshake returns no err")
 		case <-timeout.C:
 			p.logger.Warn("Handshake return read timeout")
-			return p2p.DiscReadTimeout
+			return false, p2p.DiscReadTimeout
 		}
 	}
-	return nil
+	return true, nil
 }
 
-func (p *peer) readStatus(network uint64, status *statusData, genesis common.Hash) (err error) {
+func (p *peer) readStatus(network uint64, chainID uint64, status *statusData, genesis common.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
-	p.logger.Info("Read Status", "msg.Code", msg.Code, "err", err, "status", fmt.Sprintf("{ProtocolVersion:%v NetworkId:%v Height:%v CurrentBlock:%X GenesisBlock:%X",
-		status.ProtocolVersion, status.NetworkId, status.Height, status.CurrentBlock[:12], status.GenesisBlock[:12]))
+	p.logger.Info("Read Peer handshake Status", "peer", p.Name(), "Code", msg.Code, "err", err, "status",
+		fmt.Sprintf("{ProtocolVersion:%v NetworkId:%v ChainId:%v Height:%v CurrentBlock:%X GenesisBlock:%X",
+			status.ProtocolVersion, status.NetworkId, status.ChainID, status.Height, status.CurrentBlock[:12], status.GenesisBlock[:12]))
 	if err != nil {
 		return err
 	}
@@ -161,16 +169,17 @@ func (p *peer) readStatus(network uint64, status *statusData, genesis common.Has
 	if status.GenesisBlock != genesis {
 		return errResp(ErrGenesisBlockMismatch, "%x (!= %x)", status.GenesisBlock[:8], genesis[:8])
 	}
-
-	p.logger.Info("Decoded data", "msg", msg, "status", fmt.Sprintf("{ProtocolVersion:%v NetworkId:%v Height:%v CurrentBlock:%X GenesisBlock:%X",
-		status.ProtocolVersion, status.NetworkId, status.Height, status.CurrentBlock[:12], status.GenesisBlock[:12]))
-
 	if status.NetworkId != network {
 		return errResp(ErrNetworkIdMismatch, "%d (!= %d)", status.NetworkId, network)
 	}
 	if int(status.ProtocolVersion) != p.version {
 		return errResp(ErrProtocolVersionMismatch, "%d (!= %d)", status.ProtocolVersion, p.version)
 	}
+	if status.ChainID != chainID {
+		// FIXME(#211): have to use error handling path to reject mismatch chainID, but this is expected for some peer.
+		return errDiffChainID
+	}
+
 	return nil
 }
 

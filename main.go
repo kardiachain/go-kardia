@@ -84,6 +84,7 @@ type flagArgs struct {
 	proposal       int
 	votingStrategy string
 	mockDualEvent  bool
+	devDualChainID uint64
 }
 
 var args flagArgs
@@ -129,6 +130,7 @@ func init() {
 		false, "generate fake dual events to trigger dual consensus. Note that this flag only has effect when --dev flag is set.")
 	flag.IntVar(&args.maxPeers, "maxpeers", 25,
 		"maximum number of network peers (network disabled if set to 0. Note that this flag only has effect when --dev flag is set")
+	flag.Uint64Var(&args.devDualChainID, "devDualChainID", eth.EthDualChainID, "manually set dualchain ID")
 }
 
 // runtimeSystemSettings optimizes process setting for go-kardia
@@ -318,6 +320,13 @@ func main() {
 			config.DualChainConfig.ValidatorIndexes = getIntArray(args.mainChainValIndexes)
 		}
 		config.DualChainConfig.DualEventPool = *dualbc.GetDefaultEventPoolConfig(nodeDir)
+
+		config.DualChainConfig.ChainId = args.devDualChainID
+		if args.ethDual {
+			config.DualChainConfig.ChainId = eth.EthDualChainID
+		} else if args.neoDual {
+			config.DualChainConfig.ChainId = neo.NeoDualChainID
+		}
 
 		n.RegisterService(dualservice.NewDualService)
 	}

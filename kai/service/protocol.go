@@ -38,6 +38,7 @@ const (
 	ErrNoStatusMsg
 	ErrExtraStatusMsg
 	ErrSuspendedPeer
+	ErrDiffChainID
 )
 
 func (e errCode) String() string {
@@ -55,12 +56,14 @@ var errorToString = map[int]string{
 	ErrNoStatusMsg:             "No status message",
 	ErrExtraStatusMsg:          "Extra status message",
 	ErrSuspendedPeer:           "Suspended peer",
+	ErrDiffChainID:             "Different ChainID",
 }
 
 // statusData is the network packet for the status message.
 type statusData struct {
 	ProtocolVersion uint32
 	NetworkId       uint64
+	ChainID         uint64
 	Height          uint64
 	CurrentBlock    common.Hash
 	GenesisBlock    common.Hash

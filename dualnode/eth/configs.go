@@ -40,6 +40,8 @@ var DefaultEthConfig = EthConfig{
 	CacheSize: 1024,
 }
 
+var EthDualChainID = uint64(2)
+
 // defaultEthDataDir returns default Eth root datadir.
 func defaultEthDataDir() string {
 	// Try to place the data folder in the user's home dir

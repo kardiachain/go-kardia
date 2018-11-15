@@ -127,7 +127,15 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
 	dualService.csManager.SetPrivValidator(privValidator)
 
-	if dualService.protocolManager, err = service.NewProtocolManager(dualProtocolName, dualService.logger, config.NetworkId, dualService.blockchain, dualService.chainConfig, nil, dualService.csManager); err != nil {
+	if dualService.protocolManager, err = service.NewProtocolManager(
+		dualProtocolName,
+		dualService.logger,
+		config.NetworkId,
+		config.ChainID,
+		dualService.blockchain,
+		dualService.chainConfig,
+		nil,
+		dualService.csManager); err != nil {
 		return nil, err
 	}
 	//namdoh@ dualService.protocolManager.acceptTxs = config.AcceptTxs
@@ -141,6 +149,7 @@ func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.DualChainConfig
 	kai, err := newDualService(ctx, &DualConfig{
 		NetworkId:     DualNetworkID,
+		ChainID:       chainConfig.ChainId,
 		ChainData:     chainConfig.ChainDataDir,
 		DbHandles:     chainConfig.DbHandles,
 		DbCaches:      chainConfig.DbCache,

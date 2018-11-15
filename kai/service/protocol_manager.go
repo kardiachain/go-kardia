@@ -60,6 +60,8 @@ type ProtocolManager struct {
 
 	networkID uint64
 
+	chainID uint64
+
 	acceptTxs uint32 // Flag whether we're considered synchronised (enables transaction processing)
 
 	maxPeers int
@@ -93,12 +95,21 @@ type ProtocolManager struct {
 
 // NewProtocolManager returns a new Kardia sub protocol manager. The Kardia sub protocol manages peers capable
 // with the Kardia network.
-func NewProtocolManager(protocolName string, logger log.Logger, networkID uint64, blockchain blockchain.BaseBlockChain, config *configs.ChainConfig, txpool *blockchain.TxPool, csReactor *consensus.ConsensusManager) (*ProtocolManager, error) {
+func NewProtocolManager(
+	protocolName string,
+	logger log.Logger,
+	networkID uint64,
+	chainID uint64,
+	blockchain blockchain.BaseBlockChain,
+	config *configs.ChainConfig,
+	txpool *blockchain.TxPool,
+	csReactor *consensus.ConsensusManager) (*ProtocolManager, error) {
 
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
 		logger:      logger,
 		networkID:   networkID,
+		chainID:     chainID,
 		txpool:      txpool,
 		blockchain:  blockchain,
 		chainconfig: config,
@@ -142,6 +153,21 @@ func NewProtocolManager(protocolName string, logger log.Logger, networkID uint64
 	}
 
 	return manager, nil
+}
+
+func (pm *ProtocolManager) removeServicePeer(id string) {
+	// Short circuit if the peer was already removed
+	peer := pm.peers.Peer(id)
+	if peer == nil {
+		return
+	}
+	pm.logger.Debug("Removing Kardia peer", "peer", id)
+
+	// Unregister the peer from the Kardia peer set
+	if err := pm.peers.Unregister(id); err != nil {
+		pm.logger.Error("Peer removal failed", "peer", id, "err", err)
+	}
+	// Do not disconnect at the networking layer
 }
 
 func (pm *ProtocolManager) removePeer(id string) {
@@ -223,10 +249,14 @@ func (pm *ProtocolManager) handle(p *peer) error {
 		hash    = pm.blockchain.CurrentHeader().Hash()
 		height  = pm.blockchain.CurrentBlock().Height()
 	)
-
-	if err := p.Handshake(pm.networkID, height, hash, genesis.Hash()); err != nil {
-		pm.logger.Debug("Kardia handshake failed", "err", err)
+	accepted, err := p.Handshake(pm.networkID, pm.chainID, height, hash, genesis.Hash())
+	if err != nil {
 		return err
+	}
+	if accepted == false {
+		pm.logger.Info("Peer is reject, exiting protocol", "peer", p.Name())
+		pm.removeServicePeer(p.id)
+		return nil
 	}
 
 	// Register the peer locally

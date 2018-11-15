@@ -39,6 +39,7 @@ const (
 	KardiaServiceName = "KARDIA"
 	DefaultNetworkID  = 100
 	kaiProtocolName   = "kaiptc"
+	MainChainID       = 1
 )
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
@@ -121,7 +122,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	log.Info("KARDIA Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
 	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSetByIndex(ctx.Config.MainChainConfig.ValidatorIndexes)
 	state := state.LastestBlockState{
-		ChainID:                     "kaicon",
+		ChainID:                     "kaicon", // TODO(thientn): considers merging this with protocolmanger.ChainID
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
 		LastBlockID:                 block.BlockID(),
 		LastBlockTime:               block.Time(),
@@ -143,7 +144,15 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 
 	// Initialize protocol manager.
 
-	if kai.protocolManager, err = service.NewProtocolManager(kaiProtocolName, kai.logger, config.NetworkId, kai.blockchain, kai.chainConfig, kai.txPool, kai.csManager); err != nil {
+	if kai.protocolManager, err = service.NewProtocolManager(
+		kaiProtocolName,
+		kai.logger,
+		config.NetworkId,
+		MainChainID,
+		kai.blockchain,
+		kai.chainConfig,
+		kai.txPool,
+		kai.csManager); err != nil {
 		return nil, err
 	}
 	kai.protocolManager.SetAcceptTxs(config.AcceptTxs)

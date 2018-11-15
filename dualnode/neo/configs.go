@@ -29,3 +29,5 @@ var DefaultNeoConfig = NeoConfig{
 	CheckTxUrl:      "http://35.240.175.184:4000/api/main_net/v1/get_transaction/",
 	ReceiverAddress: "AaXPGsJhyRb55r8tREPWWNcaTHq4iiTFAH",
 }
+
+var NeoDualChainID = uint64(3)

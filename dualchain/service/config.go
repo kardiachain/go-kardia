@@ -26,6 +26,8 @@ type DualConfig struct {
 	// Protocol options
 	NetworkId uint64 // Network
 
+	ChainID uint64 //Chain id unique to dual node group, such as group connecting to Eth.
+
 	// The genesis block of dual blockchain, which is inserted if the database is empty.
 	// If nil, the Dual main net block is used.
 	DualGenesis *blockchain.DualGenesis `toml:",omitempty"`
