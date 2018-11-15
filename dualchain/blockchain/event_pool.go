@@ -659,17 +659,17 @@ func (pool *EventPool) addEventLocked(event *types.DualEvent) error {
 
 // Status returns the status (unknown/pending/queued) of a batch of dual's events
 // identified by their hashes.
-func (pool *EventPool) Status(hashes []common.Hash) []EventStatus {
+func (pool *EventPool) Status(hashes []common.Hash) map[*types.DualEvent]EventStatus {
 	pool.mu.RLock()
 	defer pool.mu.RUnlock()
 
-	status := make([]EventStatus, len(hashes))
-	for i, hash := range hashes {
+	status := make(map[*types.DualEvent]EventStatus)
+	for _, hash := range hashes {
 		if event := pool.all.Get(hash); event != nil {
 			if pool.pending.events.items[event.Nonce] != nil {
-				status[i] = EventStatusPending
+				status[pool.all.Get(hash)] = EventStatusPending
 			} else {
-				status[i] = EventStatusQueued
+				status[pool.all.Get(hash)] = EventStatusQueued
 			}
 		}
 	}

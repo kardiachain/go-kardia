@@ -59,10 +59,11 @@ type EventData struct {
 }
 
 func (ed *EventData) String() string {
-	return fmt.Sprintf("EventData{TxHash:%v  TxSource:%v  FromExternal:%v}",
-		ed.TxHash.Fingerprint(),
+	return fmt.Sprintf("EventData{TxHash:%v  TxSource:%v  FromExternal:%v  Data:%v}",
+		ed.TxHash.Hex(),
 		ed.TxSource,
-		ed.FromExternal)
+		ed.FromExternal,
+		ed.Data)
 
 }
 
@@ -71,6 +72,12 @@ func (ed *EventData) String() string {
 type EventSummary struct {
 	TxMethod string   // Smc's method
 	TxValue  *big.Int // Amount of the tx
+}
+
+// String returns a string representation of EventSummary
+func (eventSummary *EventSummary) String() string {
+	return fmt.Sprintf("Data{TxMethod:%v  TxValue:%v}",
+		eventSummary.TxMethod, eventSummary.TxValue)
 }
 
 // Metadata relevant to the tx that will be submit to other blockchain (internally
@@ -82,8 +89,8 @@ type TxMetadata struct {
 
 // String returns a string representation of TxMetadata
 func (txMetadata *TxMetadata) String() string {
-	return fmt.Sprintf("TxMetadata{TxHash:%v  Target:%v}", 
-		txMetadata.TxHash.Fingerprint(), txMetadata.Target)
+	return fmt.Sprintf("TxMetadata{TxHash:%v  Target:%v}",
+		txMetadata.TxHash.Hex(), txMetadata.Target)
 }
 
 func NewDualEvent(nonce uint64, fromExternal bool, txSource BlockchainSymbol, txHash *common.Hash, summary *EventSummary) *DualEvent {

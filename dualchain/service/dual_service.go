@@ -214,12 +214,6 @@ func (s *DualService) APIs() []rpc.API {
 			Service:   NewPublicDualAPI(s),
 			Public:    true,
 		},
-		{
-			Namespace: "event",
-			Version:   "1.0",
-			Service:   NewPublicDualEventAPI(s),
-			Public:    true,
-		},
 	}
 }
 
