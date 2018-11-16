@@ -20,7 +20,7 @@ package types
 
 import (
 	"math/big"
-	"reflect"
+	"os"
 	"testing"
 	"time"
 
@@ -30,18 +30,206 @@ import (
 	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
+func TestBlockCreation(t *testing.T) {
+	block := CreateNewBlock(1)
+	if err := block.ValidateBasic(); err != nil {
+		t.Fatal("Init block error", err)
+	}
+}
+
 func TestBlockEncodeDecode(t *testing.T) {
-	header := Header{}
-	header.Height = 1
-	header.Time = big.NewInt(time.Now().Unix())
+	block := CreateNewBlock(1)
+	encodedBlock, err := rlp.EncodeToBytes(&block)
+	if err != nil {
+		t.Fatal("encode error: ", err)
+	}
+	var decodedBlock Block
+	if err := rlp.DecodeBytes(encodedBlock, &decodedBlock); err != nil {
+		t.Fatal("decode error: ", err)
+	}
+
+	if decodedBlock.Hash() != block.Hash() {
+		t.Error("Encode Decode block error")
+	}
+}
+
+func TestNewDualBlock(t *testing.T) {
+	block := CreateNewDualBlock()
+	if err := block.ValidateBasic(); err != nil {
+		t.Fatal("Error validating New Dual block", err)
+	}
+}
+
+func TestBlockEncodeDecodeFile(t *testing.T) {
+	block := CreateNewBlock(1)
+	blockCopy := block.WithBody(block.Body())
+	encodeFile, err := os.Create("encodeFile.txt")
+	defer encodeFile.Close()
+	if err != nil {
+		t.Error("Error creating file")
+	}
+
+	if err := block.EncodeRLP(encodeFile); err != nil {
+		t.Fatal("Error encoding block")
+	}
+
+	f, err := os.Open("encodeFile.txt")
+	if err != nil {
+		t.Error("Error opening file:", err)
+	}
+
+	stream := rlp.NewStream(f, 99999)
+	if err := block.DecodeRLP(stream); err != nil {
+		t.Fatal("Decoding block error:", err)
+	}
+	if block.Hash() != blockCopy.Hash() {
+		t.Fatal("Encode Decode File error")
+	}
+
+}
+
+func TestGetDualEvents(t *testing.T) {
+	dualBlock := CreateNewDualBlock()
+	dualEvents := dualBlock.DualEvents()
+	dualEventCopy := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary))
+	if dualEvents[0].Hash() != dualEventCopy.Hash() {
+		t.Error("Dual Events hash not equal")
+	}
+}
+
+func TestBodyCreationAndCopy(t *testing.T) {
+	body := CreateNewBlock(1).Body()
+	copyBody := body.Copy()
+	if rlpHash(body) != rlpHash(copyBody) {
+		t.Fatal("Error copy body")
+	}
+}
+
+func TestBodyEncodeDecodeFile(t *testing.T) {
+	body := CreateNewBlock(1).Body()
+	bodyCopy := body.Copy()
+	encodeFile, err := os.Create("encodeFile.txt")
+	if err != nil {
+		t.Error("Error creating file")
+	}
+
+	if err := body.EncodeRLP(encodeFile); err != nil {
+		t.Fatal("Error encoding block")
+	}
+
+	encodeFile.Close()
+
+	f, err := os.Open("encodeFile.txt")
+	if err != nil {
+		t.Error("Error opening file:", err)
+	}
+
+	stream := rlp.NewStream(f, 99999)
+	if err := body.DecodeRLP(stream); err != nil {
+		t.Fatal("Decoding block error:", err)
+	}
+	defer f.Close()
+
+	if rlpHash(body) != rlpHash(bodyCopy) {
+		t.Fatal("Encode Decode from file error")
+	}
+}
+
+func TestBlockWithBodyFunction(t *testing.T) {
+	block := CreateNewBlock(1)
+	body := CreateNewDualBlock().Body()
+
+	blockWithBody := block.WithBody(body)
+	bwbBody := blockWithBody.Body()
+	if blockWithBody.header.Hash() != block.header.Hash() {
+		t.Error("BWB Header Error")
+	}
+	for i := range bwbBody.Transactions {
+		if bwbBody.Transactions[i] != body.Transactions[i] {
+			t.Error("BWB Transaction Error")
+			break
+		}
+	}
+	for i := range bwbBody.DualEvents {
+		if bwbBody.DualEvents[i] != body.DualEvents[i] {
+			t.Error("BWB Dual Events Error")
+			break
+		}
+	}
+	if bwbBody.LastCommit != body.LastCommit {
+		t.Error("BWB Last Commit Error")
+	}
+}
+
+func TestNewZeroBlockID(t *testing.T) {
+	blockID := NewZeroBlockID()
+	if !blockID.IsZero() {
+		t.Fatal("NewZeroBlockID is not empty")
+	}
+}
+
+func TestBlockSorterSwap(t *testing.T) {
+	firstBlock := CreateNewBlock(1)
+	secondBlock := CreateNewBlock(3)
+	blockSorter := blockSorter{
+		blocks: []*Block{firstBlock, secondBlock},
+	}
+	blockSorter.Swap(0, 1)
+	if blockSorter.blocks[0] != secondBlock && blockSorter.blocks[1] != firstBlock {
+		t.Fatal("blockSorter Swap error")
+	}
+}
+
+func TestBlockHeightFunction(t *testing.T) {
+	lowerBlock := CreateNewBlock(1)
+	higherBlock := CreateNewBlock(2)
+	if Height(higherBlock, lowerBlock) {
+		t.Fatal("block Height func error")
+	} else if !Height(lowerBlock, higherBlock) {
+		t.Fatal("Block Height func error")
+	}
+}
+
+func TestBlockSortByHeight(t *testing.T) {
+	GetBlockByHeight := BlockBy(
+		func(b1, b2 *Block) bool {
+			return b1.header.Height < b2.header.Height
+		})
+	b0 := CreateNewBlock(0)
+	b1 := CreateNewBlock(1)
+	b2 := CreateNewBlock(2)
+	b3 := CreateNewBlock(3)
+	blocks := []*Block{b3, b2, b1, b0}
+
+	GetBlockByHeight.Sort(blocks)
+	if !CheckSortedHeight(blocks) {
+		t.Error("Blocks not sorted")
+	}
+}
+
+func CheckSortedHeight(blocks []*Block) bool {
+	prev := blocks[0].header.Height
+	for i := range blocks {
+		if prev > blocks[i].header.Height {
+			return false
+		}
+		prev = blocks[i].header.Height
+	}
+	return true
+}
+
+func CreateNewBlock(height uint64) *Block {
+	header := Header{
+		Height: height,
+		Time:   big.NewInt(time.Now().Unix()),
+	}
 
 	addr := common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
 	key, _ := crypto.GenerateKey()
-
 	emptyTx := NewTransaction(
-		0,
+		1,
 		addr,
-		big.NewInt(0), 0, big.NewInt(0),
+		big.NewInt(99), 1000, big.NewInt(100),
 		nil,
 	)
 	signedTx, _ := SignTx(emptyTx, key)
@@ -58,54 +246,14 @@ func TestBlockEncodeDecode(t *testing.T) {
 	lastCommit := &Commit{
 		Precommits: []*Vote{vote, nil},
 	}
-
-	// TODO: add more details to block.
-	block := NewBlock(log.New(), &header, txns, nil, lastCommit)
-
-	// TODO: enable validate after adding data to field Commit.
-	//if err := block.ValidateBasic(); err != nil {
-	//	t.Fatal("Init block error", err)
-	//}
-
-	encodedBlock, err := rlp.EncodeToBytes(&block)
-	if err != nil {
-		t.Fatal("encode error: ", err)
-	}
-
-	var decodedBlock Block
-	if err := rlp.DecodeBytes(encodedBlock, &decodedBlock); err != nil {
-		t.Fatal("decode error: ", err)
-	}
-
-	//if err := decodedBlock.ValidateBasic(); err != nil {
-	//		t.Fatal("Decoded block error", err)
-	//}
-
-	check := func(f string, got, want interface{}) {
-		if !reflect.DeepEqual(got, want) {
-			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
-		}
-	}
-
-	check("Time", block.Time(), decodedBlock.Time())
-	check("Header", block.Header(), decodedBlock.Header())
-	check("emptyTx", block.Transactions()[0].Hash(), decodedBlock.Transactions()[0].Hash())
-	check("Commit", block.LastCommit().String(), decodedBlock.LastCommit().String())
+	return NewBlock(log.New(), &header, txns, nil, lastCommit)
 }
 
-func TestBodyEncodeDecode(t *testing.T) {
-	body := &Body{}
-
-	addr := common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
-	key, _ := crypto.GenerateKey()
-	emptyTx := NewTransaction(
-		0,
-		addr,
-		big.NewInt(0), 0, big.NewInt(0),
-		nil,
-	)
-	signedTx, _ := SignTx(emptyTx, key)
-
+func CreateNewDualBlock() *Block {
+	header := Header{
+		Height: 1,
+		Time:   big.NewInt(1),
+	}
 	vote := &Vote{
 		ValidatorIndex: common.NewBigInt64(1),
 		Height:         common.NewBigInt64(2),
@@ -113,26 +261,10 @@ func TestBodyEncodeDecode(t *testing.T) {
 		Timestamp:      big.NewInt(100),
 		Type:           VoteTypePrecommit,
 	}
-
-	body.Transactions = []*Transaction{signedTx}
-	body.LastCommit = &Commit{Precommits: []*Vote{vote, nil}}
-
-	encodedBody, err := rlp.EncodeToBytes(body)
-	if err != nil {
-		t.Fatal("encode error: ", err)
+	lastCommit := &Commit{
+		Precommits: []*Vote{vote, vote},
 	}
-
-	var decodedBody Body
-	if err := rlp.DecodeBytes(encodedBody, &decodedBody); err != nil {
-		t.Fatal("decode error: ", err)
-	}
-
-	check := func(f string, got, want interface{}) {
-		if !reflect.DeepEqual(got, want) {
-			t.Errorf("%s mismatch: got %v, want %v", f, got, want)
-		}
-	}
-
-	check("Txs", body.Transactions[0].Hash(), decodedBody.Transactions[0].Hash())
-	check("Commit", body.LastCommit.Hash(), decodedBody.LastCommit.Hash())
+	header.LastCommitHash = lastCommit.Hash()
+	de := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary))
+	return NewDualBlock(log.New(), &header, []*DualEvent{de, nil}, lastCommit)
 }
