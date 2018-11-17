@@ -49,8 +49,8 @@ type KardiaSubService interface {
 	Protocols() []p2p.Protocol
 }
 
-// Kardia implements Service for running full Kardia full protocol.
-type Kardia struct {
+// KardiaService implements Service for running full Kardia protocol.
+type KardiaService struct {
 	// TODO(namdoh): Refactor out logger to a based Service type.
 	logger log.Logger // Logger for Kardia service
 
@@ -74,17 +74,17 @@ type Kardia struct {
 	networkID uint64
 }
 
-func (s *Kardia) AddKaiServer(ks KardiaSubService) {
+func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
 	s.subService = ks
 }
 
-// New creates a new Kardia object (including the
-// initialisation of the common Kardia object)
-func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
+// New creates a new KardiaService object (including the
+// initialisation of the common KardiaService object)
+func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService, error) {
 	// Create a specific logger for KARDIA service.
 	logger := log.New()
 	logger.AddTag(KardiaServiceName)
-	logger.Info("newKardia", "chaindata", config.ChainData)
+	logger.Info("newKardiaService", "chaindata", config.ChainData)
 
 	kaiDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
 	if err != nil {
@@ -97,7 +97,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 	}
 	logger.Info("Initialised Kardia chain configuration", "config", chainConfig)
 
-	kai := &Kardia{
+	kai := &KardiaService{
 		logger:       logger,
 		config:       config,
 		kaiDb:        kaiDb,
@@ -165,7 +165,7 @@ func newKardia(ctx *node.ServiceContext, config *Config) (*Kardia, error) {
 // TODO: move this outside of kai package to customize kai.Config
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.MainChainConfig
-	kai, err := newKardia(ctx, &Config{
+	kai, err := newKardiaService(ctx, &Config{
 		NetworkId: DefaultNetworkID,
 		ChainData: chainConfig.ChainDataDir,
 		DbHandles: chainConfig.DbHandles,
@@ -182,13 +182,13 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	return kai, nil
 }
 
-func (s *Kardia) IsListening() bool  { return true } // Always listening
-func (s *Kardia) KaiVersion() int    { return int(s.protocolManager.SubProtocols[0].Version) }
-func (s *Kardia) NetVersion() uint64 { return s.networkID }
+func (s *KardiaService) IsListening() bool  { return true } // Always listening
+func (s *KardiaService) KaiVersion() int    { return int(s.protocolManager.SubProtocols[0].Version) }
+func (s *KardiaService) NetVersion() uint64 { return s.networkID }
 
 // Protocols implements Service, returning all the currently configured
 // network protocols to start.
-func (s *Kardia) Protocols() []p2p.Protocol {
+func (s *KardiaService) Protocols() []p2p.Protocol {
 	if s.subService == nil {
 		return s.protocolManager.SubProtocols
 	}
@@ -197,7 +197,7 @@ func (s *Kardia) Protocols() []p2p.Protocol {
 
 // Start implements Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
-func (s *Kardia) Start(srvr *p2p.Server) error {
+func (s *KardiaService) Start(srvr *p2p.Server) error {
 	// Figures out a max peers count based on the server limits.
 	maxPeers := srvr.MaxPeers
 
@@ -216,7 +216,7 @@ func (s *Kardia) Start(srvr *p2p.Server) error {
 
 // Stop implements Service, terminating all internal goroutines used by the
 // Kardia protocol.
-func (s *Kardia) Stop() error {
+func (s *KardiaService) Stop() error {
 	s.csManager.Stop()
 	s.protocolManager.Stop()
 	if s.subService != nil {
@@ -228,7 +228,7 @@ func (s *Kardia) Stop() error {
 	return nil
 }
 
-func (s *Kardia) APIs() []rpc.API {
+func (s *KardiaService) APIs() []rpc.API {
 	return []rpc.API{
 		{
 			Namespace: "kai",
@@ -251,6 +251,6 @@ func (s *Kardia) APIs() []rpc.API {
 	}
 }
 
-func (s *Kardia) TxPool() *blockchain.TxPool         { return s.txPool }
-func (s *Kardia) BlockChain() *blockchain.BlockChain { return s.blockchain }
-func (s *Kardia) ChainConfig() *configs.ChainConfig  { return s.chainConfig }
+func (s *KardiaService) TxPool() *blockchain.TxPool         { return s.txPool }
+func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
+func (s *KardiaService) ChainConfig() *configs.ChainConfig  { return s.chainConfig }

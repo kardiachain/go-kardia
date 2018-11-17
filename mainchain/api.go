@@ -65,11 +65,11 @@ type BlockJSON struct {
 // PublicKaiAPI provides APIs to access Kai full node-related
 // information.
 type PublicKaiAPI struct {
-	kaiService *Kardia
+	kaiService *KardiaService
 }
 
 // NewPublicKaiAPI creates a new Kai protocol API for full nodes.
-func NewPublicKaiAPI(kaiService *Kardia) *PublicKaiAPI {
+func NewPublicKaiAPI(kaiService *KardiaService) *PublicKaiAPI {
 	return &PublicKaiAPI{kaiService}
 }
 
@@ -206,11 +206,11 @@ func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNum
 
 // PublicTransactionAPI provides public apis relate to transactions
 type PublicTransactionAPI struct {
-	s *Kardia
+	s *KardiaService
 }
 
 // NewPublicTransactionAPI is a constructor of PublicTransactionAPI
-func NewPublicTransactionAPI(service *Kardia) *PublicTransactionAPI {
+func NewPublicTransactionAPI(service *KardiaService) *PublicTransactionAPI {
 	return &PublicTransactionAPI{service}
 }
 
@@ -340,11 +340,11 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 
 // PublicAccountAPI provides APIs support getting account's info
 type PublicAccountAPI struct {
-	kaiService *Kardia
+	kaiService *KardiaService
 }
 
 // NewPublicAccountAPI is a constructor that init new PublicAccountAPI
-func NewPublicAccountAPI(kaiService *Kardia) *PublicAccountAPI {
+func NewPublicAccountAPI(kaiService *KardiaService) *PublicAccountAPI {
 	return &PublicAccountAPI{kaiService}
 }
 

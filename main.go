@@ -335,7 +335,7 @@ func main() {
 		return
 	}
 
-	var kardiaService *kai.Kardia
+	var kardiaService *kai.KardiaService
 	if err := n.Service(&kardiaService); err != nil {
 		logger.Error("Cannot get Kardia Service", "err", err)
 		return
