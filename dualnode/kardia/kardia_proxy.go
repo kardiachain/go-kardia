@@ -85,6 +85,7 @@ func NewKardiaProxy(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dual
 }
 
 func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
+	log.Error("Submit to Kardia", "value", event.Data.TxValue, "method", event.Data.TxMethod)
 	kardiaStateDB, err := p.kardiaBc.State()
 	if err != nil {
 		log.Error("Fail to get Kardia state", "error", err)
@@ -94,7 +95,8 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 	// TODO(thientn,namdoh): Remove hard-coded genesisAccount here.
 	addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[dev.MockKardiaAccountForMatchEthTx])
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-	tx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, 1)
+
+	tx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, event.TxSource)
 	if tx == nil {
 		log.Error("Fail to create Kardia's tx from DualEvent")
 		return ErrCreateKardiaTx
@@ -120,7 +122,7 @@ func (n *KardiaProxy) ComputeTxMetadata(event *types.EventData) *types.TxMetadat
 		return nil
 	}
 	// TODO(namdoh@): Pass eventSummary.TxSource to matchType.
-	kardiaTx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, 1)
+	kardiaTx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, event.TxSource)
 	return &types.TxMetadata{
 		TxHash: kardiaTx.Hash(),
 		Target: types.KARDIA,
@@ -169,9 +171,9 @@ func (p *KardiaProxy) handleBlock(block *types.Block) {
 
             // TODO(namdoh,thientn): This is Eth's specific stuff that needs to be removed asap.
 			// New tx that updates smc, check input method for more filter.
-			if eventSummary.TxMethod == "removeEth" {
-				// Not set flag here. If the block contains only the removeEth, skip look up the amount to avoid infinite loop.
-				log.Info("Skip tx updating smc to remove Eth", "method", eventSummary.TxMethod)
+			if eventSummary.TxMethod == "removeEth" || eventSummary.TxMethod == "removeNeo" {
+				// Not set flag here. If the block contains only the removeEth and removeNeo, skip look up the amount to avoid infinite loop.
+				log.Info("Skip tx updating smc to remove Eth / Neo", "method", eventSummary.TxMethod)
 				continue
 			}
 

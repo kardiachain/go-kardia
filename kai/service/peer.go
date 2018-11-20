@@ -75,6 +75,7 @@ type peer struct {
 	csReactor *consensus.ConsensusManager
 
 	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
+	Protocol string
 
 }
 

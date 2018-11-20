@@ -30,4 +30,3 @@ var DefaultNeoConfig = NeoConfig{
 	ReceiverAddress: "AaXPGsJhyRb55r8tREPWWNcaTHq4iiTFAH",
 }
 
-var NeoDualChainID = uint64(3)

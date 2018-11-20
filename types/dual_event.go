@@ -56,6 +56,9 @@ type EventData struct {
 	TxSource     BlockchainSymbol
 	FromExternal bool
 	Data         *EventSummary
+
+	// caches
+	hash atomic.Value
 }
 
 func (ed *EventData) String() string {
@@ -65,6 +68,16 @@ func (ed *EventData) String() string {
 		ed.FromExternal,
 		ed.Data)
 
+}
+
+// Hash returns a hash from an EventData object
+func (ev *EventData) Hash() common.Hash {
+	if hash := ev.hash.Load(); hash != nil {
+		return hash.(common.Hash)
+	}
+	v := rlpHash(ev)
+	ev.hash.Store(v)
+	return v
 }
 
 // Relevant bits for necessary for computing internal tx (ie. Kardia's tx)

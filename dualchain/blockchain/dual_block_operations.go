@@ -239,6 +239,8 @@ func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) (commo
 		if err != nil {
 			return common.Hash{}, err
 		}
+		dbo.logger.Info("Submit dual event successfully")
+
 		// TODO(namdoh): Properly handle error here.
 	}
 	dbo.logger.Info("Not yet implemented - getting submit DualEvent receipt")

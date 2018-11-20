@@ -47,10 +47,8 @@ func CallStaticKardiaMasterSmc(from common.Address, to common.Address, bc *block
 }
 
 // Creates a Kardia tx to report new matching amount from Eth/Neo network.
-// type = 1: ETH
-// type = 2: NEO
 // TODO(namdoh@): Make type of matchType an enum instead of an int.
-func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction {
+func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, source types.BlockchainSymbol) *types.Transaction {
 	masterSmcAddr := dev.GetContractAddressAt(2)
 	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())
 	kABI, err := abi.JSON(strings.NewReader(masterSmcAbi))
@@ -59,23 +57,23 @@ func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.State
 		log.Error("Error reading abi", "err", err)
 	}
 	var getAmountToSend []byte
-	if matchType == 1 {
+	switch source {
+	case types.ETHEREUM:
 		getAmountToSend, err = kABI.Pack("matchEth", quantity)
-	} else {
+	case types.NEO:
 		getAmountToSend, err = kABI.Pack("matchNeo", quantity)
+	default:
+		return nil
 	}
-
 	if err != nil {
-		log.Error("Error getting abi", "error", err, "address", masterSmcAddr, "dual", "dual")
-
+		log.Error("Error getting abi", "error", err, "address", masterSmcAddr)
+		return nil
 	}
 	return tool.GenerateSmcCall(senderKey, masterSmcAddr, getAmountToSend, statedb)
 }
 
 // Call to remove amount of ETH / NEO on master smc
-// type = 1: ETH
-// type = 2: NEO
-func CreateKardiaRemoveAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, matchType int) *types.Transaction {
+func CreateKardiaRemoveAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.StateDB, quantity *big.Int, source types.BlockchainSymbol) *types.Transaction {
 	masterSmcAddr := dev.GetContractAddressAt(2)
 	masterSmcAbi := dev.GetContractAbiByAddress(masterSmcAddr.String())
 	abi, err := abi.JSON(strings.NewReader(masterSmcAbi))
@@ -84,16 +82,18 @@ func CreateKardiaRemoveAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.Stat
 		log.Error("Error reading abi", "err", err)
 	}
 	var amountToRemove []byte
-	if matchType == 1 {
+	switch source {
+	case types.ETHEREUM:
 		amountToRemove, err = abi.Pack("removeEth", quantity)
-	} else {
+	case types.NEO:
 		amountToRemove, err = abi.Pack("removeNeo", quantity)
-		log.Info("byte to send to remove", "byte", string(amountToRemove), "neodual", "neodual")
+	default:
+		log.Info("Invalid source chain", "source", source)
+		return nil
 	}
-
 	if err != nil {
-		log.Error("Error getting abi", "error", err, "address", masterSmcAddr, "dual", "dual")
-
+		log.Error("Error getting abi", "error", err, "address", masterSmcAddr)
+		return nil
 	}
 	return tool.GenerateSmcCall(senderKey, masterSmcAddr, amountToRemove, statedb)
 }

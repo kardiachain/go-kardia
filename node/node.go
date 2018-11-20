@@ -133,18 +133,22 @@ func (n *Node) Start() error {
 		startedServices = append(startedServices, service)
 	}
 
-	// TODO: starts RPC services.
-	if err := n.startRPC(newServices); err != nil {
-		for _, service := range newServices {
-			service.Stop()
-		}
-		newServer.Stop()
-		return err
-	}
-
 	// Finish init startup
 	n.services = newServices
 	n.server = newServer
+	return nil
+}
+
+func (n *Node) StartServiceRPC() error {
+	// TODO: starts RPC services.
+	services := n.services
+	if err := n.startRPC(services); err != nil {
+		for _, service := range services {
+			service.Stop()
+		}
+		n.server.Stop()
+		return err
+	}
 	return nil
 }
 

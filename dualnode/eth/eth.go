@@ -214,7 +214,7 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 		addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
 		addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 
-		tx := kardia.CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, 1)
+		tx := kardia.CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, types.ETHEREUM)
 		if err := n.txPool.AddLocal(tx); err != nil {
 			log.Error("Fail to add Kardia tx to removeEth", err, "tx", tx)
 		} else {

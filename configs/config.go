@@ -34,6 +34,11 @@ var (
 )
 
 var (
+	EthDualChainID = uint64(2)
+	NeoDualChainID = uint64(3)
+)
+
+var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &ChainConfig{
 		Kaicon: &KaiconConfig{
