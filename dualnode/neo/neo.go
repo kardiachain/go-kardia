@@ -32,8 +32,8 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/kardiachain/go-kardia/dev"
-	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
+	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -45,6 +45,7 @@ import (
 )
 
 const KardiaAccountToCallSmc = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
+
 var errNoNeoToSend = errors.New("Not enough NEO to send")
 
 // NeoProxy provides interfaces for Neo Dual node, responsible for detecting updates
@@ -74,8 +75,8 @@ type NeoProxy struct {
 }
 
 func NewNeoProxy(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dualBc *dualbc.DualBlockChain,
-			dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string,
-				submitTxUrl string, checkTxUrl string, neoReceiverAdd string) (*NeoProxy, error) {
+	dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string,
+	submitTxUrl string, checkTxUrl string, neoReceiverAdd string) (*NeoProxy, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
@@ -96,8 +97,11 @@ func NewNeoProxy(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dualBc 
 		neoReceiverAddress: neoReceiverAdd,
 	}
 
+	// TODO(sontranrad/kiendn): Fixed issue #217, but determine whether we need
+	// to implement the next 3 lines?
 	// Start subscription to blockchain head event.
 	processor.chainHeadSub = kardiaBc.SubscribeChainHeadEvent(processor.chainHeadCh)
+	defer processor.chainHeadSub.Unsubscribe()
 
 	return processor, nil
 }
