@@ -97,12 +97,6 @@ func NewNeoProxy(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dualBc 
 		neoReceiverAddress: neoReceiverAdd,
 	}
 
-	// TODO(sontranrad/kiendn): Fixed issue #217, but determine whether we need
-	// to implement the next 3 lines?
-	// Start subscription to blockchain head event.
-	processor.chainHeadSub = kardiaBc.SubscribeChainHeadEvent(processor.chainHeadCh)
-	defer processor.chainHeadSub.Unsubscribe()
-
 	return processor, nil
 }
 
