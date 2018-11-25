@@ -32,6 +32,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	kardiabc "github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/types"
+	"math/big"
 )
 
 var (
@@ -95,8 +96,11 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 	// TODO(thientn,namdoh): Remove hard-coded genesisAccount here.
 	addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[dev.MockKardiaAccountForMatchEthTx])
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-
-	tx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, event.Data.TxValue, event.TxSource)
+	quantity := event.Data.TxValue
+	if event.TxSource == types.NEO {
+		quantity = quantity.Mul(quantity, new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil))
+	}
+	tx := CreateKardiaMatchAmountTx(addrKey, kardiaStateDB, quantity, event.TxSource)
 	if tx == nil {
 		log.Error("Fail to create Kardia's tx from DualEvent")
 		return ErrCreateKardiaTx

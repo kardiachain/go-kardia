@@ -65,6 +65,7 @@ func CreateKardiaMatchAmountTx(senderKey *ecdsa.PrivateKey, statedb *state.State
 	default:
 		return nil
 	}
+	log.Info("Matching", "quantity", quantity, "source", source)
 	if err != nil {
 		log.Error("Error getting abi", "error", err, "address", masterSmcAddr)
 		return nil

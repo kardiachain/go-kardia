@@ -116,17 +116,20 @@ func (n *NeoProxy) SubmitTx(event *types.EventData) error {
 	}
 	senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
 	neoSendValue := n.callKardiaMasterGetNeoToSend(senderAddr, statedb)
-	if neoSendValue != nil && neoSendValue.Cmp(big.NewInt(0)) != 0 {
-		return errNoNeoToSend
-	}
 	log.Info("Kardia smc calls getNeoToSend", "neo", neoSendValue)
+	if neoSendValue != nil && neoSendValue.Cmp(big.NewInt(0)) == 0 {
+		log.Warn("No NEO to send", "neoSendValue", neoSendValue)
+		return nil
+	}
+
 	amountToRelease := decimal.NewFromBigInt(neoSendValue, 0)
 	log.Info("Original amount neo to release", "amount", amountToRelease, "neodual", "neodual")
 	// temporarily hard code for the exchange rate, 1 ETH = 10 NEO
-	convertedAmount := amountToRelease.Mul(decimal.NewFromBigInt(big.NewInt(10), 0))
+	convertedAmount := amountToRelease.Mul(decimal.NewFromBigInt(big.NewInt(10), 0)).Div(decimal.NewFromBigInt(big.NewInt(1),18))
 	log.Info("Converted amount to release", "converted", convertedAmount, "neodual", "neodual")
 	if convertedAmount.LessThan(decimal.NewFromFloat(1.0)) {
-		return errors.New("Neo amount to send should be more than 1")
+		log.Warn("Don't release neo as amount is less than 1", "converted amount", convertedAmount)
+		return nil
 	}
 	log.Info("Sending to neo", "amount", convertedAmount, "neodual", "neodual")
 	go n.releaseNeo(n.neoReceiverAddress, big.NewInt(convertedAmount.IntPart()))

@@ -382,7 +382,7 @@ func main() {
 	exchangeContractAbi := dev.GetContractAbiByAddress(exchangeContractAddress.String())
 	if args.neoDual {
 		dualNeo, err := neo.NewNeoProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
-			dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi, args.neoCheckTxUrl,
+			dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi, args.neoSubmitTxUrl,
 			args.neoCheckTxUrl, args.neoReceiverAddress)
 
 		if err != nil {
