@@ -7,8 +7,8 @@
 
 # Docker images
 KARDIA_GO_IMAGE=gcr.io/strategic-ivy-130823/go-kardia:latest
-KARDIA_SCAN_IMAGE=gcr.io/strategic-ivy-130823/kardia-scan
-NEO_API_SERVER_IMAGE=kardiachain/neo_api_server_testnet:latest
+KARDIA_SCAN_IMAGE=gcr.io/strategic-ivy-130823/kardia-scan:latest
+NEO_API_SERVER_IMAGE=gcr.io/strategic-ivy-130823/neo_api_server_testnet:latest
 
 # Number of nodes and prefix name
 NODES=15
@@ -28,7 +28,7 @@ RPC_PORT=8545
 # Instance specs
 ZONE="us-west1-b"
 MACHINE_TYPE="n1-standard-1"
-IMAGE="cos-stable-70-11021-62-0"
+IMAGE="cos-stable-70-11021-67-0"
 
 # Eth Instance specs
 ETH_CUSTOM_CPU=2
@@ -43,9 +43,10 @@ NEO_API_URL="http://127.0.0.1:5000"
 NEO_CHECK_TX_URL="https://neoscan-testnet.io/api/test_net/v1/get_transaction/"
 # FIXME receiver address should be created dynamically
 NEO_RECEIVER_ADDRESS="AaXPGsJhyRb55r8tREPWWNcaTHq4iiTFAH"
-KARDIA_URL="127.0.0.1:3000"
+KARDIA_URL="127.0.0.1:8545"
 
-ENODES=("enode://7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860@"
+ENODES=(
+     "enode://7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860@"
 	 "enode://660889e39b37ade58f789933954123e56d6498986a0cd9ca63d223e866d5521aaedc9e5298e2f4828a5c90f4c58fb24e19613a462ca0210dd962821794f630f0@"
 	 "enode://2e61f57201ec804f9d5298c4665844fd077a2516cd33eccea48f7bdf93de5182da4f57dc7b4d8870e5e291c179c05ff04100718b49184f64a7c0d40cc66343da@"
 	 "enode://fc41a71d7a74d8665dbcc0f48c9a601e30b714ed50647669ef52c03f7123f2ae078dcaa36389e2636e1055f5f60fdf38d89a226ee84234f006b333cad2d2bcee@"
@@ -53,7 +54,9 @@ ENODES=("enode://7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce330
 	 "enode://80c4fbf65122d817d3808afcb683fc66d9f9e19b476ea0ee3f757dca5cd18316ecb8999bfea4e9a5acc9968504cb919997a5c1ab623c5c533cb662291149b0a3@"
 	 "enode://5d7ed8131916b10ea545a559abe464307109a3d62ddbe19c368988bbdb1dd2330b6f3bbb479d0bdd79ef360d7d9175008d90f7d51122969210793e8a752cecd6@"
 	 "enode://7ecd4ea1bf4efa34dac41a16d7ccd14e23d3993dd3f0a54d722ee76d170718adba7f246c082bada922c875ffaaa4618e307b68e44c2847d4f4e3b767884c02b7@"
-        )
+	 "enode://4857f792ef779c511f6d7643f0991409f77e41124ced14385217535641315f5dc9927e7301ffd7afc7ae8025663e17f593306adf7d3ffac7c6aa625c250de0d5@"
+	 "enode://ad67c2502fc2723f2dcf25a140744382eb3e4e50d7e4dd910c423f7aa4fe0fbbcc2207d22ef6edf469dd6fbea73efa8d87b4b876a0d6e386c4e00b6a51c2a3f8@"
+)
 
 
 
@@ -118,7 +121,7 @@ cloud_create_instances() {
     --network-tier=PREMIUM \
     --maintenance-policy=MIGRATE \
     --tags=http-server,https-server \
-    --image=cos-stable-70-11021-62-0 \
+    --image=${IMAGE} \
     --image-project=cos-cloud \
     --custom-cpu=${ETH_CUSTOM_CPU} \
     --custom-memory=${ETH_CUSTOM_MEMORY} \
@@ -134,7 +137,7 @@ cloud_create_instances() {
     --network-tier=PREMIUM \
     --maintenance-policy=MIGRATE \
     --tags=http-server,https-server \
-    --image=cos-stable-70-11021-62-0 \
+    --image=${IMAGE} \
     --image-project=cos-cloud \
     --boot-disk-size=30GB \
     --boot-disk-type=pd-standard \
@@ -247,8 +250,10 @@ do
     # Split instance[i] by ":" to acquire name, public_ip, and private_ip
     # name and private_ip used to SSH to instance
     IFS=: read -r name public_ip private_ip <<< "${instances[$i]}"
-
-    addresses+=("${ENODES[$i]}${private_ip}:${PORT}")
+    # 10 seed nodes
+    if [ $i -lt 10 ] ; then
+        addresses+=("${ENODES[$i]}${private_ip}:${PORT}")
+    fi
     public_ips+=("http://${public_ip}:${RPC_PORT}")
 done
 
@@ -257,7 +262,7 @@ peers=$(IFS=, ; echo "${addresses[*]}")
 rpc_hosts=$(IFS=, ; echo "${public_ips[*]}")
 
 node_index=1
-docker_cmd="docker pull ${KARDIA_GO_IMAGE}; docker ps -a | grep ${KARDIA_GO_IMAGE} | awk '{print $1}' | xargs docker rm -f"
+docker_cmd="docker pull ${KARDIA_GO_IMAGE}"
 for info in "${instances[@]}";
 do
   IFS=: read -r name public_ip private_ip <<< "$info"
@@ -268,17 +273,19 @@ do
       run_cmd="mkdir -p /var/kardiachain/node${node_index}/ethereum; docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} -v /var/kardiachain/node${node_index}/ethereum:/root/.ethereum ${KARDIA_GO_IMAGE} --dev --dual --dualchain --dualChainValIndexes ${DUAL_ETH_CHAIN_VAL_INDEXES} --mainChainValIndexes ${MAIN_CHAIN_VAL_INDEXES} --ethstat --ethstatname eth-dual-test-${node_index} --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers}"
       # instance 3 hosts kardia-scan frontend
       # use http://${public_ip}:8080 to see the kardia-scan frontend
-      if [ $node_index -eq ${KARDIA_SCAN_NODE} ]; then
-        run_cmd+="; docker pull ${KARDIA_SCAN_IMAGE}; docker run  -e "RPC_HOSTS=${rpc_hosts}" -e "publicIP=http://${public_ip}:8080" -p 8080:80 ${KARDIA_SCAN_IMAGE}"
+      if [ "$node_index" -eq "$KARDIA_SCAN_NODE" ]; then
+        run_cmd="$run_cmd;docker pull ${KARDIA_SCAN_IMAGE}; docker run -e "RPC_HOSTS=${rpc_hosts}" -e "publicIP=http://${public_ip}:8080" -p 8080:80 ${KARDIA_SCAN_IMAGE}"
       fi
-  elif [ $node_index -le $((ETH_NODES + NEO_NODES)) ]; then
+  elif [ "$node_index" -le $((ETH_NODES + NEO_NODES)) ]; then
+      # cmd to run neo api server
       # cmd to run instance hosting Neo node
       run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${KARDIA_GO_IMAGE} --dev --dualchain --neodual --dualChainValIndexes ${DUAL_NEO_CHAIN_VAL_INDEXES} --mainChainValIndexes ${MAIN_CHAIN_VAL_INDEXES} --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers} --neoSubmitTxUrl=${NEO_API_URL} --neoCheckTxUrl=${NEO_CHECK_TX_URL} --neoReceiverAddress=${NEO_RECEIVER_ADDRESS}"
-      # cmd to run neo api server
-      if [ $node_index -eq $((ETH_NODES + 1)) ]; then
-        run_cmd="$run_cmd;docker pull kardiachain/${NEO_API_SERVER_IMAGE};docker ps -a | grep ${NEO_API_SERVER_IMAGE} | awk '{print $1}' | xargs docker rm -f"
-        run_cmd="$run_cmd;docker run -d --name neo-api-server --env kardia=${KARDIA_URL} -p 0.0.0.0:5000:5000 -p 0.0.0.0:8080:8080 kardiachain/neo_api_server_testnet:latest"
+      if [ "$node_index" -eq $((ETH_NODES + 1)) ]; then
+        NEO_API_URL=http://${public_ip}:5000
+        run_cmd="$run_cmd;docker pull ${NEO_API_SERVER_IMAGE}"
+        run_cmd="$run_cmd;docker run -d --name neo-api-server --env kardia=${KARDIA_URL} -p 5000:5000 -p 8080:8080 ${NEO_API_SERVER_IMAGE}"
       fi
+
   else
       # cmd to run instance hosting Kardia node
       run_cmd="docker run -d -p ${PORT}:${PORT} -p ${RPC_PORT}:${RPC_PORT} --name node${node_index} ${KARDIA_GO_IMAGE} --dev --mainChainValIndexes ${MAIN_CHAIN_VAL_INDEXES} --addr :${PORT} --name node${node_index} --rpc --rpcport ${RPC_PORT} --clearDataDir --peer ${peers}"
