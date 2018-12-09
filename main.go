@@ -21,7 +21,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	ethlog "github.com/ethereum/go-ethereum/log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -29,6 +28,9 @@ import (
 	"strings"
 	"time"
 
+	ethlog "github.com/ethereum/go-ethereum/log"
+
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
 	dualservice "github.com/kardiachain/go-kardia/dualchain/service"
@@ -115,9 +117,9 @@ func init() {
 	flag.IntVar(&args.ethLightServ, "ethLightServ", 0, "max percentage of time serving Ethereum light client requests")
 	flag.BoolVar(&args.dualChain, "dualchain", false, "run dual chain for group consensus")
 	flag.StringVar(&args.dualChainValIndexes, "dualChainValIndexes", "", "Indexes of Dual chain validator")
-	flag.StringVar(&args.neoSubmitTxUrl, "neoSubmitTxUrl", "", "url to submit tx to neo")
-	flag.StringVar(&args.neoCheckTxUrl, "neoCheckTxUrl", "", "url to check tx status from neo")
-	flag.StringVar(&args.neoReceiverAddress, "neoReceiverAddress", "", "neo address to release to")
+	flag.StringVar(&args.neoSubmitTxUrl, "neoSubmitTxUrl", neo.DefaultNeoConfig.SubmitTxUrl, "url to submit tx to neo")
+	flag.StringVar(&args.neoCheckTxUrl, "neoCheckTxUrl", neo.DefaultNeoConfig.CheckTxUrl, "url to check tx status from neo")
+	flag.StringVar(&args.neoReceiverAddress, "neoReceiverAddress", neo.DefaultNeoConfig.ReceiverAddress, "neo address to release to")
 
 	// NOTE: The flags below are only applicable for dev environment. Please add the applicable ones
 	// here and DO NOT add non-dev flags.
@@ -131,7 +133,7 @@ func init() {
 		false, "generate fake dual events to trigger dual consensus. Note that this flag only has effect when --dev flag is set.")
 	flag.IntVar(&args.maxPeers, "maxpeers", 25,
 		"maximum number of network peers (network disabled if set to 0. Note that this flag only has effect when --dev flag is set")
-	flag.Uint64Var(&args.devDualChainID, "devDualChainID", eth.EthDualChainID, "manually set dualchain ID")
+	flag.Uint64Var(&args.devDualChainID, "devDualChainID", eth.EthDualChainID, "manually set dualchain ID. Note that this flag only has effect when --dev flag is set")
 }
 
 // runtimeSystemSettings optimizes process setting for go-kardia
@@ -265,6 +267,7 @@ func main() {
 			}
 		}
 	}
+
 	if args.rpcEnabled {
 		if config.HTTPHost = args.rpcAddr; config.HTTPHost == "" {
 			config.HTTPHost = node.DefaultHTTPHost
@@ -323,19 +326,23 @@ func main() {
 
 		config.DualChainConfig.ChainId = args.devDualChainID
 		if args.ethDual {
-			config.DualChainConfig.ChainId = eth.EthDualChainID
+			config.DualChainConfig.ChainId = configs.EthDualChainID
 		} else if args.neoDual {
-			config.DualChainConfig.ChainId = neo.NeoDualChainID
+			config.DualChainConfig.ChainId = configs.NeoDualChainID
 		}
 
 		n.RegisterService(dualservice.NewDualService)
+	}
+
+	if args.neoDual {
+		n.RegisterService(neo.NewNeoService)
 	}
 	if err := n.Start(); err != nil {
 		logger.Error("Cannot start node", "err", err)
 		return
 	}
 
-	var kardiaService *kai.Kardia
+	var kardiaService *kai.KardiaService
 	if err := n.Service(&kardiaService); err != nil {
 		logger.Error("Cannot get Kardia Service", "err", err)
 		return
@@ -361,6 +368,15 @@ func main() {
 		}
 	}
 
+	if args.entryNode != "" {
+		logger.Info("Adding Peer", "entryNode", args.entryNode)
+		success, err := n.AddPeer(args.entryNode)
+		if !success {
+			logger.Error("Fail to connect to entryNode", "err", err, "entryNode", args.entryNode)
+		}
+		logger.Info("Entry Node added successfully", "Node", args.entryNode)
+	}
+
 	if len(args.peer) > 0 {
 		urls := strings.Split(args.peer, ",")
 		for _, peerURL := range urls {
@@ -372,42 +388,42 @@ func main() {
 		}
 	}
 
-	if args.entryNode != "" {
-		logger.Info("Adding Peer", "entryNode", args.entryNode)
-		success, err := n.AddPeer(args.entryNode)
-		if !success {
-			logger.Error("Fail to connect to entryNode", "err", err, "entryNode", args.entryNode)
-		}
-		logger.Info("Entry Node added successfully", "Node", args.entryNode)
-	}
-
 	// TODO(namdoh): Remove the hard-code below
 	exchangeContractAddress := dev.GetContractAddressAt(2)
 	exchangeContractAbi := dev.GetContractAbiByAddress(exchangeContractAddress.String())
 	if args.neoDual {
-		dualP, err := neo.NewDualNeo(
-			kardiaService.BlockChain(),
-			kardiaService.TxPool(),
-			dualService.BlockChain(),
-			dualService.EventPool(),
-			&exchangeContractAddress,
-			exchangeContractAbi)
+		dualNeo, err := neo.NewNeoProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
+			dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi, args.neoSubmitTxUrl,
+			args.neoCheckTxUrl, args.neoReceiverAddress)
+
 		if err != nil {
-			log.Error("Fail to initialize DualNeo", "error", err)
-		} else {
-			if args.neoReceiverAddress != "" {
-				dualP.SetNeoReceiver(args.neoReceiverAddress)
-			}
-			if args.neoCheckTxUrl != "" {
-				dualP.SetCheckTxUrl(args.neoCheckTxUrl)
-			}
-			if args.neoSubmitTxUrl != "" {
-				dualP.SetSubmitTxUrl(args.neoSubmitTxUrl)
-			}
-			logger.Info("Neo config", "config", dualP.ReportConfig())
-			dualP.Start()
+			log.Error("Fail to initialize NeoProxy", "error", err)
+			return
 		}
 
+		var kardiaProxy *kardia.KardiaProxy
+		kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+		if err != nil {
+			log.Error("Fail to initialize KardiaChainProcessor", "error", err)
+		}
+		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
+		// submit tx to either internal or external blockchain.
+		bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, dualNeo)
+		dualService.SetDualBlockChainManager(bcManager)
+		// Register the 'other' blockchain to each internal/external blockchain. This is needed
+		// for generate Tx to submit to the other blockchain.
+		kardiaProxy.RegisterExternalChain(dualNeo)
+		dualNeo.RegisterInternalChain(kardiaProxy)
+		kardiaProxy.Start()
+		// Register NeoService to interact with NEO from external sides
+		var neoService *neo.NeoService
+		if err := n.Service(&neoService); err != nil {
+			logger.Error("Cannot get Neo Service", "err", err)
+			return
+		} else {
+			// Set up blockchains and event pool for neo service
+			neoService.Initialize(kardiaProxy, dualService.BlockChain(), dualService.EventPool())
+		}
 	}
 
 	// Run Eth-Kardia dual node
@@ -471,6 +487,15 @@ func main() {
 
 		go displaySyncStatus(client)
 		kardiaProxy.Start()
+	}
+
+	// Start RPC for all services
+	if args.rpcEnabled {
+		err := n.StartServiceRPC()
+		if err != nil {
+			logger.Error("Fail to start RPC", "err", err)
+			return
+		}
 	}
 	go displayKardiaPeers(n)
 	waitForever()
