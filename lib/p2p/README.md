@@ -15,7 +15,7 @@ P2P Network now does not require the --dev flag
 
 Nodes will need to connect to each other initially and will find new peers based on the known peers.
 
---entryNode flag has been added that takes the string argument enode. The new node will handshake with new enode and then select 
+--entryNode flag has been added that takes the string argument enode. The new node will handshake with given enode and then start the discovery process 
 
 ### To test the p2p discovery:
 
