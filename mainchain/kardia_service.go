@@ -120,7 +120,13 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
 	log.Info("KARDIA Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
-	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSetByIndex(ctx.Config.MainChainConfig.ValidatorIndexes)
+	var validatorSet *types.ValidatorSet
+	if ctx.Config.DevEnvConfig != nil {
+		validatorSet = ctx.Config.DevEnvConfig.GetValidatorSetByIndex(ctx.Config.MainChainConfig.ValidatorIndexes)
+	} else {
+		validatorSet = &types.ValidatorSet{}
+	}
+
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon", // TODO(thientn): considers merging this with protocolmanger.ChainID
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
@@ -130,13 +136,24 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
 	}
-	consensusState := consensus.NewConsensusState(
-		kai.logger,
-		configs.DefaultConsensusConfig(),
-		state,
-		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
-		ctx.Config.DevEnvConfig.VotingStrategy,
-	)
+	var consensusState *consensus.ConsensusState
+	if ctx.Config.DevEnvConfig != nil {
+		consensusState = consensus.NewConsensusState(
+			kai.logger,
+			configs.DefaultConsensusConfig(),
+			state,
+			blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
+			ctx.Config.DevEnvConfig.VotingStrategy,
+		)
+	} else {
+		consensusState = consensus.NewConsensusState(
+			kai.logger,
+			configs.DefaultConsensusConfig(),
+			state,
+			blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
+			nil,
+		)
+	}
 	kai.csManager = consensus.NewConsensusManager(KardiaServiceName, consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
