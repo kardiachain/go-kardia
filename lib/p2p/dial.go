@@ -90,6 +90,7 @@ type discoverTable interface {
 	Resolve(target discover.NodeID) *discover.Node
 	Lookup(target discover.NodeID) []*discover.Node
 	ReadRandomNodes([]*discover.Node) int
+	Bond(pinged bool, id discover.NodeID, addr *net.UDPAddr, tcpPort uint16)
 }
 
 // the dial history remembers recent dials.
@@ -174,7 +175,6 @@ func (s *dialstate) newTasks(nRunning int, peers map[discover.NodeID]*Peer, now 
 		newtasks = append(newtasks, &dialTask{flags: flag, dest: n})
 		return true
 	}
-
 	// Compute number of dynamic dials necessary at this point.
 	needDynDials := s.maxDynDials
 	for _, p := range peers {
@@ -220,6 +220,7 @@ func (s *dialstate) newTasks(nRunning int, peers map[discover.NodeID]*Peer, now 
 	randomCandidates := needDynDials / 2
 	if randomCandidates > 0 {
 		n := s.ntab.ReadRandomNodes(s.randomNodes)
+
 		for i := 0; i < randomCandidates && i < n; i++ {
 			if addDial(dynDialedConn, s.randomNodes[i]) {
 				needDynDials--

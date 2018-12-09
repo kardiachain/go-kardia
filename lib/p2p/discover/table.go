@@ -177,7 +177,6 @@ func (tab *Table) ReadRandomNodes(buf []*Node) (n int) {
 	}
 	tab.mutex.Lock()
 	defer tab.mutex.Unlock()
-
 	// Find all non-empty buckets and get a fresh slice of their entries.
 	var buckets [][]*Node
 	for _, b := range tab.buckets {
@@ -247,6 +246,9 @@ func (tab *Table) isInitDone() bool {
 	default:
 		return false
 	}
+}
+func (tab *Table) Bond(pinged bool, id NodeID, addr *net.UDPAddr, tcpPort uint16) {
+	tab.bond(pinged, id, addr, tcpPort)
 }
 
 // Resolve searches for a specific node with the given ID.
@@ -589,6 +591,7 @@ func (tab *Table) bondall(nodes []*Node) (result []*Node) {
 // If pinged is true, the remote node has just pinged us and one half
 // of the process can be skipped.
 func (tab *Table) bond(pinged bool, id NodeID, addr *net.UDPAddr, tcpPort uint16) (*Node, error) {
+
 	if id == tab.self.ID {
 		return nil, errors.New("is self")
 	}

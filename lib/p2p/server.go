@@ -30,6 +30,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/lib/p2p/nat"
+
 	"github.com/kardiachain/go-kardia/lib/p2p/netutil"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 )
@@ -285,6 +286,8 @@ func (srv *Server) PeerCount() int {
 // server is shut down. If the connection fails for any reason, the server will
 // attempt to reconnect the peer.
 func (srv *Server) AddPeer(node *discover.Node) {
+	srv.ntab.Bond(false, node.ID, &net.UDPAddr{IP: node.IP, Port: int(node.UDP)}, node.TCP)
+
 	select {
 	case srv.addstatic <- node:
 	case <-srv.quit:
@@ -352,7 +355,7 @@ func (srv *Server) Stop() {
 	srv.loopWG.Wait()
 }
 
-/*
+// Uncommented by @ftsou1 vvv
 // sharedUDPConn implements a shared connection. Write sends messages to the underlying connection while read returns
 // messages that were found unprocessable and sent to the unhandled channel by the primary listener.
 type sharedUDPConn struct {
@@ -378,7 +381,8 @@ func (s *sharedUDPConn) ReadFromUDP(b []byte) (n int, addr *net.UDPAddr, err err
 func (s *sharedUDPConn) Close() error {
 	return nil
 }
-*/
+
+// Uncommented by @ftsou1 ^^^
 
 // Start starts running the server.
 // Servers can not be re-used after stopping.
@@ -417,77 +421,10 @@ func (srv *Server) Start() (err error) {
 	srv.peerOp = make(chan peerOpFunc)
 	srv.peerOpDone = make(chan struct{})
 
-	var (
-		conn *net.UDPConn
-		//@huny sconn     *sharedUDPConn
-		realaddr  *net.UDPAddr
-		unhandled chan discover.ReadPacket
-	)
-
-	if !srv.NoDiscovery || srv.DiscoveryV5 {
-		addr, err := net.ResolveUDPAddr("udp", srv.ListenAddr)
-		if err != nil {
-			return err
-		}
-		conn, err = net.ListenUDP("udp", addr)
-		if err != nil {
-			return err
-		}
-		realaddr = conn.LocalAddr().(*net.UDPAddr)
-		if srv.NAT != nil {
-			if !realaddr.IP.IsLoopback() {
-				go nat.Map(srv.NAT, srv.quit, "udp", realaddr.Port, realaddr.Port, "ethereum discovery")
-			}
-			// TODO: react to external IP changes over time.
-			if ext, err := srv.NAT.ExternalIP(); err == nil {
-				realaddr = &net.UDPAddr{IP: ext, Port: realaddr.Port}
-			}
-		}
+	if err := srv.setupDiscovery(); err != nil {
+		return err
 	}
 
-	/*@huny
-	if !srv.NoDiscovery && srv.DiscoveryV5 {
-		unhandled = make(chan discover.ReadPacket, 100)
-		sconn = &sharedUDPConn{conn, unhandled}
-	}
-	*/
-
-	// node table
-	if !srv.NoDiscovery {
-		cfg := discover.Config{
-			PrivateKey:   srv.PrivateKey,
-			AnnounceAddr: realaddr,
-			NodeDBPath:   srv.NodeDatabase,
-			NetRestrict:  srv.NetRestrict,
-			Bootnodes:    srv.BootstrapNodes,
-			Unhandled:    unhandled,
-		}
-		ntab, err := discover.ListenUDP(conn, cfg)
-		if err != nil {
-			return err
-		}
-		srv.ntab = ntab
-	}
-	/*@huny
-	if srv.DiscoveryV5 {
-		var (
-			ntab *discv5.Network
-			err  error
-		)
-		if sconn != nil {
-			ntab, err = discv5.ListenUDP(srv.PrivateKey, sconn, realaddr, "", srv.NetRestrict) //srv.NodeDatabase)
-		} else {
-			ntab, err = discv5.ListenUDP(srv.PrivateKey, conn, realaddr, "", srv.NetRestrict) //srv.NodeDatabase)
-		}
-		if err != nil {
-			return err
-		}
-		if err := ntab.SetFallbackNodes(srv.BootstrapNodesV5); err != nil {
-			return err
-		}
-		srv.DiscV5 = ntab
-	}
-	*/
 	dynPeers := srv.maxDialedConns()
 	dialer := newDialState(srv.StaticNodes, srv.BootstrapNodes, srv.ntab, dynPeers, srv.NetRestrict)
 
@@ -510,6 +447,48 @@ func (srv *Server) Start() (err error) {
 	go srv.run(dialer)
 
 	srv.running = true
+	return nil
+}
+
+func (srv *Server) setupDiscovery() error {
+	if srv.NoDiscovery && !srv.DiscoveryV5 {
+		return nil
+	}
+
+	addr, err := net.ResolveUDPAddr("udp", srv.ListenAddr)
+	if err != nil {
+		return err
+	}
+	conn, err := net.ListenUDP("udp", addr)
+	if err != nil {
+		return err
+	}
+	realaddr := conn.LocalAddr().(*net.UDPAddr)
+	srv.log.Debug("UDP listener up", "addr", realaddr)
+	if srv.NAT != nil {
+		if !realaddr.IP.IsLoopback() {
+			go nat.Map(srv.NAT, srv.quit, "udp", realaddr.Port, realaddr.Port, "Kardia discovery")
+		}
+	}
+
+	// Discovery V4
+	var unhandled chan discover.ReadPacket
+	if !srv.NoDiscovery {
+		if srv.DiscoveryV5 {
+			unhandled = make(chan discover.ReadPacket, 100)
+		}
+		cfg := discover.Config{
+			PrivateKey:  srv.PrivateKey,
+			NetRestrict: srv.NetRestrict,
+			Bootnodes:   srv.BootstrapNodes,
+			Unhandled:   unhandled,
+		}
+		ntab, err := discover.ListenUDP(conn, cfg)
+		if err != nil {
+			return err
+		}
+		srv.ntab = ntab
+	}
 	return nil
 }
 
@@ -645,7 +624,10 @@ running:
 			if err == nil {
 				// The handshakes are done and it passed all checks.
 				p := newPeer(c, srv.Protocols)
-
+				np := srv.ntab.Resolve(c.id)
+				if np == nil { //if node is not found in local/network table
+					log.Error("Peer not found - Peer should have been added when initiated", "Peer", c.id)
+				}
 				// If message events are enabled, pass the peerFeed
 				// to the peer
 				if srv.EnableMsgEvents {
@@ -678,12 +660,11 @@ running:
 			}
 		}
 	}
-
+	//This will never be called at the moment. The for loop above will go on forever VvvvvV
 	srv.log.Trace("P2P networking is spinning down")
 	// Terminate discovery. If there is a running lookup it will terminate soon.
-	if srv.ntab != nil {
-		srv.ntab.Close()
-	}
+	srv.ntab.Close()
+
 	/*@huny
 	if srv.DiscV5 != nil {
 		srv.DiscV5.Close()
