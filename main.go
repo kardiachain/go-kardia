@@ -61,6 +61,7 @@ type flagArgs struct {
 	peer                string
 	clearDataDir        bool
 	mainChainValIndexes string
+	entryNode           string
 
 	// Ether/Kardia dualnode related flags
 	ethDual       bool
@@ -104,6 +105,7 @@ func init() {
 	flag.StringVar(&args.peer, "peer", "", "Comma separated enode URLs for P2P static peer")
 	flag.BoolVar(&args.clearDataDir, "clearDataDir", false, "remove contents in data dir")
 	flag.StringVar(&args.mainChainValIndexes, "mainChainValIndexes", "1,2,3", "Indexes of Main chain validator")
+	flag.StringVar(&args.entryNode, "entryNode", "", "Discovery of network based on given node")
 
 	// Dualnode's related flags
 	flag.StringVar(&args.ethLogLevel, "ethloglevel", "warn", "minimum Eth log verbosity to display")
@@ -355,7 +357,7 @@ func main() {
 	logger.Info("Genesis block", "genesis", *kardiaService.BlockChain().Genesis())
 
 	// Connect with other peers.
-	if args.dev {
+	if args.dev && args.entryNode == "" {
 		for i := 0; i < devEnv.GetNodeSize(); i++ {
 			peerURL := devEnv.GetDevNodeConfig(i).NodeID
 			logger.Info("Adding static peer", "peerURL", peerURL)
@@ -364,6 +366,15 @@ func main() {
 				logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
 			}
 		}
+	}
+
+	if args.entryNode != "" {
+		logger.Info("Adding Peer", "entryNode", args.entryNode)
+		success, err := n.AddPeer(args.entryNode)
+		if !success {
+			logger.Error("Fail to connect to entryNode", "err", err, "entryNode", args.entryNode)
+		}
+		logger.Info("Entry Node added successfully", "Node", args.entryNode)
 	}
 
 	if len(args.peer) > 0 {

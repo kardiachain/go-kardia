@@ -90,6 +90,7 @@ type discoverTable interface {
 	Resolve(target discover.NodeID) *discover.Node
 	Lookup(target discover.NodeID) []*discover.Node
 	ReadRandomNodes([]*discover.Node) int
+	Bond(pinged bool, id discover.NodeID, addr *net.UDPAddr, tcpPort uint16)
 }
 
 // the dial history remembers recent dials.
