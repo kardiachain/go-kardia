@@ -15,7 +15,7 @@ P2P Network now does not require the --dev flag
 
 Nodes will need to connect to each other initially and will find new peers based on the known peers.
 
---bootnodes flag has been added that takes the string argument enode. The new node will handshake with given enode and then start the discovery process. This only accepts one node as argument. If more than one node is present, or if the given node is not found, the program should end.
+--bootNode flag has been added that takes the string argument enode. The new node will handshake with given enode and then start the discovery process. This only accepts one node as argument. If more than one node is present, or if the given node is not found, the program should end.
 
 ### To test the p2p discovery:
 
@@ -29,13 +29,13 @@ Copy from enode until the end.
 
 #### Terminal two
 ```
-go install; $GOPATH/bin/go-kardia --addr :3001 --name node2 --clearDataDir --bootnodes "ENODE ADDRESS"
+go install; $GOPATH/bin/go-kardia --addr :3001 --name node2 --clearDataDir --bootNode "ENODE ADDRESS"
 ```
 You should see the two nodes connecting.
 
 In another terminal, we can connect to the first.
 #### Terminal three
 ```
-go install; $GOPATH/bin/go-kardia --addr :3002 --name node3 --clearDataDir --bootnodes "ENODE ADDRESS"
+go install; $GOPATH/bin/go-kardia --addr :3002 --name node3 --clearDataDir --bootNode "ENODE ADDRESS"
 ```
 Initially, you should see node1 and node3 connect to each other and after a few seconds, node2 should connect to node3 automatically.
