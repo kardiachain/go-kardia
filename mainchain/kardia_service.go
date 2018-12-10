@@ -137,7 +137,6 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
 	}
-<<<<<<< HEAD
 	var votingStrategy map[dev.VoteTurn]int
 	if ctx.Config.DevEnvConfig != nil {
 		votingStrategy = ctx.Config.DevEnvConfig.VotingStrategy
@@ -150,26 +149,6 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
 		votingStrategy,
 	)
-=======
-	var consensusState *consensus.ConsensusState
-	if ctx.Config.DevEnvConfig != nil {
-		consensusState = consensus.NewConsensusState(
-			kai.logger,
-			configs.DefaultConsensusConfig(),
-			state,
-			blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
-			ctx.Config.DevEnvConfig.VotingStrategy,
-		)
-	} else {
-		consensusState = consensus.NewConsensusState(
-			kai.logger,
-			configs.DefaultConsensusConfig(),
-			state,
-			blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
-			nil,
-		)
-	}
->>>>>>> 39ec7e77a2c68d4c66a5dde6a98197a1e6939536
 	kai.csManager = consensus.NewConsensusManager(KardiaServiceName, consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
