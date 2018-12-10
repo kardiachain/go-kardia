@@ -121,11 +121,9 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
 	log.Info("KARDIA Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
-	var validatorSet *types.ValidatorSet
+	validatorSet := &types.ValidatorSet{}
 	if ctx.Config.DevEnvConfig != nil {
 		validatorSet = ctx.Config.DevEnvConfig.GetValidatorSetByIndex(ctx.Config.MainChainConfig.ValidatorIndexes)
-	} else {
-		validatorSet = &types.ValidatorSet{}
 	}
 
 	state := state.LastestBlockState{
