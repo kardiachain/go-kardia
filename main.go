@@ -38,7 +38,6 @@ import (
 	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/dualnode/neo"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/mainchain"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
@@ -105,7 +104,6 @@ func init() {
 	flag.StringVar(&args.peer, "peer", "", "Comma separated enode URLs for P2P static peer")
 	flag.BoolVar(&args.clearDataDir, "clearDataDir", false, "remove contents in data dir")
 	flag.StringVar(&args.mainChainValIndexes, "mainChainValIndexes", "1,2,3", "Indexes of Main chain validator")
-	flag.StringVar(&args.entryNode, "entryNode", "", "Discovery of network based on given node")
 
 	// Dualnode's related flags
 	flag.StringVar(&args.ethLogLevel, "ethloglevel", "warn", "minimum Eth log verbosity to display")
@@ -255,19 +253,6 @@ func main() {
 	var devEnv *dev.DevEnvironmentConfig
 
 	// Setup bootnodes
-	if len(args.bootnodes) > 0 {
-		urls := strings.Split(args.bootnodes, ",")
-		config.P2P.BootstrapNodes = make([]*discover.Node, 0, len(urls))
-		for _, url := range urls {
-			bootnode, err := discover.ParseNode(url)
-			if err != nil {
-				logger.Error("Bootstrap URL invalid", "enode", url, "err", err)
-			} else {
-				config.P2P.BootstrapNodes = append(config.P2P.BootstrapNodes, bootnode)
-			}
-		}
-	}
-
 	if args.rpcEnabled {
 		if config.HTTPHost = args.rpcAddr; config.HTTPHost == "" {
 			config.HTTPHost = node.DefaultHTTPHost
@@ -357,7 +342,7 @@ func main() {
 	logger.Info("Genesis block", "genesis", *kardiaService.BlockChain().Genesis())
 
 	// Connect with other peers.
-	if args.dev && args.entryNode == "" {
+	if args.dev && args.bootnodes == "" {
 		for i := 0; i < devEnv.GetNodeSize(); i++ {
 			peerURL := devEnv.GetDevNodeConfig(i).NodeID
 			logger.Info("Adding static peer", "peerURL", peerURL)
@@ -368,13 +353,14 @@ func main() {
 		}
 	}
 
-	if args.entryNode != "" {
-		logger.Info("Adding Peer", "entryNode", args.entryNode)
-		success, err := n.AddPeer(args.entryNode)
+	if args.bootnodes != "" {
+		logger.Info("Adding Peer", "Boot Node:", args.bootnodes)
+		success, err := n.AddPeer(args.bootnodes)
 		if !success {
-			logger.Error("Fail to connect to entryNode", "err", err, "entryNode", args.entryNode)
+			logger.Error("Fail to connect to boot node", "err", err, "boot node", args.bootnodes)
+			return
 		}
-		logger.Info("Entry Node added successfully", "Node", args.entryNode)
+		logger.Info("Boot Node added successfully", "Node", args.bootnodes)
 	}
 
 	if len(args.peer) > 0 {

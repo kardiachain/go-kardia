@@ -22,6 +22,7 @@ package kai
 import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/kai/service"
 	serviceconst "github.com/kardiachain/go-kardia/kai/service/const"
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -136,24 +137,18 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
 	}
-	var consensusState *consensus.ConsensusState
+	var votingStrategy map[dev.VoteTurn]int
 	if ctx.Config.DevEnvConfig != nil {
-		consensusState = consensus.NewConsensusState(
-			kai.logger,
-			configs.DefaultConsensusConfig(),
-			state,
-			blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
-			ctx.Config.DevEnvConfig.VotingStrategy,
-		)
-	} else {
-		consensusState = consensus.NewConsensusState(
-			kai.logger,
-			configs.DefaultConsensusConfig(),
-			state,
-			blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
-			nil,
-		)
+		votingStrategy = ctx.Config.DevEnvConfig.VotingStrategy
 	}
+
+	consensusState := consensus.NewConsensusState(
+		kai.logger,
+		configs.DefaultConsensusConfig(),
+		state,
+		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
+		votingStrategy,
+	)
 	kai.csManager = consensus.NewConsensusManager(KardiaServiceName, consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
