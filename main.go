@@ -38,7 +38,6 @@ import (
 	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/dualnode/neo"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/mainchain"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
@@ -57,7 +56,7 @@ type flagArgs struct {
 	rpcEnabled          bool
 	rpcAddr             string
 	rpcPort             int
-	bootnodes           string
+	bootNode            string
 	peer                string
 	clearDataDir        bool
 	mainChainValIndexes string
@@ -100,7 +99,7 @@ func init() {
 	flag.BoolVar(&args.rpcEnabled, "rpc", false, "whether to open HTTP RPC endpoints")
 	flag.StringVar(&args.rpcAddr, "rpcaddr", "", "HTTP-RPC server listening interface")
 	flag.IntVar(&args.rpcPort, "rpcport", node.DefaultHTTPPort, "HTTP-RPC server listening port")
-	flag.StringVar(&args.bootnodes, "bootnodes", "", "Comma separated enode URLs for P2P discovery bootstrap")
+	flag.StringVar(&args.bootNode, "bootNode", "", "Enode address of node that will be used by the p2p discovery protocol")
 	flag.StringVar(&args.peer, "peer", "", "Comma separated enode URLs for P2P static peer")
 	flag.BoolVar(&args.clearDataDir, "clearDataDir", false, "remove contents in data dir")
 	flag.StringVar(&args.mainChainValIndexes, "mainChainValIndexes", "1,2,3", "Indexes of Main chain validator")
@@ -252,20 +251,7 @@ func main() {
 	config.Name = args.name
 	var devEnv *dev.DevEnvironmentConfig
 
-	// Setup bootnodes
-	if len(args.bootnodes) > 0 {
-		urls := strings.Split(args.bootnodes, ",")
-		config.P2P.BootstrapNodes = make([]*discover.Node, 0, len(urls))
-		for _, url := range urls {
-			bootnode, err := discover.ParseNode(url)
-			if err != nil {
-				logger.Error("Bootstrap URL invalid", "enode", url, "err", err)
-			} else {
-				config.P2P.BootstrapNodes = append(config.P2P.BootstrapNodes, bootnode)
-			}
-		}
-	}
-
+	// Setup bootNode
 	if args.rpcEnabled {
 		if config.HTTPHost = args.rpcAddr; config.HTTPHost == "" {
 			config.HTTPHost = node.DefaultHTTPHost
@@ -355,7 +341,7 @@ func main() {
 	logger.Info("Genesis block", "genesis", *kardiaService.BlockChain().Genesis())
 
 	// Connect with other peers.
-	if args.dev {
+	if args.dev && args.bootNode == "" {
 		for i := 0; i < devEnv.GetNodeSize(); i++ {
 			peerURL := devEnv.GetDevNodeConfig(i).NodeID
 			logger.Info("Adding static peer", "peerURL", peerURL)
@@ -364,6 +350,16 @@ func main() {
 				logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
 			}
 		}
+	}
+
+	if args.bootNode != "" {
+		logger.Info("Adding Peer", "Boot Node:", args.bootNode)
+		success, err := n.AddPeer(args.bootNode)
+		if !success {
+			logger.Error("Fail to connect to boot node", "err", err, "boot node", args.bootNode)
+			return
+		}
+		logger.Info("Boot Node added successfully", "Node", args.bootNode)
 	}
 
 	if len(args.peer) > 0 {

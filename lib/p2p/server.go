@@ -285,6 +285,7 @@ func (srv *Server) PeerCount() int {
 // server is shut down. If the connection fails for any reason, the server will
 // attempt to reconnect the peer.
 func (srv *Server) AddPeer(node *discover.Node) {
+	srv.ntab.Bond(false, node.ID, &net.UDPAddr{IP: node.IP, Port: int(node.UDP)}, node.TCP)
 	select {
 	case srv.addstatic <- node:
 	case <-srv.quit:
@@ -645,7 +646,10 @@ running:
 			if err == nil {
 				// The handshakes are done and it passed all checks.
 				p := newPeer(c, srv.Protocols)
-
+				np := srv.ntab.Resolve(c.id)
+				if np == nil {
+					log.Error("Peer not found - Peer should have been added when initiated", "Peer", c.id)
+				}
 				// If message events are enabled, pass the peerFeed
 				// to the peer
 				if srv.EnableMsgEvents {

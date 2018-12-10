@@ -249,6 +249,10 @@ func (tab *Table) isInitDone() bool {
 	}
 }
 
+func (tab *Table) Bond(pinged bool, id NodeID, addr *net.UDPAddr, tcpPort uint16) {
+	tab.bond(pinged, id, addr, tcpPort)
+}
+
 // Resolve searches for a specific node with the given ID.
 // It returns nil if the node could not be found.
 func (tab *Table) Resolve(targetID NodeID) *Node {
