@@ -30,7 +30,9 @@ import (
 )
 
 func TestGenerateTx(t *testing.T) {
-	result := GenerateRandomTx(1000)
+	genTool := NewGeneratorTool()
+
+	result := genTool.GenerateTx(1000)
 	for _, tx := range result {
 		from, _ := types.Sender(tx)
 		if !containsInGenesis(from.String()) {

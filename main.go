@@ -21,6 +21,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/kardiachain/go-kardia/tool"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -85,6 +86,9 @@ type flagArgs struct {
 	votingStrategy string
 	mockDualEvent  bool
 	devDualChainID uint64
+	txs            bool
+	txsDelay       int
+	numTxs         int
 }
 
 var args flagArgs
@@ -131,6 +135,9 @@ func init() {
 	flag.IntVar(&args.maxPeers, "maxpeers", 25,
 		"maximum number of network peers (network disabled if set to 0. Note that this flag only has effect when --dev flag is set")
 	flag.Uint64Var(&args.devDualChainID, "devDualChainID", eth.EthDualChainID, "manually set dualchain ID. Note that this flag only has effect when --dev flag is set")
+	flag.BoolVar(&args.txs, "txs", false, "generate random transfer txs")
+	flag.IntVar(&args.txsDelay, "txsDelay", 10, "delay in seconds between batches of generated txs")
+	flag.IntVar(&args.numTxs, "numTxs", 10, "number of of generated txs in one batch")
 }
 
 // runtimeSystemSettings optimizes process setting for go-kardia
@@ -483,6 +490,11 @@ func main() {
 		}
 	}
 	go displayKardiaPeers(n)
+
+	if args.dev && args.txs {
+		go genTxsLoop(args.numTxs, kardiaService.TxPool())
+	}
+
 	waitForever()
 }
 
@@ -504,6 +516,36 @@ func displaySyncStatus(client *eth.EthClient) {
 		}
 		time.Sleep(20 * time.Second)
 	}
+}
+
+// genTxsLoop generate & add a batch of transfer txs, repeat after delay flag.
+// Warning: Set txsDelay < 5 secs may build up old subroutines because previous subroutine to add txs won't be finished before new one starts.
+func genTxsLoop(numTxs int, txPool *blockchain.TxPool) {
+	genTool := tool.NewGeneratorTool()
+	time.Sleep(60 * time.Second)
+	genRound := 0
+	for {
+		go genTxs(genTool, numTxs, txPool, genRound)
+		genRound++
+		time.Sleep(time.Duration(args.txsDelay) * time.Second)
+	}
+}
+
+func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *blockchain.TxPool, genRound int) {
+	goodCount := 0
+	badCount := 0
+	txList := genTool.GenerateTx(numTxs)
+	log.Info("GenTxs Adding new transactions", "num", numTxs, "genRound", genRound)
+	errs := txPool.AddLocals(txList)
+	for _, err := range errs {
+		if err != nil {
+			log.Error("Fail to add transaction list", "err", err)
+			badCount++
+		} else {
+			goodCount++
+		}
+	}
+	log.Info("GenTxs Finish adding generated txs", "success", goodCount, "failure", badCount, "genRound", genRound)
 }
 
 func waitForever() {

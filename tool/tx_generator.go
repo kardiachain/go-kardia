@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -42,20 +43,47 @@ var (
 	defaultGasPrice = big.NewInt(10)
 )
 
-// GenerateRandomTx generate an array of random transfer transactions within genesis accounts.
+type GeneratorTool struct {
+	nonceMap map[string]uint64 // Map of nonce counter for each address
+
+	mu sync.Mutex
+}
+
+func NewGeneratorTool() *GeneratorTool {
+	genTool := new(GeneratorTool)
+
+	genTool.nonceMap = make(map[string]uint64)
+
+	return genTool
+}
+
+// GenerateTx generate an array of transfer transactions within genesis accounts.
 // numTx: number of transactions to send, default to 10.
-// senderAcc: instance of keyStore if  sender is Nil, it will get random from genesis account.
-// receiverAddr: instance of common.Address, if address is empty, it will random address.
-func GenerateRandomTx(numTx int) []*types.Transaction {
+func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
 	if numTx <= 0 {
 		numTx = defaultNumTx
 	}
 	result := make([]*types.Transaction, numTx)
+	addrKeySize := len(dev.GenesisAddrKeys)
+	var keys []*ecdsa.PrivateKey
+	var addresses []common.Address
+
+	for addrS, privateKey := range dev.GenesisAddrKeys {
+		pkByte, _ := hex.DecodeString(privateKey)
+		keys = append(keys, crypto.ToECDSAUnsafe(pkByte))
+		addresses = append(addresses, common.HexToAddress(addrS))
+	}
+
+	genTool.mu.Lock()
 	for i := 0; i < numTx; i++ {
-		senderKey, toAddr := randomTxAddresses()
+		senderKey := keys[i%addrKeySize]
+		toAddr := addresses[(i+1)%addrKeySize]
+
+		senderAddrS := crypto.PubkeyToAddress(senderKey.PublicKey).String()
+		nonce := genTool.nonceMap[senderAddrS]
 
 		tx, err := types.SignTx(types.NewTransaction(
-			0, // TODO: need to set valid nonce after improving tx handling to handling nonce.
+			nonce,
 			toAddr,
 			defaultAmount,
 			1000,
@@ -66,7 +94,10 @@ func GenerateRandomTx(numTx int) []*types.Transaction {
 			panic(fmt.Sprintf("Fail to sign generated tx: %v", err))
 		}
 		result[i] = tx
+		nonce += 1
+		genTool.nonceMap[senderAddrS] = nonce
 	}
+	genTool.mu.Unlock()
 	return result
 }
 

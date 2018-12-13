@@ -200,7 +200,7 @@ func (tx *Transaction) String() string {
 
 	return fmt.Sprintf("Transaction{Nonce:%v  Recipient:%v  Amount:%v}#%v",
 		tx.data.AccountNonce,
-		tx.data.Recipient,
+		tx.data.Recipient.Hex(),
 		tx.data.Amount,
 		tx.Hash().Fingerprint())
 }
@@ -386,10 +386,10 @@ type CallArgsJSON struct {
 type CallArgs struct {
 	From     common.Address  `json:"from"`
 	To       *common.Address `json:"to"`
-	Gas      uint64  `json:"gas"`
-	GasPrice *big.Int     `json:"gasPrice"`
-	Value    *big.Int     `json:"value"`
-	Data     common.Bytes  `json:"data"`
+	Gas      uint64          `json:"gas"`
+	GasPrice *big.Int        `json:"gasPrice"`
+	Value    *big.Int        `json:"value"`
+	Data     common.Bytes    `json:"data"`
 }
 
 func NewArgs(json CallArgsJSON) *CallArgs {

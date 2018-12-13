@@ -964,6 +964,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			accounts = append(accounts, addr)
 		}
 	}
+	oldTxDrop := 0
 	// Iterate over all accounts and promote any executable transactions
 	for _, addr := range accounts {
 		list := pool.queue[addr]
@@ -972,8 +973,8 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		}
 		// Drop all transactions that are deemed too old (low nonce)
 		for _, tx := range list.Forward(pool.currentState.GetNonce(addr)) {
+			oldTxDrop++
 			hash := tx.Hash()
-			pool.logger.Info("Removed old queued transaction", "hash", hash)
 			pool.all.Remove(hash)
 			pool.priced.Removed()
 		}
@@ -992,12 +993,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 		// Gather all executable transactions and promote them
 		for _, tx := range list.Ready(pool.pendingState.GetNonce(addr)) {
 			hash := tx.Hash()
-			pool.logger.Info("Promoting tx", "tx", tx)
-			if tx.To() != nil {
-				pool.logger.Info("Tx recipient", "recipient", tx.To().String())
-			}
 			if pool.promoteTx(addr, hash, tx) {
-				pool.logger.Info("Promoting queued transaction", "hash", hash)
 				promoted = append(promoted, tx)
 			} else {
 				pool.logger.Error("Fail to promote tx", "tx", tx)
@@ -1011,7 +1007,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 				pool.all.Remove(hash)
 				pool.priced.Removed()
 				queuedRateLimitCounter.Inc(1)
-				pool.logger.Info("Removed cap-exceeding queued transaction", "hash", hash)
+				pool.logger.Error("Removed cap-exceeding queued transaction", "hash", hash)
 			}
 		}
 		// Delete the entire queue entry if it became empty.
@@ -1019,6 +1015,12 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			delete(pool.queue, addr)
 		}
 	}
+	if oldTxDrop > 0 {
+		pool.logger.Info("promoteExecutables: Drop txs that are low nonce [likely committed txs]",
+			"number of txs", oldTxDrop,
+			"block height", pool.chain.CurrentBlock().Height())
+	}
+
 	// Notify subsystem for new promoted transactions.
 	if len(promoted) > 0 {
 		go pool.txFeed.Send(NewTxsEvent{promoted})
@@ -1065,7 +1067,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 								pool.pendingState.SetNonce(offenders[i], nonce)
 							}
 
-							pool.logger.Info("Removed fairness-exceeding pending transaction", "hash", hash)
+							pool.logger.Error("Removed fairness-exceeding pending transaction", "hash", hash)
 						}
 						pending--
 					}
@@ -1088,7 +1090,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 							pool.pendingState.SetNonce(addr, nonce)
 						}
 
-						pool.logger.Info("Removed fairness-exceeding pending transaction", "hash", hash)
+						pool.logger.Error("Removed fairness-exceeding pending transaction", "hash", hash)
 					}
 					pending--
 				}
@@ -1122,6 +1124,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			if size := uint64(list.Len()); size <= drop {
 				for _, tx := range list.Flatten() {
 					pool.removeTxInternal(tx.Hash(), true)
+					pool.logger.Error("Drop tx until less than the overflow", "hash", tx.Hash())
 				}
 				drop -= size
 				queuedRateLimitCounter.Inc(int64(size))
@@ -1131,6 +1134,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 			txs := list.Flatten()
 			for i := len(txs) - 1; i >= 0 && drop > 0; i-- {
 				pool.removeTxInternal(txs[i].Hash(), true)
+				pool.logger.Error("Drop last few txs", "hash", txs[i].Hash())
 				drop--
 				queuedRateLimitCounter.Inc(1)
 			}
@@ -1142,20 +1146,23 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) {
 // executable/pending queue and any subsequent transactions that become unexecutable
 // are moved back into the future queue.
 func (pool *TxPool) demoteUnexecutables() {
+	// TODO(thientn): Evaluate this for future phases.
+	// These txs should also dropped by below loop because of low nonce.
+	// Drop transactions included in latest block, assume it's committed and saved.
+	// This function is only called when TxPool detect new height.
+	for _, tx := range pool.chain.CurrentBlock().Transactions() {
+		hash := tx.Hash()
+		pool.all.Remove(hash)
+		pool.priced.Removed()
+	}
+	pool.logger.Info("Drop committed txs from recent block",
+		"number of txs", pool.chain.CurrentBlock().NumTxs(),
+		"block height", pool.chain.CurrentBlock().Height())
+
+	oldTxDrop := 0
 	// Iterate over all accounts and demote any non-executable transactions
 	for addr, list := range pool.pending {
 		nonce := pool.currentState.GetNonce(addr)
-
-		// TODO(thientn): Evaluate this for future phases.
-		// These txs should also dropped by below loop because of low nonce.
-		// Drop transactions included in latest block, assume it's committed and saved.
-		// This function is only called when TxPool detect new height.
-		for _, tx := range pool.chain.CurrentBlock().Transactions() {
-			hash := tx.Hash()
-			pool.logger.Info("TxPool to remove committed tx", "hash", hash)
-			pool.all.Remove(hash)
-			pool.priced.Removed()
-		}
 
 		// Drop all transactions that are deemed too old (low nonce)
 		for _, tx := range list.Forward(nonce) {
@@ -1163,7 +1170,9 @@ func (pool *TxPool) demoteUnexecutables() {
 			pool.logger.Info("Removed old pending transaction", "hash", hash)
 			pool.all.Remove(hash)
 			pool.priced.Removed()
+			oldTxDrop += 1
 		}
+
 		// TODO(thientn): Evaluates enable this.
 		/*
 			// Drop all transactions that are too costly (low balance or out of gas), and queue any invalids back for later
@@ -1195,6 +1204,11 @@ func (pool *TxPool) demoteUnexecutables() {
 			delete(pool.pending, addr)
 			delete(pool.beats, addr)
 		}
+	}
+	if oldTxDrop > 0 {
+		pool.logger.Info("demoteUnexecutables: Drop txs that are low nonce [likely committed txs]",
+			"number of txs", oldTxDrop,
+			"block height", pool.chain.CurrentBlock().Height())
 	}
 }
 

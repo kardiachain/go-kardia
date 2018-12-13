@@ -417,7 +417,7 @@ func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
 // already have the given transaction.
 func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	var txset = make(map[*peer]types.Transactions)
-	pm.logger.Info("Start broadcast txn", "txn", txs)
+	pm.logger.Info("Start broadcast txs", "number of txs", len(txs))
 	// Broadcast transactions to a batch of peers not knowing about it
 	for _, tx := range txs {
 		peers := pm.peers.PeersWithoutTx(tx.Hash())
