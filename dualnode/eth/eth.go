@@ -124,9 +124,12 @@ func NewEth(config *EthConfig, kardiaChain *blockchain.BlockChain, txPool *block
 
 	// similar to utils.SetNodeConfig
 	nodeConfig := &node.Config{
-		DataDir: datadir,
-		IPCPath: "geth.ipc",
-		Name:    config.Name,
+		DataDir:          datadir,
+		IPCPath:          "geth.ipc",
+		Name:             config.Name,
+		HTTPHost:         config.HTTPHost,
+		HTTPPort:         config.HTTPPort,
+		HTTPVirtualHosts: config.HTTPVirtualHosts,
 	}
 
 	// similar to utils.SetP2PConfig

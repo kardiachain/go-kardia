@@ -37,6 +37,10 @@ var DefaultEthConfig = EthConfig{
 	StatName:        "eth-kardia-1",
 	ContractAddress: ethsmc.EthContractAddress,
 
+	HTTPHost:         "localhost", // Default host interface for the HTTP RPC server
+	HTTPPort:         8546,        // Default TCP port for the HTTP RPC server
+	HTTPVirtualHosts: []string{"0.0.0.0", "localhost"},
+
 	CacheSize: 1024,
 }
 
@@ -76,6 +80,11 @@ type EthConfig struct {
 	LightServ   int    // Max percentage of time allowed for serving LES requests (0-90)"
 	ReportStats bool   // Reports node statistics to network centralized statistics collection system.
 	StatName    string // Node name to use when report to Rinkeby stats collection.
+
+	// RPC settings
+	HTTPHost         string
+	HTTPPort         int
+	HTTPVirtualHosts []string
 
 	// Performance configs
 	CacheSize int // Cache memory size in MB for database & trie. This must be small enough to leave enough memory for separate Kardia chain cache.

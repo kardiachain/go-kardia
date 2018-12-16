@@ -69,6 +69,7 @@ type flagArgs struct {
 	ethLogLevel   string
 	ethListenAddr string
 	ethLightServ  int
+	ethRPCPort    int
 
 	// Neo/Kardia dualnode related flags
 	neoDual            bool
@@ -116,6 +117,7 @@ func init() {
 	flag.BoolVar(&args.ethStat, "ethstat", false, "report eth stats to network")
 	flag.StringVar(&args.ethStatName, "ethstatname", "", "name to use when reporting eth stats")
 	flag.IntVar(&args.ethLightServ, "ethLightServ", 0, "max percentage of time serving Ethereum light client requests")
+	flag.IntVar(&args.ethRPCPort, "ethRPCPort", eth.DefaultEthConfig.HTTPPort, "HTTP-RPC server listening port for Eth node. 8546 is the default port")
 	flag.BoolVar(&args.dualChain, "dualchain", false, "run dual chain for group consensus")
 	flag.StringVar(&args.dualChainValIndexes, "dualChainValIndexes", "", "Indexes of Dual chain validator")
 	flag.StringVar(&args.neoSubmitTxUrl, "neoSubmitTxUrl", neo.DefaultNeoConfig.SubmitTxUrl, "url to submit tx to neo")
@@ -425,6 +427,9 @@ func main() {
 		config.ListenAddr = args.ethListenAddr
 		config.LightServ = args.ethLightServ
 		config.ReportStats = args.ethStat
+		config.HTTPPort = args.ethRPCPort
+		config.HTTPVirtualHosts = []string{"*"}
+
 		if args.ethStatName != "" {
 			config.StatName = args.ethStatName
 		}
