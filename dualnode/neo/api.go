@@ -56,10 +56,12 @@ func NewNeoApi(dualchain *blockchain.DualBlockChain, internalchain blockchain.Bl
 }
 
 // NewEvent received data from NeoPython where signedMsg is used for validating the message
+// returns error in case event cannot be added to eventPool
 func (n *NeoApi) NewEvent(neoEventEncodedBytes string) error {
 	byteMsg := common.FromHex(neoEventEncodedBytes)
 	var neoEvent NeoEvent
-	if err := rlp.DecodeBytes(byteMsg, &neoEvent); err != nil {
+	err := rlp.DecodeBytes(byteMsg, &neoEvent)
+	if err != nil {
 		return err
 	}
 	dualState, err := n.dualBlockchain.State()
@@ -74,10 +76,17 @@ func (n *NeoApi) NewEvent(neoEventEncodedBytes string) error {
 		TxValue:  neoEvent.Amount,
 	}
 	dualEvent := types.NewDualEvent(nonce, true /* internalChain */, types.NEO, &txHash, eventSummary)
-	dualEvent.PendingTxMetadata = n.internalBlockchain.ComputeTxMetadata(dualEvent.TriggeredEvent)
+	txMetaData, err := n.internalBlockchain.ComputeTxMetadata(dualEvent.TriggeredEvent)
+	if err != nil {
+		log.Error("Error compute internal tx metadata", "err", err)
+		return err
+	}
+	dualEvent.PendingTxMetadata = txMetaData
 	err = n.eventPool.AddEvent(dualEvent)
 	if err != nil {
-		log.Info("Failed to add dual event to pool", "err", err)
+		log.Error("Failed to add dual event to pool", "err", err)
+		return err
 	}
-	return err
+	log.Info("Added to dual event pool successfully", "eventHash", dualEvent.Hash().String())
+	return nil
 }

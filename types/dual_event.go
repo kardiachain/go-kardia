@@ -85,6 +85,7 @@ func (ev *EventData) Hash() common.Hash {
 type EventSummary struct {
 	TxMethod string   // Smc's method
 	TxValue  *big.Int // Amount of the tx
+	ExtData [][]byte  // Additional data along with this event
 }
 
 // String returns a string representation of EventSummary

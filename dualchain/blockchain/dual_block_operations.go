@@ -237,7 +237,9 @@ func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) (commo
 	for _, event := range events {
 		err := dbo.bcManager.SubmitTx(event.TriggeredEvent)
 		if err != nil {
-			return common.Hash{}, err
+			// TODO(sontranrad, namdoh): add logic for handling error when submitting TX, currrently just log error here
+			dbo.logger.Error("Error submit dual event", "err", err)
+			continue
 		}
 		dbo.logger.Info("Submit dual event successfully")
 

@@ -33,182 +33,76 @@ import (
 )
 
 // Address of the deployed contract on Rinkeby.
-var EthContractAddress = "0xffd56f189a9e67aeee5220f3b66146c63d7fcb10"
+var EthContractAddress = "0xc95892e98a9c0526b4c895c7f7ee07014912643a"
 
 // ABI of the deployed Eth contract.
 var EthExchangeAbi = `[
-    {
-        "constant": false,
-        "inputs": [
-            {
-                "name": "ethReceiver",
-                "type": "address"
-            },
-            {
-                "name": "ethAmount",
-                "type": "uint256"
-            }
-        ],
-        "name": "release",
-        "outputs": [],
-        "payable": false,
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "constant": false,
-        "inputs": [
-            {
-                "name": "matchedId",
-                "type": "uint256"
-            },
-            {
-                "name": "matchedValue",
-                "type": "uint256"
-            }
-        ],
-        "name": "updateOnMatch",
-        "outputs": [],
-        "payable": false,
-        "stateMutability": "nonpayable",
-        "type": "function"
-    },
-    {
-        "constant": false,
-        "inputs": [
-            {
-                "name": "neoAddress",
-                "type": "string"
-            }
-        ],
-        "name": "deposit",
-        "outputs": [],
-        "payable": true,
-        "stateMutability": "payable",
-        "type": "function"
-    },
-    {
-        "constant": true,
-        "inputs": [
-            {
-                "name": "infoId",
-                "type": "uint256"
-            }
-        ],
-        "name": "getInfoById",
-        "outputs": [
-            {
-                "name": "sender",
-                "type": "address"
-            },
-            {
-                "name": "receiver",
-                "type": "string"
-            },
-            {
-                "name": "amount",
-                "type": "uint256"
-            },
-            {
-                "name": "matchedValue",
-                "type": "uint256"
-            }
-        ],
-        "payable": false,
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "constant": true,
-        "inputs": [],
-        "name": "id",
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256"
-            }
-        ],
-        "payable": false,
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "payable": false,
-        "stateMutability": "nonpayable",
-        "type": "constructor"
-    },
-    {
-        "payable": true,
-        "stateMutability": "payable",
-        "type": "fallback"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "name": "id",
-                "type": "uint256"
-            },
-            {
-                "indexed": false,
-                "name": "sender",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "name": "receiver",
-                "type": "string"
-            },
-            {
-                "indexed": false,
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
-        "name": "onDeposit",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "name": "receiver",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "name": "amount",
-                "type": "uint256"
-            }
-        ],
-        "name": "onRelease",
-        "type": "event"
-    },
-    {
-        "anonymous": false,
-        "inputs": [
-            {
-                "indexed": false,
-                "name": "id",
-                "type": "uint256"
-            },
-            {
-                "indexed": false,
-                "name": "sender",
-                "type": "address"
-            },
-            {
-                "indexed": false,
-                "name": "matchedValue",
-                "type": "uint256"
-            }
-        ],
-        "name": "onMatch",
-        "type": "event"
-    }
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "receiver",
+				"type": "address"
+			},
+			{
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "release",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "receiver",
+				"type": "string"
+			},
+			{
+				"name": "destination",
+				"type": "string"
+			}
+		],
+		"name": "deposit",
+		"outputs": [],
+		"payable": true,
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "destination",
+				"type": "string"
+			}
+		],
+		"name": "isValidType",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"name": "_owner",
+				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	}
 ]`
 
 var (
@@ -251,42 +145,44 @@ func (e *EthSmc) InputMethodName(input []byte) (string, error) {
 	return method.Name, nil
 }
 
-func (e *EthSmc) UnpackDepositInput(input []byte) (string, error) {
-	var param string
-
-	if err := e.kABI.UnpackInput(&param, "deposit", input[4:]); err != nil {
-		return "", err
+// UnpackDepositInput return the receiver address and destination of deposit tx
+func (e *EthSmc) UnpackDepositInput(input []byte) (string, string, error) {
+	var depositInput struct {
+		Receiver string
+		Destination string
 	}
-	return param, nil
+	err := e.kABI.UnpackInput(&depositInput, "deposit", input[4:])
+	if err != nil {
+		return "", "", err
+	}
+	return depositInput.Receiver, depositInput.Destination, nil
 }
 
-func (e *EthSmc) packReleaseInput(amount *big.Int) []byte {
-	releaseAddr := common.HexToAddress(EthAccountReleaseDestination)
-	input, err := e.ethABI.Pack("release", releaseAddr, amount)
+func (e *EthSmc) packReleaseInput(releaseAddr string, amount *big.Int) []byte {
+	address := common.HexToAddress(releaseAddr)
+	input, err := e.ethABI.Pack("release", address, amount)
 	if err != nil {
 		panic(err)
 	}
-
 	return input
 }
 
-func (e *EthSmc) packDepositInput(address common.Address) []byte {
-	input, err := e.ethABI.Pack("deposit", address.Hex())
+func (e *EthSmc) packDepositInput(receiverAddress string, destinationAddress string) []byte {
+	input, err := e.ethABI.Pack("deposit", receiverAddress, destinationAddress)
 	if err != nil {
 		panic(err)
 	}
-
 	return input
 }
 
-func (e *EthSmc) CreateEthReleaseTx(amount *big.Int, nonce uint64) *types.Transaction {
+func (e *EthSmc) CreateEthReleaseTx(amount *big.Int, receiveAddress string, nonce uint64) *types.Transaction {
 	contractAddr := common.HexToAddress(EthContractAddress)
 	keyBytes, err := hex.DecodeString(EthAccountSignAddr)
 	if err != nil {
 		panic(err)
 	}
 	key := crypto.ToECDSAUnsafe(keyBytes)
-	data := e.packReleaseInput(amount)
+	data := e.packReleaseInput(receiveAddress, amount)
 	gasLimit := uint64(40000)
 	gasPrice := big.NewInt(5000000000) // 5gwei
 	tx, err := types.SignTx(
@@ -300,13 +196,13 @@ func (e *EthSmc) CreateEthReleaseTx(amount *big.Int, nonce uint64) *types.Transa
 	return tx
 }
 
-func (e *EthSmc) CreateEthDepositTx(amount *big.Int, address common.Address, nonce uint64) *types.Transaction {
+func (e *EthSmc) CreateEthDepositTx(amount *big.Int, receiver string, destination string, address common.Address, nonce uint64) *types.Transaction {
 	keyBytes, err := hex.DecodeString(EthAccountSignAddr)
 	if err != nil {
 		panic(err)
 	}
 	key := crypto.ToECDSAUnsafe(keyBytes)
-	data := e.packDepositInput(address)
+	data := e.packDepositInput(receiver, destination)
 	gasLimit := uint64(40000)
 	gasPrice := big.NewInt(5000000000) // 5gwei
 	tx, err := types.SignTx(

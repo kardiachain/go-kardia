@@ -126,14 +126,14 @@ func GenerateRandomTxWithState(numTx int, stateDb *state.StateDB) []*types.Trans
 	return result
 }
 
-func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input []byte, stateDb *state.StateDB) *types.Transaction {
+func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input []byte, stateDb *state.ManagedState) *types.Transaction {
 	senderAddress := crypto.PubkeyToAddress(senderKey.PublicKey)
 	nonce := stateDb.GetNonce(senderAddress)
 	tx, err := types.SignTx(types.NewTransaction(
 		nonce,
 		address,
 		big.NewInt(0),
-		60000,
+		2000000,
 		big.NewInt(1),
 		input,
 	), senderKey)

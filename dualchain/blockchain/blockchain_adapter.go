@@ -28,6 +28,6 @@ type BlockChainAdapter interface {
 	// Computes Tx from the given event, and submit it to the blockchain.
 	SubmitTx(event *types.EventData) error
 
-	// Computes Tx from the given event, and returns its metadata.
-	ComputeTxMetadata(event *types.EventData) *types.TxMetadata
+	// Computes Tx from the given event, and returns its metadata or error in case of invalid event data
+	ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, error)
 }

@@ -20,7 +20,6 @@ package eth
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -49,7 +48,6 @@ import (
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/types"
@@ -202,45 +200,71 @@ func NewEth(config *EthConfig, kardiaChain *blockchain.BlockChain, txPool *block
 func (n *Eth) SubmitTx(event *types.EventData) error {
 	statedb, err := n.kardiaChain.State()
 	if err != nil {
-		log.Error("Fail to get Kardia state", "error", err)
+		return kardia.ErrFailedGetState
+	}
+	switch event.Data.TxMethod {
+	case kardia.MatchFunction:
+		if len(event.Data.ExtData) != kardia.NumOfExchangeDataField {
+			return kardia.ErrInsufficientExchangeData
+		}
+		// get matched request if any and submit it. we're only interested with those have dest pair ETH-NEO
+		senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
+		amount := big.NewInt(0).SetBytes(event.Data.ExtData[kardia.ExchangeDataAmountIndex])
+		srcAddress := string(event.Data.ExtData[kardia.ExchangeDataSourceAddressIndex])
+		destAddress := string(event.Data.ExtData[kardia.ExchangeDataDestAddressIndex])
+		sourcePair := string(event.Data.ExtData[kardia.ExchangeDataSourcePairIndex])
+		request, err := kardia.CallKardiaGetMatchedRequest(senderAddr, n.kardiaChain, statedb, amount, srcAddress, destAddress,
+			sourcePair, kardia.NEO2ETH)
+		if err != nil {
+			return err
+		}
+		if request.DestAddress != "" && request.SendAmount.Cmp(big.NewInt(0)) == 1 {
+			err := n.ReleaseTxAndCompleteRequest(request)
+			if err != nil {
+				log.Error("Failed to release eth", "err", err)
+				return err
+			}
+			return nil
+		}
+		return kardia.ErrInsufficientExchangeData
+	case kardia.CompleteFunction:
+		// Logic for complete function will be handled later
+		return nil
+	default:
+		log.Warn("Unexpected method comes to exchange contract", "method", event.Data.TxMethod)
+		return kardia.ErrUnsupportedMethod
+	}
+	return kardia.ErrUnsupportedMethod
+}
+
+func (n *Eth) ReleaseTxAndCompleteRequest(request *kardia.MatchedRequest) error {
+	err := n.submitEthReleaseTx(request.SendAmount, request.DestAddress)
+	if err != nil {
 		return err
 	}
-
-	senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
-	ethSendValue := n.callKardiaMasterGetEthToSend(senderAddr, statedb)
-	log.Info("Kardia smc calls getEthToSend", "eth", ethSendValue)
-	if ethSendValue != nil && ethSendValue.Cmp(big.NewInt(0)) != 0 {
-		n.submitEthReleaseTx(ethSendValue)
-
-		// Create Kardia tx removeEth right away to acknowledge the ethsend
-		gAccount := "0xe94517a4f6f45e80CbAaFfBb0b845F4c0FDD7547"
-		addrKeyBytes, _ := hex.DecodeString(dev.GenesisAddrKeys[gAccount])
-		addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-
-		tx := kardia.CreateKardiaRemoveAmountTx(addrKey, statedb, ethSendValue, types.ETHEREUM)
-		if err := n.txPool.AddLocal(tx); err != nil {
-			log.Error("Fail to add Kardia tx to removeEth", err, "tx", tx)
-		} else {
-			log.Info("Submitted Eth's removeEth tx to its tx pool successfully", tx.Hash().Hex())
-		}
+	tx, err := kardia.CreateKardiaCompleteRequestTx(n.txPool.State(), request.MatchedRequestID, kardia.ETH2NEO)
+	if err != nil {
+		log.Error("Failed to create complete request tx", "ID", request.MatchedRequestID, "direction",
+			kardia.ETH2NEO)
+		return err
 	}
-
+	err = n.txPool.AddLocal(tx)
+	if err != nil {
+		log.Error("Fail to add Kardia tx to complete request", "err", err, "tx", tx)
+		return err
+	}
+	log.Info("Submitted Eth's removeEth tx to its tx pool successfully")
 	return nil
 }
 
-func (n *Eth) ComputeTxMetadata(event *types.EventData) *types.TxMetadata {
-	statedb, err := n.ethBlockChain().State()
-	if err != nil {
-		log.Error("Fail to get Ethereum state to create release tx", "err", err)
-		return nil
-	}
-	// TODO(thientn,namdoh): Remove hard-coded account address here.
-	contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
-	ethTx := CreateEthReleaseAmountTx(contractAddr, statedb, event.Data.TxValue, n.ethSmc)
+// In case it's an exchange event (matchOrder), we will calculate matching order later
+// when we submitTx to externalChain, so I simply return a basic metadata here basing on target and event hash,
+// to differentiate TxMetadata inferred from events
+func (n *Eth) ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, error) {
 	return &types.TxMetadata{
-		TxHash: common.Hash(ethTx.Hash()),
+		TxHash: event.Hash(),
 		Target: types.ETHEREUM,
-	}
+	}, nil
 }
 
 func (n *Eth) RegisterInternalChain(internalChain dualbc.BlockChainAdapter) {
@@ -277,25 +301,26 @@ func (n *Eth) Client() (*EthClient, error) {
 	return &EthClient{ethClient: ethclient.NewClient(rpcClient), stack: n.geth}, nil
 }
 
-func (n *Eth) submitEthReleaseTx(value *big.Int) {
+func (n *Eth) submitEthReleaseTx(value *big.Int, receiveAddress string) error {
 	statedb, err := n.ethBlockChain().State()
 	if err != nil {
 		log.Error("Fail to get Ethereum state to create release tx", "err", err)
-		return
+		return err
 	}
-
 	// TODO(thientn,namdoh): Remove hard-coded address.
 	contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
-	tx := CreateEthReleaseAmountTx(contractAddr, statedb, value, n.ethSmc)
-	if tx == nil {
-		log.Error("Fail to create Eth's tx")
+	tx, err := CreateEthReleaseAmountTx(contractAddr, receiveAddress, statedb, value, n.ethSmc)
+	if err != nil {
+		log.Error("Fail to create Eth's tx", "err", err)
+		return err
 	}
-
-	if err := n.ethTxPool().AddLocal(tx); err != nil {
+	err = n.ethTxPool().AddLocal(tx)
+	if err != nil {
 		log.Error("Fail to add Ether tx", "error", err)
-	} else {
-		log.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
+		return err
 	}
+	log.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
+	return nil
 }
 
 func (n *Eth) ethBlockChain() *ethCore.BlockChain {
@@ -393,18 +418,26 @@ func (n *Eth) handleBlock(block *ethTypes.Block) {
 	*/
 
 	contractAddr := ethCommon.HexToAddress(n.config.ContractAddress)
-
 	for _, tx := range block.Transactions() {
 		// TODO(thientn): Make this tx matcher more robust.
 		if tx.To() != nil && *tx.To() == contractAddr {
-			log.Info("New Eth's tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value())
-			eventSummary, err := n.extractEthTxSummary(tx)
+			sender := ""
+			chainId := tx.ChainId()
+			var signer ethTypes.Signer
+			signer = ethTypes.NewEIP155Signer(chainId)
+			address, err := ethTypes.Sender(signer, tx)
 			if err != nil {
-				log.Error("Error when extracting Eth's tx summary.")
+				continue
+			}
+			sender = address.String()
+			log.Info("New Eth's tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value(),
+				"sender", sender)
+			eventSummary, err := n.extractEthTxSummary(tx, sender)
+			if err != nil {
+				log.Error("Error when extracting Eth's tx summary.", "err", err)
 				// TODO(#140): Handle smart contract failure correctly.
 				panic("Not yet implemented!")
 			}
-
 			// TODO(namdoh): Use dual's blockchain state instead.
 			dualStateDB, err := n.dualChain.State()
 			if err != nil {
@@ -415,29 +448,48 @@ func (n *Eth) handleBlock(block *ethTypes.Block) {
 			ethTxHash := tx.Hash()
 			txHash := common.BytesToHash(ethTxHash[:])
 			dualEvent := types.NewDualEvent(nonce, true /* externalChain */, types.ETHEREUM, &txHash, &eventSummary)
-			dualEvent.PendingTxMetadata = n.internalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
-
-			log.Info("Create DualEvent for Eth's Tx", "dualEvent", dualEvent)
-			if err := n.eventPool.AddEvent(dualEvent); err != nil {
-				log.Error("Fail to add dual's event", "error", err)
-				return
+			txMetaData, err := n.internalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
+			if err != nil {
+				log.Error("Error compute internal tx metadata", "err", err)
+				continue
 			}
-			log.Info("Submitted Eth's DualEvent to event pool successfully", "eventHash", dualEvent.Hash().Fingerprint())
+			dualEvent.PendingTxMetadata = txMetaData
+			log.Info("Create DualEvent for Eth's Tx", "dualEvent", dualEvent)
+			err = n.eventPool.AddEvent(dualEvent)
+			if err != nil {
+				log.Error("Fail to add dual's event", "error", err)
+				continue
+			}
+			log.Info("Submitted Eth's DualEvent to event pool successfully", "eventHash", dualEvent.Hash().Hex())
 		}
 	}
 }
 
-func (n *Eth) extractEthTxSummary(tx *ethTypes.Transaction) (types.EventSummary, error) {
+func (n *Eth) extractEthTxSummary(tx *ethTypes.Transaction, sender string) (types.EventSummary, error) {
 	input := tx.Data()
 	method, err := n.ethSmc.InputMethodName(input)
 	if err != nil {
 		log.Error("Error when unpack Eth smc input", "error", err)
 		return types.EventSummary{}, err
 	}
-
+	extraData := make([][]byte, kardia.NumOfExchangeDataField)
+	receiveAddress, destination, err := n.ethSmc.UnpackDepositInput(input)
+	if err != nil {
+		return types.EventSummary{}, err
+	}
+	if receiveAddress == "" || destination == "" {
+		return types.EventSummary{}, kardia.ErrInsufficientExchangeData
+	}
+	// compose extraData struct for fields related to exchange
+	extraData[kardia.ExchangeDataSourceAddressIndex] = []byte(sender)
+	extraData[kardia.ExchangeDataDestAddressIndex] = []byte(receiveAddress)
+	extraData[kardia.ExchangeDataSourcePairIndex] = []byte(destination)
+	extraData[kardia.ExchangeDataDestPairIndex] = []byte(kardia.NEO2ETH)
+	extraData[kardia.ExchangeDataAmountIndex] = tx.Value().Bytes()
 	return types.EventSummary{
 		TxMethod: method,
 		TxValue:  tx.Value(),
+		ExtData:  extraData,
 	}, nil
 }
 

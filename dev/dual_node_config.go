@@ -21,18 +21,18 @@
 package dev
 
 import (
-	"math/big"
-
 	ethCommon "github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/kardiachain/go-kardia/dualnode/eth/ethsmc"
+	"math/big"
 )
 
-const (
-	dafaultEthTxAmount = 69
-)
-
+var (
+	NeoReceiverAddressList = [2]string{"AVzvbL4pYYK4tfBg8TsZPFcpaozqcSmbWF", "AYKUuUvRSnGJkZFkKRFyXjDWjHFAFQ67p5"}
+	EthReceiverAddressList = [2]string{"0x3688Aad7025F17f64eAF8A8De250D3E67f60D9f7", "0x1AbF127Ee9147465Db237Ec986Dc316985e03E3A"}
+	OneTenthEthInWei = big.NewInt(0).Exp(big.NewInt(10), big.NewInt(17), nil)
+	)
 type DualNodeConfig struct {
 	Triggering *TriggeringConfig
 }
@@ -52,7 +52,7 @@ func CreateDualNodeConfig() *DualNodeConfig {
 	return &DualNodeConfig{
 		Triggering: &TriggeringConfig{
 			TimeIntervals:    []int{30000},
-			RepeatInfinitely: false,
+			RepeatInfinitely: true,
 			nonce:            1,
 		},
 	}
@@ -60,8 +60,6 @@ func CreateDualNodeConfig() *DualNodeConfig {
 
 func (tc *TriggeringConfig) GenerateEthBlock(address ethCommon.Address) *ethTypes.Block {
 	ethSmc := ethsmc.NewEthSmc()
-	tx := ethSmc.CreateEthDepositTx(big.NewInt(dafaultEthTxAmount), address, tc.nonce)
-	tc.nonce++
-
-	return ethTypes.NewBlock(&ethTypes.Header{}, []*ethTypes.Transaction{tx}, []*ethTypes.Header{&ethTypes.Header{}}, []*ethTypes.Receipt{&ethTypes.Receipt{}})
+	tx1 := ethSmc.CreateEthDepositTx(OneTenthEthInWei, NeoReceiverAddressList[0], "ETH-NEO", address, tc.nonce)
+	return ethTypes.NewBlock(&ethTypes.Header{}, []*ethTypes.Transaction{tx1}, []*ethTypes.Header{}, []*ethTypes.Receipt{})
 }

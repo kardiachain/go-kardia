@@ -383,12 +383,16 @@ func main() {
 	}
 
 	// TODO(namdoh): Remove the hard-code below
-	exchangeContractAddress := dev.GetContractAddressAt(2)
+	exchangeContractAddress := dev.GetContractAddressAt(kardia.KardiaNewExchangeSmcIndex)
 	exchangeContractAbi := dev.GetContractAbiByAddress(exchangeContractAddress.String())
 	if args.neoDual {
+		generateTx := false
+		if args.dev && args.mockDualEvent {
+			generateTx = true
+		}
 		dualNeo, err := neo.NewNeoProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
 			dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi, args.neoSubmitTxUrl,
-			args.neoCheckTxUrl, args.neoReceiverAddress)
+			args.neoCheckTxUrl, args.neoReceiverAddress, generateTx)
 
 		if err != nil {
 			log.Error("Fail to initialize NeoProxy", "error", err)
@@ -408,7 +412,7 @@ func main() {
 		// for generate Tx to submit to the other blockchain.
 		kardiaProxy.RegisterExternalChain(dualNeo)
 		dualNeo.RegisterInternalChain(kardiaProxy)
-		kardiaProxy.Start()
+		kardiaProxy.Start(args.mockDualEvent)
 		// Register NeoService to interact with NEO from external sides
 		var neoService *neo.NeoService
 		if err := n.Service(&neoService); err != nil {
@@ -483,7 +487,7 @@ func main() {
 		ethNode.RegisterInternalChain(kardiaProxy)
 
 		go displaySyncStatus(client)
-		kardiaProxy.Start()
+		kardiaProxy.Start(args.mockDualEvent)
 	}
 
 	// Start RPC for all services

@@ -27,16 +27,20 @@ import (
 
 	"github.com/kardiachain/go-kardia/dualnode/eth/ethsmc"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/pkg/errors"
 )
 
-func CreateEthReleaseAmountTx(recipientAddr ethCommon.Address, statedb *ethState.StateDB, quantity *big.Int, ethSmc *ethsmc.EthSmc) *ethTypes.Transaction {
+var NonceZeroFromContract = errors.New("Contract returns nonce 0")
+
+func CreateEthReleaseAmountTx(recipientAddr ethCommon.Address, receiveAddr string, statedb *ethState.StateDB,
+		quantity *big.Int, ethSmc *ethsmc.EthSmc) (*ethTypes.Transaction, error) {
 	// Nonce of account to sign tx
 	nonce := statedb.GetNonce(recipientAddr)
 	if nonce == 0 {
-		log.Error("Eth state return 0 for nonce of contract address, SKIPPING TX CREATION", "addr", ethsmc.EthContractAddress)
+		log.Error("Eth state return 0 for nonce of contract address", "addr", receiveAddr)
+		return nil, NonceZeroFromContract
 	}
-	tx := ethSmc.CreateEthReleaseTx(quantity, nonce)
+	tx := ethSmc.CreateEthReleaseTx(quantity, receiveAddr, nonce)
 	log.Info("Create Eth tx to release", "quantity", quantity, "nonce", nonce, "txhash", tx.Hash().Hex())
-
-	return tx
+	return tx, nil
 }
