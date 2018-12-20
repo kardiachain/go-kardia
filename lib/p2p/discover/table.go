@@ -249,8 +249,11 @@ func (tab *Table) isInitDone() bool {
 	}
 }
 
-func (tab *Table) Bond(pinged bool, id NodeID, addr *net.UDPAddr, tcpPort uint16) {
-	tab.bond(pinged, id, addr, tcpPort)
+func (tab *Table) Bond(pinged bool, id NodeID, addr *net.UDPAddr, tcpPort uint16) error {
+	if _, err := tab.bond(pinged, id, addr, tcpPort); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Resolve searches for a specific node with the given ID.

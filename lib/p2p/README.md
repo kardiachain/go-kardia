@@ -15,8 +15,18 @@ P2P Network now does not require the --dev flag
 
 Nodes will need to connect to each other initially and will find new peers based on the known peers.
 
---bootNode flag has been added that takes the string argument enode. The new node will handshake with given enode and then start the discovery process. This only accepts one node as argument. If more than one node is present, or if the given node is not found, the program should end.
+--bootNode flag has been added that takes the string argument enode. The new node will handshake with given enode and then start the discovery process. This only accepts one node as argument. If more than one node is present, or if the given node is not found, the program sends a warning.
 
+### To set up a p2p node using bootNode flag:
+
+1) Ensure your firewall settings allow for TCP and UDP communication.
+2) Copy the enode address along with the IP of the remote node that you wish to connect to.
+3) Start your node with your required flags as well as the --bootNode flag and the enode address + IP of the remote node.</br>
+   a) You may also want to start your node with "--loglevel trace" for verbose logs.
+4) Ensure you have connected by searching your logs for "Bonding with peer" and the first 16 characters of the ID.</br>
+  a) If you have started your node with --loglevel trace, you will also see ">> PING/v4", "<< PING/v4", ">> PONG/v4", and "<< PONG/v4".
+     This ensures your node is communicating and bonding with the bootNode.
+  
 ### To test the p2p discovery:
 
 #### Terminal one

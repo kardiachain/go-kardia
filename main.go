@@ -364,11 +364,12 @@ func main() {
 	if args.bootNode != "" {
 		logger.Info("Adding Peer", "Boot Node:", args.bootNode)
 		success, err := n.AddPeer(args.bootNode)
-		if !success {
+		if success {
+			logger.Info("Boot Node added successfully", "Node", args.bootNode)
+		} else {
 			logger.Error("Fail to connect to boot node", "err", err, "boot node", args.bootNode)
 			return
 		}
-		logger.Info("Boot Node added successfully", "Node", args.bootNode)
 	}
 
 	if len(args.peer) > 0 {
