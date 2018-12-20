@@ -37,76 +37,12 @@ var EthContractAddress = "0xc95892e98a9c0526b4c895c7f7ee07014912643a"
 
 // ABI of the deployed Eth contract.
 var EthExchangeAbi = `[
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"name": "receiver",
-				"type": "address"
-			},
-			{
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "release",
-		"outputs": [],
-		"payable": false,
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"name": "receiver",
-				"type": "string"
-			},
-			{
-				"name": "destination",
-				"type": "string"
-			}
-		],
-		"name": "deposit",
-		"outputs": [],
-		"payable": true,
-		"stateMutability": "payable",
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"name": "destination",
-				"type": "string"
-			}
-		],
-		"name": "isValidType",
-		"outputs": [
-			{
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"payable": false,
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"name": "_owner",
-				"type": "address"
-			}
-		],
-		"payable": false,
-		"stateMutability": "nonpayable",
-		"type": "constructor"
-	}
-]`
+{"constant":false,"inputs":[{"name":"receiver","type":"address"},{"name":"amount","type":"uint256"}],"name":"release","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
+{"constant":false,"inputs":[{"name":"receiver","type":"string"},{"name":"destination","type":"string"}],"name":"deposit","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},
+{"constant":true,"inputs":[{"name":"destination","type":"string"}],"name":"isValidType","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},
+{"inputs":[{"name":"_owner","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"}]`
 
 var (
-	EthAccountReleaseDestination = "0x3688Aad7025F17f64eAF8A8De250D3E67f60D9f7"
 	EthAccountSign               = "0xff6781f2cc6f9b6b4a68a0afc3aae89133bbb236"
 	EthAccountSignAddr           = "457D86F3AFAA8159D7C8356BF3F195CF7AED35AF84C7DC40C4D9AA27846ED9DC"
 )
@@ -151,11 +87,26 @@ func (e *EthSmc) UnpackDepositInput(input []byte) (string, string, error) {
 		Receiver string
 		Destination string
 	}
-	err := e.kABI.UnpackInput(&depositInput, "deposit", input[4:])
+	err := e.UnpackInput(&depositInput, "deposit", input[4:])
 	if err != nil {
 		return "", "", err
 	}
 	return depositInput.Receiver, depositInput.Destination, nil
+}
+
+// UnpackInput unpacks inputs of Method to v according to the abi specification
+func (e *EthSmc) UnpackInput(v interface{}, name string, output []byte) (err error) {
+	if len(output) == 0 {
+		return fmt.Errorf("abi: unmarshalling empty output")
+	}
+	method, ok := e.ethABI.Methods[name]
+	if ok {
+		if len(output)%32 != 0 {
+			return fmt.Errorf("abi: improperly formatted output")
+		}
+		return method.Inputs.Unpack(v, output)
+	}
+	return fmt.Errorf("abi: could not locate named method or event")
 }
 
 func (e *EthSmc) packReleaseInput(releaseAddr string, amount *big.Int) []byte {

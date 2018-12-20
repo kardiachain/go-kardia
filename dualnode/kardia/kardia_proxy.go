@@ -266,11 +266,8 @@ func (p *KardiaProxy) handleBlock(block *types.Block) {
 				log.Info("Skip tx updating smc for non-matching tx or non-complete-request tx", "method", eventSummary.TxMethod)
 				continue
 			}
-			if eventSummary.TxMethod == MatchFunction {
-				log.Info("Detect Kardia's tx updating smc", "method", eventSummary.TxMethod, "value",
-					eventSummary.TxValue, "hash", tx.Hash(), "sendAdd", eventSummary.ExtData[ExchangeDataSourceAddressIndex],
-					"receiveAdd", eventSummary.ExtData[ExchangeDataDestAddressIndex])
-			}
+			log.Info("Detect Kardia's tx updating smc", "method", eventSummary.TxMethod, "value",
+				eventSummary.TxValue, "hash", tx.Hash())
 			nonce := p.eventPool.State().GetNonce(common.HexToAddress(dualbc.DualStateAddressHex))
 			kardiaTxHash := tx.Hash()
 			txHash := common.BytesToHash(kardiaTxHash[:])

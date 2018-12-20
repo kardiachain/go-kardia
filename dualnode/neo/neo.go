@@ -181,14 +181,60 @@ func (n *NeoProxy) SubmitTx(event *types.EventData) error {
 		}
 		log.Info("there is a matching request, release neo")
 		go n.releaseNeo(request.DestAddress, neoSendAmount, request.MatchedRequestID)
+		err = n.completeRequest(request.MatchedRequestID)
+		if err != nil {
+			return err
+		}
 		return nil
 	case kardia.CompleteFunction:
-		// TODO (@sontranrad): Return nil here, logic for complete function will be added later
+		if string(event.Data.ExtData[kardia.ExchangeDataCompletePairIndex]) != kardia.NEO2ETH {
+			// The pair of completed request is not NEO -> ETH, so we just skip it and return nil
+			log.Error("Invalid pair", "pair", string(event.Data.ExtData[kardia.ExchangeDataCompletePairIndex]))
+			return nil
+		}
+		// there is a request from NEO -> ETH completed, we check whether its matched request (ETH->NEO) is complete yet
+		// if no, release then complete it
+		request, err := kardia.CallKardiaGetUncompletedRequest(big.NewInt(0).SetBytes(
+			event.Data.ExtData[kardia.ExchangeDataCompleteRequestIDIndex]), statedb,
+			n.smcABI, n.kardiaBc)
+		if err != nil {
+			log.Error("Error getting uncompleted request", "err", err)
+			return err
+		}
+		// divide by 10 ^ 18 here
+		neoSendAmount := request.SendAmount.Div(request.SendAmount, OneNeo)
+		if request.DestAddress != "" && neoSendAmount.Cmp(big.NewInt(0)) == 1 {
+			log.Info("there is an uncompleted matching request, release neo")
+			go n.releaseNeo(request.DestAddress, neoSendAmount, request.MatchedRequestID)
+			err = n.completeRequest(request.MatchedRequestID)
+			if err != nil {
+				return err
+			}
+			return nil
+		}
+		log.Info("No uncompleted request", "ID", event.Data.ExtData[0])
 		return nil
 	default:
 		log.Warn("Unexpected method in NEO SubmitTx", "method", event.Data.TxMethod)
 		return kardia.ErrUnsupportedMethod
 	}
+}
+
+// completeRequest create tx call to Kardia smart contract to complete a request
+func (n *NeoProxy) completeRequest(requestID *big.Int) error {
+	tx, err := kardia.CreateKardiaCompleteRequestTx(n.txPool.State(), requestID, kardia.ETH2NEO)
+	if err != nil {
+		log.Error("Failed to create complete request tx", "ID", requestID, "direction",
+			kardia.ETH2NEO)
+		return err
+	}
+	err = n.txPool.AddLocal(tx)
+	if err != nil {
+		log.Error("Fail to add Kardia tx to complete request", "err", err, "tx", tx)
+		return err
+	}
+	log.Info("Submitted tx to Kardia to complete request successully", "txHash", tx.Hash().String())
+	return nil
 }
 
 // In case it's an exchange event (matchOrder), we will calculate matching order later

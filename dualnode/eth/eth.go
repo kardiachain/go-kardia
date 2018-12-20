@@ -220,7 +220,7 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 			return err
 		}
 		if request.DestAddress != "" && request.SendAmount.Cmp(big.NewInt(0)) == 1 {
-			err := n.ReleaseTxAndCompleteRequest(request)
+			err := n.releaseTxAndCompleteRequest(request)
 			if err != nil {
 				log.Error("Failed to release eth", "err", err)
 				return err
@@ -229,8 +229,26 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 		}
 		return kardia.ErrInsufficientExchangeData
 	case kardia.CompleteFunction:
-		// Logic for complete function will be handled later
-		return nil
+		// The pair of completed request is not ETH -> NEO, so we just skip it and return nil
+		if string(event.Data.ExtData[kardia.ExchangeDataCompletePairIndex]) != kardia.ETH2NEO {
+			log.Error("invalid pair", "pair", string(event.Data.ExtData[kardia.ExchangeDataCompletePairIndex]))
+		}
+		// there is a request from ETH -> NEO completed, we check whether its matched request (NEO->ETH) is complete yet
+		// if no, release then complete it
+		request, err := kardia.CallKardiaGetUncompletedRequest(big.NewInt(0).SetBytes(
+			event.Data.ExtData[kardia.ExchangeDataCompleteRequestIDIndex]), statedb, n.smcABI, n.kardiaChain)
+		if err != nil {
+			log.Error("Error getting uncompleted request", "err", err)
+			return err
+		}
+		if request.DestAddress != "" && request.SendAmount.Cmp(big.NewInt(0)) == 1 {
+			err := n.releaseTxAndCompleteRequest(request)
+			if err != nil {
+				log.Error("Failed to release eth", "err", err)
+				return err
+			}
+			return nil
+		}
 	default:
 		log.Warn("Unexpected method comes to exchange contract", "method", event.Data.TxMethod)
 		return kardia.ErrUnsupportedMethod
@@ -238,15 +256,15 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 	return kardia.ErrUnsupportedMethod
 }
 
-func (n *Eth) ReleaseTxAndCompleteRequest(request *kardia.MatchedRequest) error {
+// releaseTxAndCompleteRequest release eth to receiver and creates a tx to complete it in kardia smart contract
+func (n *Eth) releaseTxAndCompleteRequest(request *kardia.MatchedRequest) error {
 	err := n.submitEthReleaseTx(request.SendAmount, request.DestAddress)
 	if err != nil {
 		return err
 	}
-	tx, err := kardia.CreateKardiaCompleteRequestTx(n.txPool.State(), request.MatchedRequestID, kardia.ETH2NEO)
+	tx, err := kardia.CreateKardiaCompleteRequestTx(n.txPool.State(), request.MatchedRequestID, kardia.NEO2ETH)
 	if err != nil {
-		log.Error("Failed to create complete request tx", "ID", request.MatchedRequestID, "direction",
-			kardia.ETH2NEO)
+		log.Error("Failed to create complete request tx", "ID", request.MatchedRequestID)
 		return err
 	}
 	err = n.txPool.AddLocal(tx)
@@ -254,7 +272,7 @@ func (n *Eth) ReleaseTxAndCompleteRequest(request *kardia.MatchedRequest) error 
 		log.Error("Fail to add Kardia tx to complete request", "err", err, "tx", tx)
 		return err
 	}
-	log.Info("Submitted Eth's removeEth tx to its tx pool successfully")
+	log.Info("Submitted tx to Kardia to complete request successully", "txHash", tx.Hash().String())
 	return nil
 }
 
@@ -472,6 +490,14 @@ func (n *Eth) extractEthTxSummary(tx *ethTypes.Transaction, sender string) (type
 	if err != nil {
 		log.Error("Error when unpack Eth smc input", "error", err)
 		return types.EventSummary{}, err
+	}
+
+	if method != kardia.ExternalDepositFunction {
+		return types.EventSummary{
+			TxMethod: method,
+			TxValue:  tx.Value(),
+			ExtData:  nil,
+		}, nil
 	}
 	extraData := make([][]byte, kardia.NumOfExchangeDataField)
 	receiveAddress, destination, err := n.ethSmc.UnpackDepositInput(input)

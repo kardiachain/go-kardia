@@ -43,7 +43,7 @@ func TestEthSmcDepositUnpack(t *testing.T) {
 
 	receiver, unpackedDestination, err := smc.UnpackDepositInput(inputBytes)
 	if err != nil {
-		t.Fatalf("Kardia API fail to unpack input: %v", err)
+		t.Fatalf("ETH ABI fail to unpack input: %v", err)
 	}
 	if unpackedDestination != destination {
 		t.Fatalf("Unpacked param mismatched: Expected: %v, See: %v", destination, unpackedDestination)

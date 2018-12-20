@@ -199,6 +199,30 @@ func CreateKardiaCompleteRequestTx(state *state.ManagedState, requestID *big.Int
 	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, completeInput, state), nil
 }
 
+// CallKardiaGetUncompletedRequest calls to Kardia exchange smc to get a matching but uncompleted request of a specific request
+func CallKardiaGetUncompletedRequest(requestID *big.Int, stateDb *state.StateDB, abi *abi.ABI, bc *blockchain.BlockChain) (*MatchedRequest, error) {
+	getUncompletedInput, err := abi.Pack("getUncompletedMatchingRequest", requestID)
+	if err != nil {
+		log.Error("Error packing input for getUncompletedMatchingRequest", "err", err)
+		return nil, err
+	}
+	// from common.Address, to common.Address, bc *blockchain.BlockChain, input []byte, statedb *state.StateDB
+	senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
+	masterSmcAddr := dev.GetContractAddressAt(KardiaNewExchangeSmcIndex)
+	getUncompletedResult, err := CallStaticKardiaMasterSmc(senderAddr, masterSmcAddr, bc, getUncompletedInput, stateDb)
+	if err != nil {
+		log.Error("Cannot get uncomplete matching request", "err", err)
+		return nil, err
+	}
+	var request MatchedRequest
+	err = abi.Unpack(&request, "getUncompletedMatchingRequest", getUncompletedResult)
+	if err != nil {
+		log.Error("Cannot unpack result from getUncompletedMatching request", "err", err)
+		return nil, err
+	}
+	return &request, nil
+}
+
 // CreateKardiaSetRateTx creates tx call to Kardia exchange smart contract to update radte of a specific pair
 // If 1 ETH = 10 NEO, call with pairs ("ETH-NEO", 1, 10) and ("NEO-ETH", 10,1)
 func CreateKardiaSetRateTx(pair string, sale *big.Int, receive *big.Int, state *state.ManagedState) (*types.Transaction, error) {
