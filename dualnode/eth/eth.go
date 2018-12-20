@@ -128,6 +128,7 @@ func NewEth(config *EthConfig, kardiaChain *blockchain.BlockChain, txPool *block
 		HTTPHost:         config.HTTPHost,
 		HTTPPort:         config.HTTPPort,
 		HTTPVirtualHosts: config.HTTPVirtualHosts,
+		HTTPCors:         config.HTTPCors,
 	}
 
 	// similar to utils.SetP2PConfig

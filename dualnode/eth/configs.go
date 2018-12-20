@@ -37,9 +37,10 @@ var DefaultEthConfig = EthConfig{
 	StatName:        "eth-kardia-1",
 	ContractAddress: ethsmc.EthContractAddress,
 
-	HTTPHost:         "localhost", // Default host interface for the HTTP RPC server
-	HTTPPort:         8546,        // Default TCP port for the HTTP RPC server
+	HTTPHost:         "0.0.0.0", // Default host interface for the HTTP RPC server
+	HTTPPort:         8546,      // Default TCP port for the HTTP RPC server
 	HTTPVirtualHosts: []string{"0.0.0.0", "localhost"},
+	HTTPCors:         []string{"*"},
 
 	CacheSize: 1024,
 }
@@ -85,6 +86,7 @@ type EthConfig struct {
 	HTTPHost         string
 	HTTPPort         int
 	HTTPVirtualHosts []string
+	HTTPCors         []string
 
 	// Performance configs
 	CacheSize int // Cache memory size in MB for database & trie. This must be small enough to leave enough memory for separate Kardia chain cache.
