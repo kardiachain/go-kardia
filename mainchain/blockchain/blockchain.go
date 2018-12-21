@@ -70,6 +70,9 @@ type BlockChain struct {
 	quit chan struct{} // blockchain quit channel
 
 	processor *StateProcessor // block processor
+
+	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
+	IsZeroFee bool
 }
 
 // Genesis retrieves the chain's genesis block.

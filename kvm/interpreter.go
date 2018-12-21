@@ -34,6 +34,9 @@ type Config struct {
 	// may be left uninitialised and will be set to the default
 	// table.
 	JumpTable [256]operation
+
+	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
+	IsZeroFee bool
 }
 
 // Interpreter is used to run Kardia based contracts and will utilise the

@@ -120,6 +120,11 @@ func NewKVM(ctx Context, statedb StateDB, vmConfig Config) *KVM {
 	return kvm
 }
 
+// GetVmConfig returns kvm's config
+func (kvm *KVM) GetVmConfig() Config {
+	return kvm.vmConfig
+}
+
 // Create creates a new contract using code as deployment code.
 func (kvm *KVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 

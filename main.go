@@ -61,6 +61,7 @@ type flagArgs struct {
 	peer                string
 	clearDataDir        bool
 	mainChainValIndexes string
+	isZeroFee           bool
 
 	// Ether/Kardia dualnode related flags
 	ethDual       bool
@@ -108,6 +109,7 @@ func init() {
 	flag.StringVar(&args.peer, "peer", "", "Comma separated enode URLs for P2P static peer")
 	flag.BoolVar(&args.clearDataDir, "clearDataDir", false, "remove contents in data dir")
 	flag.StringVar(&args.mainChainValIndexes, "mainChainValIndexes", "1,2,3", "Indexes of Main chain validator")
+	flag.BoolVar(&args.isZeroFee, "zeroFee", false, "zeroFee is enabled then no gas is charged in transaction. Any gas that sender spends in a transaction will be refunded")
 
 	// Dualnode's related flags
 	flag.StringVar(&args.ethLogLevel, "ethloglevel", "warn", "minimum Eth log verbosity to display")
@@ -292,6 +294,7 @@ func main() {
 	}
 	nodeDir := filepath.Join(config.DataDir, config.Name)
 	config.MainChainConfig.TxPool = *blockchain.GetDefaultTxPoolConfig(nodeDir)
+	config.MainChainConfig.IsZeroFee = args.isZeroFee
 
 	if args.clearDataDir {
 		// Clear all contents within data dir

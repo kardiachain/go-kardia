@@ -243,7 +243,9 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 		state.Prepare(tx.Hash(), common.Hash{}, counter)
 		snap := state.Snapshot()
 		// TODO(thientn): confirms nil coinbase is acceptable.
-		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvm.Config{})
+		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvm.Config{
+			IsZeroFee: bo.blockchain.IsZeroFee,
+		})
 		if err != nil {
 			state.RevertToSnapshot(snap)
 			// TODO(thientn): check error type and jump to next tx if possible

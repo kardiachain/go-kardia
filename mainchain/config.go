@@ -54,4 +54,7 @@ type Config struct {
 
 	// acceptTxs accept tx sync processes
 	AcceptTxs uint32
+
+	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
+	IsZeroFee bool
 }

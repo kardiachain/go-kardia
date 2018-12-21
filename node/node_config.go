@@ -63,6 +63,9 @@ type MainChainConfig struct {
 
 	// AcceptTxs accept tx sync process or not (1 is yes and 0 is no)
 	AcceptTxs uint32
+
+	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
+	IsZeroFee bool
 }
 
 type DualChainConfig struct {
