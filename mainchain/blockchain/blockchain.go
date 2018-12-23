@@ -183,6 +183,14 @@ func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
 	return state.New(bc.logger, root, bc.stateCache)
 }
 
+// CheckCommittedStateRoot returns true if the given state root is already committed and existed on trie database.
+func (bc *BlockChain) CheckCommittedStateRoot(root common.Hash) bool {
+	// TODO(thientn): Adds check trie function instead of using error handler as expected logic path.
+	// Currently OpenTrie tries to load a trie obj from the memory cache and then trie db, return error if not found.
+	_, err := bc.stateCache.OpenTrie(root)
+	return err == nil
+}
+
 // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
 func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
 	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))

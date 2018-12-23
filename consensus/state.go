@@ -1130,7 +1130,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	}
 
 	cs.logger.Info("Finalizing commit of block", "tx number", block.NumTxs(),
-		"height", block.Height, "hash", block.Hash())
+		"height", block.Height(), "hash", block.Hash().String())
 	cs.logger.Info(cmn.Fmt("%v", block))
 
 	fail.Fail() // XXX
@@ -1138,11 +1138,11 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	// Save block.
 	if cs.blockOperations.Height() < block.Height() {
 
-		// FIXME(#201): Unoptimized quickfix for issue with catching up node never commit txs & save new state
-		// this code will make most nodes execute txs & save state 2 times each rounds.
-		err := cs.blockOperations.CommitAndValidateBlockTxs(block)
+		// Verifies that the block txs were already executed and committed to storage.
+		// If the new block state is not found in storage, execute & commit txs.
+		err := cs.blockOperations.CommitBlockTxsIfNotFound(block)
 		if err != nil {
-			cs.logger.Error("Failure to commit txs in finalizecommit", "err", err)
+			cs.logger.Error("Failure to commit txs in finalizeCommit", "err", err)
 		}
 
 		// NOTE: the seenCommit is local justification to commit this block,

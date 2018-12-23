@@ -112,7 +112,6 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 
 // Executes and commits the new state from events in the given block.
 // This also validate the new state root against the block root.
-// FIXME(#201): Part of unoptimized quickfix.
 func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
 	root, err := dbo.commitDualEvents(block.DualEvents())
 	if err != nil {
@@ -121,6 +120,17 @@ func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block) er
 	if root != block.Root() {
 		return fmt.Errorf("different new dualchain state root: Block root: %s, Execution result: %s", block.Root().Hex(), root.Hex())
 	}
+	return nil
+}
+
+// CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
+// Proposer and validators should already commit the block txs, so this function prevents double tx execution.
+func (dbo *DualBlockOperations) CommitBlockTxsIfNotFound(block *types.Block) error {
+	if !dbo.blockchain.CheckCommittedStateRoot(block.Root()) {
+		dbo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
+		return dbo.CommitAndValidateBlockTxs(block)
+	}
+
 	return nil
 }
 

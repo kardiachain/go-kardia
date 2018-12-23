@@ -786,7 +786,6 @@ func (pool *EventPool) demoteUnexecutables() {
 	// Drop all transactions that are deemed too old (low nonce)
 	for _, event := range pool.pending.Forward(nonce) {
 		hash := event.Hash()
-		pool.logger.Info("Removed old pending dual's event", "hash", hash)
 		pool.all.Remove(hash)
 	}
 	// TODO(thientn): Evaluates enable this.

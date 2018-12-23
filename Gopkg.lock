@@ -280,14 +280,6 @@
   version = "v1.4.0"
 
 [[projects]]
-  digest = "1:81e02c4edb639c80559c0650f9401d3e2dcc3256d1fa215382bb7c83c1db9126"
-  name = "github.com/shopspring/decimal"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "cd690d0c9e2447b1ef2a129a6b7b49077da89b8e"
-  version = "1.1.0"
-
-[[projects]]
   digest = "1:c40d65817cdd41fac9aa7af8bed56927bb2d6d47e4fea566a74880f5c2b1c41e"
   name = "github.com/stretchr/testify"
   packages = [
@@ -453,6 +445,7 @@
     "github.com/ethereum/go-ethereum/p2p/discover",
     "github.com/ethereum/go-ethereum/p2p/discv5",
     "github.com/ethereum/go-ethereum/params",
+    "github.com/ethereum/go-ethereum/rlp",
     "github.com/go-stack/stack",
     "github.com/golang/snappy",
     "github.com/hashicorp/golang-lru",
@@ -462,7 +455,6 @@
     "github.com/jackpal/go-nat-pmp",
     "github.com/pkg/errors",
     "github.com/rs/cors",
-    "github.com/shopspring/decimal",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
     "github.com/syndtr/goleveldb/leveldb",

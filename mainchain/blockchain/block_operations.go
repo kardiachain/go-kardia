@@ -43,8 +43,7 @@ type BlockOperations struct {
 	height     uint64
 }
 
-// Returns a new BlockOperations with latest chain & ,
-// initialized to the last height that was committed to the DB.
+// NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
 func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *TxPool) *BlockOperations {
 	return &BlockOperations{
 		logger:     logger,
@@ -54,12 +53,14 @@ func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *TxPoo
 	}
 }
 
+// Height returns latest height of blockchain.
 func (bo *BlockOperations) Height() uint64 {
 	return bo.height
 }
 
-// Proposes a new block.
-func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID, lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
+// CreateProposalBlock creates a new proposal block with all current pending txs in pool.
+func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID,
+	lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.
 	// For simplicity, this code executes & commits txs before sending proposal,
@@ -85,9 +86,9 @@ func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.B
 	return block
 }
 
-// Executes and commits the transactions in the given block.
-// Transactions & receipts are saved to storage.
-// This also validate the new state root against the block root.
+// CommitAndValidateBlockTxs executes and commits the transactions in the given block.
+// New calculated state root is validated against the root field in block.
+// Transactions, new state and receipts are saved to storage.
 func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
 	root, receipts, err := bo.commitTransactions(block.Transactions(), block.Header())
 	if err != nil {
@@ -105,7 +106,18 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
 	return nil
 }
 
-// Persists the given block, blockParts, and seenCommit to the underlying db.
+// CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
+// Proposer and validators should already commit the block txs, so this function prevents double tx execution.
+func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block) error {
+	if !bo.blockchain.CheckCommittedStateRoot(block.Root()) {
+		bo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
+		return bo.CommitAndValidateBlockTxs(block)
+	}
+
+	return nil
+}
+
+// SaveBlock saves the given block, blockParts, and seenCommit to the underlying storage.
 // seenCommit: The +2/3 precommits that were seen which committed at height.
 //             If all the nodes restart after committing a block,
 //             we need this to reload the precommits to catch-up nodes to the
@@ -153,7 +165,7 @@ func (bo *BlockOperations) LoadBlock(height uint64) *types.Block {
 	return bo.blockchain.GetBlockByHeight(height)
 }
 
-// LoadBlock returns the Block for the given height.
+// LoadBlockCommit returns the Commit for the given height.
 // If no block is found for the given height, it returns nil.
 func (bo *BlockOperations) LoadBlockCommit(height uint64) *types.Commit {
 	block := bo.blockchain.GetBlockByHeight(height + 1)
@@ -176,7 +188,7 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 	return commit
 }
 
-// Creates new block header from given data.
+// newHeader creates new block header from given data.
 // Some header fields are not ready at this point.
 func (bo *BlockOperations) newHeader(height int64, numTxs uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header {
 	return &types.Header{
@@ -190,7 +202,7 @@ func (bo *BlockOperations) newHeader(height int64, numTxs uint64, blockId types.
 	}
 }
 
-// Creates new block from given data.
+// newBlock creates new block from given data.
 func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
 	block := types.NewBlock(bo.logger, header, txs, receipts, commit)
 
@@ -200,7 +212,7 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 	return block
 }
 
-// Queries list of pending transactions from tx pool.
+// collectTransactions queries list of pending transactions from tx pool.
 func (bo *BlockOperations) collectTransactions() []*types.Transaction {
 	pending, err := bo.txPool.Pending()
 	if err != nil {
@@ -219,7 +231,7 @@ func (bo *BlockOperations) collectTransactions() []*types.Transaction {
 	return pendingTxs
 }
 
-// Executes the given transactions and commits the result stateDB to disk.
+// commitTransactions executes the given transactions and commits the result stateDB to disk.
 func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *types.Header) (common.Hash, types.Receipts, error) {
 	var (
 		receipts = types.Receipts{}
@@ -269,7 +281,7 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	return root, receipts, nil
 }
 
-// Saves receipts of block transactions to storage.
+// saveReceipts saves receipts of block transactions to storage.
 func (bo *BlockOperations) saveReceipts(receipts types.Receipts, block *types.Block) {
 	bo.blockchain.WriteReceipts(receipts, block)
 }

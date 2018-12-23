@@ -177,6 +177,12 @@ func (dbc *DualBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
 	return state.New(dbc.logger, root, dbc.stateCache)
 }
 
+// CheckCommittedStateRoot returns true if the given state root is already committed and existed on trie database.
+func (dbc *DualBlockChain) CheckCommittedStateRoot(root common.Hash) bool {
+	_, err := dbc.stateCache.OpenTrie(root)
+	return err == nil
+}
+
 // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
 func (dbc *DualBlockChain) SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription {
 	return dbc.scope.Track(dbc.chainHeadFeed.Subscribe(ch))
