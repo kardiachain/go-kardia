@@ -32,12 +32,12 @@ import (
 
 	cfg "github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
-	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/kai/state"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/node"
 )
 
 var (
@@ -113,10 +113,7 @@ type ConsensusState struct {
 	done chan struct{}
 
 	// Simulate voting strategy
-	votingStrategy map[dev.VoteTurn]int
-
-	// Development config, only used in dev/test environment
-	devConfig *dev.DevEnvironmentConfig
+	votingStrategy map[node.VoteTurn]int
 }
 
 // NewConsensusState returns a new ConsensusState.
@@ -125,7 +122,7 @@ func NewConsensusState(
 	config *cfg.ConsensusConfig,
 	state state.LastestBlockState,
 	blockOperations BaseBlockOperations,
-	votingStrategy map[dev.VoteTurn]int,
+	votingStrategy map[node.VoteTurn]int,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		logger: logger,
@@ -622,7 +619,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 
 // Get script vote
 func (cs *ConsensusState) scriptedVote(height int, round int, voteType int) (int, bool) {
-	if val, ok := cs.votingStrategy[dev.VoteTurn{Height: height, Round: round, VoteType: voteType}]; ok {
+	if val, ok := cs.votingStrategy[node.VoteTurn{Height: height, Round: round, VoteType: voteType}]; ok {
 		return val, ok
 	}
 	return 0, false

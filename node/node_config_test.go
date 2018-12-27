@@ -20,6 +20,8 @@ package node
 
 import (
 	"testing"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"encoding/hex"
 )
 
 var nodeIndexTests = []struct {
@@ -40,5 +42,30 @@ func TestGetNodeIndex(t *testing.T) {
 		if index != test.expected {
 			t.Errorf("Expected: %v got: %v", test.expected, index)
 		}
+	}
+}
+
+func TestNodeMetadata_NodeID(t *testing.T) {
+	privKeyByte, err := hex.DecodeString("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	privKey, err := crypto.ToECDSA(privKeyByte)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	n := &NodeMetadata{
+		PrivKey: privKey,
+		VotingPower: 100,
+		ListenAddr: "[::]:3000",
+	}
+
+	expectedNodeID := "enode://7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860@[::]:3000"
+	actualNodeId := n.NodeID()
+
+	if expectedNodeID != actualNodeId {
+		t.Fatal("NodeID does not match")
 	}
 }

@@ -21,21 +21,10 @@
 package dev
 
 import (
-	"bufio"
-	"crypto/ecdsa"
-	"encoding/csv"
-	"encoding/hex"
-	"fmt"
-	"io"
 	"math"
-	"os"
-	"strconv"
 	"strings"
-
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
+	node "github.com/kardiachain/go-kardia/node"
 )
 
 const (
@@ -44,31 +33,6 @@ const (
 	// GenesisAccount used for matchEth tx
 	MockSmartContractCallSenderAccount = "0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5"
 )
-
-type DevNodeConfig struct {
-	PrivKey     *ecdsa.PrivateKey
-	VotingPower int64
-	NodeID      string
-}
-
-type DevEnvironmentConfig struct {
-	DevNodeSet []DevNodeConfig
-
-	proposalIndex  int
-	VotingStrategy map[VoteTurn]int
-}
-
-type node struct {
-	key         string
-	votingPower int64
-	nodeID      string
-}
-
-type VoteTurn struct {
-	Height   int
-	Round    int
-	VoteType int
-}
 
 type account struct {
 	address string
@@ -111,9 +75,6 @@ var GenesisContractAddress = []string{
 	"0x00000000000000000000000000000000736D6333",
 	"0x00000000000000000000000000000000736D6339",
 }
-
-// RawByteCode used for creating simple counter contract
-var RawByteCode = "608060405234801561001057600080fd5b50610108806100206000396000f3006080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806324b8ba5f14604e5780636d4ce63c14607b575b600080fd5b348015605957600080fd5b506079600480360381019080803560ff16906020019092919050505060a9565b005b348015608657600080fd5b50608d60c6565b604051808260ff1660ff16815260200191505060405180910390f35b806000806101000a81548160ff021916908360ff16021790555050565b60008060009054906101000a900460ff169050905600a165627a7a7230582083f88bef40b78ed8ab5f620a7a1fb7953640a541335c5c352ff0877be0ecd0c60029"
 
 // GenesisContract are used to initialize contract in genesis block
 var GenesisContracts = map[string]string{
@@ -213,107 +174,73 @@ var GenesisAddrKeys = map[string]string{
 	//"e049a09c992c882bc2deb780323a247c6ee0951f8b4c5c1dd0fc2fc22ce6493d": "0x36BE7365e6037bD0FDa455DC4d197B07A2002547",
 }
 
-var nodes = []node{
-	{"8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06", 100, "enode://7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860@[::]:3000"},
-	{"77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79", 100, "enode://660889e39b37ade58f789933954123e56d6498986a0cd9ca63d223e866d5521aaedc9e5298e2f4828a5c90f4c58fb24e19613a462ca0210dd962821794f630f0@[::]:3001"},
-	{"98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb", 100, "enode://2e61f57201ec804f9d5298c4665844fd077a2516cd33eccea48f7bdf93de5182da4f57dc7b4d8870e5e291c179c05ff04100718b49184f64a7c0d40cc66343da@[::]:3002"},
-	{"32f5c0aef7f9172044a472478421c63fd8492640ff2d0eaab9562389db3a8efe", 100, "enode://fc41a71d7a74d8665dbcc0f48c9a601e30b714ed50647669ef52c03f7123f2ae078dcaa36389e2636e1055f5f60fdf38d89a226ee84234f006b333cad2d2bcee@[::]:3003"},
-	{"68b53a92d846baafdc782cb9cad65d77020c8d747eca7b621370b52b18c91f9a", 100, "enode://ebf46faca754fc90716d665e6c6feb206ca437c9e5f16690e690513b302935053a9d722b88d2ab0b972f46448f3a53378bf5cfe01b8373af2e54197b17617e1c@[::]:3004"},
-	{"049de018e08c3bcd59c1a21f0cf7de8f17fe51f8ce7d9c2120d17b1f0251b265", 100, "enode://80c4fbf65122d817d3808afcb683fc66d9f9e19b476ea0ee3f757dca5cd18316ecb8999bfea4e9a5acc9968504cb919997a5c1ab623c5c533cb662291149b0a3@[::]:3005"},
-	{"9fdd56a3c2a536dc8f981d935f0f3f2ea04e125547fdfffa37e157ce86ff1007", 100, "enode://5d7ed8131916b10ea545a559abe464307109a3d62ddbe19c368988bbdb1dd2330b6f3bbb479d0bdd79ef360d7d9175008d90f7d51122969210793e8a752cecd6@[::]:3006"},
-	{"ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7", 100, "enode://7ecd4ea1bf4efa34dac41a16d7ccd14e23d3993dd3f0a54d722ee76d170718adba7f246c082bada922c875ffaaa4618e307b68e44c2847d4f4e3b767884c02b7@[::]:3007"},
-	{"b34bd81838a4a335fb3403d0bf616eca1eb9a4b4716c7dda7c617503cfeaab67", 100, "enode://4857f792ef779c511f6d7643f0991409f77e41124ced14385217535641315f5dc9927e7301ffd7afc7ae8025663e17f593306adf7d3ffac7c6aa625c250de0d5@[::]:3008"},
-	{"0cf7ae0332a891044659ace49a0732fa07c2872b4aef479945501f385a23e689", 100, "enode://ad67c2502fc2723f2dcf25a140744382eb3e4e50d7e4dd910c423f7aa4fe0fbbcc2207d22ef6edf469dd6fbea73efa8d87b4b876a0d6e386c4e00b6a51c2a3f8@[::]:3009"},
-	// TODO(namdoh): Re-enable after parsing node index fixed in main.go
-	//{"e049a09c992c882bc2deb780323a247c6ee0951f8b4c5c1dd0fc2fc22ce6493d", 100, ""},
+// TODO(kiendn):
+// will move this list into a master smartcontract and adding a method getting list of validators instead of getting here
+var nodes = []map[string]interface{}{
+	{
+		"key": "8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06",
+		"votingPower": 100,
+		"listenAddr": "[::]:3000",
+	},
+	{
+		"key": "77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79",
+		"votingPower": 100,
+		"listenAddr": "[::]:3001",
+	},
+	{
+		"key": "98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb",
+		"votingPower": 100,
+		"listenAddr": "[::]:3002",
+	},
+	{
+		"key": "32f5c0aef7f9172044a472478421c63fd8492640ff2d0eaab9562389db3a8efe",
+		"votingPower": 100,
+		"listenAddr": "[::]:3003",
+	},
+	{
+		"key": "68b53a92d846baafdc782cb9cad65d77020c8d747eca7b621370b52b18c91f9a",
+		"votingPower": 100,
+		"listenAddr": "[::]:3004",
+	},
+	{
+		"key": "049de018e08c3bcd59c1a21f0cf7de8f17fe51f8ce7d9c2120d17b1f0251b265",
+		"votingPower": 100,
+		"listenAddr": "[::]:3005",
+	},
+	{
+		"key": "9fdd56a3c2a536dc8f981d935f0f3f2ea04e125547fdfffa37e157ce86ff1007",
+		"votingPower": 100,
+		"listenAddr": "[::]:3006",
+	},
+	{
+		"key": "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7",
+		"votingPower": 100,
+		"listenAddr": "[::]:3007",
+	},
+	{
+		"key": "b34bd81838a4a335fb3403d0bf616eca1eb9a4b4716c7dda7c617503cfeaab67",
+		"votingPower": 100,
+		"listenAddr": "[::]:3008",
+	},
+	{
+		"key": "0cf7ae0332a891044659ace49a0732fa07c2872b4aef479945501f385a23e689",
+		"votingPower": 100,
+		"listenAddr": "[::]:3009",
+	},
 }
 
-func CreateDevEnvironmentConfig() *DevEnvironmentConfig {
-	var devEnv DevEnvironmentConfig
-	devEnv.proposalIndex = 0 // Default to 0-th node as the proposer.
-	devEnv.DevNodeSet = make([]DevNodeConfig, len(nodes))
-	for i, n := range nodes {
-		pkByte, err := hex.DecodeString(n.key)
-		if err != nil {
-			continue
-		}
-		privKey, _ := crypto.ToECDSA(pkByte)
-		devEnv.DevNodeSet[i].PrivKey = privKey
-		devEnv.DevNodeSet[i].VotingPower = n.votingPower
-		devEnv.DevNodeSet[i].NodeID = n.nodeID
+// GetDevNodes returns nodeMetadataList
+// TODO: get nodes list from smart contract
+func GetDevNodes() []node.NodeMetadata {
+	nodeMetadataList := make([]node.NodeMetadata, len(nodes))
+	for i, m := range nodes {
+		nodeMetadataList[i] = *node.NewNodeMetadata(
+			m["key"].(string),
+			int64(m["votingPower"].(int)),
+			m["listenAddr"].(string),
+		)
 	}
-
-	return &devEnv
-}
-
-func (devEnv *DevEnvironmentConfig) SetVotingStrategy(votingStrategy string) {
-	if strings.HasSuffix(votingStrategy, "csv") {
-		devEnv.VotingStrategy = map[VoteTurn]int{}
-		csvFile, _ := os.Open(votingStrategy)
-		reader := csv.NewReader(bufio.NewReader(csvFile))
-
-		for {
-			line, error := reader.Read()
-			if error == io.EOF {
-				break
-			} else if error != nil {
-				log.Error("error", error)
-			}
-			var height, _ = strconv.Atoi(line[0])
-			var round, _ = strconv.Atoi(line[1])
-			var voteType, _ = strconv.Atoi(line[2])
-			var result, _ = strconv.Atoi(line[3])
-
-			var _, ok = devEnv.GetScriptedVote(height, round, voteType)
-			if ok {
-				log.Error(fmt.Sprintf("VoteTurn already exists with height = %v, round = %v, voteType = %v", height, round, voteType))
-			} else {
-				devEnv.VotingStrategy[VoteTurn{height, round, voteType}] = result
-			}
-		}
-	}
-}
-
-func (devEnv *DevEnvironmentConfig) GetScriptedVote(height int, round int, voteType int) (int, bool) {
-	if val, ok := devEnv.VotingStrategy[VoteTurn{height, round, voteType}]; ok {
-		return val, ok
-	}
-	return 0, false
-}
-
-func (devEnv *DevEnvironmentConfig) SetProposerIndex(index int) {
-	if index < 0 || index >= devEnv.GetNodeSize() {
-		log.Error(fmt.Sprintf("Proposer index must be within %v and %v", 0, devEnv.GetNodeSize()))
-	}
-	devEnv.proposalIndex = index
-}
-
-func (devEnv *DevEnvironmentConfig) GetDevNodeConfig(index int) *DevNodeConfig {
-	return &devEnv.DevNodeSet[index]
-}
-
-func (devEnv *DevEnvironmentConfig) GetNodeSize() int {
-	return len(devEnv.DevNodeSet)
-}
-
-// GetValidatorSetByIndex takes an array of indexes of validators and returns an array of validators with the order respectively to index of input
-func (devEnv *DevEnvironmentConfig) GetValidatorSetByIndex(valIndexes []int) *types.ValidatorSet {
-	if len(valIndexes) > devEnv.GetNodeSize() {
-		log.Error(fmt.Sprintf("Number of validators must be within %v and %v", 1, devEnv.GetNodeSize()))
-	}
-	validators := make([]*types.Validator, len(valIndexes))
-	for i := 0; i < len(valIndexes); i++ {
-		if valIndexes[i] < 0 || valIndexes[i] >= devEnv.GetNodeSize() {
-			log.Error(fmt.Sprintf("Value of validator must be within %v and %v", 1, devEnv.GetNodeSize()))
-		}
-		node := devEnv.DevNodeSet[valIndexes[i]]
-		validators[i] = types.NewValidator(node.PrivKey.PublicKey, node.VotingPower)
-	}
-
-	validatorSet := types.NewValidatorSet(validators)
-	validatorSet.TurnOnKeepSameProposer()
-	validatorSet.SetProposer(validators[devEnv.proposalIndex])
-	return validatorSet
+	return nodeMetadataList
 }
 
 func GetContractAddressAt(index int) common.Address {
@@ -331,7 +258,4 @@ func GetContractAbiByAddress(address string) string {
 		}
 	}
 	panic("abi not found")
-}
-func (devEnv *DevEnvironmentConfig) GetRawBytecode() string {
-	return RawByteCode
 }

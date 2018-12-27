@@ -20,17 +20,18 @@ package dev
 
 import (
 	"testing"
+	nodeConfig "github.com/kardiachain/go-kardia/node"
 )
 
 func TestDevEnvironmentConfig_SetVotingStrategy_GetScriptVote(t *testing.T) {
-	var expected_votes = map[VoteTurn]int{
+	var expected_votes = map[nodeConfig.VoteTurn]int{
 		{2, 0, 1}: -1,
 		{4, 0, 1}: -1,
 		{4, 0, 2}: -1,
 		{5, 0, 1}: -1,
 	}
 
-	devEnv := CreateDevEnvironmentConfig()
+	devEnv := nodeConfig.NewEnvironmentConfig(GetDevNodes())
 	devEnv.SetVotingStrategy("voting_scripts/voting_strategy_1.csv")
 
 	for test, result := range expected_votes {

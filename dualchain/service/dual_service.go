@@ -104,7 +104,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	// Initialization for consensus.
 	block := dualService.blockchain.CurrentBlock()
 	log.Info("DUAL Validators: ", "valIndex", ctx.Config.DualChainConfig.ValidatorIndexes)
-	validatorSet := ctx.Config.DevEnvConfig.GetValidatorSetByIndex(ctx.Config.DualChainConfig.ValidatorIndexes)
+	validatorSet := ctx.Config.EnvConfig.GetValidatorSetByIndices(ctx.Config.DualChainConfig.ValidatorIndexes)
 	state := state.LastestBlockState{
 		ChainID:                     "kaigroupcon",
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
@@ -120,7 +120,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		configs.DefaultConsensusConfig(),
 		state,
 		dualService.dualBlockOperations,
-		ctx.Config.DevEnvConfig.VotingStrategy,
+		ctx.Config.EnvConfig.VotingStrategy,
 	)
 	dualService.csManager = consensus.NewConsensusManager(DualServiceName, consensusState)
 	// Set private validator for consensus manager.

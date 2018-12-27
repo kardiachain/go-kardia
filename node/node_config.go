@@ -19,20 +19,25 @@
 package node
 
 import (
-	"crypto/ecdsa"
-	"fmt"
-	"github.com/kardiachain/go-kardia/dev"
-	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
-	"github.com/kardiachain/go-kardia/kai/storage"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	"io"
 	"os"
-	"path/filepath"
+	"fmt"
+	"bufio"
 	"regexp"
 	"strconv"
 	"strings"
+	"crypto/ecdsa"
+	"encoding/csv"
+	"encoding/hex"
+	"path/filepath"
+	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
 )
 
 const (
@@ -160,9 +165,29 @@ type NodeConfig struct {
 
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
-	DevNodeConfig *dev.DevNodeConfig
+	NodeMetadata *NodeMetadata
 	// Configuration of this environment when running in dev environment.
-	DevEnvConfig *dev.DevEnvironmentConfig
+	EnvConfig *EnvironmentConfig
+}
+
+// NodeMetadata contains privateKey and votingPower and function that get coinbase
+type NodeMetadata struct {
+	PrivKey     *ecdsa.PrivateKey
+	VotingPower int64
+	ListenAddr  string
+}
+
+type VoteTurn struct {
+	Height   int
+	Round    int
+	VoteType int
+}
+
+// EnvironmentConfig contains a list of NodeVotingPower, proposalIndex and votingStrategy
+type EnvironmentConfig struct {
+	NodeSet []NodeMetadata
+	proposalIndex  int
+	VotingStrategy map[VoteTurn]int
 }
 
 // NodeName returns the devp2p node identifier.
@@ -195,9 +220,9 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 
 	// No persistent key found, generate and store a new one.
 	var key *ecdsa.PrivateKey
-	if c.DevNodeConfig != nil {
+	if c.NodeMetadata != nil {
 		// Load dev node key if running in dev environment.
-		key = c.DevNodeConfig.PrivKey
+		key = c.NodeMetadata.PrivKey
 	} else {
 		k, err := crypto.GenerateKey()
 		if err != nil {
@@ -273,4 +298,114 @@ func (c *NodeConfig) resolvePath(path string) string {
 func GetNodeIndex(nodeName string) (int, error) {
 	reg, _ := regexp.Compile("[0-9]+\\z")
 	return strconv.Atoi(reg.FindString(nodeName))
+}
+
+// NewNodeMetadata init new NodeMetadata
+func NewNodeMetadata(privateKey string, votingPower int64, listenAddr string) *NodeMetadata {
+	if pkByte, err := hex.DecodeString(privateKey); err == nil {
+		if privKey, err := crypto.ToECDSA(pkByte); err == nil {
+			return &NodeMetadata{
+				PrivKey: privKey,
+				VotingPower: votingPower,
+				ListenAddr: listenAddr,
+			}
+		}
+	}
+	return nil
+}
+
+// NodeID returns enodeId
+func (n *NodeMetadata) NodeID() string {
+	return fmt.Sprintf(
+		"enode://%s@%s",
+		hex.EncodeToString(n.PrivKey.PublicKey.X.Bytes()) + hex.EncodeToString(n.PrivKey.PublicKey.Y.Bytes()),
+		n.ListenAddr)
+}
+
+// Coinbase returns address of a node
+func (n *NodeMetadata) Coinbase() common.Address {
+	return crypto.PubkeyToAddress(n.PrivKey.PublicKey)
+}
+
+// NewEnvironmentConfig returns new EnvironmentConfig instance
+func NewEnvironmentConfig(nodes []NodeMetadata) *EnvironmentConfig {
+	var env EnvironmentConfig
+	env.proposalIndex = 0 // Default to 0-th node as the proposer.
+	env.NodeSet = make([]NodeMetadata, len(nodes))
+	for i, n := range nodes {
+		env.NodeSet[i] = n
+	}
+	return &env
+}
+
+// GetNodeSize returns size of NodeSet
+func (env *EnvironmentConfig) GetNodeSize() int {
+	return len(env.NodeSet)
+}
+
+// SetVotingStrategy is used for testing voting
+func (env *EnvironmentConfig) SetVotingStrategy(votingStrategy string) {
+	if strings.HasSuffix(votingStrategy, "csv") {
+		env.VotingStrategy = map[VoteTurn]int{}
+		csvFile, _ := os.Open(votingStrategy)
+		reader := csv.NewReader(bufio.NewReader(csvFile))
+
+		for {
+			line, err := reader.Read()
+			if err == io.EOF {
+				break
+			} else if err != nil {
+				log.Error("error", err)
+			}
+			var height, _ = strconv.Atoi(line[0])
+			var round, _ = strconv.Atoi(line[1])
+			var voteType, _ = strconv.Atoi(line[2])
+			var result, _ = strconv.Atoi(line[3])
+
+			var _, ok = env.GetScriptedVote(height, round, voteType)
+			if ok {
+				log.Error(fmt.Sprintf("VoteTurn already exists with height = %v, round = %v, voteType = %v", height, round, voteType))
+			} else {
+				env.VotingStrategy[VoteTurn{height, round, voteType}] = result
+			}
+		}
+	}
+}
+
+func (env *EnvironmentConfig) GetScriptedVote(height int, round int, voteType int) (int, bool) {
+	if val, ok := env.VotingStrategy[VoteTurn{height, round, voteType}]; ok {
+		return val, ok
+	}
+	return 0, false
+}
+
+func (env *EnvironmentConfig) SetProposerIndex(index int) {
+	if index < 0 || index >= env.GetNodeSize() {
+		log.Error(fmt.Sprintf("Proposer index must be within %v and %v", 0, env.GetNodeSize()))
+	}
+	env.proposalIndex = index
+}
+
+func (env *EnvironmentConfig) GetNodeMetadata(index int) *NodeMetadata {
+	return &env.NodeSet[index]
+}
+
+// GetValidatorSetByIndices takes an array of indexes of validators and returns an array of validators with the order respectively to index of input
+func (env *EnvironmentConfig) GetValidatorSetByIndices(valIndexes []int) *types.ValidatorSet {
+	if len(valIndexes) > env.GetNodeSize() {
+		log.Error(fmt.Sprintf("Number of validators must be within %v and %v", 1, env.GetNodeSize()))
+	}
+	validators := make([]*types.Validator, len(valIndexes))
+	for i := 0; i < len(valIndexes); i++ {
+		if valIndexes[i] < 0 || valIndexes[i] >= env.GetNodeSize() {
+			log.Error(fmt.Sprintf("Value of validator must be within %v and %v", 1, env.GetNodeSize()))
+		}
+		node := env.NodeSet[valIndexes[i]]
+		validators[i] = types.NewValidator(node.PrivKey.PublicKey, node.VotingPower)
+	}
+
+	validatorSet := types.NewValidatorSet(validators)
+	validatorSet.TurnOnKeepSameProposer()
+	validatorSet.SetProposer(validators[env.proposalIndex])
+	return validatorSet
 }

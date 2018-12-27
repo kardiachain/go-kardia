@@ -260,7 +260,7 @@ func main() {
 	config := &node.DefaultConfig
 	config.P2P.ListenAddr = args.listenAddr
 	config.Name = args.name
-	var devEnv *dev.DevEnvironmentConfig
+	var env *node.EnvironmentConfig
 
 	// Setup bootNode
 	if args.rpcEnabled {
@@ -272,21 +272,21 @@ func main() {
 	}
 
 	if args.dev {
-		devEnv = dev.CreateDevEnvironmentConfig()
+		env = node.NewEnvironmentConfig(dev.GetDevNodes())
 		// Set P2P max peers for testing on dev environment
 		config.P2P.MaxPeers = args.maxPeers
 		if nodeIndex < 0 {
 			logger.Error(fmt.Sprintf("Node index %v must greater than 0", nodeIndex+1))
 		}
 		// Subtract 1 from the index because we specify node starting from 1 onward.
-		devEnv.SetProposerIndex(args.proposal - 1)
+		env.SetProposerIndex(args.proposal - 1)
 		// Only set DevNodeConfig if this is a known node from Kardia default set
-		if nodeIndex < devEnv.GetNodeSize() {
-			config.DevNodeConfig = devEnv.GetDevNodeConfig(nodeIndex)
+		if nodeIndex < env.GetNodeSize() {
+			config.NodeMetadata = env.GetNodeMetadata(nodeIndex)
 		}
 		// Simulate the voting strategy
-		devEnv.SetVotingStrategy(args.votingStrategy)
-		config.DevEnvConfig = devEnv
+		env.SetVotingStrategy(args.votingStrategy)
+		config.EnvConfig = env
 		config.MainChainConfig.ValidatorIndexes = getIntArray(args.mainChainValIndexes)
 
 		// Create genesis block with dev.genesisAccounts
@@ -354,8 +354,8 @@ func main() {
 
 	// Connect with other peers.
 	if args.dev && args.bootNode == "" {
-		for i := 0; i < devEnv.GetNodeSize(); i++ {
-			peerURL := devEnv.GetDevNodeConfig(i).NodeID
+		for i := 0; i < env.GetNodeSize(); i++ {
+			peerURL := env.GetNodeMetadata(i).NodeID()
 			logger.Info("Adding static peer", "peerURL", peerURL)
 			success, err := n.AddPeer(peerURL)
 			if !success {
