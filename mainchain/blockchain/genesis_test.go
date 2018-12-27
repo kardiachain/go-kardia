@@ -19,7 +19,6 @@
 package blockchain
 
 import (
-	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/kai/account"
 	"github.com/kardiachain/go-kardia/kai/chaindb"
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -60,6 +59,12 @@ var (
 		"e049a09c992c882bc2deb780323a247c6ee0951f8b4c5c1dd0fc2fc22ce6493d",
 	}
 	balance = int64(math.Pow10(15))
+	genesisContracts = map[string]string{
+		// Simple voting contract bytecode in genesis block, source code in kvm/smc/Ballot.sol
+		"0x00000000000000000000000000000000736D6332": "608060405260043610610057576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063124474a71461005c578063609ff1bd146100a0578063b3f98adc146100d1575b600080fd5b34801561006857600080fd5b5061008a600480360381019080803560ff169060200190929190505050610101565b6040518082815260200191505060405180910390f35b3480156100ac57600080fd5b506100b5610138565b604051808260ff1660ff16815260200191505060405180910390f35b3480156100dd57600080fd5b506100ff600480360381019080803560ff16906020019092919050505061019e565b005b600060048260ff161015156101195760009050610133565b60018260ff1660048110151561012b57fe5b016000015490505b919050565b6000806000809150600090505b60048160ff161015610199578160018260ff1660048110151561016457fe5b0160000154111561018c5760018160ff1660048110151561018157fe5b016000015491508092505b8080600101915050610145565b505090565b60008060003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002090508060000160009054906101000a900460ff1680610201575060048260ff1610155b1561020b5761026a565b60018160000160006101000a81548160ff021916908315150217905550818160000160016101000a81548160ff021916908360ff1602179055506001808360ff1660048110151561025857fe5b01600001600082825401925050819055505b50505600a165627a7a72305820c93a970449b32fe53b59e0ed7cfeda5d52acafd2d1bdd3f2f67093f076acf1c60029",
+		// Counter contract bytecode in genesis block, source code in kvm/smc/SimpleCounter.sol
+		"0x00000000000000000000000000000000736D6331": "6080604052600436106049576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806324b8ba5f14604e5780636d4ce63c14607b575b600080fd5b348015605957600080fd5b506079600480360381019080803560ff16906020019092919050505060a9565b005b348015608657600080fd5b50608d60c6565b604051808260ff1660ff16815260200191505060405180910390f35b806000806101000a81548160ff021916908360ff16021790555050565b60008060009054906101000a900460ff169050905600a165627a7a7230582083f88bef40b78ed8ab5f620a7a1fb7953640a541335c5c352ff0877be0ecd0c60029",
+	}
 )
 
 func TestGenesisAllocFromData(t *testing.T) {
@@ -95,8 +100,8 @@ func TestCreateGenesisBlock(t *testing.T) {
 	// Init kai database
 	db := storage.NewMemStore()
 
-	// Create genesis block with dev.genesisAccounts
-	genesis := DefaultTestnetGenesisBlock(dev.GenesisAccounts)
+	// Create genesis block with state_processor_test.genesisAccounts
+	genesis := DefaultTestnetGenesisBlock(genesisAccounts)
 	_, hash, err := SetupGenesisBlock(log.New(), db, genesis)
 
 	// There are 2 ways of getting current blockHash
@@ -117,7 +122,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 		t.Error(err)
 	} else {
 		// Get balance from addresses
-		for addr := range dev.GenesisAccounts {
+		for addr := range genesisAccounts {
 			b := s.GetBalance(common.HexToAddress(addr)).Int64()
 			if b != balance {
 				t.Error("Balance does not match", "state balance", b, "balance", balance)
@@ -129,8 +134,8 @@ func TestCreateGenesisBlock(t *testing.T) {
 
 func TestCreateContractInGenesis(t *testing.T) {
 	db := storage.NewMemStore()
-	// Create genesis block with dev.genesisAccounts
-	genesis := DefaultTestnetGenesisBlockWithContract(dev.GenesisContracts)
+	// Create genesis block with genesisContracts
+	genesis := DefaultTestnetGenesisBlockWithContract(genesisContracts)
 	_, hash, err := SetupGenesisBlock(log.New(), db, genesis)
 
 	// There are 2 ways of getting current blockHash
@@ -151,7 +156,7 @@ func TestCreateContractInGenesis(t *testing.T) {
 		t.Error(err)
 	} else {
 		// Get code from addresses
-		for address, code := range dev.GenesisContracts {
+		for address, code := range genesisContracts {
 			smc_code := common.Encode(s.GetCode(common.HexToAddress(address)))
 
 			if smc_code != "0x"+code {
@@ -163,8 +168,8 @@ func TestCreateContractInGenesis(t *testing.T) {
 
 func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 	db := storage.NewMemStore()
-	// Create genesis block with dev.genesisAccounts
-	genesis := DefaulTestnetFullGenesisBlock(dev.GenesisAccounts, dev.GenesisContracts)
+	// Create genesis block with state_processor_test.genesisAccounts
+	genesis := DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
 	_, hash, err := SetupGenesisBlock(log.New(), db, genesis)
 	headBlockHash := chaindb.ReadHeadBlockHash(db)
 	canonicalHash := chaindb.ReadCanonicalHash(db, 0)
@@ -181,7 +186,7 @@ func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 		t.Error(err)
 	} else {
 		// Get code from addresses
-		for address, code := range dev.GenesisContracts {
+		for address, code := range genesisContracts {
 			smc_code := common.Encode(s.GetCode(common.HexToAddress(address)))
 
 			if smc_code != "0x"+code {
@@ -189,7 +194,7 @@ func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 			}
 		}
 		// Get balance from addresses
-		for addr := range dev.GenesisAccounts {
+		for addr := range genesisAccounts {
 			b := s.GetBalance(common.HexToAddress(addr)).Int64()
 			if b != balance {
 				t.Error("Balance does not match", "state balance", b, "balance", balance)

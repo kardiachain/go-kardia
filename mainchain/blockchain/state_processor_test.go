@@ -21,17 +21,23 @@ package blockchain
 import (
 	"fmt"
 	"errors"
+	"math"
 	"math/big"
 	"strings"
 	"testing"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	abi "github.com/kardiachain/go-kardia/lib/abi"
 )
+
+// GenesisAccounts are used to initialized accounts in genesis block
+var genesisAccounts = map[string]int64{
+	"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": int64(math.Pow10(15)),
+	"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": int64(math.Pow10(15)),
+}
 
 // The following abiInterface and contractCode are generated from 'Counter' smartcontract:
 /*
@@ -162,7 +168,7 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 
 	// Start setting up blockchain
 	kaiDb := storage.NewMemStore()
-	genesis := DefaulTestnetFullGenesisBlock(dev.GenesisAccounts, dev.GenesisContracts)
+	genesis := DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	chainConfig, _, genesisErr := SetupGenesisBlock(log.New(), kaiDb, genesis)
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
@@ -227,7 +233,7 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	// Start setting up blockchain
 	kaiDb := storage.NewMemStore()
-	genesis := DefaulTestnetFullGenesisBlock(dev.GenesisAccounts, dev.GenesisContracts)
+	genesis := DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	chainConfig, _, genesisErr := SetupGenesisBlock(log.New(), kaiDb, genesis)
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
