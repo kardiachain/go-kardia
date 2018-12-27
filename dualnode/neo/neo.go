@@ -117,8 +117,29 @@ func LoopFulfillRequest(n *NeoProxy) {
 	errorCount := 0
 	for {
 		time.Sleep(GenerateTxInterval)
+		statedb, err := n.kardiaBc.State()
+		if err != nil {
+			continue
+		}
+
+		availableAmountNeo, err := kardia.CallAvailableAmount(kardia.NEO2ETH, n.kardiaBc, statedb)
+		if err != nil {
+			continue
+		}
+		// If there is enough available matchable NEO amount, stop filling and return
+		if availableAmountNeo.Cmp(MaximumAvailableNeo) > 0 {
+			log.Info("NEO amount is enough")
+			continue
+		}
 		for i := 1; i < 10; i++ {
 			err := n.fillMissingOrder(i)
+			if err != nil {
+				errorCount++
+				log.Error("Error fulfill available NEO", "err", err, "count", errorCount)
+				break
+			}
+			// We try to add many 1-neo orders for testing and monitoring purpose
+			err = n.fillMissingOrder(1)
 			if err != nil {
 				errorCount++
 				log.Error("Error fulfill available NEO", "err", err, "count", errorCount)
@@ -361,18 +382,6 @@ func (n *NeoProxy) retryTx(address string, amount *big.Int, requestID *big.Int) 
 }
 
 func (n *NeoProxy) fillMissingOrder(i int) error {
-	statedb, err := n.kardiaBc.State()
-	if err != nil {
-		return err
-	}
-	availableAmountNeo, err := kardia.CallAvailableAmount(kardia.NEO2ETH, n.kardiaBc, statedb)
-	if err != nil {
-		return err
-	}
-	// If there is enough available matchable NEO amount, stop filling and return
-	if availableAmountNeo.Cmp(MaximumAvailableNeo) > 0 {
-		return errEnoughAvailableNeo
-	}
 	amount := big.NewInt(int64(0)).Mul(big.NewInt(int64(i)), OneNeo)
 	tx, err := kardia.CreateKardiaMatchAmountTx(n.txPool.State(), amount,
 		dev.NeoReceiverAddressList[0], dev.EthReceiverAddressList[1], types.NEO)

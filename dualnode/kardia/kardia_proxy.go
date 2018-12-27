@@ -112,9 +112,13 @@ func NewKardiaProxy(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dual
 }
 
 func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
+	// We currently only handle external deposit from outside
+	if event.Data.TxMethod != ExternalDepositFunction {
+		return ErrUnsupportedMethod
+	}
 	log.Error("Submit to Kardia", "value", event.Data.TxValue, "method", event.Data.TxMethod)
 	// These logics temporarily for exchange case , will be dynamic later
-	if event.Data.ExtData == nil {
+	if event.Data.ExtData == nil || len(event.Data.ExtData) < 2 {
 		log.Error("Event doesn't contain external data")
 		return ErrInsufficientExchangeData
 	}

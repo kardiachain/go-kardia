@@ -51,13 +51,13 @@ const ExchangeDataCompleteRequestIDIndex = 0
 const ExchangeDataCompletePairIndex = 1
 const NumOfExchangeDataField = 5
 const NumOfCompleteRequestDataField = 2
-
+var MaximumGasToCallStaticFunction = uint(4000000)
 // The following function is just call the master smc and return result in bytes format
 func CallStaticKardiaMasterSmc(from common.Address, to common.Address, bc *blockchain.BlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
 	context := blockchain.NewKVMContextFromDualNodeCall(from, bc.CurrentHeader(), bc)
 	vmenv := kvm.NewKVM(context, statedb, kvm.Config{})
 	sender := kvm.AccountRef(from)
-	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(100000))
+	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(MaximumGasToCallStaticFunction))
 	if err != nil {
 		return make([]byte, 0), err
 	}
