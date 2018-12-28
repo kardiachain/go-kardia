@@ -1,9 +1,6 @@
 version: 2
 jobs:
   build:
-    branches:
-      only:
-        - master
     docker:
       - image: circleci/golang:1.10.4
     working_directory: /go/src/github.com/kardiachain/go-kardia
@@ -24,12 +21,12 @@ jobs:
             dep ensure
 
       - run:
-          name: run unit tests
+          name: Run unit test
           command: |
             bash .circleci/test.sh
 
       - run:
-          name: upload coverage
+          name: Upload coverage
           command: bash <(curl -s https://codecov.io/bash) -f coverage.txt
 
       - save_cache:
@@ -38,6 +35,30 @@ jobs:
             - "/go/pkg"
 
       - run:
-          name: run build
+          name: Build
           command: |
             go build -v
+
+  release:
+    docker:
+      - image: circleci/golang:1.10.4
+    steps:
+      - checkout
+      - run: curl -sL https://git.io/goreleaser | bash
+
+workflows:
+  version: 2
+  build_release:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only:
+                - master
+      - release:
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
+
