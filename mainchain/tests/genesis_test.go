@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package blockchain
+package tests
 
 import (
 	"github.com/kardiachain/go-kardia/kai/account"
@@ -27,6 +27,8 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"math"
 	"testing"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/configs"
 )
 
 const (
@@ -81,7 +83,7 @@ func TestGenesisAllocFromData(t *testing.T) {
 		data[keystoreJson.Address] = balance
 	}
 
-	ga, err := GenesisAllocFromData(data)
+	ga, err := genesis.GenesisAllocFromData(data)
 	if err != nil {
 		t.Error(err)
 	}
@@ -101,8 +103,8 @@ func TestCreateGenesisBlock(t *testing.T) {
 	db := storage.NewMemStore()
 
 	// Create genesis block with state_processor_test.genesisAccounts
-	genesis := DefaultTestnetGenesisBlock(genesisAccounts)
-	_, hash, err := SetupGenesisBlock(log.New(), db, genesis)
+	g := genesis.DefaultTestnetGenesisBlock(configs.GenesisAccounts)
+	_, hash, err := genesis.SetupGenesisBlock(log.New(), db, g)
 
 	// There are 2 ways of getting current blockHash
 	// ReadHeadBlockHash or ReadCanonicalHash
@@ -122,7 +124,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 		t.Error(err)
 	} else {
 		// Get balance from addresses
-		for addr := range genesisAccounts {
+		for addr := range configs.GenesisAccounts {
 			b := s.GetBalance(common.HexToAddress(addr)).Int64()
 			if b != balance {
 				t.Error("Balance does not match", "state balance", b, "balance", balance)
@@ -135,8 +137,8 @@ func TestCreateGenesisBlock(t *testing.T) {
 func TestCreateContractInGenesis(t *testing.T) {
 	db := storage.NewMemStore()
 	// Create genesis block with genesisContracts
-	genesis := DefaultTestnetGenesisBlockWithContract(genesisContracts)
-	_, hash, err := SetupGenesisBlock(log.New(), db, genesis)
+	g := genesis.DefaultTestnetGenesisBlockWithContract(genesisContracts)
+	_, hash, err := genesis.SetupGenesisBlock(log.New(), db, g)
 
 	// There are 2 ways of getting current blockHash
 	// ReadHeadBlockHash or ReadCanonicalHash
@@ -169,8 +171,8 @@ func TestCreateContractInGenesis(t *testing.T) {
 func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 	db := storage.NewMemStore()
 	// Create genesis block with state_processor_test.genesisAccounts
-	genesis := DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
-	_, hash, err := SetupGenesisBlock(log.New(), db, genesis)
+	g := genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, genesisContracts)
+	_, hash, err := genesis.SetupGenesisBlock(log.New(), db, g)
 	headBlockHash := chaindb.ReadHeadBlockHash(db)
 	canonicalHash := chaindb.ReadCanonicalHash(db, 0)
 
@@ -194,7 +196,7 @@ func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 			}
 		}
 		// Get balance from addresses
-		for addr := range genesisAccounts {
+		for addr := range configs.GenesisAccounts {
 			b := s.GetBalance(common.HexToAddress(addr)).Int64()
 			if b != balance {
 				t.Error("Balance does not match", "state balance", b, "balance", balance)

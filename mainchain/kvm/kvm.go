@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package blockchain
+package kvm
 
 import (
 	"math/big"
@@ -34,7 +34,7 @@ type ChainContext interface {
 }
 
 // NewKVMContext creates a new context for use in the KVM.
-func NewKVMContext(msg Message, header *types.Header, chain ChainContext) kvm.Context {
+func NewKVMContext(msg types.Message, header *types.Header, chain ChainContext) kvm.Context {
 	return kvm.Context{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,

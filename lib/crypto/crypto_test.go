@@ -60,3 +60,31 @@ func verifyAddr(t *testing.T, addr0, addr1 common.Address) {
 		t.Fatalf("address mismatch: want: %x have: %x", addr0, addr1)
 	}
 }
+
+func TestStringToPublicKey(t *testing.T) {
+	pubString := "7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860"
+	expectedAddress := "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"
+
+	pub, err := StringToPublicKey(pubString)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if PubkeyToAddress(*pub).Hex() != expectedAddress {
+		t.Fatal("Address does not match")
+	}
+}
+
+func TestStringToPrivateKey(t *testing.T) {
+	privateString := "8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06"
+	expectedAddress := "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"
+
+	priv, err := StringToPrivateKey(privateString)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if PubkeyToAddress(priv.PublicKey).Hex() != expectedAddress {
+		t.Fatal("Address does not match")
+	}
+}

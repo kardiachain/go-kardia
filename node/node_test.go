@@ -69,24 +69,20 @@ var (
 	}
 )
 
-func getDevNodes() []NodeMetadata {
-	nodeMetadataList := make([]NodeMetadata, len(nodes))
-	for i, m := range nodes {
-		nodeMetadataList[i] = *NewNodeMetadata(
-			m["key"].(string),
-			int64(m["votingPower"].(int)),
-			m["listenAddr"].(string),
-		)
-	}
-	return nodeMetadataList
-}
-
 func testNodeConfig() *NodeConfig {
+	pk := "8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06"
+	nodeMetadata, _ := NewNodeMetadata(
+		&pk,
+		nil,
+		int64(100),
+		"[::]:3000",
+	)
 	return &NodeConfig{
 		Name:            "test node",
 		P2P:             p2p.Config{PrivateKey: testNodeKey},
-		EnvConfig:       NewEnvironmentConfig(getDevNodes()),
+		EnvConfig:       NewEnvironmentConfig(),
 		MainChainConfig: MainChainConfig{},
+		NodeMetadata: nodeMetadata,
 	}
 }
 

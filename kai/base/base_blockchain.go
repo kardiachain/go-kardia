@@ -16,13 +16,15 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package blockchain
+package base
 
 import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/lib/event"
 )
 
 type BaseBlockChain interface {
@@ -37,4 +39,8 @@ type BaseBlockChain interface {
 	WriteReceipts(receipts types.Receipts, block *types.Block)
 	ReadCommit(height uint64) *types.Commit
 	Config() *configs.ChainConfig
+	GetHeader(common.Hash, uint64) *types.Header
+	IsPrivate() bool
+	HasPermission(peer *p2p.Peer) bool
+	SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription
 }

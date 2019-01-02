@@ -37,7 +37,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/node"
 )
 
 var (
@@ -63,6 +62,13 @@ type timeoutInfo struct {
 	Height   *cmn.BigInt           `json:"height"`
 	Round    *cmn.BigInt           `json:"round"`
 	Step     cstypes.RoundStepType `json:"step"`
+}
+
+// VoteTurn is used for simulate vote strategy
+type VoteTurn struct {
+	Height   int
+	Round    int
+	VoteType int
 }
 
 func EmptyTimeoutInfo() *timeoutInfo {
@@ -113,7 +119,7 @@ type ConsensusState struct {
 	done chan struct{}
 
 	// Simulate voting strategy
-	votingStrategy map[node.VoteTurn]int
+	votingStrategy map[VoteTurn]int
 }
 
 // NewConsensusState returns a new ConsensusState.
@@ -122,7 +128,7 @@ func NewConsensusState(
 	config *cfg.ConsensusConfig,
 	state state.LastestBlockState,
 	blockOperations BaseBlockOperations,
-	votingStrategy map[node.VoteTurn]int,
+	votingStrategy map[VoteTurn]int,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		logger: logger,
@@ -619,7 +625,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 
 // Get script vote
 func (cs *ConsensusState) scriptedVote(height int, round int, voteType int) (int, bool) {
-	if val, ok := cs.votingStrategy[node.VoteTurn{Height: height, Round: round, VoteType: voteType}]; ok {
+	if val, ok := cs.votingStrategy[VoteTurn{Height: height, Round: round, VoteType: voteType}]; ok {
 		return val, ok
 	}
 	return 0, false

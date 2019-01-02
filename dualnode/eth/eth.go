@@ -51,6 +51,9 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 )
 
 const (
@@ -72,17 +75,17 @@ type Eth struct {
 
 	// Dual blockchain related fields
 	dualChain *dualbc.DualBlockChain
-	eventPool *dualbc.EventPool
+	eventPool *event_pool.EventPool
 
 	// The internal blockchain (i.e. Kardia's mainchain) that this dual node's interacting with.
-	internalChain dualbc.BlockChainAdapter
+	internalChain base.BlockChainAdapter
 
 	// TODO(namdoh,thientn): Deprecate this. This is needed solely to get Kardia's state in order
 	// to get Eth's amount from Kardia's smart contract.
 	kardiaChain *blockchain.BlockChain
 	// TODO(namdoh,thientn): Deprecate this. This is needed solely submit remove amount Tx to
 	// Karida's tx pool.
-	txPool *blockchain.TxPool
+	txPool *tx_pool.TxPool
 
 	// TODO(namdoh,thientn): Hard-coded for prototyping. This need to be passed dynamically.
 	smcABI     *abi.ABI
@@ -90,7 +93,7 @@ type Eth struct {
 }
 
 // Eth creates a Ethereum sub node.
-func NewEth(config *EthConfig, kardiaChain *blockchain.BlockChain, txPool *blockchain.TxPool, dualChain *dualbc.DualBlockChain, dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string) (*Eth, error) {
+func NewEth(config *EthConfig, kardiaChain *blockchain.BlockChain, txPool *tx_pool.TxPool, dualChain *dualbc.DualBlockChain, dualEventPool *event_pool.EventPool, smcAddr *common.Address, smcABIStr string) (*Eth, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
@@ -286,7 +289,7 @@ func (n *Eth) ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, erro
 	}, nil
 }
 
-func (n *Eth) RegisterInternalChain(internalChain dualbc.BlockChainAdapter) {
+func (n *Eth) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 	n.internalChain = internalChain
 }
 
@@ -463,7 +466,7 @@ func (n *Eth) handleBlock(block *ethTypes.Block) {
 				log.Error("Fail to get Kardia state", "error", err)
 				return
 			}
-			nonce := dualStateDB.GetNonce(common.HexToAddress(dualbc.DualStateAddressHex))
+			nonce := dualStateDB.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
 			ethTxHash := tx.Hash()
 			txHash := common.BytesToHash(ethTxHash[:])
 			dualEvent := types.NewDualEvent(nonce, true /* externalChain */, types.ETHEREUM, &txHash, &eventSummary)

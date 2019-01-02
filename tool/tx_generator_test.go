@@ -21,12 +21,12 @@ package tool
 import (
 	"testing"
 
-	development "github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/kai/state"
 	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/configs"
 )
 
 func TestGenerateTx(t *testing.T) {
@@ -68,7 +68,7 @@ func TestGenerateRandomTxWithState(t *testing.T) {
 }
 
 func containsInGenesis(address string) bool {
-	for k := range development.GenesisAccounts {
+	for k := range configs.GenesisAccounts {
 		if k == address {
 			return true
 		}

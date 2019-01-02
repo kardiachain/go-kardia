@@ -37,6 +37,9 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	kardiabc "github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 )
 
 const GenerateTxInterval = 60 * time.Second
@@ -58,19 +61,19 @@ var (
 // that relates to NEO from Kardia, sending tx to NEO network and check tx status
 type NeoProxy struct {
 	kardiaBc   *kardiabc.BlockChain
-	txPool     *kardiabc.TxPool
+	txPool     *tx_pool.TxPool
 	smcAddress *common.Address
 	smcABI     *abi.ABI
 
 	// Dual blockchain related fields
 	dualBc    *dualbc.DualBlockChain
-	eventPool *dualbc.EventPool // Event pool of DUAL service.
+	eventPool *event_pool.EventPool // Event pool of DUAL service.
 
 	// The internal blockchain (i.e. Kardia's mainchain) that this dual node's interacting with.
-	internalChain dualbc.BlockChainAdapter
+	internalChain base.BlockChainAdapter
 
 	// Chain head subscription for new blocks.
-	chainHeadCh  chan kardiabc.ChainHeadEvent
+	chainHeadCh  chan base.ChainHeadEvent
 	chainHeadSub event.Subscription
 
 	// Neo related URLs and address
@@ -81,8 +84,8 @@ type NeoProxy struct {
 	generateTx         bool
 }
 
-func NewNeoProxy(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dualBc *dualbc.DualBlockChain,
-	dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string,
+func NewNeoProxy(kardiaBc *kardiabc.BlockChain, txPool *tx_pool.TxPool, dualBc *dualbc.DualBlockChain,
+	dualEventPool *event_pool.EventPool, smcAddr *common.Address, smcABIStr string,
 	submitTxUrl string, checkTxUrl string, neoReceiverAdd string, generateTx bool) (*NeoProxy, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
@@ -97,7 +100,7 @@ func NewNeoProxy(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dualBc 
 		smcAddress: smcAddr,
 		smcABI:     &smcABI,
 
-		chainHeadCh: make(chan kardiabc.ChainHeadEvent, 5),
+		chainHeadCh: make(chan base.ChainHeadEvent, 5),
 
 		submitTxUrl:        submitTxUrl,
 		checkTxUrl:         checkTxUrl,
@@ -153,7 +156,7 @@ func (n *NeoProxy) AddEvent(dualEvent *types.DualEvent) error {
 	return n.eventPool.AddEvent(dualEvent)
 }
 
-func (n *NeoProxy) RegisterInternalChain(internalChain dualbc.BlockChainAdapter) {
+func (n *NeoProxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 	n.internalChain = internalChain
 }
 

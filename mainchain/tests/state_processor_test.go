@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package blockchain
+package tests
 
 import (
 	"fmt"
@@ -31,6 +31,9 @@ import (
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	abi "github.com/kardiachain/go-kardia/lib/abi"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
 // GenesisAccounts are used to initialized accounts in genesis block
@@ -90,7 +93,7 @@ var (
 	address = common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 )
 
-func execute(bc *BlockChain, msg types.Message) ([]byte, error) {
+func execute(bc *blockchain.BlockChain, msg types.Message) ([]byte, error) {
 
 	// Get stateDb
 	stateDb, err := bc.State()
@@ -100,15 +103,15 @@ func execute(bc *BlockChain, msg types.Message) ([]byte, error) {
 
 	// Get balance of address
 	originBalance := stateDb.GetBalance(address).Int64()
-	gasPool := new(GasPool).AddGas(bc.CurrentBlock().Header().GasLimit)
+	gasPool := new(blockchain.GasPool).AddGas(bc.CurrentBlock().Header().GasLimit)
 
 	// Create a new context to be used in the KVM environment
-	context := NewKVMContext(msg, bc.CurrentBlock().Header(), bc)
+	context := vm.NewKVMContext(msg, bc.CurrentBlock().Header(), bc)
 	vmenv := kvm.NewKVM(context, stateDb, kvm.Config{
 		IsZeroFee: true,
 	})
 
-	ret, usedGas, failed, err := NewStateTransition(vmenv, msg, gasPool).TransitionDb()
+	ret, usedGas, failed, err := blockchain.NewStateTransition(vmenv, msg, gasPool).TransitionDb()
 	if err != nil {
 		return nil, fmt.Errorf("%v", err)
 	}
@@ -127,7 +130,7 @@ func execute(bc *BlockChain, msg types.Message) ([]byte, error) {
 	return ret, nil
 }
 
-func executeWithFee(bc *BlockChain, msg types.Message) ([]byte, error) {
+func executeWithFee(bc *blockchain.BlockChain, msg types.Message) ([]byte, error) {
 
 	// Get stateDb
 	stateDb, err := bc.State()
@@ -137,15 +140,15 @@ func executeWithFee(bc *BlockChain, msg types.Message) ([]byte, error) {
 
 	// Get balance of address
 	originBalance := stateDb.GetBalance(address).Int64()
-	gasPool := new(GasPool).AddGas(bc.CurrentBlock().Header().GasLimit)
+	gasPool := new(blockchain.GasPool).AddGas(bc.CurrentBlock().Header().GasLimit)
 
 	// Create a new context to be used in the KVM environment
-	context := NewKVMContext(msg, bc.CurrentBlock().Header(), bc)
+	context := vm.NewKVMContext(msg, bc.CurrentBlock().Header(), bc)
 	vmenv := kvm.NewKVM(context, stateDb, kvm.Config{
 		IsZeroFee: false,
 	})
 
-	ret, usedGas, failed, err := NewStateTransition(vmenv, msg, gasPool).TransitionDb()
+	ret, usedGas, failed, err := blockchain.NewStateTransition(vmenv, msg, gasPool).TransitionDb()
 	if err != nil {
 		return nil, fmt.Errorf("%v", err)
 	}
@@ -168,13 +171,13 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 
 	// Start setting up blockchain
 	kaiDb := storage.NewMemStore()
-	genesis := DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
-	chainConfig, _, genesisErr := SetupGenesisBlock(log.New(), kaiDb, genesis)
+	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g)
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
 	}
 
-	bc, err := NewBlockChain(log.New(), kaiDb, chainConfig)
+	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,13 +236,13 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	// Start setting up blockchain
 	kaiDb := storage.NewMemStore()
-	genesis := DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
-	chainConfig, _, genesisErr := SetupGenesisBlock(log.New(), kaiDb, genesis)
+	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g)
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
 	}
 
-	bc, err := NewBlockChain(log.New(), kaiDb, chainConfig)
+	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig, false)
 	if err != nil {
 		t.Fatal(err)
 	}

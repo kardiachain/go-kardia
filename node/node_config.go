@@ -36,8 +36,13 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
+	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/mainchain/permissioned"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
 const (
@@ -61,16 +66,19 @@ type MainChainConfig struct {
 	DbHandles int
 
 	// Genesis is genesis block which contain initial Block and accounts
-	Genesis *blockchain.Genesis
+	Genesis *genesis.Genesis
 
 	// Transaction pool options
-	TxPool blockchain.TxPoolConfig
+	TxPool tx_pool.TxPoolConfig
 
 	// AcceptTxs accept tx sync process or not (1 is yes and 0 is no)
 	AcceptTxs uint32
 
 	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
 	IsZeroFee bool
+
+	// IsPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
+	IsPrivate bool
 }
 
 type DualChainConfig struct {
@@ -94,7 +102,10 @@ type DualChainConfig struct {
 	DualGenesis *dualbc.DualGenesis
 
 	// Dual's event pool options
-	DualEventPool dualbc.EventPoolConfig
+	DualEventPool event_pool.EventPoolConfig
+
+	// IsPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
+	IsPrivate bool
 }
 
 type NodeConfig struct {
@@ -173,21 +184,16 @@ type NodeConfig struct {
 // NodeMetadata contains privateKey and votingPower and function that get coinbase
 type NodeMetadata struct {
 	PrivKey     *ecdsa.PrivateKey
+	PublicKey   *ecdsa.PublicKey
 	VotingPower int64
 	ListenAddr  string
-}
-
-type VoteTurn struct {
-	Height   int
-	Round    int
-	VoteType int
 }
 
 // EnvironmentConfig contains a list of NodeVotingPower, proposalIndex and votingStrategy
 type EnvironmentConfig struct {
 	NodeSet []NodeMetadata
 	proposalIndex  int
-	VotingStrategy map[VoteTurn]int
+	VotingStrategy map[consensus.VoteTurn]int
 }
 
 // NodeName returns the devp2p node identifier.
@@ -301,24 +307,41 @@ func GetNodeIndex(nodeName string) (int, error) {
 }
 
 // NewNodeMetadata init new NodeMetadata
-func NewNodeMetadata(privateKey string, votingPower int64, listenAddr string) *NodeMetadata {
-	if pkByte, err := hex.DecodeString(privateKey); err == nil {
-		if privKey, err := crypto.ToECDSA(pkByte); err == nil {
-			return &NodeMetadata{
-				PrivKey: privKey,
-				VotingPower: votingPower,
-				ListenAddr: listenAddr,
-			}
-		}
+func NewNodeMetadata(privateKey *string, publicKey *string, votingPower int64, listenAddr string) (*NodeMetadata, error) {
+
+	node := &NodeMetadata{
+		VotingPower: votingPower,
+		ListenAddr: listenAddr,
 	}
-	return nil
+
+	if privateKey == nil && publicKey == nil {
+		return nil, fmt.Errorf("PrivateKey or PublicKey is required")
+	}
+	// Set PrivKey if privateKey is not nil
+	if privateKey != nil {
+		privKey, err := crypto.StringToPrivateKey(*privateKey)
+		if err != nil {
+			return nil, err
+		}
+		node.PrivKey = privKey
+		node.PublicKey = &privKey.PublicKey
+	}
+	// Set PublicKey if publicKey is not nil
+	if publicKey != nil {
+		pubKey, err := crypto.StringToPublicKey(*publicKey)
+		if err != nil {
+			return nil, err
+		}
+		node.PublicKey = pubKey
+	}
+	return node, nil
 }
 
 // NodeID returns enodeId
 func (n *NodeMetadata) NodeID() string {
 	return fmt.Sprintf(
 		"enode://%s@%s",
-		hex.EncodeToString(n.PrivKey.PublicKey.X.Bytes()) + hex.EncodeToString(n.PrivKey.PublicKey.Y.Bytes()),
+		hex.EncodeToString(n.PublicKey.X.Bytes()) + hex.EncodeToString(n.PublicKey.Y.Bytes()),
 		n.ListenAddr)
 }
 
@@ -327,14 +350,34 @@ func (n *NodeMetadata) Coinbase() common.Address {
 	return crypto.PubkeyToAddress(n.PrivKey.PublicKey)
 }
 
+// GetNodeMetadataFromSmc gets nodes list from smartcontract
+func GetNodeMetadataFromSmc(bc *base.BaseBlockChain, valIndices []int) ([]NodeMetadata, error) {
+	util, err := permissioned.NewSmcPermissionUtil(*bc)
+	if err != nil {
+		return nil, err
+	}
+	nodes := make([]NodeMetadata, 0)
+	for _, idx := range valIndices {
+		// Get nodes by list of indices.
+		// Note: this is used for dev environement only.
+		pubString, _, listenAddr, votingPower, _, err := util.GetAdminNodeByIndex(int64(idx))
+		if err != nil {
+			return nil, err
+		}
+		n, err := NewNodeMetadata(nil, &pubString, votingPower.Int64(), listenAddr)
+		if err != nil {
+			return nil, err
+		}
+		nodes = append(nodes, *n)
+	}
+	return nodes, nil
+}
+
 // NewEnvironmentConfig returns new EnvironmentConfig instance
-func NewEnvironmentConfig(nodes []NodeMetadata) *EnvironmentConfig {
+func NewEnvironmentConfig() *EnvironmentConfig {
 	var env EnvironmentConfig
 	env.proposalIndex = 0 // Default to 0-th node as the proposer.
-	env.NodeSet = make([]NodeMetadata, len(nodes))
-	for i, n := range nodes {
-		env.NodeSet[i] = n
-	}
+	env.NodeSet = make([]NodeMetadata, 0)
 	return &env
 }
 
@@ -346,7 +389,7 @@ func (env *EnvironmentConfig) GetNodeSize() int {
 // SetVotingStrategy is used for testing voting
 func (env *EnvironmentConfig) SetVotingStrategy(votingStrategy string) {
 	if strings.HasSuffix(votingStrategy, "csv") {
-		env.VotingStrategy = map[VoteTurn]int{}
+		env.VotingStrategy = map[consensus.VoteTurn]int{}
 		csvFile, _ := os.Open(votingStrategy)
 		reader := csv.NewReader(bufio.NewReader(csvFile))
 
@@ -366,21 +409,21 @@ func (env *EnvironmentConfig) SetVotingStrategy(votingStrategy string) {
 			if ok {
 				log.Error(fmt.Sprintf("VoteTurn already exists with height = %v, round = %v, voteType = %v", height, round, voteType))
 			} else {
-				env.VotingStrategy[VoteTurn{height, round, voteType}] = result
+				env.VotingStrategy[consensus.VoteTurn{height, round, voteType}] = result
 			}
 		}
 	}
 }
 
 func (env *EnvironmentConfig) GetScriptedVote(height int, round int, voteType int) (int, bool) {
-	if val, ok := env.VotingStrategy[VoteTurn{height, round, voteType}]; ok {
+	if val, ok := env.VotingStrategy[consensus.VoteTurn{height, round, voteType}]; ok {
 		return val, ok
 	}
 	return 0, false
 }
 
-func (env *EnvironmentConfig) SetProposerIndex(index int) {
-	if index < 0 || index >= env.GetNodeSize() {
+func (env *EnvironmentConfig) SetProposerIndex(index, limit int) {
+	if index < 0 || index >= limit {
 		log.Error(fmt.Sprintf("Proposer index must be within %v and %v", 0, env.GetNodeSize()))
 	}
 	env.proposalIndex = index
@@ -391,21 +434,29 @@ func (env *EnvironmentConfig) GetNodeMetadata(index int) *NodeMetadata {
 }
 
 // GetValidatorSetByIndices takes an array of indexes of validators and returns an array of validators with the order respectively to index of input
-func (env *EnvironmentConfig) GetValidatorSetByIndices(valIndexes []int) *types.ValidatorSet {
-	if len(valIndexes) > env.GetNodeSize() {
-		log.Error(fmt.Sprintf("Number of validators must be within %v and %v", 1, env.GetNodeSize()))
-	}
-	validators := make([]*types.Validator, len(valIndexes))
-	for i := 0; i < len(valIndexes); i++ {
-		if valIndexes[i] < 0 || valIndexes[i] >= env.GetNodeSize() {
-			log.Error(fmt.Sprintf("Value of validator must be within %v and %v", 1, env.GetNodeSize()))
+func (env *EnvironmentConfig) GetValidatorSetByIndices(bc base.BaseBlockChain, valIndexes []int) (*types.ValidatorSet, error) {
+	// If NodeSet is empty then get nodes from smc
+	if env.GetNodeSize() == 0 {
+		nodes, err := GetNodeMetadataFromSmc(&bc, valIndexes)
+		if err != nil {
+			return nil, err
 		}
-		node := env.NodeSet[valIndexes[i]]
-		validators[i] = types.NewValidator(node.PrivKey.PublicKey, node.VotingPower)
+		env.NodeSet = nodes
+	}
+	if len(valIndexes) > env.GetNodeSize() {
+		return nil, fmt.Errorf("number of validators must be within %v and %v", 1, env.GetNodeSize())
+	}
+	validators := make([]*types.Validator, 0)
+	for i:=0; i < len(valIndexes); i++ {
+		if valIndexes[i] < 0 {
+			return nil, fmt.Errorf("value of validator must be greater than 0")
+		}
+		node := env.NodeSet[i]
+		validators = append(validators, types.NewValidator(*node.PublicKey, node.VotingPower))
 	}
 
 	validatorSet := types.NewValidatorSet(validators)
 	validatorSet.TurnOnKeepSameProposer()
 	validatorSet.SetProposer(validators[env.proposalIndex])
-	return validatorSet
+	return validatorSet, nil
 }

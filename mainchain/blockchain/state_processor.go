@@ -31,6 +31,8 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 )
 
 var (
@@ -94,13 +96,13 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(logger log.Logger, bc ChainContext, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg kvm.Config) (*types.Receipt, uint64, error) {
+func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg kvm.Config) (*types.Receipt, uint64, error) {
 	msg, err := tx.AsMessage()
 	if err != nil {
 		return nil, 0, err
 	}
 	// Create a new context to be used in the KVM environment
-	context := NewKVMContext(msg, header, bc)
+	context := vm.NewKVMContext(msg, header, bc)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
 	vmenv := kvm.NewKVM(context, statedb, cfg)
@@ -267,7 +269,7 @@ func (st *StateTransition) preCheck() error {
 		if nonce < st.msg.Nonce() {
 			return ErrNonceTooHigh
 		} else if nonce > st.msg.Nonce() {
-			return ErrNonceTooLow
+			return tx_pool.ErrNonceTooLow
 		}
 	}
 	return st.buyGas()

@@ -33,6 +33,8 @@ import (
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
 const (
@@ -64,7 +66,7 @@ type KardiaService struct {
 	kaiDb storage.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
-	txPool          *blockchain.TxPool
+	txPool          *tx_pool.TxPool
 	protocolManager *service.ProtocolManager
 	blockchain      *blockchain.BlockChain
 	csManager       *consensus.ConsensusManager
@@ -91,7 +93,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
-	chainConfig, _, genesisErr := blockchain.SetupGenesisBlock(logger, kaiDb, config.Genesis)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, config.Genesis)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
@@ -110,21 +112,24 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
 	// Create a new blockchain to attach to this Kardia object
-	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig)
+	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig, config.IsPrivate)
 	if err != nil {
 		return nil, err
 	}
 
 	// Set zeroFee to blockchain
 	kai.blockchain.IsZeroFee = config.IsZeroFee
-	kai.txPool = blockchain.NewTxPool(logger, config.TxPool, kai.chainConfig, kai.blockchain)
+	kai.txPool = tx_pool.NewTxPool(logger, config.TxPool, kai.chainConfig, kai.blockchain)
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
 	log.Info("KARDIA Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
-	validatorSet := &types.ValidatorSet{}
+	var validatorSet *types.ValidatorSet
 	if ctx.Config.EnvConfig != nil {
-		validatorSet = ctx.Config.EnvConfig.GetValidatorSetByIndices(ctx.Config.MainChainConfig.ValidatorIndexes)
+		validatorSet, err = ctx.Config.EnvConfig.GetValidatorSetByIndices(kai.blockchain, ctx.Config.MainChainConfig.ValidatorIndexes)
+		if err != nil {
+			logger.Error("Cannot get validator from indices", "indices", ctx.Config.MainChainConfig.ValidatorIndexes, "err", err)
+		}
 	}
 
 	state := state.LastestBlockState{
@@ -136,7 +141,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
 	}
-	var votingStrategy map[node.VoteTurn]int
+	var votingStrategy map[consensus.VoteTurn]int
 	if ctx.Config.EnvConfig != nil {
 		votingStrategy = ctx.Config.EnvConfig.VotingStrategy
 	}
@@ -185,6 +190,7 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		TxPool:    chainConfig.TxPool,
 		AcceptTxs: chainConfig.AcceptTxs,
 		IsZeroFee: chainConfig.IsZeroFee,
+		IsPrivate: chainConfig.IsPrivate,
 	})
 
 	if err != nil {
@@ -263,6 +269,6 @@ func (s *KardiaService) APIs() []rpc.API {
 	}
 }
 
-func (s *KardiaService) TxPool() *blockchain.TxPool         { return s.txPool }
+func (s *KardiaService) TxPool() *tx_pool.TxPool         { return s.txPool }
 func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
 func (s *KardiaService) ChainConfig() *configs.ChainConfig  { return s.chainConfig }

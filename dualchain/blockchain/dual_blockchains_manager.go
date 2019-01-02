@@ -20,16 +20,17 @@ package blockchain
 
 import (
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/kai/base"
 )
 
 // Manages the internal blockchain (i.e Kardia) and one of the external blockchain (e.g. Ethereum,
 // Neo, etc.). Provides all necessary methods to interact with either one.
 type DualBlockChainManager struct {
-	externalBlockChain BlockChainAdapter
-	internalBlockChain BlockChainAdapter
+	externalBlockChain base.BlockChainAdapter
+	internalBlockChain base.BlockChainAdapter
 }
 
-func NewDualBlockChainManager(internal BlockChainAdapter, external BlockChainAdapter) *DualBlockChainManager {
+func NewDualBlockChainManager(internal base.BlockChainAdapter, external base.BlockChainAdapter) *DualBlockChainManager {
 	return &DualBlockChainManager{
 		internalBlockChain: internal,
 		externalBlockChain: external,

@@ -26,6 +26,8 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 )
 
 // NeoEvent is message sent from NeoPython
@@ -44,12 +46,12 @@ type NeoEvent struct {
 // NeoApi is used for any rpc request from NeoPython
 type NeoApi struct {
 	dualBlockchain     *blockchain.DualBlockChain
-	internalBlockchain blockchain.BlockChainAdapter
-	eventPool          *blockchain.EventPool
+	internalBlockchain base.BlockChainAdapter
+	eventPool          *event_pool.EventPool
 }
 
 // NewNeoApi init new NEOApi
-func NewNeoApi(dualchain *blockchain.DualBlockChain, internalchain blockchain.BlockChainAdapter, eventPool *blockchain.EventPool) *NeoApi {
+func NewNeoApi(dualchain *blockchain.DualBlockChain, internalchain base.BlockChainAdapter, eventPool *event_pool.EventPool) *NeoApi {
 	return &NeoApi{dualBlockchain: dualchain,
 		internalBlockchain: internalchain,
 		eventPool:          eventPool}
@@ -70,7 +72,7 @@ func (n *NeoApi) NewEvent(neoEventEncodedBytes string) error {
 		return err
 	}
 	txHash := common.HexToHash(neoEvent.TxHash)
-	nonce := dualState.GetNonce(common.HexToAddress(blockchain.DualStateAddressHex))
+	nonce := dualState.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
 	eventSummary := &types.EventSummary{
 		TxMethod: neoEvent.Method,
 		TxValue:  neoEvent.Amount,

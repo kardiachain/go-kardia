@@ -28,6 +28,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 )
 
 var (
@@ -42,7 +43,7 @@ type DualBlockOperations struct {
 	mtx sync.RWMutex
 
 	blockchain *DualBlockChain
-	eventPool  *EventPool
+	eventPool  *event_pool.EventPool
 
 	bcManager *DualBlockChainManager
 
@@ -51,7 +52,7 @@ type DualBlockOperations struct {
 
 // Returns a new DualBlockOperations with latest chain & ,
 // initialized to the last height that was committed to the DB.
-func NewDualBlockOperations(logger log.Logger, blockchain *DualBlockChain, eventPool *EventPool) *DualBlockOperations {
+func NewDualBlockOperations(logger log.Logger, blockchain *DualBlockChain, eventPool *event_pool.EventPool) *DualBlockOperations {
 	return &DualBlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
@@ -271,7 +272,7 @@ func (dbo *DualBlockOperations) commitDualEvents(events types.DualEvents) (commo
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
 	counter := 0
-	nodeAddr := common.HexToAddress(DualStateAddressHex)
+	nodeAddr := common.HexToAddress(event_pool.DualStateAddressHex)
 	for _, event := range events {
 		state.Prepare(event.Hash(), common.Hash{}, counter)
 		state.SetNonce(nodeAddr, state.GetNonce(nodeAddr)+1)

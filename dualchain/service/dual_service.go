@@ -32,6 +32,7 @@ import (
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 )
 
 const DualServiceName = "DUAL"
@@ -55,7 +56,7 @@ type DualService struct {
 	groupDb storage.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
-	eventPool           *blockchain.EventPool
+	eventPool           *event_pool.EventPool
 	protocolManager     *service.ProtocolManager
 	blockchain          *blockchain.DualBlockChain
 	csManager           *consensus.ConsensusManager
@@ -94,17 +95,23 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	logger.Info("Initialising protocol", "versions", serviceconst.ProtocolVersions, "network", config.NetworkId)
 
 	// Create a new blockchain to attach to this GroupService struct
-	dualService.blockchain, err = blockchain.NewBlockChain(logger, groupDb, dualService.chainConfig)
+	dualService.blockchain, err = blockchain.NewBlockChain(logger, groupDb, dualService.chainConfig, config.IsPrivate)
 	if err != nil {
 		return nil, err
 	}
 
-	dualService.eventPool = blockchain.NewEventPool(logger, config.DualEventPool, dualService.chainConfig, dualService.blockchain)
+	dualService.eventPool = event_pool.NewEventPool(logger, config.DualEventPool, dualService.chainConfig, dualService.blockchain)
 
 	// Initialization for consensus.
 	block := dualService.blockchain.CurrentBlock()
 	log.Info("DUAL Validators: ", "valIndex", ctx.Config.DualChainConfig.ValidatorIndexes)
-	validatorSet := ctx.Config.EnvConfig.GetValidatorSetByIndices(ctx.Config.DualChainConfig.ValidatorIndexes)
+	var validatorSet *types.ValidatorSet
+	if ctx.Config.EnvConfig != nil {
+		validatorSet, err = ctx.Config.EnvConfig.GetValidatorSetByIndices(dualService.blockchain, ctx.Config.DualChainConfig.ValidatorIndexes)
+		if err != nil {
+			logger.Error("Cannot get validator from indices", "indices", ctx.Config.MainChainConfig.ValidatorIndexes, "err", err)
+		}
+	}
 	state := state.LastestBlockState{
 		ChainID:                     "kaigroupcon",
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
@@ -154,6 +161,7 @@ func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 		DbCaches:      chainConfig.DbCache,
 		DualEventPool: chainConfig.DualEventPool,
 		DualGenesis:   chainConfig.DualGenesis,
+		IsPrivate:     chainConfig.IsPrivate,
 	})
 
 	if err != nil {
@@ -214,6 +222,6 @@ func (s *DualService) APIs() []rpc.API {
 	}
 }
 
-func (s *DualService) EventPool() *blockchain.EventPool       { return s.eventPool }
+func (s *DualService) EventPool() *event_pool.EventPool       { return s.eventPool }
 func (s *DualService) BlockChain() *blockchain.DualBlockChain { return s.blockchain }
 func (s *DualService) DualChainConfig() *configs.ChainConfig  { return s.chainConfig }

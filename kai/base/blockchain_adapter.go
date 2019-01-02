@@ -16,12 +16,18 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package blockchain
+package base
 
-import "github.com/kardiachain/go-kardia/types"
+import (
+	"github.com/kardiachain/go-kardia/types"
+)
 
-// NewTxsEvent is posted when a batch of transactions enter the transaction pool.
-type NewTxsEvent struct{ Txs []*types.Transaction }
+// An adapter that provide a unified interface for dual node to interact with external (or
+// even internal Kardia) blockchains.
+type BlockChainAdapter interface {
+	// Computes Tx from the given event, and submit it to the blockchain.
+	SubmitTx(event *types.EventData) error
 
-// ChainHeadEvent is posted when a new head block is saved to the block chain.
-type ChainHeadEvent struct{ Block *types.Block }
+	// Computes Tx from the given event, and returns its metadata or error in case of invalid event data
+	ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, error)
+}

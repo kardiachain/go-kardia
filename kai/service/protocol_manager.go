@@ -32,8 +32,9 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/lib/p2p/discover"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 )
 
 const (
@@ -68,9 +69,9 @@ type ProtocolManager struct {
 
 	peers *peerSet
 
-	txpool *blockchain.TxPool
+	txpool *tx_pool.TxPool
 
-	blockchain  blockchain.BaseBlockChain
+	blockchain  base.BaseBlockChain
 	chainconfig *configs.ChainConfig
 
 	SubProtocols []p2p.Protocol
@@ -80,7 +81,7 @@ type ProtocolManager struct {
 	noMorePeers chan struct{}
 
 	// transaction channel and subscriptions
-	txsCh  chan blockchain.NewTxsEvent
+	txsCh  chan base.NewTxsEvent
 	txsSub event.Subscription
 
 	// Consensus stuff
@@ -100,9 +101,9 @@ func NewProtocolManager(
 	logger log.Logger,
 	networkID uint64,
 	chainID uint64,
-	blockchain blockchain.BaseBlockChain,
+	blockchain base.BaseBlockChain,
 	config *configs.ChainConfig,
-	txpool *blockchain.TxPool,
+	txpool *tx_pool.TxPool,
 	csReactor *consensus.ConsensusManager) (*ProtocolManager, error) {
 
 	// Create the protocol manager with the base fields
@@ -195,7 +196,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	// TODO(namdoh@,thientn@): Refactor this so we won't have to check this for dual service.
 	if pm.txpool != nil {
 		// broadcast transactions
-		pm.txsCh = make(chan blockchain.NewTxsEvent, txChanSize)
+		pm.txsCh = make(chan base.NewTxsEvent, txChanSize)
 		pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
 
 		//namdoh@ pm.csCh = make(chan consensus.NewCsEvent, csChanSize)
@@ -243,13 +244,15 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	}
 	pm.logger.Debug("Kardia peer connected", "name", p.Name())
 
-	// Execute the Kardia handshake
 	var (
 		genesis = pm.blockchain.Genesis()
 		hash    = pm.blockchain.CurrentHeader().Hash()
 		height  = pm.blockchain.CurrentBlock().Height()
+		hasPermission = pm.blockchain.HasPermission(p.Peer)
 	)
-	accepted, err := p.Handshake(pm.networkID, pm.chainID, height, hash, genesis.Hash())
+
+	// Execute the Kardia handshake
+	accepted, err := p.Handshake(pm.networkID, pm.chainID, height, hash, genesis.Hash(), hasPermission)
 	if err != nil {
 		return err
 	}

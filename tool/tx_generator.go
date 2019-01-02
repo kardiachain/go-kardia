@@ -22,7 +22,6 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
-	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -31,6 +30,7 @@ import (
 	"math/rand"
 	"sync"
 	"time"
+	"github.com/kardiachain/go-kardia/configs"
 )
 
 const (
@@ -64,11 +64,11 @@ func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
 		numTx = defaultNumTx
 	}
 	result := make([]*types.Transaction, numTx)
-	addrKeySize := len(dev.GenesisAddrKeys)
+	addrKeySize := len(configs.GenesisAddrKeys)
 	var keys []*ecdsa.PrivateKey
 	var addresses []common.Address
 
-	for addrS, privateKey := range dev.GenesisAddrKeys {
+	for addrS, privateKey := range configs.GenesisAddrKeys {
 		pkByte, _ := hex.DecodeString(privateKey)
 		keys = append(keys, crypto.ToECDSAUnsafe(pkByte))
 		addresses = append(addresses, common.HexToAddress(addrS))
@@ -172,10 +172,10 @@ func randomTxAddresses() (senderKey *ecdsa.PrivateKey, toAddr common.Address) {
 }
 
 func randomGenesisAddress() common.Address {
-	size := len(dev.GenesisAddrKeys)
+	size := len(configs.GenesisAddrKeys)
 	randomI := rand.Intn(size)
 	index := 0
-	for addrS := range dev.GenesisAddrKeys {
+	for addrS := range configs.GenesisAddrKeys {
 		if index == randomI {
 			return common.HexToAddress(addrS)
 		}
@@ -192,10 +192,10 @@ func randomAddress() common.Address {
 }
 
 func randomGenesisPrivateKey() *ecdsa.PrivateKey {
-	size := len(dev.GenesisAddrKeys)
+	size := len(configs.GenesisAddrKeys)
 	randomI := rand.Intn(size)
 	index := 0
-	for _, privateKey := range dev.GenesisAddrKeys {
+	for _, privateKey := range configs.GenesisAddrKeys {
 		if index == randomI {
 			pkByte, _ := hex.DecodeString(privateKey)
 			return crypto.ToECDSAUnsafe(pkByte)
@@ -206,10 +206,10 @@ func randomGenesisPrivateKey() *ecdsa.PrivateKey {
 }
 
 func GetRandomGenesisAccount() common.Address {
-	size := len(dev.GenesisAccounts)
+	size := len(configs.GenesisAccounts)
 	randomI := rand.Intn(size)
 	index := 0
-	for addrS := range dev.GenesisAccounts {
+	for addrS := range configs.GenesisAccounts {
 		if index == randomI {
 			return common.HexToAddress(addrS)
 		}

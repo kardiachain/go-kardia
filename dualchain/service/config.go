@@ -20,6 +20,7 @@ package service
 
 import (
 	"github.com/kardiachain/go-kardia/dualchain/blockchain"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 )
 
 type DualConfig struct {
@@ -33,7 +34,7 @@ type DualConfig struct {
 	DualGenesis *blockchain.DualGenesis `toml:",omitempty"`
 
 	// Dual's event pool options
-	DualEventPool blockchain.EventPoolConfig
+	DualEventPool event_pool.EventPoolConfig
 
 	// chaindata
 	ChainData string
@@ -43,4 +44,7 @@ type DualConfig struct {
 
 	// DB handles
 	DbHandles int
+
+	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
+	IsPrivate bool
 }

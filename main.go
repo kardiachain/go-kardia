@@ -30,7 +30,6 @@ import (
 	"time"
 
 	ethlog "github.com/ethereum/go-ethereum/log"
-
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
@@ -41,8 +40,10 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/mainchain"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
 // args
@@ -62,6 +63,7 @@ type flagArgs struct {
 	clearDataDir        bool
 	mainChainValIndexes string
 	isZeroFee           bool
+	isPrivate           bool
 
 	// Ether/Kardia dualnode related flags
 	ethDual       bool
@@ -81,6 +83,7 @@ type flagArgs struct {
 	// Dualnode's related flags
 	dualChain           bool
 	dualChainValIndexes string
+	isPrivateDual       bool
 
 	// Development's related flags
 	dev            bool
@@ -110,6 +113,7 @@ func init() {
 	flag.BoolVar(&args.clearDataDir, "clearDataDir", false, "remove contents in data dir")
 	flag.StringVar(&args.mainChainValIndexes, "mainChainValIndexes", "1,2,3", "Indexes of Main chain validator")
 	flag.BoolVar(&args.isZeroFee, "zeroFee", false, "zeroFee is enabled then no gas is charged in transaction. Any gas that sender spends in a transaction will be refunded")
+	flag.BoolVar(&args.isPrivate, "private", false, "private is true then peerId will be checked through smc to make sure that it has permission to access the chain")
 
 	// Dualnode's related flags
 	flag.StringVar(&args.ethLogLevel, "ethloglevel", "warn", "minimum Eth log verbosity to display")
@@ -125,6 +129,7 @@ func init() {
 	flag.StringVar(&args.neoSubmitTxUrl, "neoSubmitTxUrl", neo.DefaultNeoConfig.SubmitTxUrl, "url to submit tx to neo")
 	flag.StringVar(&args.neoCheckTxUrl, "neoCheckTxUrl", neo.DefaultNeoConfig.CheckTxUrl, "url to check tx status from neo")
 	flag.StringVar(&args.neoReceiverAddress, "neoReceiverAddress", neo.DefaultNeoConfig.ReceiverAddress, "neo address to release to")
+	flag.BoolVar(&args.isPrivateDual, "privateDual", false, "privateDual is true then peerId will be checked through smc to make sure that it has permission to access the dualchain")
 
 	// NOTE: The flags below are only applicable for dev environment. Please add the applicable ones
 	// here and DO NOT add non-dev flags.
@@ -272,17 +277,21 @@ func main() {
 	}
 
 	if args.dev {
-		env = node.NewEnvironmentConfig(dev.GetDevNodes())
+		env = node.NewEnvironmentConfig()
 		// Set P2P max peers for testing on dev environment
 		config.P2P.MaxPeers = args.maxPeers
 		if nodeIndex < 0 {
 			logger.Error(fmt.Sprintf("Node index %v must greater than 0", nodeIndex+1))
 		}
 		// Subtract 1 from the index because we specify node starting from 1 onward.
-		env.SetProposerIndex(args.proposal - 1)
+		env.SetProposerIndex(args.proposal - 1, len(dev.Nodes))
 		// Only set DevNodeConfig if this is a known node from Kardia default set
-		if nodeIndex < env.GetNodeSize() {
-			config.NodeMetadata = env.GetNodeMetadata(nodeIndex)
+		if nodeIndex < len(dev.Nodes) {
+			nodeMetadata, err := dev.GetNodeMetadataByIndex(nodeIndex)
+			if err != nil {
+				logger.Error("Cannot get node by index", "err", err)
+			}
+			config.NodeMetadata = nodeMetadata
 		}
 		// Simulate the voting strategy
 		env.SetVotingStrategy(args.votingStrategy)
@@ -290,11 +299,12 @@ func main() {
 		config.MainChainConfig.ValidatorIndexes = getIntArray(args.mainChainValIndexes)
 
 		// Create genesis block with dev.genesisAccounts
-		config.MainChainConfig.Genesis = blockchain.DefaulTestnetFullGenesisBlock(dev.GenesisAccounts, dev.GenesisContracts)
+		config.MainChainConfig.Genesis = genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts)
 	}
 	nodeDir := filepath.Join(config.DataDir, config.Name)
-	config.MainChainConfig.TxPool = *blockchain.GetDefaultTxPoolConfig(nodeDir)
+	config.MainChainConfig.TxPool = *tx_pool.GetDefaultTxPoolConfig(nodeDir)
 	config.MainChainConfig.IsZeroFee = args.isZeroFee
+	config.MainChainConfig.IsPrivate = args.isPrivate
 
 	if args.clearDataDir {
 		// Clear all contents within data dir
@@ -318,8 +328,8 @@ func main() {
 		} else {
 			config.DualChainConfig.ValidatorIndexes = getIntArray(args.mainChainValIndexes)
 		}
-		config.DualChainConfig.DualEventPool = *dualbc.GetDefaultEventPoolConfig(nodeDir)
-
+		config.DualChainConfig.DualEventPool = *event_pool.GetDefaultEventPoolConfig(nodeDir)
+		config.DualChainConfig.IsPrivate = args.isPrivateDual
 		config.DualChainConfig.ChainId = args.devDualChainID
 		if args.ethDual {
 			config.DualChainConfig.ChainId = configs.EthDualChainID
@@ -387,8 +397,8 @@ func main() {
 	}
 
 	// TODO(namdoh): Remove the hard-code below
-	exchangeContractAddress := dev.GetContractAddressAt(kardia.KardiaNewExchangeSmcIndex)
-	exchangeContractAbi := dev.GetContractAbiByAddress(exchangeContractAddress.String())
+	exchangeContractAddress := configs.GetContractAddressAt(kardia.KardiaNewExchangeSmcIndex)
+	exchangeContractAbi := configs.GetContractAbiByAddress(exchangeContractAddress.String())
 	if args.neoDual {
 		generateTx := false
 		if args.dev && args.mockDualEvent {
@@ -533,7 +543,7 @@ func displaySyncStatus(client *eth.EthClient) {
 
 // genTxsLoop generate & add a batch of transfer txs, repeat after delay flag.
 // Warning: Set txsDelay < 5 secs may build up old subroutines because previous subroutine to add txs won't be finished before new one starts.
-func genTxsLoop(numTxs int, txPool *blockchain.TxPool) {
+func genTxsLoop(numTxs int, txPool *tx_pool.TxPool) {
 	genTool := tool.NewGeneratorTool()
 	time.Sleep(60 * time.Second)
 	genRound := 0
@@ -544,7 +554,7 @@ func genTxsLoop(numTxs int, txPool *blockchain.TxPool) {
 	}
 }
 
-func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *blockchain.TxPool, genRound int) {
+func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool, genRound int) {
 	goodCount := 0
 	badCount := 0
 	txList := genTool.GenerateTx(numTxs)

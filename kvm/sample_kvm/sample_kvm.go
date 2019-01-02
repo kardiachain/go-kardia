@@ -11,7 +11,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 )
 
 // Config is a basic type specifying certain configuration flags for running
@@ -57,8 +57,8 @@ func setDefaults(cfg *Config) {
 
 func NewEnv(cfg *Config) *kvm.KVM {
 	context := kvm.Context{
-		CanTransfer: blockchain.CanTransfer,
-		Transfer:    blockchain.Transfer,
+		CanTransfer: vm.CanTransfer,
+		Transfer:    vm.Transfer,
 		GetHash:     func(uint64) common.Hash { return common.Hash{} },
 
 		Origin:      cfg.Origin,

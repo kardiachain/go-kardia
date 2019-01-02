@@ -21,46 +21,48 @@ package kardia
 import (
 	"errors"
 	"strings"
-
-	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
+	"math/big"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	kardiabc "github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/types"
-	"math/big"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 )
 
 var (
-	ErrFailedGetState           = errors.New("Fail to get Kardia state")
-	ErrCreateKardiaTx           = errors.New("Fail to create Kardia's Tx from DualEvent")
-	ErrAddKardiaTx              = errors.New("Fail to add Tx to Kardia's TxPool")
-	ErrInsufficientExchangeData = errors.New("Insufficient exchange external data")
-	ErrFailedGetEventData       = errors.New("Fail to get event external data")
-	ErrNoMatchedRequest         = errors.New("Request has no matched opponent")
-	ErrUnsupportedMethod        = errors.New("Method is not supported by dual logic")
+	ErrFailedGetState           = errors.New("fail to get Kardia state")
+	ErrCreateKardiaTx           = errors.New("fail to create Kardia's Tx from DualEvent")
+	ErrAddKardiaTx              = errors.New("fail to add Tx to Kardia's TxPool")
+	ErrInsufficientExchangeData = errors.New("insufficient exchange external data")
+	ErrFailedGetEventData       = errors.New("fail to get event external data")
+	ErrNoMatchedRequest         = errors.New("request has no matched opponent")
+	ErrUnsupportedMethod        = errors.New("method is not supported by dual logic")
 )
 
 // Proxy of Kardia's chain to interface with dual's node, responsible for listening to the chain's
 // new block and submiting Kardia's transaction .
-const MatchFunction = "matchRequest"
-const CompleteFunction = "completeRequest"
-const ExternalDepositFunction = "deposit"
+const (
+	MatchFunction = "matchRequest"
+	CompleteFunction = "completeRequest"
+	ExternalDepositFunction = "deposit"
+)
 
 type KardiaProxy struct {
 	// Kardia's mainchain stuffs.
-	kardiaBc     *kardiabc.BlockChain
-	txPool       *kardiabc.TxPool
-	chainHeadCh  chan kardiabc.ChainHeadEvent // Used to subscribe for new blocks.
+	kardiaBc     base.BaseBlockChain
+	txPool       *tx_pool.TxPool
+	chainHeadCh  chan base.ChainHeadEvent // Used to subscribe for new blocks.
 	chainHeadSub event.Subscription
 
 	// Dual blockchain related fields
-	dualBc    *dualbc.DualBlockChain
-	eventPool *dualbc.EventPool
+	dualBc    base.BaseBlockChain
+	eventPool *event_pool.EventPool
 
 	// The external blockchain that this dual node's interacting with.
-	externalChain dualbc.BlockChainAdapter
+	externalChain base.BlockChainAdapter
 
 	// TODO(namdoh,thientn): Hard-coded for prototyping. This need to be passed dynamically.
 	smcAddress *common.Address
@@ -88,7 +90,7 @@ type MatchedRequest struct {
 	SendAmount       *big.Int `abi:"sendAmount"`
 }
 
-func NewKardiaProxy(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dualBc *dualbc.DualBlockChain, dualEventPool *dualbc.EventPool, smcAddr *common.Address, smcABIStr string) (*KardiaProxy, error) {
+func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.EventPool, smcAddr *common.Address, smcABIStr string) (*KardiaProxy, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
@@ -102,7 +104,7 @@ func NewKardiaProxy(kardiaBc *kardiabc.BlockChain, txPool *kardiabc.TxPool, dual
 		smcAddress: smcAddr,
 		smcABI:     &smcABI,
 
-		chainHeadCh: make(chan kardiabc.ChainHeadEvent, 5),
+		chainHeadCh: make(chan base.ChainHeadEvent, 5),
 	}
 
 	// Start subscription to blockchain head event.
@@ -232,7 +234,7 @@ func (p *KardiaProxy) initRate() {
 	}
 }
 
-func (p *KardiaProxy) RegisterExternalChain(externalChain dualbc.BlockChainAdapter) {
+func (p *KardiaProxy) RegisterExternalChain(externalChain base.BlockChainAdapter) {
 	p.externalChain = externalChain
 }
 
@@ -272,7 +274,7 @@ func (p *KardiaProxy) handleBlock(block *types.Block) {
 			}
 			log.Info("Detect Kardia's tx updating smc", "method", eventSummary.TxMethod, "value",
 				eventSummary.TxValue, "hash", tx.Hash())
-			nonce := p.eventPool.State().GetNonce(common.HexToAddress(dualbc.DualStateAddressHex))
+			nonce := p.eventPool.State().GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
 			kardiaTxHash := tx.Hash()
 			txHash := common.BytesToHash(kardiaTxHash[:])
 			dualEvent := types.NewDualEvent(nonce, false /* externalChain */, types.KARDIA, &txHash, &eventSummary)

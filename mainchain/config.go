@@ -19,7 +19,8 @@
 package kai
 
 import (
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
 // DefaultConfig contains default settings for use on the Kardia main net.
@@ -27,7 +28,7 @@ var DefaultConfig = Config{
 
 	NetworkId: 1,
 
-	TxPool: blockchain.DefaultTxPoolConfig,
+	TxPool: tx_pool.DefaultTxPoolConfig,
 }
 
 //go:generate gencodec -type Config -field-override configMarshaling -formats toml -out gen_config.go
@@ -38,10 +39,10 @@ type Config struct {
 
 	// The genesis block, which is inserted if the database is empty.
 	// If nil, the Kardia main net block is used.
-	Genesis *blockchain.Genesis `toml:",omitempty"`
+	Genesis *genesis.Genesis `toml:",omitempty"`
 
 	// Transaction pool options
-	TxPool blockchain.TxPoolConfig
+	TxPool tx_pool.TxPoolConfig
 
 	// chaindata
 	ChainData string
@@ -57,4 +58,7 @@ type Config struct {
 
 	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
 	IsZeroFee bool
+
+	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
+	IsPrivate bool
 }

@@ -24,6 +24,8 @@ import (
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 )
 
 const NeoServiceName = "NEO"
@@ -37,8 +39,8 @@ type NeoService struct {
 	shutdownChan chan bool
 
 	dualBlockchain *blockchain.DualBlockChain
-	dualEventPool  *blockchain.EventPool
-	internalChain  blockchain.BlockChainAdapter
+	dualEventPool  *event_pool.EventPool
+	internalChain  base.BlockChainAdapter
 
 	networkID uint64
 
@@ -71,8 +73,8 @@ func NewNeoService(ctx *node.ServiceContext) (node.Service, error) {
 }
 
 // Initialize sets up blockchains and event pool for NeoService
-func (s *NeoService) Initialize(internalBlockchain blockchain.BlockChainAdapter, dualchain *blockchain.DualBlockChain,
-	pool *blockchain.EventPool) {
+func (s *NeoService) Initialize(internalBlockchain base.BlockChainAdapter, dualchain *blockchain.DualBlockChain,
+	pool *event_pool.EventPool) {
 	s.internalChain = internalBlockchain
 	s.dualEventPool = pool
 	s.dualBlockchain = dualchain

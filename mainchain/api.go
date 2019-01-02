@@ -35,6 +35,7 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 )
 
 const (
@@ -438,7 +439,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 	defer cancel()
 
 	// Create a new context to be used in the KVM environment
-	context := blockchain.NewKVMContext(msg, header, s.kaiService.BlockChain())
+	context := vm.NewKVMContext(msg, header, s.kaiService.BlockChain())
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
 	kvm := kvm.NewKVM(context, statedb, vmCfg)

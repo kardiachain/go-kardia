@@ -204,3 +204,43 @@ func zeroBytes(bytes []byte) {
 		bytes[i] = 0
 	}
 }
+
+// StringToPubKey parses a string into public key
+func StringToPublicKey(pubString string) (*ecdsa.PublicKey, error) {
+
+	// Check length of input
+	// PublicKey contains X and Y variables and each of them must have length 64
+	if len(pubString) != 128 {
+		return nil, fmt.Errorf("length of input string must be 128")
+	}
+
+	publicKey := &ecdsa.PublicKey{
+		X: &big.Int{},
+		Y: &big.Int{},
+	}
+	pubXBytes, err := hex.DecodeString(pubString[0:64])
+	if err != nil {
+		return nil, err
+	}
+	pubYBytes, err := hex.DecodeString(pubString[64:])
+	if err != nil {
+		return nil, err
+	}
+	publicKey.X.SetBytes(pubXBytes)
+	publicKey.Y.SetBytes(pubYBytes)
+
+	return publicKey, nil
+}
+
+// StringToPrivateKey parses a string into private key
+func StringToPrivateKey(privateKeyString string) (*ecdsa.PrivateKey, error) {
+	pkByte, err := hex.DecodeString(privateKeyString)
+	if err != nil {
+		return nil, err
+	}
+	privKey, err := ToECDSA(pkByte)
+	if err != nil {
+		return nil, err
+	}
+	return privKey, nil
+}
