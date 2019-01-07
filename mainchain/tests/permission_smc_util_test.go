@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package tests
 
 import (
@@ -21,8 +39,10 @@ func GetBlockchain() (*blockchain.BlockChain, error) {
 		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": int64(math.Pow10(15)),
 	}
 	kardiaPermissionSmcAddress := configs.GetContractAddressAt(permissioned.KardiaPermissionSmcIndex).String()
+	privatechainCandidateSmcAddress := configs.GetContractAddressAt(permissioned.PrivateChainCandidateSmcIndex).String()
 	var genesisContracts = map[string]string{
 		kardiaPermissionSmcAddress: configs.GenesisContracts[kardiaPermissionSmcAddress],
+		privatechainCandidateSmcAddress: configs.GenesisContracts[privatechainCandidateSmcAddress],
 	}
 	kaiDb := storage.NewMemStore()
 	genesis := g.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)

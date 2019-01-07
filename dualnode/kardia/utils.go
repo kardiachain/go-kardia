@@ -34,6 +34,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/base"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	"github.com/pkg/errors"
 )
 // TODO(@sontranrad): remove all of these constants for production
 const ETH2NEO = "ETH-NEO"
@@ -41,7 +42,6 @@ const NEO2ETH = "NEO-ETH"
 const KardiaAccountToCallSmc = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
 const KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
 const KardiaNewExchangeSmcIndex = 3
-
 // These const contain indices of exchange-related fields in ExtData field of EventSummary struct
 const ExchangeDataSourceAddressIndex = 0
 const ExchangeDataDestAddressIndex = 1
@@ -52,7 +52,10 @@ const ExchangeDataCompleteRequestIDIndex = 0
 const ExchangeDataCompletePairIndex = 1
 const NumOfExchangeDataField = 5
 const NumOfCompleteRequestDataField = 2
+const KardiaCandidateExchangeSmcIndex = 6
 var MaximumGasToCallStaticFunction = uint(4000000)
+
+var errAbiNotFound = errors.New("ABI not found")
 // The following function is just call the master smc and return result in bytes format
 func CallStaticKardiaMasterSmc(from common.Address, to common.Address, bc base.BaseBlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
 	context := vm.NewKVMContextFromDualNodeCall(from, bc.CurrentHeader(), bc)
@@ -240,6 +243,43 @@ func CreateKardiaSetRateTx(pair string, sale *big.Int, receive *big.Int, state *
 		return nil, err
 	}
 	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, setRateInput, state), nil
+}
+
+// CreateCandidateInfoRequestTx creates tx call to Kardia candidate exchange contract to request external candidate info
+func CreateCandidateInfoRequestTx(email string, fromOrgId string, toOrgId string, state *state.ManagedState) (*types.Transaction, error) {
+	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(KardiaCandidateExchangeSmcIndex)
+	if exchangeSmcAbi == "" {
+		return nil, errAbiNotFound
+	}
+	kAbi, err := abi.JSON(strings.NewReader(exchangeSmcAbi))
+	if err != nil {
+		return nil, err
+	}
+	requestInfoInput, err := kAbi.Pack("requestCandidateInfo", email, fromOrgId, toOrgId)
+	if err != nil {
+		return nil, err
+	}
+	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), exchangeSmcAddr, requestInfoInput, state), nil
+}
+
+// CreateCandidateInfoFulfillTx creates tx call to Kardia candidate exchange contract to fulfill a candidate info request
+// from external private chain, receiving private chain will catch the event fired from Kardia exchange contract to process
+// candidate info
+func CreateCandidateInfoFulfillTx(email string, name string, age uint8, addr common.Address, source string, fromOrgId string,
+	toOrgId string, state *state.ManagedState) (*types.Transaction, error) {
+	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(KardiaCandidateExchangeSmcIndex)
+	if exchangeSmcAbi == "" {
+		return nil, errAbiNotFound
+	}
+	kAbi, err := abi.JSON(strings.NewReader(exchangeSmcAbi))
+	if err != nil {
+		return nil, err
+	}
+	requestInfoInput, err := kAbi.Pack("fulfillCandidateInfo", email, name, age, addr, source, fromOrgId, toOrgId)
+	if err != nil {
+		return nil, err
+	}
+	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), exchangeSmcAddr, requestInfoInput, state), nil
 }
 
 // Return a common private key to call to Kardia smc from dual node
