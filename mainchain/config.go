@@ -37,6 +37,8 @@ type Config struct {
 	// Protocol options
 	NetworkId uint64 // Network
 
+	ChainId uint64
+
 	// The genesis block, which is inserted if the database is empty.
 	// If nil, the Kardia main net block is used.
 	Genesis *genesis.Genesis `toml:",omitempty"`
@@ -61,4 +63,7 @@ type Config struct {
 
 	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	IsPrivate bool
+
+	// ServiceName is used to display as log's prefix
+	ServiceName string
 }

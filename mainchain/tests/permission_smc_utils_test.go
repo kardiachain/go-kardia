@@ -170,7 +170,7 @@ func TestGetInitialNodeByIndex(t *testing.T) {
 		t.Error("Expect listen address [::]:3000, got ", listenAddress)
 	}
 	// Get info of an invalid node
-	key, address, listenAddress, votingPower, nodeType, err = util.GetAdminNodeByIndex(10)
+	key, address, listenAddress, votingPower, nodeType, err = util.GetAdminNodeByIndex(13)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -39,11 +39,12 @@ import (
 	"github.com/kardiachain/go-kardia/dualnode/neo"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
-	"github.com/kardiachain/go-kardia/mainchain"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/dualnode/permissioned"
+	"github.com/kardiachain/go-kardia/mainchain"
 )
 
 // args
@@ -64,6 +65,9 @@ type flagArgs struct {
 	mainChainValIndexes string
 	isZeroFee           bool
 	isPrivate           bool
+	networkId           uint64
+	chainId             uint64
+	serviceName         string
 
 	// Ether/Kardia dualnode related flags
 	ethDual       bool
@@ -79,6 +83,14 @@ type flagArgs struct {
 	neoSubmitTxUrl     string
 	neoCheckTxUrl      string
 	neoReceiverAddress string
+
+	// Private/Kardia dualnode related flags
+	privateNetworkId   uint64
+	privateValIndexes  string
+	privateNodeName    string
+	privateChainId     uint64
+	privateServiceName string
+	privateAddr        string
 
 	// Dualnode's related flags
 	dualChain           bool
@@ -111,9 +123,12 @@ func init() {
 	flag.StringVar(&args.bootNode, "bootNode", "", "Enode address of node that will be used by the p2p discovery protocol")
 	flag.StringVar(&args.peer, "peer", "", "Comma separated enode URLs for P2P static peer")
 	flag.BoolVar(&args.clearDataDir, "clearDataDir", false, "remove contents in data dir")
-	flag.StringVar(&args.mainChainValIndexes, "mainChainValIndexes", "1,2,3", "Indexes of Main chain validator")
+	flag.StringVar(&args.mainChainValIndexes, "mainChainValIndexes", "1,2,3", "Indexes of Main chain validators")
 	flag.BoolVar(&args.isZeroFee, "zeroFee", false, "zeroFee is enabled then no gas is charged in transaction. Any gas that sender spends in a transaction will be refunded")
 	flag.BoolVar(&args.isPrivate, "private", false, "private is true then peerId will be checked through smc to make sure that it has permission to access the chain")
+	flag.Uint64Var(&args.networkId, "networkId", 0, "Your chain's networkId. NetworkId must be greater than 0")
+	flag.Uint64Var(&args.chainId, "chainId", 0, "ChainID is used to validate which node is allowed to send message through P2P in the same blockchain")
+	flag.StringVar(&args.serviceName, "serviceName", "", "ServiceName is used for displaying as log's prefix")
 
 	// Dualnode's related flags
 	flag.StringVar(&args.ethLogLevel, "ethloglevel", "warn", "minimum Eth log verbosity to display")
@@ -125,11 +140,17 @@ func init() {
 	flag.IntVar(&args.ethLightServ, "ethLightServ", 0, "max percentage of time serving Ethereum light client requests")
 	flag.IntVar(&args.ethRPCPort, "ethRPCPort", eth.DefaultEthConfig.HTTPPort, "HTTP-RPC server listening port for Eth node. 8546 is the default port")
 	flag.BoolVar(&args.dualChain, "dualchain", false, "run dual chain for group consensus")
-	flag.StringVar(&args.dualChainValIndexes, "dualChainValIndexes", "", "Indexes of Dual chain validator")
+	flag.StringVar(&args.dualChainValIndexes, "dualChainValIndexes", "", "Indexes of Dual chain validators")
 	flag.StringVar(&args.neoSubmitTxUrl, "neoSubmitTxUrl", neo.DefaultNeoConfig.SubmitTxUrl, "url to submit tx to neo")
 	flag.StringVar(&args.neoCheckTxUrl, "neoCheckTxUrl", neo.DefaultNeoConfig.CheckTxUrl, "url to check tx status from neo")
 	flag.StringVar(&args.neoReceiverAddress, "neoReceiverAddress", neo.DefaultNeoConfig.ReceiverAddress, "neo address to release to")
 	flag.BoolVar(&args.isPrivateDual, "privateDual", false, "privateDual is true then peerId will be checked through smc to make sure that it has permission to access the dualchain")
+	flag.Uint64Var(&args.privateNetworkId, "privateNetworkId", 0, "Privatechain Network ID. Private Network ID must be greater than 0")
+	flag.StringVar(&args.privateValIndexes, "privateValIndexes", "", "Indexes of private chain validators")
+	flag.StringVar(&args.privateNodeName, "privateNodeName", "", "Name of private node")
+	flag.Uint64Var(&args.privateChainId, "privateChainId", 0, "privateChainId is used to validate which node is allowed to send message through P2P in the private blockchain")
+	flag.StringVar(&args.privateServiceName, "privateServiceName", "", "privateServiceName is used for displaying as log's prefix")
+	flag.StringVar(&args.privateAddr, "privateAddr", ":5000", "listened address for private chain")
 
 	// NOTE: The flags below are only applicable for dev environment. Please add the applicable ones
 	// here and DO NOT add non-dev flags.
@@ -306,6 +327,15 @@ func main() {
 	config.MainChainConfig.IsZeroFee = args.isZeroFee
 	config.MainChainConfig.IsPrivate = args.isPrivate
 
+	if args.networkId > 0 {
+		config.MainChainConfig.NetworkId = args.networkId
+	}
+	if args.chainId > 0 {
+		config.MainChainConfig.ChainId = args.chainId
+	}
+	if args.serviceName != "" {
+		config.MainChainConfig.ServiceName = args.serviceName
+	}
 	if args.clearDataDir {
 		// Clear all contents within data dir
 		err := removeDirContents(nodeDir)
@@ -335,6 +365,8 @@ func main() {
 			config.DualChainConfig.ChainId = configs.EthDualChainID
 		} else if args.neoDual {
 			config.DualChainConfig.ChainId = configs.NeoDualChainID
+		} else {
+			config.DualChainConfig.ChainId = configs.DefaultChainID
 		}
 
 		n.RegisterService(dualservice.NewDualService)
@@ -501,6 +533,60 @@ func main() {
 		ethNode.RegisterInternalChain(kardiaProxy)
 
 		go displaySyncStatus(client)
+		kardiaProxy.Start(args.mockDualEvent)
+	}
+
+	if args.isPrivateDual {
+		// Do some validation
+		if args.privateNodeName == "" {
+			logger.Error("privateNodeName is required")
+			return
+		}
+		if args.privateValIndexes == "" {
+			logger.Error("privateValIndexes is required")
+			return
+		}
+
+		config := &permissioned.Config{
+			Name:              &args.privateNodeName,
+			NetworkId:         &args.privateNetworkId,
+			ValidatorsIndices: &args.privateValIndexes,
+			Proposal:          args.proposal,
+			ClearData:         args.clearDataDir,
+			ServiceName:       &args.privateServiceName,
+			ListenAddr:        &args.privateAddr,
+			ChainID:           &args.privateChainId,
+		}
+
+		if args.serviceName != "" {
+			config.ServiceName = &args.serviceName
+		}
+		if args.chainId > 0 {
+			config.ChainID = &args.chainId
+		}
+
+		permissionedProxy, err := permissioned.NewPermissionedProxy(config, kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool())
+		if err != nil {
+			logger.Error("Init new private proxy failed", "error", err)
+			return
+		}
+
+		permissionedProxy.Start()
+
+		var kardiaProxy *kardia.KardiaProxy
+		kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+		if err != nil {
+			log.Error("Fail to initialize KardiaChainProcessor", "error", err)
+		}
+		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
+		// submit tx to either internal or external blockchain.
+		bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, permissionedProxy)
+		dualService.SetDualBlockChainManager(bcManager)
+		// Register the 'other' blockchain to each internal/external blockchain. This is needed
+		// for generate Tx to submit to the other blockchain.
+		kardiaProxy.RegisterExternalChain(permissionedProxy)
+		permissionedProxy.RegisterInternalChain(kardiaProxy)
+
 		kardiaProxy.Start(args.mockDualEvent)
 	}
 

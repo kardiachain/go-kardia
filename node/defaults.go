@@ -36,6 +36,10 @@ const (
 
 	MainChainDataDir = "chaindata" // directory of database storage for main chain data
 	DualChainDataDir = "dualdata"  // directory of database storage for dual chain data
+
+	DefaultNetworkID  = 100
+	MainChainID = 1
+	KardiaServiceName = "KARDIA"
 )
 
 // DefaultConfig contains reasonable default settings.
@@ -51,6 +55,9 @@ var DefaultConfig = NodeConfig{
 		NAT:        nat.Any(),
 	},
 	MainChainConfig: MainChainConfig{
+		ServiceName:  KardiaServiceName,
+		ChainId:      MainChainID,
+		NetworkId:    DefaultNetworkID,
 		ChainDataDir: MainChainDataDir,
 		DbCache:      DefaultDbCache,
 		DbHandles:    DefaultDbHandles,

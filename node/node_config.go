@@ -79,6 +79,13 @@ type MainChainConfig struct {
 
 	// IsPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	IsPrivate bool
+
+	NetworkId uint64
+
+	ChainId uint64
+
+	// ServiceName is used as log's prefix
+	ServiceName string
 }
 
 type DualChainConfig struct {

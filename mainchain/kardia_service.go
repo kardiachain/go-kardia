@@ -38,10 +38,7 @@ import (
 )
 
 const (
-	KardiaServiceName = "KARDIA"
-	DefaultNetworkID  = 100
 	kaiProtocolName   = "kaiptc"
-	MainChainID       = 1
 )
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
@@ -85,7 +82,7 @@ func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
 func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService, error) {
 	// Create a specific logger for KARDIA service.
 	logger := log.New()
-	logger.AddTag(KardiaServiceName)
+	logger.AddTag(config.ServiceName)
 	logger.Info("newKardiaService", "chaindata", config.ChainData)
 
 	kaiDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
@@ -153,7 +150,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
 		votingStrategy,
 	)
-	kai.csManager = consensus.NewConsensusManager(KardiaServiceName, consensusState)
+	kai.csManager = consensus.NewConsensusManager(config.ServiceName, consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
 	kai.csManager.SetPrivValidator(privValidator)
@@ -164,7 +161,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		kaiProtocolName,
 		kai.logger,
 		config.NetworkId,
-		MainChainID,
+		config.ChainId,
 		kai.blockchain,
 		kai.chainConfig,
 		kai.txPool,
@@ -182,15 +179,17 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.MainChainConfig
 	kai, err := newKardiaService(ctx, &Config{
-		NetworkId: DefaultNetworkID,
-		ChainData: chainConfig.ChainDataDir,
-		DbHandles: chainConfig.DbHandles,
-		DbCaches:  chainConfig.DbCache,
-		Genesis:   chainConfig.Genesis,
-		TxPool:    chainConfig.TxPool,
-		AcceptTxs: chainConfig.AcceptTxs,
-		IsZeroFee: chainConfig.IsZeroFee,
-		IsPrivate: chainConfig.IsPrivate,
+		NetworkId:   chainConfig.NetworkId,
+		ServiceName: chainConfig.ServiceName,
+		ChainId:     chainConfig.ChainId,
+		ChainData:   chainConfig.ChainDataDir,
+		DbHandles:   chainConfig.DbHandles,
+		DbCaches:    chainConfig.DbCache,
+		Genesis:     chainConfig.Genesis,
+		TxPool:      chainConfig.TxPool,
+		AcceptTxs:   chainConfig.AcceptTxs,
+		IsZeroFee:   chainConfig.IsZeroFee,
+		IsPrivate:   chainConfig.IsPrivate,
 	})
 
 	if err != nil {

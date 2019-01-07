@@ -152,10 +152,7 @@ func (p *peer) Handshake(network uint64, chainID uint64, height uint64, head com
 
 func (p *peer) readStatus(network uint64, chainID uint64, status *statusData, genesis common.Hash, hasPermission bool) (err error) {
 	msg, err := p.rw.ReadMsg()
-	p.logger.Info("Read Peer handshake Status", "peer", p.Name(), "Code", msg.Code, "err", err,
-			"NodeID", p.Peer.ID(),
-			"status", fmt.Sprintf("{ProtocolVersion:%v NetworkId:%v ChainId:%v Height:%v CurrentBlock:%X GenesisBlock:%X",
-			status.ProtocolVersion, status.NetworkId, status.ChainID, status.Height, status.CurrentBlock[:12], status.GenesisBlock[:12]))
+	p.logger.Info("Read Peer handshake Status", "peer", p.Name(), "Code", msg.Code, "err", err, "NodeID", p.Peer.ID())
 	if err != nil {
 		return err
 	}
@@ -172,6 +169,10 @@ func (p *peer) readStatus(network uint64, chainID uint64, status *statusData, ge
 	if status.GenesisBlock != genesis {
 		return errResp(ErrGenesisBlockMismatch, "%x (!= %x)", status.GenesisBlock[:8], genesis[:8])
 	}
+
+	p.logger.Info("Decoded data", "msg", msg, "status", fmt.Sprintf("{ProtocolVersion:%v NetworkId:%v Height:%v CurrentBlock:%X GenesisBlock:%X",
+		status.ProtocolVersion, status.NetworkId, status.Height, status.CurrentBlock[:12], status.GenesisBlock[:12]))
+
 	if status.NetworkId != network {
 		return errResp(ErrNetworkIdMismatch, "%d (!= %d)", status.NetworkId, network)
 	}

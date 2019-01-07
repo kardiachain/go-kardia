@@ -1,5 +1,8 @@
 pragma solidity ^0.4.24;
 contract Permission {
+    
+    uint constant INITIAL_NODES_LENGTH = 13;
+
     struct NodeInfo {
         address nodeAddress;
         uint votingPower;
@@ -9,8 +12,8 @@ contract Permission {
     }
     mapping(string => NodeInfo) nodes;
 
-    function getInitialNodesIndexByPubKey(string _pubkey) internal pure returns (uint) {
-        string[] memory pubkey = new string[](10);
+    function getInitialNodePubKeyList() internal pure returns (string[]) {
+        string[] memory pubkey = new string[](INITIAL_NODES_LENGTH);
         pubkey[0] = "7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860";
         pubkey[1] = "660889e39b37ade58f789933954123e56d6498986a0cd9ca63d223e866d5521aaedc9e5298e2f4828a5c90f4c58fb24e19613a462ca0210dd962821794f630f0";
         pubkey[2] = "2e61f57201ec804f9d5298c4665844fd077a2516cd33eccea48f7bdf93de5182da4f57dc7b4d8870e5e291c179c05ff04100718b49184f64a7c0d40cc66343da";
@@ -21,18 +24,26 @@ contract Permission {
         pubkey[7] = "7ecd4ea1bf4efa34dac41a16d7ccd14e23d3993dd3f0a54d722ee76d170718adba7f246c082bada922c875ffaaa4618e307b68e44c2847d4f4e3b767884c02b7";
         pubkey[8] = "4857f792ef779c511f6d7643f0991409f77e41124ced14385217535641315f5dc9927e7301ffd7afc7ae8025663e17f593306adf7d3ffac7c6aa625c250de0d5";
         pubkey[9] = "ad67c2502fc2723f2dcf25a140744382eb3e4e50d7e4dd910c423f7aa4fe0fbbcc2207d22ef6edf469dd6fbea73efa8d87b4b876a0d6e386c4e00b6a51c2a3f8";
-        for (uint i = 0; i < 10; i ++) {
+        pubkey[10]= "43692b6f72370a32ab9fc5477ac3d560e45d29db0e6edc2e195cc74843b8fadf3259e5784c48bf4001a956b57c4e868f6d8d392083953009da114e382b67b326";
+        pubkey[11]= "e376664d17fa55d1b94061cd486a6f8d642cf43ff63f2555744df668c85f86e781b026d6300564dde234e19dd69d2abedc18a53db0d6f1e4a4c1bf3b27f7d848";
+        pubkey[12]= "2c29f2ce64dc90f1538bde02f666664a6c14832576086a019aa6672afb8e6299066b9c59c8c511e90c08b781e2051de6fefbde602dd745b5dc851972f3a34574";
+        return pubkey;
+    }
+
+    function getInitialNodesIndexByPubKey(string _pubkey) internal pure returns (uint) {
+        string[] memory pubkey = getInitialNodePubKeyList();
+        for (uint i = 0; i < INITIAL_NODES_LENGTH; i ++) {
             if (keccak256(abi.encodePacked(_pubkey)) == keccak256(abi.encodePacked(pubkey[i]))) {
                 return i;
             }
         }
         // return an index exceeding quantity of initial nodes
-        return 10;
+        return INITIAL_NODES_LENGTH;
     }
 
     // getInitialNodeAddressByIndex returns list of initial nodes' addresses
     function getInitialNodeAddresses() internal pure returns (address[]) {
-        address[] memory listAddress = new address[](10);
+        address[] memory listAddress = new address[](INITIAL_NODES_LENGTH);
         listAddress[0] = 0xc1fe56E3F58D3244F606306611a5d10c8333f1f6;
         listAddress[1] = 0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5;
         listAddress[2] = 0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd;
@@ -43,11 +54,14 @@ contract Permission {
         listAddress[7] = 0xBA30505351c17F4c818d94a990eDeD95e166474b;
         listAddress[8] = 0x212a83C0D7Db5C526303f873D9CeaA32382b55D0;
         listAddress[9] = 0x8dB7cF1823fcfa6e9E2063F983b3B96A48EEd5a4;
+        listAddress[10]= 0x66BAB3F68Ff0822B7bA568a58A5CB619C4825Ce5;
+        listAddress[11]= 0x88e1B4289b639C3b7b97899Be32627DCd3e81b7e;
+        listAddress[12]= 0xCE61E95666737E46B2453717Fe1ba0d9A85B9d3E;
         return listAddress;
     }
 
     function getInitialNodeListenAddresses() internal pure returns (string[]) {
-        string[] memory listAddress = new string[](10);
+        string[] memory listAddress = new string[](INITIAL_NODES_LENGTH);
         listAddress[0] = "[::]:3000";
         listAddress[1] = "[::]:3001";
         listAddress[2] = "[::]:3002";
@@ -58,6 +72,9 @@ contract Permission {
         listAddress[7] = "[::]:3007";
         listAddress[8] = "[::]:3008";
         listAddress[9] = "[::]:3009";
+        listAddress[10]= "[::]:3010";
+        listAddress[11]= "[::]:3011";
+        listAddress[12]= "[::]:3012";
         return listAddress;
     }
 
@@ -79,7 +96,7 @@ contract Permission {
 
     // isValidInitialNode checks if given key with given nodeType exists in initial nodes list
     function isValidInitialNode(string _key, uint256 _type) internal pure returns (bool) {
-        if (getInitialNodesIndexByPubKey(_key) < 11 && _type == 1) {
+        if (getInitialNodesIndexByPubKey(_key) < INITIAL_NODES_LENGTH && _type == 1) {
             return true;
         }
         return false;
@@ -87,7 +104,7 @@ contract Permission {
 
     function getInitialNodeInfo(string _key) internal pure returns (address _add, uint nodeType, uint votingPower, bool added, string listenAddress) {
         uint index = getInitialNodesIndexByPubKey(_key);
-        if (index < 10) {
+        if (index < INITIAL_NODES_LENGTH) {
             return (getInitialNodeAddresses()[index], 1, 100, true, getInitialNodeListenAddresses()[index]);
         }
         return (0x0, 0, 0, false, "");
@@ -96,7 +113,7 @@ contract Permission {
     // isInitialValidator checks if given key exists in initial nodes list and has votingPower
     function isInitialValidator(string _key) internal pure returns (bool) {
         uint index = getInitialNodesIndexByPubKey(_key);
-        if (index < 10) {
+        if (index < INITIAL_NODES_LENGTH) {
             return true;
         }
         return false;
@@ -120,7 +137,7 @@ contract Permission {
     // return (0x0, 0, 0) if pubkey is not found
     function getNodeInfo(string _pubkey) public view returns (address addr, uint votingPower, uint nodeType, string listenAddress) {
         uint initialIndex = getInitialNodesIndexByPubKey(_pubkey);
-        if (initialIndex < 10) {
+        if (initialIndex < INITIAL_NODES_LENGTH) {
             return (getInitialNodeAddresses()[initialIndex], 100, 1, getInitialNodeListenAddresses()[initialIndex]);
         }
         if (nodes[_pubkey].added == false) {
@@ -167,20 +184,27 @@ contract Permission {
     }
 
     // removeNode remove a node with a given node type,
-    // return 1 if success, return 0 if false of pubkey is not found
-    function removeNode(string _pubkey, uint _nodeType) public onlyOwner returns (uint) {
-        // we don't allow removal of initial nodes for security reasons
-        if (isValidInitialNode(_pubkey, _nodeType) == true) {
-            return 0;
+        // return 1 if success, return 0 if false of pubkey is not found
+        function removeNode(string _pubkey) public onlyOwner returns (uint) {
+            // we don't allow removal of initial nodes for security reasons
+            if (getInitialNodesIndexByPubKey(_pubkey) < INITIAL_NODES_LENGTH) {
+                return 0;
+            }
+            // key has not been added , return false
+            if (nodes[_pubkey].added == false) {
+                return 0;
+            }
+            delete nodes[_pubkey];
+            return 1;
         }
-        // key has not been added , return false
-        if (nodes[_pubkey].added == false) {
-            return 0;
+
+    // getInitialNodeByIndex returns publickey, addr, listenAddr, votingPower and nodeType of initial node specified by index
+    // return ("", 0x0, "", 0, 0) if index > INITIAL_NODES_LENGTH
+    function getInitialNodeByIndex(uint index) public pure returns (string publickey, address addr, string listenAddr, uint votingPower, uint nodeType) {
+        if (index >= INITIAL_NODES_LENGTH) {
+            return ("", 0x0, "", 0, 0);
         }
-        if (nodes[_pubkey].nodeType != _nodeType) {
-            return 0;
-        }
-        delete nodes[_pubkey];
-        return 1;
+        string[] memory pubkey = getInitialNodePubKeyList();
+        return (pubkey[index], getInitialNodeAddresses()[index],  getInitialNodeListenAddresses()[index], getInitialNodeVotingPower(), getInitialNodeType());
     }
 }

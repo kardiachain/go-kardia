@@ -33,7 +33,9 @@ type BaseBlockChain interface {
 	CurrentBlock() *types.Block
 	WriteBlockWithoutState(block *types.Block) error
 	WriteCommit(height uint64, commit *types.Commit)
+	GetBlock(hash common.Hash, number uint64) *types.Block
 	GetBlockByHeight(height uint64) *types.Block
+	GetBlockByHash(hash common.Hash) *types.Block
 	State() (*state.StateDB, error)
 	CommitTrie(root common.Hash) error
 	WriteReceipts(receipts types.Receipts, block *types.Block)
@@ -43,4 +45,5 @@ type BaseBlockChain interface {
 	IsPrivate() bool
 	HasPermission(peer *p2p.Peer) bool
 	SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription
+	StateAt(root common.Hash) (*state.StateDB, error)
 }

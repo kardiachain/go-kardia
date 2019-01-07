@@ -29,13 +29,11 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/dev"
-	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
 	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	kardiabc "github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/kai/base"
@@ -60,13 +58,13 @@ var (
 // NeoProxy provides interfaces for Neo Dual node, responsible for detecting updates
 // that relates to NEO from Kardia, sending tx to NEO network and check tx status
 type NeoProxy struct {
-	kardiaBc   *kardiabc.BlockChain
+	kardiaBc   base.BaseBlockChain
 	txPool     *tx_pool.TxPool
 	smcAddress *common.Address
 	smcABI     *abi.ABI
 
 	// Dual blockchain related fields
-	dualBc    *dualbc.DualBlockChain
+	dualBc    base.BaseBlockChain
 	eventPool *event_pool.EventPool // Event pool of DUAL service.
 
 	// The internal blockchain (i.e. Kardia's mainchain) that this dual node's interacting with.
@@ -84,7 +82,7 @@ type NeoProxy struct {
 	generateTx         bool
 }
 
-func NewNeoProxy(kardiaBc *kardiabc.BlockChain, txPool *tx_pool.TxPool, dualBc *dualbc.DualBlockChain,
+func NewNeoProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain,
 	dualEventPool *event_pool.EventPool, smcAddr *common.Address, smcABIStr string,
 	submitTxUrl string, checkTxUrl string, neoReceiverAdd string, generateTx bool) (*NeoProxy, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))

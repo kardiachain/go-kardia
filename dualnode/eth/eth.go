@@ -42,14 +42,12 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/kardiachain/go-kardia/dev"
-	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
 	"github.com/kardiachain/go-kardia/dualnode/eth/ethsmc"
 	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
@@ -57,7 +55,7 @@ import (
 )
 
 const (
-	// // headChannelSize is the size of channel listening to ChainHeadEvent.
+	// headChannelSize is the size of channel listening to ChainHeadEvent.
 	headChannelSize = 5
 )
 
@@ -74,7 +72,7 @@ type Eth struct {
 	ethSmc *ethsmc.EthSmc
 
 	// Dual blockchain related fields
-	dualChain *dualbc.DualBlockChain
+	dualChain base.BaseBlockChain
 	eventPool *event_pool.EventPool
 
 	// The internal blockchain (i.e. Kardia's mainchain) that this dual node's interacting with.
@@ -82,7 +80,7 @@ type Eth struct {
 
 	// TODO(namdoh,thientn): Deprecate this. This is needed solely to get Kardia's state in order
 	// to get Eth's amount from Kardia's smart contract.
-	kardiaChain *blockchain.BlockChain
+	kardiaChain base.BaseBlockChain
 	// TODO(namdoh,thientn): Deprecate this. This is needed solely submit remove amount Tx to
 	// Karida's tx pool.
 	txPool *tx_pool.TxPool
@@ -93,7 +91,7 @@ type Eth struct {
 }
 
 // Eth creates a Ethereum sub node.
-func NewEth(config *EthConfig, kardiaChain *blockchain.BlockChain, txPool *tx_pool.TxPool, dualChain *dualbc.DualBlockChain, dualEventPool *event_pool.EventPool, smcAddr *common.Address, smcABIStr string) (*Eth, error) {
+func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.TxPool, dualChain base.BaseBlockChain, dualEventPool *event_pool.EventPool, smcAddr *common.Address, smcABIStr string) (*Eth, error) {
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
 		return nil, err
