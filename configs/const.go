@@ -38,24 +38,10 @@ const (
 	ExchangeDataCompletePairIndex      = 1
 	NumOfExchangeDataField             = 5
 	NumOfCompleteRequestDataField      = 2
-	PrivateChainCandidateDBSmcIndex    = 5
-	KardiaCandidateExchangeSmcIndex    = 6
-	RequestInfoFunction                = "requestCandidateInfo"
-	FulfillInfoFunction                = "fulfillCandidateInfo"
-	CandidateInfoRequestedEvent        = "ExternalCandidateInfoRequested"
-	CandidateInfoFulfilledEvent        = "ExternalCandidateInfoFulfilled"
-	CandidateInfoRequestFields         = 3
-	CandidateInfoEmailIndex            = 0
-	CandidateInfoFromOrgIndex          = 1
-	CandidateInfoToOrgIndex            = 2
-	CandidateInfoFulfilledFields       = 7
-	CandidateInfoFulfilledEmailIndex   = 0
-	CandidateInfoFulfilledNameIndex    = 1
-	CandidateInfoFulfilledAgeIndex     = 2
-	CandidateInfoFulfilledAddrIndex    = 3
-	CandidateInfoFulfilledSourceIndex  = 4
-	CandidateInfoFulfilledFromOrgIndex = 5
-	CandidateInfoFulfilledToOrgIndex   = 6
+	// constants related to candidate exchange, Kardia part
+	KardiaCandidateExchangeSmcIndex = 6
+	KardiaForwardRequestFunction    = "forwardRequest"
+	KardiaForwardResponseFunction   = "forwardResponse"
 )
 
 var (
@@ -65,7 +51,7 @@ var (
 	ErrAddKardiaTx              = errors.New("fail to add Tx to Kardia's TxPool")
 	ErrFailedGetState           = errors.New("fail to get Kardia state")
 
-	ErrInsufficientCandidateRequestData = errors.New("insufficient candidate request data")
-	ErrFailedGetEventData       = errors.New("fail to get event external data")
-	ErrNoMatchedRequest         = errors.New("request has no matched opponent")
+	ErrFailedGetEventData = errors.New("fail to get event external data")
+	ErrNoMatchedRequest   = errors.New("request has no matched opponent")
+	ErrNotImplemented     = errors.New("this function is not implemented yet")
 )

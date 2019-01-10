@@ -234,8 +234,9 @@ func CreateKardiaSetRateTx(pair string, sale *big.Int, receive *big.Int, state *
 	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, setRateInput, state), nil
 }
 
-// CreateCandidateInfoRequestTx creates tx call to Kardia candidate exchange contract to request external candidate info
-func CreateCandidateInfoRequestTx(email string, fromOrgId string, toOrgId string, state *state.ManagedState) (*types.Transaction, error) {
+// CreateForwardRequestTx creates tx call to Kardia candidate exchange contract to forward a candidate request to another
+// external chain
+func CreateForwardRequestTx(email string, fromOrgId string, toOrgId string, state *state.ManagedState) (*types.Transaction, error) {
 	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
 	if exchangeSmcAbi == "" {
 		return nil, errAbiNotFound
@@ -244,17 +245,17 @@ func CreateCandidateInfoRequestTx(email string, fromOrgId string, toOrgId string
 	if err != nil {
 		return nil, err
 	}
-	requestInfoInput, err := kAbi.Pack("requestCandidateInfo", email, fromOrgId, toOrgId)
+	requestInfoInput, err := kAbi.Pack(configs.KardiaForwardRequestFunction, email, fromOrgId, toOrgId)
 	if err != nil {
 		return nil, err
 	}
 	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), exchangeSmcAddr, requestInfoInput, state), nil
 }
 
-// CreateCandidateInfoFulfillTx creates tx call to Kardia candidate exchange contract to fulfill a candidate info request
+// CreateForwardResponseTx creates tx call to Kardia candidate exchange contract to fulfill a candidate info request
 // from external private chain, receiving private chain will catch the event fired from Kardia exchange contract to process
 // candidate info
-func CreateCandidateInfoFulfillTx(email string, name string, age uint8, addr common.Address, source string, fromOrgId string,
+func CreateForwardResponseTx(email string, name string, age uint8, addr common.Address, source string, fromOrgId string,
 	toOrgId string, state *state.ManagedState) (*types.Transaction, error) {
 	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
 	if exchangeSmcAbi == "" {
@@ -264,7 +265,7 @@ func CreateCandidateInfoFulfillTx(email string, name string, age uint8, addr com
 	if err != nil {
 		return nil, err
 	}
-	requestInfoInput, err := kAbi.Pack("fulfillCandidateInfo", email, name, age, addr, source, fromOrgId, toOrgId)
+	requestInfoInput, err := kAbi.Pack(configs.KardiaForwardResponseFunction, email, name, age, addr, source, fromOrgId, toOrgId)
 	if err != nil {
 		return nil, err
 	}
@@ -277,3 +278,5 @@ func GetPrivateKeyToCallKardiaSmc() *ecdsa.PrivateKey {
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 	return addrKey
 }
+
+func IsNilOrEmpty(data []byte) bool { return data == nil || string(data) == "" }

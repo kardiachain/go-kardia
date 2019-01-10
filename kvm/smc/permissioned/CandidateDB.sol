@@ -11,14 +11,23 @@ contract CandidateDB {
         string source;
         bool isSet;
     }
+
+    struct Request {
+        string email;
+        string fromOrgId;
+        bool isComplete;
+    }
+
+    Request[] listRequest;
     event ExternalCandidateInfoRequested(string email, string fromOrgId, string toOrgId);
+    event RequestCompleted(string email, string name, uint8 age, address addr, string source, string toOrgId);
     mapping(string=>CandidateInfo) candidateList;
 
-    // getCandidateInfo returns info of a candidate specified by address,
+    // getCandidateInfo returns info of a candidate specified by email,
     // in which add is address in source blockchain , isExternal indicates if candidate comes from external source,
     // source is symbol of the source blockchain that candidate comes from,
     // returns ("", "", 0, 0x, false, "") if not found
-    function getCandidateInfo(string _email) public view returns (string name, string email, uint age, address add, bool isExternal, string source) {
+    function getCandidateInfo(string _email) public view returns (string name, string email, uint age, address addr, bool isExternal, string source) {
         if (candidateList[_email].isSet) {
             return (candidateList[_email].name, _email, candidateList[_email].age, candidateList[_email].addr,
                 candidateList[_email].isExternal, candidateList[_email].source);
@@ -43,4 +52,72 @@ contract CandidateDB {
         CandidateInfo memory info = CandidateInfo(_name, _email, _age, _addr, true, source, true);
         candidateList[_email] = info;
     }
+
+    //addRequest adds an external candidate info request into requestList
+    function addRequest(string email, string fromOrgId) public {
+        Request memory r = Request(email, fromOrgId, false);
+        listRequest.push(r);
+    }
+
+    //completeRequest fire event to send info of requested candidate and removes request from list
+    function completeRequest(uint _requestID, string _email) public returns (uint8) {
+        if (keccak256(abi.encodePacked(listRequest[_requestID].email)) != keccak256(abi.encodePacked(_email))) {
+            return 0;
+        }
+        if (listRequest[_requestID].isComplete) {
+            return 0;
+        }
+        if (!candidateList[_email].isSet) {
+            return 0;
+        }
+        // remove request from list
+        listRequest[_requestID].isComplete = true;
+        emit RequestCompleted(_email, candidateList[_email].name, candidateList[_email].age, candidateList[_email].addr,
+            candidateList[_email].source, listRequest[_requestID].fromOrgId);
+        return 1;
+    }
+
+    //getRequests returns list of requests in a comma-separated string
+    function getRequests() public view returns (string requestList) {
+        if (listRequest.length == 0) {
+            return "";
+        }
+        string memory results = "";
+        for (uint i=0; i < listRequest.length; i++) {
+            if (keccak256(abi.encodePacked(results)) != keccak256(abi.encodePacked(""))) {
+                results = concatStr(results, ",");
+            }
+            if (listRequest[i].isComplete == false) {
+                results = concatStr(results, requestToString(listRequest[i], i));
+            }
+        }
+        return results;
+    }
+
+    function concatStr(string a, string b) internal pure returns (string) {
+        return string(abi.encodePacked(a, b));
+    }
+
+    function requestToString(Request r, uint _id) internal pure returns (string) {
+        string memory strId = uint2str(_id);
+        return string(abi.encodePacked(strId, ":", r.email, ":", r.fromOrgId));
+    }
+
+    function uint2str(uint i) internal pure returns (string){
+        if (i == 0) return "0";
+        uint j = i;
+        uint length;
+        while (j != 0){
+            length++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(length);
+        uint k = length - 1;
+        while (i != 0){
+            bstr[k--] = byte(48 + i % 10);
+            i /= 10;
+        }
+        return string(bstr);
+    }
 }
+

@@ -19,10 +19,8 @@
 package kardia
 
 import (
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode/kardia/dual_logic_handler"
-	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
@@ -111,21 +109,6 @@ func (p *KardiaProxy) Start(initRate bool) {
 
 func (p *KardiaProxy) RegisterExternalChain(externalChain base.BlockChainAdapter) {
 	p.externalChain = externalChain
-}
-
-// ComputeTxMetadataForRequestInfo computes the metadata from a candidate info request comes from external private chain
-// for the tx that will be submitted to candidate exchange contract on Kardia
-func (p *KardiaProxy) ComputeTxMetadataForRequestInfo(event *types.EventData) (*types.TxMetadata, error) {
-	tx, err := utils.CreateCandidateInfoRequestTx(string(event.Data.ExtData[configs.CandidateInfoEmailIndex]),
-		string(event.Data.ExtData[configs.CandidateInfoFromOrgIndex]), string(event.Data.ExtData[configs.CandidateInfoToOrgIndex]),
-		p.txPool.State())
-	if err != nil {
-		return nil, err
-	}
-	return &types.TxMetadata{
-		TxHash: tx.Hash(),
-		Target: types.KARDIA,
-	}, nil
 }
 
 func (p *KardiaProxy) loop() {

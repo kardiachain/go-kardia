@@ -125,7 +125,7 @@ func TestAddInternalCandidate(t *testing.T) {
 	}
 }
 
-// Test update info of a candidate internally from a private chain
+// Test update info of a candidate from external private chain data
 func TestAddExternalCandidate(t *testing.T) {
 	util, err := GetCandidateSmcUtil()
 	if err != nil {

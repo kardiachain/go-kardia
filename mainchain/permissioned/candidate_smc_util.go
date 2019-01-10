@@ -2,9 +2,8 @@ package permissioned
 
 import (
 	"crypto/ecdsa"
-	"math/big"
-	"strings"
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"
@@ -13,7 +12,8 @@ import (
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/pkg/errors"
-	"github.com/kardiachain/go-kardia/dualnode/utils"
+	"math/big"
+	"strings"
 )
 
 type CandidateSmcUtil struct {
@@ -101,4 +101,13 @@ func (cs *CandidateSmcUtil) UpdateCandidateInfoFromExternal(name string, email s
 		return nil, err
 	}
 	return tool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, updateExternalCandidateInput, state.ManageState(cs.StateDB)), nil
+}
+
+// AddRequest returns a tx to add a request to request list of private chain candidate smart contract
+func (cs *CandidateSmcUtil) AddRequest(email string, fromOrgID string, state *state.ManagedState) (*types.Transaction, error) {
+	addRequestInput, err := cs.Abi.Pack("addRequest", email, fromOrgID)
+	if err != nil {
+		return nil, err
+	}
+	return tool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, state), nil
 }
