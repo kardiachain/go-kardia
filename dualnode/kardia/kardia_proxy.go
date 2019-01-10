@@ -19,37 +19,24 @@
 package kardia
 
 import (
-	"errors"
-	"strings"
-	"math/big"
-	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/dualnode/kardia/dual_logic_handler"
+	"github.com/kardiachain/go-kardia/dualnode/utils"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/types"
+	"github.com/pkg/errors"
+	"math/big"
 )
 
-var (
-	ErrFailedGetState           = errors.New("fail to get Kardia state")
-	ErrCreateKardiaTx           = errors.New("fail to create Kardia's Tx from DualEvent")
-	ErrAddKardiaTx              = errors.New("fail to add Tx to Kardia's TxPool")
-	ErrInsufficientExchangeData = errors.New("insufficient exchange external data")
-	ErrFailedGetEventData       = errors.New("fail to get event external data")
-	ErrNoMatchedRequest         = errors.New("request has no matched opponent")
-	ErrUnsupportedMethod        = errors.New("method is not supported by dual logic")
-)
+var errNilLogicHandler = errors.New("no logic handler available")
 
 // Proxy of Kardia's chain to interface with dual's node, responsible for listening to the chain's
-// new block and submiting Kardia's transaction .
-const (
-	MatchFunction = "matchRequest"
-	CompleteFunction = "completeRequest"
-	ExternalDepositFunction = "deposit"
-)
-
+// new block and submiting Kardia's transaction.
 type KardiaProxy struct {
 	// Kardia's mainchain stuffs.
 	kardiaBc     base.BaseBlockChain
@@ -63,25 +50,7 @@ type KardiaProxy struct {
 
 	// The external blockchain that this dual node's interacting with.
 	externalChain base.BlockChainAdapter
-
-	// TODO(namdoh,thientn): Hard-coded for prototyping. This need to be passed dynamically.
-	smcAddress *common.Address
-	smcABI     *abi.ABI
-}
-
-type MatchRequestInput struct {
-	SrcPair     string
-	DestPair    string
-	SrcAddress  string
-	DestAddress string
-	Amount      *big.Int
-}
-
-type CompleteRequestInput struct {
-	// RequestID is ID of request stored in Kardia exchange smc
-	RequestID *big.Int
-	// Pair is original direction of competed request, for ETH-NEO request, pair is "ETH-NEO"
-	Pair string
+	logicHandler  dual_logic_handler.KardiaTxHandlerAdapter
 }
 
 type MatchedRequest struct {
@@ -91,20 +60,23 @@ type MatchedRequest struct {
 }
 
 func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.EventPool, smcAddr *common.Address, smcABIStr string) (*KardiaProxy, error) {
-	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
-	if err != nil {
-		return nil, err
+	var handler dual_logic_handler.KardiaTxHandlerAdapter
+	var err error
+	// Kardia BC is of kardia public chain, attach exchange handler
+	if !kardiaBc.IsPrivate() {
+		handler, err = dual_logic_handler.NewCurrencyExchangeLogicHandler(smcAddr, smcABIStr)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	processor := &KardiaProxy{
-		kardiaBc:   kardiaBc,
-		txPool:     txPool,
-		dualBc:     dualBc,
-		eventPool:  dualEventPool,
-		smcAddress: smcAddr,
-		smcABI:     &smcABI,
-
-		chainHeadCh: make(chan base.ChainHeadEvent, 5),
+		kardiaBc:     kardiaBc,
+		txPool:       txPool,
+		dualBc:       dualBc,
+		eventPool:    dualEventPool,
+		chainHeadCh:  make(chan base.ChainHeadEvent, 5),
+		logicHandler: handler,
 	}
 
 	// Start subscription to blockchain head event.
@@ -114,128 +86,46 @@ func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc
 }
 
 func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
-	// We currently only handle external deposit from outside
-	if event.Data.TxMethod != ExternalDepositFunction {
-		return ErrUnsupportedMethod
+	if p.logicHandler == nil {
+		return errNilLogicHandler
 	}
-	log.Error("Submit to Kardia", "value", event.Data.TxValue, "method", event.Data.TxMethod)
-	// These logics temporarily for exchange case , will be dynamic later
-	if event.Data.ExtData == nil || len(event.Data.ExtData) < 2 {
-		log.Error("Event doesn't contain external data")
-		return ErrInsufficientExchangeData
-	}
-	if event.Data.ExtData[0] == nil || event.Data.ExtData[1] == nil {
-		log.Error("Missing address in exchange event", "sender", event.Data.ExtData[0],
-			"receiver", event.Data.ExtData[1])
-		return ErrInsufficientExchangeData
-	}
-	stateDb, err := p.kardiaBc.State()
-	if err != nil {
-		log.Error("Error getting state", "err", err)
-		return ErrFailedGetState
-	}
-	sale1, receive1, err1 := CallGetRate(ETH2NEO, p.kardiaBc, stateDb)
-	if err1 != nil {
-		return err1
-	}
-	sale2, receive2, err2 := CallGetRate(NEO2ETH, p.kardiaBc, stateDb)
-	if err2 != nil {
-		return err2
-	}
-	log.Info("Rate before matching", "pair", ETH2NEO, "sale", sale1, "receive", receive1)
-	log.Info("Rate before matching", "pair", NEO2ETH, "sale", sale2, "receive", receive2)
-	log.Info("Create match tx:", "source", event.Data.ExtData[ExchangeDataSourceAddressIndex],
-		"dest", event.Data.ExtData[ExchangeDataDestAddressIndex])
-	tx, err := CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue,
-		string(event.Data.ExtData[ExchangeDataSourceAddressIndex]), string(event.Data.ExtData[ExchangeDataDestAddressIndex]), event.TxSource)
-	if err != nil {
-		log.Error("Fail to create Kardia's tx from DualEvent", "err", err)
-		return ErrCreateKardiaTx
-	}
-	err = p.txPool.AddLocal(tx)
-	if err != nil {
-		log.Error("Fail to add Kardia's tx", "error", err)
-		return ErrAddKardiaTx
-	}
-	log.Info("Submit Kardia's tx successfully", "txhash", tx.Hash().String())
-	return nil
-
+	return p.logicHandler.SubmitTx(event, p.kardiaBc, p.txPool)
 }
 
 // ComputeTxMetadata precomputes the tx metadata that will be submitted to another blockchain
 // In case of error, this will return nil so that DualEvent won't be added to EventPool for further processing
-func (n *KardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, error) {
-	// Compute Kardia's tx from the DualEvent.
-	// TODO(thientn,namdoh): Remove hard-coded account address here.
-	if event.Data.TxMethod == ExternalDepositFunction {
-		// These logics temporarily for exchange case , will be dynamic later
-		if event.Data.ExtData == nil {
-			log.Error("Event doesn't contain external data")
-			return nil, ErrFailedGetEventData
-		}
-		if event.Data.ExtData[ExchangeDataDestAddressIndex] == nil || string(event.Data.ExtData[ExchangeDataDestAddressIndex]) == "" ||
-			event.Data.TxValue.Cmp(big.NewInt(0)) == 0 {
-			return nil, ErrInsufficientExchangeData
-		}
-		if event.Data.ExtData[ExchangeDataSourceAddressIndex] == nil || event.Data.ExtData[ExchangeDataDestAddressIndex] == nil {
-			log.Error("Missing address in exchange event", "send", event.Data.ExtData[ExchangeDataSourceAddressIndex],
-				"receive", event.Data.ExtData[ExchangeDataDestAddressIndex])
-			return nil, ErrInsufficientExchangeData
-		}
-		kardiaTx, err := CreateKardiaMatchAmountTx(n.txPool.State(), event.Data.TxValue,
-			string(event.Data.ExtData[ExchangeDataSourceAddressIndex]), string(event.Data.ExtData[ExchangeDataDestAddressIndex]), event.TxSource)
-		if err != nil {
-			return nil, err
-		}
-		return &types.TxMetadata{
-			TxHash: kardiaTx.Hash(),
-			Target: types.KARDIA,
-		}, nil
-
+func (p *KardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, error) {
+	if p.logicHandler == nil {
+		return nil, errNilLogicHandler
 	}
-	// Temporarily return simple MetaData for other events
-	return &types.TxMetadata{
-		TxHash: event.Hash(),
-		Target: types.KARDIA,
-	}, nil
+	return p.logicHandler.ComputeTxMetadata(event, p.txPool)
 }
 
 func (p *KardiaProxy) Start(initRate bool) {
 	// Start event
 	go p.loop()
 	if initRate {
-		go p.initRate()
-	}
-}
-
-// initRate send 2 tx to Kardia exchange smart contract for ETH-NEO and NEO-ETH.
-// FIXME: (sontranrad) revisit here to simplify the logic and remove need of updating 2 time if possible
-func (p *KardiaProxy) initRate() {
-	// Set rate for 2 pair
-	tx1, err := CreateKardiaSetRateTx(ETH2NEO, big.NewInt(1), big.NewInt(10), p.txPool.State());
-	if err != nil {
-		log.Error("Failed to create add rate tx", "err", err)
-		return
-	}
-	err = p.txPool.AddLocal(tx1)
-	if err != nil {
-		log.Error("Failed to add rate tx to pool", "err", err)
-		return
-	}
-	tx2, err := CreateKardiaSetRateTx(NEO2ETH, big.NewInt(10), big.NewInt(1), p.txPool.State())
-	if err != nil {
-		log.Error("Failed to create add rate tx", "err", err)
-		return
-	}
-	err = p.txPool.AddLocal(tx2)
-	if err != nil {
-		log.Error("Failed to add rate tx to pool", "err", err)
-		return
+		go p.logicHandler.Init(p.txPool)
 	}
 }
 
 func (p *KardiaProxy) RegisterExternalChain(externalChain base.BlockChainAdapter) {
 	p.externalChain = externalChain
+}
+
+// ComputeTxMetadataForRequestInfo computes the metadata from a candidate info request comes from external private chain
+// for the tx that will be submitted to candidate exchange contract on Kardia
+func (p *KardiaProxy) ComputeTxMetadataForRequestInfo(event *types.EventData) (*types.TxMetadata, error) {
+	tx, err := utils.CreateCandidateInfoRequestTx(string(event.Data.ExtData[configs.CandidateInfoEmailIndex]),
+		string(event.Data.ExtData[configs.CandidateInfoFromOrgIndex]), string(event.Data.ExtData[configs.CandidateInfoToOrgIndex]),
+		p.txPool.State())
+	if err != nil {
+		return nil, err
+	}
+	return &types.TxMetadata{
+		TxHash: tx.Hash(),
+		Target: types.KARDIA,
+	}, nil
 }
 
 func (p *KardiaProxy) loop() {
@@ -258,87 +148,15 @@ func (p *KardiaProxy) loop() {
 }
 
 func (p *KardiaProxy) handleBlock(block *types.Block) {
+	if p.logicHandler == nil {
+		log.Error("Error handle Kardia block", "err", errNilLogicHandler)
+	}
 	for _, tx := range block.Transactions() {
-		if tx.To() != nil && *tx.To() == *p.smcAddress {
-			eventSummary, err := p.extractKardiaTxSummary(tx)
+		if tx.To() != nil && *tx.To() == p.logicHandler.GetSmcAddress() {
+			err := p.logicHandler.HandleKardiaTx(tx, p.eventPool, p.txPool)
 			if err != nil {
-				log.Error("Error when extracting Kardia main chain's tx summary.")
-				// TODO(#140): Handle smart contract failure correctly.
-				panic("Not yet implemented!")
+				log.Error("Error handling tx", "txHash", tx.Hash(), "err", err)
 			}
-			// TODO(@sontranrad): add dynamic filter if possile, currently we're only interested in matchRequest
-			// and completeRequest method
-			if eventSummary.TxMethod != MatchFunction && eventSummary.TxMethod != CompleteFunction {
-				log.Info("Skip tx updating smc for non-matching tx or non-complete-request tx", "method", eventSummary.TxMethod)
-				continue
-			}
-			log.Info("Detect Kardia's tx updating smc", "method", eventSummary.TxMethod, "value",
-				eventSummary.TxValue, "hash", tx.Hash())
-			nonce := p.eventPool.State().GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
-			kardiaTxHash := tx.Hash()
-			txHash := common.BytesToHash(kardiaTxHash[:])
-			dualEvent := types.NewDualEvent(nonce, false /* externalChain */, types.KARDIA, &txHash, &eventSummary)
-			txMetadata, err := p.externalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
-			if err != nil {
-				log.Error("Error computing tx metadata", "err", err)
-				continue
-			}
-			dualEvent.PendingTxMetadata = txMetadata
-			log.Info("Create DualEvent for Kardia's Tx", "dualEvent", dualEvent)
-			err = p.eventPool.AddEvent(dualEvent)
-			if err != nil {
-				log.Error("Fail to add dual's event", "error", err)
-				continue
-			}
-			log.Info("Submitted Kardia's DualEvent to event pool successfully", "txHash", tx.Hash().String(),
-				"eventHash", dualEvent.Hash().String())
 		}
 	}
-}
-
-func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.EventSummary, error) {
-	// New tx that updates smc, check input method for more filter.
-	method, err := p.smcABI.MethodById(tx.Data()[0:4])
-	if err != nil {
-		log.Error("Fail to unpack smc update method in tx", "tx", tx, "error", err)
-		return types.EventSummary{}, err
-	}
-	input := tx.Data()
-	var exchangeExternalData [][]byte
-	switch method.Name {
-	case MatchFunction:
-		exchangeExternalData = make([][]byte, NumOfExchangeDataField)
-		var decodedInput MatchRequestInput
-		err = p.smcABI.UnpackInput(&decodedInput, MatchFunction, input[4:])
-		if err != nil {
-			log.Error("failed to get external data of exchange contract event", "method", method.Name)
-			return types.EventSummary{}, ErrFailedGetEventData
-		}
-		log.Info("Match request input", "src", decodedInput.SrcAddress, "dest", decodedInput.DestAddress,
-			"srcpair", decodedInput.SrcPair, "destpair", decodedInput.DestPair, "amount", decodedInput.Amount.String())
-		exchangeExternalData[ExchangeDataSourceAddressIndex] = []byte(decodedInput.SrcAddress)
-		exchangeExternalData[ExchangeDataDestAddressIndex] = []byte(decodedInput.DestAddress)
-		exchangeExternalData[ExchangeDataSourcePairIndex] = []byte(decodedInput.SrcPair)
-		exchangeExternalData[ExchangeDataDestPairIndex] = []byte(decodedInput.DestPair)
-		exchangeExternalData[ExchangeDataAmountIndex] = decodedInput.Amount.Bytes()
-	case CompleteFunction:
-		exchangeExternalData = make([][]byte, NumOfCompleteRequestDataField)
-		var decodedInput CompleteRequestInput
-		err = p.smcABI.UnpackInput(&decodedInput, CompleteFunction, input[4:])
-		if err != nil {
-			log.Error("failed to get external data of exchange contract event", "method", method.Name)
-			return types.EventSummary{}, ErrFailedGetEventData
-		}
-		log.Info("Complete request input", "ID", decodedInput.RequestID, "pair", decodedInput.Pair)
-		exchangeExternalData[ExchangeDataCompleteRequestIDIndex] = decodedInput.RequestID.Bytes()
-		exchangeExternalData[ExchangeDataCompletePairIndex] = []byte(decodedInput.Pair)
-	default:
-		log.Warn("Unexpected method in extractKardiaTxSummary", "method", method.Name)
-	}
-
-	return types.EventSummary{
-		TxMethod: method.Name,
-		TxValue:  tx.Value(),
-		ExtData:  exchangeExternalData,
-	}, nil
 }

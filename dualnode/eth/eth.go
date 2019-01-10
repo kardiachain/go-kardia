@@ -41,17 +41,18 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discv5"
 	"github.com/ethereum/go-ethereum/params"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dev"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode/eth/ethsmc"
-	"github.com/kardiachain/go-kardia/dualnode/kardia"
+	"github.com/kardiachain/go-kardia/dualnode/utils"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
@@ -202,21 +203,21 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 func (n *Eth) SubmitTx(event *types.EventData) error {
 	statedb, err := n.kardiaChain.State()
 	if err != nil {
-		return kardia.ErrFailedGetState
+		return configs.ErrFailedGetState
 	}
 	switch event.Data.TxMethod {
-	case kardia.MatchFunction:
-		if len(event.Data.ExtData) != kardia.NumOfExchangeDataField {
-			return kardia.ErrInsufficientExchangeData
+	case configs.MatchFunction:
+		if len(event.Data.ExtData) != configs.NumOfExchangeDataField {
+			return configs.ErrInsufficientExchangeData
 		}
 		// get matched request if any and submit it. we're only interested with those have dest pair ETH-NEO
 		senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
-		amount := big.NewInt(0).SetBytes(event.Data.ExtData[kardia.ExchangeDataAmountIndex])
-		srcAddress := string(event.Data.ExtData[kardia.ExchangeDataSourceAddressIndex])
-		destAddress := string(event.Data.ExtData[kardia.ExchangeDataDestAddressIndex])
-		sourcePair := string(event.Data.ExtData[kardia.ExchangeDataSourcePairIndex])
-		request, err := kardia.CallKardiaGetMatchedRequest(senderAddr, n.kardiaChain, statedb, amount, srcAddress, destAddress,
-			sourcePair, kardia.NEO2ETH)
+		amount := big.NewInt(0).SetBytes(event.Data.ExtData[configs.ExchangeDataAmountIndex])
+		srcAddress := string(event.Data.ExtData[configs.ExchangeDataSourceAddressIndex])
+		destAddress := string(event.Data.ExtData[configs.ExchangeDataDestAddressIndex])
+		sourcePair := string(event.Data.ExtData[configs.ExchangeDataSourcePairIndex])
+		request, err := utils.CallKardiaGetMatchedRequest(senderAddr, n.kardiaChain, statedb, amount, srcAddress, destAddress,
+			sourcePair, configs.NEO2ETH)
 		if err != nil {
 			return err
 		}
@@ -228,16 +229,16 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 			}
 			return nil
 		}
-		return kardia.ErrInsufficientExchangeData
-	case kardia.CompleteFunction:
+		return configs.ErrInsufficientExchangeData
+	case configs.CompleteFunction:
 		// The pair of completed request is not ETH -> NEO, so we just skip it and return nil
-		if string(event.Data.ExtData[kardia.ExchangeDataCompletePairIndex]) != kardia.ETH2NEO {
-			log.Error("invalid pair", "pair", string(event.Data.ExtData[kardia.ExchangeDataCompletePairIndex]))
+		if string(event.Data.ExtData[configs.ExchangeDataCompletePairIndex]) != configs.ETH2NEO {
+			log.Error("invalid pair", "pair", string(event.Data.ExtData[configs.ExchangeDataCompletePairIndex]))
 		}
 		// there is a request from ETH -> NEO completed, we check whether its matched request (NEO->ETH) is complete yet
 		// if no, release then complete it
-		request, err := kardia.CallKardiaGetUncompletedRequest(big.NewInt(0).SetBytes(
-			event.Data.ExtData[kardia.ExchangeDataCompleteRequestIDIndex]), statedb, n.smcABI, n.kardiaChain)
+		request, err := utils.CallKardiaGetUncompletedRequest(big.NewInt(0).SetBytes(
+			event.Data.ExtData[configs.ExchangeDataCompleteRequestIDIndex]), statedb, n.smcABI, n.kardiaChain)
 		if err != nil {
 			log.Error("Error getting uncompleted request", "err", err)
 			return err
@@ -252,18 +253,18 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 		}
 	default:
 		log.Warn("Unexpected method comes to exchange contract", "method", event.Data.TxMethod)
-		return kardia.ErrUnsupportedMethod
+		return configs.ErrUnsupportedMethod
 	}
-	return kardia.ErrUnsupportedMethod
+	return configs.ErrUnsupportedMethod
 }
 
 // releaseTxAndCompleteRequest release eth to receiver and creates a tx to complete it in kardia smart contract
-func (n *Eth) releaseTxAndCompleteRequest(request *kardia.MatchedRequest) error {
+func (n *Eth) releaseTxAndCompleteRequest(request *utils.MatchedRequest) error {
 	err := n.submitEthReleaseTx(request.SendAmount, request.DestAddress)
 	if err != nil {
 		return err
 	}
-	tx, err := kardia.CreateKardiaCompleteRequestTx(n.txPool.State(), request.MatchedRequestID, kardia.NEO2ETH)
+	tx, err := utils.CreateKardiaCompleteRequestTx(n.txPool.State(), request.MatchedRequestID, configs.NEO2ETH)
 	if err != nil {
 		log.Error("Failed to create complete request tx", "ID", request.MatchedRequestID)
 		return err
@@ -493,27 +494,27 @@ func (n *Eth) extractEthTxSummary(tx *ethTypes.Transaction, sender string) (type
 		return types.EventSummary{}, err
 	}
 
-	if method != kardia.ExternalDepositFunction {
+	if method != configs.ExternalDepositFunction {
 		return types.EventSummary{
 			TxMethod: method,
 			TxValue:  tx.Value(),
 			ExtData:  nil,
 		}, nil
 	}
-	extraData := make([][]byte, kardia.NumOfExchangeDataField)
+	extraData := make([][]byte, configs.NumOfExchangeDataField)
 	receiveAddress, destination, err := n.ethSmc.UnpackDepositInput(input)
 	if err != nil {
 		return types.EventSummary{}, err
 	}
 	if receiveAddress == "" || destination == "" {
-		return types.EventSummary{}, kardia.ErrInsufficientExchangeData
+		return types.EventSummary{}, configs.ErrInsufficientExchangeData
 	}
 	// compose extraData struct for fields related to exchange
-	extraData[kardia.ExchangeDataSourceAddressIndex] = []byte(sender)
-	extraData[kardia.ExchangeDataDestAddressIndex] = []byte(receiveAddress)
-	extraData[kardia.ExchangeDataSourcePairIndex] = []byte(destination)
-	extraData[kardia.ExchangeDataDestPairIndex] = []byte(kardia.NEO2ETH)
-	extraData[kardia.ExchangeDataAmountIndex] = tx.Value().Bytes()
+	extraData[configs.ExchangeDataSourceAddressIndex] = []byte(sender)
+	extraData[configs.ExchangeDataDestAddressIndex] = []byte(receiveAddress)
+	extraData[configs.ExchangeDataSourcePairIndex] = []byte(destination)
+	extraData[configs.ExchangeDataDestPairIndex] = []byte(configs.NEO2ETH)
+	extraData[configs.ExchangeDataAmountIndex] = tx.Value().Bytes()
 	return types.EventSummary{
 		TxMethod: method,
 		TxValue:  tx.Value(),
@@ -527,7 +528,7 @@ func (n *Eth) callKardiaMasterGetEthToSend(from common.Address, statedb *state.S
 		log.Error("Fail to pack Kardia smc getEthToSend", "error", err)
 		return big.NewInt(0)
 	}
-	ret, err := kardia.CallStaticKardiaMasterSmc(from, *n.smcAddress, n.kardiaChain, getEthToSend, statedb)
+	ret, err := utils.CallStaticKardiaMasterSmc(from, *n.smcAddress, n.kardiaChain, getEthToSend, statedb)
 	if err != nil {
 		log.Error("Error calling master exchange contract", "error", err)
 		return big.NewInt(0)

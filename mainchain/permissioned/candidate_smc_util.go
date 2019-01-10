@@ -5,7 +5,6 @@ import (
 	"math/big"
 	"strings"
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"
@@ -14,6 +13,7 @@ import (
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/pkg/errors"
+	"github.com/kardiachain/go-kardia/dualnode/utils"
 )
 
 type CandidateSmcUtil struct {
@@ -61,7 +61,7 @@ func (cs *CandidateSmcUtil) GetCandidateByEmail(email string) (*CandidateInfo, e
 	if err != nil {
 		return nil, err
 	}
-	candidateResult, err := kardia.CallStaticKardiaMasterSmc(*cs.SenderAddress, *cs.ContractAddress, *cs.Bc, getCandidateInput, cs.StateDB)
+	candidateResult, err := utils.CallStaticKardiaMasterSmc(*cs.SenderAddress, *cs.ContractAddress, *cs.Bc, getCandidateInput, cs.StateDB)
 	if err != nil {
 		return nil, err
 	}

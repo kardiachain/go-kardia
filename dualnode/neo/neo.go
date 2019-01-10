@@ -28,16 +28,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dev"
-	"github.com/kardiachain/go-kardia/dualnode/kardia"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/dualnode/utils"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardia/kai/base"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const GenerateTxInterval = 60 * time.Second
@@ -46,12 +47,13 @@ const MaximumCheckTxAttempts = 10
 const MaximumSubmitTxAttempts = 2
 const CheckTxIntervalDelta = 15
 const InitialCheckTxInterval = 30
+
 var (
 	OneNeo                = big.NewInt(0).Exp(big.NewInt(10), big.NewInt(18), nil) // 10**18 is 1 neo in exchange smc
 	errNoNeoToSend        = errors.New("not enough NEO to send")
 	errEnoughAvailableNeo = errors.New("enough available NEO, no need to add more")
 	errNilReturnedFromNeo = errors.New("Neo API return nil")
-	errRetryFailed		  = errors.New("exceeding maximum retry attempts but still failed")
+	errRetryFailed        = errors.New("exceeding maximum retry attempts but still failed")
 	MaximumAvailableNeo   = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(19), nil)
 )
 
@@ -123,7 +125,7 @@ func LoopFulfillRequest(n *NeoProxy) {
 			continue
 		}
 
-		availableAmountNeo, err := kardia.CallAvailableAmount(kardia.NEO2ETH, n.kardiaBc, statedb)
+		availableAmountNeo, err := utils.CallAvailableAmount(configs.NEO2ETH, n.kardiaBc, statedb)
 		if err != nil {
 			continue
 		}
@@ -169,31 +171,31 @@ func (n *NeoProxy) SubmitTx(event *types.EventData) error {
 	statedb, err := n.kardiaBc.State()
 	if err != nil {
 		log.Error("Cannot get kardia statedb", "err", err)
-		return kardia.ErrFailedGetState
+		return configs.ErrFailedGetState
 	}
 	switch event.Data.TxMethod {
-	case kardia.MatchFunction:
-		if len(event.Data.ExtData) != kardia.NumOfExchangeDataField {
-			return kardia.ErrInsufficientExchangeData
+	case configs.MatchFunction:
+		if len(event.Data.ExtData) != configs.NumOfExchangeDataField {
+			return configs.ErrInsufficientExchangeData
 		}
 		// get matched request if any and submit it. we're only interested with those have dest pair NEO-ETH
-		log.Info("detect matching request", "destPair", string(event.Data.ExtData[kardia.ExchangeDataDestPairIndex]),
-			"srcPair", string(event.Data.ExtData[kardia.ExchangeDataSourcePairIndex]),
-			"from", string(event.Data.ExtData[kardia.ExchangeDataSourceAddressIndex]), "to",
-			string(event.Data.ExtData[kardia.ExchangeDataDestAddressIndex]))
-		senderAddr  := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
-		amount      := big.NewInt(0).SetBytes(event.Data.ExtData[kardia.ExchangeDataAmountIndex])
-		srcAddress  := string(event.Data.ExtData[kardia.ExchangeDataSourceAddressIndex])
-		destAddress := string(event.Data.ExtData[kardia.ExchangeDataDestAddressIndex])
-		sourcePair  := string(event.Data.ExtData[kardia.ExchangeDataSourcePairIndex])
-		request, err := kardia.CallKardiaGetMatchedRequest(senderAddr, n.kardiaBc, statedb, amount, srcAddress, destAddress,
-			sourcePair, kardia.ETH2NEO)
+		log.Info("detect matching request", "destPair", string(event.Data.ExtData[configs.ExchangeDataDestPairIndex]),
+			"srcPair", string(event.Data.ExtData[configs.ExchangeDataSourcePairIndex]),
+			"from", string(event.Data.ExtData[configs.ExchangeDataSourceAddressIndex]), "to",
+			string(event.Data.ExtData[configs.ExchangeDataDestAddressIndex]))
+		senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
+		amount := big.NewInt(0).SetBytes(event.Data.ExtData[configs.ExchangeDataAmountIndex])
+		srcAddress := string(event.Data.ExtData[configs.ExchangeDataSourceAddressIndex])
+		destAddress := string(event.Data.ExtData[configs.ExchangeDataDestAddressIndex])
+		sourcePair := string(event.Data.ExtData[configs.ExchangeDataSourcePairIndex])
+		request, err := utils.CallKardiaGetMatchedRequest(senderAddr, n.kardiaBc, statedb, amount, srcAddress, destAddress,
+			sourcePair, configs.ETH2NEO)
 		if err != nil {
 			return err
 		}
 		// contract returns no matched request
 		if request.DestAddress == "" {
-			return kardia.ErrNoMatchedRequest
+			return configs.ErrNoMatchedRequest
 		}
 		// divide by 10 ^ 18 here
 		neoSendAmount := request.SendAmount.Div(request.SendAmount, OneNeo)
@@ -208,16 +210,16 @@ func (n *NeoProxy) SubmitTx(event *types.EventData) error {
 			return err
 		}
 		return nil
-	case kardia.CompleteFunction:
-		if string(event.Data.ExtData[kardia.ExchangeDataCompletePairIndex]) != kardia.NEO2ETH {
+	case configs.CompleteFunction:
+		if string(event.Data.ExtData[configs.ExchangeDataCompletePairIndex]) != configs.NEO2ETH {
 			// The pair of completed request is not NEO -> ETH, so we just skip it and return nil
-			log.Error("Invalid pair", "pair", string(event.Data.ExtData[kardia.ExchangeDataCompletePairIndex]))
+			log.Error("Invalid pair", "pair", string(event.Data.ExtData[configs.ExchangeDataCompletePairIndex]))
 			return nil
 		}
 		// there is a request from NEO -> ETH completed, we check whether its matched request (ETH->NEO) is complete yet
 		// if no, release then complete it
-		request, err := kardia.CallKardiaGetUncompletedRequest(big.NewInt(0).SetBytes(
-			event.Data.ExtData[kardia.ExchangeDataCompleteRequestIDIndex]), statedb,
+		request, err := utils.CallKardiaGetUncompletedRequest(big.NewInt(0).SetBytes(
+			event.Data.ExtData[configs.ExchangeDataCompleteRequestIDIndex]), statedb,
 			n.smcABI, n.kardiaBc)
 		if err != nil {
 			log.Error("Error getting uncompleted request", "err", err)
@@ -238,16 +240,16 @@ func (n *NeoProxy) SubmitTx(event *types.EventData) error {
 		return nil
 	default:
 		log.Warn("Unexpected method in NEO SubmitTx", "method", event.Data.TxMethod)
-		return kardia.ErrUnsupportedMethod
+		return configs.ErrUnsupportedMethod
 	}
 }
 
 // completeRequest create tx call to Kardia smart contract to complete a request
 func (n *NeoProxy) completeRequest(requestID *big.Int) error {
-	tx, err := kardia.CreateKardiaCompleteRequestTx(n.txPool.State(), requestID, kardia.ETH2NEO)
+	tx, err := utils.CreateKardiaCompleteRequestTx(n.txPool.State(), requestID, configs.ETH2NEO)
 	if err != nil {
 		log.Error("Failed to create complete request tx", "ID", requestID, "direction",
-			kardia.ETH2NEO)
+			configs.ETH2NEO)
 		return err
 	}
 	err = n.txPool.AddLocal(tx)
@@ -365,7 +367,7 @@ func (n *NeoProxy) retryTx(address string, amount *big.Int, requestID *big.Int) 
 	for {
 		log.Info("retrying tx ...", "addr", address, "amount", amount, "neodual", "neodual")
 		txid, err := n.callReleaseNeo(address, amount, requestID)
-		if  err == nil && txid != "fail" {
+		if err == nil && txid != "fail" {
 			log.Info("Send successfully", "txid", txid, "method", "retryTx", "neodual", "neodual")
 			return txid, nil
 		}
@@ -384,7 +386,7 @@ func (n *NeoProxy) retryTx(address string, amount *big.Int, requestID *big.Int) 
 
 func (n *NeoProxy) fillMissingOrder(i int) error {
 	amount := big.NewInt(int64(0)).Mul(big.NewInt(int64(i)), OneNeo)
-	tx, err := kardia.CreateKardiaMatchAmountTx(n.txPool.State(), amount,
+	tx, err := utils.CreateKardiaMatchAmountTx(n.txPool.State(), amount,
 		dev.NeoReceiverAddressList[0], dev.EthReceiverAddressList[1], types.NEO)
 	if err != nil {
 		return err

@@ -28,8 +28,8 @@ import (
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/dualnode/utils"
 )
 
 const (
@@ -75,7 +75,7 @@ func (s *PermissionSmcUtil) IsValidNode(pubkey string, nodeType int64) (bool, er
 		log.Error("Error packing check valid node input", "err", err)
 		return false, err
 	}
-	checkNodeValidResult, err := kardia.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress, *s.bc,
+	checkNodeValidResult, err := utils.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress, *s.bc,
 		checkNodeValidInput, s.StateDb)
 	if err != nil {
 		log.Error("Error call permission contract", "err", err)
@@ -92,7 +92,7 @@ func (s *PermissionSmcUtil) GetNodeInfo(pubkey string) (common.Address, *big.Int
 		log.Error("Error packing get node info input", "err", err)
 		return common.Address{}, nil, nil, "", err
 	}
-	getNodeInfoResult, err := kardia.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
+	getNodeInfoResult, err := utils.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
 		*s.bc, getNodeInfoInput, s.StateDb)
 	if err != nil {
 		log.Error("Error call permission contract", "err", err)
@@ -119,7 +119,7 @@ func (s *PermissionSmcUtil) IsValidator(pubkey string) (bool, error) {
 		log.Error("Error packing check validator input", "err", err)
 		return false, err
 	}
-	checkValidatorResult, err := kardia.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
+	checkValidatorResult, err := utils.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
 		*s.bc, checkValidatorInput, s.StateDb)
 	if err != nil {
 		log.Error("Error call permission contract", "err", err)
@@ -138,7 +138,7 @@ func (s *PermissionSmcUtil) AddNodeForPrivateChain(pubkey string, nodeType int64
 		log.Error("Error packing add node input", "err", err)
 		return nil, err
 	}
-	return tool.GenerateSmcCall(kardia.GetPrivateKeyToCallKardiaSmc(), *s.ContractAddress, addNodeInput,
+	return tool.GenerateSmcCall(utils.GetPrivateKeyToCallKardiaSmc(), *s.ContractAddress, addNodeInput,
 		state), nil
 }
 
@@ -150,7 +150,7 @@ func (s *PermissionSmcUtil) RemoveNodeForPrivateChain(pubkey string, stateDb *st
 		log.Error("Error packing remove node input", "err", err)
 		return nil, err
 	}
-	return tool.GenerateSmcCall(kardia.GetPrivateKeyToCallKardiaSmc(), *s.ContractAddress, removeNodeInput, stateDb), nil
+	return tool.GenerateSmcCall(utils.GetPrivateKeyToCallKardiaSmc(), *s.ContractAddress, removeNodeInput, stateDb), nil
 }
 
 // GetAdminNodeByIndex executes smart contract to get info of an initial node, including public key, address, listen address,
@@ -161,7 +161,7 @@ func (s *PermissionSmcUtil) GetAdminNodeByIndex(index int64) (string, common.Add
 		log.Error("Error packing initial node input", "err", err)
 		return "", common.Address{}, "", nil, nil, err
 	}
-	getInitialNodeResult, err := kardia.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
+	getInitialNodeResult, err := utils.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
 		*s.bc, getInitialNodeInput, s.StateDb)
 	if err != nil {
 		log.Error("Error calling permission contract", "err", err)

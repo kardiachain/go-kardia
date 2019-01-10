@@ -19,12 +19,10 @@ contract CandidateDB {
     // source is symbol of the source blockchain that candidate comes from,
     // returns ("", "", 0, 0x, false, "") if not found
     function getCandidateInfo(string _email) public view returns (string name, string email, uint age, address add, bool isExternal, string source) {
-
         if (candidateList[_email].isSet) {
             return (candidateList[_email].name, _email, candidateList[_email].age, candidateList[_email].addr,
                 candidateList[_email].isExternal, candidateList[_email].source);
         }
-
         return ("", "", 0, 0x0, false, "");
     }
 

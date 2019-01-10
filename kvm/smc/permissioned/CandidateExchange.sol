@@ -14,7 +14,7 @@ contract CandidateExchange {
     // This function is used to notify chain A a candidate info responded by chainB by using event
     // ExternalCandidateInfoFulfilled. Dual node Kardia - A will catch this event and store it into
     // CandidateDB of chain A
-    function FulfilledCandidateInfo(string _email, string _name, uint8 _age, address _addr, string _source, string _fromOrgID, string _toOrgID) {
+    function fulfillCandidateInfo(string _email, string _name, uint8 _age, address _addr, string _source, string _fromOrgID, string _toOrgID) {
         emit ExternalCandidateInfoFulfilled(_email, _name, _age, _addr, _source, _fromOrgID, _toOrgID);
     }
 }

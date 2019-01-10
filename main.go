@@ -429,7 +429,7 @@ func main() {
 	}
 
 	// TODO(namdoh): Remove the hard-code below
-	exchangeContractAddress := configs.GetContractAddressAt(kardia.KardiaNewExchangeSmcIndex)
+	exchangeContractAddress := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	exchangeContractAbi := configs.GetContractAbiByAddress(exchangeContractAddress.String())
 	if args.neoDual {
 		generateTx := false

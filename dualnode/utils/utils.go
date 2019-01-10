@@ -16,46 +16,41 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package kardia
+package utils
 
 import (
 	"crypto/ecdsa"
-	"math/big"
-	"strings"
 	"encoding/hex"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/base"
-	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/pkg/errors"
+	"math/big"
+	"strings"
 )
+
 // TODO(@sontranrad): remove all of these constants for production
-const ETH2NEO = "ETH-NEO"
-const NEO2ETH = "NEO-ETH"
+
 const KardiaAccountToCallSmc = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
 const KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
-const KardiaNewExchangeSmcIndex = 3
-// These const contain indices of exchange-related fields in ExtData field of EventSummary struct
-const ExchangeDataSourceAddressIndex = 0
-const ExchangeDataDestAddressIndex = 1
-const ExchangeDataSourcePairIndex = 2
-const ExchangeDataDestPairIndex = 3
-const ExchangeDataAmountIndex = 4
-const ExchangeDataCompleteRequestIDIndex = 0
-const ExchangeDataCompletePairIndex = 1
-const NumOfExchangeDataField = 5
-const NumOfCompleteRequestDataField = 2
-const KardiaCandidateExchangeSmcIndex = 6
-var MaximumGasToCallStaticFunction = uint(4000000)
 
+var MaximumGasToCallStaticFunction = uint(4000000)
 var errAbiNotFound = errors.New("ABI not found")
+
+type MatchedRequest struct {
+	MatchedRequestID *big.Int `abi:"matchedRequestID"`
+	DestAddress      string   `abi:"destAddress"`
+	SendAmount       *big.Int `abi:"sendAmount"`
+}
+
 // The following function is just call the master smc and return result in bytes format
 func CallStaticKardiaMasterSmc(from common.Address, to common.Address, bc base.BaseBlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
 	context := vm.NewKVMContextFromDualNodeCall(from, bc.CurrentHeader(), bc)
@@ -69,21 +64,15 @@ func CallStaticKardiaMasterSmc(from common.Address, to common.Address, bc base.B
 }
 
 // CallGetRate calls to Kardia exchange contract to get rate of a specific pair, return sale amount and receive amount
-func CallGetRate(pair string, bc base.BaseBlockChain, statedb *state.StateDB) (sale *big.Int, receive *big.Int, err error) {
+func CallGetRate(pair string, bc base.BaseBlockChain, statedb *state.StateDB, address *common.Address, abi *abi.ABI) (sale *big.Int, receive *big.Int, err error) {
 	senderAddr := common.HexToAddress(configs.MockSmartContractCallSenderAccount)
-	masterSmcAddr := configs.GetContractAddressAt(KardiaNewExchangeSmcIndex)
-	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
-	kAbi, err := abi.JSON(strings.NewReader(masterSmcAbi))
-	if err != nil {
-		return big.NewInt(0), big.NewInt(0), err
-	}
-	getRateInput, err := kAbi.Pack("getRatePublic", pair)
+	getRateInput, err := abi.Pack("getRatePublic", pair)
 	if err != nil {
 		log.Error("Error packing get rate input", "err", err)
 		return big.NewInt(0), big.NewInt(0), err
 	}
-	result, err := CallStaticKardiaMasterSmc(senderAddr, masterSmcAddr, bc, getRateInput, statedb);
-	if  err != nil {
+	result, err := CallStaticKardiaMasterSmc(senderAddr, *address, bc, getRateInput, statedb)
+	if err != nil {
 		log.Error("Error call get rate", "err", err)
 		return big.NewInt(0), big.NewInt(0), err
 	}
@@ -91,7 +80,7 @@ func CallGetRate(pair string, bc base.BaseBlockChain, statedb *state.StateDB) (s
 		Sale    *big.Int `abi:"sale"`
 		Receive *big.Int `abi:"receive"`
 	}
-	err = kAbi.Unpack(&rateStruct, "getRatePublic", result)
+	err = abi.Unpack(&rateStruct, "getRatePublic", result)
 	if err != nil {
 		log.Error("Error unpack rate result", "err", err)
 		return big.NewInt(0), big.NewInt(0), err
@@ -102,7 +91,7 @@ func CallGetRate(pair string, bc base.BaseBlockChain, statedb *state.StateDB) (s
 // CallAvailableAmount get available amount to exchange for a pair
 func CallAvailableAmount(pair string, bc base.BaseBlockChain, statedb *state.StateDB) (amount *big.Int, err error) {
 	senderAddr := common.HexToAddress(configs.MockSmartContractCallSenderAccount)
-	masterSmcAddr := configs.GetContractAddressAt(KardiaNewExchangeSmcIndex)
+	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
 	abi, err := abi.JSON(strings.NewReader(masterSmcAbi))
 	if err != nil {
@@ -123,9 +112,9 @@ func CallAvailableAmount(pair string, bc base.BaseBlockChain, statedb *state.Sta
 
 // Creates a Kardia tx to report new matching amount from Eth/Neo network, return nil in case of any error occurs
 func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, sourceAddress string,
-			destinationAddress string, source types.BlockchainSymbol) (*types.Transaction, error) {
+	destinationAddress string, source types.BlockchainSymbol) (*types.Transaction, error) {
 	// Change master smc index to 3 for the new exchange contract
-	masterSmcAddr := configs.GetContractAddressAt(KardiaNewExchangeSmcIndex)
+	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
 	kABI, err := abi.JSON(strings.NewReader(masterSmcAbi))
 	if err != nil {
@@ -135,9 +124,9 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 	var matchInput []byte
 	switch source {
 	case types.ETHEREUM:
-		matchInput, err = kABI.Pack("matchRequest", ETH2NEO, NEO2ETH, sourceAddress, destinationAddress, quantity)
+		matchInput, err = kABI.Pack("matchRequest", configs.ETH2NEO, configs.NEO2ETH, sourceAddress, destinationAddress, quantity)
 	case types.NEO:
-		matchInput, err = kABI.Pack("matchRequest", NEO2ETH, ETH2NEO, sourceAddress, destinationAddress, quantity)
+		matchInput, err = kABI.Pack("matchRequest", configs.NEO2ETH, configs.ETH2NEO, sourceAddress, destinationAddress, quantity)
 	default:
 		log.Error("Invalid source for match amount tx", "src", source)
 		return nil, err
@@ -154,9 +143,9 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 // Call to get a matched request of a newly added request of exchange contract. This function will return a MatchedRequest
 // contains MatchedRequestID, Address, SendAmount or nil in case of error
 func CallKardiaGetMatchedRequest(from common.Address, bc base.BaseBlockChain, statedb *state.StateDB,
-		quantity *big.Int, sourceAddress string, destinationAddress string, sourcePair string, interestedPair string) (*MatchedRequest, error) {
+	quantity *big.Int, sourceAddress string, destinationAddress string, sourcePair string, interestedPair string) (*MatchedRequest, error) {
 	// Change master smc index to 3 for the new exchange contract
-	masterSmcAddr := configs.GetContractAddressAt(KardiaNewExchangeSmcIndex)
+	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
 	kABI, err := abi.JSON(strings.NewReader(masterSmcAbi))
 	if err != nil {
@@ -166,15 +155,15 @@ func CallKardiaGetMatchedRequest(from common.Address, bc base.BaseBlockChain, st
 	var getMatchedRequestInput []byte
 	// getMatchingInput1, e5 = abi.Pack("getMatchingRequestInfo", "ETH-NEO", "ethsender1", "neoReceiver1", big.NewInt(1))
 	log.Info("get matching:", "pair", sourcePair, "src", sourceAddress, "dest", destinationAddress, "quan", quantity)
-	getMatchedRequestInput, err = kABI.Pack("getMatchingRequestInfo", sourcePair, interestedPair, sourceAddress, destinationAddress, quantity);
+	getMatchedRequestInput, err = kABI.Pack("getMatchingRequestInfo", sourcePair, interestedPair, sourceAddress, destinationAddress, quantity)
 	if err != nil {
 		log.Error("Error getting abi", "error", err, "address", masterSmcAddr)
 		return nil, err
 	}
-	getMatchedRequestResult, err := CallStaticKardiaMasterSmc(from, masterSmcAddr, bc, getMatchedRequestInput, statedb);
+	getMatchedRequestResult, err := CallStaticKardiaMasterSmc(from, masterSmcAddr, bc, getMatchedRequestInput, statedb)
 	if err != nil {
-			log.Error("Error get match request", "err", err)
-			return nil, err
+		log.Error("Error get match request", "err", err)
+		return nil, err
 	}
 	var request MatchedRequest
 	err = kABI.Unpack(&request, "getMatchingRequestInfo", getMatchedRequestResult)
@@ -188,7 +177,7 @@ func CallKardiaGetMatchedRequest(from common.Address, bc base.BaseBlockChain, st
 // CreateKardiaCompleteRequestTx creates a tx to Kardia exchange smc to complete an exchange request, params sent to smc
 // are requestID (stored in smc) and pair
 func CreateKardiaCompleteRequestTx(state *state.ManagedState, requestID *big.Int, pair string) (*types.Transaction, error) {
-	masterSmcAddr := configs.GetContractAddressAt(KardiaNewExchangeSmcIndex)
+	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
 	kAbi, err := abi.JSON(strings.NewReader(masterSmcAbi))
 	if err != nil {
@@ -211,7 +200,7 @@ func CallKardiaGetUncompletedRequest(requestID *big.Int, stateDb *state.StateDB,
 		return nil, err
 	}
 	senderAddr := common.HexToAddress(configs.MockSmartContractCallSenderAccount)
-	masterSmcAddr := configs.GetContractAddressAt(KardiaNewExchangeSmcIndex)
+	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	getUncompletedResult, err := CallStaticKardiaMasterSmc(senderAddr, masterSmcAddr, bc, getUncompletedInput, stateDb)
 	if err != nil {
 		log.Error("Cannot get uncomplete matching request", "err", err)
@@ -230,7 +219,7 @@ func CallKardiaGetUncompletedRequest(requestID *big.Int, stateDb *state.StateDB,
 // If 1 ETH = 10 NEO, call with pairs ("ETH-NEO", 1, 10) and ("NEO-ETH", 10,1)
 func CreateKardiaSetRateTx(pair string, sale *big.Int, receive *big.Int, state *state.ManagedState) (*types.Transaction, error) {
 	log.Info("Setting rate", "pair", pair)
-	masterSmcAddr := configs.GetContractAddressAt(KardiaNewExchangeSmcIndex)
+	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
 	kAbi, err := abi.JSON(strings.NewReader(masterSmcAbi))
 	if err != nil {
@@ -238,7 +227,7 @@ func CreateKardiaSetRateTx(pair string, sale *big.Int, receive *big.Int, state *
 		return nil, err
 	}
 	setRateInput, err := kAbi.Pack("addRate", pair, sale, receive)
-	if  err != nil {
+	if err != nil {
 		log.Error("Failed to pack set Rate input", "err", err)
 		return nil, err
 	}
@@ -247,7 +236,7 @@ func CreateKardiaSetRateTx(pair string, sale *big.Int, receive *big.Int, state *
 
 // CreateCandidateInfoRequestTx creates tx call to Kardia candidate exchange contract to request external candidate info
 func CreateCandidateInfoRequestTx(email string, fromOrgId string, toOrgId string, state *state.ManagedState) (*types.Transaction, error) {
-	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(KardiaCandidateExchangeSmcIndex)
+	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
 	if exchangeSmcAbi == "" {
 		return nil, errAbiNotFound
 	}
@@ -267,7 +256,7 @@ func CreateCandidateInfoRequestTx(email string, fromOrgId string, toOrgId string
 // candidate info
 func CreateCandidateInfoFulfillTx(email string, name string, age uint8, addr common.Address, source string, fromOrgId string,
 	toOrgId string, state *state.ManagedState) (*types.Transaction, error) {
-	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(KardiaCandidateExchangeSmcIndex)
+	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
 	if exchangeSmcAbi == "" {
 		return nil, errAbiNotFound
 	}
@@ -288,4 +277,3 @@ func GetPrivateKeyToCallKardiaSmc() *ecdsa.PrivateKey {
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 	return addrKey
 }
-
