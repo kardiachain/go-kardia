@@ -19,7 +19,10 @@
 package node
 
 import (
+	"runtime"
+
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/p2p"
 )
 
 // PublicNodeAPI offers helper utils
@@ -37,14 +40,9 @@ func (s *PublicNodeAPI) PeersCount() int {
 	return s.node.server.PeerCount()
 }
 
-// Peers returns a list of peers
-func (s *PublicNodeAPI) Peers() map[string]string {
-	peers := s.node.server.Peers()
-	results := make(map[string]string)
-	for _, peer := range peers {
-		results[peer.Name()] = peer.RemoteAddr().String()
-	}
-	return results
+// Peers returns a list of peers with their information
+func (s *PublicNodeAPI) Peers() []*p2p.PeerInfo {
+	return s.node.server.PeersInfo()
 }
 
 // NodeName returns name of current node
@@ -52,23 +50,31 @@ func (s *PublicNodeAPI) NodeName() string {
 	return s.node.config.Name
 }
 
+// NodeInfo represents a short summary of the information about a node
+type NodeInfo struct {
+	Name    string `json:"name"`    // Name of the node
+	Address string `json:"address"` // Address of the node
+	Enode   string `json:"enode"`   // Enode URL for adding this peer from remote peers
+	IP      string `json:"ip"`      // IP address of the node
+	Ports   struct {
+		Discovery int `json:"discovery"` // UDP listening port for discovery protocol
+		Listener  int `json:"listener"`  // TCP listening port for RLPx
+	} `json:"ports"`
+	ListenAddr string `json:"listenAddr"`
+	OS         string `json:"os"`
+	OSVer      string `json:"osVer"`
+}
+
 // NodeInfo returns infomation of current node
-func (s *PublicNodeAPI) NodeInfo() map[string]interface{} {
-	name := s.node.server.NodeInfo().Name
-	address := crypto.PubkeyToAddress(s.node.config.NodeKey().PublicKey).Hex()
-	enode := s.node.server.NodeInfo().Enode
-	ip := s.node.server.NodeInfo().IP
-	id := s.node.server.NodeInfo().ID
-	listenAddr := s.node.server.NodeInfo().ListenAddr
-	ports := s.node.server.NodeInfo().Ports
-	
-	return map[string]interface{}{
-		"name":			name,
-		"address":		address,
-		"enode":		enode,
-		"id":			id,
-		"ip":			ip,
-		"listenAddr":		listenAddr,
-		"ports":		ports,
+func (s *PublicNodeAPI) NodeInfo() *NodeInfo {
+	return &NodeInfo{
+		Name:       s.node.server.NodeInfo().Name,
+		Address:    crypto.PubkeyToAddress(s.node.config.NodeKey().PublicKey).Hex(),
+		Enode:      s.node.server.NodeInfo().Enode,
+		IP:         s.node.server.NodeInfo().IP,
+		Ports:      s.node.server.NodeInfo().Ports,
+		ListenAddr: s.node.server.NodeInfo().ListenAddr,
+		OS:         runtime.GOOS,
+		OSVer:      runtime.GOARCH,
 	}
 }
