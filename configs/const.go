@@ -23,6 +23,7 @@ import "errors"
 // All const related to cross-chain demos including coin exchange and candidate exchange
 // this will be dynamic and removed when run on production
 const (
+	// constants related to currency exchange
 	KardiaNewExchangeSmcIndex          = 3
 	MatchFunction                      = "matchRequest"
 	CompleteFunction                   = "completeRequest"
@@ -39,19 +40,41 @@ const (
 	NumOfExchangeDataField             = 5
 	NumOfCompleteRequestDataField      = 2
 	// constants related to candidate exchange, Kardia part
-	KardiaCandidateExchangeSmcIndex = 6
-	KardiaForwardRequestFunction    = "forwardRequest"
-	KardiaForwardResponseFunction   = "forwardResponse"
+	KardiaCandidateExchangeSmcIndex    = 6
+	KardiaForwardRequestFunction       = "forwardRequest"
+	KardiaForwardResponseFunction      = "forwardResponse"
+	KardiaForwardResponseFields        = 4
+	KardiaForwardResponseEmailIndex    = 0
+	KardiaForwardResponseResponseIndex = 1
+	KardiaForwardResponseFromOrgIndex  = 2
+	KardiaForwardResponseToOrgIndex    = 3
+	KardiaForwardRequestFields         = 3
+	KardiaForwardRequestEmailIndex     = 0
+	KardiaForwardRequestFromOrgIndex   = 1
+	KardiaForwardRequestToOrgIndex     = 2
+	// constants related to candidate exchange, private chain part
+	PrivateChainCandidateDBSmcIndex                     = 5
+	PrivateChainCandidateRequestCompletedFields         = 4
+	PrivateChainCandidateRequestCompletedFromOrgIDIndex = 0
+	PrivateChainCandidateRequestCompletedToOrgIDIndex   = 1
+	PrivateChainCandidateRequestCompletedEmailIndex     = 2
+	PrivateChainCandidateRequestCompletedContentIndex   = 3
+	PrivateChainRequestInfoFunction                     = "requestCandidateInfo"
+	PrivateChainCompleteRequestFunction                 = "completeRequest"
+	PrivateChainCandidateRequestFields                  = 3
+	PrivateChainCandidateRequestEmailIndex              = 0
+	PrivateChainCandidateRequestFromOrgIndex            = 1
+	PrivateChainCandidateRequestToOrgIndex              = 2
 )
 
 var (
-	ErrInsufficientExchangeData = errors.New("insufficient exchange external data")
-	ErrUnsupportedMethod        = errors.New("method is not supported by dual logic")
-	ErrCreateKardiaTx           = errors.New("fail to create Kardia's Tx from DualEvent")
-	ErrAddKardiaTx              = errors.New("fail to add Tx to Kardia's TxPool")
-	ErrFailedGetState           = errors.New("fail to get Kardia state")
-
-	ErrFailedGetEventData = errors.New("fail to get event external data")
-	ErrNoMatchedRequest   = errors.New("request has no matched opponent")
-	ErrNotImplemented     = errors.New("this function is not implemented yet")
+	ErrInsufficientExchangeData         = errors.New("insufficient exchange external data")
+	ErrUnsupportedMethod                = errors.New("method is not supported by dual logic")
+	ErrCreateKardiaTx                   = errors.New("fail to create Kardia's Tx from DualEvent")
+	ErrAddKardiaTx                      = errors.New("fail to add Tx to Kardia's TxPool")
+	ErrFailedGetState                   = errors.New("fail to get Kardia state")
+	ErrInsufficientCandidateRequestData = errors.New("insufficient candidate request data")
+	ErrFailedGetEventData               = errors.New("fail to get event external data")
+	ErrNoMatchedRequest                 = errors.New("request has no matched opponent")
+	ErrNotImplemented                   = errors.New("this function is not implemented yet")
 )

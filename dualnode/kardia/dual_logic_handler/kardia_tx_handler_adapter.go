@@ -39,4 +39,6 @@ type KardiaTxHandlerAdapter interface {
 	GetSmcAddress() common.Address
 	// Init run when proxy is started to send initial txs to prepare data depending on each handler's logic
 	Init(pool *tx_pool.TxPool) error
+	// Register an external blockchain interface for the handler to interact with
+	RegisterExternalChain(externalChain base.BlockChainAdapter)
 }

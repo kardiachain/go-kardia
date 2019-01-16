@@ -128,7 +128,6 @@ func NewConsensusState(
 	config *cfg.ConsensusConfig,
 	state state.LastestBlockState,
 	blockOperations BaseBlockOperations,
-	votingStrategy map[VoteTurn]int,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		logger: logger,
@@ -146,7 +145,6 @@ func NewConsensusState(
 			StartTime:   big.NewInt(0),
 			CommitTime:  big.NewInt(0),
 		},
-		votingStrategy: votingStrategy,
 	}
 
 	cs.updateToState(state)

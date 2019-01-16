@@ -79,10 +79,10 @@ var DefaultConfig = node.NodeConfig{
 		DbHandles:    DefaultDbHandles,
 		AcceptTxs:    1, // 1 is to allow new transactions, 0 is not
 		IsPrivate:    true,
-		IsZeroFee:    false,
+		IsZeroFee:    true,
 		Genesis:      genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts),
+		EnvConfig: node.NewEnvironmentConfig(),
 	},
-	EnvConfig: node.NewEnvironmentConfig(),
 }
 
 func SetUp(config *Config) (nodeConfig *node.NodeConfig, err error) {
@@ -156,7 +156,7 @@ func SetUp(config *Config) (nodeConfig *node.NodeConfig, err error) {
 	}
 	nodeConfig.MainChainConfig.ValidatorIndexes, err = getIntArray(*config.ValidatorsIndices)
 	nodeConfig.MainChainConfig.TxPool = *tx_pool.GetDefaultTxPoolConfig(nodeDir)
-	nodeConfig.EnvConfig.SetProposerIndex(config.Proposal - 1, len(dev.Nodes))
+	nodeConfig.MainChainConfig.EnvConfig.SetProposerIndex(config.Proposal - 1, len(dev.Nodes))
 	return nodeConfig, nil
 }
 

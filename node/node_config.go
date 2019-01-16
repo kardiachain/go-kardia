@@ -36,7 +36,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/types"
-	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
@@ -86,6 +85,10 @@ type MainChainConfig struct {
 
 	// ServiceName is used as log's prefix
 	ServiceName string
+
+	// ======== DEV ENVIRONMENT CONFIG =========
+	// Configuration of this environment when running in dev environment.
+	EnvConfig *EnvironmentConfig
 }
 
 type DualChainConfig struct {
@@ -106,13 +109,17 @@ type DualChainConfig struct {
 	DbHandles int
 
 	// Genesis is genesis block which contain initial Block and accounts
-	DualGenesis *dualbc.DualGenesis
+	DualGenesis *genesis.Genesis
 
 	// Dual's event pool options
 	DualEventPool event_pool.EventPoolConfig
 
 	// IsPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	IsPrivate bool
+
+	// ======== DEV ENVIRONMENT CONFIG =========
+	// Configuration of this environment when running in dev environment.
+	EnvConfig *EnvironmentConfig
 }
 
 type NodeConfig struct {
@@ -184,8 +191,6 @@ type NodeConfig struct {
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
 	NodeMetadata *NodeMetadata
-	// Configuration of this environment when running in dev environment.
-	EnvConfig *EnvironmentConfig
 }
 
 // NodeMetadata contains privateKey and votingPower and function that get coinbase

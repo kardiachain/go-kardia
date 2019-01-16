@@ -1,7 +1,7 @@
 pragma solidity ^0.4.24;
 contract Permission {
     
-    uint constant INITIAL_NODES_LENGTH = 13;
+    uint constant INITIAL_NODES_LENGTH = 16;
 
     struct NodeInfo {
         address nodeAddress;
@@ -27,6 +27,9 @@ contract Permission {
         pubkey[10]= "43692b6f72370a32ab9fc5477ac3d560e45d29db0e6edc2e195cc74843b8fadf3259e5784c48bf4001a956b57c4e868f6d8d392083953009da114e382b67b326";
         pubkey[11]= "e376664d17fa55d1b94061cd486a6f8d642cf43ff63f2555744df668c85f86e781b026d6300564dde234e19dd69d2abedc18a53db0d6f1e4a4c1bf3b27f7d848";
         pubkey[12]= "2c29f2ce64dc90f1538bde02f666664a6c14832576086a019aa6672afb8e6299066b9c59c8c511e90c08b781e2051de6fefbde602dd745b5dc851972f3a34574";
+        pubkey[13]= "7992f65f82392c10e127b8a842fa78a13b96a4dd44c15ec778f0773c91bd6a9316c978f2155fe43de5cd1c1ef9afdc531dd33b98930123d69a4640f2b6c951d5";
+        pubkey[14]= "2749d6c3136e93e06a68e8bbbbc8b696bbfb644166d4e4155d3bbdd2716553c2a317a782bf2c7af6fb8a510028edb42e620459735c3a327205348adad3a9d41f";
+        pubkey[15]= "3b07ef4899b3461ead42cddd72231e58efc113808cf0ca2116d97729af2b208706aee56b8f1001a206c02f0417ba126b9ce49764f16c6e67e438e2485c8d6ba4";
         return pubkey;
     }
 
@@ -57,6 +60,9 @@ contract Permission {
         listAddress[10]= 0x66BAB3F68Ff0822B7bA568a58A5CB619C4825Ce5;
         listAddress[11]= 0x88e1B4289b639C3b7b97899Be32627DCd3e81b7e;
         listAddress[12]= 0xCE61E95666737E46B2453717Fe1ba0d9A85B9d3E;
+        listAddress[13]= 0x1A5193E85ffa06fde42b2A2A6da7535BA510aE8C;
+        listAddress[14]= 0xb19BC4477ff32EC13872a2A827782DeA8b6E92C0;
+        listAddress[15]= 0x0fFFA18f6c90ce3f02691dc5eC954495EA483046;
         return listAddress;
     }
 
@@ -75,6 +81,9 @@ contract Permission {
         listAddress[10]= "[::]:3010";
         listAddress[11]= "[::]:3011";
         listAddress[12]= "[::]:3012";
+        listAddress[13]= "[::]:3013";
+        listAddress[14]= "[::]:3014";
+        listAddress[15]= "[::]:3015";
         return listAddress;
     }
 

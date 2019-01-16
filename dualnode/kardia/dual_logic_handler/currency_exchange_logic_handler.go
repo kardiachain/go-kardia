@@ -29,7 +29,6 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
-	"strings"
 )
 
 type MatchRequestInput struct {
@@ -50,15 +49,17 @@ type CompleteRequestInput struct {
 type CurrencyExchangeLogicHandler struct {
 	smcAddress *common.Address
 	smcABI     *abi.ABI
+	externalChain base.BlockChainAdapter
 }
 
-func NewCurrencyExchangeLogicHandler(smcAddr *common.Address, smcABIStr string) (*CurrencyExchangeLogicHandler, error) {
-	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
-	if err != nil {
-		return nil, err
-	}
-	handler := &CurrencyExchangeLogicHandler{smcAddress: smcAddr, smcABI: &smcABI}
+func NewCurrencyExchangeLogicHandler(smcAddr *common.Address, smcABI *abi.ABI) (*CurrencyExchangeLogicHandler, error) {
+	handler := &CurrencyExchangeLogicHandler{smcAddress: smcAddr, smcABI: smcABI}
 	return handler, nil
+}
+
+// RegisterExternalChain attaches an external blockchain adapter for this handler
+func (h *CurrencyExchangeLogicHandler) RegisterExternalChain(externalChain base.BlockChainAdapter) {
+	h.externalChain = externalChain
 }
 
 func (h *CurrencyExchangeLogicHandler) GetSmcAddress() common.Address {
@@ -197,7 +198,8 @@ func (h *CurrencyExchangeLogicHandler) ExtractKardiaTxSummary(tx *types.Transact
 
 // HandleKardiaTx detects update on kardia master smart contract and creates corresponding dual event to submit to
 // dual event pool
-func (h *CurrencyExchangeLogicHandler) HandleKardiaTx(tx *types.Transaction, eventPool *event_pool.EventPool, txPool *tx_pool.TxPool) error {
+func (h *CurrencyExchangeLogicHandler) HandleKardiaTx(tx *types.Transaction, eventPool *event_pool.EventPool,
+	txPool *tx_pool.TxPool) error {
 	eventSummary, err := h.ExtractKardiaTxSummary(tx)
 	if err != nil {
 		log.Error("Error when extracting Kardia main chain's tx summary.")
@@ -215,7 +217,7 @@ func (h *CurrencyExchangeLogicHandler) HandleKardiaTx(tx *types.Transaction, eve
 	kardiaTxHash := tx.Hash()
 	txHash := common.BytesToHash(kardiaTxHash[:])
 	dualEvent := types.NewDualEvent(nonce, false /* externalChain */, types.KARDIA, &txHash, &eventSummary)
-	txMetadata, err := h.ComputeTxMetadata(dualEvent.TriggeredEvent, txPool)
+	txMetadata, err := h.externalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
 	if err != nil {
 		log.Error("Error computing tx metadata", "err", err)
 	}

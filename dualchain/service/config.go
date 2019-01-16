@@ -19,8 +19,8 @@
 package service
 
 import (
-	"github.com/kardiachain/go-kardia/dualchain/blockchain"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
 type DualConfig struct {
@@ -31,7 +31,7 @@ type DualConfig struct {
 
 	// The genesis block of dual blockchain, which is inserted if the database is empty.
 	// If nil, the Dual main net block is used.
-	DualGenesis *blockchain.DualGenesis `toml:",omitempty"`
+	DualGenesis *genesis.Genesis `toml:",omitempty"`
 
 	// Dual's event pool options
 	DualEventPool event_pool.EventPoolConfig

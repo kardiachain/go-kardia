@@ -120,10 +120,10 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
-	log.Info("KARDIA Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
+	logger.Info("Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
 	var validatorSet *types.ValidatorSet
-	if ctx.Config.EnvConfig != nil {
-		validatorSet, err = ctx.Config.EnvConfig.GetValidatorSetByIndices(kai.blockchain, ctx.Config.MainChainConfig.ValidatorIndexes)
+	if ctx.Config.MainChainConfig.EnvConfig != nil {
+		validatorSet, err = ctx.Config.MainChainConfig.EnvConfig.GetValidatorSetByIndices(kai.blockchain, ctx.Config.MainChainConfig.ValidatorIndexes)
 		if err != nil {
 			logger.Error("Cannot get validator from indices", "indices", ctx.Config.MainChainConfig.ValidatorIndexes, "err", err)
 		}
@@ -138,17 +138,12 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
 	}
-	var votingStrategy map[consensus.VoteTurn]int
-	if ctx.Config.EnvConfig != nil {
-		votingStrategy = ctx.Config.EnvConfig.VotingStrategy
-	}
 
 	consensusState := consensus.NewConsensusState(
 		kai.logger,
 		configs.DefaultConsensusConfig(),
 		state,
 		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
-		votingStrategy,
 	)
 	kai.csManager = consensus.NewConsensusManager(config.ServiceName, consensusState)
 	// Set private validator for consensus manager.
@@ -271,3 +266,4 @@ func (s *KardiaService) APIs() []rpc.API {
 func (s *KardiaService) TxPool() *tx_pool.TxPool         { return s.txPool }
 func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
 func (s *KardiaService) ChainConfig() *configs.ChainConfig  { return s.chainConfig }
+func (s *KardiaService) DB() storage.Database { return s.kaiDb }

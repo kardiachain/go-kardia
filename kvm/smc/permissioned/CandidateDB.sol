@@ -18,10 +18,19 @@ contract CandidateDB {
         bool isComplete;
     }
 
+    struct Response {
+        string fromOrgId;
+        string content;
+        bool isSet;
+    }
+
+
     Request[] listRequest;
+
     event ExternalCandidateInfoRequested(string email, string fromOrgId, string toOrgId);
-    event RequestCompleted(string email, string name, uint8 age, address addr, string source, string toOrgId);
+    event RequestCompleted(string email, string answer, string toOrgId);
     mapping(string=>CandidateInfo) candidateList;
+    mapping(string=>Response) externalResponse;
 
     // getCandidateInfo returns info of a candidate specified by email,
     // in which add is address in source blockchain , isExternal indicates if candidate comes from external source,
@@ -60,20 +69,24 @@ contract CandidateDB {
     }
 
     //completeRequest fire event to send info of requested candidate and removes request from list
-    function completeRequest(uint _requestID, string _email) public returns (uint8) {
+    function completeRequest(uint _requestID, string _email, string _content, string _toOrgId) public returns (uint8) {
         if (keccak256(abi.encodePacked(listRequest[_requestID].email)) != keccak256(abi.encodePacked(_email))) {
             return 0;
         }
         if (listRequest[_requestID].isComplete) {
             return 0;
         }
+        if (keccak256(abi.encodePacked(listRequest[_requestID].fromOrgId)) != keccak256(abi.encodePacked(_toOrgId)) ) {
+            return 0;
+        }
         if (!candidateList[_email].isSet) {
             return 0;
         }
+
         // remove request from list
         listRequest[_requestID].isComplete = true;
-        emit RequestCompleted(_email, candidateList[_email].name, candidateList[_email].age, candidateList[_email].addr,
-            candidateList[_email].source, listRequest[_requestID].fromOrgId);
+
+        emit RequestCompleted(_email, _content, listRequest[_requestID].fromOrgId);
         return 1;
     }
 
@@ -94,6 +107,22 @@ contract CandidateDB {
         return results;
     }
 
+    // addExternalResponse adds an external response for a candidate
+    function addExternalResponse(string _email, string _fromOrgId, string _content) public {
+        Response memory r = Response(_fromOrgId, _content, true);
+        externalResponse[_email] = r;
+    }
+
+    // getExternalResponse returns an external response for a candidate from a specific orgID
+    function getExternalResponse(string _email, string _fromOrgId) public view returns (string content) {
+        if (externalResponse[_email].isSet == false) {
+            return "";
+        }
+        if (keccak256(abi.encodePacked(externalResponse[_email].fromOrgId)) != keccak256(abi.encodePacked(_fromOrgId))) {
+            return "";
+        }
+        return externalResponse[_email].content;
+    }
     function concatStr(string a, string b) internal pure returns (string) {
         return string(abi.encodePacked(a, b));
     }

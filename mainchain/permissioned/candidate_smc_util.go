@@ -111,3 +111,12 @@ func (cs *CandidateSmcUtil) AddRequest(email string, fromOrgID string, state *st
 	}
 	return tool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, state), nil
 }
+
+// AddResponse returns a tx to add an external response for a candidate into private chain candidate smart contract
+func (cs *CandidateSmcUtil) AddExternalResponse(email string, content string, fromOrgID string, state *state.ManagedState) (*types.Transaction, error) {
+	addRequestInput, err := cs.Abi.Pack("addExternalResponse", email, fromOrgID, content)
+	if err != nil {
+		return nil, err
+	}
+	return tool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, state), nil
+}

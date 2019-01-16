@@ -22,6 +22,7 @@ import (
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode/kardia/dual_logic_handler"
 	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -29,6 +30,7 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/pkg/errors"
 	"math/big"
+	"strings"
 )
 
 var errNilLogicHandler = errors.New("no logic handler available")
@@ -45,6 +47,9 @@ type KardiaProxy struct {
 	// Dual blockchain related fields
 	dualBc    base.BaseBlockChain
 	eventPool *event_pool.EventPool
+	// isPrivateDual indicates whether this proxy is between Kardia and a private blockchain, used to determine which
+	// handler is attached
+	isPrivateDual bool
 
 	// The external blockchain that this dual node's interacting with.
 	externalChain base.BlockChainAdapter
@@ -57,24 +62,36 @@ type MatchedRequest struct {
 	SendAmount       *big.Int `abi:"sendAmount"`
 }
 
-func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.EventPool, smcAddr *common.Address, smcABIStr string) (*KardiaProxy, error) {
+func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.EventPool, isPrivateDual bool, smcAddr *common.Address, smcABIStr string) (*KardiaProxy, error) {
 	var handler dual_logic_handler.KardiaTxHandlerAdapter
 	var err error
-	// Kardia BC is of kardia public chain, attach exchange handler
-	if !kardiaBc.IsPrivate() {
-		handler, err = dual_logic_handler.NewCurrencyExchangeLogicHandler(smcAddr, smcABIStr)
+	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
+	if err != nil {
+		return nil, err
+	}
+	// TODO(@sontranrad): This if-else logic should be removed soon and KardiaTxHandlerAdapter should be passed in dynamically
+	if !isPrivateDual {
+		// KardiaProxy runs on public dual node, attach CurrencyExchangeLogicHandler for currency exchange demo
+		handler, err = dual_logic_handler.NewCurrencyExchangeLogicHandler(smcAddr, &smcABI)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Kardia Proxy runs on private dual node, attach CandidateExchangeLogicHandler for candidate exchange demo
+		handler, err = dual_logic_handler.NewCandidateExchangeLogicHandler(smcAddr, &smcABI)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	processor := &KardiaProxy{
-		kardiaBc:     kardiaBc,
-		txPool:       txPool,
-		dualBc:       dualBc,
-		eventPool:    dualEventPool,
-		chainHeadCh:  make(chan base.ChainHeadEvent, 5),
-		logicHandler: handler,
+		kardiaBc:      kardiaBc,
+		txPool:        txPool,
+		dualBc:        dualBc,
+		eventPool:     dualEventPool,
+		chainHeadCh:   make(chan base.ChainHeadEvent, 5),
+		logicHandler:  handler,
+		isPrivateDual: isPrivateDual,
 	}
 
 	// Start subscription to blockchain head event.
@@ -109,6 +126,9 @@ func (p *KardiaProxy) Start(initRate bool) {
 
 func (p *KardiaProxy) RegisterExternalChain(externalChain base.BlockChainAdapter) {
 	p.externalChain = externalChain
+	if p.logicHandler != nil {
+		p.logicHandler.RegisterExternalChain(externalChain)
+	}
 }
 
 func (p *KardiaProxy) loop() {

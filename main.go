@@ -33,18 +33,18 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	dualservice "github.com/kardiachain/go-kardia/dualchain/service"
 	"github.com/kardiachain/go-kardia/dualnode/eth"
 	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/dualnode/neo"
+	"github.com/kardiachain/go-kardia/dualnode/permissioned"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
-	"github.com/kardiachain/go-kardia/node"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"github.com/kardiachain/go-kardia/mainchain/genesis"
-	"github.com/kardiachain/go-kardia/dualnode/permissioned"
 	"github.com/kardiachain/go-kardia/mainchain"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/node"
 )
 
 // args
@@ -286,7 +286,6 @@ func main() {
 	config := &node.DefaultConfig
 	config.P2P.ListenAddr = args.listenAddr
 	config.Name = args.name
-	var env *node.EnvironmentConfig
 
 	// Setup bootNode
 	if args.rpcEnabled {
@@ -298,14 +297,14 @@ func main() {
 	}
 
 	if args.dev {
-		env = node.NewEnvironmentConfig()
+		config.MainChainConfig.EnvConfig = node.NewEnvironmentConfig()
 		// Set P2P max peers for testing on dev environment
 		config.P2P.MaxPeers = args.maxPeers
 		if nodeIndex < 0 {
 			logger.Error(fmt.Sprintf("Node index %v must greater than 0", nodeIndex+1))
 		}
 		// Subtract 1 from the index because we specify node starting from 1 onward.
-		env.SetProposerIndex(args.proposal - 1, len(dev.Nodes))
+		config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal - 1, len(dev.Nodes))
 		// Only set DevNodeConfig if this is a known node from Kardia default set
 		if nodeIndex < len(dev.Nodes) {
 			nodeMetadata, err := dev.GetNodeMetadataByIndex(nodeIndex)
@@ -315,8 +314,7 @@ func main() {
 			config.NodeMetadata = nodeMetadata
 		}
 		// Simulate the voting strategy
-		env.SetVotingStrategy(args.votingStrategy)
-		config.EnvConfig = env
+		config.MainChainConfig.EnvConfig.SetVotingStrategy(args.votingStrategy)
 		config.MainChainConfig.ValidatorIndexes = getIntArray(args.mainChainValIndexes)
 
 		// Create genesis block with dev.genesisAccounts
@@ -353,6 +351,14 @@ func main() {
 
 	n.RegisterService(kai.NewKardiaService)
 	if args.dualChain {
+		if args.dev {
+			// Set env config for dualchain config
+			config.DualChainConfig.EnvConfig = node.NewEnvironmentConfig()
+			// Subtract 1 from the index because we specify node starting from 1 onward.
+			config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal - 1, len(dev.Nodes))
+			config.DualChainConfig.DualGenesis = genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts)
+		}
+
 		if len(args.dualChainValIndexes) > 0 {
 			config.DualChainConfig.ValidatorIndexes = getIntArray(args.dualChainValIndexes)
 		} else {
@@ -396,12 +402,26 @@ func main() {
 
 	// Connect with other peers.
 	if args.dev && args.bootNode == "" {
-		for i := 0; i < env.GetNodeSize(); i++ {
-			peerURL := env.GetNodeMetadata(i).NodeID()
+
+		// Add Mainchain peers
+		for i := 0; i < config.MainChainConfig.EnvConfig.GetNodeSize(); i++ {
+			peerURL := config.MainChainConfig.EnvConfig.GetNodeMetadata(i).NodeID()
 			logger.Info("Adding static peer", "peerURL", peerURL)
 			success, err := n.AddPeer(peerURL)
 			if !success {
 				logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
+			}
+		}
+
+		if args.dualChain {
+			// Add dual peers
+			for i := 0; i < config.DualChainConfig.EnvConfig.GetNodeSize(); i++ {
+				peerURL := config.DualChainConfig.EnvConfig.GetNodeMetadata(i).NodeID()
+				logger.Info("Adding static peer", "peerURL", peerURL)
+				success, err := n.AddPeer(peerURL)
+				if !success {
+					logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
+				}
 			}
 		}
 	}
@@ -446,7 +466,8 @@ func main() {
 		}
 
 		var kardiaProxy *kardia.KardiaProxy
-		kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+		kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
+			dualService.EventPool(), args.isPrivateDual, &exchangeContractAddress, exchangeContractAbi)
 		if err != nil {
 			log.Error("Fail to initialize KardiaChainProcessor", "error", err)
 		}
@@ -516,6 +537,7 @@ func main() {
 			kardiaService.TxPool(),
 			dualService.BlockChain(),
 			dualService.EventPool(),
+			args.isPrivateDual,
 			&exchangeContractAddress,
 			exchangeContractAbi)
 		if err != nil {
@@ -564,8 +586,14 @@ func main() {
 		if args.chainId > 0 {
 			config.ChainID = &args.chainId
 		}
-
-		permissionedProxy, err := permissioned.NewPermissionedProxy(config, kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool())
+		// Load address and abi of Private chain CandidateDB contract to PermissionedProxy
+		candidateDBContractAddress, candidateDBContractAbi := configs.GetContractDetailsByIndex(configs.PrivateChainCandidateDBSmcIndex)
+		if candidateDBContractAbi == "" {
+			log.Error("Cannot load candidate contract abi on private chain")
+			return
+		}
+		permissionedProxy, err := permissioned.NewPermissionedProxy(config, kardiaService.BlockChain(),
+			kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &candidateDBContractAddress, candidateDBContractAbi)
 		if err != nil {
 			logger.Error("Init new private proxy failed", "error", err)
 			return
@@ -574,7 +602,14 @@ func main() {
 		permissionedProxy.Start()
 
 		var kardiaProxy *kardia.KardiaProxy
-		kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(), dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+		// Load address and abi of candidate exchange contract on Kardia to KardiaProxy
+		candidateExchangeContractAddress, candidateExchangeContractAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
+		if exchangeContractAbi == "" {
+			log.Error("Failed to load exchange candidate abi contract")
+			return
+		}
+		kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
+			dualService.EventPool(), args.isPrivateDual, &candidateExchangeContractAddress, candidateExchangeContractAbi)
 		if err != nil {
 			log.Error("Fail to initialize KardiaChainProcessor", "error", err)
 		}

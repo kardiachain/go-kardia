@@ -99,11 +99,26 @@ var Nodes = []map[string]interface{}{
 		"votingPower": 100,
 		"listenAddr": "[::]:3012",
 	},
+	{
+		"key": "83731e17afb0da61c0026eaf780364eee367c50a5225ece89a63ad94a4a1f088",
+		"votingPower": 100,
+		"listenAddr": "[::]:3013",
+	},
+	{
+		"key": "fc09d3f004b1ee430fee60568aa29748e277e76f1f372eea9d2b9ff1e27bdfdb",
+		"votingPower": 100,
+		"listenAddr": "[::]:3014",
+	},
+	{
+		"key": "5605dd5f4db003c396956b4b80c093c472ccef4021181aa910125d7c57324152",
+		"votingPower": 100,
+		"listenAddr": "[::]:3015",
+	},
 	// the key below is used for test un-authorized node (private case)
 	{
 		"key": "0cf7ae0332a891044659ace49a0732fa07c2872b4aef479945501f385a23e690",
 		"votingPower": 0,
-		"listenAddr": "[::]:3013",
+		"listenAddr": "[::]:3016",
 	},
 }
 

@@ -33,6 +33,7 @@ import (
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
 const DualServiceName = "DUAL"
@@ -78,7 +79,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		return nil, err
 	}
 
-	chainConfig, _, genesisErr := blockchain.SetupGenesisBlock(logger, groupDb, config.DualGenesis)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, groupDb, config.DualGenesis)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
@@ -106,10 +107,10 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	block := dualService.blockchain.CurrentBlock()
 	log.Info("DUAL Validators: ", "valIndex", ctx.Config.DualChainConfig.ValidatorIndexes)
 	var validatorSet *types.ValidatorSet
-	if ctx.Config.EnvConfig != nil {
-		validatorSet, err = ctx.Config.EnvConfig.GetValidatorSetByIndices(dualService.blockchain, ctx.Config.DualChainConfig.ValidatorIndexes)
+	if ctx.Config.DualChainConfig.EnvConfig != nil {
+		validatorSet, err = ctx.Config.DualChainConfig.EnvConfig.GetValidatorSetByIndices(dualService.blockchain, ctx.Config.DualChainConfig.ValidatorIndexes)
 		if err != nil {
-			logger.Error("Cannot get validator from indices", "indices", ctx.Config.MainChainConfig.ValidatorIndexes, "err", err)
+			logger.Error("Cannot get validator from indices", "indices", ctx.Config.DualChainConfig.ValidatorIndexes, "err", err)
 		}
 	}
 	state := state.LastestBlockState{
@@ -127,11 +128,10 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		configs.DefaultConsensusConfig(),
 		state,
 		dualService.dualBlockOperations,
-		ctx.Config.EnvConfig.VotingStrategy,
 	)
 	dualService.csManager = consensus.NewConsensusManager(DualServiceName, consensusState)
 	// Set private validator for consensus manager.
-	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
+	privValidator := types.NewPrivValidator(ctx.Config.NodeMetadata.PrivKey)
 	dualService.csManager.SetPrivValidator(privValidator)
 
 	if dualService.protocolManager, err = service.NewProtocolManager(

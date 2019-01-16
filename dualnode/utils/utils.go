@@ -255,8 +255,8 @@ func CreateForwardRequestTx(email string, fromOrgId string, toOrgId string, stat
 // CreateForwardResponseTx creates tx call to Kardia candidate exchange contract to fulfill a candidate info request
 // from external private chain, receiving private chain will catch the event fired from Kardia exchange contract to process
 // candidate info
-func CreateForwardResponseTx(email string, name string, age uint8, addr common.Address, source string, fromOrgId string,
-	toOrgId string, state *state.ManagedState) (*types.Transaction, error) {
+func CreateForwardResponseTx(email string, response string, fromOrgId string, toOrgId string,
+	state *state.ManagedState) (*types.Transaction, error) {
 	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
 	if exchangeSmcAbi == "" {
 		return nil, errAbiNotFound
@@ -265,7 +265,7 @@ func CreateForwardResponseTx(email string, name string, age uint8, addr common.A
 	if err != nil {
 		return nil, err
 	}
-	requestInfoInput, err := kAbi.Pack(configs.KardiaForwardResponseFunction, email, name, age, addr, source, fromOrgId, toOrgId)
+	requestInfoInput, err := kAbi.Pack(configs.KardiaForwardResponseFunction, email, response, fromOrgId, toOrgId)
 	if err != nil {
 		return nil, err
 	}
