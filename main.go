@@ -40,6 +40,7 @@ import (
 	"github.com/kardiachain/go-kardia/dualnode/neo"
 	"github.com/kardiachain/go-kardia/dualnode/permissioned"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/mainchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
@@ -68,6 +69,7 @@ type flagArgs struct {
 	networkId           uint64
 	chainId             uint64
 	serviceName         string
+	noProxy             bool
 
 	// Ether/Kardia dualnode related flags
 	ethDual       bool
@@ -168,6 +170,7 @@ func init() {
 	flag.BoolVar(&args.txs, "txs", false, "generate random transfer txs")
 	flag.IntVar(&args.txsDelay, "txsDelay", 10, "delay in seconds between batches of generated txs")
 	flag.IntVar(&args.numTxs, "numTxs", 10, "number of of generated txs in one batch")
+	flag.BoolVar(&args.noProxy, "noProxy", false, "When triggered, Kardia node is standalone and is not registered in proxy.")
 }
 
 // runtimeSystemSettings optimizes process setting for go-kardia
@@ -304,7 +307,7 @@ func main() {
 			logger.Error(fmt.Sprintf("Node index %v must greater than 0", nodeIndex+1))
 		}
 		// Subtract 1 from the index because we specify node starting from 1 onward.
-		config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal - 1, len(dev.Nodes))
+		config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal-1, len(dev.Nodes))
 		// Only set DevNodeConfig if this is a known node from Kardia default set
 		if nodeIndex < len(dev.Nodes) {
 			nodeMetadata, err := dev.GetNodeMetadataByIndex(nodeIndex)
@@ -355,7 +358,7 @@ func main() {
 			// Set env config for dualchain config
 			config.DualChainConfig.EnvConfig = node.NewEnvironmentConfig()
 			// Subtract 1 from the index because we specify node starting from 1 onward.
-			config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal - 1, len(dev.Nodes))
+			config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal-1, len(dev.Nodes))
 			config.DualChainConfig.DualGenesis = genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts)
 		}
 
@@ -400,17 +403,33 @@ func main() {
 	}
 	logger.Info("Genesis block", "genesis", *kardiaService.BlockChain().Genesis())
 
+	if !args.noProxy {
+		n.CallProxy("Startup", n.Server().Self(), nil)
+	}
 	// Connect with other peers.
 	if args.dev && args.bootNode == "" {
+		var success bool
+		var err error
 
 		// Add Mainchain peers
 		for i := 0; i < config.MainChainConfig.EnvConfig.GetNodeSize(); i++ {
 			peerURL := config.MainChainConfig.EnvConfig.GetNodeMetadata(i).NodeID()
 			logger.Info("Adding static peer", "peerURL", peerURL)
-			success, err := n.AddPeer(peerURL)
-			if !success {
-				logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
+			if args.noProxy {
+				peerNode, err := discover.ParseNode(peerURL)
+				if err != nil {
+					logger.Error("Error parsing peerNode", "err", err)
+				}
+				if err := n.ConfirmAddPeer(peerNode); err != nil {
+					log.Error("Error adding static peer", "err", err)
+				}
+			} else {
+				success, err = n.AddPeer(peerURL)
+				if !success {
+					logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
+				}
 			}
+
 		}
 
 		if args.dualChain {
@@ -418,23 +437,45 @@ func main() {
 			for i := 0; i < config.DualChainConfig.EnvConfig.GetNodeSize(); i++ {
 				peerURL := config.DualChainConfig.EnvConfig.GetNodeMetadata(i).NodeID()
 				logger.Info("Adding static peer", "peerURL", peerURL)
-				success, err := n.AddPeer(peerURL)
-				if !success {
-					logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
+				if args.noProxy {
+					peerNode, err := discover.ParseNode(peerURL)
+					if err != nil {
+						logger.Error("Error parsing peerNode", "err", err)
+					}
+					if err := n.ConfirmAddPeer(peerNode); err != nil {
+						log.Error("Error adding static peer", "err", err)
+					}
+				} else {
+					success, err = n.AddPeer(peerURL) // Called through proxy
+					if !success {
+						logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
+					}
 				}
 			}
 		}
 	}
 
 	if args.bootNode != "" {
-		logger.Info("Adding Peer", "Boot Node:", args.bootNode)
-		success, err := n.AddPeer(args.bootNode)
-		if success {
-			logger.Info("Boot Node added successfully", "Node", args.bootNode)
-		} else {
-			logger.Error("Fail to connect to boot node", "err", err, "boot node", args.bootNode)
-			return
+		var success bool
+		var err error
+		bootNode, err := discover.ParseNode(args.bootNode)
+		if err != nil {
+			logger.Error("Error parsing bootnode", "err", err)
 		}
+
+		logger.Info("Adding Peer", "Boot Node:", args.bootNode)
+		if args.noProxy {
+			if err := n.ConfirmAddPeer(bootNode); err != nil {
+				log.Error("Error adding bootNode", "err", err)
+			}
+
+		} else {
+			success, err = n.BootNode(args.bootNode)
+			if !success {
+				panic("Unable to connect to bootnode")
+			}
+		}
+
 	}
 
 	if len(args.peer) > 0 {

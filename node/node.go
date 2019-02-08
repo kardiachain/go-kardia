@@ -19,6 +19,8 @@
 package node
 
 import (
+	"bytes"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"net"
@@ -31,6 +33,8 @@ import (
 	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/rpc"
 )
+
+var PeerProxyURL = "0.0.0.0:9001"
 
 // Node is the highest level container for a full Kardia node.
 // It keeps all config data and services.
@@ -254,25 +258,49 @@ func (n *Node) RegisterService(constructor ServiceConstructor) error {
 // AddPeer adds a remote node as static peer, maintaining the new
 // connection at all times, even reconnecting if it is lost.
 // Only accepts complete node for now.
-func (n *Node) AddPeer(url string) (bool, error) {
-	// Make sure the server is running, fail otherwise
+func (n *Node) ConfirmAddPeer(node *discover.Node) error {
 	server := n.Server()
+	if err := server.AddPeer(node); err != nil {
+		return err
+	}
+	return nil
+}
+
+type Request struct {
+	Method     string
+	ReqNode    *proxyNode
+	TargetNode *proxyNode
+}
+
+type proxyNode struct {
+	ID  string
+	IP  string
+	TCP uint16
+	RPC uint16
+}
+
+func (n *Node) AddPeer(url string) (bool, error) {
+	//Create Node from URL
+	server := n.Server()
+	reqNode := server.Self()
 
 	if server == nil {
 		return false, ErrNodeStopped
 	}
-	// Try to add the url as a static peer and return
-	node, err := discover.ParseNode(url)
+	targetNode, err := discover.ParseNode(url)
 	if err != nil {
 		return false, fmt.Errorf("invalid enode: %v", err)
 	}
-	if node.Incomplete() {
+	if targetNode.Incomplete() {
 		return false, errors.New("peer node is incomplete")
 	}
 
-	server.AddPeer(node)
-
+	if err := n.CallProxy("AddPeer", reqNode, targetNode); err != nil {
+		return false, err
+	}
 	return true, nil
+	//Send an "AddPeer" request to proxy.
+	//Proxy will send a confirmed add peer request
 }
 
 // Service returns running service with given type.
@@ -316,4 +344,70 @@ func (n *Node) apis() []rpc.API {
 			Public:    true,
 		},
 	}
+}
+
+func (n *Node) BootNode(url string) (bool, error) {
+	server := n.Server()
+
+	if server == nil {
+		return false, ErrNodeStopped
+	}
+	reqNode := server.Self()
+
+	BootNode, err := discover.ParseNode(url)
+	if err != nil {
+		return false, fmt.Errorf("invalid enode: %v", err)
+	}
+	if BootNode.Incomplete() {
+		return false, errors.New("boot node is incomplete")
+	}
+	//Above is vetting
+
+	if err := n.CallProxy("BootNode", reqNode, BootNode); err != nil {
+		return false, err
+	}
+	return true, nil
+
+}
+
+func (n *Node) CallProxy(method string, reqNode, targetNode *discover.Node) error {
+	//Make connection with proxy
+	ReqNodeID := strings.SplitAfter(reqNode.String(), "@")[0]
+	conn, err := net.Dial("tcp", PeerProxyURL)
+	if err != nil {
+		return err
+	}
+	var request Request
+	request.Method = method
+	request.ReqNode = &proxyNode{
+		ID:  ReqNodeID[:len(ReqNodeID)-1],
+		IP:  reqNode.IP.String(),
+		TCP: reqNode.TCP,
+		RPC: uint16(n.config.HTTPPort),
+	}
+
+	request.TargetNode = &proxyNode{}
+	if targetNode != nil {
+		TargetNodeID := strings.SplitAfter(targetNode.String(), "@")[0]
+
+		request.TargetNode = &proxyNode{
+			ID:  TargetNodeID[:len(TargetNodeID)-1],
+			IP:  targetNode.IP.String(),
+			TCP: targetNode.TCP,
+		}
+	}
+
+	var buff bytes.Buffer
+	enc := gob.NewEncoder(&buff) // Will write to network.
+	if err := enc.Encode(request); err != nil {
+		return err
+	}
+	if _, err = conn.Write(buff.Bytes()); err != nil {
+		return err
+	}
+	err = conn.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }
