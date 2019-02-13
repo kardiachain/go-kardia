@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	defaultGasPrice             = 50 * params.Shannon
+	defaultGasPrice             = 50 * params.GWei
 	defaultTimeOutForStaticCall = 5
 )
 

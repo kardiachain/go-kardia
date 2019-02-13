@@ -37,8 +37,8 @@ import (
 	"github.com/ethereum/go-ethereum/les"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/discv5"
+	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -104,10 +104,10 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 	// TODO(thientn) : options to choose different networks.
 	datadir = filepath.Join(datadir, "rinkeby", config.Name)
 	bootUrls := params.RinkebyBootnodes
-	bootstrapNodes := make([]*discover.Node, 0, len(bootUrls))
+	bootstrapNodes := make([]*enode.Node, 0, len(bootUrls))
 	bootstrapNodesV5 := make([]*discv5.Node, 0, len(bootUrls)) // rinkeby set default bootnodes as also discv5 nodes.
 	for _, url := range bootUrls {
-		peer, err := discover.ParseNode(url)
+		peer, err := enode.ParseV4(url)
 		if err != nil {
 			log.Error("Bootstrap URL invalid", "enode", url, "err", err)
 			continue
@@ -152,7 +152,6 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 
 	// similar to cmd/utils/flags.go
 	ethConf.DatabaseCache = config.CacheSize * 75 / 100
-	ethConf.TrieCache = config.CacheSize * 25 / 100
 	// Hardcode to 50% of 2048 file descriptor limit for whole process, as in flags.go/makeDatabaseHandles()
 	ethConf.DatabaseHandles = 1024
 

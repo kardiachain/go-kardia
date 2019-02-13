@@ -408,9 +408,6 @@ func main() {
 	}
 	// Connect with other peers.
 	if args.dev && args.bootNode == "" {
-		var success bool
-		var err error
-
 		// Add Mainchain peers
 		for i := 0; i < config.MainChainConfig.EnvConfig.GetNodeSize(); i++ {
 			peerURL := config.MainChainConfig.EnvConfig.GetNodeMetadata(i).NodeID()
@@ -424,7 +421,7 @@ func main() {
 					log.Error("Error adding static peer", "err", err)
 				}
 			} else {
-				success, err = n.AddPeer(peerURL)
+				success, err := n.AddPeer(peerURL)
 				if !success {
 					logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
 				}
@@ -446,7 +443,7 @@ func main() {
 						log.Error("Error adding static peer", "err", err)
 					}
 				} else {
-					success, err = n.AddPeer(peerURL) // Called through proxy
+					success, err := n.AddPeer(peerURL) // Called through proxy
 					if !success {
 						logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
 					}
@@ -481,10 +478,22 @@ func main() {
 	if len(args.peer) > 0 {
 		urls := strings.Split(args.peer, ",")
 		for _, peerURL := range urls {
+			peerNode, err := discover.ParseNode(peerURL)
+			if err != nil {
+				logger.Error("Error parsing peer", "err", err)
+				continue
+			}
 			logger.Info("Adding static peer", "peerURL", peerURL)
-			success, err := n.AddPeer(peerURL)
-			if !success {
-				logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
+			if args.noProxy {
+				if err := n.ConfirmAddPeer(peerNode); err != nil {
+					log.Error("Error adding static peer", "err", err)
+				}
+
+			} else {
+				success, err := n.AddPeer(peerURL)
+					if !success {
+					logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
+				}
 			}
 		}
 	}
