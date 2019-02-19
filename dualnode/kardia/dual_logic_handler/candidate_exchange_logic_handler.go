@@ -43,7 +43,6 @@ func NewCandidateExchangeLogicHandler(smcAddr *common.Address, smcABI *abi.ABI) 
 	return handler, nil
 }
 
-
 // RegisterExternalChain attaches an external blockchain adapter for this handler
 func (h *CandidateExchangeLogicHandler) RegisterExternalChain(externalChain base.BlockChainAdapter) {
 	h.externalChain = externalChain

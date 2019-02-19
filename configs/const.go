@@ -65,6 +65,8 @@ const (
 	PrivateChainCandidateRequestEmailIndex              = 0
 	PrivateChainCandidateRequestFromOrgIndex            = 1
 	PrivateChainCandidateRequestToOrgIndex              = 2
+	PrivateChainExternalCandidateInfoRequestedEvent     = "ExternalCandidateInfoRequested"
+	PrivateChainRequestCompletedEvent                   = "RequestCompleted"
 )
 
 var (

@@ -98,6 +98,7 @@ type flagArgs struct {
 	dualChain           bool
 	dualChainValIndexes string
 	isPrivateDual       bool
+	dualNetworkId		uint64
 
 	// Development's related flags
 	dev            bool
@@ -153,6 +154,7 @@ func init() {
 	flag.Uint64Var(&args.privateChainId, "privateChainId", 0, "privateChainId is used to validate which node is allowed to send message through P2P in the private blockchain")
 	flag.StringVar(&args.privateServiceName, "privateServiceName", "", "privateServiceName is used for displaying as log's prefix")
 	flag.StringVar(&args.privateAddr, "privateAddr", ":5000", "listened address for private chain")
+	flag.Uint64Var(&args.dualNetworkId, "dualNetworkId", 100, "dualNetworkID is used to differentiate amongst Kardia-based dual groups")
 
 	// NOTE: The flags below are only applicable for dev environment. Please add the applicable ones
 	// here and DO NOT add non-dev flags.
@@ -307,7 +309,7 @@ func main() {
 			logger.Error(fmt.Sprintf("Node index %v must greater than 0", nodeIndex+1))
 		}
 		// Subtract 1 from the index because we specify node starting from 1 onward.
-		config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal-1, len(dev.Nodes))
+		config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal - 1, len(dev.Nodes))
 		// Only set DevNodeConfig if this is a known node from Kardia default set
 		if nodeIndex < len(dev.Nodes) {
 			nodeMetadata, err := dev.GetNodeMetadataByIndex(nodeIndex)
@@ -358,7 +360,7 @@ func main() {
 			// Set env config for dualchain config
 			config.DualChainConfig.EnvConfig = node.NewEnvironmentConfig()
 			// Subtract 1 from the index because we specify node starting from 1 onward.
-			config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal-1, len(dev.Nodes))
+			config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal - 1, len(dev.Nodes))
 			config.DualChainConfig.DualGenesis = genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts)
 		}
 
@@ -370,6 +372,7 @@ func main() {
 		config.DualChainConfig.DualEventPool = *event_pool.GetDefaultEventPoolConfig(nodeDir)
 		config.DualChainConfig.IsPrivate = args.isPrivateDual
 		config.DualChainConfig.ChainId = args.devDualChainID
+		config.DualChainConfig.DualNetworkID = args.dualNetworkId
 		if args.ethDual {
 			config.DualChainConfig.ChainId = configs.EthDualChainID
 		} else if args.neoDual {

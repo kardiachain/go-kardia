@@ -120,6 +120,9 @@ type DualChainConfig struct {
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this environment when running in dev environment.
 	EnvConfig *EnvironmentConfig
+
+	// Dual Network ID
+	DualNetworkID uint64
 }
 
 type NodeConfig struct {

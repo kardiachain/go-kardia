@@ -154,7 +154,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.DualChainConfig
 	kai, err := newDualService(ctx, &DualConfig{
-		NetworkId:     DualNetworkID,
+		NetworkId:     chainConfig.DualNetworkID,
 		ChainID:       chainConfig.ChainId,
 		ChainData:     chainConfig.ChainDataDir,
 		DbHandles:     chainConfig.DbHandles,
