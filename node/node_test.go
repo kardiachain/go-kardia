@@ -80,7 +80,6 @@ func testNodeConfig() *NodeConfig {
 	return &NodeConfig{
 		Name:            "test node",
 		P2P:             p2p.Config{PrivateKey: testNodeKey},
-		EnvConfig:       NewEnvironmentConfig(),
 		MainChainConfig: MainChainConfig{},
 		NodeMetadata: nodeMetadata,
 	}
