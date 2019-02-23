@@ -42,9 +42,27 @@ jobs:
   release:
     docker:
       - image: circleci/golang:1.10.4
+    working_directory: /go/src/github.com/kardiachain/go-kardia
+
     steps:
       - checkout
-      - run: curl -sL https://git.io/goreleaser | bash
+      - restore_cache:
+          keys:
+            - v1-pkg-cache
+      - run:
+          name: get dependencies
+          command: |
+            go get -u github.com/golang/dep/cmd/dep
+            dep ensure
+
+      - save_cache:
+          key: v1-pkg-cache
+          paths:
+            - "/go/pkg"
+            
+      - run:
+          name: Run release
+          command: curl -sL https://git.io/goreleaser | bash
 
 workflows:
   version: 2
