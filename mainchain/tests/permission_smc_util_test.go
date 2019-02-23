@@ -32,6 +32,8 @@ import (
 )
 
 var Pubkey = "7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860"
+const MaximumInitialNodes = 16
+
 func GetBlockchain() (*blockchain.BlockChain, error) {
 	// Start setting up blockchain
 	var genesisAccounts = map[string]int64{
@@ -190,7 +192,7 @@ func TestGetInitialNodeByIndex(t *testing.T) {
 		t.Error("Expect listen address [::]:3000, got ", listenAddress)
 	}
 	// Get info of an invalid node
-	key, address, listenAddress, votingPower, nodeType, err = util.GetAdminNodeByIndex(13)
+	key, address, listenAddress, votingPower, nodeType, err = util.GetAdminNodeByIndex(MaximumInitialNodes)
 	if err != nil {
 		t.Fatal(err)
 	}
