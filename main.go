@@ -98,7 +98,7 @@ type flagArgs struct {
 	dualChain           bool
 	dualChainValIndexes string
 	isPrivateDual       bool
-	dualNetworkId		uint64
+	dualNetworkId       uint64
 
 	// Development's related flags
 	dev            bool
@@ -309,7 +309,7 @@ func main() {
 			logger.Error(fmt.Sprintf("Node index %v must greater than 0", nodeIndex+1))
 		}
 		// Subtract 1 from the index because we specify node starting from 1 onward.
-		config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal - 1, len(dev.Nodes))
+		config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal-1, len(dev.Nodes))
 		// Only set DevNodeConfig if this is a known node from Kardia default set
 		if nodeIndex < len(dev.Nodes) {
 			nodeMetadata, err := dev.GetNodeMetadataByIndex(nodeIndex)
@@ -360,7 +360,7 @@ func main() {
 			// Set env config for dualchain config
 			config.DualChainConfig.EnvConfig = node.NewEnvironmentConfig()
 			// Subtract 1 from the index because we specify node starting from 1 onward.
-			config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal - 1, len(dev.Nodes))
+			config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal-1, len(dev.Nodes))
 			config.DualChainConfig.DualGenesis = genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts)
 		}
 
@@ -494,7 +494,7 @@ func main() {
 
 			} else {
 				success, err := n.AddPeer(peerURL)
-					if !success {
+				if !success {
 					logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
 				}
 			}
@@ -518,30 +518,59 @@ func main() {
 			return
 		}
 
-		var kardiaProxy *kardia.KardiaProxy
-		kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
-			dualService.EventPool(), args.isPrivateDual, &exchangeContractAddress, exchangeContractAbi)
-		if err != nil {
-			log.Error("Fail to initialize KardiaChainProcessor", "error", err)
-		}
-		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
-		// submit tx to either internal or external blockchain.
-		bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, dualNeo)
-		dualService.SetDualBlockChainManager(bcManager)
-		// Register the 'other' blockchain to each internal/external blockchain. This is needed
-		// for generate Tx to submit to the other blockchain.
-		kardiaProxy.RegisterExternalChain(dualNeo)
-		dualNeo.RegisterInternalChain(kardiaProxy)
-		kardiaProxy.Start(args.mockDualEvent)
-		// Register NeoService to interact with NEO from external sides
-		var neoService *neo.NeoService
-		if err := n.Service(&neoService); err != nil {
-			logger.Error("Cannot get Neo Service", "err", err)
-			return
+		if args.isPrivateDual {
+			var kardiaProxy *kardia.PrivateKardiaProxy
+			kardiaProxy, err = kardia.NewPrivateKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
+				dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+			if err != nil {
+				log.Error("Fail to initialize PrivateKardiaProxy", "error", err)
+			}
+			// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
+			// submit tx to either internal or external blockchain.
+			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, dualNeo)
+			dualService.SetDualBlockChainManager(bcManager)
+			// Register the 'other' blockchain to each internal/external blockchain. This is needed
+			// for generate Tx to submit to the other blockchain.
+			kardiaProxy.RegisterExternalChain(dualNeo)
+			dualNeo.RegisterInternalChain(kardiaProxy)
+			kardiaProxy.Start(args.mockDualEvent)
+			// Register NeoService to interact with NEO from external sides
+			var neoService *neo.NeoService
+			if err := n.Service(&neoService); err != nil {
+				logger.Error("Cannot get Neo Service", "err", err)
+				return
+			} else {
+				// Set up blockchains and event pool for neo service
+				neoService.Initialize(kardiaProxy, dualService.BlockChain(), dualService.EventPool())
+			}
 		} else {
-			// Set up blockchains and event pool for neo service
-			neoService.Initialize(kardiaProxy, dualService.BlockChain(), dualService.EventPool())
+			var kardiaProxy *kardia.KardiaProxy
+			kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
+				dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
+			if err != nil {
+				log.Error("Fail to initialize KardiaProxy", "error", err)
+			}
+			// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
+			// submit tx to either internal or external blockchain.
+			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, dualNeo)
+			dualService.SetDualBlockChainManager(bcManager)
+			// Register the 'other' blockchain to each internal/external blockchain. This is needed
+			// for generate Tx to submit to the other blockchain.
+			kardiaProxy.RegisterExternalChain(dualNeo)
+			dualNeo.RegisterInternalChain(kardiaProxy)
+			kardiaProxy.Start(args.mockDualEvent)
+			// Register NeoService to interact with NEO from external sides
+			var neoService *neo.NeoService
+			if err := n.Service(&neoService); err != nil {
+				logger.Error("Cannot get Neo Service", "err", err)
+				return
+			} else {
+				// Set up blockchains and event pool for neo service
+				neoService.Initialize(kardiaProxy, dualService.BlockChain(), dualService.EventPool())
+			}
+
 		}
+
 	}
 
 	// Run Eth-Kardia dual node
@@ -584,31 +613,55 @@ func main() {
 			return
 		}
 
-		var kardiaProxy *kardia.KardiaProxy
-		kardiaProxy, err = kardia.NewKardiaProxy(
-			kardiaService.BlockChain(),
-			kardiaService.TxPool(),
-			dualService.BlockChain(),
-			dualService.EventPool(),
-			args.isPrivateDual,
-			&exchangeContractAddress,
-			exchangeContractAbi)
-		if err != nil {
-			log.Error("Fail to initialize KardiaChainProcessor", "error", err)
+		if args.isPrivateDual {
+			var kardiaProxy *kardia.PrivateKardiaProxy
+			kardiaProxy, err = kardia.NewPrivateKardiaProxy(
+				kardiaService.BlockChain(),
+				kardiaService.TxPool(),
+				dualService.BlockChain(),
+				dualService.EventPool(),
+				&exchangeContractAddress,
+				exchangeContractAbi)
+			if err != nil {
+				log.Error("Fail to initialize KardiaChainProcessor", "error", err)
+			}
+
+			// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
+			// submit tx to either internal or external blockchain.
+			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, ethNode)
+			dualService.SetDualBlockChainManager(bcManager)
+
+			// Register the 'other' blockchain to each internal/external blockchain. This is needed
+			// for generate Tx to submit to the other blockchain.
+			kardiaProxy.RegisterExternalChain(ethNode)
+			ethNode.RegisterInternalChain(kardiaProxy)
+			go displaySyncStatus(client)
+			kardiaProxy.Start(args.mockDualEvent)
+		} else {
+			var kardiaProxy *kardia.KardiaProxy
+			kardiaProxy, err = kardia.NewKardiaProxy(
+				kardiaService.BlockChain(),
+				kardiaService.TxPool(),
+				dualService.BlockChain(),
+				dualService.EventPool(),
+				&exchangeContractAddress,
+				exchangeContractAbi)
+			if err != nil {
+				log.Error("Fail to initialize KardiaChainProcessor", "error", err)
+			}
+
+			// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
+			// submit tx to either internal or external blockchain.
+			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, ethNode)
+			dualService.SetDualBlockChainManager(bcManager)
+
+			// Register the 'other' blockchain to each internal/external blockchain. This is needed
+			// for generate Tx to submit to the other blockchain.
+			kardiaProxy.RegisterExternalChain(ethNode)
+			ethNode.RegisterInternalChain(kardiaProxy)
+			go displaySyncStatus(client)
+			kardiaProxy.Start(args.mockDualEvent)
 		}
-
-		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
-		// submit tx to either internal or external blockchain.
-		bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, ethNode)
-		dualService.SetDualBlockChainManager(bcManager)
-
-		// Register the 'other' blockchain to each internal/external blockchain. This is needed
-		// for generate Tx to submit to the other blockchain.
-		kardiaProxy.RegisterExternalChain(ethNode)
-		ethNode.RegisterInternalChain(kardiaProxy)
-
-		go displaySyncStatus(client)
-		kardiaProxy.Start(args.mockDualEvent)
 	}
 
 	if args.isPrivateDual {
@@ -654,17 +707,17 @@ func main() {
 
 		permissionedProxy.Start()
 
-		var kardiaProxy *kardia.KardiaProxy
+		var kardiaProxy *kardia.PrivateKardiaProxy
 		// Load address and abi of candidate exchange contract on Kardia to KardiaProxy
 		candidateExchangeContractAddress, candidateExchangeContractAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
 		if exchangeContractAbi == "" {
 			log.Error("Failed to load exchange candidate abi contract")
 			return
 		}
-		kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
-			dualService.EventPool(), args.isPrivateDual, &candidateExchangeContractAddress, candidateExchangeContractAbi)
+		kardiaProxy, err = kardia.NewPrivateKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
+			dualService.EventPool(), &candidateExchangeContractAddress, candidateExchangeContractAbi)
 		if err != nil {
-			log.Error("Fail to initialize KardiaChainProcessor", "error", err)
+			log.Error("Fail to initialize PrivateKardiaProxy", "error", err)
 		}
 		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 		// submit tx to either internal or external blockchain.
