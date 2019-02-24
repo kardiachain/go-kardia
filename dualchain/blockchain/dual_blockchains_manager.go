@@ -19,8 +19,8 @@
 package blockchain
 
 import (
-	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // Manages the internal blockchain (i.e Kardia) and one of the external blockchain (e.g. Ethereum,
@@ -43,4 +43,8 @@ func (d *DualBlockChainManager) SubmitTx(event *types.EventData) error {
 	}
 
 	return d.externalBlockChain.SubmitTx(event)
+}
+
+func (d *DualBlockChainManager) HandleKardiaSmcs(event []*types.KardiaSmartcontract) {
+	// TODO: Do this next
 }
