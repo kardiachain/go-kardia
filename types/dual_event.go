@@ -43,7 +43,7 @@ type DualEvent struct {
 	TriggeredEvent    *EventData  `json:"triggeredEvent"		 gencodec:"required"`
 	PendingTxMetadata *TxMetadata `json:"pendingTxMetadata"      gencodec:"required"`
 
-	DualTxs []*DualTransaction `json:"dualTxs"				 gencodec:"required"`
+	KardiaSmcs []*KardiaSmartcontract `json:"kardiaSmcs"				 gencodec:"required"`
 
 	// caches
 	hash atomic.Value
@@ -51,8 +51,8 @@ type DualEvent struct {
 	from atomic.Value
 }
 
-type DualTransaction struct {
-	EventWatcher Watcher
+type KardiaSmartcontract struct {
+	EventWatcher *Watcher
 }
 
 type Watcher struct {

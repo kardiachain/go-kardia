@@ -25,10 +25,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 )
 
 var (
@@ -246,13 +246,18 @@ func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) (commo
 	}
 
 	for _, event := range events {
+		if len(event.KardiaSmcs) != 0 {
+			dbo.bcManager.HandleKardiaSmcs(event.KardiaSmcs)
+			continue
+		}
+
 		err := dbo.bcManager.SubmitTx(event.TriggeredEvent)
 		if err != nil {
 			// TODO(sontranrad, namdoh): add logic for handling error when submitting TX, currrently just log error here
 			dbo.logger.Error("Error submit dual event", "err", err)
-			continue
+		} else {
+			dbo.logger.Info("Submit dual event successfully")
 		}
-		dbo.logger.Info("Submit dual event successfully")
 
 		// TODO(namdoh): Properly handle error here.
 	}
