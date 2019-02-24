@@ -43,10 +43,28 @@ type DualEvent struct {
 	TriggeredEvent    *EventData  `json:"triggeredEvent"		 gencodec:"required"`
 	PendingTxMetadata *TxMetadata `json:"pendingTxMetadata"      gencodec:"required"`
 
+	DualTxs []*DualTransaction `json:"dualTxs"				 gencodec:"required"`
+
 	// caches
 	hash atomic.Value
 	size atomic.Value
 	from atomic.Value
+}
+
+type DualTransaction struct {
+	EventWatcher Watcher
+}
+
+type Watcher struct {
+	SmcAddress common.Address
+}
+
+type DualActions struct {
+	Actions []*DualAction
+}
+
+type DualAction struct {
+	Name string
 }
 
 // Data relevant to the event (either from external or internal blockchain)
@@ -85,7 +103,7 @@ func (ev *EventData) Hash() common.Hash {
 type EventSummary struct {
 	TxMethod string   // Smc's method
 	TxValue  *big.Int // Amount of the tx
-	ExtData [][]byte  // Additional data along with this event
+	ExtData  [][]byte // Additional data along with this event
 }
 
 // String returns a string representation of EventSummary
