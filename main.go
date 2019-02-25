@@ -39,6 +39,7 @@ import (
 	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/dualnode/neo"
 	"github.com/kardiachain/go-kardia/dualnode/permissioned"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
@@ -46,6 +47,7 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // args
@@ -109,6 +111,7 @@ type flagArgs struct {
 	txs            bool
 	txsDelay       int
 	numTxs         int
+	dualEvent      bool
 }
 
 var args flagArgs
@@ -173,6 +176,7 @@ func init() {
 	flag.IntVar(&args.txsDelay, "txsDelay", 10, "delay in seconds between batches of generated txs")
 	flag.IntVar(&args.numTxs, "numTxs", 10, "number of of generated txs in one batch")
 	flag.BoolVar(&args.noProxy, "noProxy", false, "When triggered, Kardia node is standalone and is not registered in proxy.")
+	flag.BoolVar(&args.dualEvent, "dualEvent", false, "generate initial dual event")
 }
 
 // runtimeSystemSettings optimizes process setting for go-kardia
@@ -402,6 +406,10 @@ func main() {
 		if err := n.Service(&dualService); err != nil {
 			logger.Error("Cannot get Dual Service", "err", err)
 			return
+		}
+
+		if args.dualEvent {
+			go genDualEvent(dualService.EventPool())
 		}
 	}
 	logger.Info("Genesis block", "genesis", *kardiaService.BlockChain().Genesis())
@@ -796,6 +804,27 @@ func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool, gen
 		}
 	}
 	log.Info("GenTxs Finish adding generated txs", "success", goodCount, "failure", badCount, "genRound", genRound)
+}
+
+func genDualEvent(eventPool *event_pool.EventPool) {
+	// Wait 10 seconds first for dual peers to connect.
+
+	smcAddr := common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
+
+	time.Sleep(time.Duration(10) * time.Second)
+
+	smcArrs := make([]*types.KardiaSmartcontract, 0)
+	smcArrs = append(smcArrs, &types.KardiaSmartcontract{
+		EventWatcher: &types.Watcher{SmcAddress: smcAddr}})
+	event := &types.DualEvent{
+		Nonce:      0,
+		KardiaSmcs: smcArrs,
+	}
+	log.Info("Adding initial DualEvent", "event", event.String())
+	err := eventPool.AddEvent(event)
+	if err != nil {
+		log.Error("Fail to add initial dual event", "err", err)
+	}
 }
 
 func waitForever() {

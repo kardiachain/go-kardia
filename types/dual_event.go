@@ -125,6 +125,16 @@ func (txMetadata *TxMetadata) String() string {
 		txMetadata.TxHash.Hex(), txMetadata.Target)
 }
 
+// String returns a string representation of KardiaSmartcontract
+func (kardiaSmc *KardiaSmartcontract) String() string {
+	if kardiaSmc.EventWatcher != nil {
+		return fmt.Sprintf("Smc{Watcher{Addr:%v}}", kardiaSmc.EventWatcher.SmcAddress.String())
+	} else {
+		return "Smc{nil-watcher}"
+	}
+
+}
+
 func NewDualEvent(nonce uint64, fromExternal bool, txSource BlockchainSymbol, txHash *common.Hash, summary *EventSummary) *DualEvent {
 	return &DualEvent{
 		Nonce: nonce,
@@ -153,13 +163,14 @@ func (de *DualEvent) String() string {
 	if de == nil {
 		return "nil-DualEvent"
 	}
-	return fmt.Sprintf("DualEvent{Nonce:%v  TriggeredEvent:%v}#%v",
+	return fmt.Sprintf("DualEvent{Nonce:%v, TriggeredEvent:%v, Smc:%v}#%v",
 		de.Nonce,
 		de.TriggeredEvent,
+		de.KardiaSmcs,
 		de.Hash().Fingerprint())
 }
 
-// Transactions is a Transaction slice type for basic sorting.
+// DualEvents is a DualEvent slice type for basic sorting.
 type DualEvents []*DualEvent
 
 // Len returns the length of s.
