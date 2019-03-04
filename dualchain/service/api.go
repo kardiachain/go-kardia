@@ -23,6 +23,8 @@ import (
 
 	"github.com/kardiachain/go-kardia/kai/chaindb"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -136,6 +138,17 @@ func (s *PublicDualAPI) Validators() []map[string]interface{} {
 	}
 
 	return nil
+}
+
+// SendRawDualEvent decodes encoded data into DualEvent and then adds event into pool.
+func (s *PublicDualAPI) SendRawDualEvent(txs string) (string, error) {
+	log.Info("SendRawDualEvent", "data", txs)
+	event := new(types.DualEvent)
+	encodedTx := common.FromHex(txs)
+	if err := rlp.DecodeBytes(encodedTx, event); err != nil {
+		return common.Hash{}.Hex(), err
+	}
+	return event.Hash().Hex(), s.dualService.EventPool().AddEvent(event)
 }
 
 // PublicDualEvent represents dual event in JSON format

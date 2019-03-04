@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/chaindb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	kaidb "github.com/kardiachain/go-kardia/kai/storage"
@@ -35,7 +36,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/kai/base"
 )
 
 const (
@@ -639,8 +639,11 @@ func (pool *EventPool) addEventsLocked(events []*types.DualEvent) []error {
 // Attempts to queue a dual's event if they are valid, whilst assuming the event pool lock is
 // already held.
 func (pool *EventPool) addEventLocked(event *types.DualEvent) error {
-	eventHash := event.TriggeredEvent.TxHash
-	if pool.chain.CheckHash(&eventHash) {
+	eventHash := common.NewZeroHash()
+	if event.TriggeredEvent != nil {
+		eventHash = event.TriggeredEvent.TxHash
+	}
+	if !eventHash.IsZero() && pool.chain.CheckHash(&eventHash) {
 		// TODO(#121): Consider removing this error when we move to beta net.
 		pool.logger.Error("Attempting to add a dual's event that was previously added to EventPool. Abort adding event.", "event", event)
 		return ErrAddExistingEvent
@@ -651,9 +654,11 @@ func (pool *EventPool) addEventLocked(event *types.DualEvent) error {
 	if err != nil {
 		return err
 	}
-	pool.chain.StoreHash(&eventHash)
-	if !event.PendingTxMetadata.TxHash.IsZero() {
-		pool.chain.StoreTxHash(&event.PendingTxMetadata.TxHash)
+	if !eventHash.IsZero() {
+		pool.chain.StoreHash(&eventHash)
+		if !event.PendingTxMetadata.TxHash.IsZero() {
+			pool.chain.StoreTxHash(&event.PendingTxMetadata.TxHash)
+		}
 	}
 	return nil
 }
