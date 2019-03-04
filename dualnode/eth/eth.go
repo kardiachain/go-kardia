@@ -88,8 +88,8 @@ type Eth struct {
 	txPool *tx_pool.TxPool
 
 	// TODO(namdoh,thientn): Hard-coded for prototyping. This need to be passed dynamically.
-	smcABI     *abi.ABI
-	smcAddress *common.Address
+	smcABI        *abi.ABI
+	kaiSmcAddress *common.Address
 
 	// Cache certain Kardia state's references for ease of use.
 	// TODO(namdoh@): Remove once this is extracted from dual chain's state.
@@ -195,7 +195,7 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 	// TODO(namdoh@): Pass this dynamically from Kardia's state.
 	actionsTmp := [...]*types.DualAction{
 		&types.DualAction{
-			Name: dualnode.CreateDualEventAndEnqueue,
+			Name: dualnode.CreateDualEventFromEthTxAndEnqueue,
 		},
 	}
 	kardiaSmcsTemp := [...]*types.KardiaSmartcontract{
@@ -209,16 +209,16 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 		}}
 
 	return &Eth{
-		geth:        ethNode,
-		config:      config,
-		ethSmc:      ethsmc.NewEthSmc(),
-		kardiaChain: kardiaChain,
-		txPool:      txPool,
-		dualChain:   dualChain,
-		eventPool:   dualEventPool,
-		smcAddress:  smcAddr,
-		smcABI:      &smcABI,
-		kardiaSmcs:  kardiaSmcsTemp[:],
+		geth:          ethNode,
+		config:        config,
+		ethSmc:        ethsmc.NewEthSmc(),
+		kardiaChain:   kardiaChain,
+		txPool:        txPool,
+		dualChain:     dualChain,
+		eventPool:     dualEventPool,
+		kaiSmcAddress: smcAddr,
+		smcABI:        &smcABI,
+		kardiaSmcs:    kardiaSmcsTemp[:],
 	}, nil
 }
 
@@ -433,10 +433,6 @@ func (n *Eth) syncHead() {
 }
 
 func (n *Eth) handleBlock(block *ethTypes.Block) {
-	if n.internalChain == nil {
-		panic("Internal chain needs not to be nil.")
-	}
-
 	// TODO(thientn): block from this event is not guaranteed newly update. May already handled before.
 
 	// Some events has nil block.
@@ -446,20 +442,7 @@ func (n *Eth) handleBlock(block *ethTypes.Block) {
 		return
 	}
 
-	header := block.Header()
-	txns := block.Transactions()
-
-	log.Info("handleBlock...", "header", header, "txns size", len(txns))
-
-	/* Can be use to check contract state, but currently has memory leak.
-	b := n.ethBlockChain()
-	state, err := b.State()
-	if err != nil {
-		log.Error("Get Geth state() error", "err", err)
-		return
-	}
-	*/
-
+	log.Info("handleBlock...", "header", block.Header(), "txns size", len(block.Transactions()))
 	for _, tx := range block.Transactions() {
 		for _, ks := range n.kardiaSmcs {
 			if n.TxMatchesWatcher(tx, ks.EventWatcher) {
@@ -477,21 +460,31 @@ func (n *Eth) TxMatchesWatcher(tx *ethTypes.Transaction, watcher *types.Watcher)
 }
 
 func (n *Eth) ExecuteSmcActions(tx *ethTypes.Transaction, actions *types.DualActions) {
+	var err error
 	for _, action := range actions.Actions {
 		switch action.Name {
-		case dualnode.CreateDualEventAndEnqueue:
-			n.createDualEventAndEnqueue(tx)
+		case dualnode.CreateDualEventFromEthTxAndEnqueue:
+			err = n.createDualEventFromEthTxAndEnqueue(tx)
+		}
+
+		if err != nil {
+			log.Error("Error handling tx", "txHash", tx.Hash(), "err", err)
+			break
 		}
 	}
 }
 
-func (n *Eth) createDualEventAndEnqueue(tx *ethTypes.Transaction) {
+func (n *Eth) createDualEventFromEthTxAndEnqueue(tx *ethTypes.Transaction) error {
+	if n.internalChain == nil {
+		panic("Internal chain needs not to be nil.")
+	}
+
 	// Compute eventSummary
 	chainId := tx.ChainId()
 	signer := ethTypes.NewEIP155Signer(chainId)
 	address, err := ethTypes.Sender(signer, tx)
 	if err != nil {
-		return
+		return err
 	}
 	sender := address.String()
 	log.Info("Sender info", "sender", sender)
@@ -506,7 +499,7 @@ func (n *Eth) createDualEventAndEnqueue(tx *ethTypes.Transaction) {
 	dualStateDB, err := n.dualChain.State()
 	if err != nil {
 		log.Error("Fail to get Kardia state", "error", err)
-		return
+		return err
 	}
 	nonce := dualStateDB.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
 	ethTxHash := tx.Hash()
@@ -515,7 +508,7 @@ func (n *Eth) createDualEventAndEnqueue(tx *ethTypes.Transaction) {
 	txMetaData, err := n.internalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
 	if err != nil {
 		log.Error("Error compute internal tx metadata", "err", err)
-		return
+		return err
 	}
 	dualEvent.PendingTxMetadata = txMetaData
 	log.Info("Create DualEvent for Eth's Tx", "dualEvent", dualEvent)
@@ -523,9 +516,11 @@ func (n *Eth) createDualEventAndEnqueue(tx *ethTypes.Transaction) {
 	// Add to event pool
 	if err = n.eventPool.AddEvent(dualEvent); err != nil {
 		log.Error("Fail to add dual's event", "error", err)
-		return
+		return err
 	}
+
 	log.Info("Submitted Eth's DualEvent to event pool successfully", "eventHash", dualEvent.Hash().Hex())
+	return nil
 }
 
 func (n *Eth) extractEthTxSummary(tx *ethTypes.Transaction, sender string) (types.EventSummary, error) {
@@ -570,7 +565,7 @@ func (n *Eth) callKardiaMasterGetEthToSend(from common.Address, statedb *state.S
 		log.Error("Fail to pack Kardia smc getEthToSend", "error", err)
 		return big.NewInt(0)
 	}
-	ret, err := utils.CallStaticKardiaMasterSmc(from, *n.smcAddress, n.kardiaChain, getEthToSend, statedb)
+	ret, err := utils.CallStaticKardiaMasterSmc(from, *n.kaiSmcAddress, n.kardiaChain, getEthToSend, statedb)
 	if err != nil {
 		log.Error("Error calling master exchange contract", "error", err)
 		return big.NewInt(0)

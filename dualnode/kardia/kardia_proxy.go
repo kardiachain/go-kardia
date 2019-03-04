@@ -24,6 +24,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/dualnode"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/lib/abi"
@@ -51,8 +52,12 @@ type KardiaProxy struct {
 	externalChain base.BlockChainAdapter
 
 	// TODO(sontranrad@,namdoh@): Hard-coded, need to be cleaned up.
-	smcAddress *common.Address
-	smcABI     *abi.ABI
+	kaiSmcAddress *common.Address
+	smcABI        *abi.ABI
+
+	// Cache certain Kardia state's references for ease of use.
+	// TODO(namdoh@): Remove once this is extracted from dual chain's state.
+	kardiaSmcs []*types.KardiaSmartcontract
 }
 
 type MatchRequestInput struct {
@@ -76,14 +81,32 @@ func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc
 	if err != nil {
 		return nil, err
 	}
+
+	// TODO(namdoh@): Pass this dynamically from Kardia's state.
+	actionsTmp := [...]*types.DualAction{
+		&types.DualAction{
+			Name: dualnode.CreateDualEventFromKaiTxAndEnqueue,
+		},
+	}
+	kardiaSmcsTemp := [...]*types.KardiaSmartcontract{
+		&types.KardiaSmartcontract{
+			EventWatcher: &types.Watcher{
+				SmcAddress: smcAddr.Hex(),
+			},
+			Actions: &types.DualActions{
+				Actions: actionsTmp[:],
+			},
+		}}
+
 	processor := &KardiaProxy{
-		kardiaBc:    kardiaBc,
-		txPool:      txPool,
-		dualBc:      dualBc,
-		eventPool:   dualEventPool,
-		chainHeadCh: make(chan base.ChainHeadEvent, 5),
-		smcAddress:  smcAddr,
-		smcABI:      &smcABI,
+		kardiaBc:      kardiaBc,
+		txPool:        txPool,
+		dualBc:        dualBc,
+		eventPool:     dualEventPool,
+		chainHeadCh:   make(chan base.ChainHeadEvent, 5),
+		kaiSmcAddress: smcAddr,
+		smcABI:        &smcABI,
+		kardiaSmcs:    kardiaSmcsTemp[:],
 	}
 
 	// Start subscription to blockchain head event.
@@ -108,11 +131,11 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 	if err != nil {
 		return err
 	}
-	sale1, receive1, err1 := utils.CallGetRate(configs.ETH2NEO, p.kardiaBc, statedb, p.smcAddress, p.smcABI)
+	sale1, receive1, err1 := utils.CallGetRate(configs.ETH2NEO, p.kardiaBc, statedb, p.kaiSmcAddress, p.smcABI)
 	if err1 != nil {
 		return err1
 	}
-	sale2, receive2, err2 := utils.CallGetRate(configs.NEO2ETH, p.kardiaBc, statedb, p.smcAddress, p.smcABI)
+	sale2, receive2, err2 := utils.CallGetRate(configs.NEO2ETH, p.kardiaBc, statedb, p.kaiSmcAddress, p.smcABI)
 	if err2 != nil {
 		return err2
 	}
@@ -176,6 +199,8 @@ func (p *KardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetada
 func (p *KardiaProxy) Start(initRate bool) {
 	// Start event
 	go p.loop()
+
+	// TODO(sontranrad@): Remove this since this isn't the right place.
 	if initRate {
 		go p.initRate()
 	}
@@ -233,19 +258,39 @@ func (p *KardiaProxy) loop() {
 
 func (p *KardiaProxy) handleBlock(block *types.Block) {
 	for _, tx := range block.Transactions() {
-		if tx.To() != nil && *tx.To() == *p.smcAddress {
-			err := p.HandleKardiaTx(tx)
-			if err != nil {
-				log.Error("Error handling tx", "txHash", tx.Hash(), "err", err)
+		for _, ks := range p.kardiaSmcs {
+			if p.TxMatchesWatcher(tx, ks.EventWatcher) {
+				log.Info("New Kardia's tx detected on smart contract", "addr", ks.EventWatcher.SmcAddress, "value", tx.Value())
+				p.ExecuteSmcActions(tx, ks.Actions)
 			}
 		}
 	}
 }
 
-// HandleKardiaTx detects update on kardia master smart contract and creates corresponding dual event to submit to
+func (p *KardiaProxy) TxMatchesWatcher(tx *types.Transaction, watcher *types.Watcher) bool {
+	contractAddr := common.HexToAddress(watcher.SmcAddress)
+	return tx.To() != nil && *tx.To() == contractAddr
+}
+
+func (p *KardiaProxy) ExecuteSmcActions(tx *types.Transaction, actions *types.DualActions) {
+	var err error
+	for _, action := range actions.Actions {
+		switch action.Name {
+		case dualnode.CreateDualEventFromKaiTxAndEnqueue:
+			err = p.createDualEventFromKaiTxAndEnqueue(tx)
+		}
+
+		if err != nil {
+			log.Error("Error handling tx", "txHash", tx.Hash(), "err", err)
+			break
+		}
+	}
+}
+
+// Detects update on kardia master smart contract and creates corresponding dual event to submit to
 // dual event pool
-func (p *KardiaProxy) HandleKardiaTx(tx *types.Transaction) error {
-	eventSummary, err := p.ExtractKardiaTxSummary(tx)
+func (p *KardiaProxy) createDualEventFromKaiTxAndEnqueue(tx *types.Transaction) error {
+	eventSummary, err := p.extractKardiaTxSummary(tx)
 	if err != nil {
 		log.Error("Error when extracting Kardia main chain's tx summary.")
 		// TODO(#140): Handle smart contract failure correctly.
@@ -265,20 +310,22 @@ func (p *KardiaProxy) HandleKardiaTx(tx *types.Transaction) error {
 	txMetadata, err := p.externalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
 	if err != nil {
 		log.Error("Error computing tx metadata", "err", err)
+		return err
 	}
 	dualEvent.PendingTxMetadata = txMetadata
 	log.Info("Create DualEvent for Kardia's Tx", "dualEvent", dualEvent)
 	err = p.eventPool.AddEvent(dualEvent)
 	if err != nil {
 		log.Error("Fail to add dual's event", "error", err)
+		return err
 	}
 	log.Info("Submitted Kardia's DualEvent to event pool successfully", "txHash", tx.Hash().String(),
 		"eventHash", dualEvent.Hash().String())
 	return nil
 }
 
-// ExtractKardiaTxSummary extracts data related to cross-chain exchange to be forwarded to Kardia master smart contract
-func (p *KardiaProxy) ExtractKardiaTxSummary(tx *types.Transaction) (types.EventSummary, error) {
+// extractKardiaTxSummary extracts data related to cross-chain exchange to be forwarded to Kardia master smart contract
+func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.EventSummary, error) {
 	// New tx that updates smc, check input method for more filter.
 	method, err := p.smcABI.MethodById(tx.Data()[0:4])
 	if err != nil {
