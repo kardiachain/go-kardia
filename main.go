@@ -39,7 +39,6 @@ import (
 	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/dualnode/neo"
 	"github.com/kardiachain/go-kardia/dualnode/permissioned"
-	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
@@ -808,14 +807,11 @@ func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool, gen
 
 func genDualEvent(eventPool *event_pool.EventPool) {
 	// Wait 10 seconds first for dual peers to connect.
-
-	smcAddr := common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
-
 	time.Sleep(time.Duration(10) * time.Second)
 
 	smcArrs := make([]*types.KardiaSmartcontract, 0)
 	smcArrs = append(smcArrs, &types.KardiaSmartcontract{
-		EventWatcher: &types.Watcher{SmcAddress: smcAddr}})
+		EventWatcher: &types.Watcher{SmcAddress: "095e7baea6a6c7c4c2dfeb977efac326af552d87"}})
 	event := &types.DualEvent{
 		Nonce:      0,
 		KardiaSmcs: smcArrs,
