@@ -53,10 +53,13 @@ type DualEvent struct {
 
 type KardiaSmartcontract struct {
 	EventWatcher *Watcher
+	Actions      *DualActions
 }
 
 type Watcher struct {
-	SmcAddress common.Address
+	// Use string type because since different blockchain may have its own address type and string
+	// is a universal type.
+	SmcAddress string
 }
 
 type DualActions struct {

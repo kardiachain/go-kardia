@@ -44,6 +44,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/dualnode"
 	"github.com/kardiachain/go-kardia/dualnode/eth/ethsmc"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/kai/base"
@@ -89,6 +90,10 @@ type Eth struct {
 	// TODO(namdoh,thientn): Hard-coded for prototyping. This need to be passed dynamically.
 	smcABI     *abi.ABI
 	smcAddress *common.Address
+
+	// Cache certain Kardia state's references for ease of use.
+	// TODO(namdoh@): Remove once this is extracted from dual chain's state.
+	kardiaSmcs []*types.KardiaSmartcontract
 }
 
 // Eth creates a Ethereum sub node.
@@ -186,6 +191,23 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 			log.Error("Failed to register the Ethereum Stats service", "err", err)
 		}
 	}
+
+	// TODO(namdoh@): Pass this dynamically from Kardia's state.
+	actionsTmp := [...]*types.DualAction{
+		&types.DualAction{
+			Name: dualnode.CreateDualEventAndEnqueue,
+		},
+	}
+	kardiaSmcsTemp := [...]*types.KardiaSmartcontract{
+		&types.KardiaSmartcontract{
+			EventWatcher: &types.Watcher{
+				SmcAddress: config.ContractAddress,
+			},
+			Actions: &types.DualActions{
+				Actions: actionsTmp[:],
+			},
+		}}
+
 	return &Eth{
 		geth:        ethNode,
 		config:      config,
@@ -196,6 +218,7 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 		eventPool:   dualEventPool,
 		smcAddress:  smcAddr,
 		smcABI:      &smcABI,
+		kardiaSmcs:  kardiaSmcsTemp[:],
 	}, nil
 }
 
@@ -437,52 +460,72 @@ func (n *Eth) handleBlock(block *ethTypes.Block) {
 	}
 	*/
 
-	contractAddr := ethCommon.HexToAddress(n.config.ContractAddress)
 	for _, tx := range block.Transactions() {
-		// TODO(thientn): Make this tx matcher more robust.
-		if tx.To() != nil && *tx.To() == contractAddr {
-			sender := ""
-			chainId := tx.ChainId()
-			var signer ethTypes.Signer
-			signer = ethTypes.NewEIP155Signer(chainId)
-			address, err := ethTypes.Sender(signer, tx)
-			if err != nil {
-				continue
+		for _, ks := range n.kardiaSmcs {
+			if n.TxMatchesWatcher(tx, ks.EventWatcher) {
+				log.Info("New Eth's tx detected on smart contract", "addr", ks.EventWatcher.SmcAddress, "value", tx.Value())
+				n.ExecuteSmcActions(tx, ks.Actions)
 			}
-			sender = address.String()
-			log.Info("New Eth's tx detected on smart contract", "addr", contractAddr.Hex(), "value", tx.Value(),
-				"sender", sender)
-			eventSummary, err := n.extractEthTxSummary(tx, sender)
-			if err != nil {
-				log.Error("Error when extracting Eth's tx summary.", "err", err)
-				// TODO(#140): Handle smart contract failure correctly.
-				panic("Not yet implemented!")
-			}
-			// TODO(namdoh): Use dual's blockchain state instead.
-			dualStateDB, err := n.dualChain.State()
-			if err != nil {
-				log.Error("Fail to get Kardia state", "error", err)
-				return
-			}
-			nonce := dualStateDB.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
-			ethTxHash := tx.Hash()
-			txHash := common.BytesToHash(ethTxHash[:])
-			dualEvent := types.NewDualEvent(nonce, true /* externalChain */, types.ETHEREUM, &txHash, &eventSummary)
-			txMetaData, err := n.internalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
-			if err != nil {
-				log.Error("Error compute internal tx metadata", "err", err)
-				continue
-			}
-			dualEvent.PendingTxMetadata = txMetaData
-			log.Info("Create DualEvent for Eth's Tx", "dualEvent", dualEvent)
-			err = n.eventPool.AddEvent(dualEvent)
-			if err != nil {
-				log.Error("Fail to add dual's event", "error", err)
-				continue
-			}
-			log.Info("Submitted Eth's DualEvent to event pool successfully", "eventHash", dualEvent.Hash().Hex())
 		}
 	}
+}
+
+func (n *Eth) TxMatchesWatcher(tx *ethTypes.Transaction, watcher *types.Watcher) bool {
+	contractAddr := ethCommon.HexToAddress(watcher.SmcAddress)
+	// TODO(thientn): Make this tx matcher more robust.
+	return tx.To() != nil && *tx.To() == contractAddr
+}
+
+func (n *Eth) ExecuteSmcActions(tx *ethTypes.Transaction, actions *types.DualActions) {
+	for _, action := range actions.Actions {
+		switch action.Name {
+		case dualnode.CreateDualEventAndEnqueue:
+			n.createDualEventAndEnqueue(tx)
+		}
+	}
+}
+
+func (n *Eth) createDualEventAndEnqueue(tx *ethTypes.Transaction) {
+	// Compute eventSummary
+	chainId := tx.ChainId()
+	signer := ethTypes.NewEIP155Signer(chainId)
+	address, err := ethTypes.Sender(signer, tx)
+	if err != nil {
+		return
+	}
+	sender := address.String()
+	log.Info("Sender info", "sender", sender)
+	eventSummary, err := n.extractEthTxSummary(tx, sender)
+	if err != nil {
+		log.Error("Error when extracting Eth's tx summary.", "err", err)
+		// TODO(#140): Handle smart contract failure correctly.
+		panic("Not yet implemented!")
+	}
+
+	// Create dualEvent
+	dualStateDB, err := n.dualChain.State()
+	if err != nil {
+		log.Error("Fail to get Kardia state", "error", err)
+		return
+	}
+	nonce := dualStateDB.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
+	ethTxHash := tx.Hash()
+	txHash := common.BytesToHash(ethTxHash[:])
+	dualEvent := types.NewDualEvent(nonce, true /* externalChain */, types.ETHEREUM, &txHash, &eventSummary)
+	txMetaData, err := n.internalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
+	if err != nil {
+		log.Error("Error compute internal tx metadata", "err", err)
+		return
+	}
+	dualEvent.PendingTxMetadata = txMetaData
+	log.Info("Create DualEvent for Eth's Tx", "dualEvent", dualEvent)
+
+	// Add to event pool
+	if err = n.eventPool.AddEvent(dualEvent); err != nil {
+		log.Error("Fail to add dual's event", "error", err)
+		return
+	}
+	log.Info("Submitted Eth's DualEvent to event pool successfully", "eventHash", dualEvent.Hash().Hex())
 }
 
 func (n *Eth) extractEthTxSummary(tx *ethTypes.Transaction, sender string) (types.EventSummary, error) {
