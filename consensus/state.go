@@ -310,7 +310,7 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 	proposal := types.NewProposal(height, round, block, cmn.NewBigInt32(polRound), polBlockID)
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
 
-		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
+		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal.Block.Hash().String())
 		// Send proposal on internal msg queue
 		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, discover.ZeroNodeID()})
 	}
@@ -1132,7 +1132,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 
 	cs.logger.Info("Finalizing commit of block", "tx number", block.NumTxs(),
 		"height", block.Height(), "hash", block.Hash().String())
-	cs.logger.Info(cmn.Fmt("%v", block))
+	//cs.logger.Info(cmn.Fmt("%v", block))
 
 	fail.Fail() // XXX
 
