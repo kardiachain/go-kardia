@@ -253,7 +253,8 @@ func (p *PrivateKardiaProxy) HandleKardiaTx(tx *types.Transaction) error {
 	nonce := p.eventPool.State().GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
 	kardiaTxHash := tx.Hash()
 	txHash := common.BytesToHash(kardiaTxHash[:])
-	dualEvent := types.NewDualEvent(nonce, false, types.KARDIA, &txHash, &eventSummary)
+	// TODO(namdoh@): Pass smartcontract actions here.
+	dualEvent := types.NewDualEvent(nonce, false, types.KARDIA, &txHash, &eventSummary, nil)
 	txMetadata, err := p.externalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
 	if err != nil {
 		log.Error("method:", "method", eventSummary.TxMethod)

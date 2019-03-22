@@ -15,7 +15,7 @@
  *  You should have received a copy of the GNU Lesser General Public License
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
- 
+
 package neo
 
 import (
@@ -23,11 +23,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/kardiachain/go-kardia/dualchain/blockchain"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/kai/base"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 )
 
 // NeoEvent is message sent from NeoPython
@@ -77,7 +77,8 @@ func (n *NeoApi) NewEvent(neoEventEncodedBytes string) error {
 		TxMethod: neoEvent.Method,
 		TxValue:  neoEvent.Amount,
 	}
-	dualEvent := types.NewDualEvent(nonce, true /* internalChain */, types.NEO, &txHash, eventSummary)
+	// TODO(namdoh@): Pass smartcontract actions here.
+	dualEvent := types.NewDualEvent(nonce, true /* internalChain */, types.NEO, &txHash, eventSummary, nil)
 	txMetaData, err := n.internalBlockchain.ComputeTxMetadata(dualEvent.TriggeredEvent)
 	if err != nil {
 		log.Error("Error compute internal tx metadata", "err", err)
