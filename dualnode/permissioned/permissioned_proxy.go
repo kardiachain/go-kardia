@@ -210,8 +210,9 @@ func (p *PermissionedProxy) handlePrivateBlock(block *types.Block) {
 		privateChainTxHash := tx.Hash()
 		txHash := common.BytesToHash(privateChainTxHash[:])
 		// Compose dual event and tx metadata from emitted event from private chain smart contract
+		// TODO(namdoh@): Pass smartcontract actions here.
 		dualEvent := types.NewDualEvent(nonce, true, /* externalChain */
-			types.BlockchainSymbol(string(*p.privateChainID)), &txHash, &eventSummary)
+			types.BlockchainSymbol(string(*p.privateChainID)), &txHash, &eventSummary, nil)
 		txMetaData, err := p.internalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
 		if err != nil {
 			p.logger.Error("Error compute internal tx metadata", "err", err)

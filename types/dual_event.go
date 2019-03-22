@@ -43,6 +43,7 @@ type DualEvent struct {
 	TriggeredEvent    *EventData  `json:"triggeredEvent"		 gencodec:"required"`
 	PendingTxMetadata *TxMetadata `json:"pendingTxMetadata"      gencodec:"required"`
 
+	// The smart contract info being submitted externally.
 	KardiaSmcs []*KardiaSmartcontract `json:"kardiaSmcs"				 gencodec:"required"`
 
 	// caches
@@ -60,6 +61,8 @@ type Watcher struct {
 	// Use string type because since different blockchain may have its own address type and string
 	// is a universal type.
 	SmcAddress string
+	// The action used when the watcher is matched and triggered.
+	WatcherAction string
 }
 
 type DualActions struct {
@@ -77,6 +80,10 @@ type EventData struct {
 	TxSource     BlockchainSymbol
 	FromExternal bool
 	Data         *EventSummary
+
+	// Actions is temporarily cached to store a list of actions that will be executed upon once
+	// the dual event is executed.
+	Actions *DualActions `json:"actions"      gencodec:"required"`
 
 	// caches
 	hash atomic.Value
@@ -138,7 +145,7 @@ func (kardiaSmc *KardiaSmartcontract) String() string {
 
 }
 
-func NewDualEvent(nonce uint64, fromExternal bool, txSource BlockchainSymbol, txHash *common.Hash, summary *EventSummary) *DualEvent {
+func NewDualEvent(nonce uint64, fromExternal bool, txSource BlockchainSymbol, txHash *common.Hash, summary *EventSummary, actions *DualActions) *DualEvent {
 	return &DualEvent{
 		Nonce: nonce,
 		TriggeredEvent: &EventData{
@@ -146,6 +153,7 @@ func NewDualEvent(nonce uint64, fromExternal bool, txSource BlockchainSymbol, tx
 			TxSource:     txSource,
 			FromExternal: fromExternal,
 			Data:         summary,
+			Actions:      actions,
 		},
 	}
 }

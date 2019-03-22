@@ -194,14 +194,17 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 
 	// TODO(namdoh@): Pass this dynamically from Kardia's state.
 	actionsTmp := [...]*types.DualAction{
-		&types.DualAction{
-			Name: dualnode.CreateDualEventFromEthTxAndEnqueue,
-		},
+		/*
+			&types.DualAction{
+				Name: dualnode.CreateDualEventFromEthTxAndEnqueue,
+			},
+		*/
 	}
 	kardiaSmcsTemp := [...]*types.KardiaSmartcontract{
 		&types.KardiaSmartcontract{
 			EventWatcher: &types.Watcher{
-				SmcAddress: config.ContractAddress,
+				SmcAddress:    config.ContractAddress,
+				WatcherAction: dualnode.CreateDualEventFromEthTxAndEnqueue,
 			},
 			Actions: &types.DualActions{
 				Actions: actionsTmp[:],
@@ -447,7 +450,7 @@ func (n *Eth) handleBlock(block *ethTypes.Block) {
 		for _, ks := range n.kardiaSmcs {
 			if n.TxMatchesWatcher(tx, ks.EventWatcher) {
 				log.Info("New Eth's tx detected on smart contract", "addr", ks.EventWatcher.SmcAddress, "value", tx.Value())
-				n.ExecuteSmcActions(tx, ks.Actions)
+				n.ExecuteSmcActions(tx, ks.EventWatcher.WatcherAction, ks.Actions)
 			}
 		}
 	}
@@ -459,22 +462,20 @@ func (n *Eth) TxMatchesWatcher(tx *ethTypes.Transaction, watcher *types.Watcher)
 	return tx.To() != nil && *tx.To() == contractAddr
 }
 
-func (n *Eth) ExecuteSmcActions(tx *ethTypes.Transaction, actions *types.DualActions) {
+func (n *Eth) ExecuteSmcActions(tx *ethTypes.Transaction, watcherAction string, actions *types.DualActions) {
 	var err error
-	for _, action := range actions.Actions {
-		switch action.Name {
-		case dualnode.CreateDualEventFromEthTxAndEnqueue:
-			err = n.createDualEventFromEthTxAndEnqueue(tx)
-		}
+	switch watcherAction {
+	case dualnode.CreateDualEventFromEthTxAndEnqueue:
+		err = n.createDualEventFromEthTxAndEnqueue(tx, actions)
+	}
 
-		if err != nil {
-			log.Error("Error handling tx", "txHash", tx.Hash(), "err", err)
-			break
-		}
+	if err != nil {
+		log.Error("Error handling tx", "txHash", tx.Hash(), "err", err)
+		return
 	}
 }
 
-func (n *Eth) createDualEventFromEthTxAndEnqueue(tx *ethTypes.Transaction) error {
+func (n *Eth) createDualEventFromEthTxAndEnqueue(tx *ethTypes.Transaction, actions *types.DualActions) error {
 	if n.internalChain == nil {
 		panic("Internal chain needs not to be nil.")
 	}
@@ -504,7 +505,7 @@ func (n *Eth) createDualEventFromEthTxAndEnqueue(tx *ethTypes.Transaction) error
 	nonce := dualStateDB.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
 	ethTxHash := tx.Hash()
 	txHash := common.BytesToHash(ethTxHash[:])
-	dualEvent := types.NewDualEvent(nonce, true /* externalChain */, types.ETHEREUM, &txHash, &eventSummary)
+	dualEvent := types.NewDualEvent(nonce, true /* externalChain */, types.ETHEREUM, &txHash, &eventSummary, actions)
 	txMetaData, err := n.internalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
 	if err != nil {
 		log.Error("Error compute internal tx metadata", "err", err)
