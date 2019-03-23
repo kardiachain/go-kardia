@@ -74,6 +74,7 @@ var (
 	ErrUnsupportedMethod                = errors.New("method is not supported by dual logic")
 	ErrCreateKardiaTx                   = errors.New("fail to create Kardia's Tx from DualEvent")
 	ErrAddKardiaTx                      = errors.New("fail to add Tx to Kardia's TxPool")
+	ErrTypeConversionFailed             = errors.New("fail type conversion")
 	ErrFailedGetState                   = errors.New("fail to get Kardia state")
 	ErrInsufficientCandidateRequestData = errors.New("insufficient candidate request data")
 	ErrFailedGetEventData               = errors.New("fail to get event external data")

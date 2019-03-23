@@ -84,11 +84,12 @@ func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc
 
 	// TODO(namdoh@): Pass this dynamically from Kardia's state.
 	actionsTmp := [...]*types.DualAction{
-		/*
-			&types.DualAction{
-				Name: dualnode.CreateDualEventFromKaiTxAndEnqueue,
-			},
-		*/
+		&types.DualAction{
+			Name: dualnode.CreateKardiaMatchAmountTx,
+		},
+		&types.DualAction{
+			Name: dualnode.EnqueueTxPool,
+		},
 	}
 	kardiaSmcsTemp := [...]*types.KardiaSmartcontract{
 		&types.KardiaSmartcontract{
@@ -120,45 +121,44 @@ func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc
 
 func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 	log.Info("Submit to Kardia", "value", event.Data.TxValue, "method", event.Data.TxMethod)
-	// These logics temporarily for exchange case , will be dynamic later
-	if event.Data.ExtData == nil || len(event.Data.ExtData) < 2 {
-		log.Error("Event doesn't contain external data")
-		return configs.ErrInsufficientExchangeData
+	var err error
+	var result interface{}
+	for _, action := range event.Actions.Actions {
+		switch action.Name {
+		case dualnode.CreateKardiaMatchAmountTx:
+			// These logics temporarily for exchange case , will be dynamic later
+			if event.Data.ExtData == nil || len(event.Data.ExtData) < 2 {
+				log.Error("Event doesn't contain external data")
+				return configs.ErrInsufficientExchangeData
+			}
+			if event.Data.ExtData[configs.ExchangeDataSourceAddressIndex] == nil || event.Data.ExtData[configs.ExchangeDataDestAddressIndex] == nil {
+				log.Error("Missing address in exchange event", "sender", event.Data.ExtData[configs.ExchangeDataSourceAddressIndex],
+					"receiver", event.Data.ExtData[configs.ExchangeDataDestAddressIndex])
+				return configs.ErrInsufficientExchangeData
+			}
+			log.Info("Create match tx:", "source", event.Data.ExtData[configs.ExchangeDataSourceAddressIndex],
+				"dest", event.Data.ExtData[configs.ExchangeDataDestAddressIndex])
+			result, err = utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue,
+				string(event.Data.ExtData[configs.ExchangeDataSourceAddressIndex]),
+				string(event.Data.ExtData[configs.ExchangeDataDestAddressIndex]), event.TxSource)
+			if err != nil {
+				log.Error("Fail to create Kardia's tx from DualEvent", "err", err)
+				return configs.ErrCreateKardiaTx
+			}
+		case dualnode.EnqueueTxPool:
+			tx, ok := result.(*types.Transaction)
+			if !ok {
+				log.Error("type conversion failed")
+				return configs.ErrTypeConversionFailed
+			}
+			err = p.txPool.AddLocal(tx)
+			if err != nil {
+				log.Error("Fail to add Kardia's tx", "error", err)
+				return configs.ErrAddKardiaTx
+			}
+			log.Info("Submit Kardia's tx successfully", "txhash", tx.Hash().String())
+		}
 	}
-	if event.Data.ExtData[configs.ExchangeDataSourceAddressIndex] == nil || event.Data.ExtData[configs.ExchangeDataDestAddressIndex] == nil {
-		log.Error("Missing address in exchange event", "sender", event.Data.ExtData[configs.ExchangeDataSourceAddressIndex],
-			"receiver", event.Data.ExtData[configs.ExchangeDataDestAddressIndex])
-		return configs.ErrInsufficientExchangeData
-	}
-	statedb, err := p.kardiaBc.State()
-	if err != nil {
-		return err
-	}
-	sale1, receive1, err1 := utils.CallGetRate(configs.ETH2NEO, p.kardiaBc, statedb, p.kaiSmcAddress, p.smcABI)
-	if err1 != nil {
-		return err1
-	}
-	sale2, receive2, err2 := utils.CallGetRate(configs.NEO2ETH, p.kardiaBc, statedb, p.kaiSmcAddress, p.smcABI)
-	if err2 != nil {
-		return err2
-	}
-	log.Info("Rate before matching", "pair", configs.ETH2NEO, "sale", sale1, "receive", receive1)
-	log.Info("Rate before matching", "pair", configs.NEO2ETH, "sale", sale2, "receive", receive2)
-	log.Info("Create match tx:", "source", event.Data.ExtData[configs.ExchangeDataSourceAddressIndex],
-		"dest", event.Data.ExtData[configs.ExchangeDataDestAddressIndex])
-	tx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue,
-		string(event.Data.ExtData[configs.ExchangeDataSourceAddressIndex]),
-		string(event.Data.ExtData[configs.ExchangeDataDestAddressIndex]), event.TxSource)
-	if err != nil {
-		log.Error("Fail to create Kardia's tx from DualEvent", "err", err)
-		return configs.ErrCreateKardiaTx
-	}
-	err = p.txPool.AddLocal(tx)
-	if err != nil {
-		log.Error("Fail to add Kardia's tx", "error", err)
-		return configs.ErrAddKardiaTx
-	}
-	log.Info("Submit Kardia's tx successfully", "txhash", tx.Hash().String())
 	return nil
 }
 

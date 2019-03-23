@@ -22,4 +22,6 @@ package dualnode
 const (
 	CreateDualEventFromEthTxAndEnqueue = "CreateDualEventFromEthTxAndEnqueue"
 	CreateDualEventFromKaiTxAndEnqueue = "CreateDualEventFromKaiTxAndEnqueue"
+	CreateKardiaMatchAmountTx          = "CreateKardiaMatchAmountTx"
+	EnqueueTxPool                      = "EnqueueTxPool"
 )

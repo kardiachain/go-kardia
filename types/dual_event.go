@@ -95,7 +95,6 @@ func (ed *EventData) String() string {
 		ed.TxSource,
 		ed.FromExternal,
 		ed.Data)
-
 }
 
 // Hash returns a hash from an EventData object
