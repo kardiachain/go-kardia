@@ -133,7 +133,7 @@ func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input 
 		nonce,
 		address,
 		big.NewInt(0),
-		2000000,
+		5000000,
 		big.NewInt(1),
 		input,
 	), senderKey)

@@ -60,5 +60,5 @@ func TestDualEventNonceAccessors(t *testing.T) {
 }
 
 func CreateNewDualEvent(nonce uint64) *DualEvent {
-	return NewDualEvent(nonce, false, "KAI", new(common.Hash), new(EventSummary))
+	return NewDualEvent(nonce, false, "KAI", new(common.Hash), new(EventSummary), new(DualActions))
 }

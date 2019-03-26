@@ -131,19 +131,38 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 				log.Error("Event doesn't contain external data")
 				return configs.ErrInsufficientExchangeData
 			}
-			if event.Data.ExtData[configs.ExchangeDataSourceAddressIndex] == nil || event.Data.ExtData[configs.ExchangeDataDestAddressIndex] == nil {
-				log.Error("Missing address in exchange event", "sender", event.Data.ExtData[configs.ExchangeDataSourceAddressIndex],
-					"receiver", event.Data.ExtData[configs.ExchangeDataDestAddressIndex])
+			if event.Data.ExtData[configs.ExchangeV2SourceAddressIndex] == nil || event.Data.ExtData[configs.ExchangeV2DestAddressIndex] == nil {
+				log.Error("Missing address in exchange event", "sender", event.Data.ExtData[configs.ExchangeV2SourceAddressIndex],
+					"receiver", event.Data.ExtData[configs.ExchangeV2DestAddressIndex])
 				return configs.ErrInsufficientExchangeData
 			}
-			log.Info("Create match tx:", "source", event.Data.ExtData[configs.ExchangeDataSourceAddressIndex],
-				"dest", event.Data.ExtData[configs.ExchangeDataDestAddressIndex])
-			result, err = utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue,
-				string(event.Data.ExtData[configs.ExchangeDataSourceAddressIndex]),
-				string(event.Data.ExtData[configs.ExchangeDataDestAddressIndex]), event.TxSource)
+
+			srcPair := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
+			originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
+
+			if srcPair == configs.ETH2NEO {
+				originalTx = common.Encode(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
+			}
+
+			srcAddress := string(event.Data.ExtData[configs.ExchangeV2SourceAddressIndex])
+			destAddress := string(event.Data.ExtData[configs.ExchangeV2DestAddressIndex])
+
+			log.Info("Create order and match tx:", "source", srcAddress, "dest", destAddress, "txhash", originalTx)
+
+			tx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue, srcAddress, destAddress, event.TxSource, originalTx, p.kardiaBc)
 			if err != nil {
 				log.Error("Fail to create Kardia's tx from DualEvent", "err", err)
 				return configs.ErrCreateKardiaTx
+			}
+			err = p.txPool.AddLocal(tx)
+			if err != nil {
+				log.Error("Fail to add Kardia's tx", "error", err)
+				return configs.ErrAddKardiaTx
+			}
+			log.Info("Submit Kardia's tx successfully", "txhash", tx.Hash().String())
+			err = p.updateKardiaTxForOrder(originalTx, tx.Hash().String())
+			if err != nil {
+				log.Error("Cannot update  tx idKardia when create order")
 			}
 		case dualnode.EnqueueTxPool:
 			tx, ok := result.(*types.Transaction)
@@ -159,6 +178,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 			log.Info("Submit Kardia's tx successfully", "txhash", tx.Hash().String())
 		}
 	}
+	log.Error("Submit to Kardia", "value", event.Data.TxValue, "method", event.Data.TxMethod)
 	return nil
 }
 
@@ -173,17 +193,28 @@ func (p *KardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetada
 			log.Error("Event doesn't contain external data")
 			return nil, configs.ErrFailedGetEventData
 		}
-		if event.Data.ExtData[configs.ExchangeDataDestAddressIndex] == nil || string(event.Data.ExtData[configs.ExchangeDataDestAddressIndex]) == "" ||
-			event.Data.TxValue.Cmp(big.NewInt(0)) == 0 {
+		if event.Data.TxValue.Cmp(big.NewInt(0)) == 0 {
 			return nil, configs.ErrInsufficientExchangeData
 		}
-		if event.Data.ExtData[configs.ExchangeDataSourceAddressIndex] == nil || event.Data.ExtData[configs.ExchangeDataDestAddressIndex] == nil {
-			log.Error("Missing address in exchange event", "send", event.Data.ExtData[configs.ExchangeDataSourceAddressIndex],
-				"receive", event.Data.ExtData[configs.ExchangeDataDestAddressIndex])
+		if event.Data.ExtData[configs.ExchangeV2SourceAddressIndex] == nil || event.Data.ExtData[configs.ExchangeV2DestAddressIndex] == nil {
+			log.Error("Missing address in exchange event", "send", event.Data.ExtData[configs.ExchangeV2SourceAddressIndex],
+				"receive", event.Data.ExtData[configs.ExchangeV2DestAddressIndex])
 			return nil, configs.ErrInsufficientExchangeData
 		}
+		if event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex] == nil || len(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex]) == 0 {
+			log.Error("Missing original tx hash")
+		}
+		srcPair := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
+		originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
+
+		if srcPair == configs.ETH2NEO {
+			originalTx = common.Encode(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
+		}
+
+		log.Info("Computing tx metadata for tx", "hash", originalTx)
 		kardiaTx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue,
-			string(event.Data.ExtData[configs.ExchangeDataSourceAddressIndex]), string(event.Data.ExtData[configs.ExchangeDataDestAddressIndex]), event.TxSource)
+			string(event.Data.ExtData[configs.ExchangeV2SourceAddressIndex]), string(event.Data.ExtData[configs.ExchangeV2DestAddressIndex]),
+			event.TxSource, originalTx, p.kardiaBc)
 		if err != nil {
 			return nil, err
 		}
@@ -202,38 +233,6 @@ func (p *KardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetada
 func (p *KardiaProxy) Start(initRate bool) {
 	// Start event
 	go p.loop()
-
-	// TODO(sontranrad@): Remove this since this isn't the right place.
-	if initRate {
-		go p.initRate()
-	}
-}
-
-// initRate send 2 tx to Kardia exchange smart contract for ETH-NEO and NEO-ETH.
-// TODO(sontranrad@): THIS IS A HACKY SOLUTION. WILL NEED TO FIND A GOOD FIX ASAP.
-// Revisit here to simplify the logic and remove need of updating 2 time if possible
-func (p *KardiaProxy) initRate() {
-	// Set rate for 2 pair
-	tx1, err := utils.CreateKardiaSetRateTx(configs.ETH2NEO, big.NewInt(1), big.NewInt(10), p.txPool.State())
-	if err != nil {
-		log.Error("Failed to create add rate tx", "err", err)
-		return
-	}
-	err = p.txPool.AddLocal(tx1)
-	if err != nil {
-		log.Error("Failed to add rate tx to pool", "err", err)
-		return
-	}
-	tx2, err := utils.CreateKardiaSetRateTx(configs.NEO2ETH, big.NewInt(10), big.NewInt(1), p.txPool.State())
-	if err != nil {
-		log.Error("Failed to create add rate tx", "err", err)
-		return
-	}
-	err = p.txPool.AddLocal(tx2)
-	if err != nil {
-		log.Error("Failed to add rate tx to pool", "err", err)
-		return
-	}
 }
 
 func (p *KardiaProxy) RegisterExternalChain(externalChain base.BlockChainAdapter) {
@@ -298,10 +297,11 @@ func (p *KardiaProxy) createDualEventFromKaiTxAndEnqueue(tx *types.Transaction, 
 		panic("Not yet implemented!")
 	}
 	// TODO(@sontranrad): add dynamic filter if possile, currently we're only interested in matchRequest
-	// and completeRequest method
-	if eventSummary.TxMethod != configs.MatchFunction && eventSummary.TxMethod != configs.CompleteFunction {
+	if eventSummary.TxMethod != configs.AddOrderFunction {
 		log.Info("Skip tx updating smc for non-matching tx or non-complete-request tx", "method", eventSummary.TxMethod)
+		return nil
 	}
+
 	log.Info("Detect Kardia's tx updating smc", "method", eventSummary.TxMethod, "value",
 		eventSummary.TxValue, "hash", tx.Hash())
 	nonce := p.eventPool.State().GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
@@ -336,32 +336,24 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.Event
 	input := tx.Data()
 	var exchangeExternalData [][]byte
 	switch method.Name {
-	case configs.MatchFunction:
-		exchangeExternalData = make([][]byte, configs.NumOfExchangeDataField)
-		var decodedInput MatchRequestInput
-		err = p.smcABI.UnpackInput(&decodedInput, configs.MatchFunction, input[4:])
+	case configs.AddOrderFunction:
+		exchangeExternalData = make([][]byte, configs.ExchangeV2NumOfExchangeDataField)
+		var decodedInput types.MatchOrderInput
+		err = p.smcABI.UnpackInput(&decodedInput, configs.AddOrderFunction, input[4:])
 		if err != nil {
 			log.Error("failed to get external data of exchange contract event", "method", method.Name)
 			return types.EventSummary{}, configs.ErrFailedGetEventData
 		}
-		log.Info("Match request input", "src", decodedInput.SrcAddress, "dest", decodedInput.DestAddress,
-			"srcpair", decodedInput.SrcPair, "destpair", decodedInput.DestPair, "amount", decodedInput.Amount.String())
-		exchangeExternalData[configs.ExchangeDataSourceAddressIndex] = []byte(decodedInput.SrcAddress)
-		exchangeExternalData[configs.ExchangeDataDestAddressIndex] = []byte(decodedInput.DestAddress)
-		exchangeExternalData[configs.ExchangeDataSourcePairIndex] = []byte(decodedInput.SrcPair)
-		exchangeExternalData[configs.ExchangeDataDestPairIndex] = []byte(decodedInput.DestPair)
-		exchangeExternalData[configs.ExchangeDataAmountIndex] = decodedInput.Amount.Bytes()
-	case configs.CompleteFunction:
-		exchangeExternalData = make([][]byte, configs.NumOfCompleteRequestDataField)
-		var decodedInput CompleteRequestInput
-		err = p.smcABI.UnpackInput(&decodedInput, configs.CompleteFunction, input[4:])
-		if err != nil {
-			log.Error("failed to get external data of exchange contract event", "method", method.Name)
-			return types.EventSummary{}, configs.ErrFailedGetEventData
-		}
-		log.Info("Complete request input", "ID", decodedInput.RequestID, "pair", decodedInput.Pair)
-		exchangeExternalData[configs.ExchangeDataCompleteRequestIDIndex] = decodedInput.RequestID.Bytes()
-		exchangeExternalData[configs.ExchangeDataCompletePairIndex] = []byte(decodedInput.Pair)
+		log.Info("Match request input", "txhash", decodedInput.Txid, "src", decodedInput.FromAddress,
+			"dest", decodedInput.Receiver, "srcpair", decodedInput.FromType, "destpair", decodedInput.ToType,
+			"amount", decodedInput.Amount, "timestamp", decodedInput.Timestamp)
+		exchangeExternalData[configs.ExchangeV2SourceAddressIndex] = []byte(decodedInput.FromAddress)
+		exchangeExternalData[configs.ExchangeV2DestAddressIndex] = []byte(decodedInput.Receiver)
+		exchangeExternalData[configs.ExchangeV2SourcePairIndex] = []byte(decodedInput.FromType)
+		exchangeExternalData[configs.ExchangeV2DestPairIndex] = []byte(decodedInput.ToType)
+		exchangeExternalData[configs.ExchangeV2AmountIndex] = decodedInput.Amount.Bytes()
+		exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex] = []byte(decodedInput.Txid)
+		exchangeExternalData[configs.ExchangeV2TimestampIndex] = decodedInput.Timestamp.Bytes()
 	default:
 		log.Warn("Unexpected method in extractKardiaTxSummary", "method", method.Name)
 	}
@@ -371,4 +363,20 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.Event
 		TxValue:  tx.Value(),
 		ExtData:  exchangeExternalData,
 	}, nil
+}
+
+func (p *KardiaProxy) updateKardiaTxForOrder(originalTxId string, kardiaTxId string) error {
+	tx, err := utils.UpdateKardiaTargetTx(p.txPool.State(), originalTxId, kardiaTxId, string(types.KARDIA))
+	if err != nil {
+		log.Error("Error creating tx update kardiaTxId", "originalTxId", originalTxId, "kardiaTx", kardiaTxId,
+			"err", err)
+		return err
+	}
+	err = p.txPool.AddLocal(tx)
+	if err != nil {
+		log.Error("Error add update kardia tx id to txPool", "originalTxId", originalTxId, "kardiaTx", kardiaTxId,
+			"err", err)
+	}
+	log.Info("Update kardia tx for order successfully", "originalTxId", originalTxId, "kardiaTx", kardiaTxId)
+	return nil
 }

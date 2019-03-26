@@ -25,6 +25,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -49,12 +50,10 @@ const CheckTxIntervalDelta = 15
 const InitialCheckTxInterval = 30
 
 var (
-	OneNeo                = big.NewInt(0).Exp(big.NewInt(10), big.NewInt(18), nil) // 10**18 is 1 neo in exchange smc
 	errNoNeoToSend        = errors.New("not enough NEO to send")
-	errEnoughAvailableNeo = errors.New("enough available NEO, no need to add more")
 	errNilReturnedFromNeo = errors.New("Neo API return nil")
-	errRetryFailed        = errors.New("exceeding maximum retry attempts but still failed")
 	MaximumAvailableNeo   = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(19), nil)
+	TenPoweredByEight     = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
 )
 
 // NeoProxy provides interfaces for Neo Dual node, responsible for detecting updates
@@ -109,47 +108,10 @@ func NewNeoProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc ba
 	}
 	if generateTx {
 		// go GenerateMatchingTx(processor)
-		go LoopFulfillRequest(processor)
+		// go LoopFulfillRequest(processor)
 	}
 
 	return processor, nil
-}
-
-// LoopFulfillRequest loops to fulfill NEO-ETH order to make sure always matching for order from ETH with value 0.1 -> 1 ETH
-func LoopFulfillRequest(n *NeoProxy) {
-	errorCount := 0
-	for {
-		time.Sleep(GenerateTxInterval)
-		statedb, err := n.kardiaBc.State()
-		if err != nil {
-			continue
-		}
-
-		availableAmountNeo, err := utils.CallAvailableAmount(configs.NEO2ETH, n.kardiaBc, statedb)
-		if err != nil {
-			continue
-		}
-		// If there is enough available matchable NEO amount, stop filling and return
-		if availableAmountNeo.Cmp(MaximumAvailableNeo) > 0 {
-			log.Info("NEO amount is enough")
-			continue
-		}
-		for i := 1; i < 10; i++ {
-			err := n.fillMissingOrder(i)
-			if err != nil {
-				errorCount++
-				log.Error("Error fulfill available NEO", "err", err, "count", errorCount)
-				break
-			}
-			// We try to add many 1-neo orders for testing and monitoring purpose
-			err = n.fillMissingOrder(1)
-			if err != nil {
-				errorCount++
-				log.Error("Error fulfill available NEO", "err", err, "count", errorCount)
-				break
-			}
-		}
-	}
 }
 
 func (n *NeoProxy) AddEvent(dualEvent *types.DualEvent) error {
@@ -162,11 +124,9 @@ func (n *NeoProxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 
 // SubmitTx submit corresponding tx to NEO or Kardia basing on Data in EventData, include release NEO
 // and upgrade Kardia smart contract. In case of matching event, we find the matched request here to release NEO to.
-// In case of request from NEO -> ETH is completed, we check if its matched one is completed yet, if not then release
-// Neo to it. Return error in case of invalid EventData
 func (n *NeoProxy) SubmitTx(event *types.EventData) error {
 	if len(event.Data.ExtData) > 3 {
-		log.Info("submitting neo tx", "pair", string(event.Data.ExtData[3]))
+		log.Info("Submitting neo tx", "pair", string(event.Data.ExtData[3]))
 	}
 	statedb, err := n.kardiaBc.State()
 	if err != nil {
@@ -174,69 +134,56 @@ func (n *NeoProxy) SubmitTx(event *types.EventData) error {
 		return configs.ErrFailedGetState
 	}
 	switch event.Data.TxMethod {
-	case configs.MatchFunction:
-		if len(event.Data.ExtData) != configs.NumOfExchangeDataField {
+	case configs.AddOrderFunction:
+		if len(event.Data.ExtData) != configs.ExchangeV2NumOfExchangeDataField {
 			return configs.ErrInsufficientExchangeData
 		}
-		// get matched request if any and submit it. we're only interested with those have dest pair NEO-ETH
-		log.Info("detect matching request", "destPair", string(event.Data.ExtData[configs.ExchangeDataDestPairIndex]),
-			"srcPair", string(event.Data.ExtData[configs.ExchangeDataSourcePairIndex]),
-			"from", string(event.Data.ExtData[configs.ExchangeDataSourceAddressIndex]), "to",
-			string(event.Data.ExtData[configs.ExchangeDataDestAddressIndex]))
 		senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
-		amount := big.NewInt(0).SetBytes(event.Data.ExtData[configs.ExchangeDataAmountIndex])
-		srcAddress := string(event.Data.ExtData[configs.ExchangeDataSourceAddressIndex])
-		destAddress := string(event.Data.ExtData[configs.ExchangeDataDestAddressIndex])
-		sourcePair := string(event.Data.ExtData[configs.ExchangeDataSourcePairIndex])
-		request, err := utils.CallKardiaGetMatchedRequest(senderAddr, n.kardiaBc, statedb, amount, srcAddress, destAddress,
-			sourcePair, configs.ETH2NEO)
+		originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
+		// Get all matched orders of newly added order
+		releases, err := utils.CallKardiGetMatchingResultByTxId(senderAddr, n.kardiaBc, statedb, originalTx)
 		if err != nil {
 			return err
 		}
-		// contract returns no matched request
-		if request.DestAddress == "" {
-			return configs.ErrNoMatchedRequest
-		}
-		// divide by 10 ^ 18 here
-		neoSendAmount := request.SendAmount.Div(request.SendAmount, OneNeo)
-		// don't release  NEO if quantity < 1
-		if neoSendAmount.Cmp(big.NewInt(1)) < 0 {
-			return errNoNeoToSend
-		}
-		log.Info("there is a matching request, release neo")
-		go n.releaseNeo(request.DestAddress, neoSendAmount, request.MatchedRequestID)
-		err = n.completeRequest(request.MatchedRequestID)
-		if err != nil {
-			return err
-		}
-		return nil
-	case configs.CompleteFunction:
-		if string(event.Data.ExtData[configs.ExchangeDataCompletePairIndex]) != configs.NEO2ETH {
-			// The pair of completed request is not NEO -> ETH, so we just skip it and return nil
-			log.Error("Invalid pair", "pair", string(event.Data.ExtData[configs.ExchangeDataCompletePairIndex]))
-			return nil
-		}
-		// there is a request from NEO -> ETH completed, we check whether its matched request (ETH->NEO) is complete yet
-		// if no, release then complete it
-		request, err := utils.CallKardiaGetUncompletedRequest(big.NewInt(0).SetBytes(
-			event.Data.ExtData[configs.ExchangeDataCompleteRequestIDIndex]), statedb,
-			n.smcABI, n.kardiaBc)
-		if err != nil {
-			log.Error("Error getting uncompleted request", "err", err)
-			return err
-		}
-		// divide by 10 ^ 18 here
-		neoSendAmount := request.SendAmount.Div(request.SendAmount, OneNeo)
-		if request.DestAddress != "" && neoSendAmount.Cmp(big.NewInt(0)) == 1 {
-			log.Info("there is an uncompleted matching request, release neo")
-			go n.releaseNeo(request.DestAddress, neoSendAmount, request.MatchedRequestID)
-			err = n.completeRequest(request.MatchedRequestID)
-			if err != nil {
-				return err
+		log.Info("Release info", "release", releases)
+		if releases != "" {
+			fields := strings.Split(releases, configs.ExchangeV2ReleaseFieldsSeparator)
+			if len(fields) != 4 {
+				log.Error("Invalid numn of field", "release", releases)
+				return errors.New("Invalid num of field for release")
 			}
+			// Parse release info into arrays of types, addresses, amounts and txids
+			arrTypes := strings.Split(fields[configs.ExchangeV2ReleaseToTypeIndex], configs.ExchangeV2ReleaseValuesSepatator)
+			arrAddresses := strings.Split(fields[configs.ExchangeV2ReleaseAddressesIndex], configs.ExchangeV2ReleaseValuesSepatator)
+			arrAmounts := strings.Split(fields[configs.ExchangeV2ReleaseAmountsIndex], configs.ExchangeV2ReleaseValuesSepatator)
+			arrTxIds := strings.Split(fields[configs.ExchangeV2ReleaseTxIdsIndex], configs.ExchangeV2ReleaseValuesSepatator)
+
+			for i, t := range arrTypes {
+				if t == configs.NEO { // If the receiving end if the release is NEO, we release NEO
+					if arrAmounts[i] == "" || arrAddresses[i] == "" || arrTxIds[i] == "" {
+						log.Error("Missing release info", "matchedTxId", arrTxIds[i], "field", i, "releases", releases)
+						continue
+					}
+					address := arrAddresses[i]
+					amount, err1 := strconv.ParseInt(arrAmounts[i], 10, 64) //big.NewInt(0).SetString(arrAmounts[i], 10)
+					log.Info("Amount", "amount", amount, "in string", arrAmounts[i])
+					if err1 != nil {
+						log.Error("Error parse amount", "amount", arrAmounts[i])
+						continue
+					}
+					// Divide amount from smart contract by 10^8 to get base NEO amount to release
+					amountNeoRelease := big.NewInt(amount).Div(big.NewInt(amount), TenPoweredByEight)
+					// don't release  NEO if quantity < 1
+					if amountNeoRelease.Cmp(big.NewInt(1)) < 0 {
+						log.Error("Too little neo to send", "originalTxId", originalTx, "err", errNoNeoToSend, "amount", amountNeoRelease)
+						return nil
+					}
+					go n.releaseNeo(address, amountNeoRelease, arrTxIds[i])
+				}
+			}
+
 			return nil
 		}
-		log.Info("No uncompleted request", "ID", event.Data.ExtData[0])
 		return nil
 	default:
 		log.Warn("Unexpected method in NEO SubmitTx", "method", event.Data.TxMethod)
@@ -245,19 +192,20 @@ func (n *NeoProxy) SubmitTx(event *types.EventData) error {
 }
 
 // completeRequest create tx call to Kardia smart contract to complete a request
-func (n *NeoProxy) completeRequest(requestID *big.Int) error {
-	tx, err := utils.CreateKardiaCompleteRequestTx(n.txPool.State(), requestID, configs.ETH2NEO)
+func (n *NeoProxy) completeRequest(originalTxId string, releaseTxId string) error {
+	// Update targetTx to mark that the originalTx is matched and released successfully
+	tx, err := utils.UpdateKardiaTargetTx(n.txPool.State(), originalTxId, releaseTxId, "target")
 	if err != nil {
-		log.Error("Failed to create complete request tx", "ID", requestID, "direction",
-			configs.ETH2NEO)
+		log.Error("Failed to update target tx", "originalTx", originalTxId, "tx", releaseTxId, "err", err)
 		return err
 	}
 	err = n.txPool.AddLocal(tx)
 	if err != nil {
-		log.Error("Fail to add Kardia tx to complete request", "err", err, "tx", tx)
+		log.Error("Fail to add Kardia tx to update target tx", "originalTx", originalTxId, "tx", releaseTxId, "err", err)
 		return err
 	}
-	log.Info("Submitted tx to Kardia to complete request successully", "txHash", tx.Hash().String())
+	log.Info("Submitted tx to Kardia to update target tx successully", "txHash", tx.Hash().String(),
+		"releaseTxId", releaseTxId, "originalTxId", originalTxId)
 	return nil
 }
 
@@ -271,32 +219,36 @@ func (n *NeoProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetadata,
 	}, nil
 }
 
-func (n *NeoProxy) releaseNeo(address string, amount *big.Int, requestID *big.Int) {
-	log.Info("Release: ", "amount", amount, "address", address, "requestID", requestID, "neodual", "neodual")
-	txid, err := n.callReleaseNeo(address, amount, requestID)
+func (n *NeoProxy) releaseNeo(address string, amount *big.Int, matchedTxId string) {
+	log.Info("Release: ", "amount", amount, "address", address, "matchedTxId", matchedTxId, "neodual", "neodual")
+	releaseTxId, err := n.callReleaseNeo(address, amount)
 	if err != nil {
 		log.Error("Error calling rpc", "err", err, "neodual", "neodual")
 		return
 	}
-	if txid == "fail" || txid == "" {
-		log.Info("Failed to release, retry tx", "txid", txid)
-		txid, err = n.retryTx(address, amount, requestID)
+	if releaseTxId == "fail" || releaseTxId == "" {
+		log.Info("Failed to release, retry tx", "releaseTxId", releaseTxId)
+		releaseTxId, err = n.retryTx(address, amount)
 		if err != nil {
 			log.Error("Error retrying release NEO", "err", err)
 			return
 		}
-		log.Info("Submitted release NEO tx successfully", "txid", txid)
+		log.Info("Submitted release NEO tx successfully", "releaseTxId", releaseTxId)
 	}
-	txStatus := n.loopCheckingTx(txid, requestID)
+	txStatus := n.loopCheckingTx(releaseTxId)
 	if !txStatus {
-		log.Error("Checking tx result neo failed", "txid", txid)
+		log.Error("Checking tx result neo failed", "releaseTxId", releaseTxId)
 		return
 	}
-	log.Info("Tx release NEO is successful", "txid", txid)
+	log.Info("Tx release NEO is successful", "releaseTxId", releaseTxId)
+	err = n.completeRequest(matchedTxId, releaseTxId)
+	if err != nil {
+		log.Error("Error complete request", "matchedTxId", matchedTxId, "releaseTxId", releaseTxId, "err", err)
+	}
 }
 
 // callReleaseNeo calls Api to release Neo
-func (n *NeoProxy) callReleaseNeo(address string, amount *big.Int, id *big.Int) (string, error) {
+func (n *NeoProxy) callReleaseNeo(address string, amount *big.Int) (string, error) {
 	body := []byte(`{
   		"jsonrpc": "2.0",
   		"method": "dual_sendeth",
@@ -360,46 +312,26 @@ func (n *NeoProxy) checkTxNeo(txid string) bool {
 	return false
 }
 
-// retry send and loop checking tx status until it is successful
-func (n *NeoProxy) retryTx(address string, amount *big.Int, requestID *big.Int) (string, error) {
+// retryTx sends and loops checking tx status until it is successful
+func (n *NeoProxy) retryTx(address string, amount *big.Int) (string, error) {
 	attempt := 0
 	interval := InitialCheckTxInterval
 	for {
-		log.Info("retrying tx ...", "addr", address, "amount", amount, "neodual", "neodual")
-		txid, err := n.callReleaseNeo(address, amount, requestID)
+		log.Info("retrying tx ...", "addr", address, "amount", amount, "attempt", attempt, "neodual", "neodual")
+		txid, err := n.callReleaseNeo(address, amount)
 		if err == nil && txid != "fail" {
 			log.Info("Send successfully", "txid", txid, "method", "retryTx", "neodual", "neodual")
 			return txid, nil
 		}
 		attempt++
-		// FIXME: (sontranrad) Currently we retry maximum 2 times then give up. Proper retry logic should be added later
-		if attempt == MaximumSubmitTxAttempts {
-			log.Info("Exceeded maximum submit attempts, give up now", "method", "retryTx", "neodual", "neodual",
-				"maximum", MaximumSubmitTxAttempts)
-			return "", errRetryFailed
-		}
 		sleepDuration := time.Duration(interval) * time.Second
 		time.Sleep(sleepDuration)
 		interval += CheckTxIntervalDelta
 	}
 }
 
-func (n *NeoProxy) fillMissingOrder(i int) error {
-	amount := big.NewInt(int64(0)).Mul(big.NewInt(int64(i)), OneNeo)
-	tx, err := utils.CreateKardiaMatchAmountTx(n.txPool.State(), amount,
-		dev.NeoReceiverAddressList[0], dev.EthReceiverAddressList[1], types.NEO)
-	if err != nil {
-		return err
-	}
-	err = n.txPool.AddLocal(tx)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// Continually check tx status for 10 times, interval is 10 seconds
-func (n *NeoProxy) loopCheckingTx(txid string, requestID *big.Int) bool {
+// loopCheckingTx periodically checks tx status for 10 times, interval is 10 seconds
+func (n *NeoProxy) loopCheckingTx(txid string) bool {
 	attempt := 0
 	for {
 		time.Sleep(CheckTxInterval)

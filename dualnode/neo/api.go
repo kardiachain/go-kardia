@@ -22,6 +22,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/blockchain"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/kai/base"
@@ -36,11 +37,14 @@ type NeoEvent struct {
 	TxHash      string   `json:"txHash"       gencodec:"required"`
 
 	// Neo contract hash
-	Contract string   `json:"contract"     gencodec:"required"`
-	Method   string   `json:"method"       gencodec:"required"`
-	Amount   *big.Int `json:"amount"       gencodec:"required"`
+	Contract  string       `json:"contract"     gencodec:"required"`
+	Method    string       `json:"method"       gencodec:"required"`
+	Sender    string       `json:"sender"       gencodec:"required"`
+	Receiver  string       `json:"receiver"     gencodec:"required"`
+	Amount    *big.Int     `json:"amount"       gencodec:"required"`
+	Timestamp *big.Int     `json:"timestamp"    gencodec:"required"`
 
-	Hash *common.Hash `json:"hash"         rlp:"-"`
+	Hash      *common.Hash `json:"hash"         rlp:"-"`
 }
 
 // NeoApi is used for any rpc request from NeoPython
@@ -73,12 +77,25 @@ func (n *NeoApi) NewEvent(neoEventEncodedBytes string) error {
 	}
 	txHash := common.HexToHash(neoEvent.TxHash)
 	nonce := dualState.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
+	// Compose extraData struct for fields related to exchange from data extracted by Neo event
+	extraData := make([][]byte, configs.ExchangeV2NumOfExchangeDataField)
+	extraData[configs.ExchangeV2SourcePairIndex] = []byte(configs.NEO)
+	extraData[configs.ExchangeV2DestPairIndex] = []byte(configs.ETH)
+	extraData[configs.ExchangeV2SourceAddressIndex] = []byte(neoEvent.Sender)
+	extraData[configs.ExchangeV2DestAddressIndex] = []byte(neoEvent.Receiver)
+	extraData[configs.ExchangeV2OriginalTxIdIndex] = []byte(neoEvent.TxHash)
+	extraData[configs.ExchangeV2AmountIndex] = neoEvent.Amount.Bytes()
+	extraData[configs.ExchangeV2TimestampIndex] = neoEvent.Timestamp.Bytes()
+
 	eventSummary := &types.EventSummary{
 		TxMethod: neoEvent.Method,
 		TxValue:  neoEvent.Amount,
+		ExtData:  extraData,
 	}
 	// TODO(namdoh@): Pass smartcontract actions here.
 	dualEvent := types.NewDualEvent(nonce, true /* internalChain */, types.NEO, &txHash, eventSummary, nil)
+
+	// Compose extraData struct for fields related to exchange
 	txMetaData, err := n.internalBlockchain.ComputeTxMetadata(dualEvent.TriggeredEvent)
 	if err != nil {
 		log.Error("Error compute internal tx metadata", "err", err)
