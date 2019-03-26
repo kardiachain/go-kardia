@@ -91,7 +91,7 @@ func TestBlockEncodeDecodeFile(t *testing.T) {
 func TestGetDualEvents(t *testing.T) {
 	dualBlock := CreateNewDualBlock()
 	dualEvents := dualBlock.DualEvents()
-	dualEventCopy := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary))
+	dualEventCopy := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary), new(DualActions))
 	if dualEvents[0].Hash() != dualEventCopy.Hash() {
 		t.Error("Dual Events hash not equal")
 	}
@@ -265,6 +265,6 @@ func CreateNewDualBlock() *Block {
 		Precommits: []*Vote{vote, vote},
 	}
 	header.LastCommitHash = lastCommit.Hash()
-	de := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary))
+	de := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary), new(DualActions))
 	return NewDualBlock(log.New(), &header, []*DualEvent{de, nil}, lastCommit)
 }

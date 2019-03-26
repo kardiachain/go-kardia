@@ -30,6 +30,13 @@ const (
 	ExternalDepositFunction            = "deposit"
 	ETH2NEO                            = "ETH-NEO"
 	NEO2ETH                            = "NEO-ETH"
+	// constants related to rate & addOrder function from smc
+	ETH                                = "ETH"
+	NEO                                = "NEO"
+	AddOrderFunction                   = "addOrder"
+	RateETH                            = 100000000
+	RateNEO                            = 6482133
+
 	ExchangeDataSourceAddressIndex     = 0
 	ExchangeDataDestAddressIndex       = 1
 	ExchangeDataSourcePairIndex        = 2
@@ -39,6 +46,23 @@ const (
 	ExchangeDataCompletePairIndex      = 1
 	NumOfExchangeDataField             = 5
 	NumOfCompleteRequestDataField      = 2
+
+	// Constants related to exchange v2 which support original tx id
+	ExchangeV2SourcePairIndex        = 0
+	ExchangeV2DestPairIndex          = 1
+	ExchangeV2SourceAddressIndex     = 2
+	ExchangeV2DestAddressIndex       = 3
+	ExchangeV2OriginalTxIdIndex      = 4
+	ExchangeV2AmountIndex            = 5
+	ExchangeV2TimestampIndex         = 6
+	ExchangeV2NumOfExchangeDataField = 7
+	ExchangeV2ReleaseFieldsSeparator = "|"
+	ExchangeV2ReleaseToTypeIndex     = 0
+	ExchangeV2ReleaseAddressesIndex  = 1
+	ExchangeV2ReleaseAmountsIndex    = 2
+	ExchangeV2ReleaseTxIdsIndex      = 3
+	ExchangeV2ReleaseValuesSepatator = ";"
+
 	// constants related to candidate exchange, Kardia part
 	KardiaCandidateExchangeSmcIndex    = 6
 	KardiaForwardRequestFunction       = "forwardRequest"
@@ -52,6 +76,7 @@ const (
 	KardiaForwardRequestEmailIndex     = 0
 	KardiaForwardRequestFromOrgIndex   = 1
 	KardiaForwardRequestToOrgIndex     = 2
+
 	// constants related to candidate exchange, private chain part
 	PrivateChainCandidateDBSmcIndex                     = 5
 	PrivateChainCandidateRequestCompletedFields         = 4
@@ -65,8 +90,7 @@ const (
 	PrivateChainCandidateRequestEmailIndex              = 0
 	PrivateChainCandidateRequestFromOrgIndex            = 1
 	PrivateChainCandidateRequestToOrgIndex              = 2
-	PrivateChainExternalCandidateInfoRequestedEvent     = "ExternalCandidateInfoRequested"
-	PrivateChainRequestCompletedEvent                   = "RequestCompleted"
+
 )
 
 var (
