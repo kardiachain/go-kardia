@@ -1,11 +1,30 @@
 #!/bin/bash
 
+function implode {
+    local IFS="$1"; shift; echo "$*";
+}
+
+# Number of nodes and prefix name
 NODES=6
 PORT=3000
 RPC_PORT=8545
-IMAGE_NAME=kardiachain/go-kardia
-ETH_NODE_INDEX=1
-NEO_NODE_INDEX=2
+ETH_PORT=8645
+ETH_ADDR=30302
+###
+ETH_NODES=3
+NEO_NODES=3
+
+# Indexes of Dual chain and main chain validator nodes
+ETH_VAL_INDEXES=(1 2 3)
+NEO_VAL_INDEXES=(4 5 6)
+MAIN_VAL_INDEXES=(2,3,4)
+DUAL_ETH_CHAIN_VAL_INDEXES=$(implode , ${ETH_VAL_INDEXES[@]})
+DUAL_NEO_CHAIN_VAL_INDEXES=$(implode , ${NEO_VAL_INDEXES[@]})
+MAIN_CHAIN_VAL_INDEXES=$(implode , ${MAIN_VAL_INDEXES[@]})
+
+# Image
+IMAGE_NAME=gcr.io/strategic-ivy-130823/go-kardia
+
 PACKAGE=start_kardia_network.sh
 DUALCHAIN=
 
@@ -18,44 +37,21 @@ while test $# -gt 0; do
                         echo " "
                         echo "options:"
                         echo "-h, --help                      Show brief help"
-                        echo "-n, --num_nodes=NUMBER          Specify how many nodes to bring up"
-                        echo "-eth, --ether_node_index=INDEX  Index of ether node"
-                        echo "-neo, --neo_node_index=INDEX    Index of neo node"
-                        echo "-dual, --dual_chain             Enable running dual chains"
+                        echo "-n, --num_nodes=NUMBER          Specify how many nodes to bring up. At least 6 nodes."
                         exit 0
                         ;;
                 -n|--num_nodes)
                         shift
                         if test $# -gt 0; then
                                 NODES=$1
+                                if [[ ${NODES} -lt 6 ]]; then
+                                    echo "At least 6 nodes for running."
+                                    exit 1
+                                fi
                         else
                                 echo "Number of nodes not specified"
                                 exit 1
                         fi
-                        shift
-                        ;;
-                -eth|--ether_node_index)
-                        shift
-                        if test $# -gt 0; then
-                                ETH_NODE_INDEX=$1
-                        else
-                                echo "Ether node index not specified"
-                                exit 1
-                        fi
-                        shift
-                        ;;
-                -neo|--neo_node_index)
-                        shift
-                        if test $# -gt 0; then
-                                NEO_NODE_INDEX=$1
-                        else
-                                echo "Neo node index not specified"
-                                exit 1
-                        fi
-                        shift
-                        ;;
-                -dual)
-                        DUALCHAIN=--dualchain
                         shift
                         ;;
                 *)
@@ -71,17 +67,31 @@ docker ps -a | grep ${IMAGE_NAME} | awk '{print $1}' | xargs docker rm -f
 NODE_INDEX=1
 while [ $NODE_INDEX -le $NODES ]
 do
-    if [ $NODE_INDEX -eq $ETH_NODE_INDEX ]; then
-        mkdir -p ~/.kardiachain/node${NODE_INDEX}/data/ethereum
-        docker run --rm -d --name node${NODE_INDEX} -v ~/.kardiachain/node${NODE_INDEX}/data/ethereum:/root/.ethereum --net=host $IMAGE_NAME $DUALCHAIN --dev --mainChainValIndexes 3,4,5,6 --dual --ethstat --ethstatname eth-dual-test-${NODE_INDEX} --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --txn --clearDataDir
-    elif [ $NODE_INDEX -eq $NEO_NODE_INDEX ]; then
-        docker run --rm -d --name node${NODE_INDEX} --net=host $IMAGE_NAME $DUALCHAIN --dev --mainChainValIndexes 3,4,5,6 --neodual --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --clearDataDir
+    if [[ " ${ETH_VAL_INDEXES[*]} " =~ " ${NODE_INDEX} " ]]; then
+         mkdir -p ~/.kardia/node${NODE_INDEX}/data/ethereum
+         docker run -d --name node${NODE_INDEX} -v ~/.kardia/node${NODE_INDEX}/data/ethereum:/root/.ethereum --net=host $IMAGE_NAME \
+         --dev --mainChainValIndexes ${MAIN_CHAIN_VAL_INDEXES} \
+         --dual --dualchain --dualChainValIndexes ${DUAL_ETH_CHAIN_VAL_INDEXES} \
+         --ethstat --ethstatname eth-dual-privnet-${NODE_INDEX} \
+         --name node${NODE_INDEX} \
+         --addr :${PORT} --rpc --rpcport ${RPC_PORT} --ethAddr :${ETH_ADDR} --ethRPCPort ${ETH_PORT} --clearDataDir --noProxy
+    elif [[ " ${NEO_VAL_INDEXES[*]} " =~ " ${NODE_INDEX} " ]]; then
+        docker run -d --name node${NODE_INDEX} --net=host $IMAGE_NAME \
+        --dev --mainChainValIndexes ${MAIN_CHAIN_VAL_INDEXES} \
+        --neodual --dualchain --dualChainValIndexes ${DUAL_NEO_CHAIN_VAL_INDEXES} \
+        --name node${NODE_INDEX} \
+        --addr :${PORT} --rpc --rpcport ${RPC_PORT} --clearDataDir --noProxy
     else
-        docker run --rm -d --name node${NODE_INDEX} --net=host $IMAGE_NAME $DUALCHAIN --dev --mainChainValIndexes 3,4,5,6 --addr :${PORT} --name node${NODE_INDEX} --rpc --rpcport ${RPC_PORT} --clearDataDir
+        docker run -d --name node${NODE_INDEX} --net=host $IMAGE_NAME \
+        --dev --mainChainValIndexes ${MAIN_CHAIN_VAL_INDEXES} \
+        --name node${NODE_INDEX} \
+        --addr :${PORT} --rpc --rpcport ${RPC_PORT} --clearDataDir --noProxy
     fi
     ((NODE_INDEX++))
     ((PORT++))
     ((RPC_PORT++))
+    ((ETH_PORT++))
+    ((ETH_ADDR++))
 done
 
 echo "=> Started $NODES nodes."
