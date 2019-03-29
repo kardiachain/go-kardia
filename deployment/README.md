@@ -1,7 +1,7 @@
 # Deployment on cloud service providers
 
 ## Docker Registry 
-Public Docker images are released globally on [GCR](https://cloud.google.com/container-registry/) at [gcr.io/strategic-ivy-130823/go-kardia:v0.4.0](https://gcr.io/strategic-ivy-130823/go-kardia:v0.4.0)  
+Public Docker images are released globally on [GCR](https://cloud.google.com/container-registry/) at [gcr.io/strategic-ivy-130823/go-kardia:v0.6.0](https://gcr.io/strategic-ivy-130823/go-kardia:v0.6.0)  
 Users can choose this image during their setup, or use below end-2-end scripts.
 
 ## Google Cloud deploy testnet
