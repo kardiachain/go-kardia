@@ -71,6 +71,7 @@ type flagArgs struct {
 	chainId             uint64
 	serviceName         string
 	noProxy             bool
+	peerProxyIP         string
 
 	// Ether/Kardia dualnode related flags
 	ethDual       bool
@@ -157,6 +158,8 @@ func init() {
 	flag.StringVar(&args.privateServiceName, "privateServiceName", "", "privateServiceName is used for displaying as log's prefix")
 	flag.StringVar(&args.privateAddr, "privateAddr", ":5000", "listened address for private chain")
 	flag.Uint64Var(&args.dualNetworkId, "dualNetworkId", 100, "dualNetworkID is used to differentiate amongst Kardia-based dual groups")
+	flag.BoolVar(&args.noProxy, "noProxy", false, "When triggered, Kardia node is standalone and is not registered in proxy.")
+	flag.StringVar(&args.peerProxyIP, "peerProxyIP", "", "IP of the peer proxy for this node to register.")
 
 	// NOTE: The flags below are only applicable for dev environment. Please add the applicable ones
 	// here and DO NOT add non-dev flags.
@@ -174,7 +177,6 @@ func init() {
 	flag.BoolVar(&args.txs, "txs", false, "generate random transfer txs")
 	flag.IntVar(&args.txsDelay, "txsDelay", 10, "delay in seconds between batches of generated txs")
 	flag.IntVar(&args.numTxs, "numTxs", 10, "number of of generated txs in one batch")
-	flag.BoolVar(&args.noProxy, "noProxy", false, "When triggered, Kardia node is standalone and is not registered in proxy.")
 	flag.BoolVar(&args.dualEvent, "dualEvent", false, "generate initial dual event")
 }
 
@@ -351,6 +353,8 @@ func main() {
 		}
 	}
 
+	config.PeerProxyIP = args.peerProxyIP
+
 	n, err := node.NewNode(config)
 	if err != nil {
 		logger.Error("Cannot create node", "err", err)
@@ -413,9 +417,17 @@ func main() {
 	}
 	logger.Info("Genesis block", "genesis", *kardiaService.BlockChain().Genesis())
 
-	if !args.noProxy {
-		n.CallProxy("Startup", n.Server().Self(), nil)
+	if !args.noProxy && len(args.peerProxyIP) == 0 {
+		logger.Error("flag noProxy=false but peerProxyIP is empty, will ignore proxy.")
+		args.noProxy = true // TODO(thientn): removes when finish cleaning up proxy.
 	}
+
+	if !args.noProxy {
+		if err := n.CallProxy("Startup", n.Server().Self(), nil); err != nil {
+			logger.Error("Error when startup proxy connection", "err", err)
+		}
+	}
+
 	// Connect with other peers.
 	if args.dev && args.bootNode == "" {
 		// Add Mainchain peers
@@ -436,7 +448,6 @@ func main() {
 					logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
 				}
 			}
-
 		}
 
 		if args.dualChain {

@@ -34,8 +34,6 @@ import (
 	"github.com/kardiachain/go-kardia/rpc"
 )
 
-var PeerProxyURL = "0.0.0.0:9001"
-
 // Node is the highest level container for a full Kardia node.
 // It keeps all config data and services.
 type Node struct {
@@ -373,7 +371,7 @@ func (n *Node) BootNode(url string) (bool, error) {
 func (n *Node) CallProxy(method string, reqNode, targetNode *discover.Node) error {
 	//Make connection with proxy
 	ReqNodeID := strings.SplitAfter(reqNode.String(), "@")[0]
-	conn, err := net.Dial("tcp", PeerProxyURL)
+	conn, err := net.Dial("tcp", n.config.PeerProxyIP)
 	if err != nil {
 		return err
 	}

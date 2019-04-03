@@ -19,29 +19,30 @@
 package node
 
 import (
-	"io"
-	"os"
-	"fmt"
 	"bufio"
-	"regexp"
-	"strconv"
-	"strings"
 	"crypto/ecdsa"
 	"encoding/csv"
 	"encoding/hex"
+	"fmt"
+	"io"
+	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardia/kai/base"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
@@ -191,6 +192,9 @@ type NodeConfig struct {
 	// Configuration of the dual's blockchain.
 	DualChainConfig DualChainConfig
 
+	// PeerProxyIP is IP of the network peer proxy, when participates in network with peer proxy for discovery.
+	PeerProxyIP string
+
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
 	NodeMetadata *NodeMetadata
@@ -206,7 +210,7 @@ type NodeMetadata struct {
 
 // EnvironmentConfig contains a list of NodeVotingPower, proposalIndex and votingStrategy
 type EnvironmentConfig struct {
-	NodeSet []NodeMetadata
+	NodeSet        []NodeMetadata
 	proposalIndex  int
 	VotingStrategy map[consensus.VoteTurn]int
 }
@@ -326,7 +330,7 @@ func NewNodeMetadata(privateKey *string, publicKey *string, votingPower int64, l
 
 	node := &NodeMetadata{
 		VotingPower: votingPower,
-		ListenAddr: listenAddr,
+		ListenAddr:  listenAddr,
 	}
 
 	if privateKey == nil && publicKey == nil {
@@ -356,7 +360,7 @@ func NewNodeMetadata(privateKey *string, publicKey *string, votingPower int64, l
 func (n *NodeMetadata) NodeID() string {
 	return fmt.Sprintf(
 		"enode://%s@%s",
-		hex.EncodeToString(n.PublicKey.X.Bytes()) + hex.EncodeToString(n.PublicKey.Y.Bytes()),
+		hex.EncodeToString(n.PublicKey.X.Bytes())+hex.EncodeToString(n.PublicKey.Y.Bytes()),
 		n.ListenAddr)
 }
 
@@ -462,7 +466,7 @@ func (env *EnvironmentConfig) GetValidatorSetByIndices(bc base.BaseBlockChain, v
 		return nil, fmt.Errorf("number of validators must be within %v and %v", 1, env.GetNodeSize())
 	}
 	validators := make([]*types.Validator, 0)
-	for i:=0; i < len(valIndexes); i++ {
+	for i := 0; i < len(valIndexes); i++ {
 		if valIndexes[i] < 0 {
 			return nil, fmt.Errorf("value of validator must be greater than 0")
 		}
