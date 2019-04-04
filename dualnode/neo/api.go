@@ -25,6 +25,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/blockchain"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/dualnode"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -92,9 +93,14 @@ func (n *NeoApi) NewEvent(neoEventEncodedBytes string) error {
 		TxValue:  neoEvent.Amount,
 		ExtData:  extraData,
 	}
-	// TODO(namdoh@): Pass smartcontract actions here.
-	dualEvent := types.NewDualEvent(nonce, true /* internalChain */, types.NEO, &txHash, eventSummary, &types.DualActions{})
-
+	actionsTmp := [...]*types.DualAction{
+		&types.DualAction{
+			Name: dualnode.CreateKardiaMatchAmountTx,
+		},
+	}
+	dualEvent := types.NewDualEvent(nonce, true /* internalChain */, types.NEO, &txHash, eventSummary, &types.DualActions{
+		Actions: actionsTmp[:],
+	})
 	// Compose extraData struct for fields related to exchange
 	txMetaData, err := n.internalBlockchain.ComputeTxMetadata(dualEvent.TriggeredEvent)
 	if err != nil {

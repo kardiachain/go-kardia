@@ -195,11 +195,9 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 
 	// TODO(namdoh@): Pass this dynamically from Kardia's state.
 	actionsTmp := [...]*types.DualAction{
-		/*
 			&types.DualAction{
-				Name: dualnode.CreateDualEventFromEthTxAndEnqueue,
+				Name: dualnode.CreateKardiaMatchAmountTx,
 			},
-		*/
 	}
 	kardiaSmcsTemp := [...]*types.KardiaSmartcontract{
 		&types.KardiaSmartcontract{
