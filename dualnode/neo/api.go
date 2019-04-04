@@ -93,7 +93,7 @@ func (n *NeoApi) NewEvent(neoEventEncodedBytes string) error {
 		ExtData:  extraData,
 	}
 	// TODO(namdoh@): Pass smartcontract actions here.
-	dualEvent := types.NewDualEvent(nonce, true /* internalChain */, types.NEO, &txHash, eventSummary, nil)
+	dualEvent := types.NewDualEvent(nonce, true /* internalChain */, types.NEO, &txHash, eventSummary, &types.DualActions{})
 
 	// Compose extraData struct for fields related to exchange
 	txMetaData, err := n.internalBlockchain.ComputeTxMetadata(dualEvent.TriggeredEvent)

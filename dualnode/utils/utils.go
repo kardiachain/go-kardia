@@ -36,6 +36,7 @@ import (
 	"math/big"
 	"strings"
 	"time"
+	"github.com/pebbe/zmq4"
 )
 
 // TODO(@sontranrad): remove all of these constants for production
@@ -47,6 +48,7 @@ var MaximumGasToCallStaticFunction = uint(4000000)
 var errAbiNotFound = errors.New("ABI not found")
 
 var TenPoweredByEight = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
+var TenPoweredBySix = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(6), nil)
 var TenPoweredByTen = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(10), nil)
 var OneEthInWei = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(18), nil)
 
@@ -418,3 +420,24 @@ func GetPrivateKeyToCallKardiaSmc() *ecdsa.PrivateKey {
 }
 
 func IsNilOrEmpty(data []byte) bool { return data == nil || string(data) == "" }
+
+func PublishMessage(endpoint, topic, message string) error {
+	pub, _ := zmq4.NewSocket(zmq4.PUB)
+	defer pub.Close()
+	pub.Connect(endpoint)
+
+	// sleep 1 second to prevent socket closes
+	time.Sleep(1 * time.Second)
+
+	// send topic
+	if _, err := pub.Send(topic, zmq4.SNDMORE); err != nil {
+		return err
+	}
+
+	// send message
+	if _, err := pub.Send(message, zmq4.DONTWAIT); err != nil {
+		return err
+	}
+
+	return nil
+}
