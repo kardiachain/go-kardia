@@ -1,10 +1,8 @@
 package tron
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/pebbe/zmq4"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
@@ -19,27 +17,9 @@ import (
 	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"strconv"
 	"errors"
-	"time"
 	message2 "github.com/kardiachain/go-kardia/dualnode/message"
 )
 
-func main() {
-	subscriber, _ := zmq4.NewSocket(zmq4.SUB)
-	defer subscriber.Close()
-	subscriber.Connect("tcp://127.0.0.1:5555")
-
-	// this is contract address
-	subscriber.SetSubscribe(ServiceName)
-	for {
-		//  Read envelope with address
-		topic, _ := subscriber.Recv(0)
-		//  Read message contents
-		contents, _ := subscriber.Recv(0)
-		fmt.Printf("[%s] %s\n", topic, contents)
-
-		// TODO: try to read data from abi, to see if there is difficulty
-	}
-}
 
 type Proxy struct {
 
