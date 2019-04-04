@@ -37,12 +37,20 @@ import (
 	"strings"
 	"time"
 	"github.com/pebbe/zmq4"
+	"fmt"
 )
 
 // TODO(@sontranrad): remove all of these constants for production
 
 const KardiaAccountToCallSmc = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
 const KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
+
+// TODO: note that when we have dynamic method, these values will be moved to smartcontract or anything that can handle this case.
+var AvailableExchangeType = map[string]bool{
+	configs.TRON: true,
+	configs.NEO: true,
+	configs.ETH: true,
+}
 
 var MaximumGasToCallStaticFunction = uint(4000000)
 var errAbiNotFound = errors.New("ABI not found")
@@ -440,4 +448,46 @@ func PublishMessage(endpoint, topic, message string) error {
 	}
 
 	return nil
+}
+
+// GetExchangePair split string into 2 pairs and validate if 2 pairs are valid or not.
+func GetExchangePair(pair string) (*string, *string, error) {
+	pairs := strings.Split(pair, "-")
+	if len(pairs) != 2 {
+		return nil, nil, fmt.Errorf("invalid pair %v", pairs)
+	}
+
+	if _, ok := AvailableExchangeType[pairs[0]]; !ok {
+		return nil, nil, fmt.Errorf("invalid first type %v", pairs[0])
+	}
+
+	if _, ok := AvailableExchangeType[pairs[1]]; !ok {
+		return nil, nil, fmt.Errorf("invalid second type %v", pairs[1])
+	}
+
+	return &pairs[0], &pairs[1], nil
+}
+
+// ExecuteKardiaSmartContract executes
+func ExecuteKardiaSmartContract(state *state.ManagedState, contractAddress, methodName string, params []string) (*types.Transaction, error) {
+	masterSmcAddr := common.HexToAddress(contractAddress)
+	// TODO: replace this line to function that get abi from contractAddress
+	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
+	kAbi, err := abi.JSON(strings.NewReader(masterSmcAbi))
+	if err != nil {
+		log.Error("Error reading abi", "err", err)
+		return nil, err
+	}
+
+	convertedParam := make([]interface{}, 0)
+	for _, v := range params {
+		convertedParam = append(convertedParam, v)
+	}
+
+	input, err := kAbi.Pack(methodName, convertedParam...)
+	if err != nil {
+		log.Error(fmt.Sprintf("Failed to pack methodName=%v params=%v err=%v", methodName, params, err))
+		return nil, err
+	}
+	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, input, state), nil
 }

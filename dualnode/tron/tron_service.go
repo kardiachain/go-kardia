@@ -35,6 +35,8 @@ import (
 	"github.com/kardiachain/go-kardia/dualnode"
 	message2 "github.com/kardiachain/go-kardia/dualnode/message"
 	"math/big"
+	"github.com/kardiachain/go-kardia/dualnode/utils"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 )
 
 const (
@@ -56,6 +58,9 @@ type Service struct {
 	dualBlockchain *blockchain.DualBlockChain
 	dualEventPool  *event_pool.EventPool
 	internalChain  base.BlockChainAdapter
+
+	// txPool of kardiachain
+	txPool     *tx_pool.TxPool
 
 	networkID uint64
 
@@ -132,6 +137,14 @@ func (s *Service) MessageHandler(topic, message string) error {
 		triggerMessage.XXX_Unmarshal([]byte(message))
 
 		// TODO: execute smart contract from triggerMessage
+		tx, err := utils.ExecuteKardiaSmartContract(s.txPool.State(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
+		if err != nil {
+			return err
+		}
+
+		if err := s.txPool.AddLocal(tx); err != nil {
+			return nil
+		}
 
 	case DUAL_MSG:
 		// message from dual after it catches a triggered smc tx
@@ -152,18 +165,27 @@ func (s *Service) MessageHandler(topic, message string) error {
 func (s *Service) NewEvent(dualMsg message2.Message) error {
 	dualState, err := s.dualBlockchain.State()
 	if err != nil {
-		log.Error("Fail to get NeoKardia state", "error", err)
+		log.Error("Fail to get TRXKardia state", "error", err)
 		return err
 	}
+
+	// TODO: This is used for exchange use case, will remove this after applying dynamic method
+	receiver := []byte(dualMsg.GetParams()[0])
+	pair := dualMsg.GetParams()[1]
+
+	from, to, err := utils.GetExchangePair(pair)
+	if err != nil {
+		return nil
+	}
+
 	txHash := common.HexToHash(dualMsg.GetTransactionId())
 	nonce := dualState.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
 	// Compose extraData struct for fields related to exchange from data extracted by Neo event
 	extraData := make([][]byte, configs.ExchangeV2NumOfExchangeDataField)
-	extraData[configs.ExchangeV2SourcePairIndex] = []byte(configs.TRON)
-	extraData[configs.ExchangeV2DestPairIndex] = []byte(configs.ETH)
+	extraData[configs.ExchangeV2SourcePairIndex] = []byte(*from)
+	extraData[configs.ExchangeV2DestPairIndex] = []byte(*to)
 	extraData[configs.ExchangeV2SourceAddressIndex] = []byte(dualMsg.GetSender())
-	// TODO: remove hard code here, the first position of deposit's params is receiver
-	extraData[configs.ExchangeV2DestAddressIndex] = []byte(dualMsg.GetParams()[0])
+	extraData[configs.ExchangeV2DestAddressIndex] = receiver
 	extraData[configs.ExchangeV2OriginalTxIdIndex] = []byte(dualMsg.GetTransactionId())
 	extraData[configs.ExchangeV2AmountIndex] = big.NewInt(int64(dualMsg.GetAmount())).Bytes()
 	extraData[configs.ExchangeV2TimestampIndex] = big.NewInt(int64(dualMsg.GetTimestamp())).Bytes()
