@@ -84,7 +84,7 @@ func newService() (*Service, error) {
 }
 
 // Returns a new NeoService
-func NewService(ctx *node.ServiceContext) (*Service, error) {
+func NewService(ctx *node.ServiceContext) (node.Service, error) {
 	service, err := newService()
 	if err != nil {
 		return nil, err
@@ -94,21 +94,22 @@ func NewService(ctx *node.ServiceContext) (*Service, error) {
 
 // Initialize sets up blockchains and event pool for NeoService
 func (s *Service) Initialize(internalBlockchain base.BlockChainAdapter, dualchain *blockchain.DualBlockChain,
-	pool *event_pool.EventPool, subscribedEndpoint *string) {
+	pool *event_pool.EventPool, txPool *tx_pool.TxPool, subscribedEndpoint string) {
 	s.internalChain = internalBlockchain
 	s.dualEventPool = pool
 	s.dualBlockchain = dualchain
+	s.txPool = txPool
 
 	// start new subscribed channel from 0mq
 	go s.StartSubscribe(subscribedEndpoint)
 }
 
-func (s *Service) StartSubscribe(subscribedEndpoint *string) {
+func (s *Service) StartSubscribe(subscribedEndpoint string) {
 
 	endpoint := configs.DefaultSubscribedEndpoint
 
-	if subscribedEndpoint == nil {
-		endpoint = *subscribedEndpoint
+	if subscribedEndpoint != "" {
+		endpoint = subscribedEndpoint
 	}
 
 	subscriber, _ := zmq4.NewSocket(zmq4.SUB)

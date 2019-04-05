@@ -38,6 +38,7 @@ import (
 	"time"
 	"github.com/pebbe/zmq4"
 	"fmt"
+	"github.com/kardiachain/go-kardia/dualnode/message"
 )
 
 // TODO(@sontranrad): remove all of these constants for production
@@ -429,7 +430,7 @@ func GetPrivateKeyToCallKardiaSmc() *ecdsa.PrivateKey {
 
 func IsNilOrEmpty(data []byte) bool { return data == nil || string(data) == "" }
 
-func PublishMessage(endpoint, topic, message string) error {
+func PublishMessage(endpoint, topic string, message message.TriggerMessage) error {
 	pub, _ := zmq4.NewSocket(zmq4.PUB)
 	defer pub.Close()
 	pub.Connect(endpoint)
@@ -443,7 +444,7 @@ func PublishMessage(endpoint, topic, message string) error {
 	}
 
 	// send message
-	if _, err := pub.Send(message, zmq4.DONTWAIT); err != nil {
+	if _, err := pub.Send(message.String(), zmq4.DONTWAIT); err != nil {
 		return err
 	}
 
@@ -468,10 +469,10 @@ func GetExchangePair(pair string) (*string, *string, error) {
 	return &pairs[0], &pairs[1], nil
 }
 
-// ExecuteKardiaSmartContract executes
+// ExecuteKardiaSmartContract executes smart contract based on address, method and list of params
 func ExecuteKardiaSmartContract(state *state.ManagedState, contractAddress, methodName string, params []string) (*types.Transaction, error) {
 	masterSmcAddr := common.HexToAddress(contractAddress)
-	// TODO: replace this line to function that get abi from contractAddress
+	// TODO(@kiendn): replace this line to function that get abi from contractAddress
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
 	kAbi, err := abi.JSON(strings.NewReader(masterSmcAbi))
 	if err != nil {
