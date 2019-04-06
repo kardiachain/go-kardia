@@ -34,7 +34,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/dualnode"
-	"github.com/kardiachain/go-kardia/dualnode/message"
+	dualMessage "github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 )
@@ -134,7 +134,7 @@ func (s *Service) MessageHandler(topic, message string) error {
 	switch topic {
 	case DUAL_CALL:
 		// callback from dual
-		triggerMessage := message.TriggerMessage{}
+		triggerMessage := dualMessage.TriggerMessage{}
 		triggerMessage.XXX_Unmarshal([]byte(message))
 
 		tx, err := utils.ExecuteKardiaSmartContract(s.txPool.State(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
@@ -149,12 +149,12 @@ func (s *Service) MessageHandler(topic, message string) error {
 	case DUAL_MSG:
 		// message from dual after it catches a triggered smc tx
 		// unpack contents to DualMessage
-		dualMessage := message.Message{}
-		dualMessage.XXX_Unmarshal([]byte(message))
+		dualMsg := dualMessage.Message{}
+		dualMsg.XXX_Unmarshal([]byte(message))
 
 		// TODO: this is used for exchange demo, remove the condition whenever we have dynamic handler method for this
-		if dualMessage.MethodName == configs.ExternalDepositFunction {
-			return s.NewEvent(dualMessage)
+		if dualMsg.MethodName == configs.ExternalDepositFunction {
+			return s.NewEvent(dualMsg)
 		}
 	}
 	return nil
@@ -162,7 +162,7 @@ func (s *Service) MessageHandler(topic, message string) error {
 
 // NewEvent receives data from Tron where encodedMsg is used for validating the message
 // returns error in case event cannot be added to eventPool
-func (s *Service) NewEvent(dualMsg message.Message) error {
+func (s *Service) NewEvent(dualMsg dualMessage.Message) error {
 	dualState, err := s.dualBlockchain.State()
 	if err != nil {
 		log.Error("Fail to get TRXKardia state", "error", err)
