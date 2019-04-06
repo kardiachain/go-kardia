@@ -20,6 +20,9 @@ package tron
 
 
 import (
+	"fmt"
+	"math/big"
+	"github.com/pebbe/zmq4"
 	"github.com/kardiachain/go-kardia/dualchain/blockchain"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
@@ -27,22 +30,19 @@ import (
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"fmt"
-	"github.com/pebbe/zmq4"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/dualnode"
-	message2 "github.com/kardiachain/go-kardia/dualnode/message"
-	"math/big"
+	"github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 )
 
 const (
 	ServiceName = "TRON"
-    NetworkID = 300
-    KARDIA_CALL = "KARDIA_CALL"
+	NetworkID = 300
+	KARDIA_CALL = "KARDIA_CALL"
 	DUAL_CALL = "DUAL_CALL"
 	DUAL_MSG = "DUAL_MSG"
 )
@@ -134,10 +134,9 @@ func (s *Service) MessageHandler(topic, message string) error {
 	switch topic {
 	case DUAL_CALL:
 		// callback from dual
-		triggerMessage := message2.TriggerMessage{}
+		triggerMessage := message.TriggerMessage{}
 		triggerMessage.XXX_Unmarshal([]byte(message))
 
-		// TODO: execute smart contract from triggerMessage
 		tx, err := utils.ExecuteKardiaSmartContract(s.txPool.State(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
 		if err != nil {
 			return err
@@ -150,7 +149,7 @@ func (s *Service) MessageHandler(topic, message string) error {
 	case DUAL_MSG:
 		// message from dual after it catches a triggered smc tx
 		// unpack contents to DualMessage
-		dualMessage := message2.Message{}
+		dualMessage := message.Message{}
 		dualMessage.XXX_Unmarshal([]byte(message))
 
 		// TODO: this is used for exchange demo, remove the condition whenever we have dynamic handler method for this
@@ -163,7 +162,7 @@ func (s *Service) MessageHandler(topic, message string) error {
 
 // NewEvent receives data from Tron where encodedMsg is used for validating the message
 // returns error in case event cannot be added to eventPool
-func (s *Service) NewEvent(dualMsg message2.Message) error {
+func (s *Service) NewEvent(dualMsg message.Message) error {
 	dualState, err := s.dualBlockchain.State()
 	if err != nil {
 		log.Error("Fail to get TRXKardia state", "error", err)

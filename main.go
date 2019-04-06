@@ -639,10 +639,10 @@ func main() {
 			if err := n.Service(&tronService); err != nil {
 				logger.Error("Cannot get TRON Service", "err", err)
 				return
-			} else {
-				// Set up blockchains and event pool for neo service
-				tronService.Initialize(kardiaProxy, dualService.BlockChain(), dualService.EventPool(), kardiaService.TxPool(), args.subscribedEndpoint)
 			}
+
+			// Set up blockchains and event pool for neo service
+			tronService.Initialize(kardiaProxy, dualService.BlockChain(), dualService.EventPool(), kardiaService.TxPool(), args.subscribedEndpoint)
 		} else {
 			var kardiaProxy *kardia.KardiaProxy
 			kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
@@ -664,10 +664,10 @@ func main() {
 			if err := n.Service(&tronService); err != nil {
 				logger.Error("Cannot get TRON Service", "err", err)
 				return
-			} else {
-				// Set up blockchains and event pool for neo service
-				tronService.Initialize(kardiaProxy, dualService.BlockChain(), dualService.EventPool(), kardiaService.TxPool(), args.subscribedEndpoint)
 			}
+
+			// Set up blockchains and event pool for neo service
+			tronService.Initialize(kardiaProxy, dualService.BlockChain(), dualService.EventPool(), kardiaService.TxPool(), args.subscribedEndpoint)
 
 		}
 	}

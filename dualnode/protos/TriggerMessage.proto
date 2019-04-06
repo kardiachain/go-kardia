@@ -2,13 +2,13 @@ syntax = "proto3";
 
 package protocol;
 
-option java_package = "org.tron"; //Specify the name of the package that generated the Java file
-option java_outer_classname = "Trigger"; //Specify the class name of the generated Java file
+option java_package = "org.tron"; // Specify the name of the package that generated the Java file
+option java_outer_classname = "Trigger"; // Specify the class name of the generated Java file
 option go_package = "message";
 
-// Note: callBacks are call back functions sent to kardia ask it to execute smart contract
-// callBacks are called after method has been executed successfully
-// txId generated after execute method will be append to every callBack method.
+// TriggerMessage is message sent from Kardia to dual node to have it execute specific method based on given address, method and params
+// After finish executing, txid will be appended into params within every callBack in callBacks and
+// they are sent back to Kardia
 message TriggerMessage {
     string contractAddress = 1;
     string methodName = 2;

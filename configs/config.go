@@ -36,10 +36,10 @@ var (
 )
 
 var (
+	DefaultChainID = uint64(1)
 	EthDualChainID = uint64(2)
 	NeoDualChainID = uint64(3)
 	TronDualChainID = uint64(4)
-	DefaultChainID = uint64(1)
 )
 
 var (

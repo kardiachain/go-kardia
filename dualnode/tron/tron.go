@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package tron
 
 import (
@@ -15,7 +33,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
-	message2 "github.com/kardiachain/go-kardia/dualnode/message"
+	"github.com/kardiachain/go-kardia/dualnode/message"
 )
 
 // TODO(@kiendn): remove it when we can return it from kardia master smart contract.
@@ -67,9 +85,8 @@ func NewProxy(
 		queueTopic: ServiceName,
 	}
 
-	if publishedEndpoint != "" {
-		processor.publishedEndpoint = publishedEndpoint
-	} else {
+	processor.publishedEndpoint = publishedEndpoint
+	if publishedEndpoint == "" {
 		processor.publishedEndpoint = configs.DefaultPublishedEndpoint
 	}
 
@@ -151,13 +168,13 @@ func (n *Proxy) SubmitTx(event *types.EventData) error {
 func (n *Proxy) Release(receiver, txId, amount string) {
 	// publish released data to zeroMQ
 	// create a triggeredMessage and send it through ZeroMQ with topic KARDIA_CALL
-	message := message2.TriggerMessage{
+	message := message.TriggerMessage{
 		// TODO (@kiendn): this must be target contract address. Eg: Tron contract addr.
 		// TODO (@kiendn): return it from ExtData
 		ContractAddress: EXCHANGE_ADDRESS,
 		MethodName: "release",
 		Params: []string{receiver, amount},
-		CallBacks: []*message2.TriggerMessage{
+		CallBacks: []*message.TriggerMessage{
 			{
 				ContractAddress: configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex).Hex(),
 				MethodName: "updateTargetTx",
