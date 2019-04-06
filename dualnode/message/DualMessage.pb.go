@@ -20,9 +20,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 //const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-// Note: callBacks are call back functions sent to kardia ask it to execute smart contract
-// callBacks are called after method has been executed successfully
-// txId generated after execute method will be append to every callBack method.
+// Message is sent from the dual node to kardia when it receive a trigger smart contract transaction.
 type Message struct {
 	TransactionId        string   `protobuf:"bytes,1,opt,name=transactionId,proto3" json:"transactionId,omitempty"`
 	ContractAddress      string   `protobuf:"bytes,2,opt,name=contractAddress,proto3" json:"contractAddress,omitempty"`
