@@ -30,12 +30,15 @@ const (
 	ExternalDepositFunction            = "deposit"
 	ETH2NEO                            = "ETH-NEO"
 	NEO2ETH                            = "NEO-ETH"
+	ETH2TRON                           = "ETH-TRX"
 	// constants related to rate & addOrder function from smc
 	ETH                                = "ETH"
 	NEO                                = "NEO"
+	TRON                               = "TRX"
 	AddOrderFunction                   = "addOrder"
 	RateETH                            = 100000000
 	RateNEO                            = 6482133
+	RateTRON                           = 16571
 
 	ExchangeDataSourceAddressIndex     = 0
 	ExchangeDataDestAddressIndex       = 1
@@ -91,6 +94,9 @@ const (
 	PrivateChainCandidateRequestFromOrgIndex            = 1
 	PrivateChainCandidateRequestToOrgIndex              = 2
 
+	// default value for 0mq
+	DefaultSubscribedEndpoint = "tcp://127.0.0.1:5555"
+	DefaultPublishedEndpoint = "tcp://127.0.0.1:5554"
 )
 
 var (

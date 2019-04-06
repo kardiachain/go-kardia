@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package protocol;
+
+option java_package = "org.tron"; // Specify the name of the package that generated the Java file
+option java_outer_classname = "Trigger"; // Specify the class name of the generated Java file
+option go_package = "message";
+
+// TriggerMessage is message sent from Kardia to dual node to have it execute specific method based on given address, method and params
+// After finish executing, txid will be appended into params within every callBack in callBacks and
+// they are sent back to Kardia
+message TriggerMessage {
+    string contractAddress = 1;
+    string methodName = 2;
+    repeated string params = 3;
+    repeated TriggerMessage callBacks = 4;
+}

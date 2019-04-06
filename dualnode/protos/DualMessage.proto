@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package protocol;
+
+option java_package = "org.tron"; // Specify the name of the package that generated the Java file
+option java_outer_classname = "Dual"; // Specify the class name of the generated Java file
+option go_package = "message";
+
+
+// Message is sent from the dual node to kardia when it receive a trigger smart contract transaction.
+message Message {
+    string transactionId = 1;
+    string contractAddress = 2;
+    string methodName = 3;
+    repeated string params = 4;
+    uint64 amount = 5;
+    string sender = 6;
+    uint64 blockNumber = 7;
+    uint64 timestamp = 8;
+}

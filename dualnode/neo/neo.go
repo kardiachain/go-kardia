@@ -53,7 +53,6 @@ var (
 	errNoNeoToSend        = errors.New("not enough NEO to send")
 	errNilReturnedFromNeo = errors.New("Neo API return nil")
 	MaximumAvailableNeo   = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(19), nil)
-	TenPoweredByEight     = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
 )
 
 // NeoProxy provides interfaces for Neo Dual node, responsible for detecting updates
@@ -172,7 +171,7 @@ func (n *NeoProxy) SubmitTx(event *types.EventData) error {
 						continue
 					}
 					// Divide amount from smart contract by 10^8 to get base NEO amount to release
-					amountNeoRelease := big.NewInt(amount).Div(big.NewInt(amount), TenPoweredByEight)
+					amountNeoRelease := big.NewInt(amount).Div(big.NewInt(amount), utils.TenPoweredByEight)
 					// don't release  NEO if quantity < 1
 					if amountNeoRelease.Cmp(big.NewInt(1)) < 0 {
 						log.Error("Too little neo to send", "originalTxId", originalTx, "err", errNoNeoToSend, "amount", amountNeoRelease)

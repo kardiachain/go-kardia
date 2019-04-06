@@ -93,7 +93,6 @@ func (n *NeoApi) NewEvent(neoEventEncodedBytes string) error {
 		TxValue:  neoEvent.Amount,
 		ExtData:  extraData,
 	}
-	// TODO(namdoh@): Pass smartcontract actions here.
 	actionsTmp := [...]*types.DualAction{
 		&types.DualAction{
 			Name: dualnode.CreateKardiaMatchAmountTx,

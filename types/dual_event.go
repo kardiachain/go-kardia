@@ -34,6 +34,7 @@ const (
 	KARDIA   = BlockchainSymbol("KAI")
 	ETHEREUM = BlockchainSymbol("ETH")
 	NEO      = BlockchainSymbol("Neo")
+	TRON     = BlockchainSymbol("TRX")
 )
 
 // An event pertaining to the current dual node's interests and its derived tx's
