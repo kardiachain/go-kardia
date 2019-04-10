@@ -20,14 +20,48 @@ package base
 
 import (
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // An adapter that provide a unified interface for dual node to interact with external (or
 // even internal Kardia) blockchains.
 type BlockChainAdapter interface {
+
+	// Logger
+	Logger() log.Logger
+
 	// Computes Tx from the given event, and submit it to the blockchain.
 	SubmitTx(event *types.EventData) error
 
 	// Computes Tx from the given event, and returns its metadata or error in case of invalid event data
 	ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, error)
+
+	// PublishedEndpoint returns publishedEndpoint
+	PublishedEndpoint() string
+
+	// SubscribedEndpoint returns subscribedEndpoint
+	SubscribedEndpoint() string
+
+	// InternalChain returns internalChain which is internal proxy (eg:kardiaProxy)
+	InternalChain() BlockChainAdapter
+
+	// ExternalChain returns externalChain which is internal proxy (eg:NeoProxy, TronProxy)
+	ExternalChain() BlockChainAdapter
+
+	// DualEventPool returns dual's eventPool
+	DualEventPool() *event_pool.EventPool
+
+	// DualBlockChain returns dual blockchain
+	DualBlockChain() BaseBlockChain
+
+	// KardiaBlockChain returns kardia blockchain
+	KardiaBlockChain() BaseBlockChain
+
+	// KardiaTxPool returns Kardia Blockchain's tx pool
+	KardiaTxPool() *tx_pool.TxPool
+
+	// Name returns name of proxy (eg: NEO, TRX, ETH, KARDIA)
+	Name() string
 }

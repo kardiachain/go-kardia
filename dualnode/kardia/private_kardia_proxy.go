@@ -35,6 +35,7 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
+const PRIVATE_KARDIA = "PRIVATE"
 var ErrInsufficientCandidateRequestData = errors.New("insufficient candidate request data")
 var ErrInsufficientCandidateResponseData = errors.New("insufficient candidate response data")
 var ErrUnpackForwardRequestInfo = errors.New("error unpacking info forward request input")
@@ -56,6 +57,11 @@ type KardiaForwardResponseInput struct {
 // Proxy of Kardia's chain to interface with dual's node, responsible for listening to the chain's
 // new block and submiting Kardia's transaction.
 type PrivateKardiaProxy struct {
+
+	// name is name of proxy, or type that proxy connects to (eg: NEO, TRX, ETH, KARDIA)
+	name   string
+	logger log.Logger
+
 	// Kardia's mainchain stuffs.
 	kardiaBc     base.BaseBlockChain
 	txPool       *tx_pool.TxPool
@@ -74,6 +80,53 @@ type PrivateKardiaProxy struct {
 	smcABI     *abi.ABI
 }
 
+// PublishedEndpoint returns publishedEndpoint
+func (p *PrivateKardiaProxy) PublishedEndpoint() string {
+	return ""
+}
+
+// SubscribedEndpoint returns subscribedEndpoint
+func (p *PrivateKardiaProxy) SubscribedEndpoint() string {
+	return ""
+}
+
+// InternalChain returns internalChain which is internal proxy (eg:kardiaProxy)
+func (p *PrivateKardiaProxy) InternalChain() base.BlockChainAdapter {
+	return nil
+}
+
+func (p *PrivateKardiaProxy) ExternalChain() base.BlockChainAdapter {
+	return p.externalChain
+}
+
+// DualEventPool returns dual's eventPool
+func (p *PrivateKardiaProxy) DualEventPool() *event_pool.EventPool {
+	return p.eventPool
+}
+
+// KardiaTxPool returns Kardia Blockchain's tx pool
+func (p *PrivateKardiaProxy) KardiaTxPool() *tx_pool.TxPool {
+	return p.txPool
+}
+
+// DualBlockChain returns dual blockchain
+func (p *PrivateKardiaProxy) DualBlockChain() base.BaseBlockChain {
+	return p.dualBc
+}
+
+// KardiaBlockChain returns kardia blockchain
+func (p *PrivateKardiaProxy) KardiaBlockChain() base.BaseBlockChain {
+	return p.kardiaBc
+}
+
+func (p *PrivateKardiaProxy) Logger() log.Logger {
+	return p.logger
+}
+
+func (p *PrivateKardiaProxy) Name() string {
+	return p.name
+}
+
 func NewPrivateKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.EventPool, smcAddr *common.Address, smcABIStr string) (*PrivateKardiaProxy, error) {
 	var err error
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
@@ -81,7 +134,12 @@ func NewPrivateKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool,
 		return nil, err
 	}
 
+	// Create a specific logger for Kardia Proxy.
+	logger := log.New()
+	logger.AddTag(PRIVATE_KARDIA)
+
 	processor := &PrivateKardiaProxy{
+		name:        PRIVATE_KARDIA,
 		kardiaBc:    kardiaBc,
 		txPool:      txPool,
 		dualBc:      dualBc,
