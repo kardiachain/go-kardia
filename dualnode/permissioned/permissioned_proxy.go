@@ -70,6 +70,10 @@ type CompleteRequestInput struct {
 
 // PermissionedProxy provides interfaces for PrivateChain Dual node
 type PermissionedProxy struct {
+
+	// name is name of proxy, or type that proxy connects to (eg: NEO, TRX, ETH, KARDIA)
+	name   string
+
 	permissionBc base.BaseBlockChain
 	txPool       *tx_pool.TxPool
 	// TODO: uncomment these lines when we have specific watched smartcontract
@@ -145,6 +149,7 @@ func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain
 		return nil, err
 	}
 	processor := &PermissionedProxy{
+		name:             SERVICE_NAME,
 		permissionBc:     internalBlockchain,
 		dualBc:           dualBc,
 		eventPool:        eventPool,
@@ -160,6 +165,53 @@ func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain
 
 	processor.chainHeadSub = kardiaService.BlockChain().SubscribeChainHeadEvent(processor.chainHeadCh)
 	return processor, nil
+}
+
+// PublishedEndpoint returns publishedEndpoint
+func (p *PermissionedProxy) PublishedEndpoint() string {
+	return ""
+}
+
+// SubscribedEndpoint returns subscribedEndpoint
+func (p *PermissionedProxy) SubscribedEndpoint() string {
+	return ""
+}
+
+// InternalChain returns internalChain which is internal proxy (eg:kardiaProxy)
+func (p *PermissionedProxy) InternalChain() base.BlockChainAdapter {
+	return p.internalChain
+}
+
+func (p *PermissionedProxy) ExternalChain() base.BlockChainAdapter {
+	return nil
+}
+
+// DualEventPool returns dual's eventPool
+func (p *PermissionedProxy) DualEventPool() *event_pool.EventPool {
+	return p.eventPool
+}
+
+// KardiaTxPool returns Kardia Blockchain's tx pool
+func (p *PermissionedProxy) KardiaTxPool() *tx_pool.TxPool {
+	return p.txPool
+}
+
+// DualBlockChain returns dual blockchain
+func (p *PermissionedProxy) DualBlockChain() base.BaseBlockChain {
+	return p.dualBc
+}
+
+// KardiaBlockChain returns kardia blockchain
+func (p *PermissionedProxy) KardiaBlockChain() base.BaseBlockChain {
+	return nil
+}
+
+func (p *PermissionedProxy) Logger() log.Logger {
+	return p.logger
+}
+
+func (p *PermissionedProxy) Name() string {
+	return p.name
 }
 
 func (p *PermissionedProxy) Start() {

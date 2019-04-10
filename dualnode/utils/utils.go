@@ -19,8 +19,14 @@
 package utils
 
 import (
+	"fmt"
+	"time"
+	"strings"
+	"math/big"
 	"crypto/ecdsa"
 	"encoding/hex"
+	"github.com/pebbe/zmq4"
+	"github.com/pkg/errors"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -32,19 +38,21 @@ import (
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/pkg/errors"
-	"math/big"
-	"strings"
-	"time"
-	"github.com/pebbe/zmq4"
-	"fmt"
 	"github.com/kardiachain/go-kardia/dualnode/message"
+	"github.com/kardiachain/go-kardia/dualnode"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"strconv"
+	"github.com/kardiachain/go-kardia/dev"
 )
 
 // TODO(@sontranrad): remove all of these constants for production
 
-const KardiaAccountToCallSmc = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
-const KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
+const (
+ 	KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
+	KARDIA_CALL = "KARDIA_CALL"
+	DUAL_CALL = "DUAL_CALL"
+	DUAL_MSG = "DUAL_MSG"
+)
 
 // TODO: note that when we have dynamic method, these values will be moved to smartcontract or anything that can handle this case.
 var AvailableExchangeType = map[string]bool{
@@ -55,11 +63,12 @@ var AvailableExchangeType = map[string]bool{
 
 var MaximumGasToCallStaticFunction = uint(4000000)
 var errAbiNotFound = errors.New("ABI not found")
-
-var TenPoweredByEight = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
+var errNoNeoToSend        = errors.New("not enough NEO to send")
+var TenPoweredByTwo = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(2), nil)
 var TenPoweredBySix = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(6), nil)
+var TenPoweredByEight = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
 var TenPoweredByTen = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(10), nil)
-var OneEthInWei = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(18), nil)
+var TenPoweredByTwelve = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(12), nil)
 
 type MatchedRequest struct {
 	MatchedRequestID *big.Int `abi:"matchedRequestID"`
@@ -79,7 +88,7 @@ func CallStaticKardiaMasterSmc(from common.Address, to common.Address, bc base.B
 	return ret, nil
 }
 
-// CallGetRate calls to Kardia exchange contract to get rate of a specific pair, return sale amount and receive amount
+// CallGetRate calls to Kardia exchange contract to get rate of a specific pair, return from amount and to amount
 func CallGetRate(fromType string, toType string, bc base.BaseBlockChain, statedb *state.StateDB) (fromAmount *big.Int, receivedAmount *big.Int, err error) {
 	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
@@ -89,19 +98,18 @@ func CallGetRate(fromType string, toType string, bc base.BaseBlockChain, statedb
 	getRateInput, err := kABI.Pack("getRate", fromType, toType)
 	if err != nil {
 		log.Error("Error packing get rate input", "err", err)
-		if fromType == configs.NEO {
-			return big.NewInt(configs.RateNEO), big.NewInt(configs.RateETH), err
-		}
-		return big.NewInt(configs.RateETH), big.NewInt(configs.RateNEO), err
+		// get default rate if error is thrown
+		return configs.GetRateFromType(fromType), configs.GetRateFromType(toType), err
 	}
+
 	result, err := CallStaticKardiaMasterSmc(senderAddr, masterSmcAddr, bc, getRateInput, statedb)
 	if err != nil {
 		log.Error("Error call get rate", "err", err)
-		if fromType == configs.NEO {
-			return big.NewInt(configs.RateNEO), big.NewInt(configs.RateETH), err
-		}
-		return big.NewInt(configs.RateETH), big.NewInt(configs.RateNEO), err
+		// get default rate if error is thrown
+		return configs.GetRateFromType(fromType), configs.GetRateFromType(toType), err
 	}
+
+	// init a rateStruct based on returned type from smart contract
 	var rateStruct struct {
 		FromAmount 		*big.Int
 		ReceivedAmount 	*big.Int
@@ -109,39 +117,21 @@ func CallGetRate(fromType string, toType string, bc base.BaseBlockChain, statedb
 	err = kABI.Unpack(&rateStruct, "getRate", result)
 	if err != nil {
 		log.Error("Error unpack rate result", "err", err)
-		if fromType == configs.NEO {
-			return big.NewInt(configs.RateNEO), big.NewInt(configs.RateETH), err
-		}
-		return big.NewInt(configs.RateETH), big.NewInt(configs.RateNEO), err
+		// get default rate if error is thrown
+		return configs.GetRateFromType(fromType), configs.GetRateFromType(toType), err
 	}
 	return rateStruct.FromAmount, rateStruct.ReceivedAmount, nil
 }
 
-// CallAvailableAmount gets available amount to exchange for a pair
-func CallAvailableAmount(pair string, bc base.BaseBlockChain, statedb *state.StateDB) (amount *big.Int, err error) {
-	senderAddr := common.HexToAddress(configs.MockSmartContractCallSenderAccount)
-	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
-	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
-	abi, err := abi.JSON(strings.NewReader(masterSmcAbi))
-	if err != nil {
-		return big.NewInt(0), err
-	}
-	getAvailableInput, err := abi.Pack("getAvailableAmountByPair", pair)
-	if err != nil {
-		log.Error("Error packing get available amount", "err", err)
-		return big.NewInt(0), err
-	}
-	availableResult, err := CallStaticKardiaMasterSmc(senderAddr, masterSmcAddr, bc, getAvailableInput, statedb)
-	if err != nil {
-		log.Error("Error get available amount", "err", err)
-		return big.NewInt(0), err
-	}
-	return big.NewInt(0).SetBytes(availableResult), nil
-}
-
-// Creates a Kardia tx to report new matching amount from Eth/Neo network, return nil in case of any error occurs
+// Creates a Kardia tx to report new matching amount from Eth/Neo/TRX network, return nil in case of any error occurs
 func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, sourceAddress string,
-	destinationAddress string, source types.BlockchainSymbol, hash string, bc base.BaseBlockChain) (*types.Transaction, error) {
+	destinationAddress string, source, destination string, hash string, bc base.BaseBlockChain) (*types.Transaction, error) {
+
+	// check if source and destination types are valid or not.
+	if !AvailableExchangeType[source] || !AvailableExchangeType[destination] {
+		return nil, fmt.Errorf("invalid type")
+	}
+
 	// Change master smc index to 3 for the new exchange contract
 	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
@@ -153,72 +143,52 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 	var matchInput []byte
 	timestamp := big.NewInt(time.Now().Unix())
 	temp := big.NewInt(1)
-	rateEth, rateNeo, err := CallGetRate(configs.ETH, configs.NEO, bc, statedb.StateDB)
-	// return default if err
+	fromAmount, toAmount, err := CallGetRate(source, destination, bc, statedb.StateDB)
 	if err != nil {
-		rateNeo = big.NewInt(configs.RateNEO)
-		rateEth = big.NewInt(configs.RateETH)
+		return nil, err
 	}
+
+	var convertedAmount *big.Int
+
+	// unit of ordered amount will be based on the type which has smaller unit based.
+	// for eg: int ETH-NEO, NEO has 10^8 while ETH has 10^18, hence the order amount will be based on NEO
+
 	switch source {
-	case types.ETHEREUM:
-		convertedAmount := temp.Mul(quantity, rateEth)
-		convertedAmount = temp.Div(convertedAmount, rateNeo)
-		convertedAmount = temp.Div(convertedAmount, TenPoweredByTen)
-		log.Info("AddOrderFunction", "fromType", configs.ETH, "toType", configs.NEO, "srcAddress", sourceAddress,
-			"destAddress", destinationAddress, "originalTx", hash, "quantity", convertedAmount.String(), "timestamp", timestamp)
-		matchInput, err = kABI.Pack(configs.AddOrderFunction, configs.ETH, configs.NEO, sourceAddress,
-			destinationAddress, hash, convertedAmount, timestamp)
-	case types.NEO:
-		// Multiply original amount by 10^8
-		releasedAmount := temp.Mul(quantity, TenPoweredByEight)
-		log.Info("AddOrderFunction", "fromType", configs.NEO, "toType", configs.ETH, "srcAddress", sourceAddress,
-			"destAddress", destinationAddress, "originalTx", hash, "quantity", quantity.String(), "timestamp", timestamp)
-		matchInput, err = kABI.Pack(configs.AddOrderFunction, configs.NEO, configs.ETH, sourceAddress,
-			destinationAddress, hash, releasedAmount, timestamp)
+	case configs.ETH:
+		convertedAmount = temp.Mul(quantity, fromAmount)
+		convertedAmount = temp.Div(convertedAmount, toAmount)
+
+		if destination == configs.NEO {
+			convertedAmount = temp.Div(convertedAmount, TenPoweredByTen)
+		} else if destination == configs.TRON {
+			convertedAmount = temp.Div(convertedAmount, TenPoweredByTwelve)
+		}
+	case configs.NEO:
+		if destination == configs.ETH {
+			convertedAmount = temp.Mul(quantity, TenPoweredByEight)
+		} else if destination == configs.TRON {
+			convertedAmount = temp.Mul(quantity, TenPoweredBySix)
+			convertedAmount = temp.Mul(quantity, fromAmount)
+			convertedAmount = temp.Div(convertedAmount, toAmount)
+		}
+	case configs.TRON:
+		// currently TRON has smallest unit, therefore no need to calculate anything here.
+		convertedAmount = quantity
 	default:
 		log.Error("Invalid source for match amount tx", "src", source)
 		return nil, err
 	}
-	log.Info("Adding order and matching: ", "txhash", hash, "quantity", quantity, "source", source, "source", sourceAddress, "dest", destinationAddress)
+
+	log.Info("AddOrderFunction", "fromType", source, "toType", destination, "srcAddress", sourceAddress,
+		"destAddress", destinationAddress, "originalTx", hash, "quantity", convertedAmount.String(), "timestamp", timestamp)
+
+	matchInput, err = kABI.Pack(configs.AddOrderFunction, source, destination, sourceAddress,
+		destinationAddress, hash, convertedAmount, timestamp)
 	if err != nil {
 		log.Error("Error packing abi", "error", err, "address")
 		return nil, err
 	}
 	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, matchInput, statedb), nil
-}
-
-// Call to get a matched request of a newly added request of exchange contract. This function will return a MatchedRequest
-// contains MatchedRequestID, Address, SendAmount or nil in case of error
-func CallKardiaGetMatchedRequest(from common.Address, bc base.BaseBlockChain, statedb *state.StateDB,
-	quantity *big.Int, sourceAddress string, destinationAddress string, sourcePair string, interestedPair string) (*MatchedRequest, error) {
-	// Change master smc index to 3 for the new exchange contract
-	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
-	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
-	kABI, err := abi.JSON(strings.NewReader(masterSmcAbi))
-	if err != nil {
-		log.Error("Error reading abi", "err", err)
-		return nil, err
-	}
-	var getMatchedRequestInput []byte
-	// getMatchingInput1, e5 = abi.Pack("getMatchingRequestInfo", "ETH-NEO", "ethsender1", "neoReceiver1", big.NewInt(1))
-	log.Info("get matching:", "pair", sourcePair, "src", sourceAddress, "dest", destinationAddress, "quan", quantity)
-	getMatchedRequestInput, err = kABI.Pack("getMatchingRequestInfo", sourcePair, interestedPair, sourceAddress, destinationAddress, quantity)
-	if err != nil {
-		log.Error("Error getting abi", "error", err, "address", masterSmcAddr)
-		return nil, err
-	}
-	getMatchedRequestResult, err := CallStaticKardiaMasterSmc(from, masterSmcAddr, bc, getMatchedRequestInput, statedb)
-	if err != nil {
-		log.Error("Error get match request", "err", err)
-		return nil, err
-	}
-	var request MatchedRequest
-	err = kABI.Unpack(&request, "getMatchingRequestInfo", getMatchedRequestResult)
-	if err != nil {
-		log.Error("Error unpack getMatchingRequestInfo", "err", err)
-		return nil, err
-	}
-	return &request, nil
 }
 
 func CallKardiGetMatchingResultByTxId(from common.Address, bc base.BaseBlockChain, statedb *state.StateDB, originalTx string) (string, error) {
@@ -252,74 +222,6 @@ func CallKardiGetMatchingResultByTxId(from common.Address, bc base.BaseBlockChai
 	return matchingResult.Results, nil
 }
 
-func CallKardiaGetReleaseByTxId(from common.Address, bc base.BaseBlockChain, statedb *state.StateDB,
-	orginalTx string, interestedPair string) (string, error) {
-	// Change master smc index to 3 for the new exchange contract
-	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
-	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
-	kABI, err := abi.JSON(strings.NewReader(masterSmcAbi))
-	if err != nil {
-		log.Error("Error reading abi", "err", err)
-		return "", err
-	}
-	var getReleaseByTxId []byte
-	// getMatchingInput1, e5 = abi.Pack("getMatchingRequestInfo", "ETH-NEO", "ethsender1", "neoReceiver1", big.NewInt(1))
-	log.Info("CallKardiaGetReleaseByTxId", "originalTx", orginalTx, "pair", interestedPair)
-	getReleaseByTxId, err = kABI.Pack("getReleaseByTxId", orginalTx, interestedPair)
-	if err != nil {
-		log.Error("Error getting abi", "error", err, "address", masterSmcAddr)
-		return "", err
-	}
-	getReleaseByTxIdResult, err := CallStaticKardiaMasterSmc(from, masterSmcAddr, bc, getReleaseByTxId, statedb)
-	if err != nil {
-		log.Error("Error getReleaseByTxId", "err", err)
-		return "", err
-	}
-	var releases struct {
-		ReleaseInfos string
-	}
-	err = kABI.Unpack(&releases, "getReleaseByTxId", getReleaseByTxIdResult)
-	if err != nil {
-		log.Error("Error unpack getReleaseByTxId", "err", err)
-		return "", err
-	}
-	return releases.ReleaseInfos, nil
-}
-
-// CreateKardiaCompleteRequestTx creates a tx to Kardia exchange smc to complete an exchange request, params sent to smc
-// are requestID (stored in smc) and pair
-func CreateKardiaCompleteRequestTx(state *state.ManagedState, requestID *big.Int, pair string) (*types.Transaction, error) {
-	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
-	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
-	kAbi, err := abi.JSON(strings.NewReader(masterSmcAbi))
-	if err != nil {
-		log.Error("Error reading abi", "err", err)
-		return nil, err
-	}
-	completeInput, err := kAbi.Pack("completeRequest", requestID, pair)
-	if err != nil {
-		log.Error("Failed to pack complete request input", "err", err)
-		return nil, err
-	}
-	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, completeInput, state), nil
-}
-
-func CreateKardiaCompleteOrder(state *state.ManagedState, originalTx string, releaseTx string, pair string, receiver string, amount *big.Int) (*types.Transaction, error) {
-	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
-	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
-	kAbi, err := abi.JSON(strings.NewReader(masterSmcAbi))
-	if err != nil {
-		log.Error("Error reading abi", "err", err)
-		return nil, err
-	}
-	completeInput, err := kAbi.Pack("completeOrder", originalTx, releaseTx, pair, receiver, amount)
-	if err != nil {
-		log.Error("Failed to pack completeOrder input", "err", err)
-		return nil, err
-	}
-	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, completeInput, state), nil
-}
-
 func UpdateKardiaTargetTx(state *state.ManagedState, originalTx string, tx string, txType string) (*types.Transaction, error) {
 	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
@@ -330,57 +232,15 @@ func UpdateKardiaTargetTx(state *state.ManagedState, originalTx string, tx strin
 	}
 	var completeInput []byte
 	if txType == "target" {
-		completeInput, err = kAbi.Pack("updateTargetTx", originalTx, tx)
+		completeInput, err = kAbi.Pack(configs.UpdateTargetTx, originalTx, tx)
 	} else {
-		completeInput, err = kAbi.Pack("updateKardiaTx", originalTx, tx)
+		completeInput, err = kAbi.Pack(configs.UpdateTargetTx, originalTx, tx)
 	}
 	if err != nil {
 		log.Error("Failed to pack updateTx", txType, "originalTx", originalTx, "err", err)
 		return nil, err
 	}
 	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, completeInput, state), nil
-}
-
-// CallKardiaGetUncompletedRequest calls to Kardia exchange smc to get a matching but uncompleted request of a specific request
-func CallKardiaGetUncompletedRequest(requestID *big.Int, stateDb *state.StateDB, abi *abi.ABI, bc base.BaseBlockChain) (*MatchedRequest, error) {
-	getUncompletedInput, err := abi.Pack("getUncompletedMatchingRequest", requestID)
-	if err != nil {
-		log.Error("Error packing input for getUncompletedMatchingRequest", "err", err)
-		return nil, err
-	}
-	senderAddr := common.HexToAddress(configs.MockSmartContractCallSenderAccount)
-	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
-	getUncompletedResult, err := CallStaticKardiaMasterSmc(senderAddr, masterSmcAddr, bc, getUncompletedInput, stateDb)
-	if err != nil {
-		log.Error("Cannot get uncomplete matching request", "err", err)
-		return nil, err
-	}
-	var request MatchedRequest
-	err = abi.Unpack(&request, "getUncompletedMatchingRequest", getUncompletedResult)
-	if err != nil {
-		log.Error("Cannot unpack result from getUncompletedMatching request", "err", err)
-		return nil, err
-	}
-	return &request, nil
-}
-
-// CreateKardiaSetRateTx creates tx call to Kardia exchange smart contract to update radte of a specific pair
-// If 1 ETH = 10 NEO, call with pairs ("ETH-NEO", 1, 10) and ("NEO-ETH", 10,1)
-func CreateKardiaSetRateTx(fromPair string, toPair string, sale *big.Int, receive *big.Int, state *state.ManagedState) (*types.Transaction, error) {
-	log.Info("Setting rate", "Rate", fromPair, "toPair" , toPair)
-	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
-	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
-	kAbi, err := abi.JSON(strings.NewReader(masterSmcAbi))
-	if err != nil {
-		log.Error("Error reading abi", "err", err)
-		return nil, err
-	}
-	setRateInput, err := kAbi.Pack("updateRate", fromPair, toPair, sale, receive)
-	if err != nil {
-		log.Error("Failed to pack update Rate input", "err", err)
-		return nil, err
-	}
-	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, setRateInput, state), nil
 }
 
 // CreateForwardRequestTx creates tx call to Kardia candidate exchange contract to forward a candidate request to another
@@ -430,6 +290,7 @@ func GetPrivateKeyToCallKardiaSmc() *ecdsa.PrivateKey {
 
 func IsNilOrEmpty(data []byte) bool { return data == nil || string(data) == "" }
 
+// PublishMessage publishes message to 0MQ based on given endpoint, topic
 func PublishMessage(endpoint, topic string, message message.TriggerMessage) error {
 	pub, _ := zmq4.NewSocket(zmq4.PUB)
 	defer pub.Close()
@@ -491,4 +352,252 @@ func ExecuteKardiaSmartContract(state *state.ManagedState, contractAddress, meth
 		return nil, err
 	}
 	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, input, state), nil
+}
+
+// MessageHandler handles messages come from dual to kardia
+func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
+	switch topic {
+	case DUAL_CALL:
+		// callback from dual
+		triggerMessage := message.TriggerMessage{}
+		triggerMessage.XXX_Unmarshal([]byte(message))
+
+		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool().State(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
+		if err != nil {
+			return err
+		}
+
+		if err := proxy.KardiaTxPool().AddLocal(tx); err != nil {
+			return nil
+		}
+
+	case DUAL_MSG:
+		// message from dual after it catches a triggered smc tx
+		// unpack contents to DualMessage
+		dualMsg := message.Message{}
+		dualMsg.XXX_Unmarshal([]byte(message))
+
+		// TODO: this is used for exchange demo, remove the condition whenever we have dynamic handler method for this
+		if dualMsg.MethodName == configs.ExternalDepositFunction {
+			return NewEvent(proxy, dualMsg)
+		}
+	}
+	return nil
+}
+
+// StartSubscribe subscribes messages from subscribedEndpoint
+func StartSubscribe(proxy base.BlockChainAdapter) {
+	subscriber, _ := zmq4.NewSocket(zmq4.SUB)
+	defer subscriber.Close()
+	subscriber.Connect(proxy.SubscribedEndpoint())
+
+	for {
+		//  Read envelope with address
+		topic, _ := subscriber.Recv(0)
+		//  Read message contents
+		contents, _ := subscriber.Recv(0)
+		fmt.Printf("[%s] %s\n", topic, contents)
+
+		if err := MessageHandler(proxy, topic, contents); err != nil {
+			proxy.Logger().Error("Error while creating new event", "err", err.Error())
+		}
+	}
+}
+
+// NewEvent receives data from Tron where encodedMsg is used for validating the message
+// returns error in case event cannot be added to eventPool
+func NewEvent(proxy base.BlockChainAdapter, dualMsg message.Message) error {
+	dualState, err := proxy.DualBlockChain().State()
+	if err != nil {
+		log.Error("Fail to get Dual BlockChain state", "error", err)
+		return err
+	}
+
+	// TODO: This is used for exchange use case, will remove this after applying dynamic method
+	receiver := []byte(dualMsg.GetParams()[0])
+	pair := dualMsg.GetParams()[1]
+
+	from, to, err := GetExchangePair(pair)
+	if err != nil {
+		return nil
+	}
+
+	txHash := common.HexToHash(dualMsg.GetTransactionId())
+	nonce := dualState.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
+	// Compose extraData struct for fields related to exchange from data extracted by Neo event
+	extraData := make([][]byte, configs.ExchangeV2NumOfExchangeDataField)
+	extraData[configs.ExchangeV2SourcePairIndex] = []byte(*from)
+	extraData[configs.ExchangeV2DestPairIndex] = []byte(*to)
+	extraData[configs.ExchangeV2SourceAddressIndex] = []byte(dualMsg.GetSender())
+	extraData[configs.ExchangeV2DestAddressIndex] = receiver
+	extraData[configs.ExchangeV2OriginalTxIdIndex] = []byte(dualMsg.GetTransactionId())
+	extraData[configs.ExchangeV2AmountIndex] = big.NewInt(int64(dualMsg.GetAmount())).Bytes()
+	extraData[configs.ExchangeV2TimestampIndex] = big.NewInt(int64(dualMsg.GetTimestamp())).Bytes()
+
+	eventSummary := &types.EventSummary{
+		TxMethod: dualMsg.MethodName,
+		TxValue:  big.NewInt(int64(dualMsg.Amount)),
+		ExtData:  extraData,
+	}
+
+	actionsTmp := [...]*types.DualAction{
+		&types.DualAction{
+			Name: dualnode.CreateKardiaMatchAmountTx,
+		},
+	}
+
+	if !AvailableExchangeType[proxy.Name()] {
+		return fmt.Errorf("proxy %v is not in allowed exchanged list", proxy.Name())
+	}
+
+	dualEvent := types.NewDualEvent(nonce, true /* internalChain */, types.BlockchainSymbol(proxy.Name()), &txHash, eventSummary, &types.DualActions{
+		Actions: actionsTmp[:],
+	})
+
+	// Compose extraData struct for fields related to exchange
+	txMetaData, err := proxy.InternalChain().ComputeTxMetadata(dualEvent.TriggeredEvent)
+	if err != nil {
+		log.Error("Error compute internal tx metadata", "err", err)
+		return err
+	}
+	dualEvent.PendingTxMetadata = txMetaData
+	err = proxy.DualEventPool().AddEvent(dualEvent)
+	if err != nil {
+		log.Error("Failed to add dual event to pool", "err", err)
+		return err
+	}
+	log.Info("Added to dual event pool successfully", "eventHash", dualEvent.Hash().String())
+	return nil
+}
+
+// Release releases assets to target chain to receiver, txId is kardiaTxId which is used for callback method.
+func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error {
+	senderAddr := common.HexToAddress(configs.MockSmartContractCallSenderAccount)
+	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
+	if exchangeSmcAbi == "" {
+		return errAbiNotFound
+	}
+	kAbi, err := abi.JSON(strings.NewReader(exchangeSmcAbi))
+	if err != nil {
+		return err
+	}
+	// get target chain contract address
+	input, err := kAbi.Pack(configs.GetAddressFromType, proxy.Name())
+	if err != nil {
+		return err
+	}
+
+	result, err := CallStaticKardiaMasterSmc(senderAddr, exchangeSmcAddr, proxy.KardiaBlockChain(), input, proxy.KardiaTxPool().State().StateDB)
+
+	var smartContract string
+	err = kAbi.Unpack(&smartContract, configs.GetAddressFromType, result)
+	if err != nil {
+		return err
+	}
+
+	// publish released data to zeroMQ
+	// create a triggeredMessage and send it through ZeroMQ with topic KARDIA_CALL
+	triggerMessage := message.TriggerMessage{
+		ContractAddress: smartContract,
+		MethodName: configs.ExternalReleaseFunction,
+		Params: []string{receiver, amount},
+		CallBacks: []*message.TriggerMessage{
+			{
+				ContractAddress: configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex).Hex(),
+				MethodName: configs.UpdateTargetTx,
+				Params: []string{
+					// original tx, callback will be called after dual finish execute method,
+					// txid after dual finish executing will be appended
+					// callback method will be sent through 0MQ with DUAL_CALL topic
+					txId,
+				},
+			},
+		},
+	}
+	return PublishMessage(proxy.PublishedEndpoint(), KARDIA_CALL, triggerMessage)
+}
+
+// HandleAddOrderFunction handles event.data.txMethod = AddOrderFunction.
+// This function is used in all proxy in SubmitTx function.
+// This is step before releasing coin to target chain (TRX, NEO).
+func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData) error {
+	if len(event.Data.ExtData) != configs.ExchangeV2NumOfExchangeDataField {
+		return configs.ErrInsufficientExchangeData
+	}
+	stateDB := proxy.KardiaTxPool().State().StateDB
+	senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
+	originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
+	fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
+	toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
+
+	fromAmount, toAmount, err := CallGetRate(fromType, toType, proxy.KardiaBlockChain(), stateDB)
+	if err != nil {
+		return nil
+	}
+
+	// We get all releasable orders which are matched with newly added order
+	releases, err := CallKardiGetMatchingResultByTxId(
+		senderAddr,
+		proxy.KardiaBlockChain(),
+		stateDB,
+		originalTx,)
+	if err != nil {
+		return err
+	}
+	proxy.Logger().Info("Release info", "release", releases)
+	if releases != "" {
+		fields := strings.Split(releases, configs.ExchangeV2ReleaseFieldsSeparator)
+		if len(fields) != 4 {
+			proxy.Logger().Error("Invalid number of field", "release", releases)
+			return errors.New("invalid number of field for release")
+		}
+		arrTypes := strings.Split(fields[configs.ExchangeV2ReleaseToTypeIndex], configs.ExchangeV2ReleaseValuesSepatator)
+		arrAddresses := strings.Split(fields[configs.ExchangeV2ReleaseAddressesIndex], configs.ExchangeV2ReleaseValuesSepatator)
+		arrAmounts := strings.Split(fields[configs.ExchangeV2ReleaseAmountsIndex], configs.ExchangeV2ReleaseValuesSepatator)
+		arrTxIds := strings.Split(fields[configs.ExchangeV2ReleaseTxIdsIndex], configs.ExchangeV2ReleaseValuesSepatator)
+
+		for i, t := range arrTypes {
+			if t == configs.TRON || t == configs.NEO {
+				if arrAmounts[i] == "" || arrAddresses[i] == "" || arrTxIds[i] == "" {
+					proxy.Logger().Error("Missing release info", "matchedTxId", arrTxIds[i], "field", i, "releases", releases)
+					continue
+				}
+				address := arrAddresses[i]
+				amount, err1 := strconv.ParseInt(arrAmounts[i], 10, 64) //big.NewInt(0).SetString(arrAmounts[i], 10)
+				proxy.Logger().Info("Amount", "amount", amount, "in string", arrAmounts[i])
+				if err1 != nil {
+					log.Error("Error parse amount", "amount", arrAmounts[i])
+					continue
+				}
+
+				var releasedAmount *big.Int
+				if t == configs.TRON {
+					// TRON is the smallest unit then do nothing with it
+					releasedAmount = big.NewInt(amount)
+				} else {
+					if fromType == configs.ETH {
+						// Divide amount from smart contract by 10^8 to get base NEO amount to release
+						releasedAmount = big.NewInt(amount).Div(big.NewInt(amount), TenPoweredByEight)
+					} else {
+						// fromType is TRON
+						// Calculate the releasedAmount based on the rate (fromAmount, toAmount)
+						releasedAmount = big.NewInt(amount).Mul(big.NewInt(amount), toAmount)
+						releasedAmount = releasedAmount.Div(releasedAmount, fromAmount)
+						// divide by 10^6 to get normal number
+						releasedAmount = releasedAmount.Div(releasedAmount, TenPoweredBySix)
+					}
+					proxy.Logger().Info("ReleasedAmount=%v", releasedAmount)
+					// don't release  NEO if quantity < 1
+					if releasedAmount.Cmp(big.NewInt(1)) < 0 {
+						proxy.Logger().Error("Too little neo to send", "originalTxId", originalTx, "err", errNoNeoToSend, "amount", releasedAmount)
+						return errNoNeoToSend
+					}
+
+				}
+				Release(proxy, address, releasedAmount.String(), arrTxIds[i])
+			}
+		}
+	}
+	log.Info("There is no matched result for tx", "originalTxId", originalTx)
+	return nil
 }

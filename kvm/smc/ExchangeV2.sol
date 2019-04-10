@@ -5,9 +5,38 @@ contract KardiaExchange {
     uint constant PENDING = 0;
     uint constant DONE = 1;
     uint constant REJECTED = 2; // This status will not be used now, just add it for future used
-
+    address owner;
     uint constant UPDATE = 0;
     uint constant DELETE = 1;
+
+    modifier onlyadmin {
+        require(
+            authorizedUsers[msg.sender] == true || msg.sender == owner,
+            "Only admin can call this function."
+        );
+        _;
+    }
+
+    modifier isRoot {
+        require(
+            msg.sender == owner,
+            "Only root can call this function."
+        );
+        _;
+    }
+
+    // setOwner if owner is empty, set sender as owner
+    function setOwner() public {
+        if (owner == 0x0) {
+            owner = msg.sender;
+        }
+    }
+
+    // authorizedUsers is a list of authorized senders that can trigger smc functions
+    mapping(address=>bool) authorizedUsers;
+
+    // availableTypes stores allowed type (NEO, TRX, etc.) as key and their target smart contract address as value.
+    mapping(string=>string) availableTypes;
 
     struct Order {
         // fromType and toType is used to specified the rate
@@ -98,6 +127,21 @@ contract KardiaExchange {
         uint256 receivedAmount;
     }
 
+    // getOwner returns root address
+    function getOwner() public view returns (address) {
+        return owner;
+    }
+
+    // authorizedUser authorize an address to be admin
+    function authorizedUser(address user) public isRoot {
+        authorizedUsers[user] = true;
+    }
+
+    // deAuthorizedUser removes an address out of admin list
+    function deAuthorizedUser(address user) public isRoot {
+        authorizedUsers[user] = false;
+    }
+
     function getRate(string fromType, string toType) public view returns (uint256 fromAmount, uint256 receivedAmount) {
         if (rates[fromType][toType].fromAmount != 0) {
             return (rates[fromType][toType].fromAmount, rates[fromType][toType].receivedAmount);
@@ -105,13 +149,25 @@ contract KardiaExchange {
         return (0, 0);
     }
 
-    function updateRate(string fromType, string toType, uint256 fromAmount, uint256 receivedAmount) public {
+    function updateRate(string fromType, string toType, uint256 fromAmount, uint256 receivedAmount) public onlyadmin {
         rates[fromType][toType] = Rate(fromAmount, receivedAmount);
     }
 
     // hasTxId returns true if order has been added to smart contract
     function hasTxId(string txId) public view returns (bool) {
         return addedTxs[txId];
+    }
+
+    // getAddressFromType gets smart contract address from type (NEO, TRX, etc.)
+    function getAddressFromType(string _type) public view returns (string) {
+        if (keccak256(abi.encodePacked(availableTypes[_type])) != keccak256(abi.encodePacked("")))
+            return availableTypes[_type];
+        return "";
+    }
+
+    // updateAvailableType updates address to type
+    function updateAvailableType(string _type, string _address) public onlyadmin {
+        availableTypes[_type] = _address;
     }
 
     function orderToString(Order order) internal pure returns (string) {
@@ -186,7 +242,7 @@ contract KardiaExchange {
     }
 
     // updateKardiaTx updates kardiaTxId to current order by its txId
-    function updateKardiaTx(string txId, string kardiaTxId) public {
+    function updateKardiaTx(string txId, string kardiaTxId) public onlyadmin {
         if (!hasTxId(txId)) return;
         Order memory order = getOrderByTxId(txId);
         order.kardiaTxId = kardiaTxId;
@@ -194,7 +250,7 @@ contract KardiaExchange {
     }
 
     // updateTargetTx updates targetTxId to current order by its txId
-    function updateTargetTx(string txId, string targetTxId) public {
+    function updateTargetTx(string txId, string targetTxId) public onlyadmin {
         if (!hasTxId(txId)) return;
         Order memory order = getOrderByTxId(txId);
         order.targetTxId = concatStr(order.targetTxId, targetTxId, ",");
@@ -205,7 +261,7 @@ contract KardiaExchange {
         addOrder adds new order into pendingOrders and allOrders
         Note: before addOrder, backend should convert amount by rate.
     */
-    function addOrder(string fromType, string toType, string fromAddress, string receiver, string txid, uint256 amount, uint256 timestamp) public {
+    function addOrder(string fromType, string toType, string fromAddress, string receiver, string txid, uint256 amount, uint256 timestamp) public onlyadmin {
         Order memory order = Order(fromType, toType, fromAddress, receiver, txid, "", "", amount, amount, PENDING, timestamp, true);
 
         // if txid has already existed do nothing.
@@ -247,7 +303,7 @@ contract KardiaExchange {
         }
     }
 
-    function updateMatchingResult(string txid, string toType, string _address, uint256 amount, string _tx) public {
+    function updateMatchingResult(string txid, string toType, string _address, uint256 amount, string _tx) public onlyadmin {
         string[] memory result = matchingResult[txid];
         if (result.length == 0) {
             result = new string[](4);

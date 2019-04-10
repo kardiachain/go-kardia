@@ -25,13 +25,14 @@ import "errors"
 const (
 	// constants related to currency exchange
 	KardiaNewExchangeSmcIndex          = 3
-	MatchFunction                      = "matchRequest"
-	CompleteFunction                   = "completeRequest"
 	ExternalDepositFunction            = "deposit"
-	ETH2NEO                            = "ETH-NEO"
-	NEO2ETH                            = "NEO-ETH"
-	ETH2TRON                           = "ETH-TRX"
+	GetAddressFromType                 = "getAddressFromType"
+	ExternalReleaseFunction            = "release"
+	GetRate                            = "getRate"
+	UpdateTargetTx                     = "updateTargetTx"
+
 	// constants related to rate & addOrder function from smc
+	KARDIA                             = "KARDIA"
 	ETH                                = "ETH"
 	NEO                                = "NEO"
 	TRON                               = "TRX"
