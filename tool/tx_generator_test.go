@@ -41,6 +41,9 @@ func TestGenerateTx(t *testing.T) {
 		if !containsInGenesis(tx.To().String()) {
 			t.Error("Receiver addr should be in genesis")
 		}
+		if from.String() == configs.KardiaAccountToCallSmc {
+			t.Error("Sender should not be the account to call smc")
+		}
 		if from == *tx.To() {
 			t.Error("Sender & receiver addrs should not be the same")
 		}
@@ -57,6 +60,9 @@ func TestGenerateRandomTxWithState(t *testing.T) {
 		}
 		if !containsInGenesis(tx.To().String()) {
 			t.Error("Receiver addr should be in genesis")
+		}
+		if from.String() == configs.KardiaAccountToCallSmc {
+			t.Error("Sender should not be the account to call smc")
 		}
 		if from == *tx.To() {
 			t.Error("Sender & receiver addrs should not be the same")
