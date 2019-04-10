@@ -283,7 +283,7 @@ func CreateForwardResponseTx(email string, response string, fromOrgId string, to
 
 // Return a common private key to call to Kardia smc from dual node
 func GetPrivateKeyToCallKardiaSmc() *ecdsa.PrivateKey {
-	addrKeyBytes, _ := hex.DecodeString(KardiaPrivKeyToCallSmc)
+	addrKeyBytes, _ := hex.DecodeString(configs.KardiaPrivKeyToCallSmc)
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 	return addrKey
 }

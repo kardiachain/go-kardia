@@ -23,6 +23,10 @@ import "errors"
 // All const related to cross-chain demos including coin exchange and candidate exchange
 // this will be dynamic and removed when run on production
 const (
+	// constants related to account to call smc
+	KardiaAccountToCallSmc = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
+	KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
+
 	// constants related to currency exchange
 	KardiaNewExchangeSmcIndex          = 3
 	ExternalDepositFunction            = "deposit"
