@@ -260,6 +260,14 @@
   version = "v1.2"
 
 [[projects]]
+  digest = "1:88996a6b70e2cc7044c25caecd49e4d09bbcdd03e508f65d366f600cfb506dd6"
+  name = "github.com/pebbe/zmq4"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5b443b6471cea4b4f9f85025530c04c93233f76a"
+  version = "v1.0.0"
+
+[[projects]]
   digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
   name = "github.com/pkg/errors"
   packages = ["."]
@@ -455,6 +463,7 @@
     "github.com/ethereum/go-ethereum",
     "github.com/ethereum/go-ethereum/accounts/abi",
     "github.com/ethereum/go-ethereum/common",
+    "github.com/ethereum/go-ethereum/common/hexutil",
     "github.com/ethereum/go-ethereum/core",
     "github.com/ethereum/go-ethereum/core/state",
     "github.com/ethereum/go-ethereum/core/types",
@@ -472,12 +481,14 @@
     "github.com/ethereum/go-ethereum/params",
     "github.com/ethereum/go-ethereum/rlp",
     "github.com/go-stack/stack",
+    "github.com/golang/protobuf/proto",
     "github.com/golang/snappy",
     "github.com/hashicorp/golang-lru",
     "github.com/huin/goupnp",
     "github.com/huin/goupnp/dcps/internetgateway1",
     "github.com/huin/goupnp/dcps/internetgateway2",
     "github.com/jackpal/go-nat-pmp",
+    "github.com/pebbe/zmq4",
     "github.com/pkg/errors",
     "github.com/rs/cors",
     "github.com/stretchr/testify/assert",

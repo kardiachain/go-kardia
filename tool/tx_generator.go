@@ -22,15 +22,19 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
-	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/types"
 	"math/big"
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common/hexutil"
+
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/types"
+
 )
 
 const (
@@ -64,15 +68,17 @@ func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
 		numTx = defaultNumTx
 	}
 	result := make([]*types.Transaction, numTx)
-	addrKeySize := len(configs.GenesisAddrKeys)
 	var keys []*ecdsa.PrivateKey
 	var addresses []common.Address
 
 	for addrS, privateKey := range configs.GenesisAddrKeys {
-		pkByte, _ := hex.DecodeString(privateKey)
-		keys = append(keys, crypto.ToECDSAUnsafe(pkByte))
-		addresses = append(addresses, common.HexToAddress(addrS))
+		if addrS != configs.KardiaAccountToCallSmc { // skip account call smc
+			pkByte, _ := hex.DecodeString(privateKey)
+			keys = append(keys, crypto.ToECDSAUnsafe(pkByte))
+			addresses = append(addresses, common.HexToAddress(addrS))
+		}
 	}
+	addrKeySize := len(addresses)
 
 	genTool.mu.Lock()
 	for i := 0; i < numTx; i++ {
@@ -163,8 +169,9 @@ func randomTxAddresses() (senderKey *ecdsa.PrivateKey, toAddr common.Address) {
 	for {
 		senderKey = randomGenesisPrivateKey()
 		toAddr = randomGenesisAddress()
-
-		if crypto.PubkeyToAddress(senderKey.PublicKey) != toAddr {
+		privateKeyBytes := crypto.FromECDSA(senderKey)
+		if crypto.PubkeyToAddress(senderKey.PublicKey) != toAddr && hexutil.Encode(privateKeyBytes)[2:] != configs.KardiaPrivKeyToCallSmc {
+			// skip senderAddr = toAddr && senderAddr that call smc
 			break
 		}
 	}

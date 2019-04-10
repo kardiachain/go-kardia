@@ -41,11 +41,6 @@ import (
 	"github.com/kardiachain/go-kardia/dualnode/message"
 )
 
-// TODO(@sontranrad): remove all of these constants for production
-
-const KardiaAccountToCallSmc = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
-const KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
-
 // TODO: note that when we have dynamic method, these values will be moved to smartcontract or anything that can handle this case.
 var AvailableExchangeType = map[string]bool{
 	configs.TRON: true,
@@ -423,7 +418,7 @@ func CreateForwardResponseTx(email string, response string, fromOrgId string, to
 
 // Return a common private key to call to Kardia smc from dual node
 func GetPrivateKeyToCallKardiaSmc() *ecdsa.PrivateKey {
-	addrKeyBytes, _ := hex.DecodeString(KardiaPrivKeyToCallSmc)
+	addrKeyBytes, _ := hex.DecodeString(configs.KardiaPrivKeyToCallSmc)
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
 	return addrKey
 }
