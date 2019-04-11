@@ -107,15 +107,25 @@ func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
 	return result
 }
 
-func GenerateRandomTxWithState(numTx int, stateDb *state.StateDB) []*types.Transaction {
+func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx int, stateDb *state.StateDB) []*types.Transaction {
 	if numTx <= 0 {
 		numTx = defaultNumTx
 	}
 
 	result := make([]*types.Transaction, numTx)
+	genTool.mu.Lock()
 	for i := 0; i < numTx; i++ {
 		senderKey, toAddr := randomTxAddresses()
-		nonce := stateDb.GetNonce(crypto.PubkeyToAddress(senderKey.PublicKey))
+		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
+		nonce := stateDb.GetNonce(senderPublicKey)
+		senderAddrS := senderPublicKey.String()
+
+		//get nonce from sender mapping
+		nonceMap := genTool.nonceMap[senderAddrS]
+		if nonce < nonceMap { // check nonce from statedb and nonceMap
+			nonce = nonceMap
+		}
+
 		tx, err := types.SignTx(types.NewTransaction(
 			nonce,
 			toAddr,
@@ -128,7 +138,10 @@ func GenerateRandomTxWithState(numTx int, stateDb *state.StateDB) []*types.Trans
 			panic(fmt.Sprintf("Fail to sign generated tx: %v", err))
 		}
 		result[i] = tx
+		nonce +=1
+		genTool.nonceMap[senderAddrS] = nonce
 	}
+	genTool.mu.Unlock()
 	return result
 }
 
