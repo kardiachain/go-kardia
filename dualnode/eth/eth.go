@@ -104,11 +104,6 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 		return nil, err
 	}
 
-	datadir := defaultEthDataDir()
-
-	// Creates datadir with testnet follow eth standards.
-	// TODO(thientn) : options to choose different networks.
-	datadir = filepath.Join(datadir, "rinkeby", config.Name)
 	bootUrls := params.RinkebyBootnodes
 	bootstrapNodes := make([]*enode.Node, 0, len(bootUrls))
 	bootstrapNodesV5 := make([]*discv5.Node, 0, len(bootUrls)) // rinkeby set default bootnodes as also discv5 nodes.
@@ -126,6 +121,26 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 			continue
 		}
 		bootstrapNodesV5 = append(bootstrapNodesV5, peerV5)
+	}
+
+	datadir := defaultEthDataDir()
+	// similar to cmd/eth/config.go/makeConfigNode
+	ethConf := &eth.DefaultConfig
+	ethConf.NetworkId = uint64(config.NetworkId)
+
+	switch ethConf.NetworkId {
+	case 1: // mainnet
+		ethConf.Genesis = ethCore.DefaultGenesisBlock()
+		datadir = filepath.Join(datadir, "mainnet", config.Name)
+	case 3: // ropsten
+		ethConf.Genesis = ethCore.DefaultTestnetGenesisBlock()
+		datadir = filepath.Join(datadir, "ropsten", config.Name)
+	case 4: // rinkeby
+		ethConf.Genesis = ethCore.DefaultRinkebyGenesisBlock()
+		datadir = filepath.Join(datadir, "rinkeby", config.Name)
+	default: // default is rinkeby
+		ethConf.Genesis = ethCore.DefaultRinkebyGenesisBlock()
+		datadir = filepath.Join(datadir, "rinkeby", config.Name)
 	}
 
 	// similar to utils.SetNodeConfig
@@ -147,11 +162,6 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 		DiscoveryV5:      config.LightNode, // Force using discovery if light node, as in flags.go.
 		BootstrapNodesV5: bootstrapNodesV5,
 	}
-
-	// similar to cmd/eth/config.go/makeConfigNode
-	ethConf := &eth.DefaultConfig
-	ethConf.NetworkId = 4 // Rinkeby Id
-	ethConf.Genesis = ethCore.DefaultRinkebyGenesisBlock()
 
 	ethConf.LightServ = config.LightServ
 	ethConf.LightPeers = config.LightPeers
