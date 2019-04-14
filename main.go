@@ -76,6 +76,7 @@ type flagArgs struct {
 
 	// Ether/Kardia dualnode related flags
 	ethDual       bool
+	ethNetworkId  int
 	ethStat       bool
 	ethStatName   string
 	ethLogLevel   string
@@ -145,6 +146,7 @@ func init() {
 	// Dualnode's related flags
 	flag.StringVar(&args.ethLogLevel, "ethloglevel", "warn", "minimum Eth log verbosity to display")
 	flag.BoolVar(&args.ethDual, "dual", false, "whether to run in dual mode")
+	flag.IntVar(&args.ethNetworkId, "ethNetworkId", 4, "run Eth network id, 4: rinkeby, 3: ropsten, 1: mainnet")
 	flag.StringVar(&args.ethListenAddr, "ethAddr", ":30302", "listen address for eth")
 	flag.BoolVar(&args.neoDual, "trondual", false, "whether to run TRON dual node")
 	flag.BoolVar(&args.neoDual, "neodual", false, "whether to run NEO dual node")
@@ -681,6 +683,7 @@ func main() {
 		config.ReportStats = args.ethStat
 		config.HTTPPort = args.ethRPCPort
 		config.HTTPVirtualHosts = []string{"*"}
+		config.NetworkId = args.ethNetworkId
 
 		if args.ethStatName != "" {
 			config.StatName = args.ethStatName

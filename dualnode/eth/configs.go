@@ -31,6 +31,7 @@ var DefaultEthConfig = EthConfig{
 	Name:            "GethKardia", // Don't need to change, default instance name for geth is "geth".
 	ListenAddr:      ":30303",
 	MaxPeers:        10,
+	NetworkId:       4,     // 4: rinkeby, 3: ropsten, 1: mainnet
 	LightNode:       false, // Need Eth full node to support dual node mechanism.
 	LightPeers:      5,
 	LightServ:       0,
@@ -76,6 +77,7 @@ type EthConfig struct {
 	Name        string
 	ListenAddr  string
 	MaxPeers    int
+	NetworkId   int    // 4: rinkeby, 3: ropsten, 1: mainnet
 	LightNode   bool   // Starts with light sync, otherwise starts with fast sync.
 	LightPeers  int    // Max number of light peers.
 	LightServ   int    // Max percentage of time allowed for serving LES requests (0-90)"
