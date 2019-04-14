@@ -28,7 +28,6 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/chaindb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	kaidb "github.com/kardiachain/go-kardia/kai/storage"
@@ -36,6 +35,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/kai/events"
 )
 
 const (
@@ -95,7 +95,7 @@ type blockChain interface {
 	GetBlock(hash common.Hash, number uint64) *types.Block
 	StateAt(root common.Hash) (*state.StateDB, error)
 	DB() kaidb.Database
-	SubscribeChainHeadEvent(ch chan<- base.ChainHeadEvent) event.Subscription
+	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StoreHash(hash *common.Hash)
 	CheckHash(hash *common.Hash) bool
 	StoreTxHash(hash *common.Hash)
@@ -152,7 +152,7 @@ type EventPool struct {
 	chain         blockChain
 	dualEventFeed event.Feed
 	scope         event.SubscriptionScope
-	chainHeadCh   chan base.ChainHeadEvent
+	chainHeadCh   chan events.ChainHeadEvent
 	chainHeadSub  event.Subscription
 	mu            sync.RWMutex
 
@@ -183,7 +183,7 @@ func NewEventPool(logger log.Logger, config EventPoolConfig, chainconfig *config
 		pending:     newEventList(),
 		queue:       newEventList(),
 		all:         newEventLookup(),
-		chainHeadCh: make(chan base.ChainHeadEvent, chainHeadChanSize),
+		chainHeadCh: make(chan events.ChainHeadEvent, chainHeadChanSize),
 	}
 	pool.reset(nil, chain.CurrentBlock().Header())
 
@@ -388,7 +388,7 @@ func (pool *EventPool) Stop() {
 
 // Registers a subscription of NewTxsEvent and
 // starts sending event to the given channel.
-func (pool *EventPool) SubscribeNewTxsEvent(ch chan<- base.NewDualEventsEvent) event.Subscription {
+func (pool *EventPool) SubscribeNewTxsEvent(ch chan<- events.NewDualEventsEvent) event.Subscription {
 	return pool.scope.Track(pool.dualEventFeed.Subscribe(ch))
 }
 
@@ -758,7 +758,7 @@ func (pool *EventPool) promoteExecutables() {
 
 	// Notify subsystem for new promoted dual's events.
 	if len(promoted) > 0 {
-		go pool.dualEventFeed.Send(base.NewDualEventsEvent{promoted})
+		go pool.dualEventFeed.Send(events.NewDualEventsEvent{promoted})
 	}
 	// If we've queued more dual's events than the hard limit, drop oldest ones
 	if pool.queue.Len() > pool.config.QueueSize {

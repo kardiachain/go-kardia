@@ -35,6 +35,7 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/kai/events"
 )
 
 const (
@@ -81,7 +82,7 @@ type ProtocolManager struct {
 	noMorePeers chan struct{}
 
 	// transaction channel and subscriptions
-	txsCh  chan base.NewTxsEvent
+	txsCh  chan events.NewTxsEvent
 	txsSub event.Subscription
 
 	// Consensus stuff
@@ -196,7 +197,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	// TODO(namdoh@,thientn@): Refactor this so we won't have to check this for dual service.
 	if pm.txpool != nil {
 		// broadcast transactions
-		pm.txsCh = make(chan base.NewTxsEvent, txChanSize)
+		pm.txsCh = make(chan events.NewTxsEvent, txChanSize)
 		pm.txsSub = pm.txpool.SubscribeNewTxsEvent(pm.txsCh)
 
 		//namdoh@ pm.csCh = make(chan consensus.NewCsEvent, csChanSize)

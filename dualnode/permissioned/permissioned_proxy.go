@@ -37,6 +37,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"github.com/kardiachain/go-kardia/kai/events"
 )
 
 const SERVICE_NAME = "PRIVATE_DUAL"
@@ -90,7 +91,7 @@ type PermissionedProxy struct {
 	internalChain base.BlockChainAdapter
 
 	// Chain head subscription for privatechain new blocks.
-	chainHeadCh  chan base.ChainHeadEvent
+	chainHeadCh  chan events.ChainHeadEvent
 	chainHeadSub event.Subscription
 
 	privateChainID   *uint64
@@ -155,7 +156,7 @@ func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain
 		eventPool:        eventPool,
 		txPool:           txPool,
 		privateService:   kardiaService,
-		chainHeadCh:      make(chan base.ChainHeadEvent, 5),
+		chainHeadCh:      make(chan events.ChainHeadEvent, 5),
 		logger:           logger,
 		smcAddress:       address,
 		smcABI:           &smcABI,

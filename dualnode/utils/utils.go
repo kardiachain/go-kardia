@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 	"strings"
+	"strconv"
 	"math/big"
 	"crypto/ecdsa"
 	"encoding/hex"
@@ -38,17 +39,16 @@ import (
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/dualnode/message"
+	dualMsg "github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/dualnode"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"strconv"
-	"github.com/kardiachain/go-kardia/dev"
 )
 
 // TODO(@sontranrad): remove all of these constants for production
 
 const (
  	KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
+	MockSmartContractCallSenderAccount = "0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5"
 	KARDIA_CALL = "KARDIA_CALL"
 	DUAL_CALL = "DUAL_CALL"
 	DUAL_MSG = "DUAL_MSG"
@@ -291,10 +291,10 @@ func GetPrivateKeyToCallKardiaSmc() *ecdsa.PrivateKey {
 func IsNilOrEmpty(data []byte) bool { return data == nil || string(data) == "" }
 
 // PublishMessage publishes message to 0MQ based on given endpoint, topic
-func PublishMessage(endpoint, topic string, message message.TriggerMessage) error {
+func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) error {
 	pub, _ := zmq4.NewSocket(zmq4.PUB)
 	defer pub.Close()
-	pub.Connect(endpoint)
+	pub.Bind(endpoint)
 
 	// sleep 1 second to prevent socket closes
 	time.Sleep(1 * time.Second)
@@ -359,7 +359,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 	switch topic {
 	case DUAL_CALL:
 		// callback from dual
-		triggerMessage := message.TriggerMessage{}
+		triggerMessage := dualMsg.TriggerMessage{}
 		triggerMessage.XXX_Unmarshal([]byte(message))
 
 		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool().State(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
@@ -374,12 +374,12 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 	case DUAL_MSG:
 		// message from dual after it catches a triggered smc tx
 		// unpack contents to DualMessage
-		dualMsg := message.Message{}
-		dualMsg.XXX_Unmarshal([]byte(message))
+		msg := dualMsg.Message{}
+		msg.XXX_Unmarshal([]byte(message))
 
 		// TODO: this is used for exchange demo, remove the condition whenever we have dynamic handler method for this
-		if dualMsg.MethodName == configs.ExternalDepositFunction {
-			return NewEvent(proxy, dualMsg)
+		if msg.MethodName == configs.ExternalDepositFunction {
+			return NewEvent(proxy, msg)
 		}
 	}
 	return nil
@@ -406,7 +406,7 @@ func StartSubscribe(proxy base.BlockChainAdapter) {
 
 // NewEvent receives data from Tron where encodedMsg is used for validating the message
 // returns error in case event cannot be added to eventPool
-func NewEvent(proxy base.BlockChainAdapter, dualMsg message.Message) error {
+func NewEvent(proxy base.BlockChainAdapter, msg dualMsg.Message) error {
 	dualState, err := proxy.DualBlockChain().State()
 	if err != nil {
 		log.Error("Fail to get Dual BlockChain state", "error", err)
@@ -414,29 +414,29 @@ func NewEvent(proxy base.BlockChainAdapter, dualMsg message.Message) error {
 	}
 
 	// TODO: This is used for exchange use case, will remove this after applying dynamic method
-	receiver := []byte(dualMsg.GetParams()[0])
-	pair := dualMsg.GetParams()[1]
+	receiver := []byte(msg.GetParams()[0])
+	pair := msg.GetParams()[1]
 
 	from, to, err := GetExchangePair(pair)
 	if err != nil {
 		return nil
 	}
 
-	txHash := common.HexToHash(dualMsg.GetTransactionId())
+	txHash := common.HexToHash(msg.GetTransactionId())
 	nonce := dualState.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
 	// Compose extraData struct for fields related to exchange from data extracted by Neo event
 	extraData := make([][]byte, configs.ExchangeV2NumOfExchangeDataField)
 	extraData[configs.ExchangeV2SourcePairIndex] = []byte(*from)
 	extraData[configs.ExchangeV2DestPairIndex] = []byte(*to)
-	extraData[configs.ExchangeV2SourceAddressIndex] = []byte(dualMsg.GetSender())
+	extraData[configs.ExchangeV2SourceAddressIndex] = []byte(msg.GetSender())
 	extraData[configs.ExchangeV2DestAddressIndex] = receiver
-	extraData[configs.ExchangeV2OriginalTxIdIndex] = []byte(dualMsg.GetTransactionId())
-	extraData[configs.ExchangeV2AmountIndex] = big.NewInt(int64(dualMsg.GetAmount())).Bytes()
-	extraData[configs.ExchangeV2TimestampIndex] = big.NewInt(int64(dualMsg.GetTimestamp())).Bytes()
+	extraData[configs.ExchangeV2OriginalTxIdIndex] = []byte(msg.GetTransactionId())
+	extraData[configs.ExchangeV2AmountIndex] = big.NewInt(int64(msg.GetAmount())).Bytes()
+	extraData[configs.ExchangeV2TimestampIndex] = big.NewInt(int64(msg.GetTimestamp())).Bytes()
 
 	eventSummary := &types.EventSummary{
-		TxMethod: dualMsg.MethodName,
-		TxValue:  big.NewInt(int64(dualMsg.Amount)),
+		TxMethod: msg.MethodName,
+		TxValue:  big.NewInt(int64(msg.Amount)),
 		ExtData:  extraData,
 	}
 
@@ -497,11 +497,11 @@ func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error 
 
 	// publish released data to zeroMQ
 	// create a triggeredMessage and send it through ZeroMQ with topic KARDIA_CALL
-	triggerMessage := message.TriggerMessage{
+	triggerMessage := dualMsg.TriggerMessage{
 		ContractAddress: smartContract,
 		MethodName: configs.ExternalReleaseFunction,
 		Params: []string{receiver, amount},
-		CallBacks: []*message.TriggerMessage{
+		CallBacks: []*dualMsg.TriggerMessage{
 			{
 				ContractAddress: configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex).Hex(),
 				MethodName: configs.UpdateTargetTx,
@@ -525,7 +525,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 		return configs.ErrInsufficientExchangeData
 	}
 	stateDB := proxy.KardiaTxPool().State().StateDB
-	senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
+	senderAddr := common.HexToAddress(MockSmartContractCallSenderAccount)
 	originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 	fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
 	toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])

@@ -143,7 +143,7 @@ func init() {
 	flag.StringVar(&args.ethLogLevel, "ethloglevel", "warn", "minimum Eth log verbosity to display")
 	flag.BoolVar(&args.ethDual, "dual", false, "whether to run in dual mode")
 	flag.StringVar(&args.ethListenAddr, "ethAddr", ":30302", "listen address for eth")
-	flag.BoolVar(&args.neoDual, "trondual", false, "whether to run TRON dual node")
+	flag.BoolVar(&args.tronDual, "trondual", false, "whether to run TRON dual node")
 	flag.BoolVar(&args.neoDual, "neodual", false, "whether to run NEO dual node")
 	flag.BoolVar(&args.ethStat, "ethstat", false, "report eth stats to network")
 	flag.StringVar(&args.ethStatName, "ethstatname", "", "name to use when reporting eth stats")
