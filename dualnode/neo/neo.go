@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/kai/events"
 )
 
 const ServiceName = "NEO"
@@ -55,7 +56,7 @@ type Proxy struct {
 	internalChain base.BlockChainAdapter
 
 	// Chain head subscription for new blocks.
-	chainHeadCh  chan base.ChainHeadEvent
+	chainHeadCh  chan events.ChainHeadEvent
 	chainHeadSub event.Subscription
 
 	// Queue configuration
@@ -84,7 +85,7 @@ func NewProxy(
 		dualBc:     dualBc,
 		eventPool:  dualEventPool,
 
-		chainHeadCh: make(chan base.ChainHeadEvent, 5),
+		chainHeadCh: make(chan events.ChainHeadEvent, 5),
 		queueTopic: ServiceName,
 	}
 

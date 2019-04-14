@@ -27,6 +27,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
+	"github.com/kardiachain/go-kardia/kai/events"
 )
 
 const ServiceName = "TRON"
@@ -48,7 +49,7 @@ type Proxy struct {
 	internalChain base.BlockChainAdapter
 
 	// Chain head subscription for new blocks.
-	chainHeadCh  chan base.ChainHeadEvent
+	chainHeadCh  chan events.ChainHeadEvent
 	chainHeadSub event.Subscription
 
 	// Queue configuration
@@ -123,7 +124,7 @@ func NewProxy(
 		txPool:     txPool,
 		dualBc:     dualBc,
 		eventPool:  dualEventPool,
-		chainHeadCh: make(chan base.ChainHeadEvent, 5),
+		chainHeadCh: make(chan events.ChainHeadEvent, 5),
 	}
 
 	processor.publishedEndpoint = publishedEndpoint

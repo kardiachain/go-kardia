@@ -145,7 +145,7 @@ func init() {
 	flag.BoolVar(&args.ethDual, "dual", false, "whether to run in dual mode")
 	flag.IntVar(&args.ethNetworkId, "ethNetworkId", 4, "run Eth network id, 4: rinkeby, 3: ropsten, 1: mainnet")
 	flag.StringVar(&args.ethListenAddr, "ethAddr", ":30302", "listen address for eth")
-	flag.BoolVar(&args.neoDual, "trondual", false, "whether to run TRON dual node")
+	flag.BoolVar(&args.tronDual, "trondual", false, "whether to run TRON dual node")
 	flag.BoolVar(&args.neoDual, "neodual", false, "whether to run NEO dual node")
 	flag.BoolVar(&args.ethStat, "ethstat", false, "report eth stats to network")
 	flag.StringVar(&args.ethStatName, "ethstatname", "", "name to use when reporting eth stats")

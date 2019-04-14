@@ -32,6 +32,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/kai/events"
 )
 
 const KARDIA_PROXY = "KARDIA_PROXY"
@@ -47,7 +48,7 @@ type KardiaProxy struct {
 	// Kardia's mainchain stuffs.
 	kardiaBc     base.BaseBlockChain
 	txPool       *tx_pool.TxPool
-	chainHeadCh  chan base.ChainHeadEvent // Used to subscribe for new blocks.
+	chainHeadCh  chan events.ChainHeadEvent // Used to subscribe for new blocks.
 	chainHeadSub event.Subscription
 
 	// Dual blockchain related fields
@@ -118,7 +119,7 @@ func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc
 		txPool:        txPool,
 		dualBc:        dualBc,
 		eventPool:     dualEventPool,
-		chainHeadCh:   make(chan base.ChainHeadEvent, 5),
+		chainHeadCh:   make(chan events.ChainHeadEvent, 5),
 		kaiSmcAddress: smcAddr,
 		smcABI:        &smcABI,
 		kardiaSmcs:    kardiaSmcsTemp[:],

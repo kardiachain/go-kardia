@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package base
+package events
 
 import "github.com/kardiachain/go-kardia/types"
 

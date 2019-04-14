@@ -25,6 +25,7 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/kai/events"
 )
 
 type BaseBlockChain interface {
@@ -44,6 +45,6 @@ type BaseBlockChain interface {
 	GetHeader(common.Hash, uint64) *types.Header
 	IsPrivate() bool
 	HasPermission(peer *p2p.Peer) bool
-	SubscribeChainHeadEvent(ch chan<- ChainHeadEvent) event.Subscription
+	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StateAt(root common.Hash) (*state.StateDB, error)
 }
