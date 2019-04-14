@@ -594,7 +594,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 					}
 
 				}
-				Release(proxy, address, releasedAmount.String(), arrTxIds[i])
+				go Release(proxy, address, releasedAmount.String(), arrTxIds[i])
 			}
 		}
 	}

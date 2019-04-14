@@ -153,6 +153,7 @@ func (n *Proxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 	n.internalChain = internalChain
 }
 
+// SubmitTx reads event data and submits data to Kardia or Target chain (TRON, NEO) based on specific logic. (eg: AddOrderFunction)
 func (n *Proxy) SubmitTx(event *types.EventData) error {
 	switch event.Data.TxMethod {
 	case configs.AddOrderFunction:

@@ -62,11 +62,6 @@ const (
 	ServiceName = "ETH"
 )
 
-var (
-	ErrAddEthTx     = errors.New("Fail to add tx to Ether's TxPool")
-	TenPoweredByTen = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(10), nil)
-)
-
 // A full Ethereum node. In additional, it provides additional interface with dual's node,
 // responsible for listening to Eth blockchain's new block and submiting Eth's transaction .
 type Eth struct {
@@ -309,6 +304,7 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 		// We get all releasable orders which are matched with newly added order
 		releases, err := utils.CallKardiGetMatchingResultByTxId(senderAddr, n.kardiaChain, statedb, originalTx)
 		if err != nil {
+			n.Logger().Error("error on CallKardiGetMatchingResultByTxId", "senderAddr", senderAddr, "originalTx", originalTx, "err", err)
 			return err
 		}
 		log.Info("Release info", "release", releases)
@@ -324,7 +320,8 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 			arrTxIds := strings.Split(fields[configs.ExchangeV2ReleaseTxIdsIndex], configs.ExchangeV2ReleaseValuesSepatator)
 			fromAmount, toAmount, err := utils.CallGetRate(fromType, toType, n.kardiaChain, statedb)
 			if err != nil {
-				return nil
+				n.Logger().Error("error on getting rate", "fromType", fromType, "toType", toType, "err", err)
+				return err
 			}
 			for i, t := range arrTypes {
 				if t == configs.ETH { // The receiving end of the release is ETH
@@ -342,20 +339,13 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 					// Calculate the released amount by wei
 					convertedAmount := big.NewInt(amount).Mul(big.NewInt(amount), toAmount)
 					convertedAmount = convertedAmount.Div(convertedAmount, fromAmount)
-
-					var amountToRelease *big.Int
-					// if fromType is NEO then convert from NEO unit (10^8) to 10^18
-					if fromType == configs.NEO {
-						amountToRelease = big.NewInt(amount).Mul(convertedAmount, TenPoweredByTen)
-					} else if fromType == configs.TRON { // if fromType is TRON then convert from TRON unit (10^6) to 10^18
-						amountToRelease = big.NewInt(amount).Mul(convertedAmount, utils.TenPoweredByTwelve)
-					} else {
-						return fmt.Errorf("invalid fromType")
+					amountToRelease, err := getReleasedAmount(fromType, convertedAmount)
+					if err != nil {
+						log.Error("Error getting released amount", "err", err)
 					}
 
 					log.Info("Amount", "convertedAmount", convertedAmount, "amountToRelease", amountToRelease)
-					err := n.releaseTxAndCompleteRequest(arrTxIds[i], amountToRelease, address)
-					if err != nil {
+					if err = n.releaseTxAndCompleteRequest(arrTxIds[i], amountToRelease, address); err != nil {
 						log.Error("Error release ETH", "originalTxID", arrTxIds[i], "receiver", address, "err", err)
 					}
 				}
@@ -368,6 +358,20 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 		return configs.ErrUnsupportedMethod
 	}
 	return configs.ErrUnsupportedMethod
+}
+
+// getReleasedAmount converts amount to ETH amount based on original chain (NEO, TRX)
+func getReleasedAmount(fromType string, convertedAmount *big.Int) (*big.Int, error) {
+	switch fromType {
+	case configs.NEO:
+		// if fromType is NEO then convert from NEO unit (10^8) to 10^18
+		return big.NewInt(1).Mul(convertedAmount, utils.TenPoweredByTen), nil
+	case configs.TRON:
+		// if fromType is TRON then convert from TRON unit (10^6) to 10^18
+		return big.NewInt(1).Mul(convertedAmount, utils.TenPoweredByTwelve), nil
+	default:
+		return nil, fmt.Errorf("invalid fromType %v", fromType)
+	}
 }
 
 // releaseTxAndCompleteRequest release eth to receiver and creates a tx to complete it in kardia smart contract
