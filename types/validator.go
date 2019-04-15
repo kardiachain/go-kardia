@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"fmt"
-	"math"
 	"sort"
 	"strings"
 
@@ -268,7 +267,7 @@ func (valSet *ValidatorSet) Hash() common.Hash {
 func (valSet *ValidatorSet) Copy() *ValidatorSet {
 	validators := make([]*Validator, len(valSet.Validators))
 	for i, val := range valSet.Validators {
-		// NOTE: must copy, since IncrementAccum updates in place.
+		// NOTE: must copy, since AdvanceProposer updates in place.
 		validators[i] = val.Copy()
 	}
 	return &ValidatorSet{
@@ -278,22 +277,24 @@ func (valSet *ValidatorSet) Copy() *ValidatorSet {
 	}
 }
 
-// IncrementAccum increments accum of each validator and updates the
-// proposer. Panics if validator set is empty.
-func (valSet *ValidatorSet) IncrementAccum(times int) {
-	// Add VotingPower * times to each validator and order into heap.
+// Advances proposer a given number of times. Calls this with 1 time to advance to the next
+// proposer.
+func (valSet *ValidatorSet) AdvanceProposer(times int) {
+	if valSet.KeepSameProposer {
+		return
+	}
+
 	validatorsHeap := common.NewHeap()
+	// Update voting power of each validator after "times" increments.
 	for _, val := range valSet.Validators {
-		// check for overflow both multiplication and sum
-		val.Accum = safeAddClip(val.Accum, safeMulClip(val.VotingPower, int64(times)))
+		val.Accum = common.AddWithClip(val.Accum, common.MulWithClip(val.VotingPower, int64(times)))
 		validatorsHeap.PushComparable(val, accumComparable{val})
 	}
 
-	// Decrement the validator with most accum times times
+	// Loop "times" time to set the latest proposer.
 	for i := 0; i < times; i++ {
 		mostest := validatorsHeap.Peek().(*Validator)
-		// mind underflow
-		mostest.Accum = safeSubClip(mostest.Accum, valSet.TotalVotingPower())
+		mostest.Accum = common.SubWithClip(mostest.Accum, valSet.TotalVotingPower())
 
 		if i == times-1 {
 			valSet.Proposer = mostest
@@ -419,75 +420,4 @@ func (ac accumComparable) Less(o interface{}) bool {
 	other := o.(accumComparable).Validator
 	larger := ac.CompareAccum(other)
 	return bytes.Equal(larger.Address[:], ac.Address[:])
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Safe multiplication and addition/subtraction
-
-func safeMul(a, b int64) (int64, bool) {
-	if a == 0 || b == 0 {
-		return 0, false
-	}
-	if a == 1 {
-		return b, false
-	}
-	if b == 1 {
-		return a, false
-	}
-	if a == math.MinInt64 || b == math.MinInt64 {
-		return -1, true
-	}
-	c := a * b
-	return c, c/b != a
-}
-
-func safeAdd(a, b int64) (int64, bool) {
-	if b > 0 && a > math.MaxInt64-b {
-		return -1, true
-	} else if b < 0 && a < math.MinInt64-b {
-		return -1, true
-	}
-	return a + b, false
-}
-
-func safeSub(a, b int64) (int64, bool) {
-	if b > 0 && a < math.MinInt64+b {
-		return -1, true
-	} else if b < 0 && a > math.MaxInt64+b {
-		return -1, true
-	}
-	return a - b, false
-}
-
-func safeMulClip(a, b int64) int64 {
-	c, overflow := safeMul(a, b)
-	if overflow {
-		if (a < 0 || b < 0) && !(a < 0 && b < 0) {
-			return math.MinInt64
-		}
-		return math.MaxInt64
-	}
-	return c
-}
-
-func safeAddClip(a, b int64) int64 {
-	c, overflow := safeAdd(a, b)
-	if overflow {
-		if b < 0 {
-			return math.MinInt64
-		}
-		return math.MaxInt64
-	}
-	return c
-}
-
-func safeSubClip(a, b int64) int64 {
-	c, overflow := safeSub(a, b)
-	if overflow {
-		if b > 0 {
-			return math.MinInt64
-		}
-		return math.MaxInt64
-	}
-	return c
 }
