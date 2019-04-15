@@ -76,7 +76,7 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 	lastHeightValsChanged := state.LastHeightValidatorsChanged
 
 	// Update validator accums and set state variables
-	nextValSet.IncrementAccum(1)
+	nextValSet.AdvanceProposer(1)
 
 	var totalTx *cmn.BigInt
 	if state.LastBlockTotalTx == nil {
