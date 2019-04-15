@@ -63,7 +63,7 @@ func TestGetProposerUniformVotingPower(t *testing.T) {
 func TestGetProposerMixedVotingPower(t *testing.T) {
 	val1 := NewValidator(generatePublicKey(), 1)
 	val2 := NewValidator(generatePublicKey(), 2)
-	val3 := NewValidator(generatePublicKey(), 5)
+	val3 := NewValidator(generatePublicKey(), 4)
 	vals := [...]*Validator{val1, val2, val3}
 	valSet := NewValidatorSet(vals[:])
 	var proposer *Validator
