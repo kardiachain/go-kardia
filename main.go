@@ -86,9 +86,6 @@ type flagArgs struct {
 
 	// Neo/Kardia dualnode related flags
 	neoDual            bool
-	neoSubmitTxUrl     string
-	neoCheckTxUrl      string
-	neoReceiverAddress string
 
 	// TRON dualnode
 	tronDual           bool
@@ -148,7 +145,7 @@ func init() {
 	flag.BoolVar(&args.ethDual, "dual", false, "whether to run in dual mode")
 	flag.IntVar(&args.ethNetworkId, "ethNetworkId", 4, "run Eth network id, 4: rinkeby, 3: ropsten, 1: mainnet")
 	flag.StringVar(&args.ethListenAddr, "ethAddr", ":30302", "listen address for eth")
-	flag.BoolVar(&args.neoDual, "trondual", false, "whether to run TRON dual node")
+	flag.BoolVar(&args.tronDual, "trondual", false, "whether to run TRON dual node")
 	flag.BoolVar(&args.neoDual, "neodual", false, "whether to run NEO dual node")
 	flag.BoolVar(&args.ethStat, "ethstat", false, "report eth stats to network")
 	flag.StringVar(&args.ethStatName, "ethstatname", "", "name to use when reporting eth stats")
@@ -156,9 +153,6 @@ func init() {
 	flag.IntVar(&args.ethRPCPort, "ethRPCPort", eth.DefaultEthConfig.HTTPPort, "HTTP-RPC server listening port for Eth node. 8546 is the default port")
 	flag.BoolVar(&args.dualChain, "dualchain", false, "run dual chain for group consensus")
 	flag.StringVar(&args.dualChainValIndexes, "dualChainValIndexes", "", "Indexes of Dual chain validators")
-	flag.StringVar(&args.neoSubmitTxUrl, "neoSubmitTxUrl", neo.DefaultNeoConfig.SubmitTxUrl, "url to submit tx to neo")
-	flag.StringVar(&args.neoCheckTxUrl, "neoCheckTxUrl", neo.DefaultNeoConfig.CheckTxUrl, "url to check tx status from neo")
-	flag.StringVar(&args.neoReceiverAddress, "neoReceiverAddress", neo.DefaultNeoConfig.ReceiverAddress, "neo address to release to")
 	flag.BoolVar(&args.isPrivateDual, "privateDual", false, "privateDual is true then peerId will be checked through smc to make sure that it has permission to access the dualchain")
 	flag.Uint64Var(&args.privateNetworkId, "privateNetworkId", 0, "Privatechain Network ID. Private Network ID must be greater than 0")
 	flag.StringVar(&args.privateValIndexes, "privateValIndexes", "", "Indexes of private chain validators")
@@ -404,14 +398,6 @@ func main() {
 		n.RegisterService(dualservice.NewDualService)
 	}
 
-	if args.neoDual {
-		n.RegisterService(neo.NewNeoService)
-	}
-
-	if args.tronDual {
-		n.RegisterService(tron.NewService)
-	}
-
 	if err := n.Start(); err != nil {
 		logger.Error("Cannot start node", "err", err)
 		return
@@ -541,13 +527,14 @@ func main() {
 	exchangeContractAddress := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	exchangeContractAbi := configs.GetContractAbiByAddress(exchangeContractAddress.String())
 	if args.neoDual {
-		generateTx := false
-		if args.dev && args.mockDualEvent {
-			generateTx = true
-		}
-		dualNeo, err := neo.NewNeoProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
-			dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi, args.neoSubmitTxUrl,
-			args.neoCheckTxUrl, args.neoReceiverAddress, generateTx)
+
+		neoProxy, err := neo.NewProxy(kardiaService.BlockChain(),
+			kardiaService.TxPool(),
+			dualService.BlockChain(),
+			dualService.EventPool(),
+			args.publishedEndpoint,
+			args.subscribedEndpoint,
+		)
 
 		if err != nil {
 			log.Error("Fail to initialize NeoProxy", "error", err)
@@ -563,22 +550,13 @@ func main() {
 			}
 			// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 			// submit tx to either internal or external blockchain.
-			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, dualNeo)
+			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, neoProxy)
 			dualService.SetDualBlockChainManager(bcManager)
 			// Register the 'other' blockchain to each internal/external blockchain. This is needed
 			// for generate Tx to submit to the other blockchain.
-			kardiaProxy.RegisterExternalChain(dualNeo)
-			dualNeo.RegisterInternalChain(kardiaProxy)
+			kardiaProxy.RegisterExternalChain(neoProxy)
+			neoProxy.RegisterInternalChain(kardiaProxy)
 			kardiaProxy.Start(args.mockDualEvent)
-			// Register NeoService to interact with NEO from external sides
-			var neoService *neo.NeoService
-			if err := n.Service(&neoService); err != nil {
-				logger.Error("Cannot get Neo Service", "err", err)
-				return
-			} else {
-				// Set up blockchains and event pool for neo service
-				neoService.Initialize(kardiaProxy, dualService.BlockChain(), dualService.EventPool())
-			}
 		} else {
 			var kardiaProxy *kardia.KardiaProxy
 			kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
@@ -588,32 +566,28 @@ func main() {
 			}
 			// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 			// submit tx to either internal or external blockchain.
-			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, dualNeo)
+			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, neoProxy)
 			dualService.SetDualBlockChainManager(bcManager)
 			// Register the 'other' blockchain to each internal/external blockchain. This is needed
 			// for generate Tx to submit to the other blockchain.
-			kardiaProxy.RegisterExternalChain(dualNeo)
-			dualNeo.RegisterInternalChain(kardiaProxy)
+			kardiaProxy.RegisterExternalChain(neoProxy)
+			neoProxy.RegisterInternalChain(kardiaProxy)
 			kardiaProxy.Start(args.mockDualEvent)
-			// Register NeoService to interact with NEO from external sides
-			var neoService *neo.NeoService
-			if err := n.Service(&neoService); err != nil {
-				logger.Error("Cannot get Neo Service", "err", err)
-				return
-			} else {
-				// Set up blockchains and event pool for neo service
-				neoService.Initialize(kardiaProxy, dualService.BlockChain(), dualService.EventPool())
-			}
-
 		}
-
+		// Start NEO proxy
+		neoProxy.Start()
 	}
 
 	// Run TRX-Kardia dual node
 	if args.tronDual {
-
-		 dualTrx, err := tron.NewProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
-		 dualService.EventPool(), args.publishedEndpoint)
+		tronProxy, err := tron.NewProxy(
+			kardiaService.BlockChain(),
+			kardiaService.TxPool(),
+			dualService.BlockChain(),
+			dualService.EventPool(),
+			args.publishedEndpoint,
+			args.subscribedEndpoint,
+		)
 
 		if err != nil {
 			log.Error("Fail to initialize NeoProxy", "error", err)
@@ -629,22 +603,13 @@ func main() {
 			}
 			// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 			// submit tx to either internal or external blockchain.
-			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, dualTrx)
+			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, tronProxy)
 			dualService.SetDualBlockChainManager(bcManager)
 			// Register the 'other' blockchain to each internal/external blockchain. This is needed
 			// for generate Tx to submit to the other blockchain.
-			kardiaProxy.RegisterExternalChain(dualTrx)
-			dualTrx.RegisterInternalChain(kardiaProxy)
+			kardiaProxy.RegisterExternalChain(tronProxy)
+			tronProxy.RegisterInternalChain(kardiaProxy)
 			kardiaProxy.Start(args.mockDualEvent)
-			// Register TronService to interact with TRON from external sides
-			var tronService *tron.Service
-			if err := n.Service(&tronService); err != nil {
-				logger.Error("Cannot get TRON Service", "err", err)
-				return
-			}
-
-			// Set up blockchains and event pool for neo service
-			tronService.Initialize(kardiaProxy, dualService.BlockChain(), dualService.EventPool(), kardiaService.TxPool(), args.subscribedEndpoint)
 		} else {
 			var kardiaProxy *kardia.KardiaProxy
 			kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
@@ -654,24 +619,17 @@ func main() {
 			}
 			// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 			// submit tx to either internal or external blockchain.
-			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, dualTrx)
+			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, tronProxy)
 			dualService.SetDualBlockChainManager(bcManager)
 			// Register the 'other' blockchain to each internal/external blockchain. This is needed
 			// for generate Tx to submit to the other blockchain.
-			kardiaProxy.RegisterExternalChain(dualTrx)
-			dualTrx.RegisterInternalChain(kardiaProxy)
+			kardiaProxy.RegisterExternalChain(tronProxy)
+			tronProxy.RegisterInternalChain(kardiaProxy)
 			kardiaProxy.Start(args.mockDualEvent)
-			// Register TronService to interact with TRON from external sides
-			var tronService *tron.Service
-			if err := n.Service(&tronService); err != nil {
-				logger.Error("Cannot get TRON Service", "err", err)
-				return
-			}
-
-			// Set up blockchains and event pool for neo service
-			tronService.Initialize(kardiaProxy, dualService.BlockChain(), dualService.EventPool(), kardiaService.TxPool(), args.subscribedEndpoint)
-
 		}
+
+		// Start tron proxy
+		tronProxy.Start()
 	}
 
 	// Run Eth-Kardia dual node

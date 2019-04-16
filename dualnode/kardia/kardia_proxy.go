@@ -21,7 +21,6 @@ package kardia
 import (
 	"math/big"
 	"strings"
-
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode"
@@ -33,15 +32,23 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/kai/events"
 )
+
+const KARDIA_PROXY = "KARDIA_PROXY"
 
 // Proxy of Kardia's chain to interface with dual's node, responsible for listening to the chain's
 // new block and submiting Kardia's transaction.
 type KardiaProxy struct {
+
+	// name is name of proxy, or type that proxy connects to (eg: NEO, TRX, ETH, KARDIA)
+	name   string
+	logger log.Logger
+
 	// Kardia's mainchain stuffs.
 	kardiaBc     base.BaseBlockChain
 	txPool       *tx_pool.TxPool
-	chainHeadCh  chan base.ChainHeadEvent // Used to subscribe for new blocks.
+	chainHeadCh  chan events.ChainHeadEvent // Used to subscribe for new blocks.
 	chainHeadSub event.Subscription
 
 	// Dual blockchain related fields
@@ -82,6 +89,10 @@ func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc
 		return nil, err
 	}
 
+	// Create a specific logger for Kardia Proxy.
+	logger := log.New()
+	logger.AddTag(KARDIA_PROXY)
+
 	// TODO(namdoh@): Pass this dynamically from Kardia's state.
 	actionsTmp := [...]*types.DualAction{
 		&types.DualAction{
@@ -103,11 +114,12 @@ func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc
 		}}
 
 	processor := &KardiaProxy{
+		name:          configs.KARDIA,
 		kardiaBc:      kardiaBc,
 		txPool:        txPool,
 		dualBc:        dualBc,
 		eventPool:     dualEventPool,
-		chainHeadCh:   make(chan base.ChainHeadEvent, 5),
+		chainHeadCh:   make(chan events.ChainHeadEvent, 5),
 		kaiSmcAddress: smcAddr,
 		smcABI:        &smcABI,
 		kardiaSmcs:    kardiaSmcsTemp[:],
@@ -117,6 +129,53 @@ func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc
 	processor.chainHeadSub = kardiaBc.SubscribeChainHeadEvent(processor.chainHeadCh)
 
 	return processor, nil
+}
+
+// PublishedEndpoint returns publishedEndpoint
+func (p *KardiaProxy) PublishedEndpoint() string {
+	return ""
+}
+
+// SubscribedEndpoint returns subscribedEndpoint
+func (p *KardiaProxy) SubscribedEndpoint() string {
+	return ""
+}
+
+// InternalChain returns internalChain which is internal proxy (eg:kardiaProxy)
+func (p *KardiaProxy) InternalChain() base.BlockChainAdapter {
+	return nil
+}
+
+func (p *KardiaProxy) ExternalChain() base.BlockChainAdapter {
+	return p.externalChain
+}
+
+// DualEventPool returns dual's eventPool
+func (p *KardiaProxy) DualEventPool() *event_pool.EventPool {
+	return p.eventPool
+}
+
+// KardiaTxPool returns Kardia Blockchain's tx pool
+func (p *KardiaProxy) KardiaTxPool() *tx_pool.TxPool {
+	return p.txPool
+}
+
+// DualBlockChain returns dual blockchain
+func (p *KardiaProxy) DualBlockChain() base.BaseBlockChain {
+	return p.dualBc
+}
+
+// KardiaBlockChain returns kardia blockchain
+func (p *KardiaProxy) KardiaBlockChain() base.BaseBlockChain {
+	return p.kardiaBc
+}
+
+func (p *KardiaProxy) Logger() log.Logger {
+	return p.logger
+}
+
+func (p *KardiaProxy) Name() string {
+	return p.name
 }
 
 func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
@@ -137,10 +196,11 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 				return configs.ErrInsufficientExchangeData
 			}
 
-			srcPair := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
+			fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
+			toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
 			originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 
-			if srcPair == configs.ETH2NEO {
+			if fromType == configs.ETH {
 				originalTx = common.Encode(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 			}
 
@@ -149,7 +209,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 
 			log.Info("Create order and match tx:", "source", srcAddress, "dest", destAddress, "txhash", originalTx)
 
-			tx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue, srcAddress, destAddress, event.TxSource, originalTx, p.kardiaBc)
+			tx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue, srcAddress, destAddress, fromType, toType, originalTx, p.kardiaBc)
 			if err != nil {
 				log.Error("Fail to create Kardia's tx from DualEvent", "err", err)
 				return configs.ErrCreateKardiaTx
@@ -204,17 +264,18 @@ func (p *KardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetada
 		if event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex] == nil || len(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex]) == 0 {
 			log.Error("Missing original tx hash")
 		}
-		srcPair := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
+		fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
+		toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
 		originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 
-		if srcPair == configs.ETH2NEO {
+		if fromType == configs.ETH {
 			originalTx = common.Encode(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 		}
 
 		log.Info("Computing tx metadata for tx", "hash", originalTx)
 		kardiaTx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue,
 			string(event.Data.ExtData[configs.ExchangeV2SourceAddressIndex]), string(event.Data.ExtData[configs.ExchangeV2DestAddressIndex]),
-			event.TxSource, originalTx, p.kardiaBc)
+			fromType, toType, originalTx, p.kardiaBc)
 		if err != nil {
 			return nil, err
 		}

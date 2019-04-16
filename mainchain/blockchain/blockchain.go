@@ -35,7 +35,7 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/mainchain/permissioned"
-	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/events"
 )
 
 const (
@@ -224,7 +224,7 @@ func (bc *BlockChain) CheckCommittedStateRoot(root common.Hash) bool {
 }
 
 // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
-func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- base.ChainHeadEvent) event.Subscription {
+func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription {
 	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
 }
 
@@ -395,7 +395,7 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) error {
 	bc.futureBlocks.Remove(block.Hash())
 
 	// Sends new head event
-	bc.chainHeadFeed.Send(base.ChainHeadEvent{Block: block})
+	bc.chainHeadFeed.Send(events.ChainHeadEvent{Block: block})
 	return nil
 }
 
@@ -433,7 +433,7 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	bc.futureBlocks.Remove(block.Hash())
 
 	// Sends new head event
-	bc.chainHeadFeed.Send(base.ChainHeadEvent{Block: block})
+	bc.chainHeadFeed.Send(events.ChainHeadEvent{Block: block})
 	return nil
 }
 

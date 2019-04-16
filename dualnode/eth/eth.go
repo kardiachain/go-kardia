@@ -59,16 +59,17 @@ import (
 const (
 	// headChannelSize is the size of channel listening to ChainHeadEvent.
 	headChannelSize = 5
-)
-
-var (
-	ErrAddEthTx     = errors.New("Fail to add tx to Ether's TxPool")
-	TenPoweredByTen = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(10), nil)
+	ServiceName = "ETH"
 )
 
 // A full Ethereum node. In additional, it provides additional interface with dual's node,
 // responsible for listening to Eth blockchain's new block and submiting Eth's transaction .
 type Eth struct {
+
+	// name is name of proxy, or type that proxy connects to (eg: NEO, TRX, ETH, KARDIA)
+	name   string
+	logger log.Logger
+
 	// Eth's blockchain stuffs.
 	geth   *node.Node
 	config *EthConfig
@@ -103,6 +104,10 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 	if err != nil {
 		return nil, err
 	}
+
+	// Create a specific logger for ETH Proxy.
+	logger := log.New()
+	logger.AddTag(ServiceName)
 
 	bootUrls := params.RinkebyBootnodes
 	bootstrapNodes := make([]*enode.Node, 0, len(bootUrls))
@@ -221,6 +226,7 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 		}}
 
 	return &Eth{
+		name:          ServiceName,
 		geth:          ethNode,
 		config:        config,
 		ethSmc:        ethsmc.NewEthSmc(),
@@ -232,6 +238,53 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 		smcABI:        &smcABI,
 		kardiaSmcs:    kardiaSmcsTemp[:],
 	}, nil
+}
+
+// PublishedEndpoint returns publishedEndpoint
+func (p *Eth) PublishedEndpoint() string {
+	return ""
+}
+
+// SubscribedEndpoint returns subscribedEndpoint
+func (p *Eth) SubscribedEndpoint() string {
+	return ""
+}
+
+// InternalChain returns internalChain which is internal proxy (eg:kardiaProxy)
+func (p *Eth) InternalChain() base.BlockChainAdapter {
+	return p.internalChain
+}
+
+func (p *Eth) ExternalChain() base.BlockChainAdapter {
+	return nil
+}
+
+// DualEventPool returns dual's eventPool
+func (p *Eth) DualEventPool() *event_pool.EventPool {
+	return p.eventPool
+}
+
+// KardiaTxPool returns Kardia Blockchain's tx pool
+func (p *Eth) KardiaTxPool() *tx_pool.TxPool {
+	return p.txPool
+}
+
+// DualBlockChain returns dual blockchain
+func (p *Eth) DualBlockChain() base.BaseBlockChain {
+	return p.dualChain
+}
+
+// KardiaBlockChain returns kardia blockchain
+func (p *Eth) KardiaBlockChain() base.BaseBlockChain {
+	return p.kardiaChain
+}
+
+func (p *Eth) Logger() log.Logger {
+	return p.logger
+}
+
+func (p *Eth) Name() string {
+	return p.name
 }
 
 func (n *Eth) SubmitTx(event *types.EventData) error {
@@ -246,9 +299,12 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 		}
 		senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
 		originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
+		fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
+		toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
 		// We get all releasable orders which are matched with newly added order
 		releases, err := utils.CallKardiGetMatchingResultByTxId(senderAddr, n.kardiaChain, statedb, originalTx)
 		if err != nil {
+			n.Logger().Error("error on CallKardiGetMatchingResultByTxId", "senderAddr", senderAddr, "originalTx", originalTx, "err", err)
 			return err
 		}
 		log.Info("Release info", "release", releases)
@@ -256,16 +312,16 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 			fields := strings.Split(releases, configs.ExchangeV2ReleaseFieldsSeparator)
 			if len(fields) != 4 {
 				log.Error("Invalid number of field", "release", releases)
-				return errors.New("Invalid number of field for release")
+				return errors.New("invalid number of field for release")
 			}
 			arrTypes := strings.Split(fields[configs.ExchangeV2ReleaseToTypeIndex], configs.ExchangeV2ReleaseValuesSepatator)
 			arrAddresses := strings.Split(fields[configs.ExchangeV2ReleaseAddressesIndex], configs.ExchangeV2ReleaseValuesSepatator)
 			arrAmounts := strings.Split(fields[configs.ExchangeV2ReleaseAmountsIndex], configs.ExchangeV2ReleaseValuesSepatator)
 			arrTxIds := strings.Split(fields[configs.ExchangeV2ReleaseTxIdsIndex], configs.ExchangeV2ReleaseValuesSepatator)
-			rateEth, rateNeo, err := utils.CallGetRate(configs.ETH, configs.NEO, n.kardiaChain, statedb)
+			fromAmount, toAmount, err := utils.CallGetRate(fromType, toType, n.kardiaChain, statedb)
 			if err != nil {
-				rateEth = big.NewInt(configs.RateETH)
-				rateNeo = big.NewInt(configs.RateNEO)
+				n.Logger().Error("error on getting rate", "fromType", fromType, "toType", toType, "err", err)
+				return err
 			}
 			for i, t := range arrTypes {
 				if t == configs.ETH { // The receiving end of the release is ETH
@@ -281,12 +337,15 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 						continue
 					}
 					// Calculate the released amount by wei
-					convertedAmount := big.NewInt(amount).Mul(big.NewInt(amount), rateNeo)
-					convertedAmount = convertedAmount.Div(convertedAmount, rateEth)
-					amountToRelease := big.NewInt(amount).Mul(convertedAmount, TenPoweredByTen)
-					log.Info("Amount", "convertedAmount", convertedAmount, "amountToRelease", amountToRelease)
-					err := n.releaseTxAndCompleteRequest(arrTxIds[i], amountToRelease, address)
+					convertedAmount := big.NewInt(amount).Mul(big.NewInt(amount), toAmount)
+					convertedAmount = convertedAmount.Div(convertedAmount, fromAmount)
+					amountToRelease, err := getReleasedAmount(fromType, convertedAmount)
 					if err != nil {
+						log.Error("Error getting released amount", "err", err)
+					}
+
+					log.Info("Amount", "convertedAmount", convertedAmount, "amountToRelease", amountToRelease)
+					if err = n.releaseTxAndCompleteRequest(arrTxIds[i], amountToRelease, address); err != nil {
 						log.Error("Error release ETH", "originalTxID", arrTxIds[i], "receiver", address, "err", err)
 					}
 				}
@@ -299,6 +358,20 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 		return configs.ErrUnsupportedMethod
 	}
 	return configs.ErrUnsupportedMethod
+}
+
+// getReleasedAmount converts amount to ETH amount based on original chain (NEO, TRX)
+func getReleasedAmount(fromType string, convertedAmount *big.Int) (*big.Int, error) {
+	switch fromType {
+	case configs.NEO:
+		// if fromType is NEO then convert from NEO unit (10^8) to 10^18
+		return big.NewInt(1).Mul(convertedAmount, utils.TenPoweredByTen), nil
+	case configs.TRON:
+		// if fromType is TRON then convert from TRON unit (10^6) to 10^18
+		return big.NewInt(1).Mul(convertedAmount, utils.TenPoweredByTwelve), nil
+	default:
+		return nil, fmt.Errorf("invalid fromType %v", fromType)
+	}
 }
 
 // releaseTxAndCompleteRequest release eth to receiver and creates a tx to complete it in kardia smart contract
@@ -570,8 +643,8 @@ func (n *Eth) extractEthTxSummary(tx *ethTypes.Transaction, sender string) (type
 	// Compose extraData struct for fields related to exchange
 	extraData[configs.ExchangeV2SourceAddressIndex] = []byte(sender)
 	extraData[configs.ExchangeV2DestAddressIndex] = []byte(receiveAddress)
-	extraData[configs.ExchangeV2SourcePairIndex] = []byte(destination)
-	extraData[configs.ExchangeV2DestPairIndex] = []byte(configs.NEO)
+	extraData[configs.ExchangeV2SourcePairIndex] = []byte(configs.ETH)
+	extraData[configs.ExchangeV2DestPairIndex] = []byte(destination)
 	extraData[configs.ExchangeV2AmountIndex] = tx.Value().Bytes()
 	extraData[configs.ExchangeV2OriginalTxIdIndex] = tx.Hash().Bytes()
 	extraData[configs.ExchangeV2TimestampIndex] = big.NewInt(time.Now().Unix()).Bytes()
