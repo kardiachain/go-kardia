@@ -1,6 +1,6 @@
 [[constraint]]
   name = "github.com/ethereum/go-ethereum"
-  version = "1.8.21"
+  version = "1.8.26"
 
 [[constraint]]
   name = "github.com/go-stack/stack"
