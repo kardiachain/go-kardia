@@ -61,7 +61,7 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:b42be5a3601f833e0b9f2d6625d887ec1309764bfcac3d518f3db425dcd4ec5c"
+  digest = "1:4f68ec67518b2f61953ca7a3dd3920a041efb401bf36319e2d262766cf75c6ad"
   name = "github.com/ethereum/go-ethereum"
   packages = [
     ".",
@@ -127,8 +127,8 @@
     "trie",
   ]
   pruneopts = "T"
-  revision = "9dc5d1a915ac0e0bd8429d6ac41df50eec91de5f"
-  version = "v1.8.21"
+  revision = "cdae1c59abc32f85debfa29577fbf1ed036ebf73"
+  version = "v1.8.26"
 
 [[projects]]
   branch = "master"
@@ -479,7 +479,6 @@
     "github.com/ethereum/go-ethereum/p2p/discv5",
     "github.com/ethereum/go-ethereum/p2p/enode",
     "github.com/ethereum/go-ethereum/params",
-    "github.com/ethereum/go-ethereum/rlp",
     "github.com/go-stack/stack",
     "github.com/golang/protobuf/proto",
     "github.com/golang/snappy",
