@@ -26,3 +26,7 @@
 [[prune.project]]
   name = "github.com/karalabe/hid"
   unused-packages = false
+
+[[constraint]]
+  name = "github.com/golang/protobuf"
+  version = "1.2.0"

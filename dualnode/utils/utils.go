@@ -19,16 +19,14 @@
 package utils
 
 import (
-	"fmt"
-	"time"
-	"strings"
-	"strconv"
-	"math/big"
 	"crypto/ecdsa"
 	"encoding/hex"
-	"github.com/pebbe/zmq4"
-	"github.com/pkg/errors"
+	"fmt"
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/dualnode"
+	dualMsg "github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
@@ -39,9 +37,12 @@ import (
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
-	dualMsg "github.com/kardiachain/go-kardia/dualnode/message"
-	"github.com/kardiachain/go-kardia/dualnode"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/pebbe/zmq4"
+	"github.com/pkg/errors"
+	"math/big"
+	"strconv"
+	"strings"
+	"time"
 )
 
 // TODO(@sontranrad): remove all of these constants for production
@@ -294,7 +295,7 @@ func IsNilOrEmpty(data []byte) bool { return data == nil || string(data) == "" }
 func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) error {
 	pub, _ := zmq4.NewSocket(zmq4.PUB)
 	defer pub.Close()
-	pub.Bind(endpoint)
+	pub.Connect(endpoint)
 
 	// sleep 1 second to prevent socket closes
 	time.Sleep(1 * time.Second)
@@ -310,24 +311,6 @@ func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) erro
 	}
 
 	return nil
-}
-
-// GetExchangePair split string into 2 pairs and validate if 2 pairs are valid or not.
-func GetExchangePair(pair string) (*string, *string, error) {
-	pairs := strings.Split(pair, "-")
-	if len(pairs) != 2 {
-		return nil, nil, fmt.Errorf("invalid pair %v", pairs)
-	}
-
-	if _, ok := AvailableExchangeType[pairs[0]]; !ok {
-		return nil, nil, fmt.Errorf("invalid first type %v", pairs[0])
-	}
-
-	if _, ok := AvailableExchangeType[pairs[1]]; !ok {
-		return nil, nil, fmt.Errorf("invalid second type %v", pairs[1])
-	}
-
-	return &pairs[0], &pairs[1], nil
 }
 
 // ExecuteKardiaSmartContract executes smart contract based on address, method and list of params
@@ -360,7 +343,9 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 	case DUAL_CALL:
 		// callback from dual
 		triggerMessage := dualMsg.TriggerMessage{}
-		triggerMessage.XXX_Unmarshal([]byte(message))
+		if err := jsonpb.UnmarshalString(message, &triggerMessage); err != nil {
+			return err
+		}
 
 		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool().State(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
 		if err != nil {
@@ -375,7 +360,9 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 		// message from dual after it catches a triggered smc tx
 		// unpack contents to DualMessage
 		msg := dualMsg.Message{}
-		msg.XXX_Unmarshal([]byte(message))
+		if err := jsonpb.UnmarshalString(message, &msg); err != nil {
+			return err
+		}
 
 		// TODO: this is used for exchange demo, remove the condition whenever we have dynamic handler method for this
 		if msg.MethodName == configs.ExternalDepositFunction {
@@ -389,19 +376,35 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 func StartSubscribe(proxy base.BlockChainAdapter) {
 	subscriber, _ := zmq4.NewSocket(zmq4.SUB)
 	defer subscriber.Close()
-	subscriber.Connect(proxy.SubscribedEndpoint())
-
+	subscriber.Bind(proxy.SubscribedEndpoint())
+	subscriber.SetSubscribe("")
+	time.Sleep(time.Second)
 	for {
-		//  Read envelope with address
-		topic, _ := subscriber.Recv(0)
-		//  Read message contents
-		contents, _ := subscriber.Recv(0)
-		fmt.Printf("[%s] %s\n", topic, contents)
-
-		if err := MessageHandler(proxy, topic, contents); err != nil {
-			proxy.Logger().Error("Error while creating new event", "err", err.Error())
+		if err := subscribe(subscriber, proxy); err != nil {
+			proxy.Logger().Error("Error while subscribing", "err", err.Error())
 		}
 	}
+}
+
+// subscribe handles getting/handle topic and content, return error if any
+func subscribe(subscriber *zmq4.Socket, proxy base.BlockChainAdapter) error {
+	//  Read envelope with address
+	topic, err := subscriber.Recv(0)
+	if err != nil {
+		return err
+	}
+	//  Read message contents
+	contents, err := subscriber.Recv(0)
+	if err != nil {
+		return err
+	}
+	proxy.Logger().Info("[%s] %s\n", topic, contents)
+
+	if err := MessageHandler(proxy, topic, contents); err != nil {
+		proxy.Logger().Error("Error while creating new event", "err", err.Error())
+		return err
+	}
+	return nil
 }
 
 // NewEvent receives data from Tron where encodedMsg is used for validating the message
@@ -415,19 +418,15 @@ func NewEvent(proxy base.BlockChainAdapter, msg dualMsg.Message) error {
 
 	// TODO: This is used for exchange use case, will remove this after applying dynamic method
 	receiver := []byte(msg.GetParams()[0])
-	pair := msg.GetParams()[1]
-
-	from, to, err := GetExchangePair(pair)
-	if err != nil {
-		return nil
-	}
+	to := msg.GetParams()[1]
+	from := proxy.Name()
 
 	txHash := common.HexToHash(msg.GetTransactionId())
 	nonce := dualState.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
 	// Compose extraData struct for fields related to exchange from data extracted by Neo event
 	extraData := make([][]byte, configs.ExchangeV2NumOfExchangeDataField)
-	extraData[configs.ExchangeV2SourcePairIndex] = []byte(*from)
-	extraData[configs.ExchangeV2DestPairIndex] = []byte(*to)
+	extraData[configs.ExchangeV2SourcePairIndex] = []byte(from)
+	extraData[configs.ExchangeV2DestPairIndex] = []byte(to)
 	extraData[configs.ExchangeV2SourceAddressIndex] = []byte(msg.GetSender())
 	extraData[configs.ExchangeV2DestAddressIndex] = receiver
 	extraData[configs.ExchangeV2OriginalTxIdIndex] = []byte(msg.GetTransactionId())
@@ -532,7 +531,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 
 	fromAmount, toAmount, err := CallGetRate(fromType, toType, proxy.KardiaBlockChain(), stateDB)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// We get all releasable orders which are matched with newly added order
@@ -594,7 +593,10 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 					}
 
 				}
-				go Release(proxy, address, releasedAmount.String(), arrTxIds[i])
+				if err := Release(proxy, address, releasedAmount.String(), arrTxIds[i]); err != nil {
+					proxy.Logger().Error("Error when releasing", "err", err.Error())
+					return err
+				}
 			}
 		}
 	}
