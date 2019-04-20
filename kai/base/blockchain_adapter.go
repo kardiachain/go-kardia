@@ -62,6 +62,6 @@ type BlockChainAdapter interface {
 	// KardiaTxPool returns Kardia Blockchain's tx pool
 	KardiaTxPool() *tx_pool.TxPool
 
-	// Name returns name of proxy (eg: NEO, TRX, ETH, KARDIA)
+	// Name returns name of proxy (eg: NEO, TRX, ETH, KAI)
 	Name() string
 }
