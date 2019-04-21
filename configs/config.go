@@ -225,23 +225,25 @@ func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
 
 // ======================= Genesis Const =======================
 
-var initValue = int64(math.Pow10(24))
+var InitValue = big.NewInt(int64(math.Pow10(6)))
+var InitValueInCell = InitValue.Mul(InitValue, big.NewInt(int64(math.Pow10(18)))) 
+
 
 // GenesisAccounts are used to initialized accounts in genesis block
-var GenesisAccounts = map[string]int64{
+var GenesisAccounts = map[string]*big.Int{
 	// TODO(kiendn): These addresses are same of node address. Change to another set.
-	"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
-	"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
-	"0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd": initValue,
-	"0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28": initValue,
-	"0x94FD535AAB6C01302147Be7819D07817647f7B63": initValue,
-	"0xa8073C95521a6Db54f4b5ca31a04773B093e9274": initValue,
-	"0xe94517a4f6f45e80CbAaFfBb0b845F4c0FDD7547": initValue,
-	"0xBA30505351c17F4c818d94a990eDeD95e166474b": initValue,
-	"0x212a83C0D7Db5C526303f873D9CeaA32382b55D0": initValue,
-	"0x8dB7cF1823fcfa6e9E2063F983b3B96A48EEd5a4": initValue,
-	"0x8C10639F908FED884a04C5A49A2735AB726DDaB4": initValue,
-	"0x2BB7316884C7568F2C6A6aDf2908667C0d241A66": initValue,
+	"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": InitValueInCell,
+	"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": InitValueInCell,
+	"0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd": InitValueInCell,
+	"0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28": InitValueInCell,
+	"0x94FD535AAB6C01302147Be7819D07817647f7B63": InitValueInCell,
+	"0xa8073C95521a6Db54f4b5ca31a04773B093e9274": InitValueInCell,
+	"0xe94517a4f6f45e80CbAaFfBb0b845F4c0FDD7547": InitValueInCell,
+	"0xBA30505351c17F4c818d94a990eDeD95e166474b": InitValueInCell,
+	"0x212a83C0D7Db5C526303f873D9CeaA32382b55D0": InitValueInCell,
+	"0x8dB7cF1823fcfa6e9E2063F983b3B96A48EEd5a4": InitValueInCell,
+	"0x8C10639F908FED884a04C5A49A2735AB726DDaB4": InitValueInCell,
+	"0x2BB7316884C7568F2C6A6aDf2908667C0d241A66": InitValueInCell,
 	// TODO(namdoh): Re-enable after parsing node index fixed in main.go
 	//"0x36BE7365e6037bD0FDa455DC4d197B07A2002547": 100000000,
 }

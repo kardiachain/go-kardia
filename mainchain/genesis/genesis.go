@@ -28,6 +28,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
+	"math"
 	"math/big"
 )
 
@@ -200,7 +201,7 @@ func DefaultGenesisBlock() *Genesis {
 }
 
 // DefaultTestnetGenesisBlock returns the test network genesis block from configs.
-func DefaultTestnetGenesisBlock(allocData map[string]int64) *Genesis {
+func DefaultTestnetGenesisBlock(allocData map[string]*big.Int) *Genesis {
 
 	ga, err := GenesisAllocFromData(allocData)
 	if err != nil {
@@ -215,7 +216,7 @@ func DefaultTestnetGenesisBlock(allocData map[string]int64) *Genesis {
 }
 
 // DefaultTestnetFullGenesisBlock return turn the test network genesis block with both account and smc from configs
-func DefaulTestnetFullGenesisBlock(accountData map[string]int64, contractData map[string]string) *Genesis {
+func DefaulTestnetFullGenesisBlock(accountData map[string]*big.Int, contractData map[string]string) *Genesis {
 	ga, err := GenesisAllocFromAccountAndContract(accountData, contractData)
 	if err != nil {
 		return nil
@@ -227,11 +228,11 @@ func DefaulTestnetFullGenesisBlock(accountData map[string]int64, contractData ma
 	}
 }
 
-func GenesisAllocFromData(data map[string]int64) (GenesisAlloc, error) {
+func GenesisAllocFromData(data map[string]*big.Int) (GenesisAlloc, error) {
 	ga := make(GenesisAlloc, len(data))
 
 	for address, balance := range data {
-		ga[common.HexToAddress(address)] = GenesisAccount{Balance: big.NewInt(balance)}
+		ga[common.HexToAddress(address)] = GenesisAccount{Balance: balance}
 	}
 
 	return ga, nil
@@ -255,19 +256,27 @@ func GenesisAllocFromContractData(data map[string]string) (GenesisAlloc, error) 
 	ga := make(GenesisAlloc, len(data))
 
 	for address, code := range data {
-		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: big.NewInt(100)}
+		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: ToCell(100)}
 	}
 	return ga, nil
 }
 
-func GenesisAllocFromAccountAndContract(accountData map[string]int64, contractData map[string]string) (GenesisAlloc, error) {
+func GenesisAllocFromAccountAndContract(accountData map[string]*big.Int, contractData map[string]string) (GenesisAlloc, error) {
 	ga := make(GenesisAlloc, len(accountData)+len(contractData))
 
 	for address, balance := range accountData {
-		ga[common.HexToAddress(address)] = GenesisAccount{Balance: big.NewInt(balance)}
+		ga[common.HexToAddress(address)] = GenesisAccount{Balance: balance}
 	}
 	for address, code := range contractData {
-		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: big.NewInt(100)}
+		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: ToCell(100)}
 	}
 	return ga, nil
+}
+
+
+// ToCell converts KAI to CELL. eg: amount * 10^18
+func ToCell(amount int64) *big.Int {
+	cell := big.NewInt(amount)
+	cell.Mul(cell, big.NewInt(int64(math.Pow10(18))))
+	return cell
 }
