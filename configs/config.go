@@ -225,7 +225,7 @@ func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
 
 // ======================= Genesis Const =======================
 
-var initValue = int64(math.Pow10(15))
+var initValue = int64(math.Pow10(24))
 
 // GenesisAccounts are used to initialized accounts in genesis block
 var GenesisAccounts = map[string]int64{
