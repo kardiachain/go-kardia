@@ -132,6 +132,11 @@ contract KardiaExchange {
         return owner;
     }
 
+    // isAuthorized returns given user address is authorized or not
+    function isAuthorized(address user) public view returns (bool) {
+        return authorizedUsers[user];
+    }
+
     // authorizedUser authorize an address to be admin
     function authorizedUser(address user) public isRoot {
         authorizedUsers[user] = true;
