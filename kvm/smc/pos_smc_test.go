@@ -19,15 +19,15 @@
 package kvm
 
 import (
-	"math"
-	"math/big"  
-    kaidb "github.com/kardiachain/go-kardia/kai/storage"
+	kaidb "github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
-    "github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"math"
+	"math/big"
 	"strings"
 	"testing"
 )
@@ -141,10 +141,12 @@ var pos_smc_definition = `[
 ]`
 
 func SetupBlockchainForTesting() (*blockchain.BlockChain, error) {
-	var genesisAccounts = map[string]int64{
-		"0x1234": int64(math.Pow10(18)),
-		"0x5678": int64(math.Pow10(18)),
-		"0xabcd": int64(math.Pow10(18)),
+	initValue := genesis.ToCell(int64(math.Pow10(6)))
+
+	var genesisAccounts = map[string]*big.Int{
+		"0x1234": initValue,
+		"0x5678": initValue,
+		"0xabcd": initValue,
 	}
 	kaiDb := kaidb.NewMemStore()
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
@@ -159,24 +161,24 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, error) {
 
 // E2e PoS testing
 func TestPoS(t *testing.T) {
-    bc, err := SetupBlockchainForTesting()
+	bc, err := SetupBlockchainForTesting()
 	if err != nil {
 		t.Fatal(err)
 	}
 	state, err := bc.State()
 	if err != nil {
 		t.Fatal(err)
-    }   
+	}
 
 	// Setup contract code into genesis state
-    address := common.HexToAddress("0x0a")
+	address := common.HexToAddress("0x0a")
 	state.SetCode(address, pos_smc_code)
 	abi, err := abi.JSON(strings.NewReader(pos_smc_definition))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Gets candidate count and verifies it is 0 
+	// Gets candidate count and verifies it is 0
 	get, err := abi.Pack("getCandidateCount")
 	if err != nil {
 		t.Fatal(err)
@@ -188,10 +190,10 @@ func TestPoS(t *testing.T) {
 	num := new(big.Int).SetBytes(result)
 	if num.Cmp(big.NewInt(0)) != 0 {
 		t.Error("Expected 0 candidate, got", num)
-    }
-    
-    // Stake for one candidate
-    stake, err := abi.Pack("stake", common.HexToAddress("0x1111"))
+	}
+
+	// Stake for one candidate
+	stake, err := abi.Pack("stake", common.HexToAddress("0x1111"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,8 +202,8 @@ func TestPoS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-    // Stake for second candidate
-    stake, err = abi.Pack("stake", common.HexToAddress("0x2222"))
+	// Stake for second candidate
+	stake, err = abi.Pack("stake", common.HexToAddress("0x2222"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +211,7 @@ func TestPoS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// Stake for third candidate
 	stake, err = abi.Pack("stake", common.HexToAddress("0x3333"))
 	if err != nil {
@@ -219,7 +221,7 @@ func TestPoS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// Gets candidate count again and verifies it is 3 now
 	result, _, err = sample_kvm.Call(address, get, &sample_kvm.Config{State: state})
 	if err != nil {
@@ -228,10 +230,10 @@ func TestPoS(t *testing.T) {
 	num = new(big.Int).SetBytes(result)
 	if num.Cmp(big.NewInt(3)) != 0 {
 		t.Error("Expected 3 candidate, got", num)
-    }
-    
-    // Get first candidate to verify
-    getCandidate, err := abi.Pack("candidateMap", common.HexToAddress("0x1111"))
+	}
+
+	// Get first candidate to verify
+	getCandidate, err := abi.Pack("candidateMap", common.HexToAddress("0x1111"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -242,10 +244,10 @@ func TestPoS(t *testing.T) {
 	num = new(big.Int).SetBytes(result[:32])
 	if num.Cmp(big.NewInt(1000)) != 0 {
 		t.Error("Expected 1000 stake, got", num)
-    }
-    
-    // Get second candidate to verify
-    getCandidate, err = abi.Pack("candidateMap", common.HexToAddress("0x2222"))
+	}
+
+	// Get second candidate to verify
+	getCandidate, err = abi.Pack("candidateMap", common.HexToAddress("0x2222"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,7 +258,7 @@ func TestPoS(t *testing.T) {
 	num = new(big.Int).SetBytes(result[:32])
 	if num.Cmp(big.NewInt(2000)) != 0 {
 		t.Error("Expected 2000 stake, got", num)
-    }
+	}
 
 	// Get first validator
 	getVal, err := abi.Pack("validatorList", big.NewInt(0))
@@ -271,7 +273,7 @@ func TestPoS(t *testing.T) {
 	if !addr.Equal(common.HexToAddress("0x3333")) {
 		t.Error("Expected 0x3333, got ", addr.String())
 	}
-	
+
 	// Check current validator list
 	getValList, err := abi.Pack("getValidatorList")
 	if err != nil {
@@ -286,7 +288,7 @@ func TestPoS(t *testing.T) {
 	if !addr.Equal(common.HexToAddress("0x3333")) {
 		t.Error("Expected 0x3333, got ", addr.String())
 	}
-	
+
 	// Now, stake more for first candidate, so he will become the highest validator
 	stake, err = abi.Pack("stake", common.HexToAddress("0x1111"))
 	if err != nil {
@@ -296,7 +298,7 @@ func TestPoS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	// Now check for the validator list again and verify first candidate is at the top
 	getValList, err = abi.Pack("getValidatorList")
 	if err != nil {
@@ -312,4 +314,3 @@ func TestPoS(t *testing.T) {
 		t.Error("Expected 0x1111, got ", addr.String())
 	}
 }
-

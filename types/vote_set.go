@@ -129,7 +129,7 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	if !vote.Height.Equals(voteSet.height) ||
 		!vote.Round.Equals(voteSet.round) ||
 		vote.Type != voteSet.type_ {
-		return false, errors.Wrapf(ErrVoteUnexpectedStep, "Got %d/%d/%d, expected %d/%d/%d",
+		return false, errors.Wrapf(ErrVoteUnexpectedStep, "Got %v/%v/%v, expected %v/%v/%v",
 			voteSet.height, voteSet.round, voteSet.type_,
 			vote.Height, vote.Round, vote.Type)
 	}

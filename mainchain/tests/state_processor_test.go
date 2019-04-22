@@ -19,27 +19,28 @@
 package tests
 
 import (
-	"fmt"
 	"errors"
+	"fmt"
+	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kvm"
+	abi "github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	"github.com/kardiachain/go-kardia/types"
 	"math"
 	"math/big"
 	"strings"
 	"testing"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/kvm"
-	"github.com/kardiachain/go-kardia/kai/storage"
-	abi "github.com/kardiachain/go-kardia/lib/abi"
-	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
-	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
 // GenesisAccounts are used to initialized accounts in genesis block
-var genesisAccounts = map[string]int64{
-	"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": int64(math.Pow10(15)),
-	"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": int64(math.Pow10(15)),
+var initValue = genesis.ToCell(int64(math.Pow10(6)))
+var genesisAccounts = map[string]*big.Int{
+	"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
+	"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
 }
 
 // The following abiInterface and contractCode are generated from 'Counter' smartcontract:
@@ -90,7 +91,7 @@ var (
   }
 ]`
 	contractCode = common.Hex2Bytes("608060405234801561001057600080fd5b5060da8061001f6000396000f30060806040526004361060485763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166324b8ba5f8114604d5780636d4ce63c146067575b600080fd5b348015605857600080fd5b50606560ff60043516608f565b005b348015607257600080fd5b50607960a5565b6040805160ff9092168252519081900360200190f35b6000805460ff191660ff92909216919091179055565b60005460ff16905600a165627a7a723058206cc1a54f543612d04d3f16b0bbb49e9ded9ccf6d47f7789fe3577260346ed44d0029")
-	address = common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
+	address      = common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 )
 
 func execute(bc *blockchain.BlockChain, msg types.Message) ([]byte, error) {
@@ -102,7 +103,7 @@ func execute(bc *blockchain.BlockChain, msg types.Message) ([]byte, error) {
 	}
 
 	// Get balance of address
-	originBalance := stateDb.GetBalance(address).Int64()
+	originBalance := stateDb.GetBalance(address)
 	gasPool := new(blockchain.GasPool).AddGas(bc.CurrentBlock().Header().GasLimit)
 
 	// Create a new context to be used in the KVM environment
@@ -122,8 +123,8 @@ func execute(bc *blockchain.BlockChain, msg types.Message) ([]byte, error) {
 		return nil, errors.New("usedGas must be zero")
 	}
 
-	balance = stateDb.GetBalance(address).Int64()
-	if originBalance != balance {
+	balance := stateDb.GetBalance(address)
+	if originBalance.Cmp(balance) != 0 {
 		return nil, errors.New("originBalance should equal to balance")
 	}
 
@@ -139,7 +140,7 @@ func executeWithFee(bc *blockchain.BlockChain, msg types.Message) ([]byte, error
 	}
 
 	// Get balance of address
-	originBalance := stateDb.GetBalance(address).Int64()
+	originBalance := stateDb.GetBalance(address)
 	gasPool := new(blockchain.GasPool).AddGas(bc.CurrentBlock().Header().GasLimit)
 
 	// Create a new context to be used in the KVM environment
@@ -159,8 +160,8 @@ func executeWithFee(bc *blockchain.BlockChain, msg types.Message) ([]byte, error
 		return nil, errors.New("usedGas must not be zero")
 	}
 
-	balance = stateDb.GetBalance(address).Int64()
-	if originBalance == balance {
+	balance := stateDb.GetBalance(address)
+	if originBalance.Cmp(balance) == 0 {
 		return nil, errors.New("originBalance should not equal to balance")
 	}
 

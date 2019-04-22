@@ -23,27 +23,29 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/configs"
-	g "github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	g "github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 )
 
 var Pubkey = "7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860"
+
 const MaximumInitialNodes = 16
 
 func GetBlockchain() (*blockchain.BlockChain, error) {
 	// Start setting up blockchain
-	var genesisAccounts = map[string]int64{
-		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": int64(math.Pow10(15)),
-		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": int64(math.Pow10(15)),
+	initValue := g.ToCell(int64(math.Pow10(6)))
+	var genesisAccounts = map[string]*big.Int{
+		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
+		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
 	}
 	kardiaPermissionSmcAddress := configs.GetContractAddressAt(permissioned.KardiaPermissionSmcIndex).String()
 	privatechainCandidateSmcAddress := configs.GetContractAddressAt(permissioned.PrivateChainCandidateSmcIndex).String()
 	var genesisContracts = map[string]string{
-		kardiaPermissionSmcAddress: configs.GenesisContracts[kardiaPermissionSmcAddress],
+		kardiaPermissionSmcAddress:      configs.GenesisContracts[kardiaPermissionSmcAddress],
 		privatechainCandidateSmcAddress: configs.GenesisContracts[privatechainCandidateSmcAddress],
 	}
 	kaiDb := storage.NewMemStore()
