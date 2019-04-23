@@ -49,7 +49,7 @@ func NewCandidateSmcUtil(bc base.BaseBlockChain, key *ecdsa.PrivateKey) (*Candid
 		log.Error("Error reading abi", "err", err)
 		return nil, err
 	}
-	senderAddr := common.HexToAddress(MockSmartContractCallSenderAccount)
+	senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
 	return &CandidateSmcUtil{Abi: &abi, ContractAddress: &privateChainSmcAddr, SenderAddress: &senderAddr,
 		Bc: &bc, StateDB: stateDb, PrivateKey: key}, nil
 }

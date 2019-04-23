@@ -19,10 +19,19 @@
 package utils
 
 import (
+	"fmt"
+	"math"
+	"math/big"
+	"strconv"
+	"strings"
+	"time"
 	"crypto/ecdsa"
 	"encoding/hex"
-	"fmt"
+
 	"github.com/golang/protobuf/jsonpb"
+	"github.com/pebbe/zmq4"
+	"github.com/pkg/errors"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode"
@@ -37,19 +46,13 @@ import (
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/pebbe/zmq4"
-	"github.com/pkg/errors"
-	"math/big"
-	"strconv"
-	"strings"
-	"time"
+
+
 )
 
 // TODO(@sontranrad): remove all of these constants for production
 
 const (
- 	KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
-	MockSmartContractCallSenderAccount = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
 	KARDIA_CALL = "KARDIA_CALL"
 	DUAL_CALL = "DUAL_CALL"
 	DUAL_MSG = "DUAL_MSG"
@@ -69,6 +72,7 @@ var TenPoweredBySix = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(6), nil)
 var TenPoweredByEight = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
 var TenPoweredByTen = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(10), nil)
 var TenPoweredByTwelve = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(12), nil)
+var TenPoweredBySixFloat =  big.NewFloat(float64(math.Pow10(6)))
 
 type MatchedRequest struct {
 	MatchedRequestID *big.Int `abi:"matchedRequestID"`
@@ -152,7 +156,8 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 
 	// unit of ordered amount will be based on the type which has smaller unit based.
 	// for eg: int ETH-NEO, NEO has 10^8 while ETH has 10^18, hence the order amount will be based on NEO
-
+	log.Info("Prepare for convert amount", "source", source, "destination", destination,
+		"fromAmount", fromAmount, "toAmount", toAmount)
 	switch source {
 	case configs.ETH:
 		convertedAmount = temp.Mul(quantity, fromAmount)
@@ -168,7 +173,7 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 			convertedAmount = temp.Mul(quantity, TenPoweredByEight)
 		} else if destination == configs.TRON {
 			convertedAmount = temp.Mul(quantity, TenPoweredBySix)
-			convertedAmount = temp.Mul(quantity, fromAmount)
+			convertedAmount = temp.Mul(convertedAmount, fromAmount)
 			convertedAmount = temp.Div(convertedAmount, toAmount)
 		}
 	case configs.TRON:
@@ -305,6 +310,7 @@ func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) erro
 	}
 
 	// send message
+	log.Info("PublishMessage", "topic", topic, "msg", message.String() )
 	if _, err := pub.Send(message.String(), zmq4.DONTWAIT); err != nil {
 		return err
 	}
@@ -471,7 +477,7 @@ func NewEvent(proxy base.BlockChainAdapter, msg dualMsg.Message) error {
 // Release releases assets to target chain to receiver, txId is kardiaTxId which is used for callback method.
 func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error {
 	senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
-	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
+	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaNewExchangeSmcIndex)
 	if exchangeSmcAbi == "" {
 		return errAbiNotFound
 	}
@@ -523,7 +529,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 		return configs.ErrInsufficientExchangeData
 	}
 	stateDB := proxy.KardiaTxPool().State().StateDB
-	senderAddr := common.HexToAddress(MockSmartContractCallSenderAccount)
+	senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
 	originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 	fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
 	toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
@@ -555,11 +561,18 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 		arrTxIds := strings.Split(fields[configs.ExchangeV2ReleaseTxIdsIndex], configs.ExchangeV2ReleaseValuesSepatator)
 
 		for i, t := range arrTypes {
+
+			if proxy.Name() != t {
+				continue
+			}
+
+			if arrAmounts[i] == "" || arrAddresses[i] == "" || arrTxIds[i] == "" {
+				proxy.Logger().Error("Missing release info", "matchedTxId", arrTxIds[i], "field", i, "releases", releases)
+				continue
+			}
+			log.Info("ReleaseInfo", "type", t, "address", arrAddresses[i], "amount" , arrAmounts[i], "matchedTxId", arrTxIds[i])
+
 			if t == configs.TRON || t == configs.NEO {
-				if arrAmounts[i] == "" || arrAddresses[i] == "" || arrTxIds[i] == "" {
-					proxy.Logger().Error("Missing release info", "matchedTxId", arrTxIds[i], "field", i, "releases", releases)
-					continue
-				}
 				address := arrAddresses[i]
 				amount, err1 := strconv.ParseInt(arrAmounts[i], 10, 64) //big.NewInt(0).SetString(arrAmounts[i], 10)
 				proxy.Logger().Info("Amount", "amount", amount, "in string", arrAmounts[i])
@@ -579,12 +592,15 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 					} else {
 						// fromType is TRON
 						// Calculate the releasedAmount based on the rate (fromAmount, toAmount)
-						releasedAmount = big.NewInt(amount).Mul(big.NewInt(amount), toAmount)
-						releasedAmount = releasedAmount.Div(releasedAmount, fromAmount)
+						releaseByFloat := big.NewFloat(float64(amount))
+						releaseByFloat = releaseByFloat.Mul(releaseByFloat, new(big.Float).SetInt(toAmount))
+						releaseByFloat = releaseByFloat.Quo(releaseByFloat, new(big.Float).SetInt(fromAmount))
 						// divide by 10^6 to get normal number
-						releasedAmount = releasedAmount.Div(releasedAmount, TenPoweredBySix)
+						releaseByFloat = releaseByFloat.Quo(releaseByFloat, TenPoweredBySixFloat)
+						temp, _ := releaseByFloat.Float64()
+						releasedAmount = big.NewInt(int64(math.Round(temp)))
 					}
-					proxy.Logger().Info("ReleasedAmount=%v", releasedAmount)
+					proxy.Logger().Info("Prepare to release", "amount", releasedAmount)
 					// don't release  NEO if quantity < 1
 					if releasedAmount.Cmp(big.NewInt(1)) < 0 {
 						proxy.Logger().Error("Too little neo to send", "originalTxId", originalTx, "err", errNoNeoToSend, "amount", releasedAmount)

@@ -33,7 +33,6 @@ import (
 )
 
 const (
-	MockSmartContractCallSenderAccount = configs.KardiaAccountToCallSmc
 	KardiaPermissionSmcIndex = 4
 )
 
@@ -63,7 +62,7 @@ func NewSmcPermissionUtil(bc base.BaseBlockChain) (*PermissionSmcUtil, error) {
 		log.Error("Error reading abi", "err", err)
 		return nil, err
 	}
-	senderAddr := common.HexToAddress(MockSmartContractCallSenderAccount)
+	senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
 	return &PermissionSmcUtil{Abi: &abi, StateDb: stateDb, ContractAddress: &permissionSmcAddr, SenderAddress: &senderAddr,
 		bc: &bc}, nil
 }
