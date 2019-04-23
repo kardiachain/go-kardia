@@ -79,6 +79,7 @@ func NewProxy(
 	logger.AddTag(ServiceName)
 
 	processor := &Proxy{
+		name: configs.NEO,
 		logger: logger,
 		kardiaBc:   kardiaBc,
 		txPool:     txPool,
