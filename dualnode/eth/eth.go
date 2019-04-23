@@ -297,7 +297,7 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 		if len(event.Data.ExtData) != configs.ExchangeV2NumOfExchangeDataField {
 			return configs.ErrInsufficientExchangeData
 		}
-		senderAddr := common.HexToAddress(dev.MockSmartContractCallSenderAccount)
+		senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
 		originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 		fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
 		toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])

@@ -48,8 +48,6 @@ import (
 // TODO(@sontranrad): remove all of these constants for production
 
 const (
- 	KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
-	MockSmartContractCallSenderAccount = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
 	KARDIA_CALL = "KARDIA_CALL"
 	DUAL_CALL = "DUAL_CALL"
 	DUAL_MSG = "DUAL_MSG"
@@ -523,7 +521,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 		return configs.ErrInsufficientExchangeData
 	}
 	stateDB := proxy.KardiaTxPool().State().StateDB
-	senderAddr := common.HexToAddress(MockSmartContractCallSenderAccount)
+	senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
 	originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 	fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
 	toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
