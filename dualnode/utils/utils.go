@@ -94,7 +94,7 @@ func CallGetRate(fromType string, toType string, bc base.BaseBlockChain, statedb
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
 	kABI, err := abi.JSON(strings.NewReader(masterSmcAbi))
 
-	senderAddr := common.HexToAddress(configs.MockSmartContractCallSenderAccount)
+	senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
 	getRateInput, err := kABI.Pack("getRate", fromType, toType)
 	if err != nil {
 		log.Error("Error packing get rate input", "err", err)
@@ -470,7 +470,7 @@ func NewEvent(proxy base.BlockChainAdapter, msg dualMsg.Message) error {
 
 // Release releases assets to target chain to receiver, txId is kardiaTxId which is used for callback method.
 func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error {
-	senderAddr := common.HexToAddress(configs.MockSmartContractCallSenderAccount)
+	senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
 	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
 	if exchangeSmcAbi == "" {
 		return errAbiNotFound

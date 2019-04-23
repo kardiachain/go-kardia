@@ -33,7 +33,7 @@ import (
 )
 
 const (
-	MockSmartContractCallSenderAccount = "0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5"
+	MockSmartContractCallSenderAccount = configs.KardiaAccountToCallSmc
 	KardiaPermissionSmcIndex = 4
 )
 

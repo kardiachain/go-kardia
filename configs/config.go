@@ -266,11 +266,6 @@ var GenesisAddrKeys = map[string]string{
 	//"e049a09c992c882bc2deb780323a247c6ee0951f8b4c5c1dd0fc2fc22ce6493d": "0x36BE7365e6037bD0FDa455DC4d197B07A2002547",
 }
 
-const (
-	MockSmartContractCallSenderAccount    = "0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5"
-	MockSmartContractCallSenderPrivateKey = "77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79"
-)
-
 var GenesisContractAddress = []string{
 	"0x00000000000000000000000000000000736D6332",
 	"0x00000000000000000000000000000000736D6331",
