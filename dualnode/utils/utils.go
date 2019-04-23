@@ -470,7 +470,7 @@ func NewEvent(proxy base.BlockChainAdapter, msg dualMsg.Message) error {
 // Release releases assets to target chain to receiver, txId is kardiaTxId which is used for callback method.
 func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error {
 	senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
-	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
+	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaNewExchangeSmcIndex)
 	if exchangeSmcAbi == "" {
 		return errAbiNotFound
 	}
