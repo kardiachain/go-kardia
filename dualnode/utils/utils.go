@@ -19,10 +19,19 @@
 package utils
 
 import (
+	"fmt"
+	"math"
+	"math/big"
+	"strconv"
+	"strings"
+	"time"
 	"crypto/ecdsa"
 	"encoding/hex"
-	"fmt"
+
 	"github.com/golang/protobuf/jsonpb"
+	"github.com/pebbe/zmq4"
+	"github.com/pkg/errors"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode"
@@ -37,12 +46,8 @@ import (
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/pebbe/zmq4"
-	"github.com/pkg/errors"
-	"math/big"
-	"strconv"
-	"strings"
-	"time"
+
+
 )
 
 // TODO(@sontranrad): remove all of these constants for production
@@ -67,6 +72,7 @@ var TenPoweredBySix = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(6), nil)
 var TenPoweredByEight = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
 var TenPoweredByTen = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(10), nil)
 var TenPoweredByTwelve = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(12), nil)
+var TenPoweredBySixFloat =  big.NewFloat(float64(math.Pow10(6)))
 
 type MatchedRequest struct {
 	MatchedRequestID *big.Int `abi:"matchedRequestID"`
@@ -585,10 +591,13 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 					} else {
 						// fromType is TRON
 						// Calculate the releasedAmount based on the rate (fromAmount, toAmount)
-						releasedAmount = big.NewInt(amount).Mul(big.NewInt(amount), toAmount)
-						releasedAmount = releasedAmount.Div(releasedAmount, fromAmount)
+						releaseByFloat := big.NewFloat(float64(amount))
+						releaseByFloat = releaseByFloat.Mul(releaseByFloat, new(big.Float).SetInt(toAmount))
+						releaseByFloat = releaseByFloat.Quo(releaseByFloat, new(big.Float).SetInt(fromAmount))
 						// divide by 10^6 to get normal number
-						releasedAmount = releasedAmount.Div(releasedAmount, TenPoweredBySix)
+						releaseByFloat = releaseByFloat.Quo(releaseByFloat, TenPoweredBySixFloat)
+						temp, _ := releaseByFloat.Float64()
+						releasedAmount = big.NewInt(int64(math.Round(temp)))
 					}
 					proxy.Logger().Info("Prepare to release", "amount", releasedAmount)
 					// don't release  NEO if quantity < 1
