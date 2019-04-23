@@ -553,11 +553,13 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 		arrTxIds := strings.Split(fields[configs.ExchangeV2ReleaseTxIdsIndex], configs.ExchangeV2ReleaseValuesSepatator)
 
 		for i, t := range arrTypes {
+			if arrAmounts[i] == "" || arrAddresses[i] == "" || arrTxIds[i] == "" {
+				proxy.Logger().Error("Missing release info", "matchedTxId", arrTxIds[i], "field", i, "releases", releases)
+				continue
+			}
+			log.Info("ReleaseInfo", "type", t, "address", arrAddresses[i], "amount" , arrAmounts[i], "matchedTxId", arrTxIds[i])
+
 			if t == configs.TRON || t == configs.NEO {
-				if arrAmounts[i] == "" || arrAddresses[i] == "" || arrTxIds[i] == "" {
-					proxy.Logger().Error("Missing release info", "matchedTxId", arrTxIds[i], "field", i, "releases", releases)
-					continue
-				}
 				address := arrAddresses[i]
 				amount, err1 := strconv.ParseInt(arrAmounts[i], 10, 64) //big.NewInt(0).SetString(arrAmounts[i], 10)
 				proxy.Logger().Info("Amount", "amount", amount, "in string", arrAmounts[i])

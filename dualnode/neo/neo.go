@@ -171,11 +171,7 @@ func (n *Proxy) SubmitTx(event *types.EventData) error {
 	if event.TxSource == types.KARDIA {
 		switch event.Data.TxMethod {
 		case configs.AddOrderFunction:
-			toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
-			if toType == configs.NEO {
-				return utils.HandleAddOrderFunction(n, event)
-			}
-			return configs.ErrUnsupportedMethod
+			return utils.HandleAddOrderFunction(n, event)
 		default:
 			log.Warn("Unexpected method in NEO SubmitTx", "method", event.Data.TxMethod)
 			return configs.ErrUnsupportedMethod
