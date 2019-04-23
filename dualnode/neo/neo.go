@@ -167,20 +167,21 @@ func (n *Proxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 // SubmitTx submit corresponding tx to NEO or Kardia basing on Data in EventData, include release NEO
 // and upgrade Kardia smart contract. In case of matching event, we find the matched request here to release NEO to.
 func (n *Proxy) SubmitTx(event *types.EventData) error {
-	if len(event.Data.ExtData) > 3 {
-		log.Info("Submitting neo tx", "pair", string(event.Data.ExtData[3]))
-	}
-	switch event.Data.TxMethod {
-	case configs.AddOrderFunction:
-		fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
-		if fromType == configs.NEO {
-			return utils.HandleAddOrderFunction(n, event)
+	//Only allow TxSource from Kardia
+	if event.TxSource == types.KARDIA {
+		switch event.Data.TxMethod {
+		case configs.AddOrderFunction:
+			toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
+			if toType == configs.NEO {
+				return utils.HandleAddOrderFunction(n, event)
+			}
+			return configs.ErrUnsupportedMethod
+		default:
+			log.Warn("Unexpected method in NEO SubmitTx", "method", event.Data.TxMethod)
+			return configs.ErrUnsupportedMethod
 		}
-		return configs.ErrUnsupportedMethod
-	default:
-		log.Warn("Unexpected method in NEO SubmitTx", "method", event.Data.TxMethod)
-		return configs.ErrUnsupportedMethod
 	}
+	return configs.ErrUnsupportedMethod
 }
 
 // In case it's an exchange event (matchOrder), we will calculate matching order later

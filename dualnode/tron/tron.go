@@ -155,17 +155,21 @@ func (n *Proxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 
 // SubmitTx reads event data and submits data to Kardia or Target chain (TRON, NEO) based on specific logic. (eg: AddOrderFunction)
 func (n *Proxy) SubmitTx(event *types.EventData) error {
-	switch event.Data.TxMethod {
-	case configs.AddOrderFunction:
-		fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
-		if fromType == configs.TRON {
-			return utils.HandleAddOrderFunction(n, event)
+	//Only allow TxSource from Kardia
+	if event.TxSource == types.KARDIA {
+		switch event.Data.TxMethod {
+		case configs.AddOrderFunction:
+			toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
+			if toType == configs.TRON {
+				return utils.HandleAddOrderFunction(n, event)
+			}
+			return configs.ErrUnsupportedMethod
+		default:
+			log.Warn("Unexpected method in TRON SubmitTx", "method", event.Data.TxMethod)
+			return configs.ErrUnsupportedMethod
 		}
-		return configs.ErrUnsupportedMethod
-	default:
-		log.Warn("Unexpected method in TRON SubmitTx", "method", event.Data.TxMethod)
-		return configs.ErrUnsupportedMethod
 	}
+	return configs.ErrUnsupportedMethod
 }
 
 // when we submitTx to externalChain, so I simply return a basic metadata here basing on target and event hash,
