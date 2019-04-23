@@ -49,7 +49,7 @@ import (
 
 const (
  	KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
-	MockSmartContractCallSenderAccount = "0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5"
+	MockSmartContractCallSenderAccount = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
 	KARDIA_CALL = "KARDIA_CALL"
 	DUAL_CALL = "DUAL_CALL"
 	DUAL_MSG = "DUAL_MSG"
@@ -65,7 +65,6 @@ var AvailableExchangeType = map[string]bool{
 var MaximumGasToCallStaticFunction = uint(4000000)
 var errAbiNotFound = errors.New("ABI not found")
 var errNoNeoToSend        = errors.New("not enough NEO to send")
-var TenPoweredByTwo = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(2), nil)
 var TenPoweredBySix = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(6), nil)
 var TenPoweredByEight = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
 var TenPoweredByTen = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(10), nil)
@@ -235,7 +234,7 @@ func UpdateKardiaTargetTx(state *state.ManagedState, originalTx string, tx strin
 	if txType == "target" {
 		completeInput, err = kAbi.Pack(configs.UpdateTargetTx, originalTx, tx)
 	} else {
-		completeInput, err = kAbi.Pack(configs.UpdateTargetTx, originalTx, tx)
+		completeInput, err = kAbi.Pack(configs.UpdateKardiaTx, originalTx, tx)
 	}
 	if err != nil {
 		log.Error("Failed to pack updateTx", txType, "originalTx", originalTx, "err", err)
