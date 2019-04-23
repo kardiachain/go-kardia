@@ -167,7 +167,7 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 			convertedAmount = temp.Mul(quantity, TenPoweredByEight)
 		} else if destination == configs.TRON {
 			convertedAmount = temp.Mul(quantity, TenPoweredBySix)
-			convertedAmount = temp.Mul(quantity, fromAmount)
+			convertedAmount = temp.Mul(convertedAmount, fromAmount)
 			convertedAmount = temp.Div(convertedAmount, toAmount)
 		}
 	case configs.TRON:
