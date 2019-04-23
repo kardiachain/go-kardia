@@ -150,7 +150,8 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 
 	// unit of ordered amount will be based on the type which has smaller unit based.
 	// for eg: int ETH-NEO, NEO has 10^8 while ETH has 10^18, hence the order amount will be based on NEO
-
+	log.Info("Prepare for convert amount", "source", source, "destination", destination,
+		"fromAmount", fromAmount, "toAmount", toAmount)
 	switch source {
 	case configs.ETH:
 		convertedAmount = temp.Mul(quantity, fromAmount)
@@ -553,6 +554,11 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 		arrTxIds := strings.Split(fields[configs.ExchangeV2ReleaseTxIdsIndex], configs.ExchangeV2ReleaseValuesSepatator)
 
 		for i, t := range arrTypes {
+
+			if proxy.Name() != t {
+				continue
+			}
+
 			if arrAmounts[i] == "" || arrAddresses[i] == "" || arrTxIds[i] == "" {
 				proxy.Logger().Error("Missing release info", "matchedTxId", arrTxIds[i], "field", i, "releases", releases)
 				continue
