@@ -582,7 +582,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 						// divide by 10^6 to get normal number
 						releasedAmount = releasedAmount.Div(releasedAmount, TenPoweredBySix)
 					}
-					proxy.Logger().Info("ReleasedAmount=%v", releasedAmount)
+					proxy.Logger().Info("Prepare to release", "amount", releasedAmount)
 					// don't release  NEO if quantity < 1
 					if releasedAmount.Cmp(big.NewInt(1)) < 0 {
 						proxy.Logger().Error("Too little neo to send", "originalTxId", originalTx, "err", errNoNeoToSend, "amount", releasedAmount)
