@@ -310,6 +310,7 @@ func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) erro
 	}
 
 	// send message
+	log.Info("PublishMessage", "topic", topic, "msg", message.String() )
 	if _, err := pub.Send(message.String(), zmq4.DONTWAIT); err != nil {
 		return err
 	}
