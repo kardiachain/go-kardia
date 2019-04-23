@@ -172,7 +172,11 @@ func (n *Proxy) SubmitTx(event *types.EventData) error {
 	}
 	switch event.Data.TxMethod {
 	case configs.AddOrderFunction:
-		return utils.HandleAddOrderFunction(n, event)
+		fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
+		if fromType == configs.NEO {
+			return utils.HandleAddOrderFunction(n, event)
+		}
+		return configs.ErrUnsupportedMethod
 	default:
 		log.Warn("Unexpected method in NEO SubmitTx", "method", event.Data.TxMethod)
 		return configs.ErrUnsupportedMethod

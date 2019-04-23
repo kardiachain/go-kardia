@@ -157,7 +157,11 @@ func (n *Proxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 func (n *Proxy) SubmitTx(event *types.EventData) error {
 	switch event.Data.TxMethod {
 	case configs.AddOrderFunction:
-		return utils.HandleAddOrderFunction(n, event)
+		fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
+		if fromType == configs.TRON {
+			return utils.HandleAddOrderFunction(n, event)
+		}
+		return configs.ErrUnsupportedMethod
 	default:
 		log.Warn("Unexpected method in TRON SubmitTx", "method", event.Data.TxMethod)
 		return configs.ErrUnsupportedMethod
