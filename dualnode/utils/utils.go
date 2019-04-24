@@ -615,7 +615,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 					}
 
 				}
-				if err := Release(proxy, address, releasedAmount.String(), arrTxIds[i]); err != nil {
+				if err := Release(proxy, address, arrTxIds[i], releasedAmount.String()); err != nil {
 					proxy.Logger().Error("Error when releasing", "err", err.Error())
 					return err
 				}
