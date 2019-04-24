@@ -27,6 +27,7 @@ import (
 	"time"
 	"crypto/ecdsa"
 	"encoding/hex"
+	"encoding/json"
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/pebbe/zmq4"
@@ -46,8 +47,6 @@ import (
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
-
-
 )
 
 // TODO(@sontranrad): remove all of these constants for production
@@ -308,10 +307,14 @@ func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) erro
 	if _, err := pub.Send(topic, zmq4.SNDMORE); err != nil {
 		return err
 	}
-
+	m := &jsonpb.Marshaler{}
+	msgToSend, err := m.MarshalToString(&message)
+	if err != nil {
+		log.Error("Failed to encode", "message", message.String(), "error",  err)
+	}
 	// send message
-	log.Info("PublishMessage", "topic", topic, "msg", message.String() )
-	if _, err := pub.Send(message.String(), zmq4.DONTWAIT); err != nil {
+	log.Info("Publish message", "topic", topic, "msgToSend", msgToSend)
+	if _, err := pub.Send(msgToSend, zmq4.DONTWAIT); err != nil {
 		return err
 	}
 
@@ -366,6 +369,10 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 		// unpack contents to DualMessage
 		msg := dualMsg.Message{}
 		if err := jsonpb.UnmarshalString(message, &msg); err != nil {
+			proxy.Logger().Error("Error decoding", "message", message)
+			if e, ok := err.(*json.SyntaxError); ok {
+				proxy.Logger().Error("Error syntax at", "byte offset", e.Offset)
+			}
 			return err
 		}
 
@@ -608,7 +615,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 					}
 
 				}
-				if err := Release(proxy, address, releasedAmount.String(), arrTxIds[i]); err != nil {
+				if err := Release(proxy, address, arrTxIds[i], releasedAmount.String()); err != nil {
 					proxy.Logger().Error("Error when releasing", "err", err.Error())
 					return err
 				}
