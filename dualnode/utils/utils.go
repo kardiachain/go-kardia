@@ -587,6 +587,10 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 					log.Error("Error parse amount", "amount", arrAmounts[i])
 					continue
 				}
+				// Ex: Deposit NEO then match TRX
+				if t != fromType {
+					fromAmount, toAmount, _ = CallGetRate(t, fromType, proxy.KardiaBlockChain(), stateDB)
+				}
 
 				var releasedAmount *big.Int
 				if t == configs.TRON {
