@@ -128,7 +128,7 @@ func CallGetRate(fromType string, toType string, bc base.BaseBlockChain, statedb
 
 // Creates a Kardia tx to report new matching amount from Eth/Neo/TRX network, return nil in case of any error occurs
 func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, sourceAddress string,
-	destinationAddress string, source, destination string, hash string, bc base.BaseBlockChain) (*types.Transaction, error) {
+	destinationAddress string, source string, destination string, hash string, bc base.BaseBlockChain) (*types.Transaction, error) {
 
 	// check if source and destination types are valid or not.
 	if !AvailableExchangeType[source] || !AvailableExchangeType[destination] {
@@ -157,6 +157,12 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 	// for eg: int ETH-NEO, NEO has 10^8 while ETH has 10^18, hence the order amount will be based on NEO
 	log.Info("Prepare for convert amount", "source", source, "destination", destination,
 		"fromAmount", fromAmount, "toAmount", toAmount)
+
+	if fromAmount.Cmp(big.NewInt(0)) == 0 || toAmount.Cmp(big.NewInt(0)) == 0 {
+		log.Error("Invalid rate", "source", source, "destination", destination,
+			"fromAmount", fromAmount, "toAmount", toAmount)
+		return nil, err
+	}
 	switch source {
 	case configs.ETH:
 		convertedAmount = temp.Mul(quantity, fromAmount)

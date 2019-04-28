@@ -33,7 +33,7 @@ import (
 )
 
 // Address of the deployed contract on Rinkeby.
-var EthContractAddress = "0xc95892e98a9c0526b4c895c7f7ee07014912643a"
+var EthContractAddress = "0x0aa9c07cde3fedcf650473951e77376b1c6a9f16"
 
 // ABI of the deployed Eth contract.
 var EthExchangeAbi = `[
