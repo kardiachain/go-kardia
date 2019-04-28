@@ -39,15 +39,14 @@ import (
 	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/dualnode/neo"
 	"github.com/kardiachain/go-kardia/dualnode/permissioned"
+	"github.com/kardiachain/go-kardia/dualnode/tron"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/mainchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/dualnode/tron"
 )
 
 // args
@@ -85,10 +84,10 @@ type flagArgs struct {
 	ethRPCPort    int
 
 	// Neo/Kardia dualnode related flags
-	neoDual            bool
+	neoDual bool
 
 	// TRON dualnode
-	tronDual           bool
+	tronDual bool
 
 	// Private/Kardia dualnode related flags
 	privateNetworkId   uint64
@@ -389,7 +388,7 @@ func main() {
 			config.DualChainConfig.ChainId = configs.EthDualChainID
 		} else if args.neoDual {
 			config.DualChainConfig.ChainId = configs.NeoDualChainID
-		} else if args.tronDual{
+		} else if args.tronDual {
 			config.DualChainConfig.ChainId = configs.TronDualChainID
 		} else {
 			config.DualChainConfig.ChainId = configs.DefaultChainID
@@ -433,24 +432,13 @@ func main() {
 	}
 
 	// Connect with other peers.
-	if args.dev && args.bootNode == "" {
-		// Add Mainchain peers
+	if args.dev {
+		// Add Mainchain peers directly as static nodes
 		for i := 0; i < config.MainChainConfig.EnvConfig.GetNodeSize(); i++ {
 			peerURL := config.MainChainConfig.EnvConfig.GetNodeMetadata(i).NodeID()
 			logger.Info("Adding static peer", "peerURL", peerURL)
-			if args.noProxy {
-				peerNode, err := discover.ParseNode(peerURL)
-				if err != nil {
-					logger.Error("Error parsing peerNode", "err", err)
-				}
-				if err := n.ConfirmAddPeer(peerNode); err != nil {
-					log.Error("Error adding static peer", "err", err)
-				}
-			} else {
-				success, err := n.AddPeer(peerURL)
-				if !success {
-					logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
-				}
+			if err := n.AddPeer(peerURL); err != nil {
+				log.Error("Error adding static peer", "err", err)
 			}
 		}
 
@@ -459,66 +447,33 @@ func main() {
 			for i := 0; i < config.DualChainConfig.EnvConfig.GetNodeSize(); i++ {
 				peerURL := config.DualChainConfig.EnvConfig.GetNodeMetadata(i).NodeID()
 				logger.Info("Adding static peer", "peerURL", peerURL)
-				if args.noProxy {
-					peerNode, err := discover.ParseNode(peerURL)
-					if err != nil {
-						logger.Error("Error parsing peerNode", "err", err)
-					}
-					if err := n.ConfirmAddPeer(peerNode); err != nil {
-						log.Error("Error adding static peer", "err", err)
-					}
-				} else {
-					success, err := n.AddPeer(peerURL) // Called through proxy
-					if !success {
-						logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
-					}
+				if err := n.AddPeer(peerURL); err != nil {
+					log.Error("Error adding static peer", "err", err)
 				}
 			}
 		}
 	}
 
 	if args.bootNode != "" {
-		var success bool
-		var err error
-		bootNode, err := discover.ParseNode(args.bootNode)
-		if err != nil {
-			logger.Error("Error parsing bootnode", "err", err)
-		}
-
 		logger.Info("Adding Peer", "Boot Node:", args.bootNode)
 		if args.noProxy {
-			if err := n.ConfirmAddPeer(bootNode); err != nil {
+			if err := n.AddPeer(args.bootNode); err != nil {
 				log.Error("Error adding bootNode", "err", err)
 			}
 
 		} else {
-			success, err = n.BootNode(args.bootNode)
-			if !success {
-				panic("Unable to connect to bootnode")
+			if err := n.BootNode(args.bootNode); err != nil {
+				log.Error("Unable to connect to bootnode", "err", err, "bootNode", args.bootNode)
 			}
 		}
-
 	}
 
 	if len(args.peer) > 0 {
 		urls := strings.Split(args.peer, ",")
 		for _, peerURL := range urls {
-			peerNode, err := discover.ParseNode(peerURL)
-			if err != nil {
-				logger.Error("Error parsing peer", "err", err)
-				continue
-			}
 			logger.Info("Adding static peer", "peerURL", peerURL)
-			if args.noProxy {
-				if err := n.ConfirmAddPeer(peerNode); err != nil {
-					log.Error("Error adding static peer", "err", err)
-				}
-
-			} else {
-				success, err := n.AddPeer(peerURL)
-				if !success {
-					logger.Error("Fail to add peer", "err", err, "peerUrl", peerURL)
-				}
+			if err := n.AddPeer(peerURL); err != nil {
+				log.Error("Error adding static peer", "err", err)
 			}
 		}
 	}

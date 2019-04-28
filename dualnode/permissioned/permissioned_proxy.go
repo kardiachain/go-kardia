@@ -24,6 +24,7 @@ import (
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
@@ -37,7 +38,6 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"github.com/kardiachain/go-kardia/kai/events"
 )
 
 const SERVICE_NAME = "PRIVATE_DUAL"
@@ -73,7 +73,7 @@ type CompleteRequestInput struct {
 type PermissionedProxy struct {
 
 	// name is name of proxy, or type that proxy connects to (eg: NEO, TRX, ETH, KARDIA)
-	name   string
+	name string
 
 	permissionBc base.BaseBlockChain
 	txPool       *tx_pool.TxPool
@@ -139,8 +139,7 @@ func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain
 	for i := 0; i < nodeConfig.MainChainConfig.EnvConfig.GetNodeSize(); i++ {
 		peerURL := nodeConfig.MainChainConfig.EnvConfig.GetNodeMetadata(i).NodeID()
 		logger.Info("Adding static peer", "peerURL", peerURL)
-		success, err := n.AddPeer(peerURL)
-		if !success {
+		if err := n.AddPeer(peerURL); err != nil {
 			return nil, err
 		}
 	}

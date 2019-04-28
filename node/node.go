@@ -256,9 +256,14 @@ func (n *Node) RegisterService(constructor ServiceConstructor) error {
 // AddPeer adds a remote node as static peer, maintaining the new
 // connection at all times, even reconnecting if it is lost.
 // Only accepts complete node for now.
-func (n *Node) ConfirmAddPeer(node *discover.Node) error {
+func (n *Node) AddPeer(peerURL string) error {
+	peerNode, err := discover.ParseNode(peerURL)
+	if err != nil {
+		return err
+	}
+
 	server := n.Server()
-	if err := server.AddPeer(node); err != nil {
+	if err := server.AddPeer(peerNode); err != nil {
 		return err
 	}
 	return nil
@@ -277,7 +282,9 @@ type proxyNode struct {
 	RPC uint16
 }
 
-func (n *Node) AddPeer(url string) (bool, error) {
+// AddPeerThroughProxy adds a static peer indirectly through the Kardia network proxy.
+// This node sends a "AddPeer" request to Kardia proxy, which then trigger AddPeer for 2 nodes.
+func (n *Node) AddPeerThroughProxy(url string) (bool, error) {
 	//Create Node from URL
 	server := n.Server()
 	reqNode := server.Self()
@@ -344,27 +351,27 @@ func (n *Node) apis() []rpc.API {
 	}
 }
 
-func (n *Node) BootNode(url string) (bool, error) {
+func (n *Node) BootNode(url string) error {
 	server := n.Server()
 
 	if server == nil {
-		return false, ErrNodeStopped
+		return ErrNodeStopped
 	}
 	reqNode := server.Self()
 
 	BootNode, err := discover.ParseNode(url)
 	if err != nil {
-		return false, fmt.Errorf("invalid enode: %v", err)
+		return fmt.Errorf("invalid enode: %v", err)
 	}
 	if BootNode.Incomplete() {
-		return false, errors.New("boot node is incomplete")
+		return errors.New("boot node is incomplete")
 	}
 	//Above is vetting
 
 	if err := n.CallProxy("BootNode", reqNode, BootNode); err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 
 }
 

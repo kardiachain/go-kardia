@@ -22,8 +22,8 @@ import (
 	"runtime"
 
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/lib/p2p/discover"
 )
 
 // PublicNodeAPI offers helper utils
@@ -80,12 +80,17 @@ func (s *PublicNodeAPI) NodeInfo() *NodeInfo {
 	}
 }
 
-func (s *PublicNodeAPI) ConfirmAddPeer(url string) { //TODO:Make this accessible to only the proxy
-	node, err := discover.ParseNode(url)
-	if err != nil {
-		panic(err)
+// ConfirmAddPeer adds static peer, this is used by the Kardia network proxy.
+func (s *PublicNodeAPI) ConfirmAddPeer(peerURL string) { //TODO:Make this accessible to only the proxy
+	if err := s.node.AddPeer(peerURL); err != nil {
+		log.Error("ConfirmAddPeer API error", "err", err, "peerURL", peerURL)
 	}
-	s.node.ConfirmAddPeer(node)
+}
+
+func (s *PublicNodeAPI) AddPeer(peerURL string) {
+	if err := s.node.AddPeer(peerURL); err != nil {
+		log.Error("AddPeer API error", "err", err, "peerURL", peerURL)
+	}
 }
 
 func (s *PublicNodeAPI) CheckFull() bool {
