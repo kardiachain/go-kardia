@@ -474,7 +474,9 @@ func (env *EnvironmentConfig) GetValidatorSetByIndices(bc base.BaseBlockChain, v
 		validators = append(validators, types.NewValidator(*node.PublicKey, node.VotingPower))
 	}
 
-	validatorSet := types.NewValidatorSet(validators)
+	// TODO(huny@): Pass the start/end block height of the initial set of validator from the
+	// genesis here. Default to 0 and 1000000000 for now.
+	validatorSet := types.NewValidatorSet(validators, 0, 1000000000)
 	validatorSet.TurnOnKeepSameProposer()
 	validatorSet.SetProposer(validators[env.proposalIndex])
 	return validatorSet, nil

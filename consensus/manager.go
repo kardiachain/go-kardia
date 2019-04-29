@@ -73,7 +73,7 @@ func (conR *ConsensusManager) Validator() *types.Validator {
 }
 
 func (conR *ConsensusManager) Validators() []*types.Validator {
-	return conR.conS.Validators.Validators
+	return conR.conS.Validators.CurrentValidators()
 }
 
 func (conR *ConsensusManager) Start() {

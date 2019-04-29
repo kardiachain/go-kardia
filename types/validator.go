@@ -123,18 +123,60 @@ func (v *Validator) String() string {
 
 // --------- ValidatorSet ----------
 
-// ValidatorSet represent a set of *Validator at a given height.
+// Represents a set of validators staked for a given window.
+type StakedValidators struct {
+	Validators  []*Validator `json:"validators"`
+	StartHeight int          `json:"startHeight"`
+	EndHeight   int          `json:"endHeight"`
+}
+
+// Returns a long string representing full info about StakedValidator
+func (stakedVals *StakedValidators) StringLong() string {
+	if stakedVals == nil {
+		return "nil-StakedValidators"
+	}
+	valStrings := []string{}
+	stakedVals.Iterate(func(index int, val *Validator) bool {
+		valStrings = append(valStrings, val.String())
+		return false
+	})
+	return fmt.Sprintf("StakedValidators{Validators:%v, StartHeight:%v, EndHeight:%v}",
+		strings.Join(valStrings, "  "), stakedVals.StartHeight, stakedVals.EndHeight)
+}
+
+// Iterate will run the given function over the set.
+func (stakedVals *StakedValidators) Iterate(fn func(index int, val *Validator) bool) {
+	for i, val := range stakedVals.Validators {
+		stop := fn(i, val.Copy())
+		if stop {
+			break
+		}
+	}
+}
+
+func (stakedVals *StakedValidators) Copy() *StakedValidators {
+	validators := make([]*Validator, len(stakedVals.Validators))
+	for i, val := range stakedVals.Validators {
+		// NOTE: must copy, since AdvanceProposer updates in place.
+		validators[i] = val.Copy()
+	}
+
+	return &StakedValidators{
+		Validators:  validators,
+		StartHeight: stakedVals.StartHeight,
+		EndHeight:   stakedVals.EndHeight,
+	}
+}
+
+// Represents a set of *Validator at a given height.
 // The validators can be fetched by address or index.
 // The index is in order of .Address, so the indices are fixed
 // for all rounds of a given blockchain height.
-// NOTE: Not goroutine-safe.
-// NOTE: All get/set to validators should copy the value for safety.
-//
-// TODO(huny@): The first prototype assumes static set of Validators with round-robin proposer
+// Note: Not goroutine-safe.
+// Note: All get/set to validators should copy the value for safety.
 type ValidatorSet struct {
-	// NOTE: persisted via reflect, must be exported.
-	Validators []*Validator `json:"validators"`
-	Proposer   *Validator   `json:"proposer"`
+	Validators *StakedValidators `json:"validators"`
+	Proposer   *Validator        `json:"proposer"`
 
 	// cached (unexported)
 	totalVotingPower int64
@@ -143,14 +185,18 @@ type ValidatorSet struct {
 	KeepSameProposer bool `json:"keep_same_proposer"`
 }
 
-func NewValidatorSet(vals []*Validator) *ValidatorSet {
+func NewValidatorSet(vals []*Validator, startHeight int, endHeight int) *ValidatorSet {
 	validators := make([]*Validator, len(vals))
 	for i, val := range vals {
 		validators[i] = val.Copy()
 	}
 	sort.Sort(ValidatorsByAddress(validators))
 	vs := &ValidatorSet{
-		Validators: validators,
+		Validators: &StakedValidators{
+			Validators:  validators,
+			StartHeight: startHeight,
+			EndHeight:   endHeight,
+		},
 	}
 
 	if vals != nil {
@@ -179,20 +225,20 @@ func (valSet *ValidatorSet) SetProposer(proposer *Validator) {
 // HasAddress returns true if address given is in the validator set, false -
 // otherwise.
 func (valSet *ValidatorSet) HasAddress(address common.Address) bool {
-	idx := sort.Search(len(valSet.Validators), func(i int) bool {
-		return bytes.Compare(address.Bytes(), valSet.Validators[i].Address.Bytes()) <= 0
+	idx := sort.Search(len(valSet.Validators.Validators), func(i int) bool {
+		return bytes.Compare(address.Bytes(), valSet.Validators.Validators[i].Address.Bytes()) <= 0
 	})
-	return idx < len(valSet.Validators) && bytes.Equal(valSet.Validators[idx].Address.Bytes(), address.Bytes())
+	return idx < len(valSet.Validators.Validators) && bytes.Equal(valSet.Validators.Validators[idx].Address.Bytes(), address.Bytes())
 }
 
 // GetByAddress returns an index of the validator with address and validator
 // itself if found. Otherwise, -1 and nil are returned.
 func (valSet *ValidatorSet) GetByAddress(address common.Address) (index int, val *Validator) {
-	idx := sort.Search(len(valSet.Validators), func(i int) bool {
-		return bytes.Compare(address.Bytes(), valSet.Validators[i].Address.Bytes()) <= 0
+	idx := sort.Search(len(valSet.Validators.Validators), func(i int) bool {
+		return bytes.Compare(address.Bytes(), valSet.Validators.Validators[i].Address.Bytes()) <= 0
 	})
-	if idx < len(valSet.Validators) && bytes.Equal(valSet.Validators[idx].Address.Bytes(), address.Bytes()) {
-		return idx, valSet.Validators[idx].Copy()
+	if idx < len(valSet.Validators.Validators) && bytes.Equal(valSet.Validators.Validators[idx].Address.Bytes(), address.Bytes()) {
+		return idx, valSet.Validators.Validators[idx].Copy()
 	}
 	return -1, nil
 }
@@ -201,22 +247,22 @@ func (valSet *ValidatorSet) GetByAddress(address common.Address) (index int, val
 // It returns nil values if index is less than 0 or greater or equal to
 // len(ValidatorSet.Validators).
 func (valSet *ValidatorSet) GetByIndex(index int) (address common.Address, val *Validator) {
-	if index < 0 || index >= len(valSet.Validators) {
+	if valSet.Validators == nil || index < 0 || index >= len(valSet.Validators.Validators) {
 		return common.BytesToAddress(nil), nil
 	}
-	val = valSet.Validators[index]
+	val = valSet.Validators.Validators[index]
 	return val.Address, val.Copy()
 }
 
-// Size returns the length of the validator set.
+// Returns the length of the validator set.
 func (valSet *ValidatorSet) Size() int {
-	return len(valSet.Validators)
+	return len(valSet.Validators.Validators)
 }
 
-// TotalVotingPower returns the sum of the voting powers of all validators.
+// Returns the sum of the voting powers of all validators.
 func (valSet *ValidatorSet) TotalVotingPower() int64 {
 	if valSet.totalVotingPower == 0 {
-		for _, val := range valSet.Validators {
+		for _, val := range valSet.Validators.Validators {
 			// mind overflow
 			valSet.totalVotingPower = valSet.totalVotingPower + val.VotingPower
 		}
@@ -224,10 +270,20 @@ func (valSet *ValidatorSet) TotalVotingPower() int64 {
 	return valSet.totalVotingPower
 }
 
-// GetProposer returns the current proposer. If the validator set is empty, nil
+// Calls this to start the routine that refreses validator set after staking of validators.
+func (valSet *ValidatorSet) ValidatorSetRefreshRoutine() {
+
+}
+
+// Returns the current set of validators.
+func (valSet *ValidatorSet) CurrentValidators() []*Validator {
+	return valSet.Validators.Validators
+}
+
+// Returns the current proposer. If the validator set is empty, nil
 // is returned.
-func (valSet *ValidatorSet) GetProposer() (proposer *Validator) {
-	if len(valSet.Validators) == 0 {
+func (valSet *ValidatorSet) GetProposer() *Validator {
+	if valSet.Validators == nil || len(valSet.Validators.Validators) == 0 {
 		return nil
 	}
 	if valSet.Proposer == nil {
@@ -236,42 +292,36 @@ func (valSet *ValidatorSet) GetProposer() (proposer *Validator) {
 	return valSet.Proposer.Copy()
 }
 
-// Simple round-robin proposer picker
-// TODO(huny@): Implement more fancy algo based on accum later
+// Simple round-robin proposer picker.
 func (valSet *ValidatorSet) findNextProposer() *Validator {
 	if valSet.Proposer == nil {
-		return valSet.Validators[0]
+		return valSet.Validators.Validators[0]
 	}
 	if valSet.KeepSameProposer {
 		return valSet.Proposer
 	}
-	for i, val := range valSet.Validators {
+	for i, val := range valSet.Validators.Validators {
 		if bytes.Equal(val.Address.Bytes(), valSet.Proposer.Address.Bytes()) {
 			if i == valSet.Size()-1 {
-				return valSet.Validators[0]
+				return valSet.Validators.Validators[0]
 			} else {
-				return valSet.Validators[i+1]
+				return valSet.Validators.Validators[i+1]
 			}
 		}
 	}
 	// Reaching here means current proposer is NOT in the set, so return the first validator
-	return valSet.Validators[0]
+	return valSet.Validators.Validators[0]
 }
 
-// TODO(huny@): Probably use Merkle proof tree with Validators as leaves?
+// TODO(huny@): Probably use Merkle proof tree with Validators.Validators as leaves?
 func (valSet *ValidatorSet) Hash() common.Hash {
 	return rlpHash(valSet)
 }
 
 // Copy each validator into a new ValidatorSet
 func (valSet *ValidatorSet) Copy() *ValidatorSet {
-	validators := make([]*Validator, len(valSet.Validators))
-	for i, val := range valSet.Validators {
-		// NOTE: must copy, since AdvanceProposer updates in place.
-		validators[i] = val.Copy()
-	}
 	return &ValidatorSet{
-		Validators:       validators,
+		Validators:       valSet.Validators.Copy(),
 		Proposer:         valSet.Proposer,
 		totalVotingPower: valSet.totalVotingPower,
 	}
@@ -280,13 +330,14 @@ func (valSet *ValidatorSet) Copy() *ValidatorSet {
 // Advances proposer a given number of times. Calls this with 1 time to advance to the next
 // proposer.
 func (valSet *ValidatorSet) AdvanceProposer(times int) {
+	// Note: This is --dev mode only. Do not remove.
 	if valSet.KeepSameProposer {
 		return
 	}
 
 	validatorsHeap := common.NewHeap()
 	// Update voting power of each validator after "times" increments.
-	for _, val := range valSet.Validators {
+	for _, val := range valSet.Validators.Validators {
 		val.Accum = common.AddWithClip(val.Accum, common.MulWithClip(val.VotingPower, int64(times)))
 		validatorsHeap.PushComparable(val, accumComparable{val})
 	}
@@ -300,16 +351,6 @@ func (valSet *ValidatorSet) AdvanceProposer(times int) {
 			valSet.Proposer = mostest
 		} else {
 			validatorsHeap.Update(mostest, accumComparable{mostest})
-		}
-	}
-}
-
-// Iterate will run the given function over the set.
-func (valSet *ValidatorSet) Iterate(fn func(index int, val *Validator) bool) {
-	for i, val := range valSet.Validators {
-		stop := fn(i, val.Copy())
-		if stop {
-			break
 		}
 	}
 }
@@ -364,13 +405,8 @@ func (valSet *ValidatorSet) StringLong() string {
 	if valSet == nil {
 		return "nil-ValidatorSet"
 	}
-	valStrings := []string{}
-	valSet.Iterate(func(index int, val *Validator) bool {
-		valStrings = append(valStrings, val.String())
-		return false
-	})
 	return fmt.Sprintf("ValidatorSet{Proposer:%v  Validators:%v}",
-		valSet.GetProposer(), strings.Join(valStrings, "  "))
+		valSet.GetProposer(), valSet.Validators)
 
 }
 
@@ -379,13 +415,8 @@ func (valSet *ValidatorSet) String() string {
 	if valSet == nil {
 		return "nil-ValidatorSet"
 	}
-	valStrings := []string{}
-	valSet.Iterate(func(index int, val *Validator) bool {
-		valStrings = append(valStrings, val.String())
-		return false
-	})
 	return fmt.Sprintf("ValidatorSet{Proposer:%v  Validators:%v}",
-		valSet.GetProposer().String(), strings.Join(valStrings, "  "))
+		valSet.GetProposer().String(), valSet.Validators)
 }
 
 //-------------------------------------
