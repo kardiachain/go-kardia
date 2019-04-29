@@ -736,7 +736,7 @@ func (cs *ConsensusState) enterNewRound(height *cmn.BigInt, round *cmn.BigInt) {
 	validators := cs.Validators
 	if cs.Round.IsLessThan(round) {
 		validators = validators.Copy()
-		validators.AdvanceProposer(int(round.Int64() - cs.Round.Int64()))
+		validators.AdvanceProposer(cs.Round.Int64(), round.Int64())
 	}
 
 	// Setup new round

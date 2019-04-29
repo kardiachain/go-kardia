@@ -125,9 +125,11 @@ func (v *Validator) String() string {
 
 // Represents a set of validators staked for a given window.
 type StakedValidators struct {
-	Validators  []*Validator `json:"validators"`
-	StartHeight int          `json:"startHeight"`
-	EndHeight   int          `json:"endHeight"`
+	Validators []*Validator `json:"validators"`
+	// Start block height of the staked validators. The value is inclusive.
+	StartHeight int64 `json:"startHeight"`
+	// End block height of the staked validators. The value is inclusive.
+	EndHeight int64 `json:"endHeight"`
 }
 
 // Returns a long string representing full info about StakedValidator
@@ -175,17 +177,27 @@ func (stakedVals *StakedValidators) Copy() *StakedValidators {
 // Note: Not goroutine-safe.
 // Note: All get/set to validators should copy the value for safety.
 type ValidatorSet struct {
+	// Current staked validator set.
 	Validators *StakedValidators `json:"validators"`
-	Proposer   *Validator        `json:"proposer"`
+	// Next staked validator set.
+	NextValidators *StakedValidators `json:"nextValidators"`
+	// Current proposing validator.
+	Proposer *Validator `json:"proposer"`
 
 	// cached (unexported)
 	totalVotingPower int64
 
 	// ======== DEV ENVIRONMENT CONFIG =========
 	KeepSameProposer bool `json:"keep_same_proposer"`
+	// TODO(namdoh): Move this node config
+	// Indicates the how step height before the current staked validators' end height that we start
+	// to refresh the validator set after the end height.
+	refreshBackoffHeightStep int64
+	// Indicates step height delta for refresh retry.
+	refreshHeightDelta int64
 }
 
-func NewValidatorSet(vals []*Validator, startHeight int, endHeight int) *ValidatorSet {
+func NewValidatorSet(vals []*Validator, startHeight int64, endHeight int64, refreshBackoff int64, refreshDelta int64) *ValidatorSet {
 	validators := make([]*Validator, len(vals))
 	for i, val := range vals {
 		validators[i] = val.Copy()
@@ -197,10 +209,12 @@ func NewValidatorSet(vals []*Validator, startHeight int, endHeight int) *Validat
 			StartHeight: startHeight,
 			EndHeight:   endHeight,
 		},
+		refreshBackoffHeightStep: refreshBackoff,
+		refreshHeightDelta:       refreshDelta,
 	}
 
 	if vals != nil {
-		vs.Proposer = vs.findNextProposer()
+		vs.Proposer = vs.Validators.Validators[0]
 	}
 
 	return vs
@@ -270,9 +284,58 @@ func (valSet *ValidatorSet) TotalVotingPower() int64 {
 	return valSet.totalVotingPower
 }
 
-// Calls this to start the routine that refreses validator set after staking of validators.
-func (valSet *ValidatorSet) ValidatorSetRefreshRoutine() {
+// May fresh current or future validator sets, or both.
+// The refreshing policy is needed to optimize how often we need to fetch validator set from
+// staking smart contract. Policy:
+//
+// if "height" is greater than the current staked validator set's end height:
+//     i)  if "height" is in within the next validator set's start/end window: assign the next
+//         validator set to the current validator set. However, if next validator set is empty,
+//         do nothing.
+//     ii) if "height" is greater than the next validator set's end height: fetch current staked
+//         validator set.
+// if "height" is within the current staked validator set's start/end height window:
+//     i)  current validator set: do not fetch.
+//     ii) next validator set: if "height" is greater or equal to
+//         (end_height - refreshBackoffHeightStep) and the next staked validator set is nil,
+//         fetch it.
+//         NOTE: Consider doing this asynchronously, but beware of race condition.
+// if "height" is less than the current staked validator set's start height:
+//     i)  current validator set: do not fetch
+//     ii) next validator set: do not fetch
+//
+// Note: This must be called before advancing to the next proposer.
+func (valSet *ValidatorSet) mayRefreshValidatorSet(height int64) {
+	currentVals := valSet.Validators
+	nextVals := valSet.NextValidators
 
+	if height > currentVals.EndHeight {
+		if height >= nextVals.StartHeight && height <= nextVals.EndHeight {
+			valSet.Validators = valSet.NextValidators
+		} else if height > nextVals.EndHeight {
+			valSet.Validators = valSet.fetchValidatorSet(height)
+		}
+		valSet.NextValidators = nil
+	}
+
+	currentVals = valSet.Validators
+	nextVals = valSet.NextValidators
+	if height >= currentVals.StartHeight && height <= nextVals.EndHeight {
+		if height >= currentVals.EndHeight-valSet.refreshBackoffHeightStep && nextVals != nil &&
+			(height-(currentVals.EndHeight-valSet.refreshBackoffHeightStep))%valSet.refreshHeightDelta == 0 /* check step-wise refresh */ {
+			valSet.NextValidators = valSet.fetchValidatorSet(currentVals.EndHeight + 1)
+		}
+	}
+
+	currentVals = valSet.Validators
+	nextVals = valSet.NextValidators
+}
+
+// Fetches the validator set at a given height.
+// TODO(huny@): Please implement this function.
+func (valSet *ValidatorSet) fetchValidatorSet(height int64) *StakedValidators {
+	// TODO(huny@): Update this.
+	return valSet.Validators
 }
 
 // Returns the current set of validators.
@@ -287,30 +350,9 @@ func (valSet *ValidatorSet) GetProposer() *Validator {
 		return nil
 	}
 	if valSet.Proposer == nil {
-		valSet.Proposer = valSet.findNextProposer()
+		valSet.Proposer = valSet.Validators.Validators[0]
 	}
 	return valSet.Proposer.Copy()
-}
-
-// Simple round-robin proposer picker.
-func (valSet *ValidatorSet) findNextProposer() *Validator {
-	if valSet.Proposer == nil {
-		return valSet.Validators.Validators[0]
-	}
-	if valSet.KeepSameProposer {
-		return valSet.Proposer
-	}
-	for i, val := range valSet.Validators.Validators {
-		if bytes.Equal(val.Address.Bytes(), valSet.Proposer.Address.Bytes()) {
-			if i == valSet.Size()-1 {
-				return valSet.Validators.Validators[0]
-			} else {
-				return valSet.Validators.Validators[i+1]
-			}
-		}
-	}
-	// Reaching here means current proposer is NOT in the set, so return the first validator
-	return valSet.Validators.Validators[0]
 }
 
 // TODO(huny@): Probably use Merkle proof tree with Validators.Validators as leaves?
@@ -321,20 +363,27 @@ func (valSet *ValidatorSet) Hash() common.Hash {
 // Copy each validator into a new ValidatorSet
 func (valSet *ValidatorSet) Copy() *ValidatorSet {
 	return &ValidatorSet{
-		Validators:       valSet.Validators.Copy(),
-		Proposer:         valSet.Proposer,
-		totalVotingPower: valSet.totalVotingPower,
+		Validators:               valSet.Validators.Copy(),
+		NextValidators:           valSet.NextValidators.Copy(),
+		Proposer:                 valSet.Proposer,
+		totalVotingPower:         valSet.totalVotingPower,
+		refreshBackoffHeightStep: valSet.refreshBackoffHeightStep,
+		refreshHeightDelta:       valSet.refreshHeightDelta,
 	}
 }
 
 // Advances proposer a given number of times. Calls this with 1 time to advance to the next
 // proposer.
-func (valSet *ValidatorSet) AdvanceProposer(times int) {
+func (valSet *ValidatorSet) AdvanceProposer(currentHeight int64, nextHeight int64) {
+	// MUST STAY AT THE BEGIN OF THE FUNCTION.
 	// Note: This is --dev mode only. Do not remove.
 	if valSet.KeepSameProposer {
 		return
 	}
 
+	valSet.mayRefreshValidatorSet(nextHeight)
+
+	times := nextHeight - currentHeight
 	validatorsHeap := common.NewHeap()
 	// Update voting power of each validator after "times" increments.
 	for _, val := range valSet.Validators.Validators {
@@ -343,7 +392,8 @@ func (valSet *ValidatorSet) AdvanceProposer(times int) {
 	}
 
 	// Loop "times" time to set the latest proposer.
-	for i := 0; i < times; i++ {
+	// TODO(namdoh@): Revise the following logic as the next validator set is udpated.
+	for i := int64(0); i < times; i++ {
 		mostest := validatorsHeap.Peek().(*Validator)
 		mostest.Accum = common.SubWithClip(mostest.Accum, valSet.TotalVotingPower())
 
@@ -405,8 +455,8 @@ func (valSet *ValidatorSet) StringLong() string {
 	if valSet == nil {
 		return "nil-ValidatorSet"
 	}
-	return fmt.Sprintf("ValidatorSet{Proposer:%v  Validators:%v}",
-		valSet.GetProposer(), valSet.Validators)
+	return fmt.Sprintf("ValidatorSet{Proposer:%v  Validators:%v  NextValidators:%v}",
+		valSet.GetProposer(), valSet.Validators, valSet.NextValidators)
 
 }
 
@@ -415,8 +465,8 @@ func (valSet *ValidatorSet) String() string {
 	if valSet == nil {
 		return "nil-ValidatorSet"
 	}
-	return fmt.Sprintf("ValidatorSet{Proposer:%v  Validators:%v}",
-		valSet.GetProposer().String(), valSet.Validators)
+	return fmt.Sprintf("ValidatorSet{Proposer:%v  Validators:%v  NextValidators:%v}",
+		valSet.GetProposer().String(), valSet.Validators, valSet.NextValidators)
 }
 
 //-------------------------------------

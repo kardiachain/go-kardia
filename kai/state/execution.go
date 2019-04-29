@@ -40,7 +40,7 @@ func ValidateBlock(state LastestBlockState, block *types.Block) error {
 	return validateBlock(state, block)
 }
 
-// ApplyBlock validates the block against the state, and saves the new state.
+// Validates the block against the state, and saves the new state.
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
@@ -70,13 +70,15 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 
 	// copy the valset so we can apply changes from EndBlock
 	// and update s.LastValidators and s.Validators
+	// TODO(namdoh@): Refactor to set next set of valiator here.
 	nextValSet := state.Validators.Copy()
 
 	// update the validator set with the latest abciResponses
 	lastHeightValsChanged := state.LastHeightValidatorsChanged
 
 	// Update validator accums and set state variables
-	nextValSet.AdvanceProposer(1)
+	currentHeight := int64(header.Height)
+	nextValSet.AdvanceProposer(currentHeight+1, currentHeight)
 
 	var totalTx *cmn.BigInt
 	if state.LastBlockTotalTx == nil {
