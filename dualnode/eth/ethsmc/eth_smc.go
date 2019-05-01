@@ -36,15 +36,15 @@ import (
 var EthContractAddress = "0x0aa9c07cde3fedcf650473951e77376b1c6a9f16"
 
 // ABI of the deployed Eth contract.
-var EthExchangeAbi = `[
-{"constant":false,"inputs":[{"name":"receiver","type":"address"},{"name":"amount","type":"uint256"}],"name":"release","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
+var EthExchangeAbi = `[{"constant":false,"inputs":[{"name":"receiver","type":"address"},{"name":"amount","type":"uint256"}],"name":"release","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
 {"constant":false,"inputs":[{"name":"receiver","type":"string"},{"name":"destination","type":"string"}],"name":"deposit","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},
 {"constant":true,"inputs":[{"name":"destination","type":"string"}],"name":"isValidType","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},
+{"constant":false,"inputs":[{"name":"_type","type":"string"},{"name":"status","type":"bool"}],"name":"updateAvailableType","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
 {"inputs":[{"name":"_owner","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"}]`
 
 var (
-	EthAccountSign               = "0xff6781f2cc6f9b6b4a68a0afc3aae89133bbb236"
-	EthAccountSignAddr           = "457D86F3AFAA8159D7C8356BF3F195CF7AED35AF84C7DC40C4D9AA27846ED9DC"
+	EthAccountSign     = "0xff6781f2cc6f9b6b4a68a0afc3aae89133bbb236"
+	EthAccountSignAddr = "457D86F3AFAA8159D7C8356BF3F195CF7AED35AF84C7DC40C4D9AA27846ED9DC"
 )
 
 type EthSmc struct {
@@ -84,7 +84,7 @@ func (e *EthSmc) InputMethodName(input []byte) (string, error) {
 // UnpackDepositInput return the receiver address and destination of deposit tx
 func (e *EthSmc) UnpackDepositInput(input []byte) (string, string, error) {
 	var depositInput struct {
-		Receiver string
+		Receiver    string
 		Destination string
 	}
 	err := e.UnpackInput(&depositInput, "deposit", input[4:])

@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"path/filepath"
 	"strconv"
@@ -319,6 +320,7 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 			arrAmounts := strings.Split(fields[configs.ExchangeV2ReleaseAmountsIndex], configs.ExchangeV2ReleaseValuesSepatator)
 			arrTxIds := strings.Split(fields[configs.ExchangeV2ReleaseTxIdsIndex], configs.ExchangeV2ReleaseValuesSepatator)
 			fromAmount, toAmount, err := utils.CallGetRate(fromType, toType, n.kardiaChain, statedb)
+			log.Info("Release","fromType", fromType, "toType", toType)
 			if err != nil {
 				n.Logger().Error("error on getting rate", "fromType", fromType, "toType", toType, "err", err)
 				return err
@@ -336,9 +338,19 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 						log.Error("Error parse amount", "amount", arrAmounts[i])
 						continue
 					}
+					// Get rate base on the dual node exchange
+					if t == fromType { //ETH
+						fromType = toType
+					} else {
+						tempToAmount :=  toAmount
+						toAmount = fromAmount
+						fromAmount = tempToAmount
+					}
+
 					// Calculate the released amount by wei
-					convertedAmount := big.NewInt(amount).Mul(big.NewInt(amount), toAmount)
-					convertedAmount = convertedAmount.Div(convertedAmount, fromAmount)
+					convertedAmount := big.NewFloat(float64(amount))
+					convertedAmount = convertedAmount.Mul(convertedAmount, new(big.Float).SetInt(toAmount))
+					convertedAmount = convertedAmount.Quo(convertedAmount, new(big.Float).SetInt(fromAmount))
 					amountToRelease, err := getReleasedAmount(fromType, convertedAmount)
 					if err != nil {
 						log.Error("Error getting released amount", "err", err)
@@ -361,14 +373,18 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 }
 
 // getReleasedAmount converts amount to ETH amount based on original chain (NEO, TRX)
-func getReleasedAmount(fromType string, convertedAmount *big.Int) (*big.Int, error) {
+func getReleasedAmount(fromType string, convertedAmount *big.Float) (*big.Int, error) {
 	switch fromType {
 	case configs.NEO:
 		// if fromType is NEO then convert from NEO unit (10^8) to 10^18
-		return big.NewInt(1).Mul(convertedAmount, utils.TenPoweredByTen), nil
+		convertedAmount = big.NewFloat(float64(1)).Mul(convertedAmount, utils.TenPoweredByTenFloat)
+		temp, _ := convertedAmount.Float64()
+		return big.NewInt(int64(math.Round(temp))), nil
 	case configs.TRON:
 		// if fromType is TRON then convert from TRON unit (10^6) to 10^18
-		return big.NewInt(1).Mul(convertedAmount, utils.TenPoweredByTwelve), nil
+		convertedAmount = big.NewFloat(float64(1)).Mul(convertedAmount, utils.TenPoweredByTwelveFloat)
+		temp, _ := convertedAmount.Float64()
+		return big.NewInt(int64(math.Round(temp))), nil
 	default:
 		return nil, fmt.Errorf("invalid fromType %v", fromType)
 	}
