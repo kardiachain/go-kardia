@@ -19,15 +19,15 @@
 package utils
 
 import (
+	"crypto/ecdsa"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
-	"crypto/ecdsa"
-	"encoding/hex"
-	"encoding/json"
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/pebbe/zmq4"
@@ -53,25 +53,25 @@ import (
 
 const (
 	KARDIA_CALL = "KARDIA_CALL"
-	DUAL_CALL = "DUAL_CALL"
-	DUAL_MSG = "DUAL_MSG"
+	DUAL_CALL   = "DUAL_CALL"
+	DUAL_MSG    = "DUAL_MSG"
 )
 
 // TODO: note that when we have dynamic method, these values will be moved to smartcontract or anything that can handle this case.
 var AvailableExchangeType = map[string]bool{
 	configs.TRON: true,
-	configs.NEO: true,
-	configs.ETH: true,
+	configs.NEO:  true,
+	configs.ETH:  true,
 }
 
 var MaximumGasToCallStaticFunction = uint(4000000)
 var errAbiNotFound = errors.New("ABI not found")
-var errNoNeoToSend        = errors.New("not enough NEO to send")
+var errAmountLessThanOne = errors.New("Amount is less than one to send")
 var TenPoweredBySix = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(6), nil)
 var TenPoweredByEight = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
 var TenPoweredByTen = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(10), nil)
 var TenPoweredByTwelve = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(12), nil)
-var TenPoweredBySixFloat =  big.NewFloat(float64(math.Pow10(6)))
+var TenPoweredBySixFloat = big.NewFloat(float64(math.Pow10(6)))
 
 type MatchedRequest struct {
 	MatchedRequestID *big.Int `abi:"matchedRequestID"`
@@ -114,8 +114,8 @@ func CallGetRate(fromType string, toType string, bc base.BaseBlockChain, statedb
 
 	// init a rateStruct based on returned type from smart contract
 	var rateStruct struct {
-		FromAmount 		*big.Int
-		ReceivedAmount 	*big.Int
+		FromAmount     *big.Int
+		ReceivedAmount *big.Int
 	}
 	err = kABI.Unpack(&rateStruct, "getRate", result)
 	if err != nil {
@@ -156,7 +156,7 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 	// unit of ordered amount will be based on the type which has smaller unit based.
 	// for eg: int ETH-NEO, NEO has 10^8 while ETH has 10^18, hence the order amount will be based on NEO
 	log.Info("Prepare for convert amount", "source", source, "destination", destination,
-		"fromAmount", fromAmount, "toAmount", toAmount)
+		"fromAmount", fromAmount, "toAmount", toAmount, "quantity", quantity)
 
 	if fromAmount.Cmp(big.NewInt(0)) == 0 || toAmount.Cmp(big.NewInt(0)) == 0 {
 		log.Error("Invalid rate", "source", source, "destination", destination,
@@ -316,7 +316,7 @@ func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) erro
 	m := &jsonpb.Marshaler{}
 	msgToSend, err := m.MarshalToString(&message)
 	if err != nil {
-		log.Error("Failed to encode", "message", message.String(), "error",  err)
+		log.Error("Failed to encode", "message", message.String(), "error", err)
 	}
 	// send message
 	log.Info("Publish message", "topic", topic, "msgToSend", msgToSend)
@@ -516,12 +516,12 @@ func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error 
 	// create a triggeredMessage and send it through ZeroMQ with topic KARDIA_CALL
 	triggerMessage := dualMsg.TriggerMessage{
 		ContractAddress: smartContract,
-		MethodName: configs.ExternalReleaseFunction,
-		Params: []string{receiver, amount},
+		MethodName:      configs.ExternalReleaseFunction,
+		Params:          []string{receiver, amount},
 		CallBacks: []*dualMsg.TriggerMessage{
 			{
 				ContractAddress: configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex).Hex(),
-				MethodName: configs.UpdateTargetTx,
+				MethodName:      configs.UpdateTargetTx,
 				Params: []string{
 					// original tx, callback will be called after dual finish execute method,
 					// txid after dual finish executing will be appended
@@ -557,7 +557,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 		senderAddr,
 		proxy.KardiaBlockChain(),
 		stateDB,
-		originalTx,)
+		originalTx, )
 	if err != nil {
 		return err
 	}
@@ -583,17 +583,17 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 				proxy.Logger().Error("Missing release info", "matchedTxId", arrTxIds[i], "field", i, "releases", releases)
 				continue
 			}
-			log.Info("ReleaseInfo", "type", t, "address", arrAddresses[i], "amount" , arrAmounts[i], "matchedTxId", arrTxIds[i])
+			log.Info("ReleaseInfo", "type", t, "address", arrAddresses[i], "amount", arrAmounts[i], "matchedTxId", arrTxIds[i])
 
 			if t == configs.TRON || t == configs.NEO {
 				address := arrAddresses[i]
 				amount, err1 := strconv.ParseInt(arrAmounts[i], 10, 64) //big.NewInt(0).SetString(arrAmounts[i], 10)
-				proxy.Logger().Info("Amount", "amount", amount, "in string", arrAmounts[i])
+				proxy.Logger().Info("Amount from smc", "amount", amount, "in string", arrAmounts[i])
 				if err1 != nil {
-					log.Error("Error parse amount", "amount", arrAmounts[i])
+					log.Error("Error parse amount from smc", "amount", arrAmounts[i])
 					continue
 				}
-				// Ex: Deposit NEO then match TRX
+				// Get rate base on the dual node exchange
 				if t != fromType {
 					fromAmount, toAmount, _ = CallGetRate(t, fromType, proxy.KardiaBlockChain(), stateDB)
 				}
@@ -602,8 +602,8 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 				if t == configs.TRON {
 					// TRON is the smallest unit then do nothing with it
 					releasedAmount = big.NewInt(amount)
-				} else {
-					if fromType == configs.ETH {
+				} else { // NEO
+					if toType == configs.ETH {
 						// Divide amount from smart contract by 10^8 to get base NEO amount to release
 						releasedAmount = big.NewInt(amount).Div(big.NewInt(amount), TenPoweredByEight)
 					} else {
@@ -620,8 +620,8 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 					proxy.Logger().Info("Prepare to release", "amount", releasedAmount)
 					// don't release  NEO if quantity < 1
 					if releasedAmount.Cmp(big.NewInt(1)) < 0 {
-						proxy.Logger().Error("Too little neo to send", "originalTxId", originalTx, "err", errNoNeoToSend, "amount", releasedAmount)
-						return errNoNeoToSend
+						proxy.Logger().Error("Too little amount to send", "originalTxId", originalTx, "err", errAmountLessThanOne, "amount", releasedAmount)
+						return errAmountLessThanOne
 					}
 
 				}

@@ -336,6 +336,11 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 						log.Error("Error parse amount", "amount", arrAmounts[i])
 						continue
 					}
+					// Get rate base on the dual node exchange
+					if t != fromType {
+						fromAmount, toAmount, _ = utils.CallGetRate(t, fromType, n.kardiaChain, statedb)
+						fromType = toType
+					}
 					// Calculate the released amount by wei
 					convertedAmount := big.NewInt(amount).Mul(big.NewInt(amount), toAmount)
 					convertedAmount = convertedAmount.Div(convertedAmount, fromAmount)
