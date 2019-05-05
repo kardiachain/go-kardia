@@ -67,11 +67,15 @@ var AvailableExchangeType = map[string]bool{
 var MaximumGasToCallStaticFunction = uint(4000000)
 var errAbiNotFound = errors.New("ABI not found")
 var errAmountLessThanOne = errors.New("Amount is less than one to send")
+var errInvalidExchangeRate = errors.New("Invalid exchange rate")
+var errInvalidSourceMatchAmount = errors.New("Invalid source for match amount tx")
 var TenPoweredBySix = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(6), nil)
+var TenPoweredBySixFloat = big.NewFloat(float64(math.Pow10(6)))
 var TenPoweredByEight = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
 var TenPoweredByTen = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(10), nil)
+var TenPoweredByTenFloat = big.NewFloat(float64(math.Pow10(10)))
 var TenPoweredByTwelve = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(12), nil)
-var TenPoweredBySixFloat = big.NewFloat(float64(math.Pow10(6)))
+var TenPoweredByTwelveFloat = big.NewFloat(float64(math.Pow10(12)))
 
 type MatchedRequest struct {
 	MatchedRequestID *big.Int `abi:"matchedRequestID"`
@@ -148,7 +152,7 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 	temp := big.NewInt(1)
 	fromAmount, toAmount, err := CallGetRate(source, destination, bc, statedb.StateDB)
 	if err != nil {
-		return nil, err
+		return nil, errInvalidExchangeRate
 	}
 
 	var convertedAmount *big.Int
@@ -159,9 +163,9 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 		"fromAmount", fromAmount, "toAmount", toAmount, "quantity", quantity)
 
 	if fromAmount.Cmp(big.NewInt(0)) == 0 || toAmount.Cmp(big.NewInt(0)) == 0 {
-		log.Error("Invalid rate", "source", source, "destination", destination,
+		log.Error("Invalid exchange rate", "source", source, "destination", destination,
 			"fromAmount", fromAmount, "toAmount", toAmount)
-		return nil, err
+		return nil, errInvalidExchangeRate
 	}
 	switch source {
 	case configs.ETH:
@@ -186,7 +190,7 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 		convertedAmount = quantity
 	default:
 		log.Error("Invalid source for match amount tx", "src", source)
-		return nil, err
+		return nil, errInvalidSourceMatchAmount
 	}
 
 	log.Info("AddOrderFunction", "fromType", source, "toType", destination, "srcAddress", sourceAddress,
@@ -595,7 +599,9 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 				}
 				// Get rate base on the dual node exchange
 				if t != fromType {
-					fromAmount, toAmount, _ = CallGetRate(t, fromType, proxy.KardiaBlockChain(), stateDB)
+					tempFromAmount := fromAmount
+					fromAmount = toAmount
+					toAmount = tempFromAmount
 				}
 
 				var releasedAmount *big.Int
