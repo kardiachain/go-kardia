@@ -167,7 +167,7 @@ func (n *Proxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 // SubmitTx submit corresponding tx to NEO or Kardia basing on Data in EventData, include release NEO
 // and upgrade Kardia smart contract. In case of matching event, we find the matched request here to release NEO to.
 func (n *Proxy) SubmitTx(event *types.EventData) error {
-	//Only allow TxSource from Kardia
+	// Only allow TxSource from Kardia
 	if event.TxSource == types.KARDIA {
 		switch event.Data.TxMethod {
 		case configs.AddOrderFunction:

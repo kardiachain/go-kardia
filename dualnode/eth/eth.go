@@ -320,7 +320,7 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 			arrAmounts := strings.Split(fields[configs.ExchangeV2ReleaseAmountsIndex], configs.ExchangeV2ReleaseValuesSepatator)
 			arrTxIds := strings.Split(fields[configs.ExchangeV2ReleaseTxIdsIndex], configs.ExchangeV2ReleaseValuesSepatator)
 			fromAmount, toAmount, err := utils.CallGetRate(fromType, toType, n.kardiaChain, statedb)
-			log.Info("Release","fromType", fromType, "toType", toType)
+			log.Info("Release","fromType", fromType, "toType", toType, "fromAmount", fromAmount, "toAmount", toAmount)
 			if err != nil {
 				n.Logger().Error("error on getting rate", "fromType", fromType, "toType", toType, "err", err)
 				return err
@@ -339,18 +339,19 @@ func (n *Eth) SubmitTx(event *types.EventData) error {
 						continue
 					}
 					// Get rate base on the dual node exchange
-					if t == fromType { //ETH
+					// When deposit NEO(TRX)-ETH then matching order ETH-NEO(TRX)
+					if t == fromType { // ETH
 						fromType = toType
 					} else {
-						tempToAmount :=  toAmount
+						tempToAmount := toAmount
 						toAmount = fromAmount
 						fromAmount = tempToAmount
 					}
 
 					// Calculate the released amount by wei
 					convertedAmount := big.NewFloat(float64(amount))
-					convertedAmount = convertedAmount.Mul(convertedAmount, new(big.Float).SetInt(toAmount))
 					convertedAmount = convertedAmount.Quo(convertedAmount, new(big.Float).SetInt(fromAmount))
+					convertedAmount = convertedAmount.Mul(convertedAmount, new(big.Float).SetInt(toAmount))
 					amountToRelease, err := getReleasedAmount(fromType, convertedAmount)
 					if err != nil {
 						log.Error("Error getting released amount", "err", err)
