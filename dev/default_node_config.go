@@ -25,11 +25,6 @@ import (
 	"fmt"
 )
 
-const (
-	// GenesisAccount used for matchEth tx
-	MockSmartContractCallSenderAccount = "0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5"
-)
-
 // Nodes are used for testing authorized node in private case
 // From 0-9: authorized which are listed in kvm/smc/Permission.sol
 // While 10 is not listed mean it is unauthorized.

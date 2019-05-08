@@ -60,6 +60,6 @@ func CreateDualNodeConfig() *DualNodeConfig {
 
 func (tc *TriggeringConfig) GenerateEthBlock(address ethCommon.Address) *ethTypes.Block {
 	ethSmc := ethsmc.NewEthSmc()
-	tx1 := ethSmc.CreateEthDepositTx(OneTenthEthInWei, NeoReceiverAddressList[0], "ETH-NEO", address, tc.nonce)
+	tx1 := ethSmc.CreateEthDepositTx(OneTenthEthInWei, NeoReceiverAddressList[0], "NEO", address, tc.nonce)
 	return ethTypes.NewBlock(&ethTypes.Header{}, []*ethTypes.Transaction{tx1}, []*ethTypes.Header{}, []*ethTypes.Receipt{})
 }

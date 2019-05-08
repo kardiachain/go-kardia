@@ -34,9 +34,10 @@ const (
 	ExternalReleaseFunction            = "release"
 	GetRate                            = "getRate"
 	UpdateTargetTx                     = "updateTargetTx"
+	UpdateKardiaTx                     = "updateKardiaTx"
 
 	// constants related to rate & addOrder function from smc
-	KARDIA                             = "KARDIA"
+	KAI                                = "KAI"
 	ETH                                = "ETH"
 	NEO                                = "NEO"
 	TRON                               = "TRX"

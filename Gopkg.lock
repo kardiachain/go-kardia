@@ -150,11 +150,13 @@
   version = "v1.8.0"
 
 [[projects]]
-  digest = "1:4ee2c939f1ee5983ec75069bc51604a64657b37bc03adeccee8b60abecfe76cc"
+  digest = "1:5b3cae1ba59f5db45f9f49357386de7c1dd187b69dc0134364aa26a7318cb0be"
   name = "github.com/golang/protobuf"
   packages = [
+    "jsonpb",
     "proto",
     "protoc-gen-go/descriptor",
+    "ptypes/struct",
   ]
   pruneopts = "UT"
   revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
@@ -480,6 +482,7 @@
     "github.com/ethereum/go-ethereum/p2p/enode",
     "github.com/ethereum/go-ethereum/params",
     "github.com/go-stack/stack",
+    "github.com/golang/protobuf/jsonpb",
     "github.com/golang/protobuf/proto",
     "github.com/golang/snappy",
     "github.com/hashicorp/golang-lru",

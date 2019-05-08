@@ -119,6 +119,7 @@ contract KardiaExchange {
     /*
     matchingResult stores 4 elements which are toTypes, releasedAddresses, amounts, txs
     which is result from doMatchingOrder function.
+    this variable is used to get released list from txid
     */
     mapping(string => string[]) matchingResult;
 
@@ -130,6 +131,11 @@ contract KardiaExchange {
     // getOwner returns root address
     function getOwner() public view returns (address) {
         return owner;
+    }
+
+    // isAuthorized returns given user address is authorized or not
+    function isAuthorized(address user) public view returns (bool) {
+        return authorizedUsers[user];
     }
 
     // authorizedUser authorize an address to be admin
@@ -303,7 +309,8 @@ contract KardiaExchange {
         }
     }
 
-    function updateMatchingResult(string txid, string toType, string _address, uint256 amount, string _tx) public onlyadmin {
+    // updateMatchingResult appends released list into tx, which will be used in dual node
+    function updateMatchingResult(string txid, string toType, string _address, uint256 amount, string _tx) internal {
         string[] memory result = matchingResult[txid];
         if (result.length == 0) {
             result = new string[](4);
@@ -332,63 +339,65 @@ contract KardiaExchange {
         5. Append results to _toTypes, releasedAddresses, amount, txs and return.
         Note: before releasing, backend should get amount/rate to get correct amount.
     */
-    function doMatchingOrder(Order order) internal {
+    function doMatchingOrder(Order newOrder) internal {
 
-        uint256 releasedAmount = order.availableAmount;
+        uint256 releasedAmount = newOrder.availableAmount;
         // get orders from pendingOrders
-        Order[] storage pendingOrdersList = pendingOrders[order.toType][order.fromType];
+        Order[] storage pendingOrdersList = pendingOrders[newOrder.toType][newOrder.fromType];
         if (pendingOrdersList.length >= 0) {
             for (uint i=0; i < pendingOrdersList.length; i++) {
 
-                // break if order.availableAmount = 0
+                // break if newOrder.availableAmount = 0
                 if (releasedAmount == 0) break;
 
                 // continue loop if availableAmount = 0
                 if (pendingOrdersList[i].availableAmount == 0) continue;
+                
+                // get order from allOrders
+                Order memory order = getOrderByTxId(pendingOrdersList[i].txId);
 
                 // orderly match pendingOrder with availableAmount until availableAmount is 0
-                if (pendingOrdersList[i].availableAmount >= releasedAmount) {
+                if (order.availableAmount >= releasedAmount) {
                     // append pendingOrder info to _toTypes, releasedAddresses, amounts and txs
-                    updateMatchingResult(order.txId, pendingOrdersList[i].toType, pendingOrdersList[i].receiver, releasedAmount, pendingOrdersList[i].txId);
-                    pendingOrdersList[i].availableAmount = pendingOrdersList[i].availableAmount - releasedAmount;
+                    updateMatchingResult(newOrder.txId, order.toType, order.receiver, releasedAmount, order.txId);
+                    order.availableAmount = order.availableAmount - releasedAmount;
 
                     // update pendingOrder if its availableAmount = 0 and remove it from pendingOrders
-                    if (pendingOrdersList[i].availableAmount == 0) {
-                        pendingOrdersList[i].done = DONE;
+                    if (order.availableAmount == 0) {
+                        order.done = DONE;
                     }
 
                     // update result to pendingOrders and allOrders
-                    pendingOrders[order.toType][order.fromType][i] = pendingOrdersList[i];
-                    updateOrder(pendingOrdersList[i]);
+                    pendingOrders[newOrder.toType][newOrder.fromType][i] = order;
+                    updateOrder(order);
                     releasedAmount = 0;
                     break;
                 } else {
-                    releasedAmount = releasedAmount - pendingOrdersList[i].availableAmount;
-                    pendingOrdersList[i].availableAmount = 0;
-                    pendingOrdersList[i].done = DONE;
-                    pendingOrders[order.toType][order.fromType][i] = pendingOrdersList[i];
+                    releasedAmount = releasedAmount - order.availableAmount;
+                    order.availableAmount = 0;
+                    order.done = DONE;
+                    pendingOrders[newOrder.toType][newOrder.fromType][i] = order;
                     // append pendingOrder info to _toTypes, releasedAddresses, amounts and txs
-                    updateMatchingResult(order.txId, pendingOrdersList[i].toType, pendingOrdersList[i].receiver, pendingOrdersList[i].amount, pendingOrdersList[i].txId);
-
+                    updateMatchingResult(newOrder.txId, order.toType, order.receiver, order.amount, order.txId);
                     // update pendingOrder to allOrders
-                    updateOrder(pendingOrdersList[i]);
+                    updateOrder(order);
                 }
             }
 
-            if (order.availableAmount - releasedAmount > 0 || order.availableAmount - releasedAmount == order.availableAmount) {
-                // append order info to _toTypes, releaseAddresses, amounts and txs
-                uint256 amount = order.availableAmount - releasedAmount;
+            if (newOrder.availableAmount - releasedAmount > 0 || newOrder.availableAmount - releasedAmount == newOrder.availableAmount) {
+                // append newOrder info to _toTypes, releaseAddresses, amounts and txs
+                uint256 amount = newOrder.availableAmount - releasedAmount;
                 if (amount == 0) {
-                    order.done = DONE;
-                    order.availableAmount = 0;
-                    updatePendingOrder(order, UPDATE);
-                    updateMatchingResult(order.txId, order.toType, order.receiver, releasedAmount, order.txId);
+                    newOrder.done = DONE;
+                    newOrder.availableAmount = 0;
+                    updatePendingOrder(newOrder, UPDATE);
+                    updateMatchingResult(newOrder.txId, newOrder.toType, newOrder.receiver, releasedAmount, newOrder.txId);
                 } else {
-                    order.availableAmount = releasedAmount;
-                    updatePendingOrder(order, UPDATE);
-                    updateMatchingResult(order.txId, order.toType, order.receiver, amount, order.txId);
+                    newOrder.availableAmount = releasedAmount;
+                    updatePendingOrder(newOrder, UPDATE);
+                    updateMatchingResult(newOrder.txId, newOrder.toType, newOrder.receiver, amount, newOrder.txId);
                 }
-                updateOrder(order);
+                updateOrder(newOrder);
             }
         }
     }
