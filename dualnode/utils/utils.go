@@ -19,6 +19,7 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
@@ -388,7 +389,24 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 
 		// TODO: this is used for exchange demo, remove the condition whenever we have dynamic handler method for this
 		if msg.MethodName == configs.ExternalDepositFunction {
-			return NewEvent(proxy, msg)
+
+			receiver := []byte(msg.GetParams()[0])
+			to := msg.GetParams()[1]
+			from := proxy.Name()
+
+			txHash := common.HexToHash(msg.GetTransactionId())
+
+			// Compose extraData struct for fields related to exchange from data extracted by Neo event
+			extraData := make([][]byte, configs.ExchangeV2NumOfExchangeDataField)
+			extraData[configs.ExchangeV2SourcePairIndex] = []byte(from)
+			extraData[configs.ExchangeV2DestPairIndex] = []byte(to)
+			extraData[configs.ExchangeV2SourceAddressIndex] = []byte(msg.GetSender())
+			extraData[configs.ExchangeV2DestAddressIndex] = receiver
+			extraData[configs.ExchangeV2OriginalTxIdIndex] = []byte(msg.GetTransactionId())
+			extraData[configs.ExchangeV2AmountIndex] = big.NewInt(int64(msg.GetAmount())).Bytes()
+			extraData[configs.ExchangeV2TimestampIndex] = big.NewInt(int64(msg.GetTimestamp())).Bytes()
+
+			return NewEvent(proxy, msg.MethodName, big.NewInt(int64(msg.Amount)), extraData, txHash, dualnode.CreateKardiaMatchAmountTx, true)
 		}
 	}
 	return nil
@@ -429,41 +447,31 @@ func subscribe(subscriber *zmq4.Socket, proxy base.BlockChainAdapter) error {
 	return nil
 }
 
-// NewEvent receives data from Tron where encodedMsg is used for validating the message
-// returns error in case event cannot be added to eventPool
-func NewEvent(proxy base.BlockChainAdapter, msg dualMsg.Message) error {
+func getStateFromProxy(proxy base.BlockChainAdapter) (*state.StateDB, error) {
 	dualState, err := proxy.DualBlockChain().State()
 	if err != nil {
-		log.Error("Fail to get Dual BlockChain state", "error", err)
+		proxy.Logger().Error("Fail to get Dual BlockChain state", "error", err)
+		return nil, err
+	}
+	return dualState, nil
+}
+
+// NewEvent creates new event and add to eventPool
+func NewEvent(proxy base.BlockChainAdapter, method string, value *big.Int, extraData [][]byte, txHash common.Hash, action string, fromExternal bool) error {
+	dualState, err := getStateFromProxy(proxy)
+	if err != nil {
 		return err
 	}
-
-	// TODO: This is used for exchange use case, will remove this after applying dynamic method
-	receiver := []byte(msg.GetParams()[0])
-	to := msg.GetParams()[1]
-	from := proxy.Name()
-
-	txHash := common.HexToHash(msg.GetTransactionId())
 	nonce := dualState.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
-	// Compose extraData struct for fields related to exchange from data extracted by Neo event
-	extraData := make([][]byte, configs.ExchangeV2NumOfExchangeDataField)
-	extraData[configs.ExchangeV2SourcePairIndex] = []byte(from)
-	extraData[configs.ExchangeV2DestPairIndex] = []byte(to)
-	extraData[configs.ExchangeV2SourceAddressIndex] = []byte(msg.GetSender())
-	extraData[configs.ExchangeV2DestAddressIndex] = receiver
-	extraData[configs.ExchangeV2OriginalTxIdIndex] = []byte(msg.GetTransactionId())
-	extraData[configs.ExchangeV2AmountIndex] = big.NewInt(int64(msg.GetAmount())).Bytes()
-	extraData[configs.ExchangeV2TimestampIndex] = big.NewInt(int64(msg.GetTimestamp())).Bytes()
-
 	eventSummary := &types.EventSummary{
-		TxMethod: msg.MethodName,
-		TxValue:  big.NewInt(int64(msg.Amount)),
+		TxMethod: method,
+		TxValue:  value,
 		ExtData:  extraData,
 	}
 
 	actionsTmp := [...]*types.DualAction{
 		&types.DualAction{
-			Name: dualnode.CreateKardiaMatchAmountTx,
+			Name: action,
 		},
 	}
 
@@ -471,7 +479,7 @@ func NewEvent(proxy base.BlockChainAdapter, msg dualMsg.Message) error {
 		return fmt.Errorf("proxy %v is not in allowed exchanged list", proxy.Name())
 	}
 
-	dualEvent := types.NewDualEvent(nonce, true /* internalChain */, types.BlockchainSymbol(proxy.Name()), &txHash, eventSummary, &types.DualActions{
+	dualEvent := types.NewDualEvent(nonce, fromExternal /* internalChain */, types.BlockchainSymbol(proxy.Name()), &txHash, eventSummary, &types.DualActions{
 		Actions: actionsTmp[:],
 	})
 
@@ -491,7 +499,8 @@ func NewEvent(proxy base.BlockChainAdapter, msg dualMsg.Message) error {
 	return nil
 }
 
-// Release releases assets to target chain to receiver, txId is kardiaTxId which is used for callback method.
+// Release create release-assets event, txId is kardiaTxId which is used for callback method.
+// create NewEvent here to make sure only proposer can submit event to target chain
 func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error {
 	senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
 	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaNewExchangeSmcIndex)
@@ -535,6 +544,41 @@ func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error 
 			},
 		},
 	}
+
+	// Create KARDIA_CALL event
+	proxy.Logger().Info("Adding triggerMessage to event", triggerMessage, triggerMessage.String())
+
+	// Marshaling triggerMessage to byte array and put it to extraData
+	extraData := make([][]byte, 1)
+	buffer := &bytes.Buffer{}
+	marshaller := jsonpb.Marshaler{}
+	err = marshaller.Marshal(buffer, &triggerMessage)
+	if err != nil {
+		return err
+	}
+	extraData[0] = buffer.Bytes()
+	txHash := common.HexToHash(txId)
+	return NewEvent(proxy, KARDIA_CALL, big.NewInt(0), extraData, txHash, KARDIA_CALL, false)
+}
+
+// KardiaCall receives event from submitTx and publish message to Target chain.
+func KardiaCall(proxy base.BlockChainAdapter, event *types.EventData) error {
+
+	// ExtData must have length = 1 and first element must not be nil
+	if len(event.Data.ExtData) != 1 || event.Data.ExtData == nil {
+		return fmt.Errorf("extData is invalid or empty in KardiaCall")
+	}
+
+	// unmarshal byte array data from ExtData
+	unmarshaler := jsonpb.Unmarshaler{}
+	reader := bytes.NewReader(event.Data.ExtData[0])
+	triggerMessage := dualMsg.TriggerMessage{}
+	err := unmarshaler.Unmarshal(reader, &triggerMessage)
+	if err != nil {
+		proxy.Logger().Error("Error while unmarshaling triggerMessage from EventData" , "err", err)
+		return err
+	}
+
 	return PublishMessage(proxy.PublishedEndpoint(), KARDIA_CALL, triggerMessage)
 }
 

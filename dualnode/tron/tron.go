@@ -164,6 +164,8 @@ func (n *Proxy) SubmitTx(event *types.EventData) error {
 			log.Warn("Unexpected method in TRON SubmitTx", "method", event.Data.TxMethod)
 			return configs.ErrUnsupportedMethod
 		}
+	} else if event.TxSource == types.TRON && event.Data.TxMethod == utils.KARDIA_CALL {
+		return utils.KardiaCall(n, event)
 	}
 	return configs.ErrUnsupportedMethod
 }
