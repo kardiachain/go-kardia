@@ -30,7 +30,7 @@ import (
 	"github.com/kardiachain/go-kardia/kai/events"
 )
 
-const ServiceName = "TRON"
+const ServiceName = "TRX"
 type Proxy struct {
 
 	// name is name of proxy, or type that proxy connects to (eg: NEO, TRX, ETH, KARDIA)
