@@ -38,6 +38,9 @@ Install [Go](https://golang.org/doc/install) v1.10 to $HOME directory. Sets envi
 > export GOPATH=$HOME/go  
 > export PATH=$PATH:$GOPATH/bin
 
+### Installation Prerequisites
+* Install [libzmq](https://github.com/zeromq/libzmq) 
+
 ### Build
 Install [dep](https://github.com/golang/dep) v0.5 tool for dependency management.  
 Download library dependency and build Kardia binary.
@@ -66,7 +69,9 @@ go test ./...
 
 ### Start Kardia node
 ```
-./go-kardia --dualchain --dev --mainChainValIndexes  1 --addr :3000 --name node1 --rpc --rpcport 8545 --clearDataDir
+./go-kardia --dev --mainChainValIndexes 1,2,3 --addr :3000 --name node1 --rpc --rpcport 8545 --clearDataDir --peer enode://7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860@127.0.0.1:3000,enode://660889e39b37ade58f789933954123e56d6498986a0cd9ca63d223e866d5521aaedc9e5298e2f4828a5c90f4c58fb24e19613a462ca0210dd962821794f630f0@127.0.0.1:3001,enode://2e61f57201ec804f9d5298c4665844fd077a2516cd33eccea48f7bdf93de5182da4f57dc7b4d8870e5e291c179c05ff04100718b49184f64a7c0d40cc66343da@127.0.0.1:3002
+./go-kardia --dev --mainChainValIndexes 1,2,3 --addr :3001 --name node2 --rpc --rpcport 8546 --clearDataDir --peer enode://7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860@127.0.0.1:3000,enode://660889e39b37ade58f789933954123e56d6498986a0cd9ca63d223e866d5521aaedc9e5298e2f4828a5c90f4c58fb24e19613a462ca0210dd962821794f630f0@127.0.0.1:3001,enode://2e61f57201ec804f9d5298c4665844fd077a2516cd33eccea48f7bdf93de5182da4f57dc7b4d8870e5e291c179c05ff04100718b49184f64a7c0d40cc66343da@127.0.0.1:3002
+./go-kardia --dev --mainChainValIndexes 1,2,3 --addr :3002 --name node3 --rpc --rpcport 8547 --clearDataDir --peer enode://7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860@127.0.0.1:3000,enode://660889e39b37ade58f789933954123e56d6498986a0cd9ca63d223e866d5521aaedc9e5298e2f4828a5c90f4c58fb24e19613a462ca0210dd962821794f630f0@127.0.0.1:3001,enode://2e61f57201ec804f9d5298c4665844fd077a2516cd33eccea48f7bdf93de5182da4f57dc7b4d8870e5e291c179c05ff04100718b49184f64a7c0d40cc66343da@127.0.0.1:3002
 ```
 
 ### Monitor blocks with Kardiascan
