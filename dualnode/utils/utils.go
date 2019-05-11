@@ -358,21 +358,32 @@ func ExecuteKardiaSmartContract(state *state.ManagedState, contractAddress, meth
 
 // MessageHandler handles messages come from dual to kardia
 func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
+	proxy.Logger().Info("Starting MessageHandler", "topic", topic)
 	switch topic {
 	case DUAL_CALL:
 		// callback from dual
 		triggerMessage := dualMsg.TriggerMessage{}
 		if err := jsonpb.UnmarshalString(message, &triggerMessage); err != nil {
+			proxy.Logger().Error("Error on unmarshal triggerMessage", "err", err, "topic", KARDIA_CALL)
 			return err
 		}
 
+		proxy.Logger().Info(
+			"TriggerMessage",
+			"contractAddress", triggerMessage.ContractAddress,
+			"methodName", triggerMessage.MethodName,
+			"params", triggerMessage.Params,
+		)
+
 		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool().State(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
 		if err != nil {
+			proxy.Logger().Error("Error on executing kardia smart contract", "err", err, "topic", KARDIA_CALL)
 			return err
 		}
 
 		if err := proxy.KardiaTxPool().AddLocal(tx); err != nil {
-			return nil
+			proxy.Logger().Error("Error on adding tx to txPool", "err", err, "topic", KARDIA_CALL)
+			return err
 		}
 
 	case DUAL_MSG:
