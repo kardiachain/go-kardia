@@ -176,6 +176,8 @@ func (n *Proxy) SubmitTx(event *types.EventData) error {
 			log.Warn("Unexpected method in NEO SubmitTx", "method", event.Data.TxMethod)
 			return configs.ErrUnsupportedMethod
 		}
+	} else if event.TxSource == types.NEO && event.Data.TxMethod == utils.KARDIA_CALL {
+		return utils.KardiaCall(n, event)
 	}
 	return configs.ErrUnsupportedMethod
 }
