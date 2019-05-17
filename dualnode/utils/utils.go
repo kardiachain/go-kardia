@@ -70,6 +70,7 @@ var errAbiNotFound = errors.New("ABI not found")
 var errAmountLessThanOne = errors.New("Amount is less than one to send")
 var errInvalidExchangeRate = errors.New("Invalid exchange rate")
 var errInvalidSourceMatchAmount = errors.New("Invalid source for match amount tx")
+var errErrorConvertRateFloat = errors.New("Error to convert rate to float")
 var TenPoweredBySix = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(6), nil)
 var TenPoweredBySixFloat = big.NewFloat(float64(math.Pow10(6)))
 var TenPoweredByEight = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
@@ -182,9 +183,14 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 		if destination == configs.ETH {
 			convertedAmount = temp.Mul(quantity, TenPoweredByEight)
 		} else if destination == configs.TRON {
-			convertedAmount = temp.Mul(quantity, TenPoweredBySix)
-			convertedAmount = temp.Mul(convertedAmount, fromAmount)
-			convertedAmount = temp.Div(convertedAmount, toAmount)
+			// Convert rate to float
+			rateFloat, err := ToRateFloat(fromAmount, toAmount, 6)
+			if err != nil {
+				log.Error("Error to convert rate to float", "error", err, "fromAmount", fromAmount, "toAmount", toAmount)
+				return nil, errErrorConvertRateFloat
+			}
+			rateInt, _ := big.NewFloat(1).Mul( big.NewFloat(rateFloat), TenPoweredBySixFloat).Int64()
+			convertedAmount = temp.Mul(big.NewInt(rateInt), quantity)
 		}
 	case configs.TRON:
 		// currently TRON has smallest unit, therefore no need to calculate anything here.
@@ -204,6 +210,16 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 		return nil, err
 	}
 	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, matchInput, statedb), nil
+}
+
+func ToRateFloat(fromAmount *big.Int, toAmount *big.Int, precision int) (float64, error) {
+	rateFloat :=  float64(fromAmount.Int64()) / float64(toAmount.Int64())
+	format := "%." + strconv.Itoa(precision) + "f"
+	rateRound, err := strconv.ParseFloat(fmt.Sprintf(format, rateFloat) , 64)
+	if err != nil {
+		return 0, err
+	}
+	return rateRound, nil
 }
 
 func CallKardiGetMatchingResultByTxId(from common.Address, bc base.BaseBlockChain, statedb *state.StateDB, originalTx string) (string, error) {
@@ -557,7 +573,7 @@ func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error 
 	}
 
 	// Create KARDIA_CALL event
-	proxy.Logger().Info("Adding triggerMessage to event", triggerMessage, triggerMessage.String())
+	proxy.Logger().Info("Adding triggerMessage to event", "triggerMessage", triggerMessage.String())
 
 	// Marshaling triggerMessage to byte array and put it to extraData
 	extraData := make([][]byte, 1)
