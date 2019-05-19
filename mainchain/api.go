@@ -62,6 +62,7 @@ type BlockJSON struct {
 	ValidatorsHash string               `json:"validators_hash"` // validators for the current block
 	ConsensusHash  string               `json:"consensus_hash"`
 	Txs            []*PublicTransaction `json:"txs"`
+	Receipts       []*BasicReceipt      `json:"receipts"`
 }
 
 // PublicKaiAPI provides APIs to access Kai full node-related
@@ -75,20 +76,45 @@ func NewPublicKaiAPI(kaiService *KardiaService) *PublicKaiAPI {
 	return &PublicKaiAPI{kaiService}
 }
 
+// getBasicReceipt is used to get simplified receipt. This function is used when loading block info
+func getBasicReceipt(receipt types.Receipt) *BasicReceipt {
+	logs := getReceiptLogs(receipt)
+	basicReceipt := BasicReceipt{
+		TransactionHash: receipt.TxHash.Hex(),
+		GasUsed: receipt.GasUsed,
+		CumulativeGasUsed: receipt.CumulativeGasUsed,
+		ContractAddress:   "0x",
+		Logs:              logs,
+	}
+
+	// Assign receipt status or post state.
+	if len(receipt.PostState) > 0 {
+		basicReceipt.Root = common.Bytes(receipt.PostState)
+	} else {
+		basicReceipt.Status = uint(receipt.Status)
+	}
+	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
+	if receipt.ContractAddress != (common.Address{}) {
+		basicReceipt.ContractAddress = receipt.ContractAddress.Hex()
+	}
+
+	return &basicReceipt
+}
+
 // NewBlockJSON creates a new Block JSON data from Block
 func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 	txs := block.Transactions()
 	transactions := make([]*PublicTransaction, 0, len(txs))
-	for index, tx := range txs {
+	basicReceipts := make([]*BasicReceipt, 0)
+
+	for _, receipt := range receipts {
+		basicReceipts = append(basicReceipts, getBasicReceipt(*receipt))
+	}
+
+	for index, transaction := range txs {
 		idx := uint64(index)
-		json := NewPublicTransaction(tx, block.Hash(), block.Height(), idx)
-		if index < len(receipts) {
-			receipt := getTransactionReceipt(*receipts[idx], tx, block.Hash(), block.Height(), idx)
-			if receipt != nil {
-				json.Receipt = *receipt
-			}
-		}
-		transactions = append(transactions, json)
+		tx := NewPublicTransaction(transaction, block.Hash(), block.Height(), idx)
+		transactions = append(transactions, tx)
 	}
 
 	return &BlockJSON{
@@ -108,6 +134,7 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		Bloom:          block.Header().Bloom.Big().Int64(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
+		Receipts:       basicReceipts,
 	}
 }
 
@@ -182,7 +209,6 @@ type PublicTransaction struct {
 	To               string        `json:"to"`
 	TransactionIndex uint          `json:"transactionIndex"`
 	Value            common.Uint64 `json:"value"`
-	Receipt          PublicReceipt `json:"receipt"`
 }
 
 type Log struct {
@@ -211,6 +237,16 @@ type PublicReceipt struct {
 	LogsBloom         int64  		`json:"logsBloom"`
 	Root              common.Bytes  `json:"root"`
 	Status			  uint          `json:"status"`
+}
+
+type BasicReceipt struct {
+	TransactionHash   string 		`json:"transactionHash"`
+	GasUsed           uint64 		`json:"gasUsed"`
+	CumulativeGasUsed uint64 		`json:"cumulativeGasUsed"`
+	ContractAddress   string 		`json:"contractAddress"`
+	Logs              []Log  		`json:"logs"`
+	Root              common.Bytes  `json:"root"`
+	Status            uint          `json:"status"`
 }
 
 // NewPublicTransaction returns a transaction that will serialize to the RPC
@@ -305,12 +341,10 @@ func getReceipts(kaiDb storage.Database, hash common.Hash) (types.Receipts, erro
 	return chaindb.ReadReceipts(kaiDb, hash, *height), nil
 }
 
-// getTransactionReceipt gets transaction receipt from transaction, blockHash, blockNumber and index.
-func getTransactionReceipt(receipt types.Receipt, tx *types.Transaction, blockHash common.Hash, blockNumber, index uint64) *PublicReceipt {
-	from, _ := types.Sender(tx)
-	logs := make([]Log, 0)
+// getReceiptLogs gets logs from receipt
+func getReceiptLogs(receipt types.Receipt) []Log {
 	if receipt.Logs != nil {
-		logs = make([]Log, 0, len(receipt.Logs))
+		logs := make([]Log, 0, len(receipt.Logs))
 		for _, l := range receipt.Logs {
 			topics := make([]string, 0, len(l.Topics))
 			for _, topic := range l.Topics {
@@ -328,7 +362,15 @@ func getTransactionReceipt(receipt types.Receipt, tx *types.Transaction, blockHa
 				Removed:     l.Removed,
 			})
 		}
+		return logs
 	}
+	return nil
+}
+
+// getTransactionReceipt gets transaction receipt from transaction, blockHash, blockNumber and index.
+func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash common.Hash, blockNumber, index uint64) *PublicReceipt {
+	from, _ := types.Sender(tx)
+	logs := getReceiptLogs(receipt)
 
 	publicReceipt := &PublicReceipt{
 		BlockHash:         blockHash.Hex(),
@@ -362,14 +404,13 @@ func getTransactionReceipt(receipt types.Receipt, tx *types.Transaction, blockHa
 	return publicReceipt
 }
 
-// GetTransactionReceipt returns the transaction receipt for the given transaction hash.
+// GetPublicReceipt returns the public receipt for the given transaction hash.
 func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash string) (*PublicReceipt, error) {
 	txHash := common.HexToHash(hash)
 	tx, blockHash, height, index := chaindb.ReadTransaction(a.s.kaiDb, txHash)
 	if tx == nil {
 		return nil, nil
 	}
-
 	// get receipts from db
 	receipts, err := getReceipts(a.s.kaiDb, blockHash)
 	if err != nil {
@@ -379,7 +420,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 		return nil, nil
 	}
 	receipt := receipts[index]
-	return getTransactionReceipt(*receipt, tx, blockHash, height, index), nil
+	return getPublicReceipt(*receipt, tx, blockHash, height, index), nil
 }
 
 // PublicAccountAPI provides APIs support getting account's info
