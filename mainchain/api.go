@@ -50,7 +50,7 @@ type BlockJSON struct {
 	Height         uint64               `json:"height"`
 	LastBlock      string               `json:"lastBlock"`
 	CommitHash     string               `json:"commitHash"`
-	Time           *big.Int             `json:"time"`
+	Time           int64                `json:"time"`
 	NumTxs         uint64               `json:"num_txs"`
 	GasLimit       uint64               `json:"gasLimit"`
 	GasUsed        uint64               `json:"gasUsed"`
@@ -114,6 +114,8 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 	for index, transaction := range txs {
 		idx := uint64(index)
 		tx := NewPublicTransaction(transaction, block.Hash(), block.Height(), idx)
+		// add time for tx
+		tx.Time = block.Header().Time.Int64()
 		transactions = append(transactions, tx)
 	}
 
@@ -123,7 +125,7 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		LastBlock:      block.Header().LastBlockID.String(),
 		Txs:            transactions,
 		CommitHash:     block.LastCommitHash().Hex(),
-		Time:           block.Header().Time,
+		Time:           block.Header().Time.Int64(),
 		NumTxs:         block.Header().NumTxs,
 		GasLimit:       block.Header().GasLimit,
 		GasUsed:        block.Header().GasUsed,
@@ -200,6 +202,7 @@ func (s *PublicKaiAPI) Validators() []map[string]interface{} {
 type PublicTransaction struct {
 	BlockHash        string        `json:"blockHash"`
 	BlockNumber      common.Uint64 `json:"blockNumber"`
+	Time             int64         `json:"time"`
 	From             string        `json:"from"`
 	Gas              common.Uint64 `json:"gas"`
 	GasPrice         common.Uint64 `json:"gasPrice"`
