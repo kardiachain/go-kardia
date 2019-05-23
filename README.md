@@ -10,7 +10,7 @@ Official Golang implementation of Kardia chain following the specs in [Technical
 
 # Kardia private testnet
 - Block explorer UI: [Kardiascan](http://scan.kardiachain.io/)
-- Release: [kardia-v0.6.0](https://github.com/kardiachain/go-kardia/releases/tag/v0.6.0)
+- Release: [kardia-v0.7.0](https://github.com/kardiachain/go-kardia/releases/tag/v0.7.0)
 
 
 # Quickstart
