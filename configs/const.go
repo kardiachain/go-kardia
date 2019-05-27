@@ -103,6 +103,11 @@ const (
 	// default value for 0mq
 	DefaultSubscribedEndpoint = "tcp://127.0.0.1:5555"
 	DefaultPublishedEndpoint = "tcp://127.0.0.1:5554"
+
+	// dual protocol name
+	Protocol_NEO = "KAI-NEO"
+	Protocol_ETH = "KAI-ETH"
+	Protocol_TRX = "KAI-TRX"
 )
 
 var (
