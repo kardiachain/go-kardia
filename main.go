@@ -387,13 +387,13 @@ func main() {
 		config.DualChainConfig.DualNetworkID = args.dualNetworkId
 		if args.ethDual {
 			config.DualChainConfig.ChainId = configs.EthDualChainID
-			config.DualChainConfig.DualProtocolName = configs.Protocol_ETH
+			config.DualChainConfig.DualProtocolName = configs.ProtocolDualETH
 		} else if args.neoDual {
 			config.DualChainConfig.ChainId = configs.NeoDualChainID
-			config.DualChainConfig.DualProtocolName = configs.Protocol_NEO
+			config.DualChainConfig.DualProtocolName = configs.ProtocolDualNEO
 		} else if args.tronDual {
 			config.DualChainConfig.ChainId = configs.TronDualChainID
-			config.DualChainConfig.DualProtocolName = configs.Protocol_TRX
+			config.DualChainConfig.DualProtocolName = configs.ProtocolDualTRX
 		} else {
 			config.DualChainConfig.ChainId = configs.DefaultChainID
 			// if it is not default duals (ETH, NEO, TRX) then get value from dualProtocolName args
