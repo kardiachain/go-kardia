@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	kaiProtocolName   = "kaiptc"
+	kaiProtocolName   = "KAI"
 )
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.

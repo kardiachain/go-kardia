@@ -98,6 +98,7 @@ type flagArgs struct {
 	privateAddr        string
 
 	// Dualnode's related flags
+	dualProtocolName    string
 	dualChain           bool
 	dualChainValIndexes string
 	isPrivateDual       bool
@@ -164,6 +165,7 @@ func init() {
 	flag.StringVar(&args.peerProxyIP, "peerProxyIP", "", "IP of the peer proxy for this node to register.")
 	flag.StringVar(&args.publishedEndpoint, "publishedEndpoint", "", "0MQ Endpoint that message will be published to")
 	flag.StringVar(&args.subscribedEndpoint, "subscribedEndpoint", "", "0MQ Endpoint that dual node subscribes to get dual message.")
+	flag.StringVar(&args.dualProtocolName, "dualProtocolName", "", "dualProtocolName is used to set protocol name for dual node.")
 
 	// NOTE: The flags below are only applicable for dev environment. Please add the applicable ones
 	// here and DO NOT add non-dev flags.
@@ -356,7 +358,6 @@ func main() {
 			return
 		}
 	}
-
 	config.PeerProxyIP = args.peerProxyIP
 
 	n, err := node.NewNode(config)
@@ -386,14 +387,22 @@ func main() {
 		config.DualChainConfig.DualNetworkID = args.dualNetworkId
 		if args.ethDual {
 			config.DualChainConfig.ChainId = configs.EthDualChainID
+			config.DualChainConfig.DualProtocolName = configs.ProtocolDualETH
 		} else if args.neoDual {
 			config.DualChainConfig.ChainId = configs.NeoDualChainID
+			config.DualChainConfig.DualProtocolName = configs.ProtocolDualNEO
 		} else if args.tronDual {
 			config.DualChainConfig.ChainId = configs.TronDualChainID
+			config.DualChainConfig.DualProtocolName = configs.ProtocolDualTRX
 		} else {
 			config.DualChainConfig.ChainId = configs.DefaultChainID
-		}
-
+			// if it is not default duals (ETH, NEO, TRX) then get value from dualProtocolName args
+			// check if args.dualProtocolName is empty then stop program.
+			if args.dualProtocolName == "" {
+				panic("--dualProtocolName is empty")
+			}
+			config.DualChainConfig.DualProtocolName = args.dualProtocolName
+ 		}
 		n.RegisterService(dualservice.NewDualService)
 	}
 
