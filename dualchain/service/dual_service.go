@@ -37,11 +37,7 @@ import (
 )
 
 const DualServiceName = "DUAL"
-const DualNetworkID = 100 // TODO: change this to be diff than main kardia service or the same
-const dualProtocolName = "dualptc"
-
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
-
 // DualService implements Service for running full dual group protocol, for group consensus.
 type DualService struct {
 	// TODO(namdoh): Refactor out logger to a based Service type.
@@ -135,7 +131,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	dualService.csManager.SetPrivValidator(privValidator)
 
 	if dualService.protocolManager, err = service.NewProtocolManager(
-		dualProtocolName,
+		config.ProtocolName,
 		dualService.logger,
 		config.NetworkId,
 		config.ChainID,
@@ -154,6 +150,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.DualChainConfig
 	kai, err := newDualService(ctx, &DualConfig{
+		ProtocolName:  chainConfig.DualProtocolName,
 		NetworkId:     chainConfig.DualNetworkID,
 		ChainID:       chainConfig.ChainId,
 		ChainData:     chainConfig.ChainDataDir,
