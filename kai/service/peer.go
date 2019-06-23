@@ -30,7 +30,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/types"
-	"gopkg.in/fatih/set.v0"
 )
 
 var (
@@ -70,7 +69,7 @@ type peer struct {
 
 	version int // Protocol version negotiated
 
-	knownTxs  *set.Set                  // Set of transaction hashes known to be known by this peer
+	knownTxs  *common.Set                  // Set of transaction hashes known to be known by this peer
 	queuedTxs chan []*types.Transaction // Queue of transactions to broadcast to the peer
 
 	csReactor *consensus.ConsensusManager
@@ -88,7 +87,7 @@ func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, 
 		version:    version,
 		id:         fmt.Sprintf("%x", p.ID().Bytes()[:8]),
 		queuedTxs:  make(chan []*types.Transaction, maxQueuedTxs),
-		knownTxs:   set.New(),
+		knownTxs:   common.NewSet(maxKnownTxs),
 		csReactor:  csReactor,
 		terminated: make(chan struct{}),
 	}
@@ -285,11 +284,17 @@ func (p *peer) broadcast() {
 	for {
 		select {
 		case txs := <-p.queuedTxs:
-			if err := p.SendTransactions(txs); err != nil {
-				p.logger.Error("Send txs failed", "err", err, "count", len(txs))
-				return
-			}
-			p.logger.Trace("Transactions sent", "count", len(txs))
+			var wg sync.WaitGroup
+			wg.Add(1)
+			go func() {
+				if err := p.SendTransactions(txs); err != nil {
+					p.logger.Error("Send txs failed", "err", err, "count", len(txs))
+					wg.Done()
+					return
+				}
+				wg.Done()
+				p.logger.Trace("Transactions sent", "count", len(txs))
+			}()
 
 		case <-p.terminated:
 			return
@@ -297,14 +302,22 @@ func (p *peer) broadcast() {
 	}
 }
 
-// MarkTransaction marks a transaction as known for the peer, ensuring that it
+// MarkTransactions marks a list of transaction as known for the peer, ensuring that it
 // will never be propagated to this particular peer.
-func (p *peer) MarkTransaction(hash common.Hash) {
-	// If we reached the memory allowance, drop a previously known transaction hash
-	for p.knownTxs.Size() >= maxKnownTxs {
-		p.knownTxs.Pop()
+func (p *peer) MarkTransactions(txs types.Transactions, validate bool) []*types.Transaction {
+	newTxs := make([]*types.Transaction, 0)
+	hashes := make([]interface{}, 0)
+
+	for _, tx := range txs {
+		if tx ==nil || (validate && p.knownTxs.Has(tx.Hash())) {
+			continue
+		}
+
+		hashes = append(hashes, tx.Hash())
+		newTxs = append(newTxs, tx)
 	}
-	p.knownTxs.Add(hash)
+	p.knownTxs.Add(hashes...)
+	return newTxs
 }
 
 // PeersWithoutTx retrieves a list of peers that do not have a given transaction
@@ -324,9 +337,9 @@ func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
 
 // SendTransactions sends transactions to the peer, adds the txn hashes to known txn set.
 func (p *peer) SendTransactions(txs types.Transactions) error {
-	for _, tx := range txs {
-		p.knownTxs.Add(tx.Hash())
-	}
+	//for _, tx := range txs {
+	//	p.knownTxs.Add(tx.Hash())
+	//}
 	return p2p.Send(p.rw, serviceconst.TxMsg, txs)
 }
 
@@ -336,9 +349,9 @@ func (p *peer) AsyncSendTransactions(txs []*types.Transaction) {
 	// Tx will be actually sent in SendTransactions() trigger by broadcast() routine
 	select {
 	case p.queuedTxs <- txs:
-		for _, tx := range txs {
-			p.knownTxs.Add(tx.Hash())
-		}
+		//for _, tx := range txs {
+		//	p.knownTxs.Add(tx.Hash())
+		//}
 	default:
 		p.logger.Debug("Dropping transaction propagation", "count", len(txs))
 	}

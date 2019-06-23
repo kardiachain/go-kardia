@@ -318,15 +318,15 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&txs); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
-		for i, tx := range txs {
-			// Validate and mark the remote transaction
-			if tx == nil {
-				return errResp(ErrDecode, "transaction %d is nil", i)
+		newTxs := p.MarkTransactions(txs, true)
+		if len(newTxs) > 0 {
+			if err := pm.txpool.AddTxs(newTxs); err != nil {
+				pm.logger.Error("Failed to add Transactions into pool", "err", err)
+			} else {
+				pm.logger.Trace("Transactions added to pool", "txs", txs)
 			}
-			p.MarkTransaction(tx.Hash())
 		}
-		pm.txpool.AddRemotes(txs)
-		pm.logger.Trace("Transactions added to pool", "txs", txs)
+
 	case msg.Code == serviceconst.CsNewRoundStepMsg:
 		pm.logger.Trace("NewRoundStep message received")
 		pm.csReactor.ReceiveNewRoundStep(msg, p.Peer)
@@ -369,12 +369,7 @@ func (pm *ProtocolManager) syncTransactions(p *peer) {
 	pm.logger.Trace("Sync txns to new peer", "peer", p)
 	// TODO(thientn): sends transactions in chunks. This may send a large number of transactions.
 	// Breaks them to chunks here or inside AsyncSend to not overload the pipeline.
-	txsMap, _ := pm.txpool.Pending()
-	var txs types.Transactions
-
-	for _, list := range txsMap {
-		txs = append(txs, list...)
-	}
+	txs, _ := pm.txpool.Pending(0)
 	if len(txs) == 0 {
 		return
 	}
@@ -426,13 +421,17 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	for _, tx := range txs {
 		peers := pm.peers.PeersWithoutTx(tx.Hash())
 		for _, peer := range peers {
+			if _, ok := txset[peer]; !ok {
+				txset[peer] = make(types.Transactions, 0)
+			}
 			txset[peer] = append(txset[peer], tx)
 		}
 		pm.logger.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
 	}
 	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
 	for peer, txs := range txset {
-		peer.AsyncSendTransactions(txs)
+		go peer.AsyncSendTransactions(txs)
+		go peer.MarkTransactions(txs, false)
 	}
 }
 
