@@ -286,7 +286,7 @@ func main() {
 		AccountQueue: 64,
 		GlobalQueue:  150000, // for all
 		Lifetime: 3 * time.Hour,
-		NumberOfWorkers: 15,
+		NumberOfWorkers: 5,
 		WorkerCap: 600,
 		BlockSize: 9000,
 	}

@@ -272,7 +272,7 @@ func (st *StateTransition) preCheck() error {
 		//if nonce < st.msg.Nonce() {
 		//	return ErrNonceTooHigh
 		//} else
-		if nonce >= st.msg.Nonce() {
+		if nonce > st.msg.Nonce() {
 			return tx_pool.ErrNonceTooLow
 		}
 	}
