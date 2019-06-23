@@ -33,7 +33,7 @@ type BlockchainSymbol string
 const (
 	KARDIA   = BlockchainSymbol("KAI")
 	ETHEREUM = BlockchainSymbol("ETH")
-	NEO      = BlockchainSymbol("Neo")
+	NEO      = BlockchainSymbol("NEO")
 	TRON     = BlockchainSymbol("TRX")
 )
 

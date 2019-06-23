@@ -118,6 +118,9 @@ type DualChainConfig struct {
 	// IsPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	IsPrivate bool
 
+	// Dual protocol name, this name is used if the node is setup as dual node
+	DualProtocolName string
+
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this environment when running in dev environment.
 	EnvConfig *EnvironmentConfig

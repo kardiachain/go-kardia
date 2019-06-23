@@ -34,9 +34,10 @@ const (
 	ExternalReleaseFunction            = "release"
 	GetRate                            = "getRate"
 	UpdateTargetTx                     = "updateTargetTx"
+	UpdateKardiaTx                     = "updateKardiaTx"
 
 	// constants related to rate & addOrder function from smc
-	KARDIA                             = "KARDIA"
+	KAI                                = "KAI"
 	ETH                                = "ETH"
 	NEO                                = "NEO"
 	TRON                               = "TRX"
@@ -102,6 +103,11 @@ const (
 	// default value for 0mq
 	DefaultSubscribedEndpoint = "tcp://127.0.0.1:5555"
 	DefaultPublishedEndpoint = "tcp://127.0.0.1:5554"
+
+	// dual protocol name
+	ProtocolDualNEO = "KAI-NEO"
+	ProtocolDualETH = "KAI-ETH"
+	ProtocolDualTRX = "KAI-TRX"
 )
 
 var (

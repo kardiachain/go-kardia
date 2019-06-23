@@ -1,0 +1,36 @@
+version: "3"
+services:
+  {node_name}:
+    image: kardiachain/go-kardia
+    logging:
+      options:
+        max-size: "300m"
+    container_name: "{node_name}"
+    ports:
+      - 8545:8545
+      - 8546:8546
+      - 3000:3000
+      - 3000:3000/udp
+    volumes:
+      - /tmp/kardiachain/{node_name}/data/ethereum:/root/.ethereum
+      - /tmp/kardiachain/{node_name}/data/db:/root/.kardia/{node_name}
+    command: [
+      "--dev",
+      "--mainChainValIndexes",
+      "4,5,6",
+      "--dualChainValIndexes",
+      "1,2,3",
+      "--dual",
+      "--dualchain",
+      "--ethstat",
+      "--ethstatname",
+      "eth-dual-priv-{node_name}",
+      "--addr",
+      ":3000",
+      "--name",
+      "{node_name}",
+      "--rpc",
+      "--clearDataDir",
+      "--peer",
+      "{peer}"
+    ]

@@ -47,4 +47,6 @@ type DualConfig struct {
 
 	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	IsPrivate bool
+
+	ProtocolName string
 }

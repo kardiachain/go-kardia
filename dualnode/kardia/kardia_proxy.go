@@ -114,7 +114,7 @@ func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc
 		}}
 
 	processor := &KardiaProxy{
-		name:          configs.KARDIA,
+		name:          configs.KAI,
 		kardiaBc:      kardiaBc,
 		txPool:        txPool,
 		dualBc:        dualBc,

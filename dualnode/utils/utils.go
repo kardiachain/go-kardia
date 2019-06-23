@@ -19,16 +19,25 @@
 package utils
 
 import (
-	"fmt"
-	"time"
-	"strings"
-	"strconv"
-	"math/big"
+	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"math"
+	"math/big"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/pebbe/zmq4"
 	"github.com/pkg/errors"
+
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/dualnode"
+	dualMsg "github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
@@ -39,36 +48,36 @@ import (
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
-	dualMsg "github.com/kardiachain/go-kardia/dualnode/message"
-	"github.com/kardiachain/go-kardia/dualnode"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 )
 
 // TODO(@sontranrad): remove all of these constants for production
 
 const (
- 	KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
-	MockSmartContractCallSenderAccount = "0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5"
 	KARDIA_CALL = "KARDIA_CALL"
-	DUAL_CALL = "DUAL_CALL"
-	DUAL_MSG = "DUAL_MSG"
+	DUAL_CALL   = "DUAL_CALL"
+	DUAL_MSG    = "DUAL_MSG"
 )
 
 // TODO: note that when we have dynamic method, these values will be moved to smartcontract or anything that can handle this case.
 var AvailableExchangeType = map[string]bool{
 	configs.TRON: true,
-	configs.NEO: true,
-	configs.ETH: true,
+	configs.NEO:  true,
+	configs.ETH:  true,
 }
 
 var MaximumGasToCallStaticFunction = uint(4000000)
 var errAbiNotFound = errors.New("ABI not found")
-var errNoNeoToSend        = errors.New("not enough NEO to send")
-var TenPoweredByTwo = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(2), nil)
+var errAmountLessThanOne = errors.New("Amount is less than one to send")
+var errInvalidExchangeRate = errors.New("Invalid exchange rate")
+var errInvalidSourceMatchAmount = errors.New("Invalid source for match amount tx")
+var errErrorConvertRateFloat = errors.New("Error to convert rate to float")
 var TenPoweredBySix = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(6), nil)
+var TenPoweredBySixFloat = big.NewFloat(float64(math.Pow10(6)))
 var TenPoweredByEight = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
 var TenPoweredByTen = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(10), nil)
+var TenPoweredByTenFloat = big.NewFloat(float64(math.Pow10(10)))
 var TenPoweredByTwelve = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(12), nil)
+var TenPoweredByTwelveFloat = big.NewFloat(float64(math.Pow10(12)))
 
 type MatchedRequest struct {
 	MatchedRequestID *big.Int `abi:"matchedRequestID"`
@@ -94,7 +103,7 @@ func CallGetRate(fromType string, toType string, bc base.BaseBlockChain, statedb
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
 	kABI, err := abi.JSON(strings.NewReader(masterSmcAbi))
 
-	senderAddr := common.HexToAddress(configs.MockSmartContractCallSenderAccount)
+	senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
 	getRateInput, err := kABI.Pack("getRate", fromType, toType)
 	if err != nil {
 		log.Error("Error packing get rate input", "err", err)
@@ -111,8 +120,8 @@ func CallGetRate(fromType string, toType string, bc base.BaseBlockChain, statedb
 
 	// init a rateStruct based on returned type from smart contract
 	var rateStruct struct {
-		FromAmount 		*big.Int
-		ReceivedAmount 	*big.Int
+		FromAmount     *big.Int
+		ReceivedAmount *big.Int
 	}
 	err = kABI.Unpack(&rateStruct, "getRate", result)
 	if err != nil {
@@ -125,7 +134,7 @@ func CallGetRate(fromType string, toType string, bc base.BaseBlockChain, statedb
 
 // Creates a Kardia tx to report new matching amount from Eth/Neo/TRX network, return nil in case of any error occurs
 func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, sourceAddress string,
-	destinationAddress string, source, destination string, hash string, bc base.BaseBlockChain) (*types.Transaction, error) {
+	destinationAddress string, source string, destination string, hash string, bc base.BaseBlockChain) (*types.Transaction, error) {
 
 	// check if source and destination types are valid or not.
 	if !AvailableExchangeType[source] || !AvailableExchangeType[destination] {
@@ -145,14 +154,21 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 	temp := big.NewInt(1)
 	fromAmount, toAmount, err := CallGetRate(source, destination, bc, statedb.StateDB)
 	if err != nil {
-		return nil, err
+		return nil, errInvalidExchangeRate
 	}
 
 	var convertedAmount *big.Int
 
 	// unit of ordered amount will be based on the type which has smaller unit based.
 	// for eg: int ETH-NEO, NEO has 10^8 while ETH has 10^18, hence the order amount will be based on NEO
+	log.Info("Prepare for convert amount", "source", source, "destination", destination,
+		"fromAmount", fromAmount, "toAmount", toAmount, "quantity", quantity)
 
+	if fromAmount.Cmp(big.NewInt(0)) == 0 || toAmount.Cmp(big.NewInt(0)) == 0 {
+		log.Error("Invalid exchange rate", "source", source, "destination", destination,
+			"fromAmount", fromAmount, "toAmount", toAmount)
+		return nil, errInvalidExchangeRate
+	}
 	switch source {
 	case configs.ETH:
 		convertedAmount = temp.Mul(quantity, fromAmount)
@@ -167,16 +183,21 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 		if destination == configs.ETH {
 			convertedAmount = temp.Mul(quantity, TenPoweredByEight)
 		} else if destination == configs.TRON {
-			convertedAmount = temp.Mul(quantity, TenPoweredBySix)
-			convertedAmount = temp.Mul(quantity, fromAmount)
-			convertedAmount = temp.Div(convertedAmount, toAmount)
+			// Convert rate to float
+			rateFloat, err := ToRateFloat(fromAmount, toAmount, 6)
+			if err != nil {
+				log.Error("Error to convert rate to float", "error", err, "fromAmount", fromAmount, "toAmount", toAmount)
+				return nil, errErrorConvertRateFloat
+			}
+			rateInt, _ := big.NewFloat(1).Mul( big.NewFloat(rateFloat), TenPoweredBySixFloat).Int64()
+			convertedAmount = temp.Mul(big.NewInt(rateInt), quantity)
 		}
 	case configs.TRON:
 		// currently TRON has smallest unit, therefore no need to calculate anything here.
 		convertedAmount = quantity
 	default:
 		log.Error("Invalid source for match amount tx", "src", source)
-		return nil, err
+		return nil, errInvalidSourceMatchAmount
 	}
 
 	log.Info("AddOrderFunction", "fromType", source, "toType", destination, "srcAddress", sourceAddress,
@@ -189,6 +210,16 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 		return nil, err
 	}
 	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, matchInput, statedb), nil
+}
+
+func ToRateFloat(fromAmount *big.Int, toAmount *big.Int, precision int) (float64, error) {
+	rateFloat :=  float64(fromAmount.Int64()) / float64(toAmount.Int64())
+	format := "%." + strconv.Itoa(precision) + "f"
+	rateRound, err := strconv.ParseFloat(fmt.Sprintf(format, rateFloat) , 64)
+	if err != nil {
+		return 0, err
+	}
+	return rateRound, nil
 }
 
 func CallKardiGetMatchingResultByTxId(from common.Address, bc base.BaseBlockChain, statedb *state.StateDB, originalTx string) (string, error) {
@@ -234,7 +265,7 @@ func UpdateKardiaTargetTx(state *state.ManagedState, originalTx string, tx strin
 	if txType == "target" {
 		completeInput, err = kAbi.Pack(configs.UpdateTargetTx, originalTx, tx)
 	} else {
-		completeInput, err = kAbi.Pack(configs.UpdateTargetTx, originalTx, tx)
+		completeInput, err = kAbi.Pack(configs.UpdateKardiaTx, originalTx, tx)
 	}
 	if err != nil {
 		log.Error("Failed to pack updateTx", txType, "originalTx", originalTx, "err", err)
@@ -294,7 +325,7 @@ func IsNilOrEmpty(data []byte) bool { return data == nil || string(data) == "" }
 func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) error {
 	pub, _ := zmq4.NewSocket(zmq4.PUB)
 	defer pub.Close()
-	pub.Bind(endpoint)
+	pub.Connect(endpoint)
 
 	// sleep 1 second to prevent socket closes
 	time.Sleep(1 * time.Second)
@@ -303,31 +334,18 @@ func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) erro
 	if _, err := pub.Send(topic, zmq4.SNDMORE); err != nil {
 		return err
 	}
-
+	m := &jsonpb.Marshaler{}
+	msgToSend, err := m.MarshalToString(&message)
+	if err != nil {
+		log.Error("Failed to encode", "message", message.String(), "error", err)
+	}
 	// send message
-	if _, err := pub.Send(message.String(), zmq4.DONTWAIT); err != nil {
+	log.Info("Publish message", "topic", topic, "msgToSend", msgToSend)
+	if _, err := pub.Send(msgToSend, zmq4.DONTWAIT); err != nil {
 		return err
 	}
 
 	return nil
-}
-
-// GetExchangePair split string into 2 pairs and validate if 2 pairs are valid or not.
-func GetExchangePair(pair string) (*string, *string, error) {
-	pairs := strings.Split(pair, "-")
-	if len(pairs) != 2 {
-		return nil, nil, fmt.Errorf("invalid pair %v", pairs)
-	}
-
-	if _, ok := AvailableExchangeType[pairs[0]]; !ok {
-		return nil, nil, fmt.Errorf("invalid first type %v", pairs[0])
-	}
-
-	if _, ok := AvailableExchangeType[pairs[1]]; !ok {
-		return nil, nil, fmt.Errorf("invalid second type %v", pairs[1])
-	}
-
-	return &pairs[0], &pairs[1], nil
 }
 
 // ExecuteKardiaSmartContract executes smart contract based on address, method and list of params
@@ -356,30 +374,66 @@ func ExecuteKardiaSmartContract(state *state.ManagedState, contractAddress, meth
 
 // MessageHandler handles messages come from dual to kardia
 func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
+	proxy.Logger().Info("Starting MessageHandler", "topic", topic)
 	switch topic {
 	case DUAL_CALL:
 		// callback from dual
 		triggerMessage := dualMsg.TriggerMessage{}
-		triggerMessage.XXX_Unmarshal([]byte(message))
+		if err := jsonpb.UnmarshalString(message, &triggerMessage); err != nil {
+			proxy.Logger().Error("Error on unmarshal triggerMessage", "err", err, "topic", KARDIA_CALL)
+			return err
+		}
+
+		proxy.Logger().Info(
+			"TriggerMessage",
+			"contractAddress", triggerMessage.ContractAddress,
+			"methodName", triggerMessage.MethodName,
+			"params", triggerMessage.Params,
+		)
 
 		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool().State(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
 		if err != nil {
+			proxy.Logger().Error("Error on executing kardia smart contract", "err", err, "topic", KARDIA_CALL)
 			return err
 		}
 
 		if err := proxy.KardiaTxPool().AddLocal(tx); err != nil {
-			return nil
+			proxy.Logger().Error("Error on adding tx to txPool", "err", err, "topic", KARDIA_CALL)
+			return err
 		}
 
 	case DUAL_MSG:
 		// message from dual after it catches a triggered smc tx
 		// unpack contents to DualMessage
 		msg := dualMsg.Message{}
-		msg.XXX_Unmarshal([]byte(message))
+		if err := jsonpb.UnmarshalString(message, &msg); err != nil {
+			proxy.Logger().Error("Error decoding", "message", message)
+			if e, ok := err.(*json.SyntaxError); ok {
+				proxy.Logger().Error("Error syntax at", "byte offset", e.Offset)
+			}
+			return err
+		}
 
 		// TODO: this is used for exchange demo, remove the condition whenever we have dynamic handler method for this
 		if msg.MethodName == configs.ExternalDepositFunction {
-			return NewEvent(proxy, msg)
+
+			receiver := []byte(msg.GetParams()[0])
+			to := msg.GetParams()[1]
+			from := proxy.Name()
+
+			txHash := common.HexToHash(msg.GetTransactionId())
+
+			// Compose extraData struct for fields related to exchange from data extracted by Neo event
+			extraData := make([][]byte, configs.ExchangeV2NumOfExchangeDataField)
+			extraData[configs.ExchangeV2SourcePairIndex] = []byte(from)
+			extraData[configs.ExchangeV2DestPairIndex] = []byte(to)
+			extraData[configs.ExchangeV2SourceAddressIndex] = []byte(msg.GetSender())
+			extraData[configs.ExchangeV2DestAddressIndex] = receiver
+			extraData[configs.ExchangeV2OriginalTxIdIndex] = []byte(msg.GetTransactionId())
+			extraData[configs.ExchangeV2AmountIndex] = big.NewInt(int64(msg.GetAmount())).Bytes()
+			extraData[configs.ExchangeV2TimestampIndex] = big.NewInt(int64(msg.GetTimestamp())).Bytes()
+
+			return NewEvent(proxy, msg.MethodName, big.NewInt(int64(msg.Amount)), extraData, txHash, dualnode.CreateKardiaMatchAmountTx, true)
 		}
 	}
 	return nil
@@ -389,60 +443,62 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 func StartSubscribe(proxy base.BlockChainAdapter) {
 	subscriber, _ := zmq4.NewSocket(zmq4.SUB)
 	defer subscriber.Close()
-	subscriber.Connect(proxy.SubscribedEndpoint())
-
+	subscriber.Bind(proxy.SubscribedEndpoint())
+	subscriber.SetSubscribe("")
+	time.Sleep(time.Second)
 	for {
-		//  Read envelope with address
-		topic, _ := subscriber.Recv(0)
-		//  Read message contents
-		contents, _ := subscriber.Recv(0)
-		fmt.Printf("[%s] %s\n", topic, contents)
-
-		if err := MessageHandler(proxy, topic, contents); err != nil {
-			proxy.Logger().Error("Error while creating new event", "err", err.Error())
+		if err := subscribe(subscriber, proxy); err != nil {
+			proxy.Logger().Error("Error while subscribing", "err", err.Error())
 		}
 	}
 }
 
-// NewEvent receives data from Tron where encodedMsg is used for validating the message
-// returns error in case event cannot be added to eventPool
-func NewEvent(proxy base.BlockChainAdapter, msg dualMsg.Message) error {
-	dualState, err := proxy.DualBlockChain().State()
+// subscribe handles getting/handle topic and content, return error if any
+func subscribe(subscriber *zmq4.Socket, proxy base.BlockChainAdapter) error {
+	//  Read envelope with address
+	topic, err := subscriber.Recv(0)
 	if err != nil {
-		log.Error("Fail to get Dual BlockChain state", "error", err)
 		return err
 	}
-
-	// TODO: This is used for exchange use case, will remove this after applying dynamic method
-	receiver := []byte(msg.GetParams()[0])
-	pair := msg.GetParams()[1]
-
-	from, to, err := GetExchangePair(pair)
+	//  Read message contents
+	contents, err := subscriber.Recv(0)
 	if err != nil {
-		return nil
+		return err
 	}
+	proxy.Logger().Info("[%s] %s\n", topic, contents)
 
-	txHash := common.HexToHash(msg.GetTransactionId())
+	if err := MessageHandler(proxy, topic, contents); err != nil {
+		proxy.Logger().Error("Error while creating new event", "err", err.Error())
+		return err
+	}
+	return nil
+}
+
+func getStateFromProxy(proxy base.BlockChainAdapter) (*state.StateDB, error) {
+	dualState, err := proxy.DualBlockChain().State()
+	if err != nil {
+		proxy.Logger().Error("Fail to get Dual BlockChain state", "error", err)
+		return nil, err
+	}
+	return dualState, nil
+}
+
+// NewEvent creates new event and add to eventPool
+func NewEvent(proxy base.BlockChainAdapter, method string, value *big.Int, extraData [][]byte, txHash common.Hash, action string, fromExternal bool) error {
+	dualState, err := getStateFromProxy(proxy)
+	if err != nil {
+		return err
+	}
 	nonce := dualState.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
-	// Compose extraData struct for fields related to exchange from data extracted by Neo event
-	extraData := make([][]byte, configs.ExchangeV2NumOfExchangeDataField)
-	extraData[configs.ExchangeV2SourcePairIndex] = []byte(*from)
-	extraData[configs.ExchangeV2DestPairIndex] = []byte(*to)
-	extraData[configs.ExchangeV2SourceAddressIndex] = []byte(msg.GetSender())
-	extraData[configs.ExchangeV2DestAddressIndex] = receiver
-	extraData[configs.ExchangeV2OriginalTxIdIndex] = []byte(msg.GetTransactionId())
-	extraData[configs.ExchangeV2AmountIndex] = big.NewInt(int64(msg.GetAmount())).Bytes()
-	extraData[configs.ExchangeV2TimestampIndex] = big.NewInt(int64(msg.GetTimestamp())).Bytes()
-
 	eventSummary := &types.EventSummary{
-		TxMethod: msg.MethodName,
-		TxValue:  big.NewInt(int64(msg.Amount)),
+		TxMethod: method,
+		TxValue:  value,
 		ExtData:  extraData,
 	}
 
 	actionsTmp := [...]*types.DualAction{
 		&types.DualAction{
-			Name: dualnode.CreateKardiaMatchAmountTx,
+			Name: action,
 		},
 	}
 
@@ -450,7 +506,7 @@ func NewEvent(proxy base.BlockChainAdapter, msg dualMsg.Message) error {
 		return fmt.Errorf("proxy %v is not in allowed exchanged list", proxy.Name())
 	}
 
-	dualEvent := types.NewDualEvent(nonce, true /* internalChain */, types.BlockchainSymbol(proxy.Name()), &txHash, eventSummary, &types.DualActions{
+	dualEvent := types.NewDualEvent(nonce, fromExternal /* internalChain */, types.BlockchainSymbol(proxy.Name()), &txHash, eventSummary, &types.DualActions{
 		Actions: actionsTmp[:],
 	})
 
@@ -470,10 +526,11 @@ func NewEvent(proxy base.BlockChainAdapter, msg dualMsg.Message) error {
 	return nil
 }
 
-// Release releases assets to target chain to receiver, txId is kardiaTxId which is used for callback method.
+// Release create release-assets event, txId is kardiaTxId which is used for callback method.
+// create NewEvent here to make sure only proposer can submit event to target chain
 func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error {
-	senderAddr := common.HexToAddress(configs.MockSmartContractCallSenderAccount)
-	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
+	senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
+	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaNewExchangeSmcIndex)
 	if exchangeSmcAbi == "" {
 		return errAbiNotFound
 	}
@@ -499,12 +556,12 @@ func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error 
 	// create a triggeredMessage and send it through ZeroMQ with topic KARDIA_CALL
 	triggerMessage := dualMsg.TriggerMessage{
 		ContractAddress: smartContract,
-		MethodName: configs.ExternalReleaseFunction,
-		Params: []string{receiver, amount},
+		MethodName:      configs.ExternalReleaseFunction,
+		Params:          []string{receiver, amount},
 		CallBacks: []*dualMsg.TriggerMessage{
 			{
 				ContractAddress: configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex).Hex(),
-				MethodName: configs.UpdateTargetTx,
+				MethodName:      configs.UpdateTargetTx,
 				Params: []string{
 					// original tx, callback will be called after dual finish execute method,
 					// txid after dual finish executing will be appended
@@ -514,6 +571,41 @@ func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error 
 			},
 		},
 	}
+
+	// Create KARDIA_CALL event
+	proxy.Logger().Info("Adding triggerMessage to event", "triggerMessage", triggerMessage.String())
+
+	// Marshaling triggerMessage to byte array and put it to extraData
+	extraData := make([][]byte, 1)
+	buffer := &bytes.Buffer{}
+	marshaller := jsonpb.Marshaler{}
+	err = marshaller.Marshal(buffer, &triggerMessage)
+	if err != nil {
+		return err
+	}
+	extraData[0] = buffer.Bytes()
+	txHash := common.HexToHash(txId)
+	return NewEvent(proxy, KARDIA_CALL, big.NewInt(0), extraData, txHash, KARDIA_CALL, false)
+}
+
+// KardiaCall receives event from submitTx and publish message to Target chain.
+func KardiaCall(proxy base.BlockChainAdapter, event *types.EventData) error {
+
+	// ExtData must have length = 1 and first element must not be nil
+	if len(event.Data.ExtData) != 1 || event.Data.ExtData == nil {
+		return fmt.Errorf("extData is invalid or empty in KardiaCall")
+	}
+
+	// unmarshal byte array data from ExtData
+	unmarshaler := jsonpb.Unmarshaler{}
+	reader := bytes.NewReader(event.Data.ExtData[0])
+	triggerMessage := dualMsg.TriggerMessage{}
+	err := unmarshaler.Unmarshal(reader, &triggerMessage)
+	if err != nil {
+		proxy.Logger().Error("Error while unmarshaling triggerMessage from EventData" , "err", err)
+		return err
+	}
+
 	return PublishMessage(proxy.PublishedEndpoint(), KARDIA_CALL, triggerMessage)
 }
 
@@ -525,14 +617,14 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 		return configs.ErrInsufficientExchangeData
 	}
 	stateDB := proxy.KardiaTxPool().State().StateDB
-	senderAddr := common.HexToAddress(MockSmartContractCallSenderAccount)
+	senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
 	originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 	fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
 	toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
 
 	fromAmount, toAmount, err := CallGetRate(fromType, toType, proxy.KardiaBlockChain(), stateDB)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	// We get all releasable orders which are matched with newly added order
@@ -540,7 +632,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 		senderAddr,
 		proxy.KardiaBlockChain(),
 		stateDB,
-		originalTx,)
+		originalTx, )
 	if err != nil {
 		return err
 	}
@@ -557,44 +649,63 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 		arrTxIds := strings.Split(fields[configs.ExchangeV2ReleaseTxIdsIndex], configs.ExchangeV2ReleaseValuesSepatator)
 
 		for i, t := range arrTypes {
+
+			if proxy.Name() != t {
+				continue
+			}
+
+			if arrAmounts[i] == "" || arrAddresses[i] == "" || arrTxIds[i] == "" {
+				proxy.Logger().Error("Missing release info", "matchedTxId", arrTxIds[i], "field", i, "releases", releases)
+				continue
+			}
+			log.Info("ReleaseInfo", "type", t, "address", arrAddresses[i], "amount", arrAmounts[i], "matchedTxId", arrTxIds[i])
+
 			if t == configs.TRON || t == configs.NEO {
-				if arrAmounts[i] == "" || arrAddresses[i] == "" || arrTxIds[i] == "" {
-					proxy.Logger().Error("Missing release info", "matchedTxId", arrTxIds[i], "field", i, "releases", releases)
-					continue
-				}
 				address := arrAddresses[i]
 				amount, err1 := strconv.ParseInt(arrAmounts[i], 10, 64) //big.NewInt(0).SetString(arrAmounts[i], 10)
-				proxy.Logger().Info("Amount", "amount", amount, "in string", arrAmounts[i])
+				proxy.Logger().Info("Amount from smc", "amount", amount, "in string", arrAmounts[i])
 				if err1 != nil {
-					log.Error("Error parse amount", "amount", arrAmounts[i])
+					log.Error("Error parse amount from smc", "amount", arrAmounts[i])
 					continue
+				}
+				// Get rate base on the dual node exchange
+				if t != fromType {
+					tempFromAmount := fromAmount
+					fromAmount = toAmount
+					toAmount = tempFromAmount
 				}
 
 				var releasedAmount *big.Int
 				if t == configs.TRON {
 					// TRON is the smallest unit then do nothing with it
 					releasedAmount = big.NewInt(amount)
-				} else {
-					if fromType == configs.ETH {
+				} else { // NEO
+					if toType == configs.ETH {
 						// Divide amount from smart contract by 10^8 to get base NEO amount to release
 						releasedAmount = big.NewInt(amount).Div(big.NewInt(amount), TenPoweredByEight)
 					} else {
 						// fromType is TRON
 						// Calculate the releasedAmount based on the rate (fromAmount, toAmount)
-						releasedAmount = big.NewInt(amount).Mul(big.NewInt(amount), toAmount)
-						releasedAmount = releasedAmount.Div(releasedAmount, fromAmount)
+						releaseByFloat := big.NewFloat(float64(amount))
+						releaseByFloat = releaseByFloat.Mul(releaseByFloat, new(big.Float).SetInt(toAmount))
+						releaseByFloat = releaseByFloat.Quo(releaseByFloat, new(big.Float).SetInt(fromAmount))
 						// divide by 10^6 to get normal number
-						releasedAmount = releasedAmount.Div(releasedAmount, TenPoweredBySix)
+						releaseByFloat = releaseByFloat.Quo(releaseByFloat, TenPoweredBySixFloat)
+						temp, _ := releaseByFloat.Float64()
+						releasedAmount = big.NewInt(int64(math.Round(temp)))
 					}
-					proxy.Logger().Info("ReleasedAmount=%v", releasedAmount)
+					proxy.Logger().Info("Prepare to release", "amount", releasedAmount)
 					// don't release  NEO if quantity < 1
 					if releasedAmount.Cmp(big.NewInt(1)) < 0 {
-						proxy.Logger().Error("Too little neo to send", "originalTxId", originalTx, "err", errNoNeoToSend, "amount", releasedAmount)
-						return errNoNeoToSend
+						proxy.Logger().Error("Too little amount to send", "originalTxId", originalTx, "err", errAmountLessThanOne, "amount", releasedAmount)
+						return errAmountLessThanOne
 					}
 
 				}
-				go Release(proxy, address, releasedAmount.String(), arrTxIds[i])
+				if err := Release(proxy, address, arrTxIds[i], releasedAmount.String()); err != nil {
+					proxy.Logger().Error("Error when releasing", "err", err.Error())
+					return err
+				}
 			}
 		}
 	}

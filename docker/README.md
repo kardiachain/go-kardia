@@ -3,33 +3,44 @@ Install Docker following the installation guide for Linux OS: [https://docs.dock
 * [CentOS](https://docs.docker.com/install/linux/docker-ce/centos) 
 * [Ubuntu](https://docs.docker.com/install/linux/docker-ce/ubuntu)
 
-# Test docker environment 
+# Run local private testnet
+- See [local](https://github.com/kardiachain/go-kardia/tree/master/docker/local) for more details.
 
-Build docker image: 
+# Run private testnet environment 
+ ## Prerequisites
+ * Setup [NEO network](https://github.com/CityOfZion/neo-local)
+ * Setup [TRON network](https://github.com/tronprotocol/tron-deployment)
+ ## Kardia network include:
+ * 9 Nodes (standalone virtual machines) include:
+    * 3 ETH Dual nodes
+        * Rinkeby network 
+    * 3 NEO Dual nodes 
+        * [NEO API server](https://cloud.docker.com/repository/docker/kardiachain/neo-api-server-privnet)
+    * 3 TRX Dual nodes
+        * [TRON Solidity Node](https://cloud.docker.com/repository/docker/kardiachain/dual-tron)
 
-```
-docker build -t kardiachain/go-kardia ../
-```
+ * Get IP address of 9 Nodes, for example: 10.0.0.2 -> 10.0.0.10
 
-Example, 6-nodes network with ETH dual node is node1, NEO dual node is node2
-
+#### ETH nodes
+* Run 3 ETH nodes, replace <ip-node1 -> ip-node9> from IP address of 9 nodes
 ```
-./start_kardia_network.sh -n {NUMBER_OF_NODES} -eth {ETH_NODE_INDEX} -neo {NEO_NODE_INDEX} -dual
-```
-
-```
-./start_kardia_network.sh -n 6 -eth 1 -neo 2 -dual
-```
-
-or run in terminal
-
-```
-mkdir -p ~/.kardiachain/node1/data/ethereum
-docker run --rm -d --name node1 -v ~/.kardiachain/node1/data/ethereum:/root/.ethereum --net="host" kardiachain/go-kardia --dualchain --dev --mainChainValIndexes 3,4,5,6 --dual --ethstat --ethstatname eth-dual-test-1 --addr :3000 --name node1 --rpc --rpcport 8545 --clearDataDir
-docker run --rm -d --name node2 --net="host" kardiachain/go-kardia --dualchain --dev --mainChainValIndexes 3,4,5,6 --neodual --addr :3001 --name node2 --rpc --rpcport 8546 --clearDataDir
-docker run --rm -d --name node3 --net="host" kardiachain/go-kardia --dualchain --dev --mainChainValIndexes 3,4,5,6 --addr :3002 --name node3 --rpc --rpcport 8547 --clearDataDir
-docker run --rm -d --name node4 --net="host" kardiachain/go-kardia --dualchain --dev --mainChainValIndexes 3,4,5,6 --addr :3003 --name node4 --rpc --rpcport 8548 --clearDataDir
-docker run --rm -d --name node5 --net="host" kardiachain/go-kardia --dualchain --dev --mainChainValIndexes 3,4,5,6 --addr :3004 --name node5 --rpc --rpcport 8549 --clearDataDir
-docker run --rm -d --name node6 --net="host" kardiachain/go-kardia --dualchain --dev --mainChainValIndexes 3,4,5,6 --addr :3005 --name node6 --rpc --rpcport 8550 --clearDataDir
+./start_kardia_network.sh -n 1 -ip ip-node1,ip-node2,ip-node3,ip-node4,ip-node5,ip-node6,ip-node7,ip-node8,ip-node9
+./start_kardia_network.sh -n 2 -ip ip-node1,ip-node2,ip-node3,ip-node4,ip-node5,ip-node6,ip-node7,ip-node8,ip-node9
+./start_kardia_network.sh -n 3 -ip ip-node1,ip-node2,ip-node3,ip-node4,ip-node5,ip-node6,ip-node7,ip-node8,ip-node9
 ```
 
+#### NEO nodes
+* Run 3 NEO nodes, replace <ip-node1 -> ip-node9> from IP address of 9 nodes, <ip-neo-network> from IP address of NEO network 
+```
+./start_kardia_network.sh -n 4 -ip ip-node1,ip-node2,ip-node3,ip-node4,ip-node5,ip-node6,ip-node7,ip-node8,ip-node9 -neoip <ip-neo-network>
+./start_kardia_network.sh -n 5 -ip ip-node1,ip-node2,ip-node3,ip-node4,ip-node5,ip-node6,ip-node7,ip-node8,ip-node9 -neoip <ip-neo-network>
+./start_kardia_network.sh -n 6 -ip ip-node1,ip-node2,ip-node3,ip-node4,ip-node5,ip-node6,ip-node7,ip-node8,ip-node9 -neoip <ip-neo-network>
+```
+
+#### TRX nodes
+* Run 3 TRX nodes, replace <ip-node1 -> ip-node9> from IP address of 9 nodes, <ip-trx-network> from IP address of TRX network
+```
+./start_kardia_network.sh -n 7 -ip <ip-node1,ip-node2,ip-node3,ip-node4,ip-node5,ip-node6,ip-node7,ip-node8,ip-node9> -trxip <ip-tron-network>
+./start_kardia_network.sh -n 8 -ip <ip-node1,ip-node2,ip-node3,ip-node4,ip-node5,ip-node6,ip-node7,ip-node8,ip-node9> -trxip <ip-tron-network>
+./start_kardia_network.sh -n 9 -ip <ip-node1,ip-node2,ip-node3,ip-node4,ip-node5,ip-node6,ip-node7,ip-node8,ip-node9> -trxip <ip-tron-network>
+```
