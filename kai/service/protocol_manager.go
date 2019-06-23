@@ -398,7 +398,7 @@ func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
 
 	// If ok is true, then simplify the log
 	if ok {
-		pm.logger.Info("Start broadcast consensus message", "Height", v.Height, "Block", v.Block.String(), "msgType", msgType)
+		pm.logger.Info("Start broadcast consensus message", "Height", v.Height, "Block", v.Block.Hash().Hex(), "msgType", msgType)
 	} else {
 		pm.logger.Info("Start broadcast consensus message", "msg", msg, "msgType", msgType)
 	}
@@ -430,7 +430,7 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	}
 	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
 	for peer, txs := range txset {
-		go peer.AsyncSendTransactions(txs)
+		peer.AsyncSendTransactions(txs)
 		go peer.MarkTransactions(txs, false)
 	}
 }
