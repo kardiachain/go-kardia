@@ -42,12 +42,12 @@ var (
 
 const (
 	handshakeTimeout = 5 * time.Second
-	maxKnownTxs      = 32768 // Maximum transactions hashes to keep in the known list (prevent DOS)
+	maxKnownTxs      = 10000000 // Maximum transactions hashes to keep in the known list (prevent DOS)
 
 	// maxQueuedTxs is the maximum number of transaction lists to queue up before
 	// dropping broadcasts. This is a sensitive number as a transaction list might
 	// contain a single transaction, or thousands.
-	maxQueuedTxs = 128
+	maxQueuedTxs = 10000
 )
 
 // PeerInfo represents a short summary of the Kai sub-protocol metadata known
@@ -349,6 +349,7 @@ func (p *peer) AsyncSendTransactions(txs []*types.Transaction) {
 	// Tx will be actually sent in SendTransactions() trigger by broadcast() routine
 	select {
 	case p.queuedTxs <- txs:
+		p.MarkTransactions(txs, false)
 		//for _, tx := range txs {
 		//	p.knownTxs.Add(tx.Hash())
 		//}

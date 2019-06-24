@@ -430,8 +430,7 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	}
 	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
 	for peer, txs := range txset {
-		peer.AsyncSendTransactions(txs)
-		go peer.MarkTransactions(txs, false)
+		go peer.AsyncSendTransactions(txs)
 	}
 }
 
