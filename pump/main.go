@@ -284,10 +284,10 @@ func main() {
 		AccountSlots: 16,
 		GlobalSlots:  20000, // for pending
 		AccountQueue: 64,
-		GlobalQueue:  1000000, // for all
+		GlobalQueue:  200000, // for all
 		Lifetime: 3 * time.Hour,
-		NumberOfWorkers: 4,
-		WorkerCap: 500,
+		NumberOfWorkers: 6,
+		WorkerCap: 300,
 		BlockSize: 10000,
 	}
 	config.MainChainConfig.IsZeroFee = args.isZeroFee
