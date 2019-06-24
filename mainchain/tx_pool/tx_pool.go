@@ -454,15 +454,19 @@ func (pool *TxPool) RemoveTxsFromPending(txs types.Transactions) error {
 	}
 
 	for addr, txs := range removedTxs {
-		// lock this to prevent the case that pending txs for this addr has been removed in another routine and become nil
-		pool.mu.RLock()
-		if pool.pending[addr] != nil {
-			pool.pending[addr].Remove(txs...)
-		}
-		pool.mu.RUnlock()
+		pool.removePending(addr, txs)
 	}
 
 	return nil
+}
+
+func (pool *TxPool) removePending(addr common.Address, txs []interface{}) {
+	pool.mu.RLock()
+	defer pool.mu.RUnlock()
+
+	if pool.pending[addr] != nil && len(txs) > 0 {
+		pool.pending[addr].Remove(txs...)
+	}
 }
 
 func getTime() int64 {
@@ -479,21 +483,17 @@ func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 	defer pool.mu.Unlock()
 
 	count := 0
+	removedHashes := make([]interface{}, 0)
 
 loop:
 	for addr, pendingTxs := range pool.pending {
 		if pendingTxs.IsEmpty() {
 			continue
 		}
-
 		removedPendings := make([]interface{}, 0)
-		removedHashes := make([]interface{}, 0)
-
 		// txs is a list of valid txs, txs will be sorted after loop
 		txs := make(types.Transactions, 0)
 		copiedTxs := pendingTxs.List()
-
-		//pendingValidateStart := getTime()
 		for i, err := range pool.pendingValidation(copiedTxs) {
 			tx := copiedTxs[i].(*types.Transaction)
 			if err != nil {
@@ -504,22 +504,22 @@ loop:
 				count++
 			}
 			if limit > 0 && count >= limit {
+				// remove pending
+				pool.removePending(addr, removedPendings)
 				break loop
 			}
 		}
 
 		if len(txs) > 0 {
 			pending = append(pending, txs...)
-
 			// update pending state for address
 			pool.pendingState.SetNonce(addr, txs[len(txs)-1].Nonce()+1)
 		}
-		if len(removedHashes) > 0 {
-			pool.all.Remove(removedHashes...)
-		}
-		if len(removedPendings) > 0 {
-			pool.pending[addr].Remove(removedPendings...)
-		}
+		pool.removePending(addr, removedPendings)
+	}
+
+	if len(removedHashes) > 0 {
+		pool.all.Remove(removedHashes...)
 	}
 
 	if len(pending) > 0 {
