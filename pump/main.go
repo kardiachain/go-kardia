@@ -287,7 +287,7 @@ func main() {
 		GlobalQueue:  1000000, // for all
 		Lifetime: 3 * time.Hour,
 		NumberOfWorkers: 4,
-		WorkerCap: 400,
+		WorkerCap: 500,
 		BlockSize: 10000,
 	}
 	config.MainChainConfig.IsZeroFee = args.isZeroFee
