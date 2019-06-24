@@ -188,7 +188,7 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		SkipTimeoutCommit:           false,
 		CreateEmptyBlocks:           true,
 		CreateEmptyBlocksInterval:   0,
-		PeerGossipSleepDuration:     500,
+		PeerGossipSleepDuration:     1000,
 		PeerQueryMaj23SleepDuration: 500,
 	}
 }
