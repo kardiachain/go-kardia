@@ -42,6 +42,8 @@ var (
 
 const (
 	handshakeTimeout = 5 * time.Second
+
+	// TODO(@kiendn): move it to some configuration instead of hard code here
 	maxKnownTxs      = 10000000 // Maximum transactions hashes to keep in the known list (prevent DOS)
 
 	// maxQueuedTxs is the maximum number of transaction lists to queue up before
@@ -69,7 +71,7 @@ type peer struct {
 
 	version int // Protocol version negotiated
 
-	knownTxs  *common.Set                  // Set of transaction hashes known to be known by this peer
+	knownTxs  *common.AtomicSet         // AtomicSet of transaction hashes known to be known by this peer
 	queuedTxs chan []*types.Transaction // Queue of transactions to broadcast to the peer
 
 	csReactor *consensus.ConsensusManager
@@ -87,7 +89,7 @@ func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, 
 		version:    version,
 		id:         fmt.Sprintf("%x", p.ID().Bytes()[:8]),
 		queuedTxs:  make(chan []*types.Transaction, maxQueuedTxs),
-		knownTxs:   common.NewSet(maxKnownTxs),
+		knownTxs:   common.NewAtomicSet(maxKnownTxs),
 		csReactor:  csReactor,
 		terminated: make(chan struct{}),
 	}
@@ -299,6 +301,7 @@ func (p *peer) broadcast() {
 
 // MarkTransactions marks a list of transaction as known for the peer, ensuring that it
 // will never be propagated to this particular peer.
+// validate is used in case we need to return only txs that are not found in knownTxs (new txs)
 func (p *peer) MarkTransactions(txs types.Transactions, validate bool) []*types.Transaction {
 	newTxs := make([]*types.Transaction, 0)
 	hashes := make([]interface{}, 0)
@@ -332,9 +335,6 @@ func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
 
 // SendTransactions sends transactions to the peer, adds the txn hashes to known txn set.
 func (p *peer) SendTransactions(txs types.Transactions) error {
-	//for _, tx := range txs {
-	//	p.knownTxs.Add(tx.Hash())
-	//}
 	return p2p.Send(p.rw, serviceconst.TxMsg, txs)
 }
 
@@ -344,10 +344,8 @@ func (p *peer) AsyncSendTransactions(txs []*types.Transaction) {
 	// Tx will be actually sent in SendTransactions() trigger by broadcast() routine
 	select {
 	case p.queuedTxs <- txs:
+		// add all txs to knownTxs
 		p.MarkTransactions(txs, false)
-		//for _, tx := range txs {
-		//	p.knownTxs.Add(tx.Hash())
-		//}
 	default:
 		p.logger.Debug("Dropping transaction propagation", "count", len(txs))
 	}

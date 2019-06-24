@@ -318,12 +318,12 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&txs); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
+
+		// add all txs into knownTxs and return all txs that are not found in knownTxs
 		newTxs := p.MarkTransactions(txs, true)
 		if len(newTxs) > 0 {
 			if err := pm.txpool.AddTxs(newTxs); err != nil {
 				pm.logger.Error("Failed to add Transactions into pool", "err", err)
-			} else {
-				pm.logger.Trace("Transactions added to pool", "txs", txs)
 			}
 		}
 

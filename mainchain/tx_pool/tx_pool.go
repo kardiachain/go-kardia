@@ -196,10 +196,9 @@ type TxPool struct {
 	locals  *accountSet // Set of local transaction to exempt from eviction rules
 	journal *txJournal  // Journal of local transaction to back up to disk
 
-	pending map[common.Address]*common.Set   // All currently processable transactions
-	//queue   map[common.Address]*txList   // Queued but non-processable transactions
-	beats   map[common.Address]time.Time   // Last heartbeat from each known account
-	all     *common.Set                        // All transactions to allow lookups
+	pending map[common.Address]*common.AtomicSet // All currently processable transactions
+	beats   map[common.Address]time.Time // Last heartbeat from each known account
+	all     *common.AtomicSet            // All transactions to allow lookups
 
 	wg sync.WaitGroup // for shutdown sync
 }
@@ -216,10 +215,10 @@ func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *configs.Chai
 		config:      config,
 		chainconfig: chainconfig,
 		chain:       chain,
-		pending:     make(map[common.Address]*common.Set),
+		pending:     make(map[common.Address]*common.AtomicSet),
 		//queue:       make(map[common.Address]*txList),
 		beats:       make(map[common.Address]time.Time),
-		all:         common.NewSet(int64(config.GlobalQueue)),
+		all:         common.NewAtomicSet(int64(config.GlobalQueue)),
 		chainHeadCh: make(chan events.ChainHeadEvent, chainHeadChanSize),
 		gasPrice:    new(big.Int).SetUint64(config.PriceLimit),
 		totalPendingGas: uint64(0),
@@ -401,10 +400,13 @@ func (pool *TxPool) State() *state.ManagedState {
 	return pool.pendingState
 }
 
+// CurrentState returns current state db of txpool
 func (pool *TxPool) CurrentState() *state.StateDB {
 	return pool.currentState
 }
 
+// pendingValidation validates a list of txs in interface object and return a list of errors
+// in errors, if an error element is not nil then tx in that index is not valid.
 func (pool *TxPool) pendingValidation(txsInterface []interface{}) []error {
 	errs := make([]error, len(txsInterface))
 	for i, txInterface := range txsInterface {
@@ -495,10 +497,9 @@ loop:
 				removedHashes = append(removedHashes, tx.Hash())
 				removedPendings = append(removedPendings, tx)
 			} else {
-
 				txs = append(txs, tx)
+				count++
 			}
-			count++
 			if limit > 0 && count >= limit {
 				break loop
 			}
@@ -599,7 +600,7 @@ func (pool *TxPool) AddLocal(tx *types.Transaction) error {
 
 	if !ok {
 		pool.mu.Lock()
-		pool.pending[sender] = common.NewSet(0)
+		pool.pending[sender] = common.NewAtomicSet(0)
 		pool.mu.Unlock()
 	}
 
@@ -629,7 +630,7 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 
 	if !ok {
 		pool.mu.Lock()
-		pool.pending[sender] = common.NewSet(0)
+		pool.pending[sender] = common.NewAtomicSet(0)
 		pool.mu.Unlock()
 	}
 	pool.pending[sender].Add(tx)
@@ -712,7 +713,7 @@ func (pool *TxPool) handlePendingTxs(txs map[common.Address][]interface{}) {
 
 		if !ok {
 			pool.mu.Lock()
-			pool.pending[addr] = common.NewSet(0)
+			pool.pending[addr] = common.NewAtomicSet(0)
 			pool.mu.Unlock()
 		}
 		pool.pending[addr].Add(txs...)

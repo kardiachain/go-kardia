@@ -188,8 +188,18 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		SkipTimeoutCommit:           false,
 		CreateEmptyBlocks:           true,
 		CreateEmptyBlocksInterval:   0,
-		PeerGossipSleepDuration:     500,
-		PeerQueryMaj23SleepDuration: 100,
+
+		// TODO(@kiendn):
+		//  - PeerGossipSleepDuration is the time peer send its data to other peers, the time is lower,
+		//  the rate of data sent through network will be increase
+		//  - PeerQueryMaj23SleepDuration is the time peer listens to 2/3 vote, it must watch anytime to catch up vote asap
+		//  => proposed block will be handled faster
+		//  => blocktime is decreased and tps is increased
+		//  Note: this will cause number of blocks increase a lot and lead to chain's size increase.
+		//  But I think we can add a function to check if any tx in pool before creating new block.
+
+		PeerGossipSleepDuration:     500, // sleep duration before gossip data to other peers - 0.5s
+		PeerQueryMaj23SleepDuration: 100, // sleep duration before send major 2/3 (if any) to other peers - 0.1s
 	}
 }
 
