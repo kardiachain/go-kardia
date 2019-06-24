@@ -467,12 +467,11 @@ func (pool *TxPool) RemoveTxsFromPending(txs types.Transactions) error {
 }
 
 func (pool *TxPool) removePending(addr common.Address, txs []interface{}) {
-	pool.mu.RLock()
-	defer pool.mu.RUnlock()
-
+	pool.mu.Lock()
 	if pool.pending[addr] != nil && len(txs) > 0 {
 		pool.pending[addr].Remove(txs...)
 	}
+	pool.mu.Unlock()
 }
 
 func getTime() int64 {
@@ -491,7 +490,6 @@ func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 	count := 0
 	removedHashes := make([]interface{}, 0)
 
-loop:
 	for addr, pendingTxs := range pool.pending {
 		if pendingTxs.IsEmpty() {
 			continue
@@ -510,9 +508,7 @@ loop:
 				count++
 			}
 			if limit > 0 && count >= limit {
-				// remove pending
-				pool.removePending(addr, removedPendings)
-				break loop
+				break
 			}
 		}
 
@@ -521,7 +517,10 @@ loop:
 			// update pending state for address
 			pool.pendingState.SetNonce(addr, txs[len(txs)-1].Nonce()+1)
 		}
-		pool.removePending(addr, removedPendings)
+
+		if len(removedPendings) > 0 {
+			pool.pending[addr].Remove(removedPendings...)
+		}
 	}
 
 	if len(removedHashes) > 0 {
