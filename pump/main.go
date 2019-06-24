@@ -500,6 +500,20 @@ func pump(w http.ResponseWriter, r *http.Request) {
 			accounts = GetAccounts(GenesisAddrKeys2)
 		} else if idx == "3" {
 			accounts = GetAccounts(GenesisAddrKeys3)
+		} else if idx == "4" {
+			accounts = GetAccounts(GenesisAddrKeys4)
+		} else if idx == "5" {
+			accounts = GetAccounts(GenesisAddrKeys5)
+		} else if idx == "6" {
+			accounts = GetAccounts(GenesisAddrKeys6)
+		} else if idx == "7" {
+			accounts = GetAccounts(GenesisAddrKeys7)
+		} else if idx == "8" {
+			accounts = GetAccounts(GenesisAddrKeys8)
+		} else if idx == "9" {
+			accounts = GetAccounts(GenesisAddrKeys9)
+		} else if idx == "10" {
+			accounts = GetAccounts(GenesisAddrKeys10)
 		} else {
 			respondWithError(w, 500, "invalid genesis index")
 			return

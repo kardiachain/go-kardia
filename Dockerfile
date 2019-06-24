@@ -8,5 +8,7 @@ ADD . .
 RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 RUN dep ensure
 RUN go install
+WORKDIR /go/src/github.com/kardiachain/go-kardia/pump
+RUN go install
 WORKDIR /go/bin
 ENTRYPOINT ["./go-kardia"]
