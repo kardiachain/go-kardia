@@ -495,10 +495,9 @@ loop:
 				removedHashes = append(removedHashes, tx.Hash())
 				removedPendings = append(removedPendings, tx)
 			} else {
-
 				txs = append(txs, tx)
+				count++
 			}
-			count++
 			if limit > 0 && count >= limit {
 				break loop
 			}
