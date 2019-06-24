@@ -479,7 +479,7 @@ func (t *udp) send(toaddr *net.UDPAddr, ptype byte, req packet) ([]byte, error) 
 
 func (t *udp) write(toaddr *net.UDPAddr, what string, packet []byte) error {
 	_, err := t.conn.WriteToUDP(packet, toaddr)
-	log.Trace(">> "+what, "addr", toaddr, "err", err)
+	// log.Trace(">> "+what, "addr", toaddr, "err", err)
 	return err
 }
 
@@ -543,7 +543,7 @@ func (t *udp) handlePacket(from *net.UDPAddr, buf []byte) error {
 		return err
 	}
 	err = packet.handle(t, from, fromID, hash)
-	log.Trace("<< "+packet.name(), "addr", from, "err", err)
+	// log.Trace("<< "+packet.name(), "addr", from, "err", err)
 	return err
 }
 

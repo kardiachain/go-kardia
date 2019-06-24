@@ -209,6 +209,7 @@ func NewValidatorSet(vals []*Validator, startHeight int64, endHeight int64, refr
 			StartHeight: startHeight,
 			EndHeight:   endHeight,
 		},
+		NextValidators:           nil,
 		refreshBackoffHeightStep: refreshBackoff,
 		refreshHeightDelta:       refreshDelta,
 	}
@@ -288,27 +289,27 @@ func (valSet *ValidatorSet) TotalVotingPower() int64 {
 // The refreshing policy is needed to optimize how often we need to fetch validator set from
 // staking smart contract. Policy:
 //
-// if "height" is greater than the current staked validator set's end height:
+// (1) if "height" is greater than the current staked validator set's end height:
 //     i)  if "height" is in within the next validator set's start/end window: assign the next
 //         validator set to the current validator set. However, if next validator set is empty,
 //         do nothing.
 //     ii) if "height" is greater than the next validator set's end height: fetch current staked
 //         validator set.
-// if "height" is within the current staked validator set's start/end height window:
+// (2) if "height" is within the current staked validator set's start/end height window:
 //     i)  current validator set: do not fetch.
 //     ii) next validator set: if "height" is greater or equal to
 //         (end_height - refreshBackoffHeightStep) and the next staked validator set is nil,
 //         fetch it.
 //         NOTE: Consider doing this asynchronously, but beware of race condition.
-// if "height" is less than the current staked validator set's start height:
+// (3) if "height" is less than the current staked validator set's start height:
 //     i)  current validator set: do not fetch
 //     ii) next validator set: do not fetch
 //
 // Note: This must be called before advancing to the next proposer.
 func (valSet *ValidatorSet) mayRefreshValidatorSet(height int64) {
+	// Case #1
 	currentVals := valSet.Validators
 	nextVals := valSet.NextValidators
-
 	if height > currentVals.EndHeight {
 		if height >= nextVals.StartHeight && height <= nextVals.EndHeight {
 			valSet.Validators = valSet.NextValidators
@@ -318,17 +319,17 @@ func (valSet *ValidatorSet) mayRefreshValidatorSet(height int64) {
 		valSet.NextValidators = nil
 	}
 
+	// Case #2
 	currentVals = valSet.Validators
 	nextVals = valSet.NextValidators
-	if height >= currentVals.StartHeight && height <= nextVals.EndHeight {
+	if nextVals != nil && height >= currentVals.StartHeight && height <= nextVals.EndHeight {
 		if height >= currentVals.EndHeight-valSet.refreshBackoffHeightStep && nextVals != nil &&
 			(height-(currentVals.EndHeight-valSet.refreshBackoffHeightStep))%valSet.refreshHeightDelta == 0 /* check step-wise refresh */ {
 			valSet.NextValidators = valSet.fetchValidatorSet(currentVals.EndHeight + 1)
 		}
 	}
 
-	currentVals = valSet.Validators
-	nextVals = valSet.NextValidators
+	// Case #3: Do nothing
 }
 
 // Fetches the validator set at a given height.
@@ -362,9 +363,21 @@ func (valSet *ValidatorSet) Hash() common.Hash {
 
 // Copy each validator into a new ValidatorSet
 func (valSet *ValidatorSet) Copy() *ValidatorSet {
+	var copiedVals *StakedValidators
+	if valSet.Validators == nil {
+		copiedVals = nil
+	} else {
+		copiedVals = valSet.Validators.Copy()
+	}
+	var copiedNextVals *StakedValidators
+	if valSet.NextValidators == nil {
+		copiedNextVals = nil
+	} else {
+		copiedNextVals = valSet.NextValidators.Copy()
+	}
 	return &ValidatorSet{
-		Validators:               valSet.Validators.Copy(),
-		NextValidators:           valSet.NextValidators.Copy(),
+		Validators:               copiedVals,
+		NextValidators:           copiedNextVals,
 		Proposer:                 valSet.Proposer,
 		totalVotingPower:         valSet.totalVotingPower,
 		refreshBackoffHeightStep: valSet.refreshBackoffHeightStep,
