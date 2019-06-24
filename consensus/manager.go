@@ -576,13 +576,10 @@ OUTER_LOOP:
 			{
 				logger.Debug("Sending proposal", "height", prs.Height, "round", prs.Round)
 				ps.SetHasProposal(rs.Proposal)
-				var wg sync.WaitGroup
-				wg.Add(1)
 				go func() {
 					if err := p2p.Send(ps.rw, service.CsProposalMsg, &ProposalMessage{Proposal: rs.Proposal}); err != nil {
 						logger.Trace("Sending proposal failed", "err", err)
 					}
-					wg.Done()
 				}()
 			}
 			// ProposalPOL: lets peer know which POL votes we have so far.

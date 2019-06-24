@@ -284,18 +284,13 @@ func (p *peer) broadcast() {
 	for {
 		select {
 		case txs := <-p.queuedTxs:
-			var wg sync.WaitGroup
-			wg.Add(1)
 			go func() {
 				if err := p.SendTransactions(txs); err != nil {
 					p.logger.Error("Send txs failed", "err", err, "count", len(txs))
-					wg.Done()
 					return
 				}
-				wg.Done()
 				p.logger.Trace("Transactions sent", "count", len(txs))
 			}()
-
 		case <-p.terminated:
 			return
 		}
