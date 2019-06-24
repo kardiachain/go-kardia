@@ -456,7 +456,12 @@ func (pool *TxPool) RemoveTxsFromPending(txs types.Transactions) error {
 	}
 
 	for addr, txs := range removedTxs {
-		pool.pending[addr].Remove(txs...)
+		// lock this to prevent the case that pending txs for this addr has been removed in another routine and become nil
+		pool.mu.RLock()
+		if pool.pending[addr] != nil {
+			pool.pending[addr].Remove(txs...)
+		}
+		pool.mu.RUnlock()
 	}
 
 	return nil
