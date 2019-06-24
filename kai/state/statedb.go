@@ -371,9 +371,7 @@ func (sdb *StateDB) getStateObject(addr common.Address) (stateObject *stateObjec
 }
 
 func (sdb *StateDB) setStateObject(object *stateObject) {
-	sdb.lock.Lock()
 	sdb.stateObjects[object.Address()] = object
-	sdb.lock.Unlock()
 }
 
 // deleteStateObject removes the given object from the state trie.

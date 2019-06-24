@@ -66,20 +66,20 @@ func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.B
 	// Tx execution can happen in parallel with voting or precommitted.
 	// For simplicity, this code executes & commits txs before sending proposal,
 	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
-	txs := bo.txPool.ProposeTransactions()
+	txs := bo.collectTransactions()
 	bo.logger.Debug("Collected transactions", "txs", txs)
 
 	header := bo.newHeader(height, uint64(len(txs)), lastBlockID, lastValidatorHash)
 	bo.logger.Info("Creates new header", "header", header)
 
-	stateRoot, receipts, newTxs, err := bo.commitTransactions(txs, header)
+	stateRoot, receipts, err := bo.commitTransactions(txs, header)
 	if err != nil {
 		bo.logger.Error("Fail to commit transactions", "err", err)
 		return nil
 	}
 	header.Root = stateRoot
 
-	block = bo.newBlock(header, newTxs, receipts, commit)
+	block = bo.newBlock(header, txs, receipts, commit)
 	bo.logger.Trace("Make block to propose", "block", block)
 
 	bo.saveReceipts(receipts, block)
@@ -91,7 +91,7 @@ func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.B
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
 func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
-	root, receipts, _, err := bo.commitTransactions(block.Transactions(), block.Header())
+	root, receipts, err := bo.commitTransactions(block.Transactions(), block.Header())
 	if err != nil {
 		return err
 	}
@@ -153,9 +153,7 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commi
 	bo.blockchain.WriteCommit(height, seenCommit)
 
 	// TODO(thientn/kiendn): Evaluates remove txs directly here, or depending on txPool.reset() when receiving new block event.
-	if block != nil && len(block.Transactions()) > 0 {
-		bo.txPool.RemoveTxs(block.Transactions())
-	}
+	bo.txPool.RemoveTxs(block.Transactions())
 
 	bo.mtx.Lock()
 	bo.height = height
@@ -215,11 +213,28 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 	return block
 }
 
+// collectTransactions queries list of pending transactions from tx pool.
+func (bo *BlockOperations) collectTransactions() []*types.Transaction {
+	pending, err := bo.txPool.Pending()
+	if err != nil {
+		bo.logger.Error("Fail to get pending txs", "err", err)
+		return nil
+	}
+
+	// TODO: do basic verification & check with gas & sort by nonce
+	// check code NewTransactionsByPriceAndNonce
+	pendingTxs := make([]*types.Transaction, 0)
+	for _, txs := range pending {
+		for _, tx := range txs {
+			pendingTxs = append(pendingTxs, tx)
+		}
+	}
+	return pendingTxs
+}
+
 // commitTransactions executes the given transactions and commits the result stateDB to disk.
-func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *types.Header) (common.Hash, types.Receipts,
-	types.Transactions, error) {
+func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *types.Header) (common.Hash, types.Receipts, error) {
 	var (
-		newTxs   = types.Transactions{}
 		receipts = types.Receipts{}
 		usedGas  = new(uint64)
 	)
@@ -229,7 +244,7 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	state, err := bo.blockchain.State()
 	if err != nil {
 		bo.logger.Error("Fail to get blockchain head state", "err", err)
-		return common.Hash{}, nil, nil, err
+		return common.Hash{}, nil, err
 	}
 
 	// GasPool
@@ -237,7 +252,6 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	gasPool := new(GasPool).AddGas(header.GasLimit)
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
-	loop:
 	for _, tx := range txs {
 		state.Prepare(tx.Hash(), common.Hash{}, counter)
 		snap := state.Snapshot()
@@ -246,30 +260,26 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 			IsZeroFee: bo.blockchain.IsZeroFee,
 		})
 		if err != nil {
-			bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
 			state.RevertToSnapshot(snap)
 			// TODO(thientn): check error type and jump to next tx if possible
-			// kiendn: instead of return nil and err, jump to next tx
-			//return common.Hash{}, nil, nil, err
-			continue loop
+			return common.Hash{}, nil, err
 		}
 		counter++
 		receipts = append(receipts, receipt)
-		newTxs = append(newTxs, tx)
 	}
 	root, err := state.Commit(true)
 
 	if err != nil {
 		bo.logger.Error("Fail to commit new statedb after txs", "err", err)
-		return common.Hash{}, nil, nil, err
+		return common.Hash{}, nil, err
 	}
 	err = bo.blockchain.CommitTrie(root)
 	if err != nil {
 		bo.logger.Error("Fail to write statedb trie to disk", "err", err)
-		return common.Hash{}, nil, nil, err
+		return common.Hash{}, nil, err
 	}
 
-	return root, receipts, newTxs, nil
+	return root, receipts, nil
 }
 
 // saveReceipts saves receipts of block transactions to storage.

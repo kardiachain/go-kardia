@@ -318,15 +318,15 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&txs); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
-
-		// add all txs into knownTxs and return all txs that are not found in knownTxs
-		newTxs := p.MarkTransactions(txs, true)
-		if len(newTxs) > 0 {
-			if err := pm.txpool.AddTxs(newTxs); err != nil {
-				pm.logger.Error("Failed to add Transactions into pool", "err", err)
+		for i, tx := range txs {
+			// Validate and mark the remote transaction
+			if tx == nil {
+				return errResp(ErrDecode, "transaction %d is nil", i)
 			}
+			p.MarkTransaction(tx.Hash())
 		}
-
+		pm.txpool.AddRemotes(txs)
+		pm.logger.Trace("Transactions added to pool", "txs", txs)
 	case msg.Code == serviceconst.CsNewRoundStepMsg:
 		pm.logger.Trace("NewRoundStep message received")
 		pm.csReactor.ReceiveNewRoundStep(msg, p.Peer)
@@ -369,7 +369,12 @@ func (pm *ProtocolManager) syncTransactions(p *peer) {
 	pm.logger.Trace("Sync txns to new peer", "peer", p)
 	// TODO(thientn): sends transactions in chunks. This may send a large number of transactions.
 	// Breaks them to chunks here or inside AsyncSend to not overload the pipeline.
-	txs, _ := pm.txpool.Pending(0)
+	txsMap, _ := pm.txpool.Pending()
+	var txs types.Transactions
+
+	for _, list := range txsMap {
+		txs = append(txs, list...)
+	}
 	if len(txs) == 0 {
 		return
 	}
@@ -398,7 +403,7 @@ func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
 
 	// If ok is true, then simplify the log
 	if ok {
-		pm.logger.Info("Start broadcast consensus message", "Height", v.Height, "Block", v.Block.Hash().Hex(), "msgType", msgType)
+		pm.logger.Info("Start broadcast consensus message", "Height", v.Height, "Block", v.Block.String(), "msgType", msgType)
 	} else {
 		pm.logger.Info("Start broadcast consensus message", "msg", msg, "msgType", msgType)
 	}
@@ -421,16 +426,13 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	for _, tx := range txs {
 		peers := pm.peers.PeersWithoutTx(tx.Hash())
 		for _, peer := range peers {
-			if _, ok := txset[peer]; !ok {
-				txset[peer] = make(types.Transactions, 0)
-			}
 			txset[peer] = append(txset[peer], tx)
 		}
 		pm.logger.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
 	}
 	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
 	for peer, txs := range txset {
-		go peer.AsyncSendTransactions(txs)
+		peer.AsyncSendTransactions(txs)
 	}
 }
 
