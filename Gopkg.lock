@@ -179,6 +179,14 @@
   version = "v1.1.0"
 
 [[projects]]
+  digest = "1:3af6be4fee7c08f81f13d36f04ffb63ad4b6b5aaba12cce96095c7c2863d4912"
+  name = "github.com/gorilla/mux"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ed099d42384823742bba0bf9a72b53b55c9e2e38"
+  version = "v1.7.2"
+
+[[projects]]
   digest = "1:8ec8d88c248041a6df5f6574b87bc00e7e0b493881dad2e7ef47b11dc69093b5"
   name = "github.com/hashicorp/golang-lru"
   packages = [
@@ -414,22 +422,6 @@
   revision = "788fd78401277ebd861206a03c884797c6ec5541"
 
 [[projects]]
-  digest = "1:3ccd10c863188cfe0d936fcfe6a055c95362e43af8e7039e33baade846928e74"
-  name = "gopkg.in/fatih/set.v0"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "57907de300222151a123d29255ed17f5ed43fad3"
-  version = "v0.1.0"
-
-[[projects]]
-  branch = "v2"
-  digest = "1:0a2f4b974a413866afa1b41130d756643841fb9ad661b81c9a6dd9f1364ed19f"
-  name = "gopkg.in/karalabe/cookiejar.v2"
-  packages = ["collections/prque"]
-  pruneopts = "UT"
-  revision = "8dcd6a7f4951f6ff3ee9cbb919a06d8925822e57"
-
-[[projects]]
   branch = "v2"
   digest = "1:3d3f9391ab615be8655ae0d686a1564f3fec413979bb1aaf018bac1ec1bb1cc7"
   name = "gopkg.in/natefinch/npipe.v2"
@@ -485,6 +477,7 @@
     "github.com/golang/protobuf/jsonpb",
     "github.com/golang/protobuf/proto",
     "github.com/golang/snappy",
+    "github.com/gorilla/mux",
     "github.com/hashicorp/golang-lru",
     "github.com/huin/goupnp",
     "github.com/huin/goupnp/dcps/internetgateway1",
@@ -505,8 +498,6 @@
     "golang.org/x/crypto/ripemd160",
     "golang.org/x/crypto/scrypt",
     "gopkg.in/check.v1",
-    "gopkg.in/fatih/set.v0",
-    "gopkg.in/karalabe/cookiejar.v2/collections/prque",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1
