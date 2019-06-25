@@ -25,7 +25,6 @@ import (
 	"math"
 	"math/big"
 	"os"
-	"runtime"
 	"sort"
 
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -533,7 +532,7 @@ func (l *txPricedList) Discard(count int, local *accountSet) types.Transactions 
 //==============================================================================================
 
 // senderCacher is a concurrent tranaction sender recoverer anc cacher.
-var senderCacher = newTxSenderCacher(runtime.NumCPU())
+//var senderCacher = newTxSenderCacher(runtime.NumCPU())
 
 // txSenderCacherRequest is a request for recovering transaction senders with a
 // specific signature scheme and caching it into the transactions themselves.
