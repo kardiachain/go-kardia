@@ -362,9 +362,6 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 
 	// remove current block's txs from pending
 	pool.RemoveTxs(currentBlock.Transactions())
-	if _, err := pool.Pending(0); err != nil {
-		log.Error("cleaning pending failed", "err", err)
-	}
 }
 
 // Stop terminates the transaction pool.
@@ -409,33 +406,27 @@ func (pool *TxPool) CurrentState() *state.StateDB {
 	return pool.currentState
 }
 
-// pendingValidation validates a list of txs in interface object and return a list of errors
-// in errors, if an error element is not nil then tx in that index is not valid.
-func (pool *TxPool) pendingValidation(txsInterface []interface{}) []error {
-	errs := make([]error, len(txsInterface))
-	for i, txInterface := range txsInterface {
-		tx := txInterface.(*types.Transaction)
-		from, err := types.Sender(tx)
-		if err != nil {
-			errs[i] = ErrInvalidSender
-		}
-		// Ensure the transaction adheres to nonce ordering
-		currentState := pool.currentState
-		senderNonce := currentState.GetNonce(from)
-		if pool.currentState.GetNonce(from) > tx.Nonce() {
-			errs[i] =  fmt.Errorf("nonce too low expected %v found %v", senderNonce, tx.Nonce())
-		}
-		if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-			pool.logger.Error("Bad txn cost", "balance", pool.currentState.GetBalance(from), "cost", tx.Cost(), "from", from)
-			errs[i] =  ErrInsufficientFunds
-		}
-		// TODO: this can be moved to execute transactions step or may not need
-		//readTimeStart := getTime()
-		//if t, _, _, _ := chaindb.ReadTransaction(pool.chain.DB(), tx.Hash()); t != nil {
-		//	errs[i] =  fmt.Errorf("known transaction: %x", tx.Hash())
-		//}
+func (pool *TxPool) pendingValidation(tx *types.Transaction) error {
+	from, err := types.Sender(tx)
+	if err != nil {
+		return ErrInvalidSender
 	}
-	return errs
+	// Ensure the transaction adheres to nonce ordering
+	currentState := pool.currentState
+	senderNonce := currentState.GetNonce(from)
+	if pool.currentState.GetNonce(from) > tx.Nonce() {
+		return fmt.Errorf("nonce too low expected %v found %v", senderNonce, tx.Nonce())
+	}
+	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+		pool.logger.Error("Bad txn cost", "balance", pool.currentState.GetBalance(from), "cost", tx.Cost(), "from", from)
+		return ErrInsufficientFunds
+	}
+	// TODO: this can be moved to execute transactions step or may not need
+	//readTimeStart := getTime()
+	//if t, _, _, _ := chaindb.ReadTransaction(pool.chain.DB(), tx.Hash()); t != nil {
+	//	errs[i] =  fmt.Errorf("known transaction: %x", tx.Hash())
+	//}
+	return nil
 }
 
 func (pool *TxPool) ProposeTransactions() types.Transactions {
@@ -484,8 +475,8 @@ func getTime() int64 {
 func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 	pending := make(types.Transactions, 0)
 	// indexes is found txs indexes in pool.pending
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+	//pool.mu.Lock()
+	//defer pool.mu.Unlock()
 
 	count := 0
 	removedHashes := make([]interface{}, 0)
@@ -497,10 +488,9 @@ func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 		removedPendings := make([]interface{}, 0)
 		// txs is a list of valid txs, txs will be sorted after loop
 		txs := make(types.Transactions, 0)
-		copiedTxs := pendingTxs.List()
-		for i, err := range pool.pendingValidation(copiedTxs) {
-			tx := copiedTxs[i].(*types.Transaction)
-			if err != nil {
+		for _, txInterface := range pendingTxs.List() {
+			tx := txInterface.(*types.Transaction)
+			if err := pool.pendingValidation(tx); err != nil {
 				removedHashes = append(removedHashes, tx.Hash())
 				removedPendings = append(removedPendings, tx)
 			} else {
@@ -517,14 +507,11 @@ func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 			// update pending state for address
 			pool.pendingState.SetNonce(addr, txs[len(txs)-1].Nonce()+1)
 		}
-
-		if len(removedPendings) > 0 {
-			pool.pending[addr].Remove(removedPendings...)
-		}
+		pool.removePending(addr, removedPendings)
 	}
 
 	if len(removedHashes) > 0 {
-		pool.all.Remove(removedHashes...)
+		go pool.all.Remove(removedHashes...)
 	}
 
 	if len(pending) > 0 {
@@ -735,13 +722,13 @@ func (pool *TxPool) handlePendingTxs(txs map[common.Address][]interface{}) {
 // This function is mainly for caller in blockchain/consensus to directly remove committed txs.
 //
 func (pool *TxPool) RemoveTxs(txs types.Transactions) {
-	//pool.logger.Error("Removing Txs from pending", "txs", len(txs))
-	//startTime := getTime()
+	pool.logger.Trace("Removing Txs from pending", "txs", len(txs))
+	startTime := getTime()
 	if err := pool.RemoveTxsFromPending(txs); err != nil {
 		pool.logger.Error("Error while trying remove pending Txs", "err", err)
 	}
-	//diff := getTime() - startTime
-	//pool.logger.Error("total time to finish removing txs from pending", "time", diff)
+	diff := getTime() - startTime
+	pool.logger.Trace("Total time to finish removing txs from pending", "time", diff)
 }
 
 func (pool *TxPool) PendingSize() int64 {
