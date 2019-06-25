@@ -282,7 +282,7 @@ func main() {
 		PriceLimit:   1,
 		PriceBump:    10,
 		AccountSlots: 16,
-		GlobalSlots:  20480, // for pending
+		GlobalSlots:  32768, // for pending
 		AccountQueue: 64,
 		GlobalQueue:  409600, // for all
 		Lifetime: 3 * time.Hour,
