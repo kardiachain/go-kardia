@@ -481,7 +481,11 @@ func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 	count := 0
 	removedHashes := make([]interface{}, 0)
 
-	for addr, pendingTxs := range pool.pending {
+	pool.mu.RLock()
+	pendings := pool.pending
+	pool.mu.RUnlock()
+
+	for addr, pendingTxs := range pendings {
 		if pendingTxs.IsEmpty() {
 			continue
 		}
