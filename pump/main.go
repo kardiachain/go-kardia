@@ -444,8 +444,13 @@ func waitForever() {
 // Warning: Set txsDelay < 5 secs may build up old subroutines because previous subroutine to add txs won't be finished before new one starts.
 func genTxsLoop(txPool *tx_pool.TxPool) {
 	time.Sleep(30 * time.Second) //decrease it if you want to test it locally
-	genTool = NewGeneratorTool(accounts, make(map[string]uint64))
+	if genTool == nil {
+		genTool = NewGeneratorTool(accounts, make(map[string]uint64))
+	}
 	for {
+		if args.numTxs == 0 {
+			break
+		}
 		genTxs(genTool, uint64(args.numTxs), txPool)
 		time.Sleep(time.Duration(args.txsDelay) * time.Second)
 	}
@@ -544,6 +549,13 @@ func pump(w http.ResponseWriter, r *http.Request) {
 	args.numTxs = int(numTxs)
 	args.txsDelay = int(delay)
 	genTool = NewGeneratorTool(accounts, genTool.nonceMap)
+
+	go func() {
+		if args.numTxs > 0 {
+			time.Sleep(time.Duration(5) * time.Second)
+			go genTxsLoop(kardiaService.TxPool())
+		}
+	} ()
 
 	respondWithJSON(w, 200, "OK")
 }
