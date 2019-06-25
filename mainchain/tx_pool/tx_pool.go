@@ -361,7 +361,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	pool.mu.Unlock()
 
 	// remove current block's txs from pending
-	pool.RemoveTxs(currentBlock.Transactions())
+	go pool.RemoveTxs(currentBlock.Transactions())
 }
 
 // Stop terminates the transaction pool.
