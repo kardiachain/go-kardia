@@ -443,19 +443,17 @@ func waitForever() {
 // genTxsLoop generate & add a batch of transfer txs, repeat after delay flag.
 // Warning: Set txsDelay < 5 secs may build up old subroutines because previous subroutine to add txs won't be finished before new one starts.
 func genTxsLoop(txPool *tx_pool.TxPool) {
-	time.Sleep(20 * time.Second) //decrease it if you want to test it locally
-	genRound := 0
+	time.Sleep(10 * time.Second) //decrease it if you want to test it locally
 	genTool = NewGeneratorTool(accounts, make(map[string]uint64))
 	for {
-		genTxs(genTool, uint64(args.numTxs), txPool, uint64(genRound))
-		genRound++
+		genTxs(genTool, uint64(args.numTxs), txPool)
 		time.Sleep(time.Duration(args.txsDelay) * time.Second)
 	}
 }
 
-func genTxs(genTool *GeneratorTool, numTxs uint64, txPool *tx_pool.TxPool, genRound uint64) {
-	txList := genTool.GenerateRandomTxWithState(numTxs, genRound)
-	log.Info("GenTxs Adding new transactions", "num", numTxs, "genRound", genRound, "generatedTxList", len(txList), "pendingPool", txPool.PendingSize())
+func genTxs(genTool *GeneratorTool, numTxs uint64, txPool *tx_pool.TxPool) {
+	txList := genTool.GenerateRandomTxWithState(numTxs, txPool.State())
+	log.Info("GenTxs Adding new transactions", "num", numTxs, "generatedTxList", len(txList), "pendingPool", txPool.PendingSize())
 	if err := txPool.AddTxs(txList); err != nil {
 		log.Error("Error while adding txs", "err", err)
 	}

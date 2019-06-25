@@ -471,13 +471,12 @@ func getTime() int64 {
 func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 	pending := make(types.Transactions, 0)
 	// indexes is found txs indexes in pool.pending
-	//pool.mu.Lock()
-	//defer pool.mu.Unlock()
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
 
 	count := 0
 	removedHashes := make([]interface{}, 0)
 
-	pool.mu.Lock()
 	for addr, pendingTxs := range pool.pending {
 		if pendingTxs.IsEmpty() {
 			continue
@@ -509,10 +508,9 @@ func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 			pool.pending[addr].Remove(removedPendings...)
 		}
 	}
-	pool.mu.Unlock()
 
 	if len(removedHashes) > 0 {
-		go pool.all.Remove(removedHashes...)
+		pool.all.Remove(removedHashes...)
 	}
 
 	if len(pending) > 0 {
