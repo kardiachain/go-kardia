@@ -479,47 +479,28 @@ func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 	defer pool.mu.Unlock()
 
 	count := 0
-	removedHashes := make([]interface{}, 0)
-
-	for addr, pendingTxs := range pool.pending {
+	for _, pendingTxs := range pool.pending {
 		if pendingTxs.IsEmpty() {
 			continue
 		}
-		removedPendings := make([]interface{}, 0)
 		// txs is a list of valid txs, txs will be sorted after loop
 		txs := make(types.Transactions, 0)
 		for _, txInterface := range pendingTxs.List() {
 			tx := txInterface.(*types.Transaction)
-			if err := pool.pendingValidation(tx); err != nil {
-				removedHashes = append(removedHashes, tx.Hash())
-				removedPendings = append(removedPendings, tx)
-			} else {
-				txs = append(txs, tx)
-				count++
-			}
+			txs = append(txs, tx)
+			count++
 			if limit > 0 && count >= limit {
 				break
 			}
 		}
 
 		if len(txs) > 0 {
+			//// sort txs to make sure txs is sorted by order
+			//sort.Sort(types.TxByNonce(txs))
 			pending = append(pending, txs...)
-			// update pending state for address
-			pool.pendingState.SetNonce(addr, txs[len(txs)-1].Nonce()+1)
-		}
-
-		if len(removedPendings) > 0 {
-			pool.pending[addr].Remove(removedPendings...)
 		}
 	}
-
-	if len(removedHashes) > 0 {
-		pool.all.Remove(removedHashes...)
-	}
-
-	if len(pending) > 0 {
-		sort.Sort(types.TxByNonce(pending))
-	}
+	sort.Sort(types.TxByNonce(pending))
 	return pending, nil
 }
 

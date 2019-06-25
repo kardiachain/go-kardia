@@ -91,12 +91,12 @@ func (ms *ManagedState) GetNonce(addr common.Address) uint64 {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
-	if ms.hasAccount(addr) {
-		account := ms.getAccount(addr)
-		return uint64(len(account.nonces)) + account.nstart
-	} else {
-		return ms.StateDB.GetNonce(addr)
-	}
+	//if ms.hasAccount(addr) {
+	//	account := ms.getAccount(addr)
+	//	return uint64(len(account.nonces)) + account.nstart
+	//} else {
+	return ms.StateDB.GetNonce(addr)
+	//}
 }
 
 // SetNonce sets the new canonical nonce for the managed state
