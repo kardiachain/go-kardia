@@ -124,10 +124,10 @@ func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx uint64, state *sta
 			genTool.nonceMap[senderAddrS] = 1
 		}
 
-		nonceDb := state.GetNonce(senderPublicKey)
-		if genTool.nonceMap[senderAddrS] < nonceDb {
-			genTool.nonceMap[senderAddrS] = nonceDb + 1
-		}
+		//nonceDb := state.GetNonce(senderPublicKey)
+		//if genTool.nonceMap[senderAddrS] < nonceDb {
+		//	genTool.nonceMap[senderAddrS] = nonceDb + 1
+		//}
 
 		nonce := genTool.nonceMap[senderAddrS]
 		//log.Error("generate tx", "addr", senderAddrS, "nonce", nonce, "nonceMap", genTool.nonceMap[senderAddrS])

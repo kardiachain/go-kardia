@@ -31,7 +31,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -265,16 +264,17 @@ func (st *StateTransition) buyGas() error {
 func (st *StateTransition) preCheck() error {
 	// Make sure this transaction's nonce is correct.
 	if st.msg.CheckNonce() {
-		nonce := st.state.GetNonce(st.msg.From())
+		//nonce := st.state.GetNonce(st.msg.From())
 		// FIXME(kiendn): nonce does not need to check too high, it can be depended on what user input
 		// as long as nonce is not less than or equals current state then it wil be fined.
 
 		//if nonce < st.msg.Nonce() {
 		//	return ErrNonceTooHigh
 		//} else
-		if nonce > st.msg.Nonce() {
-			return tx_pool.ErrNonceTooLow
-		}
+		//if nonce > st.msg.Nonce() {
+		//	//return tx_pool.ErrNonceTooLow
+		//	return fmt.Errorf("nonce too low - current nonce is %v", nonce)
+		//}
 	}
 	return st.buyGas()
 }
