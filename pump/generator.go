@@ -107,7 +107,7 @@ func (genTool *GeneratorTool) GetNonce(address string) uint64 {
 	return genTool.nonceMap[address]
 }
 
-func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx, round uint64) []*types.Transaction {
+func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx uint64) []*types.Transaction {
 	genTool.mu.Lock()
 	if numTx <= 0 || len(genTool.accounts) == 0 {
 		return nil
