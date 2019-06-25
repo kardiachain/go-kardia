@@ -403,20 +403,20 @@ func (pool *TxPool) CurrentState() *state.StateDB {
 }
 
 func (pool *TxPool) pendingValidation(tx *types.Transaction) error {
-	from, err := types.Sender(tx)
+	_, err := types.Sender(tx)
 	if err != nil {
 		return ErrInvalidSender
 	}
 	// Ensure the transaction adheres to nonce ordering
-	currentState := pool.currentState
-	senderNonce := currentState.GetNonce(from)
-	if pool.currentState.GetNonce(from) > tx.Nonce() {
-		return fmt.Errorf("nonce too low expected %v found %v", senderNonce, tx.Nonce())
-	}
-	if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
-		pool.logger.Error("Bad txn cost", "balance", pool.currentState.GetBalance(from), "cost", tx.Cost(), "from", from)
-		return ErrInsufficientFunds
-	}
+	//currentState := pool.currentState
+	//senderNonce := currentState.GetNonce(from)
+	//if senderNonce > tx.Nonce() {
+	//	return fmt.Errorf("nonce too low expected %v found %v", senderNonce, tx.Nonce())
+	//}
+	//if pool.currentState.GetBalance(from).Cmp(tx.Cost()) < 0 {
+	//	pool.logger.Error("Bad txn cost", "balance", pool.currentState.GetBalance(from), "cost", tx.Cost(), "from", from)
+	//	return ErrInsufficientFunds
+	//}
 	// TODO: this can be moved to execute transactions step or may not need
 	//readTimeStart := getTime()
 	//if t, _, _, _ := chaindb.ReadTransaction(pool.chain.DB(), tx.Hash()); t != nil {
