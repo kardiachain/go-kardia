@@ -23,6 +23,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/types"
@@ -107,7 +108,7 @@ func (genTool *GeneratorTool) GetNonce(address string) uint64 {
 	return genTool.nonceMap[address]
 }
 
-func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx uint64) []*types.Transaction {
+func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx uint64, state *state.ManagedState) []*types.Transaction {
 	genTool.mu.Lock()
 	if numTx <= 0 || len(genTool.accounts) == 0 {
 		return nil
@@ -121,6 +122,11 @@ func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx uint64) []*types.T
 
 		if _, ok := genTool.nonceMap[senderAddrS]; !ok {
 			genTool.nonceMap[senderAddrS] = 1
+		}
+
+		nonceDb := state.GetNonce(senderPublicKey)
+		if genTool.nonceMap[senderAddrS] < nonceDb {
+			genTool.nonceMap[senderAddrS] = nonceDb + 1
 		}
 
 		nonce := genTool.nonceMap[senderAddrS]
