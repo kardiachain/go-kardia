@@ -191,8 +191,13 @@ func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 		return
 	}
 	msg.Proposal.Block.SetLogger(conR.logger)
-
-	conR.logger.Trace("Decoded msg", "msg", msg.Proposal)
+	proposal := msg.Proposal
+	conR.logger.Trace("Decoded msg",
+		"proposalHeight", proposal.Height,
+		"blockHeight", proposal.Block.Height(),
+		"round", proposal.Round,
+		"POLRound", proposal.POLRound,
+	)
 	if msg.Proposal.Block.LastCommit() == nil {
 		msg.Proposal.Block.SetLastCommit(&types.Commit{})
 	}
@@ -223,7 +228,7 @@ func (conR *ConsensusManager) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
 	}
 	msg.Block.SetLogger(conR.logger)
 
-	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("Height:%v   Round:%v   Block:%v", msg.Height, msg.Round, msg.Block))
+	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("Height:%v   Round:%v   Block:%v", msg.Height, msg.Round, msg.Block.Height()))
 
 	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }
@@ -337,7 +342,7 @@ func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 	}
 	msg.Block.SetLogger(conR.logger)
 
-	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("{Height:%v  Block:%v}", msg.Height, msg.Block))
+	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("{Height:%v  Block:%v}", msg.Height, msg.Block.Height()))
 
 	// Get peer states
 	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
@@ -459,7 +464,7 @@ func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 		conR.protocol.Broadcast(nrsMsg, service.CsNewRoundStepMsg)
 	}
 	if csMsg != nil {
-		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", fmt.Sprintf("{Height:%v  Block:%v}", csMsg.Height, csMsg.Block))
+		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", fmt.Sprintf("{Height:%v  Block:%v}", csMsg.Height, csMsg.Block.Hash().Hex()))
 		conR.protocol.Broadcast(csMsg, service.CsCommitStepMsg)
 	}
 }
@@ -570,10 +575,15 @@ OUTER_LOOP:
 			// Proposal: share the proposal metadata with peer.
 			{
 				logger.Debug("Sending proposal", "height", prs.Height, "round", prs.Round)
-				if err := p2p.Send(ps.rw, service.CsProposalMsg, &ProposalMessage{Proposal: rs.Proposal}); err != nil {
-					logger.Trace("Sending proposal failed", "err", err)
-				}
 				ps.SetHasProposal(rs.Proposal)
+
+				// proposal contains block data, therefore, it will cause bottle neck here if there are thounsands of txs inside.
+				// add it into goroutine to prevent bottleneck
+				go func() {
+					if err := p2p.Send(ps.rw, service.CsProposalMsg, &ProposalMessage{Proposal: rs.Proposal}); err != nil {
+						logger.Trace("Sending proposal failed", "err", err)
+					}
+				}()
 			}
 			// ProposalPOL: lets peer know which POL votes we have so far.
 			// Peer must receive ProposalMessage first.
