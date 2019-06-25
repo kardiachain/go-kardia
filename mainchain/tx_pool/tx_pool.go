@@ -307,9 +307,13 @@ func (pool *TxPool) work(id int, jobs <-chan []*types.Transaction, wg *sync.Wait
 	wg.Done()
 }
 
+func (pool *TxPool) IsFull() bool {
+	return pool.PendingSize() >= int64(pool.config.GlobalSlots)
+}
+
 func (pool *TxPool) AddTxs(txs []*types.Transaction) error {
 
-	if pool.PendingSize() >= int64(pool.config.GlobalSlots) {
+	if pool.IsFull() {
 		return fmt.Errorf("pool has reached its limit")
 	}
 
@@ -327,6 +331,11 @@ func (pool *TxPool) AddTxs(txs []*types.Transaction) error {
 func (pool *TxPool) ResetWorker(workers int, cap int) {
 	pool.numberOfWorkers = workers
 	pool.workerCap = cap
+}
+
+// ClearPending is used to clear pending data. Note: this function is only for testing only
+func (pool *TxPool) ClearPending() {
+	pool.pending = make(map[common.Address]*common.Set)
 }
 
 // lockedReset is a wrapper around reset to allow calling it in a thread safe

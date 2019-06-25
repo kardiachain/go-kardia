@@ -451,6 +451,12 @@ func genTxsLoop(txPool *tx_pool.TxPool) {
 		if args.numTxs == 0 {
 			break
 		}
+
+		if txPool.IsFull() {
+			// clear txPool
+			txPool.ClearPending()
+		}
+
 		genTxs(genTool, uint64(args.numTxs), txPool)
 		time.Sleep(time.Duration(args.txsDelay) * time.Second)
 	}
