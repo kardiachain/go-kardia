@@ -481,11 +481,8 @@ func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 	count := 0
 	removedHashes := make([]interface{}, 0)
 
-	pool.mu.RLock()
-	pendings := pool.pending
-	pool.mu.RUnlock()
-
-	for addr, pendingTxs := range pendings {
+	pool.mu.Lock()
+	for addr, pendingTxs := range pool.pending {
 		if pendingTxs.IsEmpty() {
 			continue
 		}
@@ -511,8 +508,12 @@ func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 			// update pending state for address
 			pool.pendingState.SetNonce(addr, txs[len(txs)-1].Nonce()+1)
 		}
-		pool.removePending(addr, removedPendings)
+
+		if len(removedPendings) > 0 {
+			pool.pending[addr].Remove(removedPendings...)
+		}
 	}
+	pool.mu.Unlock()
 
 	if len(removedHashes) > 0 {
 		go pool.all.Remove(removedHashes...)
