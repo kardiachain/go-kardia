@@ -282,13 +282,13 @@ func main() {
 		PriceLimit:   1,
 		PriceBump:    10,
 		AccountSlots: 16,
-		GlobalSlots:  65536, // for pending
+		GlobalSlots:  32768, // for pending
 		AccountQueue: 64,
-		GlobalQueue:  1310720, // for all
+		GlobalQueue:  409600, // for all
 		Lifetime: 3 * time.Hour,
-		NumberOfWorkers: 4,
-		WorkerCap: 1924,
-		BlockSize: 16384,
+		NumberOfWorkers: 3,
+		WorkerCap: 1024,
+		BlockSize: 10240,
 	}
 	config.MainChainConfig.IsZeroFee = args.isZeroFee
 	config.MainChainConfig.IsPrivate = args.isPrivate
@@ -443,7 +443,7 @@ func waitForever() {
 // genTxsLoop generate & add a batch of transfer txs, repeat after delay flag.
 // Warning: Set txsDelay < 5 secs may build up old subroutines because previous subroutine to add txs won't be finished before new one starts.
 func genTxsLoop(txPool *tx_pool.TxPool) {
-	time.Sleep(30 * time.Second) //decrease it if you want to test it locally
+	time.Sleep(25 * time.Second) //decrease it if you want to test it locally
 	if genTool == nil {
 		genTool = NewGeneratorTool(accounts, make(map[string]uint64))
 	}
