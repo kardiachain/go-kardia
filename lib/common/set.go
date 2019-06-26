@@ -37,8 +37,8 @@ func (s *Set) Add(items ...interface{}) {
 	defer s.l.Unlock()
 
 	if s.maxSize > 0 {
-	loop:
-		for int64(len(items)) >= s.maxSize {
+		loop:
+		for int64(len(items)) > s.maxSize {
 			for item := range s.m {
 				delete(s.m, item)
 				continue loop

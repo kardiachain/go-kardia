@@ -318,14 +318,24 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&txs); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
-		newTxs := p.MarkTransactions(txs, true)
-		if len(newTxs) > 0 {
-			if err := pm.txpool.AddTxs(newTxs); err != nil {
-				pm.logger.Error("Failed to add Transactions into pool", "err", err)
-			} else {
-				pm.logger.Trace("Transactions added to pool", "txs", txs)
+
+		pm.wg.Add(1)
+		go func() {
+			newTxs := make([]*types.Transaction, 0)
+			for _, tx := range txs {
+				if err := pm.txpool.ValidateTx(tx, true); err == nil {
+					newTxs = append(newTxs, tx)
+				}
 			}
-		}
+
+			if len(newTxs) > 0 {
+				if err := pm.txpool.AddTxs(newTxs, true); err != nil {
+					pm.logger.Error("Failed to add Transactions into pool", "err", err)
+				}
+			}
+			pm.wg.Done()
+		}()
+		pm.wg.Wait()
 
 	case msg.Code == serviceconst.CsNewRoundStepMsg:
 		pm.logger.Trace("NewRoundStep message received")
@@ -369,7 +379,7 @@ func (pm *ProtocolManager) syncTransactions(p *peer) {
 	pm.logger.Trace("Sync txns to new peer", "peer", p)
 	// TODO(thientn): sends transactions in chunks. This may send a large number of transactions.
 	// Breaks them to chunks here or inside AsyncSend to not overload the pipeline.
-	txs, _ := pm.txpool.Pending(0)
+	txs, _ := pm.txpool.Pending(0, false)
 	if len(txs) == 0 {
 		return
 	}
