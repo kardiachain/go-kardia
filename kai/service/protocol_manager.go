@@ -318,24 +318,12 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&txs); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
-
-		pm.wg.Add(1)
-		go func() {
-			newTxs := make([]*types.Transaction, 0)
-			for _, tx := range txs {
-				if err := pm.txpool.ValidateTx(tx, true); err == nil {
-					newTxs = append(newTxs, tx)
-				}
+		newTxs := p.MarkTransactions(txs, true)
+		if len(newTxs) > 0 {
+			if err := pm.txpool.AddTxs(newTxs, true); err != nil {
+				pm.logger.Error("Failed to add Transactions into pool", "err", err)
 			}
-
-			if len(newTxs) > 0 {
-				if err := pm.txpool.AddTxs(newTxs, true); err != nil {
-					pm.logger.Error("Failed to add Transactions into pool", "err", err)
-				}
-			}
-			pm.wg.Done()
-		}()
-		pm.wg.Wait()
+		}
 
 	case msg.Code == serviceconst.CsNewRoundStepMsg:
 		pm.logger.Trace("NewRoundStep message received")

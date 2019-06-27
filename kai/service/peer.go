@@ -344,7 +344,7 @@ func (p *peer) AsyncSendTransactions(txs []*types.Transaction) {
 	// Tx will be actually sent in SendTransactions() trigger by broadcast() routine
 	select {
 	case p.queuedTxs <- txs:
-		//p.MarkTransactions(txs, false)
+		p.MarkTransactions(txs, false)
 		//for _, tx := range txs {
 		//	p.knownTxs.Add(tx.Hash())
 		//}
