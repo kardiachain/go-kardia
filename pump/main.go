@@ -293,7 +293,7 @@ func main() {
 		AccountSlots: 16,
 		GlobalSlots:  32768, // for pending
 		AccountQueue: 64,
-		GlobalQueue:  409600, // for all
+		GlobalQueue:  4096000, // for all
 		Lifetime: 3 * time.Hour,
 		NumberOfWorkers: 4,
 		WorkerCap: 512,
