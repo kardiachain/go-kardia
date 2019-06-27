@@ -320,11 +320,10 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 		newTxs := p.MarkTransactions(txs, true)
 		if len(newTxs) > 0 {
-			if err := pm.txpool.AddTxs(newTxs, true); err != nil {
+			if err := pm.txpool.AddTxs(newTxs); err != nil {
 				pm.logger.Error("Failed to add Transactions into pool", "err", err)
 			}
 		}
-
 	case msg.Code == serviceconst.CsNewRoundStepMsg:
 		pm.logger.Trace("NewRoundStep message received")
 		pm.csReactor.ReceiveNewRoundStep(msg, p.Peer)

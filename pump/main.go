@@ -472,7 +472,7 @@ func genTxsLoop(txPool *tx_pool.TxPool) {
 func genTxs(genTool *GeneratorTool, numTxs uint64, txPool *tx_pool.TxPool) {
 	txList := genTool.GenerateRandomTxWithState(numTxs, txPool.State())
 	log.Info("GenTxs Adding new transactions", "num", numTxs, "generatedTxList", len(txList), "pendingPool", txPool.PendingSize())
-	if err := txPool.AddTxs(txList, false); err != nil {
+	if err := txPool.AddTxs(txList); err != nil {
 		log.Error("Error while adding txs", "err", err)
 	}
 }
