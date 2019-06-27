@@ -806,7 +806,7 @@ func genTxsLoop(numTxs int, txPool *tx_pool.TxPool) {
 }
 
 func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool, genRound int) {
-	//goodCount := 0
+	////goodCount := 0
 	//badCount := 0
 	txList := genTool.GenerateTx(numTxs)
 	log.Info("GenTxs Adding new transactions", "num", numTxs, "genRound", genRound)
@@ -819,7 +819,6 @@ func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool, gen
 	//		goodCount++
 	//	}
 	//}
-	//log.Info("GenTxs Finish adding generated txs", "success", goodCount, "failure", badCount, "genRound", genRound)
 }
 
 func genDualEvent(eventPool *event_pool.EventPool) {
