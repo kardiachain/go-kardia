@@ -78,6 +78,7 @@ type flagArgs struct {
 }
 
 type Response struct {
+	IsValidator bool         `json:"validator"`
 	NumTxs   int             `json:"numTxs"`
 	Delay    int             `json:"delay"`
 	Accounts []Account       `json:"accounts"`
@@ -96,6 +97,7 @@ var accounts = make([]Account, 0)
 var genTool *GeneratorTool
 var blockchain *bc.BlockChain
 var kardiaService *kai.KardiaService
+var isValidator = false
 
 func init() {
 	flag.StringVar(&args.logLevel, "loglevel", "info", "minimum log verbosity to display")
@@ -271,6 +273,13 @@ func main() {
 		// Simulate the voting strategy
 		config.MainChainConfig.EnvConfig.SetVotingStrategy(args.votingStrategy)
 		config.MainChainConfig.ValidatorIndexes = getIntArray(args.mainChainValIndexes)
+
+		for _, valIdx := range config.MainChainConfig.ValidatorIndexes {
+			if nodeIndex == valIdx {
+				isValidator = true
+				break
+			}
+		}
 
 		// Create genesis block with dev.genesisAccounts
 		config.MainChainConfig.Genesis = genesis.DefaulTestnetFullGenesisBlock(GenesisAccounts, GenesisContracts)
@@ -451,12 +460,10 @@ func genTxsLoop(txPool *tx_pool.TxPool) {
 		if args.numTxs == 0 {
 			break
 		}
-
-		if full, _ := txPool.IsFull(); full {
+		if full, _ := txPool.IsFull(); full && !isValidator {
 			// clear txPool
 			txPool.ClearPending()
 		}
-
 		genTxs(genTool, uint64(args.numTxs), txPool)
 		time.Sleep(time.Duration(args.txsDelay) * time.Second)
 	}
@@ -569,6 +576,7 @@ func pump(w http.ResponseWriter, r *http.Request) {
 func status(w http.ResponseWriter, r *http.Request) {
 
 	response := Response{
+		IsValidator: isValidator,
 		NumTxs: args.numTxs,
 		Delay: args.txsDelay,
 		Accounts: accounts,
