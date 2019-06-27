@@ -822,7 +822,6 @@ func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool, gen
 	//		goodCount++
 	//	}
 	//}
-	//log.Info("GenTxs Finish adding generated txs", "success", goodCount, "failure", badCount, "genRound", genRound)
 }
 
 func genDualEvent(eventPool *event_pool.EventPool) {
