@@ -231,14 +231,6 @@ func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *configs.Chai
 	//pool.priced = newTxPricedList(logger, pool.all)
 	pool.reset(nil, chain.CurrentBlock().Header())
 
-	if !config.NoLocals && config.Journal != "" {
-		pool.journal = newTxJournal(logger, config.Journal)
-
-		if err := pool.journal.load(pool.AddLocals); err != nil {
-			logger.Warn("Failed to load transaction journal", "err", err)
-		}
-	}
-
 	// Subscribe events from blockchain
 	pool.chainHeadSub = pool.chain.SubscribeChainHeadEvent(pool.chainHeadCh)
 
@@ -288,11 +280,11 @@ func (pool *TxPool) IsFull() (bool, int64) {
 	return int64(pendingSize) >= int64(pool.config.GlobalSlots), int64(pendingSize)
 }
 
-func (pool *TxPool) AddTxs(txs []*types.Transaction, force bool) error {
+func (pool *TxPool) AddTxs(txs []*types.Transaction) error {
 
 	isFull, size := pool.IsFull()
-	if isFull && !force {
-		return fmt.Errorf("pool has reached its limit %v", size)
+	if isFull {
+		return fmt.Errorf("pool has reached its limit %v/%v", size, pool.config.GlobalSlots)
 	}
 
 	if len(txs) > 0 {
@@ -301,7 +293,7 @@ func (pool *TxPool) AddTxs(txs []*types.Transaction, force bool) error {
 			to = len(txs)
 		}
 		pool.txsCh <- txs[0:to]
-		go pool.AddTxs(txs[to:], force)
+		go pool.AddTxs(txs[to:])
 	}
 	return nil
 }
@@ -546,14 +538,14 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 // AddLocals enqueues a batch of transactions into the pool if they are valid,
 // marking the senders as a local ones in the mean time, ensuring they go around
 // the local pricing constraints.
-func (pool *TxPool) AddLocals(txs []*types.Transaction) []error {
+func (pool *TxPool) AddLocals(txs []*types.Transaction) error {
 	return pool.addTxs(txs, !pool.config.NoLocals)
 }
 
 // AddRemotes enqueues a batch of transactions into the pool if they are valid.
 // If the senders are not among the locally tracked ones, full pricing constraints
 // will apply.
-func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
+func (pool *TxPool) AddRemotes(txs []*types.Transaction) error {
 	return pool.addTxs(txs, false)
 }
 
@@ -570,11 +562,10 @@ func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
 }
 
 // addTxs attempts to queue a batch of transactions if they are valid.
-func (pool *TxPool) addTxs(txs []*types.Transaction, local bool) []error {
+func (pool *TxPool) addTxs(txs []*types.Transaction, local bool) error {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
-	errs := make([]error, len(txs))
 	promoted := make([]*types.Transaction, 0)
 	pendings := make(TxInterfaceByNonce, 0)
 
@@ -592,7 +583,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local bool) []error {
 		go pool.txFeed.Send(events.NewTxsEvent{Txs: promoted})
 		pool.pendingCh <- pendings
 	}
-	return errs
+	return nil
 }
 
 func (pool *TxPool) CachedTxs() *common.Set {
