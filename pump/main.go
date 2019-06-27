@@ -297,7 +297,7 @@ func main() {
 		Lifetime: 3 * time.Hour,
 		NumberOfWorkers: 2,
 		WorkerCap: 256,
-		BlockSize: 4000,
+		BlockSize: 4096,
 	}
 	config.MainChainConfig.IsZeroFee = args.isZeroFee
 	config.MainChainConfig.IsPrivate = args.isPrivate
