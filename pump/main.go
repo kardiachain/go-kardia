@@ -295,9 +295,9 @@ func main() {
 		AccountQueue: 64,
 		GlobalQueue:  409600, // for all
 		Lifetime: 3 * time.Hour,
-		NumberOfWorkers: 2,
-		WorkerCap: 256,
-		BlockSize: 4096,
+		NumberOfWorkers: 4,
+		WorkerCap: 512,
+		BlockSize: 8192,
 	}
 	config.MainChainConfig.IsZeroFee = args.isZeroFee
 	config.MainChainConfig.IsPrivate = args.isPrivate
