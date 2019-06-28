@@ -199,7 +199,7 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		//  But I think we can add a function to check if any tx in pool before creating new block.
 
 		PeerGossipSleepDuration:     500, // sleep duration before gossip data to other peers - 0.5s
-		PeerQueryMaj23SleepDuration: 100, // sleep duration before send major 2/3 (if any) to other peers - 0.1s
+		PeerQueryMaj23SleepDuration: 500, // sleep duration before send major 2/3 (if any) to other peers - 0.1s
 	}
 }
 

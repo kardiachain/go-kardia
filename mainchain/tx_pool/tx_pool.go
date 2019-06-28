@@ -162,20 +162,23 @@ func (pool *TxPool) loop() {
 	// Track the previous head headers for transaction reorgs
 	head := pool.chain.CurrentBlock()
 
+	collectTicker := time.NewTicker(500 * time.Millisecond)
+
 	// Keep waiting for and reacting to the various events
 	for {
-		go pool.collectTxs()
 		select {
 		// Handle ChainHeadEvent
 		case ev := <-pool.chainHeadCh:
-			pool.reset(head.Header(), ev.Block.Header())
+			go pool.reset(head.Header(), ev.Block.Header())
 		// Be unsubscribed due to system stopped
 		case <-pool.chainHeadSub.Err():
 			return
 		case txs := <-pool.pendingCh:
-			pool.handlePendingTxs(txs)
+			go pool.handlePendingTxs(txs)
 		case txs := <-pool.precheckCh:
-			pool.validateTxs(txs)
+			go pool.validateTxs(txs)
+		case <-collectTicker.C:
+			go pool.collectTxs()
 		}
 	}
 }
@@ -188,7 +191,7 @@ func (pool *TxPool) collectTxs() {
 
 func (pool *TxPool) work(id int, jobs <-chan []interface{}) {
 	for job := range jobs {
-		pool.AddRemotes(job)
+		go pool.AddRemotes(job)
 	}
 }
 
@@ -240,10 +243,6 @@ func (pool *TxPool) lockedReset(oldHead, newHead *types.Header) {
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
-
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-
 	// Initialize the internal state to the current head
 	currentBlock := pool.chain.CurrentBlock()
 
@@ -257,11 +256,13 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 		pool.logger.Error("Failed to reset txpool state", "err", err)
 		return
 	}
+	pool.mu.Lock()
 	pool.pendingState = state.ManageState(statedb)
-	txs := currentBlock.Transactions()
-	pool.saveTxs(txs)
+	pool.mu.Unlock()
+
+	go pool.saveTxs(currentBlock.Transactions())
 	// remove current block's txs from pending
-	pool.RemoveTxs(txs)
+	//pool.RemoveTxs(txs)
 	//if _, err := pool.Pending(0, false); err != nil {
 	//	pool.logger.Error("error while remove invalid txs from reset", "err", err)
 	//}
@@ -275,10 +276,6 @@ func (pool *TxPool) Stop() {
 	// Unsubscribe subscriptions registered from blockchain
 	pool.chainHeadSub.Unsubscribe()
 	pool.wg.Wait()
-
-	if pool.journal != nil {
-		pool.journal.close()
-	}
 	pool.logger.Info("Transaction pool stopped")
 }
 
@@ -345,8 +342,8 @@ func getTime() int64 {
 // freely modified by calling code.
 func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, error) {
 
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+	//pool.mu.Lock()
+	//defer pool.mu.Unlock()
 
 	startTime := getTime()
 	pending := make(types.Transactions, 0)
@@ -380,11 +377,11 @@ func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, e
 	}
 
 	if len(removedTxs) > 0 {
-		pool.pending.Remove(removedTxs...)
+		go pool.pending.Remove(removedTxs...)
 	}
 
 	if len(results) > 0 {
-		pool.pending.Remove(results...)
+		go pool.pending.Remove(results...)
 	}
 	endTime := getTime()
 	pool.logger.Error("get pending txs", "txs", len(pending), "total time", endTime-startTime, "limit", limit)
@@ -462,8 +459,8 @@ func (pool *TxPool) AddLocals(txs []*types.Transaction) error {
 // AddRemotes enqueues a batch of transactions into the pool if they are valid.
 // If the senders are not among the locally tracked ones, full pricing constraints
 // will apply.
-func (pool *TxPool) AddRemotes(txs []interface{}) error {
-	return pool.addTxs(txs, false)
+func (pool *TxPool) AddRemotes(txs []interface{}) {
+	pool.addTxs(txs, false)
 }
 
 // addTx enqueues a single transaction into the pool if it is valid.
@@ -479,9 +476,9 @@ func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
 }
 
 // addTxs attempts to queue a batch of transactions if they are valid.
-func (pool *TxPool) addTxs(txs []interface{}, local bool) error {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+func (pool *TxPool) addTxs(txs []interface{}, local bool) {
+	//pool.mu.Lock()
+	//defer pool.mu.Unlock()
 
 	promoted := make([]*types.Transaction, 0)
 	pendings := make(TxInterfaceByNonce, 0)
@@ -501,7 +498,6 @@ func (pool *TxPool) addTxs(txs []interface{}, local bool) error {
 		go pool.txFeed.Send(events.NewTxsEvent{Txs: promoted})
 		pool.pendingCh <- pendings
 	}
-	return nil
 }
 
 func (pool *TxPool) CachedTxs() *common.Set {
@@ -514,7 +510,7 @@ func (pool *TxPool) saveTxs(txs []*types.Transaction) {
 		for i, tx := range txs {
 			hashes[i] = tx.Hash()
 		}
-		pool.all.Add(hashes...)
+		go pool.all.Add(hashes...)
 	}
 }
 
@@ -532,7 +528,7 @@ func (pool *TxPool) RemoveTxs(txs types.Transactions) {
 	for i, tx := range txs {
 		txsInterfaces[i] = tx
 	}
-	pool.pending.Remove(txsInterfaces...)
+	go pool.pending.Remove(txsInterfaces...)
 	diff := getTime() - startTime
 	pool.logger.Trace("Total time to finish removing txs from pending", "time", diff)
 }
@@ -542,14 +538,10 @@ func (pool *TxPool) PendingSize() int {
 }
 
 func (pool *TxPool) GetPendingData() *types.Transactions {
-	pool.mu.RLock()
-	defer pool.mu.RUnlock()
-
 	txs := make(types.Transactions, 0)
 	for _, txInterface := range pool.pending.List() {
 		txs = append(txs, txInterface.(*types.Transaction))
 	}
-
 	return &txs
 }
 
@@ -557,15 +549,6 @@ func (pool *TxPool) GetPendingData() *types.Transactions {
 // by their nonces. This is usually only useful for sorting transactions from a
 // single account, otherwise a nonce comparison doesn't make much sense.
 type TxInterfaceByNonce []interface{}
-
-func NewTxInterfaceByNonce(txs types.Transactions) *TxInterfaceByNonce {
-	list := make(TxInterfaceByNonce, len(txs))
-	for i, tx := range txs {
-		list[i] = tx
-	}
-	return &list
-}
-
 func (s TxInterfaceByNonce) Len() int           { return len(s) }
 func (s TxInterfaceByNonce) Less(i, j int) bool {
 	return s[i].(*types.Transaction).Nonce() < s[j].(*types.Transaction).Nonce()
