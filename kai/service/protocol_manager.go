@@ -55,6 +55,11 @@ func errResp(code errCode, format string, v ...interface{}) error {
 	return fmt.Errorf("%v - %v", code, fmt.Sprintf(format, v...))
 }
 
+type receivedTxs struct {
+	peer *peer
+	txs  types.Transactions
+}
+
 type ProtocolManager struct {
 	logger log.Logger
 
@@ -83,6 +88,7 @@ type ProtocolManager struct {
 
 	// transaction channel and subscriptions
 	txsCh  chan events.NewTxsEvent
+	receivedTxsCh chan receivedTxs
 	txsSub event.Subscription
 
 	// Consensus stuff
@@ -119,6 +125,7 @@ func NewProtocolManager(
 		newPeerCh:   make(chan *peer),
 		noMorePeers: make(chan struct{}),
 		csReactor:   csReactor,
+		receivedTxsCh: make(chan receivedTxs),
 	}
 
 	// Initiate a sub-protocol for every implemented version we can handle
@@ -318,14 +325,8 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		if err := msg.Decode(&txs); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
-		newTxs := p.MarkTransactions(txs, true)
-		if len(newTxs) > 0 {
-			go func() {
-				if err := pm.txpool.AddTxs(newTxs); err != nil {
-					pm.logger.Error("Failed to add Transactions into pool", "err", err)
-				}
-			}()
-		}
+
+		pm.receivedTxsCh <- receivedTxs{peer: p, txs: txs}
 
 	case msg.Code == serviceconst.CsNewRoundStepMsg:
 		pm.logger.Trace("NewRoundStep message received")
@@ -382,6 +383,12 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 		select {
 		case txEvent := <-pm.txsCh:
 			go pm.BroadcastTxs(txEvent.Txs)
+
+		case receivedTxs := <-pm.receivedTxsCh:
+			go func() {
+				newTxs := receivedTxs.peer.MarkTransactions(receivedTxs.txs, true)
+				pm.txpool.AddTxs(newTxs)
+			}()
 
 		// Err() channel will be closed when unsubscribing.
 		case <-pm.txsSub.Err():

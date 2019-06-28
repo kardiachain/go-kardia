@@ -75,7 +75,7 @@ type peer struct {
 	csReactor *consensus.ConsensusManager
 
 	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
-	Protocol   string
+	Protocol string
 }
 
 func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, csReactor *consensus.ConsensusManager) *peer {

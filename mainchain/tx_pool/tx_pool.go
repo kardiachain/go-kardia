@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"path/filepath"
 	"sort"
 	"sync"
 	"time"
@@ -45,43 +44,7 @@ const (
 var (
 	// ErrInvalidSender is returned if the transaction contains an invalid signature.
 	ErrInvalidSender = errors.New("invalid sender")
-
-	// ErrNonceTooLow is returned if the nonce of a transaction is lower than the
-	// one present in the local chain.
-	ErrNonceTooLow = errors.New("nonce too low")
-
-	// ErrUnderpriced is returned if a transaction's gas price is below the minimum
-	// configured for the transaction pool.
-	ErrUnderpriced = errors.New("transaction underpriced")
-
-	// ErrReplaceUnderpriced is returned if a transaction is attempted to be replaced
-	// with a different one without the required price bump.
-	ErrReplaceUnderpriced = errors.New("replacement transaction underpriced")
-
-	// ErrInsufficientFunds is returned if the total cost of executing a transaction
-	// is higher than the balance of the user's account.
-	ErrInsufficientFunds = errors.New("insufficient funds for gas * price + value")
-
-	// ErrIntrinsicGas is returned if the transaction is specified to use less gas
-	// than required to start the invocation.
-	ErrIntrinsicGas = errors.New("intrinsic gas too low")
-
-	// ErrGasLimit is returned if a transaction's requested gas limit exceeds the
-	// maximum allowance of the current block.
-	ErrGasLimit = errors.New("exceeds block gas limit")
-
-	// ErrNegativeValue is a sanity error to ensure noone is able to specify a
-	// transaction with a negative value.
-	ErrNegativeValue = errors.New("negative value")
-
-	// ErrOversizedData is returned if the input data of a transaction is greater
-	// than some meaningful limit a user might use. This is not a consensus error
-	// making the transaction invalid, rather a DOS protection.
-	ErrOversizedData = errors.New("oversized data")
 )
-
-// TxStatus is the current status of a transaction as seen by the pool.
-type TxStatus uint
 
 // blockChain provides the state of blockchain and current gas limit to do
 // some pre checks in tx pool and event subscribers.
@@ -96,19 +59,8 @@ type blockChain interface {
 // TxPoolConfig are the configuration parameters of the transaction pool.
 type TxPoolConfig struct {
 	NoLocals  bool          // Whether local transaction handling should be disabled
-	Journal   string        // Journal of local transactions to survive node restarts
-	Rejournal time.Duration // Time interval to regenerate the local transaction journal
-
-	PriceLimit uint64 // Minimum gas price to enforce for acceptance into the pool
-	PriceBump  uint64 // Minimum price bump percentage to replace an already existing transaction (nonce)
-
-	AccountSlots uint64 // Minimum number of executable transaction slots guaranteed per account
 	GlobalSlots  uint64 // Maximum number of executable transaction slots for all accounts
-	AccountQueue uint64 // Maximum number of non-executable transaction slots permitted per account
 	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
-
-	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
-
 	NumberOfWorkers int
 	WorkerCap       int
 	BlockSize       int
@@ -117,49 +69,14 @@ type TxPoolConfig struct {
 // DefaultTxPoolConfig contains the default configurations for the transaction
 // pool.
 var DefaultTxPoolConfig = TxPoolConfig{
-	Journal:   "transactions.rlp",
-	Rejournal: time.Hour,
-
-	PriceLimit:   1,
-	PriceBump:    10,
-	AccountSlots: 16,
 	GlobalSlots:  4096,
-	AccountQueue: 64,
 	GlobalQueue:  1024,
-
-	NumberOfWorkers: 3,
-	WorkerCap: 512,
-	BlockSize: 7192,
-
-	Lifetime: 3 * time.Hour,
 }
 
 // GetDefaultTxPoolConfig returns default txPoolConfig with given dir path
 func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
 	conf := DefaultTxPoolConfig
-	if len(path) > 0 {
-		conf.Journal = filepath.Join(path, conf.Journal)
-	}
 	return &conf
-}
-
-// sanitize checks the provided user configurations and changes anything that's
-// unreasonable or unworkable.
-func (config *TxPoolConfig) sanitize(logger log.Logger) TxPoolConfig {
-	conf := *config
-	if conf.Rejournal < time.Second {
-		logger.Warn("Sanitizing invalid txpool journal time", "provided", conf.Rejournal, "updated", time.Second)
-		conf.Rejournal = time.Second
-	}
-	if conf.PriceLimit < 1 {
-		logger.Warn("Sanitizing invalid txpool price limit", "provided", conf.PriceLimit, "updated", DefaultTxPoolConfig.PriceLimit)
-		conf.PriceLimit = DefaultTxPoolConfig.PriceLimit
-	}
-	if conf.PriceBump < 1 {
-		logger.Warn("Sanitizing invalid txpool price bump", "provided", conf.PriceBump, "updated", DefaultTxPoolConfig.PriceBump)
-		conf.PriceBump = DefaultTxPoolConfig.PriceBump
-	}
-	return conf
 }
 
 // TxPool contains all currently known transactions. Transactions
@@ -183,6 +100,7 @@ type TxPool struct {
 	txsCh       chan []interface{}
 	pendingCh   chan []interface{}
 	allCh       chan []interface{}
+	precheckCh  chan []interface{}
 
 	chainHeadCh  chan events.ChainHeadEvent
 	chainHeadSub event.Subscription
@@ -208,9 +126,6 @@ type TxPool struct {
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
 func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *configs.ChainConfig, chain blockChain) *TxPool {
-	// Sanitize the input to ensure no vulnerable gas prices are set
-	config = (&config).sanitize(logger)
-
 	// Create the transaction pool with its initial settings
 	pool := &TxPool{
 		logger:      logger,
@@ -220,11 +135,11 @@ func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *configs.Chai
 		pending:     common.NewSet(int64(config.GlobalSlots)),
 		all:         common.NewSet(int64(config.GlobalQueue)),
 		chainHeadCh: make(chan events.ChainHeadEvent, chainHeadChanSize),
-		gasPrice:    new(big.Int).SetUint64(config.PriceLimit),
 		totalPendingGas: uint64(0),
 		txsCh: make(chan []interface{}, 100),
 		pendingCh: make(chan []interface{}),
 		allCh: make(chan []interface{}),
+		precheckCh: make(chan []interface{}),
 		numberOfWorkers: config.NumberOfWorkers,
 		workerCap: config.WorkerCap,
 	}
@@ -259,6 +174,8 @@ func (pool *TxPool) loop() {
 			return
 		case txs := <-pool.pendingCh:
 			pool.handlePendingTxs(txs)
+		case txs := <-pool.precheckCh:
+			pool.validateTxs(txs)
 		}
 	}
 }
@@ -280,11 +197,15 @@ func (pool *TxPool) IsFull() (bool, int64) {
 	return int64(pendingSize) >= int64(pool.config.GlobalSlots), int64(pendingSize)
 }
 
-func (pool *TxPool) AddTxs(txs []interface{}) error {
+func (pool *TxPool) AddTxs(txs []interface{}) {
+	pool.precheckCh<-txs
+}
 
+func (pool *TxPool) validateTxs(txs []interface{}) {
 	isFull, size := pool.IsFull()
 	if isFull {
-		return fmt.Errorf("pool has reached its limit %v/%v", size, pool.config.GlobalSlots)
+		pool.logger.Error(fmt.Sprintf("pool has reached its limit %v/%v", size, pool.config.GlobalSlots))
+		return
 	}
 
 	if len(txs) > 0 {
@@ -293,9 +214,8 @@ func (pool *TxPool) AddTxs(txs []interface{}) error {
 			to = len(txs)
 		}
 		pool.txsCh <- txs[0:to]
-		go pool.AddTxs(txs[to:])
+		go pool.validateTxs(txs[to:])
 	}
-	return nil
 }
 
 func (pool *TxPool) ResetWorker(workers int, cap int) {
@@ -321,6 +241,9 @@ func (pool *TxPool) lockedReset(oldHead, newHead *types.Header) {
 // of the transaction pool is valid with regard to the chain state.
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
 	// Initialize the internal state to the current head
 	currentBlock := pool.chain.CurrentBlock()
 
@@ -334,13 +257,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 		pool.logger.Error("Failed to reset txpool state", "err", err)
 		return
 	}
-
-	pool.mu.Lock()
-	pool.currentState = statedb
 	pool.pendingState = state.ManageState(statedb)
-	pool.currentMaxGas = newHead.GasLimit
-	pool.mu.Unlock()
-
 	txs := currentBlock.Transactions()
 	pool.saveTxs(txs)
 	// remove current block's txs from pending
@@ -387,10 +304,9 @@ func (pool *TxPool) State() *state.ManagedState {
 	return pool.pendingState
 }
 
-// CurrentState returns current state db of txpool
-func (pool *TxPool) CurrentState() *state.StateDB {
-	return pool.currentState
-}
+//func (pool *TxPool) CurrentState() *state.StateDB {
+//	return pool.currentState
+//}
 
 func (pool *TxPool) pendingValidation(tx *types.Transaction) error {
 	_, err := types.Sender(tx)

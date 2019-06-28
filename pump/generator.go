@@ -23,7 +23,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/types"
@@ -108,7 +107,7 @@ func (genTool *GeneratorTool) GetNonce(address string) uint64 {
 	return genTool.nonceMap[address]
 }
 
-func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx uint64, state *state.ManagedState) []interface{} {
+func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx uint64) []interface{} {
 	genTool.mu.Lock()
 	if numTx <= 0 || len(genTool.accounts) == 0 {
 		return nil

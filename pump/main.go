@@ -286,15 +286,8 @@ func main() {
 	}
 	nodeDir := filepath.Join(config.DataDir, config.Name)
 	config.MainChainConfig.TxPool = tx_pool.TxPoolConfig{
-		Journal:   filepath.Join(nodeDir, "transactions.rlp"),
-		Rejournal: time.Hour,
-		PriceLimit:   1,
-		PriceBump:    10,
-		AccountSlots: 16,
 		GlobalSlots:  32768, // for pending
-		AccountQueue: 64,
 		GlobalQueue:  4096000, // for all
-		Lifetime: 3 * time.Hour,
 		NumberOfWorkers: 6,
 		WorkerCap: 512,
 		BlockSize: 7168,
@@ -470,11 +463,9 @@ func genTxsLoop(txPool *tx_pool.TxPool) {
 }
 
 func genTxs(genTool *GeneratorTool, numTxs uint64, txPool *tx_pool.TxPool) {
-	txList := genTool.GenerateRandomTxWithState(numTxs, txPool.State())
+	txList := genTool.GenerateRandomTxWithState(numTxs)
 	log.Info("GenTxs Adding new transactions", "num", numTxs, "generatedTxList", len(txList), "pendingPool", txPool.PendingSize())
-	if err := txPool.AddTxs(txList); err != nil {
-		log.Error("Error while adding txs", "err", err)
-	}
+	txPool.AddTxs(txList)
 }
 
 func pump(w http.ResponseWriter, r *http.Request) {
