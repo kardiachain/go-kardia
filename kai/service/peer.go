@@ -42,7 +42,7 @@ var (
 
 const (
 	handshakeTimeout = 5 * time.Second
-	maxKnownTxs      = 10000000 // Maximum transactions hashes to keep in the known list (prevent DOS)
+	maxKnownTxs      = 1000000 // Maximum transactions hashes to keep in the known list (prevent DOS)
 
 	// maxQueuedTxs is the maximum number of transaction lists to queue up before
 	// dropping broadcasts. This is a sensitive number as a transaction list might
@@ -70,7 +70,7 @@ type peer struct {
 	version int // Protocol version negotiated
 
 	knownTxs  *common.Set                  // Set of transaction hashes known to be known by this peer
-	queuedTxs chan []*types.Transaction // Queue of transactions to broadcast to the peer
+	queuedTxs chan types.Transactions // Queue of transactions to broadcast to the peer
 
 	csReactor *consensus.ConsensusManager
 
@@ -86,7 +86,7 @@ func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, 
 		rw:         rw,
 		version:    version,
 		id:         fmt.Sprintf("%x", p.ID().Bytes()[:8]),
-		queuedTxs:  make(chan []*types.Transaction, maxQueuedTxs),
+		queuedTxs:  make(chan types.Transactions, maxQueuedTxs),
 		knownTxs:   common.NewSet(maxKnownTxs),
 		csReactor:  csReactor,
 		terminated: make(chan struct{}),
@@ -299,31 +299,34 @@ func (p *peer) broadcast() {
 
 // MarkTransactions marks a list of transaction as known for the peer, ensuring that it
 // will never be propagated to this particular peer.
-func (p *peer) MarkTransactions(txs types.Transactions, validate bool) []*types.Transaction {
-	newTxs := make([]*types.Transaction, 0)
-	hashes := make([]interface{}, 0)
-
+func (p *peer) MarkTransactions(txs types.Transactions, filter bool) []interface{} {
+	newTxs := make([]interface{}, 0)
+	txHashes := make([]interface{}, 0)
 	for _, tx := range txs {
-		if tx ==nil || (validate && p.knownTxs.Has(tx.Hash())) {
-			continue
+		if filter {
+			if p.knownTxs.Has(tx.Hash()) {
+				continue
+			}
 		}
-
-		hashes = append(hashes, tx.Hash())
 		newTxs = append(newTxs, tx)
+		txHashes = append(txHashes, tx.Hash())
 	}
-	p.knownTxs.Add(hashes...)
+
+	if len(newTxs) > 0 {
+		p.knownTxs.Add(txHashes...)
+	}
 	return newTxs
 }
 
 // PeersWithoutTx retrieves a list of peers that do not have a given transaction
 // in their set of known hashes.
-func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
+func (ps *peerSet) PeersWithoutTx(tx *types.Transaction) []*peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
 	list := make([]*peer, 0, len(ps.peers))
 	for _, p := range ps.peers {
-		if !p.knownTxs.Has(hash) {
+		if !p.knownTxs.Has(tx.Hash()) {
 			list = append(list, p)
 		}
 	}
@@ -340,7 +343,7 @@ func (p *peer) SendTransactions(txs types.Transactions) error {
 
 // AsyncSendTransactions queues list of transactions propagation to a remote
 // peer. If the peer's broadcast queue is full, the event is silently dropped.
-func (p *peer) AsyncSendTransactions(txs []*types.Transaction) {
+func (p *peer) AsyncSendTransactions(txs types.Transactions) {
 	// Tx will be actually sent in SendTransactions() trigger by broadcast() routine
 	select {
 	case p.queuedTxs <- txs:

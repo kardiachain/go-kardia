@@ -176,7 +176,7 @@ type TxPool struct {
 	scope        event.SubscriptionScope
 
 	// 2 channels: workerCh and pendingCh
-	txsCh       chan []*types.Transaction
+	txsCh       chan []interface{}
 	pendingCh   chan []interface{}
 	allCh       chan []interface{}
 
@@ -218,7 +218,7 @@ func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *configs.Chai
 		chainHeadCh: make(chan events.ChainHeadEvent, chainHeadChanSize),
 		gasPrice:    new(big.Int).SetUint64(config.PriceLimit),
 		totalPendingGas: uint64(0),
-		txsCh: make(chan []*types.Transaction, 100),
+		txsCh: make(chan []interface{}, 100),
 		pendingCh: make(chan []interface{}),
 		allCh: make(chan []interface{}),
 		numberOfWorkers: config.NumberOfWorkers,
@@ -265,7 +265,7 @@ func (pool *TxPool) collectTxs() {
 	}
 }
 
-func (pool *TxPool) work(id int, jobs <-chan []*types.Transaction) {
+func (pool *TxPool) work(id int, jobs <-chan []interface{}) {
 	for job := range jobs {
 		pool.AddRemotes(job)
 	}
@@ -276,7 +276,7 @@ func (pool *TxPool) IsFull() (bool, int64) {
 	return int64(pendingSize) >= int64(pool.config.GlobalSlots), int64(pendingSize)
 }
 
-func (pool *TxPool) AddTxs(txs []*types.Transaction) error {
+func (pool *TxPool) AddTxs(txs []interface{}) error {
 
 	isFull, size := pool.IsFull()
 	if isFull {
@@ -536,13 +536,14 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 // marking the senders as a local ones in the mean time, ensuring they go around
 // the local pricing constraints.
 func (pool *TxPool) AddLocals(txs []*types.Transaction) error {
-	return pool.addTxs(txs, !pool.config.NoLocals)
+	//return pool.addTxs(txs, !pool.config.NoLocals)
+	return nil
 }
 
 // AddRemotes enqueues a batch of transactions into the pool if they are valid.
 // If the senders are not among the locally tracked ones, full pricing constraints
 // will apply.
-func (pool *TxPool) AddRemotes(txs []*types.Transaction) error {
+func (pool *TxPool) AddRemotes(txs []interface{}) error {
 	return pool.addTxs(txs, false)
 }
 
@@ -559,17 +560,18 @@ func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
 }
 
 // addTxs attempts to queue a batch of transactions if they are valid.
-func (pool *TxPool) addTxs(txs []*types.Transaction, local bool) error {
+func (pool *TxPool) addTxs(txs []interface{}, local bool) error {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
 	promoted := make([]*types.Transaction, 0)
 	pendings := make(TxInterfaceByNonce, 0)
 
-	for _, tx := range txs {
-		if tx == nil {
+	for _, txInterface := range txs {
+		if txInterface == nil {
 			continue
 		}
+		tx := txInterface.(*types.Transaction)
 		if !pool.all.Has(tx.Hash()) {
 			promoted = append(promoted, tx)
 		}

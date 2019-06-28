@@ -26,16 +26,16 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/events"
 	serviceconst "github.com/kardiachain/go-kardia/kai/service/const"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/lib/p2p/discover"
-	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
@@ -320,10 +320,13 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 		newTxs := p.MarkTransactions(txs, true)
 		if len(newTxs) > 0 {
-			if err := pm.txpool.AddTxs(newTxs); err != nil {
-				pm.logger.Error("Failed to add Transactions into pool", "err", err)
-			}
+			go func() {
+				if err := pm.txpool.AddTxs(newTxs); err != nil {
+					pm.logger.Error("Failed to add Transactions into pool", "err", err)
+				}
+			}()
 		}
+
 	case msg.Code == serviceconst.CsNewRoundStepMsg:
 		pm.logger.Trace("NewRoundStep message received")
 		pm.csReactor.ReceiveNewRoundStep(msg, p.Peer)
@@ -378,7 +381,7 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 	for {
 		select {
 		case txEvent := <-pm.txsCh:
-			pm.BroadcastTxs(txEvent.Txs)
+			go pm.BroadcastTxs(txEvent.Txs)
 
 		// Err() channel will be closed when unsubscribing.
 		case <-pm.txsSub.Err():
@@ -416,7 +419,7 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	pm.logger.Info("Start broadcast txs", "number of txs", len(txs))
 	// Broadcast transactions to a batch of peers not knowing about it
 	for _, tx := range txs {
-		peers := pm.peers.PeersWithoutTx(tx.Hash())
+		peers := pm.peers.PeersWithoutTx(tx)
 		for _, peer := range peers {
 			if _, ok := txset[peer]; !ok {
 				txset[peer] = make(types.Transactions, 0)
@@ -427,7 +430,7 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	}
 	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
 	for peer, txs := range txset {
-		go peer.AsyncSendTransactions(txs)
+		peer.AsyncSendTransactions(txs)
 	}
 }
 
