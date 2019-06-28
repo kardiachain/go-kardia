@@ -82,7 +82,7 @@ func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.B
 	block = bo.newBlock(header, newTxs, receipts, commit)
 	bo.logger.Trace("Make block to propose", "block", block)
 
-	bo.saveReceipts(receipts, block)
+	go bo.saveReceipts(receipts, block)
 
 	return block
 }
