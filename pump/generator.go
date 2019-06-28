@@ -108,12 +108,12 @@ func (genTool *GeneratorTool) GetNonce(address string) uint64 {
 	return genTool.nonceMap[address]
 }
 
-func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx uint64, state *state.ManagedState) []*types.Transaction {
+func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx uint64, state *state.ManagedState) []interface{} {
 	genTool.mu.Lock()
 	if numTx <= 0 || len(genTool.accounts) == 0 {
 		return nil
 	}
-	result := make([]*types.Transaction, numTx)
+	result := make([]interface{}, numTx)
 	for i := uint64(0); i < numTx; i++ {
 		senderKey, toAddr := randomTxAddresses(genTool.accounts)
 		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
