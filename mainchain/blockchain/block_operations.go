@@ -56,7 +56,7 @@ func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_po
 
 // Height returns latest height of blockchain.
 func (bo *BlockOperations) Height() uint64 {
-	return bo.height
+	return bo.blockchain.CurrentHeader().Height
 }
 
 // CreateProposalBlock creates a new proposal block with all current pending txs in pool.
@@ -156,10 +156,6 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commi
 	//if block != nil && len(block.Transactions()) > 0 {
 	//	bo.txPool.RemoveTxs(block.Transactions())
 	//}
-
-	bo.mtx.Lock()
-	bo.height = height
-	bo.mtx.Unlock()
 }
 
 // LoadBlock returns the Block for the given height.
