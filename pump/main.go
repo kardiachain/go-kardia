@@ -75,6 +75,12 @@ type flagArgs struct {
 	txsDelay       int
 	index          int
 	genTxsPort     string
+
+	blockSize      int
+	workers        int
+	workerCap      int
+	maxPending     int
+	maxAll         int
 }
 
 type Response struct {
@@ -135,6 +141,11 @@ func init() {
 	flag.IntVar(&args.txsDelay, "txsDelay", 1000, "delay in seconds between batches of generated txs")
 	flag.StringVar(&args.genTxsPort,"genTxsPort",":5000", "port of generate tx")
 	flag.IntVar(&args.index, "index", 1, "")
+	flag.IntVar(&args.blockSize, "blockSize", 7192, "")
+	flag.IntVar(&args.workers, "workers", 6, "")
+	flag.IntVar(&args.workerCap, "workerCap", 512, "")
+	flag.IntVar(&args.maxPending, "maxPending", 30720, "")
+	flag.IntVar(&args.maxAll, "maxAll", 5120000, "")
 }
 
 // runtimeSystemSettings optimizes process setting for go-kardia
@@ -286,11 +297,11 @@ func main() {
 	}
 	nodeDir := filepath.Join(config.DataDir, config.Name)
 	config.MainChainConfig.TxPool = tx_pool.TxPoolConfig{
-		GlobalSlots:  32768, // for pending
-		GlobalQueue:  4096000, // for all
-		NumberOfWorkers: 6,
-		WorkerCap: 512,
-		BlockSize: 10240,
+		GlobalSlots:  uint64(args.maxPending), // for pending
+		GlobalQueue:  uint64(args.maxAll), // for all
+		NumberOfWorkers: args.workers,
+		WorkerCap: args.workerCap,
+		BlockSize: args.blockSize,
 	}
 	config.MainChainConfig.IsZeroFee = args.isZeroFee
 	config.MainChainConfig.IsPrivate = args.isPrivate
