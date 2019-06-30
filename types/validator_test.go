@@ -32,7 +32,7 @@ func TestGetProposerUniformVotingPower(t *testing.T) {
 	val3 := NewValidator(generatePublicKey(), 1)
 	vals := [...]*Validator{val1, val2, val3}
 	sort.Sort(ValidatorsByAddress(vals[:]))
-	valSet := NewValidatorSet(vals[:])
+	valSet := NewValidatorSet(vals[:], 0, 1000000)
 	var proposer *Validator
 
 	valSet.AdvanceProposer(1)
@@ -65,7 +65,7 @@ func TestGetProposerMixedVotingPower(t *testing.T) {
 	val2 := NewValidator(generatePublicKey(), 2)
 	val3 := NewValidator(generatePublicKey(), 4)
 	vals := [...]*Validator{val1, val2, val3}
-	valSet := NewValidatorSet(vals[:])
+	valSet := NewValidatorSet(vals[:], 0, 1000000)
 	var proposer *Validator
 
 	valSet.AdvanceProposer(1)

@@ -479,7 +479,7 @@ func (env *EnvironmentConfig) GetValidatorSetByIndices(bc base.BaseBlockChain, v
 
 	// TODO(huny@): Pass the start/end block height of the initial set of validator from the
 	// genesis here. Default to 0 and 100000000000 for now.
-	validatorSet := types.NewValidatorSet(validators /*start height*/, 0 /*end height*/, 100000000000 /*refreshBackoff*/, 200 /*refreshDelta*/, 20)
+	validatorSet := types.NewValidatorSet(validators, 0 /*start height*/, 100000000000 /*end height*/)
 	// TODO(dnk90@,namdoh@: This is a bug due to this change https://github.com/kardiachain/go-kardia/commit/09cfe4762b809498a789758eeb85008628947764.
 	// Turn off this for production.
 	validatorSet.TurnOnKeepSameProposer()

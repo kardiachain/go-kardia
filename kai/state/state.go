@@ -26,6 +26,12 @@ import (
 	"time"
 )
 
+// TODO(namdoh): Move to a common config file.
+var (
+	RefreshBackoffHeightStep = int64(200)
+	RefreshHeightDelta       = int64(20)
+)
+
 // It keeps all information necessary to validate new blocks,
 // including the last validator set and the consensus params.
 // All fields are exposed so the struct can be easily serialized,
@@ -47,6 +53,7 @@ type LastestBlockState struct {
 	// so we can query for historical validator sets.
 	// Note that if s.LastBlockHeight causes a valset change,
 	// we set s.LastHeightValidatorsChanged = s.LastBlockHeight + 1
+	PrefetchedFutureValidators  *types.ValidatorSet
 	Validators                  *types.ValidatorSet
 	LastValidators              *types.ValidatorSet
 	LastHeightValidatorsChanged *cmn.BigInt
@@ -90,4 +97,60 @@ func (state LastestBlockState) String() string {
 	return fmt.Sprintf("{ChainID:%v LastBlockHeight:%v LastBlockTotalTx:%v LastBlockID:%v LastBlockTime:%v Validators:%v LastValidators:%v LastHeightValidatorsChanged:%v",
 		state.ChainID, state.LastBlockHeight, state.LastBlockTotalTx, state.LastBlockID, time.Unix(state.LastBlockTime.Int64(), 0),
 		state.Validators, state.LastValidators, state.LastHeightValidatorsChanged)
+}
+
+// May fresh current or future validator sets, or both.
+// The refreshing policy is needed to optimize how often we need to fetch validator set from
+// staking smart contract. Policy:
+//
+// (1) if "height" is greater than the current staked validator set's end height:
+//     i)  if "height" is in within the next validator set's start/end window: assign the next
+//         validator set to the current validator set. However, if next validator set is empty,
+//         do nothing.
+//     ii) if "height" is greater than the next validator set's end height: fetch current staked
+//         validator set.
+// (2) if "height" is within the current staked validator set's start/end height window:
+//     i)  current validator set: do not fetch.
+//     ii) next validator set: if "height" is greater or equal to
+//         (end_height - RefreshBackoffHeightStep) and the next staked validator set is nil,
+//         fetch it.
+//         NOTE: Consider doing this asynchronously, but beware of race condition.
+// (3) if "height" is less than the current staked validator set's start height:
+//     i)  current validator set: do not fetch
+//     ii) next validator set: do not fetch
+//
+// Note: This must be called before commiting a block.
+func (state *LastestBlockState) mayRefreshValidatorSet() {
+	height := state.LastBlockHeight.Int64()
+
+	// Case #1
+	currentVals := state.Validators
+	nextVals := state.PrefetchedFutureValidators
+	if height > currentVals.EndHeight {
+		if height >= nextVals.StartHeight && height <= nextVals.EndHeight {
+			state.Validators = state.PrefetchedFutureValidators
+		} else if height > nextVals.EndHeight {
+			state.Validators = state.fetchValidatorSet(height)
+		}
+		state.PrefetchedFutureValidators = nil
+	}
+
+	// Case #2
+	currentVals = state.Validators
+	nextVals = state.PrefetchedFutureValidators
+	if nextVals != nil && height >= currentVals.StartHeight && height <= nextVals.EndHeight {
+		if height >= currentVals.EndHeight-RefreshBackoffHeightStep && nextVals != nil &&
+			(height-(currentVals.EndHeight-RefreshBackoffHeightStep))%RefreshHeightDelta == 0 /* check step-wise refresh */ {
+			state.PrefetchedFutureValidators = state.fetchValidatorSet(currentVals.EndHeight + 1)
+		}
+	}
+
+	// Case #3: Do nothing
+}
+
+// Fetches the validator set at a given height.
+// TODO(huny@): Please implement this function.
+func (state *LastestBlockState) fetchValidatorSet(height int64) *types.ValidatorSet {
+	// TODO(huny@): Update this.
+	return state.Validators
 }
