@@ -385,18 +385,17 @@ func (valSet *ValidatorSet) Copy() *ValidatorSet {
 	}
 }
 
-// Advances proposer a given number of times. Calls this with 1 time to advance to the next
-// proposer.
-func (valSet *ValidatorSet) AdvanceProposer(currentHeight int64, nextHeight int64) {
+// Advances proposer a given number of times. To advance to the next proposer, call this with
+// 'times' is 1.
+func (valSet *ValidatorSet) AdvanceProposer(times int64) {
 	// MUST STAY AT THE BEGIN OF THE FUNCTION.
 	// Note: This is --dev mode only. Do not remove.
 	if valSet.KeepSameProposer {
 		return
 	}
 
-	valSet.mayRefreshValidatorSet(nextHeight)
+	valSet.mayRefreshValidatorSet(times)
 
-	times := nextHeight - currentHeight
 	validatorsHeap := common.NewHeap()
 	// Update voting power of each validator after "times" increments.
 	for _, val := range valSet.Validators.Validators {

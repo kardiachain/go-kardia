@@ -70,15 +70,15 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 
 	// copy the valset so we can apply changes from EndBlock
 	// and update s.LastValidators and s.Validators
-	// TODO(namdoh@): Refactor to set next set of valiator here.
+	// TODO(#307,namdoh@): Consensus advances to the next height here, implement logics to fetch and
+	// swap validators here.
 	nextValSet := state.Validators.Copy()
 
 	// update the validator set with the latest abciResponses
 	lastHeightValsChanged := state.LastHeightValidatorsChanged
 
 	// Update validator accums and set state variables
-	currentHeight := int64(header.Height)
-	nextValSet.AdvanceProposer(currentHeight+1, currentHeight)
+	nextValSet.AdvanceProposer(1)
 
 	var totalTx *cmn.BigInt
 	if state.LastBlockTotalTx == nil {
