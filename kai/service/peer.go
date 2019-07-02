@@ -19,8 +19,10 @@
 package service
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"sync"
 	"time"
 
@@ -76,9 +78,26 @@ type peer struct {
 
 	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
 	Protocol string
+	IsValidator bool
 }
 
 func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, csReactor *consensus.ConsensusManager) *peer {
+	isValidator := false
+	validators := csReactor.Validators()
+	pubKey, err := crypto.StringToPublicKey(hex.EncodeToString(p.ID().Bytes()))
+	if err != nil {
+		logger.Error("invalid peer", "id", p.ID().String())
+		return nil
+	}
+	address := crypto.PubkeyToAddress(*pubKey)
+
+	for _, val := range validators {
+		if val.Address.Equal(address) {
+			isValidator = true
+			break
+		}
+	}
+
 	return &peer{
 		logger:     logger,
 		Peer:       p,
@@ -89,6 +108,7 @@ func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, 
 		knownTxs:   common.NewSet(maxKnownTxs),
 		csReactor:  csReactor,
 		terminated: make(chan struct{}),
+		IsValidator: isValidator,
 	}
 }
 
@@ -191,7 +211,7 @@ func (p *peer) readStatus(network uint64, chainID uint64, status *statusData, ge
 // String implements fmt.Stringer.
 func (p *peer) String() string {
 	return fmt.Sprintf("Peer %s [%s]", p.id,
-		fmt.Sprintf("eth/%2d", p.version),
+		fmt.Sprintf("kai/%2d", p.version),
 	)
 }
 
@@ -325,6 +345,11 @@ func (ps *peerSet) PeersWithoutTx(tx *types.Transaction) []*peer {
 
 	list := make([]*peer, 0, len(ps.peers))
 	for _, p := range ps.peers {
+
+		if !p.IsValidator {
+			continue
+		}
+
 		if !p.knownTxs.Has(tx.Hash()) {
 			list = append(list, p)
 		}

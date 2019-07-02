@@ -411,11 +411,13 @@ func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
 	}
 
 	for _, p := range pm.peers.peers {
-		pm.wg.Add(1)
-		go func(p *peer) {
-			defer pm.wg.Done()
-			p2p.Send(p.rw, msgType, msg)
-		}(p)
+		if p.IsValidator {
+			pm.wg.Add(1)
+			go func(p *peer) {
+				defer pm.wg.Done()
+				p2p.Send(p.rw, msgType, msg)
+			}(p)
+		}
 	}
 }
 
@@ -437,7 +439,10 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	}
 	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
 	for peer, txs := range txset {
-		go peer.AsyncSendTransactions(txs)
+		// only send to validators
+		if peer.IsValidator {
+			go peer.AsyncSendTransactions(txs)
+		}
 	}
 }
 
