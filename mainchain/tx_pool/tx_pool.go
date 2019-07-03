@@ -111,13 +111,15 @@ type TxPool struct {
 
 	currentState *state.StateDB      // Current state in the blockchain head
 	pendingState *state.ManagedState // Pending state tracking virtual nonces
+	addressState map[*common.Address]uint64 // address state will cache current state of addresses with the latest nonce
 
 	currentMaxGas uint64 // Current gas limit for transaction caps
 	totalPendingGas uint64
 
 	journal *txJournal  // Journal of local transaction to back up to disk
 
-	pending  *common.Set   // All currently processable transactions
+	pendingSize uint // pendingSize is a counter, increased when adding new txs, decreased when remove txs
+	pending  map[*common.Address]types.Transactions   // All currently processable transactions
 	all      *common.Set                        // All transactions to allow lookups
 
 	wg sync.WaitGroup // for shutdown sync
@@ -132,8 +134,9 @@ func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *configs.Chai
 		config:      config,
 		chainconfig: chainconfig,
 		chain:       chain,
-		pending:     common.NewSet(int64(config.GlobalSlots)),
+		pending:     make(map[*common.Address]types.Transactions),
 		all:         common.NewSet(int64(config.GlobalQueue)),
+		addressState: make(map[*common.Address]uint64),
 		chainHeadCh: make(chan events.ChainHeadEvent, chainHeadChanSize),
 		totalPendingGas: uint64(0),
 		txsCh: make(chan []interface{}, 100),
@@ -142,6 +145,7 @@ func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *configs.Chai
 		precheckCh: make(chan []interface{}),
 		numberOfWorkers: config.NumberOfWorkers,
 		workerCap: config.WorkerCap,
+		pendingSize: 0,
 	}
 	//pool.priced = newTxPricedList(logger, pool.all)
 	pool.reset(nil, chain.CurrentBlock().Header())
@@ -228,7 +232,7 @@ func (pool *TxPool) ResetWorker(workers int, cap int) {
 
 // ClearPending is used to clear pending data. Note: this function is only for testing only
 func (pool *TxPool) ClearPending() {
-	pool.pending = common.NewSet(int64(pool.config.GlobalSlots))
+	pool.pending = make(map[*common.Address]types.Transactions)
 }
 
 // lockedReset is a wrapper around reset to allow calling it in a thread safe
@@ -340,49 +344,83 @@ func getTime() int64 {
 // Pending retrieves all currently processable transactions, groupped by origin
 // account and sorted by nonce. The returned transaction set is a copy and can be
 // freely modified by calling code.
+//func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, error) {
+//
+//	//pool.mu.Lock()
+//	//defer pool.mu.Unlock()
+//
+//	startTime := getTime()
+//	pending := make(types.Transactions, 0)
+//	removedTxs := make(TxInterfaceByNonce, 0)
+//	results := make(TxInterfaceByNonce, 0)
+//
+//	// get pending list
+//	pendingList := TxInterfaceByNonce(pool.pending.List())
+//	count := 0
+//
+//	// sort pending list
+//	sort.Sort(pendingList)
+//
+//	for _, pendingTx := range pendingList {
+//		if limit > 0 && count == limit {
+//			break
+//		}
+//		tx := pendingTx.(*types.Transaction)
+//
+//		// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
+//		if tx.Size() > 32*1024 || tx.Value().Sign() < 0 || pool.all.Has(tx.Hash()) {
+//			removedTxs = append(removedTxs, pendingTx)
+//			continue
+//		}
+//
+//		pending = append(pending, tx)
+//		if removeResult {
+//			results = append(results, pendingTx)
+//		}
+//		count++
+//	}
+//
+//	if len(removedTxs) > 0 {
+//		go pool.pending.Remove(removedTxs...)
+//	}
+//
+//	if len(results) > 0 {
+//		go pool.pending.Remove(results...)
+//	}
+//	endTime := getTime()
+//	pool.logger.Error("get pending txs", "txs", len(pending), "total time", endTime-startTime, "limit", limit)
+//	return pending, nil
+//}
 func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, error) {
 
-	//pool.mu.Lock()
-	//defer pool.mu.Unlock()
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
 
 	startTime := getTime()
 	pending := make(types.Transactions, 0)
-	removedTxs := make(TxInterfaceByNonce, 0)
-	results := make(TxInterfaceByNonce, 0)
 
 	// get pending list
-	pendingList := TxInterfaceByNonce(pool.pending.List())
 	count := 0
 
-	// sort pending list
-	sort.Sort(pendingList)
-
-	for _, pendingTx := range pendingList {
-		if limit > 0 && count == limit {
+	// loop through pending
+	for address, txs := range pool.pending {
+		if count >= limit {
 			break
 		}
-		tx := pendingTx.(*types.Transaction)
-
-		// Heuristic limit, reject transactions over 32KB to prevent DOS attacks
-		if tx.Size() > 32*1024 || tx.Value().Sign() < 0 || pool.all.Has(tx.Hash()) {
-			removedTxs = append(removedTxs, pendingTx)
-			continue
+		for _, tx := range txs {
+			if pool.all.Has(tx.Hash()) {
+				continue
+			}
+			pending = append(pending, tx)
+			count++
 		}
-
-		pending = append(pending, tx)
+		// delete all txs in address if removeResult is true
 		if removeResult {
-			results = append(results, pendingTx)
+			delete(pool.pending, address)
+			pool.pendingSize -= uint(len(txs))
 		}
-		count++
 	}
-
-	if len(removedTxs) > 0 {
-		go pool.pending.Remove(removedTxs...)
-	}
-
-	if len(results) > 0 {
-		go pool.pending.Remove(results...)
-	}
+	// sort pending list
 	endTime := getTime()
 	pool.logger.Error("get pending txs", "txs", len(pending), "total time", endTime-startTime, "limit", limit)
 	return pending, nil
@@ -390,12 +428,28 @@ func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, e
 
 // validateTx checks whether a transaction is valid according to the consensus
 // rules and adheres to some heuristic limits of the local node (price and size).
-func (pool *TxPool) ValidateTx(tx *types.Transaction, local bool) error {
+func (pool *TxPool) ValidateTx(tx *types.Transaction, local bool) (*common.Address, error) {
 
 	if uint64(pool.PendingSize()) >= pool.config.GlobalSlots {
-		return fmt.Errorf("pool has reached its limit")
+		return nil, fmt.Errorf("pool has reached its limit")
 	}
-	return nil
+
+	// check sender and duplicated pending tx
+	sender, err := pool.getSender(tx)
+	if err != nil {
+		return nil, err
+	}
+
+	if tx.Nonce() == pool.addressState[sender] && pool.addressState[sender] > 0 {
+		return nil, fmt.Errorf("duplicate transaction")
+	}
+
+	// if tx has been added into db then reject it
+	if !pool.all.Has(tx.Hash()) {
+		return nil, fmt.Errorf("transaction was added to db")
+	}
+
+	return sender, nil
 }
 
 // add validates a transaction and inserts it into the non-executable queue for
@@ -407,7 +461,7 @@ func (pool *TxPool) ValidateTx(tx *types.Transaction, local bool) error {
 // whitelisted, preventing any associated transaction from being dropped out of
 // the pool due to pricing constraints.
 func (pool *TxPool) add(tx *types.Transaction, local bool) (bool, error) {
-	if err := pool.ValidateTx(tx, local); err != nil {
+	if _, err := pool.ValidateTx(tx, local); err != nil {
 		return false, err
 	}
 	return true, nil
@@ -425,9 +479,19 @@ func (pool *TxPool) AddLocal(tx *types.Transaction) error {
 	if err != nil {
 		return ErrInvalidSender
 	}
-	pool.pending.Add(tx)
+
+	//pool.all.Add(tx.Hash())
+	//pool.pending.Add(tx)
 	go pool.txFeed.Send(events.NewTxsEvent{Txs: []*types.Transaction{tx}})
 	return nil
+}
+
+func (pool *TxPool) getSender(tx *types.Transaction) (*common.Address, error) {
+	sender, err := types.Sender(tx)
+	if err != nil {
+		return nil, ErrInvalidSender
+	}
+	return &sender, nil
 }
 
 // AddRemote enqueues a single transaction into the pool if it is valid. If the
@@ -443,7 +507,7 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 	}
 
 	//pool.all.Add(tx.Hash())
-	pool.pending.Add(tx)
+	//pool.pending.Add(tx)
 	go pool.txFeed.Send(events.NewTxsEvent{Txs: []*types.Transaction{tx}})
 	return nil
 }
@@ -467,36 +531,70 @@ func (pool *TxPool) AddRemotes(txs []interface{}) {
 func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
 
 	// Try to inject the transaction and update any state
-	if err := pool.ValidateTx(tx, local); err != nil {
+	sender, err := pool.ValidateTx(tx, local)
+	if err != nil {
 		pool.logger.Trace("Discarding invalid transaction", "hash", tx.Hash().Hex(), "err", err)
 		return err
 	}
+
+	if pool.addressState[sender] < tx.Nonce() {
+		pool.addressState[sender] = tx.Nonce()
+	}
+
+	pendingTxs := pool.pending[sender]
+	if pendingTxs == nil {
+		pendingTxs = make(types.Transactions, 0)
+	}
+
+	pendingTxs = append(pendingTxs, tx)
+	sort.Sort(types.TxByNonce(pendingTxs))
+	pool.pending[sender] = pendingTxs
+	pool.pendingSize++
 
 	return nil
 }
 
 // addTxs attempts to queue a batch of transactions if they are valid.
 func (pool *TxPool) addTxs(txs []interface{}, local bool) {
-	//pool.mu.Lock()
-	//defer pool.mu.Unlock()
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
 
 	promoted := make([]*types.Transaction, 0)
-	pendings := make(TxInterfaceByNonce, 0)
 
 	for _, txInterface := range txs {
 		if txInterface == nil {
 			continue
 		}
 		tx := txInterface.(*types.Transaction)
+
+		// check sender and duplicated pending tx
+		sender, err := pool.getSender(tx)
+		if err != nil || (tx.Nonce() == pool.addressState[sender] && pool.addressState[sender] > 0) {
+			continue
+		}
+
+		// if tx has been added into db then reject it
 		if !pool.all.Has(tx.Hash()) {
 			promoted = append(promoted, tx)
 		}
-		pendings = append(pendings, tx)
+
+		if pool.addressState[sender] < tx.Nonce() {
+			pool.addressState[sender] = tx.Nonce()
+		}
+
+		pendingTxs := pool.pending[sender]
+		if pendingTxs == nil {
+			pendingTxs = make(types.Transactions, 0)
+		}
+
+		pendingTxs = append(pendingTxs, tx)
+		sort.Sort(types.TxByNonce(pendingTxs))
+		pool.pending[sender] = pendingTxs
+		pool.pendingSize++
 	}
 
 	if len(promoted) > 0 {
 		go pool.txFeed.Send(events.NewTxsEvent{Txs: promoted})
-		pool.pendingCh <- pendings
 	}
 }
 
@@ -515,32 +613,58 @@ func (pool *TxPool) saveTxs(txs []*types.Transaction) {
 }
 
 func (pool *TxPool) handlePendingTxs(txs TxInterfaceByNonce) {
-	pool.pending.Add(txs...)
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	// sort txs before adding to pool
+	sort.Sort(txs)
+
+	for _, txInterface := range txs {
+		// cast to transaction
+		tx := txInterface.(*types.Transaction)
+
+		sender, err := pool.getSender(tx)
+		if err != nil || pool.addressState[sender] == tx.Nonce() {
+			continue
+		}
+
+		// update addressState
+		if pool.addressState[sender] < tx.Nonce() {
+			pool.addressState[sender] = tx.Nonce()
+		}
+
+		pendingTxs := pool.pending[sender]
+		if pendingTxs == nil {
+			pendingTxs = make(types.Transactions, 0)
+		}
+
+	}
 }
 
 // RemoveTx removes transactions from pending queue.
 // This function is mainly for caller in blockchain/consensus to directly remove committed txs.
 //
-func (pool *TxPool) RemoveTxs(txs types.Transactions) {
-	pool.logger.Trace("Removing Txs from pending", "txs", len(txs))
-	startTime := getTime()
-	txsInterfaces := make([]interface{}, len(txs))
-	for i, tx := range txs {
-		txsInterfaces[i] = tx
-	}
-	go pool.pending.Remove(txsInterfaces...)
-	diff := getTime() - startTime
-	pool.logger.Trace("Total time to finish removing txs from pending", "time", diff)
-}
+
+//func (pool *TxPool) RemoveTxs(txs types.Transactions) {
+//	pool.logger.Trace("Removing Txs from pending", "txs", len(txs))
+//	startTime := getTime()
+//	txsInterfaces := make([]interface{}, len(txs))
+//	for i, tx := range txs {
+//		txsInterfaces[i] = tx
+//	}
+//	go pool.pending.Remove(txsInterfaces...)
+//	diff := getTime() - startTime
+//	pool.logger.Trace("total time to finish removing txs from pending", "time", diff)
+//}>>>>>>> Store pending transactions by address instead
 
 func (pool *TxPool) PendingSize() int {
-	return pool.pending.Size()
+	return int(pool.pendingSize)
 }
 
 func (pool *TxPool) GetPendingData() *types.Transactions {
 	txs := make(types.Transactions, 0)
-	for _, txInterface := range pool.pending.List() {
-		txs = append(txs, txInterface.(*types.Transaction))
+	for _, pendings := range pool.pending {
+		txs = append(txs, pendings...)
 	}
 	return &txs
 }
