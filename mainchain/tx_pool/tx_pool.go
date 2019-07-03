@@ -233,6 +233,7 @@ func (pool *TxPool) ResetWorker(workers int, cap int) {
 // ClearPending is used to clear pending data. Note: this function is only for testing only
 func (pool *TxPool) ClearPending() {
 	pool.pending = make(map[*common.Address]types.Transactions)
+	pool.pendingSize = 0
 }
 
 // lockedReset is a wrapper around reset to allow calling it in a thread safe
