@@ -249,22 +249,23 @@ func (pool *TxPool) lockedReset(oldHead, newHead *types.Header) {
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	// Initialize the internal state to the current head
 	currentBlock := pool.chain.CurrentBlock()
+	//if newHead == nil {
+	//	newHead = currentBlock.Header() // Special case during testing
+	//}
 
-	if newHead == nil {
-		newHead = currentBlock.Header() // Special case during testing
-	}
+	//statedb, err := pool.chain.StateAt(newHead.Root)
+	//pool.logger.Info("TxPool reset state to new head block", "height", newHead.Height, "root", newHead.Root)
+	//if err != nil {
+	//	pool.logger.Error("Failed to reset txpool state", "err", err)
+	//	return
+	//}
+	//pool.mu.Lock()
+	//pool.pendingState = state.ManageState(statedb)
+	//pool.mu.Unlock()
 
-	statedb, err := pool.chain.StateAt(newHead.Root)
-	pool.logger.Info("TxPool reset state to new head block", "height", newHead.Height, "root", newHead.Root)
-	if err != nil {
-		pool.logger.Error("Failed to reset txpool state", "err", err)
-		return
-	}
-	pool.mu.Lock()
-	pool.pendingState = state.ManageState(statedb)
-	pool.mu.Unlock()
-
+	pool.RemoveTxs(currentBlock.Transactions())
 	go pool.saveTxs(currentBlock.Transactions())
+
 	// remove current block's txs from pending
 	//pool.RemoveTxs(txs)
 	//if _, err := pool.Pending(0, false); err != nil {
@@ -645,17 +646,32 @@ func (pool *TxPool) handlePendingTxs(txs TxInterfaceByNonce) {
 // This function is mainly for caller in blockchain/consensus to directly remove committed txs.
 //
 
-//func (pool *TxPool) RemoveTxs(txs types.Transactions) {
-//	pool.logger.Trace("Removing Txs from pending", "txs", len(txs))
-//	startTime := getTime()
-//	txsInterfaces := make([]interface{}, len(txs))
-//	for i, tx := range txs {
-//		txsInterfaces[i] = tx
-//	}
-//	go pool.pending.Remove(txsInterfaces...)
-//	diff := getTime() - startTime
-//	pool.logger.Trace("total time to finish removing txs from pending", "time", diff)
-//}>>>>>>> Store pending transactions by address instead
+func (pool *TxPool) RemoveTxs(txs types.Transactions) {
+
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	pool.logger.Trace("Removing Txs from pending", "txs", len(txs))
+	startTime := getTime()
+	for _, tx := range txs {
+		sender, _ := pool.getSender(tx)
+		pendings := pool.pending[sender]
+
+		if pendings != nil && len(pendings) > 0 {
+			newTxs := make(types.Transactions, 0)
+			for _, pending := range pendings {
+				if pending.Hash() != tx.Hash() {
+					newTxs = append(newTxs, pending)
+				} else {
+					pool.pendingSize -= 1
+				}
+			}
+			pool.pending[sender] = newTxs
+		}
+	}
+	diff := getTime() - startTime
+	pool.logger.Trace("total time to finish removing txs from pending", "time", diff)
+}
 
 func (pool *TxPool) PendingSize() int {
 	return int(pool.pendingSize)
