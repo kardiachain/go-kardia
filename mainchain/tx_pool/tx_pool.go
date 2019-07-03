@@ -209,12 +209,6 @@ func (pool *TxPool) AddTxs(txs []interface{}) {
 }
 
 func (pool *TxPool) validateTxs(txs []interface{}) {
-	isFull, size := pool.IsFull()
-	if isFull {
-		pool.logger.Error(fmt.Sprintf("pool has reached its limit %v/%v", size, pool.config.GlobalSlots))
-		return
-	}
-
 	if len(txs) > 0 {
 		to := pool.workerCap
 		if len(txs) < to {
@@ -439,14 +433,14 @@ func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, e
 // rules and adheres to some heuristic limits of the local node (price and size).
 func (pool *TxPool) ValidateTx(tx *types.Transaction, local bool) (*common.Address, error) {
 
-	if uint64(pool.PendingSize()) >= pool.config.GlobalSlots {
-		return nil, fmt.Errorf("pool has reached its limit")
-	}
-
 	// check sender and duplicated pending tx
 	sender, err := pool.getSender(tx)
 	if err != nil {
 		return nil, err
+	}
+
+	if pool.pending[sender] != nil && uint64(len(pool.pending[sender])) >= pool.config.GlobalSlots {
+		return nil, fmt.Errorf("%v has reached its limit", sender.Hex())
 	}
 
 	if tx.Nonce() <= pool.addressState[sender] && pool.addressState[sender] > 0 {
@@ -575,6 +569,10 @@ func (pool *TxPool) addTxs(txs []interface{}, local bool) {
 		// check sender and duplicated pending tx
 		sender, err := pool.getSender(tx)
 		if err != nil || (tx.Nonce() <= pool.addressState[sender] && pool.addressState[sender] > 0) {
+			continue
+		}
+
+		if pool.pending[sender] != nil && uint64(len(pool.pending[sender])) > pool.config.GlobalSlots {
 			continue
 		}
 
