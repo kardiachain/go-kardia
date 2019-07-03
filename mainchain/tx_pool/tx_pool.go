@@ -408,6 +408,13 @@ func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, e
 		if count >= limit {
 			break
 		}
+
+		if len(txs) > 0 {
+			// latest txs must be the highest nonce
+			// update addressState here
+			pool.addressState[address] = txs[len(txs)-1].Nonce()
+		}
+
 		for _, tx := range txs {
 			if pool.all.Has(tx.Hash()) {
 				continue
@@ -441,13 +448,13 @@ func (pool *TxPool) ValidateTx(tx *types.Transaction, local bool) (*common.Addre
 		return nil, err
 	}
 
-	if tx.Nonce() == pool.addressState[sender] && pool.addressState[sender] > 0 {
-		return nil, fmt.Errorf("duplicate transaction")
+	if tx.Nonce() <= pool.addressState[sender] && pool.addressState[sender] > 0 {
+		return nil, fmt.Errorf("invalid nonce")
 	}
 
 	// if tx has been added into db then reject it
 	if !pool.all.Has(tx.Hash()) {
-		return nil, fmt.Errorf("transaction was added to db")
+		return nil, fmt.Errorf("transaction existed")
 	}
 
 	return sender, nil
@@ -538,10 +545,6 @@ func (pool *TxPool) addTx(tx *types.Transaction, local bool) error {
 		return err
 	}
 
-	if pool.addressState[sender] < tx.Nonce() {
-		pool.addressState[sender] = tx.Nonce()
-	}
-
 	pendingTxs := pool.pending[sender]
 	if pendingTxs == nil {
 		pendingTxs = make(types.Transactions, 0)
@@ -570,7 +573,7 @@ func (pool *TxPool) addTxs(txs []interface{}, local bool) {
 
 		// check sender and duplicated pending tx
 		sender, err := pool.getSender(tx)
-		if err != nil || (tx.Nonce() == pool.addressState[sender] && pool.addressState[sender] > 0) {
+		if err != nil || (tx.Nonce() <= pool.addressState[sender] && pool.addressState[sender] > 0) {
 			continue
 		}
 
@@ -579,9 +582,9 @@ func (pool *TxPool) addTxs(txs []interface{}, local bool) {
 			promoted = append(promoted, tx)
 		}
 
-		if pool.addressState[sender] < tx.Nonce() {
-			pool.addressState[sender] = tx.Nonce()
-		}
+		//if pool.addressState[sender] < tx.Nonce() {
+		//	pool.addressState[sender] = tx.Nonce()
+		//}
 
 		pendingTxs := pool.pending[sender]
 		if pendingTxs == nil {
