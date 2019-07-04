@@ -322,10 +322,8 @@ func (p *peer) MarkTransactions(txs types.Transactions, filter bool) []interface
 	newTxs := make([]interface{}, 0)
 	txHashes := make([]interface{}, 0)
 	for _, tx := range txs {
-		if filter {
-			if p.knownTxs.Has(tx.Hash()) {
-				continue
-			}
+		if filter && p.knownTxs.Has(tx.Hash()) {
+			continue
 		}
 		newTxs = append(newTxs, tx)
 		txHashes = append(txHashes, tx.Hash())

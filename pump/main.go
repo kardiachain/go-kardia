@@ -144,7 +144,7 @@ func init() {
 	flag.IntVar(&args.blockSize, "blockSize", 7192, "")
 	flag.IntVar(&args.workers, "workers", 6, "")
 	flag.IntVar(&args.workerCap, "workerCap", 512, "")
-	flag.IntVar(&args.maxPending, "maxPending", 128, "max pending txs for every address")
+	flag.IntVar(&args.maxPending, "maxPending", 64, "max pending txs for every address")
 	flag.IntVar(&args.maxAll, "maxAll", 5120000, "")
 }
 
@@ -475,7 +475,7 @@ func genTxsLoop(txPool *tx_pool.TxPool) {
 
 func genTxs(genTool *GeneratorTool, numTxs uint64, txPool *tx_pool.TxPool) {
 	txList := genTool.GenerateRandomTxWithState(numTxs)
-	log.Info("GenTxs Adding new transactions", "num", numTxs, "generatedTxList", len(txList))
+	log.Info("GenTxs Adding new transactions", "num", numTxs, "generatedTxList", len(txList), "pendingSize", txPool.PendingSize())
 	txPool.AddTxs(txList)
 }
 
