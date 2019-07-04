@@ -400,6 +400,7 @@ func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, e
 
 	startTime := getTime()
 	pending := make(types.Transactions, 0)
+	addedTx := make(map[*types.Transaction]struct{})
 
 	// get pending list
 	promotableAddresses := pool.promotableQueue.List()
@@ -419,10 +420,17 @@ func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, e
 			// update addressState here
 			pool.addressState[addr] = txs[len(txs)-1].Nonce()
 			for _, tx := range txs {
+
+				if _, ok := addedTx[tx]; ok {
+					continue
+				}
+
 				if pool.all.Has(tx.Hash()) {
 					continue
 				}
+
 				pending = append(pending, tx)
+				addedTx[tx] = struct{}{}
 			}
 			// delete all txs in address if removeResult is true
 			if removeResult {
@@ -573,15 +581,21 @@ func (pool *TxPool) addTx(tx *types.Transaction) error {
 func (pool *TxPool) addTxs(txs []interface{}) {
 	pool.mu.Lock()
 	promoted := make([]*types.Transaction, 0)
+	addedTx := make(map[*types.Transaction]struct{})
 	for _, txInterface := range txs {
 		if txInterface == nil {
 			continue
 		}
 		tx := txInterface.(*types.Transaction)
 
+		if _, ok := addedTx[tx]; ok {
+			continue
+		}
+
 		// validate and add tx to pool
 		if err := pool.addTx(tx); err == nil {
 			promoted = append(promoted, tx)
+			addedTx[tx] = struct{}{}
 		}
 	}
 	pool.mu.Unlock()
@@ -602,35 +616,6 @@ func (pool *TxPool) saveTxs(txs []*types.Transaction) {
 			hashes[i] = tx.Hash()
 		}
 		go pool.all.Add(hashes...)
-	}
-}
-
-func (pool *TxPool) handlePendingTxs(txs TxInterfaceByNonce) {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-
-	// sort txs before adding to pool
-	sort.Sort(txs)
-
-	for _, txInterface := range txs {
-		// cast to transaction
-		tx := txInterface.(*types.Transaction)
-
-		sender, err := pool.getSender(tx)
-		if err != nil || pool.addressState[*sender] == tx.Nonce() {
-			continue
-		}
-
-		// update addressState
-		if pool.addressState[*sender] < tx.Nonce() {
-			pool.addressState[*sender] = tx.Nonce()
-		}
-
-		pendingTxs := pool.pending[*sender]
-		if pendingTxs == nil {
-			pendingTxs = make(types.Transactions, 0)
-		}
-
 	}
 }
 
