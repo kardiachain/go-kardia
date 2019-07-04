@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -34,7 +35,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/types"
-
 )
 
 const (
@@ -88,6 +88,7 @@ func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
 		senderAddrS := crypto.PubkeyToAddress(senderKey.PublicKey).String()
 		nonce := genTool.nonceMap[senderAddrS]
 		amount := big.NewInt(int64(RandomInt(1,5)))
+		amount = amount.Mul(amount, big.NewInt(int64(math.Pow10(18))))
 		tx, err := types.SignTx(types.NewTransaction(
 			nonce,
 			toAddr,
@@ -117,6 +118,7 @@ func GenerateRandomTxWithState(numTx int, stateDb *state.StateDB) []*types.Trans
 		senderKey, toAddr := randomTxAddresses()
 		nonce := stateDb.GetNonce(crypto.PubkeyToAddress(senderKey.PublicKey))
 		amount := big.NewInt(int64(RandomInt(1,5)))
+		amount = amount.Mul(amount, big.NewInt(int64(math.Pow10(18))))
 		tx, err := types.SignTx(types.NewTransaction(
 			nonce,
 			toAddr,
