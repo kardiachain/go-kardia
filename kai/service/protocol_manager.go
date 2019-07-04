@@ -364,7 +364,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 // syncTransactions sends all pending transactions to the new peer.
 func (pm *ProtocolManager) syncTransactions(p *peer) {
 	// TODO(namdoh@,thientn@): Refactor this so we won't have to check this for dual service.
-	if pm.txpool == nil {
+	if pm.txpool == nil || !p.IsValidator {
 		return
 	}
 	pm.logger.Trace("Sync txns to new peer", "peer", p)
