@@ -22,13 +22,16 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+
+	"math/big"
+	"math/rand"
+	"time"
+	"sync"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/types"
-	"math/big"
-	"math/rand"
-	"sync"
 )
 
 type Account struct {
@@ -83,11 +86,11 @@ func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
 
 		senderAddrS := crypto.PubkeyToAddress(senderKey.PublicKey).String()
 		nonce := genTool.nonceMap[senderAddrS]
-
+		amount := big.NewInt(int64(RandomInt(1,5)))
 		tx, err := types.SignTx(types.NewTransaction(
 			nonce,
 			toAddr,
-			defaultAmount,
+			amount,
 			1000,
 			big.NewInt(1),
 			nil,
@@ -116,7 +119,7 @@ func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx uint64) []interfac
 	for i := uint64(0); i < numTx; i++ {
 		senderKey, toAddr := randomTxAddresses(genTool.accounts)
 		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
-		//nonce := stateDb.GetNonce(senderPublicKey)
+		amount := big.NewInt(int64(RandomInt(1,5)))
 		senderAddrS := senderPublicKey.String()
 
 		if _, ok := genTool.nonceMap[senderAddrS]; !ok {
@@ -140,7 +143,7 @@ func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx uint64) []interfac
 		tx, err := types.SignTx(types.NewTransaction(
 			nonce,
 			toAddr,
-			defaultAmount,
+			amount,
 			defaultGasLimit,
 			defaultGasPrice,
 			nil,
@@ -206,3 +209,10 @@ func GetAccounts(genesisAccounts map[string]string) []Account {
 
 	return accounts
 }
+
+func RandomInt(min int, max int) int {
+	rand.Seed(time.Now().UnixNano())
+	n := min + rand.Intn(max - min + 1)
+	return n
+}
+

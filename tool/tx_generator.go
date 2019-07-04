@@ -89,7 +89,7 @@ func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
 
 		senderAddrS := crypto.PubkeyToAddress(senderKey.PublicKey).String()
 		nonce := genTool.nonceMap[senderAddrS]
-		amount := big.NewInt(int64(RandomInt(1, 5)))
+		amount := big.NewInt(int64(RandomInt(1,5)))
 		tx, err := types.SignTx(types.NewTransaction(
 			nonce,
 			toAddr,
@@ -118,18 +118,8 @@ func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx int, stateDb *stat
 	genTool.mu.Lock()
 	for i := 0; i < numTx; i++ {
 		senderKey, toAddr := randomTxAddresses()
-		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
-		nonce := stateDb.GetNonce(senderPublicKey)
-		amount := big.NewInt(int64(RandomInt(10, 20)))
-		amount = amount.Mul(amount, big.NewInt(int64(math.Pow10(18))))
-		senderAddrS := senderPublicKey.String()
-
-		//get nonce from sender mapping
-		nonceMap := genTool.nonceMap[senderAddrS]
-		if nonce < nonceMap { // check nonce from statedb and nonceMap
-			nonce = nonceMap
-		}
-
+		nonce := stateDb.GetNonce(crypto.PubkeyToAddress(senderKey.PublicKey))
+		amount := big.NewInt(int64(RandomInt(1,5)))
 		tx, err := types.SignTx(types.NewTransaction(
 			nonce,
 			toAddr,
@@ -245,6 +235,6 @@ func GetRandomGenesisAccount() common.Address {
 
 func RandomInt(min int, max int) int {
 	rand.Seed(time.Now().UnixNano())
-	n := min + rand.Intn(max-min+1)
+	n := min + rand.Intn(max - min + 1)
 	return n
 }
