@@ -339,10 +339,11 @@ func (p *peer) MarkTransactions(txs types.Transactions, filter bool) []interface
 // in their set of known hashes.
 func (ps *peerSet) PeersWithoutTx(tx *types.Transaction) []*peer {
 	ps.lock.RLock()
-	defer ps.lock.RUnlock()
+	peers := ps.peers
+	ps.lock.RUnlock()
 
 	list := make([]*peer, 0, len(ps.peers))
-	for _, p := range ps.peers {
+	for _, p := range peers {
 
 		if !p.IsValidator {
 			continue
@@ -353,6 +354,32 @@ func (ps *peerSet) PeersWithoutTx(tx *types.Transaction) []*peer {
 		}
 	}
 	return list
+}
+
+// PeersWithoutTxs retrieves a list of peers that do not have a given transaction
+// in their set of known hashes.
+func (ps *peerSet) PeersWithoutTxs(txs types.Transactions) map[*peer]types.Transactions {
+	ps.lock.RLock()
+	peers := ps.peers
+	ps.lock.RUnlock()
+
+	set := make(map[*peer]types.Transactions)
+	for _, tx := range txs {
+		for _, p := range peers {
+			if !p.IsValidator {
+				continue
+			}
+
+			if _, ok := set[p]; !ok {
+				set[p] = make(types.Transactions, 0)
+			}
+
+			if !p.knownTxs.Has(tx.Hash()) {
+				set[p] = append(set[p], tx)
+			}
+		}
+	}
+	return set
 }
 
 // SendTransactions sends transactions to the peer, adds the txn hashes to known txn set.
