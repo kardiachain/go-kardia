@@ -168,41 +168,40 @@ func (pool *TxPool) loop() {
 	// Track the previous head headers for transaction reorgs
 	head := pool.chain.CurrentBlock()
 
-	collectTicker := time.NewTicker(500 * time.Millisecond)
-	cleanUpTicker := time.NewTicker(5 * time.Minute)
+	collectTicker := time.NewTicker(100 * time.Millisecond)
+	//cleanUpTicker := time.NewTicker(5 * time.Minute)
 
 	// Keep waiting for and reacting to the various events
 	for {
 		select {
 		// Handle ChainHeadEvent
 		case ev := <-pool.chainHeadCh:
-			pool.logger.Error("received chain head event")
 			go pool.reset(head.Header(), ev.Block.Header())
 		// Be unsubscribed due to system stopped
 		case <-pool.chainHeadSub.Err():
 			return
 		//case txs := <-pool.pendingCh:
 		//	pool.handlePendingTxs(txs)
-		case txs := <-pool.precheckCh:
-			go pool.validateTxs(txs)
+		//case txs := <-pool.precheckCh:
+		//	go pool.validateTxs(txs)
 		case <-collectTicker.C:
 			go pool.collectTxs()
-		case <-cleanUpTicker.C:
-			pool.cleanUp()
+		//case <-cleanUpTicker.C:
+		//	pool.cleanUp()
 		}
 	}
 }
 
 func (pool *TxPool) collectTxs() {
-	for i := 0; i < pool.numberOfWorkers; i++ {
-		go pool.work(i, pool.txsCh)
+	for {
+		for i := 0; i < pool.numberOfWorkers; i++ {
+			go pool.work(i, <-pool.txsCh)
+		}
 	}
 }
 
-func (pool *TxPool) work(id int, jobs <-chan []interface{}) {
-	for job := range jobs {
-		go pool.AddRemotes(job)
-	}
+func (pool *TxPool) work(index int, txs []interface{}) {
+	go pool.AddRemotes(txs)
 }
 
 func (pool *TxPool) IsFull() (bool, int64) {
@@ -211,18 +210,26 @@ func (pool *TxPool) IsFull() (bool, int64) {
 }
 
 func (pool *TxPool) AddTxs(txs []interface{}) {
-	pool.precheckCh<-txs
-}
-
-func (pool *TxPool) validateTxs(txs []interface{}) {
+	//pool.precheckCh<-txs
 	if len(txs) > 0 {
 		to := pool.workerCap
 		if len(txs) < to {
 			to = len(txs)
 		}
 		pool.txsCh <- txs[0:to]
-		go pool.validateTxs(txs[to:])
+		go pool.AddTxs(txs[to:])
 	}
+}
+
+func (pool *TxPool) validateTxs(txs []interface{}) {
+	//if len(txs) > 0 {
+	//	to := pool.workerCap
+	//	if len(txs) < to {
+	//		to = len(txs)
+	//	}
+	//	pool.txsCh <- txs[0:to]
+	//	go pool.validateTxs(txs[to:])
+	//}
 }
 
 func (pool *TxPool) ResetWorker(workers int, cap int) {
