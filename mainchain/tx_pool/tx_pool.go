@@ -407,7 +407,7 @@ func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, e
 
 	startTime := getTime()
 	pending := make(types.Transactions, 0)
-	addedTx := make(map[*types.Transaction]struct{})
+	addedTx := make(map[common.Hash]struct{})
 
 	// get pending list
 	promotableAddresses := pool.promotableQueue.List()
@@ -428,7 +428,7 @@ func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, e
 			pool.addressState[addr] = txs[len(txs)-1].Nonce()
 			for _, tx := range txs {
 
-				if _, ok := addedTx[tx]; ok {
+				if _, ok := addedTx[tx.Hash()]; ok {
 					continue
 				}
 
@@ -437,7 +437,7 @@ func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, e
 				}
 
 				pending = append(pending, tx)
-				addedTx[tx] = struct{}{}
+				addedTx[tx.Hash()] = struct{}{}
 			}
 			// delete all txs in address if removeResult is true
 			if removeResult {
@@ -588,21 +588,21 @@ func (pool *TxPool) addTx(tx *types.Transaction) error {
 func (pool *TxPool) addTxs(txs []interface{}) {
 	pool.mu.Lock()
 	promoted := make([]*types.Transaction, 0)
-	addedTx := make(map[*types.Transaction]struct{})
+	addedTx := make(map[common.Hash]struct{})
 	for _, txInterface := range txs {
 		if txInterface == nil {
 			continue
 		}
 		tx := txInterface.(*types.Transaction)
 
-		if _, ok := addedTx[tx]; ok {
+		if _, ok := addedTx[tx.Hash()]; ok {
 			continue
 		}
 
 		// validate and add tx to pool
 		if err := pool.addTx(tx); err == nil {
 			promoted = append(promoted, tx)
-			addedTx[tx] = struct{}{}
+			addedTx[tx.Hash()] = struct{}{}
 		}
 	}
 	pool.mu.Unlock()
