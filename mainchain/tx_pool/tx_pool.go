@@ -193,10 +193,8 @@ func (pool *TxPool) loop() {
 }
 
 func (pool *TxPool) collectTxs() {
-	for {
-		for i := 0; i < pool.numberOfWorkers; i++ {
-			go pool.work(i, <-pool.txsCh)
-		}
+	for i := 0; i < pool.numberOfWorkers; i++ {
+		go pool.work(i, <-pool.txsCh)
 	}
 }
 
