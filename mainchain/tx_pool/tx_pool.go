@@ -168,7 +168,7 @@ func (pool *TxPool) loop() {
 	// Track the previous head headers for transaction reorgs
 	head := pool.chain.CurrentBlock()
 
-	collectTicker := time.NewTicker(100 * time.Millisecond)
+	collectTicker := time.NewTicker(2000 * time.Millisecond)
 	//cleanUpTicker := time.NewTicker(5 * time.Minute)
 
 	// Keep waiting for and reacting to the various events
