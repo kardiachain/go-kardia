@@ -598,94 +598,56 @@ func main() {
 
 	// Run Eth-Kardia dual node
 	if args.ethDual {
-		config := &eth.DefaultEthConfig
-		config.Name = "GethKardia-" + args.name
-		config.ListenAddr = args.ethListenAddr
-		config.LightServ = args.ethLightServ
-		config.ReportStats = args.ethStat
-		config.HTTPPort = args.ethRPCPort
-		config.HTTPVirtualHosts = []string{"*"}
-		config.NetworkId = args.ethNetworkId
-
-		if args.ethStatName != "" {
-			config.StatName = args.ethStatName
-		}
-		if args.dev && args.mockDualEvent {
-			config.DualNodeConfig = dev.CreateDualNodeConfig()
-		}
-
-		ethNode, err := eth.NewEth(
-			config,
+		ethProxy, err := eth.NewProxy(
 			kardiaService.BlockChain(),
 			kardiaService.TxPool(),
 			dualService.BlockChain(),
 			dualService.EventPool(),
-			&exchangeContractAddress,
-			exchangeContractAbi)
-		if err != nil {
-			logger.Error("Fail to create Eth sub node", "err", err)
-			return
-		}
-		if err := ethNode.Start(); err != nil {
-			logger.Error("Fail to start Eth sub node", "err", err)
-			return
-		}
+			args.publishedEndpoint,
+			args.subscribedEndpoint,
+		)
 
-		client, err := ethNode.Client()
 		if err != nil {
-			logger.Error("Fail to create Eth client", "err", err)
+			log.Error("Fail to initialize NeoProxy", "error", err)
 			return
 		}
 
 		if args.isPrivateDual {
 			var kardiaProxy *kardia.PrivateKardiaProxy
-			kardiaProxy, err = kardia.NewPrivateKardiaProxy(
-				kardiaService.BlockChain(),
-				kardiaService.TxPool(),
-				dualService.BlockChain(),
-				dualService.EventPool(),
-				&exchangeContractAddress,
-				exchangeContractAbi)
+			kardiaProxy, err = kardia.NewPrivateKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
+				dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
 			if err != nil {
-				log.Error("Fail to initialize KardiaChainProcessor", "error", err)
+				log.Error("Fail to initialize PrivateKardiaProxy", "error", err)
 			}
-
 			// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 			// submit tx to either internal or external blockchain.
-			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, ethNode)
+			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, ethProxy)
 			dualService.SetDualBlockChainManager(bcManager)
-
 			// Register the 'other' blockchain to each internal/external blockchain. This is needed
 			// for generate Tx to submit to the other blockchain.
-			kardiaProxy.RegisterExternalChain(ethNode)
-			ethNode.RegisterInternalChain(kardiaProxy)
-			go displaySyncStatus(client)
+			kardiaProxy.RegisterExternalChain(ethProxy)
+			ethProxy.RegisterInternalChain(kardiaProxy)
 			kardiaProxy.Start(args.mockDualEvent)
 		} else {
 			var kardiaProxy *kardia.KardiaProxy
-			kardiaProxy, err = kardia.NewKardiaProxy(
-				kardiaService.BlockChain(),
-				kardiaService.TxPool(),
-				dualService.BlockChain(),
-				dualService.EventPool(),
-				&exchangeContractAddress,
-				exchangeContractAbi)
+			kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
+				dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
 			if err != nil {
-				log.Error("Fail to initialize KardiaChainProcessor", "error", err)
+				log.Error("Fail to initialize KardiaProxy", "error", err)
 			}
-
 			// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 			// submit tx to either internal or external blockchain.
-			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, ethNode)
+			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, ethProxy)
 			dualService.SetDualBlockChainManager(bcManager)
-
 			// Register the 'other' blockchain to each internal/external blockchain. This is needed
 			// for generate Tx to submit to the other blockchain.
-			kardiaProxy.RegisterExternalChain(ethNode)
-			ethNode.RegisterInternalChain(kardiaProxy)
-			go displaySyncStatus(client)
+			kardiaProxy.RegisterExternalChain(ethProxy)
+			ethProxy.RegisterInternalChain(kardiaProxy)
 			kardiaProxy.Start(args.mockDualEvent)
 		}
+
+		// Start tron proxy
+		ethProxy.Start()
 	}
 
 	if args.isPrivateDual {
@@ -778,18 +740,6 @@ func displayKardiaPeers(n *node.Node) {
 		time.Sleep(20 * time.Second)
 	}
 
-}
-
-func displaySyncStatus(client *eth.EthClient) {
-	for {
-		status, err := client.NodeSyncStatus()
-		if err != nil {
-			log.Error("Fail to check sync status of EthKarida", "err", err)
-		} else {
-			log.Info("Sync status", "sync", status)
-		}
-		time.Sleep(20 * time.Second)
-	}
 }
 
 // genTxsLoop generate & add a batch of transfer txs, repeat after delay flag.
