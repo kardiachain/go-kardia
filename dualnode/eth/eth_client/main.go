@@ -25,8 +25,14 @@ import (
 
 // args
 type flagArgs struct {
-	path  string
-	name  string
+	path         string
+	name         string
+	ethNetworkId int
+	ethStat      bool
+	ethStatName  string
+
+	publishedEndpoint  string
+	subscribedEndpoint string
 }
 
 var args flagArgs
@@ -34,6 +40,11 @@ var args flagArgs
 func init() {
 	flag.StringVar(&args.path, "path", "./", "path to config file")
 	flag.StringVar(&args.name, "name", "config", "config file name")
+	flag.IntVar(&args.ethNetworkId, "ethNetworkId", 4, "run Eth network id, 4: rinkeby, 3: ropsten, 1: mainnet")
+	flag.BoolVar(&args.ethStat, "ethstat", true, "report eth stats to network")
+	flag.StringVar(&args.ethStatName, "ethstatname", "", "name to use when reporting eth stats")
+	flag.StringVar(&args.publishedEndpoint, "publishedEndpoint", "", "0MQ Endpoint that message will be published to")
+	flag.StringVar(&args.subscribedEndpoint, "subscribedEndpoint", "", "0MQ Endpoint that dual node subscribes to get dual message.")
 }
 
 func main() {
@@ -43,6 +54,20 @@ func main() {
 	config, err := Load(args.path, args.name)
 	if err != nil {
 		panic(err)
+	}
+
+	config.NetworkId = args.ethNetworkId
+
+	if args.ethStatName != "" {
+		config.StatName = args.ethStatName
+	}
+
+	if args.publishedEndpoint != "" {
+		config.PublishedEndpoint = args.publishedEndpoint
+	}
+
+	if args.subscribedEndpoint != "" {
+		config.SubscribedEndpoint = args.subscribedEndpoint
 	}
 
 	ethNode, err := NewEth(config)
