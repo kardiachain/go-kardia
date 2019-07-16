@@ -171,7 +171,8 @@ func NewEth(config *Config) (*Eth, error) {
 		return nil, fmt.Errorf("protocol node: %v", err)
 	}
 
-	if err := ethNode.Register(func(ctx *node.ServiceContext) (node.Service, error) { return les.New(ctx, ethConf) }); err != nil {
+	// register fullnode backend
+	if err := ethNode.Register(func(ctx *node.ServiceContext) (node.Service, error) { return eth.New(ctx, ethConf) }); err != nil {
 		return nil, fmt.Errorf("ethereum service: %v", err)
 	}
 
