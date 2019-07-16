@@ -265,6 +265,9 @@ func (n *Eth)handleBlock(block *types.Block) {
 
 	n.logger.Info("handleBlock...", "header", block.Header(), "txns size", len(block.Transactions()))
 	for _, tx := range block.Transactions() {
+		if tx.To() == nil {
+			continue
+		}
 		// get smc abi from database, return nil if not found
 		smcAbi := n.getAbi(tx.To().Hex())
 		if smcAbi == nil {
