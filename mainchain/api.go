@@ -211,7 +211,7 @@ type PublicTransaction struct {
 	Nonce            common.Uint64 `json:"nonce"`
 	To               string        `json:"to"`
 	TransactionIndex uint          `json:"transactionIndex"`
-	Value            common.Uint64 `json:"value"`
+	Value            string        `json:"value"`
 }
 
 type Log struct {
@@ -264,7 +264,7 @@ func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNum
 		Hash:     tx.Hash().Hex(),
 		Input:    common.Encode(tx.Data()),
 		Nonce:    common.Uint64(tx.Nonce()),
-		Value:    common.Uint64(tx.Value().Int64()),
+		Value:    tx.Value().String(),
 	}
 	if tx.To() != nil {
 		result.To = tx.To().Hex()
@@ -429,7 +429,7 @@ func NewPublicAccountAPI(kaiService *KardiaService) *PublicAccountAPI {
 }
 
 // Balance returns address's balance
-func (a *PublicAccountAPI) Balance(address string, hash string, height int64) int64 {
+func (a *PublicAccountAPI) Balance(address string, hash string, height int64) string {
 	addr := common.HexToAddress(address)
 	log.Info("Addr", "addr", addr.Hex())
 	block := new(types.Block)
@@ -445,9 +445,9 @@ func (a *PublicAccountAPI) Balance(address string, hash string, height int64) in
 	state, err := a.kaiService.blockchain.StateAt(block.Root())
 	if err != nil {
 		log.Error("Fail to get state from block", "err", err, "block", block)
-		return -1
+		return "-1"
 	}
-	return state.GetBalance(addr).Int64()
+	return state.GetBalance(addr).String()
 }
 
 // Nonce return address's nonce
