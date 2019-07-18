@@ -21,7 +21,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/kardiachain/go-kardia/tool"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -47,6 +46,7 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/tool"
 )
 
 // args
@@ -808,7 +808,7 @@ func genTxsLoop(numTxs int, txPool *tx_pool.TxPool) {
 func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool, genRound int) {
 	goodCount := 0
 	badCount := 0
-	txList := genTool.GenerateTx(numTxs)
+	txList := genTool.GenerateRandomTxWithState(numTxs, txPool.State().StateDB)
 	log.Info("GenTxs Adding new transactions", "num", numTxs, "genRound", genRound)
 	errs := txPool.AddLocals(txList)
 	for _, err := range errs {
