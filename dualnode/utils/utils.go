@@ -660,7 +660,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 			}
 			log.Info("ReleaseInfo", "type", t, "address", arrAddresses[i], "amount", arrAmounts[i], "matchedTxId", arrTxIds[i])
 
-			if t == configs.TRON || t == configs.NEO {
+			if t == configs.TRON || t == configs.NEO || t == configs.ETH {
 				address := arrAddresses[i]
 				amount, err1 := strconv.ParseInt(arrAmounts[i], 10, 64) //big.NewInt(0).SetString(arrAmounts[i], 10)
 				proxy.Logger().Info("Amount from smc", "amount", amount, "in string", arrAmounts[i])
@@ -675,33 +675,23 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 					toAmount = tempFromAmount
 				}
 
-				var releasedAmount *big.Int
-				if t == configs.TRON {
-					// TRON is the smallest unit then do nothing with it
+				var (
+					releasedAmount *big.Int
+					err            error
+				)
+				if t == configs.TRON { // TRON is the smallest unit then do nothing with it
 					releasedAmount = big.NewInt(amount)
+				} else if t == configs.ETH {
+					releasedAmount, err = calculateReleasedAmountFromETH(amount, fromAmount, toAmount, fromType)
 				} else { // NEO
-					if toType == configs.ETH {
-						// Divide amount from smart contract by 10^8 to get base NEO amount to release
-						releasedAmount = big.NewInt(amount).Div(big.NewInt(amount), TenPoweredByEight)
-					} else {
-						// fromType is TRON
-						// Calculate the releasedAmount based on the rate (fromAmount, toAmount)
-						releaseByFloat := big.NewFloat(float64(amount))
-						releaseByFloat = releaseByFloat.Mul(releaseByFloat, new(big.Float).SetInt(toAmount))
-						releaseByFloat = releaseByFloat.Quo(releaseByFloat, new(big.Float).SetInt(fromAmount))
-						// divide by 10^6 to get normal number
-						releaseByFloat = releaseByFloat.Quo(releaseByFloat, TenPoweredBySixFloat)
-						temp, _ := releaseByFloat.Float64()
-						releasedAmount = big.NewInt(int64(math.Round(temp)))
-					}
-					proxy.Logger().Info("Prepare to release", "amount", releasedAmount)
-					// don't release  NEO if quantity < 1
-					if releasedAmount.Cmp(big.NewInt(1)) < 0 {
-						proxy.Logger().Error("Too little amount to send", "originalTxId", originalTx, "err", errAmountLessThanOne, "amount", releasedAmount)
-						return errAmountLessThanOne
-					}
-
+					releasedAmount, err = calculateReleasedAmountFromNEO(amount, fromAmount, toAmount, toType)
 				}
+
+				if err != nil {
+					proxy.Logger().Error(fmt.Sprintf("Error while calculating released amount from %v", t), "originalTxId", originalTx, "err", err, "amount", releasedAmount)
+					return err
+				}
+
 				if err := Release(proxy, address, arrTxIds[i], releasedAmount.String()); err != nil {
 					proxy.Logger().Error("Error when releasing", "err", err.Error())
 					return err
@@ -711,4 +701,48 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 	}
 	log.Info("There is no matched result for tx", "originalTxId", originalTx)
 	return nil
+}
+
+func calculateReleasedAmountFromNEO(amount int64, fromAmount, toAmount *big.Int, toType string) (*big.Int, error) {
+	var releasedAmount *big.Int
+	if toType == configs.ETH {
+		// Divide amount from smart contract by 10^8 to get base NEO amount to release
+		releasedAmount = big.NewInt(amount).Div(big.NewInt(amount), TenPoweredByEight)
+	} else {
+		// fromType is TRON
+		// Calculate the releasedAmount based on the rate (fromAmount, toAmount)
+		releaseByFloat := big.NewFloat(float64(amount))
+		releaseByFloat = releaseByFloat.Mul(releaseByFloat, new(big.Float).SetInt(toAmount))
+		releaseByFloat = releaseByFloat.Quo(releaseByFloat, new(big.Float).SetInt(fromAmount))
+		// divide by 10^6 to get normal number
+		releaseByFloat = releaseByFloat.Quo(releaseByFloat, TenPoweredBySixFloat)
+		temp, _ := releaseByFloat.Float64()
+		releasedAmount = big.NewInt(int64(math.Round(temp)))
+	}
+	// don't release  NEO if quantity < 1
+	if releasedAmount.Cmp(big.NewInt(1)) < 0 {
+		return nil, errAmountLessThanOne
+	}
+	return releasedAmount, nil
+}
+
+func calculateReleasedAmountFromETH(amount int64, fromAmount, toAmount *big.Int, fromType string) (*big.Int, error) {
+	// Calculate the released amount by wei
+	convertedAmount := big.NewFloat(float64(amount))
+	convertedAmount = convertedAmount.Quo(convertedAmount, new(big.Float).SetInt(fromAmount))
+	convertedAmount = convertedAmount.Mul(convertedAmount, new(big.Float).SetInt(toAmount))
+	switch fromType {
+	case configs.NEO:
+		// if fromType is NEO then convert from NEO unit (10^8) to 10^18
+		convertedAmount = big.NewFloat(float64(1)).Mul(convertedAmount, TenPoweredByTenFloat)
+		temp, _ := convertedAmount.Float64()
+		return big.NewInt(int64(math.Round(temp))), nil
+	case configs.TRON:
+		// if fromType is TRON then convert from TRON unit (10^6) to 10^18
+		convertedAmount = big.NewFloat(float64(1)).Mul(convertedAmount, TenPoweredByTwelveFloat)
+		temp, _ := convertedAmount.Float64()
+		return big.NewInt(int64(math.Round(temp))), nil
+	default:
+		return nil, fmt.Errorf("invalid fromType %v", fromType)
+	}
 }
