@@ -1132,7 +1132,6 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 
 	cs.logger.Info("Finalizing commit of block", "tx number", block.NumTxs(),
 		"height", block.Height(), "hash", block.Hash().String())
-	cs.logger.Info(cmn.Fmt("%v", block))
 
 	fail.Fail() // XXX
 
