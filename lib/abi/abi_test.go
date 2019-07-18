@@ -1073,3 +1073,24 @@ func TestEventIndexedWithArrayUnpack(t *testing.T) {
 	require.Equal(t, [2]uint8{0, 0}, rst.Value1)
 	require.Equal(t, stringOut, rst.Value2)
 }
+
+func TestABI_UnmarshalJSON(t *testing.T) {
+	definition := `[{"constant":false,"inputs":[{"name":"receiver","type":"address"},{"name":"amount","type":"uint256"}],"name":"release","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
+{"constant":false,"inputs":[{"name":"receiver","type":"string"},{"name":"destination","type":"string"}],"name":"deposit","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},
+{"constant":true,"inputs":[{"name":"destination","type":"string"}],"name":"isValidType","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},
+{"constant":false,"inputs":[{"name":"_type","type":"string"},{"name":"status","type":"bool"}],"name":"updateAvailableType","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
+{"inputs":[{"name":"_owner","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"}]`
+
+	abi, err := JSON(strings.NewReader(definition))
+	require.NoError(t, err)
+
+	methodName := "release"
+
+	for k, v := range abi.Methods {
+		if k == methodName {
+			for _, arg := range v.Inputs {
+				println(fmt.Sprintf("Name: %v, Type: %v", arg.Name, arg.Type))
+			}
+		}
+	}
+}
