@@ -21,7 +21,6 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	message2 "github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
-	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/pebbe/zmq4"
 	"math/big"
 	"os"
@@ -44,7 +43,7 @@ const (
 type Eth struct {
 	// name is name of proxy, or type that proxy connects to (eg: NEO, TRX, ETH, KARDIA)
 	name   string
-	logger log.Logger
+	logger ethlog.Logger
 
 	// Eth's blockchain stuffs.
 	geth   *node.Node
@@ -78,6 +77,8 @@ func homeDir() string {
 
 func NewEth(config *Config) (*Eth, error) {
 
+	ethlog.Info("Init New ETH client")
+
 	if len(config.ContractAddress) != len(config.ContractAbis) {
 		return nil, fmt.Errorf("contract Addresses and abis are mismatched")
 	}
@@ -94,9 +95,9 @@ func NewEth(config *Config) (*Eth, error) {
 	}
 
 	// Create a specific logger for ETH Proxy.
-	logger := log.New()
+	logger := ethlog.New()
 	ethlog.Root().SetHandler(ethlog.LvlFilterHandler(ethlog.LvlInfo, ethlog.StdoutHandler))
-	logger.AddTag(ServiceName)
+	//logger.AddTag(ServiceName)
 
 	bootUrls := params.RinkebyBootnodes
 	bootstrapNodes := make([]*enode.Node, 0, len(bootUrls))
@@ -104,14 +105,14 @@ func NewEth(config *Config) (*Eth, error) {
 	for _, url := range bootUrls {
 		peer, err := enode.ParseV4(url)
 		if err != nil {
-			log.Error("Bootstrap URL invalid", "enode", url, "err", err)
+			ethlog.Error("Bootstrap URL invalid", "enode", url, "err", err)
 			continue
 		}
 		bootstrapNodes = append(bootstrapNodes, peer)
 
 		peerV5, err := discv5.ParseNode(url)
 		if err != nil {
-			log.Error("BootstrapV5 URL invalid", "enode", url, "err", err)
+			ethlog.Error("BootstrapV5 URL invalid", "enode", url, "err", err)
 			continue
 		}
 		bootstrapNodesV5 = append(bootstrapNodesV5, peerV5)
@@ -163,7 +164,7 @@ func NewEth(config *Config) (*Eth, error) {
 	// similar to cmd/utils/flags.go
 	ethConf.DatabaseCache = config.CacheSize * 75 / 100
 	// Hardcode to 50% of 2048 file descriptor limit for whole process, as in flags.go/makeDatabaseHandles()
-	ethConf.DatabaseHandles = 1024
+	ethConf.DatabaseHandles = config.DBHandle
 
 	// Creates new node.
 	ethNode, err := node.New(nodeConfig)
@@ -189,7 +190,7 @@ func NewEth(config *Config) (*Eth, error) {
 
 			return ethstats.New(url, ethServ, lesServ)
 		}); err != nil {
-			log.Error("Failed to register the Ethereum Stats service", "err", err)
+			ethlog.Error("Failed to register the Ethereum Stats service", "err", err)
 		}
 	}
 	return &Eth{
@@ -206,11 +207,10 @@ func NewEth(config *Config) (*Eth, error) {
 // syncHead syncs with latest events from Eth network to Kardia.
 func (n *Eth)syncHead() {
 	var ethService *eth.Ethereum
-
 	n.geth.Service(&ethService)
 
 	if ethService == nil {
-		log.Error("Not implement dual sync for Eth light mode yet")
+		ethlog.Error("Not implement dual sync for Eth light mode yet")
 		return
 	}
 
@@ -233,25 +233,19 @@ func (n *Eth)syncHead() {
 				select {
 				case blockCh <- head.Block:
 					// Block field would be nil here.
-					log.Info("receive new block", "blockNumber", head.Block.Number(), "txs", len(head.Block.Transactions()))
+					ethlog.Info("receive new block", "blockNumber", head.Block.Number(), "txs", len(head.Block.Transactions()))
 				default:
 					// TODO(thientn): improves performance/handling here.
+				}
+			case block := <-blockCh:
+				if !n.config.LightNode {
+					go n.handleBlock(block)
 				}
 			case <-headSubCh.Err():
 				break ListenerLoop
 			}
 		}
 	}()
-
-	// Handler loop for new blocks.
-	for {
-		select {
-		case block := <-blockCh:
-			if !n.config.LightNode {
-				go n.handleBlock(block)
-			}
-		}
-	}
 }
 
 func (n *Eth)handleBlock(block *types.Block) {
@@ -260,11 +254,11 @@ func (n *Eth)handleBlock(block *types.Block) {
 	// Some events has nil block.
 	if block == nil {
 		// TODO(thientn): could call blockchain.CurrentBlock() here.
-		log.Info("handleBlock with nil block")
+		ethlog.Info("handleBlock with nil block")
 		return
 	}
 
-	log.Info("handleBlock...", "header", block.Header(), "txns size", len(block.Transactions()))
+	ethlog.Info("handleBlock...", "header", block.Header(), "txns size", len(block.Transactions()))
 	for _, tx := range block.Transactions() {
 		if tx.To() == nil {
 			continue
@@ -295,7 +289,7 @@ func (n *Eth)handleBlock(block *types.Block) {
 			}
 
 			if err := n.PublishMessage(message); err != nil {
-				log.Error("error while publishing tx message", "err", err)
+				ethlog.Error("error while publishing tx message", "err", err)
 			}
 		}
 	}
@@ -325,7 +319,7 @@ func (n *Eth)PublishMessage(message interface{}) error {
 	}
 
 	// send message
-	log.Info("Publish message", "topic", topic, "msgToSend", msgToSend)
+	ethlog.Info("Publish message", "topic", topic, "msgToSend", msgToSend)
 	if _, err = pub.Send(msgToSend, zmq4.DONTWAIT); err != nil {
 		return err
 	}
@@ -366,7 +360,7 @@ func (n *Eth)StartSubscribe() {
 	time.Sleep(time.Second)
 	for {
 		if err := n.subscribe(subscriber); err != nil {
-			log.Error("Error while subscribing", "err", err.Error())
+			ethlog.Error("Error while subscribing", "err", err.Error())
 		}
 	}
 }
@@ -383,7 +377,7 @@ func (n *Eth)subscribe(subscriber *zmq4.Socket) error {
 	if err != nil {
 		return err
 	}
-	log.Info("[%s] %s\n", topic, contents)
+	ethlog.Info("[%s] %s\n", topic, contents)
 
 	switch topic {
 	case utils.KARDIA_CALL:
@@ -404,7 +398,7 @@ func (n *Eth)subscribe(subscriber *zmq4.Socket) error {
 			// append tx hash returned by previous trigger tx to callback's param.
 			cb.Params = append(cb.Params, *tx)
 			if err := n.PublishMessage(cb); err != nil {
-				log.Error("error while publish message to dual node", "err", err)
+				ethlog.Error("error while publish message to dual node", "err", err)
 			}
 		}
 	default:
@@ -448,10 +442,10 @@ func (n *Eth) ExecuteTriggerMessage(message *message2.TriggerMessage) (*string, 
 		// add tx into eth's pool
 		err = n.ethTxPool().AddLocal(tx)
 		if err != nil {
-			log.Error("Fail to add Ether tx", "error", err)
+			ethlog.Error("Fail to add Ether tx", "error", err)
 			return nil, err
 		}
-		log.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
+		ethlog.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
 		str := tx.Hash().Hex()
 		return &str, nil
 	}
@@ -468,14 +462,14 @@ func (n *Eth) createEthSmartContractCallTx(contractAddr common.Address, input []
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	statedb, err := n.ethBlockChain().State()
 	if err != nil {
-		log.Error("Fail to get Ethereum state to create release tx", "err", err)
+		ethlog.Error("Fail to get Ethereum state to create release tx", "err", err)
 		return nil
 	}
 
 	// Nonce of account to sign tx
 	nonce := statedb.GetNonce(addr)
 	if nonce == 0 {
-		log.Error("Eth state return 0 for nonce of contract address", "addr", addr)
+		ethlog.Error("Eth state return 0 for nonce of contract address", "addr", addr)
 		return nil
 	}
 
@@ -561,7 +555,7 @@ func GetMethodAndParams(smcABI abi.ABI, input []byte) (string, []string) {
 	}
 
 	if err := method.Inputs.Unpack(str, input[4:]); err != nil {
-		log.Error("error while unpacking inputs", "method", method.Name, "err", err)
+		ethlog.Error("error while unpacking inputs", "method", method.Name, "err", err)
 		return "", nil
 	}
 	obj := reflect.ValueOf(str)
