@@ -210,7 +210,7 @@ func (n *Eth)syncHead() {
 	n.geth.Service(&ethService)
 
 	if ethService == nil {
-		n.logger.Error("Not implement dual sync for Eth light mode yet")
+		log.Error("Not implement dual sync for Eth light mode yet")
 		return
 	}
 
@@ -233,6 +233,7 @@ func (n *Eth)syncHead() {
 				select {
 				case blockCh <- head.Block:
 					// Block field would be nil here.
+					log.Info("receive new block", "blockNumber", head.Block.Number(), "txs", len(head.Block.Transactions()))
 				default:
 					// TODO(thientn): improves performance/handling here.
 				}
@@ -259,11 +260,11 @@ func (n *Eth)handleBlock(block *types.Block) {
 	// Some events has nil block.
 	if block == nil {
 		// TODO(thientn): could call blockchain.CurrentBlock() here.
-		n.logger.Info("handleBlock with nil block")
+		log.Info("handleBlock with nil block")
 		return
 	}
 
-	n.logger.Info("handleBlock...", "header", block.Header(), "txns size", len(block.Transactions()))
+	log.Info("handleBlock...", "header", block.Header(), "txns size", len(block.Transactions()))
 	for _, tx := range block.Transactions() {
 		if tx.To() == nil {
 			continue
@@ -294,7 +295,7 @@ func (n *Eth)handleBlock(block *types.Block) {
 			}
 
 			if err := n.PublishMessage(message); err != nil {
-				n.logger.Error("error while publishing tx message", "err", err)
+				log.Error("error while publishing tx message", "err", err)
 			}
 		}
 	}
@@ -313,9 +314,30 @@ func (n *Eth)PublishMessage(message interface{}) error {
 	// sleep 1 second to prevent socket closes
 	time.Sleep(1 * time.Second)
 
-	m := &jsonpb.Marshaler{}
+	msgToSend, topic, err := GetMessageToSend(message)
+	if err != nil {
+		return err
+	}
+
+	// send topic
+	if _, err = pub.Send(topic, zmq4.SNDMORE); err != nil {
+		return err
+	}
+
+	// send message
+	log.Info("Publish message", "topic", topic, "msgToSend", msgToSend)
+	if _, err = pub.Send(msgToSend, zmq4.DONTWAIT); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetMessageToSend returns topic and correspond message based on input type
+func GetMessageToSend(message interface{}) (string, string, error) {
 	var msgToSend, topic string
 	var err error
+	m := &jsonpb.Marshaler{}
 
 	switch message.(type) {
 	case message2.Message:
@@ -327,25 +349,12 @@ func (n *Eth)PublishMessage(message interface{}) error {
 		msgToSend, err = m.MarshalToString(&msg)
 		topic = utils.DUAL_CALL
 	default:
-		return fmt.Errorf("invalid message type")
+		err = fmt.Errorf("invalid message type")
 	}
-
 	if err != nil {
-		return err
+		return "", "", err
 	}
-
-	// send topic
-	if _, err = pub.Send(topic, zmq4.SNDMORE); err != nil {
-		return err
-	}
-
-	// send message
-	n.logger.Info("Publish message", "topic", topic, "msgToSend", msgToSend)
-	if _, err = pub.Send(msgToSend, zmq4.DONTWAIT); err != nil {
-		return err
-	}
-
-	return nil
+	return msgToSend, topic, nil
 }
 
 // StartSubscribe subscribes messages from subscribedEndpoint
@@ -357,7 +366,7 @@ func (n *Eth)StartSubscribe() {
 	time.Sleep(time.Second)
 	for {
 		if err := n.subscribe(subscriber); err != nil {
-			n.logger.Error("Error while subscribing", "err", err.Error())
+			log.Error("Error while subscribing", "err", err.Error())
 		}
 	}
 }
@@ -374,7 +383,7 @@ func (n *Eth)subscribe(subscriber *zmq4.Socket) error {
 	if err != nil {
 		return err
 	}
-	n.logger.Info("[%s] %s\n", topic, contents)
+	log.Info("[%s] %s\n", topic, contents)
 
 	switch topic {
 	case utils.KARDIA_CALL:
@@ -439,10 +448,10 @@ func (n *Eth) ExecuteTriggerMessage(message *message2.TriggerMessage) (*string, 
 		// add tx into eth's pool
 		err = n.ethTxPool().AddLocal(tx)
 		if err != nil {
-			n.logger.Error("Fail to add Ether tx", "error", err)
+			log.Error("Fail to add Ether tx", "error", err)
 			return nil, err
 		}
-		n.logger.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
+		log.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
 		str := tx.Hash().Hex()
 		return &str, nil
 	}
@@ -459,14 +468,14 @@ func (n *Eth) createEthSmartContractCallTx(contractAddr common.Address, input []
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 	statedb, err := n.ethBlockChain().State()
 	if err != nil {
-		n.logger.Error("Fail to get Ethereum state to create release tx", "err", err)
+		log.Error("Fail to get Ethereum state to create release tx", "err", err)
 		return nil
 	}
 
 	// Nonce of account to sign tx
 	nonce := statedb.GetNonce(addr)
 	if nonce == 0 {
-		n.logger.Error("Eth state return 0 for nonce of contract address", "addr", addr)
+		log.Error("Eth state return 0 for nonce of contract address", "addr", addr)
 		return nil
 	}
 
