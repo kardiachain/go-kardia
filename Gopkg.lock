@@ -288,12 +288,12 @@
   name = "github.com/karalabe/usb"
   packages = [
     ".",
-    "hidapi/hidapi",
-    "hidapi/libusb",
-    "hidapi/mac",
-    "hidapi/windows",
-    "libusb/libusb",
-    "libusb/libusb/os",
+    "hidapi",
+    "libusb",
+    "mac",
+    "windows",
+    "libusb",
+    "libusb/os",
   ]
   pruneopts = "UT"
   revision = "9be757f914c0907b7ddd561ea86eec15313ac022"
