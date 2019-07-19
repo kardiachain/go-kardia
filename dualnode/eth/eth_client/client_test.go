@@ -42,3 +42,7 @@ func TestGetMethodAndParams(t *testing.T) {
 
 	println(fmt.Sprintf("method %v and params %v", method, params))
 }
+
+//func TestGetMessageToSend(t *testing.T) {
+//
+//}
