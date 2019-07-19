@@ -43,7 +43,7 @@ var DefaultEthConfig = EthConfig{
 	HTTPVirtualHosts: []string{"0.0.0.0", "localhost"},
 	HTTPCors:         []string{"*"},
 
-	CacheSize: 16,
+	CacheSize: 4096,
 }
 
 var EthDualChainID = uint64(2)

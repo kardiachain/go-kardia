@@ -111,6 +111,29 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 	logger.AddTag(ServiceName)
 
 	bootUrls := params.RinkebyBootnodes
+
+	datadir := defaultEthDataDir()
+	// similar to cmd/eth/config.go/makeConfigNode
+	ethConf := &eth.DefaultConfig
+	ethConf.NetworkId = uint64(config.NetworkId)
+
+	switch ethConf.NetworkId {
+	case 1: // mainnet
+		ethConf.Genesis = ethCore.DefaultGenesisBlock()
+		datadir = filepath.Join(datadir, "mainnet", config.Name)
+		bootUrls = params.MainnetBootnodes
+	case 3: // ropsten
+		ethConf.Genesis = ethCore.DefaultTestnetGenesisBlock()
+		datadir = filepath.Join(datadir, "ropsten", config.Name)
+		bootUrls = params.TestnetBootnodes
+	case 4: // rinkeby
+		ethConf.Genesis = ethCore.DefaultRinkebyGenesisBlock()
+		datadir = filepath.Join(datadir, "rinkeby", config.Name)
+	default: // default is rinkeby
+		ethConf.Genesis = ethCore.DefaultRinkebyGenesisBlock()
+		datadir = filepath.Join(datadir, "rinkeby", config.Name)
+	}
+
 	bootstrapNodes := make([]*enode.Node, 0, len(bootUrls))
 	bootstrapNodesV5 := make([]*discv5.Node, 0, len(bootUrls)) // rinkeby set default bootnodes as also discv5 nodes.
 	for _, url := range bootUrls {
@@ -127,26 +150,6 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 			continue
 		}
 		bootstrapNodesV5 = append(bootstrapNodesV5, peerV5)
-	}
-
-	datadir := defaultEthDataDir()
-	// similar to cmd/eth/config.go/makeConfigNode
-	ethConf := &eth.DefaultConfig
-	ethConf.NetworkId = uint64(config.NetworkId)
-
-	switch ethConf.NetworkId {
-	case 1: // mainnet
-		ethConf.Genesis = ethCore.DefaultGenesisBlock()
-		datadir = filepath.Join(datadir, "mainnet", config.Name)
-	case 3: // ropsten
-		ethConf.Genesis = ethCore.DefaultTestnetGenesisBlock()
-		datadir = filepath.Join(datadir, "ropsten", config.Name)
-	case 4: // rinkeby
-		ethConf.Genesis = ethCore.DefaultRinkebyGenesisBlock()
-		datadir = filepath.Join(datadir, "rinkeby", config.Name)
-	default: // default is rinkeby
-		ethConf.Genesis = ethCore.DefaultRinkebyGenesisBlock()
-		datadir = filepath.Join(datadir, "rinkeby", config.Name)
 	}
 
 	// similar to utils.SetNodeConfig
@@ -175,7 +178,7 @@ func NewEth(config *EthConfig, kardiaChain base.BaseBlockChain, txPool *tx_pool.
 	// similar to cmd/utils/flags.go
 	ethConf.DatabaseCache = config.CacheSize * 75 / 100
 	// Hardcode to 50% of 2048 file descriptor limit for whole process, as in flags.go/makeDatabaseHandles()
-	ethConf.DatabaseHandles = 1024
+	//ethConf.DatabaseHandles = 1024
 
 	// Creates new node.
 	ethNode, err := node.New(nodeConfig)
