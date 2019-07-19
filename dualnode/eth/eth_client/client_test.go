@@ -4,7 +4,10 @@ import (
 	"fmt"
 	abi2 "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/kardiachain/go-kardia/dualnode/eth/ethsmc"
+	message2 "github.com/kardiachain/go-kardia/dualnode/message"
+	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
 )
@@ -43,6 +46,19 @@ func TestGetMethodAndParams(t *testing.T) {
 	println(fmt.Sprintf("method %v and params %v", method, params))
 }
 
-//func TestGetMessageToSend(t *testing.T) {
-//
-//}
+func TestGetMessageToSendDualMessage(t *testing.T) {
+	message := message2.Message{
+		TransactionId: "0x00",
+		ContractAddress: "0x00",
+		BlockNumber: 123,
+		Sender: "0x00",
+		Amount: 1000,
+		Timestamp: getCurrentTimeStamp(),
+		MethodName: "testMethod",
+		Params: make([]string, 0),
+	}
+	msg, topic, err := GetMessageToSend(message)
+	require.NoError(t, err)
+	require.EqualValues(t, utils.DUAL_MSG, topic)
+	println(msg)
+}
