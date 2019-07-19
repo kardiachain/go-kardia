@@ -32,6 +32,7 @@ type (
 		SubscribedEndpoint string      `yaml:"SubscribedEndpoint"`
 		PublishedEndpoint  string      `yaml:"PublishedEndpoint"`
 		SignedTxPrivateKey string      `yaml:"SignedTxPrivateKey"`
+		LogLvl             int         `yaml:"LogLvl"`
 	}
 )
 
