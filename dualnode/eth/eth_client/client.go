@@ -96,7 +96,7 @@ func NewEth(config *Config) (*Eth, error) {
 
 	// Create a specific logger for ETH Proxy.
 	logger := ethlog.New()
-	ethlog.Root().SetHandler(ethlog.LvlFilterHandler(ethlog.LvlInfo, ethlog.StdoutHandler))
+	ethlog.Root().SetHandler(ethlog.LvlFilterHandler(ethlog.Lvl(config.LogLvl), ethlog.StdoutHandler))
 	//logger.AddTag(ServiceName)
 
 	bootUrls := params.RinkebyBootnodes
