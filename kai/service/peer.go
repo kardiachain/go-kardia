@@ -24,13 +24,13 @@ import (
 	"sync"
 	"time"
 
+	mapset "github.com/deckarep/golang-set"
 	"github.com/kardiachain/go-kardia/consensus"
 	serviceconst "github.com/kardiachain/go-kardia/kai/service/const"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/types"
-	"gopkg.in/fatih/set.v0"
 )
 
 var (
@@ -70,14 +70,13 @@ type peer struct {
 
 	version int // Protocol version negotiated
 
-	knownTxs  *set.Set                  // Set of transaction hashes known to be known by this peer
+	knownTxs  mapset.Set                // Set of transaction hashes known to be known by this peer
 	queuedTxs chan []*types.Transaction // Queue of transactions to broadcast to the peer
 
 	csReactor *consensus.ConsensusManager
 
 	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
-	Protocol string
-
+	Protocol   string
 }
 
 func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, csReactor *consensus.ConsensusManager) *peer {
@@ -88,7 +87,7 @@ func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, 
 		version:    version,
 		id:         fmt.Sprintf("%x", p.ID().Bytes()[:8]),
 		queuedTxs:  make(chan []*types.Transaction, maxQueuedTxs),
-		knownTxs:   set.New(),
+		knownTxs:   mapset.NewSet(),
 		csReactor:  csReactor,
 		terminated: make(chan struct{}),
 	}
@@ -301,7 +300,7 @@ func (p *peer) broadcast() {
 // will never be propagated to this particular peer.
 func (p *peer) MarkTransaction(hash common.Hash) {
 	// If we reached the memory allowance, drop a previously known transaction hash
-	for p.knownTxs.Size() >= maxKnownTxs {
+	for p.knownTxs.Cardinality() >= maxKnownTxs {
 		p.knownTxs.Pop()
 	}
 	p.knownTxs.Add(hash)
@@ -315,7 +314,7 @@ func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
 
 	list := make([]*peer, 0, len(ps.peers))
 	for _, p := range ps.peers {
-		if !p.knownTxs.Has(hash) {
+		if !p.knownTxs.Contains(hash) {
 			list = append(list, p)
 		}
 	}

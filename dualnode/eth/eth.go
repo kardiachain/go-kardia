@@ -555,7 +555,7 @@ func (n *Eth) handleBlock(block *ethTypes.Block) {
 		return
 	}
 
-	log.Info("handleBlock...", "header", block.Header(), "txns size", len(block.Transactions()))
+	log.Info("HandleBlock...", "header", block.Header().Hash(), "txns size", len(block.Transactions()))
 	for _, tx := range block.Transactions() {
 		for _, ks := range n.kardiaSmcs {
 			if n.TxMatchesWatcher(tx, ks.EventWatcher) {
