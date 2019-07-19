@@ -28,6 +28,7 @@ type (
 		HTTPVirtualHosts   []string    `yaml:"HTTPVirtualHosts"`
 		HTTPCors           []string    `yaml:"HTTPCors"`
 		CacheSize          int         `yaml:"CacheSize"`
+		DBHandle           int         `yaml:"DBHandle"`
 		SubscribedEndpoint string      `yaml:"SubscribedEndpoint"`
 		PublishedEndpoint  string      `yaml:"PublishedEndpoint"`
 		SignedTxPrivateKey string      `yaml:"SignedTxPrivateKey"`
