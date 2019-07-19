@@ -284,18 +284,10 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:70285755b35737e521abdf5e786e159f52ea5ffa3eeb84c53561b29afd77cebb"
+  digest = "1:d4cb85f57fbf9273ba7fab81e8337887a127fee71766dd2c82cb1f3322aba411"
   name = "github.com/karalabe/usb"
-  packages = [
-    ".",
-    "hidapi",
-    "libusb",
-    "mac",
-    "windows",
-    "libusb",
-    "libusb/os",
-  ]
-  pruneopts = "UT"
+  packages = ["."]
+  pruneopts = "T"
   revision = "9be757f914c0907b7ddd561ea86eec15313ac022"
 
 [[projects]]
