@@ -467,8 +467,8 @@ func (n *Eth) submitEthReleaseTx(value *big.Int, receiveAddress string) (string,
 		return "", err
 	}
 	// TODO(thientn,namdoh): Remove hard-coded address.
-	contractAddr := ethCommon.HexToAddress(ethsmc.EthAccountSign)
-	tx, err := CreateEthReleaseAmountTx(contractAddr, receiveAddress, statedb, value, n.ethSmc)
+	accountSign := ethCommon.HexToAddress(ethsmc.EthAccountSign)
+	tx, err := CreateEthReleaseAmountTx(n.config.ContractAddress, accountSign, receiveAddress, statedb, value, n.ethSmc)
 	if err != nil {
 		log.Error("Fail to create Eth's tx", "err", err)
 		return "", err
