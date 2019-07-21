@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -33,6 +33,7 @@ type (
 		PublishedEndpoint  string      `yaml:"PublishedEndpoint"`
 		SignedTxPrivateKey string      `yaml:"SignedTxPrivateKey"`
 		LogLvl             int         `yaml:"LogLvl"`
+		Logger             log.Logger
 	}
 )
 
