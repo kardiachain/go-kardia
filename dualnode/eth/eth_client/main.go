@@ -19,8 +19,10 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/ethereum/go-ethereum/log"
+	"time"
 )
 
 // args
@@ -70,6 +72,8 @@ func main() {
 		config.SubscribedEndpoint = args.subscribedEndpoint
 	}
 
+	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(config.LogLvl), log.StdoutHandler))
+	config.Logger = log.New()
 	ethNode, err := NewEth(config)
 	if err != nil {
 		log.Error("Fail to create Eth sub node", "err", err)
@@ -79,10 +83,27 @@ func main() {
 		log.Error("Fail to start Eth sub node", "err", err)
 		return
 	}
-
+	go displaySyncStatus(ethNode)
 	waitForever()
 }
 
 func waitForever() {
 	select {}
 }
+
+func displaySyncStatus(eth *Eth) {
+	for {
+		client, _, err := eth.Client()
+		if err != nil {
+			log.Error("Fail on getting ETH's client", "err", err)
+		}
+		status, err := client.SyncProgress(context.Background())
+		if err != nil {
+			log.Error("Fail to check sync status of EthKarida", "err", err)
+		} else {
+			log.Info("Sync status", "sync", status)
+		}
+		time.Sleep(20 * time.Second)
+	}
+}
+
