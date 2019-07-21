@@ -20,7 +20,7 @@ HTTPCors:
  - "*"
 CacheSize: 16
 DBHandle: 16
-LogLvl: 5
+LogLvl: 3
 PublishedEndpoint: tcp://0.0.0.0:5555
 SubscribedEndpoint: tcp://0.0.0.0:5554
 SignedTxPrivateKey: 457D86F3AFAA8159D7C8356BF3F195CF7AED35AF84C7DC40C4D9AA27846ED9DC
