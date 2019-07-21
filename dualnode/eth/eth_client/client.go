@@ -81,15 +81,16 @@ func NewEth(config *Config) (*Eth, error) {
 	log.Info("Init New ETH client")
 
 	if len(config.ContractAddress) != len(config.ContractAbis) {
-		return nil, fmt.Errorf("contract Addresses and abis are mismatched")
+		panic(fmt.Errorf("contract Addresses and abis are mismatched"))
 	}
 
 	smcAbi := make(map[string]abi.ABI)
 	if len(config.ContractAddress) > 0 {
 		for i, address := range config.ContractAddress {
-			a, err := abi.JSON(strings.NewReader(config.ContractAbis[i]))
+			abiStr := strings.Replace(config.ContractAbis[i], "'", "\"", -1)
+			a, err := abi.JSON(strings.NewReader(abiStr))
 			if err != nil {
-				continue
+				panic(err)
 			}
 			smcAbi[address] = a
 		}
@@ -271,39 +272,40 @@ func (n *Eth)handleBlock(block *types.Block) {
 		return
 	}
 
-	log.Info("handleBlock...", "header", block.Header(), "txns size", len(block.Transactions()))
+	log.Info("handleBlock...", "blockNum", block.Number(), "txns size", len(block.Transactions()))
 	for _, tx := range block.Transactions() {
 		if tx.To() == nil {
+			log.Info("To address is nil", "tx", tx.Hash().Hex())
 			continue
 		}
 		// get smc abi from database, return nil if not found
 		smcAbi := n.getAbi(tx.To().Hex())
 		if smcAbi == nil {
+			log.Info("cannot find abi from to's address", "address", tx.To().Hex(), "tx", tx.Hash().Hex())
 			continue
 		}
 		signer := types.NewEIP155Signer(tx.ChainId())
 		sender, err := types.Sender(signer, tx)
 		if err != nil {
+			log.Error("error while getting sender address", "err", err, "tx", tx.Hash().Hex())
 			continue
 		}
 
-		if smcAbi, ok := n.smcABI[tx.To().Hex()]; ok {
-			// get method and params from data and create a dualMessage message
-			method, args := GetMethodAndParams(smcAbi, tx.Data())
-			message := message2.Message{
-				TransactionId: tx.Hash().Hex(),
-				ContractAddress: tx.To().Hex(),
-				BlockNumber: block.Number().Uint64(),
-				Sender: sender.Hex(),
-				Amount: tx.Value().Uint64(),
-				Timestamp: getCurrentTimeStamp(),
-				MethodName: method,
-				Params: args,
-			}
+		// get method and params from data and create a dualMessage message
+		method, args := GetMethodAndParams(*smcAbi, tx.Data())
+		message := message2.Message{
+			TransactionId: tx.Hash().Hex(),
+			ContractAddress: tx.To().Hex(),
+			BlockNumber: block.Number().Uint64(),
+			Sender: sender.Hex(),
+			Amount: tx.Value().Uint64(),
+			Timestamp: getCurrentTimeStamp(),
+			MethodName: method,
+			Params: args,
+		}
 
-			if err := n.PublishMessage(message); err != nil {
-				log.Error("error while publishing tx message", "err", err)
-			}
+		if err := n.PublishMessage(message); err != nil {
+			log.Error("error while publishing tx message", "err", err, "tx", tx.Hash().Hex())
 		}
 	}
 }
