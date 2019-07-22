@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
 	"sync"
@@ -119,7 +120,8 @@ func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx int, stateDb *stat
 		senderKey, toAddr := randomTxAddresses()
 		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
 		nonce := stateDb.GetNonce(senderPublicKey)
-		amount := big.NewInt(int64(RandomInt(1, 5)))
+		amount := big.NewInt(int64(RandomInt(10, 20)))
+		amount = amount.Mul(amount, big.NewInt(int64(math.Pow10(18))))
 		senderAddrS := senderPublicKey.String()
 
 		//get nonce from sender mapping
