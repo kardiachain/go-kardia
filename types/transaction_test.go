@@ -21,6 +21,7 @@ package types
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
 
@@ -49,6 +50,7 @@ var (
 	).WithSignature(
 		common.Hex2Bytes("98ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4a8887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a301"),
 	)
+
 )
 
 func TestTransactionSigHash(t *testing.T) {
@@ -139,4 +141,45 @@ func TestTransactionSigning(t *testing.T) {
 	if from != addr {
 		t.Errorf("exected from and address to be equal. Got %x want %x", from, addr)
 	}
+}
+
+func TestTransactionWithBigAmount(t *testing.T) {
+	var ok bool
+	amount := big.NewInt(1)
+	amount, ok = amount.SetString("1000000000000000000000", 10)
+	require.EqualValues(t, true, ok)
+
+	tx := NewTransaction(
+		3,
+		common.HexToAddress("7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5"),
+		amount,
+		2000,
+		big.NewInt(1),
+		common.FromHex("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"),
+	)
+
+	pk, err := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
+	require.NoError(t, err)
+
+	signedTx, err := SignTx(tx, pk)
+	require.NoError(t, err)
+
+	// encode tx
+	txb, err := rlp.EncodeToBytes(signedTx)
+	require.NoError(t, err)
+
+	println(common.Bytes2Hex(txb))
+
+	// try to decode tx
+	newTx, err := decodeTx(txb)
+	require.NoError(t, err)
+	require.EqualValues(t, amount, newTx.data.Amount)
+}
+
+func TestDecodeTransactionFromKaiTool(t *testing.T) {
+	data := "0xf86702018203e8941e16b1fa6de4fba651242f06cd1a5415d5dd7b8a888ac7230489e80000801ca0a1b2a32c3316f64a9664e03ed327bf5f5c91f250d087eb197361491439f28a43a053226129ace66232c433410e286d22cd52ab94481816fec7adf903d232ff8d3d"
+	byteData := common.FromHex(data)
+	tx, err := decodeTx(byteData)
+	require.NoError(t, err)
+	println(tx.Value().String())
 }

@@ -34,9 +34,9 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
-	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 )
 
 const (
@@ -80,8 +80,8 @@ func NewPublicKaiAPI(kaiService *KardiaService) *PublicKaiAPI {
 func getBasicReceipt(receipt types.Receipt) *BasicReceipt {
 	logs := getReceiptLogs(receipt)
 	basicReceipt := BasicReceipt{
-		TransactionHash: receipt.TxHash.Hex(),
-		GasUsed: receipt.GasUsed,
+		TransactionHash:   receipt.TxHash.Hex(),
+		GasUsed:           receipt.GasUsed,
 		CumulativeGasUsed: receipt.CumulativeGasUsed,
 		ContractAddress:   "0x",
 		Logs:              logs,
@@ -211,7 +211,7 @@ type PublicTransaction struct {
 	Nonce            common.Uint64 `json:"nonce"`
 	To               string        `json:"to"`
 	TransactionIndex uint          `json:"transactionIndex"`
-	Value            common.Uint64 `json:"value"`
+	Value            string        `json:"value"`
 }
 
 type Log struct {
@@ -227,29 +227,29 @@ type Log struct {
 }
 
 type PublicReceipt struct {
-	BlockHash         string 		`json:"blockHash"`
-	BlockHeight       uint64 		`json:"blockHeight"`
-	TransactionHash   string 		`json:"transactionHash"`
-	TransactionIndex  uint64 		`json:"transactionIndex"`
-	From              string 		`json:"from"`
-	To                string 		`json:"to"`
-	GasUsed           uint64 		`json:"gasUsed"`
-	CumulativeGasUsed uint64 		`json:"cumulativeGasUsed"`
-	ContractAddress   string 		`json:"contractAddress"`
-	Logs              []Log  		`json:"logs"`
-	LogsBloom         int64  		`json:"logsBloom"`
-	Root              common.Bytes  `json:"root"`
-	Status			  uint          `json:"status"`
+	BlockHash         string       `json:"blockHash"`
+	BlockHeight       uint64       `json:"blockHeight"`
+	TransactionHash   string       `json:"transactionHash"`
+	TransactionIndex  uint64       `json:"transactionIndex"`
+	From              string       `json:"from"`
+	To                string       `json:"to"`
+	GasUsed           uint64       `json:"gasUsed"`
+	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
+	ContractAddress   string       `json:"contractAddress"`
+	Logs              []Log        `json:"logs"`
+	LogsBloom         int64        `json:"logsBloom"`
+	Root              common.Bytes `json:"root"`
+	Status            uint         `json:"status"`
 }
 
 type BasicReceipt struct {
-	TransactionHash   string 		`json:"transactionHash"`
-	GasUsed           uint64 		`json:"gasUsed"`
-	CumulativeGasUsed uint64 		`json:"cumulativeGasUsed"`
-	ContractAddress   string 		`json:"contractAddress"`
-	Logs              []Log  		`json:"logs"`
-	Root              common.Bytes  `json:"root"`
-	Status            uint          `json:"status"`
+	TransactionHash   string       `json:"transactionHash"`
+	GasUsed           uint64       `json:"gasUsed"`
+	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
+	ContractAddress   string       `json:"contractAddress"`
+	Logs              []Log        `json:"logs"`
+	Root              common.Bytes `json:"root"`
+	Status            uint         `json:"status"`
 }
 
 // NewPublicTransaction returns a transaction that will serialize to the RPC
@@ -264,7 +264,7 @@ func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNum
 		Hash:     tx.Hash().Hex(),
 		Input:    common.Encode(tx.Data()),
 		Nonce:    common.Uint64(tx.Nonce()),
-		Value:    common.Uint64(tx.Value().Int64()),
+		Value:    tx.Value().String(),
 	}
 	if tx.To() != nil {
 		result.To = tx.To().Hex()
@@ -333,7 +333,15 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, erro
 func (a *PublicTransactionAPI) GetTransaction(hash string) *PublicTransaction {
 	txHash := common.HexToHash(hash)
 	tx, blockHash, height, index := chaindb.ReadTransaction(a.s.kaiDb, txHash)
-	return NewPublicTransaction(tx, blockHash, height, index)
+	publicTx := NewPublicTransaction(tx, blockHash, height, index)
+	// get block by block height
+	block := a.s.blockchain.GetBlockByHeight(height)
+	if block == nil {
+		return nil
+	}
+	// get block time from block
+	publicTx.Time = block.Header().Time.Int64()
+	return publicTx
 }
 
 func getReceipts(kaiDb storage.Database, hash common.Hash) (types.Receipts, error) {
@@ -437,7 +445,7 @@ func NewPublicAccountAPI(kaiService *KardiaService) *PublicAccountAPI {
 }
 
 // Balance returns address's balance
-func (a *PublicAccountAPI) Balance(address string, hash string, height int64) int64 {
+func (a *PublicAccountAPI) Balance(address string, hash string, height int64) string {
 	addr := common.HexToAddress(address)
 	log.Info("Addr", "addr", addr.Hex())
 	block := new(types.Block)
@@ -453,9 +461,9 @@ func (a *PublicAccountAPI) Balance(address string, hash string, height int64) in
 	state, err := a.kaiService.blockchain.StateAt(block.Root())
 	if err != nil {
 		log.Error("Fail to get state from block", "err", err, "block", block)
-		return -1
+		return "-1"
 	}
-	return state.GetBalance(addr).Int64()
+	return state.GetBalance(addr).String()
 }
 
 // Nonce return address's nonce
