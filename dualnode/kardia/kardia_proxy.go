@@ -268,9 +268,9 @@ func (p *KardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetada
 		toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
 		originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 
-		if fromType == configs.ETH {
-			originalTx = common.Encode(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
-		}
+		//if fromType == configs.ETH {
+		//	originalTx = common.Encode(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
+		//}
 
 		log.Info("Computing tx metadata for tx", "hash", originalTx)
 		kardiaTx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue,
