@@ -267,7 +267,6 @@ func (p *KardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetada
 		fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
 		toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
 		originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
-		//
 		//if fromType == configs.ETH {
 		//	originalTx = common.Encode(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 		//}
