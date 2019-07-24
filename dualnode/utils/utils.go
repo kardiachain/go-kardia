@@ -325,7 +325,9 @@ func IsNilOrEmpty(data []byte) bool { return data == nil || string(data) == "" }
 func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) error {
 	pub, _ := zmq4.NewSocket(zmq4.PUB)
 	defer pub.Close()
-	pub.Connect(endpoint)
+	if err := pub.Connect(endpoint); err != nil {
+		return err
+	}
 
 	// sleep 1 second to prevent socket closes
 	time.Sleep(1 * time.Second)
@@ -380,7 +382,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 		// callback from dual
 		triggerMessage := dualMsg.TriggerMessage{}
 		if err := jsonpb.UnmarshalString(message, &triggerMessage); err != nil {
-			proxy.Logger().Error("Error on unmarshal triggerMessage", "err", err, "topic", KARDIA_CALL)
+			proxy.Logger().Error("Error on unmarshal triggerMessage", "err", err, "topic", DUAL_CALL)
 			return err
 		}
 
@@ -393,12 +395,12 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 
 		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool().State(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
 		if err != nil {
-			proxy.Logger().Error("Error on executing kardia smart contract", "err", err, "topic", KARDIA_CALL)
+			proxy.Logger().Error("Error on executing kardia smart contract", "err", err, "topic", DUAL_CALL)
 			return err
 		}
 
 		if err := proxy.KardiaTxPool().AddLocal(tx); err != nil {
-			proxy.Logger().Error("Error on adding tx to txPool", "err", err, "topic", KARDIA_CALL)
+			proxy.Logger().Error("Error on adding tx to txPool", "err", err, "topic", DUAL_CALL)
 			return err
 		}
 

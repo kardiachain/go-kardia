@@ -8,7 +8,7 @@ LightServ: 0
 StatName: eth-kardia-1-local
 ReportStats: true
 ContractAddress:
-  - "0xd85afA87F997672dFC25367428b9B3BB7B651A27"
+  - "0xf5164638322a18aca63aa101fd39f4d6f192537c"
 ContractAbis:
   - "[{'constant':false,'inputs':[{'name':'receiver','type':'address'},{'name':'amount','type':'uint256'}],'name':'release','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[{'name':'receiver','type':'string'},{'name':'destination','type':'string'}],'name':'deposit','outputs':[],'payable':true,'stateMutability':'payable','type':'function'},{'constant':true,'inputs':[{'name':'destination','type':'string'}],'name':'isValidType','outputs':[{'name':'','type':'bool'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':false,'inputs':[{'name':'_type','type':'string'},{'name':'status','type':'bool'}],'name':'updateAvailableType','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'inputs':[{'name':'_owner','type':'address'}],'payable':false,'stateMutability':'nonpayable','type':'constructor'}]"
 HTTPHost: 0.0.0.0
