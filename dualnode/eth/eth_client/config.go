@@ -14,6 +14,7 @@ type (
 	Config struct {
 		Name               string      `yaml:"Name"`
 		ListenAddr         string      `yaml:"ListenAddr"`
+		APIListenAddr      string      `yaml:"APIListenAddr"`
 		MaxPeers           int         `yaml:"MaxPeers"`
 		NetworkId          int         `yaml:"NetworkId"`
 		LightNode          bool        `yaml:"LightNode"`

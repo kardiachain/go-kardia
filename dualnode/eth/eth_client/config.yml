@@ -1,5 +1,6 @@
 Name: GethKardia
 ListenAddr: :30303
+APIListenAddr: :5000
 MaxPeers: 10
 NetworkId: 4
 LightNode: false
@@ -8,7 +9,7 @@ LightServ: 0
 StatName: eth-kardia-1-local
 ReportStats: true
 ContractAddress:
-  - "0xf5164638322a18aca63aa101fd39f4d6f192537c"
+  - "0xF5164638322A18acA63AA101fd39F4D6F192537c"
 ContractAbis:
   - "[{'constant':false,'inputs':[{'name':'receiver','type':'address'},{'name':'amount','type':'uint256'}],'name':'release','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[{'name':'receiver','type':'string'},{'name':'destination','type':'string'}],'name':'deposit','outputs':[],'payable':true,'stateMutability':'payable','type':'function'},{'constant':true,'inputs':[{'name':'destination','type':'string'}],'name':'isValidType','outputs':[{'name':'','type':'bool'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':false,'inputs':[{'name':'_type','type':'string'},{'name':'status','type':'bool'}],'name':'updateAvailableType','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'inputs':[{'name':'_owner','type':'address'}],'payable':false,'stateMutability':'nonpayable','type':'constructor'}]"
 HTTPHost: 0.0.0.0
@@ -24,3 +25,4 @@ LogLvl: 3
 PublishedEndpoint: tcp://0.0.0.0:5555
 SubscribedEndpoint: tcp://0.0.0.0:5554
 SignedTxPrivateKey: 457D86F3AFAA8159D7C8356BF3F195CF7AED35AF84C7DC40C4D9AA27846ED9DC
+
