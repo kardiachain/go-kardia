@@ -100,6 +100,7 @@
     "eth/gasprice",
     "eth/tracers",
     "eth/tracers/internal/tracers",
+    "ethclient",
     "ethdb",
     "ethstats",
     "event",
@@ -176,6 +177,14 @@
   pruneopts = "UT"
   revision = "9b3b1e0f5f99ae461456d768e7d301a7acdaa2d8"
   version = "v1.1.0"
+
+[[projects]]
+  digest = "1:cbec35fe4d5a4fba369a656a8cd65e244ea2c743007d8f6c1ccb132acf9d1296"
+  name = "github.com/gorilla/mux"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "00bdffe0f3c77e27d2cf6f5c70232a2d3e4d9c15"
+  version = "v1.7.3"
 
 [[projects]]
   digest = "1:8ec8d88c248041a6df5f6574b87bc00e7e0b493881dad2e7ef47b11dc69093b5"
@@ -477,6 +486,7 @@
     "github.com/ethereum/go-ethereum/core/types",
     "github.com/ethereum/go-ethereum/crypto",
     "github.com/ethereum/go-ethereum/eth",
+    "github.com/ethereum/go-ethereum/ethclient",
     "github.com/ethereum/go-ethereum/ethdb",
     "github.com/ethereum/go-ethereum/ethstats",
     "github.com/ethereum/go-ethereum/les",
@@ -491,6 +501,7 @@
     "github.com/golang/protobuf/jsonpb",
     "github.com/golang/protobuf/proto",
     "github.com/golang/snappy",
+    "github.com/gorilla/mux",
     "github.com/hashicorp/golang-lru",
     "github.com/huin/goupnp",
     "github.com/huin/goupnp/dcps/internetgateway1",

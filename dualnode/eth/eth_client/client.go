@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -20,10 +21,14 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/enode"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/golang/protobuf/jsonpb"
+	"github.com/gorilla/mux"
 	message2 "github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/pebbe/zmq4"
+	"github.com/rs/cors"
+	"io/ioutil"
 	"math/big"
+	"net/http"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -526,7 +531,61 @@ func (n *Eth) Start() error {
 	}
 	go n.syncHead()
 	go n.StartSubscribe()
+	// start an api that receives pump configure
+	go func(){
+		router := mux.NewRouter()
+		router.HandleFunc("/contract/abi", n.updateABI).Methods("POST")
+		if err := http.ListenAndServe(n.config.APIListenAddr, cors.AllowAll().Handler(router)); err != nil {
+			panic(err)
+		}
+	}()
 	return nil
+}
+
+// updateABI adds or updates contract address with its abi to eth client
+func (n *Eth) updateABI(w http.ResponseWriter, r *http.Request) {
+
+	data, err := HandlePost(r)
+	if err != nil {
+		respondWithError(w, 500, fmt.Sprintf("%v", err))
+		return
+	}
+
+	m := data.(map[string]interface{})
+	contractAddress, ok := m["contractAddress"]
+	if !ok || contractAddress == "" {
+		respondWithError(w, 500, fmt.Sprintf("contractAddress is required"))
+		return
+	}
+
+	newAbi, ok := m["abi"]
+	if !ok {
+		respondWithError(w, 500, fmt.Sprintf("abi is required"))
+		return
+	}
+
+	newContractAddress, ok := m["newContractAddress"]
+	var key string
+	if !ok || newContractAddress == "" { // update abi using contractAddress
+		key = contractAddress.(string)
+	} else {
+		key = newContractAddress.(string)
+
+		// if contractAddress exists, remove it
+		if _, ok := n.smcABI[contractAddress.(string)]; ok {
+			delete(n.smcABI, contractAddress.(string))
+		}
+	}
+
+	// update abi with current contractAddress
+	abiStr := strings.Replace(newAbi.(string), "'", "\"", -1)
+	a, err := abi.JSON(strings.NewReader(abiStr))
+	if err != nil {
+		respondWithError(w, 500, fmt.Sprintf("cannot update abi to contractAddress %v - %v", key, err))
+		return
+	}
+	n.smcABI[key] = a
+	respondWithJSON(w, 201, "OK")
 }
 
 // GenerateArguments generates args based on inputs types
@@ -620,4 +679,30 @@ func makeStruct(args abi.Arguments) interface{} {
 	st := reflect.StructOf(sfs)
 	so := reflect.New(st)
 	return so.Interface()
+}
+
+func respondWithError(w http.ResponseWriter, code int, message string) {
+	respondWithJSON(w, code, map[string]string{"error": message})
+}
+
+func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
+	response, _ := json.Marshal(payload)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(response)
+}
+
+// HandlePost handles post data from http.Request and return data as json format
+func HandlePost(r *http.Request) (interface{}, error) {
+	bodyBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
+	var result interface{}
+	err = json.Unmarshal(bodyBytes, &result)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
 }
