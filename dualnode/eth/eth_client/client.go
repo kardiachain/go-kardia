@@ -353,7 +353,7 @@ func GetMessageToSend(message interface{}) (string, string, error) {
 	var err error
 	m := &jsonpb.Marshaler{}
 
-	switch t := message.(type) {
+	switch message.(type) {
 	case message2.Message:
 		msg := message.(message2.Message)
 		msgToSend, err = m.MarshalToString(&msg)
@@ -363,7 +363,7 @@ func GetMessageToSend(message interface{}) (string, string, error) {
 		msgToSend, err = m.MarshalToString(&msg)
 		topic = utils.DUAL_CALL
 	default:
-		err = fmt.Errorf("invalid message type %v", t)
+		err = fmt.Errorf("invalid message type %v", reflect.TypeOf(message))
 	}
 	if err != nil {
 		return "", "", err
@@ -415,9 +415,13 @@ func (n *Eth)subscribe(subscriber *zmq4.Socket) error {
 
 		// callback here - publish a dual call message back to eth-dual
 		for _, cb := range triggerMessage.CallBacks {
+			if cb == nil {
+				log.Warn("callback is nil", "message", triggerMessage.String())
+				continue
+			}
 			// append tx hash returned by previous trigger tx to callback's param.
 			cb.Params = append(cb.Params, *tx)
-			if err := n.PublishMessage(&cb); err != nil {
+			if err := n.PublishMessage(cb); err != nil {
 				log.Error("error while publish message to dual node", "err", err)
 			}
 		}
