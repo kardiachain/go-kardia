@@ -62,3 +62,22 @@ func TestGetMessageToSendDualMessage(t *testing.T) {
 	require.EqualValues(t, utils.DUAL_MSG, topic)
 	println(msg)
 }
+
+func TestGetMessageToSendWithCallBack(t *testing.T) {
+	message := message2.TriggerMessage{
+		ContractAddress: "0x00",
+		Params: []string{},
+		MethodName: "just_test",
+		CallBacks: []*message2.TriggerMessage{
+			{
+				MethodName: "callback1",
+				Params: []string{},
+			},
+		},
+	}
+	cb := message.CallBacks[0]
+	msg, topic, err := GetMessageToSend(*cb)
+	require.NoError(t, err)
+	require.EqualValues(t, utils.DUAL_CALL, topic)
+	println(msg)
+}
