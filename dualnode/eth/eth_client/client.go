@@ -421,7 +421,7 @@ func (n *Eth)subscribe(subscriber *zmq4.Socket) error {
 			}
 			// append tx hash returned by previous trigger tx to callback's param.
 			cb.Params = append(cb.Params, *tx)
-			if err := n.PublishMessage(cb); err != nil {
+			if err := n.PublishMessage(*cb); err != nil {
 				log.Error("error while publish message to dual node", "err", err)
 			}
 		}
