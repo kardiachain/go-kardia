@@ -32,7 +32,7 @@ import (
 
 var NonceZeroFromContract = errors.New("Contract returns nonce 0")
 
-func CreateEthReleaseAmountTx(recipientAddr ethCommon.Address, receiveAddr string, statedb *ethState.StateDB,
+func CreateEthReleaseAmountTx(contractAddr string, recipientAddr ethCommon.Address, receiveAddr string, statedb *ethState.StateDB,
 		quantity *big.Int, ethSmc *ethsmc.EthSmc) (*ethTypes.Transaction, error) {
 	// Nonce of account to sign tx
 	nonce := statedb.GetNonce(recipientAddr)
@@ -40,7 +40,7 @@ func CreateEthReleaseAmountTx(recipientAddr ethCommon.Address, receiveAddr strin
 		log.Error("Eth state return 0 for nonce of contract address", "addr", receiveAddr)
 		return nil, NonceZeroFromContract
 	}
-	tx := ethSmc.CreateEthReleaseTx(quantity, receiveAddr, nonce)
+	tx := ethSmc.CreateEthReleaseTx(contractAddr, quantity, receiveAddr, nonce)
 	log.Info("Create Eth tx to release", "quantity", quantity, "nonce", nonce, "txhash", tx.Hash().Hex())
 	return tx, nil
 }

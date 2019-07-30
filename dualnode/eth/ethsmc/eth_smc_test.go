@@ -67,6 +67,6 @@ func TestEthSmc_packReleaseInput(t *testing.T) {
 
 func TestEthSmc_CreateEthReleaseTx(t *testing.T) {
 	smc := NewEthSmc()
-	tx := smc.CreateEthReleaseTx(big.NewInt(100000000000000000), "eth receiver", 233)
+	tx := smc.CreateEthReleaseTx(EthContractAddress, big.NewInt(100000000000000000), "eth receiver", 233)
 	t.Logf("Created tx: %v", tx)
 }

@@ -309,16 +309,7 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 	polRound, polBlockID := cs.Votes.POLInfo()
 	proposal := types.NewProposal(height, round, block, cmn.NewBigInt32(polRound), polBlockID)
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
-
-		cs.logger.Info(
-			"Signed proposal",
-			"height",
-			height, "round", round,
-			"proposalHeight", proposal.Height,
-			"blockHeight", proposal.Block.Height(),
-			"round", proposal.Round,
-			"POLRound", proposal.POLRound,
-		)
+		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal.Block.Hash().String())
 		// Send proposal on internal msg queue
 		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, discover.ZeroNodeID()})
 	}
@@ -1146,7 +1137,6 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 
 	cs.logger.Info("Finalizing commit of block", "tx number", block.NumTxs(),
 		"height", block.Height(), "hash", block.Hash().String())
-	//cs.logger.Info(cmn.Fmt("%v", block))
 
 	fail.Fail() // XXX
 
@@ -1346,7 +1336,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		cs.logger.Error("Unknown msg type", "msg_type", reflect.TypeOf(msg))
 	}
 	if err != nil {
-		cs.logger.Error("Error with msg", "height", cs.Height, "round", cs.Round, "type", reflect.TypeOf(msg), "peer", peerID, "err", err, "msg", msg)
+		cs.logger.Error("Error with msg", "height", cs.Height, "round", cs.Round, "type", reflect.TypeOf(msg), "peer", peerID, "err", err)
 	}
 }
 

@@ -219,10 +219,10 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 				log.Error("Fail to add Kardia's tx", "error", err)
 				return configs.ErrAddKardiaTx
 			}
-			log.Info("Submit Kardia's tx successfully", "txhash", tx.Hash().String())
+			log.Info("Submit Kardia's tx successfully", "tx", tx.Hash().String())
 			err = p.updateKardiaTxForOrder(originalTx, tx.Hash().String())
 			if err != nil {
-				log.Error("Cannot update  tx idKardia when create order")
+				log.Error("Fail to update Kardia's tx")
 			}
 		case dualnode.EnqueueTxPool:
 			tx, ok := result.(*types.Transaction)

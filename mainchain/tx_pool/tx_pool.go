@@ -127,6 +127,10 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	AccountQueue: 64,
 	GlobalQueue:  1024,
 
+	NumberOfWorkers: 3,
+	WorkerCap: 512,
+	BlockSize: 7192,
+
 	Lifetime: 3 * time.Hour,
 }
 
