@@ -684,7 +684,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 				if t == configs.TRON { // TRON is the smallest unit then do nothing with it
 					releasedAmount = big.NewInt(amount)
 				} else if t == configs.ETH {
-					releasedAmount, err = calculateReleasedAmountFromETH(amount, fromAmount, toAmount, fromType)
+					releasedAmount, err = calculateReleasedAmountToETH(amount, fromAmount, toAmount, fromType)
 				} else { // NEO
 					releasedAmount, err = calculateReleasedAmountFromNEO(amount, fromAmount, toAmount, toType)
 				}
@@ -705,6 +705,8 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 	return nil
 }
 
+// calculateReleasedAmountFromNEO calculates released amount from NEO to others chain
+// NOTE: this func is only used for DEX case
 func calculateReleasedAmountFromNEO(amount int64, fromAmount, toAmount *big.Int, toType string) (*big.Int, error) {
 	var releasedAmount *big.Int
 	if toType == configs.ETH {
@@ -728,7 +730,9 @@ func calculateReleasedAmountFromNEO(amount int64, fromAmount, toAmount *big.Int,
 	return releasedAmount, nil
 }
 
-func calculateReleasedAmountFromETH(amount int64, fromAmount, toAmount *big.Int, fromType string) (*big.Int, error) {
+// calculateReleasedAmountToETH calculates released amount from others dual node to ETH
+// NOTE: this func is only used for DEX case
+func calculateReleasedAmountToETH(amount int64, fromAmount, toAmount *big.Int, fromType string) (*big.Int, error) {
 	// Calculate the released amount by wei
 	convertedAmount := big.NewFloat(float64(amount))
 	convertedAmount = convertedAmount.Quo(convertedAmount, new(big.Float).SetInt(fromAmount))

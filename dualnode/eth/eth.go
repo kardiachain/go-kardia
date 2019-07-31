@@ -30,7 +30,10 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
-const ServiceName = "ETH"
+const (
+	ServiceName = "ETH"
+	headChannelSize = 5
+)
 type Proxy struct {
 
 	// name is name of proxy, or type that proxy connects to (eg: NEO, TRX, ETH, KARDIA)
@@ -124,7 +127,7 @@ func NewProxy(
 		txPool:     txPool,
 		dualBc:     dualBc,
 		eventPool:  dualEventPool,
-		chainHeadCh: make(chan events.ChainHeadEvent, 5),
+		chainHeadCh: make(chan events.ChainHeadEvent, headChannelSize),
 	}
 
 	processor.publishedEndpoint = publishedEndpoint
