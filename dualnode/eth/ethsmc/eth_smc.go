@@ -126,8 +126,8 @@ func (e *EthSmc) packDepositInput(receiverAddress string, destinationAddress str
 	return input
 }
 
-func (e *EthSmc) CreateEthReleaseTx(amount *big.Int, receiveAddress string, nonce uint64) *types.Transaction {
-	contractAddr := common.HexToAddress(EthContractAddress)
+func (e *EthSmc) CreateEthReleaseTx(contractAddrStr string, amount *big.Int, receiveAddress string, nonce uint64) *types.Transaction {
+	contractAddr := common.HexToAddress(contractAddrStr)
 	keyBytes, err := hex.DecodeString(EthAccountSignAddr)
 	if err != nil {
 		panic(err)

@@ -51,8 +51,9 @@ func TestGenerateTx(t *testing.T) {
 }
 
 func TestGenerateRandomTxWithState(t *testing.T) {
+	genTool := NewGeneratorTool()
 	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
-	result := GenerateRandomTxWithState(10, statedb)
+	result := genTool.GenerateRandomTxWithState(10, statedb)
 	for _, tx := range result {
 		from, _ := types.Sender(tx)
 		if !containsInGenesis(from.String()) {
@@ -66,9 +67,6 @@ func TestGenerateRandomTxWithState(t *testing.T) {
 		}
 		if from == *tx.To() {
 			t.Error("Sender & receiver addrs should not be the same")
-		}
-		if tx.Nonce() != statedb.GetNonce(from) {
-			t.Error("Nonce should be same as nonce from state")
 		}
 	}
 }

@@ -21,7 +21,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/kardiachain/go-kardia/tool"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -46,6 +45,7 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -74,14 +74,15 @@ type flagArgs struct {
 	peerProxyIP         string
 
 	// Ether/Kardia dualnode related flags
-	ethDual       bool
-	ethNetworkId  int
-	ethStat       bool
-	ethStatName   string
-	ethLogLevel   string
-	ethListenAddr string
-	ethLightServ  int
-	ethRPCPort    int
+	ethDual         bool
+	ethNetworkId    int
+	ethStat         bool
+	ethStatName     string
+	ethLogLevel     string
+	ethListenAddr   string
+	ethContractAddr string
+	ethLightServ    int
+	ethRPCPort      int
 
 	// Neo/Kardia dualnode related flags
 	neoDual bool
@@ -145,6 +146,7 @@ func init() {
 	flag.BoolVar(&args.ethDual, "dual", false, "whether to run in dual mode")
 	flag.IntVar(&args.ethNetworkId, "ethNetworkId", 4, "run Eth network id, 4: rinkeby, 3: ropsten, 1: mainnet")
 	flag.StringVar(&args.ethListenAddr, "ethAddr", ":30302", "listen address for eth")
+	flag.StringVar(&args.ethContractAddr, "ethContractAddr", eth.DefaultEthConfig.ContractAddress, "Eth contract address")
 	flag.BoolVar(&args.tronDual, "trondual", false, "whether to run TRON dual node")
 	flag.BoolVar(&args.neoDual, "neodual", false, "whether to run NEO dual node")
 	flag.BoolVar(&args.ethStat, "ethstat", false, "report eth stats to network")
@@ -402,7 +404,7 @@ func main() {
 				panic("--dualProtocolName is empty")
 			}
 			config.DualChainConfig.DualProtocolName = args.dualProtocolName
- 		}
+		}
 		n.RegisterService(dualservice.NewDualService)
 	}
 
@@ -606,6 +608,7 @@ func main() {
 		config.HTTPPort = args.ethRPCPort
 		config.HTTPVirtualHosts = []string{"*"}
 		config.NetworkId = args.ethNetworkId
+		config.ContractAddress = args.ethContractAddr
 
 		if args.ethStatName != "" {
 			config.StatName = args.ethStatName
@@ -808,7 +811,7 @@ func genTxsLoop(numTxs int, txPool *tx_pool.TxPool) {
 func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool, genRound int) {
 	goodCount := 0
 	badCount := 0
-	txList := genTool.GenerateTx(numTxs)
+	txList := genTool.GenerateRandomTxWithState(numTxs, txPool.State().StateDB)
 	log.Info("GenTxs Adding new transactions", "num", numTxs, "genRound", genRound)
 	errs := txPool.AddLocals(txList)
 	for _, err := range errs {

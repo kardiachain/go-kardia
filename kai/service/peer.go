@@ -44,7 +44,7 @@ const (
 	handshakeTimeout = 5 * time.Second
 
 	// TODO(@kiendn): move it to some configuration instead of hard code here
-	maxKnownTxs      = 10000000 // Maximum transactions hashes to keep in the known list (prevent DOS)
+	maxKnownTxs = 10000000 // Maximum transactions hashes to keep in the known list (prevent DOS)
 
 	// maxQueuedTxs is the maximum number of transaction lists to queue up before
 	// dropping broadcasts. This is a sensitive number as a transaction list might
@@ -77,8 +77,7 @@ type peer struct {
 	csReactor *consensus.ConsensusManager
 
 	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
-	Protocol string
-
+	Protocol   string
 }
 
 func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, csReactor *consensus.ConsensusManager) *peer {
@@ -307,7 +306,7 @@ func (p *peer) MarkTransactions(txs types.Transactions, validate bool) []*types.
 	hashes := make([]interface{}, 0)
 
 	for _, tx := range txs {
-		if tx ==nil || (validate && p.knownTxs.Has(tx.Hash())) {
+		if tx == nil || (validate && p.knownTxs.Has(tx.Hash())) {
 			continue
 		}
 

@@ -127,6 +127,10 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	AccountQueue: 64,
 	GlobalQueue:  1024,
 
+	NumberOfWorkers: 3,
+	WorkerCap: 512,
+	BlockSize: 7192,
+
 	Lifetime: 3 * time.Hour,
 }
 
@@ -732,13 +736,13 @@ func (pool *TxPool) handlePendingTxs(txs map[common.Address][]interface{}) {
 // This function is mainly for caller in blockchain/consensus to directly remove committed txs.
 //
 func (pool *TxPool) RemoveTxs(txs types.Transactions) {
-	pool.logger.Error("Removing Txs from pending", "txs", len(txs))
-	startTime := getTime()
+	//pool.logger.Error("Removing Txs from pending", "txs", len(txs))
+	//startTime := getTime()
 	if err := pool.RemoveTxsFromPending(txs); err != nil {
-		pool.logger.Error("error while trying remove pending Txs", "err", err)
+		pool.logger.Error("Error while trying remove pending Txs", "err", err)
 	}
-	diff := getTime() - startTime
-	pool.logger.Error("total time to finish removing txs from pending", "time", diff)
+	//diff := getTime() - startTime
+	//pool.logger.Error("total time to finish removing txs from pending", "time", diff)
 }
 
 func (pool *TxPool) PendingSize() int64 {
