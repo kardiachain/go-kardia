@@ -193,10 +193,8 @@ func (pool *TxPool) loop() {
 }
 
 func (pool *TxPool) collectTxs() {
-	for {
-		for i := 0; i < pool.numberOfWorkers; i++ {
-			go pool.work(i, <-pool.txsCh)
-		}
+	for i := 0; i < pool.numberOfWorkers; i++ {
+		go pool.work(i, <-pool.txsCh)
 	}
 }
 
@@ -629,7 +627,6 @@ func (pool *TxPool) saveTxs(txs []*types.Transaction) {
 // RemoveTx removes transactions from pending queue.
 // This function is mainly for caller in blockchain/consensus to directly remove committed txs.
 //
-
 func (pool *TxPool) RemoveTxs(txs types.Transactions) {
 
 	pool.mu.Lock()
