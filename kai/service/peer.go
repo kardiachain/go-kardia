@@ -384,9 +384,6 @@ func (ps *peerSet) PeersWithoutTxs(txs types.Transactions) map[*peer]types.Trans
 
 // SendTransactions sends transactions to the peer, adds the txn hashes to known txn set.
 func (p *peer) SendTransactions(txs types.Transactions) error {
-	//for _, tx := range txs {
-	//	p.knownTxs.Add(tx.Hash())
-	//}
 	return p2p.Send(p.rw, serviceconst.TxMsg, txs)
 }
 

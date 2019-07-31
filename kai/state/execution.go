@@ -40,7 +40,7 @@ func ValidateBlock(state LastestBlockState, block *types.Block) error {
 	return validateBlock(state, block)
 }
 
-// ApplyBlock validates the block against the state, and saves the new state.
+// Validates the block against the state, and saves the new state.
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
@@ -68,15 +68,15 @@ func ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockI
 func updateState(logger log.Logger, state LastestBlockState, blockID types.BlockID, header *types.Header) (LastestBlockState, error) {
 	logger.Trace("updateState", "state", state, "blockID", blockID, "header", header)
 
-	// copy the valset so we can apply changes from EndBlock
-	// and update s.LastValidators and s.Validators
-	nextValSet := state.Validators.Copy()
-
-	// update the validator set with the latest abciResponses
+	// Update the validator set with the latest abciResponses
 	lastHeightValsChanged := state.LastHeightValidatorsChanged
 
-	// Update validator accums and set state variables
-	nextValSet.AdvanceProposer(1)
+	prevVals := state.Validators.Copy()
+	state.Validators.AdvanceProposer(1)
+
+	// Check if we need to swap to new validator set after staking or prefetch new validator set
+	// when it nears the current staking end's window.
+	state.mayRefreshValidatorSet()
 
 	var totalTx *cmn.BigInt
 	if state.LastBlockTotalTx == nil {
@@ -91,8 +91,9 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 		LastBlockTotalTx:            totalTx,
 		LastBlockID:                 blockID,
 		LastBlockTime:               header.Time,
-		Validators:                  nextValSet,
-		LastValidators:              state.Validators.Copy(),
+		PrefetchedFutureValidators:  state.PrefetchedFutureValidators,
+		Validators:                  state.Validators,
+		LastValidators:              prevVals,
 		LastHeightValidatorsChanged: lastHeightValsChanged,
 	}, nil
 }

@@ -61,6 +61,8 @@ type blockChain interface {
 // TxPoolConfig are the configuration parameters of the transaction pool.
 type TxPoolConfig struct {
 	NoLocals  bool          // Whether local transaction handling should be disabled
+	Journal   string        // Journal of local transactions to survive node restarts
+	Rejournal time.Duration // Time interval to regenerate the local transaction journal
 	GlobalSlots  uint64 // Maximum number of executable transaction slots for all accounts
 	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
 	NumberOfWorkers int
@@ -71,8 +73,15 @@ type TxPoolConfig struct {
 // DefaultTxPoolConfig contains the default configurations for the transaction
 // pool.
 var DefaultTxPoolConfig = TxPoolConfig{
-	GlobalSlots:  4096,
-	GlobalQueue:  1024,
+	Journal:   "transactions.rlp",
+	Rejournal: time.Hour,
+
+	GlobalSlots:  64,
+	GlobalQueue:  5120000,
+
+	NumberOfWorkers: 3,
+	WorkerCap: 512,
+	BlockSize: 7192,
 }
 
 // GetDefaultTxPoolConfig returns default txPoolConfig with given dir path
@@ -130,6 +139,9 @@ type TxPool struct {
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
 func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *configs.ChainConfig, chain blockChain) *TxPool {
+	// Sanitize the input to ensure no vulnerable gas prices are set
+	//config = (&config).sanitize(logger)
+
 	// Create the transaction pool with its initial settings
 	pool := &TxPool{
 		logger:      logger,
@@ -151,10 +163,19 @@ func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *configs.Chai
 	//pool.priced = newTxPricedList(logger, pool.all)
 	pool.reset(nil, chain.CurrentBlock().Header())
 
+	/*if !config.NoLocals && config.Journal != "" {
+		pool.journal = newTxJournal(logger, config.Journal)
+
+		if err := pool.journal.load(pool.AddLocals); err != nil {
+			logger.Warn("Failed to load transaction journal", "err", err)
+		}
+	}*/
+
 	// Subscribe events from blockchain
 	pool.chainHeadSub = pool.chain.SubscribeChainHeadEvent(pool.chainHeadCh)
 
 	// Start the event loop and return
+	pool.wg.Add(1)
 	go pool.loop()
 
 	return pool
@@ -274,7 +295,6 @@ func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, e
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
-	startTime := getTime()
 	pending := make(types.Transactions, 0)
 	addedTx := make(map[common.Hash]struct{})
 	promotableAddresses := pool.promotableQueue.List()
@@ -317,8 +337,6 @@ func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, e
 		}
 	}
 	// sort pending list
-	endTime := getTime()
-	pool.logger.Error("get pending txs", "txs", len(pending), "total time", endTime-startTime, "limit", limit)
 	return pending, nil
 }
 

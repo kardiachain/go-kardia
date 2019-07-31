@@ -73,7 +73,7 @@ func (conR *ConsensusManager) Validator() *types.Validator {
 }
 
 func (conR *ConsensusManager) Validators() []*types.Validator {
-	return conR.conS.Validators.Validators
+	return conR.conS.Validators.CurrentValidators()
 }
 
 func (conR *ConsensusManager) Start() {
@@ -582,6 +582,9 @@ OUTER_LOOP:
 			{
 				logger.Debug("Sending proposal", "height", prs.Height, "round", prs.Round)
 				ps.SetHasProposal(rs.Proposal)
+
+				// proposal contains block data, therefore, it will cause bottle neck here if there are thounsands of txs inside.
+				// add it into goroutine to prevent bottleneck
 				go func() {
 					if err := p2p.Send(ps.rw, service.CsProposalMsg, &ProposalMessage{Proposal: rs.Proposal}); err != nil {
 						logger.Trace("Sending proposal failed", "err", err)

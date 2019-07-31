@@ -58,4 +58,7 @@ const (
 	Ripemd160PerWordGas uint64 = 120  // Per-word price for a RIPEMD160 operation
 	IdentityBaseGas     uint64 = 15   // Base price for a data copy operation
 	IdentityPerWordGas  uint64 = 3    // Per-work price for a data copy operation
+
+	// BlockPartSizeBytes is the size of one block part.
+	BlockPartSizeBytes = 65536 // 64kB
 )

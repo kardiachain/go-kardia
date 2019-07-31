@@ -21,7 +21,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/kardiachain/go-kardia/tool"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -46,6 +45,7 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -74,14 +74,15 @@ type flagArgs struct {
 	peerProxyIP         string
 
 	// Ether/Kardia dualnode related flags
-	ethDual       bool
-	ethNetworkId  int
-	ethStat       bool
-	ethStatName   string
-	ethLogLevel   string
-	ethListenAddr string
-	ethLightServ  int
-	ethRPCPort    int
+	ethDual         bool
+	ethNetworkId    int
+	ethStat         bool
+	ethStatName     string
+	ethLogLevel     string
+	ethListenAddr   string
+	ethContractAddr string
+	ethLightServ    int
+	ethRPCPort      int
 
 	// Neo/Kardia dualnode related flags
 	neoDual bool
@@ -115,6 +116,11 @@ type flagArgs struct {
 	txs            bool
 	txsDelay       int
 	numTxs         int
+	blockSize      int
+	workers        int
+	workerCap      int
+	maxPending     int
+	maxAll         int
 	dualEvent      bool
 }
 
@@ -145,6 +151,7 @@ func init() {
 	flag.BoolVar(&args.ethDual, "dual", false, "whether to run in dual mode")
 	flag.IntVar(&args.ethNetworkId, "ethNetworkId", 4, "run Eth network id, 4: rinkeby, 3: ropsten, 1: mainnet")
 	flag.StringVar(&args.ethListenAddr, "ethAddr", ":30302", "listen address for eth")
+	flag.StringVar(&args.ethContractAddr, "ethContractAddr", eth.DefaultEthConfig.ContractAddress, "Eth contract address")
 	flag.BoolVar(&args.tronDual, "trondual", false, "whether to run TRON dual node")
 	flag.BoolVar(&args.neoDual, "neodual", false, "whether to run NEO dual node")
 	flag.BoolVar(&args.ethStat, "ethstat", false, "report eth stats to network")
@@ -183,6 +190,11 @@ func init() {
 	flag.BoolVar(&args.txs, "txs", false, "generate random transfer txs")
 	flag.IntVar(&args.txsDelay, "txsDelay", 10, "delay in seconds between batches of generated txs")
 	flag.IntVar(&args.numTxs, "numTxs", 10, "number of of generated txs in one batch")
+	flag.IntVar(&args.blockSize, "blockSize", 7192, "number of txs in block")
+	flag.IntVar(&args.workers, "workers", 3, "number of workers for broadcast")
+	flag.IntVar(&args.workerCap, "workerCap", 512, "number of workerCap for broadcast")
+	flag.IntVar(&args.maxPending, "maxPending", 128, "maximum pending txs for every address")
+	flag.IntVar(&args.maxAll, "maxAll", 5120000, "maximum all txs")
 	flag.BoolVar(&args.dualEvent, "dualEvent", false, "generate initial dual event")
 }
 
@@ -338,6 +350,12 @@ func main() {
 	}
 	nodeDir := filepath.Join(config.DataDir, config.Name)
 	config.MainChainConfig.TxPool = *tx_pool.GetDefaultTxPoolConfig(nodeDir)
+	config.MainChainConfig.TxPool.GlobalSlots = uint64(args.maxPending) // for pending
+	config.MainChainConfig.TxPool.GlobalQueue =  uint64(args.maxAll) // for all
+	config.MainChainConfig.TxPool.NumberOfWorkers = args.workers
+	config.MainChainConfig.TxPool.WorkerCap = args.workerCap
+	config.MainChainConfig.TxPool.BlockSize = args.blockSize
+
 	config.MainChainConfig.IsZeroFee = args.isZeroFee
 	config.MainChainConfig.IsPrivate = args.isPrivate
 
@@ -402,7 +420,7 @@ func main() {
 				panic("--dualProtocolName is empty")
 			}
 			config.DualChainConfig.DualProtocolName = args.dualProtocolName
- 		}
+		}
 		n.RegisterService(dualservice.NewDualService)
 	}
 
@@ -606,6 +624,7 @@ func main() {
 		config.HTTPPort = args.ethRPCPort
 		config.HTTPVirtualHosts = []string{"*"}
 		config.NetworkId = args.ethNetworkId
+		config.ContractAddress = args.ethContractAddr
 
 		if args.ethStatName != "" {
 			config.StatName = args.ethStatName
@@ -795,7 +814,8 @@ func displaySyncStatus(client *eth.EthClient) {
 // genTxsLoop generate & add a batch of transfer txs, repeat after delay flag.
 // Warning: Set txsDelay < 5 secs may build up old subroutines because previous subroutine to add txs won't be finished before new one starts.
 func genTxsLoop(numTxs int, txPool *tx_pool.TxPool) {
-	genTool := tool.NewGeneratorTool()
+	accounts := tool.GetAccounts(configs.GenesisAddrKeys)
+	genTool := tool.NewGeneratorTool(accounts)
 	time.Sleep(60 * time.Second)
 	genRound := 0
 	for {
@@ -806,19 +826,9 @@ func genTxsLoop(numTxs int, txPool *tx_pool.TxPool) {
 }
 
 func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool, genRound int) {
-	////goodCount := 0
-	//badCount := 0
-	//txList := genTool.GenerateTx(numTxs)
-	//log.Info("GenTxs Adding new transactions", "num", numTxs, "genRound", genRound)
-	//txPool.AddTxs(txList)
-	//for _, err := range errs {
-	//	if err != nil {
-	//		log.Error("Fail to add transaction list", "err", err)
-	//		badCount++
-	//	} else {
-	//		goodCount++
-	//	}
-	//}
+	txList := genTool.GenerateRandomTx(numTxs)
+	log.Info("GenTxs Adding new transactions", "num", numTxs, "genRound", genRound)
+	txPool.AddTxs(txList)
 }
 
 func genDualEvent(eventPool *event_pool.EventPool) {
