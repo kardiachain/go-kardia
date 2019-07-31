@@ -249,7 +249,26 @@ func (pool *TxPool) lockedReset(oldHead, newHead *types.Header) {
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
+	// Initialize the internal state to the current head
 	currentBlock := pool.chain.CurrentBlock()
+
+	if newHead == nil {
+		newHead = currentBlock.Header() // Special case during testing
+	}
+
+	statedb, err := pool.chain.StateAt(newHead.Root)
+	pool.logger.Info("TxPool reset state to new head block", "height", newHead.Height, "root", newHead.Root)
+	if err != nil {
+		pool.logger.Error("Failed to reset txpool state", "err", err)
+		return
+	}
+	pool.mu.Lock()
+	pool.currentState = statedb
+	pool.pendingState = state.ManageState(statedb)
+	pool.currentMaxGas = newHead.GasLimit
+	pool.mu.Unlock()
+
+	// remove current block's txs from pending
 	pool.RemoveTxs(currentBlock.Transactions())
 	go pool.saveTxs(currentBlock.Transactions())
 }
