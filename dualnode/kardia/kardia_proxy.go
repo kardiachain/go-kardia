@@ -214,7 +214,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 				log.Error("Fail to create Kardia's tx from DualEvent", "err", err)
 				return configs.ErrCreateKardiaTx
 			}
-			err = p.txPool.AddLocal(tx)
+			err = p.txPool.AddTx(tx)
 			if err != nil {
 				log.Error("Fail to add Kardia's tx", "error", err)
 				return configs.ErrAddKardiaTx
@@ -230,7 +230,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 				log.Error("type conversion failed")
 				return configs.ErrTypeConversionFailed
 			}
-			err = p.txPool.AddLocal(tx)
+			err = p.txPool.AddTx(tx)
 			if err != nil {
 				log.Error("Fail to add Kardia's tx", "error", err)
 				return configs.ErrAddKardiaTx
@@ -433,7 +433,7 @@ func (p *KardiaProxy) updateKardiaTxForOrder(originalTxId string, kardiaTxId str
 			"err", err)
 		return err
 	}
-	err = p.txPool.AddLocal(tx)
+	err = p.txPool.AddTx(tx)
 	if err != nil {
 		log.Error("Error add update kardia tx id to txPool", "originalTxId", originalTxId, "kardiaTx", kardiaTxId,
 			"err", err)

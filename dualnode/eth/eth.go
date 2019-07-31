@@ -403,7 +403,7 @@ func (n *Eth) releaseTxAndCompleteRequest(matchedTxId string, amount *big.Int, r
 		log.Error("Failed to update target tx", "matchedTxId", matchedTxId, "tx", releaseTxId)
 		return err
 	}
-	err = n.txPool.AddLocal(tx)
+	err = n.txPool.AddTx(tx)
 	if err != nil {
 		log.Error("Fail to add Kardia tx to update target tx", "err", err, "tx", tx)
 		return err

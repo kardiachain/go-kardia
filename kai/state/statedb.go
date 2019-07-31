@@ -234,7 +234,7 @@ func (sdb *StateDB) GetBalance(addr common.Address) *big.Int {
 func (sdb *StateDB) GetNonce(addr common.Address) uint64 {
 	stateObject := sdb.getStateObject(addr)
 	if stateObject != nil {
-		return stateObject.Nonce()
+		return stateObject.Nonce() + 1
 	}
 
 	return 0
