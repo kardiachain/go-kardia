@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/rs/cors"
+
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -33,6 +33,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
+
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
@@ -41,6 +44,7 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardia/tool"
 )
 
 // args
@@ -87,7 +91,7 @@ type Response struct {
 	IsValidator bool         `json:"validator"`
 	NumTxs   int             `json:"numTxs"`
 	Delay    int             `json:"delay"`
-	Accounts []Account       `json:"accounts"`
+	Accounts []tool.Account       `json:"accounts"`
 	Pending  int64           `json:"pending"`
 }
 
@@ -99,8 +103,8 @@ type Tps struct {
 }
 
 var args flagArgs
-var accounts = make([]Account, 0)
-var genTool *GeneratorTool
+var accounts = make([]tool.Account, 0) // Init accounts for generate txs
+var genTool *tool.GeneratorTool // Init generate tool
 var blockchain *bc.BlockChain
 var kardiaService *kai.KardiaService
 var isValidator = false
@@ -138,14 +142,14 @@ func init() {
 	flag.BoolVar(&args.noProxy, "noProxy", false, "When triggered, Kardia node is standalone and is not registered in proxy.")
 	flag.StringVar(&args.peerProxyIP, "peerProxyIP", "", "IP of the peer proxy for this node to register.")
 	flag.IntVar(&args.numTxs, "numTxs", 0, "number of of generated txs in one batch")
-	flag.IntVar(&args.txsDelay, "txsDelay", 1000, "delay in seconds between batches of generated txs")
+	flag.IntVar(&args.txsDelay, "txsDelay", 10, "delay in seconds between batches of generated txs")
 	flag.StringVar(&args.genTxsPort,"genTxsPort",":5000", "port of generate tx")
 	flag.IntVar(&args.index, "index", 1, "")
-	flag.IntVar(&args.blockSize, "blockSize", 7192, "")
-	flag.IntVar(&args.workers, "workers", 6, "")
-	flag.IntVar(&args.workerCap, "workerCap", 512, "")
-	flag.IntVar(&args.maxPending, "maxPending", 64, "max pending txs for every address")
-	flag.IntVar(&args.maxAll, "maxAll", 5120000, "")
+	flag.IntVar(&args.blockSize, "blockSize", 7192, "number of txs in block")
+	flag.IntVar(&args.workers, "workers", 6, "number of workers for broadcast")
+	flag.IntVar(&args.workerCap, "workerCap", 512, "number of workerCap for broadcast")
+	flag.IntVar(&args.maxPending, "maxPending", 64, "maximum pending txs for every address")
+	flag.IntVar(&args.maxAll, "maxAll", 5120000, "maximum all txs")
 }
 
 // runtimeSystemSettings optimizes process setting for go-kardia
@@ -293,7 +297,7 @@ func main() {
 		}
 
 		// Create genesis block with dev.genesisAccounts
-		config.MainChainConfig.Genesis = genesis.DefaulTestnetFullGenesisBlock(GenesisAccounts, GenesisContracts)
+		config.MainChainConfig.Genesis = genesis.DefaulTestnetFullGenesisBlock(GenesisAccounts, configs.GenesisContracts)
 	}
 	nodeDir := filepath.Join(config.DataDir, config.Name)
 	config.MainChainConfig.TxPool = tx_pool.TxPoolConfig{
@@ -402,25 +406,25 @@ func main() {
 	// get accounts
 	idx := args.index
 	if idx == 1 {
-		accounts = GetAccounts(GenesisAddrKeys1)
+		accounts = tool.GetAccounts(GenesisAddrKeys1)
 	} else if idx == 2 {
-		accounts = GetAccounts(GenesisAddrKeys2)
+		accounts = tool.GetAccounts(GenesisAddrKeys2)
 	} else if idx == 3 {
-		accounts = GetAccounts(GenesisAddrKeys3)
+		accounts = tool.GetAccounts(GenesisAddrKeys3)
 	} else if idx == 4 {
-		accounts = GetAccounts(GenesisAddrKeys4)
+		accounts = tool.GetAccounts(GenesisAddrKeys4)
 	} else if idx == 5 {
-		accounts = GetAccounts(GenesisAddrKeys5)
+		accounts = tool.GetAccounts(GenesisAddrKeys5)
 	} else if idx == 6 {
-		accounts = GetAccounts(GenesisAddrKeys6)
+		accounts = tool.GetAccounts(GenesisAddrKeys6)
 	} else if idx == 7 {
-		accounts = GetAccounts(GenesisAddrKeys7)
+		accounts = tool.GetAccounts(GenesisAddrKeys7)
 	} else if idx == 8 {
-		accounts = GetAccounts(GenesisAddrKeys8)
+		accounts = tool.GetAccounts(GenesisAddrKeys8)
 	} else if idx == 9 {
-		accounts = GetAccounts(GenesisAddrKeys9)
+		accounts = tool.GetAccounts(GenesisAddrKeys9)
 	} else if idx == 10 {
-		accounts = GetAccounts(GenesisAddrKeys10)
+		accounts = tool.GetAccounts(GenesisAddrKeys10)
 	}
 
 	// gen txs from args.numTxs
@@ -458,23 +462,19 @@ func waitForever() {
 func genTxsLoop(txPool *tx_pool.TxPool) {
 	time.Sleep(25 * time.Second) //decrease it if you want to test it locally
 	if genTool == nil {
-		genTool = NewGeneratorTool(accounts, make(map[string]uint64))
+		genTool = tool.NewGeneratorTool(accounts)
 	}
 	for {
 		if args.numTxs == 0 {
 			break
 		}
-		//if full, _ := txPool.IsFull(); full && !isValidator {
-		//	// clear txPool
-		//	txPool.ClearPending()
-		//}
-		genTxs(genTool, uint64(args.numTxs), txPool)
+		genTxs(genTool, args.numTxs, txPool)
 		time.Sleep(time.Duration(args.txsDelay) * time.Second)
 	}
 }
 
-func genTxs(genTool *GeneratorTool, numTxs uint64, txPool *tx_pool.TxPool) {
-	txList := genTool.GenerateRandomTxWithState(numTxs)
+func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool) {
+	txList := genTool.GenerateRandomTx(numTxs)
 	log.Info("GenTxs Adding new transactions", "num", numTxs, "generatedTxList", len(txList), "pendingSize", txPool.PendingSize())
 	txPool.AddTxs(txList)
 }
@@ -513,25 +513,25 @@ func pump(w http.ResponseWriter, r *http.Request) {
 	idx, genesisIdx := m["index"]
 	if genesisIdx {
 		if idx == "1" {
-			accounts = GetAccounts(GenesisAddrKeys1)
+			accounts = tool.GetAccounts(GenesisAddrKeys1)
 		} else if idx == "2" {
-			accounts = GetAccounts(GenesisAddrKeys2)
+			accounts = tool.GetAccounts(GenesisAddrKeys2)
 		} else if idx == "3" {
-			accounts = GetAccounts(GenesisAddrKeys3)
+			accounts = tool.GetAccounts(GenesisAddrKeys3)
 		} else if idx == "4" {
-			accounts = GetAccounts(GenesisAddrKeys4)
+			accounts = tool.GetAccounts(GenesisAddrKeys4)
 		} else if idx == "5" {
-			accounts = GetAccounts(GenesisAddrKeys5)
+			accounts = tool.GetAccounts(GenesisAddrKeys5)
 		} else if idx == "6" {
-			accounts = GetAccounts(GenesisAddrKeys6)
+			accounts = tool.GetAccounts(GenesisAddrKeys6)
 		} else if idx == "7" {
-			accounts = GetAccounts(GenesisAddrKeys7)
+			accounts = tool.GetAccounts(GenesisAddrKeys7)
 		} else if idx == "8" {
-			accounts = GetAccounts(GenesisAddrKeys8)
+			accounts = tool.GetAccounts(GenesisAddrKeys8)
 		} else if idx == "9" {
-			accounts = GetAccounts(GenesisAddrKeys9)
+			accounts = tool.GetAccounts(GenesisAddrKeys9)
 		} else if idx == "10" {
-			accounts = GetAccounts(GenesisAddrKeys10)
+			accounts = tool.GetAccounts(GenesisAddrKeys10)
 		} else {
 			respondWithError(w, 500, "invalid genesis index")
 			return
@@ -550,10 +550,10 @@ func pump(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// reset accounts
-		accounts = make([]Account, 0)
+		accounts = make([]tool.Account, 0)
 		for _, acc := range accs {
 			m := acc.(map[string]interface{})
-			account := Account{
+			account := tool.Account{
 				Address: m["address"].(string),
 				PrivateKey: m["privateKey"].(string),
 			}
@@ -563,14 +563,10 @@ func pump(w http.ResponseWriter, r *http.Request) {
 
 	args.numTxs = int(numTxs)
 	args.txsDelay = int(delay)
-	genTool = NewGeneratorTool(accounts, genTool.nonceMap)
 
-	go func() {
-		if args.numTxs > 0 {
-			time.Sleep(time.Duration(5) * time.Second)
-			go genTxsLoop(kardiaService.TxPool())
-		}
-	} ()
+	if args.numTxs > 0 {
+		genTxsLoop(kardiaService.TxPool())
+	}
 
 	respondWithJSON(w, 200, "OK")
 }

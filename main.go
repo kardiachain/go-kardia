@@ -116,6 +116,11 @@ type flagArgs struct {
 	txs            bool
 	txsDelay       int
 	numTxs         int
+	blockSize      int
+	workers        int
+	workerCap      int
+	maxPending     int
+	maxAll         int
 	dualEvent      bool
 }
 
@@ -185,6 +190,11 @@ func init() {
 	flag.BoolVar(&args.txs, "txs", false, "generate random transfer txs")
 	flag.IntVar(&args.txsDelay, "txsDelay", 10, "delay in seconds between batches of generated txs")
 	flag.IntVar(&args.numTxs, "numTxs", 10, "number of of generated txs in one batch")
+	flag.IntVar(&args.blockSize, "blockSize", 7192, "number of txs in block")
+	flag.IntVar(&args.workers, "workers", 3, "number of workers for broadcast")
+	flag.IntVar(&args.workerCap, "workerCap", 512, "number of workerCap for broadcast")
+	flag.IntVar(&args.maxPending, "maxPending", 128, "maximum pending txs for every address")
+	flag.IntVar(&args.maxAll, "maxAll", 5120000, "maximum all txs")
 	flag.BoolVar(&args.dualEvent, "dualEvent", false, "generate initial dual event")
 }
 
@@ -340,6 +350,12 @@ func main() {
 	}
 	nodeDir := filepath.Join(config.DataDir, config.Name)
 	config.MainChainConfig.TxPool = *tx_pool.GetDefaultTxPoolConfig(nodeDir)
+	config.MainChainConfig.TxPool.GlobalSlots = uint64(args.maxPending) // for pending
+	config.MainChainConfig.TxPool.GlobalQueue =  uint64(args.maxAll) // for all
+	config.MainChainConfig.TxPool.NumberOfWorkers = args.workers
+	config.MainChainConfig.TxPool.WorkerCap = args.workerCap
+	config.MainChainConfig.TxPool.BlockSize = args.blockSize
+
 	config.MainChainConfig.IsZeroFee = args.isZeroFee
 	config.MainChainConfig.IsPrivate = args.isPrivate
 
@@ -798,7 +814,8 @@ func displaySyncStatus(client *eth.EthClient) {
 // genTxsLoop generate & add a batch of transfer txs, repeat after delay flag.
 // Warning: Set txsDelay < 5 secs may build up old subroutines because previous subroutine to add txs won't be finished before new one starts.
 func genTxsLoop(numTxs int, txPool *tx_pool.TxPool) {
-	genTool := tool.NewGeneratorTool()
+	accounts := tool.GetAccounts(configs.GenesisAddrKeys)
+	genTool := tool.NewGeneratorTool(accounts)
 	time.Sleep(60 * time.Second)
 	genRound := 0
 	for {
@@ -809,19 +826,9 @@ func genTxsLoop(numTxs int, txPool *tx_pool.TxPool) {
 }
 
 func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool, genRound int) {
-	////goodCount := 0
-	//badCount := 0
-	txList := genTool.GenerateTx(numTxs)
+	txList := genTool.GenerateRandomTx(numTxs)
 	log.Info("GenTxs Adding new transactions", "num", numTxs, "genRound", genRound)
-	txPool.AddLocals(txList)
-	//for _, err := range errs {
-	//	if err != nil {
-	//		log.Error("Fail to add transaction list", "err", err)
-	//		badCount++
-	//	} else {
-	//		goodCount++
-	//	}
-	//}
+	txPool.AddTxs(txList)
 }
 
 func genDualEvent(eventPool *event_pool.EventPool) {
