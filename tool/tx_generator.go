@@ -115,11 +115,11 @@ func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
 }
 
 func (genTool *GeneratorTool) GenerateRandomTx(numTx int) []interface{} {
-	genTool.mu.Lock()
 	if numTx <= 0 || len(genTool.accounts) == 0 {
 		return nil
 	}
 	result := make([]interface{}, numTx)
+	genTool.mu.Lock()
 	for i := 0; i < numTx; i++ {
 		senderKey, toAddr := randomTxAddresses(genTool.accounts)
 		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
@@ -128,9 +128,48 @@ func (genTool *GeneratorTool) GenerateRandomTx(numTx int) []interface{} {
 		senderAddrS := senderPublicKey.String()
 
 		if _, ok := genTool.nonceMap[senderAddrS]; !ok {
-			genTool.nonceMap[senderAddrS] = 1
+				genTool.nonceMap[senderAddrS] = 1
 		}
 		nonce := genTool.nonceMap[senderAddrS]
+		tx, err := types.SignTx(types.NewTransaction(
+			nonce,
+			toAddr,
+			amount,
+			defaultGasLimit,
+			defaultGasPrice,
+			nil,
+		), senderKey)
+		if err != nil {
+			panic(fmt.Sprintf("Fail to sign generated tx: %v", err))
+		}
+		result[i] = tx
+		nonce += 1
+		genTool.nonceMap[senderAddrS] = nonce
+	}
+	genTool.mu.Unlock()
+	return result
+}
+
+func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx int, stateDb *state.StateDB) []interface{} {
+	if numTx <= 0 || len(genTool.accounts) == 0 {
+		return nil
+	}
+	result := make([]interface{}, numTx)
+	genTool.mu.Lock()
+	for i := 0; i < numTx; i++ {
+		senderKey, toAddr := randomTxAddresses(genTool.accounts)
+		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
+		nonce := stateDb.GetNonce(senderPublicKey)
+		amount := big.NewInt(int64(RandomInt(10, 20)))
+		amount = amount.Mul(amount, big.NewInt(int64(math.Pow10(18))))
+		senderAddrS := senderPublicKey.String()
+
+		//get nonce from sender mapping
+		nonceMap := genTool.nonceMap[senderAddrS]
+		if nonce < nonceMap { // check nonce from statedb and nonceMap
+			nonce = nonceMap
+		}
+
 		tx, err := types.SignTx(types.NewTransaction(
 			nonce,
 			toAddr,

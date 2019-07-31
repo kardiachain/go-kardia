@@ -21,6 +21,10 @@ package tool
 import (
 	"testing"
 
+	"github.com/kardiachain/go-kardia/kai/state"
+	kaidb "github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/configs"
 )
@@ -46,7 +50,7 @@ func TestGenerateTx(t *testing.T) {
 	}
 }
 
-/*func TestGenerateRandomTxWithState(t *testing.T) {
+func TestGenerateRandomTxWithState(t *testing.T) {
 	genTool := NewGeneratorTool(GetAccounts(configs.GenesisAddrKeys))
 	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	result := genTool.GenerateRandomTxWithState(10, statedb)
@@ -66,7 +70,7 @@ func TestGenerateTx(t *testing.T) {
 			t.Error("Sender & receiver addrs should not be the same")
 		}
 	}
-}*/
+}
 
 func containsInGenesis(address string) bool {
 	for k := range configs.GenesisAccounts {

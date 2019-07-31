@@ -826,7 +826,7 @@ func genTxsLoop(numTxs int, txPool *tx_pool.TxPool) {
 }
 
 func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool, genRound int) {
-	txList := genTool.GenerateRandomTx(numTxs)
+	txList := genTool.GenerateRandomTxWithState(numTxs, txPool.State().StateDB)
 	log.Info("GenTxs Adding new transactions", "num", numTxs, "genRound", genRound)
 	txPool.AddTxs(txList)
 }
