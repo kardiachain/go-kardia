@@ -262,11 +262,9 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 		pool.logger.Error("Failed to reset txpool state", "err", err)
 		return
 	}
-	pool.mu.Lock()
 	pool.currentState = statedb
 	pool.pendingState = state.ManageState(statedb)
 	pool.currentMaxGas = newHead.GasLimit
-	pool.mu.Unlock()
 
 	// remove current block's txs from pending
 	pool.RemoveTxs(currentBlock.Transactions())

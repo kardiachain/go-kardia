@@ -70,30 +70,17 @@ func NewGeneratorTool(accounts []Account) *GeneratorTool {
 // GenerateTx generate an array of transfer transactions within genesis accounts.
 // numTx: number of transactions to send, default to 10.
 func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
-	if numTx <= 0 {
-		numTx = defaultNumTx
+	if numTx <= 0 || len(genTool.accounts) == 0 {
+		return nil
 	}
 	result := make([]*types.Transaction, numTx)
-	var keys []*ecdsa.PrivateKey
-	var addresses []common.Address
-
-	for addrS, privateKey := range configs.GenesisAddrKeys {
-		if addrS != configs.KardiaAccountToCallSmc && addrS != defaultFaucetAcc { // skip account call smc
-			pkByte, _ := hex.DecodeString(privateKey)
-			keys = append(keys, crypto.ToECDSAUnsafe(pkByte))
-			addresses = append(addresses, common.HexToAddress(addrS))
-		}
-	}
-	addrKeySize := len(addresses)
-
 	genTool.mu.Lock()
 	for i := 0; i < numTx; i++ {
-		senderKey := keys[i%addrKeySize]
-		toAddr := addresses[(i+1)%addrKeySize]
-
-		senderAddrS := crypto.PubkeyToAddress(senderKey.PublicKey).String()
+		senderKey, toAddr := randomTxAddresses(genTool.accounts)
+		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
+		senderAddrS := senderPublicKey.String()
 		nonce := genTool.nonceMap[senderAddrS]
-		amount := big.NewInt(int64(RandomInt(1, 5)))
+		amount := big.NewInt(int64(RandomInt(10, 20)))
 		amount = amount.Mul(amount, big.NewInt(int64(math.Pow10(18))))
 		tx, err := types.SignTx(types.NewTransaction(
 			nonce,
@@ -232,7 +219,7 @@ func randomTxAddresses(accounts []Account) (senderKey *ecdsa.PrivateKey, toAddr 
 		toAddr = randomGenesisAddress()
 		privateKeyBytes := crypto.FromECDSA(senderKey)
 		privateKeyHex := hexutil.Encode(privateKeyBytes)[2:]
-		if crypto.PubkeyToAddress(senderKey.PublicKey) != toAddr && privateKeyHex != configs.KardiaPrivKeyToCallSmc && privateKeyHex != defaultFaucetPrivAcc {
+		if senderKey!= nil && crypto.PubkeyToAddress(senderKey.PublicKey) != toAddr && privateKeyHex != configs.KardiaPrivKeyToCallSmc && privateKeyHex != defaultFaucetPrivAcc {
 			// skip senderAddr = toAddr && senderAddr that call smc
 			break
 		}

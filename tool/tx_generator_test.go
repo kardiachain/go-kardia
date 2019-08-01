@@ -50,6 +50,28 @@ func TestGenerateTx(t *testing.T) {
 	}
 }
 
+func TestGenerateRandomTx(t *testing.T) {
+	genTool := NewGeneratorTool(GetAccounts(configs.GenesisAddrKeys))
+
+	result := genTool.GenerateRandomTx(1000)
+	for _, txInterface := range result {
+		tx := txInterface.(*types.Transaction)
+		from, _ := types.Sender(tx)
+		if !containsInGenesis(from.String()) {
+			t.Error("Sender addr should be in genesis block")
+		}
+		if !containsInGenesis(tx.To().String()) {
+			t.Error("Receiver addr should be in genesis")
+		}
+		if from.String() == configs.KardiaAccountToCallSmc {
+			t.Error("Sender should not be the account to call smc")
+		}
+		if from == *tx.To() {
+			t.Error("Sender & receiver addrs should not be the same")
+		}
+	}
+}
+
 func TestGenerateRandomTxWithState(t *testing.T) {
 	genTool := NewGeneratorTool(GetAccounts(configs.GenesisAddrKeys))
 	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
