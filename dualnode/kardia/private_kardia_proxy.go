@@ -177,7 +177,7 @@ func (p *PrivateKardiaProxy) SubmitTx(event *types.EventData) error {
 		log.Error("Fail to create Kardia's tx from DualEvent", "err", err)
 		return configs.ErrCreateKardiaTx
 	}
-	err = p.txPool.AddLocal(tx)
+	err = p.txPool.AddTx(tx)
 	if err != nil {
 		log.Error("Fail to add Kardia's tx", "error", err)
 		return configs.ErrAddKardiaTx

@@ -198,8 +198,8 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		//  Note: this will cause number of blocks increase a lot and lead to chain's size increase.
 		//  But I think we can add a function to check if any tx in pool before creating new block.
 
-		PeerGossipSleepDuration:     3000, // sleep duration before gossip data to other peers - 0.5s
-		PeerQueryMaj23SleepDuration: 2000, // sleep duration before send major 2/3 (if any) to other peers - 0.1s
+		PeerGossipSleepDuration:     1000, // sleep duration before gossip data to other peers - 0.5s
+		PeerQueryMaj23SleepDuration: 500, // sleep duration before send major 2/3 (if any) to other peers - 0.1s
 	}
 }
 

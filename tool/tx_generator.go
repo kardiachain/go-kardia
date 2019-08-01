@@ -37,6 +37,11 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
+type Account struct {
+	Address    string `json:"address"`
+	PrivateKey string `json:"privateKey"`
+}
+
 const (
 	defaultNumTx         = 10
 	defaultGasLimit      = 10 // currently we don't care about tx fee and cost.
@@ -51,15 +56,14 @@ var (
 
 type GeneratorTool struct {
 	nonceMap map[string]uint64 // Map of nonce counter for each address
-
-	mu sync.Mutex
+	accounts []Account
+	mu       sync.Mutex
 }
 
-func NewGeneratorTool() *GeneratorTool {
+func NewGeneratorTool(accounts []Account) *GeneratorTool {
 	genTool := new(GeneratorTool)
-
-	genTool.nonceMap = make(map[string]uint64)
-
+	genTool.nonceMap = make(map[string]uint64, 0)
+	genTool.accounts = accounts
 	return genTool
 }
 
@@ -90,6 +94,7 @@ func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
 		senderAddrS := crypto.PubkeyToAddress(senderKey.PublicKey).String()
 		nonce := genTool.nonceMap[senderAddrS]
 		amount := big.NewInt(int64(RandomInt(1, 5)))
+		amount = amount.Mul(amount, big.NewInt(int64(math.Pow10(18))))
 		tx, err := types.SignTx(types.NewTransaction(
 			nonce,
 			toAddr,
@@ -109,15 +114,50 @@ func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
 	return result
 }
 
-func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx int, stateDb *state.StateDB) []*types.Transaction {
-	if numTx <= 0 {
-		numTx = defaultNumTx
+func (genTool *GeneratorTool) GenerateRandomTx(numTx int) []interface{} {
+	if numTx <= 0 || len(genTool.accounts) == 0 {
+		return nil
 	}
-
-	result := make([]*types.Transaction, numTx)
+	result := make([]interface{}, numTx)
 	genTool.mu.Lock()
 	for i := 0; i < numTx; i++ {
-		senderKey, toAddr := randomTxAddresses()
+		senderKey, toAddr := randomTxAddresses(genTool.accounts)
+		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
+		amount := big.NewInt(int64(RandomInt(10, 20)))
+		amount = amount.Mul(amount, big.NewInt(int64(math.Pow10(18))))
+		senderAddrS := senderPublicKey.String()
+
+		if _, ok := genTool.nonceMap[senderAddrS]; !ok {
+				genTool.nonceMap[senderAddrS] = 1
+		}
+		nonce := genTool.nonceMap[senderAddrS]
+		tx, err := types.SignTx(types.NewTransaction(
+			nonce,
+			toAddr,
+			amount,
+			defaultGasLimit,
+			defaultGasPrice,
+			nil,
+		), senderKey)
+		if err != nil {
+			panic(fmt.Sprintf("Fail to sign generated tx: %v", err))
+		}
+		result[i] = tx
+		nonce += 1
+		genTool.nonceMap[senderAddrS] = nonce
+	}
+	genTool.mu.Unlock()
+	return result
+}
+
+func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx int, stateDb *state.StateDB) []interface{} {
+	if numTx <= 0 || len(genTool.accounts) == 0 {
+		return nil
+	}
+	result := make([]interface{}, numTx)
+	genTool.mu.Lock()
+	for i := 0; i < numTx; i++ {
+		senderKey, toAddr := randomTxAddresses(genTool.accounts)
 		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
 		nonce := stateDb.GetNonce(senderPublicKey)
 		amount := big.NewInt(int64(RandomInt(10, 20)))
@@ -147,6 +187,10 @@ func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx int, stateDb *stat
 	}
 	genTool.mu.Unlock()
 	return result
+}
+
+func (genTool *GeneratorTool) GetNonce(address string) uint64 {
+	return genTool.nonceMap[address]
 }
 
 func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input []byte, stateDb *state.ManagedState) *types.Transaction {
@@ -182,9 +226,9 @@ func GenerateCreateSmcCall(senderKey *ecdsa.PrivateKey, input []byte, stateDb *s
 	return tx
 }
 
-func randomTxAddresses() (senderKey *ecdsa.PrivateKey, toAddr common.Address) {
+func randomTxAddresses(accounts []Account) (senderKey *ecdsa.PrivateKey, toAddr common.Address) {
 	for {
-		senderKey = randomGenesisPrivateKey()
+		senderKey = randomGenesisPrivateKey(accounts)
 		toAddr = randomGenesisAddress()
 		privateKeyBytes := crypto.FromECDSA(senderKey)
 		privateKeyHex := hexutil.Encode(privateKeyBytes)[2:]
@@ -216,13 +260,13 @@ func randomAddress() common.Address {
 	return common.BytesToAddress(address)
 }
 
-func randomGenesisPrivateKey() *ecdsa.PrivateKey {
-	size := len(configs.GenesisAddrKeys)
+func randomGenesisPrivateKey(accounts []Account) *ecdsa.PrivateKey {
+	size := len(accounts)
 	randomI := rand.Intn(size)
 	index := 0
-	for _, privateKey := range configs.GenesisAddrKeys {
+	for _, account := range accounts {
 		if index == randomI {
-			pkByte, _ := hex.DecodeString(privateKey)
+			pkByte, _ := hex.DecodeString(account.PrivateKey)
 			return crypto.ToECDSAUnsafe(pkByte)
 		}
 		index++
@@ -241,6 +285,18 @@ func GetRandomGenesisAccount() common.Address {
 		index++
 	}
 	panic("impossible failure")
+}
+
+func GetAccounts(genesisAccounts map[string]string) []Account {
+	accounts := make([]Account, 0)
+	for key, value := range genesisAccounts {
+		accounts = append(accounts, Account{
+			Address:    key,
+			PrivateKey: value,
+		})
+	}
+
+	return accounts
 }
 
 func RandomInt(min int, max int) int {

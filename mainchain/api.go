@@ -297,7 +297,7 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}.Hex(), err
 	}
-	return tx.Hash().Hex(), a.s.TxPool().AddRemote(tx)
+	return tx.Hash().Hex(), a.s.TxPool().AddTx(tx)
 }
 
 // KardiaCall execute a contract method call only against

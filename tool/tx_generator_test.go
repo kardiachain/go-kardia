@@ -30,7 +30,7 @@ import (
 )
 
 func TestGenerateTx(t *testing.T) {
-	genTool := NewGeneratorTool()
+	genTool := NewGeneratorTool(GetAccounts(configs.GenesisAddrKeys))
 
 	result := genTool.GenerateTx(1000)
 	for _, tx := range result {
@@ -51,10 +51,11 @@ func TestGenerateTx(t *testing.T) {
 }
 
 func TestGenerateRandomTxWithState(t *testing.T) {
-	genTool := NewGeneratorTool()
+	genTool := NewGeneratorTool(GetAccounts(configs.GenesisAddrKeys))
 	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
 	result := genTool.GenerateRandomTxWithState(10, statedb)
-	for _, tx := range result {
+	for _, txInterface := range result {
+		tx := txInterface.(*types.Transaction)
 		from, _ := types.Sender(tx)
 		if !containsInGenesis(from.String()) {
 			t.Error("Sender addr should be in genesis block")

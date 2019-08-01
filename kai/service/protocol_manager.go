@@ -26,16 +26,16 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/events"
 	serviceconst "github.com/kardiachain/go-kardia/kai/service/const"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/lib/p2p/discover"
-	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
@@ -53,6 +53,11 @@ var errIncompatibleConfig = errors.New("incompatible configuration")
 
 func errResp(code errCode, format string, v ...interface{}) error {
 	return fmt.Errorf("%v - %v", code, fmt.Sprintf(format, v...))
+}
+
+type receivedTxs struct {
+	peer *peer
+	txs  types.Transactions
 }
 
 type ProtocolManager struct {
@@ -83,6 +88,7 @@ type ProtocolManager struct {
 
 	// transaction channel and subscriptions
 	txsCh  chan events.NewTxsEvent
+	receivedTxsCh chan receivedTxs
 	txsSub event.Subscription
 
 	// Consensus stuff
@@ -119,6 +125,7 @@ func NewProtocolManager(
 		newPeerCh:   make(chan *peer),
 		noMorePeers: make(chan struct{}),
 		csReactor:   csReactor,
+		receivedTxsCh: make(chan receivedTxs),
 	}
 
 	// Initiate a sub-protocol for every implemented version we can handle
@@ -319,13 +326,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
 
-		// add all txs into knownTxs and return all txs that are not found in knownTxs
-		newTxs := p.MarkTransactions(txs, true)
-		if len(newTxs) > 0 {
-			if err := pm.txpool.AddTxs(newTxs); err != nil {
-				pm.logger.Error("Failed to add Transactions into pool", "err", err)
-			}
-		}
+		pm.receivedTxsCh <- receivedTxs{peer: p, txs: txs}
 
 	case msg.Code == serviceconst.CsNewRoundStepMsg:
 		pm.logger.Trace("NewRoundStep message received")
@@ -363,13 +364,13 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 // syncTransactions sends all pending transactions to the new peer.
 func (pm *ProtocolManager) syncTransactions(p *peer) {
 	// TODO(namdoh@,thientn@): Refactor this so we won't have to check this for dual service.
-	if pm.txpool == nil {
+	if pm.txpool == nil || !p.IsValidator {
 		return
 	}
 	pm.logger.Trace("Sync txns to new peer", "peer", p)
 	// TODO(thientn): sends transactions in chunks. This may send a large number of transactions.
 	// Breaks them to chunks here or inside AsyncSend to not overload the pipeline.
-	txs, _ := pm.txpool.Pending(0)
+	txs, _ := pm.txpool.Pending(0, false)
 	if len(txs) == 0 {
 		return
 	}
@@ -381,7 +382,13 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 	for {
 		select {
 		case txEvent := <-pm.txsCh:
-			pm.BroadcastTxs(txEvent.Txs)
+			go pm.BroadcastTxs(txEvent.Txs)
+
+		case receivedTxs := <-pm.receivedTxsCh:
+			go func() {
+				newTxs := receivedTxs.peer.MarkTransactions(receivedTxs.txs, true)
+				pm.txpool.AddTxs(newTxs)
+			}()
 
 		// Err() channel will be closed when unsubscribing.
 		case <-pm.txsSub.Err():
@@ -404,32 +411,35 @@ func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
 	}
 
 	for _, p := range pm.peers.peers {
-		pm.wg.Add(1)
-		go func(p *peer) {
-			defer pm.wg.Done()
-			p2p.Send(p.rw, msgType, msg)
-		}(p)
+		if p.IsValidator {
+			pm.wg.Add(1)
+			go func(p *peer) {
+				defer pm.wg.Done()
+				p2p.Send(p.rw, msgType, msg)
+			}(p)
+		}
 	}
 }
 
 // BroadcastTxs will propagate a batch of transactions to all peers which are not known to
 // already have the given transaction.
 func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
-	var txset = make(map[*peer]types.Transactions)
-	pm.logger.Info("Start broadcast txs", "number of txs", len(txs))
-	// Broadcast transactions to a batch of peers not knowing about it
-	for _, tx := range txs {
-		peers := pm.peers.PeersWithoutTx(tx.Hash())
-		for _, peer := range peers {
-			if _, ok := txset[peer]; !ok {
-				txset[peer] = make(types.Transactions, 0)
-			}
-			txset[peer] = append(txset[peer], tx)
-		}
-		pm.logger.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
-	}
+	//var txset = make(map[*peer]types.Transactions)
+	//pm.logger.Info("Start broadcast txs", "number of txs", len(txs))
+	//// Broadcast transactions to a batch of peers not knowing about it
+	//for _, tx := range txs {
+	//	peers := pm.peers.PeersWithoutTx(tx)
+	//	for _, peer := range peers {
+	//		if _, ok := txset[peer]; !ok {
+	//			txset[peer] = make(types.Transactions, 0)
+	//		}
+	//		txset[peer] = append(txset[peer], tx)
+	//	}
+	//	pm.logger.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
+	//}
 	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
-	for peer, txs := range txset {
+	for peer, txs := range pm.peers.PeersWithoutTxs(txs) {
+		// only send to validators
 		go peer.AsyncSendTransactions(txs)
 	}
 }

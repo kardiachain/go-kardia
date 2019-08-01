@@ -248,6 +248,14 @@
   version = "v1.1.1"
 
 [[projects]]
+  digest = "1:cbec35fe4d5a4fba369a656a8cd65e244ea2c743007d8f6c1ccb132acf9d1296"
+  name = "github.com/gorilla/mux"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "00bdffe0f3c77e27d2cf6f5c70232a2d3e4d9c15"
+  version = "v1.7.3"
+
+[[projects]]
   digest = "1:7b5c6e2eeaa9ae5907c391a91c132abfd5c9e8a784a341b5625e750c67e6825d"
   name = "github.com/gorilla/websocket"
   packages = ["."]
@@ -557,7 +565,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:592884773baa2f2871cfce60531595d30690c5afdd4fde35773204e2b625020e"
+  digest = "1:965d9eaa8f1b3e11fb52065eb6952f7713bdedb40addd9117d7abab1809c2c40"
   name = "golang.org/x/sys"
   packages = [
     "cpu",
@@ -565,7 +573,7 @@
     "windows",
   ]
   pruneopts = "UT"
-  revision = "fc99dfbffb4e5ed5758a37e31dd861afe285406b"
+  revision = "1393eb0183657fb29200106b17a5042ec6e48dbe"
 
 [[projects]]
   digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"
@@ -718,6 +726,7 @@
     "github.com/golang/protobuf/jsonpb",
     "github.com/golang/protobuf/proto",
     "github.com/golang/snappy",
+    "github.com/gorilla/mux",
     "github.com/hashicorp/golang-lru",
     "github.com/huin/goupnp",
     "github.com/huin/goupnp/dcps/internetgateway1",

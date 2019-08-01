@@ -19,8 +19,10 @@
 package service
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"sync"
 	"time"
 
@@ -42,9 +44,7 @@ var (
 
 const (
 	handshakeTimeout = 5 * time.Second
-
-	// TODO(@kiendn): move it to some configuration instead of hard code here
-	maxKnownTxs = 10000000 // Maximum transactions hashes to keep in the known list (prevent DOS)
+	maxKnownTxs      = 1000000 // Maximum transactions hashes to keep in the known list (prevent DOS)
 
 	// maxQueuedTxs is the maximum number of transaction lists to queue up before
 	// dropping broadcasts. This is a sensitive number as a transaction list might
@@ -71,26 +71,44 @@ type peer struct {
 
 	version int // Protocol version negotiated
 
-	knownTxs  *common.AtomicSet         // AtomicSet of transaction hashes known to be known by this peer
-	queuedTxs chan []*types.Transaction // Queue of transactions to broadcast to the peer
+	knownTxs  *common.Set                  // Set of transaction hashes known to be known by this peer
+	queuedTxs chan types.Transactions // Queue of transactions to broadcast to the peer
 
 	csReactor *consensus.ConsensusManager
 
 	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
-	Protocol   string
+	Protocol string
+	IsValidator bool
 }
 
 func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, csReactor *consensus.ConsensusManager) *peer {
+	isValidator := false
+	validators := csReactor.Validators()
+	pubKey, err := crypto.StringToPublicKey(hex.EncodeToString(p.ID().Bytes()))
+	if err != nil {
+		logger.Error("invalid peer", "id", p.ID().String())
+		return nil
+	}
+	address := crypto.PubkeyToAddress(*pubKey)
+
+	for _, val := range validators {
+		if val.Address.Equal(address) {
+			isValidator = true
+			break
+		}
+	}
+
 	return &peer{
 		logger:     logger,
 		Peer:       p,
 		rw:         rw,
 		version:    version,
 		id:         fmt.Sprintf("%x", p.ID().Bytes()[:8]),
-		queuedTxs:  make(chan []*types.Transaction, maxQueuedTxs),
-		knownTxs:   common.NewAtomicSet(maxKnownTxs),
+		queuedTxs:  make(chan types.Transactions, maxQueuedTxs),
+		knownTxs:   common.NewSet(maxKnownTxs),
 		csReactor:  csReactor,
 		terminated: make(chan struct{}),
+		IsValidator: isValidator,
 	}
 }
 
@@ -193,7 +211,7 @@ func (p *peer) readStatus(network uint64, chainID uint64, status *statusData, ge
 // String implements fmt.Stringer.
 func (p *peer) String() string {
 	return fmt.Sprintf("Peer %s [%s]", p.id,
-		fmt.Sprintf("eth/%2d", p.version),
+		fmt.Sprintf("kai/%2d", p.version),
 	)
 }
 
@@ -300,36 +318,68 @@ func (p *peer) broadcast() {
 
 // MarkTransactions marks a list of transaction as known for the peer, ensuring that it
 // will never be propagated to this particular peer.
-// validate is used in case we need to return only txs that are not found in knownTxs (new txs)
-func (p *peer) MarkTransactions(txs types.Transactions, validate bool) []*types.Transaction {
-	newTxs := make([]*types.Transaction, 0)
-	hashes := make([]interface{}, 0)
-
+func (p *peer) MarkTransactions(txs types.Transactions, filter bool) []interface{} {
+	newTxs := make([]interface{}, 0)
+	txHashes := make([]interface{}, 0)
 	for _, tx := range txs {
-		if tx == nil || (validate && p.knownTxs.Has(tx.Hash())) {
+		if filter && p.knownTxs.Has(tx.Hash()) {
 			continue
 		}
-
-		hashes = append(hashes, tx.Hash())
 		newTxs = append(newTxs, tx)
+		txHashes = append(txHashes, tx.Hash())
 	}
-	p.knownTxs.Add(hashes...)
+
+	if len(newTxs) > 0 {
+		p.knownTxs.Add(txHashes...)
+	}
 	return newTxs
 }
 
 // PeersWithoutTx retrieves a list of peers that do not have a given transaction
 // in their set of known hashes.
-func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
+func (ps *peerSet) PeersWithoutTx(tx *types.Transaction) []*peer {
 	ps.lock.RLock()
-	defer ps.lock.RUnlock()
+	peers := ps.peers
+	ps.lock.RUnlock()
 
 	list := make([]*peer, 0, len(ps.peers))
-	for _, p := range ps.peers {
-		if !p.knownTxs.Has(hash) {
+	for _, p := range peers {
+
+		if !p.IsValidator {
+			continue
+		}
+
+		if !p.knownTxs.Has(tx.Hash()) {
 			list = append(list, p)
 		}
 	}
 	return list
+}
+
+// PeersWithoutTxs retrieves a list of peers that do not have a given transaction
+// in their set of known hashes.
+func (ps *peerSet) PeersWithoutTxs(txs types.Transactions) map[*peer]types.Transactions {
+	ps.lock.RLock()
+	peers := ps.peers
+	ps.lock.RUnlock()
+
+	set := make(map[*peer]types.Transactions)
+	for _, tx := range txs {
+		for _, p := range peers {
+			if !p.IsValidator {
+				continue
+			}
+
+			if _, ok := set[p]; !ok {
+				set[p] = make(types.Transactions, 0)
+			}
+
+			if !p.knownTxs.Has(tx.Hash()) {
+				set[p] = append(set[p], tx)
+			}
+		}
+	}
+	return set
 }
 
 // SendTransactions sends transactions to the peer, adds the txn hashes to known txn set.
@@ -339,12 +389,14 @@ func (p *peer) SendTransactions(txs types.Transactions) error {
 
 // AsyncSendTransactions queues list of transactions propagation to a remote
 // peer. If the peer's broadcast queue is full, the event is silently dropped.
-func (p *peer) AsyncSendTransactions(txs []*types.Transaction) {
+func (p *peer) AsyncSendTransactions(txs types.Transactions) {
 	// Tx will be actually sent in SendTransactions() trigger by broadcast() routine
 	select {
 	case p.queuedTxs <- txs:
-		// add all txs to knownTxs
-		p.MarkTransactions(txs, false)
+		go p.MarkTransactions(txs, false)
+		//for _, tx := range txs {
+		//	p.knownTxs.Add(tx.Hash())
+		//}
 	default:
 		p.logger.Debug("Dropping transaction propagation", "count", len(txs))
 	}
