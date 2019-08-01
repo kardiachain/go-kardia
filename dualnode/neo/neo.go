@@ -182,9 +182,6 @@ func (n *Proxy) SubmitTx(event *types.EventData) error {
 	return configs.ErrUnsupportedMethod
 }
 
-// In case it's an exchange event (matchOrder), we will calculate matching order later
-// when we submitTx to externalChain, so I simply return a basic metadata here basing on target and event hash,
-// to differentiate TxMetadata inferred from events
 func (n *Proxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, error) {
 	return &types.TxMetadata{
 		TxHash: event.Hash(),

@@ -199,11 +199,6 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 			fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
 			toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
 			originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
-
-			if fromType == configs.ETH {
-				originalTx = common.Encode(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
-			}
-
 			srcAddress := string(event.Data.ExtData[configs.ExchangeV2SourceAddressIndex])
 			destAddress := string(event.Data.ExtData[configs.ExchangeV2DestAddressIndex])
 
@@ -267,10 +262,6 @@ func (p *KardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetada
 		fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
 		toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
 		originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
-
-		if fromType == configs.ETH {
-			originalTx = common.Encode(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
-		}
 
 		log.Info("Computing tx metadata for tx", "hash", originalTx)
 		kardiaTx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue,
@@ -413,7 +404,14 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.Event
 		exchangeExternalData[configs.ExchangeV2SourcePairIndex] = []byte(decodedInput.FromType)
 		exchangeExternalData[configs.ExchangeV2DestPairIndex] = []byte(decodedInput.ToType)
 		exchangeExternalData[configs.ExchangeV2AmountIndex] = decodedInput.Amount.Bytes()
-		exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex] = []byte(decodedInput.Txid)
+
+		// eth transactionId has different format, therefore it is necessary to be encoded.
+		if decodedInput.FromType == configs.ETH {
+			exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex] = []byte(common.Encode([]byte(decodedInput.Txid)))
+			log.Info("Encode Txid for ETH type", "tx", string(exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex]))
+		} else {
+			exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex] = []byte(decodedInput.Txid)
+		}
 		exchangeExternalData[configs.ExchangeV2TimestampIndex] = decodedInput.Timestamp.Bytes()
 	default:
 		log.Warn("Unexpected method in extractKardiaTxSummary", "method", method.Name)
