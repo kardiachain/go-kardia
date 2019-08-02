@@ -28,7 +28,6 @@ import (
 	"strings"
 	"time"
 
-	ethlog "github.com/ethereum/go-ethereum/log"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dev"
 	dualbc "github.com/kardiachain/go-kardia/dualchain/blockchain"
@@ -75,14 +74,6 @@ type flagArgs struct {
 
 	// Ether/Kardia dualnode related flags
 	ethDual         bool
-	ethNetworkId    int
-	ethStat         bool
-	ethStatName     string
-	ethLogLevel     string
-	ethListenAddr   string
-	ethContractAddr string
-	ethLightServ    int
-	ethRPCPort      int
 
 	// Neo/Kardia dualnode related flags
 	neoDual bool
@@ -147,17 +138,9 @@ func init() {
 	flag.StringVar(&args.serviceName, "serviceName", "", "ServiceName is used for displaying as log's prefix")
 
 	// Dualnode's related flags
-	flag.StringVar(&args.ethLogLevel, "ethloglevel", "warn", "minimum Eth log verbosity to display")
 	flag.BoolVar(&args.ethDual, "dual", false, "whether to run in dual mode")
-	flag.IntVar(&args.ethNetworkId, "ethNetworkId", 4, "run Eth network id, 4: rinkeby, 3: ropsten, 1: mainnet")
-	flag.StringVar(&args.ethListenAddr, "ethAddr", ":30302", "listen address for eth")
-	flag.StringVar(&args.ethContractAddr, "ethContractAddr", eth.DefaultEthConfig.ContractAddress, "Eth contract address")
 	flag.BoolVar(&args.tronDual, "trondual", false, "whether to run TRON dual node")
 	flag.BoolVar(&args.neoDual, "neodual", false, "whether to run NEO dual node")
-	flag.BoolVar(&args.ethStat, "ethstat", false, "report eth stats to network")
-	flag.StringVar(&args.ethStatName, "ethstatname", "", "name to use when reporting eth stats")
-	flag.IntVar(&args.ethLightServ, "ethLightServ", 0, "max percentage of time serving Ethereum light client requests")
-	flag.IntVar(&args.ethRPCPort, "ethRPCPort", eth.DefaultEthConfig.HTTPPort, "HTTP-RPC server listening port for Eth node. 8546 is the default port")
 	flag.BoolVar(&args.dualChain, "dualchain", false, "run dual chain for group consensus")
 	flag.StringVar(&args.dualChainValIndexes, "dualChainValIndexes", "", "Indexes of Dual chain validators")
 	flag.BoolVar(&args.isPrivateDual, "privateDual", false, "privateDual is true then peerId will be checked through smc to make sure that it has permission to access the dualchain")
@@ -186,7 +169,6 @@ func init() {
 		false, "generate fake dual events to trigger dual consensus. Note that this flag only has effect when --dev flag is set.")
 	flag.IntVar(&args.maxPeers, "maxpeers", 25,
 		"maximum number of network peers (network disabled if set to 0. Note that this flag only has effect when --dev flag is set")
-	flag.Uint64Var(&args.devDualChainID, "devDualChainID", eth.EthDualChainID, "manually set dualchain ID. Note that this flag only has effect when --dev flag is set")
 	flag.BoolVar(&args.txs, "txs", false, "generate random transfer txs")
 	flag.IntVar(&args.txsDelay, "txsDelay", 10, "delay in seconds between batches of generated txs")
 	flag.IntVar(&args.numTxs, "numTxs", 10, "number of of generated txs in one batch")
@@ -285,14 +267,6 @@ func main() {
 			log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
 	}
 	logger := log.New()
-
-	ethLogLevel, err := ethlog.LvlFromString(args.ethLogLevel)
-	if err != nil {
-		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
-		ethLogLevel = ethlog.LvlInfo
-	}
-	ethlog.Root().SetHandler(ethlog.LvlFilterHandler(ethLogLevel, ethlog.StdoutHandler))
-
 	// System settings
 	if err := runtimeSystemSettings(); err != nil {
 		logger.Error("Fail to update system settings", "err", err)
@@ -616,95 +590,56 @@ func main() {
 
 	// Run Eth-Kardia dual node
 	if args.ethDual {
-		config := &eth.DefaultEthConfig
-		config.Name = "GethKardia-" + args.name
-		config.ListenAddr = args.ethListenAddr
-		config.LightServ = args.ethLightServ
-		config.ReportStats = args.ethStat
-		config.HTTPPort = args.ethRPCPort
-		config.HTTPVirtualHosts = []string{"*"}
-		config.NetworkId = args.ethNetworkId
-		config.ContractAddress = args.ethContractAddr
-
-		if args.ethStatName != "" {
-			config.StatName = args.ethStatName
-		}
-		if args.dev && args.mockDualEvent {
-			config.DualNodeConfig = dev.CreateDualNodeConfig()
-		}
-
-		ethNode, err := eth.NewEth(
-			config,
+		ethProxy, err := eth.NewProxy(
 			kardiaService.BlockChain(),
 			kardiaService.TxPool(),
 			dualService.BlockChain(),
 			dualService.EventPool(),
-			&exchangeContractAddress,
-			exchangeContractAbi)
-		if err != nil {
-			logger.Error("Fail to create Eth sub node", "err", err)
-			return
-		}
-		if err := ethNode.Start(); err != nil {
-			logger.Error("Fail to start Eth sub node", "err", err)
-			return
-		}
+			args.publishedEndpoint,
+			args.subscribedEndpoint,
+		)
 
-		client, err := ethNode.Client()
 		if err != nil {
-			logger.Error("Fail to create Eth client", "err", err)
+			log.Error("Fail to initialize NeoProxy", "error", err)
 			return
 		}
 
 		if args.isPrivateDual {
 			var kardiaProxy *kardia.PrivateKardiaProxy
-			kardiaProxy, err = kardia.NewPrivateKardiaProxy(
-				kardiaService.BlockChain(),
-				kardiaService.TxPool(),
-				dualService.BlockChain(),
-				dualService.EventPool(),
-				&exchangeContractAddress,
-				exchangeContractAbi)
+			kardiaProxy, err = kardia.NewPrivateKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
+				dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
 			if err != nil {
-				log.Error("Fail to initialize KardiaChainProcessor", "error", err)
+				log.Error("Fail to initialize PrivateKardiaProxy", "error", err)
 			}
-
 			// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 			// submit tx to either internal or external blockchain.
-			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, ethNode)
+			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, ethProxy)
 			dualService.SetDualBlockChainManager(bcManager)
-
 			// Register the 'other' blockchain to each internal/external blockchain. This is needed
 			// for generate Tx to submit to the other blockchain.
-			kardiaProxy.RegisterExternalChain(ethNode)
-			ethNode.RegisterInternalChain(kardiaProxy)
-			go displaySyncStatus(client)
+			kardiaProxy.RegisterExternalChain(ethProxy)
+			ethProxy.RegisterInternalChain(kardiaProxy)
 			kardiaProxy.Start(args.mockDualEvent)
 		} else {
 			var kardiaProxy *kardia.KardiaProxy
-			kardiaProxy, err = kardia.NewKardiaProxy(
-				kardiaService.BlockChain(),
-				kardiaService.TxPool(),
-				dualService.BlockChain(),
-				dualService.EventPool(),
-				&exchangeContractAddress,
-				exchangeContractAbi)
+			kardiaProxy, err = kardia.NewKardiaProxy(kardiaService.BlockChain(), kardiaService.TxPool(), dualService.BlockChain(),
+				dualService.EventPool(), &exchangeContractAddress, exchangeContractAbi)
 			if err != nil {
-				log.Error("Fail to initialize KardiaChainProcessor", "error", err)
+				log.Error("Fail to initialize KardiaProxy", "error", err)
 			}
-
 			// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 			// submit tx to either internal or external blockchain.
-			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, ethNode)
+			bcManager := dualbc.NewDualBlockChainManager(kardiaProxy, ethProxy)
 			dualService.SetDualBlockChainManager(bcManager)
-
 			// Register the 'other' blockchain to each internal/external blockchain. This is needed
 			// for generate Tx to submit to the other blockchain.
-			kardiaProxy.RegisterExternalChain(ethNode)
-			ethNode.RegisterInternalChain(kardiaProxy)
-			go displaySyncStatus(client)
+			kardiaProxy.RegisterExternalChain(ethProxy)
+			ethProxy.RegisterInternalChain(kardiaProxy)
 			kardiaProxy.Start(args.mockDualEvent)
 		}
+
+		// Start tron proxy
+		ethProxy.Start()
 	}
 
 	if args.isPrivateDual {
@@ -797,18 +732,6 @@ func displayKardiaPeers(n *node.Node) {
 		time.Sleep(20 * time.Second)
 	}
 
-}
-
-func displaySyncStatus(client *eth.EthClient) {
-	for {
-		status, err := client.NodeSyncStatus()
-		if err != nil {
-			log.Error("Fail to check sync status of EthKarida", "err", err)
-		} else {
-			log.Info("Sync status", "sync", status)
-		}
-		time.Sleep(20 * time.Second)
-	}
 }
 
 // genTxsLoop generate & add a batch of transfer txs, repeat after delay flag.

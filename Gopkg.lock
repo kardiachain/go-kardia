@@ -61,15 +61,29 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:4f68ec67518b2f61953ca7a3dd3920a041efb401bf36319e2d262766cf75c6ad"
+  digest = "1:354e3776cdd837e1053751b09e2599d43d57db5d8a9b51aee4a38778044a5803"
+  name = "github.com/elastic/gosigar"
+  packages = [
+    ".",
+    "sys/windows",
+  ]
+  pruneopts = "UT"
+  revision = "f75810decf6f4d88b130bfc4d2ba7ccdcea0c01d"
+  version = "v0.10.4"
+
+[[projects]]
+  digest = "1:33aaff868560013c5384e9052441b8c8e101e2a290db264980ab86603ed7b20b"
   name = "github.com/ethereum/go-ethereum"
   packages = [
     ".",
     "accounts",
     "accounts/abi",
+    "accounts/abi/bind",
+    "accounts/external",
     "accounts/keystore",
+    "accounts/scwallet",
     "accounts/usbwallet",
-    "accounts/usbwallet/internal/trezor",
+    "accounts/usbwallet/trezor",
     "common",
     "common/bitutil",
     "common/fdlimit",
@@ -81,8 +95,11 @@
     "consensus/clique",
     "consensus/ethash",
     "consensus/misc",
+    "contracts/checkpointoracle",
+    "contracts/checkpointoracle/contract",
     "core",
     "core/bloombits",
+    "core/forkid",
     "core/rawdb",
     "core/state",
     "core/types",
@@ -102,6 +119,8 @@
     "eth/tracers/internal/tracers",
     "ethclient",
     "ethdb",
+    "ethdb/leveldb",
+    "ethdb/memorydb",
     "ethstats",
     "event",
     "internal/debug",
@@ -112,6 +131,7 @@
     "log",
     "metrics",
     "metrics/exp",
+    "metrics/prometheus",
     "miner",
     "node",
     "p2p",
@@ -124,11 +144,13 @@
     "params",
     "rlp",
     "rpc",
+    "signer/core",
+    "signer/storage",
     "trie",
   ]
   pruneopts = "T"
-  revision = "cdae1c59abc32f85debfa29577fbf1ed036ebf73"
-  version = "v1.8.26"
+  revision = "b7b2f60f866d92e75db5bfe5be51b48eadeb3150"
+  version = "v1.9.1"
 
 [[projects]]
   branch = "master"
@@ -142,6 +164,14 @@
   revision = "2a09253e352a56f419bd88effab0483f52da4c7d"
 
 [[projects]]
+  branch = "master"
+  digest = "1:a7e69236b403d78ca6a00e15a4030e34f99ffdb8be8dc71611361bf8f3d0e8a4"
+  name = "github.com/gballet/go-libpcsclite"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2772fd86a8ff4306d2749f610a386bfee9e0d727"
+
+[[projects]]
   digest = "1:586ea76dbd0374d6fb649a91d70d652b7fe0ccffb8910a77468e7702e7901f3d"
   name = "github.com/go-stack/stack"
   packages = ["."]
@@ -150,7 +180,7 @@
   version = "v1.8.0"
 
 [[projects]]
-  digest = "1:5b3cae1ba59f5db45f9f49357386de7c1dd187b69dc0134364aa26a7318cb0be"
+  digest = "1:8a6274839cb5179e0a93efb5fee882ba03825743b33909ab0472f316b4d436d6"
   name = "github.com/golang/protobuf"
   packages = [
     "jsonpb",
@@ -159,8 +189,8 @@
     "ptypes/struct",
   ]
   pruneopts = "UT"
-  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
-  version = "v1.2.0"
+  revision = "6c65a5562fc06764971b7c5d05c76c75e84bdbf7"
+  version = "v1.3.2"
 
 [[projects]]
   branch = "master"
@@ -185,6 +215,14 @@
   pruneopts = "UT"
   revision = "00bdffe0f3c77e27d2cf6f5c70232a2d3e4d9c15"
   version = "v1.7.3"
+
+[[projects]]
+  digest = "1:7b5c6e2eeaa9ae5907c391a91c132abfd5c9e8a784a341b5625e750c67e6825d"
+  name = "github.com/gorilla/websocket"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "66b9c49e59c6c48f0ffce28c2d8b8a5678502c6d"
+  version = "v1.4.0"
 
 [[projects]]
   digest = "1:8ec8d88c248041a6df5f6574b87bc00e7e0b493881dad2e7ef47b11dc69093b5"
@@ -223,11 +261,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:447562773a19dc1719359c2cd70d275c62c0b89f79d763f41d5deedb0e69873f"
-  name = "github.com/karalabe/hid"
+  digest = "1:d4cb85f57fbf9273ba7fab81e8337887a127fee71766dd2c82cb1f3322aba411"
+  name = "github.com/karalabe/usb"
   packages = ["."]
   pruneopts = "T"
-  revision = "d815e0c1a2e2082a287a2806bc90bc8fc7b276a9"
+  revision = "9be757f914c0907b7ddd561ea86eec15313ac022"
 
 [[projects]]
   digest = "1:ca955a9cd5b50b0f43d2cc3aeb35c951473eeca41b34eb67507f1dbcc0542394"
@@ -262,6 +300,22 @@
   version = "v0.0.4"
 
 [[projects]]
+  digest = "1:0356f3312c9bd1cbeda81505b7fd437501d8e778ab66998ef69f00d7f9b3a0d7"
+  name = "github.com/mattn/go-runewidth"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "3ee7d812e62a0804a7d0a324e0249ca2db3476d3"
+  version = "v0.0.4"
+
+[[projects]]
+  digest = "1:abcdbf03ca6ca13d3697e2186edc1f33863bbdac2b3a44dfa39015e8903f7409"
+  name = "github.com/olekukonko/tablewriter"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "e6d60cf7ba1f42d86d54cdf5508611c4aafb3970"
+  version = "v0.0.1"
+
+[[projects]]
   digest = "1:e5d0bd87abc2781d14e274807a470acd180f0499f8bf5bb18606e9ec22ad9de9"
   name = "github.com/pborman/uuid"
   packages = ["."]
@@ -294,12 +348,12 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:9ffc0db15d8de463144fdc52af75a21b9d6ffc9af2a91e3ed294758ac19c734e"
-  name = "github.com/prometheus/prometheus"
-  packages = ["util/flock"]
+  digest = "1:19a227084137c73d7a519ff90acc9fa69855c2ba134bb9c7dfe94e9ad2949c64"
+  name = "github.com/prometheus/tsdb"
+  packages = ["fileutil"]
   pruneopts = "UT"
-  revision = "85f23d82a045d103ea7f3c89a91fba4a93e6367a"
-  version = "v2.1.0"
+  revision = "7762249358193da791ec62e72b080d908f96e776"
+  version = "v0.10.0"
 
 [[projects]]
   digest = "1:31d83d1b1c288073c91abadee3caec87de2a1fb5dbe589039264a802e67a26b8"
@@ -316,6 +370,30 @@
   pruneopts = "UT"
   revision = "9a47f48565a795472d43519dd49aac781f3034fb"
   version = "v1.6.0"
+
+[[projects]]
+  branch = "develop"
+  digest = "1:6deccaba5762377091f2e5b26dba70e630e01edb3f95d1a6a59d9b098bd4358f"
+  name = "github.com/status-im/keycard-go"
+  packages = ["derivationpath"]
+  pruneopts = "UT"
+  revision = "d95853db0f480b9d6379009500acf44b21dc0be6"
+
+[[projects]]
+  digest = "1:266e2f508feb9a9a765bfeb74d116a88514248b2f8428788dcce574bd026b9c0"
+  name = "github.com/steakknife/bloomfilter"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "99ee86d9200fcc2ffde62f508329bd6627c0a307"
+  version = "1.0.4"
+
+[[projects]]
+  digest = "1:5ca4bdccd72e66aaba5b52f9c4a21f1021102f0919432fe138ad5d48abf06833"
+  name = "github.com/steakknife/hamming"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "003c143a81c25ea5e263d692919c611c7122ae6b"
+  version = "0.2.5"
 
 [[projects]]
   digest = "1:5da8ce674952566deae4dbc23d07c85caafc6cfa815b0b3e03e41979cedb8750"
@@ -350,93 +428,50 @@
   revision = "2f17a3356c6616cbfc4ae4c38147dc062a68fb0e"
 
 [[projects]]
-  branch = "master"
-  digest = "1:40fdfd6ab85ca32b6935853bbba35935dcb1d796c8135efd85947566c76e662e"
-  name = "github.com/xdg/scram"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "7eeb5667e42c09cb51bf7b7c28aea8c56767da90"
-
-[[projects]]
-  branch = "master"
-  digest = "1:f5c1d04bc09c644c592b45b9f0bad4030521b1a7d11c7dadbb272d9439fa6e8e"
-  name = "github.com/xdg/stringprep"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "73f8eece6fdcd902c185bf651de50f3828bed5ed"
-
-[[projects]]
-  digest = "1:721dfafdcdef689834240d27526505237b230b7dea54df28ec299ab182cfbd1f"
-  name = "go.mongodb.org/mongo-driver"
+  digest = "1:73e0d2644cf33beeafbfb79804143ac9738bed3c28a12fd5e61bd3b13ac95407"
+  name = "github.com/tyler-smith/go-bip39"
   packages = [
-    "bson",
-    "bson/bsoncodec",
-    "bson/bsonrw",
-    "bson/bsontype",
-    "bson/primitive",
-    "event",
-    "internal",
-    "mongo",
-    "mongo/options",
-    "mongo/readconcern",
-    "mongo/readpref",
-    "mongo/writeconcern",
-    "tag",
-    "version",
-    "x/bsonx",
-    "x/bsonx/bsoncore",
-    "x/mongo/driver",
-    "x/mongo/driver/auth",
-    "x/mongo/driver/auth/internal/gssapi",
-    "x/mongo/driver/session",
-    "x/mongo/driver/topology",
-    "x/mongo/driver/uuid",
-    "x/network/address",
-    "x/network/command",
-    "x/network/compressor",
-    "x/network/connection",
-    "x/network/connstring",
-    "x/network/description",
-    "x/network/result",
-    "x/network/wiremessage",
+    ".",
+    "wordlists",
   ]
   pruneopts = "UT"
-  revision = "0d1270edf53072da4da781b76d2e1db58831152f"
-  version = "v1.0.4"
+  revision = "2af0a847066a4f2669040ccd44a79c8eca10806a"
+  version = "v1.0.0"
 
 [[projects]]
   branch = "master"
-  digest = "1:a6f85d6d31c8c1185cf138cc82144c101e828472009bd8479425a011fd321e77"
+  digest = "1:7dca0da64f5937af74f21618cdb812c8f16a7d042316dd5bf2f1dfd086be3fc6"
+  name = "github.com/wsddn/go-ecdh"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "48726bab92085232373de4ec5c51ce7b441c63a0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:a81cc5b19d3001298c11f5fea561c957a7493e97e4280893cfeb850fd04863d7"
   name = "golang.org/x/crypto"
   packages = [
+    "curve25519",
     "pbkdf2",
     "ripemd160",
     "scrypt",
     "sha3",
+    "ssh/terminal",
   ]
   pruneopts = "UT"
   revision = "193df9c0f06f8bb35fba505183eaf0acc0136505"
 
 [[projects]]
   branch = "master"
-  digest = "1:1c6192f3fc4bfe21998d2498a40ef4afab4280b1d3e645580adede047b1706d3"
+  digest = "1:4939e20b972c22cd512abff0bf6ed8fc0e3e86aeb836d016be3323c6a901d99d"
   name = "golang.org/x/net"
   packages = [
     "html",
     "html/atom",
     "html/charset",
-    "websocket",
   ]
   pruneopts = "UT"
   revision = "65e2d4e15006aab9813ff8769e768bbf4bb667a0"
-
-[[projects]]
-  branch = "master"
-  digest = "1:382bb5a7fb4034db3b6a2d19e5a4a6bcf52f4750530603c01ca18a172fa3089b"
-  name = "golang.org/x/sync"
-  packages = ["semaphore"]
-  pruneopts = "UT"
-  revision = "112230192c580c3556b8cee6403af37a4fc5f28c"
 
 [[projects]]
   branch = "master"
@@ -532,7 +567,6 @@
     "github.com/ethereum/go-ethereum/common",
     "github.com/ethereum/go-ethereum/common/hexutil",
     "github.com/ethereum/go-ethereum/core",
-    "github.com/ethereum/go-ethereum/core/state",
     "github.com/ethereum/go-ethereum/core/types",
     "github.com/ethereum/go-ethereum/crypto",
     "github.com/ethereum/go-ethereum/eth",
@@ -569,8 +603,6 @@
     "github.com/syndtr/goleveldb/leveldb/opt",
     "github.com/syndtr/goleveldb/leveldb/storage",
     "github.com/syndtr/goleveldb/leveldb/util",
-    "go.mongodb.org/mongo-driver/mongo",
-    "go.mongodb.org/mongo-driver/mongo/options",
     "golang.org/x/crypto/ripemd160",
     "golang.org/x/crypto/scrypt",
     "gopkg.in/check.v1",
