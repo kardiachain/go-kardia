@@ -52,15 +52,15 @@ contract DPOS_Voting {
     
     // Modifiers
     modifier onlyOwner{
-        require(msg.sender == owner);
+        require(msg.sender == owner, "Only the owner can call the function");
         _;
     }
     modifier checkValue {
-        require(msg.value > 0);
+        require(msg.value > 0, "Value of stake must be positive");
         _;
     }
     modifier voteNotEnded {
-        require(!voteEnded);
+        require(!voteEnded, "The vote is not ended yet");
         _;
     }
     
@@ -70,14 +70,14 @@ contract DPOS_Voting {
         owner = msg.sender;
         voteEnded = false;
         numOfValidators = n;
-        validatorList.length = numOfValidators;
+        validatorList = new address[](numOfValidators);
         rankings.push(address(0x0)); // dummy addr at position 0
     }
     
     function signup(string memory pubKey, string memory name, string memory ratio, string memory description) 
         public payable voteNotEnded checkValue {
         if (candidates[msg.sender].exist) {
-            revert();
+            revert("Candidate already exists");
         }
         numOfCandidates++;
         ValidatorInfo memory newInfo = ValidatorInfo(pubKey, name, msg.value, ratio, description);
@@ -94,7 +94,7 @@ contract DPOS_Voting {
     
     function vote(address candAddress) public payable voteNotEnded checkValue{
         if (!candidates[candAddress].exist) {
-            revert();
+            revert("Candidate does not exist");
         }
         // Update candidate votes
         Candidate storage c = candidates[candAddress];
@@ -183,6 +183,8 @@ contract DPOS_Voting {
         return addr.balance;
     }
     
+    /** Transfers amount to recipient
+     **/ 
     function transferTo(address payable recipient, uint amount) public payable {
         recipient.transfer(amount);
         emit Refund(recipient, amount);
