@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	abi2 "github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/kardiachain/go-kardia/dualnode/eth/ethsmc"
 	message2 "github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -17,11 +16,16 @@ const (
 	expectedMethod = "deposit"
 	expectedArgs1 = "AYfK4xhJiaozTjacYTkrDD9hJgpbuqajyc"
 	expectedArgs2 = "NEO"
+	EthExchangeAbi = `[{"constant":false,"inputs":[{"name":"receiver","type":"address"},{"name":"amount","type":"uint256"}],"name":"release","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
+{"constant":false,"inputs":[{"name":"receiver","type":"string"},{"name":"destination","type":"string"}],"name":"deposit","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},
+{"constant":true,"inputs":[{"name":"destination","type":"string"}],"name":"isValidType","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},
+{"constant":false,"inputs":[{"name":"_type","type":"string"},{"name":"status","type":"bool"}],"name":"updateAvailableType","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},
+{"inputs":[{"name":"_owner","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"}]`
 )
 
 
 func TestGetMethodAndParams(t *testing.T) {
-	abi, err := abi2.JSON(strings.NewReader(ethsmc.EthExchangeAbi))
+	abi, err := abi2.JSON(strings.NewReader(EthExchangeAbi))
 	if err != nil {
 		t.Fatal(err)
 	}
