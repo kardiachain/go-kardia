@@ -20,12 +20,11 @@ package state
 
 import (
 	"fmt"
+	"github.com/kardiachain/go-kardia/types"
 	"sync"
 
 	lru "github.com/hashicorp/golang-lru"
-	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/trie"
 )
 
 // Trie cache generation limit after which to evict trie nodes from memory.
@@ -40,7 +39,7 @@ const (
 	codeSizeCacheSize = 100000
 )
 
-// Database wraps access to tries and contract code.
+// TrieDatabase wraps access to tries and contract code.
 type Database interface {
 	// OpenTrie opens the main account trie.
 	OpenTrie(root common.Hash) (Trie, error)
@@ -58,7 +57,7 @@ type Database interface {
 	ContractCodeSize(addrHash, codeHash common.Hash) (int, error)
 
 	// TrieDB retrieves the low level trie database used for data storage.
-	TrieDB() *trie.Database
+	TrieDB() *types.TrieDatabase
 }
 
 // Trie is a Kardia Merkle Trie.
@@ -66,9 +65,9 @@ type Trie interface {
 	TryGet(key []byte) ([]byte, error)
 	TryUpdate(key, value []byte) error
 	TryDelete(key []byte) error
-	Commit(onleaf trie.LeafCallback) (common.Hash, error)
+	Commit(onleaf types.LeafCallback) (common.Hash, error)
 	Hash() common.Hash
-	NodeIterator(startKey []byte) trie.NodeIterator
+	NodeIterator(startKey []byte) types.NodeIterator
 	GetKey([]byte) []byte // TODO(fjl): remove this when SecureTrie is removed
 	//Prove(key []byte, fromLevel uint, proofDb kaidb.Putter) error
 }
@@ -77,18 +76,18 @@ type Trie interface {
 // concurrent use and retains cached trie nodes in memory. The pool is an optional
 // intermediate trie-node memory pool between the low level storage layer and the
 // high level trie abstraction.
-func NewDatabase(db kaidb.Database) Database {
+func NewDatabase(db types.Database) Database {
 	csc, _ := lru.New(codeSizeCacheSize)
 	return &cachingDB{
-		db:            trie.NewDatabase(db),
+		db:            types.NewDatabase(db),
 		codeSizeCache: csc,
 	}
 }
 
 type cachingDB struct {
-	db            *trie.Database
+	db            *types.TrieDatabase
 	mu            sync.Mutex
-	pastTries     []*trie.SecureTrie
+	pastTries     []*types.SecureTrie
 	codeSizeCache *lru.Cache
 }
 
@@ -102,7 +101,7 @@ func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
 			return cachedTrie{db.pastTries[i].Copy(), db}, nil
 		}
 	}
-	tr, err := trie.NewSecure(root, db.db, MaxTrieCacheGen)
+	tr, err := types.NewSecure(root, db.db, MaxTrieCacheGen)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +110,7 @@ func (db *cachingDB) OpenTrie(root common.Hash) (Trie, error) {
 
 // OpenStorageTrie opens the storage trie of an account.
 func (db *cachingDB) OpenStorageTrie(addrHash, root common.Hash) (Trie, error) {
-	return trie.NewSecure(root, db.db, 0)
+	return types.NewSecure(root, db.db, 0)
 }
 
 // CopyTrie returns an independent copy of the given trie.
@@ -119,7 +118,7 @@ func (db *cachingDB) CopyTrie(t Trie) Trie {
 	switch t := t.(type) {
 	case cachedTrie:
 		return cachedTrie{t.SecureTrie.Copy(), db}
-	case *trie.SecureTrie:
+	case *types.SecureTrie:
 		return t.Copy()
 	default:
 		panic(fmt.Errorf("unknown trie type %T", t))
@@ -145,11 +144,11 @@ func (db *cachingDB) ContractCodeSize(addrHash, codeHash common.Hash) (int, erro
 }
 
 // TrieDB retrieves any intermediate trie-node caching layer.
-func (db *cachingDB) TrieDB() *trie.Database {
+func (db *cachingDB) TrieDB() *types.TrieDatabase {
 	return db.db
 }
 
-func (db *cachingDB) pushTrie(t *trie.SecureTrie) {
+func (db *cachingDB) pushTrie(t *types.SecureTrie) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 
@@ -163,11 +162,11 @@ func (db *cachingDB) pushTrie(t *trie.SecureTrie) {
 
 // cachedTrie inserts its trie into a cachingDB on commit.
 type cachedTrie struct {
-	*trie.SecureTrie
+	*types.SecureTrie
 	db *cachingDB
 }
 
-func (m cachedTrie) Commit(onleaf trie.LeafCallback) (common.Hash, error) {
+func (m cachedTrie) Commit(onleaf types.LeafCallback) (common.Hash, error) {
 	root, err := m.SecureTrie.Commit(onleaf)
 	if err == nil {
 		m.db.pushTrie(m.SecureTrie)

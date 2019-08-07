@@ -22,9 +22,6 @@ import (
 	"github.com/hashicorp/golang-lru"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/chaindb"
-	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -36,9 +33,9 @@ const (
 
 // Header of dual's blockchain.
 type DualHeaderChain struct {
-	config *configs.ChainConfig
+	config *types.ChainConfig
 
-	kaiDb storage.Database
+	kaiDb types.Database
 
 	genesisHeader *types.Header
 
@@ -59,7 +56,7 @@ func (dhc *DualHeaderChain) CurrentHeader() *types.Header {
 //  getValidator should return the parent's validator
 //  procInterrupt points to the parent's interrupt semaphore
 //  wg points to the parent's shutdown wait group
-func NewHeaderChain(kaiDb storage.Database, config *configs.ChainConfig) (*DualHeaderChain, error) {
+func NewHeaderChain(kaiDb types.Database, config *types.ChainConfig) (*DualHeaderChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	heightCache, _ := lru.New(heightCacheLimit)
 
@@ -76,7 +73,7 @@ func NewHeaderChain(kaiDb storage.Database, config *configs.ChainConfig) (*DualH
 	}
 
 	dhc.currentHeader.Store(dhc.genesisHeader)
-	if head := chaindb.ReadHeadBlockHash(kaiDb); head != (common.Hash{}) {
+	if head := kaiDb.ReadHeadBlockHash(); head != (common.Hash{}) {
 		if chead := dhc.GetHeaderByHash(head); chead != nil {
 			dhc.currentHeader.Store(chead)
 		}
@@ -89,7 +86,7 @@ func NewHeaderChain(kaiDb storage.Database, config *configs.ChainConfig) (*DualH
 // GetHeaderByheight retrieves a block header from the database by height,
 // caching it (associated with its hash) if found.
 func (dhc *DualHeaderChain) GetHeaderByHeight(height uint64) *types.Header {
-	hash := chaindb.ReadCanonicalHash(dhc.kaiDb, height)
+	hash := dhc.kaiDb.ReadCanonicalHash(height)
 	if hash == (common.Hash{}) {
 		return nil
 	}
@@ -103,7 +100,7 @@ func (dhc *DualHeaderChain) GetHeader(hash common.Hash, height uint64) *types.He
 	if header, ok := dhc.headerCache.Get(hash); ok {
 		return header.(*types.Header)
 	}
-	header := chaindb.ReadHeader(dhc.kaiDb, hash, height)
+	header := dhc.kaiDb.ReadHeader(hash, height)
 	if header == nil {
 		return nil
 	}
@@ -129,7 +126,7 @@ func (dhc *DualHeaderChain) GetBlockHeight(hash common.Hash) *uint64 {
 		height := cached.(uint64)
 		return &height
 	}
-	height := chaindb.ReadHeaderHeight(dhc.kaiDb, hash)
+	height := dhc.kaiDb.ReadHeaderHeight(hash)
 	if height != nil {
 		dhc.heightCache.Add(hash, *height)
 	}
@@ -138,7 +135,7 @@ func (dhc *DualHeaderChain) GetBlockHeight(hash common.Hash) *uint64 {
 
 // SetCurrentHeader sets the current head header of the canonical chain.
 func (dhc *DualHeaderChain) SetCurrentHeader(head *types.Header) {
-	chaindb.WriteHeadHeaderHash(dhc.kaiDb, head.Hash())
+	dhc.kaiDb.WriteHeadHeaderHash(head.Hash())
 
 	dhc.currentHeader.Store(head)
 	dhc.currentHeaderHash = head.Hash()
@@ -151,7 +148,7 @@ func (dhc *DualHeaderChain) SetGenesis(head *types.Header) {
 
 // DeleteCallback is a callback function that is called by SetHead before
 // each header is deleted.
-type DeleteCallback func(chaindb.DatabaseDeleter, common.Hash, uint64)
+type DeleteCallback func(types.DatabaseDeleter, common.Hash, uint64)
 
 // SetHead rewinds the local chain to a new head. Everything above the new head
 // will be deleted and the new one set.
@@ -168,13 +165,13 @@ func (dhc *DualHeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 		if delFn != nil {
 			delFn(batch, hash, height)
 		}
-		chaindb.DeleteHeader(batch, hash, height)
+		batch.DeleteHeader(hash, height)
 
 		dhc.currentHeader.Store(dhc.GetHeader(hdr.LastCommitHash, hdr.Height-1))
 	}
 	// Roll back the canonical chain numbering
 	for i := height; i > head; i-- {
-		chaindb.DeleteCanonicalHash(batch, i)
+		batch.DeleteCanonicalHash(i)
 	}
 	batch.Write()
 
@@ -187,5 +184,5 @@ func (dhc *DualHeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	}
 	dhc.currentHeaderHash = dhc.CurrentHeader().Hash()
 
-	chaindb.WriteHeadHeaderHash(dhc.kaiDb, dhc.currentHeaderHash)
+	dhc.kaiDb.WriteHeadHeaderHash(dhc.currentHeaderHash)
 }

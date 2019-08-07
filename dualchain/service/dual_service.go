@@ -21,19 +21,18 @@ package service
 import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
-	blockchain "github.com/kardiachain/go-kardia/dualchain/blockchain"
+	"github.com/kardiachain/go-kardia/dualchain/blockchain"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/kai/service"
 	serviceconst "github.com/kardiachain/go-kardia/kai/service/const"
 	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/kai/storage"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
 const DualServiceName = "DUAL"
@@ -44,13 +43,13 @@ type DualService struct {
 	logger log.Logger // Logger for Dual service
 
 	config      *DualConfig
-	chainConfig *configs.ChainConfig
+	chainConfig *types.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool
 
 	// DB interfaces
-	groupDb storage.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
+	groupDb types.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
 	eventPool           *event_pool.EventPool
@@ -68,9 +67,9 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	// Create a specific logger for DUAL service.
 	logger := log.New()
 	logger.AddTag(DualServiceName)
-	logger.Info("newDualService", "chaindata", config.ChainData)
+	logger.Info("newDualService", "chaintype", config.DBInfo.Name())
 
-	groupDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
+	groupDb, err := ctx.Config.StartDatabase(config.DBInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -153,9 +152,7 @@ func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 		ProtocolName:  chainConfig.DualProtocolName,
 		NetworkId:     chainConfig.DualNetworkID,
 		ChainID:       chainConfig.ChainId,
-		ChainData:     chainConfig.ChainDataDir,
-		DbHandles:     chainConfig.DbHandles,
-		DbCaches:      chainConfig.DbCache,
+		DBInfo:        chainConfig.DBInfo,
 		DualEventPool: chainConfig.DualEventPool,
 		DualGenesis:   chainConfig.DualGenesis,
 		IsPrivate:     chainConfig.IsPrivate,
@@ -221,4 +218,4 @@ func (s *DualService) APIs() []rpc.API {
 
 func (s *DualService) EventPool() *event_pool.EventPool       { return s.eventPool }
 func (s *DualService) BlockChain() *blockchain.DualBlockChain { return s.blockchain }
-func (s *DualService) DualChainConfig() *configs.ChainConfig  { return s.chainConfig }
+func (s *DualService) DualChainConfig() *types.ChainConfig  { return s.chainConfig }

@@ -26,6 +26,7 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dev"
+	"github.com/kardiachain/go-kardia/types"
 	"strings"
 	"strconv"
 	"path/filepath"
@@ -74,9 +75,7 @@ var DefaultConfig = node.NodeConfig{
 	},
 	MainChainConfig: node.MainChainConfig{
 		NetworkId:    privateNetworkId,
-		ChainDataDir: MainChainDataDir,
-		DbCache:      DefaultDbCache,
-		DbHandles:    DefaultDbHandles,
+		DBInfo:       types.NewLDBInfo(MainChainDataDir, DefaultDbCache, DefaultDbHandles),
 		AcceptTxs:    1, // 1 is to allow new transactions, 0 is not
 		IsPrivate:    true,
 		IsZeroFee:    true,
@@ -96,15 +95,11 @@ func SetUp(config *Config) (nodeConfig *node.NodeConfig, err error) {
 	if config.ListenAddr != nil {
 		nodeConfig.P2P.ListenAddr = *config.ListenAddr
 	}
-	if config.ChainDataDir != nil {
-		nodeConfig.MainChainConfig.ChainDataDir = *config.ChainDataDir
+
+	if config.ChainDataDir != nil && config.DbCache != nil && config.DbHandles != nil {
+		nodeConfig.MainChainConfig.DBInfo = types.NewLDBInfo(*config.ChainDataDir, *config.DbCache, *config.DbHandles)
 	}
-	if config.DbCache != nil {
-		nodeConfig.MainChainConfig.DbCache = *config.DbCache
-	}
-	if config.DbHandles != nil {
-		nodeConfig.MainChainConfig.DbHandles = *config.DbHandles
-	}
+
 	if config.HTTPPort != nil {
 		nodeConfig.HTTPPort = *config.HTTPPort
 	}

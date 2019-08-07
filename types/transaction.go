@@ -66,6 +66,14 @@ func NewTransaction(nonce uint64, to common.Address, amount *big.Int, gasLimit u
 	return newTransaction(nonce, &to, amount, gasLimit, gasPrice, data)
 }
 
+func NewTransactionWithSignedData(nonce uint64, to common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, s, r, v *big.Int) *Transaction {
+	tx := newTransaction(nonce, &to, amount, gasLimit, gasPrice, data)
+	tx.data.S = s
+	tx.data.R = r
+	tx.data.V = v
+	return tx
+}
+
 func NewContractCreation(nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
 	return newTransaction(nonce, nil, amount, gasLimit, gasPrice, data)
 }

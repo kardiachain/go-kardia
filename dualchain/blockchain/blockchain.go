@@ -19,23 +19,20 @@
 package blockchain
 
 import (
+	"encoding/hex"
 	"errors"
 	"sync"
 	"sync/atomic"
-	"encoding/hex"
 
 	"github.com/hashicorp/golang-lru"
-	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/chaindb"
+	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/state"
-	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/mainchain/permissioned"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
@@ -54,9 +51,9 @@ var (
 type DualBlockChain struct {
 	logger log.Logger
 
-	chainConfig *configs.ChainConfig // Chain & network configuration
+	chainConfig *types.ChainConfig // Chain & network configuration
 
-	db kaidb.Database // Kai's database
+	db types.Database // Kai's database
 	hc *DualHeaderChain
 
 	chainHeadFeed event.Feed
@@ -119,16 +116,16 @@ func (dbc *DualBlockChain) CurrentBlock() *types.Block {
 //	return dbc.processor
 //}
 
-func (dbc *DualBlockChain) DB() kaidb.Database {
+func (dbc *DualBlockChain) DB() types.Database {
 	return dbc.db
 }
 
 // Config retrieves the blockchain's chain configuration.
-func (dbc *DualBlockChain) Config() *configs.ChainConfig { return dbc.chainConfig }
+func (dbc *DualBlockChain) Config() *types.ChainConfig { return dbc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db kaidb.Database, chainConfig *configs.ChainConfig, isPrivate bool) (*DualBlockChain, error) {
+func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.ChainConfig, isPrivate bool) (*DualBlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 
@@ -171,7 +168,7 @@ func NewBlockChain(logger log.Logger, db kaidb.Database, chainConfig *configs.Ch
 // GetBlockByNumber retrieves a block from the database by number, caching it
 // (associated with its hash) if found.
 func (dbc *DualBlockChain) GetBlockByHeight(height uint64) *types.Block {
-	hash := chaindb.ReadCanonicalHash(dbc.db, height)
+	hash := dbc.db.ReadCanonicalHash(height)
 	if hash == (common.Hash{}) {
 		return nil
 	}
@@ -185,7 +182,7 @@ func (dbc *DualBlockChain) GetBlock(hash common.Hash, number uint64) *types.Bloc
 	if block, ok := dbc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
 	}
-	block := chaindb.ReadBlock(dbc.logger, dbc.db, hash, number)
+	block := dbc.db.ReadBlock(dbc.logger, hash, number)
 	if block == nil {
 		return nil
 	}
@@ -225,7 +222,7 @@ func (dbc *DualBlockChain) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEve
 // assumes that the chain manager mutex is held.
 func (dbc *DualBlockChain) loadLastState() error {
 	// Restore the last known head block
-	head := chaindb.ReadHeadBlockHash(dbc.db)
+	head := dbc.db.ReadHeadBlockHash()
 	if head == (common.Hash{}) {
 		// Corrupt or empty database, init from scratch
 		dbc.logger.Warn("Empty database, resetting chain")
@@ -251,7 +248,7 @@ func (dbc *DualBlockChain) loadLastState() error {
 
 	// Restore the last known head header
 	currentHeader := currentBlock.Header()
-	if head := chaindb.ReadHeadHeaderHash(dbc.db); head != (common.Hash{}) {
+	if head := dbc.db.ReadHeadHeaderHash(); head != (common.Hash{}) {
 		if header := dbc.GetHeaderByHash(head); header != nil {
 			currentHeader = header
 		}
@@ -279,7 +276,7 @@ func (dbc *DualBlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 	dbc.mu.Lock()
 	defer dbc.mu.Unlock()
 
-	chaindb.WriteBlock(dbc.db, genesis)
+	dbc.db.WriteBlock(genesis)
 
 	dbc.genesisBlock = genesis
 	dbc.insert(dbc.genesisBlock)
@@ -334,8 +331,8 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 	defer dbc.mu.Unlock()
 
 	// Rewind the header chain, deleting all block bodies until then
-	delFn := func(db chaindb.DatabaseDeleter, hash common.Hash, height uint64) {
-		chaindb.DeleteBody(db, hash, height)
+	delFn := func(db types.DatabaseDeleter, hash common.Hash, height uint64) {
+		db.DeleteBody(hash, height)
 	}
 	dbc.hc.SetHead(head, delFn)
 	currentHeader := dbc.hc.CurrentHeader()
@@ -362,7 +359,7 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 
 	currentBlock := dbc.CurrentBlock()
 
-	chaindb.WriteHeadBlockHash(dbc.db, currentBlock.Hash())
+	dbc.db.WriteHeadBlockHash(currentBlock.Hash())
 
 	return dbc.loadLastState()
 }
@@ -374,10 +371,10 @@ func (dbc *DualBlockChain) WriteBlockWithoutState(block *types.Block) error {
 	defer dbc.mu.Unlock()
 	// Write block data in batch
 	batch := dbc.db.NewBatch()
-	chaindb.WriteBlock(batch, block)
+	batch.WriteBlock(block)
 
 	// Convert all txs into txLookupEntries and store to db
-	chaindb.WriteTxLookupEntries(batch, block)
+	batch.WriteTxLookupEntries(block)
 	if err := batch.Write(); err != nil {
 		return err
 	}
@@ -397,7 +394,7 @@ func (dbc *DualBlockChain) WriteReceipts(receipts types.Receipts, block *types.B
 	dbc.mu.Lock()
 	defer dbc.mu.Unlock()
 
-	chaindb.WriteReceipts(dbc.db, block.Hash(), block.Header().Height, receipts)
+	dbc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
 }
 
 // WriteBlockWithState writes the block and all associated state to the database.
@@ -407,7 +404,7 @@ func (dbc *DualBlockChain) WriteBlockWithState(block *types.Block, receipts []*t
 	defer dbc.mu.Unlock()
 	// Write block data in batch.
 	batch := dbc.db.NewBatch()
-	chaindb.WriteBlock(batch, block)
+	batch.WriteBlock(block)
 	root, err := state.Commit(true)
 	if err != nil {
 		return err
@@ -416,8 +413,8 @@ func (dbc *DualBlockChain) WriteBlockWithState(block *types.Block, receipts []*t
 	if err := triedb.Commit(root, false); err != nil {
 		return err
 	}
-	chaindb.WriteReceipts(batch, block.Hash(), block.Header().Height, receipts)
-	chaindb.WriteTxLookupEntries(batch, block)
+	batch.WriteReceipts(block.Hash(), block.Header().Height, receipts)
+	batch.WriteTxLookupEntries(block)
 	if err := batch.Write(); err != nil {
 		return err
 	}
@@ -444,11 +441,11 @@ func (dbc DualBlockChain) CommitTrie(root common.Hash) error {
 // Note, this function assumes that the `mu` mutex is held!
 func (dbc *DualBlockChain) insert(block *types.Block) {
 	// If the block is on a side chain or an unknown one, force other heads onto it too
-	updateHeads := chaindb.ReadCanonicalHash(dbc.db, block.Height()) != block.Hash()
+	updateHeads := dbc.db.ReadCanonicalHash(block.Height()) != block.Hash()
 
 	// Add the block to the canonical chain number scheme and mark as the head
-	chaindb.WriteCanonicalHash(dbc.db, block.Hash(), block.Height())
-	chaindb.WriteHeadBlockHash(dbc.db, block.Hash())
+	dbc.db.WriteCanonicalHash(block.Hash(), block.Height())
+	dbc.db.WriteHeadBlockHash(block.Hash())
 
 	dbc.currentBlock.Store(block)
 
@@ -460,12 +457,12 @@ func (dbc *DualBlockChain) insert(block *types.Block) {
 
 // Writes commit to db.
 func (dbc *DualBlockChain) WriteCommit(height uint64, commit *types.Commit) {
-	chaindb.WriteCommit(dbc.db, height, commit)
+	dbc.db.WriteCommit(height, commit)
 }
 
 // Reads commit from db.
 func (dbc *DualBlockChain) ReadCommit(height uint64) *types.Commit {
-	return chaindb.ReadCommit(dbc.db, height)
+	return dbc.db.ReadCommit(height)
 }
 
 // Writes a hash into db.
@@ -474,7 +471,7 @@ func (dbc *DualBlockChain) ReadCommit(height uint64) *types.Commit {
 // tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
 // it under chaindb).
 func (dbc *DualBlockChain) StoreHash(hash *common.Hash) {
-	chaindb.StoreHash(dbc.db, hash)
+	dbc.db.StoreHash(hash)
 }
 
 // Returns true if a hash already exists.
@@ -483,7 +480,7 @@ func (dbc *DualBlockChain) StoreHash(hash *common.Hash) {
 // tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
 // it under chaindb).
 func (dbc *DualBlockChain) CheckHash(hash *common.Hash) bool {
-	return chaindb.CheckHash(dbc.db, hash)
+	return dbc.db.CheckHash(hash)
 }
 
 // Writes a tx hash into db.
@@ -492,7 +489,7 @@ func (dbc *DualBlockChain) CheckHash(hash *common.Hash) bool {
 // tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
 // it under chaindb).
 func (dbc *DualBlockChain) StoreTxHash(hash *common.Hash) {
-	chaindb.StoreTxHash(dbc.db, hash)
+	dbc.db.StoreTxHash(hash)
 }
 
 // Returns true if a tx hash already exists.
@@ -501,5 +498,5 @@ func (dbc *DualBlockChain) StoreTxHash(hash *common.Hash) {
 // tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
 // it under chaindb).
 func (dbc *DualBlockChain) CheckTxHash(hash *common.Hash) bool {
-	return chaindb.CheckTxHash(dbc.db, hash)
+	return dbc.db.CheckTxHash(hash)
 }

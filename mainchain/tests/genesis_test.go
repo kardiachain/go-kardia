@@ -21,7 +21,6 @@ package tests
 import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/account"
-	"github.com/kardiachain/go-kardia/kai/chaindb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -108,15 +107,15 @@ func TestCreateGenesisBlock(t *testing.T) {
 
 	// There are 2 ways of getting current blockHash
 	// ReadHeadBlockHash or ReadCanonicalHash
-	headBlockHash := chaindb.ReadHeadBlockHash(db)
-	canonicalHash := chaindb.ReadCanonicalHash(db, 0)
+	headBlockHash := storage.ReadHeadBlockHash(db)
+	canonicalHash := storage.ReadCanonicalHash(db, 0)
 
 	if !hash.Equal(headBlockHash) || !hash.Equal(canonicalHash) {
 		t.Error("Current BlockHash does not match")
 	}
 
 	// Get block by hash and height
-	block := chaindb.ReadBlock(log.New(), db, hash, 0)
+	block := storage.ReadBlock(log.New(), db, hash, 0)
 
 	// Init new State with current BlockHash
 	s, err := state.New(log.New(), block.Root(), state.NewDatabase(db))
@@ -142,15 +141,15 @@ func TestCreateContractInGenesis(t *testing.T) {
 
 	// There are 2 ways of getting current blockHash
 	// ReadHeadBlockHash or ReadCanonicalHash
-	headBlockHash := chaindb.ReadHeadBlockHash(db)
-	canonicalHash := chaindb.ReadCanonicalHash(db, 0)
+	headBlockHash := storage.ReadHeadBlockHash(db)
+	canonicalHash := storage.ReadCanonicalHash(db, 0)
 
 	if !hash.Equal(headBlockHash) || !hash.Equal(canonicalHash) {
 		t.Error("Current BlockHash does not match")
 	}
 
 	// Get block by hash and height
-	block := chaindb.ReadBlock(log.New(), db, hash, 0)
+	block := storage.ReadBlock(log.New(), db, hash, 0)
 
 	// Init new State with current BlockHash
 	s, err := state.New(log.New(), block.Root(), state.NewDatabase(db))
@@ -173,14 +172,14 @@ func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 	// Create genesis block with state_processor_test.genesisAccounts
 	g := genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, genesisContracts)
 	_, hash, err := genesis.SetupGenesisBlock(log.New(), db, g)
-	headBlockHash := chaindb.ReadHeadBlockHash(db)
-	canonicalHash := chaindb.ReadCanonicalHash(db, 0)
+	headBlockHash := storage.ReadHeadBlockHash(db)
+	canonicalHash := storage.ReadCanonicalHash(db, 0)
 
 	if !hash.Equal(headBlockHash) || !hash.Equal(canonicalHash) {
 		t.Error("Current BlockHash does not match")
 	}
 	// Get block by hash and height
-	block := chaindb.ReadBlock(log.New(), db, hash, 0)
+	block := storage.ReadBlock(log.New(), db, hash, 0)
 
 	// Init new State with current BlockHash
 	s, err := state.New(log.New(), block.Root(), state.NewDatabase(db))

@@ -23,9 +23,6 @@ import (
 
 	"github.com/hashicorp/golang-lru"
 
-	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/chaindb"
-	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -37,9 +34,9 @@ const (
 
 //TODO(huny@): Add detailed description
 type HeaderChain struct {
-	config *configs.ChainConfig
+	config *types.ChainConfig
 
-	kaiDb storage.Database
+	kaiDb types.Database
 
 	genesisHeader *types.Header
 
@@ -60,7 +57,7 @@ func (hc *HeaderChain) CurrentHeader() *types.Header {
 //  getValidator should return the parent's validator
 //  procInterrupt points to the parent's interrupt semaphore
 //  wg points to the parent's shutdown wait group
-func NewHeaderChain(kaiDb storage.Database, config *configs.ChainConfig) (*HeaderChain, error) {
+func NewHeaderChain(kaiDb types.Database, config *types.ChainConfig) (*HeaderChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	heightCache, _ := lru.New(heightCacheLimit)
 
@@ -77,7 +74,7 @@ func NewHeaderChain(kaiDb storage.Database, config *configs.ChainConfig) (*Heade
 	}
 
 	hc.currentHeader.Store(hc.genesisHeader)
-	if head := chaindb.ReadHeadBlockHash(kaiDb); head != (common.Hash{}) {
+	if head := kaiDb.ReadHeadBlockHash(); head != (common.Hash{}) {
 		if chead := hc.GetHeaderByHash(head); chead != nil {
 			hc.currentHeader.Store(chead)
 		}
@@ -90,7 +87,7 @@ func NewHeaderChain(kaiDb storage.Database, config *configs.ChainConfig) (*Heade
 // GetHeaderByheight retrieves a block header from the database by height,
 // caching it (associated with its hash) if found.
 func (hc *HeaderChain) GetHeaderByHeight(height uint64) *types.Header {
-	hash := chaindb.ReadCanonicalHash(hc.kaiDb, height)
+	hash := hc.kaiDb.ReadCanonicalHash(height)
 	if hash == (common.Hash{}) {
 		return nil
 	}
@@ -104,7 +101,7 @@ func (hc *HeaderChain) GetHeader(hash common.Hash, height uint64) *types.Header 
 	if header, ok := hc.headerCache.Get(hash); ok {
 		return header.(*types.Header)
 	}
-	header := chaindb.ReadHeader(hc.kaiDb, hash, height)
+	header := hc.kaiDb.ReadHeader(hash, height)
 	if header == nil {
 		return nil
 	}
@@ -130,7 +127,7 @@ func (hc *HeaderChain) GetBlockHeight(hash common.Hash) *uint64 {
 		height := cached.(uint64)
 		return &height
 	}
-	height := chaindb.ReadHeaderHeight(hc.kaiDb, hash)
+	height := hc.kaiDb.ReadHeaderHeight(hash)
 	if height != nil {
 		hc.heightCache.Add(hash, *height)
 	}
@@ -139,7 +136,7 @@ func (hc *HeaderChain) GetBlockHeight(hash common.Hash) *uint64 {
 
 // SetCurrentHeader sets the current head header of the canonical chain.
 func (hc *HeaderChain) SetCurrentHeader(head *types.Header) {
-	chaindb.WriteHeadHeaderHash(hc.kaiDb, head.Hash())
+	hc.kaiDb.WriteHeadHeaderHash(head.Hash())
 
 	hc.currentHeader.Store(head)
 	hc.currentHeaderHash = head.Hash()
@@ -152,7 +149,7 @@ func (hc *HeaderChain) SetGenesis(head *types.Header) {
 
 // DeleteCallback is a callback function that is called by SetHead before
 // each header is deleted.
-type DeleteCallback func(chaindb.DatabaseDeleter, common.Hash, uint64)
+type DeleteCallback func(types.DatabaseDeleter, common.Hash, uint64)
 
 // SetHead rewinds the local chain to a new head. Everything above the new head
 // will be deleted and the new one set.
@@ -169,13 +166,13 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 		if delFn != nil {
 			delFn(batch, hash, height)
 		}
-		chaindb.DeleteHeader(batch, hash, height)
+		batch.DeleteHeader(hash, height)
 
 		hc.currentHeader.Store(hc.GetHeader(hdr.LastCommitHash, hdr.Height-1))
 	}
 	// Roll back the canonical chain numbering
 	for i := height; i > head; i-- {
-		chaindb.DeleteCanonicalHash(batch, i)
+		hc.kaiDb.DeleteCanonicalHash(i)
 	}
 	batch.Write()
 
@@ -188,5 +185,5 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	}
 	hc.currentHeaderHash = hc.CurrentHeader().Hash()
 
-	chaindb.WriteHeadHeaderHash(hc.kaiDb, hc.currentHeaderHash)
+	hc.kaiDb.WriteHeadHeaderHash(hc.currentHeaderHash)
 }

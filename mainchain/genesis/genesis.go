@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/chaindb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -39,7 +38,7 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
-	Config    *configs.ChainConfig `json:"config"`
+	Config    *types.ChainConfig `json:"config"`
 	Timestamp uint64               `json:"timestamp"`
 	GasLimit  uint64               `json:"gasLimit"   gencodec:"required"`
 	Alloc     GenesisAlloc         `json:"alloc"      gencodec:"required"`
@@ -77,14 +76,14 @@ func (e *GenesisMismatchError) Error() string {
 //     db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(logger log.Logger, db kaidb.Database, genesis *Genesis) (*configs.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(logger log.Logger, db types.Database, genesis *Genesis) (*types.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		// TODO(huny@): should we return another default config?
 		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
 	}
 
 	// Just commit the new block if there is no stored genesis block.
-	stored := chaindb.ReadCanonicalHash(db, 0)
+	stored := db.ReadCanonicalHash(0)
 	if (stored == common.Hash{}) {
 		if genesis == nil {
 			logger.Info("Writing default main-net genesis block")
@@ -107,10 +106,10 @@ func SetupGenesisBlock(logger log.Logger, db kaidb.Database, genesis *Genesis) (
 
 	// Get the existing chain configuration.
 	newcfg := genesis.configOrDefault(stored)
-	storedcfg := chaindb.ReadChainConfig(db, stored)
+	storedcfg := db.ReadChainConfig(stored)
 	if storedcfg == nil {
 		logger.Warn("Found genesis block without chain config")
-		chaindb.WriteChainConfig(db, stored, newcfg)
+		db.WriteChainConfig(stored, newcfg)
 		return newcfg, stored, nil
 	}
 	// Special case: don't change the existing config of a non-mainnet chain if no new
@@ -120,11 +119,11 @@ func SetupGenesisBlock(logger log.Logger, db kaidb.Database, genesis *Genesis) (
 		return storedcfg, stored, nil
 	}
 
-	chaindb.WriteChainConfig(db, stored, newcfg)
+	db.WriteChainConfig(stored, newcfg)
 	return newcfg, stored, nil
 }
 
-func (g *Genesis) configOrDefault(ghash common.Hash) *configs.ChainConfig {
+func (g *Genesis) configOrDefault(ghash common.Hash) *types.ChainConfig {
 	switch {
 	case g != nil:
 		return g.Config
@@ -139,7 +138,7 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *configs.ChainConfig {
 
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
-func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
+func (g *Genesis) ToBlock(logger log.Logger, db types.Database) *types.Block {
 	if db == nil {
 		db = kaidb.NewMemStore()
 	}
@@ -171,22 +170,22 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 
 // Commit writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
-func (g *Genesis) Commit(logger log.Logger, db kaidb.Database) (*types.Block, error) {
+func (g *Genesis) Commit(logger log.Logger, db types.Database) (*types.Block, error) {
 	block := g.ToBlock(logger, db)
 	if block.Height() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with height > 0")
 	}
-	chaindb.WriteBlock(db, block)
-	chaindb.WriteReceipts(db, block.Hash(), block.Height(), nil)
-	chaindb.WriteCanonicalHash(db, block.Hash(), block.Height())
-	chaindb.WriteHeadBlockHash(db, block.Hash())
-	chaindb.WriteHeadHeaderHash(db, block.Hash())
+	db.WriteBlock(block)
+	db.WriteReceipts(block.Hash(), block.Height(), nil)
+	db.WriteCanonicalHash(block.Hash(), block.Height())
+	db.WriteHeadBlockHash(block.Hash())
+	db.WriteHeadHeaderHash(block.Hash())
 
 	config := g.Config
 	if config == nil {
 		config = configs.TestnetChainConfig
 	}
-	chaindb.WriteChainConfig(db, block.Hash(), config)
+	db.WriteChainConfig(block.Hash(), config)
 
 	return block, nil
 }
