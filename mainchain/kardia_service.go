@@ -25,16 +25,15 @@ import (
 	"github.com/kardiachain/go-kardia/kai/service"
 	serviceconst "github.com/kardiachain/go-kardia/kai/service/const"
 	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/kai/storage"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
 const (
@@ -54,13 +53,13 @@ type KardiaService struct {
 	logger log.Logger // Logger for Kardia service
 
 	config      *Config
-	chainConfig *configs.ChainConfig
+	chainConfig *types.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool
 
 	// DB interfaces
-	kaiDb storage.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
+	kaiDb types.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
 	txPool          *tx_pool.TxPool
@@ -83,9 +82,9 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// Create a specific logger for KARDIA service.
 	logger := log.New()
 	logger.AddTag(config.ServiceName)
-	logger.Info("newKardiaService", "chaindata", config.ChainData)
+	logger.Info("newKardiaService", "dbType", config.DBInfo.Name())
 
-	kaiDb, err := ctx.Config.StartDatabase(config.ChainData, config.DbCaches, config.DbHandles)
+	kaiDb, err := ctx.Config.StartDatabase(config.DBInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -177,9 +176,7 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		NetworkId:   chainConfig.NetworkId,
 		ServiceName: chainConfig.ServiceName,
 		ChainId:     chainConfig.ChainId,
-		ChainData:   chainConfig.ChainDataDir,
-		DbHandles:   chainConfig.DbHandles,
-		DbCaches:    chainConfig.DbCache,
+		DBInfo:      chainConfig.DBInfo,
 		Genesis:     chainConfig.Genesis,
 		TxPool:      chainConfig.TxPool,
 		AcceptTxs:   chainConfig.AcceptTxs,
@@ -265,5 +262,5 @@ func (s *KardiaService) APIs() []rpc.API {
 
 func (s *KardiaService) TxPool() *tx_pool.TxPool         { return s.txPool }
 func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
-func (s *KardiaService) ChainConfig() *configs.ChainConfig  { return s.chainConfig }
-func (s *KardiaService) DB() storage.Database { return s.kaiDb }
+func (s *KardiaService) ChainConfig() *types.ChainConfig  { return s.chainConfig }
+func (s *KardiaService) DB() types.Database { return s.kaiDb }

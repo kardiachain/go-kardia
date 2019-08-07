@@ -27,8 +27,8 @@ import (
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
@@ -56,7 +56,7 @@ func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_po
 
 // Height returns latest height of blockchain.
 func (bo *BlockOperations) Height() uint64 {
-	return bo.blockchain.CurrentHeader().Height
+	return bo.height
 }
 
 // CreateProposalBlock creates a new proposal block with all current pending txs in pool.
@@ -96,7 +96,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
 		return err
 	}
 	if root != block.Root() {
-		return fmt.Errorf("different new state root: Block root: %s, Execution result: %s", block.Root().Hex(), root.Hex())
+		panic(fmt.Errorf("different new state root: Block root: %s, Execution result: %s", block.Root().Hex(), root.Hex()))
 	}
 	receiptsHash := types.DeriveSha(receipts)
 	if receiptsHash != block.ReceiptHash() {
@@ -156,6 +156,9 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commi
 	//if block != nil && len(block.Transactions()) > 0 {
 	//	bo.txPool.RemoveTxs(block.Transactions())
 	//}
+	bo.mtx.Lock()
+	bo.height = height
+	bo.mtx.Unlock()
 }
 
 // LoadBlock returns the Block for the given height.
@@ -233,7 +236,7 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	gasPool := new(GasPool).AddGas(header.GasLimit)
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
-	loop:
+loop:
 	for _, tx := range txs {
 		state.Prepare(tx.Hash(), common.Hash{}, counter)
 		snap := state.Snapshot()

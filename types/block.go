@@ -33,7 +33,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto/sha3"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/lib/trie"
 	"math/big"
 )
 
@@ -565,7 +564,7 @@ type DerivableList interface {
 
 func DeriveSha(list DerivableList) common.Hash {
 	keybuf := new(bytes.Buffer)
-	t := new(trie.Trie)
+	t := new(Trie)
 	for i := 0; i < list.Len(); i++ {
 		keybuf.Reset()
 		rlp.Encode(keybuf, uint(i))

@@ -19,6 +19,7 @@
 package node
 
 import (
+	"github.com/kardiachain/go-kardia/types"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -58,15 +59,11 @@ var DefaultConfig = NodeConfig{
 		ServiceName:  KardiaServiceName,
 		ChainId:      MainChainID,
 		NetworkId:    DefaultNetworkID,
-		ChainDataDir: MainChainDataDir,
-		DbCache:      DefaultDbCache,
-		DbHandles:    DefaultDbHandles,
+		DBInfo:       types.NewLDBInfo(MainChainDataDir, DefaultDbCache, DefaultDbHandles),
 		AcceptTxs:    1, // 1 is to allow new transactions, 0 is not
 	},
 	DualChainConfig: DualChainConfig{
-		ChainDataDir: DualChainDataDir,
-		DbCache:      DefaultDbCache,
-		DbHandles:    DefaultDbHandles,
+		DBInfo:       types.NewLDBInfo(DualChainDataDir, DefaultDbCache, DefaultDbHandles),
 	},
 }
 

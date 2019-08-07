@@ -24,6 +24,7 @@ import (
 	"encoding/csv"
 	"encoding/hex"
 	"fmt"
+	"github.com/kardiachain/go-kardia/kai/storage/mongodb"
 	"io"
 	"os"
 	"path/filepath"
@@ -56,14 +57,8 @@ type MainChainConfig struct {
 	// Index of validators
 	ValidatorIndexes []int
 
-	// ChainDataDir is directory that stores levelDB data
-	ChainDataDir string
-
-	// DbCache is size in MB of allocated levelDB cache, minimum 16
-	DbCache int
-
-	// DbHandles is number of allocated levelDB file handlers, minium 16
-	DbHandles int
+	// DBInfo stores configuration information to setup database
+	DBInfo types.DBInfo
 
 	// Genesis is genesis block which contain initial Block and accounts
 	Genesis *genesis.Genesis
@@ -100,14 +95,8 @@ type DualChainConfig struct {
 	// Index of validators
 	ValidatorIndexes []int
 
-	// ChainDataDir is directory that stores levelDB data
-	ChainDataDir string
-
-	// DbCache is size in MB of allocated levelDB cache, minimum 16
-	DbCache int
-
-	// DbHandles is number of allocated levelDB file handlers, minium 16
-	DbHandles int
+	// DBInfo stores configuration information to setup database
+	DBInfo types.DBInfo
 
 	// Genesis is genesis block which contain initial Block and accounts
 	DualGenesis *genesis.Genesis
@@ -271,11 +260,32 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 }
 
 // Database starts a new or existed database in the node data directory, or in-memory database.
-func (c *NodeConfig) StartDatabase(name string, cache int, handles int) (storage.Database, error) {
+func (c *NodeConfig) StartDatabase(dbInfo types.DBInfo) (types.Database, error) {
+	switch dbInfo.GetType() {
+	case types.LevelDB: return c.StartLDBDatabase(dbInfo.GetInfo())
+	case types.MongoDB: return c.StartMongoDBDatabase(dbInfo.GetInfo())
+	default:
+		return nil, fmt.Errorf("invalid database type %v", dbInfo.GetType())
+	}
+}
+
+// StartLDBDatabase starts leveldb and args length must be 3: chaindir, cache, handles
+func (c *NodeConfig) StartLDBDatabase(args []interface{}) (types.Database, error) {
+	if len(args) != 3 {
+		return nil, fmt.Errorf("number of arguments are not correct, expect 3 but got %v", len(args))
+	}
 	if c.DataDir == "" {
 		return storage.NewMemStore(), nil
 	}
-	return storage.NewLDBStore(c.resolvePath(name), cache, handles)
+	return storage.NewLDBStore(c.resolvePath(args[0].(string)), args[1].(int), args[2].(int))
+}
+
+// StartMongoDBDatabase starts mongoDB and args length must be 3: uri, dbName and isDrop
+func (c *NodeConfig) StartMongoDBDatabase(args []interface{}) (types.Database, error) {
+	if len(args) != 3 {
+		return nil, fmt.Errorf("number of arguments are not correct, expect 2 but got %v", len(args))
+	}
+	return mongodb.NewDB(args[0].(string), args[1].(string), args[2].(bool))
 }
 
 // Return saved name or executable file name.
