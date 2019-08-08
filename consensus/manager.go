@@ -534,7 +534,7 @@ func (conR *ConsensusManager) gossipDataRoutine(peer *p2p.Peer, ps *PeerState) {
 	logger := conR.logger.New("peer", peer)
 	logger.Trace("Start gossipDataRoutine for peer")
 
-OUTER_LOOP:
+OuterLoop:
 	for {
 		// Manage disconnects from self or peer.
 		if !peer.IsAlive || !conR.running {
@@ -549,11 +549,17 @@ OUTER_LOOP:
 			go func() {
 				block := conR.conS.blockOperations.LoadBlock(prs.Height.Uint64())
 				lastCommit := conR.conS.LoadCommit(prs.Height)
+
+				// TODO(kiendn): (issue) when running on mongodb mode. Mismatches always happened, prs might not be updated.
+				//  Find why it happens, currently, add warn and bypass by using return.
+
 				if lastCommit == nil {
-					panic(cmn.Fmt("Loading commit of previous block fails and returns nil. rs.Height=%v vs. prs.Height=%v", rs.Height, prs.Height))
+					logger.Warn(cmn.Fmt("Loading commit of previous block fails and returns nil. rs.Height=%v vs. prs.Height=%v", rs.Height, prs.Height))
+					return
 				}
 				if block.Height() != lastCommit.Height().Uint64() {
-					panic(cmn.Fmt("Loaded block's height and loaded lastCommit's height aren't the same: %v vs. %v", lastCommit.Height(), lastCommit.Height()))
+					logger.Warn(cmn.Fmt("Loaded block's height and loaded lastCommit's height aren't the same: %v vs. %v", lastCommit.Height(), block.Height()))
+					return
 				}
 				logger.Trace("Sending BlockMessage for peer to catchup", "rsH/R", cmn.Fmt("%v/%v", rs.Height, rs.Round), "peerH/R", cmn.Fmt("%v/%v", prs.Height, prs.Round), "blockH/R", cmn.Fmt("%v/%v", prs.Height, lastCommit.Round()))
 				if err := p2p.Send(ps.rw, service.CsBlockMsg, &BlockMessage{Height: prs.Height, Round: lastCommit.Round(), Block: block}); err != nil {
@@ -561,14 +567,14 @@ OUTER_LOOP:
 				}
 			}()
 			time.Sleep(conR.conS.config.PeerGossipSleep())
-			continue OUTER_LOOP
+			continue OuterLoop
 		}
 
 		// If height and round don't match, sleep.
 		if !rs.Height.Equals(prs.Height) || !rs.Round.Equals(prs.Round) {
 			//logger.Trace("Peer Height|Round mismatch, sleeping", "peerHeight", prs.Height, "peerRound", prs.Round, "peer", peer)
 			time.Sleep(conR.conS.config.PeerGossipSleep())
-			continue OUTER_LOOP
+			continue OuterLoop
 		}
 
 		// By here, height and round match.
@@ -608,12 +614,12 @@ OUTER_LOOP:
 					}
 				}()
 			}
-			continue OUTER_LOOP
+			continue OuterLoop
 		}
 
 		// Nothing to do. Sleep.
 		time.Sleep(conR.conS.config.PeerGossipSleep())
-		continue OUTER_LOOP
+		continue OuterLoop
 	}
 }
 
