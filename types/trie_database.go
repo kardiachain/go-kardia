@@ -48,15 +48,6 @@ var secureKeyPrefix = []byte("secure-key-")
 // secureKeyLength is the length of the above prefix + 32byte hash.
 const secureKeyLength = 11 + 32
 
-//// DatabaseReader wraps the Get and Has method of a backing store for the trie.
-//type DatabaseReader interface {
-//	// Get retrieves the value associated with key form the database.
-//	Get(key []byte) (value []byte, err error)
-//
-//	// Has retrieves whether a key is present in the database.
-//	Has(key []byte) (bool, error)
-//}
-
 // TrieDatabase is an intermediate write layer between the trie data structures and
 // the disk database. The aim is to accumulate trie writes in-memory and only
 // periodically flush a couple tries to disk, garbage collecting the remainder.
