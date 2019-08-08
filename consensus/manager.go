@@ -546,26 +546,22 @@ OuterLoop:
 
 		// If the peer is on a previous height, help catch up.
 		if prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThan(rs.Height) {
+			block := conR.conS.blockOperations.LoadBlock(prs.Height.Uint64())
+			lastCommit := conR.conS.LoadCommit(prs.Height)
+			if lastCommit == nil {
+				logger.Warn(cmn.Fmt("Loading commit of previous block fails and returns nil. rs.Height=%v vs. prs.Height=%v", rs.Height, prs.Height))
+				return
+			}
+			if block.Height() != lastCommit.Height().Uint64() {
+				logger.Warn(cmn.Fmt("Loaded block's height and loaded lastCommit's height aren't the same: %v vs. %v", lastCommit.Height(), block.Height()))
+				return
+			}
+			logger.Trace("Sending BlockMessage for peer to catchup", "rsH/R", cmn.Fmt("%v/%v", rs.Height, rs.Round), "peerH/R", cmn.Fmt("%v/%v", prs.Height, prs.Round), "blockH/R", cmn.Fmt("%v/%v", prs.Height, lastCommit.Round()))
 			go func() {
-				block := conR.conS.blockOperations.LoadBlock(prs.Height.Uint64())
-				lastCommit := conR.conS.LoadCommit(prs.Height)
-
-				// TODO(kiendn): (issue) when running on mongodb mode. Mismatches always happened, prs might not be updated.
-				//  Find why it happens, currently, add warn and bypass by using return.
-
-				if lastCommit == nil {
-					logger.Warn(cmn.Fmt("Loading commit of previous block fails and returns nil. rs.Height=%v vs. prs.Height=%v", rs.Height, prs.Height))
-					return
-				}
-				if block.Height() != lastCommit.Height().Uint64() {
-					logger.Warn(cmn.Fmt("Loaded block's height and loaded lastCommit's height aren't the same: %v vs. %v", lastCommit.Height(), block.Height()))
-					return
-				}
-				logger.Trace("Sending BlockMessage for peer to catchup", "rsH/R", cmn.Fmt("%v/%v", rs.Height, rs.Round), "peerH/R", cmn.Fmt("%v/%v", prs.Height, prs.Round), "blockH/R", cmn.Fmt("%v/%v", prs.Height, lastCommit.Round()))
 				if err := p2p.Send(ps.rw, service.CsBlockMsg, &BlockMessage{Height: prs.Height, Round: lastCommit.Round(), Block: block}); err != nil {
 					logger.Trace("Sending block message failed", "err", err)
 				}
-			}()
+			} ()
 			time.Sleep(conR.conS.config.PeerGossipSleep())
 			continue OuterLoop
 		}
