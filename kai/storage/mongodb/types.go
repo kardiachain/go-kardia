@@ -433,7 +433,11 @@ func (vote *Vote) ToVote() *types.Vote {
 func NewCommit(commit *types.Commit, height uint64) *Commit {
 	votes := make([]*Vote, 0)
 	for _, vote := range commit.Precommits {
-		votes = append(votes, NewVote(vote))
+		if vote != nil {
+			votes = append(votes, NewVote(vote))
+		} else {
+			votes = append(votes, nil)
+		}
 	}
 	return &Commit{
 		Precommits: votes,
@@ -445,7 +449,11 @@ func NewCommit(commit *types.Commit, height uint64) *Commit {
 func (commit *Commit) ToCommit() *types.Commit {
 	votes := make([]*types.Vote, 0)
 	for _, vote := range commit.Precommits {
-		votes = append(votes, vote.ToVote())
+		if vote != nil {
+			votes = append(votes, vote.ToVote())
+		} else {
+			votes = append(votes, nil)
+		}
 	}
 	return &types.Commit{
 		Precommits: votes,
