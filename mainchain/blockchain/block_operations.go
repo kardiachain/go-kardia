@@ -96,7 +96,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
 		return err
 	}
 	if root != block.Root() {
-		panic(fmt.Errorf("different new state root: Block root: %s, Execution result: %s", block.Root().Hex(), root.Hex()))
+		return fmt.Errorf("different new state root: Block root: %s, Execution result: %s", block.Root().Hex(), root.Hex())
 	}
 	receiptsHash := types.DeriveSha(receipts)
 	if receiptsHash != block.ReceiptHash() {
