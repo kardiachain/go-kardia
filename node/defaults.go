@@ -19,7 +19,7 @@
 package node
 
 import (
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/kai/storage"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -59,11 +59,10 @@ var DefaultConfig = NodeConfig{
 		ServiceName:  KardiaServiceName,
 		ChainId:      MainChainID,
 		NetworkId:    DefaultNetworkID,
-		DBInfo:       types.NewLDBInfo(MainChainDataDir, DefaultDbCache, DefaultDbHandles),
 		AcceptTxs:    1, // 1 is to allow new transactions, 0 is not
 	},
 	DualChainConfig: DualChainConfig{
-		DBInfo:       types.NewLDBInfo(DualChainDataDir, DefaultDbCache, DefaultDbHandles),
+		DBInfo: storage.NewLDBInfo(DualChainDataDir, DefaultDbCache, DefaultDbHandles),
 	},
 }
 

@@ -20,18 +20,18 @@ package permissioned
 
 import (
 	"fmt"
-	"github.com/kardiachain/go-kardia/node"
-	"github.com/kardiachain/go-kardia/lib/p2p/nat"
-	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dev"
-	"github.com/kardiachain/go-kardia/types"
-	"strings"
-	"strconv"
-	"path/filepath"
+	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/lib/p2p/nat"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/node"
 	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -74,12 +74,12 @@ var DefaultConfig = node.NodeConfig{
 		NAT:        nat.Any(),
 	},
 	MainChainConfig: node.MainChainConfig{
-		NetworkId:    privateNetworkId,
-		DBInfo:       types.NewLDBInfo(MainChainDataDir, DefaultDbCache, DefaultDbHandles),
-		AcceptTxs:    1, // 1 is to allow new transactions, 0 is not
-		IsPrivate:    true,
-		IsZeroFee:    true,
-		Genesis:      genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts),
+		NetworkId: privateNetworkId,
+		DBInfo:    storage.NewLDBInfo(MainChainDataDir, DefaultDbCache, DefaultDbHandles),
+		AcceptTxs: 1, // 1 is to allow new transactions, 0 is not
+		IsPrivate: true,
+		IsZeroFee: true,
+		Genesis:   genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts),
 		EnvConfig: node.NewEnvironmentConfig(),
 	},
 }
@@ -97,7 +97,7 @@ func SetUp(config *Config) (nodeConfig *node.NodeConfig, err error) {
 	}
 
 	if config.ChainDataDir != nil && config.DbCache != nil && config.DbHandles != nil {
-		nodeConfig.MainChainConfig.DBInfo = types.NewLDBInfo(*config.ChainDataDir, *config.DbCache, *config.DbHandles)
+		nodeConfig.MainChainConfig.DBInfo = storage.NewLDBInfo(*config.ChainDataDir, *config.DbCache, *config.DbHandles)
 	}
 
 	if config.HTTPPort != nil {

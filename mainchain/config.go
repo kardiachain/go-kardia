@@ -19,9 +19,9 @@
 package kai
 
 import (
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 )
 
 // DefaultConfig contains default settings for use on the Kardia main net.
@@ -48,7 +48,7 @@ type Config struct {
 	TxPool tx_pool.TxPoolConfig
 
 	// DBInfo stores configuration information to setup database
-	DBInfo types.DBInfo
+	DBInfo storage.DBInfo
 
 	// acceptTxs accept tx sync processes
 	AcceptTxs uint32

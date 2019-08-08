@@ -21,6 +21,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/kardiachain/go-kardia/kai/storage"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -46,6 +47,12 @@ import (
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
+)
+
+
+const (
+	LevelDB = iota
+	MongoDB
 )
 
 // args
@@ -143,7 +150,7 @@ func init() {
 	flag.StringVar(&args.serviceName, "serviceName", "", "ServiceName is used for displaying as log's prefix")
 
 	// DB type
-	flag.IntVar(&args.db, "dbType", types.LevelDB, "dbType is type of db that will be used to store chain data, current supported types are leveldb and mongodb.")
+	flag.IntVar(&args.db, "dbType", LevelDB, "dbType is type of db that will be used to store chain data, current supported types are leveldb and mongodb.")
 	flag.StringVar(&args.dbUri, "dbUri", "", "mongodb uri")
 	flag.StringVar(&args.dbName, "dbName", "", "mongodb dbName")
 	flag.BoolVar(&args.dbDrop, "dbDrop", true, "option drops db")
@@ -362,11 +369,13 @@ func main() {
 		}
 	}
 	// check dbtype
-	if args.db == types.MongoDB {
+	if args.db == MongoDB {
 		if args.dbUri == "" || args.dbName == "" {
 			panic("dbUri and DbName must not be empty")
 		}
-		config.MainChainConfig.DBInfo = types.NewMongoDBInfo(args.dbUri, args.dbName, args.dbDrop)
+		config.MainChainConfig.DBInfo = storage.NewMongoDBInfo(args.dbUri, args.dbName, args.dbDrop)
+	} else {
+		config.MainChainConfig.DBInfo = storage.NewLDBInfo(config.ResolvePath(node.MainChainDataDir), node.DefaultDbCache, node.DefaultDbHandles)
 	}
 
 	config.PeerProxyIP = args.peerProxyIP
