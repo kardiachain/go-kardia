@@ -19,10 +19,10 @@
 package mongodb
 
 import (
-"github.com/kardiachain/go-kardia/lib/common"
-"github.com/kardiachain/go-kardia/lib/log"
-"github.com/kardiachain/go-kardia/types"
-"math/big"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/types"
+	"math/big"
 )
 
 const (
@@ -38,169 +38,171 @@ const (
 	txLookupEntryTable = "TxLookupEntry"
 )
 
-type Header struct {
-	Height uint64                         `json:"height"        bson:"height"`
-	Time   uint64                       `json:"time"          bson:"time"`
-	NumTxs uint64                         `json:"numTxs"        bson:"numTxs"`
-	NumDualEvents uint64                  `json:"numDualEvents" bson:"numDualEvents"`
+type (
+	Header struct {
+		Height uint64                         `json:"height"        bson:"height"`
+		Time   uint64                       `json:"time"          bson:"time"`
+		NumTxs uint64                         `json:"numTxs"        bson:"numTxs"`
+		NumDualEvents uint64                  `json:"numDualEvents" bson:"numDualEvents"`
 
-	GasLimit uint64                       `json:"gasLimit"         bson:"gasLimit"`
-	GasUsed  uint64                       `json:"gasUsed"          bson:"gasUsed"`
+		GasLimit uint64                       `json:"gasLimit"         bson:"gasLimit"`
+		GasUsed  uint64                       `json:"gasUsed"          bson:"gasUsed"`
 
-	// prev block info
-	LastBlockID string                    `json:"lastBlockID"      bson:"lastBlockID"`
-	Coinbase string                       `json:"miner"            bson:"miner"` // address
+		// prev block info
+		LastBlockID string                    `json:"lastBlockID"      bson:"lastBlockID"`
+		Coinbase string                       `json:"miner"            bson:"miner"` // address
 
-	// hashes of block data
-	LastCommitHash string                 `json:"lastCommitHash"      bson:"lastCommitHash"` // commit from validators from the last block
-	TxHash         string                 `json:"txHash"              bson:"txHash"` // transactions
-	DualEventsHash string                 `json:"dualEventsHash"      bson:"dualEventsHash"` // dual's events
-	Root           string                 `json:"stateRoot"           bson:"stateRoot"` // state root
-	ReceiptHash    string                 `json:"receiptsRoot"        bson:"receiptsRoot"` // receipt root
-	Bloom          string                 `json:"logsBloom"           bson:"logsBloom"`
+		// hashes of block data
+		LastCommitHash string                 `json:"lastCommitHash"      bson:"lastCommitHash"` // commit from validators from the last block
+		TxHash         string                 `json:"txHash"              bson:"txHash"` // transactions
+		DualEventsHash string                 `json:"dualEventsHash"      bson:"dualEventsHash"` // dual's events
+		Root           string                 `json:"stateRoot"           bson:"stateRoot"` // state root
+		ReceiptHash    string                 `json:"receiptsRoot"        bson:"receiptsRoot"` // receipt root
+		Bloom          string                 `json:"logsBloom"           bson:"logsBloom"`
 
-	ValidatorsHash string                 `json:"validators_hash"` // validators for the current block
-	ConsensusHash  string                 `json:"consensus_hash"`  // consensus params for current block
-}
+		ValidatorsHash string                 `json:"validators_hash"` // validators for the current block
+		ConsensusHash  string                 `json:"consensus_hash"`  // consensus params for current block
+	}
 
-type Block struct {
-	Header Header `json:"header"    bson:"header"`
-	Hash   string `json:"hash"      bson:"hash"`
-	Height uint64 `json:"height"    bson:"height"`
-}
+	Block struct {
+		Header Header `json:"header"    bson:"header"`
+		Hash   string `json:"hash"      bson:"hash"`
+		Height uint64 `json:"height"    bson:"height"`
+	}
 
-type Receipt struct {
-	BlockHash         string  `json:"blockHash"         bson:"blockHash"`
-	Height            uint64  `json:"height"            bson:"height"`
-	PostState         string  `json:"root"              bson:"root"`
-	Status            uint64  `json:"status"            bson:"status"`
-	CumulativeGasUsed uint64  `json:"cumulativeGasUsed" bson:"cumulativeGasUsed"`
-	Bloom             string  `json:"logsBloom"         bson:"logsBloom"`
-	Logs              []*Log  `json:"logs"              bson:"logs"`
-	TxHash          string    `json:"transactionHash"   bson:"transactionHash"`
-	ContractAddress string    `json:"contractAddress"   bson:"contractAddress"`
-	GasUsed         uint64    `json:"gasUsed"           bson:"gasUsed"`
-}
+	Receipt struct {
+		BlockHash         string  `json:"blockHash"         bson:"blockHash"`
+		Height            uint64  `json:"height"            bson:"height"`
+		PostState         string  `json:"root"              bson:"root"`
+		Status            uint64  `json:"status"            bson:"status"`
+		CumulativeGasUsed uint64  `json:"cumulativeGasUsed" bson:"cumulativeGasUsed"`
+		Bloom             string  `json:"logsBloom"         bson:"logsBloom"`
+		Logs              []*Log  `json:"logs"              bson:"logs"`
+		TxHash          string    `json:"transactionHash"   bson:"transactionHash"`
+		ContractAddress string    `json:"contractAddress"   bson:"contractAddress"`
+		GasUsed         uint64    `json:"gasUsed"           bson:"gasUsed"`
+	}
 
-type Log struct {
-	Address      string      `json:"address"          bson:"address"`
-	Topics       []string    `json:"topics"           bson:"topics"`
-	Data         string      `json:"data"             bson:"data"`
-	BlockHeight  uint64      `json:"blockHeight"      bson:"blockHeight"`
-	TxHash       string      `json:"transactionHash"  bson:"transactionHash"`
-	TxIndex      uint        `json:"transactionIndex" bson:"transactionIndex"`
-	BlockHash    string      `json:"blockHash"        bson:"blockHash"`
-	Index        uint        `json:"logIndex"         bson:"logIndex"`
-	Removed      bool        `json:"removed"          bson:"removed"`
-}
+	Log struct {
+		Address      string      `json:"address"          bson:"address"`
+		Topics       []string    `json:"topics"           bson:"topics"`
+		Data         string      `json:"data"             bson:"data"`
+		BlockHeight  uint64      `json:"blockHeight"      bson:"blockHeight"`
+		TxHash       string      `json:"transactionHash"  bson:"transactionHash"`
+		TxIndex      uint        `json:"transactionIndex" bson:"transactionIndex"`
+		BlockHash    string      `json:"blockHash"        bson:"blockHash"`
+		Index        uint        `json:"logIndex"         bson:"logIndex"`
+		Removed      bool        `json:"removed"          bson:"removed"`
+	}
 
-type Transaction struct {
-	From         string          `json:"from"         bson:"from"`
-	AccountNonce uint64          `json:"nonce"        bson:"nonce"`
-	Price        string          `json:"gasPrice"     bson:"gasPrice"`
-	GasLimit     uint64          `json:"gas"          bson:"gas"`
-	Recipient    string          `json:"to"           bson:"to"` // nil means contract creation
-	Amount       string          `json:"value"        bson:"value"`
-	Payload      string          `json:"input"        bson:"input"`
+	Transaction struct {
+		From         string          `json:"from"         bson:"from"`
+		AccountNonce uint64          `json:"nonce"        bson:"nonce"`
+		Price        string          `json:"gasPrice"     bson:"gasPrice"`
+		GasLimit     uint64          `json:"gas"          bson:"gas"`
+		Recipient    string          `json:"to"           bson:"to"` // nil means contract creation
+		Amount       string          `json:"value"        bson:"value"`
+		Payload      string          `json:"input"        bson:"input"`
 
-	// Signature values
-	V string                     `json:"v"            bson:"v"`
-	R string                     `json:"r"            bson:"r"`
-	S string                     `json:"s"            bson:"s"`
+		// Signature values
+		V string                     `json:"v"            bson:"v"`
+		R string                     `json:"r"            bson:"r"`
+		S string                     `json:"s"            bson:"s"`
 
-	// This is only used when marshaling to JSON.
-	Hash string                  `json:"hash"         bson:"hash"`
-	BlockHash string             `json:"blockHash"    bson:"blockHash"`
-	Height    uint64             `json:"height"       bson:"height"`
-	Index     int                `json:"index"        bson:"index"`
-}
+		// This is only used when marshaling to JSON.
+		Hash string                  `json:"hash"         bson:"hash"`
+		BlockHash string             `json:"blockHash"    bson:"blockHash"`
+		Height    uint64             `json:"height"       bson:"height"`
+		Index     int                `json:"index"        bson:"index"`
+	}
 
-type DualEvent struct {
-	Nonce             uint64                `json:"nonce"                bson:"nonce"`
-	TriggeredEvent    *types.EventData      `json:"triggeredEvent"       bson:"triggeredEvent"`
-	PendingTxMetadata *types.TxMetadata     `json:"pendingTxMetadata"    bson:"pendingTxMetadata"`
-	KardiaSmcs []*types.KardiaSmartcontract `json:"kardiaSmcs"           bson:"kardiaSmcs"`
-	Hash              string                `json:"hash"                 bson:"hash"`
-	BlockHash         string                `json:"blockHash"            bson:"blockHash"`
-	Height            uint64                `json:"height"               bson:"height"`
-}
+	DualEvent struct {
+		Nonce             uint64                `json:"nonce"                bson:"nonce"`
+		TriggeredEvent    *types.EventData      `json:"triggeredEvent"       bson:"triggeredEvent"`
+		PendingTxMetadata *types.TxMetadata     `json:"pendingTxMetadata"    bson:"pendingTxMetadata"`
+		KardiaSmcs []*types.KardiaSmartcontract `json:"kardiaSmcs"           bson:"kardiaSmcs"`
+		Hash              string                `json:"hash"                 bson:"hash"`
+		BlockHash         string                `json:"blockHash"            bson:"blockHash"`
+		Height            uint64                `json:"height"               bson:"height"`
+	}
 
-type EventData struct {
-	TxHash       string                  `json:"txHash"           bson:"txHash"`
-	TxSource     string                  `json:"txSource"         bson:"txSource"`
-	FromExternal bool                    `json:"fromExternal"     bson:"fromExternal"`
-	Data         *types.EventSummary     `json:"data"             bson:"data"`
-	Actions      *types.DualActions      `json:"actions"          bson:"actions"`
-}
+	EventData struct {
+		TxHash       string                  `json:"txHash"           bson:"txHash"`
+		TxSource     string                  `json:"txSource"         bson:"txSource"`
+		FromExternal bool                    `json:"fromExternal"     bson:"fromExternal"`
+		Data         *types.EventSummary     `json:"data"             bson:"data"`
+		Actions      *types.DualActions      `json:"actions"          bson:"actions"`
+	}
 
-type EventSummary struct {
-	TxMethod string   `json:"txMethod"           bson:"txMethod"`// Smc's method
-	TxValue  *big.Int `json:"txValue"            bson:"txValue"`// Amount of the tx
-	ExtData  []string `json:"extData"            bson:"extData"`// Additional data along with this event
-}
+	EventSummary struct {
+		TxMethod string   `json:"txMethod"           bson:"txMethod"`// Smc's method
+		TxValue  *big.Int `json:"txValue"            bson:"txValue"`// Amount of the tx
+		ExtData  []string `json:"extData"            bson:"extData"`// Additional data along with this event
+	}
 
-type DualActions struct {
-	Actions []*DualAction
-}
+	DualActions struct {
+		Actions []*DualAction
+	}
 
-type DualAction struct {
-	Name string           `json:"name"           bson:"name"`
-}
+	DualAction struct {
+		Name string           `json:"name"           bson:"name"`
+	}
 
-type KardiaSmartcontract struct {
-	EventWatcher *types.Watcher   `json:"eventWatcher"           bson:"eventWatcher"`
-	Actions      *DualActions     `json:"actions"                bson:"actions"`
-}
+	KardiaSmartcontract struct {
+		EventWatcher *types.Watcher   `json:"eventWatcher"           bson:"eventWatcher"`
+		Actions      *DualActions     `json:"actions"                bson:"actions"`
+	}
 
-type Watcher struct {
-	SmcAddress string       `json:"smcAddress"           bson:"smcAddress"`
-	WatcherAction string    `json:"watcherAction"        bson:"watcherAction"`
-}
+	Watcher struct {
+		SmcAddress string       `json:"smcAddress"           bson:"smcAddress"`
+		WatcherAction string    `json:"watcherAction"        bson:"watcherAction"`
+	}
 
-type Commit struct {
-	Height     uint64  `json:"height"           bson:"height"`
-	BlockID    string  `json:"blockID"          bson:"blockID"`
-	Precommits []*Vote `json:"precommits"       bson:"precommits"`
-}
+	Commit struct {
+		Height     uint64  `json:"height"           bson:"height"`
+		BlockID    string  `json:"blockID"          bson:"blockID"`
+		Precommits []*Vote `json:"precommits"       bson:"precommits"`
+	}
 
-type Vote struct {
-	ValidatorAddress string      `json:"validatorAddress"           bson:"validatorAddress"`
-	ValidatorIndex   int64       `json:"validatorIndex"             bson:"validatorIndex"`
-	Height           int64       `json:"height"                     bson:"height"`
-	Round            int64       `json:"round"                      bson:"round"`
-	Timestamp        uint64    `json:"timestamp"                  bson:"timestamp"`
-	Type             byte        `json:"type"                       bson:"type"`
-	BlockID          string      `json:"blockID"                    bson:"blockID"`
-	Signature        string      `json:"signature"                  bson:"signature"`
-}
+	Vote struct {
+		ValidatorAddress string      `json:"validatorAddress"           bson:"validatorAddress"`
+		ValidatorIndex   int64       `json:"validatorIndex"             bson:"validatorIndex"`
+		Height           int64       `json:"height"                     bson:"height"`
+		Round            int64       `json:"round"                      bson:"round"`
+		Timestamp        uint64    `json:"timestamp"                  bson:"timestamp"`
+		Type             byte        `json:"type"                       bson:"type"`
+		BlockID          string      `json:"blockID"                    bson:"blockID"`
+		Signature        string      `json:"signature"                  bson:"signature"`
+	}
 
-type HeadHeaderHash struct {
-	ID           int         `json:"ID"      bson:"ID"`
-	Hash         string      `json:"hash"    bson:"hash"`
-}
+	HeadHeaderHash struct {
+		ID           int         `json:"ID"      bson:"ID"`
+		Hash         string      `json:"hash"    bson:"hash"`
+	}
 
-type HeadBlockHash struct {
-	ID           int         `json:"ID"      bson:"ID"`
-	Hash         string      `json:"hash"    bson:"hash"`
-}
+	HeadBlockHash struct {
+		ID           int         `json:"ID"      bson:"ID"`
+		Hash         string      `json:"hash"    bson:"hash"`
+	}
 
-type ChainConfig struct {
-	Hash   string `json:"hash"     bson:"hash"`
-	Period uint64 `json:"period"   bson:"period"`
-	Epoch  uint64 `json:"epoch"    bson:"epoch"`
-}
+	ChainConfig struct {
+		Hash   string `json:"hash"     bson:"hash"`
+		Period uint64 `json:"period"   bson:"period"`
+		Epoch  uint64 `json:"epoch"    bson:"epoch"`
+	}
 
-type Caching struct {
-	Key   string `json:"key"       bson:"key"`
-	Value string `json:"value"     bson:"value"`
-}
+	Caching struct {
+		Key   string `json:"key"       bson:"key"`
+		Value string `json:"value"     bson:"value"`
+	}
 
-type TxLookupEntry struct {
-	TxHash     string   `json:"txHash"     bson:"txHash"`
-	BlockHash  string   `json:"blockHash"  bson:"blockHash"`
-	BlockIndex uint64   `json:"blockIndex" bson:"blockIndex"`
-	Index      uint64   `json:"index"      bson:"index"`
-}
+	TxLookupEntry struct {
+		TxHash     string   `json:"txHash"     bson:"txHash"`
+		BlockHash  string   `json:"blockHash"  bson:"blockHash"`
+		BlockIndex uint64   `json:"blockIndex" bson:"blockIndex"`
+		Index      uint64   `json:"index"      bson:"index"`
+	}
+)
 
 func NewBlock(block *types.Block) *Block {
 	header := Header{
@@ -262,7 +264,7 @@ func NewTransaction(tx *types.Transaction, height uint64, blockHash string, inde
 	if err != nil {
 		return nil, err
 	}
-	r, s, v := tx.RawSignatureValues()
+	v, r, s := tx.RawSignatureValues()
 	return &Transaction{
 		Hash: tx.Hash().Hex(),
 		Height: height,
@@ -312,17 +314,26 @@ func (tx *Transaction) ToTransaction() *types.Transaction {
 		return nil
 	}
 
-	return types.NewTransactionWithSignedData(
+	newTx := types.NewTransaction(
 		tx.AccountNonce,
 		common.HexToAddress(tx.Recipient),
 		amount,
 		tx.GasLimit,
 		price,
 		common.Hex2Bytes(tx.Payload),
-		s,
-		r,
-		v,
 	)
+
+	sig := make([]byte, 65)
+	copy(sig[:32], r.Bytes())
+	copy(sig[32:64], s.Bytes())
+	sig[64] = byte(v.Uint64()-27)
+
+	signedTx, err := newTx.WithSignature(sig)
+	if err != nil {
+		log.Error("error while signing tx based on stored r,s,v", "err", err)
+		return nil
+	}
+	return signedTx
 }
 
 func NewLog(log *types.Log) *Log {

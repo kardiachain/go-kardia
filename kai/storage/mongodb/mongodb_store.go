@@ -173,8 +173,8 @@ func (db *Store)getReceiptByTxHash(hash string) (*Receipt, error) {
 	return &r, nil
 }
 
-func (db *Store) getReceiptsByBlockId(height uint64) ([]*Receipt, error) {
-	cur, err := db.DB().Collection(receiptTable).Find(context.Background(), bson.M{"height": bsonx.Int64(int64(height))})
+func (db *Store) getReceiptsByBlockHash(hash common.Hash) ([]*Receipt, error) {
+	cur, err := db.DB().Collection(receiptTable).Find(context.Background(), bson.M{"blockHash": bsonx.String(hash.Hex())})
 	if err != nil {
 		return nil, err
 	}
@@ -555,7 +555,7 @@ func (db *Store)ReadHeaderNumber(hash common.Hash) *uint64 {
 
 // ReadReceipts retrieves all the transaction receipts belonging to a block.
 func (db *Store)ReadReceipts(hash common.Hash, number uint64) types.Receipts {
-	receipts, err := db.getReceiptsByBlockId(number)
+	receipts, err := db.getReceiptsByBlockHash(hash)
 	if err != nil {
 		log.Error("error while getting receipts from block", "err", err, "height", number, "hash", hash.Hex())
 		return nil
