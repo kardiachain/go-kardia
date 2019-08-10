@@ -455,6 +455,9 @@ func CommonStoreHash(db types.DatabaseWriter, hash *common.Hash) {
 // Returns true if a hash already exists in the database.
 func CommonCheckHash(db types.DatabaseReader, hash *common.Hash) bool {
 	data, _ := db.Get(hashKey(hash))
+	if data == nil {
+		return false
+	}
 	return decodeBoolean(data.([]byte))
 }
 
@@ -468,5 +471,8 @@ func CommonStoreTxHash(db types.DatabaseWriter, hash *common.Hash) {
 // Returns true if a tx hash already exists in the database.
 func CommonCheckTxHash(db types.DatabaseReader, hash *common.Hash) bool {
 	data, _ := db.Get(txHashKey(hash))
+	if data == nil {
+		return false
+	}
 	return decodeBoolean(data.([]byte))
 }
