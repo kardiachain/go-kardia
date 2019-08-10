@@ -23,10 +23,7 @@ contract DPOS_Voting {
         bool exist;
         ValidatorInfo info;
         uint numOfVoters;
-        Voter[] myVoters; //map voter address to staked amount
-        /* - If the nodes they delegated become the validators, these nodes will start paying them a proportional rewards 
-           - If the nodes they delegated failed to be elected, their delegated KAI will be returned.
-        */
+        Voter[] myVoters; // maps voter address to staked amount
     }
     
     struct Voter {
