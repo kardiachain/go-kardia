@@ -1,19 +1,19 @@
 pragma solidity >=0.4.22 <0.6.0;
 
-contract DPOS_Voting {
+contract DPoS_Election {
     
-    /** The validator applicant needs to provide his info in order to participant in the network:
-     * - Validator's PubKey
-     * - Validator's name
-     * - Validator's website (Optional) / Validator's description (Optional)
-     * - Initial self-bond amount: how much node is staking for itself 
-     * - Dividend ratio: the ratio in which it is sharing the profit with its stakers
+    /** The validator applicant needs to provide his info in order to participate in the election:
+     * - Validator's PubKey, e.g. "6fcae76a8b37cba"
+     * - Validator's name, e.g. "Jon Snow"
+     * - Initial self-bond amount, e.g. 100 kai coins
+     * - Dividend ratio: the ratio in which it is sharing the profit with its stakers, e.g. "40/60"
+     * - Validator's description (Optional)
      **/
     struct ValidatorInfo {
         string pubKey; 
         string name;
         uint selfStake;
-        string dividendRatio; // eg. "40/60"
+        string dividendRatio;
         string description;
     }
     
@@ -22,7 +22,7 @@ contract DPOS_Voting {
         uint ranking;
         bool exist;
         ValidatorInfo info;
-        uint numOfVoters;
+        uint numVoters;
         Voter[] myVoters; // maps voter address to staked amount
     }
     
@@ -31,14 +31,16 @@ contract DPOS_Voting {
         uint stakedAmount;
     }
     
+    
     // State variables
     address public owner;
     bool public voteEnded;
-    uint public numOfValidators; 
-    uint public numOfCandidates;
+    uint public numValidators; 
+    uint public numCandidates;
     mapping (address => Candidate) candidates;
     address[] public rankings; // keeps track of candidate rankings, position 1 is the highest
     address[] public validatorList; // stores list of validators after vote ended
+
 
     // Events
     event Signup(address candidate, uint stakes);
@@ -60,15 +62,15 @@ contract DPOS_Voting {
         require(!voteEnded, "The vote is not ended yet");
         _;
     }
-    
-    
+   
+   
     // Functions
     function init(uint n) public {
         owner = msg.sender;
         voteEnded = false;
-        numOfValidators = n;
-        validatorList = new address[](numOfValidators);
-        rankings.push(address(0x0)); // dummy addr at position 0
+        numValidators = n;
+        validatorList = new address[](numValidators);
+        rankings.push(address(0x0)); // dummy address at position 0
     }
     
     function signup(string memory pubKey, string memory name, string memory ratio, string memory description) 
@@ -76,13 +78,13 @@ contract DPOS_Voting {
         if (candidates[msg.sender].exist) {
             revert("Candidate already exists");
         }
-        numOfCandidates++;
+        numCandidates++;
         ValidatorInfo memory newInfo = ValidatorInfo(pubKey, name, msg.value, ratio, description);
         candidates[msg.sender].stakes = msg.value;
         candidates[msg.sender].info = newInfo;
         candidates[msg.sender].exist = true;
 
-        //Ranking
+        // Update ranking if necessary
         rankings.push(msg.sender);
         candidates[msg.sender].ranking = rankings.length-1;
         sortByRanking(rankings.length-1);
@@ -99,9 +101,9 @@ contract DPOS_Voting {
         
         // Update voter staked amount
         c.myVoters.push(Voter(msg.sender, msg.value));
-        c.numOfVoters += 1;
+        c.numVoters += 1;
 
-        // Ranking
+        // Update ranking if necessary
         sortByRanking(c.ranking);
         candidates[candAddress] = c;
         emit VoteCast(msg.sender, candAddress, msg.value);
@@ -109,8 +111,7 @@ contract DPOS_Voting {
     
     /** Sorts the rankings array assuming the rest of the array is already sorted
      *  and the position of a candidate can only move up to higher rank.
-     *  Returns the candidate's position after the sort.
-     **/ 
+     *  Returns the candidate's position after the sort **/ 
     function sortByRanking(uint index) private {
         for (uint i = index; i > 1; i--) {
             if (candidates[rankings[i]].stakes <= candidates[rankings[i-1]].stakes) {
@@ -126,14 +127,12 @@ contract DPOS_Voting {
         }
     }
     
-    /** Returns a candidate
-     **/ 
+    /** Returns a candidate **/ 
     function getCandidateStake(address candAddress) public view returns (uint){
         return candidates[candAddress].stakes;
     }
     
-    /** Returns the current ranking of a candidate
-     **/ 
+    /** Returns the current ranking of a candidate **/ 
     function getCandidateRanking(address candAddress) public returns (uint){
         uint position = candidates[candAddress].ranking;
         assert(rankings[position] == candAddress);
@@ -141,14 +140,12 @@ contract DPOS_Voting {
         return position;
     }
     
-    /** Returns the current list of all rankings
-     **/ 
+    /** Returns the current list of all rankings **/ 
     function getCurrentRankings() public view returns (address[] memory) {
         return rankings;
     }
     
-    /** Returns the list of result after vote ended
-     **/ 
+    /** Returns the list of result after vote ended **/ 
     function getValidatorList() public view returns (address[] memory) {
         return validatorList;
     }
@@ -160,28 +157,26 @@ contract DPOS_Voting {
         voteEnded = true;
         
         // Copy final result to validatorList
-        for (uint i = 1; i <= numOfValidators && i < rankings.length; i++) {
+        for (uint i = 1; i <= numValidators && i < rankings.length; i++) {
             validatorList[i-1] = rankings[i];
         }
         
         // Refund to voters
-        for (uint i = numOfValidators + 1; i <= numOfCandidates; i++) {
+        for (uint i = numValidators + 1; i <= numCandidates; i++) {
             Candidate memory c = candidates[rankings[i]];
-            for (uint k = 0; k < c.numOfVoters; k++) {
+            for (uint k = 0; k < c.numVoters; k++) {
                 transferTo(c.myVoters[k].voter, c.myVoters[k].stakedAmount);
                 candidates[rankings[i]].myVoters[k].stakedAmount = 0;
             }
         }
     }
     
-    /** Returns the current balance of the address
-     **/ 
+    /** Returns the current balance of the address **/ 
     function getBalance(address addr) view public returns(uint) {
         return addr.balance;
     }
     
-    /** Transfers amount to recipient
-     **/ 
+    /** Transfers amount to recipient **/ 
     function transferTo(address payable recipient, uint amount) public payable {
         recipient.transfer(amount);
         emit Refund(recipient, amount);
