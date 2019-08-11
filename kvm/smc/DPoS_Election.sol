@@ -5,7 +5,7 @@ contract DPoS_Election {
     /** The validator applicant needs to provide his info in order to participate in the election:
      * - Validator's PubKey, e.g. "6fcae76a8b37cba"
      * - Validator's name, e.g. "Jon Snow"
-     * - Initial self-bond amount, e.g. 100 kai coins
+     * - Initial self-bond amount, e.g 100 kai coins
      * - Dividend ratio: the ratio in which it is sharing the profit with its stakers, e.g. "40/60"
      * - Validator's description (Optional)
      **/
@@ -31,16 +31,14 @@ contract DPoS_Election {
         uint stakedAmount;
     }
     
-    
     // State variables
     address public owner;
-    bool public voteEnded;
+    bool public electionEnded;
     uint public numValidators; 
     uint public numCandidates;
     mapping (address => Candidate) candidates;
     address[] public rankings; // keeps track of candidate rankings, position 1 is the highest
     address[] public validatorList; // stores list of validators after vote ended
-
 
     // Events
     event Signup(address candidate, uint stakes);
@@ -58,23 +56,23 @@ contract DPoS_Election {
         require(msg.value > 0, "Value of stake must be positive");
         _;
     }
-    modifier voteNotEnded {
-        require(!voteEnded, "The vote is not ended yet");
+    modifier electionNotEnded {
+        require(!electionEnded, "The vote is not ended yet");
         _;
     }
-   
-   
+    
+    
     // Functions
     function init(uint n) public {
         owner = msg.sender;
-        voteEnded = false;
+        electionEnded = false;
         numValidators = n;
         validatorList = new address[](numValidators);
         rankings.push(address(0x0)); // dummy address at position 0
     }
     
     function signup(string memory pubKey, string memory name, string memory ratio, string memory description) 
-        public payable voteNotEnded checkValue {
+        public payable electionNotEnded checkValue {
         if (candidates[msg.sender].exist) {
             revert("Candidate already exists");
         }
@@ -91,7 +89,7 @@ contract DPoS_Election {
         emit Signup(msg.sender, msg.value);
     }
     
-    function vote(address candAddress) public payable voteNotEnded checkValue{
+    function vote(address candAddress) public payable electionNotEnded checkValue{
         if (!candidates[candAddress].exist) {
             revert("Candidate does not exist");
         }
@@ -153,8 +151,8 @@ contract DPoS_Election {
     /** Ends the vote and copies final result to validatorList and
      *  refund for voters whose candidates failed to be elected
      **/ 
-    function endVote() public payable voteNotEnded onlyOwner{
-        voteEnded = true;
+    function endElection() public payable electionNotEnded onlyOwner{
+        electionEnded = true;
         
         // Copy final result to validatorList
         for (uint i = 1; i <= numValidators && i < rankings.length; i++) {
