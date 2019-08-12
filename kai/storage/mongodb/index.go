@@ -16,15 +16,18 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
+/*
+ *	index.go is used to define all indices before starting mongodb.
+ */
 package mongodb
 
 import (
-"context"
-"github.com/kardiachain/go-kardia/lib/log"
-"go.mongodb.org/mongo-driver/mongo"
-"go.mongodb.org/mongo-driver/mongo/options"
-"go.mongodb.org/mongo-driver/x/bsonx"
-"time"
+	"context"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/x/bsonx"
+	"time"
 )
 
 const (

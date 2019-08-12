@@ -211,7 +211,7 @@ func (sdb *StateDB) Empty(addr common.Address) bool {
 	return so == nil || so.empty()
 }
 
-// TrieDatabase retrieves the low level database supporting the lower level trie ops.
+// Database retrieves the low level database supporting the lower level trie ops.
 func (sdb *StateDB) Database() Database {
 	return sdb.db
 }
