@@ -62,7 +62,7 @@ var DefaultConfig = NodeConfig{
 		AcceptTxs:    1, // 1 is to allow new transactions, 0 is not
 	},
 	DualChainConfig: DualChainConfig{
-		DBInfo: storage.NewLDBInfo(DualChainDataDir, DefaultDbCache, DefaultDbHandles),
+		DBInfo: storage.NewLevelDbInfo(DualChainDataDir, DefaultDbCache, DefaultDbHandles),
 	},
 }
 

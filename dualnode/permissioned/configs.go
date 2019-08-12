@@ -75,7 +75,7 @@ var DefaultConfig = node.NodeConfig{
 	},
 	MainChainConfig: node.MainChainConfig{
 		NetworkId: privateNetworkId,
-		DBInfo:    storage.NewLDBInfo(MainChainDataDir, DefaultDbCache, DefaultDbHandles),
+		DBInfo:    storage.NewLevelDbInfo(MainChainDataDir, DefaultDbCache, DefaultDbHandles),
 		AcceptTxs: 1, // 1 is to allow new transactions, 0 is not
 		IsPrivate: true,
 		IsZeroFee: true,
@@ -97,7 +97,7 @@ func SetUp(config *Config) (nodeConfig *node.NodeConfig, err error) {
 	}
 
 	if config.ChainDataDir != nil && config.DbCache != nil && config.DbHandles != nil {
-		nodeConfig.MainChainConfig.DBInfo = storage.NewLDBInfo(*config.ChainDataDir, *config.DbCache, *config.DbHandles)
+		nodeConfig.MainChainConfig.DBInfo = storage.NewLevelDbInfo(*config.ChainDataDir, *config.DbCache, *config.DbHandles)
 	}
 
 	if config.HTTPPort != nil {

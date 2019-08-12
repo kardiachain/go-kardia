@@ -71,7 +71,6 @@ var errAmountLessThanOne = errors.New("Amount is less than one to send")
 var errInvalidExchangeRate = errors.New("Invalid exchange rate")
 var errInvalidSourceMatchAmount = errors.New("Invalid source for match amount tx")
 var errErrorConvertRateFloat = errors.New("Error to convert rate to float")
-var TenPoweredBySix = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(6), nil)
 var TenPoweredBySixFloat = big.NewFloat(float64(math.Pow10(6)))
 var TenPoweredByEight = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
 var TenPoweredByTen = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(10), nil)
@@ -203,8 +202,17 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 	log.Info("AddOrderFunction", "fromType", source, "toType", destination, "srcAddress", sourceAddress,
 		"destAddress", destinationAddress, "originalTx", hash, "quantity", convertedAmount.String(), "timestamp", timestamp)
 
-	matchInput, err = kABI.Pack(configs.AddOrderFunction, source, destination, sourceAddress,
-		destinationAddress, hash, convertedAmount, timestamp)
+	if source == configs.ETH {
+		newHash := common.Encode([]byte(hash))
+		log.Info("encoding txHash with source is ETH", "originalTxHash", hash, "encodedTxHash", newHash)
+		// if source is eth encode txHash before call smc
+		matchInput, err = kABI.Pack(configs.AddOrderFunction, source, destination, sourceAddress,
+			destinationAddress, newHash, convertedAmount, timestamp)
+	} else {
+		matchInput, err = kABI.Pack(configs.AddOrderFunction, source, destination, sourceAddress,
+			destinationAddress, hash, convertedAmount, timestamp)
+	}
+
 	if err != nil {
 		log.Error("Error packing abi", "error", err, "address")
 		return nil, err
@@ -380,7 +388,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 		// callback from dual
 		triggerMessage := dualMsg.TriggerMessage{}
 		if err := jsonpb.UnmarshalString(message, &triggerMessage); err != nil {
-			proxy.Logger().Error("Error on unmarshal triggerMessage", "err", err, "topic", KARDIA_CALL)
+			proxy.Logger().Error("Error on unmarshal triggerMessage", "err", err, "topic", topic)
 			return err
 		}
 
@@ -393,12 +401,12 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 
 		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool().State(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
 		if err != nil {
-			proxy.Logger().Error("Error on executing kardia smart contract", "err", err, "topic", KARDIA_CALL)
+			proxy.Logger().Error("Error on executing kardia smart contract", "err", err, "topic", topic)
 			return err
 		}
 
 		if err := proxy.KardiaTxPool().AddTx(tx); err != nil {
-			proxy.Logger().Error("Error on adding tx to txPool", "err", err, "topic", KARDIA_CALL)
+			proxy.Logger().Error("Error on adding tx to txPool", "err", err, "topic", topic)
 			return err
 		}
 

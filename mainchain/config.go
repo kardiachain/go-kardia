@@ -47,8 +47,8 @@ type Config struct {
 	// Transaction pool options
 	TxPool tx_pool.TxPoolConfig
 
-	// DBInfo stores configuration information to setup database
-	DBInfo storage.DBInfo
+	// DbInfo stores configuration information to setup database
+	DBInfo storage.DbInfo
 
 	// acceptTxs accept tx sync processes
 	AcceptTxs uint32

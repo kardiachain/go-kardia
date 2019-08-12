@@ -236,7 +236,7 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	gasPool := new(GasPool).AddGas(header.GasLimit)
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
-loop:
+LOOP:
 	for _, tx := range txs {
 		state.Prepare(tx.Hash(), common.Hash{}, counter)
 		snap := state.Snapshot()
@@ -250,7 +250,7 @@ loop:
 			// TODO(thientn): check error type and jump to next tx if possible
 			// kiendn: instead of return nil and err, jump to next tx
 			//return common.Hash{}, nil, nil, err
-			continue loop
+			continue LOOP
 		}
 		counter++
 		receipts = append(receipts, receipt)

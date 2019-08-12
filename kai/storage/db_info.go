@@ -23,54 +23,54 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
-// DBInfo is used to start new database
-type DBInfo interface {
+// DbInfo is used to start new database
+type DbInfo interface {
 	Name() string
 	Start() (types.Database, error)
 }
 
-// MongoDBInfo implements DBInfo to start chain using MongoDB
-type MongoDBInfo struct {
+// MongoDbInfo implements DbInfo to start chain using MongoDB
+type MongoDbInfo struct {
 	URI string
 	DatabaseName string
-	Drop bool
+	Drop bool // if drop is true, drop database
 }
 
-// LDBInfo implements DBInfo to start chain using levelDB
-type LDBInfo struct {
+// LevelDbInfo implements DbInfo to start chain using levelDB
+type LevelDbInfo struct {
 	ChainData string
 	DbCaches int
 	DbHandles int
 }
 
-func NewMongoDBInfo(uri, databaseName string, drop bool) *MongoDBInfo {
-	return &MongoDBInfo{
+func NewMongoDbInfo(uri, databaseName string, drop bool) *MongoDbInfo {
+	return &MongoDbInfo{
 		URI: uri,
 		DatabaseName: databaseName,
 		Drop: drop,
 	}
 }
 
-func (db *MongoDBInfo) Name() string {
+func (db *MongoDbInfo) Name() string {
 	return "MongoDB"
 }
 
-func (db *MongoDBInfo) Start() (types.Database, error) {
+func (db *MongoDbInfo) Start() (types.Database, error) {
 	return mongodb.NewDB(db.URI, db.DatabaseName, db.Drop)
 }
 
-func NewLDBInfo(chainData string, dbCaches, dbHandles int) *LDBInfo {
-	return &LDBInfo{
+func NewLevelDbInfo(chainData string, dbCaches, dbHandles int) *LevelDbInfo {
+	return &LevelDbInfo{
 		ChainData: chainData,
 		DbCaches: dbCaches,
 		DbHandles: dbHandles,
 	}
 }
 
-func (db *LDBInfo) Name() string {
+func (db *LevelDbInfo) Name() string {
 	return "levelDB"
 }
 
-func (db *LDBInfo) Start() (types.Database, error) {
+func (db *LevelDbInfo) Start() (types.Database, error) {
 	return NewLDBStore(db.ChainData, db.DbCaches, db.DbHandles)
 }

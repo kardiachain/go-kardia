@@ -56,8 +56,8 @@ type MainChainConfig struct {
 	// Index of validators
 	ValidatorIndexes []int
 
-	// DBInfo stores configuration information to setup database
-	DBInfo storage.DBInfo
+	// DbInfo stores configuration information to setup database
+	DBInfo storage.DbInfo
 
 	// Genesis is genesis block which contain initial Block and accounts
 	Genesis *genesis.Genesis
@@ -94,8 +94,8 @@ type DualChainConfig struct {
 	// Index of validators
 	ValidatorIndexes []int
 
-	// DBInfo stores configuration information to setup database
-	DBInfo storage.DBInfo
+	// DbInfo stores configuration information to setup database
+	DBInfo storage.DbInfo
 
 	// Genesis is genesis block which contain initial Block and accounts
 	DualGenesis *genesis.Genesis
@@ -259,7 +259,7 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 }
 
 // Database starts a new or existed database in the node data directory, or in-memory database.
-func (c *NodeConfig) StartDatabase(dbInfo storage.DBInfo) (types.Database, error) {
+func (c *NodeConfig) StartDatabase(dbInfo storage.DbInfo) (types.Database, error) {
 	if c.DataDir == "" {
 		return storage.NewMemStore(), nil
 	}

@@ -39,7 +39,7 @@ const (
 	codeSizeCacheSize = 100000
 )
 
-// TrieDatabase wraps access to tries and contract code.
+// Database wraps access to tries and contract code.
 type Database interface {
 	// OpenTrie opens the main account trie.
 	OpenTrie(root common.Hash) (Trie, error)

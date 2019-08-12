@@ -37,8 +37,8 @@ type DualConfig struct {
 	// Dual's event pool options
 	DualEventPool event_pool.EventPoolConfig
 
-	// DBInfo stores configuration information to setup database
-	DBInfo storage.DBInfo
+	// DbInfo stores configuration information to setup database
+	DBInfo storage.DbInfo
 
 	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	IsPrivate bool
