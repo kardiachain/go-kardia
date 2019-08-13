@@ -1,4 +1,5 @@
-pragma solidity >=0.4.22 <0.6.0;
+// Compiler: remix: 0.5.4+commit.9549d8ff
+pragma solidity ^0.5.0;
 
 contract DPoS_Election {
     
@@ -77,14 +78,13 @@ contract DPoS_Election {
             revert("Candidate already exists");
         }
         numCandidates++;
-        ValidatorInfo memory newInfo = ValidatorInfo(pubKey, name, msg.value, ratio, description);
         candidates[msg.sender].stakes = msg.value;
-        candidates[msg.sender].info = newInfo;
+        candidates[msg.sender].info = ValidatorInfo(pubKey, name, msg.value, ratio, description);
         candidates[msg.sender].exist = true;
 
         // Update ranking if necessary
         rankings.push(msg.sender);
-        candidates[msg.sender].ranking = rankings.length-1;
+        candidates[msg.sender].ranking = rankings.length - 1;
         sortByRanking(rankings.length-1);
         emit Signup(msg.sender, msg.value);
     }
@@ -94,16 +94,14 @@ contract DPoS_Election {
             revert("Candidate does not exist");
         }
         // Update candidate votes
-        Candidate storage c = candidates[candAddress];
-        c.stakes += msg.value;
+        candidates[candAddress].stakes += msg.value;
         
         // Update voter staked amount
-        c.myVoters.push(Voter(msg.sender, msg.value));
-        c.numVoters += 1;
+        candidates[candAddress].myVoters.push(Voter(msg.sender, msg.value));
+        candidates[candAddress].numVoters += 1;
 
         // Update ranking if necessary
-        sortByRanking(c.ranking);
-        candidates[candAddress] = c;
+        sortByRanking(candidates[candAddress].ranking);
         emit VoteCast(msg.sender, candAddress, msg.value);
     }
     
@@ -160,11 +158,11 @@ contract DPoS_Election {
         }
         
         // Refund to voters
-        for (uint i = numValidators + 1; i <= numCandidates; i++) {
-            Candidate memory c = candidates[rankings[i]];
+        for (uint j = numValidators + 1; j <= numCandidates; j++) {
+            Candidate memory c = candidates[rankings[j]];
             for (uint k = 0; k < c.numVoters; k++) {
                 transferTo(c.myVoters[k].voter, c.myVoters[k].stakedAmount);
-                candidates[rankings[i]].myVoters[k].stakedAmount = 0;
+                candidates[rankings[j]].myVoters[k].stakedAmount = 0;
             }
         }
     }
