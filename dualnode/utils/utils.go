@@ -202,16 +202,8 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 	log.Info("AddOrderFunction", "fromType", source, "toType", destination, "srcAddress", sourceAddress,
 		"destAddress", destinationAddress, "originalTx", hash, "quantity", convertedAmount.String(), "timestamp", timestamp)
 
-	if source == configs.ETH {
-		newHash := common.Encode([]byte(hash))
-		log.Info("encoding txHash with source is ETH", "originalTxHash", hash, "encodedTxHash", newHash)
-		// if source is eth encode txHash before call smc
-		matchInput, err = kABI.Pack(configs.AddOrderFunction, source, destination, sourceAddress,
-			destinationAddress, newHash, convertedAmount, timestamp)
-	} else {
-		matchInput, err = kABI.Pack(configs.AddOrderFunction, source, destination, sourceAddress,
-			destinationAddress, hash, convertedAmount, timestamp)
-	}
+	matchInput, err = kABI.Pack(configs.AddOrderFunction, source, destination, sourceAddress,
+		destinationAddress, hash, convertedAmount, timestamp)
 
 	if err != nil {
 		log.Error("Error packing abi", "error", err, "address")
