@@ -89,6 +89,8 @@ contract DPoS_Election {
         emit Signup(msg.sender, msg.value);
     }
     
+    /** Allows voter to delegate their KAI to stake for a candidate.
+        A voter can vote for multiple candidates by calling the function multiple times **/
     function vote(address candAddress) public payable electionNotEnded checkValue{
         if (!candidates[candAddress].exist) {
             revert("Candidate does not exist");
