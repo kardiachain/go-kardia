@@ -253,7 +253,7 @@ func CallKardiGetMatchingResultByTxId(from common.Address, bc base.BaseBlockChai
 	return matchingResult.Results, nil
 }
 
-func UpdateKardiaTargetTx(state *state.ManagedState, originalTx string, tx string, txType string) (*types.Transaction, error) {
+func UpdateKardiaTargetTx(state *state.ManagedState, originalTx string, tx string) (*types.Transaction, error) {
 	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
 	kAbi, err := abi.JSON(strings.NewReader(masterSmcAbi))
@@ -261,14 +261,10 @@ func UpdateKardiaTargetTx(state *state.ManagedState, originalTx string, tx strin
 		log.Error("Error reading abi", "err", err)
 		return nil, err
 	}
-	var completeInput []byte
-	if txType == "target" {
-		completeInput, err = kAbi.Pack(configs.UpdateTargetTx, originalTx, tx)
-	} else {
-		completeInput, err = kAbi.Pack(configs.UpdateKardiaTx, originalTx, tx)
-	}
+
+	completeInput, err := kAbi.Pack(configs.UpdateKardiaTx, originalTx, tx)
 	if err != nil {
-		log.Error("Failed to pack updateTx", txType, "originalTx", originalTx, "err", err)
+		log.Error("Failed to pack updateTx", "originalTx", originalTx, "err", err)
 		return nil, err
 	}
 	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, completeInput, state), nil
@@ -636,7 +632,9 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 	if err != nil {
 		return err
 	}
-	proxy.Logger().Info("Release info", "release", releases)
+	proxy.Logger().Info("Release info - releases results", "releases", releases, "sender", senderAddr.Hex(), "originalTx", originalTx,
+		"fromType", fromType, "toType", toType, "fromAmount", fromAmount, "toAmount", toAmount, )
+
 	if releases != "" {
 		fields := strings.Split(releases, configs.ExchangeV2ReleaseFieldsSeparator)
 		if len(fields) != 4 {
@@ -658,7 +656,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 				proxy.Logger().Error("Missing release info", "matchedTxId", arrTxIds[i], "field", i, "releases", releases)
 				continue
 			}
-			log.Info("ReleaseInfo", "type", t, "address", arrAddresses[i], "amount", arrAmounts[i], "matchedTxId", arrTxIds[i])
+			log.Info("Release info", "type", t, "address", arrAddresses[i], "amount", arrAmounts[i], "matchedTxId", arrTxIds[i])
 
 			if t == configs.TRON || t == configs.NEO || t == configs.ETH {
 				address := arrAddresses[i]

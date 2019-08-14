@@ -185,6 +185,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 	for _, action := range event.Actions.Actions {
 		switch action.Name {
 		case dualnode.CreateKardiaMatchAmountTx:
+			log.Info("DUAL_MSG handle external event", "source", event.TxSource)
 			// These logics temporarily for exchange case , will be dynamic later
 			if event.Data.ExtData == nil || len(event.Data.ExtData) < 2 {
 				log.Error("Event doesn't contain external data")
@@ -396,7 +397,7 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.Event
 			log.Error("failed to get external data of exchange contract event", "method", method.Name)
 			return types.EventSummary{}, configs.ErrFailedGetEventData
 		}
-		log.Info("Match request input", "txhash", decodedInput.Txid, "src", decodedInput.FromAddress,
+		log.Info("DUAL_MSG Match request input", "txhash", decodedInput.Txid, "src", decodedInput.FromAddress,
 			"dest", decodedInput.Receiver, "srcpair", decodedInput.FromType, "destpair", decodedInput.ToType,
 			"amount", decodedInput.Amount, "timestamp", decodedInput.Timestamp)
 		exchangeExternalData[configs.ExchangeV2SourceAddressIndex] = []byte(decodedInput.FromAddress)
@@ -408,7 +409,7 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.Event
 		// eth transactionId has different format, therefore it is necessary to be encoded.
 		if decodedInput.FromType == configs.ETH {
 			exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex] = []byte(common.Encode([]byte(decodedInput.Txid)))
-			log.Info("Encode Txid for ETH type", "tx", string(exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex]))
+			log.Info("DUAL_MSG Encode Txid for ETH type", "tx", string(exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex]), "originalTx", decodedInput.Txid)
 		} else {
 			exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex] = []byte(decodedInput.Txid)
 		}
@@ -425,7 +426,7 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.Event
 }
 
 func (p *KardiaProxy) updateKardiaTxForOrder(originalTxId string, kardiaTxId string) error {
-	tx, err := utils.UpdateKardiaTargetTx(p.txPool.State(), originalTxId, kardiaTxId, string(types.KARDIA))
+	tx, err := utils.UpdateKardiaTargetTx(p.txPool.State(), originalTxId, kardiaTxId)
 	if err != nil {
 		log.Error("Error creating tx update kardiaTxId", "originalTxId", originalTxId, "kardiaTx", kardiaTxId,
 			"err", err)
