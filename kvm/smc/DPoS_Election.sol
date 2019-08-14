@@ -34,6 +34,7 @@ contract DPoS_Election {
     
     // State variables
     address public owner;
+    bool public initCalled;
     bool public electionEnded;
     uint public numValidators; 
     uint public numCandidates;
@@ -61,19 +62,26 @@ contract DPoS_Election {
         require(!electionEnded, "The vote is not ended yet");
         _;
     }
-    
+    modifier initialized {
+        require(initCalled, "The contract must be initialized");
+        _;
+    }
     
     // Functions
+    /** Initialize the contract. This function can only be called once **/
     function init(uint n) public {
+        require(!initCalled, "Init can only be called once");
         owner = msg.sender;
         electionEnded = false;
         numValidators = n;
         validatorList = new address[](numValidators);
         rankings.push(address(0x0)); // dummy address at position 0
+        initCalled = true;
     }
     
+    /** Allows candidate to sign up and stake for itself **/
     function signup(string memory pubKey, string memory name, string memory ratio, string memory description) 
-        public payable electionNotEnded checkValue {
+        public payable initialized electionNotEnded checkValue {
         if (candidates[msg.sender].exist) {
             revert("Candidate already exists");
         }
@@ -90,8 +98,8 @@ contract DPoS_Election {
     }
     
     /** Allows voter to delegate their KAI to stake for a candidate.
-        A voter can vote for multiple candidates by calling the function multiple times **/
-    function vote(address candAddress) public payable electionNotEnded checkValue{
+     *  A voter can vote for multiple candidates by calling the function multiple times **/
+    function vote(address candAddress) public payable initialized electionNotEnded checkValue{
         if (!candidates[candAddress].exist) {
             revert("Candidate does not exist");
         }
@@ -151,7 +159,7 @@ contract DPoS_Election {
     /** Ends the vote and copies final result to validatorList and
      *  refund for voters whose candidates failed to be elected
      **/ 
-    function endElection() public payable electionNotEnded onlyOwner{
+    function endElection() public payable initialized electionNotEnded onlyOwner{
         electionEnded = true;
         
         // Copy final result to validatorList
