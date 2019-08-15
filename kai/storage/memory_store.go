@@ -52,7 +52,12 @@ func (db *MemStore) Put(key, value interface{}) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
-	db.db[string(key.([]byte))] = common.CopyBytes(value.([]byte))
+	switch value.(type) {
+	case rlp.RawValue:
+		db.db[string(key.([]byte))] = common.CopyBytes(value.(rlp.RawValue))
+	default:
+		db.db[string(key.([]byte))] = common.CopyBytes(value.([]byte))
+	}
 	return nil
 }
 
