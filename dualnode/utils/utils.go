@@ -188,7 +188,7 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 				log.Error("Error to convert rate to float", "error", err, "fromAmount", fromAmount, "toAmount", toAmount)
 				return nil, errErrorConvertRateFloat
 			}
-			rateInt, _ := big.NewFloat(1).Mul( big.NewFloat(rateFloat), TenPoweredBySixFloat).Int64()
+			rateInt, _ := big.NewFloat(1).Mul(big.NewFloat(rateFloat), TenPoweredBySixFloat).Int64()
 			convertedAmount = temp.Mul(big.NewInt(rateInt), quantity)
 		}
 	case configs.TRON:
@@ -213,9 +213,9 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 }
 
 func ToRateFloat(fromAmount *big.Int, toAmount *big.Int, precision int) (float64, error) {
-	rateFloat :=  float64(fromAmount.Int64()) / float64(toAmount.Int64())
+	rateFloat := float64(fromAmount.Int64()) / float64(toAmount.Int64())
 	format := "%." + strconv.Itoa(precision) + "f"
-	rateRound, err := strconv.ParseFloat(fmt.Sprintf(format, rateFloat) , 64)
+	rateRound, err := strconv.ParseFloat(fmt.Sprintf(format, rateFloat), 64)
 	if err != nil {
 		return 0, err
 	}
@@ -598,7 +598,7 @@ func KardiaCall(proxy base.BlockChainAdapter, event *types.EventData) error {
 	triggerMessage := dualMsg.TriggerMessage{}
 	err := unmarshaler.Unmarshal(reader, &triggerMessage)
 	if err != nil {
-		proxy.Logger().Error("Error while unmarshaling triggerMessage from EventData" , "err", err)
+		proxy.Logger().Error("Error while unmarshaling triggerMessage from EventData", "err", err)
 		return err
 	}
 
@@ -667,20 +667,27 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 					continue
 				}
 				// Get rate base on the dual node exchange
-				if t != fromType {
+				if t != fromType { //neo != eth
 					tempFromAmount := fromAmount
 					fromAmount = toAmount
 					toAmount = tempFromAmount
+				} else {
+					fromType = toType
 				}
 
 				var (
 					releasedAmount *big.Int
 					err            error
 				)
-				if t == configs.TRON { // TRON is the smallest unit then do nothing with it
+
+				switch t {
+				case configs.TRON:
+					// TRON is the smallest unit then do nothing with it
 					releasedAmount = big.NewInt(amount)
-				} else { // NEO
-					releasedAmount, err = CalculateReleasedAmount(t, amount, fromAmount, toAmount, toType)
+				case configs.NEO:
+					releasedAmount, err = CalculateReleasedAmountFromNeo(t, amount, fromAmount, toAmount, fromType)
+				case configs.ETH:
+					releasedAmount, err = CalculateReleasedAmountToEth(amount, fromAmount, toAmount, fromType)
 				}
 
 				if err != nil {
@@ -699,11 +706,11 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 	return nil
 }
 
-// calculateReleasedAmountFromNEO calculates released amount from NEO to others chain
+// CalculateReleasedAmountFromNeo calculates released amount from NEO to others chain
 // NOTE: this func is only used for DEX case
-func CalculateReleasedAmount(releaseType string, amount int64, fromAmount, toAmount *big.Int, toType string) (*big.Int, error) {
+func CalculateReleasedAmountFromNeo(releaseType string, amount int64, fromAmount, toAmount *big.Int, fromType string) (*big.Int, error) {
 	var releasedAmount *big.Int
-	if toType == configs.ETH {
+	if fromType == configs.ETH {
 		// Divide amount from smart contract by 10^8 to get base NEO amount to release
 		releasedAmount = big.NewInt(amount).Div(big.NewInt(amount), TenPoweredByEight)
 	} else {
@@ -724,9 +731,9 @@ func CalculateReleasedAmount(releaseType string, amount int64, fromAmount, toAmo
 	return releasedAmount, nil
 }
 
-// calculateReleasedAmountToETH calculates released amount from others dual node to ETH
+// CalculateReleasedAmountToEth calculates released amount from others dual node to ETH
 // NOTE: this func is only used for DEX case
-func calculateReleasedAmountToETH(amount int64, fromAmount, toAmount *big.Int, fromType string) (*big.Int, error) {
+func CalculateReleasedAmountToEth(amount int64, fromAmount, toAmount *big.Int, fromType string) (*big.Int, error) {
 	// Calculate the released amount by wei
 	convertedAmount := big.NewFloat(float64(amount))
 	convertedAmount = convertedAmount.Quo(convertedAmount, new(big.Float).SetInt(fromAmount))
