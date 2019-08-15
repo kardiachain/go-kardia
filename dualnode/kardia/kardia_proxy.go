@@ -203,6 +203,11 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 			srcAddress := string(event.Data.ExtData[configs.ExchangeV2SourceAddressIndex])
 			destAddress := string(event.Data.ExtData[configs.ExchangeV2DestAddressIndex])
 
+			// eth transactionId has different format, therefore it is necessary to be encoded.
+			if fromType == configs.ETH {
+				originalTx = common.Encode(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
+			}
+			
 			log.Info("Create order and match tx:", "source", srcAddress, "dest", destAddress, "txhash", originalTx)
 
 			tx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue, srcAddress, destAddress, fromType, toType, originalTx, p.kardiaBc)

@@ -27,6 +27,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/metrics"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -36,7 +37,7 @@ import (
 )
 
 const (
-	DualStateAddressHex = "68b53a92d846baafdc782cb9cad65d77020c8d747eca7b621370b52b18c91f9a"
+	DualStateAddressHex = configs.KardiaPrivKeyToCallSmc
 )
 
 const (
