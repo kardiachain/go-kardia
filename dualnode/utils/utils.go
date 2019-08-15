@@ -679,10 +679,8 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 				)
 				if t == configs.TRON { // TRON is the smallest unit then do nothing with it
 					releasedAmount = big.NewInt(amount)
-				} else if t == configs.ETH {
-					releasedAmount, err = calculateReleasedAmountToETH(amount, fromAmount, toAmount, fromType)
 				} else { // NEO
-					releasedAmount, err = calculateReleasedAmountFromNEO(amount, fromAmount, toAmount, toType)
+					releasedAmount, err = CalculateReleasedAmount(amount, fromAmount, toAmount, toType)
 				}
 
 				if err != nil {
@@ -703,7 +701,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 
 // calculateReleasedAmountFromNEO calculates released amount from NEO to others chain
 // NOTE: this func is only used for DEX case
-func calculateReleasedAmountFromNEO(amount int64, fromAmount, toAmount *big.Int, toType string) (*big.Int, error) {
+func CalculateReleasedAmount(amount int64, fromAmount, toAmount *big.Int, toType string) (*big.Int, error) {
 	var releasedAmount *big.Int
 	if toType == configs.ETH {
 		// Divide amount from smart contract by 10^8 to get base NEO amount to release
