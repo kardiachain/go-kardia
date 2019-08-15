@@ -204,9 +204,9 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 			destAddress := string(event.Data.ExtData[configs.ExchangeV2DestAddressIndex])
 
 			// eth transactionId has different format, therefore it is necessary to be encoded.
-			if fromType == configs.ETH {
+			/*if fromType == configs.ETH {
 				originalTx = common.Encode(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
-			}
+			}*/
 			
 			log.Info("Create order and match tx:", "source", srcAddress, "dest", destAddress, "txhash", originalTx)
 
@@ -409,15 +409,8 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.Event
 		exchangeExternalData[configs.ExchangeV2DestAddressIndex] = []byte(decodedInput.Receiver)
 		exchangeExternalData[configs.ExchangeV2SourcePairIndex] = []byte(decodedInput.FromType)
 		exchangeExternalData[configs.ExchangeV2DestPairIndex] = []byte(decodedInput.ToType)
+		exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex] = []byte(decodedInput.Txid)
 		exchangeExternalData[configs.ExchangeV2AmountIndex] = decodedInput.Amount.Bytes()
-
-		// eth transactionId has different format, therefore it is necessary to be encoded.
-		if decodedInput.FromType == configs.ETH {
-			exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex] = []byte(common.Encode([]byte(decodedInput.Txid)))
-			log.Info("DUAL_MSG Encode Txid for ETH type", "tx", string(exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex]), "originalTx", decodedInput.Txid)
-		} else {
-			exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex] = []byte(decodedInput.Txid)
-		}
 		exchangeExternalData[configs.ExchangeV2TimestampIndex] = decodedInput.Timestamp.Bytes()
 	default:
 		log.Warn("Unexpected method in extractKardiaTxSummary", "method", method.Name)
