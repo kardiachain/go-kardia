@@ -71,6 +71,7 @@ contract DPoS_Election {
     /** Initialize the contract. This function can only be called once **/
     function init(uint n) public {
         require(!initCalled, "Init can only be called once");
+        require(n > 0, "Number of validators must be positive");
         owner = msg.sender;
         electionEnded = false;
         numValidators = n;
