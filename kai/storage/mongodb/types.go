@@ -36,6 +36,7 @@ const (
 	chainConfigTable = "ChainConfig"
 	trieTable = "Trie"
 	txLookupEntryTable = "TxLookupEntry"
+	contractAddressTable = "ContractAddress"
 )
 
 type (
@@ -201,6 +202,14 @@ type (
 		BlockHash  string   `json:"blockHash"  bson:"blockHash"`
 		BlockIndex uint64   `json:"blockIndex" bson:"blockIndex"`
 		Index      uint64   `json:"index"      bson:"index"`
+	}
+
+	ContractAddress struct {
+		TxHash          string   `json:"txHash"          bson:"txHash"`
+		BlockHash       string   `json:"blockHash"       bson:"blockHash"`
+		Height          uint64   `json:"height"          bson:"height"`
+		Address         string   `json:"address"         bson:"address"`
+		ContractAddress string   `json:"contractAddress" bson:"contractAddress"`
 	}
 )
 

@@ -157,7 +157,6 @@ func (n *Proxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 func (n *Proxy) SubmitTx(event *types.EventData) error {
 	// Only allow TxSource from Kardia
 	if event.TxSource == types.KARDIA {
-		n.logger.Info("receive Kardia_proxy event", "event", event.String())
 		switch event.Data.TxMethod {
 		case configs.AddOrderFunction:
 			return utils.HandleAddOrderFunction(n, event)

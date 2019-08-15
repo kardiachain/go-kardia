@@ -185,7 +185,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 	for _, action := range event.Actions.Actions {
 		switch action.Name {
 		case dualnode.CreateKardiaMatchAmountTx:
-			log.Info("DUAL_MSG handle external event", "source", event.TxSource)
+			log.Info("Handle external event", "source", event.TxSource)
 			// These logics temporarily for exchange case , will be dynamic later
 			if event.Data.ExtData == nil || len(event.Data.ExtData) < 2 {
 				log.Error("Event doesn't contain external data")
@@ -203,11 +203,6 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 			srcAddress := string(event.Data.ExtData[configs.ExchangeV2SourceAddressIndex])
 			destAddress := string(event.Data.ExtData[configs.ExchangeV2DestAddressIndex])
 
-			// eth transactionId has different format, therefore it is necessary to be encoded.
-			/*if fromType == configs.ETH {
-				originalTx = common.Encode(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
-			}*/
-			
 			log.Info("Create order and match tx:", "source", srcAddress, "dest", destAddress, "txhash", originalTx)
 
 			tx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue, srcAddress, destAddress, fromType, toType, originalTx, p.kardiaBc)
@@ -402,7 +397,7 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.Event
 			log.Error("failed to get external data of exchange contract event", "method", method.Name)
 			return types.EventSummary{}, configs.ErrFailedGetEventData
 		}
-		log.Info("DUAL_MSG Match request input", "txhash", decodedInput.Txid, "src", decodedInput.FromAddress,
+		log.Info("Match request input", "txhash", decodedInput.Txid, "src", decodedInput.FromAddress,
 			"dest", decodedInput.Receiver, "srcpair", decodedInput.FromType, "destpair", decodedInput.ToType,
 			"amount", decodedInput.Amount, "timestamp", decodedInput.Timestamp)
 		exchangeExternalData[configs.ExchangeV2SourceAddressIndex] = []byte(decodedInput.FromAddress)

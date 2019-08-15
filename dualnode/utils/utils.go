@@ -632,7 +632,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 	if err != nil {
 		return err
 	}
-	proxy.Logger().Info("Release info - releases results", "releases", releases, "sender", senderAddr.Hex(), "originalTx", originalTx,
+	proxy.Logger().Info("Release info", "release", releases, "sender", senderAddr.Hex(), "originalTx", originalTx,
 		"fromType", fromType, "toType", toType, "fromAmount", fromAmount, "toAmount", toAmount, )
 
 	if releases != "" {
