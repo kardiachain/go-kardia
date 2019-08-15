@@ -165,24 +165,3 @@ func createTxLookupEntryIndex(db *mongo.Database) error {
 	}
 	return nil
 }
-
-// createContractAddressIndex creates indices for ContractAddress table
-func createContractAddressIndex(db *mongo.Database) error {
-	contractAddressCollection := db.Collection(contractAddressTable)
-	if err := createIndex(blockHash, false, hashed, contractAddressCollection); err != nil {
-		return err
-	}
-	if err := createIndex(txHash, false, hashed, contractAddressCollection); err != nil {
-		return err
-	}
-	if err := createIndex(height, false, "", contractAddressCollection); err != nil {
-		return err
-	}
-	if err := createIndex(address, false, hashed, contractAddressCollection); err != nil {
-		return err
-	}
-	if err := createIndex(contractAddress, false, hashed, contractAddressCollection); err != nil {
-		return err
-	}
-	return nil
-}

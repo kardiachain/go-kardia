@@ -19,7 +19,6 @@
 package mongodb
 
 import (
-	"bytes"
 	"context"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -84,12 +83,6 @@ func NewDB(uri, dbName string, drop bool) (*Store, error) {
 	if err := createTxLookupEntryIndex(db); err != nil {
 		return nil, err
 	}
-
-	// create index contractAddressTable
-	if err := createContractAddressIndex(db); err != nil {
-		return nil, err
-	}
-
 	return &Store{db: db}, nil
 }
 
@@ -195,37 +188,12 @@ func (db *Store) getReceiptsByBlockHash(hash common.Hash) ([]*Receipt, error) {
 	return receipts, nil
 }
 
-func (db *Store)insertContractAddress(receipt types.Receipt) error {
-	zero := common.Address{}
-	if !bytes.Equal(receipt.ContractAddress[:], zero[:]) {
-		tx, err := db.getTransactionByHash(receipt.TxHash.Hex())
-		if err != nil {
-			return err
-		}
-		contractAddress := ContractAddress{
-			TxHash:          receipt.TxHash.Hex(),
-			BlockHash:       tx.BlockHash,
-			Height:          tx.Height,
-			Address:         tx.From,
-			ContractAddress: receipt.ContractAddress.Hex(),
-		}
-		if _, err := db.DB().Collection(contractAddressTable).InsertOne(context.Background(), contractAddress); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func (db *Store)insertReceipts(hash string, height uint64, receipts types.Receipts) error {
 	newReceipts := make([]interface{}, 0)
 	for _, receipt := range receipts {
 		if _, err := db.getReceiptByTxHash(receipt.TxHash.Hex()); err != nil {
 			r := NewReceipt(receipt, height, hash)
 			newReceipts = append(newReceipts, r)
-			// insert contractAddress
-			if err := db.insertContractAddress(*receipt); err != nil {
-				log.Error("error while inserting new contractAddress", "err", err)
-			}
 		}
 	}
 
