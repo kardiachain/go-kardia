@@ -419,17 +419,17 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.Event
 }
 
 func (p *KardiaProxy) updateKardiaTxForOrder(originalTxId string, kardiaTxId string) error {
-	tx, err := utils.UpdateKardiaTargetTx(p.txPool.State(), originalTxId, kardiaTxId)
+	tx, err := utils.UpdateKardiaTx(p.txPool.State(), originalTxId, kardiaTxId)
 	if err != nil {
-		log.Error("Error creating tx update kardiaTxId", "originalTxId", originalTxId, "kardiaTx", kardiaTxId,
+		log.Error("Error creating tx updateKardiaTx", "originalTxId", originalTxId, "KardiaTx", kardiaTxId,
 			"err", err)
 		return err
 	}
 	err = p.txPool.AddTx(tx)
 	if err != nil {
-		log.Error("Error add update kardia tx id to txPool", "originalTxId", originalTxId, "kardiaTx", kardiaTxId,
+		log.Error("Error updateKardiaTx to txPool", "originalTxId", originalTxId, "KardiaTx", kardiaTxId,
 			"err", err)
 	}
-	log.Info("Update kardia tx for order successfully", "originalTxId", originalTxId, "kardiaTx", kardiaTxId)
+	log.Info("UpdateKardiaTx for order successfully", "originalTxId", originalTxId, "KardiaTx", kardiaTxId)
 	return nil
 }
