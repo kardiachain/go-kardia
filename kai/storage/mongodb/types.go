@@ -22,6 +22,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"math/big"
 )
 
@@ -98,13 +99,14 @@ type (
 	}
 
 	Transaction struct {
-		From         string          `json:"from"         bson:"from"`
-		AccountNonce uint64          `json:"nonce"        bson:"nonce"`
-		Price        string          `json:"gasPrice"     bson:"gasPrice"`
-		GasLimit     uint64          `json:"gas"          bson:"gas"`
-		Recipient    string          `json:"to"           bson:"to"` // nil means contract creation
-		Amount       string          `json:"value"        bson:"value"`
-		Payload      string          `json:"input"        bson:"input"`
+	    ID           primitive.ObjectID `json:"id"           bson:"_id,omitempty"`
+		From         string             `json:"from"         bson:"from"`
+		AccountNonce uint64             `json:"nonce"        bson:"nonce"`
+		Price        string             `json:"gasPrice"     bson:"gasPrice"`
+		GasLimit     uint64             `json:"gas"          bson:"gas"`
+		Recipient    string             `json:"to"           bson:"to"` // nil means contract creation
+		Amount       string             `json:"value"        bson:"value"`
+		Payload      string             `json:"input"        bson:"input"`
 
 		// Signature values
 		V string                     `json:"v"            bson:"v"`
@@ -171,7 +173,7 @@ type (
 		ValidatorIndex   int64       `json:"validatorIndex"             bson:"validatorIndex"`
 		Height           int64       `json:"height"                     bson:"height"`
 		Round            int64       `json:"round"                      bson:"round"`
-		Timestamp        uint64    `json:"timestamp"                  bson:"timestamp"`
+		Timestamp        uint64      `json:"timestamp"                  bson:"timestamp"`
 		Type             byte        `json:"type"                       bson:"type"`
 		BlockID          string      `json:"blockID"                    bson:"blockID"`
 		Signature        string      `json:"signature"                  bson:"signature"`
