@@ -253,7 +253,7 @@ func CallKardiGetMatchingResultByTxId(from common.Address, bc base.BaseBlockChai
 	return matchingResult.Results, nil
 }
 
-func UpdateKardiaTargetTx(state *state.ManagedState, originalTx string, tx string) (*types.Transaction, error) {
+func UpdateKardiaTx(state *state.ManagedState, originalTx string, tx string) (*types.Transaction, error) {
 	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
 	kAbi, err := abi.JSON(strings.NewReader(masterSmcAbi))
@@ -264,7 +264,7 @@ func UpdateKardiaTargetTx(state *state.ManagedState, originalTx string, tx strin
 
 	completeInput, err := kAbi.Pack(configs.UpdateKardiaTx, originalTx, tx)
 	if err != nil {
-		log.Error("Failed to pack updateTx", "originalTx", originalTx, "err", err)
+		log.Error("Failed to pack updateKardiaTx", "originalTx", originalTx, "err", err)
 		return nil, err
 	}
 	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, completeInput, state), nil
