@@ -269,7 +269,7 @@ func NewTransaction(tx *types.Transaction, height uint64, blockHash string, inde
 		return nil, err
 	}
 	v, r, s := tx.RawSignatureValues()
-	return &Transaction{
+	newTx := &Transaction{
 		Hash: tx.Hash().Hex(),
 		Height: height,
 		BlockHash: blockHash,
@@ -279,12 +279,19 @@ func NewTransaction(tx *types.Transaction, height uint64, blockHash string, inde
 		AccountNonce: tx.Nonce(),
 		Payload: common.Bytes2Hex(tx.Data()),
 		Price: tx.GasPrice().String(),
-		Recipient: tx.To().Hex(),
 		R: r.String(),
 		S: s.String(),
 		V: v.String(),
 		Index: index,
-	}, nil
+	}
+
+	if tx.To() == nil {
+		newTx.Recipient = "0x"
+	} else {
+		newTx.Recipient = tx.To().Hex()
+	}
+
+	return newTx, nil
 }
 
 func (tx *Transaction) ToTransaction() *types.Transaction {
@@ -318,14 +325,25 @@ func (tx *Transaction) ToTransaction() *types.Transaction {
 		return nil
 	}
 
-	newTx := types.NewTransaction(
-		tx.AccountNonce,
-		common.HexToAddress(tx.Recipient),
-		amount,
-		tx.GasLimit,
-		price,
-		common.Hex2Bytes(tx.Payload),
-	)
+	var newTx *types.Transaction
+	if tx.Recipient == "0x" {
+		newTx = types.NewContractCreation(
+			tx.AccountNonce,
+			amount,
+			tx.GasLimit,
+			price,
+			common.Hex2Bytes(tx.Payload),
+		)
+	} else {
+		newTx = types.NewTransaction(
+			tx.AccountNonce,
+			common.HexToAddress(tx.Recipient),
+			amount,
+			tx.GasLimit,
+			price,
+			common.Hex2Bytes(tx.Payload),
+		)
+	}
 
 	sig := make([]byte, 65)
 	copy(sig[:32], r.Bytes())
