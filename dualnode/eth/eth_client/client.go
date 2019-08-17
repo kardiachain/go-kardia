@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package main
 
 import (
@@ -103,6 +121,29 @@ func NewEth(config *Config) (*Eth, error) {
 
 	// Create a specific logger for ETH Proxy.
 	bootUrls := params.RinkebyBootnodes
+
+	datadir := defaultEthDataDir()
+	// similar to cmd/eth/config.go/makeConfigNode
+	ethConf := &eth.DefaultConfig
+	ethConf.NetworkId = uint64(config.NetworkId)
+
+	switch ethConf.NetworkId {
+	case 1: // mainnet
+		ethConf.Genesis = core.DefaultGenesisBlock()
+		datadir = filepath.Join(datadir, "mainnet", config.Name)
+		bootUrls = params.MainnetBootnodes
+	case 3: // ropsten
+		ethConf.Genesis = core.DefaultTestnetGenesisBlock()
+		datadir = filepath.Join(datadir, "ropsten", config.Name)
+		bootUrls = params.TestnetBootnodes
+	case 4: // rinkeby
+		ethConf.Genesis = core.DefaultRinkebyGenesisBlock()
+		datadir = filepath.Join(datadir, "rinkeby", config.Name)
+	default: // default is rinkeby
+		ethConf.Genesis = core.DefaultRinkebyGenesisBlock()
+		datadir = filepath.Join(datadir, "rinkeby", config.Name)
+	}
+
 	bootstrapNodes := make([]*enode.Node, 0, len(bootUrls))
 	bootstrapNodesV5 := make([]*discv5.Node, 0, len(bootUrls)) // rinkeby set default bootnodes as also discv5 nodes.
 	for _, url := range bootUrls {
@@ -119,26 +160,6 @@ func NewEth(config *Config) (*Eth, error) {
 			continue
 		}
 		bootstrapNodesV5 = append(bootstrapNodesV5, peerV5)
-	}
-
-	datadir := defaultEthDataDir()
-	// similar to cmd/eth/config.go/makeConfigNode
-	ethConf := &eth.DefaultConfig
-	ethConf.NetworkId = uint64(config.NetworkId)
-
-	switch ethConf.NetworkId {
-	case 1: // mainnet
-		ethConf.Genesis = core.DefaultGenesisBlock()
-		datadir = filepath.Join(datadir, "mainnet", config.Name)
-	case 3: // ropsten
-		ethConf.Genesis = core.DefaultTestnetGenesisBlock()
-		datadir = filepath.Join(datadir, "ropsten", config.Name)
-	case 4: // rinkeby
-		ethConf.Genesis = core.DefaultRinkebyGenesisBlock()
-		datadir = filepath.Join(datadir, "rinkeby", config.Name)
-	default: // default is rinkeby
-		ethConf.Genesis = core.DefaultRinkebyGenesisBlock()
-		datadir = filepath.Join(datadir, "rinkeby", config.Name)
 	}
 
 	// similar to utils.SetNodeConfig
@@ -280,13 +301,13 @@ func (n *Eth)handleBlock(block *types.Block) {
 	log.Info("handleBlock...", "blockNum", block.Number(), "txns size", len(block.Transactions()))
 	for _, tx := range block.Transactions() {
 		if tx.To() == nil {
-			log.Info("To address is nil", "tx", tx.Hash().Hex())
+			log.Trace("To address is nil", "tx", tx.Hash().Hex())
 			continue
 		}
 		// get smc abi from database, return nil if not found
 		smcAbi := n.getAbi(tx.To().Hex())
 		if smcAbi == nil {
-			log.Info("cannot find abi from to's address", "address", tx.To().Hex(), "tx", tx.Hash().Hex())
+			log.Trace("cannot find abi from to's address", "address", tx.To().Hex(), "tx", tx.Hash().Hex())
 			continue
 		}
 		signer := types.NewEIP155Signer(tx.ChainId())

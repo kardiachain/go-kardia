@@ -185,6 +185,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 	for _, action := range event.Actions.Actions {
 		switch action.Name {
 		case dualnode.CreateKardiaMatchAmountTx:
+			log.Info("Handle external event", "source", event.TxSource)
 			// These logics temporarily for exchange case , will be dynamic later
 			if event.Data.ExtData == nil || len(event.Data.ExtData) < 2 {
 				log.Error("Event doesn't contain external data")
@@ -403,15 +404,8 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.Event
 		exchangeExternalData[configs.ExchangeV2DestAddressIndex] = []byte(decodedInput.Receiver)
 		exchangeExternalData[configs.ExchangeV2SourcePairIndex] = []byte(decodedInput.FromType)
 		exchangeExternalData[configs.ExchangeV2DestPairIndex] = []byte(decodedInput.ToType)
+		exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex] = []byte(decodedInput.Txid)
 		exchangeExternalData[configs.ExchangeV2AmountIndex] = decodedInput.Amount.Bytes()
-
-		// eth transactionId has different format, therefore it is necessary to be encoded.
-		if decodedInput.FromType == configs.ETH {
-			exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex] = []byte(common.Encode([]byte(decodedInput.Txid)))
-			log.Info("Encode Txid for ETH type", "tx", string(exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex]))
-		} else {
-			exchangeExternalData[configs.ExchangeV2OriginalTxIdIndex] = []byte(decodedInput.Txid)
-		}
 		exchangeExternalData[configs.ExchangeV2TimestampIndex] = decodedInput.Timestamp.Bytes()
 	default:
 		log.Warn("Unexpected method in extractKardiaTxSummary", "method", method.Name)
@@ -425,17 +419,17 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.Event
 }
 
 func (p *KardiaProxy) updateKardiaTxForOrder(originalTxId string, kardiaTxId string) error {
-	tx, err := utils.UpdateKardiaTargetTx(p.txPool.State(), originalTxId, kardiaTxId, string(types.KARDIA))
+	tx, err := utils.UpdateKardiaTx(p.txPool.State(), originalTxId, kardiaTxId)
 	if err != nil {
-		log.Error("Error creating tx update kardiaTxId", "originalTxId", originalTxId, "kardiaTx", kardiaTxId,
+		log.Error("Error creating tx updateKardiaTx", "originalTxId", originalTxId, "KardiaTx", kardiaTxId,
 			"err", err)
 		return err
 	}
 	err = p.txPool.AddTx(tx)
 	if err != nil {
-		log.Error("Error add update kardia tx id to txPool", "originalTxId", originalTxId, "kardiaTx", kardiaTxId,
+		log.Error("Error updateKardiaTx to txPool", "originalTxId", originalTxId, "KardiaTx", kardiaTxId,
 			"err", err)
 	}
-	log.Info("Update kardia tx for order successfully", "originalTxId", originalTxId, "kardiaTx", kardiaTxId)
+	log.Info("UpdateKardiaTx for order successfully", "originalTxId", originalTxId, "KardiaTx", kardiaTxId)
 	return nil
 }

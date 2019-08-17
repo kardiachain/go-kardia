@@ -21,6 +21,7 @@ package storage
 import (
 	"bytes"
 	"fmt"
+	"github.com/kardiachain/go-kardia/types"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -35,7 +36,7 @@ func newTestLDB() (*LDBStore, func()) {
 	}
 	db, err := NewLDBStore(dirname, 0, 0)
 	if err != nil {
-		panic("failed to create test database: " + err.Error())
+		panic("failed to create test types.Database: " + err.Error())
 	}
 
 	return db, func() {
@@ -56,7 +57,7 @@ func TestMemoryDB_PutGet(t *testing.T) {
 	testPutGet(NewMemStore(), t)
 }
 
-func testPutGet(db Database, t *testing.T) {
+func testPutGet(db types.Database, t *testing.T) {
 	t.Parallel()
 
 	for _, v := range test_values {
@@ -71,8 +72,8 @@ func testPutGet(db Database, t *testing.T) {
 		if err != nil {
 			t.Fatalf("get failed: %v", err)
 		}
-		if !bytes.Equal(data, []byte(v)) {
-			t.Fatalf("get returned wrong result, got %q expected %q", string(data), v)
+		if !bytes.Equal(data.([]byte), []byte(v)) {
+			t.Fatalf("get returned wrong result, got %q expected %q", string(data.([]byte)), v)
 		}
 	}
 
@@ -88,8 +89,8 @@ func testPutGet(db Database, t *testing.T) {
 		if err != nil {
 			t.Fatalf("get failed: %v", err)
 		}
-		if !bytes.Equal(data, []byte("?")) {
-			t.Fatalf("get returned wrong result, got %q expected ?", string(data))
+		if !bytes.Equal(data.([]byte), []byte("?")) {
+			t.Fatalf("get returned wrong result, got %q expected ?", string(data.([]byte)))
 		}
 	}
 
@@ -98,13 +99,13 @@ func testPutGet(db Database, t *testing.T) {
 		if err != nil {
 			t.Fatalf("get failed: %v", err)
 		}
-		orig[0] = byte(0xff)
+		orig.([]byte)[0] = byte(0xff)
 		data, err := db.Get([]byte(v))
 		if err != nil {
 			t.Fatalf("get failed: %v", err)
 		}
-		if !bytes.Equal(data, []byte("?")) {
-			t.Fatalf("get returned wrong result, got %q expected ?", string(data))
+		if !bytes.Equal(data.([]byte), []byte("?")) {
+			t.Fatalf("get returned wrong result, got %q expected ?", string(data.([]byte)))
 		}
 	}
 
@@ -133,7 +134,7 @@ func TestMemoryDB_ParallelPutGet(t *testing.T) {
 	testParallelPutGet(NewMemStore(), t)
 }
 
-func testParallelPutGet(db Database, t *testing.T) {
+func testParallelPutGet(db types.Database, t *testing.T) {
 	const n = 8
 	var pending sync.WaitGroup
 
@@ -157,8 +158,8 @@ func testParallelPutGet(db Database, t *testing.T) {
 			if err != nil {
 				panic("get failed: " + err.Error())
 			}
-			if !bytes.Equal(data, []byte("v"+key)) {
-				panic(fmt.Sprintf("get failed, got %q expected %q", []byte(data), []byte("v"+key)))
+			if !bytes.Equal(data.([]byte), []byte("v"+key)) {
+				panic(fmt.Sprintf("get failed, got %q expected %q", data.([]byte), []byte("v"+key)))
 			}
 		}(strconv.Itoa(i))
 	}

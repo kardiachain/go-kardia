@@ -20,6 +20,7 @@ package service
 
 import (
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
@@ -36,14 +37,8 @@ type DualConfig struct {
 	// Dual's event pool options
 	DualEventPool event_pool.EventPoolConfig
 
-	// chaindata
-	ChainData string
-
-	// DB caches
-	DbCaches int
-
-	// DB handles
-	DbHandles int
+	// DbInfo stores configuration information to setup database
+	DBInfo storage.DbInfo
 
 	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	IsPrivate bool

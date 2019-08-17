@@ -25,10 +25,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/state"
-	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -54,7 +52,7 @@ type blockChain interface {
 	CurrentBlock() *types.Block
 	GetBlock(hash common.Hash, number uint64) *types.Block
 	StateAt(root common.Hash) (*state.StateDB, error)
-	DB() kaidb.Database
+	DB() types.Database
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 }
 
@@ -101,7 +99,7 @@ type TxPool struct {
 	logger log.Logger
 
 	config       TxPoolConfig
-	chainconfig  *configs.ChainConfig
+	chainconfig  *types.ChainConfig
 	chain        blockChain
 	txFeed       event.Feed
 	scope        event.SubscriptionScope
@@ -138,7 +136,7 @@ type TxPool struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *configs.ChainConfig, chain blockChain) *TxPool {
+func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *types.ChainConfig, chain blockChain) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	//config = (&config).sanitize(logger)
 

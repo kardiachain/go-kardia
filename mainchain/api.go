@@ -22,12 +22,10 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/kardiachain/go-kardia/kai/storage"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/kardiachain/go-kardia/kai/chaindb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -324,7 +322,7 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, erro
 // GetTransaction gets transaction by transaction hash
 func (a *PublicTransactionAPI) GetTransaction(hash string) *PublicTransaction {
 	txHash := common.HexToHash(hash)
-	tx, blockHash, height, index := chaindb.ReadTransaction(a.s.kaiDb, txHash)
+	tx, blockHash, height, index := a.s.kaiDb.ReadTransaction(txHash)
 	publicTx := NewPublicTransaction(tx, blockHash, height, index)
 	// get block by block height
 	block := a.s.blockchain.GetBlockByHeight(height)
@@ -336,12 +334,12 @@ func (a *PublicTransactionAPI) GetTransaction(hash string) *PublicTransaction {
 	return publicTx
 }
 
-func getReceipts(kaiDb storage.Database, hash common.Hash) (types.Receipts, error) {
-	height := chaindb.ReadHeaderNumber(kaiDb, hash)
+func getReceipts(kaiDb types.Database, hash common.Hash) (types.Receipts, error) {
+	height := kaiDb.ReadHeaderNumber(hash)
 	if height == nil {
 		return nil, nil
 	}
-	return chaindb.ReadReceipts(kaiDb, hash, *height), nil
+	return kaiDb.ReadReceipts(hash, *height), nil
 }
 
 // getReceiptLogs gets logs from receipt
@@ -410,7 +408,7 @@ func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash co
 // GetPublicReceipt returns the public receipt for the given transaction hash.
 func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash string) (*PublicReceipt, error) {
 	txHash := common.HexToHash(hash)
-	tx, blockHash, height, index := chaindb.ReadTransaction(a.s.kaiDb, txHash)
+	tx, blockHash, height, index := a.s.kaiDb.ReadTransaction(txHash)
 	if tx == nil {
 		return nil, nil
 	}

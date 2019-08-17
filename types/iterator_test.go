@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package trie
+package types
 
 import (
 	"bytes"
@@ -102,9 +102,9 @@ func TestNodeIteratorCoverage(t *testing.T) {
 
 	// Gather all the node hashes found by the iterator
 	hashes := make(map[common.Hash]struct{})
-	for it := trie.NodeIterator(nil); it.Next(true); {
-		if it.Hash() != (common.Hash{}) {
-			hashes[it.Hash()] = struct{}{}
+	for it := trie.NodeIterator(nil); Next(true); {
+		if Hash() != (common.Hash{}) {
+			hashes[Hash()] = struct{}{}
 		}
 	}
 	// Cross check the hashes and the database itself
@@ -288,11 +288,11 @@ func checkIteratorNoDups(t *testing.T, it NodeIterator, seen map[string]bool) in
 	if seen == nil {
 		seen = make(map[string]bool)
 	}
-	for it.Next(true) {
-		if seen[string(it.Path())] {
-			t.Fatalf("iterator visited node path %x twice", it.Path())
+	for Next(true) {
+		if seen[string(Path())] {
+			t.Fatalf("iterator visited node path %x twice", Path())
 		}
-		seen[string(it.Path())] = true
+		seen[string(Path())] = true
 	}
 	return len(seen)
 }
@@ -356,9 +356,9 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 		seen := make(map[string]bool)
 		it := tr.NodeIterator(nil)
 		checkIteratorNoDups(t, it, seen)
-		missing, ok := it.Error().(*MissingNodeError)
+		missing, ok := Error().(*MissingNodeError)
 		if !ok || missing.NodeHash != rkey {
-			t.Fatal("didn't hit missing node, got", it.Error())
+			t.Fatal("didn't hit missing node, got", Error())
 		}
 
 		// Add the node back and continue iteration.
@@ -368,8 +368,8 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 			diskdb.Put(rkey[:], rval)
 		}
 		checkIteratorNoDups(t, it, seen)
-		if it.Error() != nil {
-			t.Fatal("unexpected error", it.Error())
+		if Error() != nil {
+			t.Fatal("unexpected error", Error())
 		}
 		if len(seen) != wantNodeCount {
 			t.Fatal("wrong node iteration count, got", len(seen), "want", wantNodeCount)
@@ -416,9 +416,9 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 	// the node is missing.
 	tr, _ := New(root, triedb)
 	it := tr.NodeIterator([]byte("bars"))
-	missing, ok := it.Error().(*MissingNodeError)
+	missing, ok := Error().(*MissingNodeError)
 	if !ok {
-		t.Fatal("want MissingNodeError, got", it.Error())
+		t.Fatal("want MissingNodeError, got", Error())
 	} else if missing.NodeHash != barNodeHash {
 		t.Fatal("wrong node missing")
 	}
@@ -435,7 +435,7 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 }
 
 // makeTestTrie create a sample test trie to test node-wise reconstruction.
-func makeTestTrie() (*Database, *Trie, map[string][]byte) {
+func makeTestTrie() (*TrieDatabase, *Trie, map[string][]byte) {
 	// Create an empty trie
 	triedb := NewDatabase(kaidb.NewMemStore())
 	trie, _ := New(common.Hash{}, triedb)

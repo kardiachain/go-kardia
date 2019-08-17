@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package trie
+package types
 
 import (
 	"fmt"
@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/metrics"
-	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
@@ -49,20 +48,11 @@ var secureKeyPrefix = []byte("secure-key-")
 // secureKeyLength is the length of the above prefix + 32byte hash.
 const secureKeyLength = 11 + 32
 
-// DatabaseReader wraps the Get and Has method of a backing store for the trie.
-type DatabaseReader interface {
-	// Get retrieves the value associated with key form the database.
-	Get(key []byte) (value []byte, err error)
-
-	// Has retrieves whether a key is present in the database.
-	Has(key []byte) (bool, error)
-}
-
-// Database is an intermediate write layer between the trie data structures and
+// TrieDatabase is an intermediate write layer between the trie data structures and
 // the disk database. The aim is to accumulate trie writes in-memory and only
 // periodically flush a couple tries to disk, garbage collecting the remainder.
-type Database struct {
-	diskdb kaidb.Database // Persistent storage for matured trie nodes
+type TrieDatabase struct {
+	diskdb Database // Persistent storage for matured trie nodes
 
 	nodes  map[common.Hash]*cachedNode // Data and references relationships of a node
 	oldest common.Hash                 // Oldest tracked node, flush-list head
@@ -263,8 +253,8 @@ func expandNode(hash hashNode, n node, cachegen uint16) node {
 
 // NewDatabase creates a new trie database to store ephemeral trie content before
 // its written out to disk or garbage collected.
-func NewDatabase(diskdb kaidb.Database) *Database {
-	return &Database{
+func NewDatabase(diskdb Database) *TrieDatabase {
+	return &TrieDatabase{
 		diskdb:    diskdb,
 		nodes:     map[common.Hash]*cachedNode{{}: {}},
 		preimages: make(map[common.Hash][]byte),
@@ -272,7 +262,7 @@ func NewDatabase(diskdb kaidb.Database) *Database {
 }
 
 // DiskDB retrieves the persistent storage backing the trie database.
-func (db *Database) DiskDB() DatabaseReader {
+func (db *TrieDatabase) DiskDB() DatabaseReader {
 	return db.diskdb
 }
 
@@ -280,7 +270,7 @@ func (db *Database) DiskDB() DatabaseReader {
 // yet unknown. This method should only be used for non-trie nodes that require
 // reference counting, since trie nodes are garbage collected directly through
 // their embedded children.
-func (db *Database) InsertBlob(hash common.Hash, blob []byte) {
+func (db *TrieDatabase) InsertBlob(hash common.Hash, blob []byte) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
@@ -291,7 +281,7 @@ func (db *Database) InsertBlob(hash common.Hash, blob []byte) {
 // a more generic version of InsertBlob, supporting both raw blob insertions as
 // well ex trie node insertions. The blob must always be specified to allow proper
 // size tracking.
-func (db *Database) insert(hash common.Hash, blob []byte, node node) {
+func (db *TrieDatabase) insert(hash common.Hash, blob []byte, node node) {
 	// If the node's already cached, skip
 	if _, ok := db.nodes[hash]; ok {
 		return
@@ -322,7 +312,7 @@ func (db *Database) insert(hash common.Hash, blob []byte, node node) {
 // yet unknown. The method will make a copy of the slice.
 //
 // Note, this method assumes that the database's lock is held!
-func (db *Database) insertPreimage(hash common.Hash, preimage []byte) {
+func (db *TrieDatabase) insertPreimage(hash common.Hash, preimage []byte) {
 	if _, ok := db.preimages[hash]; ok {
 		return
 	}
@@ -332,7 +322,7 @@ func (db *Database) insertPreimage(hash common.Hash, preimage []byte) {
 
 // node retrieves a cached trie node from memory, or returns nil if none can be
 // found in the memory cache.
-func (db *Database) node(hash common.Hash, cachegen uint16) node {
+func (db *TrieDatabase) node(hash common.Hash, cachegen uint16) node {
 	// Retrieve the node from cache if available
 	db.lock.RLock()
 	node := db.nodes[hash]
@@ -348,12 +338,12 @@ func (db *Database) node(hash common.Hash, cachegen uint16) node {
 		return nil
 	}
 
-	return mustDecodeNode(hash[:], enc, cachegen)
+	return mustDecodeNode(hash[:], enc.([]byte), cachegen)
 }
 
 // Node retrieves an encoded cached trie node from memory. If it cannot be found
 // cached, the method queries the persistent database for the content.
-func (db *Database) Node(hash common.Hash) ([]byte, error) {
+func (db *TrieDatabase) Node(hash common.Hash) ([]byte, error) {
 	// Retrieve the node from cache if available
 	db.lock.RLock()
 	node := db.nodes[hash]
@@ -363,12 +353,17 @@ func (db *Database) Node(hash common.Hash) ([]byte, error) {
 		return node.rlp(), nil
 	}
 	// Content unavailable in memory, attempt to retrieve from disk
-	return db.diskdb.Get(hash[:])
+	data, err := db.diskdb.Get(hash[:])
+	if err != nil {
+		return nil, err
+	}
+
+	return data.([]byte), nil
 }
 
 // preimage retrieves a cached trie node pre-image from memory. If it cannot be
 // found cached, the method queries the persistent database for the content.
-func (db *Database) preimage(hash common.Hash) ([]byte, error) {
+func (db *TrieDatabase) preimage(hash common.Hash) ([]byte, error) {
 	// Retrieve the node from cache if available
 	db.lock.RLock()
 	preimage := db.preimages[hash]
@@ -378,13 +373,18 @@ func (db *Database) preimage(hash common.Hash) ([]byte, error) {
 		return preimage, nil
 	}
 	// Content unavailable in memory, attempt to retrieve from disk
-	return db.diskdb.Get(db.secureKey(hash[:]))
+	data, err := db.diskdb.Get(db.secureKey(hash[:]))
+	if err != nil {
+		return nil, err
+	}
+
+	return data.([]byte), nil
 }
 
 // secureKey returns the database key for the preimage of key, as an ephemeral
 // buffer. The caller must not hold onto the return value because it will become
 // invalid on the next call.
-func (db *Database) secureKey(key []byte) []byte {
+func (db *TrieDatabase) secureKey(key []byte) []byte {
 	buf := append(db.seckeybuf[:0], secureKeyPrefix...)
 	buf = append(buf, key...)
 	return buf
@@ -393,7 +393,7 @@ func (db *Database) secureKey(key []byte) []byte {
 // Nodes retrieves the hashes of all the nodes cached within the memory database.
 // This method is extremely expensive and should only be used to validate internal
 // states in test code.
-func (db *Database) Nodes() []common.Hash {
+func (db *TrieDatabase) Nodes() []common.Hash {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
@@ -407,7 +407,7 @@ func (db *Database) Nodes() []common.Hash {
 }
 
 // Reference adds a new reference from a parent node to a child node.
-func (db *Database) Reference(child common.Hash, parent common.Hash) {
+func (db *TrieDatabase) Reference(child common.Hash, parent common.Hash) {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
@@ -415,7 +415,7 @@ func (db *Database) Reference(child common.Hash, parent common.Hash) {
 }
 
 // reference is the private locked version of Reference.
-func (db *Database) reference(child common.Hash, parent common.Hash) {
+func (db *TrieDatabase) reference(child common.Hash, parent common.Hash) {
 	// If the node does not exist, it's a node pulled from disk, skip
 	node, ok := db.nodes[child]
 	if !ok {
@@ -432,7 +432,7 @@ func (db *Database) reference(child common.Hash, parent common.Hash) {
 }
 
 // Dereference removes an existing reference from a root node.
-func (db *Database) Dereference(root common.Hash) {
+func (db *TrieDatabase) Dereference(root common.Hash) {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
@@ -452,7 +452,7 @@ func (db *Database) Dereference(root common.Hash) {
 }
 
 // dereference is the private locked version of Dereference.
-func (db *Database) dereference(child common.Hash, parent common.Hash) {
+func (db *TrieDatabase) dereference(child common.Hash, parent common.Hash) {
 	// Dereference the parent-child
 	node := db.nodes[parent]
 
@@ -494,7 +494,7 @@ func (db *Database) dereference(child common.Hash, parent common.Hash) {
 
 // Cap iteratively flushes old but still referenced trie nodes until the total
 // memory usage goes below the given threshold.
-func (db *Database) Cap(limit common.StorageSize) error {
+func (db *TrieDatabase) Cap(limit common.StorageSize) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
@@ -519,7 +519,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 				db.lock.RUnlock()
 				return err
 			}
-			if batch.ValueSize() > kaidb.IdealBatchSize {
+			if batch.ValueSize() > IdealBatchSize {
 				if err := batch.Write(); err != nil {
 					db.lock.RUnlock()
 					return err
@@ -538,7 +538,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 			return err
 		}
 		// If we exceeded the ideal batch size, commit and reset
-		if batch.ValueSize() >= kaidb.IdealBatchSize {
+		if batch.ValueSize() >= IdealBatchSize {
 			if err := batch.Write(); err != nil {
 				log.Error("Failed to write flush list to disk", "err", err)
 				db.lock.RUnlock()
@@ -597,7 +597,7 @@ func (db *Database) Cap(limit common.StorageSize) error {
 // to disk, forcefully tearing down all references in both directions.
 //
 // As a side effect, all pre-images accumulated up to this point are also written.
-func (db *Database) Commit(node common.Hash, report bool) error {
+func (db *TrieDatabase) Commit(node common.Hash, report bool) error {
 	// Create a database batch to flush persistent data out. It is important that
 	// outside code doesn't see an inconsistent state (referenced data removed from
 	// memory cache during commit but not yet in persistent storage). This is ensured
@@ -614,7 +614,7 @@ func (db *Database) Commit(node common.Hash, report bool) error {
 			db.lock.RUnlock()
 			return err
 		}
-		if batch.ValueSize() > kaidb.IdealBatchSize {
+		if batch.ValueSize() > IdealBatchSize {
 			if err := batch.Write(); err != nil {
 				return err
 			}
@@ -664,7 +664,7 @@ func (db *Database) Commit(node common.Hash, report bool) error {
 }
 
 // commit is the private locked version of Commit.
-func (db *Database) commit(hash common.Hash, batch kaidb.Batch) error {
+func (db *TrieDatabase) commit(hash common.Hash, batch Batch) error {
 	// If the node does not exist, it's a previously committed node
 	node, ok := db.nodes[hash]
 	if !ok {
@@ -679,7 +679,7 @@ func (db *Database) commit(hash common.Hash, batch kaidb.Batch) error {
 		return err
 	}
 	// If we've reached an optimal batch size, commit and start over
-	if batch.ValueSize() >= kaidb.IdealBatchSize {
+	if batch.ValueSize() >= IdealBatchSize {
 		if err := batch.Write(); err != nil {
 			return err
 		}
@@ -692,7 +692,7 @@ func (db *Database) commit(hash common.Hash, batch kaidb.Batch) error {
 // persisted trie is removed from the cache. The reason behind the two-phase
 // commit is to ensure consistent data availability while moving from memory
 // to disk.
-func (db *Database) uncache(hash common.Hash) {
+func (db *TrieDatabase) uncache(hash common.Hash) {
 	// If the node does not exist, we're done on this path
 	node, ok := db.nodes[hash]
 	if !ok {
@@ -715,7 +715,7 @@ func (db *Database) uncache(hash common.Hash) {
 
 // Size returns the current storage size of the memory cache in front of the
 // persistent database layer.
-func (db *Database) Size() (common.StorageSize, common.StorageSize) {
+func (db *TrieDatabase) Size() (common.StorageSize, common.StorageSize) {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
 
@@ -732,7 +732,7 @@ func (db *Database) Size() (common.StorageSize, common.StorageSize) {
 // missing.
 //
 // This method is extremely CPU and memory intensive, only use when must.
-func (db *Database) verifyIntegrity() {
+func (db *TrieDatabase) verifyIntegrity() {
 	// Iterate over all the cached nodes and accumulate them into a set
 	reachable := map[common.Hash]struct{}{{}: {}}
 
@@ -754,7 +754,7 @@ func (db *Database) verifyIntegrity() {
 
 // accumulate iterates over the trie defined by hash and accumulates all the
 // cached children found in memory.
-func (db *Database) accumulate(hash common.Hash, reachable map[common.Hash]struct{}) {
+func (db *TrieDatabase) accumulate(hash common.Hash, reachable map[common.Hash]struct{}) {
 	// Mark the node reachable if present in the memory cache
 	node, ok := db.nodes[hash]
 	if !ok {

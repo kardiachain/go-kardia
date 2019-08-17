@@ -21,6 +21,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/kardiachain/go-kardia/kai/storage"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -46,6 +47,12 @@ import (
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
+)
+
+
+const (
+	LevelDb = iota
+	MongoDb
 )
 
 // args
@@ -113,6 +120,11 @@ type flagArgs struct {
 	maxPending     int
 	maxAll         int
 	dualEvent      bool
+
+	db             int
+	dbUri          string
+	dbName         string
+	dbDrop         bool
 }
 
 var args flagArgs
@@ -136,6 +148,12 @@ func init() {
 	flag.Uint64Var(&args.networkId, "networkId", 0, "Your chain's networkId. NetworkId must be greater than 0")
 	flag.Uint64Var(&args.chainId, "chainId", 0, "ChainID is used to validate which node is allowed to send message through P2P in the same blockchain")
 	flag.StringVar(&args.serviceName, "serviceName", "", "ServiceName is used for displaying as log's prefix")
+
+	// DB type
+	flag.IntVar(&args.db, "dbType", LevelDb, "dbType is type of db that will be used to store chain data, current supported types are leveldb and mongodb.")
+	flag.StringVar(&args.dbUri, "dbUri", "", "mongodb uri")
+	flag.StringVar(&args.dbName, "dbName", "", "mongodb dbName")
+	flag.BoolVar(&args.dbDrop, "dbDrop", true, "option drops db")
 
 	// Dualnode's related flags
 	flag.BoolVar(&args.ethDual, "dual", false, "whether to run in dual mode")
@@ -350,6 +368,16 @@ func main() {
 			return
 		}
 	}
+	// check dbtype
+	if args.db == MongoDb {
+		if args.dbUri == "" || args.dbName == "" {
+			panic("dbUri and DbName must not be empty")
+		}
+		config.MainChainConfig.DBInfo = storage.NewMongoDbInfo(args.dbUri, args.dbName, args.dbDrop)
+	} else {
+		config.MainChainConfig.DBInfo = storage.NewLevelDbInfo(config.ResolvePath(node.MainChainDataDir), node.DefaultDbCache, node.DefaultDbHandles)
+	}
+
 	config.PeerProxyIP = args.peerProxyIP
 
 	n, err := node.NewNode(config)

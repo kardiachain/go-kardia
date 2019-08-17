@@ -24,7 +24,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/events"
@@ -78,7 +77,7 @@ type ProtocolManager struct {
 	txpool *tx_pool.TxPool
 
 	blockchain  base.BaseBlockChain
-	chainconfig *configs.ChainConfig
+	chainconfig *types.ChainConfig
 
 	SubProtocols []p2p.Protocol
 
@@ -109,7 +108,7 @@ func NewProtocolManager(
 	networkID uint64,
 	chainID uint64,
 	blockchain base.BaseBlockChain,
-	config *configs.ChainConfig,
+	config *types.ChainConfig,
 	txpool *tx_pool.TxPool,
 	csReactor *consensus.ConsensusManager) (*ProtocolManager, error) {
 
@@ -450,7 +449,7 @@ type NodeInfo struct {
 	Network uint64               `json:"network"` // Kardia network ID
 	Height  uint64               `json:"height"`  // Height of the blockchain
 	Genesis common.Hash          `json:"genesis"` // SHA3 hash of the host's genesis block
-	Config  *configs.ChainConfig `json:"config"`  // Chain configuration for the fork rules
+	Config  *types.ChainConfig `json:"config"`  // Chain configuration for the fork rules
 	Head    common.Hash          `json:"head"`    // SHA3 hash of the host's best owned block
 }
 

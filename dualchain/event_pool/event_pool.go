@@ -28,18 +28,16 @@ import (
 	"github.com/ethereum/go-ethereum/metrics"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/chaindb"
+	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/state"
-	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/kai/events"
 )
 
 const (
-	DualStateAddressHex = "68b53a92d846baafdc782cb9cad65d77020c8d747eca7b621370b52b18c91f9a"
+	DualStateAddressHex = configs.KardiaPrivKeyToCallSmc
 )
 
 const (
@@ -94,7 +92,7 @@ type blockChain interface {
 	CurrentBlock() *types.Block
 	GetBlock(hash common.Hash, number uint64) *types.Block
 	StateAt(root common.Hash) (*state.StateDB, error)
-	DB() kaidb.Database
+	DB() types.Database
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StoreHash(hash *common.Hash)
 	CheckHash(hash *common.Hash) bool
@@ -148,7 +146,7 @@ type EventPool struct {
 	logger log.Logger
 
 	config        EventPoolConfig
-	chainconfig   *configs.ChainConfig
+	chainconfig   *types.ChainConfig
 	chain         blockChain
 	dualEventFeed event.Feed
 	scope         event.SubscriptionScope
@@ -170,7 +168,7 @@ type EventPool struct {
 
 // Creates a new dual's event pool to gather, sort and filter inbound
 // dual's events from other blockchains.
-func NewEventPool(logger log.Logger, config EventPoolConfig, chainconfig *configs.ChainConfig, chain blockChain) *EventPool {
+func NewEventPool(logger log.Logger, config EventPoolConfig, chainconfig *types.ChainConfig, chain blockChain) *EventPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize(logger)
 
@@ -509,7 +507,7 @@ func (pool *EventPool) add(event *types.DualEvent) (bool, error) {
 	hash := event.Hash()
 
 	// If dual's event exists in pool or DB, discard it
-	if e, _, _, _ := chaindb.ReadDualEvent(pool.chain.DB(), hash); pool.all.Get(hash) != nil || e != nil {
+	if e, _, _, _ := pool.chain.DB().ReadDualEvent(hash); pool.all.Get(hash) != nil || e != nil {
 		pool.logger.Trace("Discarding already known dual's event", "hash", hash)
 		return false, fmt.Errorf("known dual's event: %x", hash)
 	}

@@ -16,61 +16,44 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package chaindb
+package storage
 
 import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/types"
 )
 
-// DatabaseReader wraps the Has and Get method of a backing data store.
-type DatabaseReader interface {
-	Has(key []byte) (bool, error)
-	Get(key []byte) ([]byte, error)
-}
-
-// DatabaseWriter wraps the Put method of a backing data store.
-type DatabaseWriter interface {
-	Put(key []byte, value []byte) error
-}
-
-// DatabaseDeleter wraps the Delete method of a backing data store.
-type DatabaseDeleter interface {
-	Delete(key []byte) error
-}
-
-// ReadCanonicalHash retrieves the hash assigned to a canonical block height.
-func ReadCanonicalHash(db DatabaseReader, height uint64) common.Hash {
+// CommonReadCanonicalHash retrieves the hash assigned to a canonical block height.
+func CommonReadCanonicalHash(db types.DatabaseReader, height uint64) common.Hash {
 	data, _ := db.Get(headerHashKey(height))
-	if len(data) == 0 {
+	if data == nil || len(data.([]byte)) == 0 {
 		return common.Hash{}
 	}
-	return common.BytesToHash(data)
+	return common.BytesToHash(data.([]byte))
 }
 
-// ReadChainConfig retrieves the consensus settings based on the given genesis hash.
-func ReadChainConfig(db DatabaseReader, hash common.Hash) *configs.ChainConfig {
+// CommonReadChainConfig retrieves the consensus settings based on the given genesis hash.
+func CommonReadChainConfig(db types.DatabaseReader, hash common.Hash) *types.ChainConfig {
 	data, _ := db.Get(configKey(hash))
-	if len(data) == 0 {
+	if data == nil || len(data.([]byte)) == 0 {
 		return nil
 	}
-	var config configs.ChainConfig
-	if err := json.Unmarshal(data, &config); err != nil {
+	var config types.ChainConfig
+	if err := json.Unmarshal(data.([]byte), &config); err != nil {
 		log.Error("Invalid chain config JSON", "hash", hash, "err", err)
 		return nil
 	}
 	return &config
 }
 
-// WriteChainConfig writes the chain config settings to the database.
-func WriteChainConfig(db DatabaseWriter, hash common.Hash, cfg *configs.ChainConfig) {
+// CommonWriteChainConfig writes the chain config settings to the database.
+func CommonWriteChainConfig(db types.DatabaseWriter, hash common.Hash, cfg *types.ChainConfig) {
 	if cfg == nil {
 		return
 	}
@@ -83,23 +66,23 @@ func WriteChainConfig(db DatabaseWriter, hash common.Hash, cfg *configs.ChainCon
 	}
 }
 
-// WriteBlock serializes a block into the database, header and body separately.
-func WriteBlock(db DatabaseWriter, block *types.Block) {
-	WriteBody(db, block.Hash(), block.Height(), block.Body())
-	WriteHeader(db, block.Header())
+// CommonWriteBlock serializes a block into the database, header and body separately.
+func CommonWriteBlock(db types.DatabaseWriter, block *types.Block) {
+	db.WriteBody(block.Hash(), block.Height(),block.Body())
+	db.WriteHeader(block.Header())
 }
 
 // WriteBody stores a block body into the database.
-func WriteBody(db DatabaseWriter, hash common.Hash, height uint64, body *types.Body) {
+func CommonWriteBody(db types.DatabaseWriter, hash common.Hash, height uint64, body *types.Body) {
 	data, err := rlp.EncodeToBytes(body)
 	if err != nil {
 		log.Crit("Failed to RLP encode body", "err", err)
 	}
-	WriteBodyRLP(db, hash, height, data)
+	db.WriteBodyRLP(hash, height, data)
 }
 
 // WriteBodyRLP stores an RLP encoded block body into the database.
-func WriteBodyRLP(db DatabaseWriter, hash common.Hash, height uint64, rlp rlp.RawValue) {
+func CommonWriteBodyRLP(db types.DatabaseWriter, hash common.Hash, height uint64, rlp rlp.RawValue) {
 	if err := db.Put(blockBodyKey(height, hash), rlp); err != nil {
 		log.Crit("Failed to store block body", "err", err)
 	}
@@ -107,7 +90,7 @@ func WriteBodyRLP(db DatabaseWriter, hash common.Hash, height uint64, rlp rlp.Ra
 
 // WriteHeader stores a block header into the database and also stores the hash-
 // to-height mapping.
-func WriteHeader(db DatabaseWriter, header *types.Header) {
+func CommonWriteHeader(db types.DatabaseWriter, header *types.Header) {
 	// Write the hash -> height mapping
 	var (
 		hash    = header.Hash()
@@ -130,7 +113,7 @@ func WriteHeader(db DatabaseWriter, header *types.Header) {
 }
 
 // WriteReceipts stores all the transaction receipts belonging to a block.
-func WriteReceipts(db DatabaseWriter, hash common.Hash, height uint64, receipts types.Receipts) {
+func CommonWriteReceipts(db types.DatabaseWriter, hash common.Hash, height uint64, receipts types.Receipts) {
 	// Convert the receipts into their storage form and serialize them
 	storageReceipts := make([]*types.ReceiptForStorage, len(receipts))
 	for i, receipt := range receipts {
@@ -146,38 +129,38 @@ func WriteReceipts(db DatabaseWriter, hash common.Hash, height uint64, receipts 
 	}
 }
 
-// WriteCanonicalHash stores the hash assigned to a canonical block height.
-func WriteCanonicalHash(db DatabaseWriter, hash common.Hash, height uint64) {
+// CommonWriteCanonicalHash stores the hash assigned to a canonical block height.
+func CommonWriteCanonicalHash(db types.DatabaseWriter, hash common.Hash, height uint64) {
 	if err := db.Put(headerHashKey(height), hash.Bytes()); err != nil {
 		log.Crit("Failed to store height to hash mapping", "err", err)
 	}
 }
 
-// WriteHeadBlockHash stores the head block's hash.
-func WriteHeadBlockHash(db DatabaseWriter, hash common.Hash) {
+// CommonWriteHeadBlockHash stores the head block's hash.
+func CommonWriteHeadBlockHash(db types.DatabaseWriter, hash common.Hash) {
 	if err := db.Put(headBlockKey, hash.Bytes()); err != nil {
 		log.Crit("Failed to store last block's hash", "err", err)
 	}
 }
 
-// WriteHeadHeaderHash stores the hash of the current canonical head header.
-func WriteHeadHeaderHash(db DatabaseWriter, hash common.Hash) {
+// CommonWriteHeadHeaderHash stores the hash of the current canonical head header.
+func CommonWriteHeadHeaderHash(db types.DatabaseWriter, hash common.Hash) {
 	if err := db.Put(headHeaderKey, hash.Bytes()); err != nil {
 		log.Crit("Failed to store last header's hash", "err", err)
 	}
 }
 
-// WriteCommit stores a commit into the database.
-func WriteCommit(db DatabaseWriter, height uint64, commit *types.Commit) {
+// CommonWriteCommit stores a commit into the database.
+func CommonWriteCommit(db types.DatabaseWriter, height uint64, commit *types.Commit) {
 	data, err := rlp.EncodeToBytes(commit)
 	if err != nil {
 		log.Crit("Failed to RLP encode commit", "err", err)
 	}
-	WriteCommitRLP(db, height, data)
+	db.WriteCommitRLP(height, data)
 }
 
-// WriteCommitRLP stores an RLP encoded commit into the database.
-func WriteCommitRLP(db DatabaseWriter, height uint64, rlp rlp.RawValue) {
+// CommonWriteCommitRLP stores an RLP encoded commit into the database.
+func CommonWriteCommitRLP(db types.DatabaseWriter, height uint64, rlp rlp.RawValue) {
 	if err := db.Put(commitKey(height), rlp); err != nil {
 		log.Crit("Failed to store commit", "err", err)
 	}
@@ -189,21 +172,21 @@ func WriteCommitRLP(db DatabaseWriter, height uint64, rlp rlp.RawValue) {
 //
 // Note, due to concurrent download of header and block body the header and thus
 // canonical hash can be stored in the database but the body data not (yet).
-func ReadBlock(logger log.Logger, db DatabaseReader, hash common.Hash, height uint64) *types.Block {
-	header := ReadHeader(db, hash, height)
+func CommonReadBlock(logger log.Logger, db types.DatabaseReader, hash common.Hash, height uint64) *types.Block {
+	header := db.ReadHeader(hash, height)
 	if header == nil {
 		return nil
 	}
-	body := ReadBody(db, hash, height)
+	body := db.ReadBody(hash, height)
 	if body == nil {
 		return nil
 	}
 	return types.NewBlockWithHeader(logger, header).WithBody(body)
 }
 
-// ReadHeader retrieves the block header corresponding to the hash.
-func ReadHeader(db DatabaseReader, hash common.Hash, height uint64) *types.Header {
-	data := ReadHeaderRLP(db, hash, height)
+// CommonReadHeader retrieves the block header corresponding to the hash.
+func CommonReadHeader(db types.DatabaseReader, hash common.Hash, height uint64) *types.Header {
+	data := db.ReadHeaderRLP(hash, height)
 	if len(data) == 0 {
 		return nil
 	}
@@ -215,21 +198,21 @@ func ReadHeader(db DatabaseReader, hash common.Hash, height uint64) *types.Heade
 	return header
 }
 
-// ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
-func ReadHeaderRLP(db DatabaseReader, hash common.Hash, height uint64) rlp.RawValue {
+// CommonReadHeaderRLP retrieves a block header in its raw RLP database encoding.
+func CommonReadHeaderRLP(db types.DatabaseReader, hash common.Hash, height uint64) rlp.RawValue {
 	data, _ := db.Get(headerKey(height, hash))
-	return data
+	return data.([]byte)
 }
 
-// ReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
-func ReadBodyRLP(db DatabaseReader, hash common.Hash, height uint64) rlp.RawValue {
+// CommonReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
+func CommonReadBodyRLP(db types.DatabaseReader, hash common.Hash, height uint64) rlp.RawValue {
 	data, _ := db.Get(blockBodyKey(height, hash))
-	return data
+	return data.([]byte)
 }
 
-// ReadBody retrieves the block body corresponding to the hash.
-func ReadBody(db DatabaseReader, hash common.Hash, height uint64) *types.Body {
-	data := ReadBodyRLP(db, hash, height)
+// CommonReadBody retrieves the block body corresponding to the hash.
+func CommonReadBody(db types.DatabaseReader, hash common.Hash, height uint64) *types.Body {
+	data := db.ReadBodyRLP(hash, height)
 	if len(data) == 0 {
 		return nil
 	}
@@ -242,43 +225,43 @@ func ReadBody(db DatabaseReader, hash common.Hash, height uint64) *types.Body {
 	return body
 }
 
-// ReadHeadBlockHash retrieves the hash of the current canonical head block.
-func ReadHeadBlockHash(db DatabaseReader) common.Hash {
+// CommonReadHeadBlockHash retrieves the hash of the current canonical head block.
+func CommonReadHeadBlockHash(db types.DatabaseReader) common.Hash {
 	data, _ := db.Get(headBlockKey)
-	if len(data) == 0 {
+	if data == nil || len(data.([]byte)) == 0 {
 		return common.Hash{}
 	}
-	return common.BytesToHash(data)
+	return common.BytesToHash(data.([]byte))
 }
 
-// ReadHeaderheight returns the header height assigned to a hash.
-func ReadHeaderHeight(db DatabaseReader, hash common.Hash) *uint64 {
+// CommonReadHeaderheight returns the header height assigned to a hash.
+func CommonReadHeaderHeight(db types.DatabaseReader, hash common.Hash) *uint64 {
 	data, _ := db.Get(headerHeightKey(hash))
-	if len(data) != 8 {
+	if data == nil || len(data.([]byte)) == 0 || len(data.([]byte)) != 8 {
 		return nil
 	}
-	height := binary.BigEndian.Uint64(data)
+	height := binary.BigEndian.Uint64(data.([]byte))
 	return &height
 }
 
-// ReadHeadHeaderHash retrieves the hash of the current canonical head header.
-func ReadHeadHeaderHash(db DatabaseReader) common.Hash {
+// CommonReadHeadHeaderHash retrieves the hash of the current canonical head header.
+func CommonReadHeadHeaderHash(db types.DatabaseReader) common.Hash {
 	data, _ := db.Get(headHeaderKey)
-	if len(data) == 0 {
+	if data == nil || len(data.([]byte)) == 0 {
 		return common.Hash{}
 	}
-	return common.BytesToHash(data)
+	return common.BytesToHash(data.([]byte))
 }
 
-// ReadCommitRLP retrieves the commit in RLP encoding.
-func ReadCommitRLP(db DatabaseReader, height uint64) rlp.RawValue {
+// CommonReadCommitRLP retrieves the commit in RLP encoding.
+func CommonReadCommitRLP(db types.DatabaseReader, height uint64) rlp.RawValue {
 	data, _ := db.Get(commitKey(height))
-	return data
+	return data.([]byte)
 }
 
-// ReadBody retrieves the commit at a given height.
-func ReadCommit(db DatabaseReader, height uint64) *types.Commit {
-	data := ReadCommitRLP(db, height)
+// CommonReadBody retrieves the commit at a given height.
+func CommonReadCommit(db types.DatabaseReader, height uint64) *types.Commit {
+	data := db.ReadCommitRLP(height)
 	if len(data) == 0 {
 		return nil
 	}
@@ -291,15 +274,15 @@ func ReadCommit(db DatabaseReader, height uint64) *types.Commit {
 	return commit
 }
 
-// DeleteBody removes all block body data associated with a hash.
-func DeleteBody(db DatabaseDeleter, hash common.Hash, height uint64) {
+// CommonDeleteBody removes all block body data associated with a hash.
+func CommonDeleteBody(db types.DatabaseDeleter, hash common.Hash, height uint64) {
 	if err := db.Delete(blockBodyKey(height, hash)); err != nil {
 		log.Crit("Failed to delete block body", "err", err)
 	}
 }
 
-// DeleteHeader removes all block header data associated with a hash.
-func DeleteHeader(db DatabaseDeleter, hash common.Hash, height uint64) {
+// CommonDeleteHeader removes all block header data associated with a hash.
+func CommonDeleteHeader(db types.DatabaseDeleter, hash common.Hash, height uint64) {
 	if err := db.Delete(headerKey(height, hash)); err != nil {
 		log.Crit("Failed to delete header", "err", err)
 	}
@@ -308,23 +291,23 @@ func DeleteHeader(db DatabaseDeleter, hash common.Hash, height uint64) {
 	}
 }
 
-// DeleteCanonicalHash removes the number to hash canonical mapping.
-func DeleteCanonicalHash(db DatabaseDeleter, number uint64) {
+// CommonDeleteCanonicalHash removes the number to hash canonical mapping.
+func CommonDeleteCanonicalHash(db types.DatabaseDeleter, number uint64) {
 	if err := db.Delete(headerHashKey(number)); err != nil {
 		log.Crit("Failed to delete number to hash mapping", "err", err)
 	}
 }
 
-// ReadReceipts retrieves all the transaction receipts belonging to a block.
-func ReadReceipts(db DatabaseReader, hash common.Hash, number uint64) types.Receipts {
+// CommonReadReceipts retrieves all the transaction receipts belonging to a block.
+func CommonReadReceipts(db types.DatabaseReader, hash common.Hash, number uint64) types.Receipts {
 	// Retrieve the flattened receipt slice
 	data, _ := db.Get(blockReceiptsKey(number, hash))
-	if len(data) == 0 {
+	if data == nil || len(data.([]byte)) == 0 {
 		return nil
 	}
 	// Convert the revceipts from their storage form to their internal representation
 	storageReceipts := []*types.ReceiptForStorage{}
-	if err := rlp.DecodeBytes(data, &storageReceipts); err != nil {
+	if err := rlp.DecodeBytes(data.([]byte), &storageReceipts); err != nil {
 		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
 		return nil
 	}
@@ -335,24 +318,24 @@ func ReadReceipts(db DatabaseReader, hash common.Hash, number uint64) types.Rece
 	return receipts
 }
 
-// ReadTxLookupEntry retrieves the positional metadata associated with a transaction
+// CommonReadTxLookupEntry retrieves the positional metadata associated with a transaction
 // hash to allow retrieving the transaction or receipt by hash.
-func ReadTxLookupEntry(db DatabaseReader, hash common.Hash) (common.Hash, uint64, uint64) {
+func CommonReadTxLookupEntry(db types.DatabaseReader, hash common.Hash) (common.Hash, uint64, uint64) {
 	data, _ := db.Get(txLookupKey(hash))
-	if len(data) == 0 {
+	if data == nil || len(data.([]byte)) == 0 {
 		return common.Hash{}, 0, 0
 	}
 	var entry TxLookupEntry
-	if err := rlp.DecodeBytes(data, &entry); err != nil {
+	if err := rlp.DecodeBytes(data.([]byte), &entry); err != nil {
 		log.Error("Invalid transaction lookup entry RLP", "hash", hash, "err", err)
 		return common.Hash{}, 0, 0
 	}
 	return entry.BlockHash, entry.BlockIndex, entry.Index
 }
 
-// WriteTxLookupEntries stores a positional metadata for every transaction from
+// CommonWriteTxLookupEntries stores a positional metadata for every transaction from
 // a block, enabling hash based transaction and receipt lookups.
-func WriteTxLookupEntries(db DatabaseWriter, block *types.Block) {
+func CommonWriteTxLookupEntries(db types.DatabaseWriter, block *types.Block) {
 	for i, tx := range block.Transactions() {
 		entry := TxLookupEntry{
 			BlockHash:  block.Hash(),
@@ -369,19 +352,19 @@ func WriteTxLookupEntries(db DatabaseWriter, block *types.Block) {
 	}
 }
 
-// DeleteTxLookupEntry removes all transaction data associated with a hash.
-func DeleteTxLookupEntry(db DatabaseDeleter, hash common.Hash) {
+// CommonDeleteTxLookupEntry removes all transaction data associated with a hash.
+func CommonDeleteTxLookupEntry(db types.DatabaseDeleter, hash common.Hash) {
 	db.Delete(txLookupKey(hash))
 }
 
-// ReadTransaction retrieves a specific transaction from the database, along with
+// CommonReadTransaction retrieves a specific transaction from the database, along with
 // its added positional metadata.
-func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, txIndex := ReadTxLookupEntry(db, hash)
+func CommonReadTransaction(db types.DatabaseReader, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
+	blockHash, blockNumber, txIndex := db.ReadTxLookupEntry(hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
-	body := ReadBody(db, blockHash, blockNumber)
+	body := db.ReadBody(blockHash, blockNumber)
 	if body == nil || len(body.Transactions) <= int(txIndex) {
 		log.Error("Transaction referenced missing", "number", blockNumber, "hash", blockHash, "index", txIndex)
 		return nil, common.Hash{}, 0, 0
@@ -391,13 +374,13 @@ func ReadTransaction(db DatabaseReader, hash common.Hash) (*types.Transaction, c
 
 // Retrieves the positional metadata associated with a dual's event
 // hash to allow retrieving the event by hash.
-func ReadDualEventLookupEntry(db DatabaseReader, hash common.Hash) (common.Hash, uint64, uint64) {
+func CommonReadDualEventLookupEntry(db types.DatabaseReader, hash common.Hash) (common.Hash, uint64, uint64) {
 	data, _ := db.Get(dualEventLookupKey(hash))
-	if len(data) == 0 {
+	if data == nil || len(data.([]byte)) == 0 {
 		return common.Hash{}, 0, 0
 	}
 	var entry DualEventLookupEntry
-	if err := rlp.DecodeBytes(data, &entry); err != nil {
+	if err := rlp.DecodeBytes(data.([]byte), &entry); err != nil {
 		log.Error("Invalid dual's event lookup entry RLP", "hash", hash, "err", err)
 		return common.Hash{}, 0, 0
 	}
@@ -406,12 +389,12 @@ func ReadDualEventLookupEntry(db DatabaseReader, hash common.Hash) (common.Hash,
 
 // Retrieves a specific dual's event from the database, along with
 // its added positional metadata.
-func ReadDualEvent(db DatabaseReader, hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, eventIndex := ReadDualEventLookupEntry(db, hash)
+func CommonReadDualEvent(db types.DatabaseReader, hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
+	blockHash, blockNumber, eventIndex := db.ReadDualEventLookupEntry(hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
-	body := ReadBody(db, blockHash, blockNumber)
+	body := db.ReadBody(blockHash, blockNumber)
 	if body == nil || len(body.DualEvents) <= int(eventIndex) {
 		log.Error("Dual event referenced missing", "number", blockNumber, "hash", blockHash, "index", eventIndex)
 		return nil, common.Hash{}, 0, 0
@@ -419,14 +402,14 @@ func ReadDualEvent(db DatabaseReader, hash common.Hash) (*types.DualEvent, commo
 	return body.DualEvents[eventIndex], blockHash, blockNumber, eventIndex
 }
 
-// ReadReceipt retrieves a specific transaction receipt from the database, along with
+// CommonReadReceipt retrieves a specific transaction receipt from the database, along with
 // its added positional metadata.
-func ReadReceipt(db DatabaseReader, hash common.Hash) (*types.Receipt, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, receiptIndex := ReadTxLookupEntry(db, hash)
+func CommonReadReceipt(db types.DatabaseReader, hash common.Hash) (*types.Receipt, common.Hash, uint64, uint64) {
+	blockHash, blockNumber, receiptIndex := db.ReadTxLookupEntry(hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
-	receipts := ReadReceipts(db, blockHash, blockNumber)
+	receipts := db.ReadReceipts(blockHash, blockNumber)
 	if len(receipts) <= int(receiptIndex) {
 		log.Error("Receipt refereced missing", "number", blockNumber, "hash", blockHash, "index", receiptIndex)
 		return nil, common.Hash{}, 0, 0
@@ -434,52 +417,62 @@ func ReadReceipt(db DatabaseReader, hash common.Hash) (*types.Receipt, common.Ha
 	return receipts[receiptIndex], blockHash, blockNumber, receiptIndex
 }
 
-// ReadBloomBits retrieves the compressed bloom bit vector belonging to the given
+// CommonReadBloomBits retrieves the compressed bloom bit vector belonging to the given
 // section and bit index from the.
-func ReadBloomBits(db DatabaseReader, bit uint, section uint64, head common.Hash) ([]byte, error) {
-	return db.Get(bloomBitsKey(bit, section, head))
+func CommonReadBloomBits(db types.DatabaseReader, bit uint, section uint64, head common.Hash) ([]byte, error) {
+	data, err := db.Get(bloomBitsKey(bit, section, head))
+	if err != nil || data == nil || len(data.([]byte)) == 0 {
+		return nil, err
+	}
+	return data.([]byte), err
 }
 
-// WriteBloomBits stores the compressed bloom bits vector belonging to the given
+// CommonWriteBloomBits stores the compressed bloom bits vector belonging to the given
 // section and bit index.
-func WriteBloomBits(db DatabaseWriter, bit uint, section uint64, head common.Hash, bits []byte) {
+func CommonWriteBloomBits(db types.DatabaseWriter, bit uint, section uint64, head common.Hash, bits []byte) {
 	if err := db.Put(bloomBitsKey(bit, section, head), bits); err != nil {
 		log.Crit("Failed to store bloom bits", "err", err)
 	}
 }
 
-// ReadHeaderNumber returns the header number assigned to a hash.
-func ReadHeaderNumber(db DatabaseReader, hash common.Hash) *uint64 {
+// CommonReadHeaderNumber returns the header number assigned to a hash.
+func CommonReadHeaderNumber(db types.DatabaseReader, hash common.Hash) *uint64 {
 	data, _ := db.Get(headerHeightKey(hash))
-	if len(data) != 8 {
+	if data == nil || len(data.([]byte)) == 0 || len(data.([]byte)) != 8 {
 		return nil
 	}
-	number := binary.BigEndian.Uint64(data)
+	number := binary.BigEndian.Uint64(data.([]byte))
 	return &number
 }
 
-// Stores a hash into the database.
-func StoreHash(db DatabaseWriter, hash *common.Hash) {
+// CommonStores a hash into the database.
+func CommonStoreHash(db types.DatabaseWriter, hash *common.Hash) {
 	if err := db.Put(hashKey(hash), encodeBoolean(true)); err != nil {
 		log.Crit("Failed to store hash", "err", err)
 	}
 }
 
 // Returns true if a hash already exists in the database.
-func CheckHash(db DatabaseReader, hash *common.Hash) bool {
+func CommonCheckHash(db types.DatabaseReader, hash *common.Hash) bool {
 	data, _ := db.Get(hashKey(hash))
-	return decodeBoolean(data)
+	if data == nil {
+		return false
+	}
+	return decodeBoolean(data.([]byte))
 }
 
 // Stores a tx hash into the database.
-func StoreTxHash(db DatabaseWriter, hash *common.Hash) {
+func CommonStoreTxHash(db types.DatabaseWriter, hash *common.Hash) {
 	if err := db.Put(txHashKey(hash), encodeBoolean(true)); err != nil {
 		log.Crit("Failed to store hash", "err", err)
 	}
 }
 
 // Returns true if a tx hash already exists in the database.
-func CheckTxHash(db DatabaseReader, hash *common.Hash) bool {
+func CommonCheckTxHash(db types.DatabaseReader, hash *common.Hash) bool {
 	data, _ := db.Get(txHashKey(hash))
-	return decodeBoolean(data)
+	if data == nil {
+		return false
+	}
+	return decodeBoolean(data.([]byte))
 }

@@ -17,7 +17,7 @@
  */
 
 // Package rawdb contains a collection of low level database accessors.
-package chaindb
+package storage
 
 import (
 	"encoding/binary"

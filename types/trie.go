@@ -14,17 +14,15 @@
 // You should have received a copy of the GNU Lesser General Public License
 
 // Package trie implements Merkle Patricia Tries.
-package trie
+package types
 
 import (
 	"bytes"
 	"fmt"
-
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
-
-	"github.com/ethereum/go-ethereum/metrics"
 )
 
 var (
@@ -65,7 +63,7 @@ type LeafCallback func(leaf []byte, parent common.Hash) error
 //
 // Trie is not safe for concurrent use.
 type Trie struct {
-	db           *Database
+	db           *TrieDatabase
 	root         node
 	originalRoot common.Hash
 
@@ -93,7 +91,7 @@ func (t *Trie) newFlag() nodeFlag {
 // trie is initially empty and does not require a database. Otherwise,
 // New will panic if db is nil and returns a MissingNodeError if root does
 // not exist in the database. Accessing the trie loads nodes from db on demand.
-func New(root common.Hash, db *Database) (*Trie, error) {
+func New(root common.Hash, db *TrieDatabase) (*Trie, error) {
 	if db == nil {
 		panic("trie.New called without a database")
 	}
@@ -466,7 +464,7 @@ func (t *Trie) Commit(onleaf LeafCallback) (root common.Hash, err error) {
 	return common.BytesToHash(hash.(hashNode)), nil
 }
 
-func (t *Trie) hashRoot(db *Database, onleaf LeafCallback) (node, node, error) {
+func (t *Trie) hashRoot(db *TrieDatabase, onleaf LeafCallback) (node, node, error) {
 	if t.root == nil {
 		return hashNode(emptyRoot.Bytes()), nil, nil
 	}

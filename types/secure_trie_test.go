@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package trie
+package types
 
 import (
 	"bytes"
@@ -33,7 +33,7 @@ func newEmptySecure() *SecureTrie {
 }
 
 // makeTestSecureTrie creates a large enough secure trie for testing.
-func makeTestSecureTrie() (*Database, *SecureTrie, map[string][]byte) {
+func makeTestSecureTrie() (*TrieDatabase, *SecureTrie, map[string][]byte) {
 	// Create an empty trie
 	triedb := NewDatabase(kaidb.NewMemStore())
 

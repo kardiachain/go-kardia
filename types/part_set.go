@@ -8,7 +8,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/kardiachain/go-kardia/configs"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/merkle"
 )
@@ -16,6 +15,11 @@ import (
 var (
 	ErrPartSetUnexpectedIndex = errors.New("Error part set unexpected index")
 	ErrPartSetInvalidProof    = errors.New("Error part set invalid proof")
+)
+
+const (
+	// BlockPartSizeBytes is the size of one block part.
+	BlockPartSizeBytes = 65536 // 64kB
 )
 
 type Part struct {
@@ -29,8 +33,8 @@ func (part *Part) ValidateBasic() error {
 	if part.Index.IsLessThanInt(0) {
 		return errors.New("Negative Index")
 	}
-	if len(part.Bytes) > configs.BlockPartSizeBytes {
-		return fmt.Errorf("Too big (max: %d)", configs.BlockPartSizeBytes)
+	if len(part.Bytes) > BlockPartSizeBytes {
+		return fmt.Errorf("Too big (max: %d)", BlockPartSizeBytes)
 	}
 	return nil
 }

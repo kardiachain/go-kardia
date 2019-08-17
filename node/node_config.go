@@ -56,14 +56,8 @@ type MainChainConfig struct {
 	// Index of validators
 	ValidatorIndexes []int
 
-	// ChainDataDir is directory that stores levelDB data
-	ChainDataDir string
-
-	// DbCache is size in MB of allocated levelDB cache, minimum 16
-	DbCache int
-
-	// DbHandles is number of allocated levelDB file handlers, minium 16
-	DbHandles int
+	// DbInfo stores configuration information to setup database
+	DBInfo storage.DbInfo
 
 	// Genesis is genesis block which contain initial Block and accounts
 	Genesis *genesis.Genesis
@@ -100,14 +94,8 @@ type DualChainConfig struct {
 	// Index of validators
 	ValidatorIndexes []int
 
-	// ChainDataDir is directory that stores levelDB data
-	ChainDataDir string
-
-	// DbCache is size in MB of allocated levelDB cache, minimum 16
-	DbCache int
-
-	// DbHandles is number of allocated levelDB file handlers, minium 16
-	DbHandles int
+	// DbInfo stores configuration information to setup database
+	DBInfo storage.DbInfo
 
 	// Genesis is genesis block which contain initial Block and accounts
 	DualGenesis *genesis.Genesis
@@ -241,7 +229,7 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 		return key
 	}
 
-	keyfile := c.resolvePath(datadirPrivateKey)
+	keyfile := c.ResolvePath(datadirPrivateKey)
 	if key, err := crypto.LoadECDSA(keyfile); err == nil {
 		return key
 	}
@@ -271,11 +259,11 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 }
 
 // Database starts a new or existed database in the node data directory, or in-memory database.
-func (c *NodeConfig) StartDatabase(name string, cache int, handles int) (storage.Database, error) {
+func (c *NodeConfig) StartDatabase(dbInfo storage.DbInfo) (types.Database, error) {
 	if c.DataDir == "" {
 		return storage.NewMemStore(), nil
 	}
-	return storage.NewLDBStore(c.resolvePath(name), cache, handles)
+	return dbInfo.Start()
 }
 
 // Return saved name or executable file name.
@@ -312,7 +300,7 @@ func (c *NodeConfig) instanceDir() string {
 }
 
 // Resolves path in the instance directory.
-func (c *NodeConfig) resolvePath(path string) string {
+func (c *NodeConfig) ResolvePath(path string) string {
 	if filepath.IsAbs(path) {
 		return path
 	}

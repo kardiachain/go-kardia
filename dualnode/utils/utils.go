@@ -71,7 +71,6 @@ var errAmountLessThanOne = errors.New("Amount is less than one to send")
 var errInvalidExchangeRate = errors.New("Invalid exchange rate")
 var errInvalidSourceMatchAmount = errors.New("Invalid source for match amount tx")
 var errErrorConvertRateFloat = errors.New("Error to convert rate to float")
-var TenPoweredBySix = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(6), nil)
 var TenPoweredBySixFloat = big.NewFloat(float64(math.Pow10(6)))
 var TenPoweredByEight = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(8), nil)
 var TenPoweredByTen = big.NewInt(1).Exp(big.NewInt(10), big.NewInt(10), nil)
@@ -189,7 +188,7 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 				log.Error("Error to convert rate to float", "error", err, "fromAmount", fromAmount, "toAmount", toAmount)
 				return nil, errErrorConvertRateFloat
 			}
-			rateInt, _ := big.NewFloat(1).Mul( big.NewFloat(rateFloat), TenPoweredBySixFloat).Int64()
+			rateInt, _ := big.NewFloat(1).Mul(big.NewFloat(rateFloat), TenPoweredBySixFloat).Int64()
 			convertedAmount = temp.Mul(big.NewInt(rateInt), quantity)
 		}
 	case configs.TRON:
@@ -205,6 +204,7 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 
 	matchInput, err = kABI.Pack(configs.AddOrderFunction, source, destination, sourceAddress,
 		destinationAddress, hash, convertedAmount, timestamp)
+
 	if err != nil {
 		log.Error("Error packing abi", "error", err, "address")
 		return nil, err
@@ -213,9 +213,9 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, quantity *big.Int, s
 }
 
 func ToRateFloat(fromAmount *big.Int, toAmount *big.Int, precision int) (float64, error) {
-	rateFloat :=  float64(fromAmount.Int64()) / float64(toAmount.Int64())
+	rateFloat := float64(fromAmount.Int64()) / float64(toAmount.Int64())
 	format := "%." + strconv.Itoa(precision) + "f"
-	rateRound, err := strconv.ParseFloat(fmt.Sprintf(format, rateFloat) , 64)
+	rateRound, err := strconv.ParseFloat(fmt.Sprintf(format, rateFloat), 64)
 	if err != nil {
 		return 0, err
 	}
@@ -253,7 +253,7 @@ func CallKardiGetMatchingResultByTxId(from common.Address, bc base.BaseBlockChai
 	return matchingResult.Results, nil
 }
 
-func UpdateKardiaTargetTx(state *state.ManagedState, originalTx string, tx string, txType string) (*types.Transaction, error) {
+func UpdateKardiaTx(state *state.ManagedState, originalTx string, tx string) (*types.Transaction, error) {
 	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
 	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
 	kAbi, err := abi.JSON(strings.NewReader(masterSmcAbi))
@@ -261,14 +261,10 @@ func UpdateKardiaTargetTx(state *state.ManagedState, originalTx string, tx strin
 		log.Error("Error reading abi", "err", err)
 		return nil, err
 	}
-	var completeInput []byte
-	if txType == "target" {
-		completeInput, err = kAbi.Pack(configs.UpdateTargetTx, originalTx, tx)
-	} else {
-		completeInput, err = kAbi.Pack(configs.UpdateKardiaTx, originalTx, tx)
-	}
+
+	completeInput, err := kAbi.Pack(configs.UpdateKardiaTx, originalTx, tx)
 	if err != nil {
-		log.Error("Failed to pack updateTx", txType, "originalTx", originalTx, "err", err)
+		log.Error("Failed to pack updateKardiaTx", "originalTx", originalTx, "err", err)
 		return nil, err
 	}
 	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, completeInput, state), nil
@@ -380,7 +376,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 		// callback from dual
 		triggerMessage := dualMsg.TriggerMessage{}
 		if err := jsonpb.UnmarshalString(message, &triggerMessage); err != nil {
-			proxy.Logger().Error("Error on unmarshal triggerMessage", "err", err, "topic", KARDIA_CALL)
+			proxy.Logger().Error("Error on unmarshal triggerMessage", "err", err, "topic", topic)
 			return err
 		}
 
@@ -393,12 +389,12 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 
 		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool().State(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
 		if err != nil {
-			proxy.Logger().Error("Error on executing kardia smart contract", "err", err, "topic", KARDIA_CALL)
+			proxy.Logger().Error("Error on executing kardia smart contract", "err", err, "topic", topic)
 			return err
 		}
 
 		if err := proxy.KardiaTxPool().AddTx(tx); err != nil {
-			proxy.Logger().Error("Error on adding tx to txPool", "err", err, "topic", KARDIA_CALL)
+			proxy.Logger().Error("Error on adding tx to txPool", "err", err, "topic", topic)
 			return err
 		}
 
@@ -602,7 +598,7 @@ func KardiaCall(proxy base.BlockChainAdapter, event *types.EventData) error {
 	triggerMessage := dualMsg.TriggerMessage{}
 	err := unmarshaler.Unmarshal(reader, &triggerMessage)
 	if err != nil {
-		proxy.Logger().Error("Error while unmarshaling triggerMessage from EventData" , "err", err)
+		proxy.Logger().Error("Error while unmarshaling triggerMessage from EventData", "err", err)
 		return err
 	}
 
@@ -636,7 +632,9 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 	if err != nil {
 		return err
 	}
-	proxy.Logger().Info("Release info", "release", releases)
+	proxy.Logger().Info("Release info", "release", releases, "sender", senderAddr.Hex(), "originalTx", originalTx,
+		"fromType", fromType, "toType", toType, "fromAmount", fromAmount, "toAmount", toAmount, )
+
 	if releases != "" {
 		fields := strings.Split(releases, configs.ExchangeV2ReleaseFieldsSeparator)
 		if len(fields) != 4 {
@@ -658,7 +656,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 				proxy.Logger().Error("Missing release info", "matchedTxId", arrTxIds[i], "field", i, "releases", releases)
 				continue
 			}
-			log.Info("ReleaseInfo", "type", t, "address", arrAddresses[i], "amount", arrAmounts[i], "matchedTxId", arrTxIds[i])
+			log.Info("Release info", "type", t, "address", arrAddresses[i], "amount", arrAmounts[i], "matchedTxId", arrTxIds[i])
 
 			if t == configs.TRON || t == configs.NEO || t == configs.ETH {
 				address := arrAddresses[i]
@@ -669,22 +667,27 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 					continue
 				}
 				// Get rate base on the dual node exchange
-				if t != fromType {
+				if t != fromType { //neo != eth
 					tempFromAmount := fromAmount
 					fromAmount = toAmount
 					toAmount = tempFromAmount
+				} else {
+					fromType = toType
 				}
 
 				var (
 					releasedAmount *big.Int
 					err            error
 				)
-				if t == configs.TRON { // TRON is the smallest unit then do nothing with it
+
+				switch t {
+				case configs.TRON:
+					// TRON is the smallest unit then do nothing with it
 					releasedAmount = big.NewInt(amount)
-				} else if t == configs.ETH {
-					releasedAmount, err = calculateReleasedAmountToETH(amount, fromAmount, toAmount, fromType)
-				} else { // NEO
-					releasedAmount, err = calculateReleasedAmountFromNEO(amount, fromAmount, toAmount, toType)
+				case configs.NEO:
+					releasedAmount, err = CalculateReleasedAmountFromNeo(t, amount, fromAmount, toAmount, fromType)
+				case configs.ETH:
+					releasedAmount, err = CalculateReleasedAmountToEth(amount, fromAmount, toAmount, fromType)
 				}
 
 				if err != nil {
@@ -703,11 +706,11 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 	return nil
 }
 
-// calculateReleasedAmountFromNEO calculates released amount from NEO to others chain
+// CalculateReleasedAmountFromNeo calculates released amount from NEO to others chain
 // NOTE: this func is only used for DEX case
-func calculateReleasedAmountFromNEO(amount int64, fromAmount, toAmount *big.Int, toType string) (*big.Int, error) {
+func CalculateReleasedAmountFromNeo(releaseType string, amount int64, fromAmount, toAmount *big.Int, fromType string) (*big.Int, error) {
 	var releasedAmount *big.Int
-	if toType == configs.ETH {
+	if fromType == configs.ETH {
 		// Divide amount from smart contract by 10^8 to get base NEO amount to release
 		releasedAmount = big.NewInt(amount).Div(big.NewInt(amount), TenPoweredByEight)
 	} else {
@@ -722,15 +725,15 @@ func calculateReleasedAmountFromNEO(amount int64, fromAmount, toAmount *big.Int,
 		releasedAmount = big.NewInt(int64(math.Round(temp)))
 	}
 	// don't release  NEO if quantity < 1
-	if releasedAmount.Cmp(big.NewInt(1)) < 0 {
+	if releaseType == configs.NEO && releasedAmount.Cmp(big.NewInt(1)) < 0 {
 		return nil, errAmountLessThanOne
 	}
 	return releasedAmount, nil
 }
 
-// calculateReleasedAmountToETH calculates released amount from others dual node to ETH
+// CalculateReleasedAmountToEth calculates released amount from others dual node to ETH
 // NOTE: this func is only used for DEX case
-func calculateReleasedAmountToETH(amount int64, fromAmount, toAmount *big.Int, fromType string) (*big.Int, error) {
+func CalculateReleasedAmountToEth(amount int64, fromAmount, toAmount *big.Int, fromType string) (*big.Int, error) {
 	// Calculate the released amount by wei
 	convertedAmount := big.NewFloat(float64(amount))
 	convertedAmount = convertedAmount.Quo(convertedAmount, new(big.Float).SetInt(fromAmount))

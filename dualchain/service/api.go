@@ -21,7 +21,6 @@ package service
 import (
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/kai/chaindb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
@@ -188,7 +187,7 @@ func (s *PublicDualAPI) TypeDualEvent(hash string) map[string]interface{} {
 	}
 	dualEventHash := common.HexToHash(hash)
 	if dualEvent, _, _, _ :=
-		chaindb.ReadDualEvent(s.dualService.groupDb, dualEventHash); dualEvent != nil {
+		s.dualService.groupDb.ReadDualEvent(dualEventHash); dualEvent != nil {
 		return map[string]interface{}{
 			"TxSource": dualEvent.TriggeredEvent.TxSource,
 			"Target":   dualEvent.PendingTxMetadata.Target,
@@ -206,7 +205,7 @@ func (s *PublicDualAPI) GetDualEvent(hash string) *PublicDualEvent {
 	}
 	dualEventHash := common.HexToHash(hash)
 	if dualEvent, blockHash, blockNumber, eventIndex :=
-		chaindb.ReadDualEvent(s.dualService.groupDb, dualEventHash); dualEvent != nil {
+		s.dualService.groupDb.ReadDualEvent(dualEventHash); dualEvent != nil {
 		return NewPublicDualEvent(dualEvent, blockHash, blockNumber, eventIndex)
 	}
 
