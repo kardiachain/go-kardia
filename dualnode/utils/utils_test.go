@@ -20,9 +20,9 @@ package utils
 
 import (
 	"github.com/kardiachain/go-kardia/kai/state"
-	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/types"
 	"strings"
 	"testing"
 
@@ -134,7 +134,7 @@ var candidate_exchange_smc_definition = `[
 
 // TestCreateForwardRequestTx checks if tx to request info contains correct input
 func TestCreateForwardRequestTx(t *testing.T) {
-	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
 	abi, err := abi.JSON(strings.NewReader(candidate_exchange_smc_definition))
 	if err != nil {
 		t.Fatal(err)
@@ -154,7 +154,7 @@ func TestCreateForwardRequestTx(t *testing.T) {
 
 // TestCreateForwardResponseTx checks if tx to fulfill candidate info containa correct input
 func TestCreateForwardResponseTx(t *testing.T) {
-	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
 	abi, err := abi.JSON(strings.NewReader(candidate_exchange_smc_definition))
 	if err != nil {
 		t.Fatal(err)

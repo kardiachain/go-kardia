@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package storage
+package leveldb
 
 import (
 	"bytes"
@@ -51,10 +51,6 @@ func TestLDB_PutGet(t *testing.T) {
 	db, remove := newTestLDB()
 	defer remove()
 	testPutGet(db, t)
-}
-
-func TestMemoryDB_PutGet(t *testing.T) {
-	testPutGet(NewMemStore(), t)
 }
 
 func testPutGet(db types.Database, t *testing.T) {
@@ -128,10 +124,6 @@ func TestLDB_ParallelPutGet(t *testing.T) {
 	db, remove := newTestLDB()
 	defer remove()
 	testParallelPutGet(db, t)
-}
-
-func TestMemoryDB_ParallelPutGet(t *testing.T) {
-	testParallelPutGet(NewMemStore(), t)
 }
 
 func testParallelPutGet(db types.Database, t *testing.T) {

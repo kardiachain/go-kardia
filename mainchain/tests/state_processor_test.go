@@ -21,9 +21,8 @@ package tests
 import (
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/kvm"
-	abi "github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
@@ -171,7 +170,7 @@ func executeWithFee(bc *blockchain.BlockChain, msg types.Message) ([]byte, error
 func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 
 	// Start setting up blockchain
-	kaiDb := storage.NewMemStore()
+	kaiDb := types.NewMemStore()
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g)
 	if genesisErr != nil {
@@ -236,7 +235,7 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 
 func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	// Start setting up blockchain
-	kaiDb := storage.NewMemStore()
+	kaiDb := types.NewMemStore()
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g)
 	if genesisErr != nil {

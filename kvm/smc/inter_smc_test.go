@@ -19,13 +19,13 @@
 package kvm
 
 import (
-	"math/big"  
 	"github.com/kardiachain/go-kardia/kai/state"
-    kaidb "github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/kvm/sample_kvm"
+	"github.com/kardiachain/go-kardia/types"
+	"math/big"
 	"strings"
 	"testing"
 )
@@ -102,7 +102,7 @@ var smc_b_definition = `[
 // Test call a contract from inside another contract
 // Contract A is callee, B is caller
 func TestExecuteInterSmc(t *testing.T) {
-	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
 
     // Contract A
 	addressA := common.HexToAddress("0x0a")

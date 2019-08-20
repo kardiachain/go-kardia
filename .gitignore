@@ -16,3 +16,4 @@
 
 #dep
 vendor/
+.vendor-new

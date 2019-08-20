@@ -19,13 +19,13 @@
 package kvm
 
 import (
-	"math/big"  
 	"github.com/kardiachain/go-kardia/kai/state"
-    kaidb "github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/kvm/sample_kvm"
+	"github.com/kardiachain/go-kardia/types"
+	"math/big"
 	"strings"
 	"testing"
 )
@@ -196,7 +196,7 @@ var permission_smc_definition = `[
 ]`
 
 func TestExecutePermissionContract(t *testing.T) {
-    state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+    state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
 	address := common.HexToAddress("0x0a")
     state.SetCode(address, permission_smc_code)
     abi, err := abi.JSON(strings.NewReader(permission_smc_definition))

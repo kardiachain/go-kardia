@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state"
-	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -140,7 +139,7 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *types.ChainConfig {
 // to the given database (or discards it if nil).
 func (g *Genesis) ToBlock(logger log.Logger, db types.Database) *types.Block {
 	if db == nil {
-		db = kaidb.NewMemStore()
+		db = types.NewMemStore()
 	}
 	statedb, _ := state.New(logger, common.Hash{}, state.NewDatabase(db))
 
