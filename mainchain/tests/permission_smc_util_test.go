@@ -19,12 +19,12 @@
 package tests
 
 import (
+	"github.com/kardiachain/go-kardia/types"
 	"math"
 	"math/big"
 	"testing"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	g "github.com/kardiachain/go-kardia/mainchain/genesis"
@@ -48,7 +48,7 @@ func GetBlockchain() (*blockchain.BlockChain, error) {
 		kardiaPermissionSmcAddress:      configs.GenesisContracts[kardiaPermissionSmcAddress],
 		privatechainCandidateSmcAddress: configs.GenesisContracts[privatechainCandidateSmcAddress],
 	}
-	kaiDb := storage.NewMemStore()
+	kaiDb := types.NewMemStore()
 	genesis := g.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
 	chainConfig, _, genesisErr := g.SetupGenesisBlock(log.New(), kaiDb, genesis)
 	if genesisErr != nil {

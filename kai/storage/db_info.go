@@ -19,6 +19,7 @@
 package storage
 
 import (
+	"github.com/kardiachain/go-kardia/kai/storage/leveldb"
 	"github.com/kardiachain/go-kardia/kai/storage/mongodb"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -72,5 +73,5 @@ func (db *LevelDbInfo) Name() string {
 }
 
 func (db *LevelDbInfo) Start() (types.Database, error) {
-	return NewLDBStore(db.ChainData, db.DbCaches, db.DbHandles)
+	return leveldb.NewLDBStore(db.ChainData, db.DbCaches, db.DbHandles)
 }

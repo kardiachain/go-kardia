@@ -22,10 +22,10 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/account"
 	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/types"
 	"math/big"
 	"testing"
 )
@@ -99,7 +99,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 	// allocData is get from genesisAccounts in default_node_config
 
 	// Init kai database
-	db := storage.NewMemStore()
+	db := types.NewMemStore()
 
 	// Create genesis block with state_processor_test.genesisAccounts
 	g := genesis.DefaultTestnetGenesisBlock(configs.GenesisAccounts)
@@ -134,7 +134,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 }
 
 func TestCreateContractInGenesis(t *testing.T) {
-	db := storage.NewMemStore()
+	db := types.NewMemStore()
 	// Create genesis block with genesisContracts
 	g := genesis.DefaultTestnetGenesisBlockWithContract(genesisContracts)
 	_, hash, err := genesis.SetupGenesisBlock(log.New(), db, g)
@@ -168,7 +168,7 @@ func TestCreateContractInGenesis(t *testing.T) {
 }
 
 func TestGenesisAllocFromAccountAndContract(t *testing.T) {
-	db := storage.NewMemStore()
+	db := types.NewMemStore()
 	// Create genesis block with state_processor_test.genesisAccounts
 	g := genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, genesisContracts)
 	_, hash, err := genesis.SetupGenesisBlock(log.New(), db, g)
