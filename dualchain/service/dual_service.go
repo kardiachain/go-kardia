@@ -74,7 +74,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		return nil, err
 	}
 
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, groupDb, config.DualGenesis)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, groupDb, config.DualGenesis, config.BaseAccount)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
@@ -102,11 +102,10 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	block := dualService.blockchain.CurrentBlock()
 	log.Info("DUAL Validators: ", "valIndex", ctx.Config.DualChainConfig.ValidatorIndexes)
 	var validatorSet *types.ValidatorSet
-	if ctx.Config.DualChainConfig.EnvConfig != nil {
-		validatorSet, err = ctx.Config.DualChainConfig.EnvConfig.GetValidatorSetByIndices(dualService.blockchain, ctx.Config.DualChainConfig.ValidatorIndexes)
-		if err != nil {
-			logger.Error("Cannot get validator from indices", "indices", ctx.Config.DualChainConfig.ValidatorIndexes, "err", err)
-		}
+	validatorSet, err = node.GetValidatorSet(dualService.blockchain, ctx.Config.DualChainConfig.ValidatorIndexes)
+	if err != nil {
+		logger.Error("Cannot get validator from indices", "indices", ctx.Config.DualChainConfig.ValidatorIndexes, "err", err)
+		return nil, err
 	}
 	state := state.LastestBlockState{
 		ChainID:                     "kaigroupcon",
@@ -126,7 +125,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	)
 	dualService.csManager = consensus.NewConsensusManager(DualServiceName, consensusState)
 	// Set private validator for consensus manager.
-	privValidator := types.NewPrivValidator(ctx.Config.NodeMetadata.PrivKey)
+	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
 	dualService.csManager.SetPrivValidator(privValidator)
 
 	if dualService.protocolManager, err = service.NewProtocolManager(
@@ -156,6 +155,7 @@ func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 		DualEventPool: chainConfig.DualEventPool,
 		DualGenesis:   chainConfig.DualGenesis,
 		IsPrivate:     chainConfig.IsPrivate,
+		BaseAccount:   chainConfig.BaseAccount,
 	})
 
 	if err != nil {

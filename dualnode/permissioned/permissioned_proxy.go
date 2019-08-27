@@ -167,6 +167,11 @@ func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain
 	return processor, nil
 }
 
+// TODO(kiendn): permissionedProxy is special case, will implement this function later or separate this case to another code.
+func (p *PermissionedProxy) Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.EventPool, publishedEndpoint, subscribedEndpoint *string) error {
+	panic("this function has not been implemented yet")
+}
+
 // PublishedEndpoint returns publishedEndpoint
 func (p *PermissionedProxy) PublishedEndpoint() string {
 	return ""

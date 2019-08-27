@@ -19,20 +19,20 @@
 package kardia
 
 import (
-	"math/big"
-	"strings"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/kai/events"
+	"math/big"
+	"strings"
 )
 
 const KARDIA_PROXY = "KARDIA_PROXY"
@@ -103,7 +103,7 @@ func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc
 		},
 	}
 	kardiaSmcsTemp := [...]*types.KardiaSmartcontract{
-		&types.KardiaSmartcontract{
+		{
 			EventWatcher: &types.Watcher{
 				SmcAddress:    smcAddr.Hex(),
 				WatcherAction: dualnode.CreateDualEventFromKaiTxAndEnqueue,
@@ -129,6 +129,25 @@ func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc
 	processor.chainHeadSub = kardiaBc.SubscribeChainHeadEvent(processor.chainHeadCh)
 
 	return processor, nil
+}
+
+func (p *KardiaProxy)Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.EventPool,
+	publishedEndpoint, subscribedEndpoint *string) error {
+	// Create a specific logger for Kardia Proxy.
+	logger := log.New()
+	logger.AddTag(KARDIA_PROXY)
+
+	p.logger = logger
+	p.name = configs.KAI
+	p.kardiaBc = kardiaBc
+	p.txPool = txPool
+	p.dualBc = dualBc
+	p.eventPool = dualEventPool
+	p.chainHeadCh = make(chan events.ChainHeadEvent, 5)
+
+	// Start subscription to blockchain head event.
+	p.chainHeadSub = kardiaBc.SubscribeChainHeadEvent(p.chainHeadCh)
+	return nil
 }
 
 // PublishedEndpoint returns publishedEndpoint
@@ -283,7 +302,7 @@ func (p *KardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetada
 	}, nil
 }
 
-func (p *KardiaProxy) Start(initRate bool) {
+func (p *KardiaProxy) Start() {
 	// Start event
 	go p.loop()
 }
@@ -432,4 +451,8 @@ func (p *KardiaProxy) updateKardiaTxForOrder(originalTxId string, kardiaTxId str
 	}
 	log.Info("UpdateKardiaTx for order successfully", "originalTxId", originalTxId, "KardiaTx", kardiaTxId)
 	return nil
+}
+
+func (p *KardiaProxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
+	panic("this function is not implemented")
 }

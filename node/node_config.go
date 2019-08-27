@@ -81,6 +81,9 @@ type MainChainConfig struct {
 	// ServiceName is used as log's prefix
 	ServiceName string
 
+	// BaseAccount defines account which is used to execute internal smart contracts
+	BaseAccount *types.BaseAccount
+
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this environment when running in dev environment.
 	EnvConfig *EnvironmentConfig
@@ -108,6 +111,9 @@ type DualChainConfig struct {
 
 	// Dual protocol name, this name is used if the node is setup as dual node
 	DualProtocolName string
+
+	// BaseAccount defines account which is used to execute internal smart contracts
+	BaseAccount *types.BaseAccount
 
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this environment when running in dev environment.
@@ -185,6 +191,9 @@ type NodeConfig struct {
 
 	// PeerProxyIP is IP of the network peer proxy, when participates in network with peer proxy for discovery.
 	PeerProxyIP string
+
+	// BaseAccount defines account which is used to execute internal smart contracts
+	BaseAccount *types.BaseAccount
 
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
@@ -472,5 +481,24 @@ func (env *EnvironmentConfig) GetValidatorSetByIndices(bc base.BaseBlockChain, v
 	// Turn off this for production.
 	validatorSet.TurnOnKeepSameProposer()
 	validatorSet.SetProposer(validators[env.proposalIndex])
+	return validatorSet, nil
+}
+
+func GetValidatorSet(bc base.BaseBlockChain, valIndexes []int) (*types.ValidatorSet, error) {
+	nodes, err := GetNodeMetadataFromSmc(&bc, valIndexes)
+	if err != nil {
+		return nil, err
+	}
+	validators := make([]*types.Validator, 0)
+	for i := 0; i < len(valIndexes); i++ {
+		if valIndexes[i] < 0 {
+			return nil, fmt.Errorf("value of validator must be greater than 0")
+		}
+		node := nodes[i]
+		validators = append(validators, types.NewValidator(*node.PublicKey, node.VotingPower))
+	}
+	// TODO(huny@): Pass the start/end block height of the initial set of validator from the
+	// genesis here. Default to 0 and 100000000000 for now.
+	validatorSet := types.NewValidatorSet(validators, 0 /*start height*/, 100000000000 /*end height*/)
 	return validatorSet, nil
 }

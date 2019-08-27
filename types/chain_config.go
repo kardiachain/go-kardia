@@ -1,6 +1,10 @@
 package types
 
-import "fmt"
+import (
+	"crypto/ecdsa"
+	"fmt"
+	"github.com/kardiachain/go-kardia/lib/common"
+)
 
 // ChainConfig is the core config which determines the blockchain settings.
 //
@@ -10,6 +14,15 @@ import "fmt"
 type ChainConfig struct {
 	// Various consensus engines
 	Kaicon *KaiconConfig `json:"kaicon,omitempty"`
+
+	// BaseAccount is used to set default execute account for
+	*BaseAccount         `json:"baseAccount,omitempty"`
+}
+
+// BaseAccount defines information for base (root) account that is used to execute internal smart contract
+type BaseAccount struct {
+	Address common.Address       `json:"address"`
+	PrivateKey ecdsa.PrivateKey
 }
 
 // KaiconConfig is the consensus engine configs for Kardia BFT DPoS.
@@ -36,4 +49,8 @@ func (c *ChainConfig) String() string {
 	return fmt.Sprintf("{Engine: %v}",
 		engine,
 	)
+}
+
+func (c *ChainConfig) SetBaseAccount(baseAccount *BaseAccount) {
+	c.BaseAccount = baseAccount
 }

@@ -64,4 +64,13 @@ type BlockChainAdapter interface {
 
 	// Name returns name of proxy (eg: NEO, TRX, ETH, KAI)
 	Name() string
+
+	// Register internalchain for current node
+	RegisterInternalChain(BlockChainAdapter)
+
+	// Register externalchain for current node
+	RegisterExternalChain(adapter BlockChainAdapter)
+
+	// Start proxy
+	Start()
 }

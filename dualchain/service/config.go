@@ -22,6 +22,7 @@ import (
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 type DualConfig struct {
@@ -44,4 +45,7 @@ type DualConfig struct {
 	IsPrivate bool
 
 	ProtocolName string
+
+	// BaseAccount defines account which is used to execute internal smart contracts
+	BaseAccount *types.BaseAccount
 }

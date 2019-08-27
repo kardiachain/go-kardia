@@ -40,12 +40,12 @@ const (
 // An event pertaining to the current dual node's interests and its derived tx's
 // metadata.
 type DualEvent struct {
-	Nonce             uint64      `json:"nonce"  	 			 gencodec:"required"`
-	TriggeredEvent    *EventData  `json:"triggeredEvent"		 gencodec:"required"`
+	Nonce             uint64      `json:"nonce"                  gencodec:"required"`
+	TriggeredEvent    *EventData  `json:"triggeredEvent"         gencodec:"required"`
 	PendingTxMetadata *TxMetadata `json:"pendingTxMetadata"      gencodec:"required"`
 
 	// The smart contract info being submitted externally.
-	KardiaSmcs []*KardiaSmartcontract `json:"kardiaSmcs"				 gencodec:"required"`
+	KardiaSmcs []*KardiaSmartcontract `json:"kardiaSmcs"         gencodec:"required"`
 
 	// caches
 	hash atomic.Value
@@ -62,6 +62,10 @@ type Watcher struct {
 	// Use string type because since different blockchain may have its own address type and string
 	// is a universal type.
 	SmcAddress string
+
+	// abi of smcAddress
+	SmcAbi string
+
 	// The action used when the watcher is matched and triggered.
 	WatcherAction string
 }

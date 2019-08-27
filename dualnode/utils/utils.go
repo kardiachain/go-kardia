@@ -379,13 +379,14 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 			proxy.Logger().Error("Error on unmarshal triggerMessage", "err", err, "topic", topic)
 			return err
 		}
-
 		proxy.Logger().Info(
 			"TriggerMessage",
 			"contractAddress", triggerMessage.ContractAddress,
 			"methodName", triggerMessage.MethodName,
 			"params", triggerMessage.Params,
 		)
+
+		// get abi from internal blockchain
 
 		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool().State(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
 		if err != nil {

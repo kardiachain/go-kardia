@@ -20,6 +20,7 @@ package kardia
 
 import (
 	"errors"
+	"fmt"
 	"math/big"
 	"strings"
 
@@ -73,7 +74,7 @@ type PrivateKardiaProxy struct {
 	dualBc    base.BaseBlockChain
 	eventPool *event_pool.EventPool
 
-	// The external blockchain that this dual node's interacting witp.
+	// The external blockchain that this dual node's interacting with.
 	externalChain base.BlockChainAdapter
 
 	// TODO(sontranrad@,namdoh@): Hard-coded, need to be cleaned up.
@@ -156,6 +157,24 @@ func NewPrivateKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool,
 	return processor, nil
 }
 
+func (p *PrivateKardiaProxy) Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.EventPool, publishedEndpoint, subscribedEndpoint *string) error {
+	// Create a specific logger for DUAL service.
+	logger := log.New()
+	logger.AddTag(PRIVATE_KARDIA)
+
+	if publishedEndpoint == nil || subscribedEndpoint == nil {
+		return fmt.Errorf("publishedEndpoint or subscribedEndpoint is empty")
+	}
+	p.name = PRIVATE_KARDIA
+	p.logger = logger
+	p.kardiaBc = kardiaBc
+	p.txPool = txPool
+	p.dualBc = dualBc
+	p.eventPool = dualEventPool
+	p.chainHeadCh = make(chan events.ChainHeadEvent, 5)
+	return nil
+}
+
 func (p *PrivateKardiaProxy) SubmitTx(event *types.EventData) error {
 	log.Error("Submit to Kardia", "value", event.Data.TxValue, "method", event.Data.TxMethod)
 	var (
@@ -210,13 +229,17 @@ func (p *PrivateKardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.T
 	}, nil
 }
 
-func (p *PrivateKardiaProxy) Start(initRate bool) {
+func (p *PrivateKardiaProxy) Start() {
 	// Start event
 	go p.loop()
 }
 
 func (p *PrivateKardiaProxy) RegisterExternalChain(externalChain base.BlockChainAdapter) {
 	p.externalChain = externalChain
+}
+
+func (p *PrivateKardiaProxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
+	panic("this function is not implemented")
 }
 
 func (p *PrivateKardiaProxy) loop() {

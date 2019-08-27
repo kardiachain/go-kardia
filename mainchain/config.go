@@ -22,6 +22,7 @@ import (
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // DefaultConfig contains default settings for use on the Kardia main net.
@@ -61,4 +62,7 @@ type Config struct {
 
 	// ServiceName is used to display as log's prefix
 	ServiceName string
+
+	// BaseAccount defines account which is used to execute internal smart contracts
+	BaseAccount *types.BaseAccount
 }
