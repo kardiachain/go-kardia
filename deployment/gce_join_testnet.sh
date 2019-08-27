@@ -25,7 +25,7 @@ ENODES=(
 PEER=$(printf ",%s" "${ENODES[@]}")
 PEER=${PEER:1}
 
-IMAGE_NAME=gcr.io/indigo-history-235904/go-kardia:v0.7.2
+IMAGE_NAME=gcr.io/indigo-history-235904/go-kardia:v0.8.0
 
 # (1 vCPU, 3.75 GB memory)
 ZONE="asia-southeast1-a"

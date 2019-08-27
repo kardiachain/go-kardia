@@ -1,7 +1,7 @@
 # Go-Kardia
 
 [![version](https://img.shields.io/github/release/qubyte/rubidium.svg)](https://github.com/kardiachain/go-kardia/releases/latest)
-[![Go version](https://img.shields.io/badge/go-1.10.4-blue.svg)](https://github.com/moovweb/gvm)
+[![Go version](https://img.shields.io/badge/go-1.12.9-blue.svg)](https://github.com/moovweb/gvm)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![CircleCI](https://circleci.com/gh/kardiachain/go-kardia.svg?style=shield&circle-token=3163b86cadff994c8e322dc3aedf57c61f541c42)](https://circleci.com/gh/kardiachain/go-kardia)
 [![codecov](https://codecov.io/gh/kardiachain/go-kardia/branch/master/graph/badge.svg?token=9HzVclw3dp)](https://codecov.io/gh/kardiachain/go-kardia)
@@ -10,7 +10,7 @@ Official Golang implementation of Kardia chain following the specs in [Technical
 
 # Kardia private testnet
 - Block explorer UI: [Kardiascan](http://scan.kardiachain.io/)
-- Release: [kardia-v0.7.2](https://github.com/kardiachain/go-kardia/releases/tag/v0.7.2)
+- Release: [kardia-v0.8.0](https://github.com/kardiachain/go-kardia/releases/tag/v0.8.0)
 
 
 # Quickstart
@@ -34,7 +34,7 @@ See [deployment](https://github.com/kardiachain/go-kardia/tree/master/deployment
 
 # Development
 ### Go environment setup
-Install [Go](https://golang.org/doc/install) v1.10 to $HOME directory. Sets environment vars:  
+Install [Go](https://golang.org/doc/install) v1.12 to $HOME directory. Sets environment vars:  
 > export GOPATH=$HOME/go  
 > export PATH=$PATH:$GOPATH/bin
 
