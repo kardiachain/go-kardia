@@ -1,13 +1,13 @@
 package kvm
 
 import (
-	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/types"
 	"math"
 	"math/big"
 	"strings"
@@ -366,7 +366,7 @@ var election_smc_definition = `[
 	}
 ]`
 
-func SetupBlockchainForTesting() (*blockchain.BlockChain, error) {
+func SetupBlockchain() (*blockchain.BlockChain, error) {
 
 	initValue := genesis.ToCell(int64(math.Pow10(6)))
 
@@ -379,7 +379,7 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, error) {
 		"0x5678": initValue,
 		"0xabcd": initValue,
 	}
-	kaiDb := kaidb.NewMemStore()
+	kaiDb := types.NewMemStore()
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g)
 	if genesisErr != nil {
@@ -393,7 +393,7 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, error) {
 // Test_Failed_Init tests for the cases when function init fails
 // Init function can only be called once and the argument passed in must be positive
 func Test_Failed_Init(t *testing.T) {
-	bc, err := SetupBlockchainForTesting()
+	bc, err := SetupBlockchain()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -444,7 +444,7 @@ func Test_Failed_Init(t *testing.T) {
 // Test_Failed_Init tests for the cases when function signup() and vote() fail
 // Candidates can only sign up once, voters can only vote for existing candidates and the value passed in the functions must be positive
 func Test_Bad_Sender(t *testing.T) {
-	bc, err := SetupBlockchainForTesting()
+	bc, err := SetupBlockchain()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -533,7 +533,7 @@ func Test_Bad_Sender(t *testing.T) {
 // Test_Successful_Election tests DPoS_Election smc with multiple candidates and voters
 // After the election ends, verify the validatorList and check that voters are refunded if needed
 func Test_Successful_Election(t *testing.T) {
-	bc, err := SetupBlockchainForTesting()
+	bc, err := SetupBlockchain()
 	if err != nil {
 		t.Fatal(err)
 	}
