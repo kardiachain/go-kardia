@@ -20,6 +20,7 @@ package mongodb
 
 import (
 	"context"
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
@@ -29,6 +30,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
+	"strings"
 )
 
 type Store struct {
@@ -83,6 +85,17 @@ func NewDB(uri, dbName string, drop bool) (*Store, error) {
 	if err := createTxLookupEntryIndex(db); err != nil {
 		return nil, err
 	}
+
+	// create index for watcherAction
+	if err := createWatcherActionIndex(db); err != nil {
+		return nil, err
+	}
+
+	// create index for dualAction
+	if err := createDualActionIndex(db); err != nil {
+		return nil, err
+	}
+
 	return &Store{db: db}, nil
 }
 
@@ -324,10 +337,62 @@ func (db *Store)WriteCommitRLP(height uint64, rlp rlp.RawValue) {
 	panic("WriteCommitRLP has not implemented yet")
 }
 
+func (db *Store) WriteEvent(smc *types.KardiaSmartcontract) {
+	if smc != nil {
+		if len(smc.WatcherActions) > 0 {
+			for _, action := range smc.WatcherActions {
+				evt := WatcherAction{
+					ContractAddress: smc.SmcAddress,
+					ABI:             smc.SmcAbi,
+					Method:          action.Method,
+					DualAction:      action.DualAction,
+				}
+				output, err := bson.Marshal(evt)
+				if err != nil {
+					log.Error("error while marshal entry", "err", err)
+					return
+				}
+				document, err := bsonx.ReadDoc(output)
+				if err != nil {
+					log.Error("error while reading output to Doc", "err", err)
+					return
+				}
+				if _, err := db.DB().Collection(watcherActionTable).InsertOne(context.Background(), document); err != nil {
+					log.Error("error while adding new event", "err", err, "address", smc.SmcAddress, "method", action.Method)
+					return
+				}
+			}
+		}
+
+		if len(smc.DualActions) > 0 {
+			for _, action := range smc.DualActions {
+				evt := DualAction{
+					Name:            action.Name,
+					ContractAddress: smc.SmcAddress,
+					ABI:             smc.SmcAbi,
+				}
+				output, err := bson.Marshal(evt)
+				if err != nil {
+					log.Error("error while marshal entry", "err", err)
+					return
+				}
+				document, err := bsonx.ReadDoc(output)
+				if err != nil {
+					log.Error("error while reading output to Doc", "err", err)
+					return
+				}
+				if _, err := db.DB().Collection(dualActionTable).InsertOne(context.Background(), document); err != nil {
+					log.Error("error while adding new event", "err", err, "address", smc.SmcAddress, "method", action.Name)
+					return
+				}
+			}
+		}
+	}
+}
+
 // WriteTxLookupEntries stores a positional metadata for every transaction from
 // a block, enabling hash based transaction and receipt lookups.
 func (db *Store)WriteTxLookupEntries(block *types.Block) {
-
 	for idx, tx := range block.Transactions() {
 		if blockHash, _, _ := db.ReadTxLookupEntry(tx.Hash()); blockHash.IsZero() {
 			entry := TxLookupEntry{
@@ -566,6 +631,90 @@ func (db *Store)ReadReceipts(hash common.Hash, number uint64) types.Receipts {
 	}
 
 	return newReceipts
+}
+
+func (db *Store) getEvents(address string) ([]*WatcherAction, error) {
+	cur, err := db.DB().Collection(watcherActionTable).Find(context.Background(), bson.M{"contractAddress": bsonx.String(address)})
+	if err != nil {
+		return nil, err
+	}
+	events := make([]*WatcherAction, 0)
+	for cur.Next(context.Background()) {
+		var r WatcherAction
+		if err := cur.Decode(&r); err != nil {
+			return nil, err
+		}
+		events = append(events, &r)
+	}
+	return events, nil
+}
+
+func (db *Store)getEvent(address, method string) (*WatcherAction, error) {
+	filter := bson.A{
+		bson.D{{"contractAddress", bsonx.String(address)}},
+		bson.D{{"method", bsonx.String(method)}},
+	}
+
+	cur := db.DB().Collection(watcherActionTable).FindOne(
+		context.Background(),
+		filter,
+	)
+	var event WatcherAction
+	err := cur.Decode(&event)
+	if err != nil {
+		return nil, err
+	}
+	return &event, nil
+}
+
+func (db *Store)getEventByDualAction(action string) (*DualAction, error) {
+	cur := db.DB().Collection(dualActionTable).FindOne(
+		context.Background(),
+		bson.M{"name": bsonx.String(action)},
+	)
+	var event DualAction
+	err := cur.Decode(&event)
+	if err != nil {
+		return nil, err
+	}
+	return &event, nil
+}
+
+func (db *Store) ReadSmartContractAbi(address *common.Address) *abi.ABI {
+	events, err := db.getEvents(address.Hex())
+	if err != nil || events == nil || len(events) == 0 {
+		return nil
+	}
+	a, err := abi.JSON(strings.NewReader(events[0].ABI))
+	if err != nil {
+		return nil
+	}
+	return &a
+}
+
+func (db *Store) ReadEvent(address *common.Address, method string) *types.WatcherAction {
+	event, err := db.getEvent(address.Hex(), method)
+	if err != nil {
+		return nil
+	}
+	return &types.WatcherAction{
+		Method:        event.Method,
+		DualAction:    event.DualAction,
+	}
+}
+
+func (db *Store) ReadSmartContractFromDualAction(action string) (*common.Address, *abi.ABI) {
+	event, err := db.getEventByDualAction(action)
+	if err != nil {
+		return nil, nil
+	}
+
+	address := common.HexToAddress(event.ContractAddress)
+	a, err := abi.JSON(strings.NewReader(event.ABI))
+	if err != nil {
+		return nil, nil
+	}
+	return &address, &a
 }
 
 // ReadTxLookupEntry retrieves the positional metadata associated with a transaction
@@ -883,6 +1032,10 @@ func (db *mongoDbBatch)WriteTxLookupEntries(block *types.Block) {
 	db.db.WriteTxLookupEntries(block)
 }
 
+func (db *mongoDbBatch) WriteEvent(smc *types.KardiaSmartcontract) {
+	db.db.WriteEvent(smc)
+}
+
 // Stores a hash into the database.
 func (db *mongoDbBatch)StoreHash(hash *common.Hash) {
 	db.db.StoreHash(hash)
@@ -986,6 +1139,17 @@ func (db *mongoDbBatch)ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64,
 	return db.db.ReadTxLookupEntry(hash)
 }
 
+func (db *mongoDbBatch) ReadSmartContractAbi(address *common.Address) *abi.ABI {
+	return db.db.ReadSmartContractAbi(address)
+}
+
+func (db *mongoDbBatch) ReadEvent(address *common.Address, method string) *types.WatcherAction {
+	return db.db.ReadEvent(address, method)
+}
+
+func (db *mongoDbBatch) ReadSmartContractFromDualAction(action string) (*common.Address, *abi.ABI) {
+	return db.db.ReadSmartContractFromDualAction(action)
+}
 // Returns true if a hash already exists in the database.
 func (db *mongoDbBatch)CheckHash(hash *common.Hash) bool {
 	return db.db.CheckHash(hash)

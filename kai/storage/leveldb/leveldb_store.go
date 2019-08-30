@@ -19,6 +19,7 @@
 package leveldb
 
 import (
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/types"
@@ -138,6 +139,10 @@ func (db *LDBStore)WriteHeadHeaderHash(hash common.Hash) {
 	CommonWriteHeadHeaderHash(db, hash)
 }
 
+func (db *LDBStore) WriteEvent(smc *types.KardiaSmartcontract) {
+	CommonWriteEvent(db, smc)
+}
+
 // WriteCommit stores a commit into the database.
 func (db *LDBStore)WriteCommit(height uint64, commit *types.Commit) {
 	CommonWriteCommit(db, height, commit)
@@ -162,6 +167,18 @@ func (db *LDBStore)StoreHash(hash *common.Hash) {
 // Stores a tx hash into the database.
 func (db *LDBStore)StoreTxHash(hash *common.Hash) {
 	CommonStoreTxHash(db, hash)
+}
+
+func (db *LDBStore) ReadSmartContractAbi(address *common.Address) *abi.ABI {
+	return CommonReadSmartContractAbi(db, address)
+}
+
+func (db *LDBStore) ReadEvent(address *common.Address, method string) *types.WatcherAction {
+	return CommonReadEvent(db, address, method)
+}
+
+func (db *LDBStore) ReadSmartContractFromDualAction(action string) (*common.Address, *abi.ABI) {
+	return CommonReadEventFromDualAction(db, action)
 }
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block height.
@@ -380,6 +397,10 @@ func (db *ldbBatch)WriteHeader(header *types.Header) {
 	CommonWriteHeader(db, header)
 }
 
+func (db *ldbBatch) WriteEvent(smc *types.KardiaSmartcontract) {
+	CommonWriteEvent(db, smc)
+}
+
 // WriteChainConfig writes the chain config settings to the database.
 func (db *ldbBatch)WriteChainConfig(hash common.Hash, cfg *types.ChainConfig) {
 	CommonWriteChainConfig(db, hash, cfg)
@@ -556,6 +577,18 @@ func (db *ldbBatch)DeleteHeader(hash common.Hash, height uint64) {
 // DeleteCanonicalHash removes the number to hash canonical mapping.
 func (db *ldbBatch)DeleteCanonicalHash(number uint64) {
 	CommonDeleteCanonicalHash(db, number)
+}
+
+func (db *ldbBatch) ReadSmartContractAbi(address *common.Address) *abi.ABI {
+	return CommonReadSmartContractAbi(db, address)
+}
+
+func (db *ldbBatch) ReadEvent(address *common.Address, method string) *types.WatcherAction {
+	return CommonReadEvent(db, address, method)
+}
+
+func (db *ldbBatch) ReadSmartContractFromDualAction(action string) (*common.Address, *abi.ABI) {
+	return CommonReadEventFromDualAction(db, action)
 }
 
 func (b *ldbBatch) Delete(key interface{}) error {

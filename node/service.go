@@ -20,6 +20,7 @@ package node
 
 import (
 	"errors"
+	"github.com/kardiachain/go-kardia/types"
 
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/rpc"
@@ -77,4 +78,6 @@ type Service interface {
 	// Stop terminates all goroutines belonging to the service, blocking until they
 	// are all terminated.
 	Stop() error
+
+	DB() types.Database
 }

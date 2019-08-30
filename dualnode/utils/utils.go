@@ -493,18 +493,12 @@ func NewEvent(proxy base.BlockChainAdapter, method string, value *big.Int, extra
 		ExtData:  extraData,
 	}
 
-	actionsTmp := [...]*types.DualAction{
-		&types.DualAction{
-			Name: action,
-		},
-	}
-
 	if !AvailableExchangeType[proxy.Name()] {
 		return fmt.Errorf("proxy %v is not in allowed exchanged list", proxy.Name())
 	}
 
-	dualEvent := types.NewDualEvent(nonce, fromExternal /* internalChain */, types.BlockchainSymbol(proxy.Name()), &txHash, eventSummary, &types.DualActions{
-		Actions: actionsTmp[:],
+	dualEvent := types.NewDualEvent(nonce, fromExternal /* internalChain */, types.BlockchainSymbol(proxy.Name()), &txHash, eventSummary, &types.DualAction{
+		Name: action,
 	})
 
 	// Compose extraData struct for fields related to exchange

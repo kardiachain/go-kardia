@@ -343,6 +343,16 @@ func (c *Config)Start() {
 		}
 	}
 
+	if c.MainChain.Events != nil {
+		var kardiaService *kai.KardiaService
+		if err := n.Service(&kardiaService); err != nil {
+			logger.Error("cannot get Kardia service", "err", err)
+			return
+		}
+		// save watchers to db
+		c.SaveWatchers(kardiaService, c.MainChain.Events)
+	}
+
 	if c.DualChain != nil {
 		// Add peers
 		for _, peer := range c.DualChain.Seeds {
@@ -378,15 +388,18 @@ func (c *Config) StartDual(n *node.Node) error {
 		if err := n.Service(&dualService); err != nil {
 			return fmt.Errorf("cannot get Dual service: %v", err)
 		}
+
+		// save watchers to db
+		if c.DualChain.Events != nil {
+			c.SaveWatchers(dualService, c.DualChain.Events)
+		}
+
 		// init kardia proxy
 		kardiaProxy := &kardia.KardiaProxy{}
 		if err := kardiaProxy.Init(kardiaService.BlockChain(), kardiaService.TxPool(),
 			dualService.BlockChain(), dualService.EventPool(), nil, nil); err != nil {
 				panic(err)
 		}
-
-		// TODO: add events watchers to kardia proxy
-
 
 		dualProxy, err := dual_proxy.NewProxy(
 			c.DualChain.ServiceName,
@@ -402,8 +415,6 @@ func (c *Config) StartDual(n *node.Node) error {
 			return err
 		}
 
-		// TODO: add events watchers to dual proxy
-
 		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
 		// submit tx to either internal or external blockchain.
 		bcManager := blockchain.NewDualBlockChainManager(kardiaProxy, dualProxy)
@@ -418,6 +429,37 @@ func (c *Config) StartDual(n *node.Node) error {
 		kardiaProxy.Start()
 	}
 	return nil
+}
+
+func (c *Config) SaveWatchers(service node.Service, events []Event) {
+	if events != nil {
+		for _, event := range events {
+			abi := ""
+			if event.ABI != nil {
+				abi = *event.ABI
+			}
+			watcherActions := make(types.WatcherActions, 0)
+			for _, action := range event.WatcherActions {
+				watcherActions = append(watcherActions, &types.WatcherAction{
+					Method:     action.Method,
+					DualAction: action.DualAction,
+				})
+			}
+
+			dualActions := make(types.DualActions, 0)
+			for _, action := range event.DualActions {
+				dualActions = append(dualActions, &types.DualAction{Name: action})
+			}
+
+			smc := &types.KardiaSmartcontract{
+				SmcAddress:     event.ContractAddress,
+				SmcAbi:         abi,
+				WatcherActions: watcherActions,
+				DualActions:    dualActions,
+			}
+			service.DB().WriteEvent(smc)
+		}
+	}
 }
 
 // removeDirContents deletes old local node directory

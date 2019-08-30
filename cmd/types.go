@@ -73,12 +73,13 @@ type (
 	}
 	Event struct {
 		ContractAddress   string             `yaml:"ContractAddress"`
-		ABI               string             `yaml:"ABI"`
+		ABI               *string            `yaml:"ABI,omitempty"`
 		WatcherActions    []WatcherAction    `yaml:"WatcherActions"`
+		DualActions       []string             `yaml:"DualActions"`
 	}
 	WatcherAction struct {
-		Method       string       `yaml:"Method"`
-		Action       string       `yaml:"Action"`
+		Method           string       `yaml:"Method"`
+		DualAction       string       `yaml:"DualAction"`
 	}
 	BaseAccount struct {
 		Address      string       `yaml:"Address"`

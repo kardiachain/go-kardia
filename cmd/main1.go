@@ -26,11 +26,9 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/tool"
-	"github.com/kardiachain/go-kardia/types"
 )
 
 // getIntArray converts string array to int array
@@ -337,22 +335,4 @@ func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool, gen
 	txList := genTool.GenerateRandomTxWithState(numTxs, txPool.State().StateDB)
 	log.Info("GenTxs Adding new transactions", "num", numTxs, "genRound", genRound)
 	txPool.AddTxs(txList)
-}
-
-func genDualEvent(eventPool *event_pool.EventPool) {
-	// Wait 10 seconds first for dual peers to connect.
-	time.Sleep(time.Duration(10) * time.Second)
-
-	smcArrs := make([]*types.KardiaSmartcontract, 0)
-	smcArrs = append(smcArrs, &types.KardiaSmartcontract{
-		EventWatcher: &types.Watcher{SmcAddress: "095e7baea6a6c7c4c2dfeb977efac326af552d87"}})
-	event := &types.DualEvent{
-		Nonce:      0,
-		KardiaSmcs: smcArrs,
-	}
-	log.Info("Adding initial DualEvent", "event", event.String())
-	err := eventPool.AddEvent(event)
-	if err != nil {
-		log.Error("Fail to add initial dual event", "err", err)
-	}
 }

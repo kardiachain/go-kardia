@@ -37,6 +37,8 @@ const (
 	chainConfigTable = "ChainConfig"
 	trieTable = "Trie"
 	txLookupEntryTable = "TxLookupEntry"
+	watcherActionTable = "watcherAction"
+	dualActionTable = "dualEvent"
 	contractAddressTable = "ContractAddress"
 	emptyAddress = "0x0000000000000000000000000000000000000000"
 )
@@ -144,24 +146,6 @@ type (
 		ExtData  []string `json:"extData"            bson:"extData"`// Additional data along with this event
 	}
 
-	DualActions struct {
-		Actions []*DualAction
-	}
-
-	DualAction struct {
-		Name string           `json:"name"           bson:"name"`
-	}
-
-	KardiaSmartcontract struct {
-		EventWatcher *types.Watcher   `json:"eventWatcher"           bson:"eventWatcher"`
-		Actions      *DualActions     `json:"actions"                bson:"actions"`
-	}
-
-	Watcher struct {
-		SmcAddress string       `json:"smcAddress"           bson:"smcAddress"`
-		WatcherAction string    `json:"watcherAction"        bson:"watcherAction"`
-	}
-
 	Commit struct {
 		Height     uint64  `json:"height"           bson:"height"`
 		BlockID    string  `json:"blockID"          bson:"blockID"`
@@ -199,12 +183,22 @@ type (
 		Key   string `json:"key"       bson:"key"`
 		Value string `json:"value"     bson:"value"`
 	}
-
 	TxLookupEntry struct {
 		TxHash     string   `json:"txHash"     bson:"txHash"`
 		BlockHash  string   `json:"blockHash"  bson:"blockHash"`
 		BlockIndex uint64   `json:"blockIndex" bson:"blockIndex"`
 		Index      uint64   `json:"index"      bson:"index"`
+	}
+	WatcherAction struct {
+		ContractAddress string  `json:"contractAddress"   bson:"contractAddress"`
+		ABI             string  `json:"ABI"               bson:"ABI"`
+		Method          string  `json:"method"            bson:"method"`
+		DualAction      string  `json:"dualAction"        bson:"dualAction"`
+	}
+	DualAction struct {
+		Name            string  `json:"name"             bson:"name"`
+		ContractAddress string  `json:"contractAddress"  bson:"contractAddress"`
+		ABI             string  `json:"ABI"              bson:"ABI"`
 	}
 )
 

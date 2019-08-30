@@ -42,7 +42,7 @@ type Genesis struct {
 	GasLimit  uint64               `json:"gasLimit"   gencodec:"required"`
 	Alloc     GenesisAlloc         `json:"alloc"      gencodec:"required"`
 
-	// TODO(huny@): Add default validators?
+	KardiaSmartContracts    []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.

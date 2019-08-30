@@ -54,11 +54,6 @@ type DualEvent struct {
 }
 
 type KardiaSmartcontract struct {
-	EventWatcher *Watcher
-	Actions      *DualActions
-}
-
-type Watcher struct {
 	// Use string type because since different blockchain may have its own address type and string
 	// is a universal type.
 	SmcAddress string
@@ -66,16 +61,22 @@ type Watcher struct {
 	// abi of smcAddress
 	SmcAbi string
 
-	// The action used when the watcher is matched and triggered.
-	WatcherAction string
+	WatcherActions WatcherActions
+	DualActions DualActions
 }
 
-type DualActions struct {
-	Actions []*DualAction
-}
+type DualActions []*DualAction
 
 type DualAction struct {
 	Name string
+}
+
+type WatcherActions []*WatcherAction
+
+// WatcherAction bases on method name, new event with correspond dual action name will be submitted to internal/external proxy
+type WatcherAction struct {
+	Method string
+	DualAction string
 }
 
 // Data relevant to the event (either from external or internal blockchain)
@@ -88,7 +89,7 @@ type EventData struct {
 
 	// Actions is temporarily cached to store a list of actions that will be executed upon once
 	// the dual event is executed.
-	Actions *DualActions `json:"actions"      gencodec:"required"`
+	Action *DualAction `json:"action"      gencodec:"required"`
 
 	// caches
 	hash atomic.Value
@@ -141,15 +142,13 @@ func (txMetadata *TxMetadata) String() string {
 
 // String returns a string representation of KardiaSmartcontract
 func (kardiaSmc *KardiaSmartcontract) String() string {
-	if kardiaSmc.EventWatcher != nil {
-		return fmt.Sprintf("Smc{Watcher{Addr:%v}}", kardiaSmc.EventWatcher.SmcAddress)
-	} else {
-		return "Smc{nil-watcher}"
+	if kardiaSmc != nil {
+		return fmt.Sprintf("Smc{Addr:%v WatcherActions:%v DualActions:%v}", kardiaSmc.SmcAddress, kardiaSmc.WatcherActions, kardiaSmc.DualActions)
 	}
-
+	return "Smc{Addr:nil}"
 }
 
-func NewDualEvent(nonce uint64, fromExternal bool, txSource BlockchainSymbol, txHash *common.Hash, summary *EventSummary, actions *DualActions) *DualEvent {
+func NewDualEvent(nonce uint64, fromExternal bool, txSource BlockchainSymbol, txHash *common.Hash, summary *EventSummary, action *DualAction) *DualEvent {
 	return &DualEvent{
 		Nonce: nonce,
 		TriggeredEvent: &EventData{
@@ -157,7 +156,7 @@ func NewDualEvent(nonce uint64, fromExternal bool, txSource BlockchainSymbol, tx
 			TxSource:     txSource,
 			FromExternal: fromExternal,
 			Data:         summary,
-			Actions:      actions,
+			Action:       action,
 		},
 	}
 }

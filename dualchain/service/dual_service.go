@@ -172,6 +172,7 @@ func (s *DualService) SetDualBlockChainManager(bcManager *blockchain.DualBlockCh
 func (s *DualService) IsListening() bool       { return true } // Always listening
 func (s *DualService) DualServiceVersion() int { return int(s.protocolManager.SubProtocols[0].Version) }
 func (s *DualService) NetVersion() uint64      { return s.networkID }
+func (s *DualService) DB() types.Database      { return s.groupDb }
 
 // Protocols implements Service, returning all the currently configured
 // network protocols to start.

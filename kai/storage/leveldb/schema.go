@@ -53,6 +53,10 @@ var (
 	txLookupPrefix        = []byte("l")              // txLookupPrefix + hash -> transaction/receipt lookup metadata
 	dualEventLookupPrefix = []byte("de")             // dualEventLookupPrefix + hash -> dual's event lookup metadata
 	bloomBitsPrefix       = []byte("B")              // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
+
+	eventPrefix           = []byte("event")              // event prefix + smartcontract address + method
+	dualActionPrefix      = []byte("dualAction")
+	contractAbiPrefix     = []byte("abi")
 )
 
 // A positional metadata to help looking up the data content of
@@ -164,4 +168,16 @@ func hashKey(hash *common.Hash) []byte {
 // txHashKey = txHashPrefix + hash
 func txHashKey(hash *common.Hash) []byte {
 	return append(txHashPrefix, hash.Bytes()...)
+}
+
+func eventKey(smartContractAddress *common.Address, method string) []byte {
+	return append(append(eventPrefix, smartContractAddress.Bytes()...), []byte(method)...)
+}
+
+func dualActionKey(action string) []byte {
+	return append(dualActionPrefix, []byte(action)...)
+}
+
+func contractAbiKey(smartContractAddress *common.Address) []byte {
+	return append(contractAbiPrefix, smartContractAddress.Bytes()...)
 }
