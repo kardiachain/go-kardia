@@ -346,6 +346,12 @@ func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) erro
 func ExecuteKardiaSmartContract(state *state.ManagedState, bc base.BaseBlockChain, contractAddress, methodName string, params []string) (*types.Transaction, error) {
 	// find contractAddress, to see if it is saved in chain or not.
 	db := bc.DB()
+
+	// make sure contractAddress has prefix 0x
+	if contractAddress[:2] != "0x" {
+		contractAddress = "0x" + contractAddress
+	}
+
 	kAbi := db.ReadSmartContractAbi(contractAddress)
 	if kAbi == nil {
 		return nil, fmt.Errorf("cannot find abi from smc address: %v", contractAddress)

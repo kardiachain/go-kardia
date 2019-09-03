@@ -138,7 +138,7 @@ DualChain:
     Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
   Events:
     -
-      ContractAddress: 00a68d7d38d9f56bb88195dabee2160321b047d110 # NEO smc address - for encode reason in smc 0x is replaced by 00, only NEO case
+      ContractAddress: 0xa68d7d38d9f56bb88195dabee2160321b047d110 # NEO smc address
       WatcherActions:
         -
           Method: deposit
