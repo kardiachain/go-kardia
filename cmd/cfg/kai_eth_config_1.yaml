@@ -70,7 +70,7 @@ MainChain:
     BlockSize: 7192
   ZeroFee: 0          # 0 is no, 1 is yes
   Database:
-    Type: 1                                  # 0 is leveldb, 1 is mongodb
+    Type: 0                                  # 0 is leveldb, 1 is mongodb
     Dir: chaindata                           # directory stores leveldb
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
