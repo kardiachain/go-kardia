@@ -166,13 +166,12 @@ func (p *Proxy) SubmitTx(event *types.EventData) error {
 	case configs.ReleaseEvent: // this config stimulates dual event called from kardia_proxy
 		return utils.HandleAddOrderFunction(p, event)
 	default:
-		log.Warn("Unexpected method in TRON SubmitTx", "method", event.Data.TxMethod)
+		log.Warn("Unexpected method in Proxy SubmitTx", "method", event.Data.TxMethod, "Proxy", p.Name())
 		return configs.ErrUnsupportedMethod
 	}
 	//} else if event.TxSource == types.BlockchainSymbol(p.name) && event.Data.TxMethod == utils.KARDIA_CALL {
 	//	return utils.KardiaCall(p, event)
 	//}
-	return configs.ErrUnsupportedMethod
 }
 
 func (p *Proxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, error) {

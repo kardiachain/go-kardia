@@ -31,7 +31,7 @@ MainChain:
     - 0
     - 1
     - 2
-  BaseAccount:
+  BaseAccount:          # BaseAccount is used to execute internal smart contract
     Address: 0xBA30505351c17F4c818d94a990eDeD95e166474b
     PrivateKey: ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7
   Seeds:
@@ -74,8 +74,8 @@ MainChain:
     Dir: chaindata                           # directory stores leveldb
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
-    URI: mongodb://127.0.0.1:27017           # URI is used in mongodb
-    Name: kardiachain                        # Name is use in mongodb
+#    URI: mongodb://127.0.0.1:27017           # URI is used in mongodb
+#    Name: kardiachain                        # Name is use in mongodb
     Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
   Events:
     -
@@ -94,9 +94,6 @@ DualChain:
   PublishedEndpoint: tcp://0.0.0.0:5554
   SubscribedEndpoint: tcp://0.0.0.0:5555
   Protocol: KAI-ETH     # KAI-ETH, KAI-NEO, KAI-TRX, KAI-PRIVATE
-  BaseAccount:
-    Address: 0xBA30505351c17F4c818d94a990eDeD95e166474b
-    PrivateKey: ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7
   # TODO(kiendn): currently we are still using validators set in permission smc. Will update/remove this config and get validators from pos_voting smc
   Validators:
     - 0

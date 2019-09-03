@@ -31,7 +31,7 @@ MainChain:
     - 0
     - 1
     - 2
-  BaseAccount:
+  BaseAccount:         # BaseAccount is used to execute internal smart contract
     Address: 0xBA30505351c17F4c818d94a990eDeD95e166474b
     PrivateKey: ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7
   Seeds:
