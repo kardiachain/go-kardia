@@ -414,8 +414,13 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 
 		// get contract address in dual proxy to check if contract address exists or not. If not do nothing.
 		// if it does, try to get watcher event in db by its contract address and methodName
-		watcherAction := proxy.DualBlockChain().DB().ReadEvent(msg.ContractAddress, msg.MethodName)
 
+		// make sure contractAddress has prefix 0x
+		contractAddress := msg.ContractAddress
+		if contractAddress[:2] != "0x" {
+			contractAddress = "0x" + contractAddress
+		}
+		watcherAction := proxy.DualBlockChain().DB().ReadEvent(contractAddress, msg.MethodName)
 		if watcherAction != nil {
 
 			// TODO(@kiendn, KSML): if watcherAction is matched then execute pre-defined code for this action
