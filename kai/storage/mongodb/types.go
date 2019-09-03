@@ -20,6 +20,7 @@ package mongodb
 
 import (
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -177,6 +178,7 @@ type (
 		Hash   string `json:"hash"     bson:"hash"`
 		Period uint64 `json:"period"   bson:"period"`
 		Epoch  uint64 `json:"epoch"    bson:"epoch"`
+		BaseAccount   `json:"baseAccount,omitempty"`
 	}
 
 	Caching struct {
@@ -199,6 +201,10 @@ type (
 		Name            string  `json:"name"             bson:"name"`
 		ContractAddress string  `json:"contractAddress"  bson:"contractAddress"`
 		ABI             string  `json:"ABI"              bson:"ABI"`
+	}
+	BaseAccount struct {
+		Address         string   `json:"address"`
+		PrivateKey      string   `json:"PrivateKey"`
 	}
 )
 
@@ -493,14 +499,22 @@ func NewChainConfig(config *types.ChainConfig, hash common.Hash) *ChainConfig {
 		Hash: hash.Hex(),
 		Epoch: config.Kaicon.Epoch,
 		Period: config.Kaicon.Period,
+		BaseAccount: BaseAccount{
+			Address:    config.BaseAccount.Address.Hex(),
+			PrivateKey: common.Bytes2Hex(config.PrivateKey.D.Bytes()),
+		},
 	}
 }
 
 func (config *ChainConfig) ToChainConfig() *types.ChainConfig {
+	pk, err := crypto.HexToECDSA(config.BaseAccount.PrivateKey)
+	if err != nil {
+		return nil
+	}
 	kaiCon := types.KaiconConfig{
 		Epoch: config.Epoch,
 		Period: config.Period,
 	}
-	return &types.ChainConfig{Kaicon: &kaiCon}
+	return &types.ChainConfig{Kaicon: &kaiCon, BaseAccount: &types.BaseAccount{PrivateKey: *pk, Address: common.HexToAddress(config.BaseAccount.Address)}}
 }
 

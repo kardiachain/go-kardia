@@ -169,15 +169,15 @@ func (db *LDBStore)StoreTxHash(hash *common.Hash) {
 	CommonStoreTxHash(db, hash)
 }
 
-func (db *LDBStore) ReadSmartContractAbi(address *common.Address) *abi.ABI {
+func (db *LDBStore) ReadSmartContractAbi(address string) *abi.ABI {
 	return CommonReadSmartContractAbi(db, address)
 }
 
-func (db *LDBStore) ReadEvent(address *common.Address, method string) *types.WatcherAction {
+func (db *LDBStore) ReadEvent(address string, method string) *types.WatcherAction {
 	return CommonReadEvent(db, address, method)
 }
 
-func (db *LDBStore) ReadSmartContractFromDualAction(action string) (*common.Address, *abi.ABI) {
+func (db *LDBStore) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {
 	return CommonReadEventFromDualAction(db, action)
 }
 
@@ -579,15 +579,15 @@ func (db *ldbBatch)DeleteCanonicalHash(number uint64) {
 	CommonDeleteCanonicalHash(db, number)
 }
 
-func (db *ldbBatch) ReadSmartContractAbi(address *common.Address) *abi.ABI {
+func (db *ldbBatch) ReadSmartContractAbi(address string) *abi.ABI {
 	return CommonReadSmartContractAbi(db, address)
 }
 
-func (db *ldbBatch) ReadEvent(address *common.Address, method string) *types.WatcherAction {
+func (db *ldbBatch) ReadEvent(address string, method string) *types.WatcherAction {
 	return CommonReadEvent(db, address, method)
 }
 
-func (db *ldbBatch) ReadSmartContractFromDualAction(action string) (*common.Address, *abi.ABI) {
+func (db *ldbBatch) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {
 	return CommonReadEventFromDualAction(db, action)
 }
 

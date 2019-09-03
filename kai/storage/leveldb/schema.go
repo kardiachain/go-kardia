@@ -170,14 +170,14 @@ func txHashKey(hash *common.Hash) []byte {
 	return append(txHashPrefix, hash.Bytes()...)
 }
 
-func eventKey(smartContractAddress *common.Address, method string) []byte {
-	return append(append(eventPrefix, smartContractAddress.Bytes()...), []byte(method)...)
+func eventKey(smartContractAddress string, method string) []byte {
+	return append(append(eventPrefix, []byte(smartContractAddress)...), []byte(method)...)
 }
 
 func dualActionKey(action string) []byte {
 	return append(dualActionPrefix, []byte(action)...)
 }
 
-func contractAbiKey(smartContractAddress *common.Address) []byte {
-	return append(contractAbiPrefix, smartContractAddress.Bytes()...)
+func contractAbiKey(smartContractAddress string) []byte {
+	return append(contractAbiPrefix, []byte(smartContractAddress)...)
 }

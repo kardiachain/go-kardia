@@ -680,8 +680,8 @@ func (db *Store)getEventByDualAction(action string) (*DualAction, error) {
 	return &event, nil
 }
 
-func (db *Store) ReadSmartContractAbi(address *common.Address) *abi.ABI {
-	events, err := db.getEvents(address.Hex())
+func (db *Store) ReadSmartContractAbi(address string) *abi.ABI {
+	events, err := db.getEvents(address)
 	if err != nil || events == nil || len(events) == 0 {
 		return nil
 	}
@@ -692,8 +692,8 @@ func (db *Store) ReadSmartContractAbi(address *common.Address) *abi.ABI {
 	return &a
 }
 
-func (db *Store) ReadEvent(address *common.Address, method string) *types.WatcherAction {
-	event, err := db.getEvent(address.Hex(), method)
+func (db *Store) ReadEvent(address string, method string) *types.WatcherAction {
+	event, err := db.getEvent(address, method)
 	if err != nil {
 		return nil
 	}
@@ -703,18 +703,17 @@ func (db *Store) ReadEvent(address *common.Address, method string) *types.Watche
 	}
 }
 
-func (db *Store) ReadSmartContractFromDualAction(action string) (*common.Address, *abi.ABI) {
+func (db *Store) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {
 	event, err := db.getEventByDualAction(action)
 	if err != nil {
-		return nil, nil
+		return "", nil
 	}
 
-	address := common.HexToAddress(event.ContractAddress)
 	a, err := abi.JSON(strings.NewReader(event.ABI))
 	if err != nil {
-		return nil, nil
+		return "", nil
 	}
-	return &address, &a
+	return event.ContractAddress, &a
 }
 
 // ReadTxLookupEntry retrieves the positional metadata associated with a transaction
@@ -1139,15 +1138,15 @@ func (db *mongoDbBatch)ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64,
 	return db.db.ReadTxLookupEntry(hash)
 }
 
-func (db *mongoDbBatch) ReadSmartContractAbi(address *common.Address) *abi.ABI {
+func (db *mongoDbBatch) ReadSmartContractAbi(address string) *abi.ABI {
 	return db.db.ReadSmartContractAbi(address)
 }
 
-func (db *mongoDbBatch) ReadEvent(address *common.Address, method string) *types.WatcherAction {
+func (db *mongoDbBatch) ReadEvent(address string, method string) *types.WatcherAction {
 	return db.db.ReadEvent(address, method)
 }
 
-func (db *mongoDbBatch) ReadSmartContractFromDualAction(action string) (*common.Address, *abi.ABI) {
+func (db *mongoDbBatch) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {
 	return db.db.ReadSmartContractFromDualAction(action)
 }
 // Returns true if a hash already exists in the database.

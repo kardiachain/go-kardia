@@ -133,9 +133,9 @@ type ReadAccessor interface {
 	ReadHeaderNumber(hash common.Hash) *uint64
 	ReadReceipts(hash common.Hash, number uint64) Receipts
 	ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, uint64)
-	ReadSmartContractAbi(address *common.Address) *abi.ABI
-	ReadSmartContractFromDualAction(action string) (*common.Address, *abi.ABI)
-	ReadEvent(address *common.Address, method string) *WatcherAction
+	ReadSmartContractAbi(address string) *abi.ABI
+	ReadSmartContractFromDualAction(action string) (string, *abi.ABI)
+	ReadEvent(address string, method string) *WatcherAction
 	CheckHash(hash *common.Hash) bool
 	CheckTxHash(hash *common.Hash) bool
 }

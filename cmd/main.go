@@ -273,13 +273,8 @@ func (c *Config)newLog() log.Logger {
 		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
 		level = log.LvlInfo
 	}
-	//if len(args.logTag) > 0 {
-	//	log.Root().SetHandler(log.LvlAndTagFilterHandler(level, args.logTag,
-	//		log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
-	//} else {
 	log.Root().SetHandler(log.LvlFilterHandler(level,
 		log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
-	//}
 	return log.New()
 }
 

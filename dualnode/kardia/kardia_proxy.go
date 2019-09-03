@@ -315,7 +315,7 @@ func (p *KardiaProxy) handleBlock(block *types.Block) {
 // TxMatchesWatcher checks if tx.To matches with watched smart contract, if matched return watched event
 func (p *KardiaProxy) TxMatchesWatcher(tx *types.Transaction) *types.WatcherAction {
 	db := p.kardiaBc.DB()
-	a := db.ReadSmartContractAbi(tx.To())
+	a := db.ReadSmartContractAbi(tx.To().Hex())
 	if a != nil {
 		// get method and input data from tx
 		input := tx.Data()
@@ -325,7 +325,7 @@ func (p *KardiaProxy) TxMatchesWatcher(tx *types.Transaction) *types.WatcherActi
 			return nil
 		}
 		// get event from smc address and method
-		return db.ReadEvent(tx.To(), method.Name)
+		return db.ReadEvent(tx.To().Hex(), method.Name)
 	}
 	return nil
 }

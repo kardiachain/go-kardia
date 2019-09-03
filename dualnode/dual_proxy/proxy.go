@@ -160,17 +160,18 @@ func (p *Proxy) RegisterExternalChain(externalChain base.BlockChainAdapter) {
 // SubmitTx reads event data and submits data to Kardia or Target chain (TRON, NEO) based on specific logic. (eg: AddOrderFunction)
 func (p *Proxy) SubmitTx(event *types.EventData) error {
 	// Only allow TxSource from Kardia
-	if event.TxSource == types.KARDIA {
-		switch event.Data.TxMethod {
-		case configs.AddOrderFunction:
-			return utils.HandleAddOrderFunction(p, event)
-		default:
-			log.Warn("Unexpected method in TRON SubmitTx", "method", event.Data.TxMethod)
-			return configs.ErrUnsupportedMethod
-		}
-	} else if event.TxSource == types.BlockchainSymbol(p.name) && event.Data.TxMethod == utils.KARDIA_CALL {
-		return utils.KardiaCall(p, event)
+	//if event.TxSource == types.KARDIA {
+	//switch event.Data.TxMethod {
+	switch event.Action.Name {
+	case configs.ReleaseEvent: // this config stimulates dual event called from kardia_proxy
+		return utils.HandleAddOrderFunction(p, event)
+	default:
+		log.Warn("Unexpected method in TRON SubmitTx", "method", event.Data.TxMethod)
+		return configs.ErrUnsupportedMethod
 	}
+	//} else if event.TxSource == types.BlockchainSymbol(p.name) && event.Data.TxMethod == utils.KARDIA_CALL {
+	//	return utils.KardiaCall(p, event)
+	//}
 	return configs.ErrUnsupportedMethod
 }
 

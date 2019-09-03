@@ -1,8 +1,8 @@
 Node:
-  Name: node1
+  Name: node5
   DataDir: /root/.kardia
   HTTPHost: 0.0.0.0
-  HTTPPort: 8545
+  HTTPPort: 8549
   HTTPModules:
     - node
     - kai
@@ -16,8 +16,8 @@ Node:
   HTTPCors:
   - "*"
   P2P:
-    PrivateKey: 8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06
-    ListenAddress: :3000
+    PrivateKey: 68b53a92d846baafdc782cb9cad65d77020c8d747eca7b621370b52b18c91f9a
+    ListenAddress: :3004
     MaxPeers:   25
   LogLevel: info           # crit, error, warn, info, debug, trace
 MainChain:
@@ -74,7 +74,7 @@ MainChain:
     Dir: chaindata                           # directory stores leveldb
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
-    URI: mongodb://127.0.0.1:27017           # URI is used in mongodb
+    URI: mongodb://127.0.0.1:27018           # URI is used in mongodb
     Name: kardiachain                        # Name is use in mongodb
     Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
   Events:
@@ -88,15 +88,12 @@ MainChain:
       DualActions:
         - CreateKardiaMatchAmountTx
 DualChain:
-  ServiceName:  ETH
-  ChainId:      2
+  ServiceName:  NEO
+  ChainId:      3
   NetworkId:    100
   PublishedEndpoint: tcp://0.0.0.0:5554
   SubscribedEndpoint: tcp://0.0.0.0:5555
-  Protocol: KAI-ETH     # KAI-ETH, KAI-NEO, KAI-TRX, KAI-PRIVATE
-  BaseAccount:
-    Address: 0xBA30505351c17F4c818d94a990eDeD95e166474b
-    PrivateKey: ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7
+  Protocol: KAI-NEO     # KAI-ETH, KAI-NEO, KAI-TRX, KAI-PRIVATE
   # TODO(kiendn): currently we are still using validators set in permission smc. Will update/remove this config and get validators from pos_voting smc
   Validators:
     - 0
@@ -140,8 +137,7 @@ DualChain:
     Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
   Events:
     -
-      ContractAddress: 0xF5164638322A18acA63AA101fd39F4D6F192537c # ETH smc address
-      ABI: "[{'constant':false,'inputs':[{'name':'receiver','type':'address'},{'name':'amount','type':'uint256'}],'name':'release','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[{'name':'receiver','type':'string'},{'name':'destination','type':'string'}],'name':'deposit','outputs':[],'payable':true,'stateMutability':'payable','type':'function'},{'constant':true,'inputs':[{'name':'destination','type':'string'}],'name':'isValidType','outputs':[{'name':'','type':'bool'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':false,'inputs':[{'name':'_type','type':'string'},{'name':'status','type':'bool'}],'name':'updateAvailableType','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'inputs':[{'name':'_owner','type':'address'}],'payable':false,'stateMutability':'nonpayable','type':'constructor'}]"
+      ContractAddress: 00a68d7d38d9f56bb88195dabee2160321b047d110 # NEO smc address - for encode reason in smc 0x is replaced by 00, only NEO case
       WatcherActions:
         -
           Method: deposit

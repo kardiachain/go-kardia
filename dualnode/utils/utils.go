@@ -36,7 +36,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"github.com/kardiachain/go-kardia/dualnode"
 	dualMsg "github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -340,32 +339,30 @@ func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) erro
 	if _, err := pub.Send(msgToSend, zmq4.DONTWAIT); err != nil {
 		return err
 	}
-
 	return nil
 }
 
 // ExecuteKardiaSmartContract executes smart contract based on address, method and list of params
-func ExecuteKardiaSmartContract(state *state.ManagedState, contractAddress, methodName string, params []string) (*types.Transaction, error) {
-	masterSmcAddr := common.HexToAddress(contractAddress)
-	// TODO(@kiendn): replace this line to function that get abi from contractAddress
-	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
-	kAbi, err := abi.JSON(strings.NewReader(masterSmcAbi))
-	if err != nil {
-		log.Error("Error reading abi", "err", err)
-		return nil, err
+func ExecuteKardiaSmartContract(state *state.ManagedState, bc base.BaseBlockChain, contractAddress, methodName string, params []string) (*types.Transaction, error) {
+	// find contractAddress, to see if it is saved in chain or not.
+	db := bc.DB()
+	kAbi := db.ReadSmartContractAbi(contractAddress)
+	if kAbi == nil {
+		return nil, fmt.Errorf("cannot find abi from smc address: %v", contractAddress)
 	}
-
 	convertedParam := make([]interface{}, 0)
 	for _, v := range params {
 		convertedParam = append(convertedParam, v)
 	}
-
 	input, err := kAbi.Pack(methodName, convertedParam...)
 	if err != nil {
 		log.Error(fmt.Sprintf("Failed to pack methodName=%v params=%v err=%v", methodName, params, err))
 		return nil, err
 	}
-	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, input, state), nil
+	if bc.Config().BaseAccount != nil {
+		return tool.GenerateSmcCall(&bc.Config().BaseAccount.PrivateKey, common.HexToAddress(contractAddress), input, state), nil
+	}
+	return nil, fmt.Errorf("cannot execute kardia smart contract - base account not found")
 }
 
 // MessageHandler handles messages come from dual to kardia
@@ -386,9 +383,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 			"params", triggerMessage.Params,
 		)
 
-		// get abi from internal blockchain
-
-		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool().State(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
+		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool().State(), proxy.KardiaBlockChain(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
 		if err != nil {
 			proxy.Logger().Error("Error on executing kardia smart contract", "err", err, "topic", topic)
 			return err
@@ -411,9 +406,14 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 			return err
 		}
 
-		// TODO: this is used for exchange demo, remove the condition whenever we have dynamic handler method for this
-		if msg.MethodName == configs.ExternalDepositFunction {
+		// get contract address in dual proxy to check if contract address exists or not. If not do nothing.
+		// if it does, try to get watcher event in db by its contract address and methodName
+		watcherAction := proxy.DualBlockChain().DB().ReadEvent(msg.ContractAddress, msg.MethodName)
 
+		if watcherAction != nil {
+
+			// TODO(@kiendn, KSML): if watcherAction is matched then execute pre-defined code for this action
+			//  currently, hardcode here for exchange case, will remove/move these after KSML is applied
 			receiver := []byte(msg.GetParams()[0])
 			to := msg.GetParams()[1]
 			from := proxy.Name()
@@ -430,7 +430,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 			extraData[configs.ExchangeV2AmountIndex] = big.NewInt(int64(msg.GetAmount())).Bytes()
 			extraData[configs.ExchangeV2TimestampIndex] = big.NewInt(int64(msg.GetTimestamp())).Bytes()
 
-			return NewEvent(proxy, msg.MethodName, big.NewInt(int64(msg.Amount)), extraData, txHash, dualnode.CreateKardiaMatchAmountTx, true)
+			return NewEvent(proxy, msg.MethodName, big.NewInt(int64(msg.Amount)), extraData, txHash, watcherAction.DualAction, true)
 		}
 	}
 	return nil
@@ -564,19 +564,19 @@ func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error 
 	}
 
 	// Create KARDIA_CALL event
-	proxy.Logger().Info("Adding triggerMessage to event", "triggerMessage", triggerMessage.String())
-
-	// Marshaling triggerMessage to byte array and put it to extraData
-	extraData := make([][]byte, 1)
-	buffer := &bytes.Buffer{}
-	marshaller := jsonpb.Marshaler{}
-	err = marshaller.Marshal(buffer, &triggerMessage)
-	if err != nil {
-		return err
-	}
-	extraData[0] = buffer.Bytes()
-	txHash := common.HexToHash(txId)
-	return NewEvent(proxy, KARDIA_CALL, big.NewInt(0), extraData, txHash, KARDIA_CALL, false)
+	//proxy.Logger().Info("Adding triggerMessage to event", "triggerMessage", triggerMessage.String())
+	//
+	//// Marshaling triggerMessage to byte array and put it to extraData
+	//extraData := make([][]byte, 1)
+	//buffer := &bytes.Buffer{}
+	//marshaller := jsonpb.Marshaler{}
+	//err = marshaller.Marshal(buffer, &triggerMessage)
+	//if err != nil {
+	//	return err
+	//}
+	//extraData[0] = buffer.Bytes()
+	//txHash := common.HexToHash(txId)
+	return PublishMessage(proxy.PublishedEndpoint(), KARDIA_CALL, triggerMessage)
 }
 
 // KardiaCall receives event from submitTx and publish message to Target chain.
