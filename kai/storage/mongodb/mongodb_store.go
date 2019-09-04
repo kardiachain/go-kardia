@@ -685,11 +685,15 @@ func (db *Store) ReadSmartContractAbi(address string) *abi.ABI {
 	if err != nil || events == nil || len(events) == 0 {
 		return nil
 	}
-	a, err := abi.JSON(strings.NewReader(events[0].ABI))
-	if err != nil {
-		return nil
+	if events[0].ABI != "" {
+		abiStr := strings.Replace(events[0].ABI, "'", "\"", -1)
+		a, err := abi.JSON(strings.NewReader(abiStr))
+		if err != nil {
+			return nil
+		}
+		return &a
 	}
-	return &a
+	return nil
 }
 
 func (db *Store) ReadEvent(address string, method string) *types.WatcherAction {

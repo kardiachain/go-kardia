@@ -225,7 +225,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 		}
 		p.logger.Info("Submit Kardia's tx successfully", "txhash", tx.Hash().String())
 	}
-	p.logger.Error("Submit to Kardia", "value", event.Data.TxValue, "method", event.Data.TxMethod)
+	p.logger.Error("Submit to Kardia", "value", event.Data.TxValue, "method", event.Data.TxMethod, "action", event.Action.Name)
 	return nil
 }
 
@@ -304,16 +304,16 @@ func (p *KardiaProxy) loop() {
 
 func (p *KardiaProxy) handleBlock(block *types.Block) {
 	for _, tx := range block.Transactions() {
-		evt := p.TxMatchesWatcher(tx)
-		if evt != nil {
+		evt, a := p.TxMatchesWatcher(tx)
+		if evt != nil && a != nil {
 			log.Info("New Kardia's tx detected on smart contract", "addr", tx.To().Hex(), "value", tx.Value())
-			p.ExecuteSmcActions(tx, evt)
+			p.ExecuteSmcActions(tx, evt, a)
 		}
 	}
 }
 
 // TxMatchesWatcher checks if tx.To matches with watched smart contract, if matched return watched event
-func (p *KardiaProxy) TxMatchesWatcher(tx *types.Transaction) *types.WatcherAction {
+func (p *KardiaProxy) TxMatchesWatcher(tx *types.Transaction) (*types.WatcherAction, *abi.ABI) {
 	db := p.kardiaBc.DB()
 	a := db.ReadSmartContractAbi(tx.To().Hex())
 	if a != nil {
@@ -322,20 +322,21 @@ func (p *KardiaProxy) TxMatchesWatcher(tx *types.Transaction) *types.WatcherActi
 		method, err := a.MethodById(input)
 		if err != nil {
 			p.logger.Error("cannot get method from input", "err", err, "address", tx.To().Hex())
-			return nil
+			return nil, nil
 		}
 		// get event from smc address and method
-		return db.ReadEvent(tx.To().Hex(), method.Name)
+		return db.ReadEvent(tx.To().Hex(), method.Name), a
 	}
-	return nil
+	return nil, nil
 }
 
-func (p *KardiaProxy) ExecuteSmcActions(tx *types.Transaction, watcherAction *types.WatcherAction) {
+func (p *KardiaProxy) ExecuteSmcActions(tx *types.Transaction, watcherAction *types.WatcherAction, abi *abi.ABI) {
 	var err error
+	p.Logger().Info("ExecuteSmcActions", "action", watcherAction.DualAction)
 	switch watcherAction.DualAction {
 	// TODO(@kiendn): Note for KSML: execute specific logic then create event which contains dualAction in watcherAction
-	case dualnode.CreateDualEventFromKaiTxAndEnqueue:
-		err = p.createDualEventFromKaiTxAndEnqueue(tx, &types.DualAction{Name: watcherAction.DualAction})
+	case configs.ReleaseEvent:
+		err = p.createDualEventFromKaiTxAndEnqueue(tx, &types.DualAction{Name: watcherAction.DualAction}, abi)
 	}
 
 	if err != nil {
@@ -346,8 +347,8 @@ func (p *KardiaProxy) ExecuteSmcActions(tx *types.Transaction, watcherAction *ty
 
 // Detects update on kardia master smart contract and creates corresponding dual event to submit to
 // dual event pool
-func (p *KardiaProxy) createDualEventFromKaiTxAndEnqueue(tx *types.Transaction, action *types.DualAction) error {
-	eventSummary, err := p.extractKardiaTxSummary(tx)
+func (p *KardiaProxy) createDualEventFromKaiTxAndEnqueue(tx *types.Transaction, action *types.DualAction, abi *abi.ABI) error {
+	eventSummary, err := p.extractKardiaTxSummary(tx, abi)
 	if err != nil {
 		log.Error("Error when extracting Kardia main chain's tx summary.")
 		// TODO(#140): Handle smart contract failure correctly.
@@ -383,9 +384,9 @@ func (p *KardiaProxy) createDualEventFromKaiTxAndEnqueue(tx *types.Transaction, 
 }
 
 // extractKardiaTxSummary extracts data related to cross-chain exchange to be forwarded to Kardia master smart contract
-func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.EventSummary, error) {
+func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction, abi *abi.ABI) (types.EventSummary, error) {
 	// New tx that updates smc, check input method for more filter.
-	method, err := p.smcABI.MethodById(tx.Data()[0:4])
+	method, err := abi.MethodById(tx.Data()[0:4])
 	if err != nil {
 		log.Error("Fail to unpack smc update method in tx", "tx", tx, "error", err)
 		return types.EventSummary{}, err
@@ -396,7 +397,7 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction) (types.Event
 	case configs.AddOrderFunction:
 		exchangeExternalData = make([][]byte, configs.ExchangeV2NumOfExchangeDataField)
 		var decodedInput types.MatchOrderInput
-		err = p.smcABI.UnpackInput(&decodedInput, configs.AddOrderFunction, input[4:])
+		err = abi.UnpackInput(&decodedInput, configs.AddOrderFunction, input[4:])
 		if err != nil {
 			log.Error("failed to get external data of exchange contract event", "method", method.Name)
 			return types.EventSummary{}, configs.ErrFailedGetEventData
