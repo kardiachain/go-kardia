@@ -1,6 +1,6 @@
 Node:
   Name: node2
-  DataDir: //Users/kiendn/.kardia
+  DataDir: /root/.kardia
   HTTPHost: 0.0.0.0
   HTTPPort: 8546
   HTTPModules:
@@ -92,6 +92,7 @@ DualChain:
   ServiceName:  ETH
   ChainId:      2
   NetworkId:    100
+  PublishedEndpoint: tcp://0.0.0.0:5556
   SubscribedEndpoint: tcp://0.0.0.0:5557
   Protocol: KAI-ETH     # KAI-ETH, KAI-NEO, KAI-TRX, KAI-PRIVATE
   BaseAccount:
