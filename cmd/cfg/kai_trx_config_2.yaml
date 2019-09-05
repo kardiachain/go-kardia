@@ -1,5 +1,5 @@
 Node:
-  Name: node7
+  Name: node8
   DataDir: /root/.kardia
   HTTPHost: 0.0.0.0
   HTTPPort: 8552
