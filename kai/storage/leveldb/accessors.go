@@ -468,7 +468,7 @@ func CommonReadEventFromDualAction(db types.DatabaseReader, action string) (stri
 		return "", nil
 	}
 
-	data, err := db.Get(key)
+	data, err := db.Get(key.([]byte))
 	if err != nil || data == nil {
 		return "", nil
 	}
@@ -479,11 +479,17 @@ func CommonReadEventFromDualAction(db types.DatabaseReader, action string) (stri
 		return "", nil
 	}
 
-	a, err := abi.JSON(strings.NewReader(entry.ABI))
-	if err != nil {
-		return "", nil
+	// replace ' to "
+	if entry.ABI != "" {
+		abiStr := strings.Replace(entry.ABI, "'", "\"", -1)
+		a, err := abi.JSON(strings.NewReader(abiStr))
+		if err != nil {
+			log.Error("error while decoding abi", "err", err, "abi", entry.ABI)
+			return "", nil
+		}
+		return entry.Address, &a
 	}
-	return entry.Address, &a
+	return "", nil
 }
 
 // CommonReadEvent gets event data from contract address and method
