@@ -32,9 +32,22 @@ import (
 	"time"
 )
 
-var args FlagArgs
+const (
+	LevelDb = iota
+	MongoDb
+)
+
+type flags struct {
+	config string
+}
+
+func initFlag(args *flags) {
+	flag.StringVar(&args.config, "config", "", "path to config file, if config is defined then it is priority used.")
+}
+
+var args flags
 func init() {
-	InitFlags(&args)
+	initFlag(&args)
 }
 
 // Load attempts to load the config from given path and filename.
