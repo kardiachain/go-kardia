@@ -19,6 +19,7 @@
 package utils
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
@@ -572,6 +573,41 @@ func Release(proxy base.BlockChainAdapter, receiver, txId, amount string) error 
 			},
 		},
 	}
+
+	// Create KARDIA_CALL event
+	proxy.Logger().Info("Adding triggerMessage to event", "triggerMessage", triggerMessage.String())
+
+	// Marshaling triggerMessage to byte array and put it to extraData
+	extraData := make([][]byte, 1)
+	buffer := &bytes.Buffer{}
+	marshaller := jsonpb.Marshaler{}
+	err = marshaller.Marshal(buffer, &triggerMessage)
+	if err != nil {
+		return err
+	}
+	extraData[0] = buffer.Bytes()
+	txHash := common.HexToHash(txId)
+	return NewEvent(proxy, KARDIA_CALL, big.NewInt(0), extraData, txHash, KARDIA_CALL, false)
+}
+
+// KardiaCall receives event from submitTx and publish message to Target chain.
+func KardiaCall(proxy base.BlockChainAdapter, event *types.EventData) error {
+
+	// ExtData must have length = 1 and first element must not be nil
+	if len(event.Data.ExtData) != 1 || event.Data.ExtData == nil {
+		return fmt.Errorf("extData is invalid or empty in KardiaCall")
+	}
+
+	// unmarshal byte array data from ExtData
+	unmarshaler := jsonpb.Unmarshaler{}
+	reader := bytes.NewReader(event.Data.ExtData[0])
+	triggerMessage := dualMsg.TriggerMessage{}
+	err := unmarshaler.Unmarshal(reader, &triggerMessage)
+	if err != nil {
+		proxy.Logger().Error("Error while unmarshaling triggerMessage from EventData", "err", err)
+		return err
+	}
+
 	return PublishMessage(proxy.PublishedEndpoint(), KARDIA_CALL, triggerMessage)
 }
 
@@ -587,11 +623,6 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 	originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 	fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
 	toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
-
-	// toType must be matched to proxy name
-	if proxy.Name() != toType {
-		return fmt.Errorf("toType=%v does not match with proxy.Name=%v", toType, proxy.Name())
-	}
 
 	fromAmount, toAmount, err := CallGetRate(fromType, toType, proxy.KardiaBlockChain(), stateDB)
 	if err != nil {
