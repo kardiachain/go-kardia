@@ -588,11 +588,6 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 	fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
 	toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
 
-	// ExtData must have length = 1 and first element must not be nil
-	if len(event.Data.ExtData) != 1 || event.Data.ExtData == nil {
-		return fmt.Errorf("extData is invalid or empty in HandleAddOrderFunction")
-	}
-
 	// toType must be matched to proxy name
 	if proxy.Name() != toType {
 		return fmt.Errorf("toType=%v does not match with proxy.Name=%v", toType, proxy.Name())
