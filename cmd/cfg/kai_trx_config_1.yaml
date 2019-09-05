@@ -138,7 +138,7 @@ DualChain:
     Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
   Events:
     -
-      ContractAddress: a68d7d38d9f56bb88195dabee2160321b047d110 # TRX smc address
+      ContractAddress: 41d69c86eeaa2c1ea0e2db91a64c2ed5814ec66470 # TRX smc address
       WatcherActions:
         -
           Method: deposit
