@@ -181,18 +181,33 @@ func CommonWriteEvent(db types.DatabaseWriter, smc *types.KardiaSmartcontract) {
 		}
 	}
 
+	events := make([]string, 0)
+
 	// Add watcher action to db
 	for _, event := range smc.WatcherActions {
 		method := event.Method
 		data, err := rlp.EncodeToBytes(event)
 		if err != nil {
-			log.Crit("Failed to encode event", "err", err, "method", method, "contract", smc.SmcAddress)
+			log.Error("Failed to encode event", "err", err, "method", method, "contract", smc.SmcAddress)
 		}
 		key := eventKey(smc.SmcAddress, method)
 		if err := db.Put(key, data); err != nil {
-			log.Crit("Failed to store last header's hash", "err", err)
+			log.Error("Failed to store last header's hash", "err", err)
+		}
+		events = append(events, common.Bytes2Hex(key))
+	}
+
+	// Add list events to db
+	if len(events) > 0 {
+		encodedEvents, err := rlp.EncodeToBytes(events)
+		if err != nil {
+			log.Error("Failed to encode events list", "err", err, "contract", smc.SmcAddress)
+		}
+		if err := db.Put(eventsKey(smc.SmcAddress), encodedEvents); err != nil {
+			log.Error("Failed to store last header's hash", "err", err)
 		}
 	}
+
 }
 
 // CommonWriteCommit stores a commit into the database.
@@ -485,11 +500,11 @@ func CommonReadEventFromDualAction(db types.DatabaseReader, action string) (stri
 		a, err := abi.JSON(strings.NewReader(abiStr))
 		if err != nil {
 			log.Error("error while decoding abi", "err", err, "abi", entry.ABI)
-			return "", nil
+			return entry.Address, nil
 		}
 		return entry.Address, &a
 	}
-	return "", nil
+	return entry.Address, nil
 }
 
 // CommonReadEvent gets event data from contract address and method
@@ -505,6 +520,39 @@ func CommonReadEvent(db types.DatabaseReader, address string, method string) *ty
 		return nil
 	}
 	return &entry
+}
+
+// CommonReadEvents gets events data from contract address
+func CommonReadEvents(db types.DatabaseReader, address string) []*types.WatcherAction {
+	data, err := db.Get(eventsKey(address))
+	if err != nil {
+		log.Error("error while get event", "err", err, "address", address)
+		return nil
+	}
+	var entries []string
+	if err := rlp.DecodeBytes(data.([]byte), &entries); err != nil {
+		log.Error("Invalid event lookup rlp", "err", err)
+		return nil
+	}
+
+	watcherActions := make([]*types.WatcherAction, 0)
+	if len(entries) > 0 {
+		for _, entry := range entries {
+			// get watched event from entry
+			evtData, err := db.Get(common.Hex2Bytes(entry))
+			if err != nil {
+				log.Error("Cannot get event data", "err", err, "eventData", entry)
+				continue
+			}
+			var action types.WatcherAction
+			if err := rlp.DecodeBytes(evtData.([]byte), &action); err != nil {
+				log.Error("Invalid watcherAction", "err", err)
+				continue
+			}
+			watcherActions = append(watcherActions, &action)
+		}
+	}
+	return watcherActions
 }
 
 // CommonReadSmartContractAbi gets watched smart contract abi

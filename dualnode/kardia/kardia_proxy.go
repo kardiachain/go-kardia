@@ -180,6 +180,23 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 	switch event.Action.Name {
 	case dualnode.CreateKardiaMatchAmountTx:
 		p.logger.Info("Handle external event", "source", event.TxSource)
+
+		// get smart contract and abi from dual action
+		smartContract, kAbi := p.kardiaBc.DB().ReadSmartContractFromDualAction(event.Action.Name)
+		if kAbi == nil {
+			err := fmt.Errorf("error while getting smc and abi from dual action %v", event.Action.Name)
+			p.logger.Error("cannot find abi from action name in submitTx", "err", err)
+			return err
+		}
+
+		if p.kardiaBc.Config().BaseAccount == nil {
+			err := fmt.Errorf("baseAccount is nil")
+			p.logger.Error("baseAccount is nil")
+			return err
+		}
+
+		privateKey := p.kardiaBc.Config().BaseAccount.PrivateKey
+
 		// These logics temporarily for exchange case , will be dynamic later
 		if event.Data.ExtData == nil || len(event.Data.ExtData) < 2 {
 			p.logger.Error("Event doesn't contain external data")
@@ -199,7 +216,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 
 		p.logger.Info("Create order and match tx:", "source", srcAddress, "dest", destAddress, "txhash", originalTx)
 
-		tx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue, srcAddress, destAddress, fromType, toType, originalTx, p.kardiaBc)
+		tx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), common.HexToAddress(smartContract), *kAbi, event.Data.TxValue, srcAddress, destAddress, fromType, toType, originalTx, p.kardiaBc)
 		if err != nil {
 			p.logger.Error("Fail to create Kardia's tx from DualEvent", "err", err)
 			return configs.ErrCreateKardiaTx
@@ -211,21 +228,10 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 		}
 		p.logger.Info("Submit Kardia's tx successfully", "tx", tx.Hash().String())
 
-		// get smart contract and abi from dual action
-		smartContract, kAbi := p.kardiaBc.DB().ReadSmartContractFromDualAction(event.Action.Name)
-		if kAbi == nil {
-			err := fmt.Errorf("error while getting smc and abi from dual action %v", event.Action.Name)
-			p.logger.Error("cannot find abi from action name in submitTx", "err", err)
-			return err
-		}
-		if p.kardiaBc.Config().BaseAccount != nil {
-			privateKey := p.kardiaBc.Config().BaseAccount.PrivateKey
-			err = p.updateKardiaTxForOrder(common.HexToAddress(smartContract), *kAbi, originalTx, tx.Hash().String(), privateKey)
-			if err != nil {
-				p.logger.Error("Fail to update Kardia's tx")
-			}
-		} else {
-			p.logger.Error("kardia submitTx, baseAccount not found")
+		// update kardiaTxforOrder
+		err = p.updateKardiaTxForOrder(common.HexToAddress(smartContract), *kAbi, originalTx, tx.Hash().String(), privateKey)
+		if err != nil {
+			p.logger.Error("Fail to update Kardia's tx")
 		}
 	case dualnode.EnqueueTxPool:
 		tx, ok := result.(*types.Transaction)
@@ -250,6 +256,22 @@ func (p *KardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetada
 	// Compute Kardia's tx from the DualEvent.
 	// TODO(thientn,namdoh): Remove hard-coded account address here.
 	if event.Data.TxMethod == configs.ExternalDepositFunction {
+
+		// get smart contract and abi from dual action
+		smartContract, kAbi := p.kardiaBc.DB().ReadSmartContractFromDualAction(event.Action.Name)
+		if kAbi == nil {
+			err := fmt.Errorf("error while getting smc and abi from dual action %v", event.Action.Name)
+			p.logger.Error("cannot find abi from action name in submitTx", "err", err)
+			return nil, err
+		}
+		smc := common.HexToAddress(smartContract)
+
+		if p.kardiaBc.Config().BaseAccount == nil {
+			err := fmt.Errorf("baseAccount is nil")
+			p.logger.Error("baseAccount is nil")
+			return nil, err
+		}
+
 		// These logics temporarily for exchange case , will be dynamic later
 		if event.Data.ExtData == nil {
 			log.Error("Event doesn't contain external data")
@@ -271,7 +293,7 @@ func (p *KardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetada
 		originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 
 		log.Info("Computing tx metadata for tx", "hash", originalTx)
-		kardiaTx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), event.Data.TxValue,
+		kardiaTx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), smc, *kAbi, event.Data.TxValue,
 			string(event.Data.ExtData[configs.ExchangeV2SourceAddressIndex]), string(event.Data.ExtData[configs.ExchangeV2DestAddressIndex]),
 			fromType, toType, originalTx, p.kardiaBc)
 		if err != nil {

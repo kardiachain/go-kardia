@@ -707,6 +707,22 @@ func (db *Store) ReadEvent(address string, method string) *types.WatcherAction {
 	}
 }
 
+func (db *Store) ReadEvents(address string) []*types.WatcherAction {
+	events, err := db.getEvents(address)
+	if err != nil {
+		return nil
+	}
+	watcherActions := make([]*types.WatcherAction, 0)
+	for _, evt := range events {
+		watcherAction := &types.WatcherAction{
+			Method:     evt.Method,
+			DualAction: evt.DualAction,
+		}
+		watcherActions = append(watcherActions, watcherAction)
+	}
+	return watcherActions
+}
+
 func (db *Store) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {
 	event, err := db.getEventByDualAction(action)
 	if err != nil {
@@ -1148,6 +1164,10 @@ func (db *mongoDbBatch) ReadSmartContractAbi(address string) *abi.ABI {
 
 func (db *mongoDbBatch) ReadEvent(address string, method string) *types.WatcherAction {
 	return db.db.ReadEvent(address, method)
+}
+
+func (db *mongoDbBatch) ReadEvents(address string) []*types.WatcherAction {
+	return db.db.ReadEvents(address)
 }
 
 func (db *mongoDbBatch) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {

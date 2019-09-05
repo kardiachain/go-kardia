@@ -177,6 +177,10 @@ func (db *LDBStore) ReadEvent(address string, method string) *types.WatcherActio
 	return CommonReadEvent(db, address, method)
 }
 
+func (db *LDBStore) ReadEvents(address string) []*types.WatcherAction {
+	return CommonReadEvents(db, address)
+}
+
 func (db *LDBStore) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {
 	return CommonReadEventFromDualAction(db, action)
 }
@@ -585,6 +589,10 @@ func (db *ldbBatch) ReadSmartContractAbi(address string) *abi.ABI {
 
 func (db *ldbBatch) ReadEvent(address string, method string) *types.WatcherAction {
 	return CommonReadEvent(db, address, method)
+}
+
+func (db *ldbBatch) ReadEvents(address string) []*types.WatcherAction {
+	return CommonReadEvents(db, address)
 }
 
 func (db *ldbBatch) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {

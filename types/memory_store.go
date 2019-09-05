@@ -472,6 +472,38 @@ func (db *MemStore) ReadEvent(address string, method string) *WatcherAction {
 	return &entry
 }
 
+func (db *MemStore) ReadEvents(address string) []*WatcherAction {
+	data, err := db.Get(eventsKey(address))
+	if err != nil {
+		log.Error("error while get event", "err", err, "address", address)
+		return nil
+	}
+	var entries []string
+	if err := rlp.DecodeBytes(data.([]byte), &entries); err != nil {
+		log.Error("Invalid event lookup rlp", "err", err)
+		return nil
+	}
+
+	watcherActions := make([]*WatcherAction, 0)
+	if len(entries) > 0 {
+		for _, entry := range entries {
+			// get watched event from entry
+			evtData, err := db.Get(common.Hex2Bytes(entry))
+			if err != nil {
+				log.Error("Cannot get event data", "err", err, "eventData", entry)
+				continue
+			}
+			var action WatcherAction
+			if err := rlp.DecodeBytes(evtData.([]byte), &action); err != nil {
+				log.Error("Invalid watcherAction", "err", err)
+				continue
+			}
+			watcherActions = append(watcherActions, &action)
+		}
+	}
+	return watcherActions
+}
+
 func (db *MemStore) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {
 	key, err := db.Get(dualActionKey(action))
 	if err != nil || key == nil {
@@ -1175,6 +1207,38 @@ func (db *memBatch) ReadEvent(address string, method string) *WatcherAction {
 	return &entry
 }
 
+func (db *memBatch) ReadEvents(address string) []*WatcherAction {
+	data, err := db.Get(eventsKey(address))
+	if err != nil {
+		log.Error("error while get event", "err", err, "address", address)
+		return nil
+	}
+	var entries []string
+	if err := rlp.DecodeBytes(data.([]byte), &entries); err != nil {
+		log.Error("Invalid event lookup rlp", "err", err)
+		return nil
+	}
+
+	watcherActions := make([]*WatcherAction, 0)
+	if len(entries) > 0 {
+		for _, entry := range entries {
+			// get watched event from entry
+			evtData, err := db.Get(common.Hex2Bytes(entry))
+			if err != nil {
+				log.Error("Cannot get event data", "err", err, "eventData", entry)
+				continue
+			}
+			var action WatcherAction
+			if err := rlp.DecodeBytes(evtData.([]byte), &action); err != nil {
+				log.Error("Invalid watcherAction", "err", err)
+				continue
+			}
+			watcherActions = append(watcherActions, &action)
+		}
+	}
+	return watcherActions
+}
+
 func (db *memBatch) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {
 	key, err := db.Get(dualActionKey(action))
 	if err != nil || key == nil {
@@ -1285,6 +1349,7 @@ var (
 	bloomBitsPrefix       = []byte("B")              // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
 
 	eventPrefix           = []byte("event")              // event prefix + smartcontract address + method
+	eventsPrefix          = []byte("events")             // event prefix + smart contract address
 	dualActionPrefix      = []byte("dualAction")
 	contractAbiPrefix     = []byte("abi")
 )
@@ -1410,5 +1475,9 @@ func dualActionKey(action string) []byte {
 
 func contractAbiKey(smartContractAddress string) []byte {
 	return append(contractAbiPrefix, []byte(smartContractAddress)...)
+}
+
+func eventsKey(smartContractAddress string) []byte {
+	return append(eventsPrefix, []byte(smartContractAddress)...)
 }
 

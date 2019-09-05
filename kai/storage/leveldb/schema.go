@@ -55,6 +55,7 @@ var (
 	bloomBitsPrefix       = []byte("B")              // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
 
 	eventPrefix           = []byte("event")              // event prefix + smartcontract address + method
+	eventsPrefix          = []byte("events")             // event prefix + smart contract address
 	dualActionPrefix      = []byte("dualAction")
 	contractAbiPrefix     = []byte("abi")
 )
@@ -172,6 +173,10 @@ func txHashKey(hash *common.Hash) []byte {
 
 func eventKey(smartContractAddress string, method string) []byte {
 	return append(append(eventPrefix, []byte(smartContractAddress)...), []byte(method)...)
+}
+
+func eventsKey(smartContractAddress string) []byte {
+	return append(eventsPrefix, []byte(smartContractAddress)...)
 }
 
 func dualActionKey(action string) []byte {

@@ -136,6 +136,7 @@ type ReadAccessor interface {
 	ReadSmartContractAbi(address string) *abi.ABI
 	ReadSmartContractFromDualAction(action string) (string, *abi.ABI)
 	ReadEvent(address string, method string) *WatcherAction
+	ReadEvents(address string) []*WatcherAction
 	CheckHash(hash *common.Hash) bool
 	CheckTxHash(hash *common.Hash) bool
 }
