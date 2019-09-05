@@ -19,6 +19,8 @@
 package kardia
 
 import (
+	"crypto/ecdsa"
+	"fmt"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode"
@@ -208,9 +210,22 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 			return configs.ErrAddKardiaTx
 		}
 		p.logger.Info("Submit Kardia's tx successfully", "tx", tx.Hash().String())
-		err = p.updateKardiaTxForOrder(originalTx, tx.Hash().String())
-		if err != nil {
-			p.logger.Error("Fail to update Kardia's tx")
+
+		// get smart contract and abi from dual action
+		smartContract, kAbi := p.kardiaBc.DB().ReadSmartContractFromDualAction(event.Action.Name)
+		if kAbi == nil {
+			err := fmt.Errorf("error while getting smc and abi from dual action %v", event.Action.Name)
+			p.logger.Error("cannot find abi from action name in submitTx", "err", err)
+			return err
+		}
+		if p.kardiaBc.Config().BaseAccount != nil {
+			privateKey := p.kardiaBc.Config().BaseAccount.PrivateKey
+			err = p.updateKardiaTxForOrder(common.HexToAddress(smartContract), *kAbi, originalTx, tx.Hash().String(), privateKey)
+			if err != nil {
+				p.logger.Error("Fail to update Kardia's tx")
+			}
+		} else {
+			p.logger.Error("kardia submitTx, baseAccount not found")
 		}
 	case dualnode.EnqueueTxPool:
 		tx, ok := result.(*types.Transaction)
@@ -426,8 +441,9 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction, abi *abi.ABI
 	}, nil
 }
 
-func (p *KardiaProxy) updateKardiaTxForOrder(originalTxId string, kardiaTxId string) error {
-	tx, err := utils.UpdateKardiaTx(p.txPool.State(), originalTxId, kardiaTxId)
+func (p *KardiaProxy) updateKardiaTxForOrder(smartContract common.Address, abi abi.ABI, originalTxId string, kardiaTxId string, privateKey ecdsa.PrivateKey) error {
+	state := p.txPool.State()
+	tx, err := utils.UpdateKardiaTx(state, smartContract, abi, originalTxId, kardiaTxId,privateKey)
 	if err != nil {
 		log.Error("Error creating tx updateKardiaTx", "originalTxId", originalTxId, "KardiaTx", kardiaTxId,
 			"err", err)

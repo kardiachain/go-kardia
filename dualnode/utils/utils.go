@@ -252,21 +252,13 @@ func CallKardiGetMatchingResultByTxId(from common.Address, bc base.BaseBlockChai
 	return matchingResult.Results, nil
 }
 
-func UpdateKardiaTx(state *state.ManagedState, originalTx string, tx string) (*types.Transaction, error) {
-	masterSmcAddr := configs.GetContractAddressAt(configs.KardiaNewExchangeSmcIndex)
-	masterSmcAbi := configs.GetContractAbiByAddress(masterSmcAddr.String())
-	kAbi, err := abi.JSON(strings.NewReader(masterSmcAbi))
-	if err != nil {
-		log.Error("Error reading abi", "err", err)
-		return nil, err
-	}
-
+func UpdateKardiaTx(state *state.ManagedState, smartContract common.Address, kAbi abi.ABI, originalTx string, tx string, privateKey ecdsa.PrivateKey) (*types.Transaction, error) {
 	completeInput, err := kAbi.Pack(configs.UpdateKardiaTx, originalTx, tx)
 	if err != nil {
 		log.Error("Failed to pack updateKardiaTx", "originalTx", originalTx, "err", err)
 		return nil, err
 	}
-	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), masterSmcAddr, completeInput, state), nil
+	return tool.GenerateSmcCall(&privateKey, smartContract, completeInput, state), nil
 }
 
 // CreateForwardRequestTx creates tx call to Kardia candidate exchange contract to forward a candidate request to another
