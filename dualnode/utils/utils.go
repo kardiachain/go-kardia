@@ -591,8 +591,8 @@ func KardiaCall(proxy base.BlockChainAdapter, event *types.EventData) error {
 // getKardiaSmcAndAbiFromDual gets internal chain smart contract and abi from external chain dual action
 // NOTE: dual action must be unique in KSML.
 func getKardiaSmcAndAbiFromDual(proxy base.BlockChainAdapter, dualAction string) (string, *abi.ABI) {
-	externalDb := proxy.ExternalChain().DualBlockChain().DB()
-	internalDb := proxy.InternalChain().KardiaBlockChain().DB()
+	externalDb := proxy.DualBlockChain().DB()
+	internalDb := proxy.KardiaBlockChain().DB()
 
 	// get external smc from dual Action
 	externalSmc, _ := externalDb.ReadSmartContractFromDualAction(dualAction)
