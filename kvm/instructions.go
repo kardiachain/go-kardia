@@ -18,13 +18,12 @@ package kvm
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/types"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -34,6 +33,7 @@ var (
 	errReturnDataOutOfBounds = errors.New("kvm: return data out of bounds")
 	errExecutionReverted     = errors.New("kvm: execution reverted")
 	errMaxCodeSizeExceeded   = errors.New("kvm: max code size exceeded")
+	errInvalidJump           = errors.New("kvm: invalid jump destination")
 )
 
 func opAdd(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
@@ -123,10 +123,22 @@ func opSmod(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Sta
 
 func opExp(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	base, exponent := stack.pop(), stack.pop()
-	stack.push(common.Exp(base, exponent))
-
-	kvm.interpreter.intPool.put(base, exponent)
-
+	// some shortcuts
+	cmpToOne := exponent.Cmp(big1)
+	if cmpToOne < 0 { // Exponent is zero
+		// x ^ 0 == 1
+		stack.push(base.SetUint64(1))
+	} else if base.Sign() == 0 {
+		// 0 ^ y, if y != 0, == 0
+		stack.push(base.SetUint64(0))
+	} else if cmpToOne == 0 { // Exponent is one
+		// x ^ 1 == x
+		stack.push(base)
+	} else {
+		stack.push(common.Exp(base, exponent))
+		kvm.interpreter.intPool.put(base)
+	}
+	kvm.interpreter.intPool.put(exponent)
 	return nil, nil
 }
 
@@ -372,36 +384,43 @@ func opSAR(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stac
 func opSha3(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	offset, size := stack.pop(), stack.pop()
 	data := memory.Get(offset.Int64(), size.Int64())
-	hash := crypto.Keccak256(data)
 
-	stack.push(kvm.interpreter.intPool.get().SetBytes(hash))
+	if kvm.interpreter.hasher == nil {
+		kvm.interpreter.hasher = sha3.NewLegacyKeccak256().(keccakState)
+	} else {
+		kvm.interpreter.hasher.Reset()
+	}
+	kvm.interpreter.hasher.Write(data)
+	kvm.interpreter.hasher.Read(kvm.interpreter.hasherBuf[:])
+
+	vm := kvm.interpreter.kvm
+	if vm.vmConfig.EnablePreimageRecording {
+		vm.StateDB.AddPreimage(kvm.interpreter.hasherBuf, data)
+	}
+	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.interpreter.hasherBuf[:]))
 
 	kvm.interpreter.intPool.put(offset, size)
 	return nil, nil
 }
 
-func opStop(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	return nil, nil
-}
-
 func opAddress(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(contract.Address().Big())
+	stack.push(kvm.interpreter.intPool.get().SetBytes(contract.Address().Bytes()))
 	return nil, nil
 }
 
 func opBalance(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	slot := stack.peek()
-	slot.Set(kvm.StateDB.GetBalance(common.BigToAddress(slot)))
+	slot.Set(kvm.interpreter.kvm.StateDB.GetBalance(common.BigToAddress(slot)))
 	return nil, nil
 }
 
 func opOrigin(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.Origin.Big())
+	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.interpreter.kvm.Origin.Bytes()))
 	return nil, nil
 }
 
 func opCaller(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(contract.Caller().Big())
+	stack.push(kvm.interpreter.intPool.get().SetBytes(contract.Caller().Bytes()))
 	return nil, nil
 }
 
@@ -447,7 +466,7 @@ func opReturnDataCopy(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, 
 	)
 	defer kvm.interpreter.intPool.put(memOffset, dataOffset, length, end)
 
-	if end.BitLen() > 64 || uint64(len(kvm.interpreter.returnData)) < end.Uint64() {
+	if !end.IsUint64() || uint64(len(kvm.interpreter.returnData)) < end.Uint64() {
 		return nil, errReturnDataOutOfBounds
 	}
 	memory.Set(memOffset.Uint64(), length.Uint64(), kvm.interpreter.returnData[dataOffset.Uint64():end.Uint64()])
@@ -497,7 +516,7 @@ func opExtCodeCopy(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, sta
 }
 
 func opGasprice(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().Set(kvm.GasPrice))
+	stack.push(kvm.interpreter.intPool.get().Set(kvm.interpreter.kvm.GasPrice))
 	return nil, nil
 }
 
@@ -506,31 +525,31 @@ func opBlockhash(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack
 
 	n := kvm.interpreter.intPool.get().Sub(new(big.Int).SetUint64(kvm.BlockHeight), common.Big257)
 	if num.Cmp(n) > 0 && num.Cmp(new(big.Int).SetUint64(kvm.BlockHeight)) < 0 {
-		stack.push(kvm.GetHash(num.Uint64()).Big())
+		stack.push(kvm.interpreter.kvm.GetHash(num.Uint64()).Big())
 	} else {
-		stack.push(kvm.interpreter.intPool.getZero())
+		stack.push(kvm.interpreter.kvm.interpreter.intPool.getZero())
 	}
 	kvm.interpreter.intPool.put(num, n)
 	return nil, nil
 }
 
 func opCoinbase(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.Coinbase.Big())
+	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.interpreter.kvm.Coinbase.Bytes()))
 	return nil, nil
 }
 
 func opTimestamp(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(common.U256(kvm.interpreter.intPool.get().Set(kvm.Time)))
+	stack.push(common.U256(kvm.interpreter.intPool.get().Set(kvm.interpreter.kvm.Time)))
 	return nil, nil
 }
 
 func opNumber(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(common.U256(kvm.interpreter.intPool.get().Set(new(big.Int).SetUint64(kvm.BlockHeight))))
+	stack.push(common.U256(kvm.interpreter.intPool.get().Set(new(big.Int).SetUint64(kvm.interpreter.kvm.BlockHeight))))
 	return nil, nil
 }
 
 func opGasLimit(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(common.U256(kvm.interpreter.intPool.get().SetUint64(kvm.GasLimit)))
+	stack.push(common.U256(kvm.interpreter.intPool.get().SetUint64(kvm.interpreter.kvm.GasLimit)))
 	return nil, nil
 }
 
@@ -566,7 +585,7 @@ func opMstore8(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *
 
 func opSload(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	loc := stack.peek()
-	val := kvm.StateDB.GetState(contract.Address(), common.BigToHash(loc))
+	val := kvm.interpreter.kvm.StateDB.GetState(contract.Address(), common.BigToHash(loc))
 	loc.SetBytes(val.Bytes())
 	return nil, nil
 }
@@ -574,7 +593,7 @@ func opSload(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *St
 func opSstore(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	loc := common.BigToHash(stack.pop())
 	val := stack.pop()
-	kvm.StateDB.SetState(contract.Address(), loc, common.BigToHash(val))
+	kvm.interpreter.kvm.StateDB.SetState(contract.Address(), loc, common.BigToHash(val))
 
 	kvm.interpreter.intPool.put(val)
 	return nil, nil
@@ -582,9 +601,8 @@ func opSstore(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *S
 
 func opJump(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	pos := stack.pop()
-	if !contract.jumpdests.has(contract.CodeHash, contract.Code, pos) {
-		nop := contract.GetOp(pos.Uint64())
-		return nil, fmt.Errorf("invalid jump destination (%v) %v", nop, pos)
+	if !contract.validJumpdest(pos) {
+		return nil, errInvalidJump
 	}
 	*pc = pos.Uint64()
 
@@ -595,9 +613,8 @@ func opJump(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Sta
 func opJumpi(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	pos, cond := stack.pop(), stack.pop()
 	if cond.Sign() != 0 {
-		if !contract.jumpdests.has(contract.CodeHash, contract.Code, pos) {
-			nop := contract.GetOp(pos.Uint64())
-			return nil, fmt.Errorf("invalid jump destination (%v) %v", nop, pos)
+		if !contract.validJumpdest(pos) {
+			return nil, errInvalidJump
 		}
 		*pc = pos.Uint64()
 	} else {
@@ -636,12 +653,17 @@ func opCreate(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *S
 	)
 
 	contract.UseGas(gas)
-	res, addr, returnGas, suberr := kvm.Create(contract, input, gas, value)
+	res, addr, returnGas, suberr := kvm.interpreter.kvm.Create(contract, input, gas, value)
+	// Push item on the stack based on the returned error. If the ruleset is
+	// homestead we must check for CodeStoreOutOfGasError (homestead only
+	// rule) and treat as an error, if the ruleset is frontier we must
+	// ignore this error and pretend the operation was successful.
 	if suberr != nil {
 		stack.push(kvm.interpreter.intPool.getZero())
 	} else {
-		stack.push(addr.Big())
+		stack.push(kvm.interpreter.intPool.get().SetBytes(addr.Bytes()))
 	}
+
 	contract.Gas += returnGas
 	kvm.interpreter.intPool.put(value, offset, size)
 
@@ -775,11 +797,30 @@ func opRevert(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *S
 	return ret, nil
 }
 
+func opStop(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	return nil, nil
+}
+
 func opSuicide(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	balance := kvm.StateDB.GetBalance(contract.Address())
 	kvm.StateDB.AddBalance(common.BigToAddress(stack.pop()), balance)
 
 	kvm.StateDB.Suicide(contract.Address())
+	return nil, nil
+}
+
+// opPush1 is a specialized version of pushN
+func opPush1(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	var (
+		codeLen = uint64(len(contract.Code))
+		integer = kvm.interpreter.intPool.get()
+	)
+	*pc++
+	if *pc < codeLen {
+		stack.push(integer.SetUint64(uint64(contract.Code[*pc])))
+	} else {
+		stack.push(integer.SetUint64(0))
+	}
 	return nil, nil
 }
 

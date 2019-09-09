@@ -19,13 +19,15 @@
 package configs
 
 import (
-	"github.com/kardiachain/go-kardia/types"
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/types"
+
 	"math"
 	"strings"
+
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // TODO(huny): Get the proper genesis hash for Kardia when ready
@@ -36,9 +38,9 @@ var (
 )
 
 var (
-	DefaultChainID = uint64(1)
-	EthDualChainID = uint64(2)
-	NeoDualChainID = uint64(3)
+	DefaultChainID  = uint64(1)
+	EthDualChainID  = uint64(2)
+	NeoDualChainID  = uint64(3)
 	TronDualChainID = uint64(4)
 )
 
@@ -72,6 +74,7 @@ var (
 type GasTable struct {
 	ExtcodeSize uint64
 	ExtcodeCopy uint64
+	ExtcodeHash uint64
 	Balance     uint64
 	SLoad       uint64
 	Calls       uint64
@@ -142,16 +145,16 @@ type ConsensusConfig struct {
 // DefaultConsensusConfig returns a default configuration for the consensus service
 func DefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
-		TimeoutPropose:              5000,
-		TimeoutProposeDelta:         500,
-		TimeoutPrevote:              1000,
-		TimeoutPrevoteDelta:         500,
-		TimeoutPrecommit:            1000,
-		TimeoutPrecommitDelta:       500,
-		TimeoutCommit:               1000,
-		SkipTimeoutCommit:           false,
-		CreateEmptyBlocks:           true,
-		CreateEmptyBlocksInterval:   0,
+		TimeoutPropose:            5000,
+		TimeoutProposeDelta:       500,
+		TimeoutPrevote:            1000,
+		TimeoutPrevoteDelta:       500,
+		TimeoutPrecommit:          1000,
+		TimeoutPrecommitDelta:     500,
+		TimeoutCommit:             1000,
+		SkipTimeoutCommit:         false,
+		CreateEmptyBlocks:         true,
+		CreateEmptyBlocksInterval: 0,
 
 		// TODO(@kiendn):
 		//  - PeerGossipSleepDuration is the time peer send its data to other peers, the time is lower,
@@ -163,7 +166,7 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		//  But I think we can add a function to check if any tx in pool before creating new block.
 
 		PeerGossipSleepDuration:     1000, // sleep duration before gossip data to other peers - 0.5s
-		PeerQueryMaj23SleepDuration: 500, // sleep duration before send major 2/3 (if any) to other peers - 0.1s
+		PeerQueryMaj23SleepDuration: 500,  // sleep duration before send major 2/3 (if any) to other peers - 0.1s
 	}
 }
 
@@ -200,8 +203,7 @@ func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
 // ======================= Genesis Const =======================
 
 var InitValue = big.NewInt(int64(math.Pow10(10))) // Update Genesis Account Values
-var InitValueInCell = InitValue.Mul(InitValue, big.NewInt(int64(math.Pow10(18)))) 
-
+var InitValueInCell = InitValue.Mul(InitValue, big.NewInt(int64(math.Pow10(18))))
 
 // GenesisAccounts are used to initialized accounts in genesis block
 var GenesisAccounts = map[string]*big.Int{
@@ -699,9 +701,13 @@ func GetContractDetailsByIndex(index int) (common.Address, string) {
 
 func GetRateFromType(chain string) *big.Int {
 	switch chain {
-	case NEO: return big.NewInt(RateNEO)
-	case TRON: return big.NewInt(RateTRON)
-	case ETH: return big.NewInt(RateETH)
-	default: return nil
+	case NEO:
+		return big.NewInt(RateNEO)
+	case TRON:
+		return big.NewInt(RateTRON)
+	case ETH:
+		return big.NewInt(RateETH)
+	default:
+		return nil
 	}
 }

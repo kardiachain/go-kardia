@@ -137,6 +137,10 @@ type (
 		prev        bool // whether account had already suicided
 		prevbalance *big.Int
 	}
+
+	addPreimageChange struct {
+		hash common.Hash
+	}
 )
 
 var ripemd = common.HexToAddress("0000000000000000000000000000000000000003")
@@ -229,4 +233,12 @@ func (ch suicideChange) revert(s *StateDB) {
 
 func (ch suicideChange) dirtied() *common.Address {
 	return ch.account
+}
+
+func (ch addPreimageChange) revert(s *StateDB) {
+	delete(s.preimages, ch.hash)
+}
+
+func (ch addPreimageChange) dirtied() *common.Address {
+	return nil
 }

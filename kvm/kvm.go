@@ -21,11 +21,12 @@ package kvm
 import (
 	"math/big"
 
+	"sync/atomic"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/types"
-	"sync/atomic"
 )
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
@@ -43,14 +44,14 @@ type (
 )
 
 // run runs the given contract and takes care of running precompiles with a fallback to the byte code interpreter.
-func run(kvm *KVM, contract *Contract, input []byte) ([]byte, error) {
+func run(kvm *KVM, contract *Contract, input []byte, readOnly bool) ([]byte, error) {
 	if contract.CodeAddr != nil {
 		precompiles := PrecompiledContractsV0
 		if p := precompiles[*contract.CodeAddr]; p != nil {
 			return RunPrecompiledContract(p, input, contract)
 		}
 	}
-	return kvm.interpreter.Run(contract, input)
+	return kvm.interpreter.Run(contract, input, readOnly)
 }
 
 // Context provides the KVM with auxiliary information. Once provided
@@ -168,7 +169,7 @@ func (kvm *KVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 
 	start := time.Now()
 	*/
-	ret, err = run(kvm, contract, nil)
+	ret, err = run(kvm, contract, nil, false)
 
 	// check whether the max code size has been exceeded
 	maxCodeSizeExceeded := len(ret) > configs.MaxCodeSize
@@ -260,7 +261,7 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}()
 	}
 	*/
-	ret, err = run(kvm, contract, input)
+	ret, err = run(kvm, contract, input, false)
 
 	// When an error was returned by the KVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
@@ -305,7 +306,7 @@ func (kvm *KVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	contract := NewContract(caller, to, value, gas)
 	contract.SetCallCode(&addr, kvm.StateDB.GetCodeHash(addr), kvm.StateDB.GetCode(addr))
 
-	ret, err = run(kvm, contract, input)
+	ret, err = run(kvm, contract, input, false)
 	if err != nil {
 		kvm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
@@ -338,7 +339,7 @@ func (kvm *KVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	contract := NewContract(caller, to, nil, gas).AsDelegate()
 	contract.SetCallCode(&addr, kvm.StateDB.GetCodeHash(addr), kvm.StateDB.GetCode(addr))
 
-	ret, err = run(kvm, contract, input)
+	ret, err = run(kvm, contract, input, false)
 	if err != nil {
 		kvm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
@@ -380,7 +381,7 @@ func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 
 	// When an error was returned by the KVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining.
-	ret, err = run(kvm, contract, input)
+	ret, err = run(kvm, contract, input, true)
 	if err != nil {
 		kvm.StateDB.RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
@@ -394,6 +395,11 @@ func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 // it's safe to be called multiple times.
 func (kvm *KVM) Cancel() {
 	atomic.StoreInt32(&kvm.abort, 1)
+}
+
+// Cancelled returns true if Cancel has been called
+func (kvm *KVM) Cancelled() bool {
+	return atomic.LoadInt32(&kvm.abort) == 1
 }
 
 //================================================================================================
@@ -419,6 +425,8 @@ type StateDB interface {
 	GetNonce(common.Address) uint64
 	SetNonce(common.Address, uint64)
 
+	AddRefund(uint64)
+	SubRefund(uint64)
 	GetRefund() uint64
 
 	Suicide(common.Address) bool
@@ -436,6 +444,5 @@ type StateDB interface {
 	Empty(common.Address) bool
 
 	AddLog(*types.Log)
-
-	AddRefund(uint64)
+	AddPreimage(common.Hash, []byte)
 }

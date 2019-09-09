@@ -36,6 +36,7 @@ const (
 	SstoreRefundGas  uint64 = 15000 // Once per SSTORE operation if the zeroness changes to zero.
 	MemoryGas        uint64 = 3     // Times the address of the (highest referenced byte in memory + 1). NOTE: referencing happens on read, write and in instructions such as RETURN and CALL.
 	CopyGas          uint64 = 3     //
+	ExpGas           uint64 = 10    // Once per EXP instruction
 	StackLimit       uint64 = 1024  // Maximum size of VM stack allowed.
 	LogGas           uint64 = 375   // Per LOG* operation.
 	LogTopicGas      uint64 = 375   // Multiplied by the * of the LOG*, per LOG transaction. e.g. LOG0 incurs 0 * c_txLogTopicGas, LOG4 incurs 4 * c_txLogTopicGas.
@@ -51,13 +52,18 @@ const (
 	MaxCodeSize = 24576 // Maximum bytecode to permit for a contract
 
 	// Precompiled contract gas prices
-	EcrecoverGas        uint64 = 3000 // Elliptic curve sender recovery gas price
-	Sha256BaseGas       uint64 = 60   // Base price for a SHA256 operation
-	Sha256PerWordGas    uint64 = 12   // Per-word price for a SHA256 operation
-	Ripemd160BaseGas    uint64 = 600  // Base price for a RIPEMD160 operation
-	Ripemd160PerWordGas uint64 = 120  // Per-word price for a RIPEMD160 operation
-	IdentityBaseGas     uint64 = 15   // Base price for a data copy operation
-	IdentityPerWordGas  uint64 = 3    // Per-work price for a data copy operation
+	EcrecoverGas            uint64 = 3000   // Elliptic curve sender recovery gas price
+	Sha256BaseGas           uint64 = 60     // Base price for a SHA256 operation
+	Sha256PerWordGas        uint64 = 12     // Per-word price for a SHA256 operation
+	Ripemd160BaseGas        uint64 = 600    // Base price for a RIPEMD160 operation
+	Ripemd160PerWordGas     uint64 = 120    // Per-word price for a RIPEMD160 operation
+	IdentityBaseGas         uint64 = 15     // Base price for a data copy operation
+	IdentityPerWordGas      uint64 = 3      // Per-work price for a data copy operation
+	ModExpQuadCoeffDiv      uint64 = 20     // Divisor for the quadratic particle of the big int modular exponentiation
+	Bn256AddGas             uint64 = 500    // Gas needed for an elliptic curve addition
+	Bn256ScalarMulGas       uint64 = 40000  // Gas needed for an elliptic curve scalar multiplication
+	Bn256PairingBaseGas     uint64 = 100000 // Base price for an elliptic curve pairing check
+	Bn256PairingPerPointGas uint64 = 80000  // Per-point price for an elliptic curve pairing check
 
 	// BlockPartSizeBytes is the size of one block part.
 	BlockPartSizeBytes = 65536 // 64kB

@@ -25,8 +25,8 @@ import (
 
 // List execution errors
 var (
-	ErrCodeStoreOutOfGas        = errors.New("contract creation code storage out of gas")
 	ErrOutOfGas                 = errors.New("out of gas")
+	ErrCodeStoreOutOfGas        = errors.New("contract creation code storage out of gas")
 	ErrDepth                    = errors.New("max call depth exceeded")
 	ErrInsufficientBalance      = errors.New("insufficient balance for transfer")
 	ErrContractAddressCollision = errors.New("contract address collision")
@@ -59,7 +59,8 @@ type Contract struct {
 	caller        ContractRef
 	self          ContractRef
 
-	jumpdests destinations // result of JUMPDEST analysis.
+	jumpdests map[common.Hash]bitvec // result of JUMPDEST analysis.
+	analysis  bitvec
 
 	Code     []byte
 	CodeHash common.Hash
@@ -68,21 +69,17 @@ type Contract struct {
 
 	Gas   uint64
 	value *big.Int
-
-	Args []byte
-
-	DelegateCall bool
 }
 
 // NewContract returns a new contract environment for the execution of KVM.
 func NewContract(caller ContractRef, object ContractRef, value *big.Int, gas uint64) *Contract {
-	c := &Contract{CallerAddress: caller.Address(), caller: caller, self: object, Args: nil}
+	c := &Contract{CallerAddress: caller.Address(), caller: caller, self: object}
 
 	if parent, ok := caller.(*Contract); ok {
 		// Reuse JUMPDEST analysis from parent context if available.
 		c.jumpdests = parent.jumpdests
 	} else {
-		c.jumpdests = make(destinations)
+		c.jumpdests = make(map[common.Hash]bitvec)
 	}
 
 	// Gas should be a pointer so it can safely be reduced through the run
@@ -94,10 +91,42 @@ func NewContract(caller ContractRef, object ContractRef, value *big.Int, gas uin
 	return c
 }
 
+func (c *Contract) validJumpdest(dest *big.Int) bool {
+	udest := dest.Uint64()
+	// PC cannot go beyond len(code) and certainly can't be bigger than 63bits.
+	// Don't bother checking for JUMPDEST in that case.
+	if dest.BitLen() >= 63 || udest >= uint64(len(c.Code)) {
+		return false
+	}
+	// Only JUMPDESTs allowed for destinations
+	if OpCode(c.Code[udest]) != JUMPDEST {
+		return false
+	}
+	// Do we have a contract hash already?
+	if c.CodeHash != (common.Hash{}) {
+		// Does parent context have the analysis?
+		analysis, exist := c.jumpdests[c.CodeHash]
+		if !exist {
+			// Do the analysis and save in parent context
+			// We do not need to store it in c.analysis
+			analysis = codeBitmap(c.Code)
+			c.jumpdests[c.CodeHash] = analysis
+		}
+		return analysis.codeSegment(udest)
+	}
+	// We don't have the code hash, most likely a piece of initcode not already
+	// in state trie. In that case, we do an analysis, and save it locally, so
+	// we don't have to recalculate it for every JUMP instruction in the execution
+	// However, we don't save it within the parent context
+	if c.analysis == nil {
+		c.analysis = codeBitmap(c.Code)
+	}
+	return c.analysis.codeSegment(udest)
+}
+
 // AsDelegate sets the contract to be a delegate call and returns the current
 // contract (for chaining calls)
 func (c *Contract) AsDelegate() *Contract {
-	c.DelegateCall = true
 	// NOTE: caller must, at all times be a contract. It should never happen
 	// that caller is something other than a Contract.
 	parent := c.caller.(*Contract)
@@ -107,6 +136,11 @@ func (c *Contract) AsDelegate() *Contract {
 	return c
 }
 
+// GetOp returns the n'th element in the contract's byte array
+func (c *Contract) GetOp(n uint64) OpCode {
+	return OpCode(c.GetByte(n))
+}
+
 // GetByte returns the n'th byte in the contract's byte array
 func (c *Contract) GetByte(n uint64) byte {
 	if n < uint64(len(c.Code)) {
@@ -114,11 +148,6 @@ func (c *Contract) GetByte(n uint64) byte {
 	}
 
 	return 0
-}
-
-// GetOp returns the n'th element in the contract's byte array
-func (c *Contract) GetOp(n uint64) OpCode {
-	return OpCode(c.GetByte(n))
 }
 
 // Caller returns the caller of the contract.
@@ -148,12 +177,6 @@ func (c *Contract) Value() *big.Int {
 	return c.value
 }
 
-// SetCode sets the code to the contract
-func (c *Contract) SetCode(hash common.Hash, code []byte) {
-	c.Code = code
-	c.CodeHash = hash
-}
-
 // SetCallCode sets the code of the contract and address of the backing data
 // object
 func (c *Contract) SetCallCode(addr *common.Address, hash common.Hash, code []byte) {
@@ -163,27 +186,6 @@ func (c *Contract) SetCallCode(addr *common.Address, hash common.Hash, code []by
 }
 
 //====================================================================================
-// destinations stores one map per contract (keyed by hash of code).
-// The maps contain an entry for each location of a JUMPDEST
-// instruction.
-type destinations map[common.Hash]bitvec
-
-// has checks whether code has a JUMPDEST at dest.
-func (d destinations) has(codehash common.Hash, code []byte, dest *big.Int) bool {
-	// PC cannot go beyond len(code) and certainly can't be bigger than 63bits.
-	// Don't bother checking for JUMPDEST in that case.
-	udest := dest.Uint64()
-	if dest.BitLen() >= 63 || udest >= uint64(len(code)) {
-		return false
-	}
-
-	m, analysed := d[codehash]
-	if !analysed {
-		m = codeBitmap(code)
-		d[codehash] = m
-	}
-	return OpCode(code[udest]) == JUMPDEST && m.codeSegment(udest)
-}
 
 // bitvec is a bit vector which maps bytes in a program.
 // An unset bit means the byte is an opcode, a set bit means

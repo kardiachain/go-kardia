@@ -628,12 +628,12 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 		senderAddr,
 		proxy.KardiaBlockChain(),
 		stateDB,
-		originalTx, )
+		originalTx)
 	if err != nil {
 		return err
 	}
 	proxy.Logger().Info("Release info", "release", releases, "sender", senderAddr.Hex(), "originalTx", originalTx,
-		"fromType", fromType, "toType", toType, "fromAmount", fromAmount, "toAmount", toAmount, )
+		"fromType", fromType, "toType", toType, "fromAmount", fromAmount, "toAmount", toAmount)
 
 	if releases != "" {
 		fields := strings.Split(releases, configs.ExchangeV2ReleaseFieldsSeparator)
