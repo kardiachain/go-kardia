@@ -366,7 +366,7 @@ func opSAR(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stac
 	defer kvm.interpreter.intPool.put(shift) // First operand back into the pool
 
 	if shift.Cmp(common.Big256) >= 0 {
-		if value.Sign() > 0 {
+		if value.Sign() >= 0 {
 			value.SetUint64(0)
 		} else {
 			value.SetInt64(-1)
@@ -393,7 +393,7 @@ func opSha3(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Sta
 	kvm.interpreter.hasher.Write(data)
 	kvm.interpreter.hasher.Read(kvm.interpreter.hasherBuf[:])
 
-	vm := kvm.interpreter.kvm
+	vm := kvm
 	if vm.vmConfig.EnablePreimageRecording {
 		vm.StateDB.AddPreimage(kvm.interpreter.hasherBuf, data)
 	}
@@ -410,12 +410,12 @@ func opAddress(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *
 
 func opBalance(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	slot := stack.peek()
-	slot.Set(kvm.interpreter.kvm.StateDB.GetBalance(common.BigToAddress(slot)))
+	slot.Set(kvm.StateDB.GetBalance(common.BigToAddress(slot)))
 	return nil, nil
 }
 
 func opOrigin(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.interpreter.kvm.Origin.Bytes()))
+	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.Origin.Bytes()))
 	return nil, nil
 }
 
@@ -516,40 +516,40 @@ func opExtCodeCopy(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, sta
 }
 
 func opGasprice(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().Set(kvm.interpreter.kvm.GasPrice))
+	stack.push(kvm.interpreter.intPool.get().Set(kvm.GasPrice))
 	return nil, nil
 }
 
 func opBlockhash(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	num := stack.pop()
 
-	n := kvm.interpreter.intPool.get().Sub(new(big.Int).SetUint64(kvm.BlockHeight), common.Big257)
-	if num.Cmp(n) > 0 && num.Cmp(new(big.Int).SetUint64(kvm.BlockHeight)) < 0 {
-		stack.push(kvm.interpreter.kvm.GetHash(num.Uint64()).Big())
+	n := kvm.interpreter.intPool.get().Sub(kvm.BlockHeight, common.Big257)
+	if num.Cmp(n) > 0 && num.Cmp(kvm.BlockHeight) < 0 {
+		stack.push(kvm.GetHash(num.Uint64()).Big())
 	} else {
-		stack.push(kvm.interpreter.kvm.interpreter.intPool.getZero())
+		stack.push(kvm.interpreter.intPool.getZero())
 	}
 	kvm.interpreter.intPool.put(num, n)
 	return nil, nil
 }
 
 func opCoinbase(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.interpreter.kvm.Coinbase.Bytes()))
+	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.Coinbase.Bytes()))
 	return nil, nil
 }
 
 func opTimestamp(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(common.U256(kvm.interpreter.intPool.get().Set(kvm.interpreter.kvm.Time)))
+	stack.push(common.U256(kvm.interpreter.intPool.get().Set(kvm.Time)))
 	return nil, nil
 }
 
 func opNumber(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(common.U256(kvm.interpreter.intPool.get().Set(new(big.Int).SetUint64(kvm.interpreter.kvm.BlockHeight))))
+	stack.push(common.U256(kvm.interpreter.intPool.get().Set(kvm.BlockHeight)))
 	return nil, nil
 }
 
 func opGasLimit(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(common.U256(kvm.interpreter.intPool.get().SetUint64(kvm.interpreter.kvm.GasLimit)))
+	stack.push(common.U256(kvm.interpreter.intPool.get().SetUint64(kvm.GasLimit)))
 	return nil, nil
 }
 
@@ -585,7 +585,7 @@ func opMstore8(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *
 
 func opSload(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	loc := stack.peek()
-	val := kvm.interpreter.kvm.StateDB.GetState(contract.Address(), common.BigToHash(loc))
+	val := kvm.StateDB.GetState(contract.Address(), common.BigToHash(loc))
 	loc.SetBytes(val.Bytes())
 	return nil, nil
 }
@@ -593,7 +593,7 @@ func opSload(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *St
 func opSstore(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
 	loc := common.BigToHash(stack.pop())
 	val := stack.pop()
-	kvm.interpreter.kvm.StateDB.SetState(contract.Address(), loc, common.BigToHash(val))
+	kvm.StateDB.SetState(contract.Address(), loc, common.BigToHash(val))
 
 	kvm.interpreter.intPool.put(val)
 	return nil, nil
@@ -653,12 +653,12 @@ func opCreate(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *S
 	)
 
 	contract.UseGas(gas)
-	res, addr, returnGas, suberr := kvm.interpreter.kvm.Create(contract, input, gas, value)
+	res, addr, returnGas, suberr := kvm.Create(contract, input, gas, value)
 	// Push item on the stack based on the returned error. If the ruleset is
 	// homestead we must check for CodeStoreOutOfGasError (homestead only
 	// rule) and treat as an error, if the ruleset is frontier we must
 	// ignore this error and pretend the operation was successful.
-	if suberr != nil {
+	if suberr != nil && suberr != ErrCodeStoreOutOfGas {
 		stack.push(kvm.interpreter.intPool.getZero())
 	} else {
 		stack.push(kvm.interpreter.intPool.get().SetBytes(addr.Bytes()))
@@ -881,7 +881,7 @@ func makeLog(size int) executionFunc {
 			Data:    d,
 			// This is a non-consensus field, but assigned here because
 			// core/state doesn't know the current block height.
-			BlockHeight: kvm.BlockHeight,
+			BlockHeight: kvm.BlockHeight.Uint64(),
 		})
 
 		kvm.interpreter.intPool.put(mStart, mSize)

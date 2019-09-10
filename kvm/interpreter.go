@@ -131,6 +131,8 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		gasCopy uint64 // for Tracer to log gas remaining before execution
 		logged  bool   // deferred Tracer should ignore already logged steps
 		*/
+		res []byte // result of the opcode execution function
+
 	)
 	contract.Input = input
 
@@ -222,7 +224,7 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		}
 		*/
 		// execute the operation
-		res, err := operation.execute(&pc, in.kvm, contract, mem, stack)
+		res, err = operation.execute(&pc, in.kvm, contract, mem, stack)
 
 		// if the operation clears the return data (e.g. it has returning data)
 		// set the last return to the result of the operation.

@@ -96,7 +96,10 @@ func (st *Stack) Print() {
 	fmt.Println("#############")
 }
 
+// #######################################################
 // Stack table
+// #######################################################
+
 func minSwapStack(n int) int {
 	return minStack(n, n)
 }

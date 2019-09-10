@@ -24,6 +24,11 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
+var (
+	big1  = big.NewInt(1)
+	big32 = big.NewInt(32)
+)
+
 // calculates the memory size required for a step
 func calcMemSize(off, l *big.Int) (uint64, bool) {
 	if l.IsUint64() {
@@ -46,7 +51,6 @@ func calcMemSizeWithUint(off *big.Int, length64 uint64) (uint64, bool) {
 	}
 	offset64 := off.Uint64()
 	val := offset64 + length64
-
 	// if value < either of it's parts, then it overflowed
 	return val, val < offset64
 }
@@ -96,5 +100,5 @@ func allZero(b []byte) bool {
 // bigUint64 returns the integer casted to a uint64 and returns whether it
 // overflowed in the process.
 func bigUint64(v *big.Int) (uint64, bool) {
-	return v.Uint64(), v.BitLen() > 64
+	return v.Uint64(), !v.IsUint64()
 }

@@ -405,6 +405,9 @@ func gasSuicide(gt configs.GasTable, kvm *KVM, contract *Contract, stack *Stack,
 	// if empty and transfers value
 	if kvm.StateDB.Empty(address) && kvm.StateDB.GetBalance(contract.Address()).Sign() != 0 {
 		gas += gt.CreateBySuicide
+		// just to clear all cases
+	} else if !kvm.StateDB.Exist(address) {
+		gas += gt.CreateBySuicide
 	}
 
 	if !kvm.StateDB.HasSuicided(contract.Address()) {

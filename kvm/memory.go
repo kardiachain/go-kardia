@@ -147,15 +147,15 @@ func memoryExtCodeCopy(stack *Stack) (uint64, bool) {
 }
 
 func memoryMLoad(stack *Stack) (uint64, bool) {
-	return calcMemSize(stack.Back(0), big.NewInt(32))
+	return calcMemSizeWithUint(stack.Back(0), 32)
 }
 
 func memoryMStore8(stack *Stack) (uint64, bool) {
-	return calcMemSize(stack.Back(0), big.NewInt(1))
+	return calcMemSizeWithUint(stack.Back(0), 32)
 }
 
 func memoryMStore(stack *Stack) (uint64, bool) {
-	return calcMemSize(stack.Back(0), big.NewInt(32))
+	return calcMemSizeWithUint(stack.Back(0), 32)
 }
 
 func memoryCreate(stack *Stack) (uint64, bool) {
