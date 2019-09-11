@@ -540,6 +540,12 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 	if err != nil {
 		return nil, 0, false, err
 	}
+
+	// If the timer caused an abort, return an appropriate error message
+	if kvm.Cancelled() {
+		return nil, 0, false, fmt.Errorf("execution aborted (timeout = %v)", timeout)
+	}
+
 	return res, gas, failed, err
 }
 
