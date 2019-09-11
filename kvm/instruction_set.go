@@ -60,7 +60,17 @@ type JumpTable [256]operation
 
 // NewInstructionSet returns the instructions that are supported by Kardia interpreter.
 func newKardiaInstructionSet() JumpTable {
-	return [256]operation{
+	return JumpTable{
+		DELEGATECALL: {
+			execute:     opDelegateCall,
+			dynamicGas:  gasDelegateCall,
+			constantGas: configs.CallGas,
+			minStack:    minStack(6, 1),
+			maxStack:    maxStack(6, 1),
+			memorySize:  memoryDelegateCall,
+			valid:       true,
+			returns:     true,
+		},
 		STOP: {
 			execute:     opStop,
 			constantGas: 0,
