@@ -16,7 +16,4 @@
 
 #dep
 vendor/
-
-# Build & run file
-go-kardia
-run.sh
+.vendor-new

@@ -24,14 +24,12 @@ import (
 	"io/ioutil"
 	"math/big"
 	"math/rand"
-	"os"
 	"reflect"
 	"testing"
 	"testing/quick"
 
 	"github.com/davecgh/go-spew/spew"
 
-	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/rlp"
@@ -44,7 +42,7 @@ func init() {
 
 // Used for testing
 func newEmpty() *Trie {
-	trie, _ := New(common.Hash{}, NewDatabase(kaidb.NewMemStore()))
+	trie, _ := New(common.Hash{}, NewDatabase(NewMemStore()))
 	return trie
 }
 
@@ -68,7 +66,7 @@ func TestNull(t *testing.T) {
 }
 
 func TestMissingRoot(t *testing.T) {
-	trie, err := New(common.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"), NewDatabase(kaidb.NewMemStore()))
+	trie, err := New(common.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"), NewDatabase(NewMemStore()))
 	if trie != nil {
 		t.Error("New returned non-nil trie for invalid root")
 	}
@@ -81,7 +79,7 @@ func TestMissingNodeDisk(t *testing.T)    { testMissingNode(t, false) }
 func TestMissingNodeMemonly(t *testing.T) { testMissingNode(t, true) }
 
 func testMissingNode(t *testing.T, memonly bool) {
-	diskdb := kaidb.NewMemStore()
+	diskdb := NewMemStore()
 	triedb := NewDatabase(diskdb)
 
 	trie, _ := New(common.Hash{}, triedb)
@@ -328,12 +326,12 @@ func TestLargeValue(t *testing.T) {
 }
 
 type countingDB struct {
-	kaidb.Database
+	Database
 	gets map[string]int
 }
 
-func (db *countingDB) Get(key []byte) ([]byte, error) {
-	db.gets[string(key)]++
+func (db *countingDB) Get(key interface{}) (interface{}, error) {
+	db.gets[string(key.([]byte))]++
 	return db.Database.Get(key)
 }
 
@@ -422,7 +420,7 @@ func (randTest) Generate(r *rand.Rand, size int) reflect.Value {
 }
 
 func runRandTest(rt randTest) bool {
-	triedb := NewDatabase(kaidb.NewMemStore())
+	triedb := NewDatabase(NewMemStore())
 
 	tr, _ := New(common.Hash{}, triedb)
 	values := make(map[string]string) // tracks content of the trie
@@ -548,12 +546,6 @@ func benchGet(b *testing.B, commit bool) {
 		trie.Get(k)
 	}
 	b.StopTimer()
-
-	if commit {
-		ldb := trie.db.diskdb.(*kaidb.LDBStore)
-		ldb.Close()
-		os.RemoveAll(ldb.Path())
-	}
 }
 
 func benchUpdate(b *testing.B, e binary.ByteOrder) *Trie {
@@ -606,7 +598,7 @@ func tempDB() (string, *TrieDatabase) {
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary directory: %v", err))
 	}
-	diskdb, err := kaidb.NewLDBStore(dir, 256, 0)
+	diskdb := NewMemStore()
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}

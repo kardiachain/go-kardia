@@ -26,7 +26,6 @@ import (
 	"encoding/hex"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
-	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
@@ -252,7 +251,7 @@ var definition = `[
 
 // Util function to setup abi for contract
 func SetupContractAbi() (*state.StateDB, common.Address, *abi.ABI, error) {
-	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
 
 	address := common.HexToAddress("0x0a")
 
@@ -283,7 +282,7 @@ func ApplyTransactionReturnLog(bc base.BaseBlockChain, statedb *state.StateDB, t
 }
 
 func SetupBlockchainForTesting() (*blockchain.BlockChain, error) {
-	kaiDb := kaidb.NewMemStore()
+	kaiDb := types.NewMemStore()
 	initValue := genesis.ToCell(int64(math.Pow10(6)))
 
 	var genesisAccounts = map[string]*big.Int{

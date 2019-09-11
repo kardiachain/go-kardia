@@ -261,7 +261,7 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 // Database starts a new or existed database in the node data directory, or in-memory database.
 func (c *NodeConfig) StartDatabase(dbInfo storage.DbInfo) (types.Database, error) {
 	if c.DataDir == "" {
-		return storage.NewMemStore(), nil
+		return types.NewMemStore(), nil
 	}
 	return dbInfo.Start()
 }

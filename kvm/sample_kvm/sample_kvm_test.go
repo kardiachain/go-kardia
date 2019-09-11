@@ -1,12 +1,12 @@
 package sample_kvm
 
 import (
+	"github.com/kardiachain/go-kardia/types"
 	"math/big"
 	"strings"
 	"testing"
 
 	"github.com/kardiachain/go-kardia/kai/state"
-	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -74,7 +74,7 @@ func TestExecute(t *testing.T) {
 }
 
 func TestCall(t *testing.T) {
-	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
 	address := common.HexToAddress("0x0a")
 	state.SetCode(address, []byte{
 		byte(kvm.PUSH1), 10,
@@ -127,7 +127,7 @@ func TestCreateSimpleCounterSmc(t *testing.T) {
 // Test executing the counter smart contract on KVM
 // Note: Call uses the runtime_bytecode from the compiler, unlike the raw bytecode as in the previous unit test
 func TestCallSimpleCounterSmc(t *testing.T) {
-	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
 	address := common.HexToAddress("0x0a")
 
 	// Add runtime_bytecode for counter.sol to execute the smc:
@@ -169,7 +169,7 @@ func TestCallSimpleCounterSmc(t *testing.T) {
 }
 
 func TestChangeBalance(t *testing.T) {
-	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
 	var address = common.HexToAddress("0x0b")
 	state.CreateAccount(address)
 	state.AddBalance(address, big.NewInt(500))
@@ -187,7 +187,7 @@ func TestChangeBalance(t *testing.T) {
 }
 
 func TestCallSmcDeductBalance(t *testing.T) {
-	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
 	var sender = common.HexToAddress("0x0b")
 	state.CreateAccount(sender)
 	state.AddBalance(sender, big.NewInt(500))
@@ -224,7 +224,7 @@ func TestCallSmcDeductBalance(t *testing.T) {
 // This test contains all the test cases for interfaces of the decentralized exchange contract
 // Please find the solidity source code at go-kardia/kvm/smc/Exchange.sol
 func TestDecentralizedExchangeContract(t *testing.T) {
-	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
 
 	address := common.HexToAddress("0x0a")
 

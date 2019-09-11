@@ -21,12 +21,11 @@ package tool
 import (
 	"testing"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state"
-	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/configs"
 )
 
 func TestGenerateTx(t *testing.T) {
@@ -74,7 +73,7 @@ func TestGenerateRandomTx(t *testing.T) {
 
 func TestGenerateRandomTxWithState(t *testing.T) {
 	genTool := NewGeneratorTool(GetAccounts(configs.GenesisAddrKeys))
-	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(kaidb.NewMemStore()))
+	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
 	result := genTool.GenerateRandomTxWithState(10, statedb)
 	for _, txInterface := range result {
 		tx := txInterface.(*types.Transaction)

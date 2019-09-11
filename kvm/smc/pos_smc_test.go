@@ -19,13 +19,13 @@
 package kvm
 
 import (
-	kaidb "github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/types"
 	"math"
 	"math/big"
 	"strings"
@@ -148,7 +148,7 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, error) {
 		"0x5678": initValue,
 		"0xabcd": initValue,
 	}
-	kaiDb := kaidb.NewMemStore()
+	kaiDb := types.NewMemStore()
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g)
 	if genesisErr != nil {
