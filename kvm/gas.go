@@ -21,8 +21,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/ttceco/gttc/common/math"
-	"github.com/ttceco/gttc/params"
 )
 
 // Gas costs
@@ -104,11 +102,11 @@ func memoryCopierGas(stackpos int) gasFunc {
 			return 0, errGasUintOverflow
 		}
 
-		if words, overflow = math.SafeMul(toWordSize(words), params.CopyGas); overflow {
+		if words, overflow = common.SafeMul(toWordSize(words), configs.CopyGas); overflow {
 			return 0, errGasUintOverflow
 		}
 
-		if gas, overflow = math.SafeAdd(gas, words); overflow {
+		if gas, overflow = common.SafeAdd(gas, words); overflow {
 			return 0, errGasUintOverflow
 		}
 		return gas, nil
@@ -258,7 +256,7 @@ func gasCallCode(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memory
 		overflow bool
 	)
 	if stack.Back(2).Sign() != 0 {
-		gas += params.CallValueTransferGas
+		gas += configs.CallValueTransferGas
 	}
 	if gas, overflow = common.SafeAdd(gas, memoryGas); overflow {
 		return 0, errGasUintOverflow

@@ -20,8 +20,6 @@ import (
 	"errors"
 
 	"github.com/kardiachain/go-kardia/configs"
-
-	"github.com/ttceco/gttc/params"
 )
 
 type (
@@ -235,7 +233,7 @@ func newKardiaInstructionSet() JumpTable {
 		},
 		SHA3: {
 			execute:     opSha3,
-			constantGas: params.Sha3Gas,
+			constantGas: configs.Sha3Gas,
 			dynamicGas:  gasSha3,
 			minStack:    minStack(2, 1),
 			maxStack:    maxStack(2, 1),
@@ -463,7 +461,7 @@ func newKardiaInstructionSet() JumpTable {
 		},
 		JUMPDEST: {
 			execute:     opJumpdest,
-			constantGas: params.JumpdestGas,
+			constantGas: configs.JumpdestGas,
 			minStack:    minStack(0, 0),
 			maxStack:    maxStack(0, 0),
 			valid:       true,
@@ -963,7 +961,7 @@ func newKardiaInstructionSet() JumpTable {
 		},
 		CREATE: {
 			execute:     opCreate,
-			constantGas: params.CreateGas,
+			constantGas: configs.CreateGas,
 			dynamicGas:  gasCreate,
 			minStack:    minStack(3, 1),
 			maxStack:    maxStack(3, 1),
