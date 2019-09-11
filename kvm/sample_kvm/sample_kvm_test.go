@@ -679,11 +679,11 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 
 	// complete order 1
 	completeInput1, e7 := abi.Pack("completeRequest", big.NewInt(1), "ETH-NEO")
-	if (e7 != nil) {
+	if e7 != nil {
 		t.Fatal(e7)
 	}
 	completeResult1, gas, e8 := Call(address, completeInput1, &Config{State: state})
-	if (e8 != nil ) {
+	if e8 != nil {
 		t.Fatal(e8)
 	}
 	if big.NewInt(0).SetBytes(completeResult1).Cmp(big.NewInt(1)) != 0 {
@@ -692,11 +692,11 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 
 	// complete order 2
 	completeInput1, e7 = abi.Pack("completeRequest", big.NewInt(2), "NEO-ETH")
-	if (e7 != nil) {
+	if e7 != nil {
 		t.Fatal(e7)
 	}
 	completeResult1, gas, e8 = Call(address, completeInput1, &Config{State: state})
-	if (e8 != nil ) {
+	if e8 != nil {
 		t.Fatal(e8)
 	}
 	if big.NewInt(0).SetBytes(completeResult1).Cmp(big.NewInt(1)) != 0 {
@@ -713,7 +713,7 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 		t.Fatal(e6)
 	}
 	var matchableAmounts struct {
-		Amounts		[]*big.Int	`abi:"amounts"`
+		Amounts []*big.Int `abi:"amounts"`
 	}
 	// get matchable amount for NEO, should be 20 NEO
 	getMatchAmountsInput, _ := abi.Pack("getMatchableAmount", "ETH-NEO")

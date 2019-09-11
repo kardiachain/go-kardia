@@ -92,14 +92,14 @@ func NewContract(caller ContractRef, object ContractRef, value *big.Int, gas uin
 }
 
 func (c *Contract) validJumpdest(dest *big.Int) bool {
-	udest := dest.Uint64()
+	uDest := dest.Uint64()
 	// PC cannot go beyond len(code) and certainly can't be bigger than 63bits.
 	// Don't bother checking for JUMPDEST in that case.
-	if dest.BitLen() >= 63 || udest >= uint64(len(c.Code)) {
+	if dest.BitLen() >= 63 || uDest >= uint64(len(c.Code)) {
 		return false
 	}
 	// Only JUMPDESTs allowed for destinations
-	if OpCode(c.Code[udest]) != JUMPDEST {
+	if OpCode(c.Code[uDest]) != JUMPDEST {
 		return false
 	}
 	// Do we have a contract hash already?
@@ -112,7 +112,7 @@ func (c *Contract) validJumpdest(dest *big.Int) bool {
 			analysis = codeBitmap(c.Code)
 			c.jumpdests[c.CodeHash] = analysis
 		}
-		return analysis.codeSegment(udest)
+		return analysis.codeSegment(uDest)
 	}
 	// We don't have the code hash, most likely a piece of initcode not already
 	// in state trie. In that case, we do an analysis, and save it locally, so
@@ -121,7 +121,7 @@ func (c *Contract) validJumpdest(dest *big.Int) bool {
 	if c.analysis == nil {
 		c.analysis = codeBitmap(c.Code)
 	}
-	return c.analysis.codeSegment(udest)
+	return c.analysis.codeSegment(uDest)
 }
 
 // AsDelegate sets the contract to be a delegate call and returns the current

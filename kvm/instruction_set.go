@@ -20,11 +20,13 @@ import (
 	"errors"
 
 	"github.com/kardiachain/go-kardia/configs"
+
+	"github.com/ttceco/gttc/params"
 )
 
 type (
 	executionFunc func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error)
-	gasFunc       func(configs.GasTable, *KVM, *Contract, *Stack, *Memory, uint64) (uint64, error) // last parameter is the requested memory size as a uint64
+	gasFunc       func(*KVM, *Contract, *Stack, *Memory, uint64) (uint64, error) // last parameter is the requested memory size as a uint64
 	// memorySizeFunc returns the required size, and whether the operation overflowed a uint64
 	memorySizeFunc func(*Stack) (size uint64, overflow bool)
 )
@@ -53,8 +55,11 @@ type operation struct {
 	returns bool // determines whether the operations sets the return data content
 }
 
+// JumpTable contains opcodes of KVM
+type JumpTable [256]operation
+
 // NewInstructionSet returns the instructions that are supported by Kardia interpreter.
-func newKardiaInstructionSet() [256]operation {
+func newKardiaInstructionSet() JumpTable {
 	return [256]operation{
 		STOP: {
 			execute:     opStop,
@@ -219,12 +224,13 @@ func newKardiaInstructionSet() [256]operation {
 			valid:       true,
 		},
 		SHA3: {
-			execute:    opSha3,
-			dynamicGas: gasSha3,
-			minStack:   minStack(2, 1),
-			maxStack:   maxStack(2, 1),
-			memorySize: memorySha3,
-			valid:      true,
+			execute:     opSha3,
+			constantGas: params.Sha3Gas,
+			dynamicGas:  gasSha3,
+			minStack:    minStack(2, 1),
+			maxStack:    maxStack(2, 1),
+			memorySize:  memorySha3,
+			valid:       true,
 		},
 		ADDRESS: {
 			execute:     opAddress,
@@ -234,11 +240,11 @@ func newKardiaInstructionSet() [256]operation {
 			valid:       true,
 		},
 		BALANCE: {
-			execute:    opBalance,
-			dynamicGas: gasBalance,
-			minStack:   minStack(1, 1),
-			maxStack:   maxStack(1, 1),
-			valid:      true,
+			execute:     opBalance,
+			constantGas: configs.BalanceGas,
+			minStack:    minStack(1, 1),
+			maxStack:    maxStack(1, 1),
+			valid:       true,
 		},
 		ORIGIN: {
 			execute:     opOrigin,
@@ -276,12 +282,13 @@ func newKardiaInstructionSet() [256]operation {
 			valid:       true,
 		},
 		CALLDATACOPY: {
-			execute:    opCallDataCopy,
-			dynamicGas: gasCallDataCopy,
-			minStack:   minStack(3, 0),
-			maxStack:   maxStack(3, 0),
-			memorySize: memoryCallDataCopy,
-			valid:      true,
+			execute:     opCallDataCopy,
+			constantGas: GasFastestStep,
+			dynamicGas:  gasCallDataCopy,
+			minStack:    minStack(3, 0),
+			maxStack:    maxStack(3, 0),
+			memorySize:  memoryCallDataCopy,
+			valid:       true,
 		},
 		CODESIZE: {
 			execute:     opCodeSize,
@@ -291,12 +298,13 @@ func newKardiaInstructionSet() [256]operation {
 			valid:       true,
 		},
 		CODECOPY: {
-			execute:    opCodeCopy,
-			dynamicGas: gasCodeCopy,
-			minStack:   minStack(3, 0),
-			maxStack:   maxStack(3, 0),
-			memorySize: memoryCodeCopy,
-			valid:      true,
+			execute:     opCodeCopy,
+			constantGas: GasFastestStep,
+			dynamicGas:  gasCodeCopy,
+			minStack:    minStack(3, 0),
+			maxStack:    maxStack(3, 0),
+			memorySize:  memoryCodeCopy,
+			valid:       true,
 		},
 		GASPRICE: {
 			execute:     opGasprice,
@@ -306,19 +314,20 @@ func newKardiaInstructionSet() [256]operation {
 			valid:       true,
 		},
 		EXTCODESIZE: {
-			execute:    opExtCodeSize,
-			dynamicGas: gasExtCodeSize,
-			minStack:   minStack(1, 1),
-			maxStack:   maxStack(1, 1),
-			valid:      true,
+			execute:     opExtCodeSize,
+			constantGas: configs.ExtcodeSizeGas,
+			minStack:    minStack(1, 1),
+			maxStack:    maxStack(1, 1),
+			valid:       true,
 		},
 		EXTCODECOPY: {
-			execute:    opExtCodeCopy,
-			dynamicGas: gasExtCodeCopy,
-			minStack:   minStack(4, 0),
-			maxStack:   maxStack(4, 0),
-			memorySize: memoryExtCodeCopy,
-			valid:      true,
+			execute:     opExtCodeCopy,
+			constantGas: configs.ExtcodeCopyBase,
+			dynamicGas:  gasExtCodeCopy,
+			minStack:    minStack(4, 0),
+			maxStack:    maxStack(4, 0),
+			memorySize:  memoryExtCodeCopy,
+			valid:       true,
 		},
 		BLOCKHASH: {
 			execute:     opBlockhash,
@@ -363,36 +372,39 @@ func newKardiaInstructionSet() [256]operation {
 			valid:       true,
 		},
 		MLOAD: {
-			execute:    opMload,
-			dynamicGas: gasMLoad,
-			minStack:   minStack(1, 1),
-			maxStack:   maxStack(1, 1),
-			memorySize: memoryMLoad,
-			valid:      true,
+			execute:     opMload,
+			constantGas: GasFastestStep,
+			dynamicGas:  gasMLoad,
+			minStack:    minStack(1, 1),
+			maxStack:    maxStack(1, 1),
+			memorySize:  memoryMLoad,
+			valid:       true,
 		},
 		MSTORE: {
-			execute:    opMstore,
-			dynamicGas: gasMStore,
-			minStack:   minStack(2, 0),
-			maxStack:   maxStack(2, 0),
-			memorySize: memoryMStore,
-			valid:      true,
+			execute:     opMstore,
+			constantGas: GasFastestStep,
+			dynamicGas:  gasMStore,
+			minStack:    minStack(2, 0),
+			maxStack:    maxStack(2, 0),
+			memorySize:  memoryMStore,
+			valid:       true,
 		},
 		MSTORE8: {
-			execute:    opMstore8,
-			dynamicGas: gasMStore8,
-			memorySize: memoryMStore8,
-			minStack:   minStack(2, 0),
-			maxStack:   maxStack(2, 0),
+			execute:     opMstore8,
+			constantGas: GasFastestStep,
+			dynamicGas:  gasMStore8,
+			memorySize:  memoryMStore8,
+			minStack:    minStack(2, 0),
+			maxStack:    maxStack(2, 0),
 
 			valid: true,
 		},
 		SLOAD: {
-			execute:    opSload,
-			dynamicGas: gasSLoad,
-			minStack:   minStack(1, 1),
-			maxStack:   maxStack(1, 1),
-			valid:      true,
+			execute:     opSload,
+			constantGas: configs.SloadGas,
+			minStack:    minStack(1, 1),
+			maxStack:    maxStack(1, 1),
+			valid:       true,
 		},
 		SSTORE: {
 			execute:    opSstore,
@@ -441,7 +453,7 @@ func newKardiaInstructionSet() [256]operation {
 		},
 		JUMPDEST: {
 			execute:     opJumpdest,
-			constantGas: configs.JumpdestGas,
+			constantGas: params.JumpdestGas,
 			minStack:    minStack(0, 0),
 			maxStack:    maxStack(0, 0),
 			valid:       true,
@@ -940,32 +952,35 @@ func newKardiaInstructionSet() [256]operation {
 			writes:     true,
 		},
 		CREATE: {
-			execute:    opCreate,
-			dynamicGas: gasCreate,
-			minStack:   minStack(3, 1),
-			maxStack:   maxStack(3, 1),
-			memorySize: memoryCreate,
-			valid:      true,
-			writes:     true,
-			returns:    true,
+			execute:     opCreate,
+			constantGas: params.CreateGas,
+			dynamicGas:  gasCreate,
+			minStack:    minStack(3, 1),
+			maxStack:    maxStack(3, 1),
+			memorySize:  memoryCreate,
+			valid:       true,
+			writes:      true,
+			returns:     true,
 		},
 		CALL: {
-			execute:    opCall,
-			dynamicGas: gasCall,
-			minStack:   minStack(7, 1),
-			maxStack:   maxStack(7, 1),
-			memorySize: memoryCall,
-			valid:      true,
-			returns:    true,
+			execute:     opCall,
+			constantGas: configs.CallGas,
+			dynamicGas:  gasCall,
+			minStack:    minStack(7, 1),
+			maxStack:    maxStack(7, 1),
+			memorySize:  memoryCall,
+			valid:       true,
+			returns:     true,
 		},
 		CALLCODE: {
-			execute:    opCallCode,
-			dynamicGas: gasCallCode,
-			minStack:   minStack(7, 1),
-			maxStack:   maxStack(7, 1),
-			memorySize: memoryCall,
-			valid:      true,
-			returns:    true,
+			execute:     opCallCode,
+			constantGas: configs.CallGas,
+			dynamicGas:  gasCallCode,
+			minStack:    minStack(7, 1),
+			maxStack:    maxStack(7, 1),
+			memorySize:  memoryCall,
+			valid:       true,
+			returns:     true,
 		},
 		RETURN: {
 			execute:    opReturn,
@@ -978,7 +993,7 @@ func newKardiaInstructionSet() [256]operation {
 		},
 		SELFDESTRUCT: {
 			execute:    opSuicide,
-			dynamicGas: gasSuicide,
+			dynamicGas: gasSelfdestruct,
 			minStack:   minStack(1, 0),
 			maxStack:   maxStack(1, 0),
 			halts:      true,

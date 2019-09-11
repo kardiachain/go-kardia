@@ -21,7 +21,6 @@ import (
 	"hash"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
@@ -53,9 +52,8 @@ type keccakState interface {
 // The Interpreter will run the byte code VM based on the passed
 // configuration.
 type Interpreter struct {
-	kvm      *KVM
-	cfg      Config
-	gasTable configs.GasTable
+	kvm *KVM
+	cfg Config
 
 	intPool *intPool
 
@@ -75,9 +73,8 @@ func NewInterpreter(kvm *KVM, cfg Config) *Interpreter {
 		cfg.JumpTable = newKardiaInstructionSet()
 	}
 	return &Interpreter{
-		kvm:      kvm,
-		cfg:      cfg,
-		gasTable: configs.GasTableV0,
+		kvm: kvm,
+		cfg: cfg,
 	}
 }
 
@@ -179,12 +176,18 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		}
 		// If the operation is valid, enforce and write restrictions
 		if in.readOnly {
+			// If the interpreter is operating in readonly mode, make sure no
+			// state-modifying operation is performed. The 3rd stack item
+			// for a call operation is the value. Transferring value from one
+			// account to the others means the state is modified and should also
+			// return with an error.
 			if operation.writes || (op == CALL && stack.Back(2).Sign() != 0) {
 				return nil, errWriteProtection
 			}
 		}
 
 		// Static portion of gas
+		cost = operation.constantGas
 		if !contract.UseGas(operation.constantGas) {
 			return nil, ErrOutOfGas
 		}
@@ -209,7 +212,9 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		// consume the gas and return an error if not enough gas is available.
 		// cost is explicitly set so that the capture state defer method can get the proper cost
 		if operation.dynamicGas != nil {
-			cost, err = operation.dynamicGas(in.gasTable, in.kvm, contract, stack, mem, memorySize)
+			var dynamicCost uint64
+			dynamicCost, err = operation.dynamicGas(in.kvm, contract, stack, mem, memorySize)
+			cost += dynamicCost
 			if err != nil || !contract.UseGas(cost) {
 				return nil, ErrOutOfGas
 			}

@@ -815,7 +815,7 @@ func opPush1(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *St
 		codeLen = uint64(len(contract.Code))
 		integer = kvm.interpreter.intPool.get()
 	)
-	*pc++
+	*pc += 1
 	if *pc < codeLen {
 		stack.push(integer.SetUint64(uint64(contract.Code[*pc])))
 	} else {

@@ -74,7 +74,6 @@ var (
 type GasTable struct {
 	ExtcodeSize uint64
 	ExtcodeCopy uint64
-	ExtcodeHash uint64
 	Balance     uint64
 	SLoad       uint64
 	Calls       uint64
@@ -89,22 +88,6 @@ type GasTable struct {
 	// not charged.
 	CreateBySuicide uint64
 }
-
-// Variables containing gas prices for different ethereum phases.
-var (
-	// GasTableV0 contain the gas prices for the initial phase.
-	GasTableV0 = GasTable{
-		ExtcodeSize: 700,
-		ExtcodeCopy: 700,
-		Balance:     400,
-		SLoad:       200,
-		Calls:       700,
-		Suicide:     5000,
-		ExpByte:     50,
-
-		CreateBySuicide: 25000,
-	}
-)
 
 func configNumEqual(x, y *big.Int) bool {
 	if x == nil {
