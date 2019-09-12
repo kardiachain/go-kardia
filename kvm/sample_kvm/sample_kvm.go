@@ -63,7 +63,7 @@ func NewEnv(cfg *Config) *kvm.KVM {
 
 		Origin:      cfg.Origin,
 		Coinbase:    cfg.Coinbase,
-		BlockHeight: cfg.BlockHeight,
+		BlockHeight: new(big.Int).SetUint64(cfg.BlockHeight),
 		Time:        cfg.Time,
 		GasLimit:    cfg.GasLimit,
 		GasPrice:    cfg.GasPrice,

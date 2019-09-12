@@ -18,9 +18,9 @@ package kvm
 
 import (
 	"fmt"
+	"hash"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
@@ -28,8 +28,8 @@ import (
 type Config struct {
 	// NoRecursion disabled Interpreter call, callcode,
 	// delegate call and create.
-	NoRecursion bool
-
+	NoRecursion             bool
+	EnablePreimageRecording bool // Enables recording of SHA3/keccak preimages
 	// JumpTable contains the KVM instruction table. This
 	// may be left uninitialised and will be set to the default
 	// table.
@@ -39,15 +39,26 @@ type Config struct {
 	IsZeroFee bool
 }
 
+// keccakState wraps sha3.state. In addition to the usual hash methods, it also supports
+// Read to get a variable amount of data from the hash state. Read is faster than Sum
+// because it doesn't copy the internal state, but also modifies the internal state.
+type keccakState interface {
+	hash.Hash
+	Read([]byte) (int, error)
+}
+
 // Interpreter is used to run Kardia based contracts and will utilise the
 // passed environment to query external sources for state information.
 // The Interpreter will run the byte code VM based on the passed
 // configuration.
 type Interpreter struct {
-	kvm      *KVM
-	cfg      Config
-	gasTable configs.GasTable
-	intPool  *intPool
+	kvm *KVM
+	cfg Config
+
+	intPool *intPool
+
+	hasher    keccakState // Keccak256 hasher instance shared across opcodes
+	hasherBuf common.Hash // Keccak256 hasher result array shared aross opcode
 
 	readOnly   bool   // Whether to throw on stateful modifications
 	returnData []byte // Last CALL's return data for subsequent reuse
@@ -62,24 +73,9 @@ func NewInterpreter(kvm *KVM, cfg Config) *Interpreter {
 		cfg.JumpTable = newKardiaInstructionSet()
 	}
 	return &Interpreter{
-		kvm:      kvm,
-		cfg:      cfg,
-		gasTable: configs.GasTableV0,
+		kvm: kvm,
+		cfg: cfg,
 	}
-}
-
-func (in *Interpreter) enforceRestrictions(op OpCode, operation operation, stack *Stack) error {
-	if in.readOnly {
-		// If the interpreter is operating in readonly mode, make sure no
-		// state-modifying operation is performed. The 3rd stack item
-		// for a call operation is the value. Transferring value from one
-		// account to the others means the state is modified and should also
-		// return with an error.
-		if operation.writes || (op == CALL && stack.Back(2).BitLen() > 0) {
-			return errWriteProtection
-		}
-	}
-	return nil
 }
 
 // Run loops and evaluates the contract's code with the given input data and returns
@@ -88,7 +84,7 @@ func (in *Interpreter) enforceRestrictions(op OpCode, operation operation, stack
 // It's important to note that any errors returned by the interpreter should be
 // considered a revert-and-consume-all-gas operation except for
 // errExecutionReverted which means revert-and-keep-gas-left.
-func (in *Interpreter) Run(contract *Contract, input []byte) (ret []byte, err error) {
+func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret []byte, err error) {
 	if in.intPool == nil {
 		in.intPool = poolOfIntPools.get()
 		defer func() {
@@ -100,6 +96,13 @@ func (in *Interpreter) Run(contract *Contract, input []byte) (ret []byte, err er
 	// Increment the call depth which is restricted to 1024
 	in.kvm.depth++
 	defer func() { in.kvm.depth-- }()
+
+	// Make sure the readOnly is only set if we aren't in readOnly yet.
+	// This makes also sure that the readOnly flag isn't removed for child calls.
+	if readOnly && !in.readOnly {
+		in.readOnly = true
+		defer func() { in.readOnly = false }()
+	}
 
 	// Reset the previous call's return data. It's unimportant to preserve the old buffer
 	// as every returning call will return new data anyway.
@@ -125,6 +128,8 @@ func (in *Interpreter) Run(contract *Contract, input []byte) (ret []byte, err er
 		gasCopy uint64 // for Tracer to log gas remaining before execution
 		logged  bool   // deferred Tracer should ignore already logged steps
 		*/
+		res []byte // result of the opcode execution function
+
 	)
 	contract.Input = input
 
@@ -163,19 +168,37 @@ func (in *Interpreter) Run(contract *Contract, input []byte) (ret []byte, err er
 		if !operation.valid {
 			return nil, fmt.Errorf("invalid opcode 0x%x", int(op))
 		}
-		if err := operation.validateStack(stack); err != nil {
-			return nil, err
+		// Validate stack
+		if sLen := stack.len(); sLen < operation.minStack {
+			return nil, fmt.Errorf("stack underflow (%d <=> %d)", sLen, operation.minStack)
+		} else if sLen > operation.maxStack {
+			return nil, fmt.Errorf("stack limit reached %d (%d)", sLen, operation.maxStack)
 		}
 		// If the operation is valid, enforce and write restrictions
-		if err := in.enforceRestrictions(op, operation, stack); err != nil {
-			return nil, err
+		if in.readOnly {
+			// If the interpreter is operating in readonly mode, make sure no
+			// state-modifying operation is performed. The 3rd stack item
+			// for a call operation is the value. Transferring value from one
+			// account to the others means the state is modified and should also
+			// return with an error.
+			if operation.writes || (op == CALL && stack.Back(2).Sign() != 0) {
+				return nil, errWriteProtection
+			}
+		}
+
+		// Static portion of gas
+		cost = operation.constantGas
+		if !contract.UseGas(operation.constantGas) {
+			return nil, ErrOutOfGas
 		}
 
 		var memorySize uint64
 		// calculate the new memory size and expand the memory to fit
 		// the operation
+		// Memory check needs to be done prior to evaluating the dynamic gas portion,
+		// to detect calculation overflows
 		if operation.memorySize != nil {
-			memSize, overflow := bigUint64(operation.memorySize(stack))
+			memSize, overflow := operation.memorySize(stack)
 			if overflow {
 				return nil, errGasUintOverflow
 			}
@@ -185,11 +208,16 @@ func (in *Interpreter) Run(contract *Contract, input []byte) (ret []byte, err er
 				return nil, errGasUintOverflow
 			}
 		}
+		// Dynamic portion of gas
 		// consume the gas and return an error if not enough gas is available.
 		// cost is explicitly set so that the capture state defer method can get the proper cost
-		cost, err = operation.gasCost(in.gasTable, in.kvm, contract, stack, mem, memorySize)
-		if err != nil || !contract.UseGas(cost) {
-			return nil, ErrOutOfGas
+		if operation.dynamicGas != nil {
+			var dynamicCost uint64
+			dynamicCost, err = operation.dynamicGas(in.kvm, contract, stack, mem, memorySize)
+			cost += dynamicCost
+			if err != nil || !contract.UseGas(cost) {
+				return nil, ErrOutOfGas
+			}
 		}
 		if memorySize > 0 {
 			mem.Resize(memorySize)
@@ -201,7 +229,7 @@ func (in *Interpreter) Run(contract *Contract, input []byte) (ret []byte, err er
 		}
 		*/
 		// execute the operation
-		res, err := operation.execute(&pc, in.kvm, contract, mem, stack)
+		res, err = operation.execute(&pc, in.kvm, contract, mem, stack)
 
 		// if the operation clears the return data (e.g. it has returning data)
 		// set the last return to the result of the operation.

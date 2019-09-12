@@ -20,8 +20,9 @@ package state
 
 import (
 	"fmt"
-	"github.com/kardiachain/go-kardia/types"
 	"sync"
+
+	"github.com/kardiachain/go-kardia/types"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardia/lib/common"

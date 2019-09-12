@@ -17,6 +17,7 @@
 package kvm
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -61,6 +62,13 @@ func (m *Memory) Set32(offset uint64, val *big.Int) {
 	common.ReadBits(val, m.store[offset:offset+32])
 }
 
+// Resize resizes the memory to size
+func (m *Memory) Resize(size uint64) {
+	if uint64(m.Len()) < size {
+		m.store = append(m.store, make([]byte, size-uint64(m.Len()))...)
+	}
+}
+
 // Get returns offset + size as a new slice
 func (m *Memory) Get(offset, size int64) (cpy []byte) {
 	if size == 0 {
@@ -77,18 +85,6 @@ func (m *Memory) Get(offset, size int64) (cpy []byte) {
 	return
 }
 
-// Resize resizes the memory to size
-func (m *Memory) Resize(size uint64) {
-	if uint64(m.Len()) < size {
-		m.store = append(m.store, make([]byte, size-uint64(m.Len()))...)
-	}
-}
-
-// Len returns the length of the backing slice
-func (m *Memory) Len() int {
-	return len(m.store)
-}
-
 // GetPtr returns the offset + size
 func (m *Memory) GetPtr(offset, size int64) []byte {
 	if size == 0 {
@@ -102,75 +98,123 @@ func (m *Memory) GetPtr(offset, size int64) []byte {
 	return nil
 }
 
+// Len returns the length of the backing slice
+func (m *Memory) Len() int {
+	return len(m.store)
+}
+
+// Data returns the backing slice
+func (m *Memory) Data() []byte {
+	return m.store
+}
+
+// Print dumps the content of the memory.
+func (m *Memory) Print() {
+	fmt.Printf("### mem %d bytes ###\n", len(m.store))
+	if len(m.store) > 0 {
+		addr := 0
+		for i := 0; i+32 <= len(m.store); i += 32 {
+			fmt.Printf("%03d: % x\n", addr, m.store[i:i+32])
+			addr++
+		}
+	} else {
+		fmt.Println("-- empty --")
+	}
+	fmt.Println("####################")
+}
+
 //==============================================================================
 // Memory table
 //==============================================================================
-func memorySha3(stack *Stack) *big.Int {
+func memorySha3(stack *Stack) (uint64, bool) {
 	return calcMemSize(stack.Back(0), stack.Back(1))
 }
 
-func memoryCallDataCopy(stack *Stack) *big.Int {
+func memoryCallDataCopy(stack *Stack) (uint64, bool) {
 	return calcMemSize(stack.Back(0), stack.Back(2))
 }
 
-func memoryReturnDataCopy(stack *Stack) *big.Int {
+func memoryReturnDataCopy(stack *Stack) (uint64, bool) {
 	return calcMemSize(stack.Back(0), stack.Back(2))
 }
 
-func memoryCodeCopy(stack *Stack) *big.Int {
+func memoryCodeCopy(stack *Stack) (uint64, bool) {
 	return calcMemSize(stack.Back(0), stack.Back(2))
 }
 
-func memoryExtCodeCopy(stack *Stack) *big.Int {
+func memoryExtCodeCopy(stack *Stack) (uint64, bool) {
 	return calcMemSize(stack.Back(1), stack.Back(3))
 }
 
-func memoryMLoad(stack *Stack) *big.Int {
-	return calcMemSize(stack.Back(0), big.NewInt(32))
+func memoryMLoad(stack *Stack) (uint64, bool) {
+	return calcMemSizeWithUint(stack.Back(0), 32)
 }
 
-func memoryMStore8(stack *Stack) *big.Int {
-	return calcMemSize(stack.Back(0), big.NewInt(1))
+func memoryMStore8(stack *Stack) (uint64, bool) {
+	return calcMemSizeWithUint(stack.Back(0), 32)
 }
 
-func memoryMStore(stack *Stack) *big.Int {
-	return calcMemSize(stack.Back(0), big.NewInt(32))
+func memoryMStore(stack *Stack) (uint64, bool) {
+	return calcMemSizeWithUint(stack.Back(0), 32)
 }
 
-func memoryLog(stack *Stack) *big.Int {
-	mSize, mStart := stack.Back(1), stack.Back(0)
-	return calcMemSize(mStart, mSize)
-}
-
-func memoryCreate(stack *Stack) *big.Int {
+func memoryCreate(stack *Stack) (uint64, bool) {
 	return calcMemSize(stack.Back(1), stack.Back(2))
 }
 
-func memoryCall(stack *Stack) *big.Int {
-	x := calcMemSize(stack.Back(5), stack.Back(6))
-	y := calcMemSize(stack.Back(3), stack.Back(4))
-
-	return common.BigMax(x, y)
+func memoryCall(stack *Stack) (uint64, bool) {
+	x, overflow := calcMemSize(stack.Back(5), stack.Back(6))
+	if overflow {
+		return 0, true
+	}
+	y, overflow := calcMemSize(stack.Back(3), stack.Back(4))
+	if overflow {
+		return 0, true
+	}
+	if x > y {
+		return x, false
+	}
+	return y, false
 }
 
-func memoryDelegateCall(stack *Stack) *big.Int {
-	x := calcMemSize(stack.Back(4), stack.Back(5))
-	y := calcMemSize(stack.Back(2), stack.Back(3))
-
-	return common.BigMax(x, y)
+func memoryDelegateCall(stack *Stack) (uint64, bool) {
+	x, overflow := calcMemSize(stack.Back(4), stack.Back(5))
+	if overflow {
+		return 0, true
+	}
+	y, overflow := calcMemSize(stack.Back(2), stack.Back(3))
+	if overflow {
+		return 0, true
+	}
+	if x > y {
+		return x, false
+	}
+	return y, false
 }
 
-func memoryStaticCall(stack *Stack) *big.Int {
-	x := calcMemSize(stack.Back(4), stack.Back(5))
-	y := calcMemSize(stack.Back(2), stack.Back(3))
-
-	return common.BigMax(x, y)
+func memoryStaticCall(stack *Stack) (uint64, bool) {
+	x, overflow := calcMemSize(stack.Back(4), stack.Back(5))
+	if overflow {
+		return 0, true
+	}
+	y, overflow := calcMemSize(stack.Back(2), stack.Back(3))
+	if overflow {
+		return 0, true
+	}
+	if x > y {
+		return x, false
+	}
+	return y, false
 }
 
-func memoryReturn(stack *Stack) *big.Int {
+func memoryReturn(stack *Stack) (uint64, bool) {
 	return calcMemSize(stack.Back(0), stack.Back(1))
 }
 
-func memoryRevert(stack *Stack) *big.Int {
+func memoryRevert(stack *Stack) (uint64, bool) {
+	return calcMemSize(stack.Back(0), stack.Back(1))
+}
+
+func memoryLog(stack *Stack) (uint64, bool) {
 	return calcMemSize(stack.Back(0), stack.Back(1))
 }

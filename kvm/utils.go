@@ -24,13 +24,59 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
-// calculates the memory size required for a step
-func calcMemSize(off, l *big.Int) *big.Int {
-	if l.Sign() == 0 {
-		return common.Big0
-	}
+var (
+	big0      = big.NewInt(0)
+	big1      = big.NewInt(1)
+	big4      = big.NewInt(4)
+	big8      = big.NewInt(8)
+	big16     = big.NewInt(16)
+	big32     = big.NewInt(32)
+	big64     = big.NewInt(64)
+	big96     = big.NewInt(96)
+	big480    = big.NewInt(480)
+	big1024   = big.NewInt(1024)
+	big3072   = big.NewInt(3072)
+	big199680 = big.NewInt(199680)
+)
 
-	return new(big.Int).Add(off, l)
+// calculates the memory size required for a step
+func calcMemSize(off, l *big.Int) (uint64, bool) {
+	if !l.IsUint64() {
+		return 0, true
+	}
+	return calcMemSizeWithUint(off, l.Uint64())
+}
+
+// calcMemSize64WithUint calculates the required memory size, and returns
+// the size and whether the result overflowed uint64
+// Identical to calcMemSize64, but length is a uint64
+func calcMemSizeWithUint(off *big.Int, length64 uint64) (uint64, bool) {
+	// if length is zero, memsize is always zero, regardless of offset
+	if length64 == 0 {
+		return 0, false
+	}
+	// Check that offset doesn't overflow
+	if !off.IsUint64() {
+		return 0, true
+	}
+	offset64 := off.Uint64()
+	val := offset64 + length64
+	// if value < either of it's parts, then it overflowed
+	return val, val < offset64
+}
+
+// getData returns a slice from the data based on the start and size and pads
+// up to size with zero's. This function is overflow safe.
+func getData(data []byte, start uint64, size uint64) []byte {
+	length := uint64(len(data))
+	if start > length {
+		start = length
+	}
+	end := start + size
+	if end > length {
+		end = length
+	}
+	return common.RightPadBytes(data[start:end], int(size))
 }
 
 // getDataBig returns a slice from the data based on the start and size and pads
@@ -64,5 +110,5 @@ func allZero(b []byte) bool {
 // bigUint64 returns the integer casted to a uint64 and returns whether it
 // overflowed in the process.
 func bigUint64(v *big.Int) (uint64, bool) {
-	return v.Uint64(), v.BitLen() > 64
+	return v.Uint64(), !v.IsUint64()
 }

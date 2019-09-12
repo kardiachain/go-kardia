@@ -25,7 +25,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	defaultGasPrice             = 50 * params.GWei
+	defaultGasPrice             = 1e9
 	defaultTimeOutForStaticCall = 5
 )
 
@@ -540,6 +540,12 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 	if err != nil {
 		return nil, 0, false, err
 	}
+
+	// If the timer caused an abort, return an appropriate error message
+	if kvm.Cancelled() {
+		return nil, 0, false, fmt.Errorf("execution aborted (timeout = %v)", timeout)
+	}
+
 	return res, gas, failed, err
 }
 
@@ -548,12 +554,12 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 func (s *PublicKaiAPI) EstimateGas(ctx context.Context, call types.CallArgsJSON) (uint64, error) {
 	// Binary search the gas requirement, as it may be higher than the amount used
 	var (
-		lo  uint64 = params.TxGas - 1
+		lo  uint64 = configs.TxGas - 1
 		hi  uint64
 		cap uint64
 	)
 	args := types.NewArgs(call)
-	if uint64(args.Gas) >= params.TxGas {
+	if uint64(args.Gas) >= configs.TxGas {
 		hi = uint64(args.Gas)
 	} else {
 		// Retrieve the current pending block to act as the gas ceiling

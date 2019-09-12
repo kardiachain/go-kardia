@@ -246,9 +246,6 @@ func (self *stateObject) SetNonce(nonce uint64) {
 	self.setNonce(nonce)
 }
 
-////////////////////////////////////////////////////
-// State state
-////////////////////////////////////////////////////
 // GetState returns a value in account storage.
 func (self *stateObject) GetState(db Database, key common.Hash) common.Hash {
 	value, exists := self.cachedStorage[key]

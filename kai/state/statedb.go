@@ -463,9 +463,34 @@ func (sdb *StateDB) AddLog(log *types.Log) {
 	sdb.logSize++
 }
 
+// AddPreimage records a SHA3 preimage seen by the VM.
+func (self *StateDB) AddPreimage(hash common.Hash, preimage []byte) {
+	if _, ok := self.preimages[hash]; !ok {
+		self.journal.append(addPreimageChange{hash: hash})
+		pi := make([]byte, len(preimage))
+		copy(pi, preimage)
+		self.preimages[hash] = pi
+	}
+}
+
+// Preimages returns a list of SHA3 preimages that have been submitted.
+func (self *StateDB) Preimages() map[common.Hash][]byte {
+	return self.preimages
+}
+
 func (sdb *StateDB) AddRefund(gas uint64) {
 	sdb.journal.append(refundChange{prev: sdb.refund})
 	sdb.refund += gas
+}
+
+// SubRefund removes gas from the refund counter.
+// This method will panic if the refund counter goes below zero
+func (self *StateDB) SubRefund(gas uint64) {
+	self.journal.append(refundChange{prev: self.refund})
+	if gas > self.refund {
+		panic("Refund counter below zero")
+	}
+	self.refund -= gas
 }
 
 // Exist reports whether the given account address exists in the state.
