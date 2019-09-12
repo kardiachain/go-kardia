@@ -70,25 +70,6 @@ var (
 	}
 )
 
-// GasTable organizes gas prices for different Kardia operations.
-type GasTable struct {
-	ExtcodeSize uint64
-	ExtcodeCopy uint64
-	Balance     uint64
-	SLoad       uint64
-	Calls       uint64
-	Suicide     uint64
-
-	ExpByte uint64
-
-	// CreateBySuicide occurs when the
-	// refunded account is one that does
-	// not exist. This logic is similar
-	// to call. May be left nil. Nil means
-	// not charged.
-	CreateBySuicide uint64
-}
-
 func configNumEqual(x, y *big.Int) bool {
 	if x == nil {
 		return y == nil

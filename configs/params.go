@@ -23,7 +23,7 @@ const (
 
 	CallValueTransferGas  uint64 = 9000  // Paid for CALL when the value transfer is non-zero.
 	CallNewAccountGas     uint64 = 25000 // Paid for CALL when the destination address didn't exist prior.
-	TxGas                 uint64 = 1     // Per transaction not creating a contract. NOTE: Not payable on data of calls between transactions.
+	TxGas                 uint64 = 21000 // Per transaction not creating a contract. NOTE: Not payable on data of calls between transactions.
 	TxGasContractCreation uint64 = 53000 // Per transaction that creates a contract. NOTE: Not payable on data of calls between transactions.
 
 	MaximumExtraDataSize uint64 = 32   // Maximum size extra data may be after Genesis.
@@ -57,28 +57,23 @@ const (
 	MemoryGas             uint64 = 3     // Times the address of the (highest referenced byte in memory + 1). NOTE: referencing happens on read, write and in instructions such as RETURN and CALL.
 	TxDataNonZeroGas      uint64 = 68    // Per byte of data attached to a transaction that is not equal to zero. NOTE: Not payable on data of calls between transactions.
 
-	CallGas                 uint64 = 40 // Once per CALL operation & message call transaction.
-	BalanceGas              uint64 = 20 // The cost of a BALANCE operation
-	ExtcodeSizeGas          uint64 = 20 // Cost of EXTCODESIZE before EIP 150 (Tangerine)
-	ExpByte                 uint64 = 10 // was set to 10 in Frontier
-	ExtcodeCopyBase         uint64 = 20
-	CreateBySelfdestructGas uint64 = 25000
+	CallGas                 uint64 = 700 // Once per CALL operation & message call transaction.
+	BalanceGas              uint64 = 400 // The cost of a BALANCE operation
+	ExtcodeSizeGas          uint64 = 700 // Cost of EXTCODESIZE before EIP 150 (Tangerine)
+	ExpByte                 uint64 = 50
+	ExtcodeCopyBase         uint64 = 700
+	CreateBySelfdestructGas uint64 = 5000
 
 	MaxCodeSize = 24576 // Maximum bytecode to permit for a contract
 
 	// Precompiled contract gas prices
-	EcrecoverGas            uint64 = 3000   // Elliptic curve sender recovery gas price
-	Sha256BaseGas           uint64 = 60     // Base price for a SHA256 operation
-	Sha256PerWordGas        uint64 = 12     // Per-word price for a SHA256 operation
-	Ripemd160BaseGas        uint64 = 600    // Base price for a RIPEMD160 operation
-	Ripemd160PerWordGas     uint64 = 120    // Per-word price for a RIPEMD160 operation
-	IdentityBaseGas         uint64 = 15     // Base price for a data copy operation
-	IdentityPerWordGas      uint64 = 3      // Per-work price for a data copy operation
-	ModExpQuadCoeffDiv      uint64 = 20     // Divisor for the quadratic particle of the big int modular exponentiation
-	Bn256AddGas             uint64 = 500    // Gas needed for an elliptic curve addition
-	Bn256ScalarMulGas       uint64 = 40000  // Gas needed for an elliptic curve scalar multiplication
-	Bn256PairingBaseGas     uint64 = 100000 // Base price for an elliptic curve pairing check
-	Bn256PairingPerPointGas uint64 = 80000  // Per-point price for an elliptic curve pairing check
+	EcrecoverGas        uint64 = 3000 // Elliptic curve sender recovery gas price
+	Sha256BaseGas       uint64 = 60   // Base price for a SHA256 operation
+	Sha256PerWordGas    uint64 = 12   // Per-word price for a SHA256 operation
+	Ripemd160BaseGas    uint64 = 600  // Base price for a RIPEMD160 operation
+	Ripemd160PerWordGas uint64 = 120  // Per-word price for a RIPEMD160 operation
+	IdentityBaseGas     uint64 = 15   // Base price for a data copy operation
+	IdentityPerWordGas  uint64 = 3    // Per-work price for a data copy operation
 
 	// BlockPartSizeBytes is the size of one block part.
 	BlockPartSizeBytes = 65536 // 64kB
