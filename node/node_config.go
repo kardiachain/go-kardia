@@ -484,6 +484,7 @@ func (env *EnvironmentConfig) GetValidatorSetByIndices(bc base.BaseBlockChain, v
 	return validatorSet, nil
 }
 
+// GetValidatorSet gets list of validators from permission smc defined in config and a list of indices.
 func GetValidatorSet(bc base.BaseBlockChain, valIndexes []int) (*types.ValidatorSet, error) {
 	nodes, err := GetNodeMetadataFromSmc(&bc, valIndexes)
 	if err != nil {

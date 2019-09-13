@@ -28,6 +28,7 @@ type blockChain interface {
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 }
 
+// Config are the configuration parameters of the event pool.
 type Config struct {
 	GlobalSlots     uint64
 	GlobalQueue     uint64
@@ -36,6 +37,9 @@ type Config struct {
 	BlockSize       int
 }
 
+// EventPool contains all currently interesting events from both external or internal blockchains. Events enter the pool
+// when dual nodes found events pertaining to what they care about at the moment (e.g. when nodes are listening to
+// a transaction relating a specific sender or receiver). They exit the pool when they are included in the blockchain.
 type Pool struct {
 	logger log.Logger
 
@@ -220,6 +224,7 @@ func (pool *Pool) reset(oldHead, newHead *types.Header) {
 	pool.saveEvents(currentBlock.DualEvents())
 }
 
+// saveEvents saves events to all
 func (pool *Pool) saveEvents(events types.DualEvents) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
@@ -231,6 +236,7 @@ func (pool *Pool) saveEvents(events types.DualEvents) {
 	}
 }
 
+// getTime gets current time in milliseconds
 func getTime() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
 }
@@ -288,6 +294,7 @@ func (pool *Pool) Pending(limit int, removeResult bool) (types.DualEvents, error
 	return pending, nil
 }
 
+// GetPendingData get all pending data in event pool
 func (pool *Pool) GetPendingData() *types.DualEvents {
 	evts := make(types.DualEvents, 0)
 	for _, pending := range pool.pending {

@@ -180,6 +180,8 @@ func (genTool *GeneratorTool) GetNonce(address string) uint64 {
 	return genTool.nonceMap[address]
 }
 
+// GenerateSmcCall generates tx which call a smart contract's method
+// if isIncrement is true, nonce + 1 to prevent duplicate nonce if generateSmcCall is called twice.
 func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input []byte, txPool *tx_pool.TxPool, isIncrement bool) *types.Transaction {
 	senderAddress := crypto.PubkeyToAddress(senderKey.PublicKey)
 	nonce := txPool.GetAddressState(senderAddress)

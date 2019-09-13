@@ -197,35 +197,11 @@ type DualEvents []*DualEvent
 // Len returns the length of s.
 func (d DualEvents) Len() int { return len(d) }
 
-func (d DualEvents) Copy() []*DualEvent {
-	events := make([]*DualEvent, 0)
-	for _, event := range d {
-		events = append(events, &DualEvent{
-			BlockNumber:       event.BlockNumber,
-			TriggeredEvent:    event.TriggeredEvent,
-			PendingTxMetadata: event.PendingTxMetadata,
-			KardiaSmcs:        event.KardiaSmcs,
-			V:                 event.V,
-			R:                 event.R,
-			S:                 event.S,
-		})
-	}
-	return events
-}
-
 // GetRlp implements Rlpable and returns the i'th element of d in rlp.
 func (d DualEvents) GetRlp(i int) []byte {
 	enc, _ := rlp.EncodeToBytes(d[i])
 	return enc
 }
-
-// DualEventByNonce implements the sort interface to allow sorting a list of dual's events
-// by their nonces.
-type DualEventByNonce DualEvents
-
-func (d DualEventByNonce) Len() int           { return len(d) }
-func (d DualEventByNonce) Less(i, j int) bool { return d[i].BlockNumber < d[j].BlockNumber }
-func (d DualEventByNonce) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
 
 // WithSignature returns a new transaction with the given signature.
 // This signature needs to be formatted as described in the yellow paper (v+27).

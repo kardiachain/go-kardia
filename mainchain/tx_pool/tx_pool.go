@@ -304,6 +304,7 @@ func getTime() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
 }
 
+// GetAddressState gets address's nonce based on statedb or current addressState in txPool
 func (pool *TxPool) GetAddressState(address common.Address) uint64 {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
