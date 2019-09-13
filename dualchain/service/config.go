@@ -36,7 +36,7 @@ type DualConfig struct {
 	DualGenesis *genesis.Genesis `toml:",omitempty"`
 
 	// Dual's event pool options
-	DualEventPool event_pool.EventPoolConfig
+	DualEventPool event_pool.Config
 
 	// DbInfo stores configuration information to setup database
 	DBInfo storage.DbInfo

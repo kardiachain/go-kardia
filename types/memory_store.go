@@ -461,7 +461,7 @@ func (db *MemStore) ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, ui
 func (db *MemStore) ReadEvent(address string, method string) *WatcherAction {
 	data, err := db.Get(eventKey(address, method))
 	if err != nil {
-		log.Error("error while get event", "err", err, "address", address, "method", method)
+		log.Trace("event not found", "err", err, "address", address, "method", method)
 		return nil
 	}
 	var entry WatcherAction
@@ -475,7 +475,7 @@ func (db *MemStore) ReadEvent(address string, method string) *WatcherAction {
 func (db *MemStore) ReadEvents(address string) []*WatcherAction {
 	data, err := db.Get(eventsKey(address))
 	if err != nil {
-		log.Error("error while get event", "err", err, "address", address)
+		log.Trace("event not found", "err", err, "address", address)
 		return nil
 	}
 	var entries []string

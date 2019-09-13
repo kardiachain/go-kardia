@@ -254,7 +254,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 		newHead = currentBlock.Header() // Special case during testing
 	}
 
-	statedb, err := pool.chain.StateAt(newHead.Root)
+	statedb, err := pool.chain.StateAt(currentBlock.Root())
 	pool.logger.Info("TxPool reset state to new head block", "height", newHead.Height, "root", newHead.Root)
 	if err != nil {
 		pool.logger.Error("Failed to reset txpool state", "err", err)
@@ -302,6 +302,18 @@ func (pool *TxPool) ProposeTransactions() types.Transactions {
 
 func getTime() int64 {
 	return time.Now().UnixNano() / int64(time.Millisecond)
+}
+
+func (pool *TxPool) GetAddressState(address common.Address) uint64 {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+	nonce := pool.currentState.GetNonce(address) + 1
+	if _, ok := pool.addressState[address]; !ok {
+		return nonce
+	} else if nonce > pool.addressState[address] {
+		pool.addressState[address] = nonce
+	}
+	return pool.addressState[address] + 1
 }
 
 // Pending collects pending transactions with limit number, if removeResult is marked to true then remove results after all.
@@ -410,6 +422,12 @@ func (pool *TxPool) addTx(tx *types.Transaction) error {
 	sender, err := pool.ValidateTx(tx)
 	if err != nil {
 		return err
+	}
+
+	// update address state
+	if nonce, ok := pool.addressState[*sender]; !ok || nonce < tx.Nonce() {
+		pool.logger.Info("update nonce", "address", sender.Hex(), "nonce", tx.Nonce(), "currentNonce", nonce)
+		pool.addressState[*sender] = tx.Nonce()
 	}
 
 	pendingTxs := pool.pending[*sender]

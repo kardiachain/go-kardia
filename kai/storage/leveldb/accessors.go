@@ -511,7 +511,7 @@ func CommonReadEventFromDualAction(db types.DatabaseReader, action string) (stri
 func CommonReadEvent(db types.DatabaseReader, address string, method string) *types.WatcherAction {
 	data, err := db.Get(eventKey(address, method))
 	if err != nil {
-		log.Error("error while get event", "err", err, "address", address, "method", method)
+		log.Trace("event not found", "err", err, "address", address, "method", method)
 		return nil
 	}
 	var entry types.WatcherAction
@@ -526,7 +526,7 @@ func CommonReadEvent(db types.DatabaseReader, address string, method string) *ty
 func CommonReadEvents(db types.DatabaseReader, address string) []*types.WatcherAction {
 	data, err := db.Get(eventsKey(address))
 	if err != nil {
-		log.Error("error while get event", "err", err, "address", address)
+		log.Trace("event not found", "err", err, "address", address)
 		return nil
 	}
 	var entries []string

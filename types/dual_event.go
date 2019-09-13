@@ -19,7 +19,9 @@
 package types
 
 import (
+	"crypto/ecdsa"
 	"fmt"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"math/big"
 	"sync/atomic"
 
@@ -32,20 +34,22 @@ type BlockchainSymbol string
 // Enum for
 const (
 	KARDIA   = BlockchainSymbol("KAI")
-	ETHEREUM = BlockchainSymbol("ETH")
-	NEO      = BlockchainSymbol("NEO")
-	TRON     = BlockchainSymbol("TRX")
 )
 
 // An event pertaining to the current dual node's interests and its derived tx's
 // metadata.
 type DualEvent struct {
-	Nonce             uint64      `json:"nonce"                  gencodec:"required"`
+	BlockNumber        uint64     `json:"blockNumber"            gencodec:"required"`
 	TriggeredEvent    *EventData  `json:"triggeredEvent"         gencodec:"required"`
 	PendingTxMetadata *TxMetadata `json:"pendingTxMetadata"      gencodec:"required"`
 
 	// The smart contract info being submitted externally.
 	KardiaSmcs []*KardiaSmartcontract `json:"kardiaSmcs"         gencodec:"required"`
+
+	// Signature values
+	V *big.Int `json:"v" gencodec:"required"`
+	R *big.Int `json:"r" gencodec:"required"`
+	S *big.Int `json:"s" gencodec:"required"`
 
 	// caches
 	hash atomic.Value
@@ -82,14 +86,14 @@ type WatcherAction struct {
 // Data relevant to the event (either from external or internal blockchain)
 // that pertains to the current dual node's interests.
 type EventData struct {
-	TxHash       common.Hash
-	TxSource     BlockchainSymbol
-	FromExternal bool
-	Data         *EventSummary
+	TxHash       common.Hash        `json:"txHash"    gencodec:"required"`
+	TxSource     BlockchainSymbol   `json:"source"    gencodec:"required"`
+	FromExternal bool               `json:"fromExternal" gencodec:"required"`
+	Data         *EventSummary      `json:"data"         gencodec:"data"`
 
 	// Actions is temporarily cached to store a list of actions that will be executed upon once
 	// the dual event is executed.
-	Action *DualAction `json:"action"      gencodec:"required"`
+	Action *DualAction              `json:"action"      gencodec:"required"`
 
 	// caches
 	hash atomic.Value
@@ -148,9 +152,9 @@ func (kardiaSmc *KardiaSmartcontract) String() string {
 	return "Smc{Addr:nil}"
 }
 
-func NewDualEvent(nonce uint64, fromExternal bool, txSource BlockchainSymbol, txHash *common.Hash, summary *EventSummary, action *DualAction) *DualEvent {
+func NewDualEvent(blockNumber uint64, fromExternal bool, txSource BlockchainSymbol, txHash *common.Hash, summary *EventSummary, action *DualAction) *DualEvent {
 	return &DualEvent{
-		Nonce: nonce,
+		BlockNumber: blockNumber,
 		TriggeredEvent: &EventData{
 			TxHash:       *txHash,
 			TxSource:     txSource,
@@ -158,6 +162,9 @@ func NewDualEvent(nonce uint64, fromExternal bool, txSource BlockchainSymbol, tx
 			Data:         summary,
 			Action:       action,
 		},
+		V: new(big.Int),
+		R: new(big.Int),
+		S: new(big.Int),
 	}
 }
 
@@ -177,8 +184,8 @@ func (de *DualEvent) String() string {
 	if de == nil {
 		return "nil-DualEvent"
 	}
-	return fmt.Sprintf("DualEvent{Nonce:%v, TriggeredEvent:%v, Smc:%v}#%v",
-		de.Nonce,
+	return fmt.Sprintf("DualEvent{BlockNumber:%v, TriggeredEvent:%v, Smc:%v}#%v",
+		de.BlockNumber,
 		de.TriggeredEvent,
 		de.KardiaSmcs,
 		de.Hash().Fingerprint())
@@ -189,6 +196,22 @@ type DualEvents []*DualEvent
 
 // Len returns the length of s.
 func (d DualEvents) Len() int { return len(d) }
+
+func (d DualEvents) Copy() []*DualEvent {
+	events := make([]*DualEvent, 0)
+	for _, event := range d {
+		events = append(events, &DualEvent{
+			BlockNumber:       event.BlockNumber,
+			TriggeredEvent:    event.TriggeredEvent,
+			PendingTxMetadata: event.PendingTxMetadata,
+			KardiaSmcs:        event.KardiaSmcs,
+			V:                 event.V,
+			R:                 event.R,
+			S:                 event.S,
+		})
+	}
+	return events
+}
 
 // GetRlp implements Rlpable and returns the i'th element of d in rlp.
 func (d DualEvents) GetRlp(i int) []byte {
@@ -201,5 +224,76 @@ func (d DualEvents) GetRlp(i int) []byte {
 type DualEventByNonce DualEvents
 
 func (d DualEventByNonce) Len() int           { return len(d) }
-func (d DualEventByNonce) Less(i, j int) bool { return d[i].Nonce < d[j].Nonce }
+func (d DualEventByNonce) Less(i, j int) bool { return d[i].BlockNumber < d[j].BlockNumber }
 func (d DualEventByNonce) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
+
+// WithSignature returns a new transaction with the given signature.
+// This signature needs to be formatted as described in the yellow paper (v+27).
+func (de *DualEvent) WithSignature(sig []byte) (*DualEvent, error) {
+	r, s, v, err := EventSignatureValues(sig)
+	if err != nil {
+		return nil, err
+	}
+	cpy := &DualEvent{
+		BlockNumber:       de.BlockNumber,
+		TriggeredEvent:    de.TriggeredEvent,
+		PendingTxMetadata: de.PendingTxMetadata,
+		R: r,
+		S: s,
+		V: v,
+	}
+	return cpy, nil
+}
+
+// SignEvent signs the event using the given signer and private key
+func SignEvent(de *DualEvent, prv *ecdsa.PrivateKey) (*DualEvent, error) {
+	h := sigEventHash(de)
+	sig, err := crypto.Sign(h[:], prv)
+	if err != nil {
+		return nil, err
+	}
+	return de.WithSignature(sig)
+}
+
+// sigHash returns the hash to be signed by the sender.
+// It does not uniquely identify the transaction.
+func sigEventHash(de *DualEvent) common.Hash {
+	return rlpHash([]interface{}{
+		de.BlockNumber,
+		de.TriggeredEvent,
+		de.PendingTxMetadata,
+		de.KardiaSmcs,
+	})
+}
+
+// EventSender returns the address derived from the signature (V, R, S) using secp256k1
+// elliptic curve and an error if it failed deriving or upon an incorrect
+// signature.
+//
+// EventSender may cache the address, allowing it to be used regardless of
+// signing method.
+func EventSender(de *DualEvent) (common.Address, error) {
+	if sc := de.from.Load(); sc != nil {
+		sigCache := sc.(sigCache)
+		return sigCache.from, nil
+	}
+
+	addr, err := recoverPlain(sigEventHash(de), de.R, de.S, de.V)
+	if err != nil {
+		return common.Address{}, err
+	}
+	de.from.Store(sigCache{from: addr})
+	return addr, nil
+}
+
+// SignatureValues returns signature values. This signature
+// needs to be in the [R || S || V] format where V is 0 or 1.
+func EventSignatureValues(sig []byte) (r, s, v *big.Int, err error) {
+	if len(sig) != 65 {
+		panic(fmt.Sprintf("wrong size for signature: got %d, want 65", len(sig)))
+	}
+	r = new(big.Int).SetBytes(sig[:32])
+	s = new(big.Int).SetBytes(sig[32:64])
+	v = new(big.Int).SetBytes([]byte{sig[64] + 27})
+	return r, s, v, nil
+}

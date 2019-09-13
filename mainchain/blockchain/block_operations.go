@@ -275,3 +275,7 @@ LOOP:
 func (bo *BlockOperations) saveReceipts(receipts types.Receipts, block *types.Block) {
 	bo.blockchain.WriteReceipts(receipts, block)
 }
+
+func (bo *BlockOperations) SubmitDualEvents(events types.DualEvents) error {
+	panic("this function is not implemented in this object")
+}

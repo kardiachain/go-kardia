@@ -8,6 +8,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/pkg/errors"
@@ -55,19 +56,19 @@ func NewCandidateSmcUtil(bc base.BaseBlockChain, key *ecdsa.PrivateKey) (*Candid
 }
 
 // AddRequest returns a tx to add a request to request list of private chain candidate smart contract
-func (cs *CandidateSmcUtil) AddRequest(email string, fromOrgID string, state *state.ManagedState) (*types.Transaction, error) {
+func (cs *CandidateSmcUtil) AddRequest(email string, fromOrgID string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
 	addRequestInput, err := cs.Abi.Pack("addRequest", email, fromOrgID)
 	if err != nil {
 		return nil, err
 	}
-	return tool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, state), nil
+	return tool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, txPool, false), nil
 }
 
 // AddResponse returns a tx to add an external response for a candidate into private chain candidate smart contract
-func (cs *CandidateSmcUtil) AddExternalResponse(email string, content string, fromOrgID string, state *state.ManagedState) (*types.Transaction, error) {
+func (cs *CandidateSmcUtil) AddExternalResponse(email string, content string, fromOrgID string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
 	addRequestInput, err := cs.Abi.Pack("addExternalResponse", email, fromOrgID, content)
 	if err != nil {
 		return nil, err
 	}
-	return tool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, state), nil
+	return tool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, txPool, false), nil
 }

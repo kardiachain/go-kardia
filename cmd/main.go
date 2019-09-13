@@ -179,7 +179,7 @@ func (c *Config)getMainChainConfig() (*node.MainChainConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	baseAccount, err := c.getBaseAccount()
+	baseAccount, err := c.getBaseAccount(false)
 	if err != nil {
 		return nil, err
 	}
@@ -209,14 +209,15 @@ func (c *Config)getDualChainConfig() (*node.DualChainConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	eventPool := event_pool.EventPoolConfig{
-		Journal:   "dual_events.rlp",
-		Rejournal: time.Hour,
-		QueueSize: c.DualChain.EventPool.QueueSize,
-		Lifetime:  time.Duration(c.DualChain.EventPool.Lifetime) * time.Hour,
+	eventPool := event_pool.Config{
+		GlobalSlots:     c.DualChain.EventPool.GlobalSlots,
+		GlobalQueue:     c.DualChain.EventPool.GlobalQueue,
+		NumberOfWorkers: c.DualChain.EventPool.NumberOfWorkers,
+		WorkerCap:       c.DualChain.EventPool.WorkerCap,
+		BlockSize:       c.DualChain.EventPool.BlockSize,
 	}
 
-	baseAccount, err := c.getBaseAccount()
+	baseAccount, err := c.getBaseAccount(true)
 	if err != nil {
 		return nil, err
 	}
@@ -292,13 +293,23 @@ func (c *Config)newLog() log.Logger {
 }
 
 // getBaseAccount gets base account that is used to execute internal smart contract
-func (c *Config) getBaseAccount() (*types.BaseAccount, error) {
-	privKey, err := crypto.HexToECDSA(c.MainChain.BaseAccount.PrivateKey)
+func (c *Config) getBaseAccount(isDual bool) (*types.BaseAccount, error) {
+	var privKey *ecdsa.PrivateKey
+	var err error
+	var address common.Address
+
+	if isDual {
+		address = common.HexToAddress(c.DualChain.BaseAccount.Address)
+		privKey, err = crypto.HexToECDSA(c.DualChain.BaseAccount.PrivateKey)
+	} else {
+		address = common.HexToAddress(c.MainChain.BaseAccount.Address)
+		privKey, err = crypto.HexToECDSA(c.MainChain.BaseAccount.PrivateKey)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("baseAccount: Invalid privatekey: %v", err)
 	}
 	return &types.BaseAccount{
-		Address:    common.HexToAddress(c.MainChain.BaseAccount.Address),
+		Address:    address,
 		PrivateKey: *privKey,
 	}, nil
 }

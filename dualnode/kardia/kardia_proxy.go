@@ -35,6 +35,7 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
 	"strings"
+	"sync"
 )
 
 const KARDIA_PROXY = "KARDIA_PROXY"
@@ -54,7 +55,7 @@ type KardiaProxy struct {
 
 	// Dual blockchain related fields
 	dualBc    base.BaseBlockChain
-	eventPool *event_pool.EventPool
+	eventPool *event_pool.Pool
 
 	// The external blockchain that this dual node's interacting with.
 	externalChain base.BlockChainAdapter
@@ -62,6 +63,8 @@ type KardiaProxy struct {
 	// TODO(sontranrad@,namdoh@): Hard-coded, need to be cleaned up.
 	kaiSmcAddress *common.Address
 	smcABI        *abi.ABI
+
+	mu sync.Mutex
 }
 
 type MatchRequestInput struct {
@@ -79,7 +82,7 @@ type CompleteRequestInput struct {
 	Pair string
 }
 
-func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.EventPool, smcAddr *common.Address, smcABIStr string) (*KardiaProxy, error) {
+func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.Pool, smcAddr *common.Address, smcABIStr string) (*KardiaProxy, error) {
 	var err error
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
@@ -107,7 +110,7 @@ func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc
 	return processor, nil
 }
 
-func (p *KardiaProxy)Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.EventPool,
+func (p *KardiaProxy)Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.Pool,
 	publishedEndpoint, subscribedEndpoint *string) error {
 	// Create a specific logger for Kardia Proxy.
 	logger := log.New()
@@ -146,7 +149,7 @@ func (p *KardiaProxy) ExternalChain() base.BlockChainAdapter {
 }
 
 // DualEventPool returns dual's eventPool
-func (p *KardiaProxy) DualEventPool() *event_pool.EventPool {
+func (p *KardiaProxy) DualEventPool() *event_pool.Pool {
 	return p.eventPool
 }
 
@@ -177,6 +180,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 	p.logger.Info("Submit to Kardia", "value", event.Data.TxValue, "method", event.Data.TxMethod)
 	var err error
 	var result interface{}
+	txs := make([]interface{}, 0)
 	switch event.Action.Name {
 	case dualnode.CreateKardiaMatchAmountTx:
 		p.logger.Info("Handle external event", "source", event.TxSource)
@@ -194,9 +198,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 			p.logger.Error("baseAccount is nil")
 			return err
 		}
-
 		privateKey := p.kardiaBc.Config().BaseAccount.PrivateKey
-
 		// These logics temporarily for exchange case , will be dynamic later
 		if event.Data.ExtData == nil || len(event.Data.ExtData) < 2 {
 			p.logger.Error("Event doesn't contain external data")
@@ -213,26 +215,28 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 		originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 		srcAddress := string(event.Data.ExtData[configs.ExchangeV2SourceAddressIndex])
 		destAddress := string(event.Data.ExtData[configs.ExchangeV2DestAddressIndex])
-
 		p.logger.Info("Create order and match tx:", "source", srcAddress, "dest", destAddress, "txhash", originalTx)
-
-		tx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), common.HexToAddress(smartContract), *kAbi, event.Data.TxValue, srcAddress, destAddress, fromType, toType, originalTx, p.kardiaBc)
+		tx, err := utils.CreateKardiaMatchAmountTx(p.txPool, common.HexToAddress(smartContract), *kAbi, event.Data.TxValue, srcAddress, destAddress, fromType, toType, originalTx, p.kardiaBc)
 		if err != nil {
 			p.logger.Error("Fail to create Kardia's tx from DualEvent", "err", err)
+			p.UnLock()
 			return configs.ErrCreateKardiaTx
 		}
-		err = p.txPool.AddTx(tx)
-		if err != nil {
-			p.logger.Error("Fail to add Kardia's tx", "error", err)
-			return configs.ErrAddKardiaTx
-		}
+
+		// append tx to txs
+		txs = append(txs, tx)
+
 		p.logger.Info("Submit Kardia's tx successfully", "tx", tx.Hash().String())
 
 		// update kardiaTxforOrder
-		err = p.updateKardiaTxForOrder(common.HexToAddress(smartContract), *kAbi, originalTx, tx.Hash().String(), privateKey)
+		tx, err = p.updateKardiaTxForOrder(common.HexToAddress(smartContract), *kAbi, originalTx, tx.Hash().String(), privateKey)
 		if err != nil {
 			p.logger.Error("Fail to update Kardia's tx")
 		}
+
+		// append tx to txs
+		txs = append(txs, tx)
+
 	case dualnode.EnqueueTxPool:
 		tx, ok := result.(*types.Transaction)
 		if !ok {
@@ -246,7 +250,11 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 		}
 		p.logger.Info("Submit Kardia's tx successfully", "txhash", tx.Hash().String())
 	}
-	p.logger.Error("Submit to Kardia", "value", event.Data.TxValue, "method", event.Data.TxMethod, "action", event.Action.Name)
+
+	if len(txs) > 0 {
+		p.txPool.AddTxs(txs)
+	}
+
 	return nil
 }
 
@@ -256,53 +264,28 @@ func (p *KardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetada
 	// Compute Kardia's tx from the DualEvent.
 	// TODO(thientn,namdoh): Remove hard-coded account address here.
 	if event.Data.TxMethod == configs.ExternalDepositFunction {
-
-		// get smart contract and abi from dual action
-		smartContract, kAbi := p.kardiaBc.DB().ReadSmartContractFromDualAction(event.Action.Name)
-		if kAbi == nil {
-			err := fmt.Errorf("error while getting smc and abi from dual action %v", event.Action.Name)
-			p.logger.Error("cannot find abi from action name in submitTx", "err", err)
-			return nil, err
-		}
-		smc := common.HexToAddress(smartContract)
-
 		if p.kardiaBc.Config().BaseAccount == nil {
 			err := fmt.Errorf("baseAccount is nil")
 			p.logger.Error("baseAccount is nil")
 			return nil, err
 		}
-
 		// These logics temporarily for exchange case , will be dynamic later
 		if event.Data.ExtData == nil {
-			log.Error("Event doesn't contain external data")
+			p.logger.Error("Event doesn't contain external data")
 			return nil, configs.ErrFailedGetEventData
 		}
 		if event.Data.TxValue.Cmp(big.NewInt(0)) == 0 {
 			return nil, configs.ErrInsufficientExchangeData
 		}
 		if event.Data.ExtData[configs.ExchangeV2SourceAddressIndex] == nil || event.Data.ExtData[configs.ExchangeV2DestAddressIndex] == nil {
-			log.Error("Missing address in exchange event", "send", event.Data.ExtData[configs.ExchangeV2SourceAddressIndex],
+			p.logger.Error("Missing address in exchange event", "send", event.Data.ExtData[configs.ExchangeV2SourceAddressIndex],
 				"receive", event.Data.ExtData[configs.ExchangeV2DestAddressIndex])
 			return nil, configs.ErrInsufficientExchangeData
 		}
 		if event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex] == nil || len(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex]) == 0 {
-			log.Error("Missing original tx hash")
-		}
-		fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
-		toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
-		originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
-
-		log.Info("Computing tx metadata for tx", "hash", originalTx)
-		kardiaTx, err := utils.CreateKardiaMatchAmountTx(p.txPool.State(), smc, *kAbi, event.Data.TxValue,
-			string(event.Data.ExtData[configs.ExchangeV2SourceAddressIndex]), string(event.Data.ExtData[configs.ExchangeV2DestAddressIndex]),
-			fromType, toType, originalTx, p.kardiaBc)
-		if err != nil {
+			err := fmt.Errorf("missing original tx hash")
 			return nil, err
 		}
-		return &types.TxMetadata{
-			TxHash: kardiaTx.Hash(),
-			Target: types.KARDIA,
-		}, nil
 	}
 	// Temporarily return simple MetaData for other events
 	return &types.TxMetadata{
@@ -402,20 +385,27 @@ func (p *KardiaProxy) createDualEventFromKaiTxAndEnqueue(tx *types.Transaction, 
 
 	log.Info("Detect Kardia's tx updating smc", "method", eventSummary.TxMethod, "value",
 		eventSummary.TxValue, "hash", tx.Hash())
-	nonce := p.eventPool.State().GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
+
+	if p.dualBc.Config().BaseAccount == nil {
+		return fmt.Errorf("baseAccount is empty")
+	}
+
 	kardiaTxHash := tx.Hash()
 	txHash := common.BytesToHash(kardiaTxHash[:])
-	dualEvent := types.NewDualEvent(nonce, false /* externalChain */, types.KARDIA, &txHash, &eventSummary, action)
+	dualEvent := types.NewDualEvent(p.dualBc.CurrentBlock().Height(), false /* externalChain */, types.KARDIA, &txHash, &eventSummary, action)
 	txMetadata, err := p.externalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
 	if err != nil {
 		log.Error("Error computing tx metadata", "err", err)
 		return err
 	}
 	dualEvent.PendingTxMetadata = txMetadata
-	log.Info("Create DualEvent for Kardia's Tx", "dualEvent", dualEvent)
-	err = p.eventPool.AddEvent(dualEvent)
+	signedEvent, err := types.SignEvent(dualEvent, &p.dualBc.Config().BaseAccount.PrivateKey)
 	if err != nil {
-		log.Error("Fail to add dual's event", "error", err)
+		return err
+	}
+	log.Info("Create DualEvent for Kardia's Tx", "dualEvent", signedEvent.Hash().Hex())
+	if err := p.DualEventPool().AddEvent(signedEvent); err != nil {
+		p.Logger().Error("error while adding dual event", "err", err, "event", signedEvent.Hash().Hex())
 		return err
 	}
 	log.Info("Submitted Kardia's DualEvent to event pool successfully", "txHash", tx.Hash().String(),
@@ -463,23 +453,26 @@ func (p *KardiaProxy) extractKardiaTxSummary(tx *types.Transaction, abi *abi.ABI
 	}, nil
 }
 
-func (p *KardiaProxy) updateKardiaTxForOrder(smartContract common.Address, abi abi.ABI, originalTxId string, kardiaTxId string, privateKey ecdsa.PrivateKey) error {
-	state := p.txPool.State()
-	tx, err := utils.UpdateKardiaTx(state, smartContract, abi, originalTxId, kardiaTxId,privateKey)
+func (p *KardiaProxy) updateKardiaTxForOrder(smartContract common.Address, abi abi.ABI, originalTxId string, kardiaTxId string, privateKey ecdsa.PrivateKey) (*types.Transaction, error) {
+	tx, err := utils.UpdateKardiaTx(p.txPool, smartContract, abi, originalTxId, kardiaTxId, privateKey)
 	if err != nil {
 		log.Error("Error creating tx updateKardiaTx", "originalTxId", originalTxId, "KardiaTx", kardiaTxId,
 			"err", err)
-		return err
+		return nil, err
 	}
-	err = p.txPool.AddTx(tx)
-	if err != nil {
-		log.Error("Error updateKardiaTx to txPool", "originalTxId", originalTxId, "KardiaTx", kardiaTxId,
-			"err", err)
-	}
-	log.Info("UpdateKardiaTx for order successfully", "originalTxId", originalTxId, "KardiaTx", kardiaTxId)
-	return nil
+	log.Info("UpdateKardiaTx for order has been created", "originalTxId", originalTxId, "KardiaTx", kardiaTxId, "tx", tx.Hash().Hex())
+	return tx, nil
 }
 
 func (p *KardiaProxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 	panic("this function is not implemented")
+}
+
+
+func (p *KardiaProxy) Lock() {
+	p.mu.Lock()
+}
+
+func (p *KardiaProxy) UnLock() {
+	p.mu.Unlock()
 }

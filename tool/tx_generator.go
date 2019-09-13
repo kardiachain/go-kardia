@@ -22,6 +22,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"math"
 	"math/big"
 	"math/rand"
@@ -43,9 +45,7 @@ type Account struct {
 }
 
 const (
-	defaultNumTx         = 10
 	defaultGasLimit      = 10 // currently we don't care about tx fee and cost.
-	defaultFaucetAcc     = "0x2BB7316884C7568F2C6A6aDf2908667C0d241A66"
 	defaultFaucetPrivAcc = "4561f7d91a4f95ef0a72550fa423febaad3594f91611f9a2b10a7af4d3deb9ed"
 )
 
@@ -180,9 +180,12 @@ func (genTool *GeneratorTool) GetNonce(address string) uint64 {
 	return genTool.nonceMap[address]
 }
 
-func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input []byte, stateDb *state.ManagedState) *types.Transaction {
+func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input []byte, txPool *tx_pool.TxPool, isIncrement bool) *types.Transaction {
 	senderAddress := crypto.PubkeyToAddress(senderKey.PublicKey)
-	nonce := stateDb.GetNonce(senderAddress)
+	nonce := txPool.GetAddressState(senderAddress)
+	if isIncrement {
+		nonce++
+	}
 	tx, err := types.SignTx(types.NewTransaction(
 		nonce,
 		address,
@@ -194,22 +197,7 @@ func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input 
 	if err != nil {
 		panic(fmt.Sprintf("Fail to generate smc call: %v", err))
 	}
-	return tx
-}
-
-func GenerateCreateSmcCall(senderKey *ecdsa.PrivateKey, input []byte, stateDb *state.StateDB) *types.Transaction {
-	senderAddress := crypto.PubkeyToAddress(senderKey.PublicKey)
-	nonce := stateDb.GetNonce(senderAddress)
-	tx, err := types.SignTx(types.NewContractCreation(
-		nonce,
-		defaultAmount,
-		60000,
-		big.NewInt(1),
-		input,
-	), senderKey)
-	if err != nil {
-		panic(fmt.Sprintf("Fail to generate smc call: %v", err))
-	}
+	log.Error("GenerateSmcCall", "nonce", tx.Nonce(), "tx", tx.Hash().Hex())
 	return tx
 }
 

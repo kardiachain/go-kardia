@@ -52,7 +52,7 @@ type DualService struct {
 	groupDb types.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
-	eventPool           *event_pool.EventPool
+	eventPool           *event_pool.Pool
 	protocolManager     *service.ProtocolManager
 	blockchain          *blockchain.DualBlockChain
 	csManager           *consensus.ConsensusManager
@@ -96,7 +96,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		return nil, err
 	}
 
-	dualService.eventPool = event_pool.NewEventPool(logger, config.DualEventPool, dualService.chainConfig, dualService.blockchain)
+	dualService.eventPool = event_pool.NewPool(logger, config.DualEventPool, dualService.blockchain)
 
 	// Initialization for consensus.
 	block := dualService.blockchain.CurrentBlock()
@@ -217,6 +217,6 @@ func (s *DualService) APIs() []rpc.API {
 	}
 }
 
-func (s *DualService) EventPool() *event_pool.EventPool       { return s.eventPool }
+func (s *DualService) EventPool() *event_pool.Pool       { return s.eventPool }
 func (s *DualService) BlockChain() *blockchain.DualBlockChain { return s.blockchain }
 func (s *DualService) DualChainConfig() *types.ChainConfig  { return s.chainConfig }

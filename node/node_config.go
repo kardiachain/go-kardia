@@ -104,7 +104,7 @@ type DualChainConfig struct {
 	DualGenesis *genesis.Genesis
 
 	// Dual's event pool options
-	DualEventPool event_pool.EventPoolConfig
+	DualEventPool event_pool.Config
 
 	// IsPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	IsPrivate bool

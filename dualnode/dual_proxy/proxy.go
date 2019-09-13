@@ -28,6 +28,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
+	"sync"
 )
 
 type Proxy struct {
@@ -42,7 +43,7 @@ type Proxy struct {
 
 	// Dual blockchain related fields
 	dualBc    base.BaseBlockChain
-	eventPool *event_pool.EventPool // Event pool of DUAL service.
+	eventPool *event_pool.Pool // Event pool of DUAL service.
 
 	// The internal blockchain (i.e. Kardia's mainchain) that this dual node's interacting with.
 	internalChain base.BlockChainAdapter
@@ -54,6 +55,8 @@ type Proxy struct {
 	// Queue configuration
 	publishedEndpoint string
 	subscribedEndpoint string
+
+	mu sync.Mutex
 }
 
 // PublishedEndpoint returns publishedEndpoint
@@ -76,7 +79,7 @@ func (p *Proxy) ExternalChain() base.BlockChainAdapter {
 }
 
 // DualEventPool returns dual's eventPool
-func (p *Proxy) DualEventPool() *event_pool.EventPool {
+func (p *Proxy) DualEventPool() *event_pool.Pool {
 	return p.eventPool
 }
 
@@ -108,7 +111,7 @@ func NewProxy(
 	kardiaBc base.BaseBlockChain,
 	txPool *tx_pool.TxPool,
 	dualBc base.BaseBlockChain,
-	dualEventPool *event_pool.EventPool,
+	dualEventPool *event_pool.Pool,
 	publishedEndpoint string,
 	subscribedEndpoint string,
 ) (*Proxy, error) {
@@ -145,8 +148,8 @@ func (p *Proxy) Start() {
 	go utils.StartSubscribe(p)
 }
 
-func (p *Proxy) AddEvent(dualEvent *types.DualEvent) error {
-	return p.eventPool.AddEvent(dualEvent)
+func (p *Proxy) AddEvent(dualEvent *types.DualEvent) {
+	p.eventPool.AddEvent(dualEvent)
 }
 
 func (p *Proxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
@@ -179,3 +182,12 @@ func (p *Proxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, er
 		Target: types.KARDIA,
 	}, nil
 }
+
+func (p *Proxy) Lock() {
+	p.mu.Lock()
+}
+
+func (p *Proxy) UnLock() {
+	p.mu.Unlock()
+}
+

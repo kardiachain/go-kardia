@@ -31,8 +31,8 @@ type (
 		ZeroFee       uint           `yaml:"ZeroFee"`
 		IsDual        uint           `yaml:"IsDual"`
 		Genesis       *Genesis       `yaml:"Genesis,omitempty"`
-		TxPool        *TxPool        `yaml:"TxPool,omitempty"`
-		EventPool     *EventPool     `yaml:"EventPool,omitempty"`
+		TxPool        *Pool          `yaml:"TxPool,omitempty"`
+		EventPool     *Pool          `yaml:"EventPool,omitempty"`
 		Database      *Database      `yaml:"Database,omitempty"`
 	   	Seeds         []string       `yaml:"Seeds"`
 		Events        []Event 	     `yaml:"Events"`
@@ -51,11 +51,7 @@ type (
 		ByteCode   string    `yaml:"ByteCode"`
 		ABI        string    `yaml:"ABI,omitempty"`
 	}
-	EventPool struct {
-		QueueSize  int         `yaml:"QueueSize"`
-		Lifetime   int         `yaml:"Lifetime"`
-	}
-	TxPool struct {
+	Pool struct {
 		GlobalSlots     uint64    `yaml:"GlobalSlots"`
 		GlobalQueue     uint64    `yaml:"GlobalQueue"`
 		NumberOfWorkers int       `yaml:"NumberOfWorkers"`

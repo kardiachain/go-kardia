@@ -20,6 +20,7 @@ package permissioned
 
 import (
 	"crypto/ecdsa"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"math/big"
 	"strings"
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -132,25 +133,25 @@ func (s *PermissionSmcUtil) IsValidator(pubkey string) (bool, error) {
 // AddNodeForPrivateChain returns tx to add a node with specified pubkey, nodeType, address and votingPower to list of nodes
 // of a private chain. If votingPower > 0, added node is validator. Only admins can call this function
 func (s *PermissionSmcUtil) AddNodeForPrivateChain(pubkey string, nodeType int64, address common.Address,
-	votingPower *big.Int, listenAddr string, state *state.ManagedState) (*types.Transaction, error) {
+	votingPower *big.Int, listenAddr string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
 	addNodeInput, err := s.Abi.Pack("addNode", pubkey, address, big.NewInt(nodeType), votingPower, listenAddr)
 	if err != nil {
 		log.Error("Error packing add node input", "err", err)
 		return nil, err
 	}
 	return tool.GenerateSmcCall(s.SenderPrivateKey, *s.ContractAddress, addNodeInput,
-		state), nil
+		txPool, false), nil
 }
 
 // RemoveNodeForPrivateChain returns tx to remove a node with specified pubkey and nodeType from a private chain
 // Only admins can call this function
-func (s *PermissionSmcUtil) RemoveNodeForPrivateChain(pubkey string, stateDb *state.ManagedState) (*types.Transaction, error) {
+func (s *PermissionSmcUtil) RemoveNodeForPrivateChain(pubkey string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
 	removeNodeInput, err := s.Abi.Pack("removeNode", pubkey)
 	if err != nil {
 		log.Error("Error packing remove node input", "err", err)
 		return nil, err
 	}
-	return tool.GenerateSmcCall(s.SenderPrivateKey, *s.ContractAddress, removeNodeInput, stateDb), nil
+	return tool.GenerateSmcCall(s.SenderPrivateKey, *s.ContractAddress, removeNodeInput, txPool, false), nil
 }
 
 // GetAdminNodeByIndex executes smart contract to get info of an initial node, including public key, address, listen address,

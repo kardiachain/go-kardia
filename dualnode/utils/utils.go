@@ -24,6 +24,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"math"
 	"math/big"
 	"strconv"
@@ -35,7 +36,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	dualMsg "github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -128,9 +128,10 @@ func CallGetRate(smc common.Address, kAbi abi.ABI, fromType string, toType strin
 }
 
 // Creates a Kardia tx to report new matching amount from Eth/Neo/TRX network, return nil in case of any error occurs
-func CreateKardiaMatchAmountTx(statedb *state.ManagedState, smc common.Address, kAbi abi.ABI, quantity *big.Int, sourceAddress string,
+func CreateKardiaMatchAmountTx(txPool *tx_pool.TxPool, smc common.Address, kAbi abi.ABI, quantity *big.Int, sourceAddress string,
 	destinationAddress string, source string, destination string, hash string, bc base.BaseBlockChain) (*types.Transaction, error) {
 
+	statedb := txPool.State()
 	// check if source and destination types are valid or not.
 	if !AvailableExchangeType[source] || !AvailableExchangeType[destination] {
 		return nil, fmt.Errorf("invalid type")
@@ -197,8 +198,7 @@ func CreateKardiaMatchAmountTx(statedb *state.ManagedState, smc common.Address, 
 		log.Error("Error packing abi", "error", err, "address")
 		return nil, err
 	}
-
-	return tool.GenerateSmcCall(&bc.Config().BaseAccount.PrivateKey, smc, matchInput, statedb), nil
+	return tool.GenerateSmcCall(&bc.Config().BaseAccount.PrivateKey, smc, matchInput, txPool, false), nil
 }
 
 func ToRateFloat(fromAmount *big.Int, toAmount *big.Int, precision int) (float64, error) {
@@ -242,18 +242,18 @@ func CallKardiGetMatchingResultByTxId(from common.Address, bc base.BaseBlockChai
 	return matchingResult.Results, nil
 }
 
-func UpdateKardiaTx(state *state.ManagedState, smartContract common.Address, kAbi abi.ABI, originalTx string, tx string, privateKey ecdsa.PrivateKey) (*types.Transaction, error) {
+func UpdateKardiaTx(txPool *tx_pool.TxPool, smartContract common.Address, kAbi abi.ABI, originalTx string, tx string, privateKey ecdsa.PrivateKey) (*types.Transaction, error) {
 	completeInput, err := kAbi.Pack(configs.UpdateKardiaTx, originalTx, tx)
 	if err != nil {
 		log.Error("Failed to pack updateKardiaTx", "originalTx", originalTx, "err", err)
 		return nil, err
 	}
-	return tool.GenerateSmcCall(&privateKey, smartContract, completeInput, state), nil
+	return tool.GenerateSmcCall(&privateKey, smartContract, completeInput, txPool, true), nil
 }
 
 // CreateForwardRequestTx creates tx call to Kardia candidate exchange contract to forward a candidate request to another
 // external chain
-func CreateForwardRequestTx(email string, fromOrgId string, toOrgId string, state *state.ManagedState) (*types.Transaction, error) {
+func CreateForwardRequestTx(email string, fromOrgId string, toOrgId string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
 	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
 	if exchangeSmcAbi == "" {
 		return nil, errAbiNotFound
@@ -266,14 +266,14 @@ func CreateForwardRequestTx(email string, fromOrgId string, toOrgId string, stat
 	if err != nil {
 		return nil, err
 	}
-	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), exchangeSmcAddr, requestInfoInput, state), nil
+	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), exchangeSmcAddr, requestInfoInput, txPool, false), nil
 }
 
 // CreateForwardResponseTx creates tx call to Kardia candidate exchange contract to fulfill a candidate info request
 // from external private chain, receiving private chain will catch the event fired from Kardia exchange contract to process
 // candidate info
 func CreateForwardResponseTx(email string, response string, fromOrgId string, toOrgId string,
-	state *state.ManagedState) (*types.Transaction, error) {
+	txPool *tx_pool.TxPool) (*types.Transaction, error) {
 	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
 	if exchangeSmcAbi == "" {
 		return nil, errAbiNotFound
@@ -286,7 +286,7 @@ func CreateForwardResponseTx(email string, response string, fromOrgId string, to
 	if err != nil {
 		return nil, err
 	}
-	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), exchangeSmcAddr, requestInfoInput, state), nil
+	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), exchangeSmcAddr, requestInfoInput, txPool, false), nil
 }
 
 // Return a common private key to call to Kardia smc from dual node
@@ -325,7 +325,7 @@ func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) erro
 }
 
 // ExecuteKardiaSmartContract executes smart contract based on address, method and list of params
-func ExecuteKardiaSmartContract(state *state.ManagedState, bc base.BaseBlockChain, contractAddress, methodName string, params []string) (*types.Transaction, error) {
+func ExecuteKardiaSmartContract(txPool *tx_pool.TxPool, bc base.BaseBlockChain, contractAddress, methodName string, params []string) (*types.Transaction, error) {
 	// find contractAddress, to see if it is saved in chain or not.
 	db := bc.DB()
 
@@ -348,7 +348,7 @@ func ExecuteKardiaSmartContract(state *state.ManagedState, bc base.BaseBlockChai
 		return nil, err
 	}
 	if bc.Config().BaseAccount != nil {
-		return tool.GenerateSmcCall(&bc.Config().BaseAccount.PrivateKey, common.HexToAddress(contractAddress), input, state), nil
+		return tool.GenerateSmcCall(&bc.Config().BaseAccount.PrivateKey, common.HexToAddress(contractAddress), input, txPool, false), nil
 	}
 	return nil, fmt.Errorf("cannot execute kardia smart contract - base account not found")
 }
@@ -365,13 +365,12 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 			return err
 		}
 		proxy.Logger().Info(
-			"TriggerMessage",
+			"DUAL_CALL",
 			"contractAddress", triggerMessage.ContractAddress,
 			"methodName", triggerMessage.MethodName,
 			"params", triggerMessage.Params,
 		)
-
-		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool().State(), proxy.KardiaBlockChain(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
+		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool(), proxy.KardiaBlockChain(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
 		if err != nil {
 			proxy.Logger().Error("Error on executing kardia smart contract", "err", err, "topic", topic)
 			return err
@@ -423,7 +422,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 			extraData[configs.ExchangeV2AmountIndex] = big.NewInt(int64(msg.GetAmount())).Bytes()
 			extraData[configs.ExchangeV2TimestampIndex] = big.NewInt(int64(msg.GetTimestamp())).Bytes()
 
-			return NewEvent(proxy, msg.MethodName, big.NewInt(int64(msg.Amount)), extraData, txHash, watcherAction.DualAction, true)
+			return NewEvent(proxy, msg.BlockNumber, msg.MethodName, big.NewInt(int64(msg.Amount)), extraData, txHash, watcherAction.DualAction, true)
 		}
 	}
 	return nil
@@ -464,22 +463,16 @@ func subscribe(subscriber *zmq4.Socket, proxy base.BlockChainAdapter) error {
 	return nil
 }
 
-func getStateFromProxy(proxy base.BlockChainAdapter) (*state.StateDB, error) {
-	dualState, err := proxy.DualBlockChain().State()
-	if err != nil {
-		proxy.Logger().Error("Fail to get Dual BlockChain state", "error", err)
-		return nil, err
-	}
-	return dualState, nil
-}
-
 // NewEvent creates new event and add to eventPool
-func NewEvent(proxy base.BlockChainAdapter, method string, value *big.Int, extraData [][]byte, txHash common.Hash, action string, fromExternal bool) error {
-	dualState, err := getStateFromProxy(proxy)
-	if err != nil {
-		return err
+func NewEvent(proxy base.BlockChainAdapter, blockHeight uint64, method string, value *big.Int, extraData [][]byte, txHash common.Hash, action string, fromExternal bool) error {
+	if proxy.DualBlockChain().Config().BaseAccount == nil {
+		return fmt.Errorf("current node does not have base account to create new event")
 	}
-	nonce := dualState.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
+
+	baseAddress := proxy.DualBlockChain().Config().BaseAccount.Address
+	privateKey := proxy.DualBlockChain().Config().BaseAccount.PrivateKey
+	proxy.Logger().Info("nonce of base account", "baseAddress", baseAddress.Hex())
+
 	eventSummary := &types.EventSummary{
 		TxMethod: method,
 		TxValue:  value,
@@ -490,7 +483,7 @@ func NewEvent(proxy base.BlockChainAdapter, method string, value *big.Int, extra
 		return fmt.Errorf("proxy %v is not in allowed exchanged list", proxy.Name())
 	}
 
-	dualEvent := types.NewDualEvent(nonce, fromExternal /* internalChain */, types.BlockchainSymbol(proxy.Name()), &txHash, eventSummary, &types.DualAction{
+	dualEvent := types.NewDualEvent(blockHeight, fromExternal /* internalChain */, types.BlockchainSymbol(proxy.Name()), &txHash, eventSummary, &types.DualAction{
 		Name: action,
 	})
 
@@ -501,12 +494,16 @@ func NewEvent(proxy base.BlockChainAdapter, method string, value *big.Int, extra
 		return err
 	}
 	dualEvent.PendingTxMetadata = txMetaData
-	err = proxy.DualEventPool().AddEvent(dualEvent)
+	signedEvent, err := types.SignEvent(dualEvent, &privateKey)
 	if err != nil {
-		log.Error("Failed to add dual event to pool", "err", err)
 		return err
 	}
-	log.Info("Added to dual event pool successfully", "eventHash", dualEvent.Hash().String())
+	proxy.Logger().Info("Adding new event", "evt", signedEvent.String(), "hash", dualEvent.Hash().Hex())
+	if err := proxy.DualEventPool().AddEvent(signedEvent); err != nil {
+		proxy.Logger().Error("error while adding dual event", "err", err, "event", signedEvent.Hash().Hex())
+		return err
+	}
+	log.Info("Added to dual event pool successfully", "eventHash", signedEvent.Hash().String())
 	return nil
 }
 
@@ -552,19 +549,21 @@ func Release(proxy base.BlockChainAdapter, smc common.Address, kAbi abi.ABI, rec
 	}
 
 	// Create KARDIA_CALL event
-	proxy.Logger().Info("Adding triggerMessage to event", "triggerMessage", triggerMessage.String())
+	proxy.Logger().Info("Publishing triggerMessage to event", "triggerMessage", triggerMessage.String())
 
 	// Marshaling triggerMessage to byte array and put it to extraData
-	extraData := make([][]byte, 1)
-	buffer := &bytes.Buffer{}
-	marshaller := jsonpb.Marshaler{}
-	err = marshaller.Marshal(buffer, &triggerMessage)
-	if err != nil {
-		return err
-	}
-	extraData[0] = buffer.Bytes()
-	txHash := common.HexToHash(txId)
-	return NewEvent(proxy, KARDIA_CALL, big.NewInt(0), extraData, txHash, KARDIA_CALL, false)
+	//extraData := make([][]byte, 1)
+	//buffer := &bytes.Buffer{}
+	//marshaller := jsonpb.Marshaler{}
+	//err = marshaller.Marshal(buffer, &triggerMessage)
+	//if err != nil {
+	//	return err
+	//}
+	//extraData[0] = buffer.Bytes()
+	//txHash := common.HexToHash(txId)
+	//blockHeight := proxy.DualBlockChain().CurrentBlock().Height()
+	//return NewEvent(proxy, blockHeight, KARDIA_CALL, big.NewInt(0), extraData, txHash, KARDIA_CALL, false)
+	return PublishMessage(proxy.PublishedEndpoint(), KARDIA_CALL, triggerMessage)
 }
 
 // KardiaCall receives event from submitTx and publish message to Target chain.
@@ -673,7 +672,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 		arrTxIds := strings.Split(fields[configs.ExchangeV2ReleaseTxIdsIndex], configs.ExchangeV2ReleaseValuesSepatator)
 
 		for i, t := range arrTypes {
-
+			proxy.Logger().Error("start release", "type", t, "proxy", proxy.Name())
 			if proxy.Name() != t {
 				continue
 			}

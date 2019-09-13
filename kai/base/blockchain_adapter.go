@@ -51,7 +51,7 @@ type BlockChainAdapter interface {
 	ExternalChain() BlockChainAdapter
 
 	// DualEventPool returns dual's eventPool
-	DualEventPool() *event_pool.EventPool
+	DualEventPool() *event_pool.Pool
 
 	// DualBlockChain returns dual blockchain
 	DualBlockChain() BaseBlockChain
@@ -73,4 +73,7 @@ type BlockChainAdapter interface {
 
 	// Start proxy
 	Start()
+
+	Lock()
+	UnLock()
 }
