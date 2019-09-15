@@ -477,6 +477,9 @@ func CommonReadReceipt(db types.DatabaseReader, hash common.Hash) (*types.Receip
 	return receipts[receiptIndex], blockHash, blockNumber, receiptIndex
 }
 
+// CommonReadEventFromDualAction gets KardiaSmartcontract based on dual action, returns smart contract address and its abi (if any)
+// Note: there are chains which do not use same standard as ETH and may not have abi.
+// Therefore, smart contract address is stored as string and abi may be nil.
 func CommonReadEventFromDualAction(db types.DatabaseReader, action string) (string, *abi.ABI) {
 	key, err := db.Get(dualActionKey(action))
 	if err != nil || key == nil {
@@ -507,7 +510,7 @@ func CommonReadEventFromDualAction(db types.DatabaseReader, action string) (stri
 	return entry.Address, nil
 }
 
-// CommonReadEvent gets event data from contract address and method
+// CommonReadEvent gets a watcher action from contract address and method
 func CommonReadEvent(db types.DatabaseReader, address string, method string) *types.WatcherAction {
 	data, err := db.Get(eventKey(address, method))
 	if err != nil {

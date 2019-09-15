@@ -98,7 +98,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 		//  pending DualEvents, second is to propose submission receipts of N-1 DualEvent-derived Txs
 		//  to other blockchains.
 		dbo.logger.Debug("Submitting dual events from N-1", "events", previousBlock.DualEvents())
-		if err := dbo.SubmitDualEvents(previousBlock.DualEvents()); err != nil {
+		if err := dbo.submitDualEvents(previousBlock.DualEvents()); err != nil {
 			dbo.logger.Error("Fail to submit dual events", "err", err)
 			return nil
 		}
@@ -231,7 +231,7 @@ func (dbo *DualBlockOperations) collectDualEvents() []*types.DualEvent {
 }
 
 // Submits txs derived from a dual events list to other blockchain.
-func (dbo *DualBlockOperations) SubmitDualEvents(events types.DualEvents) error {
+func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) error {
 	if len(events) == 0 {
 		return nil
 	}
@@ -244,8 +244,9 @@ func (dbo *DualBlockOperations) SubmitDualEvents(events types.DualEvents) error 
 		sender, err := types.EventSender(event)
 		if err != nil {
 			dbo.logger.Error("error while getting sender from event", "err", err, "event", event.Hash().Hex())
+			continue
 		}
-		dbo.logger.Info("processing event",
+		dbo.logger.Debug("processing event",
 			"hash", event.Hash().Hex(),
 			"sender", sender.Hash().Hex(),
 			"dualAction", event.TriggeredEvent.Action,

@@ -139,6 +139,7 @@ func (db *LDBStore)WriteHeadHeaderHash(hash common.Hash) {
 	CommonWriteHeadHeaderHash(db, hash)
 }
 
+// WriteEvent stores KardiaSmartContract to db
 func (db *LDBStore) WriteEvent(smc *types.KardiaSmartcontract) {
 	CommonWriteEvent(db, smc)
 }
@@ -169,18 +170,22 @@ func (db *LDBStore)StoreTxHash(hash *common.Hash) {
 	CommonStoreTxHash(db, hash)
 }
 
+// ReadSmartContractAbi gets smart contract abi by smart contract address
 func (db *LDBStore) ReadSmartContractAbi(address string) *abi.ABI {
 	return CommonReadSmartContractAbi(db, address)
 }
 
+// ReadEvent gets watcher action by smart contract address and method
 func (db *LDBStore) ReadEvent(address string, method string) *types.WatcherAction {
 	return CommonReadEvent(db, address, method)
 }
 
+// ReadEvents returns a list of watcher action by smart contract address
 func (db *LDBStore) ReadEvents(address string) []*types.WatcherAction {
 	return CommonReadEvents(db, address)
 }
 
+// ReadSmartContractFromDualAction returns smart contract address and its abi (if any) from dual action
 func (db *LDBStore) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {
 	return CommonReadEventFromDualAction(db, action)
 }

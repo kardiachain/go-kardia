@@ -73,7 +73,4 @@ type BlockChainAdapter interface {
 
 	// Start proxy
 	Start()
-
-	Lock()
-	UnLock()
 }

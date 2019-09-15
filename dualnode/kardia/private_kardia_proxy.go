@@ -34,7 +34,6 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
 	"strings"
-	"sync"
 )
 
 const PRIVATE_KARDIA = "PRIVATE"
@@ -80,8 +79,6 @@ type PrivateKardiaProxy struct {
 	// TODO(sontranrad@,namdoh@): Hard-coded, need to be cleaned up.
 	smcAddress *common.Address
 	smcABI     *abi.ABI
-
-	mu sync.Mutex
 }
 
 // PublishedEndpoint returns publishedEndpoint
@@ -328,6 +325,7 @@ func (p *PrivateKardiaProxy) HandleKardiaTx(tx *types.Transaction) error {
 	eventSummary, err := p.ExtractKardiaTxSummary(tx)
 	if err != nil {
 		log.Error("Error when extracting Kardia main chain's tx summary.")
+		return err
 	}
 	if eventSummary.TxMethod != configs.KardiaForwardResponseFunction && eventSummary.TxMethod != configs.KardiaForwardRequestFunction {
 		log.Info("Skip tx updating smc not related to candidate exchange", "method", eventSummary.TxMethod)
@@ -352,7 +350,10 @@ func (p *PrivateKardiaProxy) HandleKardiaTx(tx *types.Transaction) error {
 	}
 	dualEvent.PendingTxMetadata = txMetadata
 	log.Info("Create DualEvent for Kardia's Tx", "dualEvent", dualEvent)
-	p.eventPool.AddEvent(dualEvent)
+	if err := p.eventPool.AddEvent(dualEvent); err != nil {
+		p.Logger().Error("error while adding event", "err", err)
+		return err
+	}
 	log.Info("Submitted Kardia's DualEvent to event pool successfully", "txHash", tx.Hash().String(),
 		"eventHash", dualEvent.Hash().String())
 	return nil
@@ -413,13 +414,4 @@ func (p *PrivateKardiaProxy) createTxFromExternalResponseData(event *types.Event
 		string(event.Data.ExtData[configs.PrivateChainCandidateRequestCompletedFromOrgIDIndex]),
 		string(event.Data.ExtData[configs.PrivateChainCandidateRequestCompletedToOrgIDIndex]), p.txPool)
 	return tx, err
-}
-
-
-func (p *PrivateKardiaProxy) Lock() {
-	p.mu.Lock()
-}
-
-func (p *PrivateKardiaProxy) UnLock() {
-	p.mu.Unlock()
 }

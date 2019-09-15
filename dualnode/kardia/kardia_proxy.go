@@ -35,7 +35,6 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 	"math/big"
 	"strings"
-	"sync"
 )
 
 const KARDIA_PROXY = "KARDIA_PROXY"
@@ -63,8 +62,6 @@ type KardiaProxy struct {
 	// TODO(sontranrad@,namdoh@): Hard-coded, need to be cleaned up.
 	kaiSmcAddress *common.Address
 	smcABI        *abi.ABI
-
-	mu sync.Mutex
 }
 
 type MatchRequestInput struct {
@@ -219,7 +216,6 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 		tx, err := utils.CreateKardiaMatchAmountTx(p.txPool, common.HexToAddress(smartContract), *kAbi, event.Data.TxValue, srcAddress, destAddress, fromType, toType, originalTx, p.kardiaBc)
 		if err != nil {
 			p.logger.Error("Fail to create Kardia's tx from DualEvent", "err", err)
-			p.UnLock()
 			return configs.ErrCreateKardiaTx
 		}
 
@@ -466,13 +462,4 @@ func (p *KardiaProxy) updateKardiaTxForOrder(smartContract common.Address, abi a
 
 func (p *KardiaProxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 	panic("this function is not implemented")
-}
-
-
-func (p *KardiaProxy) Lock() {
-	p.mu.Lock()
-}
-
-func (p *KardiaProxy) UnLock() {
-	p.mu.Unlock()
 }

@@ -38,7 +38,6 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"sync"
 )
 
 const SERVICE_NAME = "PRIVATE_DUAL"
@@ -98,8 +97,6 @@ type PermissionedProxy struct {
 	privateChainID   *uint64
 	logger           log.Logger
 	candidateSmcUtil *permissioned.CandidateSmcUtil
-
-	mu sync.Mutex
 }
 
 // NewPermissionedProxy initiates a new private proxy
@@ -279,7 +276,10 @@ func (p *PermissionedProxy) handlePrivateBlock(block *types.Block) {
 		}
 		dualEvent.PendingTxMetadata = txMetaData
 		p.logger.Info("Create DualEvent for private chain's Tx", "dualEvent", dualEvent)
-		p.eventPool.AddEvent(dualEvent)
+		if err := p.eventPool.AddEvent(dualEvent); err != nil {
+			p.logger.Error("error while adding event", "err", err)
+			return
+		}
 		p.logger.Info("Submitted Private chain 's DualEvent to event pool successfully", "eventHash", dualEvent.Hash().Hex())
 	}
 }
@@ -457,12 +457,4 @@ func (p *PermissionedProxy) createTxFromKardiaForwardedResponse(event *types.Eve
 
 func (p *PermissionedProxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 	p.internalChain = internalChain
-}
-
-func (p *PermissionedProxy) Lock() {
-	p.mu.Lock()
-}
-
-func (p *PermissionedProxy) UnLock() {
-	p.mu.Unlock()
 }

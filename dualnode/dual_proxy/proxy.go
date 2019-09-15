@@ -28,7 +28,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
-	"sync"
 )
 
 type Proxy struct {
@@ -55,8 +54,6 @@ type Proxy struct {
 	// Queue configuration
 	publishedEndpoint string
 	subscribedEndpoint string
-
-	mu sync.Mutex
 }
 
 // PublishedEndpoint returns publishedEndpoint
@@ -182,12 +179,3 @@ func (p *Proxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, er
 		Target: types.KARDIA,
 	}, nil
 }
-
-func (p *Proxy) Lock() {
-	p.mu.Lock()
-}
-
-func (p *Proxy) UnLock() {
-	p.mu.Unlock()
-}
-

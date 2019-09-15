@@ -32,5 +32,4 @@ type BaseBlockOperations interface {
 	CommitAndValidateBlockTxs(block *types.Block) error
 	CommitBlockTxsIfNotFound(block *types.Block) error
 	SaveBlock(block *types.Block, seenCommit *types.Commit)
-	SubmitDualEvents(events types.DualEvents) error
 }
