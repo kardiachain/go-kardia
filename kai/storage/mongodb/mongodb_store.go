@@ -338,53 +338,55 @@ func (db *Store)WriteCommitRLP(height uint64, rlp rlp.RawValue) {
 }
 
 func (db *Store) WriteEvent(smc *types.KardiaSmartcontract) {
-	if smc != nil {
-		if len(smc.WatcherActions) > 0 {
-			for _, action := range smc.WatcherActions {
-				evt := WatcherAction{
-					ContractAddress: smc.SmcAddress,
-					ABI:             smc.SmcAbi,
-					Method:          action.Method,
-					DualAction:      action.DualAction,
-				}
-				output, err := bson.Marshal(evt)
-				if err != nil {
-					log.Error("error while marshal entry", "err", err)
-					return
-				}
-				document, err := bsonx.ReadDoc(output)
-				if err != nil {
-					log.Error("error while reading output to Doc", "err", err)
-					return
-				}
-				if _, err := db.DB().Collection(watcherActionTable).InsertOne(context.Background(), document); err != nil {
-					log.Error("error while adding new event", "err", err, "address", smc.SmcAddress, "method", action.Method)
-					return
-				}
+	if smc == nil {
+		log.Warn("smc is nil")
+		return
+	}
+	if len(smc.WatcherActions) > 0 {
+		for _, action := range smc.WatcherActions {
+			evt := WatcherAction{
+				ContractAddress: smc.SmcAddress,
+				ABI:             smc.SmcAbi,
+				Method:          action.Method,
+				DualAction:      action.DualAction,
+			}
+			output, err := bson.Marshal(evt)
+			if err != nil {
+				log.Error("error while marshal entry", "err", err)
+				return
+			}
+			document, err := bsonx.ReadDoc(output)
+			if err != nil {
+				log.Error("error while reading output to Doc", "err", err)
+				return
+			}
+			if _, err := db.DB().Collection(watcherActionTable).InsertOne(context.Background(), document); err != nil {
+				log.Error("error while adding new event", "err", err, "address", smc.SmcAddress, "method", action.Method)
+				return
 			}
 		}
+	}
 
-		if len(smc.DualActions) > 0 {
-			for _, action := range smc.DualActions {
-				evt := DualAction{
-					Name:            action.Name,
-					ContractAddress: smc.SmcAddress,
-					ABI:             smc.SmcAbi,
-				}
-				output, err := bson.Marshal(evt)
-				if err != nil {
-					log.Error("error while marshal entry", "err", err)
-					return
-				}
-				document, err := bsonx.ReadDoc(output)
-				if err != nil {
-					log.Error("error while reading output to Doc", "err", err)
-					return
-				}
-				if _, err := db.DB().Collection(dualActionTable).InsertOne(context.Background(), document); err != nil {
-					log.Error("error while adding new event", "err", err, "address", smc.SmcAddress, "method", action.Name)
-					return
-				}
+	if len(smc.DualActions) > 0 {
+		for _, action := range smc.DualActions {
+			evt := DualAction{
+				Name:            action.Name,
+				ContractAddress: smc.SmcAddress,
+				ABI:             smc.SmcAbi,
+			}
+			output, err := bson.Marshal(evt)
+			if err != nil {
+				log.Error("error while marshal entry", "err", err)
+				return
+			}
+			document, err := bsonx.ReadDoc(output)
+			if err != nil {
+				log.Error("error while reading output to Doc", "err", err)
+				return
+			}
+			if _, err := db.DB().Collection(dualActionTable).InsertOne(context.Background(), document); err != nil {
+				log.Error("error while adding new event", "err", err, "address", smc.SmcAddress, "method", action.Name)
+				return
 			}
 		}
 	}

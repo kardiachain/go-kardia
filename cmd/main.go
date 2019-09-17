@@ -92,20 +92,16 @@ func (c *Config)getP2PConfig() (*p2p.Config, error) {
 
 // getDbInfo gets database information from config. Currently, it only supports levelDb and Mondodb
 func (c *Config)getDbInfo(isDual bool) storage.DbInfo {
-	var database *Database
+	database := c.MainChain.Database
 	if isDual {
 		database = c.DualChain.Database
-	} else {
-		database = c.MainChain.Database
 	}
-
 	switch database.Type {
 	case LevelDb:
 		nodeDir := filepath.Join(c.DataDir, c.Name, database.Dir)
 		if database.Drop == 1 {
 			// Clear all contents within data dir
-			err := removeDirContents(nodeDir)
-			if err != nil {
+			if err := removeDirContents(nodeDir); err != nil {
 				panic(err)
 			}
 		}
@@ -134,14 +130,10 @@ func (c *Config)getTxPoolConfig() tx_pool.TxPoolConfig {
 func (c *Config)getGenesis(isDual bool) (*genesis.Genesis, error) {
 	var ga genesis.GenesisAlloc
 	var err error
-	var g *Genesis
-
+	g := c.MainChain.Genesis
 	if isDual {
 		g = c.DualChain.Genesis
-	} else {
-		g = c.MainChain.Genesis
 	}
-
 	if g == nil {
 		ga = make(genesis.GenesisAlloc, 0)
 	} else {
@@ -163,7 +155,7 @@ func (c *Config)getGenesis(isDual bool) (*genesis.Genesis, error) {
 	}
 	return &genesis.Genesis{
 		Config:   configs.TestnetChainConfig,
-		GasLimit: 16777216,
+		GasLimit: 16777216, // maximum number of uint24
 		Alloc:    ga,
 	}, nil
 }
@@ -229,7 +221,7 @@ func (c *Config)getDualChainConfig() (*node.DualChainConfig, error) {
 		DualEventPool:    eventPool,
 		DualNetworkID:    c.DualChain.NetworkID,
 		ChainId:          c.DualChain.ChainID,
-	    DualProtocolName: *c.DualChain.Protocol,
+		DualProtocolName: *c.DualChain.Protocol,
 		EnvConfig:        nil,
 		BaseAccount:      baseAccount,
 	}
@@ -261,18 +253,14 @@ func (c *Config)getNodeConfig() (*node.NodeConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	if mainChainConfig != nil {
-		nodeConfig.MainChainConfig = *mainChainConfig
-	} else {
+	if mainChainConfig == nil {
 		return nil, fmt.Errorf("mainChainConfig is empty")
 	}
-
+	nodeConfig.MainChainConfig = *mainChainConfig
 	if c.DualChain != nil {
-		dualChainConfig, err := c.getDualChainConfig()
-		if err != nil {
+		if dualChainConfig, err := c.getDualChainConfig(); err != nil {
 			return nil, err
-		}
-		if dualChainConfig != nil {
+		} else {
 			nodeConfig.DualChainConfig = *dualChainConfig
 		}
 	}
@@ -399,12 +387,15 @@ func (c *Config)Start() {
 func (c *Config) StartDual(n *node.Node) error {
 	if c.DualChain != nil {
 		var kardiaService *kai.KardiaService
-		if err := n.Service(&kardiaService); err != nil {
+		var dualService *service.DualService
+		var dualProxy *dual_proxy.Proxy
+		var err error
+
+		if err = n.Service(&kardiaService); err != nil {
 			return fmt.Errorf("cannot get Kardia service: %v", err)
 		}
 
-		var dualService *service.DualService
-		if err := n.Service(&dualService); err != nil {
+		if err = n.Service(&dualService); err != nil {
 			return fmt.Errorf("cannot get Dual service: %v", err)
 		}
 
@@ -415,12 +406,12 @@ func (c *Config) StartDual(n *node.Node) error {
 
 		// init kardia proxy
 		kardiaProxy := &kardia.KardiaProxy{}
-		if err := kardiaProxy.Init(kardiaService.BlockChain(), kardiaService.TxPool(),
+		if err = kardiaProxy.Init(kardiaService.BlockChain(), kardiaService.TxPool(),
 			dualService.BlockChain(), dualService.EventPool(), nil, nil); err != nil {
 				panic(err)
 		}
 
-		dualProxy, err := dual_proxy.NewProxy(
+		if dualProxy, err = dual_proxy.NewProxy(
 			c.DualChain.ServiceName,
 			kardiaService.BlockChain(),
 			kardiaService.TxPool(),
@@ -428,8 +419,7 @@ func (c *Config) StartDual(n *node.Node) error {
 			dualService.EventPool(),
 			*c.DualChain.PublishedEndpoint,
 			*c.DualChain.SubscribedEndpoint,
-		)
-		if err != nil {
+		); err != nil {
 			log.Error("Fail to initialize proxy", "error", err, "proxy", c.DualChain.ServiceName)
 			return err
 		}
@@ -483,9 +473,11 @@ func (c *Config) SaveWatchers(service node.Service, events []Event) {
 
 // removeDirContents deletes old local node directory
 func removeDirContents(dir string) error {
+	var err error
+	var directory *os.File
+
 	log.Info("Remove directory", "dir", dir)
-	_, err := os.Stat(dir)
-	if err != nil {
+	if _, err = os.Stat(dir); err != nil {
 		if os.IsNotExist(err) {
 			log.Info("Directory does not exist", "dir", dir)
 			return nil
@@ -493,21 +485,18 @@ func removeDirContents(dir string) error {
 			return err
 		}
 	}
-	d, err := os.Open(dir)
-	if err != nil {
+	if directory, err = os.Open(dir); err != nil {
 		return err
 	}
-	defer d.Close()
-	names, err := d.Readdirnames(-1)
-	if err != nil {
+
+	defer directory.Close()
+
+	var dirNames []string
+	if dirNames, err = directory.Readdirnames(-1); err != nil {
 		return err
 	}
-	for _, name := range names {
-		if name == "rinkeby" || name == "ethereum" {
-			continue
-		}
-		err = os.RemoveAll(filepath.Join(dir, name))
-		if err != nil {
+	for _, name := range dirNames {
+		if err = os.RemoveAll(filepath.Join(dir, name)); err  != nil {
 			return err
 		}
 	}
@@ -521,7 +510,7 @@ func runtimeSystemSettings() error {
 	if err != nil {
 		return err
 	}
-	if limit < 2048 {
+	if limit < 2048 { // limit rlimit less than 2048
 		if err := sysutils.FDRaise(2048); err != nil {
 			return err
 		}

@@ -542,8 +542,8 @@ func CommonReadEvents(db types.DatabaseReader, address string) []*types.WatcherA
 	if len(entries) > 0 {
 		for _, entry := range entries {
 			// get watched event from entry
-			evtData, err := db.Get(common.Hex2Bytes(entry))
-			if err != nil {
+			var evtData interface{}
+			if evtData, err = db.Get(common.Hex2Bytes(entry)); err != nil {
 				log.Error("Cannot get event data", "err", err, "eventData", entry)
 				continue
 			}
