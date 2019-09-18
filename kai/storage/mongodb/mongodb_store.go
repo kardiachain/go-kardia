@@ -109,6 +109,15 @@ func NewDB(uri, dbName string, drop bool) (*Store, error) {
 	return &Store{uri: uri, dbName: dbName}, nil
 }
 
+// execute wraps executed code to a mongodb connection.
+func (db *Store) execute(f func(mongoDb *mongo.Database, ctx *context.Context) error) error {
+	if mongoDb, ctx, err := db.DB(); err != nil {
+		return err
+	} else {
+		return f(mongoDb, ctx)
+	}
+}
+
 // Put puts the given key / value to the queue
 func (db *Store) Put(key, value interface{}) error {
 	if result, _ := db.Has(key); !result {
@@ -735,20 +744,6 @@ func (db *Store) DB() (*mongo.Database, *context.Context, error) {
 
 func (db *Store) NewBatch() types.Batch {
 	return newMongoDbBatch(db)
-}
-
-// execute wraps executed code to a mongodb connection, after finish, connection will be disconnected.
-func (db *Store) execute(f func(mongoDb *mongo.Database, ctx *context.Context) error) error {
-	if mongoDb, ctx, err := db.DB(); err != nil {
-		return err
-	} else {
-		//defer func() {
-		//	if err := mongoDb.Client().Disconnect(*ctx); err != nil {
-		//		log.Error("error while closing mongodb client", "err", err)
-		//	}
-		//}()
-		return f(mongoDb, ctx)
-	}
 }
 
 func (db *Store) getBlockById(mongoDb *mongo.Database, ctx *context.Context, blockId uint64) (*Block, error) {
