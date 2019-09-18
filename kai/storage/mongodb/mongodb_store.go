@@ -32,6 +32,8 @@ import (
 	"time"
 )
 
+var client *mongo.Client
+
 type Store struct {
 	uri string
 	dbName string
@@ -41,16 +43,19 @@ func NewClient(uri string) (*mongo.Client, *context.Context, error) {
 	// add timeout for context
 	// TODO: move timeout to config
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
-	if err != nil {
-		return nil, nil, err
+	if client == nil {
+		var err error
+		client, err = mongo.Connect(ctx, options.Client().ApplyURI(uri))
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	return client, &ctx, nil
 }
 
 // TODO: add more config for db connection
 func NewDB(uri, dbName string, drop bool) (*Store, error) {
-	client, ctx, err := NewClient(uri)
+	client, _, err := NewClient(uri)
 	if err != nil {
 		return nil, err
 	}
@@ -98,9 +103,9 @@ func NewDB(uri, dbName string, drop bool) (*Store, error) {
 	}
 
 	// disconnect client to close connection to mongodb
-	if err := client.Disconnect(*ctx); err != nil {
-		return nil, err
-	}
+	//if err := client.Disconnect(*ctx); err != nil {
+	//	return nil, err
+	//}
 	return &Store{uri: uri, dbName: dbName}, nil
 }
 
@@ -737,11 +742,11 @@ func (db *Store) execute(f func(mongoDb *mongo.Database, ctx *context.Context) e
 	if mongoDb, ctx, err := db.DB(); err != nil {
 		return err
 	} else {
-		defer func() {
-			if err := mongoDb.Client().Disconnect(*ctx); err != nil {
-				log.Error("error while closing mongodb client", "err", err)
-			}
-		}()
+		//defer func() {
+		//	if err := mongoDb.Client().Disconnect(*ctx); err != nil {
+		//		log.Error("error while closing mongodb client", "err", err)
+		//	}
+		//}()
 		return f(mongoDb, ctx)
 	}
 }
