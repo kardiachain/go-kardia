@@ -24,6 +24,7 @@ import (
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
@@ -172,7 +173,13 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 	// Start setting up blockchain
 	kaiDb := types.NewMemStore()
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g)
+	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
+	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
+
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g, &types.BaseAccount{
+		Address:    address,
+		PrivateKey: *privateKey,
+	})
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
 	}
@@ -186,7 +193,7 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 	msg := types.NewMessage(
 		address,
 		nil,
-		0,
+		2,
 		big.NewInt(0),
 		150000,
 		big.NewInt(100),
@@ -219,7 +226,7 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 	msg = types.NewMessage(
 		address,
 		&contractAddress,
-		0,
+		2,
 		big.NewInt(0),
 		150000,
 		big.NewInt(100),
@@ -237,7 +244,13 @@ func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	// Start setting up blockchain
 	kaiDb := types.NewMemStore()
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g)
+	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
+	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
+
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g, &types.BaseAccount{
+		Address:    address,
+		PrivateKey: *privateKey,
+	})
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
 	}
@@ -251,7 +264,7 @@ func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	msg := types.NewMessage(
 		address,
 		nil,
-		0,
+		2,
 		big.NewInt(0),
 		150000,
 		big.NewInt(100),
@@ -284,7 +297,7 @@ func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	msg = types.NewMessage(
 		address,
 		&contractAddress,
-		0,
+		2,
 		big.NewInt(0),
 		150000,
 		big.NewInt(100),

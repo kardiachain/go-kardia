@@ -381,7 +381,7 @@ func SetupBlockchain() (*blockchain.BlockChain, error) {
 	}
 	kaiDb := types.NewMemStore()
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g)
+	chainConfig, _, genesisErr := setupGenesis(g, kaiDb)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}

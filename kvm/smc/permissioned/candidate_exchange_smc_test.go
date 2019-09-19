@@ -20,7 +20,6 @@ package kvm
 
 import (
 	"encoding/hex"
-	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -133,7 +132,7 @@ var candidate_exchange_smc_definition = `[
 // TestForwardRequest tests if a tx sent to Kardia candidate info exchange contract to request info fires
 // correct event and returns correct data (email, fromOrgId, toOrdId)
 func TestForwardRequest(t *testing.T) {
-	bc, err := SetupBlockchainForTesting()
+	bc, txPool, err := SetupBlockchainForTesting()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,8 +154,7 @@ func TestForwardRequest(t *testing.T) {
 	}
 	addrKeyBytes, _ := hex.DecodeString("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-	tx := tool.GenerateSmcCall(addrKey, address, forwardRequestInput,
-		state.ManageState(statedb))
+	tx := tool.GenerateSmcCall(addrKey, address, forwardRequestInput, txPool, false)
 	// Apply tx and get returned logs from that tx
 	logs, err := ApplyTransactionReturnLog(bc, statedb, tx)
 	if err != nil {
@@ -190,7 +188,7 @@ func TestForwardRequest(t *testing.T) {
 // TestForwardResponse tests if a tx sent to Kardia candidate info exchange contract to send candidate info fires
 // correct event and returns correct data (email, fromOrgId, toOrdId)
 func TestForwardResponse(t *testing.T) {
-	bc, err := SetupBlockchainForTesting()
+	bc, txPool, err := SetupBlockchainForTesting()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +210,7 @@ func TestForwardResponse(t *testing.T) {
 	}
 	addrKeyBytes, _ := hex.DecodeString("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-	tx := tool.GenerateSmcCall(addrKey, address, forwardResponseInput, state.ManageState(statedb))
+	tx := tool.GenerateSmcCall(addrKey, address, forwardResponseInput, txPool, false)
 	// Apply tx and get returned logs from that tx
 	logs, err := ApplyTransactionReturnLog(bc, statedb, tx)
 	if err != nil {
