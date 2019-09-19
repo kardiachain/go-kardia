@@ -242,7 +242,7 @@ func NewDualBlock(logger log.Logger, header *Header, events DualEvents, commit *
 	if len(events) == 0 {
 		b.header.DualEventsHash = EmptyRootHash
 	} else {
-		b.header.DualEventsHash = DeriveSha(DualEvents(events))
+		b.header.DualEventsHash = DeriveSha(events)
 		b.header.NumDualEvents = uint64(len(events))
 		b.dualEvents = make(DualEvents, len(events))
 		copy(b.dualEvents, events)

@@ -52,7 +52,7 @@ type DualService struct {
 	groupDb types.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
-	eventPool           *event_pool.EventPool
+	eventPool           *event_pool.Pool
 	protocolManager     *service.ProtocolManager
 	blockchain          *blockchain.DualBlockChain
 	csManager           *consensus.ConsensusManager
@@ -74,7 +74,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		return nil, err
 	}
 
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, groupDb, config.DualGenesis)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, groupDb, config.DualGenesis, config.BaseAccount)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
@@ -96,17 +96,16 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		return nil, err
 	}
 
-	dualService.eventPool = event_pool.NewEventPool(logger, config.DualEventPool, dualService.chainConfig, dualService.blockchain)
+	dualService.eventPool = event_pool.NewPool(logger, config.DualEventPool, dualService.blockchain)
 
 	// Initialization for consensus.
 	block := dualService.blockchain.CurrentBlock()
 	log.Info("DUAL Validators: ", "valIndex", ctx.Config.DualChainConfig.ValidatorIndexes)
 	var validatorSet *types.ValidatorSet
-	if ctx.Config.DualChainConfig.EnvConfig != nil {
-		validatorSet, err = ctx.Config.DualChainConfig.EnvConfig.GetValidatorSetByIndices(dualService.blockchain, ctx.Config.DualChainConfig.ValidatorIndexes)
-		if err != nil {
-			logger.Error("Cannot get validator from indices", "indices", ctx.Config.DualChainConfig.ValidatorIndexes, "err", err)
-		}
+	validatorSet, err = node.GetValidatorSet(dualService.blockchain, ctx.Config.DualChainConfig.ValidatorIndexes)
+	if err != nil {
+		logger.Error("Cannot get validator from indices", "indices", ctx.Config.DualChainConfig.ValidatorIndexes, "err", err)
+		return nil, err
 	}
 	state := state.LastestBlockState{
 		ChainID:                     "kaigroupcon",
@@ -126,7 +125,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	)
 	dualService.csManager = consensus.NewConsensusManager(DualServiceName, consensusState)
 	// Set private validator for consensus manager.
-	privValidator := types.NewPrivValidator(ctx.Config.NodeMetadata.PrivKey)
+	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
 	dualService.csManager.SetPrivValidator(privValidator)
 
 	if dualService.protocolManager, err = service.NewProtocolManager(
@@ -156,6 +155,7 @@ func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 		DualEventPool: chainConfig.DualEventPool,
 		DualGenesis:   chainConfig.DualGenesis,
 		IsPrivate:     chainConfig.IsPrivate,
+		BaseAccount:   chainConfig.BaseAccount,
 	})
 
 	if err != nil {
@@ -172,6 +172,7 @@ func (s *DualService) SetDualBlockChainManager(bcManager *blockchain.DualBlockCh
 func (s *DualService) IsListening() bool       { return true } // Always listening
 func (s *DualService) DualServiceVersion() int { return int(s.protocolManager.SubProtocols[0].Version) }
 func (s *DualService) NetVersion() uint64      { return s.networkID }
+func (s *DualService) DB() types.Database      { return s.groupDb }
 
 // Protocols implements Service, returning all the currently configured
 // network protocols to start.
@@ -216,6 +217,6 @@ func (s *DualService) APIs() []rpc.API {
 	}
 }
 
-func (s *DualService) EventPool() *event_pool.EventPool       { return s.eventPool }
+func (s *DualService) EventPool() *event_pool.Pool       { return s.eventPool }
 func (s *DualService) BlockChain() *blockchain.DualBlockChain { return s.blockchain }
 func (s *DualService) DualChainConfig() *types.ChainConfig  { return s.chainConfig }

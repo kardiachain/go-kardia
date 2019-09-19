@@ -43,7 +43,7 @@ type DualBlockOperations struct {
 	mtx sync.RWMutex
 
 	blockchain *DualBlockChain
-	eventPool  *event_pool.EventPool
+	eventPool  *event_pool.Pool
 
 	bcManager *DualBlockChainManager
 
@@ -52,7 +52,7 @@ type DualBlockOperations struct {
 
 // Returns a new DualBlockOperations with latest chain & ,
 // initialized to the last height that was committed to the DB.
-func NewDualBlockOperations(logger log.Logger, blockchain *DualBlockChain, eventPool *event_pool.EventPool) *DualBlockOperations {
+func NewDualBlockOperations(logger log.Logger, blockchain *DualBlockChain, eventPool *event_pool.Pool) *DualBlockOperations {
 	return &DualBlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
@@ -75,7 +75,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 	// TODO(namdoh@): Since there may be a small latency for other dual peers to see the same set of
 	// dual's events, we may need to wait a bit here.
 	events := dbo.collectDualEvents()
-	dbo.logger.Debug("Collected dual's events", "events", events)
+	dbo.logger.Info("Collected dual's events", "events", events)
 
 	header := dbo.newHeader(height, uint64(len(events)), lastBlockID, lastValidatorHash)
 	dbo.logger.Info("Creates new header", "header", header)
@@ -85,6 +85,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 		dbo.logger.Error("Fail to commit dual's events", "err", err)
 		return nil
 	}
+
 	header.Root = stateRoot
 
 	if height > 0 {
@@ -94,11 +95,10 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 			return nil
 		}
 		// TODO(#169,namdoh): Break this propose step into two passes--first is to propose
-		// pending DualEvents, second is to propose submission receipts of N-1 DualEvent-derived Txs
-		// to other blockchains.
-		dbo.logger.Debug("Submitting dual's events from N-1", "events", previousBlock.DualEvents())
-		_, err := dbo.submitDualEvents(previousBlock.DualEvents())
-		if err != nil {
+		//  pending DualEvents, second is to propose submission receipts of N-1 DualEvent-derived Txs
+		//  to other blockchains.
+		dbo.logger.Debug("Submitting dual events from N-1", "events", previousBlock.DualEvents())
+		if err := dbo.submitDualEvents(previousBlock.DualEvents()); err != nil {
 			dbo.logger.Error("Fail to submit dual events", "err", err)
 			return nil
 		}
@@ -174,6 +174,7 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, seenCommit *types.
 
 	dbo.mtx.Lock()
 	dbo.height = height
+
 	dbo.mtx.Unlock()
 }
 
@@ -226,47 +227,59 @@ func (dbo *DualBlockOperations) newBlock(header *types.Header, events types.Dual
 
 // Queries list of pending dual's events from EventPool.
 func (dbo *DualBlockOperations) collectDualEvents() []*types.DualEvent {
-	pending, err := dbo.eventPool.Pending()
-	if err != nil {
-		dbo.logger.Error("Fail to get pending events", "err", err)
-		return nil
-	}
-	return pending
+	return dbo.eventPool.ProposeEvents()
 }
 
 // Submits txs derived from a dual events list to other blockchain.
-func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) (common.Hash, error) {
+func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) error {
 	if len(events) == 0 {
-		return common.Hash{}, nil
+		return nil
 	}
-
 	if dbo.bcManager == nil {
 		dbo.logger.Error("DualBlockChainManager isn't set yet.")
-		return common.Hash{}, ErrNilDualBlockChainManager
+		return ErrNilDualBlockChainManager
 	}
-
+	dbo.logger.Debug("submitting dual event", "events", len(events))
 	for _, event := range events {
+		sender, err := types.EventSender(event)
+		if err != nil {
+			dbo.logger.Error("error while getting sender from event", "err", err, "event", event.Hash().Hex())
+			continue
+		}
+		dbo.logger.Debug("processing event",
+			"hash", event.Hash().Hex(),
+			"sender", sender.Hash().Hex(),
+			"dualAction", event.TriggeredEvent.Action,
+			"method", event.TriggeredEvent.Data.TxMethod,
+			"txSource", event.TriggeredEvent.TxSource,
+			"txHash", event.TriggeredEvent.TxHash.Hex(),
+		)
+
 		if len(event.KardiaSmcs) != 0 {
 			dbo.bcManager.HandleKardiaSmcs(event.KardiaSmcs)
 			continue
 		}
 
-		err := dbo.bcManager.SubmitTx(event.TriggeredEvent)
-		if err != nil {
+		if err := dbo.bcManager.SubmitTx(event.TriggeredEvent); err != nil {
 			// TODO(sontranrad, namdoh): add logic for handling error when submitting TX, currrently just log error here
 			dbo.logger.Error("Error submit dual event", "err", err)
 		} else {
-			dbo.logger.Info("Submit dual event successfully")
+			dbo.logger.Info("Submit dual event successfully",
+				"sender", sender.Hex(), "txSource", event.TriggeredEvent.TxSource,
+				"method", event.TriggeredEvent.Data.TxMethod,
+				"dualAction", event.TriggeredEvent.Action,
+				"txHash",event.TriggeredEvent.TxHash.Hex(),
+				"eventHash", event.Hash().Hex(),
+			)
 		}
 
 		// TODO(namdoh): Properly handle error here.
 	}
 	dbo.logger.Info("Not yet implemented - getting submit DualEvent receipt")
-	return common.Hash{}, nil
+	return nil
 }
 
 // Commit dual's events result stateDB to disk.
-// TODO(namdoh): Simplify this function since the only thing we need is to set new nonce correctly.
 func (dbo *DualBlockOperations) commitDualEvents(events types.DualEvents) (common.Hash, error) {
 	// Blockchain state at head block.
 	state, err := dbo.blockchain.State()
@@ -275,12 +288,9 @@ func (dbo *DualBlockOperations) commitDualEvents(events types.DualEvents) (commo
 		return common.Hash{}, err
 	}
 
-	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
 	counter := 0
-	nodeAddr := common.HexToAddress(event_pool.DualStateAddressHex)
 	for _, event := range events {
 		state.Prepare(event.Hash(), common.Hash{}, counter)
-		state.SetNonce(nodeAddr, state.GetNonce(nodeAddr)+1)
 		state.Finalise(true)
 		counter++
 	}

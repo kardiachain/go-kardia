@@ -89,7 +89,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, config.Genesis)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, config.Genesis, config.BaseAccount)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
@@ -121,11 +121,10 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	block := kai.blockchain.CurrentBlock()
 	logger.Info("Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
 	var validatorSet *types.ValidatorSet
-	if ctx.Config.MainChainConfig.EnvConfig != nil {
-		validatorSet, err = ctx.Config.MainChainConfig.EnvConfig.GetValidatorSetByIndices(kai.blockchain, ctx.Config.MainChainConfig.ValidatorIndexes)
-		if err != nil {
-			logger.Error("Cannot get validator from indices", "indices", ctx.Config.MainChainConfig.ValidatorIndexes, "err", err)
-		}
+	validatorSet, err = node.GetValidatorSet(kai.blockchain, ctx.Config.MainChainConfig.ValidatorIndexes)
+	if err != nil {
+		logger.Error("Cannot get validator from indices", "indices", ctx.Config.MainChainConfig.ValidatorIndexes, "err", err)
+		return nil, err
 	}
 
 	state := state.LastestBlockState{
@@ -182,6 +181,7 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		AcceptTxs:   chainConfig.AcceptTxs,
 		IsZeroFee:   chainConfig.IsZeroFee,
 		IsPrivate:   chainConfig.IsPrivate,
+		BaseAccount: chainConfig.BaseAccount,
 	})
 
 	if err != nil {

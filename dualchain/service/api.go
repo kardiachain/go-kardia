@@ -19,11 +19,10 @@
 package service
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -139,17 +138,6 @@ func (s *PublicDualAPI) Validators() []map[string]interface{} {
 	return nil
 }
 
-// SendRawDualEvent decodes encoded data into DualEvent and then adds event into pool.
-func (s *PublicDualAPI) SendRawDualEvent(txs string) (string, error) {
-	log.Info("SendRawDualEvent", "data", txs)
-	event := new(types.DualEvent)
-	encodedTx := common.FromHex(txs)
-	if err := rlp.DecodeBytes(encodedTx, event); err != nil {
-		return common.Hash{}.Hex(), err
-	}
-	return event.Hash().Hex(), s.dualService.EventPool().AddEvent(event)
-}
-
 // PublicDualEvent represents dual event in JSON format
 type PublicDualEvent struct {
 	BlockHash         string        `json:"blockHash"`
@@ -165,7 +153,6 @@ type PublicDualEvent struct {
 // representation, with the given location metadata set (if available).
 func NewPublicDualEvent(dualEvent *types.DualEvent, blockHash common.Hash, blockNumber uint64, eventIndex uint64) *PublicDualEvent {
 	result := &PublicDualEvent{
-		Nonce:             dualEvent.Nonce,
 		TriggeredEvent:    dualEvent.TriggeredEvent.String(),
 		PendingTxMetadata: dualEvent.PendingTxMetadata.String(),
 		Hash:              dualEvent.Hash().Hex(),
@@ -214,71 +201,14 @@ func (s *PublicDualAPI) GetDualEvent(hash string) *PublicDualEvent {
 
 // PendingDualEvents returns information of pending dual events.
 func (s *PublicDualAPI) PendingDualEvents() ([]*PublicDualEvent, error) {
-	pending, err := s.dualService.EventPool().Pending()
-	if err != nil {
-		return nil, err
+	pending := s.dualService.EventPool().GetPendingData()
+	if pending.Len() == 0 {
+		return nil, fmt.Errorf("event pool is empty")
 	}
-
-	dualEvents := make([]*PublicDualEvent, len(pending))
-
-	for _, dualEvent := range pending {
+	dualEvents := make([]*PublicDualEvent, pending.Len())
+	for _, dualEvent := range *pending {
 		jsonData := NewPublicDualEvent(dualEvent, common.Hash{}, 0, 0)
 		dualEvents = append(dualEvents, jsonData)
 	}
-
 	return dualEvents, nil
-}
-
-// Data content of the dual events in event pool
-type ContentDualEvents struct {
-	Pending []*PublicDualEvent
-	Queued  []*PublicDualEvent
-}
-
-// GetContentDualEvents retrieves the data content of the dual's event pool,
-// returning all the pending as well as queued dual's events, sorted by nonce.
-func (s *PublicDualAPI) GetContentDualEvents() *ContentDualEvents {
-	pending, queued := s.dualService.EventPool().Content()
-
-	pendingEvents := make([]*PublicDualEvent, len(pending))
-	queuedEvents := make([]*PublicDualEvent, len(queued))
-
-	for _, dualEvent := range pending {
-		jsonData := NewPublicDualEvent(dualEvent, common.Hash{}, 0, 0)
-		pendingEvents = append(pendingEvents, jsonData)
-	}
-
-	for _, dualEvent := range queued {
-		jsonData := NewPublicDualEvent(dualEvent, common.Hash{}, 0, 0)
-		queuedEvents = append(queuedEvents, jsonData)
-	}
-
-	return &ContentDualEvents{pendingEvents, queuedEvents}
-}
-
-// TODO(#215): Since dual event isn't saved to StateDB. This function doesn't work.
-// GetStatusDualEvent returns the status (unknown/pending/queued) of dual's
-// event identified by their hashes.
-func (s *PublicDualAPI) GetStatusDualEvent(hashes []string) []map[string]interface{} {
-	eventHashes := make([]common.Hash, len(hashes))
-	for i, hash := range hashes {
-		if hash[0:2] == "0x" {
-			hash = hash[2:]
-		}
-		eventHashes[i] = common.HexToHash(hash)
-	}
-
-	status := s.dualService.EventPool().Status(eventHashes)
-
-	i := 0
-	result := make([]map[string]interface{}, len(hashes))
-	for event, _ := range status {
-		result[i] = map[string]interface{}{
-			"event":  event,
-			"status": status[event],
-		}
-		i++
-	}
-
-	return result
 }

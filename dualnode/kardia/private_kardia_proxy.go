@@ -16,24 +16,28 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
+/**
+ *  Private Kardia Proxy is used for demonstrate how private chains share information to each other by asking and answer questions.
+ */
+
 package kardia
 
 import (
 	"errors"
-	"math/big"
-	"strings"
-
+	"fmt"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/kai/events"
+	"math/big"
+	"strings"
 )
 
 const PRIVATE_KARDIA = "PRIVATE"
@@ -71,9 +75,9 @@ type PrivateKardiaProxy struct {
 
 	// Dual blockchain related fields
 	dualBc    base.BaseBlockChain
-	eventPool *event_pool.EventPool
+	eventPool *event_pool.Pool
 
-	// The external blockchain that this dual node's interacting witp.
+	// The external blockchain that this dual node's interacting with.
 	externalChain base.BlockChainAdapter
 
 	// TODO(sontranrad@,namdoh@): Hard-coded, need to be cleaned up.
@@ -101,7 +105,7 @@ func (p *PrivateKardiaProxy) ExternalChain() base.BlockChainAdapter {
 }
 
 // DualEventPool returns dual's eventPool
-func (p *PrivateKardiaProxy) DualEventPool() *event_pool.EventPool {
+func (p *PrivateKardiaProxy) DualEventPool() *event_pool.Pool {
 	return p.eventPool
 }
 
@@ -128,7 +132,7 @@ func (p *PrivateKardiaProxy) Name() string {
 	return p.name
 }
 
-func NewPrivateKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.EventPool, smcAddr *common.Address, smcABIStr string) (*PrivateKardiaProxy, error) {
+func NewPrivateKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.Pool, smcAddr *common.Address, smcABIStr string) (*PrivateKardiaProxy, error) {
 	var err error
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
@@ -154,6 +158,24 @@ func NewPrivateKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool,
 	processor.chainHeadSub = kardiaBc.SubscribeChainHeadEvent(processor.chainHeadCh)
 
 	return processor, nil
+}
+
+func (p *PrivateKardiaProxy) Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.Pool, publishedEndpoint, subscribedEndpoint *string) error {
+	// Create a specific logger for DUAL service.
+	logger := log.New()
+	logger.AddTag(PRIVATE_KARDIA)
+
+	if publishedEndpoint == nil || subscribedEndpoint == nil {
+		return fmt.Errorf("publishedEndpoint or subscribedEndpoint is empty")
+	}
+	p.name = PRIVATE_KARDIA
+	p.logger = logger
+	p.kardiaBc = kardiaBc
+	p.txPool = txPool
+	p.dualBc = dualBc
+	p.eventPool = dualEventPool
+	p.chainHeadCh = make(chan events.ChainHeadEvent, 5)
+	return nil
 }
 
 func (p *PrivateKardiaProxy) SubmitTx(event *types.EventData) error {
@@ -210,13 +232,17 @@ func (p *PrivateKardiaProxy) ComputeTxMetadata(event *types.EventData) (*types.T
 	}, nil
 }
 
-func (p *PrivateKardiaProxy) Start(initRate bool) {
+func (p *PrivateKardiaProxy) Start() {
 	// Start event
 	go p.loop()
 }
 
 func (p *PrivateKardiaProxy) RegisterExternalChain(externalChain base.BlockChainAdapter) {
 	p.externalChain = externalChain
+}
+
+func (p *PrivateKardiaProxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
+	panic("this function is not implemented")
 }
 
 func (p *PrivateKardiaProxy) loop() {
@@ -303,17 +329,23 @@ func (p *PrivateKardiaProxy) HandleKardiaTx(tx *types.Transaction) error {
 	eventSummary, err := p.ExtractKardiaTxSummary(tx)
 	if err != nil {
 		log.Error("Error when extracting Kardia main chain's tx summary.")
+		return err
 	}
 	if eventSummary.TxMethod != configs.KardiaForwardResponseFunction && eventSummary.TxMethod != configs.KardiaForwardRequestFunction {
 		log.Info("Skip tx updating smc not related to candidate exchange", "method", eventSummary.TxMethod)
 	}
 	log.Info("Detect Kardia's tx updating smc", "method", eventSummary.TxMethod, "value",
 		eventSummary.TxValue, "hash", tx.Hash())
-	nonce := p.eventPool.State().GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
+
+	if p.dualBc.Config().BaseAccount == nil {
+		return fmt.Errorf("baseAccount is empty")
+	}
+
+	height := p.dualBc.CurrentBlock().Height()
 	kardiaTxHash := tx.Hash()
 	txHash := common.BytesToHash(kardiaTxHash[:])
 	// TODO(namdoh@): Pass smartcontract actions here.
-	dualEvent := types.NewDualEvent(nonce, false, types.KARDIA, &txHash, &eventSummary, nil)
+	dualEvent := types.NewDualEvent(height, false, types.KARDIA, &txHash, &eventSummary, nil)
 	txMetadata, err := p.externalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
 	if err != nil {
 		log.Error("method:", "method", eventSummary.TxMethod)
@@ -322,9 +354,8 @@ func (p *PrivateKardiaProxy) HandleKardiaTx(tx *types.Transaction) error {
 	}
 	dualEvent.PendingTxMetadata = txMetadata
 	log.Info("Create DualEvent for Kardia's Tx", "dualEvent", dualEvent)
-	err = p.eventPool.AddEvent(dualEvent)
-	if err != nil {
-		log.Error("Fail to add dual's event", "error", err)
+	if err := p.eventPool.AddEvent(dualEvent); err != nil {
+		p.Logger().Error("error while adding event", "err", err)
 		return err
 	}
 	log.Info("Submitted Kardia's DualEvent to event pool successfully", "txHash", tx.Hash().String(),
@@ -356,7 +387,7 @@ func (p *PrivateKardiaProxy) createTxFromExternalRequestData(event *types.EventD
 	}
 	tx, err := utils.CreateForwardRequestTx(string(event.Data.ExtData[configs.PrivateChainCandidateRequestEmailIndex]),
 		string(event.Data.ExtData[configs.PrivateChainCandidateRequestFromOrgIndex]),
-		string(event.Data.ExtData[configs.PrivateChainCandidateRequestToOrgIndex]), p.txPool.State())
+		string(event.Data.ExtData[configs.PrivateChainCandidateRequestToOrgIndex]), p.txPool)
 	return tx, err
 }
 
@@ -385,6 +416,6 @@ func (p *PrivateKardiaProxy) createTxFromExternalResponseData(event *types.Event
 	tx, err := utils.CreateForwardResponseTx(string(event.Data.ExtData[configs.PrivateChainCandidateRequestCompletedEmailIndex]),
 		string(event.Data.ExtData[configs.PrivateChainCandidateRequestCompletedContentIndex]),
 		string(event.Data.ExtData[configs.PrivateChainCandidateRequestCompletedFromOrgIDIndex]),
-		string(event.Data.ExtData[configs.PrivateChainCandidateRequestCompletedToOrgIDIndex]), p.txPool.State())
+		string(event.Data.ExtData[configs.PrivateChainCandidateRequestCompletedToOrgIDIndex]), p.txPool)
 	return tx, err
 }

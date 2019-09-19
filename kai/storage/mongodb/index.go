@@ -42,6 +42,9 @@ const (
 	key = "key"
 	blockIndex = "blockIndex"
 	address = "address"
+	event = "event"
+	method = "method"
+	dualAction = "dualAction"
 )
 
 func indexModel(key string, unique bool, indexType string) mongo.IndexModel {
@@ -161,6 +164,30 @@ func createTxLookupEntryIndex(db *mongo.Database) error {
 		return err
 	}
 	if err := createIndex(blockIndex, false, "", txLookupEntryCollection); err != nil {
+		return err
+	}
+	return nil
+}
+
+// createTxLookupEntryIndex creates indices for txLookupEntry table
+func createWatcherActionIndex(db *mongo.Database) error {
+	eventCollection := db.Collection(watcherActionTable)
+	if err := createIndex(contractAddress, false, hashed, eventCollection); err != nil {
+		return err
+	}
+	if err := createIndex(method, false, "", eventCollection); err != nil {
+		return err
+	}
+	return nil
+}
+
+// createTxLookupEntryIndex creates indices for txLookupEntry table
+func createDualActionIndex(db *mongo.Database) error {
+	eventCollection := db.Collection(dualActionTable)
+	if err := createIndex(contractAddress, false, hashed, eventCollection); err != nil {
+		return err
+	}
+	if err := createIndex(dualAction, true, "", eventCollection); err != nil {
 		return err
 	}
 	return nil

@@ -100,6 +100,7 @@ func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *GasPool, stated
 	if err != nil {
 		return nil, 0, err
 	}
+	logger.Info("Apply transaction", "hash", tx.Hash().Hex(), "nonce", msg.Nonce(), "from", msg.From().Hex())
 	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, header, bc)
 	// Create a new environment which holds all relevant information
@@ -264,17 +265,17 @@ func (st *StateTransition) buyGas() error {
 func (st *StateTransition) preCheck() error {
 	// Make sure this transaction's nonce is correct.
 	if st.msg.CheckNonce() {
-		//nonce := st.state.GetNonce(st.msg.From())
+		nonce := st.state.GetNonce(st.msg.From())
 		// FIXME(kiendn): nonce does not need to check too high, it can be depended on what user input
 		// as long as nonce is not less than or equals current state then it wil be fined.
 
 		//if nonce < st.msg.Nonce() {
 		//	return ErrNonceTooHigh
 		//} else
-		//if nonce > st.msg.Nonce() {
-		//	//return tx_pool.ErrNonceTooLow
-		//	return fmt.Errorf("nonce too low - current nonce is %v", nonce)
-		//}
+		if nonce > st.msg.Nonce() {
+			//return tx_pool.ErrNonceTooLow
+			return fmt.Errorf("nonce too low - current nonce is %v sender %v sender's nonce %v", nonce, st.msg.From().Hex(), st.msg.Nonce())
+		}
 	}
 	return st.buyGas()
 }
