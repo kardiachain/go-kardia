@@ -19,6 +19,8 @@
 package permissioned
 
 import (
+	"crypto/ecdsa"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"math/big"
 	"strings"
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -43,7 +45,8 @@ type PermissionSmcUtil struct {
 	StateDb         *state.StateDB
 	ContractAddress *common.Address
 	SenderAddress   *common.Address
-	bc              *base.BaseBlockChain
+	SenderPrivateKey *ecdsa.PrivateKey
+	bc              base.BaseBlockChain
 }
 
 func NewSmcPermissionUtil(bc base.BaseBlockChain) (*PermissionSmcUtil, error) {
@@ -62,9 +65,8 @@ func NewSmcPermissionUtil(bc base.BaseBlockChain) (*PermissionSmcUtil, error) {
 		log.Error("Error reading abi", "err", err)
 		return nil, err
 	}
-	senderAddr := common.HexToAddress(configs.KardiaAccountToCallSmc)
-	return &PermissionSmcUtil{Abi: &abi, StateDb: stateDb, ContractAddress: &permissionSmcAddr, SenderAddress: &senderAddr,
-		bc: &bc}, nil
+	return &PermissionSmcUtil{Abi: &abi, StateDb: stateDb, ContractAddress: &permissionSmcAddr,
+		SenderAddress: &bc.Config().BaseAccount.Address, bc: bc, SenderPrivateKey: &bc.Config().BaseAccount.PrivateKey}, nil
 }
 
 // IsValidNode executes smart contract to check if a node with specified pubkey and nodeType is valid
@@ -74,7 +76,7 @@ func (s *PermissionSmcUtil) IsValidNode(pubkey string, nodeType int64) (bool, er
 		log.Error("Error packing check valid node input", "err", err)
 		return false, err
 	}
-	checkNodeValidResult, err := utils.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress, *s.bc,
+	checkNodeValidResult, err := utils.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress, s.bc,
 		checkNodeValidInput, s.StateDb)
 	if err != nil {
 		log.Error("Error call permission contract", "err", err)
@@ -92,7 +94,7 @@ func (s *PermissionSmcUtil) GetNodeInfo(pubkey string) (common.Address, *big.Int
 		return common.Address{}, nil, nil, "", err
 	}
 	getNodeInfoResult, err := utils.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
-		*s.bc, getNodeInfoInput, s.StateDb)
+		s.bc, getNodeInfoInput, s.StateDb)
 	if err != nil {
 		log.Error("Error call permission contract", "err", err)
 		return common.Address{}, nil, nil, "", err
@@ -119,7 +121,7 @@ func (s *PermissionSmcUtil) IsValidator(pubkey string) (bool, error) {
 		return false, err
 	}
 	checkValidatorResult, err := utils.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
-		*s.bc, checkValidatorInput, s.StateDb)
+		s.bc, checkValidatorInput, s.StateDb)
 	if err != nil {
 		log.Error("Error call permission contract", "err", err)
 		return false, err
@@ -131,25 +133,25 @@ func (s *PermissionSmcUtil) IsValidator(pubkey string) (bool, error) {
 // AddNodeForPrivateChain returns tx to add a node with specified pubkey, nodeType, address and votingPower to list of nodes
 // of a private chain. If votingPower > 0, added node is validator. Only admins can call this function
 func (s *PermissionSmcUtil) AddNodeForPrivateChain(pubkey string, nodeType int64, address common.Address,
-	votingPower *big.Int, listenAddr string, state *state.ManagedState) (*types.Transaction, error) {
+	votingPower *big.Int, listenAddr string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
 	addNodeInput, err := s.Abi.Pack("addNode", pubkey, address, big.NewInt(nodeType), votingPower, listenAddr)
 	if err != nil {
 		log.Error("Error packing add node input", "err", err)
 		return nil, err
 	}
-	return tool.GenerateSmcCall(utils.GetPrivateKeyToCallKardiaSmc(), *s.ContractAddress, addNodeInput,
-		state), nil
+	return tool.GenerateSmcCall(s.SenderPrivateKey, *s.ContractAddress, addNodeInput,
+		txPool, false), nil
 }
 
 // RemoveNodeForPrivateChain returns tx to remove a node with specified pubkey and nodeType from a private chain
 // Only admins can call this function
-func (s *PermissionSmcUtil) RemoveNodeForPrivateChain(pubkey string, stateDb *state.ManagedState) (*types.Transaction, error) {
+func (s *PermissionSmcUtil) RemoveNodeForPrivateChain(pubkey string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
 	removeNodeInput, err := s.Abi.Pack("removeNode", pubkey)
 	if err != nil {
 		log.Error("Error packing remove node input", "err", err)
 		return nil, err
 	}
-	return tool.GenerateSmcCall(utils.GetPrivateKeyToCallKardiaSmc(), *s.ContractAddress, removeNodeInput, stateDb), nil
+	return tool.GenerateSmcCall(s.SenderPrivateKey, *s.ContractAddress, removeNodeInput, txPool, false), nil
 }
 
 // GetAdminNodeByIndex executes smart contract to get info of an initial node, including public key, address, listen address,
@@ -161,7 +163,7 @@ func (s *PermissionSmcUtil) GetAdminNodeByIndex(index int64) (string, common.Add
 		return "", common.Address{}, "", nil, nil, err
 	}
 	getInitialNodeResult, err := utils.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
-		*s.bc, getInitialNodeInput, s.StateDb)
+		s.bc, getInitialNodeInput, s.StateDb)
 	if err != nil {
 		log.Error("Error calling permission contract", "err", err)
 		return "", common.Address{}, "", nil, nil, err

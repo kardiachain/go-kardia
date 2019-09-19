@@ -42,6 +42,7 @@ const (
 	NEO                                = "NEO"
 	TRON                               = "TRX"
 	AddOrderFunction                   = "addOrder"
+	ReleaseEvent                       = "Release"
 	RateETH                            = 100000000
 	RateNEO                            = 6482133
 	RateTRON                           = 16571

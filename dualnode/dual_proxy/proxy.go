@@ -16,34 +16,33 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package tron
+package dual_proxy
 
 import (
-	"github.com/kardiachain/go-kardia/kai/base"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"github.com/kardiachain/go-kardia/lib/event"
-	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/types"
 )
 
-const ServiceName = "TRX"
 type Proxy struct {
 
 	// name is name of proxy, or type that proxy connects to (eg: NEO, TRX, ETH, KARDIA)
 	name   string
 
-	logger log.Logger // Logger for Tron service
+	logger log.Logger // Logger for proxy service
 
 	kardiaBc   base.BaseBlockChain
 	txPool     *tx_pool.TxPool
 
 	// Dual blockchain related fields
 	dualBc    base.BaseBlockChain
-	eventPool *event_pool.EventPool // Event pool of DUAL service.
+	eventPool *event_pool.Pool // Event pool of DUAL service.
 
 	// The internal blockchain (i.e. Kardia's mainchain) that this dual node's interacting with.
 	internalChain base.BlockChainAdapter
@@ -77,7 +76,7 @@ func (p *Proxy) ExternalChain() base.BlockChainAdapter {
 }
 
 // DualEventPool returns dual's eventPool
-func (p *Proxy) DualEventPool() *event_pool.EventPool {
+func (p *Proxy) DualEventPool() *event_pool.Pool {
 	return p.eventPool
 }
 
@@ -105,20 +104,21 @@ func (p *Proxy) Name() string {
 }
 
 func NewProxy(
-		kardiaBc base.BaseBlockChain,
-		txPool *tx_pool.TxPool,
-		dualBc base.BaseBlockChain,
-		dualEventPool *event_pool.EventPool,
-		publishedEndpoint string,
-		subscribedEndpoint string,
-	) (*Proxy, error) {
+	serviceName string,
+	kardiaBc base.BaseBlockChain,
+	txPool *tx_pool.TxPool,
+	dualBc base.BaseBlockChain,
+	dualEventPool *event_pool.Pool,
+	publishedEndpoint string,
+	subscribedEndpoint string,
+) (*Proxy, error) {
 
 	// Create a specific logger for DUAL service.
 	logger := log.New()
-	logger.AddTag(ServiceName)
+	logger.AddTag(serviceName)
 
 	processor := &Proxy{
-		name:       configs.TRON,
+		name:       serviceName,
 		logger:     logger,
 		kardiaBc:   kardiaBc,
 		txPool:     txPool,
@@ -140,37 +140,40 @@ func NewProxy(
 	return processor, nil
 }
 
-func (n *Proxy) Start() {
+func (p *Proxy) Start() {
 	// Start event
-	go utils.StartSubscribe(n)
+	go utils.StartSubscribe(p)
 }
 
-func (n *Proxy) AddEvent(dualEvent *types.DualEvent) error {
-	return n.eventPool.AddEvent(dualEvent)
+func (p *Proxy) AddEvent(dualEvent *types.DualEvent) {
+	p.eventPool.AddEvent(dualEvent)
 }
 
-func (n *Proxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
-	n.internalChain = internalChain
+func (p *Proxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
+	p.internalChain = internalChain
+}
+
+func (p *Proxy) RegisterExternalChain(externalChain base.BlockChainAdapter) {
+	panic("this function is not implemented")
 }
 
 // SubmitTx reads event data and submits data to Kardia or Target chain (TRON, NEO) based on specific logic. (eg: AddOrderFunction)
-func (n *Proxy) SubmitTx(event *types.EventData) error {
-	// Only allow TxSource from Kardia
+func (p *Proxy) SubmitTx(event *types.EventData) error {
 	if event.TxSource == types.KARDIA {
-		switch event.Data.TxMethod {
-		case configs.AddOrderFunction:
-			return utils.HandleAddOrderFunction(n, event)
+		switch event.Action.Name {
+		case configs.ReleaseEvent: // this config stimulates dual event called from kardia_proxy
+			return utils.HandleAddOrderFunction(p, event)
 		default:
-			log.Warn("Unexpected method in TRON SubmitTx", "method", event.Data.TxMethod)
+			log.Warn("Unexpected method in Proxy SubmitTx", "method", event.Data.TxMethod, "Proxy", p.Name())
 			return configs.ErrUnsupportedMethod
 		}
-	} else if event.TxSource == types.TRON && event.Data.TxMethod == utils.KARDIA_CALL {
-		return utils.KardiaCall(n, event)
+	} else if event.TxSource == types.BlockchainSymbol(p.name) && event.Data.TxMethod == utils.KARDIA_CALL {
+		return utils.KardiaCall(p, event)
 	}
-	return configs.ErrUnsupportedMethod
+	return nil
 }
 
-func (n *Proxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, error) {
+func (p *Proxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, error) {
 	return &types.TxMetadata{
 		TxHash: event.Hash(),
 		Target: types.KARDIA,

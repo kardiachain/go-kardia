@@ -22,6 +22,7 @@ import (
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 type DualConfig struct {
@@ -35,7 +36,7 @@ type DualConfig struct {
 	DualGenesis *genesis.Genesis `toml:",omitempty"`
 
 	// Dual's event pool options
-	DualEventPool event_pool.EventPoolConfig
+	DualEventPool event_pool.Config
 
 	// DbInfo stores configuration information to setup database
 	DBInfo storage.DbInfo
@@ -44,4 +45,7 @@ type DualConfig struct {
 	IsPrivate bool
 
 	ProtocolName string
+
+	// BaseAccount defines account which is used to execute internal smart contracts
+	BaseAccount *types.BaseAccount
 }

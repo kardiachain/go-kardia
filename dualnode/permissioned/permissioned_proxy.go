@@ -83,7 +83,7 @@ type PermissionedProxy struct {
 
 	// Dual blockchain related fields
 	dualBc    base.BaseBlockChain
-	eventPool *event_pool.EventPool // Event pool of DUAL service.
+	eventPool *event_pool.Pool // Event pool of DUAL service.
 
 	privateService *kai.KardiaService
 
@@ -101,7 +101,7 @@ type PermissionedProxy struct {
 
 // NewPermissionedProxy initiates a new private proxy
 func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain,
-	txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, eventPool *event_pool.EventPool,
+	txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, eventPool *event_pool.Pool,
 	address *common.Address, smcABIStr string) (*PermissionedProxy, error) {
 
 	logger := log.New()
@@ -167,6 +167,11 @@ func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain
 	return processor, nil
 }
 
+// TODO(kiendn): permissionedProxy is special case, will implement this function later or separate this case to another code.
+func (p *PermissionedProxy) Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.Pool, publishedEndpoint, subscribedEndpoint *string) error {
+	panic("this function has not been implemented yet")
+}
+
 // PublishedEndpoint returns publishedEndpoint
 func (p *PermissionedProxy) PublishedEndpoint() string {
 	return ""
@@ -187,7 +192,7 @@ func (p *PermissionedProxy) ExternalChain() base.BlockChainAdapter {
 }
 
 // DualEventPool returns dual's eventPool
-func (p *PermissionedProxy) DualEventPool() *event_pool.EventPool {
+func (p *PermissionedProxy) DualEventPool() *event_pool.Pool {
 	return p.eventPool
 }
 
@@ -253,17 +258,16 @@ func (p *PermissionedProxy) handlePrivateBlock(block *types.Block) {
 		if err != nil {
 			continue
 		}
-		dualStateDB, err := p.dualBc.State()
-		if err != nil {
-			p.logger.Error("Fail to get dual state", "error", err)
-			return
+
+		if p.dualBc.Config().BaseAccount == nil {
+			break
 		}
-		nonce := dualStateDB.GetNonce(common.HexToAddress(event_pool.DualStateAddressHex))
+		height := p.dualBc.CurrentBlock().Height()
 		privateChainTxHash := tx.Hash()
 		txHash := common.BytesToHash(privateChainTxHash[:])
 		// Compose dual event and tx metadata from emitted event from private chain smart contract
 		// TODO(namdoh@): Pass smartcontract actions here.
-		dualEvent := types.NewDualEvent(nonce, true, /* externalChain */
+		dualEvent := types.NewDualEvent(height, true, /* externalChain */
 			types.BlockchainSymbol(string(*p.privateChainID)), &txHash, &eventSummary, nil)
 		txMetaData, err := p.internalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
 		if err != nil {
@@ -272,9 +276,9 @@ func (p *PermissionedProxy) handlePrivateBlock(block *types.Block) {
 		}
 		dualEvent.PendingTxMetadata = txMetaData
 		p.logger.Info("Create DualEvent for private chain's Tx", "dualEvent", dualEvent)
-		err = p.eventPool.AddEvent(dualEvent)
-		if err != nil {
-			p.logger.Error("Fail to add dual's event", "error", err)
+		if err := p.eventPool.AddEvent(dualEvent); err != nil {
+			p.logger.Error("error while adding event", "err", err)
+			return
 		}
 		p.logger.Info("Submitted Private chain 's DualEvent to event pool successfully", "eventHash", dualEvent.Hash().Hex())
 	}
@@ -403,7 +407,7 @@ func (p *PermissionedProxy) createTxFromKardiaForwardedRequest(event *types.Even
 		return nil, errInvalidTargetChainId
 	}
 	tx, err := p.candidateSmcUtil.AddRequest(string(event.Data.ExtData[configs.KardiaForwardRequestEmailIndex]),
-		string(event.Data.ExtData[configs.KardiaForwardRequestFromOrgIndex]), pool.State())
+		string(event.Data.ExtData[configs.KardiaForwardRequestFromOrgIndex]), pool)
 	if err != nil {
 		return nil, err
 	}
@@ -444,7 +448,7 @@ func (p *PermissionedProxy) createTxFromKardiaForwardedResponse(event *types.Eve
 	}
 	tx, err := p.candidateSmcUtil.AddExternalResponse(string(event.Data.ExtData[configs.KardiaForwardResponseEmailIndex]),
 		string(event.Data.ExtData[configs.KardiaForwardResponseResponseIndex]),
-		string(event.Data.ExtData[configs.KardiaForwardResponseFromOrgIndex]), pool.State())
+		string(event.Data.ExtData[configs.KardiaForwardResponseFromOrgIndex]), pool)
 	if err != nil {
 		return nil, err
 	}

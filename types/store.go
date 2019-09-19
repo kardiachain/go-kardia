@@ -19,6 +19,7 @@
 package types
 
 import (
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
@@ -105,6 +106,7 @@ type WriteAccessor interface {
 	WriteCanonicalHash(hash common.Hash, height uint64)
 	WriteHeadBlockHash(hash common.Hash)
 	WriteHeadHeaderHash(hash common.Hash)
+	WriteEvent(smartcontract *KardiaSmartcontract)
 	WriteCommit(height uint64, commit *Commit)
 	WriteCommitRLP(height uint64, rlp rlp.RawValue)
 	WriteTxLookupEntries(block *Block)
@@ -131,6 +133,10 @@ type ReadAccessor interface {
 	ReadHeaderNumber(hash common.Hash) *uint64
 	ReadReceipts(hash common.Hash, number uint64) Receipts
 	ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, uint64)
+	ReadSmartContractAbi(address string) *abi.ABI
+	ReadSmartContractFromDualAction(action string) (string, *abi.ABI)
+	ReadEvent(address string, method string) *WatcherAction
+	ReadEvents(address string) []*WatcherAction
 	CheckHash(hash *common.Hash) bool
 	CheckTxHash(hash *common.Hash) bool
 }
