@@ -22,6 +22,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/rpc"
+	"github.com/kardiachain/go-kardia/types"
 	"testing"
 )
 
@@ -43,6 +44,10 @@ func (s *TrivialService) Stop() error {
 }
 
 func (s *TrivialService) APIs() []rpc.API {
+	return nil
+}
+
+func (s *TrivialService) DB() types.Database {
 	return nil
 }
 

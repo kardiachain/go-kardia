@@ -23,6 +23,7 @@ import (
 	"github.com/kardiachain/go-kardia/kai/account"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/types"
@@ -94,6 +95,15 @@ func TestGenesisAllocFromData(t *testing.T) {
 	}
 }
 
+func setupGenesis(g *genesis.Genesis, db *types.MemStore) (*types.ChainConfig, common.Hash, error) {
+	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
+	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
+	return genesis.SetupGenesisBlock(log.New(), db, g, &types.BaseAccount{
+		Address:    address,
+		PrivateKey: *privateKey,
+	})
+}
+
 func TestCreateGenesisBlock(t *testing.T) {
 	// Test generate genesis block
 	// allocData is get from genesisAccounts in default_node_config
@@ -103,8 +113,10 @@ func TestCreateGenesisBlock(t *testing.T) {
 
 	// Create genesis block with state_processor_test.genesisAccounts
 	g := genesis.DefaultTestnetGenesisBlock(configs.GenesisAccounts)
-	_, hash, err := genesis.SetupGenesisBlock(log.New(), db, g)
-
+	_, hash, err := setupGenesis(g, db)
+	if err != nil {
+		t.Error(err)
+	}
 	// There are 2 ways of getting current blockHash
 	// ReadHeadBlockHash or ReadCanonicalHash
 	headBlockHash := db.ReadHeadBlockHash()
@@ -137,7 +149,10 @@ func TestCreateContractInGenesis(t *testing.T) {
 	db := types.NewMemStore()
 	// Create genesis block with genesisContracts
 	g := genesis.DefaultTestnetGenesisBlockWithContract(genesisContracts)
-	_, hash, err := genesis.SetupGenesisBlock(log.New(), db, g)
+	_, hash, err := setupGenesis(g, db)
+	if err != nil {
+		t.Error(err)
+	}
 
 	// There are 2 ways of getting current blockHash
 	// ReadHeadBlockHash or ReadCanonicalHash
@@ -171,7 +186,10 @@ func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 	db := types.NewMemStore()
 	// Create genesis block with state_processor_test.genesisAccounts
 	g := genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, genesisContracts)
-	_, hash, err := genesis.SetupGenesisBlock(log.New(), db, g)
+	_, hash, err := setupGenesis(g, db)
+	if err != nil {
+		t.Error(err)
+	}
 	headBlockHash := db.ReadHeadBlockHash()
 	canonicalHash := db.ReadCanonicalHash(0)
 

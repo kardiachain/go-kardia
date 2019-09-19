@@ -40,25 +40,7 @@ func TestDualEventsEncoding(t *testing.T) {
 	}
 }
 
-func TestDualEventNonceAccessors(t *testing.T) {
-	firstDualEvent := CreateNewDualEvent(100)
-	secondDualEvent := CreateNewDualEvent(55)
-
-	dualEventByNonce := DualEventByNonce{firstDualEvent, secondDualEvent}
-
-	if dualEventByNonce.Len() != 2 {
-		t.Error("dualEventByNonce Len Error")
-	}
-
-	if dualEventByNonce.Less(0, 1) || !dualEventByNonce.Less(1, 0) {
-		t.Error("dualEventByNonce Less Error")
-	}
-
-	if dualEventByNonce.Swap(0, 1); !dualEventByNonce.Less(0, 1) || dualEventByNonce.Less(1, 0) {
-		t.Error("dualEventByNonce Swap Error")
-	}
-}
-
 func CreateNewDualEvent(nonce uint64) *DualEvent {
-	return NewDualEvent(nonce, false, "KAI", new(common.Hash), new(EventSummary), new(DualActions))
+	dualAction := DualAction{Name:"dual_test"}
+	return NewDualEvent(nonce, false, "KAI", new(common.Hash), new(EventSummary), &dualAction)
 }

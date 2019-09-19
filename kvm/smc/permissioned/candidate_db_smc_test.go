@@ -19,6 +19,7 @@
 package kvm
 
 import (
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"math"
 	"strings"
 	"testing"
@@ -281,7 +282,7 @@ func ApplyTransactionReturnLog(bc base.BaseBlockChain, statedb *state.StateDB, t
 	return receipt.Logs, nil
 }
 
-func SetupBlockchainForTesting() (*blockchain.BlockChain, error) {
+func SetupBlockchainForTesting() (*blockchain.BlockChain, *tx_pool.TxPool, error) {
 	kaiDb := types.NewMemStore()
 	initValue := genesis.ToCell(int64(math.Pow10(6)))
 
@@ -289,20 +290,36 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, error) {
 		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
 		"0xBA30505351c17F4c818d94a990eDeD95e166474b": initValue,
 	}
+	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
+	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g, &types.BaseAccount{
+		Address:    address,
+		PrivateKey: *privateKey,
+	})
 	if genesisErr != nil {
-		return nil, genesisErr
+		return nil, nil, genesisErr
 	}
 
 	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig, true)
-	return bc, err
+	
+	txPoolConfig := tx_pool.TxPoolConfig{
+		GlobalSlots:     60,
+		GlobalQueue:     5120000,
+		NumberOfWorkers: 3,
+		WorkerCap:       512,
+		BlockSize:       7192,
+	}
+
+	txPool := tx_pool.NewTxPool(log.New(), txPoolConfig, nil, bc)
+	
+	return bc, txPool, err
 }
 
 // TestEmitEvent tests if contract emits correct event and data when there is tx requested external candidate data
 func TestEmitEvent(t *testing.T) {
 	// Setup blockchain for testing
-	bc, err := SetupBlockchainForTesting()
+	bc, txPool, err := SetupBlockchainForTesting()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -324,8 +341,7 @@ func TestEmitEvent(t *testing.T) {
 	}
 	addrKeyBytes, _ := hex.DecodeString("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-	tx := tool.GenerateSmcCall(addrKey, address, requestCandidateInfoInput,
-		state.ManageState(statedb))
+	tx := tool.GenerateSmcCall(addrKey, address, requestCandidateInfoInput, txPool, false)
 	// Apply tx and get returned logs from that tx
 	logs, err := ApplyTransactionReturnLog(bc, statedb, tx)
 	if err != nil {
@@ -360,7 +376,7 @@ func TestEmitEvent(t *testing.T) {
 // TestInfoRequest tests all function related to candidate info request including get list, add and complete request
 func TestInfoRequest(t *testing.T) {
 	// Setup blockchain for testing
-	bc, err := SetupBlockchainForTesting()
+	bc, txPool, err := SetupBlockchainForTesting()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -419,8 +435,7 @@ func TestInfoRequest(t *testing.T) {
 	// Complete above request again, should succeed and emit log this time
 	addrKeyBytes, _ := hex.DecodeString("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-	tx := tool.GenerateSmcCall(addrKey, address, completeInput,
-		state.ManageState(statedb))
+	tx := tool.GenerateSmcCall(addrKey, address, completeInput, txPool, false)
 	// Apply tx and get returned logs from that tx
 	logs, err := ApplyTransactionReturnLog(bc, statedb, tx)
 	if err != nil {
@@ -481,7 +496,7 @@ func TestInfoRequest(t *testing.T) {
 }
 
 func TestGetAddExternalResponse(t *testing.T) {
-	bc, err := SetupBlockchainForTesting()
+	bc, _, err := SetupBlockchainForTesting()
 	if err != nil {
 		t.Fatal(err)
 	}
