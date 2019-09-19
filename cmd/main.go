@@ -510,7 +510,7 @@ func runtimeSystemSettings() error {
 	if err != nil {
 		return err
 	}
-	if limit < 2048 { // limit rlimit less than 2048
+	if limit < 2048 { // if rlimit is less than 2048 try to raise it to 2048
 		if err := sysutils.FDRaise(2048); err != nil {
 			return err
 		}

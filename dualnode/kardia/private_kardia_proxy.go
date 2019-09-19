@@ -16,6 +16,10 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
+/**
+ *  Private Kardia Proxy is used for demonstrate how private chains share information to each other by asking and answer questions.
+ */
+
 package kardia
 
 import (

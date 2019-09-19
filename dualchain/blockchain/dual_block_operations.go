@@ -264,7 +264,13 @@ func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) error 
 			// TODO(sontranrad, namdoh): add logic for handling error when submitting TX, currrently just log error here
 			dbo.logger.Error("Error submit dual event", "err", err)
 		} else {
-			dbo.logger.Info("Submit dual event successfully")
+			dbo.logger.Info("Submit dual event successfully",
+				"sender", sender.Hex(), "txSource", event.TriggeredEvent.TxSource,
+				"method", event.TriggeredEvent.Data.TxMethod,
+				"dualAction", event.TriggeredEvent.Action,
+				"txHash",event.TriggeredEvent.TxHash.Hex(),
+				"eventHash", event.Hash().Hex(),
+			)
 		}
 
 		// TODO(namdoh): Properly handle error here.
