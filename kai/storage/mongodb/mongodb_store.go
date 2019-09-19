@@ -30,16 +30,34 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
+	"time"
 	"strings"
 )
 
+var client *mongo.Client
+
 type Store struct {
-	db *mongo.Database
+	uri string
+	dbName string
+}
+
+func NewClient(uri string) (*mongo.Client, *context.Context, error) {
+	// add timeout for context
+	// TODO: move timeout to config
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	if client == nil {
+		var err error
+		client, err = mongo.Connect(ctx, options.Client().ApplyURI(uri))
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return client, &ctx, nil
 }
 
 // TODO: add more config for db connection
 func NewDB(uri, dbName string, drop bool) (*Store, error) {
-	client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
+	client, _, err := NewClient(uri)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +114,20 @@ func NewDB(uri, dbName string, drop bool) (*Store, error) {
 		return nil, err
 	}
 
-	return &Store{db: db}, nil
+	// disconnect client to close connection to mongodb
+	//if err := client.Disconnect(*ctx); err != nil {
+	//	return nil, err
+	//}
+	return &Store{uri: uri, dbName: dbName}, nil
+}
+
+// execute wraps executed code to a mongodb connection.
+func (db *Store) execute(f func(mongoDb *mongo.Database, ctx *context.Context) error) error {
+	if mongoDb, ctx, err := db.DB(); err != nil {
+		return err
+	} else {
+		return f(mongoDb, ctx)
+	}
 }
 
 // Put puts the given key / value to the queue
@@ -115,9 +146,10 @@ func (db *Store) Put(key, value interface{}) error {
 		if err != nil {
 			return err
 		}
-		if _, err := db.DB().Collection(trieTable).InsertOne(context.Background(), document); err != nil {
-			return err
-		}
+		return db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+			_, e := mongoDb.Collection(trieTable).InsertOne(context.Background(), document)
+			return e
+		})
 	}
 	return nil
 }
@@ -148,32 +180,33 @@ func (db *Store)WriteChainConfig(hash common.Hash, cfg *types.ChainConfig) {
 // WriteBlock serializes a block into the database, header and body separately.
 func (db *Store)WriteBlock(block *types.Block) {
 	newBlock := NewBlock(block)
-	if err := db.insertBlock(newBlock); err != nil {
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		if e := db.insertBlock(mongoDb, ctx, newBlock); e != nil {
+			return e
+		}
+		if block.NumTxs() > 0 {
+			txs := make([]*Transaction, 0)
+			for i, tx := range block.Transactions() {
+				newTx, err := NewTransaction(tx, newBlock.Height, newBlock.Hash, i)
+				if err != nil {
+					log.Error("error while convert transaction", "err", err)
+					continue
+				}
+				txs = append(txs, newTx)
+			}
+			if len(txs) > 0 {
+				// insert many transactions
+				return db.insertTransactions(txs)
+			}
+		}
+		return nil
+	}); err != nil {
 		log.Error("error while insert new block", "err", err)
-		return
-	}
-
-	if block.NumTxs() > 0 {
-		txs := make([]*Transaction, 0)
-		for i, tx := range block.Transactions() {
-			newTx, err := NewTransaction(tx, newBlock.Height, newBlock.Hash, i)
-			if err != nil {
-				log.Error("error while convert transaction", "err", err)
-				continue
-			}
-			txs = append(txs, newTx)
-		}
-		if len(txs) > 0 {
-			// insert many transactions
-			if err := db.insertTransactions(txs); err != nil {
-				log.Error("error while insert transactions", "block", newBlock.Height)
-			}
-		}
 	}
 }
 
-func (db *Store)getReceiptByTxHash(hash string) (*Receipt, error) {
-	cur := db.DB().Collection(receiptTable).FindOne(
+func (db *Store)getReceiptByTxHash(mongoDb *mongo.Database, hash string) (*Receipt, error) {
+	cur := mongoDb.Collection(receiptTable).FindOne(
 		context.Background(),
 		bson.M{txHash: bsonx.String(hash)},
 	)
@@ -185,8 +218,8 @@ func (db *Store)getReceiptByTxHash(hash string) (*Receipt, error) {
 	return &r, nil
 }
 
-func (db *Store) getReceiptsByBlockHash(hash common.Hash) ([]*Receipt, error) {
-	cur, err := db.DB().Collection(receiptTable).Find(context.Background(), bson.M{"blockHash": bsonx.String(hash.Hex())})
+func (db *Store) getReceiptsByBlockHash(mongoDb *mongo.Database, hash common.Hash) ([]*Receipt, error) {
+	cur, err := mongoDb.Collection(receiptTable).Find(context.Background(), bson.M{"blockHash": bsonx.String(hash.Hex())})
 	if err != nil {
 		return nil, err
 	}
@@ -201,25 +234,25 @@ func (db *Store) getReceiptsByBlockHash(hash common.Hash) ([]*Receipt, error) {
 	return receipts, nil
 }
 
-func (db *Store)insertReceipts(hash string, height uint64, receipts types.Receipts) error {
+func (db *Store)insertReceipts(mongoDb *mongo.Database, hash string, height uint64, receipts types.Receipts) error {
 	newReceipts := make([]interface{}, 0)
 	for _, receipt := range receipts {
-		if _, err := db.getReceiptByTxHash(receipt.TxHash.Hex()); err != nil {
+		if _, err := db.getReceiptByTxHash(mongoDb, receipt.TxHash.Hex()); err != nil {
 			r := NewReceipt(receipt, height, hash)
 			newReceipts = append(newReceipts, r)
 		}
 	}
 
 	if len(newReceipts) > 0 {
-		if _, err := db.DB().Collection(receiptTable).InsertMany(context.Background(), newReceipts); err != nil {
+		if _, err := mongoDb.Collection(receiptTable).InsertMany(context.Background(), newReceipts); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (db *Store)getHeadHeaderHash() (*HeadHeaderHash, error) {
-	cur := db.DB().Collection(headHeaderTable).FindOne(
+func (db *Store)getHeadHeaderHash(mongoDb *mongo.Database) (*HeadHeaderHash, error) {
+	cur := mongoDb.Collection(headHeaderTable).FindOne(
 		context.Background(),
 		bson.M{"ID": bsonx.Int32(1)},
 	)
@@ -232,34 +265,35 @@ func (db *Store)getHeadHeaderHash() (*HeadHeaderHash, error) {
 }
 
 func (db *Store)setHeadBlockHash(hash string) error {
-	head := HeadBlockHash{
-		ID: 1,
-		Hash: hash,
-	}
-	output, err := bson.Marshal(head)
-	if err != nil {
-		return err
-	}
-	document, err := bsonx.ReadDoc(output)
-	if err != nil {
-		return err
-	}
-	if _, err := db.getHeadBlockHash(); err != nil {
-		// do insert
-		if _, err := db.DB().Collection(headBlockTable).InsertOne(context.Background(), document); err != nil {
-			return err
+	return db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		collection := mongoDb.Collection(headBlockTable)
+		if _, err := db.getHeadBlockHash(mongoDb); err != nil {
+			// do insert
+			head := HeadBlockHash{
+				ID: 1,
+				Hash: hash,
+			}
+			output, err := bson.Marshal(head)
+			if err != nil {
+				return err
+			}
+			document, err := bsonx.ReadDoc(output)
+			if err != nil {
+				return err
+			}
+			_, e := collection.InsertOne(*ctx, document)
+			return e
 		}
-	}
-	if _, err := db.DB().Collection(headBlockTable).UpdateOne(context.Background(), bson.M{"ID": 1}, bson.D{
-		{"$set", bson.D{{"hash", hash}}},
-	}); err != nil {
-		return err
-	}
-	return nil
+		// otherwise do update
+		_, e := collection.UpdateOne(*ctx,  bson.M{"ID": 1}, bson.D{
+			{"$set", bson.D{{"hash", hash}}},
+		})
+		return e
+	})
 }
 
-func (db *Store)getHeadBlockHash() (*HeadBlockHash, error) {
-	cur := db.DB().Collection(headBlockTable).FindOne(
+func (db *Store)getHeadBlockHash(mongoDb *mongo.Database) (*HeadBlockHash, error) {
+	cur := mongoDb.Collection(headBlockTable).FindOne(
 		context.Background(),
 		bson.M{"ID": bsonx.Int32(1)},
 	)
@@ -272,35 +306,38 @@ func (db *Store)getHeadBlockHash() (*HeadBlockHash, error) {
 }
 
 func (db *Store)setHeadHeaderHash(hash string) error {
-	head := HeadHeaderHash{
-		ID: 1,
-		Hash: hash,
-	}
-	output, err := bson.Marshal(head)
-	if err != nil {
-		return err
-	}
-	document, err := bsonx.ReadDoc(output)
-	if err != nil {
-		return err
-	}
-	if _, err := db.getHeadHeaderHash(); err != nil {
-		// do insert
-		if _, err := db.DB().Collection(headHeaderTable).InsertOne(context.Background(), document); err != nil {
-			return err
+	return db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		collection := mongoDb.Collection(headHeaderTable)
+		if _, err := db.getHeadHeaderHash(mongoDb); err != nil {
+			// do insert
+			head := HeadHeaderHash{
+				ID: 1,
+				Hash: hash,
+			}
+			output, err := bson.Marshal(head)
+			if err != nil {
+				return err
+			}
+			document, err := bsonx.ReadDoc(output)
+			if err != nil {
+				return err
+			}
+			_, e := collection.InsertOne(*ctx, document)
+			return e
 		}
-	}
-	if _, err := db.DB().Collection(headHeaderTable).UpdateOne(context.Background(), bson.M{"ID": 1}, bson.D{
-		{"$set", bson.D{{"hash", hash}}},
-	}); err != nil {
-		return err
-	}
-	return nil
+		// otherwise do update
+		_, e := collection.UpdateOne(*ctx, bson.M{"ID": 1}, bson.D{
+			{"$set", bson.D{{"hash", hash}}},
+		})
+		return e
+	})
 }
 
 // WriteReceipts stores all the transaction receipts belonging to a block.
 func (db *Store)WriteReceipts(hash common.Hash, height uint64, receipts types.Receipts) {
-	if err := db.insertReceipts(hash.Hex(), height, receipts); err != nil {
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		return db.insertReceipts(mongoDb, hash.Hex(), height, receipts)
+	}); err != nil {
 		log.Error("error while writing receipts", "err", err, "height", height)
 	}
 }
@@ -327,7 +364,9 @@ func (db *Store)WriteHeadHeaderHash(hash common.Hash) {
 // WriteCommit stores a commit into the database.
 func (db *Store)WriteCommit(height uint64, commit *types.Commit) {
 	newCommit := NewCommit(commit, height)
-	if err := db.insertCommit(newCommit, height); err != nil {
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		return db.insertCommit(mongoDb, ctx, newCommit, height)
+	}); err != nil {
 		log.Error("error while insert commit", "err", err, "height", height, "commit", commit.String())
 	}
 }
@@ -360,7 +399,10 @@ func (db *Store) WriteEvent(smc *types.KardiaSmartcontract) {
 				log.Error("error while reading output to Doc", "err", err)
 				return
 			}
-			if _, err := db.DB().Collection(watcherActionTable).InsertOne(context.Background(), document); err != nil {
+			if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+				_, e := mongoDb.Collection(watcherActionTable).InsertOne(*ctx, document)
+				return e
+			}); err != nil {
 				log.Error("error while adding new event", "err", err, "address", smc.SmcAddress, "method", action.Method)
 				return
 			}
@@ -384,7 +426,10 @@ func (db *Store) WriteEvent(smc *types.KardiaSmartcontract) {
 				log.Error("error while reading output to Doc", "err", err)
 				return
 			}
-			if _, err := db.DB().Collection(dualActionTable).InsertOne(context.Background(), document); err != nil {
+			if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+				_, e := mongoDb.Collection(dualActionTable).InsertOne(*ctx, document)
+				return e
+			}); err != nil {
 				log.Error("error while adding new event", "err", err, "address", smc.SmcAddress, "method", action.Name)
 				return
 			}
@@ -413,9 +458,11 @@ func (db *Store)WriteTxLookupEntries(block *types.Block) {
 				log.Error("error while reading output to Doc", "err", err)
 				return
 			}
-			if _, err := db.DB().Collection(txLookupEntryTable).InsertOne(context.Background(), document); err != nil {
+			if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+				_, e := mongoDb.Collection(txLookupEntryTable).InsertOne(*ctx, document)
+				return e
+			}); err != nil {
 				log.Error("error while adding new txLookupEntry", "err", err, "txHash", tx.Hash(), "blockHeight", block.Height())
-				return
 			}
 		}
 	}
@@ -433,11 +480,17 @@ func (db *Store)StoreTxHash(hash *common.Hash) {
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block height.
 func (db *Store)ReadCanonicalHash(height uint64) common.Hash {
-	block, err := db.getBlockById(height)
-	if err != nil {
+	var hash common.Hash
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		block, e := db.getBlockById(mongoDb, ctx, height)
+		if block != nil {
+			hash = common.HexToHash(block.Hash)
+		}
+		return e
+	}); err != nil {
 		return common.NewZeroHash()
 	}
-	return common.HexToHash(block.Hash)
+	return hash
 }
 
 // ReadChainConfig retrieves the consensus settings based on the given genesis hash.
@@ -452,31 +505,35 @@ func (db *Store)ReadChainConfig(hash common.Hash) *types.ChainConfig {
 
 // ReadBody retrieves the block body corresponding to the hash.
 func (db *Store)ReadBody(hash common.Hash, height uint64) *types.Body {
-	transactions, err := db.getTransactionsByBlockId(height)
-	if err != nil {
-		log.Error("error while getting transactions from block height", "err", err, "height", height)
+	var body *types.Body
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		transactions, e := db.getTransactionsByBlockId(mongoDb, ctx, height)
+		if e != nil {
+			return e
+		}
+		txs := make([]*types.Transaction, 0)
+		for _, transaction := range transactions {
+			txs = append(txs, transaction.ToTransaction())
+		}
+
+		// get commit from block
+		commit, e := db.getCommitById(mongoDb, ctx, height)
+		if e != nil {
+			return e
+		}
+		// TODO: get dualevents. currently make it empty
+		dualEvents := make([]*types.DualEvent, 0)
+		body = &types.Body{
+			Transactions: txs,
+			DualEvents: dualEvents,
+			LastCommit: commit.ToCommit(),
+		}
+		return nil
+	}); err != nil {
+		log.Debug("error while getting body", "err", err, "height", height)
 		return nil
 	}
-	txs := make([]*types.Transaction, 0)
-	for _, transaction := range transactions {
-		txs = append(txs, transaction.ToTransaction())
-	}
-
-	// get commit from block
-	commit, err := db.getCommitById(height)
-	if err != nil {
-		log.Error("error while getting commit from block height", "err", err, "height", height)
-		return nil
-	}
-
-	// TODO: get dualevents. currently make it empty
-	dualEvents := make([]*types.DualEvent, 0)
-	body := types.Body{
-		Transactions: txs,
-		DualEvents: dualEvents,
-		LastCommit: commit.ToCommit(),
-	}
-	return &body
+	return body
 }
 
 // ReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
@@ -491,44 +548,49 @@ func (db *Store)ReadBodyRLP(hash common.Hash, height uint64) rlp.RawValue {
 // Note, due to concurrent download of header and block body the header and thus
 // canonical hash can be stored in the database but the body data not (yet).
 func (db *Store)ReadBlock(logger log.Logger, hash common.Hash, height uint64) *types.Block {
-	block, err := db.getBlockById(height)
-	if err != nil {
-		logger.Error("error while getting block from db", "err", err, "height", height)
-		return nil
-	}
-	// get transactions from db from block height
-	transactions, err := db.getTransactionsByBlockId(height)
-	if err != nil {
-		logger.Error("error while getting transactions from block height", "err", err, "height", height)
-		return nil
-	}
-	txs := make([]*types.Transaction, 0)
-	for _, transaction := range transactions {
-		txs = append(txs, transaction.ToTransaction())
-	}
+	var newBlock *types.Block
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		var e error
+		var block *Block
 
-	// TODO: get dualevents. currently make it empty
-	dualEvents := make([]*types.DualEvent, 0)
-	newBlock := block.ToBlock(logger)
-	body := types.Body{
-		Transactions: txs,
-		DualEvents: dualEvents,
-	}
-
-	// get commit from block
-	if block.Height != 0 {
-		commit, err := db.getCommitById(block.Height)
-		if err != nil {
-			logger.Error("error while getting commit from block height", "err", err, "height", height)
-			return nil
+		if block, e = db.getBlockById(mongoDb, ctx, height); e != nil {
+			return e
 		}
-		body.LastCommit = commit.ToCommit()
-	} else {
-		commit := new(types.Commit)
-		commit.MakeNilEmpty()
-		body.LastCommit = commit
+		// get transactions from db from block height
+		transactions, e := db.getTransactionsByBlockId(mongoDb, ctx, height)
+		if e != nil {
+			return e
+		}
+		txs := make([]*types.Transaction, 0)
+		for _, transaction := range transactions {
+			txs = append(txs, transaction.ToTransaction())
+		}
+
+		// TODO: get dualevents. currently make it empty
+		dualEvents := make([]*types.DualEvent, 0)
+		newBlock = block.ToBlock(logger)
+		body := types.Body{
+			Transactions: txs,
+			DualEvents: dualEvents,
+		}
+		if block.Height != 0 {
+			commit, err := db.getCommitById(mongoDb, ctx, block.Height)
+			if err != nil {
+				return nil
+			}
+			body.LastCommit = commit.ToCommit()
+		} else {
+			commit := new(types.Commit)
+			commit.MakeNilEmpty()
+			body.LastCommit = commit
+		}
+		newBlock = newBlock.WithBody(&body)
+		return nil
+	}); err != nil {
+		logger.Error("error while reading block", "err", err, "height", height, "hash", hash.Hex())
+		return nil
 	}
-	return newBlock.WithBody(&body)
+	return newBlock
 }
 
 // ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
@@ -538,20 +600,32 @@ func (db *Store)ReadHeaderRLP(hash common.Hash, height uint64) rlp.RawValue {
 
 // ReadHeadBlockHash retrieves the hash of the current canonical head block.
 func (db *Store)ReadHeadBlockHash() common.Hash {
-	head, err := db.getHeadBlockHash()
-	if err != nil {
-		return common.NewZeroHash()
+	hash := common.NewZeroHash()
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		head, e := db.getHeadBlockHash(mongoDb)
+		if head != nil {
+			hash = common.HexToHash(head.Hash)
+		}
+		return e
+	}); err != nil {
+		log.Error("error while reading head block hash", "err", err)
 	}
-	return common.HexToHash(head.Hash)
+	return hash
 }
 
 // ReadHeadHeaderHash retrieves the hash of the current canonical head header.
 func (db *Store)ReadHeadHeaderHash() common.Hash {
-	head, err := db.getHeadHeaderHash()
-	if err != nil {
-		return common.NewZeroHash()
+	hash := common.NewZeroHash()
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		head, e := db.getHeadHeaderHash(mongoDb)
+		if head != nil {
+			hash = common.HexToHash(head.Hash)
+		}
+		return e
+	}); err != nil {
+		log.Error("error while reading head header hash", "err", err)
 	}
-	return common.HexToHash(head.Hash)
+	return hash
 }
 
 // ReadCommitRLP retrieves the commit in RLP encoding.
@@ -561,8 +635,12 @@ func (db *Store)ReadCommitRLP(height uint64) rlp.RawValue {
 
 // ReadBody retrieves the commit at a given height.
 func (db *Store)ReadCommit(height uint64) *types.Commit {
-	commit, err := db.getCommitById(height)
-	if err != nil {
+	var commit *Commit
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		var e error
+		commit, e = db.getCommitById(mongoDb, ctx, height)
+		return e
+	}); err != nil {
 		log.Error("error while getting commit from height", "err", err, "height", height)
 		return nil
 	}
@@ -581,20 +659,27 @@ func (db *Store)ReadHeaderHeight(hash common.Hash) *uint64 {
 
 // ReadHeader retrieves the block header corresponding to the hash.
 func (db *Store)ReadHeader(hash common.Hash, height uint64) *types.Header {
-	block, err := db.getBlockById(height)
-	if err != nil {
+	var block *Block
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		var e error
+		block, e = db.getBlockById(mongoDb, ctx, height)
+		return e
+	}); err != nil {
 		log.Error("error while getting block by height", "err", err, "height", height)
 		return nil
 	}
-
 	return block.ToHeader()
 }
 
 // ReadTransaction retrieves a specific transaction from the database, along with
 // its added positional metadata.
 func (db *Store)ReadTransaction(hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
-	tx, err := db.getTransactionByHash(hash.Hex())
-	if err != nil {
+	var tx *Transaction
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		var e error
+		tx, e = db.getTransactionByHash(mongoDb, ctx, hash.Hex())
+		return e
+	}); err != nil || tx == nil {
 		log.Error("error while getting tx from hash", "err", err, "hash", hash.Hex())
 		return nil, common.NewZeroHash(), 0, 0
 	}
@@ -621,62 +706,79 @@ func (db *Store)ReadHeaderNumber(hash common.Hash) *uint64 {
 
 // ReadReceipts retrieves all the transaction receipts belonging to a block.
 func (db *Store)ReadReceipts(hash common.Hash, number uint64) types.Receipts {
-	receipts, err := db.getReceiptsByBlockHash(hash)
-	if err != nil {
+	newReceipts := make(types.Receipts, 0)
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		if receipts, e := db.getReceiptsByBlockHash(mongoDb, hash); e != nil {
+			return e
+		} else {
+			for _, receipt := range receipts {
+				newReceipts = append(newReceipts, receipt.ToReceipt())
+			}
+			return nil
+		}
+	}); err != nil {
 		log.Error("error while getting receipts from block", "err", err, "height", number, "hash", hash.Hex())
 		return nil
 	}
-
-	newReceipts := make(types.Receipts, 0)
-	for _, receipt := range receipts {
-		newReceipts = append(newReceipts, receipt.ToReceipt())
-	}
-
 	return newReceipts
 }
 
 func (db *Store) getEvents(address string) ([]*WatcherAction, error) {
-	cur, err := db.DB().Collection(watcherActionTable).Find(context.Background(), bson.M{"contractAddress": bsonx.String(address)})
-	if err != nil {
-		return nil, err
-	}
 	events := make([]*WatcherAction, 0)
-	for cur.Next(context.Background()) {
-		var r WatcherAction
-		if err := cur.Decode(&r); err != nil {
-			return nil, err
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		cur, e := mongoDb.Collection(watcherActionTable).Find(*ctx, bson.M{"contractAddress": bsonx.String(address)})
+		if e != nil {
+			return e
 		}
-		events = append(events, &r)
+		for cur.Next(context.Background()) {
+			var r WatcherAction
+			if err := cur.Decode(&r); err != nil {
+				return err
+			}
+			events = append(events, &r)
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	return events, nil
 }
 
 func (db *Store)getEvent(address, method string) (*WatcherAction, error) {
-	filter := bson.A{
-		bson.D{{"contractAddress", bsonx.String(address)}},
-		bson.D{{"method", bsonx.String(method)}},
-	}
-
-	cur := db.DB().Collection(watcherActionTable).FindOne(
-		context.Background(),
-		filter,
-	)
 	var event WatcherAction
-	err := cur.Decode(&event)
-	if err != nil {
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		filter := bson.A{
+			bson.D{{"contractAddress", bsonx.String(address)}},
+			bson.D{{"method", bsonx.String(method)}},
+		}
+		cur := mongoDb.Collection(watcherActionTable).FindOne(
+			context.Background(),
+			filter,
+		)
+		err := cur.Decode(&event)
+		if err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	return &event, nil
 }
 
 func (db *Store)getEventByDualAction(action string) (*DualAction, error) {
-	cur := db.DB().Collection(dualActionTable).FindOne(
-		context.Background(),
-		bson.M{"name": bsonx.String(action)},
-	)
 	var event DualAction
-	err := cur.Decode(&event)
-	if err != nil {
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		cur := mongoDb.Collection(dualActionTable).FindOne(
+			context.Background(),
+			bson.M{"name": bsonx.String(action)},
+		)
+		err := cur.Decode(&event)
+		if err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
 		return nil, err
 	}
 	return &event, nil
@@ -741,13 +843,11 @@ func (db *Store) ReadSmartContractFromDualAction(action string) (string, *abi.AB
 // ReadTxLookupEntry retrieves the positional metadata associated with a transaction
 // hash to allow retrieving the transaction or receipt by hash.
 func (db *Store)ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, uint64) {
-	cur := db.DB().Collection(txLookupEntryTable).FindOne(
-		context.Background(),
-		bson.M{txHash: bsonx.String(hash.Hex())},
-	)
 	var txLookupEntry TxLookupEntry
-	err := cur.Decode(&txLookupEntry)
-	if err != nil {
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		cur := mongoDb.Collection(txLookupEntryTable).FindOne(*ctx, bson.M{txHash: bsonx.String(hash.Hex())})
+		return cur.Decode(&txLookupEntry)
+	}); err != nil {
 		return common.NewZeroHash(), 0, 0
 	}
 	return common.HexToHash(txLookupEntry.BlockHash), txLookupEntry.BlockIndex, txLookupEntry.Index
@@ -764,8 +864,12 @@ func (db *Store)CheckHash(hash *common.Hash) bool {
 
 // Returns true if a tx hash already exists in the database.
 func (db *Store)CheckTxHash(hash *common.Hash) bool {
-	tx, err := db.getTransactionByHash(hash.Hex())
-	if err != nil || tx == nil {
+	var tx *Transaction
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		var e error
+		tx, e = db.getTransactionByHash(mongoDb, ctx, hash.Hex())
+		return e
+	}); err != nil || tx == nil {
 		return false
 	}
 	return true
@@ -796,13 +900,11 @@ func (db *Store) Has(key interface{}) (bool, error) {
 
 // Get returns the given key if it's present.
 func (db *Store) Get(key interface{}) (interface{}, error) {
-	cur := db.DB().Collection(trieTable).FindOne(
-		context.Background(),
-		bson.M{"key": bsonx.String(common.Bytes2Hex(key.([]byte)))},
-	)
 	var c Caching
-	err := cur.Decode(&c)
-	if err != nil {
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		cur := mongoDb.Collection(trieTable).FindOne(*ctx, bson.M{"key": bsonx.String(common.Bytes2Hex(key.([]byte)))})
+		return cur.Decode(&c)
+	}); err != nil {
 		return nil, err
 	}
 	return common.Hex2Bytes(c.Value), nil
@@ -822,117 +924,111 @@ func (db *Store) Close() {
 	panic("Not implemented yet")
 }
 
-func (db *Store) DB() *mongo.Database {
-	return db.db
+func (db *Store) DB() (*mongo.Database, *context.Context, error) {
+	if client, ctx, err := NewClient(db.uri); err != nil {
+		return nil, nil, err
+	} else {
+		return client.Database(db.dbName), ctx, nil
+	}
 }
 
 func (db *Store) NewBatch() types.Batch {
 	return newMongoDbBatch(db)
 }
 
-func (db *Store) getBlockById(blockId uint64) (*Block, error) {
-	cur := db.DB().Collection(blockTable).FindOne(
-		context.Background(),
-		bson.M{height: bsonx.Int64(int64(blockId))},
-	)
+func (db *Store) getBlockById(mongoDb *mongo.Database, ctx *context.Context, blockId uint64) (*Block, error) {
 	var b Block
-	err := cur.Decode(&b)
-	if err != nil {
+	cur := mongoDb.Collection(blockTable).FindOne(*ctx, bson.M{height: bsonx.Int64(int64(blockId))})
+	if err := cur.Decode(&b); err != nil {
 		return nil, err
 	}
 	return &b, nil
 }
 
 func (db *Store) getBlockByHash(hash string) (*Block, error) {
-	cur := db.DB().Collection(blockTable).FindOne(
-		context.Background(),
-		bson.M{"hash": bsonx.String(hash)},
-	)
 	var b Block
-	err := cur.Decode(&b)
-	if err != nil {
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		cur := mongoDb.Collection(blockTable).FindOne(*ctx, bson.M{"hash": bsonx.String(hash)})
+		return cur.Decode(&b)
+	}); err != nil {
 		return nil, err
 	}
 	return &b, nil
 }
 
-func (db *Store)insertBlock(block *Block) error {
-	if b, _ := db.getBlockById(block.Height); b == nil {
-		output, err := bson.Marshal(block)
-		if err != nil {
-			return err
+func (db *Store)insertBlock(mongoDb *mongo.Database, ctx *context.Context, block *Block) error {
+	if b, _ := db.getBlockById(mongoDb, ctx, block.Height); b == nil {
+		output, e := bson.Marshal(block)
+		if e != nil {
+			return e
 		}
-		document, err := bsonx.ReadDoc(output)
-		if err != nil {
-			return err
+		document, e := bsonx.ReadDoc(output)
+		if e != nil {
+			return e
 		}
-		if _, err := db.DB().Collection(blockTable).InsertOne(context.Background(), document); err != nil {
-			return err
-		}
+		_, e = mongoDb.Collection(blockTable).InsertOne(*ctx, document)
+		return e
 	}
 	return nil
 }
 
-func (db *Store)getTransactionsByBlockId(height uint64) ([]*Transaction, error) {
-	cur, err := db.DB().Collection(txTable).Find(context.Background(), bson.M{"height": bsonx.Int64(int64(height))})
-	if err != nil {
-		return nil, err
-	}
+func (db *Store)getTransactionsByBlockId(mongoDb *mongo.Database, ctx *context.Context, height uint64) ([]*Transaction, error) {
 	txs := make([]*Transaction, 0)
-	for cur.Next(context.Background()) {
-		var tx Transaction
-		if err := cur.Decode(&tx); err != nil {
-			return nil, err
+	if cur, err := mongoDb.Collection(txTable).Find(context.Background(), bson.M{"height": bsonx.Int64(int64(height))}); err != nil {
+		return nil, err
+	} else {
+		for cur.Next(*ctx) {
+			var tx Transaction
+			if err := cur.Decode(&tx); err != nil {
+				log.Error("error while decode tx data from database", "err", err)
+				continue
+			}
+			txs = append(txs, &tx)
 		}
-		txs = append(txs, &tx)
 	}
 	return txs, nil
 }
 
-func (db *Store)getTransactionByHash(hash string) (*Transaction, error) {
-	cur := db.DB().Collection(txTable).FindOne(
-		context.Background(),
+func (db *Store)getTransactionByHash(mongoDb *mongo.Database, ctx *context.Context, hash string) (*Transaction, error) {
+	var tx Transaction
+	cur := mongoDb.Collection(txTable).FindOne(
+		*ctx,
 		bson.M{"hash": bsonx.String(hash)},
 	)
-	var tx Transaction
-	err := cur.Decode(&tx)
-	if err != nil {
+	if err := cur.Decode(&tx); err != nil {
 		return nil, err
 	}
 	return &tx, nil
 }
 
 func (db *Store)insertTransactions(transactions []*Transaction) error {
-	txs := make([]interface{}, 0)
-	for _, t := range transactions {
-		if _, err := db.getTransactionByHash(t.Hash); err != nil {
-			txs = append(txs, t)
+	return db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		txs := make([]interface{}, 0)
+		for _, t := range transactions {
+			if _, err := db.getTransactionByHash(mongoDb, ctx, t.Hash); err != nil {
+				txs = append(txs, t)
+			}
 		}
-	}
 
-	if len(txs) > 0 {
-		if _, err := db.DB().Collection(txTable).InsertMany(context.Background(), txs); err != nil {
-			return err
+		if len(txs) > 0 {
+			_, e := mongoDb.Collection(txTable).InsertMany(*ctx, txs)
+			return e
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
-func (db *Store) getCommitById(blockId uint64) (*Commit, error) {
-	cur := db.DB().Collection(commitTable).FindOne(
-		context.Background(),
-		bson.M{height: bsonx.Int64(int64(blockId))},
-	)
+func (db *Store) getCommitById(mongoDb *mongo.Database, ctx *context.Context, blockId uint64) (*Commit, error) {
+	cur := mongoDb.Collection(commitTable).FindOne(*ctx, bson.M{height: bsonx.Int64(int64(blockId))})
 	var c Commit
-	err := cur.Decode(&c)
-	if err != nil {
+	if err := cur.Decode(&c); err != nil {
 		return nil, err
 	}
 	return &c, nil
 }
 
-func (db *Store)insertCommit(commit *Commit, height uint64) error {
-	if b, _ := db.getCommitById(height); b == nil {
+func (db *Store)insertCommit(mongoDb *mongo.Database, ctx *context.Context, commit *Commit, height uint64) error {
+	if b, _ := db.getCommitById(mongoDb, ctx, height); b == nil {
 		output, err := bson.Marshal(commit)
 		if err != nil {
 			return err
@@ -941,21 +1037,18 @@ func (db *Store)insertCommit(commit *Commit, height uint64) error {
 		if err != nil {
 			return err
 		}
-		if _, err := db.DB().Collection(commitTable).InsertOne(context.Background(), document); err != nil {
-			return err
-		}
+		_, e := mongoDb.Collection(commitTable).InsertOne(*ctx, document)
+		return e
 	}
 	return nil
 }
 
 func (db *Store) getChainConfig(hash string) (*ChainConfig, error) {
-	cur := db.DB().Collection(chainConfigTable).FindOne(
-		context.Background(),
-		bson.M{"hash": bsonx.String(hash)},
-	)
 	var c ChainConfig
-	err := cur.Decode(&c)
-	if err != nil {
+	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+		cur := mongoDb.Collection(chainConfigTable).FindOne(*ctx, bson.M{"hash": bsonx.String(hash)})
+		return cur.Decode(&c)
+	}); err != nil {
 		return nil, err
 	}
 	return &c, nil
@@ -972,9 +1065,10 @@ func (db *Store) insertChainConfig(config *types.ChainConfig, hash common.Hash) 
 		if err != nil {
 			return err
 		}
-		if _, err := db.DB().Collection(chainConfigTable).InsertOne(context.Background(), document); err != nil {
-			return err
-		}
+		return db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
+			_, e := mongoDb.Collection(chainConfigTable).InsertOne(*ctx, document)
+			return e
+		})
 	}
 	return nil
 }
