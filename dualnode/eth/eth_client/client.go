@@ -519,9 +519,11 @@ func (n *Eth) ExecuteTriggerMessage(message *message2.TriggerMessage) (*string, 
 func (n *Eth) createEthSmartContractCallTx(contractAddr common.Address, input []byte) *types.Transaction {
 	nonce, err := n.getNonce()
 	if err != nil {
+		log.Error("error while getting nonce", "err", err)
 		return nil
 	}
 	gasLimit := uint64(40000)
+	// TODO: estimate gas price instead of hard code here
 	gasPrice := big.NewInt(5000000000) // 5gwei
 	tx, err := types.SignTx(
 		types.NewTransaction(nonce, contractAddr, big.NewInt(0), gasLimit, gasPrice, input),
@@ -538,7 +540,6 @@ func (n *Eth) createEthSmartContractCallTx(contractAddr common.Address, input []
 func (n *Eth) getNonce() (uint64, error) {
 	statedb, err := n.ethBlockChain().State()
 	if err != nil {
-		log.Error("Fail to get Ethereum state to create release tx", "err", err)
 		return 0, err
 	}
 	// Nonce of account to sign tx
