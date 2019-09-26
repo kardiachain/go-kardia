@@ -533,6 +533,8 @@ func (n *Eth) createEthSmartContractCallTx(contractAddr common.Address, input []
 	return tx
 }
 
+// getNonce gets nonce from stateDb if nonce is greater than current nonce.
+// Update current nonce if it is less than nonce in statedb.
 func (n *Eth) getNonce() (uint64, error) {
 	statedb, err := n.ethBlockChain().State()
 	if err != nil {
@@ -542,7 +544,7 @@ func (n *Eth) getNonce() (uint64, error) {
 	// Nonce of account to sign tx
 	nonce := statedb.GetNonce(n.sender)
 	if n.currentNonce < nonce {
-		return nonce, nil
+		n.currentNonce = nonce
 	}
 	return n.currentNonce, nil
 }
