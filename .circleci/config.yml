@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.10.4
+      - image: circleci/golang:1.12-stretch
     working_directory: /go/src/github.com/kardiachain/go-kardia
 
     environment:
@@ -17,8 +17,6 @@ jobs:
       - run:
           name: get dependencies
           command: |
-            sudo su -c "echo 'deb http://download.opensuse.org/repositories/network:/messaging:/zeromq:/release-stable/Debian_9.0/ ./' >> /etc/apt/sources.list"
-            sudo wget https://download.opensuse.org/repositories/network:/messaging:/zeromq:/release-stable/Debian_9.0/Release.key -O- | sudo apt-key add
             sudo apt-get update && sudo apt-get install -y libzmq3-dev
             go get -u github.com/golang/dep/cmd/dep
             dep ensure
@@ -45,7 +43,7 @@ jobs:
 
   release:
     docker:
-      - image: circleci/golang:1.10.4
+      - image: circleci/golang:1.12-stretch
     working_directory: /go/src/github.com/kardiachain/go-kardia
 
     steps:
