@@ -19,6 +19,7 @@
 package main
 
 import (
+	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -74,6 +75,10 @@ type Eth struct {
 	config *Config
 	// TODO(@kiendn): this field must be loaded from config as well as from db to load or watched contract addresses
 	smcABI        map[string]abi.ABI
+	currentNonce uint64
+	sender common.Address
+	privateKey ecdsa.PrivateKey
+
 	publishEndpoint string
 	subscribeEndpoint string
 }
@@ -217,6 +222,14 @@ func NewEth(config *Config) (*Eth, error) {
 			log.Error("Failed to register the Ethereum Stats service", "err", err)
 		}
 	}
+
+	keyBytes, err := hex.DecodeString(config.SignedTxPrivateKey)
+	if err != nil {
+		panic(err)
+	}
+	key := crypto.ToECDSAUnsafe(keyBytes)
+	addr := crypto.PubkeyToAddress(key.PublicKey)
+
 	return &Eth{
 		name:          ServiceName,
 		geth:          ethNode,
@@ -225,6 +238,9 @@ func NewEth(config *Config) (*Eth, error) {
 		publishEndpoint: config.PublishedEndpoint,
 		subscribeEndpoint: config.SubscribedEndpoint,
 		logger:        config.Logger,
+		privateKey: *key,
+		sender: addr,
+		currentNonce: 0,
 	}, nil
 }
 
@@ -491,6 +507,8 @@ func (n *Eth) ExecuteTriggerMessage(message *message2.TriggerMessage) (*string, 
 			return nil, err
 		}
 		log.Info("Add Eth release tx successfully", "txhash", tx.Hash().Hex())
+		// increment nonce by 1
+		n.currentNonce += 1
 		str := tx.Hash().Hex()
 		return &str, nil
 	}
@@ -499,35 +517,37 @@ func (n *Eth) ExecuteTriggerMessage(message *message2.TriggerMessage) (*string, 
 }
 
 func (n *Eth) createEthSmartContractCallTx(contractAddr common.Address, input []byte) *types.Transaction {
-	keyBytes, err := hex.DecodeString(n.config.SignedTxPrivateKey)
+	nonce, err := n.getNonce()
 	if err != nil {
-		panic(err)
-	}
-	key := crypto.ToECDSAUnsafe(keyBytes)
-	addr := crypto.PubkeyToAddress(key.PublicKey)
-	statedb, err := n.ethBlockChain().State()
-	if err != nil {
-		log.Error("Fail to get Ethereum state to create release tx", "err", err)
+		log.Error("error while getting nonce", "err", err)
 		return nil
 	}
-
-	// Nonce of account to sign tx
-	nonce := statedb.GetNonce(addr)
-	if nonce == 0 {
-		log.Error("Eth state return 0 for nonce of contract address", "addr", addr)
-		return nil
-	}
-
 	gasLimit := uint64(40000)
+	// TODO: estimate gas price instead of hard code here
 	gasPrice := big.NewInt(5000000000) // 5gwei
 	tx, err := types.SignTx(
 		types.NewTransaction(nonce, contractAddr, big.NewInt(0), gasLimit, gasPrice, input),
 		types.HomesteadSigner{},
-		key)
+		&n.privateKey)
 	if err != nil {
 		panic(err)
 	}
 	return tx
+}
+
+// getNonce gets nonce from stateDb if nonce is greater than current nonce.
+// Update current nonce if it is less than nonce in statedb.
+func (n *Eth) getNonce() (uint64, error) {
+	statedb, err := n.ethBlockChain().State()
+	if err != nil {
+		return 0, err
+	}
+	// Nonce of account to sign tx
+	nonce := statedb.GetNonce(n.sender)
+	if n.currentNonce < nonce {
+		n.currentNonce = nonce
+	}
+	return n.currentNonce, nil
 }
 
 func (n *Eth) ethBlockChain() *core.BlockChain {
