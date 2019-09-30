@@ -41,26 +41,27 @@ type Store struct {
 	dbName string
 }
 
-func NewClient(uri string) (*mongo.Client, *context.Context, error) {
+func NewClient(uri string) (*mongo.Client, *context.Context, context.CancelFunc, error) {
 	// add timeout for context
 	// TODO: move timeout to config
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancelCtx := context.WithTimeout(context.Background(), 50*time.Second)
 	if client == nil {
 		var err error
 		client, err = mongo.Connect(ctx, options.Client().ApplyURI(uri))
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
-	return client, &ctx, nil
+	return client, &ctx, cancelCtx, nil
 }
 
 // TODO: add more config for db connection
 func NewDB(uri, dbName string, drop bool) (*Store, error) {
-	client, _, err := NewClient(uri)
+	client, _, cancelCtxFunc, err := NewClient(uri)
 	if err != nil {
 		return nil, err
 	}
+	defer cancelCtxFunc()
 	db := client.Database(dbName)
 
 	if drop {
@@ -123,9 +124,10 @@ func NewDB(uri, dbName string, drop bool) (*Store, error) {
 
 // execute wraps executed code to a mongodb connection.
 func (db *Store) execute(f func(mongoDb *mongo.Database, ctx *context.Context) error) error {
-	if mongoDb, ctx, err := db.DB(); err != nil {
+	if mongoDb, ctx, cancelCtxFunc, err := db.DB(); err != nil {
 		return err
 	} else {
+		defer cancelCtxFunc()
 		return f(mongoDb, ctx)
 	}
 }
@@ -924,11 +926,11 @@ func (db *Store) Close() {
 	panic("Not implemented yet")
 }
 
-func (db *Store) DB() (*mongo.Database, *context.Context, error) {
-	if client, ctx, err := NewClient(db.uri); err != nil {
-		return nil, nil, err
+func (db *Store) DB() (*mongo.Database, *context.Context, context.CancelFunc, error) {
+	if client, ctx, cancelCtxFunc, err := NewClient(db.uri); err != nil {
+		return nil, nil, nil, err
 	} else {
-		return client.Database(db.dbName), ctx, nil
+		return client.Database(db.dbName), ctx, cancelCtxFunc, nil
 	}
 }
 
