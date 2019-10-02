@@ -44,12 +44,12 @@ var (
 
 const (
 	handshakeTimeout = 5 * time.Second
-	maxKnownTxs      = 4096 // Maximum transactions hashes to keep in the known list (prevent DOS)
+	maxKnownTxs      = 5120 // Maximum transactions hashes to keep in the known list (prevent DOS)
 
 	// maxQueuedTxs is the maximum number of transaction lists to queue up before
 	// dropping broadcasts. This is a sensitive number as a transaction list might
 	// contain a single transaction, or thousands.
-	maxQueuedTxs = 4096
+	maxQueuedTxs = 5120
 )
 
 // PeerInfo represents a short summary of the Kai sub-protocol metadata known
@@ -303,13 +303,15 @@ func (p *peer) broadcast() {
 	for {
 		select {
 		case txs := <-p.queuedTxs:
-			go func() {
-				if err := p.SendTransactions(txs); err != nil {
-					p.logger.Error("Send txs failed", "err", err, "count", len(txs))
-					return
-				}
-				p.logger.Trace("Transactions sent", "count", len(txs))
-			}()
+			if len(txs) > 0 {
+				go func() {
+					if err := p.SendTransactions(&txs); err != nil {
+						p.logger.Error("Send txs failed", "err", err, "count", len(txs), "peer", p.Name())
+						return
+					}
+					p.logger.Trace("Transactions sent", "count", len(txs), "peer", p.Name())
+				}()
+			}
 		case <-p.terminated:
 			return
 		}
@@ -318,21 +320,26 @@ func (p *peer) broadcast() {
 
 // MarkTransactions marks a list of transaction as known for the peer, ensuring that it
 // will never be propagated to this particular peer.
-func (p *peer) MarkTransactions(txs types.Transactions) types.Transactions {
-	newTxs := make(types.Transactions, 0)
+func (p *peer) MarkTransactions(txs types.Transactions) []*types.Transaction {
+	queueTxs := make([]*types.Transaction, 0)
 	txHashes := make([]interface{}, 0)
 	for _, tx := range txs {
 		if p.knownTxs.Has(tx.Hash()) {
 			continue
 		}
-		newTxs = append(newTxs, tx)
+		queueTxs = append(queueTxs, tx)
 		txHashes = append(txHashes, tx.Hash())
 	}
 
-	if len(newTxs) > 0 {
+	// If we reached the memory allowance, drop a previously known transaction hash
+	for p.knownTxs.Size() >= maxKnownTxs {
+		p.knownTxs.Pop()
+	}
+
+	if len(queueTxs) > 0 {
 		p.knownTxs.Add(txHashes...)
 	}
-	return newTxs
+	return queueTxs
 }
 
 // PeersWithoutTx retrieves a list of peers that do not have a given transaction
@@ -360,9 +367,9 @@ func (ps *peerSet) PeersWithoutTx(tx *types.Transaction) []*peer {
 // in their set of known hashes.
 func (ps *peerSet) PeersWithoutTxs(txs types.Transactions) map[*peer]types.Transactions {
 	ps.lock.RLock()
-	peers := ps.peers
-	ps.lock.RUnlock()
+	defer ps.lock.RUnlock()
 
+	peers := ps.peers
 	set := make(map[*peer]types.Transactions)
 	for _, tx := range txs {
 		for _, p := range peers {
@@ -383,7 +390,11 @@ func (ps *peerSet) PeersWithoutTxs(txs types.Transactions) map[*peer]types.Trans
 }
 
 // SendTransactions sends transactions to the peer, adds the txn hashes to known txn set.
-func (p *peer) SendTransactions(txs types.Transactions) error {
+func (p *peer) SendTransactions(txs *types.Transactions) error {
+	// If we reached the memory allowance, drop a previously known transaction hash
+	for p.knownTxs.Size() >= maxKnownTxs {
+		p.knownTxs.Pop()
+	}
 	return p2p.Send(p.rw, serviceconst.TxMsg, txs)
 }
 
@@ -394,9 +405,6 @@ func (p *peer) AsyncSendTransactions(txs types.Transactions) {
 	select {
 	case p.queuedTxs <- txs:
 		go p.MarkTransactions(txs)
-		//for _, tx := range txs {
-		//	p.knownTxs.Add(tx.Hash())
-		//}
 	default:
 		p.logger.Debug("Dropping transaction propagation", "count", len(txs))
 	}
