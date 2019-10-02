@@ -104,11 +104,11 @@ func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
 	return result
 }
 
-func (genTool *GeneratorTool) GenerateRandomTx(numTx int) []interface{} {
+func (genTool *GeneratorTool) GenerateRandomTx(numTx int) types.Transactions {
 	if numTx <= 0 || len(genTool.accounts) == 0 {
 		return nil
 	}
-	result := make([]interface{}, numTx)
+	result := make(types.Transactions, numTx)
 	genTool.mu.Lock()
 	for i := 0; i < numTx; i++ {
 		senderKey, toAddr := randomTxAddresses(genTool.accounts)
@@ -179,11 +179,11 @@ func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx int, stateDb *stat
 	return result
 }
 
-func (genTool *GeneratorTool) GenerateRandomTxWithAddressState(numTx int, txPool *tx_pool.TxPool) []interface{} {
+func (genTool *GeneratorTool) GenerateRandomTxWithAddressState(numTx int, txPool *tx_pool.TxPool) types.Transactions {
 	if numTx <= 0 || len(genTool.accounts) == 0 {
 		return nil
 	}
-	result := make([]interface{}, numTx)
+	result := make(types.Transactions, numTx)
 	genTool.mu.Lock()
 	for i := 0; i < numTx; i++ {
 		senderKey, toAddr := randomTxAddresses(genTool.accounts)

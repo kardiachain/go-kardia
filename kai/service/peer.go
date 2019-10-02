@@ -318,11 +318,11 @@ func (p *peer) broadcast() {
 
 // MarkTransactions marks a list of transaction as known for the peer, ensuring that it
 // will never be propagated to this particular peer.
-func (p *peer) MarkTransactions(txs types.Transactions, filter bool) []interface{} {
-	newTxs := make([]interface{}, 0)
+func (p *peer) MarkTransactions(txs types.Transactions) types.Transactions {
+	newTxs := make(types.Transactions, 0)
 	txHashes := make([]interface{}, 0)
 	for _, tx := range txs {
-		if filter && p.knownTxs.Has(tx.Hash()) {
+		if p.knownTxs.Has(tx.Hash()) {
 			continue
 		}
 		newTxs = append(newTxs, tx)
@@ -393,7 +393,7 @@ func (p *peer) AsyncSendTransactions(txs types.Transactions) {
 	// Tx will be actually sent in SendTransactions() trigger by broadcast() routine
 	select {
 	case p.queuedTxs <- txs:
-		go p.MarkTransactions(txs, false)
+		go p.MarkTransactions(txs)
 		//for _, tx := range txs {
 		//	p.knownTxs.Add(tx.Hash())
 		//}

@@ -570,7 +570,7 @@ func genTxsLoop(genTxs *GenTxs, txPool *tx_pool.TxPool, globalQueue uint64) {
 }
 
 func generateTxs(genTxs *GenTxs, genTool *tool.GeneratorTool, txPool *tx_pool.TxPool) {
-	var txList []interface{}
+	var txList types.Transactions
 	// Depends on generate txs
 	switch genTxs.Type {
 	case tool.DefaultGenRandomWithStateTx:

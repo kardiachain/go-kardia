@@ -177,7 +177,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 	p.logger.Info("Submit to Kardia", "value", event.Data.TxValue, "method", event.Data.TxMethod)
 	var err error
 	var result interface{}
-	txs := make([]interface{}, 0)
+	txs := make(types.Transactions, 0)
 	switch event.Action.Name {
 	case dualnode.CreateKardiaMatchAmountTx:
 		p.logger.Info("Handle external event", "source", event.TxSource)
