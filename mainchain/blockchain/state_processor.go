@@ -100,7 +100,7 @@ func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *GasPool, stated
 	if err != nil {
 		return nil, 0, err
 	}
-	logger.Info("Apply transaction", "hash", tx.Hash().Hex(), "nonce", msg.Nonce(), "from", msg.From().Hex())
+	logger.Trace("Apply transaction", "hash", tx.Hash().Hex(), "nonce", msg.Nonce(), "from", msg.From().Hex())
 	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, header, bc)
 	// Create a new environment which holds all relevant information

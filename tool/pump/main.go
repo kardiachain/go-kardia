@@ -1,5 +1,3 @@
-package main
-
 /*
  *  Copyright 2018 KardiaChain
  *  This file is part of the go-kardia library.
@@ -18,138 +16,628 @@ package main
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
+package main
+
 import (
-	"encoding/json"
+	"crypto/ecdsa"
 	"flag"
 	"fmt"
-
 	"io/ioutil"
+	"math/big"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 	"github.com/rs/cors"
+	"gopkg.in/yaml.v2"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/dev"
+	"github.com/kardiachain/go-kardia/dualchain/blockchain"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/dualchain/service"
+	"github.com/kardiachain/go-kardia/dualnode/dual_proxy"
+	"github.com/kardiachain/go-kardia/dualnode/kardia"
+	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/lib/p2p/nat"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	"github.com/kardiachain/go-kardia/mainchain"
-	bc "github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/tool"
+	"github.com/kardiachain/go-kardia/types"
 )
 
-// args
-type flagArgs struct {
-	logLevel string
-	logTag   string
+const (
+	LevelDb = iota
+	MongoDb
+)
 
-	// Kardia node's related flags
-	name                string
-	listenAddr          string
-	maxPeers            int
-	rpcEnabled          bool
-	rpcAddr             string
-	rpcPort             int
-	bootNode            string
-	peer                string
-	clearDataDir        bool
-	mainChainValIndexes string
-	isZeroFee           bool
-	isPrivate           bool
-	networkId           uint64
-	chainId             uint64
-	serviceName         string
-	noProxy             bool
-	peerProxyIP         string
-
-	// Development's related flags
-	dev            bool
-	proposal       int
-	votingStrategy string
-	numTxs         int
-	txsDelay       int
-	index          int
-	genTxsPort     string
-
-	blockSize      int
-	workers        int
-	workerCap      int
-	maxPending     int
-	maxAll         int
+type flags struct {
+	config string
 }
 
-type Response struct {
-	IsValidator bool         `json:"validator"`
-	NumTxs   int             `json:"numTxs"`
-	Delay    int             `json:"delay"`
-	Accounts []tool.Account       `json:"accounts"`
-	Pending  int64           `json:"pending"`
+func initFlag(args *flags) {
+	flag.StringVar(&args.config, "config", "", "path to config file, if config is defined then it is priority used.")
 }
 
-type Tps struct {
-	Blocks     uint64     `json:"blocks"`
-	BlockTime  int64   `json:"blockTime"`
-	Txs        uint64     `json:"txs"`
-	Tps        float64 `json:"tps"`
-}
-
-var args flagArgs
-var accounts = make([]tool.Account, 0) // Init accounts for generate txs
-var genTool *tool.GeneratorTool // Init generate tool
-var blockchain *bc.BlockChain
-var kardiaService *kai.KardiaService
-var isValidator = false
+var args flags
 
 func init() {
-	flag.StringVar(&args.logLevel, "loglevel", "info", "minimum log verbosity to display")
-	flag.StringVar(&args.logTag, "logtag", "", "filter logging records based on the tag value")
+	initFlag(&args)
+}
 
-	// Node's related flags
-	flag.StringVar(&args.name, "name", "", "Name of node")
-	flag.StringVar(&args.listenAddr, "addr", ":30301", "listen address")
-	flag.BoolVar(&args.rpcEnabled, "rpc", false, "whether to open HTTP RPC endpoints")
-	flag.StringVar(&args.rpcAddr, "rpcaddr", "", "HTTP-RPC server listening interface")
-	flag.IntVar(&args.rpcPort, "rpcport", node.DefaultHTTPPort, "HTTP-RPC server listening port")
-	flag.StringVar(&args.bootNode, "bootNode", "", "Enode address of node that will be used by the p2p discovery protocol")
-	flag.StringVar(&args.peer, "peer", "", "Comma separated enode URLs for P2P static peer")
-	flag.BoolVar(&args.clearDataDir, "clearDataDir", false, "remove contents in data dir")
-	flag.StringVar(&args.mainChainValIndexes, "mainChainValIndexes", "1,2,3", "Indexes of Main chain validators")
-	flag.BoolVar(&args.isZeroFee, "zeroFee", false, "zeroFee is enabled then no gas is charged in transaction. Any gas that sender spends in a transaction will be refunded")
-	flag.BoolVar(&args.isPrivate, "private", false, "private is true then peerId will be checked through smc to make sure that it has permission to access the chain")
-	flag.Uint64Var(&args.networkId, "networkId", 0, "Your chain's networkId. NetworkId must be greater than 0")
-	flag.Uint64Var(&args.chainId, "chainId", 0, "ChainID is used to validate which node is allowed to send message through P2P in the same blockchain")
-	flag.StringVar(&args.serviceName, "serviceName", "", "ServiceName is used for displaying as log's prefix")
+// Load attempts to load the config from given path and filename.
+func LoadConfig(path string) (*Config, error) {
+	configPath := filepath.Join(path)
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		return nil, errors.Wrap(err, "Unable to load config")
+	}
+	configData, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to read config")
+	}
+	config := Config{}
+	err = yaml.Unmarshal(configData, &config)
+	if err != nil {
+		return nil, errors.Wrap(err, "Problem unmarshaling config json data")
+	}
+	return &config, nil
+}
 
-	// NOTE: The flags below are only applicable for dev environment. Please add the applicable ones
-	// here and DO NOT add non-dev flags.
-	flag.BoolVar(&args.dev, "dev", false, "deploy node with dev environment")
-	flag.StringVar(&args.votingStrategy, "votingStrategy", "",
-		"specify the voting script or strategy to simulate voting. Note that this flag only has effect when --dev flag is set")
-	flag.IntVar(&args.proposal, "proposal", 1,
-		"specify which node is the proposer. The index starts from 1, and every node needs to use the same proposer index."+
-			" Note that this flag only has effect when --dev flag is set")
-	flag.IntVar(&args.maxPeers, "maxpeers", 25,
-		"maximum number of network peers (network disabled if set to 0. Note that this flag only has effect when --dev flag is set")
-	flag.BoolVar(&args.noProxy, "noProxy", false, "When triggered, Kardia node is standalone and is not registered in proxy.")
-	flag.StringVar(&args.peerProxyIP, "peerProxyIP", "", "IP of the peer proxy for this node to register.")
-	flag.IntVar(&args.numTxs, "numTxs", 0, "number of of generated txs in one batch")
-	flag.IntVar(&args.txsDelay, "txsDelay", 10, "delay in seconds between batches of generated txs")
-	flag.StringVar(&args.genTxsPort,"genTxsPort",":5000", "port of generate tx")
-	flag.IntVar(&args.index, "index", 1, "")
-	flag.IntVar(&args.blockSize, "blockSize", 7192, "number of txs in block")
-	flag.IntVar(&args.workers, "workers", 6, "number of workers for broadcast")
-	flag.IntVar(&args.workerCap, "workerCap", 512, "number of workerCap for broadcast")
-	flag.IntVar(&args.maxPending, "maxPending", 64, "maximum pending txs for every address")
-	flag.IntVar(&args.maxAll, "maxAll", 5120000, "maximum all txs")
+// getP2P gets p2p's config from config
+func (c *Config) getP2PConfig() (*p2p.Config, error) {
+	peer := c.P2P
+	var privKey *ecdsa.PrivateKey
+	var err error
+
+	if peer.PrivateKey != "" {
+		privKey, err = crypto.HexToECDSA(peer.PrivateKey)
+	} else {
+		privKey, err = crypto.GenerateKey()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &p2p.Config{
+		PrivateKey: privKey,
+		MaxPeers:   peer.MaxPeers,
+		ListenAddr: peer.ListenAddress,
+		NAT:        nat.Any(),
+	}, nil
+}
+
+// getDbInfo gets database information from config. Currently, it only supports levelDb and Mondodb
+func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
+	database := c.MainChain.Database
+	if isDual {
+		database = c.DualChain.Database
+	}
+	switch database.Type {
+	case LevelDb:
+		nodeDir := filepath.Join(c.DataDir, c.Name, database.Dir)
+		if database.Drop == 1 {
+			// Clear all contents within data dir
+			if err := removeDirContents(nodeDir); err != nil {
+				panic(err)
+			}
+		}
+		return storage.NewLevelDbInfo(nodeDir, database.Caches, database.Handles)
+	case MongoDb:
+		return storage.NewMongoDbInfo(database.URI, database.Name, database.Drop == 1)
+	default:
+		return nil
+	}
+}
+
+// getTxPoolConfig gets txPoolConfig from config
+func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
+	txPool := c.MainChain.TxPool
+	return tx_pool.TxPoolConfig{
+		GlobalSlots: txPool.GlobalSlots,
+		GlobalQueue: txPool.GlobalQueue,
+
+		NumberOfWorkers: txPool.NumberOfWorkers,
+		WorkerCap:       txPool.WorkerCap,
+		BlockSize:       txPool.BlockSize,
+
+		LifeTime: 1 * time.Minute,
+	}
+}
+
+// getGenesis gets genesis data from config
+func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
+	var ga genesis.GenesisAlloc
+	var err error
+	g := c.MainChain.Genesis
+	if isDual {
+		g = c.DualChain.Genesis
+	}
+	if g == nil {
+		ga = make(genesis.GenesisAlloc, 0)
+	} else {
+		genesisAccounts := make(map[string]*big.Int)
+		genesisContracts := make(map[string]string)
+
+		amount, _ := big.NewInt(0).SetString(g.GenesisAmount, 10)
+		for _, address := range g.Addresses {
+			genesisAccounts[address] = amount
+		}
+
+		for _, contract := range g.Contracts {
+			genesisContracts[contract.Address] = contract.ByteCode
+		}
+		ga, err = genesis.GenesisAllocFromAccountAndContract(genesisAccounts, genesisContracts)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &genesis.Genesis{
+		Config:   configs.TestnetChainConfig,
+		GasLimit: 16777216, // maximum number of uint24
+		Alloc:    ga,
+	}, nil
+}
+
+// getMainChainConfig gets mainchain's config from config
+func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
+	chain := c.MainChain
+	dbInfo := c.getDbInfo(false)
+	if dbInfo == nil {
+		return nil, fmt.Errorf("cannot get dbInfo")
+	}
+	genesisData, err := c.getGenesis(false)
+	if err != nil {
+		return nil, err
+	}
+	baseAccount, err := c.getBaseAccount(false)
+	if err != nil {
+		return nil, err
+	}
+	mainChainConfig := node.MainChainConfig{
+		ValidatorIndexes: c.MainChain.Validators,
+		DBInfo:           dbInfo,
+		Genesis:          genesisData,
+		TxPool:           c.getTxPoolConfig(),
+		AcceptTxs:        chain.AcceptTxs,
+		IsZeroFee:        chain.ZeroFee == 1,
+		NetworkId:        chain.NetworkID,
+		ChainId:          chain.ChainID,
+		ServiceName:      chain.ServiceName,
+		EnvConfig:        nil,
+		BaseAccount:      baseAccount,
+	}
+	return &mainChainConfig, nil
+}
+
+// getMainChainConfig gets mainchain's config from config
+func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
+	dbInfo := c.getDbInfo(true)
+	if dbInfo == nil {
+		return nil, fmt.Errorf("cannot get dbInfo")
+	}
+	genesisData, err := c.getGenesis(true)
+	if err != nil {
+		return nil, err
+	}
+	eventPool := event_pool.Config{
+		GlobalSlots:     c.DualChain.EventPool.GlobalSlots,
+		GlobalQueue:     c.DualChain.EventPool.GlobalQueue,
+		NumberOfWorkers: c.DualChain.EventPool.NumberOfWorkers,
+		WorkerCap:       c.DualChain.EventPool.WorkerCap,
+		BlockSize:       c.DualChain.EventPool.BlockSize,
+	}
+
+	baseAccount, err := c.getBaseAccount(true)
+	if err != nil {
+		return nil, err
+	}
+
+	dualChainConfig := node.DualChainConfig{
+		ValidatorIndexes: c.DualChain.Validators,
+		DBInfo:           dbInfo,
+		DualGenesis:      genesisData,
+		DualEventPool:    eventPool,
+		DualNetworkID:    c.DualChain.NetworkID,
+		ChainId:          c.DualChain.ChainID,
+		DualProtocolName: *c.DualChain.Protocol,
+		EnvConfig:        nil,
+		BaseAccount:      baseAccount,
+	}
+	return &dualChainConfig, nil
+}
+
+// getNodeConfig gets NodeConfig from config
+func (c *Config) getNodeConfig() (*node.NodeConfig, error) {
+	n := c.Node
+	p2pConfig, err := c.getP2PConfig()
+	if err != nil {
+		return nil, err
+	}
+	p2pConfig.Name = n.Name
+	nodeConfig := node.NodeConfig{
+		Name:             n.Name,
+		DataDir:          n.DataDir,
+		P2P:              *p2pConfig,
+		HTTPHost:         n.HTTPHost,
+		HTTPPort:         n.HTTPPort,
+		HTTPCors:         n.HTTPCors,
+		HTTPVirtualHosts: n.HTTPVirtualHosts,
+		HTTPModules:      n.HTTPModules,
+		MainChainConfig:  node.MainChainConfig{},
+		DualChainConfig:  node.DualChainConfig{},
+		PeerProxyIP:      "",
+	}
+	mainChainConfig, err := c.getMainChainConfig()
+	if err != nil {
+		return nil, err
+	}
+	if mainChainConfig == nil {
+		return nil, fmt.Errorf("mainChainConfig is empty")
+	}
+	nodeConfig.MainChainConfig = *mainChainConfig
+	if c.DualChain != nil {
+		if dualChainConfig, err := c.getDualChainConfig(); err != nil {
+			return nil, err
+		} else {
+			nodeConfig.DualChainConfig = *dualChainConfig
+		}
+	}
+	return &nodeConfig, nil
+}
+
+// newLog inits new logger for kardia
+func (c *Config) newLog() log.Logger {
+	// Setups log to Stdout.
+	level, err := log.LvlFromString(c.LogLevel)
+	if err != nil {
+		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
+		level = log.LvlInfo
+	}
+	log.Root().SetHandler(log.LvlFilterHandler(level,
+		log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
+	return log.New()
+}
+
+// getBaseAccount gets base account that is used to execute internal smart contract
+func (c *Config) getBaseAccount(isDual bool) (*types.BaseAccount, error) {
+	var privKey *ecdsa.PrivateKey
+	var err error
+	var address common.Address
+
+	if isDual {
+		address = common.HexToAddress(c.DualChain.BaseAccount.Address)
+		privKey, err = crypto.HexToECDSA(c.DualChain.BaseAccount.PrivateKey)
+	} else {
+		address = common.HexToAddress(c.MainChain.BaseAccount.Address)
+		privKey, err = crypto.HexToECDSA(c.MainChain.BaseAccount.PrivateKey)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("baseAccount: Invalid privatekey: %v", err)
+	}
+	return &types.BaseAccount{
+		Address:    address,
+		PrivateKey: *privKey,
+	}, nil
+}
+
+// Start starts chain with given config
+func (c *Config) Start() {
+	logger := c.newLog()
+
+	// System settings
+	if err := runtimeSystemSettings(); err != nil {
+		logger.Error("Fail to update system settings", "err", err)
+		return
+	}
+
+	// get nodeConfig from config
+	nodeConfig, err := c.getNodeConfig()
+	if err != nil {
+		logger.Error("Cannot get node config", "err", err)
+		return
+	}
+
+	// init new node from nodeConfig
+	n, err := node.NewNode(nodeConfig)
+	if err != nil {
+		logger.Error("Cannot create node", "err", err)
+		return
+	}
+
+	if err := n.RegisterService(kai.NewKardiaService); err != nil {
+		logger.Error("error while adding kardia service", "err", err)
+		return
+	}
+
+	if c.DualChain != nil {
+		if err := n.RegisterService(service.NewDualService); err != nil {
+			logger.Error("error while adding dual service", "err", err)
+			return
+		}
+	}
+
+	if err := n.Start(); err != nil {
+		logger.Error("error while starting node", "err", err)
+		return
+	}
+
+	// Add peers
+	for _, peer := range c.MainChain.Seeds {
+		if err := n.AddPeer(peer); err != nil {
+			logger.Error("error while adding peer", "err", err, "peer", peer)
+		}
+	}
+	var kardiaService *kai.KardiaService
+
+	if c.MainChain.Events != nil {
+		if err := n.Service(&kardiaService); err != nil {
+			logger.Error("cannot get Kardia service", "err", err)
+			return
+		}
+		// save watchers to db
+		c.SaveWatchers(kardiaService, c.MainChain.Events)
+	}
+
+	if c.DualChain != nil {
+		// Add peers
+		for _, peer := range c.DualChain.Seeds {
+			if err := n.AddPeer(peer); err != nil {
+				logger.Error("error while adding peer", "err", err, "peer", peer)
+			}
+		}
+	}
+
+	if err := c.StartDual(n); err != nil {
+		logger.Error("error while starting dual", "err", err)
+		return
+	}
+
+	if err := n.StartServiceRPC(); err != nil {
+		logger.Error("Fail to start RPC", "err", err)
+		return
+	}
+
+	go displayKardiaPeers(n)
+
+	if err := c.StartDebug(); err != nil {
+		logger.Error("Failed to start debug", "err", err)
+	}
+
+	if err := c.StartPump(kardiaService.TxPool()); err != nil {
+		logger.Error("Failed to start pump txs", "err", err)
+	}
+
+	waitForever()
+}
+
+// StartDual reads dual config and start dual service
+func (c *Config) StartDual(n *node.Node) error {
+	if c.DualChain != nil {
+		var kardiaService *kai.KardiaService
+		var dualService *service.DualService
+		var dualProxy *dual_proxy.Proxy
+		var err error
+
+		if err = n.Service(&kardiaService); err != nil {
+			return fmt.Errorf("cannot get Kardia service: %v", err)
+		}
+
+		if err = n.Service(&dualService); err != nil {
+			return fmt.Errorf("cannot get Dual service: %v", err)
+		}
+
+		// save watchers to db
+		if c.DualChain.Events != nil {
+			c.SaveWatchers(dualService, c.DualChain.Events)
+		}
+
+		// init kardia proxy
+		kardiaProxy := &kardia.KardiaProxy{}
+		if err = kardiaProxy.Init(kardiaService.BlockChain(), kardiaService.TxPool(),
+			dualService.BlockChain(), dualService.EventPool(), nil, nil); err != nil {
+			panic(err)
+		}
+
+		if dualProxy, err = dual_proxy.NewProxy(
+			c.DualChain.ServiceName,
+			kardiaService.BlockChain(),
+			kardiaService.TxPool(),
+			dualService.BlockChain(),
+			dualService.EventPool(),
+			*c.DualChain.PublishedEndpoint,
+			*c.DualChain.SubscribedEndpoint,
+		); err != nil {
+			log.Error("Fail to initialize proxy", "error", err, "proxy", c.DualChain.ServiceName)
+			return err
+		}
+
+		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
+		// submit tx to either internal or external blockchain.
+		bcManager := blockchain.NewDualBlockChainManager(kardiaProxy, dualProxy)
+		dualService.SetDualBlockChainManager(bcManager)
+
+		// Register the 'other' blockchain to each internal/external blockchain. This is needed
+		// for generate Tx to submit to the other blockchain.
+		kardiaProxy.RegisterExternalChain(dualProxy)
+		dualProxy.RegisterInternalChain(kardiaProxy)
+
+		dualProxy.Start()
+		kardiaProxy.Start()
+	}
+	return nil
+}
+
+func (c *Config) SaveWatchers(service node.Service, events []Event) {
+	if events != nil {
+		for _, event := range events {
+			abi := ""
+			if event.ABI != nil {
+				abi = *event.ABI
+			}
+			watcherActions := make(types.WatcherActions, 0)
+			for _, action := range event.WatcherActions {
+				watcherActions = append(watcherActions, &types.WatcherAction{
+					Method:     action.Method,
+					DualAction: action.DualAction,
+				})
+			}
+
+			dualActions := make(types.DualActions, 0)
+			for _, action := range event.DualActions {
+				dualActions = append(dualActions, &types.DualAction{Name: action})
+			}
+
+			smc := &types.KardiaSmartcontract{
+				SmcAddress:     event.ContractAddress,
+				SmcAbi:         abi,
+				WatcherActions: watcherActions,
+				DualActions:    dualActions,
+			}
+			service.DB().WriteEvent(smc)
+		}
+	}
+}
+
+// StartPump reads dual config and start dual service
+func (c *Config) StartPump(txPool *tx_pool.TxPool) error {
+	if c.GenTxs != nil {
+		go genTxsLoop(c.GenTxs, txPool, c.MainChain.TxPool.GlobalQueue)
+	} else {
+		return fmt.Errorf("cannot start pump txs: %v", c.GenTxs)
+	}
+	return nil
+}
+
+// genTxsLoop generate & add a batch of transfer txs, repeat after delay flag.
+// Warning: Set txsDelay < 5 secs may build up old subroutines because previous subroutine to add txs won't be finished before new one starts.
+func genTxsLoop(genTxs *GenTxs, txPool *tx_pool.TxPool, globalQueue uint64) {
+	time.Sleep(15 * time.Second) //decrease it if you want to test it locally
+	var accounts = make([]tool.Account, 0)
+	// get accounts
+	switch genTxs.Index {
+	case 1:
+		accounts = tool.GetAccounts(GenesisAddrKeys1)
+	case 2:
+		accounts = tool.GetAccounts(GenesisAddrKeys2)
+	case 3:
+		accounts = tool.GetAccounts(GenesisAddrKeys3)
+	case 4:
+		accounts = tool.GetAccounts(GenesisAddrKeys4)
+	case 5:
+		accounts = tool.GetAccounts(GenesisAddrKeys5)
+	case 6:
+		accounts = tool.GetAccounts(GenesisAddrKeys6)
+	case 7:
+		accounts = tool.GetAccounts(GenesisAddrKeys7)
+	case 8:
+		accounts = tool.GetAccounts(GenesisAddrKeys8)
+	case 9:
+		accounts = tool.GetAccounts(GenesisAddrKeys9)
+	case 10:
+		accounts = tool.GetAccounts(GenesisAddrKeys10)
+	default:
+		accounts = tool.GetAccounts(GenesisAddrKeys1)
+	}
+	genTool := tool.NewGeneratorTool(accounts)
+	initHeight := txPool.GetBlockChain().CurrentBlock().Height()
+	for {
+		if genTxs.NumTxs == 0 {
+			break
+		}
+
+		height := txPool.GetBlockChain().CurrentBlock().Height()
+		pendingSize := txPool.PendingSize()
+		// Let's assume that current height is greater than oldHeight, continue generate txs
+		if height > initHeight && uint64(pendingSize) < globalQueue {
+			initHeight = height
+			generateTxs(genTxs, genTool, txPool)
+		} else {
+			log.Warn("Skip GenTxs due to height or max pending txs", "prevHeight", initHeight, "currentHeight", height, "pending", pendingSize)
+		}
+
+		time.Sleep(time.Duration(genTxs.Delay) * time.Second)
+	}
+}
+
+func generateTxs(genTxs *GenTxs, genTool *tool.GeneratorTool, txPool *tx_pool.TxPool) {
+	var txList []interface{}
+	// Depends on generate txs
+	switch genTxs.Type {
+	case tool.DefaultGenRandomWithStateTx:
+		txList = genTool.GenerateRandomTxWithAddressState(genTxs.NumTxs, txPool)
+	case tool.DefaultGenRandomTx:
+		txList = genTool.GenerateRandomTx(genTxs.NumTxs)
+	}
+	txPool.AddTxs(txList)
+	log.Info("GenTxs Adding new transactions", "num", genTxs.NumTxs, "genType", genTxs.Type)
+}
+
+// StartPump reads dual config and start dual service
+func (c *Config) StartDebug() error {
+	if c.Debug != nil {
+		go func() {
+			router := mux.NewRouter()
+			router.HandleFunc("/debug/pprof/", pprof.Index)
+			router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+			router.HandleFunc("/debug/pprof/profile", pprof.Profile)
+			router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+			router.HandleFunc("/debug/pprof/trace", pprof.Trace)
+			router.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+			router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+			router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+			router.Handle("/debug/pprof/block", pprof.Handler("block"))
+			router.Handle("/debug/vars", http.DefaultServeMux)
+
+			if err := http.ListenAndServe(c.Debug.Port, cors.AllowAll().Handler(router)); err != nil {
+				panic(err)
+			}
+		}()
+	} else {
+		return fmt.Errorf("cannot start debug: %v", c.Debug)
+	}
+	return nil
+}
+
+// removeDirContents deletes old local node directory
+func removeDirContents(dir string) error {
+	var err error
+	var directory *os.File
+
+	log.Info("Remove directory", "dir", dir)
+	if _, err = os.Stat(dir); err != nil {
+		if os.IsNotExist(err) {
+			log.Info("Directory does not exist", "dir", dir)
+			return nil
+		} else {
+			return err
+		}
+	}
+	if directory, err = os.Open(dir); err != nil {
+		return err
+	}
+
+	defer directory.Close()
+
+	var dirNames []string
+	if dirNames, err = directory.Readdirnames(-1); err != nil {
+		return err
+	}
+	for _, name := range dirNames {
+		if err = os.RemoveAll(filepath.Join(dir, name)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // runtimeSystemSettings optimizes process setting for go-kardia
@@ -159,291 +647,12 @@ func runtimeSystemSettings() error {
 	if err != nil {
 		return err
 	}
-	if limit < 2048 {
+	if limit < 2048 { // if rlimit is less than 2048 try to raise it to 2048
 		if err := sysutils.FDRaise(2048); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-// removeDirContents deletes old local node directory
-func removeDirContents(dir string) error {
-	log.Info("Remove directory", "dir", dir)
-	_, err := os.Stat(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			log.Info("Directory does not exist", "dir", dir)
-			return nil
-		} else {
-			return err
-		}
-	}
-	d, err := os.Open(dir)
-	if err != nil {
-		return err
-	}
-	defer d.Close()
-	names, err := d.Readdirnames(-1)
-	if err != nil {
-		return err
-	}
-	for _, name := range names {
-		err = os.RemoveAll(filepath.Join(dir, name))
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// getIntArray converts string array to int array
-func getIntArray(valIndex string) []int {
-	valIndexArray := strings.Split(valIndex, ",")
-	var a []int
-
-	// keys - hashmap used to check duplicate inputs
-	keys := make(map[string]bool)
-	for _, stringVal := range valIndexArray {
-		// if input is not seen yet
-		if _, seen := keys[stringVal]; !seen {
-			keys[stringVal] = true
-			intVal, err := strconv.Atoi(stringVal)
-			if err != nil {
-				log.Error("Failed to convert string to int: ", err)
-			}
-			a = append(a, intVal-1)
-		}
-	}
-	return a
-}
-
-func main() {
-	flag.Parse()
-
-	// Setups log to Stdout.
-	level, err := log.LvlFromString(args.logLevel)
-	if err != nil {
-		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
-		level = log.LvlInfo
-	}
-	if len(args.logTag) > 0 {
-		log.Root().SetHandler(log.LvlAndTagFilterHandler(level, args.logTag,
-			log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
-	} else {
-		log.Root().SetHandler(log.LvlFilterHandler(level,
-			log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
-	}
-	logger := log.New()
-
-	// System settings
-	if err := runtimeSystemSettings(); err != nil {
-		logger.Error("Fail to update system settings", "err", err)
-		return
-	}
-
-	var nodeIndex int
-	if len(args.name) == 0 {
-		logger.Error("Invalid node name", "name", args.name)
-	} else {
-		index, err := node.GetNodeIndex(args.name)
-		if err != nil {
-			logger.Error("Node name must be formatted as \"\\c*\\d{1,2}\"", "name", args.name)
-		}
-		nodeIndex = index - 1
-	}
-
-	// Setups config.
-	config := &node.DefaultConfig
-	config.P2P.ListenAddr = args.listenAddr
-	config.Name = args.name
-
-	// Setup bootNode
-	if args.rpcEnabled {
-		if config.HTTPHost = args.rpcAddr; config.HTTPHost == "" {
-			config.HTTPHost = node.DefaultHTTPHost
-		}
-		config.HTTPPort = args.rpcPort
-		config.HTTPVirtualHosts = []string{"*"} // accepting RPCs from all source hosts
-	}
-
-	if args.dev {
-		config.MainChainConfig.EnvConfig = node.NewEnvironmentConfig()
-		// Set P2P max peers for testing on dev environment
-		config.P2P.MaxPeers = args.maxPeers
-		if nodeIndex < 0 {
-			logger.Error(fmt.Sprintf("Node index %v must greater than 0", nodeIndex+1))
-		}
-		// Subtract 1 from the index because we specify node starting from 1 onward.
-		config.MainChainConfig.EnvConfig.SetProposerIndex(args.proposal-1, len(dev.Nodes))
-		// Only set DevNodeConfig if this is a known node from Kardia default set
-		if nodeIndex < len(dev.Nodes) {
-			nodeMetadata, err := dev.GetNodeMetadataByIndex(nodeIndex)
-			if err != nil {
-				logger.Error("Cannot get node by index", "err", err)
-			}
-			config.NodeMetadata = nodeMetadata
-		}
-		// Simulate the voting strategy
-		config.MainChainConfig.EnvConfig.SetVotingStrategy(args.votingStrategy)
-		config.MainChainConfig.ValidatorIndexes = getIntArray(args.mainChainValIndexes)
-
-		for _, valIdx := range config.MainChainConfig.ValidatorIndexes {
-			if nodeIndex == valIdx {
-				isValidator = true
-				break
-			}
-		}
-
-		// Create genesis block with dev.genesisAccounts
-		config.MainChainConfig.Genesis = genesis.DefaulTestnetFullGenesisBlock(GenesisAccounts, configs.GenesisContracts)
-	}
-	nodeDir := filepath.Join(config.DataDir, config.Name)
-	config.MainChainConfig.TxPool = tx_pool.TxPoolConfig{
-		GlobalSlots:  uint64(args.maxPending), // for pending
-		GlobalQueue:  uint64(args.maxAll), // for all
-		NumberOfWorkers: args.workers,
-		WorkerCap: args.workerCap,
-		BlockSize: args.blockSize,
-	}
-	config.MainChainConfig.IsZeroFee = args.isZeroFee
-	config.MainChainConfig.IsPrivate = args.isPrivate
-
-	if args.networkId > 0 {
-		config.MainChainConfig.NetworkId = args.networkId
-	}
-	if args.chainId > 0 {
-		config.MainChainConfig.ChainId = args.chainId
-	}
-	if args.serviceName != "" {
-		config.MainChainConfig.ServiceName = args.serviceName
-	}
-	if args.clearDataDir {
-		// Clear all contents within data dir
-		err := removeDirContents(nodeDir)
-		if err != nil {
-			logger.Error("Cannot remove contents in directory", "dir", nodeDir, "err", err)
-			return
-		}
-	}
-	config.PeerProxyIP = args.peerProxyIP
-	n, err := node.NewNode(config)
-	if err != nil {
-		logger.Error("Cannot create node", "err", err)
-		return
-	}
-
-	n.RegisterService(kai.NewKardiaService)
-	if err := n.Start(); err != nil {
-		logger.Error("Cannot start node", "err", err)
-		return
-	}
-
-	if err := n.Service(&kardiaService); err != nil {
-		logger.Error("Cannot get Kardia Service", "err", err)
-		return
-	}
-	blockchain = kardiaService.BlockChain()
-	logger.Info("Genesis block", "genesis", *blockchain.Genesis())
-
-	if !args.noProxy && len(args.peerProxyIP) == 0 {
-		logger.Error("flag noProxy=false but peerProxyIP is empty, will ignore proxy.")
-		args.noProxy = true // TODO(thientn): removes when finish cleaning up proxy.
-	}
-
-	if !args.noProxy {
-		if err := n.CallProxy("Startup", n.Server().Self(), nil); err != nil {
-			logger.Error("Error when startup proxy connection", "err", err)
-		}
-	}
-
-	if args.dev {
-		for i := 0; i < config.MainChainConfig.EnvConfig.GetNodeSize(); i++ {
-			peerURL := config.MainChainConfig.EnvConfig.GetNodeMetadata(i).NodeID()
-			logger.Info("Adding static peer", "peerURL", peerURL)
-			if err := n.AddPeer(peerURL); err != nil {
-				log.Error("Error adding static peer", "err", err)
-			}
-		}
-	}
-
-	if args.bootNode != "" {
-		logger.Info("Adding Peer", "Boot Node:", args.bootNode)
-		if args.noProxy {
-			if err := n.AddPeer(args.bootNode); err != nil {
-				log.Error("Error adding bootNode", "err", err)
-			}
-
-		} else {
-			if err := n.BootNode(args.bootNode); err != nil {
-				log.Error("Unable to connect to bootnode", "err", err, "bootNode", args.bootNode)
-			}
-		}
-	}
-
-	if len(args.peer) > 0 {
-		urls := strings.Split(args.peer, ",")
-		for _, peerURL := range urls {
-			logger.Info("Adding static peer", "peerURL", peerURL)
-			if err := n.AddPeer(peerURL); err != nil {
-				log.Error("Error adding static peer", "err", err)
-			}
-		}
-	}
-
-	// Start RPC for all services
-	if args.rpcEnabled {
-		err := n.StartServiceRPC()
-		if err != nil {
-			logger.Error("Fail to start RPC", "err", err)
-			return
-		}
-	}
-
-	go displayKardiaPeers(n)
-
-	// get accounts
-	idx := args.index
-	if idx == 1 {
-		accounts = tool.GetAccounts(GenesisAddrKeys1)
-	} else if idx == 2 {
-		accounts = tool.GetAccounts(GenesisAddrKeys2)
-	} else if idx == 3 {
-		accounts = tool.GetAccounts(GenesisAddrKeys3)
-	} else if idx == 4 {
-		accounts = tool.GetAccounts(GenesisAddrKeys4)
-	} else if idx == 5 {
-		accounts = tool.GetAccounts(GenesisAddrKeys5)
-	} else if idx == 6 {
-		accounts = tool.GetAccounts(GenesisAddrKeys6)
-	} else if idx == 7 {
-		accounts = tool.GetAccounts(GenesisAddrKeys7)
-	} else if idx == 8 {
-		accounts = tool.GetAccounts(GenesisAddrKeys8)
-	} else if idx == 9 {
-		accounts = tool.GetAccounts(GenesisAddrKeys9)
-	} else if idx == 10 {
-		accounts = tool.GetAccounts(GenesisAddrKeys10)
-	}
-
-	// gen txs from args.numTxs
-	go genTxsLoop(kardiaService.TxPool())
-
-	// start an api that receives pump configure
-	go func(){
-		router := mux.NewRouter()
-		router.HandleFunc("/pump", pump).Methods("POST")
-		router.HandleFunc("/status", status).Methods("GET")
-		router.HandleFunc("/tps", tps).Methods("GET")
-		router.HandleFunc("/config", configPool).Methods("GET")
-
-		if err := http.ListenAndServe(args.genTxsPort, cors.AllowAll().Handler(router)); err != nil {
-			panic(err)
-		}
-	}()
-
-	waitForever()
 }
 
 func displayKardiaPeers(n *node.Node) {
@@ -457,213 +666,13 @@ func waitForever() {
 	select {}
 }
 
-// genTxsLoop generate & add a batch of transfer txs, repeat after delay flag.
-// Warning: Set txsDelay < 5 secs may build up old subroutines because previous subroutine to add txs won't be finished before new one starts.
-func genTxsLoop(txPool *tx_pool.TxPool) {
-	time.Sleep(25 * time.Second) //decrease it if you want to test it locally
-	if genTool == nil {
-		genTool = tool.NewGeneratorTool(accounts)
-	}
-	for {
-		if args.numTxs == 0 {
-			break
+func main() {
+	flag.Parse()
+	if args.config != "" {
+		config, err := LoadConfig(args.config)
+		if err != nil {
+			panic(err)
 		}
-		genTxs(genTool, args.numTxs, txPool)
-		time.Sleep(time.Duration(args.txsDelay) * time.Second)
+		config.Start()
 	}
-}
-
-func genTxs(genTool *tool.GeneratorTool, numTxs int, txPool *tx_pool.TxPool) {
-	txList := genTool.GenerateRandomTx(numTxs)
-	log.Info("GenTxs Adding new transactions", "num", numTxs, "generatedTxList", len(txList), "pendingSize", txPool.PendingSize())
-	txPool.AddTxs(txList)
-}
-
-func pump(w http.ResponseWriter, r *http.Request) {
-	log.Info("pumping txs")
-	data, err := HandlePost(r)
-	if err != nil {
-		respondWithError(w, 500, fmt.Sprintf("%v", err))
-		return
-	}
-	m := data.(map[string]interface{})
-	_, ok := m["numTxs"]
-	if !ok {
-		respondWithError(w, 500, fmt.Sprintf("numTxs is required"))
-		return
-	}
-
-	// get numTx
-	numTxs := int(m["numTxs"].(float64))
-	if numTxs < 0 {
-		respondWithError(w, 500, fmt.Sprintf("invalid numTxs %v", numTxs))
-		return
-	}
-
-	delay := args.txsDelay
-	_, ok = m["delay"]
-	if ok {
-		delay = int(m["delay"].(float64))
-		if delay <= 0 {
-			respondWithError(w, 500, fmt.Sprintf("invalid delay %v", delay))
-			return
-		}
-	}
-
-	idx, genesisIdx := m["index"]
-	if genesisIdx {
-		if idx == "1" {
-			accounts = tool.GetAccounts(GenesisAddrKeys1)
-		} else if idx == "2" {
-			accounts = tool.GetAccounts(GenesisAddrKeys2)
-		} else if idx == "3" {
-			accounts = tool.GetAccounts(GenesisAddrKeys3)
-		} else if idx == "4" {
-			accounts = tool.GetAccounts(GenesisAddrKeys4)
-		} else if idx == "5" {
-			accounts = tool.GetAccounts(GenesisAddrKeys5)
-		} else if idx == "6" {
-			accounts = tool.GetAccounts(GenesisAddrKeys6)
-		} else if idx == "7" {
-			accounts = tool.GetAccounts(GenesisAddrKeys7)
-		} else if idx == "8" {
-			accounts = tool.GetAccounts(GenesisAddrKeys8)
-		} else if idx == "9" {
-			accounts = tool.GetAccounts(GenesisAddrKeys9)
-		} else if idx == "10" {
-			accounts = tool.GetAccounts(GenesisAddrKeys10)
-		} else {
-			respondWithError(w, 500, "invalid genesis index")
-			return
-		}
-	} else {
-		_, ok = m["accounts"]
-		if !ok && len(accounts) == 0 {
-			respondWithError(w, 500, "accounts are required")
-			return
-		}
-
-		accs := m["accounts"].([]interface{})
-		if len(accs) == 0 {
-			respondWithError(w, 500, "accounts cannot be empty")
-			return
-		}
-
-		// reset accounts
-		accounts = make([]tool.Account, 0)
-		for _, acc := range accs {
-			m := acc.(map[string]interface{})
-			account := tool.Account{
-				Address: m["address"].(string),
-				PrivateKey: m["privateKey"].(string),
-			}
-			accounts = append(accounts, account)
-		}
-	}
-
-	args.numTxs = int(numTxs)
-	args.txsDelay = int(delay)
-
-	if args.numTxs > 0 {
-		genTxsLoop(kardiaService.TxPool())
-	}
-
-	respondWithJSON(w, 200, "OK")
-}
-
-func status(w http.ResponseWriter, r *http.Request) {
-
-	response := Response{
-		IsValidator: isValidator,
-		NumTxs: args.numTxs,
-		Delay: args.txsDelay,
-		Accounts: accounts,
-		Pending: int64(kardiaService.TxPool().PendingSize()),
-	}
-
-	respondWithJSON(w, 200, response)
-}
-
-func tps(w http.ResponseWriter, r *http.Request) {
-	result := make([]Tps, 0)
-
-	blocks, err := strconv.ParseInt(r.FormValue("blocks"), 10, 64)
-	if err != nil {
-		blocks = 5
-	}
-
-	currentHeight := blockchain.CurrentBlock().Height()
-	blockTime := int64(0)
-	numTxs := uint64(0)
-
-	for {
-		if blocks == 0 || currentHeight == 1 {
-			break
-		}
-		// get block by height
-		block := blockchain.GetBlockByHeight(currentHeight)
-		previousBlock := blockchain.GetBlockByHeight(currentHeight - 1)
-
-		currentBlockTime := block.Time().Int64()
-		previousBlockTime := previousBlock.Time().Int64()
-
-		// calculate blocktime and numtxs
-		blockTime += currentBlockTime - previousBlockTime
-		numTxs += block.NumTxs()
-
-		blocks--
-		currentHeight--
-	}
-
-	result = append(result, Tps{
-		Blocks: uint64(blocks),
-		BlockTime: blockTime,
-		Txs: numTxs,
-		Tps: float64(int64(numTxs)/blockTime),
-	})
-
-	respondWithJSON(w, 200, result)
-}
-
-func configPool(w http.ResponseWriter, r *http.Request) {
-	result := make([]Tps, 0)
-
-	workers, err := strconv.ParseInt(r.FormValue("workers"), 10, 64)
-	if err != nil {
-		workers = 5
-	}
-
-	workerCap, err := strconv.ParseInt(r.FormValue("cap"), 10, 64)
-	if err != nil {
-		workerCap = 600
-	}
-
-	kardiaService.TxPool().ResetWorker(int(workers), int(workerCap))
-	respondWithJSON(w, 200, result)
-}
-
-func respondWithError(w http.ResponseWriter, code int, message string) {
-	respondWithJSON(w, code, map[string]string{"error": message})
-}
-
-func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
-	response, _ := json.Marshal(payload)
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	w.Write(response)
-}
-
-// HandlePost handles post data from http.Request and return data as json format
-func HandlePost(r *http.Request) (interface{}, error) {
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-	var result interface{}
-	err = json.Unmarshal(bodyBytes, &result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
 }
