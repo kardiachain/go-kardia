@@ -189,11 +189,16 @@ func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []
 	if len(txs) == 0 {
 		b.header.TxHash = EmptyRootHash
 	} else {
+		logger.Warn("Block has txs", "count", len(txs))
 		b.header.TxHash = DeriveSha(Transactions(txs))
 		b.header.NumTxs = uint64(len(txs))
 		b.transactions = make(Transactions, len(txs))
 		copy(b.transactions, txs)
+
+		logger.Warn("Block copied txs", "count", len(b.transactions))
 	}
+
+
 
 	if len(receipts) == 0 {
 		b.header.ReceiptHash = EmptyRootHash
