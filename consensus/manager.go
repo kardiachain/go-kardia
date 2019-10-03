@@ -262,7 +262,7 @@ func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) 
 	ps.EnsureVoteBitArrays(height, valSize)
 	ps.EnsureVoteBitArrays(height.Add(-1), lastCommitSize)
 	ps.SetHasVote(msg.Vote)
-	conR.logger.Warn("Implement RecordVote here to mark peer as good.")
+	conR.logger.Trace("Implement RecordVote here to mark peer as good.")
 
 	cs.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }

@@ -311,7 +311,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	// remove current block's txs from pending
 	pool.removeTxs(currentBlock.Transactions())
 
-	//pool.demoteUnexecutables()
+	pool.demoteUnexecutables()
 	//go pool.saveTxs(currentBlock.Transactions())
 }
 
@@ -509,14 +509,11 @@ func (pool *TxPool) addTx(tx *types.Transaction) error {
 	sort.Sort(types.TxByNonce(pendingTxs))
 	pool.pending[*sender] = pendingTxs
 
-	// Update addressState
-	pool.addressState[*sender] = pool.pending[*sender][len(pendingTxs)-1].Nonce()
-	pool.logger.Trace("Update nonce", "address", *sender, "nonce", pool.addressState[*sender])
-
-	// add sender to queue if it does not exist in queue
-	/*if !pool.promotableQueue.Has(*sender) {
-		pool.promotableQueue.Add(*sender)
-	}*/
+	// update address state
+	if nonce, ok := pool.addressState[*sender]; !ok || nonce < tx.Nonce() {
+		pool.logger.Info("update nonce", "address", sender.Hex(), "nonce", tx.Nonce(), "currentNonce", nonce)
+		pool.addressState[*sender] = tx.Nonce()
+	}
 
 	pool.pendingSize += 1
 
