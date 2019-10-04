@@ -311,7 +311,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	// remove current block's txs from pending
 	pool.removeTxs(currentBlock.Transactions())
 
-	pool.demoteUnexecutables()
+	//pool.demoteUnexecutables()
 	//go pool.saveTxs(currentBlock.Transactions())
 }
 
@@ -604,6 +604,12 @@ func (pool *TxPool) demoteUnexecutables() {
 		if olds.Len() > 0 {
 			//pool.logger.Warn("Remove from pending", "index", index, "current", pool.pendingSize)
 			pool.pending[addr] = pool.pending[addr].Remove(indexes)
+			for _, tx := range olds {
+				if pool.signer[tx.Hash()] != nil {
+					delete(pool.signer, tx.Hash())
+					pool.signerSize -= 1
+				}
+			}
 		}
 
 		// Delete the entire queue entry if it became empty.
@@ -614,7 +620,7 @@ func (pool *TxPool) demoteUnexecutables() {
 
 	pool.pendingSize = pool.updatePendingSize()
 
-	pool.logger.Warn("After demoteUnexecutables", "pending", pool.pendingSize)
+	pool.logger.Warn("After demoteUnexecutables", "pending", pool.pendingSize, "signer", pool.signerSize)
 }
 
 func (pool *TxPool) updatePendingSize() uint {
