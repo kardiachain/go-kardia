@@ -447,15 +447,6 @@ func (pool *TxPool) AddTx(tx *types.Transaction) error {
 func (pool *TxPool) getSender(tx *types.Transaction) (*common.Address, error) {
 	sender := pool.signer[tx.Hash()]
 	if sender == nil {
-		// Remove signer cache
-		if pool.signerSize >= uint(pool.config.GlobalQueue) {
-			for key, _ := range pool.signer {
-				delete(pool.signer, key)
-				pool.signerSize -= 1
-				break
-			}
-		}
-
 		sender, err := types.Sender(tx)
 		if err != nil {
 			return nil, ErrInvalidSender
@@ -468,28 +459,6 @@ func (pool *TxPool) getSender(tx *types.Transaction) (*common.Address, error) {
 		return &sender.Address, nil
 	}
 }
-
-// getSender gets transaction's sender
-/*func (pool *TxPool) getSender(tx *types.Transaction) (*common.Address, error) {
-	sender, ok := pool.signer.Get(tx.Hash().String())
-	if ok {
-		return sender.(*common.Address), nil
-	} else {
-		sender, err := types.Sender(tx)
-		if err != nil {
-			return nil, ErrInvalidSender
-		}
-		pool.signer.Set(tx.Hash().String(), &sender)
-
-		if pool.signer.Len() >= maxSignerSize {
-			for singer := range pool.signer.Iter() {
-				pool.signer.Del(singer.Key)
-				break;
-			}
-		}
-		return &sender, nil
-	}
-}*/
 
 // addTx enqueues a single transaction into the pool if it is valid.
 func (pool *TxPool) addTx(tx *types.Transaction) error {
@@ -511,7 +480,7 @@ func (pool *TxPool) addTx(tx *types.Transaction) error {
 
 	// update address state
 	if nonce, ok := pool.addressState[*sender]; !ok || nonce < tx.Nonce() {
-		pool.logger.Info("update nonce", "address", sender.Hex(), "nonce", tx.Nonce(), "currentNonce", nonce)
+		//pool.logger.Info("update nonce", "address", sender.Hex(), "nonce", tx.Nonce(), "currentNonce", nonce)
 		pool.addressState[*sender] = tx.Nonce()
 	}
 

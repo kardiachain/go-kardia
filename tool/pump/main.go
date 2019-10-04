@@ -574,7 +574,8 @@ func generateTxs(genTxs *GenTxs, genTool *tool.GeneratorTool, txPool *tx_pool.Tx
 	// Depends on generate txs
 	switch genTxs.Type {
 	case tool.DefaultGenRandomWithStateTx:
-		txList = genTool.GenerateRandomTxWithAddressState(genTxs.NumTxs, txPool)
+		//txList = genTool.GenerateRandomTxWithAddressState(genTxs.NumTxs, txPool)
+		txList = genTool.GenerateRandomTxWithState(genTxs.NumTxs, txPool.State().StateDB)
 	case tool.DefaultGenRandomTx:
 		txList = genTool.GenerateRandomTx(genTxs.NumTxs)
 	}

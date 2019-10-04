@@ -78,6 +78,7 @@ func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.B
 		return nil
 	}
 	header.Root = stateRoot
+	header.NumTxs = uint64(newTxs.Len())
 
 	block = bo.newBlock(header, newTxs, receipts, commit)
 	bo.logger.Trace("Make block to propose", "block", block)
@@ -245,7 +246,7 @@ LOOP:
 			IsZeroFee: bo.blockchain.IsZeroFee,
 		})
 		if err != nil {
-			bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
+			bo.logger.Trace("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
 			state.RevertToSnapshot(snap)
 			// TODO(thientn): check error type and jump to next tx if possible
 			// kiendn: instead of return nil and err, jump to next tx
@@ -256,6 +257,8 @@ LOOP:
 		receipts = append(receipts, receipt)
 		newTxs = append(newTxs, tx)
 	}
+
+
 	root, err := state.Commit(true)
 
 	if err != nil {
