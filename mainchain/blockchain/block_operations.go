@@ -60,7 +60,7 @@ func (bo *BlockOperations) Height() uint64 {
 }
 
 // CreateProposalBlock creates a new proposal block with all current pending txs in pool.
-func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID,
+func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID, validator common.Address,
 	lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.
@@ -69,7 +69,7 @@ func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.B
 	txs := bo.txPool.ProposeTransactions()
 	bo.logger.Debug("Collected transactions", "txs", txs)
 
-	header := bo.newHeader(height, uint64(len(txs)), lastBlockID, lastValidatorHash)
+	header := bo.newHeader(height, uint64(len(txs)), lastBlockID, validator, lastValidatorHash)
 	bo.logger.Info("Creates new header", "header", header)
 
 	stateRoot, receipts, newTxs, err := bo.commitTransactions(txs, header)
@@ -193,13 +193,14 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 
 // newHeader creates new block header from given data.
 // Some header fields are not ready at this point.
-func (bo *BlockOperations) newHeader(height int64, numTxs uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header {
+func (bo *BlockOperations) newHeader(height int64, numTxs uint64, blockId types.BlockID, validator common.Address, validatorsHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:         uint64(height),
 		Time:           big.NewInt(time.Now().Unix()),
 		NumTxs:         numTxs,
 		LastBlockID:    blockId,
+		Validator:      validator,
 		ValidatorsHash: validatorsHash,
 		GasLimit:       215040000,
 	}
@@ -257,7 +258,6 @@ LOOP:
 		receipts = append(receipts, receipt)
 		newTxs = append(newTxs, tx)
 	}
-
 
 	root, err := state.Commit(true)
 

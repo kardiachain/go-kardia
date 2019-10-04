@@ -69,6 +69,7 @@ type Header struct {
 	ReceiptHash    common.Hash `json:"receiptsRoot"        gencodec:"required"` // receipt root
 	Bloom          Bloom       `json:"logsBloom"           gencodec:"required"`
 
+	Validator common.Address `json:"validator"`
 	// hashes from the app output from the prev block
 	ValidatorsHash common.Hash `json:"validators_hash"` // validators for the current block
 	ConsensusHash  common.Hash `json:"consensus_hash"`  // consensus params for current block
@@ -197,8 +198,6 @@ func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []
 
 		logger.Warn("Block copied txs", "count", len(b.transactions))
 	}
-
-
 
 	if len(receipts) == 0 {
 		b.header.ReceiptHash = EmptyRootHash
