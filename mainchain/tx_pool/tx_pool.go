@@ -311,7 +311,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	// remove current block's txs from pending
 	pool.removeTxs(currentBlock.Transactions())
 
-	//pool.demoteUnexecutables()
+	pool.demoteUnexecutables()
 	//go pool.saveTxs(currentBlock.Transactions())
 }
 
@@ -595,9 +595,9 @@ func(pool *TxPool) evictSigner() int {
 // are moved back into the future queue.
 func (pool *TxPool) demoteUnexecutables() {
 	// Iterate over all accounts and demote any non-executable transactions
-	pool.logger.Warn("Before demoteUnexecutables", "pending", pool.pendingSize)
+	pool.logger.Warn("Before demoteUnexecutables", "pending", pool.pendingSize, "signer", pool.signerSize)
 	for addr, list := range pool.pending {
-		nonce := pool.pendingState.GetNonce(addr)
+		nonce := pool.currentState.GetNonce(addr)
 		// Drop all transactions that are deemed too old (low nonce)
 		indexes, olds := list.Forward(nonce)
 		//pool.logger.Warn("Remove from pending", "indexes", indexes)
