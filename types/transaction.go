@@ -240,13 +240,11 @@ func (s Transactions) Forward(nonce uint64) ([]int, Transactions) {
 	olds := make(Transactions, 0)
 	indexes := make([]int, 0)
 
-	i := 0
-	for _, tx := range s {
+	for i, tx := range s {
 		if nonce > tx.Nonce() {
 			olds = append(olds, tx)
 			indexes = append(indexes, i)
 		}
-		i++
 	}
 	return indexes, olds
 }
