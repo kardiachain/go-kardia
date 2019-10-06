@@ -238,7 +238,7 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	gasPool := new(GasPool).AddGas(header.GasLimit)
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
-LOOP:
+//LOOP:
 	for _, tx := range txs {
 		state.Prepare(tx.Hash(), common.Hash{}, counter)
 		snap := state.Snapshot()
@@ -247,12 +247,13 @@ LOOP:
 			IsZeroFee: bo.blockchain.IsZeroFee,
 		})
 		if err != nil {
-			bo.logger.Trace("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
+			bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
 			state.RevertToSnapshot(snap)
 			// TODO(thientn): check error type and jump to next tx if possible
 			// kiendn: instead of return nil and err, jump to next tx
 			//return common.Hash{}, nil, nil, err
-			continue LOOP
+			//continue LOOP
+			continue
 		}
 		counter++
 		receipts = append(receipts, receipt)

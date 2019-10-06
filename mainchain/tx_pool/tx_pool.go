@@ -598,12 +598,11 @@ func (pool *TxPool) demoteUnexecutables() {
 	pool.logger.Warn("Before demoteUnexecutables", "pending", pool.pendingSize, "signer", pool.signerSize)
 	for addr, list := range pool.pending {
 		nonce := pool.currentState.GetNonce(addr)
-		pool.logger.Warn("Current state", "addr", addr.String(), "nonce", nonce, "pending", pool.pendingSize, "signer", pool.signerSize)
 		// Drop all transactions that are deemed too old (low nonce)
 		indexes, olds := list.Forward(nonce)
 		//pool.logger.Warn("Remove from pending", "indexes", indexes)
 		if olds.Len() > 0 {
-			//pool.logger.Warn("Remove from pending", "index", index, "current", pool.pendingSize)
+			pool.logger.Warn("Current state", "addr", addr.String(), "nonce", nonce, "pending", pool.pendingSize, "signer", pool.signerSize)
 			pool.pending[addr] = pool.pending[addr].Remove(indexes)
 			for _, tx := range olds {
 				if pool.signer[tx.Hash()] != nil {
