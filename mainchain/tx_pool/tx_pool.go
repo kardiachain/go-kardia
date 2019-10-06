@@ -311,7 +311,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	// remove current block's txs from pending
 	pool.removeTxs(currentBlock.Transactions())
 
-	pool.demoteUnexecutables()
+	//pool.demoteUnexecutables()
 	//go pool.saveTxs(currentBlock.Transactions())
 }
 
