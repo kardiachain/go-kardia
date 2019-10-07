@@ -527,11 +527,6 @@ func (pool *TxPool) removeTxs(txs types.Transactions) {
 		if pendings != nil && len(pendings) > 0 {
 			newTxs := make(types.Transactions, 0)
 			for _, pending := range pendings {
-				if sender.String() == "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6" {
-					if pending.Nonce() != tx.Nonce() {
-						pool.logger.Error("Remove", "addr", sender.String(), "nonce", tx.Nonce(), "pending nonce", pending.Nonce(), "to", tx.To().String(), "value", tx.Value().String() )
-					}
-				}
 				if pending.Nonce() != tx.Nonce() {
 					newTxs = append(newTxs, pending)
 				}
@@ -607,14 +602,8 @@ func (pool *TxPool) demoteUnexecutables() {
 		indexes, olds := list.Forward(nonce)
 		//pool.logger.Warn("Remove from pending", "indexes", indexes)
 		if olds.Len() > 0 {
-			if addr.String() == "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6" {
-				pool.logger.Error("Current state", "addr", addr.String(), "nonce", nonce, "pending", pool.pendingSize, "signer", pool.signerSize)
-			}
 			pool.pending[addr] = pool.pending[addr].Remove(indexes)
 			for _, tx := range olds {
-				if addr.String() == "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6" {
-					pool.logger.Error("Remove old tx", "addr", addr.String(), "nonce", tx.Nonce(), "to", tx.To().String(), "value", tx.Value().String(), "pending", pool.pendingSize, "signer", pool.signerSize)
-				}
 				if pool.signer[tx.Hash()] != nil {
 					delete(pool.signer, tx.Hash())
 					pool.signerSize -= 1

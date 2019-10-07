@@ -314,9 +314,6 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		//st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
 
 		// FIXME(kiendn): set current state to msg nonce input from transaction instead auto increment +1
-		if msg.From().String() == "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6" {
-			log.Error("set nonce",  "add", msg.From().String(), "nonce", msg.Nonce(), "to", msg.To().String(), "value", msg.Value().String())
-		}
 		st.state.SetNonce(msg.From(), msg.Nonce())
 		ret, st.gas, vmerr = vm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
