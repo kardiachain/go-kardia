@@ -545,6 +545,10 @@ func genTxsLoop(genTxs *GenTxs, txPool *tx_pool.TxPool, globalQueue uint64) {
 		accounts = tool.GetAccounts(GenesisAddrKeys9)
 	case 10:
 		accounts = tool.GetAccounts(GenesisAddrKeys10)
+	case 11:
+		accounts = tool.GetAccounts(GenesisAddrKeys11)
+	case 12:
+		accounts = tool.GetAccounts(GenesisAddrKeys12)
 	default:
 		accounts = tool.GetAccounts(GenesisAddrKeys1)
 	}
