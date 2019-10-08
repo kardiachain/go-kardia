@@ -30,7 +30,10 @@ func init() {
 		endIf: emptyFunc,
 		elif: emptyFunc,
 		el: emptyFunc,
+		endForEach: emptyFunc,
 		addVarFunc: addVar,
+		forEachFunc: forEach,
+		splitFunc: split,
 	}
 }
 
@@ -58,7 +61,6 @@ func addVar(p *Parser, extras ...interface{}) ([]interface{}, error) {
 		return nil, invalidVariables
 	}
 	varName, varType, varVal := extras[0].(string), extras[1].(string), extras[2].(string)
-
 	// apply CEL to varVal
 	val, err := p.handleContent(varVal)
 	if err != nil {
@@ -67,11 +69,6 @@ func addVar(p *Parser, extras ...interface{}) ([]interface{}, error) {
 	if len(val) == 0 {
 		return nil, fmt.Errorf("returned value is empty")
 	}
-
-	if _, ok := p.userDefinedVariables[varName]; ok {
-		return nil, fmt.Errorf("variable has been defined")
-	}
-
 	convertFunc, ok := supportedTypes[varType]
 	if !ok {
 		return nil, variableNotFound
@@ -84,6 +81,8 @@ func addVar(p *Parser, extras ...interface{}) ([]interface{}, error) {
 	return nil, nil
 }
 
+// validateFunc has 3 elements, condition, true signal and false signal.
+// if condition is true then true signal is returned otherwise false signal is returned
 func validateFunc(p *Parser, extras ...interface{}) ([]interface{}, error) {
 	if len(extras) != 3 {
 		return nil, invalidIfParams
@@ -111,6 +110,7 @@ func validateFunc(p *Parser, extras ...interface{}) ([]interface{}, error) {
 	}
 }
 
+// executeIf executes if blocks. an if structures is start with fn:if(block_name, cond1)...fn:elif(block_name, cond2)...fn:else(block_name)...fn:endif(block_name)
 func executeIf(p *Parser, extras ...interface{}) ([]interface{}, error) {
 	if len(extras) != 2 {
 		return nil, invalidIfParams
@@ -118,13 +118,13 @@ func executeIf(p *Parser, extras ...interface{}) ([]interface{}, error) {
 	// name is used to specify name of ifElse block. name must be unique
 	name, condition := extras[0].(string), extras[1].(string)
 
-	// get start position and find end position with format fn:endIf(name) and same condition to get a block code
-	// then after that
+	// get start position and find end position with format fn:endif(name) and same condition to get a block code
 	currentPos := p.pc
 	patternBlocks := make(map[string][]string)
 	newPatterns := make([]string, 0)
 	key := condition
 	listCond := make([]string, 0)
+	validIfStatement := false
 
 	for _, pattern := range p.globalPatterns[currentPos+1:] {
 		if strings.Contains(pattern, name) && (strings.Contains(pattern, endIf)) ||
@@ -137,23 +137,30 @@ func executeIf(p *Parser, extras ...interface{}) ([]interface{}, error) {
 			}
 			if method == el {
 				key = fmt.Sprintf("%v(%v)", el, name)
-			} else if method == endIf{
+			} else if method == endIf {
+				// move program counter to the next position then break
+				p.pc++
+				validIfStatement = true
 				break
 			} else {
 				key = results[1]
 			}
-
+			// reset newPatterns to prepare for next condition's patterns
 			newPatterns = make([]string, 0)
 		} else {
 			newPatterns = append(newPatterns, pattern)
 		}
 		p.pc++
 	}
-	p.pc++
+
+	if !validIfStatement { // cannot find endIf
+		return nil, invalidIfStatement
+	}
+
 	for _, cond := range listCond {
 		// if cond is el
 		if strings.Contains(cond, el) {
-			return parseBlockPatterns(p, patternBlocks[cond])
+			return parseBlockPatterns(p, patternBlocks[cond], nil)
 		} else {
 			val, err := p.handleContent(cond)
 			if err != nil {
@@ -163,22 +170,125 @@ func executeIf(p *Parser, extras ...interface{}) ([]interface{}, error) {
 				return nil, incorrectReturnedValueInIFFunc
 			}
 			if val[0].(bool) {
-				return parseBlockPatterns(p, patternBlocks[cond])
+				return parseBlockPatterns(p, patternBlocks[cond], nil)
 			}
 		}
 	}
 	return nil, nil
 }
 
-func parseBlockPatterns(p *Parser, patterns []string) ([]interface{}, error) {
+// parseBlockPatterns reads nested patterns with different parser then returns all returned params.
+func parseBlockPatterns(p *Parser, patterns []string, extrasVar map[string]interface{}) ([]interface{}, error) {
 	newParser := NewParser(p.bc, p.stateDb, p.smartContractAddress, patterns, p.globalMessage)
-	newParser.userDefinedVariables = p.userDefinedVariables
+	// add all definedVariables in p in overwrite cases.
+	for k, v := range p.userDefinedVariables {
+		newParser.userDefinedVariables[k] = v
+	}
+
+	if extrasVar != nil {
+		for k, v := range extrasVar {
+			newParser.userDefinedVariables[k] = v
+		}
+	}
 
 	err := newParser.ParseParams()
 	if err != nil {
 		return nil, err
 	}
+	// update updated variables in newParser
+	for k, v := range newParser.userDefinedVariables {
+		if _, ok := p.userDefinedVariables[k]; ok {
+			p.userDefinedVariables[k] = v
+		}
+	}
 	return newParser.globalParams.([]interface{}), nil
+}
+
+// forEach loops through a given list variables and execute all logics inside forEach(name, vars)...endForEach(name) pair.
+func forEach(p *Parser, extras ...interface{}) ([]interface{}, error) {
+	// extras must have 2 elements: first element is the name of for loop which is used to find forEachEnd.
+	// second element must be an array or a slice.
+	if len(extras) != 2 {
+		return nil, invalidForEachParam
+	}
+
+	val, err := p.handleContent(extras[1].(string))
+	if err != nil {
+		return nil, err
+	}
+
+	if val == nil || len(val) == 0 {
+		return nil, invalidForEachParam
+	}
+
+	if reflect.TypeOf(val[0]).Kind() != reflect.Array && reflect.TypeOf(val[0]).Kind() != reflect.Slice {
+		return nil, invalidForEachParam
+	}
+
+	name := extras[0].(string)
+	newPatterns := make([]string, 0)
+	validForEach := false
+	// loop globalPatterns from current position until we find
+	for _, pattern := range p.globalPatterns[p.pc+1:] {
+		if strings.Contains(pattern, name) && strings.Contains(pattern, endForEach) {
+			validForEach = true
+		} else {
+			newPatterns = append(newPatterns, pattern)
+		}
+		p.pc++
+	}
+	if !validForEach {
+		return nil, invalidForEachStatement
+	}
+	// loop for each
+	results := make([]interface{}, 0)
+
+	convertedArr, err := convertInterfaceToSlice(val[0])
+	if err != nil {
+		return nil, err
+	}
+
+	for i, _ := range convertedArr {
+		val, err := parseBlockPatterns(p, newPatterns, map[string]interface{}{
+			loopIndex: i,
+		})
+		if err != nil {
+			return nil, err
+		}
+		if val != nil && len(val) > 0{
+			results = append(results, val...)
+		}
+	}
+	return results, nil
+}
+
+// split splits given string(maybe expression) with a separator
+func split(p *Parser, extras ...interface{}) ([]interface{}, error) {
+	if len(extras) != 2 {
+		return nil, notEnoughArgsForSplit
+	}
+	if reflect.TypeOf(extras[0]).Kind() != reflect.String && reflect.TypeOf(extras[1]).Kind() != reflect.String {
+		return nil, invalidSplitArgs
+	}
+
+	// execute extras[0] in case it contains any built-in or CEL structure
+	str, err := p.handleContent(extras[0].(string))
+	if err != nil {
+		return nil, err
+	}
+
+	// execute separator at extras[1]
+	val, err := p.handleContent(extras[1].(string))
+	if err != nil {
+		return nil, err
+	}
+	if val != nil && len(val) > 0 && reflect.TypeOf(val[0]).Kind() == reflect.String &&
+		str != nil && len(str) >0 && reflect.TypeOf(str[0]).Kind() == reflect.String {
+		separator := val[0].(string)
+		splitStr := strings.Split(str[0].(string), separator)
+		return []interface{}{splitStr}, nil
+	}
+	return nil, invalidSplitArgs
 }
 
 // TODO(@kiendn): add function that do specific things such as converting numbers from types to types, etc.
@@ -240,6 +350,78 @@ func convertOutputToNative(o reflect.Value, outputs abi.Arguments) ([]interface{
 		}
 	}
 	return args, nil
+}
+
+func convertInterfaceToSlice(val interface{}) ([]interface{}, error) {
+	if reflect.TypeOf(val).Kind() != reflect.Slice && reflect.TypeOf(val).Kind() != reflect.Array {
+		return nil, invalidForEachParam
+	}
+	results := make([]interface{}, 0)
+	switch reflect.TypeOf(val).Elem().Kind() {
+	case reflect.String:
+		for _, v := range val.([]string) {
+			results = append(results, v)
+		}
+	case reflect.Bool:
+		for _, v := range val.([]bool) {
+			results = append(results, v)
+		}
+	case reflect.Int:
+		for _, v := range val.([]int) {
+			results = append(results, v)
+		}
+	case reflect.Int8:
+		for _, v := range val.([]int8) {
+			results = append(results, v)
+		}
+	case reflect.Int16:
+		for _, v := range val.([]int16) {
+			results = append(results, v)
+		}
+	case reflect.Int32:
+		for _, v := range val.([]int32) {
+			results = append(results, v)
+		}
+	case reflect.Int64:
+		for _, v := range val.([]int64) {
+			results = append(results, v)
+		}
+	case reflect.Uint:
+		for _, v := range val.([]uint) {
+			results = append(results, v)
+		}
+	case reflect.Uint8:
+		for _, v := range val.([]uint8) {
+			results = append(results, v)
+		}
+	case reflect.Uint16:
+		for _, v := range val.([]uint16) {
+			results = append(results, v)
+		}
+	case reflect.Uint32:
+		for _, v := range val.([]uint32) {
+			results = append(results, v)
+		}
+	case reflect.Uint64:
+		for _, v := range val.([]uint64) {
+			results = append(results, v)
+		}
+	case reflect.Uintptr:
+		for _, v := range val.([]uintptr) {
+			results = append(results, v)
+		}
+	case reflect.Float32:
+		for _, v := range val.([]float32) {
+			results = append(results, v)
+		}
+	case reflect.Float64:
+		for _, v := range val.([]float64) {
+			results = append(results, v)
+		}
+	default:
+		return nil, unsupportedType
+	}
+	return results, nil
 }
 
 // convertParams gets data from message based on CEL and then convert returned values based on abi argument types.

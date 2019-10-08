@@ -1006,3 +1006,72 @@ func TestExecuteIfElse_callElse(t *testing.T) {
 	expectedParams := []interface{}{"1","4",uint64(5)}
 	require.Equal(t, expectedParams, parser.globalParams)
 }
+
+func TestExecuteIfElse_overwriteVar(t *testing.T) {
+	parser, err := setup(sampleCode2, sampleDefinition2, []string{
+		"${fn:var(testVar,uint64,1)}",
+		"${message.params[0]}",
+		"${fn:if(name1,uint(message.params[1])==uint(3))}",
+		"${uint(message.params[0])+uint(message.params[1])}",
+		"${fn:elif(name1,uint(message.params[1])==uint(3))}",
+		"${uint(message.params[2])==uint(2)}",
+		"${fn:else(name1)}",
+		"${message.params[3]}",
+		"${fn:var(testVar,uint64,2)}",
+		"${fn:var(newVar,uint64,3)}",
+		"${fn:endif(name1)}",
+		"${uint(message.params[3])+uint(1)}",
+	}, &message.EventMessage{
+		Params: []string{"1", "2", "3", "4"},
+	})
+	require.NoError(t, err)
+
+	err = parser.ParseParams()
+	require.NoError(t, err)
+
+	expectedParams := []interface{}{"1","4",uint64(5)}
+	require.Equal(t, expectedParams, parser.globalParams)
+
+	expectedDefinedVar := map[string]interface{}{
+		"testVar": uint64(2),
+	}
+	require.Equal(t, expectedDefinedVar, parser.userDefinedVariables)
+}
+
+func TestForEach(t *testing.T) {
+	parser, err := setup(sampleCode2, sampleDefinition2, []string{
+		"${fn:var(testVar,uint64,1)}",
+		"${fn:forEach(name1,message.params)}",
+		"${fn:var(msgParam,uint64,message.params[LOOP_INDEX])}",
+		"${fn:var(testVar,uint64,testVar+msgParam)}",
+		"${fn:endForEach(name1)}",
+	}, &message.EventMessage{
+		Params: []string{"1", "2", "3", "4"},
+	})
+	require.NoError(t, err)
+
+	err = parser.ParseParams()
+	require.NoError(t, err)
+
+	expectedDefinedVar := map[string]interface{}{
+		"testVar": uint64(11),
+	}
+	require.Equal(t, expectedDefinedVar, parser.userDefinedVariables)
+}
+
+func TestSplit(t *testing.T) {
+	parser, err := setup(sampleCode2, sampleDefinition2, []string{
+		"${fn:split(message.params[0],\",\")}",
+	}, &message.EventMessage{
+		Params: []string{"1,2,3,4"},
+	})
+	require.NoError(t, err)
+
+	err = parser.ParseParams()
+	require.NoError(t, err)
+
+	expectedParams := []interface{}{[]string{
+		"1", "2", "3", "4",
+	}}
+	require.Equal(t, expectedParams, parser.globalParams)
+}

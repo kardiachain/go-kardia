@@ -13,49 +13,6 @@ import (
 	"strings"
 )
 
-const (
-	elMinLength = 8
-	builtInSmc = "smc"
-	builtInFn = "fn"
-	globalMessage = "message"
-	globalParams = "params"
-	prefixSeparator = ":"
-	paramsSeparator = ","
-	messagePackage = "protocol.EventMessage"
-
-	signalContinue = "SIGNAL_CONTINUE"
-	signalStop = "SIGNAL_STOP"                   // stop: do nothing after signal is returned
-	signalReturn = "SIGNAL_RETURN"               // return: quit params execution but keep processed params and start another process.
-)
-
-var (
-	sourceIsEmpty = fmt.Errorf("source is empty")
-	invalidExpression = fmt.Errorf("invalid expression")
-	invalidMethodFormat = fmt.Errorf("invalid method format")
-	abiNotFound = fmt.Errorf("abi is not found")
-	methodNotFound = fmt.Errorf("method is not found")
-	paramsArgumentsNotMatch = fmt.Errorf("params and arguments are not matched")
-	paramValueNotCorrect = fmt.Errorf("param's value is not correct")
-	unsupportedType = fmt.Errorf("unsupported type")
-	invalidIfParams = fmt.Errorf("not enough arguments for If function")
-	incorrectReturnedValueInIFFunc = fmt.Errorf("IF func must returns only 1 bool value")
-	invalidSignal = fmt.Errorf("invalid signal")
-	stopSignal = fmt.Errorf("signal stop has been applied")
-	invalidVariables = fmt.Errorf("invalid variables")
-	variableNotFound = fmt.Errorf("variable not found")
-
-	predefinedPrefix = []string{builtInFn, builtInSmc}
-	globalVars = map[string]*expr.Decl{
-		globalMessage: decls.NewIdent(globalMessage, decls.NewObjectType(messagePackage), nil),
-		globalParams: decls.NewIdent(globalParams, decls.Dyn, nil),
-	}
-	signals = map[string]struct{}{
-		signalContinue: {},
-		signalReturn: {},
-		signalStop: {},
-	}
-)
-
 type Parser struct {
 	bc base.BaseBlockChain
 	stateDb *state.StateDB
@@ -196,7 +153,18 @@ func (p *Parser)getPrefix(content string) (string, string, []string, error) {
 			methodParams = strings.ReplaceAll(methodParams, " ", "")
 
 			// Note: nested function is not allowed
+			// check if string has special paramsSeparator or not. replace with temp
+			temp := "{temporary}"
+			specialParamsSeparator := fmt.Sprintf("\"%v\"", paramsSeparator)
+			if strings.Contains(methodParams, specialParamsSeparator) {
+				methodParams = strings.ReplaceAll(methodParams, specialParamsSeparator, temp)
+			}
 			params := strings.Split(methodParams, paramsSeparator)
+			for i, _ := range params {
+				if params[i] == temp {
+					params[i] = specialParamsSeparator
+				}
+			}
 			return prefix, method, params, nil
 		}
 	}
@@ -240,7 +208,7 @@ func (p *Parser)ParseParams() error {
 		} else {
 			val = []interface{}{pattern}
 		}
-		if val != nil {
+		if val != nil && len(val) > 0 {
 			// evaluate signals
 			lastEl := val[len(val)-1]
 			if reflect.TypeOf(lastEl).Kind() == reflect.String {
