@@ -331,10 +331,10 @@ func (p *peer) MarkTransactions(txs types.Transactions) []*types.Transaction {
 		txHashes = append(txHashes, tx.Hash())
 	}
 
-/*	// If we reached the memory allowance, drop a previously known transaction hash
+	// If we reached the memory allowance, drop a previously known transaction hash
 	for p.knownTxs.Size() >= maxKnownTxs {
 		p.knownTxs.Pop()
-	}*/
+	}
 
 	if len(queueTxs) > 0 {
 		p.knownTxs.Add(txHashes...)
@@ -346,9 +346,9 @@ func (p *peer) MarkTransactions(txs types.Transactions) []*types.Transaction {
 // in their set of known hashes.
 func (ps *peerSet) PeersWithoutTx(tx *types.Transaction) []*peer {
 	ps.lock.RLock()
-	peers := ps.peers
-	ps.lock.RUnlock()
+	defer ps.lock.RUnlock()
 
+	peers := ps.peers
 	list := make([]*peer, 0, len(ps.peers))
 	for _, p := range peers {
 
@@ -391,10 +391,10 @@ func (ps *peerSet) PeersWithoutTxs(txs types.Transactions) map[*peer]types.Trans
 
 // SendTransactions sends transactions to the peer, adds the txn hashes to known txn set.
 func (p *peer) SendTransactions(txs *types.Transactions) error {
-	/*// If we reached the memory allowance, drop a previously known transaction hash
+	// If we reached the memory allowance, drop a previously known transaction hash
 	for p.knownTxs.Size() >= maxKnownTxs {
 		p.knownTxs.Pop()
-	}*/
+	}
 	return p2p.Send(p.rw, serviceconst.TxMsg, txs)
 }
 

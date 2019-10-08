@@ -422,6 +422,16 @@ func (pool *TxPool) ValidateTx(tx *types.Transaction) (*common.Address, error) {
 		return nil, fmt.Errorf("invalid nonce with sender %v %v <= %v", sender.Hex(), tx.Nonce(), pool.addressState[*sender])
 	}
 
+	nonce := pool.currentState.GetNonce(*sender)
+
+	if tx.Nonce() <= nonce {
+		if sender.String() == "0x757906bA5023B92e980F61cA9427BFC15f810B6f" {
+			log.Error("invalid nonce",  "add", sender.String() , "nonce", tx.Nonce(), "current nonce", nonce, "to", tx.To().String(), "value", tx.Value().String())
+		}
+
+		return nil, fmt.Errorf("invalid nonce with sender %v %v <= %v", sender.Hex(), tx.Nonce(), nonce)
+	}
+
 	// if tx has been added into db then reject it
 	if pool.pending[*sender].Contains(tx.Hash()) {
 		return nil, fmt.Errorf("transaction %v existed", tx.Hash().Hex())
