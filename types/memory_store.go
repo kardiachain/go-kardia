@@ -81,8 +81,8 @@ func (db *MemStore) Has(key interface{}) (bool, error) {
 func (db *MemStore) Get(key interface{}) (interface{}, error) {
 	db.lock.RLock()
 	defer db.lock.RUnlock()
-
-	if entry, ok := db.db[string(key.([]byte))]; ok {
+	keyStr := string(key.([]byte))
+	if entry, ok := db.db[keyStr]; ok {
 		return common.CopyBytes(entry), nil
 	}
 	return nil, errors.New("not found")
@@ -535,13 +535,22 @@ func (db *MemStore) ReadSmartContractAbi(address string) *abi.ABI {
 		log.Error("error while get abi from contract address", "err", err, "address", address)
 		return nil
 	}
-	abiStr := string(data.([]byte))
-	a, err := abi.JSON(strings.NewReader(abiStr))
-	if err != nil {
-		log.Error("cannot get abi from smart contract", "err", err, "address", address)
+	var entry smartContract
+	if err := rlp.DecodeBytes(data.([]byte), &entry); err != nil {
+		log.Error("Invalid event lookup rlp", "err", err)
 		return nil
 	}
-	return &a
+	// replace ' to "
+	if entry.ABI != "" {
+		abiStr := strings.Replace(entry.ABI, "'", "\"", -1)
+		a, err := abi.JSON(strings.NewReader(abiStr))
+		if err != nil {
+			log.Error("error while decoding abi", "err", err, "abi", entry.ABI)
+			return nil
+		}
+		return &a
+	}
+	return nil
 }
 
 // WriteTxLookupEntries stores a positional metadata for every transaction from

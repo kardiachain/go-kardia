@@ -19,7 +19,6 @@
 package utils
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
@@ -406,23 +405,37 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 
 			// TODO(@kiendn, KSML): if watcherAction is matched then execute pre-defined code for this action
 			//  currently, hardcode here for exchange case, will remove/move these after KSML is applied
-			receiver := []byte(msg.GetParams()[0])
+			//receiver := []byte(msg.GetParams()[0])
 			to := msg.GetParams()[1]
 			from := proxy.Name()
 
 			txHash := common.HexToHash(msg.GetTransactionId())
 
-			// Compose extraData struct for fields related to exchange from data extracted by Neo event
-			extraData := make([][]byte, configs.ExchangeV2NumOfExchangeDataField)
-			extraData[configs.ExchangeV2SourcePairIndex] = []byte(from)
-			extraData[configs.ExchangeV2DestPairIndex] = []byte(to)
-			extraData[configs.ExchangeV2SourceAddressIndex] = []byte(msg.GetSender())
-			extraData[configs.ExchangeV2DestAddressIndex] = receiver
-			extraData[configs.ExchangeV2OriginalTxIdIndex] = []byte(msg.GetTransactionId())
-			extraData[configs.ExchangeV2AmountIndex] = big.NewInt(int64(msg.GetAmount())).Bytes()
-			extraData[configs.ExchangeV2TimestampIndex] = big.NewInt(int64(msg.GetTimestamp())).Bytes()
+			eventSummary := &types.EventSummary{
+				TransactionId: msg.GetTransactionId(),
+				Sender:        msg.GetSender(),
+				From:          from,
+				To:            to,
+				TimeStamp:     msg.GetTimestamp(),
+				TxMethod:      msg.MethodName,
+				TxValue:       big.NewInt(int64(msg.Amount)),
+			}
 
-			return NewEvent(proxy, msg.BlockNumber, msg.MethodName, big.NewInt(int64(msg.Amount)), extraData, txHash, watcherAction.DualAction, true)
+			if watcherAction.Params != nil && len(watcherAction.Params) > 0 {
+
+			}
+
+			// Compose extraData struct for fields related to exchange from data extracted by Neo event
+			//extraData := make([][]byte, configs.ExchangeV2NumOfExchangeDataField)
+			//extraData[configs.ExchangeV2SourcePairIndex] = []byte(from)
+			//extraData[configs.ExchangeV2DestPairIndex] = []byte(to)
+			//extraData[configs.ExchangeV2SourceAddressIndex] = []byte(msg.GetSender())
+			//extraData[configs.ExchangeV2DestAddressIndex] = receiver
+			//extraData[configs.ExchangeV2OriginalTxIdIndex] = []byte(msg.GetTransactionId())
+			//extraData[configs.ExchangeV2AmountIndex] = big.NewInt(int64(msg.GetAmount())).Bytes()
+			//extraData[configs.ExchangeV2TimestampIndex] = big.NewInt(int64(msg.GetTimestamp())).Bytes()
+
+			return NewEvent(proxy, msg.BlockNumber, eventSummary, txHash, watcherAction.DualAction, true)
 		}
 	}
 	return nil
@@ -464,7 +477,7 @@ func subscribe(subscriber *zmq4.Socket, proxy base.BlockChainAdapter) error {
 }
 
 // NewEvent creates new event and add to eventPool
-func NewEvent(proxy base.BlockChainAdapter, blockHeight uint64, method string, value *big.Int, extraData [][]byte, txHash common.Hash, action string, fromExternal bool) error {
+func NewEvent(proxy base.BlockChainAdapter, blockHeight uint64, eventSummary *types.EventSummary, txHash common.Hash, action string, fromExternal bool) error {
 	if proxy.DualBlockChain().Config().BaseAccount == nil {
 		return fmt.Errorf("current node does not have base account to create new event")
 	}
@@ -472,12 +485,6 @@ func NewEvent(proxy base.BlockChainAdapter, blockHeight uint64, method string, v
 	baseAddress := proxy.DualBlockChain().Config().BaseAccount.Address
 	privateKey := proxy.DualBlockChain().Config().BaseAccount.PrivateKey
 	proxy.Logger().Info("nonce of base account", "baseAddress", baseAddress.Hex())
-
-	eventSummary := &types.EventSummary{
-		TxMethod: method,
-		TxValue:  value,
-		ExtData:  extraData,
-	}
 
 	if !AvailableExchangeType[proxy.Name()] {
 		return fmt.Errorf("proxy %v is not in allowed exchanged list", proxy.Name())
@@ -570,21 +577,22 @@ func Release(proxy base.BlockChainAdapter, smc common.Address, kAbi abi.ABI, rec
 func KardiaCall(proxy base.BlockChainAdapter, event *types.EventData) error {
 
 	// ExtData must have length = 1 and first element must not be nil
-	if len(event.Data.ExtData) != 1 || event.Data.ExtData == nil {
-		return fmt.Errorf("extData is invalid or empty in KardiaCall")
-	}
+	//if len(event.Data.ExtData) != 1 || event.Data.ExtData == nil {
+	//	return fmt.Errorf("extData is invalid or empty in KardiaCall")
+	//}
 
 	// unmarshal byte array data from ExtData
-	unmarshaler := jsonpb.Unmarshaler{}
-	reader := bytes.NewReader(event.Data.ExtData[0])
-	triggerMessage := dualMsg.TriggerMessage{}
-	err := unmarshaler.Unmarshal(reader, &triggerMessage)
-	if err != nil {
-		proxy.Logger().Error("Error while unmarshaling triggerMessage from EventData", "err", err)
-		return err
-	}
-
-	return PublishMessage(proxy.PublishedEndpoint(), KARDIA_CALL, triggerMessage)
+	//unmarshaler := jsonpb.Unmarshaler{}
+	//reader := bytes.NewReader(event.Data.ExtData[0])
+	//triggerMessage := dualMsg.TriggerMessage{}
+	//err := unmarshaler.Unmarshal(reader, &triggerMessage)
+	//if err != nil {
+	//	proxy.Logger().Error("Error while unmarshaling triggerMessage from EventData", "err", err)
+	//	return err
+	//}
+	//
+	//return PublishMessage(proxy.PublishedEndpoint(), KARDIA_CALL, triggerMessage)
+	return nil
 }
 
 // getKardiaSmcAndAbiFromDual gets internal chain smart contract and abi from external chain dual action
@@ -622,17 +630,17 @@ func getKardiaSmcAndAbiFromDual(proxy base.BlockChainAdapter, dualAction string)
 // This function is used in all proxy in SubmitTx function.
 // This is step before releasing coin to external chain (TRX, NEO, ETH).
 func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData) error {
-	if len(event.Data.ExtData) != configs.ExchangeV2NumOfExchangeDataField {
-		return configs.ErrInsufficientExchangeData
-	}
+	//if len(event.Data.ExtData) != configs.ExchangeV2NumOfExchangeDataField {
+	//	return configs.ErrInsufficientExchangeData
+	//}
 	if proxy.KardiaBlockChain().Config().BaseAccount == nil {
 		return fmt.Errorf("BaseAccount is nil")
 	}
 	stateDB := proxy.KardiaTxPool().State().StateDB
 	senderAddr := proxy.KardiaBlockChain().Config().BaseAccount.Address
-	originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
-	fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])
-	toType := string(event.Data.ExtData[configs.ExchangeV2DestPairIndex])
+	originalTx := event.Data.TransactionId
+	fromType := event.Data.From
+	toType := event.Data.To
 
 	// get kardia smc and abi from external dual action name
 	smc, kAbi := getKardiaSmcAndAbiFromDual(proxy, event.Action.Name)
