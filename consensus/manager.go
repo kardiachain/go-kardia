@@ -763,12 +763,16 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if rs.Height.Equals(prs.Height) {
 				if maj23, ok := rs.Votes.Prevotes(prs.Round.Int32()).TwoThirdsMajority(); ok {
-					go p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
-						Height:  prs.Height,
-						Round:   prs.Round,
-						Type:    types.VoteTypePrevote,
-						BlockID: maj23,
-					})
+					go func() {
+						if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+							Height:  prs.Height,
+							Round:   prs.Round,
+							Type:    types.VoteTypePrevote,
+							BlockID: maj23,
+						}); err != nil {
+							logger.Error("error while sending Height/Round/Prevotes", "err", err)
+						}
+					}()
 					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
 				}
 			}
@@ -780,12 +784,16 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if rs.Height.Equals(prs.Height) {
 				if maj23, ok := rs.Votes.Precommits(prs.Round.Int32()).TwoThirdsMajority(); ok {
-					go p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
-						Height:  prs.Height,
-						Round:   prs.Round,
-						Type:    types.VoteTypePrecommit,
-						BlockID: maj23,
-					})
+					go func() {
+						if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+							Height:  prs.Height,
+							Round:   prs.Round,
+							Type:    types.VoteTypePrecommit,
+							BlockID: maj23,
+						}); err != nil {
+							logger.Error("error while sending Height/Round/Precommits", "err", err)
+						}
+					}()
 					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
 				}
 			}
@@ -797,12 +805,16 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if rs.Height.Equals(prs.Height) && prs.ProposalPOLRound.IsGreaterThanOrEqualToInt(0) {
 				if maj23, ok := rs.Votes.Prevotes(prs.ProposalPOLRound.Int32()).TwoThirdsMajority(); ok {
-					go p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
-						Height:  prs.Height,
-						Round:   prs.ProposalPOLRound,
-						Type:    types.VoteTypePrevote,
-						BlockID: maj23,
-					})
+					go func() {
+						if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+							Height:  prs.Height,
+							Round:   prs.ProposalPOLRound,
+							Type:    types.VoteTypePrevote,
+							BlockID: maj23,
+						}); err != nil {
+							logger.Error("error while sending Height/Round/ProposalPOL", "err", err)
+						}
+					}()
 					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
 				}
 			}
@@ -813,12 +825,18 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if !prs.CatchupCommitRound.EqualsInt(-1) && prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThanOrEqualsUint64(conR.conS.blockOperations.Height()) {
 				commit := conR.conS.LoadCommit(prs.Height)
-				go p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
-					Height:  prs.Height,
-					Round:   commit.Round(),
-					Type:    types.VoteTypePrecommit,
-					BlockID: commit.BlockID,
-				})
+				if commit != nil {
+					go func() {
+						if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+							Height:  prs.Height,
+							Round:   commit.Round(),
+							Type:    types.VoteTypePrecommit,
+							BlockID: commit.BlockID,
+						}); err != nil {
+							logger.Error("error while sending Height/CatchupCommitRound/CatchupCommit", "err", err)
+						}
+					} ()
+				}
 				time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
 			}
 		}
