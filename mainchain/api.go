@@ -38,7 +38,7 @@ import (
 )
 
 const (
-	defaultGasPrice             = 1e9
+	defaultGasPrice             = 1e9 * 50
 	defaultTimeOutForStaticCall = 5
 )
 
