@@ -816,11 +816,13 @@
     "github.com/tendermint/tendermint/libs/common",
     "github.com/tendermint/tendermint/types",
     "go.mongodb.org/mongo-driver/bson",
+    "go.mongodb.org/mongo-driver/bson/primitive",
     "go.mongodb.org/mongo-driver/mongo",
     "go.mongodb.org/mongo-driver/mongo/options",
     "go.mongodb.org/mongo-driver/x/bsonx",
     "golang.org/x/crypto/ripemd160",
     "golang.org/x/crypto/scrypt",
+    "golang.org/x/crypto/sha3",
     "gopkg.in/check.v1",
     "gopkg.in/yaml.v2",
   ]
