@@ -23,6 +23,9 @@ const (
 	loopIndex = "LOOP_INDEX"
 	endForEach = "endForEach"
 	splitFunc = "split"
+	defineFunc = "defineFunc"
+	endDefineFunc = "endDefineFunc"
+	callFunc = "call"
 
 	MaximumGasToCallStaticFunction = uint(4000000)
 	intType = "int"
@@ -55,6 +58,12 @@ const (
 	signalReturn = "SIGNAL_RETURN"               // return: quit params execution but keep processed params and start another process.
 )
 
+type function struct {
+	name string
+	args []string
+	patterns []string
+}
+
 var (
 	sourceIsEmpty = fmt.Errorf("source is empty")
 	invalidExpression = fmt.Errorf("invalid expression")
@@ -74,7 +83,9 @@ var (
 	invalidForEachParam = fmt.Errorf("invalid for each param")
 	invalidForEachStatement = fmt.Errorf("invalid for each statement")
 	notEnoughArgsForSplit = fmt.Errorf("not enough arguments for split function")
+	notEnoughArgsForFunc = fmt.Errorf("not enough arguments for create/call Func function")
 	invalidSplitArgs = fmt.Errorf("invalid split arguments")
+	invalidDefineFunc = fmt.Errorf("invalid define function")
 
 	predefinedPrefix = []string{builtInFn, builtInSmc}
 	globalVars = map[string]*expr.Decl{

@@ -1075,3 +1075,57 @@ func TestSplit(t *testing.T) {
 	}}
 	require.Equal(t, expectedParams, parser.globalParams)
 }
+
+func TestDefineFunc(t *testing.T) {
+	parser, err := setup(sampleCode2, sampleDefinition2, []string{
+		"${fn:defineFunc(testVar,params1,param2)}",
+		"${uint(params1)+uint(params2)}",
+		"${fn:endDefineFunc(testVar)}",
+		"${message.params[1]}",
+	}, &message.EventMessage{
+		Params: []string{"1", "2", "3", "4"},
+	})
+	require.NoError(t, err)
+
+	err = parser.ParseParams()
+	require.NoError(t, err)
+	require.Len(t, parser.globalPatterns, 1)
+}
+
+func TestDefine2Functions(t *testing.T) {
+	parser, err := setup(sampleCode2, sampleDefinition2, []string{
+		"${fn:defineFunc(testVar,params1,param2)}",
+		"${uint(params1)+uint(params2)}",
+		"${fn:endDefineFunc(testVar)}",
+		"${fn:defineFunc(testVar1,params1,param2)}",
+		"${uint(params1)-uint(params2)}",
+		"${fn:endDefineFunc(testVar1)}",
+		"${message.params[1]}",
+	}, &message.EventMessage{
+		Params: []string{"1", "2", "3", "4"},
+	})
+	require.NoError(t, err)
+
+	err = parser.ParseParams()
+	require.NoError(t, err)
+	require.Len(t, parser.globalPatterns, 1)
+}
+
+func TestCallFunc(t *testing.T) {
+	parser, err := setup(sampleCode2, sampleDefinition2, []string{
+		"${fn:defineFunc(testVar,param1,param2)}",
+		"${uint(param1)+uint(param2)}",
+		"${fn:endDefineFunc(testVar)}",
+		"${fn:call(testVar,message.params[0],message.params[1])}",
+	}, &message.EventMessage{
+		Params: []string{"1", "2", "3", "4"},
+	})
+	require.NoError(t, err)
+
+	err = parser.ParseParams()
+	require.NoError(t, err)
+	require.Len(t, parser.globalPatterns, 1)
+
+	expectedParams := []interface{}{uint64(3)}
+	require.Equal(t, expectedParams, parser.globalParams)
+}

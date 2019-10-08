@@ -34,6 +34,9 @@ func init() {
 		addVarFunc: addVar,
 		forEachFunc: forEach,
 		splitFunc: split,
+		defineFunc: defineFunction,
+		endDefineFunc: emptyFunc,
+		callFunc: callFunction,
 	}
 }
 
@@ -191,6 +194,11 @@ func parseBlockPatterns(p *Parser, patterns []string, extrasVar map[string]inter
 		}
 	}
 
+	// add all userDefinedFunction in p
+	for k, v := range p.userDefinedFunction {
+		newParser.userDefinedFunction[k] = v
+	}
+
 	err := newParser.ParseParams()
 	if err != nil {
 		return nil, err
@@ -289,6 +297,82 @@ func split(p *Parser, extras ...interface{}) ([]interface{}, error) {
 		return []interface{}{splitStr}, nil
 	}
 	return nil, invalidSplitArgs
+}
+
+// defineFunction defines function and add to userDefinedFunction
+func defineFunction(p *Parser, extras ...interface{}) ([]interface{}, error) {
+	method := extras[0].(string)
+	args := make([]string, 0)
+	if len(extras) > 1 {
+		for _, arg := range extras[1:] {
+			args = append(args, arg.(string))
+		}
+	}
+	f := &function{
+		name: method,
+		args: args,
+		patterns: make([]string, 0),
+	}
+	startPos := p.pc
+	endPos := 0
+
+	for _, pattern := range p.globalPatterns[startPos+1:] {
+		p.pc += 1
+		if strings.Contains(pattern, fmt.Sprintf("%v(%v)", endDefineFunc, method)) {
+			endPos = p.pc
+			break
+		}
+		f.patterns = append(f.patterns, pattern)
+	}
+	if endPos == 0 {
+		// endDefineFunc is not found
+		return nil, invalidDefineFunc
+	}
+
+	// add function to userDefinedFunc if method name does not exist
+	if _, ok := p.userDefinedFunction[method]; !ok {
+		p.userDefinedFunction[method] = f
+	}
+
+	// remove patterns from startPos to endPos
+	newPatterns := p.globalPatterns[0:startPos]
+	newPatterns = append(newPatterns, p.globalPatterns[endPos+1:]...)
+	p.globalPatterns = newPatterns
+
+	return nil, nil
+}
+
+// callFunction calls function while function's name must exist in userDefinedFunction.
+func callFunction(p *Parser, extras ...interface{}) ([]interface{}, error) {
+	method := extras[0].(string)
+	args := make([]interface{}, 0)
+	if len(extras) > 1 {
+		args = append(args, extras[1:]...)
+	}
+	if _, ok := p.userDefinedFunction[method]; !ok {
+		return nil, methodNotFound
+	}
+	f := p.userDefinedFunction[method]
+	// validate length of args
+	if len(args) != len(f.args) {
+		return nil, invalidVariables
+	}
+	vars := make(map[string]interface{})
+	for i, arg := range f.args {
+		// handle content of arg before adding to vars
+		val, err := p.handleContent(args[i].(string))
+		if err != nil {
+			return nil, err
+		}
+		if len(val) > 0 {
+			vars[arg] = val[0]
+		}
+	}
+	results, err := parseBlockPatterns(p, f.patterns, vars)
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
 }
 
 // TODO(@kiendn): add function that do specific things such as converting numbers from types to types, etc.
