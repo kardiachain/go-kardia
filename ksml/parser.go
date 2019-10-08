@@ -20,7 +20,7 @@ type Parser struct {
 	globalPatterns []string
 	globalMessage *message.EventMessage
 	globalParams interface{}
-	userDefinedFunction map[string][]string
+	userDefinedFunction map[string]*function
 	userDefinedVariables map[string]interface{}
 	pc int // program counter
 }
@@ -33,7 +33,7 @@ func NewParser(bc base.BaseBlockChain, stateDb *state.StateDB, smartContractAddr
 		globalPatterns:      globalPatterns,
 		globalMessage:       globalMessage,
 		globalParams:        make([]interface{}, 0),
-		userDefinedFunction: make(map[string][]string),
+		userDefinedFunction: make(map[string]*function),
 		userDefinedVariables: make(map[string]interface{}),
 		pc: 0,
 	}
@@ -187,6 +187,28 @@ func (p *Parser)applyPredefinedFunction(prefix, method string, patterns []string
 	return nil, nil
 }
 
+func (p *Parser) addFunction() error {
+	if len(p.globalPatterns) == 0 {
+		return sourceIsEmpty
+	}
+	for p.pc < len(p.globalPatterns) {
+		pattern := p.globalPatterns[p.pc]
+		if strings.Contains(pattern, defineFunc) {
+			_, err := p.handleContent(pattern[2:len(pattern)-1])
+			if err != nil {
+				return err
+			}
+			// reset pc and start recursively again
+			p.pc = 0
+			if err := p.addFunction(); err != nil {
+				return err
+			}
+		}
+		p.pc += 1
+	}
+	return nil
+}
+
 // ParseParam parses param as a string using CEL if it has ${exp} format, otherwise returns it as a string value
 // obj must be a protobuf object
 // pkg is obj's name which is defined in protobuf
@@ -194,6 +216,15 @@ func (p *Parser)ParseParams() error {
 	if len(p.globalPatterns) == 0 {
 		return sourceIsEmpty
 	}
+
+	// check and add userDefinedFunction
+	if err := p.addFunction(); err != nil {
+		return err
+	}
+
+	// reset pc
+	p.pc = 0
+
 	for p.pc < len(p.globalPatterns) {
 		pattern := p.globalPatterns[p.pc]
 		var val []interface{}
