@@ -424,7 +424,7 @@ func (pool *TxPool) ValidateTx(tx *types.Transaction) (*common.Address, error) {
 
 	nonce := pool.currentState.GetNonce(*sender)
 
-	if tx.Nonce() <= nonce {
+	if tx.Nonce() < nonce {
 		if sender.String() == "0x757906bA5023B92e980F61cA9427BFC15f810B6f" {
 			log.Error("invalid nonce",  "add", sender.String() , "nonce", tx.Nonce(), "current nonce", nonce, "to", tx.To().String(), "value", tx.Value().String())
 		}
@@ -537,12 +537,6 @@ func (pool *TxPool) removeTxs(txs types.Transactions) {
 		if pendings != nil && len(pendings) > 0 {
 			newTxs := make(types.Transactions, 0)
 			for _, pending := range pendings {
-				if sender.String() == "0x757906bA5023B92e980F61cA9427BFC15f810B6f" {
-					if pending.Nonce() != tx.Nonce() {
-						pool.logger.Error("Remove", "addr", sender.String(), "nonce", tx.Nonce(), "pending nonce", pending.Nonce(), "to", tx.To().String(), "value", tx.Value().String() )
-					}
-				}
-
 				if pending.Nonce() != tx.Nonce() {
 					newTxs = append(newTxs, pending)
 				}
