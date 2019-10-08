@@ -2,6 +2,8 @@ package ksml
 
 import (
 	"fmt"
+	"github.com/google/cel-go/checker/decls"
+	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -17,6 +19,11 @@ const (
 	ping = "ping"
 	addVarFunc = "var"
 	ifFunc = "if"
+	forEachFunc = "forEach"
+	loopIndex = "LOOP_INDEX"
+	endForEach = "endForEach"
+	splitFunc = "split"
+
 	MaximumGasToCallStaticFunction = uint(4000000)
 	intType = "int"
 	int8Type = "int8"
@@ -33,6 +40,52 @@ const (
 	boolType = "bool"
 	listType = "list"
 	invalidTypeMsg = "invalid variable, expect %v got %v"
+
+	elMinLength = 8
+	builtInSmc = "smc"
+	builtInFn = "fn"
+	globalMessage = "message"
+	globalParams = "params"
+	prefixSeparator = ":"
+	paramsSeparator = ","
+	messagePackage = "protocol.EventMessage"
+
+	signalContinue = "SIGNAL_CONTINUE"
+	signalStop = "SIGNAL_STOP"                   // stop: do nothing after signal is returned
+	signalReturn = "SIGNAL_RETURN"               // return: quit params execution but keep processed params and start another process.
+)
+
+var (
+	sourceIsEmpty = fmt.Errorf("source is empty")
+	invalidExpression = fmt.Errorf("invalid expression")
+	invalidMethodFormat = fmt.Errorf("invalid method format")
+	abiNotFound = fmt.Errorf("abi is not found")
+	methodNotFound = fmt.Errorf("method is not found")
+	paramsArgumentsNotMatch = fmt.Errorf("params and arguments are not matched")
+	paramValueNotCorrect = fmt.Errorf("param's value is not correct")
+	unsupportedType = fmt.Errorf("unsupported type")
+	invalidIfParams = fmt.Errorf("not enough arguments for If function")
+	invalidIfStatement = fmt.Errorf("invalid if statement")
+	incorrectReturnedValueInIFFunc = fmt.Errorf("IF func must returns only 1 bool value")
+	invalidSignal = fmt.Errorf("invalid signal")
+	stopSignal = fmt.Errorf("signal stop has been applied")
+	invalidVariables = fmt.Errorf("invalid variables")
+	variableNotFound = fmt.Errorf("variable not found")
+	invalidForEachParam = fmt.Errorf("invalid for each param")
+	invalidForEachStatement = fmt.Errorf("invalid for each statement")
+	notEnoughArgsForSplit = fmt.Errorf("not enough arguments for split function")
+	invalidSplitArgs = fmt.Errorf("invalid split arguments")
+
+	predefinedPrefix = []string{builtInFn, builtInSmc}
+	globalVars = map[string]*expr.Decl{
+		globalMessage: decls.NewIdent(globalMessage, decls.NewObjectType(messagePackage), nil),
+		globalParams: decls.NewIdent(globalParams, decls.Dyn, nil),
+	}
+	signals = map[string]struct{}{
+		signalContinue: {},
+		signalReturn: {},
+		signalStop: {},
+	}
 )
 
 var (
