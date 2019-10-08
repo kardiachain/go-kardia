@@ -34,6 +34,8 @@ type BlockchainSymbol string
 // Enum for
 const (
 	KARDIA   = BlockchainSymbol("KAI")
+	SMC = iota
+	PUBLISH
 )
 
 // An event pertaining to the current dual node's interests and its derived tx's
@@ -73,6 +75,26 @@ type DualActions []*DualAction
 
 type DualAction struct {
 	Name string
+	Action Action
+}
+
+type Action struct {
+	MethodName string
+	IsTrigger  bool
+	Params []string
+	CallBacks []CallBack
+}
+
+type CallBack struct {
+	Type uint // 1: smartContract call, 2: publish KARDIA_CALL message
+
+	// optional, if Type is 1 then it is required,
+	// if it is ${contractAddress} then SmcAddress from KardiaSmartContract will be applied
+	ContractAddress string
+
+	MethodName string
+	Params []string
+	CallBacks []CallBack // only allow with type=2 for now
 }
 
 type WatcherActions []*WatcherAction
@@ -81,6 +103,7 @@ type WatcherActions []*WatcherAction
 type WatcherAction struct {
 	Method string
 	DualAction string
+	Params []string // list of params defined as string type. if ${...} is detected EL will be applied.
 }
 
 // Data relevant to the event (either from external or internal blockchain)
@@ -120,6 +143,11 @@ func (ev *EventData) Hash() common.Hash {
 // Relevant bits for necessary for computing internal tx (ie. Kardia's tx)
 // or external tx (ie. Ether's tx, Neo's tx).
 type EventSummary struct {
+	TransactionId string // transactionId of source
+	Sender   string   // address that creates transaction from source
+	From     string   // source chain
+	To       string   // Target Chain
+	TimeStamp uint64   // time occurs transaction
 	TxMethod string   // Smc's method
 	TxValue  *big.Int // Amount of the tx
 	ExtData  [][]byte // Additional data along with this event
