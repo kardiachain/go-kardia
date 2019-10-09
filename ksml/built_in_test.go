@@ -767,6 +767,23 @@ var (
 		"type": "function"
 	}
 ]`
+    sampleCode5 = common.Hex2Bytes("608060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680638f755479146044575b600080fd5b348015604f57600080fd5b50606f600480360381019080803560ff1690602001909291905050506071565b005b806000806101000a81548160ff021916908360ff160217905550505600a165627a7a72305820c25cbeac5f2b9728ac00bf7844ddc3122d94a4acfa1b1bcecef1f69df50e17f70029")
+    sampleDefinition5 = `[
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "d",
+				"type": "uint8"
+			}
+		],
+		"name": "setData",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+]`
 )
 
 func TestApplyBuiltInFunc(t *testing.T) {
@@ -780,7 +797,8 @@ func TestGetDataFromSmc(t *testing.T) {
 	parser, err := setup(sampleCode1, sampleDefinition1, patterns, nil)
 	require.NoError(t, err)
 	method := "getData"
-	val, err := getDataFromSmc(parser, method, patterns)
+	params := []interface{}{method}
+	val, err := getDataFromSmc(parser, params...)
 	require.NoError(t, err)
 	require.Equal(t, []interface{}{uint8(0)}, val)
 }
@@ -848,7 +866,8 @@ func TestGetDataFromSmc_WithCELParams(t *testing.T) {
 	})
 	require.NoError(t, err)
 	method := "Calculate"
-	val, err := getDataFromSmc(parser, method, parser.globalPatterns)
+	params := []interface{}{method, "message.params[0]", "message.params[1]"}
+	val, err := getDataFromSmc(parser, params...)
 	require.NoError(t, err)
 	require.Equal(t, []interface{}{uint8(3)}, val)
 }
@@ -1128,4 +1147,18 @@ func TestCallFunc(t *testing.T) {
 
 	expectedParams := []interface{}{uint64(3)}
 	require.Equal(t, expectedParams, parser.globalParams)
+}
+
+func TestTriggerSmc(t *testing.T) {
+	parser, err := setup(sampleCode5, sampleDefinition5, []string{
+		"${smc:trigger(setData, message.params[0])}",
+	}, &message.EventMessage{
+		Params: []string{"1"},
+	})
+	require.NoError(t, err)
+	err = parser.ParseParams()
+	require.NoError(t, err)
+
+	expectedPoolLen := 1
+	require.Equal(t, parser.txPool.PendingSize(), expectedPoolLen)
 }

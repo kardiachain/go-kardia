@@ -26,6 +26,8 @@ const (
 	defineFunc = "defineFunc"
 	endDefineFunc = "endDefineFunc"
 	callFunc = "call"
+	getData = "getData"
+	trigger = "trigger"
 
 	MaximumGasToCallStaticFunction = uint(4000000)
 	intType = "int"

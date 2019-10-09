@@ -8,26 +8,35 @@ import (
 	"github.com/kardiachain/go-kardia/kai/state"
 	message "github.com/kardiachain/go-kardia/ksml/proto"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 	"reflect"
 	"strings"
 )
 
 type Parser struct {
-	bc base.BaseBlockChain
-	stateDb *state.StateDB
-	smartContractAddress *common.Address
-	globalPatterns []string
-	globalMessage *message.EventMessage
-	globalParams interface{}
-	userDefinedFunction map[string]*function
-	userDefinedVariables map[string]interface{}
-	pc int // program counter
+	proxyName                 string                // name of proxy that is using parser (NEO, ETH, TRX)
+	publishEndpoint           string                // endpoint that message will be published to, in case publish action is used
+	bc                        base.BaseBlockChain   // kardia blockchain
+	txPool                    *tx_pool.TxPool       // kardia tx pool is used when smc:trigger is called.
+	stateDb                   *state.StateDB
+	smartContractAddress      *common.Address       // master smart contract
+	globalPatterns            []string              // globalPatterns is a list of actions that parser will read through
+	globalMessage             *message.EventMessage // globalMessage is a global variables passed as type proto.Message
+	globalParams              interface{}           // all returned value while executing globalPatterns are stored here
+	userDefinedFunction       map[string]*function  // before parse globalPatterns, parser will read through it once to get all defined functions
+	userDefinedVariables      map[string]interface{}// all variables defined in globalPatterns will be added here while parser reads through it
+	pc                        int                   // program counter is used to count and get current read position in globalPatterns
+	nonce                     uint64
 }
 
-func NewParser(bc base.BaseBlockChain, stateDb *state.StateDB, smartContractAddress *common.Address, globalPatterns []string, globalMessage *message.EventMessage) *Parser {
+func NewParser(proxyName, publishedEndpoint string, bc base.BaseBlockChain, stateDb *state.StateDB, txPool *tx_pool.TxPool,
+	smartContractAddress *common.Address, globalPatterns []string, globalMessage *message.EventMessage) *Parser {
 	return &Parser{
+		proxyName:           proxyName,
+		publishEndpoint:     publishedEndpoint,
 		bc:                  bc,
+		txPool:              txPool,
 		stateDb:             stateDb,
 		smartContractAddress: smartContractAddress,
 		globalPatterns:      globalPatterns,
@@ -35,6 +44,7 @@ func NewParser(bc base.BaseBlockChain, stateDb *state.StateDB, smartContractAddr
 		globalParams:        make([]interface{}, 0),
 		userDefinedFunction: make(map[string]*function),
 		userDefinedVariables: make(map[string]interface{}),
+		nonce: 0,
 		pc: 0,
 	}
 }
@@ -55,7 +65,6 @@ func addPrimitiveIdent(name string, kind reflect.Kind) *expr.Decl {
 		return nil
 	}
 }
-
 
 // CEL reads source and get value based Common Expression Language
 func (p *Parser)CEL(src string) ([]interface{}, error) {
@@ -123,6 +132,14 @@ func (p *Parser)CEL(src string) ([]interface{}, error) {
 	return []interface{}{out.Value()}, nil
 }
 
+func (p *Parser) Nonce() uint64 {
+	nonce := p.txPool.GetAddressState(p.bc.Config().BaseAccount.Address)
+	if p.nonce < nonce {
+		p.nonce = nonce
+	}
+	return p.nonce
+}
+
 // getPrefix reads content to get prefix if any, if prefix exists, then it returns method and a list of params
 func (p *Parser)getPrefix(content string) (string, string, []string, error) {
 	if strings.Contains(content, prefixSeparator) {
@@ -174,15 +191,13 @@ func (p *Parser)getPrefix(content string) (string, string, []string, error) {
 // applyPredefinedFunction applies predefined function, including: fn (built-in function) and smc (trigger smc function)
 func (p *Parser)applyPredefinedFunction(prefix, method string, patterns []string) ([]interface{}, error) {
 	switch prefix {
-	case builtInFn: // execute predefined function
+	case builtInFn, builtInSmc: // execute predefined function
 		// add patterns (as method params), message and params (global params) to extras and pass to built-in function
 		extras := make([]interface{}, 0)
 		for _, p := range patterns {
 			extras = append(extras, p)
 		}
 		return BuiltInFuncMap[method](p, extras...)
-	case builtInSmc: // get data by getting value from smc
-		return getDataFromSmc(p, method, patterns)
 	}
 	return nil, nil
 }
@@ -206,6 +221,8 @@ func (p *Parser) addFunction() error {
 		}
 		p.pc += 1
 	}
+	// reset pc
+	p.pc = 0
 	return nil
 }
 
@@ -221,9 +238,6 @@ func (p *Parser)ParseParams() error {
 	if err := p.addFunction(); err != nil {
 		return err
 	}
-
-	// reset pc
-	p.pc = 0
 
 	for p.pc < len(p.globalPatterns) {
 		pattern := p.globalPatterns[p.pc]
