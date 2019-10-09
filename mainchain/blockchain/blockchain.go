@@ -471,3 +471,7 @@ func (bc *BlockChain) WriteCommit(height uint64, commit *types.Commit) {
 func (bc *BlockChain) ReadCommit(height uint64) *types.Commit {
 	return bc.db.ReadCommit(height)
 }
+
+func (bc *BlockChain) ZeroFee() bool {
+	return bc.IsZeroFee
+}

@@ -8,6 +8,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 	kaiType "github.com/kardiachain/go-kardia/types"
 	"github.com/stretchr/testify/require"
@@ -52,9 +53,9 @@ func TestGetPrefix_WithValidPrefix(t *testing.T) {
 
 func TestGetPrefix_WithParam(t *testing.T) {
 	parser := Parser{}
-	content := "smc:getParams(message.sender)"
-	expectedMethod := "getParams"
-	expectedParams := []string{"message.sender"}
+	content := "smc:getData(getParams)"
+	expectedMethod := "getData"
+	expectedParams := []string{"getParams"}
 	prefix, method, params, err := parser.getPrefix(content)
 	require.NoError(t, err)
 	require.Equal(t, prefix, builtInSmc)
@@ -64,9 +65,9 @@ func TestGetPrefix_WithParam(t *testing.T) {
 
 func TestGetPrefix_WithParams(t *testing.T) {
 	parser := &Parser{}
-	content := "smc:getParams(message.sender, message.amount)"
-	expectedMethod := "getParams"
-	expectedParams := []string{"message.sender", "message.amount"}
+	content := "smc:getData(getParams, message.sender, message.amount)"
+	expectedMethod := "getData"
+	expectedParams := []string{"getParams", "message.sender", "message.amount"}
 	prefix, method, params, err := parser.getPrefix(content)
 	require.NoError(t, err)
 	require.Equal(t, prefix, builtInSmc)
@@ -125,15 +126,24 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 	if err != nil {
 		return nil, err
 	}
-	return NewParser(bc, statedb, &contractAddress, globalPatterns,globalMessage), nil
+	txConfig := tx_pool.TxPoolConfig{
+		GlobalSlots:  64,
+		GlobalQueue:  5120000,
+
+		NumberOfWorkers: 3,
+		WorkerCap: 512,
+		BlockSize: 7192,
+	}
+	txPool := tx_pool.NewTxPool(logger.New(), txConfig, chainConfig, bc)
+	return NewParser("testedProxy", "", bc, statedb, txPool, &contractAddress, globalPatterns,globalMessage), nil
 }
 
 func TestParseParams_withReturn(t *testing.T) {
 	patterns := []string{
-		"${smc:getSingleUintValue()}",
-		"${smc:getBoolValue(message.params[0])}",
+		"${smc:getData(getSingleUintValue)}",
+		"${smc:getData(getBoolValue,message.params[0])}",
 		"${fn:validate(params[1],SIGNAL_CONTINUE,SIGNAL_RETURN)}",
-		"${smc:getStringValue()}",
+		"${smc:getData(getStringValue)}",
 	}
 	msg := &message.EventMessage{
 		Params: []string{"true"},
@@ -155,10 +165,10 @@ func TestParseParams_withContinue(t *testing.T) {
 	}
 
 	patterns := []string{
-		"${smc:getSingleUintValue()}",
-		"${smc:getBoolValue(message.params[0])}",
+		"${smc:getData(getSingleUintValue)}",
+		"${smc:getData(getBoolValue,message.params[0])}",
 		"${fn:validate(params[1],SIGNAL_CONTINUE,SIGNAL_RETURN)}",
-		"${smc:getStringValue()}",
+		"${smc:getData(getStringValue)}",
 	}
 
 	parser, err := setup(sampleCode4, sampleDefinition4, patterns, msg)
@@ -178,10 +188,10 @@ func TestParseParams_withStop(t *testing.T) {
 	}
 
 	patterns := []string{
-		"${smc:getSingleUintValue()}",
-		"${smc:getBoolValue(message.params[0])}",
+		"${smc:getData(getSingleUintValue)}",
+		"${smc:getData(getBoolValue,message.params[0])}",
 		"${fn:validate(params[1],SIGNAL_CONTINUE,SIGNAL_STOP)}",
-		"${smc:getStringValue()}",
+		"${smc:getData(getStringValue)}",
 	}
 
 	parser, err := setup(sampleCode4, sampleDefinition4, patterns, msg)

@@ -500,3 +500,7 @@ func (dbc *DualBlockChain) StoreTxHash(hash *common.Hash) {
 func (dbc *DualBlockChain) CheckTxHash(hash *common.Hash) bool {
 	return dbc.db.CheckTxHash(hash)
 }
+
+func (dbc *DualBlockChain) ZeroFee() bool {
+	return false
+}

@@ -554,13 +554,13 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 func (s *PublicKaiAPI) EstimateGas(ctx context.Context, call types.CallArgsJSON) (uint64, error) {
 	// Binary search the gas requirement, as it may be higher than the amount used
 	var (
-		lo  uint64 = configs.TxGas - 1
+		lo  = configs.TxGas - 1
 		hi  uint64
 		cap uint64
 	)
 	args := types.NewArgs(call)
-	if uint64(args.Gas) >= configs.TxGas {
-		hi = uint64(args.Gas)
+	if args.Gas >= configs.TxGas {
+		hi = args.Gas
 	} else {
 		// Retrieve the current pending block to act as the gas ceiling
 		block := s.kaiService.BlockChain().CurrentBlock()

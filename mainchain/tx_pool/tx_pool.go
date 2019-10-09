@@ -526,7 +526,7 @@ func (pool *TxPool) PendingSize() int {
 
 	count := 0
 	for _, txs := range pool.pending {
-		count += len(txs)
+		count += txs.Len()
 	}
 	return count
 }

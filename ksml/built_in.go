@@ -1,11 +1,14 @@
 package ksml
 
 import (
+	"crypto/ecdsa"
 	"fmt"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	kaiType "github.com/kardiachain/go-kardia/types"
 	"math/big"
@@ -37,6 +40,8 @@ func init() {
 		defineFunc: defineFunction,
 		endDefineFunc: emptyFunc,
 		callFunc: callFunction,
+		getData: getDataFromSmc,
+		trigger: triggerSmc,
 	}
 }
 
@@ -182,7 +187,7 @@ func executeIf(p *Parser, extras ...interface{}) ([]interface{}, error) {
 
 // parseBlockPatterns reads nested patterns with different parser then returns all returned params.
 func parseBlockPatterns(p *Parser, patterns []string, extrasVar map[string]interface{}) ([]interface{}, error) {
-	newParser := NewParser(p.bc, p.stateDb, p.smartContractAddress, patterns, p.globalMessage)
+	newParser := NewParser(p.proxyName, p.publishEndpoint, p.bc, p.stateDb, p.txPool, p.smartContractAddress, patterns, p.globalMessage)
 	// add all definedVariables in p in overwrite cases.
 	for k, v := range p.userDefinedVariables {
 		newParser.userDefinedVariables[k] = v
@@ -377,9 +382,18 @@ func callFunction(p *Parser, extras ...interface{}) ([]interface{}, error) {
 
 // TODO(@kiendn): add function that do specific things such as converting numbers from types to types, etc.
 
-// getDataFromSmc gets data from smc through method and params
-func getDataFromSmc(p *Parser, method string, patterns []string) ([]interface{}, error) {
-
+func generateInput(p *Parser, extras ...interface{}) (string, *abi.ABI, *common.Address, *kaiType.Header, []byte, error) {
+	if len(extras) == 0 {
+		return "", nil, nil, nil, nil, sourceIsEmpty
+	}
+	method := extras[0].(string)
+	patterns := make([]string, 0)
+	if len(extras) > 1 {
+		for _, pattern := range extras[1:] {
+			// handle content of arg
+			patterns = append(patterns, pattern.(string))
+		}
+	}
 	caller := p.bc.Config().BaseAccount.Address
 	contractAddress := p.smartContractAddress
 	currentHeader := p.bc.CurrentHeader()
@@ -388,15 +402,24 @@ func getDataFromSmc(p *Parser, method string, patterns []string) ([]interface{},
 	// get abi from smart contract address, if abi is not found, returns error
 	kAbi := db.ReadSmartContractAbi(contractAddress.Hex())
 	if kAbi == nil {
-		return nil, abiNotFound
+		return "", nil, nil, nil, nil, abiNotFound
 	}
 	// get packed input from smart contract
 	input, err := getPackedInput(p, kAbi, method, patterns)
 	if err != nil {
+		return "", nil, nil, nil, nil, err
+	}
+	return method, kAbi, &caller, currentHeader, input, nil
+}
+
+// getDataFromSmc gets data from smc through method and params
+func getDataFromSmc(p *Parser, extras ...interface{}) ([]interface{}, error) {
+	method, kAbi, caller, currentHeader, input, err := generateInput(p, extras...)
+	if err != nil {
 		return nil, err
 	}
 	// get data from smc using above input
-	result, err := callStaticKardiaMasterSmc(caller, *contractAddress, currentHeader, p.bc, input, p.stateDb)
+	result, err := callStaticKardiaMasterSmc(*caller, *p.smartContractAddress, currentHeader, p.bc, input, p.stateDb)
 	if err != nil {
 		return nil, err
 	}
@@ -412,6 +435,45 @@ func getDataFromSmc(p *Parser, method string, patterns []string) ([]interface{},
 	// loop for each field in output. Convert to string and add them into a list
 	o := reflect.ValueOf(outputResult)
 	return convertOutputToNative(o, kAbi.Methods[method].Outputs)
+}
+
+// triggerSmc triggers an smc call by creating tx and send to txPool.
+func triggerSmc(p *Parser, extras ...interface{}) ([]interface{}, error) {
+	_, _, caller, currentHeader, input, err := generateInput(p, extras...)
+	if err != nil {
+		return nil, err
+	}
+	gas, err := estimateGas(*caller, *p.smartContractAddress, currentHeader, p.bc, p.stateDb, input)
+	if err != nil {
+		return nil, err
+	}
+	// otherwise use gas to create new transaction and add to txPool
+	tx, err := GenerateSmcCall(p.Nonce(), &p.bc.Config().BaseAccount.PrivateKey, *p.smartContractAddress, input, gas)
+	if err != nil {
+		return nil, err
+	}
+
+	// add tx to txPool
+	if err := p.txPool.AddTx(tx); err != nil {
+		return nil, err
+	}
+
+	// update nonce
+	p.nonce += 1
+	return nil, nil
+}
+
+// GenerateSmcCall generates tx which call a smart contract's method
+// if isIncrement is true, nonce + 1 to prevent duplicate nonce if generateSmcCall is called twice.
+func GenerateSmcCall(nonce uint64, senderKey *ecdsa.PrivateKey, address common.Address, input []byte, gasLimit uint64) (*kaiType.Transaction, error) {
+	return kaiType.SignTx(kaiType.NewTransaction(
+		nonce,
+		address,
+		big.NewInt(0),
+		gasLimit,
+		big.NewInt(1),
+		input,
+	), senderKey)
 }
 
 func convertOutputToNative(o reflect.Value, outputs abi.Arguments) ([]interface{}, error) {
@@ -516,7 +578,7 @@ func convertParams(p *Parser, arguments abi.Arguments, patterns []string) ([]int
 
 	abiInputs := make([]interface{}, 0)
 	for i, pattern := range patterns {
-		vals, err := p.CEL(pattern)
+		vals, err := p.handleContent(pattern)
 		if err != nil {
 			return nil, err
 		}
@@ -528,77 +590,77 @@ func convertParams(p *Parser, arguments abi.Arguments, patterns []string) ([]int
 		// otherwise add the element to abiInputs without doing anything.
 
 		arg := arguments[i]
-		t := arg.Type.Kind.String()
+		t := arg.Type.Kind
 		for _, val := range vals {
 			if reflect.TypeOf(val).Kind() != reflect.String {
 				abiInputs = append(abiInputs, val)
 				continue
 			}
 			switch t {
-			case "string": abiInputs = append(abiInputs, val)
-			case "int8":
+			case reflect.String: abiInputs = append(abiInputs, val)
+			case reflect.Int8:
 				// convert val to int based with bitSize = 8
 				result, err := strconv.ParseInt(val.(string), 10, 8)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, int8(result))
-			case "int16":
+			case reflect.Int16:
 				// convert val to int with bitSize = 16
 				result, err := strconv.ParseInt(val.(string), 10, 16)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, int16(result))
-			case "int32":
+			case reflect.Int32:
 				// convert val to int with bitSize = 32
 				result, err := strconv.ParseInt(val.(string), 10, 32)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, int32(result))
-			case "int64":
+			case reflect.Int64:
 				// convert val to int with bitSize = 64
 				result, err := strconv.ParseInt(val.(string), 10, 64)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, result)
-			case "uint8":
+			case reflect.Uint8:
 				// convert val to uint based with bitSize = 8
 				result, err := strconv.ParseUint(val.(string), 10, 8)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, uint8(result))
-			case "uint16":
+			case reflect.Uint16:
 				// convert val to int with bitSize = 16
 				result, err := strconv.ParseUint(val.(string), 10, 16)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, uint16(result))
-			case "uint32":
+			case reflect.Uint32:
 				// convert val to int with bitSize = 32
 				result, err := strconv.ParseUint(val.(string), 10, 32)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, uint32(result))
-			case "uint64":
+			case reflect.Uint64:
 				// convert val to int with bitSize = 64
 				result, err := strconv.ParseUint(val.(string), 10, 64)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, result)
-			case "bool":
+			case reflect.Bool:
 				result, err := strconv.ParseBool(val.(string))
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, result)
-			case "array", "slice", "ptr":
+			case reflect.Array, reflect.Slice, reflect.Ptr:
 				typ := arg.Type.Type.String()
 				switch {
 				case strings.Contains(typ, "uint8") && strings.HasPrefix(typ, "[") && strings.Count(typ, "]") == 1:
@@ -687,14 +749,39 @@ func convertToNative(val reflect.Value) (interface{}, error) {
 
 // callStaticKardiaMasterSmc calls smc and return result in bytes format
 func callStaticKardiaMasterSmc(from common.Address, to common.Address, currentHeader *kaiType.Header, chain vm.ChainContext, input []byte, statedb *state.StateDB) (result []byte, err error) {
-	context := vm.NewKVMContextFromDualNodeCall(from, currentHeader, chain)
-	vmenv := kvm.NewKVM(context, statedb, kvm.Config{})
+	ctx := vm.NewKVMContextFromDualNodeCall(from, currentHeader, chain)
+	vmenv := kvm.NewKVM(ctx, statedb, kvm.Config{})
 	sender := kvm.AccountRef(from)
 	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(MaximumGasToCallStaticFunction))
 	if err != nil {
 		return make([]byte, 0), err
 	}
 	return ret, nil
+}
+
+// estimateGas estimates spent in order to
+func estimateGas(from common.Address, to common.Address, currentHeader *kaiType.Header, bc base.BaseBlockChain, stateDb *state.StateDB, input []byte) (uint64, error){
+	// Create new call message
+	msg := kaiType.NewMessage(from, &to, 0, big.NewInt(0), uint64(MaximumGasToCallStaticFunction), big.NewInt(1), input, false)
+	// Create a new context to be used in the KVM environment
+	vmContext := vm.NewKVMContext(msg, currentHeader, bc)
+	// Create a new environment which holds all relevant information
+	// about the transaction and calling mechanisms.
+	kaiVm := kvm.NewKVM(vmContext, stateDb, kvm.Config{
+		IsZeroFee: bc.ZeroFee(),
+	})
+	defer kaiVm.Cancel()
+	// Apply the transaction to the current state (included in the env)
+	gp := new(blockchain.GasPool).AddGas(common.MaxUint64)
+	_, gas, _, err := blockchain.ApplyMessage(kaiVm, msg, gp)
+	if err != nil {
+		return 0, err
+	}
+	// If the timer caused an abort, return an appropriate error message
+	if kaiVm.Cancelled() {
+		return 0, fmt.Errorf("execution aborted")
+	}
+	return gas, nil
 }
 
 // GenerateOutputStructs creates structs for all methods from theirs outputs

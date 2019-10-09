@@ -47,4 +47,5 @@ type BaseBlockChain interface {
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StateAt(root common.Hash) (*state.StateDB, error)
 	DB() types.Database
+	ZeroFee() bool
 }
