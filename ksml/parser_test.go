@@ -1,7 +1,9 @@
 package ksml
 
 import (
+	"fmt"
 	"github.com/kardiachain/go-kardia/configs"
+	message2 "github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/ksml/proto"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -135,7 +137,14 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 		BlockSize: 7192,
 	}
 	txPool := tx_pool.NewTxPool(logger.New(), txConfig, chainConfig, bc)
-	return NewParser("testedProxy", "", bc, statedb, txPool, &contractAddress, globalPatterns,globalMessage), nil
+
+	// mock function stimulates publish function
+	publishFunc := func(endpoint string, topic string, msg message2.TriggerMessage) error {
+		println(fmt.Sprintf("publishing message to %v with topic %v", endpoint, topic))
+		return nil
+	}
+
+	return NewParser("testedProxy", "0.0.0.0:5555", publishFunc, bc, statedb, txPool, &contractAddress, globalPatterns,globalMessage), nil
 }
 
 func TestParseParams_withReturn(t *testing.T) {

@@ -3,6 +3,7 @@ package ksml
 import (
 	"fmt"
 	"github.com/google/cel-go/checker/decls"
+	"github.com/google/cel-go/common/types/ref"
 	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 	"math/big"
 	"reflect"
@@ -28,8 +29,9 @@ const (
 	callFunc = "call"
 	getData = "getData"
 	trigger = "trigger"
+	publish = "publish"
 
-	MaximumGasToCallStaticFunction = uint(4000000)
+	MaximumGasToCallFunction = uint(5000000)
 	intType = "int"
 	int8Type = "int8"
 	int16Type = "int16"
@@ -51,6 +53,7 @@ const (
 	builtInFn = "fn"
 	globalMessage = "message"
 	globalParams = "params"
+	globalContractAddress = "contractAddress"
 	prefixSeparator = ":"
 	paramsSeparator = ","
 	messagePackage = "protocol.EventMessage"
@@ -93,6 +96,7 @@ var (
 	globalVars = map[string]*expr.Decl{
 		globalMessage: decls.NewIdent(globalMessage, decls.NewObjectType(messagePackage), nil),
 		globalParams: decls.NewIdent(globalParams, decls.Dyn, nil),
+		globalContractAddress: decls.NewIdent(globalContractAddress, decls.String, nil),
 	}
 	signals = map[string]struct{}{
 		signalContinue: {},
@@ -268,7 +272,142 @@ var (
 			if kind != reflect.Array && kind != reflect.Slice {
 				return nil, fmt.Errorf(invalidTypeMsg, listType, kind.String())
 			}
-			return val.([]interface{}), nil
+			return interfaceToSlice(val)
 		},
 	}
 )
+
+func interfaceToString(val interface{}) (string, error) {
+	v := reflect.ValueOf(val)
+	switch v.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(v.Int(), 10), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(v.Uint(), 10), nil
+	case reflect.Bool:
+		return strconv.FormatBool(v.Bool()), nil
+	case reflect.Float32:
+		return strconv.FormatFloat(v.Float(), []byte("f")[0], 8, 32), nil
+	case reflect.Float64:
+		return strconv.FormatFloat(v.Float(), []byte("f")[0], 8, 64), nil
+	case reflect.String:
+		return v.String(), nil
+	}
+	return "", unsupportedType
+}
+
+func convertToNative(val reflect.Value) (interface{}, error) {
+	kind := val.Kind()
+	switch kind {
+	case reflect.String:
+		return val.String(), nil
+	case reflect.Bool:
+		return val.Bool(), nil
+	case reflect.Uint, reflect.Uintptr:
+		v, _ := big.NewInt(0).SetString(strconv.FormatUint(val.Uint(), 10), 10)
+		return v, nil
+	case reflect.Uint8:
+		return uint8(val.Uint()), nil
+	case reflect.Uint16:
+		return uint16(val.Uint()), nil
+	case reflect.Uint32:
+		return uint32(val.Uint()), nil
+	case reflect.Uint64:
+		return val.Uint(), nil
+	case reflect.Int:
+		v, _ := big.NewInt(0).SetString(strconv.FormatInt(val.Int(), 10), 10)
+		return v, nil
+	case reflect.Int8:
+		return int8(val.Int()), nil
+	case reflect.Int16:
+		return int16(val.Int()), nil
+	case reflect.Int32:
+		return int32(val.Int()), nil
+	case reflect.Int64:
+		return val.Int(), nil
+	case reflect.Float32, reflect.Float64:
+		return val.Float(), nil
+	}
+	return "", fmt.Errorf("unsupported value type")
+}
+
+func interfaceToSlice(val interface{}) ([]interface{}, error) {
+	if reflect.TypeOf(val).Kind() != reflect.Slice && reflect.TypeOf(val).Kind() != reflect.Array {
+		return nil, fmt.Errorf("invalid list type, expect slice or array, got %v", reflect.TypeOf(val).Kind().String())
+	}
+	results := make([]interface{}, 0)
+	if reflect.TypeOf(val).Elem().String() == "ref.Val" {
+		for _, v := range val.([]ref.Val) {
+			results = append(results, v.Value())
+		}
+		return results, nil
+	}
+
+	switch reflect.TypeOf(val).Elem().Kind() {
+	case reflect.String:
+		for _, v := range val.([]string) {
+			results = append(results, v)
+		}
+	case reflect.Bool:
+		for _, v := range val.([]bool) {
+			results = append(results, v)
+		}
+	case reflect.Int:
+		for _, v := range val.([]int) {
+			results = append(results, v)
+		}
+	case reflect.Int8:
+		for _, v := range val.([]int8) {
+			results = append(results, v)
+		}
+	case reflect.Int16:
+		for _, v := range val.([]int16) {
+			results = append(results, v)
+		}
+	case reflect.Int32:
+		for _, v := range val.([]int32) {
+			results = append(results, v)
+		}
+	case reflect.Int64:
+		for _, v := range val.([]int64) {
+			results = append(results, v)
+		}
+	case reflect.Uint:
+		for _, v := range val.([]uint) {
+			results = append(results, v)
+		}
+	case reflect.Uint8:
+		for _, v := range val.([]uint8) {
+			results = append(results, v)
+		}
+	case reflect.Uint16:
+		for _, v := range val.([]uint16) {
+			results = append(results, v)
+		}
+	case reflect.Uint32:
+		for _, v := range val.([]uint32) {
+			results = append(results, v)
+		}
+	case reflect.Uint64:
+		for _, v := range val.([]uint64) {
+			results = append(results, v)
+		}
+	case reflect.Uintptr:
+		for _, v := range val.([]uintptr) {
+			results = append(results, v)
+		}
+	case reflect.Float32:
+		for _, v := range val.([]float32) {
+			results = append(results, v)
+		}
+	case reflect.Float64:
+		for _, v := range val.([]float64) {
+			results = append(results, v)
+		}
+	case reflect.Interface:
+		return val.([]interface{}), nil
+	default:
+		return nil, unsupportedType
+	}
+	return results, nil
+}
