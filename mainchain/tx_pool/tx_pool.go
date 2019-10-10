@@ -485,10 +485,7 @@ func (pool *TxPool) addTx(tx *types.Transaction) error {
 	pool.pending[*sender] = pendingTxs
 
 	// update address state
-	if nonce, ok := pool.addressState[*sender]; !ok || nonce < tx.Nonce() {
-		//pool.logger.Info("update nonce", "address", sender.Hex(), "nonce", tx.Nonce(), "currentNonce", nonce)
-		pool.addressState[*sender] = tx.Nonce()
-	}
+	pool.addressState[*sender] = pendingTxs[len(pendingTxs)-1].Nonce()
 
 	pool.pendingSize += 1
 
@@ -580,7 +577,7 @@ func (pool *TxPool) evictTxs() int {
 }
 
 // Evict expired signer
-func(pool *TxPool) evictSigner() int {
+func (pool *TxPool) evictSigner() int {
 	count := 0
 	for hash, _ := range pool.signer {
 		if time.Since(pool.signer[hash].Duration) >= pool.config.LifeTime {
@@ -610,10 +607,6 @@ func (pool *TxPool) demoteUnexecutables() {
 		if olds.Len() > 0 {
 			pool.pending[addr] = pool.pending[addr].Remove(indexes)
 			for _, tx := range olds {
-				if addr.String() == "0x757906bA5023B92e980F61cA9427BFC15f810B6f" {
-					pool.logger.Error("Remove old tx", "addr", addr.String(), "nonce", tx.Nonce(), "to", tx.To().String(), "value", tx.Value().String(), "pending", pool.pendingSize, "signer", pool.signerSize)
-				}
-
 				if pool.signer[tx.Hash()] != nil {
 					delete(pool.signer, tx.Hash())
 					pool.signerSize -= 1
@@ -668,11 +661,12 @@ func (pool *TxPool) GetBlockChain() blockChain {
 func (pool *TxPool) GetAddressState(address common.Address) uint64 {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
-	nonce := pool.currentState.GetNonce(address) + 1
+
+	nonce := pool.currentState.GetNonce(address)
 	if _, ok := pool.addressState[address]; !ok {
 		return nonce
 	} else if nonce > pool.addressState[address] {
-		pool.addressState[address] = nonce
+		return nonce
 	}
 	return pool.addressState[address] + 1
 }
