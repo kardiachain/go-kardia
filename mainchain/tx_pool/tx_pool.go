@@ -308,7 +308,7 @@ func getTime() int64 {
 func (pool *TxPool) GetAddressState(address common.Address) uint64 {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
-	nonce := pool.currentState.GetNonce(address) + 1
+	nonce := pool.currentState.GetNonce(address)
 	if _, ok := pool.addressState[address]; !ok {
 		return nonce
 	} else if nonce > pool.addressState[address] {

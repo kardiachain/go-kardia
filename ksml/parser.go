@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
+	"github.com/google/cel-go/common/types"
+	dualMsg "github.com/kardiachain/go-kardia/dualnode/message"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
 	message "github.com/kardiachain/go-kardia/ksml/proto"
@@ -17,6 +19,7 @@ import (
 type Parser struct {
 	proxyName                 string                // name of proxy that is using parser (NEO, ETH, TRX)
 	publishEndpoint           string                // endpoint that message will be published to, in case publish action is used
+	publishFunction           func(endpoint string, topic string, msg dualMsg.TriggerMessage) error // function is used for publish message to client chain
 	bc                        base.BaseBlockChain   // kardia blockchain
 	txPool                    *tx_pool.TxPool       // kardia tx pool is used when smc:trigger is called.
 	stateDb                   *state.StateDB
@@ -30,11 +33,13 @@ type Parser struct {
 	nonce                     uint64
 }
 
-func NewParser(proxyName, publishedEndpoint string, bc base.BaseBlockChain, stateDb *state.StateDB, txPool *tx_pool.TxPool,
+func NewParser(proxyName, publishedEndpoint string, publishFunction func(endpoint string, topic string, msg dualMsg.TriggerMessage) error,
+	bc base.BaseBlockChain, stateDb *state.StateDB, txPool *tx_pool.TxPool,
 	smartContractAddress *common.Address, globalPatterns []string, globalMessage *message.EventMessage) *Parser {
 	return &Parser{
 		proxyName:           proxyName,
 		publishEndpoint:     publishedEndpoint,
+		publishFunction:     publishFunction,
 		bc:                  bc,
 		txPool:              txPool,
 		stateDb:             stateDb,
@@ -82,6 +87,8 @@ func (p *Parser)CEL(src string) ([]interface{}, error) {
 				evalArg[globalMessage] = p.globalMessage
 			case globalParams:
 				evalArg[globalParams] = p.globalParams
+			case globalContractAddress:
+				evalArg[globalContractAddress] = p.smartContractAddress.Hex()[2:] // remove 0x out of the hex
 			}
 		}
 	}
@@ -117,6 +124,12 @@ func (p *Parser)CEL(src string) ([]interface{}, error) {
 	// check parse
 	c, iss := env.Check(ast)
 	if iss != nil && iss.Err() != nil {
+		if strings.Contains(iss.Err().Error(), "undeclared reference to") {
+			// sometime there is bare string is passed into this function
+			// while CEL does not accept this therefore this error is returned
+			// check if it is occurred, return that string without doing CEL
+			return []interface{}{types.String(src)}, nil
+		}
 		return nil, iss.Err()
 	}
 

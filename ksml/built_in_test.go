@@ -1161,4 +1161,23 @@ func TestTriggerSmc(t *testing.T) {
 
 	expectedPoolLen := 1
 	require.Equal(t, parser.txPool.PendingSize(), expectedPoolLen)
+	require.Equal(t, uint64(2), parser.nonce)
 }
+
+func TestPublishMessage(t *testing.T) {
+	parser, err := setup(sampleCode5, sampleDefinition5, []string{
+		"${['41d69c86eeaa2c1ea0e2db91a64c2ed5814ec66470','deposit',[message.params[0],message.params[1]]]}",
+		"${fn:var(triggerMessage,list,params[0])}",
+		"${['contractAddress','updateKardiaTx',[message.params[2]]]}",
+		"${fn:var(cb1,list,params[1])}",
+		"${[cb1]}",
+		"${fn:var(callbacks,list,params[2])}",
+		"${fn:publish(triggerMessage[0],triggerMessage[1],triggerMessage[2],callbacks)}",
+	}, &message.EventMessage{
+		Params: []string{"0x123", "10", "0x456"},
+	})
+	require.NoError(t, err)
+	err = parser.ParseParams()
+	require.NoError(t, err)
+}
+

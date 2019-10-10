@@ -3,6 +3,8 @@ package ksml
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/kardiachain/go-kardia/dualnode/message"
+	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
@@ -42,6 +44,7 @@ func init() {
 		callFunc: callFunction,
 		getData: getDataFromSmc,
 		trigger: triggerSmc,
+		publish: publishFunc,
 	}
 }
 
@@ -187,7 +190,7 @@ func executeIf(p *Parser, extras ...interface{}) ([]interface{}, error) {
 
 // parseBlockPatterns reads nested patterns with different parser then returns all returned params.
 func parseBlockPatterns(p *Parser, patterns []string, extrasVar map[string]interface{}) ([]interface{}, error) {
-	newParser := NewParser(p.proxyName, p.publishEndpoint, p.bc, p.stateDb, p.txPool, p.smartContractAddress, patterns, p.globalMessage)
+	newParser := NewParser(p.proxyName, p.publishEndpoint, p.publishFunction, p.bc, p.stateDb, p.txPool, p.smartContractAddress, patterns, p.globalMessage)
 	// add all definedVariables in p in overwrite cases.
 	for k, v := range p.userDefinedVariables {
 		newParser.userDefinedVariables[k] = v
@@ -256,7 +259,7 @@ func forEach(p *Parser, extras ...interface{}) ([]interface{}, error) {
 	// loop for each
 	results := make([]interface{}, 0)
 
-	convertedArr, err := convertInterfaceToSlice(val[0])
+	convertedArr, err := interfaceToSlice(val[0])
 	if err != nil {
 		return nil, err
 	}
@@ -380,6 +383,126 @@ func callFunction(p *Parser, extras ...interface{}) ([]interface{}, error) {
 	return results, nil
 }
 
+func getTriggerMessage(p *Parser, input []interface{}) (*message.TriggerMessage, error){
+	if len(input) != 3 {
+		return nil, fmt.Errorf("invalid input in getTriggerMessage")
+	}
+	// handleContent for contractAddress
+	contractStr, err := interfaceToString(input[0])
+	if err != nil {
+		return nil, err
+	}
+	val, err := p.handleContent(contractStr)
+	if err != nil {
+		return nil, err
+	}
+	if reflect.TypeOf(val[0]).Kind() != reflect.String {
+		return nil, fmt.Errorf("contractAddress must be string")
+	}
+	contractAddress, err := interfaceToString(val[0])
+	if err != nil {
+		return nil, err
+	}
+
+	// handleContent for method
+	methodStr, err := interfaceToString(input[1])
+	if err != nil {
+		return nil, err
+	}
+	val, err = p.handleContent(methodStr)
+	if err != nil {
+		return nil, err
+	}
+	if reflect.TypeOf(val[0]).Kind() != reflect.String {
+		return nil, fmt.Errorf("method must be string")
+	}
+	method, err := interfaceToString(val[0])
+	if err != nil {
+		return nil, err
+	}
+
+	// handleContent for callbacks
+	// callbacks may be a slice/array if they are returned from function called or string
+	val = make([]interface{}, 0)
+	if reflect.ValueOf(input[2]).Kind() == reflect.Slice || reflect.ValueOf(input[2]).Kind() == reflect.Array {
+		val, err = interfaceToSlice(input[2])
+		if err != nil {
+			return nil, err
+		}
+	} else if reflect.ValueOf(input[2]).Kind() == reflect.String {
+		v, err := p.handleContent(input[2].(string))
+		if err != nil {
+			return nil, err
+		}
+		if reflect.TypeOf(v[0]).Kind() != reflect.Slice && reflect.TypeOf(v[0]).Kind() != reflect.Array {
+			return nil, fmt.Errorf("params must be a list")
+		}
+		// otherwise val = v[0]
+		val, err = interfaceToSlice(v[0])
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, fmt.Errorf("invalid callback format")
+	}
+	params := make([]string, 0)
+	for _, v := range val {
+		str, err := interfaceToString(v)
+		if err != nil {
+			return nil, err
+		}
+		params = append(params, str)
+	}
+	return &message.TriggerMessage{
+		ContractAddress:      contractAddress,
+		MethodName:           method,
+		Params:               params,
+		CallBacks:            nil,
+	}, nil
+}
+
+// publishFunc publish triggerMessage to target client.
+// extras must include targetContractAddress, method, params (list), []callBack (callback is a list of triggerMessage)
+func publishFunc(p *Parser, extras ...interface{}) ([]interface{}, error) {
+	if len(extras) < 3 {
+		return nil, fmt.Errorf("not enough arguments in publish function")
+	}
+	msg, err := getTriggerMessage(p, extras[0:3])
+	if err != nil {
+		return nil, err
+	}
+	callBacks := make([]*message.TriggerMessage, 0)
+	if len(extras) == 4 {
+		// extras[3] contains a list of callback.
+		// use CEL to convert into a list of expression
+		val, err := p.handleContent(extras[3].(string))
+		if err != nil {
+			return nil, err
+		}
+		vals, err := interfaceToSlice(val[0])
+		if err != nil {
+			return nil, err
+		}
+		// loop through a list of expression and get callBack by calling getTriggerMessage
+		for _, v := range vals {
+			element, err := interfaceToSlice(v)
+			if err != nil {
+				return nil, err
+			}
+			cb, err := getTriggerMessage(p, element)
+			if err != nil {
+				return nil, err
+			}
+			callBacks = append(callBacks, cb)
+		}
+	}
+	msg.CallBacks = callBacks
+	if err := p.publishFunction(p.publishEndpoint, utils.KARDIA_CALL, *msg); err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
 // TODO(@kiendn): add function that do specific things such as converting numbers from types to types, etc.
 
 func generateInput(p *Parser, extras ...interface{}) (string, *abi.ABI, *common.Address, *kaiType.Header, []byte, error) {
@@ -496,78 +619,6 @@ func convertOutputToNative(o reflect.Value, outputs abi.Arguments) ([]interface{
 		}
 	}
 	return args, nil
-}
-
-func convertInterfaceToSlice(val interface{}) ([]interface{}, error) {
-	if reflect.TypeOf(val).Kind() != reflect.Slice && reflect.TypeOf(val).Kind() != reflect.Array {
-		return nil, invalidForEachParam
-	}
-	results := make([]interface{}, 0)
-	switch reflect.TypeOf(val).Elem().Kind() {
-	case reflect.String:
-		for _, v := range val.([]string) {
-			results = append(results, v)
-		}
-	case reflect.Bool:
-		for _, v := range val.([]bool) {
-			results = append(results, v)
-		}
-	case reflect.Int:
-		for _, v := range val.([]int) {
-			results = append(results, v)
-		}
-	case reflect.Int8:
-		for _, v := range val.([]int8) {
-			results = append(results, v)
-		}
-	case reflect.Int16:
-		for _, v := range val.([]int16) {
-			results = append(results, v)
-		}
-	case reflect.Int32:
-		for _, v := range val.([]int32) {
-			results = append(results, v)
-		}
-	case reflect.Int64:
-		for _, v := range val.([]int64) {
-			results = append(results, v)
-		}
-	case reflect.Uint:
-		for _, v := range val.([]uint) {
-			results = append(results, v)
-		}
-	case reflect.Uint8:
-		for _, v := range val.([]uint8) {
-			results = append(results, v)
-		}
-	case reflect.Uint16:
-		for _, v := range val.([]uint16) {
-			results = append(results, v)
-		}
-	case reflect.Uint32:
-		for _, v := range val.([]uint32) {
-			results = append(results, v)
-		}
-	case reflect.Uint64:
-		for _, v := range val.([]uint64) {
-			results = append(results, v)
-		}
-	case reflect.Uintptr:
-		for _, v := range val.([]uintptr) {
-			results = append(results, v)
-		}
-	case reflect.Float32:
-		for _, v := range val.([]float32) {
-			results = append(results, v)
-		}
-	case reflect.Float64:
-		for _, v := range val.([]float64) {
-			results = append(results, v)
-		}
-	default:
-		return nil, unsupportedType
-	}
-	return results, nil
 }
 
 // convertParams gets data from message based on CEL and then convert returned values based on abi argument types.
@@ -714,45 +765,12 @@ func getPackedInput(p *Parser, kaiAbi *abi.ABI, method string, patterns []string
 	return input, nil
 }
 
-func convertToNative(val reflect.Value) (interface{}, error) {
-	kind := val.Kind()
-	switch kind {
-	case reflect.String:
-		return val.String(), nil
-	case reflect.Bool:
-		return val.Bool(), nil
-	case reflect.Uint, reflect.Uintptr:
-		v, _ := big.NewInt(0).SetString(strconv.FormatUint(val.Uint(), 10), 10)
-		return v, nil
-	case reflect.Uint8:
-		return uint8(val.Uint()), nil
-	case reflect.Uint16:
-		return uint16(val.Uint()), nil
-	case reflect.Uint32:
-		return uint32(val.Uint()), nil
-	case reflect.Uint64:
-		return val.Uint(), nil
-	case reflect.Int:
-		v, _ := big.NewInt(0).SetString(strconv.FormatInt(val.Int(), 10), 10)
-		return v, nil
-	case reflect.Int8:
-		return int8(val.Int()), nil
-	case reflect.Int16:
-		return int16(val.Int()), nil
-	case reflect.Int32:
-		return int32(val.Int()), nil
-	case reflect.Int64:
-		return val.Int(), nil
-	}
-	return "", fmt.Errorf("unsupported value type")
-}
-
 // callStaticKardiaMasterSmc calls smc and return result in bytes format
 func callStaticKardiaMasterSmc(from common.Address, to common.Address, currentHeader *kaiType.Header, chain vm.ChainContext, input []byte, statedb *state.StateDB) (result []byte, err error) {
 	ctx := vm.NewKVMContextFromDualNodeCall(from, currentHeader, chain)
 	vmenv := kvm.NewKVM(ctx, statedb, kvm.Config{})
 	sender := kvm.AccountRef(from)
-	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(MaximumGasToCallStaticFunction))
+	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(MaximumGasToCallFunction))
 	if err != nil {
 		return make([]byte, 0), err
 	}
@@ -762,7 +780,7 @@ func callStaticKardiaMasterSmc(from common.Address, to common.Address, currentHe
 // estimateGas estimates spent in order to
 func estimateGas(from common.Address, to common.Address, currentHeader *kaiType.Header, bc base.BaseBlockChain, stateDb *state.StateDB, input []byte) (uint64, error){
 	// Create new call message
-	msg := kaiType.NewMessage(from, &to, 0, big.NewInt(0), uint64(MaximumGasToCallStaticFunction), big.NewInt(1), input, false)
+	msg := kaiType.NewMessage(from, &to, 0, big.NewInt(0), uint64(MaximumGasToCallFunction), big.NewInt(1), input, false)
 	// Create a new context to be used in the KVM environment
 	vmContext := vm.NewKVMContext(msg, currentHeader, bc)
 	// Create a new environment which holds all relevant information
