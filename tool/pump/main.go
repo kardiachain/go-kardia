@@ -146,9 +146,10 @@ func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 		GlobalSlots: txPool.GlobalSlots,
 		GlobalQueue: txPool.GlobalQueue,
 
-		NumberOfWorkers: txPool.NumberOfWorkers,
-		WorkerCap:       txPool.WorkerCap,
-		BlockSize:       txPool.BlockSize,
+		NumberOfWorkers:  txPool.NumberOfWorkers,
+		WorkerCap:        txPool.WorkerCap,
+		BlockSize:        txPool.BlockSize,
+		BlockSizePercent: txPool.BlockSizePercent,
 
 		LifeTime: 1 * time.Minute,
 	}

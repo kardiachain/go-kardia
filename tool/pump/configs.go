@@ -78,12 +78,13 @@ type (
 		ABI      string `yaml:"ABI,omitempty"`
 	}
 	Pool struct {
-		GlobalSlots     uint64 `yaml:"GlobalSlots"`
-		GlobalQueue     uint64 `yaml:"GlobalQueue"`
-		NumberOfWorkers int    `yaml:"NumberOfWorkers"`
-		WorkerCap       int    `yaml:"WorkerCap"`
-		BlockSize       int    `yaml:"BlockSize"`
-		LifeTime        int    `yaml:"LifeTime"`
+		GlobalSlots      uint64 `yaml:"GlobalSlots"`
+		GlobalQueue      uint64 `yaml:"GlobalQueue"`
+		NumberOfWorkers  int    `yaml:"NumberOfWorkers"`
+		WorkerCap        int    `yaml:"WorkerCap"`
+		BlockSize        int    `yaml:"BlockSize"`
+		BlockSizePercent uint64 `yaml:"BlockSizePercent"`
+		LifeTime         int    `yaml:"LifeTime"`
 	}
 	Database struct {
 		Type    uint   `yaml:"Type"`
@@ -996,7 +997,7 @@ var GenesisAddrKeys10 = map[string]string{
 	"0x2dc01055524438143Ca84b90b5CF66CC4B1D2a14": "915d8b34edc00e77ea57749032e9d720f5aebeeb61af1e8fffa85f0ed3bd87c5",
 }
 
-var GenesisAddrKeys11= map[string]string{
+var GenesisAddrKeys11 = map[string]string{
 	"0x82aD02241549e79681991FE366178F1285757d0C": "902e1e27b8e0bde2aefe305cc83e18c93ae2ec42d49a92ad01f039a23beace1d",
 	"0x9ef64d8E076E16441819aB9818651e060f1968E5": "ebac0bd9c2bc8cb73417ae32adfadb9fb991d101ad108d7b8af70005d4c1491b",
 	"0x75E097BB62EF2C601d0095a92A5Fd48e120d41C2": "c86714f26e44bf5285bd3fe3bc4be8d7af1a41a3170ecfa30bd4110ea905becd",

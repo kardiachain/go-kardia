@@ -59,14 +59,15 @@ type blockChain interface {
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
 type TxPoolConfig struct {
-	NoLocals        bool          // Whether local transaction handling should be disabled
-	Journal         string        // Journal of local transactions to survive node restarts
-	Rejournal       time.Duration // Time interval to regenerate the local transaction journal
-	GlobalSlots     uint64        // Maximum number of executable transaction slots for all accounts
-	GlobalQueue     uint64        // Maximum number of non-executable transaction slots for all accounts
-	NumberOfWorkers int
-	WorkerCap       int
-	BlockSize       int
+	NoLocals         bool          // Whether local transaction handling should be disabled
+	Journal          string        // Journal of local transactions to survive node restarts
+	Rejournal        time.Duration // Time interval to regenerate the local transaction journal
+	GlobalSlots      uint64        // Maximum number of executable transaction slots for all accounts
+	GlobalQueue      uint64        // Maximum number of non-executable transaction slots for all accounts
+	NumberOfWorkers  int
+	WorkerCap        int
+	BlockSize        int
+	BlockSizePercent uint64
 
 	LifeTime time.Duration // Maximum amount of time non-executable transaction are queued
 }
@@ -85,13 +86,11 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	GlobalSlots: 2048,
 	GlobalQueue: 5120,
 
-	NumberOfWorkers: 3,
-	WorkerCap:       512,
-	BlockSize:       7192,
-
-	LifeTime: 5 * time.Minute,
+	NumberOfWorkers:  3,
+	WorkerCap:        512,
+	BlockSize:        7192,
+	BlockSizePercent: 70,
 }
-
 // GetDefaultTxPoolConfig returns default txPoolConfig with given dir path
 func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
 	conf := DefaultTxPoolConfig
@@ -143,8 +142,8 @@ type TxPool struct {
 	//beats       map[common.Hash]time.Time          // Last heartbeat from each known account
 	//all      *common.Set                        // All transactions to allow lookups
 	//promotableQueue *common.Set                 // a queue of addresses that are waiting for processing txs (FIFO)
-
-	wg sync.WaitGroup // for shutdown sync
+	blockSizePercent int
+	wg               sync.WaitGroup // for shutdown sync
 }
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
@@ -170,9 +169,10 @@ func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *types.ChainC
 		totalPendingGas: uint64(0),
 		txsCh:           make(chan []*types.Transaction, config.GlobalQueue),
 		//allCh:           make(chan []interface{}),
-		numberOfWorkers: config.NumberOfWorkers,
-		workerCap:       config.WorkerCap,
-		pendingSize:     0,
+		numberOfWorkers:  config.NumberOfWorkers,
+		workerCap:        config.WorkerCap,
+		pendingSize:      0,
+		blockSizePercent: int(config.BlockSizePercent * config.GlobalQueue / 100),
 	}
 	//pool.priced = newTxPricedList(logger, pool.all)
 	pool.reset(nil, chain.CurrentBlock().Header())
@@ -342,7 +342,7 @@ func (pool *TxPool) State() *state.ManagedState {
 
 // ProposeTransactions collects transactions from pending and remove them.
 func (pool *TxPool) ProposeTransactions() types.Transactions {
-	txs, _ := pool.Pending(pool.config.BlockSize, false)
+	txs, _ := pool.Pending(pool.config.BlockSize)
 	return txs
 }
 
@@ -351,49 +351,26 @@ func getTime() int64 {
 }
 
 // Pending collects pending transactions with limit number, if removeResult is marked to true then remove results after all.
-func (pool *TxPool) Pending(limit int, removeResult bool) (types.Transactions, error) {
-
+func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
+	if limit > 0 && int(pool.pendingSize) > limit {
+		limit = pool.blockSizePercent
+	}
+
 	pending := make(types.Transactions, 0)
-	//addedTx := make(map[common.Hash]struct{})
-	//promotableAddresses := pool.promotableQueue.List()
-
-	// loop through promotableAddresses to get addresses come first
-	for addr, txs := range pool.pending {
-
+	// loop through pending to get addresses come first
+	for _, txs := range pool.pending {
 		if limit > 0 && len(pending) >= limit {
 			break
 		}
 
-		//txs := pool.pending[addr]
-
 		if len(txs) > 0 {
-			// latest txs must be the highest nonce
-			// update addressState here
-			//pool.addressState[addr] = txs[len(txs)-1].Nonce()
 			for _, tx := range txs {
-
-				/*if _, ok := addedTx[tx.Hash()]; ok {
-					continue
-				}*/
-
-				/*if pool.all.Has(tx.Hash()) {
-					continue
-				}*/
-
 				pending = append(pending, tx)
-				//addedTx[tx.Hash()] = struct{}{}
 			}
-			// delete all txs in address if removeResult is true
-			if removeResult {
-				delete(pool.pending, addr)
-				pool.pendingSize -= uint(len(txs))
 
-				// remove addr from queue
-				//pool.promotableQueue.Remove(addrInterface)
-			}
 		}
 	}
 	// sort pending list
