@@ -355,9 +355,9 @@ func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
 
-	if limit > 0 && int(pool.pendingSize) > limit {
+	/*if limit > 0 && int(pool.pendingSize) > limit {
 		limit = pool.blockSizePercent
-	}
+	}*/
 
 	pending := make(types.Transactions, 0)
 	// loop through pending to get addresses come first
