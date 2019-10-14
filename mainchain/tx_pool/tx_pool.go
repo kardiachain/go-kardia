@@ -401,7 +401,7 @@ func (pool *TxPool) ValidateTx(tx *types.Transaction) (*common.Address, error) {
 	nonce := pool.currentState.GetNonce(*sender)
 
 	if tx.Nonce() < nonce {
-		return nil, fmt.Errorf("invalid nonce with sender %v %v <= %v", sender.Hex(), tx.Nonce(), nonce)
+		return nil, fmt.Errorf("invalid current nonce with sender %v %v < %v", sender.Hex(), tx.Nonce(), nonce)
 	}
 
 	// if tx has been added into db then reject it
@@ -447,7 +447,7 @@ func (pool *TxPool) addTx(tx *types.Transaction) error {
 
 	sender, err := pool.ValidateTx(tx)
 	if err != nil {
-		//pool.logger.Error("Error adding tx", "error", err)
+		pool.logger.Error("Error adding tx", "error", err)
 		return err
 	}
 
