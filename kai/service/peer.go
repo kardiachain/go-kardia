@@ -44,7 +44,7 @@ var (
 
 const (
 	handshakeTimeout = 5 * time.Second
-	maxKnownTxs      = 32768 // Maximum transactions hashes to keep in the known list (prevent DOS)
+	maxKnownTxs      = 5120 // Maximum transactions hashes to keep in the known list (prevent DOS)
 
 	// maxQueuedTxs is the maximum number of transaction lists to queue up before
 	// dropping broadcasts. This is a sensitive number as a transaction list might
