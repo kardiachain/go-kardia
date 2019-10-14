@@ -448,7 +448,7 @@ func (pool *TxPool) addTx(tx *types.Transaction) error {
 
 	sender, err := pool.ValidateTx(tx)
 	if err != nil {
-		pool.logger.Error("Error adding tx", "error", err)
+		//pool.logger.Error("Error adding tx", "error", err)
 		return err
 	}
 
