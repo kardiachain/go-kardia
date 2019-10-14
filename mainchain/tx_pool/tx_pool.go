@@ -257,13 +257,14 @@ func (pool *TxPool) work(index int, txs []*types.Transaction) {
 
 func (pool *TxPool) AddTxs(txs []*types.Transaction) {
 	if len(txs) > 0 {
-		to := pool.workerCap
+		/*to := pool.workerCap
 		if len(txs) <= to {
 			pool.txsCh <- txs
 		} else {
 			pool.txsCh <- txs[0:to]
 			go pool.AddTxs(txs[to:])
-		}
+		}*/
+		pool.txsCh <- txs
 	}
 }
 
