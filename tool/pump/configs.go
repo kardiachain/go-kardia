@@ -83,7 +83,7 @@ type (
 		NumberOfWorkers  int    `yaml:"NumberOfWorkers"`
 		WorkerCap        int    `yaml:"WorkerCap"`
 		BlockSize        int    `yaml:"BlockSize"`
-		BlockSizePercent uint64 `yaml:"BlockSizePercent"`
+		//BlockSizePercent uint64 `yaml:"BlockSizePercent"`
 		LifeTime         int    `yaml:"LifeTime"`
 	}
 	Database struct {

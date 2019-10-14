@@ -67,7 +67,7 @@ type TxPoolConfig struct {
 	NumberOfWorkers  int
 	WorkerCap        int
 	BlockSize        int
-	BlockSizePercent uint64
+	//BlockSizePercent uint64
 
 	LifeTime time.Duration // Maximum amount of time non-executable transaction are queued
 }
@@ -89,7 +89,7 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	NumberOfWorkers:  3,
 	WorkerCap:        512,
 	BlockSize:        7192,
-	BlockSizePercent: 70,
+	//BlockSizePercent: 70,
 }
 // GetDefaultTxPoolConfig returns default txPoolConfig with given dir path
 func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
@@ -142,7 +142,7 @@ type TxPool struct {
 	//beats       map[common.Hash]time.Time          // Last heartbeat from each known account
 	//all      *common.Set                        // All transactions to allow lookups
 	//promotableQueue *common.Set                 // a queue of addresses that are waiting for processing txs (FIFO)
-	blockSizePercent int
+	//blockSizePercent int
 	wg               sync.WaitGroup // for shutdown sync
 }
 
@@ -172,7 +172,7 @@ func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *types.ChainC
 		numberOfWorkers:  config.NumberOfWorkers,
 		workerCap:        config.WorkerCap,
 		pendingSize:      0,
-		blockSizePercent: int(config.BlockSizePercent * config.GlobalQueue / 100),
+		//blockSizePercent: int(config.BlockSizePercent * config.GlobalQueue / 100),
 	}
 	//pool.priced = newTxPricedList(logger, pool.all)
 	pool.reset(nil, chain.CurrentBlock().Header())
@@ -217,11 +217,10 @@ func (pool *TxPool) loop() {
 		case ev := <-pool.chainHeadCh:
 			//go pool.reset(head.Header(), ev.Block.Header())
 			if ev.Block != nil {
-				//pool.mu.Lock()
-				go pool.reset(head.Header(), ev.Block.Header())
-				//head = ev.Block
-
-				//pool.mu.Unlock()
+				pool.mu.Lock()
+				pool.reset(head.Header(), ev.Block.Header())
+				head = ev.Block
+				pool.mu.Unlock()
 			}
 
 			// Handle inactive account transaction eviction
@@ -309,9 +308,9 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	pool.currentMaxGas = newHead.GasLimit
 
 	// remove current block's txs from pending
-	go pool.removeTxs(currentBlock.Transactions())
+	pool.removeTxs(currentBlock.Transactions())
 
-	go pool.demoteUnexecutables()
+	pool.demoteUnexecutables()
 	//go pool.saveTxs(currentBlock.Transactions())
 }
 
@@ -500,8 +499,8 @@ func (pool *TxPool) addTxs(txs []*types.Transaction) int {
 
 // RemoveTx removes transactions from pending queue.
 func (pool *TxPool) removeTxs(txs types.Transactions) {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+	/*pool.mu.Lock()
+	defer pool.mu.Unlock()*/
 
 	for _, tx := range txs {
 		sender, _ := pool.getSender(tx)
@@ -577,8 +576,8 @@ func (pool *TxPool) evictSigner() int {
 // executable/pending queue and any subsequent transactions that become unexecutable
 // are moved back into the future queue.
 func (pool *TxPool) demoteUnexecutables() {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
+	/*pool.mu.Lock()
+	defer pool.mu.Unlock()*/
 	// Iterate over all accounts and demote any non-executable transactions
 	pool.logger.Warn("Before demoteUnexecutables", "pending", pool.pendingSize, "signer", pool.signerSize)
 	for addr, list := range pool.pending {

@@ -149,7 +149,7 @@ func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 		NumberOfWorkers:  txPool.NumberOfWorkers,
 		WorkerCap:        txPool.WorkerCap,
 		BlockSize:        txPool.BlockSize,
-		BlockSizePercent: txPool.BlockSizePercent,
+		//BlockSizePercent: txPool.BlockSizePercent,
 
 		LifeTime: 1 * time.Minute,
 	}

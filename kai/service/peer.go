@@ -44,7 +44,7 @@ var (
 
 const (
 	handshakeTimeout = 5 * time.Second
-	maxKnownTxs      = 5120 // Maximum transactions hashes to keep in the known list (prevent DOS)
+	maxKnownTxs      = 32768 // Maximum transactions hashes to keep in the known list (prevent DOS)
 
 	// maxQueuedTxs is the maximum number of transaction lists to queue up before
 	// dropping broadcasts. This is a sensitive number as a transaction list might
@@ -71,7 +71,7 @@ type peer struct {
 
 	version int // Protocol version negotiated
 
-	knownTxs  *common.Set                  // Set of transaction hashes known to be known by this peer
+	knownTxs  *common.Set             // Set of transaction hashes known to be known by this peer
 	queuedTxs chan types.Transactions // Queue of transactions to broadcast to the peer
 
 	csReactor *consensus.ConsensusManager
