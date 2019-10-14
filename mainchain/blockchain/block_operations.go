@@ -78,7 +78,6 @@ func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.B
 		return nil
 	}
 	header.Root = stateRoot
-	header.NumTxs = uint64(newTxs.Len())
 
 	block = bo.newBlock(header, newTxs, receipts, commit)
 	bo.logger.Trace("Make block to propose", "block", block)
@@ -238,7 +237,7 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	gasPool := new(GasPool).AddGas(header.GasLimit)
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
-//LOOP:
+LOOP:
 	for _, tx := range txs {
 		state.Prepare(tx.Hash(), common.Hash{}, counter)
 		snap := state.Snapshot()
@@ -252,15 +251,16 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 			// TODO(thientn): check error type and jump to next tx if possible
 			// kiendn: instead of return nil and err, jump to next tx
 			//return common.Hash{}, nil, nil, err
-			//continue LOOP
-			continue
+			continue LOOP
 		}
 		counter++
 		receipts = append(receipts, receipt)
 		newTxs = append(newTxs, tx)
 	}
 
+	header.NumTxs = uint64(newTxs.Len())
 	root, err := state.Commit(true)
+
 
 	if err != nil {
 		bo.logger.Error("Fail to commit new statedb after txs", "err", err)

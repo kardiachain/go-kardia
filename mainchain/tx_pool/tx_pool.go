@@ -59,15 +59,14 @@ type blockChain interface {
 
 // TxPoolConfig are the configuration parameters of the transaction pool.
 type TxPoolConfig struct {
-	NoLocals         bool          // Whether local transaction handling should be disabled
-	Journal          string        // Journal of local transactions to survive node restarts
-	Rejournal        time.Duration // Time interval to regenerate the local transaction journal
-	GlobalSlots      uint64        // Maximum number of executable transaction slots for all accounts
-	GlobalQueue      uint64        // Maximum number of non-executable transaction slots for all accounts
-	NumberOfWorkers  int
-	WorkerCap        int
-	BlockSize        int
-	//BlockSizePercent uint64
+	NoLocals        bool          // Whether local transaction handling should be disabled
+	Journal         string        // Journal of local transactions to survive node restarts
+	Rejournal       time.Duration // Time interval to regenerate the local transaction journal
+	GlobalSlots     uint64        // Maximum number of executable transaction slots for all accounts
+	GlobalQueue     uint64        // Maximum number of non-executable transaction slots for all accounts
+	NumberOfWorkers int
+	WorkerCap       int
+	BlockSize       int
 
 	LifeTime time.Duration // Maximum amount of time non-executable transaction are queued
 }
@@ -84,12 +83,13 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	Rejournal: time.Hour,
 
 	GlobalSlots: 2048,
-	GlobalQueue: 5120,
+	GlobalQueue: 6144,
 
-	NumberOfWorkers:  3,
-	WorkerCap:        512,
-	BlockSize:        7192,
-	//BlockSizePercent: 70,
+	NumberOfWorkers: 6,
+	WorkerCap:       2048,
+	BlockSize:       3072,
+
+	LifeTime: 1 * time.Minute,
 }
 // GetDefaultTxPoolConfig returns default txPoolConfig with given dir path
 func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
@@ -116,9 +116,6 @@ type TxPool struct {
 	// txsCh is used for pending txs
 	txsCh chan []*types.Transaction
 
-	// allCh is used to cache all processed txs
-	//allCh chan []interface{}
-
 	chainHeadCh  chan events.ChainHeadEvent
 	chainHeadSub event.Subscription
 	signer       map[common.Hash]*TxBeats
@@ -139,11 +136,7 @@ type TxPool struct {
 
 	pendingSize uint                                  // pendingSize is a counter, increased when adding new txs, decreased when remove txs
 	pending     map[common.Address]types.Transactions // All currently processable transactions
-	//beats       map[common.Hash]time.Time          // Last heartbeat from each known account
-	//all      *common.Set                        // All transactions to allow lookups
-	//promotableQueue *common.Set                 // a queue of addresses that are waiting for processing txs (FIFO)
-	//blockSizePercent int
-	wg               sync.WaitGroup // for shutdown sync
+	wg          sync.WaitGroup                        // for shutdown sync
 }
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
@@ -154,25 +147,20 @@ func NewTxPool(logger log.Logger, config TxPoolConfig, chainconfig *types.ChainC
 
 	// Create the transaction pool with its initial settings
 	pool := &TxPool{
-		logger:      logger,
-		config:      config,
-		chainconfig: chainconfig,
-		chain:       chain,
-		pending:     make(map[common.Address]types.Transactions, config.GlobalQueue),
-		//beats:       make(map[common.Hash]time.Time),
-		//all:         common.NewSet(int64(config.GlobalQueue)),
-		//promotableQueue: common.NewSet(promotableQueueSize),
+		logger:          logger,
+		config:          config,
+		chainconfig:     chainconfig,
+		chain:           chain,
+		pending:         make(map[common.Address]types.Transactions, config.GlobalQueue),
 		addressState:    make(map[common.Address]uint64),
 		chainHeadCh:     make(chan events.ChainHeadEvent, chainHeadChanSize),
 		signer:          make(map[common.Hash]*TxBeats, config.GlobalQueue),
 		signerSize:      0,
 		totalPendingGas: uint64(0),
 		txsCh:           make(chan []*types.Transaction, config.GlobalQueue),
-		//allCh:           make(chan []interface{}),
-		numberOfWorkers:  config.NumberOfWorkers,
-		workerCap:        config.WorkerCap,
-		pendingSize:      0,
-		//blockSizePercent: int(config.BlockSizePercent * config.GlobalQueue / 100),
+		numberOfWorkers: config.NumberOfWorkers,
+		workerCap:       config.WorkerCap,
+		pendingSize:     0,
 	}
 	//pool.priced = newTxPricedList(logger, pool.all)
 	pool.reset(nil, chain.CurrentBlock().Header())
@@ -222,7 +210,6 @@ func (pool *TxPool) loop() {
 				head = ev.Block
 				pool.mu.Unlock()
 			}
-
 			// Handle inactive account transaction eviction
 		case <-evict.C:
 			pool.mu.Lock()
@@ -257,13 +244,6 @@ func (pool *TxPool) work(index int, txs []*types.Transaction) {
 
 func (pool *TxPool) AddTxs(txs []*types.Transaction) {
 	if len(txs) > 0 {
-		/*to := pool.workerCap
-		if len(txs) <= to {
-			pool.txsCh <- txs
-		} else {
-			pool.txsCh <- txs[0:to]
-			go pool.AddTxs(txs[to:])
-		}*/
 		pool.txsCh <- txs
 	}
 }
@@ -312,7 +292,6 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	pool.removeTxs(currentBlock.Transactions())
 
 	pool.demoteUnexecutables()
-	//go pool.saveTxs(currentBlock.Transactions())
 }
 
 // Stop terminates the transaction pool.
@@ -354,10 +333,6 @@ func getTime() int64 {
 func (pool *TxPool) Pending(limit int) (types.Transactions, error) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
-
-	/*if limit > 0 && int(pool.pendingSize) > limit {
-		limit = pool.blockSizePercent
-	}*/
 
 	pending := make(types.Transactions, 0)
 	// loop through pending to get addresses come first
@@ -478,7 +453,6 @@ func (pool *TxPool) addTxs(txs []*types.Transaction) int {
 		if tx == nil {
 			continue
 		}
-		//tx := txInterface.(*types.Transaction)
 
 		if ok := addedTx[tx.Hash()]; ok {
 			continue
@@ -500,9 +474,6 @@ func (pool *TxPool) addTxs(txs []*types.Transaction) int {
 
 // RemoveTx removes transactions from pending queue.
 func (pool *TxPool) removeTxs(txs types.Transactions) {
-	/*pool.mu.Lock()
-	defer pool.mu.Unlock()*/
-
 	for _, tx := range txs {
 		sender, _ := pool.getSender(tx)
 		pendings := pool.pending[*sender]
@@ -577,8 +548,6 @@ func (pool *TxPool) evictSigner() int {
 // executable/pending queue and any subsequent transactions that become unexecutable
 // are moved back into the future queue.
 func (pool *TxPool) demoteUnexecutables() {
-	/*pool.mu.Lock()
-	defer pool.mu.Unlock()*/
 	// Iterate over all accounts and demote any non-executable transactions
 	pool.logger.Warn("Before demoteUnexecutables", "pending", pool.pendingSize, "signer", pool.signerSize)
 	for addr, list := range pool.pending {

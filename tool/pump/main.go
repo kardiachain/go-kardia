@@ -149,7 +149,6 @@ func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 		NumberOfWorkers:  txPool.NumberOfWorkers,
 		WorkerCap:        txPool.WorkerCap,
 		BlockSize:        txPool.BlockSize,
-		//BlockSizePercent: txPool.BlockSizePercent,
 
 		LifeTime: 1 * time.Minute,
 	}
@@ -580,7 +579,6 @@ func generateTxs(genTxs *GenTxs, genTool *tool.GeneratorTool, txPool *tx_pool.Tx
 	switch genTxs.Type {
 	case tool.DefaultGenRandomWithStateTx:
 		txList = genTool.GenerateRandomTxWithAddressState(genTxs.NumTxs, txPool)
-		//txList = genTool.GenerateRandomTxWithState(genTxs.NumTxs, txPool.State().StateDB)
 	case tool.DefaultGenRandomTx:
 		txList = genTool.GenerateRandomTx(genTxs.NumTxs)
 	}
