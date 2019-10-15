@@ -80,14 +80,102 @@ MainChain:
   Events:
     -
       ContractAddress: 0x00000000000000000000000000000000736d6339 # KAI smc address
+      MasterContractAddress: 0x00000000000000000000000000000000736d6339
       # NOTE: currently, kardia tool auto convert address to lower case, therefore contractAddress must be set as lowercase
-      ABI: "[{'constant':false,'inputs':[{'name':'fromType','type':'string'},{'name':'toType','type':'string'},{'name':'fromAddress','type':'string'},{'name':'receiver','type':'string'},{'name':'txid','type':'string'},{'name':'amount','type':'uint256'},{'name':'timestamp','type':'uint256'}],'name':'addOrder','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[],'name':'setOwner','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[{'name':'fromType','type':'string'},{'name':'toType','type':'string'},{'name':'fromAmount','type':'uint256'},{'name':'receivedAmount','type':'uint256'}],'name':'updateRate','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':true,'inputs':[{'name':'txid','type':'string'}],'name':'getMatchingResult','outputs':[{'name':'results','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':false,'inputs':[{'name':'user','type':'address'}],'name':'deAuthorizedUser','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':true,'inputs':[{'name':'_type','type':'string'}],'name':'getAddressFromType','outputs':[{'name':'','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[{'name':'_address','type':'string'},{'name':'fromType','type':'string'},{'name':'toType','type':'string'}],'name':'getAllOrders','outputs':[{'name':'orders','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[],'name':'getOwner','outputs':[{'name':'','type':'address'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[{'name':'fromType','type':'string'},{'name':'toType','type':'string'}],'name':'getPendingOrders','outputs':[{'name':'orders','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':false,'inputs':[{'name':'user','type':'address'}],'name':'authorizedUser','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':true,'inputs':[{'name':'txId','type':'string'}],'name':'getOrderByTxIdPublic','outputs':[{'name':'strOrder','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[{'name':'fromType','type':'string'},{'name':'toType','type':'string'}],'name':'getRate','outputs':[{'name':'fromAmount','type':'uint256'},{'name':'receivedAmount','type':'uint256'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[{'name':'txId','type':'string'}],'name':'hasTxId','outputs':[{'name':'','type':'bool'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':false,'inputs':[{'name':'txId','type':'string'},{'name':'kardiaTxId','type':'string'}],'name':'updateKardiaTx','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[{'name':'txId','type':'string'},{'name':'targetTxId','type':'string'}],'name':'updateTargetTx','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[{'name':'_type','type':'string'},{'name':'_address','type':'string'}],'name':'updateAvailableType','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':true,'inputs':[{'name':'user','type':'address'}],'name':'isAuthorized','outputs':[{'name':'','type':'bool'}],'payable':false,'stateMutability':'view','type':'function'}]"
-      WatcherActions:
+      MasterABI: "[{'constant':false,'inputs':[{'name':'fromType','type':'string'},{'name':'toType','type':'string'},{'name':'fromAddress','type':'string'},{'name':'receiver','type':'string'},{'name':'txid','type':'string'},{'name':'amount','type':'uint256'},{'name':'timestamp','type':'uint256'}],'name':'addOrder','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[],'name':'setOwner','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[{'name':'fromType','type':'string'},{'name':'toType','type':'string'},{'name':'fromAmount','type':'uint256'},{'name':'receivedAmount','type':'uint256'}],'name':'updateRate','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':true,'inputs':[{'name':'txid','type':'string'}],'name':'getMatchingResult','outputs':[{'name':'results','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':false,'inputs':[{'name':'user','type':'address'}],'name':'deAuthorizedUser','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':true,'inputs':[{'name':'_type','type':'string'}],'name':'getAddressFromType','outputs':[{'name':'','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[{'name':'_address','type':'string'},{'name':'fromType','type':'string'},{'name':'toType','type':'string'}],'name':'getAllOrders','outputs':[{'name':'orders','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[],'name':'getOwner','outputs':[{'name':'','type':'address'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[{'name':'fromType','type':'string'},{'name':'toType','type':'string'}],'name':'getPendingOrders','outputs':[{'name':'orders','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':false,'inputs':[{'name':'user','type':'address'}],'name':'authorizedUser','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':true,'inputs':[{'name':'txId','type':'string'}],'name':'getOrderByTxIdPublic','outputs':[{'name':'strOrder','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[{'name':'fromType','type':'string'},{'name':'toType','type':'string'}],'name':'getRate','outputs':[{'name':'fromAmount','type':'uint256'},{'name':'receivedAmount','type':'uint256'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[{'name':'txId','type':'string'}],'name':'hasTxId','outputs':[{'name':'','type':'bool'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':false,'inputs':[{'name':'txId','type':'string'},{'name':'kardiaTxId','type':'string'}],'name':'updateKardiaTx','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[{'name':'txId','type':'string'},{'name':'targetTxId','type':'string'}],'name':'updateTargetTx','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[{'name':'_type','type':'string'},{'name':'_address','type':'string'}],'name':'updateAvailableType','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':true,'inputs':[{'name':'user','type':'address'}],'name':'isAuthorized','outputs':[{'name':'','type':'bool'}],'payable':false,'stateMutability':'view','type':'function'}]"
+      Watchers:
         -
           Method: addOrder
-          DualAction: Release
-      DualActions:
-        - CreateKardiaMatchAmountTx
+          WatcherActions: 
+            # addOrder function has 7 fields: [0]=fromType, [1]=toType, [2]=fromAddress, [3]=receiver, [4]=txid, [5]=amount, [6]=timestamp
+            # Therefore before executing watcherActions, message originally has size = 7
+            - "${smc:getData(getRate,message.params[0],message.params[1])}"
+            # after getting rate message.params append fromAmount, toAmount -> its length turns to 9: [7]=fromAmount [8]=toAmount
+            - "${fn:validate(params[7]==int(0) || params[8]==int(0),SIGNAL_STOP,SIGNAL_CONTINUE)}"
+            - "${smc:getData(getMatchingResult,params[2])}"
+            # getMatchingResults returns a string contains released information, [9]=released information
+            - "${fn:validate(params[9]=='',SIGNAL_STOP,SIGNAL_CONTINUE)}"
+          DualActions:
+            # define CalculateReleasedAmountToEth function
+            - "${fn:defineFunc(CalculateReleasedAmountToEth)}"
+            - "${fn:var(tenPoweredByTen,bigInt,fn:exp(fn:int(10),fn:int(10)))}"
+            - "${fn:var(tenPoweredByTwelve,bigInt,fn:exp(fn:int(10),fn:int(12)))}"
+            - "${fn:var(convertedAmount,bigFloat,fn:float(amounts[i]))}"
+            - "${fn:var(convertedAmount,bigFloat,fn:mul(fn:div(convertedAmount,fn:float(fromAmount)),fn:float(toAmount)))}"
+            - "${fn:if(checkFromType,fromType == 'NEO')}"
+            - "${fn:var(convertedAmount,bigFloat,fn:mul(convertedAmount,fn:float(tenPoweredByTen)))}"
+            - "${fn:elif(checkFromType,fromType == 'TRX')}"
+            - "${fn:var(convertedAmount,bigFloat,fn:mul(convertedAmount,fn:float(tenPoweredByTwelve)))}"
+            - "${fn:else(checkFromType)}"
+            - "SIGNAL_STOP"
+            - "${fn:endif(checkFromType)}"
+            - "${fn:var(convertedAmount,bigInt,fn:int(fn:round(convertedAmount)))}"
+            - "${fn:endDefineFunc(CalculateReleasedAmountToEth)}"
+
+            # define CalculateReleasedAmountFromNeo
+            - "${fn:defineFunc(CalculateReleasedAmountFromNeo)}"
+            - "${fn:var(tenPoweredByEight,bigInt,fn:exp(fn:int(10),fn:int(8)))}"
+            - "${fn:var(tenPoweredBySix,bigInt,fn:exp(fn:int(10),fn:int(6)))}"
+            - "${fn:if(checkFromType,fromType=='ETH')}"
+            - "${fn:var(convertedAmount,bigInt,fn:div(fn:int(amounts[i]),tenPoweredByEight))}"
+            - "${fn:elif(checkFromType,fromType=='TRX')}"
+            - "${fn:var(convertedAmount,bigFloat,fn:float(amounts[i]))}"
+            - "${fn:var(convertedAmount,bigFloat,fn:mul(convertedAmount,fn:float(toAmount)))}"
+            - "${fn:var(convertedAmount,bigFloat,fn:div(convertedAmount,fn:float(fromAmount)))}"
+            - "${fn:var(convertedAmount,bigFloat,fn:div(convertedAmount,fn:float(tenPoweredBySix)))}"
+            - "${fn:var(convertedAmount,int64,fn:int(fn:round(convertedAmount)))}"
+            - "${fn:else(checkFromType)}"
+            - "SIGNAL_STOP"
+            - "${fn:endif(checkFromType)}"
+            - "${fn:validate(types[i] == 'NEO' && int(convertedAmount) < 1,SIGNAL_STOP,SIGNAL_CONTINUE)}"
+            - "${fn:endDefineFunc(CalculateReleasedAmountFromNeo)}"
+
+            - "${fn:var(originalTxId,string,message.params[4])}"
+            - "${fn:split(message.params[9],'|')}" # split released information by '|' result will be stored in global param 'params'
+            - "${fn:validate(size(params[0])!=4,SIGNAL_STOP,SIGNAL_CONTINUE)}"
+
+            - "${smc:getData(getAddressFromType,proxyName)}" # if no err return, result will be appended into params
+            - "${fn:var(targetContractAddress,string,params[1])}"
+
+            - "${fn:var(fromAmount,bigInt,fn:int(message.params[7]))}"
+            - "${fn:var(toAmount,bigInt,fn:int(message.params[8]))}"
+            - "${fn:var(convertedAmount,bigInt,fn:int(0))}"
+            - "${fn:var(fromType,string,message.params[0])}"
+            - "${fn:var(toType,string,message.params[1])}"
+            - "${fn:var(types,list,fn:split(params[0][0],';'))}"
+            - "${fn:var(addresses,list,fn:split(params[0][1],';'))}"
+            - "${fn:var(amounts,list,fn:split(params[0][2],';'))}"
+            - "${fn:var(txIds,list,fn:split(params[0][3],';'))}"
+
+            - "${fn:forEach(forEachTypes,types,i)}"
+            - "${fn:if(checkEmpty,addresses[i]!='' && amounts[i]!='' && txIds[i]!='' && types[i]==proxyName)}"
+            
+            - "${fn:if(checkFromType,fromType != proxyName)}" # swap fromAmount and toAmount
+            - "${fn:var(fromAmount,bigInt,fn:int(message.params[8]))}"
+            - "${fn:var(toAmount,bigInt,fn:int(message.params[7]))}"
+            - "${fn:else(checkFromType)}"
+            - "${fn:var(fromType,string,toType)}"
+            - "${fn:endif(checkFromType)}"
+
+            - "${fn:if(checkReleaseType,types[i]=='TRX')}"
+            - "${fn:var(convertedAmount,bigInt,fn:int(amounts[i]))}"
+            - "${fn:elif(checkReleaseType,types[i]=='ETH')}"
+            - "${fn:call(CalculateReleasedAmountToEth)}"
+            - "${fn:elif(checkReleaseType,types[i]=='NEO')}"
+            - "${fn:call(CalculateReleasedAmountFromNeo)}"
+            - "${fn:else(checkReleaseType)}"
+            - "SIGNAL_STOP"
+            - "${fn:endif(checkReleaseType)}"
+
+            - "${fn:var(convertedAmount,string,convertedAmount)}"
+            - "${[targetContractAddress,'release',[addresses[i],convertedAmount]]}" # return a list to params[2]
+            - "${fn:var(triggerMessage,list,params[0])}"
+            - "${['contractAddress','updateTargetTx',[txIds[i]]]}" # return a list of callback to params[3]
+            - "${fn:var(cbs,list,[params[1]])}"
+            - "${fn:publish(triggerMessage[0],triggerMessage[1],triggerMessage[2],cbs)}"
+
+            - "${fn:endif(checkEmpty)}"
+            - "${fn:endForEach(forEachTypes)}"
 DualChain:
   ServiceName:  ETH
   ChainId:      2
@@ -145,10 +233,33 @@ DualChain:
   Events:
     -
       ContractAddress: 0xF5164638322A18acA63AA101fd39F4D6F192537c # ETH smc address
+      MasterSmartContract: 0x00000000000000000000000000000000736d6339
+      MasterABI: "[{'constant':false,'inputs':[{'name':'fromType','type':'string'},{'name':'toType','type':'string'},{'name':'fromAddress','type':'string'},{'name':'receiver','type':'string'},{'name':'txid','type':'string'},{'name':'amount','type':'uint256'},{'name':'timestamp','type':'uint256'}],'name':'addOrder','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[],'name':'setOwner','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[{'name':'fromType','type':'string'},{'name':'toType','type':'string'},{'name':'fromAmount','type':'uint256'},{'name':'receivedAmount','type':'uint256'}],'name':'updateRate','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':true,'inputs':[{'name':'txid','type':'string'}],'name':'getMatchingResult','outputs':[{'name':'results','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':false,'inputs':[{'name':'user','type':'address'}],'name':'deAuthorizedUser','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':true,'inputs':[{'name':'_type','type':'string'}],'name':'getAddressFromType','outputs':[{'name':'','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[{'name':'_address','type':'string'},{'name':'fromType','type':'string'},{'name':'toType','type':'string'}],'name':'getAllOrders','outputs':[{'name':'orders','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[],'name':'getOwner','outputs':[{'name':'','type':'address'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[{'name':'fromType','type':'string'},{'name':'toType','type':'string'}],'name':'getPendingOrders','outputs':[{'name':'orders','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':false,'inputs':[{'name':'user','type':'address'}],'name':'authorizedUser','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':true,'inputs':[{'name':'txId','type':'string'}],'name':'getOrderByTxIdPublic','outputs':[{'name':'strOrder','type':'string'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[{'name':'fromType','type':'string'},{'name':'toType','type':'string'}],'name':'getRate','outputs':[{'name':'fromAmount','type':'uint256'},{'name':'receivedAmount','type':'uint256'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':true,'inputs':[{'name':'txId','type':'string'}],'name':'hasTxId','outputs':[{'name':'','type':'bool'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':false,'inputs':[{'name':'txId','type':'string'},{'name':'kardiaTxId','type':'string'}],'name':'updateKardiaTx','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[{'name':'txId','type':'string'},{'name':'targetTxId','type':'string'}],'name':'updateTargetTx','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[{'name':'_type','type':'string'},{'name':'_address','type':'string'}],'name':'updateAvailableType','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':true,'inputs':[{'name':'user','type':'address'}],'name':'isAuthorized','outputs':[{'name':'','type':'bool'}],'payable':false,'stateMutability':'view','type':'function'}]"
       ABI: "[{'constant':false,'inputs':[{'name':'receiver','type':'address'},{'name':'amount','type':'uint256'}],'name':'release','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'constant':false,'inputs':[{'name':'receiver','type':'string'},{'name':'destination','type':'string'}],'name':'deposit','outputs':[],'payable':true,'stateMutability':'payable','type':'function'},{'constant':true,'inputs':[{'name':'destination','type':'string'}],'name':'isValidType','outputs':[{'name':'','type':'bool'}],'payable':false,'stateMutability':'view','type':'function'},{'constant':false,'inputs':[{'name':'_type','type':'string'},{'name':'status','type':'bool'}],'name':'updateAvailableType','outputs':[],'payable':false,'stateMutability':'nonpayable','type':'function'},{'inputs':[{'name':'_owner','type':'address'}],'payable':false,'stateMutability':'nonpayable','type':'constructor'}]"
-      WatcherActions:
+      Watchers:
         -
           Method: deposit
-          DualAction: CreateKardiaMatchAmountTx
-      DualActions:
-        - Release
+          WatcherActions:
+            - "${fn:validate(size(message.params)==2,SIGNAL_CONTINUE,SIGNAL_STOP)}"
+            - "${fn:validate(message.from=='ETH',SIGNAL_CONTINUE,SIGNAL_STOP)}"
+          DualActions:
+            - "${fn:var(tenPoweredByTen,bigInt,fn:exp(fn:int(10),fn:int(10)))}"
+            - "${fn:var(tenPoweredByTwelve,bigInt,fn:exp(fn:int(10),fn:int(12)))}"
+            - "${fn:var(timeStamp,int64,fn:currentTimeStamp())}"
+            - "${smc:getData(getRate,message.from,message.to)}"
+            - "${fn:var(fromAmount,bigInt,params[0])}"
+            - "${fn:var(toAmount,bigInt,params[1])}"
+            - "${fn:var(zeroValue,bigInt,0)}"
+            - "${fn:cmp(fromAmount,zeroValue,SIGNAL_STOP,SIGNAL_CONTINUE)}"
+            - "${fn:cmp(toAmount,zeroValue,SIGNAL_STOP,SIGNAL_CONTINUE)}"
+            - "${fn:var(convertedAmount,bigInt,fn:mul(fn:int(message.amount),fromAmount))}"
+            - "${fn:var(convertedAmount,bigInt,fn:div(convertedAmount,toAmount))}"
+            - "${fn:if(evaluateDestination,message.to=='NEO')}"
+            - "${fn:var(convertedAmount,bigInt,fn:div(convertedAmount,tenPoweredByTen))}"
+            - "${fn:elif(evaluateDestination,message.to=='TRX')}"
+            - "${fn:var(convertedAmount,bigInt,fn:div(convertedAmount,tenPoweredByTwelve))}"
+            - "${fn:else(evaluateDestination)}"
+            - "SIGNAL_STOP"
+            - "${fn:endif(evaluateDestination)}"
+            - "${fn:var(addOrderTx,string,smc:trigger(addOrder,message.from,message.to,message.sender,message.params[0],message.transactionId,convertedAmount,timeStamp))}"
+            - "${smc:trigger(updateKardiaTx,message.transactionId,addOrderTx)}"

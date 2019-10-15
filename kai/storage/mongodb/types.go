@@ -69,13 +69,11 @@ type (
 		ValidatorsHash string                 `json:"validators_hash"` // validators for the current block
 		ConsensusHash  string                 `json:"consensus_hash"`  // consensus params for current block
 	}
-
 	Block struct {
 		Header Header `json:"header"    bson:"header"`
 		Hash   string `json:"hash"      bson:"hash"`
 		Height uint64 `json:"height"    bson:"height"`
 	}
-
 	Receipt struct {
 		BlockHash         string  `json:"blockHash"         bson:"blockHash"`
 		Height            uint64  `json:"height"            bson:"height"`
@@ -88,7 +86,6 @@ type (
 		ContractAddress string    `json:"contractAddress"   bson:"contractAddress"`
 		GasUsed         uint64    `json:"gasUsed"           bson:"gasUsed"`
 	}
-
 	Log struct {
 		Address      string      `json:"address"          bson:"address"`
 		Topics       []string    `json:"topics"           bson:"topics"`
@@ -100,7 +97,6 @@ type (
 		Index        uint        `json:"logIndex"         bson:"logIndex"`
 		Removed      bool        `json:"removed"          bson:"removed"`
 	}
-
 	Transaction struct {
 	    ID           primitive.ObjectID `json:"id"           bson:"_id,omitempty"`
 		From         string             `json:"from"         bson:"from"`
@@ -122,7 +118,6 @@ type (
 		Height    uint64             `json:"height"       bson:"height"`
 		Index     int                `json:"index"        bson:"index"`
 	}
-
 	DualEvent struct {
 		Nonce             uint64                `json:"nonce"                bson:"nonce"`
 		TriggeredEvent    *types.EventData      `json:"triggeredEvent"       bson:"triggeredEvent"`
@@ -132,7 +127,6 @@ type (
 		BlockHash         string                `json:"blockHash"            bson:"blockHash"`
 		Height            uint64                `json:"height"               bson:"height"`
 	}
-
 	EventData struct {
 		TxHash       string                  `json:"txHash"           bson:"txHash"`
 		TxSource     string                  `json:"txSource"         bson:"txSource"`
@@ -140,19 +134,16 @@ type (
 		Data         *types.EventSummary     `json:"data"             bson:"data"`
 		Actions      *types.DualActions      `json:"actions"          bson:"actions"`
 	}
-
 	EventSummary struct {
 		TxMethod string   `json:"txMethod"           bson:"txMethod"`// Smc's method
 		TxValue  *big.Int `json:"txValue"            bson:"txValue"`// Amount of the tx
 		ExtData  []string `json:"extData"            bson:"extData"`// Additional data along with this event
 	}
-
 	Commit struct {
 		Height     uint64  `json:"height"           bson:"height"`
 		BlockID    string  `json:"blockID"          bson:"blockID"`
 		Precommits []*Vote `json:"precommits"       bson:"precommits"`
 	}
-
 	Vote struct {
 		ValidatorAddress string      `json:"validatorAddress"           bson:"validatorAddress"`
 		ValidatorIndex   int64       `json:"validatorIndex"             bson:"validatorIndex"`
@@ -163,24 +154,20 @@ type (
 		BlockID          string      `json:"blockID"                    bson:"blockID"`
 		Signature        string      `json:"signature"                  bson:"signature"`
 	}
-
 	HeadHeaderHash struct {
 		ID           int         `json:"ID"      bson:"ID"`
 		Hash         string      `json:"hash"    bson:"hash"`
 	}
-
 	HeadBlockHash struct {
 		ID           int         `json:"ID"      bson:"ID"`
 		Hash         string      `json:"hash"    bson:"hash"`
 	}
-
 	ChainConfig struct {
 		Hash   string `json:"hash"     bson:"hash"`
 		Period uint64 `json:"period"   bson:"period"`
 		Epoch  uint64 `json:"epoch"    bson:"epoch"`
 		BaseAccount   `json:"baseAccount,omitempty"`
 	}
-
 	Caching struct {
 		Key   string `json:"key"       bson:"key"`
 		Value string `json:"value"     bson:"value"`
@@ -191,16 +178,14 @@ type (
 		BlockIndex uint64   `json:"blockIndex" bson:"blockIndex"`
 		Index      uint64   `json:"index"      bson:"index"`
 	}
-	WatcherAction struct {
-		ContractAddress string  `json:"contractAddress"   bson:"contractAddress"`
-		ABI             string  `json:"ABI"               bson:"ABI"`
-		Method          string  `json:"method"            bson:"method"`
-		DualAction      string  `json:"dualAction"        bson:"dualAction"`
-	}
-	DualAction struct {
-		Name            string  `json:"name"             bson:"name"`
-		ContractAddress string  `json:"contractAddress"  bson:"contractAddress"`
-		ABI             string  `json:"ABI"              bson:"ABI"`
+	Watcher struct {
+		MasterContractAddress string   `json:"masterContractAddress" bson:"masterContractAddress"`
+		MasterABI             string   `json:"masterABI"             bson:"masterABI"`
+		ContractAddress       string   `json:"contractAddress"       bson:"contractAddress"`
+		ABI                   string   `json:"ABI"                   bson:"ABI"`
+		Method                string   `json:"method"                bson:"method"`
+		DualActions           []string `json:"dualActions"           bson:"dualActions"`
+		WatcherActions        []string `json:"watcherActions"        bson:"watcherActions"`
 	}
 	BaseAccount struct {
 		Address         string   `json:"address"`

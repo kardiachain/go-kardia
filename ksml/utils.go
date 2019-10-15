@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	KARDIA_CALL = "KARDIA_CALL"
 	currentTimeStamp = "currentTimeStamp"
 	currentBlockHeight = "currentBlockHeight"
 	validate = "validate"
@@ -30,6 +31,14 @@ const (
 	getData = "getData"
 	trigger = "trigger"
 	publish = "publish"
+	compare = "cmp"
+	mul = "mul"
+	div = "div"
+	toInt = "int"
+	toFloat = "float"
+	exp = "exp"
+	format = "format"
+	round = "round"
 
 	MaximumGasToCallFunction = uint(5000000)
 	intType = "int"
@@ -43,6 +52,8 @@ const (
 	uint32Type = "uint32"
 	uint64Type = "uint64"
 	bigIntType = "bigInt"
+	bigFloatType = "bigFloat"
+	float64Type = "float64"
 	stringType = "string"
 	boolType = "bool"
 	listType = "list"
@@ -54,6 +65,7 @@ const (
 	globalMessage = "message"
 	globalParams = "params"
 	globalContractAddress = "contractAddress"
+	globalProxyName = "proxyName"
 	prefixSeparator = ":"
 	paramsSeparator = ","
 	messagePackage = "protocol.EventMessage"
@@ -97,6 +109,7 @@ var (
 		globalMessage: decls.NewIdent(globalMessage, decls.NewObjectType(messagePackage), nil),
 		globalParams: decls.NewIdent(globalParams, decls.Dyn, nil),
 		globalContractAddress: decls.NewIdent(globalContractAddress, decls.String, nil),
+		globalProxyName: decls.NewIdent(globalProxyName, decls.String, nil),
 	}
 	signals = map[string]struct{}{
 		signalContinue: {},
@@ -169,6 +182,8 @@ var (
 			if kind != reflect.String {
 				if kind == reflect.Int64 {
 					return val.(int64), nil
+				} else if kind.String() == "*big.Int" {
+					return val.(*big.Int).Int64(), nil
 				}
 				return nil, fmt.Errorf(invalidTypeMsg, int64Type, kind.String())
 			}
@@ -237,6 +252,8 @@ var (
 					return val.(uint64), nil
 				} else if kind == reflect.Int64 { // by default CEL convert number to int64
 					return uint64(val.(int64)), nil
+				} else if reflect.ValueOf(val).Type().String() == "*big.Int" {
+					return val.(*big.Int).Uint64(), nil
 				}
 				return nil, fmt.Errorf(invalidTypeMsg, uint64Type, kind.String())
 			}
@@ -249,18 +266,41 @@ var (
 					return big.NewInt(val.(int64)), nil
 				} else if kind == reflect.Uint64 {
 					return big.NewInt(int64(val.(uint64))), nil
-				}else if kind.String() == "*big.Int" {
+				} else if reflect.ValueOf(val).Type().String() == "*big.Int" {
 					return val.(*big.Int), nil
 				}
-				return nil, fmt.Errorf(invalidTypeMsg, bigIntType, kind.String())
+				return nil, fmt.Errorf(invalidTypeMsg, bigIntType, reflect.ValueOf(val).Type().String())
 			}
 			v, _ := big.NewInt(0).SetString(val.(string),10)
 			return v, nil
 		},
+		bigFloatType: func(val interface{}) (interface{}, error) {
+			kind := reflect.TypeOf(val).Kind()
+			if kind != reflect.String {
+				if kind == reflect.Float64 {
+					return big.NewFloat(val.(float64)), nil
+				} else if reflect.ValueOf(val).Type().String() == "*big.Float" {
+					return val.(*big.Float), nil
+				}
+				return nil, fmt.Errorf(invalidTypeMsg, bigFloatType, kind.String())
+			}
+			v, _ := big.NewFloat(0).SetString(val.(string))
+			return v, nil
+		},
+		float64Type: func(val interface{}) (interface{}, error){
+			kind := reflect.TypeOf(val).Kind()
+			if kind != reflect.String {
+				if kind == reflect.Float64 {
+					return val.(float64), nil
+				}
+				return nil, fmt.Errorf(invalidTypeMsg, uint64Type, kind.String())
+			}
+			return strconv.ParseFloat(val.(string), 64)
+		},
 		stringType: func(val interface{}) (interface{}, error) {
 			kind := reflect.TypeOf(val).Kind()
 			if kind != reflect.String {
-				return nil, fmt.Errorf(invalidTypeMsg, stringType, kind.String())
+				return InterfaceToString(val)
 			}
 			return val.(string), nil
 		},
@@ -277,8 +317,15 @@ var (
 	}
 )
 
-func interfaceToString(val interface{}) (string, error) {
+func InterfaceToString(val interface{}) (string, error) {
 	v := reflect.ValueOf(val)
+	if isType("ref.Val", v) {
+		return InterfaceToString(val.(ref.Val).Value())
+	} else if isType("big.Int", v) {
+		return val.(*big.Int).String(), nil
+	} else if isType("big.Float", v) {
+		return val.(*big.Float).String(), nil
+	}
 	switch v.Kind() {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return strconv.FormatInt(v.Int(), 10), nil

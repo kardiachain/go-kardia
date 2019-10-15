@@ -68,14 +68,16 @@ type (
 		Drop         int       `yaml:"Drop"`
 	}
 	Event struct {
+		MasterSmartContract string           `yaml:"MasterSmartContract"`
 		ContractAddress   string             `yaml:"ContractAddress"`
+		MasterABI         *string            `yaml:"MasterABI"`
 		ABI               *string            `yaml:"ABI,omitempty"`
-		WatcherActions    []WatcherAction    `yaml:"WatcherActions"`
-		DualActions       []string             `yaml:"DualActions"`
+		Watchers          []Watcher          `yaml:"Watchers"`
 	}
-	WatcherAction struct {
-		Method           string       `yaml:"Method"`
-		DualAction       string       `yaml:"DualAction"`
+	Watcher struct {
+		Method           string             `yaml:"Method"`
+		WatcherActions   []string           `yaml:"WatcherActions,omitempty"`
+		DualActions      []string           `yaml:"DualAction"`
 	}
 	BaseAccount struct {
 		Address      string       `yaml:"Address"`

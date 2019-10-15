@@ -10,12 +10,13 @@ option go_package = "message";
 // Message is sent from the dual node to kardia when it receive a trigger smart contract transaction.
 message EventMessage {
     string transactionId = 1;
-    string from = 2;
-    string to = 3;
-    string method = 4;
-    repeated string params = 5;
-    uint64 amount = 6;
-    string sender = 7;
-    uint64 blockNumber = 8;
-    uint64 timestamp = 9;
+    string masterSmartContract = 2;
+    string from = 3;
+    string to = 4;
+    string method = 5;
+    repeated string params = 6;
+    uint64 amount = 7;
+    string sender = 8;
+    uint64 blockNumber = 9;
+    uint64 timestamp = 10;
 }
