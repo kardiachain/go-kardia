@@ -12,62 +12,78 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
+	"math/big"
 	"reflect"
 	"strings"
+	"sync"
 )
 
 type Parser struct {
-	proxyName                 string                // name of proxy that is using parser (NEO, ETH, TRX)
-	publishEndpoint           string                // endpoint that message will be published to, in case publish action is used
-	publishFunction           func(endpoint string, topic string, msg dualMsg.TriggerMessage) error // function is used for publish message to client chain
-	bc                        base.BaseBlockChain   // kardia blockchain
-	txPool                    *tx_pool.TxPool       // kardia tx pool is used when smc:trigger is called.
-	stateDb                   *state.StateDB
-	smartContractAddress      *common.Address       // master smart contract
-	globalPatterns            []string              // globalPatterns is a list of actions that parser will read through
-	globalMessage             *message.EventMessage // globalMessage is a global variables passed as type proto.Message
-	globalParams              interface{}           // all returned value while executing globalPatterns are stored here
-	userDefinedFunction       map[string]*function  // before parse globalPatterns, parser will read through it once to get all defined functions
-	userDefinedVariables      map[string]interface{}// all variables defined in globalPatterns will be added here while parser reads through it
-	pc                        int                   // program counter is used to count and get current read position in globalPatterns
-	nonce                     uint64
+	ProxyName                 string                // name of proxy that is using parser (NEO, ETH, TRX)
+	PublishEndpoint           string                // endpoint that message will be published to, in case publish action is used
+	PublishFunction           func(endpoint string, topic string, msg dualMsg.TriggerMessage) error // function is used for publish message to client chain
+	Bc                        base.BaseBlockChain   // kardia blockchain
+	TxPool                    *tx_pool.TxPool       // kardia tx pool is used when smc:trigger is called.
+	StateDb                   *state.StateDB
+	SmartContractAddress      *common.Address       // master smart contract
+	GlobalPatterns            []string              // globalPatterns is a list of actions that parser will read through
+	GlobalMessage             *message.EventMessage // globalMessage is a global variables passed as type proto.Message
+	GlobalParams              []interface{}           // all returned value while executing globalPatterns are stored here
+	UserDefinedFunction       map[string]*function  // before parse globalPatterns, parser will read through it once to get all defined functions
+	UserDefinedVariables      map[string]interface{}// all variables defined in globalPatterns will be added here while parser reads through it
+	Pc                        int                   // program counter is used to count and get current read position in globalPatterns
+	Nonce                     uint64
+	CanTrigger                bool
+	mtx                       sync.Mutex
 }
 
 func NewParser(proxyName, publishedEndpoint string, publishFunction func(endpoint string, topic string, msg dualMsg.TriggerMessage) error,
-	bc base.BaseBlockChain, stateDb *state.StateDB, txPool *tx_pool.TxPool,
-	smartContractAddress *common.Address, globalPatterns []string, globalMessage *message.EventMessage) *Parser {
+	bc base.BaseBlockChain, txPool *tx_pool.TxPool,
+	smartContractAddress *common.Address, globalPatterns []string, globalMessage *message.EventMessage, canTrigger bool) *Parser {
+	stateDb := txPool.State().StateDB
 	return &Parser{
-		proxyName:           proxyName,
-		publishEndpoint:     publishedEndpoint,
-		publishFunction:     publishFunction,
-		bc:                  bc,
-		txPool:              txPool,
-		stateDb:             stateDb,
-		smartContractAddress: smartContractAddress,
-		globalPatterns:      globalPatterns,
-		globalMessage:       globalMessage,
-		globalParams:        make([]interface{}, 0),
-		userDefinedFunction: make(map[string]*function),
-		userDefinedVariables: make(map[string]interface{}),
-		nonce: 0,
-		pc: 0,
+		ProxyName:           proxyName,
+		PublishEndpoint:     publishedEndpoint,
+		PublishFunction:     publishFunction,
+		Bc:                  bc,
+		TxPool:              txPool,
+		StateDb:             stateDb,
+		SmartContractAddress: smartContractAddress,
+		GlobalPatterns:      globalPatterns,
+		GlobalMessage:       globalMessage,
+		GlobalParams:        make([]interface{}, 0),
+		UserDefinedFunction: make(map[string]*function),
+		UserDefinedVariables: make(map[string]interface{}),
+		Nonce: 0,
+		Pc: 0,
+		CanTrigger: canTrigger,
 	}
 }
 
-func addPrimitiveIdent(name string, kind reflect.Kind) *expr.Decl {
+func addPrimitiveIdent(name string, v interface{}) (interface{}, *expr.Decl) {
+
+	if strings.Contains(reflect.ValueOf(v).Type().String(), "big.Int") {
+		v = v.(*big.Int).Int64()
+	} else if strings.Contains(reflect.ValueOf(v).Type().String(), "big.Float") {
+		v, _ = v.(*big.Float).Float64()
+	}
+
+	kind := reflect.TypeOf(v).Kind()
 	switch kind {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return decls.NewIdent(name, decls.Int, nil)
+		return v, decls.NewIdent(name, decls.Int, nil)
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return decls.NewIdent(name, decls.Uint, nil)
+		return v, decls.NewIdent(name, decls.Uint, nil)
+	case reflect.Float32, reflect.Float64:
+		return v, decls.NewIdent(name, decls.Double, nil)
 	case reflect.String:
-		return decls.NewIdent(name, decls.String, nil)
+		return v, decls.NewIdent(name, decls.String, nil)
 	case reflect.Bool:
-		return decls.NewIdent(name, decls.Bool, nil)
-	case reflect.Array, reflect.Slice:
-		return decls.NewIdent(name, decls.Dyn, nil)
+		return v, decls.NewIdent(name, decls.Bool, nil)
+	case reflect.Array, reflect.Slice, reflect.Ptr:
+		return v, decls.NewIdent(name, decls.Dyn, nil)
 	default:
-		return nil
+		return v, nil
 	}
 }
 
@@ -84,23 +100,25 @@ func (p *Parser)CEL(src string) ([]interface{}, error) {
 			declarations = append(declarations, v)
 			switch k {
 			case globalMessage:
-				evalArg[globalMessage] = p.globalMessage
+				evalArg[globalMessage] = p.GlobalMessage
 			case globalParams:
-				evalArg[globalParams] = p.globalParams
+				evalArg[globalParams] = p.GlobalParams
 			case globalContractAddress:
-				evalArg[globalContractAddress] = p.smartContractAddress.Hex()[2:] // remove 0x out of the hex
+				evalArg[globalContractAddress] = p.SmartContractAddress.Hex()
+			case globalProxyName:
+				evalArg[globalProxyName] = p.ProxyName
 			}
 		}
 	}
 
 	// add user defined variable
-	if len(p.userDefinedVariables) > 0 {
-		for k, v := range p.userDefinedVariables {
+	if len(p.UserDefinedVariables) > 0 {
+		for k, v := range p.UserDefinedVariables {
 			if strings.Contains(src, k) {
-				ident := addPrimitiveIdent(k, reflect.TypeOf(v).Kind())
+				val, ident := addPrimitiveIdent(k, v)
 				if ident != nil {
 					declarations = append(declarations, ident)
-					evalArg[k] = v
+					evalArg[k] = val
 				}
 			}
 		}
@@ -108,7 +126,7 @@ func (p *Parser)CEL(src string) ([]interface{}, error) {
 
 	// init new env
 	env, err := cel.NewEnv(
-		cel.Types(p.globalMessage),
+		cel.Types(p.GlobalMessage),
 		cel.Declarations(declarations...),
 	)
 	if err != nil {
@@ -145,58 +163,99 @@ func (p *Parser)CEL(src string) ([]interface{}, error) {
 	return []interface{}{out.Value()}, nil
 }
 
-func (p *Parser) Nonce() uint64 {
-	nonce := p.txPool.GetAddressState(p.bc.Config().BaseAccount.Address)
-	if p.nonce < nonce {
-		p.nonce = nonce
+func (p *Parser) GetNonce() uint64 {
+	nonce := p.TxPool.GetAddressState(p.Bc.Config().BaseAccount.Address)
+
+	p.mtx.Lock()
+	defer p.mtx.Unlock()
+
+	if p.Nonce < nonce {
+		p.Nonce = nonce
 	}
-	return p.nonce
+	return p.Nonce
 }
 
-// getPrefix reads content to get prefix if any, if prefix exists, then it returns method and a list of params
-func (p *Parser)getPrefix(content string) (string, string, []string, error) {
-	if strings.Contains(content, prefixSeparator) {
-		splitContent := strings.Split(content, prefixSeparator)
-		if len(splitContent) > 2 {
-			return "", "", nil, invalidExpression
-		}
-		prefix := splitContent[0]
-		method := splitContent[1]
+func hasBuiltIn(content string) bool {
+	fnPrefix := fmt.Sprintf("%v%v", builtInFn, prefixSeparator)
+	smcPrefix := fmt.Sprintf("%v%v", builtInSmc, prefixSeparator)
+	return len(content) > 6 && (strings.HasPrefix(content, fnPrefix) || strings.HasPrefix(content, smcPrefix))
+}
 
-		// check if method contains methodName(...) or not. if not return invalid method format
-		if strings.Count(method, "(") != strings.Count(method, ")") || !strings.HasSuffix(method, ")") {
-			return "", "", nil, invalidMethodFormat
+// GetPrefix reads content to get prefix if any, if prefix exists, then it returns method and a list of params
+func (p *Parser)GetPrefix(content string) (string, string, []string, error) {
+	invalidBuiltInFuncSync := fmt.Errorf("invalid built-in function syntax")
+	if hasBuiltIn(content) {
+		// content has built-in function.
+		// get method from at position 3 to the first position of "("
+		firstParen := strings.Index(content, "(")
+		if firstParen < 0 || !strings.HasSuffix(content, ")") {
+			return "", "", nil, invalidBuiltInFuncSync
 		}
+		prefix := content[:strings.Index(content, prefixSeparator)]
+		method := content[strings.Index(content, prefixSeparator)+1:firstParen]
+		params := make([]string, 0)
 
-		// check if prefix is in predefinedPrefix
-		for _, pre := range predefinedPrefix {
-			if prefix != pre {
+		// jump content to firstParen+1 to len(content)-1
+		content := content[firstParen+1:len(content)-1]
+
+		// loop until idx < 0
+		for true {
+			// remove white space
+			content = strings.ReplaceAll(content, " ", "")
+			idx := strings.Index(content, ",")
+			if idx < 0 {
+				params = append(params, content)
+				break
+			}
+			nested := content[0:idx]
+			// if nested contains prefix then count number of paren and thesis in content until they are balanced to get whole built-in function definition
+			if hasBuiltIn(nested) {
+				i:=strings.Index(content, "(")
+				if i < 0 {
+					return "", "", nil, invalidBuiltInFuncSync
+				}
+				count := 1
+				// loop from the next index
+				for i < len(content)-1 {
+					i++
+					if content[i] == ')' {
+						count--
+					} else if content[i] == '(' {
+						count++
+					}
+					if count == 0 {
+						break
+					}
+				}
+				if count != 0 {
+					return "", "", nil, invalidBuiltInFuncSync
+				}
+				if i + 1 == len(content) {
+					// the whole new content is a built-in function
+					// do nothing, return content as method's params
+					params = append(params, content)
+					break
+				}
+				if content[i+1] != ',' || i+2 > len(content) {
+					// next index is not comma, means that it is wrong syntax
+					// after thesis(')') and comma(',') there must be at least another param.
+					// therefore check if len(content) > i + 2 or not.
+					return "", "", nil, invalidBuiltInFuncSync
+				}
+				params = append(params, content[:i+1])
+
+				// update content to i+2
+				content = content[i+2:]
 				continue
 			}
-			// otherwise start getting method and params then returns those values
-			firstIndex := strings.Index(method, "(")
-			methodParams := method[firstIndex+1:len(method)-1]
-			method = method[0:firstIndex]
-			if methodParams == "" { // method has not any param
-				return prefix, method, nil, nil
-			}
-			methodParams = strings.ReplaceAll(methodParams, " ", "")
+			params = append(params, nested)
 
-			// Note: nested function is not allowed
-			// check if string has special paramsSeparator or not. replace with temp
-			temp := "{temporary}"
-			specialParamsSeparator := fmt.Sprintf("\"%v\"", paramsSeparator)
-			if strings.Contains(methodParams, specialParamsSeparator) {
-				methodParams = strings.ReplaceAll(methodParams, specialParamsSeparator, temp)
+			if len(content) < idx + 1 {
+				break
 			}
-			params := strings.Split(methodParams, paramsSeparator)
-			for i, _ := range params {
-				if params[i] == temp {
-					params[i] = specialParamsSeparator
-				}
-			}
-			return prefix, method, params, nil
+			content = content[idx+1:]
 		}
+		return prefix, method, params, nil
 	}
 	return "", content, nil, nil
 }
@@ -216,26 +275,26 @@ func (p *Parser)applyPredefinedFunction(prefix, method string, patterns []string
 }
 
 func (p *Parser) addFunction() error {
-	if len(p.globalPatterns) == 0 {
+	if len(p.GlobalPatterns) == 0 {
 		return sourceIsEmpty
 	}
-	for p.pc < len(p.globalPatterns) {
-		pattern := p.globalPatterns[p.pc]
+	for p.Pc < len(p.GlobalPatterns) {
+		pattern := p.GlobalPatterns[p.Pc]
 		if strings.Contains(pattern, defineFunc) {
 			_, err := p.handleContent(pattern[2:len(pattern)-1])
 			if err != nil {
 				return err
 			}
 			// reset pc and start recursively again
-			p.pc = 0
+			p.Pc = 0
 			if err := p.addFunction(); err != nil {
 				return err
 			}
 		}
-		p.pc += 1
+		p.Pc += 1
 	}
 	// reset pc
-	p.pc = 0
+	p.Pc = 0
 	return nil
 }
 
@@ -243,7 +302,7 @@ func (p *Parser) addFunction() error {
 // obj must be a protobuf object
 // pkg is obj's name which is defined in protobuf
 func (p *Parser)ParseParams() error {
-	if len(p.globalPatterns) == 0 {
+	if len(p.GlobalPatterns) == 0 {
 		return sourceIsEmpty
 	}
 
@@ -252,8 +311,8 @@ func (p *Parser)ParseParams() error {
 		return err
 	}
 
-	for p.pc < len(p.globalPatterns) {
-		pattern := p.globalPatterns[p.pc]
+	for p.Pc < len(p.GlobalPatterns) {
+		pattern := p.GlobalPatterns[p.Pc]
 		var val []interface{}
 		var err error
 		// if src is greater or equals minLength and has structure ${...} then CEL is applied
@@ -273,27 +332,42 @@ func (p *Parser)ParseParams() error {
 				if _, ok := signals[lastEl.(string)]; ok {
 					switch lastEl.(string) {
 					case signalContinue:
-						p.globalParams = append(p.globalParams.([]interface{}), val[0:len(val)-1]...)
-						p.pc++
+						p.GlobalParams = append(p.GlobalParams, val[0:len(val)-1]...)
+						p.Pc++
 						continue
 					case signalReturn:
-						p.globalParams = append(p.globalParams.([]interface{}), val[0:len(val)-1]...)
+						p.GlobalParams = append(p.GlobalParams, val[0:len(val)-1]...)
 						return nil
 					case signalStop:
 						return stopSignal
 					}
 				}
 			}
-			p.globalParams = append(p.globalParams.([]interface{}), val...)
+			p.GlobalParams = append(p.GlobalParams, val...)
 		}
-		p.pc++
+		p.Pc++
 	}
 	return nil
 }
 
+func (p *Parser)handleContents(contents []interface{}) ([]interface{}, error) {
+	results := make([]interface{}, 0)
+	for _, content := range contents {
+		data, err := p.handleContent(content.(string))
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, data[0])
+	}
+	if len(results) != len(contents) {
+		return nil, fmt.Errorf("problem occurred while handling content, len output does not match with len input")
+	}
+	return results, nil
+}
+
 func (p *Parser)handleContent(content string) ([]interface{}, error) {
 	// check if content contains any predefined prefix
-	prefix, method, patterns, err := p.getPrefix(content)
+	prefix, method, patterns, err := p.GetPrefix(content)
 	var val []interface{}
 	if err != nil {
 		return nil, err
@@ -309,4 +383,20 @@ func (p *Parser)handleContent(content string) ([]interface{}, error) {
 		return nil, err
 	}
 	return val, nil
+}
+
+func (p *Parser) GetGlobalParams() []interface{} {
+	return p.GlobalParams
+}
+
+func (p *Parser) GetParams() ([]string, error) {
+	results := make([]string, 0)
+	for _, param := range p.GlobalParams {
+		v, err := InterfaceToString(param)
+		if err != nil {
+			return nil, err
+		}
+		results = append(results, v)
+	}
+	return results, nil
 }

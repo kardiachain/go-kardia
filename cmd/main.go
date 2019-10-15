@@ -447,27 +447,28 @@ func (c *Config) SaveWatchers(service node.Service, events []Event) {
 	if events != nil {
 		for _, event := range events {
 			abi := ""
+			masterAbi := ""
 			if event.ABI != nil {
 				abi = *event.ABI
 			}
-			watcherActions := make(types.WatcherActions, 0)
-			for _, action := range event.WatcherActions {
-				watcherActions = append(watcherActions, &types.WatcherAction{
+			if event.MasterABI != nil {
+				masterAbi = *event.MasterABI
+			}
+			watchers := make(types.Watchers, 0)
+			for _, action := range event.Watchers{
+				watchers = append(watchers, &types.Watcher{
 					Method:     action.Method,
-					DualAction: action.DualAction,
+					WatcherActions: action.WatcherActions,
+					DualActions: action.DualActions,
 				})
 			}
-
-			dualActions := make(types.DualActions, 0)
-			for _, action := range event.DualActions {
-				dualActions = append(dualActions, &types.DualAction{Name: action})
-			}
-
+			masterSmc := common.HexToAddress(event.MasterSmartContract)
 			smc := &types.KardiaSmartcontract{
+				MasterSmc:      &masterSmc,
+				MasterAbi:      masterAbi,
 				SmcAddress:     event.ContractAddress,
 				SmcAbi:         abi,
-				WatcherActions: watcherActions,
-				DualActions:    dualActions,
+				Watchers:       watchers,
 			}
 			service.DB().WriteEvent(smc)
 		}

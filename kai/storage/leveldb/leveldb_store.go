@@ -176,18 +176,13 @@ func (db *LDBStore) ReadSmartContractAbi(address string) *abi.ABI {
 }
 
 // ReadEvent gets watcher action by smart contract address and method
-func (db *LDBStore) ReadEvent(address string, method string) *types.WatcherAction {
+func (db *LDBStore) ReadEvent(address string, method string) *types.Watcher {
 	return CommonReadEvent(db, address, method)
 }
 
 // ReadEvents returns a list of watcher action by smart contract address
-func (db *LDBStore) ReadEvents(address string) []*types.WatcherAction {
+func (db *LDBStore) ReadEvents(address string) (string, []*types.Watcher) {
 	return CommonReadEvents(db, address)
-}
-
-// ReadSmartContractFromDualAction returns smart contract address and its abi (if any) from dual action
-func (db *LDBStore) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {
-	return CommonReadEventFromDualAction(db, action)
 }
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block height.
@@ -592,16 +587,12 @@ func (db *ldbBatch) ReadSmartContractAbi(address string) *abi.ABI {
 	return CommonReadSmartContractAbi(db, address)
 }
 
-func (db *ldbBatch) ReadEvent(address string, method string) *types.WatcherAction {
+func (db *ldbBatch) ReadEvent(address string, method string) *types.Watcher {
 	return CommonReadEvent(db, address, method)
 }
 
-func (db *ldbBatch) ReadEvents(address string) []*types.WatcherAction {
+func (db *ldbBatch) ReadEvents(address string) (string, []*types.Watcher) {
 	return CommonReadEvents(db, address)
-}
-
-func (db *ldbBatch) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {
-	return CommonReadEventFromDualAction(db, action)
 }
 
 func (b *ldbBatch) Delete(key interface{}) error {

@@ -1,6 +1,7 @@
-package ksml
+package tests
 
 import (
+	"github.com/kardiachain/go-kardia/ksml"
 	message "github.com/kardiachain/go-kardia/ksml/proto"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -787,7 +788,7 @@ var (
 )
 
 func TestApplyBuiltInFunc(t *testing.T) {
-	out, err := BuiltInFuncMap[ping](nil, nil)
+	out, err := ksml.BuiltInFuncMap["ping"](nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, out, []interface{}{"pong"})
 }
@@ -798,7 +799,7 @@ func TestGetDataFromSmc(t *testing.T) {
 	require.NoError(t, err)
 	method := "getData"
 	params := []interface{}{method}
-	val, err := getDataFromSmc(parser, params...)
+	val, err := ksml.GetDataFromSmc(parser, params...)
 	require.NoError(t, err)
 	require.Equal(t, []interface{}{uint8(0)}, val)
 }
@@ -819,7 +820,7 @@ func TestAddVar(t *testing.T) {
 	expected := map[string]interface{}{
 		"testVar": big.NewInt(int64(1)),
 	}
-	require.Equal(t, expected, parser.userDefinedVariables)
+	require.Equal(t, expected, parser.UserDefinedVariables)
 }
 
 func TestReadVarInPattern(t *testing.T) {
@@ -837,7 +838,7 @@ func TestReadVarInPattern(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := []interface{}{true}
-	require.Equal(t, expected, parser.globalParams)
+	require.Equal(t, expected, parser.GetGlobalParams())
 }
 
 func TestReadVarInPattern_withList(t *testing.T) {
@@ -857,7 +858,7 @@ func TestReadVarInPattern_withList(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := []interface{}{uint64(3),true,true}
-	require.Equal(t, expected, parser.globalParams)
+	require.Equal(t, expected, parser.GetGlobalParams())
 }
 
 func TestGetDataFromSmc_WithCELParams(t *testing.T) {
@@ -867,17 +868,16 @@ func TestGetDataFromSmc_WithCELParams(t *testing.T) {
 	require.NoError(t, err)
 	method := "Calculate"
 	params := []interface{}{method, "message.params[0]", "message.params[1]"}
-	val, err := getDataFromSmc(parser, params...)
+	val, err := ksml.GetDataFromSmc(parser, params...)
 	require.NoError(t, err)
 	require.Equal(t, []interface{}{uint8(3)}, val)
 }
 
 func TestConvertParams_getFirst12Int(t *testing.T) {
-	parser := &Parser{
-		globalMessage: &message.EventMessage{
-			Params: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"},
-		},
-		globalPatterns: []string{
+	parser, err := setup(
+		sampleCode1,
+		sampleDefinition1,
+		[]string{
 			"message.params[0]",
 			"message.params[1]",
 			"message.params[2]",
@@ -891,13 +891,16 @@ func TestConvertParams_getFirst12Int(t *testing.T) {
 			"message.params[10]",
 			"message.params[11]",
 		},
-		globalParams: []interface{}{0},
-	}
+		&message.EventMessage{
+			Params: []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"},
+		},
+	)
+	require.NoError(t, err)
 	kAbi, err := abi.JSON(strings.NewReader(sampleDefinition3))
 	require.NoError(t, err)
 	method := "getFirst12Int"
 	args := kAbi.Methods[method].Inputs
-	results, err := convertParams(parser, args, parser.globalPatterns)
+	results, err := ksml.ConvertParams(parser, args, parser.GlobalPatterns)
 	require.NoError(t, err)
 
 	expectedResult := []interface{}{
@@ -918,20 +921,20 @@ func TestConvertParams_getFirst12Int(t *testing.T) {
 }
 
 func TestConvertParams_getBool(t *testing.T) {
-	parser := &Parser{
-		globalMessage: &message.EventMessage{
+	parser := &ksml.Parser{
+		GlobalMessage: &message.EventMessage{
 			Params: []string{"true"},
 		},
-		globalPatterns: []string{
+		GlobalPatterns: []string{
 			"message.params[0]",
 		},
-		globalParams: []interface{}{0},
+		GlobalParams: []interface{}{0},
 	}
 	kAbi, err := abi.JSON(strings.NewReader(sampleDefinition3))
 	require.NoError(t, err)
 	method := "getBool"
 	args := kAbi.Methods[method].Inputs
-	results, err := convertParams(parser, args, parser.globalPatterns)
+	results, err := ksml.ConvertParams(parser, args, parser.GlobalPatterns)
 	require.NoError(t, err)
 
 	expectedResult := []interface{}{true}
@@ -939,20 +942,20 @@ func TestConvertParams_getBool(t *testing.T) {
 }
 
 func TestConvertParams_getString(t *testing.T) {
-	parser := &Parser{
-		globalMessage: &message.EventMessage{
+	parser := &ksml.Parser{
+		GlobalMessage: &message.EventMessage{
 			Params: []string{"hello"},
 		},
-		globalPatterns: []string{
+		GlobalPatterns: []string{
 			"message.params[0]",
 		},
-		globalParams: []interface{}{0},
+		GlobalParams: []interface{}{0},
 	}
 	kAbi, err := abi.JSON(strings.NewReader(sampleDefinition3))
 	require.NoError(t, err)
 	method := "getString"
 	args := kAbi.Methods[method].Inputs
-	results, err := convertParams(parser, args, parser.globalPatterns)
+	results, err := ksml.ConvertParams(parser, args, parser.GlobalPatterns)
 	require.NoError(t, err)
 
 	expectedResult := []interface{}{"hello"}
@@ -960,20 +963,20 @@ func TestConvertParams_getString(t *testing.T) {
 }
 
 func TestConvertParams_getAddress(t *testing.T) {
-	parser := &Parser{
-		globalMessage: &message.EventMessage{
+	parser := &ksml.Parser{
+		GlobalMessage: &message.EventMessage{
 			Params: []string{"0x0A"},
 		},
-		globalPatterns: []string{
+		GlobalPatterns: []string{
 			"message.params[0]",
 		},
-		globalParams: []interface{}{0},
+		GlobalParams: []interface{}{0},
 	}
 	kAbi, err := abi.JSON(strings.NewReader(sampleDefinition3))
 	require.NoError(t, err)
 	method := "getAddress"
 	args := kAbi.Methods[method].Inputs
-	results, err := convertParams(parser, args, parser.globalPatterns)
+	results, err := ksml.ConvertParams(parser, args, parser.GlobalPatterns)
 	require.NoError(t, err)
 
 	expectedResult := []interface{}{common.HexToAddress("0x0A")}
@@ -1000,7 +1003,7 @@ func TestExecuteIfElse(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedParams := []interface{}{"1",false,uint64(5)}
-	require.Equal(t, expectedParams, parser.globalParams)
+	require.Equal(t, expectedParams, parser.GetGlobalParams())
 }
 
 func TestExecuteIfElse_callElse(t *testing.T) {
@@ -1023,8 +1026,31 @@ func TestExecuteIfElse_callElse(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedParams := []interface{}{"1","4",uint64(5)}
-	require.Equal(t, expectedParams, parser.globalParams)
+	require.Equal(t, expectedParams, parser.GetGlobalParams())
 }
+
+//func TestExecuteIfElse_nestedIf(t *testing.T) {
+//	parser, err := setup(sampleCode2, sampleDefinition2, []string{
+//		"${message.params[0]}",
+//		"${fn:if(name1,uint(message.params[1])==uint(3))}",
+//		"${uint(message.params[0])+uint(message.params[1])}",
+//		"${fn:elif(name1,uint(message.params[1])==uint(3))}",
+//		"${uint(message.params[2])==uint(2)}",
+//		"${fn:else(name1)}",
+//		"${message.params[3]}",
+//		"${fn:endif(name1)}",
+//		"${uint(message.params[3])+uint(1)}",
+//	}, &message.EventMessage{
+//		Params: []string{"1", "2", "3", "4"},
+//	})
+//	require.NoError(t, err)
+//
+//	err = parser.ParseParams()
+//	require.NoError(t, err)
+//
+//	expectedParams := []interface{}{"1","4",uint64(5)}
+//	require.Equal(t, expectedParams, parser.GetGlobalParams())
+//}
 
 func TestExecuteIfElse_overwriteVar(t *testing.T) {
 	parser, err := setup(sampleCode2, sampleDefinition2, []string{
@@ -1049,19 +1075,19 @@ func TestExecuteIfElse_overwriteVar(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedParams := []interface{}{"1","4",uint64(5)}
-	require.Equal(t, expectedParams, parser.globalParams)
+	require.Equal(t, expectedParams, parser.GetGlobalParams())
 
 	expectedDefinedVar := map[string]interface{}{
 		"testVar": uint64(2),
 	}
-	require.Equal(t, expectedDefinedVar, parser.userDefinedVariables)
+	require.Equal(t, expectedDefinedVar, parser.UserDefinedVariables)
 }
 
 func TestForEach(t *testing.T) {
 	parser, err := setup(sampleCode2, sampleDefinition2, []string{
 		"${fn:var(testVar,uint64,1)}",
-		"${fn:forEach(name1,message.params)}",
-		"${fn:var(msgParam,uint64,message.params[LOOP_INDEX])}",
+		"${fn:forEach(name1,message.params,index)}",
+		"${fn:var(msgParam,uint64,message.params[index])}",
 		"${fn:var(testVar,uint64,testVar+msgParam)}",
 		"${fn:endForEach(name1)}",
 	}, &message.EventMessage{
@@ -1075,14 +1101,38 @@ func TestForEach(t *testing.T) {
 	expectedDefinedVar := map[string]interface{}{
 		"testVar": uint64(11),
 	}
-	require.Equal(t, expectedDefinedVar, parser.userDefinedVariables)
+	require.Equal(t, expectedDefinedVar, parser.UserDefinedVariables)
+}
+
+func TestForEach1(t *testing.T) {
+	parser, err := setup(sampleCode2, sampleDefinition2, []string{
+		"${fn:var(l1,list,fn:split(message.params[0],';'))}",
+		"${fn:var(l2,list,fn:split(message.params[1],';'))}",
+		"${fn:var(l3,list,fn:split(message.params[2],';'))}",
+		"${fn:var(l4,list,fn:split(message.params[3],';'))}",
+		"${fn:var(testVar,uint64,1)}",
+		"${fn:forEach(name1,l1,i)}",
+		"${fn:var(el1,int,l1[i])}",
+		"${fn:validate(el1==int(1),SIGNAL_CONTINUE,SIGNAL_RETURN)}",
+		"${fn:endForEach(name1)}",
+		"hello",
+	}, &message.EventMessage{
+		Params: []string{"1;2;3", "4;5;6", "7;8;9", "10;11;12"},
+	})
+	require.NoError(t, err)
+
+	err = parser.ParseParams()
+	require.NoError(t, err)
+
+	expectedParams := []interface{}{"hello"}
+	require.Equal(t, expectedParams, parser.GlobalParams)
 }
 
 func TestSplit(t *testing.T) {
 	parser, err := setup(sampleCode2, sampleDefinition2, []string{
-		"${fn:split(message.params[0],\",\")}",
+		"${fn:split(message.params[0],';')}",
 	}, &message.EventMessage{
-		Params: []string{"1,2,3,4"},
+		Params: []string{"1;2;3;4"},
 	})
 	require.NoError(t, err)
 
@@ -1092,7 +1142,7 @@ func TestSplit(t *testing.T) {
 	expectedParams := []interface{}{[]string{
 		"1", "2", "3", "4",
 	}}
-	require.Equal(t, expectedParams, parser.globalParams)
+	require.Equal(t, expectedParams, parser.GetGlobalParams())
 }
 
 func TestDefineFunc(t *testing.T) {
@@ -1108,7 +1158,7 @@ func TestDefineFunc(t *testing.T) {
 
 	err = parser.ParseParams()
 	require.NoError(t, err)
-	require.Len(t, parser.globalPatterns, 1)
+	require.Len(t, parser.GlobalPatterns, 1)
 }
 
 func TestDefine2Functions(t *testing.T) {
@@ -1127,7 +1177,7 @@ func TestDefine2Functions(t *testing.T) {
 
 	err = parser.ParseParams()
 	require.NoError(t, err)
-	require.Len(t, parser.globalPatterns, 1)
+	require.Len(t, parser.GlobalPatterns, 1)
 }
 
 func TestCallFunc(t *testing.T) {
@@ -1143,10 +1193,10 @@ func TestCallFunc(t *testing.T) {
 
 	err = parser.ParseParams()
 	require.NoError(t, err)
-	require.Len(t, parser.globalPatterns, 1)
+	require.Len(t, parser.GlobalPatterns, 1)
 
 	expectedParams := []interface{}{uint64(3)}
-	require.Equal(t, expectedParams, parser.globalParams)
+	require.Equal(t, expectedParams, parser.GetGlobalParams())
 }
 
 func TestTriggerSmc(t *testing.T) {
@@ -1160,8 +1210,8 @@ func TestTriggerSmc(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedPoolLen := 1
-	require.Equal(t, parser.txPool.PendingSize(), expectedPoolLen)
-	require.Equal(t, uint64(2), parser.nonce)
+	require.Equal(t, parser.TxPool.PendingSize(), expectedPoolLen)
+	require.Equal(t, uint64(2), parser.Nonce)
 }
 
 func TestPublishMessage(t *testing.T) {

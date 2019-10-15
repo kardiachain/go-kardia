@@ -234,7 +234,7 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 
 	// GasPool
 	bo.logger.Info("header gas limit", "limit", header.GasLimit)
-	gasPool := new(GasPool).AddGas(header.GasLimit)
+	gasPool := new(types.GasPool).AddGas(header.GasLimit)
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
 LOOP:

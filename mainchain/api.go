@@ -644,7 +644,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 		kvm.Cancel()
 	}()
 	// Apply the transaction to the current state (included in the env)
-	gp := new(blockchain.GasPool).AddGas(common.MaxUint64)
+	gp := new(types.GasPool).AddGas(common.MaxUint64)
 	res, gas, failed, err := blockchain.ApplyMessage(kvm, msg, gp)
 	if err != nil {
 		return nil, 0, false, err
