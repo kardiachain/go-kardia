@@ -58,7 +58,7 @@ func ApplyTransactionReturnLog(bc base.BaseBlockChain, statedb *state.StateDB, t
 	var (
 		usedGas = new(uint64)
 		header  = &types.Header{Time: big.NewInt(time.Now().Unix()), GasLimit: 10000000}
-		gp      = new(blockchain.GasPool).AddGas(10000000)
+		gp      = new(types.GasPool).AddGas(10000000)
 		logger  = log.New()
 	)
 	statedb.Prepare(tx.Hash(), common.Hash{}, 1)

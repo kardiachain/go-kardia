@@ -249,8 +249,6 @@ func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) error 
 		dbo.logger.Debug("processing event",
 			"hash", event.Hash().Hex(),
 			"sender", sender.Hash().Hex(),
-			"dualAction", event.TriggeredEvent.Action,
-			"method", event.TriggeredEvent.Data.TxMethod,
 			"txSource", event.TriggeredEvent.TxSource,
 			"txHash", event.TriggeredEvent.TxHash.Hex(),
 		)
@@ -266,8 +264,6 @@ func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) error 
 		} else {
 			dbo.logger.Info("Submit dual event successfully",
 				"sender", sender.Hex(), "txSource", event.TriggeredEvent.TxSource,
-				"method", event.TriggeredEvent.Data.TxMethod,
-				"dualAction", event.TriggeredEvent.Action,
 				"txHash",event.TriggeredEvent.TxHash.Hex(),
 				"eventHash", event.Hash().Hex(),
 			)
