@@ -197,6 +197,9 @@ func (p *Parser)GetPrefix(content string) (string, string, []string, error) {
 
 		// jump content to firstParen+1 to len(content)-1
 		content := content[firstParen+1:len(content)-1]
+		if content == "" {
+			return prefix, method, params, nil
+		}
 
 		// loop until idx < 0
 		for true {

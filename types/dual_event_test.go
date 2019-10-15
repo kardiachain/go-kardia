@@ -20,6 +20,7 @@ package types
 
 import (
 	"bytes"
+	message "github.com/kardiachain/go-kardia/ksml/proto"
 	"testing"
 
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -41,6 +42,5 @@ func TestDualEventsEncoding(t *testing.T) {
 }
 
 func CreateNewDualEvent(nonce uint64) *DualEvent {
-	dualAction := DualAction{Name:"dual_test"}
-	return NewDualEvent(nonce, false, "KAI", new(common.Hash), new(EventSummary), &dualAction)
+	return NewDualEvent(nonce, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})
 }
