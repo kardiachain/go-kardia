@@ -274,7 +274,7 @@ func (db *MemStore) WriteEvent(smc *KardiaSmartcontract) {
 	}
 	// Write master contract abi
 	masterSmc := smartContract{
-		Address: smc.MasterSmc.Hex(),
+		Address: smc.MasterSmc,
 		ABI:     smc.MasterAbi,
 	}
 	encodedData, err = rlp.EncodeToBytes(masterSmc)

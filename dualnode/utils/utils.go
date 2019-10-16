@@ -158,7 +158,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 		watcher := proxy.DualBlockChain().DB().ReadEvent(contractAddress, msg.MethodName)
 		if watcher != nil {
 			// get kardia master smc from dualAction
-			smc, _ := proxy.KardiaBlockChain().DB().ReadEvents(contractAddress)
+			smc, _ := proxy.DualBlockChain().DB().ReadEvents(contractAddress)
 			if smc == "" {
 				return fmt.Errorf("cannot find dualAction from watcherAction %v", watcher.Method)
 			}

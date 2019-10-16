@@ -102,7 +102,7 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 	contractAddress := common.HexToAddress("0x0A")
 
 	smc := &kaiType.KardiaSmartcontract{
-		MasterSmc:      &contractAddress,
+		MasterSmc:      contractAddress.Hex(),
 		SmcAddress:     contractAddress.Hex(),
 		MasterAbi:      sampleDefinition,
 		SmcAbi:         sampleDefinition,
@@ -166,10 +166,9 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 
 func TestParseParams_withReturn(t *testing.T) {
 	patterns := []string{
-		"${smc:getData(getSingleUintValue)}",
-		"${smc:getData(getBoolValue,message.params[0])}",
-		"${fn:validate(params[1],SIGNAL_CONTINUE,SIGNAL_RETURN)}",
-		"${smc:getData(getStringValue)}",
+		"${fn:var(data,bool,true)}",
+		"${fn:validate(data,SIGNAL_CONTINUE,SIGNAL_RETURN)}",
+		"hello",
 	}
 	msg := &message.EventMessage{
 		Params: []string{"true"},
@@ -180,7 +179,7 @@ func TestParseParams_withReturn(t *testing.T) {
 	err = parser.ParseParams()
 	require.NoError(t, err)
 
-	expectedResult := []interface{}{uint8(1), false}
+	expectedResult := []interface{}{"hello"}
 	require.Equal(t, parser.GetGlobalParams(), expectedResult)
 }
 
@@ -191,10 +190,9 @@ func TestParseParams_withContinue(t *testing.T) {
 	}
 
 	patterns := []string{
-		"${smc:getData(getSingleUintValue)}",
-		"${smc:getData(getBoolValue,message.params[0])}",
-		"${fn:validate(params[1],SIGNAL_CONTINUE,SIGNAL_RETURN)}",
-		"${smc:getData(getStringValue)}",
+		"${fn:var(data,bool,message.params[0])}",
+		"${fn:validate(data,SIGNAL_CONTINUE,SIGNAL_RETURN)}",
+		"hello",
 	}
 
 	parser, err := setup(sampleCode4, sampleDefinition4, patterns, msg)
@@ -203,7 +201,7 @@ func TestParseParams_withContinue(t *testing.T) {
 	err = parser.ParseParams()
 	require.NoError(t, err)
 
-	expectedResult := []interface{}{uint8(1), true, "hello"}
+	expectedResult := make([]interface{}, 0)
 	require.Equal(t, parser.GetGlobalParams(), expectedResult)
 }
 
@@ -227,7 +225,7 @@ func TestParseParams_withStop(t *testing.T) {
 	require.Errorf(t, err, "signal stop has been applied")
 }
 
-func TestStimulateDexReleaseEvent(t *testing.T) {
+func TestSimulateDexReleaseEvent(t *testing.T) {
 	// event message is a result generated from watcherActions
 	msg := &message.EventMessage{
 		Params: []string{
@@ -322,8 +320,8 @@ func TestStimulateDexReleaseEvent(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestStimulateDexDepositETHEvent(t *testing.T) {
-
+func TestSimulateDexDepositETHEvent(t *testing.T) {
+	// assume that all contract call/trigger are correct. Only test normal actions
 	// event message is a result generated from watcherActions
 	msg := &message.EventMessage{
 		From: "ETH",
@@ -362,6 +360,90 @@ func TestStimulateDexDepositETHEvent(t *testing.T) {
 		//"${fn:var(addOrderTx,string,smc:trigger(addOrder,message.from,message.to,message.params[0],message.receiver,message.transactionId,convertedAmount,timeStamp))}",
 		//"${smc:trigger(updateKardiaTx,message.transactionId,addOrderTx)}",
 	}
+	parser, err := setup(sampleCode4, sampleDefinition4, patterns, msg)
+	require.NoError(t, err)
+
+	err = parser.ParseParams()
+	require.NoError(t, err)
+}
+
+func TestSimulateDexDepositTRX(t *testing.T) {
+	// assume that all contract call/trigger are correct. Only test normal actions
+	// event message is a result generated from watcherActions
+	msg := &message.EventMessage{
+		From: "TRX",
+		To: "ETH",
+		Amount: 16571000,
+		TransactionId: "375b6ee6ce8ccfd28ec7805b91190245ab926a04397bbaef6643627d658adf9f",
+		Sender: "TMm48VEk8foxwo5656DsAS58WKtgV7fYtH",
+		Params: []string{
+			"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6",
+			"ETH",
+		},
+	}
+
+	patterns := []string{
+		"${fn:var(timeStamp,bigInt,fn:currentTimeStamp())}",
+		//"${smc:getData(message.from,message.to)}",
+		"100000000",
+		"16571",
+		"${fn:var(fromAmount,bigInt,params[0])}",
+		"${fn:var(toAmount,bigInt,params[1])}",
+		"${fn:var(zeroValue,bigInt,0)}",
+		"${fn:cmp(fromAmount,zeroValue,SIGNAL_STOP,SIGNAL_CONTINUE)}",
+		"${fn:cmp(toAmount,zeroValue,SIGNAL_STOP,SIGNAL_CONTINUE)}",
+		"${fn:var(convertedAmount,bigInt,fn:int(message.amount))}",
+		//"${fn:var(addOrderTx,string,smc:trigger(addOrder,message.from,message.to,message.sender,message.params[0],message.transactionId,convertedAmount,timeStamp))}",
+		//"${smc:trigger(updateKardiaTx,message.transactionId,addOrderTx)}",
+	}
+
+	parser, err := setup(sampleCode4, sampleDefinition4, patterns, msg)
+	require.NoError(t, err)
+
+	err = parser.ParseParams()
+	require.NoError(t, err)
+}
+
+func TestSimulateDexDepositNEO(t *testing.T) {
+	// assume that all contract call/trigger are correct. Only test normal actions
+	// event message is a result generated from watcherActions
+	msg := &message.EventMessage{
+		From: "NEO",
+		To: "ETH",
+		Amount: 6482133,
+		TransactionId: "728f62b40d778ac1dcaadf912a91fbbd6b9d4550723ec91b5089c950524fc087",
+		Sender: "AHJoAbhenvrgSqUpfLWuwy55Lyi596MEt3",
+		Params: []string{
+			"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6",
+			"ETH",
+		},
+	}
+
+	patterns := []string{
+		"${fn:var(tenPoweredByEight,bigInt,fn:exp(fn:int(10),fn:int(8)))}",
+		"${fn:var(tenPoweredBySix,bigInt,fn:exp(fn:int(10),fn:int(6)))}",
+		"${fn:var(timeStamp,bigInt,fn:currentTimeStamp())}",
+		"${fn:var(convertedAmount,bigInt,0)}",
+		"100000000",
+		"6482133",
+		"${fn:var(fromAmount,bigInt,params[0])}",
+		"${fn:var(toAmount,bigInt,params[1])}",
+		"${fn:var(zeroValue,bigInt,0)}",
+		"${fn:cmp(fromAmount,zeroValue,SIGNAL_STOP,SIGNAL_CONTINUE)}",
+		"${fn:cmp(toAmount,zeroValue,SIGNAL_STOP,SIGNAL_CONTINUE)}",
+		"${fn:if(evaluateDestination,message.to=='ETH')}",
+		"${fn:var(convertedAmount,bigInt,fn:mul(fn:int(message.amount),tenPoweredByEight))}",
+		"${fn:elif(evaluateDestination,message.to=='TRX')}",
+		"${fn:var(rateFloat,float64,fn:format(fn:div(fn:float(fromAmount),fn:float(toAmount)),6))}",
+		"${fn:var(rateInt,bigInt,fn:int(fn:mul(rateFloat,fn:float(tenPoweredBySix)))}",
+		"${fn:var(convertedAmount,bigInt,fn:mul(rateInt,fn:int(message.amount)))}",
+		"${fn:else(evaluateDestination)}",
+		"SIGNAL_STOP",
+		"${fn:endif(evaluateDestination)}",
+		//"${fn:var(addOrderTx,string,smc:trigger(addOrder,message.from,message.to,message.sender,message.params[0],message.transactionId,convertedAmount,timeStamp))}",
+		//"${smc:trigger(updateKardiaTx,message.transactionId,addOrderTx)}",
+	}
+
 	parser, err := setup(sampleCode4, sampleDefinition4, patterns, msg)
 	require.NoError(t, err)
 

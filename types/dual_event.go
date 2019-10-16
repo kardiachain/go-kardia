@@ -67,7 +67,7 @@ type KardiaSmartcontract struct {
 	SmcAddress string
 
 	// master smart contract is Kardia contract address
-	MasterSmc *common.Address
+	MasterSmc string
 
 	MasterAbi string
 

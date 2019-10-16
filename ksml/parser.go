@@ -102,7 +102,18 @@ func (p *Parser)CEL(src string) ([]interface{}, error) {
 			case globalMessage:
 				evalArg[globalMessage] = p.GlobalMessage
 			case globalParams:
-				evalArg[globalParams] = p.GlobalParams
+				params := make([]interface{}, 0)
+				for _, p := range p.GlobalParams {
+					if reflect.ValueOf(p).Type().String() == "*big.Int" {
+						params = append(params, p.(*big.Int).Int64())
+					} else if reflect.ValueOf(p).Type().String() == "*big.Float" {
+						floatValue, _ := p.(*big.Float).Float64()
+						params = append(params, floatValue)
+					} else {
+						params = append(params, p)
+					}
+				}
+				evalArg[globalParams] = params
 			case globalContractAddress:
 				evalArg[globalContractAddress] = p.SmartContractAddress.Hex()
 			case globalProxyName:
@@ -323,7 +334,7 @@ func (p *Parser)ParseParams() error {
 			content := pattern[2:len(pattern)-1]
 			val, err = p.handleContent(content)
 			if err != nil {
-				return err
+				return fmt.Errorf("error while handling content at line %v - %v", p.Pc, err)
 			}
 		} else {
 			val = []interface{}{pattern}

@@ -305,6 +305,9 @@ var (
 			return val.(string), nil
 		},
 		boolType: func(val interface{}) (interface{}, error) {
+			if reflect.ValueOf(val).Type().Kind() == reflect.Bool {
+				return reflect.ValueOf(val).Bool(), nil
+			}
 			return strconv.ParseBool(val.(string))
 		},
 		listType: func(val interface{}) (interface{}, error) {
@@ -344,6 +347,11 @@ func InterfaceToString(val interface{}) (string, error) {
 }
 
 func convertToNative(val reflect.Value) (interface{}, error) {
+	if val.Type().String() == "*big.Int" {
+		return val.Interface().(*big.Int), nil
+	} else if val.Type().String() == "*big.Float" {
+		return val.Interface().(*big.Float), nil
+	}
 	kind := val.Kind()
 	switch kind {
 	case reflect.String:
@@ -375,7 +383,7 @@ func convertToNative(val reflect.Value) (interface{}, error) {
 	case reflect.Float32, reflect.Float64:
 		return val.Float(), nil
 	}
-	return "", fmt.Errorf("unsupported value type")
+	return "", fmt.Errorf("unsupported value type %v", val.Type().String())
 }
 
 func interfaceToSlice(val interface{}) ([]interface{}, error) {

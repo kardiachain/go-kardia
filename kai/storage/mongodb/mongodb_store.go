@@ -386,7 +386,7 @@ func (db *Store) WriteEvent(smc *types.KardiaSmartcontract) {
 	if len(smc.Watchers) > 0 {
 		for _, action := range smc.Watchers {
 			evt := Watcher{
-				MasterContractAddress: smc.MasterSmc.Hex(),
+				MasterContractAddress: smc.MasterSmc,
 				ContractAddress: smc.SmcAddress,
 				MasterABI:       smc.MasterAbi,
 				ABI:             smc.SmcAbi,

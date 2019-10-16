@@ -77,7 +77,7 @@ type (
 	Watcher struct {
 		Method           string             `yaml:"Method"`
 		WatcherActions   []string           `yaml:"WatcherActions,omitempty"`
-		DualActions      []string           `yaml:"DualAction"`
+		DualActions      []string           `yaml:"DualActions"`
 	}
 	BaseAccount struct {
 		Address      string       `yaml:"Address"`
