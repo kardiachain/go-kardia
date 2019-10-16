@@ -91,10 +91,10 @@ MainChain:
             # Therefore before executing watcherActions, message originally has size = 7
             - "${smc:getData(getRate,message.params[0],message.params[1])}"
             # after getting rate message.params append fromAmount, toAmount -> its length turns to 9: [7]=fromAmount [8]=toAmount
-            - "${fn:validate(params[7]==int(0) || params[8]==int(0),SIGNAL_STOP,SIGNAL_CONTINUE)}"
-            - "${smc:getData(getMatchingResult,params[2])}"
+            - "${fn:validate(params[0]==0 || params[1]==0,SIGNAL_STOP,SIGNAL_CONTINUE)}"
+            - "${smc:getData(getMatchingResult,message.params[4])}"
             # getMatchingResults returns a string contains released information, [9]=released information
-            - "${fn:validate(params[9]=='',SIGNAL_STOP,SIGNAL_CONTINUE)}"
+            - "${fn:validate(params[2]=='',SIGNAL_STOP,SIGNAL_CONTINUE)}"
           DualActions:
             # define CalculateReleasedAmountToEth function
             - "${fn:defineFunc(CalculateReleasedAmountToEth)}"
@@ -246,7 +246,7 @@ DualChain:
           DualActions:
             - "${fn:var(tenPoweredByTen,bigInt,fn:exp(fn:int(10),fn:int(10)))}"
             - "${fn:var(tenPoweredByTwelve,bigInt,fn:exp(fn:int(10),fn:int(12)))}"
-            - "${fn:var(timeStamp,int64,fn:currentTimeStamp())}"
+            - "${fn:var(timeStamp,bigInt,fn:currentTimeStamp())}"
             - "${smc:getData(getRate,message.from,message.to)}"
             - "${fn:var(fromAmount,bigInt,params[0])}"
             - "${fn:var(toAmount,bigInt,params[1])}"

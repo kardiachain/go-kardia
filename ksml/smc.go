@@ -63,7 +63,7 @@ func GetDataFromSmc(p *Parser, extras ...interface{}) ([]interface{}, error) {
 		return nil, err
 	}
 	// unpack result into output
-	if err := kAbi.Unpack(&outputResult, method, result); err != nil {
+	if err := kAbi.Unpack(outputResult, method, result); err != nil {
 		return nil, err
 	}
 	// loop for each field in output. Convert to string and add them into a list
@@ -159,6 +159,17 @@ func ConvertParams(p *Parser, arguments abi.Arguments, patterns []string) ([]int
 		arg := arguments[i]
 		t := arg.Type.Kind
 		for _, val := range vals {
+			v, err := InterfaceToString(val)
+			if err != nil {
+				return nil, err
+			}
+			// handle special case: bigInt in arg
+			if arg.Type.Type.String() == "*big.Int" {
+				result, _ := big.NewInt(0).SetString(v, 10)
+				abiInputs = append(abiInputs, result)
+				continue
+			}
+
 			if reflect.TypeOf(val).Kind() != reflect.String {
 				abiInputs = append(abiInputs, val)
 				continue
@@ -167,62 +178,62 @@ func ConvertParams(p *Parser, arguments abi.Arguments, patterns []string) ([]int
 			case reflect.String: abiInputs = append(abiInputs, val)
 			case reflect.Int8:
 				// convert val to int based with bitSize = 8
-				result, err := strconv.ParseInt(val.(string), 10, 8)
+				result, err := strconv.ParseInt(v, 10, 8)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, int8(result))
 			case reflect.Int16:
 				// convert val to int with bitSize = 16
-				result, err := strconv.ParseInt(val.(string), 10, 16)
+				result, err := strconv.ParseInt(v, 10, 16)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, int16(result))
 			case reflect.Int32:
 				// convert val to int with bitSize = 32
-				result, err := strconv.ParseInt(val.(string), 10, 32)
+				result, err := strconv.ParseInt(v, 10, 32)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, int32(result))
 			case reflect.Int64:
 				// convert val to int with bitSize = 64
-				result, err := strconv.ParseInt(val.(string), 10, 64)
+				result, err := strconv.ParseInt(v, 10, 64)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, result)
 			case reflect.Uint8:
 				// convert val to uint based with bitSize = 8
-				result, err := strconv.ParseUint(val.(string), 10, 8)
+				result, err := strconv.ParseUint(v, 10, 8)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, uint8(result))
 			case reflect.Uint16:
 				// convert val to int with bitSize = 16
-				result, err := strconv.ParseUint(val.(string), 10, 16)
+				result, err := strconv.ParseUint(v, 10, 16)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, uint16(result))
 			case reflect.Uint32:
 				// convert val to int with bitSize = 32
-				result, err := strconv.ParseUint(val.(string), 10, 32)
+				result, err := strconv.ParseUint(v, 10, 32)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, uint32(result))
 			case reflect.Uint64:
 				// convert val to int with bitSize = 64
-				result, err := strconv.ParseUint(val.(string), 10, 64)
+				result, err := strconv.ParseUint(v, 10, 64)
 				if err != nil {
 					return nil, err
 				}
 				abiInputs = append(abiInputs, result)
 			case reflect.Bool:
-				result, err := strconv.ParseBool(val.(string))
+				result, err := strconv.ParseBool(v)
 				if err != nil {
 					return nil, err
 				}
@@ -249,10 +260,11 @@ func ConvertParams(p *Parser, arguments abi.Arguments, patterns []string) ([]int
 					}
 					abiInputs = append(abiInputs, bytesValue)
 				case typ == "common.Address":
-					abiInputs = append(abiInputs, common.HexToAddress(val.(string)))
+					abiInputs = append(abiInputs, reflect.ValueOf(val).Interface().(common.Address))
 				case typ == "*big.Int":
-					result, _ := big.NewInt(0).SetString(val.(string), 10)
+					result, _ := big.NewInt(0).SetString(v, 10)
 					abiInputs = append(abiInputs, result)
+					continue
 				default:
 					return nil, unsupportedType
 				}
@@ -390,7 +402,7 @@ func makeStruct(args abi.Arguments) interface{} {
 		}
 		sf := reflect.StructField{
 			Type: arg.Type.Type,
-			Name: fmt.Sprintf("%v", strings.Title(name)),
+			Name: strings.Title(name),
 			Tag: reflect.StructTag(fmt.Sprintf(`abi:"%v"`, name)),
 		}
 		sfs = append(sfs, sf)

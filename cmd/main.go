@@ -459,9 +459,8 @@ func (c *Config) SaveWatchers(service node.Service, events []Event) {
 					DualActions: action.DualActions,
 				})
 			}
-			masterSmc := common.HexToAddress(event.MasterSmartContract)
 			smc := &types.KardiaSmartcontract{
-				MasterSmc:      &masterSmc,
+				MasterSmc:      event.MasterSmartContract,
 				MasterAbi:      masterAbi,
 				SmcAddress:     event.ContractAddress,
 				SmcAbi:         abi,

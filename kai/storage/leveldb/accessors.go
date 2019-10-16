@@ -164,30 +164,32 @@ func CommonWriteHeadHeaderHash(db types.DatabaseWriter, hash common.Hash) {
 
 // CommonWriteEvent stores all events from watched smart contract to db.
 func CommonWriteEvent(db types.DatabaseWriter, smc *types.KardiaSmartcontract) {
-	// Write contract abi
-	smartContract := SmartContract{
-		Address: smc.SmcAddress,
-		ABI:     smc.SmcAbi,
-	}
-	encodedData, err := rlp.EncodeToBytes(smartContract)
-	if err != nil {
-		log.Error("failed to encode smartContract Data")
-	}
-	abiKey := contractAbiKey(smc.SmcAddress)
-	if err := db.Put(abiKey, encodedData); err != nil {
-		log.Error("Failed to store dualAction", "err", err)
+	if smc.SmcAbi != "" {
+		// Write contract abi
+		smartContract := SmartContract{
+			Address: smc.SmcAddress,
+			ABI:     smc.SmcAbi,
+		}
+		encodedData, err := rlp.EncodeToBytes(smartContract)
+		if err != nil {
+			log.Error("failed to encode smartContract Data")
+		}
+		abiKey := contractAbiKey(smc.SmcAddress)
+		if err := db.Put(abiKey, encodedData); err != nil {
+			log.Error("Failed to store dualAction", "err", err)
+		}
 	}
 
 	// Write master contract abi
 	masterSmc := SmartContract{
-		Address: smc.MasterSmc.Hex(),
+		Address: smc.MasterSmc,
 		ABI:     smc.MasterAbi,
 	}
-	encodedData, err = rlp.EncodeToBytes(smartContract)
+	encodedData, err := rlp.EncodeToBytes(masterSmc)
 	if err != nil {
 		log.Error("failed to encode smartContract Data")
 	}
-	abiKey = contractAbiKey(masterSmc.Address)
+	abiKey := contractAbiKey(masterSmc.Address)
 	if err := db.Put(abiKey, encodedData); err != nil {
 		log.Error("Failed to store dualAction", "err", err)
 	}
