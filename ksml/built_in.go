@@ -49,7 +49,7 @@ func emptyFunc(p *Parser, extras ...interface{}) ([]interface{}, error) {
 }
 
 func getCurrentTimeStamp(p *Parser, extras ...interface{}) ([]interface{}, error) {
-	now := time.Now().UnixNano() / int64(time.Millisecond)
+	now := time.Now().Unix()
 	return []interface{}{now}, nil
 }
 
