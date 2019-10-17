@@ -91,7 +91,7 @@ MainChain:
             # Therefore before executing watcherActions, message originally has size = 7
             - "${smc:getData(getRate,message.params[0],message.params[1])}"
             # after getting rate message.params append fromAmount, toAmount -> its length turns to 9: [7]=fromAmount [8]=toAmount
-            - "${fn:validate(params[0]==0 || params[1]==0,SIGNAL_STOP,SIGNAL_CONTINUE)}"
+            - "${fn:validate(params[0]=='0' || params[1]=='0',SIGNAL_STOP,SIGNAL_CONTINUE)}"
             - "${smc:getData(getMatchingResult,message.params[4])}"
             # getMatchingResults returns a string contains released information, [9]=released information
             - "${fn:validate(params[2]=='',SIGNAL_STOP,SIGNAL_CONTINUE)}"
