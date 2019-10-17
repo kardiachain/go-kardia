@@ -260,5 +260,5 @@ DualChain:
             - "${fn:else(evaluateDestination)}"
             - "SIGNAL_STOP"
             - "${fn:endif(evaluateDestination)}"
-            - "${fn:var(addOrderTx,string,smc:trigger(addOrder,message.from,message.to,message.sender,message.params[0],message.transactionId,fn:int(convertedAmount),fn:int(timeStamp))}"
+            - "${fn:var(addOrderTx,string,smc:trigger(addOrder,message.from,message.to,message.sender,message.params[0],message.transactionId,fn:int(convertedAmount),fn:int(timeStamp)))}"
             - "${smc:trigger(updateKardiaTx,message.transactionId,addOrderTx)}"
