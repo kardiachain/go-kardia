@@ -243,7 +243,7 @@ DualChain:
             - "${fn:validate(message.from=='TRX',SIGNAL_CONTINUE,SIGNAL_STOP)}"
           DualActions:
             - "${fn:var(timeStamp,bigInt,fn:currentTimeStamp())}"
-            - "${smc:getData(message.from,message.to)}"
+            - "${smc:getData(getRate,message.from,message.to)}"
             - "${fn:var(fromAmount,bigInt,params[0])}"
             - "${fn:var(toAmount,bigInt,params[1])}"
             - "${fn:var(zeroValue,bigInt,0)}"
