@@ -202,6 +202,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 			}
 			return NewEvent(proxy, msg.BlockNumber, eventMessage, txHash, watcher.DualActions, true)
 		}
+		proxy.Logger().Error("watcher not found", "contractAddress", contractAddress, "method", msg.MethodName)
 	}
 	return nil
 }
