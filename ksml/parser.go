@@ -10,6 +10,7 @@ import (
 	"github.com/kardiachain/go-kardia/kai/state"
 	message "github.com/kardiachain/go-kardia/ksml/proto"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 	"math/big"
@@ -316,6 +317,14 @@ func (p *Parser) addFunction() error {
 // obj must be a protobuf object
 // pkg is obj's name which is defined in protobuf
 func (p *Parser)ParseParams() error {
+
+	// defer panic
+	defer func() {
+		if err := recover(); err != nil {
+			log.Error("panic", "err", err)
+		}
+	}()
+
 	if len(p.GlobalPatterns) == 0 {
 		return sourceIsEmpty
 	}

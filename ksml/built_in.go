@@ -521,7 +521,7 @@ func cmpFunc(p *Parser, extras ...interface{}) ([]interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	value1, value2 := reflect.ValueOf(v1), reflect.ValueOf(v2)
+	value1, value2 := reflect.ValueOf(v1[0]), reflect.ValueOf(v2[0])
 	if value1.Type() != value2.Type() {
 		return nil, fmt.Errorf("cannot compare type %v with %v", value1.Type().String(), value1.Type().String())
 	}
