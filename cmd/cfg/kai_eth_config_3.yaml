@@ -101,15 +101,15 @@ MainChain:
             - "${fn:var(tenPoweredByTen,bigInt,fn:exp(fn:int(10),fn:int(10)))}"
             - "${fn:var(tenPoweredByTwelve,bigInt,fn:exp(fn:int(10),fn:int(12)))}"
             - "${fn:var(convertedAmount,bigFloat,fn:float(amounts[i]))}"
-            - "${fn:var(convertedAmount,bigFloat,fn:mul(fn:div(convertedAmount,fn:float(fromAmount)),fn:float(toAmount)))}"
+            - "${fn:var(convertedAmount,bigFloat,fn:mul(fn:div(fn:float(convertedAmount),fn:float(fromAmount)),fn:float(toAmount)))}"
             - "${fn:if(checkFromType,fromType == 'NEO')}"
-            - "${fn:var(convertedAmount,bigFloat,fn:mul(convertedAmount,fn:float(tenPoweredByTen)))}"
+            - "${fn:var(convertedAmount,bigFloat,fn:mul(fn:float(convertedAmount),fn:float(tenPoweredByTen)))}"
             - "${fn:elif(checkFromType,fromType == 'TRX')}"
-            - "${fn:var(convertedAmount,bigFloat,fn:mul(convertedAmount,fn:float(tenPoweredByTwelve)))}"
+            - "${fn:var(convertedAmount,bigFloat,fn:mul(fn:float(convertedAmount),fn:float(tenPoweredByTwelve)))}"
             - "${fn:else(checkFromType)}"
             - "SIGNAL_STOP"
             - "${fn:endif(checkFromType)}"
-            - "${fn:var(convertedAmount,bigInt,fn:int(fn:round(convertedAmount)))}"
+            - "${fn:var(convertedAmount,bigInt,fn:int(fn:round(fn:float(convertedAmount))))}"
             - "${fn:endDefineFunc(CalculateReleasedAmountToEth)}"
 
             # define CalculateReleasedAmountFromNeo
@@ -117,13 +117,13 @@ MainChain:
             - "${fn:var(tenPoweredByEight,bigInt,fn:exp(fn:int(10),fn:int(8)))}"
             - "${fn:var(tenPoweredBySix,bigInt,fn:exp(fn:int(10),fn:int(6)))}"
             - "${fn:if(checkFromType,fromType=='ETH')}"
-            - "${fn:var(convertedAmount,bigInt,fn:div(fn:int(amounts[i]),tenPoweredByEight))}"
+            - "${fn:var(convertedAmount,bigInt,fn:div(fn:int(amounts[i]),fn:int(tenPoweredByEight)))}"
             - "${fn:elif(checkFromType,fromType=='TRX')}"
             - "${fn:var(convertedAmount,bigFloat,fn:float(amounts[i]))}"
-            - "${fn:var(convertedAmount,bigFloat,fn:mul(convertedAmount,fn:float(toAmount)))}"
-            - "${fn:var(convertedAmount,bigFloat,fn:div(convertedAmount,fn:float(fromAmount)))}"
-            - "${fn:var(convertedAmount,bigFloat,fn:div(convertedAmount,fn:float(tenPoweredBySix)))}"
-            - "${fn:var(convertedAmount,int64,fn:int(fn:round(convertedAmount)))}"
+            - "${fn:var(convertedAmount,bigFloat,fn:mul(fn:float(convertedAmount),fn:float(toAmount)))}"
+            - "${fn:var(convertedAmount,bigFloat,fn:div(fn:float(convertedAmount),fn:float(fromAmount)))}"
+            - "${fn:var(convertedAmount,bigFloat,fn:div(fn:float(convertedAmount),fn:float(tenPoweredBySix)))}"
+            - "${fn:var(convertedAmount,int64,fn:int(fn:round(fn:float(convertedAmount))))}"
             - "${fn:else(checkFromType)}"
             - "SIGNAL_STOP"
             - "${fn:endif(checkFromType)}"
@@ -180,8 +180,8 @@ DualChain:
   ServiceName:  ETH
   ChainId:      2
   NetworkId:    100
-  PublishedEndpoint: tcp://0.0.0.0:5554
-  SubscribedEndpoint: tcp://0.0.0.0:5555
+  PublishedEndpoint: tcp://0.0.0.0:5558
+  SubscribedEndpoint: tcp://0.0.0.0:5559
   Protocol: KAI-ETH     # KAI-ETH, KAI-NEO, KAI-TRX, KAI-PRIVATE
   # TODO(kiendn): currently we are still using validators set in permission smc. Will update/remove this config and get validators from pos_voting smc
   Validators:
@@ -251,15 +251,14 @@ DualChain:
             - "${fn:var(toAmount,bigInt,params[1])}"
             - "${fn:var(zeroValue,bigInt,0)}"
             - "${fn:cmp(fromAmount,zeroValue,SIGNAL_STOP,SIGNAL_CONTINUE)}"
-            - "${fn:cmp(toAmount,zeroValue,SIGNAL_STOP,SIGNAL_CONTINUE)}"
-            - "${fn:var(convertedAmount,bigInt,fn:mul(fn:int(message.amount),fromAmount))}"
-            - "${fn:var(convertedAmount,bigInt,fn:div(convertedAmount,toAmount))}"
+            - "${fn:var(convertedAmount,bigInt,fn:mul(fn:int(message.amount),fn:int(fromAmount)))}"
+            - "${fn:var(convertedAmount,bigInt,fn:div(fn:int(convertedAmount),fn:int(toAmount)))}"
             - "${fn:if(evaluateDestination,message.to=='NEO')}"
-            - "${fn:var(convertedAmount,bigInt,fn:div(convertedAmount,tenPoweredByTen))}"
+            - "${fn:var(convertedAmount,bigInt,fn:div(fn:int(convertedAmount),fn:int(tenPoweredByTen)))}"
             - "${fn:elif(evaluateDestination,message.to=='TRX')}"
-            - "${fn:var(convertedAmount,bigInt,fn:div(convertedAmount,tenPoweredByTwelve))}"
+            - "${fn:var(convertedAmount,bigInt,fn:div(fn:int(convertedAmount),fn:int(tenPoweredByTwelve)))}"
             - "${fn:else(evaluateDestination)}"
             - "SIGNAL_STOP"
             - "${fn:endif(evaluateDestination)}"
-            - "${fn:var(addOrderTx,string,smc:trigger(addOrder,message.from,message.to,message.sender,message.params[0],message.transactionId,convertedAmount,timeStamp))}"
+            - "${fn:var(addOrderTx,string,smc:trigger(addOrder,message.from,message.to,message.sender,message.params[0],message.transactionId,fn:int(convertedAmount),fn:int(timeStamp))}"
             - "${smc:trigger(updateKardiaTx,message.transactionId,addOrderTx)}"

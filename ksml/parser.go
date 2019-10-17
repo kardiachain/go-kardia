@@ -64,9 +64,10 @@ func NewParser(proxyName, publishedEndpoint string, publishFunction func(endpoin
 func addPrimitiveIdent(name string, v interface{}) (interface{}, *expr.Decl) {
 
 	if strings.Contains(reflect.ValueOf(v).Type().String(), "big.Int") {
-		v = v.(*big.Int).Int64()
+		v = v.(*big.Int).String()
 	} else if strings.Contains(reflect.ValueOf(v).Type().String(), "big.Float") {
-		v, _ = v.(*big.Float).Float64()
+		r, _ := v.(*big.Float)
+		v = r.String()
 	}
 
 	kind := reflect.TypeOf(v).Kind()
@@ -106,10 +107,10 @@ func (p *Parser)CEL(src string) ([]interface{}, error) {
 				params := make([]interface{}, 0)
 				for _, p := range p.GlobalParams {
 					if reflect.ValueOf(p).Type().String() == "*big.Int" {
-						params = append(params, p.(*big.Int).Int64())
+						params = append(params, p.(*big.Int).String())
 					} else if reflect.ValueOf(p).Type().String() == "*big.Float" {
-						floatValue, _ := p.(*big.Float).Float64()
-						params = append(params, floatValue)
+						floatValue, _ := p.(*big.Float)
+						params = append(params, floatValue.String())
 					} else {
 						params = append(params, p)
 					}

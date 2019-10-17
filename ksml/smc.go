@@ -260,7 +260,7 @@ func ConvertParams(p *Parser, arguments abi.Arguments, patterns []string) ([]int
 					}
 					abiInputs = append(abiInputs, bytesValue)
 				case typ == "common.Address":
-					abiInputs = append(abiInputs, reflect.ValueOf(val).Interface().(common.Address))
+					abiInputs = append(abiInputs, common.HexToAddress(v))
 				case typ == "*big.Int":
 					result, _ := big.NewInt(0).SetString(v, 10)
 					abiInputs = append(abiInputs, result)
