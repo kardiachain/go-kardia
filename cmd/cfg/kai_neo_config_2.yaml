@@ -246,7 +246,7 @@ DualChain:
             - "${fn:var(tenPoweredBySix,bigInt,fn:exp(fn:int(10),fn:int(6)))}"
             - "${fn:var(timeStamp,bigInt,fn:currentTimeStamp())}"
             - "${fn:var(convertedAmount,bigInt,0)}"
-            - "${smc:getData(message.from,message.to)}"
+            - "${smc:getData(getRate,message.from,message.to)}"
             - "${fn:var(fromAmount,bigInt,params[0])}"
             - "${fn:var(toAmount,bigInt,params[1])}"
             - "${fn:var(zeroValue,bigInt,0)}"
