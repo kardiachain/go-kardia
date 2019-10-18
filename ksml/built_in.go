@@ -41,6 +41,7 @@ func init() {
 		exp: Exp,
 		format: FormatFloat,
 		round: Round,
+		replaceFunc: Replace,
 	}
 }
 
@@ -302,6 +303,33 @@ func split(p *Parser, extras ...interface{}) ([]interface{}, error) {
 		return []interface{}{splitStr}, nil
 	}
 	return nil, invalidSplitArgs
+}
+
+// Replace finds and replaces string that match given pattern with new pattern
+func Replace(p *Parser, extras ...interface{}) ([]interface{}, error) {
+	if len(extras) != 3 {
+		return nil, fmt.Errorf("not enough arguments for replace function, expect 3 got %v", len(extras))
+	}
+	// execute extras[0] in case it contains any built-in or CEL structure
+	vals, err := p.handleContents(extras)
+	if err != nil {
+		return nil, err
+	}
+	str, err := InterfaceToString(vals[0])
+	if err != nil {
+		return nil, err
+	}
+	old, err := InterfaceToString(vals[1])
+	if err != nil {
+		return nil, err
+	}
+	newStr, err := InterfaceToString(vals[2])
+	if err != nil {
+		return nil, err
+	}
+
+	str = strings.Replace(str, old, newStr, -1)
+	return []interface{}{str}, nil
 }
 
 // defineFunction defines function and add to UserDefinedFunction

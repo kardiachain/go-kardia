@@ -25,6 +25,7 @@ const (
 	loopIndex = "LOOP_INDEX"
 	endForEach = "endForEach"
 	splitFunc = "split"
+	replaceFunc = "replace"
 	defineFunc = "defineFunc"
 	endDefineFunc = "endDefineFunc"
 	callFunc = "call"
