@@ -785,6 +785,23 @@ var (
 		"type": "function"
 	}
 ]`
+    sampleCode6 = common.Hex2Bytes("608060405260043610610041576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680633bc5de3014610046575b600080fd5b34801561005257600080fd5b5061005b6100d6565b6040518080602001828103825283818151815260200191508051906020019080838360005b8381101561009b578082015181840152602081019050610080565b50505050905090810190601f1680156100c85780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b60606040805190810160405280600581526020017f68656c6c6f0000000000000000000000000000000000000000000000000000008152509050905600a165627a7a72305820a7650f38e073e17ffa40d3832012f03e6cbfd523c624bd33f8cede24b4b3a7a40029")
+    sampleDefinition6 = `[
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "getData",
+		"outputs": [
+			{
+				"name": "",
+				"type": "string"
+			}
+		],
+		"payable": false,
+		"stateMutability": "pure",
+		"type": "function"
+	}
+]`
 )
 
 func TestApplyBuiltInFunc(t *testing.T) {
@@ -1223,6 +1240,17 @@ func TestPublishMessage(t *testing.T) {
 		"${[cb1]}",
 		"${fn:var(callbacks,list,params[2])}",
 		"${fn:publish(triggerMessage[0],triggerMessage[1],triggerMessage[2],callbacks)}",
+	}, &message.EventMessage{
+		Params: []string{"0x123", "10", "0x456"},
+	})
+	require.NoError(t, err)
+	err = parser.ParseParams()
+	require.NoError(t, err)
+}
+
+func TestGenerateOutputStruct(t *testing.T) {
+	parser, err := setup(sampleCode6, sampleDefinition6, []string{
+		"${smc:getData(getData)}",
 	}, &message.EventMessage{
 		Params: []string{"0x123", "10", "0x456"},
 	})
