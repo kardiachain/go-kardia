@@ -136,6 +136,9 @@ MainChain:
 
             - "${smc:getData(getAddressFromType,proxyName)}" # if no err return, result will be appended into params
             - "${fn:var(targetContractAddress,string,params[1])}"
+            - "${fn:if(isNeoOrTrx,proxyName=='NEO' || proxyName=='TRX')}"
+            - "${fn:var(targetContractAddress,string,fn:replace(params[1],'0x',''))}"
+            - "${fn:endif(isNeoOrTrx)}"
 
             - "${fn:var(fromAmount,bigInt,fn:int(message.params[7]))}"
             - "${fn:var(toAmount,bigInt,fn:int(message.params[8]))}"
