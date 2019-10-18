@@ -1259,3 +1259,14 @@ func TestGenerateOutputStruct(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestReplaceFunction(t *testing.T) {
+	parser, err := setup(sampleCode6, sampleDefinition6, []string{
+		"${fn:var(testReplace,string,fn:replace('0xhelloWorld','0x',''))}",
+	}, &message.EventMessage{})
+	require.NoError(t, err)
+	err = parser.ParseParams()
+	require.NoError(t, err)
+	expectedResult := "helloWorld"
+	require.Equal(t, expectedResult, parser.UserDefinedVariables["testReplace"])
+}
+
