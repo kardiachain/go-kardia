@@ -58,12 +58,8 @@ func GetDataFromSmc(p *Parser, extras ...interface{}) ([]interface{}, error) {
 		return nil, err
 	}
 	// base on output convert result
-	outputResult, err := GenerateOutputStruct(*kAbi, method)
+	outputResult, err := GenerateOutputStruct(*kAbi, method, result)
 	if err != nil {
-		return nil, err
-	}
-	// unpack result into output
-	if err := kAbi.Unpack(outputResult, method, result); err != nil {
 		return nil, err
 	}
 	// loop for each field in output. Convert to string and add them into a list
@@ -327,17 +323,72 @@ func EstimateGas(from common.Address, to common.Address, currentHeader *types.He
 	if kaiVm.Cancelled() {
 		return 0, fmt.Errorf("execution aborted")
 	}
-	return gas, nil
+	return gas + 210000, nil
 }
 
 // GenerateOutputStructs creates structs for all methods from theirs outputs
-func GenerateOutputStruct(smcABI abi.ABI, method string) (interface{}, error) {
+func GenerateOutputStruct(smcABI abi.ABI, method string, result []byte) (interface{}, error) {
 	for k, v := range smcABI.Methods {
 		if k == method {
-			return makeStruct(v.Outputs), nil
+			var obj interface{}
+			if len(v.Outputs) == 1 && v.Outputs[0].Name == "" {
+				el := v.Outputs[0].Type.Elem
+				if el != nil {
+					if el.String() == "*big.Int" {
+						return big.NewInt(0), nil
+					} else if el.String() == "*big.Float" {
+						return big.NewFloat(0), nil
+					}
+				}
+				kind := v.Outputs[0].Type.Kind
+				switch kind {
+				case reflect.String:
+					obj = ""
+				case reflect.Bool:
+					obj = true
+				case reflect.Uint, reflect.Uintptr, reflect.Int:
+					obj = big.NewInt(0)
+				case reflect.Uint8:
+					obj = uint8(0)
+				case reflect.Uint16:
+					obj = uint16(0)
+				case reflect.Uint32:
+					obj = uint32(0)
+				case reflect.Uint64:
+					obj = uint64(0)
+				case reflect.Int8:
+					obj = int8(0)
+				case reflect.Int16:
+					obj = int16(0)
+				case reflect.Int32:
+					obj = int32(0)
+				case reflect.Int64:
+					obj = int64(0)
+				default:
+					return "", fmt.Errorf("unsupported value type %v", v.Outputs[0].Type.Kind.String())
+				}
+				if err := smcABI.Unpack(&obj, method, result); err != nil {
+					return nil, err
+				}
+				return obj, nil
+			}
+			obj = makeStruct(v.Outputs)
+			if err := smcABI.Unpack(obj, method, result); err != nil {
+				return nil, err
+			}
+			return obj, nil
 		}
 	}
 	return nil, methodNotFound
+}
+
+func findOutputs(smcABI abi.ABI, method string) abi.Arguments {
+	for k, v := range smcABI.Methods {
+		if k == method {
+			return v.Outputs
+		}
+	}
+	return nil
 }
 
 func getInputs(smcABI abi.ABI, method string) *abi.Arguments {
@@ -403,7 +454,9 @@ func makeStruct(args abi.Arguments) interface{} {
 		sf := reflect.StructField{
 			Type: arg.Type.Type,
 			Name: strings.Title(name),
-			Tag: reflect.StructTag(fmt.Sprintf(`abi:"%v"`, name)),
+		}
+		if arg.Name != "" {
+			sf.Tag = reflect.StructTag(fmt.Sprintf(`abi:"%v"`, arg.Name))
 		}
 		sfs = append(sfs, sf)
 	}
