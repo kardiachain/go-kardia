@@ -123,7 +123,6 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 			"methodName", triggerMessage.MethodName,
 			"params", triggerMessage.Params,
 		)
-    	// TODO: this should be covered within a lock, to make sure nonce cannot be duplicated
 		tx, err := ExecuteKardiaSmartContract(proxy.KardiaTxPool(), proxy.KardiaBlockChain(), triggerMessage.ContractAddress, triggerMessage.MethodName, triggerMessage.Params)
 		if err != nil {
 			proxy.Logger().Error("Error on executing kardia smart contract", "err", err, "topic", topic)
@@ -202,7 +201,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 			}
 			return NewEvent(proxy, msg.BlockNumber, eventMessage, txHash, watcher.DualActions, true)
 		}
-		proxy.Logger().Error("watcher not found", "contractAddress", contractAddress, "method", msg.MethodName)
+		proxy.Logger().Debug("watcher not found", "contractAddress", contractAddress, "method", msg.MethodName)
 	}
 	return nil
 }
@@ -223,6 +222,9 @@ func StartSubscribe(proxy base.BlockChainAdapter) {
 
 // subscribe handles getting/handle topic and content, return error if any
 func subscribe(subscriber *zmq4.Socket, proxy base.BlockChainAdapter) error {
+	proxy.Lock()
+	defer proxy.UnLock()
+
 	//  Read envelope with address
 	topic, err := subscriber.Recv(0)
 	if err != nil {
