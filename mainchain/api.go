@@ -42,6 +42,25 @@ const (
 	defaultTimeOutForStaticCall = 5
 )
 
+// BlockHeaderJSON represents BlockHeader in JSON format
+type BlockHeaderJSON struct {
+	Hash           string               `json:"hash"`
+	Height         uint64               `json:"height"`
+	LastBlock      string               `json:"lastBlock"`
+	CommitHash     string               `json:"commitHash"`
+	Time           int64                `json:"time"`
+	NumTxs         uint64               `json:"num_txs"`
+	GasLimit       uint64               `json:"gasLimit"`
+	GasUsed        uint64               `json:"gasUsed"`
+	Validator      string               `json:"validator"`
+	TxHash         string               `json:"data_hash"`    // transactions
+	Root           string               `json:"stateRoot"`    // state root
+	ReceiptHash    string               `json:"receiptsRoot"` // receipt root
+	Bloom          int64                `json:"logsBloom"`
+	ValidatorsHash string               `json:"validators_hash"` // validators for the current block
+	ConsensusHash  string               `json:"consensus_hash"`
+}
+
 // BlockJSON represents Block in JSON format
 type BlockJSON struct {
 	Hash           string               `json:"hash"`
@@ -99,6 +118,60 @@ func getBasicReceipt(receipt types.Receipt) *BasicReceipt {
 	return &basicReceipt
 }
 
+// NewBlockHeaderJSON creates a new BlockHeader JSON data from Block
+func NewBlockHeaderJSON(block types.Block) *BlockHeaderJSON {
+	return &BlockHeaderJSON{
+		Hash:           block.Hash().Hex(),
+		Height:         block.Height(),
+		LastBlock:      block.Header().LastBlockID.String(),
+		CommitHash:     block.LastCommitHash().Hex(),
+		Time:           block.Header().Time.Int64(),
+		NumTxs:         block.Header().NumTxs,
+		GasLimit:       block.Header().GasLimit,
+		GasUsed:        block.Header().GasUsed,
+		Validator:      block.Header().Validator.Hex(),
+		TxHash:         block.Header().TxHash.Hex(),
+		Root:           block.Header().Root.Hex(),
+		ReceiptHash:    block.Header().ReceiptHash.Hex(),
+		Bloom:          block.Header().Bloom.Big().Int64(),
+		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
+		ConsensusHash:  block.Header().ConsensusHash.Hex(),
+	}
+}
+
+// NewBasicBlockJSON creates a new Block JSON data from Block
+func NewBasicBlockJSON(block types.Block) *BlockJSON {
+	txs := block.Transactions()
+	transactions := make([]*PublicTransaction, 0, len(txs))
+
+	for index, transaction := range txs {
+		idx := uint64(index)
+		tx := NewPublicTransaction(transaction, block.Hash(), block.Height(), idx)
+		// add time for tx
+		tx.Time = block.Header().Time.Int64()
+		transactions = append(transactions, tx)
+	}
+
+	return &BlockJSON{
+		Hash:           block.Hash().Hex(),
+		Height:         block.Height(),
+		LastBlock:      block.Header().LastBlockID.String(),
+		Txs:            transactions,
+		CommitHash:     block.LastCommitHash().Hex(),
+		Time:           block.Header().Time.Int64(),
+		NumTxs:         block.Header().NumTxs,
+		GasLimit:       block.Header().GasLimit,
+		GasUsed:        block.Header().GasUsed,
+		Validator:      block.Header().Validator.Hex(),
+		TxHash:         block.Header().TxHash.Hex(),
+		Root:           block.Header().Root.Hex(),
+		ReceiptHash:    block.Header().ReceiptHash.Hex(),
+		Bloom:          block.Header().Bloom.Big().Int64(),
+		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
+		ConsensusHash:  block.Header().ConsensusHash.Hex(),
+	}
+}
+
 // NewBlockJSON creates a new Block JSON data from Block
 func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 	txs := block.Transactions()
@@ -127,7 +200,7 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		NumTxs:         block.Header().NumTxs,
 		GasLimit:       block.Header().GasLimit,
 		GasUsed:        block.Header().GasUsed,
-		Validator:      block.Header().Coinbase.Hex(),
+		Validator:      block.Header().Validator.Hex(),
 		TxHash:         block.Header().TxHash.Hex(),
 		Root:           block.Header().Root.Hex(),
 		ReceiptHash:    block.Header().ReceiptHash.Hex(),
@@ -141,6 +214,42 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 // BlockNumber returns current block number
 func (s *PublicKaiAPI) BlockNumber() uint64 {
 	return s.kaiService.blockchain.CurrentBlock().Height()
+}
+
+// GetHeaderBlockByNumber returns blockHeader by block number
+func (s *PublicKaiAPI) GetBlockHeaderByNumber(blockNumber uint64) *BlockHeaderJSON {
+	block := s.kaiService.blockchain.GetBlockByHeight(blockNumber)
+	if block == nil {
+		return nil
+	}
+	return NewBlockHeaderJSON(*block)
+}
+
+// GetBlockHeaderByHash returns block by block hash
+func (s *PublicKaiAPI) GetBlockHeaderByHash(blockHash string) *BlockHeaderJSON {
+	if blockHash[0:2] == "0x" {
+		blockHash = blockHash[2:]
+	}
+	block := s.kaiService.blockchain.GetBlockByHash(common.HexToHash(blockHash))
+	return NewBlockHeaderJSON(*block)
+}
+
+// GetBasicBlockByHash returns block by block hash
+func (s *PublicKaiAPI) GetBasicBlockByHash(blockHash string) *BlockJSON {
+	if blockHash[0:2] == "0x" {
+		blockHash = blockHash[2:]
+	}
+	block := s.kaiService.blockchain.GetBlockByHash(common.HexToHash(blockHash))
+	return NewBasicBlockJSON(*block)
+}
+
+// GetBasicBlockByNumber returns block by block number
+func (s *PublicKaiAPI) GetBasicBlockByNumber(blockNumber uint64) *BlockJSON {
+	block := s.kaiService.blockchain.GetBlockByHeight(blockNumber)
+	if block == nil {
+		return nil
+	}
+	return NewBasicBlockJSON(*block)
 }
 
 // GetBlockByHash returns block by block hash
@@ -450,7 +559,7 @@ func (a *PublicAccountAPI) Balance(address string, hash string, height int64) st
 	}
 	state, err := a.kaiService.blockchain.StateAt(block.Root())
 	if err != nil {
-		log.Error("Fail to get state from block", "err", err, "block", block)
+		log.Error("Fail to get state from block", "err", err, "block", block.Hash().String())
 		return "-1"
 	}
 	return state.GetBalance(addr).String()
@@ -462,7 +571,7 @@ func (a *PublicAccountAPI) Nonce(address string) (uint64, error) {
 	block := a.kaiService.blockchain.CurrentBlock()
 	state, err := a.kaiService.blockchain.StateAt(block.Root())
 	if err != nil {
-		log.Error("Fail to get state from block", "err", err, "block", block)
+		log.Error("Fail to get state from block", "err", err, "block", block.Hash().String())
 		return 0, err
 	}
 	return state.GetNonce(addr), nil

@@ -1,5 +1,3 @@
-package main
-
 /*
  *  Copyright 2018 KardiaChain
  *  This file is part of the go-kardia library.
@@ -18,10 +16,107 @@ package main
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
+package main
+
 import (
 	"math/big"
 
 	"github.com/kardiachain/go-kardia/configs"
+)
+
+type (
+	Config struct {
+		Node      `yaml:"Node"`
+		MainChain *Chain  `yaml:"MainChain"`
+		DualChain *Chain  `yaml:"DualChain,omitempty"`
+		GenTxs    *GenTxs `yaml:"GenTxs"`
+		Debug     *Debug  `yaml:"Debug"`
+	}
+	Node struct {
+		P2P              `yaml:"P2P"`
+		LogLevel         string   `yaml:"LogLevel"`
+		Name             string   `yaml:"Name"`
+		DataDir          string   `yaml:"DataDir"`
+		HTTPHost         string   `yaml:"HTTPHost"`
+		HTTPPort         int      `yaml:"HTTPPort"`
+		HTTPModules      []string `yaml:"HTTPModules"`
+		HTTPVirtualHosts []string `yaml:"HTTPVirtualHosts"`
+		HTTPCors         []string `yaml:"HTTPCors"`
+	}
+	P2P struct {
+		PrivateKey    string `yaml:"PrivateKey"`
+		ListenAddress string `yaml:"ListenAddress"`
+		MaxPeers      int    `yaml:"MaxPeers"`
+	}
+	Chain struct {
+		ServiceName        string      `yaml:"ServiceName"`
+		Protocol           *string     `yaml:"Protocol,omitempty"`
+		ChainID            uint64      `yaml:"ChainID"`
+		NetworkID          uint64      `yaml:"NetworkID"`
+		AcceptTxs          uint32      `yaml:"AcceptTxs"`
+		ZeroFee            uint        `yaml:"ZeroFee"`
+		IsDual             uint        `yaml:"IsDual"`
+		Genesis            *Genesis    `yaml:"Genesis,omitempty"`
+		TxPool             *Pool       `yaml:"TxPool,omitempty"`
+		EventPool          *Pool       `yaml:"EventPool,omitempty"`
+		Database           *Database   `yaml:"Database,omitempty"`
+		Seeds              []string    `yaml:"Seeds"`
+		Events             []Event     `yaml:"Events"`
+		PublishedEndpoint  *string     `yaml:"PublishedEndpoint,omitempty"`
+		SubscribedEndpoint *string     `yaml:"SubscribedEndpoint,omitempty"`
+		Validators         []int       `yaml:"Validators"`
+		BaseAccount        BaseAccount `yaml:"BaseAccount"`
+	}
+	Genesis struct {
+		Addresses     []string   `yaml:"Addresses"`
+		GenesisAmount string     `yaml:"GenesisAmount"`
+		Contracts     []Contract `yaml:"Contracts"`
+	}
+	Contract struct {
+		Address  string `yaml:"Address"`
+		ByteCode string `yaml:"ByteCode"`
+		ABI      string `yaml:"ABI,omitempty"`
+	}
+	Pool struct {
+		GlobalSlots      uint64 `yaml:"GlobalSlots"`
+		GlobalQueue      uint64 `yaml:"GlobalQueue"`
+		NumberOfWorkers  int    `yaml:"NumberOfWorkers"`
+		WorkerCap        int    `yaml:"WorkerCap"`
+		BlockSize        int    `yaml:"BlockSize"`
+		LifeTime         int    `yaml:"LifeTime"`
+	}
+	Database struct {
+		Type    uint   `yaml:"Type"`
+		Dir     string `yaml:"Dir"`
+		Caches  int    `yaml:"Caches"`
+		Handles int    `yaml:"Handles"`
+		URI     string `yaml:"URI"`
+		Name    string `yaml:"Name"`
+		Drop    int    `yaml:"Drop"`
+	}
+	Event struct {
+		ContractAddress string          `yaml:"ContractAddress"`
+		ABI             *string         `yaml:"ABI,omitempty"`
+		WatcherActions  []WatcherAction `yaml:"WatcherActions"`
+		DualActions     []string        `yaml:"DualActions"`
+	}
+	WatcherAction struct {
+		Method     string `yaml:"Method"`
+		DualAction string `yaml:"DualAction"`
+	}
+	BaseAccount struct {
+		Address    string `yaml:"Address"`
+		PrivateKey string `yaml:"PrivateKey"`
+	}
+	GenTxs struct {
+		Type   int `yaml:"Type"`
+		NumTxs int `yaml:"NumTxs"`
+		Delay  int `yaml:"Delay"`
+		Index  int `yaml:"Index"`
+	}
+	Debug struct {
+		Port string `yaml:"Port"`
+	}
 )
 
 // GenesisAccounts are used to initialized accounts in genesis block
@@ -37,6 +132,12 @@ var GenesisAccounts = map[string]*big.Int{
 	"0xBA30505351c17F4c818d94a990eDeD95e166474b": configs.InitValueInCell,
 	"0x212a83C0D7Db5C526303f873D9CeaA32382b55D0": configs.InitValueInCell,
 	"0x8dB7cF1823fcfa6e9E2063F983b3B96A48EEd5a4": configs.InitValueInCell,
+	"0x66BAB3F68Ff0822B7bA568a58A5CB619C4825Ce5": configs.InitValueInCell,
+	"0x88e1B4289b639C3b7b97899Be32627DCd3e81b7e": configs.InitValueInCell,
+	"0xCE61E95666737E46B2453717Fe1ba0d9A85B9d3E": configs.InitValueInCell,
+	"0x1A5193E85ffa06fde42b2A2A6da7535BA510aE8C": configs.InitValueInCell,
+	"0xb19BC4477ff32EC13872a2A827782DeA8b6E92C0": configs.InitValueInCell,
+	"0x0fFFA18f6c90ce3f02691dc5eC954495EA483046": configs.InitValueInCell,
 	"0x8C10639F908FED884a04C5A49A2735AB726DDaB4": configs.InitValueInCell,
 	"0x2BB7316884C7568F2C6A6aDf2908667C0d241A66": configs.InitValueInCell,
 	// TODO(namdoh): Re-enable after parsing node index fixed in main.go
@@ -482,6 +583,12 @@ var GenesisAddrKeys = map[string]string{
 	"0xBA30505351c17F4c818d94a990eDeD95e166474b": "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7",
 	"0x212a83C0D7Db5C526303f873D9CeaA32382b55D0": "b34bd81838a4a335fb3403d0bf616eca1eb9a4b4716c7dda7c617503cfeaab67",
 	"0x8dB7cF1823fcfa6e9E2063F983b3B96A48EEd5a4": "0cf7ae0332a891044659ace49a0732fa07c2872b4aef479945501f385a23e689",
+	"0x66BAB3F68Ff0822B7bA568a58A5CB619C4825Ce5": "2003be66077b0873f5bedb32a596530eb8a0c908c32dda7771f169ee137c1f82",
+	"0x88e1B4289b639C3b7b97899Be32627DCd3e81b7e": "9dce5ec0b40e363e898f296c01345c12a0961f1cccad098964c73ed85fef5850",
+	"0xCE61E95666737E46B2453717Fe1ba0d9A85B9d3E": "f0b2f6f24b70481a51712639badf0e5587545080dc53e0664770adb9881823fb",
+	"0x1A5193E85ffa06fde42b2A2A6da7535BA510aE8C": "83731e17afb0da61c0026eaf780364eee367c50a5225ece89a63ad94a4a1f088",
+	"0xb19BC4477ff32EC13872a2A827782DeA8b6E92C0": "fc09d3f004b1ee430fee60568aa29748e277e76f1f372eea9d2b9ff1e27bdfdb",
+	"0x0fFFA18f6c90ce3f02691dc5eC954495EA483046": "5605dd5f4db003c396956b4b80c093c472ccef4021181aa910125d7c57324152",
 	"0x8C10639F908FED884a04C5A49A2735AB726DDaB4": "9813a1dffe303131d1fe80b6fe872206267abd8ff84a52c907b0d32df582b1eb",
 	"0x2BB7316884C7568F2C6A6aDf2908667C0d241A66": "4561f7d91a4f95ef0a72550fa423febaad3594f91611f9a2b10a7af4d3deb9ed",
 	// TODO(namdoh): Re-enable after parsing node index fixed in main.go
@@ -490,18 +597,6 @@ var GenesisAddrKeys = map[string]string{
 
 //  GenesisAddrKeys maps genesis account addresses to private keys.
 var GenesisAddrKeys1 = map[string]string{
-	// TODO(kiendn): These addresses are same of node address. Change to another set.
-	"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": "8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06",
-	"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": "77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79",
-	"0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd": "98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb",
-	"0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28": "32f5c0aef7f9172044a472478421c63fd8492640ff2d0eaab9562389db3a8efe",
-	"0x94FD535AAB6C01302147Be7819D07817647f7B63": "68b53a92d846baafdc782cb9cad65d77020c8d747eca7b621370b52b18c91f9a",
-	"0xa8073C95521a6Db54f4b5ca31a04773B093e9274": "049de018e08c3bcd59c1a21f0cf7de8f17fe51f8ce7d9c2120d17b1f0251b265",
-	"0xe94517a4f6f45e80CbAaFfBb0b845F4c0FDD7547": "9fdd56a3c2a536dc8f981d935f0f3f2ea04e125547fdfffa37e157ce86ff1007",
-	"0xBA30505351c17F4c818d94a990eDeD95e166474b": "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7",
-	"0x212a83C0D7Db5C526303f873D9CeaA32382b55D0": "b34bd81838a4a335fb3403d0bf616eca1eb9a4b4716c7dda7c617503cfeaab67",
-	"0x8dB7cF1823fcfa6e9E2063F983b3B96A48EEd5a4": "0cf7ae0332a891044659ace49a0732fa07c2872b4aef479945501f385a23e689",
-
 	"0x757906bA5023B92e980F61cA9427BFC15f810B6f": "330fcc18cc5c9d438744ad9b0f4274d5e9d34f099b8acf0066e304f4acabdc90",
 	"0xf80927B05dc9a25247F3d68B8192cD78361C79f0": "b0de1f5d622fcea073a06386ddffce526165b38a889c04e5088ef88a3d807570",
 	"0xA58Cc74A805adb80DA35925F28f7B732Bbf3C9FF": "209f9f8182be0f07f785be76a35c82c7ad2be4359f5c95c610e005dd23e1cfaa",
@@ -843,6 +938,9 @@ var GenesisAddrKeys8 = map[string]string{
 	"0x0474C30aB5525553B8Db6eA0B3Da24eC355E027E": "7ad766b3cb259d2ebb8505b51be4164bcac0e74ace5087f9859b265bb14d19b9",
 	"0x73769E89a7b8cD0fE3aa6AE54F32CA0aFD16b5DB": "a439b5af1a6652c94bd3f05ea52d42f9be73f4cb899d46e62291c0d393e1ed63",
 	"0x1558381335D70c2B97fDf76bDA1caaE5Bc8dA767": "dca5eb483d1b1325b8f74bc24f32ac2909c641b589a608d5054a21e711e5adfa",
+}
+
+var GenesisAddrKeys9 = map[string]string{
 	"0x884CF7D856b7572d52200A816FB07a213e5E729d": "88b535cf691ed1993bb030a6964f92fb7df6d3e5c1a9258440f4573eff9b4186",
 	"0x418957DB47CaC2936832Ea712C12433f05E44552": "4ba5950688434f83d2a67ad5c1b81a7ad6743630d21a5b74e0f4ba32f870d40d",
 	"0x78E794Fd5AaE9d76AE97AA04B05352fAFaE9C397": "64aba5dc8c1d9adfcfe58e0f58d1d19bbc70c4f52e164717b667b1ba1f1fa7b3",
@@ -864,7 +962,7 @@ var GenesisAddrKeys8 = map[string]string{
 	"0xEe727280f574fc81FaF05D153CcEFf4af1D08e83": "f51042e1b9631915e2d3e5c6662497321a817f5e14fd59f982112ccadc786ad3",
 }
 
-var GenesisAddrKeys9 = map[string]string{
+var GenesisAddrKeys10 = map[string]string{
 	"0x04b057136F3a1e1131434592E5d6209891726984": "2cd80fb9e12fc746b9fc07d8fcc9a08cc4ca98c49cf36bac6c405ed4b224b0b4",
 	"0x45dD0B611Cacb95dEBE7be429b872D92953c7301": "b85afc0b7324e829a2bbf9ebd0162cc9261ec56d4cf48aa2cb8fbddf65851e52",
 	"0xF8b8cEe574dcfAa87Bf356C9994E2f7087517165": "7492f4880e5258cbb548730ddad7c1c87e93c6c8f73c6f54dfa4a46cbe81720f",
@@ -896,6 +994,9 @@ var GenesisAddrKeys9 = map[string]string{
 	"0x6De82deCB01041a91337F2A2BfEE4BBFf7C2F960": "bdf9efac3f40c4feab9f415b0cf8301cd46e7dd32960660498a97745864f67e6",
 	"0xC28537992B07fFd4B27B182cE984065552F3e078": "1aec162bcf99e7145468a7ddd4849ca18e49c0904a099fd6e416cbd3a6da7a44",
 	"0x2dc01055524438143Ca84b90b5CF66CC4B1D2a14": "915d8b34edc00e77ea57749032e9d720f5aebeeb61af1e8fffa85f0ed3bd87c5",
+}
+
+var GenesisAddrKeys11 = map[string]string{
 	"0x82aD02241549e79681991FE366178F1285757d0C": "902e1e27b8e0bde2aefe305cc83e18c93ae2ec42d49a92ad01f039a23beace1d",
 	"0x9ef64d8E076E16441819aB9818651e060f1968E5": "ebac0bd9c2bc8cb73417ae32adfadb9fb991d101ad108d7b8af70005d4c1491b",
 	"0x75E097BB62EF2C601d0095a92A5Fd48e120d41C2": "c86714f26e44bf5285bd3fe3bc4be8d7af1a41a3170ecfa30bd4110ea905becd",
@@ -915,9 +1016,6 @@ var GenesisAddrKeys9 = map[string]string{
 	"0x216F58b2B721B002F726Cf6702dFe4d06e152989": "67348b95e069bd88e183ab42cc8e9020910b43e690444d4afb68fa644139874b",
 	"0xB68C77c5b335543DF4B9099B094ceDCba1848BD5": "2c66eb09199af24a0310e93237a21c5ab2d1253af48b8dc3e4736b4fdbd7823f",
 	"0x961631d0c17211aFDd6d7A58ec331D812656cf7A": "a0f5fa8d27795d7afe202e17a8fdf35a77b30ad53e03936731f3a335d49100fb",
-}
-
-var GenesisAddrKeys10 = map[string]string{
 	"0x9e6F688059c8583B0699075f20E5774a865Ad669": "4568e2ccdb57bf8ebf843d234f40446317cc2f3e470c68b70656be2a582ff044",
 	"0xcdD89551A82101d69A20fD267d00eD8b7b918A5d": "2847fb90098fbee0c98f05b3f068471fb7dfcb22fb24e55feca9dc7736f573dc",
 	"0x80EcBB528f70cD607Cfa94865aFBA50b4c36cDfB": "8fef0dbf4837ce793554cef0ac1376118917b6fc8e5cbdddb110df6472760d73",
@@ -938,6 +1036,9 @@ var GenesisAddrKeys10 = map[string]string{
 	"0xf4Efa66048dD4339cE3c8bB7767C687711e47be6": "3198d1de9b888f9bdefab1e546295ec1391acc471fe2df0ac4906e01d061ee17",
 	"0x1299eA3C6894b8f8b9bc881E5D2c078bDd2E827E": "ae3209034383297923a8d24b39311b8e6fc6675e9bda794d1f0781b952558b1c",
 	"0x867902A8134011A32dcc9B00553A76Bea408BdED": "c4d22fdd343554c8a7d59b1691133288dd11edab78d8eb3a834a19e11c779479",
+}
+
+var GenesisAddrKeys12 = map[string]string{
 	"0xBDA1F3Cab11F45d971b32064b5091fc78142ED17": "be23681fd85262d6d25b76aa3f24e219b4ff191a1d43bd43f370ab53c768656b",
 	"0xDe19f4944716757aF2C9B63598685Cc3Cd4e1F17": "582709c9a764a645b73c010ccb34d2e77022457547c2794587dad7fad1268393",
 	"0xDdd3764D26c74fce90CeB5b9E250aAB9D73cb327": "f7f67022ce5880996ae48d35d3e4b561585d327f5839f3c59b2ca4b0821638bf",

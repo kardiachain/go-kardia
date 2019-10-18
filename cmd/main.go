@@ -46,6 +46,7 @@ func initFlag(args *flags) {
 }
 
 var args flags
+
 func init() {
 	initFlag(&args)
 }
@@ -69,7 +70,7 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 // getP2P gets p2p's config from config
-func (c *Config)getP2PConfig() (*p2p.Config, error) {
+func (c *Config) getP2PConfig() (*p2p.Config, error) {
 	peer := c.P2P
 	var privKey *ecdsa.PrivateKey
 	var err error
@@ -83,15 +84,15 @@ func (c *Config)getP2PConfig() (*p2p.Config, error) {
 		return nil, err
 	}
 	return &p2p.Config{
-		PrivateKey:      privKey,
-		MaxPeers:        peer.MaxPeers,
-		ListenAddr:      peer.ListenAddress,
-		NAT:             nat.Any(),
+		PrivateKey: privKey,
+		MaxPeers:   peer.MaxPeers,
+		ListenAddr: peer.ListenAddress,
+		NAT:        nat.Any(),
 	}, nil
 }
 
 // getDbInfo gets database information from config. Currently, it only supports levelDb and Mondodb
-func (c *Config)getDbInfo(isDual bool) storage.DbInfo {
+func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
 	database := c.MainChain.Database
 	if isDual {
 		database = c.DualChain.Database
@@ -114,20 +115,22 @@ func (c *Config)getDbInfo(isDual bool) storage.DbInfo {
 }
 
 // getTxPoolConfig gets txPoolConfig from config
-func (c *Config)getTxPoolConfig() tx_pool.TxPoolConfig {
+func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 	txPool := c.MainChain.TxPool
 	return tx_pool.TxPoolConfig{
-		GlobalSlots:  txPool.GlobalSlots,
-		GlobalQueue:  txPool.GlobalQueue,
+		GlobalSlots: txPool.GlobalSlots,
+		GlobalQueue: txPool.GlobalQueue,
 
 		NumberOfWorkers: txPool.NumberOfWorkers,
-		WorkerCap: txPool.WorkerCap,
-		BlockSize: txPool.BlockSize,
+		WorkerCap:       txPool.WorkerCap,
+		BlockSize:       txPool.BlockSize,
+
+		LifeTime: 1 * time.Minute,
 	}
 }
 
 // getGenesis gets genesis data from config
-func (c *Config)getGenesis(isDual bool) (*genesis.Genesis, error) {
+func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 	var ga genesis.GenesisAlloc
 	var err error
 	g := c.MainChain.Genesis
@@ -161,7 +164,7 @@ func (c *Config)getGenesis(isDual bool) (*genesis.Genesis, error) {
 }
 
 // getMainChainConfig gets mainchain's config from config
-func (c *Config)getMainChainConfig() (*node.MainChainConfig, error) {
+func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	chain := c.MainChain
 	dbInfo := c.getDbInfo(false)
 	if dbInfo == nil {
@@ -192,7 +195,7 @@ func (c *Config)getMainChainConfig() (*node.MainChainConfig, error) {
 }
 
 // getMainChainConfig gets mainchain's config from config
-func (c *Config)getDualChainConfig() (*node.DualChainConfig, error) {
+func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 	dbInfo := c.getDbInfo(true)
 	if dbInfo == nil {
 		return nil, fmt.Errorf("cannot get dbInfo")
@@ -229,7 +232,7 @@ func (c *Config)getDualChainConfig() (*node.DualChainConfig, error) {
 }
 
 // getNodeConfig gets NodeConfig from config
-func (c *Config)getNodeConfig() (*node.NodeConfig, error) {
+func (c *Config) getNodeConfig() (*node.NodeConfig, error) {
 	n := c.Node
 	p2pConfig, err := c.getP2PConfig()
 	if err != nil {
@@ -268,7 +271,7 @@ func (c *Config)getNodeConfig() (*node.NodeConfig, error) {
 }
 
 // newLog inits new logger for kardia
-func (c *Config)newLog() log.Logger {
+func (c *Config) newLog() log.Logger {
 	// Setups log to Stdout.
 	level, err := log.LvlFromString(c.LogLevel)
 	if err != nil {
@@ -303,7 +306,7 @@ func (c *Config) getBaseAccount(isDual bool) (*types.BaseAccount, error) {
 }
 
 // Start starts chain with given config
-func (c *Config)Start() {
+func (c *Config) Start() {
 	logger := c.newLog()
 
 	// System settings
@@ -408,7 +411,7 @@ func (c *Config) StartDual(n *node.Node) error {
 		kardiaProxy := &kardia.KardiaProxy{}
 		if err = kardiaProxy.Init(kardiaService.BlockChain(), kardiaService.TxPool(),
 			dualService.BlockChain(), dualService.EventPool(), nil, nil); err != nil {
-				panic(err)
+			panic(err)
 		}
 
 		if dualProxy, err = dual_proxy.NewProxy(
@@ -496,7 +499,7 @@ func removeDirContents(dir string) error {
 		return err
 	}
 	for _, name := range dirNames {
-		if err = os.RemoveAll(filepath.Join(dir, name)); err  != nil {
+		if err = os.RemoveAll(filepath.Join(dir, name)); err != nil {
 			return err
 		}
 	}

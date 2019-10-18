@@ -211,6 +211,11 @@ type Transactions []*Transaction
 // Len returns the length of s.
 func (s Transactions) Len() int { return len(s) }
 
+// Empty returns whether the list of transactions is empty or not.
+func (s Transactions) Empty() bool {
+	return s.Len() == 0
+}
+
 // Swap swaps the i'th and the j'th element in s.
 func (s Transactions) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
@@ -218,6 +223,49 @@ func (s Transactions) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 func (s Transactions) GetRlp(i int) []byte {
 	enc, _ := rlp.EncodeToBytes(s[i])
 	return enc
+}
+
+// Contains tells whether contains hash.
+func (s Transactions) Contains(x common.Hash) bool {
+	for _, tx := range s {
+		if x == tx.Hash() {
+			return true
+		}
+	}
+	return false
+}
+
+// Forward tells whether low nonce
+func (s Transactions) Forward(nonce uint64) ([]int, Transactions) {
+	olds := make(Transactions, 0)
+	indexes := make([]int, 0)
+
+	for i, tx := range s {
+		if nonce > tx.Nonce() {
+			olds = append(olds, tx)
+			indexes = append(indexes, i)
+		}
+	}
+	return indexes, olds
+}
+
+// Remove by indexes
+func (s Transactions) Remove(indexes []int) Transactions{
+	txs := make(Transactions, 0)
+
+	marked := make(map[int]bool, 0)
+	for _, ele := range indexes {
+		marked[ele] = true
+	}
+
+	for i, ele := range s {
+
+		if !marked[i] {
+			txs = append(txs, ele)
+		}
+	}
+
+	return txs
 }
 
 // TxByNonce implements the sort interface to allow sorting a list of transactions

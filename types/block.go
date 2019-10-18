@@ -69,6 +69,7 @@ type Header struct {
 	ReceiptHash    common.Hash `json:"receiptsRoot"        gencodec:"required"` // receipt root
 	Bloom          Bloom       `json:"logsBloom"           gencodec:"required"`
 
+	Validator common.Address `json:"validator"`
 	// hashes from the app output from the prev block
 	ValidatorsHash common.Hash `json:"validators_hash"` // validators for the current block
 	ConsensusHash  common.Hash `json:"consensus_hash"`  // consensus params for current block

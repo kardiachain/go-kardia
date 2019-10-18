@@ -282,7 +282,7 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	// main loop. handle incoming messages.
 	for {
 		if err := pm.handleMsg(p); err != nil {
-			pm.logger.Warn("Kardia message handling failed", "err", err)
+			pm.logger.Error("Kardia message handling failed", "err", err, "peer", p.Name())
 			return err
 		}
 	}
@@ -325,7 +325,11 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
 
-		pm.receivedTxsCh <- receivedTxs{peer: p, txs: txs}
+		if len(txs) > 0 {
+			pm.logger.Trace("Received txs", "count", len(txs), "peer", p.Name())
+			queueTxs := p.MarkTransactions(txs)
+			pm.receivedTxsCh <- receivedTxs{peer: p, txs: queueTxs}
+		}
 
 	case msg.Code == serviceconst.CsNewRoundStepMsg:
 		pm.logger.Trace("NewRoundStep message received")
@@ -369,7 +373,7 @@ func (pm *ProtocolManager) syncTransactions(p *peer) {
 	pm.logger.Trace("Sync txns to new peer", "peer", p)
 	// TODO(thientn): sends transactions in chunks. This may send a large number of transactions.
 	// Breaks them to chunks here or inside AsyncSend to not overload the pipeline.
-	txs, _ := pm.txpool.Pending(0, false)
+	txs, _ := pm.txpool.Pending(0)
 	if len(txs) == 0 {
 		return
 	}
@@ -381,14 +385,12 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 	for {
 		select {
 		case txEvent := <-pm.txsCh:
-			go pm.BroadcastTxs(txEvent.Txs)
+			pm.BroadcastTxs(txEvent.Txs)
 
 		case receivedTxs := <-pm.receivedTxsCh:
-			go func() {
-				newTxs := receivedTxs.peer.MarkTransactions(receivedTxs.txs, true)
-				pm.txpool.AddTxs(newTxs)
-			}()
-
+			if len(receivedTxs.txs) > 0 {
+				pm.txpool.AddTxs(receivedTxs.txs)
+			}
 		// Err() channel will be closed when unsubscribing.
 		case <-pm.txsSub.Err():
 			return
@@ -414,7 +416,9 @@ func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
 			pm.wg.Add(1)
 			go func(p *peer) {
 				defer pm.wg.Done()
-				p2p.Send(p.rw, msgType, msg)
+				if err := p2p.Send(p.rw, msgType, msg); err != nil {
+					pm.logger.Error("Failed to broadcast consensus message", "error", err, "peer", p.Name())
+				}
 			}(p)
 		}
 	}
@@ -439,7 +443,7 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	// FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
 	for peer, txs := range pm.peers.PeersWithoutTxs(txs) {
 		// only send to validators
-		go peer.AsyncSendTransactions(txs)
+		peer.AsyncSendTransactions(txs)
 	}
 }
 
