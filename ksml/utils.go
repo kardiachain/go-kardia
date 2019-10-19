@@ -22,7 +22,6 @@ const (
 	addVarFunc = "var"
 	ifFunc = "if"
 	forEachFunc = "forEach"
-	loopIndex = "LOOP_INDEX"
 	endForEach = "endForEach"
 	splitFunc = "split"
 	replaceFunc = "replace"
@@ -68,12 +67,13 @@ const (
 	globalContractAddress = "contractAddress"
 	globalProxyName = "proxyName"
 	prefixSeparator = ":"
-	paramsSeparator = ","
 	messagePackage = "protocol.EventMessage"
 
 	signalContinue = "SIGNAL_CONTINUE"
 	signalStop = "SIGNAL_STOP"                   // stop: do nothing after signal is returned
 	signalReturn = "SIGNAL_RETURN"               // return: quit params execution but keep processed params and start another process.
+
+	bufferGas = 210000
 )
 
 type function struct {
