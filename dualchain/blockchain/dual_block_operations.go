@@ -70,14 +70,14 @@ func (dbo *DualBlockOperations) Height() uint64 {
 }
 
 // Proposes a new block for dual's blockchain.
-func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID, lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
+func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID, validator common.Address, lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
 	// Gets all dual's events in pending pools and them to the new block.
 	// TODO(namdoh@): Since there may be a small latency for other dual peers to see the same set of
 	// dual's events, we may need to wait a bit here.
 	events := dbo.collectDualEvents()
 	dbo.logger.Info("Collected dual's events", "events", events)
 
-	header := dbo.newHeader(height, uint64(len(events)), lastBlockID, lastValidatorHash)
+	header := dbo.newHeader(height, uint64(len(events)), lastBlockID, validator, lastValidatorHash)
 	dbo.logger.Info("Creates new header", "header", header)
 
 	stateRoot, err := dbo.commitDualEvents(events)
@@ -209,13 +209,14 @@ func (dbo *DualBlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 
 // Creates new block header from given data.
 // Some header fields are not ready at this point.
-func (dbo *DualBlockOperations) newHeader(height int64, numEvents uint64, blockId types.BlockID, validatorsHash common.Hash) *types.Header {
+func (dbo *DualBlockOperations) newHeader(height int64, numEvents uint64, blockId types.BlockID, validator common.Address, validatorsHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:         uint64(height),
 		NumDualEvents:  numEvents,
 		Time:           big.NewInt(time.Now().Unix()),
 		LastBlockID:    blockId,
+		Validator:      validator,
 		ValidatorsHash: validatorsHash,
 	}
 }
