@@ -184,30 +184,30 @@ use this function to trigger it and create transaction hash.
   - `contractAddress`, `methodName` and `params` are used to create triggerMessage.
   - `callbacks` is a list of triggerMessages which is used to send back to kardiachain to trigger smart contracts as DUAL_CALL message.
   - Each `callback` is a triggerMessage (contractAddress, methodName, params) without callbacks.
-- cmp: compare 2 variable to know whether they are equal or not. If it is equal, return third param, otherwise return fourth param
+- **cmp**: compare 2 variable to know whether they are equal or not. If it is equal, return third param, otherwise return fourth param
     
     ```${fn:cmp(var1,var2,trueResult,falseResult)}```
 
-- mul: multiply 2 big.Int or big.Float variables.
+- **mul**: multiply 2 big.Int or big.Float variables.
     ```${fn:mul(fn:int(param1),fn:int(param2))}```
-- div: do the divide between 2 big.Int or big.Float variables
+- **div**: do the divide between 2 big.Int or big.Float variables
 
     ```${fn:div(fn:float(param1),fn:float(param2))}```
-- int: cast a number into big.Int
+- **int**: cast a number into big.Int
 
     ```${fn:int(aNumber)}```
-- float: cast a number into big.Float
+- **float**: cast a number into big.Float
 
     ```${fn:float(aNumber)}```
-- exp: do the exp with 2 int params
+- **exp**: do the exp with 2 int params
 
     ```${fn:exp(param1,param2)}```
 
-- format: format a big.Float with number decimal after `.` sign
+- **format**: format a big.Float with number decimal after `.` sign
 
     ```${fn:format(floatVar, numberOfDecimalAfterPoint)}```
     
-- round: round a float number
+- **round**: round a float number
 
     ```${fn:round(floatNumber)}```
     
