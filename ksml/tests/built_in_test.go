@@ -1227,7 +1227,7 @@ func TestTriggerSmc(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedPoolLen := 1
-	require.Equal(t, parser.TxPool.PendingSize(), expectedPoolLen)
+	require.Equal(t, int(parser.TxPool.PendingSize()), expectedPoolLen)
 	require.Equal(t, uint64(2), parser.Nonce)
 }
 
