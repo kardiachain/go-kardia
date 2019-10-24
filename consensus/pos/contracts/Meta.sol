@@ -3,7 +3,7 @@ pragma solidity ^0.4.24;
 
 // interface definition for validatorsContract which is used to check whether sender is validator.
 contract ValidatorsContract {
-    function isValidator(address sender) public pure returns (bool) {}
+    function isValidator(address sender) public view returns (bool) {}
 }
 
 /**
