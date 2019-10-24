@@ -47,6 +47,8 @@ contract Meta {
     // maxValidators indicates maximum number of validators allowed.
     uint maxValidators;
 
+    uint256 minStakes;
+
     struct ContractInformation {
         address contractAddress;
         uint64 fromTime;
@@ -62,7 +64,7 @@ contract Meta {
     // validators stores a map of created validators contract addresses. Key is the counter
     mapping(uint64=>ContractInformation) validators;
 
-    constructor(uint64 _stakingPeriod, uint64 _votingPeriod, uint64 _validatorsPeriod, uint _maxValidators, address initValidators, uint64 fromTime, uint64 toTime) public {
+    constructor(uint64 _stakingPeriod, uint64 _votingPeriod, uint64 _validatorsPeriod, uint _maxValidators, uint64 _minStakes, address initValidators, uint64 fromTime, uint64 toTime) public {
         validators[0] = ContractInformation(initValidators, fromTime, toTime);
         stakingPeriod = _stakingPeriod;
         votingPeriod = _votingPeriod;
@@ -74,6 +76,7 @@ contract Meta {
         votingCounter = 0;
         validatorsCounter = 1;
         maxValidators = _maxValidators;
+        minStakes = _minStakes;
     }
 
     // get current validators contract and check if sender is validator or not in `isValidator` function.
@@ -192,5 +195,9 @@ contract Meta {
 
     function maxValidators() public view returns (uint) {
         return maxValidators;
+    }
+
+    function minStakes() public view returns (uint256) {
+        return minStakes;
     }
 }
