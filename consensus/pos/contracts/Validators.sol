@@ -94,4 +94,13 @@ contract Validators {
         validators[index] = node;
         return true;
     }
+
+    function isValidator(address sender) public view returns (bool) {
+        for (uint i=0; i < lengthOfValidators; i++) {
+            if (validators[i].nodeAddress == sender) {
+                return true;
+            }
+        }
+        return false;
+    }
 }
