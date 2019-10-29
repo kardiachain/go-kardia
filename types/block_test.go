@@ -30,6 +30,27 @@ import (
 	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
+func makeBlockIDRandom() BlockID {
+	blockHash := common.BytesToHash(common.RandBytes(32))
+	partSetHash := common.BytesToHash(common.RandBytes(32))
+	blockPartsHeaders := PartSetHeader{Total: *common.NewBigInt32(123), Hash: partSetHash}
+	return BlockID{
+		Hash:        blockHash,
+		PartsHeader: blockPartsHeaders,
+	}
+}
+
+func makeBlockID(hash common.Hash, partSetSize common.BigInt, partSetHash common.Hash) BlockID {
+	return BlockID{
+		Hash: hash,
+		PartsHeader: PartSetHeader{
+			Total: partSetSize,
+			Hash:  partSetHash,
+		},
+	}
+
+}
+
 func TestBlockCreation(t *testing.T) {
 	block := CreateNewBlock(1)
 	if err := block.ValidateBasic(); err != nil {
@@ -91,7 +112,7 @@ func TestBlockEncodeDecodeFile(t *testing.T) {
 func TestGetDualEvents(t *testing.T) {
 	dualBlock := CreateNewDualBlock()
 	dualEvents := dualBlock.DualEvents()
-	dualEventCopy := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary), &DualAction{Name:"dualTest"})
+	dualEventCopy := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary), &DualAction{Name: "dualTest"})
 	if dualEvents[0].Hash() != dualEventCopy.Hash() {
 		t.Error("Dual Events hash not equal")
 	}
@@ -163,8 +184,8 @@ func TestBlockWithBodyFunction(t *testing.T) {
 
 func TestNewZeroBlockID(t *testing.T) {
 	blockID := NewZeroBlockID()
-	if !blockID.IsZero() {
-		t.Fatal("NewZeroBlockID is not empty")
+	if blockID.IsZero() {
+		t.Fatal("NewZeroBlockID is empty")
 	}
 }
 
@@ -265,6 +286,6 @@ func CreateNewDualBlock() *Block {
 		Precommits: []*Vote{vote, vote},
 	}
 	header.LastCommitHash = lastCommit.Hash()
-	de := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary), &DualAction{Name:"dualTest"})
+	de := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary), &DualAction{Name: "dualTest"})
 	return NewDualBlock(log.New(), &header, []*DualEvent{de, nil}, lastCommit)
 }

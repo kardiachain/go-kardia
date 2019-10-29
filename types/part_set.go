@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/kardiachain/go-kardia/lib/common"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/merkle"
 )
@@ -30,7 +31,7 @@ type Part struct {
 
 // ValidateBasic performs basic validation.
 func (part *Part) ValidateBasic() error {
-	if part.Index.IsLessThanInt(0) {
+	if part.Index.EqualsInt(0) {
 		return errors.New("Negative Index")
 	}
 	if len(part.Bytes) > BlockPartSizeBytes {
@@ -44,7 +45,10 @@ func (part *Part) String() string {
 }
 
 func (part *Part) StringIndented(indent string) string {
-	return fmt.Sprintf("Part{#%v  %s  Bytes: %X... %s  Proof: %v  %s}",
+	return fmt.Sprintf(`Part{#%v
+%s  Bytes: %X...
+%s  Proof: %v
+%s}`,
 		part.Index,
 		indent, cmn.Fingerprint(part.Bytes),
 		indent, part.Proof.StringIndented(indent+"  "),
@@ -52,12 +56,12 @@ func (part *Part) StringIndented(indent string) string {
 }
 
 type PartSetHeader struct {
-	Total *cmn.BigInt `json:"total"`
-	Hash  []byte      `json:"hash"`
+	Total cmn.BigInt `json:"total"`
+	Hash  cmn.Hash   `json:"hash"`
 }
 
 func (psh PartSetHeader) String() string {
-	return fmt.Sprintf("%v:%X", psh.Total, cmn.Fingerprint(psh.Hash))
+	return fmt.Sprintf("%v:%X", psh.Total, psh.Hash.Fingerprint())
 }
 
 func (psh PartSetHeader) IsZero() bool {
@@ -65,7 +69,7 @@ func (psh PartSetHeader) IsZero() bool {
 }
 
 func (psh PartSetHeader) Equals(other PartSetHeader) bool {
-	return psh.Total == other.Total && bytes.Equal(psh.Hash, other.Hash)
+	return psh.Total == other.Total && psh.Hash.Equal(other.Hash)
 }
 
 // ValidateBasic performs basic validation.
@@ -73,16 +77,12 @@ func (psh PartSetHeader) ValidateBasic() error {
 	if psh.Total.IsLessThanInt(0) {
 		return errors.New("Negative Total")
 	}
-	// Hash can be empty in case of POLBlockID.PartsHeader in Proposal.
-	if err := ValidateHash(psh.Hash); err != nil {
-		return errors.Wrap(err, "Wrong Hash")
-	}
 	return nil
 }
 
 type PartSet struct {
 	total int
-	hash  []byte
+	hash  common.Hash
 
 	mtx           sync.Mutex
 	parts         []*Part
@@ -100,7 +100,7 @@ func NewPartSetFromData(data []byte, partSize int) *PartSet {
 	partsBitArray := cmn.NewBitArray(total)
 	for i := 0; i < total; i++ {
 		part := &Part{
-			Index: cmn.NewBigInt32(i),
+			Index: cmn.NewBigInt32(1),
 			Bytes: data[i*partSize : cmn.MinInt(len(data), (i+1)*partSize)],
 		}
 		parts[i] = part
@@ -114,7 +114,7 @@ func NewPartSetFromData(data []byte, partSize int) *PartSet {
 	}
 	return &PartSet{
 		total:         total,
-		hash:          root,
+		hash:          common.BytesToHash(root),
 		parts:         parts,
 		partsBitArray: partsBitArray,
 		count:         total,
@@ -137,7 +137,7 @@ func (ps *PartSet) Header() PartSetHeader {
 		return PartSetHeader{}
 	}
 	return PartSetHeader{
-		Total: cmn.NewBigInt32(ps.total),
+		Total: *common.NewBigInt32(ps.total),
 		Hash:  ps.hash,
 	}
 }
@@ -155,18 +155,18 @@ func (ps *PartSet) BitArray() *cmn.BitArray {
 	return ps.partsBitArray.Copy()
 }
 
-func (ps *PartSet) Hash() []byte {
+func (ps *PartSet) Hash() common.Hash {
 	if ps == nil {
-		return nil
+		return common.Hash{}
 	}
 	return ps.hash
 }
 
-func (ps *PartSet) HashesTo(hash []byte) bool {
+func (ps *PartSet) HashesTo(hash common.Hash) bool {
 	if ps == nil {
 		return false
 	}
-	return bytes.Equal(ps.hash, hash)
+	return ps.Hash().Equal(hash)
 }
 
 func (ps *PartSet) Count() int {
@@ -191,7 +191,7 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 	defer ps.mtx.Unlock()
 
 	// Invalid part index
-	if part.Index.IsGreaterThanOrEqualToInt(ps.total) {
+	if part.Index.IsGreaterThan(part.Index) {
 		return false, ErrPartSetUnexpectedIndex
 	}
 
@@ -201,7 +201,7 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 	}
 
 	// Check hash proof
-	if part.Proof.Verify(ps.Hash(), part.Bytes) != nil {
+	if part.Proof.Verify(ps.Hash().Bytes(), part.Bytes) != nil {
 		return false, ErrPartSetInvalidProof
 	}
 

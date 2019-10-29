@@ -29,11 +29,12 @@ import (
 	"time"
 	"unsafe"
 
+	"math/big"
+
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto/sha3"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	"math/big"
 )
 
 var (
@@ -384,8 +385,32 @@ func (b *Block) SetLastCommit(c *Commit) {
 }
 
 func (b *Block) Header() *Header { return CopyHeader(b.header) }
-func (b *Block) HashesTo(id BlockID) bool {
-	return b.Hash().Equal(common.Hash(id))
+func (b *Block) HashesTo(hash common.Hash) bool {
+	if len(hash) == 0 {
+		return false
+	}
+	if b == nil {
+		return false
+	}
+	return b.Hash().Equal(hash)
+}
+
+// MakePartSet returns a PartSet containing parts of a serialized block.
+// This is the form in which the block is gossipped to peers.
+// CONTRACT: partSize is greater than zero.
+func (b *Block) MakePartSet(partSize int) *PartSet {
+	if b == nil {
+		return nil
+	}
+	b.mtx.Lock()
+	defer b.mtx.Unlock()
+
+	bz, err := rlp.EncodeToBytes(b)
+	if err != nil {
+		panic(err)
+	}
+
+	return NewPartSetFromData(bz, partSize)
 }
 
 // Size returns the true RLP encoded storage size of the block, either by encoding
@@ -465,10 +490,6 @@ func (c *writeCounter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
-func (b *Block) BlockID() BlockID {
-	return BlockID(b.Hash())
-}
-
 // Hash returns the keccak256 hash of b's header.
 // The hash is computed on the first call and cached thereafter.
 func (b *Block) Hash() common.Hash {
@@ -503,33 +524,35 @@ func (b *Block) MakeEmptyNil() {
 	}
 }
 
-type BlockID common.Hash
+type BlockID struct {
+	Hash        common.Hash   `json:"hash"`
+	PartsHeader PartSetHeader `json:"parts"`
+}
 
 func NewZeroBlockID() BlockID {
 	return BlockID{}
 }
 
 func (b *BlockID) IsZero() bool {
-	zero := BlockID{}
-	return bytes.Equal(b[:], zero[:])
+	return len(b.Hash) == 0 && b.PartsHeader.IsZero()
 }
 
-func (b *BlockID) Equal(id BlockID) bool {
-	return common.Hash(*b).Equal(common.Hash(id))
+func (b *BlockID) Equal(other BlockID) bool {
+	return common.Hash(b.Hash).Equal(other.Hash) && b.PartsHeader.Equals(other.PartsHeader)
 }
 
 // Key returns a machine-readable string representation of the BlockID
 func (blockID *BlockID) Key() string {
-	return string(blockID[:])
+	return string(blockID.Hash[:]) + string(blockID.PartsHeader.Hash[:])
 }
 
 // String returns the first 12 characters of hex string representation of the BlockID
 func (blockID BlockID) String() string {
-	return common.Hash(blockID).Fingerprint()
+	return common.Hash(blockID.Hash).Fingerprint()
 }
 
 func (blockID BlockID) StringLong() string {
-	return common.Hash(blockID).Hex()
+	return common.Hash(blockID.Hash).Hex()
 }
 
 type Blocks []*Block
