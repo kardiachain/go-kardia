@@ -101,14 +101,12 @@ type WriteAccessor interface {
 	WriteHeader(header *Header)
 	WriteBodyRLP(hash common.Hash, height uint64, rlp rlp.RawValue)
 	WriteChainConfig(hash common.Hash, cfg *ChainConfig)
-	WriteBlock(block *Block)
+	WriteBlock(block *Block, blockParts *PartSet, seenCommit *Commit)
 	WriteReceipts(hash common.Hash, height uint64, receipts Receipts)
 	WriteCanonicalHash(hash common.Hash, height uint64)
 	WriteHeadBlockHash(hash common.Hash)
 	WriteHeadHeaderHash(hash common.Hash)
 	WriteEvent(smartcontract *KardiaSmartcontract)
-	WriteCommit(height uint64, commit *Commit)
-	WriteCommitRLP(height uint64, rlp rlp.RawValue)
 	WriteTxLookupEntries(block *Block)
 	StoreTxHash(hash *common.Hash)
 	StoreHash(hash *common.Hash)
@@ -137,7 +135,7 @@ type ReadAccessor interface {
 	ReadSmartContractFromDualAction(action string) (string, *abi.ABI)
 	ReadEvent(address string, method string) *WatcherAction
 	ReadEvents(address string) []*WatcherAction
+	ReadBlockPart(height uint64, index int) *Part
 	CheckHash(hash *common.Hash) bool
 	CheckTxHash(hash *common.Hash) bool
 }
-
