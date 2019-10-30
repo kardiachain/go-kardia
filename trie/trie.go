@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU Lesser General Public License
 
 // Package trie implements Merkle Patricia Tries.
-package types
+package trie
 
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"

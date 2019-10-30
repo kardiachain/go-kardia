@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package types
+package trie
 
 import (
 	"bytes"
 	"container/heap"
 	"errors"
+
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 )
