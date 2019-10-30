@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	kaiProtocolName   = "KAI"
+	kaiProtocolName = "KAI"
 )
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
@@ -130,7 +130,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon", // TODO(thientn): considers merging this with protocolmanger.ChainID
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
-		LastBlockID:                 block.BlockID(),
+		LastBlockID:                 block.Header().LastBlockID,
 		LastBlockTime:               block.Time(),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
@@ -260,7 +260,7 @@ func (s *KardiaService) APIs() []rpc.API {
 	}
 }
 
-func (s *KardiaService) TxPool() *tx_pool.TxPool         { return s.txPool }
+func (s *KardiaService) TxPool() *tx_pool.TxPool            { return s.txPool }
 func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
-func (s *KardiaService) ChainConfig() *types.ChainConfig  { return s.chainConfig }
-func (s *KardiaService) DB() types.Database { return s.kaiDb }
+func (s *KardiaService) ChainConfig() *types.ChainConfig    { return s.chainConfig }
+func (s *KardiaService) DB() types.Database                 { return s.kaiDb }

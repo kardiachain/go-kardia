@@ -24,7 +24,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -470,4 +470,8 @@ func (bc *BlockChain) WriteCommit(height uint64, commit *types.Commit) {
 // Reads commit from db.
 func (bc *BlockChain) ReadCommit(height uint64) *types.Commit {
 	return bc.db.ReadCommit(height)
+}
+
+func (bc *BlockChain) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
+	bc.db.SaveBlock(block, blockParts, seenCommit)
 }

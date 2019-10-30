@@ -190,6 +190,14 @@ func (conR *ConsensusManager) ReceiveNewBlockPart(generalMsg p2p.Msg, src *p2p.P
 		conR.logger.Error("Invalid block part message", "msg", generalMsg, "err", err)
 		return
 	}
+
+	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
+	if !ok {
+		conR.logger.Error("Downcast failed!!")
+		return
+	}
+	ps.SetHasProposalBlockPart(msg.Height, msg.Round, msg.Part.Index.Int32())
+	conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
 }
 
 func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Peer) {
@@ -573,30 +581,23 @@ OuterLoop:
 					logger.Trace("Sending block part failed", "err", err)
 				}
 				ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
-				continue
+				continue OuterLoop
 			}
 		}
 
 		// If the peer is on a previous height, help catch up.
 		if prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThan(rs.Height) {
-			block := conR.conS.blockOperations.LoadBlock(prs.Height.Uint64())
-			lastCommit := conR.conS.LoadCommit(prs.Height)
-			if lastCommit == nil {
-				logger.Warn(cmn.Fmt("Loading commit of previous block fails and returns nil. rs.Height=%v vs. prs.Height=%v", rs.Height, prs.Height))
-				return
-			}
-			if block.Height() != lastCommit.Height().Uint64() {
-				logger.Warn(cmn.Fmt("Loaded block's height and loaded lastCommit's height aren't the same: %v vs. %v", lastCommit.Height(), block.Height()))
-				return
-			}
-			logger.Trace("Sending BlockMessage for peer to catchup", "rsH/R", cmn.Fmt("%v/%v", rs.Height, rs.Round), "peerH/R", cmn.Fmt("%v/%v", prs.Height, prs.Round), "blockH/R", cmn.Fmt("%v/%v", prs.Height, lastCommit.Round()))
-			go func() {
-
-				if err := p2p.Send(ps.rw, service.CsBlockMsg, &BlockMessage{Height: prs.Height, Round: lastCommit.Round(), Block: block}); err != nil {
-					logger.Trace("Sending block message failed", "err", err)
+			// if we never received the commit message from the peer, the block parts wont be initialized
+			if prs.ProposalBlockParts == nil {
+				lastCommit := conR.conS.blockOperations.LoadBlockCommit(prs.Height.Uint64())
+				if lastCommit == nil {
+					panic(fmt.Sprintf("Failed to load block %d when blockStore is at %d",
+						prs.Height.Int64(), conR.conS.blockOperations.Height()))
 				}
-			}()
-			time.Sleep(conR.conS.config.PeerGossipSleep())
+				ps.InitProposalBlockParts(lastCommit.BlockID.PartsHeader)
+				continue OuterLoop
+			}
+			conR.gossipDataForCatchup(rs, prs, ps)
 			continue OuterLoop
 		}
 
@@ -652,6 +653,49 @@ OuterLoop:
 		continue OuterLoop
 	}
 }
+
+func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
+	prs *cstypes.PeerRoundState, ps *PeerState) {
+
+	if index, ok := prs.ProposalBlockParts.Not().PickRandom(); ok {
+		// Ensure that the peer's PartSetHeader is correct
+		commit := conR.conS.blockOperations.LoadBlockCommit(prs.Height.Uint64())
+		if commit == nil {
+			conR.logger.Error("Failed to load block meta",
+				"ourHeight", rs.Height, "blockstoreHeight", conR.conS.blockOperations.Height())
+			time.Sleep(time.Duration(conR.conS.config.PeerGossipSleepDuration))
+			return
+		} else if !commit.BlockID.PartsHeader.Equals(prs.ProposalBlockPartsHeader) {
+			conR.logger.Info("Peer ProposalBlockPartsHeader mismatch, sleeping",
+				"blockPartsHeader", commit.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
+			time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+			return
+		}
+		// Load the part
+		part := conR.conS.blockOperations.LoadBlockPart(prs.Height.Int64(), index)
+		if part == nil {
+			conR.logger.Error("Could not load part", "index", index,
+				"blockPartsHeader", commit.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
+			time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+			return
+		}
+
+		// Send the part
+		msg := &BlockPartMessage{
+			Height: prs.Height, // Not our height, so it doesn't matter.
+			Round:  prs.Round,  // Not our height, so it doesn't matter.
+			Part:   part,
+		}
+		conR.logger.Debug("Sending block part for catchup", "round", prs.Round, "index", index)
+		if err := p2p.Send(ps.rw, service.CsProposalBlockPartMsg, msg); err != nil {
+			conR.logger.Trace("Sending block part failed", "err", err)
+		}
+		return
+	}
+	//logger.Info("No parts to send in catch-up, sleeping")
+	time.Sleep(time.Duration(conR.conS.config.PeerGossipSleepDuration))
+}
+
 func (conR *ConsensusManager) gossipVotesRoutine(peer *p2p.Peer, ps *PeerState) {
 	logger := conR.logger.New("peer", peer)
 	logger.Trace("Start gossipVotesRoutine for peer")
@@ -1041,6 +1085,19 @@ func (ps *PeerState) SetHasProposal(proposal *types.Proposal) {
 	ps.PRS.ProposalBlockParts = cmn.NewBitArray(proposal.POLBlockID.PartsHeader.Total.Int32())
 	ps.PRS.ProposalPOLRound = proposal.POLRound
 	ps.PRS.ProposalPOL = nil // Nil until ProposalPOLMessage received.
+}
+
+// InitProposalBlockParts initializes the peer's proposal block parts header and bit array.
+func (ps *PeerState) InitProposalBlockParts(partsHeader types.PartSetHeader) {
+	ps.mtx.Lock()
+	defer ps.mtx.Unlock()
+
+	if ps.PRS.ProposalBlockParts != nil {
+		return
+	}
+
+	ps.PRS.ProposalBlockPartsHeader = partsHeader
+	ps.PRS.ProposalBlockParts = cmn.NewBitArray(partsHeader.Total.Int32())
 }
 
 // SetHasProposalBlockPart sets the given block part index as known for the peer.

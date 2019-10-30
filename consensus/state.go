@@ -28,6 +28,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardia/lib/rlp"
+
 	"github.com/ebuchman/fail-test"
 
 	cfg "github.com/kardiachain/go-kardia/configs"
@@ -251,10 +253,11 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 	cs.Validators = validators
 	cs.Proposal = nil
 	cs.ProposalBlock = nil
+	cs.ProposalBlockParts = nil
 	cs.ProposalBlockID = types.NewZeroBlockID()
-	cs.LockedRound = cmn.NewBigInt32(0)
+	cs.LockedRound = cmn.NewBigInt32(-1)
 	cs.LockedBlock = nil
-	cs.ValidRound = cmn.NewBigInt32(0)
+	cs.ValidRound = cmn.NewBigInt32(-1)
 	cs.ValidBlock = nil
 	cs.Votes = cstypes.NewHeightVoteSet(cs.logger, state.ChainID, height, validators)
 	cs.CommitRound = cmn.NewBigInt32(-1)
@@ -630,14 +633,84 @@ func (cs *ConsensusState) updateRoundStep(round *cmn.BigInt, step cstypes.RoundS
 // Advances to a new step.
 func (cs *ConsensusState) newStep() {
 	cs.logger.Trace("enter newStep()")
-
 	cs.nSteps++
-	cs.evsw.FireEvent(types.EventNewRoundStep, &cs.RoundState)
+
+	// newStep is called by updateToState in NewConsensusState before the eventBus is set!
+	if cs.eventBus != nil {
+		cs.evsw.FireEvent(types.EventNewRoundStep, &cs.RoundState)
+	}
 }
 
 func (cs *ConsensusState) updateHeight(height *cmn.BigInt) {
 	//namdoh@ cs.metrics.Height.Set(float64(height))
 	cs.Height = height
+}
+
+// NOTE: block is not necessarily valid.
+// Asynchronously triggers either enterPrevote (before we timeout of propose) or tryFinalizeCommit,
+// once we have the full block.
+func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID discover.NodeID) (added bool, err error) {
+	height, round, part := msg.Height, msg.Round, msg.Part
+
+	// Blocks might be reused, so round mismatch is OK
+	if !cs.Height.Equals(height) {
+		cs.logger.Debug("Received block part from wrong height", "height", height, "round", round)
+		return false, nil
+	}
+
+	// We're not expecting a block part.
+	if cs.ProposalBlockParts == nil {
+		// NOTE: this can happen when we've gone to a higher round and
+		// then receive parts from the previous round - not necessarily a bad peer.
+		cs.logger.Info("Received a block part when we're not expecting any",
+			"height", height, "round", round, "index", part.Index, "peer", peerID)
+		return false, nil
+	}
+
+	added, err = cs.ProposalBlockParts.AddPart(part)
+	if err != nil {
+		return added, err
+	}
+
+	if added && cs.ProposalBlockParts.IsComplete() {
+		// Added and completed!
+		if err := rlp.Decode(cs.ProposalBlockParts.GetReader(), &cs.ProposalBlock); err != nil {
+			return added, err
+		}
+		// NOTE: it's possible to receive complete proposal blocks for future rounds without having the proposal
+		cs.logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height, "hash", cs.ProposalBlock.Hash())
+		cs.eventBus.PublishEventCompleteProposal(cs.CompleteProposalEvent())
+
+		// Update Valid* if we can.
+		prevotes := cs.Votes.Prevotes(cs.Round.Int32())
+		blockID, hasTwoThirds := prevotes.TwoThirdsMajority()
+		if hasTwoThirds && !blockID.IsZero() && (cs.ValidRound.IsLessThan(cs.Round)) {
+			if cs.ProposalBlock.HashesTo(blockID.Hash) {
+				cs.logger.Info("Updating valid block to new proposal block",
+					"valid-round", cs.Round, "valid-block-hash", cs.ProposalBlock.Hash())
+				cs.ValidRound = cs.Round
+				cs.ValidBlock = cs.ProposalBlock
+				cs.ValidBlockParts = cs.ProposalBlockParts
+			}
+			// TODO: In case there is +2/3 majority in Prevotes set for some
+			// block and cs.ProposalBlock contains different block, either
+			// proposer is faulty or voting power of faulty processes is more
+			// than 1/3. We should trigger in the future accountability
+			// procedure at this point.
+		}
+		if cs.Step <= cstypes.RoundStepPropose && cs.isProposalComplete() {
+			// Move onto the next step
+			cs.enterPrevote(height, cs.Round)
+			if hasTwoThirds { // this is optimisation as this will be triggered when prevote is added
+				cs.enterPrecommit(height, cs.Round)
+			}
+		} else if cs.Step == cstypes.RoundStepCommit {
+			// If we're waiting on the proposal block...
+			cs.tryFinalizeCommit(height)
+		}
+		return added, nil
+	}
+	return added, nil
 }
 
 // GetRoundState returns a shallow copy of the internal consensus state.
@@ -779,7 +852,7 @@ func (cs *ConsensusState) enterPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 
 	// fire event for how we got here
 	if cs.isProposalComplete() {
-		cs.eventBus.PublishEventCompleteProposal(cs.RoundStateEvent())
+		cs.eventBus.PublishEventCompleteProposal(cs.CompleteProposalEvent())
 	} else {
 		// we received +2/3 prevotes for a future round
 		// TODO: catchup event?
@@ -911,6 +984,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 			logger.Info("enterPrecommit: +2/3 prevoted for nil. Unlocking")
 			cs.LockedRound = cmn.NewBigInt32(0)
 			cs.LockedBlock = nil
+			cs.LockedBlockParts = nil
 			cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 		}
 		cs.signAddVote(types.VoteTypePrecommit, common.Hash{}, types.PartSetHeader{})
@@ -1098,7 +1172,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 		precommits := cs.Votes.Precommits(cs.CommitRound.Int32())
 		seenCommit := precommits.MakeCommit()
 		cs.logger.Trace("Save new block", "block", block.Height(), "seenCommit", seenCommit)
-		cs.blockOperations.SaveBlock(block, seenCommit)
+		cs.blockOperations.SaveBlock(block, blockParts, seenCommit)
 	} else {
 		// Happens during replay if we already saved the block but didn't commit
 		cs.logger.Info("Calling finalizeCommit on already stored block", "height", block.Height())
@@ -1263,6 +1337,20 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 			"POLRound", proposal.POLRound,
 		)
 		err = cs.setProposal(msg.Proposal)
+	case *BlockPartMessage:
+		// if the proposal is complete, we'll enterPrevote or tryFinalizeCommit
+		_, err := cs.addProposalBlockPart(msg, peerID)
+		if err != nil && msg.Round != cs.Round {
+			cs.logger.Debug(
+				"Received block part from wrong round",
+				"height",
+				cs.Height,
+				"csRound",
+				cs.Round,
+				"blockRound",
+				msg.Round)
+			err = nil
+		}
 	case *VoteMessage:
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
