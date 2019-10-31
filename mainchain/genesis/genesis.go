@@ -177,6 +177,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 	head := &types.Header{
 		//@huny: convert timestamp here
 		// Time:           g.Timestamp,
+		Height:   0,
 		GasLimit: g.GasLimit,
 		Root:     root,
 	}
@@ -186,7 +187,9 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 
-	return types.NewBlock(logger, head, nil, nil, &types.Commit{})
+	block := types.NewBlock(logger, head, nil, nil, &types.Commit{})
+
+	return block
 }
 
 // Commit writes the block and state of a genesis specification to the database.
@@ -196,7 +199,9 @@ func (g *Genesis) Commit(logger log.Logger, db types.StoreDB) (*types.Block, err
 	if block.Height() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with height > 0")
 	}
-	db.WriteBlock(block, block.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
+
+	partsSet := block.MakePartSet(types.BlockPartSizeBytes)
+	db.WriteBlock(block, partsSet, &types.Commit{})
 	db.WriteReceipts(block.Hash(), block.Height(), nil)
 	db.WriteCanonicalHash(block.Hash(), block.Height())
 	db.WriteHeadBlockHash(block.Hash())

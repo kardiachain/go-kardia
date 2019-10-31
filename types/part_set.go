@@ -191,7 +191,7 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 	defer ps.mtx.Unlock()
 
 	// Invalid part index
-	if part.Index.IsGreaterThan(part.Index) {
+	if part.Index.IsGreaterThan(cmn.NewBigInt32(ps.Total())) {
 		return false, ErrPartSetUnexpectedIndex
 	}
 

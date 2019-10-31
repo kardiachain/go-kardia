@@ -610,6 +610,7 @@ func WriteBlock(db kaidb.Writer, block *types.Block, blockParts *types.PartSet, 
 
 	// Save block meta
 	blockMeta := types.NewBlockMeta(block, blockParts)
+
 	metaBytes, _ := rlp.EncodeToBytes(blockMeta)
 	db.Put(blockMetaKey(hash, height), metaBytes)
 
@@ -617,6 +618,7 @@ func WriteBlock(db kaidb.Writer, block *types.Block, blockParts *types.PartSet, 
 	for i := 0; i < blockParts.Total(); i++ {
 		part := blockParts.GetPart(i)
 		writeBlockPart(db, height, i, part)
+
 	}
 
 	// Save commint
@@ -626,6 +628,11 @@ func WriteBlock(db kaidb.Writer, block *types.Block, blockParts *types.PartSet, 
 	// Save seen commint
 	seenCommitBytes, _ := rlp.EncodeToBytes(seenCommit)
 	db.Put(seenCommitKey(height), seenCommitBytes)
+
+	key := headerHeightKey(hash)
+	if err := db.Put(key, encodeBlockHeight(height)); err != nil {
+		log.Crit("Failed to store hash to height mapping", "err", err)
+	}
 }
 
 func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part) {

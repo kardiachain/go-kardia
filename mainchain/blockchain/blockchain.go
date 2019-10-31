@@ -238,17 +238,17 @@ func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) e
 // assumes that the chain manager mutex is held.
 func (bc *BlockChain) loadLastState() error {
 	// Restore the last known head block
-	head := bc.db.ReadHeadBlockHash()
-	if head == (common.Hash{}) {
+	hash := bc.db.ReadHeadBlockHash()
+	if hash == (common.Hash{}) {
 		// Corrupt or empty database, init from scratch
 		bc.logger.Warn("Empty database, resetting chain")
 		return bc.Reset()
 	}
 	// Make sure the entire head block is available
-	currentBlock := bc.GetBlockByHash(head)
+	currentBlock := bc.GetBlockByHash(hash)
 	if currentBlock == nil {
 		// Corrupt or empty database, init from scratch
-		bc.logger.Warn("Head block missing, resetting chain", "hash", head)
+		bc.logger.Warn("Head block missing, resetting chain", "hash", hash)
 		return bc.Reset()
 	}
 	// Make sure the state associated with the block is available

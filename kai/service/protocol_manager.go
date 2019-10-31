@@ -86,9 +86,9 @@ type ProtocolManager struct {
 	noMorePeers chan struct{}
 
 	// transaction channel and subscriptions
-	txsCh  chan events.NewTxsEvent
+	txsCh         chan events.NewTxsEvent
 	receivedTxsCh chan receivedTxs
-	txsSub event.Subscription
+	txsSub        event.Subscription
 
 	// Consensus stuff
 	csReactor *consensus.ConsensusManager
@@ -114,16 +114,16 @@ func NewProtocolManager(
 
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
-		logger:      logger,
-		networkID:   networkID,
-		chainID:     chainID,
-		txpool:      txpool,
-		blockchain:  blockchain,
-		chainconfig: config,
-		peers:       newPeerSet(),
-		newPeerCh:   make(chan *peer),
-		noMorePeers: make(chan struct{}),
-		csReactor:   csReactor,
+		logger:        logger,
+		networkID:     networkID,
+		chainID:       chainID,
+		txpool:        txpool,
+		blockchain:    blockchain,
+		chainconfig:   config,
+		peers:         newPeerSet(),
+		newPeerCh:     make(chan *peer),
+		noMorePeers:   make(chan struct{}),
+		csReactor:     csReactor,
 		receivedTxsCh: make(chan receivedTxs),
 	}
 
@@ -252,9 +252,9 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	pm.logger.Debug("Kardia peer connected", "name", p.Name())
 
 	var (
-		genesis = pm.blockchain.Genesis()
-		hash    = pm.blockchain.CurrentHeader().Hash()
-		height  = pm.blockchain.CurrentBlock().Height()
+		genesis       = pm.blockchain.Genesis()
+		hash          = pm.blockchain.CurrentHeader().Hash()
+		height        = pm.blockchain.CurrentBlock().Height()
 		hasPermission = pm.blockchain.HasPermission(p.Peer)
 	)
 
@@ -349,9 +349,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	case msg.Code == serviceconst.CsCommitStepMsg:
 		pm.logger.Trace("CommitStep message received")
 		pm.csReactor.ReceiveNewCommit(msg, p.Peer)
-	case msg.Code == serviceconst.CsBlockMsg:
-		pm.logger.Trace("Block message received")
-		pm.csReactor.ReceiveBlock(msg, p.Peer)
+	case msg.Code == serviceconst.CsProposalBlockPartMsg:
+		pm.logger.Trace("Block part message received")
+		pm.csReactor.ReceiveNewBlockPart(msg, p.Peer)
 	case msg.Code == serviceconst.CsVoteSetMaj23Message:
 		pm.logger.Trace("VoteSetMaj23 message received")
 		pm.csReactor.ReceiveVoteSetMaj23(msg, p.Peer)
@@ -450,11 +450,11 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 // NodeInfo represents a short summary of the Kardia sub-protocol metadata
 // known about the host peer.
 type NodeInfo struct {
-	Network uint64               `json:"network"` // Kardia network ID
-	Height  uint64               `json:"height"`  // Height of the blockchain
-	Genesis common.Hash          `json:"genesis"` // SHA3 hash of the host's genesis block
+	Network uint64             `json:"network"` // Kardia network ID
+	Height  uint64             `json:"height"`  // Height of the blockchain
+	Genesis common.Hash        `json:"genesis"` // SHA3 hash of the host's genesis block
 	Config  *types.ChainConfig `json:"config"`  // Chain configuration for the fork rules
-	Head    common.Hash          `json:"head"`    // SHA3 hash of the host's best owned block
+	Head    common.Hash        `json:"head"`    // SHA3 hash of the host's best owned block
 }
 
 // NodeInfo retrieves some protocol metadata about the running host node.
