@@ -20,9 +20,13 @@ package state
 
 import (
 	"bytes"
-	"github.com/kardiachain/go-kardia/types"
 	"math/big"
 	"testing"
+
+	"github.com/kardiachain/go-kardia/kai/storage"
+
+	"github.com/kardiachain/go-kardia/trie"
+	"github.com/kardiachain/go-kardia/types"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -32,7 +36,7 @@ import (
 )
 
 type StateSuite struct {
-	db    *types.MemStore
+	db    storage.Database
 	state *StateDB
 }
 
@@ -91,7 +95,7 @@ func (s *StateSuite) TestDump(c *checker.C) {
 }
 
 func (s *StateSuite) SetUpTest(c *checker.C) {
-	s.db = types.NewMemStore()
+	s.db = trie.NewMemStore()
 	s.state, _ = New(log.New(), common.Hash{}, NewDatabase(s.db))
 }
 

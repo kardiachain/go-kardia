@@ -263,7 +263,7 @@ func (b *Block) SetLogger(logger log.Logger) {
 // NewBlockWithHeader creates a block with the given header data. The
 // header data is copied, changes to header and to the field values
 // will not affect the block.
-func NewBlockWithHeader(logger log.Logger, header *Header) *Block {
+func NewBlockWithHeader(header *Header) *Block {
 	return &Block{header: CopyHeader(header)}
 }
 

@@ -4,6 +4,13 @@ import (
 	"crypto/ecdsa"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"math/big"
+	"os"
+	"path/filepath"
+	"runtime"
+	"time"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/blockchain"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
@@ -24,12 +31,6 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"math/big"
-	"os"
-	"path/filepath"
-	"runtime"
-	"time"
 )
 
 const (

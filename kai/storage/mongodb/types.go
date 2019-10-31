@@ -268,8 +268,8 @@ func (block *Block) ToHeader() *types.Header {
 	return &header
 }
 
-func (block *Block) ToBlock(logger log.Logger) *types.Block {
-	return types.NewBlockWithHeader(logger, block.ToHeader())
+func (block *Block) ToBlock() *types.Block {
+	return types.NewBlockWithHeader(block.ToHeader())
 }
 
 func NewTransaction(tx *types.Transaction, height uint64, blockHash string, index int) (*Transaction, error) {

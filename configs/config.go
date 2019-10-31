@@ -102,8 +102,8 @@ type ConsensusConfig struct {
 	CreateEmptyBlocksInterval int  `mapstructure:"create_empty_blocks_interval"`
 
 	// Reactor sleep duration parameters are in milliseconds
-	PeerGossipSleepDuration     int `mapstructure:"peer_gossip_sleep_duration"`
-	PeerQueryMaj23SleepDuration int `mapstructure:"peer_query_maj23_sleep_duration"`
+	PeerGossipSleepDuration     time.Duration `mapstructure:"peer_gossip_sleep_duration"`
+	PeerQueryMaj23SleepDuration time.Duration `mapstructure:"peer_query_maj23_sleep_duration"`
 }
 
 // DefaultConsensusConfig returns a default configuration for the consensus service
@@ -130,7 +130,7 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		//  But I think we can add a function to check if any tx in pool before creating new block.
 
 		PeerGossipSleepDuration:     500, // sleep duration before gossip data to other peers - 0.5s
-		PeerQueryMaj23SleepDuration: 500,  // sleep duration before send major 2/3 (if any) to other peers - 0.1s
+		PeerQueryMaj23SleepDuration: 500, // sleep duration before send major 2/3 (if any) to other peers - 0.1s
 	}
 }
 

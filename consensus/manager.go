@@ -672,7 +672,7 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 			return
 		}
 		// Load the part
-		part := conR.conS.blockOperations.LoadBlockPart(prs.Height.Int64(), index)
+		part := conR.conS.blockOperations.LoadBlockPart(prs.Height.Uint64(), index)
 		if part == nil {
 			conR.logger.Error("Could not load part", "index", index,
 				"blockPartsHeader", commit.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)

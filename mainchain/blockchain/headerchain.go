@@ -21,8 +21,7 @@ package blockchain
 import (
 	"sync/atomic"
 
-	"github.com/hashicorp/golang-lru"
-
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -36,7 +35,7 @@ const (
 type HeaderChain struct {
 	config *types.ChainConfig
 
-	kaiDb types.Database
+	kaiDb types.StoreDB
 
 	genesisHeader *types.Header
 
@@ -57,7 +56,7 @@ func (hc *HeaderChain) CurrentHeader() *types.Header {
 //  getValidator should return the parent's validator
 //  procInterrupt points to the parent's interrupt semaphore
 //  wg points to the parent's shutdown wait group
-func NewHeaderChain(kaiDb types.Database, config *types.ChainConfig) (*HeaderChain, error) {
+func NewHeaderChain(kaiDb types.StoreDB, config *types.ChainConfig) (*HeaderChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	heightCache, _ := lru.New(heightCacheLimit)
 
@@ -149,7 +148,7 @@ func (hc *HeaderChain) SetGenesis(head *types.Header) {
 
 // DeleteCallback is a callback function that is called by SetHead before
 // each header is deleted.
-type DeleteCallback func(types.DatabaseDeleter, common.Hash, uint64)
+type DeleteCallback func(types.StoreDB, common.Hash, uint64)
 
 // SetHead rewinds the local chain to a new head. Everything above the new head
 // will be deleted and the new one set.
@@ -159,14 +158,13 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	if hdr := hc.CurrentHeader(); hdr != nil {
 		height = hdr.Height
 	}
-	batch := hc.kaiDb.NewBatch()
 	for hdr := hc.CurrentHeader(); hdr != nil && hdr.Height > head; hdr = hc.CurrentHeader() {
 		hash := hdr.Hash()
 		height := hdr.Height
 		if delFn != nil {
-			delFn(batch, hash, height)
+			delFn(hc.kaiDb, hash, height)
 		}
-		batch.DeleteHeader(hash, height)
+		hc.kaiDb.DeleteBlockPart(hash, height)
 
 		hc.currentHeader.Store(hc.GetHeader(hdr.LastCommitHash, hdr.Height-1))
 	}
@@ -174,7 +172,6 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	for i := height; i > head; i-- {
 		hc.kaiDb.DeleteCanonicalHash(i)
 	}
-	batch.Write()
 
 	// Clear out any stale content from the caches
 	hc.headerCache.Purge()

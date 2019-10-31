@@ -52,7 +52,7 @@ type BlockChain struct {
 
 	chainConfig *types.ChainConfig // Chain & network configuration
 
-	db types.Database // Blockchain database
+	db types.StoreDB // Blockchain database
 	hc *HeaderChain
 
 	chainHeadFeed event.Feed
@@ -120,7 +120,7 @@ func (bc *BlockChain) Processor() *StateProcessor {
 	return bc.processor
 }
 
-func (bc *BlockChain) DB() types.Database {
+func (bc *BlockChain) DB() types.StoreDB {
 	return bc.db
 }
 
@@ -129,7 +129,7 @@ func (bc *BlockChain) Config() *types.ChainConfig { return bc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.ChainConfig, isPrivate bool) (*BlockChain, error) {
+func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *types.ChainConfig, isPrivate bool) (*BlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 
@@ -137,7 +137,7 @@ func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.Chai
 		logger:       logger,
 		chainConfig:  chainConfig,
 		db:           db,
-		stateCache:   state.NewDatabase(db),
+		stateCache:   state.NewDatabase(db.DB()),
 		blockCache:   blockCache,
 		futureBlocks: futureBlocks,
 		quit:         make(chan struct{}),
@@ -180,6 +180,15 @@ func (bc *BlockChain) GetBlockByHeight(height uint64) *types.Block {
 	return bc.GetBlock(hash, height)
 }
 
+func (bc *BlockChain) LoadBlockPart(height uint64, index int) *types.Part {
+	hash := bc.db.ReadCanonicalHash(height)
+	part := bc.db.ReadBlockPart(hash, height, index)
+	if hash == (common.Hash{}) {
+		return nil
+	}
+	return part
+}
+
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
 func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
@@ -187,7 +196,7 @@ func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	if block, ok := bc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
 	}
-	block := bc.db.ReadBlock(bc.logger, hash, number)
+	block := bc.db.ReadBlock(hash, number)
 	if block == nil {
 		return nil
 	}
@@ -283,7 +292,7 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
-	bc.db.WriteBlock(genesis)
+	bc.db.WriteBlock(genesis, genesis.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
 
 	bc.genesisBlock = genesis
 	bc.insert(bc.genesisBlock)
@@ -338,8 +347,8 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	defer bc.mu.Unlock()
 
 	// Rewind the header chain, deleting all block bodies until then
-	delFn := func(db types.DatabaseDeleter, hash common.Hash, height uint64) {
-		db.DeleteBody(hash, height)
+	delFn := func(db types.StoreDB, hash common.Hash, height uint64) {
+		db.DeleteBlockPart(hash, height)
 	}
 	bc.hc.SetHead(head, delFn)
 	currentHeader := bc.hc.CurrentHeader()
@@ -377,14 +386,10 @@ func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) error {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 	// Write block data in batch
-	batch := bc.db.NewBatch()
-	batch.WriteBlock(block)
+	bc.db.WriteBlock(block, block.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
 
 	// Convert all txs into txLookupEntries and store to db
-	batch.WriteTxLookupEntries(block)
-	if err := batch.Write(); err != nil {
-		return err
-	}
+	bc.db.WriteTxLookupEntries(block)
 
 	// StateDb for this block should be already written.
 
@@ -410,8 +415,8 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 	// Write block data in batch.
-	batch := bc.db.NewBatch()
-	batch.WriteBlock(block)
+
+	bc.db.WriteBlock(block, block.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
 	root, err := state.Commit(true)
 	if err != nil {
 		return err
@@ -420,11 +425,9 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	if err := triedb.Commit(root, false); err != nil {
 		return err
 	}
-	batch.WriteReceipts(block.Hash(), block.Header().Height, receipts)
-	batch.WriteTxLookupEntries(block)
-	if err := batch.Write(); err != nil {
-		return err
-	}
+	bc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
+	bc.db.WriteTxLookupEntries(block)
+
 	// Set new head.
 	bc.insert(block)
 	bc.futureBlocks.Remove(block.Hash())
@@ -462,16 +465,11 @@ func (bc *BlockChain) insert(block *types.Block) {
 	}
 }
 
-// Writes commit to db.
-func (bc *BlockChain) WriteCommit(height uint64, commit *types.Commit) {
-	bc.db.WriteCommit(height, commit)
-}
-
 // Reads commit from db.
 func (bc *BlockChain) ReadCommit(height uint64) *types.Commit {
 	return bc.db.ReadCommit(height)
 }
 
 func (bc *BlockChain) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
-	bc.db.SaveBlock(block, blockParts, seenCommit)
+	bc.db.WriteBlock(block, blockParts, seenCommit)
 }

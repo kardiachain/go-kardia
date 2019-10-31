@@ -2,13 +2,14 @@ package event_pool
 
 import (
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
-	"sync"
-	"time"
 )
 
 const (
@@ -24,7 +25,7 @@ const (
 type blockChain interface {
 	CurrentBlock() *types.Block
 	GetBlock(hash common.Hash, number uint64) *types.Block
-	DB() types.Database
+	DB() types.StoreDB
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 }
 
@@ -43,13 +44,13 @@ type Config struct {
 type Pool struct {
 	logger log.Logger
 
-	chain          blockChain
-	config         Config
+	chain  blockChain
+	config Config
 
-	eventsCh        chan []interface{}               // eventsCh is used for pending events
-	allCh           chan []interface{}               // allCh is used to cache processed events
-	pending         map[common.Hash]*types.DualEvent // current processable events
-	all             map[common.Hash]*types.DualEvent // All events
+	eventsCh chan []interface{}               // eventsCh is used for pending events
+	allCh    chan []interface{}               // allCh is used to cache processed events
+	pending  map[common.Hash]*types.DualEvent // current processable events
+	all      map[common.Hash]*types.DualEvent // All events
 
 	numberOfWorkers int
 	workerCap       int
@@ -58,8 +59,8 @@ type Pool struct {
 	chainHeadSub event.Subscription
 	eventFeed    event.Feed
 
-	mu            sync.RWMutex
-	wg            sync.WaitGroup
+	mu sync.RWMutex
+	wg sync.WaitGroup
 }
 
 func NewPool(logger log.Logger, config Config, chain blockChain) *Pool {
@@ -71,9 +72,9 @@ func NewPool(logger log.Logger, config Config, chain blockChain) *Pool {
 		all:             make(map[common.Hash]*types.DualEvent),
 		chainHeadCh:     make(chan events.ChainHeadEvent, chainHeadChanSize),
 		numberOfWorkers: config.NumberOfWorkers,
-		workerCap: config.WorkerCap,
-		chain: chain,
-		config: config,
+		workerCap:       config.WorkerCap,
+		chain:           chain,
+		config:          config,
 	}
 
 	pool.reset(nil, chain.CurrentBlock().Header())
@@ -284,7 +285,7 @@ func (pool *Pool) Pending(limit int, removeResult bool) (types.DualEvents, error
 		if removeResult {
 			addedEvents = append(addedEvents, evt)
 		}
-		counter ++
+		counter++
 	}
 	pool.mu.Unlock()
 	// remove events in pending if addedEvents is not empty

@@ -140,7 +140,7 @@ func (dbo *DualBlockOperations) CommitBlockTxsIfNotFound(block *types.Block) err
 //             If all the nodes restart after committing a block,
 //             we need this to reload the precommits to catch-up nodes to the
 //             most recent height.  Otherwise they'd stall at H-1.
-func (dbo *DualBlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commit) {
+func (dbo *DualBlockOperations) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	if block == nil {
 		common.PanicSanity("DualBlockOperations try to save a nil block")
 	}
@@ -160,21 +160,13 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, seenCommit *types.
 	}
 
 	// Save block commit (duplicate and separate from the Block)
-	dbo.blockchain.WriteCommit(height-1, block.LastCommit())
-
-	// (@kiendn, issue#73)Use this function to prevent nil commits
-	seenCommit.MakeNilEmpty()
-
-	// Save seen commit (seen +2/3 precommits for block)
-	// NOTE: we can delete this at a later height
-	dbo.blockchain.WriteCommit(height, seenCommit)
+	dbo.blockchain.WriteBlock(block, blockParts, seenCommit)
 
 	dbo.logger.Trace("After commited to blockchain, removing these DualEvent's", "events", block.DualEvents())
 	dbo.eventPool.RemoveEvents(block.DualEvents())
 
 	dbo.mtx.Lock()
 	dbo.height = height
-
 	dbo.mtx.Unlock()
 }
 
@@ -193,6 +185,10 @@ func (dbo *DualBlockOperations) LoadBlockCommit(height uint64) *types.Commit {
 	}
 
 	return block.LastCommit()
+}
+
+func (bo *DualBlockOperations) LoadBlockPart(height uint64, index int) *types.Part {
+	return bo.blockchain.LoadBlockPart(height, index)
 }
 
 // Returns the locally seen Commit for the given height.

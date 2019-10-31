@@ -32,5 +32,5 @@ type BaseBlockOperations interface {
 	CommitAndValidateBlockTxs(block *types.Block) error
 	CommitBlockTxsIfNotFound(block *types.Block) error
 	SaveBlock(block *types.Block, partSet *types.PartSet, seenCommit *types.Commit)
-	LoadBlockPart(height int64, index int) *types.Part
+	LoadBlockPart(height uint64, index int) *types.Part
 }

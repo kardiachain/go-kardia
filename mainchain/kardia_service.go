@@ -59,7 +59,7 @@ type KardiaService struct {
 	shutdownChan chan bool
 
 	// DB interfaces
-	kaiDb types.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
+	kaiDb types.StoreDB // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
 	txPool          *tx_pool.TxPool
@@ -263,4 +263,4 @@ func (s *KardiaService) APIs() []rpc.API {
 func (s *KardiaService) TxPool() *tx_pool.TxPool            { return s.txPool }
 func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
 func (s *KardiaService) ChainConfig() *types.ChainConfig    { return s.chainConfig }
-func (s *KardiaService) DB() types.Database                 { return s.kaiDb }
+func (s *KardiaService) DB() types.StoreDB                  { return s.kaiDb }
