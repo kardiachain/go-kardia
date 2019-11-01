@@ -213,17 +213,13 @@ func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 		conR.logger.Error("Invalid proposal message", "msg", generalMsg, "err", err)
 		return
 	}
-	msg.Proposal.Block.SetLogger(conR.logger)
 	proposal := msg.Proposal
 	conR.logger.Trace("Decoded msg",
 		"proposalHeight", proposal.Height,
-		"blockHeight", proposal.Block.Height(),
+		"blockHeight", proposal.Height,
 		"round", proposal.Round,
 		"POLRound", proposal.POLRound,
 	)
-	if msg.Proposal.Block.LastCommit() == nil {
-		msg.Proposal.Block.SetLastCommit(&types.Commit{})
-	}
 
 	// Get peer states
 	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)

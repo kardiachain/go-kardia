@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardia/kai/state"
+
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -60,8 +62,9 @@ func (bo *BlockOperations) Height() uint64 {
 }
 
 // CreateProposalBlock creates a new proposal block with all current pending txs in pool.
-func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID, validator common.Address,
-	lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
+func (bo *BlockOperations) CreateProposalBlock(
+	height int64, lastState state.LastestBlockState,
+	proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.
 	// For simplicity, this code executes & commits txs before sending proposal,
@@ -69,13 +72,13 @@ func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.B
 	txs := bo.txPool.ProposeTransactions()
 	bo.logger.Debug("Collected transactions", "txs", txs)
 
-	header := bo.newHeader(height, uint64(len(txs)), lastBlockID, validator, lastValidatorHash)
+	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash())
 	bo.logger.Info("Creates new header", "header", header)
 
 	stateRoot, receipts, newTxs, err := bo.commitTransactions(txs, header)
 	if err != nil {
 		bo.logger.Error("Fail to commit transactions", "err", err)
-		return nil
+		return nil, nil
 	}
 	header.Root = stateRoot
 
@@ -84,7 +87,7 @@ func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.B
 
 	go bo.saveReceipts(receipts, block)
 
-	return block
+	return block, block.MakePartSet(types.BlockPartSizeBytes)
 }
 
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.

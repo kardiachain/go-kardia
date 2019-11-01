@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -70,20 +71,22 @@ func (dbo *DualBlockOperations) Height() uint64 {
 }
 
 // Proposes a new block for dual's blockchain.
-func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID, validator common.Address, lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
+func (dbo *DualBlockOperations) CreateProposalBlock(
+	height int64, lastState state.LastestBlockState,
+	proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all dual's events in pending pools and them to the new block.
 	// TODO(namdoh@): Since there may be a small latency for other dual peers to see the same set of
 	// dual's events, we may need to wait a bit here.
 	events := dbo.collectDualEvents()
 	dbo.logger.Info("Collected dual's events", "events", events)
 
-	header := dbo.newHeader(height, uint64(len(events)), lastBlockID, validator, lastValidatorHash)
+	header := dbo.newHeader(height, uint64(len(events)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash())
 	dbo.logger.Info("Creates new header", "header", header)
 
 	stateRoot, err := dbo.commitDualEvents(events)
 	if err != nil {
 		dbo.logger.Error("Fail to commit dual's events", "err", err)
-		return nil
+		return nil, nil
 	}
 
 	header.Root = stateRoot
@@ -92,7 +95,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 		previousBlock := dbo.blockchain.GetBlockByHeight(uint64(height) - 1)
 		if previousBlock == nil {
 			dbo.logger.Error("Get previous block N-1 failed", "proposedHeight", height)
-			return nil
+			return nil, nil
 		}
 		// TODO(#169,namdoh): Break this propose step into two passes--first is to propose
 		//  pending DualEvents, second is to propose submission receipts of N-1 DualEvent-derived Txs
@@ -100,7 +103,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 		dbo.logger.Debug("Submitting dual events from N-1", "events", previousBlock.DualEvents())
 		if err := dbo.submitDualEvents(previousBlock.DualEvents()); err != nil {
 			dbo.logger.Error("Fail to submit dual events", "err", err)
-			return nil
+			return nil, nil
 		}
 		dbo.logger.Info("Not yet implemented - Update state root with the DualEvent's submission receipt")
 	}
@@ -108,7 +111,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 	block = dbo.newBlock(header, events, commit)
 	dbo.logger.Trace("Make block to propose", "block", block)
 
-	return block
+	return block, block.MakePartSet(types.BlockPartSizeBytes)
 }
 
 // Executes and commits the new state from events in the given block.

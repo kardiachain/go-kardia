@@ -27,7 +27,6 @@ import (
 type CanonicalProposal struct {
 	ChainID    string      `json:"@chain_id"`
 	Type       string      `json:"@type"`
-	Block      *Block      `json:"block"`
 	Height     *cmn.BigInt `json:"height"`
 	POLBlockID BlockID     `json:"pol_block_id"`
 	POLRound   *cmn.BigInt `json:"pol_round"`
@@ -50,7 +49,6 @@ func CreateCanonicalProposal(chainID string, proposal *Proposal) CanonicalPropos
 	return CanonicalProposal{
 		ChainID:    chainID,
 		Type:       "proposal",
-		Block:      proposal.Block,
 		Height:     proposal.Height,
 		Timestamp:  proposal.Timestamp,
 		POLBlockID: proposal.POLBlockID,

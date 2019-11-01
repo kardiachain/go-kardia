@@ -259,6 +259,7 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 	cs.LockedBlock = nil
 	cs.ValidRound = cmn.NewBigInt32(-1)
 	cs.ValidBlock = nil
+	cs.ValidBlockParts = nil
 	cs.Votes = cstypes.NewHeightVoteSet(cs.logger, state.ChainID, height, validators)
 	cs.CommitRound = cmn.NewBigInt32(-1)
 	cs.LastCommit = lastPrecommits
@@ -291,18 +292,16 @@ func (cs *ConsensusState) AddVote(vote *types.Vote, peerID discover.NodeID) (add
 
 func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) {
 	var block *types.Block
+	var blockParts *types.PartSet
 
 	// Decide on block
-	if cs.LockedBlock != nil {
-		// If we're locked onto a block, just choose that.
-		block = cs.LockedBlock
-	} else if cs.ValidBlock != nil {
+	if cs.ValidBlock != nil {
 		// If there is valid block, choose that.
-		block = cs.ValidBlock
+		block, blockParts = cs.ValidBlock, cs.ValidBlockParts
 	} else {
 		// Create a new proposal block from state/txs from the mempool.
 		// Decide on block
-		block = cs.createProposalBlock()
+		block, blockParts = cs.createProposalBlock()
 		if block == nil { // on error
 			cs.logger.Trace("Create proposal block failed")
 			return
@@ -310,10 +309,10 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 	}
 
 	// Make proposal
-	polRound, polBlockID := cs.Votes.POLInfo()
-	proposal := types.NewProposal(height, round, block, cmn.NewBigInt32(polRound), polBlockID)
+	propBlockID := types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()}
+	proposal := types.NewProposal(height, round, cs.ValidRound, propBlockID)
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
-		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal.Block.Hash().String())
+		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", propBlockID.Hash)
 		// Send proposal on internal msg queue
 		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, discover.ZeroNodeID()})
 	}
@@ -322,7 +321,7 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 	cs.logger.Trace("setProposal()",
 		"proposalHeight", proposal.Height,
-		"blockHeight", proposal.Block.Height(),
+		"blockHeight", proposal.Height,
 		"round", proposal.Round,
 		"POLRound", proposal.POLRound,
 	)
@@ -1219,7 +1218,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 
 // Creates the next block to propose and returns it. Returns nil block upon
 // error.
-func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
+func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts *types.PartSet) {
 	cs.logger.Trace("createProposalBlock")
 	var commit *types.Commit
 	if cs.Height.EqualsInt(1) {
@@ -1233,10 +1232,15 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block) {
 	} else {
 		// This shouldn't happen.
 		cs.logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
-		return nil
+		return nil, nil
 	}
 
-	return cs.blockOperations.CreateProposalBlock(cs.Height.Int64(), cs.state.LastBlockID, cs.privValidator.GetAddress(), cs.state.LastValidators.Hash(), commit)
+	return cs.blockOperations.CreateProposalBlock(
+		cs.Height.Int64(),
+		cs.state,
+		cs.privValidator.GetAddress(),
+		commit,
+	)
 }
 
 // Returns true if the proposal block is complete &&
@@ -1332,7 +1336,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		proposal := msg.Proposal
 		cs.logger.Trace("handling ProposalMessage",
 			"proposalHeight", proposal.Height,
-			"blockHeight", proposal.Block.Height(),
+			"blockHeight", proposal.Height,
 			"round", proposal.Round,
 			"POLRound", proposal.POLRound,
 		)
