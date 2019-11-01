@@ -787,7 +787,7 @@ func (cs *ConsensusState) enterNewRound(height *cmn.BigInt, round *cmn.BigInt) {
 		logger.Info("Resetting Proposal info")
 		cs.Proposal = nil
 		cs.ProposalBlock = nil
-		cs.ProposalBlockID = types.NewZeroBlockID()
+		cs.ProposalBlockParts = nil
 	}
 	cs.Votes.SetRound(round.Int32() + 1) // also track next round (round+1) to allow round-skipping
 
@@ -1097,7 +1097,7 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 	// The Locked* fields no longer matter.
 	// Move them over to ProposalBlock if they match the commit hash,
 	// otherwise they'll be cleared in updateToState.
-	if cs.LockedBlock.HashesTo(blockID.Hash) {
+	if cs.LockedBlock != nil && cs.LockedBlock.HashesTo(blockID.Hash) {
 		logger.Info("Commit is for locked block. Set ProposalBlock=LockedBlock", "blockHash", blockID)
 		cs.ProposalBlock = cs.LockedBlock
 		cs.ProposalBlockID = blockID
@@ -1106,7 +1106,7 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 
 	// If we don't have the block being committed, set up to get it.
 	// cs.ProposalBlock is confirmed not nil from caller.
-	if !cs.ProposalBlock.HashesTo(blockID.Hash) {
+	if cs.LockedBlock != nil && !cs.ProposalBlock.HashesTo(blockID.Hash) {
 		if !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
 			logger.Info("Commit is for a block we don't know about. Set ProposalBlock=nil", "commit", blockID)
 			// We're getting the wrong block.
