@@ -43,6 +43,7 @@ const (
 	EventUnlock            = "Unlock"
 	EventVote              = "Vote"
 	EventProposalHeartbeat = "ProposalHeartbeat"
+	EventValidBlock        = "EventValidBlock"
 )
 
 // NOTE: This goes into the replay WAL

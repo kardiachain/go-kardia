@@ -63,3 +63,7 @@ func (b *EventBus) PublishEventLock(event EventDataRoundState) error {
 func (b *EventBus) PublishEventVote(event EventDataVote) error {
 	return b.Publish(EventVote, event)
 }
+
+func (b *EventBus) PublishEventValidBlock(event EventDataRoundState) error {
+	return b.Publish(EventValidBlock, event)
+}

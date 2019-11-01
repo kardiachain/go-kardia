@@ -18,11 +18,6 @@ var (
 	ErrPartSetInvalidProof    = errors.New("Error part set invalid proof")
 )
 
-const (
-	// BlockPartSizeBytes is the size of one block part.
-	BlockPartSizeBytes = 65536 // 64kB
-)
-
 type Part struct {
 	Index *cmn.BigInt        `json:"index"`
 	Bytes []byte             `json:"bytes"`

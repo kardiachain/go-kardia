@@ -594,11 +594,11 @@ func ReadBlockPart(db kaidb.Reader, hash common.Hash, height uint64, index int) 
 	part := new(types.Part)
 	partBytes, err := db.Get(blockPartKey(height, index))
 	if err != nil {
-		panic(fmt.Errorf("Reading block meta error: %s", err))
+		panic(fmt.Errorf("Reading block part error: %s", err))
 	}
 
 	if err := rlp.DecodeBytes(partBytes, part); err != nil {
-		panic(fmt.Errorf("Decode block meta error: %s", err))
+		panic(fmt.Errorf("Decode block part error: %s", err))
 	}
 	return part
 }

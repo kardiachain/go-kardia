@@ -337,6 +337,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	case msg.Code == serviceconst.CsProposalMsg:
 		pm.logger.Trace("Proposal message received")
 		pm.csReactor.ReceiveNewProposal(msg, p.Peer)
+	case msg.Code == serviceconst.CsValidBlockMsg:
+		pm.logger.Trace("new valid block message received")
+		pm.csReactor.ReceiveNewValidBlock(msg, p.Peer)
 	case msg.Code == serviceconst.CsVoteMsg:
 		pm.logger.Trace("Vote messsage received")
 		pm.csReactor.ReceiveNewVote(msg, p.Peer)

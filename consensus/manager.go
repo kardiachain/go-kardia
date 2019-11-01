@@ -143,6 +143,11 @@ func (conR *ConsensusManager) subscribeToBroadcastEvents() {
 		func(data EventData) {
 			conR.broadcastHasVoteMessage(data.(*types.Vote))
 		})
+
+	conR.conS.evsw.AddListenerForEvent(subscriber, types.EventValidBlock,
+		func(data EventData) {
+			conR.broadcastNewValidBlockMessage(data.(*cstypes.RoundState))
+		})
 }
 
 func (conR *ConsensusManager) unsubscribeFromBroadcastEvents() {
@@ -198,6 +203,29 @@ func (conR *ConsensusManager) ReceiveNewBlockPart(generalMsg p2p.Msg, src *p2p.P
 	}
 	ps.SetHasProposalBlockPart(msg.Height, msg.Round, msg.Part.Index.Int32())
 	conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
+}
+
+// ReceiveNewValidBlock receive new valid block ...
+func (conR *ConsensusManager) ReceiveNewValidBlock(generalMsg p2p.Msg, src *p2p.Peer) {
+	conR.logger.Trace("Consensus manager received valid block", "peer", src)
+
+	if !conR.running {
+		conR.logger.Trace("Consensus manager isn't running.")
+		return
+	}
+
+	var msg *NewValidBlockMessage
+	if err := generalMsg.Decode(msg); err != nil {
+		conR.logger.Error("Invalid valid block message", "msg", generalMsg, "err", err)
+		return
+	}
+	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
+	if !ok {
+		conR.logger.Error("Downcast failed!!")
+		return
+	}
+	ps.ApplyNewValidBlockMessage(msg)
+
 }
 
 func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Peer) {
@@ -498,6 +526,17 @@ func (conR *ConsensusManager) broadcastHasVoteMessage(vote *types.Vote) {
 	}
 	conR.logger.Trace("broadcastHasVoteMessage", "msg", msg)
 	conR.protocol.Broadcast(msg, service.CsHasVoteMsg)
+}
+
+func (conR *ConsensusManager) broadcastNewValidBlockMessage(rs *cstypes.RoundState) {
+	csMsg := &NewValidBlockMessage{
+		Height:           rs.Height,
+		Round:            rs.Round,
+		BlockPartsHeader: rs.ProposalBlockParts.Header(),
+		BlockParts:       rs.ProposalBlockParts.BitArray(),
+		IsCommit:         rs.Step == cstypes.RoundStepCommit,
+	}
+	conR.protocol.Broadcast(csMsg, service.CsValidBlockMsg)
 }
 
 // ------------ Send message helpers -----------
@@ -1150,6 +1189,23 @@ func (ps *PeerState) PickVoteToSend(votes types.VoteSetReader) (vote *types.Vote
 	return nil, false
 }
 
+// ApplyNewValidBlockMessage updates the peer state for the new valid block.
+func (ps *PeerState) ApplyNewValidBlockMessage(msg *NewValidBlockMessage) {
+	ps.mtx.Lock()
+	defer ps.mtx.Unlock()
+
+	if ps.PRS.Height != msg.Height {
+		return
+	}
+
+	if ps.PRS.Round != msg.Round && !msg.IsCommit {
+		return
+	}
+
+	ps.PRS.ProposalBlockPartsHeader = msg.BlockPartsHeader
+	ps.PRS.ProposalBlockParts = msg.BlockParts
+}
+
 func (ps *PeerState) getVoteBitArray(height *cmn.BigInt, round *cmn.BigInt, type_ byte) *cmn.BitArray {
 	if !types.IsVoteTypeValid(type_) {
 		return nil
@@ -1388,4 +1444,48 @@ func (m *BlockPartMessage) ValidateBasic() error {
 // String returns a string representation.
 func (m *BlockPartMessage) String() string {
 	return fmt.Sprintf("[BlockPart H:%v R:%v P:%v]", m.Height, m.Round, m.Part)
+}
+
+//-------------------------------------
+
+// NewValidBlockMessage is sent when a validator observes a valid block B in some round r,
+//i.e., there is a Proposal for block B and 2/3+ prevotes for the block B in the round r.
+// In case the block is also committed, then IsCommit flag is set to true.
+type NewValidBlockMessage struct {
+	Height           *cmn.BigInt
+	Round            *cmn.BigInt
+	BlockPartsHeader types.PartSetHeader
+	BlockParts       *cmn.BitArray
+	IsCommit         bool
+}
+
+// ValidateBasic performs basic validation.
+func (m *NewValidBlockMessage) ValidateBasic() error {
+	if m.Height.IsLessThanInt(0) {
+		return errors.New("Negative Height")
+	}
+	if m.Round.IsLessThanInt(0) {
+		return errors.New("Negative Round")
+	}
+	if err := m.BlockPartsHeader.ValidateBasic(); err != nil {
+		return fmt.Errorf("Wrong BlockPartsHeader: %v", err)
+	}
+	if m.BlockParts.Size() == 0 {
+		return errors.New("Empty BlockParts")
+	}
+	if m.BlockParts.Size() != m.BlockPartsHeader.Total.Int32() {
+		return fmt.Errorf("BlockParts bit array size %d not equal to BlockPartsHeader.Total %d",
+			m.BlockParts.Size(),
+			m.BlockPartsHeader.Total.Int64())
+	}
+	if m.BlockParts.Size() > types.MaxBlockPartsCount {
+		return fmt.Errorf("BlockParts bit array is too big: %d, max: %d", m.BlockParts.Size(), types.MaxBlockPartsCount)
+	}
+	return nil
+}
+
+// String returns a string representation.
+func (m *NewValidBlockMessage) String() string {
+	return fmt.Sprintf("[ValidBlockMessage H:%v R:%v BP:%v BA:%v IsCommit:%v]",
+		m.Height, m.Round, m.BlockPartsHeader, m.BlockParts, m.IsCommit)
 }
