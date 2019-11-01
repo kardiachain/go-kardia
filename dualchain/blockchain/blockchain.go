@@ -430,7 +430,7 @@ func (dbc *DualBlockChain) WriteBlockWithState(block *types.Block, receipts []*t
 }
 
 // CommitTrie commits trie node such as statedb forcefully to disk.
-func (dbc DualBlockChain) CommitTrie(root common.Hash) error {
+func (dbc *DualBlockChain) CommitTrie(root common.Hash) error {
 	triedb := dbc.stateCache.TrieDB()
 	return triedb.Commit(root, false)
 }
