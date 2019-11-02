@@ -257,6 +257,7 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 	cs.ProposalBlockID = types.NewZeroBlockID()
 	cs.LockedRound = cmn.NewBigInt32(-1)
 	cs.LockedBlock = nil
+	cs.LockedBlockParts = nil
 	cs.ValidRound = cmn.NewBigInt32(-1)
 	cs.ValidBlock = nil
 	cs.ValidBlockParts = nil
@@ -313,33 +314,27 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 	proposal := types.NewProposal(height, round, cs.ValidRound, propBlockID)
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
 		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", propBlockID.Hash)
-		// Send proposal on internal msg queue
+		// send proposal and block parts on internal msg queue
 		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, discover.ZeroNodeID()})
+		for i := 0; i < blockParts.Total(); i++ {
+			part := blockParts.GetPart(i)
+			cs.sendInternalMessage(msgInfo{&BlockPartMessage{cs.Height, cs.Round, part}, discover.ZeroNodeID()})
+		}
+		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
+		cs.logger.Debug(fmt.Sprintf("Signed proposal block: %v", block))
 	}
 }
 
 func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
-	cs.logger.Trace("setProposal()",
-		"proposalHeight", proposal.Height,
-		"blockHeight", proposal.Height,
-		"round", proposal.Round,
-		"POLRound", proposal.POLRound,
-	)
-
+	// Already have one
+	// TODO: possibly catch double proposals
 	if cs.Proposal != nil {
-		cs.logger.Trace("cs.Proposal isn't nil. Returns early.")
 		return nil
 	}
 
 	// Does not apply
 	if !proposal.Height.Equals(cs.Height) || !proposal.Round.Equals(cs.Round) {
 		cs.logger.Trace(fmt.Sprintf("CS[%v/%v] doesn't match Proposal[%v/%v]", cs.Height, cs.Round, proposal.Height, proposal.Round))
-		return nil
-	}
-
-	// We don't care about the proposal if we're already in cstypes.RoundStepCommit.
-	if cstypes.RoundStepCommit <= cs.Step {
-		cs.logger.Trace("cs.Step is already beyond RoundStepCommit", "cs.Step", cs.Step)
 		return nil
 	}
 
@@ -417,34 +412,43 @@ func (cs *ConsensusState) reconstructLastCommit(state state.LastestBlockState) {
 }
 
 // Attempt to add the vote. if its a duplicate signature, dupeout the validator
-func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID discover.NodeID) error {
-	_, err := cs.addVote(vote, peerID)
+func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID discover.NodeID) (bool, error) {
+	added, err := cs.addVote(vote, peerID)
 	if err != nil {
 		// If the vote height is off, we'll just ignore it,
 		// But if it's a conflicting sig, add it to the cs.evpool.
 		// If it's otherwise invalid, punish peer.
 		if err == ErrVoteHeightMismatch {
-			return err
+			return false, err
 		} else if _, ok := err.(*types.ErrVoteConflictingVotes); ok {
 			if vote.ValidatorAddress.Equal(cs.privValidator.GetAddress()) {
 				cs.logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
-				return err
+				return false, err
 			}
 			// TODO(namdoh): Re-enable this later.
 			cs.logger.Warn("Add vote error to evidence pool later")
-			return err
+			return false, err
 		} else {
 			// Probably an invalid signature / Bad peer.
 			// Seems this can also err sometimes with "Unexpected step" - perhaps not from a bad peer ?
 			cs.logger.Error("Error attempting to add vote", "err", err)
-			return ErrAddingVote
+			return false, ErrAddingVote
 		}
 	}
-	return nil
+	return added, nil
 }
 
 func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (added bool, err error) {
-	cs.logger.Debug("addVote", "voteHeight", vote.Height, "voteType", vote.Type, "valIndex", vote.ValidatorIndex, "csHeight", cs.Height)
+	cs.logger.Debug(
+		"addVote",
+		"voteHeight",
+		vote.Height,
+		"voteType",
+		vote.Type,
+		"valIndex",
+		vote.ValidatorIndex,
+		"csHeight",
+		cs.Height)
 
 	// A precommit for the previous height?
 	// These come in while we wait timeoutCommit
@@ -494,10 +498,8 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 		prevotes := cs.Votes.Prevotes(vote.Round.Int32())
 
 		cs.logger.Info("Added to prevote", "vote", vote, "prevotes", prevotes.StringShort())
-
 		// If +2/3 prevotes for a block or nil for *any* round:
 		if blockID, ok := prevotes.TwoThirdsMajority(); ok {
-
 			// There was a polka!
 			// If we're locked but this is a recent polka, unlock.
 			// If it matches our ProposalBlock, update the ValidBlock
@@ -612,12 +614,28 @@ func (cs *ConsensusState) signVote(type_ byte, hash cmn.Hash, header types.PartS
 		ValidatorIndex:   cmn.NewBigInt32(valIndex),
 		Height:           cs.Height,
 		Round:            cs.Round,
-		Timestamp:        big.NewInt(time.Now().Unix()),
+		Timestamp:        cs.voteTime(),
 		Type:             type_,
 		BlockID:          types.BlockID{Hash: hash, PartsHeader: header},
 	}
 	err := cs.privValidator.SignVote(cs.state.ChainID, vote)
 	return vote, err
+}
+
+func (cs *ConsensusState) voteTime() *big.Int {
+	now := time.Now()
+	minVoteTime := now.Unix()
+	// TODO: We should remove next line in case we don't vote for v in case cs.ProposalBlock == nil,
+	// even if cs.LockedBlock != nil. See https://github.com/tendermint/spec.
+	timeIotaMs := int64(5000)
+	if cs.LockedBlock != nil {
+		// See the BFT time spec https://tendermint.com/docs/spec/consensus/bft-time.html
+		minVoteTime = cs.LockedBlock.Time().Int64()
+	} else if cs.ProposalBlock != nil {
+		minVoteTime = cs.ProposalBlock.Time().Int64()
+	}
+
+	return big.NewInt(minVoteTime + timeIotaMs)
 }
 
 // Signs the vote and publish on internalMsgQueue
@@ -692,7 +710,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID dis
 			return added, err
 		}
 		// NOTE: it's possible to receive complete proposal blocks for future rounds without having the proposal
-		cs.logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height, "hash", cs.ProposalBlock.Hash())
+		cs.logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height(), "hash", cs.ProposalBlock.Hash())
 		cs.eventBus.PublishEventCompleteProposal(cs.CompleteProposalEvent())
 
 		// Update Valid* if we can.
@@ -790,7 +808,6 @@ func (cs *ConsensusState) enterNewRound(height *cmn.BigInt, round *cmn.BigInt) {
 		cs.ProposalBlockParts = nil
 	}
 	cs.Votes.SetRound(round.Int32() + 1) // also track next round (round+1) to allow round-skipping
-
 	cs.eventBus.PublishEventNewRound(cs.RoundStateEvent())
 
 	cs.enterPropose(height, round)
@@ -864,14 +881,6 @@ func (cs *ConsensusState) enterPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 		cs.newStep()
 	}()
 
-	// fire event for how we got here
-	if cs.isProposalComplete() {
-		cs.eventBus.PublishEventCompleteProposal(cs.CompleteProposalEvent())
-	} else {
-		// we received +2/3 prevotes for a future round
-		// TODO: catchup event?
-	}
-
 	cs.logger.Info(cmn.Fmt("enterPrevote(%v/%v). Current: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
 
 	// Sign and broadcast vote as necessary
@@ -896,7 +905,6 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 		cs.signAddVote(types.VoteTypePrevote, common.Hash{}, types.PartSetHeader{})
 		return
 	}
-
 	// Validate proposal block
 	// This checks the block contents without executing txs.
 	if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
@@ -996,7 +1004,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 			logger.Info("enterPrecommit: +2/3 prevoted for nil.")
 		} else {
 			logger.Info("enterPrecommit: +2/3 prevoted for nil. Unlocking")
-			cs.LockedRound = cmn.NewBigInt32(0)
+			cs.LockedRound = cmn.NewBigInt32(-1)
 			cs.LockedBlock = nil
 			cs.LockedBlockParts = nil
 			cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
@@ -1017,7 +1025,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	}
 
 	// If +2/3 prevoted for proposal block, stage and precommit it
-	if cs.ProposalBlock.HashesTo(blockID.Hash) {
+	if cs.ProposalBlock != nil && cs.ProposalBlock.HashesTo(blockID.Hash) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID)
 		// Validate the block.
 		if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
@@ -1034,11 +1042,12 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	// Fetch that block, unlock, and precommit nil.
 	// The +2/3 prevotes for this round is the POL for our unlock.
 	// TODO: In the future save the POL prevotes for justification.
-	cs.LockedRound = cmn.NewBigInt32(0)
+	cs.LockedRound = cmn.NewBigInt32(-1)
 	cs.LockedBlock = nil
-	if !cs.ProposalBlockID.Equal(blockID) {
+	cs.LockedBlockParts = nil
+	if !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
 		cs.ProposalBlock = nil
-		cs.ProposalBlockID = blockID
+		cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
 	}
 	cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 	cs.signAddVote(types.VoteTypePrecommit, common.Hash{}, types.PartSetHeader{})
@@ -1317,6 +1326,15 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 		case mi = <-cs.peerMsgQueue:
 			// handles proposals, votes
 			// may generate internal events (votes, complete proposals, 2/3 majorities)
+
+			if _, ok := mi.Msg.(*VoteMessage); ok {
+				// we actually want to simulate failing during
+				// the previous WriteSync, but this isn't easy to do.
+				// Equivalent would be to fail here and manually remove
+				// some bytes from the end of the wal.
+				fail.Fail() // XXX
+			}
+
 			cs.handleMsg(mi)
 		case mi = <-cs.internalMsgQueue:
 			// handles proposals, votes
@@ -1365,7 +1383,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
 		cs.logger.Trace("handling AddVote", "VoteMessage", msg.Vote)
-		err := cs.tryAddVote(msg.Vote, peerID)
+		_, err := cs.tryAddVote(msg.Vote, peerID)
 		if err == ErrAddingVote {
 			cs.logger.Trace("trying to add vote failed", "err", err)
 			cs.logger.Warn("TODO - punish peer.")
