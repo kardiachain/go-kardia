@@ -25,7 +25,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 func TestCommitCreation(t *testing.T) {
@@ -124,5 +123,5 @@ func CreateNewBlockWithTwoVotes(height uint64) *Block {
 	lastCommit := &Commit{
 		Precommits: []*Vote{vote, nil},
 	}
-	return NewBlock(log.New(), &header, txns, nil, lastCommit)
+	return NewBlock(&header, txns, nil, lastCommit)
 }

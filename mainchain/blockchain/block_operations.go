@@ -202,7 +202,7 @@ func (bo *BlockOperations) newHeader(height int64, numTxs uint64, blockId types.
 
 // newBlock creates new block from given data.
 func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
-	block := types.NewBlock(bo.logger, header, txs, receipts, commit)
+	block := types.NewBlock(header, txs, receipts, commit)
 
 	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
 	// LastResultHash.

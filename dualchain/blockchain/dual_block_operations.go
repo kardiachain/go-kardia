@@ -222,7 +222,7 @@ func (dbo *DualBlockOperations) newHeader(height int64, numEvents uint64, blockI
 
 // Creates new block from given data.
 func (dbo *DualBlockOperations) newBlock(header *types.Header, events types.DualEvents, commit *types.Commit) *types.Block {
-	return types.NewDualBlock(dbo.logger, header, events, commit)
+	return types.NewDualBlock(header, events, commit)
 }
 
 // Queries list of pending dual's events from EventPool.

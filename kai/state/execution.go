@@ -45,6 +45,7 @@ func ValidateBlock(state LastestBlockState, block *types.Block) error {
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
 func ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
+
 	if err := ValidateBlock(state, block); err != nil {
 		return state, ErrInvalidBlock(err)
 	}

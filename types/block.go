@@ -155,8 +155,6 @@ type BlockAccount struct {
 
 // Block represents an entire block in the Kardia blockchain.
 type Block struct {
-	logger log.Logger
-
 	mtx          sync.Mutex
 	header       *Header
 	transactions Transactions
@@ -182,9 +180,8 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit) *Block {
+func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit) *Block {
 	b := &Block{
-		logger:     logger,
 		header:     CopyHeader(header),
 		lastCommit: CopyCommit(commit),
 	}
@@ -205,16 +202,6 @@ func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []
 		b.header.Bloom = CreateBloom(receipts)
 	}
 
-	if b.header.LastCommitHash.IsZero() {
-		if commit == nil {
-			b.logger.Error("NewBlock - commit should never be nil.")
-			b.header.LastCommitHash = common.NewZeroHash()
-		} else {
-			b.logger.Trace("Compute last commit hash", "commit", commit)
-			b.header.LastCommitHash = commit.Hash()
-		}
-	}
-
 	// TODO(namdoh): Store evidence hash.
 
 	return b
@@ -223,9 +210,8 @@ func NewBlock(logger log.Logger, header *Header, txs []*Transaction, receipts []
 // NewDualBlock creates a new block for dual chain. The input data is copied,
 // changes to header and to the field values will not affect the
 // block.
-func NewDualBlock(logger log.Logger, header *Header, events DualEvents, commit *Commit) *Block {
+func NewDualBlock(header *Header, events DualEvents, commit *Commit) *Block {
 	b := &Block{
-		logger:     logger,
 		header:     CopyHeader(header),
 		lastCommit: CopyCommit(commit),
 	}
@@ -234,10 +220,8 @@ func NewDualBlock(logger log.Logger, header *Header, events DualEvents, commit *
 
 	if b.header.LastCommitHash.IsZero() {
 		if commit == nil {
-			b.logger.Error("NewBlock - commit should never be nil.")
 			b.header.LastCommitHash = common.NewZeroHash()
 		} else {
-			b.logger.Trace("Compute last commit hash", "commit", commit)
 			b.header.LastCommitHash = commit.Hash()
 		}
 	}
@@ -254,10 +238,6 @@ func NewDualBlock(logger log.Logger, header *Header, events DualEvents, commit *
 	// TODO(namdoh): Store evidence hash.
 
 	return b
-}
-
-func (b *Block) SetLogger(logger log.Logger) {
-	b.logger = logger
 }
 
 // NewBlockWithHeader creates a block with the given header data. The
@@ -353,7 +333,6 @@ func (b *Block) DualEvents() DualEvents { return b.dualEvents }
 // WithBody returns a new block with the given transaction.
 func (b *Block) WithBody(body *Body) *Block {
 	block := &Block{
-		logger:       b.logger,
 		header:       CopyHeader(b.header),
 		transactions: make([]*Transaction, len(body.Transactions)),
 		dualEvents:   make([]*DualEvent, len(body.DualEvents)),
@@ -381,7 +360,6 @@ func (b *Block) LastCommit() *Commit         { return b.lastCommit }
 // struct pointer as nil. After encoding an empty struct and send it over to
 // another node, decoding it would become nil.
 func (b *Block) SetLastCommit(c *Commit) {
-	b.logger.Error("SetLastCommit is a hack. Remove asap!!")
 	b.lastCommit = c
 }
 
@@ -440,18 +418,24 @@ func (b *Block) ValidateBasic() error {
 		return fmt.Errorf("wrong Block.Header.NumTxs. Expected %v, got %v", newTxs, b.header.NumTxs)
 	}
 
+	// Validate the last commit and its hash.
+	if b.header.Height > 1 {
+		if b.lastCommit == nil {
+			return errors.New("nil LastCommit")
+		}
+		if err := b.lastCommit.ValidateBasic(); err != nil {
+			return fmt.Errorf("Wrong LastCommit")
+		}
+	}
+
 	if b.lastCommit == nil && !b.header.LastCommitHash.IsZero() {
 		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  lastCommit is nil, but expect zero hash, but got: %v", b.header.LastCommitHash)
 	} else if b.lastCommit != nil && !b.header.LastCommitHash.Equal(b.lastCommit.Hash()) {
 		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v.  Last commit %v", b.header.LastCommitHash, b.lastCommit.Hash(), b.lastCommit)
 	}
-	if b.header.Height != 1 {
-		if err := b.lastCommit.ValidateBasic(); err != nil {
-			return err
-		}
-	}
+
 	// TODO(namdoh): Re-enable check for Data hash.
-	b.logger.Info("Block.ValidateBasic() - not yet implement validating data hash.")
+	//b.logger.Info("Block.ValidateBasic() - not yet implement validating data hash.")
 	//if !bytes.Equal(b.DataHash, b.Data.Hash()) {
 	//	return fmt.Errorf("Wrong Block.Header.DataHash.  Expected %v, got %v", b.DataHash, b.Data.Hash())
 	//}
@@ -459,7 +443,7 @@ func (b *Block) ValidateBasic() error {
 	//	return errors.New(cmn.Fmt("Wrong Block.Header.EvidenceHash.  Expected %v, got %v", b.EvidenceHash, b.Evidence.Hash()))
 	//}
 
-	b.logger.Info("Block.ValidateBasic() - implement validate DualEvents.")
+	//b.logger.Info("Block.ValidateBasic() - implement validate DualEvents.")
 
 	return nil
 }

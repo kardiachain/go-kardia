@@ -905,6 +905,7 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 		cs.signAddVote(types.VoteTypePrevote, common.Hash{}, types.PartSetHeader{})
 		return
 	}
+
 	// Validate proposal block
 	// This checks the block contents without executing txs.
 	if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {

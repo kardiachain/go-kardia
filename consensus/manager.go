@@ -273,7 +273,6 @@ func (conR *ConsensusManager) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
 		conR.logger.Error("Invalid BlockMessage", "msg", generalMsg, "err", err)
 		return
 	}
-	msg.Block.SetLogger(conR.logger)
 
 	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("Height:%v   Round:%v   Block:%v", msg.Height, msg.Round, msg.Block.Height()))
 
@@ -387,7 +386,6 @@ func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 		conR.logger.Error("Invalid commit step message", "msg", generalMsg, "err", err)
 		return
 	}
-	msg.Block.SetLogger(conR.logger)
 
 	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("{Height:%v  Block:%v}", msg.Height, msg.Block.Height()))
 

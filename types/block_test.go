@@ -26,7 +26,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
@@ -267,7 +266,7 @@ func CreateNewBlock(height uint64) *Block {
 	lastCommit := &Commit{
 		Precommits: []*Vote{vote, nil},
 	}
-	return NewBlock(log.New(), &header, txns, nil, lastCommit)
+	return NewBlock(&header, txns, nil, lastCommit)
 }
 
 func CreateNewDualBlock() *Block {
@@ -287,5 +286,5 @@ func CreateNewDualBlock() *Block {
 	}
 	header.LastCommitHash = lastCommit.Hash()
 	de := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary), &DualAction{Name: "dualTest"})
-	return NewDualBlock(log.New(), &header, []*DualEvent{de, nil}, lastCommit)
+	return NewDualBlock(&header, []*DualEvent{de, nil}, lastCommit)
 }
