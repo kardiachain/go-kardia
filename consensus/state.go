@@ -170,7 +170,7 @@ func (cs *ConsensusState) SetPrivValidator(priv *types.PrivValidator) {
 
 // It loads the latest state via the WAL, and starts the timeout and receive routines.
 func (cs *ConsensusState) Start() {
-	cs.logger.Trace("Consensus state starts!")
+	cs.logger.Info("Consensus state starts!")
 
 	// we need the timeoutRoutine for replay so
 	// we don't block on the tick chan.
@@ -498,6 +498,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 		prevotes := cs.Votes.Prevotes(vote.Round.Int32())
 
 		cs.logger.Info("Added to prevote", "vote", vote, "prevotes", prevotes.StringShort())
+
 		// If +2/3 prevotes for a block or nil for *any* round:
 		if blockID, ok := prevotes.TwoThirdsMajority(); ok {
 			// There was a polka!
@@ -618,6 +619,7 @@ func (cs *ConsensusState) signVote(type_ byte, hash cmn.Hash, header types.PartS
 		Type:             type_,
 		BlockID:          types.BlockID{Hash: hash, PartsHeader: header},
 	}
+
 	err := cs.privValidator.SignVote(cs.state.ChainID, vote)
 	return vote, err
 }

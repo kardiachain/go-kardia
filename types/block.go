@@ -202,6 +202,14 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *C
 		b.header.Bloom = CreateBloom(receipts)
 	}
 
+	if b.header.LastCommitHash.IsZero() {
+		if commit == nil {
+			b.header.LastCommitHash = common.NewZeroHash()
+		} else {
+			b.header.LastCommitHash = commit.Hash()
+		}
+	}
+
 	// TODO(namdoh): Store evidence hash.
 
 	return b
