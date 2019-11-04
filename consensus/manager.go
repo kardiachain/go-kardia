@@ -214,7 +214,7 @@ func (conR *ConsensusManager) ReceiveNewValidBlock(generalMsg p2p.Msg, src *p2p.
 		return
 	}
 
-	var msg *NewValidBlockMessage
+	msg := &NewValidBlockMessage{}
 	if err := generalMsg.Decode(msg); err != nil {
 		conR.logger.Error("Invalid valid block message", "msg", generalMsg, "err", err)
 		return
@@ -527,15 +527,14 @@ func (conR *ConsensusManager) broadcastHasVoteMessage(vote *types.Vote) {
 }
 
 func (conR *ConsensusManager) broadcastNewValidBlockMessage(rs *cstypes.RoundState) {
-	csMsg := &NewValidBlockMessage{
+	msg := &NewValidBlockMessage{
 		Height:           rs.Height,
 		Round:            rs.Round,
 		BlockPartsHeader: rs.ProposalBlockParts.Header(),
 		BlockParts:       rs.ProposalBlockParts.BitArray(),
 		IsCommit:         rs.Step == cstypes.RoundStepCommit,
 	}
-
-	conR.protocol.Broadcast(csMsg, service.CsValidBlockMsg)
+	conR.protocol.Broadcast(msg, service.CsValidBlockMsg)
 }
 
 // ------------ Send message helpers -----------
@@ -623,12 +622,12 @@ OuterLoop:
 		if prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThan(rs.Height) {
 			// if we never received the commit message from the peer, the block parts wont be initialized
 			if prs.ProposalBlockParts == nil {
-				lastCommit := conR.conS.blockOperations.LoadBlockCommit(prs.Height.Uint64())
-				if lastCommit == nil {
-					panic(fmt.Sprintf("Failed to load block %d when blockStore is at %d",
+				blockMeta := conR.conS.blockOperations.LoadBlockMeta(prs.Height.Uint64())
+				if blockMeta == nil {
+					panic(fmt.Sprintf("Failed to load block %d when blockOperations is at %d",
 						prs.Height.Int64(), conR.conS.blockOperations.Height()))
 				}
-				ps.InitProposalBlockParts(lastCommit.BlockID.PartsHeader)
+				ps.InitProposalBlockParts(blockMeta.BlockID.PartsHeader)
 				continue OuterLoop
 			}
 			conR.gossipDataForCatchup(rs, prs, ps)
@@ -693,15 +692,15 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 
 	if index, ok := prs.ProposalBlockParts.Not().PickRandom(); ok {
 		// Ensure that the peer's PartSetHeader is correct
-		commit := conR.conS.blockOperations.LoadBlockCommit(prs.Height.Uint64())
-		if commit == nil {
+		blockMeta := conR.conS.blockOperations.LoadBlockMeta(prs.Height.Uint64())
+		if blockMeta == nil {
 			conR.logger.Error("Failed to load block meta",
 				"ourHeight", rs.Height, "blockstoreHeight", conR.conS.blockOperations.Height())
 			time.Sleep(time.Duration(conR.conS.config.PeerGossipSleepDuration))
 			return
-		} else if !commit.BlockID.PartsHeader.Equals(prs.ProposalBlockPartsHeader) {
+		} else if !blockMeta.BlockID.PartsHeader.Equals(prs.ProposalBlockPartsHeader) {
 			conR.logger.Info("Peer ProposalBlockPartsHeader mismatch, sleeping",
-				"blockPartsHeader", commit.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
+				"blockPartsHeader", blockMeta.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
 			time.Sleep(conR.conS.config.PeerGossipSleepDuration)
 			return
 		}
@@ -709,7 +708,7 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 		part := conR.conS.blockOperations.LoadBlockPart(prs.Height.Uint64(), index)
 		if part == nil {
 			conR.logger.Error("Could not load part", "index", index,
-				"blockPartsHeader", commit.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
+				"blockPartsHeader", blockMeta.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
 			time.Sleep(conR.conS.config.PeerGossipSleepDuration)
 			return
 		}

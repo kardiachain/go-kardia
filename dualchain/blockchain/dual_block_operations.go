@@ -194,6 +194,10 @@ func (bo *DualBlockOperations) LoadBlockPart(height uint64, index int) *types.Pa
 	return bo.blockchain.LoadBlockPart(height, index)
 }
 
+func (bo *DualBlockOperations) LoadBlockMeta(height uint64) *types.BlockMeta {
+	return bo.blockchain.LoadBlockMeta(height)
+}
+
 // Returns the locally seen Commit for the given height.
 // This is useful when we've seen a commit, but there has not yet been
 // a new block at `height + 1` that includes this commit in its block.LastCommit.

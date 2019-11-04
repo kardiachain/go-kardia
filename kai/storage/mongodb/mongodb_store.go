@@ -907,6 +907,11 @@ func (db *Store) DeleteCanonicalHash(number uint64) {
 	panic("DeleteCanonicalHash has not implemented yet")
 }
 
+// DeleteCanonicalHash removes the number to hash canonical mapping.
+func (db *Store) ReadBlockMeta(hash common.Hash, number uint64) *types.BlockMeta {
+	panic("ReadBlockMeta has not implemented yet")
+}
+
 func (db *Store) Has(key []byte) (bool, error) {
 	if value, err := db.Get(key); value != nil {
 		return true, err

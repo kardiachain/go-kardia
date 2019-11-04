@@ -189,6 +189,11 @@ func (bc *BlockChain) LoadBlockPart(height uint64, index int) *types.Part {
 	return part
 }
 
+func (bc *BlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
+	hash := bc.db.ReadCanonicalHash(height)
+	return bc.db.ReadBlockMeta(hash, height)
+}
+
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
 func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {

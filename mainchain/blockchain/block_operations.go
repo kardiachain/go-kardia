@@ -162,6 +162,10 @@ func (bo *BlockOperations) LoadBlockPart(height uint64, index int) *types.Part {
 	return bo.blockchain.LoadBlockPart(height, index)
 }
 
+func (bo *BlockOperations) LoadBlockMeta(height uint64) *types.BlockMeta {
+	return bo.blockchain.LoadBlockMeta(height)
+}
+
 // LoadBlockCommit returns the Commit for the given height.
 // If no block is found for the given height, it returns nil.
 func (bo *BlockOperations) LoadBlockCommit(height uint64) *types.Commit {

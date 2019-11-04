@@ -34,4 +34,5 @@ type BaseBlockOperations interface {
 	CommitBlockTxsIfNotFound(block *types.Block) error
 	SaveBlock(block *types.Block, partSet *types.PartSet, seenCommit *types.Commit)
 	LoadBlockPart(height uint64, index int) *types.Part
+	LoadBlockMeta(height uint64) *types.BlockMeta
 }

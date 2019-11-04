@@ -35,6 +35,7 @@ type StoreDB interface {
 
 	//ReadBodyRLP(hash common.Hash, height uint64) rlp.RawValue
 	//ReadHeaderRLP(hash common.Hash, height uint64) rlp.RawValue
+	ReadBlockMeta(common.Hash, uint64) *BlockMeta
 	ReadHeadBlockHash() common.Hash
 	ReadHeaderHeight(hash common.Hash) *uint64
 	ReadHeadHeaderHash() common.Hash
