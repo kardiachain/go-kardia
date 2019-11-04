@@ -265,6 +265,7 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 	cs.CommitRound = cmn.NewBigInt32(-1)
 	cs.LastCommit = lastPrecommits
 	cs.LastValidators = state.LastValidators
+	cs.TriggeredTimeoutPrecommit = false
 
 	cs.state = state
 
@@ -339,8 +340,8 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 	}
 
 	// Verify POLRound, which must be -1 or between 0 and proposal.Round exclusive.
-	if !proposal.POLRound.EqualsInt(-1) &&
-		(proposal.POLRound.IsLessThanInt(0) || proposal.Round.IsLessThanOrEquals(proposal.POLRound)) {
+	if proposal.POLRound.Int64() < -1 &&
+		(proposal.POLRound.Int64() > 0 || proposal.POLRound.IsGreaterThan(proposal.Round)) {
 		cs.logger.Trace("Invalid proposal POLRound", "proposal.POLRound", proposal.POLRound, "proposal.Round", proposal.Round)
 		return ErrInvalidProposalPOLRound
 	}
@@ -513,7 +514,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 				!cs.LockedBlock.HashesTo(blockID.Hash) {
 
 				cs.logger.Info("Unlocking because of POL.", "lockedRound", cs.LockedRound, "POLRound", vote.Round)
-				cs.LockedRound = cmn.NewBigInt32(0)
+				cs.LockedRound = cmn.NewBigInt32(-1)
 				cs.LockedBlock = nil
 				cs.LockedBlockParts = nil
 				cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
@@ -523,7 +524,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 			// NOTE: our proposal block may be nil or not what received a polka..
 			if !blockID.IsZero() &&
 				cs.ValidRound.IsLessThan(vote.Round) &&
-				vote.Round.IsLessThanOrEquals(cs.Round) {
+				vote.Round.Equals(cs.Round) {
 
 				if cs.ProposalBlock.HashesTo(blockID.Hash) {
 					cs.logger.Info("Updating ValidBlock because of POL.", "validRound", cs.ValidRound, "POLRound", vote.Round)
@@ -548,16 +549,16 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 
 		// If +2/3 prevotes for *anything* for future round:
 		switch {
-		case cs.Round.IsLessThanOrEquals(vote.Round) && prevotes.HasTwoThirdsAny():
+		case cs.Round.IsLessThan(vote.Round) && prevotes.HasTwoThirdsAny():
 			cs.enterNewRound(height, vote.Round)
 		case cs.Round.Equals(vote.Round) && cstypes.RoundStepPrevote <= cs.Step:
 			blockID, ok := prevotes.TwoThirdsMajority()
-			if ok && (cs.isProposalComplete() || len(blockID.Hash) == 0) {
+			if ok && (cs.isProposalComplete() || blockID.Hash.IsZero()) {
 				cs.enterPrecommit(height, vote.Round)
 			} else if prevotes.HasTwoThirdsAny() {
 				cs.enterPrevoteWait(height, vote.Round)
 			}
-		case cs.Proposal != nil && cs.Proposal.POLRound.IsLessThanInt(0) && cs.Proposal.POLRound.Equals(vote.Round):
+		case cs.Proposal != nil && cs.Proposal.POLRound.IsGreaterThanOrEqualToInt(0) && cs.Proposal.POLRound.Equals(vote.Round):
 			// If the proposal is now complete, enter prevote of cs.Round.
 			if cs.isProposalComplete() {
 				cs.enterPrevote(height, cs.Round)
@@ -583,11 +584,10 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 				// if we have all the votes now,
 				// go straight to new round (skip timeout commit)
 				// cs.scheduleTimeout(time.Duration(0), cs.Height, 0, cstypes.RoundStepNewHeight)
-				cs.enterNewRound(cs.Height, cmn.NewBigInt32(0))
+				cs.enterPrecommitWait(height, vote.Round)
 			}
 		} else if cs.Round.IsLessThanOrEquals(vote.Round) && precommits.HasTwoThirdsAny() {
 			cs.enterNewRound(height, vote.Round)
-			cs.enterPrecommit(height, vote.Round)
 			cs.enterPrecommitWait(height, vote.Round)
 		}
 	default:
@@ -666,11 +666,13 @@ func (cs *ConsensusState) updateRoundStep(round *cmn.BigInt, step cstypes.RoundS
 
 // Advances to a new step.
 func (cs *ConsensusState) newStep() {
-	cs.logger.Trace("enter newStep()")
+	cs.logger.Info("enter newStep()")
+	rs := cs.RoundStateEvent()
 	cs.nSteps++
 
 	// newStep is called by updateToState in NewConsensusState before the eventBus is set!
 	if cs.eventBus != nil {
+		cs.eventBus.PublishEventNewRoundStep(rs)
 		cs.evsw.FireEvent(types.EventNewRoundStep, &cs.RoundState)
 	}
 }
@@ -810,6 +812,7 @@ func (cs *ConsensusState) enterNewRound(height *cmn.BigInt, round *cmn.BigInt) {
 		cs.ProposalBlockParts = nil
 	}
 	cs.Votes.SetRound(round.Int32() + 1) // also track next round (round+1) to allow round-skipping
+	cs.TriggeredTimeoutPrecommit = false
 	cs.eventBus.PublishEventNewRound(cs.RoundStateEvent())
 
 	cs.enterPropose(height, round)
@@ -1019,7 +1022,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	// At this point, +2/3 prevoted for a particular block.
 
 	// If we're already locked on that block, precommit it, and update the LockedRound
-	if cs.LockedBlock != nil && cs.LockedBlock.HashesTo(blockID.Hash) {
+	if cs.LockedBlock.HashesTo(blockID.Hash) {
 		logger.Info("enterPrecommit: +2/3 prevoted locked block. Relocking")
 		cs.LockedRound = round
 		cs.eventBus.PublishEventRelock(cs.RoundStateEvent())
@@ -1028,7 +1031,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	}
 
 	// If +2/3 prevoted for proposal block, stage and precommit it
-	if cs.ProposalBlock != nil && cs.ProposalBlock.HashesTo(blockID.Hash) {
+	if cs.ProposalBlock.HashesTo(blockID.Hash) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID)
 		// Validate the block.
 		if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
@@ -1036,6 +1039,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 		}
 		cs.LockedRound = round
 		cs.LockedBlock = cs.ProposalBlock
+		cs.LockedBlockParts = cs.ProposalBlockParts
 		cs.eventBus.PublishEventLock(cs.RoundStateEvent())
 		cs.signAddVote(types.VoteTypePrecommit, blockID.Hash, blockID.PartsHeader)
 		return
@@ -1058,20 +1062,24 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 
 // Enter: any +2/3 precommits for next round.
 func (cs *ConsensusState) enterPrecommitWait(height *cmn.BigInt, round *cmn.BigInt) {
-	logger := cs.logger.New("height", height, "round", round)
+	logger := log.New("height", height.Int64(), "round", round.Int64())
 
-	if !cs.Height.Equals(height) || round.IsLessThan(cs.Round) || (cs.Round.Equals(round) && cstypes.RoundStepPrecommitWait <= cs.Step) {
-		logger.Debug(cmn.Fmt("enterPrecommitWait(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
+	if !cs.Height.Equals(height) || !round.Equals(cs.Round) || (cs.Round.Equals(round) && cs.TriggeredTimeoutPrecommit) {
+		logger.Debug(
+			fmt.Sprintf(
+				"enterPrecommitWait(%v/%v): Invalid args. "+
+					"Current state is Height/Round: %v/%v/, TriggeredTimeoutPrecommit:%v",
+				height, round, cs.Height, cs.Round, cs.TriggeredTimeoutPrecommit))
 		return
 	}
 	if !cs.Votes.Precommits(round.Int32()).HasTwoThirdsAny() {
-		cmn.PanicSanity(cmn.Fmt("enterPrecommitWait(%v/%v), but Precommits does not have any +2/3 votes", height, round))
+		panic(fmt.Sprintf("enterPrecommitWait(%v/%v), but Precommits does not have any +2/3 votes", height, round))
 	}
-	logger.Info(cmn.Fmt("enterPrecommitWait(%v/%v). Current: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
+	logger.Info(fmt.Sprintf("enterPrecommitWait(%v/%v). Current: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
 
 	defer func() {
 		// Done enterPrecommitWait:
-		cs.updateRoundStep(round, cstypes.RoundStepPrecommitWait)
+		cs.TriggeredTimeoutPrecommit = true
 		cs.newStep()
 	}()
 
@@ -1361,7 +1369,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 	switch msg := msg.(type) {
 	case *ProposalMessage:
 		proposal := msg.Proposal
-		cs.logger.Trace("handling ProposalMessage",
+		cs.logger.Info("handling ProposalMessage",
 			"proposalHeight", proposal.Height,
 			"blockHeight", proposal.Height,
 			"round", proposal.Round,
@@ -1424,6 +1432,7 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 	case cstypes.RoundStepPrevoteWait:
 		cs.enterPrecommit(ti.Height, ti.Round)
 	case cstypes.RoundStepPrecommitWait:
+		cs.enterPrecommit(ti.Height, ti.Round)
 		cs.enterNewRound(ti.Height, ti.Round.Add(1))
 	default:
 		panic(cmn.Fmt("Invalid timeout step: %v", ti.Step))

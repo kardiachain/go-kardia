@@ -609,9 +609,9 @@ OuterLoop:
 					Round:  rs.Round,  // This tells peer that this part applies to us.
 					Part:   part,
 				}
-				logger.Debug("Sending block part", "height", prs.Height, "round", prs.Round)
+				logger.Info("Sending block part", "height", prs.Height, "round", prs.Round)
 				if err := p2p.Send(ps.rw, service.CsProposalBlockPartMsg, msg); err != nil {
-					logger.Trace("Sending block part failed", "err", err)
+					logger.Error("Sending block part failed", "err", err)
 				}
 				ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				continue OuterLoop
@@ -721,7 +721,7 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 		}
 		conR.logger.Debug("Sending block part for catchup", "round", prs.Round, "index", index)
 		if err := p2p.Send(ps.rw, service.CsProposalBlockPartMsg, msg); err != nil {
-			conR.logger.Trace("Sending block part failed", "err", err)
+			conR.logger.Error("Sending block part failed", "err", err)
 		}
 		return
 	}
@@ -1339,6 +1339,7 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 	ps.PRS.StartTime = startTime
 	if !psHeight.Equals(msg.Height) || !psRound.Equals(msg.Round) {
 		ps.PRS.Proposal = false
+		ps.PRS.ProposalBlockPartsHeader = types.PartSetHeader{}
 		ps.PRS.ProposalBlockParts = nil
 		ps.PRS.ProposalPOLRound = cmn.NewBigInt32(-1)
 		ps.PRS.ProposalPOL = nil
