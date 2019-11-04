@@ -190,8 +190,8 @@ func (conR *ConsensusManager) ReceiveNewBlockPart(generalMsg p2p.Msg, src *p2p.P
 	}
 	conR.logger.Trace("Consensus manager received Block Part", "peer", src)
 
-	var msg BlockPartMessage
-	if err := generalMsg.Decode(&msg); err != nil {
+	msg := &BlockPartMessage{}
+	if err := generalMsg.Decode(msg); err != nil {
 		conR.logger.Error("Invalid block part message", "msg", generalMsg, "err", err)
 		return
 	}
@@ -609,7 +609,7 @@ OuterLoop:
 					Round:  rs.Round,  // This tells peer that this part applies to us.
 					Part:   part,
 				}
-				logger.Info("Sending block part", "height", prs.Height, "round", prs.Round)
+				logger.Info("Sending block part", "height", prs.Height, "round", prs.Round, "msg code", service.CsProposalBlockPartMsg)
 				if err := p2p.Send(ps.rw, service.CsProposalBlockPartMsg, msg); err != nil {
 					logger.Error("Sending block part failed", "err", err)
 				}
