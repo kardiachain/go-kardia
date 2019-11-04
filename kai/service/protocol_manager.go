@@ -420,7 +420,7 @@ func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
 			go func(p *peer) {
 				defer pm.wg.Done()
 				if err := p2p.Send(p.rw, msgType, msg); err != nil {
-					pm.logger.Error("Failed to broadcast consensus message", "error", err, "peer", p.Name())
+					pm.logger.Error("Failed to broadcast consensus message", "error", err, "peer", p.Name(), "msg type", msgType)
 				}
 			}(p)
 		}

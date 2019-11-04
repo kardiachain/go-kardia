@@ -534,6 +534,7 @@ func (conR *ConsensusManager) broadcastNewValidBlockMessage(rs *cstypes.RoundSta
 		BlockParts:       rs.ProposalBlockParts.BitArray(),
 		IsCommit:         rs.Step == cstypes.RoundStepCommit,
 	}
+
 	conR.protocol.Broadcast(csMsg, service.CsValidBlockMsg)
 }
 
