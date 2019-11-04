@@ -75,3 +75,22 @@ func (privVal *PrivValidator) SignProposal(chainID string, proposal *Proposal) e
 //func (privVal *PrivValidator) SignHeartbeat(chainID string, heartbeat *Heartbeat) error {
 //	panic("SignHeartbeat - not yet implemented")
 //}
+
+//----------------------------------------
+// Misc.
+
+type PrivValidatorsByAddress []PrivValidator
+
+func (pvs PrivValidatorsByAddress) Len() int {
+	return len(pvs)
+}
+
+func (pvs PrivValidatorsByAddress) Less(i, j int) bool {
+	return pvs[i].GetAddress().Equal(pvs[j].GetAddress())
+}
+
+func (pvs PrivValidatorsByAddress) Swap(i, j int) {
+	it := pvs[i]
+	pvs[i] = pvs[j]
+	pvs[j] = it
+}

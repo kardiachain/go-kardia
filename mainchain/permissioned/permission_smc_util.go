@@ -20,33 +20,33 @@ package permissioned
 
 import (
 	"crypto/ecdsa"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"math/big"
 	"strings"
+
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/dualnode/utils"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/base"
-	"github.com/kardiachain/go-kardia/dualnode/utils"
 )
 
 const (
 	KardiaPermissionSmcIndex = 4
 )
 
-
 // PermissionSmcUtil wraps all utility methods related to permission smc
 type PermissionSmcUtil struct {
-	Abi             *abi.ABI
-	StateDb         *state.StateDB
-	ContractAddress *common.Address
-	SenderAddress   *common.Address
+	Abi              *abi.ABI
+	StateDb          *state.StateDB
+	ContractAddress  *common.Address
+	SenderAddress    *common.Address
 	SenderPrivateKey *ecdsa.PrivateKey
-	bc              base.BaseBlockChain
+	bc               base.BaseBlockChain
 }
 
 func NewSmcPermissionUtil(bc base.BaseBlockChain) (*PermissionSmcUtil, error) {

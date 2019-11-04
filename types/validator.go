@@ -418,3 +418,20 @@ func (ac accumComparable) Less(o interface{}) bool {
 	larger := ac.CompareAccum(other)
 	return bytes.Equal(larger.Address[:], ac.Address[:])
 }
+
+//----------------------------------------
+// RandValidator
+
+// RandValidator returns a randomized validator, useful for testing.
+// UNSTABLE
+func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
+	priv, _ := crypto.GenerateKey()
+	privVal := NewPrivValidator(priv)
+	votePower := minPower
+	if randPower {
+		votePower += 1
+	}
+	pubKey := privVal.GetPubKey()
+	val := NewValidator(pubKey, votePower)
+	return val, *privVal
+}

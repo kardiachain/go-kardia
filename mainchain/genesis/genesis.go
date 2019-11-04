@@ -42,10 +42,11 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
-	Config    *types.ChainConfig `json:"config"`
-	Timestamp uint64             `json:"timestamp"`
-	GasLimit  uint64             `json:"gasLimit"   gencodec:"required"`
-	Alloc     GenesisAlloc       `json:"alloc"      gencodec:"required"`
+	Config     *types.ChainConfig `json:"config"`
+	Timestamp  uint64             `json:"timestamp"`
+	GasLimit   uint64             `json:"gasLimit"   gencodec:"required"`
+	Alloc      GenesisAlloc       `json:"alloc"      gencodec:"required"`
+	Validators []*types.Validator `json:"validators"`
 
 	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
 }
