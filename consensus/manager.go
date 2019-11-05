@@ -505,7 +505,7 @@ func (conR *ConsensusManager) ReceiveVoteSetBits(generalMsg p2p.Msg, src *p2p.Pe
 func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundState) {
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
 	if nrsMsg != nil {
-		conR.logger.Trace("broadcastNewRoundStepMessage", "nrsMsg", nrsMsg)
+		conR.logger.Trace("broadcastNewRoundStepMessage", "nrsMsg", nrsMsg, "height", rs.Height)
 		go conR.protocol.Broadcast(nrsMsg, service.CsNewRoundStepMsg)
 	}
 	if csMsg != nil {
@@ -620,6 +620,7 @@ OuterLoop:
 
 		// If the peer is on a previous height, help catch up.
 		if prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThan(rs.Height) {
+
 			// if we never received the commit message from the peer, the block parts wont be initialized
 			if prs.ProposalBlockParts == nil {
 				blockMeta := conR.conS.blockOperations.LoadBlockMeta(prs.Height.Uint64())
@@ -696,12 +697,12 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 		if blockMeta == nil {
 			conR.logger.Error("Failed to load block meta",
 				"ourHeight", rs.Height, "blockstoreHeight", conR.conS.blockOperations.Height())
-			time.Sleep(time.Duration(conR.conS.config.PeerGossipSleepDuration))
+			time.Sleep(conR.conS.config.PeerGossipSleep())
 			return
 		} else if !blockMeta.BlockID.PartsHeader.Equals(prs.ProposalBlockPartsHeader) {
 			conR.logger.Info("Peer ProposalBlockPartsHeader mismatch, sleeping",
 				"blockPartsHeader", blockMeta.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
-			time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+			time.Sleep(conR.conS.config.PeerGossipSleep())
 			return
 		}
 		// Load the part
@@ -709,7 +710,7 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 		if part == nil {
 			conR.logger.Error("Could not load part", "index", index,
 				"blockPartsHeader", blockMeta.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
-			time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+			time.Sleep(conR.conS.config.PeerGossipSleep())
 			return
 		}
 
@@ -726,7 +727,7 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 		return
 	}
 	//logger.Info("No parts to send in catch-up, sleeping")
-	time.Sleep(time.Duration(conR.conS.config.PeerGossipSleepDuration))
+	time.Sleep(conR.conS.config.PeerGossipSleep())
 }
 
 func (conR *ConsensusManager) gossipVotesRoutine(peer *p2p.Peer, ps *PeerState) {
