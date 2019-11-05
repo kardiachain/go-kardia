@@ -667,14 +667,10 @@ func (cs *ConsensusState) updateRoundStep(round *cmn.BigInt, step cstypes.RoundS
 // Advances to a new step.
 func (cs *ConsensusState) newStep() {
 	cs.logger.Info("enter newStep()")
-	rs := cs.RoundStateEvent()
+	//rs := cs.RoundStateEvent()
 	cs.nSteps++
 
-	// newStep is called by updateToState in NewConsensusState before the eventBus is set!
-	if cs.eventBus != nil {
-		cs.eventBus.PublishEventNewRoundStep(rs)
-		cs.evsw.FireEvent(types.EventNewRoundStep, &cs.RoundState)
-	}
+	cs.evsw.FireEvent(types.EventNewRoundStep, &cs.RoundState)
 }
 
 func (cs *ConsensusState) updateHeight(height *cmn.BigInt) {
