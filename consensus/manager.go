@@ -387,7 +387,7 @@ func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer
 		return
 	}
 
-	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("{Height:%v  Block:%v}", msg.Height, msg.Block.Height()))
+	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("{Height:%v  Block:%v}", msg.Height, msg.Height))
 
 	// Get peer states
 	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
@@ -509,7 +509,7 @@ func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 		go conR.protocol.Broadcast(nrsMsg, service.CsNewRoundStepMsg)
 	}
 	if csMsg != nil {
-		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", fmt.Sprintf("{Height:%v  Block:%v}", csMsg.Height, csMsg.Block.Hash().Hex()))
+		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", fmt.Sprintf("{Height:%v  BlockPartsHeader:%v}", csMsg.Height, csMsg.BlockPartsHeader))
 		go conR.protocol.Broadcast(csMsg, service.CsCommitStepMsg)
 	}
 }
@@ -576,10 +576,11 @@ func makeRoundStepMessages(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage,
 		SecondsSinceStartTime: uint(time.Now().Unix() - rs.StartTime.Int64()),
 		LastCommitRound:       rs.LastCommit.Round(),
 	}
-	if rs.Step == cstypes.RoundStepCommit && rs.ProposalBlock != nil {
+	if rs.Step == cstypes.RoundStepCommit && rs.ProposalBlockParts != nil {
 		csMsg = &CommitStepMessage{
-			Height: rs.Height,
-			Block:  rs.ProposalBlock,
+			Height:           rs.Height,
+			BlockPartsHeader: rs.ProposalBlockParts.Header(),
+			BlockParts:       rs.ProposalBlockParts.BitArray(),
 		}
 	}
 	return
@@ -1044,8 +1045,9 @@ func (m *VoteSetBitsMessage) String() string {
 
 // CommitStepMessage is sent when a block is committed.
 type CommitStepMessage struct {
-	Height *cmn.BigInt  `json:"height" gencodoc:"required"`
-	Block  *types.Block `json:"block" gencodoc:"required"`
+	Height           *cmn.BigInt `json:"height" gencodoc:"required"`
+	BlockPartsHeader types.PartSetHeader
+	BlockParts       *cmn.BitArray
 }
 
 // ---------  PeerState ---------
@@ -1321,6 +1323,8 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
+	fmt.Print("------------------------------------------------------------------------------------------")
+
 	// Ignore duplicates or decreases
 	if CompareHRS(msg.Height, msg.Round, msg.Step, ps.PRS.Height, ps.PRS.Round, ps.PRS.Step) <= 0 {
 		return
@@ -1373,6 +1377,9 @@ func (ps *PeerState) ApplyCommitStepMessage(msg *CommitStepMessage) {
 	if !ps.PRS.Height.Equals(msg.Height) {
 		return
 	}
+
+	ps.PRS.ProposalBlockPartsHeader = msg.BlockPartsHeader
+	ps.PRS.ProposalBlockParts = msg.BlockParts
 
 }
 
