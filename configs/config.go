@@ -86,20 +86,20 @@ func configNumEqual(x, y *big.Int) bool {
 // including timeouts and details about the block structure.
 type ConsensusConfig struct {
 	// All timeouts are in milliseconds
-	TimeoutPropose        int `mapstructure:"timeout_propose"`
-	TimeoutProposeDelta   int `mapstructure:"timeout_propose_delta"`
-	TimeoutPrevote        int `mapstructure:"timeout_prevote"`
-	TimeoutPrevoteDelta   int `mapstructure:"timeout_prevote_delta"`
-	TimeoutPrecommit      int `mapstructure:"timeout_precommit"`
-	TimeoutPrecommitDelta int `mapstructure:"timeout_precommit_delta"`
-	TimeoutCommit         int `mapstructure:"timeout_commit"`
+	TimeoutPropose        time.Duration `mapstructure:"timeout_propose"`
+	TimeoutProposeDelta   time.Duration `mapstructure:"timeout_propose_delta"`
+	TimeoutPrevote        time.Duration `mapstructure:"timeout_prevote"`
+	TimeoutPrevoteDelta   time.Duration `mapstructure:"timeout_prevote_delta"`
+	TimeoutPrecommit      time.Duration `mapstructure:"timeout_precommit"`
+	TimeoutPrecommitDelta time.Duration `mapstructure:"timeout_precommit_delta"`
+	TimeoutCommit         time.Duration `mapstructure:"timeout_commit"`
 
 	// Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
 	SkipTimeoutCommit bool `mapstructure:"skip_timeout_commit"`
 
 	// EmptyBlocks mode and possible interval between empty blocks in seconds
-	CreateEmptyBlocks         bool `mapstructure:"create_empty_blocks"`
-	CreateEmptyBlocksInterval int  `mapstructure:"create_empty_blocks_interval"`
+	CreateEmptyBlocks         bool          `mapstructure:"create_empty_blocks"`
+	CreateEmptyBlocksInterval time.Duration `mapstructure:"create_empty_blocks_interval"`
 
 	// Reactor sleep duration parameters are in milliseconds
 	PeerGossipSleepDuration     time.Duration `mapstructure:"peer_gossip_sleep_duration"`
@@ -129,39 +129,39 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		//  Note: this will cause number of blocks increase a lot and lead to chain's size increase.
 		//  But I think we can add a function to check if any tx in pool before creating new block.
 
-		PeerGossipSleepDuration:     500, // sleep duration before gossip data to other peers - 0.5s
-		PeerQueryMaj23SleepDuration: 500, // sleep duration before send major 2/3 (if any) to other peers - 0.1s
+		PeerGossipSleepDuration:     1000, // sleep duration before gossip data to other peers - 0.5s
+		PeerQueryMaj23SleepDuration: 1000, // sleep duration before send major 2/3 (if any) to other peers - 0.1s
 	}
 }
 
 // Commit returns the amount of time to wait for straggler votes after receiving +2/3 precommits for a single block (ie. a commit).
 func (cfg *ConsensusConfig) Commit(t time.Time) time.Time {
-	return t.Add(time.Duration(cfg.TimeoutCommit) * time.Millisecond)
+	return t.Add(cfg.TimeoutCommit * time.Millisecond)
 }
 
 // Propose returns the amount of time to wait for a proposal
 func (cfg *ConsensusConfig) Propose(round int) time.Duration {
-	return time.Duration(cfg.TimeoutPropose+cfg.TimeoutProposeDelta*round) * time.Millisecond
+	return cfg.TimeoutPropose + cfg.TimeoutProposeDelta*time.Duration(round)*time.Millisecond
 }
 
 // Prevote returns the amount of time to wait for straggler votes after receiving any +2/3 prevotes
 func (cfg *ConsensusConfig) Prevote(round int) time.Duration {
-	return time.Duration(cfg.TimeoutPrevote+cfg.TimeoutPrevoteDelta*round) * time.Millisecond
+	return cfg.TimeoutPrevote + cfg.TimeoutPrevoteDelta*time.Duration(round)*time.Millisecond
 }
 
 // Precommit returns the amount of time to wait for straggler votes after receiving any +2/3 precommits
 func (cfg *ConsensusConfig) Precommit(round int) time.Duration {
-	return time.Duration(cfg.TimeoutPrecommit+cfg.TimeoutPrecommitDelta*round) * time.Millisecond
+	return cfg.TimeoutPrecommit + cfg.TimeoutPrecommitDelta*time.Duration(round)*time.Millisecond
 }
 
 // PeerGossipSleep returns the amount of time to sleep if there is nothing to send from the ConsensusReactor
 func (cfg *ConsensusConfig) PeerGossipSleep() time.Duration {
-	return time.Duration(cfg.PeerGossipSleepDuration) * time.Millisecond
+	return cfg.PeerGossipSleepDuration * time.Millisecond
 }
 
 // PeerQueryMaj23Sleep returns the amount of time to sleep after each VoteSetMaj23Message is sent in the ConsensusReactor
 func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
-	return time.Duration(cfg.PeerQueryMaj23SleepDuration) * time.Millisecond
+	return cfg.PeerQueryMaj23SleepDuration * time.Millisecond
 }
 
 // ======================= Genesis Const =======================
