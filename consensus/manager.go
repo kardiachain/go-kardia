@@ -724,6 +724,8 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 		conR.logger.Debug("Sending block part for catchup", "round", prs.Round, "index", index)
 		if err := p2p.Send(ps.rw, service.CsProposalBlockPartMsg, msg); err != nil {
 			conR.logger.Error("Sending block part failed", "err", err)
+		} else {
+			ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 		}
 		return
 	}
@@ -1322,8 +1324,6 @@ func (ps *PeerState) setHasVote(height *cmn.BigInt, round *cmn.BigInt, type_ byt
 func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
-
-	fmt.Print("------------------------------------------------------------------------------------------")
 
 	// Ignore duplicates or decreases
 	if CompareHRS(msg.Height, msg.Round, msg.Step, ps.PRS.Height, ps.PRS.Round, ps.PRS.Step) <= 0 {
