@@ -109,59 +109,55 @@ type ConsensusConfig struct {
 // DefaultConsensusConfig returns a default configuration for the consensus service
 func DefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
-		TimeoutPropose:            5000,
-		TimeoutProposeDelta:       500,
-		TimeoutPrevote:            1000,
-		TimeoutPrevoteDelta:       500,
-		TimeoutPrecommit:          1000,
-		TimeoutPrecommitDelta:     500,
-		TimeoutCommit:             1000,
-		SkipTimeoutCommit:         false,
-		CreateEmptyBlocks:         true,
-		CreateEmptyBlocksInterval: 0,
-
-		// TODO(@kiendn):
-		//  - PeerGossipSleepDuration is the time peer send its data to other peers, the time is lower,
-		//  the rate of data sent through network will be increase
-		//  - PeerQueryMaj23SleepDuration is the time peer listens to 2/3 vote, it must watch anytime to catch up vote asap
-		//  => proposed block will be handled faster
-		//  => blocktime is decreased and tps is increased
-		//  Note: this will cause number of blocks increase a lot and lead to chain's size increase.
-		//  But I think we can add a function to check if any tx in pool before creating new block.
-
-		PeerGossipSleepDuration:     1000, // sleep duration before gossip data to other peers - 0.5s
-		PeerQueryMaj23SleepDuration: 1000, // sleep duration before send major 2/3 (if any) to other peers - 0.1s
+		TimeoutPropose:              3000 * time.Millisecond,
+		TimeoutProposeDelta:         500 * time.Millisecond,
+		TimeoutPrevote:              1000 * time.Millisecond,
+		TimeoutPrevoteDelta:         500 * time.Millisecond,
+		TimeoutPrecommit:            1000 * time.Millisecond,
+		TimeoutPrecommitDelta:       500 * time.Millisecond,
+		TimeoutCommit:               1000 * time.Millisecond,
+		SkipTimeoutCommit:           false,
+		CreateEmptyBlocks:           true,
+		CreateEmptyBlocksInterval:   0 * time.Second,
+		PeerGossipSleepDuration:     300 * time.Millisecond,
+		PeerQueryMaj23SleepDuration: 2000 * time.Millisecond,
 	}
 }
 
 // Commit returns the amount of time to wait for straggler votes after receiving +2/3 precommits for a single block (ie. a commit).
 func (cfg *ConsensusConfig) Commit(t time.Time) time.Time {
-	return t.Add(cfg.TimeoutCommit * time.Millisecond)
+	return t.Add(cfg.TimeoutCommit)
 }
 
 // Propose returns the amount of time to wait for a proposal
 func (cfg *ConsensusConfig) Propose(round int) time.Duration {
-	return cfg.TimeoutPropose + cfg.TimeoutProposeDelta*time.Duration(round)*time.Millisecond
+	return time.Duration(
+		cfg.TimeoutPropose.Nanoseconds()+cfg.TimeoutProposeDelta.Nanoseconds()*int64(round),
+	) * time.Nanosecond
 }
 
 // Prevote returns the amount of time to wait for straggler votes after receiving any +2/3 prevotes
 func (cfg *ConsensusConfig) Prevote(round int) time.Duration {
-	return cfg.TimeoutPrevote + cfg.TimeoutPrevoteDelta*time.Duration(round)*time.Millisecond
+	return time.Duration(
+		cfg.TimeoutPrevote.Nanoseconds()+cfg.TimeoutPrevoteDelta.Nanoseconds()*int64(round),
+	) * time.Nanosecond
 }
 
 // Precommit returns the amount of time to wait for straggler votes after receiving any +2/3 precommits
 func (cfg *ConsensusConfig) Precommit(round int) time.Duration {
-	return cfg.TimeoutPrecommit + cfg.TimeoutPrecommitDelta*time.Duration(round)*time.Millisecond
+	return time.Duration(
+		cfg.TimeoutPrecommit.Nanoseconds()+cfg.TimeoutPrecommitDelta.Nanoseconds()*int64(round),
+	) * time.Nanosecond
 }
 
 // PeerGossipSleep returns the amount of time to sleep if there is nothing to send from the ConsensusReactor
 func (cfg *ConsensusConfig) PeerGossipSleep() time.Duration {
-	return cfg.PeerGossipSleepDuration * time.Millisecond
+	return cfg.PeerGossipSleepDuration
 }
 
 // PeerQueryMaj23Sleep returns the amount of time to sleep after each VoteSetMaj23Message is sent in the ConsensusReactor
 func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
-	return cfg.PeerQueryMaj23SleepDuration * time.Millisecond
+	return cfg.PeerQueryMaj23SleepDuration
 }
 
 // ======================= Genesis Const =======================
