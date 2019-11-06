@@ -447,7 +447,7 @@ func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.P
 		conR.logger.Error("Bad VoteSetMaj23Message field Type")
 		return
 	}
-	go p2p.Send(ps.rw, service.CsVoteSetBitsMessage, &VoteSetBitsMessage{
+	p2p.Send(ps.rw, service.CsVoteSetBitsMessage, &VoteSetBitsMessage{
 		Height:  msg.Height,
 		Round:   msg.Round,
 		Type:    msg.Type,
@@ -506,11 +506,11 @@ func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
 	if nrsMsg != nil {
 		conR.logger.Trace("broadcastNewRoundStepMessage", "nrsMsg", nrsMsg, "height", rs.Height)
-		go conR.protocol.Broadcast(nrsMsg, service.CsNewRoundStepMsg)
+		conR.protocol.Broadcast(nrsMsg, service.CsNewRoundStepMsg)
 	}
 	if csMsg != nil {
 		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", fmt.Sprintf("{Height:%v  BlockPartsHeader:%v}", csMsg.Height, csMsg.BlockPartsHeader))
-		go conR.protocol.Broadcast(csMsg, service.CsCommitStepMsg)
+		conR.protocol.Broadcast(csMsg, service.CsCommitStepMsg)
 	}
 }
 
@@ -546,24 +546,20 @@ func (conR *ConsensusManager) sendNewRoundStepMessages(rw p2p.MsgReadWriter) {
 	nrsMsg, csMsg := makeRoundStepMessages(rs)
 	conR.logger.Trace("makeRoundStepMessages", "nrsMsg", nrsMsg)
 	if nrsMsg != nil {
-		go func() {
-			if err := p2p.Send(rw, service.CsNewRoundStepMsg, nrsMsg); err != nil {
-				conR.logger.Warn("send NewRoundStepMessage failed", "err", err)
-			} else {
-				conR.logger.Trace("send NewRoundStepMessage success")
-			}
-		}()
+		if err := p2p.Send(rw, service.CsNewRoundStepMsg, nrsMsg); err != nil {
+			conR.logger.Warn("send NewRoundStepMessage failed", "err", err)
+		} else {
+			conR.logger.Trace("send NewRoundStepMessage success")
+		}
 	}
 
 	if csMsg != nil {
-		go func() {
-			conR.logger.Trace("Send CommitStepMsg", "csMsg", csMsg)
-			if err := p2p.Send(rw, service.CsCommitStepMsg, csMsg); err != nil {
-				conR.logger.Warn("send CommitStepMessage failed", "err", err)
-			} else {
-				conR.logger.Trace("send CommitStepMessage success")
-			}
-		}()
+		conR.logger.Trace("Send CommitStepMsg", "csMsg", csMsg)
+		if err := p2p.Send(rw, service.CsCommitStepMsg, csMsg); err != nil {
+			conR.logger.Warn("send CommitStepMessage failed", "err", err)
+		} else {
+			conR.logger.Trace("send CommitStepMessage success")
+		}
 	}
 }
 
@@ -657,11 +653,9 @@ OuterLoop:
 
 				// proposal contains block data, therefore, it will cause bottle neck here if there are thounsands of txs inside.
 				// add it into goroutine to prevent bottleneck
-				go func() {
-					if err := p2p.Send(ps.rw, service.CsProposalMsg, &ProposalMessage{Proposal: rs.Proposal}); err != nil {
-						logger.Trace("Sending proposal failed", "err", err)
-					}
-				}()
+				if err := p2p.Send(ps.rw, service.CsProposalMsg, &ProposalMessage{Proposal: rs.Proposal}); err != nil {
+					logger.Trace("Sending proposal failed", "err", err)
+				}
 			}
 			// ProposalPOL: lets peer know which POL votes we have so far.
 			// Peer must receive ProposalMessage first.
@@ -674,11 +668,9 @@ OuterLoop:
 					ProposalPOL:      rs.Votes.Prevotes(rs.Proposal.POLRound.Int32()).BitArray(),
 				}
 				logger.Debug("Sending POL", "height", prs.Height, "round", prs.Round)
-				go func() {
-					if err := p2p.Send(ps.rw, service.CsProposalPOLMsg, msg); err != nil {
-						logger.Error("Sending proposalPOLMsg failed", "err", err)
-					}
-				}()
+				if err := p2p.Send(ps.rw, service.CsProposalPOLMsg, msg); err != nil {
+					logger.Error("Sending proposalPOLMsg failed", "err", err)
+				}
 			}
 			continue OuterLoop
 		}
@@ -877,16 +869,14 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if rs.Height.Equals(prs.Height) {
 				if maj23, ok := rs.Votes.Prevotes(prs.Round.Int32()).TwoThirdsMajority(); ok {
-					go func() {
-						if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
-							Height:  prs.Height,
-							Round:   prs.Round,
-							Type:    types.VoteTypePrevote,
-							BlockID: maj23,
-						}); err != nil {
-							logger.Error("error while sending Height/Round/Prevotes", "err", err)
-						}
-					}()
+					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+						Height:  prs.Height,
+						Round:   prs.Round,
+						Type:    types.VoteTypePrevote,
+						BlockID: maj23,
+					}); err != nil {
+						logger.Error("error while sending Height/Round/Prevotes", "err", err)
+					}
 					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
 				}
 			}
@@ -898,16 +888,14 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if rs.Height.Equals(prs.Height) {
 				if maj23, ok := rs.Votes.Precommits(prs.Round.Int32()).TwoThirdsMajority(); ok {
-					go func() {
-						if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
-							Height:  prs.Height,
-							Round:   prs.Round,
-							Type:    types.VoteTypePrecommit,
-							BlockID: maj23,
-						}); err != nil {
-							logger.Error("error while sending Height/Round/Precommits", "err", err)
-						}
-					}()
+					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+						Height:  prs.Height,
+						Round:   prs.Round,
+						Type:    types.VoteTypePrecommit,
+						BlockID: maj23,
+					}); err != nil {
+						logger.Error("error while sending Height/Round/Precommits", "err", err)
+					}
 					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
 				}
 			}
@@ -919,16 +907,14 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if rs.Height.Equals(prs.Height) && prs.ProposalPOLRound.IsGreaterThanOrEqualToInt(0) {
 				if maj23, ok := rs.Votes.Prevotes(prs.ProposalPOLRound.Int32()).TwoThirdsMajority(); ok {
-					go func() {
-						if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
-							Height:  prs.Height,
-							Round:   prs.ProposalPOLRound,
-							Type:    types.VoteTypePrevote,
-							BlockID: maj23,
-						}); err != nil {
-							logger.Error("error while sending Height/Round/ProposalPOL", "err", err)
-						}
-					}()
+					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+						Height:  prs.Height,
+						Round:   prs.ProposalPOLRound,
+						Type:    types.VoteTypePrevote,
+						BlockID: maj23,
+					}); err != nil {
+						logger.Error("error while sending Height/Round/ProposalPOL", "err", err)
+					}
 					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
 				}
 			}
@@ -940,16 +926,14 @@ OUTER_LOOP:
 			if !prs.CatchupCommitRound.EqualsInt(-1) && prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThanOrEqualsUint64(conR.conS.blockOperations.Height()) {
 				commit := conR.conS.LoadCommit(prs.Height)
 				if commit != nil {
-					go func() {
-						if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
-							Height:  prs.Height,
-							Round:   commit.Round(),
-							Type:    types.VoteTypePrecommit,
-							BlockID: commit.BlockID,
-						}); err != nil {
-							logger.Error("error while sending Height/CatchupCommitRound/CatchupCommit", "err", err)
-						}
-					}()
+					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+						Height:  prs.Height,
+						Round:   commit.Round(),
+						Type:    types.VoteTypePrecommit,
+						BlockID: commit.BlockID,
+					}); err != nil {
+						logger.Error("error while sending Height/CatchupCommitRound/CatchupCommit", "err", err)
+					}
 				}
 				time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
 			}

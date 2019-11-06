@@ -531,6 +531,9 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 					cs.ValidRound = vote.Round
 					cs.ValidBlock = cs.ProposalBlock
 					cs.ValidBlockParts = cs.ProposalBlockParts
+
+					cs.evsw.FireEvent(types.EventValidBlock, &cs.RoundState)
+					cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent())
 				} else {
 					cs.logger.Info(
 						"Valid block we don't know about. Set ProposalBlock=nil",
@@ -538,12 +541,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 					// We're getting the wrong block.
 					cs.ProposalBlock = nil
 				}
-
-				if !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
-					cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
-				}
-				cs.evsw.FireEvent(types.EventValidBlock, &cs.RoundState)
-				cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent())
 			}
 		}
 
@@ -629,7 +626,7 @@ func (cs *ConsensusState) voteTime() *big.Int {
 	minVoteTime := now.Unix()
 	// TODO: We should remove next line in case we don't vote for v in case cs.ProposalBlock == nil,
 	// even if cs.LockedBlock != nil. See https://github.com/tendermint/spec.
-	timeIotaMs := int64(1000)
+	timeIotaMs := int64(10000)
 	if cs.LockedBlock != nil {
 		// See the BFT time spec https://tendermint.com/docs/spec/consensus/bft-time.html
 		minVoteTime = cs.LockedBlock.Time().Int64()
@@ -1113,7 +1110,7 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 	// The Locked* fields no longer matter.
 	// Move them over to ProposalBlock if they match the commit hash,
 	// otherwise they'll be cleared in updateToState.
-	if cs.LockedBlock != nil && cs.LockedBlock.HashesTo(blockID.Hash) {
+	if cs.LockedBlock.HashesTo(blockID.Hash) {
 		logger.Info("Commit is for locked block. Set ProposalBlock=LockedBlock", "blockHash", blockID)
 		cs.ProposalBlock = cs.LockedBlock
 		cs.ProposalBlockID = blockID
@@ -1122,7 +1119,7 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 
 	// If we don't have the block being committed, set up to get it.
 	// cs.ProposalBlock is confirmed not nil from caller.
-	if cs.LockedBlock != nil && !cs.ProposalBlock.HashesTo(blockID.Hash) {
+	if !cs.ProposalBlock.HashesTo(blockID.Hash) {
 		if !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
 			logger.Info("Commit is for a block we don't know about. Set ProposalBlock=nil", "commit", blockID)
 			// We're getting the wrong block.
