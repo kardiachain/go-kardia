@@ -948,13 +948,6 @@ type ProposalPOLMessage struct {
 	ProposalPOL      *cmn.BitArray
 }
 
-// BlockMessage is sent when gossipping block.
-type BlockMessage struct {
-	Height *cmn.BigInt
-	Round  *cmn.BigInt
-	Block  *types.Block
-}
-
 // String returns a string representation.
 func (m *ProposalPOLMessage) String() string {
 	return fmt.Sprintf("[ProposalPOL H:%v POLR:%v POL:%v]", m.Height, m.ProposalPOLRound, m.ProposalPOL)
