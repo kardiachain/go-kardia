@@ -260,25 +260,6 @@ func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
 }
 
-func (conR *ConsensusManager) ReceiveBlock(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received block", "peer", src)
-
-	if !conR.running {
-		conR.logger.Trace("Consensus manager isn't running.")
-		return
-	}
-
-	var msg BlockMessage
-	if err := generalMsg.Decode(&msg); err != nil {
-		conR.logger.Error("Invalid BlockMessage", "msg", generalMsg, "err", err)
-		return
-	}
-
-	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("Height:%v   Round:%v   Block:%v", msg.Height, msg.Round, msg.Block.Height()))
-
-	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
-}
-
 func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) {
 	conR.logger.Trace("Consensus manager received NewVote", "peer", src)
 
