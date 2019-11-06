@@ -194,6 +194,10 @@ func (bc *BlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
 	return bc.db.ReadBlockMeta(hash, height)
 }
 
+func (bc *BlockChain) LoadBlockCommit(height uint64) *types.Commit {
+	return bc.db.ReadCommit(height)
+}
+
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
 func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {

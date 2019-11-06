@@ -157,6 +157,10 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, blockParts *types.
 		common.PanicSanity(common.Fmt("DualBlockOperations can only save contiguous blocks. Wanted %v, got %v", dbo.Height()+1, height))
 	}
 
+	if !blockParts.IsComplete() {
+		panic(fmt.Sprintf("BlockOperations can only save complete block part sets"))
+	}
+
 	// TODO(kiendn): WriteBlockWithoutState returns an error, write logic check if error appears
 	if err := dbo.blockchain.WriteBlockWithoutState(block); err != nil {
 		common.PanicSanity(common.Fmt("WriteBlockWithoutState fails with error %v", err))
@@ -182,12 +186,7 @@ func (dbo *DualBlockOperations) LoadBlock(height uint64) *types.Block {
 // Returns the Block for the given height.
 // If no block is found for the given height, it returns nil.
 func (dbo *DualBlockOperations) LoadBlockCommit(height uint64) *types.Commit {
-	block := dbo.blockchain.GetBlockByHeight(height + 1)
-	if block == nil {
-		return nil
-	}
-
-	return block.LastCommit()
+	return dbo.blockchain.LoadBlockCommit(height)
 }
 
 func (bo *DualBlockOperations) LoadBlockPart(height uint64, index int) *types.Part {

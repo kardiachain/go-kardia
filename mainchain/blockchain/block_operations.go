@@ -173,12 +173,7 @@ func (bo *BlockOperations) LoadBlockMeta(height uint64) *types.BlockMeta {
 // LoadBlockCommit returns the Commit for the given height.
 // If no block is found for the given height, it returns nil.
 func (bo *BlockOperations) LoadBlockCommit(height uint64) *types.Commit {
-	block := bo.blockchain.GetBlockByHeight(height + 1)
-	if block == nil {
-		return nil
-	}
-
-	return block.LastCommit()
+	return bo.blockchain.LoadBlockCommit(height)
 }
 
 // LoadSeenCommit returns the locally seen Commit for the given height.
