@@ -621,11 +621,12 @@ func WriteBlock(db kaidb.Writer, block *types.Block, blockParts *types.PartSet, 
 
 	}
 
-	// Save commint
+	// Save block commit (duplicate and separate from the Block)
 	lastCommitBytes, _ := rlp.EncodeToBytes(block.LastCommit())
-	db.Put(commitKey(height), lastCommitBytes)
+	db.Put(commitKey(height-1), lastCommitBytes)
 
-	// Save seen commint
+	// Save seen commit (seen +2/3 precommits for block)
+	// NOTE: we can delete this at a later height
 	seenCommitBytes, _ := rlp.EncodeToBytes(seenCommit)
 	db.Put(seenCommitKey(height), seenCommitBytes)
 

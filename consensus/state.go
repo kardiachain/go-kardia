@@ -531,9 +531,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 					cs.ValidRound = vote.Round
 					cs.ValidBlock = cs.ProposalBlock
 					cs.ValidBlockParts = cs.ProposalBlockParts
-
-					cs.evsw.FireEvent(types.EventValidBlock, &cs.RoundState)
-					cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent())
 				} else {
 					cs.logger.Info(
 						"Valid block we don't know about. Set ProposalBlock=nil",
@@ -541,6 +538,13 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 					// We're getting the wrong block.
 					cs.ProposalBlock = nil
 				}
+
+				if !cs.ProposalBlockParts.HasHeader(blockID.PartsHeader) {
+					cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
+				}
+
+				cs.evsw.FireEvent(types.EventValidBlock, &cs.RoundState)
+				cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent())
 			}
 		}
 

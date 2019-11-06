@@ -140,6 +140,10 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartS
 		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", bo.Height()+1, height))
 	}
 
+	if !blockParts.IsComplete() {
+		panic(fmt.Sprintf("BlockOperations can only save complete block part sets"))
+	}
+
 	// TODO(kiendn): WriteBlockWithoutState returns an error, write logic check if error appears
 	if err := bo.blockchain.WriteBlockWithoutState(block); err != nil {
 		common.PanicSanity(common.Fmt("WriteBlockWithoutState fails with error %v", err))
