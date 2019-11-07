@@ -232,8 +232,7 @@ func CommonReadCommit(db kaidb.Reader, height uint64) *types.Commit {
 	}
 	commit := new(types.Commit)
 	if err := rlp.Decode(bytes.NewReader(data), commit); err != nil {
-		log.Error("Invalid commit RLP", "err", err)
-		return nil
+		panic(fmt.Errorf("Decode read commit error: %s", err))
 	}
 	commit.MakeEmptyNil()
 	return commit
