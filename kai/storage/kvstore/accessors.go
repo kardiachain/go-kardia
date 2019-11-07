@@ -565,6 +565,9 @@ func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
 	if err := rlp.DecodeBytes(commitBytes, commit); err != nil {
 		panic(errors.New("Reading seen commit error"))
 	}
+
+	commit.MakeEmptyNil()
+
 	return commit
 }
 
