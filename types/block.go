@@ -426,6 +426,10 @@ func (b *Block) ValidateBasic() error {
 		return fmt.Errorf("wrong Block.Header.NumTxs. Expected %v, got %v", newTxs, b.header.NumTxs)
 	}
 
+	if err := b.header.LastBlockID.ValidateBasic(); err != nil {
+		return fmt.Errorf("Wrong Header.LastBlockID: %v", err)
+	}
+
 	// Validate the last commit and its hash.
 	if b.header.Height > 1 {
 		if b.lastCommit == nil {
@@ -441,7 +445,6 @@ func (b *Block) ValidateBasic() error {
 	} else if b.lastCommit != nil && !b.header.LastCommitHash.Equal(b.lastCommit.Hash()) {
 		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v.  Last commit %v", b.header.LastCommitHash, b.lastCommit.Hash(), b.lastCommit)
 	}
-
 	// TODO(namdoh): Re-enable check for Data hash.
 	//b.logger.Info("Block.ValidateBasic() - not yet implement validating data hash.")
 	//if !bytes.Equal(b.DataHash, b.Data.Hash()) {
@@ -527,25 +530,34 @@ func NewZeroBlockID() BlockID {
 }
 
 func (b *BlockID) IsZero() bool {
-	return len(b.Hash) == 0 && b.PartsHeader.IsZero()
+	return b.Hash.IsZero() && b.PartsHeader.IsZero()
 }
 
 func (b *BlockID) Equal(other BlockID) bool {
-	return common.Hash(b.Hash).Equal(other.Hash) && b.PartsHeader.Equals(other.PartsHeader)
+	return b.Hash.Equal(other.Hash) && b.PartsHeader.Equals(other.PartsHeader)
 }
 
 // Key returns a machine-readable string representation of the BlockID
 func (blockID *BlockID) Key() string {
-	return string(blockID.Hash[:]) + string(blockID.PartsHeader.Hash[:])
+	return string(blockID.Hash.String() + blockID.PartsHeader.Hash.String())
 }
 
 // String returns the first 12 characters of hex string representation of the BlockID
 func (blockID BlockID) String() string {
-	return common.Hash(blockID.Hash).Fingerprint()
+	return fmt.Sprintf("%s:%s", blockID.Hash.Fingerprint(), blockID.PartsHeader.Hash.Fingerprint())
 }
 
 func (blockID BlockID) StringLong() string {
-	return common.Hash(blockID.Hash).Hex()
+	return fmt.Sprintf("%s:%s", blockID.Hash.String(), blockID.PartsHeader.Hash.String())
+}
+
+// ValidateBasic performs basic validation.
+func (blockID BlockID) ValidateBasic() error {
+
+	if err := blockID.PartsHeader.ValidateBasic(); err != nil {
+		return fmt.Errorf("Wrong PartsHeader: %v", err)
+	}
+	return nil
 }
 
 type Blocks []*Block
