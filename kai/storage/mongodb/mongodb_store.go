@@ -603,6 +603,11 @@ func (db *Store) ReadHeaderRLP(hash common.Hash, height uint64) rlp.RawValue {
 	panic("Not implemented yet")
 }
 
+// ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
+func (db *Store) ReadSeenCommit(height uint64) *types.Commit {
+	panic("Not implemented yet")
+}
+
 // ReadHeadBlockHash retrieves the hash of the current canonical head block.
 func (db *Store) ReadHeadBlockHash() common.Hash {
 	hash := common.NewZeroHash()

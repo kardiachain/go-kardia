@@ -188,6 +188,10 @@ func (bc *DualBlockChain) LoadBlockCommit(height uint64) *types.Commit {
 	return bc.db.ReadCommit(height)
 }
 
+func (bc *DualBlockChain) LoadSeenCommit(height uint64) *types.Commit {
+	return bc.db.ReadSeenCommit(height)
+}
+
 //
 func (bc *DualBlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
 	hash := bc.db.ReadCanonicalHash(height)

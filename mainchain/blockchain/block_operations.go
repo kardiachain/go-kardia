@@ -180,7 +180,7 @@ func (bo *BlockOperations) LoadBlockCommit(height uint64) *types.Commit {
 // This is useful when we've seen a commit, but there has not yet been
 // a new block at `height + 1` that includes this commit in its block.LastCommit.
 func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
-	commit := bo.blockchain.ReadCommit(height)
+	commit := bo.blockchain.LoadSeenCommit(height)
 	if commit == nil {
 		bo.logger.Error("LoadSeenCommit return nothing", "height", height)
 	}

@@ -201,7 +201,7 @@ func (bo *DualBlockOperations) LoadBlockMeta(height uint64) *types.BlockMeta {
 // This is useful when we've seen a commit, but there has not yet been
 // a new block at `height + 1` that includes this commit in its block.LastCommit.
 func (dbo *DualBlockOperations) LoadSeenCommit(height uint64) *types.Commit {
-	commit := dbo.blockchain.ReadCommit(height)
+	commit := dbo.blockchain.LoadSeenCommit(height)
 	if commit == nil {
 		dbo.logger.Error("LoadSeenCommit return nothing", "height", height)
 	}

@@ -559,6 +559,15 @@ func ReadBlockMeta(db kaidb.Reader, hash common.Hash, height uint64) *types.Bloc
 	return blockMeta
 }
 
+func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
+	var commit = new(types.Commit)
+	commitBytes, _ := db.Get(seenCommitKey(height))
+	if err := rlp.DecodeBytes(commitBytes, commit); err != nil {
+		panic(errors.New("Reading seen commit error"))
+	}
+	return commit
+}
+
 // ReadBlock returns the Block for the given height
 func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 	blockMeta := ReadBlockMeta(db, hash, height)
@@ -621,11 +630,14 @@ func WriteBlock(db kaidb.Writer, block *types.Block, blockParts *types.PartSet, 
 	}
 
 	// Save block commit (duplicate and separate from the Block)
-	lastCommitBytes, _ := rlp.EncodeToBytes(block.LastCommit())
+	lastCommit := block.LastCommit()
+	lastCommit.MakeNilEmpty()
+	lastCommitBytes, _ := rlp.EncodeToBytes(lastCommit)
 	db.Put(commitKey(height-1), lastCommitBytes)
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
+	seenCommit.MakeNilEmpty()
 	seenCommitBytes, _ := rlp.EncodeToBytes(seenCommit)
 	db.Put(seenCommitKey(height), seenCommitBytes)
 

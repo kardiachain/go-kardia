@@ -41,6 +41,7 @@ type StoreDB interface {
 	ReadHeadHeaderHash() common.Hash
 	ReadCommitRLP(height uint64) rlp.RawValue
 	ReadCommit(height uint64) *Commit
+	ReadSeenCommit(height uint64) *Commit
 	ReadTransaction(hash common.Hash) (*Transaction, common.Hash, uint64, uint64)
 	ReadDualEvent(hash common.Hash) (*DualEvent, common.Hash, uint64, uint64)
 	ReadDualEventLookupEntry(hash common.Hash) (common.Hash, uint64, uint64)

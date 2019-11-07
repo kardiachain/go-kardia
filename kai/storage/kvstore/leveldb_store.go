@@ -178,6 +178,11 @@ func (s *StoreDB) ReadCommit(height uint64) *types.Commit {
 	return CommonReadCommit(s.db, height)
 }
 
+// ReadBody retrieves the commit at a given height.
+func (s *StoreDB) ReadSeenCommit(height uint64) *types.Commit {
+	return ReadSeenCommit(s.db, height)
+}
+
 // ReadHeader retrieves the block header corresponding to the hash.
 func (s *StoreDB) ReadHeader(hash common.Hash, height uint64) *types.Header {
 	return CommonReadHeader(s.db, hash, height)
