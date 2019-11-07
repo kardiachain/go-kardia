@@ -183,8 +183,8 @@ func TestBlockWithBodyFunction(t *testing.T) {
 
 func TestNewZeroBlockID(t *testing.T) {
 	blockID := NewZeroBlockID()
-	if blockID.IsZero() {
-		t.Fatal("NewZeroBlockID is empty")
+	if !blockID.IsZero() {
+		t.Fatal("NewZeroBlockID is not empty")
 	}
 }
 

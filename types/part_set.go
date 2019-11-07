@@ -60,11 +60,11 @@ func (psh PartSetHeader) String() string {
 }
 
 func (psh PartSetHeader) IsZero() bool {
-	return psh.Total.EqualsInt(0) && len(psh.Hash) == 0
+	return psh.Total.EqualsInt(0) && psh.Hash.IsZero()
 }
 
 func (psh PartSetHeader) Equals(other PartSetHeader) bool {
-	return psh.Total == other.Total && psh.Hash.Equal(other.Hash)
+	return psh.Total.Uint64() == other.Total.Uint64() && psh.Hash.Equal(other.Hash)
 }
 
 // ValidateBasic performs basic validation.
