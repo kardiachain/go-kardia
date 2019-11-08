@@ -436,7 +436,7 @@ func (b *Block) ValidateBasic() error {
 			return errors.New("nil LastCommit")
 		}
 		if err := b.lastCommit.ValidateBasic(); err != nil {
-			return fmt.Errorf("Wrong LastCommit")
+			return err
 		}
 	}
 
