@@ -740,7 +740,6 @@ func opDelegateCall(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, st
 	toAddr := common.BigToAddress(addr)
 	// Get arguments from the memory.
 	args := memory.Get(inOffset.Int64(), inSize.Int64())
-
 	ret, returnGas, err := kvm.DelegateCall(contract, toAddr, args, gas)
 	if err != nil {
 		stack.push(kvm.interpreter.intPool.getZero())
