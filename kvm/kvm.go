@@ -420,6 +420,16 @@ func (kvm *KVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	return kvm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
 
+// CreateGenesisContract creates contractAddr with given contractAddr
+// Note: this function is only used when creating genesis contract
+func (kvm *KVM) CreateGenesisContract(caller ContractRef, contract *common.Address, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	if contract == nil {
+		address := crypto.CreateAddress(caller.Address(), kvm.StateDB.GetNonce(caller.Address()))
+		contract = &address
+	}
+	return kvm.create(caller, &codeAndHash{code: code}, gas, value, *contract)
+}
+
 //================================================================================================
 // Interfaces
 //=================================================================================================
