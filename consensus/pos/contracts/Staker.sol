@@ -1,4 +1,4 @@
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.8;
 
 /**
  * Staker contains information of a user who wants to stake KAI to one or more nodes (candidates to become validators).
@@ -15,9 +15,10 @@ contract Staker {
 
     string constant stakeFunc = "stake(address,uint256)";
     string constant withdrawFunc = "withdraw(address,uint256)";
+    string constant isAvailableNodes = "IsAvailableNodes(address)";
 
     address _master;
-    address _owner;
+    address payable _owner;
     uint _lockedPeriod;
     uint256 _minimumStake;
 
@@ -35,16 +36,20 @@ contract Staker {
         _;
     }
 
-    constructor(address master, address owner, uint lockedPeriod, uint256 minimumStake) public {
+    constructor(address master, address payable owner, uint lockedPeriod, uint256 minimumStake) public {
         _master = master;
         _owner = owner;
         _lockedPeriod = lockedPeriod;
         _minimumStake = minimumStake;
-        StakeInfo memory emptyStakeInfo = StakeInfo(0x0, 0, 0);
+        StakeInfo memory emptyStakeInfo = StakeInfo(address(0x0), 0, 0);
         stakeInfo.push(emptyStakeInfo);
     }
 
     function stake(address node) public payable isOwner {
+        (, bytes memory result)  = _master.staticcall(abi.encodeWithSignature(isAvailableNodes, node));
+        uint64 nodeIndex = abi.decode(result, (uint64));
+        require(nodeIndex > 0);
+
         if (msg.value == 0 || msg.value < _minimumStake) return;
         uint index = _hasStaked[node];
         if (index > 0) {
