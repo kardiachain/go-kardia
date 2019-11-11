@@ -27,6 +27,8 @@ var (
 			"percentageReward": uint16(500),
 			"owner": "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6",
 			"staker": "0x0000000000000000000000000000000000000020",
+			"expectedStakes": minimumStakes,
+			"expectedStaker": uint64(2),
 		},
 		{
 			"address": "0x0000000000000000000000000000000000000011",
@@ -37,6 +39,8 @@ var (
 			"percentageReward": uint16(500),
 			"owner": "0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5",
 			"staker": "0x0000000000000000000000000000000000000021",
+			"expectedStakes": minimumStakes,
+			"expectedStaker": uint64(2),
 		},
 		{
 			"address": "0x0000000000000000000000000000000000000012",
@@ -47,8 +51,50 @@ var (
 			"percentageReward": uint16(500),
 			"owner": "0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd",
 			"staker": "0x0000000000000000000000000000000000000022",
+			"expectedStakes": minimumStakes,
+			"expectedStaker": uint64(2),
 		},
 	}
+
+	normalNodes = []map[string]interface{}{
+		{
+			"address": "0x0000000000000000000000000000000000000013",
+			"id": "fc41a71d7a74d8665dbcc0f48c9a601e30b714ed50647669ef52c03f7123f2ae078dcaa36389e2636e1055f5f60fdf38d89a226ee84234f006b333cad2d2bcee",
+			"name": "node4",
+			"host": "127.0.0.1",
+			"port": "3003",
+			"percentageReward": uint16(500),
+			"owner": "0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28",
+			"staker": "0x0000000000000000000000000000000000000023",
+			"expectedStakes": minimumStakes,
+			"expectedStaker": uint64(2),
+		},
+		{
+			"address": "0x0000000000000000000000000000000000000014",
+			"id": "ebf46faca754fc90716d665e6c6feb206ca437c9e5f16690e690513b302935053a9d722b88d2ab0b972f46448f3a53378bf5cfe01b8373af2e54197b17617e1c",
+			"name": "node5",
+			"host": "127.0.0.1",
+			"port": "3004",
+			"percentageReward": uint16(500),
+			"owner": "0x94FD535AAB6C01302147Be7819D07817647f7B63",
+			"staker": "0x0000000000000000000000000000000000000024",
+			"expectedStakes": minimumStakes,
+			"expectedStaker": uint64(2),
+		},
+		{
+			"address": "0x0000000000000000000000000000000000000015",
+			"id": "80c4fbf65122d817d3808afcb683fc66d9f9e19b476ea0ee3f757dca5cd18316ecb8999bfea4e9a5acc9968504cb919997a5c1ab623c5c533cb662291149b0a3",
+			"name": "node6",
+			"host": "127.0.0.1",
+			"port": "3005",
+			"percentageReward": uint16(500),
+			"owner": "0xa8073C95521a6Db54f4b5ca31a04773B093e9274",
+			"staker": "0x0000000000000000000000000000000000000025",
+			"expectedStakes": minimumStakes,
+			"expectedStaker": uint64(2),
+		},
+	}
+
 	minimumStakes, _ = big.NewInt(0).SetString("1000000000000000000", 10)
 )
 
@@ -104,6 +150,8 @@ func setupBlockchain() (*blockchain.BlockChain, error) {
 		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
 		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
 		"0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28": initValue,
+		"0x94FD535AAB6C01302147Be7819D07817647f7B63": initValue,
+		"0xa8073C95521a6Db54f4b5ca31a04773B093e9274": initValue,
 	}
 	kaiDb := types.NewMemStore()
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
