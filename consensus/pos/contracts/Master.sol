@@ -142,8 +142,6 @@ contract Master {
             _isGenesis[genesisAddress] = true;
             _isGenesisOwner[_genesisOwners[i]] = true;
 
-            // omit [0] element to use it to check exists or not element.
-            // Add 2 here to point that the next index is 2 after adding genesis staker.
             _availableNodes.push(NodeInfo(genesisAddress, _genesisOwners[i], 0, 1));
             _availableAdded[genesisAddress] = i+1;
             _nodeIndex[genesisAddress].stakerInfo[0] = StakerInfo(address(0x0), 0);
@@ -239,7 +237,7 @@ contract Master {
         return count >= ((_availableNodes.length-1)*2/3) + 1;
     }
 
-    // updatePending updates current index into _availableNodes
+    // updatePending updates pending node into _availableNodes
     function updatePending(uint64 index) internal {
         require(index > 0 && index < _pendingNodes.length, "invalid index");
         // get pending info at index
@@ -340,7 +338,7 @@ contract Master {
         }
     }
 
-    // withdraw: after user chooses withdraw, delegateCall will call this function from user's staker contract to update node's stakes
+    // withdraw: after user chooses withdraw, staker's contract will call this function to update node's stakes
     function withdraw(address nodeAddress, uint256 amount) public isStaker {
         uint index = _availableAdded[nodeAddress];
         require(index > 0 && _nodeIndex[nodeAddress].stakerAdded[msg.sender] > 0, "invalid index");
@@ -370,6 +368,7 @@ contract Master {
 
     }
 
+    // collectValidators base on available nodes, max validators, collect validators and start new consensus period.
     function collectValidators() public isValidatorOrGenesis {
         // update _startAtBlock and _nextBlock
         _startAtBlock = _nextBlock;
@@ -402,6 +401,7 @@ contract Master {
         return _stakers[staker];
     }
 
+    // IsAvailableNodes check whether an address belongs to any available node or not.
     function IsAvailableNodes(address node) public view returns (uint64) {
         uint total = GetTotalAvailableNodes();
         if (total == 0) return 0; // total available is empty
@@ -413,6 +413,7 @@ contract Master {
         return 0;
     }
 
+    // IsValidator check an address whether it belongs into latest validator.
     function IsValidator(address sender) public view returns (bool) {
         if (_history.length == 0) return false;
         Validators memory validators = _history[_history.length-1];
