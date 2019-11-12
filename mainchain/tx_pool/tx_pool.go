@@ -156,10 +156,10 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	PriceLimit: 1,
 	PriceBump:  10,
 
-	AccountSlots: 16,
-	GlobalSlots:  4096,
-	AccountQueue: 64,
-	GlobalQueue:  1024,
+	AccountSlots: 64,
+	GlobalSlots:  16384,
+	AccountQueue: 128,
+	GlobalQueue:  4096,
 
 	Lifetime: 3 * time.Hour,
 }
@@ -305,6 +305,18 @@ func NewTxPool(config TxPoolConfig, chainconfig *types.ChainConfig, chain blockC
 
 func (pool *TxPool) State() *state.StateDB {
 	return pool.currentState
+}
+
+func (pool *TxPool) GetBlockChain() blockChain {
+	return pool.chain
+}
+
+func (pool *TxPool) PendingSize() int {
+	pendingSize := 0
+	for _, txs := range pool.pending {
+		pendingSize += txs.Len()
+	}
+	return pendingSize
 }
 
 // ProposeTransactions collects transactions from pending and remove them.
