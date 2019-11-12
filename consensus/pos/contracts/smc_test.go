@@ -20,7 +20,7 @@ func testDeployStaker(t *testing.T, bc *blockchain.BlockChain, st *state.StateDB
 	input, err := stakerAbi.Pack("", masterAddress, owner, big.NewInt(100), minimumStakes)
 	require.NoError(t, err)
 	newStakerCode := append(StakerByteCode, input...)
-	_, _, _, err = create(owner, staker, bc.CurrentHeader(), bc, newStakerCode, st)
+	_, _, _, err = create(owner, staker, bc.CurrentHeader(), bc, newStakerCode, big.NewInt(0), st)
 	require.NoError(t, err)
 }
 
@@ -85,7 +85,7 @@ func testDeployGenesisNodesAndStakes(t *testing.T, bc *blockchain.BlockChain, st
 		newCode := append(NodeByteCode, input...)
 		address := common.HexToAddress(addressHex)
 		// Setup contract code into genesis state
-		_, _, _, err = create(common.HexToAddress(owner), address, bc.CurrentHeader(), bc, newCode, st)
+		_, _, _, err = create(common.HexToAddress(owner), address, bc.CurrentHeader(), bc, newCode, big.NewInt(0), st)
 		require.NoError(t, err)
 
 		testDeployStaker(t, bc, st, node)
@@ -220,7 +220,7 @@ func testCreateMaster(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain
 	require.NoError(t, err)
 	sender := common.HexToAddress(genesisNodes[0]["owner"].(string))
 	newCode := append(MasterByteCode, input...)
-	_, _, _, err = create(sender, masterAddress, bc.CurrentHeader(), bc, newCode, st)
+	_, _, _, err = create(sender, masterAddress, bc.CurrentHeader(), bc, newCode, genesisAmount, st)
 	require.NoError(t, err)
 
 	// check _availableNodes
@@ -595,7 +595,7 @@ func TestNode(t *testing.T) {
 	address := common.HexToAddress("0x0000000000000000000000000000000000000010")
 
 	// Setup contract code into genesis state
-	_, contractAddr, _, err := create(common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"), address, bc.CurrentHeader(), bc, newCode, st)
+	_, contractAddr, _, err := create(common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"), address, bc.CurrentHeader(), bc, newCode, big.NewInt(0), st)
 	require.NoError(t, err)
 	require.Equal(t, address, *contractAddr)
 
