@@ -200,11 +200,10 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		return nil, err
 	}
 	eventPool := event_pool.Config{
-		GlobalSlots:     c.DualChain.EventPool.GlobalSlots,
-		GlobalQueue:     c.DualChain.EventPool.GlobalQueue,
-		NumberOfWorkers: c.DualChain.EventPool.NumberOfWorkers,
-		WorkerCap:       c.DualChain.EventPool.WorkerCap,
-		BlockSize:       c.DualChain.EventPool.BlockSize,
+		GlobalSlots:  c.DualChain.EventPool.GlobalSlots,
+		GlobalQueue:  c.DualChain.EventPool.GlobalQueue,
+		AccountQueue: c.DualChain.EventPool.AccountQueue,
+		AccountSlots: c.DualChain.EventPool.AccountSlots,
 	}
 
 	baseAccount, err := c.getBaseAccount(true)
