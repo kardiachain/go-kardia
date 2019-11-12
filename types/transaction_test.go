@@ -21,9 +21,10 @@ package types
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -50,7 +51,6 @@ var (
 	).WithSignature(
 		common.Hex2Bytes("98ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4a8887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a301"),
 	)
-
 )
 
 func TestTransactionSigHash(t *testing.T) {
@@ -94,7 +94,7 @@ func TestRecipientEmpty(t *testing.T) {
 		t.FailNow()
 	}
 
-	from, err := Sender(tx)
+	from, err := Sender(HomesteadSigner{}, tx)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -114,7 +114,7 @@ func TestRecipientNormal(t *testing.T) {
 		t.FailNow()
 	}
 
-	from, err := Sender(tx)
+	from, err := Sender(HomesteadSigner{}, tx)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -134,7 +134,7 @@ func TestTransactionSigning(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	from, err := Sender(tx)
+	from, err := Sender(HomesteadSigner{}, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
