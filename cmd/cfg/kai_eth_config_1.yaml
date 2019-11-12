@@ -19,7 +19,7 @@ Node:
     PrivateKey: 8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06
     ListenAddress: :3000
     MaxPeers:   25
-  LogLevel: info           # crit, error, warn, info, debug, trace
+  LogLevel: trace           # crit, error, warn, info, debug, trace
 MainChain:
   ServiceName:  KARDIA
   ChainId:      1
@@ -65,9 +65,6 @@ MainChain:
   TxPool:
     GlobalSlots:  64
     GlobalQueue:  5120000
-    NumberOfWorkers: 3
-    WorkerCap: 512
-    BlockSize: 7192
   ZeroFee: 0          # 0 is no, 1 is yes
   Database:
     Type: 0                                  # 0 is leveldb, 1 is mongodb

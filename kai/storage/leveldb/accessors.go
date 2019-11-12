@@ -22,8 +22,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"github.com/kardiachain/go-kardia/lib/abi"
+	"fmt"
 	"strings"
+
+	"github.com/kardiachain/go-kardia/lib/abi"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -75,7 +77,7 @@ func CommonWriteChainConfig(db types.DatabaseWriter, hash common.Hash, cfg *type
 
 // CommonWriteBlock serializes a block into the database, header and body separately.
 func CommonWriteBlock(db types.DatabaseWriter, block *types.Block) {
-	db.WriteBody(block.Hash(), block.Height(),block.Body())
+	db.WriteBody(block.Hash(), block.Height(), block.Body())
 	db.WriteHeader(block.Header())
 }
 
@@ -260,7 +262,10 @@ func CommonReadHeader(db types.DatabaseReader, hash common.Hash, height uint64) 
 
 // CommonReadHeaderRLP retrieves a block header in its raw RLP database encoding.
 func CommonReadHeaderRLP(db types.DatabaseReader, hash common.Hash, height uint64) rlp.RawValue {
-	data, _ := db.Get(headerKey(height, hash))
+	data, err := db.Get(headerKey(height, hash))
+	if err != nil {
+		panic(fmt.Errorf("read header rlp err: %s height: %d", err, height))
+	}
 	return data.([]byte)
 }
 

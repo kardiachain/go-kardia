@@ -147,6 +147,8 @@ func NewProtocolManager(
 					manager.wg.Add(1)
 					defer manager.wg.Done()
 					return manager.handle(peer)
+				case <-manager.quitSync:
+					return p2p.DiscQuitting
 				}
 			},
 			NodeInfo: func() interface{} {
@@ -215,7 +217,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 		go pm.txBroadcastLoop()
 	}
 	//namdoh@ go pm.csBroadcastLoop()
-	//go syncNetwork(pm)
+	go syncNetwork(pm)
 	go pm.txsyncLoop()
 }
 
@@ -376,6 +378,10 @@ type txsync struct {
 
 // syncTransactions sends all pending transactions to the new peer.
 func (pm *ProtocolManager) syncTransactions(p *peer) {
+	// TODO(namdoh@,thientn@): Refactor this so we won't have to check this for dual service.
+	if pm.txpool == nil || !p.IsValidator {
+		return
+	}
 	var txs types.Transactions
 	pending, _ := pm.txpool.Pending()
 	for _, batch := range pending {
