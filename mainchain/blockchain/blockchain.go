@@ -21,6 +21,7 @@ package blockchain
 import (
 	"encoding/hex"
 	"errors"
+	"github.com/kardiachain/go-kardia/kvm"
 	"sync"
 	"sync/atomic"
 
@@ -470,4 +471,12 @@ func (bc *BlockChain) WriteCommit(height uint64, commit *types.Commit) {
 // Reads commit from db.
 func (bc *BlockChain) ReadCommit(height uint64) *types.Commit {
 	return bc.db.ReadCommit(height)
+}
+
+func (bc *BlockChain) ZeroFee() bool {
+	return bc.IsZeroFee
+}
+
+func (bc *BlockChain)ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
+	return ApplyMessage(vm, msg, gp)
 }

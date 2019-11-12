@@ -19,6 +19,7 @@
 package types
 
 import (
+	message "github.com/kardiachain/go-kardia/ksml/proto"
 	"math/big"
 	"os"
 	"testing"
@@ -91,7 +92,7 @@ func TestBlockEncodeDecodeFile(t *testing.T) {
 func TestGetDualEvents(t *testing.T) {
 	dualBlock := CreateNewDualBlock()
 	dualEvents := dualBlock.DualEvents()
-	dualEventCopy := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary), &DualAction{Name:"dualTest"})
+	dualEventCopy := NewDualEvent(100, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})
 	if dualEvents[0].Hash() != dualEventCopy.Hash() {
 		t.Error("Dual Events hash not equal")
 	}
@@ -265,6 +266,6 @@ func CreateNewDualBlock() *Block {
 		Precommits: []*Vote{vote, vote},
 	}
 	header.LastCommitHash = lastCommit.Hash()
-	de := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary), &DualAction{Name:"dualTest"})
+	de := NewDualEvent(100, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})
 	return NewDualBlock(log.New(), &header, []*DualEvent{de, nil}, lastCommit)
 }

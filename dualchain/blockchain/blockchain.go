@@ -21,6 +21,8 @@ package blockchain
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"github.com/kardiachain/go-kardia/kvm"
 	"sync"
 	"sync/atomic"
 
@@ -499,4 +501,12 @@ func (dbc *DualBlockChain) StoreTxHash(hash *common.Hash) {
 // it under chaindb).
 func (dbc *DualBlockChain) CheckTxHash(hash *common.Hash) bool {
 	return dbc.db.CheckTxHash(hash)
+}
+
+func (dbc *DualBlockChain) ZeroFee() bool {
+	return false
+}
+
+func (dbc *DualBlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
+	return nil, 0, false, fmt.Errorf("this function is not applied for dual blockchain")
 }
