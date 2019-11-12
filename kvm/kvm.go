@@ -427,7 +427,13 @@ func (kvm *KVM) CreateGenesisContract(caller ContractRef, contract *common.Addre
 		address := crypto.CreateAddress(caller.Address(), kvm.StateDB.GetNonce(caller.Address()))
 		contract = &address
 	}
-	return kvm.create(caller, &codeAndHash{code: code}, gas, value, *contract)
+
+	ret, contractAddr, leftOverGas, err = kvm.create(caller, &codeAndHash{code: code}, gas, big.NewInt(0), *contract)
+	if err != nil {
+		return nil, *contract, gas, err
+	}
+	kvm.StateDB.AddBalance(*contract, value)
+	return ret, contractAddr, leftOverGas, nil
 }
 
 //================================================================================================

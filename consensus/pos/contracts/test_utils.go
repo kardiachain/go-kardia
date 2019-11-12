@@ -96,6 +96,7 @@ var (
 	}
 
 	minimumStakes, _ = big.NewInt(0).SetString("1000000000000000000", 10)
+	genesisAmount, _ = big.NewInt(0).SetString("1000000000000000000000000000", 10)
 )
 
 // staticCall calls smc and return result in bytes format
@@ -121,11 +122,11 @@ func call(from common.Address, to common.Address, currentHeader *types.Header, c
 	return ret, nil
 }
 
-func create(from common.Address, to common.Address, currentHeader *types.Header, chain vm.ChainContext, input []byte, statedb *state.StateDB) (result []byte, address *common.Address, leftOverGas uint64, err error) {
+func create(from common.Address, to common.Address, currentHeader *types.Header, chain vm.ChainContext, input []byte, value *big.Int, statedb *state.StateDB) (result []byte, address *common.Address, leftOverGas uint64, err error) {
 	ctx := vm.NewKVMContextFromDualNodeCall(from, currentHeader, chain)
 	vmenv := kvm.NewKVM(ctx, statedb, kvm.Config{})
 	sender := kvm.AccountRef(from)
-	ret, contractAddr, leftOver, err := vmenv.CreateGenesisContract(sender, &to, input, maximumGasUsed, big.NewInt(0))
+	ret, contractAddr, leftOver, err := vmenv.CreateGenesisContract(sender, &to, input, maximumGasUsed, value)
 	if err != nil {
 		return make([]byte, 0), nil, leftOver, err
 	}
