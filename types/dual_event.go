@@ -169,7 +169,7 @@ func (txMetadata *TxMetadata) String() string {
 // String returns a string representation of KardiaSmartcontract
 func (kardiaSmc *KardiaSmartcontract) String() string {
 	if kardiaSmc != nil {
-		return fmt.Sprintf("Smc{Addr:%v WatcherActions:%v DualActions:%v}", kardiaSmc.SmcAddress, kardiaSmc.Watchers)
+		return fmt.Sprintf("Smc{Addr:%v WatcherActions:%v}", kardiaSmc.SmcAddress, kardiaSmc.Watchers)
 	}
 	return "Smc{Addr:nil}"
 }

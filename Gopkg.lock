@@ -756,6 +756,8 @@
     "github.com/golang/snappy",
     "github.com/google/cel-go/cel",
     "github.com/google/cel-go/checker/decls",
+    "github.com/google/cel-go/common/types",
+    "github.com/google/cel-go/common/types/ref",
     "github.com/gorilla/mux",
     "github.com/hashicorp/golang-lru",
     "github.com/huin/goupnp",
