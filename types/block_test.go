@@ -91,7 +91,7 @@ func TestBlockEncodeDecodeFile(t *testing.T) {
 func TestGetDualEvents(t *testing.T) {
 	dualBlock := CreateNewDualBlock()
 	dualEvents := dualBlock.DualEvents()
-	dualEventCopy := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary), &DualAction{Name:"dualTest"})
+	dualEventCopy := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary), &DualAction{Name: "dualTest"})
 	if dualEvents[0].Hash() != dualEventCopy.Hash() {
 		t.Error("Dual Events hash not equal")
 	}
@@ -232,7 +232,7 @@ func CreateNewBlock(height uint64) *Block {
 		big.NewInt(99), 1000, big.NewInt(100),
 		nil,
 	)
-	signedTx, _ := SignTx(emptyTx, key)
+	signedTx, _ := SignTx(HomesteadSigner{}, emptyTx, key)
 
 	txns := []*Transaction{signedTx}
 
@@ -265,6 +265,6 @@ func CreateNewDualBlock() *Block {
 		Precommits: []*Vote{vote, vote},
 	}
 	header.LastCommitHash = lastCommit.Hash()
-	de := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary), &DualAction{Name:"dualTest"})
+	de := NewDualEvent(100, false, "KAI", new(common.Hash), new(EventSummary), &DualAction{Name: "dualTest"})
 	return NewDualBlock(log.New(), &header, []*DualEvent{de, nil}, lastCommit)
 }

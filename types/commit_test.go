@@ -110,7 +110,7 @@ func CreateNewBlockWithTwoVotes(height uint64) *Block {
 		big.NewInt(99), 1000, big.NewInt(100),
 		nil,
 	)
-	signedTx, _ := SignTx(emptyTx, key)
+	signedTx, _ := SignTx(HomesteadSigner{}, emptyTx, key)
 
 	txns := []*Transaction{signedTx}
 

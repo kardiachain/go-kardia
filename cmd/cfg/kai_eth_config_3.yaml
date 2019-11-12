@@ -2,7 +2,7 @@ Node:
   Name: node3
   DataDir: /root/.kardia
   HTTPHost: 0.0.0.0
-  HTTPPort: 8545
+  HTTPPort: 8548
   HTTPModules:
     - node
     - kai
