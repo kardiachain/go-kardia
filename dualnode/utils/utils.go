@@ -377,7 +377,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 			return err
 		}
 
-		if err := proxy.KardiaTxPool().AddRemote(tx); err != nil {
+		if err := proxy.KardiaTxPool().AddLocal(tx); err != nil {
 			proxy.Logger().Error("Error on adding tx to txPool", "err", err, "topic", topic)
 			return err
 		}
