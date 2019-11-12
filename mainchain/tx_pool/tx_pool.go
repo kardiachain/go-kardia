@@ -303,6 +303,32 @@ func NewTxPool(config TxPoolConfig, chainconfig *types.ChainConfig, chain blockC
 	return pool
 }
 
+// GetAddressState gets address's nonce based on statedb or current addressState in txPool
+func (pool *TxPool) GetAddressState(address common.Address) uint64 {
+	return pool.currentState.GetNonce(address)
+}
+
+func (pool *TxPool) State() *state.StateDB {
+	return pool.currentState
+}
+
+// ProposeTransactions collects transactions from pending and remove them.
+func (pool *TxPool) ProposeTransactions() []*types.Transaction {
+	return pool.GetPendingData()
+}
+
+// ProposeTransactions collects transactions from pending and remove them.
+func (pool *TxPool) GetPendingData() []*types.Transaction {
+	pool.mu.RLock()
+	defer pool.mu.RUnlock()
+	txs := []*types.Transaction{}
+	pending, _ := pool.Pending()
+	for _, batch := range pending {
+		txs = append(txs, batch...)
+	}
+	return txs
+}
+
 // loop is the transaction pool's main event loop, waiting for and reacting to
 // outside blockchain events as well as for various reporting and transaction
 // eviction events.

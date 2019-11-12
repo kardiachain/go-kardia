@@ -4,6 +4,13 @@ import (
 	"crypto/ecdsa"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"math/big"
+	"os"
+	"path/filepath"
+	"runtime"
+	"time"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/blockchain"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
@@ -24,12 +31,6 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"math/big"
-	"os"
-	"path/filepath"
-	"runtime"
-	"time"
 )
 
 const (
@@ -120,12 +121,6 @@ func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 	return tx_pool.TxPoolConfig{
 		GlobalSlots: txPool.GlobalSlots,
 		GlobalQueue: txPool.GlobalQueue,
-
-		NumberOfWorkers: txPool.NumberOfWorkers,
-		WorkerCap:       txPool.WorkerCap,
-		BlockSize:       txPool.BlockSize,
-
-		LifeTime: 1 * time.Minute,
 	}
 }
 

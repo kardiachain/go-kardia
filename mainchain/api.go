@@ -44,21 +44,21 @@ const (
 
 // BlockHeaderJSON represents BlockHeader in JSON format
 type BlockHeaderJSON struct {
-	Hash           string               `json:"hash"`
-	Height         uint64               `json:"height"`
-	LastBlock      string               `json:"lastBlock"`
-	CommitHash     string               `json:"commitHash"`
-	Time           int64                `json:"time"`
-	NumTxs         uint64               `json:"num_txs"`
-	GasLimit       uint64               `json:"gasLimit"`
-	GasUsed        uint64               `json:"gasUsed"`
-	Validator      string               `json:"validator"`
-	TxHash         string               `json:"data_hash"`    // transactions
-	Root           string               `json:"stateRoot"`    // state root
-	ReceiptHash    string               `json:"receiptsRoot"` // receipt root
-	Bloom          int64                `json:"logsBloom"`
-	ValidatorsHash string               `json:"validators_hash"` // validators for the current block
-	ConsensusHash  string               `json:"consensus_hash"`
+	Hash           string `json:"hash"`
+	Height         uint64 `json:"height"`
+	LastBlock      string `json:"lastBlock"`
+	CommitHash     string `json:"commitHash"`
+	Time           int64  `json:"time"`
+	NumTxs         uint64 `json:"num_txs"`
+	GasLimit       uint64 `json:"gasLimit"`
+	GasUsed        uint64 `json:"gasUsed"`
+	Validator      string `json:"validator"`
+	TxHash         string `json:"data_hash"`    // transactions
+	Root           string `json:"stateRoot"`    // state root
+	ReceiptHash    string `json:"receiptsRoot"` // receipt root
+	Bloom          int64  `json:"logsBloom"`
+	ValidatorsHash string `json:"validators_hash"` // validators for the current block
+	ConsensusHash  string `json:"consensus_hash"`
 }
 
 // BlockJSON represents Block in JSON format
@@ -362,7 +362,7 @@ type BasicReceipt struct {
 // NewPublicTransaction returns a transaction that will serialize to the RPC
 // representation, with the given location metadata set (if available).
 func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64) *PublicTransaction {
-	from, _ := types.Sender(tx)
+	from, _ := types.Sender(types.HomesteadSigner{}, tx)
 
 	result := &PublicTransaction{
 		From:     from.Hex(),
@@ -404,7 +404,7 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}.Hex(), err
 	}
-	return tx.Hash().Hex(), a.s.TxPool().AddTx(tx)
+	return tx.Hash().Hex(), a.s.TxPool().AddLocal(tx)
 }
 
 // KardiaCall execute a contract method call only against
@@ -418,10 +418,10 @@ func (s *PublicKaiAPI) KardiaCall(ctx context.Context, call types.CallArgsJSON, 
 
 // PendingTransactions returns pending transactions
 func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, error) {
-	pending := a.s.TxPool().GetPendingData()
-	transactions := make([]*PublicTransaction, 0, len(*pending))
+	pendingTxs := a.s.TxPool().GetPendingData()
+	transactions := make([]*PublicTransaction, 0, len(pendingTxs))
 
-	for _, tx := range *pending {
+	for _, tx := range pendingTxs {
 		jsonData := NewPublicTransaction(tx, common.Hash{}, 0, 0)
 		transactions = append(transactions, jsonData)
 	}
@@ -479,7 +479,7 @@ func getReceiptLogs(receipt types.Receipt) []Log {
 
 // getTransactionReceipt gets transaction receipt from transaction, blockHash, blockNumber and index.
 func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash common.Hash, blockNumber, index uint64) *PublicReceipt {
-	from, _ := types.Sender(tx)
+	from, _ := types.Sender(types.HomesteadSigner{}, tx)
 	logs := getReceiptLogs(receipt)
 
 	publicReceipt := &PublicReceipt{

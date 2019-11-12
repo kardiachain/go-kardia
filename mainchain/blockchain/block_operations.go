@@ -261,7 +261,6 @@ LOOP:
 	header.NumTxs = uint64(newTxs.Len())
 	root, err := state.Commit(true)
 
-
 	if err != nil {
 		bo.logger.Error("Fail to commit new statedb after txs", "err", err)
 		return common.Hash{}, nil, nil, err

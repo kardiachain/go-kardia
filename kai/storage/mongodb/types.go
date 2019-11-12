@@ -265,7 +265,7 @@ func (block *Block) ToBlock(logger log.Logger) *types.Block {
 }
 
 func NewTransaction(tx *types.Transaction, height uint64, blockHash string, index int) (*Transaction, error) {
-	sender, err := types.Sender(tx)
+	sender, err := types.Sender(types.HomesteadSigner{}, tx)
 	if err != nil {
 		return nil, err
 	}
