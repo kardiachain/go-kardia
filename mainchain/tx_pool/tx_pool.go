@@ -303,11 +303,6 @@ func NewTxPool(config TxPoolConfig, chainconfig *types.ChainConfig, chain blockC
 	return pool
 }
 
-// GetAddressState gets address's nonce based on statedb or current addressState in txPool
-func (pool *TxPool) GetAddressState(address common.Address) uint64 {
-	return pool.currentState.GetNonce(address)
-}
-
 func (pool *TxPool) State() *state.StateDB {
 	return pool.currentState
 }

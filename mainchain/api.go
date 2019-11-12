@@ -568,7 +568,7 @@ func (a *PublicAccountAPI) Balance(address string, hash string, height int64) st
 // Nonce return address's nonce
 func (a *PublicAccountAPI) Nonce(address string) (uint64, error) {
 	addr := common.HexToAddress(address)
-	nonce := a.kaiService.txPool.GetAddressState(addr)
+	nonce := a.kaiService.txPool.Nonce(addr)
 	return nonce, nil
 }
 

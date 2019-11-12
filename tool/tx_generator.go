@@ -188,7 +188,7 @@ func (genTool *GeneratorTool) GenerateRandomTxWithAddressState(numTx int, txPool
 	for i := 0; i < numTx; i++ {
 		senderKey, toAddr := randomTxAddresses(genTool.accounts)
 		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
-		nonce := txPool.GetAddressState(senderPublicKey)
+		nonce := txPool.Nonce(senderPublicKey)
 		amount := big.NewInt(int64(RandomInt(10, 20)))
 		amount = amount.Mul(amount, big.NewInt(int64(math.Pow10(18))))
 		senderAddrS := senderPublicKey.String()
@@ -226,7 +226,7 @@ func (genTool *GeneratorTool) GetNonce(address string) uint64 {
 // if isIncrement is true, nonce + 1 to prevent duplicate nonce if generateSmcCall is called twice.
 func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input []byte, txPool *tx_pool.TxPool, isIncrement bool) *types.Transaction {
 	senderAddress := crypto.PubkeyToAddress(senderKey.PublicKey)
-	nonce := txPool.GetAddressState(senderAddress)
+	nonce := txPool.Nonce(senderAddress)
 	if isIncrement {
 		nonce++
 	}
