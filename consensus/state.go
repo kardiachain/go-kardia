@@ -245,9 +245,9 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 		// And alternative solution that relies on clocks:
 		//  cs.StartTime = state.LastBlockTime.Add(timeoutCommit)
 		cs.logger.Trace("cs.CommitTime is 0")
-		cs.StartTime = big.NewInt(cs.config.Commit(time.Now()).Unix() + 10)
+		cs.StartTime = big.NewInt(cs.config.Commit(time.Now()).Unix())
 	} else {
-		cs.StartTime = big.NewInt(cs.config.Commit(time.Unix(cs.CommitTime.Int64(), 0)).Unix() + 10)
+		cs.StartTime = big.NewInt(cs.config.Commit(time.Unix(cs.CommitTime.Int64(), 0)).Unix())
 	}
 
 	cs.Validators = validators
