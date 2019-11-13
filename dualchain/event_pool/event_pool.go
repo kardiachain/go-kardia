@@ -31,11 +31,10 @@ type blockChain interface {
 
 // Config are the configuration parameters of the event pool.
 type Config struct {
-	GlobalSlots     uint64
-	GlobalQueue     uint64
-	NumberOfWorkers int
-	WorkerCap       int
-	BlockSize       int
+	GlobalSlots  uint64
+	GlobalQueue  uint64
+	AccountSlots uint64
+	AccountQueue uint64
 }
 
 // EventPool contains all currently interesting events from both external or internal blockchains. Events enter the pool
@@ -65,16 +64,14 @@ type Pool struct {
 
 func NewPool(logger log.Logger, config Config, chain blockChain) *Pool {
 	pool := &Pool{
-		logger:          logger,
-		eventsCh:        make(chan []interface{}, 100),
-		allCh:           make(chan []interface{}),
-		pending:         make(map[common.Hash]*types.DualEvent),
-		all:             make(map[common.Hash]*types.DualEvent),
-		chainHeadCh:     make(chan events.ChainHeadEvent, chainHeadChanSize),
-		numberOfWorkers: config.NumberOfWorkers,
-		workerCap:       config.WorkerCap,
-		chain:           chain,
-		config:          config,
+		logger:      logger,
+		eventsCh:    make(chan []interface{}, 100),
+		allCh:       make(chan []interface{}),
+		pending:     make(map[common.Hash]*types.DualEvent),
+		all:         make(map[common.Hash]*types.DualEvent),
+		chainHeadCh: make(chan events.ChainHeadEvent, chainHeadChanSize),
+		chain:       chain,
+		config:      config,
 	}
 
 	pool.reset(nil, chain.CurrentBlock().Header())
@@ -265,27 +262,22 @@ func (pool *Pool) RemoveEvents(events types.DualEvents) {
 
 // ProposeEvents collects events from pending and remove them.
 func (pool *Pool) ProposeEvents() types.DualEvents {
-	des, _ := pool.Pending(pool.config.BlockSize, true)
+	des, _ := pool.Pending(true)
 	return des
 }
 
 // Pending collects pending transactions with limit number, if removeResult is marked to true then remove results after all.
-func (pool *Pool) Pending(limit int, removeResult bool) (types.DualEvents, error) {
+func (pool *Pool) Pending(removeResult bool) (types.DualEvents, error) {
 
 	pool.mu.Lock()
 	pending := make(types.DualEvents, 0)
 	addedEvents := make(types.DualEvents, 0)
 
-	counter := 0
 	for _, evt := range pool.pending {
-		if counter >= limit {
-			break
-		}
 		pending = append(pending, evt)
 		if removeResult {
 			addedEvents = append(addedEvents, evt)
 		}
-		counter++
 	}
 	pool.mu.Unlock()
 	// remove events in pending if addedEvents is not empty

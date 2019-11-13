@@ -24,12 +24,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"math"
 	"math/big"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/pebbe/zmq4"
@@ -140,7 +141,7 @@ func CreateKardiaMatchAmountTx(txPool *tx_pool.TxPool, smc common.Address, kAbi 
 	var matchInput []byte
 	timestamp := big.NewInt(time.Now().Unix())
 	temp := big.NewInt(1)
-	fromAmount, toAmount, err := CallGetRate(smc, kAbi, source, destination, bc, statedb.StateDB)
+	fromAmount, toAmount, err := CallGetRate(smc, kAbi, source, destination, bc, statedb)
 	if err != nil {
 		return nil, errInvalidExchangeRate
 	}
@@ -376,7 +377,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 			return err
 		}
 
-		if err := proxy.KardiaTxPool().AddTx(tx); err != nil {
+		if err := proxy.KardiaTxPool().AddLocal(tx); err != nil {
 			proxy.Logger().Error("Error on adding tx to txPool", "err", err, "topic", topic)
 			return err
 		}
@@ -520,7 +521,7 @@ func Release(proxy base.BlockChainAdapter, smc common.Address, kAbi abi.ABI, rec
 	if err != nil {
 		return err
 	}
-	result, err := CallStaticKardiaMasterSmc(senderAddr, smc, proxy.KardiaBlockChain(), input, proxy.KardiaTxPool().State().StateDB)
+	result, err := CallStaticKardiaMasterSmc(senderAddr, smc, proxy.KardiaBlockChain(), input, proxy.KardiaTxPool().State())
 
 	var smartContract string
 	err = kAbi.Unpack(&smartContract, configs.GetAddressFromType, result)
@@ -628,7 +629,7 @@ func HandleAddOrderFunction(proxy base.BlockChainAdapter, event *types.EventData
 	if proxy.KardiaBlockChain().Config().BaseAccount == nil {
 		return fmt.Errorf("BaseAccount is nil")
 	}
-	stateDB := proxy.KardiaTxPool().State().StateDB
+	stateDB := proxy.KardiaTxPool().State()
 	senderAddr := proxy.KardiaBlockChain().Config().BaseAccount.Address
 	originalTx := string(event.Data.ExtData[configs.ExchangeV2OriginalTxIdIndex])
 	fromType := string(event.Data.ExtData[configs.ExchangeV2SourcePairIndex])

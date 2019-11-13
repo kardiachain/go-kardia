@@ -70,7 +70,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 	// For simplicity, this code executes & commits txs before sending proposal,
 	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
 	txs := bo.txPool.ProposeTransactions()
-	bo.logger.Debug("Collected transactions", "txs", txs)
+	bo.logger.Debug("Collected transactions", "txs count", len(txs))
 
 	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash())
 	bo.logger.Info("Creates new header", "header", header)

@@ -84,6 +84,8 @@ type ProtocolManager struct {
 	// channels for fetcher, syncer, txsyncLoop
 	newPeerCh   chan *peer
 	noMorePeers chan struct{}
+	txsyncCh    chan *txsync
+	quitSync    chan struct{}
 
 	// transaction channel and subscriptions
 	txsCh         chan events.NewTxsEvent
@@ -125,6 +127,8 @@ func NewProtocolManager(
 		noMorePeers:   make(chan struct{}),
 		csReactor:     csReactor,
 		receivedTxsCh: make(chan receivedTxs),
+		txsyncCh:      make(chan *txsync),
+		quitSync:      make(chan struct{}),
 	}
 
 	// Initiate a sub-protocol for every implemented version we can handle
@@ -143,6 +147,8 @@ func NewProtocolManager(
 					manager.wg.Add(1)
 					defer manager.wg.Done()
 					return manager.handle(peer)
+				case <-manager.quitSync:
+					return p2p.DiscQuitting
 				}
 			},
 			NodeInfo: func() interface{} {
@@ -212,6 +218,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	}
 	//namdoh@ go pm.csBroadcastLoop()
 	go syncNetwork(pm)
+	go pm.txsyncLoop()
 }
 
 func (pm *ProtocolManager) Stop() {
@@ -367,21 +374,29 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	return nil
 }
 
+type txsync struct {
+	p   *peer
+	txs []*types.Transaction
+}
+
 // syncTransactions sends all pending transactions to the new peer.
 func (pm *ProtocolManager) syncTransactions(p *peer) {
 	// TODO(namdoh@,thientn@): Refactor this so we won't have to check this for dual service.
 	if pm.txpool == nil || !p.IsValidator {
 		return
 	}
-	pm.logger.Trace("Sync txns to new peer", "peer", p)
-	// TODO(thientn): sends transactions in chunks. This may send a large number of transactions.
-	// Breaks them to chunks here or inside AsyncSend to not overload the pipeline.
-	txs, _ := pm.txpool.Pending(0)
+	var txs types.Transactions
+	pending, _ := pm.txpool.Pending()
+	for _, batch := range pending {
+		txs = append(txs, batch...)
+	}
 	if len(txs) == 0 {
 		return
 	}
-	pm.logger.Trace("Start sending pending transactions", "count", len(txs))
-	p.AsyncSendTransactions(txs)
+	select {
+	case pm.txsyncCh <- &txsync{p, txs}:
+	case <-pm.quitSync:
+	}
 }
 
 func (pm *ProtocolManager) txBroadcastLoop() {
@@ -392,7 +407,7 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 
 		case receivedTxs := <-pm.receivedTxsCh:
 			if len(receivedTxs.txs) > 0 {
-				pm.txpool.AddTxs(receivedTxs.txs)
+				pm.txpool.AddRemotes(receivedTxs.txs)
 			}
 		// Err() channel will be closed when unsubscribing.
 		case <-pm.txsSub.Err():

@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/kai/kaidb"
-
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -510,6 +509,7 @@ func (db *Store) ReadChainConfig(hash common.Hash) *types.ChainConfig {
 
 // ReadBody retrieves the block body corresponding to the hash.
 func (db *Store) ReadBody(hash common.Hash, height uint64) *types.Body {
+	signer := types.HomesteadSigner{}
 	var body *types.Body
 	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
 		transactions, e := db.getTransactionsByBlockId(mongoDb, ctx, height)
@@ -518,7 +518,7 @@ func (db *Store) ReadBody(hash common.Hash, height uint64) *types.Body {
 		}
 		txs := make([]*types.Transaction, 0)
 		for _, transaction := range transactions {
-			txs = append(txs, transaction.ToTransaction())
+			txs = append(txs, transaction.ToTransaction(signer))
 		}
 
 		// get commit from block
@@ -554,6 +554,8 @@ func (db *Store) ReadBodyRLP(hash common.Hash, height uint64) rlp.RawValue {
 // canonical hash can be stored in the database but the body data not (yet).
 func (db *Store) ReadBlock(hash common.Hash, height uint64) *types.Block {
 	var newBlock *types.Block
+
+	signer := types.HomesteadSigner{}
 	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
 		var e error
 		var block *Block
@@ -568,7 +570,7 @@ func (db *Store) ReadBlock(hash common.Hash, height uint64) *types.Block {
 		}
 		txs := make([]*types.Transaction, 0)
 		for _, transaction := range transactions {
-			txs = append(txs, transaction.ToTransaction())
+			txs = append(txs, transaction.ToTransaction(signer))
 		}
 
 		// TODO: get dualevents. currently make it empty
@@ -696,6 +698,7 @@ func (db *Store) ReadBlockPart(hash common.Hash, height uint64, index int) *type
 // ReadTransaction retrieves a specific transaction from the database, along with
 // its added positional metadata.
 func (db *Store) ReadTransaction(hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
+	signer := types.HomesteadSigner{}
 	var tx *Transaction
 	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
 		var e error
@@ -705,7 +708,7 @@ func (db *Store) ReadTransaction(hash common.Hash) (*types.Transaction, common.H
 		log.Error("error while getting tx from hash", "err", err, "hash", hash.Hex())
 		return nil, common.NewZeroHash(), 0, 0
 	}
-	return tx.ToTransaction(), common.HexToHash(tx.BlockHash), tx.Height, uint64(tx.Index)
+	return tx.ToTransaction(signer), common.HexToHash(tx.BlockHash), tx.Height, uint64(tx.Index)
 }
 
 // Retrieves the positional metadata associated with a dual's event

@@ -21,6 +21,9 @@ package kardia
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
+	"strings"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode"
@@ -33,8 +36,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
-	"math/big"
-	"strings"
 )
 
 const KARDIA_PROXY = "KARDIA_PROXY"
@@ -107,7 +108,7 @@ func NewKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc
 	return processor, nil
 }
 
-func (p *KardiaProxy)Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.Pool,
+func (p *KardiaProxy) Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.Pool,
 	publishedEndpoint, subscribedEndpoint *string) error {
 	// Create a specific logger for Kardia Proxy.
 	logger := log.New()
@@ -239,7 +240,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 			p.logger.Error("type conversion failed")
 			return configs.ErrTypeConversionFailed
 		}
-		err = p.txPool.AddTx(tx)
+		err = p.txPool.AddLocal(tx)
 		if err != nil {
 			p.logger.Error("Fail to add Kardia's tx", "error", err)
 			return configs.ErrAddKardiaTx
@@ -248,7 +249,7 @@ func (p *KardiaProxy) SubmitTx(event *types.EventData) error {
 	}
 
 	if len(txs) > 0 {
-		p.txPool.AddTxs(txs)
+		p.txPool.AddLocals(txs)
 	}
 
 	return nil

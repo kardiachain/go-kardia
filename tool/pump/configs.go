@@ -20,6 +20,7 @@ package main
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
 )
@@ -78,12 +79,11 @@ type (
 		ABI      string `yaml:"ABI,omitempty"`
 	}
 	Pool struct {
-		GlobalSlots      uint64 `yaml:"GlobalSlots"`
-		GlobalQueue      uint64 `yaml:"GlobalQueue"`
-		NumberOfWorkers  int    `yaml:"NumberOfWorkers"`
-		WorkerCap        int    `yaml:"WorkerCap"`
-		BlockSize        int    `yaml:"BlockSize"`
-		LifeTime         int    `yaml:"LifeTime"`
+		GlobalSlots  uint64        `yaml:"GlobalSlots"`
+		GlobalQueue  uint64        `yaml:"GlobalQueue"`
+		AccountSlots uint64        `yaml:"AccountSlots"`
+		AccountQueue uint64        `yaml:"AccountQueue"`
+		LifeTime     time.Duration `yaml:"LifeTime"`
 	}
 	Database struct {
 		Type    uint   `yaml:"Type"`

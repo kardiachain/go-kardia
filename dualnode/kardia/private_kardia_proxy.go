@@ -25,6 +25,9 @@ package kardia
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"strings"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
@@ -36,11 +39,10 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
-	"math/big"
-	"strings"
 )
 
 const PRIVATE_KARDIA = "PRIVATE"
+
 var ErrInsufficientCandidateRequestData = errors.New("insufficient candidate request data")
 var ErrInsufficientCandidateResponseData = errors.New("insufficient candidate response data")
 var ErrUnpackForwardRequestInfo = errors.New("error unpacking info forward request input")
@@ -199,7 +201,7 @@ func (p *PrivateKardiaProxy) SubmitTx(event *types.EventData) error {
 		log.Error("Fail to create Kardia's tx from DualEvent", "err", err)
 		return configs.ErrCreateKardiaTx
 	}
-	err = p.txPool.AddTx(tx)
+	err = p.txPool.AddLocal(tx)
 	if err != nil {
 		log.Error("Fail to add Kardia's tx", "error", err)
 		return configs.ErrAddKardiaTx

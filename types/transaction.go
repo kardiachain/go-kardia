@@ -153,7 +153,7 @@ func (tx *Transaction) Size() common.StorageSize {
 
 // AsMessage returns the transaction as a core.Message.
 //
-func (tx *Transaction) AsMessage() (Message, error) {
+func (tx *Transaction) AsMessage(s Signer) (Message, error) {
 	msg := Message{
 		nonce:      tx.data.AccountNonce,
 		gasLimit:   tx.data.GasLimit,
@@ -165,7 +165,7 @@ func (tx *Transaction) AsMessage() (Message, error) {
 	}
 
 	var err error
-	msg.from, err = Sender(tx)
+	msg.from, err = Sender(s, tx)
 	return msg, err
 }
 
@@ -174,9 +174,9 @@ func (tx *Transaction) RawSignatureValues() (*big.Int, *big.Int, *big.Int) {
 }
 
 // WithSignature returns a new transaction with the given signature.
-// This signature needs to be formatted as described in the yellow paper (v+27).
-func (tx *Transaction) WithSignature(sig []byte) (*Transaction, error) {
-	r, s, v, err := SignatureValues(tx, sig)
+// This signature needs to be in the [R || S || V] format where V is 0 or 1.
+func (tx *Transaction) WithSignature(signer Signer, sig []byte) (*Transaction, error) {
+	r, s, v, err := signer.SignatureValues(tx, sig)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +250,7 @@ func (s Transactions) Forward(nonce uint64) ([]int, Transactions) {
 }
 
 // Remove by indexes
-func (s Transactions) Remove(indexes []int) Transactions{
+func (s Transactions) Remove(indexes []int) Transactions {
 	txs := make(Transactions, 0)
 
 	marked := make(map[int]bool, 0)
@@ -304,45 +304,13 @@ type sigCache struct {
 }
 
 // SignTx signs the transaction using the given signer and private key
-func SignTx(tx *Transaction, prv *ecdsa.PrivateKey) (*Transaction, error) {
+func SignTx(signer Signer, tx *Transaction, prv *ecdsa.PrivateKey) (*Transaction, error) {
 	h := sigHash(tx)
 	sig, err := crypto.Sign(h[:], prv)
 	if err != nil {
 		return nil, err
 	}
-	return tx.WithSignature(sig)
-}
-
-// Sender returns the address derived from the signature (V, R, S) using secp256k1
-// elliptic curve and an error if it failed deriving or upon an incorrect
-// signature.
-//
-// Sender may cache the address, allowing it to be used regardless of
-// signing method.
-func Sender(tx *Transaction) (common.Address, error) {
-	if sc := tx.from.Load(); sc != nil {
-		sigCache := sc.(sigCache)
-		return sigCache.from, nil
-	}
-
-	addr, err := recoverPlain(sigHash(tx), tx.data.R, tx.data.S, tx.data.V)
-	if err != nil {
-		return common.Address{}, err
-	}
-	tx.from.Store(sigCache{from: addr})
-	return addr, nil
-}
-
-// SignatureValues returns signature values. This signature
-// needs to be in the [R || S || V] format where V is 0 or 1.
-func SignatureValues(tx *Transaction, sig []byte) (r, s, v *big.Int, err error) {
-	if len(sig) != 65 {
-		panic(fmt.Sprintf("wrong size for signature: got %d, want 65", len(sig)))
-	}
-	r = new(big.Int).SetBytes(sig[:32])
-	s = new(big.Int).SetBytes(sig[32:64])
-	v = new(big.Int).SetBytes([]byte{sig[64] + 27})
-	return r, s, v, nil
+	return tx.WithSignature(signer, sig)
 }
 
 // sigHash returns the hash to be signed by the sender.

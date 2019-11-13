@@ -171,6 +171,7 @@ type (
 		BlockID          string        `json:"blockID"                    bson:"blockID"`
 		Signature        string        `json:"signature"                  bson:"signature"`
 		PartsHeader      PartSetHeader `json:"partsHeader" bson:"partsHeader"`
+
 	}
 
 	HeadHeaderHash struct {
@@ -273,7 +274,7 @@ func (block *Block) ToBlock() *types.Block {
 }
 
 func NewTransaction(tx *types.Transaction, height uint64, blockHash string, index int) (*Transaction, error) {
-	sender, err := types.Sender(tx)
+	sender, err := types.Sender(types.HomesteadSigner{}, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +304,7 @@ func NewTransaction(tx *types.Transaction, height uint64, blockHash string, inde
 	return newTx, nil
 }
 
-func (tx *Transaction) ToTransaction() *types.Transaction {
+func (tx *Transaction) ToTransaction(signer types.Signer) *types.Transaction {
 	amount, ok := big.NewInt(1).SetString(tx.Amount, 10)
 	if !ok {
 		log.Error("cannot cast amount to big.Int", "txHash", tx.Hash)
@@ -359,7 +360,7 @@ func (tx *Transaction) ToTransaction() *types.Transaction {
 	copy(sig[32:64], s.Bytes())
 	sig[64] = byte(v.Uint64() - 27)
 
-	signedTx, err := newTx.WithSignature(sig)
+	signedTx, err := newTx.WithSignature(signer, sig)
 	if err != nil {
 		log.Error("error while signing tx based on stored r,s,v", "err", err)
 		return nil
@@ -500,6 +501,7 @@ func (commit *Commit) ToCommit() *types.Commit {
 	return &types.Commit{
 		Precommits: votes,
 		BlockID:    toBlockID(commit.BlockID, commit.PartsHeader),
+
 	}
 }
 
