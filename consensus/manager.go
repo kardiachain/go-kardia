@@ -341,17 +341,7 @@ func (conR *ConsensusManager) ReceiveProposalPOL(generalMsg p2p.Msg, src *p2p.Pe
 		return
 	}
 
-	ps.mtx.Lock()
-	defer ps.mtx.Unlock()
-
-	if !ps.PRS.Height.Equals(msg.Height) {
-		return
-	}
-	if !ps.PRS.ProposalPOLRound.Equals(msg.ProposalPOLRound) {
-		return
-	}
-
-	ps.PRS.ProposalPOL = msg.ProposalPOL
+	ps.ApplyProposalPOLMessage(&msg)
 }
 
 func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer) {
@@ -1372,6 +1362,23 @@ func (ps *PeerState) ApplyVoteSetBitsMessage(msg *VoteSetBitsMessage, ourVotes *
 			votes.Update(hasVotes)
 		}
 	}
+}
+
+// ApplyProposalPOLMessage updates the peer state for the new proposal POL.
+func (ps *PeerState) ApplyProposalPOLMessage(msg *ProposalPOLMessage) {
+	ps.mtx.Lock()
+	defer ps.mtx.Unlock()
+
+	if ps.PRS.Height != msg.Height {
+		return
+	}
+	if ps.PRS.ProposalPOLRound != msg.ProposalPOLRound {
+		return
+	}
+
+	// TODO: Merge onto existing ps.PRS.ProposalPOL?
+	// We might have sent some prevotes in the meantime.
+	ps.PRS.ProposalPOL = msg.ProposalPOL
 }
 
 // String returns a string representation of the PeerState
