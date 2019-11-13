@@ -254,7 +254,6 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 	cs.Proposal = nil
 	cs.ProposalBlock = nil
 	cs.ProposalBlockParts = nil
-	cs.ProposalBlockID = types.NewZeroBlockID()
 	cs.LockedRound = cmn.NewBigInt32(-1)
 	cs.LockedBlock = nil
 	cs.LockedBlockParts = nil
@@ -1117,7 +1116,6 @@ func (cs *ConsensusState) enterCommit(height *cmn.BigInt, commitRound *cmn.BigIn
 	if cs.LockedBlock.HashesTo(blockID.Hash) {
 		logger.Info("Commit is for locked block. Set ProposalBlock=LockedBlock", "blockHash", blockID)
 		cs.ProposalBlock = cs.LockedBlock
-		cs.ProposalBlockID = blockID
 		cs.ProposalBlockParts = cs.LockedBlockParts
 	}
 
@@ -1431,7 +1429,6 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 	case cstypes.RoundStepPrevoteWait:
 		cs.enterPrecommit(ti.Height, ti.Round)
 	case cstypes.RoundStepPrecommitWait:
-		cs.enterPrecommit(ti.Height, ti.Round)
 		cs.enterNewRound(ti.Height, ti.Round.Add(1))
 	default:
 		panic(cmn.Fmt("Invalid timeout step: %v", ti.Step))

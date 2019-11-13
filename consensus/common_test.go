@@ -304,7 +304,7 @@ func newConsensusStateWithConfig(validators []*types.Validator, conf *Config) *C
 		panic(err)
 	}
 
-	txPool := tx_pool.NewTxPool(logger, conf.TxPool, chainConfig, nBlockchain)
+	txPool := tx_pool.NewTxPool(conf.TxPool, chainConfig, nBlockchain)
 	blockStore := blockchain.NewBlockOperations(logger, nBlockchain, txPool)
 
 	block := nBlockchain.CurrentBlock()
