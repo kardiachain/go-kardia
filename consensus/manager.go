@@ -146,7 +146,7 @@ func (conR *ConsensusManager) subscribeToBroadcastEvents() {
 
 	conR.conS.evsw.AddListenerForEvent(subscriber, types.EventValidBlock,
 		func(data EventData) {
-			conR.broadcastNewValidBlockMessage(data.(*cstypes.RoundState))
+			//conR.broadcastNewValidBlockMessage(data.(*cstypes.RoundState))
 		})
 }
 
