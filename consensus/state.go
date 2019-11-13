@@ -322,7 +322,7 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 			cs.sendInternalMessage(msgInfo{&BlockPartMessage{cs.Height, cs.Round, part}, discover.ZeroNodeID()})
 		}
 		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
-		cs.logger.Debug(fmt.Sprintf("Signed proposal block: %v", block))
+		cs.logger.Debug(fmt.Sprintf("Signed proposal block: %s", block.Hash()))
 	}
 }
 
