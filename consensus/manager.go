@@ -219,6 +219,11 @@ func (conR *ConsensusManager) ReceiveNewValidBlock(generalMsg p2p.Msg, src *p2p.
 		conR.logger.Error("Invalid valid block message", "msg", generalMsg, "err", err)
 		return
 	}
+
+	if err := msg.ValidateBasic(); err != nil {
+		conR.logger.Error("Peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
+	}
+
 	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
 	if !ok {
 		conR.logger.Error("Downcast failed!!")
