@@ -574,7 +574,6 @@ func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
 // ReadBlock returns the Block for the given height
 func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 	blockMeta := ReadBlockMeta(db, hash, height)
-	fmt.Printf("%+v", blockMeta.BlockID)
 	buf := []byte{}
 	for i := 0; i < blockMeta.BlockID.PartsHeader.Total.Int32(); i++ {
 		part := ReadBlockPart(db, hash, height, i)
@@ -622,7 +621,12 @@ func WriteBlock(db kaidb.Writer, block *types.Block, blockParts *types.PartSet, 
 	// Save block meta
 	blockMeta := types.NewBlockMeta(block, blockParts)
 
-	metaBytes, _ := rlp.EncodeToBytes(blockMeta)
+	metaBytes, err := rlp.EncodeToBytes(blockMeta)
+
+	if err != nil {
+		panic(fmt.Errorf("encode block meta error: %d", err))
+	}
+
 	db.Put(blockMetaKey(hash, height), metaBytes)
 
 	// Save block part
@@ -635,23 +639,32 @@ func WriteBlock(db kaidb.Writer, block *types.Block, blockParts *types.PartSet, 
 	// Save block commit (duplicate and separate from the Block)
 	lastCommit := block.LastCommit()
 	lastCommit.MakeNilEmpty()
-	lastCommitBytes, _ := rlp.EncodeToBytes(lastCommit)
+	lastCommitBytes, err := rlp.EncodeToBytes(lastCommit)
+	if err != nil {
+		panic(fmt.Errorf("encode last commit error: %d", err))
+	}
 	db.Put(commitKey(height-1), lastCommitBytes)
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
 	seenCommit.MakeNilEmpty()
-	seenCommitBytes, _ := rlp.EncodeToBytes(seenCommit)
+	seenCommitBytes, err := rlp.EncodeToBytes(seenCommit)
+	if err != nil {
+		panic(fmt.Errorf("encode seen commit error: %d", err))
+	}
 	db.Put(seenCommitKey(height), seenCommitBytes)
 
 	key := headerHeightKey(hash)
 	if err := db.Put(key, encodeBlockHeight(height)); err != nil {
-		log.Crit("Failed to store hash to height mapping", "err", err)
+		panic(fmt.Errorf("Failed to store hash to height mapping err: %d", err))
 	}
 }
 
 func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part) {
-	partBytes, _ := rlp.EncodeToBytes(part)
+	partBytes, err := rlp.EncodeToBytes(part)
+	if err != nil {
+		panic(fmt.Errorf("encode block part error: %d, height :%d, index: %d", err, height, index))
+	}
 	db.Put(blockPartKey(height, index), partBytes)
 }
 
