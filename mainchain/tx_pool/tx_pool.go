@@ -124,7 +124,7 @@ type blockChain interface {
 	CurrentBlock() *types.Block
 	GetBlock(hash common.Hash, number uint64) *types.Block
 	StateAt(root common.Hash) (*state.StateDB, error)
-	DB() types.Database
+	DB() types.StoreDB
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 }
 
