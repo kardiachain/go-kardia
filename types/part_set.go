@@ -26,7 +26,7 @@ type Part struct {
 
 // ValidateBasic performs basic validation.
 func (part *Part) ValidateBasic() error {
-	if part.Index.EqualsInt(0) {
+	if part.Index.IsLessThanInt(0) {
 		return errors.New("Negative Index")
 	}
 	if len(part.Bytes) > BlockPartSizeBytes {
