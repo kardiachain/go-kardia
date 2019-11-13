@@ -629,7 +629,7 @@ func (cs *ConsensusState) voteTime() *big.Int {
 	minVoteTime := now.Unix()
 	// TODO: We should remove next line in case we don't vote for v in case cs.ProposalBlock == nil,
 	// even if cs.LockedBlock != nil. See https://github.com/tendermint/spec.
-	timeIotaMs := int64(1000)
+	timeIotaMs := int64(10000)
 	if cs.LockedBlock != nil {
 		// See the BFT time spec https://tendermint.com/docs/spec/consensus/bft-time.html
 		minVoteTime = cs.LockedBlock.Time().Int64()
