@@ -19,19 +19,16 @@
 package node
 
 import (
-	"bufio"
 	"crypto/ecdsa"
-	"encoding/csv"
 	"encoding/hex"
 	"fmt"
-	"io"
+	"math/big"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/storage"
@@ -84,9 +81,53 @@ type MainChainConfig struct {
 	// BaseAccount defines account which is used to execute internal smart contracts
 	BaseAccount *types.BaseAccount
 
-	// ======== DEV ENVIRONMENT CONFIG =========
-	// Configuration of this environment when running in dev environment.
-	EnvConfig *EnvironmentConfig
+	ConsensusInfo ConsensusInfo
+}
+
+type ConsensusInfo struct {
+	MaxValidators        uint64
+	ConsensusPeriod      uint64
+	MinimumStakes        *big.Int
+	Master               MasterSmartContract
+	Nodes                Nodes
+	Stakers              Stakers
+}
+
+type MasterSmartContract struct {
+	Address  common.Address
+	ByteCode []byte
+	ABI      string
+	GenesisAmount *big.Int
+}
+
+type Nodes struct {
+	ABI             string
+	ByteCode        []byte
+	GenesisInfo     []GenesisNodeInfo
+}
+
+type Stakers struct {
+	ABI         string
+	ByteCode    []byte
+	GenesisInfo []GenesisStakeInfo
+}
+
+type GenesisNodeInfo struct {
+	Address common.Address
+	Owner   common.Address
+	PubKey  string
+	Name    string
+	Host    string
+	Port    string
+	Reward  uint16
+}
+
+type GenesisStakeInfo struct {
+	Address common.Address
+	Owner   common.Address
+	StakedNode common.Address
+	LockedPeriod uint64
+	StakeAmount *big.Int
 }
 
 type DualChainConfig struct {
@@ -114,10 +155,6 @@ type DualChainConfig struct {
 
 	// BaseAccount defines account which is used to execute internal smart contracts
 	BaseAccount *types.BaseAccount
-
-	// ======== DEV ENVIRONMENT CONFIG =========
-	// Configuration of this environment when running in dev environment.
-	EnvConfig *EnvironmentConfig
 
 	// Dual Network ID
 	DualNetworkID uint64
@@ -206,13 +243,6 @@ type NodeMetadata struct {
 	PublicKey   *ecdsa.PublicKey
 	VotingPower int64
 	ListenAddr  string
-}
-
-// EnvironmentConfig contains a list of NodeVotingPower, proposalIndex and votingStrategy
-type EnvironmentConfig struct {
-	NodeSet        []NodeMetadata
-	proposalIndex  int
-	VotingStrategy map[consensus.VoteTurn]int
 }
 
 // NodeName returns the devp2p node identifier.
@@ -390,98 +420,6 @@ func GetNodeMetadataFromSmc(bc *base.BaseBlockChain, valIndices []int) ([]NodeMe
 		nodes = append(nodes, *n)
 	}
 	return nodes, nil
-}
-
-// NewEnvironmentConfig returns new EnvironmentConfig instance
-func NewEnvironmentConfig() *EnvironmentConfig {
-	var env EnvironmentConfig
-	env.proposalIndex = 0 // Default to 0-th node as the proposer.
-	env.NodeSet = make([]NodeMetadata, 0)
-	return &env
-}
-
-// GetNodeSize returns size of NodeSet
-func (env *EnvironmentConfig) GetNodeSize() int {
-	return len(env.NodeSet)
-}
-
-// SetVotingStrategy is used for testing voting
-func (env *EnvironmentConfig) SetVotingStrategy(votingStrategy string) {
-	if strings.HasSuffix(votingStrategy, "csv") {
-		env.VotingStrategy = map[consensus.VoteTurn]int{}
-		csvFile, _ := os.Open(votingStrategy)
-		reader := csv.NewReader(bufio.NewReader(csvFile))
-
-		for {
-			line, err := reader.Read()
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				log.Error("error", err)
-			}
-			var height, _ = strconv.Atoi(line[0])
-			var round, _ = strconv.Atoi(line[1])
-			var voteType, _ = strconv.Atoi(line[2])
-			var result, _ = strconv.Atoi(line[3])
-
-			var _, ok = env.GetScriptedVote(height, round, voteType)
-			if ok {
-				log.Error(fmt.Sprintf("VoteTurn already exists with height = %v, round = %v, voteType = %v", height, round, voteType))
-			} else {
-				env.VotingStrategy[consensus.VoteTurn{height, round, voteType}] = result
-			}
-		}
-	}
-}
-
-func (env *EnvironmentConfig) GetScriptedVote(height int, round int, voteType int) (int, bool) {
-	if val, ok := env.VotingStrategy[consensus.VoteTurn{height, round, voteType}]; ok {
-		return val, ok
-	}
-	return 0, false
-}
-
-func (env *EnvironmentConfig) SetProposerIndex(index, limit int) {
-	if index < 0 || index >= limit {
-		log.Error(fmt.Sprintf("Proposer index must be within %v and %v", 0, env.GetNodeSize()))
-	}
-	env.proposalIndex = index
-}
-
-func (env *EnvironmentConfig) GetNodeMetadata(index int) *NodeMetadata {
-	return &env.NodeSet[index]
-}
-
-// GetValidatorSetByIndices takes an array of indexes of validators and returns an array of validators with the order respectively to index of input
-func (env *EnvironmentConfig) GetValidatorSetByIndices(bc base.BaseBlockChain, valIndexes []int) (*types.ValidatorSet, error) {
-	// If NodeSet is empty then get nodes from smc
-	if env.GetNodeSize() == 0 {
-		nodes, err := GetNodeMetadataFromSmc(&bc, valIndexes)
-		if err != nil {
-			return nil, err
-		}
-		env.NodeSet = nodes
-	}
-	if len(valIndexes) > env.GetNodeSize() {
-		return nil, fmt.Errorf("number of validators must be within %v and %v", 1, env.GetNodeSize())
-	}
-	validators := make([]*types.Validator, 0)
-	for i := 0; i < len(valIndexes); i++ {
-		if valIndexes[i] < 0 {
-			return nil, fmt.Errorf("value of validator must be greater than 0")
-		}
-		node := env.NodeSet[i]
-		validators = append(validators, types.NewValidator(*node.PublicKey, node.VotingPower))
-	}
-
-	// TODO(huny@): Pass the start/end block height of the initial set of validator from the
-	// genesis here. Default to 0 and 100000000000 for now.
-	validatorSet := types.NewValidatorSet(validators, 0 /*start height*/, 100000000000 /*end height*/)
-	// TODO(dnk90@,namdoh@: This is a bug due to this change https://github.com/kardiachain/go-kardia/commit/09cfe4762b809498a789758eeb85008628947764.
-	// Turn off this for production.
-	validatorSet.TurnOnKeepSameProposer()
-	validatorSet.SetProposer(validators[env.proposalIndex])
-	return validatorSet, nil
 }
 
 // GetValidatorSet gets list of validators from permission smc defined in config and a list of indices.

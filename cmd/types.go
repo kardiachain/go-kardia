@@ -30,6 +30,7 @@ type (
 		AcceptTxs     uint32         `yaml:"AcceptTxs"`
 		ZeroFee       uint           `yaml:"ZeroFee"`
 		IsDual        uint           `yaml:"IsDual"`
+		Consensus     *Consensus      `yaml:"Consensus,omitempty"`
 		Genesis       *Genesis       `yaml:"Genesis,omitempty"`
 		TxPool        *Pool          `yaml:"TxPool,omitempty"`
 		EventPool     *Pool          `yaml:"EventPool,omitempty"`
@@ -38,7 +39,7 @@ type (
 		Events        []Event 	     `yaml:"Events"`
 		PublishedEndpoint  *string   `yaml:"PublishedEndpoint,omitempty"`
 		SubscribedEndpoint *string   `yaml:"SubscribedEndpoint,omitempty"`
-		Validators    []int          `yaml:"Validators"`
+		Validators    []int          `yaml:"Validators,omitempty"`
 		BaseAccount   BaseAccount    `yaml:"BaseAccount"`
 	}
 	Genesis struct {
@@ -46,10 +47,41 @@ type (
 		GenesisAmount  string        `yaml:"GenesisAmount"`
 		Contracts      []Contract    `yaml:"Contracts"`
 	}
+	Consensus struct {
+		MaxValidators       uint64            `yaml:"MaxValidators"`
+		ConsensusPeriod     uint64            `yaml:"ConsensusPeriod"`
+		MinimumStakes       string            `yaml:"MinimumStakes"`
+		Master     			Contract          `yaml:"Master"`
+		Stakers    			NodesOrStakes     `yaml:"Stakers"`
+		Nodes      			NodesOrStakes     `yaml:"Nodes"`
+	}
+	NodeInfo struct {
+		Address    string       `yaml:"Address"`
+		Owner      string       `yaml:"Owner"`
+		PubKey     string       `yaml:"PubKey"`
+		Name       string       `yaml:"Name"`
+		Host       string       `yaml:"Host"`
+		Port       string       `yaml:"Port"`
+		Reward     uint16       `yaml:"Reward"`
+	}
+	StakerInfo struct {
+		Address     string       `yaml:"Address"`
+		Owner       string       `yaml:"Owner"`
+		StakedNode  string       `yaml:"StakedNode"`
+		LockedPeriod uint64      `yaml:"LockedPeriod"`
+		StakeAmount string       `yaml:"StakeAmount"`
+	}
+	NodesOrStakes struct {
+		ByteCode     string       `yaml:"ByteCode"`
+		ABI          string       `yaml:"ABI"`
+		NodeInfo     []NodeInfo   `yaml:"NodeInfo,omitempty"`
+		StakerInfo   []StakerInfo `yaml:"StakerInfo,omitempty"`
+	}
 	Contract struct {
-		Address    string    `yaml:"Address"`
+		Address    string    `yaml:"Address,omitempty"`
 		ByteCode   string    `yaml:"ByteCode"`
 		ABI        string    `yaml:"ABI,omitempty"`
+		GenesisAmount string `yaml:"GenesisAmount,omitempty"`
 	}
 	Pool struct {
 		GlobalSlots     uint64    `yaml:"GlobalSlots"`

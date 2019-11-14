@@ -4,7 +4,7 @@ Master is used to stores nodes info including available and pending nodes, stake
 
 */
 
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.8;
 
 
 contract Master {
@@ -133,7 +133,8 @@ contract Master {
         _nextBlock = 0;
         _consensusPeriod = consensusPeriod;
         _maxValidators = maxValidators;
-        _availableNodes.push(NodeInfo(0x0, 0x0, 0, 0));
+
+        _availableNodes.push(NodeInfo(address(0x0), address(0x0), 0, 0));
         _pendingNodes.push(PendingInfo(_availableNodes[0], 0, true));
         _pendingDeletedNodes.push(PendingDeleteInfo(_availableNodes[0], 0, 0, true));
 
@@ -293,7 +294,7 @@ contract Master {
     }
 
     // migrateBalance is used for migrating to new version of Master, if there is any new update needed in the future.
-    function migrateBalance(address newMasterVersion) public isGenesis {
+    function migrateBalance(address payable newMasterVersion) public isGenesis {
         newMasterVersion.transfer(address(this).balance);
     }
 

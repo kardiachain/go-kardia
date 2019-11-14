@@ -213,7 +213,6 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		NetworkId:        chain.NetworkID,
 		ChainId:          chain.ChainID,
 		ServiceName:      chain.ServiceName,
-		EnvConfig:        nil,
 		BaseAccount:      baseAccount,
 	}
 	return &mainChainConfig, nil
