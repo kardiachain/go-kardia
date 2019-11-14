@@ -125,11 +125,8 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
-	logger.Info("Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
-	var validatorSet *types.ValidatorSet
-	validatorSet, err = node.GetValidatorSet(kai.blockchain, ctx.Config.MainChainConfig.ValidatorIndexes)
+	validatorSet, err := consensus.InitGenesisConsensus(kai.blockchain, ctx.Config.MainChainConfig.ConsensusInfo)
 	if err != nil {
-		logger.Error("Cannot get validator from indices", "indices", ctx.Config.MainChainConfig.ValidatorIndexes, "err", err)
 		return nil, err
 	}
 
@@ -137,6 +134,14 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		Hash:        block.Hash(),
 		PartsHeader: block.MakePartSet(types.BlockPartSizeBytes).Header(),
 	}
+	//logger.Info("Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
+	//var validatorSet *types.ValidatorSet
+	//validatorSet, err = node.GetValidatorSet(kai.blockchain, ctx.Config.MainChainConfig.ValidatorIndexes)
+	//if err != nil {
+	//	logger.Error("Cannot get validator from indices", "indices", ctx.Config.MainChainConfig.ValidatorIndexes, "err", err)
+	//	return nil, err
+	//}
+
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon", // TODO(thientn): considers merging this with protocolmanger.ChainID
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),

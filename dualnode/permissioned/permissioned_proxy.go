@@ -139,13 +139,13 @@ func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain
 		return nil, fmt.Errorf("cannot get privateService: %v", err)
 	}
 
-	for i := 0; i < nodeConfig.MainChainConfig.EnvConfig.GetNodeSize(); i++ {
-		peerURL := nodeConfig.MainChainConfig.EnvConfig.GetNodeMetadata(i).NodeID()
-		logger.Info("Adding static peer", "peerURL", peerURL)
-		if err := n.AddPeer(peerURL); err != nil {
-			return nil, err
-		}
-	}
+	//for i := 0; i < nodeConfig.MainChainConfig.EnvConfig.GetNodeSize(); i++ {
+	//	peerURL := nodeConfig.MainChainConfig.EnvConfig.GetNodeMetadata(i).NodeID()
+	//	logger.Info("Adding static peer", "peerURL", peerURL)
+	//	if err := n.AddPeer(peerURL); err != nil {
+	//		return nil, err
+	//	}
+	//}
 	candidateSmcUtil, err := permissioned.NewCandidateSmcUtil(internalBlockchain, GetPrivateKeyToCallKardiaSmc())
 	if err != nil {
 		logger.Info("Cannot create candidate smc util", "err", err)

@@ -19,6 +19,8 @@
 package kvm
 
 import (
+	"fmt"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"math/big"
 
 	"sync/atomic"
@@ -202,6 +204,7 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
+		log.Error(fmt.Sprintf("%v: %v", err.Error(), string(ret)))
 	}
 	return ret, contract.Gas, err
 }

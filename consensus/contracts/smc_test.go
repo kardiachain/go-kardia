@@ -199,7 +199,7 @@ func testAvailableNodes(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockCha
 		var info nodeInfo
 		err = masterAbi.Unpack(&info, "getAvailableNode", output)
 		require.NoError(t, err)
-		println(fmt.Sprintf("available node by index - index:%v node:%v owner:%v stakes:%v", i, info.NodeAddress.Hex(), info.Owner.Hex(), info.Stakes.Uint64()))
+		println(fmt.Sprintf("available node by index - index:%v node:%v owner:%v stakes:%v", i, info.NodeAddress.Hex(), info.Owner.Hex(), info.Stakes.String()))
 		testGetAvailableNodeIndex(t, masterAbi, bc, st, info.NodeAddress, i)
 	}
 }
@@ -218,7 +218,8 @@ func testGetAvailableNodeIndex(t *testing.T, masterAbi abi.ABI, bc *blockchain.B
 func testCreateMaster(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain, st *state.StateDB, consensusPeriod uint64, maxValidators uint64) {
 	input, err := masterAbi.Pack("", consensusPeriod, maxValidators)
 	require.NoError(t, err)
-	sender := common.HexToAddress(genesisNodes[0]["owner"].(string))
+	//sender := common.HexToAddress(genesisNodes[0]["owner"].(string))
+	sender := common.HexToAddress("0x")
 	newCode := append(MasterByteCode, input...)
 	_, _, _, err = create(sender, masterAddress, bc.CurrentHeader(), bc, newCode, genesisAmount, st)
 	require.NoError(t, err)
@@ -276,18 +277,22 @@ func testGetLatestValidators(t *testing.T, masterAbi abi.ABI, bc *blockchain.Blo
 	println("running testGetLatestValidators")
 	sender := common.HexToAddress(genesisNodes[0]["owner"].(string))
 
-	getLatestValidatorsLength, err := masterAbi.Pack("getLatestValidatorsLength")
+	getLatestValidatorsInfo, err := masterAbi.Pack("getLatestValidatorsInfo")
 	require.NoError(t, err)
 
-	result, err := staticCall(sender, masterAddress, bc.CurrentHeader(), bc, getLatestValidatorsLength, st)
+	result, err := staticCall(sender, masterAddress, bc.CurrentHeader(), bc, getLatestValidatorsInfo, st)
 	require.NoError(t, err)
-
-	var validatorsLength uint64
-	err = masterAbi.Unpack(&validatorsLength, "getLatestValidatorsLength", result)
+	type getLatestValidatorsInfoType struct {
+		TotalNodes uint64 `abi:"totalNodes"`
+		StartAtBlock uint64 `abi:"startAtBlock"`
+		EndAtBlock uint64 `abi:"endAtBlock"`
+	}
+	var validatorsInfo getLatestValidatorsInfoType
+	err = masterAbi.Unpack(&validatorsInfo, "getLatestValidatorsInfo", result)
 	require.NoError(t, err)
-	require.Equal(t, expectedValidatorsLength, validatorsLength)
+	require.Equal(t, expectedValidatorsLength, validatorsInfo.TotalNodes)
 
-	for i:=uint64(1); i < validatorsLength; i++ {
+	for i:=uint64(1); i < validatorsInfo.TotalNodes; i++ {
 		getLatestValidator, err := masterAbi.Pack("GetLatestValidator", i)
 		require.NoError(t, err)
 

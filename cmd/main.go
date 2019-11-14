@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -173,6 +174,53 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	genesisAmount, _ := big.NewInt(0).SetString(c.MainChain.Consensus.Master.GenesisAmount, 10)
+	minimumStakes, _ := big.NewInt(0).SetString(c.MainChain.Consensus.MinimumStakes, 10)
+	// get consensus info
+	consensus := node.ConsensusInfo{
+		MaxValidators:   c.MainChain.Consensus.MaxValidators,
+		ConsensusPeriod: c.MainChain.Consensus.ConsensusPeriod,
+		MinimumStakes: minimumStakes,
+		Master:          node.MasterSmartContract{
+			Address:       common.HexToAddress(c.MainChain.Consensus.Master.Address),
+			ByteCode:      common.Hex2Bytes(c.MainChain.Consensus.Master.ByteCode),
+			ABI:           strings.Replace(c.MainChain.Consensus.Master.ABI, "'", "\"", -1),
+			GenesisAmount: genesis.ToCell(genesisAmount.Int64()),
+		},
+		Nodes:           node.Nodes{
+			ABI:         strings.Replace(c.MainChain.Consensus.Nodes.ABI, "'", "\"", -1),
+			ByteCode:    common.Hex2Bytes(c.MainChain.Consensus.Nodes.ByteCode),
+			GenesisInfo: make([]node.GenesisNodeInfo, 0),
+		},
+		Stakers:         node.Stakers{
+			ABI:         strings.Replace(c.MainChain.Consensus.Stakers.ABI, "'", "\"", -1),
+			ByteCode:    common.Hex2Bytes(c.MainChain.Consensus.Stakers.ByteCode),
+			GenesisInfo: make([]node.GenesisStakeInfo, 0),
+		},
+	}
+	// get Nodes
+	for _, n := range c.MainChain.Consensus.Nodes.NodeInfo {
+		consensus.Nodes.GenesisInfo = append(consensus.Nodes.GenesisInfo, node.GenesisNodeInfo{
+			Address: common.HexToAddress(n.Address),
+			Owner:   common.HexToAddress(n.Owner),
+			PubKey:  n.PubKey,
+			Name:    n.Name,
+			Host:    n.Host,
+			Port:    n.Port,
+			Reward:  n.Reward,
+		})
+	}
+	// get stakers
+	for _, s := range c.MainChain.Consensus.Stakers.StakerInfo {
+		stakeAmount, _ := big.NewInt(0).SetString(s.StakeAmount, 10)
+		consensus.Stakers.GenesisInfo = append(consensus.Stakers.GenesisInfo, node.GenesisStakeInfo{
+			Address:     common.HexToAddress(s.Address),
+			Owner:       common.HexToAddress(s.Owner),
+			StakedNode:  common.HexToAddress(s.StakedNode),
+			LockedPeriod: s.LockedPeriod,
+			StakeAmount: genesis.ToCell(stakeAmount.Int64()),
+		})
+	}
 	mainChainConfig := node.MainChainConfig{
 		ValidatorIndexes: c.MainChain.Validators,
 		DBInfo:           dbInfo,
@@ -183,8 +231,8 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		NetworkId:        chain.NetworkID,
 		ChainId:          chain.ChainID,
 		ServiceName:      chain.ServiceName,
-		EnvConfig:        nil,
 		BaseAccount:      baseAccount,
+		ConsensusInfo:    consensus,
 	}
 	return &mainChainConfig, nil
 }
@@ -219,7 +267,6 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		DualNetworkID:    c.DualChain.NetworkID,
 		ChainId:          c.DualChain.ChainID,
 		DualProtocolName: *c.DualChain.Protocol,
-		EnvConfig:        nil,
 		BaseAccount:      baseAccount,
 	}
 	return &dualChainConfig, nil

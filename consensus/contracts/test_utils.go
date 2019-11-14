@@ -10,7 +10,6 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/types"
-	"math"
 	"math/big"
 )
 
@@ -95,7 +94,7 @@ var (
 		},
 	}
 
-	minimumStakes, _ = big.NewInt(0).SetString("1000000000000000000", 10)
+	minimumStakes, _ = big.NewInt(0).SetString("2000000000000000000000000", 10)
 	genesisAmount, _ = big.NewInt(0).SetString("1000000000000000000000000000", 10)
 )
 
@@ -144,15 +143,14 @@ func setupGenesis(g *genesis.Genesis, db *types.MemStore) (*types.ChainConfig, c
 }
 
 func setupBlockchain() (*blockchain.BlockChain, error) {
-	initValue := genesis.ToCell(int64(math.Pow10(6)))
 
 	var genesisAccounts = map[string]*big.Int{
-		"0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd": initValue,
-		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
-		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
-		"0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28": initValue,
-		"0x94FD535AAB6C01302147Be7819D07817647f7B63": initValue,
-		"0xa8073C95521a6Db54f4b5ca31a04773B093e9274": initValue,
+		"0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd": genesisAmount,
+		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": genesisAmount,
+		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": genesisAmount,
+		"0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28": genesisAmount,
+		"0x94FD535AAB6C01302147Be7819D07817647f7B63": genesisAmount,
+		"0xa8073C95521a6Db54f4b5ca31a04773B093e9274": genesisAmount,
 	}
 	kaiDb := types.NewMemStore()
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
