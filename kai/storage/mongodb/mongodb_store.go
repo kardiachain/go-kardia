@@ -68,51 +68,51 @@ func NewDB(uri, dbName string, drop bool) (*Store, error) {
 		if err := db.Drop(*ctx); err != nil {
 			return nil, err
 		}
-	}
 
-	// create index for block
-	if err := createBlockIndex(db); err != nil {
-		return nil, err
-	}
+		// create index for block
+		if err := createBlockIndex(db); err != nil {
+			return nil, err
+		}
 
-	// create index for transaction
-	if err := createTransactionIndex(db); err != nil {
-		return nil, err
-	}
+		// create index for transaction
+		if err := createTransactionIndex(db); err != nil {
+			return nil, err
+		}
 
-	// create index for dual event
-	if err := createDualEventIndex(db); err != nil {
-		return nil, err
-	}
+		// create index for dual event
+		if err := createDualEventIndex(db); err != nil {
+			return nil, err
+		}
 
-	// create index for receipt
-	if err := createReceiptIndex(db); err != nil {
-		return nil, err
-	}
+		// create index for receipt
+		if err := createReceiptIndex(db); err != nil {
+			return nil, err
+		}
 
-	// create index for commit
-	if err := createCommitIndex(db); err != nil {
-		return nil, err
-	}
+		// create index for commit
+		if err := createCommitIndex(db); err != nil {
+			return nil, err
+		}
 
-	// create index for trie
-	if err := createTrieIndex(db); err != nil {
-		return nil, err
-	}
+		// create index for trie
+		if err := createTrieIndex(db); err != nil {
+			return nil, err
+		}
 
-	// create index txLookupEntryTable
-	if err := createTxLookupEntryIndex(db); err != nil {
-		return nil, err
-	}
+		// create index txLookupEntryTable
+		if err := createTxLookupEntryIndex(db); err != nil {
+			return nil, err
+		}
 
-	// create index for watcherAction
-	if err := createWatcherActionIndex(db); err != nil {
-		return nil, err
-	}
+		// create index for watcherAction
+		if err := createWatcherActionIndex(db); err != nil {
+			return nil, err
+		}
 
-	// create index for dualAction
-	if err := createDualActionIndex(db); err != nil {
-		return nil, err
+		// create index for dualAction
+		if err := createDualActionIndex(db); err != nil {
+			return nil, err
+		}
 	}
 
 	// disconnect client to close connection to mongodb
