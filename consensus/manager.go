@@ -608,12 +608,12 @@ OuterLoop:
 			// Proposal: share the proposal metadata with peer.
 			{
 				logger.Debug("Sending proposal", "height", prs.Height, "round", prs.Round)
-				ps.SetHasProposal(rs.Proposal)
-
 				// proposal contains block data, therefore, it will cause bottle neck here if there are thounsands of txs inside.
 				// add it into goroutine to prevent bottleneck
 				if err := p2p.Send(ps.rw, service.CsProposalMsg, &ProposalMessage{Proposal: rs.Proposal}); err != nil {
 					logger.Trace("Sending proposal failed", "err", err)
+				} else {
+					ps.SetHasProposal(rs.Proposal)
 				}
 			}
 			// ProposalPOL: lets peer know which POL votes we have so far.
