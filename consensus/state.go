@@ -247,8 +247,10 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 		cs.logger.Trace("cs.CommitTime is 0")
 		cs.StartTime = big.NewInt(cs.config.Commit(time.Now()).Unix())
 	} else {
-		cs.StartTime = big.NewInt(cs.config.Commit(time.Unix(cs.CommitTime.Int64(), 0)).Unix())
+		commitTime := time.Unix(cs.CommitTime.Int64(), 0)
+		cs.StartTime = big.NewInt(cs.config.Commit(commitTime).Unix())
 	}
+	cs.logger.Info("ConsensusState - updateToState", "commit time", cs.CommitTime, "StartTime", cs.StartTime)
 
 	cs.Validators = validators
 	cs.Proposal = nil
