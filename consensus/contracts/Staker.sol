@@ -46,11 +46,13 @@ contract Staker {
     }
 
     function stake(address node) public payable isOwner {
-        (, bytes memory result)  = _master.staticcall(abi.encodeWithSignature(isAvailableNodes, node));
-        uint64 nodeIndex = abi.decode(result, (uint64));
-        require(nodeIndex > 0);
+        (bool success, bytes memory result)  = _master.staticcall(abi.encodeWithSignature(isAvailableNodes, node));
+        require(success, "calling isAvailableNodes to master failed");
 
-        if (msg.value == 0 || msg.value < _minimumStake) return;
+        uint64 nodeIndex = abi.decode(result, (uint64));
+        require(nodeIndex > 0, "address is not in available nodes");
+        require (msg.value >= _minimumStake, "invalid stakeAmount");
+
         uint index = _hasStaked[node];
         if (index > 0) {
             stakeInfo[index].amount += msg.value;
@@ -58,7 +60,8 @@ contract Staker {
             stakeInfo.push(StakeInfo(node, block.number, msg.value));
             _hasStaked[node] = stakeInfo.length - 1;
         }
-        _master.call(abi.encodeWithSignature(stakeFunc, node, msg.value));
+        (success, ) = _master.call(abi.encodeWithSignature(stakeFunc, node, msg.value));
+        require(success, "calling stakeFunc to master failed");
     }
 
     function withdraw(address fromAddr, uint256 amount) public isOwner {
@@ -69,7 +72,8 @@ contract Staker {
             if (block.number-stakeInfo[index].startedAt > _lockedPeriod) {
                 _owner.transfer(amount);
                 stakeInfo[index].amount -= amount;
-                _master.call(abi.encodeWithSignature(withdrawFunc, fromAddr, amount));
+                (bool success, ) = _master.call(abi.encodeWithSignature(withdrawFunc, fromAddr, amount));
+                require(success, "calling withdrawFunc to master failed");
             }
         }
     }
