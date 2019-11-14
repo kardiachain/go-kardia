@@ -356,9 +356,6 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	case msg.Code == serviceconst.CsProposalPOLMsg:
 		pm.logger.Trace("ProposalPOL messsage received")
 		pm.csReactor.ReceiveProposalPOL(msg, p.Peer)
-	case msg.Code == serviceconst.CsCommitStepMsg:
-		pm.logger.Trace("CommitStep message received")
-		pm.csReactor.ReceiveNewCommit(msg, p.Peer)
 	case msg.Code == serviceconst.CsProposalBlockPartMsg:
 		pm.logger.Trace("Block part message received")
 		pm.csReactor.ReceiveNewBlockPart(msg, p.Peer)
@@ -418,17 +415,6 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 
 // A loop for broadcasting consensus events.
 func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
-
-	// If msg's type is *consensus.CommitStepMessage, v will hold the instance and ok will be true
-	v, ok := msg.(*consensus.CommitStepMessage)
-
-	// If ok is true, then simplify the log
-	if ok {
-		pm.logger.Info("Start broadcast consensus message", "Height", v.Height, "PartsHeader", v.BlockPartsHeader, "msgType", msgType)
-	} else {
-		pm.logger.Info("Start broadcast consensus message", "msg", msg, "msgType", msgType)
-	}
-
 	for _, p := range pm.peers.peers {
 		if p.IsValidator {
 			pm.wg.Add(1)
