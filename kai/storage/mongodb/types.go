@@ -486,7 +486,6 @@ func NewCommit(commit *types.Commit, height uint64) *Commit {
 func (commit *Commit) ToCommit() *types.Commit {
 	votes := make([]*types.Vote, 0)
 	for _, vote := range commit.Precommits {
-//		vote.BlockID = vote.BlockHash
 		if vote != nil {
 			votes = append(votes, vote.ToVote())
 		} else {
