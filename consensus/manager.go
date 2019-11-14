@@ -246,13 +246,14 @@ func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 		return
 	}
 
-	var msg ProposalMessage
-	if err := generalMsg.Decode(&msg); err != nil {
+	msg := &ProposalMessage{}
+	if err := generalMsg.Decode(msg); err != nil {
 		conR.logger.Error("Invalid proposal message", "msg", generalMsg, "err", err)
 		return
 	}
+
 	proposal := msg.Proposal
-	conR.logger.Trace("Decoded msg",
+	conR.logger.Info("handling ProposalMessage",
 		"proposalHeight", proposal.Height,
 		"blockHeight", proposal.Height,
 		"round", proposal.Round,
@@ -267,7 +268,7 @@ func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Pe
 	}
 
 	ps.SetHasProposal(msg.Proposal)
-	conR.conS.peerMsgQueue <- msgInfo{&msg, src.ID()}
+	conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
 }
 
 func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) {
@@ -566,8 +567,9 @@ OuterLoop:
 				logger.Info("Sending block part", "height", prs.Height, "round", prs.Round, "msg code", service.CsProposalBlockPartMsg)
 				if err := p2p.Send(ps.rw, service.CsProposalBlockPartMsg, msg); err != nil {
 					logger.Error("Sending block part failed", "err", err)
+				} else {
+					ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				}
-				ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				continue OuterLoop
 			}
 		}
@@ -672,7 +674,7 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 		}
 		conR.logger.Debug("Sending block part for catchup", "round", prs.Round, "index", index)
 		if err := p2p.Send(ps.rw, service.CsProposalBlockPartMsg, msg); err != nil {
-			conR.logger.Error("Sending block part failed", "err", err)
+			conR.logger.Error("Sending block part for catchup failed", "err", err)
 		} else {
 			ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 		}

@@ -553,6 +553,11 @@ func CommonCheckTxHash(db kaidb.Reader, hash *common.Hash) bool {
 func ReadBlockMeta(db kaidb.Reader, hash common.Hash, height uint64) *types.BlockMeta {
 	var blockMeta = new(types.BlockMeta)
 	metaBytes, _ := db.Get(blockMetaKey(hash, height))
+
+	if len(metaBytes) == 0 {
+		return nil
+	}
+
 	if err := rlp.DecodeBytes(metaBytes, blockMeta); err != nil {
 		panic(errors.New("Reading block meta error"))
 	}
@@ -562,6 +567,11 @@ func ReadBlockMeta(db kaidb.Reader, hash common.Hash, height uint64) *types.Bloc
 func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
 	var commit = new(types.Commit)
 	commitBytes, _ := db.Get(seenCommitKey(height))
+
+	if len(commitBytes) == 0 {
+		return nil
+	}
+
 	if err := rlp.DecodeBytes(commitBytes, commit); err != nil {
 		panic(errors.New("Reading seen commit error"))
 	}
@@ -574,6 +584,11 @@ func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
 // ReadBlock returns the Block for the given height
 func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 	blockMeta := ReadBlockMeta(db, hash, height)
+
+	if blockMeta == nil {
+		return nil
+	}
+
 	buf := []byte{}
 	for i := 0; i < blockMeta.BlockID.PartsHeader.Total.Int32(); i++ {
 		part := ReadBlockPart(db, hash, height, i)
@@ -602,9 +617,10 @@ func CommonReadHeaderRLP(db kaidb.Reader, hash common.Hash, height uint64) rlp.R
 // ReadBlockPart returns the block part fo the given height and index
 func ReadBlockPart(db kaidb.Reader, hash common.Hash, height uint64, index int) *types.Part {
 	part := new(types.Part)
-	partBytes, err := db.Get(blockPartKey(height, index))
-	if err != nil {
-		panic(fmt.Errorf("Reading block part error: %s", err))
+	partBytes, _ := db.Get(blockPartKey(height, index))
+
+	if len(partBytes) == 0 {
+		return nil
 	}
 
 	if err := rlp.DecodeBytes(partBytes, part); err != nil {

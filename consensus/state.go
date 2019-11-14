@@ -1365,13 +1365,6 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 	msg, peerID := mi.Msg, mi.PeerID
 	switch msg := msg.(type) {
 	case *ProposalMessage:
-		proposal := msg.Proposal
-		cs.logger.Info("handling ProposalMessage",
-			"proposalHeight", proposal.Height,
-			"blockHeight", proposal.Height,
-			"round", proposal.Round,
-			"POLRound", proposal.POLRound,
-		)
 		err = cs.setProposal(msg.Proposal)
 	case *BlockPartMessage:
 		// if the proposal is complete, we'll enterPrevote or tryFinalizeCommit
