@@ -355,32 +355,6 @@ func (conR *ConsensusManager) ReceiveProposalPOL(generalMsg p2p.Msg, src *p2p.Pe
 	ps.ApplyProposalPOLMessage(&msg)
 }
 
-func (conR *ConsensusManager) ReceiveNewCommit(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received vote", "peer", src)
-
-	if !conR.running {
-		conR.logger.Trace("Consensus manager isn't running.")
-		return
-	}
-
-	var msg CommitStepMessage
-	if err := generalMsg.Decode(&msg); err != nil {
-		conR.logger.Error("Invalid commit step message", "msg", generalMsg, "err", err)
-		return
-	}
-
-	conR.logger.Trace("Decoded msg", "msg", fmt.Sprintf("{Height:%v  Block:%v}", msg.Height, msg.Height))
-
-	// Get peer states
-	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
-	if !ok {
-		conR.logger.Error("Downcast failed!!")
-		return
-	}
-
-	ps.ApplyCommitStepMessage(&msg)
-}
-
 func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.Peer) {
 	conR.logger.Trace("Consensus manager received VoteSetMaj23Message", "peer", src)
 
@@ -981,13 +955,6 @@ func (m *VoteSetBitsMessage) String() string {
 	return fmt.Sprintf("[VSB %v/%02v/%v %v %v]", m.Height, m.Round, m.Type, m.BlockID, m.Votes)
 }
 
-// CommitStepMessage is sent when a block is committed.
-type CommitStepMessage struct {
-	Height           *cmn.BigInt `json:"height" gencodoc:"required"`
-	BlockPartsHeader types.PartSetHeader
-	BlockParts       *cmn.BitArray
-}
-
 // ---------  PeerState ---------
 // PeerState contains the known state of a peer, including its connection and
 // threadsafe access to its PeerRoundState.
@@ -1303,20 +1270,6 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 		ps.PRS.CatchupCommitRound = cmn.NewBigInt32(-1)
 		ps.PRS.CatchupCommit = nil
 	}
-}
-
-// ApplyCommitStepMessage updates the peer state for the new commit.
-func (ps *PeerState) ApplyCommitStepMessage(msg *CommitStepMessage) {
-	ps.mtx.Lock()
-	defer ps.mtx.Unlock()
-
-	if !ps.PRS.Height.Equals(msg.Height) {
-		return
-	}
-
-	ps.PRS.ProposalBlockPartsHeader = msg.BlockPartsHeader
-	ps.PRS.ProposalBlockParts = msg.BlockParts
-
 }
 
 // ApplyHasVoteMessage updates the peer state for the new vote.
