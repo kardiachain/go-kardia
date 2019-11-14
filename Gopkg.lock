@@ -13,6 +13,14 @@
   version = "v2.0.0"
 
 [[projects]]
+  digest = "1:d04889482897652dedae6d8575b479c06fa3eb3c3abe248163b25d3df5fab43e"
+  name = "github.com/antlr/antlr4"
+  packages = ["runtime/Go/antlr"]
+  pruneopts = "UT"
+  revision = "be58ebffde8e29c154192c019608f0a5b8e6a064"
+  version = "4.7.2"
+
+[[projects]]
   branch = "master"
   digest = "1:7d191fd0c54ff370eaf6116a14dafe2a328df487baea280699f597aae858d00d"
   name = "github.com/aristanetworks/goarista"
@@ -200,7 +208,7 @@
   version = "v1.8.0"
 
 [[projects]]
-  digest = "1:95e1006e41c641abd2f365dfa0f1213c04da294e7cd5f0bf983af234b775db64"
+  digest = "1:2fc13c72e191ca921adb98f9f4991b1a036d5431b4128fa21dbdd974b9b45822"
   name = "github.com/gogo/protobuf"
   packages = [
     "gogoproto",
@@ -211,21 +219,24 @@
     "types",
   ]
   pruneopts = "UT"
-  revision = "ba06b47c162d49f2af050fb4c75bcbc86a159d5c"
-  version = "v1.2.1"
+  revision = "5628607bb4c51c3157aacc3a50f0ab707582b805"
+  version = "v1.3.1"
 
 [[projects]]
-  digest = "1:454cfa53a9e013dc5ff9c7159d6cc72692bea23b9bd68bc921ed19ba5ef47ef5"
+  digest = "1:f0d49ad7405a8834b820d28fa4ba6e093da763bef3e01a0c81039a8399325204"
   name = "github.com/golang/protobuf"
   packages = [
+    "descriptor",
     "jsonpb",
     "proto",
     "protoc-gen-go/descriptor",
     "ptypes",
     "ptypes/any",
     "ptypes/duration",
+    "ptypes/empty",
     "ptypes/struct",
     "ptypes/timestamp",
+    "ptypes/wrappers",
   ]
   pruneopts = "UT"
   revision = "6c65a5562fc06764971b7c5d05c76c75e84bdbf7"
@@ -238,6 +249,31 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "2a8bb927dd31d8daada140a5d09578521ce5c36a"
+
+[[projects]]
+  digest = "1:022a687235d047a6b83116fea0014d6b390739169dae69beb8346b8ecf7c0996"
+  name = "github.com/google/cel-go"
+  packages = [
+    "cel",
+    "checker",
+    "checker/decls",
+    "common",
+    "common/debug",
+    "common/operators",
+    "common/overloads",
+    "common/packages",
+    "common/types",
+    "common/types/pb",
+    "common/types/ref",
+    "common/types/traits",
+    "interpreter",
+    "interpreter/functions",
+    "parser",
+    "parser/gen",
+  ]
+  pruneopts = "UT"
+  revision = "367ad1284131d7dc189b760efb5898f22a9c75b7"
+  version = "v0.3.0"
 
 [[projects]]
   digest = "1:582b704bebaa06b48c29b0cec224a6058a09c86883aaddabde889cd1a5f73e1b"
@@ -475,15 +511,15 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:dc3b40a213c80dbe3ceb6f75fe0ba41ad0e0322d64e9266bc8ebdcea5a54b6ca"
+  digest = "1:bbae530c69489b608c2aacda9cc80f035d89c64a7705fc29a2ddaf3e8c9ed604"
   name = "github.com/tendermint/go-amino"
   packages = ["."]
   pruneopts = "UT"
-  revision = "6423ac677daf641ec900ec831a5abe79d2e71194"
-  version = "v0.15.0"
+  revision = "af639981f2806e306c94403f45df50097d0168a8"
+  version = "v0.15.1"
 
 [[projects]]
-  digest = "1:e35f5f8b3d72030e16062e5a7a5efb6faba76859eba0e448984c6bd31f82f220"
+  digest = "1:c48b0a480eda567c2f1b0d2d630c995b61af183acb8ef648ca43dea4ba28d528"
   name = "github.com/tendermint/tendermint"
   packages = [
     "abci/types",
@@ -505,8 +541,8 @@
     "version",
   ]
   pruneopts = "UT"
-  revision = "76f3db06b8dbbfe5d6c4d0f4a6131b58ed36869d"
-  version = "v0.32.2"
+  revision = "7b67ee408bb198574863f6acec6f3c791a4c0385"
+  version = "v0.32.7"
 
 [[projects]]
   digest = "1:91b40a2adb6b4ccd51b1dfb306edfa76139e1599b01666346085472b386f5447"
@@ -637,7 +673,7 @@
   revision = "fde4db37ae7ad8191b03d30d27f258b5291ae4e3"
 
 [[projects]]
-  digest = "1:28deae5fe892797ff37a317b5bcda96d11d1c90dadd89f1337651df3bc4c586e"
+  digest = "1:0b5dc8c3581fc3ea2b80cc2e360dfb9c2d61dd0cba0d2fe247e8edd3e83f7551"
   name = "golang.org/x/text"
   packages = [
     "collate",
@@ -668,6 +704,7 @@
     "unicode/cldr",
     "unicode/norm",
     "unicode/rangetable",
+    "width",
   ]
   pruneopts = "UT"
   revision = "342b2e1fbaa52c93f31447ad2c6abc048c63e475"
@@ -675,9 +712,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:583a0c80f5e3a9343d33aea4aead1e1afcc0043db66fdf961ddd1fe8cd3a4faf"
+  digest = "1:da50e913b67e12d87ab4ae412dc0acefeef8897ce8fdb24fa09c1897d0ffbccd"
   name = "google.golang.org/genproto"
-  packages = ["googleapis/rpc/status"]
+  packages = [
+    "googleapis/api/expr/v1alpha1",
+    "googleapis/rpc/status",
+  ]
   pruneopts = "UT"
   revision = "fa694d86fc64c7654a660f8908de4e879866748d"
 
@@ -794,6 +834,10 @@
     "github.com/golang/protobuf/jsonpb",
     "github.com/golang/protobuf/proto",
     "github.com/golang/snappy",
+    "github.com/google/cel-go/cel",
+    "github.com/google/cel-go/checker/decls",
+    "github.com/google/cel-go/common/types",
+    "github.com/google/cel-go/common/types/ref",
     "github.com/gorilla/mux",
     "github.com/hashicorp/golang-lru",
     "github.com/huin/goupnp",
@@ -823,6 +867,7 @@
     "golang.org/x/crypto/ripemd160",
     "golang.org/x/crypto/scrypt",
     "golang.org/x/crypto/sha3",
+    "google.golang.org/genproto/googleapis/api/expr/v1alpha1",
     "gopkg.in/check.v1",
     "gopkg.in/yaml.v2",
   ]

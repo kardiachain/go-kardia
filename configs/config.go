@@ -38,13 +38,6 @@ var (
 )
 
 var (
-	DefaultChainID  = uint64(1)
-	EthDualChainID  = uint64(2)
-	NeoDualChainID  = uint64(3)
-	TronDualChainID = uint64(4)
-)
-
-var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &types.ChainConfig{
 		Kaicon: &types.KaiconConfig{
@@ -69,16 +62,6 @@ var (
 		},
 	}
 )
-
-func configNumEqual(x, y *big.Int) bool {
-	if x == nil {
-		return y == nil
-	}
-	if y == nil {
-		return x == nil
-	}
-	return x.Cmp(y) == 0
-}
 
 // -------- Consensus Config ---------
 
@@ -674,17 +657,4 @@ func GetContractDetailsByIndex(index int) (common.Address, string) {
 		return address, ""
 	}
 	return address, GetContractAbiByAddress(address.String())
-}
-
-func GetRateFromType(chain string) *big.Int {
-	switch chain {
-	case NEO:
-		return big.NewInt(RateNEO)
-	case TRON:
-		return big.NewInt(RateTRON)
-	case ETH:
-		return big.NewInt(RateETH)
-	default:
-		return nil
-	}
 }

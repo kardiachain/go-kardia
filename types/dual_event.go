@@ -21,6 +21,8 @@ package types
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/golang/protobuf/proto"
+	message "github.com/kardiachain/go-kardia/ksml/proto"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"math/big"
 	"sync/atomic"
@@ -34,6 +36,8 @@ type BlockchainSymbol string
 // Enum for
 const (
 	KARDIA   = BlockchainSymbol("KAI")
+	SMC = iota
+	PUBLISH
 )
 
 // An event pertaining to the current dual node's interests and its derived tx's
@@ -62,38 +66,43 @@ type KardiaSmartcontract struct {
 	// is a universal type.
 	SmcAddress string
 
+	// master smart contract is Kardia contract address
+	MasterSmc string
+
+	MasterAbi string
+
 	// abi of smcAddress
 	SmcAbi string
-
-	WatcherActions WatcherActions
-	DualActions DualActions
+	Watchers Watchers
 }
 
 type DualActions []*DualAction
 
 type DualAction struct {
 	Name string
+	Actions []string
 }
 
-type WatcherActions []*WatcherAction
+type Watchers []*Watcher
 
 // WatcherAction bases on method name, new event with correspond dual action name will be submitted to internal/external proxy
-type WatcherAction struct {
+type Watcher struct {
 	Method string
-	DualAction string
+	DualActions []string
+	WatcherActions []string
 }
 
 // Data relevant to the event (either from external or internal blockchain)
 // that pertains to the current dual node's interests.
 type EventData struct {
-	TxHash       common.Hash        `json:"txHash"    gencodec:"required"`
-	TxSource     BlockchainSymbol   `json:"source"    gencodec:"required"`
-	FromExternal bool               `json:"fromExternal" gencodec:"required"`
-	Data         *EventSummary      `json:"data"         gencodec:"data"`
+	TxHash       common.Hash                       `json:"txHash"    gencodec:"required"`
+	TxSource     BlockchainSymbol                  `json:"source"    gencodec:"required"`
+	FromExternal bool                              `json:"fromExternal" gencodec:"required"`
+	Data         []byte                            `json:"data"         gencodec:"data"`
 
 	// Actions is temporarily cached to store a list of actions that will be executed upon once
 	// the dual event is executed.
-	Action *DualAction              `json:"action"      gencodec:"required"`
+	Actions       []string            `json:"action"      gencodec:"required"`
 
 	// caches
 	hash atomic.Value
@@ -117,9 +126,22 @@ func (ev *EventData) Hash() common.Hash {
 	return v
 }
 
+func (ev *EventData) GetEventMessage() (*message.EventMessage, error) {
+	eventMessage := &message.EventMessage{}
+	if err := proto.Unmarshal(ev.Data, eventMessage); err != nil {
+		return nil, err
+	}
+	return eventMessage, nil
+}
+
 // Relevant bits for necessary for computing internal tx (ie. Kardia's tx)
 // or external tx (ie. Ether's tx, Neo's tx).
 type EventSummary struct {
+	TransactionId string // transactionId of source
+	Sender   string   // address that creates transaction from source
+	From     string   // source chain
+	To       string   // Target Chain
+	TimeStamp uint64   // time occurs transaction
 	TxMethod string   // Smc's method
 	TxValue  *big.Int // Amount of the tx
 	ExtData  [][]byte // Additional data along with this event
@@ -147,20 +169,24 @@ func (txMetadata *TxMetadata) String() string {
 // String returns a string representation of KardiaSmartcontract
 func (kardiaSmc *KardiaSmartcontract) String() string {
 	if kardiaSmc != nil {
-		return fmt.Sprintf("Smc{Addr:%v WatcherActions:%v DualActions:%v}", kardiaSmc.SmcAddress, kardiaSmc.WatcherActions, kardiaSmc.DualActions)
+		return fmt.Sprintf("Smc{Addr:%v WatcherActions:%v}", kardiaSmc.SmcAddress, kardiaSmc.Watchers)
 	}
 	return "Smc{Addr:nil}"
 }
 
-func NewDualEvent(blockNumber uint64, fromExternal bool, txSource BlockchainSymbol, txHash *common.Hash, summary *EventSummary, action *DualAction) *DualEvent {
+func NewDualEvent(blockNumber uint64, fromExternal bool, txSource BlockchainSymbol, txHash *common.Hash, msg *message.EventMessage, actions []string) *DualEvent {
+	data, err := proto.Marshal(msg)
+	if err != nil {
+		return nil
+	}
 	return &DualEvent{
 		BlockNumber: blockNumber,
 		TriggeredEvent: &EventData{
 			TxHash:       *txHash,
 			TxSource:     txSource,
 			FromExternal: fromExternal,
-			Data:         summary,
-			Action:       action,
+			Data:         data,
+			Actions:       actions,
 		},
 		V: new(big.Int),
 		R: new(big.Int),

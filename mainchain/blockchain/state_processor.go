@@ -35,9 +35,6 @@ import (
 )
 
 var (
-	// ErrGasLimitReached is returned by the gas pool if the amount of gas required
-	// by a transaction is higher than what's left in the block.
-	ErrGasLimitReached = errors.New("gas limit reached")
 
 	// ErrNonceTooHigh is returned if the nonce of a transaction is higher than the
 	// next one expected based on the local chain.
@@ -75,7 +72,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		usedGas  = new(uint64)
 		header   = block.Header()
 		allLogs  []*types.Log
-		gp       = new(GasPool).AddGas(block.GasLimit())
+		gp       = new(types.GasPool).AddGas(block.GasLimit())
 	)
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
@@ -95,7 +92,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg kvm.Config) (*types.Receipt, uint64, error) {
+func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg kvm.Config) (*types.Receipt, uint64, error) {
 	msg, err := tx.AsMessage()
 	if err != nil {
 		return nil, 0, err
@@ -148,7 +145,7 @@ The state transitioning model does all all the necessary work to work out a vali
 6) Derive new state root
 */
 type StateTransition struct {
-	gp         *GasPool
+	gp         *types.GasPool
 	msg        Message
 	gas        uint64
 	gasPrice   *big.Int
@@ -207,7 +204,7 @@ func IntrinsicGas(data []byte, contractCreation bool) (uint64, error) {
 }
 
 // NewStateTransition initialises and returns a new state transition object.
-func NewStateTransition(vm *kvm.KVM, msg Message, gp *GasPool) *StateTransition {
+func NewStateTransition(vm *kvm.KVM, msg Message, gp *types.GasPool) *StateTransition {
 	return &StateTransition{
 		gp:       gp,
 		vm:       vm,
@@ -226,7 +223,7 @@ func NewStateTransition(vm *kvm.KVM, msg Message, gp *GasPool) *StateTransition 
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
-func ApplyMessage(vm *kvm.KVM, msg Message, gp *GasPool) ([]byte, uint64, bool, error) {
+func ApplyMessage(vm *kvm.KVM, msg Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
 	return NewStateTransition(vm, msg, gp).TransitionDb()
 }
 
@@ -361,36 +358,4 @@ func (st *StateTransition) refundGas(refundAll bool) {
 // gasUsed returns the amount of gas used up by the state transition.
 func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gas
-}
-
-// GasPool tracks the amount of gas available during execution of the transactions
-// in a block. The zero value is a pool with zero gas available.
-type GasPool uint64
-
-// AddGas makes gas available for execution.
-func (gp *GasPool) AddGas(amount uint64) *GasPool {
-	if uint64(*gp) > math.MaxUint64-amount {
-		panic("gas pool pushed above uint64")
-	}
-	*(*uint64)(gp) += amount
-	return gp
-}
-
-// SubGas deducts the given amount from the pool if enough gas is
-// available and returns an error otherwise.
-func (gp *GasPool) SubGas(amount uint64) error {
-	if uint64(*gp) < amount {
-		return ErrGasLimitReached
-	}
-	*(*uint64)(gp) -= amount
-	return nil
-}
-
-// Gas returns the amount of gas remaining in the pool.
-func (gp *GasPool) Gas() uint64 {
-	return uint64(*gp)
-}
-
-func (gp *GasPool) String() string {
-	return fmt.Sprintf("%d", *gp)
 }
