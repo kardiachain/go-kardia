@@ -1447,3 +1447,15 @@ func (m *NewValidBlockMessage) String() string {
 	return fmt.Sprintf("[ValidBlockMessage H:%v R:%v BP:%v BA:%v IsCommit:%v]",
 		m.Height, m.Round, m.BlockPartsHeader, m.BlockParts, m.IsCommit)
 }
+
+func (conR *ConsensusManager) decodeMsgAndGetPeerState(decodedMsg interface{}, generalMsg p2p.Msg, src *p2p.Peer) (*PeerState, error) {
+	if err := generalMsg.Decode(decodedMsg); err != nil {
+		conR.logger.Error("Invalid block part message", "msg", generalMsg, "err", err)
+		return nil, err
+	}
+	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
+	if !ok {
+		return nil, errors.New("Downcast failed!!")
+	}
+	return ps, nil
+}
