@@ -1429,6 +1429,7 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 	case cstypes.RoundStepPrevoteWait:
 		cs.enterPrecommit(ti.Height, ti.Round)
 	case cstypes.RoundStepPrecommitWait:
+		cs.enterPrecommit(ti.Height, ti.Round)
 		cs.enterNewRound(ti.Height, ti.Round.Add(1))
 	default:
 		panic(cmn.Fmt("Invalid timeout step: %v", ti.Step))

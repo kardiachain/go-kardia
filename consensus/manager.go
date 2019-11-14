@@ -484,15 +484,9 @@ func (conR *ConsensusManager) ReceiveVoteSetBits(generalMsg p2p.Msg, src *p2p.Pe
 // ------------ Broadcast messages ------------
 
 func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundState) {
-	nrsMsg, csMsg := makeRoundStepMessages(rs)
-	if nrsMsg != nil {
-		conR.logger.Trace("broadcastNewRoundStepMessage", "nrsMsg", nrsMsg, "height", rs.Height)
-		conR.protocol.Broadcast(nrsMsg, service.CsNewRoundStepMsg)
-	}
-	if csMsg != nil {
-		conR.logger.Trace("broadcastCommitStepMessage", "csMsg", fmt.Sprintf("{Height:%v  BlockPartsHeader:%v}", csMsg.Height, csMsg.BlockPartsHeader))
-		conR.protocol.Broadcast(csMsg, service.CsCommitStepMsg)
-	}
+	nrsMsg := makeRoundStepMessages(rs)
+	conR.logger.Trace("broadcastNewRoundStepMessage", "nrsMsg", nrsMsg, "height", rs.Height)
+	conR.protocol.Broadcast(nrsMsg, service.CsNewRoundStepMsg)
 }
 
 // Broadcasts HasVoteMessage to peers that care.
@@ -524,41 +518,23 @@ func (conR *ConsensusManager) sendNewRoundStepMessages(rw p2p.MsgReadWriter) {
 	conR.logger.Debug("manager - sendNewRoundStepMessages")
 
 	rs := conR.conS.GetRoundState()
-	nrsMsg, csMsg := makeRoundStepMessages(rs)
+	nrsMsg := makeRoundStepMessages(rs)
 	conR.logger.Trace("makeRoundStepMessages", "nrsMsg", nrsMsg)
-	if nrsMsg != nil {
-		if err := p2p.Send(rw, service.CsNewRoundStepMsg, nrsMsg); err != nil {
-			conR.logger.Warn("send NewRoundStepMessage failed", "err", err)
-		} else {
-			conR.logger.Trace("send NewRoundStepMessage success")
-		}
-	}
-
-	if csMsg != nil {
-		conR.logger.Trace("Send CommitStepMsg", "csMsg", csMsg)
-		if err := p2p.Send(rw, service.CsCommitStepMsg, csMsg); err != nil {
-			conR.logger.Warn("send CommitStepMessage failed", "err", err)
-		} else {
-			conR.logger.Trace("send CommitStepMessage success")
-		}
+	if err := p2p.Send(rw, service.CsNewRoundStepMsg, nrsMsg); err != nil {
+		conR.logger.Warn("send NewRoundStepMessage failed", "err", err)
+	} else {
+		conR.logger.Trace("send NewRoundStepMessage success")
 	}
 }
 
 // ------------ Helpers to create messages -----
-func makeRoundStepMessages(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage, csMsg *CommitStepMessage) {
+func makeRoundStepMessages(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage) {
 	nrsMsg = &NewRoundStepMessage{
 		Height:                rs.Height,
 		Round:                 rs.Round,
 		Step:                  rs.Step,
 		SecondsSinceStartTime: uint(time.Now().Unix() - rs.StartTime.Int64()),
 		LastCommitRound:       rs.LastCommit.Round(),
-	}
-	if rs.Step == cstypes.RoundStepCommit && rs.ProposalBlockParts != nil {
-		csMsg = &CommitStepMessage{
-			Height:           rs.Height,
-			BlockPartsHeader: rs.ProposalBlockParts.Header(),
-			BlockParts:       rs.ProposalBlockParts.BitArray(),
-		}
 	}
 	return
 }
