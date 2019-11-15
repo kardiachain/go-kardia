@@ -802,7 +802,18 @@ func (cs *ConsensusState) enterNewRound(height *cmn.BigInt, round *cmn.BigInt) {
 	cs.TriggeredTimeoutPrecommit = false
 	cs.eventBus.PublishEventNewRound(cs.RoundStateEvent())
 
-	cs.enterPropose(height, round)
+	// Wait for txs to be available in the mempool
+	// before we enterPropose in round 0. If the last block changed the app hash,
+	// we may need an empty "proof" block, and enterPropose immediately.
+	waitForTxs := cs.config.WaitForTxs() && round.EqualsInt(0)
+	if waitForTxs {
+		if cs.config.CreateEmptyBlocksInterval > 0 {
+			cs.scheduleTimeout(cs.config.CreateEmptyBlocksInterval, height, round,
+				cstypes.RoundStepNewRound)
+		}
+	} else {
+		cs.enterPropose(height, round)
+	}
 }
 
 // Enter (CreateEmptyBlocks): from enterNewRound(height,round)
