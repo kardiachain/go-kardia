@@ -28,46 +28,47 @@ import (
 )
 
 const (
-	blockTable = "Block"
-	txTable = "Transaction"
-	dualEvtTable = "DualEvent"
-	receiptTable = "Receipt"
-	commitTable = "Commit"
-	headHeaderTable = "HeadHeader"
-	headBlockTable = "HeadBlock"
-	chainConfigTable = "ChainConfig"
-	trieTable = "Trie"
-	txLookupEntryTable = "TxLookupEntry"
-	watcherActionTable = "watcherAction"
-	dualActionTable = "dualEvent"
+	blockTable           = "Block"
+	txTable              = "Transaction"
+	dualEvtTable         = "DualEvent"
+	receiptTable         = "Receipt"
+	commitTable          = "Commit"
+	headHeaderTable      = "HeadHeader"
+	headBlockTable       = "HeadBlock"
+	chainConfigTable     = "ChainConfig"
+	trieTable            = "Trie"
+	txLookupEntryTable   = "TxLookupEntry"
+	watcherActionTable   = "watcherAction"
+	dualActionTable      = "dualEvent"
 	contractAddressTable = "ContractAddress"
-	emptyAddress = "0x0000000000000000000000000000000000000000"
+	emptyAddress         = "0x0000000000000000000000000000000000000000"
 )
 
 type (
 	Header struct {
-		Height uint64                         `json:"height"        bson:"height"`
-		Time   uint64                       `json:"time"          bson:"time"`
-		NumTxs uint64                         `json:"numTxs"        bson:"numTxs"`
-		NumDualEvents uint64                  `json:"numDualEvents" bson:"numDualEvents"`
+		Height        uint64 `json:"height"        bson:"height"`
+		Time          uint64 `json:"time"          bson:"time"`
+		NumTxs        uint64 `json:"numTxs"        bson:"numTxs"`
+		NumDualEvents uint64 `json:"numDualEvents" bson:"numDualEvents"`
 
-		GasLimit uint64                       `json:"gasLimit"         bson:"gasLimit"`
-		GasUsed  uint64                       `json:"gasUsed"          bson:"gasUsed"`
+		GasLimit uint64 `json:"gasLimit"         bson:"gasLimit"`
+		GasUsed  uint64 `json:"gasUsed"          bson:"gasUsed"`
 
 		// prev block info
-		LastBlockID string                    `json:"lastBlockID"      bson:"lastBlockID"`
-		Coinbase string                       `json:"miner"            bson:"miner"` // address
+		LastBlockID string `json:"lastBlockID"      bson:"lastBlockID"`
+		Coinbase    string `json:"miner"            bson:"miner"` // address
 
 		// hashes of block data
-		LastCommitHash string                 `json:"lastCommitHash"      bson:"lastCommitHash"` // commit from validators from the last block
-		TxHash         string                 `json:"txHash"              bson:"txHash"` // transactions
-		DualEventsHash string                 `json:"dualEventsHash"      bson:"dualEventsHash"` // dual's events
-		Root           string                 `json:"stateRoot"           bson:"stateRoot"` // state root
-		ReceiptHash    string                 `json:"receiptsRoot"        bson:"receiptsRoot"` // receipt root
-		Bloom          string                 `json:"logsBloom"           bson:"logsBloom"`
+		LastCommitHash string `json:"lastCommitHash"      bson:"lastCommitHash"` // commit from validators from the last block
+		TxHash         string `json:"txHash"              bson:"txHash"`         // transactions
+		DualEventsHash string `json:"dualEventsHash"      bson:"dualEventsHash"` // dual's events
+		Root           string `json:"stateRoot"           bson:"stateRoot"`      // state root
+		ReceiptHash    string `json:"receiptsRoot"        bson:"receiptsRoot"`   // receipt root
+		Bloom          string `json:"logsBloom"           bson:"logsBloom"`
 
-		ValidatorsHash string                 `json:"validators_hash"` // validators for the current block
-		ConsensusHash  string                 `json:"consensus_hash"`  // consensus params for current block
+		Validator      string `json:"validator"           bson:"validator"`
+		ValidatorsHash string `json:"validators_hash"` // validators for the current block
+		ConsensusHash  string `json:"consensus_hash"`  // consensus params for current block
 	}
 	Block struct {
 		Header Header `json:"header"    bson:"header"`
@@ -75,30 +76,30 @@ type (
 		Height uint64 `json:"height"    bson:"height"`
 	}
 	Receipt struct {
-		BlockHash         string  `json:"blockHash"         bson:"blockHash"`
-		Height            uint64  `json:"height"            bson:"height"`
-		PostState         string  `json:"root"              bson:"root"`
-		Status            uint64  `json:"status"            bson:"status"`
-		CumulativeGasUsed uint64  `json:"cumulativeGasUsed" bson:"cumulativeGasUsed"`
-		Bloom             string  `json:"logsBloom"         bson:"logsBloom"`
-		Logs              []*Log  `json:"logs"              bson:"logs"`
-		TxHash          string    `json:"transactionHash"   bson:"transactionHash"`
-		ContractAddress string    `json:"contractAddress"   bson:"contractAddress"`
-		GasUsed         uint64    `json:"gasUsed"           bson:"gasUsed"`
+		BlockHash         string `json:"blockHash"         bson:"blockHash"`
+		Height            uint64 `json:"height"            bson:"height"`
+		PostState         string `json:"root"              bson:"root"`
+		Status            uint64 `json:"status"            bson:"status"`
+		CumulativeGasUsed uint64 `json:"cumulativeGasUsed" bson:"cumulativeGasUsed"`
+		Bloom             string `json:"logsBloom"         bson:"logsBloom"`
+		Logs              []*Log `json:"logs"              bson:"logs"`
+		TxHash            string `json:"transactionHash"   bson:"transactionHash"`
+		ContractAddress   string `json:"contractAddress"   bson:"contractAddress"`
+		GasUsed           uint64 `json:"gasUsed"           bson:"gasUsed"`
 	}
 	Log struct {
-		Address      string      `json:"address"          bson:"address"`
-		Topics       []string    `json:"topics"           bson:"topics"`
-		Data         string      `json:"data"             bson:"data"`
-		BlockHeight  uint64      `json:"blockHeight"      bson:"blockHeight"`
-		TxHash       string      `json:"transactionHash"  bson:"transactionHash"`
-		TxIndex      uint        `json:"transactionIndex" bson:"transactionIndex"`
-		BlockHash    string      `json:"blockHash"        bson:"blockHash"`
-		Index        uint        `json:"logIndex"         bson:"logIndex"`
-		Removed      bool        `json:"removed"          bson:"removed"`
+		Address     string   `json:"address"          bson:"address"`
+		Topics      []string `json:"topics"           bson:"topics"`
+		Data        string   `json:"data"             bson:"data"`
+		BlockHeight uint64   `json:"blockHeight"      bson:"blockHeight"`
+		TxHash      string   `json:"transactionHash"  bson:"transactionHash"`
+		TxIndex     uint     `json:"transactionIndex" bson:"transactionIndex"`
+		BlockHash   string   `json:"blockHash"        bson:"blockHash"`
+		Index       uint     `json:"logIndex"         bson:"logIndex"`
+		Removed     bool     `json:"removed"          bson:"removed"`
 	}
 	Transaction struct {
-	    ID           primitive.ObjectID `json:"id"           bson:"_id,omitempty"`
+		ID           primitive.ObjectID `json:"id"           bson:"_id,omitempty"`
 		From         string             `json:"from"         bson:"from"`
 		AccountNonce uint64             `json:"nonce"        bson:"nonce"`
 		Price        string             `json:"gasPrice"     bson:"gasPrice"`
@@ -108,36 +109,36 @@ type (
 		Payload      string             `json:"input"        bson:"input"`
 
 		// Signature values
-		V string                     `json:"v"            bson:"v"`
-		R string                     `json:"r"            bson:"r"`
-		S string                     `json:"s"            bson:"s"`
+		V string `json:"v"            bson:"v"`
+		R string `json:"r"            bson:"r"`
+		S string `json:"s"            bson:"s"`
 
 		// This is only used when marshaling to JSON.
-		Hash string                  `json:"hash"         bson:"hash"`
-		BlockHash string             `json:"blockHash"    bson:"blockHash"`
-		Height    uint64             `json:"height"       bson:"height"`
-		Index     int                `json:"index"        bson:"index"`
+		Hash      string `json:"hash"         bson:"hash"`
+		BlockHash string `json:"blockHash"    bson:"blockHash"`
+		Height    uint64 `json:"height"       bson:"height"`
+		Index     int    `json:"index"        bson:"index"`
 	}
 	DualEvent struct {
-		Nonce             uint64                `json:"nonce"                bson:"nonce"`
-		TriggeredEvent    *types.EventData      `json:"triggeredEvent"       bson:"triggeredEvent"`
-		PendingTxMetadata *types.TxMetadata     `json:"pendingTxMetadata"    bson:"pendingTxMetadata"`
-		KardiaSmcs []*types.KardiaSmartcontract `json:"kardiaSmcs"           bson:"kardiaSmcs"`
-		Hash              string                `json:"hash"                 bson:"hash"`
-		BlockHash         string                `json:"blockHash"            bson:"blockHash"`
-		Height            uint64                `json:"height"               bson:"height"`
+		Nonce             uint64                       `json:"nonce"                bson:"nonce"`
+		TriggeredEvent    *types.EventData             `json:"triggeredEvent"       bson:"triggeredEvent"`
+		PendingTxMetadata *types.TxMetadata            `json:"pendingTxMetadata"    bson:"pendingTxMetadata"`
+		KardiaSmcs        []*types.KardiaSmartcontract `json:"kardiaSmcs"           bson:"kardiaSmcs"`
+		Hash              string                       `json:"hash"                 bson:"hash"`
+		BlockHash         string                       `json:"blockHash"            bson:"blockHash"`
+		Height            uint64                       `json:"height"               bson:"height"`
 	}
 	EventData struct {
-		TxHash       string                  `json:"txHash"           bson:"txHash"`
-		TxSource     string                  `json:"txSource"         bson:"txSource"`
-		FromExternal bool                    `json:"fromExternal"     bson:"fromExternal"`
-		Data         *types.EventSummary     `json:"data"             bson:"data"`
-		Actions      *types.DualActions      `json:"actions"          bson:"actions"`
+		TxHash       string              `json:"txHash"           bson:"txHash"`
+		TxSource     string              `json:"txSource"         bson:"txSource"`
+		FromExternal bool                `json:"fromExternal"     bson:"fromExternal"`
+		Data         *types.EventSummary `json:"data"             bson:"data"`
+		Actions      *types.DualActions  `json:"actions"          bson:"actions"`
 	}
 	EventSummary struct {
-		TxMethod string   `json:"txMethod"           bson:"txMethod"`// Smc's method
-		TxValue  *big.Int `json:"txValue"            bson:"txValue"`// Amount of the tx
-		ExtData  []string `json:"extData"            bson:"extData"`// Additional data along with this event
+		TxMethod string   `json:"txMethod"           bson:"txMethod"` // Smc's method
+		TxValue  *big.Int `json:"txValue"            bson:"txValue"`  // Amount of the tx
+		ExtData  []string `json:"extData"            bson:"extData"`  // Additional data along with this event
 	}
 	Commit struct {
 		Height     uint64  `json:"height"           bson:"height"`
@@ -145,38 +146,38 @@ type (
 		Precommits []*Vote `json:"precommits"       bson:"precommits"`
 	}
 	Vote struct {
-		ValidatorAddress string      `json:"validatorAddress"           bson:"validatorAddress"`
-		ValidatorIndex   int64       `json:"validatorIndex"             bson:"validatorIndex"`
-		Height           int64       `json:"height"                     bson:"height"`
-		Round            int64       `json:"round"                      bson:"round"`
-		Timestamp        uint64      `json:"timestamp"                  bson:"timestamp"`
-		Type             byte        `json:"type"                       bson:"type"`
-		BlockID          string      `json:"blockID"                    bson:"blockID"`
-		Signature        string      `json:"signature"                  bson:"signature"`
+		ValidatorAddress string `json:"validatorAddress"           bson:"validatorAddress"`
+		ValidatorIndex   int64  `json:"validatorIndex"             bson:"validatorIndex"`
+		Height           int64  `json:"height"                     bson:"height"`
+		Round            int64  `json:"round"                      bson:"round"`
+		Timestamp        uint64 `json:"timestamp"                  bson:"timestamp"`
+		Type             byte   `json:"type"                       bson:"type"`
+		BlockID          string `json:"blockID"                    bson:"blockID"`
+		Signature        string `json:"signature"                  bson:"signature"`
 	}
 	HeadHeaderHash struct {
-		ID           int         `json:"ID"      bson:"ID"`
-		Hash         string      `json:"hash"    bson:"hash"`
+		ID   int    `json:"ID"      bson:"ID"`
+		Hash string `json:"hash"    bson:"hash"`
 	}
 	HeadBlockHash struct {
-		ID           int         `json:"ID"      bson:"ID"`
-		Hash         string      `json:"hash"    bson:"hash"`
+		ID   int    `json:"ID"      bson:"ID"`
+		Hash string `json:"hash"    bson:"hash"`
 	}
 	ChainConfig struct {
-		Hash   string `json:"hash"     bson:"hash"`
-		Period uint64 `json:"period"   bson:"period"`
-		Epoch  uint64 `json:"epoch"    bson:"epoch"`
-		BaseAccount   `json:"baseAccount,omitempty"`
+		Hash        string `json:"hash"     bson:"hash"`
+		Period      uint64 `json:"period"   bson:"period"`
+		Epoch       uint64 `json:"epoch"    bson:"epoch"`
+		BaseAccount `json:"baseAccount,omitempty"`
 	}
 	Caching struct {
 		Key   string `json:"key"       bson:"key"`
 		Value string `json:"value"     bson:"value"`
 	}
 	TxLookupEntry struct {
-		TxHash     string   `json:"txHash"     bson:"txHash"`
-		BlockHash  string   `json:"blockHash"  bson:"blockHash"`
-		BlockIndex uint64   `json:"blockIndex" bson:"blockIndex"`
-		Index      uint64   `json:"index"      bson:"index"`
+		TxHash     string `json:"txHash"     bson:"txHash"`
+		BlockHash  string `json:"blockHash"  bson:"blockHash"`
+		BlockIndex uint64 `json:"blockIndex" bson:"blockIndex"`
+		Index      uint64 `json:"index"      bson:"index"`
 	}
 	Watcher struct {
 		MasterContractAddress string   `json:"masterContractAddress" bson:"masterContractAddress"`
@@ -188,28 +189,29 @@ type (
 		WatcherActions        []string `json:"watcherActions"        bson:"watcherActions"`
 	}
 	BaseAccount struct {
-		Address         string   `json:"address"`
-		PrivateKey      string   `json:"PrivateKey"`
+		Address    string `json:"address"`
+		PrivateKey string `json:"PrivateKey"`
 	}
 )
 
 func NewBlock(block *types.Block) *Block {
 	header := Header{
-		Height: block.Header().Height,
-		Time: 0,
-		LastBlockID: block.Header().LastBlockID.String(),
-		NumTxs: block.NumTxs(),
-		TxHash: block.Header().TxHash.Hex(),
-		GasUsed: block.Header().GasUsed,
-		Bloom: common.Bytes2Hex(block.Header().Bloom.Bytes()),
-		Coinbase: block.Header().Coinbase.Hex(),
-		ConsensusHash: block.Header().ConsensusHash.Hex(),
+		Height:         block.Header().Height,
+		Time:           0,
+		LastBlockID:    block.Header().LastBlockID.StringLong(),
+		NumTxs:         block.NumTxs(),
+		TxHash:         block.Header().TxHash.Hex(),
+		GasUsed:        block.Header().GasUsed,
+		Bloom:          common.Bytes2Hex(block.Header().Bloom.Bytes()),
+		Coinbase:       block.Header().Coinbase.Hex(),
+		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 		DualEventsHash: block.Header().DualEventsHash.Hex(),
-		GasLimit: block.Header().GasLimit,
+		GasLimit:       block.Header().GasLimit,
 		LastCommitHash: block.Header().LastCommitHash.Hex(),
-		NumDualEvents: block.Header().NumDualEvents,
-		ReceiptHash: block.Header().ReceiptHash.Hex(),
-		Root: block.Header().Root.Hex(),
+		NumDualEvents:  block.Header().NumDualEvents,
+		ReceiptHash:    block.Header().ReceiptHash.Hex(),
+		Root:           block.Header().Root.Hex(),
+		Validator:      block.Header().Validator.Hex(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 	}
 	if block.Header().Time != nil {
@@ -218,7 +220,7 @@ func NewBlock(block *types.Block) *Block {
 	return &Block{
 		Header: header,
 		Height: block.Height(),
-		Hash: block.Hash().Hex(),
+		Hash:   block.Hash().Hex(),
 	}
 }
 
@@ -239,6 +241,7 @@ func (block *Block) ToHeader() *types.Header {
 		NumDualEvents:  block.Header.NumDualEvents,
 		ReceiptHash:    common.HexToHash(block.Header.ReceiptHash),
 		Root:           common.HexToHash(block.Header.Root),
+		Validator:      common.HexToAddress(block.Header.Validator),
 		ValidatorsHash: common.HexToHash(block.Header.ValidatorsHash),
 	}
 	return &header
@@ -255,19 +258,19 @@ func NewTransaction(tx *types.Transaction, height uint64, blockHash string, inde
 	}
 	v, r, s := tx.RawSignatureValues()
 	newTx := &Transaction{
-		Hash: tx.Hash().Hex(),
-		Height: height,
-		BlockHash: blockHash,
-		GasLimit: tx.Gas(),
-		Amount: tx.Value().String(),
-		From: sender.Hex(),
+		Hash:         tx.Hash().Hex(),
+		Height:       height,
+		BlockHash:    blockHash,
+		GasLimit:     tx.Gas(),
+		Amount:       tx.Value().String(),
+		From:         sender.Hex(),
 		AccountNonce: tx.Nonce(),
-		Payload: common.Bytes2Hex(tx.Data()),
-		Price: tx.GasPrice().String(),
-		R: r.String(),
-		S: s.String(),
-		V: v.String(),
-		Index: index,
+		Payload:      common.Bytes2Hex(tx.Data()),
+		Price:        tx.GasPrice().String(),
+		R:            r.String(),
+		S:            s.String(),
+		V:            v.String(),
+		Index:        index,
 	}
 
 	if tx.To() == nil {
@@ -333,7 +336,7 @@ func (tx *Transaction) ToTransaction() *types.Transaction {
 	sig := make([]byte, 65)
 	copy(sig[:32], r.Bytes())
 	copy(sig[32:64], s.Bytes())
-	sig[64] = byte(v.Uint64()-27)
+	sig[64] = byte(v.Uint64() - 27)
 
 	signedTx, err := newTx.WithSignature(sig)
 	if err != nil {
@@ -353,15 +356,15 @@ func NewLog(log *types.Log) *Log {
 	}
 
 	return &Log{
-		Data: common.Bytes2Hex(log.Data),
-		BlockHash: log.BlockHash.Hex(),
-		TxHash: log.TxHash.Hex(),
-		Address: log.Address.Hex(),
-		Index: log.Index,
+		Data:        common.Bytes2Hex(log.Data),
+		BlockHash:   log.BlockHash.Hex(),
+		TxHash:      log.TxHash.Hex(),
+		Address:     log.Address.Hex(),
+		Index:       log.Index,
 		BlockHeight: log.BlockHeight,
-		Removed: log.Removed,
-		Topics: topics,
-		TxIndex: log.TxIndex,
+		Removed:     log.Removed,
+		Topics:      topics,
+		TxIndex:     log.TxIndex,
 	}
 }
 
@@ -371,15 +374,15 @@ func (log *Log) ToLog() *types.Log {
 		topics = append(topics, common.HexToHash(topic))
 	}
 	return &types.Log{
-		Data: common.Hex2Bytes(log.Data),
-		BlockHash: common.HexToHash(log.BlockHash),
-		TxHash: common.HexToHash(log.TxHash),
-		Address: common.HexToAddress(log.Address),
-		Index: log.Index,
+		Data:        common.Hex2Bytes(log.Data),
+		BlockHash:   common.HexToHash(log.BlockHash),
+		TxHash:      common.HexToHash(log.TxHash),
+		Address:     common.HexToAddress(log.Address),
+		Index:       log.Index,
 		BlockHeight: log.BlockHeight,
-		Removed: log.Removed,
-		Topics: topics,
-		TxIndex: log.TxIndex,
+		Removed:     log.Removed,
+		Topics:      topics,
+		TxIndex:     log.TxIndex,
 	}
 }
 
@@ -391,16 +394,16 @@ func NewReceipt(receipt *types.Receipt, height uint64, blockHash string) *Receip
 		}
 	}
 	return &Receipt{
-		BlockHash: blockHash,
-		Height: height,
-		Logs: logs,
-		TxHash: receipt.TxHash.Hex(),
-		Bloom: common.Bytes2Hex(receipt.Bloom.Bytes()),
-		GasUsed: receipt.GasUsed,
-		ContractAddress: receipt.ContractAddress.Hex(),
+		BlockHash:         blockHash,
+		Height:            height,
+		Logs:              logs,
+		TxHash:            receipt.TxHash.Hex(),
+		Bloom:             common.Bytes2Hex(receipt.Bloom.Bytes()),
+		GasUsed:           receipt.GasUsed,
+		ContractAddress:   receipt.ContractAddress.Hex(),
 		CumulativeGasUsed: receipt.CumulativeGasUsed,
-		Status: receipt.Status,
-		PostState: common.Bytes2Hex(receipt.PostState),
+		Status:            receipt.Status,
+		PostState:         common.Bytes2Hex(receipt.PostState),
 	}
 }
 
@@ -411,40 +414,40 @@ func (receipt *Receipt) ToReceipt() *types.Receipt {
 	}
 
 	return &types.Receipt{
-		Logs: logs,
-		PostState: common.Hex2Bytes(receipt.PostState),
-		Status: receipt.Status,
+		Logs:              logs,
+		PostState:         common.Hex2Bytes(receipt.PostState),
+		Status:            receipt.Status,
 		CumulativeGasUsed: receipt.CumulativeGasUsed,
-		ContractAddress: common.HexToAddress(receipt.ContractAddress),
-		GasUsed: receipt.GasUsed,
-		Bloom: types.BytesToBloom(common.Hex2Bytes(receipt.Bloom)),
-		TxHash: common.HexToHash(receipt.TxHash),
+		ContractAddress:   common.HexToAddress(receipt.ContractAddress),
+		GasUsed:           receipt.GasUsed,
+		Bloom:             types.BytesToBloom(common.Hex2Bytes(receipt.Bloom)),
+		TxHash:            common.HexToHash(receipt.TxHash),
 	}
 }
 
 func NewVote(vote *types.Vote) *Vote {
 	return &Vote{
-		Height: vote.Height.Int64(),
-		Type: vote.Type,
-		Timestamp: vote.Timestamp.Uint64(),
-		Round: vote.Round.Int64(),
-		BlockID: vote.BlockID.String(),
-		Signature: common.Bytes2Hex(vote.Signature),
+		Height:           vote.Height.Int64(),
+		Type:             vote.Type,
+		Timestamp:        vote.Timestamp.Uint64(),
+		Round:            vote.Round.Int64(),
+		BlockID:          vote.BlockID.StringLong(),
+		Signature:        common.Bytes2Hex(vote.Signature),
 		ValidatorAddress: vote.ValidatorAddress.Hex(),
-		ValidatorIndex: vote.ValidatorIndex.Int64(),
+		ValidatorIndex:   vote.ValidatorIndex.Int64(),
 	}
 }
 
 func (vote *Vote) ToVote() *types.Vote {
 	return &types.Vote{
-		Height: common.NewBigInt64(vote.Height),
-		Type: vote.Type,
-		Timestamp: big.NewInt(int64(vote.Timestamp)),
-		Round: common.NewBigInt64(vote.Round),
-		BlockID: (types.BlockID)(common.HexToHash(vote.BlockID)),
-		Signature: common.Hex2Bytes(vote.Signature),
+		Height:           common.NewBigInt64(vote.Height),
+		Type:             vote.Type,
+		Timestamp:        big.NewInt(int64(vote.Timestamp)),
+		Round:            common.NewBigInt64(vote.Round),
+		BlockID:          (types.BlockID)(common.HexToHash(vote.BlockID)),
+		Signature:        common.Hex2Bytes(vote.Signature),
 		ValidatorAddress: common.HexToAddress(vote.ValidatorAddress),
-		ValidatorIndex: common.NewBigInt64(vote.ValidatorIndex),
+		ValidatorIndex:   common.NewBigInt64(vote.ValidatorIndex),
 	}
 }
 
@@ -457,10 +460,11 @@ func NewCommit(commit *types.Commit, height uint64) *Commit {
 			votes = append(votes, nil)
 		}
 	}
+
 	return &Commit{
 		Precommits: votes,
-		BlockID: commit.BlockID.String(),
-		Height: height,
+		BlockID:    commit.BlockID.StringLong(),
+		Height:     height,
 	}
 }
 
@@ -475,14 +479,14 @@ func (commit *Commit) ToCommit() *types.Commit {
 	}
 	return &types.Commit{
 		Precommits: votes,
-		BlockID: (types.BlockID)(common.HexToHash(commit.BlockID)),
+		BlockID:    (types.BlockID)(common.HexToHash(commit.BlockID)),
 	}
 }
 
 func NewChainConfig(config *types.ChainConfig, hash common.Hash) *ChainConfig {
 	return &ChainConfig{
-		Hash: hash.Hex(),
-		Epoch: config.Kaicon.Epoch,
+		Hash:   hash.Hex(),
+		Epoch:  config.Kaicon.Epoch,
 		Period: config.Kaicon.Period,
 		BaseAccount: BaseAccount{
 			Address:    config.BaseAccount.Address.Hex(),
@@ -497,9 +501,8 @@ func (config *ChainConfig) ToChainConfig() *types.ChainConfig {
 		return nil
 	}
 	kaiCon := types.KaiconConfig{
-		Epoch: config.Epoch,
+		Epoch:  config.Epoch,
 		Period: config.Period,
 	}
 	return &types.ChainConfig{Kaicon: &kaiCon, BaseAccount: &types.BaseAccount{PrivateKey: *pk, Address: common.HexToAddress(config.BaseAccount.Address)}}
 }
-

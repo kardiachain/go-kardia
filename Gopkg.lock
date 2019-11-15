@@ -180,12 +180,47 @@
   revision = "2772fd86a8ff4306d2749f610a386bfee9e0d727"
 
 [[projects]]
+  digest = "1:342e605326dbcb362c94e705d058d51f43b127558f64258114c411075546f5a9"
+  name = "github.com/go-kit/kit"
+  packages = [
+    "log",
+    "log/level",
+    "log/term",
+  ]
+  pruneopts = "UT"
+  revision = "150a65a7ec6156b4b640c1fd55f26fd3d475d656"
+  version = "v0.9.0"
+
+[[projects]]
+  digest = "1:4062bc6de62d73e2be342243cf138cf499b34d558876db8d9430e2149388a4d8"
+  name = "github.com/go-logfmt/logfmt"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "07c9b44f60d7ffdfb7d8efe1ad539965737836dc"
+  version = "v0.4.0"
+
+[[projects]]
   digest = "1:586ea76dbd0374d6fb649a91d70d652b7fe0ccffb8910a77468e7702e7901f3d"
   name = "github.com/go-stack/stack"
   packages = ["."]
   pruneopts = "UT"
   revision = "2fee6af1a9795aafbe0253a0cfbdf668e1fb8a9a"
   version = "v1.8.0"
+
+[[projects]]
+  digest = "1:2fc13c72e191ca921adb98f9f4991b1a036d5431b4128fa21dbdd974b9b45822"
+  name = "github.com/gogo/protobuf"
+  packages = [
+    "gogoproto",
+    "jsonpb",
+    "proto",
+    "protoc-gen-gogo/descriptor",
+    "sortkeys",
+    "types",
+  ]
+  pruneopts = "UT"
+  revision = "5628607bb4c51c3157aacc3a50f0ab707582b805"
+  version = "v1.3.1"
 
 [[projects]]
   digest = "1:f0d49ad7405a8834b820d28fa4ba6e093da763bef3e01a0c81039a8399325204"
@@ -306,6 +341,14 @@
   packages = ["."]
   pruneopts = "T"
   revision = "9be757f914c0907b7ddd561ea86eec15313ac022"
+
+[[projects]]
+  branch = "master"
+  digest = "1:a64e323dc06b73892e5bb5d040ced475c4645d456038333883f58934abbf6f72"
+  name = "github.com/kr/logfmt"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
 
 [[projects]]
   digest = "1:ca955a9cd5b50b0f43d2cc3aeb35c951473eeca41b34eb67507f1dbcc0542394"
@@ -468,6 +511,40 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:bbae530c69489b608c2aacda9cc80f035d89c64a7705fc29a2ddaf3e8c9ed604"
+  name = "github.com/tendermint/go-amino"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "af639981f2806e306c94403f45df50097d0168a8"
+  version = "v0.15.1"
+
+[[projects]]
+  digest = "1:c48b0a480eda567c2f1b0d2d630c995b61af183acb8ef648ca43dea4ba28d528"
+  name = "github.com/tendermint/tendermint"
+  packages = [
+    "abci/types",
+    "crypto",
+    "crypto/ed25519",
+    "crypto/encoding/amino",
+    "crypto/merkle",
+    "crypto/multisig",
+    "crypto/multisig/bitarray",
+    "crypto/secp256k1",
+    "crypto/secp256k1/internal/secp256k1",
+    "crypto/tmhash",
+    "libs/common",
+    "libs/log",
+    "libs/pubsub",
+    "libs/pubsub/query",
+    "types",
+    "types/time",
+    "version",
+  ]
+  pruneopts = "UT"
+  revision = "7b67ee408bb198574863f6acec6f3c791a4c0385"
+  version = "v0.32.7"
+
+[[projects]]
   digest = "1:91b40a2adb6b4ccd51b1dfb306edfa76139e1599b01666346085472b386f5447"
   name = "github.com/tyler-smith/go-bip39"
   packages = [
@@ -541,10 +618,12 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:318a2bbd7c55cf075073d5f50e84451aa5e078144fdf855c74c453f0538fdf56"
+  digest = "1:7d983fc1af82d564d9ee9544753652bc4d28ef1535f41d2e798db415d825245f"
   name = "golang.org/x/crypto"
   packages = [
     "curve25519",
+    "ed25519",
+    "ed25519/internal/edwards25519",
     "pbkdf2",
     "ripemd160",
     "scrypt",
@@ -556,9 +635,10 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e8a9164d61c4b13f515134ddd39ea5196e3366171f901dfc87a88f84b03a9b82"
+  digest = "1:580eb6227f0f8be80e558b60c260b44ec1f7e72fdfbbc166719582d5c60ba0d4"
   name = "golang.org/x/net"
   packages = [
+    "context",
     "html",
     "html/atom",
     "html/charset",
@@ -776,6 +856,9 @@
     "github.com/syndtr/goleveldb/leveldb/opt",
     "github.com/syndtr/goleveldb/leveldb/storage",
     "github.com/syndtr/goleveldb/leveldb/util",
+    "github.com/tendermint/tendermint/crypto/merkle",
+    "github.com/tendermint/tendermint/libs/common",
+    "github.com/tendermint/tendermint/types",
     "go.mongodb.org/mongo-driver/bson",
     "go.mongodb.org/mongo-driver/bson/primitive",
     "go.mongodb.org/mongo-driver/mongo",
