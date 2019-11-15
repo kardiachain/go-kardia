@@ -1211,8 +1211,9 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	// NOTE The block.AppHash wont reflect these txs until the next block.
 	var err error
 	stateCopy, err = state.ApplyBlock(
-		cs.logger, stateCopy,
-		types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()},
+		cs.logger,
+		stateCopy,
+		blockID,
 		block,
 	)
 	if err != nil {
