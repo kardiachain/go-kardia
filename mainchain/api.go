@@ -51,10 +51,9 @@ type BlockHeaderJSON struct {
 	Time           int64  `json:"time"`
 	NumTxs         uint64 `json:"num_txs"`
 	GasLimit       uint64 `json:"gasLimit"`
-	GasUsed        uint64 `json:"gasUsed"`
 	Validator      string `json:"validator"`
 	TxHash         string `json:"data_hash"`    // transactions
-	Root           string `json:"stateRoot"`    // state root
+	AppHash        string `json:"app_hash"`     // state root
 	ReceiptHash    string `json:"receiptsRoot"` // receipt root
 	Bloom          int64  `json:"logsBloom"`
 	ValidatorsHash string `json:"validators_hash"` // validators for the current block
@@ -70,10 +69,9 @@ type BlockJSON struct {
 	Time           int64                `json:"time"`
 	NumTxs         uint64               `json:"num_txs"`
 	GasLimit       uint64               `json:"gasLimit"`
-	GasUsed        uint64               `json:"gasUsed"`
 	Validator      string               `json:"validator"`
 	TxHash         string               `json:"data_hash"`    // transactions
-	Root           string               `json:"stateRoot"`    // state root
+	AppHash        string               `json:"app_hash"`     // state root
 	ReceiptHash    string               `json:"receiptsRoot"` // receipt root
 	Bloom          int64                `json:"logsBloom"`
 	ValidatorsHash string               `json:"validators_hash"` // validators for the current block
@@ -128,10 +126,9 @@ func NewBlockHeaderJSON(block types.Block) *BlockHeaderJSON {
 		Time:           block.Header().Time.Int64(),
 		NumTxs:         block.Header().NumTxs,
 		GasLimit:       block.Header().GasLimit,
-		GasUsed:        block.Header().GasUsed,
 		Validator:      block.Header().Validator.Hex(),
 		TxHash:         block.Header().TxHash.Hex(),
-		Root:           block.Header().Root.Hex(),
+		AppHash:        block.Header().AppHash.Hex(),
 		ReceiptHash:    block.Header().ReceiptHash.Hex(),
 		Bloom:          block.Header().Bloom.Big().Int64(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
@@ -161,10 +158,9 @@ func NewBasicBlockJSON(block types.Block) *BlockJSON {
 		Time:           block.Header().Time.Int64(),
 		NumTxs:         block.Header().NumTxs,
 		GasLimit:       block.Header().GasLimit,
-		GasUsed:        block.Header().GasUsed,
 		Validator:      block.Header().Validator.Hex(),
 		TxHash:         block.Header().TxHash.Hex(),
-		Root:           block.Header().Root.Hex(),
+		AppHash:        block.Header().AppHash.Hex(),
 		ReceiptHash:    block.Header().ReceiptHash.Hex(),
 		Bloom:          block.Header().Bloom.Big().Int64(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
@@ -199,10 +195,9 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		Time:           block.Header().Time.Int64(),
 		NumTxs:         block.Header().NumTxs,
 		GasLimit:       block.Header().GasLimit,
-		GasUsed:        block.Header().GasUsed,
 		Validator:      block.Header().Validator.Hex(),
 		TxHash:         block.Header().TxHash.Hex(),
-		Root:           block.Header().Root.Hex(),
+		AppHash:        block.Header().AppHash.Hex(),
 		ReceiptHash:    block.Header().ReceiptHash.Hex(),
 		Bloom:          block.Header().Bloom.Big().Int64(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
@@ -557,7 +552,7 @@ func (a *PublicAccountAPI) Balance(address string, hash string, height int64) st
 	} else {
 		block = a.kaiService.blockchain.CurrentBlock()
 	}
-	state, err := a.kaiService.blockchain.StateAt(block.Root())
+	state, err := a.kaiService.blockchain.StateAt(block.AppHash())
 	if err != nil {
 		log.Error("Fail to get state from block", "err", err, "block", block.Hash().String())
 		return "-1"
@@ -586,7 +581,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 	// otherwise we use the current state and header
 	if blockNr > 0 {
 		block := s.kaiService.BlockChain().GetBlockByHeight(blockNr)
-		statedb, err = s.kaiService.BlockChain().StateAt(block.Root())
+		statedb, err = s.kaiService.BlockChain().StateAt(block.AppHash())
 		header = block.Header()
 	} else {
 		statedb, err = s.kaiService.BlockChain().State()

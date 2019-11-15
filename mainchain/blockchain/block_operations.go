@@ -73,20 +73,11 @@ func (bo *BlockOperations) CreateProposalBlock(
 	bo.logger.Debug("Collected transactions", "txs count", len(txs))
 
 	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash())
+	header.AppHash = lastState.AppHash
 	bo.logger.Info("Creates new header", "header", header)
 
-	stateRoot, receipts, newTxs, err := bo.commitTransactions(txs, header)
-	if err != nil {
-		bo.logger.Error("Fail to commit transactions", "err", err)
-		return nil, nil
-	}
-	header.Root = stateRoot
-
-	block = bo.newBlock(header, newTxs, receipts, commit)
+	block = bo.newBlock(header, txs, commit)
 	bo.logger.Trace("Make block to propose", "block", block)
-
-	go bo.saveReceipts(receipts, block)
-
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
 }
 
@@ -98,8 +89,8 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
 	if err != nil {
 		return err
 	}
-	if root != block.Root() {
-		return fmt.Errorf("different new state root: Block root: %s, Execution result: %s", block.Root().Hex(), root.Hex())
+	if root != block.AppHash() {
+		return fmt.Errorf("different new state root: Block root: %s, Execution result: %s", block.AppHash().Hex(), root.Hex())
 	}
 	receiptsHash := types.DeriveSha(receipts)
 	if receiptsHash != block.ReceiptHash() {
@@ -113,7 +104,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
 // CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
 // Proposer and validators should already commit the block txs, so this function prevents double tx execution.
 func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block) error {
-	if !bo.blockchain.CheckCommittedStateRoot(block.Root()) {
+	if !bo.blockchain.CheckCommittedStateRoot(block.AppHash()) {
 		bo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
 		return bo.CommitAndValidateBlockTxs(block)
 	}
@@ -204,8 +195,8 @@ func (bo *BlockOperations) newHeader(height int64, numTxs uint64, blockId types.
 }
 
 // newBlock creates new block from given data.
-func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
-	block := types.NewBlock(header, txs, receipts, commit)
+func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, commit *types.Commit) *types.Block {
+	block := types.NewBlock(header, txs, commit)
 
 	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
 	// LastResultHash.

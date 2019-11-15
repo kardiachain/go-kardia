@@ -20,10 +20,12 @@ package state
 
 import (
 	"fmt"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/types"
 	"math/big"
 	"time"
+
+	"github.com/kardiachain/go-kardia/lib/common"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // TODO(namdoh): Move to a common config file.
@@ -64,7 +66,7 @@ type LastestBlockState struct {
 	//namdoh@ LastResultsHash []byte
 
 	// The latest AppHash we've received from calling abci.Commit()
-	//namdoh@ AppHash []byte
+	AppHash common.Hash
 }
 
 // Copy makes a copy of the State for mutating.

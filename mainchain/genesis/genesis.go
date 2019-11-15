@@ -180,7 +180,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 		// Time:           g.Timestamp,
 		Height:   0,
 		GasLimit: g.GasLimit,
-		Root:     root,
+		AppHash:  root,
 	}
 	if g.GasLimit == 0 {
 		head.GasLimit = configs.GenesisGasLimit
@@ -188,7 +188,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 
-	block := types.NewBlock(head, nil, nil, &types.Commit{})
+	block := types.NewBlock(head, nil, &types.Commit{})
 
 	return block
 }

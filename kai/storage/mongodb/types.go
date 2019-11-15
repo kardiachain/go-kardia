@@ -69,7 +69,7 @@ type (
 		LastCommitHash string `json:"lastCommitHash"      bson:"lastCommitHash"` // commit from validators from the last block
 		TxHash         string `json:"txHash"              bson:"txHash"`         // transactions
 		DualEventsHash string `json:"dualEventsHash"      bson:"dualEventsHash"` // dual's events
-		Root           string `json:"stateRoot"           bson:"stateRoot"`      // state root
+		AppHash        string `json:"app_hash"           bson:"app_hash"`        // state root
 		ReceiptHash    string `json:"receiptsRoot"        bson:"receiptsRoot"`   // receipt root
 		Bloom          string `json:"logsBloom"           bson:"logsBloom"`
 
@@ -171,7 +171,6 @@ type (
 		BlockID          string        `json:"blockID"                    bson:"blockID"`
 		Signature        string        `json:"signature"                  bson:"signature"`
 		PartsHeader      PartSetHeader `json:"partsHeader" bson:"partsHeader"`
-
 	}
 
 	HeadHeaderHash struct {
@@ -225,7 +224,6 @@ func NewBlock(block *types.Block) *Block {
 		LastBlockID:    block.Header().LastBlockID.String(),
 		NumTxs:         block.NumTxs(),
 		TxHash:         block.Header().TxHash.Hex(),
-		GasUsed:        block.Header().GasUsed,
 		Bloom:          common.Bytes2Hex(block.Header().Bloom.Bytes()),
 		Coinbase:       block.Header().Coinbase.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
@@ -234,7 +232,7 @@ func NewBlock(block *types.Block) *Block {
 		LastCommitHash: block.Header().LastCommitHash.Hex(),
 		NumDualEvents:  block.Header().NumDualEvents,
 		ReceiptHash:    block.Header().ReceiptHash.Hex(),
-		Root:           block.Header().Root.Hex(),
+		AppHash:        block.Header().AppHash.Hex(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 	}
 	if block.Header().Time != nil {
@@ -254,7 +252,6 @@ func (block *Block) ToHeader() *types.Header {
 		Time:           big.NewInt(int64(block.Header.Time)),
 		NumTxs:         block.Header.NumTxs,
 		TxHash:         common.HexToHash(block.Header.TxHash),
-		GasUsed:        block.Header.GasUsed,
 		Bloom:          types.BytesToBloom(common.FromHex(block.Header.Bloom)),
 		Coinbase:       common.HexToAddress(block.Header.Coinbase),
 		ConsensusHash:  common.HexToHash(block.Header.ConsensusHash),
@@ -263,7 +260,7 @@ func (block *Block) ToHeader() *types.Header {
 		LastCommitHash: common.HexToHash(block.Header.LastCommitHash),
 		NumDualEvents:  block.Header.NumDualEvents,
 		ReceiptHash:    common.HexToHash(block.Header.ReceiptHash),
-		Root:           common.HexToHash(block.Header.Root),
+		AppHash:        common.HexToHash(block.Header.AppHash),
 		ValidatorsHash: common.HexToHash(block.Header.ValidatorsHash),
 	}
 	return &header
@@ -501,7 +498,6 @@ func (commit *Commit) ToCommit() *types.Commit {
 	return &types.Commit{
 		Precommits: votes,
 		BlockID:    toBlockID(commit.BlockID, commit.PartsHeader),
-
 	}
 }
 

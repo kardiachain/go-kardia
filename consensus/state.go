@@ -917,15 +917,6 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 		cs.signAddVote(types.VoteTypePrevote, common.Hash{}, types.PartSetHeader{})
 		return
 	}
-	// Executes txs to verify the block state root. New statedb is committed if success.
-	if err := cs.blockOperations.CommitAndValidateBlockTxs(cs.ProposalBlock); err != nil {
-		logger.Error("enterPrevote: fail to commit & verify txs", "err", err)
-		cs.signAddVote(types.VoteTypePrevote, common.Hash{}, types.PartSetHeader{})
-		return
-	} else {
-		logger.Info("enterPrevote: successfully executes and commits block txs")
-	}
-
 	// Prevote cs.ProposalBlock
 	// NOTE: the proposal signature is validated when it is received,
 	// and the proposal block is validated as it is received (against the merkle hash in the proposal)
@@ -1225,7 +1216,17 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 		return
 	}
 
-	fail.Fail() // XXX
+	// Executes txs to verify the block state root. New statedb is committed if success.
+	if err := cs.blockOperations.CommitAndValidateBlockTxs(block); err != nil {
+		cs.logger.Error("Error on CommitAndValidateBlockTxs. Did the application crash? Please restart node", "err", err)
+		err := cmn.Kill()
+		if err != nil {
+			cs.logger.Error("Failed to kill this process - please do so manually", "err", err)
+		}
+		return
+	} else {
+		cs.logger.Info("enterPrevote: successfully executes and commits block txs")
+	}
 
 	// NewHeightStep!
 	cs.updateToState(stateCopy)

@@ -54,7 +54,6 @@ type Header struct {
 	NumDualEvents uint64 `json:"num_dual_events" gencodec:"required"`
 
 	GasLimit uint64 `json:"gasLimit"         gencodec:"required"`
-	GasUsed  uint64 `json:"gasUsed"          gencodec:"required"`
 
 	// prev block info
 	LastBlockID BlockID `json:"last_block_id"`
@@ -67,7 +66,6 @@ type Header struct {
 	TxHash         common.Hash `json:"data_hash"           gencodec:"required"` // transactions
 	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
 	DualEventsHash common.Hash `json:"dual_events_hash"    gencodec:"required"` // dual's events
-	Root           common.Hash `json:"stateRoot"           gencodec:"required"` // state root
 	ReceiptHash    common.Hash `json:"receiptsRoot"        gencodec:"required"` // receipt root
 	Bloom          Bloom       `json:"logsBloom"           gencodec:"required"`
 
@@ -75,7 +73,7 @@ type Header struct {
 	// hashes from the app output from the prev block
 	ValidatorsHash common.Hash `json:"validators_hash"` // validators for the current block
 	ConsensusHash  common.Hash `json:"consensus_hash"`  // consensus params for current block
-	//@huny AppHash         common.Hash `json:"app_hash"`          // state after txs from the previous block
+	AppHash        common.Hash `json:"app_hash"`        // state after txs from the previous block
 	//@huny LastResultsHash common.Hash `json:"last_results_hash"` // root hash of all results from the txs from the previous block
 
 	// consensus info
@@ -101,7 +99,7 @@ func (h *Header) StringLong() string {
 	}
 	// TODO(thientn): check why String() of common.Hash is not called when logging, and have to call Hex() instead.
 	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
-		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Hex(), h.TxHash.Hex(), h.Root.Hex(), h.ValidatorsHash.Hex(), h.ConsensusHash.Hex(), h.Hash().Hex())
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Hex(), h.TxHash.Hex(), h.AppHash.Hex(), h.ValidatorsHash.Hex(), h.ConsensusHash.Hex(), h.Hash().Hex())
 
 }
 
@@ -113,7 +111,7 @@ func (h *Header) String() string {
 	headerHash := h.Hash()
 	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
 		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Fingerprint(),
-		h.TxHash.Fingerprint(), h.Root.Fingerprint(), h.ValidatorsHash.Fingerprint(), h.ConsensusHash.Fingerprint(), headerHash.Fingerprint())
+		h.TxHash.Fingerprint(), h.AppHash.Fingerprint(), h.ValidatorsHash.Fingerprint(), h.ConsensusHash.Fingerprint(), headerHash.Fingerprint())
 }
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
@@ -180,7 +178,7 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit) *Block {
+func NewBlock(header *Header, txs []*Transaction, commit *Commit) *Block {
 	b := &Block{
 		header:     CopyHeader(header),
 		lastCommit: CopyCommit(commit),
@@ -193,13 +191,6 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *C
 		b.header.NumTxs = uint64(len(txs))
 		b.transactions = make(Transactions, len(txs))
 		copy(b.transactions, txs)
-	}
-
-	if len(receipts) == 0 {
-		b.header.ReceiptHash = EmptyRootHash
-	} else {
-		b.header.ReceiptHash = DeriveSha(Receipts(receipts))
-		b.header.Bloom = CreateBloom(receipts)
 	}
 
 	if b.header.LastCommitHash.IsZero() {
@@ -353,16 +344,15 @@ func (b *Block) WithBody(body *Body) *Block {
 
 func (b *Block) Height() uint64   { return b.header.Height }
 func (b *Block) GasLimit() uint64 { return b.header.GasLimit }
-func (b *Block) GasUsed() uint64  { return b.header.GasUsed }
 func (b *Block) Time() *big.Int   { return b.header.Time }
 func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
 func (b *Block) LastCommitHash() common.Hash { return b.header.LastCommitHash }
 func (b *Block) TxHash() common.Hash         { return b.header.TxHash }
-func (b *Block) Root() common.Hash           { return b.header.Root }
 func (b *Block) ReceiptHash() common.Hash    { return b.header.ReceiptHash }
 func (b *Block) Bloom() Bloom                { return b.header.Bloom }
 func (b *Block) LastCommit() *Commit         { return b.lastCommit }
+func (b *Block) AppHash() common.Hash        { return b.header.AppHash }
 
 // TODO(namdoh): This is a hack due to rlp nature of decode both nil or empty
 // struct pointer as nil. After encoding an empty struct and send it over to
