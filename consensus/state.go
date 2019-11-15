@@ -250,8 +250,6 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 		commitTime := time.Unix(cs.CommitTime.Int64(), 0)
 		cs.StartTime = big.NewInt(cs.config.Commit(commitTime).Unix())
 	}
-	cs.logger.Info("ConsensusState - updateToState", "commit time", cs.CommitTime, "StartTime", cs.StartTime)
-
 	cs.Validators = validators
 	cs.Proposal = nil
 	cs.ProposalBlock = nil
@@ -397,16 +395,7 @@ func (cs *ConsensusState) reconstructLastCommit(state state.LastestBlockState) {
 		return
 	}
 	seenCommit := cs.blockOperations.LoadSeenCommit(state.LastBlockHeight.Uint64())
-	lastPrecommits := types.NewVoteSet(state.ChainID, state.LastBlockHeight, seenCommit.Round(), types.VoteTypePrecommit, state.LastValidators)
-	for _, precommit := range seenCommit.Precommits {
-		if precommit == nil {
-			continue
-		}
-		added, err := lastPrecommits.AddVote(precommit)
-		if !added || err != nil {
-			cmn.PanicCrisis(cmn.Fmt("Failed to reconstruct LastCommit: %v", err))
-		}
-	}
+	lastPrecommits := types.CommitToVoteSet(state.ChainID, seenCommit, state.LastValidators)
 	if !lastPrecommits.HasTwoThirdsMajority() {
 		cmn.PanicSanity("Failed to reconstruct LastCommit: Does not have +2/3 maj")
 	}

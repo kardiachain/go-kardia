@@ -373,7 +373,7 @@ func (b *Block) SetLastCommit(c *Commit) {
 
 func (b *Block) Header() *Header { return CopyHeader(b.header) }
 func (b *Block) HashesTo(hash common.Hash) bool {
-	if len(hash) == 0 {
+	if hash.IsZero() {
 		return false
 	}
 	if b == nil {

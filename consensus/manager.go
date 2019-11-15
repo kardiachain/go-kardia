@@ -508,7 +508,7 @@ func makeRoundStepMessages(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage)
 		Height:                rs.Height,
 		Round:                 rs.Round,
 		Step:                  rs.Step,
-		SecondsSinceStartTime: uint(time.Now().Unix() - rs.StartTime.Int64()),
+		SecondsSinceStartTime: cmn.NewBigInt32(int(time.Since(time.Unix(rs.StartTime.Int64(), 0)).Seconds())),
 		LastCommitRound:       rs.LastCommit.Round(),
 	}
 	return
@@ -911,7 +911,7 @@ type NewRoundStepMessage struct {
 	Height                *cmn.BigInt           `json:"height" gencodoc:"required"`
 	Round                 *cmn.BigInt           `json:"round" gencodoc:"required"`
 	Step                  cstypes.RoundStepType `json:"step" gencodoc:"required"`
-	SecondsSinceStartTime uint                  `json:"elapsed" gencodoc:"required"`
+	SecondsSinceStartTime *cmn.BigInt           `json:"elapsed" gencodoc:"required"`
 	LastCommitRound       *cmn.BigInt           `json:"lastCommitRound" gencodoc:"required"`
 }
 
@@ -1240,7 +1240,7 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 	psCatchupCommitRound := ps.PRS.CatchupCommitRound
 	psCatchupCommit := ps.PRS.CatchupCommit
 
-	startTime := big.NewInt(time.Now().Unix() - int64(msg.SecondsSinceStartTime))
+	startTime := big.NewInt(time.Now().Unix() - msg.SecondsSinceStartTime.Int64())
 	ps.PRS.Height = msg.Height
 	ps.PRS.Round = msg.Round
 	ps.PRS.Step = msg.Step
