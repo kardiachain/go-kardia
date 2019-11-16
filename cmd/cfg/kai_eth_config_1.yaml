@@ -19,7 +19,7 @@ Node:
     PrivateKey: 8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06
     ListenAddress: :3000
     MaxPeers:   25
-  LogLevel: trace           # crit, error, warn, info, debug, trace
+  LogLevel: info           # crit, error, warn, info, debug, trace
 MainChain:
   ServiceName:  KARDIA
   ChainId:      1

@@ -88,9 +88,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) (common
 	if err != nil {
 		return common.Hash{}, err
 	}
-
 	bo.saveReceipts(receipts, block)
-
 	return root, nil
 }
 

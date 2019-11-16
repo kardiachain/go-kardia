@@ -59,13 +59,11 @@ func ApplyBlock(logger log.Logger, state LastestBlockState, blockStore BlockStor
 	if err != nil {
 		return state, err
 	}
-
 	// update the state with the block and responses
 	state, err = updateState(logger, state, appHash, blockID, block.Header())
 	if err != nil {
 		return state, fmt.Errorf("Commit failed for application: %v", err)
 	}
-
 	logger.Warn("Update evidence pool.")
 	fail.Fail() // XXX
 
@@ -74,7 +72,7 @@ func ApplyBlock(logger log.Logger, state LastestBlockState, blockStore BlockStor
 
 // updateState returns a new State updated according to the header and responses.
 func updateState(logger log.Logger, state LastestBlockState, appHash common.Hash, blockID types.BlockID, header *types.Header) (LastestBlockState, error) {
-	logger.Trace("updateState", "state", state, "blockID", blockID, "header", header)
+	logger.Trace("updateState", "state", state, "blockID", blockID, "header")
 
 	// Update the validator set with the latest abciResponses
 	lastHeightValsChanged := state.LastHeightValidatorsChanged

@@ -83,7 +83,7 @@ func (state LastestBlockState) Copy() LastestBlockState {
 		LastValidators:              state.LastValidators.Copy(),
 		LastHeightValidatorsChanged: state.LastHeightValidatorsChanged,
 
-		//namdoh@ AppHash: state.AppHash,
+		AppHash: state.AppHash,
 
 		//namdoh@ LastResultsHash: state.LastResultsHash,
 	}
