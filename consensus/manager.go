@@ -646,7 +646,7 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 			Round:  prs.Round,  // Not our height, so it doesn't matter.
 			Part:   part,
 		}
-		conR.logger.Debug("Sending block part for catchup", "round", prs.Round, "index", index)
+		conR.logger.Info("Sending block part for catchup", "round", prs.Round, "index", index, "height", prs.Height)
 		if err := p2p.Send(ps.rw, service.CsProposalBlockPartMsg, msg); err != nil {
 			conR.logger.Error("Sending block part for catchup failed", "err", err)
 		} else {
