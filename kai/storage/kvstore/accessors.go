@@ -687,3 +687,15 @@ func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part)
 func DeleteBlockMeta(db kaidb.Writer, hash common.Hash, height uint64) {
 	db.Delete(blockMetaKey(hash, height))
 }
+
+func ReadAppHash(db kaidb.Reader, height uint64) common.Hash {
+	b, _ := db.Get(appHashKey(height))
+	if len(b) == 0 {
+		return common.Hash{}
+	}
+	return common.BytesToHash(b)
+}
+
+func WriteAppHash(db kaidb.Writer, height uint64, hash common.Hash) {
+	db.Put(appHashKey(height), hash.Bytes())
+}

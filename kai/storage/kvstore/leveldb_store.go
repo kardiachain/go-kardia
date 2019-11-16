@@ -262,3 +262,11 @@ func (s *StoreDB) DeleteBlockPart(hash common.Hash, height uint64) {
 		s.db.Delete(blockPartKey(height, i))
 	}
 }
+
+func (s *StoreDB) WriteAppHash(height uint64, hash common.Hash) {
+	WriteAppHash(s.db, height, hash)
+}
+
+func (s *StoreDB) ReadAppHash(height uint64) common.Hash {
+	return ReadAppHash(s.db, height)
+}

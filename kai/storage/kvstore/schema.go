@@ -62,6 +62,8 @@ var (
 	eventsPrefix      = []byte("events") // event prefix + smart contract address
 	dualActionPrefix  = []byte("dualAction")
 	contractAbiPrefix = []byte("abi")
+
+	appHashKeyPrefix = []byte("ah")
 )
 
 // A positional metadata to help looking up the data content of
@@ -208,4 +210,8 @@ func blockPartKey(height uint64, index int) []byte {
 
 func seenCommitKey(height uint64) []byte {
 	return append(seenCommitPrefix, encodeBlockHeight(height)...)
+}
+
+func appHashKey(height uint64) []byte {
+	return append(appHashKeyPrefix, encodeBlockHeight(height)...)
 }
