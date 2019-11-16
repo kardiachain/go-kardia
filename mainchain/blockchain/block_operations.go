@@ -74,42 +74,24 @@ func (bo *BlockOperations) CreateProposalBlock(
 
 	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash())
 	header.AppHash = lastState.AppHash
-	bo.logger.Info("Creates new header", "header", header)
 
 	block = bo.newBlock(header, txs, commit)
-	bo.logger.Trace("Make block to propose", "block", block)
+	bo.logger.Info("Make block to propose", "height", block.Height(), "AppHash", block.AppHash(), "hash", block.Hash())
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
 }
 
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
-func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
+func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) (common.Hash, error) {
 	root, receipts, _, err := bo.commitTransactions(block.Transactions(), block.Header())
 	if err != nil {
-		return err
+		return common.Hash{}, err
 	}
-	if root != block.AppHash() {
-		return fmt.Errorf("different new state root: Block root: %s, Execution result: %s", block.AppHash().Hex(), root.Hex())
-	}
-	receiptsHash := types.DeriveSha(receipts)
-	if receiptsHash != block.ReceiptHash() {
-		return fmt.Errorf("different receipt hash: Block receipt: %s, receipt from execution: %s", block.ReceiptHash().Hex(), receiptsHash.Hex())
-	}
+
 	bo.saveReceipts(receipts, block)
 
-	return nil
-}
-
-// CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
-// Proposer and validators should already commit the block txs, so this function prevents double tx execution.
-func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block) error {
-	if !bo.blockchain.CheckCommittedStateRoot(block.AppHash()) {
-		bo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
-		return bo.CommitAndValidateBlockTxs(block)
-	}
-
-	return nil
+	return root, nil
 }
 
 // SaveBlock saves the given block, blockParts, and seenCommit to the underlying storage.
@@ -247,7 +229,6 @@ LOOP:
 		newTxs = append(newTxs, tx)
 	}
 
-	header.NumTxs = uint64(newTxs.Len())
 	root, err := state.Commit(true)
 
 	if err != nil {

@@ -129,8 +129,6 @@ func NewBlockHeaderJSON(block types.Block) *BlockHeaderJSON {
 		Validator:      block.Header().Validator.Hex(),
 		TxHash:         block.Header().TxHash.Hex(),
 		AppHash:        block.Header().AppHash.Hex(),
-		ReceiptHash:    block.Header().ReceiptHash.Hex(),
-		Bloom:          block.Header().Bloom.Big().Int64(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 	}
@@ -161,8 +159,6 @@ func NewBasicBlockJSON(block types.Block) *BlockJSON {
 		Validator:      block.Header().Validator.Hex(),
 		TxHash:         block.Header().TxHash.Hex(),
 		AppHash:        block.Header().AppHash.Hex(),
-		ReceiptHash:    block.Header().ReceiptHash.Hex(),
-		Bloom:          block.Header().Bloom.Big().Int64(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 	}
@@ -198,8 +194,6 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		Validator:      block.Header().Validator.Hex(),
 		TxHash:         block.Header().TxHash.Hex(),
 		AppHash:        block.Header().AppHash.Hex(),
-		ReceiptHash:    block.Header().ReceiptHash.Hex(),
-		Bloom:          block.Header().Bloom.Big().Int64(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 		Receipts:       basicReceipts,

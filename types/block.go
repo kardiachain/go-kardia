@@ -66,8 +66,6 @@ type Header struct {
 	TxHash         common.Hash `json:"data_hash"           gencodec:"required"` // transactions
 	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
 	DualEventsHash common.Hash `json:"dual_events_hash"    gencodec:"required"` // dual's events
-	ReceiptHash    common.Hash `json:"receiptsRoot"        gencodec:"required"` // receipt root
-	Bloom          Bloom       `json:"logsBloom"           gencodec:"required"`
 
 	Validator common.Address `json:"validator"`
 	// hashes from the app output from the prev block
@@ -349,8 +347,6 @@ func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
 func (b *Block) LastCommitHash() common.Hash { return b.header.LastCommitHash }
 func (b *Block) TxHash() common.Hash         { return b.header.TxHash }
-func (b *Block) ReceiptHash() common.Hash    { return b.header.ReceiptHash }
-func (b *Block) Bloom() Bloom                { return b.header.Bloom }
 func (b *Block) LastCommit() *Commit         { return b.lastCommit }
 func (b *Block) AppHash() common.Hash        { return b.header.AppHash }
 

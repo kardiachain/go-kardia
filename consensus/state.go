@@ -1204,6 +1204,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	stateCopy, err = state.ApplyBlock(
 		cs.logger,
 		stateCopy,
+		cs.blockOperations,
 		blockID,
 		block,
 	)
@@ -1214,18 +1215,6 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 			cs.logger.Error("Failed to kill this process - please do so manually", "err", err)
 		}
 		return
-	}
-
-	// Executes txs to verify the block state root. New statedb is committed if success.
-	if err := cs.blockOperations.CommitAndValidateBlockTxs(block); err != nil {
-		cs.logger.Error("Error on CommitAndValidateBlockTxs. Did the application crash? Please restart node", "err", err)
-		err := cmn.Kill()
-		if err != nil {
-			cs.logger.Error("Failed to kill this process - please do so manually", "err", err)
-		}
-		return
-	} else {
-		cs.logger.Info("enterPrevote: successfully executes and commits block txs")
 	}
 
 	// NewHeightStep!

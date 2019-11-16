@@ -81,7 +81,6 @@ func (dbo *DualBlockOperations) CreateProposalBlock(
 	dbo.logger.Info("Collected dual's events", "events", events)
 
 	header := dbo.newHeader(height, uint64(len(events)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash())
-	dbo.logger.Info("Creates new header", "header", header)
 	header.AppHash = lastState.AppHash
 
 	if height > 0 {
@@ -102,33 +101,20 @@ func (dbo *DualBlockOperations) CreateProposalBlock(
 	}
 
 	block = dbo.newBlock(header, events, commit)
-	dbo.logger.Trace("Make block to propose", "block", block)
+	dbo.logger.Info("Make block to propose", "height", block.Height(), "AppHash", block.AppHash(), "hash", block.Hash())
 
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
 }
 
 // Executes and commits the new state from events in the given block.
 // This also validate the new state root against the block root.
-func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
+func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block) (common.Hash, error) {
 	root, err := dbo.commitDualEvents(block.DualEvents())
 	if err != nil {
-		return err
-	}
-	if root != block.AppHash() {
-		return fmt.Errorf("different new dualchain state root: Block root: %s, Execution result: %s", block.AppHash().Hex(), root.Hex())
-	}
-	return nil
-}
-
-// CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
-// Proposer and validators should already commit the block txs, so this function prevents double tx execution.
-func (dbo *DualBlockOperations) CommitBlockTxsIfNotFound(block *types.Block) error {
-	if !dbo.blockchain.CheckCommittedStateRoot(block.AppHash()) {
-		dbo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
-		return dbo.CommitAndValidateBlockTxs(block)
+		return common.Hash{}, err
 	}
 
-	return nil
+	return root, nil
 }
 
 // Persists the given block, blockParts, and seenCommit to the underlying db.

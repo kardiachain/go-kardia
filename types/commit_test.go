@@ -123,5 +123,5 @@ func CreateNewBlockWithTwoVotes(height uint64) *Block {
 	lastCommit := &Commit{
 		Precommits: []*Vote{vote, nil},
 	}
-	return NewBlock(&header, txns, nil, lastCommit)
+	return NewBlock(&header, txns, lastCommit)
 }

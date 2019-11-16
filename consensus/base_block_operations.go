@@ -30,8 +30,7 @@ type BaseBlockOperations interface {
 	LoadBlockCommit(height uint64) *types.Commit
 	LoadSeenCommit(height uint64) *types.Commit
 	CreateProposalBlock(height int64, state state.LastestBlockState, proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet)
-	CommitAndValidateBlockTxs(block *types.Block) error
-	CommitBlockTxsIfNotFound(block *types.Block) error
+	CommitAndValidateBlockTxs(block *types.Block) (common.Hash, error)
 	SaveBlock(block *types.Block, partSet *types.PartSet, seenCommit *types.Commit)
 	LoadBlockPart(height uint64, index int) *types.Part
 	LoadBlockMeta(height uint64) *types.BlockMeta
