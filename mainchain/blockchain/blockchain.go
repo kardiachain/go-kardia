@@ -21,7 +21,6 @@ package blockchain
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"sync"
 	"sync/atomic"
 
