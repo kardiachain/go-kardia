@@ -222,12 +222,13 @@ func (dbc *DualBlockChain) GetHeader(hash common.Hash, height uint64) *types.Hea
 
 // State returns a new mutatable state at head block.
 func (dbc *DualBlockChain) State() (*state.StateDB, error) {
-	return dbc.StateAt(dbc.CurrentBlock().AppHash())
+	return dbc.StateAt(dbc.CurrentBlock().Height())
 }
 
 // StateAt returns a new mutable state based on a particular point in time.
-func (dbc *DualBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
-	return state.New(dbc.logger, root, dbc.stateCache)
+func (dbc *DualBlockChain) StateAt(height uint64) (*state.StateDB, error) {
+	appHash := dbc.db.ReadAppHash(height)
+	return state.New(dbc.logger, appHash, dbc.stateCache)
 }
 
 // CheckCommittedStateRoot returns true if the given state root is already committed and existed on trie database.

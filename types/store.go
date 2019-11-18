@@ -23,6 +23,7 @@ type StoreDB interface {
 	WriteTxLookupEntries(block *Block)
 	StoreTxHash(hash *common.Hash)
 	StoreHash(hash *common.Hash)
+	WriteAppHash(height uint64, hash common.Hash)
 
 	DB() kaidb.Database
 
@@ -32,6 +33,7 @@ type StoreDB interface {
 	ReadHeader(hash common.Hash, height uint64) *Header
 	ReadBody(hash common.Hash, height uint64) *Body
 	ReadBlockPart(hash common.Hash, height uint64, index int) *Part
+	ReadAppHash(height uint64) common.Hash
 
 	//ReadBodyRLP(hash common.Hash, height uint64) rlp.RawValue
 	//ReadHeaderRLP(hash common.Hash, height uint64) rlp.RawValue

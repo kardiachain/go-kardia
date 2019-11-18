@@ -207,6 +207,7 @@ func (g *Genesis) Commit(logger log.Logger, db types.StoreDB) (*types.Block, err
 	db.WriteCanonicalHash(block.Hash(), block.Height())
 	db.WriteHeadBlockHash(block.Hash())
 	db.WriteHeadHeaderHash(block.Hash())
+	db.WriteAppHash(block.Height(), block.AppHash())
 
 	config := g.Config
 	if config == nil {

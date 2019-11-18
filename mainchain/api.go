@@ -546,7 +546,7 @@ func (a *PublicAccountAPI) Balance(address string, hash string, height int64) st
 	} else {
 		block = a.kaiService.blockchain.CurrentBlock()
 	}
-	state, err := a.kaiService.blockchain.StateAt(block.AppHash())
+	state, err := a.kaiService.blockchain.StateAt(block.Height())
 	if err != nil {
 		log.Error("Fail to get state from block", "err", err, "block", block.Hash().String())
 		return "-1"
@@ -575,7 +575,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 	// otherwise we use the current state and header
 	if blockNr > 0 {
 		block := s.kaiService.BlockChain().GetBlockByHeight(blockNr)
-		statedb, err = s.kaiService.BlockChain().StateAt(block.AppHash())
+		statedb, err = s.kaiService.BlockChain().StateAt(block.Height())
 		header = block.Header()
 	} else {
 		statedb, err = s.kaiService.BlockChain().State()

@@ -44,6 +44,6 @@ type BaseBlockChain interface {
 	IsPrivate() bool
 	HasPermission(peer *p2p.Peer) bool
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
-	StateAt(root common.Hash) (*state.StateDB, error)
+	StateAt(height uint64) (*state.StateDB, error)
 	DB() types.StoreDB
 }

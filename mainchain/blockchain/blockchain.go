@@ -231,7 +231,8 @@ func (bc *BlockChain) State() (*state.StateDB, error) {
 
 // StateAt returns a new mutable state based on a particular point in time.
 func (bc *BlockChain) StateAt(height uint64) (*state.StateDB, error) {
-	return state.New(bc.logger, root, bc.stateCache)
+	appHash := bc.db.ReadAppHash(height)
+	return state.New(bc.logger, appHash, bc.stateCache)
 }
 
 // CheckCommittedStateRoot returns true if the given state root is already committed and existed on trie database.
@@ -485,4 +486,8 @@ func (bc *BlockChain) ReadCommit(height uint64) *types.Commit {
 
 func (bc *BlockChain) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	bc.db.WriteBlock(block, blockParts, seenCommit)
+}
+
+func (bc *BlockChain) WriteAppHash(height uint64, appHash common.Hash) {
+	bc.db.WriteAppHash(height, appHash)
 }

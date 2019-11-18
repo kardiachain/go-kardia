@@ -610,6 +610,14 @@ func (db *Store) ReadSeenCommit(height uint64) *types.Commit {
 	panic("Not implemented yet")
 }
 
+func (db *Store) ReadAppHash(height uint64) common.Hash {
+	panic("Not implemented yet")
+}
+
+func (db *Store) WriteAppHash(height uint64, hash common.Hash) {
+	panic("Not implemented yet")
+}
+
 // ReadHeadBlockHash retrieves the hash of the current canonical head block.
 func (db *Store) ReadHeadBlockHash() common.Hash {
 	hash := common.NewZeroHash()

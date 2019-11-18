@@ -89,6 +89,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) (common
 		return common.Hash{}, err
 	}
 	bo.saveReceipts(receipts, block)
+	bo.blockchain.WriteAppHash(block.Height(), root)
 	return root, nil
 }
 
