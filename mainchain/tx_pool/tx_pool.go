@@ -311,8 +311,9 @@ func (pool *TxPool) GetBlockChain() blockChain {
 }
 
 func (pool *TxPool) PendingSize() int {
+	pending, _ := pool.Pending()
 	pendingSize := 0
-	for _, txs := range pool.pending {
+	for _, txs := range pending {
 		pendingSize += txs.Len()
 	}
 	return pendingSize
