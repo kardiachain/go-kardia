@@ -1178,21 +1178,6 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 
 	fail.Fail() // XXX
 
-	// Save block.
-	if cs.blockOperations.Height() < block.Height() {
-		// NOTE: the seenCommit is local justification to commit this block,
-		// but may differ from the LastCommit included in the next block
-		precommits := cs.Votes.Precommits(cs.CommitRound.Int32())
-		seenCommit := precommits.MakeCommit()
-		cs.logger.Trace("Save new block", "block", block.Height(), "seenCommit", seenCommit)
-		cs.blockOperations.SaveBlock(block, blockParts, seenCommit)
-	} else {
-		// Happens during replay if we already saved the block but didn't commit
-		cs.logger.Info("Calling finalizeCommit on already stored block", "height", block.Height())
-	}
-
-	fail.Fail() // XXX
-
 	// Create a copy of the state for staging and an event cache for txs.
 	stateCopy := cs.state.Copy()
 
@@ -1216,6 +1201,21 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 		}
 		return
 	}
+
+	// Save block.
+	if cs.blockOperations.Height() < block.Height() {
+		// NOTE: the seenCommit is local justification to commit this block,
+		// but may differ from the LastCommit included in the next block
+		precommits := cs.Votes.Precommits(cs.CommitRound.Int32())
+		seenCommit := precommits.MakeCommit()
+		cs.logger.Trace("Save new block", "block", block.Height(), "seenCommit", seenCommit)
+		cs.blockOperations.SaveBlock(block, blockParts, seenCommit)
+	} else {
+		// Happens during replay if we already saved the block but didn't commit
+		cs.logger.Info("Calling finalizeCommit on already stored block", "height", block.Height())
+	}
+
+	fail.Fail() // XXX
 
 	// NewHeightStep!
 	cs.updateToState(stateCopy)

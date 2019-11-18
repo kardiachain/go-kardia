@@ -21,6 +21,7 @@ package blockchain
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -423,34 +424,6 @@ func (bc *BlockChain) WriteReceipts(receipts types.Receipts, block *types.Block)
 	bc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
 }
 
-// WriteBlockWithState writes the block and all associated state to the database.
-func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) error {
-	// Makes sure no inconsistent state is leaked during insertion
-	bc.mu.Lock()
-	defer bc.mu.Unlock()
-	// Write block data in batch.
-
-	bc.db.WriteBlock(block, block.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
-	root, err := state.Commit(true)
-	if err != nil {
-		return err
-	}
-	triedb := bc.stateCache.TrieDB()
-	if err := triedb.Commit(root, false); err != nil {
-		return err
-	}
-	bc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
-	bc.db.WriteTxLookupEntries(block)
-
-	// Set new head.
-	bc.insert(block)
-	bc.futureBlocks.Remove(block.Hash())
-
-	// Sends new head event
-	bc.chainHeadFeed.Send(events.ChainHeadEvent{Block: block})
-	return nil
-}
-
 // CommitTrie commits trie node such as statedb forcefully to disk.
 func (bc BlockChain) CommitTrie(root common.Hash) error {
 	triedb := bc.stateCache.TrieDB()
@@ -490,4 +463,8 @@ func (bc *BlockChain) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 
 func (bc *BlockChain) WriteAppHash(height uint64, appHash common.Hash) {
 	bc.db.WriteAppHash(height, appHash)
+}
+
+func (bc *BlockChain) ReadAppHash(height uint64) common.Hash {
+	return bc.db.ReadAppHash(height)
 }

@@ -140,8 +140,9 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
+		AppHash:                     kai.blockchain.ReadAppHash(block.Height()),
+		LastBlockTotalTx:            cmn.NewBigInt64(int64(block.NumTxs())),
 	}
-
 	consensusState := consensus.NewConsensusState(
 		kai.logger,
 		configs.DefaultConsensusConfig(),
@@ -269,4 +270,3 @@ func (s *KardiaService) TxPool() *tx_pool.TxPool            { return s.txPool }
 func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
 func (s *KardiaService) ChainConfig() *types.ChainConfig    { return s.chainConfig }
 func (s *KardiaService) DB() types.StoreDB                  { return s.kaiDb }
-

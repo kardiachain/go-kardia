@@ -417,33 +417,6 @@ func (dbc *DualBlockChain) WriteReceipts(receipts types.Receipts, block *types.B
 	dbc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
 }
 
-// WriteBlockWithState writes the block and all associated state to the database.
-func (dbc *DualBlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) error {
-	// Makes sure no inconsistent state is leaked during insertion
-	dbc.mu.Lock()
-	defer dbc.mu.Unlock()
-	// Write block data in batch.
-	dbc.db.WriteBlock(block, block.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
-	root, err := state.Commit(true)
-	if err != nil {
-		return err
-	}
-	triedb := dbc.stateCache.TrieDB()
-	if err := triedb.Commit(root, false); err != nil {
-		return err
-	}
-	dbc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
-	dbc.db.WriteTxLookupEntries(block)
-
-	// Set new head.
-	dbc.insert(block)
-	dbc.futureBlocks.Remove(block.Hash())
-
-	// Sends new head event
-	dbc.chainHeadFeed.Send(events.ChainHeadEvent{Block: block})
-	return nil
-}
-
 // CommitTrie commits trie node such as statedb forcefully to disk.
 func (dbc *DualBlockChain) CommitTrie(root common.Hash) error {
 	triedb := dbc.stateCache.TrieDB()

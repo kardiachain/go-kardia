@@ -121,8 +121,6 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartS
 		common.PanicSanity(common.Fmt("WriteBlockWithoutState fails with error %v", err))
 	}
 
-	bo.blockchain.SaveBlock(block, blockParts, seenCommit)
-
 	bo.mtx.Lock()
 	bo.height = height
 	bo.mtx.Unlock()
