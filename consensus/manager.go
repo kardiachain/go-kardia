@@ -227,6 +227,7 @@ func (conR *ConsensusManager) ReceiveNewValidBlock(generalMsg p2p.Msg, src *p2p.
 
 	if err := msg.ValidateBasic(); err != nil {
 		conR.logger.Error("Peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
+		return
 	}
 
 	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
@@ -1100,14 +1101,13 @@ func (ps *PeerState) ApplyNewValidBlockMessage(msg *NewValidBlockMessage) {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
-	if ps.PRS.Height != msg.Height {
+	if !ps.PRS.Height.Equals(msg.Height) {
 		return
 	}
 
-	if ps.PRS.Round != msg.Round && !msg.IsCommit {
+	if !ps.PRS.Round.Equals(msg.Round) && !msg.IsCommit {
 		return
 	}
-
 	ps.PRS.ProposalBlockPartsHeader = msg.BlockPartsHeader
 	ps.PRS.ProposalBlockParts = msg.BlockParts
 }
@@ -1232,7 +1232,6 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 	if CompareHRS(msg.Height, msg.Round, msg.Step, ps.PRS.Height, ps.PRS.Round, ps.PRS.Step) <= 0 {
 		return
 	}
-
 	// Just remember these values.
 	psHeight := ps.PRS.Height
 	psRound := ps.PRS.Round
