@@ -386,7 +386,7 @@ func SetupBlockchain() (*blockchain.BlockChain, error) {
 		return nil, genesisErr
 	}
 
-	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig, true)
+	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig)
 	return bc, err
 }
 

@@ -18,9 +18,9 @@ package kvm
 
 import (
 	"crypto/sha256"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"golang.org/x/crypto/ripemd160"
@@ -29,10 +29,12 @@ import (
 // PrecompiledContract is the basic interface for native Go contracts. The implementation
 // requires a deterministic gas count based on the input size of the Run method of the
 // contract.
-type PrecompiledContract interface {
-	RequiredGas(input []byte) uint64  // RequiredPrice calculates the contract gas use
-	Run(input []byte) ([]byte, error) // Run runs the precompiled contract
-}
+type (
+	PrecompiledContract interface {
+		RequiredGas(input []byte) uint64                                     // RequiredPrice calculates the contract gas use
+		Run(input []byte, contract *Contract, ctx Context, state base.StateDB) ([]byte, error) // Run runs the precompiled contract
+	}
+)
 
 // PrecompiledContractsV0 contains the default set of pre-compiled Kardia
 // contracts used in v0.
@@ -42,13 +44,14 @@ var PrecompiledContractsV0 = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{2}): &sha256hash{},
 	common.BytesToAddress([]byte{3}): &ripemd160hash{},
 	common.BytesToAddress([]byte{4}): &dataCopy{},
+	posHandlerAddress: &posHandler{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
-func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contract) (ret []byte, err error) {
+func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contract, ctx Context, state base.StateDB) (ret []byte, err error) {
 	gas := p.RequiredGas(input)
 	if contract.UseGas(gas) {
-		return p.Run(input)
+		return p.Run(input, contract, ctx, state)
 	}
 	return nil, ErrOutOfGas
 }
@@ -57,10 +60,10 @@ func RunPrecompiledContract(p PrecompiledContract, input []byte, contract *Contr
 type ecrecover struct{}
 
 func (c *ecrecover) RequiredGas(input []byte) uint64 {
-	return configs.EcrecoverGas
+	return EcrecoverGas
 }
 
-func (c *ecrecover) Run(input []byte) ([]byte, error) {
+func (c *ecrecover) Run(input []byte, contract *Contract, ctx Context, state base.StateDB) ([]byte, error) {
 	const ecRecoverInputLength = 128
 
 	input = common.RightPadBytes(input, ecRecoverInputLength)
@@ -94,9 +97,9 @@ type sha256hash struct{}
 // This method does not require any overflow checking as the input size gas costs
 // required for anything significant is so high it's impossible to pay for.
 func (c *sha256hash) RequiredGas(input []byte) uint64 {
-	return uint64(len(input)+31)/32*configs.Sha256PerWordGas + configs.Sha256BaseGas
+	return uint64(len(input)+31)/32*Sha256PerWordGas + Sha256BaseGas
 }
-func (c *sha256hash) Run(input []byte) ([]byte, error) {
+func (c *sha256hash) Run(input []byte, contract *Contract, ctx Context, state base.StateDB) ([]byte, error) {
 	h := sha256.Sum256(input)
 	return h[:], nil
 }
@@ -109,9 +112,9 @@ type ripemd160hash struct{}
 // This method does not require any overflow checking as the input size gas costs
 // required for anything significant is so high it's impossible to pay for.
 func (c *ripemd160hash) RequiredGas(input []byte) uint64 {
-	return uint64(len(input)+31)/32*configs.Ripemd160PerWordGas + configs.Ripemd160BaseGas
+	return uint64(len(input)+31)/32*Ripemd160PerWordGas + Ripemd160BaseGas
 }
-func (c *ripemd160hash) Run(input []byte) ([]byte, error) {
+func (c *ripemd160hash) Run(input []byte, contract *Contract, ctx Context, state base.StateDB) ([]byte, error) {
 	ripemd := ripemd160.New()
 	ripemd.Write(input)
 	return common.LeftPadBytes(ripemd.Sum(nil), 32), nil
@@ -125,8 +128,8 @@ type dataCopy struct{}
 // This method does not require any overflow checking as the input size gas costs
 // required for anything significant is so high it's impossible to pay for.
 func (c *dataCopy) RequiredGas(input []byte) uint64 {
-	return uint64(len(input)+31)/32*configs.IdentityPerWordGas + configs.IdentityBaseGas
+	return uint64(len(input)+31)/32*IdentityPerWordGas + IdentityBaseGas
 }
-func (c *dataCopy) Run(in []byte) ([]byte, error) {
+func (c *dataCopy) Run(in []byte, contract *Contract, ctx Context, state base.StateDB) ([]byte, error) {
 	return in, nil
 }

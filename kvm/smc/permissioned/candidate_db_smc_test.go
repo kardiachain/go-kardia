@@ -301,7 +301,7 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, *tx_pool.TxPool, error
 		return nil, nil, genesisErr
 	}
 
-	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig, true)
+	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig)
 	
 	txPoolConfig := tx_pool.TxPoolConfig{
 		GlobalSlots:     60,

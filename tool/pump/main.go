@@ -249,7 +249,6 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		DualNetworkID:    c.DualChain.NetworkID,
 		ChainId:          c.DualChain.ChainID,
 		DualProtocolName: *c.DualChain.Protocol,
-		EnvConfig:        nil,
 		BaseAccount:      baseAccount,
 	}
 	return &dualChainConfig, nil

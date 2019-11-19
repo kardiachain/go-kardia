@@ -19,9 +19,10 @@
 package blockchain
 
 import (
-	"encoding/hex"
 	"errors"
-	"github.com/kardiachain/go-kardia/kvm"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/pos"
+	"math/big"
 	"sync"
 	"sync/atomic"
 
@@ -31,8 +32,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -76,28 +75,10 @@ type BlockChain struct {
 	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
 	IsZeroFee bool
 
-	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
-	isPrivate bool
-
-	// permissioned is used to call permissioned smartcontract to check whether a node has permission to access chain or not
-	permissioned *permissioned.PermissionSmcUtil
-}
-
-// IsPrivate returns whether a blockchain is private or not
-func (bc *BlockChain) IsPrivate() bool {
-	return bc.isPrivate
-}
-
-// HasPermission return true if peer has permission otherwise false
-func (bc *BlockChain) HasPermission(peer *p2p.Peer) bool {
-	if !bc.isPrivate {
-		return true
-	}
-	address, _, _, _, err := bc.permissioned.GetNodeInfo(hex.EncodeToString(peer.ID().Bytes()))
-	if err != nil || address.Equal(common.Address{}) {
-		return false
-	}
-	return true
+	ConsensusMasterSmartContract pos.MasterSmartContract
+	NodeAbi string
+	StakerAbi string
+	BlockReward *big.Int
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -130,7 +111,7 @@ func (bc *BlockChain) Config() *types.ChainConfig { return bc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.ChainConfig, isPrivate bool) (*BlockChain, error) {
+func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.ChainConfig) (*BlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 
@@ -142,7 +123,6 @@ func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.Chai
 		blockCache:   blockCache,
 		futureBlocks: futureBlocks,
 		quit:         make(chan struct{}),
-		isPrivate:    isPrivate,
 	}
 
 	var err error
@@ -163,11 +143,6 @@ func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.Chai
 	//@huny go bc.update()
 
 	bc.processor = NewStateProcessor(logger, bc)
-	bc.permissioned, err = permissioned.NewSmcPermissionUtil(bc)
-	if err != nil {
-		return nil, err
-	}
-
 	return bc, nil
 }
 
@@ -477,6 +452,22 @@ func (bc *BlockChain) ZeroFee() bool {
 	return bc.IsZeroFee
 }
 
-func (bc *BlockChain)ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
+func (bc *BlockChain)ApplyMessage(vm base.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
 	return ApplyMessage(vm, msg, gp)
+}
+
+func (bc *BlockChain) GetBlockReward() *big.Int {
+	return bc.BlockReward
+}
+
+func (bc *BlockChain) GetConsensusMasterSmartContract() pos.MasterSmartContract {
+	return bc.ConsensusMasterSmartContract
+}
+
+func (bc *BlockChain) GetConsensusNodeAbi() string {
+	return bc.NodeAbi
+}
+
+func (bc *BlockChain) GetConsensusStakerAbi() string {
+	return bc.StakerAbi
 }

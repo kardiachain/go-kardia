@@ -500,6 +500,29 @@ func testWithdraw(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain, st
 	println(fmt.Sprintf("testWithdraw - available node - index:%v node:%v owner:%v stakes:%v", expectedNewIndex, info.NodeAddress.Hex(), info.Owner.Hex(), info.Stakes.Uint64()))
 }
 
+func testGetNodeAddressFromAddress(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain, st *state.StateDB) {
+	method := "getNodeAddressFromOwner"
+	var (
+		input, output []byte
+		err error
+	)
+	for _, n := range genesisNodes {
+		owner := common.HexToAddress(n["owner"].(string))
+		expectedNodeAddress := common.HexToAddress(n["address"].(string))
+		input, err = masterAbi.Pack(method, owner)
+		require.NoError(t, err)
+		output, err = staticCall(owner, masterAddress, bc.CurrentHeader(), bc, input, st)
+		require.NoError(t, err)
+		type nAddress struct {
+			Node common.Address `abi:"node"`
+		}
+		var na nAddress
+		err = masterAbi.Unpack(&na, method, output)
+		require.NoError(t, err)
+		require.Equal(t, expectedNodeAddress.Hex(), na.Node.Hex())
+	}
+}
+
 func setup(t *testing.T) (*blockchain.BlockChain, abi.ABI, *state.StateDB) {
 	bc, err := setupBlockchain()
 	require.NoError(t, err)
@@ -570,6 +593,10 @@ func TestMaster(t *testing.T) {
 	testGetAvailableNodeIndex(t, masterAbi, bc, st, common.HexToAddress(genesisNodes[0]["address"].(string)), uint64(2))
 	testWithdraw(t, masterAbi, bc, st, common.HexToAddress(genesisNodes[0]["address"].(string)), common.HexToAddress(genesisNodes[0]["staker"].(string)), withdraw, 4)
 	testAvailableNodes(t, masterAbi, bc, st, uint64(5))
+
+	// test get node address from owner's address
+	println("testGetNodeAddressFromAddress")
+	testGetNodeAddressFromAddress(t, masterAbi, bc, st)
 }
 
 func TestNode(t *testing.T) {

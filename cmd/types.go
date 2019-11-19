@@ -35,7 +35,7 @@ type (
 		TxPool        *Pool          `yaml:"TxPool,omitempty"`
 		EventPool     *Pool          `yaml:"EventPool,omitempty"`
 		Database      *Database      `yaml:"Database,omitempty"`
-	   	Seeds         []string       `yaml:"Seeds"`
+		Seeds         []string       `yaml:"Seeds"`
 		Events        []Event 	     `yaml:"Events"`
 		PublishedEndpoint  *string   `yaml:"PublishedEndpoint,omitempty"`
 		SubscribedEndpoint *string   `yaml:"SubscribedEndpoint,omitempty"`
@@ -50,10 +50,28 @@ type (
 	Consensus struct {
 		MaxValidators       uint64            `yaml:"MaxValidators"`
 		ConsensusPeriod     uint64            `yaml:"ConsensusPeriod"`
+		BlockReward         string            `yaml:"BlockReward"`
 		MinimumStakes       string            `yaml:"MinimumStakes"`
-		Master     			Contract          `yaml:"Master"`
-		Stakers    			NodesOrStakes     `yaml:"Stakers"`
-		Nodes      			NodesOrStakes     `yaml:"Nodes"`
+		Compilation         Compilation       `yaml:"Compilation"`
+		Deployment          Deployment        `yaml:"Deployment"`
+	}
+	Compilation struct {
+		Master     CompilationInfo  `yaml:"Master"`
+		Staker     CompilationInfo  `yaml:"Staker"`
+		Node       CompilationInfo  `yaml:"Node"`
+	}
+	CompilationInfo struct {
+		ByteCode     string        `yaml:"ByteCode"`
+		ABI          string        `yaml:"ABI"`
+	}
+	Deployment struct {
+		Master     MasterInfo    `yaml:"Master"`
+		Stakers    []StakerInfo  `yaml:"Stakers"`
+		Nodes      []NodeInfo    `yaml:"Nodes"`
+	}
+	MasterInfo struct {
+		Address    string      `yaml:"Address"`
+		GenesisAmount string   `yaml:"GenesisAmount"`
 	}
 	NodeInfo struct {
 		Address    string       `yaml:"Address"`
@@ -70,12 +88,6 @@ type (
 		StakedNode  string       `yaml:"StakedNode"`
 		LockedPeriod uint64      `yaml:"LockedPeriod"`
 		StakeAmount string       `yaml:"StakeAmount"`
-	}
-	NodesOrStakes struct {
-		ByteCode     string       `yaml:"ByteCode"`
-		ABI          string       `yaml:"ABI"`
-		NodeInfo     []NodeInfo   `yaml:"NodeInfo,omitempty"`
-		StakerInfo   []StakerInfo `yaml:"StakerInfo,omitempty"`
 	}
 	Contract struct {
 		Address    string    `yaml:"Address,omitempty"`

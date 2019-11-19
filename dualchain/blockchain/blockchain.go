@@ -19,10 +19,11 @@
 package blockchain
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardia/kvm"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/pos"
+	"math/big"
 	"sync"
 	"sync/atomic"
 
@@ -32,8 +33,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -72,29 +71,6 @@ type DualBlockChain struct {
 	futureBlocks *lru.Cache     // future blocks are blocks added for later processing
 
 	quit chan struct{} // blockchain quit channel
-
-	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
-	isPrivate bool
-
-	// permissioned is used to call permissioned smartcontract to check whether a node has permission to access chain or not
-	permissioned *permissioned.PermissionSmcUtil
-}
-
-// IsPrivate returns whether a blockchain is private or not
-func (dbc *DualBlockChain) IsPrivate() bool {
-	return dbc.isPrivate
-}
-
-// HasPermission return true if peer has permission otherwise false
-func (dbc *DualBlockChain) HasPermission(peer *p2p.Peer) bool {
-	if !dbc.isPrivate {
-		return true
-	}
-	address, _, _, _, err := dbc.permissioned.GetNodeInfo(hex.EncodeToString(peer.ID().Bytes()))
-	if err != nil || address.Equal(common.Address{}) {
-		return false
-	}
-	return true
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -127,7 +103,7 @@ func (dbc *DualBlockChain) Config() *types.ChainConfig { return dbc.chainConfig 
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.ChainConfig, isPrivate bool) (*DualBlockChain, error) {
+func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.ChainConfig) (*DualBlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 
@@ -139,7 +115,6 @@ func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.Chai
 		blockCache:   blockCache,
 		futureBlocks: futureBlocks,
 		quit:         make(chan struct{}),
-		isPrivate:    isPrivate,
 	}
 	var err error
 
@@ -155,12 +130,6 @@ func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.Chai
 	if err := dbc.loadLastState(); err != nil {
 		return nil, err
 	}
-
-	dbc.permissioned, err = permissioned.NewSmcPermissionUtil(dbc)
-	if err != nil {
-		return nil, err
-	}
-
 	// Take ownership of this particular state
 	//@huny go dbc.update()
 
@@ -507,6 +476,22 @@ func (dbc *DualBlockChain) ZeroFee() bool {
 	return false
 }
 
-func (dbc *DualBlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
+func (dbc *DualBlockChain) ApplyMessage(vm base.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
 	return nil, 0, false, fmt.Errorf("this function is not applied for dual blockchain")
+}
+
+func (dbc *DualBlockChain) GetBlockReward() *big.Int {
+	return nil
+}
+
+func (dbc *DualBlockChain) GetConsensusMasterSmartContract() pos.MasterSmartContract {
+	return pos.MasterSmartContract{}
+}
+
+func (bc *DualBlockChain) GetConsensusNodeAbi() string {
+	return ""
+}
+
+func (bc *DualBlockChain) GetConsensusStakerAbi() string {
+	return ""
 }

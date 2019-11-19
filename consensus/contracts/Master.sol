@@ -9,6 +9,8 @@ pragma solidity ^0.5.8;
 
 contract Master {
 
+    address constant PoSHandler = 0x0000000000000000000000000000000000000005;
+
     address[] _genesisNodes = [
     0x0000000000000000000000000000000000000010,
     0x0000000000000000000000000000000000000011,
@@ -37,6 +39,11 @@ contract Master {
         require(
             _isGenesis[msg.sender] || _isGenesisOwner[msg.sender], "user does not have genesis permission"
         );
+        _;
+    }
+
+    modifier isPoSHandler {
+        require(msg.sender == PoSHandler, "sender is not PoSHandler");
         _;
     }
 
@@ -127,6 +134,7 @@ contract Master {
     mapping(address=>uint) _deletingAdded;
 
     mapping(address=>bool) _stakers;
+    mapping(address=>mapping(uint64=>bool)) rewarded;
 
     constructor(uint64 consensusPeriod, uint64 maxValidators) public {
         _startAtBlock = 0;
@@ -175,9 +183,16 @@ contract Master {
         return _pendingDeletedNodes.length - 1;
     }
 
-    function getAvailableNode(uint index) public view returns (address nodeAddress, address owner, uint256 stakes) {
+    function getAvailableNode(uint index) public view returns (address nodeAddress, address owner, uint256 stakes, uint64 totalStaker) {
+        require(index > 0 && index < _availableNodes.length, "getAvailableNode:invalid index");
         NodeInfo storage info = _availableNodes[index];
-        return (info.node, info.owner, info.stakes);
+        return (info.node, info.owner, info.stakes, info.totalStaker);
+    }
+
+    function getStakerInfo(address node, uint64 index) public view returns (address staker, uint256 amount) {
+        (,,,uint64 totalStaker) = getAvailableNode(_availableAdded[node]);
+        require(index > 0 && index < totalStaker, "getStakerInfo:invalid index");
+        return (_nodeIndex[node].stakerInfo[index].staker, _nodeIndex[node].stakerInfo[index].amount);
     }
 
     function getAvailableNodeIndex(address node) public view returns (uint index) {
@@ -428,15 +443,23 @@ contract Master {
         return false;
     }
 
-    function getLatestValidatorsLength() public view returns (uint64) {
-        if (_history.length == 0) return 0;
-        return _history[_history.length-1].totalNodes-1;
+    function getLatestValidatorsInfo() public view returns (uint64 totalNodes, uint64 startAtBlock, uint64 endAtBlock) {
+        if (_history.length == 0) return (0, 0, 0);
+        return (_history[_history.length-1].totalNodes-1, _history[_history.length-1].startAtBlock, _history[_history.length-1].endAtBlock);
     }
 
     function GetLatestValidator(uint64 index) public view returns (address node, address owner, uint256 stakes, uint64 totalStaker) {
-        uint64 len = getLatestValidatorsLength();
+        (uint64 len, , ) = getLatestValidatorsInfo();
         require(index <= len, "invalid index");
         NodeInfo memory validator = _history[_history.length-1].nodes[index];
         return (validator.node, validator.owner, validator.stakes, validator.totalStaker);
+    }
+
+    function isRewarded(address node, uint64 blockHeight) public view returns (bool) {
+        return rewarded[node][blockHeight];
+    }
+
+    function setRewarded(address node, uint64 blockHeight) public isPoSHandler {
+        rewarded[node][blockHeight] = true;
     }
 }

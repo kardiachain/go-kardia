@@ -22,6 +22,7 @@ package kai
 import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/kai/pos"
 	"github.com/kardiachain/go-kardia/kai/service"
 	serviceconst "github.com/kardiachain/go-kardia/kai/service/const"
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -108,7 +109,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
 	// Create a new blockchain to attach to this Kardia object
-	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig, config.IsPrivate)
+	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -116,10 +117,20 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// Set zeroFee to blockchain
 	kai.blockchain.IsZeroFee = config.IsZeroFee
 	kai.txPool = tx_pool.NewTxPool(logger, config.TxPool, kai.chainConfig, kai.blockchain)
+	consensusInfo := config.Genesis.ConsensusInfo
+	kai.blockchain.ConsensusMasterSmartContract = pos.MasterSmartContract{
+		Address:       consensusInfo.Master.Address,
+		ByteCode:      consensusInfo.Master.ByteCode,
+		ABI:           consensusInfo.Master.ABI,
+		GenesisAmount: consensusInfo.Master.GenesisAmount,
+	}
+	kai.blockchain.NodeAbi = consensusInfo.Nodes.ABI
+	kai.blockchain.StakerAbi = consensusInfo.Stakers.ABI
+	kai.blockchain.BlockReward = consensusInfo.BlockReward
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
-	validatorSet, err := consensus.InitGenesisConsensus(kai.blockchain, ctx.Config.MainChainConfig.ConsensusInfo)
+	validatorSet, err := consensus.CollectValidatorSet(kai.blockchain, consensusInfo)
 	if err != nil {
 		return nil, err
 	}

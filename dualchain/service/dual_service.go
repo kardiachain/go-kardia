@@ -91,7 +91,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	logger.Info("Initialising protocol", "versions", serviceconst.ProtocolVersions, "network", config.NetworkId)
 
 	// Create a new blockchain to attach to this GroupService struct
-	dualService.blockchain, err = blockchain.NewBlockChain(logger, groupDb, dualService.chainConfig, config.IsPrivate)
+	dualService.blockchain, err = blockchain.NewBlockChain(logger, groupDb, dualService.chainConfig)
 	if err != nil {
 		return nil, err
 	}

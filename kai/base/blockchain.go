@@ -20,13 +20,72 @@ package base
 
 import (
 	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/kai/pos"
 	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
-	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/types"
+	"math/big"
 )
+
+// StateDB is an KVM database for full state querying.
+type StateDB interface {
+	CreateAccount(common.Address)
+
+	AddBalance(common.Address, *big.Int)
+	SubBalance(common.Address, *big.Int)
+	GetBalance(common.Address) *big.Int
+
+	GetCodeHash(common.Address) common.Hash
+	GetCode(common.Address) []byte
+	SetCode(common.Address, []byte)
+	GetCodeSize(common.Address) int
+
+	GetState(common.Address, common.Hash) common.Hash
+	SetState(common.Address, common.Hash, common.Hash)
+
+	GetNonce(common.Address) uint64
+	SetNonce(common.Address, uint64)
+
+	AddRefund(uint64)
+	SubRefund(uint64)
+	GetRefund() uint64
+
+	Suicide(common.Address) bool
+	HasSuicided(common.Address) bool
+
+	RevertToSnapshot(int)
+	Snapshot() int
+
+	// Exist reports whether the given account exists in state.
+	// Notably this should also return true for suicided accounts.
+	Exist(common.Address) bool
+
+	// Empty returns whether the given account is empty. Empty
+	// is defined as (balance = nonce = code = 0).
+	Empty(common.Address) bool
+
+	AddLog(*types.Log)
+	AddPreimage(common.Hash, []byte)
+}
+
+// ContractRef is a reference to the contract's backing object
+type ContractRef interface {
+	Address() common.Address
+}
+
+type KVM interface {
+	Cancel()
+	Cancelled() bool
+	IsZeroFee() bool
+	Call(caller ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error)
+	DelegateCall(caller ContractRef, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error)
+	StaticCall(caller ContractRef, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error)
+	Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error)
+	CreateGenesisContract(caller ContractRef, contract *common.Address, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error)
+	GetStateDB() StateDB
+	GetCoinbase() common.Address
+}
 
 type BaseBlockChain interface {
 	Genesis() *types.Block
@@ -43,11 +102,14 @@ type BaseBlockChain interface {
 	ReadCommit(height uint64) *types.Commit
 	Config() *types.ChainConfig
 	GetHeader(common.Hash, uint64) *types.Header
-	IsPrivate() bool
-	HasPermission(peer *p2p.Peer) bool
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StateAt(root common.Hash) (*state.StateDB, error)
 	DB() types.Database
 	ZeroFee() bool
-	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error)
+	ApplyMessage(vm KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error)
+	GetBlockReward() *big.Int
+	GetConsensusMasterSmartContract() pos.MasterSmartContract
+	GetConsensusNodeAbi() string
+	GetConsensusStakerAbi() string
+	CheckCommittedStateRoot(root common.Hash) bool
 }
