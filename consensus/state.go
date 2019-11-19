@@ -410,20 +410,20 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID discover.NodeID) (
 		// But if it's a conflicting sig, add it to the cs.evpool.
 		// If it's otherwise invalid, punish peer.
 		if err == ErrVoteHeightMismatch {
-			return false, err
+			return added, err
 		} else if _, ok := err.(*types.ErrVoteConflictingVotes); ok {
 			if vote.ValidatorAddress.Equal(cs.privValidator.GetAddress()) {
 				cs.logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
-				return false, err
+				return added, err
 			}
 			// TODO(namdoh): Re-enable this later.
 			cs.logger.Warn("Add vote error to evidence pool later")
-			return false, err
+			return added, err
 		} else {
 			// Probably an invalid signature / Bad peer.
 			// Seems this can also err sometimes with "Unexpected step" - perhaps not from a bad peer ?
 			cs.logger.Error("Error attempting to add vote", "err", err)
-			return false, ErrAddingVote
+			return added, ErrAddingVote
 		}
 	}
 	return added, nil
@@ -449,7 +449,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 		}
 		added, err = cs.LastCommit.AddVote(vote)
 		if !added {
-			return added, err
+			return
 		}
 
 		cs.logger.Info(cmn.Fmt("Added to lastPrecommits: %v", cs.LastCommit.StringShort()))
