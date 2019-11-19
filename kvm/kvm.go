@@ -20,12 +20,12 @@ package kvm
 
 import (
 	"fmt"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"math/big"
 
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/types"
@@ -37,9 +37,9 @@ var emptyCodeHash = crypto.Keccak256Hash(nil)
 
 type (
 	// CanTransferFunc is the signature of a transfer guard function
-	CanTransferFunc func(StateDB, common.Address, *big.Int) bool
+	CanTransferFunc func(base.StateDB, common.Address, *big.Int) bool
 	// TransferFunc is the signature of a transfer function
-	TransferFunc func(StateDB, common.Address, common.Address, *big.Int)
+	TransferFunc func(base.StateDB, common.Address, common.Address, *big.Int)
 	// GetHashFunc returns the nth block hash in the blockchain
 	// and is used by the BLOCKHASH KVM op code.
 	GetHashFunc func(uint64) common.Hash
@@ -50,7 +50,7 @@ func run(kvm *KVM, contract *Contract, input []byte, readOnly bool) ([]byte, err
 	if contract.CodeAddr != nil {
 		precompiles := PrecompiledContractsV0
 		if p := precompiles[*contract.CodeAddr]; p != nil {
-			return RunPrecompiledContract(p, input, contract)
+			return RunPrecompiledContract(p, input, contract, kvm.Context, kvm.StateDB)
 		}
 	}
 	return kvm.interpreter.Run(contract, input, readOnly)
@@ -76,6 +76,7 @@ type Context struct {
 	GasLimit    uint64         // Provides information for GASLIMIT
 	BlockHeight *big.Int       // Provides information for HEIGHT
 	Time        *big.Int       // Provides information for TIME
+	Chain  		base.BaseBlockChain
 }
 
 // KVM is the Kardia Virtual Machine base object and provides
@@ -91,7 +92,7 @@ type KVM struct {
 	// Context provides auxiliary blockchain related information
 	Context
 	// StateDB gives access to the underlying state
-	StateDB StateDB
+	StateDB base.StateDB
 	// Depth is the current call stack
 	depth int
 
@@ -112,7 +113,7 @@ type KVM struct {
 
 // NewKVM returns a new KVM. The returned KVM is not thread safe and should
 // only ever be used *once*.
-func NewKVM(ctx Context, statedb StateDB, vmConfig Config) *KVM {
+func NewKVM(ctx Context, statedb base.StateDB, vmConfig Config) *KVM {
 	kvm := &KVM{
 		Context:  ctx,
 		StateDB:  statedb,
@@ -134,22 +135,25 @@ func (kvm *KVM) Cancelled() bool {
 	return atomic.LoadInt32(&kvm.abort) == 1
 }
 
-// GetVmConfig returns kvm's config
-func (kvm *KVM) GetVmConfig() Config {
-	return kvm.vmConfig
+func (kvm *KVM) IsZeroFee() bool {
+	return kvm.vmConfig.IsZeroFee
+}
+
+func (kvm *KVM) GetCoinbase() common.Address {
+	return kvm.Coinbase
 }
 
 // Call executes the contract associated with the addr with the given input as
 // parameters. It also handles any necessary value transfer required and takes
 // the necessary steps to create accounts and reverses the state in case of an
 // execution error or failed value transfer.
-func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
+func (kvm *KVM) Call(caller base.ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
 	if kvm.vmConfig.NoRecursion && kvm.depth > 0 {
 		return nil, gas, nil
 	}
 
 	// Fail if we're trying to execute above the call depth limit
-	if kvm.depth > int(configs.CallCreateDepth) {
+	if kvm.depth > int(CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
@@ -159,9 +163,9 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 
 	var (
 		to       = AccountRef(addr)
-		snapshot = kvm.StateDB.Snapshot()
+		snapshot = kvm.GetStateDB().Snapshot()
 	)
-	if !kvm.StateDB.Exist(addr) {
+	if !kvm.GetStateDB().Exist(addr) {
 		precompiles := PrecompiledContractsV0
 		if precompiles[addr] == nil && value.Sign() == 0 {
 			/* TODO(huny@): Add tracer later
@@ -173,14 +177,14 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			*/
 			return nil, gas, nil
 		}
-		kvm.StateDB.CreateAccount(addr)
+		kvm.GetStateDB().CreateAccount(addr)
 	}
 	kvm.Transfer(kvm.StateDB, caller.Address(), to.Address(), value)
 
 	// Initialise a new contract and set the code that is to be used by the KVM.
 	// The contract is a scoped environment for this execution context only.
 	contract := NewContract(caller, to, value, gas)
-	contract.SetCallCode(&addr, kvm.StateDB.GetCodeHash(addr), kvm.StateDB.GetCode(addr))
+	contract.SetCallCode(&addr, kvm.GetStateDB().GetCodeHash(addr), kvm.GetStateDB().GetCode(addr))
 
 	/* TODO(huny@): Add tracer later
 	start := time.Now()
@@ -200,7 +204,7 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
 	if err != nil {
-		kvm.StateDB.RevertToSnapshot(snapshot)
+		kvm.GetStateDB().RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
@@ -216,13 +220,13 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 //
 // CallCode differs from Call in the sense that it executes the given address'
 // code with the caller as context.
-func (kvm *KVM) CallCode(caller ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
+func (kvm *KVM) CallCode(caller base.ContractRef, addr common.Address, input []byte, gas uint64, value *big.Int) (ret []byte, leftOverGas uint64, err error) {
 	if kvm.vmConfig.NoRecursion && kvm.depth > 0 {
 		return nil, gas, nil
 	}
 
 	// Fail if we're trying to execute above the call depth limit
-	if kvm.depth > int(configs.CallCreateDepth) {
+	if kvm.depth > int(CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
@@ -231,18 +235,18 @@ func (kvm *KVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	}
 
 	var (
-		snapshot = kvm.StateDB.Snapshot()
+		snapshot = kvm.GetStateDB().Snapshot()
 		to       = AccountRef(caller.Address())
 	)
 	// initialise a new contract and set the code that is to be used by the
 	// KVM. The contract is a scoped environment for this execution context
 	// only.
 	contract := NewContract(caller, to, value, gas)
-	contract.SetCallCode(&addr, kvm.StateDB.GetCodeHash(addr), kvm.StateDB.GetCode(addr))
+	contract.SetCallCode(&addr, kvm.GetStateDB().GetCodeHash(addr), kvm.GetStateDB().GetCode(addr))
 
 	ret, err = run(kvm, contract, input, false)
 	if err != nil {
-		kvm.StateDB.RevertToSnapshot(snapshot)
+		kvm.GetStateDB().RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
@@ -255,27 +259,27 @@ func (kvm *KVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 //
 // DelegateCall differs from CallCode in the sense that it executes the given address'
 // code with the caller as context and the caller is set to the caller of the caller.
-func (kvm *KVM) DelegateCall(caller ContractRef, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
+func (kvm *KVM) DelegateCall(caller base.ContractRef, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
 	if kvm.vmConfig.NoRecursion && kvm.depth > 0 {
 		return nil, gas, nil
 	}
 	// Fail if we're trying to execute above the call depth limit
-	if kvm.depth > int(configs.CallCreateDepth) {
+	if kvm.depth > int(CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
 
 	var (
-		snapshot = kvm.StateDB.Snapshot()
+		snapshot = kvm.GetStateDB().Snapshot()
 		to       = AccountRef(caller.Address())
 	)
 
 	// Initialise a new contract and make initialise the delegate values
 	contract := NewContract(caller, to, nil, gas).AsDelegate()
-	contract.SetCallCode(&addr, kvm.StateDB.GetCodeHash(addr), kvm.StateDB.GetCode(addr))
+	contract.SetCallCode(&addr, kvm.GetStateDB().GetCodeHash(addr), kvm.GetStateDB().GetCode(addr))
 
 	ret, err = run(kvm, contract, input, false)
 	if err != nil {
-		kvm.StateDB.RevertToSnapshot(snapshot)
+		kvm.GetStateDB().RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
@@ -287,36 +291,36 @@ func (kvm *KVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 // as parameters while disallowing any modifications to the state during the call.
 // Opcodes that attempt to perform such modifications will result in exceptions
 // instead of performing the modifications.
-func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
+func (kvm *KVM) StaticCall(caller base.ContractRef, addr common.Address, input []byte, gas uint64) (ret []byte, leftOverGas uint64, err error) {
 	if kvm.vmConfig.NoRecursion && kvm.depth > 0 {
 		return nil, gas, nil
 	}
 	// Fail if we're trying to execute above the call depth limit
-	if kvm.depth > int(configs.CallCreateDepth) {
+	if kvm.depth > int(CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
 
 	var (
 		to       = AccountRef(addr)
-		snapshot = kvm.StateDB.Snapshot()
+		snapshot = kvm.GetStateDB().Snapshot()
 	)
 	// Initialise a new contract and set the code that is to be used by the
 	// KVM. The contract is a scoped environment for this execution context
 	// only.
 	contract := NewContract(caller, to, new(big.Int), gas)
-	contract.SetCallCode(&addr, kvm.StateDB.GetCodeHash(addr), kvm.StateDB.GetCode(addr))
+	contract.SetCallCode(&addr, kvm.GetStateDB().GetCodeHash(addr), kvm.GetStateDB().GetCode(addr))
 
 	// We do an AddBalance of zero here, just in order to trigger a touch.
 	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
 	// but is the correct thing to do and matters on other networks, in tests, and potential
 	// future scenarios
-	kvm.StateDB.AddBalance(addr, bigZero)
+	kvm.GetStateDB().AddBalance(addr, bigZero)
 
 	// When an error was returned by the KVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining.
 	ret, err = run(kvm, contract, input, true)
 	if err != nil {
-		kvm.StateDB.RevertToSnapshot(snapshot)
+		kvm.GetStateDB().RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
@@ -337,11 +341,11 @@ func (c *codeAndHash) Hash() common.Hash {
 }
 
 // Create creates a new contract using code as deployment code.
-func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+func (kvm *KVM) create(caller base.ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
-	if kvm.depth > int(configs.CallCreateDepth) {
+	if kvm.depth > int(CallCreateDepth) {
 		return nil, common.Address{}, gas, ErrDepth
 	}
 	if !kvm.CanTransfer(kvm.StateDB, caller.Address(), value) {
@@ -357,9 +361,10 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		return nil, common.Address{}, 0, ErrContractAddressCollision
 	}
 	// Create a new account on the state
-	snapshot := kvm.StateDB.Snapshot()
+	snapshot := kvm.GetStateDB().Snapshot()
 	kvm.StateDB.CreateAccount(address)
 	kvm.StateDB.SetNonce(address, 1)
+	kvm.StateDB.SetCode(address, codeAndHash.code)
 
 	kvm.Transfer(kvm.StateDB, caller.Address(), address, value)
 
@@ -383,15 +388,15 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	ret, err = run(kvm, contract, nil, false)
 
 	// check whether the max code size has been exceeded
-	maxCodeSizeExceeded := len(ret) > configs.MaxCodeSize
+	maxCodeSizeExceeded := len(ret) > MaxCodeSize
 	// if the contract creation ran successfully and no errors were returned
 	// calculate the gas required to store the code. If the code could not
 	// be stored due to not enough gas set an error and let it be handled
 	// by the error checking condition below.
 	if err == nil && !maxCodeSizeExceeded {
-		createDataGas := uint64(len(ret)) * configs.CreateDataGas
+		createDataGas := uint64(len(ret)) * CreateDataGas
 		if contract.UseGas(createDataGas) {
-			kvm.StateDB.SetCode(address, ret)
+			kvm.GetStateDB().SetCode(address, ret)
 		} else {
 			err = ErrCodeStoreOutOfGas
 		}
@@ -400,7 +405,7 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	// When an error was returned by the KVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining.
 	if maxCodeSizeExceeded || err != nil {
-		kvm.StateDB.RevertToSnapshot(snapshot)
+		kvm.GetStateDB().RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
@@ -417,17 +422,21 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	return ret, address, contract.Gas, err
 }
 
+func (kvm *KVM) GetStateDB() base.StateDB {
+	return kvm.StateDB
+}
+
 // Create creates a new contract using code as deployment code.
-func (kvm *KVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-	contractAddr = crypto.CreateAddress(caller.Address(), kvm.StateDB.GetNonce(caller.Address()))
+func (kvm *KVM) Create(caller base.ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	contractAddr = crypto.CreateAddress(caller.Address(), kvm.GetStateDB().GetNonce(caller.Address()))
 	return kvm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
 
 // CreateGenesisContract creates contractAddr with given contractAddr
 // Note: this function is only used when creating genesis contract
-func (kvm *KVM) CreateGenesisContract(caller ContractRef, contract *common.Address, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+func (kvm *KVM) CreateGenesisContract(caller base.ContractRef, contract *common.Address, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	if contract == nil {
-		address := crypto.CreateAddress(caller.Address(), kvm.StateDB.GetNonce(caller.Address()))
+		address := crypto.CreateAddress(caller.Address(), kvm.GetStateDB().GetNonce(caller.Address()))
 		contract = &address
 	}
 
@@ -435,51 +444,126 @@ func (kvm *KVM) CreateGenesisContract(caller ContractRef, contract *common.Addre
 	if err != nil {
 		return nil, *contract, gas, err
 	}
-	kvm.StateDB.AddBalance(*contract, value)
+	kvm.GetStateDB().AddBalance(*contract, value)
 	return ret, contractAddr, leftOverGas, nil
 }
 
-//================================================================================================
-// Interfaces
-//=================================================================================================
+// NewKVMContext creates a new context for dual node to call smc in the KVM.
+func NewInternalKVMContext(from common.Address, header *types.Header, chain base.BaseBlockChain) Context {
+	return Context{
+		CanTransfer: CanTransfer,
+		Transfer:    Transfer,
+		GetHash:     GetHashFn(header, chain),
+		Origin:      from,
+		Coinbase:    header.Coinbase,
+		BlockHeight: new(big.Int).SetUint64(header.Height),
+		Time:        new(big.Int).Set(header.Time),
+		GasLimit:    header.GasLimit,
+		GasPrice:    big.NewInt(1),
+		Chain: chain,
+	}
+}
 
-// StateDB is an KVM database for full state querying.
-type StateDB interface {
-	CreateAccount(common.Address)
+func NewGenesisKVMContext(from common.Address, gasLimit uint64) Context {
+	return Context{
+		CanTransfer: CanTransfer,
+		Transfer:    Transfer,
+		GetHash:     GenesisGetHashFn(),
+		Origin:      from,
+		Coinbase:    common.Address{},
+		BlockHeight: big.NewInt(0),
+		Time:        big.NewInt(0),
+		GasLimit:    gasLimit,
+		GasPrice:    big.NewInt(1),
+	}
+}
 
-	AddBalance(common.Address, *big.Int)
-	SubBalance(common.Address, *big.Int)
-	GetBalance(common.Address) *big.Int
+func GenesisGetHashFn() func(n uint64) common.Hash {
+	return func(n uint64) common.Hash {
+		return common.Hash{}
+	}
+}
 
-	GetCodeHash(common.Address) common.Hash
-	GetCode(common.Address) []byte
-	SetCode(common.Address, []byte)
-	GetCodeSize(common.Address) int
+// GetHashFn returns a GetHashFunc which retrieves header hashes by height
+func GetHashFn(ref *types.Header, chain base.BaseBlockChain) func(n uint64) common.Hash {
+	var cache map[uint64]common.Hash
 
-	GetState(common.Address, common.Hash) common.Hash
-	SetState(common.Address, common.Hash, common.Hash)
+	return func(n uint64) common.Hash {
+		// If there's no hash cache yet, make one
+		if cache == nil {
+			cache = map[uint64]common.Hash{
+				ref.Height - 1: ref.LastCommitHash,
+			}
+		}
+		// Try to fulfill the request from the cache
+		if hash, ok := cache[n]; ok {
+			return hash
+		}
+		// Not cached, iterate the blocks and cache the hashes
+		for header := chain.GetHeader(ref.LastCommitHash, ref.Height-1); header != nil; header = chain.GetHeader(header.LastCommitHash, header.Height-1) {
+			cache[header.Height-1] = header.LastCommitHash
+			if n == header.Height-1 {
+				return header.LastCommitHash
+			}
+		}
+		return common.Hash{}
+	}
+}
 
-	GetNonce(common.Address) uint64
-	SetNonce(common.Address, uint64)
+// CanTransfer checks wether there are enough funds in the address' account to make a transfer.
+// This does not take the necessary gas in to account to make the transfer valid.
+func CanTransfer(db base.StateDB, addr common.Address, amount *big.Int) bool {
+	return db.GetBalance(addr).Cmp(amount) >= 0
+}
 
-	AddRefund(uint64)
-	SubRefund(uint64)
-	GetRefund() uint64
+// Transfer subtracts amount from sender and adds amount to recipient using the given Db
+func Transfer(db base.StateDB, sender, recipient common.Address, amount *big.Int) {
+	//log.Error("transferring", "sender", sender.Hex(), "receiver", recipient.Hex(), "amount", amount.String())
+	db.SubBalance(sender, amount)
+	db.AddBalance(recipient, amount)
+}
 
-	Suicide(common.Address) bool
-	HasSuicided(common.Address) bool
+/**
+	Internal contract execution
+ */
+const maximumGasUsed = uint64(7000000)
 
-	RevertToSnapshot(int)
-	Snapshot() int
+func newInternalKVM(from common.Address, chain base.BaseBlockChain, statedb base.StateDB) *KVM {
+	ctx := NewInternalKVMContext(from, chain.CurrentHeader(), chain)
+	return NewKVM(ctx, statedb, Config{})
+}
 
-	// Exist reports whether the given account exists in state.
-	// Notably this should also return true for suicided accounts.
-	Exist(common.Address) bool
+// staticCall calls smc and return result in bytes format
+func StaticCall(vm *KVM, to common.Address, input []byte) (result []byte, err error) {
+	sender := AccountRef(vm.Context.Origin)
+	result, _, err = vm.StaticCall(sender, to, input, maximumGasUsed)
+	return result, err
+}
 
-	// Empty returns whether the given account is empty. Empty
-	// is defined as (balance = nonce = code = 0).
-	Empty(common.Address) bool
+func InternalCall(vm *KVM, to common.Address, input []byte, value *big.Int) (result []byte, err error) {
+	sender := AccountRef(vm.Context.Origin)
+	result, _, err = vm.Call(sender, to, input, maximumGasUsed, value)
+	return result, err
+}
 
-	AddLog(*types.Log)
-	AddPreimage(common.Hash, []byte)
+func InternalCreate(vm *KVM, to common.Address, input []byte, value *big.Int) (result []byte, address common.Address, leftOverGas uint64, err error) {
+	sender := AccountRef(vm.Context.Origin)
+	return vm.CreateGenesisContract(sender, &to, input, maximumGasUsed, value)
+}
+
+// EstimateGas estimates spent in order to
+func EstimateGas(vm *KVM, to common.Address, input []byte) (uint64, error){
+	// Create new call message
+	msg := types.NewMessage(vm.Origin, &to, 0, big.NewInt(0), maximumGasUsed, big.NewInt(1), input, false)
+	// Apply the transaction to the current state (included in the env)
+	gp := new(types.GasPool).AddGas(common.MaxUint64)
+	_, gas, _, err := vm.Context.Chain.ApplyMessage(vm, msg, gp)
+	if err != nil {
+		return 0, err
+	}
+	// If the timer caused an abort, return an appropriate error message
+	if vm.Cancelled() {
+		return 0, fmt.Errorf("execution aborted")
+	}
+	return gas, nil // need to add some bufferGas to prevent out of gas
 }

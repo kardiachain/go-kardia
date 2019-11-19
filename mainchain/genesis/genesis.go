@@ -29,6 +29,8 @@ import (
 	"github.com/kardiachain/go-kardia/kai/kaidb"
 
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/kai/pos"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -37,18 +39,17 @@ import (
 
 //go:generate gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go
 //go:generate gencodec -type GenesisAccount -field-override genesisAccountMarshaling -out gen_genesis_account.go
-
+const GenesisGasLimit uint64 = 4712388 // Gas limit of the Genesis block.
 var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
-	Config     *types.ChainConfig `json:"config"`
-	Timestamp  uint64             `json:"timestamp"`
-	GasLimit   uint64             `json:"gasLimit"   gencodec:"required"`
-	Alloc      GenesisAlloc       `json:"alloc"      gencodec:"required"`
-	Validators []*types.Validator `json:"validators"`
-
-	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
+	Config    *types.ChainConfig `json:"config"`
+	Timestamp uint64               `json:"timestamp"`
+	GasLimit  uint64               `json:"gasLimit"   gencodec:"required"`
+	Alloc     GenesisAlloc         `json:"alloc"      gencodec:"required"`
+	ConsensusInfo pos.ConsensusInfo
+	KardiaSmartContracts    []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.
@@ -174,6 +175,15 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 			statedb.SetState(addr, key, value)
 		}
 	}
+	if g.GasLimit == 0 {
+		g.GasLimit = GenesisGasLimit
+	}
+	// init pos genesis here
+	if !statedb.Exist(g.ConsensusInfo.Master.Address) && g.ConsensusInfo.Master.Address.Hex() != (common.Address{}).Hex() {
+		if err := consensus.InitGenesisConsensus(statedb, g.GasLimit, g.ConsensusInfo); err != nil {
+			panic(err)
+		}
+	}
 	root := statedb.IntermediateRoot(false)
 	head := &types.Header{
 		//@huny: convert timestamp here
@@ -181,9 +191,6 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 		Height:   0,
 		GasLimit: g.GasLimit,
 		AppHash:  root,
-	}
-	if g.GasLimit == 0 {
-		head.GasLimit = configs.GenesisGasLimit
 	}
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)

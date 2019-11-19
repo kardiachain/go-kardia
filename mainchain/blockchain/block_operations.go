@@ -77,6 +77,24 @@ func (bo *BlockOperations) CreateProposalBlock(
 
 	block = bo.newBlock(header, txs, commit)
 	bo.logger.Info("Make block to propose", "height", block.Height(), "AppHash", block.AppHash(), "hash", block.Hash())
+
+	// claim reward
+	if bo.blockchain.CurrentBlock().Height() > 1 {
+		st, err := bo.blockchain.State()
+		if err != nil {
+			bo.logger.Error("Fail to get blockchain head state", "err", err)
+			return nil, nil
+		}
+		tx, err := kvm.ClaimReward(bo.blockchain, st, bo.txPool)
+		if err != nil {
+			bo.logger.Error("fail to claim reward", "err", err, "sender", bo.blockchain.Config().BaseAccount.Address.Hex())
+			return nil, nil
+		}
+		if err = bo.txPool.AddTx(tx); err != nil {
+			bo.logger.Error("fail to add claim reward transaction", "err", err)
+			return nil, nil
+		}
+	}
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
 }
 

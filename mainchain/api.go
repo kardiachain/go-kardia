@@ -25,7 +25,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -644,12 +643,12 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 func (s *PublicKaiAPI) EstimateGas(ctx context.Context, call types.CallArgsJSON) (uint64, error) {
 	// Binary search the gas requirement, as it may be higher than the amount used
 	var (
-		lo  = configs.TxGas - 1
+		lo  = kvm.TxGas - 1
 		hi  uint64
 		cap uint64
 	)
 	args := types.NewArgs(call)
-	if args.Gas >= configs.TxGas {
+	if args.Gas >= kvm.TxGas {
 		hi = args.Gas
 	} else {
 		// Retrieve the current pending block to act as the gas ceiling

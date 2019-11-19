@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"github.com/kardiachain/go-kardia/kvm"
 	"math"
 	"math/big"
 	"math/rand"
@@ -45,7 +46,7 @@ type Account struct {
 }
 
 const (
-	DefaultGasLimit             = configs.TxGas // currently we don't care about tx fee and cost.
+	DefaultGasLimit             = kvm.TxGas // currently we don't care about tx fee and cost.
 	DefaultFaucetAcc            = "0x2BB7316884C7568F2C6A6aDf2908667C0d241A66"
 	DefaultFaucetPrivAcc        = "4561f7d91a4f95ef0a72550fa423febaad3594f91611f9a2b10a7af4d3deb9ed"
 	DefaultGenRandomWithStateTx = 1

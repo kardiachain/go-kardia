@@ -450,7 +450,7 @@ func CommonReadEvents(db kaidb.Reader, address string) (string, []*types.Watcher
 func CommonReadSmartContractAbi(db kaidb.Reader, address string) *abi.ABI {
 	data, err := db.Get(contractAbiKey(address))
 	if err != nil || data == nil {
-		log.Error("error while get abi from contract address", "err", err, "address", address)
+		log.Warn("error while get abi from contract address", "err", err, "address", address)
 		return nil
 	}
 	var entry SmartContract

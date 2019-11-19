@@ -259,14 +259,13 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	pm.logger.Debug("Kardia peer connected", "name", p.Name())
 
 	var (
-		genesis       = pm.blockchain.Genesis()
-		hash          = pm.blockchain.CurrentHeader().Hash()
-		height        = pm.blockchain.CurrentBlock().Height()
-		hasPermission = pm.blockchain.HasPermission(p.Peer)
+		genesis = pm.blockchain.Genesis()
+		hash    = pm.blockchain.CurrentHeader().Hash()
+		height  = pm.blockchain.CurrentBlock().Height()
 	)
 
 	// Execute the Kardia handshake
-	accepted, err := p.Handshake(pm.networkID, pm.chainID, height, hash, genesis.Hash(), hasPermission)
+	accepted, err := p.Handshake(pm.networkID, pm.chainID, height, hash, genesis.Hash())
 	if err != nil {
 		return err
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/kardiachain/go-kardia/dualchain/service"
 	"github.com/kardiachain/go-kardia/dualnode/dual_proxy"
 	"github.com/kardiachain/go-kardia/dualnode/kardia"
+	"github.com/kardiachain/go-kardia/kai/pos"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -174,33 +175,35 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	genesisAmount, _ := big.NewInt(0).SetString(c.MainChain.Consensus.Master.GenesisAmount, 10)
+	genesisAmount, _ := big.NewInt(0).SetString(c.MainChain.Consensus.Deployment.Master.GenesisAmount, 10)
 	minimumStakes, _ := big.NewInt(0).SetString(c.MainChain.Consensus.MinimumStakes, 10)
+	blockReward, _ := big.NewInt(0).SetString(c.MainChain.Consensus.BlockReward, 10)
 	// get consensus info
-	consensus := node.ConsensusInfo{
+	consensus := pos.ConsensusInfo{
+		BlockReward: blockReward,
 		MaxValidators:   c.MainChain.Consensus.MaxValidators,
 		ConsensusPeriod: c.MainChain.Consensus.ConsensusPeriod,
 		MinimumStakes: minimumStakes,
-		Master:          node.MasterSmartContract{
-			Address:       common.HexToAddress(c.MainChain.Consensus.Master.Address),
-			ByteCode:      common.Hex2Bytes(c.MainChain.Consensus.Master.ByteCode),
-			ABI:           strings.Replace(c.MainChain.Consensus.Master.ABI, "'", "\"", -1),
+		Master:          pos.MasterSmartContract{
+			Address:       common.HexToAddress(c.MainChain.Consensus.Deployment.Master.Address),
+			ByteCode:      common.Hex2Bytes(c.MainChain.Consensus.Compilation.Master.ByteCode),
+			ABI:           strings.Replace(c.MainChain.Consensus.Compilation.Master.ABI, "'", "\"", -1),
 			GenesisAmount: genesis.ToCell(genesisAmount.Int64()),
 		},
-		Nodes:           node.Nodes{
-			ABI:         strings.Replace(c.MainChain.Consensus.Nodes.ABI, "'", "\"", -1),
-			ByteCode:    common.Hex2Bytes(c.MainChain.Consensus.Nodes.ByteCode),
-			GenesisInfo: make([]node.GenesisNodeInfo, 0),
+		Nodes:           pos.Nodes{
+			ABI:         strings.Replace(c.MainChain.Consensus.Compilation.Node.ABI, "'", "\"", -1),
+			ByteCode:    common.Hex2Bytes(c.MainChain.Consensus.Compilation.Node.ByteCode),
+			GenesisInfo: make([]pos.GenesisNodeInfo, 0),
 		},
-		Stakers:         node.Stakers{
-			ABI:         strings.Replace(c.MainChain.Consensus.Stakers.ABI, "'", "\"", -1),
-			ByteCode:    common.Hex2Bytes(c.MainChain.Consensus.Stakers.ByteCode),
-			GenesisInfo: make([]node.GenesisStakeInfo, 0),
+		Stakers:         pos.Stakers{
+			ABI:         strings.Replace(c.MainChain.Consensus.Compilation.Staker.ABI, "'", "\"", -1),
+			ByteCode:    common.Hex2Bytes(c.MainChain.Consensus.Compilation.Staker.ByteCode),
+			GenesisInfo: make([]pos.GenesisStakeInfo, 0),
 		},
 	}
 	// get Nodes
-	for _, n := range c.MainChain.Consensus.Nodes.NodeInfo {
-		consensus.Nodes.GenesisInfo = append(consensus.Nodes.GenesisInfo, node.GenesisNodeInfo{
+	for _, n := range c.MainChain.Consensus.Deployment.Nodes {
+		consensus.Nodes.GenesisInfo = append(consensus.Nodes.GenesisInfo, pos.GenesisNodeInfo{
 			Address: common.HexToAddress(n.Address),
 			Owner:   common.HexToAddress(n.Owner),
 			PubKey:  n.PubKey,
@@ -211,9 +214,9 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		})
 	}
 	// get stakers
-	for _, s := range c.MainChain.Consensus.Stakers.StakerInfo {
+	for _, s := range c.MainChain.Consensus.Deployment.Stakers {
 		stakeAmount, _ := big.NewInt(0).SetString(s.StakeAmount, 10)
-		consensus.Stakers.GenesisInfo = append(consensus.Stakers.GenesisInfo, node.GenesisStakeInfo{
+		consensus.Stakers.GenesisInfo = append(consensus.Stakers.GenesisInfo, pos.GenesisStakeInfo{
 			Address:     common.HexToAddress(s.Address),
 			Owner:       common.HexToAddress(s.Owner),
 			StakedNode:  common.HexToAddress(s.StakedNode),
@@ -221,6 +224,8 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 			StakeAmount: genesis.ToCell(stakeAmount.Int64()),
 		})
 	}
+	// assign consensus to genesisData
+	genesisData.ConsensusInfo = consensus
 	mainChainConfig := node.MainChainConfig{
 		ValidatorIndexes: c.MainChain.Validators,
 		DBInfo:           dbInfo,
@@ -232,7 +237,6 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		ChainId:          chain.ChainID,
 		ServiceName:      chain.ServiceName,
 		BaseAccount:      baseAccount,
-		ConsensusInfo:    consensus,
 	}
 	return &mainChainConfig, nil
 }

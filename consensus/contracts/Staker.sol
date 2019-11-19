@@ -1,17 +1,9 @@
 pragma solidity ^0.5.8;
 
-/**
- * Staker contains information of a user who wants to stake KAI to one or more nodes (candidates to become validators).
- * - When user send a raw transaction which contains Staker's required information and transaction's type SIGNUP_STAKER,
- * system will create one contract address for that staker
- * - When user sends a payable transaction with type STAKE, validator will read it and trigger Master to store the value.
- * - When user wants to withdraw, system will do the following steps:
- *  1/ user sends WITHDRAW type transaction.
- *  2/ check if (currentBlock-startedAt) <= _lockedPeriod or not, if it does, transfer staked KAI to user.
- *  3/ validators trigger Master's withdraw function to update stake amount in node.
- *  4/ Node which is staked by user will receive user tx and calculate percentage bonus to user and transfer reward to user.
- **/
+
 contract Staker {
+
+    address constant PoSHandler = 0x0000000000000000000000000000000000000005;
 
     string constant stakeFunc = "stake(address,uint256)";
     string constant withdrawFunc = "withdraw(address,uint256)";
@@ -28,11 +20,23 @@ contract Staker {
         uint256 amount;
     }
 
+    struct RewardInfo {
+        uint64 blockHeight;
+        uint256 amount;
+    }
+
     StakeInfo[] stakeInfo;
     mapping(address=>uint) _hasStaked;
+    mapping(address=>RewardInfo[]) rewards;
+    mapping(address=>uint256) totalRewards;
 
     modifier isOwner() {
         require(msg.sender == _owner, "sender is not owner");
+        _;
+    }
+
+    modifier isPoSHandler() {
+        require(msg.sender == PoSHandler, "sender is not PoSHandler");
         _;
     }
 
@@ -84,5 +88,16 @@ contract Staker {
             return (stakeInfo[index].amount, true);
         }
         return (0, false);
+    }
+
+    function saveReward(address node, uint64 blockHeight, uint256 amount) public isPoSHandler {
+        rewards[node].push(RewardInfo(blockHeight, amount));
+        totalRewards[node] += amount;
+    }
+
+    function withdrawReward(address node, uint256 amount) public isOwner {
+        require(amount <= totalRewards[node], "insufficient amount");
+        _owner.transfer(amount);
+        totalRewards[node] -= amount;
     }
 }

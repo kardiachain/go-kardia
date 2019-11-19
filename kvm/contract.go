@@ -18,6 +18,7 @@ package kvm
 
 import (
 	"errors"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"math/big"
 
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -31,11 +32,6 @@ var (
 	ErrInsufficientBalance      = errors.New("insufficient balance for transfer")
 	ErrContractAddressCollision = errors.New("contract address collision")
 )
-
-// ContractRef is a reference to the contract's backing object
-type ContractRef interface {
-	Address() common.Address
-}
 
 // AccountRef implements ContractRef.
 //
@@ -56,8 +52,8 @@ type Contract struct {
 	// contract. However when the "call method" is delegated this value
 	// needs to be initialised to that of the caller's caller.
 	CallerAddress common.Address
-	caller        ContractRef
-	self          ContractRef
+	caller        base.ContractRef
+	self          base.ContractRef
 
 	jumpdests map[common.Hash]bitvec // result of JUMPDEST analysis.
 	analysis  bitvec
@@ -72,7 +68,7 @@ type Contract struct {
 }
 
 // NewContract returns a new contract environment for the execution of KVM.
-func NewContract(caller ContractRef, object ContractRef, value *big.Int, gas uint64) *Contract {
+func NewContract(caller base.ContractRef, object base.ContractRef, value *big.Int, gas uint64) *Contract {
 	c := &Contract{CallerAddress: caller.Address(), caller: caller, self: object}
 
 	if parent, ok := caller.(*Contract); ok {

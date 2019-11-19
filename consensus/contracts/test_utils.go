@@ -1,6 +1,7 @@
 package contracts
 
 import (
+	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -99,7 +100,7 @@ var (
 )
 
 // staticCall calls smc and return result in bytes format
-func staticCall(from common.Address, to common.Address, currentHeader *types.Header, chain vm.ChainContext, input []byte, statedb *state.StateDB) (result []byte, err error) {
+func staticCall(from common.Address, to common.Address, currentHeader *types.Header, chain base.BaseBlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
 	ctx := vm.NewKVMContextFromDualNodeCall(from, currentHeader, chain)
 	vmenv := kvm.NewKVM(ctx, statedb, kvm.Config{})
 	sender := kvm.AccountRef(from)
@@ -110,7 +111,7 @@ func staticCall(from common.Address, to common.Address, currentHeader *types.Hea
 	return ret, nil
 }
 
-func call(from common.Address, to common.Address, currentHeader *types.Header, chain vm.ChainContext, input []byte, value *big.Int, statedb *state.StateDB) (result []byte, err error) {
+func call(from common.Address, to common.Address, currentHeader *types.Header, chain base.BaseBlockChain, input []byte, value *big.Int, statedb *state.StateDB) (result []byte, err error) {
 	ctx := vm.NewKVMContextFromDualNodeCall(from, currentHeader, chain)
 	vmenv := kvm.NewKVM(ctx, statedb, kvm.Config{})
 	sender := kvm.AccountRef(from)
@@ -121,7 +122,7 @@ func call(from common.Address, to common.Address, currentHeader *types.Header, c
 	return ret, nil
 }
 
-func create(from common.Address, to common.Address, currentHeader *types.Header, chain vm.ChainContext, input []byte, value *big.Int, statedb *state.StateDB) (result []byte, address *common.Address, leftOverGas uint64, err error) {
+func create(from common.Address, to common.Address, currentHeader *types.Header, chain base.BaseBlockChain, input []byte, value *big.Int, statedb *state.StateDB) (result []byte, address *common.Address, leftOverGas uint64, err error) {
 	ctx := vm.NewKVMContextFromDualNodeCall(from, currentHeader, chain)
 	vmenv := kvm.NewKVM(ctx, statedb, kvm.Config{})
 	sender := kvm.AccountRef(from)
@@ -159,6 +160,6 @@ func setupBlockchain() (*blockchain.BlockChain, error) {
 		return nil, genesisErr
 	}
 
-	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig, true)
+	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig)
 	return bc, err
 }
