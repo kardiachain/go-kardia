@@ -80,13 +80,14 @@
   version = "v0.10.4"
 
 [[projects]]
-  digest = "1:222a860ea205104f228e9d86622f5144c10ba014fce88bfe0f4873acded4ec9f"
+  digest = "1:b4d37b1a8efb405ae53f304afc669d820261075137606db6b6dfaf95dea123f2"
   name = "github.com/ethereum/go-ethereum"
   packages = [
     ".",
     "accounts",
     "accounts/abi",
     "accounts/abi/bind",
+    "accounts/abi/bind/backends",
     "accounts/external",
     "accounts/keystore",
     "accounts/scwallet",
@@ -113,6 +114,7 @@
     "core/types",
     "core/vm",
     "crypto",
+    "crypto/blake2b",
     "crypto/bn256",
     "crypto/bn256/cloudflare",
     "crypto/bn256/google",
@@ -157,8 +159,8 @@
     "trie",
   ]
   pruneopts = "T"
-  revision = "e76047e9f5499b58064bddde514dd3119a090adf"
-  version = "v1.9.2"
+  revision = "a718daa674a2e23cb0c8a6789f7e5467e705bbbd"
+  version = "v1.9.7"
 
 [[projects]]
   branch = "master"
@@ -459,7 +461,8 @@
   version = "v1.3.0"
 
 [[projects]]
-  digest = "1:5b180f17d5bc50b765f4dcf0d126c72979531cbbd7f7929bf3edd87fb801ea2d"
+  branch = "master"
+  digest = "1:c345767003e0d53971e0f409a42b875dab3fee7ec269557c863ebbb194341420"
   name = "github.com/syndtr/goleveldb"
   packages = [
     "leveldb",
@@ -476,8 +479,7 @@
     "leveldb/util",
   ]
   pruneopts = "UT"
-  revision = "9d007e481048296f09f59bd19bb7ae584563cd95"
-  version = "v1.0.0"
+  revision = "758128399b1df3a87e92df6c26c1d2063da8fabe"
 
 [[projects]]
   digest = "1:91b40a2adb6b4ccd51b1dfb306edfa76139e1599b01666346085472b386f5447"

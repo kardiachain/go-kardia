@@ -41,3 +41,10 @@
 [[constraint]]
   name = "github.com/influxdata/influxdb1-client"
   branch = "master"
+
+[[constraint]]
+  name = "github.com/syndtr/goleveldb"
+  branch = "master"
+
+
+  
