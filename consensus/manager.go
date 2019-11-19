@@ -192,12 +192,12 @@ func (conR *ConsensusManager) ReceiveNewBlockPart(generalMsg p2p.Msg, src *p2p.P
 
 	msg := &BlockPartMessage{}
 	if err := generalMsg.Decode(msg); err != nil {
-		conR.logger.Error("Invalid block part message", "msg", generalMsg, "err", err)
+		conR.logger.Error("Failed to decode block part message", "msg", generalMsg, "err", err)
 		return
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
-		conR.logger.Error("Peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
+		conR.logger.Error("Failed to validate block part message", "peer", src, "msg", msg, "err", err)
 		return
 	}
 
@@ -221,12 +221,12 @@ func (conR *ConsensusManager) ReceiveNewValidBlock(generalMsg p2p.Msg, src *p2p.
 
 	msg := &NewValidBlockMessage{}
 	if err := generalMsg.Decode(msg); err != nil {
-		conR.logger.Error("Invalid valid block message", "msg", generalMsg, "err", err)
+		conR.logger.Error("Failed to decode valid block message", "msg", generalMsg, "err", err)
 		return
 	}
 
 	if err := msg.ValidateBasic(); err != nil {
-		conR.logger.Error("Peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
+		conR.logger.Error("Failed to validate valid block message ", "peer", src, "msg", msg, "err", err)
 		return
 	}
 
