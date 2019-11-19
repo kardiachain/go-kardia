@@ -21,6 +21,14 @@ package tests
 import (
 	"errors"
 	"fmt"
+	"math"
+	"math/big"
+	"strings"
+	"testing"
+
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -30,10 +38,6 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/types"
-	"math"
-	"math/big"
-	"strings"
-	"testing"
 )
 
 // GenesisAccounts are used to initialized accounts in genesis block
@@ -171,7 +175,7 @@ func executeWithFee(bc *blockchain.BlockChain, msg types.Message) ([]byte, error
 func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 
 	// Start setting up blockchain
-	kaiDb := types.NewMemStore()
+	kaiDb := kvstore.NewStoreDB(memorydb.New())
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
@@ -242,7 +246,7 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 
 func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	// Start setting up blockchain
-	kaiDb := types.NewMemStore()
+	kaiDb := kvstore.NewStoreDB(memorydb.New())
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")

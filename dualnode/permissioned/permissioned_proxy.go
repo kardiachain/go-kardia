@@ -20,6 +20,10 @@ package permissioned
 
 import (
 	"fmt"
+	"math/big"
+	"strconv"
+	"strings"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
@@ -29,15 +33,12 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/mainchain"
+	kai "github.com/kardiachain/go-kardia/mainchain"
 	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/pkg/errors"
-	"math/big"
-	"strconv"
-	"strings"
 )
 
 const SERVICE_NAME = "PRIVATE_DUAL"
@@ -346,7 +347,7 @@ func (p *PermissionedProxy) SubmitTx(event *types.EventData) error {
 		log.Error("Fail to create Kardia's tx from DualEvent", "err", err)
 		return configs.ErrCreateKardiaTx
 	}
-	err = p.privateService.TxPool().AddTx(tx)
+	err = p.privateService.TxPool().AddLocal(tx)
 	if err != nil {
 		log.Error("Fail to add Kardia's tx", "error", err)
 		return configs.ErrAddKardiaTx

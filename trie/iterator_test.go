@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
@@ -128,9 +129,12 @@ func TestNodeIteratorCoverage(t *testing.T) {
 			}
 		}
 	}
-	for _, key := range db.diskdb.(*MemStore).Keys() {
-		if _, ok := hashes[common.BytesToHash(key)]; !ok {
-			t.Errorf("state entry not reported %x", key)
+
+	iterator := db.diskdb.NewIterator()
+
+	for iterator.Next() {
+		if _, ok := hashes[common.BytesToHash(iterator.Key())]; !ok {
+			t.Errorf("state entry not reported %x", iterator.Key())
 		}
 	}
 }
@@ -310,7 +314,7 @@ func checkIteratorNoDups(t *testing.T, it NodeIterator, seen map[string]bool) in
 func TestIteratorContinueAfterErrorMemonly(t *testing.T) { testIteratorContinueAfterError(t, true) }
 
 func testIteratorContinueAfterError(t *testing.T, memonly bool) {
-	diskdb := NewMemStore()
+	diskdb := memorydb.New()
 	triedb := NewDatabase(diskdb)
 
 	tr, _ := New(common.Hash{}, triedb)
@@ -330,7 +334,12 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 	if memonly {
 		memKeys = triedb.Nodes()
 	} else {
-		diskKeys = diskdb.Keys()
+
+		iterator := diskdb.NewIterator()
+		for iterator.Next() {
+			diskKeys = append(diskKeys, iterator.Key())
+		}
+
 	}
 	for i := 0; i < 20; i++ {
 		// Create trie that will load all nodes from DB.
@@ -382,7 +391,7 @@ func testIteratorContinueAfterError(t *testing.T, memonly bool) {
 		if memonly {
 			triedb.nodes[rkey.(common.Hash)] = robj
 		} else {
-			diskdb.Put(rkey.([]byte)[:], rval)
+			diskdb.Put(rkey.([]byte)[:], rval.([]byte))
 		}
 		checkIteratorNoDups(t, it, seen)
 		if it.Error() != nil {
@@ -406,7 +415,7 @@ func TestIteratorContinueAfterSeekErrorMemonly(t *testing.T) {
 
 func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 	// Commit test trie to db, then remove the node containing "bars".
-	diskdb := NewMemStore()
+	diskdb := memorydb.New()
 	triedb := NewDatabase(diskdb)
 
 	ctr, _ := New(common.Hash{}, triedb)
@@ -445,7 +454,7 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 	if memonly {
 		triedb.nodes[interfaceToHash(barNodeHash)] = barNodeObj
 	} else {
-		diskdb.Put(interfaceToHash(barNodeHash).Bytes()[:], barNodeBlob)
+		diskdb.Put(interfaceToHash(barNodeHash).Bytes(), barNodeBlob.([]byte))
 	}
 	// Check that iteration produces the right set of values.
 	if err := checkIteratorOrder(testdata1[2:], NewIterator(it)); err != nil {
@@ -456,7 +465,7 @@ func testIteratorContinueAfterSeekError(t *testing.T, memonly bool) {
 // makeTestTrie create a sample test trie to test node-wise reconstruction.
 func makeTestTrie() (*TrieDatabase, *Trie, map[string][]byte) {
 	// Create an empty trie
-	triedb := NewDatabase(NewMemStore())
+	triedb := NewDatabase(memorydb.New())
 	trie, _ := New(common.Hash{}, triedb)
 
 	// Fill it with some arbitrary data

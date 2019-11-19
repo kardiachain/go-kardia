@@ -22,19 +22,20 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 )
 
 func newEmptySecure() *SecureTrie {
-	trie, _ := NewSecure(common.Hash{}, NewDatabase(NewMemStore()), 0)
+	trie, _ := NewSecure(common.Hash{}, NewDatabase(memorydb.New()), 0)
 	return trie
 }
 
 // makeTestSecureTrie creates a large enough secure trie for testing.
 func makeTestSecureTrie() (*TrieDatabase, *SecureTrie, map[string][]byte) {
 	// Create an empty trie
-	triedb := NewDatabase(NewMemStore())
+	triedb := NewDatabase(memorydb.New())
 
 	trie, _ := NewSecure(common.Hash{}, triedb, 0)
 

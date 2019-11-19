@@ -30,6 +30,8 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/rlp"
@@ -42,7 +44,7 @@ func init() {
 
 // Used for testing
 func newEmpty() *Trie {
-	trie, _ := New(common.Hash{}, NewDatabase(NewMemStore()))
+	trie, _ := New(common.Hash{}, NewDatabase(memorydb.New()))
 	return trie
 }
 
@@ -66,7 +68,7 @@ func TestNull(t *testing.T) {
 }
 
 func TestMissingRoot(t *testing.T) {
-	trie, err := New(common.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"), NewDatabase(NewMemStore()))
+	trie, err := New(common.HexToHash("0beec7b5ea3f0fdbc95d0dd47f3c5bc275da8a33"), NewDatabase(memorydb.New()))
 	if trie != nil {
 		t.Error("New returned non-nil trie for invalid root")
 	}
@@ -79,7 +81,7 @@ func TestMissingNodeDisk(t *testing.T)    { testMissingNode(t, false) }
 func TestMissingNodeMemonly(t *testing.T) { testMissingNode(t, true) }
 
 func testMissingNode(t *testing.T, memonly bool) {
-	diskdb := NewMemStore()
+	diskdb := memorydb.New()
 	triedb := NewDatabase(diskdb)
 
 	trie, _ := New(common.Hash{}, triedb)
@@ -326,12 +328,12 @@ func TestLargeValue(t *testing.T) {
 }
 
 type countingDB struct {
-	Database
+	kaidb.Database
 	gets map[string]int
 }
 
-func (db *countingDB) Get(key interface{}) (interface{}, error) {
-	db.gets[string(key.([]byte))]++
+func (db *countingDB) Get(key []byte) ([]byte, error) {
+	db.gets[string(key)]++
 	return db.Database.Get(key)
 }
 
@@ -420,7 +422,7 @@ func (randTest) Generate(r *rand.Rand, size int) reflect.Value {
 }
 
 func runRandTest(rt randTest) bool {
-	triedb := NewDatabase(NewMemStore())
+	triedb := NewDatabase(memorydb.New())
 
 	tr, _ := New(common.Hash{}, triedb)
 	values := make(map[string]string) // tracks content of the trie
@@ -598,7 +600,7 @@ func tempDB() (string, *TrieDatabase) {
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary directory: %v", err))
 	}
-	diskdb := NewMemStore()
+	diskdb := memorydb.New()
 	if err != nil {
 		panic(fmt.Sprintf("can't create temporary database: %v", err))
 	}

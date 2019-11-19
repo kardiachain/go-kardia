@@ -20,6 +20,11 @@ package permissioned
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dev"
 	"github.com/kardiachain/go-kardia/kai/storage"
@@ -28,10 +33,6 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -44,22 +45,22 @@ const (
 )
 
 type Config struct {
-	Proposal                 int
-	Name                     *string
-	NetworkId                *uint64
-	DataDir                  *string
-	HTTPPort                 *int
-	HTTPModules              []string
-	HTTPVirtualHosts         []string
-	HTTPCors                 []string
-	ListenAddr               *string
-	ChainDataDir             *string
-	DbCache                  *int
-	DbHandles                *int
-	ValidatorsIndices        *string
-	ServiceName              *string
-	ChainID                  *uint64
-	ClearData                bool
+	Proposal          int
+	Name              *string
+	NetworkId         *uint64
+	DataDir           *string
+	HTTPPort          *int
+	HTTPModules       []string
+	HTTPVirtualHosts  []string
+	HTTPCors          []string
+	ListenAddr        *string
+	ChainDataDir      *string
+	DbCache           *int
+	DbHandles         *int
+	ValidatorsIndices *string
+	ServiceName       *string
+	ChainID           *uint64
+	ClearData         bool
 }
 
 var DefaultConfig = node.NodeConfig{
@@ -151,7 +152,7 @@ func SetUp(config *Config) (nodeConfig *node.NodeConfig, err error) {
 	}
 	nodeConfig.MainChainConfig.ValidatorIndexes, err = getIntArray(*config.ValidatorsIndices)
 	nodeConfig.MainChainConfig.TxPool = *tx_pool.GetDefaultTxPoolConfig(nodeDir)
-	nodeConfig.MainChainConfig.EnvConfig.SetProposerIndex(config.Proposal - 1, len(dev.Nodes))
+	nodeConfig.MainChainConfig.EnvConfig.SetProposerIndex(config.Proposal-1, len(dev.Nodes))
 	return nodeConfig, nil
 }
 

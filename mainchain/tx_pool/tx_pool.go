@@ -202,6 +202,12 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 	return conf
 }
 
+// GetDefaultTxPoolConfig returns default txPoolConfig with given dir path
+func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
+	conf := DefaultTxPoolConfig
+	return &conf
+}
+
 // TxPool contains all currently known transactions. Transactions
 // enter the pool when they are received from the network or submitted
 // locally. They exit the pool when they are included in the blockchain.

@@ -19,16 +19,20 @@
 package tests
 
 import (
+	"math/big"
+	"testing"
+
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/account"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/types"
-	"math/big"
-	"testing"
 )
 
 const (
@@ -95,7 +99,7 @@ func TestGenesisAllocFromData(t *testing.T) {
 	}
 }
 
-func setupGenesis(g *genesis.Genesis, db *types.MemStore) (*types.ChainConfig, common.Hash, error) {
+func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*types.ChainConfig, common.Hash, error) {
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	return genesis.SetupGenesisBlock(log.New(), db, g, &types.BaseAccount{
@@ -109,7 +113,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 	// allocData is get from genesisAccounts in default_node_config
 
 	// Init kai database
-	db := types.NewMemStore()
+	db := kvstore.NewStoreDB(memorydb.New())
 
 	// Create genesis block with state_processor_test.genesisAccounts
 	g := genesis.DefaultTestnetGenesisBlock(configs.GenesisAccounts)
@@ -127,10 +131,10 @@ func TestCreateGenesisBlock(t *testing.T) {
 	}
 
 	// Get block by hash and height
-	block := db.ReadBlock(log.New(), hash, 0)
+	block := db.ReadBlock(hash, 0)
 
 	// Init new State with current BlockHash
-	s, err := state.New(log.New(), block.Root(), state.NewDatabase(db))
+	s, err := state.New(log.New(), db.ReadAppHash(block.Height()), state.NewDatabase(db.DB()))
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -146,7 +150,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 }
 
 func TestCreateContractInGenesis(t *testing.T) {
-	db := types.NewMemStore()
+	db := kvstore.NewStoreDB(memorydb.New())
 	// Create genesis block with genesisContracts
 	g := genesis.DefaultTestnetGenesisBlockWithContract(genesisContracts)
 	_, hash, err := setupGenesis(g, db)
@@ -164,10 +168,10 @@ func TestCreateContractInGenesis(t *testing.T) {
 	}
 
 	// Get block by hash and height
-	block := db.ReadBlock(log.New(), hash, 0)
+	block := db.ReadBlock(hash, 0)
 
 	// Init new State with current BlockHash
-	s, err := state.New(log.New(), block.Root(), state.NewDatabase(db))
+	s, err := state.New(log.New(), db.ReadAppHash(block.Height()), state.NewDatabase(db.DB()))
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -183,7 +187,7 @@ func TestCreateContractInGenesis(t *testing.T) {
 }
 
 func TestGenesisAllocFromAccountAndContract(t *testing.T) {
-	db := types.NewMemStore()
+	db := kvstore.NewStoreDB(memorydb.New())
 	// Create genesis block with state_processor_test.genesisAccounts
 	g := genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, genesisContracts)
 	_, hash, err := setupGenesis(g, db)
@@ -197,10 +201,10 @@ func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 		t.Error("Current BlockHash does not match")
 	}
 	// Get block by hash and height
-	block := db.ReadBlock(log.New(), hash, 0)
+	block := db.ReadBlock(hash, 0)
 
 	// Init new State with current BlockHash
-	s, err := state.New(log.New(), block.Root(), state.NewDatabase(db))
+	s, err := state.New(log.New(), db.ReadAppHash(block.Height()), state.NewDatabase(db.DB()))
 	if err != nil {
 		t.Error(err)
 	} else {
