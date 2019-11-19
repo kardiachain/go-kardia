@@ -19,11 +19,12 @@
 package types
 
 import (
-	message "github.com/kardiachain/go-kardia/ksml/proto"
 	"math/big"
 	"os"
 	"testing"
 	"time"
+
+	message "github.com/kardiachain/go-kardia/ksml/proto"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -287,6 +288,6 @@ func CreateNewDualBlock() *Block {
 	}
 	header.LastCommitHash = lastCommit.Hash()
 	de := NewDualEvent(100, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})
-	return NewDualBlock(log.New(), &header, []*DualEvent{de, nil}, lastCommit)
+	return NewDualBlock(&header, []*DualEvent{de, nil}, lastCommit)
 
 }

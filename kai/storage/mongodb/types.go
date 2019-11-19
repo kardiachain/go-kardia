@@ -73,8 +73,8 @@ type (
 		ReceiptHash    string `json:"receiptsRoot"        bson:"receiptsRoot"`   // receipt root
 		Bloom          string `json:"logsBloom"           bson:"logsBloom"`
 
-		Validator      string `json:"validator"           bson:"validator"`		ValidatorsHash string `json:"validators_hash"` // validators for the current block
-        ValidatorsHash string `json:"validators_hash"`
+		Validator      string `json:"validator"           bson:"validator"`
+		ValidatorsHash string `json:"validators_hash"` // validators for the current block
 		ConsensusHash  string `json:"consensus_hash"`  // consensus params for current block
 	}
 	Block struct {

@@ -776,24 +776,6 @@ func (db *Store) getEvent(address, method string) (*Watcher, error) {
 	return &event, nil
 }
 
-func (db *Store) getEventByDualAction(action string) (*DualAction, error) {
-	var event DualAction
-	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
-		cur := mongoDb.Collection(dualActionTable).FindOne(
-			*ctx,
-			bson.M{"name": bsonx.String(action)},
-		)
-		err := cur.Decode(&event)
-		if err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	return &event, nil
-}
-
 func (db *Store) ReadSmartContractAbi(address string) *abi.ABI {
 	events, err := db.getEvents(address)
 	if err != nil || events == nil || len(events) == 0 {

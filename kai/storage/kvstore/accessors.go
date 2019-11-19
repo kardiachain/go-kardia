@@ -121,7 +121,7 @@ func CommonWriteHeadHeaderHash(db kaidb.Writer, hash common.Hash) {
 }
 
 // CommonWriteEvent stores all events from watched smart contract to db.
-func CommonWriteEvent(db types.DatabaseWriter, smc *types.KardiaSmartcontract) {
+func CommonWriteEvent(db kaidb.Writer, smc *types.KardiaSmartcontract) {
 	if smc.SmcAbi != "" {
 		// Write contract abi
 		smartContract := SmartContract{
@@ -401,7 +401,7 @@ func CommonReadReceipt(db kaidb.Reader, hash common.Hash) (*types.Receipt, commo
 }
 
 // CommonReadEvent gets a watcher action from contract address and method
-func CommonReadEvent(db types.DatabaseReader, address string, method string) *types.Watcher {
+func CommonReadEvent(db kaidb.Reader, address string, method string) *types.Watcher {
 	data, err := db.Get(eventKey(address, method))
 	if err != nil {
 		log.Trace("event not found", "err", err, "address", address, "method", method)
@@ -416,14 +416,14 @@ func CommonReadEvent(db types.DatabaseReader, address string, method string) *ty
 }
 
 // CommonReadEvents gets events data from contract address
-func CommonReadEvents(db types.DatabaseReader, address string) (string, []*types.Watcher) {
+func CommonReadEvents(db kaidb.Reader, address string) (string, []*types.Watcher) {
 	data, err := db.Get(eventsKey(address))
 	if err != nil {
 		log.Trace("event not found", "err", err, "address", address)
 		return "", nil
 	}
-	var entries []string
-	if err := rlp.DecodeBytes(data, &entries); err != nil {
+	var events KardiaEvents
+	if err := rlp.DecodeBytes(data, &events); err != nil {
 		log.Error("Invalid event lookup rlp", "err", err)
 		return "", nil
 	}
@@ -432,13 +432,13 @@ func CommonReadEvents(db types.DatabaseReader, address string) (string, []*types
 	if len(events.Events) > 0 {
 		for _, evt := range events.Events {
 			// get watched event from entry
-			var evtData []byte
+			var evtData interface{}
 			if evtData, err = db.Get(common.Hex2Bytes(evt)); err != nil {
 				log.Error("Cannot get event data", "err", err, "eventData", evt)
 				continue
 			}
 			var action types.Watcher
-			if err := rlp.DecodeBytes(evtData), &action); err != nil {
+			if err := rlp.DecodeBytes(evtData.([]byte), &action); err != nil {
 				log.Error("Invalid watcherAction", "err", err)
 				continue
 			}
