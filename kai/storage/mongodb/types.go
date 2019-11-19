@@ -73,16 +73,15 @@ type (
 		ReceiptHash    string `json:"receiptsRoot"        bson:"receiptsRoot"`   // receipt root
 		Bloom          string `json:"logsBloom"           bson:"logsBloom"`
 
-		ValidatorsHash string `json:"validators_hash"` // validators for the current block
+		Validator      string `json:"validator"           bson:"validator"`		ValidatorsHash string `json:"validators_hash"` // validators for the current block
+        ValidatorsHash string `json:"validators_hash"`
 		ConsensusHash  string `json:"consensus_hash"`  // consensus params for current block
 	}
-
 	Block struct {
 		Header Header `json:"header"    bson:"header"`
 		Hash   string `json:"hash"      bson:"hash"`
 		Height uint64 `json:"height"    bson:"height"`
 	}
-
 	Receipt struct {
 		BlockHash         string `json:"blockHash"         bson:"blockHash"`
 		Height            uint64 `json:"height"            bson:"height"`
@@ -95,7 +94,6 @@ type (
 		ContractAddress   string `json:"contractAddress"   bson:"contractAddress"`
 		GasUsed           uint64 `json:"gasUsed"           bson:"gasUsed"`
 	}
-
 	Log struct {
 		Address     string   `json:"address"          bson:"address"`
 		Topics      []string `json:"topics"           bson:"topics"`
@@ -107,7 +105,6 @@ type (
 		Index       uint     `json:"logIndex"         bson:"logIndex"`
 		Removed     bool     `json:"removed"          bson:"removed"`
 	}
-
 	Transaction struct {
 		ID           primitive.ObjectID `json:"id"           bson:"_id,omitempty"`
 		From         string             `json:"from"         bson:"from"`
@@ -129,7 +126,6 @@ type (
 		Height    uint64 `json:"height"       bson:"height"`
 		Index     int    `json:"index"        bson:"index"`
 	}
-
 	DualEvent struct {
 		Nonce             uint64                       `json:"nonce"                bson:"nonce"`
 		TriggeredEvent    *types.EventData             `json:"triggeredEvent"       bson:"triggeredEvent"`
@@ -139,7 +135,6 @@ type (
 		BlockHash         string                       `json:"blockHash"            bson:"blockHash"`
 		Height            uint64                       `json:"height"               bson:"height"`
 	}
-
 	EventData struct {
 		TxHash       string              `json:"txHash"           bson:"txHash"`
 		TxSource     string              `json:"txSource"         bson:"txSource"`
@@ -147,20 +142,17 @@ type (
 		Data         *types.EventSummary `json:"data"             bson:"data"`
 		Actions      *types.DualActions  `json:"actions"          bson:"actions"`
 	}
-
 	EventSummary struct {
 		TxMethod string   `json:"txMethod"           bson:"txMethod"` // Smc's method
 		TxValue  *big.Int `json:"txValue"            bson:"txValue"`  // Amount of the tx
 		ExtData  []string `json:"extData"            bson:"extData"`  // Additional data along with this event
 	}
-
 	Commit struct {
 		Height      uint64        `json:"height"           bson:"height"`
 		BlockID     string        `json:"blockID"          bson:"blockID"`
 		Precommits  []*Vote       `json:"precommits"       bson:"precommits"`
 		PartsHeader PartSetHeader `json:"partsHeader" bson:"partsHeader"`
 	}
-
 	Vote struct {
 		ValidatorAddress string        `json:"validatorAddress"           bson:"validatorAddress"`
 		ValidatorIndex   int64         `json:"validatorIndex"             bson:"validatorIndex"`
@@ -172,24 +164,20 @@ type (
 		Signature        string        `json:"signature"                  bson:"signature"`
 		PartsHeader      PartSetHeader `json:"partsHeader" bson:"partsHeader"`
 	}
-
 	HeadHeaderHash struct {
 		ID   int    `json:"ID"      bson:"ID"`
 		Hash string `json:"hash"    bson:"hash"`
 	}
-
 	HeadBlockHash struct {
 		ID   int    `json:"ID"      bson:"ID"`
 		Hash string `json:"hash"    bson:"hash"`
 	}
-
 	ChainConfig struct {
 		Hash        string `json:"hash"     bson:"hash"`
 		Period      uint64 `json:"period"   bson:"period"`
 		Epoch       uint64 `json:"epoch"    bson:"epoch"`
 		BaseAccount `json:"baseAccount,omitempty"`
 	}
-
 	Caching struct {
 		Key   string `json:"key"       bson:"key"`
 		Value string `json:"value"     bson:"value"`
@@ -200,16 +188,14 @@ type (
 		BlockIndex uint64 `json:"blockIndex" bson:"blockIndex"`
 		Index      uint64 `json:"index"      bson:"index"`
 	}
-	WatcherAction struct {
-		ContractAddress string `json:"contractAddress"   bson:"contractAddress"`
-		ABI             string `json:"ABI"               bson:"ABI"`
-		Method          string `json:"method"            bson:"method"`
-		DualAction      string `json:"dualAction"        bson:"dualAction"`
-	}
-	DualAction struct {
-		Name            string `json:"name"             bson:"name"`
-		ContractAddress string `json:"contractAddress"  bson:"contractAddress"`
-		ABI             string `json:"ABI"              bson:"ABI"`
+	Watcher struct {
+		MasterContractAddress string   `json:"masterContractAddress" bson:"masterContractAddress"`
+		MasterABI             string   `json:"masterABI"             bson:"masterABI"`
+		ContractAddress       string   `json:"contractAddress"       bson:"contractAddress"`
+		ABI                   string   `json:"ABI"                   bson:"ABI"`
+		Method                string   `json:"method"                bson:"method"`
+		DualActions           []string `json:"dualActions"           bson:"dualActions"`
+		WatcherActions        []string `json:"watcherActions"        bson:"watcherActions"`
 	}
 	BaseAccount struct {
 		Address    string `json:"address"`
@@ -230,7 +216,7 @@ func NewBlock(block *types.Block) *Block {
 		GasLimit:       block.Header().GasLimit,
 		LastCommitHash: block.Header().LastCommitHash.Hex(),
 		NumDualEvents:  block.Header().NumDualEvents,
-		AppHash:        block.Header().AppHash.Hex(),
+		Validator:      block.Header().Validator.Hex(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 	}
 	if block.Header().Time != nil {
@@ -257,6 +243,7 @@ func (block *Block) ToHeader() *types.Header {
 		LastCommitHash: common.HexToHash(block.Header.LastCommitHash),
 		NumDualEvents:  block.Header.NumDualEvents,
 		AppHash:        common.HexToHash(block.Header.AppHash),
+		Validator:      common.HexToAddress(block.Header.Validator),
 		ValidatorsHash: common.HexToHash(block.Header.ValidatorsHash),
 	}
 	return &header
@@ -446,7 +433,7 @@ func NewVote(vote *types.Vote) *Vote {
 		Type:             vote.Type,
 		Timestamp:        vote.Timestamp.Uint64(),
 		Round:            vote.Round.Int64(),
-		BlockID:          vote.BlockID.String(),
+		BlockID:          vote.BlockID.StringLong(),
 		Signature:        common.Bytes2Hex(vote.Signature),
 		ValidatorAddress: vote.ValidatorAddress.Hex(),
 		ValidatorIndex:   vote.ValidatorIndex.Int64(),
@@ -475,9 +462,10 @@ func NewCommit(commit *types.Commit, height uint64) *Commit {
 			votes = append(votes, nil)
 		}
 	}
+
 	return &Commit{
 		Precommits: votes,
-		BlockID:    commit.BlockID.String(),
+		BlockID:    commit.BlockID.StringLong(),
 		Height:     height,
 	}
 }

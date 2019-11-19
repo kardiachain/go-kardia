@@ -24,10 +24,13 @@ import (
 	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/ksml"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
+	"sync"
 )
 
 type Proxy struct {
@@ -54,6 +57,8 @@ type Proxy struct {
 	// Queue configuration
 	publishedEndpoint string
 	subscribedEndpoint string
+
+	mtx sync.Mutex
 }
 
 // PublishedEndpoint returns publishedEndpoint
@@ -145,10 +150,6 @@ func (p *Proxy) Start() {
 	go utils.StartSubscribe(p)
 }
 
-func (p *Proxy) AddEvent(dualEvent *types.DualEvent) {
-	p.eventPool.AddEvent(dualEvent)
-}
-
 func (p *Proxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 	p.internalChain = internalChain
 }
@@ -159,16 +160,14 @@ func (p *Proxy) RegisterExternalChain(externalChain base.BlockChainAdapter) {
 
 // SubmitTx reads event data and submits data to Kardia or Target chain (TRON, NEO) based on specific logic. (eg: AddOrderFunction)
 func (p *Proxy) SubmitTx(event *types.EventData) error {
-	if event.TxSource == types.KARDIA {
-		switch event.Action.Name {
-		case configs.ReleaseEvent: // this config stimulates dual event called from kardia_proxy
-			return utils.HandleAddOrderFunction(p, event)
-		default:
-			log.Warn("Unexpected method in Proxy SubmitTx", "method", event.Data.TxMethod, "Proxy", p.Name())
-			return configs.ErrUnsupportedMethod
-		}
-	} else if event.TxSource == types.BlockchainSymbol(p.name) && event.Data.TxMethod == utils.KARDIA_CALL {
-		return utils.KardiaCall(p, event)
+	msg, err := event.GetEventMessage()
+	if err != nil {
+		return err
+	}
+	if event.Actions != nil && len(event.Actions) > 0 {
+		smc := common.HexToAddress(msg.MasterSmartContract)
+		parser := ksml.NewParser(p.Name(), p.PublishedEndpoint(), utils.PublishMessage, p.kardiaBc, p.txPool, &smc, event.Actions, msg, true)
+		return parser.ParseParams()
 	}
 	return nil
 }
@@ -178,4 +177,12 @@ func (p *Proxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, er
 		TxHash: event.Hash(),
 		Target: types.KARDIA,
 	}, nil
+}
+
+func (p *Proxy) Lock() {
+	p.mtx.Lock()
+}
+
+func (p *Proxy) UnLock() {
+	p.mtx.Unlock()
 }

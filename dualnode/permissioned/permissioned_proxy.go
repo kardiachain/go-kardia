@@ -19,6 +19,8 @@
 package permissioned
 
 import (
+	"crypto/ecdsa"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strconv"
@@ -26,11 +28,11 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	kai "github.com/kardiachain/go-kardia/mainchain"
@@ -144,7 +146,7 @@ func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain
 			return nil, err
 		}
 	}
-	candidateSmcUtil, err := permissioned.NewCandidateSmcUtil(internalBlockchain, utils.GetPrivateKeyToCallKardiaSmc())
+	candidateSmcUtil, err := permissioned.NewCandidateSmcUtil(internalBlockchain, GetPrivateKeyToCallKardiaSmc())
 	if err != nil {
 		logger.Info("Cannot create candidate smc util", "err", err)
 		return nil, err
@@ -242,47 +244,47 @@ func (p *PermissionedProxy) loop() {
 
 // handleBlock handles privatechain coming blocks and processes watched smc
 func (p *PermissionedProxy) handlePrivateBlock(block *types.Block) {
-	p.logger.Info("Received block from privatechain", "newBlockHeight", block.Height(), "currentBlock", p.privateService.BlockChain().CurrentBlock().Height())
-	for _, tx := range block.Transactions() {
-		method, err := p.smcABI.MethodById(tx.Data()[0:4])
-		if err != nil {
-			p.logger.Error("Error unpacking method", "tx", tx.Hash(), "err", err)
-			// TODO(@sontranrad): add a counter to track how many errors we encountered
-			continue
-		}
-		// We process candidate info requests and their responses from private chain to forward to smart contract on Kardia
-		if method.Name != configs.PrivateChainRequestInfoFunction && method.Name != configs.PrivateChainCompleteRequestFunction {
-			p.logger.Error("Unsupported method", "method", method.Name)
-			continue
-		}
-		eventSummary, err := p.extractPrivateChainTxSummary(tx.Data(), method.Name)
-		if err != nil {
-			continue
-		}
-
-		if p.dualBc.Config().BaseAccount == nil {
-			break
-		}
-		height := p.dualBc.CurrentBlock().Height()
-		privateChainTxHash := tx.Hash()
-		txHash := common.BytesToHash(privateChainTxHash[:])
-		// Compose dual event and tx metadata from emitted event from private chain smart contract
-		// TODO(namdoh@): Pass smartcontract actions here.
-		dualEvent := types.NewDualEvent(height, true, /* externalChain */
-			types.BlockchainSymbol(string(*p.privateChainID)), &txHash, &eventSummary, nil)
-		txMetaData, err := p.internalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
-		if err != nil {
-			p.logger.Error("Error compute internal tx metadata", "err", err)
-			continue
-		}
-		dualEvent.PendingTxMetadata = txMetaData
-		p.logger.Info("Create DualEvent for private chain's Tx", "dualEvent", dualEvent)
-		if err := p.eventPool.AddEvent(dualEvent); err != nil {
-			p.logger.Error("error while adding event", "err", err)
-			return
-		}
-		p.logger.Info("Submitted Private chain 's DualEvent to event pool successfully", "eventHash", dualEvent.Hash().Hex())
-	}
+	//p.logger.Info("Received block from privatechain", "newBlockHeight", block.Height(), "currentBlock", p.privateService.BlockChain().CurrentBlock().Height())
+	//for _, tx := range block.Transactions() {
+	//	method, err := p.smcABI.MethodById(tx.Data()[0:4])
+	//	if err != nil {
+	//		p.logger.Error("Error unpacking method", "tx", tx.Hash(), "err", err)
+	//		// TODO(@sontranrad): add a counter to track how many errors we encountered
+	//		continue
+	//	}
+	//	// We process candidate info requests and their responses from private chain to forward to smart contract on Kardia
+	//	if method.Name != configs.PrivateChainRequestInfoFunction && method.Name != configs.PrivateChainCompleteRequestFunction {
+	//		p.logger.Error("Unsupported method", "method", method.Name)
+	//		continue
+	//	}
+	//	eventSummary, err := p.extractPrivateChainTxSummary(tx.Data(), method.Name)
+	//	if err != nil {
+	//		continue
+	//	}
+	//
+	//	if p.dualBc.Config().BaseAccount == nil {
+	//		break
+	//	}
+	//	height := p.dualBc.CurrentBlock().Height()
+	//	privateChainTxHash := tx.Hash()
+	//	txHash := common.BytesToHash(privateChainTxHash[:])
+	//	// Compose dual event and tx metadata from emitted event from private chain smart contract
+	//	// TODO(namdoh@): Pass smartcontract actions here.
+	//	dualEvent := types.NewDualEvent(height, true, /* externalChain */
+	//		types.BlockchainSymbol(string(*p.privateChainID)), &txHash, &eventSummary, nil)
+	//	txMetaData, err := p.internalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
+	//	if err != nil {
+	//		p.logger.Error("Error compute internal tx metadata", "err", err)
+	//		continue
+	//	}
+	//	dualEvent.PendingTxMetadata = txMetaData
+	//	p.logger.Info("Create DualEvent for private chain's Tx", "dualEvent", dualEvent)
+	//	if err := p.eventPool.AddEvent(dualEvent); err != nil {
+	//		p.logger.Error("error while adding event", "err", err)
+	//		return
+	//	}
+	//	p.logger.Info("Submitted Private chain 's DualEvent to event pool successfully", "eventHash", dualEvent.Hash().Hex())
+	//}
 }
 
 // extractPrivateChainTxSummary parses event from private chain tx log to EventSummary,
@@ -331,131 +333,138 @@ func (p *PermissionedProxy) extractPrivateChainTxSummary(input []byte, method st
 }
 
 func (p *PermissionedProxy) SubmitTx(event *types.EventData) error {
-	var (
-		tx  *types.Transaction
-		err error
-	)
-	switch event.Data.TxMethod {
-	case configs.KardiaForwardRequestFunction:
-		tx, err = p.createTxFromKardiaForwardedRequest(event, p.privateService.TxPool())
-	case configs.KardiaForwardResponseFunction:
-		tx, err = p.createTxFromKardiaForwardedResponse(event, p.privateService.TxPool())
-	default:
-		return configs.ErrUnsupportedMethod
-	}
-	if err != nil {
-		log.Error("Fail to create Kardia's tx from DualEvent", "err", err)
-		return configs.ErrCreateKardiaTx
-	}
-	err = p.privateService.TxPool().AddLocal(tx)
-	if err != nil {
-		log.Error("Fail to add Kardia's tx", "error", err)
-		return configs.ErrAddKardiaTx
-	}
-	log.Info("Submit external private chain tx successfully", "txhash", tx.Hash().Hex())
+	//var (
+	//	tx  *types.Transaction
+	//	err error
+	//)
+	//switch event.Data.TxMethod {
+	//case configs.KardiaForwardRequestFunction:
+	//	tx, err = p.createTxFromKardiaForwardedRequest(event, p.privateService.TxPool())
+	//case configs.KardiaForwardResponseFunction:
+	//	tx, err = p.createTxFromKardiaForwardedResponse(event, p.privateService.TxPool())
+	//default:
+	//	return configs.ErrUnsupportedMethod
+	//}
+	//if err != nil {
+	//	log.Error("Fail to create Kardia's tx from DualEvent", "err", err)
+	//	return configs.ErrCreateKardiaTx
+	//}
+	//err = p.privateService.TxPool().AddTx(tx)
+	//if err != nil {
+	//	log.Error("Fail to add Kardia's tx", "error", err)
+	//	return configs.ErrAddKardiaTx
+	//}
+	//log.Info("Submit external private chain tx successfully", "txhash", tx.Hash().Hex())
 	return nil
 }
 
 // ComputeTxMetadata pre-computes the tx metadata that will be submitted to another blockchain
 // In case of error, this will return nil so that DualEvent won't be added to EventPool for further processing
 func (p *PermissionedProxy) ComputeTxMetadata(event *types.EventData) (*types.TxMetadata, error) {
-	var (
-		tx  *types.Transaction
-		err error
-	)
-	switch event.Data.TxMethod {
-	case configs.KardiaForwardRequestFunction:
-		tx, err = p.createTxFromKardiaForwardedRequest(event, p.privateService.TxPool())
-	case configs.KardiaForwardResponseFunction:
-		tx, err = p.createTxFromKardiaForwardedResponse(event, p.privateService.TxPool())
-	default:
-		return nil, configs.ErrUnsupportedMethod
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &types.TxMetadata{
-		TxHash: tx.Hash(),
-		Target: types.BlockchainSymbol(strconv.FormatUint(*p.privateChainID, 10)),
-	}, nil
+	//var (
+	//	tx  *types.Transaction
+	//	err error
+	//)
+	//switch event.Data.TxMethod {
+	//case configs.KardiaForwardRequestFunction:
+	//	tx, err = p.createTxFromKardiaForwardedRequest(event, p.privateService.TxPool())
+	//case configs.KardiaForwardResponseFunction:
+	//	tx, err = p.createTxFromKardiaForwardedResponse(event, p.privateService.TxPool())
+	//default:
+	//	return nil, configs.ErrUnsupportedMethod
+	//}
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return &types.TxMetadata{
+	//	TxHash: tx.Hash(),
+	//	Target: types.BlockchainSymbol(strconv.FormatUint(*p.privateChainID, 10)),
+	//}, nil
 	return nil, nil
 }
 
 func (p *PermissionedProxy) createTxFromKardiaForwardedRequest(event *types.EventData, pool *tx_pool.TxPool) (*types.Transaction, error) {
-	if event.Data.TxMethod != configs.KardiaForwardRequestFunction {
-		return nil, configs.ErrUnsupportedMethod
-	}
-	if event.Data.ExtData == nil || len(event.Data.ExtData) < configs.KardiaForwardRequestFields {
-		log.Error("Event doesn't contains enough data")
-		return nil, errInsufficientForwardRequestData
-	}
-	if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardRequestEmailIndex]) {
-		log.Error("Missing email")
-		return nil, errInsufficientForwardRequestData
-	}
-	if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardRequestFromOrgIndex]) {
-		log.Error("Missing fromOrgId")
-		return nil, errInsufficientForwardRequestData
-	}
-	if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardRequestToOrgIndex]) {
-		log.Error("Missing toOrgId")
-		return nil, errInsufficientForwardRequestData
-	}
-	// We don't process further if we are not targeted chain of the request
-	toOrgID := string(event.Data.ExtData[configs.KardiaForwardRequestToOrgIndex])
-	log.Error("orgID compare: ", "toOrgID", toOrgID, "private chain ID", strconv.FormatUint(*p.privateChainID, 10))
-	if toOrgID != strconv.FormatUint(*p.privateChainID, 10) {
-		return nil, errInvalidTargetChainId
-	}
-	tx, err := p.candidateSmcUtil.AddRequest(string(event.Data.ExtData[configs.KardiaForwardRequestEmailIndex]),
-		string(event.Data.ExtData[configs.KardiaForwardRequestFromOrgIndex]), pool)
-	if err != nil {
-		return nil, err
-	}
-	return tx, nil
+	//if event.Data.TxMethod != configs.KardiaForwardRequestFunction {
+	//	return nil, configs.ErrUnsupportedMethod
+	//}
+	//if event.Data.ExtData == nil || len(event.Data.ExtData) < configs.KardiaForwardRequestFields {
+	//	log.Error("Event doesn't contains enough data")
+	//	return nil, errInsufficientForwardRequestData
+	//}
+	//if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardRequestEmailIndex]) {
+	//	log.Error("Missing email")
+	//	return nil, errInsufficientForwardRequestData
+	//}
+	//if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardRequestFromOrgIndex]) {
+	//	log.Error("Missing fromOrgId")
+	//	return nil, errInsufficientForwardRequestData
+	//}
+	//if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardRequestToOrgIndex]) {
+	//	log.Error("Missing toOrgId")
+	//	return nil, errInsufficientForwardRequestData
+	//}
+	//// We don't process further if we are not targeted chain of the request
+	//toOrgID := string(event.Data.ExtData[configs.KardiaForwardRequestToOrgIndex])
+	//log.Error("orgID compare: ", "toOrgID", toOrgID, "private chain ID", strconv.FormatUint(*p.privateChainID, 10))
+	//if toOrgID != strconv.FormatUint(*p.privateChainID, 10) {
+	//	return nil, errInvalidTargetChainId
+	//}
+	//tx, err := p.candidateSmcUtil.AddRequest(string(event.Data.ExtData[configs.KardiaForwardRequestEmailIndex]),
+	//	string(event.Data.ExtData[configs.KardiaForwardRequestFromOrgIndex]), pool)
+	//if err != nil {
+	//	return nil, err
+	//}
+	return nil, nil
 }
 
 // createTxFromKardiaForwardedResponse returns tx to call to private chain candidate smart contract to respond to a
 // candidate info request
 func (p *PermissionedProxy) createTxFromKardiaForwardedResponse(event *types.EventData, pool *tx_pool.TxPool) (*types.Transaction, error) {
-	if event.Data.TxMethod != configs.KardiaForwardResponseFunction {
-		return nil, configs.ErrUnsupportedMethod
-	}
-	if event.Data.ExtData == nil || len(event.Data.ExtData) < configs.KardiaForwardResponseFields {
-		log.Error("Event doesn't contains enough data")
-		return nil, errInsufficientForwardResponseData
-	}
-	if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardResponseEmailIndex]) {
-		log.Error("Missing email")
-		return nil, errInsufficientForwardResponseData
-	}
-	if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardResponseResponseIndex]) {
-		log.Error("Missing response content")
-		return nil, errInsufficientForwardResponseData
-	}
-	if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardResponseFromOrgIndex]) {
-		log.Error("Missing fromOrgId")
-		return nil, errInsufficientForwardResponseData
-	}
-	if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardResponseToOrgIndex]) {
-		log.Error("Missing toOrgId")
-		return nil, errInsufficientForwardResponseData
-	}
-	toOrgID := string(event.Data.ExtData[configs.KardiaForwardResponseToOrgIndex])
-	// We don't add response to our smart contract as we are not targeted chain of a response
-	if toOrgID != strconv.FormatUint(*p.privateChainID, 10) {
-		log.Error("We are not targeted chain of this response", "toOrgID", toOrgID)
-		return nil, errInvalidTargetChainId
-	}
-	tx, err := p.candidateSmcUtil.AddExternalResponse(string(event.Data.ExtData[configs.KardiaForwardResponseEmailIndex]),
-		string(event.Data.ExtData[configs.KardiaForwardResponseResponseIndex]),
-		string(event.Data.ExtData[configs.KardiaForwardResponseFromOrgIndex]), pool)
-	if err != nil {
-		return nil, err
-	}
-	return tx, nil
+	//if event.Data.TxMethod != configs.KardiaForwardResponseFunction {
+	//	return nil, configs.ErrUnsupportedMethod
+	//}
+	//if event.Data.ExtData == nil || len(event.Data.ExtData) < configs.KardiaForwardResponseFields {
+	//	log.Error("Event doesn't contains enough data")
+	//	return nil, errInsufficientForwardResponseData
+	//}
+	//if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardResponseEmailIndex]) {
+	//	log.Error("Missing email")
+	//	return nil, errInsufficientForwardResponseData
+	//}
+	//if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardResponseResponseIndex]) {
+	//	log.Error("Missing response content")
+	//	return nil, errInsufficientForwardResponseData
+	//}
+	//if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardResponseFromOrgIndex]) {
+	//	log.Error("Missing fromOrgId")
+	//	return nil, errInsufficientForwardResponseData
+	//}
+	//if utils.IsNilOrEmpty(event.Data.ExtData[configs.KardiaForwardResponseToOrgIndex]) {
+	//	log.Error("Missing toOrgId")
+	//	return nil, errInsufficientForwardResponseData
+	//}
+	//toOrgID := string(event.Data.ExtData[configs.KardiaForwardResponseToOrgIndex])
+	//// We don't add response to our smart contract as we are not targeted chain of a response
+	//if toOrgID != strconv.FormatUint(*p.privateChainID, 10) {
+	//	log.Error("We are not targeted chain of this response", "toOrgID", toOrgID)
+	//	return nil, errInvalidTargetChainId
+	//}
+	//tx, err := p.candidateSmcUtil.AddExternalResponse(string(event.Data.ExtData[configs.KardiaForwardResponseEmailIndex]),
+	//	string(event.Data.ExtData[configs.KardiaForwardResponseResponseIndex]),
+	//	string(event.Data.ExtData[configs.KardiaForwardResponseFromOrgIndex]), pool)
+	//if err != nil {
+	//	return nil, err
+	//}
+	return nil, nil
 }
 
 func (p *PermissionedProxy) RegisterInternalChain(internalChain base.BlockChainAdapter) {
 	p.internalChain = internalChain
+}
+
+// Return a common private key to call to Kardia smc from dual node
+func GetPrivateKeyToCallKardiaSmc() *ecdsa.PrivateKey {
+	addrKeyBytes, _ := hex.DecodeString(configs.KardiaPrivKeyToCallSmc)
+	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
+	return addrKey
 }

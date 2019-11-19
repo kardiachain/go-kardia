@@ -108,7 +108,7 @@ func execute(bc *blockchain.BlockChain, msg types.Message) ([]byte, error) {
 
 	// Get balance of address
 	originBalance := stateDb.GetBalance(address)
-	gasPool := new(blockchain.GasPool).AddGas(bc.CurrentBlock().Header().GasLimit)
+	gasPool := new(types.GasPool).AddGas(bc.CurrentBlock().Header().GasLimit)
 
 	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, bc.CurrentBlock().Header(), bc)
@@ -145,7 +145,7 @@ func executeWithFee(bc *blockchain.BlockChain, msg types.Message) ([]byte, error
 
 	// Get balance of address
 	originBalance := stateDb.GetBalance(address)
-	gasPool := new(blockchain.GasPool).AddGas(bc.CurrentBlock().Header().GasLimit)
+	gasPool := new(types.GasPool).AddGas(bc.CurrentBlock().Header().GasLimit)
 
 	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, bc.CurrentBlock().Header(), bc)

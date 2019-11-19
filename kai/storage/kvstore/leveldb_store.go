@@ -120,18 +120,13 @@ func (s *StoreDB) ReadSmartContractAbi(address string) *abi.ABI {
 }
 
 // ReadEvent gets watcher action by smart contract address and method
-func (s *StoreDB) ReadEvent(address string, method string) *types.WatcherAction {
+func (s *StoreDB) ReadEvent(address string, method string) *types.Watcher {
 	return CommonReadEvent(s.db, address, method)
 }
 
 // ReadEvents returns a list of watcher action by smart contract address
-func (s *StoreDB) ReadEvents(address string) []*types.WatcherAction {
+func (s *StoreDB) ReadEvents(address string) (string, []*types.Watcher) {
 	return CommonReadEvents(s.db, address)
-}
-
-// ReadSmartContractFromDualAction returns smart contract address and its abi (if any) from dual action
-func (s *StoreDB) ReadSmartContractFromDualAction(action string) (string, *abi.ABI) {
-	return CommonReadEventFromDualAction(s.db, action)
 }
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block height.

@@ -20,25 +20,26 @@ package permissioned
 
 import (
 	"crypto/ecdsa"
-	"math/big"
-	"strings"
-
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	kvm2 "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
+	"math/big"
+	"strings"
 )
 
 const (
 	KardiaPermissionSmcIndex = 4
 )
 
+var MaximumGasToCallStaticFunction = uint(4000000)
 // PermissionSmcUtil wraps all utility methods related to permission smc
 type PermissionSmcUtil struct {
 	Abi              *abi.ABI
@@ -76,7 +77,7 @@ func (s *PermissionSmcUtil) IsValidNode(pubkey string, nodeType int64) (bool, er
 		log.Error("Error packing check valid node input", "err", err)
 		return false, err
 	}
-	checkNodeValidResult, err := utils.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress, s.bc,
+	checkNodeValidResult, err := CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress, s.bc,
 		checkNodeValidInput, s.StateDb)
 	if err != nil {
 		log.Error("Error call permission contract", "err", err)
@@ -93,7 +94,7 @@ func (s *PermissionSmcUtil) GetNodeInfo(pubkey string) (common.Address, *big.Int
 		log.Error("Error packing get node info input", "err", err)
 		return common.Address{}, nil, nil, "", err
 	}
-	getNodeInfoResult, err := utils.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
+	getNodeInfoResult, err := CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
 		s.bc, getNodeInfoInput, s.StateDb)
 	if err != nil {
 		log.Error("Error call permission contract", "err", err)
@@ -120,7 +121,7 @@ func (s *PermissionSmcUtil) IsValidator(pubkey string) (bool, error) {
 		log.Error("Error packing check validator input", "err", err)
 		return false, err
 	}
-	checkValidatorResult, err := utils.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
+	checkValidatorResult, err := CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
 		s.bc, checkValidatorInput, s.StateDb)
 	if err != nil {
 		log.Error("Error call permission contract", "err", err)
@@ -162,7 +163,7 @@ func (s *PermissionSmcUtil) GetAdminNodeByIndex(index int64) (string, common.Add
 		log.Error("Error packing initial node input", "err", err)
 		return "", common.Address{}, "", nil, nil, err
 	}
-	getInitialNodeResult, err := utils.CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
+	getInitialNodeResult, err := CallStaticKardiaMasterSmc(*s.SenderAddress, *s.ContractAddress,
 		s.bc, getInitialNodeInput, s.StateDb)
 	if err != nil {
 		log.Error("Error calling permission contract", "err", err)
@@ -181,4 +182,16 @@ func (s *PermissionSmcUtil) GetAdminNodeByIndex(index int64) (string, common.Add
 		return "", common.Address{}, "", nil, nil, err
 	}
 	return initialNodeInfo.Publickey, initialNodeInfo.Addr, initialNodeInfo.ListenAddr, initialNodeInfo.VotingPower, initialNodeInfo.NodeType, nil
+}
+
+// The following function is just call the master smc and return result in bytes format
+func CallStaticKardiaMasterSmc(from common.Address, to common.Address, bc base.BaseBlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
+	context := kvm2.NewKVMContextFromDualNodeCall(from, bc.CurrentHeader(), bc)
+	vmenv := kvm.NewKVM(context, statedb, kvm.Config{})
+	sender := kvm.AccountRef(from)
+	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(MaximumGasToCallStaticFunction))
+	if err != nil {
+		return make([]byte, 0), err
+	}
+	return ret, nil
 }

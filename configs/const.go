@@ -27,51 +27,10 @@ const (
 	KardiaAccountToCallSmc = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
 	KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
 
-	// constants related to currency exchange
-	KardiaNewExchangeSmcIndex          = 3
-	ExternalDepositFunction            = "deposit"
-	GetAddressFromType                 = "getAddressFromType"
-	ExternalReleaseFunction            = "release"
-	GetRate                            = "getRate"
-	UpdateTargetTx                     = "updateTargetTx"
-	UpdateKardiaTx                     = "updateKardiaTx"
-
 	// constants related to rate & addOrder function from smc
 	KAI                                = "KAI"
 	ETH                                = "ETH"
 	NEO                                = "NEO"
-	TRON                               = "TRX"
-	AddOrderFunction                   = "addOrder"
-	ReleaseEvent                       = "Release"
-	RateETH                            = 100000000
-	RateNEO                            = 6482133
-	RateTRON                           = 16571
-
-	ExchangeDataSourceAddressIndex     = 0
-	ExchangeDataDestAddressIndex       = 1
-	ExchangeDataSourcePairIndex        = 2
-	ExchangeDataDestPairIndex          = 3
-	ExchangeDataAmountIndex            = 4
-	ExchangeDataCompleteRequestIDIndex = 0
-	ExchangeDataCompletePairIndex      = 1
-	NumOfExchangeDataField             = 5
-	NumOfCompleteRequestDataField      = 2
-
-	// Constants related to exchange v2 which support original tx id
-	ExchangeV2SourcePairIndex        = 0
-	ExchangeV2DestPairIndex          = 1
-	ExchangeV2SourceAddressIndex     = 2
-	ExchangeV2DestAddressIndex       = 3
-	ExchangeV2OriginalTxIdIndex      = 4
-	ExchangeV2AmountIndex            = 5
-	ExchangeV2TimestampIndex         = 6
-	ExchangeV2NumOfExchangeDataField = 7
-	ExchangeV2ReleaseFieldsSeparator = "|"
-	ExchangeV2ReleaseToTypeIndex     = 0
-	ExchangeV2ReleaseAddressesIndex  = 1
-	ExchangeV2ReleaseAmountsIndex    = 2
-	ExchangeV2ReleaseTxIdsIndex      = 3
-	ExchangeV2ReleaseValuesSepatator = ";"
 
 	// constants related to candidate exchange, Kardia part
 	KardiaCandidateExchangeSmcIndex    = 6
@@ -104,22 +63,8 @@ const (
 	// default value for 0mq
 	DefaultSubscribedEndpoint = "tcp://127.0.0.1:5555"
 	DefaultPublishedEndpoint = "tcp://127.0.0.1:5554"
-
-	// dual protocol name
-	ProtocolDualNEO = "KAI-NEO"
-	ProtocolDualETH = "KAI-ETH"
-	ProtocolDualTRX = "KAI-TRX"
 )
 
 var (
-	ErrInsufficientExchangeData         = errors.New("insufficient exchange external data")
 	ErrUnsupportedMethod                = errors.New("method is not supported by dual logic")
-	ErrCreateKardiaTx                   = errors.New("fail to create Kardia's Tx from DualEvent")
-	ErrAddKardiaTx                      = errors.New("fail to add Tx to Kardia's TxPool")
-	ErrTypeConversionFailed             = errors.New("fail type conversion")
-	ErrFailedGetState                   = errors.New("fail to get Kardia state")
-	ErrInsufficientCandidateRequestData = errors.New("insufficient candidate request data")
-	ErrFailedGetEventData               = errors.New("fail to get event external data")
-	ErrNoMatchedRequest                 = errors.New("request has no matched opponent")
-	ErrNotImplemented                   = errors.New("this function is not implemented yet")
 )
