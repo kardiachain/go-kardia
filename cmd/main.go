@@ -328,8 +328,6 @@ func (c *Config) Start() {
 		return
 	}
 
-	c.DualChain = nil
-
 	if c.DualChain != nil {
 		if err := n.RegisterService(service.NewDualService); err != nil {
 			logger.Error("error while adding dual service", "err", err)
@@ -451,19 +449,19 @@ func (c *Config) SaveWatchers(service node.Service, events []Event) {
 				masterAbi = *event.MasterABI
 			}
 			watchers := make(types.Watchers, 0)
-			for _, action := range event.Watchers{
+			for _, action := range event.Watchers {
 				watchers = append(watchers, &types.Watcher{
-					Method:     action.Method,
+					Method:         action.Method,
 					WatcherActions: action.WatcherActions,
-					DualActions: action.DualActions,
+					DualActions:    action.DualActions,
 				})
 			}
 			smc := &types.KardiaSmartcontract{
-				MasterSmc:      event.MasterSmartContract,
-				MasterAbi:      masterAbi,
-				SmcAddress:     event.ContractAddress,
-				SmcAbi:         abi,
-				Watchers:       watchers,
+				MasterSmc:  event.MasterSmartContract,
+				MasterAbi:  masterAbi,
+				SmcAddress: event.ContractAddress,
+				SmcAbi:     abi,
+				Watchers:   watchers,
 			}
 			service.DB().WriteEvent(smc)
 		}
