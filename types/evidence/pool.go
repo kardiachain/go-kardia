@@ -19,9 +19,9 @@
 package evidence
 
 import (
+	"github.com/kardiachain/go-kardia/consensus"
 	"sync"
 
-	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -38,7 +38,7 @@ type EvidencePool struct {
 
 	// latest state
 	mtx   sync.Mutex
-	state state.LastestBlockState
+	state consensus.LastestBlockState
 }
 
 // PendingEvidence returns all uncommitted evidence.
