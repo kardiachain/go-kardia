@@ -565,7 +565,6 @@ func (db *Store) ReadBlock(hash common.Hash, height uint64) *types.Block {
 			body.LastCommit = commit.ToCommit()
 		} else {
 			commit := new(types.Commit)
-			commit.MakeNilEmpty()
 			body.LastCommit = commit
 		}
 		newBlock = newBlock.WithBody(&body)
