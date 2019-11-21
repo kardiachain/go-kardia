@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"github.com/ebuchman/fail-test"
 	"github.com/kardiachain/go-kardia/kai/base"
-	state2 "github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kai/state"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -45,24 +45,24 @@ func ValidateBlock(state LastestBlockState, block *types.Block) error {
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
-func ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockID, block *types.Block, bc base.BaseBlockChain) (LastestBlockState, error) {
-	if err := ValidateBlock(state, block); err != nil {
-		return state, state2.ErrInvalidBlock(err)
+func ApplyBlock(logger log.Logger, st LastestBlockState, blockID types.BlockID, block *types.Block, bc base.BaseBlockChain) (LastestBlockState, error) {
+	if err := ValidateBlock(st, block); err != nil {
+		return st, state.ErrInvalidBlock(err)
 	}
 
 	fail.Fail() // XXX
 
 	// update the state with the block and responses
 	var err error
-	state, err = updateState(logger, state, blockID, block.Header(), bc)
+	st, err = updateState(logger, st, blockID, block.Header(), bc)
 	if err != nil {
-		return state, fmt.Errorf("commit failed for application: %v", err)
+		return st, fmt.Errorf("commit failed for application: %v", err)
 	}
 
 	logger.Warn("Update evidence pool.")
 	fail.Fail() // XXX
 
-	return state, nil
+	return st, nil
 }
 
 // updateState returns a new State updated according to the header and responses.
