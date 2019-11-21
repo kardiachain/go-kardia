@@ -106,6 +106,7 @@ type BaseBlockChain interface {
 	DB() types.StoreDB
 	ZeroFee() bool
 	ApplyMessage(vm KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error)
+	GetFetchNewValidators() uint64
 	GetBlockReward() *big.Int
 	GetConsensusMasterSmartContract() pos.MasterSmartContract
 	GetConsensusNodeAbi() string

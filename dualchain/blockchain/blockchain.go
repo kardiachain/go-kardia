@@ -481,10 +481,12 @@ func (dbc *DualBlockChain) GetConsensusMasterSmartContract() pos.MasterSmartCont
 	return pos.MasterSmartContract{}
 }
 
-func (bc *DualBlockChain) GetConsensusNodeAbi() string {
+func (dbc *DualBlockChain) GetConsensusNodeAbi() string {
 	return ""
 }
 
-func (bc *DualBlockChain) GetConsensusStakerAbi() string {
+func (dbc *DualBlockChain) GetConsensusStakerAbi() string {
 	return ""
 }
+
+func (dbc *DualBlockChain) GetFetchNewValidators() uint64 { return 0 }

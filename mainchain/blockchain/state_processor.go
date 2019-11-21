@@ -112,6 +112,10 @@ func ApplyTransaction(logger log.Logger, bc base.BaseBlockChain, gp *types.GasPo
 	var root []byte
 	statedb.Finalise(true)
 	*usedGas += gas
+
+	// update gas used to header
+	header.GasUsed += *usedGas
+
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx,
 	// we're passing whether the root touch-delete accounts.
 	receipt := types.NewReceipt(root, failed, *usedGas)

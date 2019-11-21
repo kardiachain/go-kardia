@@ -81,6 +81,7 @@ type BlockChain struct {
 	NodeAbi string
 	StakerAbi string
 	BlockReward *big.Int
+	FetchNewValidators uint64
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -468,4 +469,8 @@ func (bc *BlockChain) GetConsensusNodeAbi() string {
 
 func (bc *BlockChain) GetConsensusStakerAbi() string {
 	return bc.StakerAbi
+}
+
+func (bc *BlockChain) GetFetchNewValidators() uint64 {
+	return bc.FetchNewValidators
 }

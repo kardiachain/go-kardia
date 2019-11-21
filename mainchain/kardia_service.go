@@ -25,7 +25,7 @@ import (
 	"github.com/kardiachain/go-kardia/kai/pos"
 	"github.com/kardiachain/go-kardia/kai/service"
 	serviceconst "github.com/kardiachain/go-kardia/kai/service/const"
-	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kvm"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
@@ -133,10 +133,11 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	kai.blockchain.NodeAbi = consensusInfo.Nodes.ABI
 	kai.blockchain.StakerAbi = consensusInfo.Stakers.ABI
 	kai.blockchain.BlockReward = consensusInfo.BlockReward
+	kai.blockchain.FetchNewValidators = consensusInfo.FetchNewValidators
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
-	validatorSet, err := consensus.CollectValidatorSet(kai.blockchain, consensusInfo)
+	validatorSet, err := kvm.CollectValidatorSet(kai.blockchain)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +154,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	//	return nil, err
 	//}
 
-	state := state.LastestBlockState{
+	state := consensus.LastestBlockState{
 		ChainID:                     "kaicon", // TODO(thientn): considers merging this with protocolmanger.ChainID
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
 		LastBlockID:                 blockID,

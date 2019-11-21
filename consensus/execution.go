@@ -16,13 +16,13 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package state
+package consensus
 
 import (
 	"fmt"
-
-	fail "github.com/ebuchman/fail-test"
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/ebuchman/fail-test"
+	"github.com/kardiachain/go-kardia/kai/base"
+	state2 "github.com/kardiachain/go-kardia/kai/state"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -49,10 +49,10 @@ type BlockStore interface {
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
-func ApplyBlock(logger log.Logger, state LastestBlockState, blockStore BlockStore, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
+func ApplyBlock(logger log.Logger, state LastestBlockState, blockStore BlockStore, blockID types.BlockID, block *types.Block, bc base.BaseBlockChain) (LastestBlockState, error) {
 
 	if err := ValidateBlock(state, block); err != nil {
-		return state, ErrInvalidBlock(err)
+		return state, state2.ErrInvalidBlock(err)
 	}
 
 	appHash, err := blockStore.CommitAndValidateBlockTxs(block)
@@ -60,9 +60,9 @@ func ApplyBlock(logger log.Logger, state LastestBlockState, blockStore BlockStor
 		return state, err
 	}
 	// update the state with the block and responses
-	state, err = updateState(logger, state, appHash, blockID, block.Header())
+	state, err = updateState(logger, state, appHash, blockID, block.Header(), bc)
 	if err != nil {
-		return state, fmt.Errorf("Commit failed for application: %v", err)
+		return state, fmt.Errorf("commit failed for application: %v", err)
 	}
 	logger.Warn("Update evidence pool.")
 	fail.Fail() // XXX
@@ -71,7 +71,7 @@ func ApplyBlock(logger log.Logger, state LastestBlockState, blockStore BlockStor
 }
 
 // updateState returns a new State updated according to the header and responses.
-func updateState(logger log.Logger, state LastestBlockState, appHash common.Hash, blockID types.BlockID, header *types.Header) (LastestBlockState, error) {
+func updateState(logger log.Logger, state LastestBlockState, appHash common.Hash, blockID types.BlockID, header *types.Header, bc base.BaseBlockChain) (LastestBlockState, error) {
 	logger.Trace("updateState", "state", state, "blockID", blockID, "header")
 
 	// Update the validator set with the latest abciResponses
@@ -82,7 +82,7 @@ func updateState(logger log.Logger, state LastestBlockState, appHash common.Hash
 
 	// Check if we need to swap to new validator set after staking or prefetch new validator set
 	// when it nears the current staking end's window.
-	state.mayRefreshValidatorSet()
+	state.mayRefreshValidatorSet(bc)
 
 	var totalTx *cmn.BigInt
 	if state.LastBlockTotalTx == nil {

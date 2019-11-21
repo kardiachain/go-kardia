@@ -21,6 +21,8 @@ package blockchain
 import (
 	"errors"
 	"fmt"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"math/big"
 	"sync"
 	"time"
@@ -287,4 +289,16 @@ func (dbo *DualBlockOperations) commitDualEvents(events types.DualEvents) (commo
 // saveReceipts saves receipts of block transactions to storage.
 func (dbo *DualBlockOperations) saveReceipts(receipts types.Receipts, block *types.Block) {
 	dbo.logger.Info("Not yet implement DualBlockOperations.submitDualEvents()")
+}
+
+func (dbo *DualBlockOperations) Blockchain() base.BaseBlockChain {
+	return dbo.blockchain
+}
+
+func (dbo *DualBlockOperations) TxPool() *tx_pool.TxPool {
+	return nil
+}
+
+func (dbo *DualBlockOperations) IsDual() bool {
+	return true
 }

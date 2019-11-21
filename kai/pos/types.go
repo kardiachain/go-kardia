@@ -6,6 +6,7 @@ import (
 )
 
 type ConsensusInfo struct {
+	FetchNewValidators   uint64
 	BlockReward          *big.Int
 	MaxValidators        uint64
 	ConsensusPeriod      uint64
