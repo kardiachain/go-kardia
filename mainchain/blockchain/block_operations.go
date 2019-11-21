@@ -20,6 +20,8 @@ package blockchain
 
 import (
 	"fmt"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/state"
 	"math/big"
 	"sync"
 	"time"
@@ -85,23 +87,54 @@ func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.B
 	go bo.saveReceipts(receipts, block)
 
 	// claim reward
-	if bo.blockchain.CurrentBlock().Height() > 1 {
-		st, err := bo.blockchain.State()
-		if err != nil {
-			bo.logger.Error("Fail to get blockchain head state", "err", err)
-			return nil
-		}
-		tx, err := kvm.ClaimReward(bo.blockchain, st, bo.txPool)
-		if err != nil {
-			bo.logger.Error("fail to claim reward", "err", err, "sender", bo.blockchain.Config().BaseAccount.Address.Hex())
-			return nil
-		}
-		if err = bo.txPool.AddTx(tx); err != nil {
-			bo.logger.Error("fail to add claim reward transaction", "err", err)
-			return nil
+	if err := bo.claimReward(); err != nil {
+		panic(err)
+	}
+
+	// try add new consensusPeriod
+	if err := bo.newConsensusPeriod(block.Height()); err != nil {
+		panic(err)
+	}
+
+	return block
+}
+
+func (bo *BlockOperations) newConsensusPeriod(height uint64) error {
+	bc := bo.Blockchain()
+	st, err := bc.State()
+	if err != nil {
+		panic(err)
+	}
+	tx, err := kvm.NewConsensusPeriod(height, bc, st, bo.TxPool())
+	if err != nil {
+		panic(err)
+	}
+	if tx != nil {
+		if err = bo.TxPool().AddTx(tx); err != nil {
+			return err
 		}
 	}
-	return block
+	return nil
+}
+
+func (bo *BlockOperations) claimReward() error {
+	var (
+		st *state.StateDB
+		err error
+		tx *types.Transaction
+	)
+	if bo.blockchain.CurrentBlock().Height() > 1 {
+		if st, err = bo.blockchain.State(); err != nil {
+			return err
+		}
+		if tx, err = kvm.ClaimReward(bo.blockchain, st, bo.txPool); err != nil {
+			return err
+		}
+		if err = bo.txPool.AddTx(tx); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
@@ -278,7 +311,6 @@ LOOP:
 	header.NumTxs = uint64(newTxs.Len())
 	root, err := state.Commit(true)
 
-
 	if err != nil {
 		bo.logger.Error("Fail to commit new statedb after txs", "err", err)
 		return common.Hash{}, nil, nil, err
@@ -295,4 +327,16 @@ LOOP:
 // saveReceipts saves receipts of block transactions to storage.
 func (bo *BlockOperations) saveReceipts(receipts types.Receipts, block *types.Block) {
 	bo.blockchain.WriteReceipts(receipts, block)
+}
+
+func (bo *BlockOperations) Blockchain() base.BaseBlockChain {
+	return bo.blockchain
+}
+
+func (bo *BlockOperations) TxPool() *tx_pool.TxPool {
+	return bo.txPool
+}
+
+func (bo *BlockOperations) IsDual() bool {
+	return false
 }

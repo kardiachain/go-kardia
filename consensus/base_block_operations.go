@@ -19,11 +19,14 @@
 package consensus
 
 import (
+	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
 
 type BaseBlockOperations interface {
+	IsDual() bool
 	Height() uint64
 	LoadBlock(height uint64) *types.Block
 	LoadBlockCommit(height uint64) *types.Commit
@@ -32,4 +35,6 @@ type BaseBlockOperations interface {
 	CommitAndValidateBlockTxs(block *types.Block) error
 	CommitBlockTxsIfNotFound(block *types.Block) error
 	SaveBlock(block *types.Block, seenCommit *types.Commit)
+	Blockchain() base.BaseBlockChain
+	TxPool() *tx_pool.TxPool
 }

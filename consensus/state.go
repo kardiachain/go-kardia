@@ -22,6 +22,8 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kvm"
 	"math/big"
 	"reflect"
 	"runtime/debug"
@@ -32,7 +34,6 @@ import (
 
 	cfg "github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
-	"github.com/kardiachain/go-kardia/kai/state"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p/discover"
@@ -96,7 +97,7 @@ type ConsensusState struct {
 	// internal state
 	mtx sync.RWMutex
 	cstypes.RoundState
-	state         state.LastestBlockState // State until height-1.
+	state         LastestBlockState // State until height-1.
 	timeoutTicker TimeoutTicker
 
 	// State changes may be triggered by: msgs from peers,
@@ -120,13 +121,15 @@ type ConsensusState struct {
 
 	// Simulate voting strategy
 	votingStrategy map[VoteTurn]int
+
+	updateVals bool
 }
 
 // NewConsensusState returns a new ConsensusState.
 func NewConsensusState(
 	logger log.Logger,
 	config *cfg.ConsensusConfig,
-	state state.LastestBlockState,
+	state LastestBlockState,
 	blockOperations BaseBlockOperations,
 ) *ConsensusState {
 	cs := &ConsensusState{
@@ -145,6 +148,7 @@ func NewConsensusState(
 			StartTime:   big.NewInt(0),
 			CommitTime:  big.NewInt(0),
 		},
+		updateVals: false,
 	}
 
 	cs.updateToState(state)
@@ -195,7 +199,7 @@ func (cs *ConsensusState) Stop() {
 
 // Updates ConsensusState and increments height to match that of state.
 // The round becomes 0 and cs.Step becomes cstypes.RoundStepNewHeight.
-func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
+func (cs *ConsensusState) updateToState(state LastestBlockState) {
 	cs.logger.Trace("ConsensusState - updateToState")
 	if cs.CommitRound.IsGreaterThanInt(-1) && cs.Height.IsGreaterThanInt(0) && !cs.Height.Equals(state.LastBlockHeight) {
 		cmn.PanicSanity(cmn.Fmt("updateToState() expected state height of %v but found %v",
@@ -386,7 +390,7 @@ func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 
 // Reconstruct LastCommit from SeenCommit, which we saved along with the block,
 // (which happens even before saving the state)
-func (cs *ConsensusState) reconstructLastCommit(state state.LastestBlockState) {
+func (cs *ConsensusState) reconstructLastCommit(state LastestBlockState) {
 	if state.LastBlockHeight.EqualsInt64(0) {
 		return
 	}
@@ -869,7 +873,7 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 
 	// Validate proposal block
 	// This checks the block contents without executing txs.
-	if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
+	if err := ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
 		cs.signAddVote(types.VoteTypePrevote, types.NewZeroBlockID())
@@ -989,7 +993,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	if cs.ProposalBlock.HashesTo(blockID) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID)
 		// Validate the block.
-		if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
+		if err := ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 			cmn.PanicConsensus(cmn.Fmt("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
 		}
 		cs.LockedRound = round
@@ -1130,7 +1134,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	if !block.HashesTo(blockID) {
 		cmn.PanicSanity(cmn.Fmt("Cannot finalizeCommit, ProposalBlock does not hash to commit hash"))
 	}
-	if err := state.ValidateBlock(cs.state, block); err != nil {
+	if err := ValidateBlock(cs.state, block); err != nil {
 		cmn.PanicConsensus(cmn.Fmt("+2/3 committed an invalid block: %v", err))
 		panic("Block validation failed")
 	}
@@ -1163,13 +1167,16 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 
 	fail.Fail() // XXX
 
+	var (
+		err error
+	)
+
 	// Create a copy of the state for staging and an event cache for txs.
 	stateCopy := cs.state.Copy()
 
 	// Execute and commit the block, update and save the state, and update the mempool.
 	// NOTE The block.AppHash wont reflect these txs until the next block.
-	var err error
-	stateCopy, err = state.ApplyBlock(cs.logger, stateCopy, block.BlockID(), block)
+	stateCopy, err = ApplyBlock(cs.logger, stateCopy, block.BlockID(), block, cs.blockOperations.Blockchain())
 	if err != nil {
 		cs.logger.Error("Error on ApplyBlock. Did the application crash? Please restart node", "err", err)
 		err := cmn.Kill()
@@ -1178,7 +1185,6 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 		}
 		return
 	}
-
 	fail.Fail() // XXX
 
 	// NewHeightStep!
@@ -1368,4 +1374,112 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 	default:
 		panic(cmn.Fmt("Invalid timeout step: %v", ti.Step))
 	}
+}
+
+// It keeps all information necessary to validate new blocks,
+// including the last validator set and the consensus params.
+// All fields are exposed so the struct can be easily serialized,
+// but none of them should be mutated directly.
+// Instead, use state.Copy() or state.NextState(...).
+// NOTE: not goroutine-safe.
+type LastestBlockState struct {
+	// Immutable
+	ChainID string
+
+	// LastBlockHeight=0 at genesis (ie. block(H=0) does not exist)
+	LastBlockHeight  *cmn.BigInt
+	LastBlockTotalTx *cmn.BigInt
+	LastBlockID      types.BlockID
+	LastBlockTime    *big.Int
+
+	// LastValidators is used to validate block.LastCommit.
+	// Validators are persisted to the database separately every time they change,
+	// so we can query for historical validator sets.
+	// Note that if s.LastBlockHeight causes a valset change,
+	// we set s.LastHeightValidatorsChanged = s.LastBlockHeight + 1
+	PrefetchedFutureValidators  *types.ValidatorSet
+	Validators                  *types.ValidatorSet
+	LastValidators              *types.ValidatorSet
+	LastHeightValidatorsChanged *cmn.BigInt
+
+	// TODO(namdoh): Add consensus parameters used for validating blocks.
+
+	// Merkle root of the results from executing prev block
+	//namdoh@ LastResultsHash []byte
+
+	// The latest AppHash we've received from calling abci.Commit()
+	//namdoh@ AppHash []byte
+}
+
+// Copy makes a copy of the State for mutating.
+func (state LastestBlockState) Copy() LastestBlockState {
+	var futureVals *types.ValidatorSet
+	if state.PrefetchedFutureValidators != nil {
+		futureVals = state.PrefetchedFutureValidators.Copy()
+	}
+	return LastestBlockState{
+		ChainID: state.ChainID,
+
+		LastBlockHeight:  state.LastBlockHeight,
+		LastBlockTotalTx: state.LastBlockTotalTx,
+		LastBlockID:      state.LastBlockID,
+		LastBlockTime:    state.LastBlockTime,
+
+		Validators:                  state.Validators.Copy(),
+		LastValidators:              state.LastValidators.Copy(),
+		PrefetchedFutureValidators:  futureVals,
+		LastHeightValidatorsChanged: state.LastHeightValidatorsChanged,
+
+		//namdoh@ AppHash: state.AppHash,
+
+		//namdoh@ LastResultsHash: state.LastResultsHash,
+	}
+}
+
+// IsEmpty returns true if the State is equal to the empty State.
+func (state LastestBlockState) IsEmpty() bool {
+	return state.Validators == nil // XXX can't compare to Empty
+}
+
+// Stringshort returns a short string representing State
+func (state LastestBlockState) String() string {
+	return fmt.Sprintf("{ChainID:%v LastBlockHeight:%v LastBlockTotalTx:%v LastBlockID:%v LastBlockTime:%v Validators:%v LastValidators:%v LastHeightValidatorsChanged:%v",
+		state.ChainID, state.LastBlockHeight, state.LastBlockTotalTx, state.LastBlockID, time.Unix(state.LastBlockTime.Int64(), 0),
+		state.Validators, state.LastValidators, state.LastHeightValidatorsChanged)
+}
+
+// May fresh current or future validator sets, or both.
+// Note: This must be called before commiting a block.
+func (state *LastestBlockState) mayRefreshValidatorSet(bc base.BaseBlockChain) {
+	height := state.LastBlockHeight.Int64()
+
+	// if height is greater or equal current validators set end height, update current validators set, clear PrefetchedFutureValidators
+	currentVals := state.Validators
+	nextVals := state.PrefetchedFutureValidators
+
+	log.Info("mayRefreshValidatorSet", "curStart", currentVals.StartHeight, "curEnd", currentVals.EndHeight, "isNextValsNil", nextVals == nil, "height", height)
+
+	if nextVals == nil && height < currentVals.EndHeight && height >= currentVals.EndHeight-int64(bc.GetFetchNewValidators()) {
+		state.PrefetchedFutureValidators = state.fetchValidatorSet(bc)
+	}
+	// if height is between currentVals's endHeight and EndHeight-bc.GetFetchNewValidators(), fetch new validators.
+	currentVals = state.Validators
+	nextVals = state.PrefetchedFutureValidators
+	if height >= currentVals.EndHeight {
+		state.Validators = nextVals.Copy()
+		state.PrefetchedFutureValidators = nil
+	}
+}
+
+// Fetches the validator set at a given height.
+func (state *LastestBlockState) fetchValidatorSet(bc base.BaseBlockChain) *types.ValidatorSet {
+	var (
+		valSet *types.ValidatorSet
+		err error
+	)
+	if valSet, err = kvm.CollectValidatorSet(bc); err != nil {
+		log.Error("error while fetching validator set", "err", err)
+		return nil
+	}
+	return valSet
 }

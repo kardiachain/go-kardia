@@ -114,6 +114,7 @@ contract Master {
     NodeInfo[] _availableNodes;
     mapping(address=>uint) _availableAdded;
     mapping(address=>NodeIndex) _nodeIndex;
+    mapping(address=>address) _ownerNode;
 
     // pendingNodes is a map contains all pendingNodes that are added by availableNodes and are waiting for +2/3 vote.
     PendingInfo[] _pendingNodes;
@@ -150,6 +151,7 @@ contract Master {
             address genesisAddress = _genesisNodes[i];
             _isGenesis[genesisAddress] = true;
             _isGenesisOwner[_genesisOwners[i]] = true;
+            _ownerNode[_genesisOwners[i]] = genesisAddress;
 
             _availableNodes.push(NodeInfo(genesisAddress, _genesisOwners[i], 0, 1));
             _availableAdded[genesisAddress] = i+1;
@@ -163,6 +165,7 @@ contract Master {
             _pendingNodes.push(PendingInfo(NodeInfo(nodeAddress, owner, 0, 1), 1, false));
             _pendingNodes[_pendingNodes.length-1].votedAddress[msg.sender] = true;
             _pendingAdded[nodeAddress] = _pendingNodes.length-1;
+            _ownerNode[owner] = nodeAddress;
         }
     }
 
@@ -385,10 +388,18 @@ contract Master {
     }
 
     // collectValidators base on available nodes, max validators, collect validators and start new consensus period.
+    // sometime, tx may be delayed for some blocks due to the traffic.
+    // before adding new period, update last end block with current blockHeight
+    // update _startAtBlock with current blockHeight + 1
+
     function collectValidators() public isValidatorOrGenesis {
         // update _startAtBlock and _nextBlock
         _startAtBlock = _nextBlock;
-        _nextBlock += _consensusPeriod;
+        _nextBlock += _consensusPeriod+1;
+        // if (_history.length > 0) {
+        //     _history[_history.length-1].endAtBlock = blockNumber-1;
+        // }
+
         _history.push(Validators(1, _startAtBlock, _nextBlock-1));
         _history[_history.length-1].nodes[0] = _availableNodes[0];
 
@@ -461,5 +472,9 @@ contract Master {
 
     function setRewarded(address node, uint64 blockHeight) public isPoSHandler {
         rewarded[node][blockHeight] = true;
+    }
+
+    function getNodeAddressFromOwner(address owner) public view returns (address node) {
+        return _ownerNode[owner];
     }
 }

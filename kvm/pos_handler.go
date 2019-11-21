@@ -1,14 +1,17 @@
 package kvm
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
+	"math"
 	"math/big"
 	"strings"
 )
@@ -17,7 +20,12 @@ const (
 	PosHandlerAbi = `[
 	{
 		"constant": false,
-		"inputs": [],
+		"inputs": [
+			{
+				"name": "blockHeight",
+				"type": "uint64"
+			}
+		],
 		"name": "newConsensusPeriod",
 		"outputs": [],
 		"payable": false,
@@ -43,8 +51,20 @@ const (
 		"type": "function"
 	}
 ]`
+	methodSetRewarded = "setRewarded"
+	methodSaveReward = "saveReward"
+	methodGetNodeInfo = "getNodeInfo"
+	methodGetNodeAddressFromOwner = "getNodeAddressFromOwner"
+	methodClaimReward = "claimReward"
+	methodGetAvailableNodeIndex = "getAvailableNodeIndex"
+	methodGetAvailableNode = "getAvailableNode"
+	methodGetStakerInfo = "getStakerInfo"
+	methodNewConsensusPeriod = "newConsensusPeriod"
+	methodGetLatestValidatorsInfo = "getLatestValidatorsInfo"
+	methodCollectValidators = "collectValidators"
 )
 
+var KAI, _ = big.NewInt(0).SetString("100000000000000000", 10) // 10**18
 var posHandlerAddress = common.BytesToAddress([]byte{5})
 
 type (
@@ -71,6 +91,25 @@ type (
 		Node common.Address `abi:"node"`
 		BlockHeight uint64  `abi:"blockHeight"`
 	}
+	validatorsInfo struct {
+		TotalNodes uint64 `abi:"totalNodes"`
+		StartAtBlock uint64 `abi:"startAtBlock"`
+		EndAtBlock uint64 `abi:"endAtBlock"`
+	}
+	nodeAddressFromOwner struct {
+		Node common.Address `abi:"node"`
+	}
+	validator struct {
+		Node common.Address `abi:"node"`
+		Owner common.Address `abi:"owner"`
+		Stakes *big.Int `abi:"stakes"`
+		TotalStaker uint64 `abi:"totalStaker"`
+	}
+	latestValidatorsInfo struct {
+		TotalNodes uint64 `abi:"totalNodes"`
+		StartAtBlock uint64 `abi:"startAtBlock"`
+		EndAtBlock uint64 `abi:"endAtBlock"`
+	}
 	// posHandler.
 	 posHandler struct {}
 )
@@ -89,12 +128,15 @@ func (p *posHandler) Run(in []byte, contract *Contract, ctx Context, state base.
 		return nil, err
 	}
 	switch method.Name {
-	case "claimReward":
+	case methodClaimReward:
 		return in, handleClaimReward(method, in, contract, ctx, state)
+	case methodNewConsensusPeriod:
+		return in, handleNewConsensusPeriod(method, in, contract, ctx, state)
 	}
 	return in, nil
 }
 
+// handleClaimReward handles claimReward transaction sent from last proposer
 func handleClaimReward(method *abi.Method, input []byte, contract *Contract, ctx Context, state base.StateDB) error {
 	var (
 		owner common.Address
@@ -149,7 +191,7 @@ func rewardToNode(nodeAddress common.Address, blockHeight uint64, nodeReward *bi
 	if masterABI, err = abi.JSON(strings.NewReader(ctx.Chain.GetConsensusMasterSmartContract().ABI)); err != nil {
 		return err
 	}
-	if input, err = masterABI.Pack("setRewarded", nodeAddress, blockHeight); err != nil {
+	if input, err = masterABI.Pack(methodSetRewarded, nodeAddress, blockHeight); err != nil {
 		return err
 	}
 	if _, err = InternalCall(vm, ctx.Chain.GetConsensusMasterSmartContract().Address, input, big.NewInt(0)); err != nil {
@@ -160,7 +202,6 @@ func rewardToNode(nodeAddress common.Address, blockHeight uint64, nodeReward *bi
 }
 
 func rewardToStakers(nodeAddress common.Address, totalStakes *big.Int, stakers map[common.Address]*big.Int, totalReward *big.Int, blockHeight uint64, ctx Context, state base.StateDB) error {
-	method := "saveReward"
 	var (
 		err error
 		input []byte
@@ -175,7 +216,7 @@ func rewardToStakers(nodeAddress common.Address, totalStakes *big.Int, stakers m
 		reward = reward.Div(reward, totalStakes)
 
 		// call `saveReward` to k to mark reward has been paid
-		if input, err = stakerAbi.Pack(method, nodeAddress, blockHeight, reward); err != nil {
+		if input, err = stakerAbi.Pack(methodSaveReward, nodeAddress, blockHeight, reward); err != nil {
 			return err
 		}
 		if _, err = InternalCall(vm, k, input, big.NewInt(0)); err != nil {
@@ -187,7 +228,6 @@ func rewardToStakers(nodeAddress common.Address, totalStakes *big.Int, stakers m
 }
 
 func getAvailableNodeInfo(bc base.BaseBlockChain, st base.StateDB, sender, node common.Address) (common.Address, *big.Int, map[common.Address]*big.Int, error) {
-	methods := []string{"getAvailableNodeIndex", "getAvailableNode", "getStakerInfo"}
 	master := bc.GetConsensusMasterSmartContract()
 	var (
 		err error
@@ -205,36 +245,36 @@ func getAvailableNodeInfo(bc base.BaseBlockChain, st base.StateDB, sender, node 
 		return owner, stakes, stakers, err
 	}
 	// get nodeIndex
-	if input, err = masterAbi.Pack(methods[0], node); err != nil {
+	if input, err = masterAbi.Pack(methodGetAvailableNodeIndex, node); err != nil {
 		return owner, stakes, stakers, err
 	}
 	if output, err = StaticCall(vm, master.Address, input); err != nil {
 		return owner, stakes, stakers, err
 	}
-	if err = masterAbi.Unpack(&index, methods[0], output); err != nil {
+	if err = masterAbi.Unpack(&index, methodGetAvailableNodeIndex, output); err != nil {
 		return owner, stakes, stakers, err
 	}
 	if index.Uint64() == 0 {
 		return owner, stakes, stakers, fmt.Errorf(fmt.Sprintf("cannot find node:%v info", node.Hex()))
 	}
-	if input, err = masterAbi.Pack(methods[1], index); err != nil {
+	if input, err = masterAbi.Pack(methodGetAvailableNode, index); err != nil {
 		return owner, stakes, stakers, err
 	}
 	if output, err = StaticCall(vm, master.Address, input); err != nil {
 		return owner, stakes, stakers, err
 	}
-	if err = masterAbi.Unpack(&nodeInfo, methods[1], output); err != nil {
+	if err = masterAbi.Unpack(&nodeInfo, methodGetAvailableNode, output); err != nil {
 		return owner, stakes, stakers, err
 	}
 	for i := uint64(1); i < nodeInfo.TotalStaker; i++ {
 		var info stakerInfo
-		if input, err = masterAbi.Pack(methods[2], node, i); err != nil {
+		if input, err = masterAbi.Pack(methodGetStakerInfo, node, i); err != nil {
 			return owner, stakes, stakers, err
 		}
 		if output, err = StaticCall(vm, master.Address, input); err != nil {
 			return owner, stakes, stakers, err
 		}
-		if err = masterAbi.Unpack(&info, methods[2], output); err != nil {
+		if err = masterAbi.Unpack(&info, methodGetStakerInfo, output); err != nil {
 			return owner, stakes, stakers, err
 		}
 		stakers[info.Staker] = info.Amount
@@ -243,7 +283,6 @@ func getAvailableNodeInfo(bc base.BaseBlockChain, st base.StateDB, sender, node 
 }
 
 func getNodeInfo(bc base.BaseBlockChain, st base.StateDB, sender, node common.Address) (*nodeInfo, error) {
-	method := "getNodeInfo"
 	var (
 		input, output []byte
 		nodeAbi abi.ABI
@@ -254,23 +293,53 @@ func getNodeInfo(bc base.BaseBlockChain, st base.StateDB, sender, node common.Ad
 	if nodeAbi, err = abi.JSON(strings.NewReader(bc.GetConsensusNodeAbi())); err != nil {
 		return nil, err
 	}
-	if input, err = nodeAbi.Pack(method); err != nil {
+	if input, err = nodeAbi.Pack(methodGetNodeInfo); err != nil {
 		return nil, err
 	}
 	if output, err = StaticCall(vm, node, input); err != nil {
 		return nil, err
 	}
-	if err = nodeAbi.Unpack(&nInfo, method, output); err != nil {
+	if err = nodeAbi.Unpack(&nInfo, methodGetNodeInfo, output); err != nil {
 		return nil, err
 	}
 	return &nInfo, nil
 }
 
-func ClaimReward(bc base.BaseBlockChain, state *state.StateDB, txPool *tx_pool.TxPool) (*types.Transaction, error) {
-	methods := []string{"getNodeAddressFromOwner", "claimReward"}
-	type nodeAddressFromOwner struct {
-		Node common.Address `abi:"node"`
+func handleNewConsensusPeriod(method *abi.Method, input []byte, contract *Contract, ctx Context, state base.StateDB) error {
+	type inputStruct struct {
+		BlockHeight uint64 `abi:"blockHeight"`
 	}
+	var (
+		masterAbi abi.ABI
+		err error
+		is inputStruct
+	)
+	if err = method.Inputs.Unpack(&is, input[4:]); err != nil {
+		return err
+	}
+	sender := contract.CallerAddress
+	block := ctx.Chain.GetBlockByHeight(is.BlockHeight)
+	header := block.Header()
+	//block := ctx.Chain.GetBlockByHeight(is.BlockHeight)
+	vm := newInternalKVM(sender, ctx.Chain, state)
+	if masterAbi, err = abi.JSON(strings.NewReader(ctx.Chain.GetConsensusMasterSmartContract().ABI)); err != nil {
+		return err
+	}
+	// compare node address with block's proposer
+	if header.Validator.Hex() != sender.Hex() {
+		return fmt.Errorf(fmt.Sprintf("sender:%v was not proposer of block %v - block's proposer is %v", sender.Hex(), is.BlockHeight, header.Validator.Hex()))
+	}
+	// if matched, call method collectValidators
+	if input, err = masterAbi.Pack(methodCollectValidators); err != nil {
+		return err
+	}
+	if _, err = InternalCall(vm, ctx.Chain.GetConsensusMasterSmartContract().Address, input, big.NewInt(0)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ClaimReward(bc base.BaseBlockChain, state *state.StateDB, txPool *tx_pool.TxPool) (*types.Transaction, error) {
 	var (
 		posAbi, masterAbi abi.ABI
 		err error
@@ -290,48 +359,182 @@ func ClaimReward(bc base.BaseBlockChain, state *state.StateDB, txPool *tx_pool.T
 		log.Error("fail to init masterAbi", "err", err)
 		return nil, err
 	}
-
-	// test isValidator
-	if input, err = masterAbi.Pack("IsValidator", sender); err != nil{
-		return nil, err
-	}
-	if output, err = StaticCall(vm, masterSmartContract.Address, input); err != nil {
-		return nil, err
-	}
-	var result bool
-	if err = masterAbi.Unpack(&result, "IsValidator", output); err != nil {
-		return nil, err
-	}
-	if !result {
-		return nil, fmt.Errorf("user is not validator")
-	}
-
 	// get node from sender
-	if input, err = masterAbi.Pack(methods[0], sender); err != nil {
+	if input, err = masterAbi.Pack(methodGetNodeAddressFromOwner, sender); err != nil {
 		return nil, err
 	}
 	if output, err = StaticCall(vm, masterSmartContract.Address, input); err != nil {
 		log.Error("fail to get node from sender", "err", err)
 		return nil, err
 	}
-	if err = masterAbi.Unpack(&nodeAddress, methods[0], output); err != nil {
+	if err = masterAbi.Unpack(&nodeAddress, methodGetNodeAddressFromOwner, output); err != nil {
 		log.Error("fail to unpack output to nodeAddress", "err", err, "output", common.Bytes2Hex(output))
 		return nil, err
 	}
 	// create claimReward transaction
-	if input, err = posAbi.Pack("claimReward", nodeAddress.Node, bc.CurrentHeader().Height); err != nil {
+	if input, err = posAbi.Pack(methodClaimReward, nodeAddress.Node, bc.CurrentHeader().Height); err != nil {
 		return nil, err
 	}
-	gas, err := EstimateGas(vm, posHandlerAddress, input)
+	return generateTransaction(txPool.GetAddressState(sender), input, &privateKey, vm)
+}
+
+// NewConsensusPeriod is created by proposer.
+func NewConsensusPeriod(height uint64, bc base.BaseBlockChain, state *state.StateDB, txPool *tx_pool.TxPool) (*types.Transaction, error) {
+	var (
+		input, output []byte
+		posAbi, masterAbi abi.ABI
+		err error
+		vals validatorsInfo
+	)
+	sender := bc.Config().BaseAccount.Address
+	privateKey := bc.Config().BaseAccount.PrivateKey
+	vm := newInternalKVM(sender, bc, state)
+
+	if masterAbi, err = abi.JSON(strings.NewReader(bc.GetConsensusMasterSmartContract().ABI)); err != nil {
+		return nil, err
+	}
+	if input, err = masterAbi.Pack(methodGetLatestValidatorsInfo); err != nil {
+		return nil, err
+	}
+	if output, err = StaticCall(vm, bc.GetConsensusMasterSmartContract().Address, input); err != nil {
+		return nil, err
+	}
+	if err = masterAbi.Unpack(&vals, methodGetLatestValidatorsInfo, output); err != nil {
+		return nil, err
+	}
+	log.Error("generating tx in NewConsensusPeriod", "endBlock", vals.EndAtBlock, "height", height, "fetch", bc.GetFetchNewValidators())
+	// height must behind EndAtBlock bc.GetFetchNewValidators() blocks.
+	if vals.EndAtBlock != height+bc.GetFetchNewValidators() {
+		return nil, nil
+	}
+	if posAbi, err = abi.JSON(strings.NewReader(PosHandlerAbi)); err != nil {
+		return nil, err
+	}
+	if input, err = posAbi.Pack(methodNewConsensusPeriod, height); err != nil {
+		return nil, err
+	}
+	return generateTransaction(txPool.GetAddressState(sender), input, &privateKey, vm)
+}
+
+// CollectValidatorSet collects new validators list based on current available nodes and start new consensus period
+func CollectValidatorSet(bc base.BaseBlockChain) (*types.ValidatorSet, error) {
+	var (
+		err error
+		n nodeInfo
+		input, output []byte
+		masterAbi, nodeAbi abi.ABI
+		length, startBlock, endBlock uint64
+		pubKey *ecdsa.PublicKey
+	)
+	masterAddress := bc.GetConsensusMasterSmartContract().Address
+	st, err := bc.State()
 	if err != nil {
 		return nil, err
 	}
+	sender := bc.Config().BaseAccount.Address
+	ctx := NewInternalKVMContext(sender, bc.CurrentHeader(), bc)
+	vm := NewKVM(ctx, st, Config{})
+
+	if masterAbi, err = abi.JSON(strings.NewReader(bc.GetConsensusMasterSmartContract().ABI)); err != nil {
+		return nil, err
+	}
+	if nodeAbi, err = abi.JSON(strings.NewReader(bc.GetConsensusNodeAbi())); err != nil {
+		return nil, err
+	}
+	if length, startBlock, endBlock, err = getLatestValidatorsInfo(vm, masterAbi, masterAddress, sender); err != nil {
+		return nil, err
+	}
+	validators := make([]*types.Validator, 0)
+	for i:=uint64(1); i <= length; i++ {
+		var val validator
+		if input, err = masterAbi.Pack("GetLatestValidator", i); err != nil {
+			return nil, err
+		}
+		if output, err = StaticCall(vm, masterAddress, input); err != nil {
+			return nil, err
+		}
+		if err = masterAbi.Unpack(&val, "GetLatestValidator", output); err != nil {
+			return nil, err
+		}
+		stakes := calculateVotingPower(val.Stakes)
+		if stakes < 0 {
+			return nil, fmt.Errorf("invalid stakes")
+		}
+		// get node info from node address
+		if input, err = nodeAbi.Pack("getNodeInfo"); err != nil {
+			return nil, err
+		}
+		if output, err = StaticCall(vm, val.Node, input); err != nil {
+			return nil, err
+		}
+		if err = nodeAbi.Unpack(&n, "getNodeInfo", output); err != nil {
+			return nil, err
+		}
+		if pubKey, err = crypto.StringToPublicKey(n.NodeId); err != nil {
+			return nil, err
+		}
+		validators = append(validators, types.NewValidator(*pubKey, stakes))
+	}
+	return types.NewValidatorSet(validators, int64(startBlock), int64(endBlock)), nil
+}
+
+// getLatestValidatorsInfo is used after collect validators process is done, node calls this function to get new validators set
+func getLatestValidatorsInfo(vm *KVM, masterAbi abi.ABI, masterAddress, sender common.Address) (uint64, uint64, uint64, error) {
+	method := "getLatestValidatorsInfo"
+	var (
+		err error
+		input, output []byte
+		info latestValidatorsInfo
+	)
+	if input, err = masterAbi.Pack(method); err != nil {
+		return 0, 0, 0, err
+	}
+	if output, err = StaticCall(vm, masterAddress, input); err != nil {
+		return 0, 0, 0, err
+	}
+	if err = masterAbi.Unpack(&info, method, output); err != nil {
+		return 0, 0, 0, err
+	}
+	return info.TotalNodes, info.StartAtBlock, info.EndAtBlock, nil
+}
+
+// calculateVotingPower converts stake amount into smaller number that is in int64's scope.
+func calculateVotingPower(amount *big.Int) int64 {
+	return amount.Div(amount, KAI).Int64()
+}
+
+func generateTransaction(nonce uint64, input []byte, privateKey *ecdsa.PrivateKey, vm *KVM) (*types.Transaction, error) {
 	return types.SignTx(types.NewTransaction(
-		txPool.GetAddressState(sender),
+		nonce,
 		posHandlerAddress,
 		big.NewInt(0),
-		gas,
+		calculateGas(input),
 		big.NewInt(0),
 		input,
-	), &privateKey)
+	), privateKey)
+}
+
+func calculateGas(data []byte) uint64 {
+	gas := TxGas
+	if len(data) > 0 {
+		// Zero and non-zero bytes are priced differently
+		var nz uint64
+		for _, byt := range data {
+			if byt != 0 {
+				nz++
+			}
+		}
+		// Make sure we don't exceed uint64 for all data combinations
+		if (math.MaxUint64-gas)/TxDataNonZeroGas < nz {
+			return 0
+		}
+		gas += nz * TxDataNonZeroGas
+
+		z := uint64(len(data)) - nz
+		if (math.MaxUint64-gas)/TxDataZeroGas < z {
+			return 0
+		}
+		gas += z * TxDataZeroGas
+	}
+	return gas
 }

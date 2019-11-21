@@ -329,7 +329,6 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			queueTxs := p.MarkTransactions(txs)
 			pm.receivedTxsCh <- receivedTxs{peer: p, txs: queueTxs}
 		}
-
 	case msg.Code == serviceconst.CsNewRoundStepMsg:
 		pm.logger.Trace("NewRoundStep message received")
 		pm.csReactor.ReceiveNewRoundStep(msg, p.Peer)
