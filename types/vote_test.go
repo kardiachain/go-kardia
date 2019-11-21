@@ -23,22 +23,6 @@ import (
 	"testing"
 )
 
-func TestVoteCreationAndCopy(t *testing.T) {
-	vote := CreateEmptyVote()
-	if !vote.IsEmpty() {
-		t.Fatal("Expected Vote to be empty. Is not empty")
-	}
-
-	voteCopy := vote.Copy()
-
-	if rlpHash(vote) != rlpHash(voteCopy) {
-		t.Fatal("Error, Vote Copy wrong")
-	}
-	if &voteCopy == &vote {
-		t.Fatal("Address of vote and vote2 are the same")
-	}
-
-}
 func TestVoteByteEncoding(t *testing.T) {
 	firstVote := CreateEmptyVote()
 
@@ -48,22 +32,4 @@ func TestVoteByteEncoding(t *testing.T) {
 	if bytes.Equal(firstByte, secondByte) {
 		t.Fatal("SignBytes expected to be different for different votes")
 	}
-}
-
-func TestVoteTypeFunctions(t *testing.T) {
-	firstVote := CreateEmptyVote()
-	secondVote := firstVote.Copy()
-	firstVote.Type = PrevoteType  //Prevote
-	secondVote.Type = PrevoteType //Precommit
-
-	if GetReadableVoteTypeString(firstVote.Type) != "Prevote" || GetReadableVoteTypeString(secondVote.Type) != "Precommit" {
-		t.Fatal("Issue translating vote types from bytes to string")
-	}
-
-	invalidType := SignedMsgType(0xff)
-
-	if !IsVoteTypeValid(firstVote.Type) || !IsVoteTypeValid(secondVote.Type) || IsVoteTypeValid(invalidType) {
-		t.Fatal("Valid vote type not found")
-	}
-
 }

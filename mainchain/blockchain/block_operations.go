@@ -117,7 +117,7 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartS
 	}
 
 	// TODO(kiendn): WriteBlockWithoutState returns an error, write logic check if error appears
-	if err := bo.blockchain.WriteBlockWithoutState(block); err != nil {
+	if err := bo.blockchain.WriteBlockWithoutState(block, blockParts, seenCommit); err != nil {
 		common.PanicSanity(common.Fmt("WriteBlockWithoutState fails with error %v", err))
 	}
 

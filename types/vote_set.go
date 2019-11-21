@@ -312,11 +312,11 @@ func (voteSet *VoteSet) Round() *cmn.BigInt {
 	return voteSet.round
 }
 
-func (voteSet *VoteSet) Type() SignedMsgType {
+func (voteSet *VoteSet) Type() byte {
 	if voteSet == nil {
 		return 0x00
 	}
-	return voteSet.type_
+	return byte(voteSet.type_)
 }
 
 func (voteSet *VoteSet) Size() int {
@@ -349,7 +349,7 @@ func (voteSet *VoteSet) BitArrayByBlockID(blockID BlockID) *cmn.BitArray {
 }
 
 // NOTE: if validator has conflicting votes, returns "canonical" vote
-func (voteSet *VoteSet) GetByIndex(valIndex uint) *Vote {
+func (voteSet *VoteSet) GetByIndex(valIndex int) *Vote {
 	if voteSet == nil {
 		return nil
 	}
@@ -452,12 +452,11 @@ func (voteSet *VoteSet) MakeCommit() *Commit {
 	}
 
 	// For every validator, get the precommit
-	votesCopy := make([]*Vote, len(voteSet.votes))
-	copy(votesCopy, voteSet.votes)
-	return &Commit{
-		BlockID:    *voteSet.maj23,
-		Precommits: votesCopy,
+	commitSigs := make([]*CommitSig, len(voteSet.votes))
+	for i, v := range voteSet.votes {
+		commitSigs[i] = v.CommitSig()
 	}
+	return NewCommit(*voteSet.maj23, commitSigs)
 }
 
 //--------------------------------------------------------------------------------
@@ -504,9 +503,9 @@ func (vs *blockVotes) getByIndex(index int) *Vote {
 type VoteSetReader interface {
 	Height() *cmn.BigInt
 	Round() *cmn.BigInt
-	Type() SignedMsgType
+	Type() byte
 	Size() int
 	BitArray() *cmn.BitArray
-	GetByIndex(uint) *Vote
+	GetByIndex(int) *Vote
 	IsCommit() bool
 }

@@ -397,12 +397,12 @@ func (bc *BlockChain) SetHead(head uint64) error {
 }
 
 // WriteBlockWithoutState writes only new block to database.
-func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) error {
+func (bc *BlockChain) WriteBlockWithoutState(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) error {
 	// Makes sure no inconsistent state is leaked during insertion
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 	// Write block data in batch
-	bc.db.WriteBlock(block, block.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
+	bc.db.WriteBlock(block, blockParts, seenCommit)
 
 	// Convert all txs into txLookupEntries and store to db
 	bc.db.WriteTxLookupEntries(block)

@@ -209,8 +209,6 @@ func NewBlock(block *types.Block) *Block {
 		Time:           0,
 		LastBlockID:    block.Header().LastBlockID.String(),
 		NumTxs:         block.NumTxs(),
-		TxHash:         block.Header().TxHash.Hex(),
-		Coinbase:       block.Header().Coinbase.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 		DualEventsHash: block.Header().DualEventsHash.Hex(),
 		GasLimit:       block.Header().GasLimit,
@@ -235,8 +233,6 @@ func (block *Block) ToHeader() *types.Header {
 		LastBlockID:    toBlockID(block.Header.LastBlockID, block.Header.PartsHeader),
 		Time:           big.NewInt(int64(block.Header.Time)),
 		NumTxs:         block.Header.NumTxs,
-		TxHash:         common.HexToHash(block.Header.TxHash),
-		Coinbase:       common.HexToAddress(block.Header.Coinbase),
 		ConsensusHash:  common.HexToHash(block.Header.ConsensusHash),
 		DualEventsHash: common.HexToHash(block.Header.DualEventsHash),
 		GasLimit:       block.Header.GasLimit,
@@ -427,7 +423,7 @@ func (receipt *Receipt) ToReceipt() *types.Receipt {
 	}
 }
 
-func NewVote(vote *types.Vote) *Vote {
+func NewVote(vote *types.CommitSig) *Vote {
 	return &Vote{
 		Height:           vote.Height.Int64(),
 		Type:             vote.Type,
@@ -471,16 +467,16 @@ func NewCommit(commit *types.Commit, height uint64) *Commit {
 }
 
 func (commit *Commit) ToCommit() *types.Commit {
-	votes := make([]*types.Vote, 0)
-	for _, vote := range commit.Precommits {
+	commitSigs := make([]*types.CommitSig, len(commit.Precommits))
+	for idx, vote := range commit.Precommits {
 		if vote != nil {
-			votes = append(votes, vote.ToVote())
+			commitSigs[idx] = vote.ToVote().CommitSig()
 		} else {
-			votes = append(votes, nil)
+			commitSigs[idx] = nil
 		}
 	}
 	return &types.Commit{
-		Precommits: votes,
+		Precommits: commitSigs,
 		BlockID:    toBlockID(commit.BlockID, commit.PartsHeader),
 	}
 }

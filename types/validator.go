@@ -340,7 +340,7 @@ func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height
 		}
 		_, val := valSet.GetByIndex(idx)
 		// Validate signature
-		if !val.VerifyVoteSignature(chainID, precommit) {
+		if !val.VerifyVoteSignature(chainID, commit.GetVote(idx)) {
 			return fmt.Errorf("Invalid commit -- invalid signature: %v", precommit)
 		}
 		if !blockID.Equal(precommit.BlockID) {

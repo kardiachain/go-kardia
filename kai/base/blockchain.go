@@ -32,7 +32,7 @@ type BaseBlockChain interface {
 	Genesis() *types.Block
 	CurrentHeader() *types.Header
 	CurrentBlock() *types.Block
-	WriteBlockWithoutState(block *types.Block) error
+	WriteBlockWithoutState(*types.Block, *types.PartSet, *types.Commit) error
 	GetBlock(hash common.Hash, number uint64) *types.Block
 	GetBlockByHeight(height uint64) *types.Block
 	GetBlockByHash(hash common.Hash) *types.Block
@@ -48,4 +48,5 @@ type BaseBlockChain interface {
 	StateAt(height uint64) (*state.StateDB, error)
 	DB() types.StoreDB
 	ZeroFee() bool
-	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error)}
+	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error)
+}

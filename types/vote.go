@@ -92,6 +92,16 @@ func CreateEmptyVote() *Vote {
 	}
 }
 
+// CommitSig converts the Vote to a CommitSig.
+// If the Vote is nil, the CommitSig will be nil.
+func (vote *Vote) CommitSig() *CommitSig {
+	if vote == nil {
+		return nil
+	}
+	cs := CommitSig(*vote)
+	return &cs
+}
+
 func (vote *Vote) IsEmpty() bool {
 	return vote.ValidatorIndex.EqualsInt(-1) && vote.Height.EqualsInt(-1) && vote.Height.EqualsInt(-1) && vote.Timestamp.Int64() == 0
 }
@@ -102,15 +112,6 @@ func (vote *Vote) SignBytes(chainID string) []byte {
 		panic(err)
 	}
 	return bz
-}
-
-func (vote *Vote) Copy() *Vote {
-	voteCopy := *vote
-	voteCopy.ValidatorIndex = vote.ValidatorIndex.Copy()
-	voteCopy.Height = vote.Height.Copy()
-	voteCopy.Round = vote.Round.Copy()
-	voteCopy.Timestamp = big.NewInt(vote.Timestamp.Int64())
-	return &voteCopy
 }
 
 // StringLong returns a long string representing full info about Vote

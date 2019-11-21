@@ -1181,8 +1181,6 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	// Create a copy of the state for staging and an event cache for txs.
 	stateCopy := cs.state.Copy()
 
-	block.MakeEmptyNil()
-
 	// Execute and commit the block, update and save the state, and update the mempool.
 	// NOTE The block.AppHash wont reflect these txs until the next block.
 	var err error
@@ -1208,7 +1206,6 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 		// but may differ from the LastCommit included in the next block
 		precommits := cs.Votes.Precommits(cs.CommitRound.Int32())
 		seenCommit := precommits.MakeCommit()
-		cs.logger.Trace("Save new block", "block", block.Height(), "seenCommit", seenCommit)
 		cs.blockOperations.SaveBlock(block, blockParts, seenCommit)
 	} else {
 		// Happens during replay if we already saved the block but didn't commit
@@ -1239,7 +1236,7 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 	var commit *types.Commit
 	if cs.Height.EqualsInt(1) {
 		// We're creating a proposal for the first block.
-		commit = &types.Commit{}
+		commit = types.NewCommit(types.BlockID{}, nil)
 		cs.logger.Trace("enterPropose: First height, use empty Commit.")
 	} else if cs.LastCommit.HasTwoThirdsMajority() {
 		// Make the commit from LastCommit
@@ -1250,11 +1247,11 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 		cs.logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
 		return nil, nil
 	}
-
+	proposerAddr := cs.privValidator.GetAddress()
 	return cs.blockOperations.CreateProposalBlock(
 		cs.Height.Int64(),
 		cs.state,
-		cs.privValidator.GetAddress(),
+		proposerAddr,
 		commit,
 	)
 }

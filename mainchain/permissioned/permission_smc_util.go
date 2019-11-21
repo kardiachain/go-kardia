@@ -40,6 +40,7 @@ const (
 )
 
 var MaximumGasToCallStaticFunction = uint(4000000)
+
 // PermissionSmcUtil wraps all utility methods related to permission smc
 type PermissionSmcUtil struct {
 	Abi              *abi.ABI

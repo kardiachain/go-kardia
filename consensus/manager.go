@@ -1077,7 +1077,7 @@ func (ps *PeerState) PickVoteToSend(votes types.VoteSetReader) (vote *types.Vote
 		return nil, false
 	}
 
-	height, round, type_, size := votes.Height(), votes.Round(), votes.Type(), votes.Size()
+	height, round, type_, size := votes.Height(), votes.Round(), types.SignedMsgType(votes.Type()), votes.Size()
 
 	// Lazily set data using 'votes'.
 	if votes.IsCommit() {
@@ -1091,7 +1091,7 @@ func (ps *PeerState) PickVoteToSend(votes types.VoteSetReader) (vote *types.Vote
 	}
 	if index, ok := votes.BitArray().Sub(psVotes).PickRandom(); ok {
 		ps.setHasVote(height, round, type_, cmn.NewBigInt32(index))
-		return votes.GetByIndex(uint(index)), true
+		return votes.GetByIndex(index), true
 	}
 	return nil, false
 }

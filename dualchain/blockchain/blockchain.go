@@ -391,12 +391,12 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 }
 
 // WriteBlockWithoutState writes only new block to database.
-func (dbc *DualBlockChain) WriteBlockWithoutState(block *types.Block) error {
+func (dbc *DualBlockChain) WriteBlockWithoutState(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) error {
 	// Makes sure no inconsistent state is leaked during insertion
 	dbc.mu.Lock()
 	defer dbc.mu.Unlock()
 	// Write block data in batch
-	dbc.db.WriteBlock(block, block.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
+	dbc.db.WriteBlock(block, blockParts, seenCommit)
 
 	// Convert all txs into txLookupEntries and store to db
 	dbc.db.WriteTxLookupEntries(block)
