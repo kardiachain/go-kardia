@@ -42,7 +42,7 @@ func NewValidatorStub(privValidator types.PrivValidator, valIndex *cmn.BigInt) *
 }
 
 func (vs *validatorStub) signVote(
-	voteType byte,
+	voteType types.SignedMsgType,
 	hash common.Hash,
 	header types.PartSetHeader) (*types.Vote, error) {
 	addr := vs.PrivValidator.GetAddress()
@@ -60,7 +60,7 @@ func (vs *validatorStub) signVote(
 }
 
 // Sign vote for type/hash/header
-func signVote(vs *validatorStub, voteType byte, hash cmn.Hash, header types.PartSetHeader) *types.Vote {
+func signVote(vs *validatorStub, voteType types.SignedMsgType, hash cmn.Hash, header types.PartSetHeader) *types.Vote {
 	v, err := vs.signVote(voteType, hash, header)
 	if err != nil {
 		panic(fmt.Errorf("failed to sign vote: %v", err))
@@ -69,7 +69,7 @@ func signVote(vs *validatorStub, voteType byte, hash cmn.Hash, header types.Part
 }
 
 func signVotes(
-	voteType byte,
+	voteType types.SignedMsgType,
 	hash common.Hash,
 	header types.PartSetHeader,
 	vss ...*validatorStub) []*types.Vote {
@@ -150,7 +150,7 @@ func addVotes(to *ConsensusState, votes ...*types.Vote) {
 
 func signAddVotes(
 	to *ConsensusState,
-	voteType byte,
+	voteType types.SignedMsgType,
 	hash common.Hash,
 	header types.PartSetHeader,
 	vss ...*validatorStub) {

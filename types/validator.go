@@ -335,7 +335,7 @@ func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height
 		if !precommit.Round.Equals(round) {
 			return fmt.Errorf("Invalid commit -- wrong round: %v vs %v", round, precommit.Round)
 		}
-		if precommit.Type != VoteTypePrecommit {
+		if precommit.Type != PrecommitType {
 			return fmt.Errorf("Invalid commit -- not precommit @ index %v", idx)
 		}
 		_, val := valSet.GetByIndex(idx)

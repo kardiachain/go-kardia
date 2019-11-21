@@ -118,7 +118,7 @@ func CreateNewBlockWithTwoVotes(height uint64) *Block {
 		Height:         common.NewBigInt64(2),
 		Round:          common.NewBigInt64(1),
 		Timestamp:      big.NewInt(100),
-		Type:           VoteTypePrecommit,
+		Type:           PrecommitType,
 	}
 	lastCommit := &Commit{
 		Precommits: []*Vote{vote, nil},

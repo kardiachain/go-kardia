@@ -154,15 +154,15 @@ type (
 		PartsHeader PartSetHeader `json:"partsHeader" bson:"partsHeader"`
 	}
 	Vote struct {
-		ValidatorAddress string        `json:"validatorAddress"           bson:"validatorAddress"`
-		ValidatorIndex   int64         `json:"validatorIndex"             bson:"validatorIndex"`
-		Height           int64         `json:"height"                     bson:"height"`
-		Round            int64         `json:"round"                      bson:"round"`
-		Timestamp        uint64        `json:"timestamp"                  bson:"timestamp"`
-		Type             byte          `json:"type"                       bson:"type"`
-		BlockID          string        `json:"blockID"                    bson:"blockID"`
-		Signature        string        `json:"signature"                  bson:"signature"`
-		PartsHeader      PartSetHeader `json:"partsHeader" bson:"partsHeader"`
+		ValidatorAddress string              `json:"validatorAddress"           bson:"validatorAddress"`
+		ValidatorIndex   int64               `json:"validatorIndex"             bson:"validatorIndex"`
+		Height           int64               `json:"height"                     bson:"height"`
+		Round            int64               `json:"round"                      bson:"round"`
+		Timestamp        uint64              `json:"timestamp"                  bson:"timestamp"`
+		Type             types.SignedMsgType `json:"type"                       bson:"type"`
+		BlockID          string              `json:"blockID"                    bson:"blockID"`
+		Signature        string              `json:"signature"                  bson:"signature"`
+		PartsHeader      PartSetHeader       `json:"partsHeader" bson:"partsHeader"`
 	}
 	HeadHeaderHash struct {
 		ID   int    `json:"ID"      bson:"ID"`

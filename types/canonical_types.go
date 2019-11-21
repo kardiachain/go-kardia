@@ -35,13 +35,13 @@ type CanonicalProposal struct {
 }
 
 type CanonicalVote struct {
-	ChainID   string      `json:"@chain_id"`
-	Type      string      `json:"@type"`
-	BlockID   BlockID     `json:"block_id"`
-	Height    *cmn.BigInt `json:"height"`
-	Round     *cmn.BigInt `json:"round"`
-	Timestamp *big.Int    `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
-	VoteType  byte        `json:"type"`
+	ChainID   string        `json:"@chain_id"`
+	Type      string        `json:"@type"`
+	BlockID   BlockID       `json:"block_id"`
+	Height    *cmn.BigInt   `json:"height"`
+	Round     *cmn.BigInt   `json:"round"`
+	Timestamp *big.Int      `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+	VoteType  SignedMsgType `json:"type"`
 }
 
 // ------- Helper functions to create canonical types --------------

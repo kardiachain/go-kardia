@@ -20,6 +20,7 @@
 package kai
 
 import (
+	"fmt"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/service"
@@ -131,7 +132,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		Hash:        block.Hash(),
 		PartsHeader: block.MakePartSet(types.BlockPartSizeBytes).Header(),
 	}
-
+	fmt.Print(block.Height())
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon", // TODO(thientn): considers merging this with protocolmanger.ChainID
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),

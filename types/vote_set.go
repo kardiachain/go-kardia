@@ -58,7 +58,7 @@ type VoteSet struct {
 	chainID string
 	height  *cmn.BigInt
 	round   *cmn.BigInt
-	type_   byte
+	type_   SignedMsgType
 	valSet  *ValidatorSet
 
 	mtx           sync.Mutex
@@ -71,7 +71,7 @@ type VoteSet struct {
 }
 
 // Constructs a new VoteSet struct used to accumulate votes for given height/round.
-func NewVoteSet(chainID string, height *cmn.BigInt, round *cmn.BigInt, type_ byte, valSet *ValidatorSet) *VoteSet {
+func NewVoteSet(chainID string, height *cmn.BigInt, round *cmn.BigInt, t SignedMsgType, valSet *ValidatorSet) *VoteSet {
 	if height.EqualsInt(0) {
 		panic("Cannot make VoteSet for height == 0, doesn't make sense.")
 	}
@@ -79,7 +79,7 @@ func NewVoteSet(chainID string, height *cmn.BigInt, round *cmn.BigInt, type_ byt
 		chainID:       chainID,
 		height:        height,
 		round:         round,
-		type_:         type_,
+		type_:         t,
 		valSet:        valSet,
 		votesBitArray: cmn.NewBitArray(valSet.Size()),
 		votes:         make([]*Vote, valSet.Size()),
@@ -312,7 +312,7 @@ func (voteSet *VoteSet) Round() *cmn.BigInt {
 	return voteSet.round
 }
 
-func (voteSet *VoteSet) Type() byte {
+func (voteSet *VoteSet) Type() SignedMsgType {
 	if voteSet == nil {
 		return 0x00
 	}
@@ -362,7 +362,7 @@ func (voteSet *VoteSet) IsCommit() bool {
 	if voteSet == nil {
 		return false
 	}
-	if voteSet.type_ != VoteTypePrecommit {
+	if voteSet.type_ != PrecommitType {
 		return false
 	}
 	voteSet.mtx.Lock()
@@ -440,7 +440,7 @@ func (voteSet *VoteSet) sumTotalFrac() (int64, int64, float64) {
 }
 
 func (voteSet *VoteSet) MakeCommit() *Commit {
-	if voteSet.type_ != VoteTypePrecommit {
+	if voteSet.type_ != PrecommitType {
 		cmn.PanicSanity("Cannot MakeCommit() unless VoteSet.Type is VoteTypePrecommit")
 	}
 	voteSet.mtx.Lock()
@@ -504,7 +504,7 @@ func (vs *blockVotes) getByIndex(index int) *Vote {
 type VoteSetReader interface {
 	Height() *cmn.BigInt
 	Round() *cmn.BigInt
-	Type() byte
+	Type() SignedMsgType
 	Size() int
 	BitArray() *cmn.BitArray
 	GetByIndex(uint) *Vote

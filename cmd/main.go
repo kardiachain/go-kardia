@@ -328,6 +328,8 @@ func (c *Config) Start() {
 		return
 	}
 
+	c.DualChain = nil
+
 	if c.DualChain != nil {
 		if err := n.RegisterService(service.NewDualService); err != nil {
 			logger.Error("error while adding dual service", "err", err)

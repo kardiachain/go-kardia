@@ -45,8 +45,8 @@ type Commit struct {
 // if precommits from the commit can't be added to the voteset.
 // Inverse of VoteSet.MakeCommit().
 func CommitToVoteSet(chainID string, commit *Commit, vals *ValidatorSet) *VoteSet {
-	height, round, typ := commit.Height(), commit.Round(), VoteTypePrecommit
-	voteSet := NewVoteSet(chainID, height, round, typ, vals)
+	height, round, t := commit.Height(), commit.Round(), PrecommitType
+	voteSet := NewVoteSet(chainID, height, round, t, vals)
 	for _, precommit := range commit.Precommits {
 		if precommit == nil {
 			continue
@@ -90,7 +90,7 @@ func (commit *Commit) FirstPrecommit() *Vote {
 		}
 	}
 	return &Vote{
-		Type: VoteTypePrecommit,
+		Type: PrecommitType,
 	}
 }
 
@@ -111,8 +111,8 @@ func (commit *Commit) Round() *cmn.BigInt {
 }
 
 // Type returns the vote type of the commit, which is always VoteTypePrecommit
-func (commit *Commit) Type() byte {
-	return VoteTypePrecommit
+func (commit *Commit) Type() SignedMsgType {
+	return PrecommitType
 }
 
 // Size returns the number of votes in the commit
@@ -169,7 +169,7 @@ func (commit *Commit) ValidateBasic() error {
 			continue
 		}
 		// Ensure that all votes are precommits
-		if precommit.Type != VoteTypePrecommit {
+		if precommit.Type != PrecommitType {
 			return fmt.Errorf("Invalid commit vote. Expected precommit, got %v",
 				precommit.Type)
 		}
