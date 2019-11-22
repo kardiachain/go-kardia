@@ -8,7 +8,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/kardiachain/go-kardia/lib/common"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/merkle"
 )
@@ -77,7 +76,7 @@ func (psh PartSetHeader) ValidateBasic() error {
 
 type PartSet struct {
 	total int
-	hash  common.Hash
+	hash  cmn.Hash
 
 	mtx           sync.Mutex
 	parts         []*Part
@@ -109,7 +108,7 @@ func NewPartSetFromData(data []byte, partSize int) *PartSet {
 	}
 	return &PartSet{
 		total:         total,
-		hash:          common.BytesToHash(root),
+		hash:          cmn.BytesToHash(root),
 		parts:         parts,
 		partsBitArray: partsBitArray,
 		count:         total,
@@ -132,7 +131,7 @@ func (ps *PartSet) Header() PartSetHeader {
 		return PartSetHeader{}
 	}
 	return PartSetHeader{
-		Total: *common.NewBigInt32(ps.total),
+		Total: *cmn.NewBigInt32(ps.total),
 		Hash:  ps.hash,
 	}
 }
@@ -150,14 +149,14 @@ func (ps *PartSet) BitArray() *cmn.BitArray {
 	return ps.partsBitArray.Copy()
 }
 
-func (ps *PartSet) Hash() common.Hash {
+func (ps *PartSet) Hash() cmn.Hash {
 	if ps == nil {
-		return common.Hash{}
+		return cmn.Hash{}
 	}
 	return ps.hash
 }
 
-func (ps *PartSet) HashesTo(hash common.Hash) bool {
+func (ps *PartSet) HashesTo(hash cmn.Hash) bool {
 	if ps == nil {
 		return false
 	}
