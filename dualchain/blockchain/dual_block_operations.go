@@ -145,9 +145,6 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, blockParts *types.
 		common.PanicSanity(common.Fmt("WriteBlockWithoutState fails with error %v", err))
 	}
 
-	// Save block commit (duplicate and separate from the Block)
-	dbo.blockchain.WriteBlock(block, blockParts, seenCommit)
-
 	dbo.logger.Trace("After commited to blockchain, removing these DualEvent's", "events", block.DualEvents())
 	dbo.eventPool.RemoveEvents(block.DualEvents())
 

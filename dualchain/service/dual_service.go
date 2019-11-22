@@ -108,14 +108,21 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		logger.Error("Cannot get validator from indices", "indices", ctx.Config.DualChainConfig.ValidatorIndexes, "err", err)
 		return nil, err
 	}
+
+	blockID := types.BlockID{
+		Hash:        block.Hash(),
+		PartsHeader: block.MakePartSet(types.BlockPartSizeBytes).Header(),
+	}
+
 	state := state.LastestBlockState{
 		ChainID:                     "kaigroupcon",
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
-		LastBlockID:                 block.Header().LastBlockID,
+		LastBlockID:                 blockID,
 		LastBlockTime:               block.Time(),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
+		AppHash:                     dualService.blockchain.ReadAppHash(block.Height()),
 	}
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool)
 	consensusState := consensus.NewConsensusState(
