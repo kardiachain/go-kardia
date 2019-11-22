@@ -163,11 +163,13 @@ func (g *Genesis) ToBlock(logger log.Logger, db types.Database) *types.Block {
 	statedb, _ := state.New(logger, common.Hash{}, state.NewDatabase(db))
 
 	for addr, account := range g.Alloc {
-		statedb.AddBalance(addr, account.Balance)
-		statedb.SetCode(addr, account.Code)
-		statedb.SetNonce(addr, account.Nonce)
-		for key, value := range account.Storage {
-			statedb.SetState(addr, key, value)
+		if !statedb.Exist(addr) {
+			statedb.AddBalance(addr, account.Balance)
+			statedb.SetCode(addr, account.Code)
+			statedb.SetNonce(addr, account.Nonce)
+			for key, value := range account.Storage {
+				statedb.SetState(addr, key, value)
+			}
 		}
 	}
 	if g.GasLimit == 0 {
