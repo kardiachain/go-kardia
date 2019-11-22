@@ -113,7 +113,7 @@ func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block) (c
 	if err != nil {
 		return common.Hash{}, err
 	}
-
+	dbo.blockchain.DB().WriteAppHash(block.Height(), root)
 	return root, nil
 }
 

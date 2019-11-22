@@ -228,7 +228,7 @@ func (dbc *DualBlockChain) GetHeader(hash common.Hash, height uint64) *types.Hea
 
 // State returns a new mutatable state at head block.
 func (dbc *DualBlockChain) State() (*state.StateDB, error) {
-	return dbc.StateAt(dbc.CurrentBlock().Height())
+	return dbc.StateAt(dbc.CurrentHeader().Height)
 }
 
 // StateAt returns a new mutable state based on a particular point in time.

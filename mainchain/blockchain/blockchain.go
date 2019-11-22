@@ -426,7 +426,7 @@ func (bc *BlockChain) WriteReceipts(receipts types.Receipts, block *types.Block)
 }
 
 // CommitTrie commits trie node such as statedb forcefully to disk.
-func (bc BlockChain) CommitTrie(root common.Hash) error {
+func (bc *BlockChain) CommitTrie(root common.Hash) error {
 	triedb := bc.stateCache.TrieDB()
 	return triedb.Commit(root, false)
 }
