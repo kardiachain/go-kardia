@@ -615,8 +615,6 @@ func WriteBlock(db kaidb.Writer, block *types.Block, blockParts *types.PartSet, 
 	height := block.Height()
 	hash := block.Hash()
 
-	fmt.Printf("--------------%v/%v----------------\n", height, seenCommit.Height())
-
 	// Save block meta
 	blockMeta := types.NewBlockMeta(block, blockParts)
 
