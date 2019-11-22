@@ -25,11 +25,13 @@ import (
 )
 
 func TestProposalCreation(t *testing.T) {
-	proposal := NewProposal(cmn.NewBigInt64(1), cmn.NewBigInt64(2), cmn.NewBigInt64(3), makeBlockIDRandom())
+	blockID := makeBlockIDRandom()
+	proposal := NewProposal(cmn.NewBigInt64(1), cmn.NewBigInt64(2), cmn.NewBigInt64(3), blockID)
 
 	if !proposal.Height.Equals(cmn.NewBigInt64(1)) ||
 		!proposal.Round.Equals(cmn.NewBigInt64(2)) ||
-		!proposal.POLRound.Equals(cmn.NewBigInt64(3)) {
+		!proposal.POLRound.Equals(cmn.NewBigInt64(3)) ||
+		!proposal.POLBlockID.Equal(blockID) {
 		t.Error("Proposal Creation Error")
 	}
 
