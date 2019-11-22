@@ -207,7 +207,7 @@ func NewBlock(block *types.Block) *Block {
 	header := Header{
 		Height:         block.Header().Height,
 		Time:           0,
-		LastBlockID:    block.Header().LastBlockID.String(),
+		LastBlockID:    block.Header().LastBlockID.StringLong(),
 		NumTxs:         block.NumTxs(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 		DualEventsHash: block.Header().DualEventsHash.Hex(),
