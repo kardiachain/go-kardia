@@ -57,13 +57,12 @@ func CommonReadCanonicalHash(db kaidb.Reader, height uint64) common.Hash {
 // CommonReadChainConfig retrieves the consensus settings based on the given genesis hash.
 func CommonReadChainConfig(db kaidb.Reader, hash common.Hash) *types.ChainConfig {
 	data, _ := db.Get(configKey(hash))
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return nil
 	}
 	var config types.ChainConfig
 	if err := json.Unmarshal(data, &config); err != nil {
-		log.Error("Invalid chain config JSON", "hash", hash, "err", err)
-		return nil
+		//panic(fmt.Errorf("Invalid chain config JSON hash:%s, err: %s", hash.Hex(), err))
 	}
 	return &config
 }
@@ -252,7 +251,6 @@ func CommonReadCommit(db kaidb.Reader, height uint64) *types.Commit {
 	if err := rlp.Decode(bytes.NewReader(data), commit); err != nil {
 		panic(fmt.Errorf("Decode read commit error: %s height: %d", err, height))
 	}
-	commit.MakeEmptyNil()
 	return commit
 }
 
@@ -561,8 +559,6 @@ func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
 		panic(errors.New("Reading seen commit error"))
 	}
 
-	commit.MakeEmptyNil()
-
 	return commit
 }
 
@@ -639,7 +635,6 @@ func WriteBlock(db kaidb.Writer, block *types.Block, blockParts *types.PartSet, 
 
 	// Save block commit (duplicate and separate from the Block)
 	lastCommit := block.LastCommit()
-	lastCommit.MakeNilEmpty()
 	lastCommitBytes, err := rlp.EncodeToBytes(lastCommit)
 	if err != nil {
 		panic(fmt.Errorf("encode last commit error: %d", err))
@@ -648,12 +643,14 @@ func WriteBlock(db kaidb.Writer, block *types.Block, blockParts *types.PartSet, 
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
-	seenCommit.MakeNilEmpty()
 	seenCommitBytes, err := rlp.EncodeToBytes(seenCommit)
 	if err != nil {
 		panic(fmt.Errorf("encode seen commit error: %d", err))
 	}
-	db.Put(seenCommitKey(height), seenCommitBytes)
+
+	if err := db.Put(seenCommitKey(height), seenCommitBytes); err != nil {
+		panic(fmt.Errorf("Failed to store seen commit err: %d", err))
+	}
 
 	key := headerHeightKey(hash)
 	if err := db.Put(key, encodeBlockHeight(height)); err != nil {

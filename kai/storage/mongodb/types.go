@@ -154,15 +154,15 @@ type (
 		PartsHeader PartSetHeader `json:"partsHeader" bson:"partsHeader"`
 	}
 	Vote struct {
-		ValidatorAddress string        `json:"validatorAddress"           bson:"validatorAddress"`
-		ValidatorIndex   int64         `json:"validatorIndex"             bson:"validatorIndex"`
-		Height           int64         `json:"height"                     bson:"height"`
-		Round            int64         `json:"round"                      bson:"round"`
-		Timestamp        uint64        `json:"timestamp"                  bson:"timestamp"`
-		Type             byte          `json:"type"                       bson:"type"`
-		BlockID          string        `json:"blockID"                    bson:"blockID"`
-		Signature        string        `json:"signature"                  bson:"signature"`
-		PartsHeader      PartSetHeader `json:"partsHeader" bson:"partsHeader"`
+		ValidatorAddress string              `json:"validatorAddress"           bson:"validatorAddress"`
+		ValidatorIndex   int64               `json:"validatorIndex"             bson:"validatorIndex"`
+		Height           int64               `json:"height"                     bson:"height"`
+		Round            int64               `json:"round"                      bson:"round"`
+		Timestamp        uint64              `json:"timestamp"                  bson:"timestamp"`
+		Type             types.SignedMsgType `json:"type"                       bson:"type"`
+		BlockID          string              `json:"blockID"                    bson:"blockID"`
+		Signature        string              `json:"signature"                  bson:"signature"`
+		PartsHeader      PartSetHeader       `json:"partsHeader" bson:"partsHeader"`
 	}
 	HeadHeaderHash struct {
 		ID   int    `json:"ID"      bson:"ID"`
@@ -209,8 +209,6 @@ func NewBlock(block *types.Block) *Block {
 		Time:           0,
 		LastBlockID:    block.Header().LastBlockID.String(),
 		NumTxs:         block.NumTxs(),
-		TxHash:         block.Header().TxHash.Hex(),
-		Coinbase:       block.Header().Coinbase.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 		DualEventsHash: block.Header().DualEventsHash.Hex(),
 		GasLimit:       block.Header().GasLimit,
@@ -235,8 +233,6 @@ func (block *Block) ToHeader() *types.Header {
 		LastBlockID:    toBlockID(block.Header.LastBlockID, block.Header.PartsHeader),
 		Time:           big.NewInt(int64(block.Header.Time)),
 		NumTxs:         block.Header.NumTxs,
-		TxHash:         common.HexToHash(block.Header.TxHash),
-		Coinbase:       common.HexToAddress(block.Header.Coinbase),
 		ConsensusHash:  common.HexToHash(block.Header.ConsensusHash),
 		DualEventsHash: common.HexToHash(block.Header.DualEventsHash),
 		GasLimit:       block.Header.GasLimit,
@@ -427,7 +423,7 @@ func (receipt *Receipt) ToReceipt() *types.Receipt {
 	}
 }
 
-func NewVote(vote *types.Vote) *Vote {
+func NewVote(vote *types.CommitSig) *Vote {
 	return &Vote{
 		Height:           vote.Height.Int64(),
 		Type:             vote.Type,
@@ -471,16 +467,16 @@ func NewCommit(commit *types.Commit, height uint64) *Commit {
 }
 
 func (commit *Commit) ToCommit() *types.Commit {
-	votes := make([]*types.Vote, 0)
-	for _, vote := range commit.Precommits {
+	commitSigs := make([]*types.CommitSig, len(commit.Precommits))
+	for idx, vote := range commit.Precommits {
 		if vote != nil {
-			votes = append(votes, vote.ToVote())
+			commitSigs[idx] = vote.ToVote().CommitSig()
 		} else {
-			votes = append(votes, nil)
+			commitSigs[idx] = nil
 		}
 	}
 	return &types.Commit{
-		Precommits: votes,
+		Precommits: commitSigs,
 		BlockID:    toBlockID(commit.BlockID, commit.PartsHeader),
 	}
 }

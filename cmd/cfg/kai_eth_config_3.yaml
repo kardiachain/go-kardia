@@ -76,7 +76,7 @@ MainChain:
     Handles: 32                              # handles is used in leveldb
 #    URI: mongodb://127.0.0.1:27019           # URI is used in mongodb
 #    Name: kardiachain                        # Name is use in mongodb
-    Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
+    Drop: 0                                # Specify whether drop database or not (0 is no, 1 is yes)
   Events:
     -
       ContractAddress: 0x00000000000000000000000000000000736d6339 # KAI smc address
@@ -232,7 +232,7 @@ DualChain:
     Handles: 32                              # handles is used in leveldb
     # URI: mongodb://127.0.0.1:27017         # URI is used in mongodb
     # Name: kardiachain                      # Name is used in mongodb
-    Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
+    Drop: 0                                  # Specify whether drop database or not (0 is no, 1 is yes)
   Events:
     -
       ContractAddress: 0xF5164638322A18acA63AA101fd39F4D6F192537c # ETH smc address

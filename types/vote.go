@@ -57,30 +57,12 @@ func NewConflictingVoteError(val *Validator, voteA, voteB *Vote) *ErrVoteConflic
 	}
 }
 
-// Types of votes
-// TODO Make a new type "VoteType"
-const (
-	VoteTypePrevote   = byte(0x01)
-	VoteTypePrecommit = byte(0x02)
-)
-
-func IsVoteTypeValid(type_ byte) bool {
-	switch type_ {
-	case VoteTypePrevote:
-		return true
-	case VoteTypePrecommit:
-		return true
-	default:
-		return false
-	}
-}
-
-func GetReadableVoteTypeString(type_ byte) string {
+func GetReadableVoteTypeString(t SignedMsgType) string {
 	var typeString string
-	switch type_ {
-	case VoteTypePrevote:
+	switch t {
+	case PrevoteType:
 		typeString = "Prevote"
-	case VoteTypePrecommit:
+	case PrecommitType:
 		typeString = "Precommit"
 	default:
 		cmn.PanicSanity("Unknown vote type")
@@ -91,14 +73,14 @@ func GetReadableVoteTypeString(type_ byte) string {
 
 // Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
-	ValidatorAddress cmn.Address `json:"validator_address"`
-	ValidatorIndex   *cmn.BigInt `json:"validator_index"`
-	Height           *cmn.BigInt `json:"height"`
-	Round            *cmn.BigInt `json:"round"`
-	Timestamp        *big.Int    `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
-	Type             byte        `json:"type"`
-	BlockID          BlockID     `json:"block_id"` // zero if vote is nil.
-	Signature        []byte      `json:"signature"`
+	ValidatorAddress cmn.Address   `json:"validator_address"`
+	ValidatorIndex   *cmn.BigInt   `json:"validator_index"`
+	Height           *cmn.BigInt   `json:"height"`
+	Round            *cmn.BigInt   `json:"round"`
+	Timestamp        *big.Int      `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+	Type             SignedMsgType `json:"type"`
+	BlockID          BlockID       `json:"block_id"` // zero if vote is nil.
+	Signature        []byte        `json:"signature"`
 }
 
 func CreateEmptyVote() *Vote {
@@ -108,6 +90,16 @@ func CreateEmptyVote() *Vote {
 		Round:          cmn.NewBigInt64(-1),
 		Timestamp:      big.NewInt(0),
 	}
+}
+
+// CommitSig converts the Vote to a CommitSig.
+// If the Vote is nil, the CommitSig will be nil.
+func (vote *Vote) CommitSig() *CommitSig {
+	if vote == nil {
+		return nil
+	}
+	cs := CommitSig(*vote)
+	return &cs
 }
 
 func (vote *Vote) IsEmpty() bool {
@@ -120,15 +112,6 @@ func (vote *Vote) SignBytes(chainID string) []byte {
 		panic(err)
 	}
 	return bz
-}
-
-func (vote *Vote) Copy() *Vote {
-	voteCopy := *vote
-	voteCopy.ValidatorIndex = vote.ValidatorIndex.Copy()
-	voteCopy.Height = vote.Height.Copy()
-	voteCopy.Round = vote.Round.Copy()
-	voteCopy.Timestamp = big.NewInt(vote.Timestamp.Int64())
-	return &voteCopy
 }
 
 // StringLong returns a long string representing full info about Vote

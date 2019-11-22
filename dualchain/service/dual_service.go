@@ -101,21 +101,28 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	// Initialization for consensus.
 	block := dualService.blockchain.CurrentBlock()
-	log.Info("DUAL Validators: ", "valIndex", ctx.Config.DualChainConfig.ValidatorIndexes)
+
+	logger.Info("DUAL Validators: ", "valIndex", ctx.Config.DualChainConfig.ValidatorIndexes, "height", block.Height())
 	var validatorSet *types.ValidatorSet
 	validatorSet, err = node.GetValidatorSet(dualService.blockchain, ctx.Config.DualChainConfig.ValidatorIndexes)
 	if err != nil {
 		logger.Error("Cannot get validator from indices", "indices", ctx.Config.DualChainConfig.ValidatorIndexes, "err", err)
 		return nil, err
 	}
+
+	blockID := types.BlockID{
+		Hash:        block.Hash(),
+		PartsHeader: block.MakePartSet(types.BlockPartSizeBytes).Header(),
+	}
 	state := state.LastestBlockState{
 		ChainID:                     "kaigroupcon",
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
-		LastBlockID:                 block.Header().LastBlockID,
+		LastBlockID:                 blockID,
 		LastBlockTime:               block.Time(),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
+		AppHash:                     dualService.blockchain.ReadAppHash(block.Height()),
 	}
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool)
 	consensusState := consensus.NewConsensusState(

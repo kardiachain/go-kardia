@@ -59,11 +59,8 @@ type Header struct {
 	LastBlockID BlockID `json:"last_block_id"`
 	//@huny TotalTxs    uint64   `json:"total_txs"`
 
-	Coinbase common.Address `json:"miner"            gencodec:"required"`
-
 	// hashes of block data
 	LastCommitHash common.Hash `json:"last_commit_hash"    gencodec:"required"` // commit from validators from the last block
-	TxHash         common.Hash `json:"data_hash"           gencodec:"required"` // transactions
 	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
 	DualEventsHash common.Hash `json:"dual_events_hash"    gencodec:"required"` // dual's events
 
@@ -96,8 +93,8 @@ func (h *Header) StringLong() string {
 		return "nil-Header"
 	}
 	// TODO(thientn): check why String() of common.Hash is not called when logging, and have to call Hex() instead.
-	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
-		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Hex(), h.TxHash.Hex(), h.AppHash.Hex(), h.ValidatorsHash.Hex(), h.ConsensusHash.Hex(), h.Hash().Hex())
+	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Hex(), h.AppHash.Hex(), h.ValidatorsHash.Hex(), h.ConsensusHash.Hex(), h.Hash().Hex())
 
 }
 
@@ -107,9 +104,8 @@ func (h *Header) String() string {
 		return "nil-Header"
 	}
 	headerHash := h.Hash()
-	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
-		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Fingerprint(),
-		h.TxHash.Fingerprint(), h.AppHash.Fingerprint(), h.ValidatorsHash.Fingerprint(), h.ConsensusHash.Fingerprint(), headerHash.Fingerprint())
+	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Fingerprint(), h.AppHash.Fingerprint(), h.ValidatorsHash.Fingerprint(), h.ConsensusHash.Fingerprint(), headerHash.Fingerprint())
 }
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
@@ -118,16 +114,6 @@ type Body struct {
 	Transactions []*Transaction
 	DualEvents   []*DualEvent
 	LastCommit   *Commit
-}
-
-func (b *Body) Copy() *Body {
-	var bodyCopy Body
-	bodyCopy.LastCommit = b.LastCommit.Copy()
-	bodyCopy.Transactions = make([]*Transaction, len(b.Transactions))
-	copy(bodyCopy.Transactions, b.Transactions)
-	bodyCopy.DualEvents = make([]*DualEvent, len(b.DualEvents))
-	copy(bodyCopy.DualEvents, b.DualEvents)
-	return &bodyCopy
 }
 
 // Body returns the non-header content of the block.
@@ -176,32 +162,30 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(header *Header, txs []*Transaction, commit *Commit) *Block {
+func NewBlock(header *Header, txs []*Transaction, lastCommit *Commit) *Block {
 	b := &Block{
-		header:     CopyHeader(header),
-		lastCommit: CopyCommit(commit),
+		header:     header,
+		lastCommit: lastCommit,
 	}
 
-	if len(txs) == 0 {
-		b.header.TxHash = EmptyRootHash
-	} else {
-		b.header.TxHash = DeriveSha(Transactions(txs))
-		b.header.NumTxs = uint64(len(txs))
+	b.header.NumTxs = uint64(len(txs))
+	if len(txs) > 0 {
 		b.transactions = make(Transactions, len(txs))
 		copy(b.transactions, txs)
 	}
 
-	if b.header.LastCommitHash.IsZero() {
-		if commit == nil {
-			b.header.LastCommitHash = common.NewZeroHash()
-		} else {
-			b.header.LastCommitHash = commit.Hash()
-		}
-	}
+	b.fillHeader()
 
 	// TODO(namdoh): Store evidence hash.
 
 	return b
+}
+
+// fillHeader fills in any remaining header fields that are a function of the block data
+func (b *Block) fillHeader() {
+	if b.header.LastCommitHash.IsZero() {
+		b.header.LastCommitHash = b.LastCommit().Hash()
+	}
 }
 
 // NewDualBlock creates a new block for dual chain. The input data is copied,
@@ -215,14 +199,6 @@ func NewDualBlock(header *Header, events DualEvents, commit *Commit) *Block {
 
 	b.header.DualEventsHash = EmptyRootHash
 
-	if b.header.LastCommitHash.IsZero() {
-		if commit == nil {
-			b.header.LastCommitHash = common.NewZeroHash()
-		} else {
-			b.header.LastCommitHash = commit.Hash()
-		}
-	}
-
 	if len(events) == 0 {
 		b.header.DualEventsHash = EmptyRootHash
 	} else {
@@ -231,6 +207,8 @@ func NewDualBlock(header *Header, events DualEvents, commit *Commit) *Block {
 		b.dualEvents = make(DualEvents, len(events))
 		copy(b.dualEvents, events)
 	}
+
+	b.fillHeader()
 
 	// TODO(namdoh): Store evidence hash.
 
@@ -268,9 +246,6 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	if err := s.Decode(&eb); err != nil {
 		return err
 	}
-	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
-	eb.LastCommit.MakeEmptyNil()
-
 	b.header, b.transactions, b.dualEvents, b.lastCommit = eb.Header, eb.Txs, eb.DualEvents, eb.LastCommit
 	b.size.Store(common.StorageSize(rlp.ListSize(size)))
 	return nil
@@ -278,14 +253,11 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 
 // EncodeRLP serializes Block into the RLP stream.
 func (b *Block) EncodeRLP(w io.Writer) error {
-	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
-	lastCommitCopy := b.lastCommit.Copy()
-	lastCommitCopy.MakeNilEmpty()
 	return rlp.Encode(w, extblock{
 		Header:     b.header,
 		Txs:        b.transactions,
 		DualEvents: b.dualEvents,
-		LastCommit: lastCommitCopy,
+		LastCommit: b.LastCommit(),
 	})
 }
 
@@ -296,21 +268,16 @@ func (b *Body) DecodeRLP(s *rlp.Stream) error {
 	if err := s.Decode(&eb); err != nil {
 		return err
 	}
-	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
-	eb.LastCommit.MakeEmptyNil()
-
 	b.Transactions, b.DualEvents, b.LastCommit = eb.Txs, eb.DualEvents, eb.LastCommit
 	return nil
 }
 
 func (b *Body) EncodeRLP(w io.Writer) error {
-	lastCommitCopy := b.LastCommit.Copy()
-	lastCommitCopy.MakeNilEmpty()
 	return rlp.Encode(w, extblock{
 		Header:     &Header{},
 		Txs:        b.Transactions,
 		DualEvents: b.DualEvents,
-		LastCommit: lastCommitCopy,
+		LastCommit: b.LastCommit,
 	})
 }
 
@@ -346,7 +313,6 @@ func (b *Block) Time() *big.Int   { return b.header.Time }
 func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
 func (b *Block) LastCommitHash() common.Hash { return b.header.LastCommitHash }
-func (b *Block) TxHash() common.Hash         { return b.header.TxHash }
 func (b *Block) LastCommit() *Commit         { return b.lastCommit }
 func (b *Block) AppHash() common.Hash        { return b.header.AppHash }
 
@@ -486,24 +452,6 @@ func (b *Block) Hash() common.Hash {
 	v := b.header.Hash()
 	b.hash.Store(v)
 	return v
-}
-
-// This function is used to address RLP's diosyncrasies (issues#73), enabling
-// RLP encoding/decoding to pass.
-// Note: Use this "before" sending the object to other peers.
-func (b *Block) MakeNilEmpty() {
-	if b.lastCommit != nil {
-		b.lastCommit.MakeNilEmpty()
-	}
-}
-
-// This function is used to address RLP's diosyncrasies (issues#73), enabling
-// RLP encoding/decoding to pass.
-// Note: Use this "after" receiving the object to other peers.
-func (b *Block) MakeEmptyNil() {
-	if b.lastCommit != nil {
-		b.lastCommit.MakeEmptyNil()
-	}
 }
 
 type BlockID struct {

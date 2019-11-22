@@ -200,6 +200,10 @@ func (bc *DualBlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
 	return bc.db.ReadBlockMeta(hash, height)
 }
 
+func (bc *DualBlockChain) ReadAppHash(height uint64) common.Hash {
+	return bc.db.ReadAppHash(height)
+}
+
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
 func (dbc *DualBlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
@@ -224,7 +228,7 @@ func (dbc *DualBlockChain) GetHeader(hash common.Hash, height uint64) *types.Hea
 
 // State returns a new mutatable state at head block.
 func (dbc *DualBlockChain) State() (*state.StateDB, error) {
-	return dbc.StateAt(dbc.CurrentBlock().Height())
+	return dbc.StateAt(dbc.CurrentHeader().Height)
 }
 
 // StateAt returns a new mutable state based on a particular point in time.
@@ -262,7 +266,7 @@ func (dbc *DualBlockChain) loadLastState() error {
 		return dbc.Reset()
 	}
 	// Make sure the state associated with the block is available
-	if _, err := state.New(dbc.logger, currentBlock.AppHash(), dbc.stateCache); err != nil {
+	if _, err := state.New(dbc.logger, dbc.ReadAppHash(currentBlock.Height()), dbc.stateCache); err != nil {
 		// Dangling block without a state associated, init from scratch
 		dbc.logger.Warn("Head state missing, repairing chain", "height", currentBlock.Height(), "hash", currentBlock.Hash())
 		if err := dbc.repair(&currentBlock); err != nil {
@@ -322,7 +326,7 @@ func (dbc *DualBlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 func (dbc *DualBlockChain) repair(head **types.Block) error {
 	for {
 		// Abort if we've rewound to a head block that does have associated state
-		if _, err := state.New(dbc.logger, (*head).AppHash(), dbc.stateCache); err == nil {
+		if _, err := state.New(dbc.logger, dbc.ReadAppHash((*head).Height()), dbc.stateCache); err == nil {
 			dbc.logger.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
 			return nil
 		}
@@ -372,7 +376,7 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 		dbc.currentBlock.Store(dbc.GetBlock(currentHeader.Hash(), currentHeader.Height))
 	}
 	if currentBlock := dbc.CurrentBlock(); currentBlock != nil {
-		if _, err := state.New(dbc.logger, currentBlock.AppHash(), dbc.stateCache); err != nil {
+		if _, err := state.New(dbc.logger, dbc.ReadAppHash(currentBlock.Height()), dbc.stateCache); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			dbc.currentBlock.Store(dbc.genesisBlock)
 		}
@@ -391,12 +395,12 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 }
 
 // WriteBlockWithoutState writes only new block to database.
-func (dbc *DualBlockChain) WriteBlockWithoutState(block *types.Block) error {
+func (dbc *DualBlockChain) WriteBlockWithoutState(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) error {
 	// Makes sure no inconsistent state is leaked during insertion
 	dbc.mu.Lock()
 	defer dbc.mu.Unlock()
 	// Write block data in batch
-	dbc.db.WriteBlock(block, block.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
+	dbc.db.WriteBlock(block, blockParts, seenCommit)
 
 	// Convert all txs into txLookupEntries and store to db
 	dbc.db.WriteTxLookupEntries(block)

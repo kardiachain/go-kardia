@@ -113,7 +113,7 @@ func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block) (c
 	if err != nil {
 		return common.Hash{}, err
 	}
-
+	dbo.blockchain.DB().WriteAppHash(block.Height(), root)
 	return root, nil
 }
 
@@ -141,12 +141,9 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, blockParts *types.
 	}
 
 	// TODO(kiendn): WriteBlockWithoutState returns an error, write logic check if error appears
-	if err := dbo.blockchain.WriteBlockWithoutState(block); err != nil {
+	if err := dbo.blockchain.WriteBlockWithoutState(block, blockParts, seenCommit); err != nil {
 		common.PanicSanity(common.Fmt("WriteBlockWithoutState fails with error %v", err))
 	}
-
-	// Save block commit (duplicate and separate from the Block)
-	dbo.blockchain.WriteBlock(block, blockParts, seenCommit)
 
 	dbo.logger.Trace("After commited to blockchain, removing these DualEvent's", "events", block.DualEvents())
 	dbo.eventPool.RemoveEvents(block.DualEvents())
@@ -246,7 +243,7 @@ func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) error 
 		} else {
 			dbo.logger.Info("Submit dual event successfully",
 				"sender", sender.Hex(), "txSource", event.TriggeredEvent.TxSource,
-				"txHash",event.TriggeredEvent.TxHash.Hex(),
+				"txHash", event.TriggeredEvent.TxHash.Hex(),
 				"eventHash", event.Hash().Hex(),
 			)
 		}

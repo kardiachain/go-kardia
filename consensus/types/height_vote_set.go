@@ -89,8 +89,8 @@ func (hvs *HeightVoteSet) addRound(round int) {
 		cmn.PanicSanity("addRound() for an existing round")
 	}
 	hvs.logger.Trace("addRound(round)", "round", round)
-	prevotes := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt32(round), types.VoteTypePrevote, hvs.valSet)
-	precommits := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt32(round), types.VoteTypePrecommit, hvs.valSet)
+	prevotes := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt32(round), types.PrevoteType, hvs.valSet)
+	precommits := types.NewVoteSet(hvs.chainID, hvs.height, cmn.NewBigInt32(round), types.PrecommitType, hvs.valSet)
 	hvs.roundVoteSets[round] = RoundVoteSet{
 		Prevotes:   prevotes,
 		Precommits: precommits,
@@ -144,22 +144,22 @@ func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID discover.NodeID) (add
 func (hvs *HeightVoteSet) Prevotes(round int) *types.VoteSet {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
-	return hvs.getVoteSet(round, types.VoteTypePrevote)
+	return hvs.getVoteSet(round, types.PrevoteType)
 }
 
 // Get vote set of the given round for specific type.
-func (hvs *HeightVoteSet) getVoteSet(round int, type_ byte) *types.VoteSet {
+func (hvs *HeightVoteSet) getVoteSet(round int, t types.SignedMsgType) *types.VoteSet {
 	rvs, ok := hvs.roundVoteSets[round]
 	if !ok {
 		return nil
 	}
-	switch type_ {
-	case types.VoteTypePrevote:
+	switch t {
+	case types.PrevoteType:
 		return rvs.Prevotes
-	case types.VoteTypePrecommit:
+	case types.PrecommitType:
 		return rvs.Precommits
 	default:
-		cmn.PanicSanity(cmn.Fmt("Unexpected vote type %X", type_))
+		cmn.PanicSanity(cmn.Fmt("Unexpected vote type %X", t))
 		return nil
 	}
 }
@@ -168,13 +168,13 @@ func (hvs *HeightVoteSet) getVoteSet(round int, type_ byte) *types.VoteSet {
 // NOTE: if there are too many peers, or too much peer churn,
 // this can cause memory issues.
 // TODO: implement ability to remove peers too
-func (hvs *HeightVoteSet) SetPeerMaj23(round int, type_ byte, peerID discover.NodeID, blockID types.BlockID) error {
+func (hvs *HeightVoteSet) SetPeerMaj23(round int, t types.SignedMsgType, peerID discover.NodeID, blockID types.BlockID) error {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
-	if !types.IsVoteTypeValid(type_) {
-		return fmt.Errorf("SetPeerMaj23: Invalid vote type %v", type_)
+	if !types.IsVoteTypeValid(t) {
+		return fmt.Errorf("SetPeerMaj23: Invalid vote type %v", t)
 	}
-	voteSet := hvs.getVoteSet(round, type_)
+	voteSet := hvs.getVoteSet(round, t)
 	if voteSet == nil {
 		return nil // something we don't know about yet
 	}
@@ -187,7 +187,7 @@ func (hvs *HeightVoteSet) POLInfo() (polRound int, polBlockID types.BlockID) {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
 	for r := hvs.round.Int32(); r >= 0; r-- {
-		rvs := hvs.getVoteSet(r, types.VoteTypePrevote)
+		rvs := hvs.getVoteSet(r, types.PrevoteType)
 		polBlockID, ok := rvs.TwoThirdsMajority()
 		if ok {
 			return r, polBlockID
@@ -199,5 +199,5 @@ func (hvs *HeightVoteSet) POLInfo() (polRound int, polBlockID types.BlockID) {
 func (hvs *HeightVoteSet) Precommits(round int) *types.VoteSet {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
-	return hvs.getVoteSet(round, types.VoteTypePrecommit)
+	return hvs.getVoteSet(round, types.PrecommitType)
 }
