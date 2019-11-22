@@ -19,6 +19,7 @@
 package types
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -86,7 +87,7 @@ func (pvs PrivValidatorsByAddress) Len() int {
 }
 
 func (pvs PrivValidatorsByAddress) Less(i, j int) bool {
-	return pvs[i].GetAddress().Equal(pvs[j].GetAddress())
+	return bytes.Compare(pvs[i].GetAddress().Bytes(), pvs[j].GetAddress().Bytes()) == -1
 }
 
 func (pvs PrivValidatorsByAddress) Swap(i, j int) {
