@@ -113,9 +113,15 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
+	consensusConfig := configs.DefaultConsensusConfig()
+
 	// Set zeroFee to blockchain
 	kai.blockchain.IsZeroFee = config.IsZeroFee
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
+
+	if consensusConfig.WaitForTxs() {
+		kai.txPool.EnableTxsAvailable()
+	}
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
@@ -144,9 +150,10 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	}
 	consensusState := consensus.NewConsensusState(
 		kai.logger,
-		configs.DefaultConsensusConfig(),
+		consensusConfig,
 		state,
 		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
+		kai.txPool,
 	)
 	kai.csManager = consensus.NewConsensusManager(config.ServiceName, consensusState)
 	// Set private validator for consensus manager.

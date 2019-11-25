@@ -246,6 +246,10 @@ type TxPool struct {
 	reorgDoneCh     chan chan struct{}
 	reorgShutdownCh chan struct{}  // requests shutdown of scheduleReorgLoop
 	wg              sync.WaitGroup // tracks loop, scheduleReorgLoop
+
+	// notify listeners (ie. consensus) when txs are available
+	notifiedTxsAvailable bool
+	txsAvailable         chan struct{} // fires once for each height, when the mempool is not empty
 }
 
 type txpoolResetRequest struct {
@@ -306,6 +310,26 @@ func NewTxPool(config TxPoolConfig, chainconfig *types.ChainConfig, chain blockC
 	go pool.loop()
 
 	return pool
+}
+
+// NOTE: not thread safe - should only be called once, on startup
+func (pool *TxPool) EnableTxsAvailable() {
+	pool.txsAvailable = make(chan struct{}, 1)
+}
+
+func (pool *TxPool) TxsAvailable() <-chan struct{} {
+	return pool.txsAvailable
+}
+
+func (pool *TxPool) notifyTxsAvailable() {
+	if pool.txsAvailable != nil && !pool.notifiedTxsAvailable {
+		// channel cap is 1, so this will send once
+		pool.notifiedTxsAvailable = true
+		select {
+		case pool.txsAvailable <- struct{}{}:
+		default:
+		}
+	}
 }
 
 func (pool *TxPool) State() *state.StateDB {
@@ -841,6 +865,9 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	if sync {
 		<-done
 	}
+
+	pool.notifyTxsAvailable()
+
 	return errs
 }
 

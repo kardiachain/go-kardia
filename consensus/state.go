@@ -53,6 +53,11 @@ var (
 	ErrVoteHeightMismatch       = errors.New("Error vote height mismatch")
 )
 
+// interface to the mempool
+type txNotifier interface {
+	TxsAvailable() <-chan struct{}
+}
+
 // msgs from the manager which may update the state
 type msgInfo struct {
 	Msg    ConsensusMessage `json:"msg"`
@@ -96,6 +101,9 @@ type ConsensusState struct {
 	blockOperations BaseBlockOperations
 	//evpool evidence.EvidencePool 	// TODO(namdoh): Add mem pool.
 
+	// notify us if txs are available
+	txNotifier txNotifier
+
 	// internal state
 	mtx sync.RWMutex
 	cstypes.RoundState
@@ -131,6 +139,7 @@ func NewConsensusState(
 	config *cfg.ConsensusConfig,
 	state state.LastestBlockState,
 	blockOperations BaseBlockOperations,
+	txNotifier txNotifier,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		logger: logger,
@@ -142,6 +151,7 @@ func NewConsensusState(
 		timeoutTicker:    NewTimeoutTicker(),
 		done:             make(chan struct{}),
 		evsw:             NewEventSwitch(),
+		txNotifier:       txNotifier,
 		RoundState: cstypes.RoundState{
 			CommitRound: cmn.NewBigInt32(0),
 			Height:      cmn.NewBigInt32(0),
@@ -755,6 +765,30 @@ func (cs *ConsensusState) LoadCommit(height *cmn.BigInt) *types.Commit {
 	return cs.blockOperations.LoadBlockCommit(height.Uint64())
 }
 
+func (cs *ConsensusState) handleTxsAvailable() {
+	cs.mtx.Lock()
+	defer cs.mtx.Unlock()
+
+	// We only need to do this for round 0.
+	if !cs.Round.EqualsInt(0) {
+		return
+	}
+
+	switch cs.Step {
+	case cstypes.RoundStepNewHeight: // timeoutCommit phase
+		if cs.needProofBlock(cs.Height) {
+			// enterPropose will be called by enterNewRound
+			return
+		}
+
+		// +1ms to ensure RoundStepNewRound timeout always happens after RoundStepNewHeight
+		timeoutCommit := time.Duration(cs.StartTime.Int64()-time.Now().Unix()) + 1*time.Millisecond
+		cs.scheduleTimeout(timeoutCommit, cs.Height, cmn.NewBigInt32(0), cstypes.RoundStepNewRound)
+	case cstypes.RoundStepNewRound: // after timeoutCommit
+		cs.enterPropose(cs.Height, cmn.NewBigInt32(0))
+	}
+}
+
 // Enter: `timeoutNewHeight` by startTime (commitTime+timeoutCommit),
 // 	or, if SkipTimeout==true, after receiving all precommits from (height,round-1)
 // Enter: `timeoutPrecommits` after any +2/3 precommits from (height,round-1)
@@ -805,7 +839,7 @@ func (cs *ConsensusState) enterNewRound(height *cmn.BigInt, round *cmn.BigInt) {
 	// Wait for txs to be available in the mempool
 	// before we enterPropose in round 0. If the last block changed the app hash,
 	// we may need an empty "proof" block, and enterPropose immediately.
-	waitForTxs := cs.config.WaitForTxs() && round.EqualsInt(0)
+	waitForTxs := cs.config.WaitForTxs() && round.EqualsInt(0) && !cs.needProofBlock(height)
 	if waitForTxs {
 		if cs.config.CreateEmptyBlocksInterval > 0 {
 			cs.scheduleTimeout(cs.config.CreateEmptyBlocksInterval, height, round,
@@ -814,6 +848,17 @@ func (cs *ConsensusState) enterNewRound(height *cmn.BigInt, round *cmn.BigInt) {
 	} else {
 		cs.enterPropose(height, round)
 	}
+}
+
+// needProofBlock returns true on the first height (so the genesis app hash is signed right away)
+// and where the last block (height-1) caused the app hash to change
+func (cs *ConsensusState) needProofBlock(height *cmn.BigInt) bool {
+	if height.EqualsInt(1) {
+		return true
+	}
+
+	lastBlockMeta := cs.blockOperations.LoadBlockMeta(height.Uint64() - 1)
+	return !cs.state.AppHash.Equal(lastBlockMeta.Header.AppHash)
 }
 
 // Enter (CreateEmptyBlocks): from enterNewRound(height,round)
@@ -1321,6 +1366,8 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 		var mi msgInfo
 
 		select {
+		case <-cs.txNotifier.TxsAvailable():
+			cs.handleTxsAvailable()
 		case mi = <-cs.peerMsgQueue:
 			// handles proposals, votes
 			// may generate internal events (votes, complete proposals, 2/3 majorities)

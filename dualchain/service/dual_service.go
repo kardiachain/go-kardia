@@ -97,7 +97,13 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		return nil, err
 	}
 
+	consensusConfig := configs.DefaultConsensusConfig()
+
 	dualService.eventPool = event_pool.NewPool(logger, config.DualEventPool, dualService.blockchain)
+
+	if consensusConfig.WaitForTxs() {
+		dualService.eventPool.EnableTxsAvailable()
+	}
 
 	// Initialization for consensus.
 	block := dualService.blockchain.CurrentBlock()
@@ -127,9 +133,10 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool)
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
-		configs.DefaultConsensusConfig(),
+		consensusConfig,
 		state,
 		dualService.dualBlockOperations,
+		dualService.eventPool,
 	)
 	dualService.csManager = consensus.NewConsensusManager(DualServiceName, consensusState)
 	// Set private validator for consensus manager.

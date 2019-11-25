@@ -60,6 +60,10 @@ type Pool struct {
 
 	mu sync.RWMutex
 	wg sync.WaitGroup
+
+	// notify listeners (ie. consensus) when txs are available
+	notifiedTxsAvailable bool
+	txsAvailable         chan struct{} // fires once for each height, when the mempool is not empty
 }
 
 func NewPool(logger log.Logger, config Config, chain blockChain) *Pool {
@@ -108,6 +112,26 @@ func (pool *Pool) loop() {
 	}
 }
 
+// NOTE: not thread safe - should only be called once, on startup
+func (pool *Pool) EnableTxsAvailable() {
+	pool.txsAvailable = make(chan struct{}, 1)
+}
+
+func (pool *Pool) TxsAvailable() <-chan struct{} {
+	return pool.txsAvailable
+}
+
+func (pool *Pool) notifyTxsAvailable() {
+	if pool.txsAvailable != nil && !pool.notifiedTxsAvailable {
+		// channel cap is 1, so this will send once
+		pool.notifiedTxsAvailable = true
+		select {
+		case pool.txsAvailable <- struct{}{}:
+		default:
+		}
+	}
+}
+
 // collectEvents is called periodically to add events from eventsCh to pending pool
 func (pool *Pool) collectEvents() {
 	for i := 0; i < pool.numberOfWorkers; i++ {
@@ -127,7 +151,8 @@ func (pool *Pool) AddEvents(events []interface{}) {
 			to = len(events)
 		}
 		pool.eventsCh <- events[0:to]
-		go pool.AddEvents(events[to:])
+		pool.AddEvents(events[to:])
+		pool.notifyTxsAvailable()
 	}
 }
 
