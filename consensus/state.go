@@ -1548,16 +1548,17 @@ func (state LastestBlockState) String() string {
 func (state *LastestBlockState) mayRefreshValidatorSet(bc base.BaseBlockChain) {
 	height := state.LastBlockHeight.Int64()
 
-	// if height is greater or equal current validators set end height, update current validators set, clear PrefetchedFutureValidators
 	currentVals := state.Validators
 	nextVals := state.PrefetchedFutureValidators
 
-	log.Info("mayRefreshValidatorSet", "curStart", currentVals.StartHeight, "curEnd", currentVals.EndHeight, "isNextValsNil", nextVals == nil, "height", height)
+	log.Debug("mayRefreshValidatorSet", "curStart", currentVals.StartHeight, "curEnd", currentVals.EndHeight, "isNextValsNil", nextVals == nil, "height", height)
 
+	// if height is between currentVals's endHeight and EndHeight-bc.GetFetchNewValidators(), fetch new validators.
 	if nextVals == nil && height < currentVals.EndHeight && height >= currentVals.EndHeight-int64(bc.GetFetchNewValidators()) {
 		state.PrefetchedFutureValidators = state.fetchValidatorSet(bc)
 	}
-	// if height is between currentVals's endHeight and EndHeight-bc.GetFetchNewValidators(), fetch new validators.
+
+	// if height is greater or equal current validators set end height, update current validators set, clear PrefetchedFutureValidators
 	currentVals = state.Validators
 	nextVals = state.PrefetchedFutureValidators
 	if height >= currentVals.EndHeight {

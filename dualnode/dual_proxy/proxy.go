@@ -19,7 +19,6 @@
 package dual_proxy
 
 import (
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/kai/base"
@@ -31,6 +30,11 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 	"sync"
+)
+
+const (
+	DefaultSubscribedEndpoint = "tcp://127.0.0.1:5555"
+	DefaultPublishedEndpoint = "tcp://127.0.0.1:5554"
 )
 
 type Proxy struct {
@@ -134,12 +138,12 @@ func NewProxy(
 
 	processor.publishedEndpoint = publishedEndpoint
 	if publishedEndpoint == "" {
-		processor.publishedEndpoint = configs.DefaultPublishedEndpoint
+		processor.publishedEndpoint = DefaultPublishedEndpoint
 	}
 
 	processor.subscribedEndpoint = subscribedEndpoint
 	if subscribedEndpoint == "" {
-		processor.subscribedEndpoint = configs.DefaultSubscribedEndpoint
+		processor.subscribedEndpoint = DefaultSubscribedEndpoint
 	}
 
 	return processor, nil
