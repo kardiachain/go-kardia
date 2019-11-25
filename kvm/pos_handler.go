@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package kvm
 
 import (
@@ -52,6 +70,7 @@ const (
 	}
 ]`
 	methodSetRewarded = "setRewarded"
+	methodIsRewarded = "isRewarded"
 	methodSaveReward = "saveReward"
 	methodGetNodeInfo = "getNodeInfo"
 	methodGetNodeAddressFromOwner = "getNodeAddressFromOwner"
@@ -64,8 +83,10 @@ const (
 	methodCollectValidators = "collectValidators"
 )
 
-var KAI, _ = big.NewInt(0).SetString("100000000000000000", 10) // 10**18
-var posHandlerAddress = common.BytesToAddress([]byte{5})
+var (
+	KAI, _ = big.NewInt(0).SetString("100000000000000000", 10) // 10**18
+	posHandlerAddress = common.BytesToAddress([]byte{5})
+)
 
 type (
 	availableNode struct {
@@ -119,12 +140,15 @@ func (p *posHandler) RequiredGas(input []byte) uint64 {
 }
 
 func (p *posHandler) Run(in []byte, contract *Contract, ctx Context, state base.StateDB) ([]byte, error) {
-	pAbi, err := abi.JSON(strings.NewReader(PosHandlerAbi))
-	if err != nil {
+	var (
+		pAbi abi.ABI
+		err error
+		method *abi.Method
+	)
+	if pAbi, err = abi.JSON(strings.NewReader(PosHandlerAbi)); err != nil {
 		return nil, err
 	}
-	method, _, err := abi.GenerateInputStruct(pAbi, in)
-	if err != nil {
+	if method, _, err = abi.GenerateInputStruct(pAbi, in); err != nil {
 		return nil, err
 	}
 	switch method.Name {
@@ -144,8 +168,8 @@ func handleClaimReward(method *abi.Method, input []byte, contract *Contract, ctx
 		stakers map[common.Address]*big.Int
 		nInfo *nodeInfo
 		err error
+		n node
 	)
-	var n node
 	if err = method.Inputs.Unpack(&n, input[4:]); err != nil {
 		return err
 	}
@@ -185,19 +209,34 @@ func rewardToNode(nodeAddress common.Address, blockHeight uint64, nodeReward *bi
 	var (
 		masterABI abi.ABI
 		err error
-		input []byte
+		input, output []byte
+		isRewarded bool
 	)
+	masterAddress := ctx.Chain.GetConsensusMasterSmartContract().Address
 	vm := newInternalKVM(posHandlerAddress, ctx.Chain, state)
 	if masterABI, err = abi.JSON(strings.NewReader(ctx.Chain.GetConsensusMasterSmartContract().ABI)); err != nil {
 		return err
 	}
+	// check if node has been rewarded in this blockHeight or not
+	if input, err = masterABI.Pack(methodIsRewarded, nodeAddress, blockHeight); err != nil {
+		return err
+	}
+	if output, err = StaticCall(vm, masterAddress, input); err != nil {
+		return err
+	}
+	if err = masterABI.Unpack(&isRewarded, methodIsRewarded, output); err != nil {
+		return err
+	}
+	if isRewarded {
+		return fmt.Errorf(fmt.Sprintf("node:%v has been rewarded at block:%v", nodeAddress, blockHeight))
+	}
 	if input, err = masterABI.Pack(methodSetRewarded, nodeAddress, blockHeight); err != nil {
 		return err
 	}
-	if _, err = InternalCall(vm, ctx.Chain.GetConsensusMasterSmartContract().Address, input, big.NewInt(0)); err != nil {
+	if _, err = InternalCall(vm, masterAddress, input, big.NewInt(0)); err != nil {
 		return err
 	}
-	ctx.Transfer(state, ctx.Chain.GetConsensusMasterSmartContract().Address, nodeAddress, nodeReward)
+	ctx.Transfer(state, masterAddress, nodeAddress, nodeReward)
 	return nil
 }
 
@@ -320,14 +359,13 @@ func handleNewConsensusPeriod(method *abi.Method, input []byte, contract *Contra
 	sender := contract.CallerAddress
 	block := ctx.Chain.GetBlockByHeight(is.BlockHeight)
 	header := block.Header()
-	//block := ctx.Chain.GetBlockByHeight(is.BlockHeight)
 	vm := newInternalKVM(sender, ctx.Chain, state)
 	if masterAbi, err = abi.JSON(strings.NewReader(ctx.Chain.GetConsensusMasterSmartContract().ABI)); err != nil {
 		return err
 	}
 	// compare node address with block's proposer
 	if header.Validator.Hex() != sender.Hex() {
-		return fmt.Errorf(fmt.Sprintf("sender:%v was not proposer of block %v - block's proposer is %v", sender.Hex(), is.BlockHeight, header.Validator.Hex()))
+		return fmt.Errorf(fmt.Sprintf("sender:%v is not proposer of block %v - block's proposer is %v", sender.Hex(), is.BlockHeight, header.Validator.Hex()))
 	}
 	// if matched, call method collectValidators
 	if input, err = masterAbi.Pack(methodCollectValidators); err != nil {
@@ -339,6 +377,7 @@ func handleNewConsensusPeriod(method *abi.Method, input []byte, contract *Contra
 	return nil
 }
 
+// ClaimReward is used to create claimReward transaction
 func ClaimReward(bc base.BaseBlockChain, state *state.StateDB, txPool *tx_pool.TxPool) (*types.Transaction, error) {
 	var (
 		posAbi, masterAbi abi.ABI
@@ -375,7 +414,7 @@ func ClaimReward(bc base.BaseBlockChain, state *state.StateDB, txPool *tx_pool.T
 	if input, err = posAbi.Pack(methodClaimReward, nodeAddress.Node, bc.CurrentHeader().Height); err != nil {
 		return nil, err
 	}
-	return generateTransaction(txPool.GetAddressState(sender), input, &privateKey, vm)
+	return generateTransaction(txPool.GetAddressState(sender), input, &privateKey)
 }
 
 // NewConsensusPeriod is created by proposer.
@@ -413,7 +452,7 @@ func NewConsensusPeriod(height uint64, bc base.BaseBlockChain, state *state.Stat
 	if input, err = posAbi.Pack(methodNewConsensusPeriod, height); err != nil {
 		return nil, err
 	}
-	return generateTransaction(txPool.GetAddressState(sender), input, &privateKey, vm)
+	return generateTransaction(txPool.GetAddressState(sender), input, &privateKey)
 }
 
 // CollectValidatorSet collects new validators list based on current available nodes and start new consensus period
@@ -441,7 +480,7 @@ func CollectValidatorSet(bc base.BaseBlockChain) (*types.ValidatorSet, error) {
 	if nodeAbi, err = abi.JSON(strings.NewReader(bc.GetConsensusNodeAbi())); err != nil {
 		return nil, err
 	}
-	if length, startBlock, endBlock, err = getLatestValidatorsInfo(vm, masterAbi, masterAddress, sender); err != nil {
+	if length, startBlock, endBlock, err = getLatestValidatorsInfo(vm, masterAbi, masterAddress); err != nil {
 		return nil, err
 	}
 	validators := make([]*types.Validator, 0)
@@ -479,7 +518,7 @@ func CollectValidatorSet(bc base.BaseBlockChain) (*types.ValidatorSet, error) {
 }
 
 // getLatestValidatorsInfo is used after collect validators process is done, node calls this function to get new validators set
-func getLatestValidatorsInfo(vm *KVM, masterAbi abi.ABI, masterAddress, sender common.Address) (uint64, uint64, uint64, error) {
+func getLatestValidatorsInfo(vm *KVM, masterAbi abi.ABI, masterAddress common.Address) (uint64, uint64, uint64, error) {
 	method := "getLatestValidatorsInfo"
 	var (
 		err error
@@ -503,7 +542,7 @@ func calculateVotingPower(amount *big.Int) int64 {
 	return amount.Div(amount, KAI).Int64()
 }
 
-func generateTransaction(nonce uint64, input []byte, privateKey *ecdsa.PrivateKey, vm *KVM) (*types.Transaction, error) {
+func generateTransaction(nonce uint64, input []byte, privateKey *ecdsa.PrivateKey) (*types.Transaction, error) {
 	return types.SignTx(types.NewTransaction(
 		nonce,
 		posHandlerAddress,
@@ -514,6 +553,7 @@ func generateTransaction(nonce uint64, input []byte, privateKey *ecdsa.PrivateKe
 	), privateKey)
 }
 
+// calculateGas calculates intrinsic gas used for every byte in input data
 func calculateGas(data []byte) uint64 {
 	gas := TxGas
 	if len(data) > 0 {
