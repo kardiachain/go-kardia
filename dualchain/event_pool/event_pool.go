@@ -235,6 +235,7 @@ func (pool *Pool) validateEvent(event *types.DualEvent) error {
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
 func (pool *Pool) reset(oldHead, newHead *types.Header) {
+	pool.notifiedTxsAvailable = false
 	// Initialize the internal state to the current head
 	currentBlock := pool.chain.CurrentBlock()
 
