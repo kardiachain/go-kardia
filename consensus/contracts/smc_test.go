@@ -68,8 +68,9 @@ func testStake(t *testing.T, bc *blockchain.BlockChain, st *state.StateDB, node 
 	require.NoError(t, err)
 
 	type data struct {
-		Amount *big.Int
-		Valid  bool
+		Amount *big.Int `abi:"amount"`
+		StartedAt *big.Int `abi:"startedAt"`
+		Valid  bool `abi:"valid"`
 	}
 	var actualData data
 	err = stakerAbi.Unpack(&actualData, "getStakeAmount", result)
@@ -77,11 +78,13 @@ func testStake(t *testing.T, bc *blockchain.BlockChain, st *state.StateDB, node 
 
 	expectedData := data {
 		Amount: expectedStakes,
+		StartedAt: big.NewInt(0),
 		Valid: true,
 	}
 
 	require.Equal(t, expectedData.Amount.String(), actualData.Amount.String())
 	require.Equal(t, expectedData.Valid, actualData.Valid)
+	require.Equal(t, expectedData.StartedAt.String(), actualData.StartedAt.String())
 }
 
 func testDeployGenesisNodesAndStakes(t *testing.T, bc *blockchain.BlockChain, st *state.StateDB) {

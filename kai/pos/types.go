@@ -24,14 +24,14 @@ import (
 )
 
 type ConsensusInfo struct {
-	FetchNewValidators   uint64
-	BlockReward          *big.Int
-	MaxValidators        uint64
-	ConsensusPeriod      uint64
-	MinimumStakes        *big.Int
-	Master               MasterSmartContract
-	Nodes                Nodes
-	Stakers              Stakers
+	FetchNewValidators          uint64
+	BlockReward                 *big.Int
+	MaxValidators               uint64
+	ConsensusPeriodInBlock      uint64
+	MinimumStakes               *big.Int
+	Master                      MasterSmartContract
+	Nodes                       Nodes
+	Stakers                     Stakers
 }
 
 type MasterSmartContract struct {

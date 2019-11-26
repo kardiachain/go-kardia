@@ -251,8 +251,10 @@ func rewardToStakers(nodeAddress common.Address, totalStakes *big.Int, stakers m
 		return err
 	}
 	for k, v := range stakers {
+		// formula: totalReward*stakedAmount/totalStake*100
 		reward := totalReward.Mul(totalReward, v)
 		reward = reward.Div(reward, totalStakes)
+		reward = reward.Mul(reward, big.NewInt(100))
 
 		// call `saveReward` to k to mark reward has been paid
 		if input, err = stakerAbi.Pack(methodSaveReward, nodeAddress, blockHeight, reward); err != nil {

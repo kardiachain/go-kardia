@@ -206,7 +206,7 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		BlockReward: blockReward,
 		FetchNewValidators: c.MainChain.Consensus.FetchNewValidators,
 		MaxValidators:   c.MainChain.Consensus.MaxValidators,
-		ConsensusPeriod: c.MainChain.Consensus.ConsensusPeriod,
+		ConsensusPeriodInBlock: c.MainChain.Consensus.ConsensusPeriodInBlock,
 		MinimumStakes: minimumStakes,
 		Master:          pos.MasterSmartContract{
 			Address:       common.HexToAddress(c.MainChain.Consensus.Deployment.Master.Address),
