@@ -211,6 +211,10 @@ type Transactions []*Transaction
 // Len returns the length of s.
 func (s Transactions) Len() int { return len(s) }
 
+func (s Transactions) Hash() common.Hash {
+	return DeriveSha(s)
+}
+
 // Empty returns whether the list of transactions is empty or not.
 func (s Transactions) Empty() bool {
 	return s.Len() == 0

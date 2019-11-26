@@ -61,6 +61,8 @@ type Header struct {
 
 	// hashes of block data
 	LastCommitHash common.Hash `json:"last_commit_hash"    gencodec:"required"` // commit from validators from the last block
+	TxHash         common.Hash `json:"data_hash"           gencodec:"required"` // transactions
+
 	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
 	DualEventsHash common.Hash `json:"dual_events_hash"    gencodec:"required"` // dual's events
 
@@ -93,8 +95,8 @@ func (h *Header) StringLong() string {
 		return "nil-Header"
 	}
 	// TODO(thientn): check why String() of common.Hash is not called when logging, and have to call Hex() instead.
-	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
-		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Hex(), h.AppHash.Hex(), h.ValidatorsHash.Hex(), h.ConsensusHash.Hex(), h.Hash().Hex())
+	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Hex(), h.TxHash.Hex(), h.AppHash.Hex(), h.ValidatorsHash.Hex(), h.ConsensusHash.Hex(), h.Hash().Hex())
 
 }
 
@@ -104,8 +106,8 @@ func (h *Header) String() string {
 		return "nil-Header"
 	}
 	headerHash := h.Hash()
-	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
-		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Fingerprint(), h.AppHash.Fingerprint(), h.ValidatorsHash.Fingerprint(), h.ConsensusHash.Fingerprint(), headerHash.Fingerprint())
+	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
+		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Fingerprint(), h.TxHash.Hex(), h.AppHash.Fingerprint(), h.ValidatorsHash.Fingerprint(), h.ConsensusHash.Fingerprint(), headerHash.Fingerprint())
 }
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
@@ -169,9 +171,8 @@ func NewBlock(header *Header, txs []*Transaction, lastCommit *Commit) *Block {
 	}
 
 	b.header.NumTxs = uint64(len(txs))
-	if len(txs) > 0 {
-		b.transactions = make(Transactions, len(txs))
-		copy(b.transactions, txs)
+	if b.header.NumTxs > 0 {
+		b.transactions = Transactions(txs)
 	}
 
 	b.fillHeader()
@@ -185,6 +186,10 @@ func NewBlock(header *Header, txs []*Transaction, lastCommit *Commit) *Block {
 func (b *Block) fillHeader() {
 	if b.header.LastCommitHash.IsZero() {
 		b.header.LastCommitHash = b.LastCommit().Hash()
+	}
+
+	if b.transactions.Len() > 0 {
+		b.header.TxHash = b.transactions.Hash()
 	}
 }
 
@@ -313,6 +318,7 @@ func (b *Block) Time() *big.Int   { return b.header.Time }
 func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
 func (b *Block) LastCommitHash() common.Hash { return b.header.LastCommitHash }
+func (b *Block) TxHash() common.Hash         { return b.header.TxHash }
 func (b *Block) LastCommit() *Commit         { return b.lastCommit }
 func (b *Block) AppHash() common.Hash        { return b.header.AppHash }
 
