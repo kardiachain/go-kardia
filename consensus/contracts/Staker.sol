@@ -18,6 +18,7 @@
 
 pragma solidity ^0.5.8;
 
+
 contract Staker {
 
     address constant PoSHandler = 0x0000000000000000000000000000000000000005;
@@ -99,12 +100,12 @@ contract Staker {
         }
     }
 
-    function getStakeAmount(address node) public view returns (uint256 amount, bool valid) {
+    function getStakeAmount(address node) public view returns (uint256 amount, uint startedAt, bool valid) {
         uint index = _hasStaked[node];
         if (index > 0) {
-            return (stakeInfo[index].amount, true);
+            return (stakeInfo[index].amount, stakeInfo[index].startedAt, true);
         }
-        return (0, false);
+        return (0, 0, false);
     }
 
     function saveReward(address node, uint64 blockHeight, uint256 amount) public isPoSHandler {
@@ -118,3 +119,4 @@ contract Staker {
         totalRewards[node] -= amount;
     }
 }
+

@@ -48,7 +48,7 @@ type (
 		AcceptTxs     uint32         `yaml:"AcceptTxs"`
 		ZeroFee       uint           `yaml:"ZeroFee"`
 		IsDual        uint           `yaml:"IsDual"`
-		Consensus     *Consensus      `yaml:"Consensus,omitempty"`
+		Consensus     *Consensus     `yaml:"Consensus,omitempty"`
 		Genesis       *Genesis       `yaml:"Genesis,omitempty"`
 		TxPool        *Pool          `yaml:"TxPool,omitempty"`
 		EventPool     *Pool          `yaml:"EventPool,omitempty"`
@@ -66,15 +66,15 @@ type (
 		Contracts      []Contract    `yaml:"Contracts"`
 	}
 	Consensus struct {
-		FetchNewValidators  uint64            `yaml:"FetchNewValidators"`
-		MaxValidators       uint64            `yaml:"MaxValidators"`
-		ConsensusPeriod     uint64            `yaml:"ConsensusPeriod"`
-		BlockReward         string            `yaml:"BlockReward"`
-		MinimumStakes       string            `yaml:"MinimumStakes"`
-		Compilation         Compilation       `yaml:"Compilation"`
-		Deployment          Deployment        `yaml:"Deployment"`
+		FetchNewValidators         uint64            `yaml:"FetchNewValidators"`
+		MaxValidators              uint64            `yaml:"MaxValidators"`
+		ConsensusPeriodInBlock     uint64            `yaml:"ConsensusPeriod"`
+		BlockReward                string            `yaml:"BlockReward"`
+		MinimumStakes              string            `yaml:"MinimumStakes"` // MinimumStakes defines the minimum amount that a user stakes to a node.
+		Compilation                Compilation       `yaml:"Compilation"`
+		Deployment                 Deployment        `yaml:"Deployment"`
 	}
-	Compilation struct {
+	Compilation struct { // Compilation contains compiled bytecodes and abi for Master.sol, Node.sol and Staker.sol
 		Master     CompilationInfo  `yaml:"Master"`
 		Staker     CompilationInfo  `yaml:"Staker"`
 		Node       CompilationInfo  `yaml:"Node"`
@@ -83,12 +83,12 @@ type (
 		ByteCode     string        `yaml:"ByteCode"`
 		ABI          string        `yaml:"ABI"`
 	}
-	Deployment struct {
+	Deployment struct { // Deployment contains consensus genesis information that will be created at the beginning
 		Master     MasterInfo    `yaml:"Master"`
 		Stakers    []StakerInfo  `yaml:"Stakers"`
 		Nodes      []NodeInfo    `yaml:"Nodes"`
 	}
-	MasterInfo struct {
+	MasterInfo struct { // MasterInfo contains master contract address and its genesis amount
 		Address    string      `yaml:"Address"`
 		GenesisAmount string   `yaml:"GenesisAmount"`
 	}
@@ -101,11 +101,11 @@ type (
 		Port       string       `yaml:"Port"`
 		Reward     uint16       `yaml:"Reward"`
 	}
-	StakerInfo struct {
-		Address     string       `yaml:"Address"`
-		Owner       string       `yaml:"Owner"`
-		StakedNode  string       `yaml:"StakedNode"`
-		LockedPeriod uint64      `yaml:"LockedPeriod"`
+	StakerInfo struct { // StakerInfo contains genesis staker address, node that it will stake to from the beginning and stakeAmount
+		Address     string       `yaml:"Address"`       // Address is predefined staker's contract address
+		Owner       string       `yaml:"Owner"`         // Owner is owner's address for staker contract address
+		StakedNode  string       `yaml:"StakedNode"`    // StakedNode is genesis node's address that user will stake to
+		LockedPeriod uint64      `yaml:"LockedPeriod"`  // LockedPeriod defines the period in block that user cannot withdraw staked KAI.
 		StakeAmount string       `yaml:"StakeAmount"`
 	}
 	Contract struct {

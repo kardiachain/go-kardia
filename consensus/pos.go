@@ -39,7 +39,7 @@ func InitGenesisConsensus(st *state.StateDB, gasLimit uint64, consensusInfo pos.
 	// get first node owner to be the sender
 	sender := consensusInfo.Nodes.GenesisInfo[0].Owner
 	// create master smart contract
-	if err = createMaster(gasLimit, st, consensusInfo.Master, consensusInfo.MaxValidators, consensusInfo.ConsensusPeriod, sender); err != nil {
+	if err = createMaster(gasLimit, st, consensusInfo.Master, consensusInfo.MaxValidators, consensusInfo.ConsensusPeriodInBlock, sender); err != nil {
 		return err
 	}
 	// add stakers
