@@ -325,7 +325,7 @@ func newConsensusStateWithConfig(validators []*types.Validator, conf *Config) *C
 		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
 	}
 
-	return NewConsensusState(logger, configs.DefaultConsensusConfig(), state, blockStore)
+	return NewConsensusState(logger, configs.DefaultConsensusConfig(), state, blockStore, txPool)
 
 }
 
