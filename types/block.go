@@ -188,7 +188,7 @@ func (b *Block) fillHeader() {
 		b.header.LastCommitHash = b.LastCommit().Hash()
 	}
 
-	if b.transactions.Len() > 0 {
+	if b.header.TxHash.IsZero() {
 		b.header.TxHash = b.transactions.Hash()
 	}
 }
