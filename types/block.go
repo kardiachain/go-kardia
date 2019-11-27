@@ -491,6 +491,11 @@ func (blockID BlockID) StringLong() string {
 	return fmt.Sprintf("%s:%s", blockID.Hash.String(), blockID.PartsHeader.Hash.String())
 }
 
+// IsComplete returns true if this is a valid BlockID of a non-nil block.
+func (blockID BlockID) IsComplete() bool {
+	return !blockID.Hash.IsZero() && !blockID.PartsHeader.IsZero()
+}
+
 // ValidateBasic performs basic validation.
 func (blockID BlockID) ValidateBasic() error {
 

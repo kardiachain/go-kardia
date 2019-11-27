@@ -92,6 +92,11 @@ func CreateEmptyVote() *Vote {
 	}
 }
 
+func (vote *Vote) Copy() *Vote {
+	voteCopy := *vote
+	return &voteCopy
+}
+
 // CommitSig converts the Vote to a CommitSig.
 // If the Vote is nil, the CommitSig will be nil.
 func (vote *Vote) CommitSig() *CommitSig {
@@ -144,6 +149,38 @@ func (vote *Vote) String() string {
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		vote.BlockID, cmn.Fingerprint(vote.Signature[:]),
 		time.Unix(vote.Timestamp.Int64(), 0))
+}
+
+// ValidateBasic performs basic validation.
+func (vote *Vote) ValidateBasic() error {
+	if !IsVoteTypeValid(vote.Type) {
+		return errors.New("invalid Type")
+	}
+	if vote.Height.EqualsInt(0) {
+		return errors.New("negative Height")
+	}
+	if vote.Round.EqualsInt(0) {
+		return errors.New("negative Round")
+	}
+
+	// NOTE: Timestamp validation is subtle and handled elsewhere.
+
+	if err := vote.BlockID.ValidateBasic(); err != nil {
+		return fmt.Errorf("wrong BlockID: %v", err)
+	}
+	// BlockID.ValidateBasic would not err if we for instance have an empty hash but a
+	// non-empty PartsSetHeader:
+	if !vote.BlockID.IsZero() && !vote.BlockID.IsComplete() {
+		return fmt.Errorf("blockID must be either empty or complete, got: %v", vote.BlockID)
+	}
+
+	if vote.ValidatorIndex.IsLessThanInt(0) {
+		return errors.New("negative ValidatorIndex")
+	}
+	if len(vote.Signature) == 0 {
+		return errors.New("signature is missing")
+	}
+	return nil
 }
 
 // UNSTABLE

@@ -196,6 +196,9 @@ func ValidateSignatureValues(v byte, r, s *big.Int) bool {
 
 func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	pubBytes := FromECDSAPub(&p)
+	if len(pubBytes) < 2 {
+		return common.Address{}
+	}
 	return common.BytesToAddress(Keccak256(pubBytes[1:])[12:])
 }
 
