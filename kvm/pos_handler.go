@@ -236,6 +236,7 @@ func rewardToNode(nodeAddress common.Address, blockHeight uint64, nodeReward *bi
 		return err
 	}
 	ctx.Transfer(state, masterAddress, nodeAddress, nodeReward)
+	addLog(vm, nodeAddress, nodeReward, blockHeight)
 	return nil
 }
 
@@ -261,6 +262,7 @@ func rewardToStakers(nodeAddress common.Address, totalStakes *big.Int, stakers m
 			return err
 		}
 		ctx.Transfer(state, ctx.Chain.GetConsensusMasterSmartContract().Address, k, reward)
+		addLog(vm, k, reward, blockHeight)
 	}
 	return nil
 }
@@ -576,4 +578,14 @@ func calculateGas(data []byte) uint64 {
 		gas += z * TxDataZeroGas
 	}
 	return gas
+}
+
+// addLog is used to add rewarded address during claimReward process
+func addLog(vm *KVM, rewardedAddress common.Address, rewardedAmount *big.Int, blockHeight uint64) {
+	vm.StateDB.AddLog(&types.Log{
+		Address: posHandlerAddress,
+		Topics:  []common.Hash{common.HexToHash(methodClaimReward), rewardedAddress.Hash()},
+		Data:    rewardedAmount.Bytes(),
+		BlockHeight: blockHeight,
+	})
 }
