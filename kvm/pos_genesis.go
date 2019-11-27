@@ -16,22 +16,21 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package consensus
+package kvm
 
 import (
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/pos"
 	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"math/big"
 	"strings"
 )
 
-func newGenesisVM(from common.Address, gasLimit uint64, st base.StateDB) *kvm.KVM {
-	ctx := kvm.NewGenesisKVMContext(from, gasLimit)
-	return kvm.NewKVM(ctx, st, kvm.Config{})
+func newGenesisVM(from common.Address, gasLimit uint64, st base.StateDB) *KVM {
+	ctx := NewGenesisKVMContext(from, gasLimit)
+	return NewKVM(ctx, st, Config{})
 }
 
 func InitGenesisConsensus(st *state.StateDB, gasLimit uint64, consensusInfo pos.ConsensusInfo) error {
@@ -72,7 +71,7 @@ func createMaster(gasLimit uint64, st *state.StateDB, master pos.MasterSmartCont
 		return err
 	}
 	newCode := append(master.ByteCode, input...)
-	if _, _, _, err = kvm.InternalCreate(vm, master.Address, newCode, master.GenesisAmount); err != nil {
+	if _, _, _, err = InternalCreate(vm, master.Address, newCode, master.GenesisAmount); err != nil {
 		return err
 	}
 	return err
@@ -92,7 +91,7 @@ func addStakers(gasLimit uint64, st *state.StateDB, master pos.MasterSmartContra
 		if input, err = masterAbi.Pack("addStaker", staker.Address); err != nil {
 			return err
 		}
-		if _, err = kvm.InternalCall(vm, master.Address, input, big.NewInt(0)); err != nil {
+		if _, err = InternalCall(vm, master.Address, input, big.NewInt(0)); err != nil {
 			return err
 		}
 	}
@@ -111,7 +110,7 @@ func createGenesisNodes(gasLimit uint64, st *state.StateDB, nodes pos.Nodes, mas
 		}
 		newCode := append(nodes.ByteCode, input...)
 		vm := newGenesisVM(n.Owner, gasLimit, st)
-		if _, _, _, err = kvm.InternalCreate(vm, n.Address, newCode, big.NewInt(0)); err != nil {
+		if _, _, _, err = InternalCreate(vm, n.Address, newCode, big.NewInt(0)); err != nil {
 			return err
 		}
 	}
@@ -133,14 +132,14 @@ func createGenesisStakers(gasLimit uint64, st *state.StateDB, stakers pos.Staker
 		}
 		newStakerCode := append(stakers.ByteCode, input...)
 		vm := newGenesisVM(staker.Owner, gasLimit, st)
-		if _, _, _, err = kvm.InternalCreate(vm, staker.Address, newStakerCode, big.NewInt(0)); err != nil {
+		if _, _, _, err = InternalCreate(vm, staker.Address, newStakerCode, big.NewInt(0)); err != nil {
 			return err
 		}
 		// stake to staker
 		if input, err = stakerAbi.Pack("stake", staker.StakedNode); err != nil {
 			return err
 		}
-		if _, err = kvm.InternalCall(vm, staker.Address, input, staker.StakeAmount); err != nil {
+		if _, err = InternalCall(vm, staker.Address, input, staker.StakeAmount); err != nil {
 			return err
 		}
 	}
@@ -161,6 +160,6 @@ func CollectValidators(gasLimit uint64, st *state.StateDB, master pos.MasterSmar
 	if input, err = masterAbi.Pack(method); err != nil {
 		return err
 	}
-	_, err = kvm.InternalCall(vm, master.Address, input, big.NewInt(0))
+	_, err = InternalCall(vm, master.Address, input, big.NewInt(0))
 	return err
 }

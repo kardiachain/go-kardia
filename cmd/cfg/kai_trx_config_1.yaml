@@ -33,7 +33,7 @@ MainChain:
     - enode://660889e39b37ade58f789933954123e56d6498986a0cd9ca63d223e866d5521aaedc9e5298e2f4828a5c90f4c58fb24e19613a462ca0210dd962821794f630f0@127.0.0.1:3001
     - enode://2e61f57201ec804f9d5298c4665844fd077a2516cd33eccea48f7bdf93de5182da4f57dc7b4d8870e5e291c179c05ff04100718b49184f64a7c0d40cc66343da@127.0.0.1:3002
   Consensus:
-    FetchNewValidators: 200
+    FetchNewValidatorsTime: 200
     MaxValidators: 10
     ConsensusPeriod: 150000
     MinimumStakes: 2000000

@@ -22,9 +22,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/pos"
 	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -177,7 +177,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db types.Database) *types.Block {
 	}
 	// init pos genesis here
 	if !statedb.Exist(g.ConsensusInfo.Master.Address) && g.ConsensusInfo.Master.Address.Hex() != (common.Address{}).Hex() {
-		if err := consensus.InitGenesisConsensus(statedb, g.GasLimit, g.ConsensusInfo); err != nil {
+		if err := kvm.InitGenesisConsensus(statedb, g.GasLimit, g.ConsensusInfo); err != nil {
 			panic(err)
 		}
 	}
