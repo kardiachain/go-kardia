@@ -489,4 +489,4 @@ func (dbc *DualBlockChain) GetConsensusStakerAbi() string {
 	return ""
 }
 
-func (dbc *DualBlockChain) GetFetchNewValidators() uint64 { return 0 }
+func (dbc *DualBlockChain) GetFetchNewValidatorsTime() uint64 { return 0 }

@@ -199,7 +199,7 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	// get consensus info
 	consensus := pos.ConsensusInfo{
 		BlockReward: blockReward,
-		FetchNewValidators: c.MainChain.Consensus.FetchNewValidators,
+		FetchNewValidatorsTime: c.MainChain.Consensus.FetchNewValidatorsTime,
 		MaxValidators:   c.MainChain.Consensus.MaxValidators,
 		ConsensusPeriodInBlock: c.MainChain.Consensus.ConsensusPeriodInBlock,
 		MinimumStakes: minimumStakes,

@@ -195,8 +195,7 @@ func handleClaimReward(method *abi.Method, input []byte, contract *Contract, ctx
 	}
 	stakersReward := big.NewInt(0).Mul(blockReward, big.NewInt(int64(nInfo.RewardPercentage)))
 	stakersReward = big.NewInt(0).Div(stakersReward, big.NewInt(100))
-	nodeReward := blockReward.Sub(blockReward, stakersReward)
-
+	nodeReward := big.NewInt(0).Sub(blockReward, stakersReward)
 	// reward to node
 	if err = rewardToNode(n.Node, block.Height()-1, nodeReward, ctx, state); err != nil {
 		return err
@@ -251,11 +250,9 @@ func rewardToStakers(nodeAddress common.Address, totalStakes *big.Int, stakers m
 		return err
 	}
 	for k, v := range stakers {
-		// formula: totalReward*stakedAmount/totalStake*100
-		reward := totalReward.Mul(totalReward, v)
-		reward = reward.Div(reward, totalStakes)
-		reward = reward.Mul(reward, big.NewInt(100))
-
+		// formula: totalReward*stakedAmount/totalStake
+		reward := big.NewInt(0).Div(v, totalStakes)
+		reward = big.NewInt(0).Mul(totalReward, reward)
 		// call `saveReward` to k to mark reward has been paid
 		if input, err = stakerAbi.Pack(methodSaveReward, nodeAddress, blockHeight, reward); err != nil {
 			return err
@@ -443,9 +440,9 @@ func NewConsensusPeriod(height uint64, bc base.BaseBlockChain, state *state.Stat
 	if err = masterAbi.Unpack(&vals, methodGetLatestValidatorsInfo, output); err != nil {
 		return nil, err
 	}
-	log.Error("generating tx in NewConsensusPeriod", "endBlock", vals.EndAtBlock, "height", height, "fetch", bc.GetFetchNewValidators())
+	log.Debug("generating tx in NewConsensusPeriod", "endBlock", vals.EndAtBlock, "height", height, "fetch", bc.GetFetchNewValidatorsTime())
 	// height must behind EndAtBlock bc.GetFetchNewValidators() blocks.
-	if vals.EndAtBlock != height+bc.GetFetchNewValidators() {
+	if vals.EndAtBlock != height+bc.GetFetchNewValidatorsTime() {
 		return nil, nil
 	}
 	if posAbi, err = abi.JSON(strings.NewReader(PosHandlerAbi)); err != nil {

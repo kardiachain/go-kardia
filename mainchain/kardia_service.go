@@ -133,7 +133,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	kai.blockchain.NodeAbi = consensusInfo.Nodes.ABI
 	kai.blockchain.StakerAbi = consensusInfo.Stakers.ABI
 	kai.blockchain.BlockReward = consensusInfo.BlockReward
-	kai.blockchain.FetchNewValidators = consensusInfo.FetchNewValidators
+	kai.blockchain.FetchNewValidatorsTime = consensusInfo.FetchNewValidatorsTime
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
