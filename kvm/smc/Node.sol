@@ -19,15 +19,14 @@
 pragma solidity ^0.5.8;
 
 /**
- * Node contains node's information regard nodeId, nodeName, IpAddress, Port, Reward percentage for stakers.
+ * Node contains node's information regard nodeId, nodeName, Reward percentage for stakers.
  **/
 contract Node {
 
     string _nodeId;
     string _nodeName;
-    string _ipAddress;
-    string _port;
     uint16 _rewardPercentage;
+    uint64[] _validatedBlocks;
     address payable _owner;
     address _master;
 
@@ -36,13 +35,11 @@ contract Node {
         _;
     }
 
-    constructor(address master, address payable owner, string memory nodeId, string memory nodeName, string memory ipAddress, string memory port, uint16 rewardPercentage) public {
+    constructor(address master, address payable owner, string memory nodeId, string memory nodeName, uint16 rewardPercentage) public {
         _master = master;
         _owner = owner;
         _nodeName = nodeName;
         _nodeId = nodeId;
-        _ipAddress = ipAddress;
-        _port = port;
         _rewardPercentage = rewardPercentage;
     }
 
@@ -54,8 +51,8 @@ contract Node {
         _;
     }
 
-    function getNodeInfo() public view returns(address owner, string memory nodeId, string memory nodeName, string memory ipAddress, string memory port, uint16 rewardPercentage, uint256 balance) {
-        return (_owner, _nodeId, _nodeName, _ipAddress, _port, _rewardPercentage, address(this).balance);
+    function getNodeInfo() public view returns(address owner, string memory nodeId, string memory nodeName, uint16 rewardPercentage, uint256 balance) {
+        return (_owner, _nodeId, _nodeName, _rewardPercentage, address(this).balance);
     }
 
     function getOwner() public view returns(address) {
@@ -68,5 +65,28 @@ contract Node {
 
     function getBalance() public view returns (uint256) {
         return address(this).balance;
+    }
+
+    // updateNode updates current node information
+    function updateNode(string memory nodeName, string memory nodeId, uint16 rewardPercentage) public isOwner {
+        _nodeName = nodeName;
+        _nodeId = nodeId;
+        _rewardPercentage = rewardPercentage;
+    }
+
+    // updateValidatedBlock adds validated block's height
+    function updateValidatedBlock(uint64 blockHeight) public isMaster {
+        _validatedBlocks.push(blockHeight);
+    }
+
+    // getNumberOfValidatedBlocks returns total validated blocks
+    function getNumberOfValidatedBlocks() public view returns (uint256) {
+        return _validatedBlocks.length;
+    }
+
+    // getValidatedBlockHeightByIndex returns blockHeight stored in _validatedBlocks by index.
+    function getValidatedBlockHeightByIndex(uint64 index) public view returns (uint64) {
+        require(index >= 0 && uint256(index) < _validatedBlocks.length, "invalid index");
+        return _validatedBlocks[index];
     }
 }

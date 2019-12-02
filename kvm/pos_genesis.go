@@ -104,7 +104,7 @@ func createGenesisNodes(gasLimit uint64, st *state.StateDB, nodes pos.Nodes, mas
 		return err
 	}
 	for _, n := range nodes.GenesisInfo {
-		input, err := nodeAbi.Pack("", masterAddress, n.Owner, n.PubKey, n.Name, n.Host, n.Port, n.Reward)
+		input, err := nodeAbi.Pack("", masterAddress, n.Owner, n.PubKey, n.Name, n.Reward)
 		if err != nil {
 			return err
 		}

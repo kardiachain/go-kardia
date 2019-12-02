@@ -80,7 +80,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 	bo.logger.Info("Make block to propose", "height", block.Height(), "AppHash", block.AppHash(), "hash", block.Hash())
 
 	// claim reward
-	if err := bo.claimReward(); err != nil {
+	if err := bo.claimReward(uint64(height)); err != nil {
 		panic(err)
 	}
 
@@ -110,7 +110,7 @@ func (bo *BlockOperations) newConsensusPeriod(height uint64) error {
 	return nil
 }
 
-func (bo *BlockOperations) claimReward() error {
+func (bo *BlockOperations) claimReward(height uint64) error {
 	var (
 		st *state.StateDB
 		err error
@@ -122,10 +122,8 @@ func (bo *BlockOperations) claimReward() error {
 			bo.logger.Error("Fail to get blockchain head state", "err", err)
 			return nil
 		}
-		tx, err = kvm.ClaimReward(bo.blockchain, st, bo.txPool)
-		if err != nil {
-			bo.logger.Error("fail to claim reward", "err", err, "sender", bo.blockchain.Config().BaseAccount.Address.Hex())
-			return nil
+		if tx, err = kvm.ClaimReward(height, bo.blockchain, st, bo.txPool); err != nil {
+			return err
 		}
 		if err = bo.txPool.AddTx(tx); err != nil {
 			bo.logger.Error("fail to add claim reward transaction", "err", err)

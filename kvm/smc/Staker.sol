@@ -25,7 +25,7 @@ contract Staker {
 
     string constant stakeFunc = "stake(address,uint256)";
     string constant withdrawFunc = "withdraw(address,uint256)";
-    string constant isAvailableNodes = "IsAvailableNodes(address)";
+    string constant isAvailableNodes = "isAvailableNodes(address)";
 
     address _master;
     address payable _owner;
