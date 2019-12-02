@@ -80,7 +80,9 @@ const (
 	methodGetStakerInfo = "getStakerInfo"
 	methodNewConsensusPeriod = "newConsensusPeriod"
 	methodGetLatestValidatorsInfo = "getLatestValidatorsInfo"
+	methodGetLatestValidator = "getLatestValidator"
 	methodCollectValidators = "collectValidators"
+	methodUpdateValidatedBlock = "updateValidatedBlock"
 )
 
 var (
@@ -103,8 +105,6 @@ type (
 		Owner common.Address `abi:"owner"`
 		NodeId string `abi:"nodeId"`
 		NodeName string `abi:"nodeName"`
-		IpAddress string `abi:"ipAddress"`
-		Port string `abi:"port"`
 		RewardPercentage uint16 `abi:"rewardPercentage"`
 		Balance *big.Int `abi:"balance"`
 	}
@@ -174,21 +174,30 @@ func handleClaimReward(method *abi.Method, input []byte, contract *Contract, ctx
 		return err
 	}
 	// validate if node's owner is sender or not.
-	if owner, stakeAmount, stakers, err = getAvailableNodeInfo(ctx.Chain, state, contract.caller.Address(), n.Node); err != nil {
+	if owner, stakeAmount, stakers, err = getAvailableNodeInfo(ctx.Chain, state, contract.Caller(), n.Node); err != nil {
 		return err
 	}
-	if owner.Hex() != contract.caller.Address().Hex() {
-		return fmt.Errorf(fmt.Sprintf("sender:%v is not owner of node:%v", contract.caller.Address().Hex(), n.Node.Hex()))
+	if !owner.Equal(contract.Caller()) {
+		return fmt.Errorf(fmt.Sprintf("sender:%v is not owner of node:%v", contract.Caller().Hex(), n.Node.Hex()))
 	}
 	block := ctx.Chain.CurrentBlock()
 	if block.Height() <= 1 {
 		return fmt.Errorf("block <= 1 cannot join claim reward")
 	}
+	claimedBlock := ctx.Chain.GetBlockByHeight(n.BlockHeight)
+	if claimedBlock == nil {
+		return fmt.Errorf(fmt.Sprintf("cannot find block:%v", n.BlockHeight))
+	}
+	// validate if node's owner is
+	if !claimedBlock.Header().Validator.Equal(contract.Caller()) {
+		return fmt.Errorf(fmt.Sprintf("caller:%v is not block:%v validator, expected:%v", contract.Caller().Hex(), n.BlockHeight, claimedBlock.Header().Validator.Hex()))
+	}
+
 	// get reward from previous block gasUsed + blockReward
 	blockReward, _ := big.NewInt(0).SetString(ctx.Chain.GetBlockReward().String(), 10)
-	previousHeader := ctx.Chain.GetBlockByHeight(block.Height()-1).Header()
-	if previousHeader.GasUsed > 0 {
-		blockReward = blockReward.Add(blockReward, big.NewInt(0).SetUint64(previousHeader.GasUsed))
+
+	if claimedBlock.Header().GasUsed > 0 {
+		blockReward = big.NewInt(0).Add(blockReward, big.NewInt(0).SetUint64(claimedBlock.Header().GasUsed))
 	}
 	if nInfo, err = getNodeInfo(ctx.Chain, state, owner, n.Node); err != nil {
 		return err
@@ -197,16 +206,16 @@ func handleClaimReward(method *abi.Method, input []byte, contract *Contract, ctx
 	stakersReward = big.NewInt(0).Div(stakersReward, big.NewInt(100))
 	nodeReward := big.NewInt(0).Sub(blockReward, stakersReward)
 	// reward to node
-	if err = rewardToNode(n.Node, block.Height()-1, nodeReward, ctx, state); err != nil {
+	if err = rewardToNode(n.Node, n.BlockHeight, nodeReward, ctx, state); err != nil {
 		return err
 	}
 	// reward to stakers
-	return rewardToStakers(n.Node, stakeAmount, stakers, stakersReward, block.Height()-1, ctx, state)
+	return rewardToStakers(n.Node, stakeAmount, stakers, stakersReward, n.BlockHeight, ctx, state)
 }
 
 func rewardToNode(nodeAddress common.Address, blockHeight uint64, nodeReward *big.Int, ctx Context, state base.StateDB) error {
 	var (
-		masterABI abi.ABI
+		masterABI, nodeABI abi.ABI
 		err error
 		input, output []byte
 		isRewarded bool
@@ -235,8 +244,21 @@ func rewardToNode(nodeAddress common.Address, blockHeight uint64, nodeReward *bi
 	if _, err = InternalCall(vm, masterAddress, input, big.NewInt(0)); err != nil {
 		return err
 	}
+	// update nodeAddress balance
 	ctx.Transfer(state, masterAddress, nodeAddress, nodeReward)
 	addLog(vm, nodeAddress, nodeReward, blockHeight)
+
+	// updateValidatedBlock
+	if nodeABI, err = abi.JSON(strings.NewReader(ctx.Chain.GetConsensusNodeAbi())); err != nil{
+		return err
+	}
+	if input, err = nodeABI.Pack(methodUpdateValidatedBlock, blockHeight); err != nil {
+		return err
+	}
+	vm = newInternalKVM(masterAddress, ctx.Chain, state)
+	if _, err = InternalCall(vm, nodeAddress, input, big.NewInt(0)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -379,7 +401,7 @@ func handleNewConsensusPeriod(method *abi.Method, input []byte, contract *Contra
 }
 
 // ClaimReward is used to create claimReward transaction
-func ClaimReward(bc base.BaseBlockChain, state *state.StateDB, txPool *tx_pool.TxPool) (*types.Transaction, error) {
+func ClaimReward(height uint64, bc base.BaseBlockChain, state *state.StateDB, txPool *tx_pool.TxPool) (*types.Transaction, error) {
 	var (
 		posAbi, masterAbi abi.ABI
 		err error
@@ -412,7 +434,7 @@ func ClaimReward(bc base.BaseBlockChain, state *state.StateDB, txPool *tx_pool.T
 		return nil, err
 	}
 	// create claimReward transaction
-	if input, err = posAbi.Pack(methodClaimReward, nodeAddress.Node, bc.CurrentHeader().Height); err != nil {
+	if input, err = posAbi.Pack(methodClaimReward, nodeAddress.Node, height); err != nil {
 		return nil, err
 	}
 	return generateTransaction(txPool.GetAddressState(sender), input, &privateKey)
@@ -487,13 +509,13 @@ func CollectValidatorSet(bc base.BaseBlockChain) (*types.ValidatorSet, error) {
 	validators := make([]*types.Validator, 0)
 	for i:=uint64(1); i <= length; i++ {
 		var val validator
-		if input, err = masterAbi.Pack("GetLatestValidator", i); err != nil {
+		if input, err = masterAbi.Pack(methodGetLatestValidator, i); err != nil {
 			return nil, err
 		}
 		if output, err = StaticCall(vm, masterAddress, input); err != nil {
 			return nil, err
 		}
-		if err = masterAbi.Unpack(&val, "GetLatestValidator", output); err != nil {
+		if err = masterAbi.Unpack(&val, methodGetLatestValidator, output); err != nil {
 			return nil, err
 		}
 		stakes := calculateVotingPower(val.Stakes)
@@ -501,13 +523,13 @@ func CollectValidatorSet(bc base.BaseBlockChain) (*types.ValidatorSet, error) {
 			return nil, fmt.Errorf("invalid stakes")
 		}
 		// get node info from node address
-		if input, err = nodeAbi.Pack("getNodeInfo"); err != nil {
+		if input, err = nodeAbi.Pack(methodGetNodeInfo); err != nil {
 			return nil, err
 		}
 		if output, err = StaticCall(vm, val.Node, input); err != nil {
 			return nil, err
 		}
-		if err = nodeAbi.Unpack(&n, "getNodeInfo", output); err != nil {
+		if err = nodeAbi.Unpack(&n, methodGetNodeInfo, output); err != nil {
 			return nil, err
 		}
 		if pubKey, err = crypto.StringToPublicKey(n.NodeId); err != nil {

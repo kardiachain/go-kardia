@@ -97,8 +97,6 @@ type (
 		Owner      string       `yaml:"Owner"`
 		PubKey     string       `yaml:"PubKey"`
 		Name       string       `yaml:"Name"`
-		Host       string       `yaml:"Host"`
-		Port       string       `yaml:"Port"`
 		Reward     uint16       `yaml:"Reward"`
 	}
 	StakerInfo struct { // StakerInfo contains genesis staker address, node that it will stake to from the beginning and stakeAmount

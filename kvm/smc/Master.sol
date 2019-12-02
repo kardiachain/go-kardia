@@ -57,27 +57,27 @@ contract Master {
         _;
     }
 
-    modifier isPoSHandler {
+    modifier _isPoSHandler {
         require(msg.sender == PoSHandler, "sender is not PoSHandler");
         _;
     }
 
-    modifier isValidatorOrGenesis {
+    modifier _isValidatorOrGenesis {
         bool result = _isGenesisOwner[msg.sender] || _isGenesis[msg.sender];
         if (!result) {
-            result = IsValidator(msg.sender);
+            result = isValidator(msg.sender);
         }
         require(result, "sender is neither validator and genesis");
         _;
     }
 
-    modifier isAvailableNodes {
-        require(IsAvailableNodes(msg.sender) > 0, "sender does not belong in any availableNodes");
+    modifier _isAvailableNodes {
+        require(isAvailableNodes(msg.sender) > 0, "sender does not belong in any availableNodes");
         _;
     }
 
-    modifier isStaker {
-        require(IsStaker(msg.sender), "user is not staker");
+    modifier _isStaker {
+        require(isStaker(msg.sender), "user is not staker");
         _;
     }
 
@@ -175,7 +175,7 @@ contract Master {
     }
 
     // addNode adds a node to pending list
-    function addPendingNode(address nodeAddress, address owner) public isAvailableNodes {
+    function addPendingNode(address nodeAddress, address owner) public _isAvailableNodes {
         if (_pendingAdded[nodeAddress] == 0) {
             _pendingNodes.push(PendingInfo(NodeInfo(nodeAddress, owner, 0, 1), 1, false));
             _pendingNodes[_pendingNodes.length-1].votedAddress[msg.sender] = true;
@@ -184,16 +184,16 @@ contract Master {
         }
     }
 
-    function GetPendingNode(uint64 index) public view returns (address nodeAddress, uint256 stakes, uint64 vote) {
+    function getPendingNode(uint64 index) public view returns (address nodeAddress, uint256 stakes, uint64 vote) {
         PendingInfo storage info = _pendingNodes[index];
         return (info.node.node, info.node.stakes, info.vote);
     }
 
-    function GetTotalPending() public view returns (uint) {
+    function getTotalPending() public view returns (uint) {
         return _pendingNodes.length - 1;
     }
 
-    function GetTotalAvailableNodes() public view returns (uint) {
+    function getTotalAvailableNodes() public view returns (uint) {
         return _availableNodes.length - 1;
     }
 
@@ -218,7 +218,7 @@ contract Master {
     }
 
     // votePending is used when a valid user (belongs to availableNodes) vote for a node.
-    function votePending(uint64 index) public isAvailableNodes {
+    function votePending(uint64 index) public _isAvailableNodes {
         require(index > 0 && index < _pendingNodes.length, "invalid index");
         if (!_pendingNodes[index].votedAddress[msg.sender]) {
             _pendingNodes[index].vote += 1;
@@ -232,7 +232,7 @@ contract Master {
     }
 
     // requestDelete requests delete an availableNode based on its index in _availableNodes.
-    function requestDelete(uint64 index) public isAvailableNodes {
+    function requestDelete(uint64 index) public _isAvailableNodes {
         require(index > 0 && index < _availableNodes.length, "invalid index");
         // get node from availableNodes
         NodeInfo storage node = _availableNodes[index];
@@ -251,7 +251,7 @@ contract Master {
     }
 
     // voteDeleting votes to delete an availableNode based on index in _pendingDeletedNodes
-    function voteDeleting(uint64 index) public isAvailableNodes {
+    function voteDeleting(uint64 index) public _isAvailableNodes {
         require(index > 0 && index < _pendingDeletedNodes.length, "invalid index");
         PendingDeleteInfo storage info = _pendingDeletedNodes[index];
         if (!info.votedAddress[msg.sender]) {
@@ -331,12 +331,12 @@ contract Master {
         newMasterVersion.transfer(address(this).balance);
     }
 
-    function addStaker(address staker) public isValidatorOrGenesis {
+    function addStaker(address staker) public _isValidatorOrGenesis {
         _stakers[staker] = true;
     }
 
     // stake is called by using delegateCall in staker contract address. therefore msg.sender is staker's contract address
-    function stake(address nodeAddress, uint256 amount) public isStaker {
+    function stake(address nodeAddress, uint256 amount) public _isStaker {
         require(amount > 0, "invalid amount");
 
         uint index = _availableAdded[nodeAddress];
@@ -373,18 +373,17 @@ contract Master {
     }
 
     // withdraw: after user chooses withdraw, staker's contract will call this function to update node's stakes
-    function withdraw(address nodeAddress, uint256 amount) public isStaker {
+    function withdraw(address nodeAddress, uint256 amount) public _isStaker {
         uint index = _availableAdded[nodeAddress];
         require(index > 0 && _nodeIndex[nodeAddress].stakerAdded[msg.sender] > 0, "invalid index");
 
         uint64 stakerIndex = _nodeIndex[nodeAddress].stakerAdded[msg.sender];
 
-        // update total stakes. subtract old amount and add new amount.
-        _availableNodes[index].stakes -= _nodeIndex[nodeAddress].stakerInfo[stakerIndex].amount;
-        _availableNodes[index].stakes += amount;
+        // update total stakes.
+        _availableNodes[index].stakes -= amount;
 
         // update staker's stakes
-        _nodeIndex[nodeAddress].stakerInfo[stakerIndex].amount = amount;
+        _nodeIndex[nodeAddress].stakerInfo[stakerIndex].amount -= amount;
 
         // re-index node.
         while (index < _availableNodes.length-1) {
@@ -407,13 +406,10 @@ contract Master {
     // before adding new period, update last end block with current blockHeight
     // update _startAtBlock with current blockHeight + 1
 
-    function collectValidators() public isValidatorOrGenesis {
+    function collectValidators() public _isValidatorOrGenesis {
         // update _startAtBlock and _nextBlock
         _startAtBlock = _nextBlock;
         _nextBlock += _consensusPeriod+1;
-        // if (_history.length > 0) {
-        //     _history[_history.length-1].endAtBlock = blockNumber-1;
-        // }
 
         _history.push(Validators(1, _startAtBlock, _nextBlock-1));
         _history[_history.length-1].nodes[0] = _availableNodes[0];
@@ -439,13 +435,13 @@ contract Master {
         return 0;
     }
 
-    function IsStaker(address staker) public view returns (bool) {
+    function isStaker(address staker) public view returns (bool) {
         return _stakers[staker];
     }
 
-    // IsAvailableNodes check whether an address belongs to any available node or not.
-    function IsAvailableNodes(address node) public view returns (uint64) {
-        uint total = GetTotalAvailableNodes();
+    // isAvailableNodes check whether an address belongs to any available node or not.
+    function isAvailableNodes(address node) public view returns (uint64) {
+        uint total = getTotalAvailableNodes();
         if (total == 0) return 0; // total available is empty
         for (uint64 i=1; i<=total; i++) {
             if (_availableNodes[i].node == node || _availableNodes[i].owner == node) {
@@ -455,8 +451,8 @@ contract Master {
         return 0;
     }
 
-    // IsValidator check an address whether it belongs into latest validator.
-    function IsValidator(address sender) public view returns (bool) {
+    // isValidator check an address whether it belongs into latest validator.
+    function isValidator(address sender) public view returns (bool) {
         if (_history.length == 0) return false;
         Validators memory validators = _history[_history.length-1];
         for (uint64 i=1; i < validators.totalNodes; i++) {
@@ -474,7 +470,7 @@ contract Master {
         return (_history[_history.length-1].totalNodes-1, _history[_history.length-1].startAtBlock, _history[_history.length-1].endAtBlock);
     }
 
-    function GetLatestValidator(uint64 index) public view returns (address node, address owner, uint256 stakes, uint64 totalStaker) {
+    function getLatestValidator(uint64 index) public view returns (address node, address owner, uint256 stakes, uint64 totalStaker) {
         (uint64 len, , ) = getLatestValidatorsInfo();
         require(index <= len, "invalid index");
         NodeInfo memory validator = _history[_history.length-1].nodes[index];
@@ -485,7 +481,8 @@ contract Master {
         return rewarded[node][blockHeight];
     }
 
-    function setRewarded(address node, uint64 blockHeight) public isPoSHandler {
+    // setRewarded marks that a node has been rewarded at given blockHeight.
+    function setRewarded(address node, uint64 blockHeight) public _isPoSHandler {
         rewarded[node][blockHeight] = true;
     }
 

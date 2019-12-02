@@ -58,8 +58,6 @@ type GenesisNodeInfo struct {
 	Owner   common.Address
 	PubKey  string
 	Name    string
-	Host    string
-	Port    string
 	Reward  uint16
 }
 

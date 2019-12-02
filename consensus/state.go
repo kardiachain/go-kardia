@@ -1167,9 +1167,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 
 	fail.Fail() // XXX
 
-	var (
-		err error
-	)
+	var err error
 
 	// Create a copy of the state for staging and an event cache for txs.
 	stateCopy := cs.state.Copy()

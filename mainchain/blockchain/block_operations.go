@@ -87,7 +87,7 @@ func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.B
 	go bo.saveReceipts(receipts, block)
 
 	// claim reward
-	if err := bo.claimReward(); err != nil {
+	if err := bo.claimReward(uint64(height)); err != nil {
 		panic(err)
 	}
 
@@ -117,7 +117,7 @@ func (bo *BlockOperations) newConsensusPeriod(height uint64) error {
 	return nil
 }
 
-func (bo *BlockOperations) claimReward() error {
+func (bo *BlockOperations) claimReward(height uint64) error {
 	var (
 		st *state.StateDB
 		err error
@@ -127,7 +127,7 @@ func (bo *BlockOperations) claimReward() error {
 		if st, err = bo.blockchain.State(); err != nil {
 			return err
 		}
-		if tx, err = kvm.ClaimReward(bo.blockchain, st, bo.txPool); err != nil {
+		if tx, err = kvm.ClaimReward(height, bo.blockchain, st, bo.txPool); err != nil {
 			return err
 		}
 		if err = bo.txPool.AddTx(tx); err != nil {

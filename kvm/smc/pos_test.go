@@ -96,11 +96,9 @@ func testDeployGenesisNodesAndStakes(t *testing.T, bc *blockchain.BlockChain, st
 		owner := node["owner"].(string)
 		id := node["id"].(string)
 		name := node["name"].(string)
-		host := node["host"].(string)
-		port := node["port"].(string)
 		percentageReward := node["percentageReward"].(uint16)
 
-		input, err := kAbi.Pack("", masterAddress, common.HexToAddress(owner), id, name, host, port, percentageReward)
+		input, err := kAbi.Pack("", masterAddress, common.HexToAddress(owner), id, name, percentageReward)
 		require.NoError(t, err)
 
 		newCode := append(NodeByteCode, input...)
@@ -123,24 +121,24 @@ func testAddGenesisStaker(t *testing.T, kAbi abi.ABI, bc *blockchain.BlockChain,
 		_, err = call(common.HexToAddress(node["owner"].(string)), masterAddress, bc.CurrentHeader(), bc, addStaker, big.NewInt(0), st)
 		require.NoError(t, err)
 
-		isStaker, err := kAbi.Pack("IsStaker", staker)
+		isStaker, err := kAbi.Pack("isStaker", staker)
 		require.NoError(t, err)
 
 		isStakerResult, err := staticCall(common.HexToAddress(node["owner"].(string)), masterAddress, bc.CurrentHeader(), bc, isStaker, st)
 		require.NoError(t, err)
 
 		var isBool bool
-		err = kAbi.Unpack(&isBool, "IsStaker", isStakerResult)
+		err = kAbi.Unpack(&isBool, "isStaker", isStakerResult)
 		require.Equal(t, true, isBool)
 
-		IsAvailableNodes, err := kAbi.Pack("IsAvailableNodes", common.HexToAddress(node["address"].(string)))
+		IsAvailableNodes, err := kAbi.Pack("isAvailableNodes", common.HexToAddress(node["address"].(string)))
 		require.NoError(t, err)
 
 		IsAvailableNodesResult, err := staticCall(common.HexToAddress(node["owner"].(string)), masterAddress, bc.CurrentHeader(), bc, IsAvailableNodes, st)
 		require.NoError(t, err)
 
 		var index uint64
-		err = kAbi.Unpack(&index, "IsAvailableNodes", IsAvailableNodesResult)
+		err = kAbi.Unpack(&index, "isAvailableNodes", IsAvailableNodesResult)
 		require.NoError(t, err)
 		require.Equal(t, uint64(i+1), index)
 
@@ -169,14 +167,14 @@ func testAddStaker(t *testing.T, kAbi abi.ABI, bc *blockchain.BlockChain, st *st
 		_, err = call(genesisSender, masterAddress, bc.CurrentHeader(), bc, addStaker, big.NewInt(0), st)
 		require.NoError(t, err)
 
-		isStaker, err := kAbi.Pack("IsStaker", staker)
+		isStaker, err := kAbi.Pack("isStaker", staker)
 		require.NoError(t, err)
 
 		isStakerResult, err := staticCall(common.HexToAddress(node["owner"].(string)), masterAddress, bc.CurrentHeader(), bc, isStaker, st)
 		require.NoError(t, err)
 
 		var isBool bool
-		err = kAbi.Unpack(&isBool, "IsStaker", isStakerResult)
+		err = kAbi.Unpack(&isBool, "isStaker", isStakerResult)
 		require.Equal(t, true, isBool)
 
 		getTotalStakes, err := kAbi.Pack("getTotalStakes", common.HexToAddress(node["address"].(string)))
@@ -196,14 +194,14 @@ func testAddStaker(t *testing.T, kAbi abi.ABI, bc *blockchain.BlockChain, st *st
 
 func testAvailableNodes(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain, st *state.StateDB, expectedLen uint64) {
 	sender := common.HexToAddress(genesisNodes[0]["owner"].(string))
-	getTotalAvailableNodes, err := masterAbi.Pack("GetTotalAvailableNodes")
+	getTotalAvailableNodes, err := masterAbi.Pack("getTotalAvailableNodes")
 	require.NoError(t, err)
 
 	result, err := staticCall(sender, masterAddress, bc.CurrentHeader(), bc, getTotalAvailableNodes, st)
 	require.NoError(t, err)
 
 	var totalAvailableNodes *big.Int
-	err = masterAbi.Unpack(&totalAvailableNodes, "GetTotalAvailableNodes", result)
+	err = masterAbi.Unpack(&totalAvailableNodes, "getTotalAvailableNodes", result)
 	require.NoError(t, err)
 	require.Equal(t, expectedLen, totalAvailableNodes.Uint64())
 
@@ -274,23 +272,23 @@ func testCollectValidators(t *testing.T, masterAbi abi.ABI, bc *blockchain.Block
 	_, err = call(sender, masterAddress, bc.CurrentHeader(), bc, input, big.NewInt(0), st)
 	require.NoError(t, err)
 
-	isValidator, err := masterAbi.Pack("IsValidator", sender)
+	isValidator, err := masterAbi.Pack("isValidator", sender)
 	require.NoError(t, err)
 
 	result, err := staticCall(sender, masterAddress, bc.CurrentHeader(), bc, isValidator, st)
 	require.NoError(t, err)
 
 	var actual bool
-	err = masterAbi.Unpack(&actual, "IsValidator", result)
+	err = masterAbi.Unpack(&actual, "isValidator", result)
 	require.Equal(t, true, actual)
 
-	isValidator, err = masterAbi.Pack("IsValidator", senderNode)
+	isValidator, err = masterAbi.Pack("isValidator", senderNode)
 	require.NoError(t, err)
 
 	result, err = staticCall(sender, masterAddress, bc.CurrentHeader(), bc, isValidator, st)
 	require.NoError(t, err)
 
-	err = masterAbi.Unpack(&actual, "IsValidator", result)
+	err = masterAbi.Unpack(&actual, "isValidator", result)
 	require.Equal(t, true, actual)
 }
 
@@ -314,7 +312,7 @@ func testGetLatestValidators(t *testing.T, masterAbi abi.ABI, bc *blockchain.Blo
 	require.Equal(t, expectedValidatorsLength, validatorsInfo.TotalNodes)
 
 	for i:=uint64(1); i < validatorsInfo.TotalNodes; i++ {
-		getLatestValidator, err := masterAbi.Pack("GetLatestValidator", i)
+		getLatestValidator, err := masterAbi.Pack("getLatestValidator", i)
 		require.NoError(t, err)
 
 		result, err = staticCall(sender, masterAddress, bc.CurrentHeader(), bc, getLatestValidator, st)
@@ -326,7 +324,7 @@ func testGetLatestValidators(t *testing.T, masterAbi abi.ABI, bc *blockchain.Blo
 			TotalStaker uint64 `abi:"totalStaker"`
 		}
 		var actual validator
-		err = masterAbi.Unpack(&actual, "GetLatestValidator", result)
+		err = masterAbi.Unpack(&actual, "getLatestValidator", result)
 		require.NoError(t, err)
 
 		node := expectedNodes[i-1]
@@ -340,7 +338,7 @@ func testGetLatestValidators(t *testing.T, masterAbi abi.ABI, bc *blockchain.Blo
 
 func testGetPendingNode(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain, st *state.StateDB,
 	index uint64, expectedAddress common.Address, expectedVote uint64) {
-	input, err := masterAbi.Pack("GetPendingNode", index)
+	input, err := masterAbi.Pack("getPendingNode", index)
 	require.NoError(t, err)
 
 	output, err := staticCall(common.HexToAddress(genesisNodes[0]["owner"].(string)), masterAddress, bc.CurrentHeader(), bc, input, st)
@@ -352,7 +350,7 @@ func testGetPendingNode(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockCha
 		Vote uint64 `abi:"vote"`
 	}
 	var outputNode pendingNode
-	err = masterAbi.Unpack(&outputNode, "GetPendingNode", output)
+	err = masterAbi.Unpack(&outputNode, "getPendingNode", output)
 	require.NoError(t, err)
 
 	if outputNode.NodeAddress.Equal(common.HexToAddress("0x")) {
@@ -383,14 +381,14 @@ func testAddPendingNode(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockCha
 	_, err = call(sender, masterAddress, bc.CurrentHeader(), bc, input, big.NewInt(0), st)
 	require.NoError(t, err)
 
-	input, err = masterAbi.Pack("GetTotalPending")
+	input, err = masterAbi.Pack("getTotalPending")
 	require.NoError(t, err)
 
 	output, err := staticCall(sender, masterAddress, bc.CurrentHeader(), bc, input, st)
 	require.NoError(t, err)
 
 	var result *big.Int
-	err = masterAbi.Unpack(&result, "GetTotalPending", output)
+	err = masterAbi.Unpack(&result, "getTotalPending", output)
 	require.NoError(t, err)
 	require.Equal(t, true, result.Uint64() > 0)
 
@@ -402,14 +400,14 @@ func testVotePending(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain,
 		expectedAvailableLen uint64) {
 	sender := common.HexToAddress(genesisNodes[0]["owner"].(string))
 	// get latest pending node
-	input, err := masterAbi.Pack("GetTotalPending")
+	input, err := masterAbi.Pack("getTotalPending")
 	require.NoError(t, err)
 
 	output, err := staticCall(sender, masterAddress, bc.CurrentHeader(), bc, input, st)
 	require.NoError(t, err)
 
 	var index *big.Int
-	err = masterAbi.Unpack(&index, "GetTotalPending", output)
+	err = masterAbi.Unpack(&index, "getTotalPending", output)
 	require.NoError(t, err)
 	require.Equal(t, true, index.Uint64() > 0)
 
@@ -420,7 +418,7 @@ func testVotePending(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain,
 		_, err = call(common.HexToAddress(node["owner"].(string)), masterAddress, bc.CurrentHeader(), bc, input, big.NewInt(0), st)
 		if err != nil {
 			// try to get pending node by index, if it is found then throw t.Fatal
-			input, err = masterAbi.Pack("GetPendingNode", index.Uint64())
+			input, err = masterAbi.Pack("getPendingNode", index.Uint64())
 			require.NoError(t, err)
 			output, err = staticCall(sender, masterAddress, bc.CurrentHeader(), bc, input, st)
 			require.NoError(t, err)
@@ -430,7 +428,7 @@ func testVotePending(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain,
 				Vote uint64 `abi:"vote"`
 			}
 			var outputNode pendingNode
-			err = masterAbi.Unpack(&outputNode, "GetPendingNode", output)
+			err = masterAbi.Unpack(&outputNode, "getPendingNode", output)
 			require.NoError(t, err)
 			if !outputNode.NodeAddress.Equal(common.HexToAddress("0x")) {
 				t.Fatal("expected pending node does not exist, but got existed")
@@ -499,8 +497,27 @@ func testVoteDeleteNode(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockCha
 }
 
 func testWithdraw(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain, st *state.StateDB, node, staker common.Address, amount *big.Int, expectedNewIndex uint64) {
+	type nodeInfo struct {
+		NodeAddress common.Address `abi:"nodeAddress"`
+		Owner common.Address `abi:"owner"`
+		Stakes *big.Int `abi:"stakes"`
+	}
+
+	var (
+		before, after nodeInfo
+		input, output []byte
+		err error
+	)
+
 	println("start testWithdraw")
-	input, err := masterAbi.Pack("withdraw", node, amount)
+
+	input, err = masterAbi.Pack("getAvailableNode", big.NewInt(0).SetUint64(expectedNewIndex))
+	require.NoError(t, err)
+	output, err = staticCall(staker, masterAddress, bc.CurrentHeader(), bc, input, st)
+	require.NoError(t, err)
+	err = masterAbi.Unpack(&before, "getAvailableNode", output)
+
+	input, err = masterAbi.Pack("withdraw", node, amount)
 	require.NoError(t, err)
 
 	_, err = call(staker, masterAddress, bc.CurrentHeader(), bc, input, big.NewInt(0), st)
@@ -508,17 +525,14 @@ func testWithdraw(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain, st
 
 	input, err = masterAbi.Pack("getAvailableNode", big.NewInt(0).SetUint64(expectedNewIndex))
 	require.NoError(t, err)
-	output, err := staticCall(staker, masterAddress, bc.CurrentHeader(), bc, input, st)
+	output, err = staticCall(staker, masterAddress, bc.CurrentHeader(), bc, input, st)
 	require.NoError(t, err)
-	type nodeInfo struct {
-		NodeAddress common.Address `abi:"nodeAddress"`
-		Owner common.Address `abi:"owner"`
-		Stakes *big.Int `abi:"stakes"`
-	}
-	var info nodeInfo
-	err = masterAbi.Unpack(&info, "getAvailableNode", output)
+	err = masterAbi.Unpack(&after, "getAvailableNode", output)
 	require.NoError(t, err)
-	println(fmt.Sprintf("testWithdraw - available node - index:%v node:%v owner:%v stakes:%v", expectedNewIndex, info.NodeAddress.Hex(), info.Owner.Hex(), info.Stakes.Uint64()))
+
+	expectedAmount := big.NewInt(0).Sub(before.Stakes, amount)
+	require.Equal(t, expectedAmount.String(), after.Stakes.String())
+	println(fmt.Sprintf("testWithdraw - available node - index:%v node:%v owner:%v stakes:%v", expectedNewIndex, after.NodeAddress.Hex(), after.Owner.Hex(), after.Stakes.String()))
 }
 
 func testGetNodeAddressFromAddress(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain, st *state.StateDB) {
@@ -542,6 +556,39 @@ func testGetNodeAddressFromAddress(t *testing.T, masterAbi abi.ABI, bc *blockcha
 		require.NoError(t, err)
 		require.Equal(t, expectedNodeAddress.Hex(), na.Node.Hex())
 	}
+}
+
+func testSetReward(t *testing.T, masterAbi abi.ABI, nodeAddress common.Address, blockHeight uint64, bc *blockchain.BlockChain, st *state.StateDB) {
+	setRewarded := "setRewarded"
+	getValidatedBlockHeightByIndex := "getValidatedBlockHeightByIndex"
+	updateValidatedBlock := "updateValidatedBlock"
+	var (
+		nodeABI abi.ABI
+		input, output []byte
+		err error
+		height uint64
+	)
+	println(fmt.Sprintf("testSetRewarded with node:%v", nodeAddress.Hex()))
+	input, err = masterAbi.Pack(setRewarded, nodeAddress, blockHeight)
+	require.NoError(t, err)
+	_, err = call(posHandlerAddress, masterAddress, bc.CurrentHeader(), bc, input, big.NewInt(0), st)
+
+	nodeABI, err = abi.JSON(strings.NewReader(NodeAbi))
+	require.NoError(t, err)
+
+	// update validated block height to nodeAddress.
+	input, err = nodeABI.Pack(updateValidatedBlock, blockHeight)
+	require.NoError(t, err)
+	_, err = call(masterAddress, nodeAddress, bc.CurrentHeader(), bc, input, big.NewInt(0), st)
+	require.NoError(t, err)
+
+	input, err = nodeABI.Pack(getValidatedBlockHeightByIndex, uint64(0))
+	require.NoError(t, err)
+	output, err = staticCall(posHandlerAddress, nodeAddress, bc.CurrentHeader(), bc, input, st)
+	require.NoError(t, err)
+	err = nodeABI.Unpack(&height, getValidatedBlockHeightByIndex, output)
+	require.NoError(t, err)
+	println(height)
 }
 
 func setup(t *testing.T) (*blockchain.BlockChain, abi.ABI, *state.StateDB) {
@@ -618,6 +665,7 @@ func TestMaster(t *testing.T) {
 	// test get node address from owner's address
 	println("testGetNodeAddressFromAddress")
 	testGetNodeAddressFromAddress(t, masterAbi, bc, st)
+	testSetReward(t, masterAbi, common.HexToAddress(genesisNodes[0]["address"].(string)), 1, bc, st)
 }
 
 func TestNode(t *testing.T) {
@@ -629,8 +677,6 @@ func TestNode(t *testing.T) {
 		common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"),
 		"7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860",
 		"node1",
-		"127.0.0.1",
-		"3000",
 		uint16(500),
 	)
 	require.NoError(t, err)
@@ -667,8 +713,6 @@ func TestNode(t *testing.T) {
 		Owner common.Address `abi:"owner"`
 		NodeId string `abi:"nodeId"`
 		NodeName string `abi:"nodeName"`
-		IpAddress string `abi:"ipAddress"`
-		Port string `abi:"port"`
 		RewardPercentage uint16 `abi:"rewardPercentage"`
 		Balance *big.Int `abi:"balance"`
 	}
@@ -684,8 +728,6 @@ func TestNode(t *testing.T) {
 		Owner:            common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"),
 		NodeId:           "7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860",
 		NodeName:         "node1",
-		IpAddress:        "127.0.0.1",
-		Port:             "3000",
 		RewardPercentage: uint16(500),
 		Balance:          big.NewInt(0),
 	}

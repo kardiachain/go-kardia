@@ -232,8 +232,6 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 			Owner:   common.HexToAddress(n.Owner),
 			PubKey:  n.PubKey,
 			Name:    n.Name,
-			Host:    n.Host,
-			Port:    n.Port,
 			Reward:  n.Reward,
 		})
 	}
