@@ -340,42 +340,39 @@ func (c *codeAndHash) Hash() common.Hash {
 	return c.hash
 }
 
-// Create creates a new contract using code as deployment code.
-func (kvm *KVM) create(caller base.ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-
+func (kvm *KVM) createContract (contract *Contract, codeAndHash *codeAndHash) (ret []byte, err error) {
+	contractAddress := contract.Address()
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
 	if kvm.depth > int(CallCreateDepth) {
-		return nil, common.Address{}, gas, ErrDepth
+		return nil, ErrDepth
 	}
-	if !kvm.CanTransfer(kvm.StateDB, caller.Address(), value) {
-		return nil, common.Address{}, gas, ErrInsufficientBalance
+	if !kvm.CanTransfer(kvm.StateDB, contract.caller.Address(), contract.Value()) {
+		return nil, ErrInsufficientBalance
 	}
 
-	nonce := kvm.StateDB.GetNonce(caller.Address())
-	kvm.StateDB.SetNonce(caller.Address(), nonce+1)
+	nonce := kvm.StateDB.GetNonce(contract.caller.Address())
+	kvm.StateDB.SetNonce(contract.caller.Address(), nonce+1)
 
 	// Ensure there's no existing contract already at the designated address
-	contractHash := kvm.StateDB.GetCodeHash(address)
-	if kvm.StateDB.GetNonce(address) != 0 || (contractHash != (common.Hash{}) && contractHash != emptyCodeHash) {
-		return nil, common.Address{}, 0, ErrContractAddressCollision
+	contractHash := kvm.StateDB.GetCodeHash(contract.Address())
+	if kvm.StateDB.GetNonce(contractAddress) != 0 || (contractHash != (common.Hash{}) && contractHash != emptyCodeHash) {
+		return nil, ErrContractAddressCollision
 	}
-	// Create a new account on the state
-	snapshot := kvm.GetStateDB().Snapshot()
-	kvm.StateDB.CreateAccount(address)
-	kvm.StateDB.SetNonce(address, 1)
-	kvm.StateDB.SetCode(address, codeAndHash.code)
 
-	kvm.Transfer(kvm.StateDB, caller.Address(), address, value)
+	kvm.StateDB.CreateAccount(contractAddress)
+	kvm.StateDB.SetNonce(contractAddress, 1)
+	kvm.StateDB.SetCode(contractAddress, codeAndHash.code)
+
+	kvm.Transfer(kvm.StateDB, contract.caller.Address(), contractAddress, contract.Value())
 
 	// initialise a new contract and set the code that is to be used by the
 	// KVM. The contract is a scoped environment for this execution context
 	// only.
-	contract := NewContract(caller, AccountRef(address), value, gas)
-	contract.SetCodeOptionalHash(&address, codeAndHash)
+	contract.SetCodeOptionalHash(&contractAddress, codeAndHash)
 
 	if kvm.vmConfig.NoRecursion && kvm.depth > 0 {
-		return nil, address, gas, nil
+		return nil, fmt.Errorf("depth is not allowed when no recursion is enabled")
 	}
 
 	/* TODO(huny@): Adding tracer later
@@ -386,25 +383,35 @@ func (kvm *KVM) create(caller base.ContractRef, codeAndHash *codeAndHash, gas ui
 	start := time.Now()
 	*/
 	ret, err = run(kvm, contract, nil, false)
+	if err != nil {
+		return nil, err
+	}
 
-	// check whether the max code size has been exceeded
-	maxCodeSizeExceeded := len(ret) > MaxCodeSize
 	// if the contract creation ran successfully and no errors were returned
 	// calculate the gas required to store the code. If the code could not
 	// be stored due to not enough gas set an error and let it be handled
 	// by the error checking condition below.
-	if err == nil && !maxCodeSizeExceeded {
-		createDataGas := uint64(len(ret)) * CreateDataGas
-		if contract.UseGas(createDataGas) {
-			kvm.GetStateDB().SetCode(address, ret)
-		} else {
-			err = ErrCodeStoreOutOfGas
-		}
+
+	createDataGas := uint64(len(ret)) * CreateDataGas
+	if contract.UseGas(createDataGas) {
+		kvm.GetStateDB().SetCode(contractAddress, ret)
+	} else {
+		return ret, ErrCodeStoreOutOfGas
 	}
+	return ret, nil
+}
+
+// Create creates a new contract using code as deployment code.
+func (kvm *KVM) create(caller base.ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	snapshot := kvm.GetStateDB().Snapshot()
+	contract := NewContract(caller, AccountRef(address), value, gas)
+	ret, err = kvm.createContract(contract, codeAndHash)
+	// check whether the max code size has been exceeded
+	maxCodeSizeExceeded := len(ret) > MaxCodeSize
 
 	// When an error was returned by the KVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining.
-	if maxCodeSizeExceeded || err != nil {
+	if err != nil || maxCodeSizeExceeded {
 		kvm.GetStateDB().RevertToSnapshot(snapshot)
 		if err != errExecutionReverted {
 			contract.UseGas(contract.Gas)
@@ -434,18 +441,21 @@ func (kvm *KVM) Create(caller base.ContractRef, code []byte, gas uint64, value *
 
 // CreateGenesisContract creates contractAddr with given contractAddr
 // Note: this function is only used when creating genesis contract
-func (kvm *KVM) CreateGenesisContract(caller base.ContractRef, contract *common.Address, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-	if contract == nil {
+func (kvm *KVM) CreateGenesisContract(caller base.ContractRef, contractAddr *common.Address, code []byte, gas uint64, value *big.Int) (ret []byte, newContractAddr common.Address, leftOverGas uint64, err error) {
+	if contractAddr == nil {
 		address := crypto.CreateAddress(caller.Address(), kvm.GetStateDB().GetNonce(caller.Address()))
-		contract = &address
+		contractAddr = &address
 	}
 
-	ret, contractAddr, leftOverGas, err = kvm.create(caller, &codeAndHash{code: code}, gas, big.NewInt(0), *contract)
+	contract := NewContract(caller, AccountRef(*contractAddr), big.NewInt(0), gas)
+	ret, err = kvm.createContract(contract, &codeAndHash{code: code})
 	if err != nil {
-		return nil, *contract, gas, err
+		retStr := string(ret)
+		log.Error("err", "ret", retStr, "err", err)
+		return ret, *contractAddr, contract.Gas, err
 	}
-	kvm.GetStateDB().AddBalance(*contract, value)
-	return ret, contractAddr, leftOverGas, nil
+	kvm.StateDB.AddBalance(*contractAddr, value)
+	return ret, *contractAddr, leftOverGas, nil
 }
 
 // NewKVMContext creates a new context for dual node to call smc in the KVM.
