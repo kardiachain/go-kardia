@@ -237,8 +237,7 @@ func testGetAvailableNodeIndex(t *testing.T, masterAbi abi.ABI, bc *blockchain.B
 func testCreateMaster(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain, st *state.StateDB, consensusPeriod uint64, maxValidators uint64) {
 	input, err := masterAbi.Pack("", consensusPeriod, maxValidators)
 	require.NoError(t, err)
-	//sender := common.HexToAddress(genesisNodes[0]["owner"].(string))
-	sender := common.HexToAddress("0x")
+	sender := common.HexToAddress(genesisNodes[0]["owner"].(string))
 	newCode := append(MasterByteCode, input...)
 	_, _, _, err = create(sender, masterAddress, bc.CurrentHeader(), bc, newCode, genesisAmount, st)
 	require.NoError(t, err)
@@ -312,7 +311,7 @@ func testGetLatestValidators(t *testing.T, masterAbi abi.ABI, bc *blockchain.Blo
 	require.Equal(t, expectedValidatorsLength, validatorsInfo.TotalNodes)
 
 	for i:=uint64(1); i < validatorsInfo.TotalNodes; i++ {
-		getLatestValidator, err := masterAbi.Pack("getLatestValidator", i)
+		getLatestValidator, err := masterAbi.Pack("getLatestValidatorByIndex", i)
 		require.NoError(t, err)
 
 		result, err = staticCall(sender, masterAddress, bc.CurrentHeader(), bc, getLatestValidator, st)
@@ -324,7 +323,7 @@ func testGetLatestValidators(t *testing.T, masterAbi abi.ABI, bc *blockchain.Blo
 			TotalStaker uint64 `abi:"totalStaker"`
 		}
 		var actual validator
-		err = masterAbi.Unpack(&actual, "getLatestValidator", result)
+		err = masterAbi.Unpack(&actual, "getLatestValidatorByIndex", result)
 		require.NoError(t, err)
 
 		node := expectedNodes[i-1]
@@ -561,12 +560,13 @@ func testGetNodeAddressFromAddress(t *testing.T, masterAbi abi.ABI, bc *blockcha
 func testSetReward(t *testing.T, masterAbi abi.ABI, nodeAddress common.Address, blockHeight uint64, bc *blockchain.BlockChain, st *state.StateDB) {
 	setRewarded := "setRewarded"
 	getValidatedBlockHeightByIndex := "getValidatedBlockHeightByIndex"
-	updateValidatedBlock := "updateValidatedBlock"
+	getNumberOfValidatedBlocks := "getNumberOfValidatedBlocks"
 	var (
 		nodeABI abi.ABI
 		input, output []byte
 		err error
 		height uint64
+		length *big.Int
 	)
 	println(fmt.Sprintf("testSetRewarded with node:%v", nodeAddress.Hex()))
 	input, err = masterAbi.Pack(setRewarded, nodeAddress, blockHeight)
@@ -576,11 +576,13 @@ func testSetReward(t *testing.T, masterAbi abi.ABI, nodeAddress common.Address, 
 	nodeABI, err = abi.JSON(strings.NewReader(NodeAbi))
 	require.NoError(t, err)
 
-	// update validated block height to nodeAddress.
-	input, err = nodeABI.Pack(updateValidatedBlock, blockHeight)
+	input, err = nodeABI.Pack(getNumberOfValidatedBlocks)
 	require.NoError(t, err)
-	_, err = call(masterAddress, nodeAddress, bc.CurrentHeader(), bc, input, big.NewInt(0), st)
+	output, err = staticCall(posHandlerAddress, nodeAddress, bc.CurrentHeader(), bc, input, st)
 	require.NoError(t, err)
+	err = nodeABI.Unpack(&length, getNumberOfValidatedBlocks, output)
+	require.NoError(t, err)
+	require.Equal(t, "1", length.String())
 
 	input, err = nodeABI.Pack(getValidatedBlockHeightByIndex, uint64(0))
 	require.NoError(t, err)
@@ -589,6 +591,73 @@ func testSetReward(t *testing.T, masterAbi abi.ABI, nodeAddress common.Address, 
 	err = nodeABI.Unpack(&height, getValidatedBlockHeightByIndex, output)
 	require.NoError(t, err)
 	println(height)
+}
+
+func testRejectBlock(t *testing.T, masterAbi abi.ABI, nodeAddress, sender common.Address, index int64, blockHeight uint64, bc *blockchain.BlockChain, st *state.StateDB) {
+
+	type rejectedStatus struct {
+		TotalVoted uint64 `abi:"totalVoted"`
+		Status bool `abi:"status"`
+	}
+
+	var (
+		input, output []byte
+		err error
+		nodeAbi abi.ABI
+		hasVoted bool
+		status rejectedStatus
+		height uint64
+	)
+	getRejectedBlockHeightByIndex := "getRejectedBlockHeightByIndex"
+	getRejectedStatus := "getRejectedStatus"
+	hasRejectedVote := "hasRejectedVote"
+	rejectBlockValidation := "rejectBlockValidation"
+
+	nodeAbi, err = abi.JSON(strings.NewReader(NodeAbi))
+	require.NoError(t, err)
+
+	// add reject request from sender
+	input, err = masterAbi.Pack(rejectBlockValidation, nodeAddress, blockHeight)
+	require.NoError(t, err)
+
+	_, err = call(sender, masterAddress, bc.CurrentHeader(), bc, input, big.NewInt(0), st)
+	require.NoError(t, err)
+
+	// test if sender has voted
+	input, err = masterAbi.Pack(hasRejectedVote, nodeAddress, blockHeight)
+	require.NoError(t, err)
+
+	output, err = staticCall(sender, masterAddress, bc.CurrentHeader(), bc, input, st)
+	require.NoError(t, err)
+
+	err = masterAbi.Unpack(&hasVoted, hasRejectedVote, output)
+	require.NoError(t, err)
+	require.Equal(t, true, hasVoted)
+
+	// get rejected status
+	input, err = masterAbi.Pack(getRejectedStatus, nodeAddress, blockHeight)
+	require.NoError(t, err)
+	output, err = staticCall(sender, masterAddress, bc.CurrentHeader(), bc, input, st)
+	require.NoError(t, err)
+
+	err = masterAbi.Unpack(&status, getRejectedStatus, output)
+	require.NoError(t, err)
+
+	println(fmt.Sprintf("rejectedStatus: total:%v status:%v", status.TotalVoted, status.Status))
+	if index == -1 {
+		require.Equal(t, false, status.Status)
+	}
+	if index > -1 {
+		require.Equal(t, true, status.Status)
+
+		// getRejectedBlockHeightByIndex
+		input, err = nodeAbi.Pack(getRejectedBlockHeightByIndex, uint64(index))
+		require.NoError(t, err)
+		output, err = staticCall(sender, nodeAddress, bc.CurrentHeader(), bc, input, st)
+		require.NoError(t, err)
+		require.NoError(t, nodeAbi.Unpack(&height, getRejectedBlockHeightByIndex, output))
+		require.Equal(t, blockHeight, height)
+	}
 }
 
 func setup(t *testing.T) (*blockchain.BlockChain, abi.ABI, *state.StateDB) {
@@ -666,6 +735,12 @@ func TestMaster(t *testing.T) {
 	println("testGetNodeAddressFromAddress")
 	testGetNodeAddressFromAddress(t, masterAbi, bc, st)
 	testSetReward(t, masterAbi, common.HexToAddress(genesisNodes[0]["address"].(string)), 1, bc, st)
+
+	// test sending rejected request
+	rejectedAddress := common.HexToAddress(genesisNodes[0]["address"].(string))
+	testRejectBlock(t, masterAbi, rejectedAddress, common.HexToAddress(genesisNodes[1]["owner"].(string)), -1, 1, bc, st)
+	testRejectBlock(t, masterAbi, rejectedAddress, common.HexToAddress(genesisNodes[2]["owner"].(string)), -1, 1, bc, st)
+	testRejectBlock(t, masterAbi, rejectedAddress, common.HexToAddress(normalNodes[0]["owner"].(string)), 0, 1, bc, st)
 }
 
 func TestNode(t *testing.T) {

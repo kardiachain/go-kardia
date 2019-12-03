@@ -80,9 +80,8 @@ const (
 	methodGetStakerInfo = "getStakerInfo"
 	methodNewConsensusPeriod = "newConsensusPeriod"
 	methodGetLatestValidatorsInfo = "getLatestValidatorsInfo"
-	methodGetLatestValidator = "getLatestValidator"
+	methodGetLatestValidatorByIndex = "getLatestValidatorByIndex"
 	methodCollectValidators = "collectValidators"
-	methodUpdateValidatedBlock = "updateValidatedBlock"
 )
 
 var (
@@ -215,7 +214,7 @@ func handleClaimReward(method *abi.Method, input []byte, contract *Contract, ctx
 
 func rewardToNode(nodeAddress common.Address, blockHeight uint64, nodeReward *big.Int, ctx Context, state base.StateDB) error {
 	var (
-		masterABI, nodeABI abi.ABI
+		masterABI abi.ABI
 		err error
 		input, output []byte
 		isRewarded bool
@@ -247,18 +246,6 @@ func rewardToNode(nodeAddress common.Address, blockHeight uint64, nodeReward *bi
 	// update nodeAddress balance
 	ctx.Transfer(state, masterAddress, nodeAddress, nodeReward)
 	addLog(vm, nodeAddress, nodeReward, blockHeight)
-
-	// updateValidatedBlock
-	if nodeABI, err = abi.JSON(strings.NewReader(ctx.Chain.GetConsensusNodeAbi())); err != nil{
-		return err
-	}
-	if input, err = nodeABI.Pack(methodUpdateValidatedBlock, blockHeight); err != nil {
-		return err
-	}
-	vm = newInternalKVM(masterAddress, ctx.Chain, state)
-	if _, err = InternalCall(vm, nodeAddress, input, big.NewInt(0)); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -509,13 +496,13 @@ func CollectValidatorSet(bc base.BaseBlockChain) (*types.ValidatorSet, error) {
 	validators := make([]*types.Validator, 0)
 	for i:=uint64(1); i <= length; i++ {
 		var val validator
-		if input, err = masterAbi.Pack(methodGetLatestValidator, i); err != nil {
+		if input, err = masterAbi.Pack(methodGetLatestValidatorByIndex, i); err != nil {
 			return nil, err
 		}
 		if output, err = StaticCall(vm, masterAddress, input); err != nil {
 			return nil, err
 		}
-		if err = masterAbi.Unpack(&val, methodGetLatestValidator, output); err != nil {
+		if err = masterAbi.Unpack(&val, methodGetLatestValidatorByIndex, output); err != nil {
 			return nil, err
 		}
 		stakes := calculateVotingPower(val.Stakes)
