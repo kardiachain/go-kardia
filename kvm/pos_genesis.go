@@ -38,7 +38,7 @@ func InitGenesisConsensus(st *state.StateDB, gasLimit uint64, consensusInfo pos.
 	// get first node owner to be the sender
 	sender := consensusInfo.Nodes.GenesisInfo[0].Owner
 	// create master smart contract
-	if err = createMaster(gasLimit, st, consensusInfo.Master, consensusInfo.MaxValidators, consensusInfo.ConsensusPeriodInBlock, sender); err != nil {
+	if err = createMaster(gasLimit, st, consensusInfo.Master, consensusInfo.MaxValidators, consensusInfo.MaxViolatePercentageAllowed, consensusInfo.ConsensusPeriodInBlock, sender); err != nil {
 		return err
 	}
 	// add stakers
@@ -57,7 +57,7 @@ func InitGenesisConsensus(st *state.StateDB, gasLimit uint64, consensusInfo pos.
 	return CollectValidators(gasLimit, st, consensusInfo.Master, sender)
 }
 
-func createMaster(gasLimit uint64, st *state.StateDB, master pos.MasterSmartContract, maxValidators uint64, consensusPeriod uint64, sender common.Address) error {
+func createMaster(gasLimit uint64, st *state.StateDB, master pos.MasterSmartContract, maxValidators, maxViolatePercentageAllowed, consensusPeriod uint64, sender common.Address) error {
 	var (
 		masterAbi abi.ABI
 		err error
@@ -67,7 +67,7 @@ func createMaster(gasLimit uint64, st *state.StateDB, master pos.MasterSmartCont
 	if masterAbi, err = abi.JSON(strings.NewReader(master.ABI)); err != nil {
 		return err
 	}
-	if input, err = masterAbi.Pack("", consensusPeriod, maxValidators); err != nil {
+	if input, err = masterAbi.Pack("", consensusPeriod, maxValidators, maxViolatePercentageAllowed); err != nil {
 		return err
 	}
 	newCode := append(master.ByteCode, input...)

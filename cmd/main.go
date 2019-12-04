@@ -208,6 +208,7 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		MaxValidators:   c.MainChain.Consensus.MaxValidators,
 		ConsensusPeriodInBlock: c.MainChain.Consensus.ConsensusPeriodInBlock,
 		MinimumStakes: minimumStakes,
+		MaxViolatePercentageAllowed: c.MainChain.Consensus.MaxViolatePercentageAllowed,
 		Master:          pos.MasterSmartContract{
 			Address:       common.HexToAddress(c.MainChain.Consensus.Deployment.Master.Address),
 			ByteCode:      common.Hex2Bytes(c.MainChain.Consensus.Compilation.Master.ByteCode),

@@ -24,6 +24,7 @@ import (
 )
 
 type ConsensusInfo struct {
+	MaxViolatePercentageAllowed uint64
 	FetchNewValidatorsTime      uint64
 	BlockReward                 *big.Int
 	MaxValidators               uint64

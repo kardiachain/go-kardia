@@ -22,7 +22,6 @@ package kai
 import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
-	"github.com/kardiachain/go-kardia/kai/pos"
 	"github.com/kardiachain/go-kardia/kai/service"
 	serviceconst "github.com/kardiachain/go-kardia/kai/service/const"
 	"github.com/kardiachain/go-kardia/kvm"
@@ -117,17 +116,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// Set zeroFee to blockchain
 	kai.blockchain.IsZeroFee = config.IsZeroFee
 	kai.txPool = tx_pool.NewTxPool(logger, config.TxPool, kai.chainConfig, kai.blockchain)
-	consensusInfo := config.Genesis.ConsensusInfo
-	kai.blockchain.ConsensusMasterSmartContract = pos.MasterSmartContract{
-		Address:       consensusInfo.Master.Address,
-		ByteCode:      consensusInfo.Master.ByteCode,
-		ABI:           consensusInfo.Master.ABI,
-		GenesisAmount: consensusInfo.Master.GenesisAmount,
-	}
-	kai.blockchain.NodeAbi = consensusInfo.Nodes.ABI
-	kai.blockchain.StakerAbi = consensusInfo.Stakers.ABI
-	kai.blockchain.BlockReward = consensusInfo.BlockReward
-	kai.blockchain.FetchNewValidatorsTime = consensusInfo.FetchNewValidatorsTime
+	kai.blockchain.ConsensusInfo = config.Genesis.ConsensusInfo
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
