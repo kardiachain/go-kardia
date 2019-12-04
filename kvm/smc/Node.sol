@@ -19,7 +19,7 @@
 pragma solidity ^0.5.8;
 
 /**
- * Node contains node's information regard nodeId, nodeName, Reward percentage for stakers.
+ * Node contains node's information regard to nodeId, nodeName, Reward percentage for stakers.
  **/
 contract Node {
 
@@ -27,6 +27,7 @@ contract Node {
     string _nodeName;
     uint16 _rewardPercentage;
     uint64[] _validatedBlocks;
+    uint64[] _rejectedBlocks;
     address payable _owner;
     address _master;
 
@@ -59,10 +60,12 @@ contract Node {
         return _owner;
     }
 
+    // withdraw sends block's rewards to owner's address.
     function withdraw() public isOwner {
         _owner.transfer(address(this).balance);
     }
 
+    // getBalance returns current balance of current's node.
     function getBalance() public view returns (uint256) {
         return address(this).balance;
     }
@@ -74,19 +77,37 @@ contract Node {
         _rewardPercentage = rewardPercentage;
     }
 
-    // updateValidatedBlock adds validated block's height
-    function updateValidatedBlock(uint64 blockHeight) public isMaster {
-        _validatedBlocks.push(blockHeight);
+    function updateBlock(uint64 blockHeight, bool rejected) public isMaster {
+        if (rejected) {
+            _rejectedBlocks.push(blockHeight);
+        } else {
+            _validatedBlocks.push(blockHeight);
+        }
     }
 
     // getNumberOfValidatedBlocks returns total validated blocks
-    function getNumberOfValidatedBlocks() public view returns (uint256) {
+    function getNumberOfValidatedBlocks() public view returns (uint) {
         return _validatedBlocks.length;
     }
 
-    // getValidatedBlockHeightByIndex returns blockHeight stored in _validatedBlocks by index.
+    // getValidatedBlockHeightByIndex returns blockHeight stored in _validatedBlocks by its index.
     function getValidatedBlockHeightByIndex(uint64 index) public view returns (uint64) {
-        require(index >= 0 && uint256(index) < _validatedBlocks.length, "invalid index");
+        require(index >= 0 && index < _validatedBlocks.length, "invalid index");
         return _validatedBlocks[index];
+    }
+
+    // getNumberOfRejectedBlocks returns total rejected blocks
+    function getNumberOfRejectedBlocks() public view returns (uint) {
+        return _rejectedBlocks.length;
+    }
+
+    // getRejectedBlockHeightByIndex returns rejected blockHeight by its index in _rejectedBlocks.
+    function getRejectedBlockHeightByIndex(uint64 index) public view returns (uint64) {
+        require(index >= 0 && index < _rejectedBlocks.length, "invalid index");
+        return _rejectedBlocks[index];
+    }
+
+    function getRejectedValidatedInfo() public view returns (uint rejectedBlocks, uint validatedBlocks) {
+        return (_rejectedBlocks.length, _validatedBlocks.length);
     }
 }

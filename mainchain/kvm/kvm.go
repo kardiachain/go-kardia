@@ -112,6 +112,7 @@ func NewKVMContextFromDualNodeCall(from common.Address, header *types.Header, ch
 		Time:        new(big.Int).Set(header.Time),
 		GasLimit:    header.GasLimit,
 		GasPrice:    big.NewInt(1),
+		Chain: chain,
 	}
 }
 

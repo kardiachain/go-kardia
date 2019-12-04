@@ -20,6 +20,7 @@ package kvm
 
 import (
 	"fmt"
+	"github.com/kardiachain/go-kardia/kai/pos"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -234,8 +235,8 @@ func testGetAvailableNodeIndex(t *testing.T, masterAbi abi.ABI, bc *blockchain.B
 	require.Equal(t, expectedIndex, index.Uint64())
 }
 
-func testCreateMaster(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain, st *state.StateDB, consensusPeriod uint64, maxValidators uint64) {
-	input, err := masterAbi.Pack("", consensusPeriod, maxValidators)
+func testCreateMaster(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockChain, st *state.StateDB, consensusPeriod uint64, maxValidators uint64, maxViolatePercentage uint64) {
+	input, err := masterAbi.Pack("", consensusPeriod, maxValidators, maxViolatePercentage)
 	require.NoError(t, err)
 	sender := common.HexToAddress(genesisNodes[0]["owner"].(string))
 	newCode := append(MasterByteCode, input...)
@@ -620,7 +621,7 @@ func testRejectBlock(t *testing.T, masterAbi abi.ABI, nodeAddress, sender common
 	input, err = masterAbi.Pack(rejectBlockValidation, nodeAddress, blockHeight)
 	require.NoError(t, err)
 
-	_, err = call(sender, masterAddress, bc.CurrentHeader(), bc, input, big.NewInt(0), st)
+	output, err = call(sender, masterAddress, bc.CurrentHeader(), bc, input, big.NewInt(0), st)
 	require.NoError(t, err)
 
 	// test if sender has voted
@@ -664,6 +665,19 @@ func setup(t *testing.T) (*blockchain.BlockChain, abi.ABI, *state.StateDB) {
 	bc, err := setupBlockchain()
 	require.NoError(t, err)
 
+	bc.ConsensusInfo = pos.ConsensusInfo{
+		Master:                 pos.MasterSmartContract{
+			Address:       masterAddress,
+			ABI:           MasterAbi,
+		},
+		Nodes:                  pos.Nodes{
+			ABI:         NodeAbi,
+		},
+		Stakers:                pos.Stakers{
+			ABI:         StakerAbi,
+		},
+	}
+
 	// setup Master smc
 	masterAbi, err := abi.JSON(strings.NewReader(MasterAbi))
 	require.NoError(t, err)
@@ -676,7 +690,7 @@ func setup(t *testing.T) (*blockchain.BlockChain, abi.ABI, *state.StateDB) {
 
 func TestMaster(t *testing.T) {
 	bc, masterAbi, st := setup(t)
-	testCreateMaster(t, masterAbi, bc, st, uint64(10), uint64(4))
+	testCreateMaster(t, masterAbi, bc, st, uint64(10), uint64(4), uint64(50))
 	testAddGenesisStaker(t, masterAbi, bc, st)
 	testDeployGenesisNodesAndStakes(t, bc, st)
 	testGetTotalStakes(t, masterAbi, bc, st, minimumStakes)

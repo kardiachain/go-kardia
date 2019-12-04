@@ -24,6 +24,8 @@ pragma solidity ^0.5.8;
  **/
 contract Master {
 
+    string constant methodUpdateBlock = "updateBlock(uint64,bool)";
+    string constant methodIsViolatedNode = "isViolatedNode(address,uint64)";
     address constant PoSHandler = 0x0000000000000000000000000000000000000005;
 
     address[] _genesisNodes = [
@@ -43,9 +45,6 @@ contract Master {
     0x0000000000000000000000000000000000000021,
     0x0000000000000000000000000000000000000022
     ];
-
-    // genesisStakes initial stakes for genesis nodes.
-    uint256 constant genesisStakes = 1000000000000000000000000000;
 
     mapping(address=>bool) _isGenesis;
     mapping(address=>bool) _isGenesisOwner;
@@ -121,6 +120,16 @@ contract Master {
         mapping(address=>uint64) addedNodes;
     }
 
+    struct RejectedVotes {
+        uint64 totalVoted;
+        bool status;
+        mapping(address=>bool) voted;
+    }
+
+    // _rejectedVote contains info of voting process of rejecting validation of a node for a specific block.
+    // the first key is rejected block height, the second key is node's address.
+    mapping(uint64=>mapping(address=>RejectedVotes)) _rejectedVotes;
+
     // _history contains all validators through period.
     Validators[] _history;
 
@@ -136,27 +145,27 @@ contract Master {
     mapping(address=>uint) _pendingAdded;
 
     // _startAtBlock stores started block in every consensusPeriod
-    uint64 _startAtBlock;
+    uint64 _startAtBlock = 0;
 
     // _nextBlock stores started block for the next consensusPeriod
-    uint64 _nextBlock;
+    uint64 _nextBlock = 0;
 
     // _consensusPeriod indicates the period a consensus has.
     uint64 _consensusPeriod;
 
     uint64 _maxValidators;
+    uint64 _maxViolatePercentage;
 
     PendingDeleteInfo[] _pendingDeletedNodes;
     mapping(address=>uint) _deletingAdded;
 
     mapping(address=>bool) _stakers;
-    mapping(address=>mapping(uint64=>bool)) rewarded;
+    mapping(address=>mapping(uint64=>bool)) _rewarded;
 
-    constructor(uint64 consensusPeriod, uint64 maxValidators) public {
-        _startAtBlock = 0;
-        _nextBlock = 0;
+    constructor(uint64 consensusPeriod, uint64 maxValidators, uint64 maxViolatePercentage) public {
         _consensusPeriod = consensusPeriod;
         _maxValidators = maxValidators;
+        _maxViolatePercentage = maxViolatePercentage;
 
         _availableNodes.push(NodeInfo(address(0x0), address(0x0), 0, 0));
         _pendingNodes.push(PendingInfo(_availableNodes[0], 0, true));
@@ -451,7 +460,7 @@ contract Master {
         return 0;
     }
 
-    // isValidator check an address whether it belongs into latest validator.
+    // isValidator checks an address whether it belongs into latest validator.
     function isValidator(address sender) public view returns (bool) {
         if (_history.length == 0) return false;
         Validators memory validators = _history[_history.length-1];
@@ -470,20 +479,59 @@ contract Master {
         return (_history[_history.length-1].totalNodes-1, _history[_history.length-1].startAtBlock, _history[_history.length-1].endAtBlock);
     }
 
-    function getLatestValidator(uint64 index) public view returns (address node, address owner, uint256 stakes, uint64 totalStaker) {
+    function getLatestValidatorByIndex(uint64 index) public view returns (address node, address owner, uint256 stakes, uint64 totalStaker) {
         (uint64 len, , ) = getLatestValidatorsInfo();
         require(index <= len, "invalid index");
         NodeInfo memory validator = _history[_history.length-1].nodes[index];
         return (validator.node, validator.owner, validator.stakes, validator.totalStaker);
     }
 
+    // rejectBlockValidation requests reject validation of a node for given blockHeight, if total requests are greater than or equal 2/3 + 1
+    // then update status of _rejectedVote and call smart contract function 'methodUpdateRejectedBlock' to targeted node to update the rejected block.
+    function rejectBlockValidation(address node, uint64 blockHeight) public _isValidatorOrGenesis {
+        uint64 index = isAvailableNodes(node);
+        require(index > 0, "this node is not in availableNodes");
+        if (!_rejectedVotes[blockHeight][node].voted[msg.sender]) { // sender has not voted yet.
+            _rejectedVotes[blockHeight][node].voted[msg.sender] = true;
+            _rejectedVotes[blockHeight][node].totalVoted += 1;
+            (uint64 totalNodes,,) = getLatestValidatorsInfo();
+            bool is23 = _rejectedVotes[blockHeight][node].totalVoted >= totalNodes*2/3 + 1;
+            if (is23 && !_rejectedVotes[blockHeight][node].status) {
+                // if totalVoted >= 2/3 + 1 and voting process has not done yet, update status and call smc function on node's address
+                // to update rejected block
+                _rejectedVotes[blockHeight][node].status = true;
+                (bool success, bytes memory result) = node.call(abi.encodeWithSignature(methodUpdateBlock, blockHeight, true));
+                require(success, "updateBlock failed");
+
+                // check if node is violated or not by calling vaildate function to posHandler.
+                // if it is request delete the node.
+                (success, result) = PoSHandler.staticcall(abi.encodeWithSignature(methodIsViolatedNode, node, _maxViolatePercentage));
+                require(success, "call check violated node to posHandler failed");
+                bool isViolated = abi.decode(result, (bool));
+                if (isViolated) {
+                    requestDelete(index);
+                }
+            }
+        }
+    }
+
+    function hasRejectedVote(address node, uint64 blockHeight) public view returns (bool) {
+        return _rejectedVotes[blockHeight][node].voted[msg.sender];
+    }
+
+    function getRejectedStatus(address node, uint64 blockHeight) public view returns (uint64 totalVoted, bool status) {
+        return (_rejectedVotes[blockHeight][node].totalVoted, _rejectedVotes[blockHeight][node].status);
+    }
+
+    // isRewarded is used to validate if a node was rewarded in given blockHeight or not.
     function isRewarded(address node, uint64 blockHeight) public view returns (bool) {
-        return rewarded[node][blockHeight];
+        return _rewarded[node][blockHeight];
     }
 
     // setRewarded marks that a node has been rewarded at given blockHeight.
-    function setRewarded(address node, uint64 blockHeight) public _isPoSHandler {
-        rewarded[node][blockHeight] = true;
+    function setRewarded(address node, uint64 blockHeight) public _isPoSHandler returns (bool success, bytes memory result) {
+        _rewarded[node][blockHeight] = true;
+        return node.call(abi.encodeWithSignature(methodUpdateBlock, blockHeight, false));
     }
 
     function getNodeAddressFromOwner(address owner) public view returns (address node) {

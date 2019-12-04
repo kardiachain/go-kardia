@@ -77,11 +77,7 @@ type BlockChain struct {
 	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
 	IsZeroFee bool
 
-	ConsensusMasterSmartContract pos.MasterSmartContract
-	NodeAbi string
-	StakerAbi string
-	BlockReward *big.Int
-	FetchNewValidatorsTime uint64
+	pos.ConsensusInfo
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -460,17 +456,17 @@ func (bc *BlockChain) GetBlockReward() *big.Int {
 }
 
 func (bc *BlockChain) GetConsensusMasterSmartContract() pos.MasterSmartContract {
-	return bc.ConsensusMasterSmartContract
+	return bc.ConsensusInfo.Master
 }
 
 func (bc *BlockChain) GetConsensusNodeAbi() string {
-	return bc.NodeAbi
+	return bc.ConsensusInfo.Nodes.ABI
 }
 
 func (bc *BlockChain) GetConsensusStakerAbi() string {
-	return bc.StakerAbi
+	return bc.ConsensusInfo.Stakers.ABI
 }
 
 func (bc *BlockChain) GetFetchNewValidatorsTime() uint64 {
-	return bc.FetchNewValidatorsTime
+	return bc.ConsensusInfo.FetchNewValidatorsTime
 }

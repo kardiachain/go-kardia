@@ -66,6 +66,7 @@ type (
 		Contracts      []Contract    `yaml:"Contracts"`
 	}
 	Consensus struct {
+		MaxViolatePercentageAllowed uint64           `yaml:"MaxViolatePercentageAllowed"`
 		FetchNewValidatorsTime     uint64            `yaml:"FetchNewValidatorsTime"`
 		MaxValidators              uint64            `yaml:"MaxValidators"`
 		ConsensusPeriodInBlock     uint64            `yaml:"ConsensusPeriod"`
