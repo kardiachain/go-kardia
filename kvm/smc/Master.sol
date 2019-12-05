@@ -26,6 +26,7 @@ contract Master {
 
     string constant methodUpdateBlock = "updateBlock(uint64,bool)";
     string constant methodIsViolatedNode = "isViolatedNode(address,uint64)";
+    string constant getOwner = "getOwner()";
     address constant PoSHandler = 0x0000000000000000000000000000000000000005;
 
     address[] _genesisNodes = [
@@ -159,7 +160,12 @@ contract Master {
     PendingDeleteInfo[] _pendingDeletedNodes;
     mapping(address=>uint) _deletingAdded;
 
+    // _stakers is used to check if an address is a staker smart contract or not
     mapping(address=>bool) _stakers;
+
+    // _stakerFromOwners is used to get staker's smart contract from its owner.
+    mapping(address=>address) _stakerFromOwners;
+
     mapping(address=>mapping(uint64=>bool)) _rewarded;
 
     constructor(uint64 consensusPeriod, uint64 maxValidators, uint64 maxViolatePercentage) public {
@@ -183,13 +189,19 @@ contract Master {
         }
     }
 
+    function getAddressOwner(address addr) internal view returns (address) {
+        (bool success, bytes memory result) = addr.staticcall(abi.encodeWithSignature(getOwner));
+        require(success, "fail to getOwner");
+        return abi.decode(result, (address));
+    }
+
     // addNode adds a node to pending list
-    function addPendingNode(address nodeAddress, address owner) public _isAvailableNodes {
+    function addPendingNode(address nodeAddress) public _isAvailableNodes {
         if (_pendingAdded[nodeAddress] == 0) {
+            address owner = getAddressOwner(nodeAddress);
             _pendingNodes.push(PendingInfo(NodeInfo(nodeAddress, owner, 0, 1), 1, false));
             _pendingNodes[_pendingNodes.length-1].votedAddress[msg.sender] = true;
             _pendingAdded[nodeAddress] = _pendingNodes.length-1;
-            _ownerNode[owner] = nodeAddress;
         }
     }
 
@@ -340,8 +352,19 @@ contract Master {
         newMasterVersion.transfer(address(this).balance);
     }
 
-    function addStaker(address staker) public _isValidatorOrGenesis {
+    // addNode is used after posHandler creates new node's smart contract.
+    // then it will call this function to save returned address.
+    function addNode(address node) public _isPoSHandler {
+        address owner = getAddressOwner(node);
+        _ownerNode[owner] = node;
+    }
+
+    // addStaker is used after posHandler creates new staker smart contract.
+    // then it will call this function to save returned address.
+    function addStaker(address staker) public _isPoSHandler {
         _stakers[staker] = true;
+        address owner = getAddressOwner(staker);
+        _stakerFromOwners[owner] = staker;
     }
 
     // stake is called by using delegateCall in staker contract address. therefore msg.sender is staker's contract address

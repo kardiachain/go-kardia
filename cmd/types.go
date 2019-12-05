@@ -72,6 +72,7 @@ type (
 		ConsensusPeriodInBlock     uint64            `yaml:"ConsensusPeriod"`
 		BlockReward                string            `yaml:"BlockReward"`
 		MinimumStakes              string            `yaml:"MinimumStakes"` // MinimumStakes defines the minimum amount that a user stakes to a node.
+		LockedPeriod               uint64            `yaml:"LockedPeriod"`  // LockedPeriod defines the period in block that user cannot withdraw staked KAI.
 		Compilation                Compilation       `yaml:"Compilation"`
 		Deployment                 Deployment        `yaml:"Deployment"`
 	}
@@ -94,17 +95,16 @@ type (
 		GenesisAmount string   `yaml:"GenesisAmount"`
 	}
 	NodeInfo struct {
-		Address    string       `yaml:"Address"`
-		Owner      string       `yaml:"Owner"`
-		PubKey     string       `yaml:"PubKey"`
-		Name       string       `yaml:"Name"`
-		Reward     uint16       `yaml:"Reward"`
+		Address             string       `yaml:"Address"`
+		Owner               string       `yaml:"Owner"`
+		PubKey              string       `yaml:"PubKey"`
+		Name                string       `yaml:"Name"`
+		RewardPercentage    uint16       `yaml:"RewardPercentage"`  // RewardPercentage defines total KAI that all stakers receive every validated block.
 	}
 	StakerInfo struct { // StakerInfo contains genesis staker address, node that it will stake to from the beginning and stakeAmount
 		Address     string       `yaml:"Address"`       // Address is predefined staker's contract address
 		Owner       string       `yaml:"Owner"`         // Owner is owner's address for staker contract address
 		StakedNode  string       `yaml:"StakedNode"`    // StakedNode is genesis node's address that user will stake to
-		LockedPeriod uint64      `yaml:"LockedPeriod"`  // LockedPeriod defines the period in block that user cannot withdraw staked KAI.
 		StakeAmount string       `yaml:"StakeAmount"`
 	}
 	Contract struct {

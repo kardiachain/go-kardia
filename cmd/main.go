@@ -209,6 +209,7 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		ConsensusPeriodInBlock: c.MainChain.Consensus.ConsensusPeriodInBlock,
 		MinimumStakes: minimumStakes,
 		MaxViolatePercentageAllowed: c.MainChain.Consensus.MaxViolatePercentageAllowed,
+		LockedPeriod: c.MainChain.Consensus.LockedPeriod,
 		Master:          pos.MasterSmartContract{
 			Address:       common.HexToAddress(c.MainChain.Consensus.Deployment.Master.Address),
 			ByteCode:      common.Hex2Bytes(c.MainChain.Consensus.Compilation.Master.ByteCode),
@@ -233,7 +234,7 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 			Owner:   common.HexToAddress(n.Owner),
 			PubKey:  n.PubKey,
 			Name:    n.Name,
-			Reward:  n.Reward,
+			RewardPercentage:  n.RewardPercentage,
 		})
 	}
 	// get stakers
@@ -243,7 +244,6 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 			Address:     common.HexToAddress(s.Address),
 			Owner:       common.HexToAddress(s.Owner),
 			StakedNode:  common.HexToAddress(s.StakedNode),
-			LockedPeriod: s.LockedPeriod,
 			StakeAmount: genesis.ToCell(stakeAmount.Int64()),
 		})
 	}

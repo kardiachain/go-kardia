@@ -520,7 +520,7 @@ func GetHashFn(ref *types.Header, chain base.BaseBlockChain) func(n uint64) comm
 	}
 }
 
-// CanTransfer checks wether there are enough funds in the address' account to make a transfer.
+// CanTransfer checks whether there are enough funds in the address' account to make a transfer.
 // This does not take the necessary gas in to account to make the transfer valid.
 func CanTransfer(db base.StateDB, addr common.Address, amount *big.Int) bool {
 	return db.GetBalance(addr).Cmp(amount) >= 0
@@ -556,9 +556,9 @@ func InternalCall(vm *KVM, to common.Address, input []byte, value *big.Int) (res
 	return result, err
 }
 
-func InternalCreate(vm *KVM, to common.Address, input []byte, value *big.Int) (result []byte, address common.Address, leftOverGas uint64, err error) {
+func InternalCreate(vm *KVM, to *common.Address, input []byte, value *big.Int) (result []byte, address common.Address, leftOverGas uint64, err error) {
 	sender := AccountRef(vm.Context.Origin)
-	return vm.CreateGenesisContract(sender, &to, input, maximumGasUsed, value)
+	return vm.CreateGenesisContract(sender, to, input, maximumGasUsed, value)
 }
 
 // EstimateGas estimates spent in order to

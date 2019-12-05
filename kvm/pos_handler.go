@@ -31,6 +31,45 @@ const (
 	PosHandlerAbi = `[
 	{
 		"constant": false,
+		"inputs": [],
+		"name": "createStaker",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "publicKey",
+				"type": "string"
+			},
+			{
+				"name": "nodeName",
+				"type": "string"
+			},
+			{
+				"name": "rewardPercentage",
+				"type": "uint16"
+			},
+			{
+				"name": "lockedPeriod",
+				"type": "uint64"
+			},
+			{
+				"name": "minimumStakes",
+				"type": "uint256"
+			}
+		],
+		"name": "createNode",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
 		"inputs": [
 			{
 				"name": "blockHeight",
@@ -95,6 +134,10 @@ const (
 	methodCollectValidators = "collectValidators"
 	methodIsViolatedNode = "isViolatedNode"
 	methodGetRejectedValidatedInfo = "getRejectedValidatedInfo"
+	methodAddNode = "addNode"
+	methodAddStaker = "addStaker"
+	methodCreateNode = "createNode"
+	methodCreateStaker = "createStaker"
 )
 
 var (
@@ -147,6 +190,13 @@ type (
 		RejectedBlocks  *big.Int `abi:"rejectedBlocks"`
 		ValidatedBlocks *big.Int `abi:"validatedBlocks"`
 	}
+	createNodeStruct struct {
+		PublicKey        string  `abi:"publicKey"`
+		NodeName         string  `abi:"nodeName"`
+		RewardPercentage string  `abi:"rewardPercentage"`
+		LockedPeriod     uint64  `abi:"lockedPeriod"`
+		MinimumStakes    *big.Int`abi:"minimumStakes"`
+	}
 	// posHandler.
 	 posHandler struct {}
 )
@@ -174,6 +224,10 @@ func (p *posHandler) Run(in []byte, contract *Contract, ctx Context, state base.
 		return in, handleNewConsensusPeriod(method, in, contract, ctx, state)
 	case methodIsViolatedNode:
 		return handleIsViolatedNode(method, in, contract, ctx, state)
+	case methodCreateNode:
+		return in, handleCreateNode(method, in, contract, ctx, state)
+	case methodCreateStaker:
+		return in, handleCreateStaker(contract, ctx, state)
 	}
 	return in, nil
 }
@@ -310,4 +364,71 @@ func handleIsViolatedNode(method *abi.Method, input []byte, contract *Contract, 
 		result[31] = 1
 	}
 	return result, nil
+}
+
+func handleCreateNode(method *abi.Method, input []byte, contract *Contract, ctx Context, state base.StateDB) error {
+	var (
+		err error
+		masterAbi, nodeAbi abi.ABI
+		node createNodeStruct
+		nodeAddress common.Address
+	)
+	nodeVm := newInternalKVM(contract.CallerAddress, ctx.Chain, state)
+	vm := newInternalKVM(posHandlerAddress, ctx.Chain, state)
+	if err = method.Inputs.Unpack(&node, input[4:]); err != nil {
+		return err
+	}
+	if masterAbi, err = abi.JSON(strings.NewReader(ctx.Chain.GetConsensusMasterSmartContract().ABI)); err != nil {
+		return err
+	}
+	if nodeAbi, err = abi.JSON(strings.NewReader(ctx.Chain.GetConsensusNodeAbi())); err != nil {
+		return err
+	}
+	// create node
+	if input, err = nodeAbi.Pack("", ctx.Chain.GetConsensusMasterSmartContract().Address, node.PublicKey, node.NodeName, node.RewardPercentage, node.LockedPeriod, node.MinimumStakes); err != nil {
+		return err
+	}
+	if _, nodeAddress, _, err = InternalCreate(nodeVm, nil, input, big.NewInt(0)); err != nil {
+		return err
+	}
+	// call addNode on master to save nodeAddress
+	if input, err = masterAbi.Pack(methodAddNode, nodeAddress); err != nil {
+		return err
+	}
+	if _, err = InternalCall(vm, ctx.Chain.GetConsensusMasterSmartContract().Address, input, big.NewInt(0)); err != nil {
+		return err
+	}
+	return nil
+}
+
+func handleCreateStaker(contract *Contract, ctx Context, state base.StateDB) error {
+	var (
+		input []byte
+		err error
+		masterAbi, nodeAbi abi.ABI
+		stakerAddress common.Address
+	)
+	stakerVm := newInternalKVM(contract.CallerAddress, ctx.Chain, state)
+	vm := newInternalKVM(posHandlerAddress, ctx.Chain, state)
+	if masterAbi, err = abi.JSON(strings.NewReader(ctx.Chain.GetConsensusMasterSmartContract().ABI)); err != nil {
+		return err
+	}
+	if nodeAbi, err = abi.JSON(strings.NewReader(ctx.Chain.GetConsensusNodeAbi())); err != nil {
+		return err
+	}
+	// create staker
+	if input, err = nodeAbi.Pack("", ctx.Chain.GetConsensusMasterSmartContract().Address); err != nil {
+		return err
+	}
+	if _, stakerAddress, _, err = InternalCreate(stakerVm, nil, input, big.NewInt(0)); err != nil {
+		return err
+	}
+	// call addNode on master to save nodeAddress
+	if input, err = masterAbi.Pack(methodAddStaker, stakerAddress); err != nil {
+		return err
+	}
+	if _, err = InternalCall(vm, ctx.Chain.GetConsensusMasterSmartContract().Address, input, big.NewInt(0)); err != nil {
+		return err
+	}
+	return nil
 }

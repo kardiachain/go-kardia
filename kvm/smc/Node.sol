@@ -28,6 +28,8 @@ contract Node {
     uint16 _rewardPercentage;
     uint64[] _validatedBlocks;
     uint64[] _rejectedBlocks;
+    uint64 _lockedPeriod;
+    uint256 _minimumStakes;
     address payable _owner;
     address _master;
 
@@ -36,12 +38,14 @@ contract Node {
         _;
     }
 
-    constructor(address master, address payable owner, string memory nodeId, string memory nodeName, uint16 rewardPercentage) public {
+    constructor(address master, string memory nodeId, string memory nodeName, uint16 rewardPercentage, uint64 lockedPeriod, uint256 minimumStakes) public {
         _master = master;
-        _owner = owner;
+        _owner = msg.sender;
         _nodeName = nodeName;
         _nodeId = nodeId;
         _rewardPercentage = rewardPercentage;
+        _lockedPeriod = lockedPeriod;
+        _minimumStakes = minimumStakes;
     }
 
     modifier isOwner {
@@ -52,12 +56,20 @@ contract Node {
         _;
     }
 
-    function getNodeInfo() public view returns(address owner, string memory nodeId, string memory nodeName, uint16 rewardPercentage, uint256 balance) {
-        return (_owner, _nodeId, _nodeName, _rewardPercentage, address(this).balance);
+    function getNodeInfo() public view returns(address owner, string memory nodeId, string memory nodeName, uint16 rewardPercentage, uint64 lockedPeriod, uint256 minimumStakes, uint256 balance) {
+        return (_owner, _nodeId, _nodeName, _rewardPercentage, _lockedPeriod, _minimumStakes, address(this).balance);
     }
 
     function getOwner() public view returns(address) {
         return _owner;
+    }
+
+    function getLockedPeriod() public view returns (uint64) {
+        return _lockedPeriod;
+    }
+
+    function getMinimumStakes() public view returns (uint256) {
+        return _minimumStakes;
     }
 
     // withdraw sends block's rewards to owner's address.
@@ -71,10 +83,12 @@ contract Node {
     }
 
     // updateNode updates current node information
-    function updateNode(string memory nodeName, string memory nodeId, uint16 rewardPercentage) public isOwner {
+    function updateNode(string memory nodeName, string memory nodeId, uint16 rewardPercentage, uint64 lockedPeriod, uint256 minimumStakes) public isOwner {
         _nodeName = nodeName;
         _nodeId = nodeId;
         _rewardPercentage = rewardPercentage;
+        _lockedPeriod = lockedPeriod;
+        _minimumStakes = minimumStakes;
     }
 
     function updateBlock(uint64 blockHeight, bool rejected) public isMaster {
@@ -107,6 +121,7 @@ contract Node {
         return _rejectedBlocks[index];
     }
 
+    // getRejectedValidatedInfo returns total rejected and validated blocks
     function getRejectedValidatedInfo() public view returns (uint rejectedBlocks, uint validatedBlocks) {
         return (_rejectedBlocks.length, _validatedBlocks.length);
     }

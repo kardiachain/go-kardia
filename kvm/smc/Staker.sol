@@ -1,21 +1,3 @@
-/*
- *  Copyright 2018 KardiaChain
- *  This file is part of the go-kardia library.
- *
- *  The go-kardia library is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  The go-kardia library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public License
- *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
- */
-
 pragma solidity ^0.5.8;
 
 
@@ -26,16 +8,17 @@ contract Staker {
     string constant stakeFunc = "stake(address,uint256)";
     string constant withdrawFunc = "withdraw(address,uint256)";
     string constant isAvailableNodes = "isAvailableNodes(address)";
+    string constant getLockedPeriod = "getLockedPeriod()";
+    string constant getMinimumStakes = "getMinimumStakes()";
 
     address _master;
     address payable _owner;
-    uint _lockedPeriod;
-    uint256 _minimumStake;
 
     struct StakeInfo {
         address node;
         uint startedAt;
         uint256 amount;
+        uint64 lockedPeriod;
     }
 
     struct RewardInfo {
@@ -58,12 +41,10 @@ contract Staker {
         _;
     }
 
-    constructor(address master, address payable owner, uint lockedPeriod, uint256 minimumStake) public {
+    constructor(address master) public {
         _master = master;
-        _owner = owner;
-        _lockedPeriod = lockedPeriod;
-        _minimumStake = minimumStake;
-        StakeInfo memory emptyStakeInfo = StakeInfo(address(0x0), 0, 0);
+        _owner = msg.sender;
+        StakeInfo memory emptyStakeInfo = StakeInfo(address(0x0), 0, 0, 0);
         stakeInfo.push(emptyStakeInfo);
     }
 
@@ -73,13 +54,24 @@ contract Staker {
 
         uint64 nodeIndex = abi.decode(result, (uint64));
         require(nodeIndex > 0, "address is not in available nodes");
-        require (msg.value >= _minimumStake, "invalid stakeAmount");
 
         uint index = _hasStaked[node];
         if (index > 0) {
             stakeInfo[index].amount += msg.value;
         } else {
-            stakeInfo.push(StakeInfo(node, block.number, msg.value));
+            // getLockedPeriod from node
+            (success, result) = node.staticcall(abi.encodeWithSignature(getLockedPeriod));
+            require(success, "failed to getLockedPeriod");
+            uint64 lockedPeriod = abi.decode(result, (uint64));
+
+            // getMinimumStakes from node
+            (success, result) = node.staticcall(abi.encodeWithSignature(getMinimumStakes));
+            require(success, "failed to getMinimumStakes");
+
+            uint256 minimumStakes = abi.decode(result, (uint256));
+            require (msg.value >= minimumStakes, "invalid stakeAmount");
+
+            stakeInfo.push(StakeInfo(node, block.number, msg.value, lockedPeriod));
             _hasStaked[node] = stakeInfo.length - 1;
         }
         (success, ) = _master.call(abi.encodeWithSignature(stakeFunc, node, msg.value));
@@ -91,7 +83,7 @@ contract Staker {
         if (index > 0) {
             // check lockedPeriod with startedAt
             // only withdraw staked KAI here, after this is successfully withdrawn, staked node will send reward to user.
-            if (block.number-stakeInfo[index].startedAt > _lockedPeriod) {
+            if (block.number-stakeInfo[index].startedAt > stakeInfo[index].lockedPeriod) {
                 _owner.transfer(amount);
                 stakeInfo[index].amount -= amount;
                 (bool success, ) = _master.call(abi.encodeWithSignature(withdrawFunc, fromAddr, amount));
@@ -118,5 +110,8 @@ contract Staker {
         _owner.transfer(amount);
         totalRewards[node] -= amount;
     }
-}
 
+    function getOwner() public view returns (address) {
+        return _owner;
+    }
+}
