@@ -34,23 +34,25 @@ func newGenesisVM(from common.Address, gasLimit uint64, st base.StateDB) *KVM {
 }
 
 func InitGenesisConsensus(st *state.StateDB, gasLimit uint64, consensusInfo pos.ConsensusInfo) error {
-	var err error
+	var (
+		err error
+		masterAbi abi.ABI
+	)
 	// get first node owner to be the sender
 	sender := consensusInfo.Nodes.GenesisInfo[0].Owner
 	// create master smart contract
 	if err = createMaster(gasLimit, st, consensusInfo.Master, consensusInfo.MaxValidators, consensusInfo.MaxViolatePercentageAllowed, consensusInfo.ConsensusPeriodInBlock, sender); err != nil {
 		return err
 	}
-	// add stakers
-	if err = addStakers(gasLimit, st, consensusInfo.Master, consensusInfo.Stakers.GenesisInfo, sender); err != nil {
+	if masterAbi, err = abi.JSON(strings.NewReader(consensusInfo.Master.ABI)); err != nil {
 		return err
 	}
 	// create nodes
-	if err = createGenesisNodes(gasLimit, st, consensusInfo.Nodes, consensusInfo.Master.Address); err != nil {
+	if err = createGenesisNodes(gasLimit, st, consensusInfo.Nodes, consensusInfo.MinimumStakes, consensusInfo.LockedPeriod, masterAbi, consensusInfo.Master.Address); err != nil {
 		return err
 	}
 	// create stakers and stake them
-	if err = createGenesisStakers(gasLimit, st, consensusInfo.Stakers, consensusInfo.Master.Address, consensusInfo.MinimumStakes); err != nil {
+	if err = createGenesisStakers(gasLimit, st, consensusInfo.Stakers, masterAbi, consensusInfo.Master.Address); err != nil {
 		return err
 	}
 	// start collect validators
@@ -71,53 +73,40 @@ func createMaster(gasLimit uint64, st *state.StateDB, master pos.MasterSmartCont
 		return err
 	}
 	newCode := append(master.ByteCode, input...)
-	if _, _, _, err = InternalCreate(vm, master.Address, newCode, master.GenesisAmount); err != nil {
+	if _, _, _, err = InternalCreate(vm, &master.Address, newCode, master.GenesisAmount); err != nil {
 		return err
 	}
 	return err
 }
 
-func addStakers(gasLimit uint64, st *state.StateDB, master pos.MasterSmartContract, stakers []pos.GenesisStakeInfo, sender common.Address) error {
-	var (
-		masterAbi abi.ABI
-		err error
-		input []byte
-	)
-	vm := newGenesisVM(sender, gasLimit, st)
-	if masterAbi, err = abi.JSON(strings.NewReader(master.ABI)); err != nil {
-		return err
-	}
-	for _, staker := range stakers {
-		if input, err = masterAbi.Pack("addStaker", staker.Address); err != nil {
-			return err
-		}
-		if _, err = InternalCall(vm, master.Address, input, big.NewInt(0)); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func createGenesisNodes(gasLimit uint64, st *state.StateDB, nodes pos.Nodes, masterAddress common.Address) error {
+func createGenesisNodes(gasLimit uint64, st *state.StateDB, nodes pos.Nodes, minimumStakes *big.Int, lockedPeriod uint64, masterAbi abi.ABI, masterAddress common.Address) error {
 	nodeAbi, err := abi.JSON(strings.NewReader(nodes.ABI))
 	if err != nil {
 		return err
 	}
+	posHandlerVm := newGenesisVM(posHandlerAddress, gasLimit, st)
 	for _, n := range nodes.GenesisInfo {
-		input, err := nodeAbi.Pack("", masterAddress, n.Owner, n.PubKey, n.Name, n.Reward)
+		input, err := nodeAbi.Pack("", masterAddress, n.PubKey, n.Name, n.RewardPercentage, lockedPeriod, minimumStakes)
 		if err != nil {
 			return err
 		}
 		newCode := append(nodes.ByteCode, input...)
 		vm := newGenesisVM(n.Owner, gasLimit, st)
-		if _, _, _, err = InternalCreate(vm, n.Address, newCode, big.NewInt(0)); err != nil {
+		if _, _, _, err = InternalCreate(vm, &n.Address, newCode, big.NewInt(0)); err != nil {
+			return err
+		}
+		// add node to master
+		if input, err = masterAbi.Pack(methodAddNode, n.Address); err != nil {
+			return err
+		}
+		if _, err = InternalCall(posHandlerVm, masterAddress, input, big.NewInt(0)); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func createGenesisStakers(gasLimit uint64, st *state.StateDB, stakers pos.Stakers, masterAddress common.Address, minimumStakes *big.Int) error {
+func createGenesisStakers(gasLimit uint64, st *state.StateDB, stakers pos.Stakers, masterAbi abi.ABI, masterAddress common.Address) error {
 	var (
 		err error
 		stakerAbi abi.ABI
@@ -126,13 +115,21 @@ func createGenesisStakers(gasLimit uint64, st *state.StateDB, stakers pos.Staker
 	if stakerAbi, err = abi.JSON(strings.NewReader(stakers.ABI)); err != nil {
 		return err
 	}
+	posHandlerVm := newGenesisVM(posHandlerAddress, gasLimit, st)
 	for _, staker := range stakers.GenesisInfo {
-		if input, err = stakerAbi.Pack("", masterAddress, staker.Owner, big.NewInt(int64(staker.LockedPeriod)), minimumStakes); err != nil {
+		if input, err = stakerAbi.Pack("", masterAddress); err != nil {
 			return err
 		}
 		newStakerCode := append(stakers.ByteCode, input...)
 		vm := newGenesisVM(staker.Owner, gasLimit, st)
-		if _, _, _, err = InternalCreate(vm, staker.Address, newStakerCode, big.NewInt(0)); err != nil {
+		if _, _, _, err = InternalCreate(vm, &staker.Address, newStakerCode, big.NewInt(0)); err != nil {
+			return err
+		}
+		// add staker to master
+		if input, err = masterAbi.Pack(methodAddStaker, staker.Address); err != nil {
+			return err
+		}
+		if _, err = InternalCall(posHandlerVm, masterAddress, input, big.NewInt(0)); err != nil {
 			return err
 		}
 		// stake to staker

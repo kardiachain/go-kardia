@@ -36,11 +36,14 @@ func testDeployStaker(t *testing.T, bc *blockchain.BlockChain, st *state.StateDB
 	require.NoError(t, err)
 	owner := common.HexToAddress(node["owner"].(string))
 	staker := common.HexToAddress(node["staker"].(string))
-	input, err := stakerAbi.Pack("", masterAddress, owner, big.NewInt(100), minimumStakes)
+	input, err := stakerAbi.Pack("", masterAddress)
 	require.NoError(t, err)
 	newStakerCode := append(StakerByteCode, input...)
 	_, _, _, err = create(owner, staker, bc.CurrentHeader(), bc, newStakerCode, big.NewInt(0), st)
 	require.NoError(t, err)
+
+	// add staker to master
+	testAddStakerToMaster(t, bc, st, staker)
 }
 
 func testStake(t *testing.T, bc *blockchain.BlockChain, st *state.StateDB, node map[string]interface{}, target *common.Address, stakeAmount, expectedStakes *big.Int) {
@@ -88,18 +91,18 @@ func testStake(t *testing.T, bc *blockchain.BlockChain, st *state.StateDB, node 
 	require.Equal(t, expectedData.StartedAt.String(), actualData.StartedAt.String())
 }
 
-func testDeployGenesisNodesAndStakes(t *testing.T, bc *blockchain.BlockChain, st *state.StateDB) {
-	kAbi, err := abi.JSON(strings.NewReader(NodeAbi))
+func testDeployNodesAndStakes(t *testing.T, bc *blockchain.BlockChain, st *state.StateDB, nodes []map[string]interface{}, isStake bool) {
+	nodeAbi, err := abi.JSON(strings.NewReader(NodeAbi))
 	require.NoError(t, err)
 
-	for _, node := range genesisNodes {
+	for _, node := range nodes {
 		addressHex := node["address"].(string)
 		owner := node["owner"].(string)
 		id := node["id"].(string)
 		name := node["name"].(string)
 		percentageReward := node["percentageReward"].(uint16)
 
-		input, err := kAbi.Pack("", masterAddress, common.HexToAddress(owner), id, name, percentageReward)
+		input, err := nodeAbi.Pack("", masterAddress, id, name, percentageReward, uint64(100), minimumStakes)
 		require.NoError(t, err)
 
 		newCode := append(NodeByteCode, input...)
@@ -108,54 +111,45 @@ func testDeployGenesisNodesAndStakes(t *testing.T, bc *blockchain.BlockChain, st
 		_, _, _, err = create(common.HexToAddress(owner), address, bc.CurrentHeader(), bc, newCode, big.NewInt(0), st)
 		require.NoError(t, err)
 
+		// add node to master
+		testAddNodeToMaster(t, bc, st, address)
 		testDeployStaker(t, bc, st, node)
-		testStake(t, bc, st, node, nil, minimumStakes, minimumStakes)
+		if isStake {
+			testStake(t, bc, st, node, nil, minimumStakes, minimumStakes)
+		}
 	}
 }
 
-func testAddGenesisStaker(t *testing.T, kAbi abi.ABI, bc *blockchain.BlockChain, st *state.StateDB) {
-	for i, node := range genesisNodes {
-		staker := common.HexToAddress(node["staker"].(string))
-		addStaker, err := kAbi.Pack("addStaker", staker)
-		require.NoError(t, err)
+func testAddNodeToMaster(t *testing.T, bc *blockchain.BlockChain, st *state.StateDB, node common.Address) {
+	var (
+		masterAbi abi.ABI
+		err error
+		input []byte
+	)
+	masterAbi, err = abi.JSON(strings.NewReader(MasterAbi))
+	require.NoError(t, err)
 
-		_, err = call(common.HexToAddress(node["owner"].(string)), masterAddress, bc.CurrentHeader(), bc, addStaker, big.NewInt(0), st)
-		require.NoError(t, err)
+	input, err = masterAbi.Pack("addNode", node)
+	require.NoError(t, err)
 
-		isStaker, err := kAbi.Pack("isStaker", staker)
-		require.NoError(t, err)
+	_, err = call(posHandlerAddress, masterAddress, bc.CurrentHeader(), bc, input, big.NewInt(0), st)
+	require.NoError(t, err)
+}
 
-		isStakerResult, err := staticCall(common.HexToAddress(node["owner"].(string)), masterAddress, bc.CurrentHeader(), bc, isStaker, st)
-		require.NoError(t, err)
+func testAddStakerToMaster(t *testing.T, bc *blockchain.BlockChain, st *state.StateDB, staker common.Address) {
+	var (
+		masterAbi abi.ABI
+		err error
+		input []byte
+	)
+	masterAbi, err = abi.JSON(strings.NewReader(MasterAbi))
+	require.NoError(t, err)
 
-		var isBool bool
-		err = kAbi.Unpack(&isBool, "isStaker", isStakerResult)
-		require.Equal(t, true, isBool)
+	input, err = masterAbi.Pack("addStaker", staker)
+	require.NoError(t, err)
 
-		IsAvailableNodes, err := kAbi.Pack("isAvailableNodes", common.HexToAddress(node["address"].(string)))
-		require.NoError(t, err)
-
-		IsAvailableNodesResult, err := staticCall(common.HexToAddress(node["owner"].(string)), masterAddress, bc.CurrentHeader(), bc, IsAvailableNodes, st)
-		require.NoError(t, err)
-
-		var index uint64
-		err = kAbi.Unpack(&index, "isAvailableNodes", IsAvailableNodesResult)
-		require.NoError(t, err)
-		require.Equal(t, uint64(i+1), index)
-
-		getTotalStakes, err := kAbi.Pack("getTotalStakes", common.HexToAddress(node["address"].(string)))
-		require.NoError(t, err)
-
-		result, err := staticCall(common.HexToAddress(node["owner"].(string)), masterAddress, bc.CurrentHeader(), bc, getTotalStakes, st)
-		require.NoError(t, err)
-
-		var actual *big.Int
-		err = kAbi.Unpack(&actual, "getTotalStakes", result)
-		require.NoError(t, err)
-
-		expected := big.NewInt(0)
-		require.Equal(t, expected.String(), actual.String())
-	}
+	_, err = call(posHandlerAddress, masterAddress, bc.CurrentHeader(), bc, input, big.NewInt(0), st)
+	require.NoError(t, err)
 }
 
 func testAddStaker(t *testing.T, kAbi abi.ABI, bc *blockchain.BlockChain, st *state.StateDB) {
@@ -375,7 +369,7 @@ func testAddPendingNode(t *testing.T, masterAbi abi.ABI, bc *blockchain.BlockCha
 	address := common.HexToAddress(node["address"].(string))
 	owner := common.HexToAddress(node["owner"].(string))
 
-	input, err := masterAbi.Pack("addPendingNode", address, owner)
+	input, err := masterAbi.Pack("addPendingNode", address)
 	require.NoError(t, err)
 
 	_, err = call(sender, masterAddress, bc.CurrentHeader(), bc, input, big.NewInt(0), st)
@@ -666,15 +660,15 @@ func setup(t *testing.T) (*blockchain.BlockChain, abi.ABI, *state.StateDB) {
 	require.NoError(t, err)
 
 	bc.ConsensusInfo = pos.ConsensusInfo{
-		Master:                 pos.MasterSmartContract{
-			Address:       masterAddress,
-			ABI:           MasterAbi,
+		Master: pos.MasterSmartContract{
+			Address: masterAddress,
+			ABI: MasterAbi,
 		},
-		Nodes:                  pos.Nodes{
-			ABI:         NodeAbi,
+		Nodes: pos.Nodes{
+			ABI: NodeAbi,
 		},
-		Stakers:                pos.Stakers{
-			ABI:         StakerAbi,
+		Stakers: pos.Stakers{
+			ABI: StakerAbi,
 		},
 	}
 
@@ -691,18 +685,16 @@ func setup(t *testing.T) (*blockchain.BlockChain, abi.ABI, *state.StateDB) {
 func TestMaster(t *testing.T) {
 	bc, masterAbi, st := setup(t)
 	testCreateMaster(t, masterAbi, bc, st, uint64(10), uint64(4), uint64(50))
-	testAddGenesisStaker(t, masterAbi, bc, st)
-	testDeployGenesisNodesAndStakes(t, bc, st)
+	testDeployNodesAndStakes(t, bc, st, genesisNodes, true)
 	testGetTotalStakes(t, masterAbi, bc, st, minimumStakes)
 	testCollectValidators(t, masterAbi, bc, st)
 	testGetLatestValidators(t, masterAbi, bc, st, uint64(3), genesisNodes)
-	testAddStaker(t, masterAbi, bc, st)
+	testDeployNodesAndStakes(t, bc, st, normalNodes, false)
 	testAddPendingNode(t, masterAbi, bc, st, normalNodes[0], common.HexToAddress(genesisNodes[0]["owner"].(string)))
 	testGetPendingNode(t, masterAbi, bc, st, 1, common.HexToAddress(normalNodes[0]["address"].(string)), uint64(1))
 	testVotePending(t, masterAbi, bc, st, []map[string]interface{}{genesisNodes[1]}, uint64(len(genesisNodes)))
 	testVotePending(t, masterAbi, bc, st, []map[string]interface{}{genesisNodes[2]}, uint64(len(genesisNodes) + 1))
 	testGetPendingNode(t, masterAbi, bc, st, 1, common.HexToAddress(normalNodes[0]["address"].(string)), uint64(3))
-	testDeployStaker(t, bc, st, normalNodes[0])
 	testStake(t, bc, st, normalNodes[0], nil, minimumStakes, minimumStakes)
 	testCollectValidators(t, masterAbi, bc, st)
 	testGetLatestValidators(t, masterAbi, bc, st, uint64(4), append(genesisNodes, normalNodes[0]))
@@ -763,10 +755,11 @@ func TestNode(t *testing.T) {
 
 	input, err := kAbi.Pack("",
 		masterAddress,
-		common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"),
 		"7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860",
 		"node1",
-		uint16(500),
+		uint16(5),
+		uint64(100),
+		minimumStakes,
 	)
 	require.NoError(t, err)
 

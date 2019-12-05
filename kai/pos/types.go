@@ -30,6 +30,7 @@ type ConsensusInfo struct {
 	MaxValidators               uint64
 	ConsensusPeriodInBlock      uint64
 	MinimumStakes               *big.Int
+	LockedPeriod                uint64
 	Master                      MasterSmartContract
 	Nodes                       Nodes
 	Stakers                     Stakers
@@ -59,7 +60,7 @@ type GenesisNodeInfo struct {
 	Owner   common.Address
 	PubKey  string
 	Name    string
-	Reward  uint16
+	RewardPercentage  uint16
 }
 
 type GenesisStakeInfo struct {
