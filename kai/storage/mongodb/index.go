@@ -94,12 +94,12 @@ func createTransactionIndex(db *mongo.Database) error {
 	if err := createIndex(blockHash, false, hashed, txCollection); err != nil {
 		return err
 	}
-	if err := createIndex(from, false, hashed, txCollection); err != nil {
-		return err
-	}
-	if err := createIndex(to, false, hashed, txCollection); err != nil {
-		return err
-	}
+	//if err := createIndex(from, false, hashed, txCollection); err != nil {
+	//	return err
+	//}
+	//if err := createIndex(to, false, hashed, txCollection); err != nil {
+	//	return err
+	//}
 	return nil
 }
 
