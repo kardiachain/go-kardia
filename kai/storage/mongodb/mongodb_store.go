@@ -223,10 +223,10 @@ func (s *Store) getReceiptsByBlockHash(hash common.Hash) ([]*Receipt, error) {
 func (s *Store) insertReceipts(hash string, height uint64, receipts types.Receipts) error {
 	newReceipts := make([]interface{}, 0)
 	for _, receipt := range receipts {
-		if _, err := s.getReceiptByTxHash(receipt.TxHash.Hex()); err != nil {
-			r := NewReceipt(receipt, height, hash)
-			newReceipts = append(newReceipts, r)
-		}
+		//if _, err := s.getReceiptByTxHash(receipt.TxHash.Hex()); err != nil {
+		r := NewReceipt(receipt, height, hash)
+		newReceipts = append(newReceipts, r)
+		//}
 	}
 	if len(newReceipts) > 0 {
 		if _, err := db.Collection(receiptTable).InsertMany(ctx, newReceipts); err != nil {
@@ -884,19 +884,19 @@ func (s *Store) getBlockByHash(hash string) (b *Block, err error) {
 }
 
 func (s *Store) insertBlock(block *Block) error {
-	if b, _ := s.getBlockById(block.Height); b == nil {
-		output, e := bson.Marshal(block)
-		if e != nil {
-			return e
-		}
-		document, e := bsonx.ReadDoc(output)
-		if e != nil {
-			return e
-		}
-		_, e = db.Collection(blockTable).InsertOne(ctx, document)
-		return e
+	//if b, _ := s.getBlockById(block.Height); b == nil {
+	output, err := bson.Marshal(block)
+	if err != nil {
+		return err
 	}
-	return nil
+	document, err := bsonx.ReadDoc(output)
+	if err != nil {
+		return err
+	}
+	_, err = db.Collection(blockTable).InsertOne(ctx, document)
+	return err
+	//}
+	//return nil
 }
 
 func (s *Store) getTransactionsByBlockId(height uint64) ([]*Transaction, error) {
@@ -931,14 +931,13 @@ func (s *Store) getTransactionByHash(hash string) (*Transaction, error) {
 func (s *Store) insertTransactions(transactions types.Transactions, blockHeight uint64, blockHash string) error {
 	txs := make([]interface{}, 0)
 	for i, tx := range transactions {
-		if _, err := s.getTransactionByHash(tx.Hash().Hex()); err != nil {
-			newTx, err := NewTransaction(tx, blockHeight, blockHash, i)
-			if err != nil {
-				log.Error("error while convert transaction", "err", err)
-				continue
-			}
-			txs = append(txs, newTx)
+		//if _, err := s.getTransactionByHash(tx.Hash().Hex()); err != nil {
+		newTx, err := NewTransaction(tx, blockHeight, blockHash, i)
+		if err != nil {
+			log.Error("error while convert transaction", "err", err)
+			continue
 		}
+		txs = append(txs, newTx)
 	}
 	if len(txs) > 0 {
 		_, e := db.Collection(txTable).InsertMany(ctx, txs)
@@ -957,19 +956,19 @@ func (s *Store) getCommitById(blockId uint64) (*Commit, error) {
 }
 
 func (s *Store) insertCommit(commit *Commit, height uint64) error {
-	if b, _ := s.getCommitById(height); b == nil {
-		output, err := bson.Marshal(commit)
-		if err != nil {
-			return err
-		}
-		document, err := bsonx.ReadDoc(output)
-		if err != nil {
-			return err
-		}
-		_, e := db.Collection(commitTable).InsertOne(ctx, document)
-		return e
+	//if b, _ := s.getCommitById(height); b == nil {
+	output, err := bson.Marshal(commit)
+	if err != nil {
+		return err
 	}
-	return nil
+	document, err := bsonx.ReadDoc(output)
+	if err != nil {
+		return err
+	}
+	_, err = db.Collection(commitTable).InsertOne(ctx, document)
+	return err
+	//}
+	//return nil
 }
 
 func (s *Store) getChainConfig(hash string) (*ChainConfig, error) {
