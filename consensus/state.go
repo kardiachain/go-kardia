@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kvm"
 	"math/big"
@@ -1503,7 +1502,7 @@ type LastestBlockState struct {
 	//namdoh@ LastResultsHash []byte
 
 	// The latest AppHash we've received from calling abci.Commit()
-	AppHash common.Hash
+	AppHash cmn.Hash
 }
 
 // Copy makes a copy of the State for mutating.
