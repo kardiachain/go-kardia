@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -30,10 +31,10 @@ import (
 
 func TestGenerateTx(t *testing.T) {
 	genTool := NewGeneratorTool(GetAccounts(configs.GenesisAddrKeys))
-
+	signer := types.HomesteadSigner{}
 	result := genTool.GenerateTx(1000)
 	for _, tx := range result {
-		from, _ := types.Sender(tx)
+		from, _ := types.Sender(signer, tx)
 		if !containsInGenesis(from.String()) {
 			t.Error("Sender addr should be in genesis block")
 		}
@@ -51,10 +52,10 @@ func TestGenerateTx(t *testing.T) {
 
 func TestGenerateRandomTx(t *testing.T) {
 	genTool := NewGeneratorTool(GetAccounts(configs.GenesisAddrKeys))
-
+	signer := types.HomesteadSigner{}
 	result := genTool.GenerateRandomTx(1000)
 	for _, tx := range result {
-		from, _ := types.Sender(tx)
+		from, _ := types.Sender(signer, tx)
 		if !containsInGenesis(from.String()) {
 			t.Error("Sender addr should be in genesis block")
 		}
@@ -72,10 +73,11 @@ func TestGenerateRandomTx(t *testing.T) {
 
 func TestGenerateRandomTxWithState(t *testing.T) {
 	genTool := NewGeneratorTool(GetAccounts(configs.GenesisAddrKeys))
-	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
+	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(memorydb.New()))
 	result := genTool.GenerateRandomTxWithState(10, statedb)
+	signer := types.HomesteadSigner{}
 	for _, tx := range result {
-		from, _ := types.Sender(tx)
+		from, _ := types.Sender(signer, tx)
 		if !containsInGenesis(from.String()) {
 			t.Error("Sender addr should be in genesis block")
 		}

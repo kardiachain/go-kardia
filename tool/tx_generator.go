@@ -78,6 +78,9 @@ func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
 	}
 	result := make([]*types.Transaction, numTx)
 	genTool.mu.Lock()
+
+	signer := types.HomesteadSigner{}
+
 	for i := 0; i < numTx; i++ {
 		senderKey, toAddr := randomTxAddresses(genTool.accounts)
 		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
@@ -85,7 +88,7 @@ func (genTool *GeneratorTool) GenerateTx(numTx int) []*types.Transaction {
 		nonce := genTool.nonceMap[senderAddrS]
 		amount := big.NewInt(int64(RandomInt(10, 20)))
 		amount = amount.Mul(amount, big.NewInt(int64(math.Pow10(18))))
-		tx, err := types.SignTx(types.NewTransaction(
+		tx, err := types.SignTx(signer, types.NewTransaction(
 			nonce,
 			toAddr,
 			amount,
@@ -110,6 +113,8 @@ func (genTool *GeneratorTool) GenerateRandomTx(numTx int) types.Transactions {
 	}
 	result := make(types.Transactions, numTx)
 	genTool.mu.Lock()
+
+	signer := types.HomesteadSigner{}
 	for i := 0; i < numTx; i++ {
 		senderKey, toAddr := randomTxAddresses(genTool.accounts)
 		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
@@ -121,7 +126,7 @@ func (genTool *GeneratorTool) GenerateRandomTx(numTx int) types.Transactions {
 			genTool.nonceMap[senderAddrS] = 1
 		}
 		nonce := genTool.nonceMap[senderAddrS]
-		tx, err := types.SignTx(types.NewTransaction(
+		tx, err := types.SignTx(signer, types.NewTransaction(
 			nonce,
 			toAddr,
 			amount,
@@ -146,6 +151,9 @@ func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx int, stateDb *stat
 	}
 	result := make([]*types.Transaction, numTx)
 	genTool.mu.Lock()
+
+	signer := types.HomesteadSigner{}
+
 	for i := 0; i < numTx; i++ {
 		senderKey, toAddr := randomTxAddresses(genTool.accounts)
 		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
@@ -160,7 +168,7 @@ func (genTool *GeneratorTool) GenerateRandomTxWithState(numTx int, stateDb *stat
 			nonce = nonceMap
 		}
 
-		tx, err := types.SignTx(types.NewTransaction(
+		tx, err := types.SignTx(signer, types.NewTransaction(
 			nonce,
 			toAddr,
 			amount,
@@ -185,10 +193,13 @@ func (genTool *GeneratorTool) GenerateRandomTxWithAddressState(numTx int, txPool
 	}
 	result := make(types.Transactions, numTx)
 	genTool.mu.Lock()
+
+	signer := types.HomesteadSigner{}
+
 	for i := 0; i < numTx; i++ {
 		senderKey, toAddr := randomTxAddresses(genTool.accounts)
 		senderPublicKey := crypto.PubkeyToAddress(senderKey.PublicKey)
-		nonce := txPool.GetAddressState(senderPublicKey)
+		nonce := txPool.Nonce(senderPublicKey)
 		amount := big.NewInt(int64(RandomInt(10, 20)))
 		amount = amount.Mul(amount, big.NewInt(int64(math.Pow10(18))))
 		senderAddrS := senderPublicKey.String()
@@ -199,7 +210,7 @@ func (genTool *GeneratorTool) GenerateRandomTxWithAddressState(numTx int, txPool
 			nonce = nonceMap
 		}
 
-		tx, err := types.SignTx(types.NewTransaction(
+		tx, err := types.SignTx(signer, types.NewTransaction(
 			nonce,
 			toAddr,
 			amount,
@@ -226,11 +237,14 @@ func (genTool *GeneratorTool) GetNonce(address string) uint64 {
 // if isIncrement is true, nonce + 1 to prevent duplicate nonce if generateSmcCall is called twice.
 func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input []byte, txPool *tx_pool.TxPool, isIncrement bool) *types.Transaction {
 	senderAddress := crypto.PubkeyToAddress(senderKey.PublicKey)
-	nonce := txPool.GetAddressState(senderAddress)
+	nonce := txPool.Nonce(senderAddress)
 	if isIncrement {
 		nonce++
 	}
-	tx, err := types.SignTx(types.NewTransaction(
+
+	signer := types.HomesteadSigner{}
+
+	tx, err := types.SignTx(signer, types.NewTransaction(
 		nonce,
 		address,
 		big.NewInt(0),

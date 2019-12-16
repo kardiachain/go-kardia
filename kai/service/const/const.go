@@ -27,23 +27,24 @@ const (
 var ProtocolVersions = []uint{kai1}
 
 // ProtocolLengths are the number of implemented message corresponding to different protocol versions.
-var ProtocolLengths = []uint64{11}
+var ProtocolLengths = []uint64{19}
 
 const ProtocolMaxMsgSize = 10 * 1024 * 1024 // Maximum cap on the size of a protocol message
 
 // protocol message codes
 const (
 	// Protocol messages belonging to kai1
-	StatusMsg             = 0x00
-	TxMsg                 = 0x01
-	CsNewRoundStepMsg     = 0x02 // Consensus message
-	CsProposalMsg         = 0x03 // Proposal message
-	CsVoteMsg             = 0x04 // Vote message
-	CsCommitStepMsg       = 0x05 // Commit step message
-	CsHasVoteMsg          = 0x06 // Has vote message
-	CsProposalPOLMsg      = 0x07 // Proposal message
-	CsBlockMsg            = 0x08 // Block message
-	CsVoteSetMaj23Message = 0x09 // VoteSetMaj23 message
-	CsVoteSetBitsMessage  = 0x10 // VoteSetBitsMessage message
-
+	StatusMsg              = 0x00
+	TxMsg                  = 0x01
+	CsNewRoundStepMsg      = 0x02 // Consensus message
+	CsProposalMsg          = 0x03 // Proposal message
+	CsVoteMsg              = 0x04 // Vote message
+	CsCommitStepMsg        = 0x05 // Commit step message
+	CsHasVoteMsg           = 0x06 // Has vote message
+	CsProposalPOLMsg       = 0x07 // Proposal message
+	CsBlockMsg             = 0x08 // Block message
+	CsVoteSetMaj23Message  = 0x09 // VoteSetMaj23 message
+	CsVoteSetBitsMessage   = 0x10 // VoteSetBitsMessage message
+	CsProposalBlockPartMsg = 0x11 // CsProposalBlockPartMsg message
+	CsValidBlockMsg        = 0x12 // CsValidBlockMsg message
 )

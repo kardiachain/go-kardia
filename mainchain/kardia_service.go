@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	kaiProtocolName   = "KAI"
+	kaiProtocolName = "KAI"
 )
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
@@ -59,7 +59,7 @@ type KardiaService struct {
 	shutdownChan chan bool
 
 	// DB interfaces
-	kaiDb types.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
+	kaiDb types.StoreDB // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
 	txPool          *tx_pool.TxPool
@@ -113,9 +113,15 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
+	consensusConfig := configs.DefaultConsensusConfig()
+
 	// Set zeroFee to blockchain
 	kai.blockchain.IsZeroFee = config.IsZeroFee
-	kai.txPool = tx_pool.NewTxPool(logger, config.TxPool, kai.chainConfig, kai.blockchain)
+	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
+
+	if consensusConfig.WaitForTxs() {
+		kai.txPool.EnableTxsAvailable()
+	}
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
@@ -127,21 +133,27 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
+	blockID := types.BlockID{
+		Hash:        block.Hash(),
+		PartsHeader: block.MakePartSet(types.BlockPartSizeBytes).Header(),
+	}
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon", // TODO(thientn): considers merging this with protocolmanger.ChainID
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
-		LastBlockID:                 block.BlockID(),
+		LastBlockID:                 blockID,
 		LastBlockTime:               block.Time(),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
+		AppHash:                     kai.blockchain.ReadAppHash(block.Height()),
+		LastBlockTotalTx:            cmn.NewBigInt64(int64(block.NumTxs())),
 	}
-
 	consensusState := consensus.NewConsensusState(
 		kai.logger,
-		configs.DefaultConsensusConfig(),
+		consensusConfig,
 		state,
 		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
+		kai.txPool,
 	)
 	kai.csManager = consensus.NewConsensusManager(config.ServiceName, consensusState)
 	// Set private validator for consensus manager.
@@ -260,7 +272,7 @@ func (s *KardiaService) APIs() []rpc.API {
 	}
 }
 
-func (s *KardiaService) TxPool() *tx_pool.TxPool         { return s.txPool }
+func (s *KardiaService) TxPool() *tx_pool.TxPool            { return s.txPool }
 func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
-func (s *KardiaService) ChainConfig() *types.ChainConfig  { return s.chainConfig }
-func (s *KardiaService) DB() types.Database { return s.kaiDb }
+func (s *KardiaService) ChainConfig() *types.ChainConfig    { return s.chainConfig }
+func (s *KardiaService) DB() types.StoreDB                  { return s.kaiDb }

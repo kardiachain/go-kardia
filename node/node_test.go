@@ -19,11 +19,12 @@
 package node
 
 import (
+	"testing"
+
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
-	"testing"
 )
 
 // Signatures of a simple test service.
@@ -47,7 +48,7 @@ func (s *TrivialService) APIs() []rpc.API {
 	return nil
 }
 
-func (s *TrivialService) DB() types.Database {
+func (s *TrivialService) DB() types.StoreDB {
 	return nil
 }
 
@@ -55,21 +56,21 @@ func newTrivialService(ctx *ServiceContext) (Service, error) { return new(Trivia
 
 var (
 	testNodeKey, _ = crypto.GenerateKey()
-	nodes = []map[string]interface{}{
+	nodes          = []map[string]interface{}{
 		{
-			"key": "8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06",
+			"key":         "8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06",
 			"votingPower": 100,
-			"listenAddr": "[::]:3000",
+			"listenAddr":  "[::]:3000",
 		},
 		{
-			"key": "77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79",
+			"key":         "77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79",
 			"votingPower": 100,
-			"listenAddr": "[::]:3001",
+			"listenAddr":  "[::]:3001",
 		},
 		{
-			"key": "98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb",
+			"key":         "98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb",
 			"votingPower": 100,
-			"listenAddr": "[::]:3002",
+			"listenAddr":  "[::]:3002",
 		},
 	}
 )
@@ -86,7 +87,7 @@ func testNodeConfig() *NodeConfig {
 		Name:            "test node",
 		P2P:             p2p.Config{PrivateKey: testNodeKey},
 		MainChainConfig: MainChainConfig{},
-		NodeMetadata: nodeMetadata,
+		NodeMetadata:    nodeMetadata,
 	}
 }
 

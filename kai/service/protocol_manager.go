@@ -84,11 +84,13 @@ type ProtocolManager struct {
 	// channels for fetcher, syncer, txsyncLoop
 	newPeerCh   chan *peer
 	noMorePeers chan struct{}
+	txsyncCh    chan *txsync
+	quitSync    chan struct{}
 
 	// transaction channel and subscriptions
-	txsCh  chan events.NewTxsEvent
+	txsCh         chan events.NewTxsEvent
 	receivedTxsCh chan receivedTxs
-	txsSub event.Subscription
+	txsSub        event.Subscription
 
 	// Consensus stuff
 	csReactor *consensus.ConsensusManager
@@ -114,17 +116,19 @@ func NewProtocolManager(
 
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
-		logger:      logger,
-		networkID:   networkID,
-		chainID:     chainID,
-		txpool:      txpool,
-		blockchain:  blockchain,
-		chainconfig: config,
-		peers:       newPeerSet(),
-		newPeerCh:   make(chan *peer),
-		noMorePeers: make(chan struct{}),
-		csReactor:   csReactor,
+		logger:        logger,
+		networkID:     networkID,
+		chainID:       chainID,
+		txpool:        txpool,
+		blockchain:    blockchain,
+		chainconfig:   config,
+		peers:         newPeerSet(),
+		newPeerCh:     make(chan *peer),
+		noMorePeers:   make(chan struct{}),
+		csReactor:     csReactor,
 		receivedTxsCh: make(chan receivedTxs),
+		txsyncCh:      make(chan *txsync),
+		quitSync:      make(chan struct{}),
 	}
 
 	// Initiate a sub-protocol for every implemented version we can handle
@@ -143,6 +147,8 @@ func NewProtocolManager(
 					manager.wg.Add(1)
 					defer manager.wg.Done()
 					return manager.handle(peer)
+				case <-manager.quitSync:
+					return p2p.DiscQuitting
 				}
 			},
 			NodeInfo: func() interface{} {
@@ -212,6 +218,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	}
 	//namdoh@ go pm.csBroadcastLoop()
 	go syncNetwork(pm)
+	go pm.txsyncLoop()
 }
 
 func (pm *ProtocolManager) Stop() {
@@ -252,9 +259,9 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	pm.logger.Debug("Kardia peer connected", "name", p.Name())
 
 	var (
-		genesis = pm.blockchain.Genesis()
-		hash    = pm.blockchain.CurrentHeader().Hash()
-		height  = pm.blockchain.CurrentBlock().Height()
+		genesis       = pm.blockchain.Genesis()
+		hash          = pm.blockchain.CurrentHeader().Hash()
+		height        = pm.blockchain.CurrentBlock().Height()
 		hasPermission = pm.blockchain.HasPermission(p.Peer)
 	)
 
@@ -337,6 +344,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	case msg.Code == serviceconst.CsProposalMsg:
 		pm.logger.Trace("Proposal message received")
 		pm.csReactor.ReceiveNewProposal(msg, p.Peer)
+	case msg.Code == serviceconst.CsValidBlockMsg:
+		pm.logger.Trace("new valid block message received")
+		pm.csReactor.ReceiveNewValidBlock(msg, p.Peer)
 	case msg.Code == serviceconst.CsVoteMsg:
 		pm.logger.Trace("Vote messsage received")
 		pm.csReactor.ReceiveNewVote(msg, p.Peer)
@@ -346,12 +356,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	case msg.Code == serviceconst.CsProposalPOLMsg:
 		pm.logger.Trace("ProposalPOL messsage received")
 		pm.csReactor.ReceiveProposalPOL(msg, p.Peer)
-	case msg.Code == serviceconst.CsCommitStepMsg:
-		pm.logger.Trace("CommitStep message received")
-		pm.csReactor.ReceiveNewCommit(msg, p.Peer)
-	case msg.Code == serviceconst.CsBlockMsg:
-		pm.logger.Trace("Block message received")
-		pm.csReactor.ReceiveBlock(msg, p.Peer)
+	case msg.Code == serviceconst.CsProposalBlockPartMsg:
+		pm.logger.Trace("Block part message received")
+		pm.csReactor.ReceiveNewBlockPart(msg, p.Peer)
 	case msg.Code == serviceconst.CsVoteSetMaj23Message:
 		pm.logger.Trace("VoteSetMaj23 message received")
 		pm.csReactor.ReceiveVoteSetMaj23(msg, p.Peer)
@@ -364,21 +371,29 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	return nil
 }
 
+type txsync struct {
+	p   *peer
+	txs []*types.Transaction
+}
+
 // syncTransactions sends all pending transactions to the new peer.
 func (pm *ProtocolManager) syncTransactions(p *peer) {
 	// TODO(namdoh@,thientn@): Refactor this so we won't have to check this for dual service.
 	if pm.txpool == nil || !p.IsValidator {
 		return
 	}
-	pm.logger.Trace("Sync txns to new peer", "peer", p)
-	// TODO(thientn): sends transactions in chunks. This may send a large number of transactions.
-	// Breaks them to chunks here or inside AsyncSend to not overload the pipeline.
-	txs, _ := pm.txpool.Pending(0)
+	var txs types.Transactions
+	pending, _ := pm.txpool.Pending()
+	for _, batch := range pending {
+		txs = append(txs, batch...)
+	}
 	if len(txs) == 0 {
 		return
 	}
-	pm.logger.Trace("Start sending pending transactions", "count", len(txs))
-	p.AsyncSendTransactions(txs)
+	select {
+	case pm.txsyncCh <- &txsync{p, txs}:
+	case <-pm.quitSync:
+	}
 }
 
 func (pm *ProtocolManager) txBroadcastLoop() {
@@ -389,7 +404,7 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 
 		case receivedTxs := <-pm.receivedTxsCh:
 			if len(receivedTxs.txs) > 0 {
-				pm.txpool.AddTxs(receivedTxs.txs)
+				pm.txpool.AddRemotes(receivedTxs.txs)
 			}
 		// Err() channel will be closed when unsubscribing.
 		case <-pm.txsSub.Err():
@@ -400,24 +415,13 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 
 // A loop for broadcasting consensus events.
 func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
-
-	// If msg's type is *consensus.CommitStepMessage, v will hold the instance and ok will be true
-	v, ok := msg.(*consensus.CommitStepMessage)
-
-	// If ok is true, then simplify the log
-	if ok {
-		pm.logger.Info("Start broadcast consensus message", "Height", v.Height, "Block", v.Block.Hash().String(), "msgType", msgType)
-	} else {
-		pm.logger.Info("Start broadcast consensus message", "msg", msg, "msgType", msgType)
-	}
-
 	for _, p := range pm.peers.peers {
 		if p.IsValidator {
 			pm.wg.Add(1)
 			go func(p *peer) {
 				defer pm.wg.Done()
 				if err := p2p.Send(p.rw, msgType, msg); err != nil {
-					pm.logger.Error("Failed to broadcast consensus message", "error", err, "peer", p.Name())
+					pm.logger.Error("Failed to broadcast consensus message", "error", err, "peer", p.Name(), "msg type", msgType)
 				}
 			}(p)
 		}
@@ -450,11 +454,11 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 // NodeInfo represents a short summary of the Kardia sub-protocol metadata
 // known about the host peer.
 type NodeInfo struct {
-	Network uint64               `json:"network"` // Kardia network ID
-	Height  uint64               `json:"height"`  // Height of the blockchain
-	Genesis common.Hash          `json:"genesis"` // SHA3 hash of the host's genesis block
+	Network uint64             `json:"network"` // Kardia network ID
+	Height  uint64             `json:"height"`  // Height of the blockchain
+	Genesis common.Hash        `json:"genesis"` // SHA3 hash of the host's genesis block
 	Config  *types.ChainConfig `json:"config"`  // Chain configuration for the fork rules
-	Head    common.Hash          `json:"head"`    // SHA3 hash of the host's best owned block
+	Head    common.Hash        `json:"head"`    // SHA3 hash of the host's best owned block
 }
 
 // NodeInfo retrieves some protocol metadata about the running host node.

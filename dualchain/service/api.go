@@ -39,7 +39,7 @@ type DualBlockJSON struct {
 	GasLimit       uint64             `json:"gasLimit"`
 	GasUsed        uint64             `json:"gasUsed"`
 	Validator      string             `json:"validator"`
-	Root           string             `json:"stateRoot"`    // state root
+	AppHash        string             `json:"app_hash"`     // state root
 	ReceiptHash    string             `json:"receiptsRoot"` // receipt root
 	Bloom          int64              `json:"logsBloom"`
 	ValidatorsHash string             `json:"validators_hash"` // validators for the current block
@@ -74,11 +74,8 @@ func NewDualBlockJSON(block *types.Block) *DualBlockJSON {
 		DualEvents:     dualEvents,
 		DualEventsHash: block.Header().DualEventsHash.Hex(),
 		GasLimit:       block.Header().GasLimit,
-		GasUsed:        block.Header().GasUsed,
 		Validator:      block.Header().Validator.Hex(),
-		Root:           block.Header().Root.Hex(),
-		ReceiptHash:    block.Header().ReceiptHash.Hex(),
-		Bloom:          block.Header().Bloom.Big().Int64(),
+		AppHash:        block.Header().AppHash.Hex(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 	}

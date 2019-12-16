@@ -84,6 +84,13 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 		}
 	}
 
+	if !block.AppHash().Equal(state.AppHash) {
+		return fmt.Errorf("Wrong Block.header.AppHash.  Expected %s, got %s",
+			state.AppHash.String(),
+			block.AppHash().String(),
+		)
+	}
+
 	// TODO: Each check requires loading an old validator set.
 	// We should cap the amount of evidence per block
 	// to prevent potential proposer DoS.

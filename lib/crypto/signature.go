@@ -22,11 +22,11 @@ package crypto
 // Uses btcec instead of libsecp256k1 to avoid C code dependency.
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/btcsuite/btcd/btcec"
 )
@@ -83,20 +83,11 @@ func Sign(hash []byte, prv *ecdsa.PrivateKey) ([]byte, error) {
 // The public key should be in compressed (33 bytes) or uncompressed (65 bytes) format.
 // The signature should have the 64 byte [R || S] format.
 func VerifySignature(pubKey ecdsa.PublicKey, hash, signature []byte) bool {
-	compressedPubKey := CompressPubkey(&pubKey)
-	if len(signature) != 64 {
-		return false
-	}
-	sig := &btcec.Signature{R: new(big.Int).SetBytes(signature[:32]), S: new(big.Int).SetBytes(signature[32:])}
-	key, err := btcec.ParsePubKey(compressedPubKey, btcec.S256())
-	if err != nil {
-		return false
-	}
-	// Reject malleable signatures. libsecp256k1 does this check but btcec doesn't.
-	if sig.S.Cmp(secp256k1halfN) > 0 {
-		return false
-	}
-	return sig.Verify(hash, key)
+	signPubKey, _ := SigToPub(hash, signature)
+	// TODO(thientn): Verifying signature shouldn't be this complicated. After
+	// cleaning up our crypto package, clean up this as well.
+	return bytes.Equal(CompressPubkey(&pubKey), CompressPubkey(signPubKey))
+
 }
 
 // DecompressPubkey parses a public key in the 33-byte compressed format.

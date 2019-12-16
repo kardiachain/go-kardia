@@ -19,17 +19,38 @@
 package types
 
 import (
-	message "github.com/kardiachain/go-kardia/ksml/proto"
 	"math/big"
 	"os"
 	"testing"
 	"time"
 
+	message "github.com/kardiachain/go-kardia/ksml/proto"
+
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 )
+
+func makeBlockIDRandom() BlockID {
+	blockHash := common.BytesToHash(common.RandBytes(32))
+	partSetHash := common.BytesToHash(common.RandBytes(32))
+	blockPartsHeaders := PartSetHeader{Total: *common.NewBigInt32(123), Hash: partSetHash}
+	return BlockID{
+		Hash:        blockHash,
+		PartsHeader: blockPartsHeaders,
+	}
+}
+
+func makeBlockID(hash common.Hash, partSetSize common.BigInt, partSetHash common.Hash) BlockID {
+	return BlockID{
+		Hash: hash,
+		PartsHeader: PartSetHeader{
+			Total: partSetSize,
+			Hash:  partSetHash,
+		},
+	}
+
+}
 
 func TestBlockCreation(t *testing.T) {
 	block := CreateNewBlock(1)
@@ -98,42 +119,8 @@ func TestGetDualEvents(t *testing.T) {
 	}
 }
 
-func TestBodyCreationAndCopy(t *testing.T) {
-	body := CreateNewBlock(1).Body()
-	copyBody := body.Copy()
-	if rlpHash(body) != rlpHash(copyBody) {
-		t.Fatal("Error copy body")
-	}
-}
-
 func TestBodyEncodeDecodeFile(t *testing.T) {
-	body := CreateNewBlock(1).Body()
-	bodyCopy := body.Copy()
-	encodeFile, err := os.Create("encodeFile.txt")
-	if err != nil {
-		t.Error("Error creating file")
-	}
 
-	if err := body.EncodeRLP(encodeFile); err != nil {
-		t.Fatal("Error encoding block")
-	}
-
-	encodeFile.Close()
-
-	f, err := os.Open("encodeFile.txt")
-	if err != nil {
-		t.Error("Error opening file:", err)
-	}
-
-	stream := rlp.NewStream(f, 99999)
-	if err := body.DecodeRLP(stream); err != nil {
-		t.Fatal("Decoding block error:", err)
-	}
-	defer f.Close()
-
-	if rlpHash(body) != rlpHash(bodyCopy) {
-		t.Fatal("Encode Decode from file error")
-	}
 }
 
 func TestBlockWithBodyFunction(t *testing.T) {
@@ -233,7 +220,7 @@ func CreateNewBlock(height uint64) *Block {
 		big.NewInt(99), 1000, big.NewInt(100),
 		nil,
 	)
-	signedTx, _ := SignTx(emptyTx, key)
+	signedTx, _ := SignTx(HomesteadSigner{}, emptyTx, key)
 
 	txns := []*Transaction{signedTx}
 
@@ -242,12 +229,16 @@ func CreateNewBlock(height uint64) *Block {
 		Height:         common.NewBigInt64(2),
 		Round:          common.NewBigInt64(1),
 		Timestamp:      big.NewInt(100),
-		Type:           VoteTypePrecommit,
+		Type:           PrecommitType,
 	}
-	lastCommit := &Commit{
-		Precommits: []*Vote{vote, nil},
+
+	commitSigs := []*CommitSig{
+		vote.CommitSig(),
+		nil,
 	}
-	return NewBlock(log.New(), &header, txns, nil, lastCommit)
+
+	lastCommit := NewCommit(NewZeroBlockID(), commitSigs)
+	return NewBlock(&header, txns, lastCommit)
 }
 
 func CreateNewDualBlock() *Block {
@@ -260,12 +251,17 @@ func CreateNewDualBlock() *Block {
 		Height:         common.NewBigInt64(2),
 		Round:          common.NewBigInt64(1),
 		Timestamp:      big.NewInt(100),
-		Type:           VoteTypePrecommit,
+		Type:           PrecommitType,
 	}
+
+	commitSigs := make([]*CommitSig, 1)
+	commitSigs[0] = vote.CommitSig()
+
 	lastCommit := &Commit{
-		Precommits: []*Vote{vote, vote},
+		Precommits: commitSigs,
 	}
 	header.LastCommitHash = lastCommit.Hash()
 	de := NewDualEvent(100, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})
-	return NewDualBlock(log.New(), &header, []*DualEvent{de, nil}, lastCommit)
+	return NewDualBlock(&header, []*DualEvent{de, nil}, lastCommit)
+
 }

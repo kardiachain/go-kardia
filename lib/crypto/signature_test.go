@@ -20,8 +20,9 @@ package crypto
 
 import (
 	"bytes"
-	"github.com/kardiachain/go-kardia/lib/common"
 	"testing"
+
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 func TestEcrecover(t *testing.T) {
@@ -35,5 +36,15 @@ func TestEcrecover(t *testing.T) {
 	}
 	if !bytes.Equal(key, publicKey) {
 		t.Errorf("invalida public key: want: %x have: %x", publicKey, key)
+	}
+}
+
+func TestVerifySignature(t *testing.T) {
+	privKey, _ := GenerateKey()
+
+	hash := common.BytesToHash([]byte("1"))
+	sign, _ := Sign(hash.Bytes(), privKey)
+	if !VerifySignature(privKey.PublicKey, hash.Bytes(), sign) {
+		t.Fatal("test verify signature error")
 	}
 }

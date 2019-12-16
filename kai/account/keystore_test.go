@@ -19,13 +19,14 @@
 package account
 
 import (
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/types"
 	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
@@ -73,7 +74,8 @@ func TestSignTx(t *testing.T) {
 		big.NewInt(1),
 		common.FromHex("5544"),
 	)
-	tx, _ = types.SignTx(tx, &keystore.PrivateKey)
+
+	tx, _ = types.SignTx(types.HomesteadSigner{}, tx, &keystore.PrivateKey)
 	b, _ := rlp.EncodeToBytes(tx)
 	if common.Encode(b) != expectedEncodedTx {
 		t.Error("Encoded Tx does not match with expected Tx")

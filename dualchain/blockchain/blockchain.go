@@ -26,7 +26,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -55,7 +55,7 @@ type DualBlockChain struct {
 
 	chainConfig *types.ChainConfig // Chain & network configuration
 
-	db types.Database // Kai's database
+	db types.StoreDB // Kai's database
 	hc *DualHeaderChain
 
 	chainHeadFeed event.Feed
@@ -118,7 +118,7 @@ func (dbc *DualBlockChain) CurrentBlock() *types.Block {
 //	return dbc.processor
 //}
 
-func (dbc *DualBlockChain) DB() types.Database {
+func (dbc *DualBlockChain) DB() types.StoreDB {
 	return dbc.db
 }
 
@@ -127,7 +127,7 @@ func (dbc *DualBlockChain) Config() *types.ChainConfig { return dbc.chainConfig 
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.ChainConfig, isPrivate bool) (*DualBlockChain, error) {
+func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *types.ChainConfig, isPrivate bool) (*DualBlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 
@@ -135,7 +135,7 @@ func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.Chai
 		logger:       logger,
 		chainConfig:  chainConfig,
 		db:           db,
-		stateCache:   state.NewDatabase(db),
+		stateCache:   state.NewDatabase(db.DB()),
 		blockCache:   blockCache,
 		futureBlocks: futureBlocks,
 		quit:         make(chan struct{}),
@@ -177,6 +177,33 @@ func (dbc *DualBlockChain) GetBlockByHeight(height uint64) *types.Block {
 	return dbc.GetBlock(hash, height)
 }
 
+func (bc *DualBlockChain) LoadBlockPart(height uint64, index int) *types.Part {
+	hash := bc.db.ReadCanonicalHash(height)
+	part := bc.db.ReadBlockPart(hash, height, index)
+	if hash == (common.Hash{}) {
+		return nil
+	}
+	return part
+}
+
+func (bc *DualBlockChain) LoadBlockCommit(height uint64) *types.Commit {
+	return bc.db.ReadCommit(height)
+}
+
+func (bc *DualBlockChain) LoadSeenCommit(height uint64) *types.Commit {
+	return bc.db.ReadSeenCommit(height)
+}
+
+//
+func (bc *DualBlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
+	hash := bc.db.ReadCanonicalHash(height)
+	return bc.db.ReadBlockMeta(hash, height)
+}
+
+func (bc *DualBlockChain) ReadAppHash(height uint64) common.Hash {
+	return bc.db.ReadAppHash(height)
+}
+
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
 func (dbc *DualBlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
@@ -184,7 +211,7 @@ func (dbc *DualBlockChain) GetBlock(hash common.Hash, number uint64) *types.Bloc
 	if block, ok := dbc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
 	}
-	block := dbc.db.ReadBlock(dbc.logger, hash, number)
+	block := dbc.db.ReadBlock(hash, number)
 	if block == nil {
 		return nil
 	}
@@ -201,12 +228,13 @@ func (dbc *DualBlockChain) GetHeader(hash common.Hash, height uint64) *types.Hea
 
 // State returns a new mutatable state at head block.
 func (dbc *DualBlockChain) State() (*state.StateDB, error) {
-	return dbc.StateAt(dbc.CurrentBlock().Root())
+	return dbc.StateAt(dbc.CurrentHeader().Height)
 }
 
 // StateAt returns a new mutable state based on a particular point in time.
-func (dbc *DualBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
-	return state.New(dbc.logger, root, dbc.stateCache)
+func (dbc *DualBlockChain) StateAt(height uint64) (*state.StateDB, error) {
+	appHash := dbc.db.ReadAppHash(height)
+	return state.New(dbc.logger, appHash, dbc.stateCache)
 }
 
 // CheckCommittedStateRoot returns true if the given state root is already committed and existed on trie database.
@@ -238,7 +266,7 @@ func (dbc *DualBlockChain) loadLastState() error {
 		return dbc.Reset()
 	}
 	// Make sure the state associated with the block is available
-	if _, err := state.New(dbc.logger, currentBlock.Root(), dbc.stateCache); err != nil {
+	if _, err := state.New(dbc.logger, dbc.ReadAppHash(currentBlock.Height()), dbc.stateCache); err != nil {
 		// Dangling block without a state associated, init from scratch
 		dbc.logger.Warn("Head state missing, repairing chain", "height", currentBlock.Height(), "hash", currentBlock.Hash())
 		if err := dbc.repair(&currentBlock); err != nil {
@@ -278,7 +306,7 @@ func (dbc *DualBlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 	dbc.mu.Lock()
 	defer dbc.mu.Unlock()
 
-	dbc.db.WriteBlock(genesis)
+	dbc.db.WriteBlock(genesis, genesis.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
 
 	dbc.genesisBlock = genesis
 	dbc.insert(dbc.genesisBlock)
@@ -298,7 +326,7 @@ func (dbc *DualBlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 func (dbc *DualBlockChain) repair(head **types.Block) error {
 	for {
 		// Abort if we've rewound to a head block that does have associated state
-		if _, err := state.New(dbc.logger, (*head).Root(), dbc.stateCache); err == nil {
+		if _, err := state.New(dbc.logger, dbc.ReadAppHash((*head).Height()), dbc.stateCache); err == nil {
 			dbc.logger.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
 			return nil
 		}
@@ -333,8 +361,8 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 	defer dbc.mu.Unlock()
 
 	// Rewind the header chain, deleting all block bodies until then
-	delFn := func(db types.DatabaseDeleter, hash common.Hash, height uint64) {
-		db.DeleteBody(hash, height)
+	delFn := func(db types.StoreDB, hash common.Hash, height uint64) {
+		db.DeleteBlockPart(hash, height)
 	}
 	dbc.hc.SetHead(head, delFn)
 	currentHeader := dbc.hc.CurrentHeader()
@@ -348,7 +376,7 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 		dbc.currentBlock.Store(dbc.GetBlock(currentHeader.Hash(), currentHeader.Height))
 	}
 	if currentBlock := dbc.CurrentBlock(); currentBlock != nil {
-		if _, err := state.New(dbc.logger, currentBlock.Root(), dbc.stateCache); err != nil {
+		if _, err := state.New(dbc.logger, dbc.ReadAppHash(currentBlock.Height()), dbc.stateCache); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			dbc.currentBlock.Store(dbc.genesisBlock)
 		}
@@ -367,19 +395,15 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 }
 
 // WriteBlockWithoutState writes only new block to database.
-func (dbc *DualBlockChain) WriteBlockWithoutState(block *types.Block) error {
+func (dbc *DualBlockChain) WriteBlockWithoutState(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) error {
 	// Makes sure no inconsistent state is leaked during insertion
 	dbc.mu.Lock()
 	defer dbc.mu.Unlock()
 	// Write block data in batch
-	batch := dbc.db.NewBatch()
-	batch.WriteBlock(block)
+	dbc.db.WriteBlock(block, blockParts, seenCommit)
 
 	// Convert all txs into txLookupEntries and store to db
-	batch.WriteTxLookupEntries(block)
-	if err := batch.Write(); err != nil {
-		return err
-	}
+	dbc.db.WriteTxLookupEntries(block)
 
 	// StateDb for this block should be already written.
 
@@ -399,38 +423,8 @@ func (dbc *DualBlockChain) WriteReceipts(receipts types.Receipts, block *types.B
 	dbc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
 }
 
-// WriteBlockWithState writes the block and all associated state to the database.
-func (dbc *DualBlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) error {
-	// Makes sure no inconsistent state is leaked during insertion
-	dbc.mu.Lock()
-	defer dbc.mu.Unlock()
-	// Write block data in batch.
-	batch := dbc.db.NewBatch()
-	batch.WriteBlock(block)
-	root, err := state.Commit(true)
-	if err != nil {
-		return err
-	}
-	triedb := dbc.stateCache.TrieDB()
-	if err := triedb.Commit(root, false); err != nil {
-		return err
-	}
-	batch.WriteReceipts(block.Hash(), block.Header().Height, receipts)
-	batch.WriteTxLookupEntries(block)
-	if err := batch.Write(); err != nil {
-		return err
-	}
-	// Set new head.
-	dbc.insert(block)
-	dbc.futureBlocks.Remove(block.Hash())
-
-	// Sends new head event
-	dbc.chainHeadFeed.Send(events.ChainHeadEvent{Block: block})
-	return nil
-}
-
 // CommitTrie commits trie node such as statedb forcefully to disk.
-func (dbc DualBlockChain) CommitTrie(root common.Hash) error {
+func (dbc *DualBlockChain) CommitTrie(root common.Hash) error {
 	triedb := dbc.stateCache.TrieDB()
 	return triedb.Commit(root, false)
 }
@@ -457,9 +451,8 @@ func (dbc *DualBlockChain) insert(block *types.Block) {
 	}
 }
 
-// Writes commit to db.
-func (dbc *DualBlockChain) WriteCommit(height uint64, commit *types.Commit) {
-	dbc.db.WriteCommit(height, commit)
+func (dbc *DualBlockChain) WriteBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
+	dbc.db.WriteBlock(block, blockParts, seenCommit)
 }
 
 // Reads commit from db.

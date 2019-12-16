@@ -2,13 +2,14 @@ package event_pool
 
 import (
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
-	"sync"
-	"time"
 )
 
 const (
@@ -24,17 +25,16 @@ const (
 type blockChain interface {
 	CurrentBlock() *types.Block
 	GetBlock(hash common.Hash, number uint64) *types.Block
-	DB() types.Database
+	DB() types.StoreDB
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 }
 
 // Config are the configuration parameters of the event pool.
 type Config struct {
-	GlobalSlots     uint64
-	GlobalQueue     uint64
-	NumberOfWorkers int
-	WorkerCap       int
-	BlockSize       int
+	GlobalSlots  uint64
+	GlobalQueue  uint64
+	AccountSlots uint64
+	AccountQueue uint64
 }
 
 // EventPool contains all currently interesting events from both external or internal blockchains. Events enter the pool
@@ -43,13 +43,13 @@ type Config struct {
 type Pool struct {
 	logger log.Logger
 
-	chain          blockChain
-	config         Config
+	chain  blockChain
+	config Config
 
-	eventsCh        chan []interface{}               // eventsCh is used for pending events
-	allCh           chan []interface{}               // allCh is used to cache processed events
-	pending         map[common.Hash]*types.DualEvent // current processable events
-	all             map[common.Hash]*types.DualEvent // All events
+	eventsCh chan []interface{}               // eventsCh is used for pending events
+	allCh    chan []interface{}               // allCh is used to cache processed events
+	pending  map[common.Hash]*types.DualEvent // current processable events
+	all      map[common.Hash]*types.DualEvent // All events
 
 	numberOfWorkers int
 	workerCap       int
@@ -58,22 +58,24 @@ type Pool struct {
 	chainHeadSub event.Subscription
 	eventFeed    event.Feed
 
-	mu            sync.RWMutex
-	wg            sync.WaitGroup
+	mu sync.RWMutex
+	wg sync.WaitGroup
+
+	// notify listeners (ie. consensus) when txs are available
+	notifiedTxsAvailable bool
+	txsAvailable         chan struct{} // fires once for each height, when the mempool is not empty
 }
 
 func NewPool(logger log.Logger, config Config, chain blockChain) *Pool {
 	pool := &Pool{
-		logger:          logger,
-		eventsCh:        make(chan []interface{}, 100),
-		allCh:           make(chan []interface{}),
-		pending:         make(map[common.Hash]*types.DualEvent),
-		all:             make(map[common.Hash]*types.DualEvent),
-		chainHeadCh:     make(chan events.ChainHeadEvent, chainHeadChanSize),
-		numberOfWorkers: config.NumberOfWorkers,
-		workerCap: config.WorkerCap,
-		chain: chain,
-		config: config,
+		logger:      logger,
+		eventsCh:    make(chan []interface{}, 100),
+		allCh:       make(chan []interface{}),
+		pending:     make(map[common.Hash]*types.DualEvent),
+		all:         make(map[common.Hash]*types.DualEvent),
+		chainHeadCh: make(chan events.ChainHeadEvent, chainHeadChanSize),
+		chain:       chain,
+		config:      config,
 	}
 
 	pool.reset(nil, chain.CurrentBlock().Header())
@@ -110,6 +112,26 @@ func (pool *Pool) loop() {
 	}
 }
 
+// NOTE: not thread safe - should only be called once, on startup
+func (pool *Pool) EnableTxsAvailable() {
+	pool.txsAvailable = make(chan struct{}, 1)
+}
+
+func (pool *Pool) TxsAvailable() <-chan struct{} {
+	return pool.txsAvailable
+}
+
+func (pool *Pool) notifyTxsAvailable() {
+	if pool.txsAvailable != nil && !pool.notifiedTxsAvailable {
+		// channel cap is 1, so this will send once
+		pool.notifiedTxsAvailable = true
+		select {
+		case pool.txsAvailable <- struct{}{}:
+		default:
+		}
+	}
+}
+
 // collectEvents is called periodically to add events from eventsCh to pending pool
 func (pool *Pool) collectEvents() {
 	for i := 0; i < pool.numberOfWorkers; i++ {
@@ -129,7 +151,8 @@ func (pool *Pool) AddEvents(events []interface{}) {
 			to = len(events)
 		}
 		pool.eventsCh <- events[0:to]
-		go pool.AddEvents(events[to:])
+		pool.AddEvents(events[to:])
+		pool.notifyTxsAvailable()
 	}
 }
 
@@ -212,6 +235,7 @@ func (pool *Pool) validateEvent(event *types.DualEvent) error {
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
 func (pool *Pool) reset(oldHead, newHead *types.Header) {
+	pool.notifiedTxsAvailable = false
 	// Initialize the internal state to the current head
 	currentBlock := pool.chain.CurrentBlock()
 
@@ -264,27 +288,22 @@ func (pool *Pool) RemoveEvents(events types.DualEvents) {
 
 // ProposeEvents collects events from pending and remove them.
 func (pool *Pool) ProposeEvents() types.DualEvents {
-	des, _ := pool.Pending(pool.config.BlockSize, true)
+	des, _ := pool.Pending(true)
 	return des
 }
 
 // Pending collects pending transactions with limit number, if removeResult is marked to true then remove results after all.
-func (pool *Pool) Pending(limit int, removeResult bool) (types.DualEvents, error) {
+func (pool *Pool) Pending(removeResult bool) (types.DualEvents, error) {
 
 	pool.mu.Lock()
 	pending := make(types.DualEvents, 0)
 	addedEvents := make(types.DualEvents, 0)
 
-	counter := 0
 	for _, evt := range pool.pending {
-		if counter >= limit {
-			break
-		}
 		pending = append(pending, evt)
 		if removeResult {
 			addedEvents = append(addedEvents, evt)
 		}
-		counter ++
 	}
 	pool.mu.Unlock()
 	// remove events in pending if addedEvents is not empty

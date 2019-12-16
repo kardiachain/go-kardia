@@ -49,7 +49,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/lib/p2p/nat"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
-	"github.com/kardiachain/go-kardia/mainchain"
+	kai "github.com/kardiachain/go-kardia/mainchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
@@ -143,14 +143,11 @@ func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
 func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 	txPool := c.MainChain.TxPool
 	return tx_pool.TxPoolConfig{
-		GlobalSlots: txPool.GlobalSlots,
-		GlobalQueue: txPool.GlobalQueue,
-
-		NumberOfWorkers:  txPool.NumberOfWorkers,
-		WorkerCap:        txPool.WorkerCap,
-		BlockSize:        txPool.BlockSize,
-
-		LifeTime: 1 * time.Minute,
+		AccountSlots: txPool.AccountSlots,
+		AccountQueue: txPool.AccountQueue,
+		GlobalSlots:  txPool.GlobalSlots,
+		GlobalQueue:  txPool.GlobalQueue,
+		Lifetime:     txPool.LifeTime,
 	}
 }
 
@@ -229,12 +226,12 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	eventPool := event_pool.Config{
-		GlobalSlots:     c.DualChain.EventPool.GlobalSlots,
-		GlobalQueue:     c.DualChain.EventPool.GlobalQueue,
-		NumberOfWorkers: c.DualChain.EventPool.NumberOfWorkers,
-		WorkerCap:       c.DualChain.EventPool.WorkerCap,
-		BlockSize:       c.DualChain.EventPool.BlockSize,
+		GlobalSlots:  c.DualChain.EventPool.GlobalSlots,
+		GlobalQueue:  c.DualChain.EventPool.GlobalQueue,
+		AccountSlots: c.DualChain.EventPool.AccountSlots,
+		AccountQueue: c.DualChain.EventPool.AccountQueue,
 	}
 
 	baseAccount, err := c.getBaseAccount(true)
@@ -582,7 +579,7 @@ func generateTxs(genTxs *GenTxs, genTool *tool.GeneratorTool, txPool *tx_pool.Tx
 	case tool.DefaultGenRandomTx:
 		txList = genTool.GenerateRandomTx(genTxs.NumTxs)
 	}
-	txPool.AddTxs(txList)
+	txPool.AddLocals(txList)
 	log.Info("GenTxs Adding new transactions", "num", genTxs.NumTxs, "genType", genTxs.Type)
 }
 

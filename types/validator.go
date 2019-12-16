@@ -335,12 +335,12 @@ func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height
 		if !precommit.Round.Equals(round) {
 			return fmt.Errorf("Invalid commit -- wrong round: %v vs %v", round, precommit.Round)
 		}
-		if precommit.Type != VoteTypePrecommit {
+		if precommit.Type != PrecommitType {
 			return fmt.Errorf("Invalid commit -- not precommit @ index %v", idx)
 		}
 		_, val := valSet.GetByIndex(idx)
 		// Validate signature
-		if !val.VerifyVoteSignature(chainID, precommit) {
+		if !val.VerifyVoteSignature(chainID, commit.GetVote(idx)) {
 			return fmt.Errorf("Invalid commit -- invalid signature: %v", precommit)
 		}
 		if !blockID.Equal(precommit.BlockID) {
@@ -417,4 +417,21 @@ func (ac accumComparable) Less(o interface{}) bool {
 	other := o.(accumComparable).Validator
 	larger := ac.CompareAccum(other)
 	return bytes.Equal(larger.Address[:], ac.Address[:])
+}
+
+//----------------------------------------
+// RandValidator
+
+// RandValidator returns a randomized validator, useful for testing.
+// UNSTABLE
+func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
+	priv, _ := crypto.GenerateKey()
+	privVal := NewPrivValidator(priv)
+	votePower := minPower
+	if randPower {
+		votePower += 1
+	}
+	pubKey := privVal.GetPubKey()
+	val := NewValidator(pubKey, votePower)
+	return val, *privVal
 }

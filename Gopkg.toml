@@ -1,6 +1,6 @@
 [[constraint]]
   name = "github.com/ethereum/go-ethereum"
-  version = "1.9.2"
+  version = "1.9.7"
 
 [[constraint]]
   name = "github.com/go-stack/stack"
@@ -37,3 +37,14 @@
 [[constraint]]
   name = "github.com/cpuguy83/go-md2man"
   version = "1.0.10"
+
+[[constraint]]
+  name = "github.com/influxdata/influxdb1-client"
+  branch = "master"
+
+[[constraint]]
+  name = "github.com/syndtr/goleveldb"
+  branch = "master"
+
+
+  

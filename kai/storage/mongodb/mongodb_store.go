@@ -20,18 +20,20 @@ package mongodb
 
 import (
 	"context"
+	"errors"
+	"strings"
+	"time"
+
+	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/types"
-	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/x/bsonx"
-	"strings"
-	"time"
 )
 
 var client *mongo.Client
@@ -124,7 +126,7 @@ func NewDB(uri, dbName string, drop bool) (*Store, error) {
 
 // execute wraps executed code to a mongodb connection.
 func (db *Store) execute(f func(mongoDb *mongo.Database, ctx *context.Context) error) error {
-	if mongoDb, ctx, cancelCtxFunc, err := db.DB(); err != nil {
+	if mongoDb, ctx, cancelCtxFunc, err := db.db(); err != nil {
 		return err
 	} else {
 		defer cancelCtxFunc()
@@ -133,11 +135,11 @@ func (db *Store) execute(f func(mongoDb *mongo.Database, ctx *context.Context) e
 }
 
 // Put puts the given key / value to the queue
-func (db *Store) Put(key, value interface{}) error {
+func (db *Store) Put(key, value []byte) error {
 	if result, _ := db.Has(key); !result {
 		cache := Caching{
-			Key:   common.Bytes2Hex(key.([]byte)),
-			Value: common.Bytes2Hex(value.([]byte)),
+			Key:   common.Bytes2Hex(key),
+			Value: common.Bytes2Hex(value),
 		}
 
 		output, err := bson.Marshal(cache)
@@ -180,7 +182,7 @@ func (db *Store) WriteChainConfig(hash common.Hash, cfg *types.ChainConfig) {
 }
 
 // WriteBlock serializes a block into the database, header and body separately.
-func (db *Store) WriteBlock(block *types.Block) {
+func (db *Store) WriteBlock(block *types.Block, parts *types.PartSet, seenCommit *types.Commit) {
 	newBlock := NewBlock(block)
 	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
 		if e := db.insertBlock(mongoDb, ctx, newBlock); e != nil {
@@ -483,6 +485,8 @@ func (db *Store) ReadChainConfig(hash common.Hash) *types.ChainConfig {
 
 // ReadBody retrieves the block body corresponding to the hash.
 func (db *Store) ReadBody(hash common.Hash, height uint64) *types.Body {
+	signer := types.HomesteadSigner{}
+
 	var body *types.Body
 	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
 		transactions, e := db.getTransactionsByBlockId(mongoDb, ctx, height)
@@ -491,7 +495,7 @@ func (db *Store) ReadBody(hash common.Hash, height uint64) *types.Body {
 		}
 		txs := make([]*types.Transaction, 0)
 		for _, transaction := range transactions {
-			txs = append(txs, transaction.ToTransaction())
+			txs = append(txs, transaction.ToTransaction(signer))
 		}
 
 		// get commit from block
@@ -525,8 +529,10 @@ func (db *Store) ReadBodyRLP(hash common.Hash, height uint64) rlp.RawValue {
 //
 // Note, due to concurrent download of header and block body the header and thus
 // canonical hash can be stored in the database but the body data not (yet).
-func (db *Store) ReadBlock(logger log.Logger, hash common.Hash, height uint64) *types.Block {
+func (db *Store) ReadBlock(hash common.Hash, height uint64) *types.Block {
 	var newBlock *types.Block
+
+	signer := types.HomesteadSigner{}
 	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
 		var e error
 		var block *Block
@@ -541,12 +547,12 @@ func (db *Store) ReadBlock(logger log.Logger, hash common.Hash, height uint64) *
 		}
 		txs := make([]*types.Transaction, 0)
 		for _, transaction := range transactions {
-			txs = append(txs, transaction.ToTransaction())
+			txs = append(txs, transaction.ToTransaction(signer))
 		}
 
 		// TODO: get dualevents. currently make it empty
 		dualEvents := make([]*types.DualEvent, 0)
-		newBlock = block.ToBlock(logger)
+		newBlock = block.ToBlock()
 		body := types.Body{
 			Transactions: txs,
 			DualEvents:   dualEvents,
@@ -559,13 +565,12 @@ func (db *Store) ReadBlock(logger log.Logger, hash common.Hash, height uint64) *
 			body.LastCommit = commit.ToCommit()
 		} else {
 			commit := new(types.Commit)
-			commit.MakeNilEmpty()
 			body.LastCommit = commit
 		}
 		newBlock = newBlock.WithBody(&body)
 		return nil
 	}); err != nil {
-		logger.Error("error while reading block", "err", err, "height", height, "hash", hash.Hex())
+		panic(err)
 		return nil
 	}
 	return newBlock
@@ -573,6 +578,19 @@ func (db *Store) ReadBlock(logger log.Logger, hash common.Hash, height uint64) *
 
 // ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
 func (db *Store) ReadHeaderRLP(hash common.Hash, height uint64) rlp.RawValue {
+	panic("Not implemented yet")
+}
+
+// ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
+func (db *Store) ReadSeenCommit(height uint64) *types.Commit {
+	panic("Not implemented yet")
+}
+
+func (db *Store) ReadAppHash(height uint64) common.Hash {
+	panic("Not implemented yet")
+}
+
+func (db *Store) WriteAppHash(height uint64, hash common.Hash) {
 	panic("Not implemented yet")
 }
 
@@ -649,9 +667,22 @@ func (db *Store) ReadHeader(hash common.Hash, height uint64) *types.Header {
 	return block.ToHeader()
 }
 
+func (db *Store) DeleteBlockMeta(hash common.Hash, height uint64) {
+
+}
+
+func (db *Store) DeleteBlockPart(hash common.Hash, height uint64) {
+
+}
+
+func (db *Store) ReadBlockPart(hash common.Hash, height uint64, index int) *types.Part {
+	panic("read block part error")
+}
+
 // ReadTransaction retrieves a specific transaction from the database, along with
 // its added positional metadata.
 func (db *Store) ReadTransaction(hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
+	signer := types.HomesteadSigner{}
 	var tx *Transaction
 	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
 		var e error
@@ -661,7 +692,7 @@ func (db *Store) ReadTransaction(hash common.Hash) (*types.Transaction, common.H
 		log.Error("error while getting tx from hash", "err", err, "hash", hash.Hex())
 		return nil, common.NewZeroHash(), 0, 0
 	}
-	return tx.ToTransaction(), common.HexToHash(tx.BlockHash), tx.Height, uint64(tx.Index)
+	return tx.ToTransaction(signer), common.HexToHash(tx.BlockHash), tx.Height, uint64(tx.Index)
 }
 
 // Retrieves the positional metadata associated with a dual's event
@@ -840,7 +871,12 @@ func (db *Store) DeleteCanonicalHash(number uint64) {
 	panic("DeleteCanonicalHash has not implemented yet")
 }
 
-func (db *Store) Has(key interface{}) (bool, error) {
+// DeleteCanonicalHash removes the number to hash canonical mapping.
+func (db *Store) ReadBlockMeta(hash common.Hash, number uint64) *types.BlockMeta {
+	panic("ReadBlockMeta has not implemented yet")
+}
+
+func (db *Store) Has(key []byte) (bool, error) {
 	if value, err := db.Get(key); value != nil {
 		return true, err
 	} else {
@@ -849,10 +885,10 @@ func (db *Store) Has(key interface{}) (bool, error) {
 }
 
 // Get returns the given key if it's present.
-func (db *Store) Get(key interface{}) (interface{}, error) {
+func (db *Store) Get(key []byte) ([]byte, error) {
 	var c Caching
 	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
-		cur := mongoDb.Collection(trieTable).FindOne(*ctx, bson.M{"key": bsonx.String(common.Bytes2Hex(key.([]byte)))})
+		cur := mongoDb.Collection(trieTable).FindOne(*ctx, bson.M{"key": bsonx.String(common.Bytes2Hex(key))})
 		return cur.Decode(&c)
 	}); err != nil {
 		return nil, err
@@ -861,29 +897,53 @@ func (db *Store) Get(key interface{}) (interface{}, error) {
 }
 
 // Delete deletes the key from the queue and database
-func (db *Store) Delete(key interface{}) error {
+func (db *Store) Delete(key []byte) error {
 	panic("Not implemented yet")
 }
 
-func (db *Store) NewIterator() iterator.Iterator {
+func (db *Store) NewIterator() kaidb.Iterator {
 	panic("Not implemented yet")
 }
 
-func (db *Store) Close() {
+func (db *Store) NewIteratorWithPrefix(prefix []byte) kaidb.Iterator {
+	panic("Not implemented yet")
+}
+
+func (db *Store) NewIteratorWithStart(prefix []byte) kaidb.Iterator {
+	panic("Not implemented yet")
+}
+
+func (db *Store) Close() error {
 	// Stop the metrics collection to avoid internal database races
-	panic("Not implemented yet")
+	return errors.New("Not implemented yet")
 }
 
-func (db *Store) DB() (*mongo.Database, *context.Context, context.CancelFunc, error) {
+func (db *Store) Stat(a string) (string, error) {
+	return "", nil
+}
+
+// Compact is not supported on a memory database, but there's no need either as
+// a memory database doesn't waste space anyway.
+func (db *Store) Compact(start []byte, limit []byte) error {
+	return nil
+}
+
+// Compact is not supported on a memory database, but there's no need either as
+// a memory database doesn't waste space anyway.
+func (db *Store) NewBatch() kaidb.Batch {
+	return nil
+}
+
+func (db *Store) DB() kaidb.Database {
+	return db
+}
+
+func (db *Store) db() (*mongo.Database, *context.Context, context.CancelFunc, error) {
 	if client, ctx, cancelCtxFunc, err := NewClient(db.uri); err != nil {
 		return nil, nil, nil, err
 	} else {
 		return client.Database(db.dbName), ctx, cancelCtxFunc, nil
 	}
-}
-
-func (db *Store) NewBatch() types.Batch {
-	return newMongoDbBatch(db)
 }
 
 func (db *Store) getBlockById(mongoDb *mongo.Database, ctx *context.Context, blockId uint64) (*Block, error) {
@@ -1031,257 +1091,4 @@ func (db *Store) insertChainConfig(config *types.ChainConfig, hash common.Hash) 
 		})
 	}
 	return nil
-}
-
-type mongoDbBatch struct {
-	db   *Store
-	size int
-}
-
-func newMongoDbBatch(db *Store) *mongoDbBatch {
-	return &mongoDbBatch{db: db}
-}
-
-// Put puts the given key / value to the queue
-func (db *mongoDbBatch) Put(key, value interface{}) error {
-	return db.db.Put(key, value)
-}
-
-// WriteBody stores a block body into the database.
-func (db *mongoDbBatch) WriteBody(hash common.Hash, height uint64, body *types.Body) {
-	db.db.WriteBody(hash, height, body)
-}
-
-// WriteBodyRLP stores an RLP encoded block body into the database.
-func (db *mongoDbBatch) WriteBodyRLP(hash common.Hash, height uint64, rlp rlp.RawValue) {
-	db.db.WriteBodyRLP(hash, height, rlp)
-}
-
-// WriteHeader stores a block header into the database and also stores the hash-
-// to-height mapping.
-func (db *mongoDbBatch) WriteHeader(header *types.Header) {
-	db.db.WriteHeader(header)
-}
-
-// WriteChainConfig writes the chain config settings to the database.
-func (db *mongoDbBatch) WriteChainConfig(hash common.Hash, cfg *types.ChainConfig) {
-	db.db.WriteChainConfig(hash, cfg)
-}
-
-// WriteBlock serializes a block into the database, header and body separately.
-func (db *mongoDbBatch) WriteBlock(block *types.Block) {
-	db.db.WriteBlock(block)
-}
-
-// WriteReceipts stores all the transaction receipts belonging to a block.
-func (db *mongoDbBatch) WriteReceipts(hash common.Hash, height uint64, receipts types.Receipts) {
-	db.db.WriteReceipts(hash, height, receipts)
-}
-
-// WriteCanonicalHash stores the hash assigned to a canonical block height.
-func (db *mongoDbBatch) WriteCanonicalHash(hash common.Hash, height uint64) {
-	db.db.WriteCanonicalHash(hash, height)
-}
-
-// WriteHeadBlockHash stores the head block's hash.
-func (db *mongoDbBatch) WriteHeadBlockHash(hash common.Hash) {
-	db.db.WriteHeadBlockHash(hash)
-}
-
-// WriteHeadHeaderHash stores the hash of the current canonical head header.
-func (db *mongoDbBatch) WriteHeadHeaderHash(hash common.Hash) {
-	db.db.WriteHeadHeaderHash(hash)
-}
-
-// WriteCommit stores a commit into the database.
-func (db *mongoDbBatch) WriteCommit(height uint64, commit *types.Commit) {
-	db.db.WriteCommit(height, commit)
-}
-
-// WriteCommitRLP stores an RLP encoded commit into the database.
-func (db *mongoDbBatch) WriteCommitRLP(height uint64, rlp rlp.RawValue) {
-	db.db.WriteCommitRLP(height, rlp)
-}
-
-func (db *mongoDbBatch) WriteTxLookupEntries(block *types.Block) {
-	db.db.WriteTxLookupEntries(block)
-}
-
-func (db *mongoDbBatch) WriteEvent(smc *types.KardiaSmartcontract) {
-	db.db.WriteEvent(smc)
-}
-
-// Stores a hash into the database.
-func (db *mongoDbBatch) StoreHash(hash *common.Hash) {
-	db.db.StoreHash(hash)
-}
-
-// Stores a tx hash into the database.
-func (db *mongoDbBatch) StoreTxHash(hash *common.Hash) {
-	db.db.StoreTxHash(hash)
-}
-
-// ReadCanonicalHash retrieves the hash assigned to a canonical block height.
-func (db *mongoDbBatch) ReadCanonicalHash(height uint64) common.Hash {
-	return db.db.ReadCanonicalHash(height)
-}
-
-// ReadChainConfig retrieves the consensus settings based on the given genesis hash.
-func (db *mongoDbBatch) ReadChainConfig(hash common.Hash) *types.ChainConfig {
-	return db.db.ReadChainConfig(hash)
-}
-
-// ReadBody retrieves the block body corresponding to the hash.
-func (db *mongoDbBatch) ReadBody(hash common.Hash, height uint64) *types.Body {
-	return db.db.ReadBody(hash, height)
-}
-
-// ReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
-func (db *mongoDbBatch) ReadBodyRLP(hash common.Hash, height uint64) rlp.RawValue {
-	return db.db.ReadBodyRLP(hash, height)
-}
-
-func (db *mongoDbBatch) ReadBlock(logger log.Logger, hash common.Hash, height uint64) *types.Block {
-	return db.db.ReadBlock(logger, hash, height)
-}
-
-// ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
-func (db *mongoDbBatch) ReadHeaderRLP(hash common.Hash, height uint64) rlp.RawValue {
-	return db.ReadHeaderRLP(hash, height)
-}
-
-// ReadHeadBlockHash retrieves the hash of the current canonical head block.
-func (db *mongoDbBatch) ReadHeadBlockHash() common.Hash {
-	return db.db.ReadHeadBlockHash()
-}
-
-// ReadHeadHeaderHash retrieves the hash of the current canonical head header.
-func (db *mongoDbBatch) ReadHeadHeaderHash() common.Hash {
-	return db.db.ReadHeadHeaderHash()
-}
-
-// ReadCommitRLP retrieves the commit in RLP encoding.
-func (db *mongoDbBatch) ReadCommitRLP(height uint64) rlp.RawValue {
-	return db.db.ReadCommitRLP(height)
-}
-
-// ReadBody retrieves the commit at a given height.
-func (db *mongoDbBatch) ReadCommit(height uint64) *types.Commit {
-	return db.db.ReadCommit(height)
-}
-
-// ReadHeaderheight returns the header height assigned to a hash.
-func (db *mongoDbBatch) ReadHeaderHeight(hash common.Hash) *uint64 {
-	return db.db.ReadHeaderHeight(hash)
-}
-
-// ReadHeader retrieves the block header corresponding to the hash.
-func (db *mongoDbBatch) ReadHeader(hash common.Hash, height uint64) *types.Header {
-	return db.db.ReadHeader(hash, height)
-}
-
-// ReadTransaction retrieves a specific transaction from the database, along with
-// its added positional metadata.
-func (db *mongoDbBatch) ReadTransaction(hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
-	return db.db.ReadTransaction(hash)
-}
-
-// Retrieves the positional metadata associated with a dual's event
-// hash to allow retrieving the event by hash.
-func (db *mongoDbBatch) ReadDualEventLookupEntry(hash common.Hash) (common.Hash, uint64, uint64) {
-	return db.db.ReadDualEventLookupEntry(hash)
-}
-
-// Retrieves a specific dual's event from the database, along with
-// its added positional metadata.
-func (db *mongoDbBatch) ReadDualEvent(hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
-	return db.db.ReadDualEvent(hash)
-}
-
-// ReadHeaderNumber returns the header number assigned to a hash.
-func (db *mongoDbBatch) ReadHeaderNumber(hash common.Hash) *uint64 {
-	return db.db.ReadHeaderNumber(hash)
-}
-
-// ReadReceipts retrieves all the transaction receipts belonging to a block.
-func (db *mongoDbBatch) ReadReceipts(hash common.Hash, number uint64) types.Receipts {
-	return db.db.ReadReceipts(hash, number)
-}
-
-// ReadTxLookupEntry retrieves the positional metadata associated with a transaction
-// hash to allow retrieving the transaction or receipt by hash.
-func (db *mongoDbBatch) ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, uint64) {
-	return db.db.ReadTxLookupEntry(hash)
-}
-
-func (db *mongoDbBatch) ReadSmartContractAbi(address string) *abi.ABI {
-	return db.db.ReadSmartContractAbi(address)
-}
-
-func (db *mongoDbBatch) ReadEvent(address string, method string) *types.Watcher {
-	return db.db.ReadEvent(address, method)
-}
-
-func (db *mongoDbBatch) ReadEvents(address string) (string, []*types.Watcher) {
-	return db.db.ReadEvents(address)
-}
-
-// Returns true if a hash already exists in the database.
-func (db *mongoDbBatch) CheckHash(hash *common.Hash) bool {
-	return db.db.CheckHash(hash)
-}
-
-// Returns true if a tx hash already exists in the database.
-func (db *mongoDbBatch) CheckTxHash(hash *common.Hash) bool {
-	return db.db.CheckTxHash(hash)
-}
-
-// DeleteBody removes all block body data associated with a hash.
-func (db *mongoDbBatch) DeleteBody(hash common.Hash, height uint64) {
-	db.db.DeleteBody(hash, height)
-}
-
-// DeleteHeader removes all block header data associated with a hash.
-func (db *mongoDbBatch) DeleteHeader(hash common.Hash, height uint64) {
-	db.db.DeleteHeader(hash, height)
-}
-
-// DeleteCanonicalHash removes the number to hash canonical mapping.
-func (db *mongoDbBatch) DeleteCanonicalHash(number uint64) {
-	panic("DeleteCanonicalHash has not implemented yet")
-}
-
-func (db *mongoDbBatch) Has(key interface{}) (bool, error) {
-	return db.db.Has(key)
-}
-
-// Get returns the given key if it's present.
-func (db *mongoDbBatch) Get(key interface{}) (interface{}, error) {
-	return db.db.Get(key)
-}
-
-// Delete deletes the key from the queue and database
-func (db *mongoDbBatch) Delete(key interface{}) error {
-	panic("Not implemented yet")
-}
-
-func (db *mongoDbBatch) NewIterator() iterator.Iterator {
-	panic("Not implemented yet")
-}
-
-func (db *mongoDbBatch) Close() {
-	// Stop the metrics collection to avoid internal database races
-	panic("Not implemented yet")
-}
-
-func (db *mongoDbBatch) Write() error {
-	return nil
-}
-
-func (db *mongoDbBatch) ValueSize() int {
-	return db.size
-}
-
-func (db *mongoDbBatch) Reset() {
-	db.size = 0
 }

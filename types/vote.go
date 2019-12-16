@@ -57,30 +57,12 @@ func NewConflictingVoteError(val *Validator, voteA, voteB *Vote) *ErrVoteConflic
 	}
 }
 
-// Types of votes
-// TODO Make a new type "VoteType"
-const (
-	VoteTypePrevote   = byte(0x01)
-	VoteTypePrecommit = byte(0x02)
-)
-
-func IsVoteTypeValid(type_ byte) bool {
-	switch type_ {
-	case VoteTypePrevote:
-		return true
-	case VoteTypePrecommit:
-		return true
-	default:
-		return false
-	}
-}
-
-func GetReadableVoteTypeString(type_ byte) string {
+func GetReadableVoteTypeString(t SignedMsgType) string {
 	var typeString string
-	switch type_ {
-	case VoteTypePrevote:
+	switch t {
+	case PrevoteType:
 		typeString = "Prevote"
-	case VoteTypePrecommit:
+	case PrecommitType:
 		typeString = "Precommit"
 	default:
 		cmn.PanicSanity("Unknown vote type")
@@ -91,14 +73,14 @@ func GetReadableVoteTypeString(type_ byte) string {
 
 // Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
-	ValidatorAddress cmn.Address `json:"validator_address"`
-	ValidatorIndex   *cmn.BigInt `json:"validator_index"`
-	Height           *cmn.BigInt `json:"height"`
-	Round            *cmn.BigInt `json:"round"`
-	Timestamp        *big.Int    `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
-	Type             byte        `json:"type"`
-	BlockID          BlockID     `json:"block_id"` // zero if vote is nil.
-	Signature        []byte      `json:"signature"`
+	ValidatorAddress cmn.Address   `json:"validator_address"`
+	ValidatorIndex   *cmn.BigInt   `json:"validator_index"`
+	Height           *cmn.BigInt   `json:"height"`
+	Round            *cmn.BigInt   `json:"round"`
+	Timestamp        *big.Int      `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+	Type             SignedMsgType `json:"type"`
+	BlockID          BlockID       `json:"block_id"` // zero if vote is nil.
+	Signature        []byte        `json:"signature"`
 }
 
 func CreateEmptyVote() *Vote {
@@ -108,6 +90,21 @@ func CreateEmptyVote() *Vote {
 		Round:          cmn.NewBigInt64(-1),
 		Timestamp:      big.NewInt(0),
 	}
+}
+
+func (vote *Vote) Copy() *Vote {
+	voteCopy := *vote
+	return &voteCopy
+}
+
+// CommitSig converts the Vote to a CommitSig.
+// If the Vote is nil, the CommitSig will be nil.
+func (vote *Vote) CommitSig() *CommitSig {
+	if vote == nil {
+		return nil
+	}
+	cs := CommitSig(*vote)
+	return &cs
 }
 
 func (vote *Vote) IsEmpty() bool {
@@ -122,15 +119,6 @@ func (vote *Vote) SignBytes(chainID string) []byte {
 	return bz
 }
 
-func (vote *Vote) Copy() *Vote {
-	voteCopy := *vote
-	voteCopy.ValidatorIndex = vote.ValidatorIndex.Copy()
-	voteCopy.Height = vote.Height.Copy()
-	voteCopy.Round = vote.Round.Copy()
-	voteCopy.Timestamp = big.NewInt(vote.Timestamp.Int64())
-	return &voteCopy
-}
-
 // StringLong returns a long string representing full info about Vote
 func (vote *Vote) StringLong() string {
 	if vote == nil {
@@ -143,7 +131,7 @@ func (vote *Vote) StringLong() string {
 	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X , %v @ %v}",
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
-		cmn.Fingerprint(vote.BlockID[:]), vote.Signature,
+		vote.BlockID.Hash.Fingerprint(), vote.Signature,
 		time.Unix(vote.Timestamp.Int64(), 0))
 }
 
@@ -161,6 +149,38 @@ func (vote *Vote) String() string {
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		vote.BlockID, cmn.Fingerprint(vote.Signature[:]),
 		time.Unix(vote.Timestamp.Int64(), 0))
+}
+
+// ValidateBasic performs basic validation.
+func (vote *Vote) ValidateBasic() error {
+	if !IsVoteTypeValid(vote.Type) {
+		return errors.New("invalid Type")
+	}
+	if vote.Height.EqualsInt(0) {
+		return errors.New("negative Height")
+	}
+	if vote.Round.EqualsInt(0) {
+		return errors.New("negative Round")
+	}
+
+	// NOTE: Timestamp validation is subtle and handled elsewhere.
+
+	if err := vote.BlockID.ValidateBasic(); err != nil {
+		return fmt.Errorf("wrong BlockID: %v", err)
+	}
+	// BlockID.ValidateBasic would not err if we for instance have an empty hash but a
+	// non-empty PartsSetHeader:
+	if !vote.BlockID.IsZero() && !vote.BlockID.IsComplete() {
+		return fmt.Errorf("blockID must be either empty or complete, got: %v", vote.BlockID)
+	}
+
+	if vote.ValidatorIndex.IsLessThanInt(0) {
+		return errors.New("negative ValidatorIndex")
+	}
+	if len(vote.Signature) == 0 {
+		return errors.New("signature is missing")
+	}
+	return nil
 }
 
 // UNSTABLE

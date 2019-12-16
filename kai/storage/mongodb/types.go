@@ -19,12 +19,13 @@
 package mongodb
 
 import (
+	"math/big"
+
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"math/big"
 )
 
 const (
@@ -45,6 +46,11 @@ const (
 )
 
 type (
+	PartSetHeader struct {
+		Total int
+		Hash  string
+	}
+
 	Header struct {
 		Height        uint64 `json:"height"        bson:"height"`
 		Time          uint64 `json:"time"          bson:"time"`
@@ -55,14 +61,15 @@ type (
 		GasUsed  uint64 `json:"gasUsed"          bson:"gasUsed"`
 
 		// prev block info
-		LastBlockID string `json:"lastBlockID"      bson:"lastBlockID"`
-		Coinbase    string `json:"miner"            bson:"miner"` // address
+		LastBlockID string        `json:"lastBlockID"      bson:"lastBlockID"`
+		PartsHeader PartSetHeader `json:"partsHeader" 		  bson:"partsHeader"`
+		Coinbase    string        `json:"miner"            bson:"miner"` // address
 
 		// hashes of block data
 		LastCommitHash string `json:"lastCommitHash"      bson:"lastCommitHash"` // commit from validators from the last block
 		TxHash         string `json:"txHash"              bson:"txHash"`         // transactions
 		DualEventsHash string `json:"dualEventsHash"      bson:"dualEventsHash"` // dual's events
-		Root           string `json:"stateRoot"           bson:"stateRoot"`      // state root
+		AppHash        string `json:"app_hash"           bson:"app_hash"`        // state root
 		ReceiptHash    string `json:"receiptsRoot"        bson:"receiptsRoot"`   // receipt root
 		Bloom          string `json:"logsBloom"           bson:"logsBloom"`
 
@@ -141,19 +148,21 @@ type (
 		ExtData  []string `json:"extData"            bson:"extData"`  // Additional data along with this event
 	}
 	Commit struct {
-		Height     uint64  `json:"height"           bson:"height"`
-		BlockID    string  `json:"blockID"          bson:"blockID"`
-		Precommits []*Vote `json:"precommits"       bson:"precommits"`
+		Height      uint64        `json:"height"           bson:"height"`
+		BlockID     string        `json:"blockID"          bson:"blockID"`
+		Precommits  []*Vote       `json:"precommits"       bson:"precommits"`
+		PartsHeader PartSetHeader `json:"partsHeader" bson:"partsHeader"`
 	}
 	Vote struct {
-		ValidatorAddress string `json:"validatorAddress"           bson:"validatorAddress"`
-		ValidatorIndex   int64  `json:"validatorIndex"             bson:"validatorIndex"`
-		Height           int64  `json:"height"                     bson:"height"`
-		Round            int64  `json:"round"                      bson:"round"`
-		Timestamp        uint64 `json:"timestamp"                  bson:"timestamp"`
-		Type             byte   `json:"type"                       bson:"type"`
-		BlockID          string `json:"blockID"                    bson:"blockID"`
-		Signature        string `json:"signature"                  bson:"signature"`
+		ValidatorAddress string              `json:"validatorAddress"           bson:"validatorAddress"`
+		ValidatorIndex   int64               `json:"validatorIndex"             bson:"validatorIndex"`
+		Height           int64               `json:"height"                     bson:"height"`
+		Round            int64               `json:"round"                      bson:"round"`
+		Timestamp        uint64              `json:"timestamp"                  bson:"timestamp"`
+		Type             types.SignedMsgType `json:"type"                       bson:"type"`
+		BlockID          string              `json:"blockID"                    bson:"blockID"`
+		Signature        string              `json:"signature"                  bson:"signature"`
+		PartsHeader      PartSetHeader       `json:"partsHeader" bson:"partsHeader"`
 	}
 	HeadHeaderHash struct {
 		ID   int    `json:"ID"      bson:"ID"`
@@ -200,17 +209,12 @@ func NewBlock(block *types.Block) *Block {
 		Time:           0,
 		LastBlockID:    block.Header().LastBlockID.StringLong(),
 		NumTxs:         block.NumTxs(),
-		TxHash:         block.Header().TxHash.Hex(),
-		GasUsed:        block.Header().GasUsed,
-		Bloom:          common.Bytes2Hex(block.Header().Bloom.Bytes()),
-		Coinbase:       block.Header().Coinbase.Hex(),
+		TxHash:         block.TxHash().Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 		DualEventsHash: block.Header().DualEventsHash.Hex(),
 		GasLimit:       block.Header().GasLimit,
 		LastCommitHash: block.Header().LastCommitHash.Hex(),
 		NumDualEvents:  block.Header().NumDualEvents,
-		ReceiptHash:    block.Header().ReceiptHash.Hex(),
-		Root:           block.Header().Root.Hex(),
 		Validator:      block.Header().Validator.Hex(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 	}
@@ -227,32 +231,28 @@ func NewBlock(block *types.Block) *Block {
 func (block *Block) ToHeader() *types.Header {
 	header := types.Header{
 		Height:         block.Header.Height,
-		LastBlockID:    (types.BlockID)(common.HexToHash(block.Header.LastBlockID)),
+		LastBlockID:    toBlockID(block.Header.LastBlockID, block.Header.PartsHeader),
 		Time:           big.NewInt(int64(block.Header.Time)),
 		NumTxs:         block.Header.NumTxs,
 		TxHash:         common.HexToHash(block.Header.TxHash),
-		GasUsed:        block.Header.GasUsed,
-		Bloom:          types.BytesToBloom(common.FromHex(block.Header.Bloom)),
-		Coinbase:       common.HexToAddress(block.Header.Coinbase),
 		ConsensusHash:  common.HexToHash(block.Header.ConsensusHash),
 		DualEventsHash: common.HexToHash(block.Header.DualEventsHash),
 		GasLimit:       block.Header.GasLimit,
 		LastCommitHash: common.HexToHash(block.Header.LastCommitHash),
 		NumDualEvents:  block.Header.NumDualEvents,
-		ReceiptHash:    common.HexToHash(block.Header.ReceiptHash),
-		Root:           common.HexToHash(block.Header.Root),
+		AppHash:        common.HexToHash(block.Header.AppHash),
 		Validator:      common.HexToAddress(block.Header.Validator),
 		ValidatorsHash: common.HexToHash(block.Header.ValidatorsHash),
 	}
 	return &header
 }
 
-func (block *Block) ToBlock(logger log.Logger) *types.Block {
-	return types.NewBlockWithHeader(logger, block.ToHeader())
+func (block *Block) ToBlock() *types.Block {
+	return types.NewBlockWithHeader(block.ToHeader())
 }
 
 func NewTransaction(tx *types.Transaction, height uint64, blockHash string, index int) (*Transaction, error) {
-	sender, err := types.Sender(tx)
+	sender, err := types.Sender(types.HomesteadSigner{}, tx)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func NewTransaction(tx *types.Transaction, height uint64, blockHash string, inde
 	return newTx, nil
 }
 
-func (tx *Transaction) ToTransaction() *types.Transaction {
+func (tx *Transaction) ToTransaction(signer types.Signer) *types.Transaction {
 	amount, ok := big.NewInt(1).SetString(tx.Amount, 10)
 	if !ok {
 		log.Error("cannot cast amount to big.Int", "txHash", tx.Hash)
@@ -338,7 +338,7 @@ func (tx *Transaction) ToTransaction() *types.Transaction {
 	copy(sig[32:64], s.Bytes())
 	sig[64] = byte(v.Uint64() - 27)
 
-	signedTx, err := newTx.WithSignature(sig)
+	signedTx, err := newTx.WithSignature(signer, sig)
 	if err != nil {
 		log.Error("error while signing tx based on stored r,s,v", "err", err)
 		return nil
@@ -425,7 +425,7 @@ func (receipt *Receipt) ToReceipt() *types.Receipt {
 	}
 }
 
-func NewVote(vote *types.Vote) *Vote {
+func NewVote(vote *types.CommitSig) *Vote {
 	return &Vote{
 		Height:           vote.Height.Int64(),
 		Type:             vote.Type,
@@ -444,7 +444,7 @@ func (vote *Vote) ToVote() *types.Vote {
 		Type:             vote.Type,
 		Timestamp:        big.NewInt(int64(vote.Timestamp)),
 		Round:            common.NewBigInt64(vote.Round),
-		BlockID:          (types.BlockID)(common.HexToHash(vote.BlockID)),
+		BlockID:          toBlockID(vote.BlockID, vote.PartsHeader),
 		Signature:        common.Hex2Bytes(vote.Signature),
 		ValidatorAddress: common.HexToAddress(vote.ValidatorAddress),
 		ValidatorIndex:   common.NewBigInt64(vote.ValidatorIndex),
@@ -469,17 +469,17 @@ func NewCommit(commit *types.Commit, height uint64) *Commit {
 }
 
 func (commit *Commit) ToCommit() *types.Commit {
-	votes := make([]*types.Vote, 0)
-	for _, vote := range commit.Precommits {
+	commitSigs := make([]*types.CommitSig, len(commit.Precommits))
+	for idx, vote := range commit.Precommits {
 		if vote != nil {
-			votes = append(votes, vote.ToVote())
+			commitSigs[idx] = vote.ToVote().CommitSig()
 		} else {
-			votes = append(votes, nil)
+			commitSigs[idx] = nil
 		}
 	}
 	return &types.Commit{
-		Precommits: votes,
-		BlockID:    (types.BlockID)(common.HexToHash(commit.BlockID)),
+		Precommits: commitSigs,
+		BlockID:    toBlockID(commit.BlockID, commit.PartsHeader),
 	}
 }
 
@@ -505,4 +505,14 @@ func (config *ChainConfig) ToChainConfig() *types.ChainConfig {
 		Period: config.Period,
 	}
 	return &types.ChainConfig{Kaicon: &kaiCon, BaseAccount: &types.BaseAccount{PrivateKey: *pk, Address: common.HexToAddress(config.BaseAccount.Address)}}
+}
+
+func toBlockID(blockID string, partSetHeader PartSetHeader) types.BlockID {
+	return types.BlockID{
+		Hash: common.BytesToHash([]byte(blockID)),
+		PartsHeader: types.PartSetHeader{
+			Total: *common.NewBigInt32(partSetHeader.Total),
+			Hash:  common.BytesToHash([]byte(partSetHeader.Hash)),
+		},
+	}
 }

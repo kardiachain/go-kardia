@@ -21,9 +21,10 @@ package types
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -48,9 +49,9 @@ var (
 		big.NewInt(1),
 		common.FromHex("5544"),
 	).WithSignature(
+		HomesteadSigner{},
 		common.Hex2Bytes("98ff921201554726367d2be8c804a7ff89ccf285ebc57dff8ae4c44b9c19ac4a8887321be575c8095f789dd4c743dfe42c1820f9231f98a962b210e3ac2452a301"),
 	)
-
 )
 
 func TestTransactionSigHash(t *testing.T) {
@@ -94,7 +95,7 @@ func TestRecipientEmpty(t *testing.T) {
 		t.FailNow()
 	}
 
-	from, err := Sender(tx)
+	from, err := Sender(HomesteadSigner{}, tx)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -114,7 +115,7 @@ func TestRecipientNormal(t *testing.T) {
 		t.FailNow()
 	}
 
-	from, err := Sender(tx)
+	from, err := Sender(HomesteadSigner{}, tx)
 	if err != nil {
 		t.Error(err)
 		t.FailNow()
@@ -129,12 +130,12 @@ func TestTransactionSigning(t *testing.T) {
 	key, _ := crypto.GenerateKey()
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 
-	tx, err := SignTx(NewTransaction(0, addr, new(big.Int), 0, new(big.Int), nil), key)
+	tx, err := SignTx(HomesteadSigner{}, NewTransaction(0, addr, new(big.Int), 0, new(big.Int), nil), key)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	from, err := Sender(tx)
+	from, err := Sender(HomesteadSigner{}, tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +162,7 @@ func TestTransactionWithBigAmount(t *testing.T) {
 	pk, err := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	require.NoError(t, err)
 
-	signedTx, err := SignTx(tx, pk)
+	signedTx, err := SignTx(HomesteadSigner{}, tx, pk)
 	require.NoError(t, err)
 
 	// encode tx

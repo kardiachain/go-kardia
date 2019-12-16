@@ -21,10 +21,11 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/kardiachain/go-kardia/ksml"
 	message2 "github.com/kardiachain/go-kardia/ksml/proto"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-	"time"
 
 	"github.com/golang/protobuf/jsonpb"
 	dualMsg "github.com/kardiachain/go-kardia/dualnode/message"
@@ -92,12 +93,12 @@ func ExecuteKardiaSmartContract(txPool *tx_pool.TxPool, bc base.BaseBlockChain, 
 	if bc.Config().BaseAccount != nil {
 		sender := bc.Config().BaseAccount.Address
 		currentHeader := bc.CurrentHeader()
-		stateDb := txPool.State().StateDB
+		stateDb := txPool.State()
 		gasUsed, err := ksml.EstimateGas(sender, common.HexToAddress(contractAddress), currentHeader, bc, stateDb, input)
 		if err != nil {
 			return nil, err
 		}
-		nonce := txPool.GetAddressState(sender)
+		nonce := txPool.Nonce(sender)
 		return ksml.GenerateSmcCall(nonce, &bc.Config().BaseAccount.PrivateKey, common.HexToAddress(contractAddress), input, gasUsed)
 	}
 	return nil, fmt.Errorf("cannot execute kardia smart contract - base account not found")
@@ -129,7 +130,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 			return err
 		}
 
-		if err := proxy.KardiaTxPool().AddTx(tx); err != nil {
+		if err := proxy.KardiaTxPool().AddLocal(tx); err != nil {
 			proxy.Logger().Error("Error on adding tx to txPool", "err", err, "topic", topic)
 			return err
 		}
@@ -167,16 +168,16 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 			txHash := common.HexToHash(msg.GetTransactionId())
 			// new event message
 			eventMessage := &message2.EventMessage{
-				MasterSmartContract:  masterSmc.Hex(),
-				TransactionId:        msg.GetTransactionId(),
-				From:                 from,
-				To:                   to,
-				Method:               msg.MethodName,
-				Params:               msg.Params,
-				Amount:               msg.GetAmount(),
-				Sender:               msg.GetSender(),
-				BlockNumber:          msg.BlockNumber,
-				Timestamp:            msg.Timestamp,
+				MasterSmartContract: masterSmc.Hex(),
+				TransactionId:       msg.GetTransactionId(),
+				From:                from,
+				To:                  to,
+				Method:              msg.MethodName,
+				Params:              msg.Params,
+				Amount:              msg.GetAmount(),
+				Sender:              msg.GetSender(),
+				BlockNumber:         msg.BlockNumber,
+				Timestamp:           msg.Timestamp,
 			}
 			if watcher.WatcherActions != nil && len(watcher.WatcherActions) > 0 {
 				parser := ksml.NewParser(

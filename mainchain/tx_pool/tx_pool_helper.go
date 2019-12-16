@@ -15,21 +15,16 @@
  *  You should have received a copy of the GNU Lesser General Public License
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package tx_pool
 
 import (
 	"container/heap"
-	"errors"
-	"io"
 	"math"
 	"math/big"
-	"os"
 	"sort"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -400,243 +395,127 @@ func (h *priceHeap) Pop() interface{} {
 	return x
 }
 
-//==============================================================================================
-// tx_cacher
-//==============================================================================================
-
-// senderCacher is a concurrent tranaction sender recoverer anc cacher.
-//var senderCacher = newTxSenderCacher(runtime.NumCPU())
-
-// txSenderCacherRequest is a request for recovering transaction senders with a
-// specific signature scheme and caching it into the transactions themselves.
-//
-// The inc field defines the number of transactions to skip after each recovery,
-// which is used to feed the same underlying input array to different threads but
-// ensure they process the early transactions fast.
-type txSenderCacherRequest struct {
-	txs []*types.Transaction
-	inc int
+// txPricedList is a price-sorted heap to allow operating on transactions pool
+// contents in a price-incrementing way.
+type txPricedList struct {
+	all    *txLookup  // Pointer to the map of all transactions
+	items  *priceHeap // Heap of prices of all the stored transactions
+	stales int        // Number of stale price points to (re-heap trigger)
 }
 
-// txSenderCacher is a helper structure to concurrently ecrecover transaction
-// senders from digital signatures on background threads.
-type txSenderCacher struct {
-	threads int
-	tasks   chan *txSenderCacherRequest
-}
-
-// newTxSenderCacher creates a new transaction sender background cacher and starts
-// as many procesing goroutines as allowed by the GOMAXPROCS on construction.
-func newTxSenderCacher(threads int) *txSenderCacher {
-	cacher := &txSenderCacher{
-		tasks:   make(chan *txSenderCacherRequest, threads),
-		threads: threads,
-	}
-	for i := 0; i < threads; i++ {
-		go cacher.cache()
-	}
-	return cacher
-}
-
-// cache is an infinite loop, caching transaction senders from various forms of
-// data structures.
-func (cacher *txSenderCacher) cache() {
-	for task := range cacher.tasks {
-		for i := 0; i < len(task.txs); i += task.inc {
-			types.Sender(task.txs[i])
-		}
+// newTxPricedList creates a new price-sorted transaction heap.
+func newTxPricedList(all *txLookup) *txPricedList {
+	return &txPricedList{
+		all:   all,
+		items: new(priceHeap),
 	}
 }
 
-// recover recovers the senders from a batch of transactions and caches them
-// back into the same data structures. There is no validation being done, nor
-// any reaction to invalid signatures. That is up to calling code later.
-func (cacher *txSenderCacher) recover(txs []*types.Transaction) {
-	// If there's nothing to recover, abort
-	if len(txs) == 0 {
+// Put inserts a new transaction into the heap.
+func (l *txPricedList) Put(tx *types.Transaction) {
+	heap.Push(l.items, tx)
+}
+
+// Removed notifies the prices transaction list that an old transaction dropped
+// from the pool. The list will just keep a counter of stale objects and update
+// the heap if a large enough ratio of transactions go stale.
+func (l *txPricedList) Removed(count int) {
+	// Bump the stale counter, but exit if still too low (< 25%)
+	l.stales += count
+	if l.stales <= len(*l.items)/4 {
 		return
 	}
-	// Ensure we have meaningful task sizes and schedule the recoveries
-	tasks := cacher.threads
-	if len(txs) < tasks*4 {
-		tasks = (len(txs) + 3) / 4
-	}
-	for i := 0; i < tasks; i++ {
-		cacher.tasks <- &txSenderCacherRequest{
-			txs: txs[i:],
-			inc: tasks,
+	// Seems we've reached a critical number of stale transactions, reheap
+	reheap := make(priceHeap, 0, l.all.Count())
+
+	l.stales, l.items = 0, &reheap
+	l.all.Range(func(hash common.Hash, tx *types.Transaction) bool {
+		*l.items = append(*l.items, tx)
+		return true
+	})
+	heap.Init(l.items)
+}
+
+// Cap finds all the transactions below the given price threshold, drops them
+// from the priced list and returns them for further removal from the entire pool.
+func (l *txPricedList) Cap(threshold *big.Int, local *accountSet) types.Transactions {
+	drop := make(types.Transactions, 0, 128) // Remote underpriced transactions to drop
+	save := make(types.Transactions, 0, 64)  // Local underpriced transactions to keep
+
+	for len(*l.items) > 0 {
+		// Discard stale transactions if found during cleanup
+		tx := heap.Pop(l.items).(*types.Transaction)
+		if l.all.Get(tx.Hash()) == nil {
+			l.stales--
+			continue
 		}
-	}
-}
-
-// recoverFromBlocks recovers the senders from a batch of blocks and caches them
-// back into the same data structures. There is no validation being done, nor
-// any reaction to invalid signatures. That is up to calling code later.
-func (cacher *txSenderCacher) recoverFromBlocks(blocks []*types.Block) {
-	count := 0
-	for _, block := range blocks {
-		count += len(block.Transactions())
-	}
-	txs := make([]*types.Transaction, 0, count)
-	for _, block := range blocks {
-		txs = append(txs, block.Transactions()...)
-	}
-	cacher.recover(txs)
-}
-
-//==============================================================================================
-// tx_journal
-//==============================================================================================
-// errNoActiveJournal is returned if a transaction is attempted to be inserted
-// into the journal, but no such file is currently open.
-var errNoActiveJournal = errors.New("no active journal")
-
-// devNull is a WriteCloser that just discards anything written into it. Its
-// goal is to allow the transaction journal to write into a fake journal when
-// loading transactions on startup without printing warnings due to no file
-// being readt for write.
-type devNull struct{}
-
-func (*devNull) Write(p []byte) (n int, err error) { return len(p), nil }
-func (*devNull) Close() error                      { return nil }
-
-// txJournal is a rotating log of transactions with the aim of storing locally
-// created transactions to allow non-executed ones to survive node restarts.
-type txJournal struct {
-	logger log.Logger
-	path   string         // Filesystem path to store the transactions at
-	writer io.WriteCloser // Output stream to write new transactions into
-}
-
-// newTxJournal creates a new transaction journal to
-func newTxJournal(logger log.Logger, path string) *txJournal {
-	return &txJournal{
-		logger: logger,
-		path:   path,
-	}
-}
-
-// load parses a transaction journal dump from disk, loading its contents into
-// the specified pool.
-func (journal *txJournal) load(add func([]*types.Transaction) []error) error {
-	// Skip the parsing if the journal file doens't exist at all
-	if _, err := os.Stat(journal.path); os.IsNotExist(err) {
-		return nil
-	}
-	// Open the journal for loading any past transactions
-	input, err := os.Open(journal.path)
-	if err != nil {
-		return err
-	}
-	defer input.Close()
-
-	// Temporarily discard any journal additions (don't double add on load)
-	journal.writer = new(devNull)
-	defer func() { journal.writer = nil }()
-
-	// Inject all transactions from the journal into the pool
-	stream := rlp.NewStream(input, 0)
-	total, dropped := 0, 0
-
-	// Create a method to load a limited batch of transactions and bump the
-	// appropriate progress counters. Then use this method to load all the
-	// journalled transactions in small-ish batches.
-	loadBatch := func(txs types.Transactions) {
-		for _, err := range add(txs) {
-			if err != nil {
-				journal.logger.Debug("Failed to add journaled transaction", "err", err)
-				dropped++
-			}
-		}
-	}
-	var (
-		failure error
-		batch   types.Transactions
-	)
-	for {
-		// Parse the next transaction and terminate on error
-		tx := new(types.Transaction)
-		if err = stream.Decode(tx); err != nil {
-			if err != io.EOF {
-				failure = err
-			}
-			if batch.Len() > 0 {
-				loadBatch(batch)
-			}
+		// Stop the discards if we've reached the threshold
+		if tx.GasPrice().Cmp(threshold) >= 0 {
+			save = append(save, tx)
 			break
 		}
-		// New transaction parsed, queue up for later, import if threnshold is reached
-		total++
-
-		if batch = append(batch, tx); batch.Len() > 1024 {
-			loadBatch(batch)
-			batch = batch[:0]
+		// Non stale transaction found, discard unless local
+		if local.containsTx(tx) {
+			save = append(save, tx)
+		} else {
+			drop = append(drop, tx)
 		}
 	}
-	journal.logger.Info("Loaded local transaction journal", "transactions", total, "dropped", dropped)
-
-	return failure
+	for _, tx := range save {
+		heap.Push(l.items, tx)
+	}
+	return drop
 }
 
-// insert adds the specified transaction to the local disk journal.
-func (journal *txJournal) insert(tx *types.Transaction) error {
-	if journal.writer == nil {
-		return errNoActiveJournal
+// Underpriced checks whether a transaction is cheaper than (or as cheap as) the
+// lowest priced transaction currently being tracked.
+func (l *txPricedList) Underpriced(tx *types.Transaction, local *accountSet) bool {
+	// Local transactions cannot be underpriced
+	if local.containsTx(tx) {
+		return false
 	}
-	if err := rlp.Encode(journal.writer, tx); err != nil {
-		return err
-	}
-	return nil
-}
-
-// rotate regenerates the transaction journal based on the current contents of
-// the transaction pool.
-func (journal *txJournal) rotate(all map[common.Address]types.Transactions) error {
-	// Close the current journal (if any is open)
-	if journal.writer != nil {
-		if err := journal.writer.Close(); err != nil {
-			return err
+	// Discard stale price points if found at the heap start
+	for len(*l.items) > 0 {
+		head := []*types.Transaction(*l.items)[0]
+		if l.all.Get(head.Hash()) == nil {
+			l.stales--
+			heap.Pop(l.items)
+			continue
 		}
-		journal.writer = nil
+		break
 	}
-	// Generate a new journal with the contents of the current pool
-	replacement, err := os.OpenFile(journal.path+".new", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
-	if err != nil {
-		return err
+	// Check if the transaction is underpriced or not
+	if len(*l.items) == 0 {
+		log.Error("Pricing query for empty pool") // This cannot happen, print to catch programming errors
+		return false
 	}
-	journaled := 0
-	for _, txs := range all {
-		for _, tx := range txs {
-			if err = rlp.Encode(replacement, tx); err != nil {
-				replacement.Close()
-				return err
-			}
-		}
-		journaled += len(txs)
-	}
-	replacement.Close()
-
-	// Replace the live journal with the newly generated one
-	if err = os.Rename(journal.path+".new", journal.path); err != nil {
-		return err
-	}
-	sink, err := os.OpenFile(journal.path, os.O_WRONLY|os.O_APPEND, 0755)
-	if err != nil {
-		return err
-	}
-	journal.writer = sink
-	journal.logger.Info("Regenerated local transaction journal", "transactions", journaled, "accounts", len(all))
-
-	return nil
+	cheapest := []*types.Transaction(*l.items)[0]
+	return cheapest.GasPrice().Cmp(tx.GasPrice()) >= 0
 }
 
-// close flushes the transaction journal contents to disk and closes the file.
-func (journal *txJournal) close() error {
-	var err error
+// Discard finds a number of most underpriced transactions, removes them from the
+// priced list and returns them for further removal from the entire pool.
+func (l *txPricedList) Discard(count int, local *accountSet) types.Transactions {
+	drop := make(types.Transactions, 0, count) // Remote underpriced transactions to drop
+	save := make(types.Transactions, 0, 64)    // Local underpriced transactions to keep
 
-	if journal.writer != nil {
-		err = journal.writer.Close()
-		journal.writer = nil
+	for len(*l.items) > 0 && count > 0 {
+		// Discard stale transactions if found during cleanup
+		tx := heap.Pop(l.items).(*types.Transaction)
+		if l.all.Get(tx.Hash()) == nil {
+			l.stales--
+			continue
+		}
+		// Non stale transaction found, discard unless local
+		if local.containsTx(tx) {
+			save = append(save, tx)
+		} else {
+			drop = append(drop, tx)
+			count--
+		}
 	}
-	return err
+	for _, tx := range save {
+		heap.Push(l.items, tx)
+	}
+	return drop
 }

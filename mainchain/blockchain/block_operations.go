@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardia/kai/state"
+
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -60,62 +62,35 @@ func (bo *BlockOperations) Height() uint64 {
 }
 
 // CreateProposalBlock creates a new proposal block with all current pending txs in pool.
-func (bo *BlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID, validator common.Address,
-	lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
+func (bo *BlockOperations) CreateProposalBlock(
+	height int64, lastState state.LastestBlockState,
+	proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.
 	// For simplicity, this code executes & commits txs before sending proposal,
 	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
 	txs := bo.txPool.ProposeTransactions()
-	bo.logger.Debug("Collected transactions", "txs", txs)
+	bo.logger.Debug("Collected transactions", "txs count", len(txs))
 
-	header := bo.newHeader(height, uint64(len(txs)), lastBlockID, validator, lastValidatorHash)
-	bo.logger.Info("Creates new header", "header", header)
+	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash())
+	header.AppHash = lastState.AppHash
 
-	stateRoot, receipts, newTxs, err := bo.commitTransactions(txs, header)
-	if err != nil {
-		bo.logger.Error("Fail to commit transactions", "err", err)
-		return nil
-	}
-	header.Root = stateRoot
-
-	block = bo.newBlock(header, newTxs, receipts, commit)
-	bo.logger.Trace("Make block to propose", "block", block)
-
-	go bo.saveReceipts(receipts, block)
-
-	return block
+	block = bo.newBlock(header, txs, commit)
+	bo.logger.Info("Make block to propose", "height", block.Height(), "AppHash", block.AppHash(), "hash", block.Hash())
+	return block, block.MakePartSet(types.BlockPartSizeBytes)
 }
 
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
-func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
+func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) (common.Hash, error) {
 	root, receipts, _, err := bo.commitTransactions(block.Transactions(), block.Header())
 	if err != nil {
-		return err
-	}
-	if root != block.Root() {
-		return fmt.Errorf("different new state root: Block root: %s, Execution result: %s", block.Root().Hex(), root.Hex())
-	}
-	receiptsHash := types.DeriveSha(receipts)
-	if receiptsHash != block.ReceiptHash() {
-		return fmt.Errorf("different receipt hash: Block receipt: %s, receipt from execution: %s", block.ReceiptHash().Hex(), receiptsHash.Hex())
+		return common.Hash{}, err
 	}
 	bo.saveReceipts(receipts, block)
-
-	return nil
-}
-
-// CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
-// Proposer and validators should already commit the block txs, so this function prevents double tx execution.
-func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block) error {
-	if !bo.blockchain.CheckCommittedStateRoot(block.Root()) {
-		bo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
-		return bo.CommitAndValidateBlockTxs(block)
-	}
-
-	return nil
+	bo.blockchain.WriteAppHash(block.Height(), root)
+	return root, nil
 }
 
 // SaveBlock saves the given block, blockParts, and seenCommit to the underlying storage.
@@ -123,7 +98,7 @@ func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block) error {
 //             If all the nodes restart after committing a block,
 //             we need this to reload the precommits to catch-up nodes to the
 //             most recent height.  Otherwise they'd stall at H-1.
-func (bo *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commit) {
+func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	if block == nil {
 		common.PanicSanity("BlockOperations try to save a nil block")
 	}
@@ -137,25 +112,15 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commi
 		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", bo.Height()+1, height))
 	}
 
+	if !blockParts.IsComplete() {
+		panic(fmt.Sprintf("BlockOperations can only save complete block part sets"))
+	}
+
 	// TODO(kiendn): WriteBlockWithoutState returns an error, write logic check if error appears
-	if err := bo.blockchain.WriteBlockWithoutState(block); err != nil {
+	if err := bo.blockchain.WriteBlockWithoutState(block, blockParts, seenCommit); err != nil {
 		common.PanicSanity(common.Fmt("WriteBlockWithoutState fails with error %v", err))
 	}
 
-	// Save block commit (duplicate and separate from the Block)
-	bo.blockchain.WriteCommit(height-1, block.LastCommit())
-
-	// (@kiendn, issue#73)Use this function to prevent nil commits
-	seenCommit.MakeNilEmpty()
-
-	// Save seen commit (seen +2/3 precommits for block)
-	// NOTE: we can delete this at a later height
-	bo.blockchain.WriteCommit(height, seenCommit)
-
-	// TODO(thientn/kiendn): Evaluates remove txs directly here, or depending on txPool.reset() when receiving new block event.
-	//if block != nil && len(block.Transactions()) > 0 {
-	//	bo.txPool.RemoveTxs(block.Transactions())
-	//}
 	bo.mtx.Lock()
 	bo.height = height
 	bo.mtx.Unlock()
@@ -167,22 +132,25 @@ func (bo *BlockOperations) LoadBlock(height uint64) *types.Block {
 	return bo.blockchain.GetBlockByHeight(height)
 }
 
+func (bo *BlockOperations) LoadBlockPart(height uint64, index int) *types.Part {
+	return bo.blockchain.LoadBlockPart(height, index)
+}
+
+func (bo *BlockOperations) LoadBlockMeta(height uint64) *types.BlockMeta {
+	return bo.blockchain.LoadBlockMeta(height)
+}
+
 // LoadBlockCommit returns the Commit for the given height.
 // If no block is found for the given height, it returns nil.
 func (bo *BlockOperations) LoadBlockCommit(height uint64) *types.Commit {
-	block := bo.blockchain.GetBlockByHeight(height + 1)
-	if block == nil {
-		return nil
-	}
-
-	return block.LastCommit()
+	return bo.blockchain.LoadBlockCommit(height)
 }
 
 // LoadSeenCommit returns the locally seen Commit for the given height.
 // This is useful when we've seen a commit, but there has not yet been
 // a new block at `height + 1` that includes this commit in its block.LastCommit.
 func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
-	commit := bo.blockchain.ReadCommit(height)
+	commit := bo.blockchain.LoadSeenCommit(height)
 	if commit == nil {
 		bo.logger.Error("LoadSeenCommit return nothing", "height", height)
 	}
@@ -206,8 +174,8 @@ func (bo *BlockOperations) newHeader(height int64, numTxs uint64, blockId types.
 }
 
 // newBlock creates new block from given data.
-func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
-	block := types.NewBlock(bo.logger, header, txs, receipts, commit)
+func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, commit *types.Commit) *types.Block {
+	block := types.NewBlock(header, txs, commit)
 
 	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
 	// LastResultHash.
@@ -258,9 +226,7 @@ LOOP:
 		newTxs = append(newTxs, tx)
 	}
 
-	header.NumTxs = uint64(newTxs.Len())
 	root, err := state.Commit(true)
-
 
 	if err != nil {
 		bo.logger.Error("Fail to commit new statedb after txs", "err", err)

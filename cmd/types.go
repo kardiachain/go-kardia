@@ -52,11 +52,11 @@ type (
 		ABI        string    `yaml:"ABI,omitempty"`
 	}
 	Pool struct {
-		GlobalSlots     uint64    `yaml:"GlobalSlots"`
-		GlobalQueue     uint64    `yaml:"GlobalQueue"`
-		NumberOfWorkers int       `yaml:"NumberOfWorkers"`
-		WorkerCap       int       `yaml:"WorkerCap"`
-		BlockSize       int       `yaml:"BlockSize"`
+		GlobalSlots  uint64 `yaml:"GlobalSlots"`
+		GlobalQueue  uint64 `yaml:"GlobalQueue"`
+		LifeTime     int    `yaml:"LifeTime"`
+		AccountSlots uint64 `yaml:"AccountSlots"`
+		AccountQueue uint64 `yaml:"AccountQueue"`
 	}
 	Database struct {
 		Type         uint      `yaml:"Type"`

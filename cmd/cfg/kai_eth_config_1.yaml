@@ -65,9 +65,6 @@ MainChain:
   TxPool:
     GlobalSlots:  64
     GlobalQueue:  5120000
-    NumberOfWorkers: 3
-    WorkerCap: 512
-    BlockSize: 7192
   ZeroFee: 0          # 0 is no, 1 is yes
   Database:
     Type: 0                                  # 0 is leveldb, 1 is mongodb

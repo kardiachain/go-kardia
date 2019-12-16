@@ -25,7 +25,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 func TestCommitCreation(t *testing.T) {
@@ -36,22 +36,15 @@ func TestCommitCreation(t *testing.T) {
 	}
 }
 
-func TestCommitCopy(t *testing.T) {
+func TestCommitEncodeDecode(t *testing.T) {
 	commit := CreateNewCommit()
-	commitCopy := commit.Copy()
-	if commit.Hash() != commitCopy.Hash() {
-		t.Fatal("Commit Copy Error")
+	commitBytes, err := rlp.EncodeToBytes(commit)
+	if err != nil {
+		t.Fatalf("Encode commit error: %s", err)
 	}
-}
-
-func TestCommitGetFirstPrecommit(t *testing.T) {
-	commit := CreateNewCommit()
-	if commit.firstPrecommit != nil {
-		t.Error("Commit Creation error")
-	}
-	firstPrecommit := commit.FirstPrecommit()
-	if rlpHash(firstPrecommit) != rlpHash(commit.firstPrecommit) {
-		t.Error("First Precommit Error")
+	decoded := Commit{}
+	if err := rlp.DecodeBytes(commitBytes, &decoded); err != nil {
+		t.Fatalf("decode commit error: %s", err)
 	}
 }
 
@@ -86,14 +79,14 @@ func TestCommitGetByIndex(t *testing.T) {
 	commit := CreateNewCommit()
 	precommit := commit.GetByIndex(0)
 	if rlpHash(precommit) != rlpHash(commit.Precommits[0]) {
-		t.Error()
+		t.Errorf("Wrong precommit hash. Expected %v, got %v", rlpHash(precommit), rlpHash(commit.Precommits[0]))
 	}
 }
 
 func CreateNewCommit() *Commit {
 	block := CreateNewBlockWithTwoVotes(1)
-	block.lastCommit.BlockID = block.BlockID()
-	return block.lastCommit
+	block.lastCommit.BlockID = makeBlockIDRandom()
+	return block.LastCommit()
 }
 
 func CreateNewBlockWithTwoVotes(height uint64) *Block {
@@ -110,19 +103,19 @@ func CreateNewBlockWithTwoVotes(height uint64) *Block {
 		big.NewInt(99), 1000, big.NewInt(100),
 		nil,
 	)
-	signedTx, _ := SignTx(emptyTx, key)
+	signedTx, _ := SignTx(HomesteadSigner{}, emptyTx, key)
 
 	txns := []*Transaction{signedTx}
 
 	vote := &Vote{
-		ValidatorIndex: common.NewBigInt64(1),
+		ValidatorIndex: common.NewBigInt64(0),
 		Height:         common.NewBigInt64(2),
 		Round:          common.NewBigInt64(1),
 		Timestamp:      big.NewInt(100),
-		Type:           VoteTypePrecommit,
+		Type:           PrecommitType,
 	}
-	lastCommit := &Commit{
-		Precommits: []*Vote{vote, nil},
-	}
-	return NewBlock(log.New(), &header, txns, nil, lastCommit)
+
+	commitSigs := []*CommitSig{vote.CommitSig(), nil}
+	lastCommit := NewCommit(NewZeroBlockID(), commitSigs)
+	return NewBlock(&header, txns, lastCommit)
 }

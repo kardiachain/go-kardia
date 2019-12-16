@@ -19,15 +19,16 @@
 package kvm
 
 import (
+	"math/big"
+	"strings"
+	"testing"
+
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
-	"math/big"
-	"strings"
-	"testing"
 )
 
 // Runtime_bytecode for ./Permission.sol
@@ -196,10 +197,10 @@ var permission_smc_definition = `[
 ]`
 
 func TestExecutePermissionContract(t *testing.T) {
-    state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(memorydb.New()))
 	address := common.HexToAddress("0x0a")
-    state.SetCode(address, permission_smc_code)
-    abi, err := abi.JSON(strings.NewReader(permission_smc_definition))
+	state.SetCode(address, permission_smc_code)
+	abi, err := abi.JSON(strings.NewReader(permission_smc_definition))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -227,9 +228,9 @@ func TestExecutePermissionContract(t *testing.T) {
 	}
 	getNodeResult, _, err := sample_kvm.Call(address, getNodeInput, &sample_kvm.Config{State: state, Origin: common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")})
 	var nodeInfo struct {
-		Addr common.Address
-		VotingPower *big.Int
-		NodeType *big.Int
+		Addr          common.Address
+		VotingPower   *big.Int
+		NodeType      *big.Int
 		ListenAddress string
 	}
 
@@ -348,7 +349,7 @@ func TestExecutePermissionContract(t *testing.T) {
 	// Test if newly added node is validator
 	getValidatorInput, err = abi.Pack("isValidator", "abcdefxyz")
 	getValidatorResult, _, err = sample_kvm.Call(address, getValidatorInput, &sample_kvm.Config{State: state})
-	if err!= nil {
+	if err != nil {
 		t.Fatal(err)
 	}
 	result = big.NewInt(0).SetBytes(getValidatorResult)
@@ -363,11 +364,11 @@ func TestExecutePermissionContract(t *testing.T) {
 	}
 	getInitialNodeResult, _, err := sample_kvm.Call(address, getInitialNodeInput, &sample_kvm.Config{State: state})
 	var initialNodeInfo struct {
-		Publickey string
-		Addr common.Address
-		ListenAddr string
+		Publickey   string
+		Addr        common.Address
+		ListenAddr  string
 		VotingPower *big.Int
-		NodeType *big.Int
+		NodeType    *big.Int
 	}
 	err = abi.Unpack(&initialNodeInfo, "getInitialNodeByIndex", getInitialNodeResult)
 	if err != nil {

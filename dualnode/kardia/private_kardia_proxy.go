@@ -27,6 +27,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
+	"strings"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/kai/base"
@@ -39,11 +42,10 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/tool"
 	"github.com/kardiachain/go-kardia/types"
-	"math/big"
-	"strings"
 )
 
 const PRIVATE_KARDIA = "PRIVATE"
+
 var ErrInsufficientCandidateRequestData = errors.New("insufficient candidate request data")
 var ErrInsufficientCandidateResponseData = errors.New("insufficient candidate response data")
 var ErrUnpackForwardRequestInfo = errors.New("error unpacking info forward request input")

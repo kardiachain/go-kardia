@@ -27,15 +27,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/types"
-	"golang.org/x/crypto/scrypt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/types"
+	"golang.org/x/crypto/scrypt"
 )
 
 const (
@@ -245,5 +246,5 @@ func (keystore *KeyStoreJson) writeKeyFile(file string, content []byte) error {
 	TODO(kiendn@): Should we implement lock/unlock account?
 */
 func (keyStore *KeyStore) SignTransaction(transaction *types.Transaction) (*types.Transaction, error) {
-	return types.SignTx(transaction, &keyStore.PrivateKey)
+	return types.SignTx(types.HomesteadSigner{}, transaction, &keyStore.PrivateKey)
 }

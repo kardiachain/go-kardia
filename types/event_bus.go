@@ -45,10 +45,9 @@ func (b *EventBus) PublishEventPolka(event EventDataRoundState) error {
 	return b.Publish(EventPolka, event)
 }
 
-func (b *EventBus) PublishEventCompleteProposal(event EventDataRoundState) error {
-	return b.Publish(EventCompleteProposal, event)
+func (b *EventBus) PublishEventCompleteProposal(data EventDataCompleteProposal) error {
+	return b.Publish(EventCompleteProposal, data)
 }
-
 func (b *EventBus) PublishEventUnlock(event EventDataRoundState) error {
 	return b.Publish(EventUnlock, event)
 }
@@ -63,4 +62,8 @@ func (b *EventBus) PublishEventLock(event EventDataRoundState) error {
 
 func (b *EventBus) PublishEventVote(event EventDataVote) error {
 	return b.Publish(EventVote, event)
+}
+
+func (b *EventBus) PublishEventValidBlock(event EventDataRoundState) error {
+	return b.Publish(EventValidBlock, event)
 }

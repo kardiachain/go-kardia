@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	fail "github.com/ebuchman/fail-test"
+	"github.com/kardiachain/go-kardia/lib/common"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -40,24 +41,29 @@ func ValidateBlock(state LastestBlockState, block *types.Block) error {
 	return validateBlock(state, block)
 }
 
+type BlockStore interface {
+	CommitAndValidateBlockTxs(*types.Block) (common.Hash, error)
+}
+
 // Validates the block against the state, and saves the new state.
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
-func ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
+func ApplyBlock(logger log.Logger, state LastestBlockState, blockStore BlockStore, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
+
 	if err := ValidateBlock(state, block); err != nil {
 		return state, ErrInvalidBlock(err)
 	}
 
-	fail.Fail() // XXX
-
+	appHash, err := blockStore.CommitAndValidateBlockTxs(block)
+	if err != nil {
+		return state, err
+	}
 	// update the state with the block and responses
-	var err error
-	state, err = updateState(logger, state, blockID, block.Header())
+	state, err = updateState(logger, state, appHash, blockID, block.Header())
 	if err != nil {
 		return state, fmt.Errorf("Commit failed for application: %v", err)
 	}
-
 	logger.Warn("Update evidence pool.")
 	fail.Fail() // XXX
 
@@ -65,8 +71,8 @@ func ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockI
 }
 
 // updateState returns a new State updated according to the header and responses.
-func updateState(logger log.Logger, state LastestBlockState, blockID types.BlockID, header *types.Header) (LastestBlockState, error) {
-	logger.Trace("updateState", "state", state, "blockID", blockID, "header", header)
+func updateState(logger log.Logger, state LastestBlockState, appHash common.Hash, blockID types.BlockID, header *types.Header) (LastestBlockState, error) {
+	logger.Trace("updateState", "state", state, "blockID", blockID, "header")
 
 	// Update the validator set with the latest abciResponses
 	lastHeightValsChanged := state.LastHeightValidatorsChanged
@@ -95,5 +101,6 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 		Validators:                  state.Validators,
 		LastValidators:              prevVals,
 		LastHeightValidatorsChanged: lastHeightValsChanged,
+		AppHash:                     appHash,
 	}, nil
 }
