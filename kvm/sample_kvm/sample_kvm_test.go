@@ -50,7 +50,6 @@ func TestKVM(t *testing.T) {
 		byte(kvm.PUSH1),
 		byte(kvm.ORIGIN),
 		byte(kvm.BLOCKHASH),
-		byte(kvm.COINBASE),
 	}, nil, nil)
 }
 

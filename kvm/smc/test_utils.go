@@ -20,7 +20,9 @@ package kvm
 
 import (
 	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -152,7 +154,7 @@ func create(from common.Address, to common.Address, currentHeader *types.Header,
 	return ret, address, leftOver, nil
 }
 
-func setupGenesis(g *genesis.Genesis, db *types.MemStore) (*types.ChainConfig, common.Hash, error) {
+func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*types.ChainConfig, common.Hash, error) {
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	return genesis.SetupGenesisBlock(log.New(), db, g, &types.BaseAccount{
@@ -171,7 +173,7 @@ func setupBlockchain() (*blockchain.BlockChain, error) {
 		"0x94FD535AAB6C01302147Be7819D07817647f7B63": genesisAmount,
 		"0xa8073C95521a6Db54f4b5ca31a04773B093e9274": genesisAmount,
 	}
-	kaiDb := types.NewMemStore()
+	kaiDb := kvstore.NewStoreDB(memorydb.New())
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	chainConfig, _, genesisErr := setupGenesis(g, kaiDb)
 	if genesisErr != nil {

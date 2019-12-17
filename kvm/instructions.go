@@ -533,7 +533,7 @@ func opBlockhash(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack
 }
 
 func opCoinbase(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.Coinbase.Bytes()))
+	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.Chain.Config().Address.Bytes()))
 	return nil, nil
 }
 

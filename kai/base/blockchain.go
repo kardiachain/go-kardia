@@ -84,7 +84,6 @@ type KVM interface {
 	Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error)
 	CreateGenesisContract(caller ContractRef, contract *common.Address, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error)
 	GetStateDB() StateDB
-	GetCoinbase() common.Address
 }
 
 type BaseBlockChain interface {

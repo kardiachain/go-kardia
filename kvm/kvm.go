@@ -72,7 +72,6 @@ type Context struct {
 	GasPrice *big.Int       // Provides information for GASPRICE
 
 	// Block information
-	Coinbase    common.Address // Provides information for COINBASE
 	GasLimit    uint64         // Provides information for GASLIMIT
 	BlockHeight *big.Int       // Provides information for HEIGHT
 	Time        *big.Int       // Provides information for TIME
@@ -137,10 +136,6 @@ func (kvm *KVM) Cancelled() bool {
 
 func (kvm *KVM) IsZeroFee() bool {
 	return kvm.vmConfig.IsZeroFee
-}
-
-func (kvm *KVM) GetCoinbase() common.Address {
-	return kvm.Coinbase
 }
 
 // Call executes the contract associated with the addr with the given input as
@@ -465,7 +460,6 @@ func NewInternalKVMContext(from common.Address, header *types.Header, chain base
 		Transfer:    Transfer,
 		GetHash:     GetHashFn(header, chain),
 		Origin:      from,
-		Coinbase:    header.Coinbase,
 		BlockHeight: new(big.Int).SetUint64(header.Height),
 		Time:        new(big.Int).Set(header.Time),
 		GasLimit:    header.GasLimit,
@@ -480,7 +474,6 @@ func NewGenesisKVMContext(from common.Address, gasLimit uint64) Context {
 		Transfer:    Transfer,
 		GetHash:     GenesisGetHashFn(),
 		Origin:      from,
-		Coinbase:    common.Address{},
 		BlockHeight: big.NewInt(0),
 		Time:        big.NewInt(0),
 		GasLimit:    gasLimit,

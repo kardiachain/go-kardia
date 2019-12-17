@@ -103,7 +103,7 @@ func (dbc *DualBlockChain) Config() *types.ChainConfig { return dbc.chainConfig 
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.ChainConfig) (*DualBlockChain, error) {
+func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *types.ChainConfig) (*DualBlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 

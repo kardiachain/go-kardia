@@ -71,7 +71,7 @@ func ClaimReward(height uint64, bc base.BaseBlockChain, state *state.StateDB, tx
 	if input, err = posAbi.Pack(methodClaimReward, nodeAddress.Node, height); err != nil {
 		return nil, err
 	}
-	return generateTransaction(txPool.GetAddressState(sender), input, &privateKey)
+	return generateTransaction(txPool.Nonce(sender), input, &privateKey)
 }
 
 // NewConsensusPeriod is created by proposer.
@@ -109,7 +109,7 @@ func NewConsensusPeriod(height uint64, bc base.BaseBlockChain, state *state.Stat
 	if input, err = posAbi.Pack(methodNewConsensusPeriod, height); err != nil {
 		return nil, err
 	}
-	return generateTransaction(txPool.GetAddressState(sender), input, &privateKey)
+	return generateTransaction(txPool.Nonce(sender), input, &privateKey)
 }
 
 // CollectValidatorSet collects new validators list based on current available nodes and start new consensus period
@@ -200,7 +200,7 @@ func calculateVotingPower(amount *big.Int) int64 {
 }
 
 func generateTransaction(nonce uint64, input []byte, privateKey *ecdsa.PrivateKey) (*types.Transaction, error) {
-	return types.SignTx(types.NewTransaction(
+	return types.SignTx(types.HomesteadSigner{}, types.NewTransaction(
 		nonce,
 		posHandlerAddress,
 		big.NewInt(0),

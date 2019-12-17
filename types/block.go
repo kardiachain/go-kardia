@@ -54,6 +54,7 @@ type Header struct {
 	NumDualEvents uint64 `json:"num_dual_events" gencodec:"required"`
 
 	GasLimit uint64 `json:"gasLimit"         gencodec:"required"`
+	GasUsed  uint64 `json:"gasUsed"          gencodec:"required"`
 
 	// prev block info
 	LastBlockID BlockID `json:"last_block_id"`

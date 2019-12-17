@@ -328,13 +328,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	}
 
 	// If IsZeroFee is true then refund all gas that sender spend in current transaction
-	if st.vm.IsZeroFee() {
-		st.refundGas(true) // refundAll
-	} else {
-		st.refundGas(false) // !refundAll
-		st.state.AddBalance(st.vm.GetCoinbase(), new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
-	}
-
+	st.refundGas(st.vm.IsZeroFee())
 	return ret, st.gasUsed(), vmerr != nil, err
 }
 

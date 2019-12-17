@@ -26,8 +26,6 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/kvm"
-
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -110,7 +108,7 @@ func (bc *BlockChain) Config() *types.ChainConfig { return bc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.Database, chainConfig *types.ChainConfig) (*BlockChain, error) {
+func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *types.ChainConfig) (*BlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 

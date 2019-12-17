@@ -21,6 +21,7 @@ package blockchain
 import (
 	"errors"
 	"fmt"
+	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"math/big"
@@ -28,7 +29,6 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -74,7 +74,7 @@ func (dbo *DualBlockOperations) Height() uint64 {
 
 // Proposes a new block for dual's blockchain.
 func (dbo *DualBlockOperations) CreateProposalBlock(
-	height int64, lastState state.LastestBlockState,
+	height int64, lastState consensus.LastestBlockState,
 	proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all dual's events in pending pools and them to the new block.
 	// TODO(namdoh@): Since there may be a small latency for other dual peers to see the same set of

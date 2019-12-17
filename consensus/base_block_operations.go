@@ -20,7 +20,6 @@ package consensus
 
 import (
 	"github.com/kardiachain/go-kardia/kai/base"
-	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
@@ -32,7 +31,7 @@ type BaseBlockOperations interface {
 	LoadBlock(height uint64) *types.Block
 	LoadBlockCommit(height uint64) *types.Commit
 	LoadSeenCommit(height uint64) *types.Commit
-	CreateProposalBlock(height int64, state state.LastestBlockState, proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet)
+	CreateProposalBlock(height int64, state LastestBlockState, proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet)
 	CommitAndValidateBlockTxs(block *types.Block) (common.Hash, error)
 	SaveBlock(block *types.Block, partSet *types.PartSet, seenCommit *types.Commit)
 	LoadBlockPart(height uint64, index int) *types.Part
