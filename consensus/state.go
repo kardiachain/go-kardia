@@ -855,13 +855,14 @@ func (cs *ConsensusState) enterNewRound(height *cmn.BigInt, round *cmn.BigInt) {
 
 // needProofBlock returns true on the first height (so the genesis app hash is signed right away)
 // and where the last block (height-1) caused the app hash to change
+// addition: last proposer always sends a tx to claim block reward, therefore pendingSize should greater than 1
 func (cs *ConsensusState) needProofBlock(height *cmn.BigInt) bool {
 	if height.EqualsInt(1) {
 		return true
 	}
 
 	lastBlockMeta := cs.blockOperations.LoadBlockMeta(height.Uint64() - 1)
-	return !cs.state.AppHash.Equal(lastBlockMeta.Header.AppHash)
+	return !cs.state.AppHash.Equal(lastBlockMeta.Header.AppHash) && cs.blockOperations.TxPool().PendingSize() > 1
 }
 
 // Enter (CreateEmptyBlocks): from enterNewRound(height,round)
