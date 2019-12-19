@@ -128,7 +128,7 @@ func (bo *BlockOperations) claimReward(height uint64) error {
 		}
 		if err = bo.txPool.AddLocal(tx); err != nil {
 			bo.logger.Error("fail to add claim reward transaction", "err", err)
-			return nil
+			return err
 		}
 	}
 	return nil

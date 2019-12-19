@@ -98,7 +98,6 @@ func NewConsensusPeriod(height uint64, bc base.BaseBlockChain, state *state.Stat
 	if err = masterAbi.Unpack(&vals, methodGetLatestValidatorsInfo, output); err != nil {
 		return nil, err
 	}
-	log.Debug("generating tx in NewConsensusPeriod", "endBlock", vals.EndAtBlock, "height", height, "fetch", bc.GetFetchNewValidatorsTime())
 	// height must behind EndAtBlock bc.GetFetchNewValidators() blocks.
 	if vals.EndAtBlock != height+bc.GetFetchNewValidatorsTime() {
 		return nil, nil

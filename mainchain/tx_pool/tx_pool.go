@@ -838,15 +838,14 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 			knownTxMeter.Mark(1)
 			continue
 		}
+		// Cache senders in transactions before obtaining lock (pool.signer is immutable)
+		types.Sender(pool.signer, tx)
+
 		// Accumulate all unknown transactions for deeper processing
 		news = append(news, tx)
 	}
 	if len(news) == 0 {
 		return errs
-	}
-	// Cache senders in transactions before obtaining lock (pool.signer is immutable)
-	for _, tx := range news {
-		types.Sender(pool.signer, tx)
 	}
 	// Process all the new transaction and merge any errors into the original slice
 	pool.mu.Lock()

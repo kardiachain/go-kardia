@@ -23,6 +23,7 @@ import (
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"math/big"
 	"strings"
 )
@@ -313,6 +314,7 @@ func handleNewConsensusPeriod(method *abi.Method, input []byte, contract *Contra
 		return err
 	}
 	if _, err = InternalCall(vm, ctx.Chain.GetConsensusMasterSmartContract().Address, input, big.NewInt(0)); err != nil {
+		log.Error("collect validators failed", "err", err)
 		return err
 	}
 	return nil
