@@ -19,6 +19,9 @@
 package kvm
 
 import (
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/pos"
+	"github.com/kardiachain/go-kardia/kai/state"
 	"math/big"
 
 	"github.com/kardiachain/go-kardia/kvm"
@@ -30,11 +33,61 @@ import (
 // current blockchain to be used during transaction processing.
 type ChainContext interface {
 	// GetHeader returns the hash corresponding to their hash.
+	CurrentHeader() *types.Header
 	GetHeader(common.Hash, uint64) *types.Header
+	Config() *types.ChainConfig
+	GetBlockByHeight(height uint64) *types.Block
+	CurrentBlock() *types.Block
+	ZeroFee() bool
+	GetBlockReward() *big.Int
+	GetConsensusMasterSmartContract() pos.MasterSmartContract
+	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error)
+	State() (*state.StateDB, error)
+}
+
+// StateDB is an KVM database for full state querying.
+type StateDB interface {
+	CreateAccount(common.Address)
+
+	AddBalance(common.Address, *big.Int)
+	SubBalance(common.Address, *big.Int)
+	GetBalance(common.Address) *big.Int
+
+	GetCodeHash(common.Address) common.Hash
+	GetCode(common.Address) []byte
+	SetCode(common.Address, []byte)
+	GetCodeSize(common.Address) int
+
+	GetState(common.Address, common.Hash) common.Hash
+	SetState(common.Address, common.Hash, common.Hash)
+
+	GetNonce(common.Address) uint64
+	SetNonce(common.Address, uint64)
+
+	AddRefund(uint64)
+	SubRefund(uint64)
+	GetRefund() uint64
+
+	Suicide(common.Address) bool
+	HasSuicided(common.Address) bool
+
+	RevertToSnapshot(int)
+	Snapshot() int
+
+	// Exist reports whether the given account exists in state.
+	// Notably this should also return true for suicided accounts.
+	Exist(common.Address) bool
+
+	// Empty returns whether the given account is empty. Empty
+	// is defined as (balance = nonce = code = 0).
+	Empty(common.Address) bool
+
+	AddLog(*types.Log)
+	AddPreimage(common.Hash, []byte)
 }
 
 // NewKVMContext creates a new context for use in the KVM.
-func NewKVMContext(msg types.Message, header *types.Header, chain ChainContext) kvm.Context {
+func NewKVMContext(msg types.Message, header *types.Header, chain base.BaseBlockChain) kvm.Context {
 	return kvm.Context{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
@@ -44,11 +97,12 @@ func NewKVMContext(msg types.Message, header *types.Header, chain ChainContext) 
 		Time:        new(big.Int).Set(header.Time),
 		GasLimit:    header.GasLimit,
 		GasPrice:    new(big.Int).Set(msg.GasPrice()),
+		Chain: chain,
 	}
 }
 
 // NewKVMContext creates a new context for dual node to call smc in the KVM.
-func NewKVMContextFromDualNodeCall(from common.Address, header *types.Header, chain ChainContext) kvm.Context {
+func NewKVMContextFromDualNodeCall(from common.Address, header *types.Header, chain base.BaseBlockChain) kvm.Context {
 	return kvm.Context{
 		CanTransfer: CanTransfer,
 		Transfer:    Transfer,
@@ -58,11 +112,12 @@ func NewKVMContextFromDualNodeCall(from common.Address, header *types.Header, ch
 		Time:        new(big.Int).Set(header.Time),
 		GasLimit:    header.GasLimit,
 		GasPrice:    big.NewInt(1),
+		Chain: chain,
 	}
 }
 
 // GetHashFn returns a GetHashFunc which retrieves header hashes by height
-func GetHashFn(ref *types.Header, chain ChainContext) func(n uint64) common.Hash {
+func GetHashFn(ref *types.Header, chain base.BaseBlockChain) func(n uint64) common.Hash {
 	var cache map[uint64]common.Hash
 
 	return func(n uint64) common.Hash {
@@ -89,12 +144,12 @@ func GetHashFn(ref *types.Header, chain ChainContext) func(n uint64) common.Hash
 
 // CanTransfer checks wether there are enough funds in the address' account to make a transfer.
 // This does not take the necessary gas in to account to make the transfer valid.
-func CanTransfer(db kvm.StateDB, addr common.Address, amount *big.Int) bool {
+func CanTransfer(db base.StateDB, addr common.Address, amount *big.Int) bool {
 	return db.GetBalance(addr).Cmp(amount) >= 0
 }
 
 // Transfer subtracts amount from sender and adds amount to recipient using the given Db
-func Transfer(db kvm.StateDB, sender, recipient common.Address, amount *big.Int) {
+func Transfer(db base.StateDB, sender, recipient common.Address, amount *big.Int) {
 	db.SubBalance(sender, amount)
 	db.AddBalance(recipient, amount)
 }

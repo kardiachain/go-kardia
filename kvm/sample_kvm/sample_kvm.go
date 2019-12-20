@@ -62,7 +62,6 @@ func NewEnv(cfg *Config) *kvm.KVM {
 		GetHash:     func(uint64) common.Hash { return common.Hash{} },
 
 		Origin:      cfg.Origin,
-		Coinbase:    cfg.Coinbase,
 		BlockHeight: new(big.Int).SetUint64(cfg.BlockHeight),
 		Time:        cfg.Time,
 		GasLimit:    cfg.GasLimit,

@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package main
 
 type (
@@ -30,15 +48,16 @@ type (
 		AcceptTxs     uint32         `yaml:"AcceptTxs"`
 		ZeroFee       uint           `yaml:"ZeroFee"`
 		IsDual        uint           `yaml:"IsDual"`
+		Consensus     *Consensus     `yaml:"Consensus,omitempty"`
 		Genesis       *Genesis       `yaml:"Genesis,omitempty"`
 		TxPool        *Pool          `yaml:"TxPool,omitempty"`
 		EventPool     *Pool          `yaml:"EventPool,omitempty"`
 		Database      *Database      `yaml:"Database,omitempty"`
-	   	Seeds         []string       `yaml:"Seeds"`
+		Seeds         []string       `yaml:"Seeds"`
 		Events        []Event 	     `yaml:"Events"`
 		PublishedEndpoint  *string   `yaml:"PublishedEndpoint,omitempty"`
 		SubscribedEndpoint *string   `yaml:"SubscribedEndpoint,omitempty"`
-		Validators    []int          `yaml:"Validators"`
+		Validators    []int          `yaml:"Validators,omitempty"`
 		BaseAccount   BaseAccount    `yaml:"BaseAccount"`
 	}
 	Genesis struct {
@@ -46,10 +65,53 @@ type (
 		GenesisAmount  string        `yaml:"GenesisAmount"`
 		Contracts      []Contract    `yaml:"Contracts"`
 	}
+	Consensus struct {
+		MaxViolatePercentageAllowed uint64           `yaml:"MaxViolatePercentageAllowed"`
+		FetchNewValidatorsTime     uint64            `yaml:"FetchNewValidatorsTime"`
+		MaxValidators              uint64            `yaml:"MaxValidators"`
+		ConsensusPeriodInBlock     uint64            `yaml:"ConsensusPeriod"`
+		BlockReward                string            `yaml:"BlockReward"`
+		MinimumStakes              string            `yaml:"MinimumStakes"` // MinimumStakes defines the minimum amount that a user stakes to a node.
+		LockedPeriod               uint64            `yaml:"LockedPeriod"`  // LockedPeriod defines the period in block that user cannot withdraw staked KAI.
+		Compilation                Compilation       `yaml:"Compilation"`
+		Deployment                 Deployment        `yaml:"Deployment"`
+	}
+	Compilation struct { // Compilation contains compiled bytecodes and abi for Master.sol, Node.sol and Staker.sol
+		Master     CompilationInfo  `yaml:"Master"`
+		Staker     CompilationInfo  `yaml:"Staker"`
+		Node       CompilationInfo  `yaml:"Node"`
+	}
+	CompilationInfo struct {
+		ByteCode     string        `yaml:"ByteCode"`
+		ABI          string        `yaml:"ABI"`
+	}
+	Deployment struct { // Deployment contains consensus genesis information that will be created at the beginning
+		Master     MasterInfo    `yaml:"Master"`
+		Stakers    []StakerInfo  `yaml:"Stakers"`
+		Nodes      []NodeInfo    `yaml:"Nodes"`
+	}
+	MasterInfo struct { // MasterInfo contains master contract address and its genesis amount
+		Address    string      `yaml:"Address"`
+		GenesisAmount string   `yaml:"GenesisAmount"`
+	}
+	NodeInfo struct {
+		Address             string       `yaml:"Address"`
+		Owner               string       `yaml:"Owner"`
+		PubKey              string       `yaml:"PubKey"`
+		Name                string       `yaml:"Name"`
+		RewardPercentage    uint16       `yaml:"RewardPercentage"`  // RewardPercentage defines total KAI that all stakers receive every validated block.
+	}
+	StakerInfo struct { // StakerInfo contains genesis staker address, node that it will stake to from the beginning and stakeAmount
+		Address     string       `yaml:"Address"`       // Address is predefined staker's contract address
+		Owner       string       `yaml:"Owner"`         // Owner is owner's address for staker contract address
+		StakedNode  string       `yaml:"StakedNode"`    // StakedNode is genesis node's address that user will stake to
+		StakeAmount string       `yaml:"StakeAmount"`
+	}
 	Contract struct {
-		Address    string    `yaml:"Address"`
+		Address    string    `yaml:"Address,omitempty"`
 		ByteCode   string    `yaml:"ByteCode"`
 		ABI        string    `yaml:"ABI,omitempty"`
+		GenesisAmount string `yaml:"GenesisAmount,omitempty"`
 	}
 	Pool struct {
 		GlobalSlots  uint64 `yaml:"GlobalSlots"`

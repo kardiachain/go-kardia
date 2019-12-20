@@ -19,19 +19,16 @@
 package node
 
 import (
-	"bufio"
 	"crypto/ecdsa"
-	"encoding/csv"
 	"encoding/hex"
 	"fmt"
-	"io"
+	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/kai/base"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
@@ -42,7 +39,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
-	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -54,73 +50,45 @@ const (
 
 type MainChainConfig struct {
 	// Mainchain
-
 	// Index of validators
 	ValidatorIndexes []int
-
 	// DbInfo stores configuration information to setup database
 	DBInfo storage.DbInfo
-
 	// Genesis is genesis block which contain initial Block and accounts
 	Genesis *genesis.Genesis
-
 	// Transaction pool options
 	TxPool tx_pool.TxPoolConfig
-
 	// AcceptTxs accept tx sync process or not (1 is yes and 0 is no)
 	AcceptTxs uint32
-
 	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
 	IsZeroFee bool
-
 	// IsPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	IsPrivate bool
-
 	NetworkId uint64
-
 	ChainId uint64
-
 	// ServiceName is used as log's prefix
 	ServiceName string
-
 	// BaseAccount defines account which is used to execute internal smart contracts
 	BaseAccount *types.BaseAccount
-
-	// ======== DEV ENVIRONMENT CONFIG =========
-	// Configuration of this environment when running in dev environment.
-	EnvConfig *EnvironmentConfig
 }
 
 type DualChainConfig struct {
 	// Dualchain
-
 	ChainId uint64 // ID of dual chain unique to a dualnode group, such as for dual eth.
-
 	// Index of validators
 	ValidatorIndexes []int
-
 	// DbInfo stores configuration information to setup database
 	DBInfo storage.DbInfo
-
 	// Genesis is genesis block which contain initial Block and accounts
 	DualGenesis *genesis.Genesis
-
 	// Dual's event pool options
 	DualEventPool event_pool.Config
-
 	// IsPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	IsPrivate bool
-
 	// Dual protocol name, this name is used if the node is setup as dual node
 	DualProtocolName string
-
 	// BaseAccount defines account which is used to execute internal smart contracts
 	BaseAccount *types.BaseAccount
-
-	// ======== DEV ENVIRONMENT CONFIG =========
-	// Configuration of this environment when running in dev environment.
-	EnvConfig *EnvironmentConfig
-
 	// Dual Network ID
 	DualNetworkID uint64
 }
@@ -130,38 +98,30 @@ type NodeConfig struct {
 	// used in the devp2p node identifier. If no
 	// value is specified, the basename of the current executable is used.
 	Name string `toml:"-"`
-
 	// UserIdent, if set, is used as an additional component in the devp2p node identifier.
 	UserIdent string `toml:",omitempty"`
-
 	// Version should be set to the version number of the program. It is used
 	// in the devp2p node identifier.
 	Version string `toml:"-"`
-
 	// DataDir is the file system folder the node should use for any data storage
 	// requirements. The configured data directory will not be directly shared with
 	// registered services, instead those can use utility methods to create/access
 	// databases or flat files. This enables ephemeral nodes which can fully reside
 	// in memory.
 	DataDir string
-
 	// Configuration of peer-to-peer networking.
 	P2P p2p.Config
-
 	// HTTPHost is the host interface on which to start the HTTP RPC server. If this
 	// field is empty, no HTTP API endpoint will be started.
 	HTTPHost string `toml:",omitempty"`
-
 	// HTTPPort is the TCP port number on which to start the HTTP RPC server. The
 	// default zero value is/ valid and will pick a port number randomly (useful
 	// for ephemeral nodes).
 	HTTPPort int `toml:",omitempty"`
-
 	// HTTPCors is the Cross-Origin Resource Sharing header to send to requesting
 	// clients. Please be aware that CORS is a browser enforced security, it's fully
 	// useless for custom HTTP clients.
 	HTTPCors []string `toml:",omitempty"`
-
 	// HTTPVirtualHosts is the list of virtual hostnames which are allowed on incoming requests.
 	// This is by default {'localhost'}. Using this prevents attacks like
 	// DNS rebinding, which bypasses SOP by simply masquerading as being within the same
@@ -170,12 +130,10 @@ type NodeConfig struct {
 	// made against the  server with a malicious host domain.
 	// Requests using ip address directly are not affected
 	HTTPVirtualHosts []string `toml:",omitempty"`
-
 	// HTTPModules is a list of API modules to expose via the HTTP RPC interface.
 	// If the module list is empty, all RPC API endpoints designated public will be
 	// exposed.
 	HTTPModules []string `toml:",omitempty"`
-
 	// KeyStoreDir is the file system folder that contains private keys. The directory can
 	// be specified as a relative path, in which case it is resolved relative to the
 	// current directory.
@@ -184,19 +142,14 @@ type NodeConfig struct {
 	// DataDir. If DataDir is unspecified and KeyStoreDir is empty, an ephemeral directory
 	// is created by New and destroyed when the node is stopped.
 	KeyStoreDir string `toml:",omitempty"`
-
 	// Configuration of the Kardia's blockchain (or main chain).
 	MainChainConfig MainChainConfig
-
 	// Configuration of the dual's blockchain.
 	DualChainConfig DualChainConfig
-
 	// PeerProxyIP is IP of the network peer proxy, when participates in network with peer proxy for discovery.
 	PeerProxyIP string
-
 	// BaseAccount defines account which is used to execute internal smart contracts
 	BaseAccount *types.BaseAccount
-
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
 	NodeMetadata *NodeMetadata
@@ -208,13 +161,6 @@ type NodeMetadata struct {
 	PublicKey   *ecdsa.PublicKey
 	VotingPower int64
 	ListenAddr  string
-}
-
-// EnvironmentConfig contains a list of NodeVotingPower, proposalIndex and votingStrategy
-type EnvironmentConfig struct {
-	NodeSet        []NodeMetadata
-	proposalIndex  int
-	VotingStrategy map[consensus.VoteTurn]int
 }
 
 // NodeName returns the devp2p node identifier.
@@ -392,98 +338,6 @@ func GetNodeMetadataFromSmc(bc *base.BaseBlockChain, valIndices []int) ([]NodeMe
 		nodes = append(nodes, *n)
 	}
 	return nodes, nil
-}
-
-// NewEnvironmentConfig returns new EnvironmentConfig instance
-func NewEnvironmentConfig() *EnvironmentConfig {
-	var env EnvironmentConfig
-	env.proposalIndex = 0 // Default to 0-th node as the proposer.
-	env.NodeSet = make([]NodeMetadata, 0)
-	return &env
-}
-
-// GetNodeSize returns size of NodeSet
-func (env *EnvironmentConfig) GetNodeSize() int {
-	return len(env.NodeSet)
-}
-
-// SetVotingStrategy is used for testing voting
-func (env *EnvironmentConfig) SetVotingStrategy(votingStrategy string) {
-	if strings.HasSuffix(votingStrategy, "csv") {
-		env.VotingStrategy = map[consensus.VoteTurn]int{}
-		csvFile, _ := os.Open(votingStrategy)
-		reader := csv.NewReader(bufio.NewReader(csvFile))
-
-		for {
-			line, err := reader.Read()
-			if err == io.EOF {
-				break
-			} else if err != nil {
-				log.Error("error", err)
-			}
-			var height, _ = strconv.Atoi(line[0])
-			var round, _ = strconv.Atoi(line[1])
-			var voteType, _ = strconv.Atoi(line[2])
-			var result, _ = strconv.Atoi(line[3])
-
-			var _, ok = env.GetScriptedVote(height, round, voteType)
-			if ok {
-				log.Error(fmt.Sprintf("VoteTurn already exists with height = %v, round = %v, voteType = %v", height, round, voteType))
-			} else {
-				env.VotingStrategy[consensus.VoteTurn{height, round, voteType}] = result
-			}
-		}
-	}
-}
-
-func (env *EnvironmentConfig) GetScriptedVote(height int, round int, voteType int) (int, bool) {
-	if val, ok := env.VotingStrategy[consensus.VoteTurn{height, round, voteType}]; ok {
-		return val, ok
-	}
-	return 0, false
-}
-
-func (env *EnvironmentConfig) SetProposerIndex(index, limit int) {
-	if index < 0 || index >= limit {
-		log.Error(fmt.Sprintf("Proposer index must be within %v and %v", 0, env.GetNodeSize()))
-	}
-	env.proposalIndex = index
-}
-
-func (env *EnvironmentConfig) GetNodeMetadata(index int) *NodeMetadata {
-	return &env.NodeSet[index]
-}
-
-// GetValidatorSetByIndices takes an array of indexes of validators and returns an array of validators with the order respectively to index of input
-func (env *EnvironmentConfig) GetValidatorSetByIndices(bc base.BaseBlockChain, valIndexes []int) (*types.ValidatorSet, error) {
-	// If NodeSet is empty then get nodes from smc
-	if env.GetNodeSize() == 0 {
-		nodes, err := GetNodeMetadataFromSmc(&bc, valIndexes)
-		if err != nil {
-			return nil, err
-		}
-		env.NodeSet = nodes
-	}
-	if len(valIndexes) > env.GetNodeSize() {
-		return nil, fmt.Errorf("number of validators must be within %v and %v", 1, env.GetNodeSize())
-	}
-	validators := make([]*types.Validator, 0)
-	for i := 0; i < len(valIndexes); i++ {
-		if valIndexes[i] < 0 {
-			return nil, fmt.Errorf("value of validator must be greater than 0")
-		}
-		node := env.NodeSet[i]
-		validators = append(validators, types.NewValidator(*node.PublicKey, node.VotingPower))
-	}
-
-	// TODO(huny@): Pass the start/end block height of the initial set of validator from the
-	// genesis here. Default to 0 and 100000000000 for now.
-	validatorSet := types.NewValidatorSet(validators, 0 /*start height*/, 100000000000 /*end height*/)
-	// TODO(dnk90@,namdoh@: This is a bug due to this change https://github.com/kardiachain/go-kardia/commit/09cfe4762b809498a789758eeb85008628947764.
-	// Turn off this for production.
-	validatorSet.TurnOnKeepSameProposer()
-	validatorSet.SetProposer(validators[env.proposalIndex])
-	return validatorSet, nil
 }
 
 // GetValidatorSet gets list of validators from permission smc defined in config and a list of indices.

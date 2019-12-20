@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package ksml
 
 import (
@@ -292,7 +310,7 @@ func getPackedInput(p *Parser, kaiAbi *abi.ABI, method string, patterns []string
 }
 
 // callStaticKardiaMasterSmc calls smc and return result in bytes format
-func callStaticKardiaMasterSmc(from common.Address, to common.Address, currentHeader *types.Header, chain vm.ChainContext, input []byte, statedb *state.StateDB) (result []byte, err error) {
+func callStaticKardiaMasterSmc(from common.Address, to common.Address, currentHeader *types.Header, chain base.BaseBlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
 	ctx := vm.NewKVMContextFromDualNodeCall(from, currentHeader, chain)
 	vmenv := kvm.NewKVM(ctx, statedb, kvm.Config{})
 	sender := kvm.AccountRef(from)
@@ -304,20 +322,20 @@ func callStaticKardiaMasterSmc(from common.Address, to common.Address, currentHe
 }
 
 // EstimateGas estimates spent in order to
-func EstimateGas(from common.Address, to common.Address, currentHeader *types.Header, bc base.BaseBlockChain, stateDb *state.StateDB, input []byte) (uint64, error) {
+func EstimateGas(from common.Address, to common.Address, currentHeader *types.Header, chain base.BaseBlockChain, stateDb *state.StateDB, input []byte) (uint64, error){
 	// Create new call message
 	msg := types.NewMessage(from, &to, 0, big.NewInt(0), uint64(MaximumGasToCallFunction), big.NewInt(1), input, false)
 	// Create a new context to be used in the KVM environment
-	vmContext := vm.NewKVMContext(msg, currentHeader, bc)
+	vmContext := vm.NewKVMContext(msg, currentHeader, chain)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
 	kaiVm := kvm.NewKVM(vmContext, stateDb, kvm.Config{
-		IsZeroFee: bc.ZeroFee(),
+		IsZeroFee: chain.ZeroFee(),
 	})
 	defer kaiVm.Cancel()
 	// Apply the transaction to the current state (included in the env)
 	gp := new(types.GasPool).AddGas(common.MaxUint64)
-	_, gas, _, err := bc.ApplyMessage(kaiVm, msg, gp)
+	_, gas, _, err := chain.ApplyMessage(kaiVm, msg, gp)
 	if err != nil {
 		return 0, err
 	}

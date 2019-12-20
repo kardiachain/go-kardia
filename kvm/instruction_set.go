@@ -18,8 +18,6 @@ package kvm
 
 import (
 	"errors"
-
-	"github.com/kardiachain/go-kardia/configs"
 )
 
 type (
@@ -223,7 +221,7 @@ func newKardiaInstructionSet() JumpTable {
 		},
 		SHA3: {
 			execute:     opSha3,
-			constantGas: configs.Sha3Gas,
+			constantGas: Sha3Gas,
 			dynamicGas:  gasSha3,
 			minStack:    minStack(2, 1),
 			maxStack:    maxStack(2, 1),
@@ -239,7 +237,7 @@ func newKardiaInstructionSet() JumpTable {
 		},
 		BALANCE: {
 			execute:     opBalance,
-			constantGas: configs.BalanceGas,
+			constantGas: BalanceGas,
 			minStack:    minStack(1, 1),
 			maxStack:    maxStack(1, 1),
 			valid:       true,
@@ -313,14 +311,14 @@ func newKardiaInstructionSet() JumpTable {
 		},
 		EXTCODESIZE: {
 			execute:     opExtCodeSize,
-			constantGas: configs.ExtcodeSizeGas,
+			constantGas: ExtcodeSizeGas,
 			minStack:    minStack(1, 1),
 			maxStack:    maxStack(1, 1),
 			valid:       true,
 		},
 		EXTCODECOPY: {
 			execute:     opExtCodeCopy,
-			constantGas: configs.ExtcodeCopyBase,
+			constantGas: ExtcodeCopyBase,
 			dynamicGas:  gasExtCodeCopy,
 			minStack:    minStack(4, 0),
 			maxStack:    maxStack(4, 0),
@@ -399,7 +397,7 @@ func newKardiaInstructionSet() JumpTable {
 		},
 		SLOAD: {
 			execute:     opSload,
-			constantGas: configs.SloadGas,
+			constantGas: SloadGas,
 			minStack:    minStack(1, 1),
 			maxStack:    maxStack(1, 1),
 			valid:       true,
@@ -451,7 +449,7 @@ func newKardiaInstructionSet() JumpTable {
 		},
 		JUMPDEST: {
 			execute:     opJumpdest,
-			constantGas: configs.JumpdestGas,
+			constantGas: JumpdestGas,
 			minStack:    minStack(0, 0),
 			maxStack:    maxStack(0, 0),
 			valid:       true,
@@ -951,7 +949,7 @@ func newKardiaInstructionSet() JumpTable {
 		},
 		CREATE: {
 			execute:     opCreate,
-			constantGas: configs.CreateGas,
+			constantGas: CreateGas,
 			dynamicGas:  gasCreate,
 			minStack:    minStack(3, 1),
 			maxStack:    maxStack(3, 1),
@@ -962,7 +960,7 @@ func newKardiaInstructionSet() JumpTable {
 		},
 		CALL: {
 			execute:     opCall,
-			constantGas: configs.CallGas,
+			constantGas: CallGas,
 			dynamicGas:  gasCall,
 			minStack:    minStack(7, 1),
 			maxStack:    maxStack(7, 1),
@@ -972,7 +970,7 @@ func newKardiaInstructionSet() JumpTable {
 		},
 		CALLCODE: {
 			execute:     opCallCode,
-			constantGas: configs.CallGas,
+			constantGas: CallGas,
 			dynamicGas:  gasCallCode,
 			minStack:    minStack(7, 1),
 			maxStack:    maxStack(7, 1),
@@ -1001,7 +999,7 @@ func newKardiaInstructionSet() JumpTable {
 		DELEGATECALL: {
 			execute:     opDelegateCall,
 			dynamicGas:  gasDelegateCall,
-			constantGas: configs.CallGas,
+			constantGas: CallGas,
 			minStack:    minStack(6, 1),
 			maxStack:    maxStack(6, 1),
 			memorySize:  memoryDelegateCall,
@@ -1010,7 +1008,7 @@ func newKardiaInstructionSet() JumpTable {
 		},
 		STATICCALL: {
 			execute:     opStaticCall,
-			constantGas: configs.CallGas,
+			constantGas: CallGas,
 			dynamicGas:  gasStaticCall,
 			minStack:    minStack(6, 1),
 			maxStack:    maxStack(6, 1),

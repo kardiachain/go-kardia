@@ -20,7 +20,6 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 	"golang.org/x/crypto/sha3"
@@ -534,7 +533,7 @@ func opBlockhash(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack
 }
 
 func opCoinbase(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.Coinbase.Bytes()))
+	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.Chain.Config().Address.Bytes()))
 	return nil, nil
 }
 
@@ -685,7 +684,7 @@ func opCall(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Sta
 	args := memory.Get(inOffset.Int64(), inSize.Int64())
 
 	if value.Sign() != 0 {
-		gas += configs.CallStipend
+		gas += CallStipend
 	}
 	ret, returnGas, err := kvm.Call(contract, toAddr, args, gas, value)
 	if err != nil {
@@ -714,7 +713,7 @@ func opCallCode(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack 
 	args := memory.Get(inOffset.Int64(), inSize.Int64())
 
 	if value.Sign() != 0 {
-		gas += configs.CallStipend
+		gas += CallStipend
 	}
 	ret, returnGas, err := kvm.CallCode(contract, toAddr, args, gas, value)
 	if err != nil {
@@ -740,7 +739,6 @@ func opDelegateCall(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, st
 	toAddr := common.BigToAddress(addr)
 	// Get arguments from the memory.
 	args := memory.Get(inOffset.Int64(), inSize.Int64())
-
 	ret, returnGas, err := kvm.DelegateCall(contract, toAddr, args, gas)
 	if err != nil {
 		stack.push(kvm.interpreter.intPool.getZero())

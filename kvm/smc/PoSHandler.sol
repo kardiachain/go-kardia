@@ -16,21 +16,12 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-// Defines default configs used for initializing nodes in dev settings.
+pragma solidity ^0.5.8;
 
-package dev
-
-type DualNodeConfig struct {
-	Triggering *TriggeringConfig
-}
-
-type TriggeringConfig struct {
-	// Time interval mimicking how new block is added. For example, [30, 120, 60] indicates that
-	// after 30000, 120000, and 60000 mili-seconds a new block is created.
-	TimeIntervals []int
-	// Whether to repeat TimeIntervals indefinitely after it's exhausted.
-	RepeatInfinitely bool
-
-	// Local variables
-	nonce uint64
+contract PoSHandler {
+    function claimReward(address node, uint64 blockHeight) public {}
+    function newConsensusPeriod(uint64 blockHeight) public {} // blockHeight is used to validate if sender is blockHeight's proposer
+    function isViolatedNode(address node, uint64 maxViolatePercentage) public {}
+    function createNode(string memory publicKey, string memory nodeName, uint16 rewardPercentage, uint64 lockedPeriod, uint256 minimumStakes) public {}
+    function createStaker() public {}
 }

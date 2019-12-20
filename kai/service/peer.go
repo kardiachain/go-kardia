@@ -40,7 +40,6 @@ var (
 	errAlreadyRegistered = errors.New("peer is already registered")
 	errNotRegistered     = errors.New("peer is not registered")
 	errDiffChainID       = errors.New("diff chain id")
-	errUnAuthorizedPeer  = errors.New("peer is not authorized")
 )
 
 const (
@@ -128,7 +127,7 @@ func (p *peer) Info() *PeerInfo {
 // Handshake executes the kardia protocol handshake, negotiating version number,
 // network IDs, head and genesis blocks.
 // Handshake can return error, or nil error but accept=false when peer is valid but gracefully rejected.
-func (p *peer) Handshake(network uint64, chainID uint64, height uint64, head common.Hash, genesis common.Hash, hasPermission bool) (accept bool, err error) {
+func (p *peer) Handshake(network uint64, chainID uint64, height uint64, head common.Hash, genesis common.Hash) (accept bool, err error) {
 	p.logger.Trace("Handshake starts...")
 	// Send out own handshake in a new thread
 	errc := make(chan error, 2)
@@ -145,7 +144,7 @@ func (p *peer) Handshake(network uint64, chainID uint64, height uint64, head com
 		})
 	}()
 	go func() {
-		errc <- p.readStatus(network, chainID, &status, genesis, hasPermission)
+		errc <- p.readStatus(network, chainID, &status, genesis)
 	}()
 	timeout := time.NewTimer(handshakeTimeout)
 	defer timeout.Stop()
@@ -169,7 +168,7 @@ func (p *peer) Handshake(network uint64, chainID uint64, height uint64, head com
 	return true, nil
 }
 
-func (p *peer) readStatus(network uint64, chainID uint64, status *statusData, genesis common.Hash, hasPermission bool) (err error) {
+func (p *peer) readStatus(network uint64, chainID uint64, status *statusData, genesis common.Hash) (err error) {
 	msg, err := p.rw.ReadMsg()
 	p.logger.Info("Read Peer handshake Status", "peer", p.Name(), "Code", msg.Code, "err", err, "NodeID", p.Peer.ID())
 	if err != nil {
@@ -202,10 +201,6 @@ func (p *peer) readStatus(network uint64, chainID uint64, status *statusData, ge
 		// FIXME(#211): have to use error handling path to reject mismatch chainID, but this is expected for some peer.
 		return errDiffChainID
 	}
-	if !hasPermission {
-		return errUnAuthorizedPeer
-	}
-
 	return nil
 }
 

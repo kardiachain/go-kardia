@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"github.com/kardiachain/go-kardia/kvm"
 	"math"
 	"math/big"
 	"math/rand"
@@ -45,11 +46,14 @@ type Account struct {
 }
 
 const (
-	DefaultGasLimit             = configs.TxGas // currently we don't care about tx fee and cost.
+	DefaultGasLimit             = kvm.TxGas // currently we don't care about tx fee and cost.
 	DefaultFaucetAcc            = "0x2BB7316884C7568F2C6A6aDf2908667C0d241A66"
 	DefaultFaucetPrivAcc        = "4561f7d91a4f95ef0a72550fa423febaad3594f91611f9a2b10a7af4d3deb9ed"
 	DefaultGenRandomWithStateTx = 1
 	DefaultGenRandomTx          = 2
+	// constants related to account to call smc
+	KardiaAccountToCallSmc = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
+	KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
 )
 
 var (
@@ -265,7 +269,7 @@ func randomTxAddresses(accounts []Account) (senderKey *ecdsa.PrivateKey, toAddr 
 		toAddr = randomGenesisAddress()
 		privateKeyBytes := crypto.FromECDSA(senderKey)
 		privateKeyHex := hexutil.Encode(privateKeyBytes)[2:]
-		if senderKey != nil && crypto.PubkeyToAddress(senderKey.PublicKey) != toAddr && privateKeyHex != configs.KardiaPrivKeyToCallSmc && privateKeyHex != DefaultFaucetPrivAcc {
+		if senderKey != nil && crypto.PubkeyToAddress(senderKey.PublicKey) != toAddr && privateKeyHex != KardiaPrivKeyToCallSmc && privateKeyHex != DefaultFaucetPrivAcc {
 			// skip senderAddr = toAddr && senderAddr that call smc
 			break
 		}

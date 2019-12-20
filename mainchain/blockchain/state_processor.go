@@ -21,10 +21,10 @@ package blockchain
 import (
 	"errors"
 	"fmt"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"math"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -92,7 +92,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg kvm.Config) (*types.Receipt, uint64, error) {
+func ApplyTransaction(logger log.Logger, bc base.BaseBlockChain, gp *types.GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg kvm.Config) (*types.Receipt, uint64, error) {
 	msg, err := tx.AsMessage(types.HomesteadSigner{})
 	if err != nil {
 		return nil, 0, err
@@ -112,6 +112,9 @@ func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, 
 	var root []byte
 	statedb.Finalise(true)
 	*usedGas += gas
+
+	// update gas used to header
+	header.GasUsed += *usedGas
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx,
 	// we're passing whether the root touch-delete accounts.
@@ -152,8 +155,8 @@ type StateTransition struct {
 	initialGas uint64
 	value      *big.Int
 	data       []byte
-	state      kvm.StateDB
-	vm         *kvm.KVM
+	state      base.StateDB
+	vm         base.KVM
 }
 
 // Message represents a message sent to a contract.
@@ -175,9 +178,9 @@ func IntrinsicGas(data []byte, contractCreation bool) (uint64, error) {
 	// Set the starting gas for the raw transaction
 	var gas uint64
 	if contractCreation {
-		gas = configs.TxGasContractCreation
+		gas = kvm.TxGasContractCreation
 	} else {
-		gas = configs.TxGas
+		gas = kvm.TxGas
 	}
 	// Bump the required gas by the amount of transactional data
 	if len(data) > 0 {
@@ -189,22 +192,22 @@ func IntrinsicGas(data []byte, contractCreation bool) (uint64, error) {
 			}
 		}
 		// Make sure we don't exceed uint64 for all data combinations
-		if (math.MaxUint64-gas)/configs.TxDataNonZeroGas < nz {
+		if (math.MaxUint64-gas)/kvm.TxDataNonZeroGas < nz {
 			return 0, kvm.ErrOutOfGas
 		}
-		gas += nz * configs.TxDataNonZeroGas
+		gas += nz * kvm.TxDataNonZeroGas
 
 		z := uint64(len(data)) - nz
-		if (math.MaxUint64-gas)/configs.TxDataZeroGas < z {
+		if (math.MaxUint64-gas)/kvm.TxDataZeroGas < z {
 			return 0, kvm.ErrOutOfGas
 		}
-		gas += z * configs.TxDataZeroGas
+		gas += z * kvm.TxDataZeroGas
 	}
 	return gas, nil
 }
 
 // NewStateTransition initialises and returns a new state transition object.
-func NewStateTransition(vm *kvm.KVM, msg Message, gp *types.GasPool) *StateTransition {
+func NewStateTransition(vm base.KVM, msg Message, gp *types.GasPool) *StateTransition {
 	return &StateTransition{
 		gp:       gp,
 		vm:       vm,
@@ -212,7 +215,7 @@ func NewStateTransition(vm *kvm.KVM, msg Message, gp *types.GasPool) *StateTrans
 		gasPrice: msg.GasPrice(),
 		value:    msg.Value(),
 		data:     msg.Data(),
-		state:    vm.StateDB,
+		state:    vm.GetStateDB(),
 	}
 }
 
@@ -223,7 +226,7 @@ func NewStateTransition(vm *kvm.KVM, msg Message, gp *types.GasPool) *StateTrans
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
-func ApplyMessage(vm *kvm.KVM, msg Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
+func ApplyMessage(vm base.KVM, msg Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
 	return NewStateTransition(vm, msg, gp).TransitionDb()
 }
 
@@ -325,13 +328,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	}
 
 	// If IsZeroFee is true then refund all gas that sender spend in current transaction
-	if st.vm.GetVmConfig().IsZeroFee {
-		st.refundGas(true) // refundAll
-	} else {
-		st.refundGas(false) // !refundAll
-		st.state.AddBalance(st.vm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
-	}
-
+	st.refundGas(st.vm.IsZeroFee())
 	return ret, st.gasUsed(), vmerr != nil, err
 }
 

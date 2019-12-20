@@ -24,7 +24,7 @@ import (
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/service"
 	serviceconst "github.com/kardiachain/go-kardia/kai/service/const"
-	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kvm"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
@@ -108,7 +108,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
 	// Create a new blockchain to attach to this Kardia object
-	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig, config.IsPrivate)
+	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -118,18 +118,15 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// Set zeroFee to blockchain
 	kai.blockchain.IsZeroFee = config.IsZeroFee
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
-
 	if consensusConfig.WaitForTxs() {
 		kai.txPool.EnableTxsAvailable()
 	}
+	kai.blockchain.ConsensusInfo = config.Genesis.ConsensusInfo
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
-	logger.Info("Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
-	var validatorSet *types.ValidatorSet
-	validatorSet, err = node.GetValidatorSet(kai.blockchain, ctx.Config.MainChainConfig.ValidatorIndexes)
+	validatorSet, err := kvm.CollectValidatorSet(kai.blockchain)
 	if err != nil {
-		logger.Error("Cannot get validator from indices", "indices", ctx.Config.MainChainConfig.ValidatorIndexes, "err", err)
 		return nil, err
 	}
 
@@ -137,7 +134,15 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		Hash:        block.Hash(),
 		PartsHeader: block.MakePartSet(types.BlockPartSizeBytes).Header(),
 	}
-	state := state.LastestBlockState{
+	//logger.Info("Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
+	//var validatorSet *types.ValidatorSet
+	//validatorSet, err = node.GetValidatorSet(kai.blockchain, ctx.Config.MainChainConfig.ValidatorIndexes)
+	//if err != nil {
+	//	logger.Error("Cannot get validator from indices", "indices", ctx.Config.MainChainConfig.ValidatorIndexes, "err", err)
+	//	return nil, err
+	//}
+
+	state := consensus.LastestBlockState{
 		ChainID:                     "kaicon", // TODO(thientn): considers merging this with protocolmanger.ChainID
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
 		LastBlockID:                 blockID,

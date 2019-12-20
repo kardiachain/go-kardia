@@ -19,7 +19,6 @@ package kvm
 import (
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
@@ -70,8 +69,8 @@ func memoryGasCost(mem *Memory, newMemSize uint64) (uint64, error) {
 
 	if newMemSize > uint64(mem.Len()) {
 		square := newMemSizeWords * newMemSizeWords
-		linCoef := newMemSizeWords * configs.MemoryGas
-		quadCoef := square / configs.QuadCoeffDiv
+		linCoef := newMemSizeWords * MemoryGas
+		quadCoef := square / QuadCoeffDiv
 		newTotalFee := linCoef + quadCoef
 
 		fee := newTotalFee - mem.lastGasCost
@@ -102,7 +101,7 @@ func memoryCopierGas(stackpos int) gasFunc {
 			return 0, errGasUintOverflow
 		}
 
-		if words, overflow = common.SafeMul(toWordSize(words), configs.CopyGas); overflow {
+		if words, overflow = common.SafeMul(toWordSize(words), CopyGas); overflow {
 			return 0, errGasUintOverflow
 		}
 
@@ -127,13 +126,13 @@ func gasSStore(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySi
 	)
 
 	if val == (common.Hash{}) && y.Sign() != 0 { // 0 => non 0
-		return configs.SstoreSetGas, nil
+		return SstoreSetGas, nil
 	} else if val != (common.Hash{}) && y.Sign() == 0 { // non 0 => 0
-		kvm.StateDB.AddRefund(configs.SstoreRefundGas)
-		return configs.SstoreClearGas, nil
+		kvm.StateDB.AddRefund(SstoreRefundGas)
+		return SstoreClearGas, nil
 	} else {
 		// non 0 => non 0 (or 0 => 0)
-		return configs.SstoreResetGas, nil
+		return SstoreResetGas, nil
 	}
 }
 
@@ -149,15 +148,15 @@ func makeGasLog(n uint64) gasFunc {
 			return 0, err
 		}
 
-		if gas, overflow = common.SafeAdd(gas, configs.LogGas); overflow {
+		if gas, overflow = common.SafeAdd(gas, LogGas); overflow {
 			return 0, errGasUintOverflow
 		}
-		if gas, overflow = common.SafeAdd(gas, n*configs.LogTopicGas); overflow {
+		if gas, overflow = common.SafeAdd(gas, n*LogTopicGas); overflow {
 			return 0, errGasUintOverflow
 		}
 
 		var memorySizeGas uint64
-		if memorySizeGas, overflow = common.SafeMul(requestedSize, configs.LogDataGas); overflow {
+		if memorySizeGas, overflow = common.SafeMul(requestedSize, LogDataGas); overflow {
 			return 0, errGasUintOverflow
 		}
 		if gas, overflow = common.SafeAdd(gas, memorySizeGas); overflow {
@@ -177,7 +176,7 @@ func gasSha3(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 	if overflow {
 		return 0, errGasUintOverflow
 	}
-	if wordGas, overflow = common.SafeMul(toWordSize(wordGas), configs.Sha3WordGas); overflow {
+	if wordGas, overflow = common.SafeMul(toWordSize(wordGas), Sha3WordGas); overflow {
 		return 0, errGasUintOverflow
 	}
 	if gas, overflow = common.SafeAdd(gas, wordGas); overflow {
@@ -206,10 +205,10 @@ func gasExp(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize 
 	expByteLen := uint64((stack.data[stack.len()-2].BitLen() + 7) / 8)
 
 	var (
-		gas      = expByteLen * configs.ExpByte // no overflow check required. Max is 256 * ExpByte gas
+		gas      = expByteLen * ExpByte // no overflow check required. Max is 256 * ExpByte gas
 		overflow bool
 	)
-	if gas, overflow = common.SafeAdd(gas, configs.ExpGas); overflow {
+	if gas, overflow = common.SafeAdd(gas, ExpGas); overflow {
 		return 0, errGasUintOverflow
 	}
 	return gas, nil
@@ -222,10 +221,10 @@ func gasCall(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 		address        = common.BigToAddress(stack.Back(1))
 	)
 	if transfersValue && kvm.StateDB.Empty(address) {
-		gas += configs.CallNewAccountGas
+		gas += CallNewAccountGas
 	}
 	if transfersValue {
-		gas += configs.CallValueTransferGas
+		gas += CallValueTransferGas
 	}
 	memoryGas, err := memoryGasCost(mem, memorySize)
 	if err != nil {
@@ -256,7 +255,7 @@ func gasCallCode(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memory
 		overflow bool
 	)
 	if stack.Back(2).Sign() != 0 {
-		gas += configs.CallValueTransferGas
+		gas += CallValueTransferGas
 	}
 	if gas, overflow = common.SafeAdd(gas, memoryGas); overflow {
 		return 0, errGasUintOverflow
@@ -310,13 +309,13 @@ func gasSelfdestruct(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, me
 	var address = common.BigToAddress(stack.Back(0))
 
 	if kvm.StateDB.Empty(address) && kvm.StateDB.GetBalance(contract.Address()).Sign() != 0 {
-		gas += configs.CreateBySelfdestructGas
+		gas += CreateBySelfdestructGas
 	} else if !kvm.StateDB.Exist(address) {
-		gas += configs.CreateBySelfdestructGas
+		gas += CreateBySelfdestructGas
 	}
 
 	if !kvm.StateDB.HasSuicided(contract.Address()) {
-		kvm.StateDB.AddRefund(configs.SelfdestructRefundGas)
+		kvm.StateDB.AddRefund(SelfdestructRefundGas)
 	}
 	return gas, nil
 }

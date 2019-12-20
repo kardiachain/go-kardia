@@ -19,8 +19,6 @@ package kvm
 import (
 	"fmt"
 	"math/big"
-
-	"github.com/kardiachain/go-kardia/configs"
 )
 
 // Stack is an object for basic stack operations. Items popped to the stack are
@@ -115,7 +113,7 @@ func maxDupStack(n int) int {
 }
 
 func maxStack(pop, push int) int {
-	return int(configs.StackLimit) + pop - push
+	return int(StackLimit) + pop - push
 }
 func minStack(pops, push int) int {
 	return pops

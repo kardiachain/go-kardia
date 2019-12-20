@@ -22,7 +22,6 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/dualnode/utils"
 	"github.com/kardiachain/go-kardia/kai/base"
@@ -37,7 +36,10 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
-const KARDIA_PROXY = "KARDIA_PROXY"
+const (
+	KARDIA_PROXY = "KARDIA_PROXY"
+	KAI = "KAI"
+)
 
 // Proxy of Kardia's chain to interface with dual's node, responsible for listening to the chain's
 // new block and submiting Kardia's transaction.
@@ -88,7 +90,7 @@ func (p *KardiaProxy) Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool,
 	logger.AddTag(KARDIA_PROXY)
 
 	p.logger = logger
-	p.name = configs.KAI
+	p.name = KAI
 	p.kardiaBc = kardiaBc
 	p.txPool = txPool
 	p.dualBc = dualBc

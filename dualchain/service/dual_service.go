@@ -25,7 +25,6 @@ import (
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/kai/service"
 	serviceconst "github.com/kardiachain/go-kardia/kai/service/const"
-	"github.com/kardiachain/go-kardia/kai/state"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
@@ -92,7 +91,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	logger.Info("Initialising protocol", "versions", serviceconst.ProtocolVersions, "network", config.NetworkId)
 
 	// Create a new blockchain to attach to this GroupService struct
-	dualService.blockchain, err = blockchain.NewBlockChain(logger, groupDb, dualService.chainConfig, config.IsPrivate)
+	dualService.blockchain, err = blockchain.NewBlockChain(logger, groupDb, dualService.chainConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -120,7 +119,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		Hash:        block.Hash(),
 		PartsHeader: block.MakePartSet(types.BlockPartSizeBytes).Header(),
 	}
-	state := state.LastestBlockState{
+	state := consensus.LastestBlockState{
 		ChainID:                     "kaigroupcon",
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
 		LastBlockID:                 blockID,

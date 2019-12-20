@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package main
 
 import (
@@ -9,6 +27,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -17,6 +36,7 @@ import (
 	"github.com/kardiachain/go-kardia/dualchain/service"
 	"github.com/kardiachain/go-kardia/dualnode/dual_proxy"
 	"github.com/kardiachain/go-kardia/dualnode/kardia"
+	"github.com/kardiachain/go-kardia/kai/pos"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -173,6 +193,57 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	genesisAmount, _ := big.NewInt(0).SetString(c.MainChain.Consensus.Deployment.Master.GenesisAmount, 10)
+	minimumStakes, _ := big.NewInt(0).SetString(c.MainChain.Consensus.MinimumStakes, 10)
+	blockReward, _ := big.NewInt(0).SetString(c.MainChain.Consensus.BlockReward, 10)
+	// get consensus info
+	consensus := pos.ConsensusInfo{
+		BlockReward: blockReward,
+		FetchNewValidatorsTime: c.MainChain.Consensus.FetchNewValidatorsTime,
+		MaxValidators:   c.MainChain.Consensus.MaxValidators,
+		ConsensusPeriodInBlock: c.MainChain.Consensus.ConsensusPeriodInBlock,
+		MinimumStakes: minimumStakes,
+		MaxViolatePercentageAllowed: c.MainChain.Consensus.MaxViolatePercentageAllowed,
+		LockedPeriod: c.MainChain.Consensus.LockedPeriod,
+		Master:          pos.MasterSmartContract{
+			Address:       common.HexToAddress(c.MainChain.Consensus.Deployment.Master.Address),
+			ByteCode:      common.Hex2Bytes(c.MainChain.Consensus.Compilation.Master.ByteCode),
+			ABI:           strings.Replace(c.MainChain.Consensus.Compilation.Master.ABI, "'", "\"", -1),
+			GenesisAmount: genesis.ToCell(genesisAmount.Int64()),
+		},
+		Nodes:           pos.Nodes{
+			ABI:         strings.Replace(c.MainChain.Consensus.Compilation.Node.ABI, "'", "\"", -1),
+			ByteCode:    common.Hex2Bytes(c.MainChain.Consensus.Compilation.Node.ByteCode),
+			GenesisInfo: make([]pos.GenesisNodeInfo, 0),
+		},
+		Stakers:         pos.Stakers{
+			ABI:         strings.Replace(c.MainChain.Consensus.Compilation.Staker.ABI, "'", "\"", -1),
+			ByteCode:    common.Hex2Bytes(c.MainChain.Consensus.Compilation.Staker.ByteCode),
+			GenesisInfo: make([]pos.GenesisStakeInfo, 0),
+		},
+	}
+	// get Nodes
+	for _, n := range c.MainChain.Consensus.Deployment.Nodes {
+		consensus.Nodes.GenesisInfo = append(consensus.Nodes.GenesisInfo, pos.GenesisNodeInfo{
+			Address: common.HexToAddress(n.Address),
+			Owner:   common.HexToAddress(n.Owner),
+			PubKey:  n.PubKey,
+			Name:    n.Name,
+			RewardPercentage:  n.RewardPercentage,
+		})
+	}
+	// get stakers
+	for _, s := range c.MainChain.Consensus.Deployment.Stakers {
+		stakeAmount, _ := big.NewInt(0).SetString(s.StakeAmount, 10)
+		consensus.Stakers.GenesisInfo = append(consensus.Stakers.GenesisInfo, pos.GenesisStakeInfo{
+			Address:     common.HexToAddress(s.Address),
+			Owner:       common.HexToAddress(s.Owner),
+			StakedNode:  common.HexToAddress(s.StakedNode),
+			StakeAmount: genesis.ToCell(stakeAmount.Int64()),
+		})
+	}
+	// assign consensus to genesisData
+	genesisData.ConsensusInfo = consensus
 	mainChainConfig := node.MainChainConfig{
 		ValidatorIndexes: c.MainChain.Validators,
 		DBInfo:           dbInfo,
@@ -183,7 +254,6 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		NetworkId:        chain.NetworkID,
 		ChainId:          chain.ChainID,
 		ServiceName:      chain.ServiceName,
-		EnvConfig:        nil,
 		BaseAccount:      baseAccount,
 	}
 	return &mainChainConfig, nil
@@ -219,7 +289,6 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		DualNetworkID:    c.DualChain.NetworkID,
 		ChainId:          c.DualChain.ChainID,
 		DualProtocolName: *c.DualChain.Protocol,
-		EnvConfig:        nil,
 		BaseAccount:      baseAccount,
 	}
 	return &dualChainConfig, nil

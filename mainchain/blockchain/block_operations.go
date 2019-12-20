@@ -20,6 +20,8 @@ package blockchain
 
 import (
 	"fmt"
+	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/kai/base"
 	"math/big"
 	"sync"
 	"time"
@@ -63,7 +65,7 @@ func (bo *BlockOperations) Height() uint64 {
 
 // CreateProposalBlock creates a new proposal block with all current pending txs in pool.
 func (bo *BlockOperations) CreateProposalBlock(
-	height int64, lastState state.LastestBlockState,
+	height int64, lastState consensus.LastestBlockState,
 	proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.
@@ -77,7 +79,59 @@ func (bo *BlockOperations) CreateProposalBlock(
 
 	block = bo.newBlock(header, txs, commit)
 	bo.logger.Info("Make block to propose", "height", block.Height(), "AppHash", block.AppHash(), "hash", block.Hash())
+
+	// claim reward
+	if err := bo.claimReward(uint64(height)); err != nil {
+		panic(err)
+	}
+
+	// try add new consensusPeriod
+	if err := bo.newConsensusPeriod(block.Height()); err != nil {
+		panic(err)
+	}
+
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
+}
+
+func (bo *BlockOperations) newConsensusPeriod(height uint64) error {
+	bc := bo.Blockchain()
+	st, err := bc.State()
+	if err != nil {
+		panic(err)
+	}
+	tx, err := kvm.NewConsensusPeriod(height, bc, st, bo.TxPool())
+	if err != nil {
+		panic(err)
+	}
+	if tx != nil {
+		if err = bo.TxPool().AddLocal(tx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (bo *BlockOperations) claimReward(height uint64) error {
+	var (
+		st *state.StateDB
+		err error
+		tx *types.Transaction
+	)
+	if bo.blockchain.CurrentBlock().Height() > 1 {
+		st, err = bo.blockchain.State()
+		if err != nil {
+			bo.logger.Error("Fail to get blockchain head state", "err", err)
+			return nil
+		}
+		if tx, err = kvm.ClaimReward(height, bo.blockchain, st, bo.txPool); err != nil {
+			return err
+		}
+		if err = bo.txPool.AddLocal(tx); err != nil {
+			bo.logger.Error("fail to add claim reward transaction", "err", err)
+			return err
+		}
+	}
+	return nil
 }
 
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
@@ -244,4 +298,16 @@ LOOP:
 // saveReceipts saves receipts of block transactions to storage.
 func (bo *BlockOperations) saveReceipts(receipts types.Receipts, block *types.Block) {
 	bo.blockchain.WriteReceipts(receipts, block)
+}
+
+func (bo *BlockOperations) Blockchain() base.BaseBlockChain {
+	return bo.blockchain
+}
+
+func (bo *BlockOperations) TxPool() *tx_pool.TxPool {
+	return bo.txPool
+}
+
+func (bo *BlockOperations) IsDual() bool {
+	return false
 }
