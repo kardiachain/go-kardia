@@ -475,7 +475,12 @@ func (pool *TxPool) addTxs(txs []*types.Transaction) int {
 // RemoveTx removes transactions from pending queue.
 func (pool *TxPool) removeTxs(txs types.Transactions) {
 	for _, tx := range txs {
-		sender, _ := pool.getSender(tx)
+		sender, err := pool.getSender(tx)
+		if err != nil {
+			pool.logger.Error("Error sender", "tx", tx.Hash().String(), "error", err.Error())
+			// TODO Fix sender of txs
+			continue
+		}
 		pendings := pool.pending[*sender]
 
 		if pendings != nil && len(pendings) > 0 {
