@@ -1,4 +1,7 @@
-# Go-Kardia
+### This repo is KardiaChain v1 implementation to launch our Archi 2.0 Testnet. Our v2 implementation for mainnet will be public once it's ready.
+
+
+# Go-Kardia v1
 
 [![version](https://img.shields.io/github/release/qubyte/rubidium.svg)](https://github.com/kardiachain/go-kardia/releases/latest)
 [![Go version](https://img.shields.io/badge/go-1.12.9-blue.svg)](https://github.com/moovweb/gvm)
@@ -9,8 +12,8 @@
 Official Golang implementation of Kardia chain following the specs in [Technical Paper](http://dl.kardiachain.io/paper.pdf)
 
 # Kardia private testnet
-- Block explorer UI: [Kardiascan](http://scan.kardiachain.io/)
-- Release: [kardia-v0.8.0](https://github.com/kardiachain/go-kardia/releases/tag/v0.8.0)
+- Block explorer UI: [Kardiascan](http://explorer.kardiachain.io/)
+- Release: [kardia-v0.8.0](https://github.com/kardiachain/go-kardia/releases/tag/v0.8.4)
 
 
 # Quickstart
