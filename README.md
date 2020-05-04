@@ -9,7 +9,7 @@
 [![CircleCI](https://circleci.com/gh/kardiachain/go-kardia.svg?style=shield&circle-token=3163b86cadff994c8e322dc3aedf57c61f541c42)](https://circleci.com/gh/kardiachain/go-kardia)
 [![codecov](https://codecov.io/gh/kardiachain/go-kardia/branch/master/graph/badge.svg?token=9HzVclw3dp)](https://codecov.io/gh/kardiachain/go-kardia)
 
-Official Golang implementation of Kardia chain following the specs in [Technical Paper](http://dl.kardiachain.io/paper.pdf)
+Official Golang implementation of Kardia chain following the specs in [Technical Paper](https://dl.kardiachain.io/KardiaChain-WhitePaper-English.pdf)
 
 # Kardia private testnet
 - Block explorer UI: [Kardiascan](http://explorer.kardiachain.io/)
