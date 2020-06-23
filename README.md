@@ -1,7 +1,4 @@
-### This repo is KardiaChain v1 implementation to launch our Archi 2.0 Testnet. Our v2 implementation for mainnet will be public once it's ready.
-
-
-# Go-Kardia v1
+# Go-Kardia v
 
 [![version](https://img.shields.io/github/release/qubyte/rubidium.svg)](https://github.com/kardiachain/go-kardia/releases/latest)
 [![Go version](https://img.shields.io/badge/go-1.12.9-blue.svg)](https://github.com/moovweb/gvm)
