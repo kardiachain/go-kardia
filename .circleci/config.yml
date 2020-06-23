@@ -3,7 +3,7 @@ jobs:
   build:
     docker:
       - image: circleci/golang:1.12-stretch
-    working_directory: /go/src/github.com/kardiachain/go-kardia
+    working_directory: /go/src/github.com/kardiachain/go-kardiamain
 
     environment:
       CODECOV_TOKEN: 7b55d1cf-771a-4787-8f11-c234e1f21ace
