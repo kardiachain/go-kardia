@@ -21,6 +21,12 @@ import (
 	"github.com/shirou/gopsutil/cpu"
 )
 
+type CPUStats struct {
+	GlobalTime int64 // Time spent by the CPU working on all processes
+	GlobalWait int64 // Time spent by waiting on disk for all processes
+	LocalTime  int64 // Time spent by the CPU working on this process
+}
+
 // ReadCPUStats retrieves the current CPU stats.
 func ReadCPUStats(stats *CPUStats) {
 	// passing false to request all cpu times
