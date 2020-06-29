@@ -24,7 +24,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 
-	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/kardiachain/go-kardiamain/lib/metrics"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"

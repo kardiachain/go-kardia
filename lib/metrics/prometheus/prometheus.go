@@ -23,7 +23,7 @@ import (
 	"sort"
 
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/kardiachain/go-kardiamain/lib/metrics"
 )
 
 // Handler returns an HTTP handler which dump metrics in Prometheus format.
