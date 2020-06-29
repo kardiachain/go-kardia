@@ -3,6 +3,7 @@ module github.com/kardiachain/go-kardiamain
 go 1.13
 
 require (
+	github.com/go-kit/kit v0.10.0
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20190712234253-ed1100a1c015
