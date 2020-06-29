@@ -30,11 +30,11 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
-	"github.com/kardiachain/go-kardia/kai/kaidb"
-	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 func init() {

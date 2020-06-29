@@ -19,12 +19,12 @@
 package base
 
 import (
-	"github.com/kardiachain/go-kardia/kai/events"
-	"github.com/kardiachain/go-kardia/kai/pos"
-	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/event"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/kai/events"
+	"github.com/kardiachain/go-kardiamain/kai/pos"
+	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/event"
+	"github.com/kardiachain/go-kardiamain/types"
 	"math/big"
 )
 

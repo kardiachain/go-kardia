@@ -20,8 +20,8 @@ package tx_pool
 import (
 	"sync"
 
-	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // txNoncer is a tiny virtual state database to manage the executable nonces of

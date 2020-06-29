@@ -25,8 +25,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kardiachain/go-kardia/kai/kaidb"
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 var (

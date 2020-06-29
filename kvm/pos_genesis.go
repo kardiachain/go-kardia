@@ -19,11 +19,11 @@
 package kvm
 
 import (
-	"github.com/kardiachain/go-kardia/kai/base"
-	"github.com/kardiachain/go-kardia/kai/pos"
-	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/lib/abi"
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/kai/base"
+	"github.com/kardiachain/go-kardiamain/kai/pos"
+	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/lib/abi"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"math/big"
 	"strings"
 )

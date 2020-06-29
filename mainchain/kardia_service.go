@@ -20,20 +20,20 @@
 package kai
 
 import (
-	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/consensus"
-	"github.com/kardiachain/go-kardia/kai/service"
-	serviceconst "github.com/kardiachain/go-kardia/kai/service/const"
-	"github.com/kardiachain/go-kardia/kvm"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
-	"github.com/kardiachain/go-kardia/mainchain/genesis"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardia/node"
-	"github.com/kardiachain/go-kardia/rpc"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardiamain/consensus"
+	"github.com/kardiachain/go-kardiamain/kai/service"
+	serviceconst "github.com/kardiachain/go-kardiamain/kai/service/const"
+	"github.com/kardiachain/go-kardiamain/kvm"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
+	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
+	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardiamain/node"
+	"github.com/kardiachain/go-kardiamain/rpc"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 const (

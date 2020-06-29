@@ -23,9 +23,9 @@ import (
 	"math/big"
 	"sort"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // nonceHeap is a heap.Interface implementation over 64bit unsigned integers for

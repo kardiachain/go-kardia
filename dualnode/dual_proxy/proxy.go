@@ -19,16 +19,16 @@
 package dual_proxy
 
 import (
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"github.com/kardiachain/go-kardia/dualnode/utils"
-	"github.com/kardiachain/go-kardia/kai/base"
-	"github.com/kardiachain/go-kardia/kai/events"
-	"github.com/kardiachain/go-kardia/ksml"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/event"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
+	"github.com/kardiachain/go-kardiamain/dualnode/utils"
+	"github.com/kardiachain/go-kardiamain/kai/base"
+	"github.com/kardiachain/go-kardiamain/kai/events"
+	"github.com/kardiachain/go-kardiamain/ksml"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/event"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardiamain/types"
 	"sync"
 )
 

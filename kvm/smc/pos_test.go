@@ -20,11 +20,11 @@ package kvm
 
 import (
 	"fmt"
-	"github.com/kardiachain/go-kardia/kai/pos"
-	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/lib/abi"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	"github.com/kardiachain/go-kardiamain/kai/pos"
+	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/lib/abi"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/stretchr/testify/require"
 	"math/big"
 	"strings"

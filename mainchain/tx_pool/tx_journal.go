@@ -23,10 +23,10 @@ import (
 	"io"
 	"os"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // errNoActiveJournal is returned if a transaction is attempted to be inserted

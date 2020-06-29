@@ -25,7 +25,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/log"
 )
 
 const (

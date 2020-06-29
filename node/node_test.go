@@ -21,10 +21,10 @@ package node
 import (
 	"testing"
 
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/rpc"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	"github.com/kardiachain/go-kardiamain/rpc"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // Signatures of a simple test service.

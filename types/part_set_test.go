@@ -3,7 +3,7 @@ package types
 import (
 	"testing"
 
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 func TestEncodeDecodePart(t *testing.T) {

@@ -23,9 +23,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // TODO(namdoh): Move to a common config file.

@@ -19,7 +19,7 @@ package kvm
 import (
 	"testing"
 
-	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 )
 
 func TestJumpDestAnalysis(t *testing.T) {

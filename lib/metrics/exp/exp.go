@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/kardiachain/go-kardia/lib/metrics"
-	"github.com/kardiachain/go-kardia/lib/metrics/prometheus"
+	"github.com/kardiachain/go-kardiamain/lib/metrics"
+	"github.com/kardiachain/go-kardiamain/lib/metrics/prometheus"
 )
 
 type exp struct {

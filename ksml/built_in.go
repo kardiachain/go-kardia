@@ -20,7 +20,7 @@ package ksml
 
 import (
 	"fmt"
-	"github.com/kardiachain/go-kardia/dualnode/message"
+	"github.com/kardiachain/go-kardiamain/dualnode/message"
 	"reflect"
 	"strings"
 	"time"

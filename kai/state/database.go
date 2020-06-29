@@ -22,12 +22,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 
-	"github.com/kardiachain/go-kardia/trie"
+	"github.com/kardiachain/go-kardiamain/trie"
 
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // Trie cache generation limit after which to evict trie nodes from memory.

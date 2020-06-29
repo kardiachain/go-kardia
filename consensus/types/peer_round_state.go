@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"math/big"
 
-	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/types"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // PeerRoundState contains the known state of a peer.

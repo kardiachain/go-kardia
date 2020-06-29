@@ -8,8 +8,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/merkle"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/merkle"
 )
 
 var (

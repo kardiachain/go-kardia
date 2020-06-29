@@ -3,7 +3,7 @@ package tx_pool
 import (
 	"runtime"
 
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // senderCacher is a concurrent transaction sender recoverer and cacher.

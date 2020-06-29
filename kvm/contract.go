@@ -18,10 +18,10 @@ package kvm
 
 import (
 	"errors"
-	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardiamain/kai/base"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // List execution errors
