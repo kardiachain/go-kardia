@@ -20,12 +20,16 @@ require (
 	github.com/golang/protobuf v1.3.2
 	github.com/golang/snappy v0.0.1
 	github.com/google/cel-go v0.3.2
+	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/mux v1.7.3
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/huin/goupnp v1.0.0
 	github.com/influxdata/influxdb1-client v0.0.0-20191209144304-8bf82d3c094d
 	github.com/jackpal/go-nat-pmp v1.0.2-0.20160603034137-1fa385a6f458
 	github.com/mattn/go-colorable v0.1.2 // indirect
+	github.com/mattn/go-isatty v0.0.9 // indirect
+	github.com/onsi/ginkgo v1.11.0 // indirect
+	github.com/onsi/gomega v1.7.0 // indirect
 	github.com/pebbe/zmq4 v1.0.0
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/tsdb v0.10.0 // indirect
@@ -39,17 +43,12 @@ require (
 	github.com/tyler-smith/go-bip39 v1.0.2 // indirect
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
 	github.com/xdg/stringprep v1.0.1-0.20180714160509-73f8eece6fdc // indirect
-	go.mongodb.org/mongo-driver v1.1.0
+	go.mongodb.org/mongo-driver v1.1.2
 	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
 	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
 	gopkg.in/yaml.v2 v2.2.8
 	gotest.tools/v3 v3.0.2 // indirect
-	//github.com/libopenstorage/stork v2.4.2+incompatible
-	k8s.io/api v0.17.0
-	k8s.io/client-go v0.17.0
-	k8s.io/kubectl v0.0.0
-	k8s.io/kubernetes v1.18.5
 )
 
 replace (
