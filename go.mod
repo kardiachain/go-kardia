@@ -2,20 +2,6 @@ module github.com/kardiachain/go-kardiamain
 
 go 1.13
 
-//replace github.com/containerd/containerd => github.com/containerd/containerd v1.3.5
-
-//replace github.com/docker/docker => github.com/docker/docker v17.12.0-ce-rc1.0.20200531234253-77e06fda0c94+incompatible
-
-replace (
-	github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.6.0
-
-	// From buildkit/go.mod
-	github.com/containerd/containerd => github.com/containerd/containerd v1.3.1-0.20200512144102-f13ba8f2f2fd
-	github.com/docker/docker => github.com/docker/docker v17.12.0-ce-rc1.0.20200310163718-4634ce647cf2+incompatible
-	github.com/hashicorp/go-immutable-radix => github.com/tonistiigi/go-immutable-radix v0.0.0-20170803185627-826af9ccf0fe
-	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
-)
-
 require (
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/allegro/bigcache v1.2.1 // indirect
@@ -59,5 +45,21 @@ require (
 	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
 	gopkg.in/yaml.v2 v2.2.2
+	gotest.tools/v3 v3.0.2 // indirect
 
+)
+
+replace (
+	github.com/Sirupsen/logrus => github.com/sirupsen/logrus v1.6.0
+	github.com/codegangsta/cli => github.com/urfave/cli v1.22.4
+	github.com/h2non/gock => gopkg.in/h2non/gock.v1 v1.0.15
+	github.com/kubernetes-incubator/external-storage => github.com/kubernetes-incubator/external-storage v5.5.0+incompatible
+	github.com/containerd/containerd => github.com/containerd/containerd v1.3.1-0.20200512144102-f13ba8f2f2fd
+	github.com/docker/docker => github.com/docker/docker v17.12.0-ce-rc1.0.20200310163718-4634ce647cf2+incompatible
+	github.com/hashicorp/go-immutable-radix => github.com/tonistiigi/go-immutable-radix v0.0.0-20170803185627-826af9ccf0fe
+	github.com/influxdb/influxdb => github.com/influxdata/influxdb v1.8.0
+	github.com/jaguilar/vt100 => github.com/tonistiigi/vt100 v0.0.0-20190402012908-ad4c4a574305
+	github.com/mholt/caddy => github.com/caddyserver/caddy v1.0.5
+	github.com/renstrom/dedent => github.com/lithammer/dedent v1.1.0
+	github.com/uber-go/atomic => go.uber.org/atomic v1.6.0
 )
