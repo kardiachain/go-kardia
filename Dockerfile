@@ -1,4 +1,4 @@
-FROM golang:1.12-stretch
+FROM golang:1.13-stretch
 RUN mkdir -p "$GOPATH/src/github.com/kardiachain/go-kardiamain"
 WORKDIR /go/src/github.com/kardiachain/go-kardiamain
 RUN apt-get update && apt-get install -y libzmq3-dev
