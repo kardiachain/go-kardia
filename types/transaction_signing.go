@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // Signer encapsulates transaction signature handling. Note that this interface is not a

@@ -18,11 +18,11 @@ package kvm
 
 import (
 	"crypto/sha256"
-	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardiamain/kai/base"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"golang.org/x/crypto/ripemd160"
 )
 

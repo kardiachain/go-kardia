@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardiamain/configs"
 )
 
 type (

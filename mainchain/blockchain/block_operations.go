@@ -20,19 +20,19 @@ package blockchain
 
 import (
 	"fmt"
-	"github.com/kardiachain/go-kardia/consensus"
-	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardiamain/consensus"
+	"github.com/kardiachain/go-kardiamain/kai/base"
 	"math/big"
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardiamain/kai/state"
 
-	"github.com/kardiachain/go-kardia/kvm"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/kvm"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/

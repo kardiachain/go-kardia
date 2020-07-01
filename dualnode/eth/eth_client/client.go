@@ -41,8 +41,8 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/gorilla/mux"
-	message2 "github.com/kardiachain/go-kardia/dualnode/message"
-	"github.com/kardiachain/go-kardia/dualnode/utils"
+	message2 "github.com/kardiachain/go-kardiamain/dualnode/message"
+	"github.com/kardiachain/go-kardiamain/dualnode/utils"
 	"github.com/pebbe/zmq4"
 	"github.com/rs/cors"
 	"io/ioutil"
@@ -138,9 +138,9 @@ func NewEth(config *Config) (*Eth, error) {
 		datadir = filepath.Join(datadir, "mainnet", config.Name)
 		bootUrls = params.MainnetBootnodes
 	case 3: // ropsten
-		ethConf.Genesis = core.DefaultTestnetGenesisBlock()
+		ethConf.Genesis = core.DefaultRopstenGenesisBlock()
 		datadir = filepath.Join(datadir, "ropsten", config.Name)
-		bootUrls = params.TestnetBootnodes
+		bootUrls = params.RopstenBootnodes
 	case 4: // rinkeby
 		ethConf.Genesis = core.DefaultRinkebyGenesisBlock()
 		datadir = filepath.Join(datadir, "rinkeby", config.Name)
@@ -716,8 +716,9 @@ func makeStruct(args abi.Arguments) interface{} {
 	var sfs []reflect.StructField
 	for _, arg := range args {
 		sf := reflect.StructField{
-			Name: fmt.Sprintf("%v", strings.Title(arg.Name)),
-			Type: arg.Type.Type,
+			//Name: fmt.Sprintf("%v", strings.Title(arg.Name)),
+			Name: arg.Name,
+			Type: arg.Type.TupleType,   // FIXME(thientn): this change may not pass unit test yet
 		}
 		sfs = append(sfs, sf)
 	}

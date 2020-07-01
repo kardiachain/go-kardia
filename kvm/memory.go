@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // Memory implements a simple memory model for the ethereum virtual machine.

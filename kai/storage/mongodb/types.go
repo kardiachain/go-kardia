@@ -21,10 +21,10 @@ package mongodb
 import (
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/types"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 

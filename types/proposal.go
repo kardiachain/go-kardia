@@ -23,8 +23,8 @@ import (
 	"math/big"
 	"time"
 
-	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 // Proposal defines a block proposal for the consensus.

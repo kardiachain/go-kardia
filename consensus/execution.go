@@ -21,11 +21,11 @@ package consensus
 import (
 	"fmt"
 	"github.com/ebuchman/fail-test"
-	"github.com/kardiachain/go-kardia/kai/base"
-	"github.com/kardiachain/go-kardia/kai/state"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/kai/base"
+	"github.com/kardiachain/go-kardiamain/kai/state"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.

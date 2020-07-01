@@ -25,14 +25,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kardiachain/go-kardia/kai/kaidb"
-	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb"
+	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 type SmartContract struct {

@@ -24,11 +24,11 @@ import (
 	"testing"
 	"time"
 
-	message "github.com/kardiachain/go-kardia/ksml/proto"
+	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 func makeBlockIDRandom() BlockID {

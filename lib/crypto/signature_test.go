@@ -22,7 +22,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 func TestEcrecover(t *testing.T) {

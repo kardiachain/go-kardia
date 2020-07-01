@@ -24,7 +24,7 @@ import (
 	"math/rand"
 	"reflect"
 
-	"github.com/kardiachain/go-kardia/lib/crypto/sha3"
+	"github.com/kardiachain/go-kardiamain/lib/crypto/sha3"
 )
 
 // Lengths of hashes and addresses in bytes.

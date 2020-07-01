@@ -22,24 +22,24 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardia/kai/base"
-	"github.com/kardiachain/go-kardia/kvm"
+	"github.com/kardiachain/go-kardiamain/kai/base"
+	"github.com/kardiachain/go-kardiamain/kvm"
 	"math/big"
 	"reflect"
 	"runtime/debug"
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 
 	"github.com/ebuchman/fail-test"
 
-	cfg "github.com/kardiachain/go-kardia/configs"
-	cstypes "github.com/kardiachain/go-kardia/consensus/types"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/p2p/discover"
-	"github.com/kardiachain/go-kardia/types"
+	cfg "github.com/kardiachain/go-kardiamain/configs"
+	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/discover"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 var (

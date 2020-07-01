@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/kardiachain/go-kardiamain/lib/metrics"
 	client "github.com/influxdata/influxdb1-client"
 )
 

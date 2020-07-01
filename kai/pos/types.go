@@ -19,7 +19,7 @@
 package pos
 
 import (
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"math/big"
 )
 

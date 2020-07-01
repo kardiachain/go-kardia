@@ -24,9 +24,9 @@ import (
 	"math/big"
 	"time"
 
-	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 var (

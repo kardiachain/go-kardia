@@ -40,14 +40,14 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 )
 
 var dumpEnc bool
 
 func init() {
 	flDump := flag.Bool("dump", false, "write encrypted test message to file")
-	flag.Parse()
+	// flag.Parse()
 	dumpEnc = *flDump
 }
 

@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // reads the integer based on its kind

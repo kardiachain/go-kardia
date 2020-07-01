@@ -23,8 +23,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 func TestReceiptEncodeRLP(t *testing.T) {

@@ -21,17 +21,17 @@ package blockchain
 import (
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardia/consensus"
-	"github.com/kardiachain/go-kardia/kai/base"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardiamain/consensus"
+	"github.com/kardiachain/go-kardiamain/kai/base"
+	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"math/big"
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/dualchain/event_pool"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 var (

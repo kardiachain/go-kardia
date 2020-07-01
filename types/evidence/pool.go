@@ -19,12 +19,12 @@
 package evidence
 
 import (
-	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardiamain/consensus"
 	"sync"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // ---------- EvidencePool -----------

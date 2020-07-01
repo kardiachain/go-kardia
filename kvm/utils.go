@@ -21,7 +21,7 @@ package kvm
 import (
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 var (

@@ -19,13 +19,13 @@
 package node
 
 import (
-	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"os"
 	"os/user"
 	"path/filepath"
 
-	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/lib/p2p/nat"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/nat"
 )
 
 const (

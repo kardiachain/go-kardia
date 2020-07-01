@@ -20,15 +20,15 @@ package kvm
 
 import (
 	"fmt"
-	"github.com/kardiachain/go-kardia/kai/base"
-	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardiamain/kai/base"
+	"github.com/kardiachain/go-kardiamain/lib/log"
 	"math/big"
 
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already

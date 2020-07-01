@@ -19,7 +19,7 @@
 package evidence
 
 import (
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // EvidenceStore is a store of all the evidence we've seen, including

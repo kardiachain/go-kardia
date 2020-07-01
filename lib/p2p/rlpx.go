@@ -37,11 +37,11 @@ import (
 
 	"github.com/golang/snappy"
 
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/crypto/ecies"
-	"github.com/kardiachain/go-kardia/lib/crypto/sha3"
-	"github.com/kardiachain/go-kardia/lib/p2p/discover"
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/crypto/ecies"
+	"github.com/kardiachain/go-kardiamain/lib/crypto/sha3"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/discover"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 const (

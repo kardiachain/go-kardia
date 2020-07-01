@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 type errCode int

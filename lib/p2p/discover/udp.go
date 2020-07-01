@@ -25,11 +25,11 @@ import (
 	"net"
 	"time"
 
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/p2p/nat"
-	"github.com/kardiachain/go-kardia/lib/p2p/netutil"
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/nat"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/netutil"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 const Version = 4
