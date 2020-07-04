@@ -12,13 +12,13 @@ require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200531234253-77e06fda0c94+incompatible // indirect
 	github.com/ebuchman/fail-test v0.0.0-20170303061230-95f809107225
-	github.com/ethereum/go-ethereum v1.9.15
+	github.com/ethereum/go-ethereum v1.9.16-0.20200703171222-490b380a0443
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect
 	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/go-ole/go-ole v1.2.4 // indirect
 	github.com/go-stack/stack v1.8.0
 	github.com/golang/protobuf v1.3.2
-	github.com/golang/snappy v0.0.1
+	github.com/golang/snappy v0.0.2-0.20190904063534-ff6b7dc882cf
 	github.com/google/cel-go v0.3.2
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/mux v1.7.3
@@ -44,7 +44,7 @@ require (
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
 	github.com/xdg/stringprep v1.0.1-0.20180714160509-73f8eece6fdc // indirect
 	go.mongodb.org/mongo-driver v1.1.2
-	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127
 	gopkg.in/yaml.v2 v2.2.8

@@ -716,9 +716,8 @@ func makeStruct(args abi.Arguments) interface{} {
 	var sfs []reflect.StructField
 	for _, arg := range args {
 		sf := reflect.StructField{
-			//Name: fmt.Sprintf("%v", strings.Title(arg.Name)),
-			Name: arg.Name,
-			Type: arg.Type.TupleType,   // FIXME(thientn): this change may not pass unit test yet
+			Name: fmt.Sprintf("%v", strings.Title(arg.Name)),
+			Type: arg.Type.GetType(),   // FIXME(thientn): this change may not pass unit test yet
 		}
 		sfs = append(sfs, sf)
 	}
