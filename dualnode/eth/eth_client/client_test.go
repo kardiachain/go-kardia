@@ -21,9 +21,9 @@ package main
 import (
 	"fmt"
 	abi2 "github.com/ethereum/go-ethereum/accounts/abi"
-	message2 "github.com/kardiachain/go-kardia/dualnode/message"
-	"github.com/kardiachain/go-kardia/dualnode/utils"
-	"github.com/kardiachain/go-kardia/lib/common"
+	message2 "github.com/kardiachain/go-kardiamain/dualnode/message"
+	"github.com/kardiachain/go-kardiamain/dualnode/utils"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"

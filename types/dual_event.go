@@ -22,13 +22,13 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"github.com/golang/protobuf/proto"
-	message "github.com/kardiachain/go-kardia/ksml/proto"
-	"github.com/kardiachain/go-kardia/lib/crypto"
+	message "github.com/kardiachain/go-kardiamain/ksml/proto"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"math/big"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 type BlockchainSymbol string
@@ -169,7 +169,7 @@ func (txMetadata *TxMetadata) String() string {
 // String returns a string representation of KardiaSmartcontract
 func (kardiaSmc *KardiaSmartcontract) String() string {
 	if kardiaSmc != nil {
-		return fmt.Sprintf("Smc{Addr:%v WatcherActions:%v DualActions:%v}", kardiaSmc.SmcAddress, kardiaSmc.Watchers)
+		return fmt.Sprintf("Smc{Addr:%v WatcherActions:%v}", kardiaSmc.SmcAddress, kardiaSmc.Watchers)
 	}
 	return "Smc{Addr:nil}"
 }

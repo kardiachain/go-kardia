@@ -19,7 +19,7 @@ package kvm
 import (
 	"errors"
 
-	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardiamain/configs"
 )
 
 type (

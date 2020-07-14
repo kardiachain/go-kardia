@@ -25,7 +25,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"golang.org/x/crypto/scrypt"
 )
 

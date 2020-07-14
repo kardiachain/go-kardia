@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardiamain/configs"
 )
 
 // Stack is an object for basic stack operations. Items popped to the stack are

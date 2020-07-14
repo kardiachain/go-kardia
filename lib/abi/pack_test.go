@@ -18,7 +18,7 @@ package abi
 
 import (
 	"bytes"
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"math"
 	"math/big"
 	"reflect"

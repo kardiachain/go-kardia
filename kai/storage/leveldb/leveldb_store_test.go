@@ -21,7 +21,7 @@ package leveldb
 import (
 	"bytes"
 	"fmt"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/types"
 	"io/ioutil"
 	"os"
 	"strconv"

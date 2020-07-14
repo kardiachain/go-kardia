@@ -21,7 +21,7 @@ package main
 import (
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardiamain/configs"
 )
 
 type (

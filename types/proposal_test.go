@@ -21,7 +21,7 @@ package types
 import (
 	"testing"
 
-	cmn "github.com/kardiachain/go-kardia/lib/common"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 func TestProposalCreation(t *testing.T) {

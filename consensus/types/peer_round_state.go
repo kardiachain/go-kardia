@@ -23,7 +23,7 @@ import (
 	"math/big"
 	"time"
 
-	cmn "github.com/kardiachain/go-kardia/lib/common"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // PeerRoundState contains the known state of a peer.

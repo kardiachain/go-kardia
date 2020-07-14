@@ -1,10 +1,10 @@
 package tests
 
 import (
-	"github.com/kardiachain/go-kardia/ksml"
-	message "github.com/kardiachain/go-kardia/ksml/proto"
-	"github.com/kardiachain/go-kardia/lib/abi"
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/ksml"
+	message "github.com/kardiachain/go-kardiamain/ksml/proto"
+	"github.com/kardiachain/go-kardiamain/lib/abi"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/stretchr/testify/require"
 	"math/big"
 	"strings"

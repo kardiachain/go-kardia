@@ -20,10 +20,10 @@ package kvm
 
 import (
 	"encoding/hex"
-	"github.com/kardiachain/go-kardia/lib/abi"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/tool"
+	"github.com/kardiachain/go-kardiamain/lib/abi"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/tool"
 	"strings"
 	"testing"
 )

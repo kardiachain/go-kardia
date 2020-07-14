@@ -30,13 +30,13 @@ import (
 
 	"github.com/ebuchman/fail-test"
 
-	cfg "github.com/kardiachain/go-kardia/configs"
-	cstypes "github.com/kardiachain/go-kardia/consensus/types"
-	"github.com/kardiachain/go-kardia/kai/state"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/p2p/discover"
-	"github.com/kardiachain/go-kardia/types"
+	cfg "github.com/kardiachain/go-kardiamain/configs"
+	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
+	"github.com/kardiachain/go-kardiamain/kai/state"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/discover"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 var (

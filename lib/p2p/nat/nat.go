@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/jackpal/go-nat-pmp"
-	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/log"
 )
 
 // An implementation of nat.Interface can map local ports to ports

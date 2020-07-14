@@ -22,12 +22,12 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/types"
 
 	"math"
 	"strings"
 
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // TODO(huny): Get the proper genesis hash for Kardia when ready

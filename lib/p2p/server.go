@@ -25,13 +25,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/event"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/p2p/discover"
-	"github.com/kardiachain/go-kardia/lib/p2p/nat"
-	"github.com/kardiachain/go-kardia/lib/p2p/netutil"
-	"github.com/kardiachain/go-kardia/lib/sysutils"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/event"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/discover"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/nat"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/netutil"
+	"github.com/kardiachain/go-kardiamain/lib/sysutils"
 )
 
 const (

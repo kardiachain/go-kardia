@@ -22,8 +22,8 @@ import (
 	"github.com/hashicorp/golang-lru"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 const (

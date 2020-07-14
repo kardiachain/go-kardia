@@ -20,11 +20,11 @@ package types
 
 import (
 	"bytes"
-	message "github.com/kardiachain/go-kardia/ksml/proto"
+	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 func TestDualEventsEncoding(t *testing.T) {

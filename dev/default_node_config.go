@@ -21,7 +21,7 @@
 package dev
 
 import (
-	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardiamain/node"
 	"fmt"
 )
 

@@ -22,8 +22,8 @@ import (
 	"crypto/ecdsa"
 	"testing"
 
-	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 )
 
 func TestPrivValidatorAccessors(t *testing.T) {

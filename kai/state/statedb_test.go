@@ -19,12 +19,12 @@
 package state
 
 import (
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/types"
 	"math/big"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
 )
 
 // Tests that updating a state trie does not leak any database writes prior to

@@ -22,9 +22,9 @@ import (
 	"fmt"
 
 	fail "github.com/ebuchman/fail-test"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/types"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.

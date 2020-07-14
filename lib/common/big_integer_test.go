@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 var encodingTests = []struct {

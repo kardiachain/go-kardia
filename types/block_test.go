@@ -19,16 +19,16 @@
 package types
 
 import (
-	message "github.com/kardiachain/go-kardia/ksml/proto"
+	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 	"math/big"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 func TestBlockCreation(t *testing.T) {

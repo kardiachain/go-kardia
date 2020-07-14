@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"strings"
 
-	cmn "github.com/kardiachain/go-kardia/lib/common"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // Commit contains the evidence that a block was committed by a set of validators.

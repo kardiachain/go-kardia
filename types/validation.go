@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 
-	"github.com/kardiachain/go-kardia/lib/merkle"
+	"github.com/kardiachain/go-kardiamain/lib/merkle"
 )
 
 // ValidateHash returns an error if the hash is not empty, but its

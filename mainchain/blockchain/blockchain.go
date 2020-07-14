@@ -21,19 +21,19 @@ package blockchain
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/kardiachain/go-kardia/kvm"
+	"github.com/kardiachain/go-kardiamain/kvm"
 	"sync"
 	"sync/atomic"
 
 	"github.com/hashicorp/golang-lru"
-	"github.com/kardiachain/go-kardia/kai/events"
-	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/event"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/mainchain/permissioned"
-	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardiamain/kai/events"
+	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/event"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 const (

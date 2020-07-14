@@ -24,12 +24,12 @@ import (
 	"sync"
 	"time"
 
-	cstypes "github.com/kardiachain/go-kardia/consensus/types"
-	service "github.com/kardiachain/go-kardia/kai/service/const"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/types"
+	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
+	service "github.com/kardiachain/go-kardiamain/kai/service/const"
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // ConsensusManager defines a manager for the consensus service.

@@ -21,7 +21,7 @@ package state
 import (
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // journalEntry is a modification entry in the state change journal that can be
