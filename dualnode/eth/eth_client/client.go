@@ -138,9 +138,9 @@ func NewEth(config *Config) (*Eth, error) {
 		datadir = filepath.Join(datadir, "mainnet", config.Name)
 		bootUrls = params.MainnetBootnodes
 	case 3: // ropsten
-		ethConf.Genesis = core.DefaultTestnetGenesisBlock()
+		ethConf.Genesis = core.DefaultRopstenGenesisBlock()
 		datadir = filepath.Join(datadir, "ropsten", config.Name)
-		bootUrls = params.TestnetBootnodes
+		bootUrls = params.RopstenBootnodes
 	case 4: // rinkeby
 		ethConf.Genesis = core.DefaultRinkebyGenesisBlock()
 		datadir = filepath.Join(datadir, "rinkeby", config.Name)
@@ -717,7 +717,7 @@ func makeStruct(args abi.Arguments) interface{} {
 	for _, arg := range args {
 		sf := reflect.StructField{
 			Name: fmt.Sprintf("%v", strings.Title(arg.Name)),
-			Type: arg.Type.Type,
+			Type: arg.Type.GetType(),
 		}
 		sfs = append(sfs, sf)
 	}
