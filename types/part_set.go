@@ -65,7 +65,7 @@ func (psh PartSetHeader) IsZero() bool {
 }
 
 func (psh PartSetHeader) Equals(other PartSetHeader) bool {
-	return psh.Total == other.Total && bytes.Equal(psh.Hash, other.Hash)
+	return psh.Total.Equals(other.Total) && bytes.Equal(psh.Hash, other.Hash)
 }
 
 // ValidateBasic performs basic validation.
