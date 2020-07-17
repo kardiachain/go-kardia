@@ -61,7 +61,7 @@ func TestBasicPartSet(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, partSet.Hash(), partSet2.Hash())
-	assert.EqualValues(t, 100, partSet2.Total())
+	assert.EqualValues(t, COUNT, partSet2.Total())
 	assert.True(t, partSet2.IsComplete())
 
 	// Reconstruct data, assert that they are equal.
@@ -71,4 +71,25 @@ func TestBasicPartSet(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, data, data2)
+}
+
+func TestPartSetHeaderValidateBasic(t *testing.T) {
+	testCases := []struct {
+		testName              string
+		malleatePartSetHeader func(*PartSetHeader)
+		expectErr             bool
+	}{
+		{"Good PartSet", func(psHeader *PartSetHeader) {}, false},
+		{"Invalid Hash", func(psHeader *PartSetHeader) { psHeader.Hash = make([]byte, 1) }, true},
+	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.testName, func(t *testing.T) {
+			data := cmn.RandBytes(BlockPartSizeBytes * 100)
+			ps := NewPartSetFromData(data, BlockPartSizeBytes)
+			psHeader := ps.Header()
+			tc.malleatePartSetHeader(&psHeader)
+			assert.Equal(t, tc.expectErr, psHeader.ValidateBasic() != nil, "Validate Basic had an unexpected result")
+		})
+	}
 }
