@@ -14,8 +14,8 @@ import (
 // everything.  This also affects the generalized proof system as
 // well.
 type SimpleProof struct {
-	Total    int      `json:"total"`     // Total number of items.
-	Index    int      `json:"index"`     // Index of item to prove.
+	Total    uint64   `json:"total"`     // Total number of items.
+	Index    uint64   `json:"index"`     // Index of item to prove.
 	LeafHash []byte   `json:"leaf_hash"` // Hash of item value.
 	Aunts    [][]byte `json:"aunts"`     // Hashes from leaf's sibling to a root's child.
 }
@@ -28,8 +28,8 @@ func SimpleProofsFromByteSlices(items [][]byte) (rootHash []byte, proofs []*Simp
 	proofs = make([]*SimpleProof, len(items))
 	for i, trail := range trails {
 		proofs[i] = &SimpleProof{
-			Total:    len(items),
-			Index:    i,
+			Total:    uint64(len(items)),
+			Index:    uint64(i),
 			LeafHash: trail.Hash,
 			Aunts:    trail.FlattenAunts(),
 		}
@@ -85,8 +85,8 @@ func (sp *SimpleProof) Verify(rootHash []byte, leaf []byte) error {
 // Compute the root hash given a leaf hash.  Does not verify the result.
 func (sp *SimpleProof) ComputeRootHash() []byte {
 	return computeHashFromAunts(
-		sp.Index,
-		sp.Total,
+		int(sp.Index),
+		int(sp.Total),
 		sp.LeafHash,
 		sp.Aunts,
 	)

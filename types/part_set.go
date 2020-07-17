@@ -192,7 +192,6 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 
 	// Invalid part index
 	if part.Index.IsGreaterThanOrEqualToInt(ps.total) {
-		// if part.Index.IsGreaterThan(cmn.NewBigInt32(ps.Total())) {
 		return false, ErrPartSetUnexpectedIndex
 	}
 
