@@ -388,24 +388,6 @@ func (b *Block) HashesTo(id BlockID) bool {
 	return b.Hash().Equal(common.Hash(id))
 }
 
-// MakePartSet returns a PartSet containing parts of a serialized block.
-// This is the form in which the block is gossipped to peers.
-// CONTRACT: partSize is greater than zero.
-func (b *Block) MakePartSet(partSize int) *PartSet {
-	if b == nil {
-		return nil
-	}
-	b.mtx.Lock()
-	defer b.mtx.Unlock()
-
-	bz, err := rlp.EncodeToBytes(b)
-	if err != nil {
-		panic(err)
-	}
-
-	return NewPartSetFromData(bz, partSize)
-}
-
 // Size returns the true RLP encoded storage size of the block, either by encoding
 // and returning it, or returning a previously cached value.
 func (b *Block) Size() common.StorageSize {
