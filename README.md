@@ -1,16 +1,16 @@
 # Go-Kardia
 
-[![version](https://img.shields.io/github/release/qubyte/rubidium.svg)](https://github.com/kardiachain/go-kardia/releases/latest)
-[![Go version](https://img.shields.io/badge/go-1.12.9-blue.svg)](https://github.com/moovweb/gvm)
+[![version](https://img.shields.io/github/release/qubyte/rubidium.svg)](https://github.com/kardiachain/go-kardiamain/releases/latest)
+[![Go version](https://img.shields.io/badge/go-1.13-blue.svg)](https://github.com/moovweb/gvm)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
-[![CircleCI](https://circleci.com/gh/kardiachain/go-kardia.svg?style=shield&circle-token=3163b86cadff994c8e322dc3aedf57c61f541c42)](https://circleci.com/gh/kardiachain/go-kardia)
-[![codecov](https://codecov.io/gh/kardiachain/go-kardia/branch/master/graph/badge.svg?token=9HzVclw3dp)](https://codecov.io/gh/kardiachain/go-kardia)
+[![CircleCI](https://circleci.com/gh/kardiachain/go-kardiamain.svg?style=shield&circle-token=b35bd6e6d67b307a6bb5966efbfa0297820d6846)](https://circleci.com/gh/kardiachain/go-kardiamain)
+[![codecov](https://codecov.io/gh/kardiachain/go-kardiamain/branch/master/graph/badge.svg?token=VuisziC3mg)](https://codecov.io/gh/kardiachain/go-kardiamain)
 
 Official Golang implementation of Kardia chain following the specs in [Technical Paper](http://dl.kardiachain.io/paper.pdf)
 
 # Kardia private testnet
-- Block explorer UI: [Kardiascan](http://scan.kardiachain.io/)
-- Release: [kardia-v0.8.0](https://github.com/kardiachain/go-kardia/releases/tag/v0.8.0)
+- Block explorer UI: [Kardiascan](http://explorer.kardiachain.io/)
+- Release: [kardia-v0.9.0](https://github.com/kardiachain/go-kardiamain/releases/tag/v0.9.0)
 
 
 # Quickstart
@@ -34,7 +34,7 @@ See [deployment](https://github.com/kardiachain/go-kardia/tree/master/deployment
 
 # Development
 ### Go environment setup
-Install [Go](https://golang.org/doc/install) v1.12 to $HOME directory. Sets environment vars:  
+Install [Go](https://golang.org/doc/install) v1.13 to $HOME directory. Sets environment vars:  
 > export GOPATH=$HOME/go  
 > export PATH=$PATH:$GOPATH/bin
 
@@ -42,11 +42,8 @@ Install [Go](https://golang.org/doc/install) v1.12 to $HOME directory. Sets envi
 * Install [libzmq](https://github.com/zeromq/libzmq) 
 
 ### Build
-Install [dep](https://github.com/golang/dep) v0.5 tool for dependency management.  
-Download library dependency and build Kardia binary.
 ```
-cd $GOPATH/src/github.com/kardiachain/go-kardia
-dep ensure
+cd $GOPATH/src/github.com/kardiachain/go-kardiamain
 go install
 ```
 
@@ -63,7 +60,7 @@ Most of the top-level directories are self-explanatory. Here are the core direct
 
 ### Unit tests
 ```
-cd $GOPATH/src/github.com/kardiachain/go-kardia
+cd $GOPATH/src/github.com/kardiachain/go-kardiamain
 go test ./...
 ```
 

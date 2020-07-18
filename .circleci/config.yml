@@ -3,10 +3,10 @@ jobs:
   build:
     docker:
       - image: circleci/golang:1.13-stretch
-    working_directory: /go/src/github.com/kardiachain/go-kardia
+    working_directory: /go/src/github.com/kardiachain/go-kardiamain
 
     environment:
-      CODECOV_TOKEN: 7b55d1cf-771a-4787-8f11-c234e1f21ace
+      CODECOV_TOKEN: 85b61679-b8d5-409e-80c2-21b20ee5ad01
 
     steps:
       - checkout
@@ -39,30 +39,35 @@ jobs:
             cd cmd
             go build -v
 
-  release:
-    docker:
-      - image: circleci/golang:1.12-stretch
-    working_directory: /go/src/github.com/kardiachain/go-kardia
+  #release:
+  #  docker:
+  #    - image: circleci/golang:1.13-stretch
+  #  working_directory: /go/src/github.com/kardiachain/go-kardiamain
 
-    steps:
-      - checkout
-      - restore_cache:
-          keys:
-            - v1-pkg-cache
-      - run:
-          name: get dependencies
-          command: |
-            go get -u github.com/golang/dep/cmd/dep
-            dep ensure
+  #  steps:
+  #    - checkout
+  #    - restore_cache:
+  #        keys:
+  #          - v1-pkg-cache
 
-      - save_cache:
-          key: v1-pkg-cache
-          paths:
-            - "/go/pkg"
+  #    - run:
+  #        name: get dependencies
+  #        command: |
+  #          sudo apt-get update && sudo apt-get install -y libzmq3-dev
+
+  #    - run:
+  #        name: Run unit test
+  #        command: |
+  #          bash .circleci/test.sh
+
+  #    - save_cache:
+  #        key: v1-pkg-cache
+  #        paths:
+  #          - "/go/pkg"
             
-      - run:
-          name: Run release
-          command: curl -sL https://git.io/goreleaser | bash
+  #    - run:
+  #        name: Run release
+  #        command: curl -sL https://git.io/goreleaser | bash
 
 workflows:
   version: 2
@@ -73,10 +78,10 @@ workflows:
             branches:
               only:
                 - master
-      - release:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /v[0-9]+(\.[0-9]+)*(-.*)*/
+      #- release:
+      #    filters:
+      #      branches:
+      #        ignore: /.*/
+      #      tags:
+      #        only: /v[0-9]+(\.[0-9]+)*(-.*)*/
 
