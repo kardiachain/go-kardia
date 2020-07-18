@@ -4,6 +4,13 @@ import (
 	"crypto/ecdsa"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"math/big"
+	"os"
+	"path/filepath"
+	"runtime"
+	"time"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
@@ -24,12 +31,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"math/big"
-	"os"
-	"path/filepath"
-	"runtime"
-	"time"
 )
 
 const (
@@ -251,6 +252,7 @@ func (c *Config) getNodeConfig() (*node.NodeConfig, error) {
 		MainChainConfig:  node.MainChainConfig{},
 		DualChainConfig:  node.DualChainConfig{},
 		PeerProxyIP:      "",
+		Metrics:          n.Metrics,
 	}
 	mainChainConfig, err := c.getMainChainConfig()
 	if err != nil {
@@ -455,19 +457,19 @@ func (c *Config) SaveWatchers(service node.Service, events []Event) {
 				masterAbi = *event.MasterABI
 			}
 			watchers := make(types.Watchers, 0)
-			for _, action := range event.Watchers{
+			for _, action := range event.Watchers {
 				watchers = append(watchers, &types.Watcher{
-					Method:     action.Method,
+					Method:         action.Method,
 					WatcherActions: action.WatcherActions,
-					DualActions: action.DualActions,
+					DualActions:    action.DualActions,
 				})
 			}
 			smc := &types.KardiaSmartcontract{
-				MasterSmc:      event.MasterSmartContract,
-				MasterAbi:      masterAbi,
-				SmcAddress:     event.ContractAddress,
-				SmcAbi:         abi,
-				Watchers:       watchers,
+				MasterSmc:  event.MasterSmartContract,
+				MasterAbi:  masterAbi,
+				SmcAddress: event.ContractAddress,
+				SmcAbi:     abi,
+				Watchers:   watchers,
 			}
 			service.DB().WriteEvent(smc)
 		}
