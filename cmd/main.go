@@ -198,25 +198,25 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	blockReward, _ := big.NewInt(0).SetString(c.MainChain.Consensus.BlockReward, 10)
 	// get consensus info
 	consensus := pos.ConsensusInfo{
-		BlockReward: blockReward,
-		FetchNewValidatorsTime: c.MainChain.Consensus.FetchNewValidatorsTime,
-		MaxValidators:   c.MainChain.Consensus.MaxValidators,
-		ConsensusPeriodInBlock: c.MainChain.Consensus.ConsensusPeriodInBlock,
-		MinimumStakes: minimumStakes,
+		BlockReward:                 blockReward,
+		FetchNewValidatorsTime:      c.MainChain.Consensus.FetchNewValidatorsTime,
+		MaxValidators:               c.MainChain.Consensus.MaxValidators,
+		ConsensusPeriodInBlock:      c.MainChain.Consensus.ConsensusPeriodInBlock,
+		MinimumStakes:               minimumStakes,
 		MaxViolatePercentageAllowed: c.MainChain.Consensus.MaxViolatePercentageAllowed,
-		LockedPeriod: c.MainChain.Consensus.LockedPeriod,
-		Master:          pos.MasterSmartContract{
+		LockedPeriod:                c.MainChain.Consensus.LockedPeriod,
+		Master: pos.MasterSmartContract{
 			Address:       common.HexToAddress(c.MainChain.Consensus.Deployment.Master.Address),
 			ByteCode:      common.Hex2Bytes(c.MainChain.Consensus.Compilation.Master.ByteCode),
 			ABI:           strings.Replace(c.MainChain.Consensus.Compilation.Master.ABI, "'", "\"", -1),
 			GenesisAmount: genesis.ToCell(genesisAmount.Int64()),
 		},
-		Nodes:           pos.Nodes{
+		Nodes: pos.Nodes{
 			ABI:         strings.Replace(c.MainChain.Consensus.Compilation.Node.ABI, "'", "\"", -1),
 			ByteCode:    common.Hex2Bytes(c.MainChain.Consensus.Compilation.Node.ByteCode),
 			GenesisInfo: make([]pos.GenesisNodeInfo, 0),
 		},
-		Stakers:         pos.Stakers{
+		Stakers: pos.Stakers{
 			ABI:         strings.Replace(c.MainChain.Consensus.Compilation.Staker.ABI, "'", "\"", -1),
 			ByteCode:    common.Hex2Bytes(c.MainChain.Consensus.Compilation.Staker.ByteCode),
 			GenesisInfo: make([]pos.GenesisStakeInfo, 0),
@@ -225,11 +225,11 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	// get Nodes
 	for _, n := range c.MainChain.Consensus.Deployment.Nodes {
 		consensus.Nodes.GenesisInfo = append(consensus.Nodes.GenesisInfo, pos.GenesisNodeInfo{
-			Address: common.HexToAddress(n.Address),
-			Owner:   common.HexToAddress(n.Owner),
-			PubKey:  n.PubKey,
-			Name:    n.Name,
-			RewardPercentage:  n.RewardPercentage,
+			Address:          common.HexToAddress(n.Address),
+			Owner:            common.HexToAddress(n.Owner),
+			PubKey:           n.PubKey,
+			Name:             n.Name,
+			RewardPercentage: n.RewardPercentage,
 		})
 	}
 	// get stakers
@@ -314,6 +314,7 @@ func (c *Config) getNodeConfig() (*node.NodeConfig, error) {
 		MainChainConfig:  node.MainChainConfig{},
 		DualChainConfig:  node.DualChainConfig{},
 		PeerProxyIP:      "",
+		Metrics:          n.Metrics,
 	}
 	mainChainConfig, err := c.getMainChainConfig()
 	if err != nil {

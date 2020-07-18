@@ -22,12 +22,13 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
-	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
 
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/kai/base"
@@ -65,7 +66,7 @@ type MainChainConfig struct {
 	// IsPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	IsPrivate bool
 	NetworkId uint64
-	ChainId uint64
+	ChainId   uint64
 	// ServiceName is used as log's prefix
 	ServiceName string
 	// BaseAccount defines account which is used to execute internal smart contracts
@@ -150,6 +151,8 @@ type NodeConfig struct {
 	PeerProxyIP string
 	// BaseAccount defines account which is used to execute internal smart contracts
 	BaseAccount *types.BaseAccount
+	// Metrics defines whether we want to collect and expose metrics of the node
+	Metrics bool
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
 	NodeMetadata *NodeMetadata

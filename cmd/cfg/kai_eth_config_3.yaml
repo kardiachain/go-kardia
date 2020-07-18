@@ -1,6 +1,6 @@
 Node:
   Name: node3
-  DataDir: /root/.kardia
+  DataDir: /tmp/.kardia
   HTTPHost: 0.0.0.0
   HTTPPort: 8547
   HTTPModules:

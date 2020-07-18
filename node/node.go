@@ -27,8 +27,10 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/metrics"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/discover"
 	"github.com/kardiachain/go-kardiamain/rpc"
@@ -71,6 +73,11 @@ func (n *Node) Start() error {
 	if n.server != nil {
 		return ErrNodeRunning
 	}
+	if n.config.Metrics {
+		metrics.Enabled = true
+		go metrics.CollectProcessMetrics(3 * time.Second)
+	}
+
 	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 
 	// RPC Endpoint
