@@ -77,7 +77,7 @@ func (s *RPCService) Modules() map[string]string {
 // match the criteria to be either a RPC method or a subscription an error is returned. Otherwise a new service is
 // created and added to the service collection this server instance serves.
 func (s *Server) RegisterName(name string, rcvr interface{}) error {
-	log.Info("Register service","name", name)
+	log.Info("Register service", "name", name)
 	if s.services == nil {
 		s.services = make(serviceRegistry)
 	}

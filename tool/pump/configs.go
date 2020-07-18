@@ -42,6 +42,7 @@ type (
 		HTTPModules      []string `yaml:"HTTPModules"`
 		HTTPVirtualHosts []string `yaml:"HTTPVirtualHosts"`
 		HTTPCors         []string `yaml:"HTTPCors"`
+		Metrics          bool     `yaml:"Metrics"`
 	}
 	P2P struct {
 		PrivateKey    string `yaml:"PrivateKey"`
@@ -95,16 +96,16 @@ type (
 		Drop    int    `yaml:"Drop"`
 	}
 	Event struct {
-		MasterSmartContract string           `yaml:"MasterSmartContract"`
-		ContractAddress   string             `yaml:"ContractAddress"`
-		MasterABI         *string            `yaml:"MasterABI"`
-		ABI               *string            `yaml:"ABI,omitempty"`
-		Watchers          []Watcher          `yaml:"Watchers"`
+		MasterSmartContract string    `yaml:"MasterSmartContract"`
+		ContractAddress     string    `yaml:"ContractAddress"`
+		MasterABI           *string   `yaml:"MasterABI"`
+		ABI                 *string   `yaml:"ABI,omitempty"`
+		Watchers            []Watcher `yaml:"Watchers"`
 	}
 	Watcher struct {
-		Method           string             `yaml:"Method"`
-		WatcherActions   []string           `yaml:"WatcherActions,omitempty"`
-		DualActions      []string           `yaml:"DualActions"`
+		Method         string   `yaml:"Method"`
+		WatcherActions []string `yaml:"WatcherActions,omitempty"`
+		DualActions    []string `yaml:"DualActions"`
 	}
 	BaseAccount struct {
 		Address    string `yaml:"Address"`

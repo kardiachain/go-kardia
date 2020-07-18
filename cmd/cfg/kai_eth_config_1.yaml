@@ -1,6 +1,6 @@
 Node:
   Name: node1
-  DataDir: /root/.kardia
+  DataDir: /tmp/.kardia
   HTTPHost: 0.0.0.0
   HTTPPort: 8545
   HTTPModules:
@@ -20,6 +20,7 @@ Node:
     ListenAddress: :3000
     MaxPeers:   25
   LogLevel: info           # crit, error, warn, info, debug, trace
+  Metrics: true
 MainChain:
   ServiceName:  KARDIA
   ChainId:      1
