@@ -20,7 +20,7 @@ Node:
     ListenAddress: :3002
     MaxPeers:   25
   LogLevel: info           # crit, error, warn, info, debug, trace
-  Metrics: true
+  Metrics: 1
 MainChain:
   ServiceName:  KARDIA
   ChainId:      1

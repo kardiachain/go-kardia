@@ -73,7 +73,7 @@ func (n *Node) Start() error {
 	if n.server != nil {
 		return ErrNodeRunning
 	}
-	if n.config.Metrics {
+	if n.config.Metrics == 1 {
 		metrics.Enabled = true
 		go metrics.CollectProcessMetrics(3 * time.Second)
 	}

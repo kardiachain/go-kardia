@@ -16,7 +16,7 @@ type (
 		HTTPModules      []string `yaml:"HTTPModules"`
 		HTTPVirtualHosts []string `yaml:"HTTPVirtualHosts"`
 		HTTPCors         []string `yaml:"HTTPCors"`
-		Metrics          bool     `yaml:"Metrics"`
+		Metrics          int      `yaml:"Metrics"`
 	}
 	P2P struct {
 		PrivateKey    string `yaml:"PrivateKey"`
