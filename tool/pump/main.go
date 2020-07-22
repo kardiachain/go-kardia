@@ -49,7 +49,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/nat"
 	"github.com/kardiachain/go-kardiamain/lib/sysutils"
-	"github.com/kardiachain/go-kardiamain/mainchain"
+	kai "github.com/kardiachain/go-kardiamain/mainchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
@@ -146,9 +146,9 @@ func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 		GlobalSlots: txPool.GlobalSlots,
 		GlobalQueue: txPool.GlobalQueue,
 
-		NumberOfWorkers:  txPool.NumberOfWorkers,
-		WorkerCap:        txPool.WorkerCap,
-		BlockSize:        txPool.BlockSize,
+		NumberOfWorkers: txPool.NumberOfWorkers,
+		WorkerCap:       txPool.WorkerCap,
+		BlockSize:       txPool.BlockSize,
 
 		LifeTime: 1 * time.Minute,
 	}
