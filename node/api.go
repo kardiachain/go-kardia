@@ -23,6 +23,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/metrics"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 )
 
@@ -95,4 +96,8 @@ func (s *PublicNodeAPI) AddPeer(peerURL string) {
 
 func (s *PublicNodeAPI) CheckFull() bool {
 	return s.node.server.CheckFull()
+}
+
+func (s *PublicNodeAPI) Metrics() map[string]map[string]interface{} {
+	return metrics.DefaultRegistry.GetAll()
 }

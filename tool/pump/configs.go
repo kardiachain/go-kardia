@@ -42,6 +42,7 @@ type (
 		HTTPModules      []string `yaml:"HTTPModules"`
 		HTTPVirtualHosts []string `yaml:"HTTPVirtualHosts"`
 		HTTPCors         []string `yaml:"HTTPCors"`
+		Metrics          uint     `yaml:"Metrics"`
 	}
 	P2P struct {
 		PrivateKey    string `yaml:"PrivateKey"`
@@ -78,12 +79,12 @@ type (
 		ABI      string `yaml:"ABI,omitempty"`
 	}
 	Pool struct {
-		GlobalSlots      uint64 `yaml:"GlobalSlots"`
-		GlobalQueue      uint64 `yaml:"GlobalQueue"`
-		NumberOfWorkers  int    `yaml:"NumberOfWorkers"`
-		WorkerCap        int    `yaml:"WorkerCap"`
-		BlockSize        int    `yaml:"BlockSize"`
-		LifeTime         int    `yaml:"LifeTime"`
+		GlobalSlots     uint64 `yaml:"GlobalSlots"`
+		GlobalQueue     uint64 `yaml:"GlobalQueue"`
+		NumberOfWorkers int    `yaml:"NumberOfWorkers"`
+		WorkerCap       int    `yaml:"WorkerCap"`
+		BlockSize       int    `yaml:"BlockSize"`
+		LifeTime        int    `yaml:"LifeTime"`
 	}
 	Database struct {
 		Type    uint   `yaml:"Type"`
@@ -95,16 +96,16 @@ type (
 		Drop    int    `yaml:"Drop"`
 	}
 	Event struct {
-		MasterSmartContract string           `yaml:"MasterSmartContract"`
-		ContractAddress   string             `yaml:"ContractAddress"`
-		MasterABI         *string            `yaml:"MasterABI"`
-		ABI               *string            `yaml:"ABI,omitempty"`
-		Watchers          []Watcher          `yaml:"Watchers"`
+		MasterSmartContract string    `yaml:"MasterSmartContract"`
+		ContractAddress     string    `yaml:"ContractAddress"`
+		MasterABI           *string   `yaml:"MasterABI"`
+		ABI                 *string   `yaml:"ABI,omitempty"`
+		Watchers            []Watcher `yaml:"Watchers"`
 	}
 	Watcher struct {
-		Method           string             `yaml:"Method"`
-		WatcherActions   []string           `yaml:"WatcherActions,omitempty"`
-		DualActions      []string           `yaml:"DualActions"`
+		Method         string   `yaml:"Method"`
+		WatcherActions []string `yaml:"WatcherActions,omitempty"`
+		DualActions    []string `yaml:"DualActions"`
 	}
 	BaseAccount struct {
 		Address    string `yaml:"Address"`
