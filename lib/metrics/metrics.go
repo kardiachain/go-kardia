@@ -28,6 +28,10 @@ var enablerFlags = []string{"metrics", "dashboard"}
 // expensiveEnablerFlags is the CLI flag names to use to enable metrics collections.
 var expensiveEnablerFlags = []string{"metrics.expensive"}
 
+func init() {
+	Enabled = true
+}
+
 // CollectProcessMetrics periodically collects various metrics about the running
 // process.
 func CollectProcessMetrics(refresh time.Duration) {
