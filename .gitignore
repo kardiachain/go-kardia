@@ -20,4 +20,5 @@ vendor/
 
 # Build and Run file
 go-kardia
+cmd/cmd
 run.sh
