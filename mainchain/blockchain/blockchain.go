@@ -21,11 +21,12 @@ package blockchain
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/kardiachain/go-kardiamain/kvm"
 	"sync"
 	"sync/atomic"
 
-	"github.com/hashicorp/golang-lru"
+	"github.com/kardiachain/go-kardiamain/kvm"
+
+	lru "github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -473,10 +474,14 @@ func (bc *BlockChain) ReadCommit(height uint64) *types.Commit {
 	return bc.db.ReadCommit(height)
 }
 
+func (bc *BlockChain) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
+	bc.db.SaveBlock(block, blockParts, seenCommit)
+}
+
 func (bc *BlockChain) ZeroFee() bool {
 	return bc.IsZeroFee
 }
 
-func (bc *BlockChain)ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
+func (bc *BlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
 	return ApplyMessage(vm, msg, gp)
 }

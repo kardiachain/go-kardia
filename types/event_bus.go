@@ -45,7 +45,7 @@ func (b *EventBus) PublishEventPolka(event EventDataRoundState) error {
 	return b.Publish(EventPolka, event)
 }
 
-func (b *EventBus) PublishEventCompleteProposal(event EventDataRoundState) error {
+func (b *EventBus) PublishEventCompleteProposal(event EventDataCompleteProposal) error {
 	return b.Publish(EventCompleteProposal, event)
 }
 

@@ -123,7 +123,7 @@ func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block) error {
 //             If all the nodes restart after committing a block,
 //             we need this to reload the precommits to catch-up nodes to the
 //             most recent height.  Otherwise they'd stall at H-1.
-func (bo *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commit) {
+func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	if block == nil {
 		common.PanicSanity("BlockOperations try to save a nil block")
 	}
@@ -143,19 +143,8 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commi
 	}
 
 	// Save block commit (duplicate and separate from the Block)
-	bo.blockchain.WriteCommit(height-1, block.LastCommit())
+	bo.blockchain.SaveBlock(block, blockParts, seenCommit)
 
-	// (@kiendn, issue#73)Use this function to prevent nil commits
-	seenCommit.MakeNilEmpty()
-
-	// Save seen commit (seen +2/3 precommits for block)
-	// NOTE: we can delete this at a later height
-	bo.blockchain.WriteCommit(height, seenCommit)
-
-	// TODO(thientn/kiendn): Evaluates remove txs directly here, or depending on txPool.reset() when receiving new block event.
-	//if block != nil && len(block.Transactions()) > 0 {
-	//	bo.txPool.RemoveTxs(block.Transactions())
-	//}
 	bo.mtx.Lock()
 	bo.height = height
 	bo.mtx.Unlock()
@@ -260,7 +249,6 @@ LOOP:
 
 	header.NumTxs = uint64(newTxs.Len())
 	root, err := state.Commit(true)
-
 
 	if err != nil {
 		bo.logger.Error("Fail to commit new statedb after txs", "err", err)

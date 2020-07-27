@@ -128,3 +128,20 @@ func (rs *RoundState) String() string {
 		rs.LastCommit,
 		rs.LastValidators)
 }
+
+// CompleteProposalEvent returns information about a proposed block as an event.
+func (rs *RoundState) CompleteProposalEvent() types.EventDataCompleteProposal {
+	// We must construct BlockID from ProposalBlock and ProposalBlockParts
+	// cs.Proposal is not guaranteed to be set when this function is called
+	blockId := types.BlockID{
+		Hash:        rs.ProposalBlock.Hash(),
+		PartsHeader: rs.ProposalBlockParts.Header(),
+	}
+
+	return types.EventDataCompleteProposal{
+		Height:  rs.Height.Int64(),
+		Round:   rs.Round.Int32(),
+		Step:    rs.Step.String(),
+		BlockID: blockId,
+	}
+}
