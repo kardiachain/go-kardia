@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
@@ -72,7 +73,7 @@ func TestGenerateRandomTx(t *testing.T) {
 
 func TestGenerateRandomTxWithState(t *testing.T) {
 	genTool := NewGeneratorTool(GetAccounts(configs.GenesisAddrKeys))
-	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
+	statedb, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(memorydb.New()))
 	result := genTool.GenerateRandomTxWithState(10, statedb)
 	for _, tx := range result {
 		from, _ := types.Sender(tx)

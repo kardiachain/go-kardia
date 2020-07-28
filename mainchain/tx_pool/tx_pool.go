@@ -53,7 +53,7 @@ type blockChain interface {
 	CurrentBlock() *types.Block
 	GetBlock(hash common.Hash, number uint64) *types.Block
 	StateAt(root common.Hash) (*state.StateDB, error)
-	DB() types.Database
+	DB() types.StoreDB
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 }
 
@@ -91,6 +91,7 @@ var DefaultTxPoolConfig = TxPoolConfig{
 
 	LifeTime: 1 * time.Minute,
 }
+
 // GetDefaultTxPoolConfig returns default txPoolConfig with given dir path
 func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
 	conf := DefaultTxPoolConfig
