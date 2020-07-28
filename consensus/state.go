@@ -33,7 +33,6 @@ import (
 	cfg "github.com/kardiachain/go-kardiamain/configs"
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
 	"github.com/kardiachain/go-kardiamain/kai/state"
-	"github.com/kardiachain/go-kardiamain/lib/common"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/discover"
@@ -568,7 +567,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (add
 			if !blockID.Hash.IsZero() {
 				cs.enterCommit(height, vote.Round)
 				if cs.config.SkipTimeoutCommit && precommits.HasAll() {
-					cs.enterNewRound(cs.Height, common.NewBigInt32(0))
+					cs.enterNewRound(cs.Height, cmn.NewBigInt32(0))
 				}
 			} else {
 				// if we have all the votes now,
@@ -631,7 +630,7 @@ func (cs *ConsensusState) voteTime() *big.Int {
 }
 
 // Signs the vote and publish on internalMsgQueue
-func (cs *ConsensusState) signAddVote(type_ byte, hash common.Hash, header types.PartSetHeader) *types.Vote {
+func (cs *ConsensusState) signAddVote(type_ byte, hash cmn.Hash, header types.PartSetHeader) *types.Vote {
 	// if we don't have a key or we're not in the validator set, do nothing
 	if cs.privValidator == nil || !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
 		return nil
@@ -904,7 +903,7 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 	// If ProposalBlock is nil, prevote nil.
 	if cs.ProposalBlock == nil {
 		logger.Info("enterPrevote: ProposalBlock is nil")
-		cs.signAddVote(types.VoteTypePrevote, common.Hash{}, types.PartSetHeader{})
+		cs.signAddVote(types.VoteTypePrevote, cmn.Hash{}, types.PartSetHeader{})
 		return
 	}
 
@@ -913,13 +912,13 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 	if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
-		cs.signAddVote(types.VoteTypePrevote, common.Hash{}, types.PartSetHeader{})
+		cs.signAddVote(types.VoteTypePrevote, cmn.Hash{}, types.PartSetHeader{})
 		return
 	}
 	// Executes txs to verify the block state root. New statedb is committed if success.
 	if err := cs.blockOperations.CommitAndValidateBlockTxs(cs.ProposalBlock); err != nil {
 		logger.Error("enterPrevote: fail to commit & verify txs", "err", err)
-		cs.signAddVote(types.VoteTypePrevote, common.Hash{}, types.PartSetHeader{})
+		cs.signAddVote(types.VoteTypePrevote, cmn.Hash{}, types.PartSetHeader{})
 		return
 	} else {
 		logger.Info("enterPrevote: successfully executes and commits block txs")
@@ -988,7 +987,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 		} else {
 			logger.Info("enterPrecommit: No +2/3 prevotes during enterPrecommit. Precommitting nil.")
 		}
-		cs.signAddVote(types.VoteTypePrecommit, common.Hash{}, types.PartSetHeader{})
+		cs.signAddVote(types.VoteTypePrecommit, cmn.Hash{}, types.PartSetHeader{})
 		return
 	}
 
@@ -1012,7 +1011,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 			cs.LockedBlockParts = nil
 			cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 		}
-		cs.signAddVote(types.VoteTypePrecommit, common.Hash{}, types.PartSetHeader{})
+		cs.signAddVote(types.VoteTypePrecommit, cmn.Hash{}, types.PartSetHeader{})
 		return
 	}
 
@@ -1054,7 +1053,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 		cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
 	}
 	cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
-	cs.signAddVote(types.VoteTypePrecommit, common.Hash{}, types.PartSetHeader{})
+	cs.signAddVote(types.VoteTypePrecommit, cmn.Hash{}, types.PartSetHeader{})
 }
 
 // Enter: any +2/3 precommits for next round.
