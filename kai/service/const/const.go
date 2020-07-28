@@ -46,4 +46,5 @@ const (
 	CsVoteSetMaj23Message  = 0x09 // VoteSetMaj23 message
 	CsVoteSetBitsMessage   = 0x10 // VoteSetBitsMessage message
 	CsProposalBlockPartMsg = 0x11 // CsProposalBlockPartMsg message
+	CsValidBlockMsg        = 0x12 // CsValidBlockMsg message
 )
