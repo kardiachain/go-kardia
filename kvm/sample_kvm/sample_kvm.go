@@ -1,11 +1,11 @@
 package sample_kvm
 
 import (
-	"github.com/kardiachain/go-kardiamain/types"
 	"math"
 	"math/big"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -84,7 +84,7 @@ func Execute(code, input []byte, cfg *Config) ([]byte, *state.StateDB, error) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
+		cfg.State, _ = state.New(log.New(), common.Hash{}, state.NewDatabase(memorydb.New()))
 	}
 	var (
 		address = common.BytesToAddress([]byte("contract"))
@@ -114,7 +114,7 @@ func Create(input []byte, cfg *Config) ([]byte, common.Address, uint64, error) {
 	setDefaults(cfg)
 
 	if cfg.State == nil {
-		cfg.State, _ = state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
+		cfg.State, _ = state.New(log.New(), common.Hash{}, state.NewDatabase(memorydb.New()))
 	}
 	var (
 		vmenv  = NewEnv(cfg)

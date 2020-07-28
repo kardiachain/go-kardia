@@ -19,6 +19,12 @@
 package kvm
 
 import (
+	"math"
+	"math/big"
+	"strings"
+	"testing"
+
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -27,10 +33,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/types"
-	"math"
-	"math/big"
-	"strings"
-	"testing"
 )
 
 // Smart contract content is at ./PoS.sol
@@ -141,7 +143,7 @@ var pos_smc_definition = `[
 	}
 ]`
 
-func setupGenesis(g *genesis.Genesis, db *types.MemStore) (*types.ChainConfig, common.Hash, error) {
+func setupGenesis(g *genesis.Genesis, db *types.StoreDB) (*types.ChainConfig, common.Hash, error) {
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	return genesis.SetupGenesisBlock(log.New(), db, g, &types.BaseAccount{
@@ -158,7 +160,7 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, error) {
 		"0x5678": initValue,
 		"0xabcd": initValue,
 	}
-	kaiDb := types.NewMemStore()
+	kaiDb := memorydb.New()
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	chainConfig, _, genesisErr := setupGenesis(g, kaiDb)
 	if genesisErr != nil {

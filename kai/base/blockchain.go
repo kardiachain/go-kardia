@@ -33,7 +33,6 @@ type BaseBlockChain interface {
 	CurrentHeader() *types.Header
 	CurrentBlock() *types.Block
 	WriteBlockWithoutState(block *types.Block) error
-	WriteCommit(height uint64, commit *types.Commit)
 	GetBlock(hash common.Hash, number uint64) *types.Block
 	GetBlockByHeight(height uint64) *types.Block
 	GetBlockByHash(hash common.Hash) *types.Block
@@ -47,7 +46,7 @@ type BaseBlockChain interface {
 	HasPermission(peer *p2p.Peer) bool
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StateAt(root common.Hash) (*state.StateDB, error)
-	DB() types.Database
+	DB() types.StoreDB
 	ZeroFee() bool
 	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error)
 }

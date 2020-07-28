@@ -19,15 +19,16 @@
 package kvm
 
 import (
+	"math/big"
+	"strings"
+	"testing"
+
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/types"
-	"math/big"
-	"strings"
-	"testing"
 )
 
 // Runtime_bytecode for ./InterSmc.sol
@@ -102,9 +103,9 @@ var smc_b_definition = `[
 // Test call a contract from inside another contract
 // Contract A is callee, B is caller
 func TestExecuteInterSmc(t *testing.T) {
-	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(memorydb.New()))
 
-    // Contract A
+	// Contract A
 	addressA := common.HexToAddress("0x0a")
 	state.SetCode(addressA, smc_a_code)
 	abiA, errParseA := abi.JSON(strings.NewReader(smc_a_definition))

@@ -44,21 +44,21 @@ const (
 
 // BlockHeaderJSON represents BlockHeader in JSON format
 type BlockHeaderJSON struct {
-	Hash           string               `json:"hash"`
-	Height         uint64               `json:"height"`
-	LastBlock      string               `json:"lastBlock"`
-	CommitHash     string               `json:"commitHash"`
-	Time           int64                `json:"time"`
-	NumTxs         uint64               `json:"num_txs"`
-	GasLimit       uint64               `json:"gasLimit"`
-	GasUsed        uint64               `json:"gasUsed"`
-	Validator      string               `json:"validator"`
-	TxHash         string               `json:"data_hash"`    // transactions
-	Root           string               `json:"stateRoot"`    // state root
-	ReceiptHash    string               `json:"receiptsRoot"` // receipt root
-	Bloom          int64                `json:"logsBloom"`
-	ValidatorsHash string               `json:"validators_hash"` // validators for the current block
-	ConsensusHash  string               `json:"consensus_hash"`
+	Hash           string `json:"hash"`
+	Height         uint64 `json:"height"`
+	LastBlock      string `json:"lastBlock"`
+	CommitHash     string `json:"commitHash"`
+	Time           int64  `json:"time"`
+	NumTxs         uint64 `json:"num_txs"`
+	GasLimit       uint64 `json:"gasLimit"`
+	GasUsed        uint64 `json:"gasUsed"`
+	Validator      string `json:"validator"`
+	TxHash         string `json:"data_hash"`    // transactions
+	Root           string `json:"stateRoot"`    // state root
+	ReceiptHash    string `json:"receiptsRoot"` // receipt root
+	Bloom          int64  `json:"logsBloom"`
+	ValidatorsHash string `json:"validators_hash"` // validators for the current block
+	ConsensusHash  string `json:"consensus_hash"`
 }
 
 // BlockJSON represents Block in JSON format
@@ -443,7 +443,7 @@ func (a *PublicTransactionAPI) GetTransaction(hash string) *PublicTransaction {
 	return publicTx
 }
 
-func getReceipts(kaiDb types.Database, hash common.Hash) (types.Receipts, error) {
+func getReceipts(kaiDb types.StoreDB, hash common.Hash) (types.Receipts, error) {
 	height := kaiDb.ReadHeaderNumber(hash)
 	if height == nil {
 		return nil, nil

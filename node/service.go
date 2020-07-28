@@ -20,6 +20,7 @@ package node
 
 import (
 	"errors"
+
 	"github.com/kardiachain/go-kardiamain/types"
 
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -79,5 +80,5 @@ type Service interface {
 	// are all terminated.
 	Stop() error
 
-	DB() types.Database
+	DB() types.StoreDB
 }

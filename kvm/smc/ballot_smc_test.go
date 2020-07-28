@@ -19,15 +19,16 @@
 package kvm
 
 import (
+	"math/big"
+	"strings"
+	"testing"
+
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/types"
-	"math/big"
-	"strings"
-	"testing"
 )
 
 // Runtime_bytecode for ./Ballot.sol
@@ -83,7 +84,7 @@ var ballot_smc_definition = `[
 ]`
 
 func TestBallotSmcExecuteVote(t *testing.T) {
-	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(memorydb.New()))
 	address := common.HexToAddress("0x0a")
 	state.SetCode(address, ballot_smc_code)
 
@@ -125,7 +126,7 @@ func TestBallotSmcExecuteVote(t *testing.T) {
 }
 
 func TestBallotSmcExecuteVoteMultipleTime(t *testing.T) {
-	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(types.NewMemStore()))
+	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(memorydb.New()))
 	address := common.HexToAddress("0x0a")
 	state.SetCode(address, ballot_smc_code)
 
