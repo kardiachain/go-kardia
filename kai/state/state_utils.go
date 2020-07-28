@@ -21,7 +21,8 @@ package state
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kardiachain/go-kardiamain/types"
+
+	"github.com/kardiachain/go-kardiamain/trie"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
@@ -47,7 +48,7 @@ func (self *StateDB) RawDump() Dump {
 		Accounts: make(map[string]DumpAccount),
 	}
 
-	it := types.NewIterator(self.trie.NodeIterator(nil))
+	it := trie.NewIterator(self.trie.NodeIterator(nil))
 	for it.Next() {
 		addr := self.trie.GetKey(it.Key)
 		var data Account
@@ -64,7 +65,7 @@ func (self *StateDB) RawDump() Dump {
 			Code:     common.Bytes2Hex(obj.Code(self.db)),
 			Storage:  make(map[string]string),
 		}
-		storageIt := types.NewIterator(obj.getTrie(self.db).NodeIterator(nil))
+		storageIt := trie.NewIterator(obj.getTrie(self.db).NodeIterator(nil))
 		for storageIt.Next() {
 			account.Storage[common.Bytes2Hex(self.trie.GetKey(storageIt.Key))] = common.Bytes2Hex(storageIt.Value)
 		}
