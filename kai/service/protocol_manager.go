@@ -86,9 +86,9 @@ type ProtocolManager struct {
 	noMorePeers chan struct{}
 
 	// transaction channel and subscriptions
-	txsCh  chan events.NewTxsEvent
+	txsCh         chan events.NewTxsEvent
 	receivedTxsCh chan receivedTxs
-	txsSub event.Subscription
+	txsSub        event.Subscription
 
 	// Consensus stuff
 	csReactor *consensus.ConsensusManager
@@ -114,16 +114,16 @@ func NewProtocolManager(
 
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
-		logger:      logger,
-		networkID:   networkID,
-		chainID:     chainID,
-		txpool:      txpool,
-		blockchain:  blockchain,
-		chainconfig: config,
-		peers:       newPeerSet(),
-		newPeerCh:   make(chan *peer),
-		noMorePeers: make(chan struct{}),
-		csReactor:   csReactor,
+		logger:        logger,
+		networkID:     networkID,
+		chainID:       chainID,
+		txpool:        txpool,
+		blockchain:    blockchain,
+		chainconfig:   config,
+		peers:         newPeerSet(),
+		newPeerCh:     make(chan *peer),
+		noMorePeers:   make(chan struct{}),
+		csReactor:     csReactor,
 		receivedTxsCh: make(chan receivedTxs),
 	}
 
@@ -252,9 +252,9 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	pm.logger.Debug("Kardia peer connected", "name", p.Name())
 
 	var (
-		genesis = pm.blockchain.Genesis()
-		hash    = pm.blockchain.CurrentHeader().Hash()
-		height  = pm.blockchain.CurrentBlock().Height()
+		genesis       = pm.blockchain.Genesis()
+		hash          = pm.blockchain.CurrentHeader().Hash()
+		height        = pm.blockchain.CurrentBlock().Height()
 		hasPermission = pm.blockchain.HasPermission(p.Peer)
 	)
 
@@ -334,30 +334,39 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	case msg.Code == serviceconst.CsNewRoundStepMsg:
 		pm.logger.Trace("NewRoundStep message received")
 		pm.csReactor.ReceiveNewRoundStep(msg, p.Peer)
+
 	case msg.Code == serviceconst.CsProposalMsg:
 		pm.logger.Trace("Proposal message received")
 		pm.csReactor.ReceiveNewProposal(msg, p.Peer)
+
 	case msg.Code == serviceconst.CsVoteMsg:
 		pm.logger.Trace("Vote messsage received")
 		pm.csReactor.ReceiveNewVote(msg, p.Peer)
+
 	case msg.Code == serviceconst.CsHasVoteMsg:
 		pm.logger.Trace("HasVote messsage received")
 		pm.csReactor.ReceiveHasVote(msg, p.Peer)
+
 	case msg.Code == serviceconst.CsProposalPOLMsg:
 		pm.logger.Trace("ProposalPOL messsage received")
 		pm.csReactor.ReceiveProposalPOL(msg, p.Peer)
-	case msg.Code == serviceconst.CsCommitStepMsg:
-		pm.logger.Trace("CommitStep message received")
-		pm.csReactor.ReceiveNewCommit(msg, p.Peer)
-	case msg.Code == serviceconst.CsBlockMsg:
-		pm.logger.Trace("Block message received")
-		pm.csReactor.ReceiveBlock(msg, p.Peer)
+
+	case msg.Code == serviceconst.CsValidBlockMsg:
+		pm.logger.Trace("new valid block message received")
+		pm.csReactor.ReceiveNewValidBlock(msg, p.Peer)
+
+	case msg.Code == serviceconst.CsProposalBlockPartMsg:
+		pm.logger.Trace("Blockpart message received")
+		pm.csReactor.ReceiveNewBlockPart(msg, p.Peer)
+
 	case msg.Code == serviceconst.CsVoteSetMaj23Message:
 		pm.logger.Trace("VoteSetMaj23 message received")
 		pm.csReactor.ReceiveVoteSetMaj23(msg, p.Peer)
+
 	case msg.Code == serviceconst.CsVoteSetBitsMessage:
 		pm.logger.Trace("VoteSetBits message received")
 		pm.csReactor.ReceiveVoteSetBits(msg, p.Peer)
+
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
@@ -400,16 +409,7 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 
 // A loop for broadcasting consensus events.
 func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
-
-	// If msg's type is *consensus.CommitStepMessage, v will hold the instance and ok will be true
-	v, ok := msg.(*consensus.CommitStepMessage)
-
-	// If ok is true, then simplify the log
-	if ok {
-		pm.logger.Info("Start broadcast consensus message", "Height", v.Height, "Block", v.Block.Hash().String(), "msgType", msgType)
-	} else {
-		pm.logger.Info("Start broadcast consensus message", "msg", msg, "msgType", msgType)
-	}
+	pm.logger.Info("Start broadcast consensus message", "msg", msg, "msgType", msgType)
 
 	for _, p := range pm.peers.peers {
 		if p.IsValidator {
@@ -450,11 +450,11 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 // NodeInfo represents a short summary of the Kardia sub-protocol metadata
 // known about the host peer.
 type NodeInfo struct {
-	Network uint64               `json:"network"` // Kardia network ID
-	Height  uint64               `json:"height"`  // Height of the blockchain
-	Genesis common.Hash          `json:"genesis"` // SHA3 hash of the host's genesis block
+	Network uint64             `json:"network"` // Kardia network ID
+	Height  uint64             `json:"height"`  // Height of the blockchain
+	Genesis common.Hash        `json:"genesis"` // SHA3 hash of the host's genesis block
 	Config  *types.ChainConfig `json:"config"`  // Chain configuration for the fork rules
-	Head    common.Hash          `json:"head"`    // SHA3 hash of the host's best owned block
+	Head    common.Hash        `json:"head"`    // SHA3 hash of the host's best owned block
 }
 
 // NodeInfo retrieves some protocol metadata about the running host node.

@@ -31,6 +31,7 @@ const (
 	EventLock              = "Lock"
 	EventNewBlock          = "NewBlock"
 	EventNewBlockHeader    = "NewBlockHeader"
+	EventValidBlock        = "EventValidBlock"
 	EventNewRound          = "NewRound"
 	EventNewRoundStep      = "NewRoundStep"
 	EventPolka             = "Polka"

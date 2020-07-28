@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/merkle"
 )
@@ -15,11 +16,6 @@ import (
 var (
 	ErrPartSetUnexpectedIndex = errors.New("Error part set unexpected index")
 	ErrPartSetInvalidProof    = errors.New("Error part set invalid proof")
-)
-
-const (
-	// BlockPartSizeBytes is the size of one block part.
-	BlockPartSizeBytes = 65536 // 64kB
 )
 
 type Part struct {
@@ -44,7 +40,10 @@ func (part *Part) String() string {
 }
 
 func (part *Part) StringIndented(indent string) string {
-	return fmt.Sprintf("Part{#%v  %s  Bytes: %X... %s  Proof: %v  %s}",
+	return fmt.Sprintf(`Part{#%v
+%s  Bytes: %X...
+%s  Proof: %v
+%s}`,
 		part.Index,
 		indent, cmn.Fingerprint(part.Bytes),
 		indent, part.Proof.StringIndented(indent+"  "),
@@ -61,16 +60,24 @@ func (psh PartSetHeader) String() string {
 }
 
 func (psh PartSetHeader) IsZero() bool {
-	return psh.Total.EqualsInt(0) && len(psh.Hash) == 0
+	return psh.Total.EqualsInt(0) && psh.Hash.IsZero()
 }
 
 func (psh PartSetHeader) Equals(other PartSetHeader) bool {
-	return psh.Total == other.Total && psh.Hash.Equal(other.Hash)
+	return psh.Total.Uint64() == other.Total.Uint64() && psh.Hash.Equal(other.Hash)
+}
+
+// ValidateBasic performs basic validation.
+func (psh PartSetHeader) ValidateBasic() error {
+	if psh.Total.IsLessThanInt(0) {
+		return errors.New("Negative Total")
+	}
+	return nil
 }
 
 type PartSet struct {
 	total int
-	hash  cmn.Hash
+	hash  common.Hash
 
 	mtx           sync.Mutex
 	parts         []*Part
@@ -102,7 +109,7 @@ func NewPartSetFromData(data []byte, partSize int) *PartSet {
 	}
 	return &PartSet{
 		total:         total,
-		hash:          cmn.BytesToHash(root),
+		hash:          common.BytesToHash(root),
 		parts:         parts,
 		partsBitArray: partsBitArray,
 		count:         total,
@@ -125,7 +132,7 @@ func (ps *PartSet) Header() PartSetHeader {
 		return PartSetHeader{}
 	}
 	return PartSetHeader{
-		Total: *cmn.NewBigInt32(ps.total),
+		Total: *common.NewBigInt32(ps.total),
 		Hash:  ps.hash,
 	}
 }
@@ -143,14 +150,14 @@ func (ps *PartSet) BitArray() *cmn.BitArray {
 	return ps.partsBitArray.Copy()
 }
 
-func (ps *PartSet) Hash() cmn.Hash {
+func (ps *PartSet) Hash() common.Hash {
 	if ps == nil {
-		return cmn.Hash{}
+		return common.Hash{}
 	}
 	return ps.hash
 }
 
-func (ps *PartSet) HashesTo(hash cmn.Hash) bool {
+func (ps *PartSet) HashesTo(hash common.Hash) bool {
 	if ps == nil {
 		return false
 	}
@@ -179,7 +186,7 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 	defer ps.mtx.Unlock()
 
 	// Invalid part index
-	if part.Index.IsGreaterThan(part.Index) {
+	if part.Index.Int32() >= ps.Total() {
 		return false, ErrPartSetUnexpectedIndex
 	}
 

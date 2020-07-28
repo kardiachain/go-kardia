@@ -25,12 +25,10 @@ import (
 )
 
 func TestProposalCreation(t *testing.T) {
-	block := CreateNewBlock(1)
-	proposal := NewProposal(cmn.NewBigInt64(1), cmn.NewBigInt64(2), block, cmn.NewBigInt64(3), CreateBlockIDRandom())
+	proposal := NewProposal(cmn.NewBigInt64(1), cmn.NewBigInt64(2), cmn.NewBigInt64(3), CreateBlockIDRandom())
 
 	if !proposal.Height.Equals(cmn.NewBigInt64(1)) ||
 		!proposal.Round.Equals(cmn.NewBigInt64(2)) ||
-		proposal.Block.Hash() != block.Hash() ||
 		!proposal.POLRound.Equals(cmn.NewBigInt64(3)) {
 		t.Error("Proposal Creation Error")
 	}
@@ -38,8 +36,7 @@ func TestProposalCreation(t *testing.T) {
 }
 
 func TestProposalSignBytes(t *testing.T) {
-	block := CreateNewBlock(1)
-	proposal := NewProposal(cmn.NewBigInt64(1), cmn.NewBigInt64(2), block, cmn.NewBigInt64(3), CreateBlockIDRandom())
+	proposal := NewProposal(cmn.NewBigInt64(1), cmn.NewBigInt64(2), cmn.NewBigInt64(3), CreateBlockIDRandom())
 	signedByte := proposal.SignBytes("KAI")
 	if signedByte == nil {
 		t.Error("Proposal's SignBytes returned nil")

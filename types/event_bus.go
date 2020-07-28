@@ -41,6 +41,10 @@ func (b *EventBus) PublishEventNewRound(event EventDataRoundState) error {
 	return b.Publish(EventNewRound, event)
 }
 
+func (b *EventBus) PublishEventValidBlock(event EventDataRoundState) error {
+	return b.Publish(EventValidBlock, event)
+}
+
 func (b *EventBus) PublishEventPolka(event EventDataRoundState) error {
 	return b.Publish(EventPolka, event)
 }

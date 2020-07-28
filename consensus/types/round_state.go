@@ -76,26 +76,27 @@ func (rs RoundStepType) String() string {
 // NOTE: Not thread safe. Should only be manipulated by functions downstream
 // of the cs.receiveRoutine
 type RoundState struct {
-	Height             *cmn.BigInt         `json:"height"` // Height we are working on
-	Round              *cmn.BigInt         `json:"round"`
-	Step               RoundStepType       `json:"step"`
-	StartTime          *big.Int            `json:"start_time"`
-	CommitTime         *big.Int            `json:"commit_time"` // Subjective time when +2/3 precommits for Block at Round were found
-	Validators         *types.ValidatorSet `json:"validators"`  // TODO(huny@): Assume static validator set for now
-	Proposal           *types.Proposal     `json:"proposal"`
-	ProposalBlock      *types.Block        `json:"proposal_block"` // Simply cache the block from Proposal
-	ProposalBlockParts *types.PartSet      `json:"proposal_block_part"`
-	ProposalBlockID    types.BlockID       `json:"proposal_block_ID"` // Used mostly for catchup when proposal isn't sent but only proposed block's header
-	LockedRound        *cmn.BigInt         `json:"locked_round"`
-	LockedBlock        *types.Block        `json:"locked_block"`
-	LockedBlockParts   *types.PartSet      `json:"locked_block_parts"`
-	ValidRound         *cmn.BigInt         `json:"valid_round"` // Last known round with POL for non-nil valid block.
-	ValidBlock         *types.Block        `json:"valid_block"` // Last known block of POL mentioned above.
-	ValidBlockParts    *types.PartSet      `json:"valid_block_parts"`
-	Votes              *HeightVoteSet      `json:"votes"`
-	CommitRound        *cmn.BigInt         `json:"commit_round"` //
-	LastCommit         *types.VoteSet      `json:"last_commit"`  // Last precommits at Height-1
-	LastValidators     *types.ValidatorSet `json:"last_validators"`
+	Height    *cmn.BigInt   `json:"height"` // Height we are working on
+	Round     *cmn.BigInt   `json:"round"`
+	Step      RoundStepType `json:"step"`
+	StartTime *big.Int      `json:"start_time"`
+
+	CommitTime                *big.Int            `json:"commit_time"` // Subjective time when +2/3 precommits for Block at Round were found
+	Validators                *types.ValidatorSet `json:"validators"`  // TODO(huny@): Assume static validator set for now
+	Proposal                  *types.Proposal     `json:"proposal"`
+	ProposalBlock             *types.Block        `json:"proposal_block"` // Simply cache the block from Proposal
+	ProposalBlockParts        *types.PartSet      `json:"proposal_block_part"`
+	LockedRound               *cmn.BigInt         `json:"locked_round"`
+	LockedBlock               *types.Block        `json:"locked_block"`
+	LockedBlockParts          *types.PartSet      `json:"locked_block_parts"`
+	ValidRound                *cmn.BigInt         `json:"valid_round"` // Last known round with POL for non-nil valid block.
+	ValidBlock                *types.Block        `json:"valid_block"` // Last known block of POL mentioned above.
+	ValidBlockParts           *types.PartSet      `json:"valid_block_parts"`
+	Votes                     *HeightVoteSet      `json:"votes"`
+	CommitRound               *cmn.BigInt         `json:"commit_round"` //
+	LastCommit                *types.VoteSet      `json:"last_commit"`  // Last precommits at Height-1
+	LastValidators            *types.ValidatorSet `json:"last_validators"`
+	TriggeredTimeoutPrecommit bool                `json:"triggered_timeout_precommit"`
 }
 
 // RoundStateEvent returns the H/R/S of the RoundState as an event.
