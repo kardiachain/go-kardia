@@ -392,8 +392,6 @@ func (pm *ProtocolManager) syncTransactions(p *peer) {
 		return
 	}
 	pm.logger.Trace("Sync txns to new peer", "peer", p)
-	// TODO(thientn): sends transactions in chunks. This may send a large number of transactions.
-	// Breaks them to chunks here or inside AsyncSend to not overload the pipeline.
 	var txs types.Transactions
 	pending, _ := pm.txpool.Pending()
 	for _, batch := range pending {
