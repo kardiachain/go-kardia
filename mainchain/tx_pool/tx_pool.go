@@ -124,7 +124,7 @@ type blockChain interface {
 	CurrentBlock() *types.Block
 	GetBlock(hash common.Hash, number uint64) *types.Block
 	StateAt(root common.Hash) (*state.StateDB, error)
-	DB() types.Database
+	DB() types.StoreDB
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 }
 
@@ -202,6 +202,12 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 	return conf
 }
 
+// GetDefaultTxPoolConfig returns default txPoolConfig with given dir path
+func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
+	conf := DefaultTxPoolConfig
+	return &conf
+}
+
 // TxPool contains all currently known transactions. Transactions
 // enter the pool when they are received from the network or submitted
 // locally. They exit the pool when they are included in the blockchain.
@@ -240,6 +246,10 @@ type TxPool struct {
 	reorgDoneCh     chan chan struct{}
 	reorgShutdownCh chan struct{}  // requests shutdown of scheduleReorgLoop
 	wg              sync.WaitGroup // tracks loop, scheduleReorgLoop
+
+	// notify listeners (ie. consensus) when txs are available
+	notifiedTxsAvailable bool
+	txsAvailable         chan struct{} // fires once for each height, when the mempool is not empty
 }
 
 type txpoolResetRequest struct {
@@ -302,6 +312,26 @@ func NewTxPool(config TxPoolConfig, chainconfig *types.ChainConfig, chain blockC
 	return pool
 }
 
+// NOTE: not thread safe - should only be called once, on startup
+func (pool *TxPool) EnableTxsAvailable() {
+	pool.txsAvailable = make(chan struct{}, 1)
+}
+
+func (pool *TxPool) TxsAvailable() <-chan struct{} {
+	return pool.txsAvailable
+}
+
+func (pool *TxPool) notifyTxsAvailable() {
+	if pool.txsAvailable != nil && !pool.notifiedTxsAvailable {
+		// channel cap is 1, so this will send once
+		pool.notifiedTxsAvailable = true
+		select {
+		case pool.txsAvailable <- struct{}{}:
+		default:
+		}
+	}
+}
+
 func (pool *TxPool) State() *state.StateDB {
 	return pool.currentState
 }
@@ -311,8 +341,9 @@ func (pool *TxPool) GetBlockChain() blockChain {
 }
 
 func (pool *TxPool) PendingSize() int {
+	pending, _ := pool.Pending()
 	pendingSize := 0
-	for _, txs := range pool.pending {
+	for _, txs := range pending {
 		pendingSize += txs.Len()
 	}
 	return pendingSize
@@ -807,15 +838,14 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 			knownTxMeter.Mark(1)
 			continue
 		}
+		// Cache senders in transactions before obtaining lock (pool.signer is immutable)
+		types.Sender(pool.signer, tx)
+
 		// Accumulate all unknown transactions for deeper processing
 		news = append(news, tx)
 	}
 	if len(news) == 0 {
 		return errs
-	}
-	// Cache senders in transactions before obtaining lock (pool.signer is immutable)
-	for _, tx := range news {
-		types.Sender(pool.signer, tx)
 	}
 	// Process all the new transaction and merge any errors into the original slice
 	pool.mu.Lock()
@@ -834,6 +864,9 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	if sync {
 		<-done
 	}
+
+	pool.notifyTxsAvailable()
+
 	return errs
 }
 
@@ -1097,6 +1130,8 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 // reset retrieves the current state of the blockchain and ensures the content
 // of the transaction pool is valid with regard to the chain state.
 func (pool *TxPool) reset(oldHead, newHead *types.Header) {
+	pool.notifiedTxsAvailable = false
+
 	// If we're reorging an old state, reinject all dropped transactions
 	// var reinject types.Transactions
 
