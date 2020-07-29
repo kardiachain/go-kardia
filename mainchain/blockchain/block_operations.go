@@ -51,7 +51,7 @@ func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_po
 		logger:     logger,
 		blockchain: blockchain,
 		txPool:     txPool,
-		height:     blockchain.CurrentHeader().Height,
+		height:     blockchain.CurrentBlock().Height(),
 	}
 }
 

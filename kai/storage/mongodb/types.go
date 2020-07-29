@@ -73,6 +73,7 @@ type (
 		ReceiptHash    string `json:"receiptsRoot"        bson:"receiptsRoot"`   // receipt root
 		Bloom          string `json:"logsBloom"           bson:"logsBloom"`
 
+		Validator      string `json:"validator"           bson:"validator"`
 		ValidatorsHash string `json:"validators_hash"` // validators for the current block
 		ConsensusHash  string `json:"consensus_hash"`  // consensus params for current block
 	}
@@ -219,7 +220,7 @@ func NewBlock(block *types.Block) *Block {
 	header := Header{
 		Height:         block.Header().Height,
 		Time:           0,
-		LastBlockID:    block.Header().LastBlockID.String(),
+		LastBlockID:    block.Header().LastBlockID.StringLong(),
 		NumTxs:         block.NumTxs(),
 		TxHash:         block.Header().TxHash.Hex(),
 		GasUsed:        block.Header().GasUsed,
@@ -232,6 +233,7 @@ func NewBlock(block *types.Block) *Block {
 		NumDualEvents:  block.Header().NumDualEvents,
 		ReceiptHash:    block.Header().ReceiptHash.Hex(),
 		Root:           block.Header().Root.Hex(),
+		Validator:      block.Header().Validator.Hex(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 	}
 	if block.Header().Time != nil {
@@ -261,6 +263,7 @@ func (block *Block) ToHeader() *types.Header {
 		NumDualEvents:  block.Header.NumDualEvents,
 		ReceiptHash:    common.HexToHash(block.Header.ReceiptHash),
 		Root:           common.HexToHash(block.Header.Root),
+		Validator:      common.HexToAddress(block.Header.Validator),
 		ValidatorsHash: common.HexToHash(block.Header.ValidatorsHash),
 	}
 	return &header
@@ -450,7 +453,7 @@ func NewVote(vote *types.Vote) *Vote {
 		Type:             vote.Type,
 		Timestamp:        vote.Timestamp.Uint64(),
 		Round:            vote.Round.Int64(),
-		BlockID:          vote.BlockID.String(),
+		BlockID:          vote.BlockID.StringLong(),
 		Signature:        common.Bytes2Hex(vote.Signature),
 		ValidatorAddress: vote.ValidatorAddress.Hex(),
 		ValidatorIndex:   vote.ValidatorIndex.Int64(),
@@ -481,7 +484,7 @@ func NewCommit(commit *types.Commit, height uint64) *Commit {
 	}
 	return &Commit{
 		Precommits: votes,
-		BlockID:    commit.BlockID.String(),
+		BlockID:    commit.BlockID.StringLong(),
 		Height:     height,
 	}
 }
