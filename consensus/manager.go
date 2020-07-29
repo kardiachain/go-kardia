@@ -625,7 +625,8 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 				"ourHeight", rs.Height, "blockstoreHeight", conR.conS.blockOperations.Height())
 			time.Sleep(conR.conS.config.PeerGossipSleep())
 			return
-		} else if !blockMeta.BlockID.PartsHeader.Equals(prs.ProposalBlockPartsHeader) {
+		}
+		if !blockMeta.BlockID.PartsHeader.Equals(prs.ProposalBlockPartsHeader) {
 			conR.logger.Info("Peer ProposalBlockPartsHeader mismatch, sleeping",
 				"blockPartsHeader", blockMeta.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
 			time.Sleep(conR.conS.config.PeerGossipSleep())
@@ -859,6 +860,9 @@ OUTER_LOOP:
 			if !prs.CatchupCommitRound.EqualsInt(-1) && prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThanOrEqualsUint64(conR.conS.blockOperations.Height()) {
 				commit := conR.conS.LoadCommit(prs.Height)
 				if commit != nil {
+					// TODO: @lew
+					// Consider using go func() here for multithreading cause we are sending msg
+					// over p2p (not sending msg to channel like tendermint)
 					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   commit.Round(),

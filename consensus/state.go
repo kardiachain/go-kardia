@@ -312,7 +312,7 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 	proposal := types.NewProposal(height, round, cs.ValidRound, propBlockID)
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
 		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", propBlockID.Hash)
-		// send proposal and block parts on internal msg queue
+		// Send proposal and blockparts on internal msg queue
 		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, discover.ZeroNodeID()})
 		for i := 0; i < blockParts.Total(); i++ {
 			part := blockParts.GetPart(i)
@@ -409,7 +409,8 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID discover.NodeID) (
 		// If it's otherwise invalid, punish peer.
 		if err == ErrVoteHeightMismatch {
 			return false, err
-		} else if _, ok := err.(*types.ErrVoteConflictingVotes); ok {
+		}
+		if _, ok := err.(*types.ErrVoteConflictingVotes); ok {
 			if vote.ValidatorAddress.Equal(cs.privValidator.GetAddress()) {
 				cs.logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
 				return false, err
@@ -417,12 +418,11 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID discover.NodeID) (
 			// TODO(namdoh): Re-enable this later.
 			cs.logger.Warn("Add vote error to evidence pool later")
 			return false, err
-		} else {
-			// Probably an invalid signature / Bad peer.
-			// Seems this can also err sometimes with "Unexpected step" - perhaps not from a bad peer ?
-			cs.logger.Error("Error attempting to add vote", "err", err)
-			return false, ErrAddingVote
 		}
+		// Probably an invalid signature / Bad peer.
+		// Seems this can also err sometimes with "Unexpected step" - perhaps not from a bad peer ?
+		cs.logger.Error("Error attempting to add vote", "err", err)
+		return false, ErrAddingVote
 	}
 	return added, nil
 }
@@ -655,10 +655,8 @@ func (cs *ConsensusState) updateRoundStep(round *cmn.BigInt, step cstypes.RoundS
 
 // Advances to a new step.
 func (cs *ConsensusState) newStep() {
-	cs.logger.Info("enter newStep()")
-	//rs := cs.RoundStateEvent()
+	cs.logger.Trace("enter newStep()")
 	cs.nSteps++
-
 	cs.evsw.FireEvent(types.EventNewRoundStep, &cs.RoundState)
 }
 
