@@ -547,7 +547,7 @@ func CommonReadEvents(db types.DatabaseReader, address string) (string, []*types
 func CommonReadSmartContractAbi(db types.DatabaseReader, address string) *abi.ABI {
 	data, err := db.Get(contractAbiKey(address))
 	if err != nil || data == nil {
-		log.Error("error while get abi from contract address", "err", err, "address", address)
+		log.Debug("error while get abi from contract address", "err", err, "address", address)
 		return nil
 	}
 	var entry SmartContract
