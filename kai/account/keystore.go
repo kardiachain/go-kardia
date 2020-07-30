@@ -245,5 +245,5 @@ func (keystore *KeyStoreJson) writeKeyFile(file string, content []byte) error {
 	Sign a transaction with current keystore
 */
 func (keyStore *KeyStore) SignTransaction(transaction *types.Transaction) (*types.Transaction, error) {
-	return types.SignTx(transaction, &keyStore.PrivateKey)
+	return types.SignTx(types.HomesteadSigner{}, transaction, &keyStore.PrivateKey)
 }
