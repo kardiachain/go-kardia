@@ -1,0 +1,113 @@
+version: '3.4'
+
+networks:
+  kardia:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+services:
+  node1:
+    container_name: node1
+    image: gcr.io/indigo-history-235904/go-kardiamain:latest
+    ports:
+      - 3000:3000
+      - 3000:3000/udp
+      - 8545:8545
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.2
+    volumes:
+      - ./node1.yaml:/go/bin/node1.yaml
+      - .:/root/.kardia
+    entrypoint: ./pump
+    command: ["--config","/go/bin/node1.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
+  node2:
+    container_name: node2
+    image: gcr.io/indigo-history-235904/go-kardiamain:latest
+    ports:
+      - 3001:3000
+      - 3001:3000/udp
+      - 8546:8545
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.3
+    volumes:
+      - ./node2.yaml:/go/bin/node2.yaml
+      - ./:/root/.kardia
+    entrypoint: ./pump
+    command: ["--config","/go/bin/node2.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
+  node3:
+    container_name: node3
+    image: gcr.io/indigo-history-235904/go-kardiamain:latest
+    ports:
+      - 3002:3000
+      - 3002:3000/udp
+      - 8547:8545
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.4
+    volumes:
+      - ./node3.yaml:/go/bin/node3.yaml
+      - ./:/root/.kardia
+    entrypoint: ./pump
+    command: ["--config","/go/bin/node3.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
+  node4:
+    container_name: node4
+    image: gcr.io/indigo-history-235904/go-kardiamain:latest
+    ports:
+      - 3003:3000
+      - 3003:3000/udp
+      - 8548:8545
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.5
+    depends_on:
+      - mongo
+    volumes:
+      - ./node4.yaml:/go/bin/node4.yaml
+      - ./:/root/.kardia
+    entrypoint: ./pump
+    command: ["--config","/go/bin/node4.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
+
+  mongo:
+    container_name: mongo
+    ports:
+      - 27017:27017
+    image: mongo
+    volumes:
+      - ./mongo:/data/db
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.6
+
+  kardia-scan-backend:
+    container_name: kardia-scan-backend
+    image: gcr.io/indigo-history-235904/kardia-scan-backend:0ab835b97a5430e3b02ea839db3c01e380667984
+    depends_on:
+      - node4
+    ports:
+      - 8000:8000
+    volumes:
+      - ./config:/go/src/github.com/kardiachain/kardia-scan-backend/config
+    command: ["--path", "/go/src/github.com/kardiachain/kardia-scan-backend/config", "--network", "testnet-docker"]
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.7
