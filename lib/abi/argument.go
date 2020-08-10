@@ -198,13 +198,13 @@ func (arguments Arguments) unpackTuple(v interface{}, marshalledValues []interfa
 	var (
 		value          = reflect.ValueOf(v).Elem()
 		nonIndexedArgs = arguments.NonIndexed()
-		typ            = value.Type()
-		kind           = value.Kind()
+		// typ            = value.Type()
+		// kind           = value.Kind()
 	)
 
-	if err := requireUnpackKind(value, typ, kind, arguments); err != nil {
-		return err
-	}
+	// if err := requireUnpackKind(value, typ, kind, arguments); err != nil {
+	// 	return err
+	// }
 
 	// // If the interface is a struct, get of abi->struct_field mapping
 
@@ -244,6 +244,7 @@ func (arguments Arguments) unpackTuple(v interface{}, marshalledValues []interfa
 	// 	}
 	// }
 	// return nil
+
 	switch value.Kind() {
 	case reflect.Struct:
 		argNames := make([]string, len(nonIndexedArgs))

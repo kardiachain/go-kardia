@@ -53,8 +53,6 @@ const (
 type Type struct {
 	Elem *Type
 
-	Kind reflect.Kind
-	Type reflect.Type
 	Size int
 	T    byte // Our own type checking
 
@@ -192,14 +190,12 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 		if len(intz) == 0 {
 			// is a slice
 			typ.T = SliceTy
-			typ.Kind = reflect.Slice
 			typ.Elem = &embeddedType
 			// typ.Type = reflect.SliceOf(embeddedType.Type)
 			typ.stringKind = embeddedType.stringKind + sliced
 		} else if len(intz) == 1 {
 			// is a array
 			typ.T = ArrayTy
-			typ.Kind = reflect.Array
 			typ.Elem = &embeddedType
 			typ.Size, err = strconv.Atoi(intz[0])
 			if err != nil {
@@ -238,42 +234,28 @@ func NewType(t string, internalType string, components []ArgumentMarshaling) (ty
 	// varType is the parsed abi type
 	switch varType := parsedType[1]; varType {
 	case "int":
-		typ.Kind, typ.Type = reflectIntKindAndType(false, varSize)
 		typ.Size = varSize
 		typ.T = IntTy
 	case "uint":
-		typ.Kind, typ.Type = reflectIntKindAndType(true, varSize)
 		typ.Size = varSize
 		typ.T = UintTy
 	case "bool":
-		typ.Kind = reflect.Bool
 		typ.T = BoolTy
-		typ.Type = reflect.TypeOf(bool(false))
 	case "address":
-		typ.Kind = reflect.Array
-		typ.Type = addressT
 		typ.Size = 20
 		typ.T = AddressTy
 	case "string":
-		typ.Kind = reflect.String
-		typ.Type = reflect.TypeOf("")
 		typ.T = StringTy
 	case "bytes":
 		if varSize == 0 {
 			typ.T = BytesTy
-			typ.Kind = reflect.Slice
-			typ.Type = reflect.SliceOf(reflect.TypeOf(byte(0)))
 		} else {
 			typ.T = FixedBytesTy
-			typ.Kind = reflect.Array
 			typ.Size = varSize
-			typ.Type = reflect.ArrayOf(varSize, reflect.TypeOf(byte(0)))
 		}
 	case "function":
-		typ.Kind = reflect.Array
 		typ.T = FunctionTy
 		typ.Size = 24
-		typ.Type = reflect.ArrayOf(24, reflect.TypeOf(byte(0)))
 	case "tuple":
 		var (
 			fields     []reflect.StructField
@@ -423,11 +405,11 @@ func formatSliceString(kind reflect.Kind, sliceSize int) string {
 // type in t.
 func sliceTypeCheck(t Type, val reflect.Value) error {
 	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
-		return typeErr(formatSliceString(t.Kind, t.Size), val.Type())
+		return typeErr(formatSliceString(t.GetType().Kind(), t.Size), val.Type())
 	}
 
 	if t.T == ArrayTy && val.Len() != t.Size {
-		return typeErr(formatSliceString(t.Elem.Kind, t.Size), formatSliceString(val.Type().Elem().Kind(), val.Len()))
+		return typeErr(formatSliceString(t.Elem.GetType().Kind(), t.Size), formatSliceString(val.Type().Elem().Kind(), val.Len()))
 	}
 
 	if t.Elem.T == SliceTy || t.Elem.T == ArrayTy {
@@ -436,8 +418,8 @@ func sliceTypeCheck(t Type, val reflect.Value) error {
 		}
 	}
 
-	if elemKind := val.Type().Elem().Kind(); elemKind != t.Elem.Kind {
-		return typeErr(formatSliceString(t.Elem.Kind, t.Size), val.Type())
+	if elemKind := val.Type().Elem().Kind(); elemKind != t.Elem.GetType().Kind() {
+		return typeErr(formatSliceString(t.Elem.GetType().Kind(), t.Size), val.Type())
 	}
 	return nil
 }
@@ -450,10 +432,10 @@ func typeCheck(t Type, value reflect.Value) error {
 	}
 
 	// Check base type validity. Element types will be checked later on.
-	if t.Kind != value.Kind() {
-		return typeErr(t.Kind, value.Kind())
+	if t.GetType().Kind() != value.Kind() {
+		return typeErr(t.GetType().Kind(), value.Kind())
 	} else if t.T == FixedBytesTy && t.Size != value.Len() {
-		return typeErr(t.Type, value.Type())
+		return typeErr(t.GetType(), value.Type())
 	} else {
 		return nil
 	}
