@@ -168,7 +168,7 @@ func (arguments Arguments) Unpack(v interface{}, data []byte) error {
 	if arguments.isTuple() {
 		return arguments.unpackTuple(v, marshalledValues)
 	}
-	return arguments.unpackAtomic(v, marshalledValues)
+	return arguments.unpackAtomic(v, marshalledValues[0])
 }
 
 // UnpackIntoMap performs the operation hexdata -> mapping of argument name to argument value
@@ -198,52 +198,7 @@ func (arguments Arguments) unpackTuple(v interface{}, marshalledValues []interfa
 	var (
 		value          = reflect.ValueOf(v).Elem()
 		nonIndexedArgs = arguments.NonIndexed()
-		// typ            = value.Type()
-		// kind           = value.Kind()
 	)
-
-	// if err := requireUnpackKind(value, typ, kind, arguments); err != nil {
-	// 	return err
-	// }
-
-	// // If the interface is a struct, get of abi->struct_field mapping
-
-	// var abi2struct map[string]string
-	// if kind == reflect.Struct {
-	// 	var err error
-	// 	abi2struct, err = mapAbiToStructFields(arguments, value)
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// }
-	// for i, arg := range arguments.NonIndexed() {
-
-	// 	reflectValue := reflect.ValueOf(marshalledValues[i])
-
-	// 	switch kind {
-	// 	case reflect.Struct:
-	// 		if structField, ok := abi2struct[arg.Name]; ok {
-	// 			if err := set(value.FieldByName(structField), reflectValue, arg); err != nil {
-	// 				return err
-	// 			}
-	// 		}
-	// 	case reflect.Slice, reflect.Array:
-	// 		if value.Len() < i {
-	// 			return fmt.Errorf("abi: insufficient number of arguments for unpack, want %d, got %d", len(arguments), value.Len())
-	// 		}
-	// 		v := value.Index(i)
-	// 		if err := requireAssignable(v, reflectValue); err != nil {
-	// 			return err
-	// 		}
-
-	// 		if err := set(v.Elem(), reflectValue, arg); err != nil {
-	// 			return err
-	// 		}
-	// 	default:
-	// 		return fmt.Errorf("abi:[2] cannot unmarshal tuple in to %v", typ)
-	// 	}
-	// }
-	// return nil
 
 	switch value.Kind() {
 	case reflect.Struct:
@@ -281,7 +236,7 @@ func (arguments Arguments) unpackTuple(v interface{}, marshalledValues []interfa
 }
 
 // unpackAtomic unpacks ( hexdata -> go ) a single value
-func (arguments Arguments) unpackAtomic(v interface{}, marshalledValues []interface{}) error {
+func (arguments Arguments) unpackAtomic(v interface{}, marshalledValues interface{}) error {
 	dst := reflect.ValueOf(v).Elem()
 	src := reflect.ValueOf(marshalledValues)
 
