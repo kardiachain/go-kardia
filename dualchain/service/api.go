@@ -75,7 +75,7 @@ func NewDualBlockJSON(block *types.Block) *DualBlockJSON {
 		DualEventsHash: block.Header().DualEventsHash.Hex(),
 		GasLimit:       block.Header().GasLimit,
 		GasUsed:        block.Header().GasUsed,
-		Validator:      block.Header().Coinbase.Hex(),
+		Validator:      block.Header().Validator.Hex(),
 		Root:           block.Header().Root.Hex(),
 		ReceiptHash:    block.Header().ReceiptHash.Hex(),
 		Bloom:          block.Header().Bloom.Big().Int64(),
