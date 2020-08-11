@@ -435,12 +435,12 @@ type Event struct {
 	// * foo(uint,uint)
 	// The event name of the first one wll be resolved as foo while the second one
 	// will be resolved as foo0.
-	Name      string
+	Name string
+	// RawName is the raw event name parsed from ABI.
+	RawName   string
 	Anonymous bool
 	Inputs    Arguments
-	// RawName is the raw event name parsed from ABI.
-	RawName string
-	str     string
+	str       string
 	// Sig contains the string signature according to the ABI spec.
 	// e.g.	 event foo(uint32 a, int b) = "foo(uint32,int256)"
 	// Please note that "int" is substitute for its canonical representation "int256"
