@@ -3,6 +3,11 @@ package ksml
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
+	"reflect"
+	"strconv"
+	"strings"
+
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
@@ -10,10 +15,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
 	"github.com/kardiachain/go-kardiamain/types"
-	"math/big"
-	"reflect"
-	"strconv"
-	"strings"
 )
 
 func generateInput(p *Parser, extras ...interface{}) (string, *abi.ABI, *common.Address, *types.Header, []byte, error) {
@@ -153,14 +154,14 @@ func ConvertParams(p *Parser, arguments abi.Arguments, patterns []string) ([]int
 		// otherwise add the element to abiInputs without doing anything.
 
 		arg := arguments[i]
-		t := arg.Type.Kind
+		t := arg.Type.GetType().Kind()
 		for _, val := range vals {
 			v, err := InterfaceToString(val)
 			if err != nil {
 				return nil, err
 			}
 			// handle special case: bigInt in arg
-			if arg.Type.Type.String() == "*big.Int" {
+			if arg.Type.GetType().String() == "*big.Int" {
 				result, _ := big.NewInt(0).SetString(v, 10)
 				abiInputs = append(abiInputs, result)
 				continue
@@ -171,7 +172,8 @@ func ConvertParams(p *Parser, arguments abi.Arguments, patterns []string) ([]int
 				continue
 			}
 			switch t {
-			case reflect.String: abiInputs = append(abiInputs, val)
+			case reflect.String:
+				abiInputs = append(abiInputs, val)
 			case reflect.Int8:
 				// convert val to int based with bitSize = 8
 				result, err := strconv.ParseInt(v, 10, 8)
@@ -235,7 +237,7 @@ func ConvertParams(p *Parser, arguments abi.Arguments, patterns []string) ([]int
 				}
 				abiInputs = append(abiInputs, result)
 			case reflect.Array, reflect.Slice, reflect.Ptr:
-				typ := arg.Type.Type.String()
+				typ := arg.Type.GetType().String()
 				switch {
 				case strings.Contains(typ, "uint8") && strings.HasPrefix(typ, "[") && strings.Count(typ, "]") == 1:
 					// val is bytes.
@@ -302,7 +304,7 @@ func callStaticKardiaMasterSmc(from common.Address, to common.Address, currentHe
 }
 
 // EstimateGas estimates spent in order to
-func EstimateGas(from common.Address, to common.Address, currentHeader *types.Header, bc base.BaseBlockChain, stateDb *state.StateDB, input []byte) (uint64, error){
+func EstimateGas(from common.Address, to common.Address, currentHeader *types.Header, bc base.BaseBlockChain, stateDb *state.StateDB, input []byte) (uint64, error) {
 	// Create new call message
 	msg := types.NewMessage(from, &to, 0, big.NewInt(0), uint64(MaximumGasToCallFunction), big.NewInt(1), input, false)
 	// Create a new context to be used in the KVM environment
@@ -340,7 +342,7 @@ func GenerateOutputStruct(smcABI abi.ABI, method string, result []byte) (interfa
 						return big.NewFloat(0), nil
 					}
 				}
-				kind := v.Outputs[0].Type.Kind
+				kind := v.Outputs[0].Type.GetType().Kind()
 				switch kind {
 				case reflect.String:
 					obj = ""
@@ -365,7 +367,7 @@ func GenerateOutputStruct(smcABI abi.ABI, method string, result []byte) (interfa
 				case reflect.Int64:
 					obj = int64(0)
 				default:
-					return "", fmt.Errorf("unsupported value type %v", v.Outputs[0].Type.Kind.String())
+					return "", fmt.Errorf("unsupported value type %v", v.Outputs[0].Type.GetType().Kind().String())
 				}
 				if err := smcABI.Unpack(&obj, method, result); err != nil {
 					return nil, err
@@ -452,7 +454,7 @@ func makeStruct(args abi.Arguments) interface{} {
 			name = fmt.Sprintf("name%v", i)
 		}
 		sf := reflect.StructField{
-			Type: arg.Type.Type,
+			Type: arg.Type.GetType(),
 			Name: strings.Title(name),
 		}
 		if arg.Name != "" {
