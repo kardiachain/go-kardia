@@ -23,7 +23,7 @@ import (
 )
 
 type (
-	executionFunc func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error)
+	executionFunc func(pc *uint64, ikvm *KVM, callContext *callCtx) ([]byte, error)
 	gasFunc       func(*KVM, *Contract, *Stack, *Memory, uint64) (uint64, error) // last parameter is the requested memory size as a uint64
 	// memorySizeFunc returns the required size, and whether the operation overflowed a uint64
 	memorySizeFunc func(*Stack) (size uint64, overflow bool)
