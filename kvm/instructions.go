@@ -383,7 +383,7 @@ func opSAR(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 
 func opSha3(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	offset, size := callContext.stack.pop(), callContext.stack.pop()
-	data := callContext.memory.Get(offset.Int64(), size.Int64())
+	data := callContext.memory.GetPtr(offset.Int64(), size.Int64())
 
 	if kvm.interpreter.hasher == nil {
 		kvm.interpreter.hasher = sha3.NewLegacyKeccak256().(keccakState)
@@ -559,11 +559,9 @@ func opPop(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 }
 
 func opMload(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
-	offset := callContext.stack.pop()
-	val := kvm.interpreter.intPool.get().SetBytes(callContext.memory.Get(offset.Int64(), 32))
- 	callContext.stack.push(val)
-
-	kvm.interpreter.intPool.put(offset)
+	v := callContext.stack.peek()
+	offset := v.Int64()
+	v.SetBytes(callContext.memory.GetPtr(offset, 32))
 	return nil, nil
 }
 
@@ -648,7 +646,7 @@ func opCreate(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	var (
 		value        = callContext.stack.pop()
 		offset, size = callContext.stack.pop(), callContext.stack.pop()
-		input        =  callContext.memory.Get(offset.Int64(), size.Int64())
+		input        =  callContext.memory.GetCopy(offset.Int64(), size.Int64())
 		gas          = callContext.contract.Gas
 	)
 
@@ -682,7 +680,7 @@ func opCall(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	toAddr := common.BigToAddress(addr)
 	value = common.U256(value)
 	// Get the arguments from the memory.
-	args := callContext.memory.Get(inOffset.Int64(), inSize.Int64())
+	args := callContext.memory.GetPtr(inOffset.Int64(), inSize.Int64())
 
 	if value.Sign() != 0 {
 		gas += configs.CallStipend
@@ -711,7 +709,7 @@ func opCallCode(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	toAddr := common.BigToAddress(addr)
 	value = common.U256(value)
 	// Get arguments from the callContext.memory.
-	args := callContext.memory.Get(inOffset.Int64(), inSize.Int64())
+	args := callContext.memory.GetPtr(inOffset.Int64(), inSize.Int64())
 
 	if value.Sign() != 0 {
 		gas += configs.CallStipend
@@ -739,7 +737,7 @@ func opDelegateCall(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) 
 	addr, inOffset, inSize, retOffset, retSize := callContext.stack.pop(), callContext.stack.pop(), callContext.stack.pop(), callContext.stack.pop(), callContext.stack.pop()
 	toAddr := common.BigToAddress(addr)
 	// Get arguments from the memory.
-	args := callContext.memory.Get(inOffset.Int64(), inSize.Int64())
+	args := callContext.memory.GetPtr(inOffset.Int64(), inSize.Int64())
 
 	ret, returnGas, err := kvm.DelegateCall(callContext.contract, toAddr, args, gas)
 	if err != nil {
@@ -764,7 +762,7 @@ func opStaticCall(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	addr, inOffset, inSize, retOffset, retSize := callContext.stack.pop(), callContext.stack.pop(), callContext.stack.pop(), callContext.stack.pop(), callContext.stack.pop()
 	toAddr := common.BigToAddress(addr)
 	// Get arguments from the memory.
-	args := callContext.memory.Get(inOffset.Int64(), inSize.Int64())
+	args := callContext.memory.GetPtr(inOffset.Int64(), inSize.Int64())
 
 	ret, returnGas, err := kvm.StaticCall(callContext.contract, toAddr, args, gas)
 	if err != nil {
@@ -874,7 +872,7 @@ func makeLog(size int) executionFunc {
 			topics[i] = common.BigToHash(callContext.stack.pop())
 		}
 
-		d := callContext.memory.Get(mStart.Int64(), mSize.Int64())
+		d := callContext.memory.GetCopy(mStart.Int64(), mSize.Int64())
 		kvm.StateDB.AddLog(&types.Log{
 			Address: callContext.contract.Address(),
 			Topics:  topics,
