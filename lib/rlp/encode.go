@@ -124,7 +124,7 @@ type encbuf struct {
 	str      []byte        // string data, contains everything except list headers
 	lheads   []listhead    // all list headers
 	lhsize   int           // sum of sizes of all encoded list headers
-	sizebuf  []byte        // 9-byte auxiliary buffer for uint encoding
+	sizebuf  [9]byte       // 9-byte auxiliary buffer for uint encoding
 	bufvalue reflect.Value // used in writeByteArrayCopy
 }
 
@@ -356,19 +356,20 @@ func (r *encReader) next() []byte {
 
 var encoderInterface = reflect.TypeOf(new(Encoder)).Elem()
 
+// makeWriter creates a writer function for the given type.
 func makeWriter(typ reflect.Type, ts tags) (writer, error) {
 	kind := typ.Kind()
 	switch {
 	case typ == rawValueType:
 		return writeRawValue, nil
-	case kind == reflect.Ptr:
-		return makePtrWriter(typ, ts)
-	case reflect.PtrTo(typ).Implements(encoderInterface):
-		return makeEncoderWriter(typ), nil
 	case typ.AssignableTo(reflect.PtrTo(bigInt)):
 		return writeBigIntPtr, nil
 	case typ.AssignableTo(bigInt):
 		return writeBigIntNoPtr, nil
+	case kind == reflect.Ptr:
+		return makePtrWriter(typ, ts)
+	case reflect.PtrTo(typ).Implements(encoderInterface):
+		return makeEncoderWriter(typ), nil
 	case isUint(kind):
 		return writeUint, nil
 	case kind == reflect.Bool:

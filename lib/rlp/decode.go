@@ -213,14 +213,14 @@ func makeDecoder(typ reflect.Type, tags tags) (dec decoder, err error) {
 	switch {
 	case typ == rawValueType:
 		return decodeRawValue, nil
-	case kind == reflect.Ptr:
-		return makePtrDecoder(typ, tags)
-	case reflect.PtrTo(typ).Implements(decoderInterface):
-		return decodeDecoder, nil
 	case typ.AssignableTo(reflect.PtrTo(bigInt)):
 		return decodeBigInt, nil
 	case typ.AssignableTo(bigInt):
 		return decodeBigIntNoPtr, nil
+	case kind == reflect.Ptr:
+		return makePtrDecoder(typ, tags)
+	case reflect.PtrTo(typ).Implements(decoderInterface):
+		return decodeDecoder, nil
 	case isUint(kind):
 		return decodeUint, nil
 	case kind == reflect.Bool:
