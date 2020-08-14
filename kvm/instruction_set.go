@@ -966,6 +966,17 @@ func newKardiaInstructionSet() JumpTable {
 			writes:      true,
 			returns:     true,
 		},
+		CREATE2: {
+			execute:     opCreate2,
+			constantGas: configs.CreateGas2,
+			dynamicGas:  gasCreate2,
+			minStack:    minStack(3, 1),
+			maxStack:    maxStack(3, 1),
+			memorySize:  memoryCreate2,
+			valid:       true,
+			writes:      true,
+			returns:     true,
+		},
 		CALL: {
 			execute:     opCall,
 			constantGas: configs.CallGas,

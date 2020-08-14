@@ -708,6 +708,35 @@ func opCreate(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	return nil, nil
 }
 
+func opCreate2(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	var (
+		endowment    = callContext.stack.pop()
+		offset, size = callContext.stack.pop(), callContext.stack.pop()
+		salt         = callContext.stack.pop()
+		input        = callContext.memory.GetCopy(int64(offset.Uint64()), int64(size.Uint64()))
+		gas          = callContext.contract.Gas
+	)
+
+	// Apply EIP150
+	gas -= gas / 64
+	callContext.contract.UseGas(gas)
+	res, addr, returnGas, suberr := kvm.Create2(callContext.contract, input, gas,
+		endowment, salt)
+	// Push item on the stack based on the returned error.
+	if suberr != nil {
+		callContext.stack.push(kvm.interpreter.intPool.getZero())
+	} else {
+		callContext.stack.push(kvm.interpreter.intPool.get().SetBytes(addr.Bytes()))
+	}
+	callContext.contract.Gas += returnGas
+	kvm.interpreter.intPool.put(endowment, offset, size, salt)
+
+	if suberr == errExecutionReverted {
+		return res, nil
+	}
+	return nil, nil
+}
+
 func opCall(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	// Pop gas. The actual gas in in kvm.callGasTemp.
 	kvm.interpreter.intPool.put(callContext.stack.pop())

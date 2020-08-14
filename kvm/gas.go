@@ -200,6 +200,7 @@ var (
 	gasMStore8 = pureMemoryGascost
 	gasMStore  = pureMemoryGascost
 	gasCreate  = pureMemoryGascost
+	gasCreate2 = pureMemoryGascost
 )
 
 func gasExp(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
