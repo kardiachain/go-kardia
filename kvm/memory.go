@@ -70,7 +70,7 @@ func (m *Memory) Resize(size uint64) {
 }
 
 // Get returns offset + size as a new slice
-func (m *Memory) Get(offset, size int64) (cpy []byte) {
+func (m *Memory) GetCopy(offset, size int64) (cpy []byte) {
 	if size == 0 {
 		return nil
 	}
@@ -159,6 +159,10 @@ func memoryMStore(stack *Stack) (uint64, bool) {
 }
 
 func memoryCreate(stack *Stack) (uint64, bool) {
+	return calcMemSize(stack.Back(1), stack.Back(2))
+}
+
+func memoryCreate2(stack *Stack) (uint64, bool) {
 	return calcMemSize(stack.Back(1), stack.Back(2))
 }
 

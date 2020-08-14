@@ -103,7 +103,7 @@ func testTwoOperandOp(t *testing.T, tests []TwoOperandTestcase, opFn executionFu
 		expected := new(big.Int).SetBytes(common.Hex2Bytes(test.Expected))
 		stack.push(x)
 		stack.push(shift)
-		opFn(&pc, env, nil, nil, stack)
+		opFn(&pc, env, &callCtx{nil, stack, nil})
 		actual := stack.pop()
 		if actual.Cmp(expected) != 0 {
 			t.Errorf("Testcase %d, expected  %v, got %v", i, expected, actual)
@@ -252,7 +252,7 @@ func getResult(args []*twoOperandParams, opFn executionFunc) []TwoOperandTestcas
 		y := new(big.Int).SetBytes(common.Hex2Bytes(param.y))
 		stack.push(x)
 		stack.push(y)
-		opFn(&pc, env, nil, nil, stack)
+		opFn(&pc, env, &callCtx{nil, stack, nil})
 		actual := stack.pop()
 		result[i] = TwoOperandTestcase{param.x, param.y, fmt.Sprintf("%064x", actual)}
 	}
@@ -275,7 +275,7 @@ func xTestWriteExpectedValues(t *testing.T) {
 	t.Fatal("This test should not be activated")
 }
 
-func opBenchmark(bench *testing.B, op func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error), args ...string) {
+func opBenchmark(bench *testing.B, op executionFunc, args ...string) {
 	var (
 		env   = NewKVM(Context{}, nil, Config{})
 		stack = newstack()
@@ -293,7 +293,7 @@ func opBenchmark(bench *testing.B, op func(pc *uint64, kvm *KVM, contract *Contr
 			a := new(big.Int).SetBytes(arg)
 			stack.push(a)
 		}
-		op(&pc, env, nil, nil, stack)
+		op(&pc, env, &callCtx{nil, stack, nil})
 		stack.pop()
 	}
 }
@@ -517,13 +517,13 @@ func TestOpMstore(t *testing.T) {
 	pc := uint64(0)
 	v := "abcdef00000000000000abba000000000deaf000000c0de00100000000133700"
 	stack.pushN(new(big.Int).SetBytes(common.Hex2Bytes(v)), big.NewInt(0))
-	opMstore(&pc, env, nil, mem, stack)
-	if got := common.Bytes2Hex(mem.Get(0, 32)); got != v {
+	opMstore(&pc, env, &callCtx{mem, stack, nil})
+	if got := common.Bytes2Hex(mem.GetCopy(0, 32)); got != v {
 		t.Fatalf("Mstore fail, got %v, expected %v", got, v)
 	}
 	stack.pushN(big.NewInt(0x1), big.NewInt(0))
-	opMstore(&pc, env, nil, mem, stack)
-	if common.Bytes2Hex(mem.Get(0, 32)) != "0000000000000000000000000000000000000000000000000000000000000001" {
+	opMstore(&pc, env, &callCtx{mem, stack, nil})
+	if common.Bytes2Hex(mem.GetCopy(0, 32)) != "0000000000000000000000000000000000000000000000000000000000000001" {
 		t.Fatalf("Mstore failed to overwrite previous value")
 	}
 	poolOfIntPools.put(env.interpreter.intPool)
@@ -544,7 +544,7 @@ func BenchmarkOpMstore(bench *testing.B) {
 	bench.ResetTimer()
 	for i := 0; i < bench.N; i++ {
 		stack.pushN(value, memStart)
-		opMstore(&pc, env, nil, mem, stack)
+		opMstore(&pc, env, &callCtx{mem, stack, nil})
 	}
 }
 
@@ -562,7 +562,7 @@ func BenchmarkOpSHA3(bench *testing.B) {
 	bench.ResetTimer()
 	for i := 0; i < bench.N; i++ {
 		stack.pushN(big.NewInt(32), start)
-		opSha3(&pc, env, nil, mem, stack)
+		opSha3(&pc, env, &callCtx{mem, stack, nil})
 	}
 	poolOfIntPools.put(env.interpreter.intPool)
 }
