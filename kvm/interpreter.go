@@ -72,8 +72,6 @@ type callCtx struct {
 	contract *Contract
 }
 
-
-
 // NewInterpreter returns a new instance of the Interpreter.
 func NewInterpreter(kvm *KVM, cfg Config) *Interpreter {
 	// We use the STOP instruction whether to see

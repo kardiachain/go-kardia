@@ -63,6 +63,7 @@ const (
 	ExpByte                 uint64 = 50
 	ExtcodeCopyBase         uint64 = 700
 	CreateBySelfdestructGas uint64 = 5000
+	ExtcodeHashGas          uint64 = 400  // Cost of EXTCODEHASH
 
 	MaxCodeSize = 24576 // Maximum bytecode to permit for a contract
 

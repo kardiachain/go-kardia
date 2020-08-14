@@ -18,7 +18,6 @@ package kvm
 
 import (
 	"errors"
-
 	"github.com/kardiachain/go-kardiamain/configs"
 )
 
@@ -327,6 +326,13 @@ func newKardiaInstructionSet() JumpTable {
 			memorySize:  memoryExtCodeCopy,
 			valid:       true,
 		},
+		EXTCODEHASH: {
+			execute:     opExtCodeHash,
+			constantGas: configs.ExtcodeHashGas,
+			minStack:    minStack(1, 1),
+			maxStack:    maxStack(1, 1),
+			valid:       true,
+	    },
 		BLOCKHASH: {
 			execute:     opBlockhash,
 			constantGas: GasExtStep,
