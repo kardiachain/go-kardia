@@ -64,6 +64,14 @@ type Interpreter struct {
 	returnData []byte // Last CALL's return data for subsequent reuse
 }
 
+// callCtx contains the things that are per-call, such as stack and memory,
+// but not transients like pc and gas
+type callCtx struct {
+	memory   *Memory
+	stack    *Stack
+	contract *Contract
+}
+
 // NewInterpreter returns a new instance of the Interpreter.
 func NewInterpreter(kvm *KVM, cfg Config) *Interpreter {
 	// We use the STOP instruction whether to see
@@ -117,6 +125,11 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		op    OpCode        // current opcode
 		mem   = NewMemory() // bound memory
 		stack = newstack()  // local stack
+		callContext = &callCtx{
+			memory:   mem,
+			stack:    stack,
+			contract: contract,
+		}
 		// For optimisation reason we're using uint64 as the program counter.
 		// It's theoretically possible to go above 2^64. The YP defines the PC
 		// to be uint256. Practically much less so feasible.
@@ -154,7 +167,12 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 	// explicit STOP, RETURN or SELFDESTRUCT is executed, an error occurred during
 	// the execution of one of the operations or until the done flag is set by the
 	// parent context.
-	for atomic.LoadInt32(&in.kvm.abort) == 0 {
+	steps := 0
+	for {
+		steps++
+		if steps%1000 == 0 && atomic.LoadInt32(&in.kvm.abort) != 0 {
+			break
+		}
 		/* TODO(huny@): Add tracer later
 		if in.cfg.Debug {
 			// Capture pre-execution values for tracing.
@@ -229,7 +247,7 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		}
 		*/
 		// execute the operation
-		res, err = operation.execute(&pc, in.kvm, contract, mem, stack)
+		res, err = operation.execute(&pc, in.kvm, callContext)
 
 		// if the operation clears the return data (e.g. it has returning data)
 		// set the last return to the result of the operation.
