@@ -414,6 +414,12 @@ func opBalance(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	return nil, nil
 }
 
+func opSelfBalance(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	balance := kvm.interpreter.intPool.get().Set(kvm.StateDB.GetBalance(callContext.contract.Address()))
+	callContext.stack.push(balance)
+	return nil, nil
+}
+
 func opOrigin(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
  	callContext.stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.Origin.Bytes()))
 	return nil, nil

@@ -368,6 +368,13 @@ func newKardiaInstructionSet() JumpTable {
 			maxStack:    maxStack(0, 1),
 			valid:       true,
 		},
+		SELFBALANCE: {
+			execute:     opSelfBalance,
+			constantGas: GasFastStep,
+			minStack:    minStack(0, 1),
+			maxStack:    maxStack(0, 1),
+			valid:       true,
+		},
 		POP: {
 			execute:     opPop,
 			constantGas: GasQuickStep,
