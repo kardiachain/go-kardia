@@ -264,7 +264,6 @@ func getResult(args []*twoOperandParams, opFn executionFunc) []TwoOperandTestcas
 		stack = newstack()
 		pc    = uint64(0)
 	)
-	env.interpreter.intPool = poolOfIntPools.get()
 	result := make([]TwoOperandTestcase, len(args))
 	for i, param := range args {
 		x := new(uint256.Int).SetBytes(common.Hex2Bytes(param.x))
@@ -552,7 +551,6 @@ func BenchmarkOpMstore(bench *testing.B) {
 		stack = newstack()
 		mem   = NewMemory()
 	)
-	env.interpreter.intPool = poolOfIntPools.get()
 	mem.Resize(64)
 	pc := uint64(0)
 	memStart := new(uint256.Int)
@@ -571,7 +569,6 @@ func BenchmarkOpSHA3(bench *testing.B) {
 		stack = newstack()
 		mem   = NewMemory()
 	)
-	env.interpreter.intPool = poolOfIntPools.get()
 	mem.Resize(32)
 	pc := uint64(0)
 	start := uint256.NewInt()
@@ -581,5 +578,4 @@ func BenchmarkOpSHA3(bench *testing.B) {
 		stack.pushN(*uint256.NewInt().SetUint64(32), *start)
 		opSha3(&pc, env, &callCtx{mem, stack, nil})
 	}
-	poolOfIntPools.put(env.interpreter.intPool)
 }

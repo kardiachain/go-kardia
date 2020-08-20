@@ -55,8 +55,6 @@ type Interpreter struct {
 	kvm *KVM
 	cfg Config
 
-	intPool *intPool
-
 	hasher    keccakState // Keccak256 hasher instance shared across opcodes
 	hasherBuf common.Hash // Keccak256 hasher result array shared aross opcode
 
