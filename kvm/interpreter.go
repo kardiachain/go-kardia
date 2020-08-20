@@ -93,14 +93,6 @@ func NewInterpreter(kvm *KVM, cfg Config) *Interpreter {
 // considered a revert-and-consume-all-gas operation except for
 // errExecutionReverted which means revert-and-keep-gas-left.
 func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret []byte, err error) {
-	if in.intPool == nil {
-		in.intPool = poolOfIntPools.get()
-		defer func() {
-			poolOfIntPools.put(in.intPool)
-			in.intPool = nil
-		}()
-	}
-
 	// Increment the call depth which is restricted to 1024
 	in.kvm.depth++
 	defer func() { in.kvm.depth-- }()
@@ -145,9 +137,6 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 
 	)
 	contract.Input = input
-
-	// Reclaim the stack as an int pool when the execution stops
-	defer func() { in.intPool.put(stack.data...) }()
 
 	/* TODO(huny@): Add tracer later
 	if in.cfg.Debug {

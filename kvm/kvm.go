@@ -27,6 +27,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/holiman/uint256"
 )
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
@@ -424,9 +425,9 @@ func (kvm *KVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 //
 // The different between Create2 with Create is Create2 uses sha3(msg.sender ++ salt ++ init_code)[12:]
 // instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
-func (kvm *KVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *big.Int, salt *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+func (kvm *KVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	codeAndHash := &codeAndHash{code: code}
-	contractAddr = crypto.CreateAddress2(caller.Address(), common.BigToHash(salt), code)
+	contractAddr = crypto.CreateAddress2(caller.Address(), common.Hash(salt.Bytes32()), code)
 	return kvm.create(caller, codeAndHash, gas, endowment, contractAddr)
 }
 //================================================================================================

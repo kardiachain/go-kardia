@@ -17,7 +17,7 @@
 package kvm
 
 import (
-	"math/big"
+	"github.com/holiman/uint256"
 
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -35,7 +35,7 @@ const (
 
 // calcGas returns the actual gas cost of the call.
 //
-func callGas(availableGas, base uint64, callCost *big.Int) (uint64, error) {
+func callGas(availableGas, base uint64, callCost *uint256.Int) (uint64, error) {
 	availableGas = availableGas - base
 	gas := availableGas - availableGas/64
 	// If the bit length exceeds 64 bit we know that the newly calculated "gas" for EIP150
@@ -97,7 +97,7 @@ func memoryCopierGas(stackpos int) gasFunc {
 			return 0, err
 		}
 		// And gas for copying data, charged per word at param.CopyGas
-		words, overflow := bigUint64(stack.Back(stackpos))
+		words, overflow := stack.Back(stackpos).Uint64WithOverflow()
 		if overflow {
 			return 0, errGasUintOverflow
 		}
@@ -123,7 +123,7 @@ var (
 func gasSStore(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	var (
 		y, x = stack.Back(1), stack.Back(0)
-		val  = kvm.StateDB.GetState(contract.Address(), common.BigToHash(x))
+		val  = kvm.StateDB.GetState(contract.Address(), common.Hash(x.Bytes32()))
 	)
 
 	if val == (common.Hash{}) && y.Sign() != 0 { // 0 => non 0
@@ -139,7 +139,7 @@ func gasSStore(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySi
 
 func makeGasLog(n uint64) gasFunc {
 	return func(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
-		requestedSize, overflow := bigUint64(stack.Back(1))
+		requestedSize, overflow := stack.Back(1).Uint64WithOverflow()
 		if overflow {
 			return 0, errGasUintOverflow
 		}
@@ -173,7 +173,7 @@ func gasSha3(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 		return 0, err
 	}
 
-	wordGas, overflow := bigUint64(stack.Back(1))
+	wordGas, overflow := stack.Back(1).Uint64WithOverflow()
 	if overflow {
 		return 0, errGasUintOverflow
 	}
@@ -219,8 +219,8 @@ func gasExp(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize 
 func gasCall(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	var (
 		gas            uint64
-		transfersValue = stack.Back(2).Sign() != 0
-		address        = common.BigToAddress(stack.Back(1))
+		transfersValue = !stack.Back(2).IsZero()
+		address        = common.Address(stack.Back(1).Bytes20())
 	)
 	if transfersValue && kvm.StateDB.Empty(address) {
 		gas += configs.CallNewAccountGas
@@ -308,7 +308,7 @@ func gasStaticCall(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memo
 
 func gasSelfdestruct(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	var gas uint64
-	var address = common.BigToAddress(stack.Back(0))
+	var address =  common.Address(stack.Back(0).Bytes20())
 
 	if kvm.StateDB.Empty(address) && kvm.StateDB.GetBalance(contract.Address()).Sign() != 0 {
 		gas += configs.CreateBySelfdestructGas

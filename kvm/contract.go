@@ -18,6 +18,7 @@ package kvm
 
 import (
 	"errors"
+	"github.com/holiman/uint256"
 	"math/big"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -91,11 +92,11 @@ func NewContract(caller ContractRef, object ContractRef, value *big.Int, gas uin
 	return c
 }
 
-func (c *Contract) validJumpdest(dest *big.Int) bool {
-	uDest := dest.Uint64()
-	// PC cannot go beyond len(code) and certainly can't be bigger than 63bits.
+func (c *Contract) validJumpdest(dest *uint256.Int) bool {
+	uDest, overflow := dest.Uint64WithOverflow()
+	// PC cannot go beyond len(code) and certainly can't be bigger than 63 bits.
 	// Don't bother checking for JUMPDEST in that case.
-	if dest.BitLen() >= 63 || uDest >= uint64(len(c.Code)) {
+	if overflow || uDest >= uint64(len(c.Code)) {
 		return false
 	}
 	// Only JUMPDESTs allowed for destinations

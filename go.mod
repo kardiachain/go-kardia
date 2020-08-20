@@ -21,6 +21,7 @@ require (
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/mux v1.7.3
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/holiman/uint256 v1.1.1
 	github.com/huin/goupnp v1.0.0
 	github.com/jackpal/go-nat-pmp v1.0.2-0.20160603034137-1fa385a6f458
 	github.com/mattn/go-colorable v0.1.2 // indirect
