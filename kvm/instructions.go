@@ -580,6 +580,9 @@ func opCreate(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 		input        = callContext.memory.GetCopy(int64(offset.Uint64()), int64(size.Uint64()))
 		gas          = callContext.contract.Gas
 	)
+	// TODO: potentially use "all but one 64th" gas rule here
+	// gas -= gas / 64
+
 	// reuse size int for stackvalue
 	stackvalue := size
 
@@ -591,18 +594,15 @@ func opCreate(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	}
 
 	res, addr, returnGas, suberr := kvm.Create(callContext.contract, input, gas, bigVal)
-	// Push item on the stack based on the returned error. If the ruleset is
-	// homestead we must check for CodeStoreOutOfGasError (homestead only
-	// rule) and treat as an error, if the ruleset is frontier we must
-	// ignore this error and pretend the operation was successful.
-	if suberr != nil && suberr != ErrCodeStoreOutOfGas {
+	// All returned errors including CodeStoreOutOfGasError are treated as error.
+	// KVM run similar to EVM from Homestead ruleset.
+	if suberr != nil {
 		stackvalue.Clear()
 	} else {
 		stackvalue.SetBytes(addr.Bytes())
 	}
 	callContext.stack.push(&stackvalue)
 	callContext.contract.Gas += returnGas
-
 	if suberr == errExecutionReverted {
 		return res, nil
 	}
