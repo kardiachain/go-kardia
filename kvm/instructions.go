@@ -20,15 +20,12 @@ import (
 	"errors"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
-	"math/big"
-
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
 	"golang.org/x/crypto/sha3"
 )
 
 var (
-	bigZero                  = new(big.Int)
 	errWriteProtection       = errors.New("kvm: write protection")
 	errReturnDataOutOfBounds = errors.New("kvm: return data out of bounds")
 	errExecutionReverted     = errors.New("kvm: execution reverted")

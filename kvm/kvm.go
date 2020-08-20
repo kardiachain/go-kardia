@@ -308,7 +308,7 @@ func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
 	// but is the correct thing to do and matters on other networks, in tests, and potential
 	// future scenarios
-	kvm.StateDB.AddBalance(addr, bigZero)
+	kvm.StateDB.AddBalance(addr, big0)
 
 	// When an error was returned by the KVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining.
