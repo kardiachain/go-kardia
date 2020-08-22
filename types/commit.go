@@ -41,6 +41,24 @@ type Commit struct {
 	bitArray       *cmn.BitArray
 }
 
+// Construct a VoteSet from the Commit and validator set. Panics
+// if precommits from the commit can't be added to the voteset.
+// Inverse of VoteSet.MakeCommit().
+func CommitToVoteSet(chainID string, commit *Commit, vals *ValidatorSet) *VoteSet {
+	height, round, typ := commit.Height(), commit.Round(), VoteTypePrecommit
+	voteSet := NewVoteSet(chainID, height, round, typ, vals)
+	for _, precommit := range commit.Precommits {
+		if precommit == nil {
+			continue
+		}
+		added, err := voteSet.AddVote(precommit)
+		if !added || err != nil {
+			panic(fmt.Sprintf("Failed to reconstruct LastCommit: %v", err))
+		}
+	}
+	return voteSet
+}
+
 func (commit *Commit) Copy() *Commit {
 	commitCopy := *commit
 	if commit.firstPrecommit != nil {

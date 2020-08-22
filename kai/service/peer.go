@@ -22,9 +22,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"sync"
 	"time"
+
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 
 	"github.com/kardiachain/go-kardiamain/consensus"
 	serviceconst "github.com/kardiachain/go-kardiamain/kai/service/const"
@@ -76,8 +77,8 @@ type peer struct {
 
 	csReactor *consensus.ConsensusManager
 
-	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
-	Protocol string
+	terminated  chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
+	Protocol    string
 	IsValidator bool
 }
 
@@ -99,15 +100,15 @@ func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, 
 	}
 
 	return &peer{
-		logger:     logger,
-		Peer:       p,
-		rw:         rw,
-		version:    version,
-		id:         fmt.Sprintf("%x", p.ID().Bytes()[:8]),
-		queuedTxs:  make(chan types.Transactions, maxQueuedTxs),
-		knownTxs:   common.NewSet(maxKnownTxs),
-		csReactor:  csReactor,
-		terminated: make(chan struct{}),
+		logger:      logger,
+		Peer:        p,
+		rw:          rw,
+		version:     version,
+		id:          fmt.Sprintf("%x", p.ID().Bytes()[:8]),
+		queuedTxs:   make(chan types.Transactions, maxQueuedTxs),
+		knownTxs:    common.NewSet(maxKnownTxs),
+		csReactor:   csReactor,
+		terminated:  make(chan struct{}),
 		IsValidator: isValidator,
 	}
 }
@@ -204,7 +205,6 @@ func (p *peer) readStatus(network uint64, chainID uint64, status *statusData, ge
 	if !hasPermission {
 		return errUnAuthorizedPeer
 	}
-
 	return nil
 }
 
@@ -303,15 +303,13 @@ func (p *peer) broadcast() {
 	for {
 		select {
 		case txs := <-p.queuedTxs:
-			if len(txs) > 0 {
-				go func() {
-					if err := p.SendTransactions(&txs); err != nil {
-						p.logger.Error("Send txs failed", "err", err, "count", len(txs), "peer", p.Name())
-						return
-					}
-					p.logger.Trace("Transactions sent", "count", len(txs), "peer", p.Name())
-				}()
-			}
+			go func() {
+				if err := p.SendTransactions(txs); err != nil {
+					p.logger.Error("Send txs failed", "err", err, "count", len(txs), "peer", p.Name())
+					return
+				}
+			}()
+			p.Log().Trace("Broadcast transactions", "count", len(txs))
 		case <-p.terminated:
 			return
 		}
@@ -390,7 +388,7 @@ func (ps *peerSet) PeersWithoutTxs(txs types.Transactions) map[*peer]types.Trans
 }
 
 // SendTransactions sends transactions to the peer, adds the txn hashes to known txn set.
-func (p *peer) SendTransactions(txs *types.Transactions) error {
+func (p *peer) SendTransactions(txs types.Transactions) error {
 	// If we reached the memory allowance, drop a previously known transaction hash
 	for p.knownTxs.Size() >= maxKnownTxs {
 		p.knownTxs.Pop()

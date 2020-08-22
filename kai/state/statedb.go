@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/trie"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -448,7 +449,7 @@ func (sdb *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error
 		}
 		return nil
 	})
-	sdb.logger.Debug("Trie cache stats after commit", "misses", types.CacheMisses(), "unloads", types.CacheUnloads())
+	sdb.logger.Debug("Trie cache stats after commit", "misses", trie.CacheMisses(), "unloads", trie.CacheUnloads())
 	return root, err
 }
 

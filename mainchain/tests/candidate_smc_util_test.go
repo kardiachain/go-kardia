@@ -21,6 +21,9 @@ package tests
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
+	"math/big"
+	"time"
+
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
@@ -30,8 +33,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
 	"github.com/kardiachain/go-kardiamain/types"
-	"math/big"
-	"time"
 )
 
 // getPrivateKeyToCallSmc returns private key of account generated in GetBlockchain() for testing purpose
@@ -69,4 +70,3 @@ func ApplyTransactionReturnLog(bc base.BaseBlockChain, statedb *state.StateDB, t
 	}
 	return receipt.Logs, nil
 }
-

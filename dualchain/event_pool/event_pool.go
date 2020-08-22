@@ -1,14 +1,33 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package event_pool
 
 import (
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
-	"sync"
-	"time"
 )
 
 const (
@@ -24,7 +43,7 @@ const (
 type blockChain interface {
 	CurrentBlock() *types.Block
 	GetBlock(hash common.Hash, number uint64) *types.Block
-	DB() types.Database
+	DB() types.StoreDB
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 }
 
@@ -43,13 +62,13 @@ type Config struct {
 type Pool struct {
 	logger log.Logger
 
-	chain          blockChain
-	config         Config
+	chain  blockChain
+	config Config
 
-	eventsCh        chan []interface{}               // eventsCh is used for pending events
-	allCh           chan []interface{}               // allCh is used to cache processed events
-	pending         map[common.Hash]*types.DualEvent // current processable events
-	all             map[common.Hash]*types.DualEvent // All events
+	eventsCh chan []interface{}               // eventsCh is used for pending events
+	allCh    chan []interface{}               // allCh is used to cache processed events
+	pending  map[common.Hash]*types.DualEvent // current processable events
+	all      map[common.Hash]*types.DualEvent // All events
 
 	numberOfWorkers int
 	workerCap       int
@@ -58,8 +77,8 @@ type Pool struct {
 	chainHeadSub event.Subscription
 	eventFeed    event.Feed
 
-	mu            sync.RWMutex
-	wg            sync.WaitGroup
+	mu sync.RWMutex
+	wg sync.WaitGroup
 }
 
 func NewPool(logger log.Logger, config Config, chain blockChain) *Pool {
@@ -71,9 +90,9 @@ func NewPool(logger log.Logger, config Config, chain blockChain) *Pool {
 		all:             make(map[common.Hash]*types.DualEvent),
 		chainHeadCh:     make(chan events.ChainHeadEvent, chainHeadChanSize),
 		numberOfWorkers: config.NumberOfWorkers,
-		workerCap: config.WorkerCap,
-		chain: chain,
-		config: config,
+		workerCap:       config.WorkerCap,
+		chain:           chain,
+		config:          config,
 	}
 
 	pool.reset(nil, chain.CurrentBlock().Header())
@@ -284,7 +303,7 @@ func (pool *Pool) Pending(limit int, removeResult bool) (types.DualEvents, error
 		if removeResult {
 			addedEvents = append(addedEvents, evt)
 		}
-		counter ++
+		counter++
 	}
 	pool.mu.Unlock()
 	// remove events in pending if addedEvents is not empty

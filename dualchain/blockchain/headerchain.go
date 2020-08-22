@@ -19,8 +19,9 @@
 package blockchain
 
 import (
-	"github.com/hashicorp/golang-lru"
 	"sync/atomic"
+
+	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -35,7 +36,7 @@ const (
 type DualHeaderChain struct {
 	config *types.ChainConfig
 
-	kaiDb types.Database
+	kaiDb types.StoreDB
 
 	genesisHeader *types.Header
 
@@ -56,7 +57,7 @@ func (dhc *DualHeaderChain) CurrentHeader() *types.Header {
 //  getValidator should return the parent's validator
 //  procInterrupt points to the parent's interrupt semaphore
 //  wg points to the parent's shutdown wait group
-func NewHeaderChain(kaiDb types.Database, config *types.ChainConfig) (*DualHeaderChain, error) {
+func NewHeaderChain(kaiDb types.StoreDB, config *types.ChainConfig) (*DualHeaderChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	heightCache, _ := lru.New(heightCacheLimit)
 
@@ -148,7 +149,7 @@ func (dhc *DualHeaderChain) SetGenesis(head *types.Header) {
 
 // DeleteCallback is a callback function that is called by SetHead before
 // each header is deleted.
-type DeleteCallback func(types.DatabaseDeleter, common.Hash, uint64)
+type DeleteCallback func(types.StoreDB, common.Hash, uint64)
 
 // SetHead rewinds the local chain to a new head. Everything above the new head
 // will be deleted and the new one set.
@@ -158,22 +159,21 @@ func (dhc *DualHeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	if hdr := dhc.CurrentHeader(); hdr != nil {
 		height = hdr.Height
 	}
-	batch := dhc.kaiDb.NewBatch()
+
 	for hdr := dhc.CurrentHeader(); hdr != nil && hdr.Height > head; hdr = dhc.CurrentHeader() {
 		hash := hdr.Hash()
 		height := hdr.Height
 		if delFn != nil {
-			delFn(batch, hash, height)
+			delFn(dhc.kaiDb, hash, height)
 		}
-		batch.DeleteHeader(hash, height)
+		dhc.kaiDb.DeleteBlockMeta(hash, height)
 
 		dhc.currentHeader.Store(dhc.GetHeader(hdr.LastCommitHash, hdr.Height-1))
 	}
 	// Roll back the canonical chain numbering
 	for i := height; i > head; i-- {
-		batch.DeleteCanonicalHash(i)
+		dhc.kaiDb.DeleteCanonicalHash(i)
 	}
-	batch.Write()
 
 	// Clear out any stale content from the caches
 	dhc.headerCache.Purge()

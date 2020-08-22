@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
+	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -70,20 +71,20 @@ func (dbo *DualBlockOperations) Height() uint64 {
 }
 
 // Proposes a new block for dual's blockchain.
-func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID types.BlockID, validator common.Address, lastValidatorHash common.Hash, commit *types.Commit) (block *types.Block) {
+func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastState state.LastestBlockState, proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all dual's events in pending pools and them to the new block.
 	// TODO(namdoh@): Since there may be a small latency for other dual peers to see the same set of
 	// dual's events, we may need to wait a bit here.
 	events := dbo.collectDualEvents()
 	dbo.logger.Info("Collected dual's events", "events", events)
 
-	header := dbo.newHeader(height, uint64(len(events)), lastBlockID, validator, lastValidatorHash)
+	header := dbo.newHeader(height, uint64(len(events)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash())
 	dbo.logger.Info("Creates new header", "header", header)
 
 	stateRoot, err := dbo.commitDualEvents(events)
 	if err != nil {
 		dbo.logger.Error("Fail to commit dual's events", "err", err)
-		return nil
+		return nil, nil
 	}
 
 	header.Root = stateRoot
@@ -92,7 +93,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 		previousBlock := dbo.blockchain.GetBlockByHeight(uint64(height) - 1)
 		if previousBlock == nil {
 			dbo.logger.Error("Get previous block N-1 failed", "proposedHeight", height)
-			return nil
+			return nil, nil
 		}
 		// TODO(#169,namdoh): Break this propose step into two passes--first is to propose
 		//  pending DualEvents, second is to propose submission receipts of N-1 DualEvent-derived Txs
@@ -100,7 +101,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 		dbo.logger.Debug("Submitting dual events from N-1", "events", previousBlock.DualEvents())
 		if err := dbo.submitDualEvents(previousBlock.DualEvents()); err != nil {
 			dbo.logger.Error("Fail to submit dual events", "err", err)
-			return nil
+			return nil, nil
 		}
 		dbo.logger.Info("Not yet implemented - Update state root with the DualEvent's submission receipt")
 	}
@@ -108,7 +109,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastBlockID ty
 	block = dbo.newBlock(header, events, commit)
 	dbo.logger.Trace("Make block to propose", "block", block)
 
-	return block
+	return block, block.MakePartSet(types.BlockPartSizeBytes)
 }
 
 // Executes and commits the new state from events in the given block.
@@ -140,7 +141,7 @@ func (dbo *DualBlockOperations) CommitBlockTxsIfNotFound(block *types.Block) err
 //             If all the nodes restart after committing a block,
 //             we need this to reload the precommits to catch-up nodes to the
 //             most recent height.  Otherwise they'd stall at H-1.
-func (dbo *DualBlockOperations) SaveBlock(block *types.Block, seenCommit *types.Commit) {
+func (dbo *DualBlockOperations) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	if block == nil {
 		common.PanicSanity("DualBlockOperations try to save a nil block")
 	}
@@ -159,15 +160,7 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, seenCommit *types.
 		common.PanicSanity(common.Fmt("WriteBlockWithoutState fails with error %v", err))
 	}
 
-	// Save block commit (duplicate and separate from the Block)
-	dbo.blockchain.WriteCommit(height-1, block.LastCommit())
-
-	// (@kiendn, issue#73)Use this function to prevent nil commits
-	seenCommit.MakeNilEmpty()
-
-	// Save seen commit (seen +2/3 precommits for block)
-	// NOTE: we can delete this at a later height
-	dbo.blockchain.WriteCommit(height, seenCommit)
+	dbo.blockchain.WriteBlock(block, blockParts, seenCommit)
 
 	dbo.logger.Trace("After commited to blockchain, removing these DualEvent's", "events", block.DualEvents())
 	dbo.eventPool.RemoveEvents(block.DualEvents())
@@ -182,6 +175,15 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, seenCommit *types.
 // If no block is found for the given height, it returns nil.
 func (dbo *DualBlockOperations) LoadBlock(height uint64) *types.Block {
 	return dbo.blockchain.GetBlockByHeight(height)
+}
+
+// Return blockpart by given height and part's index
+func (bo *DualBlockOperations) LoadBlockPart(height uint64, index int) *types.Part {
+	return bo.blockchain.LoadBlockPart(height, index)
+}
+
+func (bo *DualBlockOperations) LoadBlockMeta(height uint64) *types.BlockMeta {
+	return bo.blockchain.LoadBlockMeta(height)
 }
 
 // Returns the Block for the given height.
@@ -223,7 +225,7 @@ func (dbo *DualBlockOperations) newHeader(height int64, numEvents uint64, blockI
 
 // Creates new block from given data.
 func (dbo *DualBlockOperations) newBlock(header *types.Header, events types.DualEvents, commit *types.Commit) *types.Block {
-	return types.NewDualBlock(dbo.logger, header, events, commit)
+	return types.NewDualBlock(header, events, commit)
 }
 
 // Queries list of pending dual's events from EventPool.
@@ -265,7 +267,7 @@ func (dbo *DualBlockOperations) submitDualEvents(events types.DualEvents) error 
 		} else {
 			dbo.logger.Info("Submit dual event successfully",
 				"sender", sender.Hex(), "txSource", event.TriggeredEvent.TxSource,
-				"txHash",event.TriggeredEvent.TxHash.Hex(),
+				"txHash", event.TriggeredEvent.TxHash.Hex(),
 				"eventHash", event.Hash().Hex(),
 			)
 		}

@@ -31,6 +31,7 @@ const (
 	EventLock              = "Lock"
 	EventNewBlock          = "NewBlock"
 	EventNewBlockHeader    = "NewBlockHeader"
+	EventValidBlock        = "EventValidBlock"
 	EventNewRound          = "NewRound"
 	EventNewRoundStep      = "NewRoundStep"
 	EventPolka             = "Polka"
@@ -84,3 +85,13 @@ type BlockEventPublisher interface {
 	PublishEventNewBlockHeader(header EventDataNewBlockHeader) error
 	//namdoh@ PublishEventTx(EventDataTx) error
 }
+
+type EventDataCompleteProposal struct {
+	Height int64  `json:"height"`
+	Round  int    `json:"round"`
+	Step   string `json:"step"`
+
+	BlockID BlockID `json:"block_id"`
+}
+
+func (_ EventDataCompleteProposal) AssertIsKaiEventData() {}

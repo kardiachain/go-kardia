@@ -17,10 +17,11 @@
  */
 
 // Package rawdb contains a collection of low level database accessors.
-package leveldb
+package kvstore
 
 import (
 	"encoding/binary"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
@@ -40,7 +41,11 @@ var (
 	blockBodyPrefix     = []byte("b") // blockBodyPrefix + num (uint64 big endian) + hash -> block body
 	blockReceiptsPrefix = []byte("r") // blockReceiptsPrefix + num (uint64 big endian) + hash -> block receipts
 
-	commitPrefix = []byte("c") // commitPrefix + num (uint64 big endian) -> commit
+	blockPartPrefix = []byte("p")
+	blockMetaPrefix = []byte("bm")
+
+	commitPrefix     = []byte("c")  // commitPrefix + num (uint64 big endian) -> commit
+	seenCommitPrefix = []byte("sm") // seenCommitPrefix + num -> seen commit
 
 	// TODO(namdoh@): The hashKey is primarily used for persistently store a tx hash in db, so we
 	// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
@@ -54,10 +59,10 @@ var (
 	dualEventLookupPrefix = []byte("de")             // dualEventLookupPrefix + hash -> dual's event lookup metadata
 	bloomBitsPrefix       = []byte("B")              // bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
 
-	eventPrefix           = []byte("event")              // event prefix + smartcontract address + method
-	eventsPrefix          = []byte("events")             // event prefix + smart contract address
-	dualActionPrefix      = []byte("dualAction")
-	contractAbiPrefix     = []byte("abi")
+	eventPrefix       = []byte("event")  // event prefix + smartcontract address + method
+	eventsPrefix      = []byte("events") // event prefix + smart contract address
+	dualActionPrefix  = []byte("dualAction")
+	contractAbiPrefix = []byte("abi")
 )
 
 // A positional metadata to help looking up the data content of
@@ -80,6 +85,13 @@ type TxLookupEntry struct {
 func encodeBlockHeight(height uint64) []byte {
 	enc := make([]byte, 8)
 	binary.BigEndian.PutUint64(enc, height)
+	return enc
+}
+
+// encodeIndex encodes an index as uint32
+func encodeIndex(index uint32) []byte {
+	enc := make([]byte, 4)
+	binary.BigEndian.PutUint32(enc, index)
 	return enc
 }
 
@@ -185,4 +197,17 @@ func dualActionKey(action string) []byte {
 
 func contractAbiKey(smartContractAddress string) []byte {
 	return append(contractAbiPrefix, []byte(smartContractAddress)...)
+}
+
+func blockMetaKey(hash common.Hash, height uint64) []byte {
+	return append(blockMetaPrefix, append(encodeBlockHeight(height), hash.Bytes()...)...)
+}
+
+func blockPartKey(height uint64, index int) []byte {
+	return append(blockPartPrefix,
+		append(encodeBlockHeight(height), encodeIndex(uint32(index))...)...)
+}
+
+func seenCommitKey(height uint64) []byte {
+	return append(seenCommitPrefix, encodeBlockHeight(height)...)
 }
