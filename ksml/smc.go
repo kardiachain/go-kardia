@@ -156,14 +156,14 @@ func ConvertParams(p *Parser, arguments abi.Arguments, patterns []string) ([]int
 		// otherwise add the element to abiInputs without doing anything.
 
 		arg := arguments[i]
-		t := arg.Type.Kind
+		t := arg.Type.GetType().Kind()
 		for _, val := range vals {
 			v, err := InterfaceToString(val)
 			if err != nil {
 				return nil, err
 			}
 			// handle special case: bigInt in arg
-			if arg.Type.Type.String() == "*big.Int" {
+			if arg.Type.GetType().String() == "*big.Int" {
 				result, _ := big.NewInt(0).SetString(v, 10)
 				abiInputs = append(abiInputs, result)
 				continue
@@ -239,7 +239,7 @@ func ConvertParams(p *Parser, arguments abi.Arguments, patterns []string) ([]int
 				}
 				abiInputs = append(abiInputs, result)
 			case reflect.Array, reflect.Slice, reflect.Ptr:
-				typ := arg.Type.Type.String()
+				typ := arg.Type.GetType().String()
 				switch {
 				case strings.Contains(typ, "uint8") && strings.HasPrefix(typ, "[") && strings.Count(typ, "]") == 1:
 					// val is bytes.
@@ -344,7 +344,7 @@ func GenerateOutputStruct(smcABI abi.ABI, method string, result []byte) (interfa
 						return big.NewFloat(0), nil
 					}
 				}
-				kind := v.Outputs[0].Type.Kind
+				kind := v.Outputs[0].Type.GetType().Kind()
 				switch kind {
 				case reflect.String:
 					obj = ""
@@ -369,7 +369,7 @@ func GenerateOutputStruct(smcABI abi.ABI, method string, result []byte) (interfa
 				case reflect.Int64:
 					obj = int64(0)
 				default:
-					return "", fmt.Errorf("unsupported value type %v", v.Outputs[0].Type.Kind.String())
+					return "", fmt.Errorf("unsupported value type %v", v.Outputs[0].Type.GetType().Kind().String())
 				}
 				if err := smcABI.Unpack(&obj, method, result); err != nil {
 					return nil, err
@@ -456,7 +456,7 @@ func makeStruct(args abi.Arguments) interface{} {
 			name = fmt.Sprintf("name%v", i)
 		}
 		sf := reflect.StructField{
-			Type: arg.Type.Type,
+			Type: arg.Type.GetType(),
 			Name: strings.Title(name),
 		}
 		if arg.Name != "" {

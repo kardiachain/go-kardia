@@ -327,7 +327,7 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 				"type": "string"
 			},
 			{
-				"name": "sale_amount",
+				"name": "saleAmount",
 				"type": "uint256"
 			},
 			{
@@ -510,7 +510,7 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 	}
 	var decodeInput struct {
 		Pair          string
-		Sale_amount   *big.Int
+		SaleAmount    *big.Int
 		ReceiveAmount *big.Int
 	}
 	e := abi.UnpackInput(&decodeInput, "addRate", setRateInput[4:])

@@ -19,6 +19,7 @@ package abi
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -34,6 +35,12 @@ type ABI struct {
 	Constructor Method
 	Methods     map[string]Method
 	Events      map[string]Event
+
+	// Additional "special" functions
+	// It's separated from the original default fallback. Each contract
+	// can only define one fallback and receive function.
+	Fallback Method
+	Receive  Method
 }
 
 // JSON returns a parsed ABI interface and error if it failed.
@@ -51,12 +58,21 @@ func JSON(reader io.Reader) (ABI, error) {
 // UnmarshalJSON implements json.Unmarshaler interface
 func (abi *ABI) UnmarshalJSON(data []byte) error {
 	var fields []struct {
-		Type      string
-		Name      string
-		Constant  bool
+		Type     string
+		Name     string
+		Constant bool // True if function is either pure or view
+
+		// Event relevant indicator represents the event is
+		// declared as anonymous.
 		Anonymous bool
-		Inputs    []Argument
-		Outputs   []Argument
+
+		Inputs  []Argument
+		Outputs []Argument
+
+		// Status indicator which can be: "pure", "view",
+		// "nonpayable" or "payable".
+		StateMutability string
+		Payable         bool // True if function is payable
 	}
 
 	if err := json.Unmarshal(data, &fields); err != nil {
@@ -68,27 +84,62 @@ func (abi *ABI) UnmarshalJSON(data []byte) error {
 	for _, field := range fields {
 		switch field.Type {
 		case "constructor":
-			abi.Constructor = Method{
-				Inputs: field.Inputs,
+			abi.Constructor = NewMethod("", "", Constructor, field.StateMutability, field.Constant, field.Payable, field.Inputs, nil)
+		case "function":
+			name := abi.overloadedMethodName(field.Name)
+			abi.Methods[name] = NewMethod(name, field.Name, Function, field.StateMutability, field.Constant, field.Payable, field.Inputs, field.Outputs)
+		case "fallback":
+			if abi.HasFallback() {
+				return errors.New("only single fallback is allowed")
 			}
-		// empty defaults to function according to the abi spec
-		case "function", "":
-			abi.Methods[field.Name] = Method{
-				Name:    field.Name,
-				Const:   field.Constant,
-				Inputs:  field.Inputs,
-				Outputs: field.Outputs,
+			abi.Fallback = NewMethod("", "", Fallback, field.StateMutability, field.Constant, field.Payable, nil, nil)
+		case "receive":
+			if abi.HasReceive() {
+				return errors.New("only single receive is allowed")
 			}
+			if field.StateMutability != "payable" {
+				return errors.New("the statemutability of receive can only be payable")
+			}
+			abi.Receive = NewMethod("", "", Receive, field.StateMutability, field.Constant, field.Payable, nil, nil)
 		case "event":
-			abi.Events[field.Name] = Event{
-				Name:      field.Name,
-				Anonymous: field.Anonymous,
-				Inputs:    field.Inputs,
-			}
+			name := abi.overloadedEventName(field.Name)
+			abi.Events[name] = NewEvent(name, field.Name, field.Anonymous, field.Inputs)
+		default:
+			return fmt.Errorf("abi: could not recognize type %v of field %v", field.Type, field.Name)
 		}
 	}
 
 	return nil
+}
+
+// overloadedMethodName returns the next available name for a given function.
+// Needed since solidity allows for function overload.
+//
+// e.g. if the abi contains Methods send, send1
+// overloadedMethodName would return send2 for input send.
+func (abi *ABI) overloadedMethodName(rawName string) string {
+	name := rawName
+	_, ok := abi.Methods[name]
+	for idx := 0; ok; idx++ {
+		name = fmt.Sprintf("%s%d", rawName, idx)
+		_, ok = abi.Methods[name]
+	}
+	return name
+}
+
+// overloadedEventName returns the next available name for a given event.
+// Needed since solidity allows for event overload.
+//
+// e.g. if the abi contains events received, received1
+// overloadedEventName would return received2 for input received.
+func (abi *ABI) overloadedEventName(rawName string) string {
+	name := rawName
+	_, ok := abi.Events[name]
+	for idx := 0; ok; idx++ {
+		name = fmt.Sprintf("%s%d", rawName, idx)
+		_, ok = abi.Events[name]
+	}
+	return name
 }
 
 // Pack the given method name to conform the ABI. Method call's data
@@ -105,35 +156,47 @@ func (abi ABI) Pack(name string, args ...interface{}) ([]byte, error) {
 			return nil, err
 		}
 		return arguments, nil
-
 	}
 	method, exist := abi.Methods[name]
 	if !exist {
 		return nil, fmt.Errorf("method '%s' not found", name)
 	}
-
 	arguments, err := method.Inputs.Pack(args...)
 	if err != nil {
 		return nil, err
 	}
 	// Pack up the method ID too if not a constructor and return
-	return append(method.Id(), arguments...), nil
+	return append(method.ID, arguments...), nil
 }
 
 // Unpack output in v according to the abi specification
 func (abi ABI) Unpack(v interface{}, name string, output []byte) (err error) {
-	if len(output) == 0 {
-		return fmt.Errorf("abi: unmarshalling empty output")
-	}
 	// since there can't be naming collisions with contracts and events,
 	// we need to decide whether we're calling a method or an event
 	if method, ok := abi.Methods[name]; ok {
 		if len(output)%32 != 0 {
-			return fmt.Errorf("abi: improperly formatted output")
+			return fmt.Errorf("abi: improperly formatted output: %s - Bytes: [%+v]", string(output), output)
 		}
 		return method.Outputs.Unpack(v, output)
-	} else if event, ok := abi.Events[name]; ok {
+	}
+	if event, ok := abi.Events[name]; ok {
 		return event.Inputs.Unpack(v, output)
+	}
+	return fmt.Errorf("abi: could not locate named method or event")
+}
+
+// UnpackIntoMap unpacks a log into the provided map[string]interface{}
+func (abi ABI) UnpackIntoMap(v map[string]interface{}, name string, data []byte) (err error) {
+	// since there can't be naming collisions with contracts and events,
+	// we need to decide whether we're calling a method or an event
+	if method, ok := abi.Methods[name]; ok {
+		if len(data)%32 != 0 {
+			return fmt.Errorf("abi: improperly formatted output")
+		}
+		return method.Outputs.UnpackIntoMap(v, data)
+	}
+	if event, ok := abi.Events[name]; ok {
+		return event.Inputs.UnpackIntoMap(v, data)
 	}
 	return fmt.Errorf("abi: could not locate named method or event")
 }
@@ -157,17 +220,81 @@ func (abi ABI) UnpackInput(v interface{}, name string, output []byte) (err error
 // MethodById looks up a method by the 4-byte id
 // returns nil if none found
 func (abi *ABI) MethodById(sigdata []byte) (*Method, error) {
+	if len(sigdata) < 4 {
+		return nil, fmt.Errorf("data too short (%d bytes) for abi method lookup", len(sigdata))
+	}
 	for _, method := range abi.Methods {
-		if bytes.Equal(method.Id(), sigdata[:4]) {
+		if bytes.Equal(method.ID, sigdata[:4]) {
 			return &method, nil
 		}
 	}
 	return nil, fmt.Errorf("no method with id: %#x", sigdata[:4])
 }
 
+// EventByID looks an event up by its topic hash in the
+// ABI and returns nil if none found.
+func (abi *ABI) EventByID(topic common.Hash) (*Event, error) {
+	for _, event := range abi.Events {
+		if bytes.Equal(event.ID.Bytes(), topic.Bytes()) {
+			return &event, nil
+		}
+	}
+	return nil, fmt.Errorf("no event with id: %#x", topic.Hex())
+}
+
+// HasFallback returns an indicator whether a fallback function is included.
+func (abi *ABI) HasFallback() bool {
+	return abi.Fallback.Type == Fallback
+}
+
+// HasReceive returns an indicator whether a receive function is included.
+func (abi *ABI) HasReceive() bool {
+	return abi.Receive.Type == Receive
+}
+
+// revertSelector is a special function selector for revert reason unpacking.
+var revertSelector = crypto.Keccak256([]byte("Error(string)"))[:4]
+
+// UnpackRevert resolves the abi-encoded revert reason.
+// the provided revert reason is abi-encoded as if it were a call to a function
+// `Error(string)`. So it's a special tool for it.
+func UnpackRevert(data []byte) (string, error) {
+	if len(data) < 4 {
+		return "", errors.New("invalid data for unpacking")
+	}
+	if !bytes.Equal(data[:4], revertSelector) {
+		return "", errors.New("invalid data for unpacking")
+	}
+	var reason string
+	typ, _ := NewType("string", "", nil)
+	if err := (Arguments{{Type: typ}}).Unpack(&reason, data[4:]); err != nil {
+		return "", err
+	}
+	return reason, nil
+}
+
 //==============================================================================
 // Method
 //==============================================================================
+
+// FunctionType represents different types of functions a contract might have.
+type FunctionType int
+
+const (
+	// Constructor represents the constructor of the contract.
+	// The constructor function is called while deploying a contract.
+	Constructor FunctionType = iota
+	// Fallback represents the fallback function.
+	// This function is executed if no other function matches the given function
+	// signature and no receive function is specified.
+	Fallback
+	// Receive represents the receive function.
+	// This function is executed on plain Ether transfers.
+	Receive
+	// Function represents a normal function.
+	Function
+)
+
 // Method represents a callable given a `Name` and whether the method is a constant.
 // If the method is `Const` no transaction needs to be created for this
 // particular Method call. It can easily be simulated using a local VM.
@@ -177,48 +304,119 @@ func (abi *ABI) MethodById(sigdata []byte) (*Method, error) {
 // be flagged `true`.
 // Input specifies the required input parameters for this gives method.
 type Method struct {
+	// Name is the method name used for internal representation. It's derived from
+	// the raw name and a suffix will be added in the case of a function overload.
+	//
+	// e.g.
+	// There are two functions have same name:
+	// * foo(int,int)
+	// * foo(uint,uint)
+	// The method name of the first one will be resolved as foo while the second one
+	// will be resolved as foo0.
 	Name    string
-	Const   bool
 	Inputs  Arguments
 	Outputs Arguments
+
+	RawName string // RawName is the raw method name parsed from ABI
+
+	// Type indicates whether the method is a special fallback
+	Type FunctionType
+
+	// StateMutability indicates the mutability state of method,
+	// the default value is nonpayable. It can be empty if the abi
+	// is generated by legacy compiler.
+	StateMutability string
+
+	Constant bool
+	Payable  bool
+	str      string
+	// Sig returns the methods string signature according to the ABI spec.
+	// e.g.		function foo(uint32 a, int b) = "foo(uint32,int256)"
+	// Please note that "int" is substitute for its canonical representation "int256"
+	Sig string
+	// ID returns the canonical representation of the method's signature used by the
+	// abi definition to identify method names and types.
+	ID []byte
 }
 
-// Sig returns the methods string signature according to the ABI spec.
-//
-// Example
-//
-//     function foo(uint32 a, int b)    =    "foo(uint32,int256)"
-//
-// Please note that "int" is substitute for its canonical representation "int256"
-func (method Method) Sig() string {
-	types := make([]string, len(method.Inputs))
-	for i, input := range method.Inputs {
+// NewMethod creates a new Method.
+// A method should always be created using NewMethod.
+// It also precomputes the sig representation and the string representation
+// of the method.
+func NewMethod(name string, rawName string, funType FunctionType, mutability string, isConst, isPayable bool, inputs Arguments, outputs Arguments) Method {
+	var (
+		types       = make([]string, len(inputs))
+		inputNames  = make([]string, len(inputs))
+		outputNames = make([]string, len(outputs))
+	)
+	for i, input := range inputs {
+		inputNames[i] = fmt.Sprintf("%v %v", input.Type, input.Name)
 		types[i] = input.Type.String()
 	}
-	return fmt.Sprintf("%v(%v)", method.Name, strings.Join(types, ","))
+	for i, output := range outputs {
+		outputNames[i] = output.Type.String()
+		if len(output.Name) > 0 {
+			outputNames[i] += fmt.Sprintf(" %v", output.Name)
+		}
+	}
+	// calculate the signature and method id. Note only function
+	// has meaningful signature and id.
+	var (
+		sig string
+		id  []byte
+	)
+	if funType == Function {
+		sig = fmt.Sprintf("%v(%v)", rawName, strings.Join(types, ","))
+		id = crypto.Keccak256([]byte(sig))[:4]
+	}
+	// Extract meaningful state mutability of solidity method.
+	// If it's default value, never print it.
+	state := mutability
+	if state == "nonpayable" {
+		state = ""
+	}
+	if state != "" {
+		state = state + " "
+	}
+	identity := fmt.Sprintf("function %v", rawName)
+	if funType == Fallback {
+		identity = "fallback"
+	} else if funType == Receive {
+		identity = "receive"
+	} else if funType == Constructor {
+		identity = "constructor"
+	}
+
+	str := fmt.Sprintf("%v(%v) %sreturns(%v)", identity, strings.Join(inputNames, ", "), state, strings.Join(outputNames, ", "))
+
+	return Method{
+		Name:            name,
+		RawName:         rawName,
+		Type:            funType,
+		StateMutability: mutability,
+		Constant:        isConst,
+		Payable:         isPayable,
+		Inputs:          inputs,
+		Outputs:         outputs,
+		str:             str,
+		Sig:             sig,
+		ID:              id,
+	}
 }
 
 func (method Method) String() string {
-	inputs := make([]string, len(method.Inputs))
-	for i, input := range method.Inputs {
-		inputs[i] = fmt.Sprintf("%v %v", input.Name, input.Type)
-	}
-	outputs := make([]string, len(method.Outputs))
-	for i, output := range method.Outputs {
-		if len(output.Name) > 0 {
-			outputs[i] = fmt.Sprintf("%v ", output.Name)
-		}
-		outputs[i] += output.Type.String()
-	}
-	constant := ""
-	if method.Const {
-		constant = "constant "
-	}
-	return fmt.Sprintf("function %v(%v) %sreturns(%v)", method.Name, strings.Join(inputs, ", "), constant, strings.Join(outputs, ", "))
+	return method.str
 }
 
-func (method Method) Id() []byte {
-	return crypto.Keccak256([]byte(method.Sig()))[:4]
+// IsConstant returns the indicator whether the method is read-only.
+func (method Method) IsConstant() bool {
+	return method.StateMutability == "view" || method.StateMutability == "pure" || method.Constant
+}
+
+// IsPayable returns the indicator whether the method can process
+// plain ether transfers.
+func (method Method) IsPayable() bool {
+	return method.StateMutability == "payable" || method.Payable
 }
 
 //==============================================================================
@@ -228,30 +426,72 @@ func (method Method) Id() []byte {
 // holds type information (inputs) about the yielded output. Anonymous events
 // don't get the signature canonical representation as the first LOG topic.
 type Event struct {
-	Name      string
+	// Name is the event name used for internal representation. It's derived from
+	// the raw name and a suffix will be added in the case of a event overload.
+	//
+	// e.g.
+	// There are two events have same name:
+	// * foo(int,int)
+	// * foo(uint,uint)
+	// The event name of the first one wll be resolved as foo while the second one
+	// will be resolved as foo0.
+	Name string
+	// RawName is the raw event name parsed from ABI.
+	RawName   string
 	Anonymous bool
 	Inputs    Arguments
+	str       string
+	// Sig contains the string signature according to the ABI spec.
+	// e.g.	 event foo(uint32 a, int b) = "foo(uint32,int256)"
+	// Please note that "int" is substitute for its canonical representation "int256"
+	Sig string
+	// ID returns the canonical representation of the event's signature used by the
+	// abi definition to identify event names and types.
+	ID common.Hash
+}
+
+// NewEvent creates a new Event.
+// It sanitizes the input arguments to remove unnamed arguments.
+// It also precomputes the id, signature and string representation
+// of the event.
+func NewEvent(name, rawName string, anonymous bool, inputs Arguments) Event {
+	// sanitize inputs to remove inputs without names
+	// and precompute string and sig representation.
+	names := make([]string, len(inputs))
+	types := make([]string, len(inputs))
+	for i, input := range inputs {
+		if input.Name == "" {
+			inputs[i] = Argument{
+				Name:    fmt.Sprintf("arg%d", i),
+				Indexed: input.Indexed,
+				Type:    input.Type,
+			}
+		} else {
+			inputs[i] = input
+		}
+		// string representation
+		names[i] = fmt.Sprintf("%v %v", input.Type, inputs[i].Name)
+		if input.Indexed {
+			names[i] = fmt.Sprintf("%v indexed %v", input.Type, inputs[i].Name)
+		}
+		// sig representation
+		types[i] = input.Type.String()
+	}
+	str := fmt.Sprintf("event %v(%v)", rawName, strings.Join(names, ", "))
+	sig := fmt.Sprintf("%v(%v)", rawName, strings.Join(types, ","))
+	id := common.BytesToHash(crypto.Keccak256([]byte(sig)))
+
+	return Event{
+		Name:      name,
+		RawName:   rawName,
+		Anonymous: anonymous,
+		Inputs:    inputs,
+		str:       str,
+		Sig:       sig,
+		ID:        id,
+	}
 }
 
 func (e Event) String() string {
-	inputs := make([]string, len(e.Inputs))
-	for i, input := range e.Inputs {
-		inputs[i] = fmt.Sprintf("%v %v", input.Name, input.Type)
-		if input.Indexed {
-			inputs[i] = fmt.Sprintf("%v indexed %v", input.Name, input.Type)
-		}
-	}
-	return fmt.Sprintf("e %v(%v)", e.Name, strings.Join(inputs, ", "))
-}
-
-// Id returns the canonical representation of the event's signature used by the
-// abi definition to identify event names and types.
-func (e Event) Id() common.Hash {
-	types := make([]string, len(e.Inputs))
-	i := 0
-	for _, input := range e.Inputs {
-		types[i] = input.Type.String()
-		i++
-	}
-	return common.BytesToHash(crypto.Keccak256([]byte(fmt.Sprintf("%v(%v)", e.Name, strings.Join(types, ",")))))
+	return e.str
 }
