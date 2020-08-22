@@ -27,7 +27,7 @@ import (
 
 type BitArray struct {
 	mtx   sync.Mutex
-	Bits  int      `json:"bits"`  // NOTE: persisted via reflect, must be exported
+	Bits  uint     `json:"bits"`  // NOTE: persisted via reflect, must be exported
 	Elems []uint64 `json:"elems"` // NOTE: persisted via reflect, must be exported
 }
 
@@ -37,7 +37,7 @@ func NewBitArray(bits int) *BitArray {
 		return nil
 	}
 	return &BitArray{
-		Bits:  bits,
+		Bits:  uint(bits),
 		Elems: make([]uint64, (bits+63)/64),
 	}
 }
@@ -46,7 +46,7 @@ func (bA *BitArray) Size() int {
 	if bA == nil {
 		return 0
 	}
-	return bA.Bits
+	return int(bA.Bits)
 }
 
 // NOTE: behavior is undefined if i >= bA.Bits
@@ -60,7 +60,7 @@ func (bA *BitArray) GetIndex(i int) bool {
 }
 
 func (bA *BitArray) getIndex(i int) bool {
-	if i >= bA.Bits {
+	if i >= int(bA.Bits) {
 		return false
 	}
 	return bA.Elems[i/64]&(uint64(1)<<uint(i%64)) > 0
@@ -77,7 +77,7 @@ func (bA *BitArray) SetIndex(i int, v bool) bool {
 }
 
 func (bA *BitArray) setIndex(i int, v bool) bool {
-	if i >= bA.Bits {
+	if i >= int(bA.Bits) {
 		return false
 	}
 	if v {
@@ -110,7 +110,7 @@ func (bA *BitArray) copyBits(bits int) *BitArray {
 	c := make([]uint64, (bits+63)/64)
 	copy(c, bA.Elems)
 	return &BitArray{
-		Bits:  bits,
+		Bits:  uint(bits),
 		Elems: c,
 	}
 }
@@ -128,7 +128,7 @@ func (bA *BitArray) Or(o *BitArray) *BitArray {
 	}
 	bA.mtx.Lock()
 	defer bA.mtx.Unlock()
-	c := bA.copyBits(MaxInt(bA.Bits, o.Bits))
+	c := bA.copyBits(MaxInt(int(bA.Bits), int(o.Bits)))
 	for i := 0; i < len(c.Elems); i++ {
 		c.Elems[i] |= o.Elems[i]
 	}
@@ -146,7 +146,7 @@ func (bA *BitArray) And(o *BitArray) *BitArray {
 }
 
 func (bA *BitArray) and(o *BitArray) *BitArray {
-	c := bA.copyBits(MinInt(bA.Bits, o.Bits))
+	c := bA.copyBits(MinInt(int(bA.Bits), int(o.Bits)))
 	for i := 0; i < len(c.Elems); i++ {
 		c.Elems[i] &= o.Elems[i]
 	}
@@ -180,7 +180,7 @@ func (bA *BitArray) Sub(o *BitArray) *BitArray {
 		}
 		i := len(o.Elems) - 1
 		if i >= 0 {
-			for idx := i * 64; idx < o.Bits; idx++ {
+			for idx := i * 64; idx < int(o.Bits); idx++ {
 				// NOTE: each individual GetIndex() call to o is safe.
 				c.setIndex(idx, c.getIndex(idx) && !o.GetIndex(idx))
 			}
@@ -257,9 +257,9 @@ func (bA *BitArray) PickRandom() (int, bool) {
 			if elemBits == 0 {
 				elemBits = 64
 			}
-			randBitStart := RandIntn(elemBits)
-			for j := 0; j < elemBits; j++ {
-				bitIdx := ((j + randBitStart) % elemBits)
+			randBitStart := RandIntn(int(elemBits))
+			for j := 0; j < int(elemBits); j++ {
+				bitIdx := ((j + randBitStart) % int(elemBits))
 				if (bA.Elems[elemIdx] & (uint64(1) << uint(bitIdx))) > 0 {
 					return 64*elemIdx + bitIdx, true
 				}
@@ -282,7 +282,7 @@ func (bA *BitArray) String() string {
 
 	lines := []string{}
 	bits := ""
-	for i := 0; i < bA.Bits; i++ {
+	for i := 0; i < int(bA.Bits); i++ {
 		if bA.getIndex(i) {
 			bits += "x"
 		} else {
