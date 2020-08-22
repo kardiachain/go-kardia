@@ -35,6 +35,9 @@ import (
 )
 
 var (
+	// ErrGasLimitReached is returned by the gas pool if the amount of gas required
+	// by a transaction is higher than what's left in the block.
+	ErrGasLimitReached = errors.New("gas limit reached")
 
 	// ErrNonceTooHigh is returned if the nonce of a transaction is higher than the
 	// next one expected based on the local chain.
@@ -93,7 +96,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
 func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg kvm.Config) (*types.Receipt, uint64, error) {
-	msg, err := tx.AsMessage()
+	msg, err := tx.AsMessage(types.HomesteadSigner{})
 	if err != nil {
 		return nil, 0, err
 	}

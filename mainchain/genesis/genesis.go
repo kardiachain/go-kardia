@@ -21,13 +21,16 @@ package genesis
 import (
 	"errors"
 	"fmt"
+	"math"
+	"math/big"
+
 	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
-	"math"
-	"math/big"
 )
 
 //go:generate gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go
@@ -38,11 +41,11 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
 	Config    *types.ChainConfig `json:"config"`
-	Timestamp uint64               `json:"timestamp"`
-	GasLimit  uint64               `json:"gasLimit"   gencodec:"required"`
-	Alloc     GenesisAlloc         `json:"alloc"      gencodec:"required"`
+	Timestamp uint64             `json:"timestamp"`
+	GasLimit  uint64             `json:"gasLimit"   gencodec:"required"`
+	Alloc     GenesisAlloc       `json:"alloc"      gencodec:"required"`
 
-	KardiaSmartContracts    []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
+	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.
@@ -75,7 +78,7 @@ func (e *GenesisMismatchError) Error() string {
 //     db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(logger log.Logger, db types.Database, genesis *Genesis, baseAccount *types.BaseAccount) (*types.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, baseAccount *types.BaseAccount) (*types.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		// TODO(huny@): should we return another default config?
 		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
@@ -154,9 +157,9 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *types.ChainConfig {
 
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
-func (g *Genesis) ToBlock(logger log.Logger, db types.Database) *types.Block {
+func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 	if db == nil {
-		db = types.NewMemStore()
+		db = memorydb.New()
 	}
 	statedb, _ := state.New(logger, common.Hash{}, state.NewDatabase(db))
 
@@ -172,6 +175,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db types.Database) *types.Block {
 	head := &types.Header{
 		//@huny: convert timestamp here
 		// Time:           g.Timestamp,
+		Height:   0,
 		GasLimit: g.GasLimit,
 		Root:     root,
 	}
@@ -181,17 +185,19 @@ func (g *Genesis) ToBlock(logger log.Logger, db types.Database) *types.Block {
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 
-	return types.NewBlock(logger, head, nil, nil, &types.Commit{})
+	return types.NewBlock(head, nil, nil, &types.Commit{})
 }
 
 // Commit writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
-func (g *Genesis) Commit(logger log.Logger, db types.Database) (*types.Block, error) {
-	block := g.ToBlock(logger, db)
+func (g *Genesis) Commit(logger log.Logger, db types.StoreDB) (*types.Block, error) {
+	block := g.ToBlock(logger, db.DB())
 	if block.Height() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with height > 0")
 	}
-	db.WriteBlock(block)
+	partsSet := block.MakePartSet(types.BlockPartSizeBytes)
+
+	db.WriteBlock(block, partsSet, &types.Commit{})
 	db.WriteReceipts(block.Hash(), block.Height(), nil)
 	db.WriteCanonicalHash(block.Hash(), block.Height())
 	db.WriteHeadBlockHash(block.Hash())
@@ -287,7 +293,6 @@ func GenesisAllocFromAccountAndContract(accountData map[string]*big.Int, contrac
 	}
 	return ga, nil
 }
-
 
 // ToCell converts KAI to CELL. eg: amount * 10^18
 func ToCell(amount int64) *big.Int {

@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	kaiProtocolName   = "KAI"
+	kaiProtocolName = "KAI"
 )
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
@@ -59,7 +59,7 @@ type KardiaService struct {
 	shutdownChan chan bool
 
 	// DB interfaces
-	kaiDb types.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
+	kaiDb types.StoreDB // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
 	txPool          *tx_pool.TxPool
@@ -115,7 +115,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	// Set zeroFee to blockchain
 	kai.blockchain.IsZeroFee = config.IsZeroFee
-	kai.txPool = tx_pool.NewTxPool(logger, config.TxPool, kai.chainConfig, kai.blockchain)
+	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 
 	// Initialization for consensus.
 	block := kai.blockchain.CurrentBlock()
@@ -130,7 +130,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon", // TODO(thientn): considers merging this with protocolmanger.ChainID
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
-		LastBlockID:                 block.BlockID(),
+		LastBlockID:                 block.Header().LastBlockID,
 		LastBlockTime:               block.Time(),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
@@ -260,7 +260,7 @@ func (s *KardiaService) APIs() []rpc.API {
 	}
 }
 
-func (s *KardiaService) TxPool() *tx_pool.TxPool         { return s.txPool }
+func (s *KardiaService) TxPool() *tx_pool.TxPool            { return s.txPool }
 func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
-func (s *KardiaService) ChainConfig() *types.ChainConfig  { return s.chainConfig }
-func (s *KardiaService) DB() types.Database { return s.kaiDb }
+func (s *KardiaService) ChainConfig() *types.ChainConfig    { return s.chainConfig }
+func (s *KardiaService) DB() types.StoreDB                  { return s.kaiDb }

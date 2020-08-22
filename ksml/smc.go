@@ -88,7 +88,7 @@ func triggerSmc(p *Parser, extras ...interface{}) ([]interface{}, error) {
 	}
 
 	// add tx to txPool
-	if err := p.TxPool.AddTx(tx); err != nil {
+	if err := p.TxPool.AddLocal(tx); err != nil {
 		return nil, err
 	}
 
@@ -102,14 +102,16 @@ func triggerSmc(p *Parser, extras ...interface{}) ([]interface{}, error) {
 // GenerateSmcCall generates tx which call a smart contract's method
 // if isIncrement is true, nonce + 1 to prevent duplicate nonce if generateSmcCall is called twice.
 func GenerateSmcCall(nonce uint64, senderKey *ecdsa.PrivateKey, address common.Address, input []byte, gasLimit uint64) (*types.Transaction, error) {
-	return types.SignTx(types.NewTransaction(
-		nonce,
-		address,
-		big.NewInt(0),
-		gasLimit,
-		big.NewInt(1),
-		input,
-	), senderKey)
+	return types.SignTx(
+		types.HomesteadSigner{},
+		types.NewTransaction(
+			nonce,
+			address,
+			big.NewInt(0),
+			gasLimit,
+			big.NewInt(1),
+			input,
+		), senderKey)
 }
 
 func convertOutputToNative(o reflect.Value, outputs abi.Arguments) ([]interface{}, error) {

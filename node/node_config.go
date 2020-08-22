@@ -34,7 +34,9 @@ import (
 	"github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/kai/base"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
+	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
@@ -269,9 +271,9 @@ func (c *NodeConfig) NodeKey() *ecdsa.PrivateKey {
 }
 
 // Database starts a new or existed database in the node data directory, or in-memory database.
-func (c *NodeConfig) StartDatabase(dbInfo storage.DbInfo) (types.Database, error) {
+func (c *NodeConfig) StartDatabase(dbInfo storage.DbInfo) (types.StoreDB, error) {
 	if c.DataDir == "" {
-		return types.NewMemStore(), nil
+		return kvstore.NewStoreDB(memorydb.New()), nil
 	}
 	return dbInfo.Start()
 }

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package types
+package trie
 
 import (
 	"bytes"
@@ -22,19 +22,20 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 )
 
 func newEmptySecure() *SecureTrie {
-	trie, _ := NewSecure(common.Hash{}, NewDatabase(NewMemStore()), 0)
+	trie, _ := NewSecure(common.Hash{}, NewDatabase(memorydb.New()), 0)
 	return trie
 }
 
 // makeTestSecureTrie creates a large enough secure trie for testing.
 func makeTestSecureTrie() (*TrieDatabase, *SecureTrie, map[string][]byte) {
 	// Create an empty trie
-	triedb := NewDatabase(NewMemStore())
+	triedb := NewDatabase(memorydb.New())
 
 	trie, _ := NewSecure(common.Hash{}, triedb, 0)
 

@@ -21,11 +21,12 @@ package types
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
+	"sync/atomic"
+
 	"github.com/golang/protobuf/proto"
 	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"math/big"
-	"sync/atomic"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
@@ -35,15 +36,15 @@ type BlockchainSymbol string
 
 // Enum for
 const (
-	KARDIA   = BlockchainSymbol("KAI")
-	SMC = iota
+	KARDIA = BlockchainSymbol("KAI")
+	SMC    = iota
 	PUBLISH
 )
 
 // An event pertaining to the current dual node's interests and its derived tx's
 // metadata.
 type DualEvent struct {
-	BlockNumber        uint64     `json:"blockNumber"            gencodec:"required"`
+	BlockNumber       uint64      `json:"blockNumber"            gencodec:"required"`
 	TriggeredEvent    *EventData  `json:"triggeredEvent"         gencodec:"required"`
 	PendingTxMetadata *TxMetadata `json:"pendingTxMetadata"      gencodec:"required"`
 
@@ -72,14 +73,14 @@ type KardiaSmartcontract struct {
 	MasterAbi string
 
 	// abi of smcAddress
-	SmcAbi string
+	SmcAbi   string
 	Watchers Watchers
 }
 
 type DualActions []*DualAction
 
 type DualAction struct {
-	Name string
+	Name    string
 	Actions []string
 }
 
@@ -87,22 +88,22 @@ type Watchers []*Watcher
 
 // WatcherAction bases on method name, new event with correspond dual action name will be submitted to internal/external proxy
 type Watcher struct {
-	Method string
-	DualActions []string
+	Method         string
+	DualActions    []string
 	WatcherActions []string
 }
 
 // Data relevant to the event (either from external or internal blockchain)
 // that pertains to the current dual node's interests.
 type EventData struct {
-	TxHash       common.Hash                       `json:"txHash"    gencodec:"required"`
-	TxSource     BlockchainSymbol                  `json:"source"    gencodec:"required"`
-	FromExternal bool                              `json:"fromExternal" gencodec:"required"`
-	Data         []byte                            `json:"data"         gencodec:"data"`
+	TxHash       common.Hash      `json:"txHash"    gencodec:"required"`
+	TxSource     BlockchainSymbol `json:"source"    gencodec:"required"`
+	FromExternal bool             `json:"fromExternal" gencodec:"required"`
+	Data         []byte           `json:"data"         gencodec:"data"`
 
 	// Actions is temporarily cached to store a list of actions that will be executed upon once
 	// the dual event is executed.
-	Actions       []string            `json:"action"      gencodec:"required"`
+	Actions []string `json:"action"      gencodec:"required"`
 
 	// caches
 	hash atomic.Value
@@ -137,14 +138,14 @@ func (ev *EventData) GetEventMessage() (*message.EventMessage, error) {
 // Relevant bits for necessary for computing internal tx (ie. Kardia's tx)
 // or external tx (ie. Ether's tx, Neo's tx).
 type EventSummary struct {
-	TransactionId string // transactionId of source
-	Sender   string   // address that creates transaction from source
-	From     string   // source chain
-	To       string   // Target Chain
-	TimeStamp uint64   // time occurs transaction
-	TxMethod string   // Smc's method
-	TxValue  *big.Int // Amount of the tx
-	ExtData  [][]byte // Additional data along with this event
+	TransactionId string   // transactionId of source
+	Sender        string   // address that creates transaction from source
+	From          string   // source chain
+	To            string   // Target Chain
+	TimeStamp     uint64   // time occurs transaction
+	TxMethod      string   // Smc's method
+	TxValue       *big.Int // Amount of the tx
+	ExtData       [][]byte // Additional data along with this event
 }
 
 // String returns a string representation of EventSummary
@@ -186,7 +187,7 @@ func NewDualEvent(blockNumber uint64, fromExternal bool, txSource BlockchainSymb
 			TxSource:     txSource,
 			FromExternal: fromExternal,
 			Data:         data,
-			Actions:       actions,
+			Actions:      actions,
 		},
 		V: new(big.Int),
 		R: new(big.Int),
@@ -240,9 +241,9 @@ func (de *DualEvent) WithSignature(sig []byte) (*DualEvent, error) {
 		BlockNumber:       de.BlockNumber,
 		TriggeredEvent:    de.TriggeredEvent,
 		PendingTxMetadata: de.PendingTxMetadata,
-		R: r,
-		S: s,
-		V: v,
+		R:                 r,
+		S:                 s,
+		V:                 v,
 	}
 	return cpy, nil
 }

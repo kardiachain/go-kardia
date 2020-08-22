@@ -18,7 +18,7 @@ package kvm
 
 import (
 	"fmt"
-	"math/big"
+	"github.com/holiman/uint256"
 
 	"github.com/kardiachain/go-kardiamain/configs"
 )
@@ -27,29 +27,30 @@ import (
 // expected to be changed and modified. stack does not take care of adding newly
 // initialised objects.
 type Stack struct {
-	data []*big.Int
+	data []uint256.Int
 }
 
 func newstack() *Stack {
-	return &Stack{data: make([]*big.Int, 0, 1024)}
+	return &Stack{data: make([]uint256.Int, 0, 16)}
 }
 
 // Data returns the underlying big.Int array.
-func (st *Stack) Data() []*big.Int {
+func (st *Stack) Data() []uint256.Int {
 	return st.data
 }
 
-func (st *Stack) push(d *big.Int) {
+func (st *Stack) push(d *uint256.Int) {
 	// NOTE push limit (1024) is checked in baseCheck
 	//stackItem := new(big.Int).Set(d)
 	//st.data = append(st.data, stackItem)
-	st.data = append(st.data, d)
+	st.data = append(st.data, *d)
 }
-func (st *Stack) pushN(ds ...*big.Int) {
+func (st *Stack) pushN(ds ...uint256.Int) {
+	// TODO: try to pass args by pointers if possible.
 	st.data = append(st.data, ds...)
 }
 
-func (st *Stack) pop() (ret *big.Int) {
+func (st *Stack) pop() (ret uint256.Int) {
 	ret = st.data[len(st.data)-1]
 	st.data = st.data[:len(st.data)-1]
 	return
@@ -63,17 +64,17 @@ func (st *Stack) swap(n int) {
 	st.data[st.len()-n], st.data[st.len()-1] = st.data[st.len()-1], st.data[st.len()-n]
 }
 
-func (st *Stack) dup(pool *intPool, n int) {
-	st.push(pool.get().Set(st.data[st.len()-n]))
+func (st *Stack) dup(n int) {
+	st.push(&st.data[st.len()-n])
 }
 
-func (st *Stack) peek() *big.Int {
-	return st.data[st.len()-1]
+func (st *Stack) peek() *uint256.Int {
+	return &st.data[st.len()-1]
 }
 
 // Back returns the n'th item in stack
-func (st *Stack) Back(n int) *big.Int {
-	return st.data[st.len()-n-1]
+func (st *Stack) Back(n int) *uint256.Int {
+	return &st.data[st.len()-n-1]
 }
 
 func (st *Stack) require(n int) error {

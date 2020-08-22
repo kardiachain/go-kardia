@@ -145,12 +145,6 @@ func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 	return tx_pool.TxPoolConfig{
 		GlobalSlots: txPool.GlobalSlots,
 		GlobalQueue: txPool.GlobalQueue,
-
-		NumberOfWorkers: txPool.NumberOfWorkers,
-		WorkerCap:       txPool.WorkerCap,
-		BlockSize:       txPool.BlockSize,
-
-		LifeTime: 1 * time.Minute,
 	}
 }
 
@@ -583,7 +577,7 @@ func generateTxs(genTxs *GenTxs, genTool *tool.GeneratorTool, txPool *tx_pool.Tx
 	case tool.DefaultGenRandomTx:
 		txList = genTool.GenerateRandomTx(genTxs.NumTxs)
 	}
-	txPool.AddTxs(txList)
+	txPool.AddLocals(txList)
 	log.Info("GenTxs Adding new transactions", "num", genTxs.NumTxs, "genType", genTxs.Type)
 }
 

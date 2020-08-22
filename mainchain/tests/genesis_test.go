@@ -19,16 +19,18 @@
 package tests
 
 import (
+	"math/big"
+	"testing"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/account"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/types"
-	"math/big"
-	"testing"
 )
 
 const (
@@ -109,7 +111,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 	// allocData is get from genesisAccounts in default_node_config
 
 	// Init kai database
-	db := types.NewMemStore()
+	db := memorydb.New()
 
 	// Create genesis block with state_processor_test.genesisAccounts
 	g := genesis.DefaultTestnetGenesisBlock(configs.GenesisAccounts)

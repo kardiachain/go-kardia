@@ -19,6 +19,9 @@
 package kardia
 
 import (
+	"math/big"
+	"sync"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/dualnode/utils"
@@ -32,8 +35,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/types"
-	"math/big"
-	"sync"
 )
 
 const KARDIA_PROXY = "KARDIA_PROXY"
@@ -80,7 +81,7 @@ type CompleteRequestInput struct {
 	Pair string
 }
 
-func (p *KardiaProxy)Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.Pool,
+func (p *KardiaProxy) Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.Pool,
 	publishedEndpoint, subscribedEndpoint *string) error {
 	// Create a specific logger for Kardia Proxy.
 	logger := log.New()
@@ -233,7 +234,9 @@ func (p *KardiaProxy) TxMatchesWatcher(tx *types.Transaction) (*types.Watcher, *
 // Detects update on kardia master smart contract and creates corresponding dual event to submit to
 // dual event pool
 func (p *KardiaProxy) executeAction(block *types.Block, tx *types.Transaction, action *types.Watcher, abi *abi.ABI) error {
-	sender, err := types.Sender(tx)
+	// TODO: @lew
+	// Double check to ensure the signer
+	sender, err := types.Sender(types.HomesteadSigner{}, tx)
 	if err != nil {
 		return err
 	}
@@ -244,16 +247,16 @@ func (p *KardiaProxy) executeAction(block *types.Block, tx *types.Transaction, a
 	// get master smart contract
 	masterSmc, _ := p.kardiaBc.DB().ReadEvents(tx.To().Hex())
 	eventMessage := &message.EventMessage{
-		MasterSmartContract:  masterSmc,
-		TransactionId:        tx.Hash().Hex(),
-		From:                 sender.Hex(),
-		To:                   tx.To().Hex(),
-		Method:               method,
-		Params:               params,
-		Amount:               tx.Value().Uint64(),
-		Sender:               sender.Hex(),
-		BlockNumber:          block.Height(),
-		Timestamp:            block.Header().Time.Uint64(),
+		MasterSmartContract: masterSmc,
+		TransactionId:       tx.Hash().Hex(),
+		From:                sender.Hex(),
+		To:                  tx.To().Hex(),
+		Method:              method,
+		Params:              params,
+		Amount:              tx.Value().Uint64(),
+		Sender:              sender.Hex(),
+		BlockNumber:         block.Height(),
+		Timestamp:           block.Header().Time.Uint64(),
 	}
 	if len(action.WatcherActions) > 0 {
 		parser := ksml.NewParser(p.Name(), p.PublishedEndpoint(), utils.PublishMessage, p.kardiaBc, p.txPool, tx.To(), action.WatcherActions, eventMessage, false)

@@ -25,7 +25,6 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/log"
 )
 
 func TestCommitCreation(t *testing.T) {
@@ -92,7 +91,7 @@ func TestCommitGetByIndex(t *testing.T) {
 
 func CreateNewCommit() *Commit {
 	block := CreateNewBlockWithTwoVotes(1)
-	block.lastCommit.BlockID = block.BlockID()
+	block.lastCommit.BlockID = CreateBlockIDRandom()
 	return block.lastCommit
 }
 
@@ -110,7 +109,7 @@ func CreateNewBlockWithTwoVotes(height uint64) *Block {
 		big.NewInt(99), 1000, big.NewInt(100),
 		nil,
 	)
-	signedTx, _ := SignTx(emptyTx, key)
+	signedTx, _ := SignTx(HomesteadSigner{}, emptyTx, key)
 
 	txns := []*Transaction{signedTx}
 
@@ -124,5 +123,5 @@ func CreateNewBlockWithTwoVotes(height uint64) *Block {
 	lastCommit := &Commit{
 		Precommits: []*Vote{vote, nil},
 	}
-	return NewBlock(log.New(), &header, txns, nil, lastCommit)
+	return NewBlock(&header, txns, nil, lastCommit)
 }
