@@ -18,12 +18,11 @@ package kvm
 
 import (
 	"errors"
-
 	"github.com/kardiachain/go-kardiamain/configs"
 )
 
 type (
-	executionFunc func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error)
+	executionFunc func(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error)
 	gasFunc       func(*KVM, *Contract, *Stack, *Memory, uint64) (uint64, error) // last parameter is the requested memory size as a uint64
 	// memorySizeFunc returns the required size, and whether the operation overflowed a uint64
 	memorySizeFunc func(*Stack) (size uint64, overflow bool)
@@ -327,6 +326,13 @@ func newKardiaInstructionSet() JumpTable {
 			memorySize:  memoryExtCodeCopy,
 			valid:       true,
 		},
+		EXTCODEHASH: {
+			execute:     opExtCodeHash,
+			constantGas: configs.ExtcodeHashGas,
+			minStack:    minStack(1, 1),
+			maxStack:    maxStack(1, 1),
+			valid:       true,
+	    },
 		BLOCKHASH: {
 			execute:     opBlockhash,
 			constantGas: GasExtStep,
@@ -358,6 +364,13 @@ func newKardiaInstructionSet() JumpTable {
 		GASLIMIT: {
 			execute:     opGasLimit,
 			constantGas: GasQuickStep,
+			minStack:    minStack(0, 1),
+			maxStack:    maxStack(0, 1),
+			valid:       true,
+		},
+		SELFBALANCE: {
+			execute:     opSelfBalance,
+			constantGas: GasFastStep,
 			minStack:    minStack(0, 1),
 			maxStack:    maxStack(0, 1),
 			valid:       true,
@@ -956,6 +969,17 @@ func newKardiaInstructionSet() JumpTable {
 			minStack:    minStack(3, 1),
 			maxStack:    maxStack(3, 1),
 			memorySize:  memoryCreate,
+			valid:       true,
+			writes:      true,
+			returns:     true,
+		},
+		CREATE2: {
+			execute:     opCreate2,
+			constantGas: configs.CreateGas2,
+			dynamicGas:  gasCreate2,
+			minStack:    minStack(3, 1),
+			maxStack:    maxStack(3, 1),
+			memorySize:  memoryCreate2,
 			valid:       true,
 			writes:      true,
 			returns:     true,

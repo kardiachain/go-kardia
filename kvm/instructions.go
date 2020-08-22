@@ -18,17 +18,14 @@ package kvm
 
 import (
 	"errors"
-	"math/big"
-
-	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/holiman/uint256"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
 	"golang.org/x/crypto/sha3"
 )
 
 var (
-	bigZero                  = new(big.Int)
-	tt255                    = common.BigPow(2, 255)
 	errWriteProtection       = errors.New("kvm: write protection")
 	errReturnDataOutOfBounds = errors.New("kvm: return data out of bounds")
 	errExecutionReverted     = errors.New("kvm: execution reverted")
@@ -36,354 +33,216 @@ var (
 	errInvalidJump           = errors.New("kvm: invalid jump destination")
 )
 
-func opAdd(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
-	common.U256(y.Add(x, y))
-
-	kvm.interpreter.intPool.put(x)
+func opAdd(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	y.Add(&x, y)
 	return nil, nil
 }
 
-func opSub(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
-	common.U256(y.Sub(x, y))
-
-	kvm.interpreter.intPool.put(x)
+func opSub(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	y.Sub(&x, y)
 	return nil, nil
 }
 
-func opMul(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.pop()
-	stack.push(common.U256(x.Mul(x, y)))
-
-	kvm.interpreter.intPool.put(y)
-
+func opMul(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	y.Mul(&x, y)
 	return nil, nil
 }
 
-func opDiv(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
-	if y.Sign() != 0 {
-		common.U256(y.Div(x, y))
+func opDiv(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	y.Div(&x, y)
+	return nil, nil
+}
+
+func opSdiv(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	y.SDiv(&x, y)
+	return nil, nil
+}
+
+func opMod(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	y.Mod(&x, y)
+	return nil, nil
+}
+
+func opSmod(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	y.SMod(&x, y)
+	return nil, nil
+}
+
+func opExp(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	base, exponent := callContext.stack.pop(), callContext.stack.peek()
+	exponent.Exp(&base, exponent)
+	return nil, nil
+}
+
+func opSignExtend(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	back, num := callContext.stack.pop(), callContext.stack.peek()
+	num.ExtendSign(num, &back)
+	return nil, nil
+}
+
+func opNot(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x := callContext.stack.peek()
+	x.Not(x)
+	return nil, nil
+}
+
+func opLt(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	if x.Lt(y) {
+		y.SetOne()
 	} else {
-		y.SetUint64(0)
+		y.Clear()
 	}
-	kvm.interpreter.intPool.put(x)
 	return nil, nil
 }
 
-func opSdiv(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := common.S256(stack.pop()), common.S256(stack.pop())
-	res := kvm.interpreter.intPool.getZero()
-
-	if y.Sign() == 0 || x.Sign() == 0 {
-		stack.push(res)
+func opGt(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	if x.Gt(y) {
+		y.SetOne()
 	} else {
-		if x.Sign() != y.Sign() {
-			res.Div(x.Abs(x), y.Abs(y))
-			res.Neg(res)
-		} else {
-			res.Div(x.Abs(x), y.Abs(y))
-		}
-		stack.push(common.U256(res))
+		y.Clear()
 	}
-	kvm.interpreter.intPool.put(x, y)
 	return nil, nil
 }
 
-func opMod(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.pop()
-	if y.Sign() == 0 {
-		stack.push(x.SetUint64(0))
+func opSlt(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	if x.Slt(y) {
+		y.SetOne()
 	} else {
-		stack.push(common.U256(x.Mod(x, y)))
+		y.Clear()
 	}
-	kvm.interpreter.intPool.put(y)
 	return nil, nil
 }
 
-func opSmod(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := common.S256(stack.pop()), common.S256(stack.pop())
-	res := kvm.interpreter.intPool.getZero()
-
-	if y.Sign() == 0 {
-		stack.push(res)
+func opSgt(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	if x.Sgt(y) {
+		y.SetOne()
 	} else {
-		if x.Sign() < 0 {
-			res.Mod(x.Abs(x), y.Abs(y))
-			res.Neg(res)
-		} else {
-			res.Mod(x.Abs(x), y.Abs(y))
-		}
-		stack.push(common.U256(res))
+		y.Clear()
 	}
-	kvm.interpreter.intPool.put(x, y)
 	return nil, nil
 }
 
-func opExp(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	base, exponent := stack.pop(), stack.pop()
-	// some shortcuts
-	cmpToOne := exponent.Cmp(big1)
-	if cmpToOne < 0 { // Exponent is zero
-		// x ^ 0 == 1
-		stack.push(base.SetUint64(1))
-	} else if base.Sign() == 0 {
-		// 0 ^ y, if y != 0, == 0
-		stack.push(base.SetUint64(0))
-	} else if cmpToOne == 0 { // Exponent is one
-		// x ^ 1 == x
-		stack.push(base)
+func opEq(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	if x.Eq(y) {
+		y.SetOne()
 	} else {
-		stack.push(common.Exp(base, exponent))
-		kvm.interpreter.intPool.put(base)
+		y.Clear()
 	}
-	kvm.interpreter.intPool.put(exponent)
 	return nil, nil
 }
 
-func opSignExtend(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	back := stack.pop()
-	if back.Cmp(big.NewInt(31)) < 0 {
-		bit := uint(back.Uint64()*8 + 7)
-		num := stack.pop()
-		mask := back.Lsh(common.Big1, bit)
-		mask.Sub(mask, common.Big1)
-		if num.Bit(int(bit)) > 0 {
-			num.Or(num, mask.Not(mask))
-		} else {
-			num.And(num, mask)
-		}
-
-		stack.push(common.U256(num))
-	}
-
-	kvm.interpreter.intPool.put(back)
-	return nil, nil
-}
-
-func opNot(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x := stack.peek()
-	common.U256(x.Not(x))
-	return nil, nil
-}
-
-func opLt(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
-	if x.Cmp(y) < 0 {
-		y.SetUint64(1)
+func opIszero(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x := callContext.stack.peek()
+	if x.IsZero() {
+		x.SetOne()
 	} else {
-		y.SetUint64(0)
+		x.Clear()
 	}
-	kvm.interpreter.intPool.put(x)
 	return nil, nil
 }
 
-func opGt(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
-	if x.Cmp(y) > 0 {
-		y.SetUint64(1)
+func opAnd(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	y.And(&x, y)
+	return nil, nil
+}
+
+func opOr(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	y.Or(&x, y)
+	return nil, nil
+}
+
+func opXor(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y := callContext.stack.pop(), callContext.stack.peek()
+	y.Xor(&x, y)
+	return nil, nil
+}
+
+func opByte(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	th, val := callContext.stack.pop(), callContext.stack.peek()
+	val.Byte(&th)
+	return nil, nil
+}
+
+func opAddmod(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y, z := callContext.stack.pop(), callContext.stack.pop(), callContext.stack.peek()
+	if z.IsZero() {
+		z.Clear()
 	} else {
-		y.SetUint64(0)
-	}
-	kvm.interpreter.intPool.put(x)
-	return nil, nil
-}
-
-func opSlt(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
-
-	xSign := x.Cmp(tt255)
-	ySign := y.Cmp(tt255)
-
-	switch {
-	case xSign >= 0 && ySign < 0:
-		y.SetUint64(1)
-
-	case xSign < 0 && ySign >= 0:
-		y.SetUint64(0)
-
-	default:
-		if x.Cmp(y) < 0 {
-			y.SetUint64(1)
-		} else {
-			y.SetUint64(0)
-		}
-	}
-	kvm.interpreter.intPool.put(x)
-	return nil, nil
-}
-
-func opSgt(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
-
-	xSign := x.Cmp(tt255)
-	ySign := y.Cmp(tt255)
-
-	switch {
-	case xSign >= 0 && ySign < 0:
-		y.SetUint64(0)
-
-	case xSign < 0 && ySign >= 0:
-		y.SetUint64(1)
-
-	default:
-		if x.Cmp(y) > 0 {
-			y.SetUint64(1)
-		} else {
-			y.SetUint64(0)
-		}
-	}
-	kvm.interpreter.intPool.put(x)
-	return nil, nil
-}
-
-func opEq(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
-	if x.Cmp(y) == 0 {
-		y.SetUint64(1)
-	} else {
-		y.SetUint64(0)
-	}
-	kvm.interpreter.intPool.put(x)
-	return nil, nil
-}
-
-func opIszero(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x := stack.peek()
-	if x.Sign() > 0 {
-		x.SetUint64(0)
-	} else {
-		x.SetUint64(1)
+		z.AddMod(&x, &y, z)
 	}
 	return nil, nil
 }
 
-func opAnd(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.pop()
-	stack.push(x.And(x, y))
-
-	kvm.interpreter.intPool.put(y)
-	return nil, nil
-}
-
-func opOr(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
-	y.Or(x, y)
-
-	kvm.interpreter.intPool.put(x)
-	return nil, nil
-}
-
-func opXor(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y := stack.pop(), stack.peek()
-	y.Xor(x, y)
-
-	kvm.interpreter.intPool.put(x)
-	return nil, nil
-}
-
-func opByte(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	th, val := stack.pop(), stack.peek()
-	if th.Cmp(common.Big32) < 0 {
-		b := common.Byte(val, 32, int(th.Int64()))
-		val.SetUint64(uint64(b))
-	} else {
-		val.SetUint64(0)
-	}
-	kvm.interpreter.intPool.put(th)
-	return nil, nil
-}
-
-func opAddmod(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y, z := stack.pop(), stack.pop(), stack.pop()
-	if z.Cmp(bigZero) > 0 {
-		x.Add(x, y)
-		x.Mod(x, z)
-		stack.push(common.U256(x))
-	} else {
-		stack.push(x.SetUint64(0))
-	}
-	kvm.interpreter.intPool.put(y, z)
-	return nil, nil
-}
-
-func opMulmod(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	x, y, z := stack.pop(), stack.pop(), stack.pop()
-	if z.Cmp(bigZero) > 0 {
-		x.Mul(x, y)
-		x.Mod(x, z)
-		stack.push(common.U256(x))
-	} else {
-		stack.push(x.SetUint64(0))
-	}
-	kvm.interpreter.intPool.put(y, z)
+func opMulmod(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x, y, z := callContext.stack.pop(), callContext.stack.pop(), callContext.stack.peek()
+	z.MulMod(&x, &y, z)
 	return nil, nil
 }
 
 // opSHL implements Shift Left
 // The SHL instruction (shift left) pops 2 values from the stack, first arg1 and then arg2,
 // and pushes on the stack arg2 shifted to the left by arg1 number of bits.
-func opSHL(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+func opSHL(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	// Note, second operand is left in the stack; accumulate result into it, and no need to push it afterwards
-	shift, value := common.U256(stack.pop()), common.U256(stack.peek())
-	defer kvm.interpreter.intPool.put(shift) // First operand back into the pool
-
-	if shift.Cmp(common.Big256) >= 0 {
-		value.SetUint64(0)
-		return nil, nil
+	shift, value := callContext.stack.pop(), callContext.stack.peek()
+	if shift.LtUint64(256) {
+		value.Lsh(value, uint(shift.Uint64()))
+	} else {
+		value.Clear()
 	}
-	n := uint(shift.Uint64())
-	common.U256(value.Lsh(value, n))
-
 	return nil, nil
 }
 
 // opSHR implements Logical Shift Right
 // The SHR instruction (logical shift right) pops 2 values from the stack, first arg1 and then arg2,
 // and pushes on the stack arg2 shifted to the right by arg1 number of bits with zero fill.
-func opSHR(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+func opSHR(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	// Note, second operand is left in the stack; accumulate result into it, and no need to push it afterwards
-	shift, value := common.U256(stack.pop()), common.U256(stack.peek())
-	defer kvm.interpreter.intPool.put(shift) // First operand back into the pool
-
-	if shift.Cmp(common.Big256) >= 0 {
-		value.SetUint64(0)
-		return nil, nil
+	shift, value := callContext.stack.pop(), callContext.stack.peek()
+	if shift.LtUint64(256) {
+		value.Rsh(value, uint(shift.Uint64()))
+	} else {
+		value.Clear()
 	}
-	n := uint(shift.Uint64())
-	common.U256(value.Rsh(value, n))
-
 	return nil, nil
 }
 
 // opSAR implements Arithmetic Shift Right
 // The SAR instruction (arithmetic shift right) pops 2 values from the stack, first arg1 and then arg2,
 // and pushes on the stack arg2 shifted to the right by arg1 number of bits with sign extension.
-func opSAR(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	// Note, S256 returns (potentially) a new bigint, so we're popping, not peeking this one
-	shift, value := common.U256(stack.pop()), common.S256(stack.pop())
-	defer kvm.interpreter.intPool.put(shift) // First operand back into the pool
-
-	if shift.Cmp(common.Big256) >= 0 {
+func opSAR(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	shift, value := callContext.stack.pop(), callContext.stack.peek()
+	if shift.GtUint64(256) {
 		if value.Sign() >= 0 {
-			value.SetUint64(0)
+			value.Clear()
 		} else {
-			value.SetInt64(-1)
+			// Max negative shift: all bits set
+			value.SetAllOne()
 		}
-		stack.push(common.U256(value))
 		return nil, nil
 	}
 	n := uint(shift.Uint64())
-	value.Rsh(value, n)
-	stack.push(common.U256(value))
-
+	value.SRsh(value, n)
 	return nil, nil
 }
 
-func opSha3(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	offset, size := stack.pop(), stack.pop()
-	data := memory.Get(offset.Int64(), size.Int64())
+func opSha3(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	offset, size := callContext.stack.pop(), callContext.stack.peek()
+	data := callContext.memory.GetPtr(int64(offset.Uint64()), int64(size.Uint64()))
 
 	if kvm.interpreter.hasher == nil {
 		kvm.interpreter.hasher = sha3.NewLegacyKeccak256().(keccakState)
@@ -393,227 +252,295 @@ func opSha3(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Sta
 	kvm.interpreter.hasher.Write(data)
 	kvm.interpreter.hasher.Read(kvm.interpreter.hasherBuf[:])
 
-	vm := kvm
-	if vm.vmConfig.EnablePreimageRecording {
-		vm.StateDB.AddPreimage(kvm.interpreter.hasherBuf, data)
+	if kvm.vmConfig.EnablePreimageRecording {
+		kvm.StateDB.AddPreimage(kvm.interpreter.hasherBuf, data)
 	}
-	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.interpreter.hasherBuf[:]))
-
-	kvm.interpreter.intPool.put(offset, size)
+	size.SetBytes(kvm.interpreter.hasherBuf[:])
 	return nil, nil
 }
 
-func opAddress(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetBytes(contract.Address().Bytes()))
+func opAddress(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	callContext.stack.push(new(uint256.Int).SetBytes(callContext.contract.Address().Bytes()))
 	return nil, nil
 }
 
-func opBalance(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	slot := stack.peek()
-	slot.Set(kvm.StateDB.GetBalance(common.BigToAddress(slot)))
+func opBalance(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	slot := callContext.stack.peek()
+	address := common.Address(slot.Bytes20())
+	slot.SetFromBig(kvm.StateDB.GetBalance(address))
 	return nil, nil
 }
 
-func opOrigin(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.Origin.Bytes()))
+func opSelfBalance(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	balance, _ := uint256.FromBig(kvm.StateDB.GetBalance(callContext.contract.Address()))
+	callContext.stack.push(balance)
 	return nil, nil
 }
 
-func opCaller(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetBytes(contract.Caller().Bytes()))
+func opOrigin(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	callContext.stack.push(new(uint256.Int).SetBytes(kvm.Origin.Bytes()))
 	return nil, nil
 }
 
-func opCallValue(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().Set(contract.value))
+func opCaller(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	callContext.stack.push(new(uint256.Int).SetBytes(callContext.contract.Caller().Bytes()))
 	return nil, nil
 }
 
-func opCallDataLoad(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetBytes(getDataBig(contract.Input, stack.pop(), big32)))
+func opCallValue(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	v, _ := uint256.FromBig(callContext.contract.value)
+	callContext.stack.push(v)
 	return nil, nil
 }
 
-func opCallDataSize(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetInt64(int64(len(contract.Input))))
+func opCallDataLoad(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	x := callContext.stack.peek()
+	if offset, overflow := x.Uint64WithOverflow(); !overflow {
+		data := getData(callContext.contract.Input, offset, 32)
+		x.SetBytes(data)
+	} else {
+		x.Clear()
+	}
 	return nil, nil
 }
 
-func opCallDataCopy(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+func opCallDataSize(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	callContext.stack.push(new(uint256.Int).SetUint64(uint64(len(callContext.contract.Input))))
+	return nil, nil
+}
+
+func opCallDataCopy(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	var (
-		memOffset  = stack.pop()
-		dataOffset = stack.pop()
-		length     = stack.pop()
+		memOffset  = callContext.stack.pop()
+		dataOffset = callContext.stack.pop()
+		length     = callContext.stack.pop()
 	)
-	memory.Set(memOffset.Uint64(), length.Uint64(), getDataBig(contract.Input, dataOffset, length))
+	dataOffset64, overflow := dataOffset.Uint64WithOverflow()
+	if overflow {
+		dataOffset64 = 0xffffffffffffffff
+	}
+	// These values are checked for overflow during gas cost calculation
+	memOffset64 := memOffset.Uint64()
+	length64 := length.Uint64()
+	callContext.memory.Set(memOffset64, length64, getData(callContext.contract.Input, dataOffset64, length64))
 
-	kvm.interpreter.intPool.put(memOffset, dataOffset, length)
 	return nil, nil
 }
 
-func opReturnDataSize(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetUint64(uint64(len(kvm.interpreter.returnData))))
+func opReturnDataSize(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	callContext.stack.push(new(uint256.Int).SetUint64(uint64(len(kvm.interpreter.returnData))))
 	return nil, nil
 }
 
-func opReturnDataCopy(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+func opReturnDataCopy(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	var (
-		memOffset  = stack.pop()
-		dataOffset = stack.pop()
-		length     = stack.pop()
-
-		end = kvm.interpreter.intPool.get().Add(dataOffset, length)
+		memOffset  = callContext.stack.pop()
+		dataOffset = callContext.stack.pop()
+		length     = callContext.stack.pop()
 	)
-	defer kvm.interpreter.intPool.put(memOffset, dataOffset, length, end)
 
-	if !end.IsUint64() || uint64(len(kvm.interpreter.returnData)) < end.Uint64() {
+	offset64, overflow := dataOffset.Uint64WithOverflow()
+	if overflow {
 		return nil, errReturnDataOutOfBounds
 	}
-	memory.Set(memOffset.Uint64(), length.Uint64(), kvm.interpreter.returnData[dataOffset.Uint64():end.Uint64()])
-
-	return nil, nil
-}
-
-func opExtCodeSize(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	slot := stack.peek()
-	slot.SetUint64(uint64(kvm.StateDB.GetCodeSize(common.BigToAddress(slot))))
-
-	return nil, nil
-}
-
-func opCodeSize(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	l := kvm.interpreter.intPool.get().SetInt64(int64(len(contract.Code)))
-	stack.push(l)
-
-	return nil, nil
-}
-
-func opCodeCopy(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	var (
-		memOffset  = stack.pop()
-		codeOffset = stack.pop()
-		length     = stack.pop()
-	)
-	codeCopy := getDataBig(contract.Code, codeOffset, length)
-	memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
-
-	kvm.interpreter.intPool.put(memOffset, codeOffset, length)
-	return nil, nil
-}
-
-func opExtCodeCopy(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	var (
-		addr       = common.BigToAddress(stack.pop())
-		memOffset  = stack.pop()
-		codeOffset = stack.pop()
-		length     = stack.pop()
-	)
-	codeCopy := getDataBig(kvm.StateDB.GetCode(addr), codeOffset, length)
-	memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
-
-	kvm.interpreter.intPool.put(memOffset, codeOffset, length)
-	return nil, nil
-}
-
-func opGasprice(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().Set(kvm.GasPrice))
-	return nil, nil
-}
-
-func opBlockhash(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	num := stack.pop()
-
-	n := kvm.interpreter.intPool.get().Sub(kvm.BlockHeight, common.Big257)
-	if num.Cmp(n) > 0 && num.Cmp(kvm.BlockHeight) < 0 {
-		stack.push(kvm.GetHash(num.Uint64()).Big())
-	} else {
-		stack.push(kvm.interpreter.intPool.getZero())
+	// we can reuse dataOffset now (aliasing it for clarity)
+	var end = dataOffset
+	end.Add(&dataOffset, &length)
+	end64, overflow := end.Uint64WithOverflow()
+	if overflow || uint64(len(kvm.interpreter.returnData)) < end64 {
+		return nil, errReturnDataOutOfBounds
 	}
-	kvm.interpreter.intPool.put(num, n)
+	callContext.memory.Set(memOffset.Uint64(), length.Uint64(), kvm.interpreter.returnData[offset64:end64])
 	return nil, nil
 }
 
-func opCoinbase(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetBytes(kvm.Coinbase.Bytes()))
+func opExtCodeSize(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	slot := callContext.stack.peek()
+	slot.SetUint64(uint64(kvm.StateDB.GetCodeSize(common.Address(slot.Bytes20()))))
 	return nil, nil
 }
 
-func opTimestamp(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(common.U256(kvm.interpreter.intPool.get().Set(kvm.Time)))
+func opCodeSize(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	l := new(uint256.Int)
+	l.SetUint64(uint64(len(callContext.contract.Code)))
+	callContext.stack.push(l)
 	return nil, nil
 }
 
-func opNumber(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(common.U256(kvm.interpreter.intPool.get().Set(kvm.BlockHeight)))
+func opCodeCopy(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	var (
+		memOffset  = callContext.stack.pop()
+		codeOffset = callContext.stack.pop()
+		length     = callContext.stack.pop()
+	)
+	uint64CodeOffset, overflow := codeOffset.Uint64WithOverflow()
+	if overflow {
+		uint64CodeOffset = 0xffffffffffffffff
+	}
+	codeCopy := getData(callContext.contract.Code, uint64CodeOffset, length.Uint64())
+	callContext.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
 	return nil, nil
 }
 
-func opGasLimit(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(common.U256(kvm.interpreter.intPool.get().SetUint64(kvm.GasLimit)))
+func opExtCodeCopy(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	var (
+		stack      = callContext.stack
+		a          = stack.pop()
+		memOffset  = stack.pop()
+		codeOffset = stack.pop()
+		length     = stack.pop()
+	)
+	uint64CodeOffset, overflow := codeOffset.Uint64WithOverflow()
+	if overflow {
+		uint64CodeOffset = 0xffffffffffffffff
+	}
+	addr := common.Address(a.Bytes20())
+	codeCopy := getData(kvm.StateDB.GetCode(addr), uint64CodeOffset, length.Uint64())
+	callContext.memory.Set(memOffset.Uint64(), length.Uint64(), codeCopy)
 	return nil, nil
 }
 
-func opPop(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	kvm.interpreter.intPool.put(stack.pop())
+// opExtCodeHash returns the code hash of a specified account.
+// There are several cases when the function is called, while we can relay everything
+// to `state.GetCodeHash` function to ensure the correctness.
+//   (1) Caller tries to get the code hash of a normal contract account, state
+// should return the relative code hash and set it as the result.
+//
+//   (2) Caller tries to get the code hash of a non-existent account, state should
+// return common.Hash{} and zero will be set as the result.
+//
+//   (3) Caller tries to get the code hash for an account without contract code,
+// state should return emptyCodeHash(0xc5d246...) as the result.
+//
+//   (4) Caller tries to get the code hash of a precompiled account, the result
+// should be zero or emptyCodeHash.
+//
+// It is worth noting that in order to avoid unnecessary create and clean,
+// all precompile accounts on mainnet have been transferred 1 wei, so the return
+// here should be emptyCodeHash.
+// If the precompile account is not transferred any amount on a private or
+// customized chain, the return value will be zero.
+//
+//   (5) Caller tries to get the code hash for an account which is marked as suicided
+// in the current transaction, the code hash of this account should be returned.
+//
+//   (6) Caller tries to get the code hash for an account which is marked as deleted,
+// this account should be regarded as a non-existent account and zero should be returned.
+func opExtCodeHash(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	slot := callContext.stack.peek()
+	address := common.Address(slot.Bytes20())
+	if kvm.StateDB.Empty(address) {
+		slot.Clear()
+	} else {
+		slot.SetBytes(kvm.StateDB.GetCodeHash(address).Bytes())
+	}
 	return nil, nil
 }
 
-func opMload(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	offset := stack.pop()
-	val := kvm.interpreter.intPool.get().SetBytes(memory.Get(offset.Int64(), 32))
-	stack.push(val)
-
-	kvm.interpreter.intPool.put(offset)
+func opGasprice(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	v, _ := uint256.FromBig(kvm.GasPrice)
+	callContext.stack.push(v)
 	return nil, nil
 }
 
-func opMstore(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+func opBlockhash(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	num := callContext.stack.peek()
+	num64, overflow := num.Uint64WithOverflow()
+	if overflow {
+		num.Clear()
+		return nil, nil
+	}
+	var upper, lower uint64
+	upper = kvm.BlockHeight.Uint64()
+	if upper < 257 {
+		lower = 0
+	} else {
+		lower = upper - 256
+	}
+	if num64 >= lower && num64 < upper {
+		num.SetBytes(kvm.GetHash(num64).Bytes())
+	} else {
+		num.Clear()
+	}
+	return nil, nil
+}
+
+func opCoinbase(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	callContext.stack.push(new(uint256.Int).SetBytes(kvm.Coinbase.Bytes()))
+	return nil, nil
+}
+
+func opTimestamp(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	v, _ := uint256.FromBig(kvm.Time)
+	callContext.stack.push(v)
+	return nil, nil
+}
+
+func opNumber(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	v, _ := uint256.FromBig(kvm.BlockHeight)
+	callContext.stack.push(v)
+	return nil, nil
+}
+
+func opGasLimit(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	callContext.stack.push(new(uint256.Int).SetUint64(kvm.GasLimit))
+	return nil, nil
+}
+
+func opPop(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	callContext.stack.pop()
+	return nil, nil
+}
+
+func opMload(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	v := callContext.stack.peek()
+	offset := int64(v.Uint64())
+	v.SetBytes(callContext.memory.GetPtr(offset, 32))
+	return nil, nil
+}
+
+func opMstore(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	// pop value of the stack
-	mStart, val := stack.pop(), stack.pop()
-	memory.Set32(mStart.Uint64(), val)
-
-	kvm.interpreter.intPool.put(mStart, val)
+	mStart, val := callContext.stack.pop(), callContext.stack.pop()
+	callContext.memory.Set32(mStart.Uint64(), &val)
 	return nil, nil
 }
 
-func opMstore8(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	off, val := stack.pop().Int64(), stack.pop().Int64()
-	memory.store[off] = byte(val & 0xff)
-
+func opMstore8(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	off, val := callContext.stack.pop(), callContext.stack.pop()
+	callContext.memory.store[off.Uint64()] = byte(val.Uint64())
 	return nil, nil
 }
 
-func opSload(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	loc := stack.peek()
-	val := kvm.StateDB.GetState(contract.Address(), common.BigToHash(loc))
+func opSload(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	loc := callContext.stack.peek()
+	hash := common.Hash(loc.Bytes32())
+	val := kvm.StateDB.GetState(callContext.contract.Address(), hash)
 	loc.SetBytes(val.Bytes())
 	return nil, nil
 }
 
-func opSstore(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	loc := common.BigToHash(stack.pop())
-	val := stack.pop()
-	kvm.StateDB.SetState(contract.Address(), loc, common.BigToHash(val))
-
-	kvm.interpreter.intPool.put(val)
+func opSstore(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	loc := callContext.stack.pop()
+	val := callContext.stack.pop()
+	kvm.StateDB.SetState(callContext.contract.Address(),
+		common.Hash(loc.Bytes32()), common.Hash(val.Bytes32()))
 	return nil, nil
 }
 
-func opJump(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	pos := stack.pop()
-	if !contract.validJumpdest(pos) {
+func opJump(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	pos := callContext.stack.pop()
+	if !callContext.contract.validJumpdest(&pos) {
 		return nil, errInvalidJump
 	}
 	*pc = pos.Uint64()
-
-	kvm.interpreter.intPool.put(pos)
 	return nil, nil
 }
 
-func opJumpi(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	pos, cond := stack.pop(), stack.pop()
-	if cond.Sign() != 0 {
-		if !contract.validJumpdest(pos) {
+func opJumpi(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	pos, cond := callContext.stack.pop(), callContext.stack.pop()
+	if !cond.IsZero() {
+		if !callContext.contract.validJumpdest(&pos) {
 			return nil, errInvalidJump
 		}
 		*pc = pos.Uint64()
@@ -621,51 +548,93 @@ func opJumpi(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *St
 		*pc++
 	}
 
-	kvm.interpreter.intPool.put(pos, cond)
 	return nil, nil
 }
 
-func opJumpdest(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+func opJumpdest(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	return nil, nil
 }
 
-func opPc(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetUint64(*pc))
+func opPc(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	callContext.stack.push(new(uint256.Int).SetUint64(*pc))
 	return nil, nil
 }
 
-func opMsize(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetInt64(int64(memory.Len())))
+func opMsize(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	callContext.stack.push(new(uint256.Int).SetUint64(uint64(callContext.memory.Len())))
 	return nil, nil
 }
 
-func opGas(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	stack.push(kvm.interpreter.intPool.get().SetUint64(contract.Gas))
+func opGas(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	callContext.stack.push(new(uint256.Int).SetUint64(callContext.contract.Gas))
 	return nil, nil
 }
 
-func opCreate(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+func opCreate(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	var (
-		value        = stack.pop()
-		offset, size = stack.pop(), stack.pop()
-		input        = memory.Get(offset.Int64(), size.Int64())
-		gas          = contract.Gas
+		value        = callContext.stack.pop()
+		offset, size = callContext.stack.pop(), callContext.stack.pop()
+		input        = callContext.memory.GetCopy(int64(offset.Uint64()), int64(size.Uint64()))
+		gas          = callContext.contract.Gas
 	)
+	// TODO: potentially use "all but one 64th" gas rule here
+	// gas -= gas / 64
 
-	contract.UseGas(gas)
-	res, addr, returnGas, suberr := kvm.Create(contract, input, gas, value)
-	// Push item on the stack based on the returned error. If the ruleset is
-	// homestead we must check for CodeStoreOutOfGasError (homestead only
-	// rule) and treat as an error, if the ruleset is frontier we must
-	// ignore this error and pretend the operation was successful.
-	if suberr != nil && suberr != ErrCodeStoreOutOfGas {
-		stack.push(kvm.interpreter.intPool.getZero())
-	} else {
-		stack.push(kvm.interpreter.intPool.get().SetBytes(addr.Bytes()))
+	// reuse size int for stackvalue
+	stackvalue := size
+
+	callContext.contract.UseGas(gas)
+	//TODO: use uint256.Int instead of converting with toBig()
+	var bigVal = big0
+	if !value.IsZero() {
+		bigVal = value.ToBig()
 	}
 
-	contract.Gas += returnGas
-	kvm.interpreter.intPool.put(value, offset, size)
+	res, addr, returnGas, suberr := kvm.Create(callContext.contract, input, gas, bigVal)
+	// All returned errors including CodeStoreOutOfGasError are treated as error.
+	// KVM run similar to EVM from Homestead ruleset.
+	if suberr != nil {
+		stackvalue.Clear()
+	} else {
+		stackvalue.SetBytes(addr.Bytes())
+	}
+	callContext.stack.push(&stackvalue)
+	callContext.contract.Gas += returnGas
+	if suberr == errExecutionReverted {
+		return res, nil
+	}
+	return nil, nil
+}
+
+func opCreate2(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	var (
+		endowment    = callContext.stack.pop()
+		offset, size = callContext.stack.pop(), callContext.stack.pop()
+		salt         = callContext.stack.pop()
+		input        = callContext.memory.GetCopy(int64(offset.Uint64()), int64(size.Uint64()))
+		gas          = callContext.contract.Gas
+	)
+
+	// TODO: potentially use  "all but one 64th" gas rule here
+	// gas -= gas / 64
+	callContext.contract.UseGas(gas)
+	// reuse size int for stackvalue
+	stackvalue := size
+	//TODO: use uint256.Int instead of converting with toBig()
+	bigEndowment := big0
+	if !endowment.IsZero() {
+		bigEndowment = endowment.ToBig()
+	}
+	res, addr, returnGas, suberr := kvm.Create2(callContext.contract, input, gas,
+		bigEndowment, &salt)
+	// Push item on the stack based on the returned error.
+	if suberr != nil {
+		stackvalue.Clear()
+	} else {
+		stackvalue.SetBytes(addr.Bytes())
+	}
+	callContext.stack.push(&stackvalue)
+	callContext.contract.Gas += returnGas
 
 	if suberr == errExecutionReverted {
 		return res, nil
@@ -673,161 +642,176 @@ func opCreate(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *S
 	return nil, nil
 }
 
-func opCall(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	// Pop gas. The actual gas in in kvm.callGasTemp.
-	kvm.interpreter.intPool.put(stack.pop())
+func opCall(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	stack := callContext.stack
+	// Pop gas. The actual gas in interpreter.evm.callGasTemp.
+	// We can use this as a temporary value
+	temp := stack.pop()
 	gas := kvm.callGasTemp
 	// Pop other call parameters.
 	addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
-	toAddr := common.BigToAddress(addr)
-	value = common.U256(value)
+	toAddr := common.Address(addr.Bytes20())
 	// Get the arguments from the memory.
-	args := memory.Get(inOffset.Int64(), inSize.Int64())
+	args := callContext.memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
-	if value.Sign() != 0 {
-		gas += configs.CallStipend
+	var bigVal = big0
+	//TODO: use uint256.Int instead of converting with toBig()
+	// By using big0 here, we save an alloc for the most common case (non-ether-transferring contract calls),
+	// but it would make more sense to extend the usage of uint256.Int
+	if !value.IsZero() {
+		gas += params.CallStipend
+		bigVal = value.ToBig()
 	}
-	ret, returnGas, err := kvm.Call(contract, toAddr, args, gas, value)
+
+	ret, returnGas, err := kvm.Call(callContext.contract, toAddr, args, gas, bigVal)
+
 	if err != nil {
-		stack.push(kvm.interpreter.intPool.getZero())
+		temp.Clear()
 	} else {
-		stack.push(kvm.interpreter.intPool.get().SetUint64(1))
+		temp.SetOne()
 	}
+	stack.push(&temp)
 	if err == nil || err == errExecutionReverted {
-		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+		callContext.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
-	contract.Gas += returnGas
+	callContext.contract.Gas += returnGas
 
-	kvm.interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)
 	return ret, nil
 }
 
-func opCallCode(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	// Pop gas. The actual gas is in kvm.callGasTemp.
-	kvm.interpreter.intPool.put(stack.pop())
+func opCallCode(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	// Pop gas. The actual gas is in interpreter.evm.callGasTemp.
+	stack := callContext.stack
+	// We use it as a temporary value
+	temp := stack.pop()
 	gas := kvm.callGasTemp
 	// Pop other call parameters.
 	addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
-	toAddr := common.BigToAddress(addr)
-	value = common.U256(value)
+	toAddr := common.Address(addr.Bytes20())
 	// Get arguments from the memory.
-	args := memory.Get(inOffset.Int64(), inSize.Int64())
+	args := callContext.memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
-	if value.Sign() != 0 {
-		gas += configs.CallStipend
+	//TODO: use uint256.Int instead of converting with toBig()
+	var bigVal = big0
+	if !value.IsZero() {
+		gas += params.CallStipend
+		bigVal = value.ToBig()
 	}
-	ret, returnGas, err := kvm.CallCode(contract, toAddr, args, gas, value)
+
+	ret, returnGas, err := kvm.CallCode(callContext.contract, toAddr, args, gas, bigVal)
 	if err != nil {
-		stack.push(kvm.interpreter.intPool.getZero())
+		temp.Clear()
 	} else {
-		stack.push(kvm.interpreter.intPool.get().SetUint64(1))
+		temp.SetOne()
 	}
+	stack.push(&temp)
 	if err == nil || err == errExecutionReverted {
-		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+		callContext.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
-	contract.Gas += returnGas
+	callContext.contract.Gas += returnGas
 
-	kvm.interpreter.intPool.put(addr, value, inOffset, inSize, retOffset, retSize)
 	return ret, nil
 }
 
-func opDelegateCall(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	// Pop gas. The actual gas is in kvm.callGasTemp.
-	kvm.interpreter.intPool.put(stack.pop())
+func opDelegateCall(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	stack := callContext.stack
+	// Pop gas. The actual gas is in interpreter.evm.callGasTemp.
+	// We use it as a temporary value
+	temp := stack.pop()
 	gas := kvm.callGasTemp
 	// Pop other call parameters.
 	addr, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
-	toAddr := common.BigToAddress(addr)
+	toAddr := common.Address(addr.Bytes20())
 	// Get arguments from the memory.
-	args := memory.Get(inOffset.Int64(), inSize.Int64())
+	args := callContext.memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
-	ret, returnGas, err := kvm.DelegateCall(contract, toAddr, args, gas)
+	ret, returnGas, err := kvm.DelegateCall(callContext.contract, toAddr, args, gas)
 	if err != nil {
-		stack.push(kvm.interpreter.intPool.getZero())
+		temp.Clear()
 	} else {
-		stack.push(kvm.interpreter.intPool.get().SetUint64(1))
+		temp.SetOne()
 	}
+	stack.push(&temp)
 	if err == nil || err == errExecutionReverted {
-		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+		callContext.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
-	contract.Gas += returnGas
+	callContext.contract.Gas += returnGas
 
-	kvm.interpreter.intPool.put(addr, inOffset, inSize, retOffset, retSize)
 	return ret, nil
 }
 
-func opStaticCall(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	// Pop gas. The actual gas is in kvm.callGasTemp.
-	kvm.interpreter.intPool.put(stack.pop())
+func opStaticCall(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	// Pop gas. The actual gas is in interpreter.evm.callGasTemp.
+	stack := callContext.stack
+	// We use it as a temporary value
+	temp := stack.pop()
 	gas := kvm.callGasTemp
 	// Pop other call parameters.
 	addr, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
-	toAddr := common.BigToAddress(addr)
+	toAddr := common.Address(addr.Bytes20())
 	// Get arguments from the memory.
-	args := memory.Get(inOffset.Int64(), inSize.Int64())
+	args := callContext.memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
-	ret, returnGas, err := kvm.StaticCall(contract, toAddr, args, gas)
+	ret, returnGas, err := kvm.StaticCall(callContext.contract, toAddr, args, gas)
 	if err != nil {
-		stack.push(kvm.interpreter.intPool.getZero())
+		temp.Clear()
 	} else {
-		stack.push(kvm.interpreter.intPool.get().SetUint64(1))
+		temp.SetOne()
 	}
+	stack.push(&temp)
 	if err == nil || err == errExecutionReverted {
-		memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
+		callContext.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
-	contract.Gas += returnGas
+	callContext.contract.Gas += returnGas
 
-	kvm.interpreter.intPool.put(addr, inOffset, inSize, retOffset, retSize)
 	return ret, nil
 }
 
-func opReturn(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	offset, size := stack.pop(), stack.pop()
-	ret := memory.GetPtr(offset.Int64(), size.Int64())
+func opReturn(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	offset, size := callContext.stack.pop(), callContext.stack.pop()
+	ret := callContext.memory.GetPtr(int64(offset.Uint64()), int64(size.Uint64()))
 
-	kvm.interpreter.intPool.put(offset, size)
 	return ret, nil
 }
 
-func opRevert(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	offset, size := stack.pop(), stack.pop()
-	ret := memory.GetPtr(offset.Int64(), size.Int64())
+func opRevert(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	offset, size := callContext.stack.pop(), callContext.stack.pop()
+	ret := callContext.memory.GetPtr(int64(offset.Uint64()), int64(size.Uint64()))
 
-	kvm.interpreter.intPool.put(offset, size)
 	return ret, nil
 }
 
-func opStop(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+func opStop(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	return nil, nil
 }
 
-func opSuicide(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-	balance := kvm.StateDB.GetBalance(contract.Address())
-	kvm.StateDB.AddBalance(common.BigToAddress(stack.pop()), balance)
-
-	kvm.StateDB.Suicide(contract.Address())
+func opSuicide(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	beneficiary := callContext.stack.pop()
+	balance := kvm.StateDB.GetBalance(callContext.contract.Address())
+	kvm.StateDB.AddBalance(common.Address(beneficiary.Bytes20()), balance)
+	kvm.StateDB.Suicide(callContext.contract.Address())
 	return nil, nil
 }
 
 // opPush1 is a specialized version of pushN
-func opPush1(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+func opPush1(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	var (
-		codeLen = uint64(len(contract.Code))
-		integer = kvm.interpreter.intPool.get()
+		codeLen = uint64(len(callContext.contract.Code))
+		integer = new(uint256.Int)
 	)
 	*pc += 1
 	if *pc < codeLen {
-		stack.push(integer.SetUint64(uint64(contract.Code[*pc])))
+		callContext.stack.push(integer.SetUint64(uint64(callContext.contract.Code[*pc])))
 	} else {
-		stack.push(integer.SetUint64(0))
+		callContext.stack.push(integer.Clear())
 	}
 	return nil, nil
 }
 
 // make push instruction function
 func makePush(size uint64, pushByteSize int) executionFunc {
-	return func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-		codeLen := len(contract.Code)
+	return func(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+		codeLen := len(callContext.contract.Code)
 
 		startMin := codeLen
 		if int(*pc+1) < startMin {
@@ -839,8 +823,9 @@ func makePush(size uint64, pushByteSize int) executionFunc {
 			endMin = startMin + pushByteSize
 		}
 
-		integer := kvm.interpreter.intPool.get()
-		stack.push(integer.SetBytes(common.RightPadBytes(contract.Code[startMin:endMin], pushByteSize)))
+		integer := new(uint256.Int)
+		callContext.stack.push(integer.SetBytes(common.RightPadBytes(
+			callContext.contract.Code[startMin:endMin], pushByteSize)))
 
 		*pc += size
 		return nil, nil
@@ -849,8 +834,8 @@ func makePush(size uint64, pushByteSize int) executionFunc {
 
 // make dup instruction function
 func makeDup(size int64) executionFunc {
-	return func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-		stack.dup(kvm.interpreter.intPool, int(size))
+	return func(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+		callContext.stack.dup(int(size))
 		return nil, nil
 	}
 }
@@ -859,32 +844,33 @@ func makeDup(size int64) executionFunc {
 func makeSwap(size int64) executionFunc {
 	// switch n + 1 otherwise n would be swapped with n
 	size++
-	return func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
-		stack.swap(int(size))
+	return func(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+		callContext.stack.swap(int(size))
 		return nil, nil
 	}
 }
 
 // make log instruction function
 func makeLog(size int) executionFunc {
-	return func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error) {
+	return func(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 		topics := make([]common.Hash, size)
+		stack := callContext.stack
 		mStart, mSize := stack.pop(), stack.pop()
 		for i := 0; i < size; i++ {
-			topics[i] = common.BigToHash(stack.pop())
+			addr := stack.pop()
+			topics[i] = common.Hash(addr.Bytes32())
 		}
 
-		d := memory.Get(mStart.Int64(), mSize.Int64())
+		d := callContext.memory.GetCopy(int64(mStart.Uint64()), int64(mSize.Uint64()))
 		kvm.StateDB.AddLog(&types.Log{
-			Address: contract.Address(),
+			Address: callContext.contract.Address(),
 			Topics:  topics,
 			Data:    d,
 			// This is a non-consensus field, but assigned here because
-			// core/state doesn't know the current block height.
+			// core/state doesn't know the current block number.
 			BlockHeight: kvm.BlockHeight.Uint64(),
 		})
 
-		kvm.interpreter.intPool.put(mStart, mSize)
 		return nil, nil
 	}
 }

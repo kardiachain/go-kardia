@@ -11,7 +11,8 @@ require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200531234253-77e06fda0c94+incompatible // indirect
 	github.com/ebuchman/fail-test v0.0.0-20170303061230-95f809107225
-	github.com/ethereum/go-ethereum v1.9.16
+	github.com/edsrzf/mmap-go v1.0.0 // indirect
+	github.com/ethereum/go-ethereum v1.9.18
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect
 	github.com/go-stack/stack v1.8.0
 	github.com/golang/protobuf v1.4.0
@@ -20,6 +21,7 @@ require (
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/mux v1.7.3
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/holiman/uint256 v1.1.1
 	github.com/huin/goupnp v1.0.0
 	github.com/jackpal/go-nat-pmp v1.0.2-0.20160603034137-1fa385a6f458
 	github.com/mattn/go-colorable v0.1.2 // indirect

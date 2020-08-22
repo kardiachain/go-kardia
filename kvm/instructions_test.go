@@ -20,9 +20,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math/big"
 	"testing"
 
+	"github.com/holiman/uint256"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
@@ -92,40 +92,22 @@ func testTwoOperandOp(t *testing.T, tests []TwoOperandTestcase, opFn executionFu
 		stack = newstack()
 		pc    = uint64(0)
 	)
-	env.interpreter.intPool = poolOfIntPools.get()
-	env.interpreter.intPool.put(big.NewInt(-1337))
-	env.interpreter.intPool.put(big.NewInt(-1337))
-	env.interpreter.intPool.put(big.NewInt(-1337))
 
 	for i, test := range tests {
-		x := new(big.Int).SetBytes(common.Hex2Bytes(test.X))
-		shift := new(big.Int).SetBytes(common.Hex2Bytes(test.Y))
-		expected := new(big.Int).SetBytes(common.Hex2Bytes(test.Expected))
+		x := new(uint256.Int).SetBytes(common.Hex2Bytes(test.X))
+		y := new(uint256.Int).SetBytes(common.Hex2Bytes(test.Y))
+		expected := new(uint256.Int).SetBytes(common.Hex2Bytes(test.Expected))
 		stack.push(x)
-		stack.push(shift)
-		opFn(&pc, env, nil, nil, stack)
+		stack.push(y)
+		opFn(&pc, env, &callCtx{nil, stack, nil})
+		if len(stack.data) != 1 {
+			t.Errorf("Expected one item on stack after %v, got %d: ", name, len(stack.data))
+		}
 		actual := stack.pop()
 		if actual.Cmp(expected) != 0 {
 			t.Errorf("Testcase %d, expected  %v, got %v", i, expected, actual)
 		}
-		// Check pool usage
-		// 1.pool is not allowed to contain anything on the stack
-		// 2.pool is not allowed to contain the same pointers twice
-		if env.interpreter.intPool.pool.len() > 0 {
-
-			poolvals := make(map[*big.Int]struct{})
-			poolvals[actual] = struct{}{}
-
-			for env.interpreter.intPool.pool.len() > 0 {
-				key := env.interpreter.intPool.get()
-				if _, exist := poolvals[key]; exist {
-					t.Errorf("Testcase %d, pool contains double-entry", i)
-				}
-				poolvals[key] = struct{}{}
-			}
-		}
 	}
-	poolOfIntPools.put(env.interpreter.intPool)
 }
 
 func TestByteOp(t *testing.T) {
@@ -140,6 +122,43 @@ func TestByteOp(t *testing.T) {
 		{"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "FFFFFFFFFFFFFFFF", "00"},
 	}
 	testTwoOperandOp(t, tests, opByte, "byte")
+}
+
+func TestAddMod(t *testing.T) {
+	var (
+		env            = NewKVM(Context{}, nil, Config{})
+		stack          = newstack()
+		pc             = uint64(0)
+	)
+	tests := []struct {
+		x        string
+		y        string
+		z        string
+		expected string
+	}{
+		{"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+			"fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe",
+			"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+			"fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe",
+		},
+	}
+	// x + y = 0x1fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd
+	// in 256 bit repr, fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd
+
+	for i, test := range tests {
+		x := new(uint256.Int).SetBytes(common.Hex2Bytes(test.x))
+		y := new(uint256.Int).SetBytes(common.Hex2Bytes(test.y))
+		z := new(uint256.Int).SetBytes(common.Hex2Bytes(test.z))
+		expected := new(uint256.Int).SetBytes(common.Hex2Bytes(test.expected))
+		stack.push(z)
+		stack.push(y)
+		stack.push(x)
+		opAddmod(&pc, env, &callCtx{nil, stack, nil})
+		actual := stack.pop()
+		if actual.Cmp(expected) != 0 {
+			t.Errorf("Testcase %d, expected  %x, got %x", i, expected, actual)
+		}
+	}
 }
 
 func TestSHL(t *testing.T) {
@@ -245,14 +264,13 @@ func getResult(args []*twoOperandParams, opFn executionFunc) []TwoOperandTestcas
 		stack = newstack()
 		pc    = uint64(0)
 	)
-	env.interpreter.intPool = poolOfIntPools.get()
 	result := make([]TwoOperandTestcase, len(args))
 	for i, param := range args {
-		x := new(big.Int).SetBytes(common.Hex2Bytes(param.x))
-		y := new(big.Int).SetBytes(common.Hex2Bytes(param.y))
+		x := new(uint256.Int).SetBytes(common.Hex2Bytes(param.x))
+		y := new(uint256.Int).SetBytes(common.Hex2Bytes(param.y))
 		stack.push(x)
 		stack.push(y)
-		opFn(&pc, env, nil, nil, stack)
+		opFn(&pc, env, &callCtx{nil, stack, nil})
 		actual := stack.pop()
 		result[i] = TwoOperandTestcase{param.x, param.y, fmt.Sprintf("%064x", actual)}
 	}
@@ -275,12 +293,11 @@ func xTestWriteExpectedValues(t *testing.T) {
 	t.Fatal("This test should not be activated")
 }
 
-func opBenchmark(bench *testing.B, op func(pc *uint64, kvm *KVM, contract *Contract, memory *Memory, stack *Stack) ([]byte, error), args ...string) {
+func opBenchmark(bench *testing.B, op executionFunc, args ...string) {
 	var (
 		env   = NewKVM(Context{}, nil, Config{})
 		stack = newstack()
 	)
-	env.interpreter.intPool = poolOfIntPools.get()
 	// convert args
 	byteArgs := make([][]byte, len(args))
 	for i, arg := range args {
@@ -290,10 +307,11 @@ func opBenchmark(bench *testing.B, op func(pc *uint64, kvm *KVM, contract *Contr
 	bench.ResetTimer()
 	for i := 0; i < bench.N; i++ {
 		for _, arg := range byteArgs {
-			a := new(big.Int).SetBytes(arg)
+			a := new(uint256.Int)
+			a.SetBytes(arg)
 			stack.push(a)
 		}
-		op(&pc, env, nil, nil, stack)
+		op(&pc, env, &callCtx{nil, stack, nil})
 		stack.pop()
 	}
 }
@@ -512,21 +530,19 @@ func TestOpMstore(t *testing.T) {
 		stack = newstack()
 		mem   = NewMemory()
 	)
-	env.interpreter.intPool = poolOfIntPools.get()
 	mem.Resize(64)
 	pc := uint64(0)
 	v := "abcdef00000000000000abba000000000deaf000000c0de00100000000133700"
-	stack.pushN(new(big.Int).SetBytes(common.Hex2Bytes(v)), big.NewInt(0))
-	opMstore(&pc, env, nil, mem, stack)
-	if got := common.Bytes2Hex(mem.Get(0, 32)); got != v {
+	stack.pushN(*new(uint256.Int).SetBytes(common.Hex2Bytes(v)), *new(uint256.Int))
+	opMstore(&pc, env, &callCtx{mem, stack, nil})
+	if got := common.Bytes2Hex(mem.GetCopy(0, 32)); got != v {
 		t.Fatalf("Mstore fail, got %v, expected %v", got, v)
 	}
-	stack.pushN(big.NewInt(0x1), big.NewInt(0))
-	opMstore(&pc, env, nil, mem, stack)
-	if common.Bytes2Hex(mem.Get(0, 32)) != "0000000000000000000000000000000000000000000000000000000000000001" {
+	stack.pushN(*new(uint256.Int).SetUint64(0x1), *new(uint256.Int))
+	opMstore(&pc, env, &callCtx{mem, stack, nil})
+	if common.Bytes2Hex(mem.GetCopy(0, 32)) != "0000000000000000000000000000000000000000000000000000000000000001" {
 		t.Fatalf("Mstore failed to overwrite previous value")
 	}
-	poolOfIntPools.put(env.interpreter.intPool)
 }
 
 func BenchmarkOpMstore(bench *testing.B) {
@@ -535,16 +551,15 @@ func BenchmarkOpMstore(bench *testing.B) {
 		stack = newstack()
 		mem   = NewMemory()
 	)
-	env.interpreter.intPool = poolOfIntPools.get()
 	mem.Resize(64)
 	pc := uint64(0)
-	memStart := big.NewInt(0)
-	value := big.NewInt(0x1337)
+	memStart := new(uint256.Int)
+	value := new(uint256.Int).SetUint64(0x1337)
 
 	bench.ResetTimer()
 	for i := 0; i < bench.N; i++ {
-		stack.pushN(value, memStart)
-		opMstore(&pc, env, nil, mem, stack)
+		stack.pushN(*value, *memStart)
+		opMstore(&pc, env, &callCtx{mem, stack, nil})
 	}
 }
 
@@ -554,15 +569,13 @@ func BenchmarkOpSHA3(bench *testing.B) {
 		stack = newstack()
 		mem   = NewMemory()
 	)
-	env.interpreter.intPool = poolOfIntPools.get()
 	mem.Resize(32)
 	pc := uint64(0)
-	start := big.NewInt(0)
+	start := uint256.NewInt()
 
 	bench.ResetTimer()
 	for i := 0; i < bench.N; i++ {
-		stack.pushN(big.NewInt(32), start)
-		opSha3(&pc, env, nil, mem, stack)
+		stack.pushN(*uint256.NewInt().SetUint64(32), *start)
+		opSha3(&pc, env, &callCtx{mem, stack, nil})
 	}
-	poolOfIntPools.put(env.interpreter.intPool)
 }
