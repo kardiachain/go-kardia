@@ -1,17 +1,19 @@
 package kvm
 
 import (
+	"math"
+	"math/big"
+	"strings"
+	"testing"
+
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	"github.com/kardiachain/go-kardiamain/types"
-	"math"
-	"math/big"
-	"strings"
-	"testing"
 )
 
 // Runtime_bytecode for ./DPoS_Election.sol
@@ -379,14 +381,15 @@ func SetupBlockchain() (*blockchain.BlockChain, error) {
 		"0x5678": initValue,
 		"0xabcd": initValue,
 	}
-	kaiDb := types.NewMemStore()
+	blockDB := memorydb.New()
+	storeDB := kvstore.NewStoreDB(blockDB)
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
-	chainConfig, _, genesisErr := setupGenesis(g, kaiDb)
+	chainConfig, _, genesisErr := setupGenesis(g, storeDB)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
 
-	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig, true)
+	bc, err := blockchain.NewBlockChain(log.New(), storeDB, chainConfig, true)
 	return bc, err
 }
 
@@ -701,7 +704,7 @@ func Test_Successful_Election(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !(result[len(result) - 1] == 0) {
+	if !(result[len(result)-1] == 0) {
 		t.Error("Expected true, got ", result)
 	}
 
@@ -724,7 +727,7 @@ func Test_Successful_Election(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !(result[len(result) - 1] == 1) {
+	if !(result[len(result)-1] == 1) {
 		t.Error("Expected true, got ", result)
 	}
 

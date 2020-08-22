@@ -36,6 +36,7 @@ import (
 )
 
 const DualServiceName = "DUAL"
+
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
 // DualService implements Service for running full dual group protocol, for group consensus.
 type DualService struct {
@@ -49,7 +50,7 @@ type DualService struct {
 	shutdownChan chan bool
 
 	// DB interfaces
-	groupDb types.Database // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
+	groupDb types.StoreDB // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
 	eventPool           *event_pool.Pool
@@ -110,7 +111,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	state := state.LastestBlockState{
 		ChainID:                     "kaigroupcon",
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
-		LastBlockID:                 block.BlockID(),
+		LastBlockID:                 block.Header().LastBlockID,
 		LastBlockTime:               block.Time(),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
@@ -172,7 +173,7 @@ func (s *DualService) SetDualBlockChainManager(bcManager *blockchain.DualBlockCh
 func (s *DualService) IsListening() bool       { return true } // Always listening
 func (s *DualService) DualServiceVersion() int { return int(s.protocolManager.SubProtocols[0].Version) }
 func (s *DualService) NetVersion() uint64      { return s.networkID }
-func (s *DualService) DB() types.Database      { return s.groupDb }
+func (s *DualService) DB() types.StoreDB       { return s.groupDb }
 
 // Protocols implements Service, returning all the currently configured
 // network protocols to start.
@@ -217,6 +218,6 @@ func (s *DualService) APIs() []rpc.API {
 	}
 }
 
-func (s *DualService) EventPool() *event_pool.Pool       { return s.eventPool }
+func (s *DualService) EventPool() *event_pool.Pool            { return s.eventPool }
 func (s *DualService) BlockChain() *blockchain.DualBlockChain { return s.blockchain }
-func (s *DualService) DualChainConfig() *types.ChainConfig  { return s.chainConfig }
+func (s *DualService) DualChainConfig() *types.ChainConfig    { return s.chainConfig }

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package types
+package trie
 
 import (
 	"fmt"
@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/metrics"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
@@ -52,7 +53,7 @@ const secureKeyLength = 11 + 32
 // the disk database. The aim is to accumulate trie writes in-memory and only
 // periodically flush a couple tries to disk, garbage collecting the remainder.
 type TrieDatabase struct {
-	diskdb Database // Persistent storage for matured trie nodes
+	diskdb kaidb.Database // Persistent storage for matured trie nodes
 
 	nodes  map[common.Hash]*cachedNode // Data and references relationships of a node
 	oldest common.Hash                 // Oldest tracked node, flush-list head
@@ -253,7 +254,7 @@ func expandNode(hash hashNode, n node, cachegen uint16) node {
 
 // NewDatabase creates a new trie database to store ephemeral trie content before
 // its written out to disk or garbage collected.
-func NewDatabase(diskdb Database) *TrieDatabase {
+func NewDatabase(diskdb kaidb.Database) *TrieDatabase {
 	return &TrieDatabase{
 		diskdb:    diskdb,
 		nodes:     map[common.Hash]*cachedNode{{}: {}},
@@ -262,7 +263,7 @@ func NewDatabase(diskdb Database) *TrieDatabase {
 }
 
 // DiskDB retrieves the persistent storage backing the trie database.
-func (db *TrieDatabase) DiskDB() DatabaseReader {
+func (db *TrieDatabase) DiskDB() kaidb.Reader {
 	return db.diskdb
 }
 
@@ -338,7 +339,7 @@ func (db *TrieDatabase) node(hash common.Hash, cachegen uint16) node {
 		return nil
 	}
 
-	return mustDecodeNode(hash[:], enc.([]byte), cachegen)
+	return mustDecodeNode(hash[:], enc, cachegen)
 }
 
 // Node retrieves an encoded cached trie node from memory. If it cannot be found
@@ -358,7 +359,7 @@ func (db *TrieDatabase) Node(hash common.Hash) ([]byte, error) {
 		return nil, err
 	}
 
-	return data.([]byte), nil
+	return data, nil
 }
 
 // preimage retrieves a cached trie node pre-image from memory. If it cannot be
@@ -378,7 +379,7 @@ func (db *TrieDatabase) preimage(hash common.Hash) ([]byte, error) {
 		return nil, err
 	}
 
-	return data.([]byte), nil
+	return data, nil
 }
 
 // secureKey returns the database key for the preimage of key, as an ephemeral
@@ -519,7 +520,7 @@ func (db *TrieDatabase) Cap(limit common.StorageSize) error {
 				db.lock.RUnlock()
 				return err
 			}
-			if batch.ValueSize() > IdealBatchSize {
+			if batch.ValueSize() > kaidb.IdealBatchSize {
 				if err := batch.Write(); err != nil {
 					db.lock.RUnlock()
 					return err
@@ -538,7 +539,7 @@ func (db *TrieDatabase) Cap(limit common.StorageSize) error {
 			return err
 		}
 		// If we exceeded the ideal batch size, commit and reset
-		if batch.ValueSize() >= IdealBatchSize {
+		if batch.ValueSize() >= kaidb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
 				log.Error("Failed to write flush list to disk", "err", err)
 				db.lock.RUnlock()
@@ -614,7 +615,7 @@ func (db *TrieDatabase) Commit(node common.Hash, report bool) error {
 			db.lock.RUnlock()
 			return err
 		}
-		if batch.ValueSize() > IdealBatchSize {
+		if batch.ValueSize() > kaidb.IdealBatchSize {
 			if err := batch.Write(); err != nil {
 				return err
 			}
@@ -664,7 +665,7 @@ func (db *TrieDatabase) Commit(node common.Hash, report bool) error {
 }
 
 // commit is the private locked version of Commit.
-func (db *TrieDatabase) commit(hash common.Hash, batch Batch) error {
+func (db *TrieDatabase) commit(hash common.Hash, batch kaidb.Batch) error {
 	// If the node does not exist, it's a previously committed node
 	node, ok := db.nodes[hash]
 	if !ok {
@@ -679,7 +680,7 @@ func (db *TrieDatabase) commit(hash common.Hash, batch Batch) error {
 		return err
 	}
 	// If we've reached an optimal batch size, commit and start over
-	if batch.ValueSize() >= IdealBatchSize {
+	if batch.ValueSize() >= kaidb.IdealBatchSize {
 		if err := batch.Write(); err != nil {
 			return err
 		}

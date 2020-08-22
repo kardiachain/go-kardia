@@ -19,17 +19,39 @@
 package types
 
 import (
-	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 	"math/big"
 	"os"
 	"testing"
 	"time"
+
+	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
+
+func CreateBlockIDRandom() BlockID {
+	blockHash := common.BytesToHash(common.RandBytes(32))
+	partSetHash := common.BytesToHash(common.RandBytes(32))
+	blockPartsHeaders := PartSetHeader{Total: *common.NewBigInt32(123), Hash: partSetHash}
+	return BlockID{
+		Hash:        blockHash,
+		PartsHeader: blockPartsHeaders,
+	}
+}
+
+func CreateBlockID(hash common.Hash, partSetSize common.BigInt, partSetHash common.Hash) BlockID {
+	return BlockID{
+		Hash: hash,
+		PartsHeader: PartSetHeader{
+			Total: partSetSize,
+			Hash:  partSetHash,
+		},
+	}
+
+}
 
 func TestBlockCreation(t *testing.T) {
 	block := CreateNewBlock(1)
@@ -164,7 +186,7 @@ func TestBlockWithBodyFunction(t *testing.T) {
 
 func TestNewZeroBlockID(t *testing.T) {
 	blockID := NewZeroBlockID()
-	if !blockID.IsZero() {
+	if blockID.IsZero() {
 		t.Fatal("NewZeroBlockID is not empty")
 	}
 }

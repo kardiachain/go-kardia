@@ -19,7 +19,8 @@
 package storage
 
 import (
-	"github.com/kardiachain/go-kardiamain/kai/storage/leveldb"
+	"github.com/ethereum/go-ethereum/ethdb/leveldb"
+	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/kai/storage/mongodb"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -27,28 +28,28 @@ import (
 // DbInfo is used to start new database
 type DbInfo interface {
 	Name() string
-	Start() (types.Database, error)
+	Start() (types.StoreDB, error)
 }
 
 // MongoDbInfo implements DbInfo to start chain using MongoDB
 type MongoDbInfo struct {
-	URI string
+	URI          string
 	DatabaseName string
-	Drop bool // if drop is true, drop database
+	Drop         bool // if drop is true, drop database
 }
 
 // LevelDbInfo implements DbInfo to start chain using levelDB
 type LevelDbInfo struct {
 	ChainData string
-	DbCaches int
+	DbCaches  int
 	DbHandles int
 }
 
 func NewMongoDbInfo(uri, databaseName string, drop bool) *MongoDbInfo {
 	return &MongoDbInfo{
-		URI: uri,
+		URI:          uri,
 		DatabaseName: databaseName,
-		Drop: drop,
+		Drop:         drop,
 	}
 }
 
@@ -56,22 +57,27 @@ func (db *MongoDbInfo) Name() string {
 	return "MongoDB"
 }
 
-func (db *MongoDbInfo) Start() (types.Database, error) {
+func (db *MongoDbInfo) Start() (types.StoreDB, error) {
 	return mongodb.NewDB(db.URI, db.DatabaseName, db.Drop)
 }
 
 func NewLevelDbInfo(chainData string, dbCaches, dbHandles int) *LevelDbInfo {
 	return &LevelDbInfo{
 		ChainData: chainData,
-		DbCaches: dbCaches,
+		DbCaches:  dbCaches,
 		DbHandles: dbHandles,
 	}
 }
 
-func (db *LevelDbInfo) Name() string {
+func (info *LevelDbInfo) Name() string {
 	return "levelDB"
 }
 
-func (db *LevelDbInfo) Start() (types.Database, error) {
-	return leveldb.NewLDBStore(db.ChainData, db.DbCaches, db.DbHandles)
+func (info *LevelDbInfo) Start() (types.StoreDB, error) {
+	db, err := leveldb.New(info.ChainData, info.DbCaches, info.DbHandles, "kai")
+	if err != nil {
+		return nil, err
+	}
+
+	return kvstore.NewStoreDB(db), nil
 }
