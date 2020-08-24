@@ -19,7 +19,7 @@
 package storage
 
 import (
-	"github.com/ethereum/go-ethereum/ethdb/leveldb"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/leveldb"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/kai/storage/mongodb"
 	"github.com/kardiachain/go-kardiamain/types"
