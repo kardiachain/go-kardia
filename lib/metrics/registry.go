@@ -19,6 +19,7 @@ package metrics
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -135,9 +136,9 @@ func (r *StandardRegistry) GetAll() map[string]map[string]interface{} {
 		values := make(map[string]interface{})
 		switch metric := i.(type) {
 		case Counter:
-			values["count"] = metric.Count()
+			values["count"] = strconv.FormatInt(metric.Count(), 10) + " Disk Bytes/sec"
 		case Gauge:
-			values["value"] = metric.Value()
+			values["value"] = strconv.FormatInt(metric.Value(), 10) + " RPI (Relative Performance Index)"
 		case GaugeFloat64:
 			values["value"] = metric.Value()
 		case Healthcheck:
@@ -161,11 +162,11 @@ func (r *StandardRegistry) GetAll() map[string]map[string]interface{} {
 			values["99.9%"] = ps[4]
 		case Meter:
 			m := metric.Snapshot()
-			values["count"] = m.Count()
-			values["1m.rate"] = m.Rate1()
-			values["5m.rate"] = m.Rate5()
-			values["15m.rate"] = m.Rate15()
-			values["mean.rate"] = m.RateMean()
+			values["count"] = strconv.FormatInt(m.Count(), 10) + " events recorded"
+			values["1m.rate"] = fmt.Sprintf("%.0f", m.Rate1()) + " events per second"
+			values["5m.rate"] = fmt.Sprintf("%.0f", m.Rate5()) + " events per second"
+			values["15m.rate"] = fmt.Sprintf("%.0f", m.Rate15()) + " events per second"
+			values["mean.rate"] = fmt.Sprintf("%.0f", m.RateMean()) + " events per second"
 		case Timer:
 			t := metric.Snapshot()
 			ps := t.Percentiles([]float64{0.5, 0.75, 0.95, 0.99, 0.999})
