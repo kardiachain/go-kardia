@@ -311,9 +311,6 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, *tx_pool.TxPool, error
 	txPoolConfig := tx_pool.TxPoolConfig{
 		GlobalSlots: 60,
 		GlobalQueue: 5120000,
-		// NumberOfWorkers: 3,
-		// WorkerCap:       512,
-		// BlockSize:       7192,
 	}
 
 	txPool := tx_pool.NewTxPool(txPoolConfig, nil, bc)
