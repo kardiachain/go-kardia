@@ -28,7 +28,6 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
@@ -186,7 +185,7 @@ func TestBlockWithBodyFunction(t *testing.T) {
 
 func TestNewZeroBlockID(t *testing.T) {
 	blockID := NewZeroBlockID()
-	if blockID.IsZero() {
+	if !blockID.IsZero() {
 		t.Fatal("NewZeroBlockID is not empty")
 	}
 }
@@ -255,7 +254,7 @@ func CreateNewBlock(height uint64) *Block {
 		big.NewInt(99), 1000, big.NewInt(100),
 		nil,
 	)
-	signedTx, _ := SignTx(emptyTx, key)
+	signedTx, _ := SignTx(HomesteadSigner{}, emptyTx, key)
 
 	txns := []*Transaction{signedTx}
 
@@ -269,7 +268,7 @@ func CreateNewBlock(height uint64) *Block {
 	lastCommit := &Commit{
 		Precommits: []*Vote{vote, nil},
 	}
-	return NewBlock(log.New(), &header, txns, nil, lastCommit)
+	return NewBlock(&header, txns, nil, lastCommit)
 }
 
 func CreateNewDualBlock() *Block {
@@ -289,5 +288,5 @@ func CreateNewDualBlock() *Block {
 	}
 	header.LastCommitHash = lastCommit.Hash()
 	de := NewDualEvent(100, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})
-	return NewDualBlock(log.New(), &header, []*DualEvent{de, nil}, lastCommit)
+	return NewDualBlock(&header, []*DualEvent{de, nil}, lastCommit)
 }

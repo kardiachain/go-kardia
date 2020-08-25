@@ -180,10 +180,10 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *Commit) *Block {
+func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommit *Commit) *Block {
 	b := &Block{
 		header:     CopyHeader(header),
-		lastCommit: CopyCommit(commit),
+		lastCommit: CopyCommit(lastCommit),
 	}
 
 	if len(txs) == 0 {
@@ -203,10 +203,10 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, commit *C
 	}
 
 	if b.header.LastCommitHash.IsZero() {
-		if commit == nil {
+		if lastCommit == nil {
 			b.header.LastCommitHash = common.NewZeroHash()
 		} else {
-			b.header.LastCommitHash = commit.Hash()
+			b.header.LastCommitHash = lastCommit.Hash()
 		}
 	}
 
