@@ -32,6 +32,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
@@ -286,7 +287,8 @@ func ApplyTransactionReturnLog(bc base.BaseBlockChain, statedb *state.StateDB, t
 }
 
 func SetupBlockchainForTesting() (*blockchain.BlockChain, *tx_pool.TxPool, error) {
-	kaiDb := memorydb.New()
+	blockDB := memorydb.New()
+	kaiDb := kvstore.NewStoreDB(blockDB)
 	initValue := genesis.ToCell(int64(math.Pow10(6)))
 
 	var genesisAccounts = map[string]*big.Int{
@@ -307,14 +309,14 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, *tx_pool.TxPool, error
 	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig, true)
 
 	txPoolConfig := tx_pool.TxPoolConfig{
-		GlobalSlots:     60,
-		GlobalQueue:     5120000,
-		NumberOfWorkers: 3,
-		WorkerCap:       512,
-		BlockSize:       7192,
+		GlobalSlots: 60,
+		GlobalQueue: 5120000,
+		// NumberOfWorkers: 3,
+		// WorkerCap:       512,
+		// BlockSize:       7192,
 	}
 
-	txPool := tx_pool.NewTxPool(log.New(), txPoolConfig, nil, bc)
+	txPool := tx_pool.NewTxPool(txPoolConfig, nil, bc)
 
 	return bc, txPool, err
 }
