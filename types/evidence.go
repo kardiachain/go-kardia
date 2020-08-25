@@ -50,11 +50,11 @@ type Evidence interface {
 // EvidenceInfo ...
 type EvidenceInfo struct {
 	Type    *big.Int
-	Payload Evidence
+	Payload []byte
 }
 
-// EvidenceToRPC ...
-func EvidenceToRPC(evidence Evidence) (*EvidenceInfo, error) {
+// EvidenceToBytes ...
+func EvidenceToBytes(evidence Evidence) ([]byte, error) {
 	if evidence == nil {
 		return nil, errors.New("nil evidence")
 	}
@@ -64,11 +64,35 @@ func EvidenceToRPC(evidence Evidence) (*EvidenceInfo, error) {
 	switch evi := evidence.(type) {
 	case *DuplicateVoteEvidence:
 		info.Type = big.NewInt(1)
-		info.Payload = evi
+		b, err := rlp.EncodeToBytes(evi)
+		if err != nil {
+			return nil, err
+		}
+		info.Payload = b
 		break
 	}
 
-	return info, nil
+	b, err := rlp.EncodeToBytes(info)
+	return b, err
+}
+
+// EvidenceFromBytes ...
+func EvidenceFromBytes(b []byte) (Evidence, error) {
+	info := &EvidenceInfo{}
+
+	if err := rlp.DecodeBytes(b, info); err != nil {
+		return nil, err
+	}
+
+	switch info.Type.Int64() {
+	case 1:
+		duplicateVoteEvidence := &DuplicateVoteEvidence{}
+		if err := rlp.DecodeBytes(info.Payload, duplicateVoteEvidence); err != nil {
+			return nil, err
+		}
+		return duplicateVoteEvidence, nil
+	}
+	return nil, nil
 }
 
 // DuplicateVoteEvidence contains evidence a validator signed two conflicting votes.
