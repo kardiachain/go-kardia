@@ -71,10 +71,26 @@ func NewPool(evidenceDB kaidb.Database, stateDB StateStore, blockStore BlockStor
 // PendingEvidence is used primarily as part of block proposal and returns up to maxNum of uncommitted evidence.
 // If maxNum is -1, all evidence is returned. Pending evidence is prioritized based on time.
 func (evpool *Pool) PendingEvidence(maxNum uint32) []types.Evidence {
-	evpool.removeExpiredPendingEvidence()
-	evidence, err := evpool.listEvidence(baseKeyPending, int64(maxNum))
-	if err != nil {
-		evpool.logger.Error("Unable to retrieve pending evidence", "err", err)
+	return nil
+}
+
+// listEvidence lists up to maxNum pieces of evidence for the given prefix key.
+// If maxNum is -1, there's no cap on the size of returned evidence.
+func (evpool *Pool) listEvidence(prefixKey byte, maxNum int64) ([]types.Evidence, error) {
+	var count int64
+	var evidence []types.Evidence
+	iter := evpool.evidenceStore.NewIteratorWithPrefix([]byte{prefixKey})
+	for iter.Next() {
+		if count == maxNum {
+			return evidence, nil
+		}
+		count++
+		val := iter.Value()
+		ev, err := types.EvidenceFromBytes(val)
+		if err != nil {
+			return nil, err
+		}
+		evidence = append(evidence, ev)
 	}
-	return evidence
+	return evidence, nil
 }
