@@ -21,27 +21,60 @@ package evidence
 import (
 	"sync"
 
+	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/kai/state"
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/clist"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-// ---------- EvidencePool -----------
-// EvidencePool maintains a pool of valid evidence
+// Pool maintains a pool of valid evidence
 // in an EvidenceStore.
-type EvidencePool struct {
+type Pool struct {
 	logger log.Logger
 
-	evidenceStore *EvidenceStore
-	evidenceList  *common.CList // concurrent linked-list of evidence
+	evidenceStore kaidb.Database
+
+	evidenceList *clist.CList // concurrent linked-list of evidence
 
 	// latest state
-	mtx   sync.Mutex
 	state state.LastestBlockState
+
+	// needed to load validators to verify evidence
+	stateDB StateStore
+	// needed to load headers to verify evidence
+	blockStore BlockStore
+
+	mtx sync.Mutex
+
+	// This is the closest height where at one or more of the current trial periods
+	// will have ended and we will need to then upgrade the evidence to amnesia evidence.
+	// It is set to -1 when we don't have any evidence on trial.
+	nextEvidenceTrialEndedHeight int64
 }
 
-// PendingEvidence returns all uncommitted evidence.
-func (evpool *EvidencePool) PendingEvidence() []types.Evidence {
-	return evpool.evidenceStore.PendingEvidence()
+// NewPool creates an evidence pool. If using an existing evidence store,
+// it will add all pending evidence to the concurrent list.
+func NewPool(evidenceDB kaidb.Database, stateDB StateStore, blockStore BlockStore) (*Pool, error) {
+	state := stateDB.LoadState()
+	pool := &Pool{
+		blockStore:                   blockStore,
+		stateDB:                      stateDB,
+		state:                        state,
+		logger:                       log.New(),
+		evidenceStore:                evidenceDB,
+		nextEvidenceTrialEndedHeight: -1,
+	}
+	return pool, nil
+}
+
+// PendingEvidence is used primarily as part of block proposal and returns up to maxNum of uncommitted evidence.
+// If maxNum is -1, all evidence is returned. Pending evidence is prioritized based on time.
+func (evpool *Pool) PendingEvidence(maxNum uint32) []types.Evidence {
+	evpool.removeExpiredPendingEvidence()
+	evidence, err := evpool.listEvidence(baseKeyPending, int64(maxNum))
+	if err != nil {
+		evpool.logger.Error("Unable to retrieve pending evidence", "err", err)
+	}
+	return evidence
 }

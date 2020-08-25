@@ -19,23 +19,204 @@
 package types
 
 import (
-	"crypto/ecdsa"
+	"bytes"
+	"errors"
+	"fmt"
+	"math/big"
+	"strings"
+	"time"
+
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 // Evidence represents any provable malicious activity by a validator
 type Evidence interface {
-	Height() int64                                       // height of the equivocation
-	Address() []byte                                     // address of the equivocating validator
-	Hash() []byte                                        // hash of the evidence
-	Verify(chainID string, pubKey ecdsa.PublicKey) error // verify the evidence
-	Equal(Evidence) bool                                 // check equality of evidence
+	Height() *common.BigInt                           // height of the equivocation
+	Time() time.Time                                  // time of the equivocation
+	Address() common.Address                          // address of the equivocating validator
+	Bytes() []byte                                    // bytes which comprise the evidence
+	Hash() common.Hash                                // hash of the evidence
+	Verify(chainID string, addr common.Address) error // verify the evidence
+	Equal(Evidence) bool                              // check equality of evidence
 
+	ValidateBasic() error
 	String() string
+}
+
+//-------------------------------------------
+
+// EvidenceInfo ...
+type EvidenceInfo struct {
+	Type    *big.Int
+	Payload Evidence
+}
+
+// EvidenceToRPC ...
+func EvidenceToRPC(evidence Evidence) (*EvidenceInfo, error) {
+	if evidence == nil {
+		return nil, errors.New("nil evidence")
+	}
+
+	info := &EvidenceInfo{}
+
+	switch evi := evidence.(type) {
+	case *DuplicateVoteEvidence:
+		info.Type = big.NewInt(1)
+		info.Payload = evi
+		break
+	}
+
+	return info, nil
 }
 
 // DuplicateVoteEvidence contains evidence a validator signed two conflicting votes.
 type DuplicateVoteEvidence struct {
-	PubKey ecdsa.PublicKey
-	VoteA  *Vote
-	VoteB  *Vote
+	Addr  common.Address
+	VoteA *Vote
+	VoteB *Vote
+
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// String returns a string representation of the evidence.
+func (dve *DuplicateVoteEvidence) String() string {
+	return fmt.Sprintf("DuplicateVoteEvidence{VoteA: %v, VoteB: %v, Time: %v}", dve.VoteA, dve.VoteB, dve.Timestamp)
+}
+
+// Height returns the height this evidence refers to.
+func (dve *DuplicateVoteEvidence) Height() *common.BigInt {
+	return dve.VoteA.Height
+}
+
+// Time returns time of the latest vote.
+func (dve *DuplicateVoteEvidence) Time() time.Time {
+	return dve.Timestamp
+}
+
+// Address returns the address of the validator.
+func (dve *DuplicateVoteEvidence) Address() common.Address {
+	return dve.Addr
+}
+
+// Bytes Hash returns the hash of the evidence.
+func (dve *DuplicateVoteEvidence) Bytes() []byte {
+	b, _ := rlp.EncodeToBytes(dve)
+	return b
+}
+
+// Hash returns the hash of the evidence.
+func (dve *DuplicateVoteEvidence) Hash() common.Hash {
+	return rlpHash(dve.Bytes())
+}
+
+// Equal checks if two pieces of evidence are equal.
+func (dve *DuplicateVoteEvidence) Equal(ev Evidence) bool {
+	if _, ok := ev.(*DuplicateVoteEvidence); !ok {
+		return false
+	}
+
+	// just check their hashes
+	dveHash := dve.Hash()
+	evHash := ev.Hash()
+	return bytes.Equal(dveHash.Bytes(), evHash.Bytes())
+}
+
+// ValidateBasic performs basic validation.
+func (dve *DuplicateVoteEvidence) ValidateBasic() error {
+	if dve == nil {
+		return errors.New("empty duplicate vote evidence")
+	}
+
+	if dve.VoteA == nil || dve.VoteB == nil {
+		return fmt.Errorf("one or both of the votes are empty %v, %v", dve.VoteA, dve.VoteB)
+	}
+	// if err := dve.VoteA.ValidateBasic(); err != nil {
+	// 	return fmt.Errorf("invalid VoteA: %w", err)
+	// }
+	// if err := dve.VoteB.ValidateBasic(); err != nil {
+	// 	return fmt.Errorf("invalid VoteB: %w", err)
+	// }
+	// Enforce Votes are lexicographically sorted on blockID
+	if strings.Compare(dve.VoteA.BlockID.Key(), dve.VoteB.BlockID.Key()) >= 0 {
+		return errors.New("duplicate votes in invalid order")
+	}
+	return nil
+}
+
+// Verify returns an error if the two votes aren't conflicting.
+// To be conflicting, they must be from the same validator, for the same H/R/S, but for different blocks.
+func (dve *DuplicateVoteEvidence) Verify(chainID string, addr common.Address) error {
+	// H/R/S must be the same
+	if dve.VoteA.Height != dve.VoteB.Height ||
+		dve.VoteA.Round != dve.VoteB.Round ||
+		dve.VoteA.Type != dve.VoteB.Type {
+		return fmt.Errorf("duplicateVoteEvidence Error: H/R/S does not match. Got %v and %v", dve.VoteA, dve.VoteB)
+	}
+
+	// Address must be the same
+	if !bytes.Equal(dve.VoteA.ValidatorAddress.Bytes(), dve.VoteB.ValidatorAddress.Bytes()) {
+		return fmt.Errorf(
+			"duplicateVoteEvidence Error: Validator addresses do not match. Got %X and %X",
+			dve.VoteA.ValidatorAddress,
+			dve.VoteB.ValidatorAddress,
+		)
+	}
+
+	// Index must be the same
+	if dve.VoteA.ValidatorIndex != dve.VoteB.ValidatorIndex {
+		return fmt.Errorf(
+			"duplicateVoteEvidence Error: Validator indices do not match. Got %d and %d",
+			dve.VoteA.ValidatorIndex,
+			dve.VoteB.ValidatorIndex,
+		)
+	}
+
+	// BlockIDs must be different
+	if dve.VoteA.BlockID.Equal(dve.VoteB.BlockID) {
+		return fmt.Errorf(
+			"duplicateVoteEvidence Error: BlockIDs are the same (%v) - not a real duplicate vote",
+			dve.VoteA.BlockID,
+		)
+	}
+
+	// pubkey must match address (this should already be true, sanity check)
+	vaddr := dve.VoteA.ValidatorAddress
+	if !bytes.Equal(vaddr.Bytes(), addr.Bytes()) {
+		return fmt.Errorf("duplicateVoteEvidence FAILED SANITY CHECK - address doesn't match validator addr (%v - %X)",
+			vaddr, addr)
+	}
+
+	if !VerifySignature(addr, crypto.Keccak256(dve.VoteA.SignBytes(chainID)), dve.VoteA.Signature) {
+		return fmt.Errorf("duplicateVoteEvidence Error verifying VoteA: %v", ErrVoteInvalidSignature)
+	}
+
+	if !VerifySignature(addr, crypto.Keccak256(dve.VoteB.SignBytes(chainID)), dve.VoteB.Signature) {
+		return fmt.Errorf("duplicateVoteEvidence Error verifying VoteB: %v", ErrVoteInvalidSignature)
+	}
+
+	return nil
+}
+
+// NewDuplicateVoteEvidence creates DuplicateVoteEvidence with right ordering given
+// two conflicting votes. If one of the votes is nil, evidence returned is nil as well
+func NewDuplicateVoteEvidence(vote1, vote2 *Vote, time time.Time) *DuplicateVoteEvidence {
+	var voteA, voteB *Vote
+	if vote1 == nil || vote2 == nil {
+		return nil
+	}
+	if strings.Compare(vote1.BlockID.Key(), vote2.BlockID.Key()) == -1 {
+		voteA = vote1
+		voteB = vote2
+	} else {
+		voteA = vote2
+		voteB = vote1
+	}
+	return &DuplicateVoteEvidence{
+		VoteA: voteA,
+		VoteB: voteB,
+
+		Timestamp: time,
+	}
 }

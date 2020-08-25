@@ -25,7 +25,6 @@ import (
 	"time"
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
@@ -44,15 +43,16 @@ type ErrVoteConflictingVotes struct {
 }
 
 func (err *ErrVoteConflictingVotes) Error() string {
-	return fmt.Sprintf("Conflicting votes from validator %v", crypto.PubkeyToAddress(err.PubKey))
+	return fmt.Sprintf("Conflicting votes from validator %v", err.Addr)
 }
 
+// NewConflictingVoteError ...
 func NewConflictingVoteError(val *Validator, voteA, voteB *Vote) *ErrVoteConflictingVotes {
 	return &ErrVoteConflictingVotes{
 		&DuplicateVoteEvidence{
-			PubKey: val.PubKey,
-			VoteA:  voteA,
-			VoteB:  voteB,
+			Addr:  val.Address,
+			VoteA: voteA,
+			VoteB: voteB,
 		},
 	}
 }
