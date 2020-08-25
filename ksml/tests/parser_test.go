@@ -3,10 +3,15 @@ package tests
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
+	"testing"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	message2 "github.com/kardiachain/go-kardiamain/dualnode/message"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/ksml"
-	"github.com/kardiachain/go-kardiamain/ksml/proto"
+	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
@@ -16,12 +21,9 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 	kaiType "github.com/kardiachain/go-kardiamain/types"
 	"github.com/stretchr/testify/require"
-	"math/big"
-	"testing"
 )
 
-type MemoryDbInfo struct {}
-
+type MemoryDbInfo struct{}
 
 func NewMemoryDbInfo() *MemoryDbInfo {
 	return &MemoryDbInfo{}
@@ -31,8 +33,8 @@ func (db *MemoryDbInfo) Name() string {
 	return "Memory"
 }
 
-func (db *MemoryDbInfo) Start() (types.Database, error) {
-	return types.NewMemStore(), nil
+func (db *MemoryDbInfo) Start() (types.StoreDB, error) {
+	return kvstore.NewStoreDB(memorydb.New()), nil
 }
 
 func TestGetPrefix_WithoutPrefix(t *testing.T) {
@@ -102,10 +104,10 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 	contractAddress := common.HexToAddress("0x0A")
 
 	smc := &kaiType.KardiaSmartcontract{
-		MasterSmc:      contractAddress.Hex(),
-		SmcAddress:     contractAddress.Hex(),
-		MasterAbi:      sampleDefinition,
-		SmcAbi:         sampleDefinition,
+		MasterSmc:  contractAddress.Hex(),
+		SmcAddress: contractAddress.Hex(),
+		MasterAbi:  sampleDefinition,
+		SmcAbi:     sampleDefinition,
 	}
 	db.WriteEvent(smc)
 
@@ -141,14 +143,10 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 	}
 
 	txConfig := tx_pool.TxPoolConfig{
-		GlobalSlots:  64,
-		GlobalQueue:  5120000,
-
-		NumberOfWorkers: 3,
-		WorkerCap: 512,
-		BlockSize: 7192,
+		GlobalSlots: 64,
+		GlobalQueue: 5120000,
 	}
-	txPool := tx_pool.NewTxPool(logger.New(), txConfig, chainConfig, bc)
+	txPool := tx_pool.NewTxPool(txConfig, chainConfig, bc)
 
 	// mock function stimulates publish function
 	publishFunc := func(endpoint string, topic string, msg message2.TriggerMessage) error {
@@ -161,7 +159,7 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 		return nil
 	}
 
-	return ksml.NewParser("ETH", "0.0.0.0:5555", publishFunc, bc, txPool, &contractAddress, globalPatterns,globalMessage, true), nil
+	return ksml.NewParser("ETH", "0.0.0.0:5555", publishFunc, bc, txPool, &contractAddress, globalPatterns, globalMessage, true), nil
 }
 
 func TestParseParams_withReturn(t *testing.T) {
@@ -324,11 +322,11 @@ func TestSimulateDexDepositETHEvent(t *testing.T) {
 	// assume that all contract call/trigger are correct. Only test normal actions
 	// event message is a result generated from watcherActions
 	msg := &message.EventMessage{
-		From: "ETH",
-		To: "NEO",
-		Amount: 64821330000000000,
+		From:          "ETH",
+		To:            "NEO",
+		Amount:        64821330000000000,
 		TransactionId: "0xc123b0326e4af41026c640565c58bb2977212f40b126411525c088c89e83014f",
-		Sender: "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6",
+		Sender:        "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6",
 		Params: []string{
 			"AK2nJJpJr6o664CWJKi1QRXjqeic2zRp8y",
 			"NEO",
@@ -371,11 +369,11 @@ func TestSimulateDexDepositTRX(t *testing.T) {
 	// assume that all contract call/trigger are correct. Only test normal actions
 	// event message is a result generated from watcherActions
 	msg := &message.EventMessage{
-		From: "TRX",
-		To: "ETH",
-		Amount: 16571000,
+		From:          "TRX",
+		To:            "ETH",
+		Amount:        16571000,
 		TransactionId: "375b6ee6ce8ccfd28ec7805b91190245ab926a04397bbaef6643627d658adf9f",
-		Sender: "TMm48VEk8foxwo5656DsAS58WKtgV7fYtH",
+		Sender:        "TMm48VEk8foxwo5656DsAS58WKtgV7fYtH",
 		Params: []string{
 			"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6",
 			"ETH",
@@ -408,11 +406,11 @@ func TestSimulateDexDepositNEO(t *testing.T) {
 	// assume that all contract call/trigger are correct. Only test normal actions
 	// event message is a result generated from watcherActions
 	msg := &message.EventMessage{
-		From: "NEO",
-		To: "ETH",
-		Amount: 6482133,
+		From:          "NEO",
+		To:            "ETH",
+		Amount:        6482133,
 		TransactionId: "728f62b40d778ac1dcaadf912a91fbbd6b9d4550723ec91b5089c950524fc087",
-		Sender: "AHJoAbhenvrgSqUpfLWuwy55Lyi596MEt3",
+		Sender:        "AHJoAbhenvrgSqUpfLWuwy55Lyi596MEt3",
 		Params: []string{
 			"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6",
 			"ETH",
