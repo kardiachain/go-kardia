@@ -70,10 +70,11 @@ func EvidenceToBytes(evidence Evidence) ([]byte, error) {
 		}
 		info.Payload = b
 		break
+	default:
+		return nil, fmt.Errorf("evidence is not recognized: %T", evidence)
 	}
 
-	b, err := rlp.EncodeToBytes(info)
-	return b, err
+	return rlp.EncodeToBytes(info)
 }
 
 // EvidenceFromBytes ...
@@ -91,8 +92,9 @@ func EvidenceFromBytes(b []byte) (Evidence, error) {
 			return nil, err
 		}
 		return duplicateVoteEvidence, nil
+	default:
+		return nil, errors.New("evidence is not recognized")
 	}
-	return nil, nil
 }
 
 // DuplicateVoteEvidence contains evidence a validator signed two conflicting votes.
