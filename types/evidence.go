@@ -22,13 +22,20 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"math/big"
 	"strings"
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
+)
+
+// EvidenceType enum type
+type EvidenceType uint8
+
+// EvidenceType
+const (
+	EvidenceDuplicateVote = EvidenceType(0x01)
 )
 
 // Evidence represents any provable malicious activity by a validator
@@ -49,7 +56,7 @@ type Evidence interface {
 
 // EvidenceInfo ...
 type EvidenceInfo struct {
-	Type    *big.Int
+	Type    EvidenceType
 	Payload []byte
 }
 
@@ -63,7 +70,7 @@ func EvidenceToBytes(evidence Evidence) ([]byte, error) {
 
 	switch evi := evidence.(type) {
 	case *DuplicateVoteEvidence:
-		info.Type = big.NewInt(1)
+		info.Type = EvidenceDuplicateVote
 		b, err := rlp.EncodeToBytes(evi)
 		if err != nil {
 			return nil, err
@@ -85,8 +92,8 @@ func EvidenceFromBytes(b []byte) (Evidence, error) {
 		return nil, err
 	}
 
-	switch info.Type.Int64() {
-	case 1:
+	switch info.Type {
+	case EvidenceDuplicateVote:
 		duplicateVoteEvidence := &DuplicateVoteEvidence{}
 		if err := rlp.DecodeBytes(info.Payload, duplicateVoteEvidence); err != nil {
 			return nil, err
