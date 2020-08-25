@@ -841,6 +841,7 @@ func benchmarkNonModifyingCode(gas uint64, code []byte, name string, b *testing.
 	cfg := new(Config)
 	setDefaults(cfg)
 	state, _ := state.New(log.New(), common.Hash{}, state.NewDatabase(memorydb.New()))
+	cfg.State = state
 	cfg.GasLimit = gas
 	var (
 		destination = common.BytesToAddress([]byte("contract"))
