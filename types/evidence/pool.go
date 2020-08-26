@@ -19,6 +19,7 @@
 package evidence
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
@@ -93,4 +94,22 @@ func (evpool *Pool) listEvidence(prefixKey byte, maxNum int64) ([]types.Evidence
 		evidence = append(evidence, ev)
 	}
 	return evidence, nil
+}
+
+func (evpool *Pool) addPendingEvidence(evidence types.Evidence) error {
+	ev, err := types.EvidenceToBytes(evidence)
+	if err != nil {
+		return fmt.Errorf("unable to encode evidence: %s", err)
+	}
+	key := keyPending(evidence)
+	return evpool.evidenceStore.Put(key, ev)
+}
+
+func (evpool *Pool) removePendingEvidence(evidence types.Evidence) {
+	key := keyPending(evidence)
+	if err := evpool.evidenceStore.Delete(key); err != nil {
+		evpool.logger.Error("unable to delete pending evidence", "err", err)
+	} else {
+		evpool.logger.Info("Deleted pending evidence", "evidence", evidence)
+	}
 }
