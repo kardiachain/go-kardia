@@ -189,12 +189,7 @@ func (bo *DualBlockOperations) LoadBlockMeta(height uint64) *types.BlockMeta {
 // Returns the Block for the given height.
 // If no block is found for the given height, it returns nil.
 func (dbo *DualBlockOperations) LoadBlockCommit(height uint64) *types.Commit {
-	block := dbo.blockchain.GetBlockByHeight(height + 1)
-	if block == nil {
-		return nil
-	}
-
-	return block.LastCommit()
+	return dbo.blockchain.LoadBlockCommit(height)
 }
 
 // Returns the locally seen Commit for the given height.
