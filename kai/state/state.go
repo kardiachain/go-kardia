@@ -23,6 +23,8 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
+
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -31,6 +33,7 @@ import (
 var (
 	RefreshBackoffHeightStep = int64(200)
 	RefreshHeightDelta       = int64(20)
+	stateKey                 = []byte("stateKey")
 )
 
 // It keeps all information necessary to validate new blocks,
@@ -60,8 +63,8 @@ type LastestBlockState struct {
 	LastHeightValidatorsChanged *cmn.BigInt
 	NextValidators              *types.ValidatorSet
 
-	ConsensusParams types.ConsensusParams
-
+	ConsensusParams                  types.ConsensusParams
+	LastHeightConsensusParamsChanged int64
 	// TODO(namdoh): Add consensus parameters used for validating blocks.
 
 	// Merkle root of the results from executing prev block
@@ -157,4 +160,13 @@ func (state *LastestBlockState) mayRefreshValidatorSet() {
 func (state *LastestBlockState) fetchValidatorSet(height int64) *types.ValidatorSet {
 	// TODO(huny@): Update this.
 	return state.Validators
+}
+
+// Bytes ...
+func (state *LastestBlockState) Bytes() []byte {
+	b, err := rlp.EncodeToBytes(state)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }

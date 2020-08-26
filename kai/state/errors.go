@@ -18,6 +18,22 @@
 
 package state
 
+import "fmt"
+
 type (
-	ErrInvalidBlock error
+	ErrInvalidBlock      error
+	ErrNoValSetForHeight struct {
+		Height int64
+	}
+	ErrNoConsensusParamsForHeight struct {
+		Height int64
+	}
 )
+
+func (e ErrNoValSetForHeight) Error() string {
+	return fmt.Sprintf("could not find validator set for height #%d", e.Height)
+}
+
+func (e ErrNoConsensusParamsForHeight) Error() string {
+	return fmt.Sprintf("could not find consensus params for height #%d", e.Height)
+}
