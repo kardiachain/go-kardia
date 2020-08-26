@@ -74,7 +74,7 @@ func loadState(db kaidb.Database, key []byte) (state LastestBlockState) {
 // ValidatorsInfo represents the latest validator set, or the last height it changed
 type ValidatorsInfo struct {
 	ValidatorSet      *types.ValidatorSet
-	LastHeightChanged int64
+	LastHeightChanged uint64
 }
 
 // Bytes serializes the ValidatorsInfo using go-amino.
@@ -94,7 +94,7 @@ func LoadValidators(db kaidb.Database, height int64) (*types.ValidatorSet, error
 		return nil, ErrNoValSetForHeight{height}
 	}
 	if valInfo.ValidatorSet == nil {
-		lastStoredHeight := lastStoredHeightFor(height, valInfo.LastHeightChanged)
+		lastStoredHeight := lastStoredHeightFor(height, int64(valInfo.LastHeightChanged))
 		valInfo2 := loadValidatorsInfo(db, lastStoredHeight)
 		if valInfo2 == nil || valInfo2.ValidatorSet == nil {
 			panic(
@@ -149,7 +149,7 @@ func saveValidatorsInfo(db kaidb.Database, height, lastHeightChanged int64, valS
 		panic("LastHeightChanged cannot be greater than ValidatorsInfo height")
 	}
 	valInfo := &ValidatorsInfo{
-		LastHeightChanged: lastHeightChanged,
+		LastHeightChanged: uint64(lastHeightChanged),
 	}
 	// Only persist validator set if it was updated or checkpoint height (see
 	// valSetCheckpointInterval) is reached.

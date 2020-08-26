@@ -5,15 +5,15 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/types"
 )
 
 func TestStoreLoadValidators(t *testing.T) {
 	stateDB := memorydb.New()
 	val, _ := types.RandValidator(true, 10)
-	vals := types.NewValidatorSet([]*types.Validator{val})
+	vals := types.NewValidatorSet([]*types.Validator{val}, 0, 1)
 
 	// 1) LoadValidators loads validators using a height where they were last changed
 	state.SaveValidatorsInfo(stateDB, 1, 1, vals)

@@ -128,7 +128,7 @@ func (state LastestBlockState) String() string {
 //
 // Note: This must be called before commiting a block.
 func (state *LastestBlockState) mayRefreshValidatorSet() {
-	height := state.LastBlockHeight.Int64()
+	height := state.LastBlockHeight.Uint64()
 
 	// Case #1
 	currentVals := state.Validators
@@ -137,7 +137,7 @@ func (state *LastestBlockState) mayRefreshValidatorSet() {
 		if height >= nextVals.StartHeight && height <= nextVals.EndHeight {
 			state.Validators = state.PrefetchedFutureValidators
 		} else if height > nextVals.EndHeight {
-			state.Validators = state.fetchValidatorSet(height)
+			state.Validators = state.fetchValidatorSet(int64(height))
 		}
 		state.PrefetchedFutureValidators = nil
 	}
@@ -146,9 +146,9 @@ func (state *LastestBlockState) mayRefreshValidatorSet() {
 	currentVals = state.Validators
 	nextVals = state.PrefetchedFutureValidators
 	if nextVals != nil && height >= currentVals.StartHeight && height <= nextVals.EndHeight {
-		if height >= currentVals.EndHeight-RefreshBackoffHeightStep && nextVals != nil &&
-			(height-(currentVals.EndHeight-RefreshBackoffHeightStep))%RefreshHeightDelta == 0 /* check step-wise refresh */ {
-			state.PrefetchedFutureValidators = state.fetchValidatorSet(currentVals.EndHeight + 1)
+		if height >= currentVals.EndHeight-uint64(RefreshBackoffHeightStep) && nextVals != nil &&
+			(height-(currentVals.EndHeight-uint64(RefreshBackoffHeightStep)))%uint64(RefreshHeightDelta) == 0 /* check step-wise refresh */ {
+			state.PrefetchedFutureValidators = state.fetchValidatorSet(int64(currentVals.EndHeight + 1))
 		}
 	}
 
