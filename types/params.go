@@ -21,3 +21,9 @@ type EvidenceParams struct {
 	MaxAgeNumBlocks int64         `json:"max_age_num_blocks"` // only accept new evidence more recent than this
 	MaxAgeDuration  time.Duration `json:"max_age_duration"`
 }
+
+// ConsensusParams contains consensus critical parameters that determine the
+// validity of blocks.
+type ConsensusParams struct {
+	Evidence EvidenceParams `json:"evidence"`
+}

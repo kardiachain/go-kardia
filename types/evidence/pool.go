@@ -104,8 +104,8 @@ func (evpool *Pool) Update(block *types.Block, state state.LastestBlockState) {
 	if state.LastBlockHeight.Int64() != int64(block.Height()) {
 		panic(
 			fmt.Sprintf("Failed EvidencePool.Update sanity check: got state.Height=%d with block.Height=%d",
-				state.LastBlockHeight,
-				block.Height,
+				state.LastBlockHeight.Int64(),
+				block.Height(),
 			),
 		)
 	}

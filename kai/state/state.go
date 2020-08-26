@@ -20,10 +20,11 @@ package state
 
 import (
 	"fmt"
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/types"
 	"math/big"
 	"time"
+
+	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // TODO(namdoh): Move to a common config file.
@@ -57,6 +58,9 @@ type LastestBlockState struct {
 	Validators                  *types.ValidatorSet
 	LastValidators              *types.ValidatorSet
 	LastHeightValidatorsChanged *cmn.BigInt
+	NextValidators              *types.ValidatorSet
+
+	ConsensusParams types.ConsensusParams
 
 	// TODO(namdoh): Add consensus parameters used for validating blocks.
 
