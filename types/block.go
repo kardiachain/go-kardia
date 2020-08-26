@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -34,6 +35,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto/sha3"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/math"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/trie"
 )
@@ -79,7 +81,7 @@ type Header struct {
 	//@huny LastResultsHash common.Hash `json:"last_results_hash"` // root hash of all results from the txs from the previous block
 
 	// consensus info
-	//@huny EvidenceHash common.Hash `json:"evidence_hash"` // evidence included in the block
+	EvidenceHash common.Hash `json:"evidence_hash"` // evidence included in the block
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
@@ -160,6 +162,7 @@ type Block struct {
 	transactions Transactions
 	dualEvents   DualEvents
 	lastCommit   *Commit
+	evidence     EvidenceData
 
 	// caches
 	hash atomic.Value
@@ -172,6 +175,7 @@ type extblock struct {
 	Txs        []*Transaction
 	DualEvents []*DualEvent
 	LastCommit *Commit
+	Evidence   EvidenceData
 }
 
 // NewBlock creates a new block. The input data is copied,
@@ -211,6 +215,10 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommi
 	}
 
 	// TODO(namdoh): Store evidence hash.
+
+	if b.header.EvidenceHash.IsZero() {
+		b.header.EvidenceHash = b.evidence.Hash()
+	}
 
 	return b
 }
@@ -363,6 +371,7 @@ func (b *Block) Root() common.Hash           { return b.header.Root }
 func (b *Block) ReceiptHash() common.Hash    { return b.header.ReceiptHash }
 func (b *Block) Bloom() Bloom                { return b.header.Bloom }
 func (b *Block) LastCommit() *Commit         { return b.lastCommit }
+func (b *Block) Evidence() EvidenceData      { return b.evidence }
 
 // TODO(namdoh): This is a hack due to rlp nature of decode both nil or empty
 // struct pointer as nil. After encoding an empty struct and send it over to
@@ -616,4 +625,42 @@ func DeriveSha(list DerivableList) common.Hash {
 	return t.Hash()
 
 	//return common.BytesToHash([]byte(""))
+}
+
+//-----------------------------------------------------------------------------
+
+// EvidenceData contains any evidence of malicious wrong-doing by validators
+type EvidenceData struct {
+	Evidence EvidenceList `json:"evidence"`
+
+	// Volatile
+	hash common.Hash
+}
+
+// Hash returns the hash of the data.
+func (data *EvidenceData) Hash() common.Hash {
+	if data.hash.IsZero() {
+		data.hash = data.Evidence.Hash()
+	}
+	return data.hash
+}
+
+// StringIndented returns a string representation of the evidence.
+func (data *EvidenceData) StringIndented(indent string) string {
+	if data == nil {
+		return "nil-Evidence"
+	}
+	evStrings := make([]string, math.MinInt(len(data.Evidence), 21))
+	for i, ev := range data.Evidence {
+		if i == 20 {
+			evStrings[i] = fmt.Sprintf("... (%v total)", len(data.Evidence))
+			break
+		}
+		evStrings[i] = fmt.Sprintf("Evidence:%v", ev)
+	}
+	return fmt.Sprintf(`EvidenceData{
+%s  %v
+%s}#%v`,
+		indent, strings.Join(evStrings, "\n"+indent+"  "),
+		indent, data.hash)
 }

@@ -253,3 +253,42 @@ func NewDuplicateVoteEvidence(vote1, vote2 *Vote, time time.Time) *DuplicateVote
 		Timestamp: time,
 	}
 }
+
+//-------------------------------------------
+
+// EvidenceList is a list of Evidence. Evidences is not a word.
+type EvidenceList []Evidence
+
+// Hash returns the simple merkle root hash of the EvidenceList.
+func (evl EvidenceList) Hash() common.Hash {
+	return DeriveSha(evl)
+}
+
+func (evl EvidenceList) String() string {
+	s := ""
+	for _, e := range evl {
+		s += fmt.Sprintf("%s\t\t", e)
+	}
+	return s
+}
+
+// Has returns true if the evidence is in the EvidenceList.
+func (evl EvidenceList) Has(evidence Evidence) bool {
+	for _, ev := range evl {
+		if ev.Equal(evidence) {
+			return true
+		}
+	}
+	return false
+}
+
+// GetRlp implements Rlpable and returns the i'th element of s in rlp.
+func (evl EvidenceList) GetRlp(i int) []byte {
+	enc, _ := rlp.EncodeToBytes(evl[i])
+	return enc
+}
+
+// Len ...
+func (evl EvidenceList) Len() int {
+	return len(evl)
+}

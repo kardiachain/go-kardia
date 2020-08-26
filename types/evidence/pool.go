@@ -116,7 +116,7 @@ func (evpool *Pool) Update(block *types.Block, state state.LastestBlockState) {
 	evpool.mtx.Unlock()
 
 	// remove evidence from pending and mark committed
-	evpool.MarkEvidenceAsCommitted(block.Height, block.Time, block.Evidence.Evidence)
+	evpool.MarkEvidenceAsCommitted(int64(block.Height()), time.Unix(block.Time().Int64(), 0), block.Evidence().Evidence)
 }
 
 // MarkEvidenceAsCommitted marks all the evidence as committed and removes it from the queue.
