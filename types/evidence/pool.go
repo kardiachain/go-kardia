@@ -21,6 +21,7 @@ package evidence
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/kai/state"
@@ -30,11 +31,11 @@ import (
 )
 
 // Pool maintains a pool of valid evidence
-// in an EvidenceStore.
+// in an Store.
 type Pool struct {
 	logger log.Logger
 
-	evidenceStore kaidb.Database
+	store *Store
 
 	evidenceList *clist.CList // concurrent linked-list of evidence
 
@@ -47,11 +48,6 @@ type Pool struct {
 	blockStore BlockStore
 
 	mtx sync.Mutex
-
-	// This is the closest height where at one or more of the current trial periods
-	// will have ended and we will need to then upgrade the evidence to amnesia evidence.
-	// It is set to -1 when we don't have any evidence on trial.
-	nextEvidenceTrialEndedHeight int64
 }
 
 // NewPool creates an evidence pool. If using an existing evidence store,
@@ -59,57 +55,107 @@ type Pool struct {
 func NewPool(evidenceDB kaidb.Database, stateDB StateStore, blockStore BlockStore) (*Pool, error) {
 	state := stateDB.LoadState()
 	pool := &Pool{
-		blockStore:                   blockStore,
-		stateDB:                      stateDB,
-		state:                        state,
-		logger:                       log.New(),
-		evidenceStore:                evidenceDB,
-		nextEvidenceTrialEndedHeight: -1,
+		blockStore: blockStore,
+		stateDB:    stateDB,
+		state:      state,
+		logger:     log.New(),
+		store:      NewStore(evidenceDB),
 	}
 	return pool, nil
 }
 
-// PendingEvidence is used primarily as part of block proposal and returns up to maxNum of uncommitted evidence.
-// If maxNum is -1, all evidence is returned. Pending evidence is prioritized based on time.
-func (evpool *Pool) PendingEvidence(maxNum uint32) []types.Evidence {
-	return nil
+// EvidenceFront ...
+func (evpool *Pool) EvidenceFront() *clist.CElement {
+	return evpool.evidenceList.Front()
 }
 
-// listEvidence lists up to maxNum pieces of evidence for the given prefix key.
-// If maxNum is -1, there's no cap on the size of returned evidence.
-func (evpool *Pool) listEvidence(prefixKey byte, maxNum int64) ([]types.Evidence, error) {
-	var count int64
-	var evidence []types.Evidence
-	iter := evpool.evidenceStore.NewIteratorWithPrefix([]byte{prefixKey})
-	for iter.Next() {
-		if count == maxNum {
-			return evidence, nil
+// EvidenceWaitChan ...
+func (evpool *Pool) EvidenceWaitChan() <-chan struct{} {
+	return evpool.evidenceList.WaitChan()
+}
+
+// SetLogger sets the Logger.
+func (evpool *Pool) SetLogger(l log.Logger) {
+	evpool.logger = l
+}
+
+// PriorityEvidence returns the priority evidence.
+func (evpool *Pool) PriorityEvidence() []types.Evidence {
+	return evpool.store.PriorityEvidence()
+}
+
+// PendingEvidence returns up to maxNum uncommitted evidence.
+// If maxNum is -1, all evidence is returned.
+func (evpool *Pool) PendingEvidence(maxNum int64) []types.Evidence {
+	return evpool.store.PendingEvidence(maxNum)
+}
+
+// State returns the current state of the evpool.
+func (evpool *Pool) State() state.LastestBlockState {
+	evpool.mtx.Lock()
+	defer evpool.mtx.Unlock()
+	return evpool.state
+}
+
+// Update loads the latest
+func (evpool *Pool) Update(block *types.Block, state state.LastestBlockState) {
+
+	// sanity check
+	if state.LastBlockHeight.Int64() != int64(block.Height()) {
+		panic(
+			fmt.Sprintf("Failed EvidencePool.Update sanity check: got state.Height=%d with block.Height=%d",
+				state.LastBlockHeight,
+				block.Height,
+			),
+		)
+	}
+
+	// update the state
+	evpool.mtx.Lock()
+	evpool.state = state
+	evpool.mtx.Unlock()
+
+	// remove evidence from pending and mark committed
+	evpool.MarkEvidenceAsCommitted(block.Height, block.Time, block.Evidence.Evidence)
+}
+
+// MarkEvidenceAsCommitted marks all the evidence as committed and removes it from the queue.
+func (evpool *Pool) MarkEvidenceAsCommitted(height int64, lastBlockTime time.Time, evidence []types.Evidence) {
+	// make a map of committed evidence to remove from the clist
+	blockEvidenceMap := make(map[string]struct{})
+	for _, ev := range evidence {
+		evpool.store.MarkEvidenceAsCommitted(ev)
+		blockEvidenceMap[evMapKey(ev)] = struct{}{}
+	}
+
+	// remove committed evidence from the clist
+	//evidenceParams := evpool.State().ConsensusParams.Evidence
+	//evpool.removeEvidence(height, lastBlockTime, evidenceParams, blockEvidenceMap)
+}
+
+func (evpool *Pool) removeEvidence(
+	height int64,
+	lastBlockTime time.Time,
+	params types.EvidenceParams,
+	blockEvidenceMap map[string]struct{}) {
+
+	for e := evpool.evidenceList.Front(); e != nil; e = e.Next() {
+		var (
+			ev           = e.Value.(types.Evidence)
+			ageDuration  = lastBlockTime.Sub(ev.Time())
+			ageNumBlocks = height - ev.Height().Int64()
+		)
+
+		// Remove the evidence if it's already in a block or if it's now too old.
+		if _, ok := blockEvidenceMap[evMapKey(ev)]; ok ||
+			(ageDuration > params.MaxAgeDuration && ageNumBlocks > params.MaxAgeNumBlocks) {
+			// remove from clist
+			evpool.evidenceList.Remove(e)
+			e.DetachPrev()
 		}
-		count++
-		val := iter.Value()
-		ev, err := types.EvidenceFromBytes(val)
-		if err != nil {
-			return nil, err
-		}
-		evidence = append(evidence, ev)
 	}
-	return evidence, nil
 }
 
-func (evpool *Pool) addPendingEvidence(evidence types.Evidence) error {
-	ev, err := types.EvidenceToBytes(evidence)
-	if err != nil {
-		return fmt.Errorf("unable to encode evidence: %s", err)
-	}
-	key := keyPending(evidence)
-	return evpool.evidenceStore.Put(key, ev)
-}
-
-func (evpool *Pool) removePendingEvidence(evidence types.Evidence) {
-	key := keyPending(evidence)
-	if err := evpool.evidenceStore.Delete(key); err != nil {
-		evpool.logger.Error("unable to delete pending evidence", "err", err)
-	} else {
-		evpool.logger.Info("Deleted pending evidence", "evidence", evidence)
-	}
+func evMapKey(ev types.Evidence) string {
+	return ev.Hash().String()
 }

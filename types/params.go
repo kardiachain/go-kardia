@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 const (
 	// MaxBlockSizeBytes is the maximum permitted size of the blocks.
 	MaxBlockSizeBytes = 104857600 // 100MB
@@ -13,3 +15,9 @@ const (
 	// Restrict the upper bound of the amount of evidence (uses uint16 for safe conversion)
 	MaxEvidencePerBlock = 65535
 )
+
+// EvidenceParams determine how we handle evidence of malfeasance.
+type EvidenceParams struct {
+	MaxAgeNumBlocks int64         `json:"max_age_num_blocks"` // only accept new evidence more recent than this
+	MaxAgeDuration  time.Duration `json:"max_age_duration"`
+}
