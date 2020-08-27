@@ -41,6 +41,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/rpc"
+	"github.com/kardiachain/go-kardiamain/types"
 	"golang.org/x/net/websocket"
 )
 
@@ -509,6 +510,10 @@ func (s *snapshotService) Start(*p2p.Server) error {
 }
 
 func (s *snapshotService) Stop() error {
+	return nil
+}
+
+func (s *snapshotService) DB() types.StoreDB {
 	return nil
 }
 
