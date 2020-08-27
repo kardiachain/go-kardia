@@ -70,7 +70,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	logger.AddTag(DualServiceName)
 	logger.Info("newDualService", "chaintype", config.DBInfo.Name())
 
-	groupDb, err := ctx.Config.StartDatabase(config.DBInfo)
+	groupDb, err := ctx.StartDatabase(config.DBInfo)
 	if err != nil {
 		return nil, err
 	}
