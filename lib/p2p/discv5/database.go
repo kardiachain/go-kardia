@@ -1,4 +1,4 @@
-// Copyright 2014 The go-ethereum Authors
+// Copyright 2015 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -17,14 +17,13 @@
 // Contains the node database, storing previously seen nodes and any collected
 // metadata about them for QoS purposes.
 
-// Kardia simplified implementation of go-ethereum nodedb.go
-
-package discover
+package discv5
 
 import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -59,10 +58,12 @@ var (
 	nodeDBVersionKey = []byte("version") // Version of the database to flush if changes
 	nodeDBItemPrefix = []byte("n:")      // Identifier to prefix node entries with
 
-	nodeDBDiscoverRoot      = ":discover"
-	nodeDBDiscoverPing      = nodeDBDiscoverRoot + ":lastping"
-	nodeDBDiscoverPong      = nodeDBDiscoverRoot + ":lastpong"
-	nodeDBDiscoverFindFails = nodeDBDiscoverRoot + ":findfail"
+	nodeDBDiscoverRoot          = ":discover"
+	nodeDBDiscoverPing          = nodeDBDiscoverRoot + ":lastping"
+	nodeDBDiscoverPong          = nodeDBDiscoverRoot + ":lastpong"
+	nodeDBDiscoverFindFails     = nodeDBDiscoverRoot + ":findfail"
+	nodeDBDiscoverLocalEndpoint = nodeDBDiscoverRoot + ":localendpoint"
+	nodeDBTopicRegTickets       = ":tickets"
 )
 
 // newNodeDB creates a new node database for storing and retrieving infos about
@@ -173,32 +174,42 @@ func (db *nodeDB) fetchInt64(key []byte) int64 {
 func (db *nodeDB) storeInt64(key []byte, n int64) error {
 	blob := make([]byte, binary.MaxVarintLen64)
 	blob = blob[:binary.PutVarint(blob, n)]
-
 	return db.lvl.Put(key, blob, nil)
+}
+
+func (db *nodeDB) storeRLP(key []byte, val interface{}) error {
+	blob, err := rlp.EncodeToBytes(val)
+	if err != nil {
+		return err
+	}
+	return db.lvl.Put(key, blob, nil)
+}
+
+func (db *nodeDB) fetchRLP(key []byte, val interface{}) error {
+	blob, err := db.lvl.Get(key, nil)
+	if err != nil {
+		return err
+	}
+	err = rlp.DecodeBytes(blob, val)
+	if err != nil {
+		log.Warn(fmt.Sprintf("key %x (%T) %v", key, val, err))
+	}
+	return err
 }
 
 // node retrieves a node with a given id from the database.
 func (db *nodeDB) node(id NodeID) *Node {
-	blob, err := db.lvl.Get(makeKey(id, nodeDBDiscoverRoot), nil)
-	if err != nil {
-		return nil
-	}
-	node := new(Node)
-	if err := rlp.DecodeBytes(blob, node); err != nil {
-		log.Error("Failed to decode node RLP", "err", err)
+	var node Node
+	if err := db.fetchRLP(makeKey(id, nodeDBDiscoverRoot), &node); err != nil {
 		return nil
 	}
 	node.sha = crypto.Keccak256Hash(node.ID[:])
-	return node
+	return &node
 }
 
 // updateNode inserts - potentially overwriting - a node into the peer database.
 func (db *nodeDB) updateNode(node *Node) error {
-	blob, err := rlp.EncodeToBytes(node)
-	if err != nil {
-		return err
-	}
-	return db.lvl.Put(makeKey(node.ID, nodeDBDiscoverRoot), blob, nil)
+	return db.storeRLP(makeKey(node.ID, nodeDBDiscoverRoot), node)
 }
 
 // deleteNode deletes all information/keys associated with a node.
@@ -234,7 +245,7 @@ func (db *nodeDB) expirer() {
 		select {
 		case <-tick.C:
 			if err := db.expireNodes(); err != nil {
-				log.Error("Failed to expire nodedb items", "err", err)
+				log.Error(fmt.Sprintf("Failed to expire nodedb items: %v", err))
 			}
 		case <-db.quit:
 			return
@@ -259,7 +270,7 @@ func (db *nodeDB) expireNodes() error {
 		}
 		// Skip the node if not expired yet (and not self)
 		if !bytes.Equal(id[:], db.self[:]) {
-			if seen := db.bondTime(id); seen.After(threshold) {
+			if seen := db.lastPong(id); seen.After(threshold) {
 				continue
 			}
 		}
@@ -280,18 +291,13 @@ func (db *nodeDB) updateLastPing(id NodeID, instance time.Time) error {
 	return db.storeInt64(makeKey(id, nodeDBDiscoverPing), instance.Unix())
 }
 
-// bondTime retrieves the time of the last successful pong from remote node.
-func (db *nodeDB) bondTime(id NodeID) time.Time {
+// lastPong retrieves the time of the last successful contact from remote node.
+func (db *nodeDB) lastPong(id NodeID) time.Time {
 	return time.Unix(db.fetchInt64(makeKey(id, nodeDBDiscoverPong)), 0)
 }
 
-// hasBond reports whether the given node is considered bonded.
-func (db *nodeDB) hasBond(id NodeID) bool {
-	return time.Since(db.bondTime(id)) < nodeDBNodeExpiration
-}
-
-// updateBondTime updates the last pong time of a node.
-func (db *nodeDB) updateBondTime(id NodeID, instance time.Time) error {
+// updateLastPong updates the last time a remote node successfully contacted.
+func (db *nodeDB) updateLastPong(id NodeID, instance time.Time) error {
 	return db.storeInt64(makeKey(id, nodeDBDiscoverPong), instance.Unix())
 }
 
@@ -303,6 +309,20 @@ func (db *nodeDB) findFails(id NodeID) int {
 // updateFindFails updates the number of findnode failures since bonding.
 func (db *nodeDB) updateFindFails(id NodeID, fails int) error {
 	return db.storeInt64(makeKey(id, nodeDBDiscoverFindFails), int64(fails))
+}
+
+// localEndpoint returns the last local endpoint communicated to the
+// given remote node.
+func (db *nodeDB) localEndpoint(id NodeID) *rpcEndpoint {
+	var ep rpcEndpoint
+	if err := db.fetchRLP(makeKey(id, nodeDBDiscoverLocalEndpoint), &ep); err != nil {
+		return nil
+	}
+	return &ep
+}
+
+func (db *nodeDB) updateLocalEndpoint(id NodeID, ep rpcEndpoint) error {
+	return db.storeRLP(makeKey(id, nodeDBDiscoverLocalEndpoint), &ep)
 }
 
 // querySeeds retrieves random nodes to be used as potential seed nodes
@@ -334,7 +354,7 @@ seek:
 		if n.ID == db.self {
 			continue seek
 		}
-		if now.Sub(db.bondTime(n.ID)) > maxAge {
+		if now.Sub(db.lastPong(n.ID)) > maxAge {
 			continue seek
 		}
 		for i := range nodes {
@@ -347,6 +367,25 @@ seek:
 	return nodes
 }
 
+func (db *nodeDB) fetchTopicRegTickets(id NodeID) (issued, used uint32) {
+	key := makeKey(id, nodeDBTopicRegTickets)
+	blob, _ := db.lvl.Get(key, nil)
+	if len(blob) != 8 {
+		return 0, 0
+	}
+	issued = binary.BigEndian.Uint32(blob[0:4])
+	used = binary.BigEndian.Uint32(blob[4:8])
+	return
+}
+
+func (db *nodeDB) updateTopicRegTickets(id NodeID, issued, used uint32) error {
+	key := makeKey(id, nodeDBTopicRegTickets)
+	blob := make([]byte, 8)
+	binary.BigEndian.PutUint32(blob[0:4], issued)
+	binary.BigEndian.PutUint32(blob[4:8], used)
+	return db.lvl.Put(key, blob, nil)
+}
+
 // reads the next node record from the iterator, skipping over other
 // database entries.
 func nextNode(it iterator.Iterator) *Node {
@@ -357,7 +396,7 @@ func nextNode(it iterator.Iterator) *Node {
 		}
 		var n Node
 		if err := rlp.DecodeBytes(it.Value(), &n); err != nil {
-			log.Warn("Failed to decode node RLP", "id", id, "err", err)
+			log.Warn(fmt.Sprintf("invalid node %x: %v", id, err))
 			continue
 		}
 		return &n
