@@ -81,7 +81,6 @@ var DefaultConfig = node.Config{
 		IsPrivate: true,
 		IsZeroFee: true,
 		Genesis:   genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts),
-		EnvConfig: node.NewEnvironmentConfig(),
 	},
 }
 
@@ -152,7 +151,6 @@ func SetUp(config *Config) (nodeConfig *node.Config, err error) {
 	}
 	nodeConfig.MainChainConfig.ValidatorIndexes, err = getIntArray(*config.ValidatorsIndices)
 	nodeConfig.MainChainConfig.TxPool = *tx_pool.GetDefaultTxPoolConfig(nodeDir)
-	nodeConfig.MainChainConfig.EnvConfig.SetProposerIndex(config.Proposal-1, len(dev.Nodes))
 	return nodeConfig, nil
 }
 

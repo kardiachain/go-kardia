@@ -23,7 +23,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -84,10 +86,6 @@ type MainChainConfig struct {
 
 	// BaseAccount defines account which is used to execute internal smart contracts
 	BaseAccount *types.BaseAccount
-
-	// ======== DEV ENVIRONMENT CONFIG =========
-	// Configuration of this environment when running in dev environment.
-	EnvConfig *EnvironmentConfig
 }
 
 type DualChainConfig struct {
@@ -115,10 +113,6 @@ type DualChainConfig struct {
 
 	// BaseAccount defines account which is used to execute internal smart contracts
 	BaseAccount *types.BaseAccount
-
-	// ======== DEV ENVIRONMENT CONFIG =========
-	// Configuration of this environment when running in dev environment.
-	EnvConfig *EnvironmentConfig
 
 	// Dual Network ID
 	DualNetworkID uint64
@@ -635,4 +629,10 @@ func GetNodeMetadataFromSmc(bc *base.BaseBlockChain, valIndices []int) ([]NodeMe
 		nodes = append(nodes, *n)
 	}
 	return nodes, nil
+}
+
+// GetNodeIndex returns the index of node based on last digits in string
+func GetNodeIndex(nodeName string) (int, error) {
+	reg, _ := regexp.Compile("[0-9]+\\z")
+	return strconv.Atoi(reg.FindString(nodeName))
 }

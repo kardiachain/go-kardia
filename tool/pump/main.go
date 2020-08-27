@@ -208,7 +208,6 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		NetworkId:        chain.NetworkID,
 		ChainId:          chain.ChainID,
 		ServiceName:      chain.ServiceName,
-		EnvConfig:        nil,
 		BaseAccount:      baseAccount,
 	}
 	return &mainChainConfig, nil
@@ -243,7 +242,6 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		DualNetworkID:    c.DualChain.NetworkID,
 		ChainId:          c.DualChain.ChainID,
 		DualProtocolName: *c.DualChain.Protocol,
-		EnvConfig:        nil,
 		BaseAccount:      baseAccount,
 	}
 	return &dualChainConfig, nil
