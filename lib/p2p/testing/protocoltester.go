@@ -40,6 +40,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/rpc"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // ProtocolTester is the tester environment used for unit testing protocol
@@ -150,6 +151,10 @@ func (t *testNode) Stop() error {
 	return nil
 }
 
+func (s *testNode) DB() types.StoreDB {
+	return nil
+}
+
 // mockNode is a testNode which doesn't actually run a protocol, instead
 // exposing channels so that tests can manually trigger and expect certain
 // messages
@@ -202,6 +207,10 @@ func (m *mockNode) Expect(exp ...Expect) error {
 
 func (m *mockNode) Stop() error {
 	m.stopOnce.Do(func() { close(m.stop) })
+	return nil
+}
+
+func (s *mockNode) DB() types.StoreDB {
 	return nil
 }
 

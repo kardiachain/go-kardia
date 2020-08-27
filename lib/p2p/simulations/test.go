@@ -23,6 +23,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enr"
 	"github.com/kardiachain/go-kardiamain/rpc"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // NoopService is the service that does not do anything
@@ -71,6 +72,10 @@ func (t *NoopService) Start(server *p2p.Server) error {
 }
 
 func (t *NoopService) Stop() error {
+	return nil
+}
+
+func (s *NoopService) DB() types.StoreDB {
 	return nil
 }
 

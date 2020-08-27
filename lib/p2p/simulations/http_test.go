@@ -36,6 +36,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p/simulations/adapters"
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/rpc"
+	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/mattn/go-colorable"
 )
 
@@ -131,6 +132,10 @@ func (t *testService) Start(server *p2p.Server) error {
 }
 
 func (t *testService) Stop() error {
+	return nil
+}
+
+func (s *testService) DB() types.StoreDB {
 	return nil
 }
 
