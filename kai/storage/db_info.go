@@ -19,7 +19,6 @@
 package storage
 
 import (
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/leveldb"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
@@ -84,14 +83,13 @@ func (info *LevelDbInfo) Start() (types.StoreDB, error) {
 	return kvstore.NewStoreDB(db), nil
 }
 
-func NewMemoryDatabase() (*kvstore.StoreDB, error) {
-	storeDB := kvstore.NewStoreDB(memorydb.New())
-	return storeDB, nil
+func NewMemoryDatabase() types.StoreDB {
+	return kvstore.NewStoreDB(memorydb.New())
 }
 
 // NewLevelDBDatabase creates a persistent key-value database without a freezer
 // moving immutable chain segments into cold storage.
-func NewLevelDBDatabase(file string, cache int, handles int, namespace string) (kaidb.Database, error) {
+func NewLevelDBDatabase(file string, cache int, handles int, namespace string) (types.StoreDB, error) {
 	db, err := leveldb.New(file, cache, handles, namespace)
 	if err != nil {
 		return nil, err
