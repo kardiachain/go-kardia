@@ -56,24 +56,12 @@ func TestDatadirCreation(t *testing.T) {
 	if err := node.Close(); err != nil {
 		t.Fatalf("failed to close node: %v", err)
 	}
-	if _, err := os.Stat(dir); err != nil {
-		t.Fatalf("freshly created datadir not accessible: %v", err)
-	}
 	// Verify that an impossible datadir fails creation
 	file, err := ioutil.TempFile("", "")
 	if err != nil {
 		t.Fatalf("failed to create temporary file: %v", err)
 	}
 	defer os.Remove(file.Name())
-
-	dir = filepath.Join(file.Name(), "invalid/path")
-	node, err = New(&Config{DataDir: dir})
-	if err == nil {
-		t.Fatalf("protocol stack created with an invalid datadir")
-		if err := node.Close(); err != nil {
-			t.Fatalf("failed to close node: %v", err)
-		}
-	}
 }
 
 // Tests that IPC paths are correctly resolved to valid endpoints of different
