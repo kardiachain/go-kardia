@@ -22,7 +22,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enr"
-	"github.com/kardiachain/go-kardiamain/lib/rpc"
+	"github.com/kardiachain/go-kardiamain/rpc"
 )
 
 // NoopService is the service that does not do anything

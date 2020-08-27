@@ -28,8 +28,8 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/simulations/pipes"
-	"github.com/kardiachain/go-kardiamain/lib/rpc"
 	"github.com/kardiachain/go-kardiamain/node"
+	"github.com/kardiachain/go-kardiamain/rpc"
 )
 
 // SimAdapter is a NodeAdapter which creates in-memory simulation nodes and

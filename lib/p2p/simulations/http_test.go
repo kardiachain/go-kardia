@@ -34,8 +34,8 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/simulations/adapters"
-	"github.com/kardiachain/go-kardiamain/lib/rpc"
 	"github.com/kardiachain/go-kardiamain/node"
+	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/mattn/go-colorable"
 )
 

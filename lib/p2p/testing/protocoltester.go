@@ -38,8 +38,8 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p/simulations"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/simulations/adapters"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
-	"github.com/kardiachain/go-kardiamain/lib/rpc"
 	"github.com/kardiachain/go-kardiamain/node"
+	"github.com/kardiachain/go-kardiamain/rpc"
 )
 
 // ProtocolTester is the tester environment used for unit testing protocol

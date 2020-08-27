@@ -31,8 +31,8 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enr"
-	"github.com/kardiachain/go-kardiamain/lib/rpc"
 	"github.com/kardiachain/go-kardiamain/node"
+	"github.com/kardiachain/go-kardiamain/rpc"
 )
 
 // Node represents a node in a simulation network which is created by a
