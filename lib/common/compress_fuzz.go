@@ -18,7 +18,7 @@
 
 // +build gofuzz
 
-package bitutil
+package common
 
 import "bytes"
 

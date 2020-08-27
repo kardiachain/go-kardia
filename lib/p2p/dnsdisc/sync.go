@@ -22,7 +22,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common/mclock"
+	"github.com/kardiachain/go-kardiamain/lib/mclock"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 )
 

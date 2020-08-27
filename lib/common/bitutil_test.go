@@ -4,7 +4,7 @@
 
 // Adapted from: https://golang.org/src/crypto/cipher/xor_test.go
 
-package bitutil
+package common
 
 import (
 	"bytes"

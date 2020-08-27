@@ -23,8 +23,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common/mclock"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/mclock"
 )
 
 const (

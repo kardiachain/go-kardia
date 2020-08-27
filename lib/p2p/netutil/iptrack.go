@@ -19,7 +19,7 @@ package netutil
 import (
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common/mclock"
+	"github.com/kardiachain/go-kardiamain/lib/mclock"
 )
 
 // IPTracker predicts the external endpoint, i.e. IP address and port, of the local host

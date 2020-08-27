@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/common/mclock"
+	"github.com/kardiachain/go-kardiamain/lib/mclock"
 )
 
 func TestTopicRadius(t *testing.T) {

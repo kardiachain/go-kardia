@@ -36,7 +36,7 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
-	"github.com/kardiachain/go-kardiamain/lib/common/bitutil"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/crypto/ecies"
 	"github.com/kardiachain/go-kardiamain/lib/metrics"
@@ -165,7 +165,7 @@ func readProtocolHandshake(rw MsgReader) (*protoHandshake, error) {
 	if err := msg.Decode(&hs); err != nil {
 		return nil, err
 	}
-	if len(hs.ID) != 64 || !bitutil.TestBytes(hs.ID) {
+	if len(hs.ID) != 64 || !common.TestBytes(hs.ID) {
 		return nil, DiscInvalidIdentity
 	}
 	return &hs, nil

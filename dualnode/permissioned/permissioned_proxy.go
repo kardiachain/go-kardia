@@ -22,6 +22,10 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
+	"math/big"
+	"strconv"
+	"strings"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/kai/base"
@@ -31,15 +35,12 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain"
+	kai "github.com/kardiachain/go-kardiamain/mainchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/pkg/errors"
-	"math/big"
-	"strconv"
-	"strings"
 )
 
 const SERVICE_NAME = "PRIVATE_DUAL"
@@ -120,12 +121,12 @@ func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain
 	}
 
 	// New node based on nodeConfig
-	n, err := node.NewNode(nodeConfig)
+	n, err := node.New(nodeConfig)
 	if err != nil {
 		return nil, err
 	}
 
-	n.RegisterService(kai.NewKardiaService)
+	n.Register(kai.NewKardiaService)
 
 	// Start node
 	if err := n.Start(); err != nil {

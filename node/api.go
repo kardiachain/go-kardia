@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kardiachain/go-kardiamain/lib/common/hexutil"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
@@ -314,6 +314,6 @@ func (s *PublicWeb3API) ClientVersion() string {
 
 // Sha3 applies the ethereum sha3 implementation on the input.
 // It assumes the input is hex encoded.
-func (s *PublicWeb3API) Sha3(input hexutil.Bytes) hexutil.Bytes {
+func (s *PublicWeb3API) Sha3(input common.Bytes) common.Bytes {
 	return crypto.Keccak256(input)
 }

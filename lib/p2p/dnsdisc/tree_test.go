@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/kardiachain/go-kardiamain/lib/common/hexutil"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 )
 
@@ -45,7 +45,7 @@ func TestParseRoot(t *testing.T) {
 				eroot: "QFT4PBCRX4XQCV3VUYJ6BTCEPU",
 				lroot: "JGUFMSAGI7KZYB3P7IZW4S5Y3A",
 				seq:   3,
-				sig:   hexutil.MustDecode("0xdc5997b95c296bc63b3acb594f1f4f21bd66b7c16b5bb5690ce16fe006860ac6761081e686b69685ee0dc588500e5c393237855d831b263b0f78a947ce62511101"),
+				sig:   common.MustDecode("0xdc5997b95c296bc63b3acb594f1f4f21bd66b7c16b5bb5690ce16fe006860ac6761081e686b69685ee0dc588500e5c393237855d831b263b0f78a947ce62511101"),
 			},
 		},
 	}

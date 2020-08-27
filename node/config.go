@@ -296,6 +296,9 @@ type Config struct {
 	// BaseAccount defines account which is used to execute internal smart contracts
 	BaseAccount *types.BaseAccount
 
+	// Metrics defines whether we want to collect and expose metrics of the node
+	Metrics uint
+
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
 	NodeMetadata *NodeMetadata

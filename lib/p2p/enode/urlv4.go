@@ -26,7 +26,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/kardiachain/go-kardiamain/lib/common/math"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enr"
 )
@@ -197,7 +197,7 @@ func (n *Node) URLv4() string {
 // PubkeyToIDV4 derives the v4 node address from the given public key.
 func PubkeyToIDV4(key *ecdsa.PublicKey) ID {
 	e := make([]byte, 64)
-	math.ReadBits(key.X, e[:len(e)/2])
-	math.ReadBits(key.Y, e[len(e)/2:])
+	common.ReadBits(key.X, e[:len(e)/2])
+	common.ReadBits(key.Y, e[len(e)/2:])
 	return ID(crypto.Keccak256Hash(e))
 }

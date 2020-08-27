@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/kardiachain/go-kardiamain/lib/common/math"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enr"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
@@ -84,8 +84,8 @@ func (V4ID) NodeAddr(r *enr.Record) []byte {
 		return nil
 	}
 	buf := make([]byte, 64)
-	math.ReadBits(pubkey.X, buf[:32])
-	math.ReadBits(pubkey.Y, buf[32:])
+	common.ReadBits(pubkey.X, buf[:32])
+	common.ReadBits(pubkey.Y, buf[32:])
 	return crypto.Keccak256(buf)
 }
 

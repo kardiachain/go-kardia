@@ -23,7 +23,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common/math"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 )
@@ -40,8 +40,8 @@ type encPubkey [64]byte
 
 func encodePubkey(key *ecdsa.PublicKey) encPubkey {
 	var e encPubkey
-	math.ReadBits(key.X, e[:len(e)/2])
-	math.ReadBits(key.Y, e[len(e)/2:])
+	common.ReadBits(key.X, e[:len(e)/2])
+	common.ReadBits(key.Y, e[len(e)/2:])
 	return e
 }
 
