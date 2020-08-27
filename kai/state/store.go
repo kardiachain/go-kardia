@@ -73,7 +73,7 @@ func loadState(db kaidb.Database, key []byte) (state LastestBlockState) {
 
 // ValidatorsInfo represents the latest validator set, or the last height it changed
 type ValidatorsInfo struct {
-	ValidatorSet      *types.ValidatorSet
+	ValidatorSet      *types.ValidatorSet `rlp:"nil"`
 	LastHeightChanged uint64
 }
 
