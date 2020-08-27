@@ -19,13 +19,10 @@
 package service
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
-
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 
 	"github.com/kardiachain/go-kardiamain/consensus"
 	serviceconst "github.com/kardiachain/go-kardiamain/kai/service/const"
@@ -83,33 +80,42 @@ type peer struct {
 }
 
 func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, csReactor *consensus.ConsensusManager) *peer {
-	isValidator := false
-	validators := csReactor.Validators()
-	pubKey, err := crypto.StringToPublicKey(hex.EncodeToString(p.ID().Bytes()))
-	if err != nil {
-		logger.Error("invalid peer", "id", p.ID().String())
-		return nil
-	}
-	address := crypto.PubkeyToAddress(*pubKey)
+	// isValidator := false
+	// validators := csReactor.Validators()
+	// pubKey, err := crypto.StringToPublicKey(hex.EncodeToString(p.ID().Bytes()))
+	// fmt.Println("!!!", p.ID(), pubKey)
+	// if err != nil {
+	// 	logger.Error("invalid peer", "id", p.ID().String())
+	// 	return nil
+	// }
+	// address := crypto.PubkeyToAddress(*pubKey)
 
-	for _, val := range validators {
-		if val.Address.Equal(address) {
-			isValidator = true
-			break
-		}
-	}
+	// for _, val := range validators {
+	// 	if val.Address.Equal(address) {
+	// 		isValidator = true
+	// 		break
+	// 	}
+	// }
+
+	// TODO(Lew):
+	// We shouldn't check if a peer is a validator here,
+	// we should check it when the consensus starts and collect
+	// all the actives node then filter whom is a validator from
+	// staking smartcontract.
+	// Now we treat all node as a validator for testing purpose
 
 	return &peer{
-		logger:      logger,
-		Peer:        p,
-		rw:          rw,
-		version:     version,
-		id:          fmt.Sprintf("%x", p.ID().Bytes()[:8]),
-		queuedTxs:   make(chan types.Transactions, maxQueuedTxs),
-		knownTxs:    common.NewSet(maxKnownTxs),
-		csReactor:   csReactor,
-		terminated:  make(chan struct{}),
-		IsValidator: isValidator,
+		logger:     logger,
+		Peer:       p,
+		rw:         rw,
+		version:    version,
+		id:         fmt.Sprintf("%x", p.ID().Bytes()[:8]),
+		queuedTxs:  make(chan types.Transactions, maxQueuedTxs),
+		knownTxs:   common.NewSet(maxKnownTxs),
+		csReactor:  csReactor,
+		terminated: make(chan struct{}),
+		// IsValidator: isValidator,
+		IsValidator: true,
 	}
 }
 
