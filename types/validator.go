@@ -32,9 +32,8 @@ import (
 
 // Volatile state for each Validator
 type Validator struct {
-	Address     common.Address  `json:"address"`
-	PubKey      ecdsa.PublicKey `json:"pub_key"`
-	VotingPower uint64          `json:"voting_power"`
+	Address     common.Address `json:"address"`
+	VotingPower uint64         `json:"voting_power"`
 
 	Accum *common.BigInt `json:"accum"`
 }
@@ -42,7 +41,6 @@ type Validator struct {
 func NewValidator(pubKey ecdsa.PublicKey, votingPower int64) *Validator {
 	return &Validator{
 		Address:     crypto.PubkeyToAddress(pubKey),
-		PubKey:      pubKey,
 		VotingPower: uint64(votingPower),
 		Accum:       common.NewBigInt64(0),
 	}
@@ -82,20 +80,16 @@ func (v *Validator) CompareAccum(other *Validator) *Validator {
 	}
 }
 
+// VerifyProposalSignature ...
 func (v *Validator) VerifyProposalSignature(chainID string, proposal *Proposal) bool {
 	hash := rlpHash(proposal.SignBytes(chainID))
-	pubKey, _ := crypto.SigToPub(hash[:], proposal.Signature[:])
-	// TODO(thientn): Verifying signature shouldn't be this complicated. After
-	// cleaning up our crypto package, clean up this as well.
-	return bytes.Equal(crypto.CompressPubkey(pubKey), crypto.CompressPubkey(&v.PubKey))
+	return VerifySignature(v.Address, hash[:], proposal.Signature[:])
 }
 
+// VerifyVoteSignature ...
 func (v *Validator) VerifyVoteSignature(chainID string, vote *Vote) bool {
 	hash := rlpHash(vote.SignBytes(chainID))
-	pubKey, _ := crypto.SigToPub(hash[:], vote.Signature[:])
-	// TODO(thientn): Verifying signature shouldn't be this complicated. After
-	// cleaning up our crypto package, clean up this as well.
-	return bytes.Equal(crypto.CompressPubkey(pubKey), crypto.CompressPubkey(&v.PubKey))
+	return VerifySignature(v.Address, hash[:], vote.Signature[:])
 }
 
 // StringLong returns a long string representing full info about Validator
@@ -103,9 +97,8 @@ func (v *Validator) StringLong() string {
 	if v == nil {
 		return "nil-Validator"
 	}
-	return fmt.Sprintf("Validator{%v %v VP:%v A:%v}",
+	return fmt.Sprintf("Validator{%v VP:%v A:%v}",
 		v.Address,
-		v.PubKey,
 		v.VotingPower,
 		v.Accum)
 }
@@ -115,14 +108,13 @@ func (v *Validator) String() string {
 	if v == nil {
 		return "nil-Validator"
 	}
-	return fmt.Sprintf("Validator{%X %v VP:%v A:%v}",
+	return fmt.Sprintf("Validator{%X VP:%v A:%v}",
 		common.Fingerprint(v.Address[:]),
-		v.PubKey,
 		v.VotingPower,
 		v.Accum)
 }
 
-// --------- ValidatorSet ----------
+// ValidatorSet ----------
 // Represents a set of *Validator at a given height.
 // The validators can be fetched by address or index.
 // The index is in order of .Address, so the indices are fixed
@@ -133,7 +125,7 @@ type ValidatorSet struct {
 	// Validator set.
 	Validators []*Validator `json:"validators"`
 	// Current proposing validator.
-	Proposer *Validator `json:"proposer"`
+	Proposer *Validator `json:"proposer" rlp:"nil"`
 	// Start block height of the staked validators. The value is inclusive.
 	StartHeight uint64 `json:"startHeight"`
 	// End block height of the staked validators. The value is inclusive.
@@ -152,6 +144,7 @@ type ValidatorSet struct {
 	refreshHeightDelta int64
 }
 
+// NewValidatorSet ..
 func NewValidatorSet(vals []*Validator, startHeight int64, endHeight int64) *ValidatorSet {
 	validators := make([]*Validator, len(vals))
 	for i, val := range vals {
