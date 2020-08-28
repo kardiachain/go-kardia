@@ -647,9 +647,11 @@ func ReadBlockPart(db kaidb.Reader, hash common.Hash, height uint64, index int) 
 }
 
 // WriteBlock write block to database
-func WriteBlock(db kaidb.Writer, block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
+func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	height := block.Height()
 	hash := block.Hash()
+
+	batch := db.NewBatch()
 
 	// Save block meta
 	blockMeta := types.NewBlockMeta(block, blockParts)
@@ -657,15 +659,15 @@ func WriteBlock(db kaidb.Writer, block *types.Block, blockParts *types.PartSet, 
 	metaBytes, err := rlp.EncodeToBytes(blockMeta)
 
 	if err != nil {
-		panic(fmt.Errorf("encode block meta error: %d", err))
+		panic(fmt.Errorf("encode block meta error: %s", err))
 	}
 
-	db.Put(blockMetaKey(hash, height), metaBytes)
+	batch.Put(blockMetaKey(hash, height), metaBytes)
 
 	// Save block part
 	for i := 0; i < blockParts.Total(); i++ {
 		part := blockParts.GetPart(i)
-		writeBlockPart(db, height, i, part)
+		writeBlockPart(batch, height, i, part)
 
 	}
 
@@ -674,22 +676,29 @@ func WriteBlock(db kaidb.Writer, block *types.Block, blockParts *types.PartSet, 
 	lastCommit.MakeNilEmpty()
 	lastCommitBytes, err := rlp.EncodeToBytes(lastCommit)
 	if err != nil {
-		panic(fmt.Errorf("encode last commit error: %d", err))
+		panic(fmt.Errorf("encode last commit error: %s", err))
 	}
-	db.Put(commitKey(height-1), lastCommitBytes)
+	batch.Put(commitKey(height-1), lastCommitBytes)
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
 	seenCommit.MakeNilEmpty()
 	seenCommitBytes, err := rlp.EncodeToBytes(seenCommit)
 	if err != nil {
-		panic(fmt.Errorf("encode seen commit error: %d", err))
+		panic(fmt.Errorf("encode seen commit error: %s", err))
 	}
-	db.Put(seenCommitKey(height), seenCommitBytes)
+
+	if err := batch.Put(seenCommitKey(height), seenCommitBytes); err != nil {
+		panic(fmt.Errorf("failed to store seen commit err: %s", err))
+	}
 
 	key := headerHeightKey(hash)
-	if err := db.Put(key, encodeBlockHeight(height)); err != nil {
-		panic(fmt.Errorf("Failed to store hash to height mapping err: %d", err))
+	if err := batch.Put(key, encodeBlockHeight(height)); err != nil {
+		panic(fmt.Errorf("Failed to store hash to height mapping err: %s", err))
+	}
+
+	if err := batch.Write(); err != nil {
+		panic(fmt.Errorf("Failed to store block error: %s", err))
 	}
 }
 
