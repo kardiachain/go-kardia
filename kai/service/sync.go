@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/discover"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 )
 
 const (
@@ -69,7 +69,7 @@ func syncNetwork(pm *ProtocolManager) {
 // the transactions in small packs to one peer at a time.
 func (pm *ProtocolManager) txsyncLoop() {
 	var (
-		pending = make(map[discover.NodeID]*txsync)
+		pending = make(map[enode.ID]*txsync)
 		sending = false               // whether a send is active
 		pack    = new(txsync)         // the pack that is being sent
 		done    = make(chan error, 1) // result of the send

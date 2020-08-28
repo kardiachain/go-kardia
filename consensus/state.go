@@ -35,7 +35,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/discover"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -54,7 +54,7 @@ var (
 // msgs from the manager which may update the state
 type msgInfo struct {
 	Msg    ConsensusMessage `json:"msg"`
-	PeerID discover.NodeID  `json:"peer_key"`
+	PeerID enode.ID         `json:"peer_key"`
 }
 
 // internally generated messages which may update the state
@@ -278,9 +278,9 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 // TODO: should these return anything or let callers just use events?
 
 // AddVote inputs a vote.
-func (cs *ConsensusState) AddVote(vote *types.Vote, peerID discover.NodeID) (added bool, err error) {
+func (cs *ConsensusState) AddVote(vote *types.Vote, peerID enode.ID) (added bool, err error) {
 	if peerID.IsZero() {
-		cs.internalMsgQueue <- msgInfo{&VoteMessage{vote}, discover.ZeroNodeID()}
+		cs.internalMsgQueue <- msgInfo{&VoteMessage{vote}, enode.ID{}}
 	} else {
 		cs.peerMsgQueue <- msgInfo{&VoteMessage{vote}, peerID}
 	}
@@ -313,10 +313,10 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
 		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", propBlockID.Hash)
 		// Send proposal and blockparts on internal msg queue
-		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, discover.ZeroNodeID()})
+		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, enode.ID{}})
 		for i := 0; i < blockParts.Total(); i++ {
 			part := blockParts.GetPart(i)
-			cs.sendInternalMessage(msgInfo{&BlockPartMessage{cs.Height, cs.Round, part}, discover.ZeroNodeID()})
+			cs.sendInternalMessage(msgInfo{&BlockPartMessage{cs.Height, cs.Round, part}, enode.ID{}})
 		}
 		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
 		cs.logger.Debug(fmt.Sprintf("Signed proposal block: %s", block.Hash()))
@@ -401,7 +401,7 @@ func (cs *ConsensusState) reconstructLastCommit(state state.LastestBlockState) {
 }
 
 // Attempt to add the vote. if its a duplicate signature, dupeout the validator
-func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID discover.NodeID) (bool, error) {
+func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID enode.ID) (bool, error) {
 	added, err := cs.addVote(vote, peerID)
 	if err != nil {
 		// If the vote height is off, we'll just ignore it,
@@ -427,7 +427,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID discover.NodeID) (
 	return added, nil
 }
 
-func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (added bool, err error) {
+func (cs *ConsensusState) addVote(vote *types.Vote, peerID enode.ID) (added bool, err error) {
 	cs.logger.Debug(
 		"addVote",
 		"voteHeight",
@@ -637,7 +637,7 @@ func (cs *ConsensusState) signAddVote(type_ byte, hash cmn.Hash, header types.Pa
 	}
 	vote, err := cs.signVote(type_, hash, header)
 	if err == nil {
-		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, discover.ZeroNodeID()})
+		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, enode.ID{}})
 		cs.logger.Info("Signed and pushed vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
 		return vote
 	}
@@ -668,7 +668,7 @@ func (cs *ConsensusState) updateHeight(height *cmn.BigInt) {
 // NOTE: block is not necessarily valid.
 // Asynchronously triggers either enterPrevote (before we timeout of propose) or tryFinalizeCommit,
 // once we have the full block.
-func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID discover.NodeID) (added bool, err error) {
+func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID enode.ID) (added bool, err error) {
 	height, round, part := msg.Height, msg.Round, msg.Part
 
 	// Blocks might be reused, so round mismatch is OK
