@@ -41,6 +41,7 @@ var client *mongo.Client
 type Store struct {
 	uri    string
 	dbName string
+	size   int
 }
 
 func NewClient(uri string) (*mongo.Client, *context.Context, context.CancelFunc, error) {
@@ -924,7 +925,7 @@ func (db *Store) Compact(start []byte, limit []byte) error {
 // Compact is not supported on a memory database, but there's no need either as
 // a memory database doesn't waste space anyway.
 func (db *Store) NewBatch() kaidb.Batch {
-	return nil
+	return db
 }
 
 func (db *Store) DB() kaidb.Database {
@@ -1082,5 +1083,22 @@ func (db *Store) insertChainConfig(config *types.ChainConfig, hash common.Hash) 
 			return e
 		})
 	}
+	return nil
+}
+
+func (db *Store) ValueSize() int {
+	return db.size
+}
+
+func (db *Store) Reset() {
+	db.size = 0
+}
+
+func (db *Store) Write() error {
+	return nil
+}
+
+// Replay ...
+func (db *Store) Replay(w kaidb.KeyValueWriter) error {
 	return nil
 }
