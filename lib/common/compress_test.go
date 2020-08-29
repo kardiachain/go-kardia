@@ -22,8 +22,6 @@ import (
 	"bytes"
 	"math/rand"
 	"testing"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // Tests that data bitset encoding and decoding works and is bijective.
@@ -50,7 +48,7 @@ func TestEncodingCycle(t *testing.T) {
 		"0xdf7070533534333636313639343638373532313536346c1bc333393438373130707063363430353639343638373532313536346c1bc333393438336336346c65fe",
 	}
 	for i, tt := range tests {
-		data := hexutil.MustDecode(tt)
+		data := MustDecode(tt)
 
 		proc, err := bitsetDecodeBytes(bitsetEncodeBytes(data), len(data))
 		if err != nil {
@@ -101,7 +99,7 @@ func TestDecodingCycle(t *testing.T) {
 		{size: 1024, input: "0x40402d35323437343837393440bfd7d0505e27be4035"},
 	}
 	for i, tt := range tests {
-		data := hexutil.MustDecode(tt.input)
+		data := MustDecode(tt.input)
 
 		orig, err := bitsetDecodeBytes(data, tt.size)
 		if err != tt.fail {
@@ -120,8 +118,8 @@ func TestDecodingCycle(t *testing.T) {
 // encoded input, or the actual input if the bitset version is longer.
 func TestCompression(t *testing.T) {
 	// Check the compression returns the bitset encoding is shorter
-	in := hexutil.MustDecode("0x4912385c0e7b64000000")
-	out := hexutil.MustDecode("0x80fe4912385c0e7b64")
+	in := MustDecode("0x4912385c0e7b64000000")
+	out := MustDecode("0x80fe4912385c0e7b64")
 
 	if data := CompressBytes(in); !bytes.Equal(data, out) {
 		t.Errorf("encoding mismatch for sparse data: have %x, want %x", data, out)
@@ -130,8 +128,8 @@ func TestCompression(t *testing.T) {
 		t.Errorf("decoding mismatch for sparse data: have %x, want %x, error %v", data, in, err)
 	}
 	// Check the compression returns the input if the bitset encoding is longer
-	in = hexutil.MustDecode("0xdf7070533534333636313639343638373532313536346c1bc33339343837313070706336343035336336346c65fefb3930393233383838ac2f65fefb")
-	out = hexutil.MustDecode("0xdf7070533534333636313639343638373532313536346c1bc33339343837313070706336343035336336346c65fefb3930393233383838ac2f65fefb")
+	in = MustDecode("0xdf7070533534333636313639343638373532313536346c1bc33339343837313070706336343035336336346c65fefb3930393233383838ac2f65fefb")
+	out = MustDecode("0xdf7070533534333636313639343638373532313536346c1bc33339343837313070706336343035336336346c65fefb3930393233383838ac2f65fefb")
 
 	if data := CompressBytes(in); !bytes.Equal(data, out) {
 		t.Errorf("encoding mismatch for dense data: have %x, want %x", data, out)

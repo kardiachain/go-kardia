@@ -18,18 +18,24 @@ package common
 
 import (
 	"bytes"
+	"database/sql/driver"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"math/rand"
 	"reflect"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/kardiachain/go-kardiamain/lib/crypto/sha3"
 )
 
 // Lengths of hashes and addresses in bytes.
 const (
-	HashLength    = 32
+	// HashLength is the expected length of the hash
+	HashLength = 32
+	// AddressLength is the expected length of the address
 	AddressLength = 20
 )
 
@@ -104,6 +110,21 @@ func (h Hash) Format(s fmt.State, c rune) {
 	fmt.Fprintf(s, "%"+string(c), h[:])
 }
 
+// UnmarshalText parses a hash in hex syntax.
+func (h *Hash) UnmarshalText(input []byte) error {
+	return hexutil.UnmarshalFixedText("Hash", input, h[:])
+}
+
+// UnmarshalJSON parses a hash in hex syntax.
+func (h *Hash) UnmarshalJSON(input []byte) error {
+	return hexutil.UnmarshalFixedJSON(hashT, input, h[:])
+}
+
+// MarshalText returns the hex representation of h.
+func (h Hash) MarshalText() ([]byte, error) {
+	return hexutil.Bytes(h[:]).MarshalText()
+}
+
 // SetBytes sets the hash to the value of b.
 // If b is larger than len(h), b will be cropped from the left.
 func (h *Hash) SetBytes(b []byte) {
@@ -123,12 +144,55 @@ func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
 	return reflect.ValueOf(h)
 }
 
+// Scan implements Scanner for database/sql.
+func (h *Hash) Scan(src interface{}) error {
+	srcB, ok := src.([]byte)
+	if !ok {
+		return fmt.Errorf("can't scan %T into Hash", src)
+	}
+	if len(srcB) != HashLength {
+		return fmt.Errorf("can't scan []byte of len %d into Hash, want %d", len(srcB), HashLength)
+	}
+	copy(h[:], srcB)
+	return nil
+}
+
+// Value implements valuer for database/sql.
+func (h Hash) Value() (driver.Value, error) {
+	return h[:], nil
+}
+
+// ImplementsGraphQLType returns true if Hash implements the specified GraphQL type.
+func (Hash) ImplementsGraphQLType(name string) bool { return name == "Bytes32" }
+
+// UnmarshalGraphQL unmarshals the provided GraphQL query data.
+func (h *Hash) UnmarshalGraphQL(input interface{}) error {
+	var err error
+	switch input := input.(type) {
+	case string:
+		err = h.UnmarshalText([]byte(input))
+	default:
+		err = fmt.Errorf("unexpected type %T for Hash", input)
+	}
+	return err
+}
+
 // UnprefixedHash allows marshaling a Hash without 0x prefix.
 type UnprefixedHash Hash
 
+// UnmarshalText decodes the hash from hex. The 0x prefix is optional.
+func (h *UnprefixedHash) UnmarshalText(input []byte) error {
+	return hexutil.UnmarshalFixedUnprefixedText("UnprefixedHash", input, h[:])
+}
+
+// MarshalText encodes the hash as hex.
+func (h UnprefixedHash) MarshalText() ([]byte, error) {
+	return []byte(hex.EncodeToString(h[:])), nil
+}
+
 /////////// Address
 
-// Address represents the 20 byte address of an kardia account.
+// Address represents the 20 byte address of an Ethereum account.
 type Address [AddressLength]byte
 
 // StringToAddress returns Address with value b as a string
@@ -151,9 +215,9 @@ func BigToAddress(b *big.Int) Address { return BytesToAddress(b.Bytes()) }
 func HexToAddress(s string) Address { return BytesToAddress(FromHex(s)) }
 
 // IsHexAddress verifies whether a string can represent a valid hex-encoded
-// kardia address or not.
+// Ethereum address or not.
 func IsHexAddress(s string) bool {
-	if hasHexPrefix(s) {
+	if has0xPrefix(s) {
 		s = s[2:]
 	}
 	return len(s) == 2*AddressLength && isHex(s)
@@ -211,6 +275,67 @@ func (a *Address) SetBytes(b []byte) {
 	copy(a[AddressLength-len(b):], b)
 }
 
+// MarshalText returns the hex representation of a.
+func (a Address) MarshalText() ([]byte, error) {
+	return hexutil.Bytes(a[:]).MarshalText()
+}
+
+// UnmarshalText parses a hash in hex syntax.
+func (a *Address) UnmarshalText(input []byte) error {
+	return hexutil.UnmarshalFixedText("Address", input, a[:])
+}
+
+// UnmarshalJSON parses a hash in hex syntax.
+func (a *Address) UnmarshalJSON(input []byte) error {
+	return hexutil.UnmarshalFixedJSON(addressT, input, a[:])
+}
+
+// Scan implements Scanner for database/sql.
+func (a *Address) Scan(src interface{}) error {
+	srcB, ok := src.([]byte)
+	if !ok {
+		return fmt.Errorf("can't scan %T into Address", src)
+	}
+	if len(srcB) != AddressLength {
+		return fmt.Errorf("can't scan []byte of len %d into Address, want %d", len(srcB), AddressLength)
+	}
+	copy(a[:], srcB)
+	return nil
+}
+
+// Value implements valuer for database/sql.
+func (a Address) Value() (driver.Value, error) {
+	return a[:], nil
+}
+
+// ImplementsGraphQLType returns true if Hash implements the specified GraphQL type.
+func (a Address) ImplementsGraphQLType(name string) bool { return name == "Address" }
+
+// UnmarshalGraphQL unmarshals the provided GraphQL query data.
+func (a *Address) UnmarshalGraphQL(input interface{}) error {
+	var err error
+	switch input := input.(type) {
+	case string:
+		err = a.UnmarshalText([]byte(input))
+	default:
+		err = fmt.Errorf("unexpected type %T for Address", input)
+	}
+	return err
+}
+
+// UnprefixedAddress allows marshaling an Address without 0x prefix.
+type UnprefixedAddress Address
+
+// UnmarshalText decodes the address from hex. The 0x prefix is optional.
+func (a *UnprefixedAddress) UnmarshalText(input []byte) error {
+	return hexutil.UnmarshalFixedUnprefixedText("UnprefixedAddress", input, a[:])
+}
+
+// MarshalText encodes the address as hex.
+func (a UnprefixedAddress) MarshalText() ([]byte, error) {
+	return []byte(hex.EncodeToString(a[:])), nil
+}
+
 // MixedcaseAddress retains the original string, which may or may not be
 // correctly checksummed
 type MixedcaseAddress struct {
@@ -230,6 +355,22 @@ func NewMixedcaseAddressFromString(hexaddr string) (*MixedcaseAddress, error) {
 	}
 	a := FromHex(hexaddr)
 	return &MixedcaseAddress{addr: BytesToAddress(a), original: hexaddr}, nil
+}
+
+// UnmarshalJSON parses MixedcaseAddress
+func (ma *MixedcaseAddress) UnmarshalJSON(input []byte) error {
+	if err := hexutil.UnmarshalFixedJSON(addressT, input, ma.addr[:]); err != nil {
+		return err
+	}
+	return json.Unmarshal(input, &ma.original)
+}
+
+// MarshalJSON marshals the original value
+func (ma *MixedcaseAddress) MarshalJSON() ([]byte, error) {
+	if strings.HasPrefix(ma.original, "0x") || strings.HasPrefix(ma.original, "0X") {
+		return json.Marshal(fmt.Sprintf("0x%s", ma.original[2:]))
+	}
+	return json.Marshal(fmt.Sprintf("0x%s", ma.original))
 }
 
 // Address returns the address
@@ -292,115 +433,3 @@ var (
 	Big256 = big.NewInt(256)
 	Big257 = big.NewInt(257)
 )
-
-//==============================================================================
-// Bytes manipulation
-//==============================================================================
-// ToHex returns the hex representation of b, prefixed with '0x'.
-// For empty slices, the return value is "0x0".
-//
-// Deprecated: use hexutil.Encode instead.
-func ToHex(b []byte) string {
-	hex := Bytes2Hex(b)
-	if len(hex) == 0 {
-		hex = "0"
-	}
-	return "0x" + hex
-}
-
-// FromHex returns the bytes represented by the hexadecimal string s.
-// s may be prefixed with "0x".
-func FromHex(s string) []byte {
-	if len(s) > 1 {
-		if s[0:2] == "0x" || s[0:2] == "0X" {
-			s = s[2:]
-		}
-	}
-	if len(s)%2 == 1 {
-		s = "0" + s
-	}
-	return Hex2Bytes(s)
-}
-
-// CopyBytes returns an exact copy of the provided bytes.
-func CopyBytes(b []byte) (copiedBytes []byte) {
-	if b == nil {
-		return nil
-	}
-	copiedBytes = make([]byte, len(b))
-	copy(copiedBytes, b)
-
-	return
-}
-
-// hasHexPrefix validates str begins with '0x' or '0X'.
-func hasHexPrefix(str string) bool {
-	return len(str) >= 2 && str[0] == '0' && (str[1] == 'x' || str[1] == 'X')
-}
-
-// isHexCharacter returns bool of c being a valid hexadecimal.
-func isHexCharacter(c byte) bool {
-	return ('0' <= c && c <= '9') || ('a' <= c && c <= 'f') || ('A' <= c && c <= 'F')
-}
-
-// isHex validates whether each byte is valid hexadecimal string.
-func isHex(str string) bool {
-	if len(str)%2 != 0 {
-		return false
-	}
-	for _, c := range []byte(str) {
-		if !isHexCharacter(c) {
-			return false
-		}
-	}
-	return true
-}
-
-// Bytes2Hex returns the hexadecimal encoding of d.
-func Bytes2Hex(d []byte) string {
-	return hex.EncodeToString(d)
-}
-
-// Hex2Bytes returns the bytes represented by the hexadecimal string str.
-func Hex2Bytes(str string) []byte {
-	h, _ := hex.DecodeString(str)
-	return h
-}
-
-// Hex2BytesFixed returns bytes of a specified fixed length flen.
-func Hex2BytesFixed(str string, flen int) []byte {
-	h, _ := hex.DecodeString(str)
-	if len(h) == flen {
-		return h
-	}
-	if len(h) > flen {
-		return h[len(h)-flen:]
-	}
-	hh := make([]byte, flen)
-	copy(hh[flen-len(h):flen], h[:])
-	return hh
-}
-
-// RightPadBytes zero-pads slice to the right up to length l.
-func RightPadBytes(slice []byte, l int) []byte {
-	if l <= len(slice) {
-		return slice
-	}
-
-	padded := make([]byte, l)
-	copy(padded, slice)
-
-	return padded
-}
-
-// LeftPadBytes zero-pads slice to the left up to length l.
-func LeftPadBytes(slice []byte, l int) []byte {
-	if l <= len(slice) {
-		return slice
-	}
-
-	padded := make([]byte, l)
-	copy(padded[l-len(slice):], slice)
-
-	return padded
-}
