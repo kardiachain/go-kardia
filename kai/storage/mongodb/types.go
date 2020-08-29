@@ -62,7 +62,7 @@ type (
 
 		// prev block info
 		LastBlockID string        `json:"lastBlockID"      bson:"lastBlockID"`
-		PartsHeader PartSetHeader `json:"partsHeader" 		  bson:"partsHeader"`
+		PartsHeader PartSetHeader `json:"partsHeader"         bson:"partsHeader"`
 		Coinbase    string        `json:"miner"            bson:"miner"` // address
 
 		// hashes of block data
@@ -218,9 +218,13 @@ type (
 
 func NewBlock(block *types.Block) *Block {
 	header := Header{
-		Height:         block.Header().Height,
-		Time:           0,
-		LastBlockID:    block.Header().LastBlockID.StringLong(),
+		Height:      block.Header().Height,
+		Time:        0,
+		LastBlockID: block.Header().LastBlockID.Hash.Hex(),
+		PartsHeader: PartSetHeader{
+			Hash:  block.Header().LastBlockID.PartsHeader.Hash.Hex(),
+			Total: block.Header().LastBlockID.PartsHeader.Total.Int32(),
+		},
 		NumTxs:         block.NumTxs(),
 		TxHash:         block.Header().TxHash.Hex(),
 		GasUsed:        block.Header().GasUsed,
@@ -516,6 +520,7 @@ func NewChainConfig(config *types.ChainConfig, hash common.Hash) *ChainConfig {
 	}
 }
 
+// ToChainConfig ...
 func (config *ChainConfig) ToChainConfig() *types.ChainConfig {
 	pk, err := crypto.HexToECDSA(config.BaseAccount.PrivateKey)
 	if err != nil {
@@ -530,10 +535,10 @@ func (config *ChainConfig) ToChainConfig() *types.ChainConfig {
 
 func toBlockID(blockID string, partSetHeader PartSetHeader) types.BlockID {
 	return types.BlockID{
-		Hash: common.BytesToHash([]byte(blockID)),
+		Hash: common.HexToHash(blockID),
 		PartsHeader: types.PartSetHeader{
-			Total: *common.NewBigInt32(partSetHeader.Total),
-			Hash:  common.BytesToHash([]byte(partSetHeader.Hash)),
+			Total: *common.NewBigInt32(0),
+			Hash:  common.HexToHash(partSetHeader.Hash),
 		},
 	}
 }

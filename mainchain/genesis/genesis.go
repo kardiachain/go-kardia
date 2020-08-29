@@ -178,6 +178,13 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 		Height:   0,
 		GasLimit: g.GasLimit,
 		Root:     root,
+		LastBlockID: types.BlockID{
+			Hash: common.Hash{},
+			PartsHeader: types.PartSetHeader{
+				Hash:  common.Hash{},
+				Total: *common.NewBigInt64(0),
+			},
+		},
 	}
 	if g.GasLimit == 0 {
 		head.GasLimit = configs.GenesisGasLimit

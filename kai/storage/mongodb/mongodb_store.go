@@ -21,6 +21,7 @@ package mongodb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -364,6 +365,38 @@ func (db *Store) WriteHeadHeaderHash(hash common.Hash) {
 	if err := db.setHeadHeaderHash(hash.Hex()); err != nil {
 		log.Error("error while set head header hash", "err", err)
 	}
+}
+
+// WriteBlockMeta ...
+func (db *Store) WriteBlockMeta(block *types.Block, blockParts *types.PartSet) error {
+	// Save block meta
+	blockMeta := types.NewBlockMeta(block, blockParts)
+
+	metaBytes, err := rlp.EncodeToBytes(blockMeta)
+
+	if err != nil {
+		panic(fmt.Errorf("encode block meta error: %s", err))
+	}
+	return db.Put(blockMetaKey(block.Height()), metaBytes)
+}
+
+func blockMetaKey(height uint64) []byte {
+	return []byte(fmt.Sprintf("blockmeta:%d", height))
+}
+
+// ReadBlockMeta ...
+func (db *Store) ReadBlockMeta(hash common.Hash, number uint64) *types.BlockMeta {
+	var blockMeta = new(types.BlockMeta)
+	metaBytes, _ := db.Get(blockMetaKey(number))
+
+	if len(metaBytes) == 0 {
+		return nil
+	}
+
+	if err := rlp.DecodeBytes(metaBytes, blockMeta); err != nil {
+		panic(errors.New("Reading block meta error"))
+	}
+	return blockMeta
 }
 
 // WriteCommit stores a commit into the database.
@@ -864,12 +897,6 @@ func (db *Store) DeleteHeader(hash common.Hash, height uint64) {
 func (db *Store) DeleteCanonicalHash(number uint64) {
 	panic("DeleteCanonicalHash has not implemented yet")
 }
-
-// DeleteCanonicalHash removes the number to hash canonical mapping.
-func (db *Store) ReadBlockMeta(hash common.Hash, number uint64) *types.BlockMeta {
-	panic("ReadBlockMeta has not implemented yet")
-}
-
 func (db *Store) Has(key []byte) (bool, error) {
 	if value, err := db.Get(key); value != nil {
 		return true, err
