@@ -21,8 +21,6 @@ import (
 	"encoding/hex"
 	"math/big"
 	"testing"
-
-	"github.com/ethereum/go-ethereum/common"
 )
 
 func TestHexOrDecimal256(t *testing.T) {
@@ -212,6 +210,16 @@ func TestU256(t *testing.T) {
 	}
 }
 
+func TestU256Bytes(t *testing.T) {
+	ubytes := make([]byte, 32)
+	ubytes[31] = 1
+
+	unsigned := U256Bytes(big.NewInt(1))
+	if !bytes.Equal(unsigned, ubytes) {
+		t.Errorf("expected %x got %x", ubytes, unsigned)
+	}
+}
+
 func TestBigEndianByteAt(t *testing.T) {
 	tests := []struct {
 		x   string
@@ -229,7 +237,7 @@ func TestBigEndianByteAt(t *testing.T) {
 		{"ABCDEF0908070605040302010000000000000000000000000000000000000000", 500, 0x00},
 	}
 	for _, test := range tests {
-		v := new(big.Int).SetBytes(common.Hex2Bytes(test.x))
+		v := new(big.Int).SetBytes(Hex2Bytes(test.x))
 		actual := bigEndianByteAt(v, test.y)
 		if actual != test.exp {
 			t.Fatalf("Expected  [%v] %v:th byte to be %v, was %v.", test.x, test.y, test.exp, actual)
@@ -262,7 +270,7 @@ func TestLittleEndianByteAt(t *testing.T) {
 		{"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 0xFFFF, 0x0},
 	}
 	for _, test := range tests {
-		v := new(big.Int).SetBytes(common.Hex2Bytes(test.x))
+		v := new(big.Int).SetBytes(Hex2Bytes(test.x))
 		actual := Byte(v, 32, test.y)
 		if actual != test.exp {
 			t.Fatalf("Expected  [%v] %v:th byte to be %v, was %v.", test.x, test.y, test.exp, actual)
