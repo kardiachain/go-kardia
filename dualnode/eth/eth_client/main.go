@@ -21,8 +21,9 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/ethereum/go-ethereum/log"
 	"time"
+
+	"github.com/kardiachain/go-kardiamain/lib/log"
 )
 
 // args
@@ -106,4 +107,3 @@ func displaySyncStatus(eth *Eth) {
 		time.Sleep(20 * time.Second)
 	}
 }
-
