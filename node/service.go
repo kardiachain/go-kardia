@@ -21,7 +21,6 @@ package node
 import (
 	"reflect"
 
-	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -33,10 +32,9 @@ import (
 // the protocol stack, that is passed to all constructors to be optionally used;
 // as well as utility methods to operate on the service environment.
 type ServiceContext struct {
-	Config         *Config
-	services       map[reflect.Type]Service // Index of the already constructed services
-	EventMux       *event.TypeMux           // Event multiplexer used for decoupled notifications
-	AccountManager *accounts.Manager        // Account manager created by the node.
+	Config   *Config
+	services map[reflect.Type]Service // Index of the already constructed services
+	EventMux *event.TypeMux           // Event multiplexer used for decoupled notifications
 }
 
 // OpenDatabase opens an existing database with the given name (or creates one

@@ -23,8 +23,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // API describes the set of methods offered over the RPC interface
@@ -92,7 +91,7 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	blckNum, err := hexutil.DecodeUint64(input)
+	blckNum, err := common.DecodeUint64(input)
 	if err != nil {
 		return err
 	}
@@ -155,7 +154,7 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 			bnh.BlockHash = &hash
 			return nil
 		} else {
-			blckNum, err := hexutil.DecodeUint64(input)
+			blckNum, err := common.DecodeUint64(input)
 			if err != nil {
 				return err
 			}

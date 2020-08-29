@@ -18,10 +18,10 @@ package rpc
 
 import (
 	"encoding/json"
+	"math"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 func TestBlockNumberJSONUnmarshal(t *testing.T) {
@@ -37,7 +37,7 @@ func TestBlockNumberJSONUnmarshal(t *testing.T) {
 		4:  {`"0x01"`, true, BlockNumber(0)},
 		5:  {`"0x1"`, false, BlockNumber(1)},
 		6:  {`"0x12"`, false, BlockNumber(18)},
-		7:  {`"0x7fffffffffffffff"`, false, BlockNumber(math.MaxInt64)},
+		7:  {`"0x7fffffffffffffff"`, false, BlockNumber(common.MaxInt64)},
 		8:  {`"0x8000000000000000"`, true, BlockNumber(0)},
 		9:  {"0", true, BlockNumber(0)},
 		10: {`"ff"`, true, BlockNumber(0)},

@@ -392,6 +392,7 @@ func (pm *ProtocolManager) syncTransactions(p *peer) {
 		return
 	}
 	pm.logger.Trace("Sync txns to new peer", "peer", p)
+
 	var txs types.Transactions
 	pending, _ := pm.txpool.Pending()
 	for _, batch := range pending {
