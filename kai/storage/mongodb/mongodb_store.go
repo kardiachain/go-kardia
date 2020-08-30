@@ -185,6 +185,7 @@ func (db *Store) WriteChainConfig(hash common.Hash, cfg *types.ChainConfig) {
 
 // WriteBlock serializes a block into the database, header and body separately.
 func (db *Store) WriteBlock(block *types.Block, parts *types.PartSet, seenCommit *types.Commit) {
+	height := block.Height()
 	newBlock := NewBlock(block)
 	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
 		if e := db.insertBlock(mongoDb, ctx, newBlock); e != nil {
@@ -193,6 +194,12 @@ func (db *Store) WriteBlock(block *types.Block, parts *types.PartSet, seenCommit
 
 		db.WriteBlockMeta(block, parts)
 		db.WriteSeenCommit(block, seenCommit)
+
+		// Save block parts
+		for i := 0; i < parts.Total(); i++ {
+			part := parts.GetPart(i)
+			db.saveBlockPart(height, i, part)
+		}
 
 		if block.NumTxs() > 0 {
 			go func() {
@@ -394,12 +401,24 @@ func (db *Store) WriteBlockMeta(block *types.Block, blockParts *types.PartSet) e
 	return db.Put(blockMetaKey(block.Height()), metaBytes)
 }
 
+func (db *Store) saveBlockPart(height uint64, index int, part *types.Part) {
+	partBytes, err := rlp.EncodeToBytes(part)
+	if err != nil {
+		panic(err)
+	}
+	db.Put(calcBlockPartKey(height, index), partBytes)
+}
+
 func blockMetaKey(height uint64) []byte {
 	return []byte(fmt.Sprintf("blockmeta:%d", height))
 }
 
 func seenCommitKey(height uint64) []byte {
 	return []byte(fmt.Sprintf("seen_commit:%d", height))
+}
+
+func calcBlockPartKey(height uint64, index int) []byte {
+	return []byte(fmt.Sprintf("seen_commit:%d:%d", height, index))
 }
 
 // ReadBlockMeta ...
@@ -730,8 +749,19 @@ func (db *Store) DeleteBlockPart(hash common.Hash, height uint64) {
 
 }
 
+// ReadBlockPart ...
 func (db *Store) ReadBlockPart(hash common.Hash, height uint64, index int) *types.Part {
-	panic("read block part error")
+	var part = new(types.Part)
+	metaBytes, _ := db.Get(calcBlockPartKey(height, index))
+
+	if len(metaBytes) == 0 {
+		return nil
+	}
+
+	if err := rlp.DecodeBytes(metaBytes, part); err != nil {
+		panic(errors.New("Reading block meta error"))
+	}
+	return part
 }
 
 // ReadTransaction retrieves a specific transaction from the database, along with
