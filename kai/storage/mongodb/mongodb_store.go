@@ -190,6 +190,10 @@ func (db *Store) WriteBlock(block *types.Block, parts *types.PartSet, seenCommit
 		if e := db.insertBlock(mongoDb, ctx, newBlock); e != nil {
 			return e
 		}
+
+		db.WriteBlockMeta(block, parts)
+		db.WriteSeenCommit(block, seenCommit)
+
 		if block.NumTxs() > 0 {
 			go func() {
 				if err := db.insertTransactions(block.Transactions(), newBlock.Height, newBlock.Hash); err != nil {
