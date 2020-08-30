@@ -537,7 +537,7 @@ func toBlockID(blockID string, partSetHeader PartSetHeader) types.BlockID {
 	return types.BlockID{
 		Hash: common.HexToHash(blockID),
 		PartsHeader: types.PartSetHeader{
-			Total: *common.NewBigInt32(0),
+			Total: *common.NewBigInt32(partSetHeader.Total),
 			Hash:  common.HexToHash(partSetHeader.Hash),
 		},
 	}
