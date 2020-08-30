@@ -367,6 +367,16 @@ func (db *Store) WriteHeadHeaderHash(hash common.Hash) {
 	}
 }
 
+// WriteSeenCommit ...
+func (db *Store) WriteSeenCommit(block *types.Block, commit *types.Commit) error {
+	seenCommitBytes, err := rlp.EncodeToBytes(commit)
+
+	if err != nil {
+		panic(fmt.Errorf("encode seen commit error: %s", err))
+	}
+	return db.Put(seenCommitKey(block.Height()), seenCommitBytes)
+}
+
 // WriteBlockMeta ...
 func (db *Store) WriteBlockMeta(block *types.Block, blockParts *types.PartSet) error {
 	// Save block meta
@@ -382,6 +392,10 @@ func (db *Store) WriteBlockMeta(block *types.Block, blockParts *types.PartSet) e
 
 func blockMetaKey(height uint64) []byte {
 	return []byte(fmt.Sprintf("blockmeta:%d", height))
+}
+
+func seenCommitKey(height uint64) []byte {
+	return []byte(fmt.Sprintf("seen_commit:%d", height))
 }
 
 // ReadBlockMeta ...
@@ -616,9 +630,19 @@ func (db *Store) ReadHeaderRLP(hash common.Hash, height uint64) rlp.RawValue {
 	panic("Not implemented yet")
 }
 
-// ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
+// ReadSeenCommit retrieves a block header in its raw RLP database encoding.
 func (db *Store) ReadSeenCommit(height uint64) *types.Commit {
-	panic("Not implemented yet")
+	var seenCommit = new(types.Commit)
+	metaBytes, _ := db.Get(seenCommitKey(height))
+
+	if len(metaBytes) == 0 {
+		return nil
+	}
+
+	if err := rlp.DecodeBytes(metaBytes, seenCommit); err != nil {
+		panic(errors.New("Reading seen commit error"))
+	}
+	return seenCommit
 }
 
 // ReadHeadBlockHash retrieves the hash of the current canonical head block.
