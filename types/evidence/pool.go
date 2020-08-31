@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
+
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/clist"
 	"github.com/kardiachain/go-kardiamain/lib/log"
@@ -35,33 +36,29 @@ import (
 type Pool struct {
 	logger log.Logger
 
-	store *Store
-
+	store        *Store
 	evidenceList *clist.CList // concurrent linked-list of evidence
 
-	// latest state
-	state state.LastestBlockState
-
 	// needed to load validators to verify evidence
-	stateDB StateStore
-	// needed to load headers to verify evidence
-	blockStore BlockStore
+	stateDB kaidb.Database
 
-	mtx sync.Mutex
+	// latest state
+	mtx   sync.Mutex
+	state state.LastestBlockState
 }
 
 // NewPool creates an evidence pool. If using an existing evidence store,
 // it will add all pending evidence to the concurrent list.
-func NewPool(evidenceDB kaidb.Database, stateDB StateStore, blockStore BlockStore) (*Pool, error) {
-	state := stateDB.LoadState()
-	pool := &Pool{
-		blockStore: blockStore,
-		stateDB:    stateDB,
-		state:      state,
-		logger:     log.New(),
-		store:      NewStore(evidenceDB),
+func NewPool(stateDB, evidenceDB kaidb.Database) *Pool {
+	store := NewStore(evidenceDB)
+	evpool := &Pool{
+		stateDB:      stateDB,
+		state:        state.LoadState(stateDB),
+		logger:       log.New(),
+		store:        store,
+		evidenceList: clist.New(),
 	}
-	return pool, nil
+	return evpool
 }
 
 // EvidenceFront ...
@@ -135,15 +132,15 @@ func (evpool *Pool) MarkEvidenceAsCommitted(height int64, lastBlockTime time.Tim
 
 func (evpool *Pool) removeEvidence(
 	height int64,
-	lastBlockTime time.Time,
+	lastBlockTime uint64,
 	params types.EvidenceParams,
 	blockEvidenceMap map[string]struct{}) {
 
 	for e := evpool.evidenceList.Front(); e != nil; e = e.Next() {
 		var (
 			ev           = e.Value.(types.Evidence)
-			ageDuration  = lastBlockTime.Sub(ev.Time())
-			ageNumBlocks = height - ev.Height().Int64()
+			ageDuration  = time.Duration(lastBlockTime - uint64(ev.Time()))
+			ageNumBlocks = int64(height - ev.Height())
 		)
 
 		// Remove the evidence if it's already in a block or if it's now too old.
@@ -154,6 +151,40 @@ func (evpool *Pool) removeEvidence(
 			e.DetachPrev()
 		}
 	}
+}
+
+// AddEvidence checks the evidence is valid and adds it to the pool.
+func (evpool *Pool) AddEvidence(evidence types.Evidence) error {
+
+	// check if evidence is already stored
+	if evpool.store.Has(evidence) {
+		return ErrEvidenceAlreadyStored{}
+	}
+
+	if err := state.VerifyEvidence(evpool.stateDB, evpool.State(), evidence); err != nil {
+		return ErrInvalidEvidence{err}
+	}
+
+	// fetch the validator and return its voting power as its priority
+	// TODO: something better ?
+	valset, err := state.LoadValidators(evpool.stateDB, evidence.Height())
+	if err != nil {
+		return err
+	}
+	_, val := valset.GetByAddress(evidence.Address())
+	priority := val.VotingPower
+
+	_, err = evpool.store.AddNewEvidence(evidence, int64(priority))
+	if err != nil {
+		return err
+	}
+
+	evpool.logger.Info("Verified new evidence of byzantine behaviour", "evidence", evidence)
+
+	// add evidence to clist
+	evpool.evidenceList.PushBack(evidence)
+
+	return nil
 }
 
 func evMapKey(ev types.Evidence) string {

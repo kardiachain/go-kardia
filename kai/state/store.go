@@ -88,7 +88,7 @@ func (valInfo *ValidatorsInfo) Bytes() []byte {
 
 // LoadValidators loads the ValidatorSet for a given height.
 // Returns ErrNoValSetForHeight if the validator set can't be found for this height.
-func LoadValidators(db kaidb.Database, height int64) (*types.ValidatorSet, error) {
+func LoadValidators(db kaidb.KeyValueStore, height int64) (*types.ValidatorSet, error) {
 	valInfo := loadValidatorsInfo(db, height)
 	if valInfo == nil {
 		return nil, ErrNoValSetForHeight{height}

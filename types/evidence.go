@@ -23,7 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
@@ -40,8 +39,8 @@ const (
 
 // Evidence represents any provable malicious activity by a validator
 type Evidence interface {
-	Height() *common.BigInt                           // height of the equivocation
-	Time() time.Time                                  // time of the equivocation
+	Height() int64                                    // height of the equivocation
+	Time() int64                                      // time of the equivocation
 	Address() common.Address                          // address of the equivocating validator
 	Bytes() []byte                                    // bytes which comprise the evidence
 	Hash() common.Hash                                // hash of the evidence
@@ -104,44 +103,56 @@ func EvidenceFromBytes(b []byte) (Evidence, error) {
 	}
 }
 
-// DuplicateVoteEvidence contains evidence a validator signed two conflicting votes.
+//-------------------------------------------
+
+// DuplicateVoteEvidence contains evidence a validator signed two conflicting
+// votes.
 type DuplicateVoteEvidence struct {
 	Addr  common.Address
 	VoteA *Vote
 	VoteB *Vote
+}
 
-	Timestamp time.Time `json:"timestamp"`
+// NewDuplicateVoteEvidence creates DuplicateVoteEvidence with right ordering given
+// two conflicting votes. If one of the votes is nil, evidence returned is nil as well
+func NewDuplicateVoteEvidence(addr common.Address, vote1 *Vote, vote2 *Vote) *DuplicateVoteEvidence {
+	var voteA, voteB *Vote
+	if vote1 == nil || vote2 == nil {
+		return nil
+	}
+	if strings.Compare(vote1.BlockID.Key(), vote2.BlockID.Key()) == -1 {
+		voteA = vote1
+		voteB = vote2
+	} else {
+		voteA = vote2
+		voteB = vote1
+	}
+	return &DuplicateVoteEvidence{
+		Addr:  addr,
+		VoteA: voteA,
+		VoteB: voteB,
+	}
 }
 
 // String returns a string representation of the evidence.
 func (dve *DuplicateVoteEvidence) String() string {
-	return fmt.Sprintf("DuplicateVoteEvidence{VoteA: %v, VoteB: %v, Time: %v}", dve.VoteA, dve.VoteB, dve.Timestamp)
+	return fmt.Sprintf("VoteA: %v; VoteB: %v", dve.VoteA, dve.VoteB)
+
 }
 
 // Height returns the height this evidence refers to.
-func (dve *DuplicateVoteEvidence) Height() *common.BigInt {
-	return dve.VoteA.Height
+func (dve *DuplicateVoteEvidence) Height() int64 {
+	return dve.VoteA.Height.Int64()
 }
 
-// Time returns time of the latest vote.
-func (dve *DuplicateVoteEvidence) Time() time.Time {
-	return dve.Timestamp
+// Time return the time the evidence was created
+func (dve *DuplicateVoteEvidence) Time() int64 {
+	return dve.VoteA.Timestamp.Int64()
 }
 
 // Address returns the address of the validator.
 func (dve *DuplicateVoteEvidence) Address() common.Address {
 	return dve.Addr
-}
-
-// Bytes Hash returns the hash of the evidence.
-func (dve *DuplicateVoteEvidence) Bytes() []byte {
-	b, _ := rlp.EncodeToBytes(dve)
-	return b
-}
-
-// Hash returns the hash of the evidence.
-func (dve *DuplicateVoteEvidence) Hash() common.Hash {
-	return rlpHash(dve.Bytes())
 }
 
 // Equal checks if two pieces of evidence are equal.
@@ -156,26 +167,15 @@ func (dve *DuplicateVoteEvidence) Equal(ev Evidence) bool {
 	return bytes.Equal(dveHash.Bytes(), evHash.Bytes())
 }
 
-// ValidateBasic performs basic validation.
-func (dve *DuplicateVoteEvidence) ValidateBasic() error {
-	if dve == nil {
-		return errors.New("empty duplicate vote evidence")
-	}
+// Bytes Hash returns the hash of the evidence.
+func (dve *DuplicateVoteEvidence) Bytes() []byte {
+	b, _ := rlp.EncodeToBytes(dve)
+	return b
+}
 
-	if dve.VoteA == nil || dve.VoteB == nil {
-		return fmt.Errorf("one or both of the votes are empty %v, %v", dve.VoteA, dve.VoteB)
-	}
-	// if err := dve.VoteA.ValidateBasic(); err != nil {
-	// 	return fmt.Errorf("invalid VoteA: %w", err)
-	// }
-	// if err := dve.VoteB.ValidateBasic(); err != nil {
-	// 	return fmt.Errorf("invalid VoteB: %w", err)
-	// }
-	// Enforce Votes are lexicographically sorted on blockID
-	if strings.Compare(dve.VoteA.BlockID.Key(), dve.VoteB.BlockID.Key()) >= 0 {
-		return errors.New("duplicate votes in invalid order")
-	}
-	return nil
+// Hash returns the hash of the evidence.
+func (dve *DuplicateVoteEvidence) Hash() common.Hash {
+	return rlpHash(dve.Bytes())
 }
 
 // Verify returns an error if the two votes aren't conflicting.
@@ -232,26 +232,22 @@ func (dve *DuplicateVoteEvidence) Verify(chainID string, addr common.Address) er
 	return nil
 }
 
-// NewDuplicateVoteEvidence creates DuplicateVoteEvidence with right ordering given
-// two conflicting votes. If one of the votes is nil, evidence returned is nil as well
-func NewDuplicateVoteEvidence(vote1, vote2 *Vote, time time.Time) *DuplicateVoteEvidence {
-	var voteA, voteB *Vote
-	if vote1 == nil || vote2 == nil {
-		return nil
-	}
-	if strings.Compare(vote1.BlockID.Key(), vote2.BlockID.Key()) == -1 {
-		voteA = vote1
-		voteB = vote2
-	} else {
-		voteA = vote2
-		voteB = vote1
-	}
-	return &DuplicateVoteEvidence{
-		VoteA: voteA,
-		VoteB: voteB,
-
-		Timestamp: time,
-	}
+// ValidateBasic performs basic validation.
+func (dve *DuplicateVoteEvidence) ValidateBasic() error {
+	// if dve.VoteA == nil || dve.VoteB == nil {
+	// 	return fmt.Errorf("one or both of the votes are empty %v, %v", dve.VoteA, dve.VoteB)
+	// }
+	// if err := dve.VoteA.ValidateBasic(); err != nil {
+	// 	return fmt.Errorf("invalid VoteA: %v", err)
+	// }
+	// if err := dve.VoteB.ValidateBasic(); err != nil {
+	// 	return fmt.Errorf("invalid VoteB: %v", err)
+	// }
+	// // Enforce Votes are lexicographically sorted on blockID
+	// if strings.Compare(dve.VoteA.BlockID.Key(), dve.VoteB.BlockID.Key()) >= 0 {
+	// 	return errors.New("duplicate votes in invalid order")
+	// }
+	return nil
 }
 
 //-------------------------------------------
