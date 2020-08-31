@@ -12,7 +12,7 @@ Compatible tested Go version: 1.13.0, 1.13.9, 1.13.15
 
 # Kardia private testnet
 - Block explorer UI: [Kardiascan](http://explorer.kardiachain.io/)
-- Release: [kardia-v0.9.0](https://github.com/kardiachain/go-kardiamain/releases/tag/v0.9.0)
+- Release: [kardia-v0.10.0](https://github.com/kardiachain/go-kardiamain/releases/tag/v0.10.0)
 
 
 # Quickstart
