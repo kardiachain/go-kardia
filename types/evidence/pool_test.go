@@ -9,6 +9,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state"
+	kstate "github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,11 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 	// create validator set and state
 	valSet := &types.ValidatorSet{
 		Validators: []*types.Validator{
-			{Address: valAddr},
+			&types.Validator{
+				Address:     valAddr,
+				VotingPower: 100,
+				Accum:       common.NewBigInt64(1),
+			},
 		},
 	}
 
@@ -43,7 +48,7 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 	// save all states up to height
 	for i := int64(0); i < height; i++ {
 		state.LastBlockHeight = common.NewBigInt64(i)
-		//state.SaveState(stateDB, state)
+		kstate.SaveState(stateDB, state)
 	}
 
 	return stateDB

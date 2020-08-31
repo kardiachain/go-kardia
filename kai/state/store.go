@@ -28,7 +28,13 @@ func calcConsensusParamsKey(height int64) []byte {
 	return []byte(fmt.Sprintf("consensusParamsKey:%v", height))
 }
 
-func saveState(db kaidb.Database, state LastestBlockState, key []byte) {
+// SaveState persists the State, the ValidatorsInfo, and the ConsensusParamsInfo to the database.
+// This flushes the writes (e.g. calls SetSync).
+func SaveState(db kaidb.KeyValueStore, state LastestBlockState) {
+	saveState(db, state, stateKey)
+}
+
+func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
 	nextHeight := state.LastBlockHeight.Add(1).Int64()
 	// If first block, save validators for block 1.
 	if nextHeight == 1 {
