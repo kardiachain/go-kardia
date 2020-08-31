@@ -61,6 +61,12 @@ func NewPool(stateDB, evidenceDB kaidb.Database) *Pool {
 	return evpool
 }
 
+// IsCommitted returns true if we have already seen this exact evidence and it is already marked as committed.
+func (evpool *Pool) IsCommitted(evidence types.Evidence) bool {
+	ei := evpool.store.getInfo(evidence)
+	return ei.Evidence != nil && ei.Committed
+}
+
 // EvidenceFront ...
 func (evpool *Pool) EvidenceFront() *clist.CElement {
 	return evpool.evidenceList.Front()

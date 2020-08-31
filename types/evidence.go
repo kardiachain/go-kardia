@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
@@ -248,6 +249,45 @@ func (dve *DuplicateVoteEvidence) ValidateBasic() error {
 	// 	return errors.New("duplicate votes in invalid order")
 	// }
 	return nil
+}
+
+// UNSTABLE
+type MockEvidence struct {
+	EvidenceHeight  int64
+	EvidenceTime    time.Time
+	EvidenceAddress common.Address
+}
+
+var _ Evidence = &MockEvidence{}
+
+// UNSTABLE
+func NewMockEvidence(height int64, eTime time.Time, idx int, address common.Address) MockEvidence {
+	return MockEvidence{
+		EvidenceHeight:  height,
+		EvidenceTime:    eTime,
+		EvidenceAddress: address}
+}
+
+func (e MockEvidence) Height() int64           { return e.EvidenceHeight }
+func (e MockEvidence) Time() int64             { return e.EvidenceTime.Unix() }
+func (e MockEvidence) Address() common.Address { return e.EvidenceAddress }
+func (e MockEvidence) Hash() common.Hash {
+	return rlpHash([]byte(fmt.Sprintf("%d-%x-%s",
+		e.EvidenceHeight, e.EvidenceAddress, e.EvidenceTime)))
+}
+func (e MockEvidence) Bytes() []byte {
+	return []byte(fmt.Sprintf("%d-%x-%s",
+		e.EvidenceHeight, e.EvidenceAddress, e.EvidenceTime))
+}
+func (e MockEvidence) Verify(chainID string, addr common.Address) error { return nil }
+func (e MockEvidence) Equal(ev Evidence) bool {
+	e2 := ev.(MockEvidence)
+	return e.EvidenceHeight == e2.EvidenceHeight &&
+		e.EvidenceAddress.Equal(e2.EvidenceAddress)
+}
+func (e MockEvidence) ValidateBasic() error { return nil }
+func (e MockEvidence) String() string {
+	return fmt.Sprintf("Evidence: %d/%s/%s", e.EvidenceHeight, e.Time(), e.EvidenceAddress)
 }
 
 //-------------------------------------------

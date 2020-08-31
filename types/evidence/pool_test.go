@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func initializeValidatorState(valAddr common.Address, height uint64) kaidb.Database {
+func initializeValidatorState(valAddr common.Address, height int64) kaidb.Database {
 	stateDB := memorydb.New()
 
 	// create validator set and state
@@ -41,8 +41,8 @@ func initializeValidatorState(valAddr common.Address, height uint64) kaidb.Datab
 		},
 	}
 	// save all states up to height
-	for i := uint64(0); i < height; i++ {
-		state.LastBlockHeight = common.NewBigInt64(int64(i))
+	for i := int64(0); i < height; i++ {
+		state.LastBlockHeight = common.NewBigInt64(i)
 		//state.SaveState(stateDB, state)
 	}
 
@@ -53,7 +53,7 @@ func TestEvidencePool(t *testing.T) {
 
 	var (
 		valAddr      = common.BytesToAddress([]byte("val1"))
-		height       = uint64(5)
+		height       = int64(5)
 		stateDB      = initializeValidatorState(valAddr, height)
 		evidenceDB   = memorydb.New()
 		pool         = NewPool(evidenceDB, stateDB)
@@ -91,8 +91,8 @@ func TestEvidencePoolIsCommitted(t *testing.T) {
 	// Initialization:
 	var (
 		valAddr       = common.BytesToAddress([]byte("validator_address"))
-		height        = uint64(42)
-		lastBlockTime = uint64(time.Now().Unix())
+		height        = int64(42)
+		lastBlockTime = int64(time.Now().Unix())
 		stateDB       = initializeValidatorState(valAddr, height)
 		evidenceDB    = memorydb.New()
 		pool          = NewPool(stateDB, evidenceDB)
@@ -107,7 +107,7 @@ func TestEvidencePoolIsCommitted(t *testing.T) {
 	assert.False(t, pool.IsCommitted(evidence))
 
 	// evidence seen and committed:
-	pool.MarkEvidenceAsCommitted(height, lastBlockTime, []*types.DuplicateVoteEvidence{evidence})
+	pool.MarkEvidenceAsCommitted(height, time.Unix(lastBlockTime, 0), []types.Evidence{evidence})
 	assert.True(t, pool.IsCommitted(evidence))
 }
 
@@ -137,7 +137,7 @@ func TestAddEvidence(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		ev := types.NewMockEvidence(tc.evHeight, tc.evTime, 0, valAddr)
+		ev := types.NewMockEvidence(int64(tc.evHeight), tc.evTime, 0, valAddr)
 		err := pool.AddEvidence(ev)
 		if tc.expErr {
 			assert.Error(t, err)
