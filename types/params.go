@@ -1,8 +1,6 @@
 package types
 
 import (
-	"time"
-
 	"github.com/kardiachain/go-kardiamain/lib/strings"
 )
 
@@ -23,17 +21,17 @@ const (
 // BlockParams define limits on the block size and gas plus minimum time
 // between blocks.
 type BlockParams struct {
-	MaxBytes int64 `json:"max_bytes"`
-	MaxGas   int64 `json:"max_gas"`
+	MaxBytes uint64 `json:"max_bytes"`
+	MaxGas   uint64 `json:"max_gas"`
 	// Minimum time increment between consecutive blocks (in milliseconds)
 	// Not exposed to the application.
-	TimeIotaMs int64 `json:"time_iota_ms"`
+	TimeIotaMs uint64 `json:"time_iota_ms"`
 }
 
 // EvidenceParams determine how we handle evidence of malfeasance.
 type EvidenceParams struct {
-	MaxAgeNumBlocks int64         `json:"max_age_num_blocks"` // only accept new evidence more recent than this
-	MaxAgeDuration  time.Duration `json:"max_age_duration"`
+	MaxAgeNumBlocks uint64 `json:"max_age_num_blocks"` // only accept new evidence more recent than this
+	MaxAgeDuration  uint   `json:"max_age_duration"`
 }
 
 // ConsensusParams contains consensus critical parameters that determine the

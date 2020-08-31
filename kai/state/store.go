@@ -20,11 +20,11 @@ const (
 
 //------------------------------------------------------------------------
 
-func calcValidatorsKey(height int64) []byte {
+func calcValidatorsKey(height uint64) []byte {
 	return []byte(fmt.Sprintf("validatorsKey:%v", height))
 }
 
-func calcConsensusParamsKey(height int64) []byte {
+func calcConsensusParamsKey(height uint64) []byte {
 	return []byte(fmt.Sprintf("consensusParamsKey:%v", height))
 }
 
@@ -35,18 +35,18 @@ func SaveState(db kaidb.KeyValueStore, state LastestBlockState) {
 }
 
 func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
-	nextHeight := state.LastBlockHeight.Add(1).Int64()
+	nextHeight := state.LastBlockHeight + 1
 	// If first block, save validators for block 1.
 	if nextHeight == 1 {
 		// This extra logic due to Tendermint validator set changes being delayed 1 block.
 		// It may get overwritten due to InitChain validator updates.
-		lastHeightVoteChanged := int64(1)
+		lastHeightVoteChanged := uint64(1)
 		saveValidatorsInfo(db, nextHeight, lastHeightVoteChanged, state.Validators)
 	}
 	// Save next validators.
-	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged.Int64(), state.NextValidators)
+	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged.Uint64(), state.NextValidators)
 	// Save next consensus params.
-	saveConsensusParamsInfo(db, nextHeight, state.LastHeightConsensusParamsChanged, state.ConsensusParams)
+	saveConsensusParamsInfo(db, uint64(nextHeight), state.LastHeightConsensusParamsChanged, state.ConsensusParams)
 	db.Put(key, state.Bytes())
 }
 
@@ -95,13 +95,13 @@ func (valInfo *ValidatorsInfo) Bytes() []byte {
 // LoadValidators loads the ValidatorSet for a given height.
 // Returns ErrNoValSetForHeight if the validator set can't be found for this height.
 func LoadValidators(db kaidb.KeyValueStore, height int64) (*types.ValidatorSet, error) {
-	valInfo := loadValidatorsInfo(db, height)
+	valInfo := loadValidatorsInfo(db, uint64(height))
 	if valInfo == nil {
 		return nil, ErrNoValSetForHeight{height}
 	}
 	if valInfo.ValidatorSet == nil {
 		lastStoredHeight := lastStoredHeightFor(height, int64(valInfo.LastHeightChanged))
-		valInfo2 := loadValidatorsInfo(db, lastStoredHeight)
+		valInfo2 := loadValidatorsInfo(db, uint64(lastStoredHeight))
 		if valInfo2 == nil || valInfo2.ValidatorSet == nil {
 			panic(
 				fmt.Sprintf("Couldn't find validators at height %d (height %d was originally requested)",
@@ -123,7 +123,7 @@ func lastStoredHeightFor(height, lastHeightChanged int64) int64 {
 }
 
 // CONTRACT: Returned ValidatorsInfo can be mutated.
-func loadValidatorsInfo(db kaidb.Database, height int64) *ValidatorsInfo {
+func loadValidatorsInfo(db kaidb.Database, height uint64) *ValidatorsInfo {
 	buf, err := db.Get(calcValidatorsKey(height))
 	if err != nil {
 		panic(err)
@@ -150,7 +150,7 @@ func loadValidatorsInfo(db kaidb.Database, height int64) *ValidatorsInfo {
 // `height` is the effective height for which the validator is responsible for
 // signing. It should be called from s.Save(), right before the state itself is
 // persisted.
-func saveValidatorsInfo(db kaidb.Database, height, lastHeightChanged int64, valSet *types.ValidatorSet) {
+func saveValidatorsInfo(db kaidb.Database, height, lastHeightChanged uint64, valSet *types.ValidatorSet) {
 	if lastHeightChanged > height {
 		panic("LastHeightChanged cannot be greater than ValidatorsInfo height")
 	}
@@ -170,7 +170,7 @@ func saveValidatorsInfo(db kaidb.Database, height, lastHeightChanged int64, valS
 // ConsensusParamsInfo represents the latest consensus params, or the last height it changed
 type ConsensusParamsInfo struct {
 	ConsensusParams   types.ConsensusParams
-	LastHeightChanged int64
+	LastHeightChanged uint64
 }
 
 // LoadConsensusParams loads the ConsensusParams for a given height.
@@ -183,7 +183,7 @@ func LoadConsensusParams(db kaidb.Database, height int64) (types.ConsensusParams
 	}
 
 	if paramsInfo.ConsensusParams.Equals(&empty) {
-		paramsInfo2 := loadConsensusParamsInfo(db, paramsInfo.LastHeightChanged)
+		paramsInfo2 := loadConsensusParamsInfo(db, int64(paramsInfo.LastHeightChanged))
 		if paramsInfo2 == nil {
 			panic(
 				fmt.Sprintf(
@@ -200,7 +200,7 @@ func LoadConsensusParams(db kaidb.Database, height int64) (types.ConsensusParams
 }
 
 func loadConsensusParamsInfo(db kaidb.Database, height int64) *ConsensusParamsInfo {
-	buf, err := db.Get(calcConsensusParamsKey(height))
+	buf, err := db.Get(calcConsensusParamsKey(uint64(height)))
 	if err != nil {
 		panic(err)
 	}
@@ -233,9 +233,9 @@ func (params ConsensusParamsInfo) Bytes() []byte {
 // It should be called from s.Save(), right before the state itself is persisted.
 // If the consensus params did not change after processing the latest block,
 // only the last height for which they changed is persisted.
-func saveConsensusParamsInfo(db kaidb.Database, nextHeight, changeHeight int64, params types.ConsensusParams) {
+func saveConsensusParamsInfo(db kaidb.Database, nextHeight, changeHeight uint64, params types.ConsensusParams) {
 	paramsInfo := &ConsensusParamsInfo{
-		LastHeightChanged: changeHeight,
+		LastHeightChanged: uint64(changeHeight),
 	}
 	if changeHeight == nextHeight {
 		paramsInfo.ConsensusParams = params

@@ -22,7 +22,6 @@ import (
 	"fmt"
 
 	fail "github.com/ebuchman/fail-test"
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -78,16 +77,16 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 	// when it nears the current staking end's window.
 	state.mayRefreshValidatorSet()
 
-	var totalTx *cmn.BigInt
-	if state.LastBlockTotalTx == nil {
-		totalTx = nil
+	var totalTx uint64
+	if state.LastBlockTotalTx == 0 {
+		totalTx = 9
 	} else {
-		totalTx = state.LastBlockTotalTx.AddUint64(header.NumTxs)
+		totalTx = state.LastBlockTotalTx + header.NumTxs
 	}
 
 	return LastestBlockState{
 		ChainID:                     state.ChainID,
-		LastBlockHeight:             cmn.NewBigUint64(header.Height),
+		LastBlockHeight:             header.Height,
 		LastBlockTotalTx:            totalTx,
 		LastBlockID:                 blockID,
 		LastBlockTime:               header.Time,

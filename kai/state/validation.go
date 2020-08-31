@@ -21,7 +21,6 @@ package state
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -34,8 +33,8 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 	}
 
 	// validate basic info
-	if int64(block.Header().Height) != state.LastBlockHeight.Int64()+1 {
-		return fmt.Errorf("wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight.Int64()+1, block.Height())
+	if block.Header().Height != state.LastBlockHeight+1 {
+		return fmt.Errorf("wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight+1, block.Height())
 	}
 	/*	TODO: Determine bounds for Time
 		See blockchain/manager "stopSyncingDurationMinutes"
@@ -106,20 +105,20 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 // - it was properly signed by the alleged equivocator
 func VerifyEvidence(stateDB kaidb.KeyValueStore, state LastestBlockState, evidence types.Evidence) error {
 	var (
-		height         = state.LastBlockHeight.Int64()
+		height         = state.LastBlockHeight
 		evidenceParams = state.ConsensusParams.Evidence
 	)
 
-	ageNumBlocks := height - evidence.Height()
+	ageNumBlocks := height - uint64(evidence.Height())
 	if ageNumBlocks > evidenceParams.MaxAgeNumBlocks {
 		return fmt.Errorf("evidence from height %d is too old. Min height is %d",
 			evidence.Height(), height-evidenceParams.MaxAgeNumBlocks)
 	}
 
-	ageDuration := time.Duration(state.LastBlockTime.Int64() - evidence.Time())
-	if ageDuration > evidenceParams.MaxAgeDuration {
+	ageDuration := state.LastBlockTime.Int64() - evidence.Time()
+	if uint(ageDuration) > evidenceParams.MaxAgeDuration {
 		return fmt.Errorf("evidence created at %v has expired. Evidence can not be older than: %v",
-			evidence.Time(), time.Duration(state.LastBlockTime.Int64())+evidenceParams.MaxAgeDuration)
+			evidence.Time(), uint(state.LastBlockTime.Int64())+evidenceParams.MaxAgeDuration)
 	}
 
 	valset, err := LoadValidators(stateDB, evidence.Height())
@@ -135,7 +134,7 @@ func VerifyEvidence(stateDB kaidb.KeyValueStore, state LastestBlockState, eviden
 	// XXX: this makes lite-client bisection as is unsafe
 	// See https://github.com/tendermint/tendermint/issues/3244
 	ev := evidence
-	height, addr := ev.Height(), ev.Address()
+	height, addr := uint64(ev.Height()), ev.Address()
 	_, val := valset.GetByAddress(addr)
 	if val == nil {
 		return fmt.Errorf("address %X was not a validator at height %d", addr, height)

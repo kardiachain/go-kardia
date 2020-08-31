@@ -104,10 +104,10 @@ func (evpool *Pool) State() state.LastestBlockState {
 func (evpool *Pool) Update(block *types.Block, state state.LastestBlockState) {
 
 	// sanity check
-	if state.LastBlockHeight.Int64() != int64(block.Height()) {
+	if state.LastBlockHeight != uint64(block.Height()) {
 		panic(
 			fmt.Sprintf("Failed EvidencePool.Update sanity check: got state.Height=%d with block.Height=%d",
-				state.LastBlockHeight.Int64(),
+				state.LastBlockHeight,
 				block.Height(),
 			),
 		)
@@ -145,13 +145,13 @@ func (evpool *Pool) removeEvidence(
 	for e := evpool.evidenceList.Front(); e != nil; e = e.Next() {
 		var (
 			ev           = e.Value.(types.Evidence)
-			ageDuration  = time.Duration(lastBlockTime - uint64(ev.Time()))
+			ageDuration  = lastBlockTime - uint64(ev.Time())
 			ageNumBlocks = int64(height - ev.Height())
 		)
 
 		// Remove the evidence if it's already in a block or if it's now too old.
 		if _, ok := blockEvidenceMap[evMapKey(ev)]; ok ||
-			(ageDuration > params.MaxAgeDuration && ageNumBlocks > params.MaxAgeNumBlocks) {
+			(uint(ageDuration) > params.MaxAgeDuration && ageNumBlocks > int64(params.MaxAgeNumBlocks)) {
 			// remove from clist
 			evpool.evidenceList.Remove(e)
 			e.DetachPrev()

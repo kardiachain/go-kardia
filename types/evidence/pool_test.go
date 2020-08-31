@@ -33,7 +33,7 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 	nextVal.AdvanceProposer(1)
 
 	state := state.LastestBlockState{
-		LastBlockHeight:             common.NewBigInt64(0),
+		LastBlockHeight:             0,
 		LastBlockTime:               big.NewInt(time.Now().Unix()),
 		Validators:                  valSet,
 		NextValidators:              nextVal,
@@ -41,13 +41,13 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 		ConsensusParams: types.ConsensusParams{
 			Evidence: types.EvidenceParams{
 				MaxAgeNumBlocks: 10000,
-				MaxAgeDuration:  48 * time.Hour,
+				MaxAgeDuration:  uint(48 * time.Hour),
 			},
 		},
 	}
 	// save all states up to height
-	for i := int64(0); i < height; i++ {
-		state.LastBlockHeight = common.NewBigInt64(i)
+	for i := uint64(0); i < uint64(height); i++ {
+		state.LastBlockHeight = i
 		kstate.SaveState(stateDB, state)
 	}
 
@@ -61,7 +61,7 @@ func TestEvidencePool(t *testing.T) {
 		height       = int64(5)
 		stateDB      = initializeValidatorState(valAddr, height)
 		evidenceDB   = memorydb.New()
-		pool         = NewPool(evidenceDB, stateDB)
+		pool         = NewPool(stateDB, evidenceDB)
 		evidenceTime = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	)
 

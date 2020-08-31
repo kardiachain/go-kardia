@@ -47,8 +47,8 @@ type LastestBlockState struct {
 	ChainID string
 
 	// LastBlockHeight=0 at genesis (ie. block(H=0) does not exist)
-	LastBlockHeight  *cmn.BigInt
-	LastBlockTotalTx *cmn.BigInt
+	LastBlockHeight  uint64
+	LastBlockTotalTx uint64
 	LastBlockID      types.BlockID
 	LastBlockTime    *big.Int
 
@@ -64,7 +64,7 @@ type LastestBlockState struct {
 	NextValidators              *types.ValidatorSet
 
 	ConsensusParams                  types.ConsensusParams
-	LastHeightConsensusParamsChanged int64
+	LastHeightConsensusParamsChanged uint64
 	// TODO(namdoh): Add consensus parameters used for validating blocks.
 
 	// Merkle root of the results from executing prev block
@@ -128,7 +128,7 @@ func (state LastestBlockState) String() string {
 //
 // Note: This must be called before commiting a block.
 func (state *LastestBlockState) mayRefreshValidatorSet() {
-	height := state.LastBlockHeight.Uint64()
+	height := state.LastBlockHeight
 
 	// Case #1
 	currentVals := state.Validators
