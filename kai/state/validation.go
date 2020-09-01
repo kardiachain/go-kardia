@@ -108,16 +108,16 @@ func VerifyEvidence(stateDB kaidb.KeyValueStore, state LastestBlockState, eviden
 		height         = state.LastBlockHeight
 		evidenceParams = state.ConsensusParams.Evidence
 	)
-	ageNumBlocks := int64(height) - int64(evidence.Height())
-	if ageNumBlocks > int64(evidenceParams.MaxAgeNumBlocks) {
+	ageNumBlocks := height - evidence.Height()
+	if ageNumBlocks > evidenceParams.MaxAgeNumBlocks {
 		return fmt.Errorf("evidence from height %d is too old. Min height is %d",
 			evidence.Height(), height-evidenceParams.MaxAgeNumBlocks)
 	}
 
-	ageDuration := state.LastBlockTime.Int64() - evidence.Time()
-	if uint(ageDuration) > evidenceParams.MaxAgeDuration {
+	ageDuration := uint(state.LastBlockTime - evidence.Time())
+	if ageDuration > evidenceParams.MaxAgeDuration {
 		return fmt.Errorf("evidence created at %v has expired. Evidence can not be older than: %v",
-			evidence.Time(), uint(state.LastBlockTime.Int64())+evidenceParams.MaxAgeDuration)
+			evidence.Time(), state.LastBlockTime+uint64(evidenceParams.MaxAgeDuration))
 	}
 
 	valset, err := LoadValidators(stateDB, evidence.Height())

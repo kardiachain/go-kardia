@@ -1,7 +1,6 @@
 package evidence
 
 import (
-	"math/big"
 	"sync"
 	"testing"
 	"time"
@@ -34,7 +33,7 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 
 	state := state.LastestBlockState{
 		LastBlockHeight:             0,
-		LastBlockTime:               big.NewInt(time.Now().Unix()),
+		LastBlockTime:               uint64(time.Now().Unix()),
 		Validators:                  valSet,
 		NextValidators:              nextVal,
 		LastHeightValidatorsChanged: 1,

@@ -146,7 +146,7 @@ func (evpool *Pool) removeEvidence(
 		var (
 			ev           = e.Value.(types.Evidence)
 			ageDuration  = lastBlockTime - uint64(ev.Time())
-			ageNumBlocks = int64(height - ev.Height())
+			ageNumBlocks = int64(uint64(height) - ev.Height())
 		)
 
 		// Remove the evidence if it's already in a block or if it's now too old.

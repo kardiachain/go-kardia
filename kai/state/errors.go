@@ -23,10 +23,10 @@ import "fmt"
 type (
 	ErrInvalidBlock      error
 	ErrNoValSetForHeight struct {
-		Height int64
+		Height uint64
 	}
 	ErrNoConsensusParamsForHeight struct {
-		Height int64
+		Height uint64
 	}
 )
 

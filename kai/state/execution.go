@@ -82,7 +82,7 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 		ChainID:                     state.ChainID,
 		LastBlockHeight:             header.Height,
 		LastBlockID:                 blockID,
-		LastBlockTime:               header.Time,
+		LastBlockTime:               header.Time.Uint64(),
 		NextValidators:              nValSet,
 		Validators:                  state.NextValidators.Copy(),
 		LastValidators:              state.Validators.Copy(),

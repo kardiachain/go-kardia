@@ -94,13 +94,13 @@ func (valInfo *ValidatorsInfo) Bytes() []byte {
 
 // LoadValidators loads the ValidatorSet for a given height.
 // Returns ErrNoValSetForHeight if the validator set can't be found for this height.
-func LoadValidators(db kaidb.KeyValueStore, height int64) (*types.ValidatorSet, error) {
+func LoadValidators(db kaidb.KeyValueStore, height uint64) (*types.ValidatorSet, error) {
 	valInfo := loadValidatorsInfo(db, uint64(height))
 	if valInfo == nil {
 		return nil, ErrNoValSetForHeight{height}
 	}
 	if valInfo.ValidatorSet == nil {
-		lastStoredHeight := lastStoredHeightFor(height, int64(valInfo.LastHeightChanged))
+		lastStoredHeight := lastStoredHeightFor(height, valInfo.LastHeightChanged)
 		valInfo2 := loadValidatorsInfo(db, uint64(lastStoredHeight))
 		if valInfo2 == nil || valInfo2.ValidatorSet == nil {
 			panic(
@@ -110,16 +110,16 @@ func LoadValidators(db kaidb.KeyValueStore, height int64) (*types.ValidatorSet, 
 				),
 			)
 		}
-		valInfo2.ValidatorSet.AdvanceProposer(int64(height - lastStoredHeight)) // mutate
+		valInfo2.ValidatorSet.AdvanceProposer(int64(height - uint64(lastStoredHeight))) // mutate
 		valInfo = valInfo2
 	}
 
 	return valInfo.ValidatorSet, nil
 }
 
-func lastStoredHeightFor(height, lastHeightChanged int64) int64 {
+func lastStoredHeightFor(height, lastHeightChanged uint64) int64 {
 	checkpointHeight := height - height%valSetCheckpointInterval
-	return math.MaxInt64(checkpointHeight, lastHeightChanged)
+	return math.MaxInt64(int64(checkpointHeight), int64(lastHeightChanged))
 }
 
 // CONTRACT: Returned ValidatorsInfo can be mutated.
@@ -174,7 +174,7 @@ type ConsensusParamsInfo struct {
 }
 
 // LoadConsensusParams loads the ConsensusParams for a given height.
-func LoadConsensusParams(db kaidb.Database, height int64) (types.ConsensusParams, error) {
+func LoadConsensusParams(db kaidb.Database, height uint64) (types.ConsensusParams, error) {
 	empty := types.ConsensusParams{}
 
 	paramsInfo := loadConsensusParamsInfo(db, height)
@@ -183,7 +183,7 @@ func LoadConsensusParams(db kaidb.Database, height int64) (types.ConsensusParams
 	}
 
 	if paramsInfo.ConsensusParams.Equals(&empty) {
-		paramsInfo2 := loadConsensusParamsInfo(db, int64(paramsInfo.LastHeightChanged))
+		paramsInfo2 := loadConsensusParamsInfo(db, paramsInfo.LastHeightChanged)
 		if paramsInfo2 == nil {
 			panic(
 				fmt.Sprintf(
@@ -199,7 +199,7 @@ func LoadConsensusParams(db kaidb.Database, height int64) (types.ConsensusParams
 	return paramsInfo.ConsensusParams, nil
 }
 
-func loadConsensusParamsInfo(db kaidb.Database, height int64) *ConsensusParamsInfo {
+func loadConsensusParamsInfo(db kaidb.Database, height uint64) *ConsensusParamsInfo {
 	buf, err := db.Get(calcConsensusParamsKey(uint64(height)))
 	if err != nil {
 		panic(err)

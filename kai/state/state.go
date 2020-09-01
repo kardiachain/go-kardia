@@ -20,7 +20,6 @@ package state
 
 import (
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
@@ -49,7 +48,7 @@ type LastestBlockState struct {
 	LastBlockHeight  uint64
 	LastBlockTotalTx uint64
 	LastBlockID      types.BlockID
-	LastBlockTime    *big.Int
+	LastBlockTime    uint64
 
 	// LastValidators is used to validate block.LastCommit.
 	// Validators are persisted to the database separately every time they change,
@@ -101,7 +100,7 @@ func (state LastestBlockState) IsEmpty() bool {
 // Stringshort returns a short string representing State
 func (state LastestBlockState) String() string {
 	return fmt.Sprintf("{ChainID:%v LastBlockHeight:%v LastBlockTotalTx:%v LastBlockID:%v LastBlockTime:%v Validators:%v LastValidators:%v LastHeightValidatorsChanged:%v",
-		state.ChainID, state.LastBlockHeight, state.LastBlockTotalTx, state.LastBlockID, time.Unix(state.LastBlockTime.Int64(), 0),
+		state.ChainID, state.LastBlockHeight, state.LastBlockTotalTx, state.LastBlockID, time.Unix(int64(state.LastBlockTime), 0),
 		state.Validators, state.LastValidators, state.LastHeightValidatorsChanged)
 }
 

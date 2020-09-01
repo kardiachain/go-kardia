@@ -42,7 +42,7 @@ type Info struct {
 }
 
 func keyLookup(evidence types.Evidence) []byte {
-	return keyLookupFromHeightAndHash(evidence.Height(), evidence.Hash().Bytes())
+	return keyLookupFromHeightAndHash(int64(evidence.Height()), evidence.Hash().Bytes())
 }
 
 // big endian padded hex
@@ -55,11 +55,11 @@ func keyLookupFromHeightAndHash(height int64, hash []byte) []byte {
 }
 
 func keyOutqueue(evidence types.Evidence, priority int64) []byte {
-	return _key("%s/%s/%s/%X", baseKeyOutqueue, bE(priority), bE(evidence.Height()), evidence.Hash())
+	return _key("%s/%s/%s/%X", baseKeyOutqueue, bE(priority), bE(int64(evidence.Height())), evidence.Hash())
 }
 
 func keyPending(evidence types.Evidence) []byte {
-	return _key("%s/%s/%X", baseKeyPending, bE(evidence.Height()), evidence.Hash())
+	return _key("%s/%s/%X", baseKeyPending, bE(int64(evidence.Height())), evidence.Hash())
 }
 
 func _key(format string, o ...interface{}) []byte {
@@ -234,5 +234,5 @@ func (store *Store) MarkEvidenceAsCommitted(evidence types.Evidence) {
 
 // getInfo is convenience for calling GetInfo if we have the full evidence.
 func (store *Store) getInfo(evidence types.Evidence) Info {
-	return store.GetInfo(evidence.Height(), evidence.Hash().Bytes())
+	return store.GetInfo(int64(evidence.Height()), evidence.Hash().Bytes())
 }
