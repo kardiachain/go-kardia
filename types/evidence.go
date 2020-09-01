@@ -36,6 +36,7 @@ type EvidenceType uint8
 // EvidenceType
 const (
 	EvidenceDuplicateVote = EvidenceType(0x01)
+	EvidenceMock          = EvidenceType(0x02)
 )
 
 // Evidence represents any provable malicious activity by a validator
@@ -77,6 +78,14 @@ func EvidenceToBytes(evidence Evidence) ([]byte, error) {
 		}
 		info.Payload = b
 		break
+	case MockEvidence:
+		info.Type = EvidenceMock
+		b, err := rlp.EncodeToBytes(evi)
+		if err != nil {
+			return nil, err
+		}
+		info.Payload = b
+		break
 	default:
 		return nil, fmt.Errorf("evidence is not recognized: %T", evidence)
 	}
@@ -99,6 +108,12 @@ func EvidenceFromBytes(b []byte) (Evidence, error) {
 			return nil, err
 		}
 		return duplicateVoteEvidence, nil
+	case EvidenceMock:
+		ev := MockEvidence{}
+		if err := rlp.DecodeBytes(info.Payload, &ev); err != nil {
+			return nil, err
+		}
+		return ev, nil
 	default:
 		return nil, errors.New("evidence is not recognized")
 	}
@@ -253,23 +268,23 @@ func (dve *DuplicateVoteEvidence) ValidateBasic() error {
 
 // UNSTABLE
 type MockEvidence struct {
-	EvidenceHeight  int64
-	EvidenceTime    time.Time
+	EvidenceHeight  uint64
+	EvidenceTime    uint64
 	EvidenceAddress common.Address
 }
 
 var _ Evidence = &MockEvidence{}
 
-// UNSTABLE
-func NewMockEvidence(height int64, eTime time.Time, idx int, address common.Address) MockEvidence {
+// NewMockEvidence UNSTABLE
+func NewMockEvidence(height uint64, eTime time.Time, idx int, address common.Address) MockEvidence {
 	return MockEvidence{
 		EvidenceHeight:  height,
-		EvidenceTime:    eTime,
+		EvidenceTime:    uint64(eTime.Unix()),
 		EvidenceAddress: address}
 }
 
-func (e MockEvidence) Height() int64           { return e.EvidenceHeight }
-func (e MockEvidence) Time() int64             { return e.EvidenceTime.Unix() }
+func (e MockEvidence) Height() int64           { return int64(e.EvidenceHeight) }
+func (e MockEvidence) Time() int64             { return int64(e.EvidenceTime) }
 func (e MockEvidence) Address() common.Address { return e.EvidenceAddress }
 func (e MockEvidence) Hash() common.Hash {
 	return rlpHash([]byte(fmt.Sprintf("%d-%x-%s",

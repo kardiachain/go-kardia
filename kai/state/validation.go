@@ -108,9 +108,8 @@ func VerifyEvidence(stateDB kaidb.KeyValueStore, state LastestBlockState, eviden
 		height         = state.LastBlockHeight
 		evidenceParams = state.ConsensusParams.Evidence
 	)
-
-	ageNumBlocks := height - uint64(evidence.Height())
-	if ageNumBlocks > evidenceParams.MaxAgeNumBlocks {
+	ageNumBlocks := int64(height) - int64(evidence.Height())
+	if ageNumBlocks > int64(evidenceParams.MaxAgeNumBlocks) {
 		return fmt.Errorf("evidence from height %d is too old. Min height is %d",
 			evidence.Height(), height-evidenceParams.MaxAgeNumBlocks)
 	}

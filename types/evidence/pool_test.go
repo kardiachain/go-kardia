@@ -37,7 +37,7 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 		LastBlockTime:               big.NewInt(time.Now().Unix()),
 		Validators:                  valSet,
 		NextValidators:              nextVal,
-		LastHeightValidatorsChanged: common.NewBigInt32(1),
+		LastHeightValidatorsChanged: 1,
 		ConsensusParams: types.ConsensusParams{
 			Evidence: types.EvidenceParams{
 				MaxAgeNumBlocks: 10000,
@@ -65,8 +65,8 @@ func TestEvidencePool(t *testing.T) {
 		evidenceTime = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	)
 
-	goodEvidence := types.NewMockEvidence(height, time.Now(), 0, valAddr)
-	badEvidence := types.NewMockEvidence(height, evidenceTime, 0, valAddr)
+	goodEvidence := types.NewMockEvidence(uint64(height), time.Now(), 0, valAddr)
+	badEvidence := types.NewMockEvidence(uint64(height), evidenceTime, 0, valAddr)
 
 	// bad evidence
 	err := pool.AddEvidence(badEvidence)
@@ -104,7 +104,7 @@ func TestEvidencePoolIsCommitted(t *testing.T) {
 	)
 
 	// evidence not seen yet:
-	evidence := types.NewMockEvidence(height, time.Now(), 0, valAddr)
+	evidence := types.NewMockEvidence(uint64(height), time.Now(), 0, valAddr)
 	assert.False(t, pool.IsCommitted(evidence))
 
 	// evidence seen but not yet committed:
@@ -123,7 +123,7 @@ func TestAddEvidence(t *testing.T) {
 		height       = uint64(100002)
 		stateDB      = initializeValidatorState(valAddr, int64(height))
 		evidenceDB   = memorydb.New()
-		pool         = NewPool(evidenceDB, stateDB)
+		pool         = NewPool(stateDB, evidenceDB)
 		evidenceTime = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	)
 
@@ -142,7 +142,7 @@ func TestAddEvidence(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		ev := types.NewMockEvidence(int64(tc.evHeight), tc.evTime, 0, valAddr)
+		ev := types.NewMockEvidence(tc.evHeight, tc.evTime, 0, valAddr)
 		err := pool.AddEvidence(ev)
 		if tc.expErr {
 			assert.Error(t, err)

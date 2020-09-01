@@ -44,7 +44,7 @@ func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
 		saveValidatorsInfo(db, nextHeight, lastHeightVoteChanged, state.Validators)
 	}
 	// Save next validators.
-	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged.Uint64(), state.NextValidators)
+	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged, state.NextValidators)
 	// Save next consensus params.
 	saveConsensusParamsInfo(db, uint64(nextHeight), state.LastHeightConsensusParamsChanged, state.ConsensusParams)
 	db.Put(key, state.Bytes())

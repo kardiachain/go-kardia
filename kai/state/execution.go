@@ -52,7 +52,7 @@ func ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockI
 
 	// update the state with the block and responses
 	var err error
-	state, err = updateState(logger, state, blockID, block.Header())
+	state, err = updateState(logger, state, blockID, block.Header(), nil)
 	if err != nil {
 		return state, fmt.Errorf("Commit failed for application: %v", err)
 	}
@@ -64,35 +64,28 @@ func ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockI
 }
 
 // updateState returns a new State updated according to the header and responses.
-func updateState(logger log.Logger, state LastestBlockState, blockID types.BlockID, header *types.Header) (LastestBlockState, error) {
+func updateState(logger log.Logger, state LastestBlockState, blockID types.BlockID, header *types.Header, validatorUpdates []*types.Validator) (LastestBlockState, error) {
 	logger.Trace("updateState", "state", state, "blockID", blockID, "header", header)
+	// Copy the valset so we can apply changes from EndBlock
+	// and update s.LastValidators and s.Validators.
+	nValSet := state.NextValidators.Copy()
 
 	// Update the validator set with the latest abciResponses
 	lastHeightValsChanged := state.LastHeightValidatorsChanged
 
-	prevVals := state.Validators.Copy()
-	state.Validators.AdvanceProposer(1)
-
-	// Check if we need to swap to new validator set after staking or prefetch new validator set
-	// when it nears the current staking end's window.
-	state.mayRefreshValidatorSet()
-
-	var totalTx uint64
-	if state.LastBlockTotalTx == 0 {
-		totalTx = 9
-	} else {
-		totalTx = state.LastBlockTotalTx + header.NumTxs
+	if len(validatorUpdates) > 0 {
+		// Change results from this height but only applies to the next next height.
+		lastHeightValsChanged = header.Height + 2
 	}
-
+	nValSet.AdvanceProposer(1)
 	return LastestBlockState{
 		ChainID:                     state.ChainID,
 		LastBlockHeight:             header.Height,
-		LastBlockTotalTx:            totalTx,
 		LastBlockID:                 blockID,
 		LastBlockTime:               header.Time,
-		PrefetchedFutureValidators:  state.PrefetchedFutureValidators,
-		Validators:                  state.Validators,
-		LastValidators:              prevVals,
+		NextValidators:              nValSet,
+		Validators:                  state.NextValidators.Copy(),
+		LastValidators:              state.Validators.Copy(),
 		LastHeightValidatorsChanged: lastHeightValsChanged,
 	}, nil
 }

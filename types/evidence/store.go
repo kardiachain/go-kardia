@@ -37,7 +37,7 @@ const (
 // Info ...
 type Info struct {
 	Committed bool
-	Priority  int64
+	Priority  uint64
 	Evidence  []byte
 }
 
@@ -148,7 +148,7 @@ func (store *Store) AddNewEvidence(evidence types.Evidence, priority int64) (boo
 
 	ei := Info{
 		Committed: false,
-		Priority:  priority,
+		Priority:  uint64(priority),
 		Evidence:  evb,
 	}
 	eiBytes, err := rlp.EncodeToBytes(ei)
@@ -179,15 +179,12 @@ func (store *Store) AddNewEvidence(evidence types.Evidence, priority int64) (boo
 // If not found, ei.Evidence is nil.
 func (store *Store) GetInfo(height int64, hash []byte) Info {
 	key := keyLookupFromHeightAndHash(height, hash)
-	val, err := store.db.Get(key)
-	if err != nil {
-		panic(err)
-	}
+	val, _ := store.db.Get(key)
 	if len(val) == 0 {
 		return Info{}
 	}
 	var ei Info
-	err = rlp.DecodeBytes(val, &ei)
+	err := rlp.DecodeBytes(val, &ei)
 	if err != nil {
 		panic(err)
 	}
@@ -202,7 +199,7 @@ func (store *Store) MarkEvidenceAsBroadcasted(evidence types.Evidence) {
 		return
 	}
 	// remove from the outqueue
-	key := keyOutqueue(evidence, ei.Priority)
+	key := keyOutqueue(evidence, int64(ei.Priority))
 	store.db.Delete(key)
 }
 
