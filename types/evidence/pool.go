@@ -104,10 +104,10 @@ func (evpool *Pool) State() state.LastestBlockState {
 func (evpool *Pool) Update(block *types.Block, state state.LastestBlockState) {
 
 	// sanity check
-	if state.LastBlockHeight != uint64(block.Height()) {
+	if state.LastBlockHeight.Uint64() != block.Height() {
 		panic(
 			fmt.Sprintf("Failed EvidencePool.Update sanity check: got state.Height=%d with block.Height=%d",
-				state.LastBlockHeight,
+				state.LastBlockHeight.Int64(),
 				block.Height(),
 			),
 		)
@@ -132,8 +132,8 @@ func (evpool *Pool) MarkEvidenceAsCommitted(height int64, lastBlockTime time.Tim
 	}
 
 	// remove committed evidence from the clist
-	//evidenceParams := evpool.State().ConsensusParams.Evidence
-	//evpool.removeEvidence(height, lastBlockTime, evidenceParams, blockEvidenceMap)
+	evidenceParams := evpool.State().ConsensusParams.Evidence
+	evpool.removeEvidence(height, uint64(lastBlockTime.Unix()), evidenceParams, blockEvidenceMap)
 }
 
 func (evpool *Pool) removeEvidence(

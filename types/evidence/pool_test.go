@@ -32,11 +32,11 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 	nextVal.AdvanceProposer(1)
 
 	state := state.LastestBlockState{
-		LastBlockHeight:             0,
+		LastBlockHeight:             common.NewBigInt64(0),
 		LastBlockTime:               uint64(time.Now().Unix()),
 		Validators:                  valSet,
 		NextValidators:              nextVal,
-		LastHeightValidatorsChanged: 1,
+		LastHeightValidatorsChanged: common.NewBigInt64(1),
 		ConsensusParams: types.ConsensusParams{
 			Evidence: types.EvidenceParams{
 				MaxAgeNumBlocks: 10000,
@@ -45,8 +45,8 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 		},
 	}
 	// save all states up to height
-	for i := uint64(0); i < uint64(height); i++ {
-		state.LastBlockHeight = i
+	for i := int64(0); i < height; i++ {
+		state.LastBlockHeight = common.NewBigInt64(i)
 		kstate.SaveState(stateDB, state)
 	}
 

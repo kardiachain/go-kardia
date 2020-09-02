@@ -105,17 +105,17 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 // - it was properly signed by the alleged equivocator
 func VerifyEvidence(stateDB kaidb.KeyValueStore, state LastestBlockState, evidence types.Evidence) error {
 	var (
-		height         = state.LastBlockHeight.Uint64()
+		height         = state.LastBlockHeight.Int64()
 		evidenceParams = state.ConsensusParams.Evidence
-		ageNumBlocks   = height - evidence.Height()
+		ageNumBlocks   = height - int64(evidence.Height())
 		ageDuration    = uint(state.LastBlockTime - evidence.Time())
 	)
-	if ageDuration > evidenceParams.MaxAgeDuration && ageNumBlocks > evidenceParams.MaxAgeNumBlocks {
+	if ageDuration > evidenceParams.MaxAgeDuration && ageNumBlocks > int64(evidenceParams.MaxAgeNumBlocks) {
 		return fmt.Errorf(
 			"evidence from height %d (created at: %v) is too old; min height is %d and evidence can not be older than %v",
 			evidence.Height(),
 			evidence.Time(),
-			height-evidenceParams.MaxAgeNumBlocks,
+			height-int64(evidenceParams.MaxAgeNumBlocks),
 			state.LastBlockTime+uint64(evidenceParams.MaxAgeDuration),
 		)
 	}
@@ -133,7 +133,7 @@ func VerifyEvidence(stateDB kaidb.KeyValueStore, state LastestBlockState, eviden
 	// XXX: this makes lite-client bisection as is unsafe
 	// See https://github.com/tendermint/tendermint/issues/3244
 	ev := evidence
-	height, addr := uint64(ev.Height()), ev.Address()
+	height, addr := int64(ev.Height()), ev.Address()
 	_, val := valset.GetByAddress(addr)
 	if val == nil {
 		return fmt.Errorf("address %X was not a validator at height %d", addr, height)
