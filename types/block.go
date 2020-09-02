@@ -538,12 +538,12 @@ func NewZeroBlockID() BlockID {
 	return BlockID{}
 }
 
-func (b *BlockID) IsZero() bool {
-	return b.Hash.IsZero() && b.PartsHeader.IsZero()
+func (blockID *BlockID) IsZero() bool {
+	return blockID.Hash.IsZero() && blockID.PartsHeader.IsZero()
 }
 
-func (b *BlockID) Equal(other BlockID) bool {
-	return b.Hash.Equal(other.Hash) && b.PartsHeader.Equals(other.PartsHeader)
+func (blockID *BlockID) Equal(other BlockID) bool {
+	return blockID.Hash.Equal(other.Hash) && blockID.PartsHeader.Equals(other.PartsHeader)
 }
 
 // Key returns a machine-readable string representation of the BlockID
@@ -567,6 +567,11 @@ func (blockID BlockID) ValidateBasic() error {
 		return fmt.Errorf("Wrong PartsHeader: %v", err)
 	}
 	return nil
+}
+
+// IsComplete returns true if this is a valid BlockID of a non-nil block.
+func (blockID BlockID) IsComplete() bool {
+	return !blockID.Hash.IsZero() && !blockID.PartsHeader.IsZero()
 }
 
 type Blocks []*Block
