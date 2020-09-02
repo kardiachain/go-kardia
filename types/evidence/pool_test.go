@@ -40,7 +40,7 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 		ConsensusParams: types.ConsensusParams{
 			Evidence: types.EvidenceParams{
 				MaxAgeNumBlocks: 10000,
-				MaxAgeDuration:  uint(48 * time.Hour),
+				MaxAgeDuration:  48 * 60 * 60,
 			},
 		},
 	}
@@ -57,7 +57,7 @@ func TestEvidencePool(t *testing.T) {
 
 	var (
 		valAddr      = common.BytesToAddress([]byte("val1"))
-		height       = int64(5)
+		height       = int64(100002)
 		stateDB      = initializeValidatorState(valAddr, height)
 		evidenceDB   = memorydb.New()
 		pool         = NewPool(stateDB, evidenceDB)
@@ -65,11 +65,11 @@ func TestEvidencePool(t *testing.T) {
 	)
 
 	goodEvidence := types.NewMockEvidence(uint64(height), time.Now(), 0, valAddr)
-	badEvidence := types.NewMockEvidence(uint64(height), evidenceTime, 0, valAddr)
+	badEvidence := types.NewMockEvidence(1, evidenceTime, 0, valAddr)
 
 	// bad evidence
 	err := pool.AddEvidence(badEvidence)
-	assert.NotNil(t, err)
+	assert.Error(t, err)
 	// err: evidence created at 2019-01-01 00:00:00 +0000 UTC has expired. Evidence can not be older than: ...
 
 	var wg sync.WaitGroup
@@ -87,7 +87,7 @@ func TestEvidencePool(t *testing.T) {
 
 	// if we send it again, it shouldnt change the size
 	err = pool.AddEvidence(goodEvidence)
-	assert.Nil(t, err)
+	assert.Error(t, err)
 	assert.Equal(t, 1, pool.evidenceList.Len())
 }
 
@@ -133,8 +133,6 @@ func TestAddEvidence(t *testing.T) {
 		evDescription string
 	}{
 		{height, time.Now(), false, "valid evidence"},
-		{height, evidenceTime, true, "evidence created at 2019-01-01 00:00:00 +0000 UTC has expired"},
-		{uint64(1), time.Now(), true, "evidence from height 1 is too old"},
 		{uint64(1), evidenceTime, true,
 			"evidence from height 1 is too old & evidence created at 2019-01-01 00:00:00 +0000 UTC has expired"},
 	}
