@@ -2,7 +2,6 @@ package evidence
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/clist"
@@ -56,27 +55,26 @@ func (evR *Reactor) AddPeer(peer *p2p.Peer, rw p2p.MsgReadWriter) {
 // Receive implements Reactor.
 // It adds any received evidence to the evpool.
 func (evR *Reactor) Receive(src *p2p.Peer, msg p2p.Msg) error {
-	switch msg.Code {
-	case EvListMsg:
-		var listMessage ListMessage
-		if err := msg.Decode(&listMessage); err != nil {
-			return err
-		}
+	evis, err := decodeMsg(msg)
+	if err != nil {
+		evR.Logger.Error("Error decoding message", "src", src, "err", err)
+		evR.protocol.StopPeerForError(src, err)
+		return nil
+	}
 
-		if err := listMessage.ValidateBasic(); err != nil {
-			return err
+	for _, ev := range evis {
+		err := evR.evpool.AddEvidence(ev)
+		switch err.(type) {
+		case *types.ErrEvidenceInvalid:
+			evR.Logger.Error(err.Error())
+			// punish peer
+			evR.protocol.StopPeerForError(src, err)
+			return nil
+		case nil:
+		default:
+			// continue to the next piece of evidence
+			evR.Logger.Error("Evidence has not been added", "evidence", evis, "err", err)
 		}
-
-		for _, ev := range listMessage.Evidence {
-			err := evR.evpool.AddEvidence(ev)
-			if err != nil {
-				evR.Logger.Info("Evidence is not valid", "evidence", listMessage.Evidence, "err", err)
-				// punish peer
-				evR.protocol.StopPeerForError(src, err)
-			}
-		}
-	default:
-		return fmt.Errorf("Unknown message type %v", reflect.TypeOf(msg))
 	}
 	return nil
 }
@@ -107,7 +105,7 @@ func (evR *Reactor) broadcastEvidenceRoutine(peer *p2p.Peer, rw p2p.MsgReadWrite
 			}
 		}
 
-		ev := next.Value.(*types.DuplicateVoteEvidence)
+		ev := next.Value.(types.Evidence)
 		msg, retry := evR.checkSendEvidenceMessage(peer, ev)
 		if msg != nil {
 			err := p2p.Send(rw, EvListMsg, msg)
@@ -136,7 +134,7 @@ func (evR *Reactor) broadcastEvidenceRoutine(peer *p2p.Peer, rw p2p.MsgReadWrite
 // If message is nil, return true if we should sleep and try again.
 func (evR Reactor) checkSendEvidenceMessage(
 	peer *p2p.Peer,
-	ev *types.DuplicateVoteEvidence,
+	ev types.Evidence,
 ) (msg Message, retry bool) {
 
 	// make sure the peer is up to date
@@ -232,4 +230,35 @@ func (m *ListMessage) ValidateBasic() error {
 // String returns a string representation of the ListMessage.
 func (m *ListMessage) String() string {
 	return fmt.Sprintf("[ListMessage %v]", m.Evidence)
+}
+
+// encodemsg takes a array of evidence
+// returns the byte encoding of the List Message
+func encodeMsg(evis []types.Evidence) ([][]byte, error) {
+	list := [][]byte{}
+	for _, ev := range evis {
+		evBytes, err := types.EvidenceToBytes(ev)
+		if err != nil {
+			return nil, err
+		}
+		list = append(list, evBytes)
+	}
+	return list, nil
+}
+
+// decodemsg takes an array of bytes
+// returns an array of evidence
+func decodeMsg(msg p2p.Msg) (evis []types.Evidence, err error) {
+	list := [][]byte{}
+	if err := msg.Decode(list); err != nil {
+		return nil, err
+	}
+	evis = make([]types.Evidence, len(list))
+	for i, ev := range list {
+		evis[i], err = types.EvidenceFromBytes(ev)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return evis, nil
 }

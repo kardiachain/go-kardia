@@ -30,6 +30,22 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
+// ErrEvidenceInvalid wraps a piece of evidence and the error denoting how or why it is invalid.
+type ErrEvidenceInvalid struct {
+	Evidence   Evidence
+	ErrorValue error
+}
+
+// NewErrEvidenceInvalid returns a new EvidenceInvalid with the given err.
+func NewErrEvidenceInvalid(ev Evidence, err error) *ErrEvidenceInvalid {
+	return &ErrEvidenceInvalid{ev, err}
+}
+
+// Error returns a string representation of the error.
+func (err *ErrEvidenceInvalid) Error() string {
+	return fmt.Sprintf("Invalid evidence: %v. Evidence: %v", err.ErrorValue, err.Evidence)
+}
+
 // EvidenceType enum type
 type EvidenceType uint8
 
