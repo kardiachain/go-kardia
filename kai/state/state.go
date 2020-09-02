@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/lib/common"
+
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 
 	"github.com/kardiachain/go-kardiamain/types"
@@ -45,7 +47,7 @@ type LastestBlockState struct {
 	ChainID string
 
 	// LastBlockHeight=0 at genesis (ie. block(H=0) does not exist)
-	LastBlockHeight  uint64
+	LastBlockHeight  *common.BigInt
 	LastBlockTotalTx uint64
 	LastBlockID      types.BlockID
 	LastBlockTime    uint64
@@ -58,7 +60,7 @@ type LastestBlockState struct {
 	NextValidators              *types.ValidatorSet `rlp:"nil"`
 	Validators                  *types.ValidatorSet `rlp:"nil"`
 	LastValidators              *types.ValidatorSet `rlp:"nil"`
-	LastHeightValidatorsChanged uint64
+	LastHeightValidatorsChanged *common.BigInt
 
 	ConsensusParams                  types.ConsensusParams
 	LastHeightConsensusParamsChanged uint64

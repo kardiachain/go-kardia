@@ -35,7 +35,7 @@ func SaveState(db kaidb.KeyValueStore, state LastestBlockState) {
 }
 
 func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
-	nextHeight := state.LastBlockHeight + 1
+	nextHeight := state.LastBlockHeight.Uint64() + 1
 	// If first block, save validators for block 1.
 	if nextHeight == 1 {
 		// This extra logic due to Tendermint validator set changes being delayed 1 block.
@@ -44,7 +44,7 @@ func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
 		saveValidatorsInfo(db, nextHeight, lastHeightVoteChanged, state.Validators)
 	}
 	// Save next validators.
-	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged, state.NextValidators)
+	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged.Uint64(), state.NextValidators)
 	// Save next consensus params.
 	saveConsensusParamsInfo(db, uint64(nextHeight), state.LastHeightConsensusParamsChanged, state.ConsensusParams)
 	db.Put(key, state.Bytes())

@@ -33,8 +33,8 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 	}
 
 	// validate basic info
-	if block.Header().Height != state.LastBlockHeight+1 {
-		return fmt.Errorf("wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight+1, block.Height())
+	if block.Header().Height != state.LastBlockHeight.Add(1).Uint64() {
+		return fmt.Errorf("wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight.Add(1), block.Height())
 	}
 	/*	TODO: Determine bounds for Time
 		See blockchain/manager "stopSyncingDurationMinutes"
@@ -105,7 +105,7 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 // - it was properly signed by the alleged equivocator
 func VerifyEvidence(stateDB kaidb.KeyValueStore, state LastestBlockState, evidence types.Evidence) error {
 	var (
-		height         = state.LastBlockHeight
+		height         = state.LastBlockHeight.Uint64()
 		evidenceParams = state.ConsensusParams.Evidence
 		ageNumBlocks   = height - evidence.Height()
 		ageDuration    = uint(state.LastBlockTime - evidence.Time())
