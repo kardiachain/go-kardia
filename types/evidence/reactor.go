@@ -2,23 +2,28 @@ package evidence
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/clist"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/service"
 
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-var (
+const (
 	// EvListMsg ..
 	EvListMsg = 0x13 // EvListMsg
+
+	broadcastEvidenceIntervalS = 60  // broadcast uncommitted evidence this often
+	peerCatchupSleepIntervalMS = 100 // If peer is behind, sleep this amount
 )
 
 // Reactor handles evpool evidence broadcasting amongst peers.
 type Reactor struct {
-	log      log.Logger
+	service.BaseService
 	evpool   *Pool
 	eventBus *types.EventBus
 	protocol Protocol
@@ -39,7 +44,7 @@ func (evR *Reactor) SetProtocol(protocol Protocol) {
 
 // SetLogger sets the Logger on the reactor and the underlying Evidence.
 func (evR *Reactor) SetLogger(l log.Logger) {
-	evR.log = l
+	evR.Logger = l
 	evR.evpool.SetLogger(l)
 }
 
@@ -51,6 +56,28 @@ func (evR *Reactor) AddPeer(peer *p2p.Peer, rw p2p.MsgReadWriter) {
 // Receive implements Reactor.
 // It adds any received evidence to the evpool.
 func (evR *Reactor) Receive(src *p2p.Peer, msg p2p.Msg) error {
+	switch msg.Code {
+	case EvListMsg:
+		var listMessage ListMessage
+		if err := msg.Decode(&listMessage); err != nil {
+			return err
+		}
+
+		if err := listMessage.ValidateBasic(); err != nil {
+			return err
+		}
+
+		for _, ev := range listMessage.Evidence {
+			err := evR.evpool.AddEvidence(ev)
+			if err != nil {
+				evR.Logger.Info("Evidence is not valid", "evidence", listMessage.Evidence, "err", err)
+				// punish peer
+				evR.protocol.StopPeerForError(src, err)
+			}
+		}
+	default:
+		return fmt.Errorf("Unknown message type %v", reflect.TypeOf(msg))
+	}
 	return nil
 }
 
@@ -103,6 +130,63 @@ func (evR *Reactor) broadcastEvidenceRoutine(peer *p2p.Peer, rw p2p.MsgReadWrite
 			next = next.Next()
 		}
 	}
+}
+
+// Returns the message to send the peer, or nil if the evidence is invalid for the peer.
+// If message is nil, return true if we should sleep and try again.
+func (evR Reactor) checkSendEvidenceMessage(
+	peer *p2p.Peer,
+	ev *types.DuplicateVoteEvidence,
+) (msg Message, retry bool) {
+
+	// make sure the peer is up to date
+	evHeight := ev.Height()
+	peerState, ok := peer.Get(p2p.PeerStateKey).(PeerState)
+	if !ok {
+		// Peer does not have a state yet. We set it in the consensus reactor, but
+		// when we add peer in Switch, the order we call reactors#AddPeer is
+		// different every time due to us using a map. Sometimes other reactors
+		// will be initialized before the consensus reactor. We should wait a few
+		// milliseconds and retry.
+		return nil, true
+	}
+
+	// NOTE: We only send evidence to peers where
+	// peerHeight - maxAge < evidenceHeight < peerHeight
+	// and
+	// lastBlockTime - maxDuration < evidenceTime
+	var (
+		peerHeight = peerState.GetHeight()
+
+		params = evR.evpool.State().ConsensusParams.Evidence
+
+		ageDuration  = evR.evpool.State().LastBlockTime - ev.Time()
+		ageNumBlocks = peerHeight - evHeight
+	)
+
+	if peerHeight < evHeight { // peer is behind. sleep while he catches up
+		return nil, true
+	} else if ageNumBlocks > params.MaxAgeNumBlocks ||
+		ageDuration > uint64(params.MaxAgeDuration) { // evidence is too old, skip
+
+		// NOTE: if evidence is too old for an honest peer, then we're behind and
+		// either it already got committed or it never will!
+		evR.Logger.Info("Not sending peer old evidence",
+			"peerHeight", peerHeight,
+			"evHeight", evHeight,
+			"maxAgeNumBlocks", params.MaxAgeNumBlocks,
+			"lastBlockTime", evR.evpool.State().LastBlockTime,
+			"evTime", ev.Time(),
+			"maxAgeDuration", params.MaxAgeDuration,
+			"peer", peer,
+		)
+
+		return nil, false
+	}
+
+	// send evidence
+	msg = &ListMessage{[]types.Evidence{ev}}
+	return msg, false
 }
 
 // Protocol ...
