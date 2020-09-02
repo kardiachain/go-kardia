@@ -250,19 +250,19 @@ func (dve *DuplicateVoteEvidence) Verify(chainID string, addr common.Address) er
 
 // ValidateBasic performs basic validation.
 func (dve *DuplicateVoteEvidence) ValidateBasic() error {
-	// if dve.VoteA == nil || dve.VoteB == nil {
-	// 	return fmt.Errorf("one or both of the votes are empty %v, %v", dve.VoteA, dve.VoteB)
-	// }
-	// if err := dve.VoteA.ValidateBasic(); err != nil {
-	// 	return fmt.Errorf("invalid VoteA: %v", err)
-	// }
-	// if err := dve.VoteB.ValidateBasic(); err != nil {
-	// 	return fmt.Errorf("invalid VoteB: %v", err)
-	// }
-	// // Enforce Votes are lexicographically sorted on blockID
-	// if strings.Compare(dve.VoteA.BlockID.Key(), dve.VoteB.BlockID.Key()) >= 0 {
-	// 	return errors.New("duplicate votes in invalid order")
-	// }
+	if dve.VoteA == nil || dve.VoteB == nil {
+		return fmt.Errorf("one or both of the votes are empty %v, %v", dve.VoteA, dve.VoteB)
+	}
+	if err := dve.VoteA.ValidateBasic(); err != nil {
+		return fmt.Errorf("invalid VoteA: %v", err)
+	}
+	if err := dve.VoteB.ValidateBasic(); err != nil {
+		return fmt.Errorf("invalid VoteB: %v", err)
+	}
+	// Enforce Votes are lexicographically sorted on blockID
+	if strings.Compare(dve.VoteA.BlockID.Key(), dve.VoteB.BlockID.Key()) >= 0 {
+		return errors.New("duplicate votes in invalid order")
+	}
 	return nil
 }
 
