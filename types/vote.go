@@ -163,6 +163,29 @@ func (vote *Vote) String() string {
 		time.Unix(vote.Timestamp.Int64(), 0))
 }
 
+// ValidateBasic performs basic validation.
+func (vote *Vote) ValidateBasic() error {
+	if !IsVoteTypeValid(vote.Type) {
+		return errors.New("invalid Type")
+	}
+
+	// NOTE: Timestamp validation is subtle and handled elsewhere.
+
+	if err := vote.BlockID.ValidateBasic(); err != nil {
+		return fmt.Errorf("wrong BlockID: %v", err)
+	}
+	// BlockID.ValidateBasic would not err if we for instance have an empty hash but a
+	// non-empty PartsSetHeader:
+	if !vote.BlockID.IsZero() && !vote.BlockID.IsComplete() {
+		return fmt.Errorf("blockID must be either empty or complete, got: %v", vote.BlockID)
+	}
+
+	if len(vote.Signature) == 0 {
+		return errors.New("signature is missing")
+	}
+	return nil
+}
+
 // UNSTABLE
 // XXX: duplicate of p2p.ID to avoid dependence between packages.
 // Perhaps we can have a minimal types package containing this (and other things?)
