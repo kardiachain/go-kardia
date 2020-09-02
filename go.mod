@@ -14,6 +14,7 @@ require (
 	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/ethereum/go-ethereum v1.9.18
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect
+	github.com/go-kit/kit v0.10.0
 	github.com/go-stack/stack v1.8.0
 	github.com/golang/protobuf v1.4.0
 	github.com/golang/snappy v0.0.2-0.20200707131729-196ae77b8a26
