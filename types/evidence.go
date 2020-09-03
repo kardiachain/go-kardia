@@ -51,9 +51,23 @@ type EvidenceType uint8
 
 // EvidenceType
 const (
-	EvidenceDuplicateVote = EvidenceType(0x01)
-	EvidenceMock          = EvidenceType(0x02)
+	EvidenceDuplicateVote       = EvidenceType(0x01)
+	EvidenceMock                = EvidenceType(0x02)
+	MaxEvidenceBytesDenominator = 10
+	// MaxEvidenceBytes is a maximum size of any evidence (including amino overhead).
+	MaxEvidenceBytes int64 = 484
 )
+
+// MaxEvidencePerBlock returns the maximum number of evidences
+// allowed in the block and their maximum total size (limitted to 1/10th
+// of the maximum block size).
+// TODO: change to a constant, or to a fraction of the validator set size.
+// See https://github.com/tendermint/tendermint/issues/2590
+func MaxEvidencePerBlock(blockMaxBytes int64) (int64, int64) {
+	maxBytes := blockMaxBytes / MaxEvidenceBytesDenominator
+	maxNum := maxBytes / MaxEvidenceBytes
+	return maxNum, maxBytes
+}
 
 // Evidence represents any provable malicious activity by a validator
 type Evidence interface {

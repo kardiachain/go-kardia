@@ -41,6 +41,7 @@ import (
 )
 
 var (
+	// EmptyRootHash ...
 	EmptyRootHash = DeriveSha(Transactions{})
 )
 
@@ -184,10 +185,11 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommit *Commit) *Block {
+func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommit *Commit, evidence []Evidence) *Block {
 	b := &Block{
 		header:     CopyHeader(header),
 		lastCommit: CopyCommit(lastCommit),
+		evidence:   EvidenceData{Evidence: evidence},
 	}
 
 	if len(txs) == 0 {
@@ -197,6 +199,12 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommi
 		b.header.NumTxs = uint64(len(txs))
 		b.transactions = make(Transactions, len(txs))
 		copy(b.transactions, txs)
+	}
+
+	if len(evidence) > 0 {
+		b.header.EvidenceHash = b.evidence.Hash()
+	} else {
+		b.header.EvidenceHash = common.NewZeroHash()
 	}
 
 	if len(receipts) == 0 {
@@ -668,4 +676,42 @@ func (data *EvidenceData) StringIndented(indent string) string {
 %s}#%v`,
 		indent, strings.Join(evStrings, "\n"+indent+"  "),
 		indent, data.hash)
+}
+
+type storageEvidanceData struct {
+	Evidence [][]byte `json:"evidence"`
+}
+
+// EncodeRLP implement rlp
+func (data *EvidenceData) EncodeRLP(w io.Writer) error {
+	var err error
+	sed := &storageEvidanceData{
+		Evidence: make([][]byte, len(data.Evidence)),
+	}
+	for i, ev := range data.Evidence {
+		sed.Evidence[i], err = EvidenceToBytes(ev)
+		if err != nil {
+			return err
+		}
+	}
+	return rlp.Encode(w, sed)
+}
+
+// DecodeRLP implement rlp
+func (data *EvidenceData) DecodeRLP(s *rlp.Stream) error {
+	var err error
+	sed := &storageEvidanceData{}
+	if err = s.Decode(sed); err != nil {
+		return err
+	}
+	evidence := make([]Evidence, len(sed.Evidence))
+	for i, evBytes := range sed.Evidence {
+		ev, err := EvidenceFromBytes(evBytes)
+		if err != nil {
+			return err
+		}
+		evidence[i] = ev
+	}
+	data.Evidence = evidence
+	return nil
 }

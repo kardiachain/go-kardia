@@ -13,9 +13,6 @@ const (
 
 	// MaxBlockPartsCount is the maximum number of block parts.
 	MaxBlockPartsCount = (MaxBlockSizeBytes / BlockPartSizeBytes) + 1
-
-	// Restrict the upper bound of the amount of evidence (uses uint16 for safe conversion)
-	MaxEvidencePerBlock = 65535
 )
 
 // BlockParams define limits on the block size and gas plus minimum time

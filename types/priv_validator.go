@@ -43,12 +43,14 @@ type PrivValidator struct {
 	privKey *ecdsa.PrivateKey
 }
 
+// NewPrivValidator ...
 func NewPrivValidator(privKey *ecdsa.PrivateKey) *PrivValidator {
 	return &PrivValidator{
 		privKey: privKey,
 	}
 }
 
+// GetAddress ...
 func (privVal *PrivValidator) GetAddress() common.Address {
 	return crypto.PubkeyToAddress(privVal.GetPubKey())
 }

@@ -32,9 +32,21 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-// TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
-// These files should be consolidated in the future.
+//-----------------------------------------------------------------------------
+// evidence pool
 
+// EvidencePool defines the EvidencePool interface used by the ConsensusState.
+// Get/Set/Commit
+type EvidencePool interface {
+	PendingEvidence(int64) []types.Evidence
+	AddEvidence(*types.DuplicateVoteEvidence) error
+	Update(*types.Block, state.LastestBlockState)
+	// IsCommitted indicates if this evidence was already marked committed in another block.
+	IsCommitted(*types.DuplicateVoteEvidence) bool
+}
+
+// BlockOperations TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
+// These files should be consolidated in the future.
 type BlockOperations struct {
 	logger log.Logger
 
@@ -42,16 +54,18 @@ type BlockOperations struct {
 
 	blockchain *BlockChain
 	txPool     *tx_pool.TxPool
+	evPool     EvidencePool
 	height     uint64
 }
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
-func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool) *BlockOperations {
+func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool, evpool EvidencePool) *BlockOperations {
 	return &BlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
 		txPool:     txPool,
 		height:     blockchain.CurrentBlock().Height(),
+		evPool:     evpool,
 	}
 }
 
@@ -68,6 +82,11 @@ func (bo *BlockOperations) CreateProposalBlock(
 	// Tx execution can happen in parallel with voting or precommitted.
 	// For simplicity, this code executes & commits txs before sending proposal,
 	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
+	maxBytes := lastState.ConsensusParams.Block.MaxBytes
+	// Fetch a limited amount of valid evidence
+	maxNumEvidence, _ := types.MaxEvidencePerBlock(int64(maxBytes))
+	evidence := bo.evPool.PendingEvidence(maxNumEvidence)
+
 	txs := bo.txPool.ProposeTransactions()
 	bo.logger.Debug("Collected transactions", "txs count", len(txs))
 
@@ -81,7 +100,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 	}
 	header.Root = stateRoot
 
-	block = bo.newBlock(header, newTxs, receipts, commit)
+	block = bo.newBlock(header, newTxs, receipts, commit, evidence)
 	bo.logger.Trace("Make block to propose", "block", block)
 
 	go bo.saveReceipts(receipts, block)
@@ -189,13 +208,14 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 
 // newHeader creates new block header from given data.
 // Some header fields are not ready at this point.
-func (bo *BlockOperations) newHeader(height int64, numTxs uint64, blockId types.BlockID, validator common.Address, validatorsHash common.Hash) *types.Header {
+func (bo *BlockOperations) newHeader(height int64, numTxs uint64, blockID types.BlockID,
+	validator common.Address, validatorsHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:         uint64(height),
 		Time:           big.NewInt(time.Now().Unix()),
 		NumTxs:         numTxs,
-		LastBlockID:    blockId,
+		LastBlockID:    blockID,
 		Validator:      validator,
 		ValidatorsHash: validatorsHash,
 		GasLimit:       215040000,
@@ -203,8 +223,8 @@ func (bo *BlockOperations) newHeader(height int64, numTxs uint64, blockId types.
 }
 
 // newBlock creates new block from given data.
-func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit) *types.Block {
-	block := types.NewBlock(header, txs, receipts, commit)
+func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit, ev []types.Evidence) *types.Block {
+	block := types.NewBlock(header, txs, receipts, commit, ev)
 
 	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
 	// LastResultHash.
