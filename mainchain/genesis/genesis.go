@@ -185,7 +185,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 
-	return types.NewBlock(head, nil, nil, &types.Commit{})
+	return types.NewBlock(head, nil, nil, &types.Commit{}, nil)
 }
 
 // Commit writes the block and state of a genesis specification to the database.

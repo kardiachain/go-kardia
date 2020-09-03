@@ -39,10 +39,10 @@ import (
 // Get/Set/Commit
 type EvidencePool interface {
 	PendingEvidence(int64) []types.Evidence
-	AddEvidence(*types.DuplicateVoteEvidence) error
+	AddEvidence(types.Evidence) error
 	Update(*types.Block, state.LastestBlockState)
 	// IsCommitted indicates if this evidence was already marked committed in another block.
-	IsCommitted(*types.DuplicateVoteEvidence) bool
+	IsCommitted(types.Evidence) bool
 }
 
 // BlockOperations TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/

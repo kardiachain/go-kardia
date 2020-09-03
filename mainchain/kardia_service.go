@@ -145,7 +145,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		kai.logger,
 		configs.DefaultConsensusConfig(),
 		state,
-		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
+		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool),
 	)
 	kai.csManager = consensus.NewConsensusManager(config.ServiceName, consensusState)
 	// Set private validator for consensus manager.
