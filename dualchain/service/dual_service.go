@@ -33,6 +33,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardiamain/types/evidence"
 )
 
 const DualServiceName = "DUAL"
@@ -117,6 +118,10 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
 	}
+
+	evPool := evidence.NewPool(groupDb.DB(), groupDb.DB())
+	evReactor := evidence.NewReactor(evPool)
+
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool)
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
@@ -137,15 +142,16 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		dualService.blockchain,
 		dualService.chainConfig,
 		nil,
-		dualService.csManager); err != nil {
+		dualService.csManager, evReactor); err != nil {
 		return nil, err
 	}
 	//namdoh@ dualService.protocolManager.acceptTxs = config.AcceptTxs
 	dualService.csManager.SetProtocol(dualService.protocolManager)
+	evReactor.SetProtocol(dualService.protocolManager)
 	return dualService, nil
 }
 
-// Implements ServiceConstructor, return a dual service from node service context.
+// NewDualService Implements ServiceConstructor, return a dual service from node service context.
 func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.DualChainConfig
 	kai, err := newDualService(ctx, &DualConfig{

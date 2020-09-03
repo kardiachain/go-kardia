@@ -34,6 +34,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardiamain/types/evidence"
 )
 
 const (
@@ -127,6 +128,9 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
+	evPool := evidence.NewPool(kaiDb.DB(), kaiDb.DB())
+	evReactor := evidence.NewReactor(evPool)
+
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon", // TODO(thientn): considers merging this with protocolmanger.ChainID
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
@@ -158,16 +162,18 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		kai.blockchain,
 		kai.chainConfig,
 		kai.txPool,
-		kai.csManager); err != nil {
+		kai.csManager,
+		evReactor); err != nil {
 		return nil, err
 	}
 	kai.protocolManager.SetAcceptTxs(config.AcceptTxs)
 	kai.csManager.SetProtocol(kai.protocolManager)
+	evReactor.SetProtocol(kai.protocolManager)
 
 	return kai, nil
 }
 
-// Implements ServiceConstructor, return a Kardia node service from node service context.
+// NewKardiaService Implements ServiceConstructor, return a Kardia node service from node service context.
 // TODO: move this outside of kai package to customize kai.Config
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.MainChainConfig
