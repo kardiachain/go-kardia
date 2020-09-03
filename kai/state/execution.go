@@ -30,7 +30,8 @@ import (
 
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.
 type EvidencePool interface {
-	PendingEvidence() []types.Evidence
+	PendingEvidence(int64) []types.Evidence
+	Update(*types.Block, LastestBlockState)
 }
 
 // ValidateBlock validates the given block against the given state.
@@ -41,11 +42,29 @@ func ValidateBlock(state LastestBlockState, block *types.Block) error {
 	return validateBlock(state, block)
 }
 
-// Validates the block against the state, and saves the new state.
+//-----------------------------------------------------------------------------
+// BlockExecutor handles block execution and state updates.
+// It exposes ApplyBlock(), which validates & executes the block, updates state w/ ABCI responses,
+// then commits and updates the mempool atomically, then saves state.
+
+// BlockExecutor provides the context and accessories for properly executing a block.
+type BlockExecutor struct {
+	evpool EvidencePool
+}
+
+// NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
+// Call SetEventBus to provide one.
+func NewBlockExecutor(evpool EvidencePool) *BlockExecutor {
+	return &BlockExecutor{
+		evpool: evpool,
+	}
+}
+
+// ApplyBlock Validates the block against the state, and saves the new state.
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
-func ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
+func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
 	if err := ValidateBlock(state, block); err != nil {
 		return state, ErrInvalidBlock(err)
 	}
@@ -60,6 +79,8 @@ func ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockI
 	}
 
 	logger.Warn("Update evidence pool.")
+	// Update evpool with the block and state.
+	blockExec.evpool.Update(block, state)
 	fail.Fail() // XXX
 
 	return state, nil

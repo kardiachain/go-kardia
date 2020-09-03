@@ -72,6 +72,11 @@ type VoteTurn struct {
 	VoteType int
 }
 
+// interface to the evidence pool
+type evidencePool interface {
+	AddEvidence(types.Evidence) error
+}
+
 func EmptyTimeoutInfo() *timeoutInfo {
 	return &timeoutInfo{
 		Duration: 0,
@@ -92,7 +97,8 @@ type ConsensusState struct {
 	config          *cfg.ConsensusConfig
 	privValidator   *types.PrivValidator // for signing votes
 	blockOperations BaseBlockOperations
-	//evpool evidence.EvidencePool 	// TODO(namdoh): Add mem pool.
+	blockExec       *state.BlockExecutor
+	evpool          evidencePool // TODO(namdoh): Add mem pool.
 
 	// internal state
 	mtx sync.RWMutex
@@ -129,6 +135,8 @@ func NewConsensusState(
 	config *cfg.ConsensusConfig,
 	state state.LastestBlockState,
 	blockOperations BaseBlockOperations,
+	blockExec *state.BlockExecutor,
+	evpool evidencePool,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		logger: logger,
@@ -140,6 +148,8 @@ func NewConsensusState(
 		timeoutTicker:    NewTimeoutTicker(),
 		done:             make(chan struct{}),
 		evsw:             NewEventSwitch(),
+		blockExec:        blockExec,
+		evpool:           evpool,
 		RoundState: cstypes.RoundState{
 			CommitRound: cmn.NewBigInt32(0),
 			Height:      cmn.NewBigInt32(0),
@@ -1206,7 +1216,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	// Execute and commit the block, update and save the state, and update the mempool.
 	// NOTE The block.AppHash wont reflect these txs until the next block.
 	var err error
-	stateCopy, err = state.ApplyBlock(
+	stateCopy, err = cs.blockExec.ApplyBlock(
 		cs.logger, stateCopy,
 		types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()},
 		block,

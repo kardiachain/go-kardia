@@ -130,6 +130,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	evPool := evidence.NewPool(kaiDb.DB(), kaiDb.DB())
 	evReactor := evidence.NewReactor(evPool)
+	blockExec := state.NewBlockExecutor(evPool)
 
 	state := state.LastestBlockState{
 		ChainID:                     "kaicon", // TODO(thientn): considers merging this with protocolmanger.ChainID
@@ -146,6 +147,8 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		configs.DefaultConsensusConfig(),
 		state,
 		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool),
+		blockExec,
+		evPool,
 	)
 	kai.csManager = consensus.NewConsensusManager(config.ServiceName, consensusState)
 	// Set private validator for consensus manager.

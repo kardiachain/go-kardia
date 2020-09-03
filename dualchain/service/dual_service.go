@@ -109,7 +109,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		logger.Error("Cannot get validator from indices", "indices", ctx.Config.DualChainConfig.ValidatorIndexes, "err", err)
 		return nil, err
 	}
-	state := state.LastestBlockState{
+	lstate := state.LastestBlockState{
 		ChainID:                     "kaigroupcon",
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
 		LastBlockID:                 block.Header().LastBlockID,
@@ -121,13 +121,16 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	evPool := evidence.NewPool(groupDb.DB(), groupDb.DB())
 	evReactor := evidence.NewReactor(evPool)
+	blockExec := state.NewBlockExecutor(evPool)
 
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool)
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
 		configs.DefaultConsensusConfig(),
-		state,
+		lstate,
 		dualService.dualBlockOperations,
+		blockExec,
+		evPool,
 	)
 	dualService.csManager = consensus.NewConsensusManager(DualServiceName, consensusState)
 	// Set private validator for consensus manager.
