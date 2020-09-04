@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
@@ -40,7 +40,7 @@ import (
 type EvidencePool interface {
 	PendingEvidence(int64) []types.Evidence
 	AddEvidence(types.Evidence) error
-	Update(*types.Block, state.LastestBlockState)
+	Update(*types.Block, cstate.LastestBlockState)
 	// IsCommitted indicates if this evidence was already marked committed in another block.
 	IsCommitted(types.Evidence) bool
 }
@@ -76,7 +76,7 @@ func (bo *BlockOperations) Height() uint64 {
 
 // CreateProposalBlock creates a new proposal block with all current pending txs in pool.
 func (bo *BlockOperations) CreateProposalBlock(
-	height int64, lastState state.LastestBlockState,
+	height int64, lastState cstate.LastestBlockState,
 	proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.

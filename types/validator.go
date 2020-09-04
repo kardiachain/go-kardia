@@ -20,14 +20,14 @@ package types
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"fmt"
 	"math/rand"
 	"sort"
 	"strings"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
+
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // Volatile state for each Validator
@@ -38,9 +38,9 @@ type Validator struct {
 	Accum *common.BigInt `json:"accum"`
 }
 
-func NewValidator(pubKey ecdsa.PublicKey, votingPower int64) *Validator {
+func NewValidator(addr common.Address, votingPower int64) *Validator {
 	return &Validator{
-		Address:     crypto.PubkeyToAddress(pubKey),
+		Address:     addr,
 		VotingPower: uint64(votingPower),
 		Accum:       common.NewBigInt64(0),
 	}
@@ -425,6 +425,6 @@ func RandValidator(randPower bool, minPower int64) (*Validator, IPrivValidator) 
 		votePower += int64(rand.Uint32())
 	}
 	pubKey := privVal.GetPubKey()
-	val := NewValidator(pubKey, votePower)
+	val := NewValidator(crypto.PubkeyToAddress(pubKey), votePower)
 	return val, privVal
 }

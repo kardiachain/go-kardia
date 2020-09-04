@@ -38,6 +38,19 @@ import (
 
 var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
+//------------------------------------------------------------
+// core types for a genesis definition
+// NOTE: any changes to the genesis definition should
+// be reflected in the documentation:
+// docs/tendermint-core/using-tendermint.md
+
+// GenesisValidator is an initial validator.
+type GenesisValidator struct {
+	Address common.Address `json:"address"`
+	Power   int64          `json:"power"`
+	Name    string         `json:"name"`
+}
+
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
 	Config    *types.ChainConfig `json:"config"`
@@ -46,6 +59,7 @@ type Genesis struct {
 	Alloc     GenesisAlloc       `json:"alloc"      gencodec:"required"`
 
 	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
+	Validators           []GenesisValidator           `json:"validators"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.

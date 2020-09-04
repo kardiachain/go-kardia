@@ -25,7 +25,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/kai/service"
 	serviceconst "github.com/kardiachain/go-kardiamain/kai/service/const"
-	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -109,7 +109,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		logger.Error("Cannot get validator from indices", "indices", ctx.Config.DualChainConfig.ValidatorIndexes, "err", err)
 		return nil, err
 	}
-	lstate := state.LastestBlockState{
+	lstate := cstate.LastestBlockState{
 		ChainID:                     "kaigroupcon",
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
 		LastBlockID:                 block.Header().LastBlockID,
@@ -121,7 +121,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	evPool := evidence.NewPool(groupDb.DB(), groupDb.DB())
 	evReactor := evidence.NewReactor(evPool)
-	blockExec := state.NewBlockExecutor(evPool)
+	blockExec := cstate.NewBlockExecutor(evPool)
 
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool)
 	consensusState := consensus.NewConsensusState(

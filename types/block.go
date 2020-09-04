@@ -163,7 +163,7 @@ type Block struct {
 	transactions Transactions
 	dualEvents   DualEvents
 	lastCommit   *Commit
-	evidence     EvidenceData
+	evidence     *EvidenceData
 
 	// caches
 	hash atomic.Value
@@ -176,7 +176,7 @@ type extblock struct {
 	Txs        []*Transaction
 	DualEvents []*DualEvent
 	LastCommit *Commit
-	Evidence   EvidenceData
+	Evidence   *EvidenceData
 }
 
 // NewBlock creates a new block. The input data is copied,
@@ -189,7 +189,7 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommi
 	b := &Block{
 		header:     CopyHeader(header),
 		lastCommit: CopyCommit(lastCommit),
-		evidence:   EvidenceData{Evidence: evidence},
+		evidence:   &EvidenceData{Evidence: evidence},
 	}
 
 	if len(txs) == 0 {
@@ -298,7 +298,7 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
 	eb.LastCommit.MakeEmptyNil()
 
-	b.header, b.transactions, b.dualEvents, b.lastCommit = eb.Header, eb.Txs, eb.DualEvents, eb.LastCommit
+	b.header, b.transactions, b.dualEvents, b.lastCommit, b.evidence = eb.Header, eb.Txs, eb.DualEvents, eb.LastCommit, eb.Evidence
 	b.size.Store(common.StorageSize(rlp.ListSize(size)))
 	return nil
 }
@@ -313,6 +313,7 @@ func (b *Block) EncodeRLP(w io.Writer) error {
 		Txs:        b.transactions,
 		DualEvents: b.dualEvents,
 		LastCommit: lastCommitCopy,
+		Evidence:   b.evidence,
 	})
 }
 
@@ -379,7 +380,7 @@ func (b *Block) Root() common.Hash           { return b.header.Root }
 func (b *Block) ReceiptHash() common.Hash    { return b.header.ReceiptHash }
 func (b *Block) Bloom() Bloom                { return b.header.Bloom }
 func (b *Block) LastCommit() *Commit         { return b.lastCommit }
-func (b *Block) Evidence() EvidenceData      { return b.evidence }
+func (b *Block) Evidence() *EvidenceData     { return b.evidence }
 
 // TODO(namdoh): This is a hack due to rlp nature of decode both nil or empty
 // struct pointer as nil. After encoding an empty struct and send it over to

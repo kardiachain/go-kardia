@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
+	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 
-	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/clist"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -44,7 +44,7 @@ type Pool struct {
 
 	// latest state
 	mtx   sync.Mutex
-	state state.LastestBlockState
+	state cstate.LastestBlockState
 }
 
 // NewPool creates an evidence pool. If using an existing evidence store,
@@ -53,7 +53,7 @@ func NewPool(stateDB, evidenceDB kaidb.Database) *Pool {
 	store := NewStore(evidenceDB)
 	evpool := &Pool{
 		stateDB:      stateDB,
-		state:        state.LoadState(stateDB),
+		state:        cstate.LoadState(stateDB),
 		logger:       log.New(),
 		store:        store,
 		evidenceList: clist.New(),
@@ -94,14 +94,14 @@ func (evpool *Pool) PendingEvidence(maxNum int64) []types.Evidence {
 }
 
 // State returns the current state of the evpool.
-func (evpool *Pool) State() state.LastestBlockState {
+func (evpool *Pool) State() cstate.LastestBlockState {
 	evpool.mtx.Lock()
 	defer evpool.mtx.Unlock()
 	return evpool.state
 }
 
 // Update loads the latest
-func (evpool *Pool) Update(block *types.Block, state state.LastestBlockState) {
+func (evpool *Pool) Update(block *types.Block, state cstate.LastestBlockState) {
 
 	// sanity check
 	if state.LastBlockHeight.Uint64() != block.Height() {
@@ -167,13 +167,13 @@ func (evpool *Pool) AddEvidence(evidence types.Evidence) error {
 		return ErrEvidenceAlreadyStored{}
 	}
 
-	if err := state.VerifyEvidence(evpool.stateDB, evpool.State(), evidence); err != nil {
+	if err := cstate.VerifyEvidence(evpool.stateDB, evpool.State(), evidence); err != nil {
 		return ErrInvalidEvidence{err}
 	}
 
 	// fetch the validator and return its voting power as its priority
 	// TODO: something better ?
-	valset, err := state.LoadValidators(evpool.stateDB, evidence.Height())
+	valset, err := cstate.LoadValidators(evpool.stateDB, evidence.Height())
 	if err != nil {
 		return err
 	}

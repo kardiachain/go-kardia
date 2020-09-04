@@ -1,4 +1,4 @@
-package state
+package cstate
 
 import "testing"
 

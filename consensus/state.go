@@ -32,7 +32,7 @@ import (
 
 	cfg "github.com/kardiachain/go-kardiamain/configs"
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
-	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/discover"
@@ -97,13 +97,13 @@ type ConsensusState struct {
 	config          *cfg.ConsensusConfig
 	privValidator   *types.PrivValidator // for signing votes
 	blockOperations BaseBlockOperations
-	blockExec       *state.BlockExecutor
+	blockExec       *cstate.BlockExecutor
 	evpool          evidencePool // TODO(namdoh): Add mem pool.
 
 	// internal state
 	mtx sync.RWMutex
 	cstypes.RoundState
-	state         state.LastestBlockState // State until height-1.
+	state         cstate.LastestBlockState // State until height-1.
 	timeoutTicker TimeoutTicker
 
 	// State changes may be triggered by: msgs from peers,
@@ -133,9 +133,9 @@ type ConsensusState struct {
 func NewConsensusState(
 	logger log.Logger,
 	config *cfg.ConsensusConfig,
-	state state.LastestBlockState,
+	state cstate.LastestBlockState,
 	blockOperations BaseBlockOperations,
-	blockExec *state.BlockExecutor,
+	blockExec *cstate.BlockExecutor,
 	evpool evidencePool,
 ) *ConsensusState {
 	cs := &ConsensusState{
@@ -206,7 +206,7 @@ func (cs *ConsensusState) Stop() {
 
 // Updates ConsensusState and increments height to match that of state.
 // The round becomes 0 and cs.Step becomes cstypes.RoundStepNewHeight.
-func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
+func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 	cs.logger.Trace("ConsensusState - updateToState")
 	if cs.CommitRound.IsGreaterThanInt(-1) && cs.Height.IsGreaterThanInt(0) && !cs.Height.Equals(state.LastBlockHeight) {
 		cmn.PanicSanity(cmn.Fmt("updateToState() expected state height of %v but found %v",
@@ -398,7 +398,7 @@ func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 
 // Reconstruct LastCommit from SeenCommit, which we saved along with the block,
 // (which happens even before saving the state)
-func (cs *ConsensusState) reconstructLastCommit(state state.LastestBlockState) {
+func (cs *ConsensusState) reconstructLastCommit(state cstate.LastestBlockState) {
 	if state.LastBlockHeight.EqualsInt64(0) {
 		return
 	}
@@ -917,7 +917,7 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 
 	// Validate proposal block
 	// This checks the block contents without executing txs.
-	if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
+	if err := cstate.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
 		cs.signAddVote(types.VoteTypePrevote, cmn.Hash{}, types.PartSetHeader{})
@@ -1038,7 +1038,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	if cs.ProposalBlock.HashesTo(blockID.Hash) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID)
 		// Validate the block.
-		if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
+		if err := cstate.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 			cmn.PanicConsensus(cmn.Fmt("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
 		}
 		cs.LockedRound = round
@@ -1183,7 +1183,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	if !block.HashesTo(blockID.Hash) {
 		cmn.PanicSanity(cmn.Fmt("Cannot finalizeCommit, ProposalBlock does not hash to commit hash"))
 	}
-	if err := state.ValidateBlock(cs.state, block); err != nil {
+	if err := cstate.ValidateBlock(cs.state, block); err != nil {
 		cmn.PanicConsensus(cmn.Fmt("+2/3 committed an invalid block: %v", err))
 		panic("Block validation failed")
 	}

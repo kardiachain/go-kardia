@@ -24,8 +24,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/kai/service"
 	serviceconst "github.com/kardiachain/go-kardiamain/kai/service/const"
-	"github.com/kardiachain/go-kardiamain/kai/state"
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
@@ -118,28 +117,13 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	kai.blockchain.IsZeroFee = config.IsZeroFee
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 
-	// Initialization for consensus.
-	block := kai.blockchain.CurrentBlock()
-	logger.Info("Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
-	var validatorSet *types.ValidatorSet
-	validatorSet, err = node.GetValidatorSet(kai.blockchain, ctx.Config.MainChainConfig.ValidatorIndexes)
-	if err != nil {
-		logger.Error("Cannot get validator from indices", "indices", ctx.Config.MainChainConfig.ValidatorIndexes, "err", err)
-		return nil, err
-	}
-
 	evPool := evidence.NewPool(kaiDb.DB(), kaiDb.DB())
 	evReactor := evidence.NewReactor(evPool)
-	blockExec := state.NewBlockExecutor(evPool)
+	blockExec := cstate.NewBlockExecutor(evPool)
 
-	state := state.LastestBlockState{
-		ChainID:                     "kaicon", // TODO(thientn): considers merging this with protocolmanger.ChainID
-		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
-		LastBlockID:                 block.Header().LastBlockID,
-		LastBlockTime:               block.Time().Uint64(),
-		Validators:                  validatorSet,
-		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
+	state, err := cstate.LoadStateFromDBOrGenesisDoc(kaiDb.DB(), config.Genesis)
+	if err != nil {
+		return nil, err
 	}
 
 	consensusState := consensus.NewConsensusState(

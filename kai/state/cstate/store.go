@@ -1,7 +1,11 @@
-package state
+package cstate
 
 import (
 	"fmt"
+
+	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
+
+	"github.com/kardiachain/go-kardiamain/lib/common"
 
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -26,6 +30,23 @@ func calcValidatorsKey(height uint64) []byte {
 
 func calcConsensusParamsKey(height uint64) []byte {
 	return []byte(fmt.Sprintf("consensusParamsKey:%v", height))
+}
+
+// LoadStateFromDBOrGenesisDoc loads the most recent state from the database,
+// or creates a new one from the given genesisDoc and persists the result
+// to the database.
+func LoadStateFromDBOrGenesisDoc(stateDB kaidb.Database, genesisDoc *genesis.Genesis) (LastestBlockState, error) {
+	state := LoadState(stateDB)
+	if state.IsEmpty() {
+		var err error
+		state, err = MakeGenesisState(genesisDoc)
+		if err != nil {
+			return state, err
+		}
+		SaveState(stateDB, state)
+	}
+
+	return state, nil
 }
 
 // SaveState persists the State, the ValidatorsInfo, and the ConsensusParamsInfo to the database.
@@ -241,4 +262,36 @@ func saveConsensusParamsInfo(db kaidb.Database, nextHeight, changeHeight uint64,
 		paramsInfo.ConsensusParams = params
 	}
 	db.Put(calcConsensusParamsKey(nextHeight), paramsInfo.Bytes())
+}
+
+// MakeGenesisState creates state from types.GenesisDoc.
+func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
+
+	var validatorSet, nextValidatorSet *types.ValidatorSet
+	if genDoc.Validators == nil {
+		validatorSet = types.NewValidatorSet(nil, 0, 1)
+		nextValidatorSet = types.NewValidatorSet(nil, 0, 1)
+	} else {
+		validators := make([]*types.Validator, len(genDoc.Validators))
+		for i, val := range genDoc.Validators {
+			validators[i] = types.NewValidator(val.Address, val.Power)
+		}
+		validatorSet = types.NewValidatorSet(validators, 0, 1)
+		nextValidatorSet = types.NewValidatorSet(validators, 0, 1)
+		nextValidatorSet.AdvanceProposer(1)
+	}
+
+	return LastestBlockState{
+		LastBlockHeight: common.NewBigInt64(0),
+		LastBlockID:     types.BlockID{},
+		LastBlockTime:   genDoc.Timestamp,
+
+		NextValidators:              nextValidatorSet,
+		Validators:                  validatorSet,
+		LastValidators:              types.NewValidatorSet(nil, 0, 1),
+		LastHeightValidatorsChanged: common.NewBigInt64(0),
+
+		//ConsensusParams:                  *genDoc.ConsensusParams,
+		LastHeightConsensusParamsChanged: 1,
+	}, nil
 }
