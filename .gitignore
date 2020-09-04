@@ -22,4 +22,5 @@ vendor/
 # Build and Run file
 go-kardia
 cmd/cmd
+tool/pump/pump
 run.sh
