@@ -2,10 +2,12 @@ package evidence
 
 import (
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/clist"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/lib/service"
 
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -227,38 +229,52 @@ func (m *ListMessage) ValidateBasic() error {
 	return nil
 }
 
+type storageListMsg struct {
+	Evidence [][]byte
+}
+
+// EncodeRLP implement rlp
+func (m *ListMessage) EncodeRLP(w io.Writer) error {
+	smsg := &storageListMsg{Evidence: make([][]byte, len(m.Evidence))}
+	for i, ev := range m.Evidence {
+		evBytes, err := types.EvidenceToBytes(ev)
+		if err != nil {
+			return err
+		}
+		smsg.Evidence[i] = evBytes
+	}
+	return rlp.Encode(w, smsg)
+}
+
+// DecodeRLP implement rlp
+func (m *ListMessage) DecodeRLP(s *rlp.Stream) error {
+	var err error
+	smsg := &storageListMsg{Evidence: make([][]byte, 0)}
+	if err := s.Decode(smsg); err != nil {
+		return err
+	}
+	evd := make([]types.Evidence, len(smsg.Evidence))
+	for i, evBytes := range smsg.Evidence {
+		evd[i], err = types.EvidenceFromBytes(evBytes)
+		if err != nil {
+			return err
+		}
+	}
+	m.Evidence = evd
+	return nil
+}
+
 // String returns a string representation of the ListMessage.
 func (m *ListMessage) String() string {
 	return fmt.Sprintf("[ListMessage %v]", m.Evidence)
 }
 
-// encodemsg takes a array of evidence
-// returns the byte encoding of the List Message
-func encodeMsg(evis []types.Evidence) ([][]byte, error) {
-	list := [][]byte{}
-	for _, ev := range evis {
-		evBytes, err := types.EvidenceToBytes(ev)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, evBytes)
-	}
-	return list, nil
-}
-
 // decodemsg takes an array of bytes
 // returns an array of evidence
 func decodeMsg(msg p2p.Msg) (evis []types.Evidence, err error) {
-	list := [][]byte{}
-	if err := msg.Decode(list); err != nil {
+	list := ListMessage{}
+	if err := msg.Decode(&list); err != nil {
 		return nil, err
 	}
-	evis = make([]types.Evidence, len(list))
-	for i, ev := range list {
-		evis[i], err = types.EvidenceFromBytes(ev)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return evis, nil
+	return list.Evidence, nil
 }
