@@ -19,14 +19,14 @@ var (
 )
 
 type Part struct {
-	Index *cmn.BigInt        `json:"index"`
+	Index uint32             `json:"index"`
 	Bytes []byte             `json:"bytes"`
 	Proof merkle.SimpleProof `json:"proof"`
 }
 
 // ValidateBasic performs basic validation.
 func (part *Part) ValidateBasic() error {
-	if part.Index.IsLessThanInt(0) {
+	if part.Index < 0 {
 		return errors.New("Negative Index")
 	}
 	if len(part.Bytes) > BlockPartSizeBytes {
@@ -51,8 +51,8 @@ func (part *Part) StringIndented(indent string) string {
 }
 
 type PartSetHeader struct {
-	Total cmn.BigInt `json:"total"`
-	Hash  cmn.Hash   `json:"hash"`
+	Total uint32   `json:"total"`
+	Hash  cmn.Hash `json:"hash"`
 }
 
 func (psh PartSetHeader) String() string {
@@ -60,51 +60,52 @@ func (psh PartSetHeader) String() string {
 }
 
 func (psh PartSetHeader) IsZero() bool {
-	return psh.Total.EqualsInt(0) && psh.Hash.IsZero()
+	return psh.Total == 0 && len(psh.Hash) == 0
 }
 
 func (psh PartSetHeader) Equals(other PartSetHeader) bool {
-	return psh.Total.Uint64() == other.Total.Uint64() && psh.Hash.Equal(other.Hash)
+	return psh.Total == other.Total && common.Hash.Equal(psh.Hash, other.Hash)
 }
 
 // ValidateBasic performs basic validation.
 func (psh PartSetHeader) ValidateBasic() error {
-	if psh.Total.IsLessThanInt(0) {
-		return errors.New("Negative Total")
+	// Hash can be empty in case of POLBlockID.PartSetHeader in Proposal.
+	if err := ValidateHash(psh.Hash); err != nil {
+		return fmt.Errorf("wrong Hash: %w", err)
 	}
 	return nil
 }
 
 type PartSet struct {
-	total int
+	total uint32
 	hash  common.Hash
 
 	mtx           sync.Mutex
 	parts         []*Part
 	partsBitArray *cmn.BitArray
-	count         int
+	count         uint32
 }
 
 // Returns an immutable, full PartSet from the data bytes.
 // The data bytes are split into "partSize" chunks, and merkle tree computed.
-func NewPartSetFromData(data []byte, partSize int) *PartSet {
+func NewPartSetFromData(data []byte, partSize uint32) *PartSet {
 	// divide data into 4kb parts.
-	total := (len(data) + partSize - 1) / partSize
+	total := (uint32(len(data)) + partSize - 1) / partSize
 	parts := make([]*Part, total)
 	partsBytes := make([][]byte, total)
-	partsBitArray := cmn.NewBitArray(total)
-	for i := 0; i < total; i++ {
+	partsBitArray := cmn.NewBitArray(int(total))
+	for i := uint32(0); i < total; i++ {
 		part := &Part{
-			Index: cmn.NewBigInt32(i),
-			Bytes: data[i*partSize : cmn.MinInt(len(data), (i+1)*partSize)],
+			Index: i,
+			Bytes: data[i*partSize : cmn.MinInt(len(data), int((i+1)*partSize))],
 		}
 		parts[i] = part
 		partsBytes[i] = part.Bytes
-		partsBitArray.SetIndex(i, true)
+		partsBitArray.SetIndex(int(i), true)
 	}
 	// Compute merkle proofs
 	root, proofs := merkle.SimpleProofsFromByteSlices(partsBytes)
-	for i := 0; i < total; i++ {
+	for i := uint32(0); i < total; i++ {
 		parts[i].Proof = *proofs[i]
 	}
 	return &PartSet{
@@ -119,10 +120,10 @@ func NewPartSetFromData(data []byte, partSize int) *PartSet {
 // Returns an empty PartSet ready to be populated.
 func NewPartSetFromHeader(header PartSetHeader) *PartSet {
 	return &PartSet{
-		total:         header.Total.Int32(),
+		total:         header.Total,
 		hash:          header.Hash,
-		parts:         make([]*Part, header.Total.Int32()),
-		partsBitArray: cmn.NewBitArray(header.Total.Int32()),
+		parts:         make([]*Part, header.Total),
+		partsBitArray: cmn.NewBitArray(int(header.Total)),
 		count:         0,
 	}
 }
@@ -132,7 +133,7 @@ func (ps *PartSet) Header() PartSetHeader {
 		return PartSetHeader{}
 	}
 	return PartSetHeader{
-		Total: *common.NewBigInt32(ps.total),
+		Total: ps.total,
 		Hash:  ps.hash,
 	}
 }
@@ -164,14 +165,14 @@ func (ps *PartSet) HashesTo(hash common.Hash) bool {
 	return ps.Hash().Equal(hash)
 }
 
-func (ps *PartSet) Count() int {
+func (ps *PartSet) Count() uint32 {
 	if ps == nil {
 		return 0
 	}
 	return ps.count
 }
 
-func (ps *PartSet) Total() int {
+func (ps *PartSet) Total() uint32 {
 	if ps == nil {
 		return 0
 	}
@@ -186,12 +187,12 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 	defer ps.mtx.Unlock()
 
 	// Invalid part index
-	if part.Index.Int32() >= ps.Total() {
+	if part.Index >= ps.total {
 		return false, ErrPartSetUnexpectedIndex
 	}
 
 	// If part already exists, return false.
-	if ps.parts[part.Index.Int32()] != nil {
+	if ps.parts[part.Index] != nil {
 		return false, nil
 	}
 
@@ -201,8 +202,8 @@ func (ps *PartSet) AddPart(part *Part) (bool, error) {
 	}
 
 	// Add part
-	ps.parts[part.Index.Int32()] = part
-	ps.partsBitArray.SetIndex(part.Index.Int32(), true)
+	ps.parts[part.Index] = part
+	ps.partsBitArray.SetIndex(int(part.Index), true)
 	ps.count++
 	return true, nil
 }
