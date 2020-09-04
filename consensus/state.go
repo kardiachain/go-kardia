@@ -314,7 +314,7 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", propBlockID.Hash)
 		// Send proposal and blockparts on internal msg queue
 		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, enode.ID{}})
-		for i := 0; i < blockParts.Total(); i++ {
+		for i := 0; i < int(blockParts.Total()); i++ {
 			part := blockParts.GetPart(i)
 			cs.sendInternalMessage(msgInfo{&BlockPartMessage{cs.Height, cs.Round, part}, enode.ID{}})
 		}

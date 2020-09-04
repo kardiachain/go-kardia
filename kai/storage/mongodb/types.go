@@ -47,7 +47,7 @@ const (
 
 type (
 	PartSetHeader struct {
-		Total int
+		Total uint32
 		Hash  string
 	}
 
@@ -223,7 +223,7 @@ func NewBlock(block *types.Block) *Block {
 		LastBlockID: block.Header().LastBlockID.Hash.Hex(),
 		PartsHeader: PartSetHeader{
 			Hash:  block.Header().LastBlockID.PartsHeader.Hash.Hex(),
-			Total: block.Header().LastBlockID.PartsHeader.Total.Int32(),
+			Total: block.Header().LastBlockID.PartsHeader.Total,
 		},
 		NumTxs:         block.NumTxs(),
 		TxHash:         block.Header().TxHash.Hex(),
@@ -537,7 +537,7 @@ func toBlockID(blockID string, partSetHeader PartSetHeader) types.BlockID {
 	return types.BlockID{
 		Hash: common.HexToHash(blockID),
 		PartsHeader: types.PartSetHeader{
-			Total: *common.NewBigInt32(partSetHeader.Total),
+			Total: partSetHeader.Total,
 			Hash:  common.HexToHash(partSetHeader.Hash),
 		},
 	}
