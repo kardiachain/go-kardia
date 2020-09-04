@@ -182,7 +182,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 			Hash: common.Hash{},
 			PartsHeader: types.PartSetHeader{
 				Hash:  common.Hash{},
-				Total: *common.NewBigInt64(0),
+				Total: uint32(0),
 			},
 		},
 	}

@@ -196,7 +196,7 @@ func (db *Store) WriteBlock(block *types.Block, parts *types.PartSet, seenCommit
 		db.WriteSeenCommit(block, seenCommit)
 
 		// Save block parts
-		for i := 0; i < parts.Total(); i++ {
+		for i := 0; i < int(parts.Total()); i++ {
 			part := parts.GetPart(i)
 			db.saveBlockPart(height, i, part)
 		}

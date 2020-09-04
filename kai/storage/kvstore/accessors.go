@@ -607,7 +607,7 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 	}
 
 	buf := []byte{}
-	for i := 0; i < blockMeta.BlockID.PartsHeader.Total.Int32(); i++ {
+	for i := 0; i < int(blockMeta.BlockID.PartsHeader.Total); i++ {
 		part := ReadBlockPart(db, hash, height, i)
 		buf = append(buf, part.Bytes...)
 	}
@@ -665,7 +665,7 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 	batch.Put(blockMetaKey(hash, height), metaBytes)
 
 	// Save block part
-	for i := 0; i < blockParts.Total(); i++ {
+	for i := 0; i < int(blockParts.Total()); i++ {
 		part := blockParts.GetPart(i)
 		writeBlockPart(batch, height, i, part)
 
