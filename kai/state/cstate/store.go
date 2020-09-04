@@ -77,15 +77,13 @@ func LoadState(db kaidb.Database) LastestBlockState {
 }
 
 func loadState(db kaidb.Database, key []byte) (state LastestBlockState) {
-	buf, err := db.Get(key)
-	if err != nil {
-		panic(err)
-	}
+	buf, _ := db.Get(key)
+
 	if len(buf) == 0 {
 		return state
 	}
 
-	err = rlp.DecodeBytes(buf, &state)
+	err := rlp.DecodeBytes(buf, &state)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		panic(fmt.Sprintf(`LoadState: Data has been corrupted or its spec has changed:
