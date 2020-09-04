@@ -24,10 +24,9 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/kardiachain/go-kardiamain/common"
-	"github.com/kardiachain/go-kardiamain/common/hexutil"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/abi/bind"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -247,7 +246,7 @@ func newMockLog(topics []common.Hash, txHash common.Hash) types.Log {
 	return types.Log{
 		Address:     common.HexToAddress("0x0"),
 		Topics:      topics,
-		Data:        hexutil.MustDecode(hexData),
+		Data:        MustDecode(hexData),
 		BlockNumber: uint64(26),
 		TxHash:      txHash,
 		TxIndex:     111,
