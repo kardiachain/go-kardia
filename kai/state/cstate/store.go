@@ -272,7 +272,7 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
 	} else {
 		validators := make([]*types.Validator, len(genDoc.Validators))
 		for i, val := range genDoc.Validators {
-			validators[i] = types.NewValidator(val.Address, val.Power)
+			validators[i] = types.NewValidator(common.HexToAddress(val.Address), val.Power)
 		}
 		validatorSet = types.NewValidatorSet(validators, 0, 1)
 		nextValidatorSet = types.NewValidatorSet(validators, 0, 1)

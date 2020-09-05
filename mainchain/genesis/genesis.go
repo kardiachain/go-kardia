@@ -46,9 +46,9 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 // GenesisValidator is an initial validator.
 type GenesisValidator struct {
-	Address common.Address `json:"address"`
-	Power   int64          `json:"power"`
-	Name    string         `json:"name"`
+	Address string `json:"address" yaml:"Address"`
+	Power   int64  `json:"power" yaml:"Power"`
+	Name    string `json:"name" yaml:"Name"`
 }
 
 // Genesis specifies the header fields, state of a genesis block.
@@ -59,7 +59,7 @@ type Genesis struct {
 	Alloc     GenesisAlloc       `json:"alloc"      gencodec:"required"`
 
 	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
-	Validators           []GenesisValidator           `json:"validators"`
+	Validators           []*GenesisValidator          `json:"validators"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.

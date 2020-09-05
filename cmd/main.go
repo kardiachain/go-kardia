@@ -132,6 +132,7 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 	if isDual {
 		g = c.DualChain.Genesis
 	}
+
 	if g == nil {
 		ga = make(genesis.GenesisAlloc, 0)
 	} else {
@@ -150,11 +151,14 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 		if err != nil {
 			return nil, err
 		}
+
 	}
+
 	return &genesis.Genesis{
-		Config:   configs.TestnetChainConfig,
-		GasLimit: 16777216, // maximum number of uint24
-		Alloc:    ga,
+		Config:     configs.TestnetChainConfig,
+		GasLimit:   16777216, // maximum number of uint24
+		Alloc:      ga,
+		Validators: g.Validators,
 	}, nil
 }
 
