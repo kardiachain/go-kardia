@@ -21,7 +21,7 @@ require (
 	github.com/google/cel-go v0.3.2
 	github.com/google/uuid v1.1.1 // indirect
 	github.com/gorilla/mux v1.7.3
-	github.com/gorilla/websocket v1.4.1-0.20190629185528-ae1634f6a989
+	github.com/gorilla/websocket v1.4.2
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/holiman/uint256 v1.1.1
 	github.com/huin/goupnp v1.0.0
