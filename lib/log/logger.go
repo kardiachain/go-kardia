@@ -11,6 +11,7 @@ import (
 const timeKey = "t"
 const lvlKey = "lvl"
 const msgKey = "msg"
+const ctxKey = "ctx"
 const errorKey = "LOG15_ERROR"
 const skipLevel = 2
 
@@ -82,7 +83,7 @@ func LvlFromString(lvlString string) (Lvl, error) {
 	case "crit":
 		return LvlCrit, nil
 	default:
-		return LvlDebug, fmt.Errorf("Unknown level: %v", lvlString)
+		return LvlDebug, fmt.Errorf("unknown level: %v", lvlString)
 	}
 }
 
@@ -102,6 +103,7 @@ type RecordKeyNames struct {
 	Time string
 	Msg  string
 	Lvl  string
+	Ctx  string
 }
 
 // A Logger writes key/value pairs to a Handler
@@ -158,6 +160,7 @@ func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
 			Time: timeKey,
 			Msg:  msgKey,
 			Lvl:  lvlKey,
+			Ctx:  ctxKey,
 		},
 		Tag: l.tag,
 	})

@@ -25,7 +25,7 @@ import (
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/discover"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -57,9 +57,9 @@ type HeightVoteSet struct {
 	valSet  *types.ValidatorSet
 
 	mtx               sync.Mutex
-	round             *cmn.BigInt               // max tracked round
-	roundVoteSets     map[int]RoundVoteSet      // keys: [0...round]
-	peerCatchupRounds map[discover.NodeID][]int // keys: peer.ID; values: at most 2 rounds
+	round             *cmn.BigInt          // max tracked round
+	roundVoteSets     map[int]RoundVoteSet // keys: [0...round]
+	peerCatchupRounds map[enode.ID][]int   // keys: peer.ID; values: at most 2 rounds
 }
 
 func NewHeightVoteSet(logger log.Logger, chainID string, height *cmn.BigInt, valSet *types.ValidatorSet) *HeightVoteSet {
@@ -78,7 +78,7 @@ func (hvs *HeightVoteSet) Reset(height *cmn.BigInt, valSet *types.ValidatorSet) 
 	hvs.height = height
 	hvs.valSet = valSet
 	hvs.roundVoteSets = make(map[int]RoundVoteSet)
-	hvs.peerCatchupRounds = make(map[discover.NodeID][]int)
+	hvs.peerCatchupRounds = make(map[enode.ID][]int)
 
 	hvs.addRound(0)
 	hvs.round = cmn.NewBigInt32(0)
@@ -116,7 +116,7 @@ func (hvs *HeightVoteSet) SetRound(round int) {
 
 // Duplicate votes return added=false, err=nil.
 // By convention, peerID is "" if origin is self.
-func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID discover.NodeID) (added bool, err error) {
+func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID enode.ID) (added bool, err error) {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
 	if !types.IsVoteTypeValid(vote.Type) {
@@ -168,7 +168,7 @@ func (hvs *HeightVoteSet) getVoteSet(round int, type_ byte) *types.VoteSet {
 // NOTE: if there are too many peers, or too much peer churn,
 // this can cause memory issues.
 // TODO: implement ability to remove peers too
-func (hvs *HeightVoteSet) SetPeerMaj23(round int, type_ byte, peerID discover.NodeID, blockID types.BlockID) error {
+func (hvs *HeightVoteSet) SetPeerMaj23(round int, type_ byte, peerID enode.ID, blockID types.BlockID) error {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
 	if !types.IsVoteTypeValid(type_) {

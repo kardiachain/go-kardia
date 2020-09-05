@@ -23,28 +23,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/eth"
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/ethstats"
-	"github.com/ethereum/go-ethereum/les"
-	log "github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discv5"
-	"github.com/ethereum/go-ethereum/p2p/enode"
-	"github.com/ethereum/go-ethereum/params"
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/gorilla/mux"
-	message2 "github.com/kardiachain/go-kardiamain/dualnode/message"
-	"github.com/kardiachain/go-kardiamain/dualnode/utils"
-	"github.com/pebbe/zmq4"
-	"github.com/rs/cors"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -55,12 +33,35 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/eth"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/ethdb"
+	"github.com/ethereum/go-ethereum/ethstats"
+	"github.com/ethereum/go-ethereum/les"
+	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/p2p"
+	"github.com/ethereum/go-ethereum/p2p/discv5"
+	"github.com/ethereum/go-ethereum/p2p/enode"
+	"github.com/ethereum/go-ethereum/params"
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/gorilla/mux"
+	message2 "github.com/kardiachain/go-kardiamain/dualnode/message"
+	"github.com/kardiachain/go-kardiamain/dualnode/utils"
+	log "github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/pebbe/zmq4"
+	"github.com/rs/cors"
 )
 
 const (
 	// headChannelSize is the size of channel listening to ChainHeadEvent.
 	headChannelSize = 10
-	ServiceName = "ETH"
+	ServiceName     = "ETH"
 )
 
 // A full Ethereum node. In additional, it provides additional interface with dual's node,
@@ -74,12 +75,12 @@ type Eth struct {
 	geth   *node.Node
 	config *Config
 	// TODO(@kiendn): this field must be loaded from config as well as from db to load or watched contract addresses
-	smcABI        map[string]abi.ABI
+	smcABI       map[string]abi.ABI
 	currentNonce uint64
-	sender common.Address
-	privateKey ecdsa.PrivateKey
+	sender       common.Address
+	privateKey   ecdsa.PrivateKey
 
-	publishEndpoint string
+	publishEndpoint   string
 	subscribeEndpoint string
 }
 
@@ -231,16 +232,16 @@ func NewEth(config *Config) (*Eth, error) {
 	addr := crypto.PubkeyToAddress(key.PublicKey)
 
 	return &Eth{
-		name:          ServiceName,
-		geth:          ethNode,
-		config:        config,
-		smcABI:        smcAbi,
-		publishEndpoint: config.PublishedEndpoint,
+		name:              ServiceName,
+		geth:              ethNode,
+		config:            config,
+		smcABI:            smcAbi,
+		publishEndpoint:   config.PublishedEndpoint,
 		subscribeEndpoint: config.SubscribedEndpoint,
-		logger:        config.Logger,
-		privateKey: *key,
-		sender: addr,
-		currentNonce: 0,
+		logger:            config.Logger,
+		privateKey:        *key,
+		sender:            addr,
+		currentNonce:      0,
 	}, nil
 }
 
@@ -255,7 +256,7 @@ func (n *Eth) Client() (*ethclient.Client, *node.Node, error) {
 }
 
 // syncHead syncs with latest events from Eth network to Kardia.
-func (n *Eth)syncHead() {
+func (n *Eth) syncHead() {
 	var ethService *eth.Ethereum
 	n.geth.Service(&ethService)
 
@@ -304,7 +305,7 @@ func (n *Eth)syncHead() {
 	}
 }
 
-func (n *Eth)handleBlock(block *types.Block) {
+func (n *Eth) handleBlock(block *types.Block) {
 	// TODO(thientn): block from this event is not guaranteed newly update. May already handled before.
 
 	// Some events has nil block.
@@ -336,14 +337,14 @@ func (n *Eth)handleBlock(block *types.Block) {
 		// get method and params from data and create a dualMessage message
 		method, args := GetMethodAndParams(*smcAbi, tx.Data())
 		message := message2.Message{
-			TransactionId: tx.Hash().Hex(),
+			TransactionId:   tx.Hash().Hex(),
 			ContractAddress: tx.To().Hex(),
-			BlockNumber: block.Number().Uint64(),
-			Sender: sender.Hex(),
-			Amount: tx.Value().Uint64(),
-			Timestamp: getCurrentTimeStamp(),
-			MethodName: method,
-			Params: args,
+			BlockNumber:     block.Number().Uint64(),
+			Sender:          sender.Hex(),
+			Amount:          tx.Value().Uint64(),
+			Timestamp:       getCurrentTimeStamp(),
+			MethodName:      method,
+			Params:          args,
 		}
 
 		if err := n.PublishMessage(message); err != nil {
@@ -357,7 +358,7 @@ func getCurrentTimeStamp() uint64 {
 }
 
 // PublishMessage publishes message to 0MQ based on given endpoint, topic
-func (n *Eth)PublishMessage(message interface{}) error {
+func (n *Eth) PublishMessage(message interface{}) error {
 	pub, _ := zmq4.NewSocket(zmq4.PUB)
 	defer pub.Close()
 	pub.Connect(n.publishEndpoint)
@@ -409,7 +410,7 @@ func GetMessageToSend(message interface{}) (string, string, error) {
 }
 
 // StartSubscribe subscribes messages from subscribedEndpoint
-func (n *Eth)StartSubscribe() {
+func (n *Eth) StartSubscribe() {
 	subscriber, _ := zmq4.NewSocket(zmq4.SUB)
 	defer subscriber.Close()
 	subscriber.Bind(n.subscribeEndpoint)
@@ -423,7 +424,7 @@ func (n *Eth)StartSubscribe() {
 }
 
 // subscribe handles getting/handle topic and content, return error if any
-func (n *Eth)subscribe(subscriber *zmq4.Socket) error {
+func (n *Eth) subscribe(subscriber *zmq4.Socket) error {
 	//  Read envelope with address
 	topic, err := subscriber.Recv(0)
 	if err != nil {
@@ -577,7 +578,7 @@ func (n *Eth) Start() error {
 	go n.syncHead()
 	go n.StartSubscribe()
 	// start an api that receives pump configure
-	go func(){
+	go func() {
 		router := mux.NewRouter()
 		router.HandleFunc("/contract/abi", n.updateABI).Methods("POST")
 		if err := http.ListenAndServe(n.config.APIListenAddr, cors.AllowAll().Handler(router)); err != nil {

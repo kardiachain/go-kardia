@@ -28,8 +28,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -258,7 +256,7 @@ func randomTxAddresses(accounts []Account) (senderKey *ecdsa.PrivateKey, toAddr 
 		senderKey = randomGenesisPrivateKey(accounts)
 		toAddr = randomGenesisAddress()
 		privateKeyBytes := crypto.FromECDSA(senderKey)
-		privateKeyHex := hexutil.Encode(privateKeyBytes)[2:]
+		privateKeyHex := common.Encode(privateKeyBytes)[2:]
 		if senderKey != nil && crypto.PubkeyToAddress(senderKey.PublicKey) != toAddr && privateKeyHex != configs.KardiaPrivKeyToCallSmc && privateKeyHex != DefaultFaucetPrivAcc {
 			// skip senderAddr = toAddr && senderAddr that call smc
 			break

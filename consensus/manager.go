@@ -206,7 +206,7 @@ func (conR *ConsensusManager) ReceiveNewBlockPart(generalMsg p2p.Msg, src *p2p.P
 		conR.logger.Error("Downcast failed!!")
 		return
 	}
-	ps.SetHasProposalBlockPart(msg.Height, msg.Round, msg.Part.Index.Int32())
+	ps.SetHasProposalBlockPart(msg.Height, msg.Round, int(msg.Part.Index))
 	conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
 }
 
@@ -1027,7 +1027,7 @@ func (ps *PeerState) SetHasProposal(proposal *types.Proposal) {
 	}
 
 	ps.PRS.ProposalBlockPartsHeader = proposal.POLBlockID.PartsHeader
-	ps.PRS.ProposalBlockParts = cmn.NewBitArray(proposal.POLBlockID.PartsHeader.Total.Int32())
+	ps.PRS.ProposalBlockParts = cmn.NewBitArray(int(proposal.POLBlockID.PartsHeader.Total))
 	ps.PRS.ProposalPOLRound = proposal.POLRound
 	ps.PRS.ProposalPOL = nil // Nil until ProposalPOLMessage received.
 }
@@ -1042,7 +1042,7 @@ func (ps *PeerState) InitProposalBlockParts(partsHeader types.PartSetHeader) {
 	}
 
 	ps.PRS.ProposalBlockPartsHeader = partsHeader
-	ps.PRS.ProposalBlockParts = cmn.NewBitArray(partsHeader.Total.Int32())
+	ps.PRS.ProposalBlockParts = cmn.NewBitArray(int(partsHeader.Total))
 }
 
 // SetHasProposalBlockPart sets the given block part index as known for the peer.
@@ -1390,10 +1390,10 @@ func (m *NewValidBlockMessage) ValidateBasic() error {
 	if m.BlockParts.Size() == 0 {
 		return errors.New("Empty BlockParts")
 	}
-	if m.BlockParts.Size() != m.BlockPartsHeader.Total.Int32() {
+	if m.BlockParts.Size() != int(m.BlockPartsHeader.Total) {
 		return fmt.Errorf("BlockParts bit array size %d not equal to BlockPartsHeader.Total %d",
 			m.BlockParts.Size(),
-			m.BlockPartsHeader.Total.Int64())
+			m.BlockPartsHeader.Total)
 	}
 	if m.BlockParts.Size() > types.MaxBlockPartsCount {
 		return fmt.Errorf("BlockParts bit array is too big: %d, max: %d", m.BlockParts.Size(), types.MaxBlockPartsCount)

@@ -21,6 +21,7 @@ package mongodb
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -41,6 +42,7 @@ var client *mongo.Client
 type Store struct {
 	uri    string
 	dbName string
+	size   int
 }
 
 func NewClient(uri string) (*mongo.Client, *context.Context, context.CancelFunc, error) {
@@ -183,11 +185,22 @@ func (db *Store) WriteChainConfig(hash common.Hash, cfg *types.ChainConfig) {
 
 // WriteBlock serializes a block into the database, header and body separately.
 func (db *Store) WriteBlock(block *types.Block, parts *types.PartSet, seenCommit *types.Commit) {
+	height := block.Height()
 	newBlock := NewBlock(block)
 	if err := db.execute(func(mongoDb *mongo.Database, ctx *context.Context) error {
 		if e := db.insertBlock(mongoDb, ctx, newBlock); e != nil {
 			return e
 		}
+
+		db.WriteBlockMeta(block, parts)
+		db.WriteSeenCommit(block, seenCommit)
+
+		// Save block parts
+		for i := 0; i < int(parts.Total()); i++ {
+			part := parts.GetPart(i)
+			db.saveBlockPart(height, i, part)
+		}
+
 		if block.NumTxs() > 0 {
 			go func() {
 				if err := db.insertTransactions(block.Transactions(), newBlock.Height, newBlock.Hash); err != nil {
@@ -363,6 +376,64 @@ func (db *Store) WriteHeadHeaderHash(hash common.Hash) {
 	if err := db.setHeadHeaderHash(hash.Hex()); err != nil {
 		log.Error("error while set head header hash", "err", err)
 	}
+}
+
+// WriteSeenCommit ...
+func (db *Store) WriteSeenCommit(block *types.Block, commit *types.Commit) error {
+	seenCommitBytes, err := rlp.EncodeToBytes(commit)
+
+	if err != nil {
+		panic(fmt.Errorf("encode seen commit error: %s", err))
+	}
+	return db.Put(seenCommitKey(block.Height()), seenCommitBytes)
+}
+
+// WriteBlockMeta ...
+func (db *Store) WriteBlockMeta(block *types.Block, blockParts *types.PartSet) error {
+	// Save block meta
+	blockMeta := types.NewBlockMeta(block, blockParts)
+
+	metaBytes, err := rlp.EncodeToBytes(blockMeta)
+
+	if err != nil {
+		panic(fmt.Errorf("encode block meta error: %s", err))
+	}
+	return db.Put(blockMetaKey(block.Height()), metaBytes)
+}
+
+func (db *Store) saveBlockPart(height uint64, index int, part *types.Part) {
+	partBytes, err := rlp.EncodeToBytes(part)
+	if err != nil {
+		panic(err)
+	}
+	db.Put(calcBlockPartKey(height, index), partBytes)
+}
+
+func blockMetaKey(height uint64) []byte {
+	return []byte(fmt.Sprintf("blockmeta:%d", height))
+}
+
+func seenCommitKey(height uint64) []byte {
+	return []byte(fmt.Sprintf("seen_commit:%d", height))
+}
+
+func calcBlockPartKey(height uint64, index int) []byte {
+	return []byte(fmt.Sprintf("seen_commit:%d:%d", height, index))
+}
+
+// ReadBlockMeta ...
+func (db *Store) ReadBlockMeta(hash common.Hash, number uint64) *types.BlockMeta {
+	var blockMeta = new(types.BlockMeta)
+	metaBytes, _ := db.Get(blockMetaKey(number))
+
+	if len(metaBytes) == 0 {
+		return nil
+	}
+
+	if err := rlp.DecodeBytes(metaBytes, blockMeta); err != nil {
+		panic(errors.New("Reading block meta error"))
+	}
+	return blockMeta
 }
 
 // WriteCommit stores a commit into the database.
@@ -582,9 +653,19 @@ func (db *Store) ReadHeaderRLP(hash common.Hash, height uint64) rlp.RawValue {
 	panic("Not implemented yet")
 }
 
-// ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
+// ReadSeenCommit retrieves a block header in its raw RLP database encoding.
 func (db *Store) ReadSeenCommit(height uint64) *types.Commit {
-	panic("Not implemented yet")
+	var seenCommit = new(types.Commit)
+	metaBytes, _ := db.Get(seenCommitKey(height))
+
+	if len(metaBytes) == 0 {
+		return nil
+	}
+
+	if err := rlp.DecodeBytes(metaBytes, seenCommit); err != nil {
+		panic(errors.New("Reading seen commit error"))
+	}
+	return seenCommit
 }
 
 // ReadHeadBlockHash retrieves the hash of the current canonical head block.
@@ -668,8 +749,19 @@ func (db *Store) DeleteBlockPart(hash common.Hash, height uint64) {
 
 }
 
+// ReadBlockPart ...
 func (db *Store) ReadBlockPart(hash common.Hash, height uint64, index int) *types.Part {
-	panic("read block part error")
+	var part = new(types.Part)
+	metaBytes, _ := db.Get(calcBlockPartKey(height, index))
+
+	if len(metaBytes) == 0 {
+		return nil
+	}
+
+	if err := rlp.DecodeBytes(metaBytes, part); err != nil {
+		panic(errors.New("Reading block meta error"))
+	}
+	return part
 }
 
 // ReadTransaction retrieves a specific transaction from the database, along with
@@ -863,12 +955,6 @@ func (db *Store) DeleteHeader(hash common.Hash, height uint64) {
 func (db *Store) DeleteCanonicalHash(number uint64) {
 	panic("DeleteCanonicalHash has not implemented yet")
 }
-
-// DeleteCanonicalHash removes the number to hash canonical mapping.
-func (db *Store) ReadBlockMeta(hash common.Hash, number uint64) *types.BlockMeta {
-	panic("ReadBlockMeta has not implemented yet")
-}
-
 func (db *Store) Has(key []byte) (bool, error) {
 	if value, err := db.Get(key); value != nil {
 		return true, err
@@ -924,7 +1010,7 @@ func (db *Store) Compact(start []byte, limit []byte) error {
 // Compact is not supported on a memory database, but there's no need either as
 // a memory database doesn't waste space anyway.
 func (db *Store) NewBatch() kaidb.Batch {
-	return nil
+	return db
 }
 
 func (db *Store) DB() kaidb.Database {
@@ -1082,5 +1168,22 @@ func (db *Store) insertChainConfig(config *types.ChainConfig, hash common.Hash) 
 			return e
 		})
 	}
+	return nil
+}
+
+func (db *Store) ValueSize() int {
+	return db.size
+}
+
+func (db *Store) Reset() {
+	db.size = 0
+}
+
+func (db *Store) Write() error {
+	return nil
+}
+
+// Replay ...
+func (db *Store) Replay(w kaidb.KeyValueWriter) error {
 	return nil
 }

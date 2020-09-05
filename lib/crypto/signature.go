@@ -82,13 +82,12 @@ func Sign(hash []byte, prv *ecdsa.PrivateKey) ([]byte, error) {
 // VerifySignature checks that the given public key created signature over hash.
 // The public key should be in compressed (33 bytes) or uncompressed (65 bytes) format.
 // The signature should have the 64 byte [R || S] format.
-func VerifySignature(pubKey ecdsa.PublicKey, hash, signature []byte) bool {
-	compressedPubKey := CompressPubkey(&pubKey)
+func VerifySignature(pubKey, hash, signature []byte) bool {
 	if len(signature) != 64 {
 		return false
 	}
 	sig := &btcec.Signature{R: new(big.Int).SetBytes(signature[:32]), S: new(big.Int).SetBytes(signature[32:])}
-	key, err := btcec.ParsePubKey(compressedPubKey, btcec.S256())
+	key, err := btcec.ParsePubKey(pubKey, btcec.S256())
 	if err != nil {
 		return false
 	}

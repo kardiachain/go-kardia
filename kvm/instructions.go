@@ -18,8 +18,10 @@ package kvm
 
 import (
 	"errors"
+
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
 	"golang.org/x/crypto/sha3"
@@ -659,7 +661,7 @@ func opCall(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	// By using big0 here, we save an alloc for the most common case (non-ether-transferring contract calls),
 	// but it would make more sense to extend the usage of uint256.Int
 	if !value.IsZero() {
-		gas += params.CallStipend
+		gas += configs.CallStipend
 		bigVal = value.ToBig()
 	}
 

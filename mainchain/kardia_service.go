@@ -84,7 +84,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	logger.AddTag(config.ServiceName)
 	logger.Info("newKardiaService", "dbType", config.DBInfo.Name())
 
-	kaiDb, err := ctx.Config.StartDatabase(config.DBInfo)
+	kaiDb, err := ctx.StartDatabase(config.DBInfo)
 	if err != nil {
 		return nil, err
 	}
