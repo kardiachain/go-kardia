@@ -497,6 +497,16 @@ MainChain:
       - 0xCd7b57D1ce9E9f3D5a38Eaa4960803B3eDAE489F
       - 0x886906c1BF89bD5a5265bc3fccC9C4E053F52050
       - 0x7b2A8573243cF7e7F85da21753919DC3d9f38659
+    Validators: 
+      - name: val1
+        Address: 0xc1fe56E3F58D3244F606306611a5d10c8333f1f6
+        Power: 100
+      - Name: val2
+        Address: 0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5
+        Power: 100
+      - Name: val3
+        Address: 0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd
+        Power: 100
     GenesisAmount: 1000000000000000000000000000     # default genesis amount for every address is 1 billion KAI
     Contracts:
       - # DEX smart contract
