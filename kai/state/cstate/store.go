@@ -102,7 +102,7 @@ type ValidatorsInfo struct {
 	LastHeightChanged uint64
 }
 
-// Bytes serializes the ValidatorsInfo using go-amino.
+// Bytes serializes the ValidatorsInfo
 func (valInfo *ValidatorsInfo) Bytes() []byte {
 	b, err := rlp.EncodeToBytes(valInfo)
 	if err != nil {
@@ -239,7 +239,7 @@ func loadConsensusParamsInfo(db kaidb.Database, height uint64) *ConsensusParamsI
 	return paramsInfo
 }
 
-// Bytes serializes the ConsensusParamsInfo using go-amino.
+// Bytes serializes the ConsensusParamsInfo
 func (params ConsensusParamsInfo) Bytes() []byte {
 	b, err := rlp.EncodeToBytes(params)
 	if err != nil {

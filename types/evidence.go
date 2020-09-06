@@ -54,7 +54,7 @@ const (
 	EvidenceDuplicateVote       = EvidenceType(0x01)
 	EvidenceMock                = EvidenceType(0x02)
 	MaxEvidenceBytesDenominator = 10
-	// MaxEvidenceBytes is a maximum size of any evidence (including amino overhead).
+	// MaxEvidenceBytes is a maximum size of any evidence
 	MaxEvidenceBytes int64 = 484
 )
 

@@ -40,7 +40,7 @@ type ConsensusParams struct {
 }
 
 // ValidatorParams restrict the public key types validators can use.
-// NOTE: uses ABCI pubkey naming, not Amino names.
+// NOTE: uses pubkey
 type ValidatorParams struct {
 	PubKeyTypes []string `json:"pub_key_types"`
 }

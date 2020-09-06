@@ -27,10 +27,11 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 )
 
-// IPrivValidator defines the functionality of a local Tendermint validator
+// IPrivValidator defines the functionality of a local KAI validator
 // that signs votes and proposals, and never double signs.
 type IPrivValidator interface {
-	// TODO: Extend the interface to return errors too. Issue: https://github.com/tendermint/tendermint/issues/3602
+	// TODO: Extend the interface to return errors too.
+	// Ref: https://github.com/tendermint/tendermint/issues/3602
 	GetPubKey() ecdsa.PublicKey
 
 	SignVote(chainID string, vote *Vote) error

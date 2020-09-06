@@ -109,7 +109,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		logger.Error("Cannot get validator from indices", "indices", ctx.Config.DualChainConfig.ValidatorIndexes, "err", err)
 		return nil, err
 	}
-	lstate := cstate.LastestBlockState{
+	lastBlockState := cstate.LastestBlockState{
 		ChainID:                     "kaigroupcon",
 		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
 		LastBlockID:                 block.Header().LastBlockID,
@@ -127,7 +127,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
 		configs.DefaultConsensusConfig(),
-		lstate,
+		lastBlockState,
 		dualService.dualBlockOperations,
 		blockExec,
 		evPool,

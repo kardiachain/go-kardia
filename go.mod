@@ -11,10 +11,9 @@ require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200531234253-77e06fda0c94+incompatible
 	github.com/ebuchman/fail-test v0.0.0-20170303061230-95f809107225
-	github.com/edsrzf/mmap-go v1.0.0 // indirect
 	github.com/ethereum/go-ethereum v1.9.18
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect
-	github.com/go-kit/kit v0.10.0
+	github.com/go-kit/kit v0.10.0 // indirect
 	github.com/go-stack/stack v1.8.0
 	github.com/golang/protobuf v1.4.0
 	github.com/golang/snappy v0.0.2-0.20200707131729-196ae77b8a26
@@ -29,15 +28,16 @@ require (
 	github.com/julienschmidt/httprouter v1.2.0
 	github.com/mattn/go-colorable v0.1.2
 	github.com/pebbe/zmq4 v1.0.0
+	github.com/petermattis/goid v0.0.0-20180202154549-b0b1615b78e5 // indirect
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/tsdb v0.10.0
 	github.com/rjeczalik/notify v0.9.2 // indirect
 	github.com/rs/cors v1.7.0
+	github.com/sasha-s/go-deadlock v0.2.0
 	github.com/shirou/gopsutil v2.20.5+incompatible
 	github.com/status-im/keycard-go v0.0.0-20190424133014-d95853db0f48 // indirect
 	github.com/stretchr/testify v1.5.1
 	github.com/syndtr/goleveldb v1.0.1-0.20190923125748-758128399b1d
-	github.com/tendermint/tendermint v0.33.8
 	github.com/tidwall/pretty v1.0.1 // indirect
 	github.com/tyler-smith/go-bip39 v1.0.2 // indirect
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c // indirect
