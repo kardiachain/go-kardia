@@ -418,15 +418,15 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID enode.ID) (bool, e
 		// But if it's a conflicting sig, add it to the cs.evpool.
 		// If it's otherwise invalid, punish peer.
 		if err == ErrVoteHeightMismatch {
-			return false, err
-		}
-		if _, ok := err.(*types.ErrVoteConflictingVotes); ok {
+			return added, err
+		} else if voteErr, ok := err.(*types.ErrVoteConflictingVotes); ok {
 			if vote.ValidatorAddress.Equal(cs.privValidator.GetAddress()) {
 				cs.logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
 				return false, err
 			}
 			// TODO(namdoh): Re-enable this later.
-			cs.logger.Warn("Add vote error to evidence pool later")
+			//cs.logger.Warn("Add vote error to evidence pool later")
+			cs.evpool.AddEvidence(voteErr.DuplicateVoteEvidence)
 			return false, err
 		}
 		// Probably an invalid signature / Bad peer.
