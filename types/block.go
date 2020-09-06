@@ -201,12 +201,6 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommi
 		copy(b.transactions, txs)
 	}
 
-	if len(evidence) > 0 {
-		b.header.EvidenceHash = b.evidence.Hash()
-	} else {
-		b.header.EvidenceHash = common.NewZeroHash()
-	}
-
 	if len(receipts) == 0 {
 		b.header.ReceiptHash = EmptyRootHash
 	} else {
@@ -223,9 +217,10 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommi
 	}
 
 	// TODO(namdoh): Store evidence hash.
-
-	if b.header.EvidenceHash.IsZero() {
+	if len(evidence) > 0 {
 		b.header.EvidenceHash = b.evidence.Hash()
+	} else {
+		b.header.EvidenceHash = common.NewZeroHash()
 	}
 
 	return b
@@ -234,10 +229,11 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommi
 // NewDualBlock creates a new block for dual chain. The input data is copied,
 // changes to header and to the field values will not affect the
 // block.
-func NewDualBlock(header *Header, events DualEvents, commit *Commit) *Block {
+func NewDualBlock(header *Header, events DualEvents, commit *Commit, evidence []Evidence) *Block {
 	b := &Block{
 		header:     CopyHeader(header),
 		lastCommit: CopyCommit(commit),
+		evidence:   &EvidenceData{Evidence: evidence},
 	}
 
 	b.header.DualEventsHash = EmptyRootHash
@@ -260,7 +256,11 @@ func NewDualBlock(header *Header, events DualEvents, commit *Commit) *Block {
 	}
 
 	// TODO(namdoh): Store evidence hash.
-
+	if len(evidence) > 0 {
+		b.header.EvidenceHash = b.evidence.Hash()
+	} else {
+		b.header.EvidenceHash = common.NewZeroHash()
+	}
 	return b
 }
 

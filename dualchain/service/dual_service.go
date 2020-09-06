@@ -26,7 +26,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/service"
 	serviceconst "github.com/kardiachain/go-kardiamain/kai/service/const"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
@@ -100,30 +99,16 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	dualService.eventPool = event_pool.NewPool(logger, config.DualEventPool, dualService.blockchain)
 
-	// Initialization for consensus.
-	block := dualService.blockchain.CurrentBlock()
-	log.Info("DUAL Validators: ", "valIndex", ctx.Config.DualChainConfig.ValidatorIndexes)
-	var validatorSet *types.ValidatorSet
-	validatorSet, err = node.GetValidatorSet(dualService.blockchain, ctx.Config.DualChainConfig.ValidatorIndexes)
+	lastBlockState, err := cstate.LoadStateFromDBOrGenesisDoc(groupDb.DB(), config.DualGenesis)
 	if err != nil {
-		logger.Error("Cannot get validator from indices", "indices", ctx.Config.DualChainConfig.ValidatorIndexes, "err", err)
 		return nil, err
-	}
-	lastBlockState := cstate.LastestBlockState{
-		ChainID:                     "kaigroupcon",
-		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
-		LastBlockID:                 block.Header().LastBlockID,
-		LastBlockTime:               block.Time().Uint64(),
-		Validators:                  validatorSet,
-		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
 	}
 
 	evPool := evidence.NewPool(groupDb.DB(), groupDb.DB())
 	evReactor := evidence.NewReactor(evPool)
 	blockExec := cstate.NewBlockExecutor(evPool)
 
-	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool)
+	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool, evPool)
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
 		configs.DefaultConsensusConfig(),
