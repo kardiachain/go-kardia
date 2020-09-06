@@ -216,7 +216,6 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommi
 		}
 	}
 
-	// TODO(namdoh): Store evidence hash.
 	if len(evidence) > 0 {
 		b.header.EvidenceHash = b.evidence.Hash()
 	} else {
@@ -255,7 +254,6 @@ func NewDualBlock(header *Header, events DualEvents, commit *Commit, evidence []
 		copy(b.dualEvents, events)
 	}
 
-	// TODO(namdoh): Store evidence hash.
 	if len(evidence) > 0 {
 		b.header.EvidenceHash = b.evidence.Hash()
 	} else {
