@@ -15,10 +15,10 @@ func TestToBlock(t *testing.T) {
 			Hash: common.Hash{},
 			PartsHeader: types.PartSetHeader{
 				Hash:  common.Hash{},
-				Total: *common.NewBigInt64(0),
+				Total: 0,
 			},
 		},
-	}, nil, nil, nil)
+	}, nil, nil, nil, nil)
 	mgoB := NewBlock(b).ToBlock()
 	assert.Equal(t, mgoB.Hash(), b.Hash())
 

@@ -26,7 +26,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
-	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -35,6 +35,19 @@ import (
 var (
 	ErrNilDualBlockChainManager = errors.New("DualBlockChainManager isn't set yet")
 )
+
+//-----------------------------------------------------------------------------
+// evidence pool
+
+// EvidencePool defines the EvidencePool interface used by the ConsensusState.
+// Get/Set/Commit
+type EvidencePool interface {
+	PendingEvidence(int64) []types.Evidence
+	AddEvidence(types.Evidence) error
+	Update(*types.Block, cstate.LastestBlockState)
+	// IsCommitted indicates if this evidence was already marked committed in another block.
+	IsCommitted(types.Evidence) bool
+}
 
 // TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
 // These files should be consolidated in the future.
@@ -47,18 +60,19 @@ type DualBlockOperations struct {
 	eventPool  *event_pool.Pool
 
 	bcManager *DualBlockChainManager
-
-	height uint64
+	evpool    EvidencePool
+	height    uint64
 }
 
 // Returns a new DualBlockOperations with latest chain & ,
 // initialized to the last height that was committed to the DB.
-func NewDualBlockOperations(logger log.Logger, blockchain *DualBlockChain, eventPool *event_pool.Pool) *DualBlockOperations {
+func NewDualBlockOperations(logger log.Logger, blockchain *DualBlockChain, eventPool *event_pool.Pool, evpool EvidencePool) *DualBlockOperations {
 	return &DualBlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
 		eventPool:  eventPool,
 		height:     blockchain.CurrentHeader().Height,
+		evpool:     evpool,
 	}
 }
 
@@ -71,7 +85,16 @@ func (dbo *DualBlockOperations) Height() uint64 {
 }
 
 // Proposes a new block for dual's blockchain.
-func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastState state.LastestBlockState, proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
+func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastState cstate.LastestBlockState, proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
+	// Gets all transactions in pending pools and execute them to get new account states.
+	// Tx execution can happen in parallel with voting or precommitted.
+	// For simplicity, this code executes & commits txs before sending proposal,
+	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
+	maxBytes := lastState.ConsensusParams.Block.MaxBytes
+	// Fetch a limited amount of valid evidence
+	maxNumEvidence, _ := types.MaxEvidencePerBlock(int64(maxBytes))
+	evidence := dbo.evpool.PendingEvidence(maxNumEvidence)
+
 	// Gets all dual's events in pending pools and them to the new block.
 	// TODO(namdoh@): Since there may be a small latency for other dual peers to see the same set of
 	// dual's events, we may need to wait a bit here.
@@ -106,7 +129,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastState stat
 		dbo.logger.Info("Not yet implemented - Update state root with the DualEvent's submission receipt")
 	}
 
-	block = dbo.newBlock(header, events, commit)
+	block = dbo.newBlock(header, events, commit, evidence)
 	dbo.logger.Trace("Make block to propose", "block", block)
 
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
@@ -219,8 +242,8 @@ func (dbo *DualBlockOperations) newHeader(height int64, numEvents uint64, blockI
 }
 
 // Creates new block from given data.
-func (dbo *DualBlockOperations) newBlock(header *types.Header, events types.DualEvents, commit *types.Commit) *types.Block {
-	return types.NewDualBlock(header, events, commit)
+func (dbo *DualBlockOperations) newBlock(header *types.Header, events types.DualEvents, commit *types.Commit, ev []types.Evidence) *types.Block {
+	return types.NewDualBlock(header, events, commit, ev)
 }
 
 // Queries list of pending dual's events from EventPool.

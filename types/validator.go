@@ -20,30 +20,29 @@ package types
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"fmt"
+	"math/rand"
 	"sort"
 	"strings"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
+
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // Volatile state for each Validator
 type Validator struct {
-	Address     common.Address  `json:"address"`
-	PubKey      ecdsa.PublicKey `json:"pub_key"`
-	VotingPower int64           `json:"voting_power"`
+	Address     common.Address `json:"address"`
+	VotingPower uint64         `json:"voting_power"`
 
-	Accum int64 `json:"accum"`
+	Accum *common.BigInt `json:"accum"`
 }
 
-func NewValidator(pubKey ecdsa.PublicKey, votingPower int64) *Validator {
+func NewValidator(addr common.Address, votingPower int64) *Validator {
 	return &Validator{
-		Address:     crypto.PubkeyToAddress(pubKey),
-		PubKey:      pubKey,
-		VotingPower: votingPower,
-		Accum:       0,
+		Address:     addr,
+		VotingPower: uint64(votingPower),
+		Accum:       common.NewBigInt64(0),
 	}
 }
 
@@ -64,9 +63,9 @@ func (v *Validator) CompareAccum(other *Validator) *Validator {
 	if v == nil {
 		return other
 	}
-	if v.Accum > other.Accum {
+	if v.Accum.IsGreaterThan(other.Accum) {
 		return v
-	} else if v.Accum < other.Accum {
+	} else if v.Accum.IsLessThan(other.Accum) {
 		return other
 	} else {
 		result := bytes.Compare(v.Address[:], other.Address[:])
@@ -81,20 +80,16 @@ func (v *Validator) CompareAccum(other *Validator) *Validator {
 	}
 }
 
+// VerifyProposalSignature ...
 func (v *Validator) VerifyProposalSignature(chainID string, proposal *Proposal) bool {
 	hash := rlpHash(proposal.SignBytes(chainID))
-	pubKey, _ := crypto.SigToPub(hash[:], proposal.Signature[:])
-	// TODO(thientn): Verifying signature shouldn't be this complicated. After
-	// cleaning up our crypto package, clean up this as well.
-	return bytes.Equal(crypto.CompressPubkey(pubKey), crypto.CompressPubkey(&v.PubKey))
+	return VerifySignature(v.Address, hash[:], proposal.Signature[:])
 }
 
+// VerifyVoteSignature ...
 func (v *Validator) VerifyVoteSignature(chainID string, vote *Vote) bool {
 	hash := rlpHash(vote.SignBytes(chainID))
-	pubKey, _ := crypto.SigToPub(hash[:], vote.Signature[:])
-	// TODO(thientn): Verifying signature shouldn't be this complicated. After
-	// cleaning up our crypto package, clean up this as well.
-	return bytes.Equal(crypto.CompressPubkey(pubKey), crypto.CompressPubkey(&v.PubKey))
+	return VerifySignature(v.Address, hash[:], vote.Signature[:])
 }
 
 // StringLong returns a long string representing full info about Validator
@@ -102,9 +97,8 @@ func (v *Validator) StringLong() string {
 	if v == nil {
 		return "nil-Validator"
 	}
-	return fmt.Sprintf("Validator{%v %v VP:%v A:%v}",
+	return fmt.Sprintf("Validator{%v VP:%v A:%v}",
 		v.Address,
-		v.PubKey,
 		v.VotingPower,
 		v.Accum)
 }
@@ -114,14 +108,13 @@ func (v *Validator) String() string {
 	if v == nil {
 		return "nil-Validator"
 	}
-	return fmt.Sprintf("Validator{%X %v VP:%v A:%v}",
+	return fmt.Sprintf("Validator{%X VP:%v A:%v}",
 		common.Fingerprint(v.Address[:]),
-		v.PubKey,
 		v.VotingPower,
 		v.Accum)
 }
 
-// --------- ValidatorSet ----------
+// ValidatorSet ----------
 // Represents a set of *Validator at a given height.
 // The validators can be fetched by address or index.
 // The index is in order of .Address, so the indices are fixed
@@ -132,11 +125,11 @@ type ValidatorSet struct {
 	// Validator set.
 	Validators []*Validator `json:"validators"`
 	// Current proposing validator.
-	Proposer *Validator `json:"proposer"`
+	Proposer *Validator `json:"proposer" rlp:"nil"`
 	// Start block height of the staked validators. The value is inclusive.
-	StartHeight int64 `json:"startHeight"`
+	StartHeight uint64 `json:"startHeight"`
 	// End block height of the staked validators. The value is inclusive.
-	EndHeight int64 `json:"endHeight"`
+	EndHeight uint64 `json:"endHeight"`
 
 	// cached (unexported)
 	totalVotingPower int64
@@ -151,6 +144,7 @@ type ValidatorSet struct {
 	refreshHeightDelta int64
 }
 
+// NewValidatorSet ..
 func NewValidatorSet(vals []*Validator, startHeight int64, endHeight int64) *ValidatorSet {
 	validators := make([]*Validator, len(vals))
 	for i, val := range vals {
@@ -159,8 +153,8 @@ func NewValidatorSet(vals []*Validator, startHeight int64, endHeight int64) *Val
 	sort.Sort(ValidatorsByAddress(validators))
 	vs := &ValidatorSet{
 		Validators:  validators,
-		StartHeight: startHeight,
-		EndHeight:   endHeight,
+		StartHeight: uint64(startHeight),
+		EndHeight:   uint64(endHeight),
 	}
 
 	if vals != nil {
@@ -228,7 +222,7 @@ func (valSet *ValidatorSet) TotalVotingPower() int64 {
 	if valSet.totalVotingPower == 0 {
 		for _, val := range valSet.Validators {
 			// mind overflow
-			valSet.totalVotingPower = valSet.totalVotingPower + val.VotingPower
+			valSet.totalVotingPower = valSet.totalVotingPower + int64(val.VotingPower)
 		}
 	}
 	return valSet.totalVotingPower
@@ -284,7 +278,7 @@ func (valSet *ValidatorSet) AdvanceProposer(times int64) {
 	validatorsHeap := common.NewHeap()
 	// Update voting power of each validator after "times" increments.
 	for _, val := range valSet.Validators {
-		val.Accum = common.AddWithClip(val.Accum, common.MulWithClip(val.VotingPower, int64(times)))
+		val.Accum = common.NewBigInt64(common.AddWithClip(val.Accum.Int64(), common.MulWithClip(int64(val.VotingPower), int64(times))))
 		validatorsHeap.PushComparable(val, accumComparable{val})
 	}
 
@@ -292,7 +286,7 @@ func (valSet *ValidatorSet) AdvanceProposer(times int64) {
 	// TODO(namdoh@): Revise the following logic as the next validator set is udpated.
 	for i := int64(0); i < times; i++ {
 		mostest := validatorsHeap.Peek().(*Validator)
-		mostest.Accum = common.SubWithClip(mostest.Accum, valSet.TotalVotingPower())
+		mostest.Accum = common.NewBigInt64(common.SubWithClip(mostest.Accum.Int64(), valSet.TotalVotingPower()))
 
 		if i == times-1 {
 			valSet.Proposer = mostest
@@ -347,7 +341,7 @@ func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height
 			continue // Not an error, but doesn't count
 		}
 		// Good precommit!
-		talliedVotingPower += val.VotingPower
+		talliedVotingPower += int64(val.VotingPower)
 	}
 
 	if talliedVotingPower > valSet.TotalVotingPower()*2/3 {
@@ -417,4 +411,20 @@ func (ac accumComparable) Less(o interface{}) bool {
 	other := o.(accumComparable).Validator
 	larger := ac.CompareAccum(other)
 	return bytes.Equal(larger.Address[:], ac.Address[:])
+}
+
+//----------------------------------------
+// RandValidator
+
+// RandValidator returns a randomized validator, useful for testing.
+// UNSTABLE
+func RandValidator(randPower bool, minPower int64) (*Validator, IPrivValidator) {
+	privVal := NewMockPV()
+	votePower := minPower
+	if randPower {
+		votePower += int64(rand.Uint32())
+	}
+	pubKey := privVal.GetPubKey()
+	val := NewValidator(crypto.PubkeyToAddress(pubKey), votePower)
+	return val, privVal
 }

@@ -16,20 +16,22 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package state
+package cstate
 
 import (
 	"fmt"
 
+	"github.com/kardiachain/go-kardiamain/lib/common"
+
 	fail "github.com/ebuchman/fail-test"
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.
 type EvidencePool interface {
-	PendingEvidence() []types.Evidence
+	PendingEvidence(int64) []types.Evidence
+	Update(*types.Block, LastestBlockState)
 }
 
 // ValidateBlock validates the given block against the given state.
@@ -40,11 +42,29 @@ func ValidateBlock(state LastestBlockState, block *types.Block) error {
 	return validateBlock(state, block)
 }
 
-// Validates the block against the state, and saves the new state.
+//-----------------------------------------------------------------------------
+// BlockExecutor handles block execution and state updates.
+// It exposes ApplyBlock(), which validates & executes the block, updates state w/ ABCI responses,
+// then commits and updates the mempool atomically, then saves state.
+
+// BlockExecutor provides the context and accessories for properly executing a block.
+type BlockExecutor struct {
+	evpool EvidencePool
+}
+
+// NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
+// Call SetEventBus to provide one.
+func NewBlockExecutor(evpool EvidencePool) *BlockExecutor {
+	return &BlockExecutor{
+		evpool: evpool,
+	}
+}
+
+// ApplyBlock Validates the block against the state, and saves the new state.
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
-func ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
+func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
 	if err := ValidateBlock(state, block); err != nil {
 		return state, ErrInvalidBlock(err)
 	}
@@ -53,47 +73,42 @@ func ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockI
 
 	// update the state with the block and responses
 	var err error
-	state, err = updateState(logger, state, blockID, block.Header())
+	state, err = updateState(logger, state, blockID, block.Header(), nil)
 	if err != nil {
 		return state, fmt.Errorf("Commit failed for application: %v", err)
 	}
 
 	logger.Warn("Update evidence pool.")
+	// Update evpool with the block and state.
+	blockExec.evpool.Update(block, state)
 	fail.Fail() // XXX
 
 	return state, nil
 }
 
 // updateState returns a new State updated according to the header and responses.
-func updateState(logger log.Logger, state LastestBlockState, blockID types.BlockID, header *types.Header) (LastestBlockState, error) {
+func updateState(logger log.Logger, state LastestBlockState, blockID types.BlockID, header *types.Header, validatorUpdates []*types.Validator) (LastestBlockState, error) {
 	logger.Trace("updateState", "state", state, "blockID", blockID, "header", header)
+	// Copy the valset so we can apply changes from EndBlock
+	// and update s.LastValidators and s.Validators.
+	nValSet := state.NextValidators.Copy()
 
 	// Update the validator set with the latest abciResponses
 	lastHeightValsChanged := state.LastHeightValidatorsChanged
 
-	prevVals := state.Validators.Copy()
-	state.Validators.AdvanceProposer(1)
-
-	// Check if we need to swap to new validator set after staking or prefetch new validator set
-	// when it nears the current staking end's window.
-	state.mayRefreshValidatorSet()
-
-	var totalTx *cmn.BigInt
-	if state.LastBlockTotalTx == nil {
-		totalTx = nil
-	} else {
-		totalTx = state.LastBlockTotalTx.AddUint64(header.NumTxs)
+	if len(validatorUpdates) > 0 {
+		// Change results from this height but only applies to the next next height.
+		lastHeightValsChanged = common.NewBigUint64(header.Height + 2)
 	}
-
+	nValSet.AdvanceProposer(1)
 	return LastestBlockState{
 		ChainID:                     state.ChainID,
-		LastBlockHeight:             cmn.NewBigUint64(header.Height),
-		LastBlockTotalTx:            totalTx,
+		LastBlockHeight:             common.NewBigUint64(header.Height),
 		LastBlockID:                 blockID,
-		LastBlockTime:               header.Time,
-		PrefetchedFutureValidators:  state.PrefetchedFutureValidators,
-		Validators:                  state.Validators,
-		LastValidators:              prevVals,
+		LastBlockTime:               header.Time.Uint64(),
+		NextValidators:              nValSet,
+		Validators:                  state.NextValidators.Copy(),
+		LastValidators:              state.Validators.Copy(),
 		LastHeightValidatorsChanged: lastHeightValsChanged,
 	}, nil
 }

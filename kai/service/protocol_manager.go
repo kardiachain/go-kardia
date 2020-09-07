@@ -24,6 +24,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/kardiachain/go-kardiamain/types/evidence"
+
 	"github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/events"
@@ -97,6 +99,9 @@ type ProtocolManager struct {
 	//csCh    chan consensus.NewCsEvent
 	csSub event.Subscription
 
+	// Evidence Reactor
+	evReactor *evidence.Reactor
+
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
 	wg sync.WaitGroup
@@ -112,7 +117,9 @@ func NewProtocolManager(
 	blockchain base.BaseBlockChain,
 	config *types.ChainConfig,
 	txpool *tx_pool.TxPool,
-	csReactor *consensus.ConsensusManager) (*ProtocolManager, error) {
+	csReactor *consensus.ConsensusManager,
+	evReactor *evidence.Reactor,
+) (*ProtocolManager, error) {
 
 	// Create the protocol manager with the base fields
 	manager := &ProtocolManager{
@@ -129,6 +136,7 @@ func NewProtocolManager(
 		receivedTxsCh: make(chan receivedTxs),
 		txsyncCh:      make(chan *txsync),
 		quitSync:      make(chan struct{}),
+		evReactor:     evReactor,
 	}
 
 	// Initiate a sub-protocol for every implemented version we can handle
@@ -202,6 +210,12 @@ func (pm *ProtocolManager) removePeer(id string) {
 	}
 }
 
+// StopPeerForError ...
+func (pm *ProtocolManager) StopPeerForError(src *p2p.Peer, err error) {
+	pm.peers.Peer(fmt.Sprintf("%x", src.ID().Bytes()[:8])).close()
+}
+
+// Start ...
 func (pm *ProtocolManager) Start(maxPeers int) {
 	pm.logger.Info("Start Kardia Protocol Manager", "maxPeers", maxPeers)
 	pm.maxPeers = maxPeers
@@ -221,6 +235,7 @@ func (pm *ProtocolManager) Start(maxPeers int) {
 	go pm.txsyncLoop()
 }
 
+// Stop stop service
 func (pm *ProtocolManager) Stop() {
 	pm.logger.Info("Stopping Kardia protocol")
 
@@ -373,7 +388,12 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	case msg.Code == serviceconst.CsVoteSetBitsMessage:
 		pm.logger.Trace("VoteSetBits message received")
 		pm.csReactor.ReceiveVoteSetBits(msg, p.Peer)
-
+	case msg.Code == evidence.EvListMsg:
+		pm.logger.Trace("EvList Mesage received")
+		if err := pm.evReactor.Receive(p.Peer, msg); err != nil {
+			return errResp(ErrInvalidMsgCode, "%v", msg.Code)
+		}
+		break
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}

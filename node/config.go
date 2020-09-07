@@ -600,7 +600,7 @@ func GetValidatorSet(bc base.BaseBlockChain, valIndexes []int) (*types.Validator
 			return nil, fmt.Errorf("value of validator must be greater than 0")
 		}
 		node := nodes[i]
-		validators = append(validators, types.NewValidator(*node.PublicKey, node.VotingPower))
+		validators = append(validators, types.NewValidator(crypto.PubkeyToAddress(*node.PublicKey), node.VotingPower))
 	}
 	// TODO(huny@): Pass the start/end block height of the initial set of validator from the
 	// genesis here. Default to 0 and 100000000000 for now.
