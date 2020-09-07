@@ -91,6 +91,7 @@ func TestStateBadProposal(t *testing.T) {
 
 	// wait for proposal
 	hash := common.Hash{}
+	ensurePrevote()
 	validatePrevote(t, cs1, int(roundInt), vss[0], hash)
 
 	// add bad prevote from vs2 and wait for it
@@ -116,11 +117,9 @@ func TestStateFullRound1(t *testing.T) {
 	propBlockHash := cs.GetRoundState().ProposalBlock.Hash()
 
 	// wait for prevote
+	ensurePrevote()
 	validatePrevote(t, cs, int(roundInt), vss[0], propBlockHash)
 
-	// ensure new round
-	ensurePrecommit()
-	validateLastPrecommit(t, cs, vss[0], propBlockHash)
 }
 
 // run through propose, prevote, precommit commit with two validators
@@ -142,10 +141,6 @@ func TestStateFullRound2(t *testing.T) {
 	time.Sleep(3000 * time.Millisecond)
 	// precommit arrives from vs2:
 	signAddVotes(cs1, types.VoteTypePrecommit, propBlockHash, propPartSetHeader, vs2)
-
-	//ensure precommit
-	ensurePrecommit()
-	validatePrecommit(t, cs1, 0, 0, vs2, propBlockHash, propBlockHash)
 
 }
 
@@ -225,7 +220,7 @@ func TestStateLockNoPOL(t *testing.T) {
 			rs.LockedBlock))
 	}
 
-	time.Sleep(4000 * time.Millisecond)
+	time.Sleep(5000 * time.Millisecond)
 	validatePrevote(t, cs1, int(round.Uint64()), vss[0], rs.LockedBlock.Hash())
 	signAddVotes(cs1, types.VoteTypePrecommit, common.BytesToHash(hash), rs.ProposalBlock.MakePartSet(uint32(partSize)).Header(), vs2) // NOTE: conflicting precommits at same height
 
@@ -331,11 +326,13 @@ func TestStateLockPOLUnlockOnUnknownBlock(t *testing.T) {
 
 	signAddVotes(cs1, types.VoteTypePrevote, firstBlockHash, firstBlockParts, vs2, vs3, vs4)
 
+	time.Sleep(4000 * time.Millisecond)
 	ensurePrevote()
 	validatePrevote(t, cs1, int(round.Uint64()), vss[0], firstBlockHash)
 
 	signAddVotes(cs1, types.VoteTypePrecommit, firstBlockHash, firstBlockParts, vss[0])
 
+	time.Sleep(4000 * time.Millisecond)
 	ensurePrecommit()
 	validatePrecommit(t, cs1, int(round.Uint64()), int(round.Uint64()), vss[0], firstBlockHash, firstBlockHash)
 
@@ -369,12 +366,15 @@ func TestStateLockPOLUnlockOnUnknownBlock(t *testing.T) {
 	// now we're on a new round but v1 misses the proposal
 
 	// go to prevote, node should prevote for locked block (not the new proposal) - this is relocking
+	time.Sleep(3000 * time.Millisecond)
+
 	ensurePrevote()
 	validatePrevote(t, cs1, int(newRound), vss[0], firstBlockHash)
 
 	// now lets add prevotes from everyone else for the new block
 	signAddVotes(cs1, types.VoteTypePrevote, secondBlockHash, secondBlockParts.Header(), vs2, vs3, vs4)
 
+	time.Sleep(3000 * time.Millisecond)
 	ensurePrecommit()
 	// we should have unlocked and locked on the new block, sending a precommit for this new block
 	validatePrecommit(t, cs1, int(newRound), -1, vss[0], common.BytesToHash(nil), common.BytesToHash(nil))
@@ -408,12 +408,14 @@ func TestStateLockPOLUnlockOnUnknownBlock(t *testing.T) {
 		Round2 (vs3, C) // C C C C // C nil nil nil)
 	*/
 
+	time.Sleep(3000 * time.Millisecond)
 	ensurePrevote()
 	// we are no longer locked to the first block so we should be able to prevote
 	validatePrevote(t, cs1, int(newRound), vss[0], thirdPropBlockHash)
 
 	signAddVotes(cs1, types.VoteTypePrevote, thirdPropBlockHash, thirdPropBlockParts.Header(), vs2, vs3, vs4)
 
+	time.Sleep(3000 * time.Millisecond)
 	ensurePrecommit()
 	// we have a majority, now vs1 can change lock to the third block
 	validatePrecommit(t, cs1, int(newRound), int(newRound), vss[0], thirdPropBlockHash, thirdPropBlockHash)
