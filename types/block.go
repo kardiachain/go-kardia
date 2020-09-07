@@ -677,14 +677,14 @@ func (data *EvidenceData) StringIndented(indent string) string {
 		indent, data.hash)
 }
 
-type storageEvidanceData struct {
+type storageEvidenceData struct {
 	Evidence [][]byte `json:"evidence"`
 }
 
 // EncodeRLP implement rlp
 func (data *EvidenceData) EncodeRLP(w io.Writer) error {
 	var err error
-	sed := &storageEvidanceData{
+	sed := &storageEvidenceData{
 		Evidence: make([][]byte, len(data.Evidence)),
 	}
 	for i, ev := range data.Evidence {
@@ -699,7 +699,7 @@ func (data *EvidenceData) EncodeRLP(w io.Writer) error {
 // DecodeRLP implement rlp
 func (data *EvidenceData) DecodeRLP(s *rlp.Stream) error {
 	var err error
-	sed := &storageEvidanceData{}
+	sed := &storageEvidenceData{}
 	if err = s.Decode(sed); err != nil {
 		return err
 	}
