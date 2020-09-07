@@ -177,9 +177,10 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 		}
 	}
 	return &genesis.Genesis{
-		Config:   configs.TestnetChainConfig,
-		GasLimit: 16777216, // maximum number of uint24
-		Alloc:    ga,
+		Config:     configs.TestnetChainConfig,
+		GasLimit:   16777216, // maximum number of uint24
+		Alloc:      ga,
+		Validators: g.Validators,
 	}, nil
 }
 

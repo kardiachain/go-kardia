@@ -52,6 +52,16 @@ MainChain:
       - 0x8dB7cF1823fcfa6e9E2063F983b3B96A48EEd5a4
       - 0x8C10639F908FED884a04C5A49A2735AB726DDaB4
       - 0x2BB7316884C7568F2C6A6aDf2908667C0d241A66
+    Validators: 
+      - Name: val1
+        Address: 0xc1fe56E3F58D3244F606306611a5d10c8333f1f6
+        Power: 100
+      - Name: val2
+        Address: 0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5
+        Power: 100
+      - Name: val3
+        Address: 0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd
+        Power: 100
     GenesisAmount: 1000000000000000000000000000     # default genesis amount for every address is 1 billion KAI
     Contracts:
       - # DEX smart contract
@@ -212,6 +222,16 @@ DualChain:
       - 0x8dB7cF1823fcfa6e9E2063F983b3B96A48EEd5a4
       - 0x8C10639F908FED884a04C5A49A2735AB726DDaB4
       - 0x2BB7316884C7568F2C6A6aDf2908667C0d241A66
+    Validators: 
+      - Name: val1
+        Address: 0xc1fe56E3F58D3244F606306611a5d10c8333f1f6
+        Power: 100
+      - Name: val2
+        Address: 0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5
+        Power: 100
+      - Name: val3
+        Address: 0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd
+        Power: 100
     GenesisAmount: 1000000000000000000000000000     # default genesis amount for every address is 1 billion
     Contracts:
       -
