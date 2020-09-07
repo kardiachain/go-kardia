@@ -476,3 +476,40 @@ func (s *StakingSmcUtil) Unjail(SenderAddress common.Address) error {
 
 	return nil
 }
+
+//GetCurrentValidatorSet get current validator set
+func (s *StakingSmcUtil) GetCurrentValidatorSet() ([]common.Address, []*big.Int, error) {
+	stateDb := s.StateDb
+	payload, err := s.Abi.Pack("getCurrentValidatorSet")
+	if err != nil {
+		return nil, nil, err
+	}
+	res, _, err := sample_kvm.Call(s.ContractAddress, payload, &sample_kvm.Config{State: stateDb})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var valSet struct {
+		ValAddrs []common.Address
+		Powers   []*big.Int
+	}
+
+	//unpack result
+	err = s.Abi.Unpack(&valSet, "getValidatorSets", res)
+	if err != nil {
+		log.Error("Error unpacking node info", "err", err)
+		return nil, nil, err
+	}
+
+	return valSet.ValAddrs, valSet.Powers, nil
+}
+
+// SetRoot set address root
+func (s *StakingSmcUtil) SetRoot(rootAddr common.Address) error {
+	payload, err := s.Abi.Pack("setRoot", rootAddr)
+	if err != nil {
+		return err
+	}
+	_, _, err = sample_kvm.Call(s.ContractAddress, payload, &sample_kvm.Config{State: s.StateDb})
+	return err
+}
