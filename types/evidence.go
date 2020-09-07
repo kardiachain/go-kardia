@@ -246,7 +246,7 @@ func (dve *DuplicateVoteEvidence) Verify(chainID string, addr common.Address) er
 	// Index must be the same
 	if dve.VoteA.ValidatorIndex != dve.VoteB.ValidatorIndex {
 		return fmt.Errorf(
-			"duplicateVoteEvidence Error: Validator indices do not match. Got %d and %d",
+			"duplicateVoteEvidence Error: Validator indices do not match. Got %s and %s",
 			dve.VoteA.ValidatorIndex,
 			dve.VoteB.ValidatorIndex,
 		)
@@ -317,11 +317,11 @@ func (e MockEvidence) Height() uint64          { return e.EvidenceHeight }
 func (e MockEvidence) Time() uint64            { return e.EvidenceTime }
 func (e MockEvidence) Address() common.Address { return e.EvidenceAddress }
 func (e MockEvidence) Hash() common.Hash {
-	return rlpHash([]byte(fmt.Sprintf("%d-%x-%s",
+	return rlpHash([]byte(fmt.Sprintf("%d-%x-%d",
 		e.EvidenceHeight, e.EvidenceAddress, e.EvidenceTime)))
 }
 func (e MockEvidence) Bytes() []byte {
-	return []byte(fmt.Sprintf("%d-%x-%s",
+	return []byte(fmt.Sprintf("%d-%x-%d",
 		e.EvidenceHeight, e.EvidenceAddress, e.EvidenceTime))
 }
 func (e MockEvidence) Verify(chainID string, addr common.Address) error { return nil }
@@ -332,7 +332,7 @@ func (e MockEvidence) Equal(ev Evidence) bool {
 }
 func (e MockEvidence) ValidateBasic() error { return nil }
 func (e MockEvidence) String() string {
-	return fmt.Sprintf("Evidence: %d/%s/%s", e.EvidenceHeight, e.Time(), e.EvidenceAddress)
+	return fmt.Sprintf("Evidence: %d/%d/%d", e.EvidenceHeight, e.Time(), e.EvidenceAddress)
 }
 
 //-------------------------------------------
