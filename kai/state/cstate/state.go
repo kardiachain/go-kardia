@@ -16,20 +16,24 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package state
+package cstate
 
 import (
 	"fmt"
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/types"
-	"math/big"
 	"time"
+
+	"github.com/kardiachain/go-kardiamain/lib/common"
+
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
+
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // TODO(namdoh): Move to a common config file.
 var (
 	RefreshBackoffHeightStep = int64(200)
 	RefreshHeightDelta       = int64(20)
+	stateKey                 = []byte("stateKey")
 )
 
 // It keeps all information necessary to validate new blocks,
@@ -43,21 +47,23 @@ type LastestBlockState struct {
 	ChainID string
 
 	// LastBlockHeight=0 at genesis (ie. block(H=0) does not exist)
-	LastBlockHeight  *cmn.BigInt
-	LastBlockTotalTx *cmn.BigInt
+	LastBlockHeight  *common.BigInt
+	LastBlockTotalTx uint64
 	LastBlockID      types.BlockID
-	LastBlockTime    *big.Int
+	LastBlockTime    uint64
 
 	// LastValidators is used to validate block.LastCommit.
 	// Validators are persisted to the database separately every time they change,
 	// so we can query for historical validator sets.
 	// Note that if s.LastBlockHeight causes a valset change,
 	// we set s.LastHeightValidatorsChanged = s.LastBlockHeight + 1
-	PrefetchedFutureValidators  *types.ValidatorSet
-	Validators                  *types.ValidatorSet
-	LastValidators              *types.ValidatorSet
-	LastHeightValidatorsChanged *cmn.BigInt
+	NextValidators              *types.ValidatorSet `rlp:"nil"`
+	Validators                  *types.ValidatorSet `rlp:"nil"`
+	LastValidators              *types.ValidatorSet `rlp:"nil"`
+	LastHeightValidatorsChanged *common.BigInt
 
+	ConsensusParams                  types.ConsensusParams
+	LastHeightConsensusParamsChanged uint64
 	// TODO(namdoh): Add consensus parameters used for validating blocks.
 
 	// Merkle root of the results from executing prev block
@@ -77,6 +83,7 @@ func (state LastestBlockState) Copy() LastestBlockState {
 		LastBlockID:      state.LastBlockID,
 		LastBlockTime:    state.LastBlockTime,
 
+		NextValidators:              state.NextValidators.Copy(),
 		Validators:                  state.Validators.Copy(),
 		LastValidators:              state.LastValidators.Copy(),
 		LastHeightValidatorsChanged: state.LastHeightValidatorsChanged,
@@ -95,57 +102,8 @@ func (state LastestBlockState) IsEmpty() bool {
 // Stringshort returns a short string representing State
 func (state LastestBlockState) String() string {
 	return fmt.Sprintf("{ChainID:%v LastBlockHeight:%v LastBlockTotalTx:%v LastBlockID:%v LastBlockTime:%v Validators:%v LastValidators:%v LastHeightValidatorsChanged:%v",
-		state.ChainID, state.LastBlockHeight, state.LastBlockTotalTx, state.LastBlockID, time.Unix(state.LastBlockTime.Int64(), 0),
+		state.ChainID, state.LastBlockHeight, state.LastBlockTotalTx, state.LastBlockID, time.Unix(int64(state.LastBlockTime), 0),
 		state.Validators, state.LastValidators, state.LastHeightValidatorsChanged)
-}
-
-// May fresh current or future validator sets, or both.
-// The refreshing policy is needed to optimize how often we need to fetch validator set from
-// staking smart contract. Policy:
-//
-// (1) if "height" is greater than the current staked validator set's end height:
-//     i)  if "height" is in within the next validator set's start/end window: assign the next
-//         validator set to the current validator set. However, if next validator set is empty,
-//         do nothing.
-//     ii) if "height" is greater than the next validator set's end height: fetch current staked
-//         validator set.
-// (2) if "height" is within the current staked validator set's start/end height window:
-//     i)  current validator set: do not fetch.
-//     ii) next validator set: if "height" is greater or equal to
-//         (end_height - RefreshBackoffHeightStep) and the next staked validator set is nil,
-//         fetch it.
-//         NOTE: Consider doing this asynchronously, but beware of race condition.
-// (3) if "height" is less than the current staked validator set's start height:
-//     i)  current validator set: do not fetch
-//     ii) next validator set: do not fetch
-//
-// Note: This must be called before commiting a block.
-func (state *LastestBlockState) mayRefreshValidatorSet() {
-	height := state.LastBlockHeight.Int64()
-
-	// Case #1
-	currentVals := state.Validators
-	nextVals := state.PrefetchedFutureValidators
-	if height > currentVals.EndHeight {
-		if height >= nextVals.StartHeight && height <= nextVals.EndHeight {
-			state.Validators = state.PrefetchedFutureValidators
-		} else if height > nextVals.EndHeight {
-			state.Validators = state.fetchValidatorSet(height)
-		}
-		state.PrefetchedFutureValidators = nil
-	}
-
-	// Case #2
-	currentVals = state.Validators
-	nextVals = state.PrefetchedFutureValidators
-	if nextVals != nil && height >= currentVals.StartHeight && height <= nextVals.EndHeight {
-		if height >= currentVals.EndHeight-RefreshBackoffHeightStep && nextVals != nil &&
-			(height-(currentVals.EndHeight-RefreshBackoffHeightStep))%RefreshHeightDelta == 0 /* check step-wise refresh */ {
-			state.PrefetchedFutureValidators = state.fetchValidatorSet(currentVals.EndHeight + 1)
-		}
-	}
-
-	// Case #3: Do nothing
 }
 
 // Fetches the validator set at a given height.
@@ -153,4 +111,13 @@ func (state *LastestBlockState) mayRefreshValidatorSet() {
 func (state *LastestBlockState) fetchValidatorSet(height int64) *types.ValidatorSet {
 	// TODO(huny@): Update this.
 	return state.Validators
+}
+
+// Bytes ...
+func (state *LastestBlockState) Bytes() []byte {
+	b, err := rlp.EncodeToBytes(state)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }

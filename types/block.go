@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -34,11 +35,13 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto/sha3"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/math"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/trie"
 )
 
 var (
+	// EmptyRootHash ...
 	EmptyRootHash = DeriveSha(Transactions{})
 )
 
@@ -79,7 +82,7 @@ type Header struct {
 	//@huny LastResultsHash common.Hash `json:"last_results_hash"` // root hash of all results from the txs from the previous block
 
 	// consensus info
-	//@huny EvidenceHash common.Hash `json:"evidence_hash"` // evidence included in the block
+	EvidenceHash common.Hash `json:"evidence_hash"` // evidence included in the block
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
@@ -160,6 +163,7 @@ type Block struct {
 	transactions Transactions
 	dualEvents   DualEvents
 	lastCommit   *Commit
+	evidence     *EvidenceData
 
 	// caches
 	hash atomic.Value
@@ -172,6 +176,7 @@ type extblock struct {
 	Txs        []*Transaction
 	DualEvents []*DualEvent
 	LastCommit *Commit
+	Evidence   *EvidenceData
 }
 
 // NewBlock creates a new block. The input data is copied,
@@ -180,10 +185,11 @@ type extblock struct {
 //
 // The values of TxHash and NumTxs in header are ignored and set to values
 // derived from the given txs.
-func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommit *Commit) *Block {
+func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommit *Commit, evidence []Evidence) *Block {
 	b := &Block{
 		header:     CopyHeader(header),
 		lastCommit: CopyCommit(lastCommit),
+		evidence:   &EvidenceData{Evidence: evidence},
 	}
 
 	if len(txs) == 0 {
@@ -210,7 +216,11 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommi
 		}
 	}
 
-	// TODO(namdoh): Store evidence hash.
+	if len(evidence) > 0 {
+		b.header.EvidenceHash = b.evidence.Hash()
+	} else {
+		b.header.EvidenceHash = common.NewZeroHash()
+	}
 
 	return b
 }
@@ -218,10 +228,11 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt, lastCommi
 // NewDualBlock creates a new block for dual chain. The input data is copied,
 // changes to header and to the field values will not affect the
 // block.
-func NewDualBlock(header *Header, events DualEvents, commit *Commit) *Block {
+func NewDualBlock(header *Header, events DualEvents, commit *Commit, evidence []Evidence) *Block {
 	b := &Block{
 		header:     CopyHeader(header),
 		lastCommit: CopyCommit(commit),
+		evidence:   &EvidenceData{Evidence: evidence},
 	}
 
 	b.header.DualEventsHash = EmptyRootHash
@@ -243,8 +254,11 @@ func NewDualBlock(header *Header, events DualEvents, commit *Commit) *Block {
 		copy(b.dualEvents, events)
 	}
 
-	// TODO(namdoh): Store evidence hash.
-
+	if len(evidence) > 0 {
+		b.header.EvidenceHash = b.evidence.Hash()
+	} else {
+		b.header.EvidenceHash = common.NewZeroHash()
+	}
 	return b
 }
 
@@ -282,7 +296,7 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
 	eb.LastCommit.MakeEmptyNil()
 
-	b.header, b.transactions, b.dualEvents, b.lastCommit = eb.Header, eb.Txs, eb.DualEvents, eb.LastCommit
+	b.header, b.transactions, b.dualEvents, b.lastCommit, b.evidence = eb.Header, eb.Txs, eb.DualEvents, eb.LastCommit, eb.Evidence
 	b.size.Store(common.StorageSize(rlp.ListSize(size)))
 	return nil
 }
@@ -297,6 +311,7 @@ func (b *Block) EncodeRLP(w io.Writer) error {
 		Txs:        b.transactions,
 		DualEvents: b.dualEvents,
 		LastCommit: lastCommitCopy,
+		Evidence:   b.evidence,
 	})
 }
 
@@ -363,6 +378,7 @@ func (b *Block) Root() common.Hash           { return b.header.Root }
 func (b *Block) ReceiptHash() common.Hash    { return b.header.ReceiptHash }
 func (b *Block) Bloom() Bloom                { return b.header.Bloom }
 func (b *Block) LastCommit() *Commit         { return b.lastCommit }
+func (b *Block) Evidence() *EvidenceData     { return b.evidence }
 
 // TODO(namdoh): This is a hack due to rlp nature of decode both nil or empty
 // struct pointer as nil. After encoding an empty struct and send it over to
@@ -529,12 +545,12 @@ func NewZeroBlockID() BlockID {
 	return BlockID{}
 }
 
-func (b *BlockID) IsZero() bool {
-	return b.Hash.IsZero() && b.PartsHeader.IsZero()
+func (blockID *BlockID) IsZero() bool {
+	return blockID.Hash.IsZero() && blockID.PartsHeader.IsZero()
 }
 
-func (b *BlockID) Equal(other BlockID) bool {
-	return b.Hash.Equal(other.Hash) && b.PartsHeader.Equals(other.PartsHeader)
+func (blockID *BlockID) Equal(other BlockID) bool {
+	return blockID.Hash.Equal(other.Hash) && blockID.PartsHeader.Equals(other.PartsHeader)
 }
 
 // Key returns a machine-readable string representation of the BlockID
@@ -558,6 +574,11 @@ func (blockID BlockID) ValidateBasic() error {
 		return fmt.Errorf("Wrong PartsHeader: %v", err)
 	}
 	return nil
+}
+
+// IsComplete returns true if this is a valid BlockID of a non-nil block.
+func (blockID BlockID) IsComplete() bool {
+	return !blockID.Hash.IsZero() && !blockID.PartsHeader.IsZero()
 }
 
 type Blocks []*Block
@@ -616,4 +637,80 @@ func DeriveSha(list DerivableList) common.Hash {
 	return t.Hash()
 
 	//return common.BytesToHash([]byte(""))
+}
+
+//-----------------------------------------------------------------------------
+
+// EvidenceData contains any evidence of malicious wrong-doing by validators
+type EvidenceData struct {
+	Evidence EvidenceList `json:"evidence"`
+
+	// Volatile
+	hash common.Hash
+}
+
+// Hash returns the hash of the data.
+func (data *EvidenceData) Hash() common.Hash {
+	if data.hash.IsZero() {
+		data.hash = data.Evidence.Hash()
+	}
+	return data.hash
+}
+
+// StringIndented returns a string representation of the evidence.
+func (data *EvidenceData) StringIndented(indent string) string {
+	if data == nil {
+		return "nil-Evidence"
+	}
+	evStrings := make([]string, math.MinInt(len(data.Evidence), 21))
+	for i, ev := range data.Evidence {
+		if i == 20 {
+			evStrings[i] = fmt.Sprintf("... (%v total)", len(data.Evidence))
+			break
+		}
+		evStrings[i] = fmt.Sprintf("Evidence:%v", ev)
+	}
+	return fmt.Sprintf(`EvidenceData{
+%s  %v
+%s}#%v`,
+		indent, strings.Join(evStrings, "\n"+indent+"  "),
+		indent, data.hash)
+}
+
+type storageEvidanceData struct {
+	Evidence [][]byte `json:"evidence"`
+}
+
+// EncodeRLP implement rlp
+func (data *EvidenceData) EncodeRLP(w io.Writer) error {
+	var err error
+	sed := &storageEvidanceData{
+		Evidence: make([][]byte, len(data.Evidence)),
+	}
+	for i, ev := range data.Evidence {
+		sed.Evidence[i], err = EvidenceToBytes(ev)
+		if err != nil {
+			return err
+		}
+	}
+	return rlp.Encode(w, sed)
+}
+
+// DecodeRLP implement rlp
+func (data *EvidenceData) DecodeRLP(s *rlp.Stream) error {
+	var err error
+	sed := &storageEvidanceData{}
+	if err = s.Decode(sed); err != nil {
+		return err
+	}
+	evidence := make([]Evidence, len(sed.Evidence))
+	for i, evBytes := range sed.Evidence {
+		ev, err := EvidenceFromBytes(evBytes)
+		if err != nil {
+			return err
+		}
+		evidence[i] = ev
+	}
+	data.Evidence = evidence
+	return nil
 }
