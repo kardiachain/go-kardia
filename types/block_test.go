@@ -34,14 +34,14 @@ import (
 func CreateBlockIDRandom() BlockID {
 	blockHash := common.BytesToHash(common.RandBytes(32))
 	partSetHash := common.BytesToHash(common.RandBytes(32))
-	blockPartsHeaders := PartSetHeader{Total: *common.NewBigInt32(123), Hash: partSetHash}
+	blockPartsHeaders := PartSetHeader{Total: 123, Hash: partSetHash}
 	return BlockID{
 		Hash:        blockHash,
 		PartsHeader: blockPartsHeaders,
 	}
 }
 
-func CreateBlockID(hash common.Hash, partSetSize common.BigInt, partSetHash common.Hash) BlockID {
+func CreateBlockID(hash common.Hash, partSetSize uint32, partSetHash common.Hash) BlockID {
 	return BlockID{
 		Hash: hash,
 		PartsHeader: PartSetHeader{
@@ -185,7 +185,7 @@ func TestBlockWithBodyFunction(t *testing.T) {
 
 func TestNewZeroBlockID(t *testing.T) {
 	blockID := NewZeroBlockID()
-	if !blockID.IsZero() {
+	if blockID.IsZero() {
 		t.Fatal("NewZeroBlockID is not empty")
 	}
 }

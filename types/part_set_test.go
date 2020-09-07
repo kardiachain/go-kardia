@@ -51,7 +51,7 @@ func TestBasicPartSet(t *testing.T) {
 		}
 	}
 	// adding part with invalid index
-	added, err := partSet2.AddPart(&Part{Index: cmn.NewBigInt64(10000)})
+	added, err := partSet2.AddPart(&Part{Index: 10000})
 	assert.False(t, added)
 	assert.Error(t, err)
 
