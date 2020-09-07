@@ -7,8 +7,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/kai/state"
-	kstate "github.com/kardiachain/go-kardiamain/kai/state"
+	cState "github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +30,7 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 	nextVal := valSet.Copy()
 	nextVal.AdvanceProposer(1)
 
-	state := state.LastestBlockState{
+	state := cState.LastestBlockState{
 		LastBlockHeight:             common.NewBigInt64(0),
 		LastBlockTime:               uint64(time.Now().Unix()),
 		Validators:                  valSet,
@@ -47,7 +46,7 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 	// save all states up to height
 	for i := int64(0); i < height; i++ {
 		state.LastBlockHeight = common.NewBigInt64(i)
-		kstate.SaveState(stateDB, state)
+		cState.SaveState(stateDB, state)
 	}
 
 	return stateDB

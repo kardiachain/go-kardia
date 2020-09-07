@@ -268,7 +268,7 @@ func CreateNewBlock(height uint64) *Block {
 	lastCommit := &Commit{
 		Precommits: []*Vote{vote, nil},
 	}
-	return NewBlock(&header, txns, nil, lastCommit)
+	return NewBlock(&header, txns, nil, lastCommit, nil)
 }
 
 func CreateNewDualBlock() *Block {
@@ -288,5 +288,5 @@ func CreateNewDualBlock() *Block {
 	}
 	header.LastCommitHash = lastCommit.Hash()
 	de := NewDualEvent(100, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})
-	return NewDualBlock(&header, []*DualEvent{de, nil}, lastCommit)
+	return NewDualBlock(&header, []*DualEvent{de, nil}, lastCommit, nil)
 }

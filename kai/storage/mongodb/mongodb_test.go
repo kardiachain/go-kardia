@@ -18,7 +18,7 @@ func TestToBlock(t *testing.T) {
 				Total: 0,
 			},
 		},
-	}, nil, nil, nil)
+	}, nil, nil, nil, nil)
 	mgoB := NewBlock(b).ToBlock()
 	assert.Equal(t, mgoB.Hash(), b.Hash())
 
