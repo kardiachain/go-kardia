@@ -1,6 +1,6 @@
 Node:
   Name: node3
-  DataDir: /root/.kardia
+  DataDir: /tmp/.kardia
   HTTPHost: 0.0.0.0
   HTTPPort: 8547
   HTTPModules:
@@ -500,7 +500,7 @@ MainChain:
       - 0x886906c1BF89bD5a5265bc3fccC9C4E053F52050
       - 0x7b2A8573243cF7e7F85da21753919DC3d9f38659
     Validators: 
-      - name: val1
+      - Name: val1
         Address: 0xc1fe56E3F58D3244F606306611a5d10c8333f1f6
         Power: 100
       - Name: val2

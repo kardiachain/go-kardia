@@ -424,8 +424,6 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID enode.ID) (bool, e
 				cs.logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
 				return false, err
 			}
-			// TODO(namdoh): Re-enable this later.
-			//cs.logger.Warn("Add vote error to evidence pool later")
 			cs.evpool.AddEvidence(voteErr.DuplicateVoteEvidence)
 			return false, err
 		}
