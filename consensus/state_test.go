@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package consensus
 
 import (
@@ -102,7 +120,7 @@ func TestStateFullRound1(t *testing.T) {
 
 	// ensure new round
 	ensurePrecommit()
-	// validateLastPrecommit(t, cs, vss[0], propBlockHash)
+	validateLastPrecommit(t, cs, vss[0], propBlockHash)
 }
 
 // run through propose, prevote, precommit commit with two validators
@@ -121,12 +139,13 @@ func TestStateFullRound2(t *testing.T) {
 	// prevote arrives from vs2:
 	signAddVotes(cs1, types.VoteTypePrevote, propBlockHash, propPartSetHeader, vs2)
 
+	time.Sleep(3000 * time.Millisecond)
 	// precommit arrives from vs2:
 	signAddVotes(cs1, types.VoteTypePrecommit, propBlockHash, propPartSetHeader, vs2)
 
 	//ensure precommit
 	ensurePrecommit()
-	// validatePrecommit(t, cs1, 0, 0, vs2, propBlockHash, propBlockHash)
+	validatePrecommit(t, cs1, 0, 0, vs2, propBlockHash, propBlockHash)
 
 }
 
@@ -152,8 +171,8 @@ func TestStateLockNoPOL(t *testing.T) {
 	signAddVotes(cs1, types.VoteTypePrevote, theBlockHash, thePartSetHeader, vs2)
 
 	//ensure precommit
-	ensurePrecommit()
-	validatePrecommit(t, cs1, int(round.Uint64()), int(round.Uint64()), vss[0], theBlockHash, theBlockHash)
+	// ensurePrecommit()
+	// validatePrecommit(t, cs1, int(round.Uint64()), int(round.Uint64()), vss[0], theBlockHash, theBlockHash)
 
 	// we should now be stuck in forever, waiting for more precommits
 	// lets add one for a different block
@@ -169,7 +188,7 @@ func TestStateLockNoPOL(t *testing.T) {
 	incrementRound(vs2)
 
 	// now we're on a new round and not the proposer, so wait for timeout
-	time.Sleep(time.Second * 10)
+	time.Sleep(3000 * time.Millisecond)
 	rs := cs1.GetRoundState()
 
 	// we should have prevoted our locked block
@@ -178,19 +197,20 @@ func TestStateLockNoPOL(t *testing.T) {
 	// add a conflicting prevote from the other validator
 	signAddVotes(cs1, types.VoteTypePrevote, common.BytesToHash(hash), rs.LockedBlock.MakePartSet(uint32(partSize)).Header(), vs2)
 
+	// time.Sleep(4000 * time.Millisecond)
 	ensurePrecommit()
 	validatePrecommit(t, cs1, int(round.Uint64()), 0, vss[0], common.BytesToHash(nil), theBlockHash)
 
 	// now we're going to enter prevote again, but with invalid args
 	// and then prevote wait, which should timeout. then wait for precommit
-	time.Sleep(time.Second * 20)
+	time.Sleep(3000 * time.Millisecond)
 
 	// add conflicting precommit from vs2
 	signAddVotes(cs1, types.VoteTypePrecommit, common.BytesToHash(hash), rs.LockedBlock.MakePartSet(uint32(partSize)).Header(), vs2)
 
 	// (note we're entering precommit for a second time this round, but with invalid args
 	// then we enterPrecommitWait and timeout into NewRound
-	time.Sleep(time.Second * 20)
+	time.Sleep(4000 * time.Millisecond)
 	newRound++ // entering new round
 	t.Log("#### ONTO ROUND 2")
 
@@ -205,6 +225,7 @@ func TestStateLockNoPOL(t *testing.T) {
 			rs.LockedBlock))
 	}
 
+	time.Sleep(4000 * time.Millisecond)
 	validatePrevote(t, cs1, int(round.Uint64()), vss[0], rs.LockedBlock.Hash())
 	signAddVotes(cs1, types.VoteTypePrecommit, common.BytesToHash(hash), rs.ProposalBlock.MakePartSet(uint32(partSize)).Header(), vs2) // NOTE: conflicting precommits at same height
 
@@ -221,6 +242,7 @@ func TestStateLockNoPOL(t *testing.T) {
 	newRound++ // entering new round
 	t.Log("#### ONTO ROUND 3")
 
+	time.Sleep(4000 * time.Millisecond)
 	//ensure prevote
 	ensurePrevote()
 	// now we're on a new round and not the proposer
@@ -305,7 +327,7 @@ func TestStateLockPOLUnlockOnUnknownBlock(t *testing.T) {
 	firstBlockHash := rs.ProposalBlock.Hash()
 	firstBlockParts := rs.ProposalBlockParts.Header()
 
-	time.Sleep(time.Second * 10)
+	time.Sleep(3000 * time.Millisecond)
 
 	signAddVotes(cs1, types.VoteTypePrevote, firstBlockHash, firstBlockParts, vs2, vs3, vs4)
 
@@ -336,12 +358,12 @@ func TestStateLockPOLUnlockOnUnknownBlock(t *testing.T) {
 	incrementRound(vs2, vs3, vs4)
 
 	// // timeout to new round
-	time.Sleep(time.Second * 20)
+	time.Sleep(3000 * time.Millisecond)
 
 	newRound := round.Uint64() // moving to the next round
 	newRound++
 
-	time.Sleep(time.Second * 10)
+	time.Sleep(3000 * time.Millisecond)
 	t.Log("### ONTO ROUND 1")
 
 	// now we're on a new round but v1 misses the proposal
@@ -376,7 +398,7 @@ func TestStateLockPOLUnlockOnUnknownBlock(t *testing.T) {
 	incrementRound(vs2, vs3, vs4)
 
 	// timeout to new round
-	time.Sleep(time.Second * 30)
+	time.Sleep(3000 * time.Millisecond)
 
 	newRound++ // moving to the next round
 	// ensureNewRound(newRoundCh, height, round)
@@ -438,7 +460,7 @@ func TestStateLockPOLUnlock(t *testing.T) {
 	// propBlockParts := propBlock.MakePartSet(partSize)
 
 	// timeout to new round
-	time.Sleep(time.Second * 30)
+	time.Sleep(3000 * time.Millisecond)
 	rs = cs1.GetRoundState()
 	lockedBlockHash := rs.LockedBlock.Hash()
 
@@ -453,7 +475,7 @@ func TestStateLockPOLUnlock(t *testing.T) {
 		cs1 unlocks!
 	*/
 
-	time.Sleep(time.Second * 30)
+	time.Sleep(3000 * time.Millisecond)
 
 	// go to prevote, prevote for locked block (not proposal)
 	ensurePrevote()
@@ -462,7 +484,7 @@ func TestStateLockPOLUnlock(t *testing.T) {
 	signAddVotes(cs1, types.VoteTypePrevote, common.BytesToHash(nil), types.PartSetHeader{}, vs2, vs3, vs4)
 
 	// the polka makes us unlock and precommit nil
-	time.Sleep(time.Second * 30)
+	time.Sleep(3000 * time.Millisecond)
 	ensurePrecommit()
 
 	// we should have unlocked and committed nil
@@ -481,7 +503,7 @@ func TestWaitingTimeoutProposeOnNewRound(t *testing.T) {
 
 	// start round
 	startTestRound(cs1, height, round)
-	time.Sleep(time.Second * 30)
+	time.Sleep(3000 * time.Millisecond)
 
 	ensurePrevote()
 
@@ -511,7 +533,7 @@ func TestRoundSkipOnNilPolkaFromHigherRound(t *testing.T) {
 
 	// start round
 	startTestRound(cs1, height, round)
-	time.Sleep(time.Second * 30)
+	time.Sleep(3000 * time.Millisecond)
 
 	ensurePrevote()
 
@@ -541,7 +563,7 @@ func TestWaitTimeoutProposeOnNilPolkaForTheCurrentRound(t *testing.T) {
 	incrementRound(vss[1:]...)
 	signAddVotes(cs1, types.VoteTypePrevote, common.BytesToHash(nil), types.PartSetHeader{}, vs2, vs3, vs4)
 
-	time.Sleep(time.Second * 30)
+	time.Sleep(3000 * time.Millisecond)
 
 	ensurePrevote()
 	validatePrevote(t, cs1, int(round.Uint64()), vss[0], common.BytesToHash(nil))
@@ -564,11 +586,11 @@ func TestEmitNewValidBlockEventOnCommitWithoutBlock(t *testing.T) {
 	// start round in which PO is not proposer
 	startTestRound(cs1, height, round)
 
-	time.Sleep(time.Second * 30)
+	time.Sleep(3000 * time.Millisecond)
 	// vs2, vs3 and vs4 send precommit for propBlock
 	signAddVotes(cs1, types.VoteTypePrecommit, propBlockHash, propBlockParts.Header(), vs2, vs3, vs4)
 
-	time.Sleep(time.Second * 30)
+	time.Sleep(3000 * time.Millisecond)
 
 	rs := cs1.GetRoundState()
 
@@ -593,12 +615,12 @@ func TestCommitFromPreviousRound(t *testing.T) {
 
 	// start round in which PO is not proposer
 	startTestRound(cs1, height, round)
-	time.Sleep(time.Second * 30)
+	time.Sleep(3000 * time.Millisecond)
 
 	// vs2, vs3 and vs4 send precommit for propBlock for the previous round
 	signAddVotes(cs1, types.VoteTypePrecommit, propBlockHash, propBlockParts.Header(), vs2, vs3, vs4)
 
-	time.Sleep(time.Second * 30)
+	time.Sleep(3000 * time.Millisecond)
 
 	rs := cs1.GetRoundState()
 	assert.True(t, rs.Step == cstypes.RoundStepCommit)
@@ -624,7 +646,7 @@ func TestStartNextHeightCorrectlyAfterTimeout(t *testing.T) {
 
 	// start round and wait for propose and prevote
 	startTestRound(cs1, height, round)
-	time.Sleep(time.Second * 30)
+	time.Sleep(3000 * time.Millisecond)
 
 	rs := cs1.GetRoundState()
 	theBlockHash := rs.ProposalBlock.Hash()
@@ -644,7 +666,7 @@ func TestStartNextHeightCorrectlyAfterTimeout(t *testing.T) {
 	signAddVotes(cs1, types.VoteTypePrecommit, theBlockHash, theBlockParts, vs3)
 
 	// wait till timeout occurs
-	time.Sleep(time.Second * 30)
+	time.Sleep(3000 * time.Millisecond)
 
 	// majority is now reached
 	signAddVotes(cs1, types.VoteTypePrecommit, theBlockHash, theBlockParts, vs4)
