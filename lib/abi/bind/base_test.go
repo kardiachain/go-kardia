@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ethereum/go-ethereum"
+	kardia "github.com/kardiachain/go-kardiamain"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/abi/bind"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -44,7 +44,7 @@ func (mc *mockCaller) CodeAt(ctx context.Context, contract common.Address, block
 	return []byte{1, 2, 3}, nil
 }
 
-func (mc *mockCaller) CallContract(ctx context.Context, call ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
+func (mc *mockCaller) CallContract(ctx context.Context, call kardia.CallMsg, blockNumber *big.Int) ([]byte, error) {
 	mc.callContractBlockNumber = blockNumber
 	return nil, nil
 }
@@ -54,7 +54,7 @@ func (mc *mockCaller) PendingCodeAt(ctx context.Context, contract common.Address
 	return nil, nil
 }
 
-func (mc *mockCaller) PendingCallContract(ctx context.Context, call ethereum.CallMsg) ([]byte, error) {
+func (mc *mockCaller) PendingCallContract(ctx context.Context, call kardia.CallMsg) ([]byte, error) {
 	mc.pendingCallContractCalled = true
 	return nil, nil
 }
@@ -246,8 +246,8 @@ func newMockLog(topics []common.Hash, txHash common.Hash) types.Log {
 	return types.Log{
 		Address:     common.HexToAddress("0x0"),
 		Topics:      topics,
-		Data:        MustDecode(hexData),
-		BlockNumber: uint64(26),
+		Data:        common.MustDecode(hexData),
+		BlockHeight: uint64(26),
 		TxHash:      txHash,
 		TxIndex:     111,
 		BlockHash:   common.BytesToHash([]byte{1, 2, 3, 4, 5}),
