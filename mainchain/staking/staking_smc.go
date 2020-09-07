@@ -15,12 +15,15 @@ import (
 )
 
 const (
+	// KardiaSatkingSmcIndex ...
 	KardiaSatkingSmcIndex = 7
 	contractAddress       = "0x00000000000000000000000000000000736D1997"
 )
 
+// MaximumGasToCallStaticFunction ...
 var MaximumGasToCallStaticFunction = uint(4000000)
 
+// StakingSmcUtil ...
 type StakingSmcUtil struct {
 	Abi             *abi.ABI
 	StateDb         *state.StateDB
@@ -29,6 +32,7 @@ type StakingSmcUtil struct {
 	bytecode        string
 }
 
+// NewSmcStakingnUtil ...
 func NewSmcStakingnUtil(bc base.BaseBlockChain) (*StakingSmcUtil, error) {
 	stateDb, err := bc.State()
 	if err != nil {
@@ -53,10 +57,9 @@ func NewSmcStakingnUtil(bc base.BaseBlockChain) (*StakingSmcUtil, error) {
 	return &StakingSmcUtil{Abi: &abi, StateDb: stateDb, ContractAddress: stakingSmcAddr, bytecode: bytecodeStaking}, nil
 }
 
+// SetInflation set inflation
 func (s *StakingSmcUtil) SetInflation(number int64, SenderAddress common.Address) ([]byte, error) {
 	stateDb := s.StateDb // nen viet 1 lan
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
-
 	store, err := s.Abi.Pack("setInflation", big.NewInt(number))
 	if err != nil {
 		log.Error("Error set inflation", "err", err)
@@ -72,10 +75,9 @@ func (s *StakingSmcUtil) SetInflation(number int64, SenderAddress common.Address
 	return nil, nil
 }
 
+// GetInflation get inflation
 func (s *StakingSmcUtil) GetInflation(SenderAddress common.Address) (*big.Int, error) {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode)) //set contract to stateDB
-
 	get, err := s.Abi.Pack("getInflation")
 	if err != nil {
 		log.Error("Error get inflation", "err", err)
@@ -91,10 +93,9 @@ func (s *StakingSmcUtil) GetInflation(SenderAddress common.Address) (*big.Int, e
 	return num, nil
 }
 
+// SetTotalSupply set total supply
 func (s *StakingSmcUtil) SetTotalSupply(number int64, SenderAddress common.Address) ([]byte, error) {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
-
 	store, err := s.Abi.Pack("setTotalSupply", big.NewInt(number))
 	if err != nil {
 		log.Error("Error set total supply", "err", err)
@@ -110,10 +111,9 @@ func (s *StakingSmcUtil) SetTotalSupply(number int64, SenderAddress common.Addre
 	return nil, nil
 }
 
+// GetTotalSupply get total supply
 func (s *StakingSmcUtil) GetTotalSupply(SenderAddress common.Address) (*big.Int, error) {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
-
 	get, err := s.Abi.Pack("getTotalSupply")
 	if err != nil {
 		log.Error("Error get total supply", "err", err)
@@ -129,14 +129,13 @@ func (s *StakingSmcUtil) GetTotalSupply(SenderAddress common.Address) (*big.Int,
 	return num, nil
 }
 
-//set parmas
+//SetParams set params
 func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward int64,
 	slashFractionDowntime int64, slashFractionDoubleSign int64, unBondingTime int64,
 	signedBlockWindow int64, minSignedBlockPerWindow int64,
 	SenderAddress common.Address) ([]byte, error) {
 
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	store, err := s.Abi.Pack("setParams", big.NewInt(100), big.NewInt(600), big.NewInt(baseProposerReward),
 		big.NewInt(bonusProposerReward),
@@ -157,10 +156,9 @@ func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward
 	return nil, nil
 }
 
-//create validator
+//CreateValidator create validator
 func (s *StakingSmcUtil) CreateValidator(commssionRate int64, maxRate int64, maxChangeRate int64, minSelfDelegation int64, SenderAddress common.Address, amount int64) (*big.Int, error) {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	createValidator, err := s.Abi.Pack("createValidator", big.NewInt(commssionRate), big.NewInt(maxRate), big.NewInt(maxChangeRate), big.NewInt(minSelfDelegation))
 	if err != nil {
@@ -174,10 +172,9 @@ func (s *StakingSmcUtil) CreateValidator(commssionRate int64, maxRate int64, max
 	return nil, nil
 }
 
-//applyAndReturnValidatorSets allow appy and return validator set
+//ApplyAndReturnValidatorSets allow appy and return validator set
 func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(SenderAddress common.Address) error {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	applyAndReturnValidatorSets, err := s.Abi.Pack("applyAndReturnValidatorSets")
 	if err != nil {
@@ -191,10 +188,9 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(SenderAddress common.Addres
 	return nil
 }
 
-//getValidatorSets allow get validator set
+//GetValidatorSets allow get validator set
 func (s *StakingSmcUtil) GetValidatorSets() ([]common.Address, []*big.Int, error) {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	getValidatorSets, err := s.Abi.Pack("getValidatorSets")
 	if err != nil {
@@ -219,10 +215,9 @@ func (s *StakingSmcUtil) GetValidatorSets() ([]common.Address, []*big.Int, error
 	return validatorSet.ValAddrs, validatorSet.Powers, nil
 }
 
-//getValidatorSets allow get validator
+//GetValidator allow get validator
 func (s *StakingSmcUtil) GetValidator(valAddress common.Address) (*big.Int, *big.Int, bool, error) {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	getValidator, err := s.Abi.Pack("getValidator", valAddress)
 	if err != nil {
@@ -248,10 +243,9 @@ func (s *StakingSmcUtil) GetValidator(valAddress common.Address) (*big.Int, *big
 	return validatorInfor.Tokens, validatorInfor.DelegationShares, validatorInfor.Jailed, nil
 }
 
-//mints new tokens for the previous block. Returns fee collected
+//Mint new tokens for the previous block. Returns fee collected
 func (s *StakingSmcUtil) Mint() (*big.Int, error) {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	mint, err := s.Abi.Pack("mint")
 	if err != nil {
@@ -270,11 +264,9 @@ func (s *StakingSmcUtil) Mint() (*big.Int, error) {
 	return num, nil
 }
 
-//mints new tokens for the previous block. Returns fee collected
+//SetTotalBonded  set total bonded
 func (s *StakingSmcUtil) SetTotalBonded(totalBond int64, SenderAddress common.Address) error {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
-
 	setTotalBonded, err := s.Abi.Pack("setTotalBonded", big.NewInt(totalBond))
 	if err != nil {
 		return err
@@ -290,7 +282,6 @@ func (s *StakingSmcUtil) SetTotalBonded(totalBond int64, SenderAddress common.Ad
 //SetAnnualProvision allow et annual provisoin
 func (s *StakingSmcUtil) SetAnnualProvision(annualProvision int64, SenderAddress common.Address) error {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	setAnnualProvision, err := s.Abi.Pack("setAnnualProvision", big.NewInt(annualProvision))
 	if err != nil {
@@ -304,10 +295,9 @@ func (s *StakingSmcUtil) SetAnnualProvision(annualProvision int64, SenderAddress
 	return nil
 }
 
-//GetAnnualProvision allow get annual provision
+//GetBlockProvision get block provision
 func (s *StakingSmcUtil) GetBlockProvision() (*big.Int, error) {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	getBlockProvision, err := s.Abi.Pack("getBlockProvision")
 	if err != nil {
@@ -326,12 +316,11 @@ func (s *StakingSmcUtil) GetBlockProvision() (*big.Int, error) {
 	return num, nil
 }
 
-//mints new tokens for the previous block. Returns fee collected
+//SetMintParams set mint params
 func (s *StakingSmcUtil) SetMintParams(inflationRateChange int64, goalBonded int64, blocksPerYear int64,
 	inflationMax int64, inflationMin int64, SenderAddress common.Address) error {
 
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	setMintParams, err := s.Abi.Pack("setMintParams", big.NewInt(inflationRateChange), big.NewInt(goalBonded), big.NewInt(blocksPerYear),
 		big.NewInt(inflationMax), big.NewInt(inflationMin))
@@ -346,10 +335,9 @@ func (s *StakingSmcUtil) SetMintParams(inflationRateChange int64, goalBonded int
 	return nil
 }
 
-//setPreviousProposer allow set previous proposer
+//SetPreviousProposer allow set previous proposer
 func (s *StakingSmcUtil) SetPreviousProposer(previousProposer common.Address, SenderAddress common.Address) error {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	setPreviousProposer, err := s.Abi.Pack("setPreviousProposer", previousProposer)
 	if err != nil {
@@ -363,10 +351,9 @@ func (s *StakingSmcUtil) SetPreviousProposer(previousProposer common.Address, Se
 	return nil
 }
 
-//FinalizeCommit
+//FinalizeCommit finalize commit
 func (s *StakingSmcUtil) FinalizeCommit(address []common.Address, powers []*big.Int, signed []bool, SenderAddress common.Address) error {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	finalizeCommit, err := s.Abi.Pack("finalizeCommit", address, powers, signed)
 	if err != nil {
@@ -380,10 +367,9 @@ func (s *StakingSmcUtil) FinalizeCommit(address []common.Address, powers []*big.
 	return nil
 }
 
-//getMissedBlock allow get missed block of validator
+//GetMissedBlock allow get missed block of validator
 func (s *StakingSmcUtil) GetMissedBlock(valAddress common.Address) ([]bool, error) {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	getMissedBlock, err := s.Abi.Pack("getMissedBlock", valAddress)
 	if err != nil {
@@ -407,10 +393,9 @@ func (s *StakingSmcUtil) GetMissedBlock(valAddress common.Address) ([]bool, erro
 	return missed.MissedBlock, nil
 }
 
-//GetAnnualProvision allow get delegation rewards
+//GetDelegationRewards allow get delegation rewards
 func (s *StakingSmcUtil) GetDelegationRewards(valAddress common.Address, delAddress common.Address) (*big.Int, error) {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	getDelegationRewards, err := s.Abi.Pack("getDelegationRewards", valAddress, delAddress)
 	if err != nil {
@@ -429,10 +414,9 @@ func (s *StakingSmcUtil) GetDelegationRewards(valAddress common.Address, delAddr
 	return num, nil
 }
 
-//double sign
+//DoubleSign double sign
 func (s *StakingSmcUtil) DoubleSign(valAddress common.Address, votingPower int64, distributionHeight int64, SenderAddress common.Address) error {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	doubleSign, err := s.Abi.Pack("doubleSign", valAddress, big.NewInt(votingPower), big.NewInt(distributionHeight))
 	if err != nil {
@@ -446,10 +430,9 @@ func (s *StakingSmcUtil) DoubleSign(valAddress common.Address, votingPower int64
 	return nil
 }
 
-//withdraw
+//Withdraw Withdraw
 func (s *StakingSmcUtil) Withdraw(valAddress common.Address, SenderAddress common.Address) error {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	doubleSign, err := s.Abi.Pack("withdraw", valAddress)
 	if err != nil {
@@ -463,10 +446,9 @@ func (s *StakingSmcUtil) Withdraw(valAddress common.Address, SenderAddress commo
 	return nil
 }
 
-//undelegate
+//Undelegate undelegate
 func (s *StakingSmcUtil) Undelegate(valAddress common.Address, amount int64, SenderAddress common.Address) error {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
 
 	undelegate, err := s.Abi.Pack("undelegate", valAddress, big.NewInt(amount))
 	if err != nil {
@@ -480,11 +462,9 @@ func (s *StakingSmcUtil) Undelegate(valAddress common.Address, amount int64, Sen
 	return nil
 }
 
-//unjail
+//Unjail Unjail
 func (s *StakingSmcUtil) Unjail(SenderAddress common.Address) error {
 	stateDb := s.StateDb
-	stateDb.SetCode(s.ContractAddress, common.Hex2Bytes(s.bytecode))
-
 	unjail, err := s.Abi.Pack("unjail")
 	if err != nil {
 		return err
