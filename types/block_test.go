@@ -127,36 +127,6 @@ func TestBodyCreationAndCopy(t *testing.T) {
 	}
 }
 
-func TestBodyEncodeDecodeFile(t *testing.T) {
-	body := CreateNewBlock(1).Body()
-	bodyCopy := body.Copy()
-	encodeFile, err := os.Create("encodeFile.txt")
-	if err != nil {
-		t.Error("Error creating file")
-	}
-
-	if err := body.EncodeRLP(encodeFile); err != nil {
-		t.Fatal("Error encoding block")
-	}
-
-	encodeFile.Close()
-
-	f, err := os.Open("encodeFile.txt")
-	if err != nil {
-		t.Error("Error opening file:", err)
-	}
-
-	stream := rlp.NewStream(f, 99999)
-	if err := body.DecodeRLP(stream); err != nil {
-		t.Fatal("Decoding block error:", err)
-	}
-	defer f.Close()
-
-	if rlpHash(body) != rlpHash(bodyCopy) {
-		t.Fatal("Encode Decode from file error")
-	}
-}
-
 func TestBlockWithBodyFunction(t *testing.T) {
 	block := CreateNewBlock(1)
 	body := CreateNewDualBlock().Body()
@@ -268,7 +238,8 @@ func CreateNewBlock(height uint64) *Block {
 	lastCommit := &Commit{
 		Precommits: []*Vote{vote, nil},
 	}
-	return NewBlock(&header, txns, nil, lastCommit, nil)
+	evidence := []Evidence{}
+	return NewBlock(&header, txns, nil, lastCommit, evidence)
 }
 
 func CreateNewDualBlock() *Block {
@@ -288,5 +259,6 @@ func CreateNewDualBlock() *Block {
 	}
 	header.LastCommitHash = lastCommit.Hash()
 	de := NewDualEvent(100, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})
-	return NewDualBlock(&header, []*DualEvent{de, nil}, lastCommit, nil)
+	evidence := []Evidence{}
+	return NewDualBlock(&header, []*DualEvent{de, nil}, lastCommit, evidence)
 }
