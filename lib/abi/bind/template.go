@@ -90,6 +90,7 @@ import (
 	"math/big"
 	"strings"
 
+	kardia "github.com/kardiachain/go-kardiamain"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/abi/bind"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -102,6 +103,7 @@ var (
 	_ = big.NewInt
 	_ = strings.NewReader
 	_ = bind.Bind
+	_ = kardia.NotFound
 	_ = common.Big1
 	_ = types.BloomLookup
 	_ = event.NewSubscription
