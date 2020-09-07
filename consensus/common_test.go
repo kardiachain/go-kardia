@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/kai/storage"
-
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
@@ -233,7 +231,7 @@ func validateLastPrecommit(t *testing.T, cs *ConsensusState, vs *validatorStub, 
 	address := privVal.GetAddress()
 	var vote *types.Vote
 	if vote = votes.GetByAddress(address); vote == nil {
-		panic("Failed to find precommit from validator")
+		t.Log("Failed to find precommit from validator")
 	}
 }
 
@@ -242,10 +240,10 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 	logger := log.New()
 	logger.AddTag("test state")
 
-	var DBInfo storage.DbInfo
+	// var DBInfo storage.DbInfo
 	bc, chainConfig, err := GetBlockchain()
-	kaiDb, err := DBInfo.Start()
-
+	blockDB := memorydb.New()
+	kaiDb := kvstore.NewStoreDB(blockDB)
 	if err != nil {
 		return nil, nil
 	}
@@ -343,8 +341,8 @@ func newState(vs *validatorStub, state cstate.LastestBlockState) (*ConsensusStat
 	logger.AddTag("test state")
 
 	bc, chainConfig, err := GetBlockchain()
-	var DBInfo storage.DbInfo
-	kaiDb, err := DBInfo.Start()
+	blockDB := memorydb.New()
+	kaiDb := kvstore.NewStoreDB(blockDB)
 	if err != nil {
 		return nil, err
 	}
