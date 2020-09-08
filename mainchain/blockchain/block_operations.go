@@ -288,6 +288,9 @@ LOOP:
 		return common.Hash{}, nil, nil, err
 	}
 
+	// Set new GasUsed value for the block header.
+	header.GasUsed = *usedGas
+
 	return root, receipts, newTxs, nil
 }
 
