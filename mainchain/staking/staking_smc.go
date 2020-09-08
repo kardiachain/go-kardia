@@ -12,6 +12,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 const (
@@ -22,6 +23,27 @@ const (
 
 // MaximumGasToCallStaticFunction ...
 var MaximumGasToCallStaticFunction = uint(4000000)
+
+// VoteInfo ...
+type VoteInfo struct {
+	Address         common.Address
+	VotingPower     *big.Int
+	SignedLastBlock bool
+}
+
+// LastCommitInfo ...
+type LastCommitInfo struct {
+	Votes []VoteInfo
+}
+
+// Evidence ...
+type Evidence struct {
+	Address          common.Address
+	VotingPower      *big.Int
+	Height           uint64
+	Time             uint64
+	TotalVotingPower int64
+}
 
 // StakingSmcUtil ...
 type StakingSmcUtil struct {
@@ -253,27 +275,29 @@ func (s *StakingSmcUtil) GetValidator(valAddress common.Address) (*big.Int, *big
 }
 
 //Mint new tokens for the previous block. Returns fee collected
-func (s *StakingSmcUtil) Mint() (*big.Int, error) {
+func (s *StakingSmcUtil) Mint() error {
 	stateDb, err := s.bc.State()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	mint, err := s.Abi.Pack("mint")
 	if err != nil {
-		return nil, err
+		return err
 	}
-	resultGet, _, err := sample_kvm.Call(s.ContractAddress, mint, &sample_kvm.Config{State: stateDb})
+	res, _, err := sample_kvm.Call(s.ContractAddress, mint, &sample_kvm.Config{State: stateDb})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	num := new(big.Int).SetBytes(resultGet)
+	fee := new(big.Int).SetBytes(res)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return num, nil
+	stateDb.AddBalance(s.ContractAddress, fee)
+
+	return nil
 }
 
 //SetTotalBonded  set total bonded
@@ -364,17 +388,27 @@ func (s *StakingSmcUtil) SetPreviousProposer(previousProposer common.Address, Se
 }
 
 //FinalizeCommit finalize commit
-func (s *StakingSmcUtil) FinalizeCommit(address []common.Address, powers []*big.Int, signed []bool, SenderAddress common.Address) error {
+func (s *StakingSmcUtil) FinalizeCommit(proposerAddress common.Address, lastCommit LastCommitInfo) error {
 	stateDb, err := s.bc.State()
 	if err != nil {
 		return err
 	}
 
-	finalizeCommit, err := s.Abi.Pack("finalizeCommit", address, powers, signed)
+	vals := make([]common.Address, len(lastCommit.Votes))
+	votingPowers := make([]*big.Int, len(lastCommit.Votes))
+	signed := make([]bool, len(lastCommit.Votes))
+
+	for idx, voteInfo := range lastCommit.Votes {
+		vals[idx] = voteInfo.Address
+		votingPowers[idx] = voteInfo.VotingPower
+		signed[idx] = voteInfo.SignedLastBlock
+	}
+
+	finalizeCommit, err := s.Abi.Pack("finalizeCommit", proposerAddress, vals, votingPowers, signed)
 	if err != nil {
 		return err
 	}
-	_, _, err = sample_kvm.Call(s.ContractAddress, finalizeCommit, &sample_kvm.Config{State: stateDb, Origin: SenderAddress})
+	_, _, err = sample_kvm.Call(s.ContractAddress, finalizeCommit, &sample_kvm.Config{State: stateDb, Origin: s.ContractAddress})
 	if err != nil {
 		return err
 	}
@@ -430,19 +464,22 @@ func (s *StakingSmcUtil) GetDelegationRewards(valAddress common.Address, delAddr
 }
 
 //DoubleSign double sign
-func (s *StakingSmcUtil) DoubleSign(valAddress common.Address, votingPower int64, distributionHeight int64, SenderAddress common.Address) error {
+func (s *StakingSmcUtil) DoubleSign(byzVals []Evidence) error {
 	stateDb, err := s.bc.State()
 	if err != nil {
 		return err
 	}
 
-	doubleSign, err := s.Abi.Pack("doubleSign", valAddress, big.NewInt(votingPower), big.NewInt(distributionHeight))
-	if err != nil {
-		return err
-	}
-	_, _, err = sample_kvm.Call(s.ContractAddress, doubleSign, &sample_kvm.Config{State: stateDb, Origin: SenderAddress})
-	if err != nil {
-		return err
+	for _, ev := range byzVals {
+		payload, err := s.Abi.Pack("doubleSign", ev.Address, ev.VotingPower, big.NewInt(int64(ev.Height)))
+		if err != nil {
+			return err
+		}
+		_, _, err = sample_kvm.Call(s.ContractAddress, payload, &sample_kvm.Config{State: stateDb, Origin: s.ContractAddress})
+		if err != nil {
+			return err
+		}
+
 	}
 
 	return nil
@@ -496,19 +533,19 @@ func (s *StakingSmcUtil) Unjail(SenderAddress common.Address) error {
 }
 
 //GetCurrentValidatorSet get current validator set
-func (s *StakingSmcUtil) GetCurrentValidatorSet() ([]common.Address, []*big.Int, error) {
+func (s *StakingSmcUtil) GetCurrentValidatorSet() ([]*types.Validator, error) {
 	stateDb, err := s.bc.State()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	payload, err := s.Abi.Pack("getCurrentValidatorSet")
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	res, _, err := sample_kvm.Call(s.ContractAddress, payload, &sample_kvm.Config{State: stateDb})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	var valSet struct {
@@ -520,10 +557,15 @@ func (s *StakingSmcUtil) GetCurrentValidatorSet() ([]common.Address, []*big.Int,
 	err = s.Abi.Unpack(&valSet, "getValidatorSets", res)
 	if err != nil {
 		log.Error("Error unpacking node info", "err", err)
-		return nil, nil, err
+		return nil, err
 	}
 
-	return valSet.ValAddrs, valSet.Powers, nil
+	vals := make([]*types.Validator, len(valSet.ValAddrs))
+	for i, valAddr := range valSet.ValAddrs {
+		vals[i] = types.NewValidator(valAddr, valSet.Powers[i].Int64())
+	}
+
+	return vals, nil
 }
 
 // SetRoot set address root

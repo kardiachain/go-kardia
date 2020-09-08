@@ -28,6 +28,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
+
 	"github.com/ebuchman/fail-test"
 
 	cfg "github.com/kardiachain/go-kardiamain/configs"
@@ -922,7 +924,7 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 		return
 	}
 	// Executes txs to verify the block state root. New statedb is committed if success.
-	if err := cs.blockOperations.CommitAndValidateBlockTxs(cs.ProposalBlock); err != nil {
+	if err := cs.blockOperations.CommitAndValidateBlockTxs(cs.ProposalBlock, staking.LastCommitInfo{}, nil); err != nil {
 		logger.Error("enterPrevote: fail to commit & verify txs", "err", err)
 		cs.signAddVote(types.VoteTypePrevote, cmn.Hash{}, types.PartSetHeader{})
 		return

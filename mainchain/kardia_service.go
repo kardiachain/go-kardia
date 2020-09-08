@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/rpc"
@@ -113,6 +114,11 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
+	staking, err := staking.NewSmcStakingnUtil(kai.blockchain)
+	if err != nil {
+		return nil, err
+	}
+
 	// Set zeroFee to blockchain
 	kai.blockchain.IsZeroFee = config.IsZeroFee
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
@@ -132,7 +138,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		kai.logger,
 		configs.DefaultConsensusConfig(),
 		state,
-		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool),
+		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool, staking),
 		blockExec,
 		evPool,
 	)
