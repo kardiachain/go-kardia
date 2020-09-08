@@ -20,6 +20,7 @@ package types
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -427,4 +428,40 @@ func RandValidator(randPower bool, minPower int64) (*Validator, IPrivValidator) 
 	pubKey := privVal.GetPubKey()
 	val := NewValidator(crypto.PubkeyToAddress(pubKey), votePower)
 	return val, privVal
+}
+
+func RandValidatorCS(randPower bool, minPower int64) (*Validator, *ecdsa.PrivateKey) {
+	privVal, _ := crypto.GenerateKey()
+	votePower := minPower
+	if randPower {
+		votePower += int64(rand.Intn(1000))
+	}
+	priv := NewPrivValidator(privVal)
+	address := priv.GetAddress()
+	val := NewValidator(address, votePower)
+	return val, privVal
+}
+
+// RandValidatorSet returns a randomized validator set (size: +numValidators+),
+// where each validator has a voting power of +votingPower+.
+//
+// EXPOSED FOR TESTING.
+func RandValidatorSet(numValidators int, votingPower int64) (*ValidatorSet, []*ecdsa.PrivateKey) {
+	var (
+		valz           = make([]*Validator, numValidators)
+		privValidators = make([]*ecdsa.PrivateKey, numValidators)
+		privVaz        = make([]*ecdsa.PrivateKey, numValidators)
+	)
+	for i := 0; i < numValidators; i++ {
+		val, privValidator := RandValidatorCS(false, votingPower)
+		valz[i] = val
+		privValidators[i] = privValidator
+	}
+	valSet := NewValidatorSet(valz, 0, 1000000)
+	for j := 0; j < numValidators; j++ {
+		priv := NewPrivValidator(privValidators[j])
+		valIndex, _ := valSet.GetByAddress(priv.GetAddress())
+		privVaz[valIndex] = privValidators[j]
+	}
+	return valSet, privVaz
 }
