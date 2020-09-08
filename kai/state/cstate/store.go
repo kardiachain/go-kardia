@@ -56,7 +56,7 @@ func SaveState(db kaidb.KeyValueStore, state LastestBlockState) {
 }
 
 func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
-	nextHeight := state.LastBlockHeight.Uint64() + 1
+	nextHeight := state.LastBlockHeight + 1
 	// If first block, save validators for block 1.
 	if nextHeight == 1 {
 		// This extra logic due to Tendermint validator set changes being delayed 1 block.
@@ -280,7 +280,7 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
 	}
 
 	return LastestBlockState{
-		LastBlockHeight: common.NewBigInt64(0),
+		LastBlockHeight: 0,
 		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.Timestamp,
 

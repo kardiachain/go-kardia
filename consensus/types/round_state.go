@@ -20,10 +20,8 @@ package types
 
 import (
 	"fmt"
-	"math/big"
 	"time"
 
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -76,24 +74,24 @@ func (rs RoundStepType) String() string {
 // NOTE: Not thread safe. Should only be manipulated by functions downstream
 // of the cs.receiveRoutine
 type RoundState struct {
-	Height    *cmn.BigInt   `json:"height"` // Height we are working on
-	Round     *cmn.BigInt   `json:"round"`
+	Height    uint64        `json:"height"` // Height we are working on
+	Round     int32         `json:"round"`
 	Step      RoundStepType `json:"step"`
-	StartTime *big.Int      `json:"start_time"`
+	StartTime int64         `json:"start_time"`
 
-	CommitTime                *big.Int            `json:"commit_time"` // Subjective time when +2/3 precommits for Block at Round were found
+	CommitTime                int64               `json:"commit_time"` // Subjective time when +2/3 precommits for Block at Round were found
 	Validators                *types.ValidatorSet `json:"validators"`  // TODO(huny@): Assume static validator set for now
 	Proposal                  *types.Proposal     `json:"proposal"`
 	ProposalBlock             *types.Block        `json:"proposal_block"` // Simply cache the block from Proposal
 	ProposalBlockParts        *types.PartSet      `json:"proposal_block_part"`
-	LockedRound               *cmn.BigInt         `json:"locked_round"`
+	LockedRound               int32               `json:"locked_round"`
 	LockedBlock               *types.Block        `json:"locked_block"`
 	LockedBlockParts          *types.PartSet      `json:"locked_block_parts"`
-	ValidRound                *cmn.BigInt         `json:"valid_round"` // Last known round with POL for non-nil valid block.
+	ValidRound                int32               `json:"valid_round"` // Last known round with POL for non-nil valid block.
 	ValidBlock                *types.Block        `json:"valid_block"` // Last known block of POL mentioned above.
 	ValidBlockParts           *types.PartSet      `json:"valid_block_parts"`
 	Votes                     *HeightVoteSet      `json:"votes"`
-	CommitRound               *cmn.BigInt         `json:"commit_round"` //
+	CommitRound               int32               `json:"commit_round"` //
 	LastCommit                *types.VoteSet      `json:"last_commit"`  // Last precommits at Height-1
 	LastValidators            *types.ValidatorSet `json:"last_validators"`
 	TriggeredTimeoutPrecommit bool                `json:"triggered_timeout_precommit"`
@@ -116,8 +114,8 @@ func (rs *RoundState) RoundStateEvent() types.EventDataRoundState {
 func (rs *RoundState) String() string {
 	return fmt.Sprintf("RoundState{H:%v R:%v S:%v  StartTime:%v  CommitTime:%v  Validators:%v   Proposal:%v  ProposalBlock:%v  LockedRound:%v  LockedBlock:%v  ValidRound:%v  ValidBlock:%v  Votes:%v  LastCommit:%v  LastValidators:%v}",
 		rs.Height, rs.Round, rs.Step,
-		time.Unix(rs.StartTime.Int64(), 0),
-		time.Unix(rs.CommitTime.Int64(), 0),
+		time.Unix(int64(rs.StartTime), 0),
+		time.Unix(int64(rs.CommitTime), 0),
 		rs.Validators,
 		rs.Proposal,
 		rs.ProposalBlock,
@@ -140,8 +138,8 @@ func (rs *RoundState) CompleteProposalEvent() types.EventDataCompleteProposal {
 	}
 
 	return types.EventDataCompleteProposal{
-		Height:  rs.Height.Int64(),
-		Round:   rs.Round.Int32(),
+		Height:  rs.Height,
+		Round:   rs.Round,
 		Step:    rs.Step.String(),
 		BlockID: blockId,
 	}

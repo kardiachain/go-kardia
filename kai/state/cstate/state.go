@@ -20,7 +20,6 @@ package cstate
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 
@@ -47,7 +46,7 @@ type LastestBlockState struct {
 	ChainID string
 
 	// LastBlockHeight=0 at genesis (ie. block(H=0) does not exist)
-	LastBlockHeight  *common.BigInt
+	LastBlockHeight  uint64
 	LastBlockTotalTx uint64
 	LastBlockID      types.BlockID
 	LastBlockTime    uint64
@@ -102,7 +101,7 @@ func (state LastestBlockState) IsEmpty() bool {
 // Stringshort returns a short string representing State
 func (state LastestBlockState) String() string {
 	return fmt.Sprintf("{ChainID:%v LastBlockHeight:%v LastBlockTotalTx:%v LastBlockID:%v LastBlockTime:%v Validators:%v LastValidators:%v LastHeightValidatorsChanged:%v",
-		state.ChainID, state.LastBlockHeight, state.LastBlockTotalTx, state.LastBlockID, time.Unix(int64(state.LastBlockTime), 0),
+		state.ChainID, state.LastBlockHeight, state.LastBlockTotalTx, state.LastBlockID, state.LastBlockTime,
 		state.Validators, state.LastValidators, state.LastHeightValidatorsChanged)
 }
 

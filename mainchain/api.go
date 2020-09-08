@@ -125,7 +125,7 @@ func NewBlockHeaderJSON(block types.Block) *BlockHeaderJSON {
 		Height:         block.Height(),
 		LastBlock:      block.Header().LastBlockID.String(),
 		CommitHash:     block.LastCommitHash().Hex(),
-		Time:           block.Header().Time.Int64(),
+		Time:           int64(block.Header().Time),
 		NumTxs:         block.Header().NumTxs,
 		GasLimit:       block.Header().GasLimit,
 		GasUsed:        block.Header().GasUsed,
@@ -148,7 +148,7 @@ func NewBasicBlockJSON(block types.Block) *BlockJSON {
 		idx := uint64(index)
 		tx := NewPublicTransaction(transaction, block.Hash(), block.Height(), idx)
 		// add time for tx
-		tx.Time = block.Header().Time.Int64()
+		tx.Time = block.Header().Time
 		transactions = append(transactions, tx)
 	}
 
@@ -158,7 +158,7 @@ func NewBasicBlockJSON(block types.Block) *BlockJSON {
 		LastBlock:      block.Header().LastBlockID.String(),
 		Txs:            transactions,
 		CommitHash:     block.LastCommitHash().Hex(),
-		Time:           block.Header().Time.Int64(),
+		Time:           int64(block.Header().Time),
 		NumTxs:         block.Header().NumTxs,
 		GasLimit:       block.Header().GasLimit,
 		GasUsed:        block.Header().GasUsed,
@@ -186,7 +186,7 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		idx := uint64(index)
 		tx := NewPublicTransaction(transaction, block.Hash(), block.Height(), idx)
 		// add time for tx
-		tx.Time = block.Header().Time.Int64()
+		tx.Time = block.Header().Time
 		transactions = append(transactions, tx)
 	}
 
@@ -196,7 +196,7 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		LastBlock:      block.Header().LastBlockID.String(),
 		Txs:            transactions,
 		CommitHash:     block.LastCommitHash().Hex(),
-		Time:           block.Header().Time.Int64(),
+		Time:           int64(block.Header().Time),
 		NumTxs:         block.Header().NumTxs,
 		GasLimit:       block.Header().GasLimit,
 		GasUsed:        block.Header().GasUsed,
@@ -308,10 +308,10 @@ func (s *PublicKaiAPI) Validators() []map[string]interface{} {
 
 type PublicTransaction struct {
 	BlockHash        string        `json:"blockHash"`
-	BlockNumber      common.Uint64 `json:"blockNumber"`
-	Time             int64         `json:"time"`
+	BlockNumber      uint64        `json:"blockNumber"`
+	Time             uint64        `json:"time"`
 	From             string        `json:"from"`
-	Gas              common.Uint64 `json:"gas"`
+	Gas              uint64        `json:"gas"`
 	GasPrice         common.Uint64 `json:"gasPrice"`
 	Hash             string        `json:"hash"`
 	Input            string        `json:"input"`
@@ -366,7 +366,7 @@ func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNum
 
 	result := &PublicTransaction{
 		From:     from.Hex(),
-		Gas:      common.Uint64(tx.Gas()),
+		Gas:      tx.Gas(),
 		GasPrice: common.Uint64(tx.GasPrice().Int64()),
 		Hash:     tx.Hash().Hex(),
 		Input:    common.Encode(tx.Data()),
@@ -380,7 +380,7 @@ func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNum
 	}
 	if blockHash != (common.Hash{}) {
 		result.BlockHash = blockHash.Hex()
-		result.BlockNumber = common.Uint64(blockNumber)
+		result.BlockNumber = blockNumber
 		result.TransactionIndex = uint(index)
 	}
 	return result
@@ -439,7 +439,7 @@ func (a *PublicTransactionAPI) GetTransaction(hash string) *PublicTransaction {
 		return nil
 	}
 	// get block time from block
-	publicTx.Time = block.Header().Time.Int64()
+	publicTx.Time = block.Header().Time
 	return publicTx
 }
 

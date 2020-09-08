@@ -21,7 +21,6 @@ package blockchain
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"sync"
 	"time"
 
@@ -85,7 +84,7 @@ func (dbo *DualBlockOperations) Height() uint64 {
 }
 
 // Proposes a new block for dual's blockchain.
-func (dbo *DualBlockOperations) CreateProposalBlock(height int64, lastState cstate.LastestBlockState, proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
+func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cstate.LastestBlockState, proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.
 	// For simplicity, this code executes & commits txs before sending proposal,
@@ -229,12 +228,12 @@ func (dbo *DualBlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 
 // Creates new block header from given data.
 // Some header fields are not ready at this point.
-func (dbo *DualBlockOperations) newHeader(height int64, numEvents uint64, blockId types.BlockID, validator common.Address, validatorsHash common.Hash) *types.Header {
+func (dbo *DualBlockOperations) newHeader(height uint64, numEvents uint64, blockId types.BlockID, validator common.Address, validatorsHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
-		Height:         uint64(height),
+		Height:         height,
 		NumDualEvents:  numEvents,
-		Time:           big.NewInt(time.Now().Unix()),
+		Time:           uint64(time.Now().Unix()),
 		LastBlockID:    blockId,
 		Validator:      validator,
 		ValidatorsHash: validatorsHash,

@@ -104,10 +104,10 @@ func (evpool *Pool) State() cstate.LastestBlockState {
 func (evpool *Pool) Update(block *types.Block, state cstate.LastestBlockState) {
 
 	// sanity check
-	if state.LastBlockHeight.Uint64() != block.Height() {
+	if state.LastBlockHeight != block.Height() {
 		panic(
 			fmt.Sprintf("Failed EvidencePool.Update sanity check: got state.Height=%d with block.Height=%d",
-				state.LastBlockHeight.Int64(),
+				state.LastBlockHeight,
 				block.Height(),
 			),
 		)
@@ -119,11 +119,11 @@ func (evpool *Pool) Update(block *types.Block, state cstate.LastestBlockState) {
 	evpool.mtx.Unlock()
 
 	// remove evidence from pending and mark committed
-	evpool.MarkEvidenceAsCommitted(int64(block.Height()), time.Unix(block.Time().Int64(), 0), block.Evidence().Evidence)
+	evpool.MarkEvidenceAsCommitted(block.Height(), uint64(time.Now().Unix()), block.Evidence().Evidence)
 }
 
 // MarkEvidenceAsCommitted marks all the evidence as committed and removes it from the queue.
-func (evpool *Pool) MarkEvidenceAsCommitted(height int64, lastBlockTime time.Time, evidence []types.Evidence) {
+func (evpool *Pool) MarkEvidenceAsCommitted(height uint64, lastBlockTime uint64, evidence []types.Evidence) {
 	// make a map of committed evidence to remove from the clist
 	blockEvidenceMap := make(map[string]struct{})
 	for _, ev := range evidence {
@@ -133,11 +133,11 @@ func (evpool *Pool) MarkEvidenceAsCommitted(height int64, lastBlockTime time.Tim
 
 	// remove committed evidence from the clist
 	evidenceParams := evpool.State().ConsensusParams.Evidence
-	evpool.removeEvidence(height, uint64(lastBlockTime.Unix()), evidenceParams, blockEvidenceMap)
+	evpool.removeEvidence(height, lastBlockTime, evidenceParams, blockEvidenceMap)
 }
 
 func (evpool *Pool) removeEvidence(
-	height int64,
+	height uint64,
 	lastBlockTime uint64,
 	params types.EvidenceParams,
 	blockEvidenceMap map[string]struct{}) {

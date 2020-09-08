@@ -122,7 +122,7 @@ type DualChainConfig struct {
 type NodeMetadata struct {
 	PrivKey     *ecdsa.PrivateKey
 	PublicKey   *ecdsa.PublicKey
-	VotingPower int64
+	VotingPower uint64
 	ListenAddr  string
 }
 
@@ -558,7 +558,7 @@ func (c *Config) warnOnce(w *bool, format string, args ...interface{}) {
 }
 
 // NewNodeMetadata init new NodeMetadata
-func NewNodeMetadata(privateKey *string, publicKey *string, votingPower int64, listenAddr string) (*NodeMetadata, error) {
+func NewNodeMetadata(privateKey *string, publicKey *string, votingPower uint64, listenAddr string) (*NodeMetadata, error) {
 
 	node := &NodeMetadata{
 		VotingPower: votingPower,
@@ -622,7 +622,7 @@ func GetNodeMetadataFromSmc(bc *base.BaseBlockChain, valIndices []int) ([]NodeMe
 		if err != nil {
 			return nil, err
 		}
-		n, err := NewNodeMetadata(nil, &pubString, votingPower.Int64(), listenAddr)
+		n, err := NewNodeMetadata(nil, &pubString, votingPower.Uint64(), listenAddr)
 		if err != nil {
 			return nil, err
 		}

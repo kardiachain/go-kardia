@@ -103,9 +103,9 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 	nValSet.AdvanceProposer(1)
 	return LastestBlockState{
 		ChainID:                     state.ChainID,
-		LastBlockHeight:             common.NewBigUint64(header.Height),
+		LastBlockHeight:             header.Height,
 		LastBlockID:                 blockID,
-		LastBlockTime:               header.Time.Uint64(),
+		LastBlockTime:               header.Time,
 		NextValidators:              nValSet,
 		Validators:                  state.NextValidators.Copy(),
 		LastValidators:              state.Validators.Copy(),

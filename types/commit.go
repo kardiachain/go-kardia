@@ -95,19 +95,19 @@ func (commit *Commit) FirstPrecommit() *Vote {
 }
 
 // Height returns the height of the commit
-func (commit *Commit) Height() *cmn.BigInt {
+func (commit *Commit) Height() uint64 {
 	if len(commit.Precommits) == 0 {
-		return cmn.NewBigInt64(0)
+		return 0
 	}
-	return commit.FirstPrecommit().Height
+	return commit.Height()
 }
 
 // Round returns the round of the commit
-func (commit *Commit) Round() *cmn.BigInt {
+func (commit *Commit) Round() int32 {
 	if len(commit.Precommits) == 0 {
-		return cmn.NewBigInt64(0)
+		return 0
 	}
-	return commit.FirstPrecommit().Round
+	return commit.Round()
 }
 
 // Type returns the vote type of the commit, which is always VoteTypePrecommit
@@ -174,12 +174,12 @@ func (commit *Commit) ValidateBasic() error {
 				precommit.Type)
 		}
 		// Ensure that all heights are the same
-		if !precommit.Height.Equals(height) {
+		if uint64(precommit.Height) != height {
 			return fmt.Errorf("Invalid commit precommit height. Expected %v, got %v",
 				height, precommit.Height)
 		}
 		// Ensure that all rounds are the same
-		if !precommit.Round.Equals(round) {
+		if precommit.Round != round {
 			return fmt.Errorf("Invalid commit precommit round. Expected %v, got %v",
 				round, precommit.Round)
 		}

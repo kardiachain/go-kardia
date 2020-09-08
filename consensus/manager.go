@@ -21,7 +21,6 @@ package consensus
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"sync"
 	"time"
 
@@ -298,7 +297,7 @@ func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) 
 	height, valSize, lastCommitSize := cs.Height, cs.Validators.Size(), cs.LastCommit.Size()
 	cs.mtx.Unlock()
 	ps.EnsureVoteBitArrays(height, valSize)
-	ps.EnsureVoteBitArrays(height.Add(-1), lastCommitSize)
+	ps.EnsureVoteBitArrays(height-1, lastCommitSize)
 	ps.SetHasVote(msg.Vote)
 	conR.logger.Trace("Implement RecordVote here to mark peer as good.")
 
@@ -381,12 +380,12 @@ func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.P
 	cs.mtx.Lock()
 	height, votes := cs.Height, cs.Votes
 	cs.mtx.Unlock()
-	if !height.Equals(msg.Height) {
+	if height != msg.Height {
 		conR.logger.Trace("ReceiveVoteSetMaj23 - height doesn't match", "height", height, "msg.Height", msg.Height)
 		return
 	}
 	// Peer claims to have a maj23 for some BlockID at H,R,S,
-	err := votes.SetPeerMaj23(msg.Round.Int32(), msg.Type, ps.peer.ID(), msg.BlockID)
+	err := votes.SetPeerMaj23(msg.Round, msg.Type, ps.peer.ID(), msg.BlockID)
 	if err != nil {
 		conR.logger.Error("SetPeerMaj23 failed", "err", err)
 		return
@@ -396,9 +395,9 @@ func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.P
 	var ourVotes *cmn.BitArray
 	switch msg.Type {
 	case types.VoteTypePrevote:
-		ourVotes = votes.Prevotes(msg.Round.Int32()).BitArrayByBlockID(msg.BlockID)
+		ourVotes = votes.Prevotes(msg.Round).BitArrayByBlockID(msg.BlockID)
 	case types.VoteTypePrecommit:
-		ourVotes = votes.Precommits(msg.Round.Int32()).BitArrayByBlockID(msg.BlockID)
+		ourVotes = votes.Precommits(msg.Round).BitArrayByBlockID(msg.BlockID)
 	default:
 		conR.logger.Error("Bad VoteSetMaj23Message field Type")
 		return
@@ -439,13 +438,13 @@ func (conR *ConsensusManager) ReceiveVoteSetBits(generalMsg p2p.Msg, src *p2p.Pe
 	height, votes := cs.Height, cs.Votes
 	cs.mtx.Unlock()
 
-	if height.Equals(msg.Height) {
+	if height == msg.Height {
 		var ourVotes *cmn.BitArray
 		switch msg.Type {
 		case types.VoteTypePrevote:
-			ourVotes = votes.Prevotes(msg.Round.Int32()).BitArrayByBlockID(msg.BlockID)
+			ourVotes = votes.Prevotes(msg.Round).BitArrayByBlockID(msg.BlockID)
 		case types.VoteTypePrecommit:
-			ourVotes = votes.Precommits(msg.Round.Int32()).BitArrayByBlockID(msg.BlockID)
+			ourVotes = votes.Precommits(msg.Round).BitArrayByBlockID(msg.BlockID)
 		default:
 			conR.logger.Error("Bad VoteSetBitsMessage field Type")
 			return
@@ -467,7 +466,7 @@ func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 // Broadcasts HasVoteMessage to peers that care.
 func (conR *ConsensusManager) broadcastHasVoteMessage(vote *types.Vote) {
 	msg := &HasVoteMessage{
-		Height: vote.Height,
+		Height: uint64(vote.Height),
 		Round:  vote.Round,
 		Type:   vote.Type,
 		Index:  vote.ValidatorIndex,
@@ -508,7 +507,7 @@ func makeRoundStepMessages(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage)
 		Height:                rs.Height,
 		Round:                 rs.Round,
 		Step:                  rs.Step,
-		SecondsSinceStartTime: cmn.NewBigInt32(int(time.Since(time.Unix(rs.StartTime.Int64(), 0)).Seconds())),
+		SecondsSinceStartTime: int64(time.Since(time.Unix(int64(rs.StartTime), 0)).Seconds()),
 		LastCommitRound:       rs.LastCommit.Round(),
 	}
 	return
@@ -549,14 +548,14 @@ OuterLoop:
 		}
 
 		// If the peer is on a previous height, help catch up.
-		if prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThan(rs.Height) {
+		if prs.Height > 0 && prs.Height < rs.Height {
 
 			// if we never received the commit message from the peer, the block parts wont be initialized
 			if prs.ProposalBlockParts == nil {
-				blockMeta := conR.conS.blockOperations.LoadBlockMeta(prs.Height.Uint64())
+				blockMeta := conR.conS.blockOperations.LoadBlockMeta(prs.Height)
 				if blockMeta == nil {
 					panic(fmt.Sprintf("Failed to load block %d when blockOperations is at %d",
-						prs.Height.Int64(), conR.conS.blockOperations.Height()))
+						prs.Height, conR.conS.blockOperations.Height()))
 				}
 				ps.InitProposalBlockParts(blockMeta.BlockID.PartsHeader)
 				continue OuterLoop
@@ -566,8 +565,8 @@ OuterLoop:
 		}
 
 		// If height and round don't match, sleep.
-		if !rs.Height.Equals(prs.Height) || !rs.Round.Equals(prs.Round) {
-			//logger.Trace("Peer Height|Round mismatch, sleeping", "peerHeight", prs.Height, "peerRound", prs.Round, "peer", peer)
+		if (rs.Height != prs.Height) || (rs.Round != prs.Round) {
+			logger.Trace("Peer Height|Round mismatch, sleeping", "peerHeight", prs.Height, "peerRound", prs.Round, "peer", peer)
 			time.Sleep(conR.conS.config.PeerGossipSleep())
 			continue OuterLoop
 		}
@@ -594,11 +593,11 @@ OuterLoop:
 			// Peer must receive ProposalMessage first.
 			// rs.Proposal was validated, so rs.Proposal.POLRound <= rs.Round,
 			// so we definitely have rs.Votes.Prevotes(rs.Proposal.POLRound).
-			if rs.Proposal.POLRound.IsGreaterThanOrEqualToInt(0) {
+			if rs.Proposal.POLRound > 0 {
 				msg := &ProposalPOLMessage{
 					Height:           rs.Height,
 					ProposalPOLRound: rs.Proposal.POLRound,
-					ProposalPOL:      rs.Votes.Prevotes(rs.Proposal.POLRound.Int32()).BitArray(),
+					ProposalPOL:      rs.Votes.Prevotes(rs.Proposal.POLRound).BitArray(),
 				}
 				logger.Debug("Sending POL", "height", prs.Height, "round", prs.Round)
 				if err := p2p.Send(ps.rw, service.CsProposalPOLMsg, msg); err != nil {
@@ -619,7 +618,7 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 
 	if index, ok := prs.ProposalBlockParts.Not().PickRandom(); ok {
 		// Ensure that the peer's PartSetHeader is correct
-		blockMeta := conR.conS.blockOperations.LoadBlockMeta(prs.Height.Uint64())
+		blockMeta := conR.conS.blockOperations.LoadBlockMeta(prs.Height)
 		if blockMeta == nil {
 			conR.logger.Error("Failed to load block meta",
 				"ourHeight", rs.Height, "blockstoreHeight", conR.conS.blockOperations.Height())
@@ -633,7 +632,7 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 			return
 		}
 		// Load the part
-		part := conR.conS.blockOperations.LoadBlockPart(prs.Height.Uint64(), index)
+		part := conR.conS.blockOperations.LoadBlockPart(prs.Height, index)
 		if part == nil {
 			conR.logger.Error("Could not load part", "index", index,
 				"blockPartsHeader", blockMeta.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
@@ -687,7 +686,7 @@ OUTER_LOOP:
 		//	"prsHeight", prs.Height, "prsRound", prs.Round, "prsStep", prs.Step)
 
 		// If height matches, then send LastCommit, Prevotes, Precommits.
-		if rs.Height.Equals(prs.Height) {
+		if rs.Height == prs.Height {
 			heightLogger := logger.New("height", prs.Height)
 			if conR.gossipVotesForHeight(heightLogger, rs, prs, ps) {
 				continue OUTER_LOOP
@@ -696,7 +695,7 @@ OUTER_LOOP:
 
 		// Special catchup logic.
 		// If peer is lagging by height 1, send LastCommit.
-		if !prs.Height.EqualsInt(0) && rs.Height.EqualsInt(prs.Height.Int32()+1) {
+		if (prs.Height != 0) && (rs.Height == prs.Height+1) {
 			if ps.PickSendVote(rs.LastCommit) {
 				logger.Debug("Picked rs.LastCommit to send", "height", prs.Height)
 				continue OUTER_LOOP
@@ -705,10 +704,10 @@ OUTER_LOOP:
 
 		// Catchup logic
 		// If peer is lagging by more than 1, send Commit.
-		if !prs.Height.EqualsInt(0) && rs.Height.IsGreaterThanOrEqualToInt64(prs.Height.Int64()+2) {
+		if (prs.Height != 0) && (rs.Height >= prs.Height+2) {
 			// Load the block commit for prs.Height,
 			// which contains precommit signatures for prs.Height.
-			commit := conR.conS.blockOperations.LoadBlockCommit(prs.Height.Uint64())
+			commit := conR.conS.blockOperations.LoadBlockCommit(prs.Height)
 			if ps.PickSendVote(commit) {
 				logger.Debug("Picked Catchup commit to send", "height", prs.Height)
 				continue OUTER_LOOP
@@ -719,8 +718,8 @@ OUTER_LOOP:
 			// We sent nothing. Sleep...
 			sleeping = 1
 			logger.Debug("No votes to send, sleeping", "rs.Height", rs.Height, "prs.Height", prs.Height,
-				"localPV", rs.Votes.Prevotes(rs.Round.Int32()).BitArray(), "peerPV", prs.Prevotes,
-				"localPC", rs.Votes.Precommits(rs.Round.Int32()).BitArray(), "peerPC", prs.Precommits)
+				"localPV", rs.Votes.Prevotes(rs.Round).BitArray(), "peerPV", prs.Prevotes,
+				"localPC", rs.Votes.Precommits(rs.Round).BitArray(), "peerPC", prs.Precommits)
 		} else if sleeping == 2 {
 			// Continued sleep...
 			sleeping = 1
@@ -742,8 +741,8 @@ func (conR *ConsensusManager) gossipVotesForHeight(logger log.Logger, rs *cstype
 		}
 	}
 	// If there are POL prevotes to send...
-	if prs.Step <= cstypes.RoundStepPropose && !prs.Round.EqualsInt(-1) && prs.Round.IsLessThanOrEquals(rs.Round) && !prs.ProposalPOLRound.EqualsInt(-1) {
-		if polPrevotes := rs.Votes.Prevotes(prs.ProposalPOLRound.Int32()); polPrevotes != nil {
+	if (prs.Step <= cstypes.RoundStepPropose) && (prs.Round != -1) && (prs.Round <= rs.Round) && (prs.ProposalPOLRound != -1) {
+		if polPrevotes := rs.Votes.Prevotes(prs.ProposalPOLRound); polPrevotes != nil {
 			if ps.PickSendVote(polPrevotes) {
 				logger.Debug("Picked rs.Prevotes(prs.ProposalPOLRound) to send",
 					"round", prs.ProposalPOLRound)
@@ -752,29 +751,29 @@ func (conR *ConsensusManager) gossipVotesForHeight(logger log.Logger, rs *cstype
 		}
 	}
 	// If there are prevotes to send...
-	if prs.Step <= cstypes.RoundStepPrevoteWait && !prs.Round.EqualsInt(-1) && prs.Round.IsLessThanOrEquals(rs.Round) {
-		if ps.PickSendVote(rs.Votes.Prevotes(prs.Round.Int32())) {
+	if (prs.Step <= cstypes.RoundStepPrevoteWait) && (prs.Round != -1) && (prs.Round <= rs.Round) {
+		if ps.PickSendVote(rs.Votes.Prevotes(prs.Round)) {
 			logger.Debug("Picked rs.Prevotes(prs.Round) to send", "round", prs.Round)
 			return true
 		}
 	}
 	// If there are precommits to send...
-	if prs.Step <= cstypes.RoundStepPrecommitWait && !prs.Round.EqualsInt(-1) && prs.Round.IsLessThanOrEquals(rs.Round) {
-		if ps.PickSendVote(rs.Votes.Precommits(prs.Round.Int32())) {
+	if prs.Step <= cstypes.RoundStepPrecommitWait && (prs.Round != -1) && (prs.Round <= rs.Round) {
+		if ps.PickSendVote(rs.Votes.Precommits(prs.Round)) {
 			logger.Debug("Picked rs.Precommits(prs.Round) to send", "round", prs.Round)
 			return true
 		}
 	}
 	// If there are prevotes to send...Needed because of validBlock mechanism
-	if !prs.Round.EqualsInt(-1) && prs.Round.IsLessThanOrEquals(rs.Round) {
-		if ps.PickSendVote(rs.Votes.Prevotes(prs.Round.Int32())) {
+	if (prs.Round != -1) && (prs.Round <= rs.Round) {
+		if ps.PickSendVote(rs.Votes.Prevotes(prs.Round)) {
 			logger.Debug("Picked rs.Prevotes(prs.Round) to send", "round", prs.Round)
 			return true
 		}
 	}
 	// If there are POLPrevotes to send...
-	if !prs.ProposalPOLRound.EqualsInt(-1) {
-		if polPrevotes := rs.Votes.Prevotes(prs.ProposalPOLRound.Int32()); polPrevotes != nil {
+	if prs.ProposalPOLRound != -1 {
+		if polPrevotes := rs.Votes.Prevotes(prs.ProposalPOLRound); polPrevotes != nil {
 			if ps.PickSendVote(polPrevotes) {
 				logger.Debug("Picked rs.Prevotes(prs.ProposalPOLRound) to send",
 					"round", prs.ProposalPOLRound)
@@ -801,8 +800,8 @@ OUTER_LOOP:
 		{
 			rs := conR.conS.GetRoundState()
 			prs := ps.GetRoundState()
-			if rs.Height.Equals(prs.Height) {
-				if maj23, ok := rs.Votes.Prevotes(prs.Round.Int32()).TwoThirdsMajority(); ok {
+			if rs.Height == prs.Height {
+				if maj23, ok := rs.Votes.Prevotes(prs.Round).TwoThirdsMajority(); ok {
 					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   prs.Round,
@@ -820,8 +819,8 @@ OUTER_LOOP:
 		{
 			rs := conR.conS.GetRoundState()
 			prs := ps.GetRoundState()
-			if rs.Height.Equals(prs.Height) {
-				if maj23, ok := rs.Votes.Precommits(prs.Round.Int32()).TwoThirdsMajority(); ok {
+			if rs.Height == prs.Height {
+				if maj23, ok := rs.Votes.Precommits(prs.Round).TwoThirdsMajority(); ok {
 					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   prs.Round,
@@ -839,8 +838,8 @@ OUTER_LOOP:
 		{
 			rs := conR.conS.GetRoundState()
 			prs := ps.GetRoundState()
-			if rs.Height.Equals(prs.Height) && prs.ProposalPOLRound.IsGreaterThanOrEqualToInt(0) {
-				if maj23, ok := rs.Votes.Prevotes(prs.ProposalPOLRound.Int32()).TwoThirdsMajority(); ok {
+			if (rs.Height == prs.Height) && (prs.ProposalPOLRound >= 0) {
+				if maj23, ok := rs.Votes.Prevotes(prs.ProposalPOLRound).TwoThirdsMajority(); ok {
 					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   prs.ProposalPOLRound,
@@ -857,7 +856,7 @@ OUTER_LOOP:
 		// Send Height/CatchupCommitRound/CatchupCommit.
 		{
 			prs := ps.GetRoundState()
-			if !prs.CatchupCommitRound.EqualsInt(-1) && prs.Height.IsGreaterThanInt(0) && prs.Height.IsLessThanOrEqualsUint64(conR.conS.blockOperations.Height()) {
+			if (prs.CatchupCommitRound != -1) && (prs.Height > 0) && (prs.Height <= conR.conS.blockOperations.Height()) {
 				commit := conR.conS.LoadCommit(prs.Height)
 				if commit != nil {
 					// TODO: @lew
@@ -899,8 +898,8 @@ type ProposalMessage struct {
 
 // ProposalPOLMessage is sent when a previous proposal is re-proposed.
 type ProposalPOLMessage struct {
-	Height           *cmn.BigInt
-	ProposalPOLRound *cmn.BigInt
+	Height           uint64
+	ProposalPOLRound int32
 	ProposalPOL      *cmn.BitArray
 }
 
@@ -912,19 +911,19 @@ func (m *ProposalPOLMessage) String() string {
 // NewRoundStepMessage is sent for every step taken in the ConsensusState.
 // For every height/round/step transition
 type NewRoundStepMessage struct {
-	Height                *cmn.BigInt           `json:"height" gencodoc:"required"`
-	Round                 *cmn.BigInt           `json:"round" gencodoc:"required"`
+	Height                uint64                `json:"height" gencodoc:"required"`
+	Round                 int32                 `json:"round" gencodoc:"required"`
 	Step                  cstypes.RoundStepType `json:"step" gencodoc:"required"`
-	SecondsSinceStartTime *cmn.BigInt           `json:"elapsed" gencodoc:"required"`
-	LastCommitRound       *cmn.BigInt           `json:"lastCommitRound" gencodoc:"required"`
+	SecondsSinceStartTime int64                 `json:"elapsed" gencodoc:"required"`
+	LastCommitRound       int32                 `json:"lastCommitRound" gencodoc:"required"`
 }
 
 // HasVoteMessage is sent to indicate that a particular vote has been received.
 type HasVoteMessage struct {
-	Height *cmn.BigInt
-	Round  *cmn.BigInt
+	Height uint64
+	Round  int32
 	Type   byte
-	Index  *cmn.BigInt
+	Index  int
 }
 
 // String returns a string representation.
@@ -934,8 +933,8 @@ func (m *HasVoteMessage) String() string {
 
 // VoteSetMaj23Message is sent to indicate that a given BlockID has seen +2/3 votes.
 type VoteSetMaj23Message struct {
-	Height  *cmn.BigInt
-	Round   *cmn.BigInt
+	Height  uint64
+	Round   int32
 	Type    byte
 	BlockID types.BlockID
 }
@@ -947,8 +946,8 @@ func (m *VoteSetMaj23Message) String() string {
 
 // VoteSetBitsMessage is sent to communicate the bit-array of votes seen for the BlockID.
 type VoteSetBitsMessage struct {
-	Height  *cmn.BigInt
-	Round   *cmn.BigInt
+	Height  uint64
+	Round   int32
 	Type    byte
 	BlockID types.BlockID
 	Votes   *cmn.BitArray
@@ -979,12 +978,12 @@ func NewPeerState(peer *p2p.Peer, rw p2p.MsgReadWriter) *PeerState {
 		peer: peer,
 		rw:   rw,
 		PRS: cstypes.PeerRoundState{
-			Height:             cmn.NewBigInt32(0),
-			Round:              cmn.NewBigInt32(-1),
-			ProposalPOLRound:   cmn.NewBigInt32(-1),
-			LastCommitRound:    cmn.NewBigInt32(-1),
-			CatchupCommitRound: cmn.NewBigInt32(-1),
-			StartTime:          big.NewInt(0),
+			Height:             0,
+			Round:              -1,
+			ProposalPOLRound:   -1,
+			LastCommitRound:    -1,
+			CatchupCommitRound: -1,
+			StartTime:          0,
 		},
 	}
 }
@@ -1011,7 +1010,7 @@ func (ps *PeerState) SetHasProposal(proposal *types.Proposal) {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
-	if !ps.PRS.Height.Equals(proposal.Height) || !ps.PRS.Round.Equals(proposal.Round) {
+	if (ps.PRS.Height != proposal.Height) || (ps.PRS.Round != proposal.Round) {
 		return
 	}
 
@@ -1046,11 +1045,11 @@ func (ps *PeerState) InitProposalBlockParts(partsHeader types.PartSetHeader) {
 }
 
 // SetHasProposalBlockPart sets the given block part index as known for the peer.
-func (ps *PeerState) SetHasProposalBlockPart(height *cmn.BigInt, round *cmn.BigInt, index int) {
+func (ps *PeerState) SetHasProposalBlockPart(height uint64, round int32, index int) {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
-	if !ps.PRS.Height.Equals(height) || !ps.PRS.Round.Equals(round) {
+	if (ps.PRS.Height != height) || (ps.PRS.Round != round) {
 		return
 	}
 
@@ -1093,7 +1092,7 @@ func (ps *PeerState) PickVoteToSend(votes types.VoteSetReader) (vote *types.Vote
 		return nil, false // Not something worth sending
 	}
 	if index, ok := votes.BitArray().Sub(psVotes).PickRandom(); ok {
-		ps.setHasVote(height, round, type_, cmn.NewBigInt32(index))
+		ps.setHasVote(height, round, type_, index)
 		return votes.GetByIndex(uint(index)), true
 	}
 	return nil, false
@@ -1116,13 +1115,13 @@ func (ps *PeerState) ApplyNewValidBlockMessage(msg *NewValidBlockMessage) {
 	ps.PRS.ProposalBlockParts = msg.BlockParts
 }
 
-func (ps *PeerState) getVoteBitArray(height *cmn.BigInt, round *cmn.BigInt, type_ byte) *cmn.BitArray {
+func (ps *PeerState) getVoteBitArray(height uint64, round int32, type_ byte) *cmn.BitArray {
 	if !types.IsVoteTypeValid(type_) {
 		return nil
 	}
 
-	if ps.PRS.Height.Equals(height) {
-		if ps.PRS.Round.Equals(round) {
+	if ps.PRS.Height == height {
+		if ps.PRS.Round == round {
 			switch type_ {
 			case types.VoteTypePrevote:
 				return ps.PRS.Prevotes
@@ -1130,7 +1129,7 @@ func (ps *PeerState) getVoteBitArray(height *cmn.BigInt, round *cmn.BigInt, type
 				return ps.PRS.Precommits
 			}
 		}
-		if ps.PRS.CatchupCommitRound.Equals(round) {
+		if ps.PRS.CatchupCommitRound == round {
 			switch type_ {
 			case types.VoteTypePrevote:
 				return nil
@@ -1138,7 +1137,7 @@ func (ps *PeerState) getVoteBitArray(height *cmn.BigInt, round *cmn.BigInt, type
 				return ps.PRS.CatchupCommit
 			}
 		}
-		if ps.PRS.ProposalPOLRound.Equals(round) {
+		if ps.PRS.ProposalPOLRound == round {
 			switch type_ {
 			case types.VoteTypePrevote:
 				return ps.PRS.ProposalPOL
@@ -1148,8 +1147,8 @@ func (ps *PeerState) getVoteBitArray(height *cmn.BigInt, round *cmn.BigInt, type
 		}
 		return nil
 	}
-	if ps.PRS.Height.Equals(height.Add(1)) {
-		if ps.PRS.LastCommitRound.Equals(round) {
+	if ps.PRS.Height == height+1 {
+		if ps.PRS.LastCommitRound == round {
 			switch type_ {
 			case types.VoteTypePrevote:
 				return nil
@@ -1163,15 +1162,15 @@ func (ps *PeerState) getVoteBitArray(height *cmn.BigInt, round *cmn.BigInt, type
 }
 
 // 'round': A round for which we have a +2/3 commit.
-func (ps *PeerState) ensureCatchupCommitRound(height *cmn.BigInt, round *cmn.BigInt, numValidators int) {
-	if !ps.PRS.Height.Equals(height) {
+func (ps *PeerState) ensureCatchupCommitRound(height uint64, round int32, numValidators int) {
+	if ps.PRS.Height != height {
 		return
 	}
-	if ps.PRS.CatchupCommitRound.Equals(round) {
+	if ps.PRS.CatchupCommitRound == round {
 		return
 	}
 	ps.PRS.CatchupCommitRound = round
-	if round.Equals(ps.PRS.Round) {
+	if round == ps.PRS.Round {
 		ps.PRS.CatchupCommit = ps.PRS.Precommits
 	} else {
 		ps.PRS.CatchupCommit = cmn.NewBitArray(numValidators)
@@ -1182,14 +1181,14 @@ func (ps *PeerState) ensureCatchupCommitRound(height *cmn.BigInt, round *cmn.Big
 // what votes this peer has received.
 // NOTE: It's important to make sure that numValidators actually matches
 // what the node sees as the number of validators for height.
-func (ps *PeerState) EnsureVoteBitArrays(height *cmn.BigInt, numValidators int) {
+func (ps *PeerState) EnsureVoteBitArrays(height uint64, numValidators int) {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 	ps.ensureVoteBitArrays(height, numValidators)
 }
 
-func (ps *PeerState) ensureVoteBitArrays(height *cmn.BigInt, numValidators int) {
-	if ps.PRS.Height.Equals(height) {
+func (ps *PeerState) ensureVoteBitArrays(height uint64, numValidators int) {
+	if ps.PRS.Height == height {
 		if ps.PRS.Prevotes == nil {
 			ps.PRS.Prevotes = cmn.NewBitArray(numValidators)
 		}
@@ -1202,7 +1201,7 @@ func (ps *PeerState) ensureVoteBitArrays(height *cmn.BigInt, numValidators int) 
 		if ps.PRS.ProposalPOL == nil {
 			ps.PRS.ProposalPOL = cmn.NewBitArray(numValidators)
 		}
-	} else if ps.PRS.Height.EqualsInt(height.Int32() + 1) {
+	} else if ps.PRS.Height == height+1 {
 		if ps.PRS.LastCommit == nil {
 			ps.PRS.LastCommit = cmn.NewBitArray(numValidators)
 		}
@@ -1214,16 +1213,16 @@ func (ps *PeerState) SetHasVote(vote *types.Vote) {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
-	ps.setHasVote(vote.Height, vote.Round, vote.Type, vote.ValidatorIndex)
+	ps.setHasVote(uint64(vote.Height), vote.Round, vote.Type, vote.ValidatorIndex)
 }
 
-func (ps *PeerState) setHasVote(height *cmn.BigInt, round *cmn.BigInt, type_ byte, index *cmn.BigInt) {
+func (ps *PeerState) setHasVote(height uint64, round int32, type_ byte, index int) {
 	//logger := ps.logger.New("peerH/R", cmn.Fmt("%v/%v", ps.PRS.Height, ps.PRS.Round))
 	ps.logger.Debug("setHasVote", "H/R", cmn.Fmt("%v/%v", height, round), "type", types.GetReadableVoteTypeString(type_), "index", index)
 
 	psVotes := ps.getVoteBitArray(height, round, type_)
 	if psVotes != nil {
-		psVotes.SetIndex(index.Int32(), true)
+		psVotes.SetIndex(index, true)
 	}
 }
 
@@ -1244,34 +1243,34 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 	psCatchupCommitRound := ps.PRS.CatchupCommitRound
 	psCatchupCommit := ps.PRS.CatchupCommit
 
-	startTime := big.NewInt(time.Now().Unix() - msg.SecondsSinceStartTime.Int64())
+	startTime := time.Now().Unix() - msg.SecondsSinceStartTime
 	ps.PRS.Height = msg.Height
 	ps.PRS.Round = msg.Round
 	ps.PRS.Step = msg.Step
-	ps.PRS.StartTime = startTime
-	if !psHeight.Equals(msg.Height) || !psRound.Equals(msg.Round) {
+	ps.PRS.StartTime = uint64(startTime)
+	if (psHeight != msg.Height) || (psRound != msg.Round) {
 		ps.PRS.Proposal = false
 		ps.PRS.ProposalBlockPartsHeader = types.PartSetHeader{}
 		ps.PRS.ProposalBlockParts = nil
-		ps.PRS.ProposalPOLRound = cmn.NewBigInt32(-1)
+		ps.PRS.ProposalPOLRound = -1
 		ps.PRS.ProposalPOL = nil
 		// We'll update the BitArray capacity later.
 		ps.PRS.Prevotes = nil
 		ps.PRS.Precommits = nil
 	}
-	if psHeight.Equals(msg.Height) && !psRound.Equals(msg.Round) && msg.Round.Equals(psCatchupCommitRound) {
+	if (psHeight == msg.Height) && (psRound != msg.Round) && (msg.Round == psCatchupCommitRound) {
 		ps.PRS.Precommits = psCatchupCommit
 	}
-	if !psHeight.Equals(msg.Height) {
+	if psHeight != msg.Height {
 		// Shift Precommits to LastCommit.
-		if psHeight.Add(1).Equals(msg.Height) && psRound.Equals(msg.LastCommitRound) {
+		if (psHeight+1 == msg.Height) && (psRound == msg.LastCommitRound) {
 			ps.PRS.LastCommitRound = msg.LastCommitRound
 			ps.PRS.LastCommit = ps.PRS.Precommits
 		} else {
 			ps.PRS.LastCommitRound = msg.LastCommitRound
 			ps.PRS.LastCommit = nil
 		}
-		ps.PRS.CatchupCommitRound = cmn.NewBigInt32(-1)
+		ps.PRS.CatchupCommitRound = -1
 		ps.PRS.CatchupCommit = nil
 	}
 }
@@ -1281,7 +1280,7 @@ func (ps *PeerState) ApplyHasVoteMessage(msg *HasVoteMessage) {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
-	if !ps.PRS.Height.Equals(msg.Height) {
+	if ps.PRS.Height != msg.Height {
 		return
 	}
 
@@ -1339,17 +1338,17 @@ func (ps *PeerState) String() string {
 
 // BlockPartMessage is sent when gossipping a piece of the proposed block.
 type BlockPartMessage struct {
-	Height *cmn.BigInt
-	Round  *cmn.BigInt
+	Height uint64
+	Round  int32
 	Part   *types.Part
 }
 
 // ValidateBasic performs basic validation.
 func (m *BlockPartMessage) ValidateBasic() error {
-	if m.Height.IsLessThanInt(0) {
+	if m.Height < 0 {
 		return errors.New("Negative Height")
 	}
-	if m.Round.IsLessThanInt(0) {
+	if m.Round < 0 {
 		return errors.New("Negative Round")
 	}
 	if err := m.Part.ValidateBasic(); err != nil {
@@ -1369,8 +1368,8 @@ func (m *BlockPartMessage) String() string {
 //i.e., there is a Proposal for block B and 2/3+ prevotes for the block B in the round r.
 // In case the block is also committed, then IsCommit flag is set to true.
 type NewValidBlockMessage struct {
-	Height           *cmn.BigInt
-	Round            *cmn.BigInt
+	Height           uint64
+	Round            int32
 	BlockPartsHeader types.PartSetHeader
 	BlockParts       *cmn.BitArray
 	IsCommit         bool
@@ -1378,10 +1377,10 @@ type NewValidBlockMessage struct {
 
 // ValidateBasic performs basic validation.
 func (m *NewValidBlockMessage) ValidateBasic() error {
-	if m.Height.IsLessThanInt(0) {
+	if m.Height < 0 {
 		return errors.New("Negative Height")
 	}
-	if m.Round.IsLessThanInt(0) {
+	if m.Round < 0 {
 		return errors.New("Negative Round")
 	}
 	if err := m.BlockPartsHeader.ValidateBasic(); err != nil {
