@@ -135,7 +135,10 @@ func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward
 	signedBlockWindow int64, minSignedBlockPerWindow int64,
 	SenderAddress common.Address) ([]byte, error) {
 
-	stateDb := s.StateDb
+	stateDb, err := s.bc.State()
+	if err != nil {
+		return nil, err
+	}
 
 	store, err := s.Abi.Pack("setParams", big.NewInt(100), big.NewInt(600), big.NewInt(baseProposerReward),
 		big.NewInt(bonusProposerReward),
@@ -158,7 +161,10 @@ func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward
 
 //CreateValidator create validator
 func (s *StakingSmcUtil) CreateValidator(commssionRate int64, maxRate int64, maxChangeRate int64, minSelfDelegation int64, SenderAddress common.Address, amount int64) (*big.Int, error) {
-	stateDb := s.StateDb
+	stateDb, err := s.bc.State()
+	if err != nil {
+		return nil, err
+	}
 
 	createValidator, err := s.Abi.Pack("createValidator", big.NewInt(commssionRate), big.NewInt(maxRate), big.NewInt(maxChangeRate), big.NewInt(minSelfDelegation))
 	if err != nil {
@@ -174,7 +180,10 @@ func (s *StakingSmcUtil) CreateValidator(commssionRate int64, maxRate int64, max
 
 //ApplyAndReturnValidatorSets allow appy and return validator set
 func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(SenderAddress common.Address) error {
-	stateDb := s.StateDb
+	stateDb, err := s.bc.State()
+	if err != nil {
+		return err
+	}
 
 	applyAndReturnValidatorSets, err := s.Abi.Pack("applyAndReturnValidatorSets")
 	if err != nil {
@@ -245,7 +254,10 @@ func (s *StakingSmcUtil) GetValidator(valAddress common.Address) (*big.Int, *big
 
 //Mint new tokens for the previous block. Returns fee collected
 func (s *StakingSmcUtil) Mint() (*big.Int, error) {
-	stateDb := s.StateDb
+	stateDb, err := s.bc.State()
+	if err != nil {
+		return nil, err
+	}
 
 	mint, err := s.Abi.Pack("mint")
 	if err != nil {
@@ -353,7 +365,10 @@ func (s *StakingSmcUtil) SetPreviousProposer(previousProposer common.Address, Se
 
 //FinalizeCommit finalize commit
 func (s *StakingSmcUtil) FinalizeCommit(address []common.Address, powers []*big.Int, signed []bool, SenderAddress common.Address) error {
-	stateDb := s.StateDb
+	stateDb, err := s.bc.State()
+	if err != nil {
+		return err
+	}
 
 	finalizeCommit, err := s.Abi.Pack("finalizeCommit", address, powers, signed)
 	if err != nil {
@@ -416,7 +431,10 @@ func (s *StakingSmcUtil) GetDelegationRewards(valAddress common.Address, delAddr
 
 //DoubleSign double sign
 func (s *StakingSmcUtil) DoubleSign(valAddress common.Address, votingPower int64, distributionHeight int64, SenderAddress common.Address) error {
-	stateDb := s.StateDb
+	stateDb, err := s.bc.State()
+	if err != nil {
+		return err
+	}
 
 	doubleSign, err := s.Abi.Pack("doubleSign", valAddress, big.NewInt(votingPower), big.NewInt(distributionHeight))
 	if err != nil {
@@ -479,7 +497,11 @@ func (s *StakingSmcUtil) Unjail(SenderAddress common.Address) error {
 
 //GetCurrentValidatorSet get current validator set
 func (s *StakingSmcUtil) GetCurrentValidatorSet() ([]common.Address, []*big.Int, error) {
-	stateDb := s.StateDb
+	stateDb, err := s.bc.State()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	payload, err := s.Abi.Pack("getCurrentValidatorSet")
 	if err != nil {
 		return nil, nil, err
@@ -506,10 +528,15 @@ func (s *StakingSmcUtil) GetCurrentValidatorSet() ([]common.Address, []*big.Int,
 
 // SetRoot set address root
 func (s *StakingSmcUtil) SetRoot(rootAddr common.Address) error {
+	stateDb, err := s.bc.State()
+	if err != nil {
+		return err
+	}
+
 	payload, err := s.Abi.Pack("setRoot", rootAddr)
 	if err != nil {
 		return err
 	}
-	_, _, err = sample_kvm.Call(s.ContractAddress, payload, &sample_kvm.Config{State: s.StateDb})
+	_, _, err = sample_kvm.Call(s.ContractAddress, payload, &sample_kvm.Config{State: stateDb})
 	return err
 }
