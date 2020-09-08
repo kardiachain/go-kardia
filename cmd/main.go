@@ -22,6 +22,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/nat"
 	"github.com/kardiachain/go-kardiamain/lib/sysutils"
 	kai "github.com/kardiachain/go-kardiamain/mainchain"
@@ -132,6 +133,7 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 	if isDual {
 		g = c.DualChain.Genesis
 	}
+
 	if g == nil {
 		ga = make(genesis.GenesisAlloc, 0)
 	} else {
@@ -150,11 +152,14 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 		if err != nil {
 			return nil, err
 		}
+
 	}
+
 	return &genesis.Genesis{
-		Config:   configs.TestnetChainConfig,
-		GasLimit: 16777216, // maximum number of uint24
-		Alloc:    ga,
+		Config:     configs.TestnetChainConfig,
+		GasLimit:   16777216, // maximum number of uint24
+		Alloc:      ga,
+		Validators: g.Validators,
 	}, nil
 }
 
@@ -183,7 +188,6 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		NetworkId:        chain.NetworkID,
 		ChainId:          chain.ChainID,
 		ServiceName:      chain.ServiceName,
-		EnvConfig:        nil,
 		BaseAccount:      baseAccount,
 	}
 	return &mainChainConfig, nil
@@ -200,11 +204,9 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		return nil, err
 	}
 	eventPool := event_pool.Config{
-		GlobalSlots:     c.DualChain.EventPool.GlobalSlots,
-		GlobalQueue:     c.DualChain.EventPool.GlobalQueue,
-		NumberOfWorkers: c.DualChain.EventPool.NumberOfWorkers,
-		WorkerCap:       c.DualChain.EventPool.WorkerCap,
-		BlockSize:       c.DualChain.EventPool.BlockSize,
+		GlobalSlots: c.DualChain.EventPool.GlobalSlots,
+		GlobalQueue: c.DualChain.EventPool.GlobalQueue,
+		BlockSize:   c.DualChain.EventPool.BlockSize,
 	}
 
 	baseAccount, err := c.getBaseAccount(true)
@@ -220,21 +222,20 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		DualNetworkID:    c.DualChain.NetworkID,
 		ChainId:          c.DualChain.ChainID,
 		DualProtocolName: *c.DualChain.Protocol,
-		EnvConfig:        nil,
 		BaseAccount:      baseAccount,
 	}
 	return &dualChainConfig, nil
 }
 
 // getNodeConfig gets NodeConfig from config
-func (c *Config) getNodeConfig() (*node.NodeConfig, error) {
+func (c *Config) getNodeConfig() (*node.Config, error) {
 	n := c.Node
 	p2pConfig, err := c.getP2PConfig()
 	if err != nil {
 		return nil, err
 	}
 	p2pConfig.Name = n.Name
-	nodeConfig := node.NodeConfig{
+	nodeConfig := node.Config{
 		Name:             n.Name,
 		DataDir:          n.DataDir,
 		P2P:              *p2pConfig,
@@ -319,19 +320,19 @@ func (c *Config) Start() {
 	}
 
 	// init new node from nodeConfig
-	n, err := node.NewNode(nodeConfig)
+	n, err := node.New(nodeConfig)
 	if err != nil {
 		logger.Error("Cannot create node", "err", err)
 		return
 	}
 
-	if err := n.RegisterService(kai.NewKardiaService); err != nil {
+	if err := n.Register(kai.NewKardiaService); err != nil {
 		logger.Error("error while adding kardia service", "err", err)
 		return
 	}
 
 	if c.DualChain != nil {
-		if err := n.RegisterService(service.NewDualService); err != nil {
+		if err := n.Register(service.NewDualService); err != nil {
 			logger.Error("error while adding dual service", "err", err)
 			return
 		}
@@ -344,9 +345,7 @@ func (c *Config) Start() {
 
 	// Add peers
 	for _, peer := range c.MainChain.Seeds {
-		if err := n.AddPeer(peer); err != nil {
-			logger.Error("error while adding peer", "err", err, "peer", peer)
-		}
+		n.Server().AddPeer(enode.MustParse(peer))
 	}
 
 	if c.MainChain.Events != nil {
@@ -362,19 +361,12 @@ func (c *Config) Start() {
 	if c.DualChain != nil {
 		// Add peers
 		for _, peer := range c.DualChain.Seeds {
-			if err := n.AddPeer(peer); err != nil {
-				logger.Error("error while adding peer", "err", err, "peer", peer)
-			}
+			n.Server().AddPeer(enode.MustParse(peer))
 		}
 	}
 
 	if err := c.StartDual(n); err != nil {
 		logger.Error("error while starting dual", "err", err)
-		return
-	}
-
-	if err := n.StartServiceRPC(); err != nil {
-		logger.Error("Fail to start RPC", "err", err)
 		return
 	}
 

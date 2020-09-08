@@ -20,16 +20,17 @@ package types
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"sort"
 	"testing"
+
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 )
 
 func TestGetProposerUniformVotingPower(t *testing.T) {
-	val1 := NewValidator(generatePublicKey(), 1)
-	val2 := NewValidator(generatePublicKey(), 1)
-	val3 := NewValidator(generatePublicKey(), 1)
+	val1 := NewValidator(generateAddress(), 1)
+	val2 := NewValidator(generateAddress(), 1)
+	val3 := NewValidator(generateAddress(), 1)
 	vals := [...]*Validator{val1, val2, val3}
 	sort.Sort(ValidatorsByAddress(vals[:]))
 	valSet := NewValidatorSet(vals[:], 0, 1000000)
@@ -61,9 +62,9 @@ func TestGetProposerUniformVotingPower(t *testing.T) {
 }
 
 func TestGetProposerMixedVotingPower(t *testing.T) {
-	val1 := NewValidator(generatePublicKey(), 1)
-	val2 := NewValidator(generatePublicKey(), 2)
-	val3 := NewValidator(generatePublicKey(), 4)
+	val1 := NewValidator(generateAddress(), 1)
+	val2 := NewValidator(generateAddress(), 2)
+	val3 := NewValidator(generateAddress(), 4)
 	vals := [...]*Validator{val1, val2, val3}
 	valSet := NewValidatorSet(vals[:], 0, 1000000)
 	var proposer *Validator
@@ -93,8 +94,10 @@ func TestGetProposerMixedVotingPower(t *testing.T) {
 	}
 }
 
-func generatePublicKey() ecdsa.PublicKey {
-	p256 := elliptic.P256()
-	priv, _ := ecdsa.GenerateKey(p256, rand.Reader)
-	return priv.PublicKey
+func generateAddress() common.Address {
+	privateKey, _ := crypto.GenerateKey()
+	publicKey := privateKey.Public()
+	publicKeyECDSA, _ := publicKey.(*ecdsa.PublicKey)
+
+	return crypto.PubkeyToAddress(*publicKeyECDSA)
 }

@@ -126,9 +126,9 @@ func TestByteOp(t *testing.T) {
 
 func TestAddMod(t *testing.T) {
 	var (
-		env            = NewKVM(Context{}, nil, Config{})
-		stack          = newstack()
-		pc             = uint64(0)
+		env   = NewKVM(Context{}, nil, Config{})
+		stack = newstack()
+		pc    = uint64(0)
 	)
 	tests := []struct {
 		x        string
@@ -291,6 +291,19 @@ func xTestWriteExpectedValues(t *testing.T) {
 		}
 	}
 	t.Fatal("This test should not be activated")
+}
+
+// TestJsonTestcases runs through all the testcases defined as json-files
+func TestJsonTestcases(t *testing.T) {
+	for name := range twoOpMethods {
+		data, err := ioutil.ReadFile(fmt.Sprintf("testdata/testcases_%v.json", name))
+		if err != nil {
+			t.Fatal("Failed to read file", err)
+		}
+		var testcases []TwoOperandTestcase
+		json.Unmarshal(data, &testcases)
+		testTwoOperandOp(t, testcases, twoOpMethods[name], name)
+	}
 }
 
 func opBenchmark(bench *testing.B, op executionFunc, args ...string) {

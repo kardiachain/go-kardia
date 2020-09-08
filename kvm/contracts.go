@@ -42,6 +42,7 @@ var PrecompiledContractsV0 = map[common.Address]PrecompiledContract{
 	common.BytesToAddress([]byte{2}): &sha256hash{},
 	common.BytesToAddress([]byte{3}): &ripemd160hash{},
 	common.BytesToAddress([]byte{4}): &dataCopy{},
+	common.BytesToAddress([]byte{5}): &bigModExp{},
 }
 
 // RunPrecompiledContract runs and evaluates the output of a precompiled contract.
@@ -135,4 +136,100 @@ func (c *dataCopy) RequiredGas(input []byte) uint64 {
 }
 func (c *dataCopy) Run(in []byte) ([]byte, error) {
 	return in, nil
+}
+
+// bigModExp implements a native big integer exponential modular operation.
+type bigModExp struct{}
+
+// Precompiled contract gas prices
+const (
+	ModExpQuadCoeffDiv uint64 = 20
+)
+
+// RequiredGas returns the gas required to execute the pre-compiled contract.
+func (c *bigModExp) RequiredGas(input []byte) uint64 {
+	var (
+		baseLen = new(big.Int).SetBytes(getData(input, 0, 32))
+		expLen  = new(big.Int).SetBytes(getData(input, 32, 32))
+		modLen  = new(big.Int).SetBytes(getData(input, 64, 32))
+	)
+	if len(input) > 96 {
+		input = input[96:]
+	} else {
+		input = input[:0]
+	}
+	// Retrieve the head 32 bytes of exp for the adjusted exponent length
+	var expHead *big.Int
+	if big.NewInt(int64(len(input))).Cmp(baseLen) <= 0 {
+		expHead = new(big.Int)
+	} else {
+		if expLen.Cmp(big32) > 0 {
+			expHead = new(big.Int).SetBytes(getData(input, baseLen.Uint64(), 32))
+		} else {
+			expHead = new(big.Int).SetBytes(getData(input, baseLen.Uint64(), expLen.Uint64()))
+		}
+	}
+	// Calculate the adjusted exponent length
+	var msb int
+	if bitlen := expHead.BitLen(); bitlen > 0 {
+		msb = bitlen - 1
+	}
+	adjExpLen := new(big.Int)
+	if expLen.Cmp(big32) > 0 {
+		adjExpLen.Sub(expLen, big32)
+		adjExpLen.Mul(big8, adjExpLen)
+	}
+	adjExpLen.Add(adjExpLen, big.NewInt(int64(msb)))
+
+	// Calculate the gas cost of the operation
+	gas := new(big.Int).Set(common.BigMax(modLen, baseLen))
+	switch {
+	case gas.Cmp(big64) <= 0:
+		gas.Mul(gas, gas)
+	case gas.Cmp(big1024) <= 0:
+		gas = new(big.Int).Add(
+			new(big.Int).Div(new(big.Int).Mul(gas, gas), big4),
+			new(big.Int).Sub(new(big.Int).Mul(big96, gas), big3072),
+		)
+	default:
+		gas = new(big.Int).Add(
+			new(big.Int).Div(new(big.Int).Mul(gas, gas), big16),
+			new(big.Int).Sub(new(big.Int).Mul(big480, gas), big199680),
+		)
+	}
+	gas.Mul(gas, common.BigMax(adjExpLen, big1))
+	gas.Div(gas, new(big.Int).SetUint64(ModExpQuadCoeffDiv))
+
+	if gas.BitLen() > 64 {
+		return common.MaxUint64
+	}
+	return gas.Uint64()
+}
+
+func (c *bigModExp) Run(input []byte) ([]byte, error) {
+	var (
+		baseLen = new(big.Int).SetBytes(getData(input, 0, 32)).Uint64()
+		expLen  = new(big.Int).SetBytes(getData(input, 32, 32)).Uint64()
+		modLen  = new(big.Int).SetBytes(getData(input, 64, 32)).Uint64()
+	)
+	if len(input) > 96 {
+		input = input[96:]
+	} else {
+		input = input[:0]
+	}
+	// Handle a special case when both the base and mod length is zero
+	if baseLen == 0 && modLen == 0 {
+		return []byte{}, nil
+	}
+	// Retrieve the operands and execute the exponentiation
+	var (
+		base = new(big.Int).SetBytes(getData(input, 0, baseLen))
+		exp  = new(big.Int).SetBytes(getData(input, baseLen, expLen))
+		mod  = new(big.Int).SetBytes(getData(input, baseLen+expLen, modLen))
+	)
+	if mod.BitLen() == 0 {
+		// Modulo 0 is undefined, return zero
+		return common.LeftPadBytes([]byte{}, int(modLen)), nil
+	}
+	return common.LeftPadBytes(base.Exp(base, exp, mod).Bytes(), int(modLen)), nil
 }

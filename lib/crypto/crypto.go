@@ -25,13 +25,14 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto/sha3"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"io"
 	"io/ioutil"
 	"math/big"
 	"os"
+
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto/sha3"
+	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 var (
@@ -40,6 +41,12 @@ var (
 )
 
 var errInvalidPubkey = errors.New("invalid secp256k1 public key")
+
+//SignatureLength indicates the byte length required to carry a signature with recovery id.
+const SignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
+
+// RecoveryIDOffset points to the byte offset within the signature that contains the recovery id.
+const RecoveryIDOffset = 64
 
 // Keccak256 calculates and returns the Keccak256 hash of the input data.
 func Keccak256(data ...[]byte) []byte {
@@ -77,9 +84,9 @@ func CreateAddress(b common.Address, nonce uint64) common.Address {
 }
 
 // CreateAddress2 creates an ethereum address given the address bytes, initial
-// contract code and a salt.
-func CreateAddress2(b common.Address, salt common.Hash, code []byte) common.Address {
-	return common.BytesToAddress(Keccak256([]byte{0xff}, b.Bytes(), salt.Bytes(), code)[12:])
+// contract code hash and a salt.
+func CreateAddress2(b common.Address, salt [32]byte, inithash []byte) common.Address {
+	return common.BytesToAddress(Keccak256([]byte{0xff}, b.Bytes(), salt[:], inithash)[12:])
 }
 
 // ToECDSA creates a private key with the given D value.

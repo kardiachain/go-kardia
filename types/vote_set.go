@@ -24,7 +24,7 @@ import (
 	"sync"
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/discover"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/pkg/errors"
 )
 
@@ -63,11 +63,11 @@ type VoteSet struct {
 
 	mtx           sync.Mutex
 	votesBitArray *cmn.BitArray
-	votes         []*Vote                     // Primary votes to share
-	sum           uint64                      // Sum of voting power for seen votes, discounting conflicts
-	maj23         *BlockID                    // First 2/3 majority seen
-	votesByBlock  map[string]*blockVotes      // string(blockHash|blockParts) -> blockVotes
-	peerMaj23s    map[discover.NodeID]BlockID // Maj23 for each peer
+	votes         []*Vote                // Primary votes to share
+	sum           uint64                 // Sum of voting power for seen votes, discounting conflicts
+	maj23         *BlockID               // First 2/3 majority seen
+	votesByBlock  map[string]*blockVotes // string(blockHash|blockParts) -> blockVotes
+	peerMaj23s    map[enode.ID]BlockID   // Maj23 for each peer
 }
 
 // Constructs a new VoteSet struct used to accumulate votes for given height/round.
@@ -86,7 +86,7 @@ func NewVoteSet(chainID string, height *cmn.BigInt, round *cmn.BigInt, type_ byt
 		sum:           0,
 		maj23:         nil,
 		votesByBlock:  make(map[string]*blockVotes, valSet.Size()),
-		peerMaj23s:    make(map[discover.NodeID]BlockID),
+		peerMaj23s:    make(map[enode.ID]BlockID),
 	}
 }
 
@@ -162,7 +162,7 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	}
 
 	// Add vote and get conflicting vote if any
-	added, conflicting := voteSet.addVerifiedVote(vote, blockKey, val.VotingPower)
+	added, conflicting := voteSet.addVerifiedVote(vote, blockKey, int64(val.VotingPower))
 	if conflicting != nil {
 		return added, NewConflictingVoteError(val, conflicting, vote)
 	}
@@ -259,7 +259,7 @@ func (voteSet *VoteSet) addVerifiedVote(vote *Vote, blockKey string, votingPower
 // this can cause memory issues.
 // TODO: implement ability to remove peers too
 // NOTE: VoteSet must not be nil
-func (voteSet *VoteSet) SetPeerMaj23(peerID discover.NodeID, blockID BlockID) error {
+func (voteSet *VoteSet) SetPeerMaj23(peerID enode.ID, blockID BlockID) error {
 	if voteSet == nil {
 		cmn.PanicSanity("SetPeerMaj23() on nil VoteSet")
 	}

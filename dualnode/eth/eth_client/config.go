@@ -20,38 +20,39 @@ package main
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
 )
 
 type (
 	Config struct {
-		Name               string      `yaml:"Name"`
-		ListenAddr         string      `yaml:"ListenAddr"`
-		APIListenAddr      string      `yaml:"APIListenAddr"`
-		MaxPeers           int         `yaml:"MaxPeers"`
-		NetworkId          int         `yaml:"NetworkId"`
-		LightNode          bool        `yaml:"LightNode"`
-		LightPeers         int         `yaml:"LightPeers"`
-		LightServ          int         `yaml:"LightServ"`
-		StatName           string      `yaml:"StatName"`
-		ReportStats        bool        `yaml:"ReportStats"`
-		ContractAddress    []string    `yaml:"ContractAddress"`
-		ContractAbis       []string    `yaml:"ContractAbis"`
-		HTTPHost           string      `yaml:"HTTPHost"`
-		HTTPPort           int         `yaml:"HTTPPort"`
-		HTTPVirtualHosts   []string    `yaml:"HTTPVirtualHosts"`
-		HTTPCors           []string    `yaml:"HTTPCors"`
-		CacheSize          int         `yaml:"CacheSize"`
-		DBHandle           int         `yaml:"DBHandle"`
-		SubscribedEndpoint string      `yaml:"SubscribedEndpoint"`
-		PublishedEndpoint  string      `yaml:"PublishedEndpoint"`
-		SignedTxPrivateKey string      `yaml:"SignedTxPrivateKey"`
-		LogLvl             int         `yaml:"LogLvl"`
+		Name               string   `yaml:"Name"`
+		ListenAddr         string   `yaml:"ListenAddr"`
+		APIListenAddr      string   `yaml:"APIListenAddr"`
+		MaxPeers           int      `yaml:"MaxPeers"`
+		NetworkId          int      `yaml:"NetworkId"`
+		LightNode          bool     `yaml:"LightNode"`
+		LightPeers         int      `yaml:"LightPeers"`
+		LightServ          int      `yaml:"LightServ"`
+		StatName           string   `yaml:"StatName"`
+		ReportStats        bool     `yaml:"ReportStats"`
+		ContractAddress    []string `yaml:"ContractAddress"`
+		ContractAbis       []string `yaml:"ContractAbis"`
+		HTTPHost           string   `yaml:"HTTPHost"`
+		HTTPPort           int      `yaml:"HTTPPort"`
+		HTTPVirtualHosts   []string `yaml:"HTTPVirtualHosts"`
+		HTTPCors           []string `yaml:"HTTPCors"`
+		CacheSize          int      `yaml:"CacheSize"`
+		DBHandle           int      `yaml:"DBHandle"`
+		SubscribedEndpoint string   `yaml:"SubscribedEndpoint"`
+		PublishedEndpoint  string   `yaml:"PublishedEndpoint"`
+		SignedTxPrivateKey string   `yaml:"SignedTxPrivateKey"`
+		LogLvl             int      `yaml:"LogLvl"`
 		Logger             log.Logger
 	}
 )
@@ -78,4 +79,3 @@ func Load(path string, name string) (*Config, error) {
 
 	return &config, nil
 }
-

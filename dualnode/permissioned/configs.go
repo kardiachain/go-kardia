@@ -20,6 +20,11 @@ package permissioned
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dev"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
@@ -28,10 +33,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
-	"os"
-	"path/filepath"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -44,25 +45,25 @@ const (
 )
 
 type Config struct {
-	Proposal                 int
-	Name                     *string
-	NetworkId                *uint64
-	DataDir                  *string
-	HTTPPort                 *int
-	HTTPModules              []string
-	HTTPVirtualHosts         []string
-	HTTPCors                 []string
-	ListenAddr               *string
-	ChainDataDir             *string
-	DbCache                  *int
-	DbHandles                *int
-	ValidatorsIndices        *string
-	ServiceName              *string
-	ChainID                  *uint64
-	ClearData                bool
+	Proposal          int
+	Name              *string
+	NetworkId         *uint64
+	DataDir           *string
+	HTTPPort          *int
+	HTTPModules       []string
+	HTTPVirtualHosts  []string
+	HTTPCors          []string
+	ListenAddr        *string
+	ChainDataDir      *string
+	DbCache           *int
+	DbHandles         *int
+	ValidatorsIndices *string
+	ServiceName       *string
+	ChainID           *uint64
+	ClearData         bool
 }
 
-var DefaultConfig = node.NodeConfig{
+var DefaultConfig = node.Config{
 	DataDir:          node.DefaultDataDir(),
 	HTTPPort:         DefaultHTTPPort,
 	HTTPModules:      []string{"node", "kai", "tx", "account"},
@@ -80,11 +81,10 @@ var DefaultConfig = node.NodeConfig{
 		IsPrivate: true,
 		IsZeroFee: true,
 		Genesis:   genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts),
-		EnvConfig: node.NewEnvironmentConfig(),
 	},
 }
 
-func SetUp(config *Config) (nodeConfig *node.NodeConfig, err error) {
+func SetUp(config *Config) (nodeConfig *node.Config, err error) {
 	nodeConfig = &DefaultConfig
 	if config == nil {
 		return nodeConfig, nil
@@ -151,7 +151,6 @@ func SetUp(config *Config) (nodeConfig *node.NodeConfig, err error) {
 	}
 	nodeConfig.MainChainConfig.ValidatorIndexes, err = getIntArray(*config.ValidatorsIndices)
 	nodeConfig.MainChainConfig.TxPool = *tx_pool.GetDefaultTxPoolConfig(nodeDir)
-	nodeConfig.MainChainConfig.EnvConfig.SetProposerIndex(config.Proposal - 1, len(dev.Nodes))
 	return nodeConfig, nil
 }
 

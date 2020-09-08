@@ -36,6 +36,11 @@ const (
 
 	// promotableQueueSize is the size for promotableQueue
 	promotableQueueSize = 1000000
+
+	// TEMPORARY
+	// Spawn workers and its capcacity to collect dual events
+	numberOfWorker = 2
+	workerCap      = 1024
 )
 
 // blockChain provides the state of blockchain and current gas limit to do
@@ -49,11 +54,9 @@ type blockChain interface {
 
 // Config are the configuration parameters of the event pool.
 type Config struct {
-	GlobalSlots     uint64
-	GlobalQueue     uint64
-	NumberOfWorkers int
-	WorkerCap       int
-	BlockSize       int
+	GlobalSlots uint64
+	GlobalQueue uint64
+	BlockSize   int
 }
 
 // EventPool contains all currently interesting events from both external or internal blockchains. Events enter the pool
@@ -70,9 +73,6 @@ type Pool struct {
 	pending  map[common.Hash]*types.DualEvent // current processable events
 	all      map[common.Hash]*types.DualEvent // All events
 
-	numberOfWorkers int
-	workerCap       int
-
 	chainHeadCh  chan events.ChainHeadEvent
 	chainHeadSub event.Subscription
 	eventFeed    event.Feed
@@ -83,16 +83,14 @@ type Pool struct {
 
 func NewPool(logger log.Logger, config Config, chain blockChain) *Pool {
 	pool := &Pool{
-		logger:          logger,
-		eventsCh:        make(chan []interface{}, 100),
-		allCh:           make(chan []interface{}),
-		pending:         make(map[common.Hash]*types.DualEvent),
-		all:             make(map[common.Hash]*types.DualEvent),
-		chainHeadCh:     make(chan events.ChainHeadEvent, chainHeadChanSize),
-		numberOfWorkers: config.NumberOfWorkers,
-		workerCap:       config.WorkerCap,
-		chain:           chain,
-		config:          config,
+		logger:      logger,
+		eventsCh:    make(chan []interface{}, 100),
+		allCh:       make(chan []interface{}),
+		pending:     make(map[common.Hash]*types.DualEvent),
+		all:         make(map[common.Hash]*types.DualEvent),
+		chainHeadCh: make(chan events.ChainHeadEvent, chainHeadChanSize),
+		chain:       chain,
+		config:      config,
 	}
 
 	pool.reset(nil, chain.CurrentBlock().Header())
@@ -131,7 +129,7 @@ func (pool *Pool) loop() {
 
 // collectEvents is called periodically to add events from eventsCh to pending pool
 func (pool *Pool) collectEvents() {
-	for i := 0; i < pool.numberOfWorkers; i++ {
+	for i := 0; i < numberOfWorker; i++ {
 		go pool.work(i, <-pool.eventsCh)
 	}
 }
@@ -143,7 +141,7 @@ func (pool *Pool) work(index int, txs []interface{}) {
 
 func (pool *Pool) AddEvents(events []interface{}) {
 	if len(events) > 0 {
-		to := pool.workerCap
+		to := workerCap
 		if len(events) < to {
 			to = len(events)
 		}

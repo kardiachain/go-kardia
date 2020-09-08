@@ -22,6 +22,7 @@ import (
 	"math/big"
 
 	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 )
 
 type (
@@ -69,9 +70,10 @@ type (
 		BaseAccount        BaseAccount `yaml:"BaseAccount"`
 	}
 	Genesis struct {
-		Addresses     []string   `yaml:"Addresses"`
-		GenesisAmount string     `yaml:"GenesisAmount"`
-		Contracts     []Contract `yaml:"Contracts"`
+		Addresses     []string                    `yaml:"Addresses"`
+		GenesisAmount string                      `yaml:"GenesisAmount"`
+		Contracts     []Contract                  `yaml:"Contracts"`
+		Validators    []*genesis.GenesisValidator `yaml:"Validators"`
 	}
 	Contract struct {
 		Address  string `yaml:"Address"`
@@ -79,12 +81,10 @@ type (
 		ABI      string `yaml:"ABI,omitempty"`
 	}
 	Pool struct {
-		GlobalSlots     uint64 `yaml:"GlobalSlots"`
-		GlobalQueue     uint64 `yaml:"GlobalQueue"`
-		NumberOfWorkers int    `yaml:"NumberOfWorkers"`
-		WorkerCap       int    `yaml:"WorkerCap"`
-		BlockSize       int    `yaml:"BlockSize"`
-		LifeTime        int    `yaml:"LifeTime"`
+		GlobalSlots uint64 `yaml:"GlobalSlots"`
+		GlobalQueue uint64 `yaml:"GlobalQueue"`
+		BlockSize   int    `yaml:"BlockSize"`
+		LifeTime    int    `yaml:"LifeTime"`
 	}
 	Database struct {
 		Type    uint   `yaml:"Type"`

@@ -1,23 +1,26 @@
-// Copyright 2016 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+/*
+ *  Copyright 2018 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 package common
 
 import (
 	"bytes"
+	"math/big"
 	"testing"
 )
 
@@ -38,6 +41,15 @@ var (
 		{[]byte{}, "0x"},
 		{[]byte{0}, "0x00"},
 		{[]byte{0, 0, 1, 2}, "0x00000102"},
+	}
+
+	encodeBigTests = []marshalTest{
+		{referenceBig("0"), "0x0"},
+		{referenceBig("1"), "0x1"},
+		{referenceBig("ff"), "0xff"},
+		{referenceBig("112233445566778899aabbccddeeff"), "0x112233445566778899aabbccddeeff"},
+		{referenceBig("80a7f2c1bcc396c00"), "0x80a7f2c1bcc396c00"},
+		{referenceBig("-80a7f2c1bcc396c00"), "-0x80a7f2c1bcc396c00"},
 	}
 
 	encodeUint64Tests = []marshalTest{
@@ -71,6 +83,39 @@ var (
 		{
 			input: `0xffffffffffffffffffffffffffffffffffff`,
 			want:  []byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
+		},
+	}
+
+	decodeBigTests = []unmarshalTest{
+		// invalid
+		{input: `0`, wantErr: ErrMissingPrefix},
+		{input: `0x`, wantErr: ErrEmptyNumber},
+		{input: `0x01`, wantErr: ErrLeadingZero},
+		{input: `0xx`, wantErr: ErrSyntax},
+		{input: `0x1zz01`, wantErr: ErrSyntax},
+		{
+			input:   `0x10000000000000000000000000000000000000000000000000000000000000000`,
+			wantErr: ErrBig256Range,
+		},
+		// valid
+		{input: `0x0`, want: big.NewInt(0)},
+		{input: `0x2`, want: big.NewInt(0x2)},
+		{input: `0x2F2`, want: big.NewInt(0x2f2)},
+		{input: `0X2F2`, want: big.NewInt(0x2f2)},
+		{input: `0x1122aaff`, want: big.NewInt(0x1122aaff)},
+		{input: `0xbBb`, want: big.NewInt(0xbbb)},
+		{input: `0xfffffffff`, want: big.NewInt(0xfffffffff)},
+		{
+			input: `0x112233445566778899aabbccddeeff`,
+			want:  referenceBig("112233445566778899aabbccddeeff"),
+		},
+		{
+			input: `0xffffffffffffffffffffffffffffffffffff`,
+			want:  referenceBig("ffffffffffffffffffffffffffffffffffff"),
+		},
+		{
+			input: `0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff`,
+			want:  referenceBig("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"),
 		},
 	}
 
@@ -115,6 +160,28 @@ func TestDecode(t *testing.T) {
 	}
 }
 
+func TestEncodeBig(t *testing.T) {
+	for _, test := range encodeBigTests {
+		enc := EncodeBig(test.input.(*big.Int))
+		if enc != test.want {
+			t.Errorf("input %x: wrong encoding %s", test.input, enc)
+		}
+	}
+}
+
+func TestDecodeBig(t *testing.T) {
+	for _, test := range decodeBigTests {
+		dec, err := DecodeBig(test.input)
+		if !checkError(t, test.input, err, test.wantErr) {
+			continue
+		}
+		if dec.Cmp(test.want.(*big.Int)) != 0 {
+			t.Errorf("input %s: value mismatch: got %x, want %x", test.input, dec, test.want)
+			continue
+		}
+	}
+}
+
 func TestEncodeUint64(t *testing.T) {
 	for _, test := range encodeUint64Tests {
 		enc := EncodeUint64(test.input.(uint64))
@@ -135,20 +202,4 @@ func TestDecodeUint64(t *testing.T) {
 			continue
 		}
 	}
-}
-
-func checkError(t *testing.T, input string, got, want error) bool {
-	if got == nil {
-		if want != nil {
-			t.Errorf("input %s: got no error, want %q", input, want)
-			return false
-		}
-		return true
-	}
-	if want == nil {
-		t.Errorf("input %s: unexpected error %q", input, got)
-	} else if got.Error() != want.Error() {
-		t.Errorf("input %s: got error %q, want %q", input, got, want)
-	}
-	return false
 }

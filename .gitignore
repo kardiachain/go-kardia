@@ -13,6 +13,7 @@
 
 # JetBrain IDE files
 .idea/
+.vscode/
 
 # dep
 vendor/
@@ -21,4 +22,5 @@ vendor/
 # Build and Run file
 go-kardia
 cmd/cmd
+tool/pump/pump
 run.sh

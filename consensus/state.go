@@ -32,10 +32,10 @@ import (
 
 	cfg "github.com/kardiachain/go-kardiamain/configs"
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
-	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/discover"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -54,7 +54,7 @@ var (
 // msgs from the manager which may update the state
 type msgInfo struct {
 	Msg    ConsensusMessage `json:"msg"`
-	PeerID discover.NodeID  `json:"peer_key"`
+	PeerID enode.ID         `json:"peer_key"`
 }
 
 // internally generated messages which may update the state
@@ -70,6 +70,11 @@ type VoteTurn struct {
 	Height   int
 	Round    int
 	VoteType int
+}
+
+// interface to the evidence pool
+type evidencePool interface {
+	AddEvidence(types.Evidence) error
 }
 
 func EmptyTimeoutInfo() *timeoutInfo {
@@ -92,12 +97,13 @@ type ConsensusState struct {
 	config          *cfg.ConsensusConfig
 	privValidator   *types.PrivValidator // for signing votes
 	blockOperations BaseBlockOperations
-	//evpool evidence.EvidencePool 	// TODO(namdoh): Add mem pool.
+	blockExec       *cstate.BlockExecutor
+	evpool          evidencePool // TODO(namdoh): Add mem pool.
 
 	// internal state
 	mtx sync.RWMutex
 	cstypes.RoundState
-	state         state.LastestBlockState // State until height-1.
+	state         cstate.LastestBlockState // State until height-1.
 	timeoutTicker TimeoutTicker
 
 	// State changes may be triggered by: msgs from peers,
@@ -127,8 +133,10 @@ type ConsensusState struct {
 func NewConsensusState(
 	logger log.Logger,
 	config *cfg.ConsensusConfig,
-	state state.LastestBlockState,
+	state cstate.LastestBlockState,
 	blockOperations BaseBlockOperations,
+	blockExec *cstate.BlockExecutor,
+	evpool evidencePool,
 ) *ConsensusState {
 	cs := &ConsensusState{
 		logger: logger,
@@ -140,6 +148,8 @@ func NewConsensusState(
 		timeoutTicker:    NewTimeoutTicker(),
 		done:             make(chan struct{}),
 		evsw:             NewEventSwitch(),
+		blockExec:        blockExec,
+		evpool:           evpool,
 		RoundState: cstypes.RoundState{
 			CommitRound: cmn.NewBigInt32(0),
 			Height:      cmn.NewBigInt32(0),
@@ -196,7 +206,7 @@ func (cs *ConsensusState) Stop() {
 
 // Updates ConsensusState and increments height to match that of state.
 // The round becomes 0 and cs.Step becomes cstypes.RoundStepNewHeight.
-func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
+func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 	cs.logger.Trace("ConsensusState - updateToState")
 	if cs.CommitRound.IsGreaterThanInt(-1) && cs.Height.IsGreaterThanInt(0) && !cs.Height.Equals(state.LastBlockHeight) {
 		cmn.PanicSanity(cmn.Fmt("updateToState() expected state height of %v but found %v",
@@ -278,9 +288,9 @@ func (cs *ConsensusState) updateToState(state state.LastestBlockState) {
 // TODO: should these return anything or let callers just use events?
 
 // AddVote inputs a vote.
-func (cs *ConsensusState) AddVote(vote *types.Vote, peerID discover.NodeID) (added bool, err error) {
+func (cs *ConsensusState) AddVote(vote *types.Vote, peerID enode.ID) (added bool, err error) {
 	if peerID.IsZero() {
-		cs.internalMsgQueue <- msgInfo{&VoteMessage{vote}, discover.ZeroNodeID()}
+		cs.internalMsgQueue <- msgInfo{&VoteMessage{vote}, enode.ID{}}
 	} else {
 		cs.peerMsgQueue <- msgInfo{&VoteMessage{vote}, peerID}
 	}
@@ -313,10 +323,10 @@ func (cs *ConsensusState) decideProposal(height *cmn.BigInt, round *cmn.BigInt) 
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
 		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", propBlockID.Hash)
 		// Send proposal and blockparts on internal msg queue
-		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, discover.ZeroNodeID()})
-		for i := 0; i < blockParts.Total(); i++ {
+		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, enode.ID{}})
+		for i := 0; i < int(blockParts.Total()); i++ {
 			part := blockParts.GetPart(i)
-			cs.sendInternalMessage(msgInfo{&BlockPartMessage{cs.Height, cs.Round, part}, discover.ZeroNodeID()})
+			cs.sendInternalMessage(msgInfo{&BlockPartMessage{cs.Height, cs.Round, part}, enode.ID{}})
 		}
 		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
 		cs.logger.Debug(fmt.Sprintf("Signed proposal block: %s", block.Hash()))
@@ -388,7 +398,7 @@ func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 
 // Reconstruct LastCommit from SeenCommit, which we saved along with the block,
 // (which happens even before saving the state)
-func (cs *ConsensusState) reconstructLastCommit(state state.LastestBlockState) {
+func (cs *ConsensusState) reconstructLastCommit(state cstate.LastestBlockState) {
 	if state.LastBlockHeight.EqualsInt64(0) {
 		return
 	}
@@ -401,22 +411,20 @@ func (cs *ConsensusState) reconstructLastCommit(state state.LastestBlockState) {
 }
 
 // Attempt to add the vote. if its a duplicate signature, dupeout the validator
-func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID discover.NodeID) (bool, error) {
+func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID enode.ID) (bool, error) {
 	added, err := cs.addVote(vote, peerID)
 	if err != nil {
 		// If the vote height is off, we'll just ignore it,
 		// But if it's a conflicting sig, add it to the cs.evpool.
 		// If it's otherwise invalid, punish peer.
 		if err == ErrVoteHeightMismatch {
-			return false, err
-		}
-		if _, ok := err.(*types.ErrVoteConflictingVotes); ok {
+			return added, err
+		} else if voteErr, ok := err.(*types.ErrVoteConflictingVotes); ok {
 			if vote.ValidatorAddress.Equal(cs.privValidator.GetAddress()) {
 				cs.logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
 				return false, err
 			}
-			// TODO(namdoh): Re-enable this later.
-			cs.logger.Warn("Add vote error to evidence pool later")
+			cs.evpool.AddEvidence(voteErr.DuplicateVoteEvidence)
 			return false, err
 		}
 		// Probably an invalid signature / Bad peer.
@@ -427,7 +435,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID discover.NodeID) (
 	return added, nil
 }
 
-func (cs *ConsensusState) addVote(vote *types.Vote, peerID discover.NodeID) (added bool, err error) {
+func (cs *ConsensusState) addVote(vote *types.Vote, peerID enode.ID) (added bool, err error) {
 	cs.logger.Debug(
 		"addVote",
 		"voteHeight",
@@ -637,7 +645,7 @@ func (cs *ConsensusState) signAddVote(type_ byte, hash cmn.Hash, header types.Pa
 	}
 	vote, err := cs.signVote(type_, hash, header)
 	if err == nil {
-		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, discover.ZeroNodeID()})
+		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, enode.ID{}})
 		cs.logger.Info("Signed and pushed vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
 		return vote
 	}
@@ -668,7 +676,7 @@ func (cs *ConsensusState) updateHeight(height *cmn.BigInt) {
 // NOTE: block is not necessarily valid.
 // Asynchronously triggers either enterPrevote (before we timeout of propose) or tryFinalizeCommit,
 // once we have the full block.
-func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID discover.NodeID) (added bool, err error) {
+func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID enode.ID) (added bool, err error) {
 	height, round, part := msg.Height, msg.Round, msg.Part
 
 	// Blocks might be reused, so round mismatch is OK
@@ -907,7 +915,7 @@ func (cs *ConsensusState) doPrevote(height *cmn.BigInt, round *cmn.BigInt) {
 
 	// Validate proposal block
 	// This checks the block contents without executing txs.
-	if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
+	if err := cstate.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
 		cs.signAddVote(types.VoteTypePrevote, cmn.Hash{}, types.PartSetHeader{})
@@ -1028,7 +1036,7 @@ func (cs *ConsensusState) enterPrecommit(height *cmn.BigInt, round *cmn.BigInt) 
 	if cs.ProposalBlock.HashesTo(blockID.Hash) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID)
 		// Validate the block.
-		if err := state.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
+		if err := cstate.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 			cmn.PanicConsensus(cmn.Fmt("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
 		}
 		cs.LockedRound = round
@@ -1173,7 +1181,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	if !block.HashesTo(blockID.Hash) {
 		cmn.PanicSanity(cmn.Fmt("Cannot finalizeCommit, ProposalBlock does not hash to commit hash"))
 	}
-	if err := state.ValidateBlock(cs.state, block); err != nil {
+	if err := cstate.ValidateBlock(cs.state, block); err != nil {
 		cmn.PanicConsensus(cmn.Fmt("+2/3 committed an invalid block: %v", err))
 		panic("Block validation failed")
 	}
@@ -1206,7 +1214,7 @@ func (cs *ConsensusState) finalizeCommit(height *cmn.BigInt) {
 	// Execute and commit the block, update and save the state, and update the mempool.
 	// NOTE The block.AppHash wont reflect these txs until the next block.
 	var err error
-	stateCopy, err = state.ApplyBlock(
+	stateCopy, err = cs.blockExec.ApplyBlock(
 		cs.logger, stateCopy,
 		types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()},
 		block,

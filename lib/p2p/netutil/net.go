@@ -26,9 +26,6 @@ import (
 	"strings"
 )
 
-// Netlist is a list of IP networks.
-type Netlist []net.IPNet
-
 var lan4, lan6, special4, special6 Netlist
 
 func init() {
@@ -67,6 +64,9 @@ func init() {
 	special6.Add("2001:db8::/32")
 	special6.Add("2002::/16")
 }
+
+// Netlist is a list of IP networks.
+type Netlist []net.IPNet
 
 // ParseNetlist parses a comma-separated list of CIDR masks.
 // Whitespace and extra commas are ignored.

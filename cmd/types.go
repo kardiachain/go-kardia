@@ -1,5 +1,9 @@
 package main
 
+import (
+	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
+)
+
 type (
 	Config struct {
 		Node      `yaml:"Node"`
@@ -43,9 +47,10 @@ type (
 		BaseAccount        BaseAccount `yaml:"BaseAccount"`
 	}
 	Genesis struct {
-		Addresses     []string   `yaml:"Addresses"`
-		GenesisAmount string     `yaml:"GenesisAmount"`
-		Contracts     []Contract `yaml:"Contracts"`
+		Addresses     []string                    `yaml:"Addresses"`
+		GenesisAmount string                      `yaml:"GenesisAmount"`
+		Contracts     []Contract                  `yaml:"Contracts"`
+		Validators    []*genesis.GenesisValidator `yaml:"Validators"`
 	}
 	Contract struct {
 		Address  string `yaml:"Address"`
@@ -53,11 +58,9 @@ type (
 		ABI      string `yaml:"ABI,omitempty"`
 	}
 	Pool struct {
-		GlobalSlots     uint64 `yaml:"GlobalSlots"`
-		GlobalQueue     uint64 `yaml:"GlobalQueue"`
-		NumberOfWorkers int    `yaml:"NumberOfWorkers"`
-		WorkerCap       int    `yaml:"WorkerCap"`
-		BlockSize       int    `yaml:"BlockSize"`
+		GlobalSlots uint64 `yaml:"GlobalSlots"`
+		GlobalQueue uint64 `yaml:"GlobalQueue"`
+		BlockSize   int    `yaml:"BlockSize"`
 	}
 	Database struct {
 		Type    uint   `yaml:"Type"`

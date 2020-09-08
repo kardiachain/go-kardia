@@ -25,14 +25,14 @@ import (
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/kai/service"
 	serviceconst "github.com/kardiachain/go-kardiamain/kai/service/const"
-	"github.com/kardiachain/go-kardiamain/kai/state"
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardiamain/types/evidence"
 )
 
 const DualServiceName = "DUAL"
@@ -70,7 +70,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	logger.AddTag(DualServiceName)
 	logger.Info("newDualService", "chaintype", config.DBInfo.Name())
 
-	groupDb, err := ctx.Config.StartDatabase(config.DBInfo)
+	groupDb, err := ctx.StartDatabase(config.DBInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -99,30 +99,23 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	dualService.eventPool = event_pool.NewPool(logger, config.DualEventPool, dualService.blockchain)
 
-	// Initialization for consensus.
-	block := dualService.blockchain.CurrentBlock()
-	log.Info("DUAL Validators: ", "valIndex", ctx.Config.DualChainConfig.ValidatorIndexes)
-	var validatorSet *types.ValidatorSet
-	validatorSet, err = node.GetValidatorSet(dualService.blockchain, ctx.Config.DualChainConfig.ValidatorIndexes)
+	lastBlockState, err := cstate.LoadStateFromDBOrGenesisDoc(groupDb.DB(), config.DualGenesis)
 	if err != nil {
-		logger.Error("Cannot get validator from indices", "indices", ctx.Config.DualChainConfig.ValidatorIndexes, "err", err)
 		return nil, err
 	}
-	state := state.LastestBlockState{
-		ChainID:                     "kaigroupcon",
-		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
-		LastBlockID:                 block.Header().LastBlockID,
-		LastBlockTime:               block.Time(),
-		Validators:                  validatorSet,
-		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
-	}
-	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool)
+
+	evPool := evidence.NewPool(groupDb.DB(), groupDb.DB())
+	evReactor := evidence.NewReactor(evPool)
+	blockExec := cstate.NewBlockExecutor(evPool)
+
+	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool, evPool)
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
 		configs.DefaultConsensusConfig(),
-		state,
+		lastBlockState,
 		dualService.dualBlockOperations,
+		blockExec,
+		evPool,
 	)
 	dualService.csManager = consensus.NewConsensusManager(DualServiceName, consensusState)
 	// Set private validator for consensus manager.
@@ -137,15 +130,16 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		dualService.blockchain,
 		dualService.chainConfig,
 		nil,
-		dualService.csManager); err != nil {
+		dualService.csManager, evReactor); err != nil {
 		return nil, err
 	}
 	//namdoh@ dualService.protocolManager.acceptTxs = config.AcceptTxs
 	dualService.csManager.SetProtocol(dualService.protocolManager)
+	evReactor.SetProtocol(dualService.protocolManager)
 	return dualService, nil
 }
 
-// Implements ServiceConstructor, return a dual service from node service context.
+// NewDualService Implements ServiceConstructor, return a dual service from node service context.
 func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.DualChainConfig
 	kai, err := newDualService(ctx, &DualConfig{

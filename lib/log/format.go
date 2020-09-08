@@ -14,10 +14,11 @@ import (
 )
 
 const (
-	timeFormat     = "2006-01-02T15:04:05-0700"
-	termTimeFormat = "01-02|15:04:05.000"
-	floatFormat    = 'f'
-	termMsgJust    = 40
+	timeFormat        = "2006-01-02T15:04:05-0700"
+	termTimeFormat    = "01-02|15:04:05.000"
+	floatFormat       = 'f'
+	termMsgJust       = 40
+	termCtxMaxPadding = 40
 )
 
 // locationTrims are trimmed for display to avoid unwieldy log lines.
@@ -77,11 +78,11 @@ type TerminalStringer interface {
 // a terminal with color-coded level output and terser human friendly timestamp.
 // This format should only be used for interactive programs or while developing.
 //
-//     [TIME] [LEVEL] [TAG] MESAGE key=value key=value ...
+//     [LEVEL] [TIME] MESSAGE key=value key=value ...
 //
 // Example:
 //
-//     [May 16 20:58:45] [DBUG] remove route ns=haproxy addr=127.0.0.1:50002
+//     [DBUG] [May 16 20:58:45] remove route ns=haproxy addr=127.0.0.1:50002
 //
 func TerminalFormat(usecolor bool) Format {
 	return FormatFunc(func(r *Record) []byte {
@@ -121,8 +122,7 @@ func TerminalFormat(usecolor bool) Format {
 				align = len(location)
 				atomic.StoreUint32(&locationLength, uint32(align))
 			}
-			// padding := strings.Repeat(" ", align-len(location))
-			padding := " "
+			padding := strings.Repeat(" ", align-len(location))
 
 			// Assemble and print the log heading
 			if color > 0 {
@@ -180,14 +180,13 @@ func logfmt(buf *bytes.Buffer, ctx []interface{}, color int, term bool) {
 		fieldPaddingLock.RUnlock()
 
 		length := utf8.RuneCountInString(v)
-		if padding < length {
+		if padding < length && length <= termCtxMaxPadding {
 			padding = length
 
 			fieldPaddingLock.Lock()
 			fieldPadding[k] = padding
 			fieldPaddingLock.Unlock()
 		}
-		padding = 1
 		if color > 0 {
 			fmt.Fprintf(buf, "\x1b[%dm%s\x1b[0m=", color, k)
 		} else {
@@ -195,8 +194,8 @@ func logfmt(buf *bytes.Buffer, ctx []interface{}, color int, term bool) {
 			buf.WriteByte('=')
 		}
 		buf.WriteString(v)
-		if i < len(ctx)-2 {
-			buf.Write(bytes.Repeat([]byte{' '}, 1))
+		if i < len(ctx)-2 && padding > length {
+			buf.Write(bytes.Repeat([]byte{' '}, padding-length))
 		}
 	}
 	buf.WriteByte('\n')
@@ -206,6 +205,48 @@ func logfmt(buf *bytes.Buffer, ctx []interface{}, color int, term bool) {
 // It is the equivalent of JSONFormatEx(false, true).
 func JSONFormat() Format {
 	return JSONFormatEx(false, true)
+}
+
+// JSONFormatOrderedEx formats log records as JSON arrays. If pretty is true,
+// records will be pretty-printed. If lineSeparated is true, records
+// will be logged with a new line between each record.
+func JSONFormatOrderedEx(pretty, lineSeparated bool) Format {
+	jsonMarshal := json.Marshal
+	if pretty {
+		jsonMarshal = func(v interface{}) ([]byte, error) {
+			return json.MarshalIndent(v, "", "    ")
+		}
+	}
+	return FormatFunc(func(r *Record) []byte {
+		props := make(map[string]interface{})
+
+		props[r.KeyNames.Time] = r.Time
+		props[r.KeyNames.Lvl] = r.Lvl.String()
+		props[r.KeyNames.Msg] = r.Msg
+
+		ctx := make([]string, len(r.Ctx))
+		for i := 0; i < len(r.Ctx); i += 2 {
+			k, ok := r.Ctx[i].(string)
+			if !ok {
+				props[errorKey] = fmt.Sprintf("%+v is not a string key,", r.Ctx[i])
+			}
+			ctx[i] = k
+			ctx[i+1] = formatLogfmtValue(r.Ctx[i+1], true)
+		}
+		props[r.KeyNames.Ctx] = ctx
+
+		b, err := jsonMarshal(props)
+		if err != nil {
+			b, _ = jsonMarshal(map[string]string{
+				errorKey: err.Error(),
+			})
+			return b
+		}
+		if lineSeparated {
+			b = append(b, '\n')
+		}
+		return b
+	})
 }
 
 // JSONFormatEx formats log records as JSON objects. If pretty is true,
@@ -321,49 +362,19 @@ func formatLogfmtValue(value interface{}, term bool) string {
 	}
 }
 
-var stringBufPool = sync.Pool{
-	New: func() interface{} { return new(bytes.Buffer) },
-}
-
+// escapeString checks if the provided string needs escaping/quoting, and
+// calls strconv.Quote if needed
 func escapeString(s string) string {
-	needsQuotes := false
-	needsEscape := false
+	needsQuoting := false
 	for _, r := range s {
-		if r <= ' ' || r == '=' || r == '"' {
-			needsQuotes = true
-		}
-		if r == '\\' || r == '"' || r == '\n' || r == '\r' || r == '\t' {
-			needsEscape = true
+		// We quote everything below " (0x34) and above~ (0x7E), plus equal-sign
+		if r <= '"' || r > '~' || r == '=' {
+			needsQuoting = true
+			break
 		}
 	}
-	if !needsEscape && !needsQuotes {
+	if !needsQuoting {
 		return s
 	}
-	e := stringBufPool.Get().(*bytes.Buffer)
-	e.WriteByte('"')
-	for _, r := range s {
-		switch r {
-		case '\\', '"':
-			e.WriteByte('\\')
-			e.WriteByte(byte(r))
-		case '\n':
-			e.WriteString("\\n")
-		case '\r':
-			e.WriteString("\\r")
-		case '\t':
-			e.WriteString("\\t")
-		default:
-			e.WriteRune(r)
-		}
-	}
-	e.WriteByte('"')
-	var ret string
-	if needsQuotes {
-		ret = e.String()
-	} else {
-		ret = string(e.Bytes()[1 : e.Len()-1])
-	}
-	e.Reset()
-	stringBufPool.Put(e)
-	return ret
+	return strconv.Quote(s)
 }

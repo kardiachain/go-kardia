@@ -24,8 +24,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/kai/service"
 	serviceconst "github.com/kardiachain/go-kardiamain/kai/service/const"
-	"github.com/kardiachain/go-kardiamain/kai/state"
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
@@ -34,6 +33,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardiamain/types/evidence"
 )
 
 const (
@@ -84,7 +84,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	logger.AddTag(config.ServiceName)
 	logger.Info("newKardiaService", "dbType", config.DBInfo.Name())
 
-	kaiDb, err := ctx.Config.StartDatabase(config.DBInfo)
+	kaiDb, err := ctx.StartDatabase(config.DBInfo)
 	if err != nil {
 		return nil, err
 	}
@@ -117,31 +117,24 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	kai.blockchain.IsZeroFee = config.IsZeroFee
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 
-	// Initialization for consensus.
-	block := kai.blockchain.CurrentBlock()
-	logger.Info("Validators: ", "valIndex", ctx.Config.MainChainConfig.ValidatorIndexes)
-	var validatorSet *types.ValidatorSet
-	validatorSet, err = node.GetValidatorSet(kai.blockchain, ctx.Config.MainChainConfig.ValidatorIndexes)
+	evPool := evidence.NewPool(kaiDb.DB(), kaiDb.DB())
+	evReactor := evidence.NewReactor(evPool)
+	blockExec := cstate.NewBlockExecutor(evPool)
+
+	state, err := cstate.LoadStateFromDBOrGenesisDoc(kaiDb.DB(), config.Genesis)
 	if err != nil {
-		logger.Error("Cannot get validator from indices", "indices", ctx.Config.MainChainConfig.ValidatorIndexes, "err", err)
 		return nil, err
 	}
 
-	state := state.LastestBlockState{
-		ChainID:                     "kaicon", // TODO(thientn): considers merging this with protocolmanger.ChainID
-		LastBlockHeight:             cmn.NewBigUint64(block.Height()),
-		LastBlockID:                 block.Header().LastBlockID,
-		LastBlockTime:               block.Time(),
-		Validators:                  validatorSet,
-		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: cmn.NewBigInt32(-1),
-	}
+	logger.Info("Validators: ", "vals", state.Validators.Validators)
 
 	consensusState := consensus.NewConsensusState(
 		kai.logger,
 		configs.DefaultConsensusConfig(),
 		state,
-		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool),
+		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool),
+		blockExec,
+		evPool,
 	)
 	kai.csManager = consensus.NewConsensusManager(config.ServiceName, consensusState)
 	// Set private validator for consensus manager.
@@ -158,16 +151,18 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		kai.blockchain,
 		kai.chainConfig,
 		kai.txPool,
-		kai.csManager); err != nil {
+		kai.csManager,
+		evReactor); err != nil {
 		return nil, err
 	}
 	kai.protocolManager.SetAcceptTxs(config.AcceptTxs)
 	kai.csManager.SetProtocol(kai.protocolManager)
+	evReactor.SetProtocol(kai.protocolManager)
 
 	return kai, nil
 }
 
-// Implements ServiceConstructor, return a Kardia node service from node service context.
+// NewKardiaService Implements ServiceConstructor, return a Kardia node service from node service context.
 // TODO: move this outside of kai package to customize kai.Config
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.MainChainConfig

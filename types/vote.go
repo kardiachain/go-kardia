@@ -25,7 +25,6 @@ import (
 	"time"
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
@@ -44,15 +43,16 @@ type ErrVoteConflictingVotes struct {
 }
 
 func (err *ErrVoteConflictingVotes) Error() string {
-	return fmt.Sprintf("Conflicting votes from validator %v", crypto.PubkeyToAddress(err.PubKey))
+	return fmt.Sprintf("Conflicting votes from validator %v", err.Addr)
 }
 
+// NewConflictingVoteError ...
 func NewConflictingVoteError(val *Validator, voteA, voteB *Vote) *ErrVoteConflictingVotes {
 	return &ErrVoteConflictingVotes{
 		&DuplicateVoteEvidence{
-			PubKey: val.PubKey,
-			VoteA:  voteA,
-			VoteB:  voteB,
+			Addr:  val.Address,
+			VoteA: voteA,
+			VoteB: voteB,
 		},
 	}
 }
@@ -161,6 +161,29 @@ func (vote *Vote) String() string {
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		vote.BlockID, cmn.Fingerprint(vote.Signature[:]),
 		time.Unix(vote.Timestamp.Int64(), 0))
+}
+
+// ValidateBasic performs basic validation.
+func (vote *Vote) ValidateBasic() error {
+	if !IsVoteTypeValid(vote.Type) {
+		return errors.New("invalid Type")
+	}
+
+	// NOTE: Timestamp validation is subtle and handled elsewhere.
+
+	if err := vote.BlockID.ValidateBasic(); err != nil {
+		return fmt.Errorf("wrong BlockID: %v", err)
+	}
+	// BlockID.ValidateBasic would not err if we for instance have an empty hash but a
+	// non-empty PartsSetHeader:
+	if !vote.BlockID.IsZero() && !vote.BlockID.IsComplete() {
+		return fmt.Errorf("blockID must be either empty or complete, got: %v", vote.BlockID)
+	}
+
+	if len(vote.Signature) == 0 {
+		return errors.New("signature is missing")
+	}
+	return nil
 }
 
 // UNSTABLE

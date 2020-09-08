@@ -28,21 +28,20 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 func CreateBlockIDRandom() BlockID {
 	blockHash := common.BytesToHash(common.RandBytes(32))
 	partSetHash := common.BytesToHash(common.RandBytes(32))
-	blockPartsHeaders := PartSetHeader{Total: *common.NewBigInt32(123), Hash: partSetHash}
+	blockPartsHeaders := PartSetHeader{Total: 123, Hash: partSetHash}
 	return BlockID{
 		Hash:        blockHash,
 		PartsHeader: blockPartsHeaders,
 	}
 }
 
-func CreateBlockID(hash common.Hash, partSetSize common.BigInt, partSetHash common.Hash) BlockID {
+func CreateBlockID(hash common.Hash, partSetSize uint32, partSetHash common.Hash) BlockID {
 	return BlockID{
 		Hash: hash,
 		PartsHeader: PartSetHeader{
@@ -125,36 +124,6 @@ func TestBodyCreationAndCopy(t *testing.T) {
 	copyBody := body.Copy()
 	if rlpHash(body) != rlpHash(copyBody) {
 		t.Fatal("Error copy body")
-	}
-}
-
-func TestBodyEncodeDecodeFile(t *testing.T) {
-	body := CreateNewBlock(1).Body()
-	bodyCopy := body.Copy()
-	encodeFile, err := os.Create("encodeFile.txt")
-	if err != nil {
-		t.Error("Error creating file")
-	}
-
-	if err := body.EncodeRLP(encodeFile); err != nil {
-		t.Fatal("Error encoding block")
-	}
-
-	encodeFile.Close()
-
-	f, err := os.Open("encodeFile.txt")
-	if err != nil {
-		t.Error("Error opening file:", err)
-	}
-
-	stream := rlp.NewStream(f, 99999)
-	if err := body.DecodeRLP(stream); err != nil {
-		t.Fatal("Decoding block error:", err)
-	}
-	defer f.Close()
-
-	if rlpHash(body) != rlpHash(bodyCopy) {
-		t.Fatal("Encode Decode from file error")
 	}
 }
 
@@ -255,7 +224,7 @@ func CreateNewBlock(height uint64) *Block {
 		big.NewInt(99), 1000, big.NewInt(100),
 		nil,
 	)
-	signedTx, _ := SignTx(emptyTx, key)
+	signedTx, _ := SignTx(HomesteadSigner{}, emptyTx, key)
 
 	txns := []*Transaction{signedTx}
 
@@ -269,7 +238,8 @@ func CreateNewBlock(height uint64) *Block {
 	lastCommit := &Commit{
 		Precommits: []*Vote{vote, nil},
 	}
-	return NewBlock(log.New(), &header, txns, nil, lastCommit)
+	evidence := []Evidence{}
+	return NewBlock(&header, txns, nil, lastCommit, evidence)
 }
 
 func CreateNewDualBlock() *Block {
@@ -289,5 +259,6 @@ func CreateNewDualBlock() *Block {
 	}
 	header.LastCommitHash = lastCommit.Hash()
 	de := NewDualEvent(100, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})
-	return NewDualBlock(log.New(), &header, []*DualEvent{de, nil}, lastCommit)
+	evidence := []Evidence{}
+	return NewDualBlock(&header, []*DualEvent{de, nil}, lastCommit, evidence)
 }

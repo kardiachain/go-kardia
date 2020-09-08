@@ -19,36 +19,60 @@
 package node
 
 import (
-	"errors"
+	"reflect"
 
-	"github.com/kardiachain/go-kardiamain/types"
-
+	"github.com/kardiachain/go-kardiamain/kai/storage"
+	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/rpc"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
-var (
-	ErrNodeStopped     = errors.New("node not started")
-	ErrNodeRunning     = errors.New("node already running")
-	ErrServiceUnknown  = errors.New("service unknown")
-	ErrNodeStopFailure = errors.New("node failed to stop gracefully")
-)
-
-// ServiceContext wraps config data passed from node to all services to be used in service operations.
+// ServiceContext is a collection of service independent options inherited from
+// the protocol stack, that is passed to all constructors to be optionally used;
+// as well as utility methods to operate on the service environment.
 type ServiceContext struct {
-	Config   *NodeConfig
-	Services map[string]Service // Map of type name to constructed services
-	// EventMux *event.TypeMux           // Event multiplexer
+	Config   *Config
+	services map[reflect.Type]Service // Index of the already constructed services
+	EventMux *event.TypeMux           // Event multiplexer used for decoupled notifications
 }
 
-// TODO: Database endpoint.
-
-// GetService returns the currently running service for a specific type.
-func (ctx *ServiceContext) GetService(typeName string) (Service, error) {
-	if running, ok := ctx.Services[typeName]; ok {
-		return running, nil
+// OpenDatabase opens an existing database with the given name (or creates one
+// if no previous can be found) from within the node's data directory. If the
+// node is an ephemeral one, a memory database is returned.
+func (ctx *ServiceContext) OpenDatabase(name string, cache int, handles int, namespace string) (types.StoreDB, error) {
+	if ctx.Config.DataDir == "" {
+		return storage.NewMemoryDatabase(), nil
 	}
-	return nil, ErrServiceUnknown
+	return storage.NewLevelDBDatabase(ctx.Config.ResolvePath(name), cache, handles, namespace)
+}
+
+// Database starts a new or existed database in the node data directory, or in-memory database.
+func (c *ServiceContext) StartDatabase(dbInfo storage.DbInfo) (types.StoreDB, error) {
+	return dbInfo.Start()
+}
+
+// ResolvePath resolves a user path into the data directory if that was relative
+// and if the user actually uses persistent storage. It will return an empty string
+// for emphemeral storage and the user's own input for absolute paths.
+func (ctx *ServiceContext) ResolvePath(path string) string {
+	return ctx.Config.ResolvePath(path)
+}
+
+// Service retrieves a currently running service registered of a specific type.
+func (ctx *ServiceContext) Service(service interface{}) error {
+	element := reflect.ValueOf(service).Elem()
+	if running, ok := ctx.services[element.Type()]; ok {
+		element.Set(reflect.ValueOf(running))
+		return nil
+	}
+	return ErrServiceUnknown
+}
+
+// ExtRPCEnabled returns the indicator whether node enables the external
+// RPC(http, ws or graphql).
+func (ctx *ServiceContext) ExtRPCEnabled() bool {
+	return ctx.Config.ExtRPCEnabled()
 }
 
 // ServiceConstructor is the function signature of the constructors needed to be
@@ -69,7 +93,7 @@ type Service interface {
 	// Protocols retrieves the P2P protocols the service wishes to start.
 	Protocols() []p2p.Protocol
 
-	// List of all APIs
+	// APIs retrieves the list of RPC descriptors the service provides
 	APIs() []rpc.API
 
 	// Start is called after all services have been constructed and the networking
