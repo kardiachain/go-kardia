@@ -139,9 +139,13 @@ func TestStateFullRound2(t *testing.T) {
 
 	// prevote arrives from vs2:
 	signAddVotes(cs1, types.VoteTypePrevote, propBlockHash, propPartSetHeader, vs2)
+	ensurePrevote()
 
+	ensurePrecommit()
+	validatePrecommit(t, cs1, round, uint32(0), vss[0], propBlockHash, propBlockHash)
 	// precommit arrives from vs2:
 	signAddVotes(cs1, types.VoteTypePrecommit, propBlockHash, propPartSetHeader, vs2)
+	// time.Sleep(6000 * time.Millisecond)
 
 }
 
@@ -273,6 +277,9 @@ func TestStateLockPOLRelockThenChangeLock(t *testing.T) {
 
 	signAddVotes(cs1, types.VoteTypePrevote, theBlockHash, theBlockParts, vs2, vs3, vs4)
 
+	ensurePrecommit()
+	validatePrecommit(t, cs1, round, round, vss[0], theBlockHash, theBlockHash)
+
 	// add precommits from the rest
 	signAddVotes(cs1, types.VoteTypePrecommit, common.BytesToHash(nil), types.PartSetHeader{}, vs2, vs3, vs4)
 
@@ -333,8 +340,6 @@ func TestStateLockPOLUnlockOnUnknownBlock(t *testing.T) {
 	time.Sleep(4000 * time.Millisecond)
 	ensurePrevote()
 	validatePrevote(t, cs1, round, vss[0], firstBlockHash)
-
-	signAddVotes(cs1, types.VoteTypePrecommit, firstBlockHash, firstBlockParts, vss[0])
 
 	time.Sleep(4000 * time.Millisecond)
 	ensurePrecommit()
@@ -462,9 +467,11 @@ func TestStateLockPOLUnlock(t *testing.T) {
 	signAddVotes(cs1, types.VoteTypePrecommit, common.BytesToHash(nil), types.PartSetHeader{}, vs2, vs4)
 	signAddVotes(cs1, types.VoteTypePrecommit, theBlockHash, theBlockParts, vs3)
 
-	// // before we time out into new round, set next proposal block
-	// prop, propBlock := decideProposal(cs1, vs2, vs2.Height, vs2.Round+1)
-	// propBlockParts := propBlock.MakePartSet(partSize)
+	// before we time out into new round, set next proposal block
+	prop, propBlock := decideProposal(cs1, vs2, vs2.Height, vs2.Round+1)
+	if prop == nil || propBlock == nil {
+		t.Fatal("Failed to create proposal block with vs2")
+	}
 
 	// timeout to new round
 	time.Sleep(3000 * time.Millisecond)
