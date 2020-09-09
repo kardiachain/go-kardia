@@ -273,7 +273,7 @@ func SetupContractAbi() (*state.StateDB, common.Address, *abi.ABI, error) {
 func ApplyTransactionReturnLog(bc base.BaseBlockChain, statedb *state.StateDB, tx *types.Transaction) ([]*types.Log, error) {
 	var (
 		usedGas = new(uint64)
-		header  = &types.Header{Time: big.NewInt(time.Now().Unix()), GasLimit: 10000000}
+		header  = &types.Header{Time: uint64(time.Now().Unix()), GasLimit: 10000000}
 		gp      = new(types.GasPool).AddGas(10000000)
 		logger  = log.New()
 	)

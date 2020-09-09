@@ -56,10 +56,10 @@ func TestCommitGetFirstPrecommit(t *testing.T) {
 
 func TestCommitAccessorFunctions(t *testing.T) {
 	commit := CreateNewCommit()
-	if !commit.Height().Equals(common.NewBigInt64(2)) {
+	if commit.Height() != 2 {
 		t.Error("Height")
 	}
-	if !commit.Round().Equals(common.NewBigInt64(1)) {
+	if commit.Round() != 1 {
 		t.Error("Round")
 	}
 	if commit.Size() != 2 {
@@ -98,7 +98,7 @@ func CreateNewCommit() *Commit {
 func CreateNewBlockWithTwoVotes(height uint64) *Block {
 	header := Header{
 		Height: height,
-		Time:   big.NewInt(time.Now().Unix()),
+		Time:   uint64(time.Now().Unix()),
 	}
 
 	addr := common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
@@ -114,10 +114,10 @@ func CreateNewBlockWithTwoVotes(height uint64) *Block {
 	txns := []*Transaction{signedTx}
 
 	vote := &Vote{
-		ValidatorIndex: common.NewBigInt64(1),
-		Height:         common.NewBigInt64(2),
-		Round:          common.NewBigInt64(1),
-		Timestamp:      big.NewInt(100),
+		ValidatorIndex: 1,
+		Height:         2,
+		Round:          1,
+		Timestamp:      100,
 		Type:           VoteTypePrecommit,
 	}
 	lastCommit := &Commit{

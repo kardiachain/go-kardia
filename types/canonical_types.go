@@ -23,8 +23,8 @@ type CanonicalProposal struct {
 	Type       string  `json:"@type"`
 	Height     uint64  `json:"height"`
 	POLBlockID BlockID `json:"pol_block_id"`
-	POLRound   int32   `json:"pol_round"`
-	Round      int32   `json:"round"`
+	POLRound   uint32  `json:"pol_round"`
+	Round      uint32  `json:"round"`
 	Timestamp  uint64  `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
 }
 
@@ -33,7 +33,7 @@ type CanonicalVote struct {
 	Type      string  `json:"@type"`
 	BlockID   BlockID `json:"block_id"`
 	Height    uint64  `json:"height"`
-	Round     int32   `json:"round"`
+	Round     uint32  `json:"round"`
 	Timestamp uint64  `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
 	VoteType  byte    `json:"type"`
 }

@@ -466,7 +466,7 @@ func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundSta
 // Broadcasts HasVoteMessage to peers that care.
 func (conR *ConsensusManager) broadcastHasVoteMessage(vote *types.Vote) {
 	msg := &HasVoteMessage{
-		Height: uint64(vote.Height),
+		Height: vote.Height,
 		Round:  vote.Round,
 		Type:   vote.Type,
 		Index:  vote.ValidatorIndex,
@@ -899,7 +899,7 @@ type ProposalMessage struct {
 // ProposalPOLMessage is sent when a previous proposal is re-proposed.
 type ProposalPOLMessage struct {
 	Height           uint64
-	ProposalPOLRound int32
+	ProposalPOLRound uint32
 	ProposalPOL      *cmn.BitArray
 }
 
@@ -912,18 +912,18 @@ func (m *ProposalPOLMessage) String() string {
 // For every height/round/step transition
 type NewRoundStepMessage struct {
 	Height                uint64                `json:"height" gencodoc:"required"`
-	Round                 int32                 `json:"round" gencodoc:"required"`
+	Round                 uint32                `json:"round" gencodoc:"required"`
 	Step                  cstypes.RoundStepType `json:"step" gencodoc:"required"`
 	SecondsSinceStartTime int64                 `json:"elapsed" gencodoc:"required"`
-	LastCommitRound       int32                 `json:"lastCommitRound" gencodoc:"required"`
+	LastCommitRound       uint32                `json:"lastCommitRound" gencodoc:"required"`
 }
 
 // HasVoteMessage is sent to indicate that a particular vote has been received.
 type HasVoteMessage struct {
 	Height uint64
-	Round  int32
+	Round  uint32
 	Type   byte
-	Index  int
+	Index  uint32
 }
 
 // String returns a string representation.
@@ -934,7 +934,7 @@ func (m *HasVoteMessage) String() string {
 // VoteSetMaj23Message is sent to indicate that a given BlockID has seen +2/3 votes.
 type VoteSetMaj23Message struct {
 	Height  uint64
-	Round   int32
+	Round   uint32
 	Type    byte
 	BlockID types.BlockID
 }
@@ -947,7 +947,7 @@ func (m *VoteSetMaj23Message) String() string {
 // VoteSetBitsMessage is sent to communicate the bit-array of votes seen for the BlockID.
 type VoteSetBitsMessage struct {
 	Height  uint64
-	Round   int32
+	Round   uint32
 	Type    byte
 	BlockID types.BlockID
 	Votes   *cmn.BitArray
@@ -1045,7 +1045,7 @@ func (ps *PeerState) InitProposalBlockParts(partsHeader types.PartSetHeader) {
 }
 
 // SetHasProposalBlockPart sets the given block part index as known for the peer.
-func (ps *PeerState) SetHasProposalBlockPart(height uint64, round int32, index int) {
+func (ps *PeerState) SetHasProposalBlockPart(height uint64, round uint32, index int) {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
@@ -1216,13 +1216,13 @@ func (ps *PeerState) SetHasVote(vote *types.Vote) {
 	ps.setHasVote(uint64(vote.Height), vote.Round, vote.Type, vote.ValidatorIndex)
 }
 
-func (ps *PeerState) setHasVote(height uint64, round int32, type_ byte, index int) {
+func (ps *PeerState) setHasVote(height uint64, round int32, type_ byte, index uint32) {
 	//logger := ps.logger.New("peerH/R", cmn.Fmt("%v/%v", ps.PRS.Height, ps.PRS.Round))
 	ps.logger.Debug("setHasVote", "H/R", cmn.Fmt("%v/%v", height, round), "type", types.GetReadableVoteTypeString(type_), "index", index)
 
 	psVotes := ps.getVoteBitArray(height, round, type_)
 	if psVotes != nil {
-		psVotes.SetIndex(index, true)
+		psVotes.SetIndex(int(index), true)
 	}
 }
 
@@ -1339,7 +1339,7 @@ func (ps *PeerState) String() string {
 // BlockPartMessage is sent when gossipping a piece of the proposed block.
 type BlockPartMessage struct {
 	Height uint64
-	Round  int32
+	Round  uint32
 	Part   *types.Part
 }
 
@@ -1369,7 +1369,7 @@ func (m *BlockPartMessage) String() string {
 // In case the block is also committed, then IsCommit flag is set to true.
 type NewValidBlockMessage struct {
 	Height           uint64
-	Round            int32
+	Round            uint32
 	BlockPartsHeader types.PartSetHeader
 	BlockParts       *cmn.BitArray
 	IsCommit         bool

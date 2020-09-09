@@ -32,8 +32,8 @@ import (
 // a so-called Proof-of-Lock (POL) round, as noted in the POLRound and POLBlockID.
 type Proposal struct {
 	Height     uint64  `json:"height"`
-	Round      int32   `json:"round"`
-	POLRound   int32   `json:"pol_round"`
+	Round      uint32  `json:"round"`
+	POLRound   uint32  `json:"pol_round"`
 	Timestamp  uint64  `json:"timestamp"`    // -1 if null.
 	POLBlockID BlockID `json:"pol_block_id"` // zero if null.
 	Signature  []byte  `json:"signature"`
@@ -41,7 +41,7 @@ type Proposal struct {
 
 // NewProposal returns a new Proposal.
 // If there is no POLRound, polRound should be -1.
-func NewProposal(height uint64, round int32, polRound int32, polBlockID BlockID) *Proposal {
+func NewProposal(height uint64, round uint32, polRound uint32, polBlockID BlockID) *Proposal {
 	return &Proposal{
 		Height:     height,
 		Round:      round,

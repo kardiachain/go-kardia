@@ -764,7 +764,7 @@ func (cs *ConsensusState) LoadCommit(height uint64) *types.Commit {
 // Enter: +2/3 precommits for nil at (height,round-1)
 // Enter: +2/3 prevotes any or +2/3 precommits for block or any from (height, round)
 // NOTE: cs.StartTime was already set for height.
-func (cs *ConsensusState) enterNewRound(height uint64, round int32) {
+func (cs *ConsensusState) enterNewRound(height uint64, round uint32) {
 	logger := cs.logger.New("height", height, "round", round)
 
 	if (cs.Height != height) || (round < cs.Round) || (cs.Round == round) && (cs.Step != cstypes.RoundStepNewHeight) {

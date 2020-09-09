@@ -164,9 +164,9 @@ type (
 
 	Vote struct {
 		ValidatorAddress string        `json:"validatorAddress"           bson:"validatorAddress"`
-		ValidatorIndex   int           `json:"validatorIndex"             bson:"validatorIndex"`
+		ValidatorIndex   uint32        `json:"validatorIndex"             bson:"validatorIndex"`
 		Height           uint64        `json:"height"                     bson:"height"`
-		Round            int32         `json:"round"                      bson:"round"`
+		Round            uint32        `json:"round"                      bson:"round"`
 		Timestamp        uint64        `json:"timestamp"                  bson:"timestamp"`
 		Type             byte          `json:"type"                       bson:"type"`
 		BlockID          string        `json:"blockID"                    bson:"blockID"`
@@ -460,13 +460,13 @@ func NewVote(vote *types.Vote) *Vote {
 		BlockID:          vote.BlockID.StringLong(),
 		Signature:        common.Bytes2Hex(vote.Signature),
 		ValidatorAddress: vote.ValidatorAddress.Hex(),
-		ValidatorIndex:   vote.ValidatorIndex,
+		ValidatorIndex:   uint32(vote.ValidatorIndex),
 	}
 }
 
 func (vote *Vote) ToVote() *types.Vote {
 	return &types.Vote{
-		Height:           int64(vote.Height),
+		Height:           vote.Height,
 		Type:             vote.Type,
 		Timestamp:        uint64(vote.Timestamp),
 		Round:            vote.Round,

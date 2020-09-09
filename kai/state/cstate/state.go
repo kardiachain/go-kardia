@@ -21,8 +21,6 @@ package cstate
 import (
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 
 	"github.com/kardiachain/go-kardiamain/types"
@@ -59,7 +57,7 @@ type LastestBlockState struct {
 	NextValidators              *types.ValidatorSet `rlp:"nil"`
 	Validators                  *types.ValidatorSet `rlp:"nil"`
 	LastValidators              *types.ValidatorSet `rlp:"nil"`
-	LastHeightValidatorsChanged *common.BigInt
+	LastHeightValidatorsChanged uint64
 
 	ConsensusParams                  types.ConsensusParams
 	LastHeightConsensusParamsChanged uint64

@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func initializeValidatorState(valAddr common.Address, height int64) kaidb.Database {
+func initializeValidatorState(valAddr common.Address, height uint64) kaidb.Database {
 	stateDB := memorydb.New()
 
 	// create validator set and state
@@ -22,7 +22,7 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 			&types.Validator{
 				Address:     valAddr,
 				VotingPower: 100,
-				Accum:       common.NewBigInt64(1),
+				Accum:       1,
 			},
 		},
 	}
@@ -31,11 +31,11 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 	nextVal.AdvanceProposer(1)
 
 	state := cState.LastestBlockState{
-		LastBlockHeight:             common.NewBigInt64(0),
+		LastBlockHeight:             0,
 		LastBlockTime:               uint64(time.Now().Unix()),
 		Validators:                  valSet,
 		NextValidators:              nextVal,
-		LastHeightValidatorsChanged: common.NewBigInt64(1),
+		LastHeightValidatorsChanged: 1,
 		ConsensusParams: types.ConsensusParams{
 			Evidence: types.EvidenceParams{
 				MaxAgeNumBlocks: 10000,
@@ -44,8 +44,8 @@ func initializeValidatorState(valAddr common.Address, height int64) kaidb.Databa
 		},
 	}
 	// save all states up to height
-	for i := int64(0); i < height; i++ {
-		state.LastBlockHeight = common.NewBigInt64(i)
+	for i := uint64(0); i < height; i++ {
+		state.LastBlockHeight = i
 		cState.SaveState(stateDB, state)
 	}
 

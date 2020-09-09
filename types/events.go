@@ -45,7 +45,7 @@ const (
 // NOTE: This goes into the replay WAL
 type EventDataRoundState struct {
 	Height uint64 `json:"height"`
-	Round  int32  `json:"round"`
+	Round  uint32 `json:"round"`
 	Step   string `json:"step"`
 
 	// private, not exposed to websockets
@@ -84,7 +84,7 @@ type BlockEventPublisher interface {
 
 type EventDataCompleteProposal struct {
 	Height uint64 `json:"height"`
-	Round  int32  `json:"round"`
+	Round  uint32 `json:"round"`
 	Step   string `json:"step"`
 
 	BlockID BlockID `json:"block_id"`

@@ -91,9 +91,9 @@ func GetReadableVoteTypeString(type_ byte) string {
 // Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
 	ValidatorAddress cmn.Address `json:"validator_address"`
-	ValidatorIndex   int         `json:"validator_index"`
-	Height           int64       `json:"height"`
-	Round            int32       `json:"round"`
+	ValidatorIndex   uint32      `json:"validator_index"`
+	Height           uint64      `json:"height"`
+	Round            uint32      `json:"round"`
 	Timestamp        uint64      `json:"timestamp"`
 	Type             byte        `json:"type"`
 	BlockID          BlockID     `json:"block_id"` // zero if vote is nil.
@@ -102,15 +102,15 @@ type Vote struct {
 
 func CreateEmptyVote() *Vote {
 	return &Vote{
-		ValidatorIndex: -1,
-		Height:         -1,
-		Round:          -1,
+		ValidatorIndex: 0,
+		Height:         0,
+		Round:          0,
 		Timestamp:      0,
 	}
 }
 
 func (vote *Vote) IsEmpty() bool {
-	return (vote.ValidatorIndex == -1) && (vote.Height == -1) && (vote.Height == -1) && (vote.Timestamp == 0)
+	return (vote.ValidatorIndex == 0) && (vote.Height == 0) && (vote.Height == 0) && (vote.Timestamp == 0)
 }
 
 func (vote *Vote) SignBytes(chainID string) []byte {

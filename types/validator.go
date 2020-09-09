@@ -35,7 +35,7 @@ import (
 type Validator struct {
 	Address     common.Address `json:"address"`
 	VotingPower uint64         `json:"voting_power"`
-	Accum       int64          `json:"accum"`
+	Accum       uint64         `json:"accum"`
 }
 
 func NewValidator(addr common.Address, votingPower uint64) *Validator {
@@ -191,12 +191,12 @@ func (valSet *ValidatorSet) HasAddress(address common.Address) bool {
 
 // GetByAddress returns an index of the validator with address and validator
 // itself if found. Otherwise, -1 and nil are returned.
-func (valSet *ValidatorSet) GetByAddress(address common.Address) (index int, val *Validator) {
+func (valSet *ValidatorSet) GetByAddress(address common.Address) (index int32, val *Validator) {
 	idx := sort.Search(len(valSet.Validators), func(i int) bool {
 		return bytes.Compare(address.Bytes(), valSet.Validators[i].Address.Bytes()) <= 0
 	})
 	if idx < len(valSet.Validators) && bytes.Equal(valSet.Validators[idx].Address.Bytes(), address.Bytes()) {
-		return idx, valSet.Validators[idx].Copy()
+		return int32(idx), valSet.Validators[idx].Copy()
 	}
 	return -1, nil
 }
@@ -204,8 +204,8 @@ func (valSet *ValidatorSet) GetByAddress(address common.Address) (index int, val
 // GetByIndex returns the validator's address and validator itself by index.
 // It returns nil values if index is less than 0 or greater or equal to
 // len(ValidatorSet.Validators).
-func (valSet *ValidatorSet) GetByIndex(index int) (address common.Address, val *Validator) {
-	if valSet.Validators == nil || index < 0 || index >= len(valSet.Validators) {
+func (valSet *ValidatorSet) GetByIndex(index uint32) (address common.Address, val *Validator) {
+	if valSet.Validators == nil || index < 0 || index >= uint32(len(valSet.Validators)) {
 		return common.BytesToAddress(nil), nil
 	}
 	val = valSet.Validators[index]
@@ -278,7 +278,7 @@ func (valSet *ValidatorSet) AdvanceProposer(times int64) {
 	validatorsHeap := common.NewHeap()
 	// Update voting power of each validator after "times" increments.
 	for _, val := range valSet.Validators {
-		val.Accum = common.AddWithClip(val.Accum, common.MulWithClip(int64(val.VotingPower), times))
+		val.Accum = uint64(common.AddWithClip(int64(val.Accum), common.MulWithClip(int64(val.VotingPower), times)))
 		validatorsHeap.PushComparable(val, accumComparable{val})
 	}
 
@@ -286,7 +286,7 @@ func (valSet *ValidatorSet) AdvanceProposer(times int64) {
 	// TODO(namdoh@): Revise the following logic as the next validator set is updated.
 	for i := int64(0); i < times; i++ {
 		mostest := validatorsHeap.Peek().(*Validator)
-		mostest.Accum = common.SubWithClip(mostest.Accum, int64(valSet.TotalVotingPower()))
+		mostest.Accum = uint64(common.SubWithClip(int64(mostest.Accum), int64(valSet.TotalVotingPower())))
 
 		if i == times-1 {
 			valSet.Proposer = mostest
@@ -323,7 +323,7 @@ func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height
 		if precommit == nil {
 			continue
 		}
-		if precommit.Height != int64(height) {
+		if precommit.Height != height {
 			return fmt.Errorf("Invalid commit -- wrong height: %v vs %v", height, precommit.Height)
 		}
 		if precommit.Round != round {
@@ -332,7 +332,7 @@ func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height
 		if precommit.Type != VoteTypePrecommit {
 			return fmt.Errorf("Invalid commit -- not precommit @ index %v", idx)
 		}
-		_, val := valSet.GetByIndex(idx)
+		_, val := valSet.GetByIndex(uint32(idx))
 		// Validate signature
 		if !val.VerifyVoteSignature(chainID, precommit) {
 			return fmt.Errorf("Invalid commit -- invalid signature: %v", precommit)

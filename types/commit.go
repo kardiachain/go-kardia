@@ -103,7 +103,7 @@ func (commit *Commit) Height() uint64 {
 }
 
 // Round returns the round of the commit
-func (commit *Commit) Round() int32 {
+func (commit *Commit) Round() uint32 {
 	if len(commit.Precommits) == 0 {
 		return 0
 	}
