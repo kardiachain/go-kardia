@@ -21,7 +21,6 @@ package types
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
@@ -92,26 +91,37 @@ func GetReadableVoteTypeString(type_ byte) string {
 // Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
 	ValidatorAddress cmn.Address `json:"validator_address"`
-	ValidatorIndex   *cmn.BigInt `json:"validator_index"`
-	Height           *cmn.BigInt `json:"height"`
-	Round            *cmn.BigInt `json:"round"`
-	Timestamp        *big.Int    `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+	ValidatorIndex   uint        `json:"validator_index"`
+	Height           uint64      `json:"height"`
+	Round            uint        `json:"round"`
+	Timestamp        uint64      `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
 	Type             byte        `json:"type"`
 	BlockID          BlockID     `json:"block_id"` // zero if vote is nil.
 	Signature        []byte      `json:"signature"`
 }
 
-func CreateEmptyVote() *Vote {
-	return &Vote{
-		ValidatorIndex: cmn.NewBigInt64(-1),
-		Height:         cmn.NewBigInt64(-1),
-		Round:          cmn.NewBigInt64(-1),
-		Timestamp:      big.NewInt(0),
+// CommitSig converts the Vote to a CommitSig.
+func (vote *Vote) CommitSig() CommitSig {
+	if vote == nil {
+		return NewCommitSigAbsent()
 	}
-}
 
-func (vote *Vote) IsEmpty() bool {
-	return vote.ValidatorIndex.EqualsInt(-1) && vote.Height.EqualsInt(-1) && vote.Height.EqualsInt(-1) && vote.Timestamp.Int64() == 0
+	var blockIDFlag BlockIDFlag
+	switch {
+	case vote.BlockID.IsComplete():
+		blockIDFlag = BlockIDFlagCommit
+	case vote.BlockID.IsZero():
+		blockIDFlag = BlockIDFlagNil
+	default:
+		panic(fmt.Sprintf("Invalid vote %v - expected BlockID to be either empty or complete", vote))
+	}
+
+	return CommitSig{
+		BlockIDFlag:      blockIDFlag,
+		ValidatorAddress: vote.ValidatorAddress,
+		Timestamp:        vote.Timestamp,
+		Signature:        vote.Signature,
+	}
 }
 
 func (vote *Vote) SignBytes(chainID string) []byte {
@@ -124,10 +134,10 @@ func (vote *Vote) SignBytes(chainID string) []byte {
 
 func (vote *Vote) Copy() *Vote {
 	voteCopy := *vote
-	voteCopy.ValidatorIndex = vote.ValidatorIndex.Copy()
-	voteCopy.Height = vote.Height.Copy()
-	voteCopy.Round = vote.Round.Copy()
-	voteCopy.Timestamp = big.NewInt(vote.Timestamp.Int64())
+	voteCopy.ValidatorIndex = vote.ValidatorIndex
+	voteCopy.Height = vote.Height
+	voteCopy.Round = vote.Round
+	voteCopy.Timestamp = vote.Timestamp
 	return &voteCopy
 }
 
@@ -136,15 +146,12 @@ func (vote *Vote) StringLong() string {
 	if vote == nil {
 		return "nil-Vote"
 	}
-	if vote.IsEmpty() {
-		return "empty-Vote"
-	}
 
 	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X , %v @ %v}",
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		vote.BlockID.Hash.Fingerprint(), vote.Signature,
-		time.Unix(vote.Timestamp.Int64(), 0))
+		time.Unix(int64(vote.Timestamp), 0))
 }
 
 // String simplifies vote.Signature, array of bytes, to hex and gets the first 14 characters
@@ -152,15 +159,11 @@ func (vote *Vote) String() string {
 	if vote == nil {
 		return "nil-vote"
 	}
-	if vote.IsEmpty() {
-		return "empty-vote"
-	}
-
 	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %v , %X @%v}",
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		vote.BlockID, cmn.Fingerprint(vote.Signature[:]),
-		time.Unix(vote.Timestamp.Int64(), 0))
+		time.Unix(int64(vote.Timestamp), 0))
 }
 
 // ValidateBasic performs basic validation.

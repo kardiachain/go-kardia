@@ -21,7 +21,9 @@ package types
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"sort"
 	"strings"
@@ -30,6 +32,34 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 )
+
+const (
+	MaxTotalVotingPower = int64(math.MaxInt64) / 8
+)
+
+// ErrTotalVotingPowerOverflow is returned if the total voting power of the
+// resulting validator set exceeds MaxTotalVotingPower.
+var ErrTotalVotingPowerOverflow = fmt.Errorf("total voting power of resulting valset exceeds max %d",
+	MaxTotalVotingPower)
+
+//-----------------
+
+// IsErrNotEnoughVotingPowerSigned returns true if err is
+// ErrNotEnoughVotingPowerSigned.
+func IsErrNotEnoughVotingPowerSigned(err error) bool {
+	return errors.As(err, &ErrNotEnoughVotingPowerSigned{})
+}
+
+// ErrNotEnoughVotingPowerSigned is returned when not enough validators signed
+// a commit.
+type ErrNotEnoughVotingPowerSigned struct {
+	Got    int64
+	Needed int64
+}
+
+func (e ErrNotEnoughVotingPowerSigned) Error() string {
+	return fmt.Sprintf("invalid commit -- insufficient voting power: got %d, needed more than %d", e.Got, e.Needed)
+}
 
 // Volatile state for each Validator
 type Validator struct {
@@ -307,49 +337,41 @@ func (valSet *ValidatorSet) Iterate(fn func(index int, val *Validator) bool) {
 	}
 }
 
-// Verify that +2/3 of the set had signed the given signBytes
-func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height int64, commit *Commit) error {
-	if valSet.Size() != len(commit.Precommits) {
-		return fmt.Errorf("Invalid commit -- wrong set size: %v vs %v", valSet.Size(), len(commit.Precommits))
+// VerifyCommit that +2/3 of the set had signed the given signBytes
+func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height uint64, commit *Commit) error {
+	if valSet.Size() != len(commit.Signatures) {
+		return fmt.Errorf("Invalid commit -- wrong set size: %v vs %v", valSet.Size(), len(commit.Signatures))
 	}
-	if !commit.Height().EqualsInt64(height) {
-		return fmt.Errorf("Invalid commit -- wrong height: %v vs %v", height, commit.Height())
+	if commit.Height != height {
+		return fmt.Errorf("Invalid commit -- wrong height: %v vs %v", height, commit.Height)
 	}
 
 	talliedVotingPower := int64(0)
-	round := commit.Round()
+	votingPowerNeeded := valSet.TotalVotingPower() * 2 / 3
+	for idx, commitSig := range commit.Signatures {
+		if commitSig.Absent() {
+			continue // OK, some signatures can be absent.
+		}
 
-	for idx, precommit := range commit.Precommits {
-		// may be nil if validator skipped.
-		if precommit == nil {
-			continue
-		}
-		if !precommit.Height.EqualsInt64(height) {
-			return fmt.Errorf("Invalid commit -- wrong height: %v vs %v", height, precommit.Height)
-		}
-		if !precommit.Round.Equals(round) {
-			return fmt.Errorf("Invalid commit -- wrong round: %v vs %v", round, precommit.Round)
-		}
-		if precommit.Type != VoteTypePrecommit {
-			return fmt.Errorf("Invalid commit -- not precommit @ index %v", idx)
-		}
-		_, val := valSet.GetByIndex(idx)
+		// The vals and commit have a 1-to-1 correspondance.
+		// This means we don't need the validator address or to do any lookup.
+		val := valSet.Validators[idx]
+
 		// Validate signature
-		if !val.VerifyVoteSignature(chainID, precommit) {
-			return fmt.Errorf("Invalid commit -- invalid signature: %v", precommit)
+		if !val.VerifyVoteSignature(chainID, commit.GetVote(uint(idx))) {
+			return fmt.Errorf("Invalid commit -- invalid signature: %v", commitSig)
 		}
-		if !blockID.Equal(precommit.BlockID) {
-			continue // Not an error, but doesn't count
+		if commitSig.ForBlock() {
+			// Good precommit!
+			talliedVotingPower += int64(val.VotingPower)
 		}
-		// Good precommit!
-		talliedVotingPower += int64(val.VotingPower)
+
 	}
 
-	if talliedVotingPower > valSet.TotalVotingPower()*2/3 {
-		return nil
+	if got, needed := talliedVotingPower, votingPowerNeeded; got <= needed {
+		return ErrNotEnoughVotingPowerSigned{Got: got, Needed: needed}
 	}
-	return fmt.Errorf("Invalid commit -- insufficient voting power: got %v, needed %v",
-		talliedVotingPower, (valSet.TotalVotingPower()*2/3 + 1))
+	return nil
 }
 
 // StringLong returns a long string representing full info about Validator

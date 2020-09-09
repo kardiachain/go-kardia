@@ -18,30 +18,24 @@
 
 package types
 
-import (
-	"math/big"
-
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-)
-
 type CanonicalProposal struct {
-	ChainID    string      `json:"@chain_id"`
-	Type       string      `json:"@type"`
-	Height     *cmn.BigInt `json:"height"`
-	POLBlockID BlockID     `json:"pol_block_id"`
-	POLRound   *cmn.BigInt `json:"pol_round"`
-	Round      *cmn.BigInt `json:"round"`
-	Timestamp  *big.Int    `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+	ChainID    string  `json:"@chain_id"`
+	Type       string  `json:"@type"`
+	Height     uint64  `json:"height"`
+	POLBlockID BlockID `json:"pol_block_id"`
+	POLRound   uint    `json:"pol_round"`
+	Round      uint    `json:"round"`
+	Timestamp  uint64  `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
 }
 
 type CanonicalVote struct {
-	ChainID   string      `json:"@chain_id"`
-	Type      string      `json:"@type"`
-	BlockID   BlockID     `json:"block_id"`
-	Height    *cmn.BigInt `json:"height"`
-	Round     *cmn.BigInt `json:"round"`
-	Timestamp *big.Int    `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
-	VoteType  byte        `json:"type"`
+	ChainID   string  `json:"@chain_id"`
+	Type      string  `json:"@type"`
+	BlockID   BlockID `json:"block_id"`
+	Height    uint64  `json:"height"`
+	Round     uint    `json:"round"`
+	Timestamp uint64  `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+	VoteType  byte    `json:"type"`
 }
 
 // ------- Helper functions to create canonical types --------------

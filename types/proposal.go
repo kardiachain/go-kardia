@@ -20,7 +20,6 @@ package types
 
 import (
 	"fmt"
-	"math/big"
 	"time"
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
@@ -32,21 +31,21 @@ import (
 // to be considered valid. It may depend on votes from a previous round,
 // a so-called Proof-of-Lock (POL) round, as noted in the POLRound and POLBlockID.
 type Proposal struct {
-	Height     *cmn.BigInt `json:"height"`
-	Round      *cmn.BigInt `json:"round"`
-	Timestamp  *big.Int    `json:"timestamp"`    // TODO(thientn/namdoh): epoch seconds, change to milis.
-	POLRound   *cmn.BigInt `json:"pol_round"`    // -1 if null.
-	POLBlockID BlockID     `json:"pol_block_id"` // zero if null.
-	Signature  []byte      `json:"signature"`
+	Height     uint64  `json:"height"`
+	Round      uint    `json:"round"`
+	Timestamp  uint64  `json:"timestamp"`    // TODO(thientn/namdoh): epoch seconds, change to milis.
+	POLRound   uint    `json:"pol_round"`    // -1 if null.
+	POLBlockID BlockID `json:"pol_block_id"` // zero if null.
+	Signature  []byte  `json:"signature"`
 }
 
 // NewProposal returns a new Proposal.
 // If there is no POLRound, polRound should be -1.
-func NewProposal(height *cmn.BigInt, round *cmn.BigInt, polRound *cmn.BigInt, polBlockID BlockID) *Proposal {
+func NewProposal(height uint64, round uint, polRound uint, polBlockID BlockID) *Proposal {
 	return &Proposal{
 		Height:     height,
 		Round:      round,
-		Timestamp:  big.NewInt(time.Now().Unix()),
+		Timestamp:  uint64(time.Now().Unix()),
 		POLRound:   polRound,
 		POLBlockID: polBlockID,
 	}
@@ -67,5 +66,5 @@ func (p *Proposal) String() string {
 		p.Height, p.Round, p.POLRound,
 		p.POLBlockID,
 		cmn.Fingerprint(p.Signature[:]),
-		time.Unix(p.Timestamp.Int64(), 0))
+		time.Unix(int64(p.Timestamp), 0))
 }

@@ -56,8 +56,8 @@ import (
 */
 type VoteSet struct {
 	chainID string
-	height  *cmn.BigInt
-	round   *cmn.BigInt
+	height  uint64
+	round   uint
 	type_   byte
 	valSet  *ValidatorSet
 
@@ -70,9 +70,9 @@ type VoteSet struct {
 	peerMaj23s    map[enode.ID]BlockID   // Maj23 for each peer
 }
 
-// Constructs a new VoteSet struct used to accumulate votes for given height/round.
-func NewVoteSet(chainID string, height *cmn.BigInt, round *cmn.BigInt, type_ byte, valSet *ValidatorSet) *VoteSet {
-	if height.EqualsInt(0) {
+// NewVoteSet Constructs a new VoteSet struct used to accumulate votes for given height/round.
+func NewVoteSet(chainID string, height uint64, round uint, type_ byte, valSet *ValidatorSet) *VoteSet {
+	if height == 0 {
 		panic("Cannot make VoteSet for height == 0, doesn't make sense.")
 	}
 	return &VoteSet{
@@ -114,7 +114,7 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	if vote == nil {
 		return false, ErrVoteNil
 	}
-	valIndex := vote.ValidatorIndex.Int32()
+	valIndex := vote.ValidatorIndex
 	valAddr := vote.ValidatorAddress
 	blockKey := vote.BlockID.Key()
 
@@ -126,8 +126,8 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	}
 
 	// Make sure the step matches.
-	if !vote.Height.Equals(voteSet.height) ||
-		!vote.Round.Equals(voteSet.round) ||
+	if vote.Height != voteSet.height ||
+		vote.Round != voteSet.round ||
 		vote.Type != voteSet.type_ {
 		return false, errors.Wrapf(ErrVoteUnexpectedStep, "Got %v/%v/%v, expected %v/%v/%v",
 			voteSet.height, voteSet.round, voteSet.type_,
@@ -135,7 +135,7 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	}
 
 	// Ensure that signer is a validator.
-	lookupAddr, val := voteSet.valSet.GetByIndex(valIndex)
+	lookupAddr, val := voteSet.valSet.GetByIndex(int(valIndex))
 	if val == nil {
 		return false, errors.Wrapf(ErrVoteInvalidValidatorIndex,
 			"Cannot find validator %d in valSet of size %d", valIndex, voteSet.valSet.Size())
@@ -149,7 +149,7 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	}
 
 	// If we already know of this vote, return false.
-	if existing, ok := voteSet.getVote(valIndex, blockKey); ok {
+	if existing, ok := voteSet.getVote(int(valIndex), blockKey); ok {
 		if bytes.Equal(existing.Signature, vote.Signature) {
 			return false, nil // duplicate
 		}
@@ -186,7 +186,7 @@ func (voteSet *VoteSet) getVote(valIndex int, blockKey string) (vote *Vote, ok b
 // Assumes signature is valid.
 // If conflicting vote exists, returns it.
 func (voteSet *VoteSet) addVerifiedVote(vote *Vote, blockKey string, votingPower int64) (added bool, conflicting *Vote) {
-	valIndex := vote.ValidatorIndex.Int32()
+	valIndex := vote.ValidatorIndex
 
 	// Already exists in voteSet.votes?
 	if existing := voteSet.votes[valIndex]; existing != nil {
@@ -198,13 +198,13 @@ func (voteSet *VoteSet) addVerifiedVote(vote *Vote, blockKey string, votingPower
 		// Replace vote if blockKey matches voteSet.maj23.
 		if voteSet.maj23 != nil && voteSet.maj23.Key() == blockKey {
 			voteSet.votes[valIndex] = vote
-			voteSet.votesBitArray.SetIndex(valIndex, true)
+			voteSet.votesBitArray.SetIndex(int(valIndex), true)
 		}
 		// Otherwise don't add it to voteSet.votes
 	} else {
 		// Add to voteSet.votes and incr .sum
 		voteSet.votes[valIndex] = vote
-		voteSet.votesBitArray.SetIndex(valIndex, true)
+		voteSet.votesBitArray.SetIndex(int(valIndex), true)
 		voteSet.sum += uint64(votingPower)
 	}
 
@@ -298,16 +298,16 @@ func (voteSet *VoteSet) ChainID() string {
 	return voteSet.chainID
 }
 
-func (voteSet *VoteSet) Height() *cmn.BigInt {
+func (voteSet *VoteSet) Height() uint64 {
 	if voteSet == nil {
-		return cmn.NewBigInt64(0)
+		return 0
 	}
 	return voteSet.height
 }
 
-func (voteSet *VoteSet) Round() *cmn.BigInt {
+func (voteSet *VoteSet) Round() uint {
 	if voteSet == nil {
-		return cmn.NewBigInt64(-1)
+		return 0
 	}
 	return voteSet.round
 }
@@ -439,6 +439,7 @@ func (voteSet *VoteSet) sumTotalFrac() (int64, int64, float64) {
 	return int64(voted), total, fracVoted
 }
 
+// MakeCommit ...
 func (voteSet *VoteSet) MakeCommit() *Commit {
 	if voteSet.type_ != VoteTypePrecommit {
 		cmn.PanicSanity("Cannot MakeCommit() unless VoteSet.Type is VoteTypePrecommit")
@@ -452,11 +453,18 @@ func (voteSet *VoteSet) MakeCommit() *Commit {
 	}
 
 	// For every validator, get the precommit
-	votesCopy := make([]*Vote, len(voteSet.votes))
-	copy(votesCopy, voteSet.votes)
+	commitSigs := make([]CommitSig, len(voteSet.votes))
+	for i, v := range voteSet.votes {
+		commitSig := v.CommitSig()
+		// if block ID exists but doesn't match, exclude sig
+		if commitSig.ForBlock() && !v.BlockID.Equal(*voteSet.maj23) {
+			commitSig = NewCommitSigAbsent()
+		}
+		commitSigs[i] = commitSig
+	}
 	return &Commit{
 		BlockID:    *voteSet.maj23,
-		Precommits: votesCopy,
+		Signatures: commitSigs,
 	}
 }
 
@@ -485,9 +493,9 @@ func newBlockVotes(peerMaj23 bool, numValidators int) *blockVotes {
 }
 
 func (vs *blockVotes) addVerifiedVote(vote *Vote, votingPower int64) {
-	valIndex := vote.ValidatorIndex.Int32()
+	valIndex := vote.ValidatorIndex
 	if existing := vs.votes[valIndex]; existing == nil {
-		vs.bitArray.SetIndex(valIndex, true)
+		vs.bitArray.SetIndex(int(valIndex), true)
 		vs.votes[valIndex] = vote
 		vs.sum += votingPower
 	}

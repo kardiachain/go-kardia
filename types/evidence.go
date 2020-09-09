@@ -188,12 +188,12 @@ func (dve *DuplicateVoteEvidence) String() string {
 
 // Height returns the height this evidence refers to.
 func (dve *DuplicateVoteEvidence) Height() uint64 {
-	return dve.VoteA.Height.Uint64()
+	return dve.VoteA.Height
 }
 
 // Time return the time the evidence was created
 func (dve *DuplicateVoteEvidence) Time() uint64 {
-	return dve.VoteA.Timestamp.Uint64()
+	return dve.VoteA.Timestamp
 }
 
 // Address returns the address of the validator.

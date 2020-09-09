@@ -294,7 +294,7 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 		return err
 	}
 	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
-	eb.LastCommit.MakeEmptyNil()
+	//eb.LastCommit.MakeEmptyNil()
 
 	b.header, b.transactions, b.dualEvents, b.lastCommit, b.evidence = eb.Header, eb.Txs, eb.DualEvents, eb.LastCommit, eb.Evidence
 	b.size.Store(common.StorageSize(rlp.ListSize(size)))
@@ -305,7 +305,7 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 func (b *Block) EncodeRLP(w io.Writer) error {
 	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
 	lastCommitCopy := b.lastCommit.Copy()
-	lastCommitCopy.MakeNilEmpty()
+	//lastCommitCopy.MakeNilEmpty()
 	return rlp.Encode(w, extblock{
 		Header:     b.header,
 		Txs:        b.transactions,
@@ -322,16 +322,12 @@ func (b *Body) DecodeRLP(s *rlp.Stream) error {
 	if err := s.Decode(&eb); err != nil {
 		return err
 	}
-	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
-	eb.LastCommit.MakeEmptyNil()
-
 	b.Transactions, b.DualEvents, b.LastCommit = eb.Txs, eb.DualEvents, eb.LastCommit
 	return nil
 }
 
 func (b *Body) EncodeRLP(w io.Writer) error {
 	lastCommitCopy := b.LastCommit.Copy()
-	lastCommitCopy.MakeNilEmpty()
 	return rlp.Encode(w, extblock{
 		Header:     &Header{},
 		Txs:        b.Transactions,
@@ -516,24 +512,6 @@ func (b *Block) Hash() common.Hash {
 	v := b.header.Hash()
 	b.hash.Store(v)
 	return v
-}
-
-// This function is used to address RLP's diosyncrasies (issues#73), enabling
-// RLP encoding/decoding to pass.
-// Note: Use this "before" sending the object to other peers.
-func (b *Block) MakeNilEmpty() {
-	if b.lastCommit != nil {
-		b.lastCommit.MakeNilEmpty()
-	}
-}
-
-// This function is used to address RLP's diosyncrasies (issues#73), enabling
-// RLP encoding/decoding to pass.
-// Note: Use this "after" receiving the object to other peers.
-func (b *Block) MakeEmptyNil() {
-	if b.lastCommit != nil {
-		b.lastCommit.MakeEmptyNil()
-	}
 }
 
 type BlockID struct {
