@@ -741,7 +741,7 @@ func (conR *ConsensusManager) gossipVotesForHeight(logger log.Logger, rs *cstype
 		}
 	}
 	// If there are POL prevotes to send...
-	if (prs.Step <= cstypes.RoundStepPropose) && (prs.Round != -1) && (prs.Round <= rs.Round) && (prs.ProposalPOLRound != -1) {
+	if (prs.Step <= cstypes.RoundStepPropose) && (prs.Round != 0) && (prs.Round <= rs.Round) && (prs.ProposalPOLRound != 0) {
 		if polPrevotes := rs.Votes.Prevotes(prs.ProposalPOLRound); polPrevotes != nil {
 			if ps.PickSendVote(polPrevotes) {
 				logger.Debug("Picked rs.Prevotes(prs.ProposalPOLRound) to send",
@@ -751,28 +751,28 @@ func (conR *ConsensusManager) gossipVotesForHeight(logger log.Logger, rs *cstype
 		}
 	}
 	// If there are prevotes to send...
-	if (prs.Step <= cstypes.RoundStepPrevoteWait) && (prs.Round != -1) && (prs.Round <= rs.Round) {
+	if (prs.Step <= cstypes.RoundStepPrevoteWait) && (prs.Round != 0) && (prs.Round <= rs.Round) {
 		if ps.PickSendVote(rs.Votes.Prevotes(prs.Round)) {
 			logger.Debug("Picked rs.Prevotes(prs.Round) to send", "round", prs.Round)
 			return true
 		}
 	}
 	// If there are precommits to send...
-	if prs.Step <= cstypes.RoundStepPrecommitWait && (prs.Round != -1) && (prs.Round <= rs.Round) {
+	if prs.Step <= cstypes.RoundStepPrecommitWait && (prs.Round != 0) && (prs.Round <= rs.Round) {
 		if ps.PickSendVote(rs.Votes.Precommits(prs.Round)) {
 			logger.Debug("Picked rs.Precommits(prs.Round) to send", "round", prs.Round)
 			return true
 		}
 	}
 	// If there are prevotes to send...Needed because of validBlock mechanism
-	if (prs.Round != -1) && (prs.Round <= rs.Round) {
+	if (prs.Round != 0) && (prs.Round <= rs.Round) {
 		if ps.PickSendVote(rs.Votes.Prevotes(prs.Round)) {
 			logger.Debug("Picked rs.Prevotes(prs.Round) to send", "round", prs.Round)
 			return true
 		}
 	}
 	// If there are POLPrevotes to send...
-	if prs.ProposalPOLRound != -1 {
+	if prs.ProposalPOLRound != 0 {
 		if polPrevotes := rs.Votes.Prevotes(prs.ProposalPOLRound); polPrevotes != nil {
 			if ps.PickSendVote(polPrevotes) {
 				logger.Debug("Picked rs.Prevotes(prs.ProposalPOLRound) to send",
@@ -856,7 +856,7 @@ OUTER_LOOP:
 		// Send Height/CatchupCommitRound/CatchupCommit.
 		{
 			prs := ps.GetRoundState()
-			if (prs.CatchupCommitRound != -1) && (prs.Height > 0) && (prs.Height <= conR.conS.blockOperations.Height()) {
+			if (prs.CatchupCommitRound != 0) && (prs.Height > 0) && (prs.Height <= conR.conS.blockOperations.Height()) {
 				commit := conR.conS.LoadCommit(prs.Height)
 				if commit != nil {
 					// TODO: @lew
@@ -979,10 +979,10 @@ func NewPeerState(peer *p2p.Peer, rw p2p.MsgReadWriter) *PeerState {
 		rw:   rw,
 		PRS: cstypes.PeerRoundState{
 			Height:             0,
-			Round:              -1,
-			ProposalPOLRound:   -1,
-			LastCommitRound:    -1,
-			CatchupCommitRound: -1,
+			Round:              0,
+			ProposalPOLRound:   0,
+			LastCommitRound:    0,
+			CatchupCommitRound: 0,
 			StartTime:          0,
 		},
 	}
@@ -1092,7 +1092,7 @@ func (ps *PeerState) PickVoteToSend(votes types.VoteSetReader) (vote *types.Vote
 		return nil, false // Not something worth sending
 	}
 	if index, ok := votes.BitArray().Sub(psVotes).PickRandom(); ok {
-		ps.setHasVote(height, round, type_, index)
+		ps.setHasVote(height, round, type_, uint32(index))
 		return votes.GetByIndex(uint(index)), true
 	}
 	return nil, false
@@ -1115,7 +1115,7 @@ func (ps *PeerState) ApplyNewValidBlockMessage(msg *NewValidBlockMessage) {
 	ps.PRS.ProposalBlockParts = msg.BlockParts
 }
 
-func (ps *PeerState) getVoteBitArray(height uint64, round int32, type_ byte) *cmn.BitArray {
+func (ps *PeerState) getVoteBitArray(height uint64, round uint32, type_ byte) *cmn.BitArray {
 	if !types.IsVoteTypeValid(type_) {
 		return nil
 	}
@@ -1162,7 +1162,7 @@ func (ps *PeerState) getVoteBitArray(height uint64, round int32, type_ byte) *cm
 }
 
 // 'round': A round for which we have a +2/3 commit.
-func (ps *PeerState) ensureCatchupCommitRound(height uint64, round int32, numValidators int) {
+func (ps *PeerState) ensureCatchupCommitRound(height uint64, round uint32, numValidators int) {
 	if ps.PRS.Height != height {
 		return
 	}
@@ -1216,7 +1216,7 @@ func (ps *PeerState) SetHasVote(vote *types.Vote) {
 	ps.setHasVote(uint64(vote.Height), vote.Round, vote.Type, vote.ValidatorIndex)
 }
 
-func (ps *PeerState) setHasVote(height uint64, round int32, type_ byte, index uint32) {
+func (ps *PeerState) setHasVote(height uint64, round uint32, type_ byte, index uint32) {
 	//logger := ps.logger.New("peerH/R", cmn.Fmt("%v/%v", ps.PRS.Height, ps.PRS.Round))
 	ps.logger.Debug("setHasVote", "H/R", cmn.Fmt("%v/%v", height, round), "type", types.GetReadableVoteTypeString(type_), "index", index)
 
@@ -1252,7 +1252,7 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 		ps.PRS.Proposal = false
 		ps.PRS.ProposalBlockPartsHeader = types.PartSetHeader{}
 		ps.PRS.ProposalBlockParts = nil
-		ps.PRS.ProposalPOLRound = -1
+		ps.PRS.ProposalPOLRound = 0
 		ps.PRS.ProposalPOL = nil
 		// We'll update the BitArray capacity later.
 		ps.PRS.Prevotes = nil
@@ -1270,7 +1270,7 @@ func (ps *PeerState) ApplyNewRoundStepMessage(msg *NewRoundStepMessage) {
 			ps.PRS.LastCommitRound = msg.LastCommitRound
 			ps.PRS.LastCommit = nil
 		}
-		ps.PRS.CatchupCommitRound = -1
+		ps.PRS.CatchupCommitRound = 0
 		ps.PRS.CatchupCommit = nil
 	}
 }
