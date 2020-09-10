@@ -350,7 +350,7 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 
 	// Verify POLRound, which must be -1 or between 0 and proposal.Round exclusive.
 	if proposal.POLRound < 1 &&
-		((proposal.POLRound > 1) || (proposal.POLRound > proposal.Round)) {
+		((proposal.POLRound > 0) || (proposal.POLRound > proposal.Round)) {
 		cs.logger.Trace("Invalid proposal POLRound", "proposal.POLRound", proposal.POLRound, "proposal.Round", proposal.Round)
 		return ErrInvalidProposalPOLRound
 	}
@@ -378,7 +378,7 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 func (cs *ConsensusState) scheduleRound0(rs *cstypes.RoundState) {
 	cs.logger.Info("scheduleRound0", "now", time.Now(), "startTime", time.Unix(int64(cs.StartTime), 0))
 	sleepDuration := time.Duration(int64(rs.StartTime) - time.Now().Unix()) // nolint: gotype, gosimple
-	cs.scheduleTimeout(sleepDuration, rs.Height, 0, cstypes.RoundStepNewHeight)
+	cs.scheduleTimeout(sleepDuration, rs.Height, 1, cstypes.RoundStepNewHeight)
 }
 
 // Attempt to schedule a timeout (by sending timeoutInfo on the tickChan)
