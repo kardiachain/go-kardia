@@ -24,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -155,9 +157,7 @@ func TestBlockWithBodyFunction(t *testing.T) {
 
 func TestNewZeroBlockID(t *testing.T) {
 	blockID := NewZeroBlockID()
-	if blockID.IsZero() {
-		t.Fatal("NewZeroBlockID is not empty")
-	}
+	assert.Equal(t, blockID.IsZero(), true)
 }
 
 func TestBlockSorterSwap(t *testing.T) {
@@ -229,14 +229,14 @@ func CreateNewBlock(height uint64) *Block {
 	txns := []*Transaction{signedTx}
 
 	vote := &Vote{
-		ValidatorIndex: common.NewBigInt64(1),
-		Height:         common.NewBigInt64(2),
-		Round:          common.NewBigInt64(1),
-		Timestamp:      big.NewInt(100),
+		ValidatorIndex: 1,
+		Height:         2,
+		Round:          1,
+		Timestamp:      100,
 		Type:           VoteTypePrecommit,
 	}
 	lastCommit := &Commit{
-		Precommits: []*Vote{vote, nil},
+		Signatures: []CommitSig{vote.CommitSig(), CommitSig{}},
 	}
 	evidence := []Evidence{}
 	return NewBlock(&header, txns, nil, lastCommit, evidence)
@@ -248,14 +248,14 @@ func CreateNewDualBlock() *Block {
 		Time:   big.NewInt(1),
 	}
 	vote := &Vote{
-		ValidatorIndex: common.NewBigInt64(1),
-		Height:         common.NewBigInt64(2),
-		Round:          common.NewBigInt64(1),
-		Timestamp:      big.NewInt(100),
+		ValidatorIndex: 1,
+		Height:         2,
+		Round:          1,
+		Timestamp:      100,
 		Type:           VoteTypePrecommit,
 	}
 	lastCommit := &Commit{
-		Precommits: []*Vote{vote, vote},
+		Signatures: []CommitSig{vote.CommitSig(), vote.CommitSig()},
 	}
 	header.LastCommitHash = lastCommit.Hash()
 	de := NewDualEvent(100, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})

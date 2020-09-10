@@ -246,7 +246,7 @@ func (dve *DuplicateVoteEvidence) Verify(chainID string, addr common.Address) er
 	// Index must be the same
 	if dve.VoteA.ValidatorIndex != dve.VoteB.ValidatorIndex {
 		return fmt.Errorf(
-			"duplicateVoteEvidence Error: Validator indices do not match. Got %s and %s",
+			"duplicateVoteEvidence Error: Validator indices do not match. Got %d and %d",
 			dve.VoteA.ValidatorIndex,
 			dve.VoteB.ValidatorIndex,
 		)

@@ -23,11 +23,20 @@ import (
 	"testing"
 )
 
+// NOTE: privValidators are in order
+func randVoteSet(
+	height uint64,
+	round uint,
+	signedMsgType byte,
+	numValidators int,
+	votingPower int64,
+) (*VoteSet, *ValidatorSet, []IPrivValidator) {
+	valSet, privValidators := RandValidatorSet(numValidators, votingPower)
+	return NewVoteSet("test_chain_id", height, round, signedMsgType, valSet), valSet, privValidators
+}
+
 func TestVoteCreationAndCopy(t *testing.T) {
 	vote := CreateEmptyVote()
-	if !vote.IsEmpty() {
-		t.Fatal("Expected Vote to be empty. Is not empty")
-	}
 
 	voteCopy := vote.Copy()
 

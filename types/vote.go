@@ -88,7 +88,7 @@ func GetReadableVoteTypeString(type_ byte) string {
 	return typeString
 }
 
-// Represents a prevote, precommit, or commit vote from validators for consensus.
+// Vote Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
 	ValidatorAddress cmn.Address `json:"validator_address"`
 	ValidatorIndex   uint        `json:"validator_index"`
@@ -98,6 +98,11 @@ type Vote struct {
 	Type             byte        `json:"type"`
 	BlockID          BlockID     `json:"block_id"` // zero if vote is nil.
 	Signature        []byte      `json:"signature"`
+}
+
+// CreateEmptyVote ...
+func CreateEmptyVote() *Vote {
+	return &Vote{}
 }
 
 // CommitSig converts the Vote to a CommitSig.

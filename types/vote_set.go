@@ -118,13 +118,6 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	valAddr := vote.ValidatorAddress
 	blockKey := vote.BlockID.Key()
 
-	// Ensure that validator index was set
-	if valIndex < 0 {
-		return false, errors.Wrap(ErrVoteInvalidValidatorIndex, "Index < 0")
-	} else if len(valAddr) == 0 {
-		return false, errors.Wrap(ErrVoteInvalidValidatorAddress, "Empty address")
-	}
-
 	// Make sure the step matches.
 	if vote.Height != voteSet.height ||
 		vote.Round != voteSet.round ||
