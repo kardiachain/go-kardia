@@ -60,11 +60,12 @@ type validatorStub struct {
 
 var testMinPower int64 = 10
 
-func newValidatorStub(privValidator *ecdsa.PrivateKey, valIndex int64) *validatorStub {
+func newValidatorStub(privValidator *ecdsa.PrivateKey, valIndex int64, round int64) *validatorStub {
 	return &validatorStub{
 		Index:         valIndex,
 		PrivValidator: privValidator,
 		VotingPower:   testMinPower,
+		Round:         round,
 	}
 }
 
@@ -78,11 +79,11 @@ func (vs *validatorStub) signVote(
 	privVal := types.NewPrivValidator(vs.PrivValidator)
 
 	vote := &types.Vote{
-		ValidatorIndex:   common.NewBigInt64(vs.Index),
+		ValidatorIndex:   uint32(vs.Index),
 		ValidatorAddress: privVal.GetAddress(),
-		Height:           common.NewBigInt64(vs.Height),
-		Round:            common.NewBigInt64(vs.Round),
-		Timestamp:        big.NewInt(time.Now().Unix()),
+		Height:           uint64(vs.Height),
+		Round:            uint32(vs.Round),
+		Timestamp:        uint64(time.Now().Unix()),
 		Type:             voteType,
 		BlockID:          types.BlockID{Hash: partSetHash, PartsHeader: blockPartsHeaders},
 	}
@@ -159,7 +160,7 @@ func (vss ValidatorStubsByPower) Swap(i, j int) {
 //-------------------------------------------------------------------------------
 // Functions for transitioning the consensus state
 
-func startTestRound(cs *ConsensusState, height *common.BigInt, round *common.BigInt) {
+func startTestRound(cs *ConsensusState, height uint64, round uint32) {
 	cs.enterNewRound(height, round)
 	cs.Start()
 }
@@ -182,7 +183,7 @@ func decideProposal(
 
 	// Make proposal
 	polRound, propBlockID := validRound, types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()}
-	proposal = types.NewProposal(common.NewBigInt64(height), common.NewBigInt64(round), polRound, propBlockID)
+	proposal = types.NewProposal(uint64(height), uint32(round), polRound, propBlockID)
 	privVal := types.NewPrivValidator(vs.PrivValidator)
 
 	if err := privVal.SignProposal(chainID, proposal); err != nil {
@@ -212,7 +213,7 @@ func signAddVotes(
 	addVotes(to, votes...)
 }
 
-func validatePrevote(t *testing.T, cs *ConsensusState, round int, vs *validatorStub, blockHash common.Hash) {
+func validatePrevote(t *testing.T, cs *ConsensusState, round uint32, vs *validatorStub, blockHash common.Hash) {
 	prevotes := cs.Votes.Prevotes(round)
 	privVal := types.NewPrivValidator(vs.PrivValidator)
 	address := privVal.GetAddress()
@@ -227,12 +228,12 @@ func validatePrecommit(
 	t *testing.T,
 	cs *ConsensusState,
 	thisRound,
-	lockRound int,
+	lockRound uint32,
 	vs *validatorStub,
 	votedBlockHash,
 	lockedBlockHash common.Hash,
 ) {
-	precommits := cs.Votes.Precommits(int(thisRound))
+	precommits := cs.Votes.Precommits(uint32(thisRound))
 	privVal := types.NewPrivValidator(vs.PrivValidator)
 	address := privVal.GetAddress()
 	var vote *types.Vote
@@ -282,12 +283,12 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 	// state, err := cstate.LoadStateFromDBOrGenesisDoc(kaiDb.DB(), config.Genesis)
 	state := cstate.LastestBlockState{
 		ChainID:                     "kaicon",
-		LastBlockHeight:             common.NewBigUint64(block.Height()),
+		LastBlockHeight:             uint64(block.Height()),
 		LastBlockID:                 block.Header().LastBlockID,
-		LastBlockTime:               block.Time().Uint64(),
+		LastBlockTime:               uint64(block.Time()),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
-		LastHeightValidatorsChanged: common.NewBigInt32(-1),
+		LastHeightValidatorsChanged: uint64(0),
 	}
 
 	consensusState := NewConsensusState(
@@ -304,7 +305,7 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 	vss := make([]*validatorStub, nValidators)
 
 	for i := 0; i < nValidators; i++ {
-		vss[i] = newValidatorStub(privSet[i], int64(i))
+		vss[i] = newValidatorStub(privSet[i], int64(i), int64(consensusState.Round))
 	}
 	// since cs1 starts at 1
 	incrementHeight(vss[1:]...)

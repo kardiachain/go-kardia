@@ -119,12 +119,12 @@ func (t *timeoutTicker) timeoutRoutine() {
 			t.Logger.Debug("Received tick", "old_ti", ti, "new_ti", newti)
 
 			// ignore tickers for old height/round/step
-			if newti.Height.IsLessThan(ti.Height) {
+			if newti.Height < ti.Height {
 				continue
-			} else if newti.Height.Equals(ti.Height) {
-				if newti.Round.IsLessThan(ti.Round) {
+			} else if newti.Height == ti.Height {
+				if newti.Round < ti.Round {
 					continue
-				} else if newti.Round.Equals(ti.Round) {
+				} else if newti.Round == ti.Round {
 					if ti.Step > 0 && newti.Step <= ti.Step {
 						continue
 					}

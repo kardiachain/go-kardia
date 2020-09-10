@@ -20,6 +20,9 @@ package permissioned
 
 import (
 	"crypto/ecdsa"
+	"math/big"
+	"strings"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/state"
@@ -31,8 +34,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/tool"
 	"github.com/kardiachain/go-kardiamain/types"
-	"math/big"
-	"strings"
 )
 
 const (
@@ -41,15 +42,14 @@ const (
 
 var MaximumGasToCallStaticFunction = uint(4000000)
 
-
 // PermissionSmcUtil wraps all utility methods related to permission smc
 type PermissionSmcUtil struct {
-	Abi             *abi.ABI
-	StateDb         *state.StateDB
-	ContractAddress *common.Address
-	SenderAddress   *common.Address
+	Abi              *abi.ABI
+	StateDb          *state.StateDB
+	ContractAddress  *common.Address
+	SenderAddress    *common.Address
 	SenderPrivateKey *ecdsa.PrivateKey
-	bc              base.BaseBlockChain
+	bc               base.BaseBlockChain
 }
 
 func NewSmcPermissionUtil(bc base.BaseBlockChain) (*PermissionSmcUtil, error) {

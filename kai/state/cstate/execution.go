@@ -21,8 +21,6 @@ package cstate
 import (
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-
 	fail "github.com/ebuchman/fail-test"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -98,14 +96,14 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 
 	if len(validatorUpdates) > 0 {
 		// Change results from this height but only applies to the next next height.
-		lastHeightValsChanged = common.NewBigUint64(header.Height + 2)
+		lastHeightValsChanged = header.Height + 2
 	}
 	nValSet.AdvanceProposer(1)
 	return LastestBlockState{
 		ChainID:                     state.ChainID,
-		LastBlockHeight:             common.NewBigUint64(header.Height),
+		LastBlockHeight:             header.Height,
 		LastBlockID:                 blockID,
-		LastBlockTime:               header.Time.Uint64(),
+		LastBlockTime:               header.Time,
 		NextValidators:              nValSet,
 		Validators:                  state.NextValidators.Copy(),
 		LastValidators:              state.Validators.Copy(),

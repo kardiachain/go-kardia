@@ -74,7 +74,7 @@ func SaveState(db kaidb.KeyValueStore, state LastestBlockState) {
 }
 
 func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
-	nextHeight := state.LastBlockHeight.Uint64() + 1
+	nextHeight := state.LastBlockHeight + 1
 	// If first block, save validators for block 1.
 	if nextHeight == 1 {
 		// This extra logic due to Tendermint validator set changes being delayed 1 block.
@@ -83,7 +83,7 @@ func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
 		saveValidatorsInfo(db, nextHeight, lastHeightVoteChanged, state.Validators)
 	}
 	// Save next validators.
-	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged.Uint64(), state.NextValidators)
+	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged, state.NextValidators)
 	// Save next consensus params.
 	saveConsensusParamsInfo(db, uint64(nextHeight), state.LastHeightConsensusParamsChanged, state.ConsensusParams)
 	db.Put(key, state.Bytes())
@@ -298,14 +298,14 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
 	}
 
 	return LastestBlockState{
-		LastBlockHeight: common.NewBigInt64(0),
+		LastBlockHeight: 0,
 		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.Timestamp,
 
 		NextValidators:              nextValidatorSet,
 		Validators:                  validatorSet,
 		LastValidators:              types.NewValidatorSet(nil, 0, 1),
-		LastHeightValidatorsChanged: common.NewBigInt64(0),
+		LastHeightValidatorsChanged: 0,
 
 		//ConsensusParams:                  *genDoc.ConsensusParams,
 		LastHeightConsensusParamsChanged: 1,

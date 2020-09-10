@@ -164,9 +164,9 @@ type (
 
 	Vote struct {
 		ValidatorAddress string        `json:"validatorAddress"           bson:"validatorAddress"`
-		ValidatorIndex   int64         `json:"validatorIndex"             bson:"validatorIndex"`
-		Height           int64         `json:"height"                     bson:"height"`
-		Round            int64         `json:"round"                      bson:"round"`
+		ValidatorIndex   uint32        `json:"validatorIndex"             bson:"validatorIndex"`
+		Height           uint64        `json:"height"                     bson:"height"`
+		Round            uint32        `json:"round"                      bson:"round"`
 		Timestamp        uint64        `json:"timestamp"                  bson:"timestamp"`
 		Type             byte          `json:"type"                       bson:"type"`
 		BlockID          string        `json:"blockID"                    bson:"blockID"`
@@ -240,8 +240,8 @@ func NewBlock(block *types.Block) *Block {
 		Validator:      block.Header().Validator.Hex(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 	}
-	if block.Header().Time != nil {
-		header.Time = block.Header().Time.Uint64()
+	if block.Header().Time != 0 {
+		header.Time = block.Header().Time
 	}
 	return &Block{
 		Header: header,
@@ -254,7 +254,7 @@ func (block *Block) ToHeader() *types.Header {
 	header := types.Header{
 		Height:         block.Header.Height,
 		LastBlockID:    toBlockID(block.Header.LastBlockID, block.Header.PartsHeader),
-		Time:           big.NewInt(int64(block.Header.Time)),
+		Time:           block.Header.Time,
 		NumTxs:         block.Header.NumTxs,
 		TxHash:         common.HexToHash(block.Header.TxHash),
 		GasUsed:        block.Header.GasUsed,
@@ -453,27 +453,27 @@ func (receipt *Receipt) ToReceipt() *types.Receipt {
 
 func NewVote(vote *types.Vote) *Vote {
 	return &Vote{
-		Height:           vote.Height.Int64(),
+		Height:           uint64(vote.Height),
 		Type:             vote.Type,
-		Timestamp:        vote.Timestamp.Uint64(),
-		Round:            vote.Round.Int64(),
+		Timestamp:        vote.Timestamp,
+		Round:            vote.Round,
 		BlockID:          vote.BlockID.StringLong(),
 		Signature:        common.Bytes2Hex(vote.Signature),
 		ValidatorAddress: vote.ValidatorAddress.Hex(),
-		ValidatorIndex:   vote.ValidatorIndex.Int64(),
+		ValidatorIndex:   uint32(vote.ValidatorIndex),
 	}
 }
 
 func (vote *Vote) ToVote() *types.Vote {
 	return &types.Vote{
-		Height:           common.NewBigInt64(vote.Height),
+		Height:           vote.Height,
 		Type:             vote.Type,
-		Timestamp:        big.NewInt(int64(vote.Timestamp)),
-		Round:            common.NewBigInt64(vote.Round),
+		Timestamp:        uint64(vote.Timestamp),
+		Round:            vote.Round,
 		BlockID:          toBlockID(vote.BlockID, vote.PartsHeader),
 		Signature:        common.Hex2Bytes(vote.Signature),
 		ValidatorAddress: common.HexToAddress(vote.ValidatorAddress),
-		ValidatorIndex:   common.NewBigInt64(vote.ValidatorIndex),
+		ValidatorIndex:   vote.ValidatorIndex,
 	}
 }
 

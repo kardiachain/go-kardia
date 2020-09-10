@@ -21,7 +21,6 @@ package types
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
@@ -92,10 +91,10 @@ func GetReadableVoteTypeString(type_ byte) string {
 // Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
 	ValidatorAddress cmn.Address `json:"validator_address"`
-	ValidatorIndex   *cmn.BigInt `json:"validator_index"`
-	Height           *cmn.BigInt `json:"height"`
-	Round            *cmn.BigInt `json:"round"`
-	Timestamp        *big.Int    `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+	ValidatorIndex   uint32      `json:"validator_index"`
+	Height           uint64      `json:"height"`
+	Round            uint32      `json:"round"`
+	Timestamp        uint64      `json:"timestamp"`
 	Type             byte        `json:"type"`
 	BlockID          BlockID     `json:"block_id"` // zero if vote is nil.
 	Signature        []byte      `json:"signature"`
@@ -103,15 +102,15 @@ type Vote struct {
 
 func CreateEmptyVote() *Vote {
 	return &Vote{
-		ValidatorIndex: cmn.NewBigInt64(-1),
-		Height:         cmn.NewBigInt64(-1),
-		Round:          cmn.NewBigInt64(-1),
-		Timestamp:      big.NewInt(0),
+		ValidatorIndex: 0,
+		Height:         0,
+		Round:          0,
+		Timestamp:      0,
 	}
 }
 
 func (vote *Vote) IsEmpty() bool {
-	return vote.ValidatorIndex.EqualsInt(-1) && vote.Height.EqualsInt(-1) && vote.Height.EqualsInt(-1) && vote.Timestamp.Int64() == 0
+	return (vote.ValidatorIndex == 0) && (vote.Height == 0) && (vote.Round == 0) && (vote.Timestamp == 0)
 }
 
 func (vote *Vote) SignBytes(chainID string) []byte {
@@ -124,10 +123,6 @@ func (vote *Vote) SignBytes(chainID string) []byte {
 
 func (vote *Vote) Copy() *Vote {
 	voteCopy := *vote
-	voteCopy.ValidatorIndex = vote.ValidatorIndex.Copy()
-	voteCopy.Height = vote.Height.Copy()
-	voteCopy.Round = vote.Round.Copy()
-	voteCopy.Timestamp = big.NewInt(vote.Timestamp.Int64())
 	return &voteCopy
 }
 
@@ -144,7 +139,7 @@ func (vote *Vote) StringLong() string {
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		vote.BlockID.Hash.Fingerprint(), vote.Signature,
-		time.Unix(vote.Timestamp.Int64(), 0))
+		time.Unix(int64(vote.Timestamp), 0))
 }
 
 // String simplifies vote.Signature, array of bytes, to hex and gets the first 14 characters
@@ -160,7 +155,7 @@ func (vote *Vote) String() string {
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		vote.BlockID, cmn.Fingerprint(vote.Signature[:]),
-		time.Unix(vote.Timestamp.Int64(), 0))
+		time.Unix(int64(vote.Timestamp), 0))
 }
 
 // ValidateBasic performs basic validation.

@@ -23,11 +23,11 @@ import (
 
 	"sync/atomic"
 
+	"github.com/holiman/uint256"
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/types"
-	"github.com/holiman/uint256"
 )
 
 // emptyCodeHash is used by create to ensure deployment is disallowed to already
@@ -430,6 +430,7 @@ func (kvm *KVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *
 	contractAddr = crypto.CreateAddress2(caller.Address(), common.Hash(salt.Bytes32()), code)
 	return kvm.create(caller, codeAndHash, gas, endowment, contractAddr)
 }
+
 //================================================================================================
 // Interfaces
 //=================================================================================================

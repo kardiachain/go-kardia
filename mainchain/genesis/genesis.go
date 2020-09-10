@@ -47,7 +47,7 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 // GenesisValidator is an initial validator.
 type GenesisValidator struct {
 	Address string `json:"address" yaml:"Address"`
-	Power   int64  `json:"power" yaml:"Power"`
+	Power   uint64 `json:"power" yaml:"Power"`
 	Name    string `json:"name" yaml:"Name"`
 }
 

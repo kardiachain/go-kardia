@@ -27,7 +27,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"time"
 	"unsafe"
 
 	"math/big"
@@ -50,9 +49,9 @@ var (
 // Header represents a block header in the Kardia blockchain.
 type Header struct {
 	// basic block info
-	Height uint64   `json:"height"       gencodec:"required"`
-	Time   *big.Int `json:"time"         gencodec:"required"` // TODO(thientn/namdoh): epoch seconds, change to milis.
-	NumTxs uint64   `json:"num_txs"      gencodec:"required"`
+	Height uint64 `json:"height"       gencodec:"required"`
+	Time   uint64 `json:"time"         gencodec:"required"`
+	NumTxs uint64 `json:"num_txs"      gencodec:"required"`
 	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
 	NumDualEvents uint64 `json:"num_dual_events" gencodec:"required"`
 
@@ -61,7 +60,6 @@ type Header struct {
 
 	// prev block info
 	LastBlockID BlockID `json:"last_block_id"`
-	//@huny TotalTxs    uint64   `json:"total_txs"`
 
 	Coinbase common.Address `json:"miner"            gencodec:"required"`
 
@@ -104,7 +102,7 @@ func (h *Header) StringLong() string {
 	}
 	// TODO(thientn): check why String() of common.Hash is not called when logging, and have to call Hex() instead.
 	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
-		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Hex(), h.TxHash.Hex(), h.Root.Hex(), h.ValidatorsHash.Hex(), h.ConsensusHash.Hex(), h.Hash().Hex())
+		h.Height, h.Time, h.NumTxs, h.LastBlockID, h.LastCommitHash.Hex(), h.TxHash.Hex(), h.Root.Hex(), h.ValidatorsHash.Hex(), h.ConsensusHash.Hex(), h.Hash().Hex())
 
 }
 
@@ -115,7 +113,7 @@ func (h *Header) String() string {
 	}
 	headerHash := h.Hash()
 	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  Root:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
-		h.Height, time.Unix(h.Time.Int64(), 0), h.NumTxs, h.LastBlockID, h.LastCommitHash.Fingerprint(),
+		h.Height, h.Time, h.NumTxs, h.LastBlockID, h.LastCommitHash.Fingerprint(),
 		h.TxHash.Fingerprint(), h.Root.Fingerprint(), h.ValidatorsHash.Fingerprint(), h.ConsensusHash.Fingerprint(), headerHash.Fingerprint())
 }
 
@@ -369,7 +367,7 @@ func (b *Block) WithBody(body *Body) *Block {
 func (b *Block) Height() uint64   { return b.header.Height }
 func (b *Block) GasLimit() uint64 { return b.header.GasLimit }
 func (b *Block) GasUsed() uint64  { return b.header.GasUsed }
-func (b *Block) Time() *big.Int   { return b.header.Time }
+func (b *Block) Time() uint64     { return b.header.Time }
 func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
 func (b *Block) LastCommitHash() common.Hash { return b.header.LastCommitHash }
