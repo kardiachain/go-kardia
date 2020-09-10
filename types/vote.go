@@ -110,7 +110,7 @@ func CreateEmptyVote() *Vote {
 }
 
 func (vote *Vote) IsEmpty() bool {
-	return (vote.ValidatorIndex == 0) && (vote.Height == 0) && (vote.Height == 0) && (vote.Timestamp == 0)
+	return (vote.ValidatorIndex == 0) && (vote.Height == 0) && (vote.Round == 0) && (vote.Timestamp == 0)
 }
 
 func (vote *Vote) SignBytes(chainID string) []byte {

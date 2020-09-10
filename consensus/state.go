@@ -247,7 +247,7 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 
 	// RoundState fields
 	cs.updateHeight(height)
-	cs.updateRoundStep(0, cstypes.RoundStepNewHeight)
+	cs.updateRoundStep(1, cstypes.RoundStepNewHeight)
 	if cs.CommitTime == 0 {
 		// "Now" makes it easier to sync up dev nodes.
 		// We add timeoutCommit to allow transactions
@@ -349,8 +349,8 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 	}
 
 	// Verify POLRound, which must be -1 or between 0 and proposal.Round exclusive.
-	if proposal.POLRound < 0 &&
-		((proposal.POLRound > 0) || (proposal.POLRound > proposal.Round)) {
+	if proposal.POLRound < 1 &&
+		((proposal.POLRound > 1) || (proposal.POLRound > proposal.Round)) {
 		cs.logger.Trace("Invalid proposal POLRound", "proposal.POLRound", proposal.POLRound, "proposal.Round", proposal.Round)
 		return ErrInvalidProposalPOLRound
 	}
@@ -1283,7 +1283,7 @@ func (cs *ConsensusState) isProposalComplete() bool {
 	}
 	// we have the proposal. if there's a POLRound,
 	// make sure we have the prevotes from it too
-	if cs.Proposal.POLRound < 0 {
+	if cs.Proposal.POLRound < 1 {
 		return true
 	}
 	// if this is false the proposer is lying or we haven't received the POL yet

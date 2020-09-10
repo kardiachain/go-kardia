@@ -139,9 +139,13 @@ func TestStateFullRound2(t *testing.T) {
 
 	// prevote arrives from vs2:
 	signAddVotes(cs1, types.VoteTypePrevote, propBlockHash, propPartSetHeader, vs2)
+	ensurePrevote()
 
+	ensurePrecommit()
+	validatePrecommit(t, cs1, round, uint32(0), vss[0], propBlockHash, propBlockHash)
 	// precommit arrives from vs2:
 	signAddVotes(cs1, types.VoteTypePrecommit, propBlockHash, propPartSetHeader, vs2)
+	// time.Sleep(6000 * time.Millisecond)
 
 }
 
@@ -273,6 +277,9 @@ func TestStateLockPOLRelockThenChangeLock(t *testing.T) {
 
 	signAddVotes(cs1, types.VoteTypePrevote, theBlockHash, theBlockParts, vs2, vs3, vs4)
 
+	ensurePrecommit()
+	validatePrecommit(t, cs1, round, round, vss[0], theBlockHash, theBlockHash)
+
 	// add precommits from the rest
 	signAddVotes(cs1, types.VoteTypePrecommit, common.BytesToHash(nil), types.PartSetHeader{}, vs2, vs3, vs4)
 
@@ -333,8 +340,6 @@ func TestStateLockPOLUnlockOnUnknownBlock(t *testing.T) {
 	time.Sleep(4000 * time.Millisecond)
 	ensurePrevote()
 	validatePrevote(t, cs1, round, vss[0], firstBlockHash)
-
-	signAddVotes(cs1, types.VoteTypePrecommit, firstBlockHash, firstBlockParts, vss[0])
 
 	time.Sleep(4000 * time.Millisecond)
 	ensurePrecommit()
@@ -462,9 +467,11 @@ func TestStateLockPOLUnlock(t *testing.T) {
 	signAddVotes(cs1, types.VoteTypePrecommit, common.BytesToHash(nil), types.PartSetHeader{}, vs2, vs4)
 	signAddVotes(cs1, types.VoteTypePrecommit, theBlockHash, theBlockParts, vs3)
 
-	// // before we time out into new round, set next proposal block
-	// prop, propBlock := decideProposal(cs1, vs2, vs2.Height, vs2.Round+1)
-	// propBlockParts := propBlock.MakePartSet(partSize)
+	// before we time out into new round, set next proposal block
+	prop, propBlock := decideProposal(cs1, vs2, vs2.Height, vs2.Round+1)
+	if prop == nil || propBlock == nil {
+		t.Fatal("Failed to create proposal block with vs2")
+	}
 
 	// timeout to new round
 	time.Sleep(3000 * time.Millisecond)
@@ -677,4 +684,83 @@ func TestStartNextHeightCorrectlyAfterTimeout(t *testing.T) {
 
 	rs = cs1.GetRoundState()
 	assert.False(t, rs.TriggeredTimeoutPrecommit, "triggeredTimeoutPrecommit should be false at the beginning of each round")
+}
+
+// 4 vals.
+// polka P0 at R0 for B0. We lock B0 on P0 at R0. P0 unlocks value at R1.
+// P0 proposes B0 at R3.
+func TestProposeValidBlock(t *testing.T) {
+	cs1, vss := randState(4)
+	vs2, vs3, vs4 := vss[1], vss[2], vss[3]
+	_, round := cs1.Height, cs1.Round
+
+	partSize := types.BlockPartSizeBytes
+
+	// start round and wait for propose and prevote
+	startTestRound(cs1, cs1.Height, round)
+
+	time.Sleep(3000 * time.Millisecond)
+
+	rs := cs1.GetRoundState()
+	propBlock := rs.ProposalBlock
+	propBlockHash := propBlock.Hash()
+
+	ensurePrevote()
+	validatePrevote(t, cs1, round, vss[0], propBlockHash)
+
+	// the others sign a polka
+	signAddVotes(cs1, types.VoteTypePrevote, propBlockHash, propBlock.MakePartSet(uint32(partSize)).Header(), vs2, vs3, vs4)
+
+	ensurePrecommit()
+	// we should have precommitted
+	validatePrecommit(t, cs1, round, round, vss[0], propBlockHash, propBlockHash)
+
+	signAddVotes(cs1, types.VoteTypePrecommit, common.BytesToHash(nil), types.PartSetHeader{}, vs2, vs3, vs4)
+
+	time.Sleep(1000 * time.Millisecond)
+
+	incrementRound(vs2, vs3, vs4)
+	round++ // moving to the next round
+
+	time.Sleep(1000 * time.Millisecond)
+
+	t.Log("### ONTO ROUND 2")
+
+	// timeout of propose
+	time.Sleep(1000 * time.Millisecond)
+
+	ensurePrevote()
+	validatePrevote(t, cs1, round, vss[0], propBlockHash)
+
+	signAddVotes(cs1, types.VoteTypePrevote, common.BytesToHash(nil), types.PartSetHeader{}, vs2, vs3, vs4)
+
+	//ensure unlock
+	time.Sleep(1000 * time.Millisecond)
+
+	ensurePrecommit()
+	// we should have precommitted
+	validatePrecommit(t, cs1, round, uint32(0), vss[0], common.BytesToHash(nil), common.BytesToHash(nil))
+
+	incrementRound(vs2, vs3, vs4)
+	incrementRound(vs2, vs3, vs4)
+
+	signAddVotes(cs1, types.VoteTypePrecommit, common.BytesToHash(nil), types.PartSetHeader{}, vs2, vs3, vs4)
+
+	round += 2 // moving to the next round
+
+	t.Log("### ONTO ROUND 3")
+
+	// time.Sleep(1000 * time.Millisecond)
+
+	round++ // moving to the next round
+
+	t.Log("### ONTO ROUND 4")
+
+	time.Sleep(1000 * time.Millisecond)
+
+	rs = cs1.GetRoundState()
+	assert.True(t, rs.ProposalBlock.Hash() == propBlockHash)
+	assert.True(t, rs.ProposalBlock.Hash() == rs.ValidBlock.Hash())
+	assert.True(t, rs.Proposal.POLRound == rs.ValidRound)
+	assert.True(t, rs.Proposal.POLBlockID.Hash == rs.ValidBlock.Hash())
 }
