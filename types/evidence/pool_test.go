@@ -56,7 +56,7 @@ func TestEvidencePool(t *testing.T) {
 
 	var (
 		valAddr      = common.BytesToAddress([]byte("val1"))
-		height       = int64(100002)
+		height       = uint64(100002)
 		stateDB      = initializeValidatorState(valAddr, height)
 		evidenceDB   = memorydb.New()
 		pool         = NewPool(stateDB, evidenceDB)
@@ -94,8 +94,8 @@ func TestEvidencePoolIsCommitted(t *testing.T) {
 	// Initialization:
 	var (
 		valAddr       = common.BytesToAddress([]byte("validator_address"))
-		height        = int64(42)
-		lastBlockTime = int64(time.Now().Unix())
+		height        = uint64(42)
+		lastBlockTime = uint64(time.Now().Unix())
 		stateDB       = initializeValidatorState(valAddr, height)
 		evidenceDB    = memorydb.New()
 		pool          = NewPool(stateDB, evidenceDB)
@@ -110,7 +110,7 @@ func TestEvidencePoolIsCommitted(t *testing.T) {
 	assert.False(t, pool.IsCommitted(evidence))
 
 	// evidence seen and committed:
-	pool.MarkEvidenceAsCommitted(height, time.Unix(lastBlockTime, 0), []types.Evidence{evidence})
+	pool.MarkEvidenceAsCommitted(height, lastBlockTime, []types.Evidence{evidence})
 	assert.True(t, pool.IsCommitted(evidence))
 }
 
@@ -119,7 +119,7 @@ func TestAddEvidence(t *testing.T) {
 	var (
 		valAddr      = common.BytesToAddress([]byte("val1"))
 		height       = uint64(100002)
-		stateDB      = initializeValidatorState(valAddr, int64(height))
+		stateDB      = initializeValidatorState(valAddr, height)
 		evidenceDB   = memorydb.New()
 		pool         = NewPool(stateDB, evidenceDB)
 		evidenceTime = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
