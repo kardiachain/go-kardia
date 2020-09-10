@@ -97,17 +97,17 @@ func (commit *Commit) FirstPrecommit() *Vote {
 // Height returns the height of the commit
 func (commit *Commit) Height() uint64 {
 	if len(commit.Precommits) == 0 {
-		return 0
+		return uint64(0)
 	}
-	return commit.Height()
+	return commit.FirstPrecommit().Height
 }
 
 // Round returns the round of the commit
 func (commit *Commit) Round() uint32 {
 	if len(commit.Precommits) == 0 {
-		return 0
+		return uint32(0)
 	}
-	return commit.Round()
+	return commit.FirstPrecommit().Round
 }
 
 // Type returns the vote type of the commit, which is always VoteTypePrecommit
