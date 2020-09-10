@@ -279,10 +279,10 @@ func (c *BoundContract) FilterLogs(opts *FilterOpts, name string, query ...[]int
 	config := kardia.FilterQuery{
 		Addresses: []common.Address{c.address},
 		Topics:    topics,
-		FromBlock: new(big.Int).SetUint64(opts.Start),
+		FromBlock: opts.Start,
 	}
 	if opts.End != nil {
-		config.ToBlock = new(big.Int).SetUint64(*opts.End)
+		config.ToBlock = *opts.End
 	}
 	/* TODO(karalabe): Replace the rest of the method below with this when supported
 	sub, err := c.filterer.SubscribeFilterLogs(ensureContext(opts.Context), config, logs)
@@ -330,7 +330,7 @@ func (c *BoundContract) WatchLogs(opts *WatchOpts, name string, query ...[]inter
 		Topics:    topics,
 	}
 	if opts.Start != nil {
-		config.FromBlock = new(big.Int).SetUint64(*opts.Start)
+		config.FromBlock = *opts.Start
 	}
 	sub, err := c.filterer.SubscribeFilterLogs(ensureContext(opts.Context), config, logs)
 	if err != nil {
