@@ -35,7 +35,7 @@ import (
 type Validator struct {
 	Address     common.Address `json:"address"`
 	VotingPower uint64         `json:"voting_power"`
-	Accum       uint64         `json:"accum"`
+	Accum       int64          `json:"accum"`
 }
 
 func NewValidator(addr common.Address, votingPower uint64) *Validator {
@@ -278,7 +278,7 @@ func (valSet *ValidatorSet) AdvanceProposer(times int64) {
 	validatorsHeap := common.NewHeap()
 	// Update voting power of each validator after "times" increments.
 	for _, val := range valSet.Validators {
-		val.Accum = uint64(common.AddWithClip(int64(val.Accum), common.MulWithClip(int64(val.VotingPower), times)))
+		val.Accum = common.AddWithClip(int64(val.Accum), common.MulWithClip(int64(val.VotingPower), times))
 		validatorsHeap.PushComparable(val, accumComparable{val})
 	}
 
@@ -286,7 +286,7 @@ func (valSet *ValidatorSet) AdvanceProposer(times int64) {
 	// TODO(namdoh@): Revise the following logic as the next validator set is updated.
 	for i := int64(0); i < times; i++ {
 		mostest := validatorsHeap.Peek().(*Validator)
-		mostest.Accum = uint64(common.SubWithClip(int64(mostest.Accum), int64(valSet.TotalVotingPower())))
+		mostest.Accum = common.SubWithClip(int64(mostest.Accum), int64(valSet.TotalVotingPower()))
 
 		if i == times-1 {
 			valSet.Proposer = mostest
