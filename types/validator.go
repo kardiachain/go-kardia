@@ -35,14 +35,14 @@ import (
 type Validator struct {
 	Address     common.Address `json:"address"`
 	VotingPower uint64         `json:"voting_power"`
-	Accum       int64          `json:"accum"`
+	Accum       *common.BigInt `json:"accum"`
 }
 
 func NewValidator(addr common.Address, votingPower uint64) *Validator {
 	return &Validator{
 		Address:     addr,
 		VotingPower: votingPower,
-		Accum:       0,
+		Accum:       common.NewBigInt64(0),
 	}
 }
 
@@ -63,9 +63,9 @@ func (v *Validator) CompareAccum(other *Validator) *Validator {
 	if v == nil {
 		return other
 	}
-	if v.Accum > other.Accum {
+	if v.Accum.IsGreaterThan(other.Accum) {
 		return v
-	} else if v.Accum < other.Accum {
+	} else if v.Accum.IsLessThan(other.Accum) {
 		return other
 	} else {
 		result := bytes.Compare(v.Address[:], other.Address[:])
@@ -278,7 +278,7 @@ func (valSet *ValidatorSet) AdvanceProposer(times int64) {
 	validatorsHeap := common.NewHeap()
 	// Update voting power of each validator after "times" increments.
 	for _, val := range valSet.Validators {
-		val.Accum = common.AddWithClip(int64(val.Accum), common.MulWithClip(int64(val.VotingPower), times))
+		val.Accum = common.NewBigInt64(common.AddWithClip(val.Accum.Int64(), common.MulWithClip(int64(val.VotingPower), int64(times))))
 		validatorsHeap.PushComparable(val, accumComparable{val})
 	}
 
@@ -286,7 +286,7 @@ func (valSet *ValidatorSet) AdvanceProposer(times int64) {
 	// TODO(namdoh@): Revise the following logic as the next validator set is updated.
 	for i := int64(0); i < times; i++ {
 		mostest := validatorsHeap.Peek().(*Validator)
-		mostest.Accum = common.SubWithClip(int64(mostest.Accum), int64(valSet.TotalVotingPower()))
+		mostest.Accum = common.NewBigInt64(common.SubWithClip(mostest.Accum.Int64(), int64(valSet.TotalVotingPower())))
 
 		if i == times-1 {
 			valSet.Proposer = mostest
