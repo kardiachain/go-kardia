@@ -1,8 +1,12 @@
 # DPOS-PBFT Consensus
 
 ### Consensus Overview
-An abstract description of what happens in the algorithm during the search for the N block:
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NewHeight -> (Propose -> Prevote -> Precommit) -> Commit -> NewHeight ->…
+An abstract description of what happens in the algorithm during the search for the N block: 
+
+
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;NewHeight -> (Propose -> Prevote -> Precommit) -> Commit -> NewHeight ->… 
+
+
 The sequence (Propose -> Prevote -> Precommit) is called a round. There may be more than one round required to commit a block at a given height.
 1. `Propose` step (height:H, round:R) designated proposer proposes a block at (H,R). 
 2. `Prevote` step (height:H, round:R), each validator broadcasts its prevote vote, after any +2/3 prevote received go to precommit.
