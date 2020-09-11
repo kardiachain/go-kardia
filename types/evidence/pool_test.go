@@ -40,7 +40,7 @@ func initializeValidatorState(valAddr common.Address, height uint64) kaidb.Datab
 			&types.Validator{
 				Address:     valAddr,
 				VotingPower: 100,
-				Accum:       1,
+				Accum:       common.NewBigInt64(1),
 			},
 		},
 	}
