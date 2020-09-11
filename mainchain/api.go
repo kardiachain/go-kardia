@@ -44,21 +44,21 @@ const (
 
 // BlockHeaderJSON represents BlockHeader in JSON format
 type BlockHeaderJSON struct {
-	Hash           string `json:"hash"`
-	Height         uint64 `json:"height"`
-	LastBlock      string `json:"lastBlock"`
-	CommitHash     string `json:"commitHash"`
-	Time           int64  `json:"time"`
-	NumTxs         uint64 `json:"num_txs"`
-	GasLimit       uint64 `json:"gasLimit"`
-	GasUsed        uint64 `json:"gasUsed"`
-	Validator      string `json:"validator"`
-	TxHash         string `json:"data_hash"`    // transactions
-	Root           string `json:"stateRoot"`    // state root
-	ReceiptHash    string `json:"receiptsRoot"` // receipt root
-	Bloom          int64  `json:"logsBloom"`
-	ValidatorsHash string `json:"validators_hash"` // validators for the current block
-	ConsensusHash  string `json:"consensus_hash"`
+	Hash           string      `json:"hash"`
+	Height         uint64      `json:"height"`
+	LastBlock      string      `json:"lastBlock"`
+	CommitHash     string      `json:"commitHash"`
+	Time           uint64      `json:"time"`
+	NumTxs         uint64      `json:"num_txs"`
+	GasLimit       uint64      `json:"gasLimit"`
+	GasUsed        uint64      `json:"gasUsed"`
+	Validator      string      `json:"validator"`
+	TxHash         string      `json:"data_hash"`    // transactions
+	Root           string      `json:"stateRoot"`    // state root
+	ReceiptHash    string      `json:"receiptsRoot"` // receipt root
+	Bloom          types.Bloom `json:"logsBloom"`
+	ValidatorsHash string      `json:"validators_hash"` // validators for the current block
+	ConsensusHash  string      `json:"consensus_hash"`
 }
 
 // BlockJSON represents Block in JSON format
@@ -67,7 +67,7 @@ type BlockJSON struct {
 	Height         uint64               `json:"height"`
 	LastBlock      string               `json:"lastBlock"`
 	CommitHash     string               `json:"commitHash"`
-	Time           int64                `json:"time"`
+	Time           uint64               `json:"time"`
 	NumTxs         uint64               `json:"num_txs"`
 	GasLimit       uint64               `json:"gasLimit"`
 	GasUsed        uint64               `json:"gasUsed"`
@@ -75,7 +75,7 @@ type BlockJSON struct {
 	TxHash         string               `json:"data_hash"`    // transactions
 	Root           string               `json:"stateRoot"`    // state root
 	ReceiptHash    string               `json:"receiptsRoot"` // receipt root
-	Bloom          int64                `json:"logsBloom"`
+	Bloom          types.Bloom          `json:"logsBloom"`
 	ValidatorsHash string               `json:"validators_hash"` // validators for the current block
 	ConsensusHash  string               `json:"consensus_hash"`
 	Txs            []*PublicTransaction `json:"txs"`
@@ -125,7 +125,7 @@ func NewBlockHeaderJSON(block types.Block) *BlockHeaderJSON {
 		Height:         block.Height(),
 		LastBlock:      block.Header().LastBlockID.String(),
 		CommitHash:     block.LastCommitHash().Hex(),
-		Time:           int64(block.Header().Time),
+		Time:           block.Header().Time,
 		NumTxs:         block.Header().NumTxs,
 		GasLimit:       block.Header().GasLimit,
 		GasUsed:        block.Header().GasUsed,
@@ -133,7 +133,7 @@ func NewBlockHeaderJSON(block types.Block) *BlockHeaderJSON {
 		TxHash:         block.Header().TxHash.Hex(),
 		Root:           block.Header().Root.Hex(),
 		ReceiptHash:    block.Header().ReceiptHash.Hex(),
-		Bloom:          block.Header().Bloom.Big().Int64(),
+		Bloom:          block.Header().Bloom,
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 	}
@@ -158,7 +158,7 @@ func NewBasicBlockJSON(block types.Block) *BlockJSON {
 		LastBlock:      block.Header().LastBlockID.String(),
 		Txs:            transactions,
 		CommitHash:     block.LastCommitHash().Hex(),
-		Time:           int64(block.Header().Time),
+		Time:           block.Header().Time,
 		NumTxs:         block.Header().NumTxs,
 		GasLimit:       block.Header().GasLimit,
 		GasUsed:        block.Header().GasUsed,
@@ -166,7 +166,7 @@ func NewBasicBlockJSON(block types.Block) *BlockJSON {
 		TxHash:         block.Header().TxHash.Hex(),
 		Root:           block.Header().Root.Hex(),
 		ReceiptHash:    block.Header().ReceiptHash.Hex(),
-		Bloom:          block.Header().Bloom.Big().Int64(),
+		Bloom:          block.Header().Bloom,
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 	}
@@ -196,7 +196,7 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		LastBlock:      block.Header().LastBlockID.String(),
 		Txs:            transactions,
 		CommitHash:     block.LastCommitHash().Hex(),
-		Time:           int64(block.Header().Time),
+		Time:           block.Header().Time,
 		NumTxs:         block.Header().NumTxs,
 		GasLimit:       block.Header().GasLimit,
 		GasUsed:        block.Header().GasUsed,
@@ -204,7 +204,7 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		TxHash:         block.Header().TxHash.Hex(),
 		Root:           block.Header().Root.Hex(),
 		ReceiptHash:    block.Header().ReceiptHash.Hex(),
-		Bloom:          block.Header().Bloom.Big().Int64(),
+		Bloom:          block.Header().Bloom,
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 		Receipts:       basicReceipts,
@@ -344,7 +344,7 @@ type PublicReceipt struct {
 	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
 	ContractAddress   string       `json:"contractAddress"`
 	Logs              []Log        `json:"logs"`
-	LogsBloom         int64        `json:"logsBloom"`
+	LogsBloom         types.Bloom  `json:"logsBloom"`
 	Root              common.Bytes `json:"root"`
 	Status            uint         `json:"status"`
 }
@@ -493,7 +493,7 @@ func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash co
 		CumulativeGasUsed: uint64(receipt.CumulativeGasUsed),
 		ContractAddress:   "0x",
 		Logs:              logs,
-		LogsBloom:         receipt.Bloom.Big().Int64(),
+		LogsBloom:         receipt.Bloom,
 	}
 
 	// To field is nil for contract creation tx.
