@@ -126,22 +126,9 @@ type ValidatorSet struct {
 	Validators []*Validator `json:"validators"`
 	// Current proposing validator.
 	Proposer *Validator `json:"proposer" rlp:"nil"`
-	// Start block height of the staked validators. The value is inclusive.
-	StartHeight uint64 `json:"startHeight"`
-	// End block height of the staked validators. The value is inclusive.
-	EndHeight uint64 `json:"endHeight"`
 
 	// cached (unexported)
 	totalVotingPower uint64
-
-	// ======== DEV ENVIRONMENT CONFIG =========
-	KeepSameProposer bool `json:"keep_same_proposer"`
-	// TODO(namdoh): Move this node config
-	// Indicates the how step height before the current staked validators' end height that we start
-	// to refresh the validator set after the end height.
-	refreshBackoffHeightStep int64
-	// Indicates step height delta for refresh retry.
-	refreshHeightDelta int64
 }
 
 // NewValidatorSet ..
@@ -152,9 +139,7 @@ func NewValidatorSet(vals []*Validator, startHeight int64, endHeight int64) *Val
 	}
 	sort.Sort(ValidatorsByAddress(validators))
 	vs := &ValidatorSet{
-		Validators:  validators,
-		StartHeight: uint64(startHeight),
-		EndHeight:   uint64(endHeight),
+		Validators: validators,
 	}
 
 	if vals != nil {
@@ -162,22 +147,6 @@ func NewValidatorSet(vals []*Validator, startHeight int64, endHeight int64) *Val
 	}
 
 	return vs
-}
-
-// NOTE: This function should only be used only in dev environment.
-func (valSet *ValidatorSet) TurnOnKeepSameProposer() {
-	valSet.KeepSameProposer = true
-}
-
-// NOTE: This function should only be used in dev environment and when
-// KeepSameProposer is set to true. For testnet, or mainnet proposer should be
-// set automatically.
-func (valSet *ValidatorSet) SetProposer(proposer *Validator) {
-	if !valSet.KeepSameProposer {
-		common.PanicSanity(
-			"SetProposer should never be called when KeepSameProposer is off")
-	}
-	valSet.Proposer = proposer
 }
 
 // HasAddress returns true if address given is in the validator set, false -
@@ -260,8 +229,6 @@ func (valSet *ValidatorSet) Copy() *ValidatorSet {
 	return &ValidatorSet{
 		Validators:       validators,
 		Proposer:         valSet.Proposer,
-		StartHeight:      valSet.StartHeight,
-		EndHeight:        valSet.EndHeight,
 		totalVotingPower: valSet.totalVotingPower,
 	}
 }
@@ -269,12 +236,6 @@ func (valSet *ValidatorSet) Copy() *ValidatorSet {
 // Advances proposer a given number of times. To advance to the next proposer, call this with
 // 'times' is 1.
 func (valSet *ValidatorSet) AdvanceProposer(times int64) {
-	// MUST STAY AT THE BEGIN OF THE FUNCTION.
-	// Note: This is --dev mode only. Do not remove.
-	if valSet.KeepSameProposer {
-		return
-	}
-
 	validatorsHeap := common.NewHeap()
 	// Update voting power of each validator after "times" increments.
 	for _, val := range valSet.Validators {
