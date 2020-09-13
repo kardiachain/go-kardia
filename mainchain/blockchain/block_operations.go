@@ -20,7 +20,6 @@ package blockchain
 
 import (
 	"fmt"
-	"math/big"
 	"sync"
 	"time"
 
@@ -81,7 +80,7 @@ func (bo *BlockOperations) Height() uint64 {
 
 // CreateProposalBlock creates a new proposal block with all current pending txs in pool.
 func (bo *BlockOperations) CreateProposalBlock(
-	height int64, lastState cstate.LastestBlockState,
+	height uint64, lastState cstate.LastestBlockState,
 	proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.
@@ -215,12 +214,12 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 
 // newHeader creates new block header from given data.
 // Some header fields are not ready at this point.
-func (bo *BlockOperations) newHeader(height int64, numTxs uint64, blockID types.BlockID,
+func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types.BlockID,
 	validator common.Address, validatorsHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
-		Height:         uint64(height),
-		Time:           big.NewInt(time.Now().Unix()),
+		Height:         height,
+		Time:           uint64(time.Now().Unix()),
 		NumTxs:         numTxs,
 		LastBlockID:    blockID,
 		Validator:      validator,

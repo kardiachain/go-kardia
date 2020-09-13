@@ -188,12 +188,12 @@ func (dve *DuplicateVoteEvidence) String() string {
 
 // Height returns the height this evidence refers to.
 func (dve *DuplicateVoteEvidence) Height() uint64 {
-	return dve.VoteA.Height.Uint64()
+	return uint64(dve.VoteA.Height)
 }
 
 // Time return the time the evidence was created
 func (dve *DuplicateVoteEvidence) Time() uint64 {
-	return dve.VoteA.Timestamp.Uint64()
+	return dve.VoteA.Timestamp
 }
 
 // Address returns the address of the validator.
@@ -246,7 +246,7 @@ func (dve *DuplicateVoteEvidence) Verify(chainID string, addr common.Address) er
 	// Index must be the same
 	if dve.VoteA.ValidatorIndex != dve.VoteB.ValidatorIndex {
 		return fmt.Errorf(
-			"duplicateVoteEvidence Error: Validator indices do not match. Got %s and %s",
+			"duplicateVoteEvidence Error: Validator indices do not match. Got %d and %d",
 			dve.VoteA.ValidatorIndex,
 			dve.VoteB.ValidatorIndex,
 		)

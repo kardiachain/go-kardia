@@ -22,7 +22,6 @@ import (
 	"crypto/ecdsa"
 	"testing"
 
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 )
 
@@ -47,7 +46,7 @@ func TestPrivValidatorSignVote(t *testing.T) {
 }
 
 func TestPrivValidatorSignProposal(t *testing.T) {
-	proposal := NewProposal(cmn.NewBigInt64(1), cmn.NewBigInt64(2), cmn.NewBigInt64(3), CreateBlockIDRandom())
+	proposal := NewProposal(1, 2, 3, CreateBlockIDRandom())
 	privValidator, _, _ := CreateNewPrivValidator()
 	if err := privValidator.SignProposal("KAI", proposal); err != nil {
 		t.Fatal("PV Sign Proposal issue", err)

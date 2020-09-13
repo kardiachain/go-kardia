@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2020 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package cstate
 
 import (
@@ -56,7 +74,7 @@ func SaveState(db kaidb.KeyValueStore, state LastestBlockState) {
 }
 
 func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
-	nextHeight := state.LastBlockHeight.Uint64() + 1
+	nextHeight := state.LastBlockHeight + 1
 	// If first block, save validators for block 1.
 	if nextHeight == 1 {
 		// This extra logic due to Tendermint validator set changes being delayed 1 block.
@@ -65,7 +83,7 @@ func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
 		saveValidatorsInfo(db, nextHeight, lastHeightVoteChanged, state.Validators)
 	}
 	// Save next validators.
-	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged.Uint64(), state.NextValidators)
+	saveValidatorsInfo(db, nextHeight+1, state.LastHeightValidatorsChanged, state.NextValidators)
 	// Save next consensus params.
 	saveConsensusParamsInfo(db, uint64(nextHeight), state.LastHeightConsensusParamsChanged, state.ConsensusParams)
 	db.Put(key, state.Bytes())
@@ -280,14 +298,14 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
 	}
 
 	return LastestBlockState{
-		LastBlockHeight: common.NewBigInt64(0),
+		LastBlockHeight: 0,
 		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.Timestamp,
 
 		NextValidators:              nextValidatorSet,
 		Validators:                  validatorSet,
 		LastValidators:              types.NewValidatorSet(nil, 0, 1),
-		LastHeightValidatorsChanged: common.NewBigInt64(0),
+		LastHeightValidatorsChanged: 0,
 
 		//ConsensusParams:                  *genDoc.ConsensusParams,
 		LastHeightConsensusParamsChanged: 1,

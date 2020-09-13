@@ -40,7 +40,7 @@ type SignerFn func(types.Signer, common.Address, *types.Transaction) (*types.Tra
 type CallOpts struct {
 	Pending     bool            // Whether to operate on the pending state or the last known one
 	From        common.Address  // Optional the sender address, otherwise the first account is used
-	BlockNumber *big.Int        // Optional the block number on which the call should be performed
+	BlockNumber uint64          // Optional the block number on which the call should be performed
 	Context     context.Context // Network context to support cancellation and timeouts (nil = no timeout)
 }
 
@@ -48,7 +48,7 @@ type CallOpts struct {
 // valid Kardia transaction.
 type TransactOpts struct {
 	From   common.Address // Kardia account to send the transaction from
-	Nonce  *big.Int       // Nonce to use for the transaction execution (nil = use pending state)
+	Nonce  uint64         // Nonce to use for the transaction execution (nil = use pending state)
 	Signer SignerFn       // Method to use for signing the transaction (mandatory)
 
 	Value    *big.Int // Funds to transfer along the transaction (nil = 0 = no funds)
@@ -205,21 +205,22 @@ func (c *BoundContract) transact(opts *TransactOpts, contract *common.Address, i
 		value = new(big.Int)
 	}
 	var nonce uint64
-	if opts.Nonce == nil {
+	if opts.Nonce == 0 {
 		nonce, err = c.transactor.PendingNonceAt(ensureContext(opts.Context), opts.From)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve account nonce: %v", err)
 		}
 	} else {
-		nonce = opts.Nonce.Uint64()
+		nonce = opts.Nonce
 	}
 	// Figure out the gas allowance and gas price values
 	gasPrice := opts.GasPrice
 	if gasPrice == nil {
-		gasPrice, err = c.transactor.SuggestGasPrice(ensureContext(opts.Context))
+		suggestGasPrice, err := c.transactor.SuggestGasPrice(ensureContext(opts.Context))
 		if err != nil {
 			return nil, fmt.Errorf("failed to suggest gas price: %v", err)
 		}
+		gasPrice = new(big.Int).SetUint64(suggestGasPrice)
 	}
 	gasLimit := opts.GasLimit
 	if gasLimit == 0 {
@@ -278,10 +279,10 @@ func (c *BoundContract) FilterLogs(opts *FilterOpts, name string, query ...[]int
 	config := kardia.FilterQuery{
 		Addresses: []common.Address{c.address},
 		Topics:    topics,
-		FromBlock: new(big.Int).SetUint64(opts.Start),
+		FromBlock: opts.Start,
 	}
 	if opts.End != nil {
-		config.ToBlock = new(big.Int).SetUint64(*opts.End)
+		config.ToBlock = *opts.End
 	}
 	/* TODO(karalabe): Replace the rest of the method below with this when supported
 	sub, err := c.filterer.SubscribeFilterLogs(ensureContext(opts.Context), config, logs)
@@ -329,7 +330,7 @@ func (c *BoundContract) WatchLogs(opts *WatchOpts, name string, query ...[]inter
 		Topics:    topics,
 	}
 	if opts.Start != nil {
-		config.FromBlock = new(big.Int).SetUint64(*opts.Start)
+		config.FromBlock = *opts.Start
 	}
 	sub, err := c.filterer.SubscribeFilterLogs(ensureContext(opts.Context), config, logs)
 	if err != nil {

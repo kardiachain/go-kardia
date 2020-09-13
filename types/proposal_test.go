@@ -20,23 +20,21 @@ package types
 
 import (
 	"testing"
-
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 func TestProposalCreation(t *testing.T) {
-	proposal := NewProposal(cmn.NewBigInt64(1), cmn.NewBigInt64(2), cmn.NewBigInt64(3), CreateBlockIDRandom())
+	proposal := NewProposal(1, 2, 3, CreateBlockIDRandom())
 
-	if !proposal.Height.Equals(cmn.NewBigInt64(1)) ||
-		!proposal.Round.Equals(cmn.NewBigInt64(2)) ||
-		!proposal.POLRound.Equals(cmn.NewBigInt64(3)) {
+	if proposal.Height != 1 ||
+		proposal.Round != 2 ||
+		proposal.POLRound != 3 {
 		t.Error("Proposal Creation Error")
 	}
 
 }
 
 func TestProposalSignBytes(t *testing.T) {
-	proposal := NewProposal(cmn.NewBigInt64(1), cmn.NewBigInt64(2), cmn.NewBigInt64(3), CreateBlockIDRandom())
+	proposal := NewProposal(1, 2, 3, CreateBlockIDRandom())
 	signedByte := proposal.SignBytes("KAI")
 	if signedByte == nil {
 		t.Error("Proposal's SignBytes returned nil")

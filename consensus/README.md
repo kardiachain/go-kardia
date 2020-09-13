@@ -1,5 +1,18 @@
 # DPOS-PBFT Consensus
 
+### Consensus Overview
+An abstract description of what happens in the algorithm during the search for the N block: 
+
+
+NewHeight -> (Propose -> Prevote -> Precommit) -> Commit -> NewHeight ->… 
+
+
+The sequence (Propose -> Prevote -> Precommit) is called a round. There maybe more than one round requires to commit a block at a given height.
+1. `Propose` step (height:H, round:R) designated for proposer to proposes a block at (H,R). 
+2. `Prevote` step (height:H, round:R), each validator broadcasts its pre-vote, after any +2/3 pre-vote received, go to precommit.
+3. `Precommit` step (height:H, round:R), each validator broadcasts its precommit vote, each validator broadcasts its prevote vote, after any +2/3 prevote received go to commit.
+
+
 ### Test consensus with multiple nodes of different sub-groups: dual nodes, kardia validators, kardia non-validators
 Important:
   - Always include `dev` flag in test p2p. Peer address are fixed when running in dev settings.

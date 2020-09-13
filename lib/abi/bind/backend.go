@@ -21,7 +21,6 @@ package bind
 import (
 	"context"
 	"errors"
-	"math/big"
 
 	kardia "github.com/kardiachain/go-kardiamain"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -49,10 +48,10 @@ var (
 type ContractCaller interface {
 	// CodeAt returns the code of the given account. This is needed to differentiate
 	// between contract internal errors and the local chain being out of sync.
-	CodeAt(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error)
+	CodeAt(ctx context.Context, contract common.Address, blockNumber uint64) ([]byte, error)
 	// ContractCall executes an contract call with the specified data as the
 	// input.
-	CallContract(ctx context.Context, call kardia.CallMsg, blockNumber *big.Int) ([]byte, error)
+	CallContract(ctx context.Context, call kardia.CallMsg, blockNumber uint64) ([]byte, error)
 }
 
 // PendingContractCaller defines methods to perform contract calls on the pending state.
@@ -76,7 +75,7 @@ type ContractTransactor interface {
 	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
 	// SuggestGasPrice retrieves the currently suggested gas price to allow a timely
 	// execution of a transaction.
-	SuggestGasPrice(ctx context.Context) (*big.Int, error)
+	SuggestGasPrice(ctx context.Context) (uint64, error)
 	// EstimateGas tries to estimate the gas needed to execute a specific
 	// transaction based on the current pending state of the backend blockchain.
 	// There is no guarantee that this is the true gas limit requirement as other
@@ -104,7 +103,7 @@ type ContractFilterer interface {
 // DeployBackend wraps the operations needed by WaitMined and WaitDeployed.
 type DeployBackend interface {
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
-	CodeAt(ctx context.Context, account common.Address, blockNumber *big.Int) ([]byte, error)
+	CodeAt(ctx context.Context, account common.Address, blockNumber uint64) ([]byte, error)
 }
 
 // ContractBackend defines the methods needed to work with contracts on a read-write basis.

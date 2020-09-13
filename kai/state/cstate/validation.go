@@ -33,8 +33,8 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 	}
 
 	// validate basic info
-	if block.Header().Height != state.LastBlockHeight.Add(1).Uint64() {
-		return fmt.Errorf("wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight.Add(1), block.Height())
+	if block.Header().Height != state.LastBlockHeight+1 {
+		return fmt.Errorf("wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight+1, block.Height())
 	}
 	/*	TODO: Determine bounds for Time
 		See blockchain/manager "stopSyncingDurationMinutes"
@@ -79,7 +79,7 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 				state.LastValidators.Size(), len(block.LastCommit().Precommits))
 		}
 		err := state.LastValidators.VerifyCommit(
-			state.ChainID, state.LastBlockID, int64(block.Height()-1), block.LastCommit())
+			state.ChainID, state.LastBlockID, uint64(block.Height()-1), block.LastCommit())
 		if err != nil {
 			return err
 		}
@@ -105,17 +105,17 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 // - it was properly signed by the alleged equivocator
 func VerifyEvidence(stateDB kaidb.KeyValueStore, state LastestBlockState, evidence types.Evidence) error {
 	var (
-		height         = state.LastBlockHeight.Int64()
+		height         = state.LastBlockHeight
 		evidenceParams = state.ConsensusParams.Evidence
-		ageNumBlocks   = height - int64(evidence.Height())
+		ageNumBlocks   = height - evidence.Height()
 		ageDuration    = uint(state.LastBlockTime - evidence.Time())
 	)
-	if ageDuration > evidenceParams.MaxAgeDuration && ageNumBlocks > int64(evidenceParams.MaxAgeNumBlocks) {
+	if ageDuration > evidenceParams.MaxAgeDuration && ageNumBlocks > evidenceParams.MaxAgeNumBlocks {
 		return fmt.Errorf(
 			"evidence from height %d (created at: %v) is too old; min height is %d and evidence can not be older than %v",
 			evidence.Height(),
 			evidence.Time(),
-			height-int64(evidenceParams.MaxAgeNumBlocks),
+			height-evidenceParams.MaxAgeNumBlocks,
 			state.LastBlockTime+uint64(evidenceParams.MaxAgeDuration),
 		)
 	}
@@ -133,7 +133,7 @@ func VerifyEvidence(stateDB kaidb.KeyValueStore, state LastestBlockState, eviden
 	// XXX: this makes lite-client bisection as is unsafe
 	// See https://github.com/tendermint/tendermint/issues/3244
 	ev := evidence
-	height, addr := int64(ev.Height()), ev.Address()
+	height, addr := ev.Height(), ev.Address()
 	_, val := valset.GetByAddress(addr)
 	if val == nil {
 		return fmt.Errorf("address %X was not a validator at height %d", addr, height)

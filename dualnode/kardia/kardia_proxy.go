@@ -256,7 +256,7 @@ func (p *KardiaProxy) executeAction(block *types.Block, tx *types.Transaction, a
 		Amount:              tx.Value().Uint64(),
 		Sender:              sender.Hex(),
 		BlockNumber:         block.Height(),
-		Timestamp:           block.Header().Time.Uint64(),
+		Timestamp:           block.Header().Time,
 	}
 	if len(action.WatcherActions) > 0 {
 		parser := ksml.NewParser(p.Name(), p.PublishedEndpoint(), utils.PublishMessage, p.kardiaBc, p.txPool, tx.To(), action.WatcherActions, eventMessage, false)
