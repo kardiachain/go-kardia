@@ -235,14 +235,25 @@ func NewBigInt(x int64) *BigInt {
 }
 
 // SetInt64 sets the big int to x.
-func (bi *BigInt) SetInt64(x int64) {
-	bi.bigint.SetInt64(x)
+func (x *BigInt) SetInt64(i int64) {
+	x.bigint.SetInt64(i)
 }
 
 // GetInt64 returns the int64 representation of x. If x cannot be represented in
 // an int64, the result is undefined.
-func (bi *BigInt) GetInt64() int64 {
-	return bi.bigint.Int64()
+func (x *BigInt) GetInt64() int64 {
+	return x.bigint.Int64()
+}
+
+// SetUint64 sets the big uint to x.
+func (x *BigInt) SetUint64(i uint64) {
+	x.bigint.SetUint64(i)
+}
+
+// GetUint64 returns the uint64 representation of x. If x cannot be represented in
+// an uint64, the result is undefined.
+func (x *BigInt) GetUint64() uint64 {
+	return x.bigint.Uint64()
 }
 
 // IsGreaterThan returns true if x is greater than y
@@ -266,7 +277,7 @@ func (x *BigInt) IsLessThan(y *BigInt) bool {
 }
 
 // IsLessThan returns true if x is less than y
-func (x *BigInt) IsLessThanInt64(y int64) bool {
+func (x *BigInt) IsLessThanInt(y int64) bool {
 	return x.GetInt64() < y
 }
 
@@ -276,8 +287,8 @@ func (x *BigInt) IsLessThanOrEquals(y *BigInt) bool {
 }
 
 // IsLessThan returns true if x is less than y
-func (x *BigInt) IsLessThanOrEqualsUint64(y uint64) bool {
-	return x.Uint64() <= y
+func (x *BigInt) IsLessThanOrEqualsUint(y uint64) bool {
+	return x.GetUint64() <= y
 }
 
 // Equals returns true if x equals to y
@@ -286,13 +297,13 @@ func (x *BigInt) Equals(y *BigInt) bool {
 }
 
 // Equals returns true if x equals to y
-func (x *BigInt) EqualsInt64(y int64) bool {
+func (x *BigInt) EqualsInt(y int64) bool {
 	return x.GetInt64() == y
 }
 
 // Equals returns true if x equals to y
-func (x *BigInt) EqualsUint64(y uint64) bool {
-	return x.Uint64() == y
+func (x *BigInt) EqualsUint(y uint64) bool {
+	return x.GetUint64() == y
 }
 
 // Equals returns true if x equals to y
@@ -304,11 +315,6 @@ func (x *BigInt) Add(y int64) *BigInt {
 func (x *BigInt) AddUint(y uint64) *BigInt {
 	return x.Add(int64(y))
 }
-
-func (x *BigInt) Uint64() uint64 {
-	return uint64(x.GetInt64())
-}
-
 func (x *BigInt) Copy() *BigInt {
 	cpy := *x
 	return &cpy
