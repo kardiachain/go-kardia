@@ -45,7 +45,7 @@ type BaseBlockChain interface {
 	IsPrivate() bool
 	HasPermission(peer *p2p.Peer) bool
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
-	StateAt(root common.Hash) (*state.StateDB, error)
+	StateAt(root uint64) (*state.StateDB, error)
 	DB() types.StoreDB
 	ZeroFee() bool
 	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error)

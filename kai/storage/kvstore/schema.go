@@ -46,6 +46,7 @@ var (
 
 	commitPrefix     = []byte("c")  // commitPrefix + num (uint64 big endian) -> commit
 	seenCommitPrefix = []byte("sm") // seenCommitPrefix + num -> seen commit
+	appHashPrefix    = []byte("ah") // appHashPrefix + num -> app hash
 
 	// TODO(namdoh@): The hashKey is primarily used for persistently store a tx hash in db, so we
 	// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
@@ -209,5 +210,9 @@ func blockPartKey(height uint64, index int) []byte {
 }
 
 func seenCommitKey(height uint64) []byte {
-	return append(seenCommitPrefix, encodeBlockHeight(height)...)
+	return append(appHashPrefix, encodeBlockHeight(height)...)
+}
+
+func calcAppHashKey(height uint64) []byte {
+	return append(appHashPrefix, encodeBlockHeight(height)...)
 }

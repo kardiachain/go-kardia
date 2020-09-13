@@ -131,9 +131,6 @@ func NewBlockHeaderJSON(block types.Block) *BlockHeaderJSON {
 		GasUsed:        block.Header().GasUsed,
 		Validator:      block.Header().Validator.Hex(),
 		TxHash:         block.Header().TxHash.Hex(),
-		Root:           block.Header().Root.Hex(),
-		ReceiptHash:    block.Header().ReceiptHash.Hex(),
-		Bloom:          block.Header().Bloom,
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 	}
@@ -164,9 +161,6 @@ func NewBasicBlockJSON(block types.Block) *BlockJSON {
 		GasUsed:        block.Header().GasUsed,
 		Validator:      block.Header().Validator.Hex(),
 		TxHash:         block.Header().TxHash.Hex(),
-		Root:           block.Header().Root.Hex(),
-		ReceiptHash:    block.Header().ReceiptHash.Hex(),
-		Bloom:          block.Header().Bloom,
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 	}
@@ -202,9 +196,6 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		GasUsed:        block.Header().GasUsed,
 		Validator:      block.Header().Validator.Hex(),
 		TxHash:         block.Header().TxHash.Hex(),
-		Root:           block.Header().Root.Hex(),
-		ReceiptHash:    block.Header().ReceiptHash.Hex(),
-		Bloom:          block.Header().Bloom,
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 		Receipts:       basicReceipts,
@@ -557,7 +548,7 @@ func (a *PublicAccountAPI) Balance(address string, hash string, height int64) st
 	} else {
 		block = a.kaiService.blockchain.CurrentBlock()
 	}
-	state, err := a.kaiService.blockchain.StateAt(block.Root())
+	state, err := a.kaiService.blockchain.StateAt(block.Height())
 	if err != nil {
 		log.Error("Fail to get state from block", "err", err, "block", block.Hash().String())
 		return "-1"
@@ -586,7 +577,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 	// otherwise we use the current state and header
 	if blockNr > 0 {
 		block := s.kaiService.BlockChain().GetBlockByHeight(blockNr)
-		statedb, err = s.kaiService.BlockChain().StateAt(block.Root())
+		statedb, err = s.kaiService.BlockChain().StateAt(block.Height())
 		header = block.Header()
 	} else {
 		statedb, err = s.kaiService.BlockChain().State()

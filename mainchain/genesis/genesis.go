@@ -191,7 +191,6 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 		// Time:           g.Timestamp,
 		Height:   0,
 		GasLimit: g.GasLimit,
-		Root:     root,
 		LastBlockID: types.BlockID{
 			Hash: common.Hash{},
 			PartsHeader: types.PartSetHeader{
@@ -206,7 +205,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 
-	return types.NewBlock(head, nil, nil, &types.Commit{}, nil)
+	return types.NewBlock(head, nil, &types.Commit{}, nil)
 }
 
 // Commit writes the block and state of a genesis specification to the database.

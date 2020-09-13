@@ -106,9 +106,10 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	evPool := evidence.NewPool(groupDb.DB(), groupDb.DB())
 	evReactor := evidence.NewReactor(evPool)
-	blockExec := cstate.NewBlockExecutor(evPool)
 
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool, evPool)
+	blockExec := cstate.NewBlockExecutor(groupDb.DB(), evPool, dualService.dualBlockOperations)
+
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
 		configs.DefaultConsensusConfig(),

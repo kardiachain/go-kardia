@@ -42,7 +42,7 @@ type Evidence struct {
 	VotingPower      *big.Int
 	Height           uint64
 	Time             uint64
-	TotalVotingPower int64
+	TotalVotingPower uint64
 }
 
 // StakingSmcUtil ...
@@ -562,7 +562,7 @@ func (s *StakingSmcUtil) GetCurrentValidatorSet() ([]*types.Validator, error) {
 
 	vals := make([]*types.Validator, len(valSet.ValAddrs))
 	for i, valAddr := range valSet.ValAddrs {
-		vals[i] = types.NewValidator(valAddr, valSet.Powers[i].Int64())
+		vals[i] = types.NewValidator(valAddr, valSet.Powers[i].Uint64())
 	}
 
 	return vals, nil

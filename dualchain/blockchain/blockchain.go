@@ -25,6 +25,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
+
 	"github.com/kardiachain/go-kardiamain/kvm"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -225,11 +227,12 @@ func (dbc *DualBlockChain) GetHeader(hash common.Hash, height uint64) *types.Hea
 
 // State returns a new mutatable state at head block.
 func (dbc *DualBlockChain) State() (*state.StateDB, error) {
-	return dbc.StateAt(dbc.CurrentBlock().Root())
+	return dbc.StateAt(dbc.CurrentBlock().Height())
 }
 
 // StateAt returns a new mutable state based on a particular point in time.
-func (dbc *DualBlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
+func (dbc *DualBlockChain) StateAt(height uint64) (*state.StateDB, error) {
+	root := kvstore.ReadAppHash(dbc.db.DB(), height)
 	return state.New(dbc.logger, root, dbc.stateCache)
 }
 
@@ -262,7 +265,8 @@ func (dbc *DualBlockChain) loadLastState() error {
 		return dbc.Reset()
 	}
 	// Make sure the state associated with the block is available
-	if _, err := state.New(dbc.logger, currentBlock.Root(), dbc.stateCache); err != nil {
+	root := kvstore.ReadAppHash(dbc.db.DB(), currentBlock.Height())
+	if _, err := state.New(dbc.logger, root, dbc.stateCache); err != nil {
 		// Dangling block without a state associated, init from scratch
 		dbc.logger.Warn("Head state missing, repairing chain", "height", currentBlock.Height(), "hash", currentBlock.Hash())
 		if err := dbc.repair(&currentBlock); err != nil {
@@ -321,8 +325,10 @@ func (dbc *DualBlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 // fast block are left intact.
 func (dbc *DualBlockChain) repair(head **types.Block) error {
 	for {
+
+		root := kvstore.ReadAppHash(dbc.db.DB(), (*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
-		if _, err := state.New(dbc.logger, (*head).Root(), dbc.stateCache); err == nil {
+		if _, err := state.New(dbc.logger, root, dbc.stateCache); err == nil {
 			dbc.logger.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
 			return nil
 		}
@@ -372,7 +378,8 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 		dbc.currentBlock.Store(dbc.GetBlock(currentHeader.Hash(), currentHeader.Height))
 	}
 	if currentBlock := dbc.CurrentBlock(); currentBlock != nil {
-		if _, err := state.New(dbc.logger, currentBlock.Root(), dbc.stateCache); err != nil {
+		root := kvstore.ReadAppHash(dbc.db.DB(), currentBlock.Height())
+		if _, err := state.New(dbc.logger, root, dbc.stateCache); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			dbc.currentBlock.Store(dbc.genesisBlock)
 		}

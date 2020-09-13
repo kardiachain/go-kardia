@@ -21,6 +21,7 @@ package cstate
 import (
 	"fmt"
 
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 
 	"github.com/kardiachain/go-kardiamain/types"
@@ -33,7 +34,7 @@ var (
 	stateKey                 = []byte("stateKey")
 )
 
-// It keeps all information necessary to validate new blocks,
+// LastestBlockState It keeps all information necessary to validate new blocks,
 // including the last validator set and the consensus params.
 // All fields are exposed so the struct can be easily serialized,
 // but none of them should be mutated directly.
@@ -61,13 +62,11 @@ type LastestBlockState struct {
 
 	ConsensusParams                  types.ConsensusParams
 	LastHeightConsensusParamsChanged uint64
+	AppHash                          common.Hash
 	// TODO(namdoh): Add consensus parameters used for validating blocks.
 
 	// Merkle root of the results from executing prev block
 	//namdoh@ LastResultsHash []byte
-
-	// The latest AppHash we've received from calling abci.Commit()
-	//namdoh@ AppHash []byte
 }
 
 // Copy makes a copy of the State for mutating.
@@ -84,8 +83,7 @@ func (state LastestBlockState) Copy() LastestBlockState {
 		Validators:                  state.Validators.Copy(),
 		LastValidators:              state.LastValidators.Copy(),
 		LastHeightValidatorsChanged: state.LastHeightValidatorsChanged,
-
-		//namdoh@ AppHash: state.AppHash,
+		AppHash:                     state.AppHash,
 
 		//namdoh@ LastResultsHash: state.LastResultsHash,
 	}

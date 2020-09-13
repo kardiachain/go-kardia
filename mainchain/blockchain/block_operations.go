@@ -25,8 +25,8 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
+	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
@@ -97,52 +97,35 @@ func (bo *BlockOperations) CreateProposalBlock(
 	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash())
 	bo.logger.Info("Creates new header", "header", header)
 
-	lastCommitInfo, byzVals := getBeginBlockValidatorInfo(uint64(height), commit, evidence, bo.blockchain.DB().DB())
-
-	_, stateRoot, receipts, newTxs, err := bo.commitTransactions(txs, header, lastCommitInfo, byzVals)
-	if err != nil {
-		bo.logger.Error("Fail to commit transactions", "err", err)
-		return nil, nil
-	}
-	header.Root = stateRoot
-
-	block = bo.newBlock(header, newTxs, receipts, commit, evidence)
+	block = bo.newBlock(header, txs, commit, evidence)
 	bo.logger.Trace("Make block to propose", "block", block)
-
-	go bo.saveReceipts(receipts, block)
-
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
 }
 
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
-func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) error {
+func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
 	_, root, receipts, _, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {
-		return err
+		return nil, common.Hash{}, err
 	}
-	if root != block.Root() {
-		return fmt.Errorf("different new state root: Block root: %s, Execution result: %s", block.Root().Hex(), root.Hex())
-	}
-	receiptsHash := types.DeriveSha(receipts)
-	if receiptsHash != block.ReceiptHash() {
-		return fmt.Errorf("different receipt hash: Block receipt: %s, receipt from execution: %s", block.ReceiptHash().Hex(), receiptsHash.Hex())
-	}
-	bo.saveReceipts(receipts, block)
 
-	return nil
+	bo.saveReceipts(receipts, block)
+	kvstore.WriteAppHash(bo.blockchain.DB().DB(), block.Height(), root)
+	return nil, common.Hash{}, nil
 }
 
 // CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
 // Proposer and validators should already commit the block txs, so this function prevents double tx execution.
-func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) error {
-	if !bo.blockchain.CheckCommittedStateRoot(block.Root()) {
+func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
+	root := kvstore.ReadAppHash(bo.blockchain.DB().DB(), block.Height())
+	if !bo.blockchain.CheckCommittedStateRoot(root) {
 		bo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
 		return bo.CommitAndValidateBlockTxs(block, lastCommit, byzVals)
 	}
 
-	return nil
+	return nil, common.Hash{}, nil
 }
 
 // SaveBlock saves the given block, blockParts, and seenCommit to the underlying storage.
@@ -229,8 +212,8 @@ func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types
 }
 
 // newBlock creates new block from given data.
-func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit, ev []types.Evidence) *types.Block {
-	block := types.NewBlock(header, txs, receipts, commit, ev)
+func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, commit *types.Commit, ev []types.Evidence) *types.Block {
+	block := types.NewBlock(header, txs, commit, ev)
 
 	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
 	// LastResultHash.
@@ -324,62 +307,4 @@ LOOP:
 // saveReceipts saves receipts of block transactions to storage.
 func (bo *BlockOperations) saveReceipts(receipts types.Receipts, block *types.Block) {
 	bo.blockchain.WriteReceipts(receipts, block)
-}
-
-func getBeginBlockValidatorInfo(height uint64, lastCommit *types.Commit, evidence []types.Evidence, stateDB kaidb.Database) (staking.LastCommitInfo, []staking.Evidence) {
-	voteInfos := make([]staking.VoteInfo, lastCommit.Size())
-	// block.Height=1 -> LastCommitInfo.Votes are empty.
-	// Remember that the first LastCommit is intentionally empty, so it makes
-	// sense for LastCommitInfo.Votes to also be empty.
-	if height > 1 {
-		lastValSet, err := cstate.LoadValidators(stateDB, height-1)
-		if err != nil {
-			panic(err)
-		}
-
-		// Sanity check that commit size matches validator set size - only applies
-		// after first block.
-		var (
-			commitSize = lastCommit.Size()
-			valSetLen  = len(lastValSet.Validators)
-		)
-		if commitSize != valSetLen {
-			panic(fmt.Sprintf("commit size (%d) doesn't match valset length (%d) at height %d\n\n%v\n\n%v",
-				commitSize, valSetLen, height, lastCommit.Precommits, lastValSet.Validators))
-		}
-
-		for i, val := range lastValSet.Validators {
-			commitSig := lastCommit.Precommits[i]
-			voteInfos[i] = staking.VoteInfo{
-				Address:         val.Address,
-				VotingPower:     big.NewInt(int64(val.VotingPower)),
-				SignedLastBlock: commitSig.Signature != nil,
-			}
-		}
-	}
-
-	byzVals := make([]staking.Evidence, len(evidence))
-	for i, ev := range evidence {
-		// We need the validator set. We already did this in validateBlock.
-		// TODO: Should we instead cache the valset in the evidence itself and add
-		// `SetValidatorSet()` and `ToABCI` methods ?
-		valset, err := cstate.LoadValidators(stateDB, ev.Height())
-		if err != nil {
-			panic(err)
-		}
-
-		_, val := valset.GetByAddress(ev.Address())
-
-		byzVals[i] = staking.Evidence{
-			Address:          val.Address,
-			Height:           ev.Height(),
-			Time:             ev.Time(),
-			VotingPower:      big.NewInt(int64(val.VotingPower)),
-			TotalVotingPower: valset.TotalVotingPower(),
-		}
-	}
-
-	return staking.LastCommitInfo{
-		Votes: voteInfos,
-	}, byzVals
 }

@@ -20,9 +20,13 @@ package cstate
 
 import (
 	"fmt"
+	"math/big"
 
 	fail "github.com/ebuchman/fail-test"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -30,6 +34,11 @@ import (
 type EvidencePool interface {
 	PendingEvidence(int64) []types.Evidence
 	Update(*types.Block, LastestBlockState)
+}
+
+// BlockStore ...
+type BlockStore interface {
+	CommitAndValidateBlockTxs(*types.Block, staking.LastCommitInfo, []staking.Evidence) ([]*types.Validator, common.Hash, error)
 }
 
 // ValidateBlock validates the given block against the given state.
@@ -48,13 +57,18 @@ func ValidateBlock(state LastestBlockState, block *types.Block) error {
 // BlockExecutor provides the context and accessories for properly executing a block.
 type BlockExecutor struct {
 	evpool EvidencePool
+	bc     BlockStore
+	// save state, validators, consensus params, abci responses here
+	db kaidb.Database
 }
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
 // Call SetEventBus to provide one.
-func NewBlockExecutor(evpool EvidencePool) *BlockExecutor {
+func NewBlockExecutor(db kaidb.Database, evpool EvidencePool, bc BlockStore) *BlockExecutor {
 	return &BlockExecutor{
 		evpool: evpool,
+		bc:     bc,
+		db:     db,
 	}
 }
 
@@ -69,12 +83,22 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 
 	fail.Fail() // XXX
 
+	commitInfo, byzVals := getBeginBlockValidatorInfo(block, blockExec.db)
+
+	valUpdates, appHash, err := blockExec.bc.CommitAndValidateBlockTxs(block, commitInfo, byzVals)
+	if err != nil {
+		return state, fmt.Errorf("commit failed for application: %v", err)
+	}
+
+	valUpdates = calculateValidatorSetUpdates(state.Validators.Validators, valUpdates)
+
 	// update the state with the block and responses
-	var err error
-	state, err = updateState(logger, state, blockID, block.Header(), nil)
+	state, err = updateState(logger, state, blockID, block.Header(), valUpdates)
 	if err != nil {
 		return state, fmt.Errorf("Commit failed for application: %v", err)
 	}
+
+	state.AppHash = appHash
 
 	logger.Warn("Update evidence pool.")
 	// Update evpool with the block and state.
@@ -97,6 +121,11 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 	if len(validatorUpdates) > 0 {
 		// Change results from this height but only applies to the next next height.
 		lastHeightValsChanged = header.Height + 2
+		// err := nValSet.UpdateWithChangeSet(validatorUpdates)
+		// if err != nil {
+		// 	return state, fmt.Errorf("error changing validator set: %v", err)
+		// }
+
 	}
 	nValSet.AdvanceProposer(1)
 	return LastestBlockState{
@@ -109,4 +138,89 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 		LastValidators:              state.Validators.Copy(),
 		LastHeightValidatorsChanged: lastHeightValsChanged,
 	}, nil
+}
+
+func getBeginBlockValidatorInfo(b *types.Block, stateDB kaidb.Database) (staking.LastCommitInfo, []staking.Evidence) {
+	lastCommit := b.LastCommit()
+	voteInfos := make([]staking.VoteInfo, lastCommit.Size())
+	// block.Height=1 -> LastCommitInfo.Votes are empty.
+	// Remember that the first LastCommit is intentionally empty, so it makes
+	// sense for LastCommitInfo.Votes to also be empty.
+	if b.Height() > 1 {
+		lastValSet, err := LoadValidators(stateDB, b.Height()-1)
+		if err != nil {
+			panic(err)
+		}
+
+		// Sanity check that commit size matches validator set size - only applies
+		// after first block.
+		var (
+			commitSize = lastCommit.Size()
+			valSetLen  = len(lastValSet.Validators)
+		)
+		if commitSize != valSetLen {
+			panic(fmt.Sprintf("commit size (%d) doesn't match valset length (%d) at height %d\n\n%v\n\n%v",
+				commitSize, valSetLen, b.Height(), lastCommit.Precommits, lastValSet.Validators))
+		}
+
+		for i, val := range lastValSet.Validators {
+			commitSig := lastCommit.Precommits[i]
+			voteInfos[i] = staking.VoteInfo{
+				Address:         val.Address,
+				VotingPower:     big.NewInt(int64(val.VotingPower)),
+				SignedLastBlock: commitSig.Signature != nil,
+			}
+		}
+	}
+
+	byzVals := make([]staking.Evidence, len(b.Evidence().Evidence))
+	for i, ev := range b.Evidence().Evidence {
+		// We need the validator set. We already did this in validateBlock.
+		// TODO: Should we instead cache the valset in the evidence itself and add
+		// `SetValidatorSet()` and `ToABCI` methods ?
+		valset, err := LoadValidators(stateDB, ev.Height())
+		if err != nil {
+			panic(err)
+		}
+
+		_, val := valset.GetByAddress(ev.Address())
+
+		byzVals[i] = staking.Evidence{
+			Address:          val.Address,
+			Height:           ev.Height(),
+			Time:             ev.Time(),
+			VotingPower:      big.NewInt(int64(val.VotingPower)),
+			TotalVotingPower: valset.TotalVotingPower(),
+		}
+	}
+
+	return staking.LastCommitInfo{
+		Votes: voteInfos,
+	}, byzVals
+}
+
+func calculateValidatorSetUpdates(lastVals []*types.Validator, vals []*types.Validator) (updates []*types.Validator) {
+	if len(vals) == 0 {
+		return
+	}
+	last := make(map[common.Address]uint64)
+	for _, validator := range lastVals {
+		last[validator.Address] = validator.VotingPower
+	}
+
+	for _, val := range vals {
+		oldPower, found := last[val.Address]
+		if !found || oldPower != val.VotingPower {
+			updates = append(updates, val)
+		}
+		delete(last, val.Address)
+	}
+
+	for valAddr := range last {
+		updates = append(updates, &types.Validator{
+			Address:     valAddr,
+			VotingPower: 0,
+		})
+	}
+	return updates
 }

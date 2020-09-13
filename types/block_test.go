@@ -239,7 +239,7 @@ func CreateNewBlock(height uint64) *Block {
 		Precommits: []*Vote{vote, nil},
 	}
 	evidence := []Evidence{}
-	return NewBlock(&header, txns, nil, lastCommit, evidence)
+	return NewBlock(&header, txns, lastCommit, evidence)
 }
 
 func CreateNewDualBlock() *Block {
