@@ -333,13 +333,53 @@ func (x *BigInt) EqualsUint(y uint64) bool {
 }
 
 // Add x + y
-func (x *BigInt) Add(y int64) *BigInt {
+func (x *BigInt) Add(y *BigInt) *BigInt {
+	return NewBigInt(x.GetInt64() + y.GetInt64())
+}
+
+// AddInt x + y
+func (x *BigInt) AddInt(y int64) *BigInt {
 	return NewBigInt(x.GetInt64() + y)
 }
 
 // AddUint x + y
 func (x *BigInt) AddUint(y uint64) *BigInt {
-	return x.Add(int64(y))
+	return x.AddInt(int64(y))
+}
+
+// Sub x - y
+func (x *BigInt) Sub(y *BigInt) *BigInt {
+	return NewBigInt(x.GetInt64() - y.GetInt64())
+}
+
+// SubInt x - y
+func (x *BigInt) SubInt(y int64) *BigInt {
+	return NewBigInt(x.GetInt64() - y)
+}
+
+// SubUint x - y
+func (x *BigInt) SubUint(y uint64) *BigInt {
+	return x.SubInt(int64(y))
+}
+
+// Mul x * y
+func (x *BigInt) Mul(y *BigInt) *BigInt {
+	return NewBigInt(x.GetInt64() * y.GetInt64())
+}
+
+// Div x / y
+func (x *BigInt) Div(y *BigInt) *BigInt {
+	return NewBigInt(x.GetInt64() / y.GetInt64())
+}
+
+// ValidInt64 validate BigInt not overflow Int64
+func (x *BigInt) ValidInt64() bool {
+	return x.bigint.IsInt64()
+}
+
+// ValidUint64 validate BigInt not overflow Uint64
+func (x *BigInt) ValidUint64() bool {
+	return x.bigint.IsUint64()
 }
 
 // Copy returns copy of x
