@@ -147,7 +147,7 @@ func LoadValidators(db kaidb.KeyValueStore, height uint64) (*types.ValidatorSet,
 				),
 			)
 		}
-		valInfo2.ValidatorSet.AdvanceProposer(int64(height - uint64(lastStoredHeight))) // mutate
+		valInfo2.ValidatorSet.IncrementProposerPriority(int64(height - uint64(lastStoredHeight))) // mutate
 		valInfo = valInfo2
 	}
 
@@ -285,16 +285,15 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
 
 	var validatorSet, nextValidatorSet *types.ValidatorSet
 	if genDoc.Validators == nil {
-		validatorSet = types.NewValidatorSet(nil, 0, 1)
-		nextValidatorSet = types.NewValidatorSet(nil, 0, 1)
+		validatorSet = types.NewValidatorSet(nil)
+		nextValidatorSet = types.NewValidatorSet(nil)
 	} else {
 		validators := make([]*types.Validator, len(genDoc.Validators))
 		for i, val := range genDoc.Validators {
 			validators[i] = types.NewValidator(common.HexToAddress(val.Address), val.Power)
 		}
-		validatorSet = types.NewValidatorSet(validators, 0, 1)
-		nextValidatorSet = types.NewValidatorSet(validators, 0, 1)
-		nextValidatorSet.AdvanceProposer(1)
+		validatorSet = types.NewValidatorSet(validators)
+		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
 	}
 
 	return LastestBlockState{
@@ -304,7 +303,7 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
 
 		NextValidators:              nextValidatorSet,
 		Validators:                  validatorSet,
-		LastValidators:              types.NewValidatorSet(nil, 0, 1),
+		LastValidators:              types.NewValidatorSet(nil),
 		LastHeightValidatorsChanged: 0,
 
 		//ConsensusParams:                  *genDoc.ConsensusParams,

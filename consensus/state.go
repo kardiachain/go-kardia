@@ -786,7 +786,7 @@ func (cs *ConsensusState) enterNewRound(height uint64, round uint32) {
 	if cs.Round < round {
 		// TODO(namdoh): Revisit to see if we need to copy validators here.
 		validators = validators.Copy()
-		validators.AdvanceProposer(int64(round - cs.Round))
+		validators.IncrementProposerPriority(int64(round - cs.Round))
 	}
 
 	// Setup new round

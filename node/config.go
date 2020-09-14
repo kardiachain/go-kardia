@@ -604,7 +604,7 @@ func GetValidatorSet(bc base.BaseBlockChain, valIndexes []int) (*types.Validator
 	}
 	// TODO(huny@): Pass the start/end block height of the initial set of validator from the
 	// genesis here. Default to 0 and 100000000000 for now.
-	validatorSet := types.NewValidatorSet(validators, 0 /*start height*/, 100000000000 /*end height*/)
+	validatorSet := types.NewValidatorSet(validators)
 	return validatorSet, nil
 }
 
