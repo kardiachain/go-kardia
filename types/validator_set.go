@@ -87,6 +87,11 @@ func (vs *ValidatorSet) IsNilOrEmpty() bool {
 	return vs == nil || len(vs.Validators) == 0
 }
 
+// CurrentValidators returns the current set of validators.
+func (vs *ValidatorSet) CurrentValidators() []*Validator {
+	return vs.Validators
+}
+
 // CopyIncrementProposerPriority Increment ProposerPriority and update the proposer on a copy, and return it.
 func (vs *ValidatorSet) CopyIncrementProposerPriority(times int64) *ValidatorSet {
 	copy := vs.Copy()
