@@ -62,7 +62,7 @@ type ValidatorSet struct {
 	Proposer   *Validator   `json:"proposer"`
 
 	// cached (unexported)
-	totalVotingPower *common.BigInt
+	totalVotingPower uint64
 }
 
 // NewValidatorSet initializes a ValidatorSet by copying over the
@@ -113,8 +113,8 @@ func (vs *ValidatorSet) IncrementProposerPriority(times int64) {
 	// Cap the difference between priorities to be proportional to 2*totalPower by
 	// re-normalizing priorities, i.e., rescale all priorities by multiplying with:
 	//  2*totalVotingPower/(maxPriority - minPriority)
-	diffMax := PriorityWindowSizeFactor * vs.TotalVotingPower().GetInt64()
-	vs.RescalePriorities(diffMax)
+	diffMax := PriorityWindowSizeFactor * vs.TotalVotingPower()
+	vs.RescalePriorities(int64(diffMax))
 	vs.shiftByAvgProposerPriority()
 
 	var proposer *Validator
@@ -160,7 +160,7 @@ func (vs *ValidatorSet) incrementProposerPriority() *Validator {
 	// Decrement the validator with most ProposerPriority.
 	mostest := vs.getValWithMostPriority()
 	// Mind the underflow.
-	mostest.ProposerPriority = mostest.ProposerPriority.AddInt(vs.TotalVotingPower().GetInt64())
+	mostest.ProposerPriority = mostest.ProposerPriority.AddUint(vs.TotalVotingPower())
 
 	return mostest
 }
@@ -297,13 +297,13 @@ func (vs *ValidatorSet) updateTotalVotingPower() {
 				sum))
 		}
 	}
-	vs.totalVotingPower = common.NewBigInt(sum)
+	vs.totalVotingPower = uint64(sum)
 }
 
 // TotalVotingPower returns the sum of the voting powers of all validators.
 // It recomputes the total voting power if required.
-func (vs *ValidatorSet) TotalVotingPower() *common.BigInt {
-	if vs.totalVotingPower.GetInt64() == 0 {
+func (vs *ValidatorSet) TotalVotingPower() uint64 {
+	if vs.totalVotingPower == 0 {
 		vs.updateTotalVotingPower()
 	}
 	return vs.totalVotingPower
@@ -409,7 +409,7 @@ func processChanges(origChanges []*Validator) (updates, removals []*Validator, e
 // No changes are made to the validator set 'vals'.
 func verifyUpdates(updates []*Validator, vs *ValidatorSet) (updatedTotalVotingPower uint64, numNewValidators int, err error) {
 
-	updatedTotalVotingPower = vs.TotalVotingPower().GetUint64()
+	updatedTotalVotingPower = vs.TotalVotingPower()
 
 	for _, valUpdate := range updates {
 		address := valUpdate.Address
@@ -594,7 +594,7 @@ func (vs *ValidatorSet) updateWithChangeSet(changes []*Validator, allowDeletes b
 	vs.updateTotalVotingPower()
 
 	// Scale and center.
-	vs.RescalePriorities(PriorityWindowSizeFactor * vs.TotalVotingPower().GetInt64())
+	vs.RescalePriorities(PriorityWindowSizeFactor * int64(vs.TotalVotingPower()))
 	vs.shiftByAvgProposerPriority()
 
 	return nil
@@ -659,10 +659,10 @@ func (vs *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height uin
 		// }
 	}
 
-	if talliedVotingPower > vs.TotalVotingPower().GetInt64()*2/3 {
+	if talliedVotingPower > int64(vs.TotalVotingPower()*2/3) {
 		return nil
 	}
-	return errTooMuchChange{talliedVotingPower, vs.TotalVotingPower().GetInt64()*2/3 + 1}
+	return errTooMuchChange{talliedVotingPower, int64(vs.TotalVotingPower()*2/3 + 1)}
 }
 
 // IsErrTooMuchChange returns too much change error
