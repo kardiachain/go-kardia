@@ -94,7 +94,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 	txs := bo.txPool.ProposeTransactions()
 	bo.logger.Debug("Collected transactions", "txs count", len(txs))
 
-	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash())
+	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash(), lastState.AppHash)
 	bo.logger.Info("Creates new header", "header", header)
 
 	block = bo.newBlock(header, txs, commit, evidence)
@@ -106,14 +106,16 @@ func (bo *BlockOperations) CreateProposalBlock(
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
 func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
-	_, root, receipts, _, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
+
+	vals, root, receipts, _, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {
 		return nil, common.Hash{}, err
 	}
 
 	bo.saveReceipts(receipts, block)
 	kvstore.WriteAppHash(bo.blockchain.DB().DB(), block.Height(), root)
-	return nil, common.Hash{}, nil
+	bo.blockchain.DB().WriteHeadBlockHash(block.Hash())
+	return vals, root, nil
 }
 
 // CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
@@ -150,12 +152,6 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartS
 	if !blockParts.IsComplete() {
 		panic(fmt.Sprintf("BlockOperations can only save complete block part sets"))
 	}
-
-	// TODO(kiendn): WriteBlockWithoutState returns an error, write logic check if error appears
-	if err := bo.blockchain.WriteBlockWithoutState(block); err != nil {
-		common.PanicSanity(common.Fmt("WriteBlockWithoutState fails with error %v", err))
-	}
-
 	bo.blockchain.SaveBlock(block, blockParts, seenCommit)
 
 	bo.mtx.Lock()
@@ -169,10 +165,12 @@ func (bo *BlockOperations) LoadBlock(height uint64) *types.Block {
 	return bo.blockchain.GetBlockByHeight(height)
 }
 
+// LoadBlockPart load block part
 func (bo *BlockOperations) LoadBlockPart(height uint64, index int) *types.Part {
 	return bo.blockchain.LoadBlockPart(height, index)
 }
 
+// LoadBlockMeta load block meta
 func (bo *BlockOperations) LoadBlockMeta(height uint64) *types.BlockMeta {
 	return bo.blockchain.LoadBlockMeta(height)
 }
@@ -198,7 +196,7 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 // newHeader creates new block header from given data.
 // Some header fields are not ready at this point.
 func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types.BlockID,
-	validator common.Address, validatorsHash common.Hash) *types.Header {
+	validator common.Address, validatorsHash common.Hash, appHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:         height,
@@ -208,6 +206,7 @@ func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types
 		Validator:      validator,
 		ValidatorsHash: validatorsHash,
 		GasLimit:       215040000,
+		AppHash:        appHash,
 	}
 }
 
@@ -248,8 +247,8 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 		return nil, common.Hash{}, nil, nil, err
 	}
 
-	if err := bo.staking.FinalizeCommit(header.Validator, lastCommit); err != nil {
-		bo.logger.Error("Fail to mint", "err", err)
+	if err := bo.staking.FinalizeCommit(lastCommit); err != nil {
+		bo.logger.Error("Fail to finalize commit", "err", err)
 		return nil, common.Hash{}, nil, nil, err
 	}
 

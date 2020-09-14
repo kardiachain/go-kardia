@@ -24,6 +24,8 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
@@ -191,6 +193,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 		// Time:           g.Timestamp,
 		Height:   0,
 		GasLimit: g.GasLimit,
+		AppHash:  root,
 		LastBlockID: types.BlockID{
 			Hash: common.Hash{},
 			PartsHeader: types.PartSetHeader{
@@ -204,7 +207,6 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 	}
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
-
 	return types.NewBlock(head, nil, &types.Commit{}, nil)
 }
 
@@ -221,8 +223,7 @@ func (g *Genesis) Commit(logger log.Logger, db types.StoreDB) (*types.Block, err
 	db.WriteReceipts(block.Hash(), block.Height(), nil)
 	db.WriteCanonicalHash(block.Hash(), block.Height())
 	db.WriteHeadBlockHash(block.Hash())
-	db.WriteHeadHeaderHash(block.Hash())
-
+	kvstore.WriteAppHash(db.DB(), block.Height(), block.AppHash())
 	config := g.Config
 	if config == nil {
 		config = configs.TestnetChainConfig

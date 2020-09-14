@@ -135,8 +135,6 @@ func (hc *HeaderChain) GetBlockHeight(hash common.Hash) *uint64 {
 
 // SetCurrentHeader sets the current head header of the canonical chain.
 func (hc *HeaderChain) SetCurrentHeader(head *types.Header) {
-	hc.kaiDb.WriteHeadHeaderHash(head.Hash())
-
 	hc.currentHeader.Store(head)
 	hc.currentHeaderHash = head.Hash()
 }
@@ -182,5 +180,4 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	}
 	hc.currentHeaderHash = hc.CurrentHeader().Hash()
 
-	hc.kaiDb.WriteHeadHeaderHash(hc.currentHeaderHash)
 }

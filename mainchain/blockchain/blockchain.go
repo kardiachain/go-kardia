@@ -394,32 +394,13 @@ func (bc *BlockChain) SetHead(head uint64) error {
 		bc.currentBlock.Store(bc.genesisBlock)
 	}
 
-	currentBlock := bc.CurrentBlock()
-
-	bc.db.WriteHeadBlockHash(currentBlock.Hash())
-
 	return bc.loadLastState()
 }
 
-// WriteBlockWithoutState writes only new block to database.
-func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) error {
-	// Makes sure no inconsistent state is leaked during insertion
-	bc.mu.Lock()
-	defer bc.mu.Unlock()
-	// Write block data in batch
-	bc.db.WriteBlock(block, block.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
-
-	// Convert all txs into txLookupEntries and store to db
-	bc.db.WriteTxLookupEntries(block)
-
-	// StateDb for this block should be already written.
-
+// CommitAndValidateBlockTxs ...
+func (bc *BlockChain) CommitAndValidateBlockTxs(block *types.Block) {
 	bc.insert(block)
-	bc.futureBlocks.Remove(block.Hash())
-
-	// Sends new head event
 	bc.chainHeadFeed.Send(events.ChainHeadEvent{Block: block})
-	return nil
 }
 
 // WriteReceipts writes the transactions receipt from execution of the transactions in the given block.
@@ -428,34 +409,6 @@ func (bc *BlockChain) WriteReceipts(receipts types.Receipts, block *types.Block)
 	defer bc.mu.Unlock()
 
 	bc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
-}
-
-// WriteBlockWithState writes the block and all associated state to the database.
-func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) error {
-	// Makes sure no inconsistent state is leaked during insertion
-	bc.mu.Lock()
-	defer bc.mu.Unlock()
-	// Write block data in batch.
-
-	bc.db.WriteBlock(block, block.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
-	root, err := state.Commit(true)
-	if err != nil {
-		return err
-	}
-	triedb := bc.stateCache.TrieDB()
-	if err := triedb.Commit(root, false); err != nil {
-		return err
-	}
-	bc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
-	bc.db.WriteTxLookupEntries(block)
-
-	// Set new head.
-	bc.insert(block)
-	bc.futureBlocks.Remove(block.Hash())
-
-	// Sends new head event
-	bc.chainHeadFeed.Send(events.ChainHeadEvent{Block: block})
-	return nil
 }
 
 // CommitTrie commits trie node such as statedb forcefully to disk.
@@ -476,7 +429,6 @@ func (bc *BlockChain) insert(block *types.Block) {
 
 	// Add the block to the canonical chain number scheme and mark as the head
 	bc.db.WriteCanonicalHash(block.Hash(), block.Height())
-	bc.db.WriteHeadBlockHash(block.Hash())
 
 	bc.currentBlock.Store(block)
 

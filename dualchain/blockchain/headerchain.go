@@ -136,8 +136,6 @@ func (dhc *DualHeaderChain) GetBlockHeight(hash common.Hash) *uint64 {
 
 // SetCurrentHeader sets the current head header of the canonical chain.
 func (dhc *DualHeaderChain) SetCurrentHeader(head *types.Header) {
-	dhc.kaiDb.WriteHeadHeaderHash(head.Hash())
-
 	dhc.currentHeader.Store(head)
 	dhc.currentHeaderHash = head.Hash()
 }
@@ -184,5 +182,4 @@ func (dhc *DualHeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	}
 	dhc.currentHeaderHash = dhc.CurrentHeader().Hash()
 
-	dhc.kaiDb.WriteHeadHeaderHash(dhc.currentHeaderHash)
 }

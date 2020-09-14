@@ -106,17 +106,10 @@ func CommonWriteCanonicalHash(db kaidb.Writer, hash common.Hash, height uint64) 
 	}
 }
 
-// CommonWriteHeadBlockHash stores the head block's hash.
+// CommonWriteHeadBlockHash stores the hash of the current canonical head header.
 func CommonWriteHeadBlockHash(db kaidb.Writer, hash common.Hash) {
 	if err := db.Put(headBlockKey, hash.Bytes()); err != nil {
-		log.Crit("Failed to store last block's hash", "err", err)
-	}
-}
-
-// CommonWriteHeadHeaderHash stores the hash of the current canonical head header.
-func CommonWriteHeadHeaderHash(db kaidb.Writer, hash common.Hash) {
-	if err := db.Put(headHeaderKey, hash.Bytes()); err != nil {
-		log.Crit("Failed to store last header's hash", "err", err)
+		panic(fmt.Sprintln("Failed to store last header's hash", "err", err))
 	}
 }
 

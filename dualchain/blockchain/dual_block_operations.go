@@ -139,8 +139,9 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cst
 // Executes and commits the new state from events in the given block.
 // This also validate the new state root against the block root.
 func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
-	_, err := dbo.commitDualEvents(block.DualEvents())
-	return nil, common.Hash{}, err
+	root, err := dbo.commitDualEvents(block.DualEvents())
+	kvstore.WriteAppHash(dbo.blockchain.db.DB(), block.Height(), root)
+	return nil, root, err
 }
 
 // CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
@@ -317,7 +318,6 @@ func (dbo *DualBlockOperations) commitDualEvents(events types.DualEvents) (commo
 		dbo.logger.Error("Fail to write statedb trie to disk", "err", err)
 		return common.Hash{}, err
 	}
-
 	return root, nil
 }
 

@@ -390,10 +390,6 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 		dbc.currentBlock.Store(dbc.genesisBlock)
 	}
 
-	currentBlock := dbc.CurrentBlock()
-
-	dbc.db.WriteHeadBlockHash(currentBlock.Hash())
-
 	return dbc.loadLastState()
 }
 
@@ -471,7 +467,6 @@ func (dbc *DualBlockChain) insert(block *types.Block) {
 
 	// Add the block to the canonical chain number scheme and mark as the head
 	dbc.db.WriteCanonicalHash(block.Hash(), block.Height())
-	dbc.db.WriteHeadBlockHash(block.Hash())
 
 	dbc.currentBlock.Store(block)
 

@@ -80,7 +80,6 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	if err := ValidateBlock(state, block); err != nil {
 		return state, ErrInvalidBlock(err)
 	}
-
 	fail.Fail() // XXX
 
 	commitInfo, byzVals := getBeginBlockValidatorInfo(block, blockExec.db)
@@ -99,6 +98,7 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	}
 
 	state.AppHash = appHash
+	SaveState(blockExec.db, state)
 
 	logger.Warn("Update evidence pool.")
 	// Update evpool with the block and state.
