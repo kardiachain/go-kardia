@@ -152,7 +152,7 @@ func RandValidator(randPower bool, minPower uint64) (*Validator, IPrivValidator)
 	return val, privVal
 }
 
-// RandValidator returns a randomized validator, useful for testing.
+// RandValidatorCS returns a randomized validator, useful for testing.
 // UNSTABLE
 // EXPOSED FOR TESTING.
 func RandValidatorCS(randPower bool, minPower uint64) (*Validator, *ecdsa.PrivateKey) {

@@ -135,7 +135,7 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	}
 
 	// Ensure that signer is a validator.
-	lookupAddr, val := voteSet.valSet.GetByIndex(uint32(valIndex))
+	lookupAddr, val := voteSet.valSet.GetByIndex(valIndex)
 	if val == nil {
 		return false, errors.Wrapf(ErrVoteInvalidValidatorIndex,
 			"Cannot find validator %d in valSet of size %d", valIndex, voteSet.valSet.Size())
@@ -231,13 +231,13 @@ func (voteSet *VoteSet) addVerifiedVote(vote *Vote, blockKey string, votingPower
 
 	// Before adding to votesByBlock, see if we'll exceed quorum
 	origSum := votesByBlock.sum
-	quorum := voteSet.valSet.TotalVotingPower()*2/3 + 1
+	quorum := voteSet.valSet.TotalVotingPower().GetInt64()*2/3 + 1
 
 	// Add vote to votesByBlock
 	votesByBlock.addVerifiedVote(vote, votingPower)
 
 	// If we just crossed the quorum threshold and have 2/3 majority...
-	if origSum < quorum && quorum <= votesByBlock.sum {
+	if int64(origSum) < quorum && quorum <= int64(votesByBlock.sum) {
 		// Only consider the first quorum reached
 		if voteSet.maj23 == nil {
 			maj23BlockID := vote.BlockID
@@ -398,13 +398,13 @@ func (voteSet *VoteSet) HasTwoThirdsAny() bool {
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
-	return voteSet.sum > uint64(voteSet.valSet.TotalVotingPower()*2/3)
+	return voteSet.sum > uint64(voteSet.valSet.TotalVotingPower().GetInt64()*2/3)
 }
 
 func (voteSet *VoteSet) HasAll() bool {
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
-	return voteSet.sum == uint64(voteSet.valSet.TotalVotingPower())
+	return voteSet.sum == uint64(voteSet.valSet.TotalVotingPower().GetInt64())
 }
 
 // If there was a +2/3 majority for blockID, return blockID and true.
@@ -433,9 +433,9 @@ func (voteSet *VoteSet) StringShort() string {
 }
 
 // return the power voted, the total, and the fraction
-func (voteSet *VoteSet) sumTotalFrac() (uint64, uint64, float64) {
+func (voteSet *VoteSet) sumTotalFrac() (uint64, *cmn.BigInt, float64) {
 	voted, total := voteSet.sum, voteSet.valSet.TotalVotingPower()
-	fracVoted := float64(voted) / float64(total)
+	fracVoted := float64(voted) / float64(total.GetInt64())
 	return voted, total, fracVoted
 }
 
