@@ -26,10 +26,10 @@ import (
 // NOTE: privValidators are in order
 func randVoteSet(
 	height uint64,
-	round uint,
+	round uint32,
 	signedMsgType byte,
 	numValidators int,
-	votingPower int64,
+	votingPower uint64,
 ) (*VoteSet, *ValidatorSet, []IPrivValidator) {
 	valSet, privValidators := RandValidatorSet(numValidators, votingPower)
 	return NewVoteSet("test_chain_id", height, round, signedMsgType, valSet), valSet, privValidators

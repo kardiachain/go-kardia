@@ -81,7 +81,7 @@ func TestCommitCopy(t *testing.T) {
 func TestCommitAccessorFunctions(t *testing.T) {
 	commit := CreateNewCommit()
 	assert.Equal(t, commit.Height, uint64(2))
-	assert.Equal(t, commit.Round, uint(1))
+	assert.Equal(t, commit.Round, uint32(1))
 	assert.Equal(t, commit.Size(), 2)
 	assert.Equal(t, commit.IsCommit(), true)
 }

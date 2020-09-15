@@ -32,7 +32,6 @@ import (
 // that signs votes and proposals, and never double signs.
 type IPrivValidator interface {
 	// TODO: Extend the interface to return errors too.
-	// Ref: https://github.com/tendermint/tendermint/issues/3602
 	GetPubKey() ecdsa.PublicKey
 	GetAddress() common.Address
 	SignVote(chainID string, vote *Vote) error

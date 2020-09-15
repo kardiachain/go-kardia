@@ -52,8 +52,8 @@ func IsErrNotEnoughVotingPowerSigned(err error) bool {
 // ErrNotEnoughVotingPowerSigned is returned when not enough validators signed
 // a commit.
 type ErrNotEnoughVotingPowerSigned struct {
-	Got    int64
-	Needed int64
+	Got    uint64
+	Needed uint64
 }
 
 func (e ErrNotEnoughVotingPowerSigned) Error() string {
@@ -344,7 +344,7 @@ func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height
 		return fmt.Errorf("Invalid commit -- wrong height: %v vs %v", height, commit.Height)
 	}
 
-	talliedVotingPower := int64(0)
+	talliedVotingPower := uint64(0)
 	votingPowerNeeded := valSet.TotalVotingPower() * 2 / 3
 	for idx, commitSig := range commit.Signatures {
 		if commitSig.Absent() {
@@ -356,12 +356,12 @@ func (valSet *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height
 		val := valSet.Validators[idx]
 
 		// Validate signature
-		if !val.VerifyVoteSignature(chainID, commit.GetVote(uint(idx))) {
+		if !val.VerifyVoteSignature(chainID, commit.GetVote(uint32(idx))) {
 			return fmt.Errorf("Invalid commit -- invalid signature: %v", commitSig)
 		}
 		if commitSig.ForBlock() {
 			// Good precommit!
-			talliedVotingPower += int64(val.VotingPower)
+			talliedVotingPower += val.VotingPower
 		}
 	}
 
@@ -453,7 +453,7 @@ func RandValidator(randPower bool, minPower uint64) (*Validator, IPrivValidator)
 // where each validator has a voting power of +votingPower+.
 //
 // EXPOSED FOR TESTING.
-func RandValidatorSet(numValidators int, votingPower uint64) (*ValidatorSet, []*ecdsa.PrivateKey) {
+func RandValidatorSet(numValidators int, votingPower uint64) (*ValidatorSet, []IPrivValidator) {
 	var (
 		valz           = make([]*Validator, numValidators)
 		privValidators = make([]IPrivValidator, numValidators)

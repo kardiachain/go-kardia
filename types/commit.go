@@ -144,7 +144,7 @@ type Commit struct {
 	BlockID    BlockID     `json:"block_id"`
 	Signatures []CommitSig `json:"signatures"`
 	Height     uint64      `json:"height"`
-	Round      uint        `json:"round"`
+	Round      uint32      `json:"round"`
 
 	// Volatile
 	hash     cmn.Hash
@@ -152,7 +152,7 @@ type Commit struct {
 }
 
 // NewCommit returns a new Commit.
-func NewCommit(height uint64, round uint, blockID BlockID, commitSigs []CommitSig) *Commit {
+func NewCommit(height uint64, round uint32, blockID BlockID, commitSigs []CommitSig) *Commit {
 	return &Commit{
 		Height:     height,
 		Round:      round,
@@ -171,7 +171,7 @@ func CommitToVoteSet(chainID string, commit *Commit, vals *ValidatorSet) *VoteSe
 		if commitSig.Absent() {
 			continue // OK, some precommits can be missing.
 		}
-		added, err := voteSet.AddVote(commit.GetVote(uint(idx)))
+		added, err := voteSet.AddVote(commit.GetVote(uint32(idx)))
 		if !added || err != nil {
 			panic(fmt.Sprintf("Failed to reconstruct LastCommit: %v", err))
 		}
@@ -182,7 +182,7 @@ func CommitToVoteSet(chainID string, commit *Commit, vals *ValidatorSet) *VoteSe
 // GetVote converts the CommitSig for the given valIdx to a Vote.
 // Returns nil if the precommit at valIdx is nil.
 // Panics if valIdx >= commit.Size().
-func (commit *Commit) GetVote(valIdx uint) *Vote {
+func (commit *Commit) GetVote(valIdx uint32) *Vote {
 	commitSig := commit.Signatures[valIdx]
 	return &Vote{
 		Type:             VoteTypePrecommit,
@@ -209,7 +209,7 @@ func (commit *Commit) GetHeight() uint64 {
 }
 
 // GetRound returns the round of the commit
-func (commit *Commit) GetRound() uint {
+func (commit *Commit) GetRound() uint32 {
 	return commit.Round
 }
 
@@ -240,7 +240,7 @@ func (commit *Commit) BitArray() *cmn.BitArray {
 }
 
 // GetByIndex returns the vote corresponding to a given validator index
-func (commit *Commit) GetByIndex(valIdx uint) *Vote {
+func (commit *Commit) GetByIndex(valIdx uint32) *Vote {
 	return commit.GetVote(valIdx)
 }
 

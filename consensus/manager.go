@@ -861,7 +861,6 @@ OUTER_LOOP:
 				if commit != nil {
 					// TODO: @lew
 					// Consider using go func() here for multithreading cause we are sending msg
-					// over p2p (not sending msg to channel like tendermint)
 					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   commit.Round(),

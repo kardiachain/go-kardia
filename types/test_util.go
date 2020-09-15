@@ -5,7 +5,7 @@ import (
 )
 
 // MakeCommit ...
-func MakeCommit(blockID BlockID, height uint64, round uint,
+func MakeCommit(blockID BlockID, height uint64, round uint32,
 	voteSet *VoteSet, validators []IPrivValidator, now time.Time) (*Commit, error) {
 
 	// all sign
@@ -13,7 +13,7 @@ func MakeCommit(blockID BlockID, height uint64, round uint,
 		addr := validators[i].GetAddress()
 		vote := &Vote{
 			ValidatorAddress: addr,
-			ValidatorIndex:   uint(i),
+			ValidatorIndex:   uint32(i),
 			Height:           height,
 			Round:            round,
 			Type:             VoteTypePrecommit,
