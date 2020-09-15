@@ -20,6 +20,7 @@ package types
 
 import (
 	"crypto/ecdsa"
+	"math/big"
 	"math/rand"
 	"testing"
 
@@ -83,7 +84,7 @@ func randValidator(totalVotingPower uint64) *Validator {
 	// bounds of MaxTotalVotingPower minus the already existing voting power:
 	val := NewValidator(generateAddress(), uint64(rand.Uint64()%uint64(MaxTotalVotingPower-totalVotingPower)))
 	proposerPriority := rand.Uint64() % (MaxTotalVotingPower - totalVotingPower)
-	val.ProposerPriority = common.NewBigInt(int64(proposerPriority))
+	val.ProposerPriority = big.NewInt(int64(proposerPriority))
 	return val
 }
 

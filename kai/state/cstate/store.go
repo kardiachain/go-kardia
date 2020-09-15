@@ -178,7 +178,6 @@ func loadValidatorsInfo(db kaidb.Database, height uint64) *ValidatorsInfo {
                 %v\n`, err))
 	}
 	// TODO: ensure that buf is completely read.
-
 	return v
 }
 

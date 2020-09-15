@@ -22,6 +22,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"strings"
 
@@ -33,14 +34,14 @@ import (
 type Validator struct {
 	Address          common.Address `json:"address"`
 	VotingPower      uint64         `json:"voting_power"`
-	ProposerPriority *common.BigInt `json:"accum"`
+	ProposerPriority *big.Int       `json:"accum"`
 }
 
 func NewValidator(addr common.Address, votingPower uint64) *Validator {
 	return &Validator{
 		Address:          addr,
 		VotingPower:      votingPower,
-		ProposerPriority: common.NewBigInt(0),
+		ProposerPriority: big.NewInt(0),
 	}
 }
 
@@ -79,9 +80,9 @@ func (v *Validator) CompareProposerPriority(other *Validator) *Validator {
 		return other
 	}
 	switch {
-	case v.ProposerPriority.IsGreaterThan(other.ProposerPriority):
+	case v.ProposerPriority.Cmp(other.ProposerPriority) == 1:
 		return v
-	case v.ProposerPriority.IsLessThan(other.ProposerPriority):
+	case v.ProposerPriority.Cmp(other.ProposerPriority) == -1:
 		return other
 	default:
 		result := v.Address.Equal(other.Address)
@@ -145,7 +146,7 @@ func RandValidator(randPower bool, minPower uint64) (*Validator, IPrivValidator)
 	privVal := NewMockPV()
 	votePower := minPower
 	if randPower {
-		votePower += rand.Uint64()
+		votePower += uint64(rand.Uint32())
 	}
 	pubKey := privVal.GetPubKey()
 	val := NewValidator(crypto.PubkeyToAddress(pubKey), votePower)
@@ -165,4 +166,11 @@ func RandValidatorCS(randPower bool, minPower uint64) (*Validator, *ecdsa.Privat
 	address := priv.GetAddress()
 	val := NewValidator(address, votePower)
 	return val, privVal
+}
+
+func (m *Validator) GetProposerPriority() *big.Int {
+	if m != nil {
+		return m.ProposerPriority
+	}
+	return big.NewInt(0)
 }
