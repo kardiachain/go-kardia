@@ -70,13 +70,13 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 
 	// Validate block LastCommit.
 	if block.Header().Height == 1 {
-		if len(block.LastCommit().Precommits) != 0 {
+		if len(block.LastCommit().Signatures) != 0 {
 			return errors.New("block at height 1 (first block) should have no LastCommit precommits")
 		}
 	} else {
-		if len(block.LastCommit().Precommits) != state.LastValidators.Size() {
+		if len(block.LastCommit().Signatures) != state.LastValidators.Size() {
 			return fmt.Errorf("invalid block commit size. Expected %v, got %v",
-				state.LastValidators.Size(), len(block.LastCommit().Precommits))
+				state.LastValidators.Size(), len(block.LastCommit().Signatures))
 		}
 		err := state.LastValidators.VerifyCommit(
 			state.ChainID, state.LastBlockID, uint64(block.Height()-1), block.LastCommit())

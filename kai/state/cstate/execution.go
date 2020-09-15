@@ -160,11 +160,11 @@ func getBeginBlockValidatorInfo(b *types.Block, stateDB kaidb.Database) (staking
 		)
 		if commitSize != valSetLen {
 			panic(fmt.Sprintf("commit size (%d) doesn't match valset length (%d) at height %d\n\n%v\n\n%v",
-				commitSize, valSetLen, b.Height(), lastCommit.Precommits, lastValSet.Validators))
+				commitSize, valSetLen, b.Height(), lastCommit.Signatures, lastValSet.Validators))
 		}
 
 		for i, val := range lastValSet.Validators {
-			commitSig := lastCommit.Precommits[i]
+			commitSig := lastCommit.Signatures[i]
 			voteInfos[i] = staking.VoteInfo{
 				Address:         val.Address,
 				VotingPower:     big.NewInt(int64(val.VotingPower)),

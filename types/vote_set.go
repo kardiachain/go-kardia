@@ -291,14 +291,14 @@ func (voteSet *VoteSet) ChainID() string {
 	return voteSet.chainID
 }
 
-func (voteSet *VoteSet) Height() uint64 {
+func (voteSet *VoteSet) GetHeight() uint64 {
 	if voteSet == nil {
 		return 0
 	}
 	return voteSet.height
 }
 
-func (voteSet *VoteSet) Round() uint32 {
+func (voteSet *VoteSet) GetRound() uint32 {
 	if voteSet == nil {
 		return 0
 	}
@@ -342,7 +342,7 @@ func (voteSet *VoteSet) BitArrayByBlockID(blockID BlockID) *cmn.BitArray {
 }
 
 // NOTE: if validator has conflicting votes, returns "canonical" vote
-func (voteSet *VoteSet) GetByIndex(valIndex uint) *Vote {
+func (voteSet *VoteSet) GetByIndex(valIndex uint32) *Vote {
 	if voteSet == nil {
 		return nil
 	}
@@ -503,11 +503,11 @@ func (vs *blockVotes) getByIndex(index int) *Vote {
 
 // Common interface between *consensus.VoteSet and types.Commit
 type VoteSetReader interface {
-	Height() uint64
-	Round() uint32
+	GetHeight() uint64
+	GetRound() uint32
 	Type() byte
 	Size() int
 	BitArray() *cmn.BitArray
-	GetByIndex(uint) *Vote
+	GetByIndex(uint32) *Vote
 	IsCommit() bool
 }

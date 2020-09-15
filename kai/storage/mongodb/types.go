@@ -472,34 +472,14 @@ func (vote *Vote) ToVote() *types.Vote {
 }
 
 func NewCommit(commit *types.Commit, height uint64) *Commit {
-	votes := make([]*Vote, 0)
-	for _, vote := range commit.Precommits {
-		if vote != nil {
-			votes = append(votes, NewVote(vote))
-		} else {
-			votes = append(votes, nil)
-		}
-	}
 	return &Commit{
-		Precommits: votes,
-		BlockID:    commit.BlockID.StringLong(),
-		Height:     height,
+		BlockID: commit.BlockID.StringLong(),
+		Height:  height,
 	}
 }
 
 func (commit *Commit) ToCommit() *types.Commit {
-	votes := make([]*types.Vote, 0)
-	for _, vote := range commit.Precommits {
-		if vote != nil {
-			votes = append(votes, vote.ToVote())
-		} else {
-			votes = append(votes, nil)
-		}
-	}
-	return &types.Commit{
-		Precommits: votes,
-		BlockID:    toBlockID(commit.BlockID, commit.PartsHeader),
-	}
+	return nil
 }
 
 func NewChainConfig(config *types.ChainConfig, hash common.Hash) *ChainConfig {
