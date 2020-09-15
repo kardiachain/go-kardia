@@ -19,6 +19,7 @@
 package evidence
 
 import (
+	"math/big"
 	"sync"
 	"testing"
 	"time"
@@ -38,16 +39,15 @@ func initializeValidatorState(valAddr common.Address, height uint64) kaidb.Datab
 	valSet := &types.ValidatorSet{
 		Validators: []*types.Validator{
 			&types.Validator{
-				Address:     valAddr,
-				VotingPower: 100,
-				Accum:       common.NewBigInt64(1),
+				Address:          valAddr,
+				VotingPower:      100,
+				ProposerPriority: big.NewInt(1),
 			},
 		},
 	}
-
+	valSet.IncrementProposerPriority(1)
 	nextVal := valSet.Copy()
-	nextVal.AdvanceProposer(1)
-
+	nextVal.IncrementProposerPriority(1)
 	state := cState.LastestBlockState{
 		LastBlockHeight:             0,
 		LastBlockTime:               uint64(time.Now().Unix()),
