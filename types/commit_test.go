@@ -20,18 +20,53 @@ package types
 
 import (
 	"math/big"
+	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 )
 
-func TestCommitCreation(t *testing.T) {
-	commit := CreateNewCommit()
+func makeBlockIDRandom() BlockID {
+	var (
+		blockHash   = make([]byte, 32)
+		partSetHash = make([]byte, 32)
+	)
+	rand.Read(blockHash)   //nolint: gosec
+	rand.Read(partSetHash) //nolint: gosec
+	return BlockID{common.BytesToHash(blockHash), PartSetHeader{123, common.BytesToHash(partSetHash)}}
+}
 
-	if err := commit.ValidateBasic(); err != nil {
-		t.Fatal("Commit validate basic error", err)
+func randCommit(now time.Time) *Commit {
+	lastID := makeBlockIDRandom()
+	h := uint64(3)
+	voteSet, _, vals := randVoteSet(h-1, 1, VoteTypePrecommit, 10, 1)
+	commit, err := MakeCommit(lastID, h-1, 1, voteSet, vals, now)
+	if err != nil {
+		panic(err)
+	}
+	return commit
+}
+
+func TestCommitValidateBasic(t *testing.T) {
+	testCases := []struct {
+		testName       string
+		malleateCommit func(*Commit)
+		expectErr      bool
+	}{
+		{"Random Commit", func(com *Commit) {}, false},
+		{"Incorrect signature", func(com *Commit) { com.Signatures[0].Signature = []byte{0} }, false},
+	}
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.testName, func(t *testing.T) {
+			com := randCommit(time.Now())
+			tc.malleateCommit(com)
+			assert.Equal(t, tc.expectErr, com.ValidateBasic() != nil, "Validate Basic had an unexpected result")
+		})
 	}
 }
 
@@ -43,31 +78,12 @@ func TestCommitCopy(t *testing.T) {
 	}
 }
 
-func TestCommitGetFirstPrecommit(t *testing.T) {
-	commit := CreateNewCommit()
-	if commit.firstPrecommit != nil {
-		t.Error("Commit Creation error")
-	}
-	firstPrecommit := commit.FirstPrecommit()
-	if rlpHash(firstPrecommit) != rlpHash(commit.firstPrecommit) {
-		t.Error("First Precommit Error")
-	}
-}
-
 func TestCommitAccessorFunctions(t *testing.T) {
 	commit := CreateNewCommit()
-	if commit.Height() != 2 {
-		t.Error("Height")
-	}
-	if commit.Round() != 1 {
-		t.Error("Round")
-	}
-	if commit.Size() != 2 {
-		t.Error("Size")
-	}
-	if !commit.IsCommit() {
-		t.Error("IsCommit")
-	}
+	assert.Equal(t, commit.Height, uint64(2))
+	assert.Equal(t, commit.Round, uint(1))
+	assert.Equal(t, commit.Size(), 2)
+	assert.Equal(t, commit.IsCommit(), true)
 }
 
 func TestCommitToBitArray(t *testing.T) {
@@ -83,10 +99,8 @@ func TestCommitToBitArray(t *testing.T) {
 
 func TestCommitGetByIndex(t *testing.T) {
 	commit := CreateNewCommit()
-	precommit := commit.GetByIndex(0)
-	if rlpHash(precommit) != rlpHash(commit.Precommits[0]) {
-		t.Error()
-	}
+	vote := commit.GetByIndex(0)
+	assert.Equal(t, vote.Signature, commit.Signatures[0].Signature)
 }
 
 func CreateNewCommit() *Commit {
@@ -119,9 +133,12 @@ func CreateNewBlockWithTwoVotes(height uint64) *Block {
 		Round:          1,
 		Timestamp:      100,
 		Type:           VoteTypePrecommit,
+		BlockID:        BlockID{},
 	}
 	lastCommit := &Commit{
-		Precommits: []*Vote{vote, nil},
+		Height:     2,
+		Round:      1,
+		Signatures: []CommitSig{vote.CommitSig(), NewCommitSigAbsent()},
 	}
 	return NewBlock(&header, txns, lastCommit, nil)
 }

@@ -38,7 +38,7 @@ func TestPrivValidatorAccessors(t *testing.T) {
 }
 
 func TestPrivValidatorSignVote(t *testing.T) {
-	vote := CreateEmptyVote()
+	vote := &Vote{}
 	privValidator, _, _ := CreateNewPrivValidator()
 	if err := privValidator.SignVote("KAI", vote); err != nil {
 		t.Fatal("PV Sign Vote issue", err)

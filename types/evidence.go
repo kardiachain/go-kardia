@@ -188,7 +188,7 @@ func (dve *DuplicateVoteEvidence) String() string {
 
 // Height returns the height this evidence refers to.
 func (dve *DuplicateVoteEvidence) Height() uint64 {
-	return uint64(dve.VoteA.Height)
+	return dve.VoteA.Height
 }
 
 // Time return the time the evidence was created

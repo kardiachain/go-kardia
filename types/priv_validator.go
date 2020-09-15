@@ -19,6 +19,7 @@
 package types
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"fmt"
 
@@ -33,9 +34,26 @@ type IPrivValidator interface {
 	// TODO: Extend the interface to return errors too.
 	// Ref: https://github.com/tendermint/tendermint/issues/3602
 	GetPubKey() ecdsa.PublicKey
-
+	GetAddress() common.Address
 	SignVote(chainID string, vote *Vote) error
 	SignProposal(chainID string, proposal *Proposal) error
+}
+
+// PrivValidatorsByAddress ...
+type PrivValidatorsByAddress []IPrivValidator
+
+func (pvs PrivValidatorsByAddress) Len() int {
+	return len(pvs)
+}
+
+func (pvs PrivValidatorsByAddress) Less(i, j int) bool {
+	return bytes.Compare(pvs[i].GetAddress().Bytes(), pvs[j].GetAddress().Bytes()) == -1
+}
+
+func (pvs PrivValidatorsByAddress) Swap(i, j int) {
+	it := pvs[i]
+	pvs[i] = pvs[j]
+	pvs[j] = it
 }
 
 // PrivValidator defines the functionality of a local Kardia validator
@@ -124,12 +142,18 @@ func (pv *MockPV) GetPubKey() ecdsa.PublicKey {
 	return pv.privKey.PublicKey
 }
 
+// GetAddress ...
+func (pv *MockPV) GetAddress() common.Address {
+	return crypto.PubkeyToAddress(pv.GetPubKey())
+}
+
 // SignVote Implements PrivValidator.
 func (pv *MockPV) SignVote(chainID string, vote *Vote) error {
 	if pv.breakVoteSigning {
 		chainID = "1"
 	}
-	sig, err := crypto.Sign(crypto.Keccak256(vote.SignBytes(chainID)), pv.privKey)
+	hash := rlpHash(vote.SignBytes(chainID))
+	sig, err := crypto.Sign(hash[:], pv.privKey)
 	if err != nil {
 		return err
 	}
@@ -142,7 +166,8 @@ func (pv *MockPV) SignProposal(chainID string, proposal *Proposal) error {
 	if pv.breakProposalSigning {
 		chainID = "1000"
 	}
-	sig, err := crypto.Sign(crypto.Keccak256(proposal.SignBytes(chainID)), pv.privKey)
+	hash := rlpHash(proposal.SignBytes(chainID))
+	sig, err := crypto.Sign(hash[:], pv.privKey)
 	if err != nil {
 		return err
 	}

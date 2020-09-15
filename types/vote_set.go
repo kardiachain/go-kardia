@@ -118,13 +118,6 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	valAddr := vote.ValidatorAddress
 	blockKey := vote.BlockID.Key()
 
-	// Ensure that validator index was set
-	if valIndex < 0 {
-		return false, errors.Wrap(ErrVoteInvalidValidatorIndex, "Index < 0")
-	} else if len(valAddr) == 0 {
-		return false, errors.Wrap(ErrVoteInvalidValidatorAddress, "Empty address")
-	}
-
 	// Make sure the step matches.
 	if vote.Height != voteSet.height ||
 		vote.Round != voteSet.round ||
@@ -439,6 +432,7 @@ func (voteSet *VoteSet) sumTotalFrac() (uint64, uint64, float64) {
 	return voted, total, fracVoted
 }
 
+// MakeCommit ...
 func (voteSet *VoteSet) MakeCommit() *Commit {
 	if voteSet.type_ != VoteTypePrecommit {
 		cmn.PanicSanity("Cannot MakeCommit() unless VoteSet.Type is VoteTypePrecommit")
@@ -452,11 +446,18 @@ func (voteSet *VoteSet) MakeCommit() *Commit {
 	}
 
 	// For every validator, get the precommit
-	votesCopy := make([]*Vote, len(voteSet.votes))
-	copy(votesCopy, voteSet.votes)
+	commitSigs := make([]CommitSig, len(voteSet.votes))
+	for i, v := range voteSet.votes {
+		commitSig := v.CommitSig()
+		// if block ID exists but doesn't match, exclude sig
+		if commitSig.ForBlock() && !v.BlockID.Equal(*voteSet.maj23) {
+			commitSig = NewCommitSigAbsent()
+		}
+		commitSigs[i] = commitSig
+	}
 	return &Commit{
 		BlockID:    *voteSet.maj23,
-		Precommits: votesCopy,
+		Signatures: commitSigs,
 	}
 }
 
