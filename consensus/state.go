@@ -191,7 +191,6 @@ func (cs *ConsensusState) Start() {
 		cs.logger.Error("ConsensusState - Start", "err", err)
 		return
 	}
-
 	// now start the receiveRoutine
 	go cs.receiveRoutine(0)
 
@@ -522,7 +521,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID enode.ID) (added bool
 			if !blockID.IsZero() &&
 				(cs.ValidRound < vote.Round) &&
 				(vote.Round == cs.Round) {
-
 				if cs.ProposalBlock.HashesTo(blockID.Hash) {
 					cs.logger.Info("Updating ValidBlock because of POL.", "validRound", cs.ValidRound, "POLRound", vote.Round)
 					cs.ValidRound = vote.Round
@@ -856,15 +854,12 @@ func (cs *ConsensusState) enterPropose(height uint64, round uint32) {
 		return
 	}
 	// if not a validator, we're done
-	fmt.Println("cs.Validators", cs.Validators)
-	fmt.Println("cs.privValidator.GetAddress()", cs.privValidator.GetAddress())
 	if !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
 		logger.Debug("This node is not a validator", "addr", cs.privValidator.GetAddress(), "vals", cs.Validators)
 		return
 	}
 
 	logger.Debug("This node is a validator")
-	fmt.Println("fucccccccc", cs.isProposer())
 	if cs.isProposer() {
 		logger.Trace("Our turn to propose")
 		//namdoh@ logger.Info("enterPropose: Our turn to propose", "proposer", cs.Validators.GetProposer().Address, "privValidator", cs.privValidator)
@@ -1293,8 +1288,6 @@ func (cs *ConsensusState) isProposalComplete() bool {
 
 func (cs *ConsensusState) isProposer() bool {
 	privValidatorAddress := cs.privValidator.GetAddress()
-	fmt.Println("privValidatorAddress", privValidatorAddress)
-	fmt.Println("cs.Validators.GetProposer().Address[:]", cs.Validators.GetProposer().Address[:])
 	return bytes.Equal(cs.Validators.GetProposer().Address[:], privValidatorAddress[:])
 }
 
@@ -1330,7 +1323,6 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 			cs.logger.Error("CONSENSUS FAILURE!!!", "err", r, "stack", string(debug.Stack()))
 		}
 	}()
-
 	for {
 		if maxSteps > 0 {
 			if cs.nSteps >= maxSteps {
@@ -1341,7 +1333,6 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 		}
 		rs := cs.RoundState
 		var mi msgInfo
-
 		select {
 		case mi = <-cs.peerMsgQueue:
 			// handles proposals, votes

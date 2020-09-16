@@ -304,7 +304,6 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 	// Get State
 	vss := make([]*validatorStub, nValidators)
 
-	fmt.Println("int64(consensusState.Round)", int64(consensusState.Round))
 	for i := 0; i < nValidators; i++ {
 		vss[i] = newValidatorStub(privSet[i], int64(i), int64(consensusState.Round))
 	}

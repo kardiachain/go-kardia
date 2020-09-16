@@ -376,13 +376,12 @@ func (voteSet *VoteSet) GetByAddress(address cmn.Address) *Vote {
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
-	fmt.Println("voteteeeeeeeeeeee", voteSet.valSet)
-	fmt.Println("roundddddddddddddd", address)
 
 	valIndex, val := voteSet.valSet.GetByAddress(address)
 	if val == nil {
 		panic("GetByAddress(address) returned nil")
 	}
+
 	return voteSet.votes[valIndex]
 }
 
