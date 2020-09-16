@@ -404,7 +404,6 @@ func (cs *ConsensusState) reconstructLastCommit(state cstate.LastestBlockState) 
 		return
 	}
 	seenCommit := cs.blockOperations.LoadSeenCommit(state.LastBlockHeight)
-	fmt.Println("seenssss", seenCommit)
 	lastPrecommits := types.CommitToVoteSet(state.ChainID, seenCommit, state.LastValidators)
 	if !lastPrecommits.HasTwoThirdsMajority() {
 		cmn.PanicSanity("Failed to reconstruct LastCommit: Does not have +2/3 maj")
@@ -857,12 +856,15 @@ func (cs *ConsensusState) enterPropose(height uint64, round uint32) {
 		return
 	}
 	// if not a validator, we're done
+	fmt.Println("cs.Validators", cs.Validators)
+	fmt.Println("cs.privValidator.GetAddress()", cs.privValidator.GetAddress())
 	if !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
 		logger.Debug("This node is not a validator", "addr", cs.privValidator.GetAddress(), "vals", cs.Validators)
 		return
 	}
 
 	logger.Debug("This node is a validator")
+	fmt.Println("fucccccccc", cs.isProposer())
 	if cs.isProposer() {
 		logger.Trace("Our turn to propose")
 		//namdoh@ logger.Info("enterPropose: Our turn to propose", "proposer", cs.Validators.GetProposer().Address, "privValidator", cs.privValidator)
@@ -1291,6 +1293,8 @@ func (cs *ConsensusState) isProposalComplete() bool {
 
 func (cs *ConsensusState) isProposer() bool {
 	privValidatorAddress := cs.privValidator.GetAddress()
+	fmt.Println("privValidatorAddress", privValidatorAddress)
+	fmt.Println("cs.Validators.GetProposer().Address[:]", cs.Validators.GetProposer().Address[:])
 	return bytes.Equal(cs.Validators.GetProposer().Address[:], privValidatorAddress[:])
 }
 

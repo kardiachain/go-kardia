@@ -42,7 +42,6 @@ func TestEncodeDecodePart(t *testing.T) {
 	if err := rlp.DecodeBytes(partBytes, decoded); err != nil {
 		t.Fatal(err)
 	}
-
 }
 func TestBasicPartSet(t *testing.T) {
 	// Construct random data of size partSize * 100

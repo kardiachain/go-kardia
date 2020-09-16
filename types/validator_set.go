@@ -272,20 +272,21 @@ func (vs *ValidatorSet) Copy() *ValidatorSet {
 // HasAddress returns true if address given is in the validator set, false -
 // otherwise.
 func (vs *ValidatorSet) HasAddress(address common.Address) bool {
-	idx := sort.Search(len(vs.Validators), func(i int) bool {
-		return address.Equal(vs.Validators[i].Address)
-	})
-	return idx < len(vs.Validators) && address.Equal(vs.Validators[idx].Address)
+	for idx, _ := range vs.Validators {
+		if address.Equal(vs.Validators[idx].Address) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetByAddress returns an index of the validator with address and validator
 // itself if found. Otherwise, -1 and nil are returned.
 func (vs *ValidatorSet) GetByAddress(address common.Address) (index int, val *Validator) {
-	idx := sort.Search(len(vs.Validators), func(i int) bool {
-		return address.Equal(vs.Validators[i].Address)
-	})
-	if idx < len(vs.Validators) && address.Equal(vs.Validators[idx].Address) {
-		return idx, vs.Validators[idx].Copy()
+	for idx, _ := range vs.Validators {
+		if address.Equal(vs.Validators[idx].Address) {
+			return idx, vs.Validators[idx].Copy()
+		}
 	}
 	return -1, nil
 }
@@ -619,7 +620,7 @@ func (vs *ValidatorSet) updateWithChangeSet(changes []*Validator, allowDeletes b
 	computeNewPriorities(updates, vs, int64(updatedTotalVotingPower))
 	// Apply updates and removals.
 	vs.applyUpdates(updates)
-	vs.Proposer = updates[0]
+	// vs.Proposer = updates[0]
 	vs.applyRemovals(deletes)
 
 	vs.updateTotalVotingPower()
