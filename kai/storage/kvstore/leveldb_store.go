@@ -50,7 +50,7 @@ func NewStoreDB(db kaidb.Database) *StoreDB {
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
 func (s *StoreDB) ReadBlockMeta(hash common.Hash, height uint64) *types.BlockMeta {
-	return ReadBlockMeta(s.db, hash, height)
+	return ReadBlockMeta(s.db, height)
 }
 
 // ReadBlock returns the Block for the given height
@@ -242,7 +242,7 @@ func (s *StoreDB) DeleteCanonicalHash(number uint64) {
 }
 
 func (s *StoreDB) DeleteBlockMeta(hash common.Hash, height uint64) {
-	s.db.Delete(blockMetaKey(hash, height))
+	s.db.Delete(blockMetaKey(height))
 }
 
 func (s *StoreDB) DeleteBlockPart(hash common.Hash, height uint64) {

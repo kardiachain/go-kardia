@@ -273,7 +273,7 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 	txPool := tx_pool.NewTxPool(txConfig, chainConfig, bc)
 	evPool := evidence.NewPool(kaiDb.DB(), kaiDb.DB())
 	// evReactor := evidence.NewReactor(evPool)
-	blockExec := cstate.NewBlockExecutor(evPool)
+	blockExec := cstate.NewBlockExecutor(blockDB, evPool, bc)
 
 	// Initialization for consensus.
 	block := bc.CurrentBlock()

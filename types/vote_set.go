@@ -455,10 +455,7 @@ func (voteSet *VoteSet) MakeCommit() *Commit {
 		}
 		commitSigs[i] = commitSig
 	}
-	return &Commit{
-		BlockID:    *voteSet.maj23,
-		Signatures: commitSigs,
-	}
+	return NewCommit(voteSet.GetHeight(), voteSet.GetRound(), *voteSet.maj23, commitSigs)
 }
 
 //--------------------------------------------------------------------------------

@@ -173,7 +173,7 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *types.Chain
 	return bc, nil
 }
 
-// GetBlockByNumber retrieves a block from the database by number, caching it
+// GetBlockByHeight retrieves a block from the database by number, caching it
 // (associated with its hash) if found.
 func (bc *BlockChain) GetBlockByHeight(height uint64) *types.Block {
 	hash := bc.db.ReadCanonicalHash(height)
@@ -183,6 +183,7 @@ func (bc *BlockChain) GetBlockByHeight(height uint64) *types.Block {
 	return bc.GetBlock(hash, height)
 }
 
+// LoadBlockPart ...
 func (bc *BlockChain) LoadBlockPart(height uint64, index int) *types.Part {
 	hash := bc.db.ReadCanonicalHash(height)
 	part := bc.db.ReadBlockPart(hash, height, index)
@@ -192,15 +193,18 @@ func (bc *BlockChain) LoadBlockPart(height uint64, index int) *types.Part {
 	return part
 }
 
+// LoadBlockMeta ...
 func (bc *BlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
 	hash := bc.db.ReadCanonicalHash(height)
 	return bc.db.ReadBlockMeta(hash, height)
 }
 
+// LoadBlockCommit ...
 func (bc *BlockChain) LoadBlockCommit(height uint64) *types.Commit {
 	return bc.db.ReadCommit(height)
 }
 
+// LoadSeenCommit ...
 func (bc *BlockChain) LoadSeenCommit(height uint64) *types.Commit {
 	return bc.db.ReadSeenCommit(height)
 }

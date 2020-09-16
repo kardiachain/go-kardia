@@ -559,9 +559,9 @@ func CommonCheckTxHash(db kaidb.Reader, hash *common.Hash) bool {
 
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
-func ReadBlockMeta(db kaidb.Reader, hash common.Hash, height uint64) *types.BlockMeta {
+func ReadBlockMeta(db kaidb.Reader, height uint64) *types.BlockMeta {
 	var blockMeta = new(types.BlockMeta)
-	metaBytes, _ := db.Get(blockMetaKey(hash, height))
+	metaBytes, _ := db.Get(blockMetaKey(height))
 
 	if len(metaBytes) == 0 {
 		return nil
@@ -590,7 +590,7 @@ func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
 
 // ReadBlock returns the Block for the given height
 func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
-	blockMeta := ReadBlockMeta(db, hash, height)
+	blockMeta := ReadBlockMeta(db, height)
 
 	if blockMeta == nil {
 		return nil
@@ -611,7 +611,7 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 
 // CommonReadHeader retrieves the block header corresponding to the hash.
 func CommonReadHeader(db kaidb.Reader, hash common.Hash, height uint64) *types.Header {
-	blockMeta := ReadBlockMeta(db, hash, height)
+	blockMeta := ReadBlockMeta(db, height)
 	return blockMeta.Header
 }
 
@@ -645,14 +645,11 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 
 	// Save block meta
 	blockMeta := types.NewBlockMeta(block, blockParts)
-
 	metaBytes, err := rlp.EncodeToBytes(blockMeta)
-
 	if err != nil {
 		panic(fmt.Errorf("encode block meta error: %s", err))
 	}
-
-	batch.Put(blockMetaKey(hash, height), metaBytes)
+	batch.Put(blockMetaKey(height), metaBytes)
 
 	// Save block part
 	for i := 0; i < int(blockParts.Total()); i++ {
@@ -685,6 +682,8 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 		panic(fmt.Errorf("Failed to store hash to height mapping err: %s", err))
 	}
 
+	CommonWriteCanonicalHash(batch, hash, height)
+
 	if err := batch.Write(); err != nil {
 		panic(fmt.Errorf("Failed to store block error: %s", err))
 	}
@@ -700,7 +699,7 @@ func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part)
 
 // DeleteBlockMeta delete block meta
 func DeleteBlockMeta(db kaidb.Writer, hash common.Hash, height uint64) {
-	db.Delete(blockMetaKey(hash, height))
+	db.Delete(blockMetaKey(height))
 }
 
 // ReadAppHash ...
