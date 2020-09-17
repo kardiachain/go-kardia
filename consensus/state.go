@@ -33,6 +33,7 @@ import (
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
@@ -353,10 +354,9 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 		return ErrInvalidProposalPOLRound
 	}
 
-	// Verify signature
-	if !cs.Validators.GetProposer().VerifyProposalSignature(cs.state.ChainID, proposal) {
-		cs.logger.Trace("Verify proposal signature failed.")
-		return ErrInvalidProposalSignature
+	proposalAddress := cs.Validators.GetProposer().Address
+	if !types.VerifySignature(proposalAddress, crypto.Keccak256(proposal.SignBytes(cs.state.ChainID)), proposal.Signature) {
+		return ErrInvalidProposalPOLRound
 	}
 
 	cs.Proposal = proposal

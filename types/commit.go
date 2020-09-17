@@ -179,6 +179,14 @@ func CommitToVoteSet(chainID string, commit *Commit, vals *ValidatorSet) *VoteSe
 	return voteSet
 }
 
+// VoteSignBytes constructs the SignBytes for the given CommitSig.
+// The only unique part of the SignBytes is the Timestamp - all other fields
+// signed over are otherwise the same for all validators.
+// Panics if valIdx >= commit.Size().
+func (commit *Commit) VoteSignBytes(chainID string, valIdx uint32) []byte {
+	return commit.GetVote(valIdx).SignBytes(chainID)
+}
+
 // GetVote converts the CommitSig for the given valIdx to a Vote.
 // Returns nil if the precommit at valIdx is nil.
 // Panics if valIdx >= commit.Size().

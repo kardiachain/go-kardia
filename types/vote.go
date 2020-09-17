@@ -23,7 +23,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
@@ -169,6 +171,18 @@ func (vote *Vote) String() string {
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		vote.BlockID, cmn.Fingerprint(vote.Signature[:]),
 		time.Unix(int64(vote.Timestamp), 0))
+}
+
+// Verify ...
+func (vote *Vote) Verify(chainID string, address common.Address) error {
+	if !vote.ValidatorAddress.Equal(address) {
+		return ErrVoteInvalidValidatorAddress
+	}
+
+	if !VerifySignature(address, crypto.Keccak256(vote.SignBytes(chainID)), vote.Signature) {
+		return ErrVoteInvalidSignature
+	}
+	return nil
 }
 
 // ValidateBasic performs basic validation.

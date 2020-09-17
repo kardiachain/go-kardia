@@ -19,7 +19,6 @@
 package types
 
 import (
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"math/big"
@@ -28,10 +27,6 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-)
-
-const (
-	MaxTotalVotingPower = int64(math.MaxInt64) / 8
 )
 
 // ErrTotalVotingPowerOverflow is returned if the total voting power of the
@@ -58,13 +53,14 @@ func (e ErrNotEnoughVotingPowerSigned) Error() string {
 	return fmt.Sprintf("invalid commit -- insufficient voting power: got %d, needed more than %d", e.Got, e.Needed)
 }
 
-// Volatile state for each Validator
+// Validator state for each Validator
 type Validator struct {
 	Address          common.Address `json:"address"`
 	VotingPower      uint64         `json:"voting_power"`
 	ProposerPriority *big.Int       `json:"accum"`
 }
 
+// NewValidator ...
 func NewValidator(addr common.Address, votingPower uint64) *Validator {
 	return &Validator{
 		Address:          addr,
@@ -95,14 +91,14 @@ func (v *Validator) Hash() common.Hash {
 	return rlpHash(v)
 }
 
-// Creates a new copy of the validator.
+// Copy Creates a new copy of the validator.
 // Panics if the validator is nil.
 func (v *Validator) Copy() *Validator {
 	vCopy := *v
 	return &vCopy
 }
 
-// Returns the one with higher ProposerPriority.
+// CompareProposerPriority Returns the one with higher ProposerPriority.
 func (v *Validator) CompareProposerPriority(other *Validator) *Validator {
 	if v == nil {
 		return other
@@ -123,18 +119,6 @@ func (v *Validator) CompareProposerPriority(other *Validator) *Validator {
 			panic("Cannot compare identical validators")
 		}
 	}
-}
-
-// VerifyProposalSignature ...
-func (v *Validator) VerifyProposalSignature(chainID string, proposal *Proposal) bool {
-	hash := rlpHash(proposal.SignBytes(chainID))
-	return VerifySignature(v.Address, hash[:], proposal.Signature[:])
-}
-
-// VerifyVoteSignature ...
-func (v *Validator) VerifyVoteSignature(chainID string, vote *Vote) bool {
-	hash := rlpHash(vote.SignBytes(chainID))
-	return VerifySignature(v.Address, hash[:], vote.Signature[:])
 }
 
 // String
@@ -180,28 +164,11 @@ func RandValidator(randPower bool, minPower uint64) (*Validator, IPrivValidator)
 	val := NewValidator(crypto.PubkeyToAddress(pubKey), votePower)
 	return val, privVal
 }
-// RandValidatorSet returns a randomized validator set (size: +numValidators+),
-// where each validator has a voting power of +votingPower+.
-//
-// EXPOSED FOR TESTING.
-func RandValidatorSet(numValidators int, votingPower uint64) (*ValidatorSet, []IPrivValidator) {
-	var (
-		valz           = make([]*Validator, numValidators)
-		privValidators = make([]IPrivValidator, numValidators)
-	)
-	for i := 0; i < numValidators; i++ {
-		val, privValidator := RandValidator(false, votingPower)
-		valz[i] = val
-		privValidators[i] = privValidator
-	}
-	valSet := NewValidatorSet(valz, 0, 1000000)
-	sort.Sort(PrivValidatorsByAddress(privValidators))
-	return valSet, privValidators
-}
 
-func (m *Validator) GetProposerPriority() *big.Int {
-	if m != nil {
-		return m.ProposerPriority
+// GetProposerPriority ...
+func (v *Validator) GetProposerPriority() *big.Int {
+	if v != nil {
+		return v.ProposerPriority
 	}
 	return big.NewInt(0)
 }
