@@ -164,8 +164,8 @@ func (vs *ValidatorSet) RescalePriorities(diffMax int64) {
 	ratio := (diff + diffMax - 1) / diffMax
 	if diff > diffMax {
 		for _, val := range vs.Validators {
-			cmpPriority := val.ProposerPriority.Int64() / ratio
-			val.ProposerPriority = big.NewInt(cmpPriority)
+			cmpPriority := val.ProposerPriority.GetInt64() / ratio
+			val.ProposerPriority = common.NewBigInt(cmpPriority)
 		}
 	}
 }
@@ -173,13 +173,13 @@ func (vs *ValidatorSet) RescalePriorities(diffMax int64) {
 func (vs *ValidatorSet) incrementProposerPriority() *Validator {
 	for _, val := range vs.Validators {
 		// Check for overflow for sum.
-		newPriority := val.ProposerPriority.Add(val.ProposerPriority, big.NewInt(int64(val.VotingPower)))
+		newPriority := val.ProposerPriority.Add(common.NewBigInt(int64(val.VotingPower)))
 		val.ProposerPriority = newPriority
 	}
 	// Decrement the validator with most ProposerPriority.
 	mostest := vs.getValWithMostPriority()
 	// Mind the underflow.
-	mostest.ProposerPriority = big.NewInt(safeSubClip(mostest.ProposerPriority.Int64(), int64(vs.TotalVotingPower())))
+	mostest.ProposerPriority = common.NewBigInt(safeSubClip(mostest.ProposerPriority.GetInt64(), int64(vs.TotalVotingPower())))
 	return mostest
 }
 
@@ -189,7 +189,7 @@ func (vals *ValidatorSet) computeAvgProposerPriority() int64 {
 
 	sum := big.NewInt(0)
 	for _, val := range vals.Validators {
-		sum.Add(sum, big.NewInt(val.ProposerPriority.Int64()))
+		sum.Add(sum, big.NewInt(val.ProposerPriority.GetInt64()))
 	}
 	avg := sum.Div(sum, big.NewInt(n))
 	if avg.IsInt64() {
@@ -212,11 +212,11 @@ func computeMaxMinPriorityDiff(vals *ValidatorSet) int64 {
 		// kkk := v.ProposerPriority
 		// fmt.Println("addressss", kkk)
 		// v.ProposerPriority = common.NewBigInt(0)
-		if v.ProposerPriority.Int64() < min {
-			min = v.ProposerPriority.Int64()
+		if v.ProposerPriority.GetInt64() < min {
+			min = v.ProposerPriority.GetInt64()
 		}
-		if v.ProposerPriority.Int64() > max {
-			max = v.ProposerPriority.Int64()
+		if v.ProposerPriority.GetInt64() > max {
+			max = v.ProposerPriority.GetInt64()
 		}
 	}
 	diff := max - min
@@ -243,8 +243,8 @@ func (vs *ValidatorSet) shiftByAvgProposerPriority() {
 	}
 	avgProposerPriority := vs.computeAvgProposerPriority()
 	for _, val := range vs.Validators {
-		proposerPriority := safeSubClip(val.ProposerPriority.Int64(), avgProposerPriority)
-		val.ProposerPriority = big.NewInt(proposerPriority)
+		proposerPriority := safeSubClip(val.ProposerPriority.GetInt64(), avgProposerPriority)
+		val.ProposerPriority = common.NewBigInt(proposerPriority)
 	}
 }
 
@@ -481,7 +481,7 @@ func computeNewPriorities(updates []*Validator, vs *ValidatorSet, updatedTotalVo
 			//
 			// Compute ProposerPriority = -1.125*totalVotingPower == -(updatedVotingPower + (updatedVotingPower >> 3)).
 			proposerPriority := -(updatedTotalVotingPower + (updatedTotalVotingPower >> 3))
-			valUpdate.ProposerPriority = big.NewInt(proposerPriority)
+			valUpdate.ProposerPriority = common.NewBigInt(proposerPriority)
 		} else {
 			valUpdate.ProposerPriority = val.ProposerPriority
 		}
@@ -686,10 +686,6 @@ func (vs *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height uin
 		if blockID.Equal(commitSig.BlockID(commit.BlockID)) {
 			talliedVotingPower += uint64(val.VotingPower)
 		}
-		// else {
-		// It's OK that the BlockID doesn't match.  We include stray
-		// precommits to measure validator availability.
-		// }
 	}
 
 	if got, needed := talliedVotingPower, votingPowerNeeded; got <= needed {

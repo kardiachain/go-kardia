@@ -21,7 +21,6 @@ package types
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"math/rand"
 	"strings"
 
@@ -57,7 +56,7 @@ func (e ErrNotEnoughVotingPowerSigned) Error() string {
 type Validator struct {
 	Address          common.Address `json:"address"`
 	VotingPower      uint64         `json:"voting_power"`
-	ProposerPriority *big.Int       `json:"accum"`
+	ProposerPriority *common.BigInt `json:"accum"`
 }
 
 // NewValidator ...
@@ -65,7 +64,7 @@ func NewValidator(addr common.Address, votingPower uint64) *Validator {
 	return &Validator{
 		Address:          addr,
 		VotingPower:      votingPower,
-		ProposerPriority: big.NewInt(0),
+		ProposerPriority: common.NewBigInt(0),
 	}
 }
 
@@ -104,9 +103,9 @@ func (v *Validator) CompareProposerPriority(other *Validator) *Validator {
 		return other
 	}
 	switch {
-	case v.ProposerPriority.Cmp(other.ProposerPriority) == 1:
+	case v.ProposerPriority.IsGreaterThan(other.ProposerPriority):
 		return v
-	case v.ProposerPriority.Cmp(other.ProposerPriority) == -1:
+	case v.ProposerPriority.IsLessThan(other.ProposerPriority):
 		return other
 	default:
 		result := v.Address.Equal(other.Address)
@@ -166,9 +165,9 @@ func RandValidator(randPower bool, minPower uint64) (*Validator, IPrivValidator)
 }
 
 // GetProposerPriority ...
-func (v *Validator) GetProposerPriority() *big.Int {
+func (v *Validator) GetProposerPriority() *common.BigInt {
 	if v != nil {
 		return v.ProposerPriority
 	}
-	return big.NewInt(0)
+	return common.NewBigInt(0)
 }
