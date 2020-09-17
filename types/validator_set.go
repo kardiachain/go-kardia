@@ -207,11 +207,7 @@ func computeMaxMinPriorityDiff(vals *ValidatorSet) int64 {
 	}
 	max := int64(math.MaxInt64)
 	min := int64(math.MinInt64)
-	// fmt.Println("computeMaxMinPriorityDiff", vals)
 	for _, v := range vals.Validators {
-		// kkk := v.ProposerPriority
-		// fmt.Println("addressss", kkk)
-		// v.ProposerPriority = common.NewBigInt(0)
 		if v.ProposerPriority.GetInt64() < min {
 			min = v.ProposerPriority.GetInt64()
 		}
