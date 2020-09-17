@@ -120,7 +120,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	)
 	dualService.csManager = consensus.NewConsensusManager(DualServiceName, consensusState)
 	// Set private validator for consensus manager.
-	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
+	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	dualService.csManager.SetPrivValidator(privValidator)
 
 	if dualService.protocolManager, err = service.NewProtocolManager(

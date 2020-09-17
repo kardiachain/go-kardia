@@ -145,7 +145,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	)
 	kai.csManager = consensus.NewConsensusManager(config.ServiceName, consensusState)
 	// Set private validator for consensus manager.
-	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
+	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	kai.csManager.SetPrivValidator(privValidator)
 
 	// Initialize protocol manager.

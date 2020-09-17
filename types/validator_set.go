@@ -761,10 +761,10 @@ func (vals ValidatorsByAddress) Swap(i, j int) {
 // where each validator has a voting power of +votingPower+.
 //
 // EXPOSED FOR TESTING.
-func RandValidatorSet(numValidators int, votingPower uint64) (*ValidatorSet, []IPrivValidator) {
+func RandValidatorSet(numValidators int, votingPower uint64) (*ValidatorSet, []PrivValidator) {
 	var (
 		valz           = make([]*Validator, numValidators)
-		privValidators = make([]IPrivValidator, numValidators)
+		privValidators = make([]PrivValidator, numValidators)
 	)
 	for i := 0; i < numValidators; i++ {
 		val, privValidator := RandValidator(false, votingPower)

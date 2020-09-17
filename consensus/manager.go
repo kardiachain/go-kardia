@@ -61,7 +61,7 @@ func (conR *ConsensusManager) SetProtocol(protocol BaseProtocol) {
 	conR.protocol = protocol
 }
 
-func (conR *ConsensusManager) SetPrivValidator(priv *types.PrivValidator) {
+func (conR *ConsensusManager) SetPrivValidator(priv types.PrivValidator) {
 	conR.conS.SetPrivValidator(priv)
 }
 

@@ -153,7 +153,7 @@ func ValidatorListString(vals []*Validator) string {
 // RandValidator returns a randomized validator, useful for testing.
 // UNSTABLE
 // EXPOSED FOR TESTING.
-func RandValidator(randPower bool, minPower uint64) (*Validator, IPrivValidator) {
+func RandValidator(randPower bool, minPower uint64) (*Validator, PrivValidator) {
 	privVal := NewMockPV()
 	votePower := minPower
 	if randPower {

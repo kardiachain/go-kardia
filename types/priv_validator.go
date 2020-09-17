@@ -28,9 +28,9 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 )
 
-// IPrivValidator defines the functionality of a local KAI validator
+// PrivValidator defines the functionality of a local KAI validator
 // that signs votes and proposals, and never double signs.
-type IPrivValidator interface {
+type PrivValidator interface {
 	// TODO: Extend the interface to return errors too.
 	GetPubKey() ecdsa.PublicKey
 	GetAddress() common.Address
@@ -39,7 +39,7 @@ type IPrivValidator interface {
 }
 
 // PrivValidatorsByAddress ...
-type PrivValidatorsByAddress []IPrivValidator
+type PrivValidatorsByAddress []PrivValidator
 
 func (pvs PrivValidatorsByAddress) Len() int {
 	return len(pvs)
@@ -55,33 +55,33 @@ func (pvs PrivValidatorsByAddress) Swap(i, j int) {
 	pvs[j] = it
 }
 
-// PrivValidator defines the functionality of a local Kardia validator
+// DefaultPrivValidator defines the functionality of a local Kardia validator
 // that signs votes, proposals, and heartbeats, and never double signs.
-type PrivValidator struct {
+type DefaultPrivValidator struct {
 	privKey *ecdsa.PrivateKey
 }
 
-// NewPrivValidator ...
-func NewPrivValidator(privKey *ecdsa.PrivateKey) *PrivValidator {
-	return &PrivValidator{
+// NewDefaultPrivValidator ...
+func NewDefaultPrivValidator(privKey *ecdsa.PrivateKey) *DefaultPrivValidator {
+	return &DefaultPrivValidator{
 		privKey: privKey,
 	}
 }
 
 // GetAddress ...
-func (privVal *PrivValidator) GetAddress() common.Address {
+func (privVal *DefaultPrivValidator) GetAddress() common.Address {
 	return crypto.PubkeyToAddress(privVal.GetPubKey())
 }
 
-func (privVal *PrivValidator) GetPubKey() ecdsa.PublicKey {
+func (privVal *DefaultPrivValidator) GetPubKey() ecdsa.PublicKey {
 	return privVal.privKey.PublicKey
 }
 
-func (privVal *PrivValidator) GetPrivKey() *ecdsa.PrivateKey {
+func (privVal *DefaultPrivValidator) GetPrivKey() *ecdsa.PrivateKey {
 	return privVal.privKey
 }
 
-func (privVal *PrivValidator) SignVote(chainID string, vote *Vote) error {
+func (privVal *DefaultPrivValidator) SignVote(chainID string, vote *Vote) error {
 	hash := rlpHash(vote.SignBytes(chainID))
 	sig, err := crypto.Sign(hash[:], privVal.privKey)
 	if err != nil {
@@ -92,7 +92,7 @@ func (privVal *PrivValidator) SignVote(chainID string, vote *Vote) error {
 	return nil
 }
 
-func (privVal *PrivValidator) SignProposal(chainID string, proposal *Proposal) error {
+func (privVal *DefaultPrivValidator) SignProposal(chainID string, proposal *Proposal) error {
 	hash := rlpHash(proposal.SignBytes(chainID))
 	sig, err := crypto.Sign(hash[:], privVal.privKey)
 	if err != nil {

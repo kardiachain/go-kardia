@@ -95,7 +95,7 @@ type ConsensusState struct {
 	logger log.Logger
 
 	config          *cfg.ConsensusConfig
-	privValidator   *types.PrivValidator // for signing votes
+	privValidator   types.PrivValidator // for signing votes
 	blockOperations BaseBlockOperations
 	blockExec       *cstate.BlockExecutor
 	evpool          evidencePool // TODO(namdoh): Add mem pool.
@@ -173,7 +173,7 @@ func NewConsensusState(
 }
 
 // SetPrivValidator sets the private validator account for signing votes.
-func (cs *ConsensusState) SetPrivValidator(priv *types.PrivValidator) {
+func (cs *ConsensusState) SetPrivValidator(priv types.PrivValidator) {
 	cs.mtx.Lock()
 	defer cs.mtx.Unlock()
 	cs.privValidator = priv
