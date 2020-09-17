@@ -59,6 +59,40 @@ func TestStateProposerSelection0(t *testing.T) {
 	}
 }
 
+//starting from round 3 instead of 1
+func TestStateProposerSelection2(t *testing.T) {
+	cs1, vss := randState(4)
+	height := cs1.Height
+
+	// this time we jump in at round 3
+	incrementRound(vss[1:]...)
+	incrementRound(vss[1:]...)
+
+	var round uint32 = 3
+	startTestRound(cs1, height, round)
+
+	time.Sleep(3000 * time.Millisecond)
+
+	// everyone just votes nil. we get a new proposer each round
+	for i := uint32(0); uint32(i) < uint32(len(vss)); i++ {
+		prop := cs1.GetRoundState().Validators.GetProposer()
+		priVal := types.NewPrivValidator(vss[(uint32(i)+2)%uint32(len(vss))].PrivValidator)
+		correctProposer := priVal.GetAddress()
+		if prop.Address != correctProposer {
+			panic(fmt.Sprintf(
+				"expected RoundState.Validators.GetProposer() to be validator %d. Got %X",
+				int(i+2)%len(vss),
+				prop.Address))
+		}
+
+		rs := cs1.GetRoundState()
+		signAddVotes(cs1, types.VoteTypePrecommit, common.BytesToHash(nil), rs.ProposalBlockParts.Header(), vss[1:]...)
+		incrementRound(vss[1:]...)
+		time.Sleep(4000 * time.Millisecond)
+	}
+
+}
+
 func TestStateBadProposal(t *testing.T) {
 	cs1, vss := randState(2)
 	height, round := cs1.Height, cs1.Round
@@ -88,15 +122,6 @@ func TestStateBadProposal(t *testing.T) {
 
 	// start the machine
 	startTestRound(cs1, height, round)
-	// time.Sleep(8000 * time.Millisecond)
-
-	// wait for proposal
-	// hash := common.Hash{}
-
-	// time.Sleep(8000 * time.Millisecond)
-
-	// ensurePrevote()
-	// validatePrevote(t, cs1, round, vss[0], hash)
 
 	// add bad prevote from vs2 and wait for it
 	signAddVotes(cs1, types.VoteTypePrecommit, propBlock.Hash(), propBlock.MakePartSet(uint32(partSize)).Header(), vs2)
