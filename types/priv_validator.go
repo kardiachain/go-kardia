@@ -82,8 +82,8 @@ func (privVal *DefaultPrivValidator) GetPrivKey() *ecdsa.PrivateKey {
 }
 
 func (privVal *DefaultPrivValidator) SignVote(chainID string, vote *Vote) error {
-	hash := rlpHash(vote.SignBytes(chainID))
-	sig, err := crypto.Sign(hash[:], privVal.privKey)
+	hash := crypto.Keccak256(vote.SignBytes(chainID))
+	sig, err := crypto.Sign(hash, privVal.privKey)
 	if err != nil {
 		log.Trace("Signing vote failed", "err", err)
 		return err
@@ -93,8 +93,8 @@ func (privVal *DefaultPrivValidator) SignVote(chainID string, vote *Vote) error 
 }
 
 func (privVal *DefaultPrivValidator) SignProposal(chainID string, proposal *Proposal) error {
-	hash := rlpHash(proposal.SignBytes(chainID))
-	sig, err := crypto.Sign(hash[:], privVal.privKey)
+	hash := crypto.Keccak256(proposal.SignBytes(chainID))
+	sig, err := crypto.Sign(hash, privVal.privKey)
 	if err != nil {
 		log.Trace("Signing proposal failed", "err", err)
 		return err
