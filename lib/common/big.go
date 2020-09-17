@@ -225,127 +225,170 @@ func Exp(base, exponent *big.Int) *big.Int {
 	return result
 }
 
+// BigInt struct
 type BigInt struct {
-	Value uint64 `json:"value"`
-	Pos   bool   `json:"pos"`
+	bigint *big.Int
 }
 
-func NewBigInt64(x int64) *BigInt {
-	if x < 0 {
-		return &BigInt{Value: uint64(-x), Pos: false}
-	}
-
-	return &BigInt{Value: uint64(x), Pos: true}
+// NewBigInt allocates and returns a new BigInt set to x.
+func NewBigInt(x int64) *BigInt {
+	return &BigInt{big.NewInt(x)}
 }
 
-func NewBigUint64(x uint64) *BigInt {
-	return NewBigInt64(int64(x))
+// SetInt64 sets the big int to x.
+func (x *BigInt) SetInt64(i int64) {
+	x.bigint.SetInt64(i)
 }
 
-func NewBigInt32(x int) *BigInt {
-	return NewBigInt64(int64(x))
+// GetInt64 returns the int64 representation of x. If x cannot be represented in
+// an int64, the result is undefined.
+func (x *BigInt) GetInt64() int64 {
+	return x.bigint.Int64()
+}
+
+// SetUint64 sets the big uint to x.
+func (x *BigInt) SetUint64(i uint64) {
+	x.bigint.SetUint64(i)
+}
+
+// GetUint64 returns the uint64 representation of x. If x cannot be represented in
+// an uint64, the result is undefined.
+func (x *BigInt) GetUint64() uint64 {
+	return x.bigint.Uint64()
 }
 
 // IsGreaterThan returns true if x is greater than y
 func (x *BigInt) IsGreaterThan(y *BigInt) bool {
-	return x.Int64() > y.Int64()
+	return x.GetInt64() > y.GetInt64()
+}
+
+// IsGreaterThanOrEqual returns true if x is greater than or equals y
+func (x *BigInt) IsGreaterThanOrEqual(y *BigInt) bool {
+	return x.GetInt64() >= y.GetInt64()
 }
 
 // IsGreaterThanInt returns true if x is greater than y
-func (x *BigInt) IsGreaterThanInt(y int) bool {
-	return x.Int64() > int64(y)
+func (x *BigInt) IsGreaterThanInt(y int64) bool {
+	return x.GetInt64() > y
 }
 
-// IsGreaterThanInt returns true if x is greater than y
-func (x *BigInt) IsGreaterThanInt64(y int64) bool {
-	return x.Int64() > y
+// IsGreaterThanUint returns true if x is greater than y
+func (x *BigInt) IsGreaterThanUint(y uint64) bool {
+	return x.GetUint64() > y
 }
 
-// IsGreaterOrEqualThanInt returns true if x is greater than or equals to y
-func (x *BigInt) IsGreaterThanOrEqualToInt(y int) bool {
-	return x.Int64() >= int64(y)
+// IsGreaterThanOrEqualToInt returns true if x is greater than or equals to y
+func (x *BigInt) IsGreaterThanOrEqualToInt(y int64) bool {
+	return x.GetInt64() >= y
 }
 
-// IsGreaterOrEqualThanInt64 returns true if x is greater than or equals to y
-func (x *BigInt) IsGreaterThanOrEqualToInt64(y int64) bool {
-	return x.Int64() >= y
+// IsGreaterThanOrEqualToUint returns true if x is greater than or equals to y
+func (x *BigInt) IsGreaterThanOrEqualToUint(y uint64) bool {
+	return x.GetUint64() >= y
 }
 
 // IsLessThan returns true if x is less than y
 func (x *BigInt) IsLessThan(y *BigInt) bool {
-	return x.Int64() < y.Int64()
+	return x.GetInt64() < y.GetInt64()
 }
 
-// IsLessThan returns true if x is less than y
-func (x *BigInt) IsLessThanInt(y int) bool {
-	return x.Int32() < y
-}
-
-// IsLessThan returns true if x is less than y
-func (x *BigInt) IsLessThanInt64(y int64) bool {
-	return x.Int64() < y
-}
-
-// IsLessThan returns true if x is less than y
+// IsLessThanOrEquals returns true if x is less than or equals y
 func (x *BigInt) IsLessThanOrEquals(y *BigInt) bool {
-	return x.Int64() <= y.Int64()
+	return x.GetInt64() <= y.GetInt64()
 }
 
-// IsLessThan returns true if x is less than y
-func (x *BigInt) IsLessThanOrEqualsUint64(y uint64) bool {
-	return x.Uint64() <= y
+// IsLessThanInt returns true if x is less than y
+func (x *BigInt) IsLessThanInt(y int64) bool {
+	return x.GetInt64() < y
+}
+
+// IsLessThanUint returns true if x is less than y
+func (x *BigInt) IsLessThanUint(y uint64) bool {
+	return x.GetUint64() < y
+}
+
+// IsLessThanOrEqualsInt returns true if x is less than y
+func (x *BigInt) IsLessThanOrEqualsInt(y int64) bool {
+	return x.GetInt64() <= y
+}
+
+// IsLessThanOrEqualsUint returns true if x is less than y
+func (x *BigInt) IsLessThanOrEqualsUint(y uint64) bool {
+	return x.GetUint64() <= y
 }
 
 // Equals returns true if x equals to y
 func (x *BigInt) Equals(y *BigInt) bool {
-	return x.Int64() == y.Int64()
+	return x.GetInt64() == y.GetInt64()
 }
 
-// Equals returns true if x equals to y
-func (x *BigInt) EqualsInt(y int) bool {
-	return x.Int32() == y
+// EqualsInt returns true if x equals to y
+func (x *BigInt) EqualsInt(y int64) bool {
+	return x.GetInt64() == y
 }
 
-// Equals returns true if x equals to y
-func (x *BigInt) EqualsInt64(y int64) bool {
-	return x.Int64() == y
+// EqualsUint returns true if x equals to y
+func (x *BigInt) EqualsUint(y uint64) bool {
+	return x.GetUint64() == y
 }
 
-// Equals returns true if x equals to y
-func (x *BigInt) EqualsUint64(y uint64) bool {
-	return x.Uint64() == y
+// Add x + y
+func (x *BigInt) Add(y *BigInt) *BigInt {
+	return NewBigInt(x.GetInt64() + y.GetInt64())
 }
 
-// Equals returns true if x equals to y
-func (x *BigInt) Add(y int64) *BigInt {
-	return NewBigInt64(x.Int64() + y)
+// AddInt x + y
+func (x *BigInt) AddInt(y int64) *BigInt {
+	return NewBigInt(x.GetInt64() + y)
 }
 
-// Equals returns true if x equals to y
-func (x *BigInt) AddUint64(y uint64) *BigInt {
-	return x.Add(int64(y))
+// AddUint x + y
+func (x *BigInt) AddUint(y uint64) *BigInt {
+	return x.AddInt(int64(y))
 }
 
-func (x *BigInt) Int32() int {
-	return int(x.Int64())
+// Sub x - y
+func (x *BigInt) Sub(y *BigInt) *BigInt {
+	return NewBigInt(x.GetInt64() - y.GetInt64())
 }
 
-func (x *BigInt) Int64() int64 {
-	if x.Pos {
-		return int64(x.Value)
-	}
-	return int64(x.Value) * -1
+// SubInt x - y
+func (x *BigInt) SubInt(y int64) *BigInt {
+	return NewBigInt(x.GetInt64() - y)
 }
 
-func (x *BigInt) Uint64() uint64 {
-	return uint64(x.Int64())
+// SubUint x - y
+func (x *BigInt) SubUint(y uint64) *BigInt {
+	return x.SubInt(int64(y))
 }
 
+// Mul x * y
+func (x *BigInt) Mul(y *BigInt) *BigInt {
+	return NewBigInt(x.GetInt64() * y.GetInt64())
+}
+
+// Div x / y
+func (x *BigInt) Div(y *BigInt) *BigInt {
+	return NewBigInt(x.GetInt64() / y.GetInt64())
+}
+
+// ValidInt64 validate BigInt not overflow Int64
+func (x *BigInt) ValidInt64() bool {
+	return x.bigint.IsInt64()
+}
+
+// ValidUint64 validate BigInt not overflow Uint64
+func (x *BigInt) ValidUint64() bool {
+	return x.bigint.IsUint64()
+}
+
+// Copy returns copy of x
 func (x *BigInt) Copy() *BigInt {
 	cpy := *x
 	return &cpy
 }
 
+// String returns x as string
 func (x *BigInt) String() string {
-	return fmt.Sprintf("%v", x.Int64())
+	return fmt.Sprintf("%v", x.GetInt64())
 }

@@ -127,7 +127,7 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 		// }
 
 	}
-	nValSet.AdvanceProposer(1)
+	nValSet.IncrementProposerPriority(1)
 	return LastestBlockState{
 		ChainID:                     state.ChainID,
 		LastBlockHeight:             header.Height,

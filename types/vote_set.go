@@ -128,7 +128,7 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	}
 
 	// Ensure that signer is a validator.
-	lookupAddr, val := voteSet.valSet.GetByIndex(uint32(valIndex))
+	lookupAddr, val := voteSet.valSet.GetByIndex(valIndex)
 	if val == nil {
 		return false, errors.Wrapf(ErrVoteInvalidValidatorIndex,
 			"Cannot find validator %d in valSet of size %d", valIndex, voteSet.valSet.Size())
@@ -369,10 +369,12 @@ func (voteSet *VoteSet) GetByAddress(address cmn.Address) *Vote {
 	}
 	voteSet.mtx.Lock()
 	defer voteSet.mtx.Unlock()
+
 	valIndex, val := voteSet.valSet.GetByAddress(address)
 	if val == nil {
 		panic("GetByAddress(address) returned nil")
 	}
+
 	return voteSet.votes[valIndex]
 }
 

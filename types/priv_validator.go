@@ -68,6 +68,26 @@ func NewPrivValidator(privKey *ecdsa.PrivateKey) *PrivValidator {
 	}
 }
 
+// PrivValidatorsByAddress sorts validators by address.
+type PrivValidatorsByAddress []*ecdsa.PrivateKey
+
+func (pvs PrivValidatorsByAddress) Len() int {
+	return len(pvs)
+}
+
+func (pvs PrivValidatorsByAddress) Less(i, j int) bool {
+	pvi := pvs[i]
+	pvj := pvs[j]
+
+	return crypto.PubkeyToAddress(pvi.PublicKey).Equal(crypto.PubkeyToAddress(pvj.PublicKey))
+}
+
+func (pvs PrivValidatorsByAddress) Swap(i, j int) {
+	it := pvs[i]
+	pvs[i] = pvs[j]
+	pvs[j] = it
+}
+
 // GetAddress ...
 func (privVal *PrivValidator) GetAddress() common.Address {
 	return crypto.PubkeyToAddress(privVal.GetPubKey())

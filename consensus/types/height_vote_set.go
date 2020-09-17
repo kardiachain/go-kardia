@@ -80,8 +80,8 @@ func (hvs *HeightVoteSet) Reset(height uint64, valSet *types.ValidatorSet) {
 	hvs.roundVoteSets = make(map[uint32]RoundVoteSet)
 	hvs.peerCatchupRounds = make(map[enode.ID][]uint32)
 
-	hvs.addRound(0)
-	hvs.round = 0
+	hvs.addRound(1)
+	hvs.round = 1
 }
 
 func (hvs *HeightVoteSet) addRound(round uint32) {
