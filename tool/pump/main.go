@@ -278,6 +278,10 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		return nil, fmt.Errorf("mainChainConfig is empty")
 	}
 	nodeConfig.MainChainConfig = *mainChainConfig
+
+	// TODO:@lew Temporary disable DualChain for testing
+	c.DualChain = nil
+
 	if c.DualChain != nil {
 		if dualChainConfig, err := c.getDualChainConfig(); err != nil {
 			return nil, err

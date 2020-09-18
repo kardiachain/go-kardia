@@ -349,6 +349,7 @@ func (c *Config) Start() {
 		return
 	}
 
+	// TODO:@lew Temporary disable DualChain for testing
 	c.DualChain = nil
 
 	if c.DualChain != nil {
