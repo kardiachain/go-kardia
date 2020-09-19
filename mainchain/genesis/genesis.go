@@ -24,7 +24,10 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/kardiachain/go-kardiamain/kvm"
+
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
@@ -205,9 +208,20 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 	if g.GasLimit == 0 {
 		head.GasLimit = configs.GenesisGasLimit
 	}
+
+	block := types.NewBlock(head, nil, &types.Commit{}, nil)
+
+	stakingUtil, err := staking.NewSmcStakingnUtil()
+	if err != nil {
+		panic(err)
+	}
+	if err := setupGenesisStaking(stakingUtil, statedb, block.Header(), kvm.Config{}, g.Validators); err != nil {
+		panic(err)
+	}
+
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
-	return types.NewBlock(head, nil, &types.Commit{}, nil)
+	return block
 }
 
 // Commit writes the block and state of a genesis specification to the database.
@@ -320,4 +334,18 @@ func ToCell(amount int64) *big.Int {
 	cell := big.NewInt(amount)
 	cell.Mul(cell, big.NewInt(int64(math.Pow10(18))))
 	return cell
+}
+
+func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*GenesisValidator) error {
+	if err := staking.SetRoot(statedb, header, nil, cfg); err != nil {
+		return err
+	}
+
+	for _, val := range validators {
+		if err := staking.CreateValidator(statedb, header, nil, cfg, common.HexToAddress(val.Address), int64(val.Power)); err != nil {
+			return fmt.Errorf("apply create validator err: %s", err)
+		}
+	}
+
+	return nil
 }

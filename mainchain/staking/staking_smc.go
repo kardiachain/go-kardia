@@ -1,6 +1,7 @@
 package staking
 
 import (
+	"math"
 	"math/big"
 	"strings"
 
@@ -97,22 +98,27 @@ func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward
 }
 
 //CreateValidator create validator
-func (s *StakingSmcUtil) CreateValidator(commssionRate int64, maxRate int64, maxChangeRate int64, minSelfDelegation int64, SenderAddress common.Address, amount int64) (*big.Int, error) {
-	// stateDb, err := s.bc.State()
-	// if err != nil {
-	// 	return nil, err
-	// }
+func (s *StakingSmcUtil) CreateValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, votingPower int64) error {
+	input, err := s.Abi.Pack("createValidator", big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0))
+	if err != nil {
+		panic(err)
+	}
 
-	// createValidator, err := s.Abi.Pack("createValidator", big.NewInt(commssionRate), big.NewInt(maxRate), big.NewInt(maxChangeRate), big.NewInt(minSelfDelegation))
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// _, _, err = sample_kvm.Call(s.ContractAddress, createValidator, &sample_kvm.Config{State: stateDb, Value: big.NewInt(amount), Origin: SenderAddress})
-	// if err != nil {
-	// 	return nil, err
-	// }
+	tokens := big.NewInt(votingPower)
+	tokens = tokens.Mul(tokens, big.NewInt(int64(math.Pow10(6))))
 
-	return nil, nil
+	msg := types.NewMessage(
+		s.ContractAddress,
+		nil,
+		0,
+		tokens,
+		100000000,
+		big.NewInt(0),
+		input,
+		false,
+	)
+	_, err = Apply(s.logger, bc, statedb, header, cfg, msg)
+	return err
 }
 
 //ApplyAndReturnValidatorSets allow appy and return validator set
@@ -133,7 +139,7 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 		false,
 	)
 
-	res, err := Apply(s.logger, bc, statedb, header, msg)
+	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +186,7 @@ func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc v
 		false,
 	)
 
-	res, err := Apply(s.logger, bc, statedb, header, msg)
+	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
 	if err != nil {
 		return err
 	}
@@ -222,7 +228,7 @@ func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.He
 		false,
 	)
 
-	_, err = Apply(s.logger, bc, statedb, header, msg)
+	_, err = Apply(s.logger, bc, statedb, header, cfg, msg)
 	return err
 }
 
@@ -245,7 +251,7 @@ func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header
 			false,
 		)
 
-		_, err = Apply(s.logger, bc, statedb, header, msg)
+		_, err = Apply(s.logger, bc, statedb, header, cfg, msg)
 		if err != nil {
 			return err
 		}
@@ -256,8 +262,8 @@ func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header
 }
 
 // SetRoot set address root
-func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, rootAddr common.Address) error {
-	payload, err := s.Abi.Pack("setRoot", rootAddr)
+func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) error {
+	payload, err := s.Abi.Pack("setRoot", s.ContractAddress)
 	if err != nil {
 		return err
 	}
@@ -272,14 +278,21 @@ func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, b
 		payload,
 		false,
 	)
-	_, err = Apply(s.logger, bc, statedb, header, msg)
+	_, err = Apply(s.logger, bc, statedb, header, cfg, msg)
 	return err
 }
 
 // Apply ...
-func Apply(logger log.Logger, bc vm.ChainContext, statedb *state.StateDB, header *types.Header, msg types.Message) ([]byte, error) {
+func Apply(logger log.Logger, bc vm.ChainContext, statedb *state.StateDB, header *types.Header, cfg kvm.Config, msg types.Message) ([]byte, error) {
 	// Create a new context to be used in the EVM environment
-	//context := vm.NewKVMContext(msg, header, bc)
-
-	return nil, nil
+	context := vm.NewKVMContext(msg, header, bc)
+	vmenv := kvm.NewKVM(context, statedb, cfg)
+	sender := kvm.AccountRef(msg.From())
+	ret, _, vmerr := vmenv.Call(sender, *msg.To(), msg.Data(), msg.Gas(), msg.Value())
+	if vmerr != nil {
+		return nil, vmerr
+	}
+	// Update the state with pending changes
+	statedb.Finalise(true)
+	return ret, nil
 }
