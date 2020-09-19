@@ -5,11 +5,12 @@ import (
 	"strings"
 
 	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/base"
-	"github.com/kardiachain/go-kardiamain/kvm/sample_kvm"
+	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -47,13 +48,12 @@ type Evidence struct {
 type StakingSmcUtil struct {
 	Abi             *abi.ABI
 	ContractAddress common.Address
-	bc              base.BaseBlockChain
 	bytecode        string
+	logger          log.Logger
 }
 
 // NewSmcStakingnUtil ...
-func NewSmcStakingnUtil(bc base.BaseBlockChain) (*StakingSmcUtil, error) {
-
+func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 	stakingSmcAddr, stakingSmcAbi := configs.GetContractDetailsByIndex(KardiaSatkingSmcIndex)
 	bytecodeStaking := configs.GetContractByteCodeByAddress(contractAddress)
 
@@ -63,7 +63,7 @@ func NewSmcStakingnUtil(bc base.BaseBlockChain) (*StakingSmcUtil, error) {
 		return nil, err
 	}
 
-	return &StakingSmcUtil{Abi: &abi, bc: bc, ContractAddress: stakingSmcAddr, bytecode: bytecodeStaking}, nil
+	return &StakingSmcUtil{Abi: &abi, ContractAddress: stakingSmcAddr, bytecode: bytecodeStaking}, nil
 }
 
 //SetParams set params
@@ -72,61 +72,68 @@ func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward
 	signedBlockWindow int64, minSignedBlockPerWindow int64,
 	SenderAddress common.Address) ([]byte, error) {
 
-	stateDb, err := s.bc.State()
-	if err != nil {
-		return nil, err
-	}
+	// stateDb, err := s.bc.State()
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	store, err := s.Abi.Pack("setParams", big.NewInt(100), big.NewInt(600), big.NewInt(baseProposerReward),
-		big.NewInt(bonusProposerReward),
-		big.NewInt(slashFractionDowntime), big.NewInt(slashFractionDoubleSign),
-		big.NewInt(unBondingTime), big.NewInt(signedBlockWindow),
-		big.NewInt(minSignedBlockPerWindow))
+	// store, err := s.Abi.Pack("setParams", big.NewInt(100), big.NewInt(600), big.NewInt(baseProposerReward),
+	// 	big.NewInt(bonusProposerReward),
+	// 	big.NewInt(slashFractionDowntime), big.NewInt(slashFractionDoubleSign),
+	// 	big.NewInt(unBondingTime), big.NewInt(signedBlockWindow),
+	// 	big.NewInt(minSignedBlockPerWindow))
 
-	if err != nil {
-		log.Error("Error set params", "err", err)
-		return nil, err
-	}
+	// if err != nil {
+	// 	log.Error("Error set params", "err", err)
+	// 	return nil, err
+	// }
 
-	_, _, err = sample_kvm.Call(s.ContractAddress, store, &sample_kvm.Config{State: stateDb, Origin: SenderAddress})
-	if err != nil {
-		return nil, err
-	}
+	// _, _, err = sample_kvm.Call(s.ContractAddress, store, &sample_kvm.Config{State: stateDb, Origin: SenderAddress})
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return nil, nil
 }
 
 //CreateValidator create validator
 func (s *StakingSmcUtil) CreateValidator(commssionRate int64, maxRate int64, maxChangeRate int64, minSelfDelegation int64, SenderAddress common.Address, amount int64) (*big.Int, error) {
-	stateDb, err := s.bc.State()
-	if err != nil {
-		return nil, err
-	}
+	// stateDb, err := s.bc.State()
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	createValidator, err := s.Abi.Pack("createValidator", big.NewInt(commssionRate), big.NewInt(maxRate), big.NewInt(maxChangeRate), big.NewInt(minSelfDelegation))
-	if err != nil {
-		return nil, err
-	}
-	_, _, err = sample_kvm.Call(s.ContractAddress, createValidator, &sample_kvm.Config{State: stateDb, Value: big.NewInt(amount), Origin: SenderAddress})
-	if err != nil {
-		return nil, err
-	}
+	// createValidator, err := s.Abi.Pack("createValidator", big.NewInt(commssionRate), big.NewInt(maxRate), big.NewInt(maxChangeRate), big.NewInt(minSelfDelegation))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// _, _, err = sample_kvm.Call(s.ContractAddress, createValidator, &sample_kvm.Config{State: stateDb, Value: big.NewInt(amount), Origin: SenderAddress})
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return nil, nil
 }
 
 //ApplyAndReturnValidatorSets allow appy and return validator set
-func (s *StakingSmcUtil) ApplyAndReturnValidatorSets() ([]*types.Validator, error) {
-	stateDb, err := s.bc.State()
-	if err != nil {
-		return nil, err
-	}
-
+func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) ([]*types.Validator, error) {
 	payload, err := s.Abi.Pack("applyAndReturnValidatorSets")
 	if err != nil {
 		return nil, err
 	}
-	res, _, err := sample_kvm.Call(s.ContractAddress, payload, &sample_kvm.Config{State: stateDb, Origin: s.ContractAddress})
+
+	msg := types.NewMessage(
+		s.ContractAddress,
+		nil,
+		0,
+		big.NewInt(0),
+		100000000,
+		big.NewInt(0),
+		payload,
+		false,
+	)
+
+	res, err := Apply(s.logger, bc, statedb, header, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -156,17 +163,24 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets() ([]*types.Validator, erro
 }
 
 //Mint new tokens for the previous block. Returns fee collected
-func (s *StakingSmcUtil) Mint() error {
-	stateDb, err := s.bc.State()
+func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) error {
+	payload, err := s.Abi.Pack("mint")
 	if err != nil {
 		return err
 	}
 
-	mint, err := s.Abi.Pack("mint")
-	if err != nil {
-		return err
-	}
-	res, _, err := sample_kvm.Call(s.ContractAddress, mint, &sample_kvm.Config{State: stateDb})
+	msg := types.NewMessage(
+		s.ContractAddress,
+		nil,
+		0,
+		big.NewInt(0),
+		100000000,
+		big.NewInt(0),
+		payload,
+		false,
+	)
+
+	res, err := Apply(s.logger, bc, statedb, header, msg)
 	if err != nil {
 		return err
 	}
@@ -176,18 +190,12 @@ func (s *StakingSmcUtil) Mint() error {
 		return err
 	}
 
-	stateDb.AddBalance(s.ContractAddress, fee)
-
+	statedb.AddBalance(s.ContractAddress, fee)
 	return nil
 }
 
 //FinalizeCommit finalize commit
-func (s *StakingSmcUtil) FinalizeCommit(lastCommit LastCommitInfo) error {
-	stateDb, err := s.bc.State()
-	if err != nil {
-		return err
-	}
-
+func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, lastCommit LastCommitInfo) error {
 	vals := make([]common.Address, len(lastCommit.Votes))
 	votingPowers := make([]*big.Int, len(lastCommit.Votes))
 	signed := make([]bool, len(lastCommit.Votes))
@@ -198,31 +206,46 @@ func (s *StakingSmcUtil) FinalizeCommit(lastCommit LastCommitInfo) error {
 		signed[idx] = voteInfo.SignedLastBlock
 	}
 
-	finalizeCommit, err := s.Abi.Pack("finalizeCommit", vals, votingPowers, signed)
-	if err != nil {
-		return err
-	}
-	_, _, err = sample_kvm.Call(s.ContractAddress, finalizeCommit, &sample_kvm.Config{State: stateDb, Origin: s.ContractAddress})
+	payload, err := s.Abi.Pack("finalizeCommit", vals, votingPowers, signed)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	msg := types.NewMessage(
+		s.ContractAddress,
+		nil,
+		0,
+		big.NewInt(0),
+		100000000,
+		big.NewInt(0),
+		payload,
+		false,
+	)
+
+	_, err = Apply(s.logger, bc, statedb, header, msg)
+	return err
 }
 
 //DoubleSign double sign
-func (s *StakingSmcUtil) DoubleSign(byzVals []Evidence) error {
-	stateDb, err := s.bc.State()
-	if err != nil {
-		return err
-	}
-
+func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, byzVals []Evidence) error {
 	for _, ev := range byzVals {
 		payload, err := s.Abi.Pack("doubleSign", ev.Address, ev.VotingPower, big.NewInt(int64(ev.Height)))
 		if err != nil {
 			return err
 		}
-		_, _, err = sample_kvm.Call(s.ContractAddress, payload, &sample_kvm.Config{State: stateDb, Origin: s.ContractAddress})
+
+		msg := types.NewMessage(
+			s.ContractAddress,
+			nil,
+			0,
+			big.NewInt(0),
+			100000000,
+			big.NewInt(0),
+			payload,
+			false,
+		)
+
+		_, err = Apply(s.logger, bc, statedb, header, msg)
 		if err != nil {
 			return err
 		}
@@ -232,22 +255,31 @@ func (s *StakingSmcUtil) DoubleSign(byzVals []Evidence) error {
 	return nil
 }
 
-//GetCurrentValidatorSet get current validator set
-func (s *StakingSmcUtil) GetCurrentValidatorSet() ([]*types.Validator, error) {
-	return s.ApplyAndReturnValidatorSets()
-}
-
 // SetRoot set address root
-func (s *StakingSmcUtil) SetRoot(rootAddr common.Address) error {
-	stateDb, err := s.bc.State()
-	if err != nil {
-		return err
-	}
-
+func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, rootAddr common.Address) error {
 	payload, err := s.Abi.Pack("setRoot", rootAddr)
 	if err != nil {
 		return err
 	}
-	_, _, err = sample_kvm.Call(s.ContractAddress, payload, &sample_kvm.Config{State: stateDb})
+
+	msg := types.NewMessage(
+		s.ContractAddress,
+		nil,
+		0,
+		big.NewInt(0),
+		100000000,
+		big.NewInt(0),
+		payload,
+		false,
+	)
+	_, err = Apply(s.logger, bc, statedb, header, msg)
 	return err
+}
+
+// Apply ...
+func Apply(logger log.Logger, bc vm.ChainContext, statedb *state.StateDB, header *types.Header, msg types.Message) ([]byte, error) {
+	// Create a new context to be used in the EVM environment
+	//context := vm.NewKVMContext(msg, header, bc)
+
+	return nil, nil
 }
