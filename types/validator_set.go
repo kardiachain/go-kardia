@@ -19,6 +19,7 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -756,25 +757,7 @@ func (vals ValidatorsByAddress) Swap(i, j int) {
 // RandValidatorSet returns a randomized validator set (size: +numValidators+),
 // where each validator has a voting power of +votingPower+.
 //
-// EXPOSED FOR TESTING FOR CONSENSUS
-func RandValidatorSet(numValidators int, votingPower uint64) (*ValidatorSet, []*DefaultPrivValidator) {
-	var (
-		valz           = make([]*Validator, numValidators)
-		privValidators = make([]*DefaultPrivValidator, numValidators)
-		// privValz       = make([]PrivValidator, numValidators)
-	)
-	for i := 0; i < numValidators; i++ {
-		val, privValidator := RandValidatorCS(false, votingPower)
-		valz[i] = val
-		privValidators[i] = privValidator
-	}
-	valSet := NewValidatorSet(valz)
-	// sort.Sort(PrivValidatorsByAddress(privValidators))
-	return valSet, privValidators
-}
-
-// EXPOSED FOR TESTING FOR VOTE
-func RandValidatorSetVote(numValidators int, votingPower uint64) (*ValidatorSet, []PrivValidator) {
+func RandValidatorSet(numValidators int, votingPower uint64) (*ValidatorSet, []PrivValidator) {
 	var (
 		valz           = make([]*Validator, numValidators)
 		privValidators = make([]PrivValidator, numValidators)
@@ -891,7 +874,7 @@ func (valz ValidatorsByVotingPower) Len() int { return len(valz) }
 
 func (valz ValidatorsByVotingPower) Less(i, j int) bool {
 	if valz[i].VotingPower == valz[j].VotingPower {
-		return valz[i].Address == valz[j].Address
+		return bytes.Compare(valz[i].Address.Bytes(), valz[j].Address.Bytes()) == -1
 	}
 	return valz[i].VotingPower > valz[j].VotingPower
 }
