@@ -31,7 +31,6 @@ func VerifySignature(addr common.Address, hash, signature []byte) bool {
 	if signPubKey == nil {
 		return false
 	}
-
 	// TODO(thientn): Verifying signature shouldn't be this complicated. After
 	// cleaning up our crypto package, clean up this as well.
 	return addr == crypto.PubkeyToAddress(*signPubKey)

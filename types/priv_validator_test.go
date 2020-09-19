@@ -53,7 +53,7 @@ func TestPrivValidatorSignProposal(t *testing.T) {
 	}
 }
 
-func CreateNewPrivValidator() (*PrivValidator, ecdsa.PrivateKey, ecdsa.PublicKey) {
+func CreateNewPrivValidator() (*DefaultPrivValidator, ecdsa.PrivateKey, ecdsa.PublicKey) {
 	priv, _ := crypto.GenerateKey()
-	return NewPrivValidator(priv), *priv, priv.PublicKey
+	return NewDefaultPrivValidator(priv), *priv, priv.PublicKey
 }

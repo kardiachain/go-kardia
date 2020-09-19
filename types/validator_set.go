@@ -756,11 +756,29 @@ func (vals ValidatorsByAddress) Swap(i, j int) {
 // RandValidatorSet returns a randomized validator set (size: +numValidators+),
 // where each validator has a voting power of +votingPower+.
 //
-// EXPOSED FOR TESTING.
-func RandValidatorSet(numValidators int, votingPower uint64) (*ValidatorSet, []PrivValidator) {
+// EXPOSED FOR TESTING FOR CONSENSUS
+func RandValidatorSet(numValidators int, votingPower uint64) (*ValidatorSet, []*DefaultPrivValidator) {
+	var (
+		valz           = make([]*Validator, numValidators)
+		privValidators = make([]*DefaultPrivValidator, numValidators)
+		// privValz       = make([]PrivValidator, numValidators)
+	)
+	for i := 0; i < numValidators; i++ {
+		val, privValidator := RandValidatorCS(false, votingPower)
+		valz[i] = val
+		privValidators[i] = privValidator
+	}
+	valSet := NewValidatorSet(valz)
+	// sort.Sort(PrivValidatorsByAddress(privValidators))
+	return valSet, privValidators
+}
+
+// EXPOSED FOR TESTING FOR VOTE
+func RandValidatorSetVote(numValidators int, votingPower uint64) (*ValidatorSet, []PrivValidator) {
 	var (
 		valz           = make([]*Validator, numValidators)
 		privValidators = make([]PrivValidator, numValidators)
+		// privValz       = make([]PrivValidator, numValidators)
 	)
 	for i := 0; i < numValidators; i++ {
 		val, privValidator := RandValidator(false, votingPower)

@@ -164,6 +164,17 @@ func RandValidator(randPower bool, minPower uint64) (*Validator, PrivValidator) 
 	return val, privVal
 }
 
+func RandValidatorCS(randPower bool, minPower uint64) (*Validator, *DefaultPrivValidator) {
+	privKey, _ := crypto.GenerateKey()
+	votePower := minPower
+	if randPower {
+		votePower += uint64(rand.Uint32())
+	}
+	privVal := NewDefaultPrivValidator(privKey)
+	val := NewValidator(privVal.GetAddress(), votePower)
+	return val, privVal
+}
+
 // GetProposerPriority ...
 func (v *Validator) GetProposerPriority() *common.BigInt {
 	if v != nil {
