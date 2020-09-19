@@ -121,10 +121,10 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 	if len(validatorUpdates) > 0 {
 		// Change results from this height but only applies to the next next height.
 		lastHeightValsChanged = header.Height + 2
-		// err := nValSet.UpdateWithChangeSet(validatorUpdates)
-		// if err != nil {
-		// 	return state, fmt.Errorf("error changing validator set: %v", err)
-		// }
+		err := nValSet.UpdateWithChangeSet(validatorUpdates)
+		if err != nil {
+			return state, fmt.Errorf("error changing validator set: %v", err)
+		}
 
 	}
 	nValSet.IncrementProposerPriority(1)
