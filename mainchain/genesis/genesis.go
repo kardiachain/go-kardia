@@ -211,14 +211,6 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 
 	block := types.NewBlock(head, nil, &types.Commit{}, nil)
 
-	stakingUtil, err := staking.NewSmcStakingnUtil()
-	if err != nil {
-		panic(err)
-	}
-	if err := setupGenesisStaking(stakingUtil, statedb, block.Header(), kvm.Config{}, g.Validators); err != nil {
-		panic(err)
-	}
-
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
 	return block
@@ -337,6 +329,8 @@ func ToCell(amount int64) *big.Int {
 }
 
 func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*GenesisValidator) error {
+	statedb.SetCode(staking.ContractAddress, common.Hex2Bytes(staking.Bytecode))
+
 	if err := staking.SetRoot(statedb, header, nil, cfg); err != nil {
 		return err
 	}

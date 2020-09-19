@@ -49,7 +49,7 @@ type Evidence struct {
 type StakingSmcUtil struct {
 	Abi             *abi.ABI
 	ContractAddress common.Address
-	bytecode        string
+	Bytecode        string
 	logger          log.Logger
 }
 
@@ -64,7 +64,7 @@ func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 		return nil, err
 	}
 
-	return &StakingSmcUtil{Abi: &abi, ContractAddress: stakingSmcAddr, bytecode: bytecodeStaking}, nil
+	return &StakingSmcUtil{Abi: &abi, ContractAddress: stakingSmcAddr, Bytecode: bytecodeStaking}, nil
 }
 
 //SetParams set params
@@ -108,8 +108,8 @@ func (s *StakingSmcUtil) CreateValidator(statedb *state.StateDB, header *types.H
 	tokens = tokens.Mul(tokens, big.NewInt(int64(math.Pow10(6))))
 
 	msg := types.NewMessage(
-		s.ContractAddress,
-		nil,
+		valAddr,
+		&s.ContractAddress,
 		0,
 		tokens,
 		100000000,
@@ -130,7 +130,7 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 
 	msg := types.NewMessage(
 		s.ContractAddress,
-		nil,
+		&s.ContractAddress,
 		0,
 		big.NewInt(0),
 		100000000,
@@ -177,7 +177,7 @@ func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc v
 
 	msg := types.NewMessage(
 		s.ContractAddress,
-		nil,
+		&s.ContractAddress,
 		0,
 		big.NewInt(0),
 		100000000,
@@ -219,7 +219,7 @@ func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.He
 
 	msg := types.NewMessage(
 		s.ContractAddress,
-		nil,
+		&s.ContractAddress,
 		0,
 		big.NewInt(0),
 		100000000,
@@ -242,7 +242,7 @@ func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header
 
 		msg := types.NewMessage(
 			s.ContractAddress,
-			nil,
+			&s.ContractAddress,
 			0,
 			big.NewInt(0),
 			100000000,
@@ -263,14 +263,14 @@ func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header
 
 // SetRoot set address root
 func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) error {
-	payload, err := s.Abi.Pack("setRoot", s.ContractAddress)
+	payload, err := s.Abi.Pack("transferOwnership", s.ContractAddress)
 	if err != nil {
 		return err
 	}
 
 	msg := types.NewMessage(
 		s.ContractAddress,
-		nil,
+		&s.ContractAddress,
 		0,
 		big.NewInt(0),
 		100000000,

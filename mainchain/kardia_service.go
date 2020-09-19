@@ -114,7 +114,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
-	staking, err := staking.NewSmcStakingnUtil(kai.blockchain)
+	staking, err := staking.NewSmcStakingnUtil()
 	if err != nil {
 		return nil, err
 	}
