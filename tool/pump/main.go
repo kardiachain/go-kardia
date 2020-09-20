@@ -541,20 +541,21 @@ func genTxsLoop(genTxs *GenTxs, txPool *tx_pool.TxPool, globalQueue uint64) {
 		accounts = tool.GetAccounts(GenesisAddrKeys1)
 	}
 	genTool := tool.NewGeneratorTool(accounts)
-	initHeight := txPool.GetBlockChain().CurrentBlock().Height()
+	// initHeight := txPool.GetBlockChain().CurrentBlock().Height()
 	for {
 		if genTxs.NumTxs == 0 {
 			break
 		}
 
-		height := txPool.GetBlockChain().CurrentBlock().Height()
+		// height := txPool.GetBlockChain().CurrentBlock().Height()
 		pendingSize := txPool.PendingSize()
 		// Let's assume that current height is greater than oldHeight, continue generate txs
-		if height > initHeight && uint64(pendingSize) < globalQueue {
-			initHeight = height
+		// if height > initHeight && uint64(pendingSize) < globalQueue {
+		if uint64(pendingSize) < globalQueue {
+			// initHeight = height
 			generateTxs(genTxs, genTool, txPool)
 		} else {
-			log.Warn("Skip GenTxs due to height or max pending txs", "prevHeight", initHeight, "currentHeight", height, "pending", pendingSize)
+			log.Warn("Skip GenTxs due to max pending txs", "pending", pendingSize)
 		}
 
 		time.Sleep(time.Duration(genTxs.Delay) * time.Second)
