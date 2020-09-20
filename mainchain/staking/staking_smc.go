@@ -1,6 +1,7 @@
 package staking
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 	"strings"
@@ -118,7 +119,7 @@ func (s *StakingSmcUtil) CreateValidator(statedb *state.StateDB, header *types.H
 		false,
 	)
 	_, err = Apply(s.logger, bc, statedb, header, cfg, msg)
-	return err
+	return nil
 }
 
 //ApplyAndReturnValidatorSets allow appy and return validator set
@@ -195,7 +196,7 @@ func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc v
 	if err != nil {
 		return err
 	}
-
+	fmt.Println("fee", fee)
 	statedb.AddBalance(s.ContractAddress, fee)
 	return nil
 }
@@ -273,7 +274,7 @@ func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, b
 		&s.ContractAddress,
 		0,
 		big.NewInt(0),
-		100000000,
+		1000000,
 		big.NewInt(0),
 		payload,
 		false,

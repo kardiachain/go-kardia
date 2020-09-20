@@ -123,7 +123,8 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 	// Check whether the genesis block is already written.
 	if genesis != nil {
 		logger.Info("Create new genesis block")
-		hash := genesis.ToBlock(logger, nil).Hash()
+		block, _ := genesis.ToBlock(logger, nil)
+		hash := block.Hash()
 		if hash != stored {
 			// Set baseAccount
 			if baseAccount != nil {
@@ -176,11 +177,22 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *types.ChainConfig {
 
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
-func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
+func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) (*types.Block, common.Hash) {
 	if db == nil {
 		db = memorydb.New()
 	}
 	statedb, _ := state.New(logger, common.Hash{}, state.NewDatabase(db))
+
+	stakingUtil, err := staking.NewSmcStakingnUtil()
+	if err != nil {
+		panic(err)
+	}
+
+	g.Alloc[stakingUtil.ContractAddress] = GenesisAccount{
+		Balance: ToCell(100),
+		Code:    common.Hex2Bytes(stakingUtil.Bytecode),
+		Nonce:   0,
+	}
 
 	for addr, account := range g.Alloc {
 		statedb.AddBalance(addr, account.Balance)
@@ -190,13 +202,12 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 			statedb.SetState(addr, key, value)
 		}
 	}
-	root := statedb.IntermediateRoot(false)
 	head := &types.Header{
 		//@huny: convert timestamp here
 		// Time:           g.Timestamp,
 		Height:   0,
 		GasLimit: g.GasLimit,
-		AppHash:  root,
+		AppHash:  common.Hash{},
 		LastBlockID: types.BlockID{
 			Hash: common.Hash{},
 			PartsHeader: types.PartSetHeader{
@@ -210,16 +221,19 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) *types.Block {
 	}
 
 	block := types.NewBlock(head, nil, &types.Commit{}, nil)
-
+	if err := setupGenesisStaking(stakingUtil, statedb, block.Header(), kvm.Config{}, g.Validators); err != nil {
+		panic(err)
+	}
+	root := statedb.IntermediateRoot(false)
 	statedb.Commit(false)
 	statedb.Database().TrieDB().Commit(root, true)
-	return block
+	return block, root
 }
 
 // Commit writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
 func (g *Genesis) Commit(logger log.Logger, db types.StoreDB) (*types.Block, error) {
-	block := g.ToBlock(logger, db.DB())
+	block, root := g.ToBlock(logger, db.DB())
 	if block.Height() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with height > 0")
 	}
@@ -229,7 +243,7 @@ func (g *Genesis) Commit(logger log.Logger, db types.StoreDB) (*types.Block, err
 	db.WriteReceipts(block.Hash(), block.Height(), nil)
 	db.WriteCanonicalHash(block.Hash(), block.Height())
 	db.WriteHeadBlockHash(block.Hash())
-	kvstore.WriteAppHash(db.DB(), block.Height(), block.AppHash())
+	kvstore.WriteAppHash(db.DB(), block.Height(), root)
 	config := g.Config
 	if config == nil {
 		config = configs.TestnetChainConfig
@@ -329,8 +343,6 @@ func ToCell(amount int64) *big.Int {
 }
 
 func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*GenesisValidator) error {
-	statedb.SetCode(staking.ContractAddress, common.Hex2Bytes(staking.Bytecode))
-
 	if err := staking.SetRoot(statedb, header, nil, cfg); err != nil {
 		return err
 	}
