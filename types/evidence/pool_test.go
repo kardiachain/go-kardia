@@ -19,7 +19,6 @@
 package evidence
 
 import (
-	"math/big"
 	"sync"
 	"testing"
 	"time"
@@ -41,7 +40,7 @@ func initializeValidatorState(valAddr common.Address, height uint64) kaidb.Datab
 			&types.Validator{
 				Address:          valAddr,
 				VotingPower:      100,
-				ProposerPriority: big.NewInt(1),
+				ProposerPriority: common.NewBigInt(1),
 			},
 		},
 	}

@@ -31,7 +31,7 @@ func randVoteSet(
 	numValidators int,
 	votingPower uint64,
 ) (*VoteSet, *ValidatorSet, []PrivValidator) {
-	valSet, privValidators := RandValidatorSetVote(numValidators, votingPower)
+	valSet, privValidators := RandValidatorSet(numValidators, votingPower)
 	return NewVoteSet("test_chain_id", height, round, signedMsgType, valSet), valSet, privValidators
 }
 
