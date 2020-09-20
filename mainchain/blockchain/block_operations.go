@@ -20,6 +20,7 @@ package blockchain
 
 import (
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -206,7 +207,7 @@ func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types
 		LastBlockID:    blockID,
 		Validator:      validator,
 		ValidatorsHash: validatorsHash,
-		GasLimit:       215040000,
+		GasLimit:       math.MaxUint64, // Temporary set for testing
 		AppHash:        appHash,
 	}
 }
