@@ -115,6 +115,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 	bo.saveReceipts(receipts, block)
 	kvstore.WriteAppHash(bo.blockchain.DB().DB(), block.Height(), root)
 	bo.blockchain.DB().WriteHeadBlockHash(block.Hash())
+	bo.blockchain.CommitAndValidateBlockTxs(block)
 	return vals, root, nil
 }
 
