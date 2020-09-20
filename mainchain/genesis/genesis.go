@@ -188,11 +188,11 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) (*types.Block, c
 		panic(err)
 	}
 
-	g.Alloc[stakingUtil.ContractAddress] = GenesisAccount{
-		Balance: ToCell(100),
-		Code:    common.Hex2Bytes(stakingUtil.Bytecode),
-		Nonce:   0,
-	}
+	// g.Alloc[stakingUtil.ContractAddress] = GenesisAccount{
+	// 	Balance: ToCell(100),
+	// 	Code:    common.Hex2Bytes(stakingUtil.Bytecode),
+	// 	Nonce:   0,
+	// }
 
 	for addr, account := range g.Alloc {
 		statedb.AddBalance(addr, account.Balance)
@@ -343,6 +343,10 @@ func ToCell(amount int64) *big.Int {
 }
 
 func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*GenesisValidator) error {
+	if err := staking.CreateStakingContract(statedb, header, cfg); err != nil {
+		return err
+	}
+
 	if err := staking.SetRoot(statedb, header, nil, cfg); err != nil {
 		return err
 	}

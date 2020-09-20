@@ -687,12 +687,12 @@ var GenesisContractAbis = map[string]string{
 			"outputs": [
 				{
 					"internalType": "address[]",
-					"name": "",
+					"name": "valAddrs",
 					"type": "address[]"
 				},
 				{
 					"internalType": "uint256[]",
-					"name": "",
+					"name": "powers",
 					"type": "uint256[]"
 				}
 			],

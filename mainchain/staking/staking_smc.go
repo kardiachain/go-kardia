@@ -56,7 +56,7 @@ type StakingSmcUtil struct {
 
 // NewSmcStakingnUtil ...
 func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
-	stakingSmcAddr, stakingSmcAbi := configs.GetContractDetailsByIndex(KardiaSatkingSmcIndex)
+	_, stakingSmcAbi := configs.GetContractDetailsByIndex(KardiaSatkingSmcIndex)
 	bytecodeStaking := configs.GetContractByteCodeByAddress(contractAddress)
 
 	abi, err := abi.JSON(strings.NewReader(stakingSmcAbi))
@@ -65,7 +65,7 @@ func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 		return nil, err
 	}
 
-	return &StakingSmcUtil{Abi: &abi, ContractAddress: stakingSmcAddr, Bytecode: bytecodeStaking}, nil
+	return &StakingSmcUtil{Abi: &abi, ContractAddress: common.HexToAddress("0xF3E77cDEeD0A979be6fb54dEdc50551e84F9C53a"), Bytecode: bytecodeStaking}, nil
 }
 
 //SetParams set params
@@ -144,14 +144,13 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 	if err != nil {
 		return nil, err
 	}
+	if len(res) == 0 {
+		return nil, nil
+	}
 
 	var valSet struct {
 		ValAddrs []common.Address
 		Powers   []*big.Int
-	}
-
-	if len(res) == 0 {
-		return nil, nil
 	}
 
 	//unpack result
@@ -165,7 +164,6 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 	for i, valAddr := range valSet.ValAddrs {
 		vals[i] = types.NewValidator(valAddr, valSet.Powers[i].Uint64())
 	}
-
 	return vals, nil
 }
 
@@ -192,12 +190,16 @@ func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc v
 		return err
 	}
 
-	fee := new(big.Int).SetBytes(res)
-	if err != nil {
-		return err
+	if len(res) > 0 {
+		result := new(struct {
+			Fee *big.Int
+		})
+
+		if err := s.Abi.Unpack(result, "mint", res); err != nil {
+			return fmt.Errorf("unpack mint result err: %s", err)
+		}
+		statedb.AddBalance(s.ContractAddress, result.Fee)
 	}
-	fmt.Println("fee", fee)
-	statedb.AddBalance(s.ContractAddress, fee)
 	return nil
 }
 
@@ -296,4 +298,33 @@ func Apply(logger log.Logger, bc vm.ChainContext, statedb *state.StateDB, header
 	// Update the state with pending changes
 	statedb.Finalise(true)
 	return ret, nil
+}
+
+// CreateStakingContract ...
+func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
+	header *types.Header,
+	cfg kvm.Config) error {
+
+	msg := types.NewMessage(
+		common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"),
+		nil,
+		0,
+		big.NewInt(0),
+		100000000,
+		big.NewInt(0),
+		common.FromHex(s.Bytecode),
+		false,
+	)
+
+	// Create a new context to be used in the EVM environment
+	context := vm.NewKVMContext(msg, header, nil)
+	vmenv := kvm.NewKVM(context, statedb, cfg)
+	sender := kvm.AccountRef(msg.From())
+	_, _, _, vmerr := vmenv.Create(sender, msg.Data(), msg.Gas(), msg.Value())
+	if vmerr != nil {
+		return vmerr
+	}
+	// Update the state with pending changes
+	statedb.Finalise(true)
+	return nil
 }
