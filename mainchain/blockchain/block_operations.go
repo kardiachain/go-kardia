@@ -23,11 +23,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
@@ -242,17 +242,21 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	bo.logger.Info("header gas limit", "limit", header.GasLimit)
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)
 
-	if err := bo.staking.Mint(); err != nil {
+	kvmConfig := kvm.Config{
+		IsZeroFee: bo.blockchain.IsZeroFee,
+	}
+
+	if err := bo.staking.Mint(state, header, bo.blockchain, kvmConfig); err != nil {
 		bo.logger.Error("Fail to mint", "err", err)
 		return nil, common.Hash{}, nil, nil, err
 	}
 
-	if err := bo.staking.FinalizeCommit(lastCommit); err != nil {
+	if err := bo.staking.FinalizeCommit(state, header, bo.blockchain, kvmConfig, lastCommit); err != nil {
 		bo.logger.Error("Fail to finalize commit", "err", err)
 		return nil, common.Hash{}, nil, nil, err
 	}
 
-	if err := bo.staking.DoubleSign(byzVals); err != nil {
+	if err := bo.staking.DoubleSign(state, header, bo.blockchain, kvmConfig, byzVals); err != nil {
 		bo.logger.Error("Fail to apply double sign", "err", err)
 		return nil, common.Hash{}, nil, nil, err
 	}
@@ -263,9 +267,7 @@ LOOP:
 		state.Prepare(tx.Hash(), common.Hash{}, counter)
 		snap := state.Snapshot()
 		// TODO(thientn): confirms nil coinbase is acceptable.
-		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvm.Config{
-			IsZeroFee: bo.blockchain.IsZeroFee,
-		})
+		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
 		if err != nil {
 			bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
 			state.RevertToSnapshot(snap)
@@ -279,7 +281,7 @@ LOOP:
 		newTxs = append(newTxs, tx)
 	}
 
-	vals, err := bo.staking.GetCurrentValidatorSet()
+	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
 	if err != nil {
 		return nil, common.Hash{}, nil, nil, err
 	}
