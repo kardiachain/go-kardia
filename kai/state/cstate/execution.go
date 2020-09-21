@@ -100,7 +100,6 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	state.AppHash = appHash
 	SaveState(blockExec.db, state)
 
-	logger.Warn("Update evidence pool.")
 	// Update evpool with the block and state.
 	blockExec.evpool.Update(block, state)
 	fail.Fail() // XXX
