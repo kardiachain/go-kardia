@@ -48,12 +48,19 @@ const (
 	// dropping broadcasts. This is a sensitive number as a transaction list might
 	// contain a single transaction, or thousands.
 	maxQueuedTxs = 6144
+
+	maxQueuedMsg = 1000
 )
 
 // PeerInfo represents a short summary of the Kai sub-protocol metadata known
 // about a connected peer.
 type PeerInfo struct {
 	Version int `json:"version"` // Kai protocol version negotiated
+}
+
+type consensusMsg struct {
+	Type uint64
+	Msg  interface{}
 }
 
 type peer struct {
@@ -71,6 +78,8 @@ type peer struct {
 
 	knownTxs  *common.Set             // Set of transaction hashes known to be known by this peer
 	queuedTxs chan types.Transactions // Queue of transactions to broadcast to the peer
+
+	queuedMsg chan consensusMsg // Queue of the consensus message to broadcast to the peer
 
 	csReactor *consensus.ConsensusManager
 
@@ -111,6 +120,7 @@ func newPeer(logger log.Logger, version int, p *p2p.Peer, rw p2p.MsgReadWriter, 
 		version:    version,
 		id:         fmt.Sprintf("%x", p.ID().Bytes()[:8]),
 		queuedTxs:  make(chan types.Transactions, maxQueuedTxs),
+		queuedMsg:  make(chan consensusMsg, maxQueuedMsg),
 		knownTxs:   common.NewSet(maxKnownTxs),
 		csReactor:  csReactor,
 		terminated: make(chan struct{}),
@@ -309,13 +319,16 @@ func (p *peer) broadcast() {
 	for {
 		select {
 		case txs := <-p.queuedTxs:
-			go func() {
-				if err := p.SendTransactions(txs); err != nil {
-					p.logger.Error("Send txs failed", "err", err, "count", len(txs), "peer", p.Name())
-					return
-				}
-			}()
+			if err := p.SendTransactions(txs); err != nil {
+				p.logger.Error("Send txs failed", "err", err, "count", len(txs), "peer", p.Name())
+				return
+			}
 			p.Log().Trace("Broadcast transactions", "count", len(txs))
+		case msg := <-p.queuedMsg:
+			if err := p2p.Send(p.rw, msg.Type, msg.Msg); err != nil {
+				p.logger.Error("Failed to broadcast consensus message", "error", err, "peer", p.Name())
+				return
+			}
 		case <-p.terminated:
 			return
 		}
@@ -408,8 +421,12 @@ func (p *peer) AsyncSendTransactions(txs types.Transactions) {
 	// Tx will be actually sent in SendTransactions() trigger by broadcast() routine
 	select {
 	case p.queuedTxs <- txs:
-		go p.MarkTransactions(txs)
+		p.MarkTransactions(txs)
 	default:
 		p.logger.Debug("Dropping transaction propagation", "count", len(txs))
 	}
+}
+
+func (p *peer) AsyncSendMsg(msg interface{}, msgType uint64) {
+	p.queuedMsg <- consensusMsg{Type: msgType, Msg: msg}
 }
