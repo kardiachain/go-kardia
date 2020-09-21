@@ -262,6 +262,7 @@ func (ps *peerSet) Register(p *peer) error {
 	}
 	ps.peers[p.id] = p
 	go p.broadcast()
+	go p.broadcastMsg()
 	p.csReactor.AddPeer(p.Peer, p.rw)
 	p.IsAlive = true
 
@@ -324,6 +325,16 @@ func (p *peer) broadcast() {
 				return
 			}
 			p.Log().Trace("Broadcast transactions", "count", len(txs))
+		case <-p.terminated:
+			return
+		}
+	}
+}
+
+// broadcast is a async write loop that send messages to remote peers.
+func (p *peer) broadcastMsg() {
+	for {
+		select {
 		case msg := <-p.queuedMsg:
 			if err := p2p.Send(p.rw, msg.Type, msg.Msg); err != nil {
 				p.logger.Error("Failed to broadcast consensus message", "error", err, "peer", p.Name())
