@@ -21,6 +21,7 @@ package tests
 import (
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/account"
@@ -132,9 +133,11 @@ func TestCreateGenesisBlock(t *testing.T) {
 
 	// Get block by hash and height
 	block := db.ReadBlock(hash, 0)
+	stateDB := state.NewDatabase(blockDB)
 
 	// Init new State with current BlockHash
-	s, err := state.New(log.New(), block.AppHash(), state.NewDatabase(blockDB))
+	s, err := state.New(log.New(), block.AppHash(), stateDB)
+	time.Sleep(3000 * time.Millisecond)
 	if err != nil {
 		t.Error(err)
 	} else {
