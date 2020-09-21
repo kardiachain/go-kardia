@@ -151,8 +151,6 @@ func (sdb *StateDB) createObject(addr common.Address) (newobj, prev *stateObject
 		sdb.journal.append(resetObjectChange{prev: prev})
 	}
 	sdb.setStateObject(newobj)
-	// so := sdb.getStateObject(addr)
-	// fmt.Println("sooooooooooooo", so)
 	return newobj, prev
 }
 
