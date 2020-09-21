@@ -266,7 +266,7 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 		return nil, nil
 	}
 
-	staking, _ := staking.NewSmcStakingnUtil(bc)
+	staking, _ := staking.NewSmcStakingnUtil()
 
 	txConfig := tx_pool.TxPoolConfig{
 		GlobalSlots: 64,
@@ -369,7 +369,7 @@ func newState(vs *validatorStub, state cstate.LastestBlockState) (*ConsensusStat
 		return nil, err
 	}
 
-	staking, _ := staking.NewSmcStakingnUtil(bc)
+	staking, _ := staking.NewSmcStakingnUtil()
 
 	txConfig := tx_pool.TxPoolConfig{
 		GlobalSlots: 64,
@@ -400,9 +400,9 @@ func newState(vs *validatorStub, state cstate.LastestBlockState) (*ConsensusStat
 }
 
 func ensurePrevote() {
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 }
 
 func ensurePrecommit() {
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 }

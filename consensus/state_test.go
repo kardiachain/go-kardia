@@ -36,6 +36,7 @@ func TestStateProposerSelection0(t *testing.T) {
 
 	// set validator
 	startTestRound(cs1, height, round)
+	time.Sleep(3000 * time.Millisecond)
 
 	ensurePrevote() // Commit a block and ensure proposer for the next height is correct.
 	prop := cs1.GetRoundState().Validators.GetProposer()
@@ -47,11 +48,12 @@ func TestStateProposerSelection0(t *testing.T) {
 
 	rs := cs1.GetRoundState()
 	signAddVotes(cs1, types.VoteTypePrecommit, rs.ProposalBlock.Hash(), rs.ProposalBlockParts.Header(), vss[1:]...)
+	incrementRound(vss[1:]...)
 	time.Sleep(3000 * time.Millisecond)
 
 	// check validator
 	prop = cs1.GetRoundState().Validators.GetProposer()
-	addr := vss[1].PrivVal.GetAddress()
+	addr := vss[0].PrivVal.GetAddress()
 
 	if prop.Address != addr {
 		panic(fmt.Sprintf("expected validator %d. Got %X", 1, addr))
@@ -144,7 +146,7 @@ func TestStateFullRound1(t *testing.T) {
 	// ensureNewProposal(propCh, height, round)
 	propBlockHash := cs.GetRoundState().ProposalBlock.Hash()
 
-	time.Sleep(3000 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 	// wait for prevote
 	ensurePrevote()
 	validatePrevote(t, cs, round, vss[0], propBlockHash)
@@ -728,20 +730,20 @@ func TestProposeValidBlock(t *testing.T) {
 	// start round and wait for propose and prevote
 	startTestRound(cs1, cs1.Height, round)
 
-	time.Sleep(3000 * time.Millisecond)
+	time.Sleep(1000 * time.Millisecond)
 
 	rs := cs1.GetRoundState()
 	propBlock := rs.ProposalBlock
 	propBlockHash := propBlock.Hash()
 
-	time.Sleep(8000 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 	ensurePrevote()
 	validatePrevote(t, cs1, round, vss[0], propBlockHash)
 
 	// the others sign a polka
 	signAddVotes(cs1, types.VoteTypePrevote, propBlockHash, propBlock.MakePartSet(uint32(partSize)).Header(), vs2, vs3, vs4)
 
-	time.Sleep(8000 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 
 	ensurePrecommit()
 	// we should have precommitted
@@ -749,7 +751,7 @@ func TestProposeValidBlock(t *testing.T) {
 
 	signAddVotes(cs1, types.VoteTypePrecommit, common.BytesToHash(nil), types.PartSetHeader{}, vs2, vs3, vs4)
 
-	time.Sleep(9000 * time.Millisecond)
+	time.Sleep(2000 * time.Millisecond)
 
 	incrementRound(vs2, vs3, vs4)
 	round++ // moving to the next round
@@ -757,7 +759,7 @@ func TestProposeValidBlock(t *testing.T) {
 	t.Log("### ONTO ROUND 2")
 
 	// timeout of propose
-	time.Sleep(2500 * time.Millisecond)
+	time.Sleep(9000 * time.Millisecond)
 
 	ensurePrevote()
 	validatePrevote(t, cs1, round, vss[0], propBlockHash)
@@ -787,7 +789,7 @@ func TestProposeValidBlock(t *testing.T) {
 
 	t.Log("### ONTO ROUND 4")
 
-	time.Sleep(2500 * time.Millisecond)
+	time.Sleep(8000 * time.Millisecond)
 
 	rs = cs1.GetRoundState()
 	assert.True(t, rs.ProposalBlock.Hash() == propBlockHash)
