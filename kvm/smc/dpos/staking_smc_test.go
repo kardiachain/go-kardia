@@ -1395,16 +1395,7 @@ func TestCreateValidator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// owner := common.HexToAddress("0x1111")
-	// // Successfully
-	// setTotalSupply, err := abi.Pack("setTotalSupply", big.NewInt(200000))
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// _, _, err = sample_kvm.Call(address, setTotalSupply, &sample_kvm.Config{State: state, Origin: owner})
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
+
 	// Successfully
 	validator1 := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 	maxRate := big.NewInt(20)
@@ -1459,11 +1450,9 @@ func TestCreateValidator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	//length of address array  result[96:128]
-	// t.Log((result[96:128]))
+
 	//check get address of validator from getValidators
 	validatorAddress := string(hex.EncodeToString(result[140:160]))
-	// t.Log(validatorAddress)
 	if strings.TrimRight(validatorAddress, "\n") != "c1fe56e3f58d3244f606306611a5d10c8333f1f6" {
 		t.Error("Error for address")
 	}
@@ -1490,27 +1479,7 @@ func TestCreateValidator(t *testing.T) {
 	if num.Cmp(big.NewInt(3999999999)) != 0 {
 		t.Error("Expected delegation 3999999999, got #", num)
 	}
-	// check jail, pending
-	// jail := (result[64:])
-	// t.Log(jail)
-	// num := new(big.Int).SetBytes(result)
-	// if num.Cmp(big.NewInt(1000000000000000000)) != 0 {
-	// 	t.Error("Expected delegation 1000000000000000000, got #", num)
-	// }
-	// check getValidators
-	// getValidator, err := abi.Pack("getDelegationsByValidator", validator1)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// result, _, err := sample_kvm.Call(address, getValidator, &sample_kvm.Config{State: state})
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// t.Log("resultsss", result)
-	// num := new(big.Int).SetBytes(result)
-	// if num.Cmp(big.NewInt(1)) != 0 {
-	// 	t.Error("Expected candidate 2 to rank #1, got #", num)
-	// }
+
 }
 func TestDelegate(t *testing.T) {
 	bc, err := SetupBlockchain()
@@ -1610,18 +1579,12 @@ func TestDelegate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// t.Log(len(result))
+
 	delAddress := string(hex.EncodeToString(result[140:160]))
 	if strings.TrimRight(delAddress, "\n") != "ff3dac4f04ddbd24de5d6039f90596f0a8bb08fd" {
 		t.Error("Error for address")
 	}
-	// t.Log(result)
-	// t.Log(result[160:192])
-	// num = new(big.Int).SetBytes(result[224:256])
-	// t.Log(num)
-	// if num.Cmp(big.NewInt(5000000001250)) != 0 {
-	// 	t.Error("Expected delegation 5000000001250, got #", num)
-	// }
+
 	getAllDelegatorStake, err := abi.Pack("getAllDelegatorStake", account1)
 	if err != nil {
 		t.Fatal(err)
@@ -1630,8 +1593,6 @@ func TestDelegate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	num = new(big.Int).SetBytes(result)
-	t.Log(num)
 
 	// check undelegate
 	amountUndel := big.NewInt(500)
@@ -1666,7 +1627,6 @@ func TestDelegate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// t.Log(len(result))
 	num = new(big.Int).SetBytes(result[96:128])
 	if num.Cmp(big.NewInt(499)) != 0 {
 		t.Error("Expected delegation 499, got #", num)
@@ -1682,15 +1642,6 @@ func TestDelegate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// check withdraw
-	withdraw, err := abi.Pack("withdraw", validator1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, _, err = sample_kvm.Call(address, withdraw, &sample_kvm.Config{State: state, Origin: validator1})
-	if err != nil {
-		t.Fatal(err)
-	}
 }
 
 func TestDoubleSign(t *testing.T) {
