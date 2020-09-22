@@ -94,8 +94,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 
 	txs := bo.txPool.ProposeTransactions()
 	bo.logger.Debug("Collected transactions", "txs count", len(txs))
-
-	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash(), lastState.AppHash)
+	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(), lastState.AppHash)
 	bo.logger.Info("Creates new header", "header", header)
 
 	block = bo.newBlock(header, txs, commit, evidence)

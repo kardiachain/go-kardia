@@ -26,16 +26,17 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-func validateBlock(state LastestBlockState, block *types.Block) error {
+func validateBlock(db kaidb.Database, state LastestBlockState, block *types.Block) error {
 	// validate internal consistency
 	if err := block.ValidateBasic(); err != nil {
 		return err
 	}
 
 	// validate basic info
-	if block.Header().Height != state.LastBlockHeight+1 {
+	if block.Height() != state.LastBlockHeight+1 {
 		return fmt.Errorf("wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight+1, block.Height())
 	}
+
 	/*	TODO: Determine bounds for Time
 		See blockchain/manager "stopSyncingDurationMinutes"
 		if !block.Time.After(lastBlockTime) {
@@ -47,6 +48,21 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 	if !block.Header().LastBlockID.Equal(state.LastBlockID) {
 		return fmt.Errorf("Wrong Block.Header.LastBlockID.  Expected %v, got %v", state.LastBlockID, block.Header().LastBlockID)
 	}
+	// Validate app info
+	if !block.AppHash().Equal(state.AppHash) {
+		return fmt.Errorf("wrong Block.Header.AppHash.  Expected %X, got %X",
+			state.AppHash,
+			block.AppHash(),
+		)
+	}
+
+	if !block.Header().ValidatorsHash.Equal(state.Validators.Hash()) {
+		return fmt.Errorf("wrong Block.Header.ValidatorsHash.  Expected %X, got %X",
+			state.Validators.Hash(),
+			block.Header().ValidatorsHash,
+		)
+	}
+
 	// TODO(namdoh): Re-enable validating txs
 	//newTxs := int64(len(block.Data.Txs))
 	//if block.TotalTxs != state.LastBlockTotalTx+newTxs {
@@ -85,15 +101,19 @@ func validateBlock(state LastestBlockState, block *types.Block) error {
 		}
 	}
 
-	// TODO: Each check requires loading an old validator set.
-	// We should cap the amount of evidence per block
-	// to prevent potential proposer DoS.
-	// TODO(namdoh): Validates evidences.
-	//for _, ev := range block.Evidence.Evidence {
-	//	if err := VerifyEvidence(stateDB, state, ev); err != nil {
-	//		return types.NewEvidenceInvalidErr(ev, err)
-	//	}
-	//}
+	// Limit the amount of evidence
+	maxNumEvidence, _ := types.MaxEvidencePerBlock(int64(state.ConsensusParams.Block.MaxBytes))
+	numEvidence := int64(len(block.Evidence().Evidence))
+	if numEvidence > maxNumEvidence {
+		return types.NewErrEvidenceOverflow(maxNumEvidence, numEvidence)
+
+	}
+
+	for _, ev := range block.Evidence().Evidence {
+		if err := VerifyEvidence(db, state, ev); err != nil {
+			return types.NewErrEvidenceInvalid(ev, err)
+		}
+	}
 
 	return nil
 }
