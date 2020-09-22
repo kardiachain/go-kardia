@@ -683,8 +683,6 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 	}
 
 	CommonWriteCanonicalHash(batch, hash, height)
-	CommonWriteTxLookupEntries(batch, block)
-
 	if err := batch.Write(); err != nil {
 		panic(fmt.Errorf("Failed to store block error: %s", err))
 	}
