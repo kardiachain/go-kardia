@@ -20,10 +20,10 @@ package blockchain
 
 import (
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
@@ -207,7 +207,7 @@ func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types
 		LastBlockID:    blockID,
 		Validator:      validator,
 		ValidatorsHash: validatorsHash,
-		GasLimit:       math.MaxUint64, // Temporary set for testing
+		GasLimit:       configs.BlockGasLimit, // Temporary set for testing
 		AppHash:        appHash,
 	}
 }
