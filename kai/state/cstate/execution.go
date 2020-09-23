@@ -41,14 +41,6 @@ type BlockStore interface {
 	CommitAndValidateBlockTxs(*types.Block, staking.LastCommitInfo, []staking.Evidence) ([]*types.Validator, common.Hash, error)
 }
 
-// ValidateBlock validates the given block against the given state.
-// If the block is invalid, it returns an error.
-// Validation does not mutate state, but does require historical information from the stateDB,
-// ie. to verify evidence from a validator at an old height.
-func ValidateBlock(state LastestBlockState, block *types.Block) error {
-	return validateBlock(state, block)
-}
-
 //-----------------------------------------------------------------------------
 // BlockExecutor handles block execution and state updates.
 // It exposes ApplyBlock(), which validates & executes the block, updates state w/ ABCI responses,
@@ -72,12 +64,20 @@ func NewBlockExecutor(db kaidb.Database, evpool EvidencePool, bc BlockStore) *Bl
 	}
 }
 
+// ValidateBlock validates the given block against the given state.
+// If the block is invalid, it returns an error.
+// Validation does not mutate state, but does require historical information from the stateDB,
+// ie. to verify evidence from a validator at an old height.
+func (blockExec *BlockExecutor) ValidateBlock(state LastestBlockState, block *types.Block) error {
+	return validateBlock(blockExec.db, state, block)
+}
+
 // ApplyBlock Validates the block against the state, and saves the new state.
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
 func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
-	if err := ValidateBlock(state, block); err != nil {
+	if err := blockExec.ValidateBlock(state, block); err != nil {
 		return state, ErrInvalidBlock(err)
 	}
 	fail.Fail() // XXX

@@ -346,7 +346,7 @@ func CommonReadTransaction(db kaidb.Reader, hash common.Hash) (*types.Transactio
 	return body.Transactions[txIndex], blockHash, blockNumber, txIndex
 }
 
-// Retrieves the positional metadata associated with a dual's event
+// CommonReadDualEventLookupEntry Retrieves the positional metadata associated with a dual's event
 // hash to allow retrieving the event by hash.
 func CommonReadDualEventLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, uint64, uint64) {
 	data, _ := db.Get(dualEventLookupKey(hash))
@@ -683,7 +683,6 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 	}
 
 	CommonWriteCanonicalHash(batch, hash, height)
-
 	if err := batch.Write(); err != nil {
 		panic(fmt.Errorf("Failed to store block error: %s", err))
 	}

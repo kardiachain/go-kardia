@@ -914,7 +914,7 @@ func (cs *ConsensusState) doPrevote(height uint64, round uint32) {
 
 	// Validate proposal block
 	// This checks the block contents without executing txs.
-	if err := cstate.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
+	if err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
 		cs.signAddVote(types.VoteTypePrevote, cmn.Hash{}, types.PartSetHeader{})
@@ -1026,10 +1026,6 @@ func (cs *ConsensusState) enterPrecommit(height uint64, round uint32) {
 	// If +2/3 prevoted for proposal block, stage and precommit it
 	if cs.ProposalBlock.HashesTo(blockID.Hash) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID)
-		// Validate the block.
-		if err := cstate.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
-			cmn.PanicConsensus(cmn.Fmt("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
-		}
 		cs.LockedRound = round
 		cs.LockedBlock = cs.ProposalBlock
 		cs.LockedBlockParts = cs.ProposalBlockParts
@@ -1172,7 +1168,7 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 	if !block.HashesTo(blockID.Hash) {
 		cmn.PanicSanity(cmn.Fmt("Cannot finalizeCommit, ProposalBlock does not hash to commit hash"))
 	}
-	if err := cstate.ValidateBlock(cs.state, block); err != nil {
+	if err := cs.blockExec.ValidateBlock(cs.state, block); err != nil {
 		cmn.PanicConsensus(cmn.Fmt("+2/3 committed an invalid block: %v", err))
 		panic("Block validation failed")
 	}
@@ -1252,7 +1248,6 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 		cs.logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
 		return nil, nil
 	}
-
 	return cs.blockOperations.CreateProposalBlock(
 		cs.Height,
 		cs.state,
