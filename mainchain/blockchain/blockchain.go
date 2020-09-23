@@ -401,8 +401,12 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	return bc.loadLastState()
 }
 
-// CommitAndValidateBlockTxs ...
-func (bc *BlockChain) CommitAndValidateBlockTxs(block *types.Block) {
+// InsertHeadBlock inserts new head block to blockchain and send new head event.
+// This function assumes block transactions & app hash are already committed.
+func (bc *BlockChain) InsertHeadBlock(block *types.Block) {
+	bc.mu.Lock()
+	defer bc.mu.Unlock()
+
 	bc.insert(block)
 	bc.chainHeadFeed.Send(events.ChainHeadEvent{Block: block})
 }
