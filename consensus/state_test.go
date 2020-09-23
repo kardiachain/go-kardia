@@ -56,7 +56,7 @@ func TestStateProposerSelection0(t *testing.T) {
 	addr := vss[0].PrivVal.GetAddress()
 
 	if prop.Address != addr {
-		panic(fmt.Sprintf("expected validator %d. Got %X", 1, addr))
+		panic(fmt.Sprintf("expected validator %d. Got %X", 0, addr))
 	}
 }
 
@@ -146,7 +146,7 @@ func TestStateFullRound1(t *testing.T) {
 	// ensureNewProposal(propCh, height, round)
 	propBlockHash := cs.GetRoundState().ProposalBlock.Hash()
 
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(8000 * time.Millisecond)
 	// wait for prevote
 	ensurePrevote()
 	validatePrevote(t, cs, round, vss[0], propBlockHash)
@@ -241,7 +241,6 @@ func TestStateLockNoPOL(t *testing.T) {
 
 	// (note we're entering precommit for a second time this round, but with invalid args
 	// then we enterPrecommitWait and timeout into NewRound
-	// time.Sleep(3000 * time.Millisecond)
 	round++ // entering new round
 	t.Log("#### ONTO ROUND 2")
 
@@ -275,15 +274,12 @@ func TestStateLockNoPOL(t *testing.T) {
 
 	//ensure prevote
 	ensurePrevote()
-	// time.Sleep(7000 * time.Millisecond)
 
 	// now we're on a new round and not the proposer
 	// validatePrevote(t, cs1, round, vss[0], cs1.LockedBlock.Hash())
 
 	// prevote for proposed block
 	signAddVotes(cs1, types.VoteTypePrevote, propBlock.Hash(), propBlock.MakePartSet(uint32(partSize)).Header(), vs2)
-	// validatePrecommit(t, cs1, int(round.Uint64()), 0, vss[0], common.BytesToHash(nil), theBlockHash) // precommit nil but locked on proposal
-
 	signAddVotes(cs1, types.VoteTypePrecommit, propBlock.Hash(), propBlock.MakePartSet(uint32(partSize)).Header(), vs2) // NOTE: conflicting precommits at same height
 }
 
@@ -329,7 +325,7 @@ func TestStateLockPOLRelockThenChangeLock(t *testing.T) {
 	round++ // moving to the next round
 	t.Log("### ONTO ROUND 1")
 
-	time.Sleep(8000 * time.Millisecond)
+	time.Sleep(5000 * time.Millisecond)
 	ensurePrevote()
 	// go to prevote, node should prevote for locked block (not the new proposal) - this is relocking
 	validatePrevote(t, cs1, round, vss[0], theBlockHash)
@@ -634,8 +630,6 @@ func TestEmitNewValidBlockEventOnCommitWithoutBlock(t *testing.T) {
 	time.Sleep(3000 * time.Millisecond)
 
 	rs := cs1.GetRoundState()
-	// t.Log("propBlockParts", propBlockParts.Hash())
-	// t.Log("rs.ProposalBlockParts.Header()", rs.ProposalBlockParts.Hash())
 	assert.True(t, rs.Step == cstypes.RoundStepCommit)
 	assert.True(t, rs.ProposalBlock.Hash() == common.BytesToHash(nil))
 	// assert.True(t, rs.ProposalBlockParts.Header().Equals(propBlockParts.Header()))
@@ -668,12 +662,6 @@ func TestCommitFromPreviousRound(t *testing.T) {
 	assert.True(t, rs.Step == cstypes.RoundStepCommit)
 	assert.True(t, rs.CommitRound == uint32(vs2.Round))
 
-	// blockID := types.BlockID{Hash: propBlock.Hash(), PartsHeader: propBlockParts.Header()}
-	// proposal := types.NewProposal(uint64(vs2.Height), round, uint32(0), blockID)
-	// // set the proposal block
-	// if err := cs1.setProposal(proposal); err != nil {
-	// 	t.Fatal(err)
-	// }
 }
 
 // 2 vals precommit votes for a block but node times out waiting for the third. Move to next round
@@ -789,7 +777,7 @@ func TestProposeValidBlock(t *testing.T) {
 
 	t.Log("### ONTO ROUND 4")
 
-	time.Sleep(8000 * time.Millisecond)
+	time.Sleep(3000 * time.Millisecond)
 
 	rs = cs1.GetRoundState()
 	assert.True(t, rs.ProposalBlock.Hash() == propBlockHash)
