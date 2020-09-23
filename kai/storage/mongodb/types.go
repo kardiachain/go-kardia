@@ -228,15 +228,12 @@ func NewBlock(block *types.Block) *Block {
 		NumTxs:         block.NumTxs(),
 		TxHash:         block.Header().TxHash.Hex(),
 		GasUsed:        block.Header().GasUsed,
-		Bloom:          common.Bytes2Hex(block.Header().Bloom.Bytes()),
 		Coinbase:       block.Header().Coinbase.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
 		DualEventsHash: block.Header().DualEventsHash.Hex(),
 		GasLimit:       block.Header().GasLimit,
 		LastCommitHash: block.Header().LastCommitHash.Hex(),
 		NumDualEvents:  block.Header().NumDualEvents,
-		ReceiptHash:    block.Header().ReceiptHash.Hex(),
-		Root:           block.Header().Root.Hex(),
 		Validator:      block.Header().Validator.Hex(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 	}
@@ -258,15 +255,12 @@ func (block *Block) ToHeader() *types.Header {
 		NumTxs:         block.Header.NumTxs,
 		TxHash:         common.HexToHash(block.Header.TxHash),
 		GasUsed:        block.Header.GasUsed,
-		Bloom:          types.BytesToBloom(common.FromHex(block.Header.Bloom)),
 		Coinbase:       common.HexToAddress(block.Header.Coinbase),
 		ConsensusHash:  common.HexToHash(block.Header.ConsensusHash),
 		DualEventsHash: common.HexToHash(block.Header.DualEventsHash),
 		GasLimit:       block.Header.GasLimit,
 		LastCommitHash: common.HexToHash(block.Header.LastCommitHash),
 		NumDualEvents:  block.Header.NumDualEvents,
-		ReceiptHash:    common.HexToHash(block.Header.ReceiptHash),
-		Root:           common.HexToHash(block.Header.Root),
 		Validator:      common.HexToAddress(block.Header.Validator),
 		ValidatorsHash: common.HexToHash(block.Header.ValidatorsHash),
 	}
@@ -478,34 +472,14 @@ func (vote *Vote) ToVote() *types.Vote {
 }
 
 func NewCommit(commit *types.Commit, height uint64) *Commit {
-	votes := make([]*Vote, 0)
-	for _, vote := range commit.Precommits {
-		if vote != nil {
-			votes = append(votes, NewVote(vote))
-		} else {
-			votes = append(votes, nil)
-		}
-	}
 	return &Commit{
-		Precommits: votes,
-		BlockID:    commit.BlockID.StringLong(),
-		Height:     height,
+		BlockID: commit.BlockID.StringLong(),
+		Height:  height,
 	}
 }
 
 func (commit *Commit) ToCommit() *types.Commit {
-	votes := make([]*types.Vote, 0)
-	for _, vote := range commit.Precommits {
-		if vote != nil {
-			votes = append(votes, vote.ToVote())
-		} else {
-			votes = append(votes, nil)
-		}
-	}
-	return &types.Commit{
-		Precommits: votes,
-		BlockID:    toBlockID(commit.BlockID, commit.PartsHeader),
-	}
+	return nil
 }
 
 func NewChainConfig(config *types.ChainConfig, hash common.Hash) *ChainConfig {

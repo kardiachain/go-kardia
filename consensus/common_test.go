@@ -19,7 +19,6 @@
 package consensus
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"math"
 	"math/big"
@@ -37,6 +36,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	g "github.com/kardiachain/go-kardiamain/mainchain/genesis"
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/types/evidence"
 
@@ -51,21 +51,21 @@ const (
 // validator stub (a kvstore consensus peer we control)
 
 type validatorStub struct {
-	Index         int64 // Validator index. NOTE: we don't assume validator set changes.
-	Height        int64
-	Round         int64
-	PrivValidator *ecdsa.PrivateKey
-	VotingPower   int64
+	Index       int64 // Validator index. NOTE: we don't assume validator set changes.
+	Height      int64
+	Round       int64
+	PrivVal     types.PrivValidator
+	VotingPower int64
 }
 
 var testMinPower int64 = 10
 
-func newValidatorStub(privValidator *ecdsa.PrivateKey, valIndex int64, round int64) *validatorStub {
+func newValidatorStub(privValidator types.PrivValidator, valIndex int64, round int64) *validatorStub {
 	return &validatorStub{
-		Index:         valIndex,
-		PrivValidator: privValidator,
-		VotingPower:   testMinPower,
-		Round:         round,
+		Index:       valIndex,
+		PrivVal:     privValidator,
+		VotingPower: testMinPower,
+		Round:       round,
 	}
 }
 
@@ -76,7 +76,7 @@ func (vs *validatorStub) signVote(
 
 	partSetHash := hash
 	blockPartsHeaders := types.PartSetHeader{Total: uint32(123), Hash: partSetHash}
-	privVal := types.NewPrivValidator(vs.PrivValidator)
+	privVal := vs.PrivVal
 
 	vote := &types.Vote{
 		ValidatorIndex:   uint32(vs.Index),
@@ -139,8 +139,8 @@ func (vss ValidatorStubsByPower) Len() int {
 }
 
 func (vss ValidatorStubsByPower) Less(i, j int) bool {
-	vssi := types.NewPrivValidator(vss[i].PrivValidator).GetAddress()
-	vssj := types.NewPrivValidator(vss[j].PrivValidator).GetAddress()
+	vssi := (vss[i].PrivVal).GetAddress()
+	vssj := (vss[j].PrivVal).GetAddress()
 
 	if vss[i].VotingPower == vss[j].VotingPower {
 		return vssi == vssj
@@ -184,7 +184,7 @@ func decideProposal(
 	// Make proposal
 	polRound, propBlockID := validRound, types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()}
 	proposal = types.NewProposal(uint64(height), uint32(round), polRound, propBlockID)
-	privVal := types.NewPrivValidator(vs.PrivValidator)
+	privVal := vs.PrivVal
 
 	if err := privVal.SignProposal(chainID, proposal); err != nil {
 		panic(err)
@@ -215,7 +215,7 @@ func signAddVotes(
 
 func validatePrevote(t *testing.T, cs *ConsensusState, round uint32, vs *validatorStub, blockHash common.Hash) {
 	prevotes := cs.Votes.Prevotes(round)
-	privVal := types.NewPrivValidator(vs.PrivValidator)
+	privVal := vs.PrivVal
 	address := privVal.GetAddress()
 	var vote *types.Vote
 
@@ -234,7 +234,7 @@ func validatePrecommit(
 	lockedBlockHash common.Hash,
 ) {
 	precommits := cs.Votes.Precommits(uint32(thisRound))
-	privVal := types.NewPrivValidator(vs.PrivValidator)
+	privVal := vs.PrivVal
 	address := privVal.GetAddress()
 	var vote *types.Vote
 
@@ -245,7 +245,7 @@ func validatePrecommit(
 
 func validateLastPrecommit(t *testing.T, cs *ConsensusState, vs *validatorStub, blockHash common.Hash) {
 	votes := cs.LastCommit
-	privVal := types.NewPrivValidator(vs.PrivValidator)
+	privVal := vs.PrivVal
 	address := privVal.GetAddress()
 	var vote *types.Vote
 	if vote = votes.GetByAddress(address); vote == nil {
@@ -266,14 +266,18 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 		return nil, nil
 	}
 
+	staking, _ := staking.NewSmcStakingnUtil()
+
 	txConfig := tx_pool.TxPoolConfig{
 		GlobalSlots: 64,
 		GlobalQueue: 5120000,
 	}
 	txPool := tx_pool.NewTxPool(txConfig, chainConfig, bc)
 	evPool := evidence.NewPool(kaiDb.DB(), kaiDb.DB())
+	bOper := blockchain.NewBlockOperations(logger, bc, txPool, evPool, staking)
+
 	// evReactor := evidence.NewReactor(evPool)
-	blockExec := cstate.NewBlockExecutor(evPool)
+	blockExec := cstate.NewBlockExecutor(blockDB, evPool, bOper)
 
 	// Initialization for consensus.
 	block := bc.CurrentBlock()
@@ -295,12 +299,12 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 		logger,
 		configs.DefaultConsensusConfig(),
 		state,
-		blockchain.NewBlockOperations(logger, bc, txPool, evPool),
+		bOper,
 		blockExec,
 		evPool,
 	)
 
-	consensusState.SetPrivValidator(types.NewPrivValidator(privSet[0]))
+	consensusState.SetPrivValidator(privSet[0])
 	// Get State
 	vss := make([]*validatorStub, nValidators)
 
@@ -365,14 +369,18 @@ func newState(vs *validatorStub, state cstate.LastestBlockState) (*ConsensusStat
 		return nil, err
 	}
 
+	staking, _ := staking.NewSmcStakingnUtil()
+
 	txConfig := tx_pool.TxPoolConfig{
 		GlobalSlots: 64,
 		GlobalQueue: 5120000,
 	}
 	txPool := tx_pool.NewTxPool(txConfig, chainConfig, bc)
 	evPool := evidence.NewPool(kaiDb.DB(), kaiDb.DB())
+	bOper := blockchain.NewBlockOperations(logger, bc, txPool, evPool, staking)
+
 	// evReactor := evidence.NewReactor(evPool)
-	blockExec := cstate.NewBlockExecutor(evPool)
+	blockExec := cstate.NewBlockExecutor(blockDB, evPool, bOper)
 
 	// Initialization for consensus.
 	// block := bc.CurrentBlock()
@@ -381,20 +389,20 @@ func newState(vs *validatorStub, state cstate.LastestBlockState) (*ConsensusStat
 		logger,
 		configs.DefaultConsensusConfig(),
 		state,
-		blockchain.NewBlockOperations(logger, bc, txPool, evPool),
+		bOper,
 		blockExec,
 		evPool,
 	)
 
-	consensusState.SetPrivValidator(types.NewPrivValidator(vs.PrivValidator))
+	consensusState.SetPrivValidator(vs.PrivVal)
 
 	return consensusState, nil
 }
 
 func ensurePrevote() {
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 }
 
 func ensurePrecommit() {
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond)
 }

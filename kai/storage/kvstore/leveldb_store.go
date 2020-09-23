@@ -50,7 +50,7 @@ func NewStoreDB(db kaidb.Database) *StoreDB {
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
 func (s *StoreDB) ReadBlockMeta(hash common.Hash, height uint64) *types.BlockMeta {
-	return ReadBlockMeta(s.db, hash, height)
+	return ReadBlockMeta(s.db, height)
 }
 
 // ReadBlock returns the Block for the given height
@@ -83,16 +83,6 @@ func (s *StoreDB) WriteCanonicalHash(hash common.Hash, height uint64) {
 	CommonWriteCanonicalHash(s.db, hash, height)
 }
 
-// WriteHeadBlockHash stores the head block's hash.
-func (s *StoreDB) WriteHeadBlockHash(hash common.Hash) {
-	CommonWriteHeadBlockHash(s.db, hash)
-}
-
-// WriteHeadHeaderHash stores the hash of the current canonical head header.
-func (s *StoreDB) WriteHeadHeaderHash(hash common.Hash) {
-	CommonWriteHeadHeaderHash(s.db, hash)
-}
-
 // WriteEvent stores KardiaSmartContract to db
 func (s *StoreDB) WriteEvent(smc *types.KardiaSmartcontract) {
 	CommonWriteEvent(s.db, smc)
@@ -112,6 +102,10 @@ func (s *StoreDB) StoreHash(hash *common.Hash) {
 // Stores a tx hash into the database.
 func (s *StoreDB) StoreTxHash(hash *common.Hash) {
 	CommonStoreTxHash(s.db, hash)
+}
+
+func (s *StoreDB) WriteHeadBlockHash(hash common.Hash) {
+	CommonWriteHeadBlockHash(s.db, hash)
 }
 
 // ReadSmartContractAbi gets smart contract abi by smart contract address
@@ -248,7 +242,7 @@ func (s *StoreDB) DeleteCanonicalHash(number uint64) {
 }
 
 func (s *StoreDB) DeleteBlockMeta(hash common.Hash, height uint64) {
-	s.db.Delete(blockMetaKey(hash, height))
+	s.db.Delete(blockMetaKey(height))
 }
 
 func (s *StoreDB) DeleteBlockPart(hash common.Hash, height uint64) {

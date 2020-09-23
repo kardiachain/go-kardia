@@ -30,6 +30,22 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
+// ErrEvidenceOverflow is for when there is too much evidence in a block.
+type ErrEvidenceOverflow struct {
+	MaxNum int64
+	GotNum int64
+}
+
+// NewErrEvidenceOverflow returns a new ErrEvidenceOverflow where got > max.
+func NewErrEvidenceOverflow(max, got int64) *ErrEvidenceOverflow {
+	return &ErrEvidenceOverflow{max, got}
+}
+
+// Error returns a string representation of the error.
+func (err *ErrEvidenceOverflow) Error() string {
+	return fmt.Sprintf("Too much evidence: Max %d, got %d", err.MaxNum, err.GotNum)
+}
+
 // ErrEvidenceInvalid wraps a piece of evidence and the error denoting how or why it is invalid.
 type ErrEvidenceInvalid struct {
 	Evidence   Evidence
@@ -62,7 +78,6 @@ const (
 // allowed in the block and their maximum total size (limitted to 1/10th
 // of the maximum block size).
 // TODO: change to a constant, or to a fraction of the validator set size.
-// See https://github.com/tendermint/tendermint/issues/2590
 func MaxEvidencePerBlock(blockMaxBytes int64) (int64, int64) {
 	maxBytes := blockMaxBytes / MaxEvidenceBytesDenominator
 	maxNum := maxBytes / MaxEvidenceBytes
@@ -188,7 +203,7 @@ func (dve *DuplicateVoteEvidence) String() string {
 
 // Height returns the height this evidence refers to.
 func (dve *DuplicateVoteEvidence) Height() uint64 {
-	return uint64(dve.VoteA.Height)
+	return dve.VoteA.Height
 }
 
 // Time return the time the evidence was created

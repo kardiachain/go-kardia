@@ -19,7 +19,7 @@
 package types
 
 import (
-	"crypto/ecdsa"
+	"bytes"
 	"fmt"
 	"math"
 	"math/big"
@@ -27,6 +27,7 @@ import (
 	"strings"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/merkle"
 	"github.com/pkg/errors"
 )
@@ -164,8 +165,8 @@ func (vs *ValidatorSet) RescalePriorities(diffMax int64) {
 	ratio := (diff + diffMax - 1) / diffMax
 	if diff > diffMax {
 		for _, val := range vs.Validators {
-			cmpPriority := val.ProposerPriority.Int64() / ratio
-			val.ProposerPriority = big.NewInt(cmpPriority)
+			cmpPriority := val.ProposerPriority.GetInt64() / ratio
+			val.ProposerPriority = common.NewBigInt(cmpPriority)
 		}
 	}
 }
@@ -173,13 +174,13 @@ func (vs *ValidatorSet) RescalePriorities(diffMax int64) {
 func (vs *ValidatorSet) incrementProposerPriority() *Validator {
 	for _, val := range vs.Validators {
 		// Check for overflow for sum.
-		newPriority := val.ProposerPriority.Add(val.ProposerPriority, big.NewInt(int64(val.VotingPower)))
+		newPriority := val.ProposerPriority.Add(common.NewBigInt(int64(val.VotingPower)))
 		val.ProposerPriority = newPriority
 	}
 	// Decrement the validator with most ProposerPriority.
 	mostest := vs.getValWithMostPriority()
 	// Mind the underflow.
-	mostest.ProposerPriority = big.NewInt(safeSubClip(mostest.ProposerPriority.Int64(), int64(vs.TotalVotingPower())))
+	mostest.ProposerPriority = common.NewBigInt(safeSubClip(mostest.ProposerPriority.GetInt64(), int64(vs.TotalVotingPower())))
 	return mostest
 }
 
@@ -189,7 +190,7 @@ func (vals *ValidatorSet) computeAvgProposerPriority() int64 {
 
 	sum := big.NewInt(0)
 	for _, val := range vals.Validators {
-		sum.Add(sum, big.NewInt(val.ProposerPriority.Int64()))
+		sum.Add(sum, big.NewInt(val.ProposerPriority.GetInt64()))
 	}
 	avg := sum.Div(sum, big.NewInt(n))
 	if avg.IsInt64() {
@@ -207,16 +208,12 @@ func computeMaxMinPriorityDiff(vals *ValidatorSet) int64 {
 	}
 	max := int64(math.MaxInt64)
 	min := int64(math.MinInt64)
-	// fmt.Println("computeMaxMinPriorityDiff", vals)
 	for _, v := range vals.Validators {
-		// kkk := v.ProposerPriority
-		// fmt.Println("addressss", kkk)
-		// v.ProposerPriority = common.NewBigInt(0)
-		if v.ProposerPriority.Int64() < min {
-			min = v.ProposerPriority.Int64()
+		if v.ProposerPriority.GetInt64() < min {
+			min = v.ProposerPriority.GetInt64()
 		}
-		if v.ProposerPriority.Int64() > max {
-			max = v.ProposerPriority.Int64()
+		if v.ProposerPriority.GetInt64() > max {
+			max = v.ProposerPriority.GetInt64()
 		}
 	}
 	diff := max - min
@@ -243,8 +240,8 @@ func (vs *ValidatorSet) shiftByAvgProposerPriority() {
 	}
 	avgProposerPriority := vs.computeAvgProposerPriority()
 	for _, val := range vs.Validators {
-		proposerPriority := safeSubClip(val.ProposerPriority.Int64(), avgProposerPriority)
-		val.ProposerPriority = big.NewInt(proposerPriority)
+		proposerPriority := safeSubClip(val.ProposerPriority.GetInt64(), avgProposerPriority)
+		val.ProposerPriority = common.NewBigInt(proposerPriority)
 	}
 }
 
@@ -272,8 +269,8 @@ func (vs *ValidatorSet) Copy() *ValidatorSet {
 // HasAddress returns true if address given is in the validator set, false -
 // otherwise.
 func (vs *ValidatorSet) HasAddress(address common.Address) bool {
-	for idx, _ := range vs.Validators {
-		if address.Equal(vs.Validators[idx].Address) {
+	for _, val := range vs.Validators {
+		if address.Equal(val.Address) {
 			return true
 		}
 	}
@@ -283,9 +280,9 @@ func (vs *ValidatorSet) HasAddress(address common.Address) bool {
 // GetByAddress returns an index of the validator with address and validator
 // itself if found. Otherwise, -1 and nil are returned.
 func (vs *ValidatorSet) GetByAddress(address common.Address) (index int, val *Validator) {
-	for idx, _ := range vs.Validators {
-		if address.Equal(vs.Validators[idx].Address) {
-			return idx, vs.Validators[idx].Copy()
+	for idx, val := range vs.Validators {
+		if address.Equal(val.Address) {
+			return idx, val.Copy()
 		}
 	}
 	return -1, nil
@@ -481,7 +478,7 @@ func computeNewPriorities(updates []*Validator, vs *ValidatorSet, updatedTotalVo
 			//
 			// Compute ProposerPriority = -1.125*totalVotingPower == -(updatedVotingPower + (updatedVotingPower >> 3)).
 			proposerPriority := -(updatedTotalVotingPower + (updatedTotalVotingPower >> 3))
-			valUpdate.ProposerPriority = big.NewInt(proposerPriority)
+			valUpdate.ProposerPriority = common.NewBigInt(proposerPriority)
 		} else {
 			valUpdate.ProposerPriority = val.ProposerPriority
 		}
@@ -656,47 +653,42 @@ func (vs *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height uin
 	if err := commit.ValidateBasic(); err != nil {
 		return err
 	}
-	if vs.Size() != len(commit.Precommits) {
-		return NewErrInvalidCommitSignatures(uint64(vs.Size()), uint64(len(commit.Precommits)))
+	if vs.Size() != len(commit.Signatures) {
+		return NewErrInvalidCommitSignatures(uint64(vs.Size()), uint64(len(commit.Signatures)))
 	}
-	if height != commit.Height() {
-		return NewErrInvalidCommitHeight(height, commit.Height())
+	if height != commit.GetHeight() {
+		return NewErrInvalidCommitHeight(height, commit.GetHeight())
 	}
 	if !blockID.Equal(commit.BlockID) {
 		return fmt.Errorf("Invalid commit -- wrong block id: want %v got %v",
 			blockID, commit.BlockID)
 	}
 
-	talliedVotingPower := int64(0)
-
-	for idx, precommit := range commit.Precommits {
-		if precommit == nil {
-			continue // OK, some precommits can be missing.
+	talliedVotingPower := uint64(0)
+	votingPowerNeeded := vs.TotalVotingPower() * 2 / 3
+	for idx, commitSig := range commit.Signatures {
+		if commitSig.Absent() {
+			continue // OK, some signatures can be absent.
 		}
-		_, val := vs.GetByIndex(uint32(idx))
+		// The vals and commit have a 1-to-1 correspondance.
+		// This means we don't need the validator address or to do any lookup.
+		val := vs.Validators[idx]
+
 		// Validate signature.
-		// TODO:@lew enable this after implement Commit Signature
-		// precommitSignBytes := commit.VoteSignBytes(chainID, idx)
-		// if !val.PubKey.VerifyBytes(precommitSignBytes, precommit.Signature) {
-		// 	return fmt.Errorf("Invalid commit -- invalid signature: %v", precommit)
-		// }
-		if !val.VerifyVoteSignature(chainID, precommit) {
-			return fmt.Errorf("Invalid commit -- invalid signature: %v", precommit)
+		voteSignBytes := commit.VoteSignBytes(chainID, uint32(idx))
+		if !VerifySignature(val.Address, crypto.Keccak256(voteSignBytes), commitSig.Signature) {
+			return errors.Errorf("wrong signature (#%d): %X", idx, commitSig.Signature)
 		}
 		// Good precommit!
-		if blockID.Equal(precommit.BlockID) {
-			talliedVotingPower += int64(val.VotingPower)
+		if blockID.Equal(commitSig.BlockID(commit.BlockID)) {
+			talliedVotingPower += uint64(val.VotingPower)
 		}
-		// else {
-		// It's OK that the BlockID doesn't match.  We include stray
-		// precommits to measure validator availability.
-		// }
 	}
 
-	if talliedVotingPower > int64(vs.TotalVotingPower()*2/3) {
-		return nil
+	if got, needed := talliedVotingPower, votingPowerNeeded; got <= needed {
+		return ErrNotEnoughVotingPowerSigned{Got: got, Needed: needed}
 	}
-	return errTooMuchChange{talliedVotingPower, int64(vs.TotalVotingPower()*2/3 + 1)}
+	return nil
 }
 
 // IsErrTooMuchChange returns too much change error
@@ -762,19 +754,23 @@ func (vals ValidatorsByAddress) Swap(i, j int) {
 // RandValidatorSet returns a randomized validator set (size: +numValidators+),
 // where each validator has a voting power of +votingPower+.
 // EXPOSED FOR TESTING.
-func RandValidatorSet(numValidators int, votingPower uint64) (*ValidatorSet, []*ecdsa.PrivateKey) {
+// RandValidatorSet returns a randomized validator set (size: +numValidators+),
+// where each validator has a voting power of +votingPower+.
+//
+func RandValidatorSet(numValidators int, votingPower uint64) (*ValidatorSet, []PrivValidator) {
 	var (
-		vs             = make([]*Validator, numValidators)
-		privValidators = make([]*ecdsa.PrivateKey, numValidators)
+		valz           = make([]*Validator, numValidators)
+		privValidators = make([]PrivValidator, numValidators)
+		// privValz       = make([]PrivValidator, numValidators)
 	)
 	for i := 0; i < numValidators; i++ {
-		val, privValidator := RandValidatorCS(false, votingPower)
-		vs[i] = val
+		val, privValidator := RandValidator(false, votingPower)
+		valz[i] = val
 		privValidators[i] = privValidator
 	}
-
+	valSet := NewValidatorSet(valz)
 	sort.Sort(PrivValidatorsByAddress(privValidators))
-	return NewValidatorSet(vs), privValidators
+	return valSet, privValidators
 }
 
 // Errors handle
@@ -878,7 +874,7 @@ func (valz ValidatorsByVotingPower) Len() int { return len(valz) }
 
 func (valz ValidatorsByVotingPower) Less(i, j int) bool {
 	if valz[i].VotingPower == valz[j].VotingPower {
-		return valz[i].Address == valz[j].Address
+		return bytes.Compare(valz[i].Address.Bytes(), valz[j].Address.Bytes()) == -1
 	}
 	return valz[i].VotingPower > valz[j].VotingPower
 }

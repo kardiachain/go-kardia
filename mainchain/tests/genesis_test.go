@@ -25,11 +25,11 @@ import (
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/account"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -117,10 +117,15 @@ func TestCreateGenesisBlock(t *testing.T) {
 
 	// Create genesis block with state_processor_test.genesisAccounts
 	g := genesis.DefaultTestnetGenesisBlock(configs.GenesisAccounts)
-	_, hash, err := setupGenesis(g, db)
+	chainConfig, hash, err := setupGenesis(g, db)
 	if err != nil {
 		t.Error(err)
 	}
+	bc, err := blockchain.NewBlockChain(log.New(), db, chainConfig, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// There are 2 ways of getting current blockHash
 	// ReadHeadBlockHash or ReadCanonicalHash
 	headBlockHash := db.ReadHeadBlockHash()
@@ -130,11 +135,8 @@ func TestCreateGenesisBlock(t *testing.T) {
 		t.Error("Current BlockHash does not match")
 	}
 
-	// Get block by hash and height
-	block := db.ReadBlock(hash, 0)
-
 	// Init new State with current BlockHash
-	s, err := state.New(log.New(), block.Root(), state.NewDatabase(blockDB))
+	s, err := bc.State()
 	if err != nil {
 		t.Error(err)
 	} else {
@@ -149,52 +151,18 @@ func TestCreateGenesisBlock(t *testing.T) {
 	}
 }
 
-func TestCreateContractInGenesis(t *testing.T) {
-	blockDB := memorydb.New()
-	db := kvstore.NewStoreDB(blockDB)
-	// Create genesis block with genesisContracts
-	g := genesis.DefaultTestnetGenesisBlockWithContract(genesisContracts)
-	_, hash, err := setupGenesis(g, db)
-	if err != nil {
-		t.Error(err)
-	}
-
-	// There are 2 ways of getting current blockHash
-	// ReadHeadBlockHash or ReadCanonicalHash
-	headBlockHash := db.ReadHeadBlockHash()
-	canonicalHash := db.ReadCanonicalHash(0)
-
-	if !hash.Equal(headBlockHash) || !hash.Equal(canonicalHash) {
-		t.Error("Current BlockHash does not match")
-	}
-
-	// Get block by hash and height
-	block := db.ReadBlock(hash, 0)
-
-	// Init new State with current BlockHash
-	s, err := state.New(log.New(), block.Root(), state.NewDatabase(blockDB))
-	if err != nil {
-		t.Error(err)
-	} else {
-		// Get code from addresses
-		for address, code := range genesisContracts {
-			smc_code := common.Encode(s.GetCode(common.HexToAddress(address)))
-
-			if smc_code != "0x"+code {
-				t.Errorf("Code does not match, expected %v \n got %v", smc_code, code)
-			}
-		}
-	}
-}
-
 func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 	blockDB := memorydb.New()
 	db := kvstore.NewStoreDB(blockDB)
 	// Create genesis block with state_processor_test.genesisAccounts
 	g := genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, genesisContracts)
-	_, hash, err := setupGenesis(g, db)
+	chainConfig, hash, err := setupGenesis(g, db)
 	if err != nil {
 		t.Error(err)
+	}
+	bc, err := blockchain.NewBlockChain(log.New(), db, chainConfig, false)
+	if err != nil {
+		t.Fatal(err)
 	}
 	headBlockHash := db.ReadHeadBlockHash()
 	canonicalHash := db.ReadCanonicalHash(0)
@@ -202,11 +170,9 @@ func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 	if !hash.Equal(headBlockHash) || !hash.Equal(canonicalHash) {
 		t.Error("Current BlockHash does not match")
 	}
-	// Get block by hash and height
-	block := db.ReadBlock(hash, 0)
 
 	// Init new State with current BlockHash
-	s, err := state.New(log.New(), block.Root(), state.NewDatabase(blockDB))
+	s, err := bc.State()
 	if err != nil {
 		t.Error(err)
 	} else {

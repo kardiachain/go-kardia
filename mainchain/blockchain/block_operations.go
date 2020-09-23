@@ -20,11 +20,15 @@ package blockchain
 
 import (
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/kvm"
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
+
+	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
+	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
@@ -55,16 +59,18 @@ type BlockOperations struct {
 	txPool     *tx_pool.TxPool
 	evPool     EvidencePool
 	height     uint64
+	staking    *staking.StakingSmcUtil
 }
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
-func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool, evpool EvidencePool) *BlockOperations {
+func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool, evpool EvidencePool, staking *staking.StakingSmcUtil) *BlockOperations {
 	return &BlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
 		txPool:     txPool,
 		height:     blockchain.CurrentBlock().Height(),
 		evPool:     evpool,
+		staking:    staking,
 	}
 }
 
@@ -88,54 +94,42 @@ func (bo *BlockOperations) CreateProposalBlock(
 
 	txs := bo.txPool.ProposeTransactions()
 	bo.logger.Debug("Collected transactions", "txs count", len(txs))
-
-	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash())
+	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(), lastState.AppHash)
 	bo.logger.Info("Creates new header", "header", header)
 
-	stateRoot, receipts, newTxs, err := bo.commitTransactions(txs, header)
-	if err != nil {
-		bo.logger.Error("Fail to commit transactions", "err", err)
-		return nil, nil
-	}
-	header.Root = stateRoot
-
-	block = bo.newBlock(header, newTxs, receipts, commit, evidence)
+	block = bo.newBlock(header, txs, commit, evidence)
 	bo.logger.Trace("Make block to propose", "block", block)
-
-	go bo.saveReceipts(receipts, block)
-
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
 }
 
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
-func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
-	root, receipts, _, err := bo.commitTransactions(block.Transactions(), block.Header())
-	if err != nil {
-		return err
-	}
-	if root != block.Root() {
-		return fmt.Errorf("different new state root: Block root: %s, Execution result: %s", block.Root().Hex(), root.Hex())
-	}
-	receiptsHash := types.DeriveSha(receipts)
-	if receiptsHash != block.ReceiptHash() {
-		return fmt.Errorf("different receipt hash: Block receipt: %s, receipt from execution: %s", block.ReceiptHash().Hex(), receiptsHash.Hex())
-	}
-	bo.saveReceipts(receipts, block)
+func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
 
-	return nil
+	vals, root, receipts, _, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
+	if err != nil {
+		return nil, common.Hash{}, err
+	}
+
+	bo.saveReceipts(receipts, block)
+	kvstore.WriteAppHash(bo.blockchain.DB().DB(), block.Height(), root)
+	bo.blockchain.DB().WriteHeadBlockHash(block.Hash())
+	bo.blockchain.DB().WriteTxLookupEntries(block)
+	bo.blockchain.InsertHeadBlock(block)
+	return vals, root, nil
 }
 
 // CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
 // Proposer and validators should already commit the block txs, so this function prevents double tx execution.
-func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block) error {
-	if !bo.blockchain.CheckCommittedStateRoot(block.Root()) {
+func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
+	root := kvstore.ReadAppHash(bo.blockchain.DB().DB(), block.Height())
+	if !bo.blockchain.CheckCommittedStateRoot(root) {
 		bo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
-		return bo.CommitAndValidateBlockTxs(block)
+		return bo.CommitAndValidateBlockTxs(block, lastCommit, byzVals)
 	}
 
-	return nil
+	return nil, common.Hash{}, nil
 }
 
 // SaveBlock saves the given block, blockParts, and seenCommit to the underlying storage.
@@ -160,12 +154,6 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartS
 	if !blockParts.IsComplete() {
 		panic(fmt.Sprintf("BlockOperations can only save complete block part sets"))
 	}
-
-	// TODO(kiendn): WriteBlockWithoutState returns an error, write logic check if error appears
-	if err := bo.blockchain.WriteBlockWithoutState(block); err != nil {
-		common.PanicSanity(common.Fmt("WriteBlockWithoutState fails with error %v", err))
-	}
-
 	bo.blockchain.SaveBlock(block, blockParts, seenCommit)
 
 	bo.mtx.Lock()
@@ -179,10 +167,12 @@ func (bo *BlockOperations) LoadBlock(height uint64) *types.Block {
 	return bo.blockchain.GetBlockByHeight(height)
 }
 
+// LoadBlockPart load block part
 func (bo *BlockOperations) LoadBlockPart(height uint64, index int) *types.Part {
 	return bo.blockchain.LoadBlockPart(height, index)
 }
 
+// LoadBlockMeta load block meta
 func (bo *BlockOperations) LoadBlockMeta(height uint64) *types.BlockMeta {
 	return bo.blockchain.LoadBlockMeta(height)
 }
@@ -208,7 +198,7 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 // newHeader creates new block header from given data.
 // Some header fields are not ready at this point.
 func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types.BlockID,
-	validator common.Address, validatorsHash common.Hash) *types.Header {
+	validator common.Address, validatorsHash common.Hash, appHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:         height,
@@ -217,13 +207,14 @@ func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types
 		LastBlockID:    blockID,
 		Validator:      validator,
 		ValidatorsHash: validatorsHash,
-		GasLimit:       215040000,
+		GasLimit:       math.MaxUint64, // Temporary set for testing
+		AppHash:        appHash,
 	}
 }
 
 // newBlock creates new block from given data.
-func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, receipts types.Receipts, commit *types.Commit, ev []types.Evidence) *types.Block {
-	block := types.NewBlock(header, txs, receipts, commit, ev)
+func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, commit *types.Commit, ev []types.Evidence) *types.Block {
+	block := types.NewBlock(header, txs, commit, ev)
 
 	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
 	// LastResultHash.
@@ -232,7 +223,8 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 }
 
 // commitTransactions executes the given transactions and commits the result stateDB to disk.
-func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *types.Header) (common.Hash, types.Receipts,
+func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *types.Header,
+	lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, types.Receipts,
 	types.Transactions, error) {
 	var (
 		newTxs   = types.Transactions{}
@@ -245,12 +237,31 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	state, err := bo.blockchain.State()
 	if err != nil {
 		bo.logger.Error("Fail to get blockchain head state", "err", err)
-		return common.Hash{}, nil, nil, err
+		return nil, common.Hash{}, nil, nil, err
 	}
 
 	// GasPool
 	bo.logger.Info("header gas limit", "limit", header.GasLimit)
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)
+
+	kvmConfig := kvm.Config{
+		IsZeroFee: bo.blockchain.IsZeroFee,
+	}
+
+	if err := bo.staking.Mint(state, header, bo.blockchain, kvmConfig); err != nil {
+		bo.logger.Error("Fail to mint", "err", err)
+		return nil, common.Hash{}, nil, nil, err
+	}
+
+	if err := bo.staking.FinalizeCommit(state, header, bo.blockchain, kvmConfig, lastCommit); err != nil {
+		bo.logger.Error("Fail to finalize commit", "err", err)
+		return nil, common.Hash{}, nil, nil, err
+	}
+
+	if err := bo.staking.DoubleSign(state, header, bo.blockchain, kvmConfig, byzVals); err != nil {
+		bo.logger.Error("Fail to apply double sign", "err", err)
+		return nil, common.Hash{}, nil, nil, err
+	}
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
 LOOP:
@@ -258,9 +269,7 @@ LOOP:
 		state.Prepare(tx.Hash(), common.Hash{}, counter)
 		snap := state.Snapshot()
 		// TODO(thientn): confirms nil coinbase is acceptable.
-		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvm.Config{
-			IsZeroFee: bo.blockchain.IsZeroFee,
-		})
+		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
 		if err != nil {
 			bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
 			state.RevertToSnapshot(snap)
@@ -274,23 +283,28 @@ LOOP:
 		newTxs = append(newTxs, tx)
 	}
 
+	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
+	if err != nil {
+		return nil, common.Hash{}, nil, nil, err
+	}
+
 	header.NumTxs = uint64(newTxs.Len())
 	root, err := state.Commit(true)
 
 	if err != nil {
 		bo.logger.Error("Fail to commit new statedb after txs", "err", err)
-		return common.Hash{}, nil, nil, err
+		return nil, common.Hash{}, nil, nil, err
 	}
 	err = bo.blockchain.CommitTrie(root)
 	if err != nil {
 		bo.logger.Error("Fail to write statedb trie to disk", "err", err)
-		return common.Hash{}, nil, nil, err
+		return nil, common.Hash{}, nil, nil, err
 	}
 
 	// Set new GasUsed value for the block header.
 	header.GasUsed = *usedGas
 
-	return root, receipts, newTxs, nil
+	return vals, root, receipts, newTxs, nil
 }
 
 // saveReceipts saves receipts of block transactions to storage.

@@ -33,8 +33,6 @@ type StoreDB interface {
 	WriteBlock(*Block, *PartSet, *Commit)
 	WriteReceipts(hash common.Hash, height uint64, receipts Receipts)
 	WriteCanonicalHash(hash common.Hash, height uint64)
-	WriteHeadBlockHash(hash common.Hash)
-	WriteHeadHeaderHash(hash common.Hash)
 	WriteEvent(smartcontract *KardiaSmartcontract)
 	//WriteCommit(height uint64, commit *Commit)
 	//WriteCommitRLP(height uint64, rlp rlp.RawValue)
@@ -57,6 +55,7 @@ type StoreDB interface {
 	ReadHeadBlockHash() common.Hash
 	ReadHeaderHeight(hash common.Hash) *uint64
 	ReadHeadHeaderHash() common.Hash
+	WriteHeadBlockHash(common.Hash)
 	ReadCommitRLP(height uint64) rlp.RawValue
 	ReadCommit(height uint64) *Commit
 	ReadSeenCommit(height uint64) *Commit

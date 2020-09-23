@@ -19,7 +19,6 @@
 package types
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"testing"
 	"time"
@@ -32,7 +31,7 @@ import (
 
 func TestPeerCatchupRounds(t *testing.T) {
 
-	valSet, privSet := types.RandValidatorSet(10, 1)
+	valSet, privSet := types.RandValidatorSet(4, 1)
 
 	logger := log.New()
 	logger.AddTag("test vote set")
@@ -41,7 +40,7 @@ func TestPeerCatchupRounds(t *testing.T) {
 
 	peer32 := []byte("peer1")
 	copy(peer[:], peer32)
-	hvs := NewHeightVoteSet(logger, "mainchain", 1, valSet)
+	hvs := NewHeightVoteSet(logger, "kaicoin", 1, valSet)
 	vote999_0 := makeVoteHR(t, 1, 0, 999, privSet)
 	added, err := hvs.AddVote(vote999_0, peer)
 
@@ -57,8 +56,8 @@ func TestPeerCatchupRounds(t *testing.T) {
 
 }
 
-func makeVoteHR(t *testing.T, height uint64, valIndex uint32, round uint32, privVals []*ecdsa.PrivateKey) *types.Vote {
-	privVal := types.NewPrivValidator(privVals[valIndex])
+func makeVoteHR(t *testing.T, height uint64, valIndex uint32, round uint32, privVals []types.PrivValidator) *types.Vote {
+	privVal := privVals[valIndex]
 	// pubKey := privVal.GetPubKey()
 
 	blockHash := common.BytesToHash(common.RandBytes(32))
@@ -74,7 +73,7 @@ func makeVoteHR(t *testing.T, height uint64, valIndex uint32, round uint32, priv
 		Type:             types.VoteTypePrecommit,
 		BlockID:          types.BlockID{Hash: blockHash, PartsHeader: blockPartsHeaders},
 	}
-	chainID := "mainchain"
+	chainID := "kaicoin"
 
 	err := privVal.SignVote(chainID, vote)
 	if err != nil {

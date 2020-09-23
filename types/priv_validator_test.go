@@ -38,7 +38,7 @@ func TestPrivValidatorAccessors(t *testing.T) {
 }
 
 func TestPrivValidatorSignVote(t *testing.T) {
-	vote := CreateEmptyVote()
+	vote := &Vote{}
 	privValidator, _, _ := CreateNewPrivValidator()
 	if err := privValidator.SignVote("KAI", vote); err != nil {
 		t.Fatal("PV Sign Vote issue", err)
@@ -53,7 +53,7 @@ func TestPrivValidatorSignProposal(t *testing.T) {
 	}
 }
 
-func CreateNewPrivValidator() (*PrivValidator, ecdsa.PrivateKey, ecdsa.PublicKey) {
+func CreateNewPrivValidator() (*DefaultPrivValidator, ecdsa.PrivateKey, ecdsa.PublicKey) {
 	priv, _ := crypto.GenerateKey()
-	return NewPrivValidator(priv), *priv, priv.PublicKey
+	return NewDefaultPrivValidator(priv), *priv, priv.PublicKey
 }

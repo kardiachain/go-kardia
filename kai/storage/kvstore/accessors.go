@@ -106,17 +106,10 @@ func CommonWriteCanonicalHash(db kaidb.Writer, hash common.Hash, height uint64) 
 	}
 }
 
-// CommonWriteHeadBlockHash stores the head block's hash.
+// CommonWriteHeadBlockHash stores the hash of the current canonical head header.
 func CommonWriteHeadBlockHash(db kaidb.Writer, hash common.Hash) {
 	if err := db.Put(headBlockKey, hash.Bytes()); err != nil {
-		log.Crit("Failed to store last block's hash", "err", err)
-	}
-}
-
-// CommonWriteHeadHeaderHash stores the hash of the current canonical head header.
-func CommonWriteHeadHeaderHash(db kaidb.Writer, hash common.Hash) {
-	if err := db.Put(headHeaderKey, hash.Bytes()); err != nil {
-		log.Crit("Failed to store last header's hash", "err", err)
+		panic(fmt.Sprintln("Failed to store last header's hash", "err", err))
 	}
 }
 
@@ -251,7 +244,6 @@ func CommonReadCommit(db kaidb.Reader, height uint64) *types.Commit {
 	if err := rlp.Decode(bytes.NewReader(data), commit); err != nil {
 		panic(fmt.Errorf("Decode read commit error: %s height: %d", err, height))
 	}
-	commit.MakeEmptyNil()
 	return commit
 }
 
@@ -354,7 +346,7 @@ func CommonReadTransaction(db kaidb.Reader, hash common.Hash) (*types.Transactio
 	return body.Transactions[txIndex], blockHash, blockNumber, txIndex
 }
 
-// Retrieves the positional metadata associated with a dual's event
+// CommonReadDualEventLookupEntry Retrieves the positional metadata associated with a dual's event
 // hash to allow retrieving the event by hash.
 func CommonReadDualEventLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, uint64, uint64) {
 	data, _ := db.Get(dualEventLookupKey(hash))
@@ -567,9 +559,9 @@ func CommonCheckTxHash(db kaidb.Reader, hash *common.Hash) bool {
 
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
-func ReadBlockMeta(db kaidb.Reader, hash common.Hash, height uint64) *types.BlockMeta {
+func ReadBlockMeta(db kaidb.Reader, height uint64) *types.BlockMeta {
 	var blockMeta = new(types.BlockMeta)
-	metaBytes, _ := db.Get(blockMetaKey(hash, height))
+	metaBytes, _ := db.Get(blockMetaKey(height))
 
 	if len(metaBytes) == 0 {
 		return nil
@@ -593,14 +585,12 @@ func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
 		panic(errors.New("Reading seen commit error"))
 	}
 
-	commit.MakeEmptyNil()
-
 	return commit
 }
 
 // ReadBlock returns the Block for the given height
 func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
-	blockMeta := ReadBlockMeta(db, hash, height)
+	blockMeta := ReadBlockMeta(db, height)
 
 	if blockMeta == nil {
 		return nil
@@ -621,7 +611,7 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 
 // CommonReadHeader retrieves the block header corresponding to the hash.
 func CommonReadHeader(db kaidb.Reader, hash common.Hash, height uint64) *types.Header {
-	blockMeta := ReadBlockMeta(db, hash, height)
+	blockMeta := ReadBlockMeta(db, height)
 	return blockMeta.Header
 }
 
@@ -655,14 +645,11 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 
 	// Save block meta
 	blockMeta := types.NewBlockMeta(block, blockParts)
-
 	metaBytes, err := rlp.EncodeToBytes(blockMeta)
-
 	if err != nil {
 		panic(fmt.Errorf("encode block meta error: %s", err))
 	}
-
-	batch.Put(blockMetaKey(hash, height), metaBytes)
+	batch.Put(blockMetaKey(height), metaBytes)
 
 	// Save block part
 	for i := 0; i < int(blockParts.Total()); i++ {
@@ -673,7 +660,6 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 
 	// Save block commit (duplicate and separate from the Block)
 	lastCommit := block.LastCommit()
-	lastCommit.MakeNilEmpty()
 	lastCommitBytes, err := rlp.EncodeToBytes(lastCommit)
 	if err != nil {
 		panic(fmt.Errorf("encode last commit error: %s", err))
@@ -682,7 +668,6 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
-	seenCommit.MakeNilEmpty()
 	seenCommitBytes, err := rlp.EncodeToBytes(seenCommit)
 	if err != nil {
 		panic(fmt.Errorf("encode seen commit error: %s", err))
@@ -697,6 +682,7 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 		panic(fmt.Errorf("Failed to store hash to height mapping err: %s", err))
 	}
 
+	CommonWriteCanonicalHash(batch, hash, height)
 	if err := batch.Write(); err != nil {
 		panic(fmt.Errorf("Failed to store block error: %s", err))
 	}
@@ -710,6 +696,21 @@ func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part)
 	db.Put(blockPartKey(height, index), partBytes)
 }
 
+// DeleteBlockMeta delete block meta
 func DeleteBlockMeta(db kaidb.Writer, hash common.Hash, height uint64) {
-	db.Delete(blockMetaKey(hash, height))
+	db.Delete(blockMetaKey(height))
+}
+
+// ReadAppHash ...
+func ReadAppHash(db kaidb.KeyValueReader, height uint64) common.Hash {
+	b, _ := db.Get(calcAppHashKey(height))
+	if len(b) == 0 {
+		return common.Hash{}
+	}
+	return common.BytesToHash(b)
+}
+
+// WriteAppHash ...
+func WriteAppHash(db kaidb.KeyValueWriter, height uint64, hash common.Hash) {
+	db.Put(calcAppHashKey(height), hash.Bytes())
 }

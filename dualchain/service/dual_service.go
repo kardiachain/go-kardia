@@ -106,9 +106,10 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	evPool := evidence.NewPool(groupDb.DB(), groupDb.DB())
 	evReactor := evidence.NewReactor(evPool)
-	blockExec := cstate.NewBlockExecutor(evPool)
 
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool, evPool)
+	blockExec := cstate.NewBlockExecutor(groupDb.DB(), evPool, dualService.dualBlockOperations)
+
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
 		configs.DefaultConsensusConfig(),
@@ -119,7 +120,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	)
 	dualService.csManager = consensus.NewConsensusManager(DualServiceName, consensusState)
 	// Set private validator for consensus manager.
-	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
+	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	dualService.csManager.SetPrivValidator(privValidator)
 
 	if dualService.protocolManager, err = service.NewProtocolManager(

@@ -33,6 +33,7 @@ import (
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
@@ -94,7 +95,7 @@ type ConsensusState struct {
 	logger log.Logger
 
 	config          *cfg.ConsensusConfig
-	privValidator   *types.PrivValidator // for signing votes
+	privValidator   types.PrivValidator // for signing votes
 	blockOperations BaseBlockOperations
 	blockExec       *cstate.BlockExecutor
 	evpool          evidencePool // TODO(namdoh): Add mem pool.
@@ -172,7 +173,7 @@ func NewConsensusState(
 }
 
 // SetPrivValidator sets the private validator account for signing votes.
-func (cs *ConsensusState) SetPrivValidator(priv *types.PrivValidator) {
+func (cs *ConsensusState) SetPrivValidator(priv types.PrivValidator) {
 	cs.mtx.Lock()
 	defer cs.mtx.Unlock()
 	cs.privValidator = priv
@@ -353,10 +354,9 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 		return ErrInvalidProposalPOLRound
 	}
 
-	// Verify signature
-	if !cs.Validators.GetProposer().VerifyProposalSignature(cs.state.ChainID, proposal) {
-		cs.logger.Trace("Verify proposal signature failed.")
-		return ErrInvalidProposalSignature
+	proposalAddress := cs.Validators.GetProposer().Address
+	if !types.VerifySignature(proposalAddress, crypto.Keccak256(proposal.SignBytes(cs.state.ChainID)), proposal.Signature) {
+		return ErrInvalidProposalPOLRound
 	}
 
 	cs.Proposal = proposal
@@ -914,19 +914,11 @@ func (cs *ConsensusState) doPrevote(height uint64, round uint32) {
 
 	// Validate proposal block
 	// This checks the block contents without executing txs.
-	if err := cstate.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
+	if err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
 		cs.signAddVote(types.VoteTypePrevote, cmn.Hash{}, types.PartSetHeader{})
 		return
-	}
-	// Executes txs to verify the block state root. New statedb is committed if success.
-	if err := cs.blockOperations.CommitAndValidateBlockTxs(cs.ProposalBlock); err != nil {
-		logger.Error("enterPrevote: fail to commit & verify txs", "err", err)
-		cs.signAddVote(types.VoteTypePrevote, cmn.Hash{}, types.PartSetHeader{})
-		return
-	} else {
-		logger.Info("enterPrevote: successfully executes and commits block txs")
 	}
 
 	// Prevote cs.ProposalBlock
@@ -1034,10 +1026,6 @@ func (cs *ConsensusState) enterPrecommit(height uint64, round uint32) {
 	// If +2/3 prevoted for proposal block, stage and precommit it
 	if cs.ProposalBlock.HashesTo(blockID.Hash) {
 		logger.Info("enterPrecommit: +2/3 prevoted proposal block. Locking", "hash", blockID)
-		// Validate the block.
-		if err := cstate.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
-			cmn.PanicConsensus(cmn.Fmt("enterPrecommit: +2/3 prevoted for an invalid block: %v", err))
-		}
 		cs.LockedRound = round
 		cs.LockedBlock = cs.ProposalBlock
 		cs.LockedBlockParts = cs.ProposalBlockParts
@@ -1180,7 +1168,7 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 	if !block.HashesTo(blockID.Hash) {
 		cmn.PanicSanity(cmn.Fmt("Cannot finalizeCommit, ProposalBlock does not hash to commit hash"))
 	}
-	if err := cstate.ValidateBlock(cs.state, block); err != nil {
+	if err := cs.blockExec.ValidateBlock(cs.state, block); err != nil {
 		cmn.PanicConsensus(cmn.Fmt("+2/3 committed an invalid block: %v", err))
 		panic("Block validation failed")
 	}
@@ -1207,8 +1195,6 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 
 	// Create a copy of the state for staging and an event cache for txs.
 	stateCopy := cs.state.Copy()
-
-	block.MakeEmptyNil()
 
 	// Execute and commit the block, update and save the state, and update the mempool.
 	// NOTE The block.AppHash wont reflect these txs until the next block.
@@ -1262,7 +1248,6 @@ func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts 
 		cs.logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
 		return nil, nil
 	}
-
 	return cs.blockOperations.CreateProposalBlock(
 		cs.Height,
 		cs.state,

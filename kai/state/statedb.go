@@ -221,16 +221,6 @@ func (sdb *StateDB) GetLogs(hash common.Hash) []*types.Log {
 	return sdb.logs[hash]
 }
 
-// Retrieve the balance from the given address or 0 if object not found
-func (sdb *StateDB) GetBalance(addr common.Address) *big.Int {
-	stateObject := sdb.getStateObject(addr)
-	if stateObject != nil {
-		return stateObject.Balance()
-	}
-	sdb.logger.Error("StateDB addr not found", "addr", addr)
-	return common.Big0
-}
-
 func (sdb *StateDB) GetNonce(addr common.Address) uint64 {
 	stateObject := sdb.getStateObject(addr)
 	if stateObject != nil {
@@ -246,6 +236,16 @@ func (sdb *StateDB) AddBalance(addr common.Address, amount *big.Int) {
 	if stateObject != nil {
 		stateObject.AddBalance(amount)
 	}
+}
+
+// Retrieve the balance from the given address or 0 if object not found
+func (sdb *StateDB) GetBalance(addr common.Address) *big.Int {
+	stateObject := sdb.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.Balance()
+	}
+	sdb.logger.Error("StateDB addr not found", "addr", addr)
+	return common.Big0
 }
 
 // SubBalance subtracts amount from the account associated with addr.

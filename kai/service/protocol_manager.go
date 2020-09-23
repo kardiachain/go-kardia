@@ -44,7 +44,7 @@ const (
 	estHeaderRlpSize  = 500             // Approximate size of an RLP encoded block header
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
-	txChanSize = 4096
+	txChanSize = 8192
 	csChanSize = 4096 // Consensus channel size.
 )
 
@@ -444,19 +444,13 @@ func (pm *ProtocolManager) txBroadcastLoop() {
 	}
 }
 
-// A loop for broadcasting consensus events.
+// Broadcast A loop for broadcasting consensus events.
 func (pm *ProtocolManager) Broadcast(msg interface{}, msgType uint64) {
 	pm.logger.Info("Start broadcast consensus message", "msg", msg, "msgType", msgType)
 
 	for _, p := range pm.peers.peers {
 		if p.IsValidator {
-			pm.wg.Add(1)
-			go func(p *peer) {
-				defer pm.wg.Done()
-				if err := p2p.Send(p.rw, msgType, msg); err != nil {
-					pm.logger.Error("Failed to broadcast consensus message", "error", err, "peer", p.Name())
-				}
-			}(p)
+			p.AsyncSendMsg(msg, msgType)
 		}
 	}
 }

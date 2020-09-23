@@ -118,13 +118,6 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	valAddr := vote.ValidatorAddress
 	blockKey := vote.BlockID.Key()
 
-	// Ensure that validator index was set
-	if valIndex < 0 {
-		return false, errors.Wrap(ErrVoteInvalidValidatorIndex, "Index < 0")
-	} else if len(valAddr) == 0 {
-		return false, errors.Wrap(ErrVoteInvalidValidatorAddress, "Empty address")
-	}
-
 	// Make sure the step matches.
 	if vote.Height != voteSet.height ||
 		vote.Round != voteSet.round ||
@@ -157,8 +150,8 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	}
 
 	// Check signature.
-	if !val.VerifyVoteSignature(voteSet.chainID, vote) {
-		return false, errors.Wrapf(ErrVoteInvalidSignature, "Failed to verify vote with ChainID: %s and Validator: %s", voteSet.chainID, val.Address.String())
+	if err := vote.Verify(voteSet.chainID, val.Address); err != nil {
+		return false, errors.Wrapf(err, "Failed to verify vote with ChainID %s and PubKey %s", voteSet.chainID, val.Address)
 	}
 
 	// Add vote and get conflicting vote if any
@@ -298,14 +291,14 @@ func (voteSet *VoteSet) ChainID() string {
 	return voteSet.chainID
 }
 
-func (voteSet *VoteSet) Height() uint64 {
+func (voteSet *VoteSet) GetHeight() uint64 {
 	if voteSet == nil {
 		return 0
 	}
 	return voteSet.height
 }
 
-func (voteSet *VoteSet) Round() uint32 {
+func (voteSet *VoteSet) GetRound() uint32 {
 	if voteSet == nil {
 		return 0
 	}
@@ -349,7 +342,7 @@ func (voteSet *VoteSet) BitArrayByBlockID(blockID BlockID) *cmn.BitArray {
 }
 
 // NOTE: if validator has conflicting votes, returns "canonical" vote
-func (voteSet *VoteSet) GetByIndex(valIndex uint) *Vote {
+func (voteSet *VoteSet) GetByIndex(valIndex uint32) *Vote {
 	if voteSet == nil {
 		return nil
 	}
@@ -441,6 +434,7 @@ func (voteSet *VoteSet) sumTotalFrac() (uint64, uint64, float64) {
 	return voted, total, fracVoted
 }
 
+// MakeCommit ...
 func (voteSet *VoteSet) MakeCommit() *Commit {
 	if voteSet.type_ != VoteTypePrecommit {
 		cmn.PanicSanity("Cannot MakeCommit() unless VoteSet.Type is VoteTypePrecommit")
@@ -454,12 +448,16 @@ func (voteSet *VoteSet) MakeCommit() *Commit {
 	}
 
 	// For every validator, get the precommit
-	votesCopy := make([]*Vote, len(voteSet.votes))
-	copy(votesCopy, voteSet.votes)
-	return &Commit{
-		BlockID:    *voteSet.maj23,
-		Precommits: votesCopy,
+	commitSigs := make([]CommitSig, len(voteSet.votes))
+	for i, v := range voteSet.votes {
+		commitSig := v.CommitSig()
+		// if block ID exists but doesn't match, exclude sig
+		if commitSig.ForBlock() && !v.BlockID.Equal(*voteSet.maj23) {
+			commitSig = NewCommitSigAbsent()
+		}
+		commitSigs[i] = commitSig
 	}
+	return NewCommit(voteSet.GetHeight(), voteSet.GetRound(), *voteSet.maj23, commitSigs)
 }
 
 //--------------------------------------------------------------------------------
@@ -504,11 +502,11 @@ func (vs *blockVotes) getByIndex(index int) *Vote {
 
 // Common interface between *consensus.VoteSet and types.Commit
 type VoteSetReader interface {
-	Height() uint64
-	Round() uint32
+	GetHeight() uint64
+	GetRound() uint32
 	Type() byte
 	Size() int
 	BitArray() *cmn.BitArray
-	GetByIndex(uint) *Vote
+	GetByIndex(uint32) *Vote
 	IsCommit() bool
 }

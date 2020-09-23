@@ -61,7 +61,7 @@ func (conR *ConsensusManager) SetProtocol(protocol BaseProtocol) {
 	conR.protocol = protocol
 }
 
-func (conR *ConsensusManager) SetPrivValidator(priv *types.PrivValidator) {
+func (conR *ConsensusManager) SetPrivValidator(priv types.PrivValidator) {
 	conR.conS.SetPrivValidator(priv)
 }
 
@@ -508,7 +508,7 @@ func makeRoundStepMessages(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage)
 		Round:                 rs.Round,
 		Step:                  rs.Step,
 		SecondsSinceStartTime: uint64(time.Since(time.Unix(int64(rs.StartTime), 0)).Seconds()),
-		LastCommitRound:       rs.LastCommit.Round(),
+		LastCommitRound:       rs.LastCommit.GetRound(),
 	}
 	return
 }
@@ -864,7 +864,7 @@ OUTER_LOOP:
 					// over p2p (not sending msg to channel like tendermint)
 					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
 						Height:  prs.Height,
-						Round:   commit.Round(),
+						Round:   commit.GetRound(),
 						Type:    types.VoteTypePrecommit,
 						BlockID: commit.BlockID,
 					}); err != nil {
@@ -1079,7 +1079,7 @@ func (ps *PeerState) PickVoteToSend(votes types.VoteSetReader) (vote *types.Vote
 		return nil, false
 	}
 
-	height, round, type_, size := votes.Height(), votes.Round(), votes.Type(), votes.Size()
+	height, round, type_, size := votes.GetHeight(), votes.GetRound(), votes.Type(), votes.Size()
 
 	// Lazily set data using 'votes'.
 	if votes.IsCommit() {
@@ -1093,7 +1093,7 @@ func (ps *PeerState) PickVoteToSend(votes types.VoteSetReader) (vote *types.Vote
 	}
 	if index, ok := votes.BitArray().Sub(psVotes).PickRandom(); ok {
 		ps.setHasVote(height, round, type_, uint32(index))
-		return votes.GetByIndex(uint(index)), true
+		return votes.GetByIndex(uint32(index)), true
 	}
 	return nil, false
 }

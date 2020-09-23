@@ -193,11 +193,7 @@ func saveValidatorsInfo(db kaidb.Database, height, lastHeightChanged uint64, val
 	valInfo := &ValidatorsInfo{
 		LastHeightChanged: uint64(lastHeightChanged),
 	}
-	// Only persist validator set if it was updated or checkpoint height (see
-	// valSetCheckpointInterval) is reached.
-	if height == lastHeightChanged || height%valSetCheckpointInterval == 0 {
-		valInfo.ValidatorSet = valSet
-	}
+	valInfo.ValidatorSet = valSet
 	db.Put(calcValidatorsKey(height), valInfo.Bytes())
 }
 

@@ -23,7 +23,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
@@ -88,7 +90,7 @@ func GetReadableVoteTypeString(type_ byte) string {
 	return typeString
 }
 
-// Represents a prevote, precommit, or commit vote from validators for consensus.
+// Vote Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
 	ValidatorAddress cmn.Address `json:"validator_address"`
 	ValidatorIndex   uint32      `json:"validator_index"`
@@ -100,17 +102,33 @@ type Vote struct {
 	Signature        []byte      `json:"signature"`
 }
 
+// CreateEmptyVote ...
 func CreateEmptyVote() *Vote {
-	return &Vote{
-		ValidatorIndex: 0,
-		Height:         0,
-		Round:          0,
-		Timestamp:      0,
-	}
+	return &Vote{}
 }
 
-func (vote *Vote) IsEmpty() bool {
-	return (vote.ValidatorIndex == 0) && (vote.Height == 0) && (vote.Round == 0) && (vote.Timestamp == 0)
+// CommitSig converts the Vote to a CommitSig.
+func (vote *Vote) CommitSig() CommitSig {
+	if vote == nil {
+		return NewCommitSigAbsent()
+	}
+
+	var blockIDFlag BlockIDFlag
+	switch {
+	case vote.BlockID.IsComplete():
+		blockIDFlag = BlockIDFlagCommit
+	case vote.BlockID.IsZero():
+		blockIDFlag = BlockIDFlagNil
+	default:
+		panic(fmt.Sprintf("Invalid vote %v - expected BlockID to be either empty or complete", vote))
+	}
+
+	return CommitSig{
+		BlockIDFlag:      blockIDFlag,
+		ValidatorAddress: vote.ValidatorAddress,
+		Timestamp:        vote.Timestamp,
+		Signature:        vote.Signature,
+	}
 }
 
 func (vote *Vote) SignBytes(chainID string) []byte {
@@ -123,6 +141,10 @@ func (vote *Vote) SignBytes(chainID string) []byte {
 
 func (vote *Vote) Copy() *Vote {
 	voteCopy := *vote
+	voteCopy.ValidatorIndex = vote.ValidatorIndex
+	voteCopy.Height = vote.Height
+	voteCopy.Round = vote.Round
+	voteCopy.Timestamp = vote.Timestamp
 	return &voteCopy
 }
 
@@ -130,9 +152,6 @@ func (vote *Vote) Copy() *Vote {
 func (vote *Vote) StringLong() string {
 	if vote == nil {
 		return "nil-Vote"
-	}
-	if vote.IsEmpty() {
-		return "empty-Vote"
 	}
 
 	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X , %v @ %v}",
@@ -147,15 +166,23 @@ func (vote *Vote) String() string {
 	if vote == nil {
 		return "nil-vote"
 	}
-	if vote.IsEmpty() {
-		return "empty-vote"
-	}
-
 	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %v , %X @%v}",
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		vote.BlockID, cmn.Fingerprint(vote.Signature[:]),
 		time.Unix(int64(vote.Timestamp), 0))
+}
+
+// Verify ...
+func (vote *Vote) Verify(chainID string, address common.Address) error {
+	if !vote.ValidatorAddress.Equal(address) {
+		return ErrVoteInvalidValidatorAddress
+	}
+
+	if !VerifySignature(address, crypto.Keccak256(vote.SignBytes(chainID)), vote.Signature) {
+		return ErrVoteInvalidSignature
+	}
+	return nil
 }
 
 // ValidateBasic performs basic validation.

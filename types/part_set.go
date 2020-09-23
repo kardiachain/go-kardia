@@ -78,7 +78,7 @@ func (psh PartSetHeader) String() string {
 }
 
 func (psh PartSetHeader) IsZero() bool {
-	return psh.Total == 0 && len(psh.Hash) == 0
+	return psh.Total == 0 && psh.Hash.IsZero()
 }
 
 func (psh PartSetHeader) Equals(other PartSetHeader) bool {

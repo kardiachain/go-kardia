@@ -20,9 +20,11 @@ package blockchain
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"time"
+
+	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
@@ -103,13 +105,13 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cst
 	header := dbo.newHeader(height, uint64(len(events)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash())
 	dbo.logger.Info("Creates new header", "header", header)
 
-	stateRoot, err := dbo.commitDualEvents(events)
+	_, err := dbo.commitDualEvents(events)
 	if err != nil {
 		dbo.logger.Error("Fail to commit dual's events", "err", err)
 		return nil, nil
 	}
 
-	header.Root = stateRoot
+	//header.Root = stateRoot
 
 	if height > 0 {
 		previousBlock := dbo.blockchain.GetBlockByHeight(uint64(height) - 1)
@@ -136,26 +138,22 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cst
 
 // Executes and commits the new state from events in the given block.
 // This also validate the new state root against the block root.
-func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block) error {
+func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
 	root, err := dbo.commitDualEvents(block.DualEvents())
-	if err != nil {
-		return err
-	}
-	if root != block.Root() {
-		return fmt.Errorf("different new dualchain state root: Block root: %s, Execution result: %s", block.Root().Hex(), root.Hex())
-	}
-	return nil
+	kvstore.WriteAppHash(dbo.blockchain.db.DB(), block.Height(), root)
+	return nil, root, err
 }
 
 // CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
 // Proposer and validators should already commit the block txs, so this function prevents double tx execution.
-func (dbo *DualBlockOperations) CommitBlockTxsIfNotFound(block *types.Block) error {
-	if !dbo.blockchain.CheckCommittedStateRoot(block.Root()) {
+func (dbo *DualBlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
+	root := kvstore.ReadAppHash(dbo.blockchain.DB().DB(), block.Height())
+	if !dbo.blockchain.CheckCommittedStateRoot(root) {
 		dbo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
-		return dbo.CommitAndValidateBlockTxs(block)
+		return dbo.CommitAndValidateBlockTxs(block, lastCommit, byzVals)
 	}
 
-	return nil
+	return nil, common.Hash{}, nil
 }
 
 // Persists the given block, blockParts, and seenCommit to the underlying db.
@@ -320,7 +318,6 @@ func (dbo *DualBlockOperations) commitDualEvents(events types.DualEvents) (commo
 		dbo.logger.Error("Fail to write statedb trie to disk", "err", err)
 		return common.Hash{}, err
 	}
-
 	return root, nil
 }
 

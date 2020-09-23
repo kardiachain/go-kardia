@@ -24,6 +24,8 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
+
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/kai/state"
@@ -171,7 +173,7 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *types.Chain
 	return bc, nil
 }
 
-// GetBlockByNumber retrieves a block from the database by number, caching it
+// GetBlockByHeight retrieves a block from the database by number, caching it
 // (associated with its hash) if found.
 func (bc *BlockChain) GetBlockByHeight(height uint64) *types.Block {
 	hash := bc.db.ReadCanonicalHash(height)
@@ -181,6 +183,7 @@ func (bc *BlockChain) GetBlockByHeight(height uint64) *types.Block {
 	return bc.GetBlock(hash, height)
 }
 
+// LoadBlockPart ...
 func (bc *BlockChain) LoadBlockPart(height uint64, index int) *types.Part {
 	hash := bc.db.ReadCanonicalHash(height)
 	part := bc.db.ReadBlockPart(hash, height, index)
@@ -190,15 +193,18 @@ func (bc *BlockChain) LoadBlockPart(height uint64, index int) *types.Part {
 	return part
 }
 
+// LoadBlockMeta ...
 func (bc *BlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
 	hash := bc.db.ReadCanonicalHash(height)
 	return bc.db.ReadBlockMeta(hash, height)
 }
 
+// LoadBlockCommit ...
 func (bc *BlockChain) LoadBlockCommit(height uint64) *types.Commit {
 	return bc.db.ReadCommit(height)
 }
 
+// LoadSeenCommit ...
 func (bc *BlockChain) LoadSeenCommit(height uint64) *types.Commit {
 	return bc.db.ReadSeenCommit(height)
 }
@@ -227,11 +233,12 @@ func (bc *BlockChain) GetHeader(hash common.Hash, height uint64) *types.Header {
 
 // State returns a new mutatable state at head block.
 func (bc *BlockChain) State() (*state.StateDB, error) {
-	return bc.StateAt(bc.CurrentBlock().Root())
+	return bc.StateAt(bc.CurrentBlock().Height())
 }
 
 // StateAt returns a new mutable state based on a particular point in time.
-func (bc *BlockChain) StateAt(root common.Hash) (*state.StateDB, error) {
+func (bc *BlockChain) StateAt(height uint64) (*state.StateDB, error) {
+	root := kvstore.ReadAppHash(bc.DB().DB(), height)
 	return state.New(bc.logger, root, bc.stateCache)
 }
 
@@ -265,8 +272,9 @@ func (bc *BlockChain) loadLastState() error {
 		bc.logger.Warn("Head block missing, resetting chain", "hash", hash)
 		return bc.Reset()
 	}
+	root := kvstore.ReadAppHash(bc.DB().DB(), currentBlock.Height())
 	// Make sure the state associated with the block is available
-	if _, err := state.New(bc.logger, currentBlock.Root(), bc.stateCache); err != nil {
+	if _, err := state.New(bc.logger, root, bc.stateCache); err != nil {
 		// Dangling block without a state associated, init from scratch
 		bc.logger.Warn("Head state missing, repairing chain", "height", currentBlock.Height(), "hash", currentBlock.Hash())
 		if err := bc.repair(&currentBlock); err != nil {
@@ -325,8 +333,10 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 // fast block are left intact.
 func (bc *BlockChain) repair(head **types.Block) error {
 	for {
+
+		root := kvstore.ReadAppHash(bc.DB().DB(), (*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
-		if _, err := state.New(bc.logger, (*head).Root(), bc.stateCache); err == nil {
+		if _, err := state.New(bc.logger, root, bc.stateCache); err == nil {
 			bc.logger.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
 			return nil
 		}
@@ -376,7 +386,8 @@ func (bc *BlockChain) SetHead(head uint64) error {
 		bc.currentBlock.Store(bc.GetBlock(currentHeader.Hash(), currentHeader.Height))
 	}
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil {
-		if _, err := state.New(bc.logger, currentBlock.Root(), bc.stateCache); err != nil {
+		root := kvstore.ReadAppHash(bc.DB().DB(), currentBlock.Height())
+		if _, err := state.New(bc.logger, root, bc.stateCache); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			bc.currentBlock.Store(bc.genesisBlock)
 		}
@@ -387,32 +398,17 @@ func (bc *BlockChain) SetHead(head uint64) error {
 		bc.currentBlock.Store(bc.genesisBlock)
 	}
 
-	currentBlock := bc.CurrentBlock()
-
-	bc.db.WriteHeadBlockHash(currentBlock.Hash())
-
 	return bc.loadLastState()
 }
 
-// WriteBlockWithoutState writes only new block to database.
-func (bc *BlockChain) WriteBlockWithoutState(block *types.Block) error {
-	// Makes sure no inconsistent state is leaked during insertion
+// InsertHeadBlock inserts new head block to blockchain and send new head event.
+// This function assumes block transactions & app hash are already committed.
+func (bc *BlockChain) InsertHeadBlock(block *types.Block) {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
-	// Write block data in batch
-	bc.db.WriteBlock(block, block.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
-
-	// Convert all txs into txLookupEntries and store to db
-	bc.db.WriteTxLookupEntries(block)
-
-	// StateDb for this block should be already written.
 
 	bc.insert(block)
-	bc.futureBlocks.Remove(block.Hash())
-
-	// Sends new head event
 	bc.chainHeadFeed.Send(events.ChainHeadEvent{Block: block})
-	return nil
 }
 
 // WriteReceipts writes the transactions receipt from execution of the transactions in the given block.
@@ -421,34 +417,6 @@ func (bc *BlockChain) WriteReceipts(receipts types.Receipts, block *types.Block)
 	defer bc.mu.Unlock()
 
 	bc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
-}
-
-// WriteBlockWithState writes the block and all associated state to the database.
-func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) error {
-	// Makes sure no inconsistent state is leaked during insertion
-	bc.mu.Lock()
-	defer bc.mu.Unlock()
-	// Write block data in batch.
-
-	bc.db.WriteBlock(block, block.MakePartSet(types.BlockPartSizeBytes), &types.Commit{})
-	root, err := state.Commit(true)
-	if err != nil {
-		return err
-	}
-	triedb := bc.stateCache.TrieDB()
-	if err := triedb.Commit(root, false); err != nil {
-		return err
-	}
-	bc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
-	bc.db.WriteTxLookupEntries(block)
-
-	// Set new head.
-	bc.insert(block)
-	bc.futureBlocks.Remove(block.Hash())
-
-	// Sends new head event
-	bc.chainHeadFeed.Send(events.ChainHeadEvent{Block: block})
-	return nil
 }
 
 // CommitTrie commits trie node such as statedb forcefully to disk.
@@ -469,7 +437,6 @@ func (bc *BlockChain) insert(block *types.Block) {
 
 	// Add the block to the canonical chain number scheme and mark as the head
 	bc.db.WriteCanonicalHash(block.Hash(), block.Height())
-	bc.db.WriteHeadBlockHash(block.Hash())
 
 	bc.currentBlock.Store(block)
 

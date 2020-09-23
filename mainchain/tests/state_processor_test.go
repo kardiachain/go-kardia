@@ -197,7 +197,7 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 	msg := types.NewMessage(
 		address,
 		nil,
-		2,
+		3,
 		big.NewInt(0),
 		150000,
 		big.NewInt(100),
@@ -230,7 +230,7 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 	msg = types.NewMessage(
 		address,
 		&contractAddress,
-		2,
+		3,
 		big.NewInt(0),
 		150000,
 		big.NewInt(100),
@@ -269,7 +269,7 @@ func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	msg := types.NewMessage(
 		address,
 		nil,
-		2,
+		3,
 		big.NewInt(0),
 		150000,
 		big.NewInt(100),
@@ -302,7 +302,7 @@ func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	msg = types.NewMessage(
 		address,
 		&contractAddress,
-		2,
+		3,
 		big.NewInt(0),
 		150000,
 		big.NewInt(100),

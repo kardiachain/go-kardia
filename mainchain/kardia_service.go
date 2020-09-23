@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/rpc"
@@ -113,13 +114,19 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
+	staking, err := staking.NewSmcStakingnUtil()
+	if err != nil {
+		return nil, err
+	}
+	evPool := evidence.NewPool(kaiDb.DB(), kaiDb.DB())
 	// Set zeroFee to blockchain
 	kai.blockchain.IsZeroFee = config.IsZeroFee
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 
-	evPool := evidence.NewPool(kaiDb.DB(), kaiDb.DB())
+	bOper := blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool, staking)
+
 	evReactor := evidence.NewReactor(evPool)
-	blockExec := cstate.NewBlockExecutor(evPool)
+	blockExec := cstate.NewBlockExecutor(kai.blockchain.DB().DB(), evPool, bOper)
 
 	state, err := cstate.LoadStateFromDBOrGenesisDoc(kaiDb.DB(), config.Genesis)
 	if err != nil {
@@ -132,13 +139,13 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		kai.logger,
 		configs.DefaultConsensusConfig(),
 		state,
-		blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool),
+		bOper,
 		blockExec,
 		evPool,
 	)
 	kai.csManager = consensus.NewConsensusManager(config.ServiceName, consensusState)
 	// Set private validator for consensus manager.
-	privValidator := types.NewPrivValidator(ctx.Config.NodeKey())
+	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	kai.csManager.SetPrivValidator(privValidator)
 
 	// Initialize protocol manager.
