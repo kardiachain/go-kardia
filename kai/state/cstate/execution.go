@@ -98,7 +98,7 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 		// Change results from this height but only applies to the next next height.
 		lastHeightValsChanged = header.Height + 2
 	}
-	nValSet.AdvanceProposer(1)
+	nValSet.IncrementProposerPriority(1)
 	return LastestBlockState{
 		ChainID:                     state.ChainID,
 		LastBlockHeight:             header.Height,

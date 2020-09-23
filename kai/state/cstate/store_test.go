@@ -31,7 +31,7 @@ import (
 func TestStoreLoadValidators(t *testing.T) {
 	stateDB := memorydb.New()
 	val, _ := types.RandValidator(true, 10)
-	vals := types.NewValidatorSet([]*types.Validator{val}, 0, 1)
+	vals := types.NewValidatorSet([]*types.Validator{val})
 
 	// 1) LoadValidators loads validators using a height where they were last changed
 	cstate.SaveValidatorsInfo(stateDB, 1, 1, vals)
