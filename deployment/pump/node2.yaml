@@ -544,8 +544,8 @@ MainChain:
         - CreateKardiaMatchAmountTx
 GenTxs:
   Type: 1
-  NumTxs: 512
-  Delay: 3
-  Index: 2
+  NumTxs: 2048
+  Delay: 2
+  Index: 1
 Debug:
   Port: ":6000"

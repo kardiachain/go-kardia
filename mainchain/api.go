@@ -38,7 +38,6 @@ import (
 )
 
 const (
-	defaultGasPrice             = 1e9
 	defaultTimeOutForStaticCall = 5
 )
 
@@ -49,16 +48,17 @@ type BlockHeaderJSON struct {
 	LastBlock      string      `json:"lastBlock"`
 	CommitHash     string      `json:"commitHash"`
 	Time           uint64      `json:"time"`
-	NumTxs         uint64      `json:"num_txs"`
+	NumTxs         uint64      `json:"numTxs"`
 	GasLimit       uint64      `json:"gasLimit"`
 	GasUsed        uint64      `json:"gasUsed"`
 	Validator      string      `json:"validator"`
-	TxHash         string      `json:"data_hash"`    // transactions
-	Root           string      `json:"stateRoot"`    // state root
+	TxHash         string      `json:"dataHash"`     // transactions
 	ReceiptHash    string      `json:"receiptsRoot"` // receipt root
 	Bloom          types.Bloom `json:"logsBloom"`
-	ValidatorsHash string      `json:"validators_hash"` // validators for the current block
-	ConsensusHash  string      `json:"consensus_hash"`
+	ValidatorsHash string      `json:"validatorHash"` // validators for the current block
+	ConsensusHash  string      `json:"consensusHash"` // hash of current consensus
+	AppHash        string      `json:"appHash"`       // txs state
+	EvidenceHash   string      `json:"evidenceHash"`  // hash of evidence
 }
 
 // BlockJSON represents Block in JSON format
@@ -68,16 +68,18 @@ type BlockJSON struct {
 	LastBlock      string               `json:"lastBlock"`
 	CommitHash     string               `json:"commitHash"`
 	Time           uint64               `json:"time"`
-	NumTxs         uint64               `json:"num_txs"`
+	NumTxs         uint64               `json:"numTxs"`
 	GasLimit       uint64               `json:"gasLimit"`
 	GasUsed        uint64               `json:"gasUsed"`
 	Validator      string               `json:"validator"`
-	TxHash         string               `json:"data_hash"`    // transactions
+	TxHash         string               `json:"dataHash"`     // hash of txs
 	Root           string               `json:"stateRoot"`    // state root
 	ReceiptHash    string               `json:"receiptsRoot"` // receipt root
 	Bloom          types.Bloom          `json:"logsBloom"`
-	ValidatorsHash string               `json:"validators_hash"` // validators for the current block
-	ConsensusHash  string               `json:"consensus_hash"`
+	ValidatorsHash string               `json:"validatorHash"` // validators for the current block
+	ConsensusHash  string               `json:"consensusHash"` // hash of current consensus
+	AppHash        string               `json:"appHash"`       // txs state
+	EvidenceHash   string               `json:"evidenceHash"`  // hash of evidence
 	Txs            []*PublicTransaction `json:"txs"`
 	Receipts       []*BasicReceipt      `json:"receipts"`
 }
@@ -133,6 +135,8 @@ func NewBlockHeaderJSON(block types.Block) *BlockHeaderJSON {
 		TxHash:         block.Header().TxHash.Hex(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
+		AppHash:        block.Header().AppHash.Hex(),
+		EvidenceHash:   block.Header().EvidenceHash.Hex(),
 	}
 }
 
@@ -163,6 +167,8 @@ func NewBasicBlockJSON(block types.Block) *BlockJSON {
 		TxHash:         block.Header().TxHash.Hex(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
+		AppHash:        block.Header().AppHash.Hex(),
+		EvidenceHash:   block.Header().EvidenceHash.Hex(),
 	}
 }
 
@@ -198,6 +204,8 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		TxHash:         block.Header().TxHash.Hex(),
 		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
 		ConsensusHash:  block.Header().ConsensusHash.Hex(),
+		AppHash:        block.Header().AppHash.Hex(),
+		EvidenceHash:   block.Header().EvidenceHash.Hex(),
 		Receipts:       basicReceipts,
 	}
 }
@@ -353,7 +361,7 @@ type BasicReceipt struct {
 // NewPublicTransaction returns a transaction that will serialize to the RPC
 // representation, with the given location metadata set (if available).
 func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64) *PublicTransaction {
-	from, _ := types.Sender(types.HomesteadSigner{}, tx)
+	from, _ := types.Sender(types.FrontierSigner{}, tx)
 
 	result := &PublicTransaction{
 		From:     from.Hex(),
@@ -601,7 +609,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 		gas = common.MaxInt64 / 2
 	}
 	if gasPrice.Sign() == 0 {
-		gasPrice = new(big.Int).SetUint64(defaultGasPrice)
+		gasPrice = new(big.Int).SetUint64(configs.TxGas)
 	}
 
 	// Create new call message
