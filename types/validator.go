@@ -55,8 +55,8 @@ func (e ErrNotEnoughVotingPowerSigned) Error() string {
 // Validator state for each Validator
 type Validator struct {
 	Address          common.Address `json:"address"`
-	VotingPower      uint64         `json:"voting_power"`
-	ProposerPriority *common.BigInt `json:"accum"`
+	VotingPower      uint64         `json:"votingPower"`
+	ProposerPriority *common.BigInt `json:"proposerPriority"`
 }
 
 // NewValidator ...
