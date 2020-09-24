@@ -19,7 +19,6 @@
 package evidence
 
 import (
-	"sync"
 	"testing"
 	"time"
 
@@ -88,16 +87,11 @@ func TestEvidencePool(t *testing.T) {
 	assert.Error(t, err)
 	// err: evidence created at 2019-01-01 00:00:00 +0000 UTC has expired. Evidence can not be older than: ...
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		<-pool.EvidenceWaitChan()
-		wg.Done()
-	}()
+	if err := pool.AddEvidence(goodEvidence); err != nil {
+		t.Fatal("Fail to add goodEvidence:", err)
+	}
 
-	err = pool.AddEvidence(goodEvidence)
-	assert.Nil(t, err)
-	wg.Wait()
+	<-pool.EvidenceWaitChan()
 
 	assert.Equal(t, 1, pool.evidenceList.Len())
 
