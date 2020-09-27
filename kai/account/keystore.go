@@ -33,10 +33,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"golang.org/x/crypto/scrypt"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/types"
-	"golang.org/x/crypto/scrypt"
 )
 
 const (

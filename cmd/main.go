@@ -29,6 +29,9 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
@@ -48,13 +51,10 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/types"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 )
 
 const (
 	LevelDb = iota
-	MongoDb
 )
 
 type flags struct {
@@ -127,8 +127,6 @@ func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
 			}
 		}
 		return storage.NewLevelDbInfo(nodeDir, database.Caches, database.Handles)
-	case MongoDb:
-		return storage.NewMongoDbInfo(database.URI, database.Name, database.Drop == 1)
 	default:
 		return nil
 	}

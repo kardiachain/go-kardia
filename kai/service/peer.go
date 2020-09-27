@@ -426,7 +426,7 @@ func (p *peer) SendTransactions(txs types.Transactions) error {
 	return p2p.Send(p.rw, serviceconst.TxMsg, txs)
 }
 
-// AsyncSendTransactions queues list of transactions propagation to a remote
+// AsyncSendTransactions queues list of transactions propagation to a 	remote
 // peer. If the peer's broadcast queue is full, the event is silently dropped.
 func (p *peer) AsyncSendTransactions(txs types.Transactions) {
 	// Tx will be actually sent in SendTransactions() trigger by broadcast() routine
