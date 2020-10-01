@@ -80,12 +80,10 @@ MainChain:
     BlockSize: 7192
   ZeroFee: 0          # 0 is no, 1 is yes
   Database:
-    Type: 0                                  # 0 is leveldb, 1 is mongodb
+    Type: 0                                  # 0 is leveldb
     Dir: chaindata                           # directory stores leveldb
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
-#    URI: mongodb://127.0.0.1:27018           # URI is used in mongodb
-#    Name: kardiachain                        # Name is use in mongodb
     Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
   Events:
     -
@@ -246,12 +244,10 @@ DualChain:
     BlockSize: 7192
   ZeroFee: 0              # 0 is no, 1 is yes
   Database:
-    Type: 0                                  # 0 is leveldb, 1 is mongodb
+    Type: 0                                  # 0 is leveldb
     Dir: dualdata                            # directory stores leveldb
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
-    # URI: mongodb://127.0.0.1:27017         # URI is used in mongodb
-    # Name: kardiachain                      # Name is used in mongodb
     Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
   Events:
     -
