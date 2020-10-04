@@ -1,0 +1,16 @@
+ 
+syntax = "proto3";
+package kardiachain.types;
+option go_package = "github.com/kardiachain/go-kardiamain/proto/kardiachain/types";
+
+import "gogoproto/gogo.proto";
+
+
+
+// --------------------------------
+
+// Header defines the structure of a Kardiachain block header.
+message Header {
+    string                       chain_id = 2 [(gogoproto.customname) = "ChainID"];
+    int64                        height   = 3;
+}
