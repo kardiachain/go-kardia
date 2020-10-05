@@ -409,13 +409,13 @@ func newClientAndServerConnsForReadErrors(t *testing.T, chOnErr chan struct{}) (
 		{ID: 0x02, Priority: 1, SendQueueCapacity: 1},
 	}
 	mconnClient := NewMConnection(client, chDescs, onReceive, onError)
-	mconnClient.SetLogger(log.TestingLogger().With("module", "client"))
+	mconnClient.SetLogger(log.TestingLogger())
 	err := mconnClient.Start()
 	require.Nil(t, err)
 
 	// create server conn with 1 channel
 	// it fires on chOnErr when there's an error
-	serverLogger := log.TestingLogger().With("module", "server")
+	serverLogger := log.TestingLogger()
 	onError = func(r interface{}) {
 		chOnErr <- struct{}{}
 	}

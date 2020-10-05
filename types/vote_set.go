@@ -24,7 +24,7 @@ import (
 	"sync"
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/pkg/errors"
 )
 
@@ -67,7 +67,7 @@ type VoteSet struct {
 	sum           uint64                 // Sum of voting power for seen votes, discounting conflicts
 	maj23         *BlockID               // First 2/3 majority seen
 	votesByBlock  map[string]*blockVotes // string(blockHash|blockParts) -> blockVotes
-	peerMaj23s    map[enode.ID]BlockID   // Maj23 for each peer
+	peerMaj23s    map[p2p.ID]BlockID     // Maj23 for each peer
 }
 
 // Constructs a new VoteSet struct used to accumulate votes for given height/round.
@@ -86,7 +86,7 @@ func NewVoteSet(chainID string, height uint64, round uint32, type_ byte, valSet 
 		sum:           0,
 		maj23:         nil,
 		votesByBlock:  make(map[string]*blockVotes, valSet.Size()),
-		peerMaj23s:    make(map[enode.ID]BlockID),
+		peerMaj23s:    make(map[p2p.ID]BlockID),
 	}
 }
 
@@ -252,7 +252,7 @@ func (voteSet *VoteSet) addVerifiedVote(vote *Vote, blockKey string, votingPower
 // this can cause memory issues.
 // TODO: implement ability to remove peers too
 // NOTE: VoteSet must not be nil
-func (voteSet *VoteSet) SetPeerMaj23(peerID enode.ID, blockID BlockID) error {
+func (voteSet *VoteSet) SetPeerMaj23(peerID p2p.ID, blockID BlockID) error {
 	if voteSet == nil {
 		cmn.PanicSanity("SetPeerMaj23() on nil VoteSet")
 	}

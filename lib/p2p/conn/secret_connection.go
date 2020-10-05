@@ -168,7 +168,7 @@ func MakeSecretConnection(conn io.ReadWriteCloser, locPrivKey *ecdsa.PrivateKey)
 
 	remPubKey, remSignature := authSigMsg.Key, authSigMsg.Sig
 
-	if !crypto.VerifySignature(crypto.FromECDSAPub(&remPubKey), challenge[:], remSignature) {
+	if !crypto.VerifySignature(crypto.PubkeyToAddress(remPubKey), challenge[:], remSignature) {
 		return nil, errors.New("challenge verification failed")
 	}
 

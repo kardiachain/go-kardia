@@ -26,9 +26,10 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // Ecrecover returns the uncompressed public key that created the given signature.
@@ -79,25 +80,6 @@ func Sign(hash []byte, prv *ecdsa.PrivateKey) ([]byte, error) {
 	return sig, nil
 }
 
-// VerifySignature checks that the given public key created signature over hash.
-// The public key should be in compressed (33 bytes) or uncompressed (65 bytes) format.
-// The signature should have the 64 byte [R || S] format.
-func VerifySignature(pubKey, hash, signature []byte) bool {
-	if len(signature) != 64 {
-		return false
-	}
-	sig := &btcec.Signature{R: new(big.Int).SetBytes(signature[:32]), S: new(big.Int).SetBytes(signature[32:])}
-	key, err := btcec.ParsePubKey(pubKey, btcec.S256())
-	if err != nil {
-		return false
-	}
-	// Reject malleable signatures. libsecp256k1 does this check but btcec doesn't.
-	if sig.S.Cmp(secp256k1halfN) > 0 {
-		return false
-	}
-	return sig.Verify(hash, key)
-}
-
 // DecompressPubkey parses a public key in the 33-byte compressed format.
 func DecompressPubkey(pubkey []byte) (*ecdsa.PublicKey, error) {
 	if len(pubkey) != 33 {
@@ -118,4 +100,18 @@ func CompressPubkey(pubkey *ecdsa.PublicKey) []byte {
 // S256 returns an instance of the secp256k1 curve.
 func S256() elliptic.Curve {
 	return btcec.S256()
+}
+
+// VerifySignature checks that the given public key created signature over hash.
+// The public key should be in compressed (33 bytes) or uncompressed (65 bytes) format.
+// The signature should have the 64 byte [R || S] format.
+func VerifySignature(addr common.Address, hash, signature []byte) bool {
+	signPubKey, _ := crypto.SigToPub(hash, signature)
+	if signPubKey == nil {
+		return false
+	}
+	// TODO(thientn): Verifying signature shouldn't be this complicated. After
+	// cleaning up our crypto package, clean up this as well.
+	return addr == PubkeyToAddress(*signPubKey)
+
 }

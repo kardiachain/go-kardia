@@ -2,20 +2,21 @@ package conn
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"errors"
 	"io"
 	"testing"
+
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/gtank/merlin"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/chacha20poly1305"
 
+	cryptoenc "github.com/kardiachain/go-kardiamain/lib/crypto/encoding"
 	"github.com/kardiachain/go-kardiamain/lib/protoio"
 	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
-	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/ed25519"
-	cryptoenc "github.com/tendermint/tendermint/crypto/encoding"
 )
 
 type buffer struct {
@@ -45,7 +46,7 @@ type evilConn struct {
 	locEphPub  *[32]byte
 	locEphPriv *[32]byte
 	remEphPub  *[32]byte
-	privKey    crypto.PrivKey
+	privKey    *ecdsa.PrivateKey
 
 	readStep   int
 	writeStep  int
@@ -58,7 +59,7 @@ type evilConn struct {
 }
 
 func newEvilConn(shareEphKey, badEphKey, shareAuthSignature, badAuthSignature bool) *evilConn {
-	privKey := ed25519.GenPrivKey()
+	privKey, _ := crypto.GenerateKey()
 	locEphPub, locEphPriv := genEphKeys()
 	var rep [32]byte
 	c := &evilConn{
@@ -113,7 +114,7 @@ func (c *evilConn) Read(data []byte) (n int, err error) {
 	case 1:
 		signature := c.signChallenge()
 		if !c.badAuthSignature {
-			pkpb, err := cryptoenc.PubKeyToProto(c.privKey.PubKey())
+			pkpb, err := cryptoenc.PubKeyToProto(c.privKey.PublicKey)
 			if err != nil {
 				panic(err)
 			}
@@ -259,7 +260,7 @@ func TestMakeSecretConnection(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			privKey := ed25519.GenPrivKey()
+			privKey, _ := crypto.GenerateKey()
 			_, err := MakeSecretConnection(tc.conn, privKey)
 			if tc.errMsg != "" {
 				if assert.Error(t, err) {
