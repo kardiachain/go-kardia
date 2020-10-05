@@ -125,7 +125,7 @@ func NewBlockHeaderJSON(block types.Block) *BlockHeaderJSON {
 	return &BlockHeaderJSON{
 		Hash:           block.Hash().Hex(),
 		Height:         block.Height(),
-		LastBlock:      block.Header().LastBlockID.String(),
+		LastBlock:      block.Header().LastBlockID.Hash.Hex(),
 		CommitHash:     block.LastCommitHash().Hex(),
 		Time:           block.Header().Time,
 		NumTxs:         block.Header().NumTxs,
@@ -156,7 +156,7 @@ func NewBasicBlockJSON(block types.Block) *BlockJSON {
 	return &BlockJSON{
 		Hash:           block.Hash().Hex(),
 		Height:         block.Height(),
-		LastBlock:      block.Header().LastBlockID.String(),
+		LastBlock:      block.Header().LastBlockID.Hash.Hex(),
 		Txs:            transactions,
 		CommitHash:     block.LastCommitHash().Hex(),
 		Time:           block.Header().Time,
@@ -193,7 +193,7 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 	return &BlockJSON{
 		Hash:           block.Hash().Hex(),
 		Height:         block.Height(),
-		LastBlock:      block.Header().LastBlockID.String(),
+		LastBlock:      block.Header().LastBlockID.Hash.Hex(),
 		Txs:            transactions,
 		CommitHash:     block.LastCommitHash().Hex(),
 		Time:           block.Header().Time,
@@ -306,18 +306,18 @@ func (s *PublicKaiAPI) Validators() []map[string]interface{} {
 }
 
 type PublicTransaction struct {
-	BlockHash        string        `json:"blockHash"`
-	BlockNumber      uint64        `json:"blockNumber"`
-	Time             uint64        `json:"time"`
-	From             string        `json:"from"`
-	Gas              uint64        `json:"gas"`
-	GasPrice         common.Uint64 `json:"gasPrice"`
-	Hash             string        `json:"hash"`
-	Input            string        `json:"input"`
-	Nonce            common.Uint64 `json:"nonce"`
-	To               string        `json:"to"`
-	TransactionIndex uint          `json:"transactionIndex"`
-	Value            string        `json:"value"`
+	BlockHash        string `json:"blockHash"`
+	BlockNumber      uint64 `json:"blockNumber"`
+	Time             uint64 `json:"time"`
+	From             string `json:"from"`
+	Gas              uint64 `json:"gas"`
+	GasPrice         uint64 `json:"gasPrice"`
+	Hash             string `json:"hash"`
+	Input            string `json:"input"`
+	Nonce            uint64 `json:"nonce"`
+	To               string `json:"to"`
+	TransactionIndex uint   `json:"transactionIndex"`
+	Value            string `json:"value"`
 }
 
 type Log struct {
@@ -366,10 +366,10 @@ func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNum
 	result := &PublicTransaction{
 		From:     from.Hex(),
 		Gas:      tx.Gas(),
-		GasPrice: common.Uint64(tx.GasPrice().Int64()),
+		GasPrice: tx.GasPrice().Uint64(),
 		Hash:     tx.Hash().Hex(),
 		Input:    common.Encode(tx.Data()),
-		Nonce:    common.Uint64(tx.Nonce()),
+		Nonce:    tx.Nonce(),
 		Value:    tx.Value().String(),
 	}
 	if tx.To() != nil {
@@ -543,16 +543,16 @@ func NewPublicAccountAPI(kaiService *KardiaService) *PublicAccountAPI {
 }
 
 // Balance returns address's balance
-func (a *PublicAccountAPI) Balance(address string, hash string, height int64) string {
+func (a *PublicAccountAPI) Balance(address string, hash string, height uint64) string {
 	addr := common.HexToAddress(address)
 	log.Info("Addr", "addr", addr.Hex())
 	block := new(types.Block)
 	if len(hash) > 0 && height >= 0 {
-		block = a.kaiService.blockchain.GetBlock(common.HexToHash(hash), uint64(height))
+		block = a.kaiService.blockchain.GetBlock(common.HexToHash(hash), height)
 	} else if len(hash) > 0 {
 		block = a.kaiService.blockchain.GetBlockByHash(common.HexToHash(hash))
 	} else if height >= 0 {
-		block = a.kaiService.blockchain.GetBlockByHeight(uint64(height))
+		block = a.kaiService.blockchain.GetBlockByHeight(height)
 	} else {
 		block = a.kaiService.blockchain.CurrentBlock()
 	}
