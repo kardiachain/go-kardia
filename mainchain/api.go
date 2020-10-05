@@ -125,7 +125,7 @@ func NewBlockHeaderJSON(block types.Block) *BlockHeaderJSON {
 	return &BlockHeaderJSON{
 		Hash:           block.Hash().Hex(),
 		Height:         block.Height(),
-		LastBlock:      block.Header().LastBlockID.String(),
+		LastBlock:      block.Header().LastBlockID.Hash.Hex(),
 		CommitHash:     block.LastCommitHash().Hex(),
 		Time:           block.Header().Time,
 		NumTxs:         block.Header().NumTxs,
@@ -156,7 +156,7 @@ func NewBasicBlockJSON(block types.Block) *BlockJSON {
 	return &BlockJSON{
 		Hash:           block.Hash().Hex(),
 		Height:         block.Height(),
-		LastBlock:      block.Header().LastBlockID.String(),
+		LastBlock:      block.Header().LastBlockID.Hash.Hex(),
 		Txs:            transactions,
 		CommitHash:     block.LastCommitHash().Hex(),
 		Time:           block.Header().Time,
@@ -193,7 +193,7 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 	return &BlockJSON{
 		Hash:           block.Hash().Hex(),
 		Height:         block.Height(),
-		LastBlock:      block.Header().LastBlockID.String(),
+		LastBlock:      block.Header().LastBlockID.Hash.Hex(),
 		Txs:            transactions,
 		CommitHash:     block.LastCommitHash().Hex(),
 		Time:           block.Header().Time,
