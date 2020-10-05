@@ -5,10 +5,11 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/kardiachain/go-kardiamain/lib/service"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 )
 
 // mockPeer for testing the PeerSet
@@ -38,7 +39,8 @@ func newMockPeer(ip net.IP) *mockPeer {
 	if ip == nil {
 		ip = net.IP{127, 0, 0, 1}
 	}
-	nodeKey := NodeKey{PrivKey: ed25519.GenPrivKey()}
+	priv1, _ := crypto.GenerateKey()
+	nodeKey := NodeKey{PrivKey: priv1}
 	return &mockPeer{
 		ip: ip,
 		id: nodeKey.ID(),

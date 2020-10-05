@@ -8,7 +8,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/bytes"
 	tmstrings "github.com/kardiachain/go-kardiamain/lib/strings"
 	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
-	"github.com/tendermint/tendermint/version"
 )
 
 const (
@@ -54,8 +53,8 @@ type ProtocolVersion struct {
 // defaultProtocolVersion populates the Block and P2P versions using
 // the global values, but not the App.
 var defaultProtocolVersion = NewProtocolVersion(
-	version.P2PProtocol,
-	version.BlockProtocol,
+	1,
+	1,
 	0,
 )
 

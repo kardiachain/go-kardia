@@ -34,7 +34,7 @@ func AddPeerToSwitchPeerSet(sw *Switch, peer Peer) {
 }
 
 func CreateRandomPeer(outbound bool) Peer {
-	addr, netAddr := CreateRoutableAddr()
+	_, netAddr := CreateRoutableAddr()
 	p := &peer{
 		peerConn: peerConn{
 			outbound:   outbound,

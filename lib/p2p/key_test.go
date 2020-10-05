@@ -6,11 +6,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	tmrand "github.com/kardiachain/go-kardiamain/lib/rand"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 )
 
 func TestLoadOrGenNodeKey(t *testing.T) {
@@ -44,7 +45,7 @@ func TestNodeKeySaveAs(t *testing.T) {
 
 	assert.NoFileExists(t, filePath)
 
-	privKey := ed25519.GenPrivKey()
+	privKey, _ := crypto.GenerateKey()
 	nodeKey := &NodeKey{
 		PrivKey: privKey,
 	}

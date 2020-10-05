@@ -3,9 +3,9 @@ package p2p
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 
-	"github.com/tendermint/tendermint/crypto/ed25519"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNodeInfoValidate(t *testing.T) {
@@ -66,7 +66,8 @@ func TestNodeInfoValidate(t *testing.T) {
 		{"Good RPCAddress", func(ni *DefaultNodeInfo) { ni.Other.RPCAddress = "0.0.0.0:26657" }, false},
 	}
 
-	nodeKey := NodeKey{PrivKey: ed25519.GenPrivKey()}
+	priv1, _ := crypto.GenerateKey()
+	nodeKey := NodeKey{PrivKey: priv1}
 	name := "testing"
 
 	// test case passes
@@ -89,9 +90,10 @@ func TestNodeInfoValidate(t *testing.T) {
 }
 
 func TestNodeInfoCompatible(t *testing.T) {
-
-	nodeKey1 := NodeKey{PrivKey: ed25519.GenPrivKey()}
-	nodeKey2 := NodeKey{PrivKey: ed25519.GenPrivKey()}
+	priv1, _ := crypto.GenerateKey()
+	priv2, _ := crypto.GenerateKey()
+	nodeKey1 := NodeKey{PrivKey: priv1}
+	nodeKey2 := NodeKey{PrivKey: priv2}
 	name := "testing"
 
 	var newTestChannel byte = 0x2

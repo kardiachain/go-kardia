@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	golog "log"
 	"net"
@@ -11,9 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/kardiachain/go-kardiamain/lib/bytes"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/tendermint/tendermint/crypto"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 
 	tmconn "github.com/kardiachain/go-kardiamain/lib/p2p/conn"
 	"github.com/tendermint/tendermint/config"
@@ -21,9 +21,9 @@ import (
 
 func TestPeerBasic(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
-
+	priv1, _ := crypto.GenerateKey()
 	// simulate remote peer
-	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: cfg}
+	rp := &remotePeer{PrivKey: priv1, Config: cfg}
 	rp.Start()
 	t.Cleanup(rp.Stop)
 
@@ -51,9 +51,9 @@ func TestPeerSend(t *testing.T) {
 	assert, require := assert.New(t), require.New(t)
 
 	config := cfg
-
+	priv1, _ := crypto.GenerateKey()
 	// simulate remote peer
-	rp := &remotePeer{PrivKey: ed25519.GenPrivKey(), Config: config}
+	rp := &remotePeer{PrivKey: priv1, Config: config}
 	rp.Start()
 	t.Cleanup(rp.Stop)
 
@@ -82,7 +82,7 @@ func createOutboundPeerAndPerformHandshake(
 		{ID: testCh, Priority: 1},
 	}
 	reactorsByCh := map[byte]Reactor{testCh: NewTestReactor(chDescs, true)}
-	pk := ed25519.GenPrivKey()
+	pk, err := crypto.GenerateKey()
 	pc, err := testOutboundPeerConn(addr, config, false, pk)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func createOutboundPeerAndPerformHandshake(
 	}
 
 	p := newPeer(pc, mConfig, peerNodeInfo, reactorsByCh, chDescs, func(p Peer, r interface{}) {})
-	p.SetLogger(log.TestingLogger().With("peer", addr))
+	p.SetLogger(log.TestingLogger())
 	return p, nil
 }
 
@@ -115,7 +115,7 @@ func testOutboundPeerConn(
 	addr *NetAddress,
 	config *config.P2PConfig,
 	persistent bool,
-	ourNodePrivKey crypto.PrivKey,
+	ourNodePrivKey *ecdsa.PrivateKey,
 ) (peerConn, error) {
 
 	var pc peerConn
@@ -144,7 +144,7 @@ func testOutboundPeerConn(
 }
 
 type remotePeer struct {
-	PrivKey    crypto.PrivKey
+	PrivKey    *ecdsa.PrivateKey
 	Config     *config.P2PConfig
 	addr       *NetAddress
 	channels   bytes.HexBytes
@@ -157,7 +157,7 @@ func (rp *remotePeer) Addr() *NetAddress {
 }
 
 func (rp *remotePeer) ID() ID {
-	return PubKeyToID(rp.PrivKey.PubKey())
+	return PubKeyToID(rp.PrivKey.PublicKey)
 }
 
 func (rp *remotePeer) Start() {
@@ -170,7 +170,7 @@ func (rp *remotePeer) Start() {
 		golog.Fatalf("net.Listen tcp :0: %+v", e)
 	}
 	rp.listener = l
-	rp.addr = NewNetAddress(PubKeyToID(rp.PrivKey.PubKey()), l.Addr())
+	rp.addr = NewNetAddress(PubKeyToID(rp.PrivKey.PublicKey), l.Addr())
 	if rp.channels == nil {
 		rp.channels = []byte{testCh}
 	}

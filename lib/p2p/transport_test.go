@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
 	"github.com/kardiachain/go-kardiamain/lib/protoio"
 	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 )
 
 var defaultNodeName = "host_peer"
@@ -35,10 +35,11 @@ func newMultiplexTransport(
 }
 
 func TestTransportMultiplexConnFilter(t *testing.T) {
+	priv1, _ := crypto.GenerateKey()
 	mt := newMultiplexTransport(
 		emptyNodeInfo(),
 		NodeKey{
-			PrivKey: ed25519.GenPrivKey(),
+			PrivKey: priv1,
 		},
 	)
 	id := mt.nodeKey.ID()
@@ -89,10 +90,11 @@ func TestTransportMultiplexConnFilter(t *testing.T) {
 }
 
 func TestTransportMultiplexConnFilterTimeout(t *testing.T) {
+	priv1, _ := crypto.GenerateKey()
 	mt := newMultiplexTransport(
 		emptyNodeInfo(),
 		NodeKey{
-			PrivKey: ed25519.GenPrivKey(),
+			PrivKey: priv1,
 		},
 	)
 	id := mt.nodeKey.ID()
@@ -138,14 +140,14 @@ func TestTransportMultiplexConnFilterTimeout(t *testing.T) {
 }
 
 func TestTransportMultiplexMaxIncomingConnections(t *testing.T) {
-	pv := ed25519.GenPrivKey()
-	id := PubKeyToID(pv.PubKey())
+	priv1, _ := crypto.GenerateKey()
+	id := PubKeyToID(priv1.PublicKey)
 	mt := newMultiplexTransport(
 		testNodeInfo(
 			id, "transport",
 		),
 		NodeKey{
-			PrivKey: pv,
+			PrivKey: priv1,
 		},
 	)
 
@@ -241,12 +243,12 @@ func TestTransportMultiplexAcceptMultiple(t *testing.T) {
 }
 
 func testDialer(dialAddr NetAddress, errc chan error) {
+	priv1, _ := crypto.GenerateKey()
 	var (
-		pv     = ed25519.GenPrivKey()
 		dialer = newMultiplexTransport(
-			testNodeInfo(PubKeyToID(pv.PubKey()), defaultNodeName),
+			testNodeInfo(PubKeyToID(priv1.PublicKey), defaultNodeName),
 			NodeKey{
-				PrivKey: pv,
+				PrivKey: priv1,
 			},
 		)
 	)
@@ -263,10 +265,9 @@ func testDialer(dialAddr NetAddress, errc chan error) {
 
 func TestTransportMultiplexAcceptNonBlocking(t *testing.T) {
 	mt := testSetupMultiplexTransport(t)
-
+	priv1, _ := crypto.GenerateKey()
 	var (
-		fastNodePV   = ed25519.GenPrivKey()
-		fastNodeInfo = testNodeInfo(PubKeyToID(fastNodePV.PubKey()), "fastnode")
+		fastNodeInfo = testNodeInfo(PubKeyToID(priv1.PublicKey), "fastnode")
 		errc         = make(chan error)
 		fastc        = make(chan struct{})
 		slowc        = make(chan struct{})
@@ -298,16 +299,16 @@ func TestTransportMultiplexAcceptNonBlocking(t *testing.T) {
 			// We error if the fast peer didn't succeed.
 			errc <- fmt.Errorf("fast peer timed out")
 		}
-
-		sc, err := upgradeSecretConn(c, 200*time.Millisecond, ed25519.GenPrivKey())
+		priv2, _ := crypto.GenerateKey()
+		sc, err := upgradeSecretConn(c, 200*time.Millisecond, priv2)
 		if err != nil {
 			errc <- err
 			return
 		}
-
+		priv1, _ := crypto.GenerateKey()
 		_, err = handshake(sc, 200*time.Millisecond,
 			testNodeInfo(
-				PubKeyToID(ed25519.GenPrivKey().PubKey()),
+				PubKeyToID(priv1.PublicKey),
 				"slow_peer",
 			))
 		if err != nil {
@@ -318,12 +319,12 @@ func TestTransportMultiplexAcceptNonBlocking(t *testing.T) {
 	// Simulate fast Peer.
 	go func() {
 		<-slowc
-
+		priv1, _ := crypto.GenerateKey()
 		var (
 			dialer = newMultiplexTransport(
 				fastNodeInfo,
 				NodeKey{
-					PrivKey: fastNodePV,
+					PrivKey: priv1,
 				},
 			)
 		)
@@ -360,12 +361,12 @@ func TestTransportMultiplexValidateNodeInfo(t *testing.T) {
 	errc := make(chan error)
 
 	go func() {
+		priv, _ := crypto.GenerateKey()
 		var (
-			pv     = ed25519.GenPrivKey()
 			dialer = newMultiplexTransport(
-				testNodeInfo(PubKeyToID(pv.PubKey()), ""), // Should not be empty
+				testNodeInfo(PubKeyToID(priv.PublicKey), ""), // Should not be empty
 				NodeKey{
-					PrivKey: pv,
+					PrivKey: priv,
 				},
 			)
 		)
@@ -401,12 +402,14 @@ func TestTransportMultiplexRejectMissmatchID(t *testing.T) {
 	errc := make(chan error)
 
 	go func() {
+		priv, _ := crypto.GenerateKey()
+		priv2, _ := crypto.GenerateKey()
 		dialer := newMultiplexTransport(
 			testNodeInfo(
-				PubKeyToID(ed25519.GenPrivKey().PubKey()), "dialer",
+				PubKeyToID(priv2.PublicKey), "dialer",
 			),
 			NodeKey{
-				PrivKey: ed25519.GenPrivKey(),
+				PrivKey: priv,
 			},
 		)
 		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
@@ -436,18 +439,17 @@ func TestTransportMultiplexRejectMissmatchID(t *testing.T) {
 
 func TestTransportMultiplexDialRejectWrongID(t *testing.T) {
 	mt := testSetupMultiplexTransport(t)
-
+	priv, _ := crypto.GenerateKey()
 	var (
-		pv     = ed25519.GenPrivKey()
 		dialer = newMultiplexTransport(
-			testNodeInfo(PubKeyToID(pv.PubKey()), ""), // Should not be empty
+			testNodeInfo(PubKeyToID(priv.PublicKey), ""), // Should not be empty
 			NodeKey{
-				PrivKey: pv,
+				PrivKey: priv,
 			},
 		)
 	)
-
-	wrongID := PubKeyToID(ed25519.GenPrivKey().PubKey())
+	priv2, _ := crypto.GenerateKey()
+	wrongID := PubKeyToID(priv2.PublicKey)
 	addr := NewNetAddress(wrongID, mt.listener.Addr())
 
 	_, err := dialer.Dial(*addr, peerConfig{})
@@ -469,12 +471,12 @@ func TestTransportMultiplexRejectIncompatible(t *testing.T) {
 	errc := make(chan error)
 
 	go func() {
+		priv, _ := crypto.GenerateKey()
 		var (
-			pv     = ed25519.GenPrivKey()
 			dialer = newMultiplexTransport(
-				testNodeInfoWithNetwork(PubKeyToID(pv.PubKey()), "dialer", "incompatible-network"),
+				testNodeInfoWithNetwork(PubKeyToID(priv.PublicKey), "dialer", "incompatible-network"),
 				NodeKey{
-					PrivKey: pv,
+					PrivKey: priv,
 				},
 			)
 		)
@@ -568,10 +570,9 @@ func TestTransportHandshake(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	peerPV, _ := crypto.GenerateKey()
 	var (
-		peerPV       = ed25519.GenPrivKey()
-		peerNodeInfo = testNodeInfo(PubKeyToID(peerPV.PubKey()), defaultNodeName)
+		peerNodeInfo = testNodeInfo(PubKeyToID(peerPV.PublicKey), defaultNodeName)
 	)
 
 	go func() {
@@ -623,15 +624,15 @@ func TestTransportHandshake(t *testing.T) {
 
 // create listener
 func testSetupMultiplexTransport(t *testing.T) *MultiplexTransport {
+	peerPV, _ := crypto.GenerateKey()
 	var (
-		pv = ed25519.GenPrivKey()
-		id = PubKeyToID(pv.PubKey())
+		id = PubKeyToID(peerPV.PublicKey)
 		mt = newMultiplexTransport(
 			testNodeInfo(
 				id, "transport",
 			),
 			NodeKey{
-				PrivKey: pv,
+				PrivKey: peerPV,
 			},
 		)
 	)

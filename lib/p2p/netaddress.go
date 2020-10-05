@@ -409,7 +409,7 @@ func validateID(id ID) error {
 	if len(id) == 0 {
 		return errors.New("no ID")
 	}
-	idBytes, err := hex.DecodeString(string(id))
+	_, err := hex.DecodeString(string(id))
 	if err != nil {
 		return err
 	}
