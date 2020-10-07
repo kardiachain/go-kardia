@@ -13,6 +13,10 @@ import (
 // ID is a hex-encoded crypto.Address
 type ID string
 
+// IDByteLength is the length of a crypto.Address. Currently only 20.
+// TODO: support other length addresses ?
+const IDByteLength = 20
+
 //------------------------------------------------------------------------------
 // Persistent peer ID
 // TODO: encrypt on disk
@@ -36,7 +40,7 @@ func (nodeKey *NodeKey) PubKey() ecdsa.PublicKey {
 // PubKeyToID returns the ID corresponding to the given PubKey.
 // It's the hex-encoding of the pubKey.Address().
 func PubKeyToID(pubKey ecdsa.PublicKey) ID {
-	return ID(hex.EncodeToString(crypto.FromECDSAPub(&pubKey)))
+	return ID(hex.EncodeToString(crypto.PubkeyToAddress(pubKey).Bytes()))
 }
 
 // LoadOrGenNodeKey attempts to load the NodeKey from the given filePath. If

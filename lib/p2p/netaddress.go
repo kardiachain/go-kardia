@@ -409,9 +409,13 @@ func validateID(id ID) error {
 	if len(id) == 0 {
 		return errors.New("no ID")
 	}
-	_, err := hex.DecodeString(string(id))
+	idBytes, err := hex.DecodeString(string(id))
 	if err != nil {
 		return err
+	}
+
+	if len(idBytes) != IDByteLength {
+		return fmt.Errorf("invalid hex length - got %d, expected %d", len(idBytes), IDByteLength)
 	}
 
 	return nil
