@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	dbm "github.com/tendermint/tm-db"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 
 	"github.com/kardiachain/go-kardiamain/lib/service"
 	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
@@ -29,7 +29,7 @@ type MetricStore struct {
 	mtx tmsync.Mutex
 
 	// The db where peer trust metric history data will be stored
-	db dbm.DB
+	db kaidb.Database
 
 	// This configuration will be used when creating new TrustMetrics
 	config MetricConfig
@@ -38,7 +38,7 @@ type MetricStore struct {
 // NewTrustMetricStore returns a store that saves data to the DB
 // and uses the config when creating new trust metrics.
 // Use Start to to initialize the trust metric store
-func NewTrustMetricStore(db dbm.DB, tmc MetricConfig) *MetricStore {
+func NewTrustMetricStore(db kaidb.Database, tmc MetricConfig) *MetricStore {
 	tms := &MetricStore{
 		peerMetrics: make(map[string]*Metric),
 		db:          db,
@@ -153,16 +153,13 @@ func (tms *MetricStore) size() int {
 // cmn.Panics if file is corrupt
 func (tms *MetricStore) loadFromDB() bool {
 	// Obtain the history data we have so far
-	bytes, err := tms.db.Get(trustMetricKey)
-	if err != nil {
-		panic(err)
-	}
+	bytes, _ := tms.db.Get(trustMetricKey)
 	if bytes == nil {
 		return false
 	}
 
 	peers := make(map[string]MetricHistoryJSON)
-	err = json.Unmarshal(bytes, &peers)
+	err := json.Unmarshal(bytes, &peers)
 	if err != nil {
 		panic(fmt.Sprintf("Could not unmarshal Trust Metric Store DB data: %v", err))
 	}
@@ -199,7 +196,7 @@ func (tms *MetricStore) saveToDB() {
 		tms.Logger.Error("Failed to encode the TrustHistory", "err", err)
 		return
 	}
-	if err := tms.db.SetSync(trustMetricKey, bytes); err != nil {
+	if err := tms.db.Put(trustMetricKey, bytes); err != nil {
 		tms.Logger.Error("failed to flush data to disk", "error", err)
 	}
 }

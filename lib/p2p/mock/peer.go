@@ -3,10 +3,11 @@ package mock
 import (
 	"net"
 
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
+
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
 	"github.com/kardiachain/go-kardiamain/lib/service"
-	"github.com/tendermint/tendermint/crypto/ed25519"
 )
 
 type Peer struct {
@@ -27,7 +28,8 @@ func NewPeer(ip net.IP) *Peer {
 	} else {
 		netAddr = p2p.NewNetAddressIPPort(ip, 26656)
 	}
-	nodeKey := p2p.NodeKey{PrivKey: ed25519.GenPrivKey()}
+	priv, _ := crypto.GenerateKey()
+	nodeKey := p2p.NodeKey{PrivKey: priv}
 	netAddr.ID = nodeKey.ID()
 	mp := &Peer{
 		ip:   ip,
