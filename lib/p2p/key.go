@@ -5,10 +5,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
-	"io/ioutil"
 
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	tmjson "github.com/kardiachain/go-kardiamain/lib/json"
 	tmos "github.com/kardiachain/go-kardiamain/lib/os"
 )
 
@@ -69,29 +67,16 @@ func LoadOrGenNodeKey(filePath string) (*NodeKey, error) {
 
 // LoadNodeKey loads NodeKey located in filePath.
 func LoadNodeKey(filePath string) (*NodeKey, error) {
-	jsonBytes, err := ioutil.ReadFile(filePath)
+	priv, err := crypto.LoadECDSA(filePath)
 	if err != nil {
 		return nil, err
 	}
-	nodeKey := new(NodeKey)
-	err = tmjson.Unmarshal(jsonBytes, nodeKey)
-	if err != nil {
-		return nil, err
-	}
-	return nodeKey, nil
+	return &NodeKey{PrivKey: priv}, nil
 }
 
 // SaveAs persists the NodeKey to filePath.
 func (nodeKey *NodeKey) SaveAs(filePath string) error {
-	jsonBytes, err := tmjson.Marshal(nodeKey)
-	if err != nil {
-		return err
-	}
-	err = ioutil.WriteFile(filePath, jsonBytes, 0600)
-	if err != nil {
-		return err
-	}
-	return nil
+	return crypto.SaveECDSA(filePath, nodeKey.PrivKey)
 }
 
 //------------------------------------------------------------------------------
