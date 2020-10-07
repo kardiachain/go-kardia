@@ -607,11 +607,11 @@ func (n *Node) ResolvePath(x string) string {
 func (n *Node) apis() []rpc.API {
 	return []rpc.API{
 		{
-			Namespace: "admin",
+			Namespace: "node",
 			Version:   "1.0",
 			Service:   NewPrivateAdminAPI(n),
 		}, {
-			Namespace: "admin",
+			Namespace: "node",
 			Version:   "1.0",
 			Service:   NewPublicAdminAPI(n),
 			Public:    true,
