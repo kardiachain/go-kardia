@@ -205,7 +205,7 @@ func (net *Network) startWithSnapshots(id enode.ID, snapshots map[string][]byte)
 		return fmt.Errorf("error getting rpc client  for node %v: %s", id, err)
 	}
 	events := make(chan *p2p.PeerEvent)
-	sub, err := client.Subscribe(context.Background(), "admin", events, "peerEvents")
+	sub, err := client.Subscribe(context.Background(), "node", events, "peerEvents")
 	if err != nil {
 		return fmt.Errorf("error getting peer events for node %v: %s", id, err)
 	}
@@ -305,7 +305,7 @@ func (net *Network) Stop(id enode.ID) error {
 	return nil
 }
 
-// Connect connects two nodes together by calling the "admin_addPeer" RPC
+// Connect connects two nodes together by calling the "node_addPeer" RPC
 // method on the "one" node so that it connects to the "other" node
 func (net *Network) Connect(oneID, otherID enode.ID) error {
 	net.lock.Lock()
@@ -324,10 +324,10 @@ func (net *Network) connect(oneID, otherID enode.ID) error {
 		return err
 	}
 	net.events.Send(ControlEvent(conn))
-	return client.Call(nil, "admin_addPeer", string(conn.other.Addr()))
+	return client.Call(nil, "node_addPeer", string(conn.other.Addr()))
 }
 
-// Disconnect disconnects two nodes by calling the "admin_removePeer" RPC
+// Disconnect disconnects two nodes by calling the "node_removePeer" RPC
 // method on the "one" node so that it disconnects from the "other" node
 func (net *Network) Disconnect(oneID, otherID enode.ID) error {
 	conn := net.GetConn(oneID, otherID)
@@ -342,7 +342,7 @@ func (net *Network) Disconnect(oneID, otherID enode.ID) error {
 		return err
 	}
 	net.events.Send(ControlEvent(conn))
-	return client.Call(nil, "admin_removePeer", string(conn.other.Addr()))
+	return client.Call(nil, "node_removePeer", string(conn.other.Addr()))
 }
 
 // DidConnect tracks the fact that the "one" node connected to the "other" node

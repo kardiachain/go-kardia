@@ -308,7 +308,7 @@ func (n *ExecNode) NodeInfo() *p2p.NodeInfo {
 		ID: n.ID.String(),
 	}
 	if n.client != nil {
-		n.client.Call(&info, "admin_nodeInfo")
+		n.client.Call(&info, "node_nodeInfo")
 	}
 	return info
 }
