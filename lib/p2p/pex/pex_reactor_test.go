@@ -84,13 +84,13 @@ func TestPEXReactorRunning(t *testing.T) {
 	for i := 0; i < N; i++ {
 		switches[i] = p2p.MakeSwitch(cfg, i, "testing", "123.123.123", func(i int, sw *p2p.Switch) *p2p.Switch {
 			books[i] = NewAddrBook(filepath.Join(dir, fmt.Sprintf("addrbook%d.json", i)), false)
-			books[i].SetLogger(logger.With("pex", i))
+			books[i].SetLogger(logger)
 			sw.SetAddrBook(books[i])
 
-			sw.SetLogger(logger.With("pex", i))
+			sw.SetLogger(logger)
 
 			r := NewReactor(books[i], &ReactorConfig{})
-			r.SetLogger(logger.With("pex", i))
+			r.SetLogger(logger)
 			r.SetEnsurePeersPeriod(250 * time.Millisecond)
 			sw.AddReactor("pex", r)
 
@@ -420,10 +420,10 @@ func TestPEXReactorSeedModeFlushStop(t *testing.T) {
 	for i := 0; i < N; i++ {
 		switches[i] = p2p.MakeSwitch(cfg, i, "testing", "123.123.123", func(i int, sw *p2p.Switch) *p2p.Switch {
 			books[i] = NewAddrBook(filepath.Join(dir, fmt.Sprintf("addrbook%d.json", i)), false)
-			books[i].SetLogger(logger.With("pex", i))
+			books[i].SetLogger(logger)
 			sw.SetAddrBook(books[i])
 
-			sw.SetLogger(logger.With("pex", i))
+			sw.SetLogger(logger)
 
 			config := &ReactorConfig{}
 			if i == 0 {
@@ -431,7 +431,7 @@ func TestPEXReactorSeedModeFlushStop(t *testing.T) {
 				config = &ReactorConfig{SeedMode: true}
 			}
 			r := NewReactor(books[i], config)
-			r.SetLogger(logger.With("pex", i))
+			r.SetLogger(logger)
 			r.SetEnsurePeersPeriod(250 * time.Millisecond)
 			sw.AddReactor("pex", r)
 
