@@ -16,12 +16,12 @@ import (
 
 	"github.com/minio/highwayhash"
 
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	tmmath "github.com/kardiachain/go-kardiamain/lib/math"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	tmrand "github.com/kardiachain/go-kardiamain/lib/rand"
 	"github.com/kardiachain/go-kardiamain/lib/service"
 	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
-	"github.com/tendermint/tendermint/crypto"
 )
 
 const (

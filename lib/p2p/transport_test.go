@@ -265,9 +265,9 @@ func testDialer(dialAddr NetAddress, errc chan error) {
 
 func TestTransportMultiplexAcceptNonBlocking(t *testing.T) {
 	mt := testSetupMultiplexTransport(t)
-	priv1, _ := crypto.GenerateKey()
+	fastNodePV, _ := crypto.GenerateKey()
 	var (
-		fastNodeInfo = testNodeInfo(PubKeyToID(priv1.PublicKey), "fastnode")
+		fastNodeInfo = testNodeInfo(PubKeyToID(fastNodePV.PublicKey), "fastnode")
 		errc         = make(chan error)
 		fastc        = make(chan struct{})
 		slowc        = make(chan struct{})
@@ -299,16 +299,16 @@ func TestTransportMultiplexAcceptNonBlocking(t *testing.T) {
 			// We error if the fast peer didn't succeed.
 			errc <- fmt.Errorf("fast peer timed out")
 		}
-		priv2, _ := crypto.GenerateKey()
-		sc, err := upgradeSecretConn(c, 200*time.Millisecond, priv2)
+		privKey, _ := crypto.GenerateKey()
+		sc, err := upgradeSecretConn(c, 200*time.Millisecond, privKey)
 		if err != nil {
 			errc <- err
 			return
 		}
-		priv1, _ := crypto.GenerateKey()
+		privKey, _ = crypto.GenerateKey()
 		_, err = handshake(sc, 200*time.Millisecond,
 			testNodeInfo(
-				PubKeyToID(priv1.PublicKey),
+				PubKeyToID(privKey.PublicKey),
 				"slow_peer",
 			))
 		if err != nil {
@@ -319,12 +319,12 @@ func TestTransportMultiplexAcceptNonBlocking(t *testing.T) {
 	// Simulate fast Peer.
 	go func() {
 		<-slowc
-		priv1, _ := crypto.GenerateKey()
+
 		var (
 			dialer = newMultiplexTransport(
 				fastNodeInfo,
 				NodeKey{
-					PrivKey: priv1,
+					PrivKey: fastNodePV,
 				},
 			)
 		)
