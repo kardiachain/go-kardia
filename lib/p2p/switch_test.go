@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -24,15 +25,14 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
 	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
-	"github.com/tendermint/tendermint/config"
 )
 
 var (
-	cfg *config.P2PConfig
+	cfg *configs.P2PConfig
 )
 
 func init() {
-	cfg = config.DefaultP2PConfig()
+	cfg = configs.DefaultP2PConfig()
 	cfg.PexReactor = true
 	cfg.AllowDuplicateIP = true
 }
@@ -406,7 +406,7 @@ func TestSwitchStopPeerForError(t *testing.T) {
 		return string(buf)
 	}
 
-	namespace, subsystem, name := config.TestInstrumentationConfig().Namespace, MetricsSubsystem, "peers"
+	namespace, subsystem, name := configs.TestInstrumentationConfig().Namespace, MetricsSubsystem, "peers"
 	re := regexp.MustCompile(namespace + `_` + subsystem + `_` + name + ` ([0-9\.]+)`)
 	peersMetricValue := func() float64 {
 		matches := re.FindStringSubmatch(scrapeMetrics())
@@ -490,7 +490,7 @@ func TestSwitchReconnectsToOutboundPersistentPeer(t *testing.T) {
 	rp.Start()
 	defer rp.Stop()
 
-	conf := config.DefaultP2PConfig()
+	conf := configs.DefaultP2PConfig()
 	conf.TestDialFail = true // will trigger a reconnect
 	err = sw.addOutboundPeerWithConfig(rp.Addr(), conf)
 	require.NotNil(t, err)

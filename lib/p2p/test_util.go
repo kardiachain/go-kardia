@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 
 	"github.com/kardiachain/go-kardiamain/lib/log"
@@ -13,7 +14,6 @@ import (
 	tmrand "github.com/kardiachain/go-kardiamain/lib/rand"
 
 	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
-	"github.com/tendermint/tendermint/config"
 )
 
 const testCh = 0x01
@@ -77,7 +77,7 @@ const TestHost = "localhost"
 // If connect==Connect2Switches, the switches will be fully connected.
 // initSwitch defines how the i'th switch should be initialized (ie. with what reactors).
 // NOTE: panics if any switch fails to start.
-func MakeConnectedSwitches(cfg *config.P2PConfig,
+func MakeConnectedSwitches(cfg *configs.P2PConfig,
 	n int,
 	initSwitch func(int, *Switch) *Switch,
 	connect func([]*Switch, int, int),
@@ -175,7 +175,7 @@ func StartSwitches(switches []*Switch) error {
 }
 
 func MakeSwitch(
-	cfg *config.P2PConfig,
+	cfg *configs.P2PConfig,
 	i int,
 	network, version string,
 	initSwitch func(int, *Switch) *Switch,
@@ -220,7 +220,7 @@ func MakeSwitch(
 
 func testInboundPeerConn(
 	conn net.Conn,
-	config *config.P2PConfig,
+	config *configs.P2PConfig,
 	ourNodePrivKey *ecdsa.PrivateKey,
 ) (peerConn, error) {
 	return testPeerConn(conn, config, false, false, ourNodePrivKey, nil)
@@ -228,7 +228,7 @@ func testInboundPeerConn(
 
 func testPeerConn(
 	rawConn net.Conn,
-	cfg *config.P2PConfig,
+	cfg *configs.P2PConfig,
 	outbound, persistent bool,
 	ourNodePrivKey *ecdsa.PrivateKey,
 	socketAddr *NetAddress,

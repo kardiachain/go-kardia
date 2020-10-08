@@ -13,19 +13,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/mock"
 	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
-	"github.com/tendermint/tendermint/config"
 )
 
 var (
-	cfg *config.P2PConfig
+	cfg *configs.P2PConfig
 )
 
 func init() {
-	cfg = config.DefaultP2PConfig()
+	cfg = configs.DefaultP2PConfig()
 	cfg.PexReactor = true
 	cfg.AllowDuplicateIP = true
 }

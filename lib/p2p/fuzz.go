@@ -4,9 +4,9 @@ import (
 	"net"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	tmrand "github.com/kardiachain/go-kardiamain/lib/rand"
 	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
-	"github.com/tendermint/tendermint/config"
 )
 
 // FuzzedConnection wraps any net.Conn and depending on the mode either delays
@@ -18,17 +18,17 @@ type FuzzedConnection struct {
 	start  <-chan time.Time
 	active bool
 
-	config *config.FuzzConnConfig
+	config *configs.FuzzConnConfig
 }
 
 // FuzzConn creates a new FuzzedConnection. Fuzzing starts immediately.
 func FuzzConn(conn net.Conn) net.Conn {
-	return FuzzConnFromConfig(conn, config.DefaultFuzzConnConfig())
+	return FuzzConnFromConfig(conn, configs.DefaultFuzzConnConfig())
 }
 
 // FuzzConnFromConfig creates a new FuzzedConnection from a config. Fuzzing
 // starts immediately.
-func FuzzConnFromConfig(conn net.Conn, config *config.FuzzConnConfig) net.Conn {
+func FuzzConnFromConfig(conn net.Conn, config *configs.FuzzConnConfig) net.Conn {
 	return &FuzzedConnection{
 		conn:   conn,
 		start:  make(<-chan time.Time),
@@ -40,7 +40,7 @@ func FuzzConnFromConfig(conn net.Conn, config *config.FuzzConnConfig) net.Conn {
 // FuzzConnAfter creates a new FuzzedConnection. Fuzzing starts when the
 // duration elapses.
 func FuzzConnAfter(conn net.Conn, d time.Duration) net.Conn {
-	return FuzzConnAfterFromConfig(conn, d, config.DefaultFuzzConnConfig())
+	return FuzzConnAfterFromConfig(conn, d, configs.DefaultFuzzConnConfig())
 }
 
 // FuzzConnAfterFromConfig creates a new FuzzedConnection from a config.
@@ -48,7 +48,7 @@ func FuzzConnAfter(conn net.Conn, d time.Duration) net.Conn {
 func FuzzConnAfterFromConfig(
 	conn net.Conn,
 	d time.Duration,
-	config *config.FuzzConnConfig,
+	config *configs.FuzzConnConfig,
 ) net.Conn {
 	return &FuzzedConnection{
 		conn:   conn,
@@ -59,7 +59,7 @@ func FuzzConnAfterFromConfig(
 }
 
 // Config returns the connection's config.
-func (fc *FuzzedConnection) Config() *config.FuzzConnConfig {
+func (fc *FuzzedConnection) Config() *configs.FuzzConnConfig {
 	return fc.config
 }
 
@@ -114,7 +114,7 @@ func (fc *FuzzedConnection) fuzz() bool {
 	}
 
 	switch fc.config.Mode {
-	case config.FuzzModeDrop:
+	case configs.FuzzModeDrop:
 		// randomly drop the r/w, drop the conn, or sleep
 		r := tmrand.Float64()
 		switch {
@@ -128,7 +128,7 @@ func (fc *FuzzedConnection) fuzz() bool {
 		case r < fc.config.ProbDropRW+fc.config.ProbDropConn+fc.config.ProbSleep:
 			time.Sleep(fc.randomDuration())
 		}
-	case config.FuzzModeDelay:
+	case configs.FuzzModeDelay:
 		// sleep a bit
 		time.Sleep(fc.randomDuration())
 	}

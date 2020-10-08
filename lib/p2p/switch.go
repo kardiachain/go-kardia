@@ -6,11 +6,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/cmap"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
 	"github.com/kardiachain/go-kardiamain/lib/rand"
 	"github.com/kardiachain/go-kardiamain/lib/service"
-	"github.com/tendermint/tendermint/config"
 )
 
 const (
@@ -31,7 +31,7 @@ const (
 
 // MConnConfig returns an MConnConfig with fields updated
 // from the P2PConfig.
-func MConnConfig(cfg *config.P2PConfig) conn.MConnConfig {
+func MConnConfig(cfg *configs.P2PConfig) conn.MConnConfig {
 	mConfig := conn.DefaultMConnConfig()
 	mConfig.FlushThrottle = cfg.FlushThrottleTimeout
 	mConfig.SendRate = cfg.SendRate
@@ -68,7 +68,7 @@ type PeerFilterFunc func(IPeerSet, Peer) error
 type Switch struct {
 	service.BaseService
 
-	config       *config.P2PConfig
+	config       *configs.P2PConfig
 	reactors     map[string]Reactor
 	chDescs      []*conn.ChannelDescriptor
 	reactorsByCh map[byte]Reactor
@@ -103,7 +103,7 @@ type SwitchOption func(*Switch)
 
 // NewSwitch creates a new Switch with the given config.
 func NewSwitch(
-	cfg *config.P2PConfig,
+	cfg *configs.P2PConfig,
 	transport Transport,
 	options ...SwitchOption,
 ) *Switch {
@@ -706,7 +706,7 @@ func (sw *Switch) acceptRoutine() {
 // StopPeerForError is called.
 func (sw *Switch) addOutboundPeerWithConfig(
 	addr *NetAddress,
-	cfg *config.P2PConfig,
+	cfg *configs.P2PConfig,
 ) error {
 	sw.Logger.Info("Dialing peer", "address", addr)
 

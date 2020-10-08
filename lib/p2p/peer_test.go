@@ -11,12 +11,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/bytes"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 
 	tmconn "github.com/kardiachain/go-kardiamain/lib/p2p/conn"
-	"github.com/tendermint/tendermint/config"
 )
 
 func TestPeerBasic(t *testing.T) {
@@ -75,7 +75,7 @@ func TestPeerSend(t *testing.T) {
 
 func createOutboundPeerAndPerformHandshake(
 	addr *NetAddress,
-	config *config.P2PConfig,
+	config *configs.P2PConfig,
 	mConfig tmconn.MConnConfig,
 ) (*peer, error) {
 	chDescs := []*tmconn.ChannelDescriptor{
@@ -99,7 +99,7 @@ func createOutboundPeerAndPerformHandshake(
 	return p, nil
 }
 
-func testDial(addr *NetAddress, cfg *config.P2PConfig) (net.Conn, error) {
+func testDial(addr *NetAddress, cfg *configs.P2PConfig) (net.Conn, error) {
 	if cfg.TestDialFail {
 		return nil, fmt.Errorf("dial err (peerConfig.DialFail == true)")
 	}
@@ -113,7 +113,7 @@ func testDial(addr *NetAddress, cfg *config.P2PConfig) (net.Conn, error) {
 
 func testOutboundPeerConn(
 	addr *NetAddress,
-	config *config.P2PConfig,
+	config *configs.P2PConfig,
 	persistent bool,
 	ourNodePrivKey *ecdsa.PrivateKey,
 ) (peerConn, error) {
@@ -145,7 +145,7 @@ func testOutboundPeerConn(
 
 type remotePeer struct {
 	PrivKey    *ecdsa.PrivateKey
-	Config     *config.P2PConfig
+	Config     *configs.P2PConfig
 	addr       *NetAddress
 	channels   bytes.HexBytes
 	listenAddr string

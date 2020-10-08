@@ -22,8 +22,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/types"
-
 	"math"
 	"strings"
 
@@ -46,24 +44,24 @@ var (
 
 var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
-	MainnetChainConfig = &types.ChainConfig{
-		Kaicon: &types.KaiconConfig{
+	MainnetChainConfig = &ChainConfig{
+		Kaicon: &KaiconConfig{
 			Period: 15,
 			Epoch:  30000,
 		},
 	}
 
 	// TestnetChainConfig contains the chain parameters to run a node on the test network.
-	TestnetChainConfig = &types.ChainConfig{
-		Kaicon: &types.KaiconConfig{
+	TestnetChainConfig = &ChainConfig{
+		Kaicon: &KaiconConfig{
 			Period: 15,
 			Epoch:  30000,
 		},
 	}
 
 	// TestChainConfig contains the chain parameters to run unit test.
-	TestChainConfig = &types.ChainConfig{
-		Kaicon: &types.KaiconConfig{
+	TestChainConfig = &ChainConfig{
+		Kaicon: &KaiconConfig{
 			Period: 15,
 			Epoch:  30000,
 		},

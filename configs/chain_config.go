@@ -16,11 +16,12 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package types
+package configs
 
 import (
 	"crypto/ecdsa"
 	"fmt"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
@@ -34,12 +35,12 @@ type ChainConfig struct {
 	Kaicon *KaiconConfig `json:"kaicon,omitempty"`
 
 	// BaseAccount is used to set default execute account for
-	*BaseAccount         `json:"baseAccount,omitempty"`
+	*BaseAccount `json:"baseAccount,omitempty"`
 }
 
 // BaseAccount defines information for base (root) account that is used to execute internal smart contract
 type BaseAccount struct {
-	Address common.Address       `json:"address"`
+	Address    common.Address `json:"address"`
 	PrivateKey ecdsa.PrivateKey
 }
 
