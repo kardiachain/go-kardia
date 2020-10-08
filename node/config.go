@@ -56,9 +56,6 @@ const (
 type MainChainConfig struct {
 	// Mainchain
 
-	// Index of validators
-	ValidatorIndexes []int
-
 	// DbInfo stores configuration information to setup database
 	DBInfo storage.DbInfo
 
@@ -92,9 +89,6 @@ type DualChainConfig struct {
 	// Dualchain
 
 	ChainId uint64 // ID of dual chain unique to a dualnode group, such as for dual eth.
-
-	// Index of validators
-	ValidatorIndexes []int
 
 	// DbInfo stores configuration information to setup database
 	DBInfo storage.DbInfo

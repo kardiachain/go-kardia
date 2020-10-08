@@ -200,16 +200,15 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		return nil, err
 	}
 	mainChainConfig := node.MainChainConfig{
-		ValidatorIndexes: c.MainChain.Validators,
-		DBInfo:           dbInfo,
-		Genesis:          genesisData,
-		TxPool:           c.getTxPoolConfig(),
-		AcceptTxs:        chain.AcceptTxs,
-		IsZeroFee:        chain.ZeroFee == 1,
-		NetworkId:        chain.NetworkID,
-		ChainId:          chain.ChainID,
-		ServiceName:      chain.ServiceName,
-		BaseAccount:      baseAccount,
+		DBInfo:      dbInfo,
+		Genesis:     genesisData,
+		TxPool:      c.getTxPoolConfig(),
+		AcceptTxs:   chain.AcceptTxs,
+		IsZeroFee:   chain.ZeroFee == 1,
+		NetworkId:   chain.NetworkID,
+		ChainId:     chain.ChainID,
+		ServiceName: chain.ServiceName,
+		BaseAccount: baseAccount,
 	}
 	return &mainChainConfig, nil
 }
@@ -236,7 +235,6 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 	}
 
 	dualChainConfig := node.DualChainConfig{
-		ValidatorIndexes: c.DualChain.Validators,
 		DBInfo:           dbInfo,
 		DualGenesis:      genesisData,
 		DualEventPool:    eventPool,

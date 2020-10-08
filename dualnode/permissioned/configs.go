@@ -145,11 +145,6 @@ func SetUp(config *Config) (nodeConfig *node.Config, err error) {
 		}
 	}
 
-	// Check validators indices
-	if config.ValidatorsIndices == nil || len(*config.ValidatorsIndices) == 0 {
-		return nil, fmt.Errorf("list of validators indices must not be empty")
-	}
-	nodeConfig.MainChainConfig.ValidatorIndexes, err = getIntArray(*config.ValidatorsIndices)
 	nodeConfig.MainChainConfig.TxPool = *tx_pool.GetDefaultTxPoolConfig(nodeDir)
 	return nodeConfig, nil
 }
