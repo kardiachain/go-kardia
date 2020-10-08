@@ -58,10 +58,10 @@ type GenesisValidator struct {
 
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
-	Config    *types.ChainConfig `json:"config"`
-	Timestamp uint64             `json:"timestamp"`
-	GasLimit  uint64             `json:"gasLimit"   gencodec:"required"`
-	Alloc     GenesisAlloc       `json:"alloc"      gencodec:"required"`
+	Config    *configs.ChainConfig `json:"config"`
+	Timestamp uint64               `json:"timestamp"`
+	GasLimit  uint64               `json:"gasLimit"   gencodec:"required"`
+	Alloc     GenesisAlloc         `json:"alloc"      gencodec:"required"`
 
 	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
 	Validators           []*GenesisValidator          `json:"validators"`
@@ -97,7 +97,7 @@ func (e *GenesisMismatchError) Error() string {
 //     db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, baseAccount *types.BaseAccount) (*types.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, baseAccount *configs.BaseAccount) (*configs.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		// TODO(huny@): should we return another default config?
 		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
@@ -162,7 +162,7 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 	return newcfg, stored, nil
 }
 
-func (g *Genesis) configOrDefault(ghash common.Hash) *types.ChainConfig {
+func (g *Genesis) configOrDefault(ghash common.Hash) *configs.ChainConfig {
 	switch {
 	case g != nil:
 		return g.Config

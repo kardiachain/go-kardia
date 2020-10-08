@@ -26,7 +26,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/rpc"
 )
 
@@ -45,63 +44,23 @@ func NewPrivateAdminAPI(node *Node) *PrivateAdminAPI {
 // AddPeer requests connecting to a remote node, and also maintaining the new
 // connection at all times, even reconnecting if it is lost.
 func (api *PrivateAdminAPI) AddPeer(url string) (bool, error) {
-	// Make sure the server is running, fail otherwise
-	server := api.node.Server()
-	if server == nil {
-		return false, ErrNodeStopped
-	}
-	// Try to add the url as a static peer and return
-	node, err := enode.Parse(enode.ValidSchemes, url)
-	if err != nil {
-		return false, fmt.Errorf("invalid enode: %v", err)
-	}
-	server.AddPeer(node)
 	return true, nil
 }
 
 // RemovePeer disconnects from a remote node if the connection exists
 func (api *PrivateAdminAPI) RemovePeer(url string) (bool, error) {
-	// Make sure the server is running, fail otherwise
-	server := api.node.Server()
-	if server == nil {
-		return false, ErrNodeStopped
-	}
-	// Try to remove the url as a static peer and return
-	node, err := enode.Parse(enode.ValidSchemes, url)
-	if err != nil {
-		return false, fmt.Errorf("invalid enode: %v", err)
-	}
-	server.RemovePeer(node)
+
 	return true, nil
 }
 
 // AddTrustedPeer allows a remote node to always connect, even if slots are full
 func (api *PrivateAdminAPI) AddTrustedPeer(url string) (bool, error) {
-	// Make sure the server is running, fail otherwise
-	server := api.node.Server()
-	if server == nil {
-		return false, ErrNodeStopped
-	}
-	node, err := enode.Parse(enode.ValidSchemes, url)
-	if err != nil {
-		return false, fmt.Errorf("invalid enode: %v", err)
-	}
-	server.AddTrustedPeer(node)
 	return true, nil
 }
 
 // RemoveTrustedPeer removes a remote node from the trusted peer set, but it
 // does not disconnect it automatically.
 func (api *PrivateAdminAPI) RemoveTrustedPeer(url string) (bool, error) {
-	// Make sure the server is running, fail otherwise
-	server := api.node.Server()
-	if server == nil {
-		return false, ErrNodeStopped
-	}
-	node, err := enode.Parse(enode.ValidSchemes, url)
-	if err != nil {
-		return false, fmt.Errorf("invalid enode: %v", err)
-	}
 	server.RemoveTrustedPeer(node)
 	return true, nil
 }
@@ -109,39 +68,7 @@ func (api *PrivateAdminAPI) RemoveTrustedPeer(url string) (bool, error) {
 // PeerEvents creates an RPC subscription which receives peer events from the
 // node's p2p.Server
 func (api *PrivateAdminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, error) {
-	// Make sure the server is running, fail otherwise
-	server := api.node.Server()
-	if server == nil {
-		return nil, ErrNodeStopped
-	}
-
-	// Create the subscription
-	notifier, supported := rpc.NotifierFromContext(ctx)
-	if !supported {
-		return nil, rpc.ErrNotificationsUnsupported
-	}
-	rpcSub := notifier.CreateSubscription()
-
-	go func() {
-		events := make(chan *p2p.PeerEvent)
-		sub := server.SubscribeEvents(events)
-		defer sub.Unsubscribe()
-
-		for {
-			select {
-			case event := <-events:
-				notifier.Notify(rpcSub.ID, event)
-			case <-sub.Err():
-				return
-			case <-rpcSub.Err():
-				return
-			case <-notifier.Closed():
-				return
-			}
-		}
-	}()
-
-	return rpcSub, nil
+	return nil, nil
 }
 
 // StartRPC starts the HTTP RPC API server.
@@ -274,12 +201,8 @@ func NewPublicAdminAPI(node *Node) *PublicAdminAPI {
 
 // Peers retrieves all the information we know about each individual peer at the
 // protocol granularity.
-func (api *PublicAdminAPI) Peers() ([]*p2p.PeerInfo, error) {
-	server := api.node.Server()
-	if server == nil {
-		return nil, ErrNodeStopped
-	}
-	return server.PeersInfo(), nil
+func (api *PublicAdminAPI) Peers() ([]p2p.Peer, error) {
+	return nil, err
 }
 
 // NodeInfo retrieves all the information we know about the host node at the

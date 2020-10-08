@@ -32,7 +32,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	g "github.com/kardiachain/go-kardiamain/mainchain/genesis"
@@ -195,7 +195,7 @@ func decideProposal(
 
 func addVotes(cs *ConsensusState, votes ...*types.Vote) {
 	for i, vote := range votes {
-		var peerID enode.ID
+		var peerID p2p.ID
 		peer := common.U256Bytes(big.NewInt(int64(i + 1)))
 		copy(peerID[:], peer)
 		cs.AddVote(vote, peerID)

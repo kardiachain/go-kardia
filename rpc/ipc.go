@@ -21,17 +21,13 @@ import (
 	"net"
 
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/netutil"
 )
 
 // ServeListener accepts connections on l, serving JSON-RPC on them.
 func (s *Server) ServeListener(l net.Listener) error {
 	for {
 		conn, err := l.Accept()
-		if netutil.IsTemporaryError(err) {
-			log.Warn("RPC accept error", "err", err)
-			continue
-		} else if err != nil {
+		if err != nil {
 			return err
 		}
 		log.Trace("Accepted RPC connection", "conn", conn.RemoteAddr())

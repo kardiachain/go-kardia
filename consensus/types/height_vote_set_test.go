@@ -25,7 +25,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -36,10 +36,10 @@ func TestPeerCatchupRounds(t *testing.T) {
 	logger := log.New()
 	logger.AddTag("test vote set")
 
-	var peer enode.ID
+	var peer p2p.ID
 
-	peer32 := []byte("peer1")
-	copy(peer[:], peer32)
+	peer32 := p2p.ID("peer1")
+	peer = peer32
 	hvs := NewHeightVoteSet(logger, "kaicoin", 1, valSet)
 	vote999_0 := makeVoteHR(t, 1, 0, 999, privSet)
 	added, err := hvs.AddVote(vote999_0, peer)

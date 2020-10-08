@@ -26,8 +26,9 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/kardiachain/go-kardiamain/configs"
+
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
 )
 
 // Tests that datadirs can be successfully created, be them manually configured
@@ -112,7 +113,7 @@ func TestNodeKeyPersistency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to generate one-shot node key: %v", err)
 	}
-	config := &Config{Name: "unit-test", DataDir: dir, P2P: p2p.Config{PrivateKey: key}}
+	config := &Config{Name: "unit-test", DataDir: dir, P2P: configs.P2PConfig{}}
 	config.NodeKey()
 	if _, err := os.Stat(filepath.Join(keyfile)); err == nil {
 		t.Fatalf("one-shot node key persisted to data directory")

@@ -19,6 +19,7 @@
 package types
 
 import (
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -29,7 +30,7 @@ type StoreDB interface {
 	//WriteBody(hash common.Hash, height uint64, body *Body)
 	//WriteHeader(header *Header)
 	//WriteBodyRLP(hash common.Hash, height uint64, rlp rlp.RawValue)
-	WriteChainConfig(hash common.Hash, cfg *ChainConfig)
+	WriteChainConfig(hash common.Hash, cfg *configs.ChainConfig)
 	WriteBlock(*Block, *PartSet, *Commit)
 	WriteReceipts(hash common.Hash, height uint64, receipts Receipts)
 	WriteCanonicalHash(hash common.Hash, height uint64)
@@ -43,7 +44,7 @@ type StoreDB interface {
 	DB() kaidb.Database
 
 	ReadCanonicalHash(height uint64) common.Hash
-	ReadChainConfig(hash common.Hash) *ChainConfig
+	ReadChainConfig(hash common.Hash) *configs.ChainConfig
 	ReadBlock(hash common.Hash, height uint64) *Block
 	ReadHeader(hash common.Hash, height uint64) *Header
 	ReadBody(hash common.Hash, height uint64) *Body

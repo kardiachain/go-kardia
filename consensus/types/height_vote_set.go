@@ -25,7 +25,7 @@ import (
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -59,7 +59,7 @@ type HeightVoteSet struct {
 	mtx               sync.Mutex
 	round             uint32                  // max tracked round
 	roundVoteSets     map[uint32]RoundVoteSet // keys: [0...round]
-	peerCatchupRounds map[enode.ID][]uint32   // keys: peer.ID; values: at most 2 rounds
+	peerCatchupRounds map[p2p.ID][]uint32     // keys: peer.ID; values: at most 2 rounds
 }
 
 func NewHeightVoteSet(logger log.Logger, chainID string, height uint64, valSet *types.ValidatorSet) *HeightVoteSet {
@@ -78,7 +78,7 @@ func (hvs *HeightVoteSet) Reset(height uint64, valSet *types.ValidatorSet) {
 	hvs.height = height
 	hvs.valSet = valSet
 	hvs.roundVoteSets = make(map[uint32]RoundVoteSet)
-	hvs.peerCatchupRounds = make(map[enode.ID][]uint32)
+	hvs.peerCatchupRounds = make(map[p2p.ID][]uint32)
 
 	hvs.addRound(1)
 	hvs.round = 1
@@ -116,7 +116,7 @@ func (hvs *HeightVoteSet) SetRound(round uint32) {
 
 // Duplicate votes return added=false, err=nil.
 // By convention, peerID is "" if origin is self.
-func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID enode.ID) (added bool, err error) {
+func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID p2p.ID) (added bool, err error) {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
 	if !types.IsVoteTypeValid(vote.Type) {
@@ -168,7 +168,7 @@ func (hvs *HeightVoteSet) getVoteSet(round uint32, type_ byte) *types.VoteSet {
 // NOTE: if there are too many peers, or too much peer churn,
 // this can cause memory issues.
 // TODO: implement ability to remove peers too
-func (hvs *HeightVoteSet) SetPeerMaj23(round uint32, type_ byte, peerID enode.ID, blockID types.BlockID) error {
+func (hvs *HeightVoteSet) SetPeerMaj23(round uint32, type_ byte, peerID p2p.ID, blockID types.BlockID) error {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
 	if !types.IsVoteTypeValid(type_) {
