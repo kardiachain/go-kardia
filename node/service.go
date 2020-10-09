@@ -47,8 +47,8 @@ func (ctx *ServiceContext) OpenDatabase(name string, cache int, handles int, nam
 	return storage.NewLevelDBDatabase(ctx.Config.ResolvePath(name), cache, handles, namespace)
 }
 
-// Database starts a new or existed database in the node data directory, or in-memory database.
-func (c *ServiceContext) StartDatabase(dbInfo storage.DbInfo) (types.StoreDB, error) {
+// StartDatabase starts a new or existed database in the node data directory, or in-memory database.
+func (ctx *ServiceContext) StartDatabase(dbInfo storage.DbInfo) (types.StoreDB, error) {
 	return dbInfo.Start()
 }
 
@@ -98,7 +98,7 @@ type Service interface {
 
 	// Start is called after all services have been constructed and the networking
 	// layer was also initialized to spawn any goroutines required by the service.
-	Start(server *p2p.Server) error
+	Start(server *p2p.Switch) error
 
 	// Stop terminates all goroutines belonging to the service, blocking until they
 	// are all terminated.
