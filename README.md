@@ -12,27 +12,27 @@ Compatible tested Go version: 1.13.0, 1.13.9, 1.13.15
 
 # Kardia private testnet
 - Block explorer UI: [Kardiascan](http://explorer.kardiachain.io/)
-- Release: [kardia-v0.10.0](https://github.com/kardiachain/go-kardiamain/releases/tag/v0.10.0)
+- Release: [kardia-v0.10.2](https://github.com/kardiachain/go-kardiamain/releases/tag/v0.10.2)
 
 
 # Quickstart
 ## 1. One-command-deployment to join Kardia private testnet:
 Copy and execute below script to create a VM running latest Kardia node and join our Kardia testnet:
 - **Google GCP**  
-[`./gce_join_testnet.sh`](https://github.com/kardiachain/go-kardia/blob/master/deployment/gce_join_testnet.sh)  
+[`./gce_join_testnet.sh`](https://github.com/kardiachain/go-kardiamain/blob/master/deployment/gce_join_testnet.sh)  
 
 ## 2. One-command-deployment to create Kardia private testnet:
 Copy and execute below script to start Kardia testnet without checking out the source code. (Note: Kardiascan UI is included in deployment script)
 ### Supported cloud providers:
 - **Google GCP**  
-[`./gce_deploy_testnet.sh`](https://github.com/kardiachain/go-kardia/blob/master/deployment/gce_deploy_testnet.sh)   
+[`./gce_deploy_testnet.sh`](https://github.com/kardiachain/go-kardiamain/blob/master/deployment/gce_deploy_testnet.sh)   
 - **Amazon AWS**  
 [`./aws_deploy_single_machine_testnet.sh`](https://github.com/kardiachain/go-kardia/blob/master/deployment/aws_deploy_single_machine_testnet.sh)   
 
-See [deployment](https://github.com/kardiachain/go-kardia/tree/master/deployment) for more details.  
+See [deployment](https://github.com/kardiachain/go-kardiamain/tree/master/deployment) for more details.  
 
 ### Run local testnet with docker
-- See [docker](https://github.com/kardiachain/go-kardia/tree/master/docker) for more details.
+- See [docker](https://github.com/kardiachain/go-kardiamain/tree/master/docker) for more details.
 
 # Development
 ### Go environment setup

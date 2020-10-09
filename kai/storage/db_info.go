@@ -22,7 +22,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/leveldb"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-	"github.com/kardiachain/go-kardiamain/kai/storage/mongodb"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -32,34 +31,11 @@ type DbInfo interface {
 	Start() (types.StoreDB, error)
 }
 
-// MongoDbInfo implements DbInfo to start chain using MongoDB
-type MongoDbInfo struct {
-	URI          string
-	DatabaseName string
-	Drop         bool // if drop is true, drop database
-}
-
 // LevelDbInfo implements DbInfo to start chain using levelDB
 type LevelDbInfo struct {
 	ChainData string
 	DbCaches  int
 	DbHandles int
-}
-
-func NewMongoDbInfo(uri, databaseName string, drop bool) *MongoDbInfo {
-	return &MongoDbInfo{
-		URI:          uri,
-		DatabaseName: databaseName,
-		Drop:         drop,
-	}
-}
-
-func (db *MongoDbInfo) Name() string {
-	return "MongoDB"
-}
-
-func (db *MongoDbInfo) Start() (types.StoreDB, error) {
-	return mongodb.NewDB(db.URI, db.DatabaseName, db.Drop)
 }
 
 func NewLevelDbInfo(chainData string, dbCaches, dbHandles int) *LevelDbInfo {

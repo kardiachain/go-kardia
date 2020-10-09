@@ -91,8 +91,6 @@ type (
 		Dir     string `yaml:"Dir"`
 		Caches  int    `yaml:"Caches"`
 		Handles int    `yaml:"Handles"`
-		URI     string `yaml:"URI"`
-		Name    string `yaml:"Name"`
 		Drop    int    `yaml:"Drop"`
 	}
 	Event struct {

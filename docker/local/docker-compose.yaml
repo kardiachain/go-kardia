@@ -1,0 +1,136 @@
+version: '3.4'
+
+networks:
+  kardia:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/24
+
+services:
+  node1:
+    container_name: node1
+    image: gcr.io/indigo-history-235904/go-kardiamain:v0.10.2
+    ports:
+      - 3000:3000
+      - 3000:3000/udp
+      - 8545:8545
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.2
+    volumes:
+      - ./node1.yaml:/go/bin/node1.yaml
+      - .:/root/.kardia
+    command: ["--config","/go/bin/node1.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
+  node2:
+    container_name: node2
+    image: gcr.io/indigo-history-235904/go-kardiamain:v0.10.2
+    ports:
+      - 3001:3000
+      - 3001:3000/udp
+      - 8546:8545
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.3
+    volumes:
+      - ./node2.yaml:/go/bin/node2.yaml
+      - ./:/root/.kardia
+    command: ["--config","/go/bin/node2.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
+  node3:
+    container_name: node3
+    image: gcr.io/indigo-history-235904/go-kardiamain:v0.10.2
+    ports:
+      - 3002:3000
+      - 3002:3000/udp
+      - 8547:8545
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.4
+    volumes:
+      - ./node3.yaml:/go/bin/node3.yaml
+      - ./:/root/.kardia
+    command: ["--config","/go/bin/node3.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
+  node4:
+    container_name: node4
+    image: gcr.io/indigo-history-235904/go-kardiamain:v0.10.2
+    ports:
+      - 3003:3000
+      - 3003:3000/udp
+      - 8548:8545
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.5
+    volumes:
+      - ./node4.yaml:/go/bin/node4.yaml
+      - ./:/root/.kardia
+    command: ["--config","/go/bin/node4.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
+  node5:
+    container_name: node5
+    image: gcr.io/indigo-history-235904/go-kardiamain:v0.10.2
+    ports:
+      - 3004:3000
+      - 3004:3000/udp
+      - 8549:8545
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.6
+    volumes:
+      - ./node5.yaml:/go/bin/node5.yaml
+      - ./:/root/.kardia
+    command: ["--config","/go/bin/node5.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
+  node6:
+    container_name: node6
+    image: gcr.io/indigo-history-235904/go-kardiamain:v0.10.2
+    ports:
+      - 3005:3000
+      - 3005:3000/udp
+      - 8550:8545
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.7
+    volumes:
+      - ./node6.yaml:/go/bin/node6.yaml
+      - ./:/root/.kardia
+    command: ["--config","/go/bin/node6.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
+  node7:
+    container_name: node7
+    image: gcr.io/indigo-history-235904/go-kardiamain:v0.10.2
+    ports:
+      - 3006:3000
+      - 3006:3000/udp
+      - 8551:8545
+    networks:
+      kardia:
+        ipv4_address: 172.20.0.8
+    volumes:
+      - ./node7.yaml:/go/bin/node7.yaml
+      - ./:/root/.kardia
+    command: ["--config","/go/bin/node7.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
