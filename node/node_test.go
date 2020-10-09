@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/configs"
+
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/rpc"
@@ -38,7 +40,7 @@ var (
 func testNodeConfig() *Config {
 	return &Config{
 		Name: "test node",
-		P2P:  p2p.Config{PrivateKey: testNodeKey},
+		P2P:  &configs.P2PConfig{},
 	}
 }
 
@@ -166,7 +168,7 @@ func TestServiceLifeCycle(t *testing.T) {
 		id := id // Closure for the constructor
 		constructor := func(*ServiceContext) (Service, error) {
 			return &InstrumentedService{
-				startHook: func(*p2p.Server) { started[id] = true },
+				startHook: func(*p2p.Switch) { started[id] = true },
 				stopHook:  func() { stopped[id] = true },
 			}, nil
 		}
@@ -214,7 +216,7 @@ func TestServiceRestarts(t *testing.T) {
 		running = false
 
 		return &InstrumentedService{
-			startHook: func(*p2p.Server) {
+			startHook: func(*p2p.Switch) {
 				if running {
 					panic("already running")
 				}
@@ -266,7 +268,7 @@ func TestServiceConstructionAbortion(t *testing.T) {
 		id := id // Closure for the constructor
 		constructor := func(*ServiceContext) (Service, error) {
 			return &InstrumentedService{
-				startHook: func(*p2p.Server) { started[id] = true },
+				startHook: func(*p2p.Switch) { started[id] = true },
 			}, nil
 		}
 		if err := stack.Register(maker(constructor)); err != nil {
@@ -317,7 +319,7 @@ func TestServiceStartupAbortion(t *testing.T) {
 		id := id // Closure for the constructor
 		constructor := func(*ServiceContext) (Service, error) {
 			return &InstrumentedService{
-				startHook: func(*p2p.Server) { started[id] = true },
+				startHook: func(*p2p.Switch) { started[id] = true },
 				stopHook:  func() { stopped[id] = true },
 			}, nil
 		}
@@ -372,7 +374,7 @@ func TestServiceTerminationGuarantee(t *testing.T) {
 		id := id // Closure for the constructor
 		constructor := func(*ServiceContext) (Service, error) {
 			return &InstrumentedService{
-				startHook: func(*p2p.Server) { started[id] = true },
+				startHook: func(*p2p.Switch) { started[id] = true },
 				stopHook:  func() { stopped[id] = true },
 			}, nil
 		}
@@ -483,15 +485,9 @@ func TestProtocolGather(t *testing.T) {
 		"many": {10, InstrumentedServiceMakerC},
 	}
 	for id, config := range services {
-		protocols := make([]p2p.Protocol, config.Count)
-		for i := 0; i < len(protocols); i++ {
-			protocols[i].Name = id
-			protocols[i].Version = uint(i)
-		}
+
 		constructor := func(*ServiceContext) (Service, error) {
-			return &InstrumentedService{
-				protocols: protocols,
-			}, nil
+			return &InstrumentedService{}, nil
 		}
 		if err := stack.Register(config.Maker(constructor)); err != nil {
 			t.Fatalf("service %s: registration failed: %v", id, err)
@@ -503,24 +499,6 @@ func TestProtocolGather(t *testing.T) {
 	}
 	defer stack.Stop()
 
-	protocols := stack.Server().Protocols
-	if len(protocols) != 11 {
-		t.Fatalf("mismatching number of protocols launched: have %d, want %d", len(protocols), 26)
-	}
-	for id, config := range services {
-		for ver := 0; ver < config.Count; ver++ {
-			launched := false
-			for i := 0; i < len(protocols); i++ {
-				if protocols[i].Name == id && protocols[i].Version == uint(ver) {
-					launched = true
-					break
-				}
-			}
-			if !launched {
-				t.Errorf("configured protocol not launched: %s v%d", id, ver)
-			}
-		}
-	}
 }
 
 // Tests that all APIs defined by individual services get exposed.

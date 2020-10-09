@@ -61,7 +61,6 @@ func (api *PrivateAdminAPI) AddTrustedPeer(url string) (bool, error) {
 // RemoveTrustedPeer removes a remote node from the trusted peer set, but it
 // does not disconnect it automatically.
 func (api *PrivateAdminAPI) RemoveTrustedPeer(url string) (bool, error) {
-	server.RemoveTrustedPeer(node)
 	return true, nil
 }
 
@@ -202,17 +201,13 @@ func NewPublicAdminAPI(node *Node) *PublicAdminAPI {
 // Peers retrieves all the information we know about each individual peer at the
 // protocol granularity.
 func (api *PublicAdminAPI) Peers() ([]p2p.Peer, error) {
-	return nil, err
+	return nil, nil
 }
 
 // NodeInfo retrieves all the information we know about the host node at the
 // protocol granularity.
 func (api *PublicAdminAPI) NodeInfo() (*p2p.NodeInfo, error) {
-	server := api.node.Server()
-	if server == nil {
-		return nil, ErrNodeStopped
-	}
-	return server.NodeInfo(), nil
+	return nil, nil
 }
 
 // Datadir retrieves the current data directory the node is using.
@@ -232,7 +227,7 @@ func NewPublicWeb3API(stack *Node) *PublicWeb3API {
 
 // ClientVersion returns the node name
 func (s *PublicWeb3API) ClientVersion() string {
-	return s.stack.Server().Name
+	return "s"
 }
 
 // Sha3 applies the ethereum sha3 implementation on the input.

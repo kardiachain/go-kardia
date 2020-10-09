@@ -18,31 +18,35 @@
 
 package types
 
+import (
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+)
+
 type CanonicalProposal struct {
-	ChainID    string  `json:"@chain_id"`
-	Type       string  `json:"@type"`
-	Height     uint64  `json:"height"`
-	POLBlockID BlockID `json:"pol_block_id"`
-	POLRound   uint32  `json:"pol_round"`
-	Round      uint32  `json:"round"`
-	Timestamp  uint64  `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+	ChainID    string                `json:"@chain_id"`
+	Type       tmproto.SignedMsgType `json:"@type"`
+	Height     uint64                `json:"height"`
+	POLBlockID BlockID               `json:"pol_block_id"`
+	POLRound   uint32                `json:"pol_round"`
+	Round      uint32                `json:"round"`
+	Timestamp  uint64                `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
 }
 
 type CanonicalVote struct {
-	ChainID   string  `json:"@chain_id"`
-	Type      string  `json:"@type"`
-	BlockID   BlockID `json:"block_id"`
-	Height    uint64  `json:"height"`
-	Round     uint32  `json:"round"`
-	Timestamp uint64  `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
-	VoteType  byte    `json:"type"`
+	ChainID   string                `json:"@chain_id"`
+	Type      tmproto.SignedMsgType `json:"@type"`
+	BlockID   BlockID               `json:"block_id"`
+	Height    uint64                `json:"height"`
+	Round     uint32                `json:"round"`
+	Timestamp uint64                `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+	VoteType  tmproto.SignedMsgType `json:"type"`
 }
 
 // ------- Helper functions to create canonical types --------------
 func CreateCanonicalProposal(chainID string, proposal *Proposal) CanonicalProposal {
 	return CanonicalProposal{
 		ChainID:    chainID,
-		Type:       "proposal",
+		Type:       tmproto.ProposalType,
 		Height:     proposal.Height,
 		Timestamp:  proposal.Timestamp,
 		POLBlockID: proposal.POLBlockID,
@@ -54,7 +58,7 @@ func CreateCanonicalProposal(chainID string, proposal *Proposal) CanonicalPropos
 func CreateCanonicalVote(chainID string, vote *Vote) CanonicalVote {
 	return CanonicalVote{
 		ChainID:   chainID,
-		Type:      "vote",
+		Type:      tmproto.PrevoteType,
 		BlockID:   vote.BlockID,
 		Height:    uint64(vote.Height),
 		Round:     vote.Round,

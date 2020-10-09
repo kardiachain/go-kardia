@@ -5,7 +5,19 @@ option go_package = "github.com/kardiachain/go-kardiamain/proto/kardiachain/type
 
 import "gogoproto/gogo.proto";
 
-
+// SignedMsgType is a type of signed message in the consensus.
+enum SignedMsgType {
+    option (gogoproto.goproto_enum_stringer) = true;
+    option (gogoproto.goproto_enum_prefix)   = false;
+  
+    SIGNED_MSG_TYPE_UNKNOWN = 0 [(gogoproto.enumvalue_customname) = "UnknownType"];
+    // Votes
+    SIGNED_MSG_TYPE_PREVOTE   = 1 [(gogoproto.enumvalue_customname) = "PrevoteType"];
+    SIGNED_MSG_TYPE_PRECOMMIT = 2 [(gogoproto.enumvalue_customname) = "PrecommitType"];
+  
+    // Proposals
+    SIGNED_MSG_TYPE_PROPOSAL = 32 [(gogoproto.enumvalue_customname) = "ProposalType"];
+  }
 
 // --------------------------------
 

@@ -26,6 +26,7 @@ import (
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -89,8 +90,8 @@ func (hvs *HeightVoteSet) addRound(round uint32) {
 		cmn.PanicSanity("addRound() for an existing round")
 	}
 	hvs.logger.Trace("addRound(round)", "round", round)
-	prevotes := types.NewVoteSet(hvs.chainID, hvs.height, round, types.VoteTypePrevote, hvs.valSet)
-	precommits := types.NewVoteSet(hvs.chainID, hvs.height, round, types.VoteTypePrecommit, hvs.valSet)
+	prevotes := types.NewVoteSet(hvs.chainID, hvs.height, round, tmproto.PrevoteType, hvs.valSet)
+	precommits := types.NewVoteSet(hvs.chainID, hvs.height, round, tmproto.PrecommitType, hvs.valSet)
 	hvs.roundVoteSets[round] = RoundVoteSet{
 		Prevotes:   prevotes,
 		Precommits: precommits,
@@ -144,22 +145,22 @@ func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 func (hvs *HeightVoteSet) Prevotes(round uint32) *types.VoteSet {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
-	return hvs.getVoteSet(round, types.VoteTypePrevote)
+	return hvs.getVoteSet(round, tmproto.PrevoteType)
 }
 
 // Get vote set of the given round for specific type.
-func (hvs *HeightVoteSet) getVoteSet(round uint32, type_ byte) *types.VoteSet {
+func (hvs *HeightVoteSet) getVoteSet(round uint32, signedMsgType tmproto.SignedMsgType) *types.VoteSet {
 	rvs, ok := hvs.roundVoteSets[round]
 	if !ok {
 		return nil
 	}
-	switch type_ {
-	case types.VoteTypePrevote:
+	switch signedMsgType {
+	case tmproto.PrevoteType:
 		return rvs.Prevotes
-	case types.VoteTypePrecommit:
+	case tmproto.PrecommitType:
 		return rvs.Precommits
 	default:
-		cmn.PanicSanity(cmn.Fmt("Unexpected vote type %X", type_))
+		cmn.PanicSanity(cmn.Fmt("Unexpected vote type %X", signedMsgType))
 		return nil
 	}
 }
@@ -168,13 +169,13 @@ func (hvs *HeightVoteSet) getVoteSet(round uint32, type_ byte) *types.VoteSet {
 // NOTE: if there are too many peers, or too much peer churn,
 // this can cause memory issues.
 // TODO: implement ability to remove peers too
-func (hvs *HeightVoteSet) SetPeerMaj23(round uint32, type_ byte, peerID p2p.ID, blockID types.BlockID) error {
+func (hvs *HeightVoteSet) SetPeerMaj23(round uint32, signedMsgType tmproto.SignedMsgType, peerID p2p.ID, blockID types.BlockID) error {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
-	if !types.IsVoteTypeValid(type_) {
-		return fmt.Errorf("SetPeerMaj23: Invalid vote type %v", type_)
+	if !types.IsVoteTypeValid(signedMsgType) {
+		return fmt.Errorf("SetPeerMaj23: Invalid vote type %v", signedMsgType)
 	}
-	voteSet := hvs.getVoteSet(round, type_)
+	voteSet := hvs.getVoteSet(round, signedMsgType)
 	if voteSet == nil {
 		return nil // something we don't know about yet
 	}
@@ -187,7 +188,7 @@ func (hvs *HeightVoteSet) POLInfo() (polRound uint32, polBlockID types.BlockID) 
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
 	for r := hvs.round; r >= 0; r-- {
-		rvs := hvs.getVoteSet(r, types.VoteTypePrevote)
+		rvs := hvs.getVoteSet(r, tmproto.PrevoteType)
 		polBlockID, ok := rvs.TwoThirdsMajority()
 		if ok {
 			return r, polBlockID
@@ -199,5 +200,5 @@ func (hvs *HeightVoteSet) POLInfo() (polRound uint32, polBlockID types.BlockID) 
 func (hvs *HeightVoteSet) Precommits(round uint32) *types.VoteSet {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
-	return hvs.getVoteSet(round, types.VoteTypePrecommit)
+	return hvs.getVoteSet(round, tmproto.PrecommitType)
 }

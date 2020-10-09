@@ -82,7 +82,7 @@ type MainChainConfig struct {
 	ServiceName string
 
 	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *types.BaseAccount
+	BaseAccount *configs.BaseAccount
 }
 
 type DualChainConfig struct {
@@ -106,7 +106,7 @@ type DualChainConfig struct {
 	DualProtocolName string
 
 	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *types.BaseAccount
+	BaseAccount *configs.BaseAccount
 
 	// Dual Network ID
 	DualNetworkID uint64
@@ -151,7 +151,7 @@ type Config struct {
 	DataDir string
 
 	// Configuration of peer-to-peer networking.
-	P2P configs.P2PConfig
+	P2P *configs.P2PConfig
 
 	// KeyStoreDir is the file system folder that contains private keys. The directory can
 	// be specified as a relative path, in which case it is resolved relative to the
@@ -282,7 +282,7 @@ type Config struct {
 	PeerProxyIP string
 
 	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *types.BaseAccount
+	BaseAccount *configs.BaseAccount
 
 	// Metrics defines whether we want to collect and expose metrics of the node
 	Metrics uint
@@ -333,7 +333,7 @@ func DefaultIPCEndpoint(clientIdentifier string) string {
 			panic("empty executable name")
 		}
 	}
-	config := &Config{DataDir: DefaultDataDir(), IPCPath: clientIdentifier + ".ipc"}
+	config := &Config{DataDir: configs.DefaultDataDir(), IPCPath: clientIdentifier + ".ipc"}
 	return config.IPCEndpoint()
 }
 
@@ -456,10 +456,10 @@ func (c *Config) instanceDir() string {
 // first any manually set key, falling back to the one found in the configured
 // data folder. If no key can be found, a new one is generated.
 func (c *Config) NodeKey() *ecdsa.PrivateKey {
-	// Use any specifically configured key.
-	if c.P2P.PrivateKey != nil {
-		return c.P2P.PrivateKey
-	}
+	// // Use any specifically configured key.
+	// if c.P2P.PrivateKey != nil {
+	// 	return c.P2P.PrivateKey
+	// }
 	// Generate ephemeral key if no datadir is being used.
 	if c.DataDir == "" {
 		key, err := crypto.GenerateKey()

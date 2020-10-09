@@ -140,7 +140,7 @@ func (n *Node) Register(constructor ServiceConstructor) error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	if n.server != nil {
+	if n.sw != nil {
 		return ErrNodeRunning
 	}
 	n.serviceFuncs = append(n.serviceFuncs, constructor)
@@ -333,7 +333,7 @@ func (n *Node) Stop() error {
 	defer n.lock.Unlock()
 
 	// Short circuit if the node's not running
-	if n.server == nil {
+	if n.sw == nil {
 		return ErrNodeStopped
 	}
 
@@ -350,9 +350,8 @@ func (n *Node) Stop() error {
 			failure.Services[kind] = err
 		}
 	}
-	n.server.Stop()
+	n.sw.Stop()
 	n.services = nil
-	n.server = nil
 
 	// Release instance directory lock.
 	if n.instanceDirLock != nil {
@@ -384,7 +383,7 @@ func (n *Node) Stop() error {
 // at the time of invocation, the method immediately returns.
 func (n *Node) Wait() {
 	n.lock.RLock()
-	if n.server == nil {
+	if n.sw == nil {
 		n.lock.RUnlock()
 		return
 	}
@@ -411,7 +410,7 @@ func (n *Node) Attach() (*rpc.Client, error) {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 
-	if n.server == nil {
+	if n.sw == nil {
 		return nil, ErrNodeStopped
 	}
 	return rpc.DialInProc(n.inprocHandler), nil
@@ -434,7 +433,7 @@ func (n *Node) Service(service interface{}) error {
 	defer n.lock.RUnlock()
 
 	// Short circuit if the node's not running
-	if n.server == nil {
+	if n.sw == nil {
 		return ErrNodeStopped
 	}
 	// Otherwise try to find the service to return

@@ -26,6 +26,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 //-------------------------------------
@@ -165,8 +166,8 @@ func NewCommit(height uint64, round uint32, blockID BlockID, commitSigs []Commit
 // Panics if signatures from the commit can't be added to the voteset.
 // Inverse of VoteSet.MakeCommit().
 func CommitToVoteSet(chainID string, commit *Commit, vals *ValidatorSet) *VoteSet {
-	height, round, typ := commit.GetHeight(), commit.GetRound(), VoteTypePrecommit
-	voteSet := NewVoteSet(chainID, height, round, typ, vals)
+	height, round := commit.GetHeight(), commit.GetRound()
+	voteSet := NewVoteSet(chainID, height, round, tmproto.PrecommitType, vals)
 	for idx, commitSig := range commit.Signatures {
 		if commitSig.Absent() {
 			continue // OK, some precommits can be missing.
@@ -193,7 +194,7 @@ func (commit *Commit) VoteSignBytes(chainID string, valIdx uint32) []byte {
 func (commit *Commit) GetVote(valIdx uint32) *Vote {
 	commitSig := commit.Signatures[valIdx]
 	return &Vote{
-		Type:             VoteTypePrecommit,
+		Type:             tmproto.PrecommitType,
 		Height:           commit.Height,
 		Round:            commit.Round,
 		BlockID:          commitSig.BlockID(commit.BlockID),
@@ -222,8 +223,8 @@ func (commit *Commit) GetRound() uint32 {
 }
 
 // Type returns the vote type of the commit, which is always VoteTypePrecommit
-func (commit *Commit) Type() byte {
-	return VoteTypePrecommit
+func (commit *Commit) Type() tmproto.SignedMsgType {
+	return tmproto.PrecommitType
 }
 
 // Size returns the number of votes in the commit

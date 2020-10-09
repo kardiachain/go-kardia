@@ -29,11 +29,10 @@ import (
 // NoopService is a trivial implementation of the Service interface.
 type NoopService struct{}
 
-func (s *NoopService) Protocols() []p2p.Protocol { return nil }
-func (s *NoopService) APIs() []rpc.API           { return nil }
-func (s *NoopService) Start(*p2p.Server) error   { return nil }
-func (s *NoopService) Stop() error               { return nil }
-func (s *NoopService) DB() types.StoreDB         { return nil }
+func (s *NoopService) APIs() []rpc.API         { return nil }
+func (s *NoopService) Start(*p2p.Switch) error { return nil }
+func (s *NoopService) Stop() error             { return nil }
+func (s *NoopService) DB() types.StoreDB       { return nil }
 
 func NewNoopService(*ServiceContext) (Service, error) { return new(NoopService), nil }
 
@@ -50,30 +49,22 @@ func NewNoopServiceC(*ServiceContext) (Service, error) { return new(NoopServiceC
 // InstrumentedService is an implementation of Service for which all interface
 // methods can be instrumented both return value as well as event hook wise.
 type InstrumentedService struct {
-	protocols []p2p.Protocol
-	apis      []rpc.API
-	start     error
-	stop      error
+	apis  []rpc.API
+	start error
+	stop  error
 
 	protocolsHook func()
-	startHook     func(*p2p.Server)
+	startHook     func(*p2p.Switch)
 	stopHook      func()
 }
 
 func NewInstrumentedService(*ServiceContext) (Service, error) { return new(InstrumentedService), nil }
 
-func (s *InstrumentedService) Protocols() []p2p.Protocol {
-	if s.protocolsHook != nil {
-		s.protocolsHook()
-	}
-	return s.protocols
-}
-
 func (s *InstrumentedService) APIs() []rpc.API {
 	return s.apis
 }
 
-func (s *InstrumentedService) Start(server *p2p.Server) error {
+func (s *InstrumentedService) Start(server *p2p.Switch) error {
 	if s.startHook != nil {
 		s.startHook(server)
 	}

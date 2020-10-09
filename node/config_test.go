@@ -108,12 +108,7 @@ func TestNodeKeyPersistency(t *testing.T) {
 
 	keyfile := filepath.Join(dir, "unit-test", datadirPrivateKey)
 
-	// Configure a node with a preset key and ensure it's not persisted
-	key, err := crypto.GenerateKey()
-	if err != nil {
-		t.Fatalf("failed to generate one-shot node key: %v", err)
-	}
-	config := &Config{Name: "unit-test", DataDir: dir, P2P: configs.P2PConfig{}}
+	config := &Config{Name: "unit-test", DataDir: dir, P2P: &configs.P2PConfig{}}
 	config.NodeKey()
 	if _, err := os.Stat(filepath.Join(keyfile)); err == nil {
 		t.Fatalf("one-shot node key persisted to data directory")

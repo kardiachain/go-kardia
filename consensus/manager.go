@@ -30,6 +30,20 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/types"
+
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+)
+
+const (
+	StateChannel       = byte(0x20)
+	DataChannel        = byte(0x21)
+	VoteChannel        = byte(0x22)
+	VoteSetBitsChannel = byte(0x23)
+
+	maxMsgSize = 1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
+
+	blocksToContributeToBecomeGoodPeer = 10000
+	votesToContributeToBecomeGoodPeer  = 10000
 )
 
 // ConsensusManager defines a manager for the consensus service.
@@ -102,30 +116,32 @@ func (conR *ConsensusManager) Stop() {
 }
 
 // AddPeer implements manager
-func (conR *ConsensusManager) AddPeer(p *p2p.Peer, rw p2p.MsgReadWriter) {
-	conR.logger.Info("Add peer to manager", "peer", p)
-	conR.sendNewRoundStepMessages(rw)
+func (conR *ConsensusManager) AddPeer(peer p2p.Peer) {
+	conR.logger.Info("Add peer to manager", "peer", peer)
 
 	if !conR.running {
 		return
 	}
 
-	//// Create peerState for peer
-	peerState := NewPeerState(p, rw).SetLogger(conR.logger)
-	p.Set(conR.GetPeerStateKey(), peerState)
+	peerState, ok := peer.Get(types.PeerStateKey).(*PeerState)
+	if !ok {
+		panic(fmt.Sprintf("peer %v has no state", peer))
+	}
 
 	// Begin routines for this peer.
-	go conR.gossipDataRoutine(p, peerState)
-	go conR.gossipVotesRoutine(p, peerState)
-	go conR.queryMaj23Routine(p, peerState)
+	go conR.gossipDataRoutine(peer, peerState)
+	go conR.gossipVotesRoutine(peer, peerState)
+	go conR.queryMaj23Routine(peer, peerState)
+
+	// Send our state to peer.
+	// If we're fast_syncing, broadcast a RoundStepMessage later upon SwitchToConsensus().
+	conR.sendNewRoundStepMessage(peer)
+
 }
 
+// RemovePeer is a noop.
 func (conR *ConsensusManager) RemovePeer(p *p2p.Peer, reason interface{}) {
 	conR.logger.Warn("ConsensusManager.RemovePeer - not yet implemented")
-}
-
-func (conR *ConsensusManager) GetPeerStateKey() string {
-	return conR.id + "." + p2p.PeerStateKey
 }
 
 // subscribeToBroadcastEvents subscribes for new round steps, votes and
@@ -154,311 +170,10 @@ func (conR *ConsensusManager) unsubscribeFromBroadcastEvents() {
 	conR.conS.evsw.RemoveListener(subscriber)
 }
 
-// ------------ Message handlers ---------
-
-// Handles received NewRoundStepMessage
-func (conR *ConsensusManager) ReceiveNewRoundStep(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received NewRoundStep", "peer", src)
-
-	if !conR.running {
-		conR.logger.Trace("Consensus manager isn't running.")
-		return
-	}
-
-	var msg NewRoundStepMessage
-	if err := generalMsg.Decode(&msg); err != nil {
-		conR.logger.Error("Invalid message", "msg", generalMsg, "err", err)
-		return
-	}
-	conR.logger.Trace("Decoded msg", "msg", msg)
-
-	// Get peer states
-	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
-	if !ok {
-		conR.logger.Error("Downcast failed!!")
-		return
-	}
-
-	ps.ApplyNewRoundStepMessage(&msg)
-}
-
-func (conR *ConsensusManager) ReceiveNewBlockPart(generalMsg p2p.Msg, src *p2p.Peer) {
-	if !conR.running {
-		conR.logger.Trace("Consensus manager isn't running.")
-		return
-	}
-	conR.logger.Trace("Consensus manager received Block Part", "peer", src)
-
-	msg := &BlockPartMessage{}
-	if err := generalMsg.Decode(msg); err != nil {
-		conR.logger.Error("Invalid block part message", "msg", generalMsg, "err", err)
-		return
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
-		conR.logger.Error("Peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
-		return
-	}
-
-	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
-	if !ok {
-		conR.logger.Error("Downcast failed!!")
-		return
-	}
-	ps.SetHasProposalBlockPart(msg.Height, msg.Round, int(msg.Part.Index))
-	conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
-}
-
-// ReceiveNewValidBlock receive new valid block ...
-func (conR *ConsensusManager) ReceiveNewValidBlock(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received valid block", "peer", src)
-
-	if !conR.running {
-		conR.logger.Trace("Consensus manager isn't running.")
-		return
-	}
-
-	msg := &NewValidBlockMessage{}
-	if err := generalMsg.Decode(msg); err != nil {
-		conR.logger.Error("Invalid valid block message", "msg", generalMsg, "err", err)
-		return
-	}
-
-	if err := msg.ValidateBasic(); err != nil {
-		conR.logger.Error("Peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
-	}
-
-	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
-	if !ok {
-		conR.logger.Error("Downcast failed!!")
-		return
-	}
-	ps.ApplyNewValidBlockMessage(msg)
-
-}
-
-func (conR *ConsensusManager) ReceiveNewProposal(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received Proposal", "peer", src)
-
-	if !conR.running {
-		conR.logger.Trace("Consensus manager isn't running.")
-		return
-	}
-
-	msg := &ProposalMessage{}
-	if err := generalMsg.Decode(msg); err != nil {
-		conR.logger.Error("Invalid proposal message", "msg", generalMsg, "err", err)
-		return
-	}
-
-	proposal := msg.Proposal
-	conR.logger.Info("handling ProposalMessage",
-		"proposalHeight", proposal.Height,
-		"blockHeight", proposal.Height,
-		"round", proposal.Round,
-		"POLRound", proposal.POLRound,
-	)
-
-	// Get peer states
-	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
-	if !ok {
-		conR.logger.Error("Downcast failed!!")
-		return
-	}
-
-	ps.SetHasProposal(msg.Proposal)
-	conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
-}
-
-func (conR *ConsensusManager) ReceiveNewVote(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received NewVote", "peer", src)
-
-	if !conR.running {
-		conR.logger.Trace("Consensus manager isn't running.")
-		return
-	}
-
-	var msg VoteMessage
-	if err := generalMsg.Decode(&msg); err != nil {
-		conR.logger.Error("Invalid vote message", "msg", generalMsg, "err", err)
-		return
-	}
-	conR.logger.Trace("Decoded msg", "msg", msg.Vote)
-
-	// Get peer states
-	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
-	if !ok {
-		conR.logger.Error("Downcast failed!!")
-		return
-	}
-
-	cs := conR.conS
-	cs.mtx.Lock()
-	height, valSize, lastCommitSize := cs.Height, cs.Validators.Size(), cs.LastCommit.Size()
-	cs.mtx.Unlock()
-	ps.EnsureVoteBitArrays(height, valSize)
-	ps.EnsureVoteBitArrays(height-1, lastCommitSize)
-	ps.SetHasVote(msg.Vote)
-	conR.logger.Trace("Implement RecordVote here to mark peer as good.")
-
-	cs.peerMsgQueue <- msgInfo{&msg, src.ID()}
-}
-
-func (conR *ConsensusManager) ReceiveHasVote(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received HasVote", "peer", src)
-
-	if !conR.running {
-		conR.logger.Trace("Consensus manager isn't running.")
-		return
-	}
-
-	var msg HasVoteMessage
-	if err := generalMsg.Decode(&msg); err != nil {
-		conR.logger.Error("Invalid HasVoteMessage", "msg", generalMsg, "err", err)
-		return
-	}
-	conR.logger.Trace("Decoded msg", "msg", msg)
-
-	// Get peer states
-	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
-	if !ok {
-		conR.logger.Error("Downcast failed!!")
-		return
-	}
-
-	ps.ApplyHasVoteMessage(&msg)
-}
-
-func (conR *ConsensusManager) ReceiveProposalPOL(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received ProposalPOLMessage", "peer", src)
-
-	if !conR.running {
-		conR.logger.Trace("Consensus manager isn't running.")
-		return
-	}
-
-	var msg ProposalPOLMessage
-	if err := generalMsg.Decode(&msg); err != nil {
-		conR.logger.Error("Invalid ProposalPOLMessage", "msg", generalMsg, "err", err)
-		return
-	}
-	conR.logger.Trace("Decoded msg", "msg", msg)
-
-	// Get peer states
-	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
-	if !ok {
-		conR.logger.Error("Downcast failed!!")
-		return
-	}
-
-	ps.ApplyProposalPOLMessage(&msg)
-}
-
-func (conR *ConsensusManager) ReceiveVoteSetMaj23(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received VoteSetMaj23Message", "peer", src)
-
-	if !conR.running {
-		conR.logger.Trace("Consensus manager isn't running.")
-		return
-	}
-
-	var msg VoteSetMaj23Message
-	if err := generalMsg.Decode(&msg); err != nil {
-		conR.logger.Error("Invalid VoteSetMaj23Message", "msg", generalMsg, "err", err)
-		return
-	}
-	conR.logger.Trace("Decoded msg", "msg", &msg)
-
-	// Get peer states
-	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
-	if !ok {
-		conR.logger.Error("Downcast failed!!")
-		return
-	}
-
-	cs := conR.conS
-	cs.mtx.Lock()
-	height, votes := cs.Height, cs.Votes
-	cs.mtx.Unlock()
-	if height != msg.Height {
-		conR.logger.Trace("ReceiveVoteSetMaj23 - height doesn't match", "height", height, "msg.Height", msg.Height)
-		return
-	}
-	// Peer claims to have a maj23 for some BlockID at H,R,S,
-	err := votes.SetPeerMaj23(msg.Round, msg.Type, ps.peer.ID(), msg.BlockID)
-	if err != nil {
-		conR.logger.Error("SetPeerMaj23 failed", "err", err)
-		return
-	}
-	// Respond with a VoteSetBitsMessage showing which votes we have.
-	// (and consequently shows which we don't have)
-	var ourVotes *cmn.BitArray
-	switch msg.Type {
-	case types.VoteTypePrevote:
-		ourVotes = votes.Prevotes(msg.Round).BitArrayByBlockID(msg.BlockID)
-	case types.VoteTypePrecommit:
-		ourVotes = votes.Precommits(msg.Round).BitArrayByBlockID(msg.BlockID)
-	default:
-		conR.logger.Error("Bad VoteSetMaj23Message field Type")
-		return
-	}
-	p2p.Send(ps.rw, service.CsVoteSetBitsMessage, &VoteSetBitsMessage{
-		Height:  msg.Height,
-		Round:   msg.Round,
-		Type:    msg.Type,
-		BlockID: msg.BlockID,
-		Votes:   ourVotes,
-	})
-}
-
-func (conR *ConsensusManager) ReceiveVoteSetBits(generalMsg p2p.Msg, src *p2p.Peer) {
-	conR.logger.Trace("Consensus manager received VoteSetBits", "peer", src)
-
-	if !conR.running {
-		conR.logger.Trace("Consensus manager isn't running.")
-		return
-	}
-
-	var msg VoteSetBitsMessage
-	if err := generalMsg.Decode(&msg); err != nil {
-		conR.logger.Error("Invalid VoteSetBitsMessage", "msg", generalMsg, "err", err)
-		return
-	}
-	conR.logger.Trace("Decoded msg", "msg", msg)
-
-	// Get peer states
-	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
-	if !ok {
-		conR.logger.Error("Downcast failed!!")
-		return
-	}
-
-	cs := conR.conS
-	cs.mtx.Lock()
-	height, votes := cs.Height, cs.Votes
-	cs.mtx.Unlock()
-
-	if height == msg.Height {
-		var ourVotes *cmn.BitArray
-		switch msg.Type {
-		case types.VoteTypePrevote:
-			ourVotes = votes.Prevotes(msg.Round).BitArrayByBlockID(msg.BlockID)
-		case types.VoteTypePrecommit:
-			ourVotes = votes.Precommits(msg.Round).BitArrayByBlockID(msg.BlockID)
-		default:
-			conR.logger.Error("Bad VoteSetBitsMessage field Type")
-			return
-		}
-		ps.ApplyVoteSetBitsMessage(&msg, ourVotes)
-	} else {
-		ps.ApplyVoteSetBitsMessage(&msg, nil)
-	}
-}
-
 // ------------ Broadcast messages ------------
 
 func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundState) {
-	nrsMsg := makeRoundStepMessages(rs)
+	nrsMsg := makeRoundStepMessage(rs)
 	conR.logger.Trace("broadcastNewRoundStepMessage", "nrsMsg", nrsMsg, "height", rs.Height)
 	conR.protocol.Broadcast(nrsMsg, service.CsNewRoundStepMsg)
 }
@@ -488,21 +203,15 @@ func (conR *ConsensusManager) broadcastNewValidBlockMessage(rs *cstypes.RoundSta
 
 // ------------ Send message helpers -----------
 
-func (conR *ConsensusManager) sendNewRoundStepMessages(rw p2p.MsgReadWriter) {
+func (conR *ConsensusManager) sendNewRoundStepMessage(peer p2p.Peer) {
 	conR.logger.Debug("manager - sendNewRoundStepMessages")
-
 	rs := conR.conS.GetRoundState()
-	nrsMsg := makeRoundStepMessages(rs)
-	conR.logger.Trace("makeRoundStepMessages", "nrsMsg", nrsMsg)
-	if err := p2p.Send(rw, service.CsNewRoundStepMsg, nrsMsg); err != nil {
-		conR.logger.Warn("send NewRoundStepMessage failed", "err", err)
-	} else {
-		conR.logger.Trace("send NewRoundStepMessage success")
-	}
+	nrsMsg := makeRoundStepMessage(rs)
+	peer.Send(StateChannel, MustEncode(nrsMsg))
 }
 
 // ------------ Helpers to create messages -----
-func makeRoundStepMessages(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage) {
+func makeRoundStepMessage(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage) {
 	nrsMsg = &NewRoundStepMessage{
 		Height:                rs.Height,
 		Round:                 rs.Round,
@@ -514,14 +223,14 @@ func makeRoundStepMessages(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage)
 }
 
 // ----------- Gossip routines ---------------
-func (conR *ConsensusManager) gossipDataRoutine(peer *p2p.Peer, ps *PeerState) {
+func (conR *ConsensusManager) gossipDataRoutine(peer p2p.Peer, ps *PeerState) {
 	logger := conR.logger.New("peer", peer)
 	logger.Trace("Start gossipDataRoutine for peer")
 
 OuterLoop:
 	for {
 		// Manage disconnects from self or peer.
-		if !peer.IsAlive || !conR.running {
+		if !peer.IsRunning() || !conR.running {
 			logger.Info("Stopping gossipDataRoutine for peer")
 			return
 		}
@@ -538,9 +247,7 @@ OuterLoop:
 					Part:   part,
 				}
 				logger.Info("Sending block part", "height", prs.Height, "round", prs.Round, "msg code", service.CsProposalBlockPartMsg)
-				if err := p2p.Send(ps.rw, service.CsProposalBlockPartMsg, msg); err != nil {
-					logger.Error("Sending block part failed", "err", err)
-				} else {
+				if peer.Send(DataChannel, MustEncode(msg)) {
 					ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				}
 				continue OuterLoop
@@ -560,7 +267,7 @@ OuterLoop:
 				ps.InitProposalBlockParts(blockMeta.BlockID.PartsHeader)
 				continue OuterLoop
 			}
-			conR.gossipDataForCatchup(rs, prs, ps)
+			conR.gossipDataForCatchup(rs, prs, ps, peer)
 			continue OuterLoop
 		}
 
@@ -580,12 +287,10 @@ OuterLoop:
 		if rs.Proposal != nil && !prs.Proposal {
 			// Proposal: share the proposal metadata with peer.
 			{
+				msg := &ProposalMessage{Proposal: rs.Proposal}
 				logger.Debug("Sending proposal", "height", prs.Height, "round", prs.Round)
-				// proposal contains block data, therefore, it will cause bottle neck here if there are thounsands of txs inside.
-				// add it into goroutine to prevent bottleneck
-				if err := p2p.Send(ps.rw, service.CsProposalMsg, &ProposalMessage{Proposal: rs.Proposal}); err != nil {
-					logger.Trace("Sending proposal failed", "err", err)
-				} else {
+				if peer.Send(DataChannel, MustEncode(msg)) {
+					// NOTE[ZM]: A peer might have received different proposal msg so this Proposal msg will be rejected!
 					ps.SetHasProposal(rs.Proposal)
 				}
 			}
@@ -600,9 +305,7 @@ OuterLoop:
 					ProposalPOL:      rs.Votes.Prevotes(rs.Proposal.POLRound).BitArray(),
 				}
 				logger.Debug("Sending POL", "height", prs.Height, "round", prs.Round)
-				if err := p2p.Send(ps.rw, service.CsProposalPOLMsg, msg); err != nil {
-					logger.Error("Sending proposalPOLMsg failed", "err", err)
-				}
+				peer.Send(DataChannel, MustEncode(msg))
 			}
 			continue OuterLoop
 		}
@@ -614,7 +317,7 @@ OuterLoop:
 }
 
 func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
-	prs *cstypes.PeerRoundState, ps *PeerState) {
+	prs *cstypes.PeerRoundState, ps *PeerState, peer p2p.Peer) {
 
 	if index, ok := prs.ProposalBlockParts.Not().PickRandom(); ok {
 		// Ensure that the peer's PartSetHeader is correct
@@ -647,10 +350,10 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 			Part:   part,
 		}
 		conR.logger.Debug("Sending block part for catchup", "round", prs.Round, "index", index)
-		if err := p2p.Send(ps.rw, service.CsProposalBlockPartMsg, msg); err != nil {
-			conR.logger.Error("Sending block part for catchup failed", "err", err)
-		} else {
+		if peer.Send(DataChannel, MustEncode(msg)) {
 			ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
+		} else {
+			conR.logger.Debug("Sending block part for catchup failed")
 		}
 		return
 	}
@@ -658,7 +361,7 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 	time.Sleep(conR.conS.config.PeerGossipSleep())
 }
 
-func (conR *ConsensusManager) gossipVotesRoutine(peer *p2p.Peer, ps *PeerState) {
+func (conR *ConsensusManager) gossipVotesRoutine(peer p2p.Peer, ps *PeerState) {
 	logger := conR.logger.New("peer", peer)
 	logger.Trace("Start gossipVotesRoutine for peer")
 
@@ -668,7 +371,7 @@ func (conR *ConsensusManager) gossipVotesRoutine(peer *p2p.Peer, ps *PeerState) 
 OUTER_LOOP:
 	for {
 		// Manage disconnects from self or peer.
-		if !peer.IsAlive || !conR.running {
+		if !peer.IsRunning() || !conR.running {
 			logger.Info("Stopping gossipVotesRoutine for peer")
 			return
 		}
@@ -785,13 +488,13 @@ func (conR *ConsensusManager) gossipVotesForHeight(logger log.Logger, rs *cstype
 	return false
 }
 
-func (conR *ConsensusManager) queryMaj23Routine(peer *p2p.Peer, ps *PeerState) {
+func (conR *ConsensusManager) queryMaj23Routine(peer p2p.Peer, ps *PeerState) {
 	logger := conR.logger.New("peer", peer)
 
 OUTER_LOOP:
 	for {
 		// Manage disconnects from self or peer.
-		if !peer.IsAlive || !conR.running {
+		if !!peer.IsRunning() || !conR.running {
 			logger.Info("Stopping queryMaj23Routine for peer")
 			return
 		}
@@ -802,14 +505,12 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if rs.Height == prs.Height {
 				if maj23, ok := rs.Votes.Prevotes(prs.Round).TwoThirdsMajority(); ok {
-					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+					peer.TrySend(StateChannel, MustEncode(&VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   prs.Round,
-						Type:    types.VoteTypePrevote,
+						Type:    tmproto.PrevoteType,
 						BlockID: maj23,
-					}); err != nil {
-						logger.Error("error while sending Height/Round/Prevotes", "err", err)
-					}
+					}))
 					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
 				}
 			}
@@ -821,14 +522,12 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if rs.Height == prs.Height {
 				if maj23, ok := rs.Votes.Precommits(prs.Round).TwoThirdsMajority(); ok {
-					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+					peer.TrySend(StateChannel, MustEncode(&VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   prs.Round,
-						Type:    types.VoteTypePrecommit,
+						Type:    tmproto.PrecommitType,
 						BlockID: maj23,
-					}); err != nil {
-						logger.Error("error while sending Height/Round/Precommits", "err", err)
-					}
+					}))
 					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
 				}
 			}
@@ -840,14 +539,12 @@ OUTER_LOOP:
 			prs := ps.GetRoundState()
 			if (rs.Height == prs.Height) && (prs.ProposalPOLRound >= 0) {
 				if maj23, ok := rs.Votes.Prevotes(prs.ProposalPOLRound).TwoThirdsMajority(); ok {
-					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+					peer.TrySend(StateChannel, MustEncode(&VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   prs.ProposalPOLRound,
-						Type:    types.VoteTypePrevote,
+						Type:    tmproto.PrevoteType,
 						BlockID: maj23,
-					}); err != nil {
-						logger.Error("error while sending Height/Round/ProposalPOL", "err", err)
-					}
+					}))
 					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
 				}
 			}
@@ -859,19 +556,15 @@ OUTER_LOOP:
 			if (prs.CatchupCommitRound != 0) && (prs.Height > 0) && (prs.Height <= conR.conS.blockOperations.Height()) {
 				commit := conR.conS.LoadCommit(prs.Height)
 				if commit != nil {
-					// TODO: @lew
-					// Consider using go func() here for multithreading cause we are sending msg
-					// over p2p (not sending msg to channel like tendermint)
-					if err := p2p.Send(ps.rw, service.CsVoteSetMaj23Message, &VoteSetMaj23Message{
+					peer.TrySend(StateChannel, MustEncode(&VoteSetMaj23Message{
 						Height:  prs.Height,
-						Round:   commit.GetRound(),
-						Type:    types.VoteTypePrecommit,
+						Round:   commit.Round,
+						Type:    tmproto.PrecommitType,
 						BlockID: commit.BlockID,
-					}); err != nil {
-						logger.Error("error while sending Height/CatchupCommitRound/CatchupCommit", "err", err)
-					}
+					}))
+					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
 				}
-				time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
+
 			}
 		}
 
@@ -879,6 +572,14 @@ OUTER_LOOP:
 
 		continue OUTER_LOOP
 	}
+}
+
+//-----------------------------------------------------------------------------
+// Messages
+
+// Message is a message that can be sent and received on the Reactor
+type Message interface {
+	ValidateBasic() error
 }
 
 // ----------- Consensus Messages ------------
@@ -891,9 +592,19 @@ type VoteMessage struct {
 	Vote *types.Vote
 }
 
+// ValidateBasic performs basic validation.
+func (m *VoteMessage) ValidateBasic() error {
+	return m.Vote.ValidateBasic()
+}
+
 // ProposalMessage is sent when a new block is proposed.
 type ProposalMessage struct {
 	Proposal *types.Proposal
+}
+
+// ValidateBasic performs basic validation.
+func (m *ProposalMessage) ValidateBasic() error {
+	return nil
 }
 
 // ProposalPOLMessage is sent when a previous proposal is re-proposed.
@@ -908,6 +619,20 @@ func (m *ProposalPOLMessage) String() string {
 	return fmt.Sprintf("[ProposalPOL H:%v POLR:%v POL:%v]", m.Height, m.ProposalPOLRound, m.ProposalPOL)
 }
 
+// ValidateBasic performs basic validation.
+func (m *ProposalPOLMessage) ValidateBasic() error {
+	if m.Height < 0 {
+		return errors.New("negative Height")
+	}
+	if m.ProposalPOLRound < 0 {
+		return errors.New("negative ProposalPOLRound")
+	}
+	if m.ProposalPOL.Size() == 0 {
+		return errors.New("empty ProposalPOL bit array")
+	}
+	return nil
+}
+
 // NewRoundStepMessage is sent for every step taken in the ConsensusState.
 // For every height/round/step transition
 type NewRoundStepMessage struct {
@@ -918,11 +643,35 @@ type NewRoundStepMessage struct {
 	LastCommitRound       uint32                `json:"lastCommitRound" gencodoc:"required"`
 }
 
+// ValidateBasic performs basic validation.
+func (m *NewRoundStepMessage) ValidateBasic() error {
+	if m.Height < 0 {
+		return errors.New("negative Height")
+	}
+	if m.Round < 0 {
+		return errors.New("negative Round")
+	}
+	// if !m.Step.IsValid() {
+	// 	return errors.New("invalid Step")
+	// }
+
+	// NOTE: SecondsSinceStartTime may be negative
+
+	// LastCommitRound will be -1 for the initial height, but we don't know what height this is
+	// since it can be specified in genesis. The reactor will have to validate this via
+	// ValidateHeight().
+	// if m.LastCommitRound < -1 {
+	// 	return errors.New("invalid LastCommitRound (cannot be < -1)")
+	// }
+
+	return nil
+}
+
 // HasVoteMessage is sent to indicate that a particular vote has been received.
 type HasVoteMessage struct {
 	Height uint64
 	Round  uint32
-	Type   byte
+	Type   tmproto.SignedMsgType
 	Index  uint32
 }
 
@@ -935,7 +684,7 @@ func (m *HasVoteMessage) String() string {
 type VoteSetMaj23Message struct {
 	Height  uint64
 	Round   uint32
-	Type    byte
+	Type    tmproto.SignedMsgType
 	BlockID types.BlockID
 }
 
@@ -944,11 +693,28 @@ func (m *VoteSetMaj23Message) String() string {
 	return fmt.Sprintf("[VSM23 %v/%v/%v(%v) %v]", m.Height, m.Round, m.Type, types.GetReadableVoteTypeString(m.Type), m.BlockID)
 }
 
+// ValidateBasic performs basic validation.
+func (m *VoteSetMaj23Message) ValidateBasic() error {
+	if m.Height < 0 {
+		return errors.New("negative Height")
+	}
+	if m.Round < 0 {
+		return errors.New("negative Round")
+	}
+	if !types.IsVoteTypeValid(m.Type) {
+		return errors.New("invalid Type")
+	}
+	if err := m.BlockID.ValidateBasic(); err != nil {
+		return fmt.Errorf("wrong BlockID: %v", err)
+	}
+	return nil
+}
+
 // VoteSetBitsMessage is sent to communicate the bit-array of votes seen for the BlockID.
 type VoteSetBitsMessage struct {
 	Height  uint64
 	Round   uint32
-	Type    byte
+	Type    tmproto.SignedMsgType
 	BlockID types.BlockID
 	Votes   *cmn.BitArray
 }
@@ -964,8 +730,7 @@ func (m *VoteSetBitsMessage) String() string {
 // NOTE: THIS GETS DUMPED WITH rpc/core/consensus.go.
 // Be mindful of what you Expose.
 type PeerState struct {
-	peer   *p2p.Peer
-	rw     p2p.MsgReadWriter
+	peer   p2p.Peer
 	logger log.Logger
 
 	mtx sync.Mutex             // NOTE: Modify below using setters, never directly.
@@ -973,10 +738,9 @@ type PeerState struct {
 }
 
 // NewPeerState returns a new PeerState for the given Peer
-func NewPeerState(peer *p2p.Peer, rw p2p.MsgReadWriter) *PeerState {
+func NewPeerState(peer p2p.Peer) *PeerState {
 	return &PeerState{
 		peer: peer,
-		rw:   rw,
 		PRS: cstypes.PeerRoundState{
 			Height:             0,
 			Round:              0,
@@ -1063,7 +827,10 @@ func (ps *PeerState) PickSendVote(votes types.VoteSetReader) bool {
 		msg := &VoteMessage{vote}
 
 		ps.logger.Trace("Sending vote message", "peer", ps.peer, "prs", ps.PRS, "vote", vote)
-		return p2p.Send(ps.rw, service.CsVoteMsg, msg) == nil
+		if ps.peer.Send(VoteChannel, MustEncode(msg)) {
+			ps.SetHasVote(vote)
+			return true
+		}
 	}
 	return false
 }
@@ -1079,7 +846,7 @@ func (ps *PeerState) PickVoteToSend(votes types.VoteSetReader) (vote *types.Vote
 		return nil, false
 	}
 
-	height, round, type_, size := votes.GetHeight(), votes.GetRound(), votes.Type(), votes.Size()
+	height, round, signedMsgType, size := votes.GetHeight(), votes.GetRound(), votes.Type(), votes.Size()
 
 	// Lazily set data using 'votes'.
 	if votes.IsCommit() {
@@ -1087,12 +854,12 @@ func (ps *PeerState) PickVoteToSend(votes types.VoteSetReader) (vote *types.Vote
 	}
 	ps.ensureVoteBitArrays(height, size)
 
-	psVotes := ps.getVoteBitArray(height, round, type_)
+	psVotes := ps.getVoteBitArray(height, round, signedMsgType)
 	if psVotes == nil {
 		return nil, false // Not something worth sending
 	}
 	if index, ok := votes.BitArray().Sub(psVotes).PickRandom(); ok {
-		ps.setHasVote(height, round, type_, uint32(index))
+		ps.setHasVote(height, round, signedMsgType, uint32(index))
 		return votes.GetByIndex(uint32(index)), true
 	}
 	return nil, false
@@ -1115,33 +882,33 @@ func (ps *PeerState) ApplyNewValidBlockMessage(msg *NewValidBlockMessage) {
 	ps.PRS.ProposalBlockParts = msg.BlockParts
 }
 
-func (ps *PeerState) getVoteBitArray(height uint64, round uint32, type_ byte) *cmn.BitArray {
-	if !types.IsVoteTypeValid(type_) {
+func (ps *PeerState) getVoteBitArray(height uint64, round uint32, signedMsgType tmproto.SignedMsgType) *cmn.BitArray {
+	if !types.IsVoteTypeValid(signedMsgType) {
 		return nil
 	}
 
 	if ps.PRS.Height == height {
 		if ps.PRS.Round == round {
-			switch type_ {
-			case types.VoteTypePrevote:
+			switch signedMsgType {
+			case tmproto.PrevoteType:
 				return ps.PRS.Prevotes
-			case types.VoteTypePrecommit:
+			case tmproto.PrecommitType:
 				return ps.PRS.Precommits
 			}
 		}
 		if ps.PRS.CatchupCommitRound == round {
-			switch type_ {
-			case types.VoteTypePrevote:
+			switch signedMsgType {
+			case tmproto.PrevoteType:
 				return nil
-			case types.VoteTypePrecommit:
+			case tmproto.PrecommitType:
 				return ps.PRS.CatchupCommit
 			}
 		}
 		if ps.PRS.ProposalPOLRound == round {
-			switch type_ {
-			case types.VoteTypePrevote:
+			switch signedMsgType {
+			case tmproto.PrevoteType:
 				return ps.PRS.ProposalPOL
-			case types.VoteTypePrecommit:
+			case tmproto.PrecommitType:
 				return nil
 			}
 		}
@@ -1149,10 +916,10 @@ func (ps *PeerState) getVoteBitArray(height uint64, round uint32, type_ byte) *c
 	}
 	if ps.PRS.Height == height+1 {
 		if ps.PRS.LastCommitRound == round {
-			switch type_ {
-			case types.VoteTypePrevote:
+			switch signedMsgType {
+			case tmproto.PrevoteType:
 				return nil
-			case types.VoteTypePrecommit:
+			case tmproto.PrecommitType:
 				return ps.PRS.LastCommit
 			}
 		}
@@ -1216,11 +983,11 @@ func (ps *PeerState) SetHasVote(vote *types.Vote) {
 	ps.setHasVote(uint64(vote.Height), vote.Round, vote.Type, vote.ValidatorIndex)
 }
 
-func (ps *PeerState) setHasVote(height uint64, round uint32, type_ byte, index uint32) {
+func (ps *PeerState) setHasVote(height uint64, round uint32, signedMsgType tmproto.SignedMsgType, index uint32) {
 	//logger := ps.logger.New("peerH/R", cmn.Fmt("%v/%v", ps.PRS.Height, ps.PRS.Round))
-	ps.logger.Debug("setHasVote", "H/R", cmn.Fmt("%v/%v", height, round), "type", types.GetReadableVoteTypeString(type_), "index", index)
+	ps.logger.Debug("setHasVote", "H/R", cmn.Fmt("%v/%v", height, round), "type", types.GetReadableVoteTypeString(signedMsgType), "index", index)
 
-	psVotes := ps.getVoteBitArray(height, round, type_)
+	psVotes := ps.getVoteBitArray(height, round, signedMsgType)
 	if psVotes != nil {
 		psVotes.SetIndex(int(index), true)
 	}
@@ -1404,16 +1171,4 @@ func (m *NewValidBlockMessage) ValidateBasic() error {
 func (m *NewValidBlockMessage) String() string {
 	return fmt.Sprintf("[ValidBlockMessage H:%v R:%v BP:%v BA:%v IsCommit:%v]",
 		m.Height, m.Round, m.BlockPartsHeader, m.BlockParts, m.IsCommit)
-}
-
-func (conR *ConsensusManager) decodeMsgAndGetPeerState(decodedMsg interface{}, generalMsg p2p.Msg, src *p2p.Peer) (*PeerState, error) {
-	if err := generalMsg.Decode(decodedMsg); err != nil {
-		conR.logger.Error("Invalid block part message", "msg", generalMsg, "err", err)
-		return nil, err
-	}
-	ps, ok := src.Get(conR.GetPeerStateKey()).(*PeerState)
-	if !ok {
-		return nil, errors.New("Downcast failed!!")
-	}
-	return ps, nil
 }

@@ -45,7 +45,7 @@ const (
 
 // DefaultConfig contains reasonable default settings.
 var DefaultConfig = Config{
-	DataDir:             DefaultDataDir(),
+	DataDir:             configs.DefaultDataDir(),
 	HTTPPort:            DefaultHTTPPort,
 	HTTPModules:         []string{"node", "kai", "tx", "account", "dual", "neo"},
 	HTTPVirtualHosts:    []string{"0.0.0.0", "localhost"},

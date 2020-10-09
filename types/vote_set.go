@@ -25,6 +25,7 @@ import (
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/pkg/errors"
 )
 
@@ -55,11 +56,11 @@ import (
 	NOTE: Assumes that the sum total of voting power does not exceed MaxUInt64.
 */
 type VoteSet struct {
-	chainID string
-	height  uint64
-	round   uint32
-	type_   byte
-	valSet  *ValidatorSet
+	chainID       string
+	height        uint64
+	round         uint32
+	signedMsgType tmproto.SignedMsgType
+	valSet        *ValidatorSet
 
 	mtx           sync.Mutex
 	votesBitArray *cmn.BitArray
@@ -71,7 +72,7 @@ type VoteSet struct {
 }
 
 // Constructs a new VoteSet struct used to accumulate votes for given height/round.
-func NewVoteSet(chainID string, height uint64, round uint32, type_ byte, valSet *ValidatorSet) *VoteSet {
+func NewVoteSet(chainID string, height uint64, round uint32, signedMsgType tmproto.SignedMsgType, valSet *ValidatorSet) *VoteSet {
 	if height == 0 {
 		panic("Cannot make VoteSet for height == 0, doesn't make sense.")
 	}
@@ -79,7 +80,7 @@ func NewVoteSet(chainID string, height uint64, round uint32, type_ byte, valSet 
 		chainID:       chainID,
 		height:        height,
 		round:         round,
-		type_:         type_,
+		signedMsgType: signedMsgType,
 		valSet:        valSet,
 		votesBitArray: cmn.NewBitArray(valSet.Size()),
 		votes:         make([]*Vote, valSet.Size()),
@@ -121,9 +122,9 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	// Make sure the step matches.
 	if vote.Height != voteSet.height ||
 		vote.Round != voteSet.round ||
-		vote.Type != voteSet.type_ {
+		vote.Type != voteSet.signedMsgType {
 		return false, errors.Wrapf(ErrVoteUnexpectedStep, "Got %v/%v/%v, expected %v/%v/%v",
-			voteSet.height, voteSet.round, voteSet.type_,
+			voteSet.height, voteSet.round, voteSet.signedMsgType,
 			vote.Height, vote.Round, vote.Type)
 	}
 
@@ -305,11 +306,11 @@ func (voteSet *VoteSet) GetRound() uint32 {
 	return voteSet.round
 }
 
-func (voteSet *VoteSet) Type() byte {
+func (voteSet *VoteSet) Type() tmproto.SignedMsgType {
 	if voteSet == nil {
 		return 0x00
 	}
-	return voteSet.type_
+	return voteSet.signedMsgType
 }
 
 func (voteSet *VoteSet) Size() int {
@@ -355,7 +356,7 @@ func (voteSet *VoteSet) IsCommit() bool {
 	if voteSet == nil {
 		return false
 	}
-	if voteSet.type_ != VoteTypePrecommit {
+	if voteSet.signedMsgType != tmproto.PrecommitType {
 		return false
 	}
 	voteSet.mtx.Lock()
@@ -424,7 +425,7 @@ func (voteSet *VoteSet) StringShort() string {
 	defer voteSet.mtx.Unlock()
 	_, _, frac := voteSet.sumTotalFrac()
 	return fmt.Sprintf("VoteSet{H:%v R:%v T:%v +2/3:%v(%v) %v %v}",
-		voteSet.height, voteSet.round, voteSet.type_, voteSet.maj23, frac, voteSet.votesBitArray, voteSet.peerMaj23s)
+		voteSet.height, voteSet.round, voteSet.signedMsgType, voteSet.maj23, frac, voteSet.votesBitArray, voteSet.peerMaj23s)
 }
 
 // return the power voted, the total, and the fraction
@@ -436,7 +437,7 @@ func (voteSet *VoteSet) sumTotalFrac() (uint64, uint64, float64) {
 
 // MakeCommit ...
 func (voteSet *VoteSet) MakeCommit() *Commit {
-	if voteSet.type_ != VoteTypePrecommit {
+	if voteSet.signedMsgType != tmproto.PrecommitType {
 		cmn.PanicSanity("Cannot MakeCommit() unless VoteSet.Type is VoteTypePrecommit")
 	}
 	voteSet.mtx.Lock()
@@ -504,7 +505,7 @@ func (vs *blockVotes) getByIndex(index int) *Vote {
 type VoteSetReader interface {
 	GetHeight() uint64
 	GetRound() uint32
-	Type() byte
+	Type() tmproto.SignedMsgType
 	Size() int
 	BitArray() *cmn.BitArray
 	GetByIndex(uint32) *Vote

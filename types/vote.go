@@ -27,6 +27,7 @@ import (
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 var (
@@ -58,30 +59,21 @@ func NewConflictingVoteError(val *Validator, voteA, voteB *Vote) *ErrVoteConflic
 	}
 }
 
-// Types of votes
-// TODO Make a new type "VoteType"
-const (
-	VoteTypePrevote   = byte(0x01)
-	VoteTypePrecommit = byte(0x02)
-)
-
-func IsVoteTypeValid(type_ byte) bool {
-	switch type_ {
-	case VoteTypePrevote:
-		return true
-	case VoteTypePrecommit:
+// IsVoteTypeValid returns true if t is a valid vote type.
+func IsVoteTypeValid(t tmproto.SignedMsgType) bool {
+	switch t {
+	case tmproto.PrevoteType, tmproto.PrecommitType:
 		return true
 	default:
 		return false
 	}
 }
-
-func GetReadableVoteTypeString(type_ byte) string {
+func GetReadableVoteTypeString(type_ tmproto.SignedMsgType) string {
 	var typeString string
 	switch type_ {
-	case VoteTypePrevote:
+	case tmproto.PrevoteType:
 		typeString = "Prevote"
-	case VoteTypePrecommit:
+	case tmproto.PrecommitType:
 		typeString = "Precommit"
 	default:
 		cmn.PanicSanity("Unknown vote type")
@@ -92,14 +84,14 @@ func GetReadableVoteTypeString(type_ byte) string {
 
 // Vote Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
-	ValidatorAddress cmn.Address `json:"validator_address"`
-	ValidatorIndex   uint32      `json:"validator_index"`
-	Height           uint64      `json:"height"`
-	Round            uint32      `json:"round"`
-	Timestamp        uint64      `json:"timestamp"`
-	Type             byte        `json:"type"`
-	BlockID          BlockID     `json:"block_id"` // zero if vote is nil.
-	Signature        []byte      `json:"signature"`
+	ValidatorAddress cmn.Address           `json:"validator_address"`
+	ValidatorIndex   uint32                `json:"validator_index"`
+	Height           uint64                `json:"height"`
+	Round            uint32                `json:"round"`
+	Timestamp        uint64                `json:"timestamp"`
+	Type             tmproto.SignedMsgType `json:"type"`
+	BlockID          BlockID               `json:"block_id"` // zero if vote is nil.
+	Signature        []byte                `json:"signature"`
 }
 
 // CreateEmptyVote ...

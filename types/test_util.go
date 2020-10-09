@@ -2,6 +2,8 @@ package types
 
 import (
 	"time"
+
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 // MakeCommit ...
@@ -16,7 +18,7 @@ func MakeCommit(blockID BlockID, height uint64, round uint32,
 			ValidatorIndex:   uint32(i),
 			Height:           height,
 			Round:            round,
-			Type:             VoteTypePrecommit,
+			Type:             tmproto.PrecommitType,
 			BlockID:          blockID,
 			Timestamp:        uint64(now.Unix()),
 		}
