@@ -27,7 +27,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"time"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -42,9 +41,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/nat"
 	"github.com/kardiachain/go-kardiamain/lib/sysutils"
 	kai "github.com/kardiachain/go-kardiamain/mainchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
@@ -90,25 +86,8 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 // getP2P gets p2p's config from config
-func (c *Config) getP2PConfig() (*p2p.Config, error) {
-	peer := c.P2P
-	var privKey *ecdsa.PrivateKey
-	var err error
-
-	if peer.PrivateKey != "" {
-		privKey, err = crypto.HexToECDSA(peer.PrivateKey)
-	} else {
-		privKey, err = crypto.GenerateKey()
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &p2p.Config{
-		PrivateKey: privKey,
-		MaxPeers:   peer.MaxPeers,
-		ListenAddr: peer.ListenAddress,
-		NAT:        nat.Any(),
-	}, nil
+func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
+	return c.P2P, nil
 }
 
 // getDbInfo gets database information from config. Currently, it only supports levelDb and Mondodb
@@ -248,11 +227,10 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	p2pConfig.Name = n.Name
 	nodeConfig := node.Config{
 		Name:             n.Name,
 		DataDir:          n.DataDir,
-		P2P:              *p2pConfig,
+		P2P:              p2pConfig,
 		HTTPHost:         n.HTTPHost,
 		HTTPPort:         n.HTTPPort,
 		HTTPCors:         n.HTTPCors,
@@ -295,7 +273,7 @@ func (c *Config) newLog() log.Logger {
 }
 
 // getBaseAccount gets base account that is used to execute internal smart contract
-func (c *Config) getBaseAccount(isDual bool) (*types.BaseAccount, error) {
+func (c *Config) getBaseAccount(isDual bool) (*configs.BaseAccount, error) {
 	var privKey *ecdsa.PrivateKey
 	var err error
 	var address common.Address
@@ -310,7 +288,7 @@ func (c *Config) getBaseAccount(isDual bool) (*types.BaseAccount, error) {
 	if err != nil {
 		return nil, fmt.Errorf("baseAccount: Invalid privatekey: %v", err)
 	}
-	return &types.BaseAccount{
+	return &configs.BaseAccount{
 		Address:    address,
 		PrivateKey: *privKey,
 	}, nil
@@ -360,11 +338,6 @@ func (c *Config) Start() {
 		return
 	}
 
-	// Add peers
-	for _, peer := range c.MainChain.Seeds {
-		n.Server().AddPeer(enode.MustParse(peer))
-	}
-
 	if c.MainChain.Events != nil {
 		var kardiaService *kai.KardiaService
 		if err := n.Service(&kardiaService); err != nil {
@@ -376,10 +349,6 @@ func (c *Config) Start() {
 	}
 
 	if c.DualChain != nil {
-		// Add peers
-		for _, peer := range c.DualChain.Seeds {
-			n.Server().AddPeer(enode.MustParse(peer))
-		}
 	}
 
 	if err := c.StartDual(n); err != nil {
@@ -527,10 +496,7 @@ func runtimeSystemSettings() error {
 }
 
 func displayKardiaPeers(n *node.Node) {
-	for {
-		log.Info("Kardia peers: ", "count", n.Server().PeerCount())
-		time.Sleep(20 * time.Second)
-	}
+
 }
 
 func waitForever() {

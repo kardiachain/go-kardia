@@ -33,8 +33,7 @@ import (
 )
 
 const (
-	// EvListMsg ..
-	EvListMsg = 0x13 // EvListMsg
+	EvidenceChannel = byte(0x38)
 
 	broadcastEvidenceIntervalS = 60  // broadcast uncommitted evidence this often
 	peerCatchupSleepIntervalMS = 100 // If peer is behind, sleep this amount
@@ -68,34 +67,33 @@ func (evR *Reactor) SetLogger(l log.Logger) {
 }
 
 // AddPeer implements Reactor.
-func (evR *Reactor) AddPeer(peer *p2p.Peer, rw p2p.MsgReadWriter) {
-	go evR.broadcastEvidenceRoutine(peer, rw)
+func (evR *Reactor) AddPeer(peer p2p.Peer) {
+	go evR.broadcastEvidenceRoutine(peer)
 }
 
 // Receive implements Reactor.
 // It adds any received evidence to the evpool.
-func (evR *Reactor) Receive(src *p2p.Peer, msg p2p.Msg) error {
-	evis, err := decodeMsg(msg)
-	if err != nil {
-		evR.Logger.Error("Error decoding message", "src", src, "err", err)
-		evR.protocol.StopPeerForError(src, err)
-		return nil
-	}
+func (evR *Reactor) Receive(src p2p.Peer) error {
+	// evis, err := decodeMsg(msg)
+	// if err != nil {
+	// 	evR.Logger.Error("Error decoding message", "src", src, "err", err)
+	// 	return nil
+	// }
 
-	for _, ev := range evis {
-		err := evR.evpool.AddEvidence(ev)
-		switch err.(type) {
-		case *types.ErrEvidenceInvalid:
-			evR.Logger.Error(err.Error())
-			// punish peer
-			evR.protocol.StopPeerForError(src, err)
-			return nil
-		case nil:
-		default:
-			// continue to the next piece of evidence
-			evR.Logger.Error("Evidence has not been added", "evidence", evis, "err", err)
-		}
-	}
+	// for _, ev := range evis {
+	// 	err := evR.evpool.AddEvidence(ev)
+	// 	switch err.(type) {
+	// 	case *types.ErrEvidenceInvalid:
+	// 		evR.Logger.Error(err.Error())
+	// 		// punish peer
+	// 		evR.protocol.StopPeerForError(src, err)
+	// 		return nil
+	// 	case nil:
+	// 	default:
+	// 		// continue to the next piece of evidence
+	// 		evR.Logger.Error("Evidence has not been added", "evidence", evis, "err", err)
+	// 	}
+	// }
 	return nil
 }
 
@@ -105,11 +103,11 @@ func (evR *Reactor) Receive(src *p2p.Peer, msg p2p.Msg) error {
 // sending available evidence to the peer.
 // - If we're waiting for new evidence and the list is not empty,
 // start iterating from the beginning again.
-func (evR *Reactor) broadcastEvidenceRoutine(peer *p2p.Peer, rw p2p.MsgReadWriter) {
+func (evR *Reactor) broadcastEvidenceRoutine(peer p2p.Peer) {
 	var next *clist.CElement
 	for {
 
-		if !peer.IsAlive || !evR.IsRunning() {
+		if !peer.IsRunning() || !evR.IsRunning() {
 			return
 		}
 
@@ -126,10 +124,14 @@ func (evR *Reactor) broadcastEvidenceRoutine(peer *p2p.Peer, rw p2p.MsgReadWrite
 		}
 
 		ev := next.Value.(types.Evidence)
-		msg, retry := evR.checkSendEvidenceMessage(peer, ev)
-		if msg != nil {
-			err := p2p.Send(rw, EvListMsg, msg)
-			retry = err != nil
+		evis, retry := evR.checkSendEvidenceMessage(peer, ev)
+		if evis != nil {
+			msgBytes, err := encodeMsg(evis)
+			if err != nil {
+				panic(err)
+			}
+			success := peer.Send(EvidenceChannel, msgBytes)
+			retry = !success
 		}
 
 		if retry {
@@ -153,13 +155,13 @@ func (evR *Reactor) broadcastEvidenceRoutine(peer *p2p.Peer, rw p2p.MsgReadWrite
 // Returns the message to send the peer, or nil if the evidence is invalid for the peer.
 // If message is nil, return true if we should sleep and try again.
 func (evR Reactor) checkSendEvidenceMessage(
-	peer *p2p.Peer,
+	peer p2p.Peer,
 	ev types.Evidence,
-) (msg Message, retry bool) {
+) (evis []types.Evidence, retry bool) {
 
 	// make sure the peer is up to date
 	evHeight := ev.Height()
-	peerState, ok := peer.Get(p2p.PeerStateKey).(PeerState)
+	peerState, ok := peer.Get(types.PeerStateKey).(PeerState)
 	if !ok {
 		// Peer does not have a state yet. We set it in the consensus reactor, but
 		// when we add peer in Switch, the order we call reactors#AddPeer is
@@ -203,8 +205,7 @@ func (evR Reactor) checkSendEvidenceMessage(
 	}
 
 	// send evidence
-	msg = &ListMessage{[]types.Evidence{ev}}
-	return msg, false
+	return []types.Evidence{ev}, false
 }
 
 // Protocol ...
@@ -289,10 +290,14 @@ func (m *ListMessage) String() string {
 
 // decodemsg takes an array of bytes
 // returns an array of evidence
-func decodeMsg(msg p2p.Msg) (evis []types.Evidence, err error) {
-	list := ListMessage{}
-	if err := msg.Decode(&list); err != nil {
-		return nil, err
-	}
-	return list.Evidence, nil
+// decodemsg takes an array of bytes
+// returns an array of evidence
+func decodeMsg(bz []byte) (evis []types.Evidence, err error) {
+	return nil, nil
+}
+
+// encodemsg takes a array of evidence
+// returns the byte encoding of the List Message
+func encodeMsg(evis []types.Evidence) ([]byte, error) {
+	return nil, nil
 }

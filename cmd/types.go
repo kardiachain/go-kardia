@@ -19,6 +19,7 @@
 package main
 
 import (
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 )
 
@@ -29,21 +30,16 @@ type (
 		DualChain *Chain `yaml:"DualChain,omitempty"`
 	}
 	Node struct {
-		P2P              `yaml:"P2P"`
-		LogLevel         string   `yaml:"LogLevel"`
-		Name             string   `yaml:"Name"`
-		DataDir          string   `yaml:"DataDir"`
-		HTTPHost         string   `yaml:"HTTPHost"`
-		HTTPPort         int      `yaml:"HTTPPort"`
-		HTTPModules      []string `yaml:"HTTPModules"`
-		HTTPVirtualHosts []string `yaml:"HTTPVirtualHosts"`
-		HTTPCors         []string `yaml:"HTTPCors"`
-		Metrics          uint     `yaml:"Metrics"`
-	}
-	P2P struct {
-		PrivateKey    string `yaml:"PrivateKey"`
-		ListenAddress string `yaml:"ListenAddress"`
-		MaxPeers      int    `yaml:"MaxPeers"`
+		P2P              *configs.P2PConfig `yaml:"P2P"`
+		LogLevel         string             `yaml:"LogLevel"`
+		Name             string             `yaml:"Name"`
+		DataDir          string             `yaml:"DataDir"`
+		HTTPHost         string             `yaml:"HTTPHost"`
+		HTTPPort         int                `yaml:"HTTPPort"`
+		HTTPModules      []string           `yaml:"HTTPModules"`
+		HTTPVirtualHosts []string           `yaml:"HTTPVirtualHosts"`
+		HTTPCors         []string           `yaml:"HTTPCors"`
+		Metrics          uint               `yaml:"Metrics"`
 	}
 	Chain struct {
 		ServiceName        string      `yaml:"ServiceName"`

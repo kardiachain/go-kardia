@@ -43,9 +43,8 @@ const (
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
 type KardiaSubService interface {
-	Start(srvr *p2p.Server)
+	Start(srvr *p2p.Switch)
 	Stop()
-	Protocols() []p2p.Protocol
 }
 
 // KardiaService implements Service for running full Kardia protocol.
@@ -54,7 +53,7 @@ type KardiaService struct {
 	logger log.Logger // Logger for Kardia service
 
 	config      *Config
-	chainConfig *types.ChainConfig
+	chainConfig *configs.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool
@@ -164,7 +163,6 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	}
 	kai.protocolManager.SetAcceptTxs(config.AcceptTxs)
 	kai.csManager.SetProtocol(kai.protocolManager)
-	evReactor.SetProtocol(kai.protocolManager)
 
 	return kai, nil
 }
@@ -194,34 +192,11 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 }
 
 func (s *KardiaService) IsListening() bool  { return true } // Always listening
-func (s *KardiaService) KaiVersion() int    { return int(s.protocolManager.SubProtocols[0].Version) }
 func (s *KardiaService) NetVersion() uint64 { return s.networkID }
-
-// Protocols implements Service, returning all the currently configured
-// network protocols to start.
-func (s *KardiaService) Protocols() []p2p.Protocol {
-	if s.subService == nil {
-		return s.protocolManager.SubProtocols
-	}
-	return append(s.protocolManager.SubProtocols, s.subService.Protocols()...)
-}
 
 // Start implements Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
-func (s *KardiaService) Start(srvr *p2p.Server) error {
-	// Figures out a max peers count based on the server limits.
-	maxPeers := srvr.MaxPeers
-
-	// Starts the networking layer.
-	s.protocolManager.Start(maxPeers)
-
-	// Start consensus manager.
-	s.csManager.Start()
-
-	// Starts optional subservice.
-	if s.subService != nil {
-		s.subService.Start(srvr)
-	}
+func (s *KardiaService) Start(srvr *p2p.Switch) error {
 	return nil
 }
 
@@ -264,5 +239,4 @@ func (s *KardiaService) APIs() []rpc.API {
 
 func (s *KardiaService) TxPool() *tx_pool.TxPool            { return s.txPool }
 func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
-func (s *KardiaService) ChainConfig() *types.ChainConfig    { return s.chainConfig }
 func (s *KardiaService) DB() types.StoreDB                  { return s.kaiDb }

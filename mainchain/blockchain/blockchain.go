@@ -19,11 +19,11 @@
 package blockchain
 
 import (
-	"encoding/hex"
 	"errors"
 	"sync"
 	"sync/atomic"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -53,7 +53,7 @@ var (
 type BlockChain struct {
 	logger log.Logger
 
-	chainConfig *types.ChainConfig // Chain & network configuration
+	chainConfig *configs.ChainConfig // Chain & network configuration
 
 	db types.StoreDB // Blockchain database
 	hc *HeaderChain
@@ -92,13 +92,7 @@ func (bc *BlockChain) IsPrivate() bool {
 
 // HasPermission return true if peer has permission otherwise false
 func (bc *BlockChain) HasPermission(peer *p2p.Peer) bool {
-	if !bc.isPrivate {
-		return true
-	}
-	address, _, _, _, err := bc.permissioned.GetNodeInfo(hex.EncodeToString(peer.ID().Bytes()))
-	if err != nil || address.Equal(common.Address{}) {
-		return false
-	}
+
 	return true
 }
 
@@ -128,11 +122,11 @@ func (bc *BlockChain) DB() types.StoreDB {
 }
 
 // Config retrieves the blockchain's chain configuration.
-func (bc *BlockChain) Config() *types.ChainConfig { return bc.chainConfig }
+func (bc *BlockChain) Config() *configs.ChainConfig { return bc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *types.ChainConfig, isPrivate bool) (*BlockChain, error) {
+func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.ChainConfig, isPrivate bool) (*BlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 

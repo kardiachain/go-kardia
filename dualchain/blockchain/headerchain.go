@@ -23,6 +23,7 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -34,7 +35,7 @@ const (
 
 // Header of dual's blockchain.
 type DualHeaderChain struct {
-	config *types.ChainConfig
+	config *configs.ChainConfig
 
 	kaiDb types.StoreDB
 
@@ -57,7 +58,7 @@ func (dhc *DualHeaderChain) CurrentHeader() *types.Header {
 //  getValidator should return the parent's validator
 //  procInterrupt points to the parent's interrupt semaphore
 //  wg points to the parent's shutdown wait group
-func NewHeaderChain(kaiDb types.StoreDB, config *types.ChainConfig) (*DualHeaderChain, error) {
+func NewHeaderChain(kaiDb types.StoreDB, config *configs.ChainConfig) (*DualHeaderChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	heightCache, _ := lru.New(heightCacheLimit)
 

@@ -44,7 +44,7 @@ type DualService struct {
 	logger log.Logger // Logger for Dual service
 
 	config      *DualConfig
-	chainConfig *types.ChainConfig
+	chainConfig *configs.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool
@@ -136,7 +136,6 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	}
 	//namdoh@ dualService.protocolManager.acceptTxs = config.AcceptTxs
 	dualService.csManager.SetProtocol(dualService.protocolManager)
-	evReactor.SetProtocol(dualService.protocolManager)
 	return dualService, nil
 }
 
@@ -165,29 +164,13 @@ func (s *DualService) SetDualBlockChainManager(bcManager *blockchain.DualBlockCh
 	s.dualBlockOperations.SetDualBlockChainManager(bcManager)
 }
 
-func (s *DualService) IsListening() bool       { return true } // Always listening
-func (s *DualService) DualServiceVersion() int { return int(s.protocolManager.SubProtocols[0].Version) }
-func (s *DualService) NetVersion() uint64      { return s.networkID }
-func (s *DualService) DB() types.StoreDB       { return s.groupDb }
-
-// Protocols implements Service, returning all the currently configured
-// network protocols to start.
-func (s *DualService) Protocols() []p2p.Protocol {
-	return s.protocolManager.SubProtocols
-}
+func (s *DualService) IsListening() bool  { return true } // Always listening
+func (s *DualService) NetVersion() uint64 { return s.networkID }
+func (s *DualService) DB() types.StoreDB  { return s.groupDb }
 
 // Start implements Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
-func (s *DualService) Start(srvr *p2p.Server) error {
-	// Figures out a max peers count based on the server limits.
-	maxPeers := srvr.MaxPeers
-
-	// Starts the networking layer.
-	s.protocolManager.Start(maxPeers)
-
-	// Start consensus manager.
-	s.csManager.Start()
-
+func (s *DualService) Start(srvr *p2p.Switch) error {
 	return nil
 }
 
@@ -215,4 +198,3 @@ func (s *DualService) APIs() []rpc.API {
 
 func (s *DualService) EventPool() *event_pool.Pool            { return s.eventPool }
 func (s *DualService) BlockChain() *blockchain.DualBlockChain { return s.blockchain }
-func (s *DualService) DualChainConfig() *types.ChainConfig    { return s.chainConfig }
