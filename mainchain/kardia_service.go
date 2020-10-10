@@ -79,15 +79,13 @@ func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
 // New creates a new KardiaService object (including the
 // initialisation of the common KardiaService object)
 func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService, error) {
+	var err error
 	// Create a specific logger for KARDIA service.
 	logger := log.New()
 	logger.AddTag(config.ServiceName)
 	logger.Info("newKardiaService", "dbType", config.DBInfo.Name())
 
-	kaiDb, err := ctx.StartDatabase(config.DBInfo)
-	if err != nil {
-		return nil, err
-	}
+	kaiDb := ctx.BlockStore
 
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, config.Genesis, config.BaseAccount)
 	if genesisErr != nil {

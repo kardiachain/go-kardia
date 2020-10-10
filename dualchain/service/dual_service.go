@@ -65,15 +65,13 @@ type DualService struct {
 // New creates a new DualService object (including the
 // initialisation of the common DualService object)
 func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService, error) {
+	var err error
 	// Create a specific logger for DUAL service.
 	logger := log.New()
 	logger.AddTag(DualServiceName)
 	logger.Info("newDualService", "chaintype", config.DBInfo.Name())
 
-	groupDb, err := ctx.StartDatabase(config.DBInfo)
-	if err != nil {
-		return nil, err
-	}
+	groupDb := ctx.BlockStore
 
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, groupDb, config.DualGenesis, config.BaseAccount)
 	if genesisErr != nil {

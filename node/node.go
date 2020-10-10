@@ -28,13 +28,21 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
+
+	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
+
+	cs "github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/pex"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardiamain/types/evidence"
 	"github.com/prometheus/tsdb/fileutil"
+	"github.com/tendermint/tendermint/version"
 )
 
 // Node is a container on which services can be registered.
@@ -69,10 +77,12 @@ type Node struct {
 	lock sync.RWMutex
 
 	log log.Logger
+
+	blockStore types.StoreDB
 }
 
 // New creates a new P2P node, ready for protocol registration.
-func New(conf *Config) (*Node, error) {
+func New(conf *Config, genesis *genesis.Genesis) (*Node, error) {
 	// Copy config and resolve the datadir so future changes to the current
 	// working directory don't affect the node.
 	confCopy := *conf
@@ -99,10 +109,13 @@ func New(conf *Config) (*Node, error) {
 	if conf.Logger == nil {
 		conf.Logger = log.New()
 	}
+
+	// Setup Transport.
+	//transport, peerFilters := createTransport(conf, nodeInfo, nodeKey)
+
 	// Note: any interaction with Config that would create/touch files
 	// in the data directory or instance directory is delayed until Start.
-	return &Node{
-
+	node := &Node{
 		config:       conf,
 		serviceFuncs: []ServiceConstructor{},
 		ipcEndpoint:  conf.IPCEndpoint(),
@@ -110,7 +123,33 @@ func New(conf *Config) (*Node, error) {
 		wsEndpoint:   conf.WSEndpoint(),
 		eventmux:     new(event.TypeMux),
 		log:          conf.Logger,
-	}, nil
+	}
+
+	if err := node.openDataDir(); err != nil {
+		return nil, fmt.Errorf("open data dir: %s", err)
+	}
+
+	db, err := node.OpenDatabase("chaindata", 1, 1, "chaindata")
+	if err != nil {
+		return nil, err
+	}
+
+	node.blockStore = db
+
+	nodeKey := &p2p.NodeKey{PrivKey: conf.NodeKey()}
+	state, err := cstate.LoadStateFromDBOrGenesisDoc(db.DB(), genesis)
+	nodeInfo, err := makeNodeInfo(conf, nodeKey, state)
+	if err != nil {
+		return nil, err
+	}
+	transport, peerFilters := createTransport(conf, nodeInfo, nodeKey)
+
+	sw := createSwitch(
+		conf, transport, peerFilters, nodeInfo, nodeKey, conf.Logger,
+	)
+
+	node.sw = sw
+	return node, nil
 }
 
 // Close stops the Node and releases resources acquired in
@@ -139,16 +178,68 @@ func (n *Node) Close() error {
 func (n *Node) Register(constructor ServiceConstructor) error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
-
-	if n.sw != nil {
-		return ErrNodeRunning
-	}
 	n.serviceFuncs = append(n.serviceFuncs, constructor)
 	return nil
 }
 
 // Start create a live P2P node and starts running it.
 func (n *Node) Start() error {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	// Otherwise copy and specialize the P2P configuration
+	services := make(map[reflect.Type]Service)
+	for _, constructor := range n.serviceFuncs {
+		// Create a new context for the particular service
+		ctx := &ServiceContext{
+			Config:     n.config,
+			services:   make(map[reflect.Type]Service),
+			EventMux:   n.eventmux,
+			BlockStore: n.blockStore,
+		}
+		for kind, s := range services { // copy needed for threaded access
+			ctx.services[kind] = s
+		}
+		// Construct and save the service
+		service, err := constructor(ctx)
+		if err != nil {
+			return err
+		}
+		kind := reflect.TypeOf(service)
+		if _, exists := services[kind]; exists {
+			return &DuplicateServiceError{Kind: kind}
+		}
+		services[kind] = service
+	}
+
+	// Start each of the services
+	var started []reflect.Type
+	for kind, service := range services {
+		// Start the next service, stopping all previous upon failure
+		if err := service.Start(n.sw); err != nil {
+			for _, kind := range started {
+				services[kind].Stop()
+			}
+			n.sw.Stop()
+
+			return err
+		}
+		// Mark the service started for potential cleanup
+		started = append(started, kind)
+	}
+
+	// Lastly start the configured RPC interfaces
+	if err := n.startRPC(services); err != nil {
+		for _, service := range services {
+			service.Stop()
+		}
+		n.sw.Stop()
+		return err
+	}
+
+	// Finish initializing the startup
+	n.services = services
+	n.stop = make(chan struct{})
 	return nil
 }
 
@@ -523,4 +614,115 @@ func (n *Node) apis() []rpc.API {
 			Public:    true,
 		},
 	}
+}
+
+func createTransport(
+	config *Config,
+	nodeInfo p2p.NodeInfo,
+	nodeKey *p2p.NodeKey,
+) (
+	*p2p.MultiplexTransport,
+	[]p2p.PeerFilterFunc,
+) {
+	var (
+		mConnConfig = p2p.MConnConfig(config.P2P)
+		transport   = p2p.NewMultiplexTransport(nodeInfo, *nodeKey, mConnConfig)
+		connFilters = []p2p.ConnFilterFunc{}
+		peerFilters = []p2p.PeerFilterFunc{}
+	)
+
+	if !config.P2P.AllowDuplicateIP {
+		connFilters = append(connFilters, p2p.ConnDuplicateIPFilter())
+	}
+
+	p2p.MultiplexTransportConnFilters(connFilters...)(transport)
+
+	// Limit the number of incoming connections.
+	max := config.P2P.MaxNumInboundPeers + len(splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " "))
+	p2p.MultiplexTransportMaxIncomingConnections(max)(transport)
+
+	return transport, peerFilters
+}
+
+// splitAndTrimEmpty slices s into all subslices separated by sep and returns a
+// slice of the string s with all leading and trailing Unicode code points
+// contained in cutset removed. If sep is empty, SplitAndTrim splits after each
+// UTF-8 sequence. First part is equivalent to strings.SplitN with a count of
+// -1.  also filter out empty strings, only return non-empty strings.
+func splitAndTrimEmpty(s, sep, cutset string) []string {
+	if s == "" {
+		return []string{}
+	}
+
+	spl := strings.Split(s, sep)
+	nonEmptyStrings := make([]string, 0, len(spl))
+	for i := 0; i < len(spl); i++ {
+		element := strings.Trim(spl[i], cutset)
+		if element != "" {
+			nonEmptyStrings = append(nonEmptyStrings, element)
+		}
+	}
+	return nonEmptyStrings
+}
+
+func makeNodeInfo(
+	config *Config,
+	nodeKey *p2p.NodeKey,
+	state cstate.LastestBlockState,
+) (p2p.NodeInfo, error) {
+	txIndexerStatus := "on"
+
+	nodeInfo := p2p.DefaultNodeInfo{
+		ProtocolVersion: p2p.NewProtocolVersion(
+			uint64(1), // global
+			uint64(1),
+			uint64(1),
+		),
+		DefaultNodeID: nodeKey.ID(),
+		Network:       "1",
+		Version:       version.TMCoreSemVer,
+		Channels: []byte{
+			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
+			evidence.EvidenceChannel,
+		},
+		Other: p2p.DefaultNodeInfoOther{
+			TxIndex: txIndexerStatus,
+		},
+		Moniker: "test",
+	}
+
+	if config.P2P.PexReactor {
+		nodeInfo.Channels = append(nodeInfo.Channels, pex.PexChannel)
+	}
+
+	lAddr := config.P2P.ExternalAddress
+
+	if lAddr == "" {
+		lAddr = config.P2P.ListenAddress
+	}
+
+	nodeInfo.ListenAddr = lAddr
+
+	err := nodeInfo.Validate()
+	return nodeInfo, err
+}
+
+func createSwitch(config *Config,
+	transport p2p.Transport,
+	peerFilters []p2p.PeerFilterFunc,
+	nodeInfo p2p.NodeInfo,
+	nodeKey *p2p.NodeKey,
+	p2pLogger log.Logger) *p2p.Switch {
+
+	sw := p2p.NewSwitch(
+		config.P2P,
+		transport,
+	)
+	sw.SetLogger(p2pLogger)
+
+	sw.SetNodeInfo(nodeInfo)
+	sw.SetNodeKey(nodeKey)
+
+	//p2pLogger.Info("P2P Node ID", "ID", nodeKey.ID(), "file", config.NodeKeyFile())
+	return sw
 }

@@ -58,6 +58,7 @@ type GenesisValidator struct {
 
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
+	ChainID   string               `json:"chain_id"`
 	Config    *configs.ChainConfig `json:"config"`
 	Timestamp uint64               `json:"timestamp"`
 	GasLimit  uint64               `json:"gasLimit"   gencodec:"required"`

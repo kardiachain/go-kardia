@@ -87,7 +87,7 @@ func LoadConfig(path string) (*Config, error) {
 
 // getP2P gets p2p's config from config
 func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
-	return c.P2P, nil
+	return configs.DefaultP2PConfig(), nil
 }
 
 // getDbInfo gets database information from config. Currently, it only supports levelDb and Mondodb
@@ -311,8 +311,12 @@ func (c *Config) Start() {
 		return
 	}
 
+	genesis, err := c.getGenesis(false)
+	if err != nil {
+		panic(err)
+	}
 	// init new node from nodeConfig
-	n, err := node.New(nodeConfig)
+	n, err := node.New(nodeConfig, genesis)
 	if err != nil {
 		logger.Error("Cannot create node", "err", err)
 		return

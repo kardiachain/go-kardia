@@ -21,7 +21,6 @@ package node
 import (
 	"reflect"
 
-	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/rpc"
@@ -32,24 +31,10 @@ import (
 // the protocol stack, that is passed to all constructors to be optionally used;
 // as well as utility methods to operate on the service environment.
 type ServiceContext struct {
-	Config   *Config
-	services map[reflect.Type]Service // Index of the already constructed services
-	EventMux *event.TypeMux           // Event multiplexer used for decoupled notifications
-}
-
-// OpenDatabase opens an existing database with the given name (or creates one
-// if no previous can be found) from within the node's data directory. If the
-// node is an ephemeral one, a memory database is returned.
-func (ctx *ServiceContext) OpenDatabase(name string, cache int, handles int, namespace string) (types.StoreDB, error) {
-	if ctx.Config.DataDir == "" {
-		return storage.NewMemoryDatabase(), nil
-	}
-	return storage.NewLevelDBDatabase(ctx.Config.ResolvePath(name), cache, handles, namespace)
-}
-
-// StartDatabase starts a new or existed database in the node data directory, or in-memory database.
-func (ctx *ServiceContext) StartDatabase(dbInfo storage.DbInfo) (types.StoreDB, error) {
-	return dbInfo.Start()
+	Config     *Config
+	services   map[reflect.Type]Service // Index of the already constructed services
+	EventMux   *event.TypeMux           // Event multiplexer used for decoupled notifications
+	BlockStore types.StoreDB
 }
 
 // ResolvePath resolves a user path into the data directory if that was relative
