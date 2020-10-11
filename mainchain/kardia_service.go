@@ -130,8 +130,6 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
-	logger.Info("Validators: ", "vals", state.Validators.Validators)
-
 	consensusState := consensus.NewConsensusState(
 		kai.logger,
 		configs.DefaultConsensusConfig(),

@@ -128,6 +128,11 @@ func DefaultP2PConfig() *P2PConfig {
 	}
 }
 
+// AddrBookFile returns the full path to the address book
+func (cfg *P2PConfig) AddrBookFile() string {
+	return rootify(cfg.AddrBook, cfg.RootDir)
+}
+
 // FuzzConnConfig is a FuzzedConnection configuration.
 type FuzzConnConfig struct {
 	Mode         int
@@ -253,4 +258,15 @@ func (cfg *InstrumentationConfig) ValidateBasic() error {
 		return errors.New("max_open_connections can't be negative")
 	}
 	return nil
+}
+
+//-----------------------------------------------------------------------------
+// Utils
+
+// helper function to make config creation independent of root dir
+func rootify(path, root string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(root, path)
 }
