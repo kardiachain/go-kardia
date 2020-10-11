@@ -87,7 +87,10 @@ func LoadConfig(path string) (*Config, error) {
 
 // getP2P gets p2p's config from config
 func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
-	return configs.DefaultP2PConfig(), nil
+	p2pConfig := configs.DefaultP2PConfig()
+	p2pConfig.Seeds = c.MainChain.Seeds
+	p2pConfig.ListenAddress = c.P2P.ListenAddress
+	return p2pConfig, nil
 }
 
 // getDbInfo gets database information from config. Currently, it only supports levelDb and Mondodb

@@ -395,7 +395,6 @@ func (mt *MultiplexTransport) upgrade(
 			_ = mt.cleanup(c)
 		}
 	}()
-
 	secretConn, err = upgradeSecretConn(c, mt.handshakeTimeout, mt.nodeKey.PrivKey)
 	if err != nil {
 		return nil, nil, ErrRejected{
