@@ -116,7 +116,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		blockExec,
 		evPool,
 	)
-	dualService.csManager = consensus.NewConsensusManager(DualServiceName, consensusState)
+	dualService.csManager = consensus.NewConsensusManager(consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	dualService.csManager.SetPrivValidator(privValidator)
@@ -133,7 +133,6 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		return nil, err
 	}
 	//namdoh@ dualService.protocolManager.acceptTxs = config.AcceptTxs
-	dualService.csManager.SetProtocol(dualService.protocolManager)
 	return dualService, nil
 }
 

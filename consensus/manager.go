@@ -48,31 +48,19 @@ const (
 
 // ConsensusManager defines a manager for the consensus service.
 type ConsensusManager struct {
-	id     string     // Uniquely identifies this consensus service
-	logger log.Logger // Please use this logger for all consensus activities.
-
-	protocol BaseProtocol
-
-	conS *ConsensusState
-
-	mtx sync.RWMutex
-	//eventBus *types.EventBus
-
-	running bool
+	p2p.BaseReactor // BaseService + p2p.Switch
+	conS            *ConsensusState
+	mtx             sync.RWMutex
 }
 
 // NewConsensusManager returns a new ConsensusManager with the given
 // consensusState.
-func NewConsensusManager(id string, consensusState *ConsensusState) *ConsensusManager {
-	return &ConsensusManager{
-		id:     id,
-		logger: consensusState.logger,
-		conS:   consensusState,
+func NewConsensusManager(consensusState *ConsensusState) *ConsensusManager {
+	conR := &ConsensusManager{
+		conS: consensusState,
 	}
-}
-
-func (conR *ConsensusManager) SetProtocol(protocol BaseProtocol) {
-	conR.protocol = protocol
+	conR.BaseReactor = *p2p.NewBaseReactor("Consensus", conR)
+	return conR
 }
 
 func (conR *ConsensusManager) SetPrivValidator(priv types.PrivValidator) {
@@ -90,36 +78,58 @@ func (conR *ConsensusManager) Validators() []*types.Validator {
 	return conR.conS.Validators.CurrentValidators()
 }
 
-func (conR *ConsensusManager) Start() {
-	conR.logger.Trace("Consensus manager starts!")
-
-	if conR.running {
-		conR.logger.Error("ConsensusManager already started. Shouldn't start again.")
-		return
-	}
-	conR.running = true
-
+func (conR *ConsensusManager) OnStart() error {
+	conR.Logger.Trace("Consensus manager starts!")
 	conR.subscribeToBroadcastEvents()
 	conR.conS.Start()
+	return nil
 }
 
-func (conR *ConsensusManager) Stop() {
-	if !conR.running {
-		conR.logger.Error("ConsensusManager hasn't started yet. Shouldn't be asked to stop.")
-	}
-
+func (conR *ConsensusManager) OnStop() {
 	conR.conS.Stop()
 	conR.unsubscribeFromBroadcastEvents()
+}
 
-	conR.running = false
-	conR.logger.Trace("Consensus manager stops!")
+// GetChannels implements Reactor
+func (conR *ConsensusManager) GetChannels() []*p2p.ChannelDescriptor {
+	// TODO optimize
+	return []*p2p.ChannelDescriptor{
+		{
+			ID:                  StateChannel,
+			Priority:            5,
+			SendQueueCapacity:   100,
+			RecvMessageCapacity: maxMsgSize,
+		},
+		{
+			ID: DataChannel, // maybe split between gossiping current block and catchup stuff
+			// once we gossip the whole block there's nothing left to send until next height or round
+			Priority:            10,
+			SendQueueCapacity:   100,
+			RecvBufferCapacity:  50 * 4096,
+			RecvMessageCapacity: maxMsgSize,
+		},
+		{
+			ID:                  VoteChannel,
+			Priority:            5,
+			SendQueueCapacity:   100,
+			RecvBufferCapacity:  100 * 100,
+			RecvMessageCapacity: maxMsgSize,
+		},
+		{
+			ID:                  VoteSetBitsChannel,
+			Priority:            1,
+			SendQueueCapacity:   2,
+			RecvBufferCapacity:  1024,
+			RecvMessageCapacity: maxMsgSize,
+		},
+	}
 }
 
 // AddPeer implements manager
 func (conR *ConsensusManager) AddPeer(peer p2p.Peer) {
-	conR.logger.Info("Add peer to manager", "peer", peer)
+	conR.Logger.Info("Add peer to manager", "peer", peer)
 
-	if !conR.running {
+	if !conR.IsRunning() {
 		return
 	}
 
@@ -140,8 +150,8 @@ func (conR *ConsensusManager) AddPeer(peer p2p.Peer) {
 }
 
 // RemovePeer is a noop.
-func (conR *ConsensusManager) RemovePeer(p *p2p.Peer, reason interface{}) {
-	conR.logger.Warn("ConsensusManager.RemovePeer - not yet implemented")
+func (conR *ConsensusManager) RemovePeer(p p2p.Peer, reason interface{}) {
+	conR.Logger.Warn("ConsensusManager.RemovePeer - not yet implemented")
 }
 
 // subscribeToBroadcastEvents subscribes for new round steps, votes and
@@ -174,8 +184,8 @@ func (conR *ConsensusManager) unsubscribeFromBroadcastEvents() {
 
 func (conR *ConsensusManager) broadcastNewRoundStepMessages(rs *cstypes.RoundState) {
 	nrsMsg := makeRoundStepMessage(rs)
-	conR.logger.Trace("broadcastNewRoundStepMessage", "nrsMsg", nrsMsg, "height", rs.Height)
-	conR.protocol.Broadcast(nrsMsg, service.CsNewRoundStepMsg)
+	conR.Logger.Trace("broadcastNewRoundStepMessage", "nrsMsg", nrsMsg, "height", rs.Height)
+	conR.Switch.Broadcast(StateChannel, MustEncode(nrsMsg))
 }
 
 // Broadcasts HasVoteMessage to peers that care.
@@ -186,8 +196,8 @@ func (conR *ConsensusManager) broadcastHasVoteMessage(vote *types.Vote) {
 		Type:   vote.Type,
 		Index:  vote.ValidatorIndex,
 	}
-	conR.logger.Trace("broadcastHasVoteMessage", "msg", msg)
-	conR.protocol.Broadcast(msg, service.CsHasVoteMsg)
+	conR.Logger.Trace("broadcastHasVoteMessage", "msg", msg)
+	conR.Switch.Broadcast(StateChannel, MustEncode(msg))
 }
 
 func (conR *ConsensusManager) broadcastNewValidBlockMessage(rs *cstypes.RoundState) {
@@ -198,13 +208,13 @@ func (conR *ConsensusManager) broadcastNewValidBlockMessage(rs *cstypes.RoundSta
 		BlockParts:       rs.ProposalBlockParts.BitArray(),
 		IsCommit:         rs.Step == cstypes.RoundStepCommit,
 	}
-	conR.protocol.Broadcast(msg, service.CsValidBlockMsg)
+	conR.Switch.Broadcast(StateChannel, MustEncode(msg))
 }
 
 // ------------ Send message helpers -----------
 
 func (conR *ConsensusManager) sendNewRoundStepMessage(peer p2p.Peer) {
-	conR.logger.Debug("manager - sendNewRoundStepMessages")
+	conR.Logger.Debug("manager - sendNewRoundStepMessages")
 	rs := conR.conS.GetRoundState()
 	nrsMsg := makeRoundStepMessage(rs)
 	peer.Send(StateChannel, MustEncode(nrsMsg))
@@ -224,13 +234,13 @@ func makeRoundStepMessage(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage) 
 
 // ----------- Gossip routines ---------------
 func (conR *ConsensusManager) gossipDataRoutine(peer p2p.Peer, ps *PeerState) {
-	logger := conR.logger.New("peer", peer)
+	logger := conR.Logger.New("peer", peer)
 	logger.Trace("Start gossipDataRoutine for peer")
 
 OuterLoop:
 	for {
 		// Manage disconnects from self or peer.
-		if !peer.IsRunning() || !conR.running {
+		if !peer.IsRunning() || !conR.IsRunning() {
 			logger.Info("Stopping gossipDataRoutine for peer")
 			return
 		}
@@ -323,13 +333,13 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 		// Ensure that the peer's PartSetHeader is correct
 		blockMeta := conR.conS.blockOperations.LoadBlockMeta(prs.Height)
 		if blockMeta == nil {
-			conR.logger.Error("Failed to load block meta",
+			conR.Logger.Error("Failed to load block meta",
 				"ourHeight", rs.Height, "blockstoreHeight", conR.conS.blockOperations.Height())
 			time.Sleep(conR.conS.config.PeerGossipSleep())
 			return
 		}
 		if !blockMeta.BlockID.PartsHeader.Equals(prs.ProposalBlockPartsHeader) {
-			conR.logger.Info("Peer ProposalBlockPartsHeader mismatch, sleeping",
+			conR.Logger.Info("Peer ProposalBlockPartsHeader mismatch, sleeping",
 				"blockPartsHeader", blockMeta.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
 			time.Sleep(conR.conS.config.PeerGossipSleep())
 			return
@@ -337,7 +347,7 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 		// Load the part
 		part := conR.conS.blockOperations.LoadBlockPart(prs.Height, index)
 		if part == nil {
-			conR.logger.Error("Could not load part", "index", index,
+			conR.Logger.Error("Could not load part", "index", index,
 				"blockPartsHeader", blockMeta.BlockID.PartsHeader, "peerBlockPartsHeader", prs.ProposalBlockPartsHeader)
 			time.Sleep(conR.conS.config.PeerGossipSleep())
 			return
@@ -349,11 +359,11 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 			Round:  prs.Round,  // Not our height, so it doesn't matter.
 			Part:   part,
 		}
-		conR.logger.Debug("Sending block part for catchup", "round", prs.Round, "index", index)
+		conR.Logger.Debug("Sending block part for catchup", "round", prs.Round, "index", index)
 		if peer.Send(DataChannel, MustEncode(msg)) {
 			ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 		} else {
-			conR.logger.Debug("Sending block part for catchup failed")
+			conR.Logger.Debug("Sending block part for catchup failed")
 		}
 		return
 	}
@@ -362,7 +372,7 @@ func (conR *ConsensusManager) gossipDataForCatchup(rs *cstypes.RoundState,
 }
 
 func (conR *ConsensusManager) gossipVotesRoutine(peer p2p.Peer, ps *PeerState) {
-	logger := conR.logger.New("peer", peer)
+	logger := conR.Logger.New("peer", peer)
 	logger.Trace("Start gossipVotesRoutine for peer")
 
 	// Simple hack to throttle logs upon sleep.
@@ -371,8 +381,8 @@ func (conR *ConsensusManager) gossipVotesRoutine(peer p2p.Peer, ps *PeerState) {
 OUTER_LOOP:
 	for {
 		// Manage disconnects from self or peer.
-		if !peer.IsRunning() || !conR.running {
-			logger.Info("Stopping gossipVotesRoutine for peer")
+		if !peer.IsRunning() || !conR.IsRunning() {
+			logger.Info("Stopping gossipDataRoutine for peer")
 			return
 		}
 		rs := conR.conS.GetRoundState()
@@ -489,13 +499,13 @@ func (conR *ConsensusManager) gossipVotesForHeight(logger log.Logger, rs *cstype
 }
 
 func (conR *ConsensusManager) queryMaj23Routine(peer p2p.Peer, ps *PeerState) {
-	logger := conR.logger.New("peer", peer)
+	logger := conR.Logger.New("peer", peer)
 
 OUTER_LOOP:
 	for {
 		// Manage disconnects from self or peer.
-		if !!peer.IsRunning() || !conR.running {
-			logger.Info("Stopping queryMaj23Routine for peer")
+		if !peer.IsRunning() || !conR.IsRunning() {
+			logger.Info("Stopping gossipDataRoutine for peer")
 			return
 		}
 
@@ -673,6 +683,23 @@ type HasVoteMessage struct {
 	Round  uint32
 	Type   tmproto.SignedMsgType
 	Index  uint32
+}
+
+// ValidateBasic performs basic validation.
+func (m *HasVoteMessage) ValidateBasic() error {
+	if m.Height < 0 {
+		return errors.New("negative Height")
+	}
+	if m.Round < 0 {
+		return errors.New("negative Round")
+	}
+	if !types.IsVoteTypeValid(m.Type) {
+		return errors.New("invalid Type")
+	}
+	if m.Index < 0 {
+		return errors.New("negative Index")
+	}
+	return nil
 }
 
 // String returns a string representation.

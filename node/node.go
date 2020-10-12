@@ -226,17 +226,6 @@ func (n *Node) OnStart() error {
 		return err
 	}
 
-	// Start the switch (the P2P server).
-	if err := n.sw.Start(); err != nil {
-		return err
-	}
-
-	// Always connect to persistent peers
-	err = n.sw.DialPeersAsync(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
-	if err != nil {
-		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
-	}
-
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)
 	for _, constructor := range n.serviceFuncs {
@@ -290,6 +279,17 @@ func (n *Node) OnStart() error {
 	// Finish initializing the startup
 	n.services = services
 	n.stop = make(chan struct{})
+
+	// Start the switch (the P2P server).
+	if err := n.sw.Start(); err != nil {
+		return err
+	}
+
+	// Always connect to persistent peers
+	err = n.sw.DialPeersAsync(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
+	if err != nil {
+		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
+	}
 	return nil
 }
 

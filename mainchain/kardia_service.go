@@ -22,7 +22,6 @@ package kai
 import (
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/consensus"
-	"github.com/kardiachain/go-kardiamain/kai/service"
 	serviceconst "github.com/kardiachain/go-kardiamain/kai/service/const"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/log"
@@ -62,10 +61,9 @@ type KardiaService struct {
 	kaiDb types.StoreDB // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
-	txPool          *tx_pool.TxPool
-	protocolManager *service.ProtocolManager
-	blockchain      *blockchain.BlockChain
-	csManager       *consensus.ConsensusManager
+	txPool     *tx_pool.TxPool
+	blockchain *blockchain.BlockChain
+	csManager  *consensus.ConsensusManager
 
 	subService KardiaSubService
 
@@ -122,7 +120,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	bOper := blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool, staking)
 
-	evReactor := evidence.NewReactor(evPool)
+	//evReactor := evidence.NewReactor(evPool)
 	blockExec := cstate.NewBlockExecutor(kai.blockchain.DB().DB(), evPool, bOper)
 
 	state, err := cstate.LoadStateFromDBOrGenesisDoc(kaiDb.DB(), config.Genesis)
@@ -138,28 +136,10 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		blockExec,
 		evPool,
 	)
-	kai.csManager = consensus.NewConsensusManager(config.ServiceName, consensusState)
+	kai.csManager = consensus.NewConsensusManager(consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	kai.csManager.SetPrivValidator(privValidator)
-
-	// Initialize protocol manager.
-
-	if kai.protocolManager, err = service.NewProtocolManager(
-		kaiProtocolName,
-		kai.logger,
-		config.NetworkId,
-		config.ChainId,
-		kai.blockchain,
-		kai.chainConfig,
-		kai.txPool,
-		kai.csManager,
-		evReactor); err != nil {
-		return nil, err
-	}
-	kai.protocolManager.SetAcceptTxs(config.AcceptTxs)
-	kai.csManager.SetProtocol(kai.protocolManager)
-
 	return kai, nil
 }
 
@@ -193,20 +173,17 @@ func (s *KardiaService) NetVersion() uint64 { return s.networkID }
 // Start implements Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
 func (s *KardiaService) Start(srvr *p2p.Switch) error {
+	srvr.AddReactor("CONSENSUS", s.csManager)
 	return nil
 }
 
 // Stop implements Service, terminating all internal goroutines used by the
 // Kardia protocol.
 func (s *KardiaService) Stop() error {
-	s.csManager.Stop()
-	s.protocolManager.Stop()
 	if s.subService != nil {
 		s.subService.Stop()
 	}
-
 	close(s.shutdownChan)
-
 	return nil
 }
 
