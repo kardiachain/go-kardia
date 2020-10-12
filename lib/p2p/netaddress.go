@@ -105,7 +105,6 @@ func NewNetAddressString(addr string) (*NetAddress, error) {
 	if err != nil {
 		return nil, ErrNetAddressInvalid{portStr, err}
 	}
-
 	na := NewNetAddressIPPort(ip, uint16(port))
 	na.ID = id
 	return na, nil

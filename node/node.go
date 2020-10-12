@@ -681,15 +681,8 @@ func createTransport(
 	var (
 		mConnConfig = p2p.MConnConfig(config.P2P)
 		transport   = p2p.NewMultiplexTransport(nodeInfo, *nodeKey, mConnConfig)
-		connFilters = []p2p.ConnFilterFunc{}
 		peerFilters = []p2p.PeerFilterFunc{}
 	)
-
-	if !config.P2P.AllowDuplicateIP {
-		connFilters = append(connFilters, p2p.ConnDuplicateIPFilter())
-	}
-
-	p2p.MultiplexTransportConnFilters(connFilters...)(transport)
 
 	// Limit the number of incoming connections.
 	max := config.P2P.MaxNumInboundPeers + len(splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " "))
@@ -733,7 +726,7 @@ func makeNodeInfo(
 			uint64(1),
 		),
 		DefaultNodeID: nodeKey.ID(),
-		Network:       "1",
+		Network:       state.ChainID,
 		Version:       version.TMCoreSemVer,
 		Channels: []byte{
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,

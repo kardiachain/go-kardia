@@ -90,6 +90,8 @@ func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
 	p2pConfig := configs.DefaultP2PConfig()
 	p2pConfig.Seeds = c.MainChain.Seeds
 	p2pConfig.ListenAddress = c.P2P.ListenAddress
+	p2pConfig.RootDir = c.DataDir
+	p2pConfig.AddrBook = filepath.Join(c.DataDir, "addrbook.json")
 	return p2pConfig, nil
 }
 
