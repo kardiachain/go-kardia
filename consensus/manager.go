@@ -21,6 +21,7 @@ package consensus
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -152,6 +153,145 @@ func (conR *ConsensusManager) AddPeer(peer p2p.Peer) {
 // RemovePeer is a noop.
 func (conR *ConsensusManager) RemovePeer(p p2p.Peer, reason interface{}) {
 	conR.Logger.Warn("ConsensusManager.RemovePeer - not yet implemented")
+}
+
+// Receive implements Reactor
+// NOTE: We process these messages even when we're fast_syncing.
+// Messages affect either a peer state or the consensus state.
+// Peer state updates can happen in parallel, but processing of
+// proposals, block parts, and votes are ordered by the receiveRoutine
+// NOTE: blocks on consensus state for proposals, block parts, and votes
+func (conR *ConsensusManager) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
+	if !conR.IsRunning() {
+		conR.Logger.Debug("Receive", "src", src, "chId", chID, "bytes", msgBytes)
+		return
+	}
+
+	msg, err := decodeMsg(msgBytes)
+	if err != nil {
+		conR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
+		conR.Switch.StopPeerForError(src, err)
+		return
+	}
+
+	if err = msg.ValidateBasic(); err != nil {
+		conR.Logger.Error("Peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
+		conR.Switch.StopPeerForError(src, err)
+		return
+	}
+
+	conR.Logger.Debug("Receive", "src", src, "chId", chID, "msg", msg)
+
+	// Get peer states
+	ps, ok := src.Get(types.PeerStateKey).(*PeerState)
+	if !ok {
+		panic(fmt.Sprintf("Peer %v has no state", src))
+	}
+
+	switch chID {
+	case StateChannel:
+		switch msg := msg.(type) {
+		case *NewRoundStepMessage:
+			ps.ApplyNewRoundStepMessage(msg)
+		case *NewValidBlockMessage:
+			ps.ApplyNewValidBlockMessage(msg)
+		case *HasVoteMessage:
+			ps.ApplyHasVoteMessage(msg)
+		case *VoteSetMaj23Message:
+			cs := conR.conS
+			cs.mtx.Lock()
+			height, votes := cs.Height, cs.Votes
+			cs.mtx.Unlock()
+			if height != msg.Height {
+				return
+			}
+			// Peer claims to have a maj23 for some BlockID at H,R,S,
+			err := votes.SetPeerMaj23(msg.Round, msg.Type, ps.peer.ID(), msg.BlockID)
+			if err != nil {
+				conR.Switch.StopPeerForError(src, err)
+				return
+			}
+			// Respond with a VoteSetBitsMessage showing which votes we have.
+			// (and consequently shows which we don't have)
+			var ourVotes *cmn.BitArray
+			switch msg.Type {
+			case tmproto.PrevoteType:
+				ourVotes = votes.Prevotes(msg.Round).BitArrayByBlockID(msg.BlockID)
+			case tmproto.PrecommitType:
+				ourVotes = votes.Precommits(msg.Round).BitArrayByBlockID(msg.BlockID)
+			default:
+				panic("Bad VoteSetBitsMessage field Type. Forgot to add a check in ValidateBasic?")
+			}
+			src.TrySend(VoteSetBitsChannel, MustEncode(&VoteSetBitsMessage{
+				Height:  msg.Height,
+				Round:   msg.Round,
+				Type:    msg.Type,
+				BlockID: msg.BlockID,
+				Votes:   ourVotes,
+			}))
+		default:
+			conR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
+		}
+	case DataChannel:
+		switch msg := msg.(type) {
+		case *ProposalMessage:
+			ps.SetHasProposal(msg.Proposal)
+			conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
+		case *ProposalPOLMessage:
+			ps.ApplyProposalPOLMessage(msg)
+		case *BlockPartMessage:
+			ps.SetHasProposalBlockPart(msg.Height, msg.Round, int(msg.Part.Index))
+			//conR.Metrics.BlockParts.With("peer_id", string(src.ID())).Add(1)
+			conR.conS.peerMsgQueue <- msgInfo{msg, src.ID()}
+		default:
+			conR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
+		}
+	case VoteChannel:
+		switch msg := msg.(type) {
+		case *VoteMessage:
+			cs := conR.conS
+			cs.mtx.RLock()
+			height, valSize, lastCommitSize := cs.Height, cs.Validators.Size(), cs.LastCommit.Size()
+			cs.mtx.RUnlock()
+			ps.EnsureVoteBitArrays(height, valSize)
+			ps.EnsureVoteBitArrays(height-1, lastCommitSize)
+			ps.SetHasVote(msg.Vote)
+
+			cs.peerMsgQueue <- msgInfo{msg, src.ID()}
+
+		default:
+			// don't punish (leave room for soft upgrades)
+			conR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
+		}
+	case VoteSetBitsChannel:
+		switch msg := msg.(type) {
+		case *VoteSetBitsMessage:
+			cs := conR.conS
+			cs.mtx.Lock()
+			height, votes := cs.Height, cs.Votes
+			cs.mtx.Unlock()
+
+			if height == msg.Height {
+				var ourVotes *cmn.BitArray
+				switch msg.Type {
+				case tmproto.PrevoteType:
+					ourVotes = votes.Prevotes(msg.Round).BitArrayByBlockID(msg.BlockID)
+				case tmproto.PrecommitType:
+					ourVotes = votes.Precommits(msg.Round).BitArrayByBlockID(msg.BlockID)
+				default:
+					panic("Bad VoteSetBitsMessage field Type. Forgot to add a check in ValidateBasic?")
+				}
+				ps.ApplyVoteSetBitsMessage(msg, ourVotes)
+			} else {
+				ps.ApplyVoteSetBitsMessage(msg, nil)
+			}
+		default:
+			// don't punish (leave room for soft upgrades)
+			conR.Logger.Error(fmt.Sprintf("Unknown message type %v", reflect.TypeOf(msg)))
+		}
+	default:
+		conR.Logger.Error(fmt.Sprintf("Unknown chId %X", chID))
+	}
 }
 
 // subscribeToBroadcastEvents subscribes for new round steps, votes and
@@ -746,6 +886,24 @@ type VoteSetBitsMessage struct {
 	Votes   *cmn.BitArray
 }
 
+// ValidateBasic performs basic validation.
+func (m *VoteSetBitsMessage) ValidateBasic() error {
+	if m.Height < 0 {
+		return errors.New("negative Height")
+	}
+	if !types.IsVoteTypeValid(m.Type) {
+		return errors.New("invalid Type")
+	}
+	if err := m.BlockID.ValidateBasic(); err != nil {
+		return fmt.Errorf("wrong BlockID: %v", err)
+	}
+	// NOTE: Votes.Size() can be zero if the node does not have any
+	if m.Votes.Size() > types.MaxVotesCount {
+		return fmt.Errorf("votes bit array is too big: %d, max: %d", m.Votes.Size(), types.MaxVotesCount)
+	}
+	return nil
+}
+
 // String returns a string representation.
 func (m *VoteSetBitsMessage) String() string {
 	return fmt.Sprintf("[VSB %v/%02v/%v %v %v]", m.Height, m.Round, m.Type, m.BlockID, m.Votes)
@@ -1198,4 +1356,8 @@ func (m *NewValidBlockMessage) ValidateBasic() error {
 func (m *NewValidBlockMessage) String() string {
 	return fmt.Sprintf("[ValidBlockMessage H:%v R:%v BP:%v BA:%v IsCommit:%v]",
 		m.Height, m.Round, m.BlockPartsHeader, m.BlockParts, m.IsCommit)
+}
+
+func decodeMsg(bz []byte) (msg Message, err error) {
+	return nil, nil
 }
