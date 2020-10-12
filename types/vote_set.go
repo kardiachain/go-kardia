@@ -29,6 +29,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	// MaxVotesCount is the maximum number of votes in a set. Used in ValidateBasic funcs for
+	// protection against DOS attacks. Note this implies a corresponding equal limit to
+	// the number of validators.
+	MaxVotesCount = 10000
+)
+
 /*
 	VoteSet helps collect signatures from validators at each height+round for a
 	predefined vote type.
