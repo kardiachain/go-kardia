@@ -180,14 +180,14 @@ func (evR Reactor) checkSendEvidenceMessage(
 
 		params = evR.evpool.State().ConsensusParams.Evidence
 
-		ageDuration  = evR.evpool.State().LastBlockTime - ev.Time()
-		ageNumBlocks = peerHeight - evHeight
+		ageDuration  = evR.evpool.State().LastBlockTime.Sub(ev.Time())
+		ageNumBlocks = int64(peerHeight) - int64(evHeight)
 	)
 
 	if peerHeight < evHeight { // peer is behind. sleep while he catches up
 		return nil, true
 	} else if ageNumBlocks > params.MaxAgeNumBlocks ||
-		ageDuration > uint64(params.MaxAgeDuration) { // evidence is too old, skip
+		ageDuration > time.Duration(params.MaxAgeDuration)*time.Millisecond { // evidence is too old, skip
 
 		// NOTE: if evidence is too old for an honest peer, then we're behind and
 		// either it already got committed or it never will!

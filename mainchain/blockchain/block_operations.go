@@ -202,7 +202,7 @@ func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:         height,
-		Time:           uint64(time.Now().Unix()),
+		Time:           time.Now(),
 		NumTxs:         numTxs,
 		LastBlockID:    blockID,
 		Validator:      validator,

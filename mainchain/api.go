@@ -47,7 +47,7 @@ type BlockHeaderJSON struct {
 	Height         uint64      `json:"height"`
 	LastBlock      string      `json:"lastBlock"`
 	CommitHash     string      `json:"commitHash"`
-	Time           uint64      `json:"time"`
+	Time           time.Time   `json:"time"`
 	NumTxs         uint64      `json:"numTxs"`
 	GasLimit       uint64      `json:"gasLimit"`
 	GasUsed        uint64      `json:"gasUsed"`
@@ -67,7 +67,7 @@ type BlockJSON struct {
 	Height         uint64               `json:"height"`
 	LastBlock      string               `json:"lastBlock"`
 	CommitHash     string               `json:"commitHash"`
-	Time           uint64               `json:"time"`
+	Time           time.Time            `json:"time"`
 	NumTxs         uint64               `json:"numTxs"`
 	GasLimit       uint64               `json:"gasLimit"`
 	GasUsed        uint64               `json:"gasUsed"`
@@ -306,18 +306,18 @@ func (s *PublicKaiAPI) Validators() []map[string]interface{} {
 }
 
 type PublicTransaction struct {
-	BlockHash        string `json:"blockHash"`
-	BlockNumber      uint64 `json:"blockNumber"`
-	Time             uint64 `json:"time"`
-	From             string `json:"from"`
-	Gas              uint64 `json:"gas"`
-	GasPrice         uint64 `json:"gasPrice"`
-	Hash             string `json:"hash"`
-	Input            string `json:"input"`
-	Nonce            uint64 `json:"nonce"`
-	To               string `json:"to"`
-	TransactionIndex uint   `json:"transactionIndex"`
-	Value            string `json:"value"`
+	BlockHash        string    `json:"blockHash"`
+	BlockNumber      uint64    `json:"blockNumber"`
+	Time             time.Time `json:"time"`
+	From             string    `json:"from"`
+	Gas              uint64    `json:"gas"`
+	GasPrice         uint64    `json:"gasPrice"`
+	Hash             string    `json:"hash"`
+	Input            string    `json:"input"`
+	Nonce            uint64    `json:"nonce"`
+	To               string    `json:"to"`
+	TransactionIndex uint      `json:"transactionIndex"`
+	Value            string    `json:"value"`
 }
 
 type Log struct {

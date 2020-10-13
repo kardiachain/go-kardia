@@ -26,6 +26,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 // ErrTotalVotingPowerOverflow is returned if the total voting power of the
@@ -56,7 +57,7 @@ func (e ErrNotEnoughVotingPowerSigned) Error() string {
 type Validator struct {
 	Address          common.Address `json:"address"`
 	VotingPower      uint64         `json:"votingPower"`
-	ProposerPriority *common.BigInt `json:"proposerPriority"`
+	ProposerPriority int64          `json:"proposerPriority"`
 }
 
 // NewValidator ...
@@ -64,7 +65,7 @@ func NewValidator(addr common.Address, votingPower uint64) *Validator {
 	return &Validator{
 		Address:          addr,
 		VotingPower:      votingPower,
-		ProposerPriority: common.NewBigInt(0),
+		ProposerPriority: 0,
 	}
 }
 
@@ -103,9 +104,9 @@ func (v *Validator) CompareProposerPriority(other *Validator) *Validator {
 		return other
 	}
 	switch {
-	case v.ProposerPriority.IsGreaterThan(other.ProposerPriority):
+	case v.ProposerPriority > other.ProposerPriority:
 		return v
-	case v.ProposerPriority.IsLessThan(other.ProposerPriority):
+	case v.ProposerPriority < other.ProposerPriority:
 		return other
 	default:
 		result := v.Address.Equal(other.Address)
@@ -147,6 +148,21 @@ func ValidatorListString(vals []*Validator) string {
 	return strings.Join(chunks, ",")
 }
 
+// FromProto sets a protobuf Validator to the given pointer.
+// It returns an error if the public key is invalid.
+func ValidatorFromProto(vp *tmproto.Validator) (*Validator, error) {
+	if vp == nil {
+		return nil, errors.New("nil validator")
+	}
+
+	v := new(Validator)
+	v.Address = common.BytesToAddress(vp.GetAddress())
+	v.VotingPower = vp.GetVotingPower()
+	v.ProposerPriority = vp.GetProposerPriority()
+
+	return v, nil
+}
+
 //----------------------------------------
 // RandValidator
 
@@ -176,9 +192,24 @@ func RandValidatorCS(randPower bool, minPower uint64) (*Validator, *DefaultPrivV
 }
 
 // GetProposerPriority ...
-func (v *Validator) GetProposerPriority() *common.BigInt {
+func (v *Validator) GetProposerPriority() int64 {
 	if v != nil {
 		return v.ProposerPriority
 	}
-	return common.NewBigInt(0)
+	return 0
+}
+
+// ToProto converts Valiator to protobuf
+func (v *Validator) ToProto() (*tmproto.Validator, error) {
+	if v == nil {
+		return nil, errors.New("nil validator")
+	}
+
+	vp := tmproto.Validator{
+		Address:          v.Address.Bytes(),
+		VotingPower:      v.VotingPower,
+		ProposerPriority: v.ProposerPriority,
+	}
+
+	return &vp, nil
 }

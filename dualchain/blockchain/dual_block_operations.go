@@ -231,7 +231,7 @@ func (dbo *DualBlockOperations) newHeader(height uint64, numEvents uint64, block
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:         height,
 		NumDualEvents:  numEvents,
-		Time:           uint64(time.Now().Unix()),
+		Time:           time.Now(),
 		LastBlockID:    blockId,
 		Validator:      validator,
 		ValidatorsHash: validatorsHash,

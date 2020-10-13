@@ -177,7 +177,7 @@ func MessageHandler(proxy base.BlockChainAdapter, topic, message string) error {
 				Amount:              msg.GetAmount(),
 				Sender:              msg.GetSender(),
 				BlockNumber:         msg.BlockNumber,
-				Timestamp:           msg.Timestamp,
+				Timestamp:           time.Unix(int64(msg.Timestamp), 10),
 			}
 			if watcher.WatcherActions != nil && len(watcher.WatcherActions) > 0 {
 				parser := ksml.NewParser(

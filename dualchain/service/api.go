@@ -20,6 +20,7 @@ package service
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -31,7 +32,7 @@ type DualBlockJSON struct {
 	Height         uint64             `json:"height"`
 	LastBlock      string             `json:"lastBlock"`
 	CommitHash     string             `json:"commitHash"`
-	Time           uint64             `json:"time"`
+	Time           time.Time          `json:"time"`
 	NumDualEvents  uint64             `json:"num_events"`
 	DualEvents     []*PublicDualEvent `json:"dual_events"`
 	DualEventsHash string             `json:"dual_events_hash"`
