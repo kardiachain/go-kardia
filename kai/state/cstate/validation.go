@@ -21,6 +21,7 @@ package cstate
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -125,18 +126,18 @@ func validateBlock(db kaidb.Database, state LastestBlockState, block *types.Bloc
 // - it was properly signed by the alleged equivocator
 func VerifyEvidence(stateDB kaidb.KeyValueStore, state LastestBlockState, evidence types.Evidence) error {
 	var (
-		height         = state.LastBlockHeight
+		height         = int64(state.LastBlockHeight)
 		evidenceParams = state.ConsensusParams.Evidence
-		ageNumBlocks   = height - evidence.Height()
-		ageDuration    = uint(state.LastBlockTime - evidence.Time())
+		ageNumBlocks   = height - int64(evidence.Height())
+		ageDuration    = state.LastBlockTime.Sub(evidence.Time())
 	)
-	if ageDuration > evidenceParams.MaxAgeDuration && ageNumBlocks > evidenceParams.MaxAgeNumBlocks {
+	if ageDuration > time.Duration(evidenceParams.MaxAgeDuration) && ageNumBlocks > evidenceParams.MaxAgeNumBlocks {
 		return fmt.Errorf(
 			"evidence from height %d (created at: %v) is too old; min height is %d and evidence can not be older than %v",
 			evidence.Height(),
 			evidence.Time(),
 			height-evidenceParams.MaxAgeNumBlocks,
-			state.LastBlockTime+uint64(evidenceParams.MaxAgeDuration),
+			state.LastBlockTime.Add(time.Duration(evidenceParams.MaxAgeDuration)),
 		)
 	}
 
@@ -153,7 +154,7 @@ func VerifyEvidence(stateDB kaidb.KeyValueStore, state LastestBlockState, eviden
 	// XXX: this makes lite-client bisection as is unsafe
 	// See https://github.com/tendermint/tendermint/issues/3244
 	ev := evidence
-	height, addr := ev.Height(), ev.Address()
+	height, addr := int64(ev.Height()), ev.Address()
 	_, val := valset.GetByAddress(addr)
 	if val == nil {
 		return fmt.Errorf("address %X was not a validator at height %d", addr, height)

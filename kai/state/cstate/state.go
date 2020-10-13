@@ -20,6 +20,7 @@ package cstate
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
@@ -48,7 +49,7 @@ type LastestBlockState struct {
 	LastBlockHeight  uint64
 	LastBlockTotalTx uint64
 	LastBlockID      types.BlockID
-	LastBlockTime    uint64
+	LastBlockTime    time.Time
 
 	// LastValidators is used to validate block.LastCommit.
 	// Validators are persisted to the database separately every time they change,

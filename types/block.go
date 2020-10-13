@@ -27,6 +27,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"math/big"
@@ -36,6 +37,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/math"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/trie"
 )
 
@@ -49,9 +51,9 @@ var (
 // Header represents a block header in the Kardia blockchain.
 type Header struct {
 	// basic block info
-	Height uint64 `json:"height"       gencodec:"required"`
-	Time   uint64 `json:"time"         gencodec:"required"`
-	NumTxs uint64 `json:"num_txs"      gencodec:"required"`
+	Height uint64    `json:"height"       gencodec:"required"`
+	Time   time.Time `json:"time"         gencodec:"required"`
+	NumTxs uint64    `json:"num_txs"      gencodec:"required"`
 	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
 	NumDualEvents uint64 `json:"num_dual_events" gencodec:"required"`
 
@@ -353,7 +355,7 @@ func (b *Block) WithBody(body *Body) *Block {
 func (b *Block) Height() uint64   { return b.header.Height }
 func (b *Block) GasLimit() uint64 { return b.header.GasLimit }
 func (b *Block) GasUsed() uint64  { return b.header.GasUsed }
-func (b *Block) Time() uint64     { return b.header.Time }
+func (b *Block) Time() time.Time  { return b.header.Time }
 func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
 func (b *Block) LastCommitHash() common.Hash { return b.header.LastCommitHash }
@@ -540,9 +542,39 @@ func (blockID BlockID) ValidateBasic() error {
 	return nil
 }
 
+// ToProto converts BlockID to protobuf
+func (blockID *BlockID) ToProto() tmproto.BlockID {
+	if blockID == nil {
+		return tmproto.BlockID{}
+	}
+
+	return tmproto.BlockID{
+		Hash:          blockID.Hash.Bytes(),
+		PartSetHeader: blockID.PartsHeader.ToProto(),
+	}
+}
+
 // IsComplete returns true if this is a valid BlockID of a non-nil block.
 func (blockID BlockID) IsComplete() bool {
 	return !blockID.Hash.IsZero() && !blockID.PartsHeader.IsZero()
+}
+
+// FromProto sets a protobuf BlockID to the given pointer.
+// It returns an error if the block id is invalid.
+func BlockIDFromProto(bID *tmproto.BlockID) (*BlockID, error) {
+	if bID == nil {
+		return nil, errors.New("nil BlockID")
+	}
+
+	blockID := new(BlockID)
+	ph, err := PartSetHeaderFromProto(&bID.PartSetHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	blockID.PartsHeader = *ph
+	blockID.Hash = common.BytesToHash(bID.Hash)
+	return blockID, blockID.ValidateBasic()
 }
 
 type Blocks []*Block

@@ -25,6 +25,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
 	service "github.com/kardiachain/go-kardiamain/kai/service/const"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
@@ -32,6 +33,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/types"
 
+	tmcons "github.com/kardiachain/go-kardiamain/proto/kardiachain/consensus"
 	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
@@ -1359,5 +1361,10 @@ func (m *NewValidBlockMessage) String() string {
 }
 
 func decodeMsg(bz []byte) (msg Message, err error) {
-	return nil, nil
+	pb := &tmcons.Message{}
+	if err = proto.Unmarshal(bz, pb); err != nil {
+		return msg, err
+	}
+
+	return MsgFromProto(pb)
 }

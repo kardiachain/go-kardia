@@ -88,7 +88,7 @@ type Vote struct {
 	ValidatorIndex   uint32                `json:"validator_index"`
 	Height           uint64                `json:"height"`
 	Round            uint32                `json:"round"`
-	Timestamp        uint64                `json:"timestamp"`
+	Timestamp        time.Time             `json:"timestamp"`
 	Type             tmproto.SignedMsgType `json:"type"`
 	BlockID          BlockID               `json:"block_id"` // zero if vote is nil.
 	Signature        []byte                `json:"signature"`
@@ -150,7 +150,7 @@ func (vote *Vote) StringLong() string {
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		vote.BlockID.Hash.Fingerprint(), vote.Signature,
-		time.Unix(int64(vote.Timestamp), 0))
+		vote.Timestamp)
 }
 
 // String simplifies vote.Signature, array of bytes, to hex and gets the first 14 characters
@@ -162,7 +162,7 @@ func (vote *Vote) String() string {
 		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		vote.BlockID, cmn.Fingerprint(vote.Signature[:]),
-		time.Unix(int64(vote.Timestamp), 0))
+		vote.Timestamp)
 }
 
 // Verify ...
@@ -198,6 +198,50 @@ func (vote *Vote) ValidateBasic() error {
 		return errors.New("signature is missing")
 	}
 	return nil
+}
+
+// ToProto converts the handwritten type to proto generated type
+// return type, nil if everything converts safely, otherwise nil, error
+func (vote *Vote) ToProto() *tmproto.Vote {
+	if vote == nil {
+		return nil
+	}
+
+	return &tmproto.Vote{
+		Type:             vote.Type,
+		Height:           vote.Height,
+		Round:            vote.Round,
+		BlockID:          vote.BlockID.ToProto(),
+		Timestamp:        vote.Timestamp,
+		ValidatorAddress: vote.ValidatorAddress.Bytes(),
+		ValidatorIndex:   vote.ValidatorIndex,
+		Signature:        vote.Signature,
+	}
+}
+
+// FromProto converts a proto generetad type to a handwritten type
+// return type, nil if everything converts safely, otherwise nil, error
+func VoteFromProto(pv *tmproto.Vote) (*Vote, error) {
+	if pv == nil {
+		return nil, errors.New("nil vote")
+	}
+
+	blockID, err := BlockIDFromProto(&pv.BlockID)
+	if err != nil {
+		return nil, err
+	}
+
+	vote := new(Vote)
+	vote.Type = pv.Type
+	vote.Height = pv.Height
+	vote.Round = pv.Round
+	vote.BlockID = *blockID
+	vote.Timestamp = pv.Timestamp
+	vote.ValidatorAddress = common.BytesToAddress(pv.ValidatorAddress)
+	vote.ValidatorIndex = pv.ValidatorIndex
+	vote.Signature = pv.Signature
+
+	return vote, vote.ValidateBasic()
 }
 
 // UNSTABLE

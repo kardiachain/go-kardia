@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/state"
@@ -42,7 +43,7 @@ type Evidence struct {
 	Address          common.Address
 	VotingPower      *big.Int
 	Height           uint64
-	Time             uint64
+	Time             time.Time
 	TotalVotingPower uint64
 }
 

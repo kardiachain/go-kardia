@@ -22,6 +22,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+
+	tmcrypto "github.com/kardiachain/go-kardiamain/proto/kardiachain/crypto"
+	"github.com/tendermint/tendermint/crypto/tmhash"
 )
 
 // SimpleProof represents a simple Merkle proof.
@@ -110,10 +113,55 @@ func (sp *SimpleProof) ComputeRootHash() []byte {
 	)
 }
 
+func (sp *SimpleProof) ToProto() *tmcrypto.Proof {
+	if sp == nil {
+		return nil
+	}
+	pb := new(tmcrypto.Proof)
+
+	pb.Total = sp.Total
+	pb.Index = sp.Index
+	pb.LeafHash = sp.LeafHash
+	pb.Aunts = sp.Aunts
+
+	return pb
+}
+
+func ProofFromProto(pb *tmcrypto.Proof) (*SimpleProof, error) {
+	if pb == nil {
+		return nil, errors.New("nil proof")
+	}
+
+	sp := new(SimpleProof)
+
+	sp.Total = pb.Total
+	sp.Index = pb.Index
+	sp.LeafHash = pb.LeafHash
+	sp.Aunts = pb.Aunts
+
+	return sp, sp.ValidateBasic()
+}
+
 // String implements the stringer interface for SimpleProof.
 // It is a wrapper around StringIndented.
 func (sp *SimpleProof) String() string {
 	return sp.StringIndented("")
+}
+
+// ValidateBasic performs basic validation.
+// NOTE: it expects the LeafHash and the elements of Aunts to be of size tmhash.Size,
+// and it expects at most MaxAunts elements in Aunts.
+func (sp *SimpleProof) ValidateBasic() error {
+	if len(sp.LeafHash) != tmhash.Size {
+		return fmt.Errorf("expected LeafHash size to be %d, got %d", tmhash.Size, len(sp.LeafHash))
+	}
+
+	for i, auntHash := range sp.Aunts {
+		if len(auntHash) != tmhash.Size {
+			return fmt.Errorf("expected Aunts#%d size to be %d, got %d", i, tmhash.Size, len(auntHash))
+		}
+	}
+	return nil
 }
 
 // StringIndented generates a canonical string representation of a SimpleProof.

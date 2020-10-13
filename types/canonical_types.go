@@ -19,6 +19,8 @@
 package types
 
 import (
+	"time"
+
 	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
@@ -29,7 +31,7 @@ type CanonicalProposal struct {
 	POLBlockID BlockID               `json:"pol_block_id"`
 	POLRound   uint32                `json:"pol_round"`
 	Round      uint32                `json:"round"`
-	Timestamp  uint64                `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+	Timestamp  time.Time             `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
 }
 
 type CanonicalVote struct {
@@ -38,7 +40,7 @@ type CanonicalVote struct {
 	BlockID   BlockID               `json:"block_id"`
 	Height    uint64                `json:"height"`
 	Round     uint32                `json:"round"`
-	Timestamp uint64                `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+	Timestamp time.Time             `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
 	VoteType  tmproto.SignedMsgType `json:"type"`
 }
 

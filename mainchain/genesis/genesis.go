@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/kvm"
 
@@ -60,7 +61,7 @@ type GenesisValidator struct {
 type Genesis struct {
 	ChainID   string               `json:"chain_id"`
 	Config    *configs.ChainConfig `json:"config"`
-	Timestamp uint64               `json:"timestamp"`
+	Timestamp time.Time            `json:"timestamp"`
 	GasLimit  uint64               `json:"gasLimit"   gencodec:"required"`
 	Alloc     GenesisAlloc         `json:"alloc"      gencodec:"required"`
 

@@ -621,20 +621,23 @@ func (cs *ConsensusState) signVote(signedMsgType tmproto.SignedMsgType, hash cmn
 	return vote, err
 }
 
-func (cs *ConsensusState) voteTime() uint64 {
+func (cs *ConsensusState) voteTime() time.Time {
 	now := time.Now()
-	minVoteTime := now.Unix()
+	minVoteTime := now
 	// TODO: We should remove next line in case we don't vote for v in case cs.ProposalBlock == nil,
 	// even if cs.LockedBlock != nil. See https://github.com/tendermint/spec.
-	timeIotaMs := int64(1000)
+	timeIotaMs := time.Duration(1000) * time.Millisecond
 	if cs.LockedBlock != nil {
 		// See the BFT time spec https://tendermint.com/docs/spec/consensus/bft-time.html
-		minVoteTime = int64(cs.LockedBlock.Time())
+		minVoteTime = cs.LockedBlock.Time().Add(timeIotaMs)
 	} else if cs.ProposalBlock != nil {
-		minVoteTime = int64(cs.ProposalBlock.Time())
+		minVoteTime = cs.ProposalBlock.Time().Add(timeIotaMs)
 	}
 
-	return uint64(minVoteTime + timeIotaMs)
+	if now.After(minVoteTime) {
+		return now
+	}
+	return minVoteTime
 }
 
 // Signs the vote and publish on internalMsgQueue

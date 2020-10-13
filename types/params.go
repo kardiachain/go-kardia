@@ -45,8 +45,8 @@ type BlockParams struct {
 
 // EvidenceParams determine how we handle evidence of malfeasance.
 type EvidenceParams struct {
-	MaxAgeNumBlocks uint64 `json:"max_age_num_blocks"` // only accept new evidence more recent than this
-	MaxAgeDuration  uint   `json:"max_age_duration"`
+	MaxAgeNumBlocks int64 `json:"max_age_num_blocks"` // only accept new evidence more recent than this
+	MaxAgeDuration  int   `json:"max_age_duration"`
 }
 
 // ConsensusParams contains consensus critical parameters that determine the

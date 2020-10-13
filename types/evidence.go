@@ -87,7 +87,7 @@ func MaxEvidencePerBlock(blockMaxBytes int64) (int64, int64) {
 // Evidence represents any provable malicious activity by a validator
 type Evidence interface {
 	Height() uint64                                   // height of the equivocation
-	Time() uint64                                     // time of the equivocation
+	Time() time.Time                                  // time of the equivocation
 	Address() common.Address                          // address of the equivocating validator
 	Bytes() []byte                                    // bytes which comprise the evidence
 	Hash() common.Hash                                // hash of the evidence
@@ -207,7 +207,7 @@ func (dve *DuplicateVoteEvidence) Height() uint64 {
 }
 
 // Time return the time the evidence was created
-func (dve *DuplicateVoteEvidence) Time() uint64 {
+func (dve *DuplicateVoteEvidence) Time() time.Time {
 	return dve.VoteA.Timestamp
 }
 
@@ -314,7 +314,7 @@ func (dve *DuplicateVoteEvidence) ValidateBasic() error {
 // UNSTABLE
 type MockEvidence struct {
 	EvidenceHeight  uint64
-	EvidenceTime    uint64
+	EvidenceTime    time.Time
 	EvidenceAddress common.Address
 }
 
@@ -324,12 +324,12 @@ var _ Evidence = &MockEvidence{}
 func NewMockEvidence(height uint64, eTime time.Time, idx int, address common.Address) MockEvidence {
 	return MockEvidence{
 		EvidenceHeight:  height,
-		EvidenceTime:    uint64(eTime.Unix()),
+		EvidenceTime:    eTime,
 		EvidenceAddress: address}
 }
 
 func (e MockEvidence) Height() uint64          { return e.EvidenceHeight }
-func (e MockEvidence) Time() uint64            { return e.EvidenceTime }
+func (e MockEvidence) Time() time.Time         { return e.EvidenceTime }
 func (e MockEvidence) Address() common.Address { return e.EvidenceAddress }
 func (e MockEvidence) Hash() common.Hash {
 	return rlpHash([]byte(fmt.Sprintf("%d-%x-%d",

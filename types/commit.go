@@ -47,7 +47,7 @@ const (
 type CommitSig struct {
 	BlockIDFlag      BlockIDFlag    `json:"block_id_flag"`
 	ValidatorAddress common.Address `json:"validator_address"`
-	Timestamp        uint64         `json:"timestamp"`
+	Timestamp        time.Time      `json:"timestamp"`
 	Signature        []byte         `json:"signature"`
 }
 
@@ -56,7 +56,7 @@ func NewCommitSigForBlock(signature []byte, valAddr common.Address, ts time.Time
 	return CommitSig{
 		BlockIDFlag:      BlockIDFlagCommit,
 		ValidatorAddress: valAddr,
-		Timestamp:        uint64(ts.Unix()),
+		Timestamp:        ts,
 		Signature:        signature,
 	}
 }
@@ -120,7 +120,7 @@ func (cs CommitSig) ValidateBasic() error {
 		if len(cs.ValidatorAddress) != 0 {
 			return errors.New("validator address is present")
 		}
-		if cs.Timestamp != 0 {
+		if !cs.Timestamp.IsZero() {
 			return errors.New("time is present")
 		}
 		if len(cs.Signature) != 0 {

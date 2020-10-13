@@ -20,7 +20,7 @@ func MakeCommit(blockID BlockID, height uint64, round uint32,
 			Round:            round,
 			Type:             tmproto.PrecommitType,
 			BlockID:          blockID,
-			Timestamp:        uint64(now.Unix()),
+			Timestamp:        now,
 		}
 
 		_, err := signAddVote(validators[i], vote, voteSet)
