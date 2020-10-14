@@ -87,11 +87,23 @@ func LoadConfig(path string) (*Config, error) {
 
 // getP2P gets p2p's config from config
 func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
+	var privKey *ecdsa.PrivateKey
+	var err error
+	peer := c.P2P
+	if peer.PrivateKey != "" {
+		privKey, err = crypto.HexToECDSA(peer.PrivateKey)
+	} else {
+		privKey, err = crypto.GenerateKey()
+	}
+	if err != nil {
+		return nil, err
+	}
 	p2pConfig := configs.DefaultP2PConfig()
 	p2pConfig.Seeds = c.MainChain.Seeds
 	p2pConfig.ListenAddress = c.P2P.ListenAddress
 	p2pConfig.RootDir = c.DataDir
 	p2pConfig.AddrBook = filepath.Join(c.DataDir, "addrbook.json")
+	p2pConfig.PrivateKey = privKey
 	return p2pConfig, nil
 }
 

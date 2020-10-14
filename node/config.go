@@ -456,10 +456,10 @@ func (c *Config) instanceDir() string {
 // first any manually set key, falling back to the one found in the configured
 // data folder. If no key can be found, a new one is generated.
 func (c *Config) NodeKey() *ecdsa.PrivateKey {
-	// // Use any specifically configured key.
-	// if c.P2P.PrivateKey != nil {
-	// 	return c.P2P.PrivateKey
-	// }
+	// Use any specifically configured key.
+	if c.P2P.PrivateKey != nil {
+		return c.P2P.PrivateKey
+	}
 	// Generate ephemeral key if no datadir is being used.
 	if c.DataDir == "" {
 		key, err := crypto.GenerateKey()

@@ -1,6 +1,7 @@
 package configs
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"os"
 	"os/user"
@@ -25,7 +26,9 @@ var (
 
 // P2PConfig defines the configuration options for the Tendermint peer-to-peer networking layer
 type P2PConfig struct { //nolint: maligned
-	RootDir string `mapstructure:"home"`
+	// This field must be set to a valid secp256k1 private key.
+	PrivateKey *ecdsa.PrivateKey `toml:"-"`
+	RootDir    string            `mapstructure:"home"`
 
 	// Address to listen for incoming connections
 	ListenAddress string `mapstructure:"laddr"`

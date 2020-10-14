@@ -31,6 +31,7 @@ type (
 	Node struct {
 		P2P struct {
 			ListenAddress string `yaml:"ListenAddress"`
+			PrivateKey    string `yaml:"PrivateKey"`
 		} `yaml:"P2P"`
 		LogLevel         string   `yaml:"LogLevel"`
 		Name             string   `yaml:"Name"`
