@@ -31,6 +31,7 @@ import (
 
 	"math/big"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto/sha3"
 	"github.com/kardiachain/go-kardiamain/lib/log"
@@ -395,11 +396,14 @@ func (b *Block) MakePartSet(partSize uint32) *PartSet {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
-	bz, err := rlp.EncodeToBytes(b)
+	pbb, err := b.ToProto()
 	if err != nil {
 		panic(err)
 	}
-
+	bz, err := proto.Marshal(pbb)
+	if err != nil {
+		panic(err)
+	}
 	return NewPartSetFromData(bz, partSize)
 }
 

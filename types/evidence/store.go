@@ -19,12 +19,16 @@
 package evidence
 
 import (
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 
+	ep "github.com/kardiachain/go-kardiamain/proto/kardiachain/evidence"
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -111,24 +115,16 @@ func (store *Store) listEvidence(prefixKey string, maxNum int64) (evidence []typ
 	var count int64
 	iter := store.db.NewIteratorWithPrefix([]byte(prefixKey))
 	for iter.Next() {
-		val := iter.Value()
-
+		evInfo, err := bytesToInfo(iter.Value())
+		if err != nil {
+			return nil
+		}
 		if count == maxNum {
 			return evidence
 		}
 		count++
 
-		var ei Info
-		err := rlp.DecodeBytes(val, &ei)
-		if err != nil {
-			panic(err)
-		}
-
-		ev, err := types.EvidenceFromBytes(ei.Evidence)
-		if err != nil {
-			panic(err)
-		}
-		evidence = append(evidence, ev)
+		evidence = append(evidence, evInfo.Evidence)
 	}
 	return evidence
 }
@@ -140,35 +136,39 @@ func (store *Store) AddNewEvidence(evidence types.Evidence, priority int64) (boo
 	if store.Has(evidence) {
 		return false, nil
 	}
+	var evInfo info
 
-	evb, err := types.EvidenceToBytes(evidence)
-	if err != nil {
-		return false, err
+	switch ev := evidence.(type) {
+	case *types.DuplicateVoteEvidence:
+		evInfo = info{
+			Evidence: ev,
+		}
+	default:
+		return false, fmt.Errorf("unrecognized evidence type: %T", evidence)
 	}
 
-	ei := Info{
-		Committed: false,
-		Priority:  uint64(priority),
-		Evidence:  evb,
-	}
-	eiBytes, err := rlp.EncodeToBytes(ei)
+	evpb, err := evInfo.ToProto()
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("unable to convert to proto, err: %w", err)
+	}
+	evBytes, err := evpb.Marshal()
+	if err != nil {
+		return false, fmt.Errorf("unable to marshal evidence: %w", err)
 	}
 
 	// add it to the store
 	key := keyOutqueue(evidence, priority)
-	if err = store.db.Put(key, eiBytes); err != nil {
+	if err = store.db.Put(key, evBytes); err != nil {
 		return false, err
 	}
 
 	key = keyPending(evidence)
-	if err = store.db.Put(key, eiBytes); err != nil {
+	if err = store.db.Put(key, evBytes); err != nil {
 		return false, err
 	}
 
 	key = keyLookup(evidence)
-	if err = store.db.Put(key, eiBytes); err != nil {
+	if err = store.db.Put(key, evBytes); err != nil {
 		return false, err
 	}
 
@@ -210,22 +210,26 @@ func (store *Store) MarkEvidenceAsCommitted(evidence types.Evidence) {
 
 	pendingKey := keyPending(evidence)
 	_ = store.db.Delete(pendingKey)
-
-	evb, err := types.EvidenceToBytes(evidence)
-	if err != nil {
-		panic(err)
-	}
-
-	// committed Info doens't need priority
-	ei := Info{
-		Committed: true,
-		Evidence:  evb,
-		Priority:  0,
+	var evInfo info
+	switch ev := evidence.(type) {
+	case *types.DuplicateVoteEvidence:
+		evInfo = info{
+			Evidence: ev,
+		}
+	default:
+		return
 	}
 
 	lookupKey := keyLookup(evidence)
-	b, _ := rlp.EncodeToBytes(ei)
-	_ = store.db.Put(lookupKey, b)
+	evpb, err := evInfo.ToProto()
+	if err != nil {
+		panic(err)
+	}
+	evBytes, err := evpb.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	_ = store.db.Put(lookupKey, evBytes)
 }
 
 //---------------------------------------------------
@@ -234,4 +238,82 @@ func (store *Store) MarkEvidenceAsCommitted(evidence types.Evidence) {
 // getInfo is convenience for calling GetInfo if we have the full evidence.
 func (store *Store) getInfo(evidence types.Evidence) Info {
 	return store.GetInfo(int64(evidence.Height()), evidence.Hash().Bytes())
+}
+
+//--------------------------------------------------------------------------
+
+// Info is a wrapper around the evidence that the evidence pool receives with extensive
+// information of what validators were malicious, the time of the attack and the total voting power
+// This is saved as a form of cache so that the evidence pool can easily produce the ABCI Evidence
+// needed to be sent to the application.
+type info struct {
+	Evidence         types.Evidence
+	Time             time.Time
+	Validators       []*types.Validator
+	TotalVotingPower int64
+	ByteSize         int64
+}
+
+// ToProto encodes into protobuf
+func (ei info) ToProto() (*ep.Info, error) {
+	evpb, err := types.EvidenceToProto(ei.Evidence)
+	if err != nil {
+		return nil, err
+	}
+
+	valsProto := make([]*tmproto.Validator, len(ei.Validators))
+	for i := 0; i < len(ei.Validators); i++ {
+		valp, err := ei.Validators[i].ToProto()
+		if err != nil {
+			return nil, err
+		}
+		valsProto[i] = valp
+	}
+
+	return &ep.Info{
+		Evidence:         *evpb,
+		Time:             ei.Time,
+		Validators:       valsProto,
+		TotalVotingPower: ei.TotalVotingPower,
+	}, nil
+}
+
+// InfoFromProto decodes from protobuf into Info
+func infoFromProto(proto *ep.Info) (info, error) {
+	if proto == nil {
+		return info{}, errors.New("nil evidence info")
+	}
+
+	ev, err := types.EvidenceFromProto(&proto.Evidence)
+	if err != nil {
+		return info{}, err
+	}
+
+	vals := make([]*types.Validator, len(proto.Validators))
+	for i := 0; i < len(proto.Validators); i++ {
+		val, err := types.ValidatorFromProto(proto.Validators[i])
+		if err != nil {
+			return info{}, err
+		}
+		vals[i] = val
+	}
+
+	return info{
+		Evidence:         ev,
+		Time:             proto.Time,
+		Validators:       vals,
+		TotalVotingPower: proto.TotalVotingPower,
+		ByteSize:         int64(proto.Evidence.Size()),
+	}, nil
+
+}
+
+func bytesToInfo(evBytes []byte) (info, error) {
+	var evpb ep.Info
+	err := evpb.Unmarshal(evBytes)
+	if err != nil {
+		return info{}, err
+	}
+
+	return infoFromProto(&evpb)
 }

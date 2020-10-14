@@ -20,16 +20,17 @@ package evidence
 
 import (
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/clist"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/lib/service"
 
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/types"
+
+	ep "github.com/kardiachain/go-kardiamain/proto/kardiachain/evidence"
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 const (
@@ -231,71 +232,47 @@ type Message interface {
 
 //-------------------------------------
 
-// ListMessage contains a list of evidence.
-type ListMessage struct {
-	Evidence []types.Evidence
-}
-
-// ValidateBasic performs basic validation.
-func (m *ListMessage) ValidateBasic() error {
-	for i, ev := range m.Evidence {
-		if err := ev.ValidateBasic(); err != nil {
-			return fmt.Errorf("invalid evidence (#%d): %v", i, err)
-		}
-	}
-	return nil
-}
-
-type storageListMsg struct {
-	Evidence [][]byte
-}
-
-// EncodeRLP implement rlp
-func (m *ListMessage) EncodeRLP(w io.Writer) error {
-	smsg := &storageListMsg{Evidence: make([][]byte, len(m.Evidence))}
-	for i, ev := range m.Evidence {
-		evBytes, err := types.EvidenceToBytes(ev)
-		if err != nil {
-			return err
-		}
-		smsg.Evidence[i] = evBytes
-	}
-	return rlp.Encode(w, smsg)
-}
-
-// DecodeRLP implement rlp
-func (m *ListMessage) DecodeRLP(s *rlp.Stream) error {
-	var err error
-	smsg := &storageListMsg{Evidence: make([][]byte, 0)}
-	if err := s.Decode(smsg); err != nil {
-		return err
-	}
-	evd := make([]types.Evidence, len(smsg.Evidence))
-	for i, evBytes := range smsg.Evidence {
-		evd[i], err = types.EvidenceFromBytes(evBytes)
-		if err != nil {
-			return err
-		}
-	}
-	m.Evidence = evd
-	return nil
-}
-
-// String returns a string representation of the ListMessage.
-func (m *ListMessage) String() string {
-	return fmt.Sprintf("[ListMessage %v]", m.Evidence)
-}
-
-// decodemsg takes an array of bytes
-// returns an array of evidence
-// decodemsg takes an array of bytes
-// returns an array of evidence
-// func decodeMsg(bz []byte) (evis []types.Evidence, err error) {
-// 	return nil, nil
-// }
-
 // encodemsg takes a array of evidence
 // returns the byte encoding of the List Message
 func encodeMsg(evis []types.Evidence) ([]byte, error) {
-	return nil, nil
+	evi := make([]*tmproto.Evidence, len(evis))
+	for i := 0; i < len(evis); i++ {
+		ev, err := types.EvidenceToProto(evis[i])
+		if err != nil {
+			return nil, err
+		}
+		evi[i] = ev
+	}
+
+	epl := ep.List{
+		Evidence: evi,
+	}
+
+	return epl.Marshal()
+}
+
+// decodemsg takes an array of bytes
+// returns an array of evidence
+func decodeMsg(bz []byte) (evis []types.Evidence, err error) {
+	lm := ep.List{}
+	if err := lm.Unmarshal(bz); err != nil {
+		return nil, err
+	}
+
+	evis = make([]types.Evidence, len(lm.Evidence))
+	for i := 0; i < len(lm.Evidence); i++ {
+		ev, err := types.EvidenceFromProto(lm.Evidence[i])
+		if err != nil {
+			return nil, err
+		}
+		evis[i] = ev
+	}
+
+	for i, ev := range evis {
+		if err := ev.ValidateBasic(); err != nil {
+			return nil, fmt.Errorf("invalid evidence (#%d): %v", i, err)
+		}
+	}
+
+	return evis, nil
 }
