@@ -22,7 +22,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"sort"
 	"strings"
 	"sync"
@@ -73,9 +72,10 @@ type Header struct {
 
 	Validator common.Address `json:"validator"`
 	// hashes from the app output from the prev block
-	ValidatorsHash common.Hash `json:"validators_hash"` // validators for the current block
-	ConsensusHash  common.Hash `json:"consensus_hash"`  // consensus params for current block
-	AppHash        common.Hash `json:"app_hash"`        // state after txs from the previous block
+	ValidatorsHash     common.Hash `json:"validators_hash"` // validators for the current block
+	NextValidatorsHash common.Hash `json:"next_validators_hash"`
+	ConsensusHash      common.Hash `json:"consensus_hash"` // consensus params for current block
+	AppHash            common.Hash `json:"app_hash"`       // state after txs from the previous block
 	//@huny LastResultsHash common.Hash `json:"last_results_hash"` // root hash of all results from the txs from the previous block
 
 	// consensus info
@@ -114,6 +114,59 @@ func (h *Header) String() string {
 	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  AppHash:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
 		h.Height, h.Time, h.NumTxs, h.LastBlockID, h.LastCommitHash.Fingerprint(),
 		h.TxHash.Fingerprint(), h.AppHash.Fingerprint(), h.ValidatorsHash.Fingerprint(), h.ConsensusHash.Fingerprint(), headerHash.Fingerprint())
+}
+
+// ToProto converts Header to protobuf
+func (h *Header) ToProto() *tmproto.Header {
+	if h == nil {
+		return nil
+	}
+
+	return &tmproto.Header{
+		Height:             h.Height,
+		Time:               h.Time,
+		LastBlockId:        h.LastBlockID.ToProto(),
+		ValidatorsHash:     h.ValidatorsHash.Bytes(),
+		NextValidatorsHash: h.NextValidatorsHash.Bytes(),
+		ConsensusHash:      h.ConsensusHash.Bytes(),
+		AppHash:            h.AppHash.Bytes(),
+		DataHash:           h.TxHash.Bytes(),
+		EvidenceHash:       h.EvidenceHash.Bytes(),
+		LastCommitHash:     h.LastCommitHash.Bytes(),
+		ProposerAddress:    h.ValidatorsHash.Bytes(),
+	}
+}
+
+// FromProto sets a protobuf Header to the given pointer.
+// It returns an error if the header is invalid.
+func HeaderFromProto(ph *tmproto.Header) (Header, error) {
+	if ph == nil {
+		return Header{}, errors.New("nil Header")
+	}
+
+	h := new(Header)
+
+	bi, err := BlockIDFromProto(&ph.LastBlockId)
+	if err != nil {
+		return Header{}, err
+	}
+
+	//h.Version = ph.Version
+	//h.ChainID = ph.ChainID
+	h.Height = ph.Height
+	h.Time = ph.Time
+	h.Height = ph.Height
+	h.LastBlockID = *bi
+	h.ValidatorsHash = common.BytesToHash(ph.ValidatorsHash)
+	h.NextValidatorsHash = common.BytesToHash(ph.NextValidatorsHash)
+	h.ConsensusHash = common.BytesToHash(ph.ConsensusHash)
+	h.AppHash = common.BytesToHash(ph.AppHash)
+	h.TxHash = common.BytesToHash(ph.DataHash)
+	h.EvidenceHash = common.BytesToHash(ph.EvidenceHash)
+	h.LastCommitHash = common.BytesToHash(ph.LastCommitHash)
+	h.ValidatorsHash = common.BytesToHash(ph.ProposerAddress)
+
+	return *h, nil
 }
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
@@ -274,56 +327,6 @@ func CopyCommit(c *Commit) *Commit {
 	}
 	cpy := *c
 	return &cpy
-}
-
-//  DecodeRLP implements rlp.Decoder, decodes RLP stream to Block struct.
-func (b *Block) DecodeRLP(s *rlp.Stream) error {
-	var eb extblock
-	_, size, _ := s.Kind()
-	if err := s.Decode(&eb); err != nil {
-		return err
-	}
-	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
-	//eb.LastCommit.MakeEmptyNil()
-
-	b.header, b.transactions, b.dualEvents, b.lastCommit, b.evidence = eb.Header, eb.Txs, eb.DualEvents, eb.LastCommit, eb.Evidence
-	b.size.Store(common.StorageSize(rlp.ListSize(size)))
-	return nil
-}
-
-// EncodeRLP serializes Block into the RLP stream.
-func (b *Block) EncodeRLP(w io.Writer) error {
-	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
-	lastCommitCopy := b.lastCommit.Copy()
-	//lastCommitCopy.MakeNilEmpty()
-	return rlp.Encode(w, extblock{
-		Header:     b.header,
-		Txs:        b.transactions,
-		DualEvents: b.dualEvents,
-		LastCommit: lastCommitCopy,
-		Evidence:   b.evidence,
-	})
-}
-
-//  DecodeRLP implements rlp.Decoder, decodes RLP stream to Body struct.
-// Custom Encode/Decode for Body because of LastCommit RLP issue#73, otherwise Body can use RLP default decoder.
-func (b *Body) DecodeRLP(s *rlp.Stream) error {
-	var eb extblock
-	if err := s.Decode(&eb); err != nil {
-		return err
-	}
-	b.Transactions, b.DualEvents, b.LastCommit = eb.Txs, eb.DualEvents, eb.LastCommit
-	return nil
-}
-
-func (b *Body) EncodeRLP(w io.Writer) error {
-	lastCommitCopy := b.LastCommit.Copy()
-	return rlp.Encode(w, extblock{
-		Header:     &Header{},
-		Txs:        b.Transactions,
-		DualEvents: b.DualEvents,
-		LastCommit: lastCommitCopy,
-	})
 }
 
 func (b *Block) Transactions() Transactions { return b.transactions }
@@ -502,6 +505,60 @@ func (b *Block) Hash() common.Hash {
 	return v
 }
 
+// ToProto converts Block to protobuf
+func (b *Block) ToProto() (*tmproto.Block, error) {
+	if b == nil {
+		return nil, errors.New("nil Block")
+	}
+
+	pb := new(tmproto.Block)
+
+	pb.Header = *b.header.ToProto()
+	pb.LastCommit = b.lastCommit.ToProto()
+	pb.Data = b.transactions.ToProto()
+
+	protoEvidence, err := b.evidence.ToProto()
+	if err != nil {
+		return nil, err
+	}
+	pb.Evidence = *protoEvidence
+
+	return pb, nil
+}
+
+// FromProto sets a protobuf Block to the given pointer.
+// It returns an error if the block is invalid.
+func BlockFromProto(bp *tmproto.Block) (*Block, error) {
+	if bp == nil {
+		return nil, errors.New("nil block")
+	}
+
+	b := new(Block)
+	h, err := HeaderFromProto(&bp.Header)
+	if err != nil {
+		return nil, err
+	}
+	b.header = &h
+	data, err := DataFromProto(&bp.Data)
+	if err != nil {
+		return nil, err
+	}
+	b.transactions = data
+	if err := b.evidence.FromProto(&bp.Evidence); err != nil {
+		return nil, err
+	}
+
+	if bp.LastCommit != nil {
+		lc, err := CommitFromProto(bp.LastCommit)
+		if err != nil {
+			return nil, err
+		}
+		b.lastCommit = lc
+	}
+
+	return b, b.ValidateBasic()
+}
+
 type BlockID struct {
 	Hash        common.Hash   `json:"hash"`
 	PartsHeader PartSetHeader `json:"parts"`
@@ -642,7 +699,8 @@ type EvidenceData struct {
 	Evidence EvidenceList `json:"evidence"`
 
 	// Volatile
-	hash common.Hash
+	hash     common.Hash
+	byteSize int64
 }
 
 // Hash returns the hash of the data.
@@ -673,40 +731,42 @@ func (data *EvidenceData) StringIndented(indent string) string {
 		indent, data.hash)
 }
 
-type storageEvidenceData struct {
-	Evidence [][]byte `json:"evidence"`
+// ToProto converts EvidenceData to protobuf
+func (data *EvidenceData) ToProto() (*tmproto.EvidenceData, error) {
+	if data == nil {
+		return nil, errors.New("nil evidence data")
+	}
+
+	evi := new(tmproto.EvidenceData)
+	eviBzs := make([]tmproto.Evidence, len(data.Evidence))
+	for i := range data.Evidence {
+		protoEvi, err := EvidenceToProto(data.Evidence[i])
+		if err != nil {
+			return nil, err
+		}
+		eviBzs[i] = *protoEvi
+	}
+	evi.Evidence = eviBzs
+
+	return evi, nil
 }
 
-// EncodeRLP implement rlp
-func (data *EvidenceData) EncodeRLP(w io.Writer) error {
-	var err error
-	sed := &storageEvidenceData{
-		Evidence: make([][]byte, len(data.Evidence)),
+// FromProto sets a protobuf EvidenceData to the given pointer.
+func (data *EvidenceData) FromProto(eviData *tmproto.EvidenceData) error {
+	if eviData == nil {
+		return errors.New("nil evidenceData")
 	}
-	for i, ev := range data.Evidence {
-		sed.Evidence[i], err = EvidenceToBytes(ev)
+
+	eviBzs := make(EvidenceList, len(eviData.Evidence))
+	for i := range eviData.Evidence {
+		evi, err := EvidenceFromProto(&eviData.Evidence[i])
 		if err != nil {
 			return err
 		}
+		eviBzs[i] = evi
 	}
-	return rlp.Encode(w, sed)
-}
+	data.Evidence = eviBzs
+	data.byteSize = int64(eviData.Size())
 
-// DecodeRLP implement rlp
-func (data *EvidenceData) DecodeRLP(s *rlp.Stream) error {
-	var err error
-	sed := &storageEvidenceData{}
-	if err = s.Decode(sed); err != nil {
-		return err
-	}
-	evidence := make([]Evidence, len(sed.Evidence))
-	for i, evBytes := range sed.Evidence {
-		ev, err := EvidenceFromBytes(evBytes)
-		if err != nil {
-			return err
-		}
-		evidence[i] = ev
-	}
-	data.Evidence = evidence
 	return nil
 }

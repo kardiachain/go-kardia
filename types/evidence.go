@@ -28,6 +28,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 // ErrEvidenceOverflow is for when there is too much evidence in a block.
@@ -99,66 +100,39 @@ type Evidence interface {
 }
 
 //-------------------------------------------
+//------------------------------------------ PROTO --------------------------------------
 
-// EvidenceInfo ...
-type EvidenceInfo struct {
-	Type    EvidenceType
-	Payload []byte
-}
-
-// EvidenceToBytes ...
-func EvidenceToBytes(evidence Evidence) ([]byte, error) {
+// EvidenceToProto is a generalized function for encoding evidence that conforms to the
+// evidence interface to protobuf
+func EvidenceToProto(evidence Evidence) (*tmproto.Evidence, error) {
 	if evidence == nil {
 		return nil, errors.New("nil evidence")
 	}
 
-	info := &EvidenceInfo{}
-
 	switch evi := evidence.(type) {
 	case *DuplicateVoteEvidence:
-		info.Type = EvidenceDuplicateVote
-		b, err := rlp.EncodeToBytes(evi)
-		if err != nil {
-			return nil, err
-		}
-		info.Payload = b
-		break
-	case MockEvidence:
-		info.Type = EvidenceMock
-		b, err := rlp.EncodeToBytes(evi)
-		if err != nil {
-			return nil, err
-		}
-		info.Payload = b
-		break
-	default:
-		return nil, fmt.Errorf("evidence is not recognized: %T", evidence)
-	}
+		pbev := evi.ToProto()
+		return &tmproto.Evidence{
+			Sum: &tmproto.Evidence_DuplicateVoteEvidence{
+				DuplicateVoteEvidence: pbev,
+			},
+		}, nil
 
-	return rlp.EncodeToBytes(info)
+	default:
+		return nil, fmt.Errorf("toproto: evidence is not recognized: %T", evi)
+	}
 }
 
-// EvidenceFromBytes ...
-func EvidenceFromBytes(b []byte) (Evidence, error) {
-	info := &EvidenceInfo{}
-
-	if err := rlp.DecodeBytes(b, info); err != nil {
-		return nil, err
+// EvidenceFromProto is a generalized function for decoding protobuf into the
+// evidence interface
+func EvidenceFromProto(evidence *tmproto.Evidence) (Evidence, error) {
+	if evidence == nil {
+		return nil, errors.New("nil evidence")
 	}
 
-	switch info.Type {
-	case EvidenceDuplicateVote:
-		duplicateVoteEvidence := &DuplicateVoteEvidence{}
-		if err := rlp.DecodeBytes(info.Payload, duplicateVoteEvidence); err != nil {
-			return nil, err
-		}
-		return duplicateVoteEvidence, nil
-	case EvidenceMock:
-		ev := MockEvidence{}
-		if err := rlp.DecodeBytes(info.Payload, &ev); err != nil {
-			return nil, err
-		}
-		return ev, nil
+	switch evi := evidence.Sum.(type) {
+	case *tmproto.Evidence_DuplicateVoteEvidence:
+		return DuplicateVoteEvidenceFromProto(evi.DuplicateVoteEvidence)
 	default:
 		return nil, errors.New("evidence is not recognized")
 	}
@@ -176,7 +150,7 @@ type DuplicateVoteEvidence struct {
 
 // NewDuplicateVoteEvidence creates DuplicateVoteEvidence with right ordering given
 // two conflicting votes. If one of the votes is nil, evidence returned is nil as well
-func NewDuplicateVoteEvidence(addr common.Address, vote1 *Vote, vote2 *Vote) *DuplicateVoteEvidence {
+func NewDuplicateVoteEvidence(vote1 *Vote, vote2 *Vote) *DuplicateVoteEvidence {
 	var voteA, voteB *Vote
 	if vote1 == nil || vote2 == nil {
 		return nil
@@ -189,7 +163,6 @@ func NewDuplicateVoteEvidence(addr common.Address, vote1 *Vote, vote2 *Vote) *Du
 		voteB = vote1
 	}
 	return &DuplicateVoteEvidence{
-		Addr:  addr,
 		VoteA: voteA,
 		VoteB: voteB,
 	}
@@ -309,6 +282,38 @@ func (dve *DuplicateVoteEvidence) ValidateBasic() error {
 		return errors.New("duplicate votes in invalid order")
 	}
 	return nil
+}
+
+// ToProto encodes DuplicateVoteEvidence to protobuf
+func (dve *DuplicateVoteEvidence) ToProto() *tmproto.DuplicateVoteEvidence {
+	voteB := dve.VoteB.ToProto()
+	voteA := dve.VoteA.ToProto()
+	tp := tmproto.DuplicateVoteEvidence{
+		VoteA: voteA,
+		VoteB: voteB,
+	}
+	return &tp
+}
+
+// DuplicateVoteEvidenceFromProto decodes protobuf into DuplicateVoteEvidence
+func DuplicateVoteEvidenceFromProto(pb *tmproto.DuplicateVoteEvidence) (*DuplicateVoteEvidence, error) {
+	if pb == nil {
+		return nil, errors.New("nil duplicate vote evidence")
+	}
+
+	vA, err := VoteFromProto(pb.VoteA)
+	if err != nil {
+		return nil, err
+	}
+
+	vB, err := VoteFromProto(pb.VoteB)
+	if err != nil {
+		return nil, err
+	}
+
+	dve := NewDuplicateVoteEvidence(vA, vB)
+
+	return dve, dve.ValidateBasic()
 }
 
 // UNSTABLE

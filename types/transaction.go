@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 //go:generate gencodec -type txdata -field-override txdataMarshaling -out gen_tx_json.go
@@ -266,6 +267,44 @@ func (s Transactions) Remove(indexes []int) Transactions {
 	}
 
 	return txs
+}
+
+// ToProto converts Data to protobuf
+func (s Transactions) ToProto() tmproto.Data {
+	tp := new(tmproto.Data)
+	var err error
+	if len(s) > 0 {
+		txBzs := make([][]byte, len(s))
+		for i := range s {
+			txBzs[i], err = rlp.EncodeToBytes(s[i])
+			if err != nil {
+				panic(err)
+			}
+		}
+		tp.Txs = txBzs
+	}
+
+	return *tp
+}
+
+// DataFromProto takes a protobuf representation of Data &
+// returns the native type.
+func DataFromProto(dp *tmproto.Data) (Transactions, error) {
+	if dp == nil {
+		return Transactions{}, errors.New("nil data")
+	}
+	data := new(Transactions)
+	if len(dp.Txs) > 0 {
+		txBzs := make(Transactions, len(dp.Txs))
+		for i := range dp.Txs {
+			tx := &Transaction{}
+			if err := rlp.DecodeBytes(dp.Txs[i], tx); err != nil {
+				return nil, err
+			}
+			txBzs[i] = tx
+		}
+	}
+	return *data, nil
 }
 
 // TxByNonce implements the sort interface to allow sorting a list of transactions

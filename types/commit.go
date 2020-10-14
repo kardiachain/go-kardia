@@ -136,6 +136,32 @@ func (cs CommitSig) ValidateBasic() error {
 	return nil
 }
 
+// ToProto converts CommitSig to protobuf
+func (cs *CommitSig) ToProto() *tmproto.CommitSig {
+	if cs == nil {
+		return nil
+	}
+
+	return &tmproto.CommitSig{
+		BlockIdFlag:      tmproto.BlockIDFlag(cs.BlockIDFlag),
+		ValidatorAddress: cs.ValidatorAddress.Bytes(),
+		Timestamp:        cs.Timestamp,
+		Signature:        cs.Signature,
+	}
+}
+
+// FromProto sets a protobuf CommitSig to the given pointer.
+// It returns an error if the CommitSig is invalid.
+func (cs *CommitSig) FromProto(csp tmproto.CommitSig) error {
+
+	cs.BlockIDFlag = BlockIDFlag(csp.BlockIdFlag)
+	cs.ValidatorAddress = common.BytesToAddress(csp.ValidatorAddress)
+	cs.Timestamp = csp.Timestamp
+	cs.Signature = csp.Signature
+
+	return cs.ValidateBasic()
+}
+
 // Commit contains the evidence that a block was committed by a set of validators.
 // NOTE: Commit is empty for height 1, but never nil.
 type Commit struct {
@@ -314,4 +340,55 @@ func (commit *Commit) String() string {
 		commit.BlockID,
 		strings.Join(commitSigStrings, "\n,"),
 		commit.hash.Fingerprint())
+}
+
+// ToProto converts Commit to protobuf
+func (commit *Commit) ToProto() *tmproto.Commit {
+	if commit == nil {
+		return nil
+	}
+
+	c := new(tmproto.Commit)
+	sigs := make([]tmproto.CommitSig, len(commit.Signatures))
+	for i := range commit.Signatures {
+		sigs[i] = *commit.Signatures[i].ToProto()
+	}
+	c.Signatures = sigs
+
+	c.Height = commit.Height
+	c.Round = commit.Round
+	c.BlockID = commit.BlockID.ToProto()
+
+	return c
+}
+
+// FromProto sets a protobuf Commit to the given pointer.
+// It returns an error if the commit is invalid.
+func CommitFromProto(cp *tmproto.Commit) (*Commit, error) {
+	if cp == nil {
+		return nil, errors.New("nil Commit")
+	}
+
+	var (
+		commit = new(Commit)
+	)
+
+	bi, err := BlockIDFromProto(&cp.BlockID)
+	if err != nil {
+		return nil, err
+	}
+
+	sigs := make([]CommitSig, len(cp.Signatures))
+	for i := range cp.Signatures {
+		if err := sigs[i].FromProto(cp.Signatures[i]); err != nil {
+			return nil, err
+		}
+	}
+	commit.Signatures = sigs
+
+	commit.Height = cp.Height
+	commit.Round = cp.Round
+	commit.BlockID = *bi
+
+	return commit, commit.ValidateBasic()
 }
