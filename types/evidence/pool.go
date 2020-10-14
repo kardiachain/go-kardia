@@ -28,6 +28,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/clist"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -139,7 +140,7 @@ func (evpool *Pool) MarkEvidenceAsCommitted(height uint64, lastBlockTime time.Ti
 func (evpool *Pool) removeEvidence(
 	height uint64,
 	lastBlockTime time.Time,
-	params types.EvidenceParams,
+	params tmproto.EvidenceParams,
 	blockEvidenceMap map[string]struct{}) {
 
 	for e := evpool.evidenceList.Front(); e != nil; e = e.Next() {

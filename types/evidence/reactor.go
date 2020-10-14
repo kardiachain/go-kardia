@@ -42,8 +42,8 @@ const (
 // Reactor handles evpool evidence broadcasting amongst peers.
 type Reactor struct {
 	service.BaseService
-	evpool   *Pool
-	eventBus *types.EventBus
+	evpool *Pool
+	//eventBus *types.EventBus
 	protocol Protocol
 }
 
@@ -115,11 +115,9 @@ func (evR *Reactor) broadcastEvidenceRoutine(peer p2p.Peer) {
 		// collected (removed). That is, .NextWait() returned nil. Go ahead and
 		// start from the beginning.
 		if next == nil {
-			select {
-			case <-evR.evpool.EvidenceWaitChan(): // Wait until evidence is available
-				if next = evR.evpool.EvidenceFront(); next == nil {
-					continue
-				}
+			<-evR.evpool.EvidenceWaitChan()
+			if next = evR.evpool.EvidenceFront(); next == nil {
+				continue
 			}
 		}
 
@@ -292,9 +290,9 @@ func (m *ListMessage) String() string {
 // returns an array of evidence
 // decodemsg takes an array of bytes
 // returns an array of evidence
-func decodeMsg(bz []byte) (evis []types.Evidence, err error) {
-	return nil, nil
-}
+// func decodeMsg(bz []byte) (evis []types.Evidence, err error) {
+// 	return nil, nil
+// }
 
 // encodemsg takes a array of evidence
 // returns the byte encoding of the List Message

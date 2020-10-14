@@ -21,6 +21,7 @@ package cstate
 import (
 	"fmt"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -102,16 +103,21 @@ func loadState(db kaidb.Database, key []byte) (state LastestBlockState) {
 	if len(buf) == 0 {
 		return state
 	}
+	sp := new(tmstate.State)
+	err := proto.Unmarshal(buf, sp)
 
-	err := rlp.DecodeBytes(buf, &state)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		panic(fmt.Sprintf(`LoadState: Data has been corrupted or its spec has changed:
-                %v\n`, err))
+		%v\n`, err))
 	}
-	// TODO: ensure that buf is completely read.
 
-	return state
+	sm, err := StateFromProto(sp)
+	if err != nil {
+		panic(err)
+	}
+
+	return *sm
 }
 
 //-----------------------------------------------------------------------------
@@ -234,7 +240,7 @@ type ConsensusParamsInfo struct {
 }
 
 // LoadConsensusParams loads the ConsensusParams for a given height.
-func LoadConsensusParams(db kaidb.Database, height uint64) (tmstate.ConsensusParams, error) {
+func LoadConsensusParams(db kaidb.Database, height uint64) (tmproto.ConsensusParams, error) {
 	empty := tmproto.ConsensusParams{}
 
 	paramsInfo, err := loadConsensusParamsInfo(db, height)
@@ -242,17 +248,17 @@ func LoadConsensusParams(db kaidb.Database, height uint64) (tmstate.ConsensusPar
 		return empty, fmt.Errorf("could not find consensus params for height #%d: %w", height, err)
 	}
 
-	if paramsInfo.ConsensusParams.Equals(&empty) {
-		paramsInfo2 := loadConsensusParamsInfo(db, paramsInfo.LastHeightChanged)
-		if paramsInfo2 == nil {
-			panic(
-				fmt.Sprintf(
-					"Couldn't find consensus params at height %d as last changed from height %d",
-					paramsInfo.LastHeightChanged,
-					height,
-				),
+	if paramsInfo.ConsensusParams.Equal(&empty) {
+		paramsInfo2, err := loadConsensusParamsInfo(db, paramsInfo.LastHeightChanged)
+		if err != nil {
+			return empty, fmt.Errorf(
+				"couldn't find consensus params at height %d as last changed from height %d: %w",
+				paramsInfo.LastHeightChanged,
+				height,
+				err,
 			)
 		}
+
 		paramsInfo = paramsInfo2
 	}
 

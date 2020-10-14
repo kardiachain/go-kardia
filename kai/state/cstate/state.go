@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
 
 	tmstate "github.com/kardiachain/go-kardiamain/proto/kardiachain/state"
 	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
@@ -104,20 +104,17 @@ func (state LastestBlockState) String() string {
 		state.Validators, state.LastValidators, state.LastHeightValidatorsChanged)
 }
 
-// Fetches the validator set at a given height.
-// TODO(huny@): Please implement this function.
-func (state *LastestBlockState) fetchValidatorSet(height int64) *types.ValidatorSet {
-	// TODO(huny@): Update this.
-	return state.Validators
-}
-
 // Bytes ...
 func (state *LastestBlockState) Bytes() []byte {
-	b, err := rlp.EncodeToBytes(state)
+	sm, err := state.ToProto()
 	if err != nil {
 		panic(err)
 	}
-	return b
+	bz, err := proto.Marshal(sm)
+	if err != nil {
+		panic(err)
+	}
+	return bz
 }
 
 // ToProto takes the local state type and returns the equivalent proto type

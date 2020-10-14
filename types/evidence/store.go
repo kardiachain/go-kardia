@@ -200,7 +200,7 @@ func (store *Store) MarkEvidenceAsBroadcasted(evidence types.Evidence) {
 	}
 	// remove from the outqueue
 	key := keyOutqueue(evidence, int64(ei.Priority))
-	store.db.Delete(key)
+	_ = store.db.Delete(key)
 }
 
 // MarkEvidenceAsCommitted removes evidence from pending and outqueue and sets the state to committed.
@@ -209,7 +209,7 @@ func (store *Store) MarkEvidenceAsCommitted(evidence types.Evidence) {
 	store.MarkEvidenceAsBroadcasted(evidence)
 
 	pendingKey := keyPending(evidence)
-	store.db.Delete(pendingKey)
+	_ = store.db.Delete(pendingKey)
 
 	evb, err := types.EvidenceToBytes(evidence)
 	if err != nil {
@@ -224,9 +224,8 @@ func (store *Store) MarkEvidenceAsCommitted(evidence types.Evidence) {
 	}
 
 	lookupKey := keyLookup(evidence)
-	b, err := rlp.EncodeToBytes(ei)
-
-	store.db.Put(lookupKey, b)
+	b, _ := rlp.EncodeToBytes(ei)
+	_ = store.db.Put(lookupKey, b)
 }
 
 //---------------------------------------------------

@@ -26,6 +26,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	cState "github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -39,7 +40,7 @@ func initializeValidatorState(valAddr common.Address, height uint64) kaidb.Datab
 			&types.Validator{
 				Address:          valAddr,
 				VotingPower:      100,
-				ProposerPriority: common.NewBigInt(1),
+				ProposerPriority: 1,
 			},
 		},
 	}
@@ -48,12 +49,12 @@ func initializeValidatorState(valAddr common.Address, height uint64) kaidb.Datab
 	nextVal.IncrementProposerPriority(1)
 	state := cState.LastestBlockState{
 		LastBlockHeight:             0,
-		LastBlockTime:               uint64(time.Now().Unix()),
+		LastBlockTime:               time.Now(),
 		Validators:                  valSet,
 		NextValidators:              nextVal,
 		LastHeightValidatorsChanged: 1,
-		ConsensusParams: types.ConsensusParams{
-			Evidence: types.EvidenceParams{
+		ConsensusParams: tmproto.ConsensusParams{
+			Evidence: tmproto.EvidenceParams{
 				MaxAgeNumBlocks: 10000,
 				MaxAgeDuration:  48 * 60 * 60,
 			},
@@ -106,7 +107,7 @@ func TestEvidencePoolIsCommitted(t *testing.T) {
 	var (
 		valAddr       = common.BytesToAddress([]byte("validator_address"))
 		height        = uint64(42)
-		lastBlockTime = uint64(time.Now().Unix())
+		lastBlockTime = time.Now()
 		stateDB       = initializeValidatorState(valAddr, height)
 		evidenceDB    = memorydb.New()
 		pool          = NewPool(stateDB, evidenceDB)
