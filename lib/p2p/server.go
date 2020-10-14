@@ -1070,12 +1070,14 @@ func (srv *Server) runPeer(p *Peer) {
 
 // NodeInfo represents a short summary of the information known about the host.
 type NodeInfo struct {
-	ID    string `json:"id"`    // Unique node identifier (also the encryption key)
-	Name  string `json:"name"`  // Name of the node, including client type, version, OS, custom data
-	Enode string `json:"enode"` // Enode URL for adding this peer from remote peers
-	ENR   string `json:"enr"`   // Ethereum Node Record
-	IP    string `json:"ip"`    // IP address of the node
-	Ports struct {
+	ID        string `json:"id"`        // Unique node identifier (also the encryption key)
+	Name      string `json:"name"`      // Name of the node, including client type, version, OS, custom data
+	Enode     string `json:"enode"`     // Enode URL for adding this peer from remote peers
+	ENR       string `json:"enr"`       // Ethereum Node Record
+	IP        string `json:"ip"`        // IP address of the node
+	PeerCount int    `json:"peerCount"` // Number of peers connecting to this node
+	Address   string `json:"address"`   // Coinbase address
+	Ports     struct {
 		Discovery int `json:"discovery"` // UDP listening port for discovery protocol
 		Listener  int `json:"listener"`  // TCP listening port for RLPx
 	} `json:"ports"`
@@ -1098,6 +1100,8 @@ func (srv *Server) NodeInfo() *NodeInfo {
 	info.Ports.Discovery = node.UDP()
 	info.Ports.Listener = node.TCP()
 	info.ENR = node.String()
+	info.PeerCount = srv.PeerCount()
+	info.Address = crypto.PubkeyToAddress(srv.Config.PrivateKey.PublicKey).Hex()
 
 	// Gather all the running protocol infos (only once per protocol type)
 	for _, proto := range srv.Protocols {
