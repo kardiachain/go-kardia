@@ -211,7 +211,8 @@ func CommitToVoteSet(chainID string, commit *Commit, vals *ValidatorSet) *VoteSe
 // signed over are otherwise the same for all validators.
 // Panics if valIdx >= commit.Size().
 func (commit *Commit) VoteSignBytes(chainID string, valIdx uint32) []byte {
-	return commit.GetVote(valIdx).SignBytes(chainID)
+	v := commit.GetVote(valIdx).ToProto()
+	return VoteSignBytes(chainID, v)
 }
 
 // GetVote converts the CommitSig for the given valIdx to a Vote.

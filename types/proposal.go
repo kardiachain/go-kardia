@@ -24,7 +24,7 @@ import (
 	"time"
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/protoio"
 	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
@@ -53,12 +53,21 @@ func NewProposal(height uint64, round uint32, polRound uint32, polBlockID BlockI
 	}
 }
 
-// SignBytes returns the Proposal bytes for signing
-func (p *Proposal) SignBytes(chainID string) []byte {
-	bz, err := rlp.EncodeToBytes(CreateCanonicalProposal(chainID, p))
+// ProposalSignBytes returns the proto-encoding of the canonicalized Proposal,
+// for signing. Panics if the marshaling fails.
+//
+// The encoded Protobuf message is varint length-prefixed (using MarshalDelimited)
+// for backwards-compatibility with the Amino encoding, due to e.g. hardware
+// devices that rely on this encoding.
+//
+// See CanonicalizeProposal
+func ProposalSignBytes(chainID string, p *tmproto.Proposal) []byte {
+	pb := CreateCanonicalProposal(chainID, p)
+	bz, err := protoio.MarshalDelimited(&pb)
 	if err != nil {
 		panic(err)
 	}
+
 	return bz
 }
 

@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
@@ -255,11 +254,11 @@ func (dve *DuplicateVoteEvidence) Verify(chainID string, addr common.Address) er
 			vaddr, addr)
 	}
 
-	if !VerifySignature(addr, crypto.Keccak256(dve.VoteA.SignBytes(chainID)), dve.VoteA.Signature) {
+	if !VerifySignature(addr, VoteSignBytes(chainID, dve.VoteA.ToProto()), dve.VoteA.Signature) {
 		return fmt.Errorf("duplicateVoteEvidence Error verifying VoteA: %v", ErrVoteInvalidSignature)
 	}
 
-	if !VerifySignature(addr, crypto.Keccak256(dve.VoteB.SignBytes(chainID)), dve.VoteB.Signature) {
+	if !VerifySignature(addr, VoteSignBytes(chainID, dve.VoteB.ToProto()), dve.VoteB.Signature) {
 		return fmt.Errorf("duplicateVoteEvidence Error verifying VoteB: %v", ErrVoteInvalidSignature)
 	}
 

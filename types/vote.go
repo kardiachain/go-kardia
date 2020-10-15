@@ -26,7 +26,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/protoio"
 	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
@@ -123,11 +123,21 @@ func (vote *Vote) CommitSig() CommitSig {
 	}
 }
 
-func (vote *Vote) SignBytes(chainID string) []byte {
-	bz, err := rlp.EncodeToBytes(CreateCanonicalVote(chainID, vote))
+// VoteSignBytes returns the proto-encoding of the canonicalized Vote, for
+// signing. Panics is the marshaling fails.
+//
+// The encoded Protobuf message is varint length-prefixed (using MarshalDelimited)
+// for backwards-compatibility with the Amino encoding, due to e.g. hardware
+// devices that rely on this encoding.
+//
+// See CanonicalizeVote
+func VoteSignBytes(chainID string, vote *tmproto.Vote) []byte {
+	pb := CreateCanonicalVote(chainID, vote)
+	bz, err := protoio.MarshalDelimited(&pb)
 	if err != nil {
 		panic(err)
 	}
+
 	return bz
 }
 
@@ -170,8 +180,9 @@ func (vote *Vote) Verify(chainID string, address common.Address) error {
 	if !vote.ValidatorAddress.Equal(address) {
 		return ErrVoteInvalidValidatorAddress
 	}
-
-	if !VerifySignature(address, crypto.Keccak256(vote.SignBytes(chainID)), vote.Signature) {
+	v := vote.ToProto()
+	hash := crypto.Keccak256(VoteSignBytes(chainID, v))
+	if !VerifySignature(address, hash, vote.Signature) {
 		return ErrVoteInvalidSignature
 	}
 	return nil

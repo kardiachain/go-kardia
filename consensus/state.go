@@ -323,7 +323,8 @@ func (cs *ConsensusState) decideProposal(height uint64, round uint32) {
 	// Make proposal
 	propBlockID := types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()}
 	proposal := types.NewProposal(height, round, cs.ValidRound, propBlockID)
-	if err := cs.privValidator.SignProposal(cs.state.ChainID, proposal); err == nil {
+	p := proposal.ToProto()
+	if err := cs.privValidator.SignProposal(cs.state.ChainID, p); err == nil {
 		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", propBlockID.Hash)
 		// Send proposal and blockparts on internal msg queue
 		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, ""})
@@ -356,7 +357,8 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 	}
 
 	proposalAddress := cs.Validators.GetProposer().Address
-	if !types.VerifySignature(proposalAddress, crypto.Keccak256(proposal.SignBytes(cs.state.ChainID)), proposal.Signature) {
+	signBytes := types.ProposalSignBytes(cs.state.ChainID, proposal.ToProto())
+	if !types.VerifySignature(proposalAddress, crypto.Keccak256(signBytes), proposal.Signature) {
 		return ErrInvalidProposalPOLRound
 	}
 
@@ -617,7 +619,7 @@ func (cs *ConsensusState) signVote(signedMsgType tmproto.SignedMsgType, hash cmn
 		BlockID:          types.BlockID{Hash: hash, PartsHeader: header},
 	}
 
-	err := cs.privValidator.SignVote(cs.state.ChainID, vote)
+	err := cs.privValidator.SignVote(cs.state.ChainID, vote.ToProto())
 	return vote, err
 }
 

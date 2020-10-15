@@ -677,7 +677,8 @@ func (vs *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height uin
 
 		// Validate signature.
 		voteSignBytes := commit.VoteSignBytes(chainID, uint32(idx))
-		if !VerifySignature(val.Address, crypto.Keccak256(voteSignBytes), commitSig.Signature) {
+		hash := crypto.Keccak256(voteSignBytes)
+		if !VerifySignature(val.Address, hash, commitSig.Signature) {
 			return errors.Errorf("wrong signature (#%d): %X", idx, commitSig.Signature)
 		}
 		// Good precommit!

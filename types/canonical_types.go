@@ -19,52 +19,55 @@
 package types
 
 import (
-	"time"
-
 	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
-type CanonicalProposal struct {
-	ChainID    string                `json:"@chain_id"`
-	Type       tmproto.SignedMsgType `json:"@type"`
-	Height     uint64                `json:"height"`
-	POLBlockID BlockID               `json:"pol_block_id"`
-	POLRound   uint32                `json:"pol_round"`
-	Round      uint32                `json:"round"`
-	Timestamp  time.Time             `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+//-----------------------------------
+// Canonicalize the structs
+
+func CanonicalizeBlockID(bid tmproto.BlockID) *tmproto.CanonicalBlockID {
+	rbid, err := BlockIDFromProto(&bid)
+	if err != nil {
+		panic(err)
+	}
+	var cbid *tmproto.CanonicalBlockID
+	if rbid == nil || rbid.IsZero() {
+		cbid = nil
+	} else {
+		cbid = &tmproto.CanonicalBlockID{
+			Hash:          bid.Hash,
+			PartSetHeader: CanonicalizePartSetHeader(bid.PartSetHeader),
+		}
+	}
+
+	return cbid
 }
 
-type CanonicalVote struct {
-	ChainID   string                `json:"@chain_id"`
-	Type      tmproto.SignedMsgType `json:"@type"`
-	BlockID   BlockID               `json:"block_id"`
-	Height    uint64                `json:"height"`
-	Round     uint32                `json:"round"`
-	Timestamp time.Time             `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
-	VoteType  tmproto.SignedMsgType `json:"type"`
+// CanonicalizeVote transforms the given PartSetHeader to a CanonicalPartSetHeader.
+func CanonicalizePartSetHeader(psh tmproto.PartSetHeader) tmproto.CanonicalPartSetHeader {
+	return tmproto.CanonicalPartSetHeader(psh)
 }
 
 // ------- Helper functions to create canonical types --------------
-func CreateCanonicalProposal(chainID string, proposal *Proposal) CanonicalProposal {
-	return CanonicalProposal{
-		ChainID:    chainID,
-		Type:       tmproto.ProposalType,
-		Height:     proposal.Height,
-		Timestamp:  proposal.Timestamp,
-		POLBlockID: proposal.POLBlockID,
-		POLRound:   proposal.POLRound,
-		Round:      proposal.Round,
+func CreateCanonicalProposal(chainID string, proposal *tmproto.Proposal) tmproto.CanonicalProposal {
+	return tmproto.CanonicalProposal{
+		Type:      tmproto.ProposalType,
+		Height:    proposal.Height, // encoded as sfixed64
+		Round:     proposal.Round,  // encoded as sfixed64
+		POLRound:  proposal.PolRound,
+		BlockID:   CanonicalizeBlockID(proposal.BlockID),
+		Timestamp: proposal.Timestamp,
+		ChainID:   chainID,
 	}
 }
 
-func CreateCanonicalVote(chainID string, vote *Vote) CanonicalVote {
-	return CanonicalVote{
+func CreateCanonicalVote(chainID string, vote *tmproto.Vote) tmproto.CanonicalVote {
+	return tmproto.CanonicalVote{
 		ChainID:   chainID,
 		Type:      tmproto.PrevoteType,
-		BlockID:   vote.BlockID,
-		Height:    uint64(vote.Height),
+		BlockID:   CanonicalizeBlockID(vote.BlockID),
+		Height:    vote.Height,
 		Round:     vote.Round,
 		Timestamp: vote.Timestamp,
-		VoteType:  vote.Type,
 	}
 }
