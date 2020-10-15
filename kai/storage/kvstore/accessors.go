@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
@@ -33,6 +34,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -602,11 +604,19 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 		part := ReadBlockPart(db, hash, height, i)
 		buf = append(buf, part.Bytes...)
 	}
-
-	block := new(types.Block)
-	if err := rlp.DecodeBytes(buf, block); err != nil {
-		panic(errors.New("Reading block error"))
+	pbb := new(tmproto.Block)
+	err := proto.Unmarshal(buf, pbb)
+	if err != nil {
+		// NOTE: The existence of meta should imply the existence of the
+		// block. So, make sure meta is only saved after blocks are saved.
+		panic(fmt.Sprintf("Error reading block: %v", err))
 	}
+
+	block, err := types.BlockFromProto(pbb)
+	if err != nil {
+		panic(fmt.Errorf("error from proto block: %w", err))
+	}
+
 	return block
 }
 

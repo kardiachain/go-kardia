@@ -548,6 +548,7 @@ func BlockFromProto(bp *tmproto.Block) (*Block, error) {
 		return nil, err
 	}
 	b.transactions = data
+	b.evidence = &EvidenceData{}
 	if err := b.evidence.FromProto(&bp.Evidence); err != nil {
 		return nil, err
 	}
