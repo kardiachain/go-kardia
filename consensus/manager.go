@@ -128,6 +128,13 @@ func (conR *ConsensusManager) GetChannels() []*p2p.ChannelDescriptor {
 	}
 }
 
+// InitPeer implements Reactor by creating a state for the peer.
+func (conR *ConsensusManager) InitPeer(peer p2p.Peer) p2p.Peer {
+	peerState := NewPeerState(peer).SetLogger(conR.Logger)
+	peer.Set(types.PeerStateKey, peerState)
+	return peer
+}
+
 // AddPeer implements manager
 func (conR *ConsensusManager) AddPeer(peer p2p.Peer) {
 	conR.Logger.Info("Add peer to manager", "peer", peer)

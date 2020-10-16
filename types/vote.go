@@ -181,8 +181,8 @@ func (vote *Vote) Verify(chainID string, address common.Address) error {
 		return ErrVoteInvalidValidatorAddress
 	}
 	v := vote.ToProto()
-	hash := crypto.Keccak256(VoteSignBytes(chainID, v))
-	if !VerifySignature(address, hash, vote.Signature) {
+	signBytes := VoteSignBytes(chainID, v)
+	if !VerifySignature(address, crypto.Keccak256(signBytes), vote.Signature) {
 		return ErrVoteInvalidSignature
 	}
 	return nil

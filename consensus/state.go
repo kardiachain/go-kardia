@@ -325,7 +325,7 @@ func (cs *ConsensusState) decideProposal(height uint64, round uint32) {
 	proposal := types.NewProposal(height, round, cs.ValidRound, propBlockID)
 	p := proposal.ToProto()
 	if err := cs.privValidator.SignProposal(cs.state.ChainID, p); err == nil {
-		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", propBlockID.Hash)
+		proposal.Signature = p.Signature
 		// Send proposal and blockparts on internal msg queue
 		cs.sendInternalMessage(msgInfo{&ProposalMessage{proposal}, ""})
 		for i := 0; i < int(blockParts.Total()); i++ {
@@ -618,8 +618,9 @@ func (cs *ConsensusState) signVote(signedMsgType tmproto.SignedMsgType, hash cmn
 		Type:             signedMsgType,
 		BlockID:          types.BlockID{Hash: hash, PartsHeader: header},
 	}
-
-	err := cs.privValidator.SignVote(cs.state.ChainID, vote.ToProto())
+	v := vote.ToProto()
+	err := cs.privValidator.SignVote(cs.state.ChainID, v)
+	vote.Signature = v.Signature
 	return vote, err
 }
 
