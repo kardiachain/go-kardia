@@ -22,12 +22,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"reflect"
 	"runtime/debug"
 	"sync"
 	"time"
 
 	"github.com/ebuchman/fail-test"
+	"github.com/gogo/protobuf/proto"
 
 	cfg "github.com/kardiachain/go-kardiamain/configs"
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
@@ -36,7 +38,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -684,7 +685,6 @@ func (cs *ConsensusState) updateHeight(height uint64) {
 // once we have the full block.
 func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p.ID) (added bool, err error) {
 	height, round, part := msg.Height, msg.Round, msg.Part
-
 	// Blocks might be reused, so round mismatch is OK
 	if cs.Height != height {
 		cs.logger.Debug("Received block part from wrong height", "height", height, "round", round)
@@ -706,10 +706,22 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 	}
 
 	if added && cs.ProposalBlockParts.IsComplete() {
-		// Added and completed!
-		if err := rlp.Decode(cs.ProposalBlockParts.GetReader(), &cs.ProposalBlock); err != nil {
+		bz, err := ioutil.ReadAll(cs.ProposalBlockParts.GetReader())
+		if err != nil {
 			return added, err
 		}
+
+		var pbb = new(tmproto.Block)
+		err = proto.Unmarshal(bz, pbb)
+		if err != nil {
+			return added, err
+		}
+		block, err := types.BlockFromProto(pbb)
+		if err != nil {
+			return added, err
+		}
+
+		cs.ProposalBlock = block
 		// NOTE: it's possible to receive complete proposal blocks for future rounds without having the proposal
 		cs.logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height(), "hash", cs.ProposalBlock.Hash())
 		cs.eventBus.PublishEventCompleteProposal(cs.CompleteProposalEvent())

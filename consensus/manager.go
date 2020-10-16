@@ -27,7 +27,6 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
-	service "github.com/kardiachain/go-kardiamain/kai/service/const"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -405,7 +404,7 @@ OuterLoop:
 					Round:  rs.Round,  // This tells peer that this part applies to us.
 					Part:   part,
 				}
-				logger.Info("Sending block part", "height", prs.Height, "round", prs.Round, "msg code", service.CsProposalBlockPartMsg)
+				logger.Debug("Sending block part", "height", prs.Height, "round", prs.Round)
 				if peer.Send(DataChannel, MustEncode(msg)) {
 					ps.SetHasProposalBlockPart(prs.Height, prs.Round, index)
 				}
