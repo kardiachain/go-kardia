@@ -140,6 +140,10 @@ func (txR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
 	}
 }
 
+func (txR *Reactor) OnStop() {
+	txR.txsSub.Unsubscribe()
+}
+
 //-----------------------------------------------------------------------------
 // Messages
 
