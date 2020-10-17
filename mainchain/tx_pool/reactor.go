@@ -3,7 +3,6 @@ package tx_pool
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/lib/event"
@@ -15,8 +14,6 @@ import (
 
 const (
 	TxpoolChannel = byte(0x30)
-
-	peerCatchupSleepIntervalMS = 100 // If peer is behind, sleep this amount
 
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
@@ -34,6 +31,8 @@ type Reactor struct {
 	// transaction channel and subscriptions
 	txsCh  chan events.NewTxsEvent
 	txsSub event.Subscription
+
+	peers *peerSet
 }
 
 // NewReactor returns a new Reactor with the given config and txpool.
@@ -41,6 +40,7 @@ func NewReactor(config *TxPoolConfig, txpool *TxPool) *Reactor {
 	txR := &Reactor{
 		config: config,
 		txpool: txpool,
+		peers:  newPeerSet(),
 	}
 	txR.BaseReactor = *p2p.NewBaseReactor("txpool", txR)
 	return txR
@@ -52,8 +52,7 @@ func (txR *Reactor) OnStart() error {
 		txR.Logger.Info("Tx broadcasting is disabled")
 		return nil
 	}
-	txR.txsCh = make(chan events.NewTxsEvent, txChanSize)
-	txR.txsSub = txR.txpool.SubscribeNewTxsEvent(txR.txsCh)
+	go txR.broadcastTxRoutine()
 	return nil
 }
 
@@ -73,13 +72,16 @@ func (txR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 // AddPeer implements Reactor.
 // It starts a broadcast routine ensuring all txs are forwarded to the given peer.
 func (txR *Reactor) AddPeer(peer p2p.Peer) {
-	if txR.config.Broadcast {
-		go txR.broadcastTxRoutine(peer)
+	if err := txR.peers.Register(newPeer(txR.Logger, peer)); err != nil {
+		txR.Logger.Error("register peer err: %s", err)
 	}
 }
 
 // RemovePeer implements Reactor.
 func (txR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
+	if err := txR.peers.Unregister(peer.ID()); err != nil {
+		txR.Logger.Error("unregister peer err: %s", err)
+	}
 	// broadcast routine checks if peer is gone and returns
 }
 
@@ -102,37 +104,20 @@ type PeerState interface {
 }
 
 // Send new txpool txs to peer.
-func (txR *Reactor) broadcastTxRoutine(peer p2p.Peer) {
+func (txR *Reactor) broadcastTxRoutine() {
+	txR.txsCh = make(chan events.NewTxsEvent, txChanSize)
+	txR.txsSub = txR.txpool.SubscribeNewTxsEvent(txR.txsCh)
 	for {
 		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
-		if !txR.IsRunning() || !peer.IsRunning() {
+		if !txR.IsRunning() {
 			return
 		}
 
 		select {
 		case txEvent := <-txR.txsCh:
-			txs := make([][]byte, len(txEvent.Txs))
-			for idx, tx := range txEvent.Txs {
-				txBytes, err := rlp.EncodeToBytes(tx)
-				if err != nil {
-					panic(err)
-				}
-				txs[idx] = txBytes
-			}
-			msg := prototx.Message{
-				Sum: &prototx.Message_Txs{
-					Txs: &prototx.Txs{Txs: txs},
-				},
-			}
-			bz, err := msg.Marshal()
-			if err != nil {
-				panic(err)
-			}
-			txR.Logger.Debug("Sending N txs to peer", "N", len(txs), "peer", peer)
-			success := peer.Send(TxpoolChannel, bz)
-			if !success {
-				time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
-				continue
+			for peer, txs := range txR.peers.PeersWithoutTxs(txEvent.Txs) {
+				// only send to validators
+				peer.AsyncSendTransactions(txs)
 			}
 		case <-txR.txsSub.Err():
 			return
