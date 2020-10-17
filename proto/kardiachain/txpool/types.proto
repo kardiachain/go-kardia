@@ -1,0 +1,15 @@
+syntax = "proto3";
+package kardiachain.state;
+
+option go_package = "github.com/kardiachain/go-kardiamain/proto/kardiachain/state";
+
+
+message Txs {
+    repeated bytes txs = 1;
+  }
+  
+  message Message {
+    oneof sum {
+      Txs txs = 1;
+    }
+  }
