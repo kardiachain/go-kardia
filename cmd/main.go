@@ -132,8 +132,10 @@ func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
 func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 	txPool := c.MainChain.TxPool
 	return tx_pool.TxPoolConfig{
-		GlobalSlots: txPool.GlobalSlots,
-		GlobalQueue: txPool.GlobalQueue,
+		GlobalSlots:   txPool.GlobalSlots,
+		GlobalQueue:   txPool.GlobalQueue,
+		MaxBatchBytes: tx_pool.DefaultTxPoolConfig.MaxBatchBytes,
+		Broadcast:     tx_pool.DefaultTxPoolConfig.Broadcast,
 	}
 }
 
