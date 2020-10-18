@@ -293,18 +293,18 @@ func DataFromProto(dp *tmproto.Data) (Transactions, error) {
 	if dp == nil {
 		return Transactions{}, errors.New("nil data")
 	}
-	data := new(Transactions)
+	txs := make(Transactions, len(dp.Txs))
 	if len(dp.Txs) > 0 {
-		txBzs := make(Transactions, len(dp.Txs))
 		for i := range dp.Txs {
 			tx := &Transaction{}
 			if err := rlp.DecodeBytes(dp.Txs[i], tx); err != nil {
 				return nil, err
 			}
-			txBzs[i] = tx
+			txs[i] = tx
 		}
+
 	}
-	return *data, nil
+	return txs, nil
 }
 
 // TxByNonce implements the sort interface to allow sorting a list of transactions
