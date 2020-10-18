@@ -19,10 +19,8 @@
 package kvstore
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -231,21 +229,21 @@ func CommonReadHeadHeaderHash(db kaidb.Reader) common.Hash {
 	return common.BytesToHash(data)
 }
 
-// CommonReadCommitRLP retrieves the commit in RLP encoding.
-func CommonReadCommitRLP(db kaidb.Reader, height uint64) rlp.RawValue {
-	data, _ := db.Get(commitKey(height))
-	return data
-}
-
 // CommonReadBody retrieves the commit at a given height.
 func CommonReadCommit(db kaidb.Reader, height uint64) *types.Commit {
-	data := CommonReadCommitRLP(db, height)
-	if len(data) == 0 {
+	var pbc = new(tmproto.Commit)
+	bz, _ := db.Get(commitKey(height))
+	if len(bz) == 0 {
 		return nil
 	}
-	commit := new(types.Commit)
-	if err := rlp.Decode(bytes.NewReader(data), commit); err != nil {
-		panic(fmt.Errorf("Decode read commit error: %s height: %d", err, height))
+
+	err := proto.Unmarshal(bz, pbc)
+	if err != nil {
+		panic(fmt.Errorf("error reading block commit: %w", err))
+	}
+	commit, err := types.CommitFromProto(pbc)
+	if err != nil {
+		panic(fmt.Sprintf("Error reading block commit: %v", err))
 	}
 	return commit
 }
@@ -563,31 +561,41 @@ func CommonCheckTxHash(db kaidb.Reader, hash *common.Hash) bool {
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
 func ReadBlockMeta(db kaidb.Reader, height uint64) *types.BlockMeta {
-	var blockMeta = new(types.BlockMeta)
+	var pbbm = new(tmproto.BlockMeta)
 	metaBytes, _ := db.Get(blockMetaKey(height))
 
 	if len(metaBytes) == 0 {
 		return nil
 	}
 
-	if err := rlp.DecodeBytes(metaBytes, blockMeta); err != nil {
-		panic(errors.New("Reading block meta error"))
+	err := proto.Unmarshal(metaBytes, pbbm)
+	if err != nil {
+		panic(fmt.Errorf("unmarshal to tmproto.BlockMeta: %w", err))
 	}
+	blockMeta, err := types.BlockMetaFromProto(pbbm)
+	if err != nil {
+		panic(fmt.Errorf("error from proto blockMeta: %w", err))
+	}
+
 	return blockMeta
 }
 
 func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
-	var commit = new(types.Commit)
+	var pbc = new(tmproto.Commit)
 	commitBytes, _ := db.Get(seenCommitKey(height))
 
 	if len(commitBytes) == 0 {
 		return nil
 	}
 
-	if err := rlp.DecodeBytes(commitBytes, commit); err != nil {
-		panic(errors.New("Reading seen commit error"))
+	err := proto.Unmarshal(commitBytes, pbc)
+	if err != nil {
+		panic(fmt.Sprintf("error reading block seen commit: %v", err))
 	}
-
+	commit, err := types.CommitFromProto(pbc)
+	if err != nil {
+		panic(fmt.Errorf("error from proto commit: %w", err))
+	}
 	return commit
 }
 
@@ -626,29 +634,33 @@ func CommonReadHeader(db kaidb.Reader, hash common.Hash, height uint64) *types.H
 	return blockMeta.Header
 }
 
-// CommonReadHeaderRLP retrieves a block header in its raw RLP database encoding.
-func CommonReadHeaderRLP(db kaidb.Reader, hash common.Hash, height uint64) rlp.RawValue {
-	data, _ := db.Get(headerKey(height, hash))
-	return data
-}
-
 // ReadBlockPart returns the block part fo the given height and index
 func ReadBlockPart(db kaidb.Reader, hash common.Hash, height uint64, index int) *types.Part {
-	part := new(types.Part)
+	var pbpart = new(tmproto.Part)
 	partBytes, _ := db.Get(blockPartKey(height, index))
 
 	if len(partBytes) == 0 {
 		return nil
 	}
 
-	if err := rlp.DecodeBytes(partBytes, part); err != nil {
-		panic(fmt.Errorf("Decode block part error: %s", err))
+	err := proto.Unmarshal(partBytes, pbpart)
+	if err != nil {
+		panic(fmt.Errorf("unmarshal to tmproto.Part failed: %w", err))
 	}
+	part, err := types.PartFromProto(pbpart)
+	if err != nil {
+		panic(fmt.Sprintf("Error reading block part: %v", err))
+	}
+
 	return part
 }
 
 // WriteBlock write block to database
 func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
+	if block == nil {
+		panic("BlockStore can only save a non-nil block")
+	}
+
 	height := block.Height()
 	hash := block.Hash()
 
@@ -656,11 +668,12 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 
 	// Save block meta
 	blockMeta := types.NewBlockMeta(block, blockParts)
-	metaBytes, err := rlp.EncodeToBytes(blockMeta)
-	if err != nil {
-		panic(fmt.Errorf("encode block meta error: %s", err))
+	pbm := blockMeta.ToProto()
+	if pbm == nil {
+		panic("nil blockmeta")
 	}
-	batch.Put(blockMetaKey(height), metaBytes)
+	metaBytes := mustEncode(pbm)
+	_ = batch.Put(blockMetaKey(height), metaBytes)
 
 	// Save block part
 	for i := 0; i < int(blockParts.Total()); i++ {
@@ -670,20 +683,14 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 	}
 
 	// Save block commit (duplicate and separate from the Block)
-	lastCommit := block.LastCommit()
-	lastCommitBytes, err := rlp.EncodeToBytes(lastCommit)
-	if err != nil {
-		panic(fmt.Errorf("encode last commit error: %s", err))
-	}
-	batch.Put(commitKey(height-1), lastCommitBytes)
+	pbc := block.LastCommit().ToProto()
+	blockCommitBytes := mustEncode(pbc)
+	_ = batch.Put(commitKey(height-1), blockCommitBytes)
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
-	seenCommitBytes, err := rlp.EncodeToBytes(seenCommit)
-	if err != nil {
-		panic(fmt.Errorf("encode seen commit error: %s", err))
-	}
-
+	pbsc := seenCommit.ToProto()
+	seenCommitBytes := mustEncode(pbsc)
 	if err := batch.Put(seenCommitKey(height), seenCommitBytes); err != nil {
 		panic(fmt.Errorf("failed to store seen commit err: %s", err))
 	}
@@ -700,16 +707,17 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 }
 
 func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part) {
-	partBytes, err := rlp.EncodeToBytes(part)
+	pbp, err := part.ToProto()
 	if err != nil {
-		panic(fmt.Errorf("encode block part error: %d, height :%d, index: %d", err, height, index))
+		panic(fmt.Errorf("unable to make part into proto: %w", err))
 	}
-	db.Put(blockPartKey(height, index), partBytes)
+	partBytes := mustEncode(pbp)
+	_ = db.Put(blockPartKey(height, index), partBytes)
 }
 
 // DeleteBlockMeta delete block meta
 func DeleteBlockMeta(db kaidb.Writer, hash common.Hash, height uint64) {
-	db.Delete(blockMetaKey(height))
+	_ = db.Delete(blockMetaKey(height))
 }
 
 // ReadAppHash ...
@@ -723,5 +731,14 @@ func ReadAppHash(db kaidb.KeyValueReader, height uint64) common.Hash {
 
 // WriteAppHash ...
 func WriteAppHash(db kaidb.KeyValueWriter, height uint64, hash common.Hash) {
-	db.Put(calcAppHashKey(height), hash.Bytes())
+	_ = db.Put(calcAppHashKey(height), hash.Bytes())
+}
+
+// mustEncode proto encodes a proto.message and panics if fails
+func mustEncode(pb proto.Message) []byte {
+	bz, err := proto.Marshal(pb)
+	if err != nil {
+		panic(fmt.Errorf("unable to marshal: %w", err))
+	}
+	return bz
 }

@@ -158,11 +158,6 @@ func (s *StoreDB) ReadHeadHeaderHash() common.Hash {
 	return CommonReadHeadHeaderHash(s.db)
 }
 
-// ReadCommitRLP retrieves the commit in RLP encoding.
-func (s *StoreDB) ReadCommitRLP(height uint64) rlp.RawValue {
-	return CommonReadCommitRLP(s.db, height)
-}
-
 // ReadBody retrieves the commit at a given height.
 func (s *StoreDB) ReadCommit(height uint64) *types.Commit {
 	return CommonReadCommit(s.db, height)

@@ -23,7 +23,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
 )
 
 type StoreDB interface {
@@ -57,7 +56,6 @@ type StoreDB interface {
 	ReadHeaderHeight(hash common.Hash) *uint64
 	ReadHeadHeaderHash() common.Hash
 	WriteHeadBlockHash(common.Hash)
-	ReadCommitRLP(height uint64) rlp.RawValue
 	ReadCommit(height uint64) *Commit
 	ReadSeenCommit(height uint64) *Commit
 	ReadTransaction(hash common.Hash) (*Transaction, common.Hash, uint64, uint64)
