@@ -61,10 +61,11 @@ type KardiaService struct {
 	kaiDb types.StoreDB // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
-	txPool        *tx_pool.TxPool
-	blockchain    *blockchain.BlockChain
-	csManager     *consensus.ConsensusManager
-	txpoolReactor *tx_pool.Reactor
+	txPool     *tx_pool.TxPool
+	blockchain *blockchain.BlockChain
+	csManager  *consensus.ConsensusManager
+	txpoolR    *tx_pool.Reactor
+	evR        *evidence.Reactor
 
 	subService KardiaSubService
 
@@ -118,11 +119,11 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// Set zeroFee to blockchain
 	kai.blockchain.IsZeroFee = config.IsZeroFee
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
-	kai.txpoolReactor = tx_pool.NewReactor(config.TxPool, kai.txPool)
+	kai.txpoolR = tx_pool.NewReactor(config.TxPool, kai.txPool)
 
 	bOper := blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool, staking)
 
-	//evReactor := evidence.NewReactor(evPool)
+	kai.evR = evidence.NewReactor(evPool)
 	blockExec := cstate.NewBlockExecutor(kai.blockchain.DB().DB(), evPool, bOper)
 
 	state, err := cstate.LoadStateFromDBOrGenesisDoc(kaiDb.DB(), config.Genesis)
@@ -176,7 +177,8 @@ func (s *KardiaService) NetVersion() uint64 { return s.networkID }
 // Kardia protocol implementation.
 func (s *KardiaService) Start(srvr *p2p.Switch) error {
 	srvr.AddReactor("CONSENSUS", s.csManager)
-	srvr.AddReactor("TXPOOL", s.txpoolReactor)
+	srvr.AddReactor("TXPOOL", s.txpoolR)
+	srvr.AddReactor("EVIDENCE", s.evR)
 	return nil
 }
 

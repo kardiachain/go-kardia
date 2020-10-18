@@ -24,7 +24,6 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/clist"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/service"
 
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -36,16 +35,16 @@ import (
 const (
 	EvidenceChannel = byte(0x38)
 
+	maxMsgSize = 1048576 // 1MB TODO make it configurable
+
 	broadcastEvidenceIntervalS = 60  // broadcast uncommitted evidence this often
 	peerCatchupSleepIntervalMS = 100 // If peer is behind, sleep this amount
 )
 
 // Reactor handles evpool evidence broadcasting amongst peers.
 type Reactor struct {
-	service.BaseService
+	p2p.BaseReactor
 	evpool *Pool
-	//eventBus *types.EventBus
-	protocol Protocol
 }
 
 // NewReactor returns a new Reactor with the given config and evpool.
@@ -53,18 +52,26 @@ func NewReactor(evpool *Pool) *Reactor {
 	evR := &Reactor{
 		evpool: evpool,
 	}
+	evR.BaseReactor = *p2p.NewBaseReactor("Evidence", evR)
 	return evR
-}
-
-// SetProtocol ...
-func (evR *Reactor) SetProtocol(protocol Protocol) {
-	evR.protocol = protocol
 }
 
 // SetLogger sets the Logger on the reactor and the underlying Evidence.
 func (evR *Reactor) SetLogger(l log.Logger) {
 	evR.Logger = l
 	evR.evpool.SetLogger(l)
+}
+
+// GetChannels implements Reactor.
+// It returns the list of channels for this reactor.
+func (evR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
+	return []*p2p.ChannelDescriptor{
+		{
+			ID:                  EvidenceChannel,
+			Priority:            5,
+			RecvMessageCapacity: maxMsgSize,
+		},
+	}
 }
 
 // AddPeer implements Reactor.
@@ -74,28 +81,27 @@ func (evR *Reactor) AddPeer(peer p2p.Peer) {
 
 // Receive implements Reactor.
 // It adds any received evidence to the evpool.
-func (evR *Reactor) Receive(src p2p.Peer) error {
-	// evis, err := decodeMsg(msg)
-	// if err != nil {
-	// 	evR.Logger.Error("Error decoding message", "src", src, "err", err)
-	// 	return nil
-	// }
-
-	// for _, ev := range evis {
-	// 	err := evR.evpool.AddEvidence(ev)
-	// 	switch err.(type) {
-	// 	case *types.ErrEvidenceInvalid:
-	// 		evR.Logger.Error(err.Error())
-	// 		// punish peer
-	// 		evR.protocol.StopPeerForError(src, err)
-	// 		return nil
-	// 	case nil:
-	// 	default:
-	// 		// continue to the next piece of evidence
-	// 		evR.Logger.Error("Evidence has not been added", "evidence", evis, "err", err)
-	// 	}
-	// }
-	return nil
+func (evR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
+	evis, err := decodeMsg(msgBytes)
+	if err != nil {
+		evR.Logger.Error("Error decoding message", "src", src, "chId", chID, "err", err, "bytes", msgBytes)
+		evR.Switch.StopPeerForError(src, err)
+		return
+	}
+	for _, ev := range evis {
+		err := evR.evpool.AddEvidence(ev)
+		switch err.(type) {
+		case *types.ErrEvidenceInvalid:
+			evR.Logger.Error(err.Error())
+			// punish peer
+			evR.Switch.StopPeerForError(src, err)
+			return
+		case nil:
+		default:
+			// continue to the next piece of evidence
+			evR.Logger.Error("Evidence has not been added", "evidence", evis, "err", err)
+		}
+	}
 }
 
 // Modeled after the mempool routine.
@@ -207,16 +213,6 @@ func (evR Reactor) checkSendEvidenceMessage(
 	return []types.Evidence{ev}, false
 }
 
-// Protocol ...
-type Protocol interface {
-	StopPeerForError(*p2p.Peer, error)
-}
-
-// PeerList ...
-type PeerList interface {
-	List() []*p2p.Peer
-}
-
 // PeerState describes the state of a peer.
 type PeerState interface {
 	GetHeight() uint64
@@ -224,13 +220,6 @@ type PeerState interface {
 
 //-----------------------------------------------------------------------------
 // Messages
-
-// Message is a message sent or received by the Reactor.
-type Message interface {
-	ValidateBasic() error
-}
-
-//-------------------------------------
 
 // encodemsg takes a array of evidence
 // returns the byte encoding of the List Message
