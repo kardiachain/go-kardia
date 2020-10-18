@@ -25,7 +25,7 @@ const (
 // peers you received it from.
 type Reactor struct {
 	p2p.BaseReactor
-	config *TxPoolConfig
+	config TxPoolConfig
 	txpool *TxPool
 
 	// transaction channel and subscriptions
@@ -36,7 +36,7 @@ type Reactor struct {
 }
 
 // NewReactor returns a new Reactor with the given config and txpool.
-func NewReactor(config *TxPoolConfig, txpool *TxPool) *Reactor {
+func NewReactor(config TxPoolConfig, txpool *TxPool) *Reactor {
 	txR := &Reactor{
 		config: config,
 		txpool: txpool,
