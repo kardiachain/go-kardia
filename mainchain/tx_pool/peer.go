@@ -82,6 +82,7 @@ func newPeer(logger log.Logger, p p2p.Peer) *peer {
 		knownTxs:   common.NewSet(maxKnownTxs),
 		terminated: make(chan struct{}),
 		peer:       p,
+		logger:     logger,
 	}
 }
 

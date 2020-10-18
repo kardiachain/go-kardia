@@ -120,10 +120,12 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	kai.blockchain.IsZeroFee = config.IsZeroFee
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 	kai.txpoolR = tx_pool.NewReactor(config.TxPool, kai.txPool)
+	kai.txpoolR.SetLogger(kai.logger)
 
 	bOper := blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool, staking)
 
 	kai.evR = evidence.NewReactor(evPool)
+	kai.evR.SetLogger(kai.logger)
 	blockExec := cstate.NewBlockExecutor(kai.blockchain.DB().DB(), evPool, bOper)
 
 	state, err := cstate.LoadStateFromDBOrGenesisDoc(kaiDb.DB(), config.Genesis)
