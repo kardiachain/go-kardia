@@ -137,7 +137,7 @@ func VerifyEvidence(stateDB kaidb.KeyValueStore, state LastestBlockState, eviden
 			evidence.Height(),
 			evidence.Time(),
 			height-evidenceParams.MaxAgeNumBlocks,
-			state.LastBlockTime.Add(time.Duration(evidenceParams.MaxAgeDuration)),
+			state.LastBlockTime.Add(evidenceParams.MaxAgeDuration),
 		)
 	}
 

@@ -36,6 +36,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -67,6 +68,7 @@ type Genesis struct {
 
 	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
 	Validators           []*GenesisValidator          `json:"validators"`
+	ConsensusParams      *kaiproto.ConsensusParams    `json:"consensus_params,omitempty"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.

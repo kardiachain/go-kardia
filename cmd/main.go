@@ -27,6 +27,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -47,6 +48,8 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/types"
+
+	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 const (
@@ -171,9 +174,19 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 
 	return &genesis.Genesis{
 		Config:     configs.TestnetChainConfig,
-		GasLimit:   16777216, // maximum number of uint24
 		Alloc:      ga,
 		Validators: g.Validators,
+		ConsensusParams: &kaiproto.ConsensusParams{
+			Block: kaiproto.BlockParams{
+				MaxGas:     16777216,
+				TimeIotaMs: 1000,
+			},
+			Evidence: kaiproto.EvidenceParams{
+				MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
+				MaxAgeDuration:  48 * time.Hour,
+				MaxBytes:        1048576, // 1MB
+			},
+		},
 	}, nil
 }
 

@@ -23,7 +23,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
@@ -87,14 +86,15 @@ func (bo *BlockOperations) CreateProposalBlock(
 	// Tx execution can happen in parallel with voting or precommitted.
 	// For simplicity, this code executes & commits txs before sending proposal,
 	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
-	maxBytes := lastState.ConsensusParams.Block.MaxBytes
+	//maxBytes := lastState.ConsensusParams.Block.MaxBytes
 	// Fetch a limited amount of valid evidence
-	maxNumEvidence, _ := types.MaxEvidencePerBlock(int64(maxBytes))
+	maxNumEvidence, _ := types.MaxEvidencePerBlock(lastState.ConsensusParams.Evidence.MaxBytes)
 	evidence := bo.evPool.PendingEvidence(maxNumEvidence)
 
 	txs := bo.txPool.ProposeTransactions()
 	bo.logger.Debug("Collected transactions", "txs count", len(txs))
 	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(), lastState.AppHash)
+	header.GasLimit = lastState.ConsensusParams.Block.MaxGas
 	bo.logger.Info("Creates new header", "header", header)
 
 	block = bo.newBlock(header, txs, commit, evidence)
@@ -207,7 +207,6 @@ func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types
 		LastBlockID:    blockID,
 		Validator:      validator,
 		ValidatorsHash: validatorsHash,
-		GasLimit:       configs.BlockGasLimit, // Temporary set for testing
 		AppHash:        appHash,
 	}
 }

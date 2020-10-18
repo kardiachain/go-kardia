@@ -233,12 +233,6 @@ func saveValidatorsInfo(db kaidb.Database, height, lastHeightChanged uint64, val
 
 //-----------------------------------------------------------------------------
 
-// ConsensusParamsInfo represents the latest consensus params, or the last height it changed
-type ConsensusParamsInfo struct {
-	ConsensusParams   types.ConsensusParams
-	LastHeightChanged uint64
-}
-
 // LoadConsensusParams loads the ConsensusParams for a given height.
 func LoadConsensusParams(db kaidb.Database, height uint64) (tmproto.ConsensusParams, error) {
 	empty := tmproto.ConsensusParams{}
@@ -281,15 +275,6 @@ func loadConsensusParamsInfo(db kaidb.Database, height uint64) (*tmstate.Consens
 	// TODO: ensure that buf is completely read.
 
 	return paramsInfo, nil
-}
-
-// Bytes serializes the ConsensusParamsInfo
-func (params ConsensusParamsInfo) Bytes() []byte {
-	b, err := rlp.EncodeToBytes(params)
-	if err != nil {
-		panic(err)
-	}
-	return b
 }
 
 // saveConsensusParamsInfo persists the consensus params for the next block to disk.
@@ -339,7 +324,7 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
 		LastValidators:              nil,
 		LastHeightValidatorsChanged: 0,
 
-		//ConsensusParams:                  *genDoc.ConsensusParams,
+		ConsensusParams:                  *genDoc.ConsensusParams,
 		LastHeightConsensusParamsChanged: 1,
 	}, nil
 }

@@ -23,7 +23,7 @@ message BlockParams {
     int64 max_bytes = 1;
     // Max gas per block.
     // Note: must be greater or equal to -1
-    int64 max_gas = 2;
+    uint64 max_gas = 2;
     // Minimum time increment between consecutive blocks (in milliseconds) If the
     // block header timestamp is ahead of the system clock, decrease this value.
     //
