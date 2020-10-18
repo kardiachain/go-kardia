@@ -166,7 +166,7 @@ func HeaderFromProto(ph *tmproto.Header) (Header, error) {
 	h.TxHash = common.BytesToHash(ph.DataHash)
 	h.EvidenceHash = common.BytesToHash(ph.EvidenceHash)
 	h.LastCommitHash = common.BytesToHash(ph.LastCommitHash)
-	h.ValidatorsHash = common.BytesToHash(ph.ProposerAddress)
+	h.ValidatorsHash = common.BytesToHash(ph.ValidatorsHash)
 	h.GasLimit = ph.GasLimit
 	h.NumTxs = ph.NumTxs
 	h.Coinbase = common.BytesToAddress(ph.ProposerAddress)
