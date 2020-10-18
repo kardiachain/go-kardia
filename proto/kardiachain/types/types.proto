@@ -62,6 +62,7 @@ message Header {
   // basic block info
   string                       chain_id = 2 [(gogoproto.customname) = "ChainID"];
   uint64                        height   = 3;
+  uint64 gas_limit = 15;
   google.protobuf.Timestamp    time     = 4 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 
   // prev block info
@@ -80,6 +81,7 @@ message Header {
   // consensus info
   bytes evidence_hash    = 13;  // evidence included in the block
   bytes proposer_address = 14;  // original proposer of the block
+  uint64 num_txs = 16;
 }
 
 // Vote represents a prevote, precommit, or commit vote from validators for

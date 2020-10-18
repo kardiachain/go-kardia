@@ -88,6 +88,7 @@ func (state LastestBlockState) Copy() LastestBlockState {
 		LastValidators:              state.LastValidators.Copy(),
 		LastHeightValidatorsChanged: state.LastHeightValidatorsChanged,
 		AppHash:                     state.AppHash,
+		ConsensusParams:             state.ConsensusParams,
 		//namdoh@ LastResultsHash: state.LastResultsHash,
 	}
 }
@@ -153,7 +154,7 @@ func (state *LastestBlockState) ToProto() (*tmstate.State, error) {
 	}
 
 	sm.LastHeightValidatorsChanged = state.LastHeightValidatorsChanged
-	//sm.ConsensusParams = state.ConsensusParams
+	sm.ConsensusParams = state.ConsensusParams
 	sm.LastHeightConsensusParamsChanged = state.LastHeightConsensusParamsChanged
 	//sm.LastResultsHash = state.LastResultsHash
 	sm.AppHash = state.AppHash.Bytes()
@@ -204,9 +205,8 @@ func StateFromProto(pb *tmstate.State) (*LastestBlockState, error) { //nolint:go
 	}
 
 	state.LastHeightValidatorsChanged = pb.LastHeightValidatorsChanged
-	//state.ConsensusParams = pb.ConsensusParams
+	state.ConsensusParams = pb.ConsensusParams
 	state.LastHeightConsensusParamsChanged = pb.LastHeightConsensusParamsChanged
-	//state.LastResultsHash = pb.LastResultsHash
 	state.AppHash = common.BytesToHash(pb.AppHash)
 
 	return state, nil

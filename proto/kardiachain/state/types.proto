@@ -45,8 +45,8 @@ message State {
 
   uint64                            last_height_consensus_params_changed = 11;
 
-   // Merkle root of the results from executing prev block
-   bytes last_results_hash = 12;
+  kardiachain.types.ConsensusParams consensus_params                     = 10 [(gogoproto.nullable) = false];
+
 
    // the latest AppHash we've received from calling abci.Commit()
    bytes app_hash = 13;

@@ -233,7 +233,7 @@ func (dbo *DualBlockOperations) newHeader(height uint64, numEvents uint64, block
 		NumDualEvents:  numEvents,
 		Time:           time.Now(),
 		LastBlockID:    blockId,
-		Validator:      validator,
+		Coinbase:       validator,
 		ValidatorsHash: validatorsHash,
 	}
 }

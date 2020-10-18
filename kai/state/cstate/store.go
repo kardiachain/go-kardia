@@ -58,6 +58,7 @@ func calcConsensusParamsKey(height uint64) []byte {
 // to the database.
 func LoadStateFromDBOrGenesisDoc(stateDB kaidb.Database, genesisDoc *genesis.Genesis) (LastestBlockState, error) {
 	state := LoadState(stateDB)
+
 	if state.IsEmpty() {
 		var err error
 		state, err = MakeGenesisState(genesisDoc)
@@ -66,7 +67,6 @@ func LoadStateFromDBOrGenesisDoc(stateDB kaidb.Database, genesisDoc *genesis.Gen
 		}
 		SaveState(stateDB, state)
 	}
-
 	return state, nil
 }
 

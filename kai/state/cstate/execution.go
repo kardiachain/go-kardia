@@ -90,7 +90,6 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	}
 
 	valUpdates = calculateValidatorSetUpdates(state.Validators.Validators, valUpdates)
-
 	// update the state with the block and responses
 	state, err = updateState(logger, state, blockID, block.Header(), valUpdates)
 	if err != nil {
@@ -136,6 +135,7 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 		Validators:                  state.NextValidators.Copy(),
 		LastValidators:              state.Validators.Copy(),
 		LastHeightValidatorsChanged: lastHeightValsChanged,
+		ConsensusParams:             state.ConsensusParams,
 	}, nil
 }
 

@@ -205,7 +205,7 @@ func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types
 		Time:           time.Now(),
 		NumTxs:         numTxs,
 		LastBlockID:    blockID,
-		Validator:      validator,
+		Coinbase:       validator,
 		ValidatorsHash: validatorsHash,
 		AppHash:        appHash,
 	}

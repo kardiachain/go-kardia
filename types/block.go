@@ -71,7 +71,6 @@ type Header struct {
 	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
 	DualEventsHash common.Hash `json:"dual_events_hash"    gencodec:"required"` // dual's events
 
-	Validator common.Address `json:"validator"`
 	// hashes from the app output from the prev block
 	ValidatorsHash     common.Hash `json:"validators_hash"` // validators for the current block
 	NextValidatorsHash common.Hash `json:"next_validators_hash"`
@@ -132,9 +131,11 @@ func (h *Header) ToProto() *tmproto.Header {
 		ConsensusHash:      h.ConsensusHash.Bytes(),
 		AppHash:            h.AppHash.Bytes(),
 		DataHash:           h.TxHash.Bytes(),
+		GasLimit:           h.GasLimit,
 		EvidenceHash:       h.EvidenceHash.Bytes(),
 		LastCommitHash:     h.LastCommitHash.Bytes(),
-		ProposerAddress:    h.ValidatorsHash.Bytes(),
+		ProposerAddress:    h.Coinbase.Bytes(),
+		NumTxs:             h.NumTxs,
 	}
 }
 
@@ -166,6 +167,9 @@ func HeaderFromProto(ph *tmproto.Header) (Header, error) {
 	h.EvidenceHash = common.BytesToHash(ph.EvidenceHash)
 	h.LastCommitHash = common.BytesToHash(ph.LastCommitHash)
 	h.ValidatorsHash = common.BytesToHash(ph.ProposerAddress)
+	h.GasLimit = ph.GasLimit
+	h.NumTxs = ph.NumTxs
+	h.Coinbase = common.BytesToAddress(ph.ProposerAddress)
 
 	return *h, nil
 }
