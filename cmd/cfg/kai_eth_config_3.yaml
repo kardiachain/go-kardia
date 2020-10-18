@@ -36,9 +36,9 @@ MainChain:
     Address: 0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd
     PrivateKey: 98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb
   Seeds:
-    - c1fe56e3f58d3244f606306611a5d10c8333f1f6@0.0.0.0:3000
-    - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@0.0.0.0:3001
-    - ff3dac4f04ddbd24de5d6039f90596f0a8bb08fd@0.0.0.0:3002
+    - c1fe56e3f58d3244f606306611a5d10c8333f1f6@127.0.0.1:3000
+    - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@127.0.0.1:3001
+    - ff3dac4f04ddbd24de5d6039f90596f0a8bb08fd@127.0.0.1:3002
   Genesis:
     Addresses:
       - 0xc1fe56E3F58D3244F606306611a5d10c8333f1f6
