@@ -49,7 +49,6 @@ func (api *PrivateAdminAPI) AddPeer(url string) (bool, error) {
 
 // RemovePeer disconnects from a remote node if the connection exists
 func (api *PrivateAdminAPI) RemovePeer(url string) (bool, error) {
-
 	return true, nil
 }
 
@@ -198,16 +197,39 @@ func NewPublicAdminAPI(node *Node) *PublicAdminAPI {
 	return &PublicAdminAPI{node: node}
 }
 
+// A peer
+type Peer struct {
+	NodeInfo         p2p.DefaultNodeInfo  `json:"node_info"`
+	IsOutbound       bool                 `json:"is_outbound"`
+	ConnectionStatus p2p.ConnectionStatus `json:"connection_status"`
+	RemoteIP         string               `json:"remote_ip"`
+}
+
 // Peers retrieves all the information we know about each individual peer at the
 // protocol granularity.
-func (api *PublicAdminAPI) Peers() ([]p2p.Peer, error) {
-	return nil, nil
+func (api *PublicAdminAPI) Peers() ([]Peer, error) {
+	peersList := api.node.sw.Peers().List()
+	peers := make([]Peer, 0, len(peersList))
+	for _, peer := range peersList {
+		nodeInfo, ok := peer.NodeInfo().(p2p.DefaultNodeInfo)
+		if !ok {
+			return nil, fmt.Errorf("peer.NodeInfo() is not DefaultNodeInfo")
+		}
+		peers = append(peers, Peer{
+			NodeInfo:         nodeInfo,
+			IsOutbound:       peer.IsOutbound(),
+			ConnectionStatus: peer.Status(),
+			RemoteIP:         peer.RemoteIP().String(),
+		})
+	}
+	return peers, nil
 }
 
 // NodeInfo retrieves all the information we know about the host node at the
 // protocol granularity.
-func (api *PublicAdminAPI) NodeInfo() (*p2p.NodeInfo, error) {
-	return nil, nil
+func (api *PublicAdminAPI) NodeInfo() (p2p.NodeInfo, error) {
+	nodeInfo := api.node.sw.NodeInfo()
+	return nodeInfo, nil
 }
 
 // Datadir retrieves the current data directory the node is using.

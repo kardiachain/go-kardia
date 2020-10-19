@@ -735,7 +735,7 @@ func makeNodeInfo(
 		Other: p2p.DefaultNodeInfoOther{
 			TxIndex: txIndexerStatus,
 		},
-		Moniker: "test",
+		Moniker: config.Name,
 	}
 
 	if config.P2P.PexReactor {
