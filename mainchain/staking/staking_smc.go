@@ -20,7 +20,7 @@ import (
 const (
 	// KardiaSatkingSmcIndex ...
 	KardiaSatkingSmcIndex = 7
-	contractAddress       = "0x00000000000000000000000000000000736D1997"
+	contractAddress       = "0x0000000000000000000000000000000000001337"
 )
 
 // MaximumGasToCallStaticFunction ...
@@ -66,7 +66,7 @@ func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 		return nil, err
 	}
 
-	return &StakingSmcUtil{Abi: &abi, ContractAddress: common.HexToAddress("0xF3E77cDEeD0A979be6fb54dEdc50551e84F9C53a"), Bytecode: bytecodeStaking}, nil
+	return &StakingSmcUtil{Abi: &abi, ContractAddress: common.HexToAddress(contractAddress), Bytecode: bytecodeStaking}, nil
 }
 
 //SetParams set params
