@@ -7,23 +7,23 @@ import (
 	"github.com/gogo/protobuf/proto"
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	tmcons "github.com/kardiachain/go-kardiamain/proto/kardiachain/consensus"
+	kcons "github.com/kardiachain/go-kardiamain/proto/kardiachain/consensus"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // MsgToProto takes a consensus message type and returns the proto defined consensus message
-func MsgToProto(msg Message) (*tmcons.Message, error) {
+func MsgToProto(msg Message) (*kcons.Message, error) {
 	if msg == nil {
 		return nil, errors.New("consensus: message is nil")
 	}
 
-	var pb tmcons.Message
+	var pb kcons.Message
 
 	switch msg := msg.(type) {
 	case *NewRoundStepMessage:
-		pb = tmcons.Message{
-			Sum: &tmcons.Message_NewRoundStep{
-				NewRoundStep: &tmcons.NewRoundStep{
+		pb = kcons.Message{
+			Sum: &kcons.Message_NewRoundStep{
+				NewRoundStep: &kcons.NewRoundStep{
 					Height:                msg.Height,
 					Round:                 msg.Round,
 					Step:                  uint32(msg.Step),
@@ -35,9 +35,9 @@ func MsgToProto(msg Message) (*tmcons.Message, error) {
 	case *NewValidBlockMessage:
 		pbPartSetHeader := msg.BlockPartsHeader.ToProto()
 		pbBits := msg.BlockParts.ToProto()
-		pb = tmcons.Message{
-			Sum: &tmcons.Message_NewValidBlock{
-				NewValidBlock: &tmcons.NewValidBlock{
+		pb = kcons.Message{
+			Sum: &kcons.Message_NewValidBlock{
+				NewValidBlock: &kcons.NewValidBlock{
 					Height:             msg.Height,
 					Round:              msg.Round,
 					BlockPartSetHeader: pbPartSetHeader,
@@ -48,18 +48,18 @@ func MsgToProto(msg Message) (*tmcons.Message, error) {
 		}
 	case *ProposalMessage:
 		pbP := msg.Proposal.ToProto()
-		pb = tmcons.Message{
-			Sum: &tmcons.Message_Proposal{
-				Proposal: &tmcons.Proposal{
+		pb = kcons.Message{
+			Sum: &kcons.Message_Proposal{
+				Proposal: &kcons.Proposal{
 					Proposal: *pbP,
 				},
 			},
 		}
 	case *ProposalPOLMessage:
 		pbBits := msg.ProposalPOL.ToProto()
-		pb = tmcons.Message{
-			Sum: &tmcons.Message_ProposalPol{
-				ProposalPol: &tmcons.ProposalPOL{
+		pb = kcons.Message{
+			Sum: &kcons.Message_ProposalPol{
+				ProposalPol: &kcons.ProposalPOL{
 					Height:           msg.Height,
 					ProposalPolRound: msg.ProposalPOLRound,
 					ProposalPol:      *pbBits,
@@ -71,9 +71,9 @@ func MsgToProto(msg Message) (*tmcons.Message, error) {
 		if err != nil {
 			return nil, fmt.Errorf("msg to proto error: %w", err)
 		}
-		pb = tmcons.Message{
-			Sum: &tmcons.Message_BlockPart{
-				BlockPart: &tmcons.BlockPart{
+		pb = kcons.Message{
+			Sum: &kcons.Message_BlockPart{
+				BlockPart: &kcons.BlockPart{
 					Height: msg.Height,
 					Round:  msg.Round,
 					Part:   *parts,
@@ -82,17 +82,17 @@ func MsgToProto(msg Message) (*tmcons.Message, error) {
 		}
 	case *VoteMessage:
 		vote := msg.Vote.ToProto()
-		pb = tmcons.Message{
-			Sum: &tmcons.Message_Vote{
-				Vote: &tmcons.Vote{
+		pb = kcons.Message{
+			Sum: &kcons.Message_Vote{
+				Vote: &kcons.Vote{
 					Vote: vote,
 				},
 			},
 		}
 	case *HasVoteMessage:
-		pb = tmcons.Message{
-			Sum: &tmcons.Message_HasVote{
-				HasVote: &tmcons.HasVote{
+		pb = kcons.Message{
+			Sum: &kcons.Message_HasVote{
+				HasVote: &kcons.HasVote{
 					Height: msg.Height,
 					Round:  msg.Round,
 					Type:   msg.Type,
@@ -102,9 +102,9 @@ func MsgToProto(msg Message) (*tmcons.Message, error) {
 		}
 	case *VoteSetMaj23Message:
 		bi := msg.BlockID.ToProto()
-		pb = tmcons.Message{
-			Sum: &tmcons.Message_VoteSetMaj23{
-				VoteSetMaj23: &tmcons.VoteSetMaj23{
+		pb = kcons.Message{
+			Sum: &kcons.Message_VoteSetMaj23{
+				VoteSetMaj23: &kcons.VoteSetMaj23{
 					Height:  msg.Height,
 					Round:   msg.Round,
 					Type:    msg.Type,
@@ -116,8 +116,8 @@ func MsgToProto(msg Message) (*tmcons.Message, error) {
 		bi := msg.BlockID.ToProto()
 		bits := msg.Votes.ToProto()
 
-		vsb := &tmcons.Message_VoteSetBits{
-			VoteSetBits: &tmcons.VoteSetBits{
+		vsb := &kcons.Message_VoteSetBits{
+			VoteSetBits: &kcons.VoteSetBits{
 				Height:  msg.Height,
 				Round:   msg.Round,
 				Type:    msg.Type,
@@ -129,7 +129,7 @@ func MsgToProto(msg Message) (*tmcons.Message, error) {
 			vsb.VoteSetBits.Votes = *bits
 		}
 
-		pb = tmcons.Message{
+		pb = kcons.Message{
 			Sum: vsb,
 		}
 
@@ -141,14 +141,14 @@ func MsgToProto(msg Message) (*tmcons.Message, error) {
 }
 
 // MsgFromProto takes a consensus proto message and returns the native go type
-func MsgFromProto(msg *tmcons.Message) (Message, error) {
+func MsgFromProto(msg *kcons.Message) (Message, error) {
 	if msg == nil {
 		return nil, errors.New("consensus: nil message")
 	}
 	var pb Message
 
 	switch msg := msg.Sum.(type) {
-	case *tmcons.Message_NewRoundStep:
+	case *kcons.Message_NewRoundStep:
 		rs := msg.NewRoundStep.Step
 		pb = &NewRoundStepMessage{
 			Height:                msg.NewRoundStep.Height,
@@ -157,7 +157,7 @@ func MsgFromProto(msg *tmcons.Message) (Message, error) {
 			SecondsSinceStartTime: msg.NewRoundStep.SecondsSinceStartTime,
 			LastCommitRound:       msg.NewRoundStep.LastCommitRound,
 		}
-	case *tmcons.Message_NewValidBlock:
+	case *kcons.Message_NewValidBlock:
 		pbPartSetHeader, err := types.PartSetHeaderFromProto(&msg.NewValidBlock.BlockPartSetHeader)
 		if err != nil {
 			return nil, fmt.Errorf("parts to proto error: %w", err)
@@ -173,7 +173,7 @@ func MsgFromProto(msg *tmcons.Message) (Message, error) {
 			BlockParts:       pbBits,
 			IsCommit:         msg.NewValidBlock.IsCommit,
 		}
-	case *tmcons.Message_Proposal:
+	case *kcons.Message_Proposal:
 		pbP, err := types.ProposalFromProto(&msg.Proposal.Proposal)
 		if err != nil {
 			return nil, fmt.Errorf("proposal msg to proto error: %w", err)
@@ -182,7 +182,7 @@ func MsgFromProto(msg *tmcons.Message) (Message, error) {
 		pb = &ProposalMessage{
 			Proposal: pbP,
 		}
-	case *tmcons.Message_ProposalPol:
+	case *kcons.Message_ProposalPol:
 		pbBits := new(common.BitArray)
 		pbBits.FromProto(&msg.ProposalPol.ProposalPol)
 		pb = &ProposalPOLMessage{
@@ -190,7 +190,7 @@ func MsgFromProto(msg *tmcons.Message) (Message, error) {
 			ProposalPOLRound: msg.ProposalPol.ProposalPolRound,
 			ProposalPOL:      pbBits,
 		}
-	case *tmcons.Message_BlockPart:
+	case *kcons.Message_BlockPart:
 		parts, err := types.PartFromProto(&msg.BlockPart.Part)
 		if err != nil {
 			return nil, fmt.Errorf("blockpart msg to proto error: %w", err)
@@ -200,7 +200,7 @@ func MsgFromProto(msg *tmcons.Message) (Message, error) {
 			Round:  msg.BlockPart.Round,
 			Part:   parts,
 		}
-	case *tmcons.Message_Vote:
+	case *kcons.Message_Vote:
 		vote, err := types.VoteFromProto(msg.Vote.Vote)
 		if err != nil {
 			return nil, fmt.Errorf("vote msg to proto error: %w", err)
@@ -209,14 +209,14 @@ func MsgFromProto(msg *tmcons.Message) (Message, error) {
 		pb = &VoteMessage{
 			Vote: vote,
 		}
-	case *tmcons.Message_HasVote:
+	case *kcons.Message_HasVote:
 		pb = &HasVoteMessage{
 			Height: msg.HasVote.Height,
 			Round:  msg.HasVote.Round,
 			Type:   msg.HasVote.Type,
 			Index:  msg.HasVote.Index,
 		}
-	case *tmcons.Message_VoteSetMaj23:
+	case *kcons.Message_VoteSetMaj23:
 		bi, err := types.BlockIDFromProto(&msg.VoteSetMaj23.BlockID)
 		if err != nil {
 			return nil, fmt.Errorf("voteSetMaj23 msg to proto error: %w", err)
@@ -227,7 +227,7 @@ func MsgFromProto(msg *tmcons.Message) (Message, error) {
 			Type:    msg.VoteSetMaj23.Type,
 			BlockID: *bi,
 		}
-	case *tmcons.Message_VoteSetBits:
+	case *kcons.Message_VoteSetBits:
 		bi, err := types.BlockIDFromProto(&msg.VoteSetBits.BlockID)
 		if err != nil {
 			return nil, fmt.Errorf("voteSetBits msg to proto error: %w", err)

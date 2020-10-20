@@ -29,7 +29,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/merkle"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 var (
@@ -69,11 +69,11 @@ func (part *Part) StringIndented(indent string) string {
 		indent)
 }
 
-func (part *Part) ToProto() (*tmproto.Part, error) {
+func (part *Part) ToProto() (*kproto.Part, error) {
 	if part == nil {
 		return nil, errors.New("nil part")
 	}
-	pb := new(tmproto.Part)
+	pb := new(kproto.Part)
 	proof := part.Proof.ToProto()
 
 	pb.Index = part.Index
@@ -83,7 +83,7 @@ func (part *Part) ToProto() (*tmproto.Part, error) {
 	return pb, nil
 }
 
-func PartFromProto(pb *tmproto.Part) (*Part, error) {
+func PartFromProto(pb *kproto.Part) (*Part, error) {
 	if pb == nil {
 		return nil, errors.New("nil part")
 	}
@@ -127,19 +127,19 @@ func (psh PartSetHeader) ValidateBasic() error {
 }
 
 // ToProto converts PartSetHeader to protobuf
-func (psh *PartSetHeader) ToProto() tmproto.PartSetHeader {
+func (psh *PartSetHeader) ToProto() kproto.PartSetHeader {
 	if psh == nil {
-		return tmproto.PartSetHeader{}
+		return kproto.PartSetHeader{}
 	}
 
-	return tmproto.PartSetHeader{
+	return kproto.PartSetHeader{
 		Total: psh.Total,
 		Hash:  psh.Hash.Bytes(),
 	}
 }
 
 // FromProto sets a protobuf PartSetHeader to the given pointer
-func PartSetHeaderFromProto(ppsh *tmproto.PartSetHeader) (*PartSetHeader, error) {
+func PartSetHeaderFromProto(ppsh *kproto.PartSetHeader) (*PartSetHeader, error) {
 	if ppsh == nil {
 		return nil, errors.New("nil PartSetHeader")
 	}

@@ -32,8 +32,8 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/types"
 
-	tmcons "github.com/kardiachain/go-kardiamain/proto/kardiachain/consensus"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kcons "github.com/kardiachain/go-kardiamain/proto/kardiachain/consensus"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 const (
@@ -223,9 +223,9 @@ func (conR *ConsensusManager) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			// (and consequently shows which we don't have)
 			var ourVotes *cmn.BitArray
 			switch msg.Type {
-			case tmproto.PrevoteType:
+			case kproto.PrevoteType:
 				ourVotes = votes.Prevotes(msg.Round).BitArrayByBlockID(msg.BlockID)
-			case tmproto.PrecommitType:
+			case kproto.PrecommitType:
 				ourVotes = votes.Precommits(msg.Round).BitArrayByBlockID(msg.BlockID)
 			default:
 				panic("Bad VoteSetBitsMessage field Type. Forgot to add a check in ValidateBasic?")
@@ -282,9 +282,9 @@ func (conR *ConsensusManager) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			if height == msg.Height {
 				var ourVotes *cmn.BitArray
 				switch msg.Type {
-				case tmproto.PrevoteType:
+				case kproto.PrevoteType:
 					ourVotes = votes.Prevotes(msg.Round).BitArrayByBlockID(msg.BlockID)
-				case tmproto.PrecommitType:
+				case kproto.PrecommitType:
 					ourVotes = votes.Precommits(msg.Round).BitArrayByBlockID(msg.BlockID)
 				default:
 					panic("Bad VoteSetBitsMessage field Type. Forgot to add a check in ValidateBasic?")
@@ -666,7 +666,7 @@ OUTER_LOOP:
 					peer.TrySend(StateChannel, MustEncode(&VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   prs.Round,
-						Type:    tmproto.PrevoteType,
+						Type:    kproto.PrevoteType,
 						BlockID: maj23,
 					}))
 					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
@@ -683,7 +683,7 @@ OUTER_LOOP:
 					peer.TrySend(StateChannel, MustEncode(&VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   prs.Round,
-						Type:    tmproto.PrecommitType,
+						Type:    kproto.PrecommitType,
 						BlockID: maj23,
 					}))
 					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
@@ -700,7 +700,7 @@ OUTER_LOOP:
 					peer.TrySend(StateChannel, MustEncode(&VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   prs.ProposalPOLRound,
-						Type:    tmproto.PrevoteType,
+						Type:    kproto.PrevoteType,
 						BlockID: maj23,
 					}))
 					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
@@ -717,7 +717,7 @@ OUTER_LOOP:
 					peer.TrySend(StateChannel, MustEncode(&VoteSetMaj23Message{
 						Height:  prs.Height,
 						Round:   commit.Round,
-						Type:    tmproto.PrecommitType,
+						Type:    kproto.PrecommitType,
 						BlockID: commit.BlockID,
 					}))
 					time.Sleep(conR.conS.config.PeerQueryMaj23Sleep())
@@ -829,7 +829,7 @@ func (m *NewRoundStepMessage) ValidateBasic() error {
 type HasVoteMessage struct {
 	Height uint64
 	Round  uint32
-	Type   tmproto.SignedMsgType
+	Type   kproto.SignedMsgType
 	Index  uint32
 }
 
@@ -859,7 +859,7 @@ func (m *HasVoteMessage) String() string {
 type VoteSetMaj23Message struct {
 	Height  uint64
 	Round   uint32
-	Type    tmproto.SignedMsgType
+	Type    kproto.SignedMsgType
 	BlockID types.BlockID
 }
 
@@ -889,7 +889,7 @@ func (m *VoteSetMaj23Message) ValidateBasic() error {
 type VoteSetBitsMessage struct {
 	Height  uint64
 	Round   uint32
-	Type    tmproto.SignedMsgType
+	Type    kproto.SignedMsgType
 	BlockID types.BlockID
 	Votes   *cmn.BitArray
 }
@@ -1075,7 +1075,7 @@ func (ps *PeerState) ApplyNewValidBlockMessage(msg *NewValidBlockMessage) {
 	ps.PRS.ProposalBlockParts = msg.BlockParts
 }
 
-func (ps *PeerState) getVoteBitArray(height uint64, round uint32, signedMsgType tmproto.SignedMsgType) *cmn.BitArray {
+func (ps *PeerState) getVoteBitArray(height uint64, round uint32, signedMsgType kproto.SignedMsgType) *cmn.BitArray {
 	if !types.IsVoteTypeValid(signedMsgType) {
 		return nil
 	}
@@ -1083,25 +1083,25 @@ func (ps *PeerState) getVoteBitArray(height uint64, round uint32, signedMsgType 
 	if ps.PRS.Height == height {
 		if ps.PRS.Round == round {
 			switch signedMsgType {
-			case tmproto.PrevoteType:
+			case kproto.PrevoteType:
 				return ps.PRS.Prevotes
-			case tmproto.PrecommitType:
+			case kproto.PrecommitType:
 				return ps.PRS.Precommits
 			}
 		}
 		if ps.PRS.CatchupCommitRound == round {
 			switch signedMsgType {
-			case tmproto.PrevoteType:
+			case kproto.PrevoteType:
 				return nil
-			case tmproto.PrecommitType:
+			case kproto.PrecommitType:
 				return ps.PRS.CatchupCommit
 			}
 		}
 		if ps.PRS.ProposalPOLRound == round {
 			switch signedMsgType {
-			case tmproto.PrevoteType:
+			case kproto.PrevoteType:
 				return ps.PRS.ProposalPOL
-			case tmproto.PrecommitType:
+			case kproto.PrecommitType:
 				return nil
 			}
 		}
@@ -1110,9 +1110,9 @@ func (ps *PeerState) getVoteBitArray(height uint64, round uint32, signedMsgType 
 	if ps.PRS.Height == height+1 {
 		if ps.PRS.LastCommitRound == round {
 			switch signedMsgType {
-			case tmproto.PrevoteType:
+			case kproto.PrevoteType:
 				return nil
-			case tmproto.PrecommitType:
+			case kproto.PrecommitType:
 				return ps.PRS.LastCommit
 			}
 		}
@@ -1176,7 +1176,7 @@ func (ps *PeerState) SetHasVote(vote *types.Vote) {
 	ps.setHasVote(uint64(vote.Height), vote.Round, vote.Type, vote.ValidatorIndex)
 }
 
-func (ps *PeerState) setHasVote(height uint64, round uint32, signedMsgType tmproto.SignedMsgType, index uint32) {
+func (ps *PeerState) setHasVote(height uint64, round uint32, signedMsgType kproto.SignedMsgType, index uint32) {
 	//logger := ps.logger.New("peerH/R", cmn.Fmt("%v/%v", ps.PRS.Height, ps.PRS.Round))
 	ps.logger.Debug("setHasVote", "H/R", cmn.Fmt("%v/%v", height, round), "type", types.GetReadableVoteTypeString(signedMsgType), "index", index)
 
@@ -1367,7 +1367,7 @@ func (m *NewValidBlockMessage) String() string {
 }
 
 func decodeMsg(bz []byte) (msg Message, err error) {
-	pb := &tmcons.Message{}
+	pb := &kcons.Message{}
 	if err = proto.Unmarshal(bz, pb); err != nil {
 		return msg, err
 	}

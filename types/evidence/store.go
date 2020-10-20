@@ -28,7 +28,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 
 	ep "github.com/kardiachain/go-kardiamain/proto/kardiachain/evidence"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -261,7 +261,7 @@ func (ei info) ToProto() (*ep.Info, error) {
 		return nil, err
 	}
 
-	valsProto := make([]*tmproto.Validator, len(ei.Validators))
+	valsProto := make([]*kproto.Validator, len(ei.Validators))
 	for i := 0; i < len(ei.Validators); i++ {
 		valp, err := ei.Validators[i].ToProto()
 		if err != nil {

@@ -25,7 +25,7 @@ import (
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/pkg/errors"
 )
 
@@ -66,7 +66,7 @@ type VoteSet struct {
 	chainID       string
 	height        uint64
 	round         uint32
-	signedMsgType tmproto.SignedMsgType
+	signedMsgType kproto.SignedMsgType
 	valSet        *ValidatorSet
 
 	mtx           sync.Mutex
@@ -79,7 +79,7 @@ type VoteSet struct {
 }
 
 // Constructs a new VoteSet struct used to accumulate votes for given height/round.
-func NewVoteSet(chainID string, height uint64, round uint32, signedMsgType tmproto.SignedMsgType, valSet *ValidatorSet) *VoteSet {
+func NewVoteSet(chainID string, height uint64, round uint32, signedMsgType kproto.SignedMsgType, valSet *ValidatorSet) *VoteSet {
 	if height == 0 {
 		panic("Cannot make VoteSet for height == 0, doesn't make sense.")
 	}
@@ -313,7 +313,7 @@ func (voteSet *VoteSet) GetRound() uint32 {
 	return voteSet.round
 }
 
-func (voteSet *VoteSet) Type() tmproto.SignedMsgType {
+func (voteSet *VoteSet) Type() kproto.SignedMsgType {
 	if voteSet == nil {
 		return 0x00
 	}
@@ -363,7 +363,7 @@ func (voteSet *VoteSet) IsCommit() bool {
 	if voteSet == nil {
 		return false
 	}
-	if voteSet.signedMsgType != tmproto.PrecommitType {
+	if voteSet.signedMsgType != kproto.PrecommitType {
 		return false
 	}
 	voteSet.mtx.Lock()
@@ -444,7 +444,7 @@ func (voteSet *VoteSet) sumTotalFrac() (uint64, uint64, float64) {
 
 // MakeCommit ...
 func (voteSet *VoteSet) MakeCommit() *Commit {
-	if voteSet.signedMsgType != tmproto.PrecommitType {
+	if voteSet.signedMsgType != kproto.PrecommitType {
 		cmn.PanicSanity("Cannot MakeCommit() unless VoteSet.Type is VoteTypePrecommit")
 	}
 	voteSet.mtx.Lock()
@@ -512,7 +512,7 @@ func (vs *blockVotes) getByIndex(index int) *Vote {
 type VoteSetReader interface {
 	GetHeight() uint64
 	GetRound() uint32
-	Type() tmproto.SignedMsgType
+	Type() kproto.SignedMsgType
 	Size() int
 	BitArray() *cmn.BitArray
 	GetByIndex(uint32) *Vote

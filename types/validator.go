@@ -26,7 +26,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 // ErrTotalVotingPowerOverflow is returned if the total voting power of the
@@ -150,7 +150,7 @@ func ValidatorListString(vals []*Validator) string {
 
 // FromProto sets a protobuf Validator to the given pointer.
 // It returns an error if the public key is invalid.
-func ValidatorFromProto(vp *tmproto.Validator) (*Validator, error) {
+func ValidatorFromProto(vp *kproto.Validator) (*Validator, error) {
 	if vp == nil {
 		return nil, errors.New("nil validator")
 	}
@@ -200,12 +200,12 @@ func (v *Validator) GetProposerPriority() int64 {
 }
 
 // ToProto converts Valiator to protobuf
-func (v *Validator) ToProto() (*tmproto.Validator, error) {
+func (v *Validator) ToProto() (*kproto.Validator, error) {
 	if v == nil {
 		return nil, errors.New("nil validator")
 	}
 
-	vp := tmproto.Validator{
+	vp := kproto.Validator{
 		Address:          v.Address.Bytes(),
 		VotingPower:      v.VotingPower,
 		ProposerPriority: v.ProposerPriority,

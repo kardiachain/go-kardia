@@ -26,7 +26,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 //-------------------------------------
@@ -137,13 +137,13 @@ func (cs CommitSig) ValidateBasic() error {
 }
 
 // ToProto converts CommitSig to protobuf
-func (cs *CommitSig) ToProto() *tmproto.CommitSig {
+func (cs *CommitSig) ToProto() *kproto.CommitSig {
 	if cs == nil {
 		return nil
 	}
 
-	return &tmproto.CommitSig{
-		BlockIdFlag:      tmproto.BlockIDFlag(cs.BlockIDFlag),
+	return &kproto.CommitSig{
+		BlockIdFlag:      kproto.BlockIDFlag(cs.BlockIDFlag),
 		ValidatorAddress: cs.ValidatorAddress.Bytes(),
 		Timestamp:        cs.Timestamp,
 		Signature:        cs.Signature,
@@ -152,7 +152,7 @@ func (cs *CommitSig) ToProto() *tmproto.CommitSig {
 
 // FromProto sets a protobuf CommitSig to the given pointer.
 // It returns an error if the CommitSig is invalid.
-func (cs *CommitSig) FromProto(csp tmproto.CommitSig) error {
+func (cs *CommitSig) FromProto(csp kproto.CommitSig) error {
 
 	cs.BlockIDFlag = BlockIDFlag(csp.BlockIdFlag)
 	cs.ValidatorAddress = common.BytesToAddress(csp.ValidatorAddress)
@@ -193,7 +193,7 @@ func NewCommit(height uint64, round uint32, blockID BlockID, commitSigs []Commit
 // Inverse of VoteSet.MakeCommit().
 func CommitToVoteSet(chainID string, commit *Commit, vals *ValidatorSet) *VoteSet {
 	height, round := commit.GetHeight(), commit.GetRound()
-	voteSet := NewVoteSet(chainID, height, round, tmproto.PrecommitType, vals)
+	voteSet := NewVoteSet(chainID, height, round, kproto.PrecommitType, vals)
 	for idx, commitSig := range commit.Signatures {
 		if commitSig.Absent() {
 			continue // OK, some precommits can be missing.
@@ -221,7 +221,7 @@ func (commit *Commit) VoteSignBytes(chainID string, valIdx uint32) []byte {
 func (commit *Commit) GetVote(valIdx uint32) *Vote {
 	commitSig := commit.Signatures[valIdx]
 	return &Vote{
-		Type:             tmproto.PrecommitType,
+		Type:             kproto.PrecommitType,
 		Height:           commit.Height,
 		Round:            commit.Round,
 		BlockID:          commitSig.BlockID(commit.BlockID),
@@ -250,8 +250,8 @@ func (commit *Commit) GetRound() uint32 {
 }
 
 // Type returns the vote type of the commit, which is always VoteTypePrecommit
-func (commit *Commit) Type() tmproto.SignedMsgType {
-	return tmproto.PrecommitType
+func (commit *Commit) Type() kproto.SignedMsgType {
+	return kproto.PrecommitType
 }
 
 // Size returns the number of votes in the commit
@@ -344,13 +344,13 @@ func (commit *Commit) String() string {
 }
 
 // ToProto converts Commit to protobuf
-func (commit *Commit) ToProto() *tmproto.Commit {
+func (commit *Commit) ToProto() *kproto.Commit {
 	if commit == nil {
 		return nil
 	}
 
-	c := new(tmproto.Commit)
-	sigs := make([]tmproto.CommitSig, len(commit.Signatures))
+	c := new(kproto.Commit)
+	sigs := make([]kproto.CommitSig, len(commit.Signatures))
 	for i := range commit.Signatures {
 		sigs[i] = *commit.Signatures[i].ToProto()
 	}
@@ -365,7 +365,7 @@ func (commit *Commit) ToProto() *tmproto.Commit {
 
 // FromProto sets a protobuf Commit to the given pointer.
 // It returns an error if the commit is invalid.
-func CommitFromProto(cp *tmproto.Commit) (*Commit, error) {
+func CommitFromProto(cp *kproto.Commit) (*Commit, error) {
 	if cp == nil {
 		return nil, errors.New("nil Commit")
 	}

@@ -38,7 +38,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -454,7 +454,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 	// A precommit for the previous height?
 	// These come in while we wait timeoutCommit
 	if vote.Height+1 == cs.Height {
-		if !(cs.Step == cstypes.RoundStepNewHeight && vote.Type == tmproto.PrecommitType) {
+		if !(cs.Step == cstypes.RoundStepNewHeight && vote.Type == kproto.PrecommitType) {
 			return added, ErrVoteHeightMismatch
 		}
 		added, err = cs.LastCommit.AddVote(vote)
@@ -495,7 +495,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 	cs.evsw.FireEvent(types.EventVote, vote)
 
 	switch vote.Type {
-	case tmproto.PrevoteType:
+	case kproto.PrevoteType:
 		prevotes := cs.Votes.Prevotes(vote.Round)
 
 		cs.logger.Info("Added to prevote", "vote", vote, "prevotes", prevotes.StringShort())
@@ -565,7 +565,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 			}
 		}
 
-	case tmproto.PrecommitType:
+	case kproto.PrecommitType:
 		precommits := cs.Votes.Precommits(vote.Round)
 
 		cs.logger.Info("Added to precommit", "vote", vote, "precommits", precommits.StringShort())
@@ -606,7 +606,7 @@ func (cs *ConsensusState) scriptedVote(height int, round int, voteType int) (int
 }
 
 // Signs vote.
-func (cs *ConsensusState) signVote(signedMsgType tmproto.SignedMsgType, hash cmn.Hash, header types.PartSetHeader) (*types.Vote, error) {
+func (cs *ConsensusState) signVote(signedMsgType kproto.SignedMsgType, hash cmn.Hash, header types.PartSetHeader) (*types.Vote, error) {
 	addr := cs.privValidator.GetAddress()
 	valIndex, _ := cs.Validators.GetByAddress(addr)
 
@@ -645,7 +645,7 @@ func (cs *ConsensusState) voteTime() time.Time {
 }
 
 // Signs the vote and publish on internalMsgQueue
-func (cs *ConsensusState) signAddVote(signedMsgType tmproto.SignedMsgType, hash cmn.Hash, header types.PartSetHeader) *types.Vote {
+func (cs *ConsensusState) signAddVote(signedMsgType kproto.SignedMsgType, hash cmn.Hash, header types.PartSetHeader) *types.Vote {
 	// if we don't have a key or we're not in the validator set, do nothing
 	if cs.privValidator == nil || !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
 		return nil
@@ -711,7 +711,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 			return added, err
 		}
 
-		var pbb = new(tmproto.Block)
+		var pbb = new(kproto.Block)
 		err = proto.Unmarshal(bz, pbb)
 		if err != nil {
 			return added, err
@@ -920,14 +920,14 @@ func (cs *ConsensusState) doPrevote(height uint64, round uint32) {
 	// If a block is locked, prevote that.
 	if cs.LockedBlock != nil {
 		logger.Info("enterPrevote: Block was locked")
-		cs.signAddVote(tmproto.PrevoteType, cs.LockedBlock.Hash(), cs.LockedBlockParts.Header())
+		cs.signAddVote(kproto.PrevoteType, cs.LockedBlock.Hash(), cs.LockedBlockParts.Header())
 		return
 	}
 
 	// If ProposalBlock is nil, prevote nil.
 	if cs.ProposalBlock == nil {
 		logger.Info("enterPrevote: ProposalBlock is nil")
-		cs.signAddVote(tmproto.PrevoteType, cmn.Hash{}, types.PartSetHeader{})
+		cs.signAddVote(kproto.PrevoteType, cmn.Hash{}, types.PartSetHeader{})
 		return
 	}
 
@@ -936,7 +936,7 @@ func (cs *ConsensusState) doPrevote(height uint64, round uint32) {
 	if err := cs.blockExec.ValidateBlock(cs.state, cs.ProposalBlock); err != nil {
 		// ProposalBlock is invalid, prevote nil.
 		logger.Error("enterPrevote: ProposalBlock is invalid", "err", err)
-		cs.signAddVote(tmproto.PrevoteType, cmn.Hash{}, types.PartSetHeader{})
+		cs.signAddVote(kproto.PrevoteType, cmn.Hash{}, types.PartSetHeader{})
 		return
 	}
 
@@ -944,7 +944,7 @@ func (cs *ConsensusState) doPrevote(height uint64, round uint32) {
 	// NOTE: the proposal signature is validated when it is received,
 	// and the proposal block is validated as it is received (against the merkle hash in the proposal)
 	logger.Info("enterPrevote: ProposalBlock is valid")
-	cs.signAddVote(tmproto.PrevoteType, cs.ProposalBlock.Hash(), cs.ProposalBlockParts.Header())
+	cs.signAddVote(kproto.PrevoteType, cs.ProposalBlock.Hash(), cs.ProposalBlockParts.Header())
 }
 
 // Enter: any +2/3 prevotes at next round.
@@ -1003,7 +1003,7 @@ func (cs *ConsensusState) enterPrecommit(height uint64, round uint32) {
 		} else {
 			logger.Info("enterPrecommit: No +2/3 prevotes during enterPrecommit. Precommitting nil.")
 		}
-		cs.signAddVote(tmproto.PrecommitType, cmn.Hash{}, types.PartSetHeader{})
+		cs.signAddVote(kproto.PrecommitType, cmn.Hash{}, types.PartSetHeader{})
 		return
 	}
 
@@ -1027,7 +1027,7 @@ func (cs *ConsensusState) enterPrecommit(height uint64, round uint32) {
 			cs.LockedBlockParts = nil
 			cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 		}
-		cs.signAddVote(tmproto.PrecommitType, cmn.Hash{}, types.PartSetHeader{})
+		cs.signAddVote(kproto.PrecommitType, cmn.Hash{}, types.PartSetHeader{})
 		return
 	}
 
@@ -1038,7 +1038,7 @@ func (cs *ConsensusState) enterPrecommit(height uint64, round uint32) {
 		logger.Info("enterPrecommit: +2/3 prevoted locked block. Relocking")
 		cs.LockedRound = round
 		cs.eventBus.PublishEventRelock(cs.RoundStateEvent())
-		cs.signAddVote(tmproto.PrecommitType, blockID.Hash, blockID.PartsHeader)
+		cs.signAddVote(kproto.PrecommitType, blockID.Hash, blockID.PartsHeader)
 		return
 	}
 
@@ -1049,7 +1049,7 @@ func (cs *ConsensusState) enterPrecommit(height uint64, round uint32) {
 		cs.LockedBlock = cs.ProposalBlock
 		cs.LockedBlockParts = cs.ProposalBlockParts
 		cs.eventBus.PublishEventLock(cs.RoundStateEvent())
-		cs.signAddVote(tmproto.PrecommitType, blockID.Hash, blockID.PartsHeader)
+		cs.signAddVote(kproto.PrecommitType, blockID.Hash, blockID.PartsHeader)
 		return
 	}
 
@@ -1065,7 +1065,7 @@ func (cs *ConsensusState) enterPrecommit(height uint64, round uint32) {
 		cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
 	}
 	cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
-	cs.signAddVote(tmproto.PrecommitType, cmn.Hash{}, types.PartSetHeader{})
+	cs.signAddVote(kproto.PrecommitType, cmn.Hash{}, types.PartSetHeader{})
 }
 
 // Enter: any +2/3 precommits for next round.

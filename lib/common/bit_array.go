@@ -24,7 +24,7 @@ import (
 	"strings"
 	"sync"
 
-	tmprotobits "github.com/kardiachain/go-kardiamain/proto/kardiachain/libs/bits"
+	kprotobits "github.com/kardiachain/go-kardiamain/proto/kardiachain/libs/bits"
 )
 
 type BitArray struct {
@@ -336,19 +336,19 @@ func (bA *BitArray) Update(o *BitArray) {
 }
 
 // ToProto converts BitArray to protobuf
-func (bA *BitArray) ToProto() *tmprotobits.BitArray {
+func (bA *BitArray) ToProto() *kprotobits.BitArray {
 	if bA == nil || len(bA.Elems) == 0 {
 		return nil
 	}
 
-	return &tmprotobits.BitArray{
+	return &kprotobits.BitArray{
 		Bits:  int64(bA.Bits),
 		Elems: bA.Elems,
 	}
 }
 
 // FromProto sets a protobuf BitArray to the given pointer.
-func (bA *BitArray) FromProto(protoBitArray *tmprotobits.BitArray) {
+func (bA *BitArray) FromProto(protoBitArray *kprotobits.BitArray) {
 	if protoBitArray == nil {
 		bA = nil
 		return

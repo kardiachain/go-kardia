@@ -25,7 +25,7 @@ import (
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 // Proposal defines a block proposal for the consensus.
@@ -61,7 +61,7 @@ func NewProposal(height uint64, round uint32, polRound uint32, polBlockID BlockI
 // devices that rely on this encoding.
 //
 // See CanonicalizeProposal
-func ProposalSignBytes(chainID string, p *tmproto.Proposal) []byte {
+func ProposalSignBytes(chainID string, p *kproto.Proposal) []byte {
 	pb := CreateCanonicalProposal(chainID, p)
 	bz, err := protoio.MarshalDelimited(&pb)
 	if err != nil {
@@ -107,11 +107,11 @@ func (p *Proposal) ValidateBasic() error {
 }
 
 // ToProto converts Proposal to protobuf
-func (p *Proposal) ToProto() *tmproto.Proposal {
+func (p *Proposal) ToProto() *kproto.Proposal {
 	if p == nil {
-		return &tmproto.Proposal{}
+		return &kproto.Proposal{}
 	}
-	pb := new(tmproto.Proposal)
+	pb := new(kproto.Proposal)
 
 	pb.BlockID = p.POLBlockID.ToProto()
 	//pb.Type = p.Type
@@ -126,7 +126,7 @@ func (p *Proposal) ToProto() *tmproto.Proposal {
 
 // FromProto sets a protobuf Proposal to the given pointer.
 // It returns an error if the proposal is invalid.
-func ProposalFromProto(pp *tmproto.Proposal) (*Proposal, error) {
+func ProposalFromProto(pp *kproto.Proposal) (*Proposal, error) {
 	if pp == nil {
 		return nil, errors.New("nil proposal")
 	}

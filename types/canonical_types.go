@@ -19,22 +19,22 @@
 package types
 
 import (
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 //-----------------------------------
 // Canonicalize the structs
 
-func CanonicalizeBlockID(bid tmproto.BlockID) *tmproto.CanonicalBlockID {
+func CanonicalizeBlockID(bid kproto.BlockID) *kproto.CanonicalBlockID {
 	rbid, err := BlockIDFromProto(&bid)
 	if err != nil {
 		panic(err)
 	}
-	var cbid *tmproto.CanonicalBlockID
+	var cbid *kproto.CanonicalBlockID
 	if rbid == nil || rbid.IsZero() {
 		cbid = nil
 	} else {
-		cbid = &tmproto.CanonicalBlockID{
+		cbid = &kproto.CanonicalBlockID{
 			Hash:          bid.Hash,
 			PartSetHeader: CanonicalizePartSetHeader(bid.PartSetHeader),
 		}
@@ -44,14 +44,14 @@ func CanonicalizeBlockID(bid tmproto.BlockID) *tmproto.CanonicalBlockID {
 }
 
 // CanonicalizeVote transforms the given PartSetHeader to a CanonicalPartSetHeader.
-func CanonicalizePartSetHeader(psh tmproto.PartSetHeader) tmproto.CanonicalPartSetHeader {
-	return tmproto.CanonicalPartSetHeader(psh)
+func CanonicalizePartSetHeader(psh kproto.PartSetHeader) kproto.CanonicalPartSetHeader {
+	return kproto.CanonicalPartSetHeader(psh)
 }
 
 // ------- Helper functions to create canonical types --------------
-func CreateCanonicalProposal(chainID string, proposal *tmproto.Proposal) tmproto.CanonicalProposal {
-	return tmproto.CanonicalProposal{
-		Type:      tmproto.ProposalType,
+func CreateCanonicalProposal(chainID string, proposal *kproto.Proposal) kproto.CanonicalProposal {
+	return kproto.CanonicalProposal{
+		Type:      kproto.ProposalType,
 		Height:    proposal.Height, // encoded as sfixed64
 		Round:     proposal.Round,  // encoded as sfixed64
 		POLRound:  proposal.PolRound,
@@ -61,10 +61,10 @@ func CreateCanonicalProposal(chainID string, proposal *tmproto.Proposal) tmproto
 	}
 }
 
-func CreateCanonicalVote(chainID string, vote *tmproto.Vote) tmproto.CanonicalVote {
-	return tmproto.CanonicalVote{
+func CreateCanonicalVote(chainID string, vote *kproto.Vote) kproto.CanonicalVote {
+	return kproto.CanonicalVote{
 		ChainID:   chainID,
-		Type:      tmproto.PrevoteType,
+		Type:      kproto.PrevoteType,
 		BlockID:   CanonicalizeBlockID(vote.BlockID),
 		Height:    vote.Height,
 		Round:     vote.Round,

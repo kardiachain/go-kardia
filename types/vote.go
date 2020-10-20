@@ -27,7 +27,7 @@ import (
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 var (
@@ -60,20 +60,20 @@ func NewConflictingVoteError(val *Validator, voteA, voteB *Vote) *ErrVoteConflic
 }
 
 // IsVoteTypeValid returns true if t is a valid vote type.
-func IsVoteTypeValid(t tmproto.SignedMsgType) bool {
+func IsVoteTypeValid(t kproto.SignedMsgType) bool {
 	switch t {
-	case tmproto.PrevoteType, tmproto.PrecommitType:
+	case kproto.PrevoteType, kproto.PrecommitType:
 		return true
 	default:
 		return false
 	}
 }
-func GetReadableVoteTypeString(type_ tmproto.SignedMsgType) string {
+func GetReadableVoteTypeString(type_ kproto.SignedMsgType) string {
 	var typeString string
 	switch type_ {
-	case tmproto.PrevoteType:
+	case kproto.PrevoteType:
 		typeString = "Prevote"
-	case tmproto.PrecommitType:
+	case kproto.PrecommitType:
 		typeString = "Precommit"
 	default:
 		cmn.PanicSanity("Unknown vote type")
@@ -89,7 +89,7 @@ type Vote struct {
 	Height           uint64                `json:"height"`
 	Round            uint32                `json:"round"`
 	Timestamp        time.Time             `json:"timestamp"`
-	Type             tmproto.SignedMsgType `json:"type"`
+	Type             kproto.SignedMsgType `json:"type"`
 	BlockID          BlockID               `json:"block_id"` // zero if vote is nil.
 	Signature        []byte                `json:"signature"`
 }
@@ -131,7 +131,7 @@ func (vote *Vote) CommitSig() CommitSig {
 // devices that rely on this encoding.
 //
 // See CanonicalizeVote
-func VoteSignBytes(chainID string, vote *tmproto.Vote) []byte {
+func VoteSignBytes(chainID string, vote *kproto.Vote) []byte {
 	pb := CreateCanonicalVote(chainID, vote)
 	bz, err := protoio.MarshalDelimited(&pb)
 	if err != nil {
@@ -213,12 +213,12 @@ func (vote *Vote) ValidateBasic() error {
 
 // ToProto converts the handwritten type to proto generated type
 // return type, nil if everything converts safely, otherwise nil, error
-func (vote *Vote) ToProto() *tmproto.Vote {
+func (vote *Vote) ToProto() *kproto.Vote {
 	if vote == nil {
 		return nil
 	}
 
-	return &tmproto.Vote{
+	return &kproto.Vote{
 		Type:             vote.Type,
 		Height:           vote.Height,
 		Round:            vote.Round,
@@ -232,7 +232,7 @@ func (vote *Vote) ToProto() *tmproto.Vote {
 
 // FromProto converts a proto generetad type to a handwritten type
 // return type, nil if everything converts safely, otherwise nil, error
-func VoteFromProto(pv *tmproto.Vote) (*Vote, error) {
+func VoteFromProto(pv *kproto.Vote) (*Vote, error) {
 	if pv == nil {
 		return nil, errors.New("nil vote")
 	}

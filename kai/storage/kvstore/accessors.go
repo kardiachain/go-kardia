@@ -32,7 +32,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -231,7 +231,7 @@ func CommonReadHeadHeaderHash(db kaidb.Reader) common.Hash {
 
 // CommonReadBody retrieves the commit at a given height.
 func CommonReadCommit(db kaidb.Reader, height uint64) *types.Commit {
-	var pbc = new(tmproto.Commit)
+	var pbc = new(kproto.Commit)
 	bz, _ := db.Get(commitKey(height))
 	if len(bz) == 0 {
 		return nil
@@ -561,7 +561,7 @@ func CommonCheckTxHash(db kaidb.Reader, hash *common.Hash) bool {
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
 func ReadBlockMeta(db kaidb.Reader, height uint64) *types.BlockMeta {
-	var pbbm = new(tmproto.BlockMeta)
+	var pbbm = new(kproto.BlockMeta)
 	metaBytes, _ := db.Get(blockMetaKey(height))
 
 	if len(metaBytes) == 0 {
@@ -570,7 +570,7 @@ func ReadBlockMeta(db kaidb.Reader, height uint64) *types.BlockMeta {
 
 	err := proto.Unmarshal(metaBytes, pbbm)
 	if err != nil {
-		panic(fmt.Errorf("unmarshal to tmproto.BlockMeta: %w", err))
+		panic(fmt.Errorf("unmarshal to kproto.BlockMeta: %w", err))
 	}
 	blockMeta, err := types.BlockMetaFromProto(pbbm)
 	if err != nil {
@@ -581,7 +581,7 @@ func ReadBlockMeta(db kaidb.Reader, height uint64) *types.BlockMeta {
 }
 
 func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
-	var pbc = new(tmproto.Commit)
+	var pbc = new(kproto.Commit)
 	commitBytes, _ := db.Get(seenCommitKey(height))
 
 	if len(commitBytes) == 0 {
@@ -612,7 +612,7 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 		part := ReadBlockPart(db, hash, height, i)
 		buf = append(buf, part.Bytes...)
 	}
-	pbb := new(tmproto.Block)
+	pbb := new(kproto.Block)
 	err := proto.Unmarshal(buf, pbb)
 	if err != nil {
 		// NOTE: The existence of meta should imply the existence of the
@@ -636,7 +636,7 @@ func CommonReadHeader(db kaidb.Reader, hash common.Hash, height uint64) *types.H
 
 // ReadBlockPart returns the block part fo the given height and index
 func ReadBlockPart(db kaidb.Reader, hash common.Hash, height uint64, index int) *types.Part {
-	var pbpart = new(tmproto.Part)
+	var pbpart = new(kproto.Part)
 	partBytes, _ := db.Get(blockPartKey(height, index))
 
 	if len(partBytes) == 0 {
@@ -645,7 +645,7 @@ func ReadBlockPart(db kaidb.Reader, hash common.Hash, height uint64, index int) 
 
 	err := proto.Unmarshal(partBytes, pbpart)
 	if err != nil {
-		panic(fmt.Errorf("unmarshal to tmproto.Part failed: %w", err))
+		panic(fmt.Errorf("unmarshal to kproto.Part failed: %w", err))
 	}
 	part, err := types.PartFromProto(pbpart)
 	if err != nil {

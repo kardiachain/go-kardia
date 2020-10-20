@@ -37,7 +37,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/math"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/trie"
 )
 
@@ -117,12 +117,12 @@ func (h *Header) String() string {
 }
 
 // ToProto converts Header to protobuf
-func (h *Header) ToProto() *tmproto.Header {
+func (h *Header) ToProto() *kproto.Header {
 	if h == nil {
 		return nil
 	}
 
-	return &tmproto.Header{
+	return &kproto.Header{
 		Height:             h.Height,
 		Time:               h.Time,
 		LastBlockId:        h.LastBlockID.ToProto(),
@@ -141,7 +141,7 @@ func (h *Header) ToProto() *tmproto.Header {
 
 // FromProto sets a protobuf Header to the given pointer.
 // It returns an error if the header is invalid.
-func HeaderFromProto(ph *tmproto.Header) (Header, error) {
+func HeaderFromProto(ph *kproto.Header) (Header, error) {
 	if ph == nil {
 		return Header{}, errors.New("nil Header")
 	}
@@ -514,12 +514,12 @@ func (b *Block) Hash() common.Hash {
 }
 
 // ToProto converts Block to protobuf
-func (b *Block) ToProto() (*tmproto.Block, error) {
+func (b *Block) ToProto() (*kproto.Block, error) {
 	if b == nil {
 		return nil, errors.New("nil Block")
 	}
 
-	pb := new(tmproto.Block)
+	pb := new(kproto.Block)
 
 	pb.Header = *b.header.ToProto()
 	pb.LastCommit = b.lastCommit.ToProto()
@@ -536,7 +536,7 @@ func (b *Block) ToProto() (*tmproto.Block, error) {
 
 // FromProto sets a protobuf Block to the given pointer.
 // It returns an error if the block is invalid.
-func BlockFromProto(bp *tmproto.Block) (*Block, error) {
+func BlockFromProto(bp *kproto.Block) (*Block, error) {
 	if bp == nil {
 		return nil, errors.New("nil block")
 	}
@@ -609,12 +609,12 @@ func (blockID BlockID) ValidateBasic() error {
 }
 
 // ToProto converts BlockID to protobuf
-func (blockID *BlockID) ToProto() tmproto.BlockID {
+func (blockID *BlockID) ToProto() kproto.BlockID {
 	if blockID == nil {
-		return tmproto.BlockID{}
+		return kproto.BlockID{}
 	}
 
-	return tmproto.BlockID{
+	return kproto.BlockID{
 		Hash:          blockID.Hash.Bytes(),
 		PartSetHeader: blockID.PartsHeader.ToProto(),
 	}
@@ -627,7 +627,7 @@ func (blockID BlockID) IsComplete() bool {
 
 // FromProto sets a protobuf BlockID to the given pointer.
 // It returns an error if the block id is invalid.
-func BlockIDFromProto(bID *tmproto.BlockID) (*BlockID, error) {
+func BlockIDFromProto(bID *kproto.BlockID) (*BlockID, error) {
 	if bID == nil {
 		return nil, errors.New("nil BlockID")
 	}
@@ -741,13 +741,13 @@ func (data *EvidenceData) StringIndented(indent string) string {
 }
 
 // ToProto converts EvidenceData to protobuf
-func (data *EvidenceData) ToProto() (*tmproto.EvidenceData, error) {
+func (data *EvidenceData) ToProto() (*kproto.EvidenceData, error) {
 	if data == nil {
 		return nil, errors.New("nil evidence data")
 	}
 
-	evi := new(tmproto.EvidenceData)
-	eviBzs := make([]tmproto.Evidence, len(data.Evidence))
+	evi := new(kproto.EvidenceData)
+	eviBzs := make([]kproto.Evidence, len(data.Evidence))
 	for i := range data.Evidence {
 		protoEvi, err := EvidenceToProto(data.Evidence[i])
 		if err != nil {
@@ -761,7 +761,7 @@ func (data *EvidenceData) ToProto() (*tmproto.EvidenceData, error) {
 }
 
 // FromProto sets a protobuf EvidenceData to the given pointer.
-func (data *EvidenceData) FromProto(eviData *tmproto.EvidenceData) error {
+func (data *EvidenceData) FromProto(eviData *kproto.EvidenceData) error {
 	if eviData == nil {
 		return errors.New("nil evidenceData")
 	}

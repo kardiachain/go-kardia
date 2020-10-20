@@ -26,7 +26,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	cState "github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/stretchr/testify/assert"
 )
@@ -53,8 +53,8 @@ func initializeValidatorState(valAddr common.Address, height uint64) kaidb.Datab
 		Validators:                  valSet,
 		NextValidators:              nextVal,
 		LastHeightValidatorsChanged: 1,
-		ConsensusParams: tmproto.ConsensusParams{
-			Evidence: tmproto.EvidenceParams{
+		ConsensusParams: kproto.ConsensusParams{
+			Evidence: kproto.EvidenceParams{
 				MaxAgeNumBlocks: 10000,
 				MaxAgeDuration:  48 * 60 * 60,
 			},

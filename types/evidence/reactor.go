@@ -29,7 +29,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 
 	ep "github.com/kardiachain/go-kardiamain/proto/kardiachain/evidence"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 const (
@@ -224,7 +224,7 @@ type PeerState interface {
 // encodemsg takes a array of evidence
 // returns the byte encoding of the List Message
 func encodeMsg(evis []types.Evidence) ([]byte, error) {
-	evi := make([]*tmproto.Evidence, len(evis))
+	evi := make([]*kproto.Evidence, len(evis))
 	for i := 0; i < len(evis); i++ {
 		ev, err := types.EvidenceToProto(evis[i])
 		if err != nil {

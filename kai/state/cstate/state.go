@@ -27,7 +27,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 
 	tmstate "github.com/kardiachain/go-kardiamain/proto/kardiachain/state"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -66,7 +66,7 @@ type LastestBlockState struct {
 
 	LastHeightConsensusParamsChanged uint64
 	AppHash                          common.Hash
-	ConsensusParams                  tmproto.ConsensusParams
+	ConsensusParams                  kproto.ConsensusParams
 	// TODO(namdoh): Add consensus parameters used for validating blocks.
 
 	// Merkle root of the results from executing prev block

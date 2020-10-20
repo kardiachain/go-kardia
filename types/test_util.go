@@ -12,7 +12,7 @@ package types
 // 			ValidatorIndex:   uint32(i),
 // 			Height:           height,
 // 			Round:            round,
-// 			Type:             tmproto.PrecommitType,
+// 			Type:             kproto.PrecommitType,
 // 			BlockID:          blockID,
 // 			Timestamp:        now,
 // 		}
@@ -26,7 +26,7 @@ package types
 // 	return voteSet.MakeCommit(), nil
 // }
 
-// func signAddVote(privVal PrivValidator, vote *tmproto.Vote, voteSet *VoteSet) (signed bool, err error) {
+// func signAddVote(privVal PrivValidator, vote *kproto.Vote, voteSet *VoteSet) (signed bool, err error) {
 // 	err = privVal.SignVote(voteSet.ChainID(), vote)
 // 	if err != nil {
 // 		return false, err

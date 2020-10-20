@@ -32,7 +32,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/lib/math"
 	tmstate "github.com/kardiachain/go-kardiamain/proto/kardiachain/state"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 const (
@@ -234,8 +234,8 @@ func saveValidatorsInfo(db kaidb.Database, height, lastHeightChanged uint64, val
 //-----------------------------------------------------------------------------
 
 // LoadConsensusParams loads the ConsensusParams for a given height.
-func LoadConsensusParams(db kaidb.Database, height uint64) (tmproto.ConsensusParams, error) {
-	empty := tmproto.ConsensusParams{}
+func LoadConsensusParams(db kaidb.Database, height uint64) (kproto.ConsensusParams, error) {
+	empty := kproto.ConsensusParams{}
 
 	paramsInfo, err := loadConsensusParamsInfo(db, height)
 	if err != nil {
@@ -281,7 +281,7 @@ func loadConsensusParamsInfo(db kaidb.Database, height uint64) (*tmstate.Consens
 // It should be called from s.Save(), right before the state itself is persisted.
 // If the consensus params did not change after processing the latest block,
 // only the last height for which they changed is persisted.
-func saveConsensusParamsInfo(db kaidb.Database, nextHeight, changeHeight uint64, params tmproto.ConsensusParams) {
+func saveConsensusParamsInfo(db kaidb.Database, nextHeight, changeHeight uint64, params kproto.ConsensusParams) {
 	paramsInfo := &tmstate.ConsensusParamsInfo{
 		LastHeightChanged: changeHeight,
 	}

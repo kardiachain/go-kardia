@@ -26,7 +26,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 // PrivValidator defines the functionality of a local KAI validator
@@ -35,8 +35,8 @@ type PrivValidator interface {
 	// TODO: Extend the interface to return errors too.
 	GetPubKey() ecdsa.PublicKey
 	GetAddress() common.Address
-	SignVote(chainID string, vote *tmproto.Vote) error
-	SignProposal(chainID string, proposal *tmproto.Proposal) error
+	SignVote(chainID string, vote *kproto.Vote) error
+	SignProposal(chainID string, proposal *kproto.Proposal) error
 }
 
 // PrivValidatorsByAddress ...
@@ -82,7 +82,7 @@ func (privVal *DefaultPrivValidator) GetPrivKey() *ecdsa.PrivateKey {
 	return privVal.privKey
 }
 
-func (privVal *DefaultPrivValidator) SignVote(chainID string, vote *tmproto.Vote) error {
+func (privVal *DefaultPrivValidator) SignVote(chainID string, vote *kproto.Vote) error {
 	signBytes := VoteSignBytes(chainID, vote)
 	sig, err := crypto.Sign(crypto.Keccak256(signBytes), privVal.privKey)
 	if err != nil {
@@ -93,7 +93,7 @@ func (privVal *DefaultPrivValidator) SignVote(chainID string, vote *tmproto.Vote
 	return nil
 }
 
-func (privVal *DefaultPrivValidator) SignProposal(chainID string, proposal *tmproto.Proposal) error {
+func (privVal *DefaultPrivValidator) SignProposal(chainID string, proposal *kproto.Proposal) error {
 	signBytes := ProposalSignBytes(chainID, proposal)
 	sig, err := crypto.Sign(crypto.Keccak256(signBytes), privVal.privKey)
 	if err != nil {
@@ -148,7 +148,7 @@ func (pv *MockPV) GetAddress() common.Address {
 }
 
 // SignVote Implements PrivValidator.
-func (pv *MockPV) SignVote(chainID string, vote *tmproto.Vote) error {
+func (pv *MockPV) SignVote(chainID string, vote *kproto.Vote) error {
 	if pv.breakVoteSigning {
 		chainID = "1"
 	}
@@ -162,7 +162,7 @@ func (pv *MockPV) SignVote(chainID string, vote *tmproto.Vote) error {
 }
 
 // SignProposal Implements PrivValidator.
-func (pv *MockPV) SignProposal(chainID string, proposal *tmproto.Proposal) error {
+func (pv *MockPV) SignProposal(chainID string, proposal *kproto.Proposal) error {
 	if pv.breakProposalSigning {
 		chainID = "1000"
 	}

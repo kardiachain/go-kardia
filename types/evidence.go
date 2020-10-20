@@ -28,7 +28,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 // ErrEvidenceOverflow is for when there is too much evidence in a block.
@@ -104,7 +104,7 @@ type Evidence interface {
 
 // EvidenceToProto is a generalized function for encoding evidence that conforms to the
 // evidence interface to protobuf
-func EvidenceToProto(evidence Evidence) (*tmproto.Evidence, error) {
+func EvidenceToProto(evidence Evidence) (*kproto.Evidence, error) {
 	if evidence == nil {
 		return nil, errors.New("nil evidence")
 	}
@@ -112,8 +112,8 @@ func EvidenceToProto(evidence Evidence) (*tmproto.Evidence, error) {
 	switch evi := evidence.(type) {
 	case *DuplicateVoteEvidence:
 		pbev := evi.ToProto()
-		return &tmproto.Evidence{
-			Sum: &tmproto.Evidence_DuplicateVoteEvidence{
+		return &kproto.Evidence{
+			Sum: &kproto.Evidence_DuplicateVoteEvidence{
 				DuplicateVoteEvidence: pbev,
 			},
 		}, nil
@@ -125,13 +125,13 @@ func EvidenceToProto(evidence Evidence) (*tmproto.Evidence, error) {
 
 // EvidenceFromProto is a generalized function for decoding protobuf into the
 // evidence interface
-func EvidenceFromProto(evidence *tmproto.Evidence) (Evidence, error) {
+func EvidenceFromProto(evidence *kproto.Evidence) (Evidence, error) {
 	if evidence == nil {
 		return nil, errors.New("nil evidence")
 	}
 
 	switch evi := evidence.Sum.(type) {
-	case *tmproto.Evidence_DuplicateVoteEvidence:
+	case *kproto.Evidence_DuplicateVoteEvidence:
 		return DuplicateVoteEvidenceFromProto(evi.DuplicateVoteEvidence)
 	default:
 		return nil, errors.New("evidence is not recognized")
@@ -285,10 +285,10 @@ func (dve *DuplicateVoteEvidence) ValidateBasic() error {
 }
 
 // ToProto encodes DuplicateVoteEvidence to protobuf
-func (dve *DuplicateVoteEvidence) ToProto() *tmproto.DuplicateVoteEvidence {
+func (dve *DuplicateVoteEvidence) ToProto() *kproto.DuplicateVoteEvidence {
 	voteB := dve.VoteB.ToProto()
 	voteA := dve.VoteA.ToProto()
-	tp := tmproto.DuplicateVoteEvidence{
+	tp := kproto.DuplicateVoteEvidence{
 		VoteA: voteA,
 		VoteB: voteB,
 	}
@@ -296,7 +296,7 @@ func (dve *DuplicateVoteEvidence) ToProto() *tmproto.DuplicateVoteEvidence {
 }
 
 // DuplicateVoteEvidenceFromProto decodes protobuf into DuplicateVoteEvidence
-func DuplicateVoteEvidenceFromProto(pb *tmproto.DuplicateVoteEvidence) (*DuplicateVoteEvidence, error) {
+func DuplicateVoteEvidenceFromProto(pb *kproto.DuplicateVoteEvidence) (*DuplicateVoteEvidence, error) {
 	if pb == nil {
 		return nil, errors.New("nil duplicate vote evidence")
 	}

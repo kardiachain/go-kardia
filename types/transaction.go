@@ -29,7 +29,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
-	tmproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 //go:generate gencodec -type txdata -field-override txdataMarshaling -out gen_tx_json.go
@@ -270,8 +270,8 @@ func (s Transactions) Remove(indexes []int) Transactions {
 }
 
 // ToProto converts Data to protobuf
-func (s Transactions) ToProto() tmproto.Data {
-	tp := new(tmproto.Data)
+func (s Transactions) ToProto() kproto.Data {
+	tp := new(kproto.Data)
 	var err error
 	if len(s) > 0 {
 		txBzs := make([][]byte, len(s))
@@ -289,7 +289,7 @@ func (s Transactions) ToProto() tmproto.Data {
 
 // DataFromProto takes a protobuf representation of Data &
 // returns the native type.
-func DataFromProto(dp *tmproto.Data) (Transactions, error) {
+func DataFromProto(dp *kproto.Data) (Transactions, error) {
 	if dp == nil {
 		return Transactions{}, errors.New("nil data")
 	}
