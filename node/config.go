@@ -33,24 +33,19 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
-	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/rpc"
-	"github.com/kardiachain/go-kardiamain/types"
 )
 
 const (
-	datadirPrivateKey      = "nodekey"            // Path within the datadir to the node's private key
-	datadirDefaultKeyStore = "keystore"           // Path within the datadir to the keystore
-	datadirStaticNodes     = "static-nodes.json"  // Path within the datadir to the static node list
-	datadirTrustedNodes    = "trusted-nodes.json" // Path within the datadir to the trusted node list
-	datadirNodeDatabase    = "nodes"              // Path within the datadir to store the node infos
+	datadirPrivateKey      = "nodekey"  // Path within the datadir to the node's private key
+	datadirDefaultKeyStore = "keystore" // Path within the datadir to the keystore
+	datadirNodeDatabase    = "nodes"    // Path within the datadir to store the node infos
 )
 
 type MainChainConfig struct {
@@ -290,6 +285,8 @@ type Config struct {
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
 	NodeMetadata *NodeMetadata
+
+	Genesis *genesis.Genesis
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into
@@ -536,49 +533,6 @@ func NewNodeMetadata(privateKey *string, publicKey *string, votingPower uint64, 
 		node.PublicKey = pubKey
 	}
 	return node, nil
-}
-
-// GetValidatorSet gets list of validators from permission smc defined in config and a list of indices.
-func GetValidatorSet(bc base.BaseBlockChain, valIndexes []int) (*types.ValidatorSet, error) {
-	nodes, err := GetNodeMetadataFromSmc(&bc, valIndexes)
-	if err != nil {
-		return nil, err
-	}
-	validators := make([]*types.Validator, 0)
-	for i := 0; i < len(valIndexes); i++ {
-		if valIndexes[i] < 0 {
-			return nil, fmt.Errorf("value of validator must be greater than 0")
-		}
-		node := nodes[i]
-		validators = append(validators, types.NewValidator(crypto.PubkeyToAddress(*node.PublicKey), node.VotingPower))
-	}
-	// TODO(huny@): Pass the start/end block height of the initial set of validator from the
-	// genesis here. Default to 0 and 100000000000 for now.
-	validatorSet := types.NewValidatorSet(validators)
-	return validatorSet, nil
-}
-
-// GetNodeMetadataFromSmc gets nodes list from smartcontract
-func GetNodeMetadataFromSmc(bc *base.BaseBlockChain, valIndices []int) ([]NodeMetadata, error) {
-	util, err := permissioned.NewSmcPermissionUtil(*bc)
-	if err != nil {
-		return nil, err
-	}
-	nodes := make([]NodeMetadata, 0)
-	for _, idx := range valIndices {
-		// Get nodes by list of indices.
-		// Note: this is used for dev environement only.
-		pubString, _, listenAddr, votingPower, _, err := util.GetAdminNodeByIndex(int64(idx))
-		if err != nil {
-			return nil, err
-		}
-		n, err := NewNodeMetadata(nil, &pubString, votingPower.Uint64(), listenAddr)
-		if err != nil {
-			return nil, err
-		}
-		nodes = append(nodes, *n)
-	}
-	return nodes, nil
 }
 
 // GetNodeIndex returns the index of node based on last digits in string

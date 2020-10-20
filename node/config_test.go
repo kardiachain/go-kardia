@@ -26,9 +26,11 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 // Tests that datadirs can be successfully created, be them manually configured
@@ -41,21 +43,26 @@ func TestDatadirCreation(t *testing.T) {
 	}
 	defer os.RemoveAll(dir)
 
-	node, err := New(&Config{DataDir: dir})
+	cfg := &Config{
+		Name:    "demo",
+		DataDir: dir,
+		P2P:     configs.DefaultP2PConfig(),
+		Genesis: &genesis.Genesis{
+			ConsensusParams: &kaiproto.ConsensusParams{},
+		},
+	}
+
+	_, err = New(cfg)
 	if err != nil {
 		t.Fatalf("failed to create stack with existing datadir: %v", err)
 	}
-	if err := node.Close(); err != nil {
-		t.Fatalf("failed to close node: %v", err)
-	}
+
 	// Generate a long non-existing datadir path and check that it gets created by a node
 	dir = filepath.Join(dir, "a", "b", "c", "d", "e", "f")
-	node, err = New(&Config{DataDir: dir})
+	cfg.DataDir = dir
+	_, err = New(cfg)
 	if err != nil {
 		t.Fatalf("failed to create stack with creatable datadir: %v", err)
-	}
-	if err := node.Close(); err != nil {
-		t.Fatalf("failed to close node: %v", err)
 	}
 	// Verify that an impossible datadir fails creation
 	file, err := ioutil.TempFile("", "")
@@ -108,14 +115,19 @@ func TestNodeKeyPersistency(t *testing.T) {
 
 	keyfile := filepath.Join(dir, "unit-test", datadirPrivateKey)
 
-	config := &Config{Name: "unit-test", DataDir: dir, P2P: &configs.P2PConfig{}}
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		t.Fatalf("failed to generate one-shot node key: %v", err)
+	}
+
+	config := &Config{Name: "unit-test", DataDir: dir, P2P: &configs.P2PConfig{PrivateKey: key}}
 	config.NodeKey()
 	if _, err := os.Stat(filepath.Join(keyfile)); err == nil {
 		t.Fatalf("one-shot node key persisted to data directory")
 	}
 
 	// Configure a node with no preset key and ensure it is persisted this time
-	config = &Config{Name: "unit-test", DataDir: dir}
+	config = &Config{Name: "unit-test", DataDir: dir, P2P: &configs.P2PConfig{}}
 	config.NodeKey()
 	if _, err := os.Stat(keyfile); err != nil {
 		t.Fatalf("node key not persisted to data directory: %v", err)
@@ -129,7 +141,7 @@ func TestNodeKeyPersistency(t *testing.T) {
 	}
 
 	// Configure a new node and ensure the previously persisted key is loaded
-	config = &Config{Name: "unit-test", DataDir: dir}
+	config = &Config{Name: "unit-test", DataDir: dir, P2P: &configs.P2PConfig{}}
 	config.NodeKey()
 	blob2, err := ioutil.ReadFile(filepath.Join(keyfile))
 	if err != nil {
@@ -140,7 +152,7 @@ func TestNodeKeyPersistency(t *testing.T) {
 	}
 
 	// Configure ephemeral node and ensure no key is dumped locally
-	config = &Config{Name: "unit-test", DataDir: ""}
+	config = &Config{Name: "unit-test", DataDir: "", P2P: &configs.P2PConfig{}}
 	config.NodeKey()
 	if _, err := os.Stat(filepath.Join(".", "unit-test", datadirPrivateKey)); err == nil {
 		t.Fatalf("ephemeral node key persisted to disk")

@@ -29,7 +29,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
+	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 
@@ -86,7 +86,7 @@ type Node struct {
 }
 
 // New creates a new P2P node, ready for protocol registration.
-func New(conf *Config, genesis *genesis.Genesis) (*Node, error) {
+func New(conf *Config) (*Node, error) {
 	// Copy config and resolve the datadir so future changes to the current
 	// working directory don't affect the node.
 	confCopy := *conf
@@ -129,7 +129,7 @@ func New(conf *Config, genesis *genesis.Genesis) (*Node, error) {
 	}
 
 	if err := node.openDataDir(); err != nil {
-		return nil, fmt.Errorf("open data dir: %s", err)
+		return nil, err
 	}
 
 	db, err := node.OpenDatabase("chaindata", 16, 32, "chaindata")
@@ -138,7 +138,7 @@ func New(conf *Config, genesis *genesis.Genesis) (*Node, error) {
 	}
 
 	nodeKey := &p2p.NodeKey{PrivKey: conf.NodeKey()}
-	state, err := cstate.LoadStateFromDBOrGenesisDoc(db.DB(), genesis)
+	state, err := cstate.LoadStateFromDBOrGenesisDoc(db.DB(), conf.Genesis)
 	nodeInfo, err := makeNodeInfo(conf, nodeKey, state)
 	if err != nil {
 		return nil, err
@@ -730,7 +730,7 @@ func makeNodeInfo(
 		Version:       version.TMCoreSemVer,
 		Channels: []byte{
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
-			evidence.EvidenceChannel,
+			evidence.EvidenceChannel, tx_pool.TxpoolChannel,
 		},
 		Other: p2p.DefaultNodeInfoOther{
 			TxIndex: txIndexerStatus,
