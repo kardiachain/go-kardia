@@ -349,9 +349,9 @@ func (c *Config) Start() {
 		logger.Error("Cannot get node config", "err", err)
 		return
 	}
-
+	nodeConfig.Genesis = nodeConfig.MainChainConfig.Genesis
 	// init new node from nodeConfig
-	n, err := node.New(nodeConfig, nodeConfig.MainChainConfig.Genesis)
+	n, err := node.New(nodeConfig)
 	if err != nil {
 		logger.Error("Cannot create node", "err", err)
 		return

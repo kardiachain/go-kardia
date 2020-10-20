@@ -347,8 +347,10 @@ func (c *Config) Start() {
 	if err != nil {
 		panic(err)
 	}
+
+	nodeConfig.Genesis = genesis
 	// init new node from nodeConfig
-	n, err := node.New(nodeConfig, genesis)
+	n, err := node.New(nodeConfig)
 	if err != nil {
 		logger.Error("Cannot create node", "err", err)
 		return
