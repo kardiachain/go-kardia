@@ -22,7 +22,6 @@ package kai
 import (
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/consensus"
-	serviceconst "github.com/kardiachain/go-kardiamain/kai/service/const"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -101,7 +100,6 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 	}
-	logger.Info("Initialising protocol", "versions", serviceconst.ProtocolVersions, "network", config.NetworkId)
 
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 

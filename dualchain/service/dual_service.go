@@ -23,8 +23,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
-	"github.com/kardiachain/go-kardiamain/kai/service"
-	serviceconst "github.com/kardiachain/go-kardiamain/kai/service/const"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -54,7 +52,6 @@ type DualService struct {
 
 	// Handlers
 	eventPool           *event_pool.Pool
-	protocolManager     *service.ProtocolManager
 	blockchain          *blockchain.DualBlockChain
 	csManager           *consensus.ConsensusManager
 	dualBlockOperations *blockchain.DualBlockOperations
@@ -87,7 +84,6 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 	}
-	logger.Info("Initialising protocol", "versions", serviceconst.ProtocolVersions, "network", config.NetworkId)
 
 	// Create a new blockchain to attach to this GroupService struct
 	dualService.blockchain, err = blockchain.NewBlockChain(logger, groupDb, dualService.chainConfig, config.IsPrivate)
@@ -103,7 +99,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	}
 
 	evPool := evidence.NewPool(groupDb.DB(), groupDb.DB())
-	evReactor := evidence.NewReactor(evPool)
+	//evReactor := evidence.NewReactor(evPool)
 
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool, evPool)
 	blockExec := cstate.NewBlockExecutor(groupDb.DB(), evPool, dualService.dualBlockOperations)
@@ -121,17 +117,6 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	dualService.csManager.SetPrivValidator(privValidator)
 
-	if dualService.protocolManager, err = service.NewProtocolManager(
-		config.ProtocolName,
-		dualService.logger,
-		config.NetworkId,
-		config.ChainID,
-		dualService.blockchain,
-		dualService.chainConfig,
-		nil,
-		dualService.csManager, evReactor); err != nil {
-		return nil, err
-	}
 	//namdoh@ dualService.protocolManager.acceptTxs = config.AcceptTxs
 	return dualService, nil
 }
@@ -175,7 +160,6 @@ func (s *DualService) Start(srvr *p2p.Switch) error {
 // Kardia protocol.
 func (s *DualService) Stop() error {
 	s.csManager.Stop()
-	s.protocolManager.Stop()
 
 	close(s.shutdownChan)
 
