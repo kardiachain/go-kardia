@@ -32,15 +32,14 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	g "github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardiamain/types/evidence"
-
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardiamain/types/evidence"
 )
 
 const (
@@ -70,7 +69,7 @@ func newValidatorStub(privValidator types.PrivValidator, valIndex int64, round i
 }
 
 func (vs *validatorStub) signVote(
-	voteType byte,
+	voteType kproto.SignedMsgType,
 	hash common.Hash,
 	header types.PartSetHeader) (*types.Vote, error) {
 
@@ -83,16 +82,15 @@ func (vs *validatorStub) signVote(
 		ValidatorAddress: privVal.GetAddress(),
 		Height:           uint64(vs.Height),
 		Round:            uint32(vs.Round),
-		Timestamp:        uint64(time.Now().Unix()),
+		Timestamp:        time.Now(),
 		Type:             voteType,
 		BlockID:          types.BlockID{Hash: partSetHash, PartsHeader: blockPartsHeaders},
 	}
 
 	chainID := "kaicon"
-
-	err := privVal.SignVote(chainID, vote)
+	p := vote.ToProto()
+	err := privVal.SignVote(chainID, p)
 	if err != nil {
-		panic(fmt.Sprintf("Error signing vote: %v", err))
 		return nil, err
 	}
 
@@ -100,7 +98,7 @@ func (vs *validatorStub) signVote(
 }
 
 // Sign vote for type/hash/header
-func signVote(vs *validatorStub, voteType byte, hash common.Hash, header types.PartSetHeader) *types.Vote {
+func signVote(vs *validatorStub, voteType kproto.SignedMsgType, hash common.Hash, header types.PartSetHeader) *types.Vote {
 	v, err := vs.signVote(voteType, hash, header)
 	if err != nil {
 		panic(fmt.Errorf("failed to sign vote: %v", err))
@@ -109,7 +107,7 @@ func signVote(vs *validatorStub, voteType byte, hash common.Hash, header types.P
 }
 
 func signVotes(
-	voteType byte,
+	voteType kproto.SignedMsgType,
 	hash common.Hash,
 	header types.PartSetHeader,
 	vss ...*validatorStub) []*types.Vote {
@@ -185,8 +183,8 @@ func decideProposal(
 	polRound, propBlockID := validRound, types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()}
 	proposal = types.NewProposal(uint64(height), uint32(round), polRound, propBlockID)
 	privVal := vs.PrivVal
-
-	if err := privVal.SignProposal(chainID, proposal); err != nil {
+	p := proposal.ToProto()
+	if err := privVal.SignProposal(chainID, p); err != nil {
 		panic(err)
 	}
 
@@ -194,17 +192,14 @@ func decideProposal(
 }
 
 func addVotes(cs *ConsensusState, votes ...*types.Vote) {
-	for i, vote := range votes {
-		var peerID p2p.ID
-		peer := common.U256Bytes(big.NewInt(int64(i + 1)))
-		copy(peerID[:], peer)
-		cs.AddVote(vote, peerID)
+	for _, vote := range votes {
+		cs.peerMsgQueue <- msgInfo{Msg: &VoteMessage{vote}}
 	}
 }
 
 func signAddVotes(
 	to *ConsensusState,
-	voteType byte,
+	voteType kproto.SignedMsgType,
 	hash common.Hash,
 	header types.PartSetHeader,
 	vss ...*validatorStub,
@@ -289,7 +284,7 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 		ChainID:                     "kaicon",
 		LastBlockHeight:             uint64(block.Height()),
 		LastBlockID:                 block.Header().LastBlockID,
-		LastBlockTime:               uint64(block.Time()),
+		LastBlockTime:               block.Time(),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: uint64(0),
