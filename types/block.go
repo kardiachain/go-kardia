@@ -63,7 +63,7 @@ type Header struct {
 	// prev block info
 	LastBlockID BlockID `json:"last_block_id"`
 
-	Coinbase common.Address `json:"miner"            gencodec:"required"`
+	ProposerAddress common.Address `json:"proposer"            gencodec:"required"`
 
 	// hashes of block data
 	LastCommitHash common.Hash `json:"last_commit_hash"    gencodec:"required"` // commit from validators from the last block
@@ -72,10 +72,10 @@ type Header struct {
 	DualEventsHash common.Hash `json:"dual_events_hash"    gencodec:"required"` // dual's events
 
 	// hashes from the app output from the prev block
-	ValidatorsHash     common.Hash `json:"validators_hash"` // validators for the current block
-	NextValidatorsHash common.Hash `json:"next_validators_hash"`
-	ConsensusHash      common.Hash `json:"consensus_hash"` // consensus params for current block
-	AppHash            common.Hash `json:"app_hash"`       // state after txs from the previous block
+	ValidatorsHash     common.Hash `json:"validators_hash"`      // validators hash for the current block
+	NextValidatorsHash common.Hash `json:"next_validators_hash"` // next validators hask for next block
+	ConsensusHash      common.Hash `json:"consensus_hash"`       // consensus params for current block
+	AppHash            common.Hash `json:"app_hash"`             // state after txs from the previous block
 	//@huny LastResultsHash common.Hash `json:"last_results_hash"` // root hash of all results from the txs from the previous block
 
 	// consensus info
@@ -134,7 +134,7 @@ func (h *Header) ToProto() *kproto.Header {
 		GasLimit:           h.GasLimit,
 		EvidenceHash:       h.EvidenceHash.Bytes(),
 		LastCommitHash:     h.LastCommitHash.Bytes(),
-		ProposerAddress:    h.Coinbase.Bytes(),
+		ProposerAddress:    h.ProposerAddress.Bytes(),
 		NumTxs:             h.NumTxs,
 	}
 }
@@ -169,7 +169,7 @@ func HeaderFromProto(ph *kproto.Header) (Header, error) {
 	h.ValidatorsHash = common.BytesToHash(ph.ValidatorsHash)
 	h.GasLimit = ph.GasLimit
 	h.NumTxs = ph.NumTxs
-	h.Coinbase = common.BytesToAddress(ph.ProposerAddress)
+	h.ProposerAddress = common.BytesToAddress(ph.ProposerAddress)
 
 	return *h, nil
 }
@@ -366,11 +366,14 @@ func (b *Block) GasUsed() uint64  { return b.header.GasUsed }
 func (b *Block) Time() time.Time  { return b.header.Time }
 func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
-func (b *Block) LastCommitHash() common.Hash { return b.header.LastCommitHash }
-func (b *Block) TxHash() common.Hash         { return b.header.TxHash }
-func (b *Block) AppHash() common.Hash        { return b.header.AppHash }
-func (b *Block) LastCommit() *Commit         { return b.lastCommit }
-func (b *Block) Evidence() *EvidenceData     { return b.evidence }
+func (b *Block) ProposerAddress() common.Address { return b.header.ProposerAddress }
+func (b *Block) LastCommitHash() common.Hash     { return b.header.LastCommitHash }
+func (b *Block) TxHash() common.Hash             { return b.header.TxHash }
+func (b *Block) ValidatorHash() common.Hash      { return b.header.ValidatorsHash }
+func (b *Block) NextValidatorHash() common.Hash  { return b.header.NextValidatorsHash }
+func (b *Block) AppHash() common.Hash            { return b.header.AppHash }
+func (b *Block) LastCommit() *Commit             { return b.lastCommit }
+func (b *Block) Evidence() *EvidenceData         { return b.evidence }
 
 // TODO(namdoh): This is a hack due to rlp nature of decode both nil or empty
 // struct pointer as nil. After encoding an empty struct and send it over to

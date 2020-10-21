@@ -102,7 +102,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cst
 	events := dbo.collectDualEvents()
 	dbo.logger.Info("Collected dual's events", "events", events)
 
-	header := dbo.newHeader(height, uint64(len(events)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash())
+	header := dbo.newHeader(height, uint64(len(events)), lastState.LastBlockID, proposerAddr, lastState.LastValidators.Hash(), lastState.NextValidators.Hash())
 	dbo.logger.Info("Creates new header", "header", header)
 
 	_, err := dbo.commitDualEvents(events)
@@ -226,15 +226,16 @@ func (dbo *DualBlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 
 // Creates new block header from given data.
 // Some header fields are not ready at this point.
-func (dbo *DualBlockOperations) newHeader(height uint64, numEvents uint64, blockId types.BlockID, validator common.Address, validatorsHash common.Hash) *types.Header {
+func (dbo *DualBlockOperations) newHeader(height uint64, numEvents uint64, blockId types.BlockID, proposer common.Address, validatorsHash common.Hash, nextValidatorHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
-		Height:         height,
-		NumDualEvents:  numEvents,
-		Time:           time.Now(),
-		LastBlockID:    blockId,
-		Coinbase:       validator,
-		ValidatorsHash: validatorsHash,
+		Height:             height,
+		NumDualEvents:      numEvents,
+		Time:               time.Now(),
+		LastBlockID:        blockId,
+		ProposerAddress:    proposer,
+		ValidatorsHash:     validatorsHash,
+		NextValidatorsHash: nextValidatorHash,
 	}
 }
 

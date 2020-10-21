@@ -93,7 +93,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 
 	txs := bo.txPool.ProposeTransactions()
 	bo.logger.Debug("Collected transactions", "txs count", len(txs))
-	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(), lastState.AppHash)
+	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(), lastState.NextValidators.Hash(), lastState.AppHash)
 	header.GasLimit = lastState.ConsensusParams.Block.MaxGas
 	bo.logger.Info("Creates new header", "header", header)
 
@@ -198,16 +198,17 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 // newHeader creates new block header from given data.
 // Some header fields are not ready at this point.
 func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types.BlockID,
-	validator common.Address, validatorsHash common.Hash, appHash common.Hash) *types.Header {
+	proposer common.Address, validatorsHash common.Hash, nextValidatorHash common.Hash, appHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
-		Height:         height,
-		Time:           time.Now(),
-		NumTxs:         numTxs,
-		LastBlockID:    blockID,
-		Coinbase:       validator,
-		ValidatorsHash: validatorsHash,
-		AppHash:        appHash,
+		Height:             height,
+		Time:               time.Now(),
+		NumTxs:             numTxs,
+		LastBlockID:        blockID,
+		ProposerAddress:    proposer,
+		ValidatorsHash:     validatorsHash,
+		NextValidatorsHash: nextValidatorHash,
+		AppHash:            appHash,
 	}
 }
 

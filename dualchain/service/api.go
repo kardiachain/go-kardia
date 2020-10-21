@@ -28,22 +28,22 @@ import (
 
 // DualBlockJSON represents Block in JSON format
 type DualBlockJSON struct {
-	Hash           string             `json:"hash"`
-	Height         uint64             `json:"height"`
-	LastBlock      string             `json:"lastBlock"`
-	CommitHash     string             `json:"commitHash"`
-	Time           time.Time          `json:"time"`
-	NumDualEvents  uint64             `json:"num_events"`
-	DualEvents     []*PublicDualEvent `json:"dual_events"`
-	DualEventsHash string             `json:"dual_events_hash"`
-	GasLimit       uint64             `json:"gasLimit"`
-	GasUsed        uint64             `json:"gasUsed"`
-	Validator      string             `json:"validator"`
-	Root           string             `json:"stateRoot"`    // state root
-	ReceiptHash    string             `json:"receiptsRoot"` // receipt root
-	Bloom          int64              `json:"logsBloom"`
-	ValidatorsHash string             `json:"validators_hash"` // validators for the current block
-	ConsensusHash  string             `json:"consensus_hash"`
+	Hash            string             `json:"hash"`
+	Height          uint64             `json:"height"`
+	LastBlock       string             `json:"lastBlock"`
+	CommitHash      string             `json:"commitHash"`
+	Time            time.Time          `json:"time"`
+	NumDualEvents   uint64             `json:"num_events"`
+	DualEvents      []*PublicDualEvent `json:"dual_events"`
+	DualEventsHash  string             `json:"dual_events_hash"`
+	GasLimit        uint64             `json:"gasLimit"`
+	GasUsed         uint64             `json:"gasUsed"`
+	ProposerAddress string             `json:"proposer_address"`
+	Root            string             `json:"stateRoot"`    // state root
+	ReceiptHash     string             `json:"receiptsRoot"` // receipt root
+	Bloom           int64              `json:"logsBloom"`
+	ValidatorsHash  string             `json:"validators_hash"` // validators for the current block
+	ConsensusHash   string             `json:"consensus_hash"`
 }
 
 // PublicDualAPI provides APIs to access Dual full node-related information.
@@ -65,19 +65,19 @@ func NewDualBlockJSON(block *types.Block) *DualBlockJSON {
 	}
 
 	return &DualBlockJSON{
-		Hash:           block.Hash().Hex(),
-		Height:         block.Height(),
-		LastBlock:      block.Header().LastBlockID.String(),
-		CommitHash:     block.LastCommitHash().Hex(),
-		Time:           block.Header().Time,
-		NumDualEvents:  block.Header().NumDualEvents,
-		DualEvents:     dualEvents,
-		DualEventsHash: block.Header().DualEventsHash.Hex(),
-		GasLimit:       block.Header().GasLimit,
-		GasUsed:        block.Header().GasUsed,
-		Validator:      block.Header().Coinbase.Hex(),
-		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
-		ConsensusHash:  block.Header().ConsensusHash.Hex(),
+		Hash:            block.Hash().Hex(),
+		Height:          block.Height(),
+		LastBlock:       block.Header().LastBlockID.String(),
+		CommitHash:      block.LastCommitHash().Hex(),
+		Time:            block.Header().Time,
+		NumDualEvents:   block.Header().NumDualEvents,
+		DualEvents:      dualEvents,
+		DualEventsHash:  block.Header().DualEventsHash.Hex(),
+		GasLimit:        block.Header().GasLimit,
+		GasUsed:         block.Header().GasUsed,
+		ProposerAddress: block.Header().ProposerAddress.Hex(),
+		ValidatorsHash:  block.Header().ValidatorsHash.Hex(),
+		ConsensusHash:   block.Header().ConsensusHash.Hex(),
 	}
 }
 

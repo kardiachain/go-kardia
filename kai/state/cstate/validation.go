@@ -28,67 +28,50 @@ import (
 )
 
 func validateBlock(db kaidb.Database, state LastestBlockState, block *types.Block) error {
-	// validate internal consistency
+	// Validate internal consistency
 	if err := block.ValidateBasic(); err != nil {
 		return err
 	}
 
-	// validate basic info
+	// Validate basic info
 	if block.Height() != state.LastBlockHeight+1 {
 		return fmt.Errorf("wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight+1, block.Height())
 	}
 
-	/*	TODO: Determine bounds for Time
-		See blockchain/manager "stopSyncingDurationMinutes"
-		if !block.Time.After(lastBlockTime) {
-			return errors.New("Invalid Block.Header.Time")
-		}
-	*/
-
-	// validate prev block info
+	// Validate prev block info
 	if !block.Header().LastBlockID.Equal(state.LastBlockID) {
-		return fmt.Errorf("Wrong Block.Header.LastBlockID.  Expected %v, got %v", state.LastBlockID, block.Header().LastBlockID)
+		return fmt.Errorf("Wrong Block.Header.LastBlockID. Expected %v, got %v", state.LastBlockID, block.Header().LastBlockID)
 	}
 	// Validate app info
 	if !block.AppHash().Equal(state.AppHash) {
-		return fmt.Errorf("wrong Block.Header.AppHash.  Expected %X, got %X",
+		return fmt.Errorf("wrong Block.Header.AppHash. Expected %X, got %X",
 			state.AppHash,
 			block.AppHash(),
 		)
 	}
 
 	if !block.Header().ValidatorsHash.Equal(state.Validators.Hash()) {
-		return fmt.Errorf("wrong Block.Header.ValidatorsHash.  Expected %X, got %X",
+		return fmt.Errorf("wrong Block.Header.ValidatorsHash. Expected %X, got %X",
 			state.Validators.Hash(),
 			block.Header().ValidatorsHash,
 		)
 	}
 
-	// TODO(namdoh): Re-enable validating txs
-	//newTxs := int64(len(block.Data.Txs))
-	//if block.TotalTxs != state.LastBlockTotalTx+newTxs {
-	//	return fmt.Errorf("Wrong Block.Header.TotalTxs. Expected %v, got %v", state.LastBlockTotalTx+newTxs, block.TotalTxs)
-	//}
+	if !block.Header().NextValidatorsHash.Equal(state.NextValidators.Hash()) {
+		return fmt.Errorf("wrong Block.Header.NextValidatorHash. Expected %X, got %X",
+			state.NextValidators.Hash(),
+			block.Header().NextValidatorsHash,
+		)
+	}
 
-	// TODO(namdoh): Re-enable validating other info
-	// validate app info
-	//if !bytes.Equal(block.AppHash, state.AppHash) {
-	//	return fmt.Errorf("Wrong Block.Header.AppHash.  Expected %X, got %v", state.AppHash, block.AppHash)
-	//}
-	//if !bytes.Equal(block.ConsensusHash, state.ConsensusParams.Hash()) {
-	//	return fmt.Errorf("Wrong Block.Header.ConsensusHash.  Expected %X, got %v", state.ConsensusParams.Hash(), block.ConsensusHash)
-	//}
 	//if !bytes.Equal(block.LastResultsHash, state.LastResultsHash) {
 	//	return fmt.Errorf("Wrong Block.Header.LastResultsHash.  Expected %X, got %v", state.LastResultsHash, block.LastResultsHash)
 	//}
-	//if !bytes.Equal(block.ValidatorsHash, state.Validators.Hash()) {
-	//	return fmt.Errorf("Wrong Block.Header.ValidatorsHash.  Expected %X, got %v", state.Validators.Hash(), block.ValidatorsHash)
-	//}
 
 	// Validate block LastCommit.
-	if block.Header().Height == 1 {
+	if block.Height() == 1 {
 		if len(block.LastCommit().Signatures) != 0 {
-			return errors.New("block at height 1 (first block) should have no LastCommit precommits")
+			return errors.New("block at height 1 does not have LastCommit signatures")
 		}
 	} else {
 		if len(block.LastCommit().Signatures) != state.LastValidators.Size() {
@@ -102,6 +85,32 @@ func validateBlock(db kaidb.Database, state LastestBlockState, block *types.Bloc
 		}
 	}
 
+	// Validate block Time
+	// if block.Height() > 1 {
+	// 	if !block.Time().After(state.LastBlockTime) {
+	// 		return fmt.Errorf("block time %v not greater than last block time %v",
+	// 			block.Time,
+	// 			state.LastBlockTime,
+	// 		)
+	// 	}
+
+	// 	medianTime := MedianTime(block.LastCommit(), state.LastValidators())
+	// 	if !block.Time().Equal(medianTime) {
+	// 		return fmt.Errorf("invalid block time. Expected %v, got %v",
+	// 			medianTime,
+	// 			block.Time,
+	// 		)
+	// 	}
+	// } else if block.Height() == 1 {
+	// 	genesisTime := state.LastBlockTime
+	// 	if !block.Time().Equal(genesisTime) {
+	// 		return fmt.Errorf("block time %v is not equal to genesis time %v",
+	// 			block.Time,
+	// 			genesisTime,
+	// 		)
+	// 	}
+	// }
+
 	// Limit the amount of evidence
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(int64(state.ConsensusParams.Block.MaxBytes))
 	numEvidence := int64(len(block.Evidence().Evidence))
@@ -110,10 +119,16 @@ func validateBlock(db kaidb.Database, state LastestBlockState, block *types.Bloc
 
 	}
 
+	// Validate all evidence.
 	for _, ev := range block.Evidence().Evidence {
 		if err := VerifyEvidence(db, state, ev); err != nil {
 			return types.NewErrEvidenceInvalid(ev, err)
 		}
+	}
+
+	// Validate proposer is a known validator
+	if !state.Validators.HasAddress(block.ProposerAddress()) {
+		return fmt.Errorf("block proposer is not a validator %X", block.ValidatorHash())
 	}
 
 	return nil
