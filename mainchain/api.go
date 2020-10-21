@@ -21,6 +21,7 @@ package kai
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -257,31 +258,33 @@ func (s *PublicKaiAPI) GetBasicBlockByNumber(blockNumber uint64) *BlockJSON {
 }
 
 // GetBlockByHash returns block by block hash
-func (s *PublicKaiAPI) GetBlockByHash(blockHash string) *BlockJSON {
+func (s *PublicKaiAPI) GetBlockByHash(blockHash string) (*BlockJSON, error) {
 	if blockHash[0:2] == "0x" {
 		blockHash = blockHash[2:]
 	}
 	block := s.kaiService.blockchain.GetBlockByHash(common.HexToHash(blockHash))
+	if block == nil {
+		return nil, errors.New("block for hash not found")
+	}
+
 	receipts, err := getReceipts(s.kaiService.kaiDb, block.Hash())
 	if err != nil {
-		log.Error("Error on getting receipts", "err", err)
-		return nil
+		return nil, err
 	}
-	return NewBlockJSON(*block, receipts)
+	return NewBlockJSON(*block, receipts), nil
 }
 
 // GetBlockByNumber returns block by block number
-func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) *BlockJSON {
+func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) (*BlockJSON, error) {
 	block := s.kaiService.blockchain.GetBlockByHeight(blockNumber)
 	if block == nil {
-		return nil
+		return nil, errors.New("block for height not found")
 	}
 	receipts, err := getReceipts(s.kaiService.kaiDb, block.Hash())
 	if err != nil {
-		log.Error("Error on getting receipts", "err", err)
-		return nil
+		return nil, err
 	}
-	return NewBlockJSON(*block, receipts)
+	return NewBlockJSON(*block, receipts), nil
 }
 
 // Validator returns node's validator, nil if current node is not a validator
@@ -433,18 +436,20 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, erro
 }
 
 // GetTransaction gets transaction by transaction hash
-func (a *PublicTransactionAPI) GetTransaction(hash string) *PublicTransaction {
+func (a *PublicTransactionAPI) GetTransaction(hash string) (*PublicTransaction, error) {
 	txHash := common.HexToHash(hash)
 	tx, blockHash, height, index := a.s.kaiDb.ReadTransaction(txHash)
+
+	if tx == nil {
+		return nil, errors.New("tx for hash not found")
+	}
+
 	publicTx := NewPublicTransaction(tx, blockHash, height, index)
 	// get block by block height
 	block := a.s.blockchain.GetBlockByHeight(height)
-	if block == nil {
-		return nil
-	}
 	// get block time from block
 	publicTx.Time = block.Header().Time
-	return publicTx
+	return publicTx, nil
 }
 
 func getReceipts(kaiDb types.StoreDB, hash common.Hash) (types.Receipts, error) {
@@ -548,7 +553,7 @@ func NewPublicAccountAPI(kaiService *KardiaService) *PublicAccountAPI {
 }
 
 // Balance returns address's balance
-func (a *PublicAccountAPI) Balance(address string, hash string, height uint64) string {
+func (a *PublicAccountAPI) Balance(address string, hash string, height uint64) (string, error) {
 	addr := common.HexToAddress(address)
 	log.Info("Addr", "addr", addr.Hex())
 	block := new(types.Block)
@@ -561,12 +566,16 @@ func (a *PublicAccountAPI) Balance(address string, hash string, height uint64) s
 	} else {
 		block = a.kaiService.blockchain.CurrentBlock()
 	}
+
+	if block == nil {
+		return "-1", errors.New("block for hash or height not found")
+	}
+
 	state, err := a.kaiService.blockchain.StateAt(block.Height())
 	if err != nil {
-		log.Error("Fail to get state from block", "err", err, "block", block.Hash().String())
-		return "-1"
+		return "-1", err
 	}
-	return state.GetBalance(addr).String()
+	return state.GetBalance(addr).String(), nil
 }
 
 // Nonce return address's nonce
