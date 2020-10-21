@@ -198,6 +198,11 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) (*types.Block, c
 	// 	Nonce:   0,
 	// }
 
+	g.Alloc[configs.DeployerAddr] = GenesisAccount{
+		Balance: big.NewInt(10),
+		Nonce:   0,
+	}
+
 	for addr, account := range g.Alloc {
 		statedb.AddBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)

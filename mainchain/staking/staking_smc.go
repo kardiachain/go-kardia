@@ -22,11 +22,6 @@ const (
 	KardiaSatkingSmcIndex = 7
 )
 
-var (
-	contractAddress = common.HexToAddress("0xF3E77cDEeD0A979be6fb54dEdc50551e84F9C53a")
-	deployerAddr    = common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-)
-
 // MaximumGasToCallStaticFunction ...
 var MaximumGasToCallStaticFunction = uint(4000000)
 
@@ -62,7 +57,7 @@ type StakingSmcUtil struct {
 // NewSmcStakingnUtil ...
 func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 	_, stakingSmcAbi := configs.GetContractDetailsByIndex(KardiaSatkingSmcIndex)
-	bytecodeStaking := configs.GetContractByteCodeByAddress(contractAddress.Hex())
+	bytecodeStaking := configs.GetContractByteCodeByAddress(configs.StakingContractAddress.Hex())
 
 	abi, err := abi.JSON(strings.NewReader(stakingSmcAbi))
 	if err != nil {
@@ -70,7 +65,7 @@ func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 		return nil, err
 	}
 
-	return &StakingSmcUtil{Abi: &abi, ContractAddress: contractAddress, Bytecode: bytecodeStaking}, nil
+	return &StakingSmcUtil{Abi: &abi, ContractAddress: configs.StakingContractAddress, Bytecode: bytecodeStaking}, nil
 }
 
 //SetParams set params
@@ -311,7 +306,7 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	cfg kvm.Config) error {
 
 	msg := types.NewMessage(
-		deployerAddr,
+		configs.DeployerAddr,
 		nil,
 		0,
 		big.NewInt(0),
