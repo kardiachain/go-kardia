@@ -51,7 +51,7 @@ type BlockHeaderJSON struct {
 	NumTxs            uint64    `json:"numTxs"`
 	GasLimit          uint64    `json:"gasLimit"`
 	GasUsed           uint64    `json:"gasUsed"`
-	ProposerAddress   string    `json:"proposer_address"`
+	ProposerAddress   string    `json:"proposerAddress"`
 	TxHash            string    `json:"dataHash"`     // transactions
 	ReceiptHash       string    `json:"receiptsRoot"` // receipt root
 	Bloom             string    `json:"logsBloom"`
@@ -76,7 +76,7 @@ type BlockJSON struct {
 	TxHash            string               `json:"dataHash"`     // hash of txs
 	Root              string               `json:"stateRoot"`    // state root
 	ReceiptHash       string               `json:"receiptsRoot"` // receipt root
-	Bloom             types.Bloom          `json:"logsBloom"`
+	Bloom             string               `json:"logsBloom"`
 	ValidatorsHash    string               `json:"validatorHash"`     // validators for the current block
 	NextValidatorHash string               `json:"nextValidatorHash"` // validators for the current block
 	ConsensusHash     string               `json:"consensusHash"`     // hash of current consensus
