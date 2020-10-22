@@ -65,6 +65,8 @@ func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 		return nil, err
 	}
 
+	fmt.Println("Apply genesis staking smart contract address:", configs.StakingContractAddress.Hex())
+
 	return &StakingSmcUtil{Abi: &abi, ContractAddress: configs.StakingContractAddress, Bytecode: bytecodeStaking}, nil
 }
 
