@@ -555,13 +555,13 @@ func NewPublicAccountAPI(kaiService *KardiaService) *PublicAccountAPI {
 // Balance returns address's balance
 func (a *PublicAccountAPI) Balance(address string, hash string, height uint64) (string, error) {
 	addr := common.HexToAddress(address)
-	log.Info("Addr", "addr", addr.Hex())
+	log.Info("Addr", "addr", addr.Hex(), "hash", hash, "height", height)
 	block := new(types.Block)
-	if len(hash) > 0 && height >= 0 {
+	if len(hash) > 0 && height > 0 {
 		block = a.kaiService.blockchain.GetBlock(common.HexToHash(hash), height)
 	} else if len(hash) > 0 {
 		block = a.kaiService.blockchain.GetBlockByHash(common.HexToHash(hash))
-	} else if height >= 0 {
+	} else if height > 0 {
 		block = a.kaiService.blockchain.GetBlockByHeight(height)
 	} else {
 		block = a.kaiService.blockchain.CurrentBlock()
