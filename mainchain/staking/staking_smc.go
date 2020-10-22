@@ -306,7 +306,7 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	cfg kvm.Config) error {
 
 	msg := types.NewMessage(
-		configs.DeployerAddr,
+		configs.GenesisDeployerAddr,
 		nil,
 		0,
 		big.NewInt(0),
@@ -324,6 +324,7 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	if vmerr != nil {
 		return vmerr
 	}
+
 	// Update the state with pending changes
 	statedb.Finalise(true)
 	return nil
