@@ -57,11 +57,23 @@ const (
 )
 
 type flags struct {
-	config string
+	folder string
+	node   string
+	kardia string
+	chain  string
+
+	targetNetwork string
+
+	isDev bool
 }
 
 func initFlag(args *flags) {
-	flag.StringVar(&args.config, "config", "", "path to config file, if config is defined then it is priority used.")
+	flag.StringVar(&args.folder, "config folder. Default: ./cfg", "", "path to config folder")
+	flag.StringVar(&args.node, "node config file. Default: node_config.yaml", "node_config.yaml", "node config file name")
+	flag.StringVar(&args.kardia, "kardia config file. Default: kai_config.yaml", "kai_config.yaml", "path to config folder")
+	flag.StringVar(&args.chain, "dual node config. Default: Disable", "", "path to dual node config")
+	flag.StringVar(&args.targetNetwork, "target network. Default: main", "main", "target network you want to join. Choose one: [dev, test, main]")
+	flag.BoolVar(&args.isDev, "dev mode", true, "is run in dev mode")
 }
 
 var args flags
@@ -71,20 +83,55 @@ func init() {
 }
 
 // Load attempts to load the config from given path and filename.
-func LoadConfig(path string) (*Config, error) {
-	configPath := filepath.Join(path)
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return nil, errors.Wrap(err, "Unable to load config")
+func LoadConfig(args flags) (*Config, error) {
+	var wd string
+	var err error
+	if args.folder == "" {
+		wd, err = os.Getwd()
+		if err != nil {
+			panic(err)
+		}
 	}
-	configData, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to read config")
-	}
+	wd = filepath.Join(wd, "cfg")
+
 	config := Config{}
-	err = yaml.Unmarshal(configData, &config)
+
+	nodeCfgFile := filepath.Join(wd, args.node)
+	kaiCfgFile := filepath.Join(wd, args.kardia)
+
+	nodeCfg, err := ioutil.ReadFile(nodeCfgFile)
 	if err != nil {
-		return nil, errors.Wrap(err, "Problem unmarshaling config json data")
+		return nil, errors.Wrap(err, "cannot read node config")
 	}
+	err = yaml.Unmarshal(nodeCfg, &config)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal node config")
+	}
+
+	kaiCfg, err := ioutil.ReadFile(kaiCfgFile)
+	fmt.Println("KaiCfgFile", kaiCfgFile)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot read kai config")
+	}
+	err = yaml.Unmarshal(kaiCfg, &config)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal kai config")
+	}
+
+	var chainCfgFile string
+	if args.chain != "" {
+		chainCfgFile = filepath.Join(wd, args.chain)
+		chainCfg, err := ioutil.ReadFile(chainCfgFile)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot read dual node config")
+		}
+		err = yaml.Unmarshal(chainCfg, &config)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot unmarshal dual node config")
+		}
+
+	}
+
 	return &config, nil
 }
 
@@ -142,7 +189,7 @@ func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 	}
 }
 
-// getGenesis gets genesis data from config
+// getGenesis gets node data from config
 func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 	var ga genesis.GenesisAlloc
 	var err error
@@ -543,11 +590,10 @@ func waitForever() {
 
 func main() {
 	flag.Parse()
-	if args.config != "" {
-		config, err := LoadConfig(args.config)
-		if err != nil {
-			panic(err)
-		}
-		config.Start()
+	config, err := LoadConfig(args)
+	if err != nil {
+		panic(err)
 	}
+	config.Start()
+
 }
