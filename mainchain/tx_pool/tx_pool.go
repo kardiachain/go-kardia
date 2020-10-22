@@ -161,36 +161,15 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	PriceLimit: 1,
 	PriceBump:  10,
 
-	AccountSlots: 128,
-	GlobalSlots:  4096,
-	AccountQueue: 256,
-	GlobalQueue:  4096,
+	AccountSlots: 256,
+	GlobalSlots:  16384,
+	AccountQueue: 512,
+	GlobalQueue:  16384,
 
 	Lifetime: 1 * time.Hour,
 
 	Broadcast:     true,
 	MaxBatchBytes: 10 * 1024 * 1024, // 10MB
-}
-
-func DefaultConfig() *TxPoolConfig {
-	return &TxPoolConfig{
-		Journal:   "transactions.rlp",
-		Rejournal: time.Hour,
-
-		PriceLimit: 1,
-		PriceBump:  10,
-
-		AccountSlots: 128,
-		GlobalSlots:  4096,
-		AccountQueue: 256,
-		GlobalQueue:  4096,
-
-		Lifetime: 1 * time.Hour,
-
-		Broadcast:     true,
-		MaxBatchBytes: 10 * 1024 * 1024, // 10MB
-	}
-
 }
 
 // sanitize checks the provided user configurations and changes anything that's
