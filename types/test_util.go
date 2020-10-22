@@ -1,35 +1,42 @@
 package types
 
-// MakeCommit ...
-// func MakeCommit(blockID BlockID, height uint64, round uint32,
-// 	voteSet *VoteSet, validators []PrivValidator, now time.Time) (*Commit, error) {
+import (
+	"time"
 
-// 	// all sign
-// 	for i := 0; i < len(validators); i++ {
-// 		addr := validators[i].GetAddress()
-// 		vote := &Vote{
-// 			ValidatorAddress: addr,
-// 			ValidatorIndex:   uint32(i),
-// 			Height:           height,
-// 			Round:            round,
-// 			Type:             kproto.PrecommitType,
-// 			BlockID:          blockID,
-// 			Timestamp:        now,
-// 		}
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+)
 
-// 		_, err := signAddVote(validators[i], vote, voteSet)
-// 		if err != nil {
-// 			return nil, err
-// 		}
-// 	}
+func MakeCommit(blockID BlockID, height uint64, round uint32,
+	voteSet *VoteSet, validators []PrivValidator, now time.Time) (*Commit, error) {
 
-// 	return voteSet.MakeCommit(), nil
-// }
+	// all sign
+	for i := 0; i < len(validators); i++ {
+		addr := validators[i].GetAddress()
+		vote := &Vote{
+			ValidatorAddress: addr,
+			ValidatorIndex:   uint32(i),
+			Height:           height,
+			Round:            round,
+			Type:             kproto.PrecommitType,
+			BlockID:          blockID,
+			Timestamp:        now,
+		}
 
-// func signAddVote(privVal PrivValidator, vote *kproto.Vote, voteSet *VoteSet) (signed bool, err error) {
-// 	err = privVal.SignVote(voteSet.ChainID(), vote)
-// 	if err != nil {
-// 		return false, err
-// 	}
-// 	return voteSet.AddVote(vote)
-// }
+		_, err := signAddVote(validators[i], vote, voteSet)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return voteSet.MakeCommit(), nil
+}
+
+func signAddVote(privVal PrivValidator, vote *Vote, voteSet *VoteSet) (signed bool, err error) {
+	v := vote.ToProto()
+	err = privVal.SignVote(voteSet.ChainID(), v)
+	if err != nil {
+		return false, err
+	}
+	vote.Signature = v.Signature
+	return voteSet.AddVote(vote)
+}

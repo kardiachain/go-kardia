@@ -152,8 +152,8 @@ func (pv *MockPV) SignVote(chainID string, vote *kproto.Vote) error {
 	if pv.breakVoteSigning {
 		chainID = "1"
 	}
-	hash := VoteSignBytes(chainID, vote)
-	sig, err := crypto.Sign(hash, pv.privKey)
+	voteSignBytes := VoteSignBytes(chainID, vote)
+	sig, err := crypto.Sign(crypto.Keccak256(voteSignBytes), pv.privKey)
 	if err != nil {
 		return err
 	}
@@ -166,8 +166,8 @@ func (pv *MockPV) SignProposal(chainID string, proposal *kproto.Proposal) error 
 	if pv.breakProposalSigning {
 		chainID = "1000"
 	}
-	hash := ProposalSignBytes(chainID, proposal)
-	sig, err := crypto.Sign(hash, pv.privKey)
+	signBytes := ProposalSignBytes(chainID, proposal)
+	sig, err := crypto.Sign(crypto.Keccak256(signBytes), pv.privKey)
 	if err != nil {
 		return err
 	}

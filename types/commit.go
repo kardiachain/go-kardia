@@ -80,7 +80,7 @@ func (cs CommitSig) Absent() bool {
 }
 
 func (cs CommitSig) String() string {
-	return fmt.Sprintf("CommitSig{%X by %X on %v @ %d}",
+	return fmt.Sprintf("CommitSig{%X by %X on %v @ %x}",
 		common.Fingerprint(cs.Signature),
 		common.Fingerprint(cs.ValidatorAddress.Bytes()),
 		cs.BlockIDFlag,

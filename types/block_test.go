@@ -29,7 +29,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 func CreateBlockIDRandom() BlockID {
@@ -60,97 +60,11 @@ func TestBlockCreation(t *testing.T) {
 	}
 }
 
-func TestBlockEncodeDecode(t *testing.T) {
-	block := CreateNewBlock(1)
-	encodedBlock, err := rlp.EncodeToBytes(&block)
-	if err != nil {
-		t.Fatal("encode error: ", err)
-	}
-	var decodedBlock Block
-	if err := rlp.DecodeBytes(encodedBlock, &decodedBlock); err != nil {
-		t.Fatal("decode error: ", err)
-	}
-
-	if decodedBlock.Hash() != block.Hash() {
-		t.Error("Encode Decode block error")
-	}
-}
-
-func TestNewDualBlock(t *testing.T) {
-	block := CreateNewDualBlock()
-	if err := block.ValidateBasic(); err != nil {
-		t.Fatal("Error validating New Dual block", err)
-	}
-}
-
-func TestBlockEncodeDecodeFile(t *testing.T) {
-	// block := CreateNewBlock(1)
-	// blockCopy := block.WithBody(block.Body())
-	// encodeFile, err := os.Create("encodeFile.txt")
-	// defer encodeFile.Close()
-	// if err != nil {
-	// 	t.Error("Error creating file")
-	// }
-
-	// if err := block.EncodeRLP(encodeFile); err != nil {
-	// 	t.Fatal("Error encoding block")
-	// }
-
-	// f, err := os.Open("encodeFile.txt")
-	// if err != nil {
-	// 	t.Error("Error opening file:", err)
-	// }
-
-	// stream := rlp.NewStream(f, 99999)
-	// if err := block.DecodeRLP(stream); err != nil {
-	// 	t.Fatal("Decoding block error:", err)
-	// }
-	// if block.Hash() != blockCopy.Hash() {
-	// 	t.Fatal("Encode Decode File error")
-	// }
-
-}
-
-func TestGetDualEvents(t *testing.T) {
-	dualBlock := CreateNewDualBlock()
-	dualEvents := dualBlock.DualEvents()
-	dualEventCopy := NewDualEvent(100, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})
-	if dualEvents[0].Hash() != dualEventCopy.Hash() {
-		t.Error("Dual Events hash not equal")
-	}
-}
-
 func TestBodyCreationAndCopy(t *testing.T) {
 	body := CreateNewBlock(1).Body()
 	copyBody := body.Copy()
 	if rlpHash(body) != rlpHash(copyBody) {
 		t.Fatal("Error copy body")
-	}
-}
-
-func TestBlockWithBodyFunction(t *testing.T) {
-	block := CreateNewBlock(1)
-	body := CreateNewDualBlock().Body()
-
-	blockWithBody := block.WithBody(body)
-	bwbBody := blockWithBody.Body()
-	if blockWithBody.header.Hash() != block.header.Hash() {
-		t.Error("BWB Header Error")
-	}
-	for i := range bwbBody.Transactions {
-		if bwbBody.Transactions[i] != body.Transactions[i] {
-			t.Error("BWB Transaction Error")
-			break
-		}
-	}
-	for i := range bwbBody.DualEvents {
-		if bwbBody.DualEvents[i] != body.DualEvents[i] {
-			t.Error("BWB Dual Events Error")
-			break
-		}
-	}
-	if bwbBody.LastCommit != body.LastCommit {
-		t.Error("BWB Last Commit Error")
 	}
 }
 
@@ -212,7 +126,7 @@ func CheckSortedHeight(blocks []*Block) bool {
 func CreateNewBlock(height uint64) *Block {
 	header := Header{
 		Height: height,
-		Time:   uint64(time.Now().Unix()),
+		Time:   time.Now(),
 	}
 
 	addr := common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
@@ -231,8 +145,8 @@ func CreateNewBlock(height uint64) *Block {
 		ValidatorIndex: 1,
 		Height:         2,
 		Round:          1,
-		Timestamp:      100,
-		Type:           VoteTypePrecommit,
+		Timestamp:      time.Now(),
+		Type:           kproto.PrecommitType,
 	}
 	lastCommit := &Commit{
 		Signatures: []CommitSig{vote.CommitSig(), CommitSig{}},
@@ -244,14 +158,14 @@ func CreateNewBlock(height uint64) *Block {
 func CreateNewDualBlock() *Block {
 	header := Header{
 		Height: 1,
-		Time:   1,
+		Time:   time.Now(),
 	}
 	vote := &Vote{
 		ValidatorIndex: 1,
 		Height:         2,
 		Round:          1,
-		Timestamp:      100,
-		Type:           VoteTypePrecommit,
+		Timestamp:      time.Now(),
+		Type:           kproto.PrecommitType,
 	}
 	lastCommit := &Commit{
 		Signatures: []CommitSig{vote.CommitSig(), vote.CommitSig()},

@@ -84,14 +84,14 @@ func GetReadableVoteTypeString(type_ kproto.SignedMsgType) string {
 
 // Vote Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
-	ValidatorAddress cmn.Address           `json:"validator_address"`
-	ValidatorIndex   uint32                `json:"validator_index"`
-	Height           uint64                `json:"height"`
-	Round            uint32                `json:"round"`
-	Timestamp        time.Time             `json:"timestamp"`
+	ValidatorAddress cmn.Address          `json:"validator_address"`
+	ValidatorIndex   uint32               `json:"validator_index"`
+	Height           uint64               `json:"height"`
+	Round            uint32               `json:"round"`
+	Timestamp        time.Time            `json:"timestamp"`
 	Type             kproto.SignedMsgType `json:"type"`
-	BlockID          BlockID               `json:"block_id"` // zero if vote is nil.
-	Signature        []byte                `json:"signature"`
+	BlockID          BlockID              `json:"block_id"` // zero if vote is nil.
+	Signature        []byte               `json:"signature"`
 }
 
 // CreateEmptyVote ...
