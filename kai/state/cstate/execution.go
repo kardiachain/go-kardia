@@ -51,7 +51,8 @@ type BlockExecutor struct {
 	evpool EvidencePool
 	bc     BlockStore
 	// save state, validators, consensus params, abci responses here
-	db kaidb.Database
+	db       kaidb.Database
+	eventBus *types.EventBus
 }
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
@@ -62,6 +63,11 @@ func NewBlockExecutor(db kaidb.Database, evpool EvidencePool, bc BlockStore) *Bl
 		bc:     bc,
 		db:     db,
 	}
+}
+
+// SetEventBus sets event bus.
+func (blockExec *BlockExecutor) SetEventBus(b *types.EventBus) {
+	blockExec.eventBus = b
 }
 
 // ValidateBlock validates the given block against the given state.

@@ -40,6 +40,7 @@ const (
 	EventUnlock            = "Unlock"
 	EventVote              = "Vote"
 	EventProposalHeartbeat = "ProposalHeartbeat"
+	EventTypeKey           = "kai.event"
 )
 
 // NOTE: This goes into the replay WAL

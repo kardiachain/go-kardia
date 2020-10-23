@@ -36,8 +36,10 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	kevents "github.com/kardiachain/go-kardiamain/lib/events"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	"github.com/kardiachain/go-kardiamain/lib/service"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -94,7 +96,7 @@ func EmptyTimeoutInfo() *timeoutInfo {
 // The internal state machine receives input from peers, the internal validator,
 // and from a timer.
 type ConsensusState struct {
-	logger log.Logger
+	service.BaseService
 
 	config          *cfg.ConsensusConfig
 	privValidator   types.PrivValidator // for signing votes
@@ -122,7 +124,7 @@ type ConsensusState struct {
 
 	// Synchronous pubsub between consensus state and manager.
 	// State only emits EventNewRoundStep, EventVote and EventProposalHeartbeat
-	evsw EventSwitch
+	evsw kevents.EventSwitch
 
 	// closed when we finish shutting down
 	done chan struct{}
@@ -141,7 +143,6 @@ func NewConsensusState(
 	evpool evidencePool,
 ) *ConsensusState {
 	cs := &ConsensusState{
-		logger: logger,
 		config: config,
 		//namdoh@ blockExec:        blockExec,
 		blockOperations:  blockOperations,
@@ -149,7 +150,7 @@ func NewConsensusState(
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
 		timeoutTicker:    NewTimeoutTicker(),
 		done:             make(chan struct{}),
-		evsw:             NewEventSwitch(),
+		evsw:             kevents.NewEventSwitch(),
 		blockExec:        blockExec,
 		evpool:           evpool,
 		RoundState: cstypes.RoundState{
@@ -162,7 +163,6 @@ func NewConsensusState(
 	}
 
 	cs.updateToState(state)
-	cs.timeoutTicker.SetLogger(cs.logger)
 
 	// Reconstruct LastCommit from db after a crash.
 	cs.reconstructLastCommit(state)
@@ -174,6 +174,18 @@ func NewConsensusState(
 	return cs
 }
 
+// SetLogger implements Service.
+func (cs *ConsensusState) SetLogger(l log.Logger) {
+	cs.BaseService.Logger = l
+	cs.timeoutTicker.SetLogger(l)
+}
+
+// SetEventBus sets event bus.
+func (cs *ConsensusState) SetEventBus(b *types.EventBus) {
+	cs.eventBus = b
+	cs.blockExec.SetEventBus(b)
+}
+
 // SetPrivValidator sets the private validator account for signing votes.
 func (cs *ConsensusState) SetPrivValidator(priv types.PrivValidator) {
 	cs.mtx.Lock()
@@ -182,8 +194,12 @@ func (cs *ConsensusState) SetPrivValidator(priv types.PrivValidator) {
 }
 
 // It loads the latest state via the WAL, and starts the timeout and receive routines.
-func (cs *ConsensusState) Start() {
-	cs.logger.Info("Consensus state starts!")
+func (cs *ConsensusState) OnStart() error {
+	cs.Logger.Info("Consensus state starts!")
+
+	if err := cs.evsw.Start(); err != nil {
+		return err
+	}
 
 	// we need the timeoutRoutine for replay so
 	// we don't block on the tick chan.
@@ -191,8 +207,7 @@ func (cs *ConsensusState) Start() {
 	// firing on the tockChan until the receiveRoutine is started
 	// to deal with them (by that point, at most one will be valid)
 	if err := cs.timeoutTicker.Start(); err != nil {
-		cs.logger.Error("ConsensusState - Start", "err", err)
-		return
+		return err
 	}
 	// now start the receiveRoutine
 	go cs.receiveRoutine(0)
@@ -200,18 +215,19 @@ func (cs *ConsensusState) Start() {
 	// schedule the first round!
 	// use GetRoundState so we don't race the receiveRoutine for access
 	cs.scheduleRound0(cs.GetRoundState())
+	return nil
 }
 
 // It stops all routines and waits for the WAL to finish.
-func (cs *ConsensusState) Stop() {
+func (cs *ConsensusState) OnStop() {
 	cs.timeoutTicker.Stop()
-	cs.logger.Trace("Consensus state stops!")
+	cs.Logger.Trace("Consensus state stops!")
 }
 
 // Updates ConsensusState and increments height to match that of state.
 // The round becomes 0 and cs.Step becomes cstypes.RoundStepNewHeight.
 func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
-	cs.logger.Trace("ConsensusState - updateToState")
+	cs.Logger.Trace("ConsensusState - updateToState")
 	if (cs.CommitRound >= 0) && (cs.Height > 0) && cs.Height != state.LastBlockHeight {
 		cmn.PanicSanity(cmn.Fmt("updateToState() expected state height of %v but found %v",
 			cs.Height, state.LastBlockHeight))
@@ -229,7 +245,7 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 	// signal the new round step, because other services (eg. mempool)
 	// depend on having an up-to-date peer state!
 	if !cs.state.IsEmpty() && (state.LastBlockHeight <= cs.state.LastBlockHeight) {
-		cs.logger.Info("Ignoring updateToState()", "newHeight", state.LastBlockHeight+1, "oldHeight", cs.state.LastBlockHeight+1)
+		cs.Logger.Info("Ignoring updateToState()", "newHeight", state.LastBlockHeight+1, "oldHeight", cs.state.LastBlockHeight+1)
 		cs.newStep()
 		return
 	}
@@ -256,7 +272,7 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 		// to be gathered for the first block.
 		// And alternative solution that relies on clocks:
 		//  cs.StartTime = state.LastBlockTime.Add(timeoutCommit)
-		cs.logger.Trace("cs.CommitTime is 0")
+		cs.Logger.Trace("cs.CommitTime is 0")
 		cs.StartTime = uint64(cs.config.Commit(time.Now()).Unix())
 	} else {
 		commitTime := time.Unix(int64(cs.CommitTime), 0)
@@ -272,7 +288,7 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 	cs.ValidRound = 0
 	cs.ValidBlock = nil
 	cs.ValidBlockParts = nil
-	cs.Votes = cstypes.NewHeightVoteSet(cs.logger, state.ChainID, height, validators)
+	cs.Votes = cstypes.NewHeightVoteSet(cs.Logger, state.ChainID, height, validators)
 	cs.CommitRound = 0
 	cs.LastCommit = lastPrecommits
 	cs.LastValidators = state.LastValidators
@@ -316,7 +332,7 @@ func (cs *ConsensusState) decideProposal(height uint64, round uint32) {
 		// Decide on block
 		block, blockParts = cs.createProposalBlock()
 		if block == nil { // on error
-			cs.logger.Trace("Create proposal block failed")
+			cs.Logger.Trace("Create proposal block failed")
 			return
 		}
 	}
@@ -333,8 +349,8 @@ func (cs *ConsensusState) decideProposal(height uint64, round uint32) {
 			part := blockParts.GetPart(i)
 			cs.sendInternalMessage(msgInfo{&BlockPartMessage{cs.Height, cs.Round, part}, ""})
 		}
-		cs.logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
-		cs.logger.Debug(fmt.Sprintf("Signed proposal block: %s", block.Hash()))
+		cs.Logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
+		cs.Logger.Debug(fmt.Sprintf("Signed proposal block: %s", block.Hash()))
 	}
 }
 
@@ -347,13 +363,13 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 
 	// Does not apply
 	if (proposal.Height != cs.Height) || (proposal.Round != cs.Round) {
-		cs.logger.Trace(fmt.Sprintf("CS[%v/%v] doesn't match Proposal[%v/%v]", cs.Height, cs.Round, proposal.Height, proposal.Round))
+		cs.Logger.Trace(fmt.Sprintf("CS[%v/%v] doesn't match Proposal[%v/%v]", cs.Height, cs.Round, proposal.Height, proposal.Round))
 		return nil
 	}
 
 	// Verify POLRound, which must be -1 or between 0 and proposal.Round exclusive.
 	if (proposal.POLRound < 1) && ((proposal.POLRound > 0) || (proposal.POLRound > proposal.Round)) {
-		cs.logger.Trace("Invalid proposal POLRound", "proposal.POLRound", proposal.POLRound, "proposal.Round", proposal.Round)
+		cs.Logger.Trace("Invalid proposal POLRound", "proposal.POLRound", proposal.POLRound, "proposal.Round", proposal.Round)
 		return ErrInvalidProposalPOLRound
 	}
 
@@ -370,7 +386,7 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 	if cs.ProposalBlockParts == nil {
 		cs.ProposalBlockParts = types.NewPartSetFromHeader(proposal.POLBlockID.PartsHeader)
 	}
-	cs.logger.Info("Received proposal", "proposal", proposal)
+	cs.Logger.Info("Received proposal", "proposal", proposal)
 	return nil
 }
 
@@ -378,7 +394,7 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 
 // enterNewRound(height, 0) at cs.StartTime.
 func (cs *ConsensusState) scheduleRound0(rs *cstypes.RoundState) {
-	cs.logger.Info("scheduleRound0", "now", time.Now(), "startTime", time.Unix(int64(cs.StartTime), 0))
+	cs.Logger.Info("scheduleRound0", "now", time.Now(), "startTime", time.Unix(int64(cs.StartTime), 0))
 	sleepDuration := time.Duration(int64(rs.StartTime) - time.Now().Unix()) // nolint: gotype, gosimple
 	cs.scheduleTimeout(sleepDuration, rs.Height, 1, cstypes.RoundStepNewHeight)
 }
@@ -395,7 +411,7 @@ func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 	default:
 		// NOTE: using the go-routine means our votes can
 		// be processed out of order.
-		cs.logger.Info("Internal msg queue is full. Using a go-routine")
+		cs.Logger.Info("Internal msg queue is full. Using a go-routine")
 		go func() { cs.internalMsgQueue <- mi }()
 	}
 }
@@ -425,7 +441,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 			return added, err
 		} else if voteErr, ok := err.(*types.ErrVoteConflictingVotes); ok {
 			if vote.ValidatorAddress.Equal(cs.privValidator.GetAddress()) {
-				cs.logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
+				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
 				return false, err
 			}
 			cs.evpool.AddEvidence(voteErr.DuplicateVoteEvidence)
@@ -433,14 +449,14 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 		}
 		// Probably an invalid signature / Bad peer.
 		// Seems this can also err sometimes with "Unexpected step" - perhaps not from a bad peer ?
-		cs.logger.Error("Error attempting to add vote", "err", err)
+		cs.Logger.Error("Error attempting to add vote", "err", err)
 		return false, ErrAddingVote
 	}
 	return added, nil
 }
 
 func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, err error) {
-	cs.logger.Debug(
+	cs.Logger.Debug(
 		"addVote",
 		"voteHeight",
 		vote.Height,
@@ -462,7 +478,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 			return added, err
 		}
 
-		cs.logger.Info(cmn.Fmt("Added to lastPrecommits: %v", cs.LastCommit.StringShort()))
+		cs.Logger.Info(cmn.Fmt("Added to lastPrecommits: %v", cs.LastCommit.StringShort()))
 		cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote})
 		cs.evsw.FireEvent(types.EventVote, vote)
 
@@ -480,7 +496,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 	// Not necessarily a bad peer, but not favourable behaviour.
 	if vote.Height != cs.Height {
 		err = ErrVoteHeightMismatch
-		cs.logger.Info("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", cs.Height, "err", err)
+		cs.Logger.Info("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", cs.Height, "err", err)
 		return
 	}
 
@@ -498,7 +514,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 	case kproto.PrevoteType:
 		prevotes := cs.Votes.Prevotes(vote.Round)
 
-		cs.logger.Info("Added to prevote", "vote", vote, "prevotes", prevotes.StringShort())
+		cs.Logger.Info("Added to prevote", "vote", vote, "prevotes", prevotes.StringShort())
 
 		// If +2/3 prevotes for a block or nil for *any* round:
 		if blockID, ok := prevotes.TwoThirdsMajority(); ok {
@@ -513,7 +529,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 				(vote.Round <= cs.Round) &&
 				!cs.LockedBlock.HashesTo(blockID.Hash) {
 
-				cs.logger.Info("Unlocking because of POL.", "lockedRound", cs.LockedRound, "POLRound", vote.Round)
+				cs.Logger.Info("Unlocking because of POL.", "lockedRound", cs.LockedRound, "POLRound", vote.Round)
 				cs.LockedRound = 0
 				cs.LockedBlock = nil
 				cs.LockedBlockParts = nil
@@ -526,12 +542,12 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 				(cs.ValidRound < vote.Round) &&
 				(vote.Round == cs.Round) {
 				if cs.ProposalBlock.HashesTo(blockID.Hash) {
-					cs.logger.Info("Updating ValidBlock because of POL.", "validRound", cs.ValidRound, "POLRound", vote.Round)
+					cs.Logger.Info("Updating ValidBlock because of POL.", "validRound", cs.ValidRound, "POLRound", vote.Round)
 					cs.ValidRound = vote.Round
 					cs.ValidBlock = cs.ProposalBlock
 					cs.ValidBlockParts = cs.ProposalBlockParts
 				} else {
-					cs.logger.Info(
+					cs.Logger.Info(
 						"Valid block we don't know about. Set ProposalBlock=nil",
 						"proposal", cs.ProposalBlock.Hash(), "blockId", blockID.Hash)
 					// We're getting the wrong block.
@@ -568,7 +584,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 	case kproto.PrecommitType:
 		precommits := cs.Votes.Precommits(vote.Round)
 
-		cs.logger.Info("Added to precommit", "vote", vote, "precommits", precommits.StringShort())
+		cs.Logger.Info("Added to precommit", "vote", vote, "precommits", precommits.StringShort())
 		blockID, ok := precommits.TwoThirdsMajority()
 		if ok {
 			// Executed as TwoThirdsMajority could be from a higher round
@@ -653,11 +669,11 @@ func (cs *ConsensusState) signAddVote(signedMsgType kproto.SignedMsgType, hash c
 	vote, err := cs.signVote(signedMsgType, hash, header)
 	if err == nil {
 		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, ""})
-		cs.logger.Info("Signed and pushed vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
+		cs.Logger.Info("Signed and pushed vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
 		return vote
 	}
 	//if !cs.replayMode {
-	cs.logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
+	cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
 	//}
 	return nil
 }
@@ -670,9 +686,16 @@ func (cs *ConsensusState) updateRoundStep(round uint32, step cstypes.RoundStepTy
 
 // Advances to a new step.
 func (cs *ConsensusState) newStep() {
-	cs.logger.Trace("enter newStep()")
+	rs := cs.RoundStateEvent()
+	cs.Logger.Trace("enter newStep()")
 	cs.nSteps++
-	cs.evsw.FireEvent(types.EventNewRoundStep, &cs.RoundState)
+
+	if cs.eventBus != nil {
+		if err := cs.eventBus.PublishEventNewRoundStep(rs); err != nil {
+			cs.Logger.Error("Error publishing new round step", "err", err)
+		}
+		cs.evsw.FireEvent(types.EventNewRoundStep, &cs.RoundState)
+	}
 }
 
 func (cs *ConsensusState) updateHeight(height uint64) {
@@ -687,7 +710,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 	height, round, part := msg.Height, msg.Round, msg.Part
 	// Blocks might be reused, so round mismatch is OK
 	if cs.Height != height {
-		cs.logger.Debug("Received block part from wrong height", "height", height, "round", round)
+		cs.Logger.Debug("Received block part from wrong height", "height", height, "round", round)
 		return false, nil
 	}
 
@@ -695,7 +718,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 	if cs.ProposalBlockParts == nil {
 		// NOTE: this can happen when we've gone to a higher round and
 		// then receive parts from the previous round - not necessarily a bad peer.
-		cs.logger.Info("Received a block part when we're not expecting any",
+		cs.Logger.Info("Received a block part when we're not expecting any",
 			"height", height, "round", round, "index", part.Index, "peer", peerID)
 		return false, nil
 	}
@@ -723,7 +746,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 
 		cs.ProposalBlock = block
 		// NOTE: it's possible to receive complete proposal blocks for future rounds without having the proposal
-		cs.logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height(), "hash", cs.ProposalBlock.Hash())
+		cs.Logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height(), "hash", cs.ProposalBlock.Hash())
 		cs.eventBus.PublishEventCompleteProposal(cs.CompleteProposalEvent())
 
 		// Update Valid* if we can.
@@ -731,7 +754,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 		blockID, hasTwoThirds := prevotes.TwoThirdsMajority()
 		if hasTwoThirds && !blockID.IsZero() && (cs.ValidRound < cs.Round) {
 			if cs.ProposalBlock.HashesTo(blockID.Hash) {
-				cs.logger.Info("Updating valid block to new proposal block",
+				cs.Logger.Info("Updating valid block to new proposal block",
 					"valid-round", cs.Round, "valid-block-hash", cs.ProposalBlock.Hash())
 				cs.ValidRound = cs.Round
 				cs.ValidBlock = cs.ProposalBlock
@@ -784,7 +807,7 @@ func (cs *ConsensusState) LoadCommit(height uint64) *types.Commit {
 // Enter: +2/3 prevotes any or +2/3 precommits for block or any from (height, round)
 // NOTE: cs.StartTime was already set for height.
 func (cs *ConsensusState) enterNewRound(height uint64, round uint32) {
-	logger := cs.logger.New("height", height, "round", round)
+	logger := cs.Logger.New("height", height, "round", round)
 
 	if (cs.Height != height) || (round < cs.Round) || (cs.Round == round) && (cs.Step != cstypes.RoundStepNewHeight) {
 		logger.Debug(cmn.Fmt("enterNewRound(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
@@ -842,7 +865,7 @@ func (cs *ConsensusState) enterNewRound(height uint64, round uint32) {
 // Enter (CreateEmptyBlocks, CreateEmptyBlocksInterval > 0 ): after enterNewRound(height,round), after timeout of CreateEmptyBlocksInterval
 // Enter (!CreateEmptyBlocks) : after enterNewRound(height,round), once txs are in the mempool
 func (cs *ConsensusState) enterPropose(height uint64, round uint32) {
-	logger := cs.logger.New("height", height, "round", round)
+	logger := cs.Logger.New("height", height, "round", round)
 
 	if (cs.Height != height) || (round < cs.Round) || (cs.Round == round && cstypes.RoundStepPropose <= cs.Step) {
 		logger.Debug(cmn.Fmt("enterPropose(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
@@ -896,7 +919,7 @@ func (cs *ConsensusState) enterPropose(height uint64, round uint32) {
 // Otherwise vote nil.
 func (cs *ConsensusState) enterPrevote(height uint64, round uint32) {
 	if (cs.Height != height) || (round < cs.Round) || (cs.Round == round && cstypes.RoundStepPrevote <= cs.Step) {
-		cs.logger.Debug(cmn.Fmt("enterPrevote(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
+		cs.Logger.Debug(cmn.Fmt("enterPrevote(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
 		return
 	}
 
@@ -906,7 +929,7 @@ func (cs *ConsensusState) enterPrevote(height uint64, round uint32) {
 		cs.newStep()
 	}()
 
-	cs.logger.Info(cmn.Fmt("enterPrevote(%v/%v). Current: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
+	cs.Logger.Info(cmn.Fmt("enterPrevote(%v/%v). Current: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
 
 	// Sign and broadcast vote as necessary
 	cs.doPrevote(height, round)
@@ -916,7 +939,7 @@ func (cs *ConsensusState) enterPrevote(height uint64, round uint32) {
 }
 
 func (cs *ConsensusState) doPrevote(height uint64, round uint32) {
-	logger := cs.logger.New("height", height, "round", round)
+	logger := cs.Logger.New("height", height, "round", round)
 	// If a block is locked, prevote that.
 	if cs.LockedBlock != nil {
 		logger.Info("enterPrevote: Block was locked")
@@ -949,7 +972,7 @@ func (cs *ConsensusState) doPrevote(height uint64, round uint32) {
 
 // Enter: any +2/3 prevotes at next round.
 func (cs *ConsensusState) enterPrevoteWait(height uint64, round uint32) {
-	logger := cs.logger.New("height", height, "round", round)
+	logger := cs.Logger.New("height", height, "round", round)
 
 	if (cs.Height != height) || (round < cs.Round) || (cs.Round == round && cstypes.RoundStepPrevoteWait <= cs.Step) {
 		logger.Debug(cmn.Fmt("enterPrevoteWait(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
@@ -977,8 +1000,8 @@ func (cs *ConsensusState) enterPrevoteWait(height uint64, round uint32) {
 // else, unlock an existing lock and precommit nil if +2/3 of prevotes were nil,
 // else, precommit nil otherwise.
 func (cs *ConsensusState) enterPrecommit(height uint64, round uint32) {
-	cs.logger.Trace("enterPrecommit", "height", height, "round", round)
-	logger := cs.logger.New("height", height, "round", round)
+	cs.Logger.Trace("enterPrecommit", "height", height, "round", round)
+	logger := cs.Logger.New("height", height, "round", round)
 
 	if (cs.Height != height) || (round < cs.Round) || (cs.Round == round && cstypes.RoundStepPrecommit <= cs.Step) {
 		logger.Debug(cmn.Fmt("enterPrecommit(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
@@ -1097,7 +1120,7 @@ func (cs *ConsensusState) enterPrecommitWait(height uint64, round uint32) {
 
 // Enter: +2/3 precommits for block
 func (cs *ConsensusState) enterCommit(height uint64, commitRound uint32) {
-	logger := cs.logger.New("height", height, "commitRound", commitRound)
+	logger := cs.Logger.New("height", height, "commitRound", commitRound)
 
 	if (cs.Height != height) || cstypes.RoundStepCommit <= cs.Step {
 		logger.Debug(cmn.Fmt("enterCommit(%v/%v): Invalid args. Current step: %v/%v/%v", height, commitRound, cs.Height, cs.Round, cs.Step))
@@ -1148,7 +1171,7 @@ func (cs *ConsensusState) enterCommit(height uint64, commitRound uint32) {
 
 // If we have the block AND +2/3 commits for it, finalize.
 func (cs *ConsensusState) tryFinalizeCommit(height uint64) {
-	logger := cs.logger.New("height", height)
+	logger := cs.Logger.New("height", height)
 
 	if cs.Height != height {
 		cmn.PanicSanity(cmn.Fmt("tryFinalizeCommit() cs.Height: %v vs height: %v", cs.Height, height))
@@ -1171,7 +1194,7 @@ func (cs *ConsensusState) tryFinalizeCommit(height uint64) {
 // Increment height and goto cstypes.RoundStepNewHeight
 func (cs *ConsensusState) finalizeCommit(height uint64) {
 	if (cs.Height != height) || cs.Step != cstypes.RoundStepCommit {
-		cs.logger.Debug(cmn.Fmt("finalizeCommit(%v): Invalid args. Current step: %v/%v/%v", height, cs.Height, cs.Round, cs.Step))
+		cs.Logger.Debug(cmn.Fmt("finalizeCommit(%v): Invalid args. Current step: %v/%v/%v", height, cs.Height, cs.Round, cs.Step))
 		return
 	}
 
@@ -1192,7 +1215,7 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 		panic("Block validation failed")
 	}
 
-	cs.logger.Info("Finalizing commit of block", "tx number", block.NumTxs(),
+	cs.Logger.Info("Finalizing commit of block", "tx number", block.NumTxs(),
 		"height", block.Height(), "hash", block.Hash().String())
 
 	fail.Fail() // XXX
@@ -1203,11 +1226,11 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 		// but may differ from the LastCommit included in the next block
 		precommits := cs.Votes.Precommits(cs.CommitRound)
 		seenCommit := precommits.MakeCommit()
-		cs.logger.Trace("Save new block", "block", block.Height(), "seenCommit", seenCommit)
+		cs.Logger.Trace("Save new block", "block", block.Height(), "seenCommit", seenCommit)
 		cs.blockOperations.SaveBlock(block, blockParts, seenCommit)
 	} else {
 		// Happens during replay if we already saved the block but didn't commit
-		cs.logger.Info("Calling finalizeCommit on already stored block", "height", block.Height())
+		cs.Logger.Info("Calling finalizeCommit on already stored block", "height", block.Height())
 	}
 
 	fail.Fail() // XXX
@@ -1219,15 +1242,15 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 	// NOTE The block.AppHash wont reflect these txs until the next block.
 	var err error
 	stateCopy, err = cs.blockExec.ApplyBlock(
-		cs.logger, stateCopy,
+		cs.Logger, stateCopy,
 		types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()},
 		block,
 	)
 	if err != nil {
-		cs.logger.Error("Error on ApplyBlock. Did the application crash? Please restart node", "err", err)
+		cs.Logger.Error("Error on ApplyBlock. Did the application crash? Please restart node", "err", err)
 		err := cmn.Kill()
 		if err != nil {
-			cs.logger.Error("Failed to kill this process - please do so manually", "err", err)
+			cs.Logger.Error("Failed to kill this process - please do so manually", "err", err)
 		}
 		return
 	}
@@ -1252,19 +1275,19 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 // Creates the next block to propose and returns it. Returns nil block upon
 // error.
 func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts *types.PartSet) {
-	cs.logger.Trace("createProposalBlock")
+	cs.Logger.Trace("createProposalBlock")
 	var commit *types.Commit
 	if cs.Height == 1 {
 		// We're creating a proposal for the first block.
 		commit = &types.Commit{}
-		cs.logger.Trace("enterPropose: First height, use empty Commit.")
+		cs.Logger.Trace("enterPropose: First height, use empty Commit.")
 	} else if cs.LastCommit.HasTwoThirdsMajority() {
 		// Make the commit from LastCommit
 		commit = cs.LastCommit.MakeCommit()
-		cs.logger.Trace("enterPropose: Subsequent height, use last commit.", "commit", commit)
+		cs.Logger.Trace("enterPropose: Subsequent height, use last commit.", "commit", commit)
 	} else {
 		// This shouldn't happen.
-		cs.logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
+		cs.Logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
 		return nil, nil
 	}
 	return cs.blockOperations.CreateProposalBlock(
@@ -1324,13 +1347,13 @@ func CompareHRS(h1 uint64, r1 uint32, s1 cstypes.RoundStepType, h2 uint64, r2 ui
 func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 	defer func() {
 		if r := recover(); r != nil {
-			cs.logger.Error("CONSENSUS FAILURE!!!", "err", r, "stack", string(debug.Stack()))
+			cs.Logger.Error("CONSENSUS FAILURE!!!", "err", r, "stack", string(debug.Stack()))
 		}
 	}()
 	for {
 		if maxSteps > 0 {
 			if cs.nSteps >= maxSteps {
-				cs.logger.Info("reached max steps. exiting receive routine")
+				cs.Logger.Info("reached max steps. exiting receive routine")
 				cs.nSteps = 0
 				return
 			}
@@ -1364,7 +1387,7 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 
 // state transitions on complete-proposal, 2/3-any, 2/3-one
 func (cs *ConsensusState) handleMsg(mi msgInfo) {
-	cs.logger.Trace("handleMsg", "msgInfo", mi)
+	cs.Logger.Trace("handleMsg", "msgInfo", mi)
 	cs.mtx.Lock()
 	defer cs.mtx.Unlock()
 
@@ -1377,7 +1400,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		// if the proposal is complete, we'll enterPrevote or tryFinalizeCommit
 		_, err := cs.addProposalBlockPart(msg, peerID)
 		if err != nil && msg.Round != cs.Round {
-			cs.logger.Debug(
+			cs.Logger.Debug(
 				"Received block part from wrong round",
 				"height",
 				cs.Height,
@@ -1390,27 +1413,27 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 	case *VoteMessage:
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
-		cs.logger.Trace("handling AddVote", "VoteMessage", msg.Vote)
+		cs.Logger.Trace("handling AddVote", "VoteMessage", msg.Vote)
 		_, err := cs.tryAddVote(msg.Vote, peerID)
 		if err == ErrAddingVote {
-			cs.logger.Trace("trying to add vote failed", "err", err)
-			cs.logger.Warn("TODO - punish peer.")
+			cs.Logger.Trace("trying to add vote failed", "err", err)
+			cs.Logger.Warn("TODO - punish peer.")
 		}
 
 	default:
-		cs.logger.Error("Unknown msg type", "msg_type", reflect.TypeOf(msg))
+		cs.Logger.Error("Unknown msg type", "msg_type", reflect.TypeOf(msg))
 	}
 	if err != nil {
-		cs.logger.Error("Error with msg", "height", cs.Height, "round", cs.Round, "type", reflect.TypeOf(msg), "peer", peerID, "err", err)
+		cs.Logger.Error("Error with msg", "height", cs.Height, "round", cs.Round, "type", reflect.TypeOf(msg), "peer", peerID, "err", err)
 	}
 }
 
 func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
-	cs.logger.Debug("Received tock", "timeout", ti.Duration, "height", ti.Height, "round", ti.Round, "step", ti.Step)
+	cs.Logger.Debug("Received tock", "timeout", ti.Duration, "height", ti.Height, "round", ti.Round, "step", ti.Step)
 
 	//// timeouts must be for current height, round, step
 	if (ti.Height != rs.Height) || (ti.Round < rs.Round) || (ti.Round == rs.Round && ti.Step < rs.Step) {
-		cs.logger.Debug("Ignoring tick because we're ahead", "height", rs.Height, "round", rs.Round, "step", rs.Step)
+		cs.Logger.Debug("Ignoring tick because we're ahead", "height", rs.Height, "round", rs.Round, "step", rs.Step)
 		return
 	}
 
