@@ -19,12 +19,14 @@
 package consensus
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
 
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	kpubsub "github.com/kardiachain/go-kardiamain/lib/pubsub"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/stretchr/testify/assert"
@@ -35,11 +37,14 @@ func TestStateProposerSelection0(t *testing.T) {
 	cs1, vss := randState(4)
 	height, round := cs1.Height, cs1.Round
 
+	newRoundCh := subscribe(cs1.eventBus, types.EventQueryNewRound)
+	proposalCh := subscribe(cs1.eventBus, types.EventQueryCompleteProposal)
+
 	// set validator
 	startTestRound(cs1, height, round)
-	time.Sleep(3000 * time.Millisecond)
 
-	ensurePrevote() // Commit a block and ensure proposer for the next height is correct.
+	// Wait for new round so proposer is set.
+	ensureNewRound(newRoundCh, height, round)
 	prop := cs1.GetRoundState().Validators.GetProposer()
 	pv := cs1.privValidator
 
@@ -47,16 +52,21 @@ func TestStateProposerSelection0(t *testing.T) {
 		t.Fatalf("expected proposer to be validator %d. Got %X", 0, prop.Address)
 	}
 
+	// Wait for complete proposal.
+	ensureNewProposal(proposalCh, height, round)
+
 	rs := cs1.GetRoundState()
 	signAddVotes(cs1, kproto.PrecommitType, rs.ProposalBlock.Hash(), rs.ProposalBlockParts.Header(), vss[1:]...)
 	incrementRound(vss[1:]...)
-	time.Sleep(3000 * time.Millisecond)
+
+	// Wait for new round so next validator is set.
+	ensureNewRound(newRoundCh, height+1, 0)
 
 	// check validator
 	prop = cs1.GetRoundState().Validators.GetProposer()
 	addr := vss[0].PrivVal.GetAddress()
 
-	if prop.Address != addr {
+	if !prop.Address.Equal(addr) {
 		panic(fmt.Sprintf("expected validator %d. Got %X", 0, addr))
 	}
 }
@@ -142,15 +152,12 @@ func TestStateBadProposal(t *testing.T) {
 func TestStateFullRound1(t *testing.T) {
 	cs, vss := randState(1)
 	height, round := cs.Height, cs.Round
-
+	voteCh := subscribeUnBuffered(cs.eventBus, types.EventQueryVote)
 	startTestRound(cs, height, round)
-
 	// ensureNewProposal(propCh, height, round)
 	propBlockHash := cs.GetRoundState().ProposalBlock.Hash()
-
-	time.Sleep(8000 * time.Millisecond)
 	// wait for prevote
-	ensurePrevote()
+	ensurePrevote(newRoundCh, height, round)
 	validatePrevote(t, cs, round, vss[0], propBlockHash)
 
 }
@@ -785,4 +792,22 @@ func TestProposeValidBlock(t *testing.T) {
 	assert.True(t, rs.ProposalBlock.Hash() == propBlockHash)
 	assert.True(t, rs.ProposalBlock.Hash() == rs.ValidBlock.Hash())
 
+}
+
+// subscribe subscribes test client to the given query and returns a channel with cap = 1.
+func subscribe(eventBus *types.EventBus, q kpubsub.Query) <-chan kpubsub.Message {
+	sub, err := eventBus.Subscribe(context.Background(), testSubscriber, q)
+	if err != nil {
+		panic(fmt.Sprintf("failed to subscribe %s to %v", testSubscriber, q))
+	}
+	return sub.Out()
+}
+
+// subscribe subscribes test client to the given query and returns a channel with cap = 0.
+func subscribeUnBuffered(eventBus *types.EventBus, q kpubsub.Query) <-chan kpubsub.Message {
+	sub, err := eventBus.SubscribeUnbuffered(context.Background(), testSubscriber, q)
+	if err != nil {
+		panic(fmt.Sprintf("failed to subscribe %s to %v", testSubscriber, q))
+	}
+	return sub.Out()
 }

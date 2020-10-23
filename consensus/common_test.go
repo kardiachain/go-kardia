@@ -32,6 +32,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	kpubsub "github.com/kardiachain/go-kardiamain/lib/pubsub"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	g "github.com/kardiachain/go-kardiamain/mainchain/genesis"
@@ -44,6 +45,10 @@ import (
 
 const (
 	testSubscriber = "test-client"
+)
+
+var (
+	ensureTimeout = time.Millisecond * 200
 )
 
 //-------------------------------------------------------------------------------
@@ -394,10 +399,72 @@ func newState(vs *validatorStub, state cstate.LastestBlockState) (*ConsensusStat
 	return consensusState, nil
 }
 
-func ensurePrevote() {
-	time.Sleep(500 * time.Millisecond)
+func ensurePrevote(voteCh <-chan kpubsub.Message, height uint64, round uint32) {
+	ensureVote(voteCh, height, round, kproto.PrevoteType)
+}
+
+func ensureVote(voteCh <-chan kpubsub.Message, height uint64, round uint32,
+	voteType kproto.SignedMsgType) {
+	select {
+	case <-time.After(ensureTimeout):
+		panic("Timeout expired while waiting for NewVote event")
+	case msg := <-voteCh:
+		voteEvent, ok := msg.Data().(types.EventDataVote)
+		if !ok {
+			panic(fmt.Sprintf("expected a EventDataVote, got %T. Wrong subscription channel?",
+				msg.Data()))
+		}
+		vote := voteEvent.Vote
+		if vote.Height != height {
+			panic(fmt.Sprintf("expected height %v, got %v", height, vote.Height))
+		}
+		if vote.Round != round {
+			panic(fmt.Sprintf("expected round %v, got %v", round, vote.Round))
+		}
+		if vote.Type != voteType {
+			panic(fmt.Sprintf("expected type %v, got %v", voteType, vote.Type))
+		}
+	}
 }
 
 func ensurePrecommit() {
 	time.Sleep(500 * time.Millisecond)
+}
+
+func ensureNewProposal(proposalCh <-chan kpubsub.Message, height uint64, round uint32) {
+	select {
+	case <-time.After(ensureTimeout):
+		panic("Timeout expired while waiting for NewProposal event")
+	case msg := <-proposalCh:
+		proposalEvent, ok := msg.Data().(types.EventDataCompleteProposal)
+		if !ok {
+			panic(fmt.Sprintf("expected a EventDataCompleteProposal, got %T. Wrong subscription channel?",
+				msg.Data()))
+		}
+		if proposalEvent.Height != height {
+			panic(fmt.Sprintf("expected height %v, got %v", height, proposalEvent.Height))
+		}
+		if proposalEvent.Round != round {
+			panic(fmt.Sprintf("expected round %v, got %v", round, proposalEvent.Round))
+		}
+	}
+}
+
+func ensureNewRound(roundCh <-chan kpubsub.Message, height uint64, round uint32) {
+	select {
+	case <-time.After(ensureTimeout):
+		panic("Timeout expired while waiting for NewRound event")
+	case msg := <-roundCh:
+		newRoundEvent, ok := msg.Data().(types.EventDataNewRound)
+		if !ok {
+			panic(fmt.Sprintf("expected a EventDataNewRound, got %T. Wrong subscription channel?",
+				msg.Data()))
+		}
+		if newRoundEvent.Height != height {
+			panic(fmt.Sprintf("expected height %v, got %v", height, newRoundEvent.Height))
+		}
+		if newRoundEvent.Round != round {
+			panic(fmt.Sprintf("expected round %v, got %v", round, newRoundEvent.Round))
+		}
+	}
 }
