@@ -218,6 +218,17 @@ func (cs *ConsensusState) OnStart() error {
 	return nil
 }
 
+// timeoutRoutine: receive requests for timeouts on tickChan and fire timeouts on tockChan
+// receiveRoutine: serializes processing of proposoals, block parts, votes; coordinates state transitions
+func (cs *ConsensusState) startRoutines(maxSteps int) {
+	err := cs.timeoutTicker.Start()
+	if err != nil {
+		cs.Logger.Error("Error starting timeout ticker", "err", err)
+		return
+	}
+	go cs.receiveRoutine(maxSteps)
+}
+
 // It stops all routines and waits for the WAL to finish.
 func (cs *ConsensusState) OnStop() {
 	cs.timeoutTicker.Stop()
@@ -696,6 +707,51 @@ func (cs *ConsensusState) newStep() {
 		}
 		cs.evsw.FireEvent(types.EventNewRoundStep, &cs.RoundState)
 	}
+}
+
+// SetProposal inputs a proposal.
+func (cs *ConsensusState) SetProposal(proposal *types.Proposal, peerID p2p.ID) error {
+
+	if peerID == "" {
+		cs.internalMsgQueue <- msgInfo{&ProposalMessage{proposal}, ""}
+	} else {
+		cs.peerMsgQueue <- msgInfo{&ProposalMessage{proposal}, peerID}
+	}
+
+	// TODO: wait for event?!
+	return nil
+}
+
+// AddProposalBlockPart inputs a part of the proposal block.
+func (cs *ConsensusState) AddProposalBlockPart(height uint64, round uint32, part *types.Part, peerID p2p.ID) error {
+
+	if peerID == "" {
+		cs.internalMsgQueue <- msgInfo{&BlockPartMessage{height, round, part}, ""}
+	} else {
+		cs.peerMsgQueue <- msgInfo{&BlockPartMessage{height, round, part}, peerID}
+	}
+
+	// TODO: wait for event?!
+	return nil
+}
+
+// SetProposalAndBlock inputs the proposal and all block parts.
+func (cs *ConsensusState) SetProposalAndBlock(
+	proposal *types.Proposal,
+	block *types.Block,
+	parts *types.PartSet,
+	peerID p2p.ID,
+) error {
+	if err := cs.SetProposal(proposal, peerID); err != nil {
+		return err
+	}
+	for i := 0; i < int(parts.Total()); i++ {
+		part := parts.GetPart(i)
+		if err := cs.AddProposalBlockPart(proposal.Height, proposal.Round, part, peerID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (cs *ConsensusState) updateHeight(height uint64) {

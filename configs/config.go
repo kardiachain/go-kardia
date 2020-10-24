@@ -82,6 +82,10 @@ func configNumEqual(x, y *big.Int) bool {
 	return x.Cmp(y) == 0
 }
 
+type Config struct {
+	Consensus ConsensusConfig
+}
+
 // -------- Consensus Config ---------
 
 // ConsensusConfig defines the configuration for the Kardia consensus service,

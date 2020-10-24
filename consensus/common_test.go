@@ -19,6 +19,7 @@
 package consensus
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"math/big"
@@ -49,6 +50,7 @@ const (
 
 var (
 	ensureTimeout = time.Millisecond * 200
+	config        *configs.Config
 )
 
 //-------------------------------------------------------------------------------
@@ -56,15 +58,15 @@ var (
 
 type validatorStub struct {
 	Index       int64 // Validator index. NOTE: we don't assume validator set changes.
-	Height      int64
-	Round       int64
+	Height      uint64
+	Round       uint32
 	PrivVal     types.PrivValidator
 	VotingPower int64
 }
 
 var testMinPower int64 = 10
 
-func newValidatorStub(privValidator types.PrivValidator, valIndex int64, round int64) *validatorStub {
+func newValidatorStub(privValidator types.PrivValidator, valIndex int64, round uint32) *validatorStub {
 	return &validatorStub{
 		Index:       valIndex,
 		PrivVal:     privValidator,
@@ -172,8 +174,8 @@ func startTestRound(cs *ConsensusState, height uint64, round uint32) {
 func decideProposal(
 	cs *ConsensusState,
 	vs *validatorStub,
-	height int64,
-	round int64,
+	height uint64,
+	round uint32,
 ) (proposal *types.Proposal, block *types.Block) {
 	cs.mtx.Lock()
 	block, blockParts := cs.createProposalBlock()
@@ -186,7 +188,7 @@ func decideProposal(
 
 	// Make proposal
 	polRound, propBlockID := validRound, types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()}
-	proposal = types.NewProposal(uint64(height), uint32(round), polRound, propBlockID)
+	proposal = types.NewProposal(height, round, polRound, propBlockID)
 	privVal := vs.PrivVal
 	p := proposal.ToProto()
 	if err := privVal.SignProposal(chainID, p); err != nil {
@@ -309,7 +311,7 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 	vss := make([]*validatorStub, nValidators)
 
 	for i := 0; i < nValidators; i++ {
-		vss[i] = newValidatorStub(privSet[i], int64(i), int64(consensusState.Round))
+		vss[i] = newValidatorStub(privSet[i], int64(i), consensusState.Round)
 	}
 	// since cs1 starts at 1
 	incrementHeight(vss[1:]...)
@@ -427,8 +429,8 @@ func ensureVote(voteCh <-chan kpubsub.Message, height uint64, round uint32,
 	}
 }
 
-func ensurePrecommit() {
-	time.Sleep(500 * time.Millisecond)
+func ensurePrecommit(voteCh <-chan kpubsub.Message, height uint64, round uint32) {
+	ensureVote(voteCh, height, round, kproto.PrecommitType)
 }
 
 func ensureNewProposal(proposalCh <-chan kpubsub.Message, height uint64, round uint32) {
@@ -466,5 +468,167 @@ func ensureNewRound(roundCh <-chan kpubsub.Message, height uint64, round uint32)
 		if newRoundEvent.Round != round {
 			panic(fmt.Sprintf("expected round %v, got %v", round, newRoundEvent.Round))
 		}
+	}
+}
+
+func ensureNewBlock(blockCh <-chan kpubsub.Message, height uint64) {
+	select {
+	case <-time.After(ensureTimeout):
+		panic("Timeout expired while waiting for NewBlock event")
+	case msg := <-blockCh:
+		blockEvent, ok := msg.Data().(types.EventDataNewBlock)
+		if !ok {
+			panic(fmt.Sprintf("expected a EventDataNewBlock, got %T. Wrong subscription channel?",
+				msg.Data()))
+		}
+		if blockEvent.Block.Height() != height {
+			panic(fmt.Sprintf("expected height %v, got %v", height, blockEvent.Block.Height()))
+		}
+	}
+}
+
+func ensureNewTimeout(timeoutCh <-chan kpubsub.Message, height uint64, round uint32, timeout int64) {
+	timeoutDuration := time.Duration(timeout*10) * time.Nanosecond
+	ensureNewEvent(timeoutCh, height, round, timeoutDuration,
+		"Timeout expired while waiting for NewTimeout event")
+}
+
+func ensureNewEvent(ch <-chan kpubsub.Message, height uint64, round uint32, timeout time.Duration, errorMessage string) {
+	select {
+	case <-time.After(timeout):
+		panic(errorMessage)
+	case msg := <-ch:
+		roundStateEvent, ok := msg.Data().(types.EventDataRoundState)
+		if !ok {
+			panic(fmt.Sprintf("expected a EventDataRoundState, got %T. Wrong subscription channel?",
+				msg.Data()))
+		}
+		if roundStateEvent.Height != height {
+			panic(fmt.Sprintf("expected height %v, got %v", height, roundStateEvent.Height))
+		}
+		if roundStateEvent.Round != round {
+			panic(fmt.Sprintf("expected round %v, got %v", round, roundStateEvent.Round))
+		}
+		// TODO: We could check also for a step at this point!
+	}
+}
+
+func subscribeToVoter(cs *ConsensusState, addr common.Address) <-chan kpubsub.Message {
+	votesSub, err := cs.eventBus.SubscribeUnbuffered(context.Background(), testSubscriber, types.EventQueryVote)
+	if err != nil {
+		panic(fmt.Sprintf("failed to subscribe %s to %v", testSubscriber, types.EventQueryVote))
+	}
+	ch := make(chan kpubsub.Message)
+	go func() {
+		for msg := range votesSub.Out() {
+			vote := msg.Data().(types.EventDataVote)
+			// we only fire for our own votes
+			if addr.Equal(vote.Vote.ValidatorAddress) {
+				ch <- msg
+			}
+		}
+	}()
+	return ch
+}
+
+func ensureNewBlockHeader(blockCh <-chan kpubsub.Message, height uint64, blockHash common.Hash) {
+	select {
+	case <-time.After(ensureTimeout):
+		panic("Timeout expired while waiting for NewBlockHeader event")
+	case msg := <-blockCh:
+		blockHeaderEvent, ok := msg.Data().(types.EventDataNewBlockHeader)
+		if !ok {
+			panic(fmt.Sprintf("expected a EventDataNewBlockHeader, got %T. Wrong subscription channel?",
+				msg.Data()))
+		}
+		if blockHeaderEvent.Header.Height != height {
+			panic(fmt.Sprintf("expected height %v, got %v", height, blockHeaderEvent.Header.Height))
+		}
+		if !blockHeaderEvent.Header.Hash().Equal(blockHash) {
+			panic(fmt.Sprintf("expected header %X, got %X", blockHash, blockHeaderEvent.Header.Hash()))
+		}
+	}
+}
+
+func ensureNewUnlock(unlockCh <-chan kpubsub.Message, height uint64, round uint32) {
+	ensureNewEvent(unlockCh, height, round, ensureTimeout,
+		"Timeout expired while waiting for NewUnlock event")
+}
+
+func ensureProposal(proposalCh <-chan kpubsub.Message, height uint64, round uint32, propID types.BlockID) {
+	select {
+	case <-time.After(ensureTimeout):
+		panic("Timeout expired while waiting for NewProposal event")
+	case msg := <-proposalCh:
+		proposalEvent, ok := msg.Data().(types.EventDataCompleteProposal)
+		if !ok {
+			panic(fmt.Sprintf("expected a EventDataCompleteProposal, got %T. Wrong subscription channel?",
+				msg.Data()))
+		}
+		if proposalEvent.Height != height {
+			panic(fmt.Sprintf("expected height %v, got %v", height, proposalEvent.Height))
+		}
+		if proposalEvent.Round != round {
+			panic(fmt.Sprintf("expected round %v, got %v", round, proposalEvent.Round))
+		}
+		if !proposalEvent.BlockID.Equal(propID) {
+			panic(fmt.Sprintf("Proposed block does not match expected block (%v != %v)", proposalEvent.BlockID, propID))
+		}
+	}
+}
+
+func validatePrevoteAndPrecommit(
+	t *testing.T,
+	cs *ConsensusState,
+	thisRound,
+	lockRound uint32,
+	privVal *validatorStub,
+	votedBlockHash,
+	lockedBlockHash common.Hash,
+) {
+	// verify the prevote
+	validatePrevote(t, cs, thisRound, privVal, votedBlockHash)
+	// verify precommit
+	cs.mtx.Lock()
+	validatePrecommit(t, cs, thisRound, lockRound, privVal, votedBlockHash, lockedBlockHash)
+	cs.mtx.Unlock()
+}
+
+func ensureNoNewRoundStep(stepCh <-chan kpubsub.Message) {
+	ensureNoNewEvent(
+		stepCh,
+		ensureTimeout,
+		"We should be stuck waiting, not receiving NewRoundStep event")
+}
+
+func ensureNoNewUnlock(unlockCh <-chan kpubsub.Message) {
+	ensureNoNewEvent(
+		unlockCh,
+		ensureTimeout,
+		"We should be stuck waiting, not receiving Unlock event")
+}
+
+func ensureNewValidBlock(validBlockCh <-chan kpubsub.Message, height uint64, round uint32) {
+	ensureNewEvent(validBlockCh, height, round, ensureTimeout,
+		"Timeout expired while waiting for NewValidBlock event")
+}
+
+func ensurePrecommitTimeout(ch <-chan kpubsub.Message) {
+	select {
+	case <-time.After(ensureTimeout):
+		panic("Timeout expired while waiting for the Precommit to Timeout")
+	case <-ch:
+	}
+}
+
+//-------------------------------------------------------------------------------
+
+func ensureNoNewEvent(ch <-chan kpubsub.Message, timeout time.Duration,
+	errorMessage string) {
+	select {
+	case <-time.After(timeout):
+		break
+	case <-ch:
+		panic(errorMessage)
 	}
 }
