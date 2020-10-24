@@ -496,7 +496,7 @@ func TestStateLockPOLRelock(t *testing.T) {
 	signAddVotes(cs1, kproto.PrecommitType, common.Hash{}, types.PartSetHeader{}, vs2, vs3, vs4)
 
 	// before we timeout to the new round set the new proposal
-	cs2, _ := newState(vs2, cs1.state)
+	cs2, _ := newState(vs2.PrivVal, cs1.state)
 	prop, propBlock := decideProposal(cs2, vs2, vs2.Height, vs2.Round+1)
 	if prop == nil || propBlock == nil {
 		t.Fatal("Failed to create proposal block with vs2")
@@ -679,7 +679,7 @@ func TestStateLockPOLUnlockOnUnknownBlock(t *testing.T) {
 	signAddVotes(cs1, kproto.PrecommitType, common.Hash{}, types.PartSetHeader{}, vs2, vs3, vs4)
 
 	// before we timeout to the new round set the new proposal
-	cs2, _ := newState(vs2, cs1.state)
+	cs2, _ := newState(vs2.PrivVal, cs1.state)
 	prop, propBlock := decideProposal(cs2, vs2, vs2.Height, vs2.Round+1)
 	if prop == nil || propBlock == nil {
 		t.Fatal("Failed to create proposal block with vs2")
@@ -723,7 +723,7 @@ func TestStateLockPOLUnlockOnUnknownBlock(t *testing.T) {
 	signAddVotes(cs1, kproto.PrecommitType, common.Hash{}, types.PartSetHeader{}, vs2, vs3, vs4)
 
 	// before we timeout to the new round set the new proposal
-	cs3, _ := newState(vs3, cs1.state)
+	cs3, _ := newState(vs3.PrivVal, cs1.state)
 	prop, propBlock = decideProposal(cs3, vs3, vs3.Height, vs3.Round+1)
 	if prop == nil || propBlock == nil {
 		t.Fatal("Failed to create proposal block with vs2")

@@ -161,7 +161,7 @@ func NewConsensusState(
 			Round:       1,
 		},
 	}
-
+	cs.SetLogger(logger)
 	cs.updateToState(state)
 
 	// Reconstruct LastCommit from db after a crash.
@@ -169,9 +169,17 @@ func NewConsensusState(
 	//set round should be 1
 	cs.Round = 1
 
+	cs.BaseService = *service.NewBaseService(nil, "State", cs)
+
 	// Don't call scheduleRound0 yet. We do that upon Start().
 
 	return cs
+}
+
+// String returns a string.
+func (cs *ConsensusState) String() string {
+	// better not to access shared variables
+	return "ConsensusState"
 }
 
 // SetLogger implements Service.
@@ -238,7 +246,6 @@ func (cs *ConsensusState) OnStop() {
 // Updates ConsensusState and increments height to match that of state.
 // The round becomes 0 and cs.Step becomes cstypes.RoundStepNewHeight.
 func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
-	cs.Logger.Trace("ConsensusState - updateToState")
 	if (cs.CommitRound >= 0) && (cs.Height > 0) && cs.Height != state.LastBlockHeight {
 		cmn.PanicSanity(cmn.Fmt("updateToState() expected state height of %v but found %v",
 			cs.Height, state.LastBlockHeight))
@@ -283,7 +290,7 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 		// to be gathered for the first block.
 		// And alternative solution that relies on clocks:
 		//  cs.StartTime = state.LastBlockTime.Add(timeoutCommit)
-		cs.Logger.Trace("cs.CommitTime is 0")
+		//cs.Logger.Trace("cs.CommitTime is 0")
 		cs.StartTime = uint64(cs.config.Commit(time.Now()).Unix())
 	} else {
 		commitTime := time.Unix(int64(cs.CommitTime), 0)

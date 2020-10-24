@@ -79,7 +79,6 @@ type EventDataRoundState struct {
 
 // implements events.EventData
 type KaiEventData interface {
-	AssertIsKaiEventData()
 	// empty interface
 }
 

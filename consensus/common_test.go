@@ -256,67 +256,29 @@ func validateLastPrecommit(t *testing.T, cs *ConsensusState, vs *validatorStub, 
 }
 
 func randState(nValidators int) (*ConsensusState, []*validatorStub) {
-	// Create a specific logger for KARDIA service.
-	logger := log.New()
-	logger.AddTag("test state")
-
-	// var DBInfo storage.DbInfo
-	bc, chainConfig, err := GetBlockchain()
-	blockDB := memorydb.New()
-	kaiDb := kvstore.NewStoreDB(blockDB)
-	if err != nil {
-		return nil, nil
-	}
-
-	staking, _ := staking.NewSmcStakingnUtil()
-
-	txConfig := tx_pool.TxPoolConfig{
-		GlobalSlots: 64,
-		GlobalQueue: 5120000,
-	}
-	txPool := tx_pool.NewTxPool(txConfig, chainConfig, bc)
-	evPool := evidence.NewPool(kaiDb.DB(), kaiDb.DB())
-	bOper := blockchain.NewBlockOperations(logger, bc, txPool, evPool, staking)
-
-	// evReactor := evidence.NewReactor(evPool)
-	blockExec := cstate.NewBlockExecutor(blockDB, evPool, bOper)
-
-	// Initialization for consensus.
-	block := bc.CurrentBlock()
-
 	// var validatorSet *types.ValidatorSet
 	validatorSet, privSet := types.RandValidatorSet(nValidators, 10)
 	// state, err := cstate.LoadStateFromDBOrGenesisDoc(kaiDb.DB(), config.Genesis)
 	state := cstate.LastestBlockState{
 		ChainID:                     "kaicon",
-		LastBlockHeight:             uint64(block.Height()),
-		LastBlockID:                 block.Header().LastBlockID,
-		LastBlockTime:               block.Time(),
+		LastBlockHeight:             0,
+		LastBlockID:                 types.NewZeroBlockID(),
+		LastBlockTime:               time.Now(),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
 		LastHeightValidatorsChanged: uint64(0),
 	}
 
-	consensusState := NewConsensusState(
-		logger,
-		configs.DefaultConsensusConfig(),
-		state,
-		bOper,
-		blockExec,
-		evPool,
-	)
-
-	consensusState.SetPrivValidator(privSet[0])
 	// Get State
 	vss := make([]*validatorStub, nValidators)
-
+	cs, _ := newState(privSet[0], state)
 	for i := 0; i < nValidators; i++ {
-		vss[i] = newValidatorStub(privSet[i], int64(i), consensusState.Round)
+		vss[i] = newValidatorStub(privSet[i], int64(i), cs.Round)
 	}
 	// since cs1 starts at 1
 	incrementHeight(vss[1:]...)
 
-	return consensusState, vss
+	return cs, vss
 }
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
@@ -359,7 +321,7 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 	return bc, chainConfig, nil
 }
 
-func newState(vs *validatorStub, state cstate.LastestBlockState) (*ConsensusState, error) {
+func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*ConsensusState, error) {
 	// Create a specific logger for KARDIA service.
 	logger := log.New()
 	logger.AddTag("test state")
@@ -387,7 +349,7 @@ func newState(vs *validatorStub, state cstate.LastestBlockState) (*ConsensusStat
 	// Initialization for consensus.
 	// block := bc.CurrentBlock()
 
-	consensusState := NewConsensusState(
+	cs := NewConsensusState(
 		logger,
 		configs.DefaultConsensusConfig(),
 		state,
@@ -396,9 +358,17 @@ func newState(vs *validatorStub, state cstate.LastestBlockState) (*ConsensusStat
 		evPool,
 	)
 
-	consensusState.SetPrivValidator(vs.PrivVal)
+	cs.SetPrivValidator(vs)
 
-	return consensusState, nil
+	eventBus := types.NewEventBus()
+	eventBus.SetLogger(log.TestingLogger().New("module", "events"))
+	err = eventBus.Start()
+	if err != nil {
+		panic(err)
+	}
+	cs.SetEventBus(eventBus)
+
+	return cs, nil
 }
 
 func ensurePrevote(voteCh <-chan kpubsub.Message, height uint64, round uint32) {

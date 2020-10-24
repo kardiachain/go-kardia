@@ -144,13 +144,24 @@ func (b *EventBus) validateAndStringifyEvents(events []types.Event, logger log.L
 }
 
 //--- EventDataRoundState events
-
 func (b *EventBus) PublishEventNewRoundStep(event EventDataRoundState) error {
 	return b.Publish(EventNewRoundStep, event)
 }
 
-func (b *EventBus) PublishEventNewRound(event EventDataRoundState) error {
-	return b.Publish(EventNewRound, event)
+func (b *EventBus) PublishEventTimeoutPropose(data EventDataRoundState) error {
+	return b.Publish(EventTimeoutPropose, data)
+}
+
+func (b *EventBus) PublishEventTimeoutWait(data EventDataRoundState) error {
+	return b.Publish(EventTimeoutWait, data)
+}
+
+func (b *EventBus) PublishEventNewRound(data EventDataNewRound) error {
+	return b.Publish(EventNewRound, data)
+}
+
+func (b *EventBus) PublishEventCompleteProposal(data EventDataCompleteProposal) error {
+	return b.Publish(EventCompleteProposal, data)
 }
 
 func (b *EventBus) PublishEventValidBlock(event EventDataRoundState) error {
@@ -159,10 +170,6 @@ func (b *EventBus) PublishEventValidBlock(event EventDataRoundState) error {
 
 func (b *EventBus) PublishEventPolka(event EventDataRoundState) error {
 	return b.Publish(EventPolka, event)
-}
-
-func (b *EventBus) PublishEventCompleteProposal(event EventDataCompleteProposal) error {
-	return b.Publish(EventCompleteProposal, event)
 }
 
 func (b *EventBus) PublishEventUnlock(event EventDataRoundState) error {
@@ -179,4 +186,12 @@ func (b *EventBus) PublishEventLock(event EventDataRoundState) error {
 
 func (b *EventBus) PublishEventVote(event EventDataVote) error {
 	return b.Publish(EventVote, event)
+}
+
+func (b *EventBus) PublishEventNewBlock(data EventDataNewBlock) error {
+	return b.Publish(EventNewBlock, data)
+}
+
+func (b *EventBus) PublishEventNewBlockHeader(data EventDataNewBlockHeader) error {
+	return b.Publish(EventNewBlockHeader, data)
 }
