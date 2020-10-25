@@ -50,7 +50,6 @@ const (
 
 var (
 	ensureTimeout = time.Millisecond * 200
-	config        *configs.Config
 )
 
 //-------------------------------------------------------------------------------
@@ -79,11 +78,7 @@ func (vs *validatorStub) signVote(
 	voteType kproto.SignedMsgType,
 	hash common.Hash,
 	header types.PartSetHeader) (*types.Vote, error) {
-
-	partSetHash := hash
-	blockPartsHeaders := types.PartSetHeader{Total: uint32(123), Hash: partSetHash}
 	privVal := vs.PrivVal
-
 	vote := &types.Vote{
 		ValidatorIndex:   uint32(vs.Index),
 		ValidatorAddress: privVal.GetAddress(),
@@ -91,17 +86,14 @@ func (vs *validatorStub) signVote(
 		Round:            uint32(vs.Round),
 		Timestamp:        time.Now(),
 		Type:             voteType,
-		BlockID:          types.BlockID{Hash: partSetHash, PartsHeader: blockPartsHeaders},
+		BlockID:          types.BlockID{Hash: hash, PartsHeader: header},
 	}
 
-	chainID := "kaicon"
-	p := vote.ToProto()
-	err := privVal.SignVote(chainID, p)
-	if err != nil {
-		return nil, err
-	}
+	v := vote.ToProto()
+	err := privVal.SignVote("kaicon", v)
+	vote.Signature = v.Signature
 
-	return vote, nil
+	return vote, err
 }
 
 // Sign vote for type/hash/header
@@ -167,7 +159,7 @@ func (vss ValidatorStubsByPower) Swap(i, j int) {
 
 func startTestRound(cs *ConsensusState, height uint64, round uint32) {
 	cs.enterNewRound(height, round)
-	cs.Start()
+	cs.startRoutines(0)
 }
 
 // Create proposal block from cs but sign it with vs.
@@ -194,7 +186,7 @@ func decideProposal(
 	if err := privVal.SignProposal(chainID, p); err != nil {
 		panic(err)
 	}
-
+	proposal.Signature = p.Signature
 	return
 }
 
@@ -266,6 +258,7 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 		LastBlockTime:               time.Now(),
 		Validators:                  validatorSet,
 		LastValidators:              validatorSet,
+		NextValidators:              validatorSet.CopyIncrementProposerPriority(1),
 		LastHeightValidatorsChanged: uint64(0),
 	}
 
@@ -346,12 +339,12 @@ func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*Consensu
 	// evReactor := evidence.NewReactor(evPool)
 	blockExec := cstate.NewBlockExecutor(blockDB, evPool, bOper)
 
+	csCfg := configs.TestConsensusConfig()
 	// Initialization for consensus.
 	// block := bc.CurrentBlock()
-
 	cs := NewConsensusState(
 		logger,
-		configs.DefaultConsensusConfig(),
+		csCfg,
 		state,
 		bOper,
 		blockExec,
@@ -569,6 +562,14 @@ func ensureNoNewRoundStep(stepCh <-chan kpubsub.Message) {
 		stepCh,
 		ensureTimeout,
 		"We should be stuck waiting, not receiving NewRoundStep event")
+}
+
+func ensureNoNewTimeout(stepCh <-chan kpubsub.Message, timeout int64) {
+	timeoutDuration := time.Duration(timeout*10) * time.Nanosecond
+	ensureNoNewEvent(
+		stepCh,
+		timeoutDuration,
+		"We should be stuck waiting, not receiving NewTimeout event")
 }
 
 func ensureNoNewUnlock(unlockCh <-chan kpubsub.Message) {

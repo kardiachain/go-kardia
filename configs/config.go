@@ -83,7 +83,7 @@ func configNumEqual(x, y *big.Int) bool {
 }
 
 type Config struct {
-	Consensus ConsensusConfig
+	Consensus *ConsensusConfig
 }
 
 // -------- Consensus Config ---------
@@ -128,6 +128,25 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		PeerGossipSleepDuration:     100 * time.Millisecond,
 		PeerQueryMaj23SleepDuration: 2000 * time.Millisecond,
 	}
+}
+
+// TestConsensusConfig returns a configuration for testing the consensus service
+func TestConsensusConfig() *ConsensusConfig {
+	cfg := DefaultConsensusConfig()
+	cfg.TimeoutPropose = 40 * time.Millisecond
+	cfg.TimeoutProposeDelta = 1 * time.Millisecond
+	cfg.TimeoutPrevote = 10 * time.Millisecond
+	cfg.TimeoutPrevoteDelta = 1 * time.Millisecond
+	cfg.TimeoutPrecommit = 10 * time.Millisecond
+	cfg.TimeoutPrecommitDelta = 1 * time.Millisecond
+	// NOTE: when modifying, make sure to update time_iota_ms (testGenesisFmt) in toml.go
+	cfg.TimeoutCommit = 10 * time.Millisecond
+	cfg.SkipTimeoutCommit = true
+	cfg.CreateEmptyBlocksInterval = 0
+	cfg.PeerGossipSleepDuration = 5 * time.Millisecond
+	cfg.PeerQueryMaj23SleepDuration = 250 * time.Millisecond
+	//cfg.DoubleSignCheckHeight = int64(0)
+	return cfg
 }
 
 // WaitForTxs returns true if the consensus should wait for transactions before entering the propose step

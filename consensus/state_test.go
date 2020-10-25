@@ -41,15 +41,15 @@ func TestStateProposerSelection0(t *testing.T) {
 	newRoundCh := subscribe(cs1.eventBus, types.EventQueryNewRound)
 	proposalCh := subscribe(cs1.eventBus, types.EventQueryCompleteProposal)
 
-	// set validator
 	startTestRound(cs1, height, round)
 
 	// Wait for new round so proposer is set.
 	ensureNewRound(newRoundCh, height, round)
-	prop := cs1.GetRoundState().Validators.GetProposer()
-	pv := cs1.privValidator
 
-	if prop.Address != pv.GetAddress() {
+	// Commit a block and ensure proposer for the next height is correct.
+	prop := cs1.GetRoundState().Validators.GetProposer()
+	address := cs1.privValidator.GetAddress()
+	if !prop.Address.Equal(address) {
 		t.Fatalf("expected proposer to be validator %d. Got %X", 0, prop.Address)
 	}
 
@@ -58,40 +58,38 @@ func TestStateProposerSelection0(t *testing.T) {
 
 	rs := cs1.GetRoundState()
 	signAddVotes(cs1, kproto.PrecommitType, rs.ProposalBlock.Hash(), rs.ProposalBlockParts.Header(), vss[1:]...)
-	incrementRound(vss[1:]...)
 
 	// Wait for new round so next validator is set.
-	ensureNewRound(newRoundCh, height+1, 0)
+	ensureNewRound(newRoundCh, height+1, 1)
 
-	// check validator
 	prop = cs1.GetRoundState().Validators.GetProposer()
-	addr := vss[0].PrivVal.GetAddress()
-
+	addr := vss[1].PrivVal.GetAddress()
 	if !prop.Address.Equal(addr) {
-		panic(fmt.Sprintf("expected validator %d. Got %X", 0, addr))
+		panic(fmt.Sprintf("expected proposer to be validator %d. Got %X", 1, prop.Address))
 	}
 }
 
 //starting from round 3 instead of 1
 func TestStateProposerSelection2(t *testing.T) {
-	cs1, vss := randState(4)
+	cs1, vss := randState(4) // test needs more work for more than 3 validators
 	height := cs1.Height
 	newRoundCh := subscribe(cs1.eventBus, types.EventQueryNewRound)
 
-	// this time we jump in at round 3
+	// this time we jump in at round 2
 	incrementRound(vss[1:]...)
 	incrementRound(vss[1:]...)
 
-	var round uint32 = 3
+	var round uint32 = 2
 	startTestRound(cs1, height, round)
+
 	ensureNewRound(newRoundCh, height, round) // wait for the new round
 
 	// everyone just votes nil. we get a new proposer each round
-	for i := uint32(0); uint32(i) < uint32(len(vss)); i++ {
+	for i := uint32(0); int(i) < len(vss); i++ {
 		prop := cs1.GetRoundState().Validators.GetProposer()
-		priVal := (vss[(uint32(i)+2)%uint32(len(vss))].PrivVal)
-		correctProposer := priVal.GetAddress()
-		if prop.Address != correctProposer {
+		addr := vss[int(i+round-1)%len(vss)].PrivVal.GetAddress()
+		correctProposer := addr
+		if !prop.Address.Equal(correctProposer) {
 			panic(fmt.Sprintf(
 				"expected RoundState.Validators.GetProposer() to be validator %d. Got %X",
 				int(i+2)%len(vss),
@@ -99,11 +97,61 @@ func TestStateProposerSelection2(t *testing.T) {
 		}
 
 		rs := cs1.GetRoundState()
-		signAddVotes(cs1, kproto.PrecommitType, common.BytesToHash(nil), rs.ProposalBlockParts.Header(), vss[1:]...)
-		incrementRound(vss[1:]...)
+		signAddVotes(cs1, kproto.PrecommitType, common.Hash{}, rs.ProposalBlockParts.Header(), vss[1:]...)
 		ensureNewRound(newRoundCh, height, i+round+1) // wait for the new round event each round
+		incrementRound(vss[1:]...)
 	}
 
+}
+
+// a non-validator should timeout into the prevote round
+func TestStateEnterProposeNoPrivValidator(t *testing.T) {
+	cs, _ := randState(1)
+	cs.SetPrivValidator(nil)
+	height, round := cs.Height, cs.Round
+
+	// Listen for propose timeout event
+	timeoutCh := subscribe(cs.eventBus, types.EventQueryTimeoutPropose)
+
+	startTestRound(cs, height, round)
+
+	// if we're not a validator, EnterPropose should timeout
+	ensureNewTimeout(timeoutCh, height, round, cs.config.TimeoutPropose.Nanoseconds())
+
+	if cs.GetRoundState().Proposal != nil {
+		t.Error("Expected to make no proposal, since no privValidator")
+	}
+}
+
+// a validator should not timeout of the prevote round (TODO: unless the block is really big!)
+func TestStateEnterProposeYesPrivValidator(t *testing.T) {
+	cs, _ := randState(1)
+	height, round := cs.Height, cs.Round
+
+	// Listen for propose timeout event
+
+	timeoutCh := subscribe(cs.eventBus, types.EventQueryTimeoutPropose)
+	proposalCh := subscribe(cs.eventBus, types.EventQueryCompleteProposal)
+
+	cs.enterNewRound(height, round)
+	cs.startRoutines(3)
+
+	ensureNewProposal(proposalCh, height, round)
+
+	// Check that Proposal, ProposalBlock, ProposalBlockParts are set.
+	rs := cs.GetRoundState()
+	if rs.Proposal == nil {
+		t.Error("rs.Proposal should be set")
+	}
+	if rs.ProposalBlock == nil {
+		t.Error("rs.ProposalBlock should be set")
+	}
+	if rs.ProposalBlockParts.Total() == 0 {
+		t.Error("rs.ProposalBlockParts should be set")
+	}
+
+	// if we're a validator, enterPropose should not timeout
+	ensureNoNewTimeout(timeoutCh, cs.config.TimeoutPropose.Nanoseconds())
 }
 
 func TestStateBadProposal(t *testing.T) {
@@ -125,16 +173,16 @@ func TestStateBadProposal(t *testing.T) {
 	// make the block bad by tampering with statehash
 	stateHash := propBlock.AppHash()
 	if stateHash.IsZero() {
-		stateHashBytes := stateHash.Bytes()
+		stateHashBytes := make([]byte, 32)
 		stateHashBytes[0] = (stateHashBytes[0] + 1) % 255
-		stateHash = common.BytesToHash(stateHashBytes)
+		propBlock.Header().AppHash = common.BytesToHash(stateHashBytes)
 	}
-	propBlock.Header().AppHash = stateHash
+
 	propBlockParts := propBlock.MakePartSet(partSize)
 	blockID := types.BlockID{Hash: propBlock.Hash(), PartsHeader: propBlockParts.Header()}
 	proposal := types.NewProposal(vs2.Height, round, 0, blockID)
 	p := proposal.ToProto()
-	if err := vs2.PrivVal.SignProposal("test", p); err != nil {
+	if err := vs2.PrivVal.SignProposal("kaicon", p); err != nil {
 		t.Fatal("failed to sign bad proposal", err)
 	}
 
@@ -203,7 +251,7 @@ func TestStateFullRound1(t *testing.T) {
 	ensurePrecommit(voteCh, height, round) // wait for precommit
 
 	// we're going to roll right into new height
-	ensureNewRound(newRoundCh, height+1, 0)
+	ensureNewRound(newRoundCh, height+1, 1)
 
 	validateLastPrecommit(t, cs, vss[0], propBlockHash)
 }
@@ -543,7 +591,7 @@ func TestStateLockPOLRelock(t *testing.T) {
 	signAddVotes(cs1, kproto.PrecommitType, propBlockHash, propBlockParts.Header(), vs2, vs3)
 	ensureNewBlockHeader(newBlockCh, height, propBlockHash)
 
-	ensureNewRound(newRoundCh, height+1, 0)
+	ensureNewRound(newRoundCh, height+1, 1)
 }
 
 // 4 vals, v1 locks on proposed block in the first round but the other validators only prevote
@@ -945,7 +993,7 @@ func TestStateLockPOLSafety2(t *testing.T) {
 	// in round 2 we see the polkad block from round 0
 	newProp := types.NewProposal(height, round, 0, propBlockID0)
 	p := newProp.ToProto()
-	if err := vs3.PrivVal.SignProposal("test", p); err != nil {
+	if err := vs3.PrivVal.SignProposal("kaicon", p); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1270,13 +1318,12 @@ func TestRoundSkipOnNilPolkaFromHigherRound(t *testing.T) {
 func TestWaitTimeoutProposeOnNilPolkaForTheCurrentRound(t *testing.T) {
 	cs1, vss := randState(4)
 	vs2, vs3, vs4 := vss[1], vss[2], vss[3]
-	height, round := cs1.Height, uint32(1)
+	height, round := cs1.Height, uint32(2)
 
 	timeoutProposeCh := subscribe(cs1.eventBus, types.EventQueryTimeoutPropose)
 	newRoundCh := subscribe(cs1.eventBus, types.EventQueryNewRound)
 	addr := cs1.privValidator.GetAddress()
 	voteCh := subscribeToVoter(cs1, addr)
-
 	// start round in which PO is not proposer
 	startTestRound(cs1, height, round)
 	ensureNewRound(newRoundCh, height, round)
@@ -1314,7 +1361,7 @@ func TestEmitNewValidBlockEventOnCommitWithoutBlock(t *testing.T) {
 
 	// vs2, vs3 and vs4 send precommit for propBlock
 	signAddVotes(cs1, kproto.PrecommitType, propBlockHash, propBlockParts.Header(), vs2, vs3, vs4)
-	ensureNewValidBlock(validBlockCh, height, round)
+	ensureNewValidBlock(validBlockCh, height, round+1)
 
 	rs := cs1.GetRoundState()
 	assert.True(t, rs.Step == cstypes.RoundStepCommit)
@@ -1329,7 +1376,7 @@ func TestEmitNewValidBlockEventOnCommitWithoutBlock(t *testing.T) {
 func TestCommitFromPreviousRound(t *testing.T) {
 	cs1, vss := randState(4)
 	vs2, vs3, vs4 := vss[1], vss[2], vss[3]
-	height, round := cs1.Height, uint32(1)
+	height, round := cs1.Height, uint32(2)
 
 	partSize := uint32(types.BlockPartSizeBytes)
 
@@ -1361,14 +1408,14 @@ func TestCommitFromPreviousRound(t *testing.T) {
 	}
 
 	ensureNewProposal(proposalCh, height, round)
-	ensureNewRound(newRoundCh, height+1, 0)
+	ensureNewRound(newRoundCh, height+1, 1)
 }
 
 // 2 vals precommit votes for a block but node times out waiting for the third. Move to next round
 // and third precommit arrives which leads to the commit of that header and the correct
 // start of the next round
 func TestStartNextHeightCorrectlyAfterTimeout(t *testing.T) {
-	config.Consensus.SkipTimeoutCommit = false
+	//config.Consensus.SkipTimeoutCommit = false
 	cs1, vss := randState(4)
 
 	vs2, vs3, vs4 := vss[1], vss[2], vss[3]
@@ -1424,7 +1471,7 @@ func TestStartNextHeightCorrectlyAfterTimeout(t *testing.T) {
 }
 
 func TestResetTimeoutPrecommitUponNewHeight(t *testing.T) {
-	config.Consensus.SkipTimeoutCommit = false
+	//config.Consensus.SkipTimeoutCommit = false
 	cs1, vss := randState(4)
 
 	vs2, vs3, vs4 := vss[1], vss[2], vss[3]
@@ -1463,13 +1510,13 @@ func TestResetTimeoutPrecommitUponNewHeight(t *testing.T) {
 
 	ensureNewBlockHeader(newBlockHeader, height, theBlockHash)
 
-	prop, propBlock := decideProposal(cs1, vs2, height+1, 0)
+	prop, propBlock := decideProposal(cs1, vs2, height+1, 1)
 	propBlockParts := propBlock.MakePartSet(partSize)
 
 	if err := cs1.SetProposalAndBlock(prop, propBlock, propBlockParts, "some peer"); err != nil {
 		t.Fatal(err)
 	}
-	ensureNewProposal(proposalCh, height+1, 0)
+	ensureNewProposal(proposalCh, height+1, 1)
 
 	rs = cs1.GetRoundState()
 	assert.False(
@@ -1548,7 +1595,7 @@ func TestStateHalt1(t *testing.T) {
 	// receiving that precommit should take us straight to commit
 	ensureNewBlock(newBlockCh, height)
 
-	ensureNewRound(newRoundCh, height+1, 0)
+	ensureNewRound(newRoundCh, height+1, 1)
 }
 
 // subscribe subscribes test client to the given query and returns a channel with cap = 1.

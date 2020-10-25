@@ -373,6 +373,7 @@ func (cs *ConsensusState) decideProposal(height uint64, round uint32) {
 }
 
 func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
+
 	// Already have one
 	// TODO: possibly catch double proposals
 	if cs.Proposal != nil {
@@ -396,7 +397,6 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 	if !types.VerifySignature(proposalAddress, crypto.Keccak256(signBytes), proposal.Signature) {
 		return ErrInvalidProposalPOLRound
 	}
-
 	cs.Proposal = proposal
 	// We don't update cs.ProposalBlockParts if it is already set.
 	// This happens if we're already in cstypes.RoundStepCommit or if there is a valid block in the current round.
@@ -474,6 +474,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 }
 
 func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, err error) {
+
 	cs.Logger.Debug(
 		"addVote",
 		"voteHeight",
@@ -484,10 +485,10 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 		vote.ValidatorIndex,
 		"csHeight",
 		cs.Height)
-
 	// A precommit for the previous height?
 	// These come in while we wait timeoutCommit
 	if vote.Height+1 == cs.Height {
+
 		if !(cs.Step == cstypes.RoundStepNewHeight && vote.Type == kproto.PrecommitType) {
 			return added, ErrVoteHeightMismatch
 		}
@@ -520,6 +521,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 
 	height := cs.Height
 	added, err = cs.Votes.AddVote(vote, peerID)
+
 	if !added {
 		// Either duplicate, or error upon cs.Votes.AddByIndex()
 		return
@@ -908,7 +910,7 @@ func (cs *ConsensusState) enterNewRound(height uint64, round uint32) {
 	}
 	cs.Votes.SetRound(round + 1) // also track next round (round+1) to allow round-skipping
 	cs.TriggeredTimeoutPrecommit = false
-	cs.eventBus.PublishEventNewRound(cs.RoundStateEvent())
+	cs.eventBus.PublishEventNewRound(cs.NewRoundEvent())
 
 	// Wait for txs to be available in the mempool
 	// before we enterPropose in round 0. If the last block changed the app hash,
@@ -919,9 +921,11 @@ func (cs *ConsensusState) enterNewRound(height uint64, round uint32) {
 			cs.scheduleTimeout(cs.config.CreateEmptyBlocksInterval, height, round,
 				cstypes.RoundStepNewRound)
 		}
+
 	} else {
 		cs.enterPropose(height, round)
 	}
+
 }
 
 // Enter (CreateEmptyBlocks): from enterNewRound(height,round)
@@ -929,7 +933,6 @@ func (cs *ConsensusState) enterNewRound(height uint64, round uint32) {
 // Enter (!CreateEmptyBlocks) : after enterNewRound(height,round), once txs are in the mempool
 func (cs *ConsensusState) enterPropose(height uint64, round uint32) {
 	logger := cs.Logger.New("height", height, "round", round)
-
 	if (cs.Height != height) || (round < cs.Round) || (cs.Round == round && cstypes.RoundStepPropose <= cs.Step) {
 		logger.Debug(cmn.Fmt("enterPropose(%v/%v): Invalid args. Current step: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
 		return
@@ -1474,6 +1477,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 			err = nil
 		}
 	case *VoteMessage:
+
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
 		cs.Logger.Trace("handling AddVote", "VoteMessage", msg.Vote)
@@ -1511,10 +1515,19 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 	case cstypes.RoundStepNewRound:
 		cs.enterPropose(ti.Height, 1)
 	case cstypes.RoundStepPropose:
+		if err := cs.eventBus.PublishEventTimeoutPropose(cs.RoundStateEvent()); err != nil {
+			cs.Logger.Error("Error publishing timeout propose", "err", err)
+		}
 		cs.enterPrevote(ti.Height, ti.Round)
 	case cstypes.RoundStepPrevoteWait:
+		if err := cs.eventBus.PublishEventTimeoutWait(cs.RoundStateEvent()); err != nil {
+			cs.Logger.Error("Error publishing timeout wait", "err", err)
+		}
 		cs.enterPrecommit(ti.Height, ti.Round)
 	case cstypes.RoundStepPrecommitWait:
+		if err := cs.eventBus.PublishEventTimeoutWait(cs.RoundStateEvent()); err != nil {
+			cs.Logger.Error("Error publishing timeout wait", "err", err)
+		}
 		cs.enterPrecommit(ti.Height, ti.Round)
 		cs.enterNewRound(ti.Height, ti.Round+1)
 	default:

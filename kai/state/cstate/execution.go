@@ -108,7 +108,9 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	// Update evpool with the block and state.
 	blockExec.evpool.Update(block, state)
 	fail.Fail() // XXX
-
+	// Events are fired after everything else.
+	// NOTE: if we crash between Commit and Save, events wont be fired during replay
+	fireEvents(logger, blockExec.eventBus, block, valUpdates)
 	return state, nil
 }
 
@@ -228,4 +230,26 @@ func calculateValidatorSetUpdates(lastVals []*types.Validator, vals []*types.Val
 		})
 	}
 	return updates
+}
+
+// Fire NewBlock, NewBlockHeader.
+// Fire TxEvent for every tx.
+// NOTE: if Tendermint crashes before commit, some or all of these events may be published again.
+func fireEvents(
+	logger log.Logger,
+	eventBus types.BlockEventPublisher,
+	block *types.Block,
+	validatorUpdates []*types.Validator,
+) {
+	if err := eventBus.PublishEventNewBlock(types.EventDataNewBlock{
+		Block: block,
+	}); err != nil {
+		logger.Error("Error publishing new block", "err", err)
+	}
+
+	if err := eventBus.PublishEventNewBlockHeader(types.EventDataNewBlockHeader{
+		Header: block.Header(),
+	}); err != nil {
+		logger.Error("Error publishing new block header", "err", err)
+	}
 }
