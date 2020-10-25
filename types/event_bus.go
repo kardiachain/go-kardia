@@ -18,27 +18,150 @@
 
 package types
 
+import (
+	"context"
+	"fmt"
+
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/tendermint/tendermint/abci/types"
+
+	kpubsub "github.com/kardiachain/go-kardiamain/lib/pubsub"
+	"github.com/kardiachain/go-kardiamain/lib/service"
+)
+
+const defaultCapacity = 0
+
+type Subscription interface {
+	Out() <-chan kpubsub.Message
+	Cancelled() <-chan struct{}
+	Err() error
+}
+
 // EventBus is a common bus for all events going through the system. All calls
 // are proxied to underlying pubsub server. All events must be published using
 // EventBus to ensure correct data types.
 type EventBus struct {
+	service.BaseService
+	pubsub *kpubsub.Server
 	// TODO(namdoh): Adds interface for start/stop/etc. of event bus.
 	// TODO(namdoh): Adds field for kia/handler
 }
 
+// NewEventBus returns a new event bus.
+func NewEventBus() *EventBus {
+	return NewEventBusWithBufferCapacity(defaultCapacity)
+}
+
+// NewEventBusWithBufferCapacity returns a new event bus with the given buffer capacity.
+func NewEventBusWithBufferCapacity(cap int) *EventBus {
+	// capacity could be exposed later if needed
+	pubsub := kpubsub.NewServer(kpubsub.BufferCapacity(cap))
+	b := &EventBus{pubsub: pubsub}
+	b.BaseService = *service.NewBaseService(nil, "EventBus", b)
+	return b
+}
+
+func (b *EventBus) SetLogger(l log.Logger) {
+	b.BaseService.SetLogger(l)
+	b.pubsub.SetLogger(l.New("module", "pubsub"))
+}
+
+func (b *EventBus) OnStart() error {
+	return b.pubsub.Start()
+}
+
+func (b *EventBus) OnStop() {
+	if err := b.pubsub.Stop(); err != nil {
+		b.pubsub.Logger.Error("error trying to stop eventBus", "error", err)
+	}
+}
+
+func (b *EventBus) NumClients() int {
+	return b.pubsub.NumClients()
+}
+
+func (b *EventBus) NumClientSubscriptions(clientID string) int {
+	return b.pubsub.NumClientSubscriptions(clientID)
+}
+
+func (b *EventBus) Subscribe(
+	ctx context.Context,
+	subscriber string,
+	query kpubsub.Query,
+	outCapacity ...int,
+) (Subscription, error) {
+	return b.pubsub.Subscribe(ctx, subscriber, query, outCapacity...)
+}
+
+// This method can be used for a local consensus explorer and synchronous
+// testing. Do not use for for public facing / untrusted subscriptions!
+func (b *EventBus) SubscribeUnbuffered(
+	ctx context.Context,
+	subscriber string,
+	query kpubsub.Query,
+) (Subscription, error) {
+	return b.pubsub.SubscribeUnbuffered(ctx, subscriber, query)
+}
+
+func (b *EventBus) Unsubscribe(ctx context.Context, subscriber string, query kpubsub.Query) error {
+	return b.pubsub.Unsubscribe(ctx, subscriber, query)
+}
+
+func (b *EventBus) UnsubscribeAll(ctx context.Context, subscriber string) error {
+	return b.pubsub.UnsubscribeAll(ctx, subscriber)
+}
+
 func (b *EventBus) Publish(eventType string, eventData KaiEventData) error {
-	// TODO(namdoh): Implement publishment via kia/handler.
-	return nil
+	// no explicit deadline for publishing events
+	ctx := context.Background()
+	return b.pubsub.PublishWithEvents(ctx, eventData, map[string][]string{EventTypeKey: {eventType}})
+}
+
+// validateAndStringifyEvents takes a slice of event objects and creates a
+// map of stringified events where each key is composed of the event
+// type and each of the event's attributes keys in the form of
+// "{event.Type}.{attribute.Key}" and the value is each attribute's value.
+func (b *EventBus) validateAndStringifyEvents(events []types.Event, logger log.Logger) map[string][]string {
+	result := make(map[string][]string)
+	for _, event := range events {
+		if len(event.Type) == 0 {
+			logger.Debug("Got an event with an empty type (skipping)", "event", event)
+			continue
+		}
+
+		for _, attr := range event.Attributes {
+			if len(attr.Key) == 0 {
+				logger.Debug("Got an event attribute with an empty key(skipping)", "event", event)
+				continue
+			}
+
+			compositeTag := fmt.Sprintf("%s.%s", event.Type, string(attr.Key))
+			result[compositeTag] = append(result[compositeTag], string(attr.Value))
+		}
+	}
+
+	return result
 }
 
 //--- EventDataRoundState events
-
 func (b *EventBus) PublishEventNewRoundStep(event EventDataRoundState) error {
 	return b.Publish(EventNewRoundStep, event)
 }
 
-func (b *EventBus) PublishEventNewRound(event EventDataRoundState) error {
-	return b.Publish(EventNewRound, event)
+func (b *EventBus) PublishEventTimeoutPropose(data EventDataRoundState) error {
+	return b.Publish(EventTimeoutPropose, data)
+}
+
+func (b *EventBus) PublishEventTimeoutWait(data EventDataRoundState) error {
+	return b.Publish(EventTimeoutWait, data)
+}
+
+func (b *EventBus) PublishEventNewRound(data EventDataNewRound) error {
+	return b.Publish(EventNewRound, data)
+}
+
+func (b *EventBus) PublishEventCompleteProposal(data EventDataCompleteProposal) error {
+	return b.Publish(EventCompleteProposal, data)
 }
 
 func (b *EventBus) PublishEventValidBlock(event EventDataRoundState) error {
@@ -47,10 +170,6 @@ func (b *EventBus) PublishEventValidBlock(event EventDataRoundState) error {
 
 func (b *EventBus) PublishEventPolka(event EventDataRoundState) error {
 	return b.Publish(EventPolka, event)
-}
-
-func (b *EventBus) PublishEventCompleteProposal(event EventDataCompleteProposal) error {
-	return b.Publish(EventCompleteProposal, event)
 }
 
 func (b *EventBus) PublishEventUnlock(event EventDataRoundState) error {
@@ -67,4 +186,12 @@ func (b *EventBus) PublishEventLock(event EventDataRoundState) error {
 
 func (b *EventBus) PublishEventVote(event EventDataVote) error {
 	return b.Publish(EventVote, event)
+}
+
+func (b *EventBus) PublishEventNewBlock(data EventDataNewBlock) error {
+	return b.Publish(EventNewBlock, data)
+}
+
+func (b *EventBus) PublishEventNewBlockHeader(data EventDataNewBlockHeader) error {
+	return b.Publish(EventNewBlockHeader, data)
 }
