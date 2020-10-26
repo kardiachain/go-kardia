@@ -181,7 +181,7 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 		Validators: g.Validators,
 		ConsensusParams: &kaiproto.ConsensusParams{
 			Block: kaiproto.BlockParams{
-				MaxGas:     100000000,
+				MaxGas:     configs.BlockGasLimit,
 				TimeIotaMs: 1000,
 			},
 			Evidence: kaiproto.EvidenceParams{
