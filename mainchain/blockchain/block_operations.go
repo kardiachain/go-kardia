@@ -23,6 +23,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/configs"
+
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
@@ -203,6 +205,7 @@ func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:             height,
 		Time:               time.Now(),
+		GasLimit:           configs.BlockGasLimit,
 		NumTxs:             numTxs,
 		LastBlockID:        blockID,
 		ProposerAddress:    proposer,
