@@ -237,6 +237,48 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 	}, nil
 }
 
+func (c *Config) getGenesisClone() (*genesis.Genesis, error) {
+	var ga genesis.GenesisAlloc
+	var err error
+	if c.Genesis == nil {
+		ga = make(genesis.GenesisAlloc, 0)
+	} else {
+		genesisAccounts := make(map[string]*big.Int)
+		genesisContracts := make(map[string]string)
+
+		amount, _ := big.NewInt(0).SetString(c.Genesis.GenesisAmount, 10)
+		for _, address := range c.Genesis.Addresses {
+			genesisAccounts[address] = amount
+		}
+
+		for _, contract := range c.Genesis.Contracts {
+			genesisContracts[contract.Address] = contract.ByteCode
+		}
+		ga, err = genesis.GenesisAllocFromAccountAndContract(genesisAccounts, genesisContracts)
+		if err != nil {
+			return nil, err
+		}
+
+	}
+
+	return &genesis.Genesis{
+		Config:     configs.TestnetChainConfig,
+		Alloc:      ga,
+		Validators: c.Genesis.Validators,
+		ConsensusParams: &kaiproto.ConsensusParams{
+			Block: kaiproto.BlockParams{
+				MaxGas:     20000000,
+				TimeIotaMs: 1000,
+			},
+			Evidence: kaiproto.EvidenceParams{
+				MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
+				MaxAgeDuration:  48 * time.Hour,
+				MaxBytes:        1048576, // 1MB
+			},
+		},
+	}, nil
+}
+
 // getMainChainConfig gets mainchain's config from config
 func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	chain := c.MainChain

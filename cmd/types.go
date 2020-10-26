@@ -42,6 +42,7 @@ type (
 		HTTPVirtualHosts []string `yaml:"HTTPVirtualHosts"`
 		HTTPCors         []string `yaml:"HTTPCors"`
 		Metrics          uint     `yaml:"Metrics"`
+		Genesis          *Genesis `yaml:"Genesis,omitempty"`
 	}
 	Chain struct {
 		ServiceName        string      `yaml:"ServiceName"`

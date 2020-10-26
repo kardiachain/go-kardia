@@ -121,6 +121,9 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 			genesis.Config.SetBaseAccount(baseAccount)
 		}
 		block, err := genesis.Commit(logger, db)
+		if err != nil {
+			return nil, [32]byte{}, err
+		}
 		return genesis.Config, block.Hash(), err
 	}
 
