@@ -223,6 +223,7 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 
 	csParams := &kaiproto.ConsensusParams{
 		Block: kaiproto.BlockParams{
+			MaxBytes:   c.Genesis.ConsensusParams.Block.MaxBytes,
 			MaxGas:     c.Genesis.ConsensusParams.Block.MaxGas,
 			TimeIotaMs: c.Genesis.ConsensusParams.Block.TimeIotaMs,
 		},

@@ -221,6 +221,7 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 
 	csParams := &kaiproto.ConsensusParams{
 		Block: kaiproto.BlockParams{
+			MaxBytes:   c.Genesis.ConsensusParams.Block.MaxBytes,
 			MaxGas:     c.Genesis.ConsensusParams.Block.MaxGas,
 			TimeIotaMs: c.Genesis.ConsensusParams.Block.TimeIotaMs,
 		},
@@ -235,50 +236,6 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 		Config:          configs.TestnetChainConfig,
 		Alloc:           ga,
 		Validators:      g.Validators,
-		ConsensusParams: csParams,
-	}, nil
-}
-
-func (c *Config) getGenesisClone() (*genesis.Genesis, error) {
-	var ga genesis.GenesisAlloc
-	var err error
-	if c.Genesis == nil {
-		ga = make(genesis.GenesisAlloc, 0)
-	} else {
-		genesisAccounts := make(map[string]*big.Int)
-		genesisContracts := make(map[string]string)
-
-		amount, _ := big.NewInt(0).SetString(c.Genesis.GenesisAmount, 10)
-		for _, address := range c.Genesis.Addresses {
-			genesisAccounts[address] = amount
-		}
-
-		for _, contract := range c.Genesis.Contracts {
-			genesisContracts[contract.Address] = contract.ByteCode
-		}
-		ga, err = genesis.GenesisAllocFromAccountAndContract(genesisAccounts, genesisContracts)
-		if err != nil {
-			return nil, err
-		}
-
-	}
-
-	csParams := &kaiproto.ConsensusParams{
-		Block: kaiproto.BlockParams{
-			MaxGas:     c.Genesis.ConsensusParams.Block.MaxGas,
-			TimeIotaMs: c.Genesis.ConsensusParams.Block.TimeIotaMs,
-		},
-		Evidence: kaiproto.EvidenceParams{
-			MaxAgeNumBlocks: c.Genesis.ConsensusParams.Evidence.MaxAgeNumBlocks,
-			MaxAgeDuration:  time.Duration(c.Genesis.ConsensusParams.Evidence.MaxAgeDuration) * time.Hour,
-			MaxBytes:        c.Genesis.ConsensusParams.Evidence.MaxBytes,
-		},
-	}
-
-	return &genesis.Genesis{
-		Config:          configs.TestnetChainConfig,
-		Alloc:           ga,
-		Validators:      c.Genesis.Validators,
 		ConsensusParams: csParams,
 	}, nil
 }
