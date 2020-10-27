@@ -68,7 +68,7 @@ type flags struct {
 }
 
 func initFlag(args *flags) {
-	flag.StringVar(&args.folder, "folder", "", "Path to config folder. Default: \"\"")
+	flag.StringVar(&args.folder, "folder", "", "Path to config files folder. Default: \"\"")
 	flag.StringVar(&args.genesis, "genesis", "genesis.yaml", "Genesis config file name. Default: genesis.yaml")
 	flag.StringVar(&args.kardia, "node-config", "kai_config.yaml", "Kardia node config file name. Default: kai_config.yaml")
 	flag.StringVar(&args.chain, "dualnode-config", "", "Path to dual node config. Default: Disabled")
@@ -84,18 +84,20 @@ func init() {
 
 // Load attempts to load the config from given path and filename.
 func LoadConfig(args flags) (*Config, error) {
-	var wd string
-	var err error
+	var (
+		wd  string
+		err error
+	)
 	if args.folder == "" {
 		wd, err = os.Getwd()
 		if err != nil {
 			panic(err)
 		}
+	} else {
+		wd = args.folder
 	}
-	wd = filepath.Join(wd, "cfg")
 
 	config := Config{}
-
 	genesisCfgFile := filepath.Join(wd, args.genesis)
 	kaiCfgFile := filepath.Join(wd, args.kardia)
 
