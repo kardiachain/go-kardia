@@ -68,7 +68,7 @@ type (
 		PublishedEndpoint  *string     `yaml:"PublishedEndpoint,omitempty"`
 		SubscribedEndpoint *string     `yaml:"SubscribedEndpoint,omitempty"`
 		Validators         []int       `yaml:"Validators"`
-		BaseAccount        BaseAccount `yaml:"BaseAccount"`
+		BaseAccount        BaseAccount `yaml:"BaseAccount,omitempty"`
 		Consensus          *Consensus  `yaml:"Consensus"`
 	}
 	Genesis struct {
@@ -77,6 +77,9 @@ type (
 		Contracts       []Contract                  `yaml:"Contracts"`
 		Validators      []*genesis.GenesisValidator `yaml:"Validators"`
 		ConsensusParams ConsensusParams             `yaml:"ConsensusParams"`
+		Consensus       *Consensus                  `yaml:"Consensus"`
+		ChainConfig     *configs.ChainConfig        `yaml:"ChainConfig"`
+		NetworkType     configs.NetworkType
 	}
 	Contract struct {
 		Address  string `yaml:"Address"`
@@ -84,10 +87,11 @@ type (
 		ABI      string `yaml:"ABI,omitempty"`
 	}
 	Pool struct {
-		GlobalSlots uint64 `yaml:"GlobalSlots"`
-		GlobalQueue uint64 `yaml:"GlobalQueue"`
-		BlockSize   int    `yaml:"BlockSize"`
-		LifeTime    int    `yaml:"LifeTime"`
+		GlobalSlots   uint64 `yaml:"GlobalSlots"`
+		GlobalQueue   uint64 `yaml:"GlobalQueue"`
+		BlockSize     int    `yaml:"BlockSize"`
+		Broadcast     bool   `yaml:"Broadcast"`
+		MaxBatchBytes int    `yaml:"MaxBatchBytes"`
 	}
 	Database struct {
 		Type    uint   `yaml:"Type"`

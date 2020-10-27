@@ -125,7 +125,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.DualChainConfig
 	var csConfig *configs.ConsensusConfig
-	if chainConfig.DualNetworkID == 100 {
+	if chainConfig.NetworkType == configs.Mainnet {
 		csConfig = configs.DefaultConsensusConfig()
 	} else {
 		csConfig = chainConfig.Consensus

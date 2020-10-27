@@ -28,9 +28,9 @@ const (
 	KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
 
 	// constants related to rate & addOrder function from smc
-	KAI                                = "KAI"
-	ETH                                = "ETH"
-	NEO                                = "NEO"
+	KAI = "KAI"
+	ETH = "ETH"
+	NEO = "NEO"
 
 	// constants related to candidate exchange, Kardia part
 	KardiaCandidateExchangeSmcIndex    = 6
@@ -62,9 +62,17 @@ const (
 
 	// default value for 0mq
 	DefaultSubscribedEndpoint = "tcp://127.0.0.1:5555"
-	DefaultPublishedEndpoint = "tcp://127.0.0.1:5554"
+	DefaultPublishedEndpoint  = "tcp://127.0.0.1:5554"
+)
+
+type NetworkType string
+
+const (
+	Mainnet NetworkType = "main"
+	Testnet NetworkType = "test"
+	Devnet  NetworkType = "dev"
 )
 
 var (
-	ErrUnsupportedMethod                = errors.New("method is not supported by dual logic")
+	ErrUnsupportedMethod = errors.New("method is not supported by dual logic")
 )

@@ -69,6 +69,7 @@ type Genesis struct {
 	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
 	Validators           []*GenesisValidator          `json:"validators"`
 	ConsensusParams      *kaiproto.ConsensusParams    `json:"consensus_params,omitempty"`
+	Consensus            *configs.ConsensusConfig     `json:"consensusConfig"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.

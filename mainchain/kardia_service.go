@@ -164,7 +164,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.MainChainConfig
 	var csConfig *configs.ConsensusConfig
-	if chainConfig.NetworkId == 100 {
+	if chainConfig.NetworkType == configs.Mainnet {
 		csConfig = configs.DefaultConsensusConfig()
 	} else {
 		csConfig = chainConfig.Consensus

@@ -63,8 +63,6 @@ type flags struct {
 	chain   string
 
 	targetNetwork string
-
-	isDev bool
 }
 
 func initFlag(args *flags) {
@@ -73,7 +71,6 @@ func initFlag(args *flags) {
 	flag.StringVar(&args.kardia, "node-config", "kai_config.yaml", "Kardia node config file name. Default: kai_config.yaml")
 	flag.StringVar(&args.chain, "dualnode-config", "", "Path to dual node config. Default: Disabled")
 	flag.StringVar(&args.targetNetwork, "network", "dev", "Target network you want to join. Choose one: [dev, test, main]. Default: dev")
-	flag.BoolVar(&args.isDev, "dev", true, "Equal to true if this node is running in dev mode")
 }
 
 var args flags
@@ -117,6 +114,15 @@ func LoadConfig(args flags) (*Config, error) {
 	err = yaml.Unmarshal(genesisCfg, &config.MainChain)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot unmarshal node config")
+	}
+	if args.targetNetwork == "main" {
+		config.MainChain.Genesis.NetworkType = configs.Mainnet
+	} else if args.targetNetwork == "test" {
+		config.MainChain.Genesis.NetworkType = configs.Testnet
+	} else if args.targetNetwork == "dev" {
+		config.MainChain.Genesis.NetworkType = configs.Devnet
+	} else {
+		panic("Undefined netword type")
 	}
 	config.Genesis = config.MainChain.Genesis
 
@@ -219,6 +225,11 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 		}
 	}
 
+	consensus, err := c.getConsensusConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	csParams := &kaiproto.ConsensusParams{
 		Block: kaiproto.BlockParams{
 			MaxBytes:   c.Genesis.ConsensusParams.Block.MaxBytes,
@@ -233,10 +244,11 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 	}
 
 	return &genesis.Genesis{
-		Config:          configs.TestnetChainConfig,
+		Config:          g.ChainConfig,
 		Alloc:           ga,
 		Validators:      g.Validators,
 		ConsensusParams: csParams,
+		Consensus:       consensus,
 	}, nil
 }
 
@@ -255,10 +267,6 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	consensus, err := c.getConsensusConfig()
-	if err != nil {
-		return nil, err
-	}
 	mainChainConfig := node.MainChainConfig{
 		DBInfo:      dbInfo,
 		Genesis:     genesisData,
@@ -269,7 +277,7 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		ChainId:     chain.ChainID,
 		ServiceName: chain.ServiceName,
 		BaseAccount: baseAccount,
-		Consensus:   consensus,
+		Consensus:   genesisData.Consensus,
 	}
 	return &mainChainConfig, nil
 }
@@ -384,18 +392,18 @@ func (c *Config) getBaseAccount(isDual bool) (*configs.BaseAccount, error) {
 // getConsensusConfig gets consensus timeout configs
 func (c *Config) getConsensusConfig() (*configs.ConsensusConfig, error) {
 	csCfg := &configs.ConsensusConfig{
-		TimeoutPropose:              time.Duration(c.MainChain.Consensus.TimeoutPropose) * time.Millisecond,
-		TimeoutProposeDelta:         time.Duration(c.MainChain.Consensus.TimeoutProposeDelta) * time.Millisecond,
-		TimeoutPrevote:              time.Duration(c.MainChain.Consensus.TimeoutPrevote) * time.Millisecond,
-		TimeoutPrevoteDelta:         time.Duration(c.MainChain.Consensus.TimeoutPrevoteDelta) * time.Millisecond,
-		TimeoutPrecommit:            time.Duration(c.MainChain.Consensus.TimeoutPrecommit) * time.Millisecond,
-		TimeoutPrecommitDelta:       time.Duration(c.MainChain.Consensus.TimeoutPrecommitDelta) * time.Millisecond,
-		TimeoutCommit:               time.Duration(c.MainChain.Consensus.TimeoutCommit) * time.Millisecond,
-		SkipTimeoutCommit:           c.MainChain.Consensus.SkipTimeoutCommit,
-		CreateEmptyBlocks:           c.MainChain.Consensus.CreateEmptyBlocks,
-		CreateEmptyBlocksInterval:   time.Duration(c.MainChain.Consensus.CreateEmptyBlocksInterval) * time.Millisecond,
-		PeerGossipSleepDuration:     time.Duration(c.MainChain.Consensus.PeerGossipSleepDuration) * time.Millisecond,
-		PeerQueryMaj23SleepDuration: time.Duration(c.MainChain.Consensus.PeerQueryMaj23SleepDuration) * time.Millisecond,
+		TimeoutPropose:              time.Duration(c.Genesis.Consensus.TimeoutPropose) * time.Millisecond,
+		TimeoutProposeDelta:         time.Duration(c.Genesis.Consensus.TimeoutProposeDelta) * time.Millisecond,
+		TimeoutPrevote:              time.Duration(c.Genesis.Consensus.TimeoutPrevote) * time.Millisecond,
+		TimeoutPrevoteDelta:         time.Duration(c.Genesis.Consensus.TimeoutPrevoteDelta) * time.Millisecond,
+		TimeoutPrecommit:            time.Duration(c.Genesis.Consensus.TimeoutPrecommit) * time.Millisecond,
+		TimeoutPrecommitDelta:       time.Duration(c.Genesis.Consensus.TimeoutPrecommitDelta) * time.Millisecond,
+		TimeoutCommit:               time.Duration(c.Genesis.Consensus.TimeoutCommit) * time.Millisecond,
+		SkipTimeoutCommit:           c.Genesis.Consensus.SkipTimeoutCommit,
+		CreateEmptyBlocks:           c.Genesis.Consensus.CreateEmptyBlocks,
+		CreateEmptyBlocksInterval:   time.Duration(c.Genesis.Consensus.CreateEmptyBlocksInterval) * time.Millisecond,
+		PeerGossipSleepDuration:     time.Duration(c.Genesis.Consensus.PeerGossipSleepDuration) * time.Millisecond,
+		PeerQueryMaj23SleepDuration: time.Duration(c.Genesis.Consensus.PeerQueryMaj23SleepDuration) * time.Millisecond,
 	}
 	return csCfg, nil
 }

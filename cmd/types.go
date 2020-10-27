@@ -19,6 +19,7 @@
 package main
 
 import (
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 )
 
@@ -61,7 +62,7 @@ type (
 		PublishedEndpoint  *string     `yaml:"PublishedEndpoint,omitempty"`
 		SubscribedEndpoint *string     `yaml:"SubscribedEndpoint,omitempty"`
 		Validators         []int       `yaml:"Validators"`
-		BaseAccount        BaseAccount `yaml:"BaseAccount"`
+		BaseAccount        BaseAccount `yaml:"BaseAccount,omitempty"`
 		Consensus          *Consensus  `yaml:"Consensus"`
 	}
 	Genesis struct {
@@ -70,6 +71,9 @@ type (
 		Contracts       []Contract                  `yaml:"Contracts"`
 		Validators      []*genesis.GenesisValidator `yaml:"Validators"`
 		ConsensusParams ConsensusParams             `yaml:"ConsensusParams"`
+		Consensus       *Consensus                  `yaml:"Consensus"`
+		ChainConfig     *configs.ChainConfig        `yaml:"ChainConfig"`
+		NetworkType     configs.NetworkType
 	}
 	Contract struct {
 		Address  string `yaml:"Address"`
