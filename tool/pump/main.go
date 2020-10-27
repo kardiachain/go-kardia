@@ -62,11 +62,23 @@ const (
 )
 
 type flags struct {
-	config string
+	folder  string
+	genesis string
+	kardia  string
+	chain   string
+
+	targetNetwork string
+
+	isDev bool
 }
 
 func initFlag(args *flags) {
-	flag.StringVar(&args.config, "config", "", "path to config file, if config is defined then it is priority used.")
+	flag.StringVar(&args.folder, "folder", "", "Path to config folder. Default: \"\"")
+	flag.StringVar(&args.genesis, "genesis", "genesis.yaml", "Genesis config file name. Default: genesis.yaml")
+	flag.StringVar(&args.kardia, "node-config", "node1.yaml", "Kardia node config file name. Default: node1.yaml")
+	flag.StringVar(&args.chain, "dualnode-config", "", "Path to dual node config. Default: Disabled")
+	flag.StringVar(&args.targetNetwork, "network", "dev", "Target network you want to join. Choose one: [dev, test, main]. Default: dev")
+	flag.BoolVar(&args.isDev, "dev", true, "Equal to true if this node is running in dev mode")
 }
 
 var args flags
@@ -76,20 +88,54 @@ func init() {
 }
 
 // Load attempts to load the config from given path and filename.
-func LoadConfig(path string) (*Config, error) {
-	configPath := filepath.Join(path)
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return nil, errors.Wrap(err, "Unable to load config")
+func LoadConfig(args flags) (*Config, error) {
+	var wd string
+	var err error
+	if args.folder == "" {
+		wd, err = os.Getwd()
+		if err != nil {
+			panic(err)
+		}
 	}
-	configData, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to read config")
-	}
+	wd = filepath.Join(wd, "cfg")
+
 	config := Config{}
-	err = yaml.Unmarshal(configData, &config)
+
+	genesisCfgFile := filepath.Join(wd, args.genesis)
+	kaiCfgFile := filepath.Join(wd, args.kardia)
+
+	kaiCfg, err := ioutil.ReadFile(kaiCfgFile)
 	if err != nil {
-		return nil, errors.Wrap(err, "Problem unmarshaling config json data")
+		return nil, errors.Wrap(err, "cannot read kai config")
 	}
+	err = yaml.Unmarshal(kaiCfg, &config)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal kai config")
+	}
+
+	genesisCfg, err := ioutil.ReadFile(genesisCfgFile)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot read node config")
+	}
+	err = yaml.Unmarshal(genesisCfg, &config.MainChain)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal node config")
+	}
+	config.Genesis = config.MainChain.Genesis
+
+	var chainCfgFile string
+	if args.chain != "" {
+		chainCfgFile = filepath.Join(wd, args.chain)
+		chainCfg, err := ioutil.ReadFile(chainCfgFile)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot read dual node config")
+		}
+		err = yaml.Unmarshal(chainCfg, &config.DualChain)
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot unmarshal dual node config")
+		}
+	}
+
 	return &config, nil
 }
 
@@ -174,22 +220,25 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 			return nil, err
 		}
 	}
-	return &genesis.Genesis{
-		Config:     configs.TestnetChainConfig,
-		GasLimit:   16777216, // maximum number of uint24
-		Alloc:      ga,
-		Validators: g.Validators,
-		ConsensusParams: &kaiproto.ConsensusParams{
-			Block: kaiproto.BlockParams{
-				MaxGas:     100000000,
-				TimeIotaMs: 1000,
-			},
-			Evidence: kaiproto.EvidenceParams{
-				MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
-				MaxAgeDuration:  48 * time.Hour,
-				MaxBytes:        1048576, // 1MB
-			},
+
+	csParams := &kaiproto.ConsensusParams{
+		Block: kaiproto.BlockParams{
+			MaxGas:     c.Genesis.ConsensusParams.Block.MaxGas,
+			TimeIotaMs: c.Genesis.ConsensusParams.Block.TimeIotaMs,
 		},
+		Evidence: kaiproto.EvidenceParams{
+			MaxAgeNumBlocks: c.Genesis.ConsensusParams.Evidence.MaxAgeNumBlocks,
+			MaxAgeDuration:  time.Duration(c.Genesis.ConsensusParams.Evidence.MaxAgeDuration) * time.Hour,
+			MaxBytes:        c.Genesis.ConsensusParams.Evidence.MaxBytes,
+		},
+	}
+
+	return &genesis.Genesis{
+		Config:          configs.TestnetChainConfig,
+		GasLimit:        16777216, // maximum number of uint24
+		Alloc:           ga,
+		Validators:      g.Validators,
+		ConsensusParams: csParams,
 	}, nil
 }
 
@@ -671,11 +720,9 @@ func waitForever() {
 
 func main() {
 	flag.Parse()
-	if args.config != "" {
-		config, err := LoadConfig(args.config)
-		if err != nil {
-			panic(err)
-		}
-		config.Start()
+	config, err := LoadConfig(args)
+	if err != nil {
+		panic(err)
 	}
+	config.Start()
 }

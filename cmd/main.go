@@ -57,10 +57,10 @@ const (
 )
 
 type flags struct {
-	folder string
-	node   string
-	kardia string
-	chain  string
+	folder  string
+	genesis string
+	kardia  string
+	chain   string
 
 	targetNetwork string
 
@@ -68,12 +68,12 @@ type flags struct {
 }
 
 func initFlag(args *flags) {
-	flag.StringVar(&args.folder, "config folder. Default: ./cfg", "", "path to config folder")
-	flag.StringVar(&args.node, "node config file. Default: node_config.yaml", "node_config.yaml", "node config file name")
-	flag.StringVar(&args.kardia, "kardia config file. Default: kai_config.yaml", "kai_config.yaml", "path to config folder")
-	flag.StringVar(&args.chain, "dual node config. Default: Disable", "", "path to dual node config")
-	flag.StringVar(&args.targetNetwork, "target network. Default: main", "main", "target network you want to join. Choose one: [dev, test, main]")
-	flag.BoolVar(&args.isDev, "dev mode", true, "is run in dev mode")
+	flag.StringVar(&args.folder, "folder", "", "Path to config folder. Default: \"\"")
+	flag.StringVar(&args.genesis, "genesis", "genesis.yaml", "Genesis config file name. Default: genesis.yaml")
+	flag.StringVar(&args.kardia, "node-config", "kai_config.yaml", "Kardia node config file name. Default: kai_config.yaml")
+	flag.StringVar(&args.chain, "dualnode-config", "", "Path to dual node config. Default: Disabled")
+	flag.StringVar(&args.targetNetwork, "network", "dev", "Target network you want to join. Choose one: [dev, test, main]. Default: dev")
+	flag.BoolVar(&args.isDev, "dev", true, "Equal to true if this node is running in dev mode")
 }
 
 var args flags
@@ -96,20 +96,10 @@ func LoadConfig(args flags) (*Config, error) {
 
 	config := Config{}
 
-	nodeCfgFile := filepath.Join(wd, args.node)
+	genesisCfgFile := filepath.Join(wd, args.genesis)
 	kaiCfgFile := filepath.Join(wd, args.kardia)
 
-	nodeCfg, err := ioutil.ReadFile(nodeCfgFile)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot read node config")
-	}
-	err = yaml.Unmarshal(nodeCfg, &config)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot unmarshal node config")
-	}
-
 	kaiCfg, err := ioutil.ReadFile(kaiCfgFile)
-	fmt.Println("KaiCfgFile", kaiCfgFile)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot read kai config")
 	}
@@ -118,6 +108,16 @@ func LoadConfig(args flags) (*Config, error) {
 		return nil, errors.Wrap(err, "cannot unmarshal kai config")
 	}
 
+	genesisCfg, err := ioutil.ReadFile(genesisCfgFile)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot read node config")
+	}
+	err = yaml.Unmarshal(genesisCfg, &config.MainChain)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal node config")
+	}
+	config.Genesis = config.MainChain.Genesis
+
 	var chainCfgFile string
 	if args.chain != "" {
 		chainCfgFile = filepath.Join(wd, args.chain)
@@ -125,11 +125,10 @@ func LoadConfig(args flags) (*Config, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot read dual node config")
 		}
-		err = yaml.Unmarshal(chainCfg, &config)
+		err = yaml.Unmarshal(chainCfg, &config.DualChain)
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot unmarshal dual node config")
 		}
-
 	}
 
 	return &config, nil
@@ -216,24 +215,25 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
 
+	csParams := &kaiproto.ConsensusParams{
+		Block: kaiproto.BlockParams{
+			MaxGas:     c.Genesis.ConsensusParams.Block.MaxGas,
+			TimeIotaMs: c.Genesis.ConsensusParams.Block.TimeIotaMs,
+		},
+		Evidence: kaiproto.EvidenceParams{
+			MaxAgeNumBlocks: c.Genesis.ConsensusParams.Evidence.MaxAgeNumBlocks,
+			MaxAgeDuration:  time.Duration(c.Genesis.ConsensusParams.Evidence.MaxAgeDuration) * time.Hour,
+			MaxBytes:        c.Genesis.ConsensusParams.Evidence.MaxBytes,
+		},
 	}
 
 	return &genesis.Genesis{
-		Config:     configs.TestnetChainConfig,
-		Alloc:      ga,
-		Validators: g.Validators,
-		ConsensusParams: &kaiproto.ConsensusParams{
-			Block: kaiproto.BlockParams{
-				MaxGas:     20000000,
-				TimeIotaMs: 1000,
-			},
-			Evidence: kaiproto.EvidenceParams{
-				MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
-				MaxAgeDuration:  48 * time.Hour,
-				MaxBytes:        1048576, // 1MB
-			},
-		},
+		Config:          configs.TestnetChainConfig,
+		Alloc:           ga,
+		Validators:      g.Validators,
+		ConsensusParams: csParams,
 	}, nil
 }
 
@@ -261,21 +261,23 @@ func (c *Config) getGenesisClone() (*genesis.Genesis, error) {
 
 	}
 
-	return &genesis.Genesis{
-		Config:     configs.TestnetChainConfig,
-		Alloc:      ga,
-		Validators: c.Genesis.Validators,
-		ConsensusParams: &kaiproto.ConsensusParams{
-			Block: kaiproto.BlockParams{
-				MaxGas:     20000000,
-				TimeIotaMs: 1000,
-			},
-			Evidence: kaiproto.EvidenceParams{
-				MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
-				MaxAgeDuration:  48 * time.Hour,
-				MaxBytes:        1048576, // 1MB
-			},
+	csParams := &kaiproto.ConsensusParams{
+		Block: kaiproto.BlockParams{
+			MaxGas:     c.Genesis.ConsensusParams.Block.MaxGas,
+			TimeIotaMs: c.Genesis.ConsensusParams.Block.TimeIotaMs,
 		},
+		Evidence: kaiproto.EvidenceParams{
+			MaxAgeNumBlocks: c.Genesis.ConsensusParams.Evidence.MaxAgeNumBlocks,
+			MaxAgeDuration:  time.Duration(c.Genesis.ConsensusParams.Evidence.MaxAgeDuration) * time.Hour,
+			MaxBytes:        c.Genesis.ConsensusParams.Evidence.MaxBytes,
+		},
+	}
+
+	return &genesis.Genesis{
+		Config:          configs.TestnetChainConfig,
+		Alloc:           ga,
+		Validators:      c.Genesis.Validators,
+		ConsensusParams: csParams,
 	}, nil
 }
 
@@ -661,5 +663,4 @@ func main() {
 		panic(err)
 	}
 	config.Start()
-
 }

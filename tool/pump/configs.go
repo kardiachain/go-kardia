@@ -44,6 +44,7 @@ type (
 		HTTPVirtualHosts []string `yaml:"HTTPVirtualHosts"`
 		HTTPCors         []string `yaml:"HTTPCors"`
 		Metrics          uint     `yaml:"Metrics"`
+		Genesis          *Genesis `yaml:"Genesis,omitempty"`
 	}
 	P2P struct {
 		PrivateKey    string `yaml:"PrivateKey"`
@@ -71,10 +72,11 @@ type (
 		Consensus          *Consensus  `yaml:"Consensus"`
 	}
 	Genesis struct {
-		Addresses     []string                    `yaml:"Addresses"`
-		GenesisAmount string                      `yaml:"GenesisAmount"`
-		Contracts     []Contract                  `yaml:"Contracts"`
-		Validators    []*genesis.GenesisValidator `yaml:"Validators"`
+		Addresses       []string                    `yaml:"Addresses"`
+		GenesisAmount   string                      `yaml:"GenesisAmount"`
+		Contracts       []Contract                  `yaml:"Contracts"`
+		Validators      []*genesis.GenesisValidator `yaml:"Validators"`
+		ConsensusParams ConsensusParams             `yaml:"ConsensusParams"`
 	}
 	Contract struct {
 		Address  string `yaml:"Address"`
@@ -130,6 +132,20 @@ type (
 		// Reactor sleep duration parameters are in milliseconds
 		PeerGossipSleepDuration     int `yaml:"PeerGossipSleepDuration"`
 		PeerQueryMaj23SleepDuration int `yaml:"PeerQueryMaj23SleepDuration"`
+	}
+	ConsensusParams struct {
+		Block    BlockParams    `yaml:"Block"`
+		Evidence EvidenceParams `yaml:"Evidence"`
+	}
+	BlockParams struct {
+		MaxBytes   int64  `yaml:"MaxBytes"`
+		MaxGas     uint64 `yaml:"MaxGas"`
+		TimeIotaMs int64  `yaml:"TimeIotaMs"`
+	}
+	EvidenceParams struct {
+		MaxAgeNumBlocks int64 `yaml:"MaxAgeNumBlocks"`
+		MaxAgeDuration  int   `yaml:"MaxAgeDuration"`
+		MaxBytes        int64 `yaml:"MaxBytes"`
 	}
 	GenTxs struct {
 		Type   int `yaml:"Type"`

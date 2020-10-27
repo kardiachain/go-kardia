@@ -150,6 +150,12 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 // TODO: move this outside of kai package to customize kai.Config
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.MainChainConfig
+	var csConfig *configs.ConsensusConfig
+	if chainConfig.NetworkId == 100 {
+		csConfig = configs.DefaultConsensusConfig()
+	} else {
+		csConfig = chainConfig.Consensus
+	}
 	kai, err := newKardiaService(ctx, &Config{
 		NetworkId:   chainConfig.NetworkId,
 		ServiceName: chainConfig.ServiceName,
@@ -161,6 +167,7 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		IsZeroFee:   chainConfig.IsZeroFee,
 		IsPrivate:   chainConfig.IsPrivate,
 		BaseAccount: chainConfig.BaseAccount,
+		Consensus:   csConfig,
 	})
 
 	if err != nil {

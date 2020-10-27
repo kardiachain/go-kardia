@@ -1,8 +1,8 @@
 Node:
-  Name: node1 # todo @longnd: consider using flag or another config
+  Name: node1
   DataDir: /tmp/.kardia
   HTTPHost: 0.0.0.0
-  HTTPPort: 8545 # todo @longnd: consider using flag or another config
+  HTTPPort: 8545
   HTTPModules:
     - node
     - kai
@@ -16,7 +16,7 @@ Node:
   HTTPCors:
     - "*"
   P2P:
-    PrivateKey: b34bd81838a4a335fb3403d0bf616eca1eb9a4b4716c7dda7c617503cfeaab67
+    PrivateKey: 9fdd56a3c2a536dc8f981d935f0f3f2ea04e125547fdfffa37e157ce86ff1007
     ListenAddress: tcp://0.0.0.0:3000
     MaxPeers: 25
   LogLevel: info           # crit, error, warn, info, debug, trace

@@ -109,6 +109,10 @@ type DualChainConfig struct {
 
 	// Dual Network ID
 	DualNetworkID uint64
+
+	// Consensus defines the configuration for the Kardia consensus service,
+	// including timeouts and details about the block structure.
+	Consensus *configs.ConsensusConfig
 }
 
 // NodeMetadata contains privateKey and votingPower and function that get coinbase
