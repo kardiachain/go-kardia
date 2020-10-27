@@ -133,7 +133,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	consensusState := consensus.NewConsensusState(
 		kai.logger,
-		configs.DefaultConsensusConfig(),
+		config.Consensus,
 		state,
 		bOper,
 		blockExec,

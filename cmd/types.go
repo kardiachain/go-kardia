@@ -62,6 +62,7 @@ type (
 		SubscribedEndpoint *string     `yaml:"SubscribedEndpoint,omitempty"`
 		Validators         []int       `yaml:"Validators"`
 		BaseAccount        BaseAccount `yaml:"BaseAccount"`
+		Consensus          *Consensus  `yaml:"Consensus"`
 	}
 	Genesis struct {
 		Addresses     []string                    `yaml:"Addresses"`
@@ -103,5 +104,26 @@ type (
 	BaseAccount struct {
 		Address    string `yaml:"Address"`
 		PrivateKey string `yaml:"PrivateKey"`
+	}
+	Consensus struct {
+		// All timeouts are in milliseconds
+		TimeoutPropose        int `yaml:"TimeoutPropose"`
+		TimeoutProposeDelta   int `yaml:"TimeoutProposeDelta"`
+		TimeoutPrevote        int `yaml:"TimeoutPrevote"`
+		TimeoutPrevoteDelta   int `yaml:"TimeoutPrevoteDelta"`
+		TimeoutPrecommit      int `yaml:"TimeoutPrecommit"`
+		TimeoutPrecommitDelta int `yaml:"TimeoutPrecommitDelta"`
+		TimeoutCommit         int `yaml:"TimeoutCommit"`
+
+		// Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
+		SkipTimeoutCommit bool `yaml:"SkipTimeoutCommit"`
+
+		// EmptyBlocks mode and possible interval between empty blocks in seconds
+		CreateEmptyBlocks         bool `yaml:"CreateEmptyBlocks"`
+		CreateEmptyBlocksInterval int  `yaml:"CreateEmptyBlocksInterval"`
+
+		// Reactor sleep duration parameters are in milliseconds
+		PeerGossipSleepDuration     int `yaml:"PeerGossipSleepDuration"`
+		PeerQueryMaj23SleepDuration int `yaml:"PeerQueryMaj23SleepDuration"`
 	}
 )

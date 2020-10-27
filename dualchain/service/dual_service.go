@@ -106,7 +106,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
-		configs.DefaultConsensusConfig(),
+		config.Consensus,
 		lastBlockState,
 		dualService.dualBlockOperations,
 		blockExec,

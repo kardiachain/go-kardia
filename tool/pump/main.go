@@ -208,6 +208,10 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	if err != nil {
 		return nil, err
 	}
+	consensus, err := c.getConsensusConfig()
+	if err != nil {
+		return nil, err
+	}
 	mainChainConfig := node.MainChainConfig{
 		DBInfo:      dbInfo,
 		Genesis:     genesisData,
@@ -218,6 +222,7 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		ChainId:     chain.ChainID,
 		ServiceName: chain.ServiceName,
 		BaseAccount: baseAccount,
+		Consensus:   consensus,
 	}
 	return &mainChainConfig, nil
 }
@@ -331,6 +336,25 @@ func (c *Config) getBaseAccount(isDual bool) (*configs.BaseAccount, error) {
 		Address:    address,
 		PrivateKey: *privKey,
 	}, nil
+}
+
+// getConsensusConfig gets consensus timeout configs
+func (c *Config) getConsensusConfig() (*configs.ConsensusConfig, error) {
+	csCfg := &configs.ConsensusConfig{
+		TimeoutPropose:              time.Duration(c.MainChain.Consensus.TimeoutPropose) * time.Millisecond,
+		TimeoutProposeDelta:         time.Duration(c.MainChain.Consensus.TimeoutProposeDelta) * time.Millisecond,
+		TimeoutPrevote:              time.Duration(c.MainChain.Consensus.TimeoutPrevote) * time.Millisecond,
+		TimeoutPrevoteDelta:         time.Duration(c.MainChain.Consensus.TimeoutPrevoteDelta) * time.Millisecond,
+		TimeoutPrecommit:            time.Duration(c.MainChain.Consensus.TimeoutPrecommit) * time.Millisecond,
+		TimeoutPrecommitDelta:       time.Duration(c.MainChain.Consensus.TimeoutPrecommitDelta) * time.Millisecond,
+		TimeoutCommit:               time.Duration(c.MainChain.Consensus.TimeoutCommit) * time.Millisecond,
+		SkipTimeoutCommit:           c.MainChain.Consensus.SkipTimeoutCommit,
+		CreateEmptyBlocks:           c.MainChain.Consensus.CreateEmptyBlocks,
+		CreateEmptyBlocksInterval:   time.Duration(c.MainChain.Consensus.CreateEmptyBlocksInterval) * time.Millisecond,
+		PeerGossipSleepDuration:     time.Duration(c.MainChain.Consensus.PeerGossipSleepDuration) * time.Millisecond,
+		PeerQueryMaj23SleepDuration: time.Duration(c.MainChain.Consensus.PeerQueryMaj23SleepDuration) * time.Millisecond,
+	}
+	return csCfg, nil
 }
 
 // Start starts chain with given config
