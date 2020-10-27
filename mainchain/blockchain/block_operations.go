@@ -216,8 +216,7 @@ func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types
 func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, commit *types.Commit, ev []types.Evidence) *types.Block {
 	block := types.NewBlock(header, txs, commit, ev)
 
-	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
-	// LastResultHash.
+	// TODO(@lew): Fill the missing header info: ConsensusHash, LastResultHash.
 
 	return block
 }
@@ -303,6 +302,7 @@ LOOP:
 
 	// Set new GasUsed value for the block header.
 	header.GasUsed = *usedGas
+	// bo.logger.Error("@@@ UsedGas ", *usedGas)
 
 	return vals, root, receipts, newTxs, nil
 }
