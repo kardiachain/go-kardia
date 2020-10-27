@@ -56,10 +56,10 @@ type BlockHeaderJSON struct {
 	TxHash            string    `json:"dataHash"`     // transactions
 	ReceiptHash       string    `json:"receiptsRoot"` // receipt root
 	Bloom             string    `json:"logsBloom"`
-	ValidatorsHash    string    `json:"validatorHash"`     // validators for the current block
-	NextValidatorHash string    `json:"nextValidatorHash"` // validators for the current block
-	ConsensusHash     string    `json:"consensusHash"`     // hash of current consensus
-	AppHash           string    `json:"appHash"`           // txs state
+	ValidatorsHash    string    `json:"validatorHash"`     // current block validators hash
+	NextValidatorHash string    `json:"nextValidatorHash"` // next block validators hash
+	ConsensusHash     string    `json:"consensusHash"`     // current consensus hash
+	AppHash           string    `json:"appHash"`           // state of transactions
 	EvidenceHash      string    `json:"evidenceHash"`      // hash of evidence
 }
 
@@ -75,7 +75,6 @@ type BlockJSON struct {
 	GasUsed           uint64               `json:"gasUsed"`
 	ProposerAddress   string               `json:"proposerAddress"`
 	TxHash            string               `json:"dataHash"`     // hash of txs
-	Root              string               `json:"stateRoot"`    // state root
 	ReceiptHash       string               `json:"receiptsRoot"` // receipt root
 	Bloom             string               `json:"logsBloom"`
 	ValidatorsHash    string               `json:"validatorHash"`     // validators for the current block
@@ -555,13 +554,13 @@ func NewPublicAccountAPI(kaiService *KardiaService) *PublicAccountAPI {
 // Balance returns address's balance
 func (a *PublicAccountAPI) Balance(address string, hash string, height uint64) (string, error) {
 	addr := common.HexToAddress(address)
-	log.Info("Addr", "addr", addr.Hex())
+	log.Info("Addr", "addr", addr.Hex(), "hash", hash, "height", height)
 	block := new(types.Block)
-	if len(hash) > 0 && height >= 0 {
+	if len(hash) > 0 && height > 0 {
 		block = a.kaiService.blockchain.GetBlock(common.HexToHash(hash), height)
 	} else if len(hash) > 0 {
 		block = a.kaiService.blockchain.GetBlockByHash(common.HexToHash(hash))
-	} else if height >= 0 {
+	} else if height > 0 {
 		block = a.kaiService.blockchain.GetBlockByHeight(height)
 	} else {
 		block = a.kaiService.blockchain.CurrentBlock()

@@ -28,9 +28,11 @@ import (
 // The signature should have the 64 byte [R || S] format.
 func VerifySignature(addr common.Address, hash, signature []byte) bool {
 	signPubKey, _ := crypto.SigToPub(hash, signature)
+
 	if signPubKey == nil {
 		return false
 	}
+
 	// TODO(thientn): Verifying signature shouldn't be this complicated. After
 	// cleaning up our crypto package, clean up this as well.
 	return addr == crypto.PubkeyToAddress(*signPubKey)

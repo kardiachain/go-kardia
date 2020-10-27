@@ -35,7 +35,7 @@ func TestProposalCreation(t *testing.T) {
 
 func TestProposalSignBytes(t *testing.T) {
 	proposal := NewProposal(1, 2, 3, CreateBlockIDRandom())
-	signedByte := proposal.SignBytes("KAI")
+	signedByte := ProposalSignBytes("KAI", proposal.ToProto())
 	if signedByte == nil {
 		t.Error("Proposal's SignBytes returned nil")
 	}

@@ -28,6 +28,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 func makeBlockIDRandom() BlockID {
@@ -42,9 +43,9 @@ func makeBlockIDRandom() BlockID {
 
 func randCommit(now time.Time) *Commit {
 	lastID := makeBlockIDRandom()
-	h := uint64(3)
-	voteSet, _, vals := randVoteSet(h-1, 1, VoteTypePrecommit, 10, 1)
-	commit, err := MakeCommit(lastID, h-1, 1, voteSet, vals, now)
+	h := int64(3)
+	voteSet, _, vals := randVoteSet(uint64(h-1), 1, kproto.PrecommitType, 10, 1)
+	commit, err := MakeCommit(lastID, uint64(h-1), 1, voteSet, vals, now)
 	if err != nil {
 		panic(err)
 	}
@@ -112,7 +113,7 @@ func CreateNewCommit() *Commit {
 func CreateNewBlockWithTwoVotes(height uint64) *Block {
 	header := Header{
 		Height: height,
-		Time:   uint64(time.Now().Unix()),
+		Time:   time.Now(),
 	}
 
 	addr := common.HexToAddress("095e7baea6a6c7c4c2dfeb977efac326af552d87")
@@ -131,8 +132,8 @@ func CreateNewBlockWithTwoVotes(height uint64) *Block {
 		ValidatorIndex: 1,
 		Height:         2,
 		Round:          1,
-		Timestamp:      100,
-		Type:           VoteTypePrecommit,
+		Timestamp:      time.Now(),
+		Type:           kproto.PrecommitType,
 		BlockID:        BlockID{},
 	}
 	lastCommit := &Commit{

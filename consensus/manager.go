@@ -28,12 +28,12 @@ import (
 	"github.com/gogo/protobuf/proto"
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	kevents "github.com/kardiachain/go-kardiamain/lib/events"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/types"
-
 	kcons "github.com/kardiachain/go-kardiamain/proto/kardiachain/consensus"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardiamain/types"
 )
 
 const (
@@ -53,6 +53,7 @@ type ConsensusManager struct {
 	p2p.BaseReactor // BaseService + p2p.Switch
 	conS            *ConsensusState
 	mtx             sync.RWMutex
+	eventBus        *types.EventBus
 }
 
 // NewConsensusManager returns a new ConsensusManager with the given
@@ -63,6 +64,12 @@ func NewConsensusManager(consensusState *ConsensusState) *ConsensusManager {
 	}
 	conR.BaseReactor = *p2p.NewBaseReactor("Consensus", conR)
 	return conR
+}
+
+// SetEventBus sets event bus.
+func (conR *ConsensusManager) SetEventBus(b *types.EventBus) {
+	conR.eventBus = b
+	conR.conS.SetEventBus(b)
 }
 
 func (conR *ConsensusManager) SetPrivValidator(priv types.PrivValidator) {
@@ -308,17 +315,17 @@ func (conR *ConsensusManager) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 func (conR *ConsensusManager) subscribeToBroadcastEvents() {
 	const subscriber = "consensus-manager"
 	conR.conS.evsw.AddListenerForEvent(subscriber, types.EventNewRoundStep,
-		func(data EventData) {
+		func(data kevents.EventData) {
 			conR.broadcastNewRoundStepMessages(data.(*cstypes.RoundState))
 		})
 
 	conR.conS.evsw.AddListenerForEvent(subscriber, types.EventVote,
-		func(data EventData) {
+		func(data kevents.EventData) {
 			conR.broadcastHasVoteMessage(data.(*types.Vote))
 		})
 
 	conR.conS.evsw.AddListenerForEvent(subscriber, types.EventValidBlock,
-		func(data EventData) {
+		func(data kevents.EventData) {
 			conR.broadcastNewValidBlockMessage(data.(*cstypes.RoundState))
 		})
 }

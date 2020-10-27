@@ -69,6 +69,8 @@ type KardiaService struct {
 	subService KardiaSubService
 
 	networkID uint64
+
+	eventBus *types.EventBus
 }
 
 func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
@@ -92,6 +94,15 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	}
 	logger.Info("Initialised Kardia chain configuration", "config", chainConfig)
 
+	// EventBus and IndexerService must be started before the handshake because
+	// we might need to index the txs of the replayed block as this might not have happened
+	// when the node stopped last time (i.e. the node stopped after it saved the block
+	// but before it indexed the txs, or, endblocker panicked)
+	eventBus, err := createAndStartEventBus(logger)
+	if err != nil {
+		return nil, err
+	}
+
 	kai := &KardiaService{
 		logger:       logger,
 		config:       config,
@@ -99,6 +110,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		chainConfig:  chainConfig,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
+		eventBus:     eventBus,
 	}
 
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
@@ -143,6 +155,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// Set private validator for consensus manager.
 	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	kai.csManager.SetPrivValidator(privValidator)
+	kai.csManager.SetEventBus(kai.eventBus)
 	return kai, nil
 }
 
@@ -183,10 +196,20 @@ func (s *KardiaService) NetVersion() uint64 { return s.networkID }
 // Start implements Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
 func (s *KardiaService) Start(srvr *p2p.Switch) error {
+
 	srvr.AddReactor("CONSENSUS", s.csManager)
 	srvr.AddReactor("TXPOOL", s.txpoolR)
 	srvr.AddReactor("EVIDENCE", s.evR)
 	return nil
+}
+
+func createAndStartEventBus(logger log.Logger) (*types.EventBus, error) {
+	eventBus := types.NewEventBus()
+	eventBus.SetLogger(logger.New("module", "events"))
+	if err := eventBus.Start(); err != nil {
+		return nil, err
+	}
+	return eventBus, nil
 }
 
 // Stop implements Service, terminating all internal goroutines used by the

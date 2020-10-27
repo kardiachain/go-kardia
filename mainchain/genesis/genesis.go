@@ -201,7 +201,8 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) (*types.Block, c
 	// 	Nonce:   0,
 	// }
 
-	g.Alloc[configs.DeployerAddr] = GenesisAccount{
+	// Generate genesis deployer address
+	g.Alloc[configs.GenesisDeployerAddr] = GenesisAccount{
 		Balance: big.NewInt(10),
 		Nonce:   0,
 	}
@@ -214,9 +215,9 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) (*types.Block, c
 			statedb.SetState(addr, key, value)
 		}
 	}
+
 	head := &types.Header{
-		//@huny: convert timestamp here
-		// Time:           g.Timestamp,
+		Time:     g.Timestamp,
 		Height:   0,
 		GasLimit: g.GasLimit,
 		AppHash:  common.Hash{},

@@ -337,11 +337,11 @@ func (e MockEvidence) Height() uint64          { return e.EvidenceHeight }
 func (e MockEvidence) Time() time.Time         { return e.EvidenceTime }
 func (e MockEvidence) Address() common.Address { return e.EvidenceAddress }
 func (e MockEvidence) Hash() common.Hash {
-	return rlpHash([]byte(fmt.Sprintf("%d-%x-%d",
+	return rlpHash([]byte(fmt.Sprintf("%d-%x-%s",
 		e.EvidenceHeight, e.EvidenceAddress, e.EvidenceTime)))
 }
 func (e MockEvidence) Bytes() []byte {
-	return []byte(fmt.Sprintf("%d-%x-%d",
+	return []byte(fmt.Sprintf("%d-%x-%s",
 		e.EvidenceHeight, e.EvidenceAddress, e.EvidenceTime))
 }
 func (e MockEvidence) Verify(chainID string, addr common.Address) error { return nil }
@@ -352,7 +352,7 @@ func (e MockEvidence) Equal(ev Evidence) bool {
 }
 func (e MockEvidence) ValidateBasic() error { return nil }
 func (e MockEvidence) String() string {
-	return fmt.Sprintf("Evidence: %d/%d/%d", e.EvidenceHeight, e.Time(), e.EvidenceAddress)
+	return fmt.Sprintf("Evidence: %d/%s/%d", e.EvidenceHeight, e.Time(), e.EvidenceAddress)
 }
 
 //-------------------------------------------

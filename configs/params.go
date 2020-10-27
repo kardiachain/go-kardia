@@ -19,8 +19,8 @@
 package configs
 
 const (
-	GenesisGasLimit uint64 = 4712388    // Gas limit of the Genesis block.
-	BlockGasLimit   uint64 = 1050000000 // Gas limit of one block. 1b50m
+	GenesisGasLimit uint64 = 50000000  // Gas limit of the Genesis block.
+	BlockGasLimit   uint64 = 200000000 // Gas limit of one block.
 
 	CallValueTransferGas  uint64 = 9000  // Paid for CALL when the value transfer is non-zero.
 	CallNewAccountGas     uint64 = 25000 // Paid for CALL when the destination address didn't exist prior.
@@ -45,7 +45,7 @@ const (
 
 	JumpdestGas uint64 = 1 // Once per JUMPDEST operation.
 
-	CreateDataGas         uint64 = 200   //
+	CreateDataGas         uint64 = 200   // Gas for creatding data
 	CallCreateDepth       uint64 = 1024  // Maximum depth of call/create stack.
 	ExpGas                uint64 = 10    // Once per EXP instruction
 	LogGas                uint64 = 375   // Per LOG* operation.

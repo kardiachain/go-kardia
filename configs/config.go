@@ -35,8 +35,8 @@ var (
 	MainnetGenesisHash = common.HexToHash("0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3")
 	TestnetGenesisHash = common.HexToHash("0x41941023680923e0fe4d74a34bdac8141f2540e3ae90623718e47d66d1ca4a2d")
 
-	DeployerAddr           = common.BytesToAddress([]byte{0x1})
-	StakingContractAddress = crypto.CreateAddress(DeployerAddr, 1)
+	GenesisDeployerAddr    = common.BytesToAddress([]byte{0x1})
+	StakingContractAddress = crypto.CreateAddress(GenesisDeployerAddr, 1)
 )
 
 var (
@@ -82,6 +82,10 @@ func configNumEqual(x, y *big.Int) bool {
 	return x.Cmp(y) == 0
 }
 
+type Config struct {
+	Consensus *ConsensusConfig
+}
+
 // -------- Consensus Config ---------
 
 // ConsensusConfig defines the configuration for the Kardia consensus service,
@@ -124,6 +128,25 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		PeerGossipSleepDuration:     100 * time.Millisecond,
 		PeerQueryMaj23SleepDuration: 2000 * time.Millisecond,
 	}
+}
+
+// TestConsensusConfig returns a configuration for testing the consensus service
+func TestConsensusConfig() *ConsensusConfig {
+	cfg := DefaultConsensusConfig()
+	cfg.TimeoutPropose = 40 * time.Millisecond
+	cfg.TimeoutProposeDelta = 1 * time.Millisecond
+	cfg.TimeoutPrevote = 10 * time.Millisecond
+	cfg.TimeoutPrevoteDelta = 1 * time.Millisecond
+	cfg.TimeoutPrecommit = 10 * time.Millisecond
+	cfg.TimeoutPrecommitDelta = 1 * time.Millisecond
+	// NOTE: when modifying, make sure to update time_iota_ms (testGenesisFmt) in toml.go
+	cfg.TimeoutCommit = 10 * time.Millisecond
+	cfg.SkipTimeoutCommit = true
+	cfg.CreateEmptyBlocksInterval = 0
+	cfg.PeerGossipSleepDuration = 5 * time.Millisecond
+	cfg.PeerQueryMaj23SleepDuration = 250 * time.Millisecond
+	//cfg.DoubleSignCheckHeight = int64(0)
+	return cfg
 }
 
 // WaitForTxs returns true if the consensus should wait for transactions before entering the propose step
