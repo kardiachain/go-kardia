@@ -21,6 +21,7 @@ package kai
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -43,45 +44,46 @@ const (
 
 // BlockHeaderJSON represents BlockHeader in JSON format
 type BlockHeaderJSON struct {
-	Hash           string      `json:"hash"`
-	Height         uint64      `json:"height"`
-	LastBlock      string      `json:"lastBlock"`
-	CommitHash     string      `json:"commitHash"`
-	Time           uint64      `json:"time"`
-	NumTxs         uint64      `json:"numTxs"`
-	GasLimit       uint64      `json:"gasLimit"`
-	GasUsed        uint64      `json:"gasUsed"`
-	Validator      string      `json:"validator"`
-	TxHash         string      `json:"dataHash"`     // transactions
-	ReceiptHash    string      `json:"receiptsRoot"` // receipt root
-	Bloom          types.Bloom `json:"logsBloom"`
-	ValidatorsHash string      `json:"validatorHash"` // validators for the current block
-	ConsensusHash  string      `json:"consensusHash"` // hash of current consensus
-	AppHash        string      `json:"appHash"`       // txs state
-	EvidenceHash   string      `json:"evidenceHash"`  // hash of evidence
+	Hash              string    `json:"hash"`
+	Height            uint64    `json:"height"`
+	LastBlock         string    `json:"lastBlock"`
+	CommitHash        string    `json:"commitHash"`
+	Time              time.Time `json:"time"`
+	NumTxs            uint64    `json:"numTxs"`
+	GasLimit          uint64    `json:"gasLimit"`
+	GasUsed           uint64    `json:"gasUsed"`
+	ProposerAddress   string    `json:"proposerAddress"`
+	TxHash            string    `json:"dataHash"`     // transactions
+	ReceiptHash       string    `json:"receiptsRoot"` // receipt root
+	Bloom             string    `json:"logsBloom"`
+	ValidatorsHash    string    `json:"validatorHash"`     // current block validators hash
+	NextValidatorHash string    `json:"nextValidatorHash"` // next block validators hash
+	ConsensusHash     string    `json:"consensusHash"`     // current consensus hash
+	AppHash           string    `json:"appHash"`           // state of transactions
+	EvidenceHash      string    `json:"evidenceHash"`      // hash of evidence
 }
 
 // BlockJSON represents Block in JSON format
 type BlockJSON struct {
-	Hash           string               `json:"hash"`
-	Height         uint64               `json:"height"`
-	LastBlock      string               `json:"lastBlock"`
-	CommitHash     string               `json:"commitHash"`
-	Time           uint64               `json:"time"`
-	NumTxs         uint64               `json:"numTxs"`
-	GasLimit       uint64               `json:"gasLimit"`
-	GasUsed        uint64               `json:"gasUsed"`
-	Validator      string               `json:"validator"`
-	TxHash         string               `json:"dataHash"`     // hash of txs
-	Root           string               `json:"stateRoot"`    // state root
-	ReceiptHash    string               `json:"receiptsRoot"` // receipt root
-	Bloom          types.Bloom          `json:"logsBloom"`
-	ValidatorsHash string               `json:"validatorHash"` // validators for the current block
-	ConsensusHash  string               `json:"consensusHash"` // hash of current consensus
-	AppHash        string               `json:"appHash"`       // txs state
-	EvidenceHash   string               `json:"evidenceHash"`  // hash of evidence
-	Txs            []*PublicTransaction `json:"txs"`
-	Receipts       []*BasicReceipt      `json:"receipts"`
+	Hash              string               `json:"hash"`
+	Height            uint64               `json:"height"`
+	LastBlock         string               `json:"lastBlock"`
+	CommitHash        string               `json:"commitHash"`
+	Time              time.Time            `json:"time"`
+	NumTxs            uint64               `json:"numTxs"`
+	GasLimit          uint64               `json:"gasLimit"`
+	GasUsed           uint64               `json:"gasUsed"`
+	ProposerAddress   string               `json:"proposerAddress"`
+	TxHash            string               `json:"dataHash"`     // hash of txs
+	ReceiptHash       string               `json:"receiptsRoot"` // receipt root
+	Bloom             string               `json:"logsBloom"`
+	ValidatorsHash    string               `json:"validatorHash"`     // validators for the current block
+	NextValidatorHash string               `json:"nextValidatorHash"` // validators for the current block
+	ConsensusHash     string               `json:"consensusHash"`     // hash of current consensus
+	AppHash           string               `json:"appHash"`           // txs state
+	EvidenceHash      string               `json:"evidenceHash"`      // hash of evidence
+	Txs               []*PublicTransaction `json:"txs"`
+	Receipts          []*BasicReceipt      `json:"receipts"`
 }
 
 // PublicKaiAPI provides APIs to access Kai full node-related
@@ -123,20 +125,21 @@ func getBasicReceipt(receipt types.Receipt) *BasicReceipt {
 // NewBlockHeaderJSON creates a new BlockHeader JSON data from Block
 func NewBlockHeaderJSON(block types.Block) *BlockHeaderJSON {
 	return &BlockHeaderJSON{
-		Hash:           block.Hash().Hex(),
-		Height:         block.Height(),
-		LastBlock:      block.Header().LastBlockID.Hash.Hex(),
-		CommitHash:     block.LastCommitHash().Hex(),
-		Time:           block.Header().Time,
-		NumTxs:         block.Header().NumTxs,
-		GasLimit:       block.Header().GasLimit,
-		GasUsed:        block.Header().GasUsed,
-		Validator:      block.Header().Validator.Hex(),
-		TxHash:         block.Header().TxHash.Hex(),
-		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
-		ConsensusHash:  block.Header().ConsensusHash.Hex(),
-		AppHash:        block.Header().AppHash.Hex(),
-		EvidenceHash:   block.Header().EvidenceHash.Hex(),
+		Hash:              block.Hash().Hex(),
+		Height:            block.Height(),
+		LastBlock:         block.Header().LastBlockID.Hash.Hex(),
+		CommitHash:        block.LastCommitHash().Hex(),
+		Time:              block.Header().Time,
+		NumTxs:            block.Header().NumTxs,
+		GasLimit:          block.Header().GasLimit,
+		GasUsed:           block.Header().GasUsed,
+		ProposerAddress:   block.Header().ProposerAddress.Hex(),
+		TxHash:            block.Header().TxHash.Hex(),
+		ValidatorsHash:    block.Header().ValidatorsHash.Hex(),
+		NextValidatorHash: block.Header().NextValidatorsHash.Hex(),
+		ConsensusHash:     block.Header().ConsensusHash.Hex(),
+		AppHash:           block.Header().AppHash.Hex(),
+		EvidenceHash:      block.Header().EvidenceHash.Hex(),
 	}
 }
 
@@ -154,21 +157,22 @@ func NewBasicBlockJSON(block types.Block) *BlockJSON {
 	}
 
 	return &BlockJSON{
-		Hash:           block.Hash().Hex(),
-		Height:         block.Height(),
-		LastBlock:      block.Header().LastBlockID.Hash.Hex(),
-		Txs:            transactions,
-		CommitHash:     block.LastCommitHash().Hex(),
-		Time:           block.Header().Time,
-		NumTxs:         block.Header().NumTxs,
-		GasLimit:       block.Header().GasLimit,
-		GasUsed:        block.Header().GasUsed,
-		Validator:      block.Header().Validator.Hex(),
-		TxHash:         block.Header().TxHash.Hex(),
-		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
-		ConsensusHash:  block.Header().ConsensusHash.Hex(),
-		AppHash:        block.Header().AppHash.Hex(),
-		EvidenceHash:   block.Header().EvidenceHash.Hex(),
+		Hash:              block.Hash().Hex(),
+		Height:            block.Height(),
+		LastBlock:         block.Header().LastBlockID.Hash.Hex(),
+		Txs:               transactions,
+		CommitHash:        block.LastCommitHash().Hex(),
+		Time:              block.Header().Time,
+		NumTxs:            block.Header().NumTxs,
+		GasLimit:          block.Header().GasLimit,
+		GasUsed:           block.Header().GasUsed,
+		ProposerAddress:   block.Header().ProposerAddress.Hex(),
+		TxHash:            block.Header().TxHash.Hex(),
+		ValidatorsHash:    block.Header().ValidatorsHash.Hex(),
+		NextValidatorHash: block.Header().NextValidatorsHash.Hex(),
+		ConsensusHash:     block.Header().ConsensusHash.Hex(),
+		AppHash:           block.Header().AppHash.Hex(),
+		EvidenceHash:      block.Header().EvidenceHash.Hex(),
 	}
 }
 
@@ -191,22 +195,23 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 	}
 
 	return &BlockJSON{
-		Hash:           block.Hash().Hex(),
-		Height:         block.Height(),
-		LastBlock:      block.Header().LastBlockID.Hash.Hex(),
-		Txs:            transactions,
-		CommitHash:     block.LastCommitHash().Hex(),
-		Time:           block.Header().Time,
-		NumTxs:         block.Header().NumTxs,
-		GasLimit:       block.Header().GasLimit,
-		GasUsed:        block.Header().GasUsed,
-		Validator:      block.Header().Validator.Hex(),
-		TxHash:         block.Header().TxHash.Hex(),
-		ValidatorsHash: block.Header().ValidatorsHash.Hex(),
-		ConsensusHash:  block.Header().ConsensusHash.Hex(),
-		AppHash:        block.Header().AppHash.Hex(),
-		EvidenceHash:   block.Header().EvidenceHash.Hex(),
-		Receipts:       basicReceipts,
+		Hash:              block.Hash().Hex(),
+		Height:            block.Height(),
+		LastBlock:         block.Header().LastBlockID.Hash.Hex(),
+		Txs:               transactions,
+		CommitHash:        block.LastCommitHash().Hex(),
+		Time:              block.Header().Time,
+		NumTxs:            block.Header().NumTxs,
+		GasLimit:          block.Header().GasLimit,
+		GasUsed:           block.Header().GasUsed,
+		ProposerAddress:   block.Header().ProposerAddress.Hex(),
+		TxHash:            block.Header().TxHash.Hex(),
+		ValidatorsHash:    block.Header().ValidatorsHash.Hex(),
+		NextValidatorHash: block.Header().NextValidatorsHash.Hex(),
+		ConsensusHash:     block.Header().ConsensusHash.Hex(),
+		AppHash:           block.Header().AppHash.Hex(),
+		EvidenceHash:      block.Header().EvidenceHash.Hex(),
+		Receipts:          basicReceipts,
 	}
 }
 
@@ -252,31 +257,33 @@ func (s *PublicKaiAPI) GetBasicBlockByNumber(blockNumber uint64) *BlockJSON {
 }
 
 // GetBlockByHash returns block by block hash
-func (s *PublicKaiAPI) GetBlockByHash(blockHash string) *BlockJSON {
+func (s *PublicKaiAPI) GetBlockByHash(blockHash string) (*BlockJSON, error) {
 	if blockHash[0:2] == "0x" {
 		blockHash = blockHash[2:]
 	}
 	block := s.kaiService.blockchain.GetBlockByHash(common.HexToHash(blockHash))
+	if block == nil {
+		return nil, errors.New("block for hash not found")
+	}
+
 	receipts, err := getReceipts(s.kaiService.kaiDb, block.Hash())
 	if err != nil {
-		log.Error("Error on getting receipts", "err", err)
-		return nil
+		return nil, err
 	}
-	return NewBlockJSON(*block, receipts)
+	return NewBlockJSON(*block, receipts), nil
 }
 
 // GetBlockByNumber returns block by block number
-func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) *BlockJSON {
+func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) (*BlockJSON, error) {
 	block := s.kaiService.blockchain.GetBlockByHeight(blockNumber)
 	if block == nil {
-		return nil
+		return nil, errors.New("block for height not found")
 	}
 	receipts, err := getReceipts(s.kaiService.kaiDb, block.Hash())
 	if err != nil {
-		log.Error("Error on getting receipts", "err", err)
-		return nil
+		return nil, err
 	}
-	return NewBlockJSON(*block, receipts)
+	return NewBlockJSON(*block, receipts), nil
 }
 
 // Validator returns node's validator, nil if current node is not a validator
@@ -306,18 +313,18 @@ func (s *PublicKaiAPI) Validators() []map[string]interface{} {
 }
 
 type PublicTransaction struct {
-	BlockHash        string `json:"blockHash"`
-	BlockNumber      uint64 `json:"blockNumber"`
-	Time             uint64 `json:"time"`
-	From             string `json:"from"`
-	Gas              uint64 `json:"gas"`
-	GasPrice         uint64 `json:"gasPrice"`
-	Hash             string `json:"hash"`
-	Input            string `json:"input"`
-	Nonce            uint64 `json:"nonce"`
-	To               string `json:"to"`
-	TransactionIndex uint   `json:"transactionIndex"`
-	Value            string `json:"value"`
+	BlockHash        string    `json:"blockHash"`
+	BlockNumber      uint64    `json:"blockNumber"`
+	Time             time.Time `json:"time"`
+	From             string    `json:"from"`
+	Gas              uint64    `json:"gas"`
+	GasPrice         uint64    `json:"gasPrice"`
+	Hash             string    `json:"hash"`
+	Input            string    `json:"input"`
+	Nonce            uint64    `json:"nonce"`
+	To               string    `json:"to"`
+	TransactionIndex uint      `json:"transactionIndex"`
+	Value            string    `json:"value"`
 }
 
 type Log struct {
@@ -428,18 +435,20 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, erro
 }
 
 // GetTransaction gets transaction by transaction hash
-func (a *PublicTransactionAPI) GetTransaction(hash string) *PublicTransaction {
+func (a *PublicTransactionAPI) GetTransaction(hash string) (*PublicTransaction, error) {
 	txHash := common.HexToHash(hash)
 	tx, blockHash, height, index := a.s.kaiDb.ReadTransaction(txHash)
+
+	if tx == nil {
+		return nil, errors.New("tx for hash not found")
+	}
+
 	publicTx := NewPublicTransaction(tx, blockHash, height, index)
 	// get block by block height
 	block := a.s.blockchain.GetBlockByHeight(height)
-	if block == nil {
-		return nil
-	}
 	// get block time from block
 	publicTx.Time = block.Header().Time
-	return publicTx
+	return publicTx, nil
 }
 
 func getReceipts(kaiDb types.StoreDB, hash common.Hash) (types.Receipts, error) {
@@ -543,25 +552,29 @@ func NewPublicAccountAPI(kaiService *KardiaService) *PublicAccountAPI {
 }
 
 // Balance returns address's balance
-func (a *PublicAccountAPI) Balance(address string, hash string, height uint64) string {
+func (a *PublicAccountAPI) Balance(address string, hash string, height uint64) (string, error) {
 	addr := common.HexToAddress(address)
-	log.Info("Addr", "addr", addr.Hex())
+	log.Info("Addr", "addr", addr.Hex(), "hash", hash, "height", height)
 	block := new(types.Block)
-	if len(hash) > 0 && height >= 0 {
+	if len(hash) > 0 && height > 0 {
 		block = a.kaiService.blockchain.GetBlock(common.HexToHash(hash), height)
 	} else if len(hash) > 0 {
 		block = a.kaiService.blockchain.GetBlockByHash(common.HexToHash(hash))
-	} else if height >= 0 {
+	} else if height > 0 {
 		block = a.kaiService.blockchain.GetBlockByHeight(height)
 	} else {
 		block = a.kaiService.blockchain.CurrentBlock()
 	}
+
+	if block == nil {
+		return "-1", errors.New("block for hash or height not found")
+	}
+
 	state, err := a.kaiService.blockchain.StateAt(block.Height())
 	if err != nil {
-		log.Error("Fail to get state from block", "err", err, "block", block.Hash().String())
-		return "-1"
+		return "-1", err
 	}
-	return state.GetBalance(addr).String()
+	return state.GetBalance(addr).String(), nil
 }
 
 // Nonce return address's nonce

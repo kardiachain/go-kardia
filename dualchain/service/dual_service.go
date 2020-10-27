@@ -23,8 +23,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
-	"github.com/kardiachain/go-kardiamain/kai/service"
-	serviceconst "github.com/kardiachain/go-kardiamain/kai/service/const"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -44,7 +42,7 @@ type DualService struct {
 	logger log.Logger // Logger for Dual service
 
 	config      *DualConfig
-	chainConfig *types.ChainConfig
+	chainConfig *configs.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool
@@ -54,7 +52,6 @@ type DualService struct {
 
 	// Handlers
 	eventPool           *event_pool.Pool
-	protocolManager     *service.ProtocolManager
 	blockchain          *blockchain.DualBlockChain
 	csManager           *consensus.ConsensusManager
 	dualBlockOperations *blockchain.DualBlockOperations
@@ -65,15 +62,13 @@ type DualService struct {
 // New creates a new DualService object (including the
 // initialisation of the common DualService object)
 func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService, error) {
+	var err error
 	// Create a specific logger for DUAL service.
 	logger := log.New()
 	logger.AddTag(DualServiceName)
 	logger.Info("newDualService", "chaintype", config.DBInfo.Name())
 
-	groupDb, err := ctx.StartDatabase(config.DBInfo)
-	if err != nil {
-		return nil, err
-	}
+	groupDb := ctx.BlockStore
 
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, groupDb, config.DualGenesis, config.BaseAccount)
 	if genesisErr != nil {
@@ -89,7 +84,6 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 	}
-	logger.Info("Initialising protocol", "versions", serviceconst.ProtocolVersions, "network", config.NetworkId)
 
 	// Create a new blockchain to attach to this GroupService struct
 	dualService.blockchain, err = blockchain.NewBlockChain(logger, groupDb, dualService.chainConfig, config.IsPrivate)
@@ -105,7 +99,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	}
 
 	evPool := evidence.NewPool(groupDb.DB(), groupDb.DB())
-	evReactor := evidence.NewReactor(evPool)
+	//evReactor := evidence.NewReactor(evPool)
 
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool, evPool)
 	blockExec := cstate.NewBlockExecutor(groupDb.DB(), evPool, dualService.dualBlockOperations)
@@ -118,25 +112,12 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		blockExec,
 		evPool,
 	)
-	dualService.csManager = consensus.NewConsensusManager(DualServiceName, consensusState)
+	dualService.csManager = consensus.NewConsensusManager(consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	dualService.csManager.SetPrivValidator(privValidator)
 
-	if dualService.protocolManager, err = service.NewProtocolManager(
-		config.ProtocolName,
-		dualService.logger,
-		config.NetworkId,
-		config.ChainID,
-		dualService.blockchain,
-		dualService.chainConfig,
-		nil,
-		dualService.csManager, evReactor); err != nil {
-		return nil, err
-	}
 	//namdoh@ dualService.protocolManager.acceptTxs = config.AcceptTxs
-	dualService.csManager.SetProtocol(dualService.protocolManager)
-	evReactor.SetProtocol(dualService.protocolManager)
 	return dualService, nil
 }
 
@@ -165,29 +146,13 @@ func (s *DualService) SetDualBlockChainManager(bcManager *blockchain.DualBlockCh
 	s.dualBlockOperations.SetDualBlockChainManager(bcManager)
 }
 
-func (s *DualService) IsListening() bool       { return true } // Always listening
-func (s *DualService) DualServiceVersion() int { return int(s.protocolManager.SubProtocols[0].Version) }
-func (s *DualService) NetVersion() uint64      { return s.networkID }
-func (s *DualService) DB() types.StoreDB       { return s.groupDb }
-
-// Protocols implements Service, returning all the currently configured
-// network protocols to start.
-func (s *DualService) Protocols() []p2p.Protocol {
-	return s.protocolManager.SubProtocols
-}
+func (s *DualService) IsListening() bool  { return true } // Always listening
+func (s *DualService) NetVersion() uint64 { return s.networkID }
+func (s *DualService) DB() types.StoreDB  { return s.groupDb }
 
 // Start implements Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
-func (s *DualService) Start(srvr *p2p.Server) error {
-	// Figures out a max peers count based on the server limits.
-	maxPeers := srvr.MaxPeers
-
-	// Starts the networking layer.
-	s.protocolManager.Start(maxPeers)
-
-	// Start consensus manager.
-	s.csManager.Start()
-
+func (s *DualService) Start(srvr *p2p.Switch) error {
 	return nil
 }
 
@@ -195,7 +160,6 @@ func (s *DualService) Start(srvr *p2p.Server) error {
 // Kardia protocol.
 func (s *DualService) Stop() error {
 	s.csManager.Stop()
-	s.protocolManager.Stop()
 
 	close(s.shutdownChan)
 
@@ -215,4 +179,3 @@ func (s *DualService) APIs() []rpc.API {
 
 func (s *DualService) EventPool() *event_pool.Pool            { return s.eventPool }
 func (s *DualService) BlockChain() *blockchain.DualBlockChain { return s.blockchain }
-func (s *DualService) DualChainConfig() *types.ChainConfig    { return s.chainConfig }

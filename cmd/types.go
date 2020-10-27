@@ -29,7 +29,10 @@ type (
 		DualChain *Chain `yaml:"DualChain,omitempty"`
 	}
 	Node struct {
-		P2P              `yaml:"P2P"`
+		P2P struct {
+			ListenAddress string `yaml:"ListenAddress"`
+			PrivateKey    string `yaml:"PrivateKey"`
+		} `yaml:"P2P"`
 		LogLevel         string   `yaml:"LogLevel"`
 		Name             string   `yaml:"Name"`
 		DataDir          string   `yaml:"DataDir"`
@@ -39,11 +42,6 @@ type (
 		HTTPVirtualHosts []string `yaml:"HTTPVirtualHosts"`
 		HTTPCors         []string `yaml:"HTTPCors"`
 		Metrics          uint     `yaml:"Metrics"`
-	}
-	P2P struct {
-		PrivateKey    string `yaml:"PrivateKey"`
-		ListenAddress string `yaml:"ListenAddress"`
-		MaxPeers      int    `yaml:"MaxPeers"`
 	}
 	Chain struct {
 		ServiceName        string      `yaml:"ServiceName"`
@@ -76,9 +74,11 @@ type (
 		ABI      string `yaml:"ABI,omitempty"`
 	}
 	Pool struct {
-		GlobalSlots uint64 `yaml:"GlobalSlots"`
-		GlobalQueue uint64 `yaml:"GlobalQueue"`
-		BlockSize   int    `yaml:"BlockSize"`
+		GlobalSlots   uint64 `yaml:"GlobalSlots"`
+		GlobalQueue   uint64 `yaml:"GlobalQueue"`
+		BlockSize     int    `yaml:"BlockSize"`
+		Broadcast     bool   `yaml:"Broadcast"`
+		MaxBatchBytes int    `yaml:"MaxBatchBytes"`
 	}
 	Database struct {
 		Type    uint   `yaml:"Type"`

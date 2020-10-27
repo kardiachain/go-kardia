@@ -111,6 +111,22 @@ func (rs *RoundState) RoundStateEvent() types.EventDataRoundState {
 	return edrs
 }
 
+// NewRoundEvent returns the RoundState with proposer information as an event.
+func (rs *RoundState) NewRoundEvent() types.EventDataNewRound {
+	addr := rs.Validators.GetProposer().Address
+	idx, _ := rs.Validators.GetByAddress(addr)
+
+	return types.EventDataNewRound{
+		Height: rs.Height,
+		Round:  rs.Round,
+		Step:   rs.Step.String(),
+		Proposer: types.ValidatorInfo{
+			Address: addr,
+			Index:   int32(idx),
+		},
+	}
+}
+
 func (rs *RoundState) String() string {
 	return fmt.Sprintf("RoundState{H:%v R:%v S:%v  StartTime:%v  CommitTime:%v  Validators:%v   Proposal:%v  ProposalBlock:%v  LockedRound:%v  LockedBlock:%v  ValidRound:%v  ValidBlock:%v  Votes:%v  LastCommit:%v  LastValidators:%v}",
 		rs.Height, rs.Round, rs.Step,

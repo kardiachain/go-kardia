@@ -24,8 +24,16 @@ import (
 	"sync"
 
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
+	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/pkg/errors"
+)
+
+const (
+	// MaxVotesCount is the maximum number of votes in a set. Used in ValidateBasic funcs for
+	// protection against DOS attacks. Note this implies a corresponding equal limit to
+	// the number of validators.
+	MaxVotesCount = 10000
 )
 
 /*
@@ -55,11 +63,11 @@ import (
 	NOTE: Assumes that the sum total of voting power does not exceed MaxUInt64.
 */
 type VoteSet struct {
-	chainID string
-	height  uint64
-	round   uint32
-	type_   byte
-	valSet  *ValidatorSet
+	chainID       string
+	height        uint64
+	round         uint32
+	signedMsgType kproto.SignedMsgType
+	valSet        *ValidatorSet
 
 	mtx           sync.Mutex
 	votesBitArray *cmn.BitArray
@@ -67,11 +75,11 @@ type VoteSet struct {
 	sum           uint64                 // Sum of voting power for seen votes, discounting conflicts
 	maj23         *BlockID               // First 2/3 majority seen
 	votesByBlock  map[string]*blockVotes // string(blockHash|blockParts) -> blockVotes
-	peerMaj23s    map[enode.ID]BlockID   // Maj23 for each peer
+	peerMaj23s    map[p2p.ID]BlockID     // Maj23 for each peer
 }
 
 // Constructs a new VoteSet struct used to accumulate votes for given height/round.
-func NewVoteSet(chainID string, height uint64, round uint32, type_ byte, valSet *ValidatorSet) *VoteSet {
+func NewVoteSet(chainID string, height uint64, round uint32, signedMsgType kproto.SignedMsgType, valSet *ValidatorSet) *VoteSet {
 	if height == 0 {
 		panic("Cannot make VoteSet for height == 0, doesn't make sense.")
 	}
@@ -79,14 +87,14 @@ func NewVoteSet(chainID string, height uint64, round uint32, type_ byte, valSet 
 		chainID:       chainID,
 		height:        height,
 		round:         round,
-		type_:         type_,
+		signedMsgType: signedMsgType,
 		valSet:        valSet,
 		votesBitArray: cmn.NewBitArray(valSet.Size()),
 		votes:         make([]*Vote, valSet.Size()),
 		sum:           0,
 		maj23:         nil,
 		votesByBlock:  make(map[string]*blockVotes, valSet.Size()),
-		peerMaj23s:    make(map[enode.ID]BlockID),
+		peerMaj23s:    make(map[p2p.ID]BlockID),
 	}
 }
 
@@ -121,9 +129,9 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 	// Make sure the step matches.
 	if vote.Height != voteSet.height ||
 		vote.Round != voteSet.round ||
-		vote.Type != voteSet.type_ {
+		vote.Type != voteSet.signedMsgType {
 		return false, errors.Wrapf(ErrVoteUnexpectedStep, "Got %v/%v/%v, expected %v/%v/%v",
-			voteSet.height, voteSet.round, voteSet.type_,
+			voteSet.height, voteSet.round, voteSet.signedMsgType,
 			vote.Height, vote.Round, vote.Type)
 	}
 
@@ -252,7 +260,7 @@ func (voteSet *VoteSet) addVerifiedVote(vote *Vote, blockKey string, votingPower
 // this can cause memory issues.
 // TODO: implement ability to remove peers too
 // NOTE: VoteSet must not be nil
-func (voteSet *VoteSet) SetPeerMaj23(peerID enode.ID, blockID BlockID) error {
+func (voteSet *VoteSet) SetPeerMaj23(peerID p2p.ID, blockID BlockID) error {
 	if voteSet == nil {
 		cmn.PanicSanity("SetPeerMaj23() on nil VoteSet")
 	}
@@ -305,11 +313,11 @@ func (voteSet *VoteSet) GetRound() uint32 {
 	return voteSet.round
 }
 
-func (voteSet *VoteSet) Type() byte {
+func (voteSet *VoteSet) Type() kproto.SignedMsgType {
 	if voteSet == nil {
 		return 0x00
 	}
-	return voteSet.type_
+	return voteSet.signedMsgType
 }
 
 func (voteSet *VoteSet) Size() int {
@@ -355,7 +363,7 @@ func (voteSet *VoteSet) IsCommit() bool {
 	if voteSet == nil {
 		return false
 	}
-	if voteSet.type_ != VoteTypePrecommit {
+	if voteSet.signedMsgType != kproto.PrecommitType {
 		return false
 	}
 	voteSet.mtx.Lock()
@@ -424,7 +432,7 @@ func (voteSet *VoteSet) StringShort() string {
 	defer voteSet.mtx.Unlock()
 	_, _, frac := voteSet.sumTotalFrac()
 	return fmt.Sprintf("VoteSet{H:%v R:%v T:%v +2/3:%v(%v) %v %v}",
-		voteSet.height, voteSet.round, voteSet.type_, voteSet.maj23, frac, voteSet.votesBitArray, voteSet.peerMaj23s)
+		voteSet.height, voteSet.round, voteSet.signedMsgType, voteSet.maj23, frac, voteSet.votesBitArray, voteSet.peerMaj23s)
 }
 
 // return the power voted, the total, and the fraction
@@ -436,7 +444,7 @@ func (voteSet *VoteSet) sumTotalFrac() (uint64, uint64, float64) {
 
 // MakeCommit ...
 func (voteSet *VoteSet) MakeCommit() *Commit {
-	if voteSet.type_ != VoteTypePrecommit {
+	if voteSet.signedMsgType != kproto.PrecommitType {
 		cmn.PanicSanity("Cannot MakeCommit() unless VoteSet.Type is VoteTypePrecommit")
 	}
 	voteSet.mtx.Lock()
@@ -504,7 +512,7 @@ func (vs *blockVotes) getByIndex(index int) *Vote {
 type VoteSetReader interface {
 	GetHeight() uint64
 	GetRound() uint32
-	Type() byte
+	Type() kproto.SignedMsgType
 	Size() int
 	BitArray() *cmn.BitArray
 	GetByIndex(uint32) *Vote

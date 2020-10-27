@@ -26,6 +26,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 // PrivValidator defines the functionality of a local KAI validator
@@ -34,8 +35,8 @@ type PrivValidator interface {
 	// TODO: Extend the interface to return errors too.
 	GetPubKey() ecdsa.PublicKey
 	GetAddress() common.Address
-	SignVote(chainID string, vote *Vote) error
-	SignProposal(chainID string, proposal *Proposal) error
+	SignVote(chainID string, vote *kproto.Vote) error
+	SignProposal(chainID string, proposal *kproto.Proposal) error
 }
 
 // PrivValidatorsByAddress ...
@@ -81,9 +82,9 @@ func (privVal *DefaultPrivValidator) GetPrivKey() *ecdsa.PrivateKey {
 	return privVal.privKey
 }
 
-func (privVal *DefaultPrivValidator) SignVote(chainID string, vote *Vote) error {
-	hash := crypto.Keccak256(vote.SignBytes(chainID))
-	sig, err := crypto.Sign(hash, privVal.privKey)
+func (privVal *DefaultPrivValidator) SignVote(chainID string, vote *kproto.Vote) error {
+	signBytes := VoteSignBytes(chainID, vote)
+	sig, err := crypto.Sign(crypto.Keccak256(signBytes), privVal.privKey)
 	if err != nil {
 		log.Trace("Signing vote failed", "err", err)
 		return err
@@ -92,9 +93,9 @@ func (privVal *DefaultPrivValidator) SignVote(chainID string, vote *Vote) error 
 	return nil
 }
 
-func (privVal *DefaultPrivValidator) SignProposal(chainID string, proposal *Proposal) error {
-	hash := crypto.Keccak256(proposal.SignBytes(chainID))
-	sig, err := crypto.Sign(hash, privVal.privKey)
+func (privVal *DefaultPrivValidator) SignProposal(chainID string, proposal *kproto.Proposal) error {
+	signBytes := ProposalSignBytes(chainID, proposal)
+	sig, err := crypto.Sign(crypto.Keccak256(signBytes), privVal.privKey)
 	if err != nil {
 		log.Trace("Signing proposal failed", "err", err)
 		return err
@@ -147,12 +148,12 @@ func (pv *MockPV) GetAddress() common.Address {
 }
 
 // SignVote Implements PrivValidator.
-func (pv *MockPV) SignVote(chainID string, vote *Vote) error {
+func (pv *MockPV) SignVote(chainID string, vote *kproto.Vote) error {
 	if pv.breakVoteSigning {
 		chainID = "1"
 	}
-	hash := crypto.Keccak256(vote.SignBytes(chainID))
-	sig, err := crypto.Sign(hash, pv.privKey)
+	voteSignBytes := VoteSignBytes(chainID, vote)
+	sig, err := crypto.Sign(crypto.Keccak256(voteSignBytes), pv.privKey)
 	if err != nil {
 		return err
 	}
@@ -161,12 +162,12 @@ func (pv *MockPV) SignVote(chainID string, vote *Vote) error {
 }
 
 // SignProposal Implements PrivValidator.
-func (pv *MockPV) SignProposal(chainID string, proposal *Proposal) error {
+func (pv *MockPV) SignProposal(chainID string, proposal *kproto.Proposal) error {
 	if pv.breakProposalSigning {
 		chainID = "1000"
 	}
-	hash := crypto.Keccak256(proposal.SignBytes(chainID))
-	sig, err := crypto.Sign(hash, pv.privKey)
+	signBytes := ProposalSignBytes(chainID, proposal)
+	sig, err := crypto.Sign(crypto.Keccak256(signBytes), pv.privKey)
 	if err != nil {
 		return err
 	}

@@ -40,7 +40,7 @@ func TestPrivValidatorAccessors(t *testing.T) {
 func TestPrivValidatorSignVote(t *testing.T) {
 	vote := &Vote{}
 	privValidator, _, _ := CreateNewPrivValidator()
-	if err := privValidator.SignVote("KAI", vote); err != nil {
+	if err := privValidator.SignVote("KAI", vote.ToProto()); err != nil {
 		t.Fatal("PV Sign Vote issue", err)
 	}
 }
@@ -48,7 +48,7 @@ func TestPrivValidatorSignVote(t *testing.T) {
 func TestPrivValidatorSignProposal(t *testing.T) {
 	proposal := NewProposal(1, 2, 3, CreateBlockIDRandom())
 	privValidator, _, _ := CreateNewPrivValidator()
-	if err := privValidator.SignProposal("KAI", proposal); err != nil {
+	if err := privValidator.SignProposal("KAI", proposal.ToProto()); err != nil {
 		t.Fatal("PV Sign Proposal issue", err)
 	}
 }

@@ -27,7 +27,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/stretchr/testify/assert"
@@ -114,34 +113,4 @@ func sendEvidence(t *testing.T, evpool *Pool, valAddr common.Address, n int) typ
 		evList[i] = ev
 	}
 	return evList
-}
-
-func TestListMessageValidationBasic(t *testing.T) {
-
-	testCases := []struct {
-		testName          string
-		malleateEvListMsg func(*ListMessage)
-		expectErr         bool
-	}{
-		{"Good ListMessage", func(evList *ListMessage) {}, false},
-		{"Invalid ListMessage", func(evList *ListMessage) {
-			priv, _ := crypto.GenerateKey()
-			evList.Evidence = append(evList.Evidence,
-				&types.DuplicateVoteEvidence{Addr: crypto.PubkeyToAddress(priv.PublicKey)})
-		}, true},
-	}
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.testName, func(t *testing.T) {
-			evListMsg := &ListMessage{}
-			n := 3
-			valAddr := common.BytesToAddress([]byte("myval"))
-			evListMsg.Evidence = make([]types.Evidence, n)
-			for i := 0; i < n; i++ {
-				evListMsg.Evidence[i] = types.NewMockEvidence(uint64(i+1), time.Now(), 0, valAddr)
-			}
-			tc.malleateEvListMsg(evListMsg)
-			assert.Equal(t, tc.expectErr, evListMsg.ValidateBasic() != nil, "Validate Basic had an unexpected result")
-		})
-	}
 }

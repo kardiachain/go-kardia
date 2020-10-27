@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	kprotobits "github.com/kardiachain/go-kardiamain/proto/kardiachain/libs/bits"
 )
 
 type BitArray struct {
@@ -331,4 +333,29 @@ func (bA *BitArray) Update(o *BitArray) {
 	defer bA.mtx.Unlock()
 
 	copy(bA.Elems, o.Elems)
+}
+
+// ToProto converts BitArray to protobuf
+func (bA *BitArray) ToProto() *kprotobits.BitArray {
+	if bA == nil || len(bA.Elems) == 0 {
+		return nil
+	}
+
+	return &kprotobits.BitArray{
+		Bits:  int64(bA.Bits),
+		Elems: bA.Elems,
+	}
+}
+
+// FromProto sets a protobuf BitArray to the given pointer.
+func (bA *BitArray) FromProto(protoBitArray *kprotobits.BitArray) {
+	if protoBitArray == nil {
+		bA = nil
+		return
+	}
+
+	bA.Bits = uint(protoBitArray.Bits)
+	if len(protoBitArray.Elems) > 0 {
+		bA.Elems = protoBitArray.Elems
+	}
 }

@@ -27,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -145,6 +146,10 @@ type TxPoolConfig struct {
 	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
 
 	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
+
+	// TxReactor
+	Broadcast     bool
+	MaxBatchBytes int
 }
 
 // DefaultTxPoolConfig contains the default configurations for the transaction
@@ -156,12 +161,15 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	PriceLimit: 1,
 	PriceBump:  10,
 
-	AccountSlots: 128,
-	GlobalSlots:  4096,
-	AccountQueue: 256,
-	GlobalQueue:  4096,
+	AccountSlots: 512,
+	GlobalSlots:  49152,
+	AccountQueue: 1024,
+	GlobalQueue:  49152,
 
 	Lifetime: 1 * time.Hour,
+
+	Broadcast:     true,
+	MaxBatchBytes: 10 * 1024 * 1024, // 10MB
 }
 
 // sanitize checks the provided user configurations and changes anything that's
@@ -218,7 +226,7 @@ func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
 // two states over time as they are received and processed.
 type TxPool struct {
 	config      TxPoolConfig
-	chainconfig *types.ChainConfig
+	chainconfig *configs.ChainConfig
 	chain       blockChain
 	gasPrice    *big.Int
 	txFeed      event.Feed
@@ -259,7 +267,7 @@ type txpoolResetRequest struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(config TxPoolConfig, chainconfig *types.ChainConfig, chain blockChain) *TxPool {
+func NewTxPool(config TxPoolConfig, chainconfig *configs.ChainConfig, chain blockChain) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
@@ -811,10 +819,10 @@ func (pool *TxPool) AddRemotesSync(txs []*types.Transaction) []error {
 }
 
 // This is like AddRemotes with a single transaction, but waits for pool reorganization. Tests use this method.
-func (pool *TxPool) addRemoteSync(tx *types.Transaction) error {
-	errs := pool.AddRemotesSync([]*types.Transaction{tx})
-	return errs[0]
-}
+// func (pool *TxPool) addRemoteSync(tx *types.Transaction) error {
+// 	errs := pool.AddRemotesSync([]*types.Transaction{tx})
+// 	return errs[0]
+// }
 
 // AddRemote enqueues a single transaction into the pool if it is valid. This is a convenience
 // wrapper around AddRemotes.
@@ -840,7 +848,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 			continue
 		}
 		// Cache senders in transactions before obtaining lock (pool.signer is immutable)
-		types.Sender(pool.signer, tx)
+		_, _ = types.Sender(pool.signer, tx)
 
 		// Accumulate all unknown transactions for deeper processing
 		news = append(news, tx)
@@ -943,7 +951,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 			}
 			// Postpone any invalidated transactions
 			for _, tx := range invalids {
-				pool.enqueueTx(tx.Hash(), tx)
+				_, _ = pool.enqueueTx(tx.Hash(), tx)
 			}
 			// Update the account nonce if needed
 			pool.pendingNonces.setIfLower(addr, tx.Nonce())
@@ -1440,7 +1448,7 @@ func (pool *TxPool) demoteUnexecutables() {
 		for _, tx := range invalids {
 			hash := tx.Hash()
 			log.Trace("Demoting pending transaction", "hash", hash)
-			pool.enqueueTx(hash, tx)
+			_, _ = pool.enqueueTx(hash, tx)
 		}
 		pendingGauge.Dec(int64(len(olds) + len(drops) + len(invalids)))
 		if pool.locals.contains(addr) {
@@ -1452,7 +1460,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			for _, tx := range gapped {
 				hash := tx.Hash()
 				log.Error("Demoting invalidated transaction", "hash", hash)
-				pool.enqueueTx(hash, tx)
+				_, _ = pool.enqueueTx(hash, tx)
 			}
 			pendingGauge.Dec(int64(len(gapped)))
 		}

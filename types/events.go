@@ -18,28 +18,53 @@
 
 package types
 
+import (
+	"fmt"
+
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	kpubsub "github.com/kardiachain/go-kardiamain/lib/pubsub"
+	kquery "github.com/kardiachain/go-kardiamain/lib/pubsub/query"
+)
+
 // Reserved event types
 const (
-	EventBond              = "Bond"
-	EventCompleteProposal  = "CompleteProposal"
-	EventDupeout           = "Dupeout"
-	EventFork              = "Fork"
-	EventLock              = "Lock"
-	EventNewBlock          = "NewBlock"
-	EventNewBlockHeader    = "NewBlockHeader"
-	EventValidBlock        = "EventValidBlock"
-	EventNewRound          = "NewRound"
-	EventNewRoundStep      = "NewRoundStep"
-	EventPolka             = "Polka"
-	EventRebond            = "Rebond"
-	EventRelock            = "Relock"
-	EventTimeoutPropose    = "TimeoutPropose"
-	EventTimeoutWait       = "TimeoutWait"
-	EventTx                = "Tx"
-	EventUnbond            = "Unbond"
-	EventUnlock            = "Unlock"
-	EventVote              = "Vote"
-	EventProposalHeartbeat = "ProposalHeartbeat"
+	EventBond                = "Bond"
+	EventCompleteProposal    = "CompleteProposal"
+	EventDupeout             = "Dupeout"
+	EventFork                = "Fork"
+	EventLock                = "Lock"
+	EventNewBlock            = "NewBlock"
+	EventNewBlockHeader      = "NewBlockHeader"
+	EventValidBlock          = "EventValidBlock"
+	EventNewRound            = "NewRound"
+	EventNewRoundStep        = "NewRoundStep"
+	EventPolka               = "Polka"
+	EventRebond              = "Rebond"
+	EventRelock              = "Relock"
+	EventTimeoutPropose      = "TimeoutPropose"
+	EventTimeoutWait         = "TimeoutWait"
+	EventTx                  = "Tx"
+	EventUnbond              = "Unbond"
+	EventUnlock              = "Unlock"
+	EventVote                = "Vote"
+	EventProposalHeartbeat   = "ProposalHeartbeat"
+	EventTypeKey             = "kai.event"
+	EventValidatorSetUpdates = "ValidatorSetUpdates"
+)
+
+var (
+	EventQueryNewRound            = QueryForEvent(EventNewRound)
+	EventQueryNewRoundStep        = QueryForEvent(EventNewRoundStep)
+	EventQueryCompleteProposal    = QueryForEvent(EventCompleteProposal)
+	EventQueryValidatorSetUpdates = QueryForEvent(EventValidatorSetUpdates)
+	EventQueryVote                = QueryForEvent(EventVote)
+	EventQueryValidBlock          = QueryForEvent(EventValidBlock)
+	EventQueryTx                  = QueryForEvent(EventTx)
+	EventQueryNewBlock            = QueryForEvent(EventNewBlock)
+	EventQueryNewBlockHeader      = QueryForEvent(EventNewBlockHeader)
+	EventQueryTimeoutPropose      = QueryForEvent(EventTimeoutPropose)
+	EventQueryTimeoutWait         = QueryForEvent(EventTimeoutWait)
+	EventQueryUnlock              = QueryForEvent(EventUnlock)
 )
 
 // NOTE: This goes into the replay WAL
@@ -54,7 +79,6 @@ type EventDataRoundState struct {
 
 // implements events.EventData
 type KaiEventData interface {
-	AssertIsKaiEventData()
 	// empty interface
 }
 
@@ -91,3 +115,20 @@ type EventDataCompleteProposal struct {
 }
 
 func (_ EventDataCompleteProposal) AssertIsKaiEventData() {}
+
+func QueryForEvent(eventType string) kpubsub.Query {
+	return kquery.MustParse(fmt.Sprintf("%s='%s'", EventTypeKey, eventType))
+}
+
+type EventDataNewRound struct {
+	Height uint64 `json:"height"`
+	Round  uint32 `json:"round"`
+	Step   string `json:"step"`
+
+	Proposer ValidatorInfo `json:"proposer"`
+}
+
+type ValidatorInfo struct {
+	Address common.Address `json:"address"`
+	Index   int32          `json:"index"`
+}

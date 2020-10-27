@@ -40,9 +40,9 @@ func NewKVMContext(msg types.Message, header *types.Header, chain ChainContext) 
 		Transfer:    Transfer,
 		GetHash:     GetHashFn(header, chain),
 		Origin:      msg.From(),
-		Coinbase:    header.Coinbase,
+		Coinbase:    header.ProposerAddress,
 		BlockHeight: new(big.Int).SetUint64(header.Height),
-		Time:        new(big.Int).SetUint64(header.Time),
+		Time:        new(big.Int).SetUint64(uint64(header.Time.Unix())),
 		GasLimit:    header.GasLimit,
 		GasPrice:    new(big.Int).Set(msg.GasPrice()),
 	}
@@ -55,9 +55,9 @@ func NewKVMContextFromDualNodeCall(from common.Address, header *types.Header, ch
 		Transfer:    Transfer,
 		GetHash:     GetHashFn(header, chain),
 		Origin:      from,
-		Coinbase:    header.Coinbase,
+		Coinbase:    header.ProposerAddress,
 		BlockHeight: new(big.Int).SetUint64(header.Height),
-		Time:        new(big.Int).SetUint64(header.Time),
+		Time:        new(big.Int).SetUint64(uint64(header.Time.Unix())),
 		GasLimit:    header.GasLimit,
 		GasPrice:    big.NewInt(1),
 	}

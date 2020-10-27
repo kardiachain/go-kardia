@@ -1,0 +1,20 @@
+syntax = "proto3";
+package kardiachain.types;
+
+option go_package = "github.com/kardiachain/go-kardiamain/proto/kardiachain/types";
+
+import "gogoproto/gogo.proto";
+
+
+message ValidatorSet {
+    repeated Validator validators         = 1;
+    Validator          proposer           = 2;
+    uint64              total_voting_power = 3;
+}
+
+
+message Validator {
+    bytes                       address           = 1;
+    uint64                      voting_power      = 3;
+    int64                       proposer_priority = 4;
+}

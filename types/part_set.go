@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/merkle"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 var (
@@ -68,6 +69,37 @@ func (part *Part) StringIndented(indent string) string {
 		indent)
 }
 
+func (part *Part) ToProto() (*kproto.Part, error) {
+	if part == nil {
+		return nil, errors.New("nil part")
+	}
+	pb := new(kproto.Part)
+	proof := part.Proof.ToProto()
+
+	pb.Index = part.Index
+	pb.Bytes = part.Bytes
+	pb.Proof = *proof
+
+	return pb, nil
+}
+
+func PartFromProto(pb *kproto.Part) (*Part, error) {
+	if pb == nil {
+		return nil, errors.New("nil part")
+	}
+
+	part := new(Part)
+	proof, err := merkle.ProofFromProto(&pb.Proof)
+	if err != nil {
+		return nil, err
+	}
+	part.Index = pb.Index
+	part.Bytes = pb.Bytes
+	part.Proof = *proof
+
+	return part, part.ValidateBasic()
+}
+
 type PartSetHeader struct {
 	Total uint32   `json:"total"`
 	Hash  cmn.Hash `json:"hash"`
@@ -92,6 +124,30 @@ func (psh PartSetHeader) ValidateBasic() error {
 		return fmt.Errorf("wrong Hash: %w", err)
 	}
 	return nil
+}
+
+// ToProto converts PartSetHeader to protobuf
+func (psh *PartSetHeader) ToProto() kproto.PartSetHeader {
+	if psh == nil {
+		return kproto.PartSetHeader{}
+	}
+
+	return kproto.PartSetHeader{
+		Total: psh.Total,
+		Hash:  psh.Hash.Bytes(),
+	}
+}
+
+// FromProto sets a protobuf PartSetHeader to the given pointer
+func PartSetHeaderFromProto(ppsh *kproto.PartSetHeader) (*PartSetHeader, error) {
+	if ppsh == nil {
+		return nil, errors.New("nil PartSetHeader")
+	}
+	psh := new(PartSetHeader)
+	psh.Total = ppsh.Total
+	psh.Hash = common.BytesToHash(ppsh.Hash)
+
+	return psh, psh.ValidateBasic()
 }
 
 type PartSet struct {

@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/state"
@@ -19,7 +20,6 @@ import (
 const (
 	// KardiaSatkingSmcIndex ...
 	KardiaSatkingSmcIndex = 7
-	contractAddress       = "0x00000000000000000000000000000000736D1997"
 )
 
 // MaximumGasToCallStaticFunction ...
@@ -42,7 +42,7 @@ type Evidence struct {
 	Address          common.Address
 	VotingPower      *big.Int
 	Height           uint64
-	Time             uint64
+	Time             time.Time
 	TotalVotingPower uint64
 }
 
@@ -57,7 +57,7 @@ type StakingSmcUtil struct {
 // NewSmcStakingnUtil ...
 func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 	_, stakingSmcAbi := configs.GetContractDetailsByIndex(KardiaSatkingSmcIndex)
-	bytecodeStaking := configs.GetContractByteCodeByAddress(contractAddress)
+	bytecodeStaking := configs.GetContractByteCodeByAddress(configs.StakingContractAddress.Hex())
 
 	abi, err := abi.JSON(strings.NewReader(stakingSmcAbi))
 	if err != nil {
@@ -65,7 +65,9 @@ func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 		return nil, err
 	}
 
-	return &StakingSmcUtil{Abi: &abi, ContractAddress: common.HexToAddress("0xF3E77cDEeD0A979be6fb54dEdc50551e84F9C53a"), Bytecode: bytecodeStaking}, nil
+	fmt.Println("Apply genesis staking smart contract address:", configs.StakingContractAddress.Hex())
+
+	return &StakingSmcUtil{Abi: &abi, ContractAddress: configs.StakingContractAddress, Bytecode: bytecodeStaking}, nil
 }
 
 //SetParams set params
@@ -306,7 +308,7 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	cfg kvm.Config) error {
 
 	msg := types.NewMessage(
-		common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"),
+		configs.GenesisDeployerAddr,
 		nil,
 		0,
 		big.NewInt(0),
@@ -324,6 +326,7 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	if vmerr != nil {
 		return vmerr
 	}
+
 	// Update the state with pending changes
 	statedb.Finalise(true)
 	return nil

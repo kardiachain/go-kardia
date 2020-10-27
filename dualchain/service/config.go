@@ -19,10 +19,10 @@
 package service
 
 import (
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	"github.com/kardiachain/go-kardiamain/types"
 )
 
 type DualConfig struct {
@@ -47,5 +47,5 @@ type DualConfig struct {
 	ProtocolName string
 
 	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *types.BaseAccount
+	BaseAccount *configs.BaseAccount
 }

@@ -46,9 +46,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/nat"
 	"github.com/kardiachain/go-kardiamain/lib/sysutils"
 	kai "github.com/kardiachain/go-kardiamain/mainchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
@@ -56,6 +53,8 @@ import (
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/tool"
 	"github.com/kardiachain/go-kardiamain/types"
+
+	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 const (
@@ -95,11 +94,10 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 // getP2P gets p2p's config from config
-func (c *Config) getP2PConfig() (*p2p.Config, error) {
-	peer := c.P2P
+func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
 	var privKey *ecdsa.PrivateKey
 	var err error
-
+	peer := c.P2P
 	if peer.PrivateKey != "" {
 		privKey, err = crypto.HexToECDSA(peer.PrivateKey)
 	} else {
@@ -108,12 +106,13 @@ func (c *Config) getP2PConfig() (*p2p.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &p2p.Config{
-		PrivateKey: privKey,
-		MaxPeers:   peer.MaxPeers,
-		ListenAddr: peer.ListenAddress,
-		NAT:        nat.Any(),
-	}, nil
+	p2pConfig := configs.DefaultP2PConfig()
+	p2pConfig.Seeds = c.MainChain.Seeds
+	p2pConfig.ListenAddress = c.P2P.ListenAddress
+	p2pConfig.RootDir = c.DataDir
+	p2pConfig.AddrBook = filepath.Join(c.DataDir, "addrbook.json")
+	p2pConfig.PrivateKey = privKey
+	return p2pConfig, nil
 }
 
 // getDbInfo gets database information from config. Currently, it only supports levelDb and Mondodb
@@ -141,8 +140,10 @@ func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
 func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 	txPool := c.MainChain.TxPool
 	return tx_pool.TxPoolConfig{
-		GlobalSlots: txPool.GlobalSlots,
-		GlobalQueue: txPool.GlobalQueue,
+		GlobalSlots:   txPool.GlobalSlots,
+		GlobalQueue:   txPool.GlobalQueue,
+		MaxBatchBytes: tx_pool.DefaultTxPoolConfig.MaxBatchBytes,
+		Broadcast:     tx_pool.DefaultTxPoolConfig.Broadcast,
 	}
 }
 
@@ -178,6 +179,17 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 		GasLimit:   16777216, // maximum number of uint24
 		Alloc:      ga,
 		Validators: g.Validators,
+		ConsensusParams: &kaiproto.ConsensusParams{
+			Block: kaiproto.BlockParams{
+				MaxGas:     configs.BlockGasLimit,
+				TimeIotaMs: 1000,
+			},
+			Evidence: kaiproto.EvidenceParams{
+				MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
+				MaxAgeDuration:  48 * time.Hour,
+				MaxBytes:        1048576, // 1MB
+			},
+		},
 	}, nil
 }
 
@@ -197,16 +209,15 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		return nil, err
 	}
 	mainChainConfig := node.MainChainConfig{
-		ValidatorIndexes: c.MainChain.Validators,
-		DBInfo:           dbInfo,
-		Genesis:          genesisData,
-		TxPool:           c.getTxPoolConfig(),
-		AcceptTxs:        chain.AcceptTxs,
-		IsZeroFee:        chain.ZeroFee == 1,
-		NetworkId:        chain.NetworkID,
-		ChainId:          chain.ChainID,
-		ServiceName:      chain.ServiceName,
-		BaseAccount:      baseAccount,
+		DBInfo:      dbInfo,
+		Genesis:     genesisData,
+		TxPool:      c.getTxPoolConfig(),
+		AcceptTxs:   chain.AcceptTxs,
+		IsZeroFee:   chain.ZeroFee == 1,
+		NetworkId:   chain.NetworkID,
+		ChainId:     chain.ChainID,
+		ServiceName: chain.ServiceName,
+		BaseAccount: baseAccount,
 	}
 	return &mainChainConfig, nil
 }
@@ -233,7 +244,6 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 	}
 
 	dualChainConfig := node.DualChainConfig{
-		ValidatorIndexes: c.DualChain.Validators,
 		DBInfo:           dbInfo,
 		DualGenesis:      genesisData,
 		DualEventPool:    eventPool,
@@ -252,11 +262,10 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	p2pConfig.Name = n.Name
 	nodeConfig := node.Config{
 		Name:             n.Name,
 		DataDir:          n.DataDir,
-		P2P:              *p2pConfig,
+		P2P:              p2pConfig,
 		HTTPHost:         n.HTTPHost,
 		HTTPPort:         n.HTTPPort,
 		HTTPCors:         n.HTTPCors,
@@ -303,7 +312,7 @@ func (c *Config) newLog() log.Logger {
 }
 
 // getBaseAccount gets base account that is used to execute internal smart contract
-func (c *Config) getBaseAccount(isDual bool) (*types.BaseAccount, error) {
+func (c *Config) getBaseAccount(isDual bool) (*configs.BaseAccount, error) {
 	var privKey *ecdsa.PrivateKey
 	var err error
 	var address common.Address
@@ -318,7 +327,7 @@ func (c *Config) getBaseAccount(isDual bool) (*types.BaseAccount, error) {
 	if err != nil {
 		return nil, fmt.Errorf("baseAccount: Invalid privatekey: %v", err)
 	}
-	return &types.BaseAccount{
+	return &configs.BaseAccount{
 		Address:    address,
 		PrivateKey: *privKey,
 	}, nil
@@ -340,7 +349,7 @@ func (c *Config) Start() {
 		logger.Error("Cannot get node config", "err", err)
 		return
 	}
-
+	nodeConfig.Genesis = nodeConfig.MainChainConfig.Genesis
 	// init new node from nodeConfig
 	n, err := node.New(nodeConfig)
 	if err != nil {
@@ -365,10 +374,6 @@ func (c *Config) Start() {
 		return
 	}
 
-	// Add peers
-	for _, peer := range c.MainChain.Seeds {
-		n.Server().AddPeer(enode.MustParse(peer))
-	}
 	var kardiaService *kai.KardiaService
 
 	if c.MainChain.Events != nil {
@@ -380,19 +385,10 @@ func (c *Config) Start() {
 		c.SaveWatchers(kardiaService, c.MainChain.Events)
 	}
 
-	if c.DualChain != nil {
-		// Add peers
-		for _, peer := range c.DualChain.Seeds {
-			n.Server().AddPeer(enode.MustParse(peer))
-		}
-	}
-
 	if err := c.StartDual(n); err != nil {
 		logger.Error("error while starting dual", "err", err)
 		return
 	}
-
-	go displayKardiaPeers(n)
 
 	if err := c.StartDebug(); err != nil {
 		logger.Error("Failed to start debug", "err", err)
@@ -643,13 +639,6 @@ func runtimeSystemSettings() error {
 		}
 	}
 	return nil
-}
-
-func displayKardiaPeers(n *node.Node) {
-	for {
-		log.Info("Kardia peers: ", "count", n.Server().PeerCount())
-		time.Sleep(20 * time.Second)
-	}
 }
 
 func waitForever() {

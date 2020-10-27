@@ -29,35 +29,27 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/kardiachain/go-kardiamain/configs"
+
 	"github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
-	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/enode"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/rpc"
-	"github.com/kardiachain/go-kardiamain/types"
 )
 
 const (
-	datadirPrivateKey      = "nodekey"            // Path within the datadir to the node's private key
-	datadirDefaultKeyStore = "keystore"           // Path within the datadir to the keystore
-	datadirStaticNodes     = "static-nodes.json"  // Path within the datadir to the static node list
-	datadirTrustedNodes    = "trusted-nodes.json" // Path within the datadir to the trusted node list
-	datadirNodeDatabase    = "nodes"              // Path within the datadir to store the node infos
+	datadirPrivateKey      = "nodekey"  // Path within the datadir to the node's private key
+	datadirDefaultKeyStore = "keystore" // Path within the datadir to the keystore
+	datadirNodeDatabase    = "nodes"    // Path within the datadir to store the node infos
 )
 
 type MainChainConfig struct {
 	// Mainchain
-
-	// Index of validators
-	ValidatorIndexes []int
 
 	// DbInfo stores configuration information to setup database
 	DBInfo storage.DbInfo
@@ -85,16 +77,13 @@ type MainChainConfig struct {
 	ServiceName string
 
 	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *types.BaseAccount
+	BaseAccount *configs.BaseAccount
 }
 
 type DualChainConfig struct {
 	// Dualchain
 
 	ChainId uint64 // ID of dual chain unique to a dualnode group, such as for dual eth.
-
-	// Index of validators
-	ValidatorIndexes []int
 
 	// DbInfo stores configuration information to setup database
 	DBInfo storage.DbInfo
@@ -112,7 +101,7 @@ type DualChainConfig struct {
 	DualProtocolName string
 
 	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *types.BaseAccount
+	BaseAccount *configs.BaseAccount
 
 	// Dual Network ID
 	DualNetworkID uint64
@@ -157,7 +146,7 @@ type Config struct {
 	DataDir string
 
 	// Configuration of peer-to-peer networking.
-	P2P p2p.Config
+	P2P *configs.P2PConfig
 
 	// KeyStoreDir is the file system folder that contains private keys. The directory can
 	// be specified as a relative path, in which case it is resolved relative to the
@@ -288,7 +277,7 @@ type Config struct {
 	PeerProxyIP string
 
 	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *types.BaseAccount
+	BaseAccount *configs.BaseAccount
 
 	// Metrics defines whether we want to collect and expose metrics of the node
 	Metrics uint
@@ -296,6 +285,8 @@ type Config struct {
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
 	NodeMetadata *NodeMetadata
+
+	Genesis *genesis.Genesis
 }
 
 // IPCEndpoint resolves an IPC endpoint based on a configured value, taking into
@@ -339,7 +330,7 @@ func DefaultIPCEndpoint(clientIdentifier string) string {
 			panic("empty executable name")
 		}
 	}
-	config := &Config{DataDir: DefaultDataDir(), IPCPath: clientIdentifier + ".ipc"}
+	config := &Config{DataDir: configs.DefaultDataDir(), IPCPath: clientIdentifier + ".ipc"}
 	return config.IPCEndpoint()
 }
 
@@ -496,50 +487,6 @@ func (c *Config) NodeKey() *ecdsa.PrivateKey {
 	return key
 }
 
-// StaticNodes returns a list of node enode URLs configured as static nodes.
-func (c *Config) StaticNodes() []*enode.Node {
-	return c.parsePersistentNodes(&c.staticNodesWarning, c.ResolvePath(datadirStaticNodes))
-}
-
-// TrustedNodes returns a list of node enode URLs configured as trusted nodes.
-func (c *Config) TrustedNodes() []*enode.Node {
-	return c.parsePersistentNodes(&c.trustedNodesWarning, c.ResolvePath(datadirTrustedNodes))
-}
-
-// parsePersistentNodes parses a list of discovery node URLs loaded from a .json
-// file from within the data directory.
-func (c *Config) parsePersistentNodes(w *bool, path string) []*enode.Node {
-	// Short circuit if no node config is present
-	if c.DataDir == "" {
-		return nil
-	}
-	if _, err := os.Stat(path); err != nil {
-		return nil
-	}
-	c.warnOnce(w, "Found deprecated node list file %s, please use the TOML config file instead.", path)
-
-	// Load the nodes from the config file.
-	var nodelist []string
-	if err := common.LoadJSON(path, &nodelist); err != nil {
-		log.Error(fmt.Sprintf("Can't load node list file: %v", err))
-		return nil
-	}
-	// Interpret the list as a discovery node array
-	var nodes []*enode.Node
-	for _, url := range nodelist {
-		if url == "" {
-			continue
-		}
-		node, err := enode.Parse(enode.ValidSchemes, url)
-		if err != nil {
-			log.Error(fmt.Sprintf("Node URL %s: %v\n", url, err))
-			continue
-		}
-		nodes = append(nodes, node)
-	}
-	return nodes
-}
-
 var warnLock sync.Mutex
 
 func (c *Config) warnOnce(w *bool, format string, args ...interface{}) {
@@ -586,49 +533,6 @@ func NewNodeMetadata(privateKey *string, publicKey *string, votingPower uint64, 
 		node.PublicKey = pubKey
 	}
 	return node, nil
-}
-
-// GetValidatorSet gets list of validators from permission smc defined in config and a list of indices.
-func GetValidatorSet(bc base.BaseBlockChain, valIndexes []int) (*types.ValidatorSet, error) {
-	nodes, err := GetNodeMetadataFromSmc(&bc, valIndexes)
-	if err != nil {
-		return nil, err
-	}
-	validators := make([]*types.Validator, 0)
-	for i := 0; i < len(valIndexes); i++ {
-		if valIndexes[i] < 0 {
-			return nil, fmt.Errorf("value of validator must be greater than 0")
-		}
-		node := nodes[i]
-		validators = append(validators, types.NewValidator(crypto.PubkeyToAddress(*node.PublicKey), node.VotingPower))
-	}
-	// TODO(huny@): Pass the start/end block height of the initial set of validator from the
-	// genesis here. Default to 0 and 100000000000 for now.
-	validatorSet := types.NewValidatorSet(validators)
-	return validatorSet, nil
-}
-
-// GetNodeMetadataFromSmc gets nodes list from smartcontract
-func GetNodeMetadataFromSmc(bc *base.BaseBlockChain, valIndices []int) ([]NodeMetadata, error) {
-	util, err := permissioned.NewSmcPermissionUtil(*bc)
-	if err != nil {
-		return nil, err
-	}
-	nodes := make([]NodeMetadata, 0)
-	for _, idx := range valIndices {
-		// Get nodes by list of indices.
-		// Note: this is used for dev environement only.
-		pubString, _, listenAddr, votingPower, _, err := util.GetAdminNodeByIndex(int64(idx))
-		if err != nil {
-			return nil, err
-		}
-		n, err := NewNodeMetadata(nil, &pubString, votingPower.Uint64(), listenAddr)
-		if err != nil {
-			return nil, err
-		}
-		nodes = append(nodes, *n)
-	}
-	return nodes, nil
 }
 
 // GetNodeIndex returns the index of node based on last digits in string
