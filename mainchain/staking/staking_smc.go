@@ -322,7 +322,7 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	context := vm.NewKVMContext(msg, header, nil)
 	vmenv := kvm.NewKVM(context, statedb, cfg)
 	sender := kvm.AccountRef(msg.From())
-	_, _, _, vmerr := vmenv.Create(sender, msg.Data(), msg.Gas(), msg.Value())
+	_, _, _, vmerr := vmenv.CreateWithConstContractAddr(sender, msg.Data(), msg.Gas(), msg.Value(), s.ContractAddress)
 	if vmerr != nil {
 		return vmerr
 	}
