@@ -90,14 +90,9 @@ func LoadConfig(args flags) (*Config, error) {
 		err         error
 		networkType configs.NetworkType
 	)
-	if args.folder == "" {
-		wd, err = os.Getwd()
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		wd = args.folder
-	}
+	wd, err = os.Getwd()
+	if err != nil {
+		panic(err)
 
 	if args.targetNetwork == "mainnet" {
 		networkType = configs.Mainnet
