@@ -65,17 +65,16 @@ type flags struct {
 	folder  string
 	genesis string
 	kardia  string
-	chain   string
+	dual    string
 
 	targetNetwork string
 }
 
 func initFlag(args *flags) {
-	flag.StringVar(&args.folder, "folder", "", "Path to config folder. Default: \"\"")
-	flag.StringVar(&args.genesis, "genesis", "genesis.yaml", "Genesis config file name. Default: genesis.yaml")
-	flag.StringVar(&args.kardia, "node-config", "node1.yaml", "Kardia node config file name. Default: node1.yaml")
-	flag.StringVar(&args.chain, "dualnode-config", "", "Path to dual node config. Default: Disabled")
-	flag.StringVar(&args.targetNetwork, "network", "dev", "Target network you want to join. Choose one: [dev, test, main]. Default: dev")
+	flag.StringVar(&args.genesis, "genesis", "./cfg/genesis_mainnet.yaml", "Path to genesis config file. Default: ./cfg/genesis.yaml")
+	flag.StringVar(&args.kardia, "node", "./cfg/kai_config_mainnet.yaml", "Path to Kardia node config file. Default: ./cfg/kai_config.yaml")
+	flag.StringVar(&args.dual, "dual", "", "Path to dual node config file. Default: \"\"")
+	flag.StringVar(&args.targetNetwork, "network", "mainnet", "Target network you want to join. Choose one: [devnet, testnet, mainnet]. Default: mainnet")
 }
 
 var args flags
@@ -87,8 +86,9 @@ func init() {
 // Load attempts to load the config from given path and filename.
 func LoadConfig(args flags) (*Config, error) {
 	var (
-		wd  string
-		err error
+		wd          string
+		err         error
+		networkType configs.NetworkType
 	)
 	if args.folder == "" {
 		wd, err = os.Getwd()
@@ -99,8 +99,17 @@ func LoadConfig(args flags) (*Config, error) {
 		wd = args.folder
 	}
 
-	config := Config{}
+	if args.targetNetwork == "mainnet" {
+		networkType = configs.Mainnet
+	} else if args.targetNetwork == "testnet" {
+		networkType = configs.Testnet
+	} else if args.targetNetwork == "devnet" {
+		networkType = configs.Devnet
+	} else {
+		panic("Undefined netword type")
+	}
 
+	config := Config{}
 	genesisCfgFile := filepath.Join(wd, args.genesis)
 	kaiCfgFile := filepath.Join(wd, args.kardia)
 
@@ -121,21 +130,12 @@ func LoadConfig(args flags) (*Config, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot unmarshal node config")
 	}
-
-	if args.targetNetwork == "main" {
-		config.MainChain.Genesis.NetworkType = configs.Mainnet
-	} else if args.targetNetwork == "test" {
-		config.MainChain.Genesis.NetworkType = configs.Testnet
-	} else if args.targetNetwork == "dev" {
-		config.MainChain.Genesis.NetworkType = configs.Devnet
-	} else {
-		panic("Undefined netword type")
-	}
+	config.MainChain.Genesis.NetworkType = networkType
 	config.Genesis = config.MainChain.Genesis
 
 	var chainCfgFile string
-	if args.chain != "" {
-		chainCfgFile = filepath.Join(wd, args.chain)
+	if args.dual != "" {
+		chainCfgFile = filepath.Join(wd, args.dual)
 		chainCfg, err := ioutil.ReadFile(chainCfgFile)
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot read dual node config")
@@ -177,25 +177,23 @@ func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
 	if isDual {
 		database = c.DualChain.Database
 	}
-	switch database.Type {
-	case LevelDb:
-		nodeDir := filepath.Join(c.DataDir, c.Name, database.Dir)
-		if database.Drop == 1 {
-			// Clear all contents within data dir
-			if err := removeDirContents(nodeDir); err != nil {
-				panic(err)
-			}
+
+	nodeDir := filepath.Join(c.DataDir, c.Name, database.Dir)
+	if database.Drop == 1 {
+		// Clear all contents within data dir
+		if err := removeDirContents(nodeDir); err != nil {
+			panic(err)
 		}
-		return storage.NewLevelDbInfo(nodeDir, database.Caches, database.Handles)
-	default:
-		return nil
 	}
+	return storage.NewLevelDbInfo(nodeDir, database.Caches, database.Handles)
 }
 
 // getTxPoolConfig gets txPoolConfig from config
 func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 	txPool := c.MainChain.TxPool
 	return tx_pool.TxPoolConfig{
+		AccountSlots:  txPool.AccountSlots,
+		AccountQueue:  txPool.AccountQueue,
 		GlobalSlots:   txPool.GlobalSlots,
 		GlobalQueue:   txPool.GlobalQueue,
 		MaxBatchBytes: tx_pool.DefaultTxPoolConfig.MaxBatchBytes,
@@ -203,10 +201,12 @@ func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 	}
 }
 
-// getGenesis gets genesis data from config
-func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
-	var ga genesis.GenesisAlloc
-	var err error
+// getGenesisConfig gets genesis data from config
+func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
+	var (
+		ga  genesis.GenesisAlloc
+		err error
+	)
 	g := c.MainChain.Genesis
 	if isDual {
 		g = c.DualChain.Genesis
@@ -231,31 +231,32 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 		}
 	}
 
-	consensus, err := c.getConsensusConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	csParams := &kaiproto.ConsensusParams{
-		Block: kaiproto.BlockParams{
-			MaxBytes:   c.Genesis.ConsensusParams.Block.MaxBytes,
-			MaxGas:     c.Genesis.ConsensusParams.Block.MaxGas,
-			TimeIotaMs: c.Genesis.ConsensusParams.Block.TimeIotaMs,
-		},
-		Evidence: kaiproto.EvidenceParams{
-			MaxAgeNumBlocks: c.Genesis.ConsensusParams.Evidence.MaxAgeNumBlocks,
-			MaxAgeDuration:  time.Duration(c.Genesis.ConsensusParams.Evidence.MaxAgeDuration) * time.Hour,
-			MaxBytes:        c.Genesis.ConsensusParams.Evidence.MaxBytes,
-		},
+	// default mainnet hardcoded configs
+	csParams := configs.DefaultConsensusParams()
+	consensusCfg := configs.DefaultConsensusConfig()
+	chainCfg := configs.MainnetChainConfig
+	// switch to configs in .yaml file if not running mainnet
+	if g.NetworkType != configs.Mainnet {
+		csParams.Block.MaxBytes = g.ConsensusParams.Block.MaxBytes
+		csParams.Evidence = kaiproto.EvidenceParams{
+			MaxAgeNumBlocks: g.ConsensusParams.Evidence.MaxAgeNumBlocks,
+			MaxAgeDuration:  time.Duration(g.ConsensusParams.Evidence.MaxAgeDuration) * time.Hour,
+			MaxBytes:        g.ConsensusParams.Evidence.MaxBytes,
+		}
+		consensusCfg, err = c.getConsensusConfig()
+		if err != nil {
+			return nil, err
+		}
+		chainCfg = g.ChainConfig
 	}
 
 	return &genesis.Genesis{
-		Config:          g.ChainConfig,
+		Config:          chainCfg,
 		GasLimit:        16777216, // maximum number of uint24
 		Alloc:           ga,
 		Validators:      g.Validators,
 		ConsensusParams: csParams,
-		Consensus:       consensus,
+		Consensus:       consensusCfg,
 	}, nil
 }
 
@@ -266,24 +267,23 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	if dbInfo == nil {
 		return nil, fmt.Errorf("cannot get dbInfo")
 	}
-	genesisData, err := c.getGenesis(false)
+	genesisData, err := c.getGenesisConfig(false)
 	if err != nil {
 		return nil, err
 	}
-	baseAccount, err := c.getBaseAccount(false)
-	if err != nil {
-		return nil, err
+	txPoolCfg := tx_pool.DefaultTxPoolConfig
+	if chain.Genesis.NetworkType != configs.Mainnet {
+		txPoolCfg = c.getTxPoolConfig()
 	}
 	mainChainConfig := node.MainChainConfig{
 		DBInfo:      dbInfo,
 		Genesis:     genesisData,
-		TxPool:      c.getTxPoolConfig(),
+		TxPool:      txPoolCfg,
 		AcceptTxs:   chain.AcceptTxs,
 		IsZeroFee:   chain.ZeroFee == 1,
 		NetworkId:   chain.NetworkID,
 		ChainId:     chain.ChainID,
 		ServiceName: chain.ServiceName,
-		BaseAccount: baseAccount,
 		Consensus:   genesisData.Consensus,
 	}
 	return &mainChainConfig, nil
@@ -295,7 +295,7 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 	if dbInfo == nil {
 		return nil, fmt.Errorf("cannot get dbInfo")
 	}
-	genesisData, err := c.getGenesis(true)
+	genesisData, err := c.getGenesisConfig(true)
 	if err != nil {
 		return nil, err
 	}
@@ -305,7 +305,7 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		BlockSize:   c.DualChain.EventPool.BlockSize,
 	}
 
-	baseAccount, err := c.getBaseAccount(true)
+	baseAccount, err := c.getBaseAccount()
 	if err != nil {
 		return nil, err
 	}
@@ -379,18 +379,14 @@ func (c *Config) newLog() log.Logger {
 }
 
 // getBaseAccount gets base account that is used to execute internal smart contract
-func (c *Config) getBaseAccount(isDual bool) (*configs.BaseAccount, error) {
+func (c *Config) getBaseAccount() (*configs.BaseAccount, error) {
 	var privKey *ecdsa.PrivateKey
 	var err error
 	var address common.Address
 
-	if isDual {
-		address = common.HexToAddress(c.DualChain.BaseAccount.Address)
-		privKey, err = crypto.HexToECDSA(c.DualChain.BaseAccount.PrivateKey)
-	} else {
-		address = common.HexToAddress(c.MainChain.BaseAccount.Address)
-		privKey, err = crypto.HexToECDSA(c.MainChain.BaseAccount.PrivateKey)
-	}
+	address = common.HexToAddress(c.DualChain.BaseAccount.Address)
+	privKey, err = crypto.HexToECDSA(c.DualChain.BaseAccount.PrivateKey)
+
 	if err != nil {
 		return nil, fmt.Errorf("baseAccount: Invalid privatekey: %v", err)
 	}
@@ -436,7 +432,7 @@ func (c *Config) Start() {
 		return
 	}
 
-	genesis, err := c.getGenesis(false)
+	genesis, err := c.getGenesisConfig(false)
 	if err != nil {
 		panic(err)
 	}
@@ -561,20 +557,11 @@ func (c *Config) SaveWatchers(service node.Service, events []Event) {
 			if event.MasterABI != nil {
 				masterAbi = *event.MasterABI
 			}
-			watchers := make(types.Watchers, 0)
-			for _, action := range event.Watchers {
-				watchers = append(watchers, &types.Watcher{
-					Method:         action.Method,
-					WatcherActions: action.WatcherActions,
-					DualActions:    action.DualActions,
-				})
-			}
 			smc := &types.KardiaSmartcontract{
 				MasterSmc:  event.MasterSmartContract,
 				MasterAbi:  masterAbi,
 				SmcAddress: event.ContractAddress,
 				SmcAbi:     abi,
-				Watchers:   watchers,
 			}
 			service.DB().WriteEvent(smc)
 		}

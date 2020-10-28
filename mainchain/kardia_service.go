@@ -88,7 +88,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	kaiDb := ctx.BlockStore
 
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, config.Genesis, config.BaseAccount)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, config.Genesis, nil)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
@@ -179,7 +179,6 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		AcceptTxs:   chainConfig.AcceptTxs,
 		IsZeroFee:   chainConfig.IsZeroFee,
 		IsPrivate:   chainConfig.IsPrivate,
-		BaseAccount: chainConfig.BaseAccount,
 		Consensus:   csConfig,
 	})
 

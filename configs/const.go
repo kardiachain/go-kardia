@@ -68,9 +68,9 @@ const (
 type NetworkType string
 
 const (
-	Mainnet NetworkType = "main"
-	Testnet NetworkType = "test"
-	Devnet  NetworkType = "dev"
+	Mainnet NetworkType = "mainnet"
+	Testnet NetworkType = "testnet"
+	Devnet  NetworkType = "devnet"
 )
 
 var (

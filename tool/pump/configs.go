@@ -34,7 +34,10 @@ type (
 		Debug     *Debug  `yaml:"Debug"`
 	}
 	Node struct {
-		P2P              `yaml:"P2P"`
+		P2P struct {
+			ListenAddress string `yaml:"ListenAddress"`
+			PrivateKey    string `yaml:"PrivateKey"`
+		} `yaml:"P2P"`
 		LogLevel         string   `yaml:"LogLevel"`
 		Name             string   `yaml:"Name"`
 		DataDir          string   `yaml:"DataDir"`
@@ -45,11 +48,6 @@ type (
 		HTTPCors         []string `yaml:"HTTPCors"`
 		Metrics          uint     `yaml:"Metrics"`
 		Genesis          *Genesis `yaml:"Genesis,omitempty"`
-	}
-	P2P struct {
-		PrivateKey    string `yaml:"PrivateKey"`
-		ListenAddress string `yaml:"ListenAddress"`
-		MaxPeers      int    `yaml:"MaxPeers"`
 	}
 	Chain struct {
 		ServiceName        string      `yaml:"ServiceName"`
@@ -67,7 +65,6 @@ type (
 		Events             []Event     `yaml:"Events"`
 		PublishedEndpoint  *string     `yaml:"PublishedEndpoint,omitempty"`
 		SubscribedEndpoint *string     `yaml:"SubscribedEndpoint,omitempty"`
-		Validators         []int       `yaml:"Validators"`
 		BaseAccount        BaseAccount `yaml:"BaseAccount,omitempty"`
 		Consensus          *Consensus  `yaml:"Consensus"`
 	}
@@ -87,11 +84,11 @@ type (
 		ABI      string `yaml:"ABI,omitempty"`
 	}
 	Pool struct {
-		GlobalSlots   uint64 `yaml:"GlobalSlots"`
-		GlobalQueue   uint64 `yaml:"GlobalQueue"`
-		BlockSize     int    `yaml:"BlockSize"`
-		Broadcast     bool   `yaml:"Broadcast"`
-		MaxBatchBytes int    `yaml:"MaxBatchBytes"`
+		AccountSlots uint64 `yaml:"AccountSlots"`
+		AccountQueue uint64 `yaml:"AccountQueue"`
+		GlobalSlots  uint64 `yaml:"GlobalSlots"`
+		GlobalQueue  uint64 `yaml:"GlobalQueue"`
+		BlockSize    int    `yaml:"BlockSize,omitempty"`
 	}
 	Database struct {
 		Type    uint   `yaml:"Type"`
@@ -101,16 +98,10 @@ type (
 		Drop    int    `yaml:"Drop"`
 	}
 	Event struct {
-		MasterSmartContract string    `yaml:"MasterSmartContract"`
-		ContractAddress     string    `yaml:"ContractAddress"`
-		MasterABI           *string   `yaml:"MasterABI"`
-		ABI                 *string   `yaml:"ABI,omitempty"`
-		Watchers            []Watcher `yaml:"Watchers"`
-	}
-	Watcher struct {
-		Method         string   `yaml:"Method"`
-		WatcherActions []string `yaml:"WatcherActions,omitempty"`
-		DualActions    []string `yaml:"DualActions"`
+		MasterSmartContract string  `yaml:"MasterSmartContract"`
+		ContractAddress     string  `yaml:"ContractAddress"`
+		MasterABI           *string `yaml:"MasterABI"`
+		ABI                 *string `yaml:"ABI,omitempty"`
 	}
 	BaseAccount struct {
 		Address    string `yaml:"Address"`

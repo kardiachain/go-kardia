@@ -27,6 +27,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 // TODO(huny): Get the proper genesis hash for Kardia when ready
@@ -84,6 +85,40 @@ func configNumEqual(x, y *big.Int) bool {
 
 type Config struct {
 	Consensus *ConsensusConfig
+}
+
+// -------- Consensus Params ---------
+
+// DefaultConsensusParams returns default param values for the consensus service
+func DefaultConsensusParams() *kaiproto.ConsensusParams {
+	return &kaiproto.ConsensusParams{
+		Block: kaiproto.BlockParams{
+			MaxBytes:   104857600,
+			MaxGas:     20000000,
+			TimeIotaMs: 1000,
+		},
+		Evidence: kaiproto.EvidenceParams{
+			MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
+			MaxAgeDuration:  48 * time.Hour,
+			MaxBytes:        1048576, // 1MB
+		},
+	}
+}
+
+// TestConsensusParams returns a configuration for testing the consensus service
+func TestConsensusParams() *kaiproto.ConsensusParams {
+	csParams := DefaultConsensusParams()
+	csParams.Block = kaiproto.BlockParams{
+		MaxBytes:   104857600,
+		MaxGas:     20000000,
+		TimeIotaMs: 1000,
+	}
+	csParams.Evidence = kaiproto.EvidenceParams{
+		MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
+		MaxAgeDuration:  48 * time.Hour,
+		MaxBytes:        1048576, // 1MB
+	}
+	return csParams
 }
 
 // -------- Consensus Config ---------

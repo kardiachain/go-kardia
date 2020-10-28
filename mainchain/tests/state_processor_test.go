@@ -26,13 +26,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
@@ -179,12 +177,8 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 	storeDB := kvstore.NewStoreDB(blockDB)
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, &configs.BaseAccount{
-		Address:    address,
-		PrivateKey: *privateKey,
-	})
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, nil)
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
 	}
@@ -251,12 +245,8 @@ func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	storeDB := kvstore.NewStoreDB(blockDB)
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, &configs.BaseAccount{
-		Address:    address,
-		PrivateKey: *privateKey,
-	})
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, nil)
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
 	}

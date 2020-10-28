@@ -61,7 +61,6 @@ type (
 		Events             []Event     `yaml:"Events"`
 		PublishedEndpoint  *string     `yaml:"PublishedEndpoint,omitempty"`
 		SubscribedEndpoint *string     `yaml:"SubscribedEndpoint,omitempty"`
-		Validators         []int       `yaml:"Validators"`
 		BaseAccount        BaseAccount `yaml:"BaseAccount,omitempty"`
 		Consensus          *Consensus  `yaml:"Consensus"`
 	}
@@ -81,9 +80,11 @@ type (
 		ABI      string `yaml:"ABI,omitempty"`
 	}
 	Pool struct {
+		AccountSlots  uint64 `yaml:"AccountSlots"`
+		AccountQueue  uint64 `yaml:"AccountQueue"`
 		GlobalSlots   uint64 `yaml:"GlobalSlots"`
 		GlobalQueue   uint64 `yaml:"GlobalQueue"`
-		BlockSize     int    `yaml:"BlockSize"`
+		BlockSize     int    `yaml:"BlockSize,omitempty"`
 		Broadcast     bool   `yaml:"Broadcast"`
 		MaxBatchBytes int    `yaml:"MaxBatchBytes"`
 	}
@@ -95,16 +96,10 @@ type (
 		Drop    int    `yaml:"Drop"`
 	}
 	Event struct {
-		MasterSmartContract string    `yaml:"MasterSmartContract"`
-		ContractAddress     string    `yaml:"ContractAddress"`
-		MasterABI           *string   `yaml:"MasterABI"`
-		ABI                 *string   `yaml:"ABI,omitempty"`
-		Watchers            []Watcher `yaml:"Watchers"`
-	}
-	Watcher struct {
-		Method         string   `yaml:"Method"`
-		WatcherActions []string `yaml:"WatcherActions,omitempty"`
-		DualActions    []string `yaml:"DualActions"`
+		MasterSmartContract string  `yaml:"MasterSmartContract"`
+		ContractAddress     string  `yaml:"ContractAddress"`
+		MasterABI           *string `yaml:"MasterABI"`
+		ABI                 *string `yaml:"ABI,omitempty"`
 	}
 	BaseAccount struct {
 		Address    string `yaml:"Address"`
