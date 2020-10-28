@@ -26,7 +26,6 @@ import (
 	"strings"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 

@@ -93,6 +93,7 @@ func LoadConfig(args flags) (*Config, error) {
 	wd, err = os.Getwd()
 	if err != nil {
 		panic(err)
+	}
 
 	if args.targetNetwork == "mainnet" {
 		networkType = configs.Mainnet
