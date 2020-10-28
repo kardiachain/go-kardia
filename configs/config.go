@@ -37,7 +37,7 @@ var (
 	TestnetGenesisHash = common.HexToHash("0x41941023680923e0fe4d74a34bdac8141f2540e3ae90623718e47d66d1ca4a2d")
 
 	GenesisDeployerAddr    = common.BytesToAddress([]byte{0x1})
-	StakingContractAddress = crypto.CreateAddress(GenesisDeployerAddr, 1)
+	StakingContractAddress = common.HexToAddress("0x00000000000000000000000000000000000519M4")
 )
 
 var (

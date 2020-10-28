@@ -431,6 +431,15 @@ func (kvm *KVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *
 	return kvm.create(caller, codeAndHash, gas, endowment, contractAddr)
 }
 
+// CreateGenesisContractAddress creates a new contract using Genesis Deployer address.
+func (kvm *KVM) CreateGenesisContractAddress(caller ContractRef, code []byte, gas uint64, value *big.Int, genesisContractAddr common.Address) (err error) {
+	_, _, _, vmerr := kvm.create(caller, &codeAndHash{code: code}, gas, value, genesisContractAddr)
+	if vmerr != nil {
+		return vmerr
+	}
+	return nil
+}
+
 //================================================================================================
 // Interfaces
 //=================================================================================================
