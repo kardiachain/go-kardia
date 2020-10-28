@@ -65,8 +65,6 @@ func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 		return nil, err
 	}
 
-	fmt.Println("Apply genesis staking smart contract address:", configs.StakingContractAddress.Hex())
-
 	return &StakingSmcUtil{Abi: &abi, ContractAddress: configs.StakingContractAddress, Bytecode: bytecodeStaking}, nil
 }
 
@@ -322,11 +320,10 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	context := vm.NewKVMContext(msg, header, nil)
 	vmenv := kvm.NewKVM(context, statedb, cfg)
 	sender := kvm.AccountRef(msg.From())
-	_, _, _, vmerr := vmenv.Create(sender, msg.Data(), msg.Gas(), msg.Value())
-	if vmerr != nil {
-		return vmerr
+	if err := vmenv.CreateGenesisContractAddress(sender, msg.Data(), msg.Gas(), msg.Value(), s.ContractAddress); err != nil {
+		return err
 	}
-
+	log.Info("Created genesis staking smart contract", "Deployer", configs.GenesisDeployerAddr.Hex(), "Address", s.ContractAddress.Hex())
 	// Update the state with pending changes
 	statedb.Finalise(true)
 	return nil
