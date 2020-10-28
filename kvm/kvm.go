@@ -421,12 +421,6 @@ func (kvm *KVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 	return kvm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
 
-// Create creates a new contract using code as deployment code.
-func (kvm *KVM) CreateWithConstContractAddr(caller ContractRef, code []byte, gas uint64, value *big.Int, stakingAddr common.Address) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
-	contractAddr = stakingAddr
-	return kvm.create(caller, &codeAndHash{code: code}, gas, value, stakingAddr)
-}
-
 // Create2 creates a new contract using code as deployment code.
 //
 // The different between Create2 with Create is Create2 uses sha3(msg.sender ++ salt ++ init_code)[12:]
@@ -435,6 +429,12 @@ func (kvm *KVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *
 	codeAndHash := &codeAndHash{code: code}
 	contractAddr = crypto.CreateAddress2(caller.Address(), common.Hash(salt.Bytes32()), code)
 	return kvm.create(caller, codeAndHash, gas, endowment, contractAddr)
+}
+
+// Create creates a new contract using code as deployment code.
+func (kvm *KVM) CreateGenesisContractAddress(caller ContractRef, code []byte, gas uint64, value *big.Int, genesisContractAddr common.Address) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+	contractAddr = genesisContractAddr
+	return kvm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
 }
 
 //================================================================================================
