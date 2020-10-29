@@ -218,7 +218,9 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 		}
 
 		for _, contract := range g.Contracts {
-			genesisContracts[contract.Address] = contract.ByteCode
+			if contract.Address != configs.StakingContractAddress.Hex() {
+				genesisContracts[contract.Address] = contract.ByteCode
+			}
 		}
 		ga, err = genesis.GenesisAllocFromAccountAndContract(genesisAccounts, genesisContracts)
 		if err != nil {
@@ -441,7 +443,9 @@ func (c *Config) Start() {
 	}
 
 	// TODO:@lew Temporary disable DualChain for testing
-	c.DualChain = nil
+	if c.Genesis.NetworkType == configs.Mainnet {
+		c.DualChain = nil
+	}
 
 	if c.DualChain != nil {
 		if err := n.Register(service.NewDualService); err != nil {
@@ -463,9 +467,6 @@ func (c *Config) Start() {
 		}
 		// save watchers to db
 		c.SaveWatchers(kardiaService, c.MainChain.Events)
-	}
-
-	if c.DualChain != nil {
 	}
 
 	if err := c.StartDual(n); err != nil {

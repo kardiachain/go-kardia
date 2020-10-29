@@ -223,7 +223,9 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 		}
 
 		for _, contract := range g.Contracts {
-			genesisContracts[contract.Address] = contract.ByteCode
+			if contract.Address != configs.StakingContractAddress.Hex() {
+				genesisContracts[contract.Address] = contract.ByteCode
+			}
 		}
 		ga, err = genesis.GenesisAllocFromAccountAndContract(genesisAccounts, genesisContracts)
 		if err != nil {
@@ -586,31 +588,31 @@ func genTxsLoop(genTxs *GenTxs, txPool *tx_pool.TxPool, globalQueue uint64) {
 	// get accounts
 	switch genTxs.Index {
 	case 1:
-		accounts = tool.GetAccounts(GenesisAddrKeys1)
+		accounts = tool.GetAccounts(tool.GenesisAddrKeys1)
 	case 2:
-		accounts = tool.GetAccounts(GenesisAddrKeys2)
+		accounts = tool.GetAccounts(tool.GenesisAddrKeys2)
 	case 3:
-		accounts = tool.GetAccounts(GenesisAddrKeys3)
+		accounts = tool.GetAccounts(tool.GenesisAddrKeys3)
 	case 4:
-		accounts = tool.GetAccounts(GenesisAddrKeys4)
+		accounts = tool.GetAccounts(tool.GenesisAddrKeys4)
 	case 5:
-		accounts = tool.GetAccounts(GenesisAddrKeys5)
+		accounts = tool.GetAccounts(tool.GenesisAddrKeys5)
 	case 6:
-		accounts = tool.GetAccounts(GenesisAddrKeys6)
+		accounts = tool.GetAccounts(tool.GenesisAddrKeys6)
 	case 7:
-		accounts = tool.GetAccounts(GenesisAddrKeys7)
+		accounts = tool.GetAccounts(tool.GenesisAddrKeys7)
 	case 8:
-		accounts = tool.GetAccounts(GenesisAddrKeys8)
+		accounts = tool.GetAccounts(tool.GenesisAddrKeys8)
 	case 9:
-		accounts = tool.GetAccounts(GenesisAddrKeys9)
+		accounts = tool.GetAccounts(tool.GenesisAddrKeys9)
 	case 10:
-		accounts = tool.GetAccounts(GenesisAddrKeys10)
+		accounts = tool.GetAccounts(tool.GenesisAddrKeys10)
 	case 11:
-		accounts = tool.GetAccounts(GenesisAddrKeys11)
+		accounts = tool.GetAccounts(tool.GenesisAddrKeys11)
 	case 12:
-		accounts = tool.GetAccounts(GenesisAddrKeys12)
+		accounts = tool.GetAccounts(tool.GenesisAddrKeys12)
 	default:
-		accounts = tool.GetAccounts(GenesisAddrKeys1)
+		accounts = tool.GetAccounts(tool.GenesisAddrKeys1)
 	}
 	genTool := tool.NewGeneratorTool(accounts)
 	// initHeight := txPool.GetBlockChain().CurrentBlock().Height()

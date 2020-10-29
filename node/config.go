@@ -71,8 +71,6 @@ type MainChainConfig struct {
 
 	NetworkId uint64
 
-	NetworkType configs.NetworkType
-
 	ChainId uint64
 
 	// ServiceName is used as log's prefix
@@ -108,8 +106,6 @@ type DualChainConfig struct {
 
 	// Dual Network ID
 	DualNetworkID uint64
-
-	NetworkType configs.NetworkType
 
 	// Consensus defines the configuration for the Kardia consensus service,
 	// including timeouts and details about the block structure.

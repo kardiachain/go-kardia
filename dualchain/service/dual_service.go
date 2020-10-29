@@ -124,12 +124,6 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 // NewDualService Implements ServiceConstructor, return a dual service from node service context.
 func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.DualChainConfig
-	var csConfig *configs.ConsensusConfig
-	if chainConfig.NetworkType == configs.Mainnet {
-		csConfig = configs.DefaultConsensusConfig()
-	} else {
-		csConfig = chainConfig.Consensus
-	}
 	kai, err := newDualService(ctx, &DualConfig{
 		ProtocolName:  chainConfig.DualProtocolName,
 		NetworkId:     chainConfig.DualNetworkID,
@@ -139,7 +133,7 @@ func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 		DualGenesis:   chainConfig.DualGenesis,
 		IsPrivate:     chainConfig.IsPrivate,
 		BaseAccount:   chainConfig.BaseAccount,
-		Consensus:     csConfig,
+		Consensus:     chainConfig.Consensus,
 	})
 
 	if err != nil {
