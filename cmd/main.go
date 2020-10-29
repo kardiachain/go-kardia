@@ -132,7 +132,6 @@ func recognizeNetwork(args *flags) {
 			args.kardia = defaultMainnetFlag.kardia
 		}
 	}
-	fmt.Println(args)
 }
 
 // Load attempts to load the config from given path and filename.

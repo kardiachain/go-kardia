@@ -62,47 +62,93 @@ const (
 )
 
 type flags struct {
-	folder  string
 	genesis string
 	kardia  string
 	dual    string
 
-	targetNetwork string
+	mainnet bool
+	testnet bool
+	devnet  bool
 }
+
+type NetworkType string
+
+const (
+	Mainnet NetworkType = "Mainnet"
+	Testnet NetworkType = "Testnet"
+	Devnet  NetworkType = "Devnet"
+)
+
+var (
+	args               flags
+	networkType        NetworkType
+	defaultTestnetFlag = flags{
+		genesis: "../../cmd/cfg/genesis_testnet.yaml",
+		kardia:  "../../cmd/cfg/kai_config_testnet.yaml",
+	}
+	defaultDevnetFlag = flags{
+		genesis: "../../cmd/cfg/genesis_devnet.yaml",
+		kardia:  "../../cmd/cfg/kai_config_devnet.yaml",
+	}
+	defaultMainnetFlag = flags{
+		genesis: "../../cmd/cfg/genesis.yaml",
+		kardia:  "../../cmd/cfg/kai_config.yaml",
+	}
+)
 
 func initFlag(args *flags) {
-	flag.StringVar(&args.genesis, "genesis", "./cfg/genesis.yaml", "Path to genesis config file. Default: ./cfg/genesis.yaml")
-	flag.StringVar(&args.kardia, "node", "./cfg/kai_config.yaml", "Path to Kardia node config file. Default: ./cfg/kai_config.yaml")
+	flag.StringVar(&args.genesis, "genesis", "", "Path to genesis config file. Default: ./cfg/genesis.yaml")
+	flag.StringVar(&args.kardia, "node", "", "Path to Kardia node config file. Default: ./cfg/kai_config.yaml")
 	flag.StringVar(&args.dual, "dual", "", "Path to dual node config file. Default: \"\"")
-	flag.StringVar(&args.targetNetwork, "network", "mainnet", "Target network you want to join. Choose one: [devnet, testnet, mainnet]. Default: mainnet")
+	flag.BoolVar(&args.mainnet, "mainnet", true, "Connect to mainnet. Default network")
+	flag.BoolVar(&args.testnet, "testnet", false, "Connect to testnet")
+	flag.BoolVar(&args.devnet, "devnet", false, "Connect to devnet")
 }
-
-var args flags
 
 func init() {
 	initFlag(&args)
 }
 
+func recognizeNetwork(args *flags) {
+	if args.testnet {
+		networkType = Testnet
+		if args.genesis == "" {
+			args.genesis = defaultTestnetFlag.genesis
+		}
+		if args.kardia == "" {
+			args.kardia = defaultTestnetFlag.kardia
+		}
+		args.mainnet = false
+	} else if args.devnet {
+		networkType = Devnet
+		if args.genesis == "" {
+			args.genesis = defaultDevnetFlag.genesis
+		}
+		if args.kardia == "" {
+			args.kardia = defaultDevnetFlag.kardia
+		}
+		args.mainnet = false
+	} else {
+		networkType = Mainnet
+		if args.genesis == "" {
+			args.genesis = defaultMainnetFlag.genesis
+		}
+		if args.kardia == "" {
+			args.kardia = defaultMainnetFlag.kardia
+		}
+	}
+}
+
 // Load attempts to load the config from given path and filename.
 func LoadConfig(args flags) (*Config, error) {
+	recognizeNetwork(&args)
 	var (
-		wd          string
-		err         error
-		networkType configs.NetworkType
+		wd  string
+		err error
 	)
 	wd, err = os.Getwd()
 	if err != nil {
 		panic(err)
-	}
-
-	if args.targetNetwork == "mainnet" {
-		networkType = configs.Mainnet
-	} else if args.targetNetwork == "testnet" {
-		networkType = configs.Testnet
-	} else if args.targetNetwork == "devnet" {
-		networkType = configs.Devnet
-	} else {
-		panic("Undefined netword type")
 	}
 
 	config := Config{}
@@ -126,7 +172,6 @@ func LoadConfig(args flags) (*Config, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot unmarshal node config")
 	}
-	config.MainChain.Genesis.NetworkType = networkType
 	config.Genesis = config.MainChain.Genesis
 	// load genesis contracts to configs
 	for _, contract := range config.MainChain.Genesis.Contracts {
@@ -238,7 +283,7 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 	consensusCfg := configs.DefaultConsensusConfig()
 	chainCfg := configs.MainnetChainConfig
 	// switch to configs in .yaml file if not running mainnet
-	if g.NetworkType != configs.Mainnet {
+	if networkType != Mainnet {
 		csParams.Block.MaxBytes = g.ConsensusParams.Block.MaxBytes
 		csParams.Evidence = kaiproto.EvidenceParams{
 			MaxAgeNumBlocks: g.ConsensusParams.Evidence.MaxAgeNumBlocks,
@@ -274,7 +319,7 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		return nil, err
 	}
 	txPoolCfg := tx_pool.DefaultTxPoolConfig
-	if chain.Genesis.NetworkType != configs.Mainnet {
+	if networkType != Mainnet {
 		txPoolCfg = c.getTxPoolConfig()
 	}
 	mainChainConfig := node.MainChainConfig{

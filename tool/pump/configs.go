@@ -74,7 +74,6 @@ type (
 		ConsensusParams ConsensusParams             `yaml:"ConsensusParams"`
 		Consensus       *Consensus                  `yaml:"Consensus"`
 		ChainConfig     *configs.ChainConfig        `yaml:"ChainConfig"`
-		NetworkType     configs.NetworkType
 	}
 	Contract struct {
 		Address  string `yaml:"Address"`
