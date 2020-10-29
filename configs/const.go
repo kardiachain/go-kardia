@@ -67,14 +67,6 @@ const (
 	DefaultPublishedEndpoint  = "tcp://127.0.0.1:5554"
 )
 
-type NetworkType string
-
-const (
-	Mainnet NetworkType = "mainnet"
-	Testnet NetworkType = "testnet"
-	Devnet  NetworkType = "devnet"
-)
-
 var (
 	ErrUnsupportedMethod = errors.New("method is not supported by dual logic")
 )
