@@ -36,10 +36,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-const (
-	KardiaPermissionSmcIndex = 4
-)
-
 var MaximumGasToCallStaticFunction = uint(4000000)
 
 // PermissionSmcUtil wraps all utility methods related to permission smc
@@ -58,7 +54,8 @@ func NewSmcPermissionUtil(bc base.BaseBlockChain) (*PermissionSmcUtil, error) {
 		log.Error("Error get state", "err", err)
 		return nil, err
 	}
-	permissionSmcAddr, permissionSmcAbi := configs.GetContractDetailsByIndex(KardiaPermissionSmcIndex)
+	permissionSmcAddr := common.HexToAddress(configs.KardiaPermissionSmcAddress)
+	permissionSmcAbi := configs.GetContractABIByAddress(configs.KardiaPermissionSmcAddress)
 	if permissionSmcAbi == "" {
 		log.Error("Error getting abi by index")
 		return nil, err

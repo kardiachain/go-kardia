@@ -33,18 +33,20 @@ const (
 	NEO = "NEO"
 
 	// constants related to candidate exchange, Kardia part
-	KardiaCandidateExchangeSmcIndex    = 6
-	KardiaForwardRequestFunction       = "forwardRequest"
-	KardiaForwardResponseFunction      = "forwardResponse"
-	KardiaForwardResponseFields        = 4
-	KardiaForwardResponseEmailIndex    = 0
-	KardiaForwardResponseResponseIndex = 1
-	KardiaForwardResponseFromOrgIndex  = 2
-	KardiaForwardResponseToOrgIndex    = 3
-	KardiaForwardRequestFields         = 3
-	KardiaForwardRequestEmailIndex     = 0
-	KardiaForwardRequestFromOrgIndex   = 1
-	KardiaForwardRequestToOrgIndex     = 2
+	KardiaCandidateExchangeSmcAddress     = "0x00000000000000000000000000000000736D6338"
+	KardiaPrivateChainCandidateSmcAddress = "0x00000000000000000000000000000000736D6337"
+	KardiaPermissionSmcAddress            = "0x00000000000000000000000000000000736D6336"
+	KardiaForwardRequestFunction          = "forwardRequest"
+	KardiaForwardResponseFunction         = "forwardResponse"
+	KardiaForwardResponseFields           = 4
+	KardiaForwardResponseEmailIndex       = 0
+	KardiaForwardResponseResponseIndex    = 1
+	KardiaForwardResponseFromOrgIndex     = 2
+	KardiaForwardResponseToOrgIndex       = 3
+	KardiaForwardRequestFields            = 3
+	KardiaForwardRequestEmailIndex        = 0
+	KardiaForwardRequestFromOrgIndex      = 1
+	KardiaForwardRequestToOrgIndex        = 2
 
 	// constants related to candidate exchange, private chain part
 	PrivateChainCandidateDBSmcIndex                     = 5

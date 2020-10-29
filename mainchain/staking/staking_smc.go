@@ -17,11 +17,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-const (
-	// KardiaSatkingSmcIndex ...
-	KardiaSatkingSmcIndex = 7
-)
-
 // MaximumGasToCallStaticFunction ...
 var MaximumGasToCallStaticFunction = uint(4000000)
 
@@ -56,7 +51,7 @@ type StakingSmcUtil struct {
 
 // NewSmcStakingnUtil ...
 func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
-	_, stakingSmcAbi := configs.GetContractDetailsByIndex(KardiaSatkingSmcIndex)
+	stakingSmcAbi := configs.GetContractABIByAddress(configs.StakingContractAddress.Hex())
 	bytecodeStaking := configs.GetContractByteCodeByAddress(configs.StakingContractAddress.Hex())
 
 	abi, err := abi.JSON(strings.NewReader(stakingSmcAbi))
