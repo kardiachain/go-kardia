@@ -71,8 +71,8 @@ type flags struct {
 }
 
 func initFlag(args *flags) {
-	flag.StringVar(&args.genesis, "genesis", "./cfg/genesis_mainnet.yaml", "Path to genesis config file. Default: ./cfg/genesis.yaml")
-	flag.StringVar(&args.kardia, "node", "./cfg/kai_config_mainnet.yaml", "Path to Kardia node config file. Default: ./cfg/kai_config.yaml")
+	flag.StringVar(&args.genesis, "genesis", "./cfg/genesis.yaml", "Path to genesis config file. Default: ./cfg/genesis.yaml")
+	flag.StringVar(&args.kardia, "node", "./cfg/kai_config.yaml", "Path to Kardia node config file. Default: ./cfg/kai_config.yaml")
 	flag.StringVar(&args.dual, "dual", "", "Path to dual node config file. Default: \"\"")
 	flag.StringVar(&args.targetNetwork, "network", "mainnet", "Target network you want to join. Choose one: [devnet, testnet, mainnet]. Default: mainnet")
 }
@@ -128,6 +128,10 @@ func LoadConfig(args flags) (*Config, error) {
 	}
 	config.MainChain.Genesis.NetworkType = networkType
 	config.Genesis = config.MainChain.Genesis
+	// load genesis contracts to configs
+	for _, contract := range config.MainChain.Genesis.Contracts {
+		configs.LoadGenesisContract(contract.Address, contract.ByteCode, contract.ABI)
+	}
 
 	var chainCfgFile string
 	if args.dual != "" {

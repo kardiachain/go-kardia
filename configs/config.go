@@ -19,7 +19,6 @@
 package configs
 
 import (
-	"fmt"
 	"math"
 	"math/big"
 	"time"
@@ -297,9 +296,7 @@ func LoadGenesisContract(address string, bytecode string, abi string) {
 }
 
 func GetContractABIByAddress(address string) string {
-	fmt.Println("address", address)
 	for _, contract := range contracts {
-		fmt.Println("address", contract.address)
 		if strings.EqualFold(address, contract.address) {
 			return contract.abi
 		}
