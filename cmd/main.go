@@ -309,7 +309,7 @@ func (c *Config) getConsensusParams() *kaiproto.ConsensusParams {
 	return &kaiproto.ConsensusParams{
 		Block: kaiproto.BlockParams{
 			MaxBytes:   c.Genesis.ConsensusParams.Block.MaxBytes,
-			MaxGas:     defaultCsParams.Block.MaxGas,
+			MaxGas:     c.Genesis.ConsensusParams.Block.MaxGas,
 			TimeIotaMs: defaultCsParams.Block.TimeIotaMs,
 		},
 		Evidence: kaiproto.EvidenceParams{

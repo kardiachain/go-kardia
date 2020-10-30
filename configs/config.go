@@ -102,8 +102,8 @@ type Config struct {
 func DefaultConsensusParams() *kaiproto.ConsensusParams {
 	return &kaiproto.ConsensusParams{
 		Block: kaiproto.BlockParams{
-			MaxBytes:   104857600,
-			MaxGas:     20000000,
+			MaxBytes:   BlockMaxBytes,
+			MaxGas:     BlockGasLimit,
 			TimeIotaMs: 1000,
 		},
 		Evidence: kaiproto.EvidenceParams{
