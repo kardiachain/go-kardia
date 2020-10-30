@@ -25,6 +25,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/metrics"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/rpc"
 )
@@ -223,6 +224,10 @@ func (api *PublicAdminAPI) Peers() ([]Peer, error) {
 		})
 	}
 	return peers, nil
+}
+
+func (api *PublicAdminAPI) Metrics() map[string]map[string]interface{} {
+	return metrics.DefaultRegistry.GetAll()
 }
 
 // NodeInfo retrieves all the information we know about the host node at the
