@@ -366,7 +366,7 @@ func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB
 	}
 
 	for _, val := range validators {
-		if err := staking.CreateValidator(statedb, header, nil, cfg, common.HexToAddress(val.Address), int64(val.Power)); err != nil {
+		if err := staking.CreateGenesisValidator(statedb, header, nil, cfg, common.HexToAddress(val.Address), int64(val.Power)); err != nil {
 			return fmt.Errorf("apply create validator err: %s", err)
 		}
 	}
