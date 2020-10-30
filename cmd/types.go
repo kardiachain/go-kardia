@@ -67,9 +67,9 @@ type (
 	Genesis struct {
 		Addresses       []string                    `yaml:"Addresses"`
 		GenesisAmount   string                      `yaml:"GenesisAmount"`
-		Contracts       []Contract                  `yaml:"Contracts"`
+		Contracts       map[string]Contract         `yaml:"Contracts"`
 		Validators      []*genesis.GenesisValidator `yaml:"Validators"`
-		ConsensusParams ConsensusParams             `yaml:"ConsensusParams"`
+		ConsensusParams *ConsensusParams            `yaml:"ConsensusParams"`
 		Consensus       *Consensus                  `yaml:"Consensus"`
 		ChainConfig     *configs.ChainConfig        `yaml:"ChainConfig"`
 	}

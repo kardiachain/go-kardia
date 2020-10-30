@@ -65,83 +65,66 @@ type flags struct {
 	genesis string
 	kardia  string
 	dual    string
-
-	mainnet bool
-	testnet bool
-	devnet  bool
+	network string
 }
 
-type NetworkType string
-
 const (
-	Mainnet NetworkType = "Mainnet"
-	Testnet NetworkType = "Testnet"
-	Devnet  NetworkType = "Devnet"
+	Mainnet = "mainnet"
+	Testnet = "testnet"
+	Devnet  = "devnet"
 )
 
 var (
-	args               flags
-	networkType        NetworkType
-	defaultTestnetFlag = flags{
-		genesis: "../../cmd/cfg/genesis_testnet.yaml",
-		kardia:  "../../cmd/cfg/kai_config_testnet.yaml",
-	}
-	defaultDevnetFlag = flags{
-		genesis: "../../cmd/cfg/genesis_devnet.yaml",
-		kardia:  "../../cmd/cfg/kai_config_devnet.yaml",
-	}
-	defaultMainnetFlag = flags{
-		genesis: "../../cmd/cfg/genesis.yaml",
-		kardia:  "../../cmd/cfg/kai_config.yaml",
+	args         flags
+	defaultFlags = map[string]flags{
+		Mainnet: flags{
+			genesis: "../../cmd/cfg/genesis.yaml",
+			kardia:  "../../cmd/cfg/kai_config.yaml",
+			dual:    "",
+		},
+		Testnet: flags{
+			genesis: "../../cmd/cfg/genesis_testnet.yaml",
+			kardia:  "../../cmd/cfg/kai_config_testnet.yaml",
+			dual:    "",
+		},
+		Devnet: flags{
+			genesis: "../../cmd/cfg/genesis_devnet.yaml",
+			kardia:  "../../cmd/cfg/kai_config_devnet.yaml",
+			dual:    "",
+		},
 	}
 )
 
 func initFlag(args *flags) {
-	flag.StringVar(&args.genesis, "genesis", "", "Path to genesis config file. Default: ./cfg/genesis.yaml")
-	flag.StringVar(&args.kardia, "node", "", "Path to Kardia node config file. Default: ./cfg/kai_config.yaml")
+	flag.StringVar(&args.genesis, "genesis", "", "Path to genesis config file. Default: ${wd}../../cmd/cfg/genesis.yaml")
+	flag.StringVar(&args.kardia, "node", "", "Path to Kardia node config file. Default: ${wd}../../cmd/cfg/kai_config.yaml")
 	flag.StringVar(&args.dual, "dual", "", "Path to dual node config file. Default: \"\"")
-	flag.BoolVar(&args.mainnet, "mainnet", true, "Connect to mainnet. Default network")
-	flag.BoolVar(&args.testnet, "testnet", false, "Connect to testnet")
-	flag.BoolVar(&args.devnet, "devnet", false, "Connect to devnet")
+	flag.StringVar(&args.network, "network", "mainnet", "Target network, choose one [mainnet, testnet, devnet]. Default: \"mainnet\"")
 }
 
 func init() {
 	initFlag(&args)
 }
 
-func recognizeNetwork(args *flags) {
-	if args.testnet {
-		networkType = Testnet
-		if args.genesis == "" {
-			args.genesis = defaultTestnetFlag.genesis
-		}
-		if args.kardia == "" {
-			args.kardia = defaultTestnetFlag.kardia
-		}
-		args.mainnet = false
-	} else if args.devnet {
-		networkType = Devnet
-		if args.genesis == "" {
-			args.genesis = defaultDevnetFlag.genesis
-		}
-		if args.kardia == "" {
-			args.kardia = defaultDevnetFlag.kardia
-		}
-		args.mainnet = false
-	} else {
-		networkType = Mainnet
-		if args.genesis == "" {
-			args.genesis = defaultMainnetFlag.genesis
-		}
-		if args.kardia == "" {
-			args.kardia = defaultMainnetFlag.kardia
-		}
+// finalizeConfigParams fills missing config options with default values, based on target network
+func finalizeConfigParams(args *flags) {
+	if args.network != Mainnet && args.network != Testnet && args.network != Devnet {
+		panic("unknown target network")
+	}
+	if args.genesis == "" {
+		args.genesis = defaultFlags[args.network].genesis
+	}
+	if args.kardia == "" {
+		args.kardia = defaultFlags[args.network].kardia
+	}
+	if args.dual == "" {
+		args.dual = defaultFlags[args.network].dual
 	}
 }
 
 // Load attempts to load the config from given path and filename.
 func LoadConfig(args flags) (*Config, error) {
-	recognizeNetwork(&args)
+	finalizeConfigParams(&args)
 	var (
 		wd  string
 		err error
@@ -173,14 +156,9 @@ func LoadConfig(args flags) (*Config, error) {
 		return nil, errors.Wrap(err, "cannot unmarshal node config")
 	}
 	config.Genesis = config.MainChain.Genesis
-	// load genesis contracts to configs
-	for _, contract := range config.MainChain.Genesis.Contracts {
-		configs.LoadGenesisContract(contract.Address, contract.ByteCode, contract.ABI)
-	}
 
-	var chainCfgFile string
 	if args.dual != "" {
-		chainCfgFile = filepath.Join(wd, args.dual)
+		chainCfgFile := filepath.Join(wd, args.dual)
 		chainCfg, err := ioutil.ReadFile(chainCfgFile)
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot read dual node config")
@@ -233,16 +211,19 @@ func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
 	return storage.NewLevelDbInfo(nodeDir, database.Caches, database.Handles)
 }
 
-// getTxPoolConfig gets txPoolConfig from config
+// getTxPoolConfig gets txPoolConfig from config, based on target network
 func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 	txPool := c.MainChain.TxPool
+	if args.network == Mainnet {
+		return tx_pool.DefaultTxPoolConfig
+	}
 	return tx_pool.TxPoolConfig{
 		AccountSlots:  txPool.AccountSlots,
 		AccountQueue:  txPool.AccountQueue,
 		GlobalSlots:   txPool.GlobalSlots,
 		GlobalQueue:   txPool.GlobalQueue,
-		MaxBatchBytes: tx_pool.DefaultTxPoolConfig.MaxBatchBytes,
-		Broadcast:     tx_pool.DefaultTxPoolConfig.Broadcast,
+		MaxBatchBytes: txPool.MaxBatchBytes,
+		Broadcast:     txPool.Broadcast,
 	}
 }
 
@@ -267,8 +248,9 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 			genesisAccounts[address] = amount
 		}
 
-		for _, contract := range g.Contracts {
-			if contract.Address != configs.StakingContractAddress.Hex() {
+		for key, contract := range g.Contracts {
+			configs.LoadGenesisContract(key, contract.Address, contract.ByteCode, contract.ABI)
+			if key != configs.StakingContract {
 				genesisContracts[contract.Address] = contract.ByteCode
 			}
 		}
@@ -278,32 +260,13 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 		}
 	}
 
-	// default mainnet hardcoded configs
-	csParams := configs.DefaultConsensusParams()
-	consensusCfg := configs.DefaultConsensusConfig()
-	chainCfg := configs.MainnetChainConfig
-	// switch to configs in .yaml file if not running mainnet
-	if networkType != Mainnet {
-		csParams.Block.MaxBytes = g.ConsensusParams.Block.MaxBytes
-		csParams.Evidence = kaiproto.EvidenceParams{
-			MaxAgeNumBlocks: g.ConsensusParams.Evidence.MaxAgeNumBlocks,
-			MaxAgeDuration:  time.Duration(g.ConsensusParams.Evidence.MaxAgeDuration) * time.Hour,
-			MaxBytes:        g.ConsensusParams.Evidence.MaxBytes,
-		}
-		consensusCfg, err = c.getConsensusConfig()
-		if err != nil {
-			return nil, err
-		}
-		chainCfg = g.ChainConfig
-	}
-
 	return &genesis.Genesis{
-		Config:          chainCfg,
+		Config:          c.getChainConfig(),
 		GasLimit:        16777216, // maximum number of uint24
 		Alloc:           ga,
 		Validators:      g.Validators,
-		ConsensusParams: csParams,
-		Consensus:       consensusCfg,
+		ConsensusParams: c.getConsensusParams(),
+		Consensus:       c.getConsensusConfig(),
 	}, nil
 }
 
@@ -318,14 +281,10 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	txPoolCfg := tx_pool.DefaultTxPoolConfig
-	if networkType != Mainnet {
-		txPoolCfg = c.getTxPoolConfig()
-	}
 	mainChainConfig := node.MainChainConfig{
 		DBInfo:      dbInfo,
 		Genesis:     genesisData,
-		TxPool:      txPoolCfg,
+		TxPool:      c.getTxPoolConfig(),
 		AcceptTxs:   chain.AcceptTxs,
 		IsZeroFee:   chain.ZeroFee == 1,
 		NetworkId:   chain.NetworkID,
@@ -444,8 +403,11 @@ func (c *Config) getBaseAccount() (*configs.BaseAccount, error) {
 }
 
 // getConsensusConfig gets consensus timeout configs
-func (c *Config) getConsensusConfig() (*configs.ConsensusConfig, error) {
-	csCfg := &configs.ConsensusConfig{
+func (c *Config) getConsensusConfig() *configs.ConsensusConfig {
+	if args.network == Mainnet {
+		return configs.DefaultConsensusConfig()
+	}
+	return &configs.ConsensusConfig{
 		TimeoutPropose:              time.Duration(c.Genesis.Consensus.TimeoutPropose) * time.Millisecond,
 		TimeoutProposeDelta:         time.Duration(c.Genesis.Consensus.TimeoutProposeDelta) * time.Millisecond,
 		TimeoutPrevote:              time.Duration(c.Genesis.Consensus.TimeoutPrevote) * time.Millisecond,
@@ -459,7 +421,33 @@ func (c *Config) getConsensusConfig() (*configs.ConsensusConfig, error) {
 		PeerGossipSleepDuration:     time.Duration(c.Genesis.Consensus.PeerGossipSleepDuration) * time.Millisecond,
 		PeerQueryMaj23SleepDuration: time.Duration(c.Genesis.Consensus.PeerQueryMaj23SleepDuration) * time.Millisecond,
 	}
-	return csCfg, nil
+}
+
+// getConsensusConfig gets consensus config params
+func (c *Config) getConsensusParams() *kaiproto.ConsensusParams {
+	defaultCsParams := configs.DefaultConsensusParams()
+	if args.network == Mainnet {
+		return defaultCsParams
+	}
+	return &kaiproto.ConsensusParams{
+		Block: kaiproto.BlockParams{
+			MaxBytes:   c.Genesis.ConsensusParams.Block.MaxBytes,
+			MaxGas:     defaultCsParams.Block.MaxGas,
+			TimeIotaMs: defaultCsParams.Block.TimeIotaMs,
+		},
+		Evidence: kaiproto.EvidenceParams{
+			MaxAgeNumBlocks: c.Genesis.ConsensusParams.Evidence.MaxAgeNumBlocks,
+			MaxAgeDuration:  time.Duration(c.Genesis.ConsensusParams.Evidence.MaxAgeDuration) * time.Hour,
+			MaxBytes:        c.Genesis.ConsensusParams.Evidence.MaxBytes,
+		},
+	}
+}
+
+func (c *Config) getChainConfig() *configs.ChainConfig {
+	if args.network == Mainnet {
+		return configs.MainnetChainConfig
+	}
+	return c.Genesis.ChainConfig
 }
 
 // Start starts chain with given config

@@ -69,9 +69,9 @@ type (
 	Genesis struct {
 		Addresses       []string                    `yaml:"Addresses"`
 		GenesisAmount   string                      `yaml:"GenesisAmount"`
-		Contracts       []Contract                  `yaml:"Contracts"`
+		Contracts       map[string]Contract         `yaml:"Contracts"`
 		Validators      []*genesis.GenesisValidator `yaml:"Validators"`
-		ConsensusParams ConsensusParams             `yaml:"ConsensusParams"`
+		ConsensusParams *ConsensusParams            `yaml:"ConsensusParams"`
 		Consensus       *Consensus                  `yaml:"Consensus"`
 		ChainConfig     *configs.ChainConfig        `yaml:"ChainConfig"`
 	}
@@ -81,11 +81,13 @@ type (
 		ABI      string `yaml:"ABI,omitempty"`
 	}
 	Pool struct {
-		AccountSlots uint64 `yaml:"AccountSlots"`
-		AccountQueue uint64 `yaml:"AccountQueue"`
-		GlobalSlots  uint64 `yaml:"GlobalSlots"`
-		GlobalQueue  uint64 `yaml:"GlobalQueue"`
-		BlockSize    int    `yaml:"BlockSize,omitempty"`
+		AccountSlots  uint64 `yaml:"AccountSlots"`
+		AccountQueue  uint64 `yaml:"AccountQueue"`
+		GlobalSlots   uint64 `yaml:"GlobalSlots"`
+		GlobalQueue   uint64 `yaml:"GlobalQueue"`
+		BlockSize     int    `yaml:"BlockSize,omitempty"`
+		Broadcast     bool   `yaml:"Broadcast"`
+		MaxBatchBytes int    `yaml:"MaxBatchBytes"`
 	}
 	Database struct {
 		Type    uint   `yaml:"Type"`

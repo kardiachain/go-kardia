@@ -35,6 +35,8 @@ MainChain:
     AccountQueue: 1024      # Type: uint64
     GlobalSlots: 64         # Type: uint64
     GlobalQueue: 5120000    # Type: uint64
+    MaxBatchBytes: 10485760 # 10MB. Type: int
+    Broadcast: true         # Type: bool
   ZeroFee: 0          # 0 is no, 1 is yes
   Database:
     Dir: chaindata                           # directory stores leveldb

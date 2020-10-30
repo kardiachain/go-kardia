@@ -35,7 +35,7 @@ var (
 	TestnetGenesisHash = common.HexToHash("0x41941023680923e0fe4d74a34bdac8141f2540e3ae90623718e47d66d1ca4a2d")
 
 	GenesisDeployerAddr    = common.BytesToAddress([]byte{0x1})
-	StakingContractAddress = common.HexToAddress("0x0000000000000000000000000000000000001337")
+	StakingContractAddress common.Address
 )
 
 var (
@@ -43,6 +43,17 @@ var (
 	EthDualChainID  = uint64(2)
 	NeoDualChainID  = uint64(3)
 	TronDualChainID = uint64(4)
+)
+
+var (
+	StakingContract           = "Staking"
+	CounterContract           = "Counter"
+	BallotContract            = "Ballot"
+	ExchangeContract          = "Exchange"
+	ExchangeV2Contract        = "ExchangeV2"
+	PermissionContract        = "Permission"
+	CandidateDBContract       = "CandidateDB"
+	CandidateExchangeContract = "CandidateExchange"
 )
 
 var (
@@ -231,14 +242,17 @@ type Contract struct {
 	abi      string
 }
 
-var contracts []Contract
+var contracts = make(map[string]Contract)
 
-func LoadGenesisContract(address string, bytecode string, abi string) {
-	contracts = append(contracts, Contract{
+func LoadGenesisContract(contractType string, address string, bytecode string, abi string) {
+	if contractType == StakingContract {
+		StakingContractAddress = common.HexToAddress(address)
+	}
+	contracts[contractType] = Contract{
 		address:  address,
 		bytecode: bytecode,
 		abi:      abi,
-	})
+	}
 }
 
 func GetContractABIByAddress(address string) string {
