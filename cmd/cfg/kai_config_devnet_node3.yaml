@@ -1,8 +1,8 @@
 Node:
-  Name: node1
+  Name: node3
   DataDir: /tmp/.kardia
   HTTPHost: 0.0.0.0
-  HTTPPort: 8545
+  HTTPPort: 8547
   HTTPModules:
     - node
     - kai
@@ -16,8 +16,8 @@ Node:
   HTTPCors:
     - "*"
   P2P:
-    PrivateKey: 8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06 # 
-    ListenAddress: tcp://0.0.0.0:3000
+    PrivateKey: 98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb
+    ListenAddress: tcp://0.0.0.0:3002
     MaxPeers: 25
   LogLevel: info           # crit, error, warn, info, debug, trace
   Metrics: 1

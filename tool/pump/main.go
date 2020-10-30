@@ -101,7 +101,7 @@ func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
 
 // getTxPoolConfig gets txPoolConfig from config, based on target network
 func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
-	txPool := c.MainChain.TxPool
+	txPool := c.Genesis.TxPool
 	if args.network == Mainnet {
 		return tx_pool.DefaultTxPoolConfig
 	}
@@ -492,7 +492,7 @@ func (c *Config) SaveWatchers(service node.Service, events []Event) {
 // StartPump reads dual config and start dual service
 func (c *Config) StartPump(txPool *tx_pool.TxPool) error {
 	if c.GenTxs != nil {
-		go genTxsLoop(c.GenTxs, txPool, c.MainChain.TxPool.GlobalQueue)
+		go genTxsLoop(c.GenTxs, txPool, c.Genesis.TxPool.GlobalQueue)
 	} else {
 		return fmt.Errorf("cannot start pump txs: %v", c.GenTxs)
 	}

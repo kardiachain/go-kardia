@@ -30,13 +30,6 @@ MainChain:
     - c1fe56e3f58d3244f606306611a5d10c8333f1f6@127.0.0.1:3000
     - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@127.0.0.1:3001
     - ff3dac4f04ddbd24de5d6039f90596f0a8bb08fd@127.0.0.1:3002
-  TxPool:
-    AccountSlots: 512       # Type: uint64
-    AccountQueue: 1024      # Type: uint64
-    GlobalSlots: 64         # Type: uint64
-    GlobalQueue: 5120000    # Type: uint64
-    MaxBatchBytes: 10485760 # 10MB. Type: int
-    Broadcast: true         # Type: bool
   ZeroFee: 0          # 0 is no, 1 is yes
   Database:
     Dir: chaindata                           # directory stores leveldb

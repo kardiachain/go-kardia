@@ -94,7 +94,7 @@ func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
 
 // getTxPoolConfig gets txPoolConfig from config, based on target network
 func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
-	txPool := c.MainChain.TxPool
+	txPool := c.Genesis.TxPool
 	if args.network == Mainnet {
 		return tx_pool.DefaultTxPoolConfig
 	}

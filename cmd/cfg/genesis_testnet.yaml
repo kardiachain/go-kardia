@@ -631,8 +631,8 @@ Genesis:
     TimeoutPrecommit:            1000   # In milliseconds. Type int64
     TimeoutPrecommitDelta:       500    # In milliseconds. Type int64
     TimeoutCommit:               1000   # In milliseconds. Type int64
-    IsSkipTimeoutCommit:           false  # true/false
-    IsCreateEmptyBlocks:           true   # true/false
+    IsSkipTimeoutCommit:         false  # true/false
+    IsCreateEmptyBlocks:         true   # true/false
     CreateEmptyBlocksInterval:   1000   # In milliseconds. Type int64
     PeerGossipSleepDuration:     100    # In milliseconds. Type int64
     PeerQueryMaj23SleepDuration: 2000   # In milliseconds. Type int64
@@ -640,3 +640,10 @@ Genesis:
     KaiconConfig:
       Period: 15    # Type uint64
       Epoch: 30000  # Type uint64
+  TxPool:
+    AccountSlots: 2048      # Type: uint64
+    AccountQueue: 4096      # Type: uint64
+    GlobalSlots: 256        # Type: uint64
+    GlobalQueue: 16384      # Type: uint64
+    MaxBatchBytes: 10485760 # 10MB. Type: int
+    Broadcast: true         # Type: bool

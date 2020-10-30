@@ -56,7 +56,6 @@ type (
 		ZeroFee            uint        `yaml:"ZeroFee"`
 		IsDual             uint        `yaml:"IsDual"`
 		Genesis            *Genesis    `yaml:"Genesis,omitempty"`
-		TxPool             *Pool       `yaml:"TxPool,omitempty"`
 		EventPool          *Pool       `yaml:"EventPool,omitempty"`
 		Database           *Database   `yaml:"Database,omitempty"`
 		Seeds              []string    `yaml:"Seeds"`
@@ -74,6 +73,7 @@ type (
 		ConsensusParams *ConsensusParams            `yaml:"ConsensusParams"`
 		Consensus       *Consensus                  `yaml:"Consensus"`
 		ChainConfig     *configs.ChainConfig        `yaml:"ChainConfig"`
+		TxPool          *Pool                       `yaml:"TxPool,omitempty"`
 	}
 	Contract struct {
 		Address  string `yaml:"Address"`
@@ -120,7 +120,7 @@ type (
 		IsSkipTimeoutCommit bool `yaml:"IsSkipTimeoutCommit"`
 
 		// EmptyBlocks mode and possible interval between empty blocks in seconds
-		IsCreateEmptyBlocks         bool `yaml:"IsCreateEmptyBlocks"`
+		IsCreateEmptyBlocks       bool `yaml:"IsCreateEmptyBlocks"`
 		CreateEmptyBlocksInterval int  `yaml:"CreateEmptyBlocksInterval"`
 
 		// Reactor sleep duration parameters are in milliseconds
