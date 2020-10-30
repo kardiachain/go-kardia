@@ -1041,7 +1041,7 @@ Genesis:
   ConsensusParams:
     Block:
       MaxBytes: 104857600     # Max block size in bytes. Type: int64
-      MaxGas: 20000000        # Gas limit of one block. Type: uint64
+      MaxGas: 200000000       # Gas limit of one block. Type: uint64
     Evidence:
       MaxAgeNumBlocks: 100000 # Max age of evidence, in blocks. Type int64
       MaxAgeDuration: 48      # Max age of evidence, in time (hour). Type int64
