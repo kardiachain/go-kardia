@@ -511,14 +511,12 @@ func (c *Config) Start() {
 
 	var kardiaService *kai.KardiaService
 
-	if c.MainChain.Events != nil {
-		if err := n.Service(&kardiaService); err != nil {
-			logger.Error("cannot get Kardia service", "err", err)
-			return
-		}
-		// save watchers to db
-		c.SaveWatchers(kardiaService, c.MainChain.Events)
+	if err := n.Service(&kardiaService); err != nil {
+		logger.Error("cannot get Kardia service", "err", err)
+		return
 	}
+	// save watchers to db
+	c.SaveWatchers(kardiaService, c.MainChain.Events)
 
 	if err := c.StartDual(n); err != nil {
 		logger.Error("error while starting dual", "err", err)
