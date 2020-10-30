@@ -25,15 +25,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/metrics"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
+
+	"github.com/kardiachain/go-kardiamain/kai/kaidb"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/metrics"
 )
 
 const (
@@ -113,18 +114,19 @@ func New(file string, cache int, handles int, namespace string) (*Database, erro
 		log:      logger,
 		quitChan: make(chan chan error),
 	}
-	ldb.compTimeMeter = metrics.NewRegisteredMeter(namespace+"compact/time", nil)
-	ldb.compReadMeter = metrics.NewRegisteredMeter(namespace+"compact/input", nil)
-	ldb.compWriteMeter = metrics.NewRegisteredMeter(namespace+"compact/output", nil)
-	ldb.diskSizeGauge = metrics.NewRegisteredGauge(namespace+"disk/size", nil)
-	ldb.diskReadMeter = metrics.NewRegisteredMeter(namespace+"disk/read", nil)
-	ldb.diskWriteMeter = metrics.NewRegisteredMeter(namespace+"disk/write", nil)
-	ldb.writeDelayMeter = metrics.NewRegisteredMeter(namespace+"compact/writedelay/duration", nil)
-	ldb.writeDelayNMeter = metrics.NewRegisteredMeter(namespace+"compact/writedelay/counter", nil)
-	ldb.memCompGauge = metrics.NewRegisteredGauge(namespace+"compact/memory", nil)
-	ldb.level0CompGauge = metrics.NewRegisteredGauge(namespace+"compact/level0", nil)
-	ldb.nonlevel0CompGauge = metrics.NewRegisteredGauge(namespace+"compact/nonlevel0", nil)
-	ldb.seekCompGauge = metrics.NewRegisteredGauge(namespace+"compact/seek", nil)
+
+	ldb.compTimeMeter = metrics.NewRegisteredMeter(namespace+"/compact/time", nil)
+	ldb.compReadMeter = metrics.NewRegisteredMeter(namespace+"/compact/input", nil)
+	ldb.compWriteMeter = metrics.NewRegisteredMeter(namespace+"/compact/output", nil)
+	ldb.diskSizeGauge = metrics.NewRegisteredGauge(namespace+"/disk/size", nil)
+	ldb.diskReadMeter = metrics.NewRegisteredMeter(namespace+"/disk/read", nil)
+	ldb.diskWriteMeter = metrics.NewRegisteredMeter(namespace+"/disk/write", nil)
+	ldb.writeDelayMeter = metrics.NewRegisteredMeter(namespace+"/compact/writedelay/duration", nil)
+	ldb.writeDelayNMeter = metrics.NewRegisteredMeter(namespace+"/compact/writedelay/counter", nil)
+	ldb.memCompGauge = metrics.NewRegisteredGauge(namespace+"/compact/memory", nil)
+	ldb.level0CompGauge = metrics.NewRegisteredGauge(namespace+"/compact/level0", nil)
+	ldb.nonlevel0CompGauge = metrics.NewRegisteredGauge(namespace+"/compact/nonlevel0", nil)
+	ldb.seekCompGauge = metrics.NewRegisteredGauge(namespace+"/compact/seek", nil)
 
 	// Start up the metrics gathering and return
 	go ldb.meter(metricsGatheringInterval)

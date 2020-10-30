@@ -226,6 +226,7 @@ func (api *PublicAdminAPI) Peers() ([]Peer, error) {
 	return peers, nil
 }
 
+// Metrics return profiling of nodes
 func (api *PublicAdminAPI) Metrics() map[string]map[string]interface{} {
 	return metrics.DefaultRegistry.GetAll()
 }
