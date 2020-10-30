@@ -10,6 +10,6 @@ RUN go install
 WORKDIR /go/src/github.com/kardiachain/go-kardiamain/dualnode/eth/eth_client
 RUN go install
 WORKDIR /go/bin
-RUN mkdir -p cfg
-COPY cmd/cfg/* cfg
+RUN mkdir -p /go/bin/cfg
+COPY cmd/cfg /go/bin/cfg
 ENTRYPOINT ["./cmd"]
