@@ -1053,8 +1053,8 @@ Genesis:
     TimeoutPrecommit:            1000   # In milliseconds. Type int64
     TimeoutPrecommitDelta:       500    # In milliseconds. Type int64
     TimeoutCommit:               1000   # In milliseconds. Type int64
-    SkipTimeoutCommit:           false  # true/false
-    CreateEmptyBlocks:           true   # true/false
+    IsSkipTimeoutCommit:           false  # true/false
+    IsCreateEmptyBlocks:           true   # true/false
     CreateEmptyBlocksInterval:   1000   # In milliseconds. Type int64
     PeerGossipSleepDuration:     100    # In milliseconds. Type int64
     PeerQueryMaj23SleepDuration: 2000   # In milliseconds. Type int64

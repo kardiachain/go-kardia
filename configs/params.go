@@ -67,7 +67,7 @@ const (
 	CreateBySelfdestructGas uint64 = 5000
 	ExtcodeHashGas          uint64 = 400 // Cost of EXTCODEHASH
 
-	MaxCodeSize = 24576 // Maximum bytecode to permit for a contract
+	MaxCodeSize = 39231 // Maximum bytecode to permit for a contract
 
 	// Precompiled contract gas prices
 	EcrecoverGas        uint64 = 3000 // Elliptic curve sender recovery gas price

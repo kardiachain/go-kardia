@@ -117,10 +117,10 @@ type (
 		TimeoutCommit         int `yaml:"TimeoutCommit"`
 
 		// Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
-		SkipTimeoutCommit bool `yaml:"SkipTimeoutCommit"`
+		IsSkipTimeoutCommit bool `yaml:"IsSkipTimeoutCommit"`
 
 		// EmptyBlocks mode and possible interval between empty blocks in seconds
-		CreateEmptyBlocks         bool `yaml:"CreateEmptyBlocks"`
+		IsCreateEmptyBlocks         bool `yaml:"IsCreateEmptyBlocks"`
 		CreateEmptyBlocksInterval int  `yaml:"CreateEmptyBlocksInterval"`
 
 		// Reactor sleep duration parameters are in milliseconds

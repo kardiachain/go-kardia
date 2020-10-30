@@ -123,7 +123,7 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 		}
 		block, err := genesis.Commit(logger, db)
 		if err != nil {
-			return nil, [32]byte{}, err
+			return nil, common.NewZeroHash(), err
 		}
 		return genesis.Config, block.Hash(), err
 	}

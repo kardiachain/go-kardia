@@ -22,7 +22,6 @@ import (
 	"crypto/ecdsa"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net/http"
 	"net/http/pprof"
@@ -32,9 +31,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"github.com/rs/cors"
-	"gopkg.in/yaml.v2"
 
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
@@ -61,116 +58,7 @@ const (
 	LevelDb = iota
 )
 
-type flags struct {
-	genesis string
-	kardia  string
-	dual    string
-	network string
-}
-
-const (
-	Mainnet = "mainnet"
-	Testnet = "testnet"
-	Devnet  = "devnet"
-)
-
-var (
-	args         flags
-	defaultFlags = map[string]flags{
-		Mainnet: flags{
-			genesis: "../../cmd/cfg/genesis.yaml",
-			kardia:  "../../cmd/cfg/kai_config.yaml",
-			dual:    "",
-		},
-		Testnet: flags{
-			genesis: "../../cmd/cfg/genesis_testnet.yaml",
-			kardia:  "../../cmd/cfg/kai_config_testnet.yaml",
-			dual:    "",
-		},
-		Devnet: flags{
-			genesis: "../../cmd/cfg/genesis_devnet.yaml",
-			kardia:  "../../cmd/cfg/kai_config_devnet.yaml",
-			dual:    "",
-		},
-	}
-)
-
-func initFlag(args *flags) {
-	flag.StringVar(&args.genesis, "genesis", "", "Path to genesis config file. Default: ${wd}../../cmd/cfg/genesis.yaml")
-	flag.StringVar(&args.kardia, "node", "", "Path to Kardia node config file. Default: ${wd}../../cmd/cfg/kai_config.yaml")
-	flag.StringVar(&args.dual, "dual", "", "Path to dual node config file. Default: \"\"")
-	flag.StringVar(&args.network, "network", "mainnet", "Target network, choose one [mainnet, testnet, devnet]. Default: \"mainnet\"")
-}
-
-func init() {
-	initFlag(&args)
-}
-
-// finalizeConfigParams fills missing config options with default values, based on target network
-func finalizeConfigParams(args *flags) {
-	if args.network != Mainnet && args.network != Testnet && args.network != Devnet {
-		panic("unknown target network")
-	}
-	if args.genesis == "" {
-		args.genesis = defaultFlags[args.network].genesis
-	}
-	if args.kardia == "" {
-		args.kardia = defaultFlags[args.network].kardia
-	}
-	if args.dual == "" {
-		args.dual = defaultFlags[args.network].dual
-	}
-}
-
-// Load attempts to load the config from given path and filename.
-func LoadConfig(args flags) (*Config, error) {
-	finalizeConfigParams(&args)
-	var (
-		wd  string
-		err error
-	)
-	wd, err = os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-
-	config := Config{}
-	genesisCfgFile := filepath.Join(wd, args.genesis)
-	kaiCfgFile := filepath.Join(wd, args.kardia)
-
-	kaiCfg, err := ioutil.ReadFile(kaiCfgFile)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot read kai config")
-	}
-	err = yaml.Unmarshal(kaiCfg, &config)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot unmarshal kai config")
-	}
-
-	genesisCfg, err := ioutil.ReadFile(genesisCfgFile)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot read node config")
-	}
-	err = yaml.Unmarshal(genesisCfg, &config.MainChain)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot unmarshal node config")
-	}
-	config.Genesis = config.MainChain.Genesis
-
-	if args.dual != "" {
-		chainCfgFile := filepath.Join(wd, args.dual)
-		chainCfg, err := ioutil.ReadFile(chainCfgFile)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot read dual node config")
-		}
-		err = yaml.Unmarshal(chainCfg, &config.DualChain)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot unmarshal dual node config")
-		}
-	}
-
-	return &config, nil
-}
+var args flags
 
 // getP2P gets p2p's config from config
 func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
@@ -415,8 +303,8 @@ func (c *Config) getConsensusConfig() *configs.ConsensusConfig {
 		TimeoutPrecommit:            time.Duration(c.Genesis.Consensus.TimeoutPrecommit) * time.Millisecond,
 		TimeoutPrecommitDelta:       time.Duration(c.Genesis.Consensus.TimeoutPrecommitDelta) * time.Millisecond,
 		TimeoutCommit:               time.Duration(c.Genesis.Consensus.TimeoutCommit) * time.Millisecond,
-		SkipTimeoutCommit:           c.Genesis.Consensus.SkipTimeoutCommit,
-		CreateEmptyBlocks:           c.Genesis.Consensus.CreateEmptyBlocks,
+		IsSkipTimeoutCommit:         c.Genesis.Consensus.IsSkipTimeoutCommit,
+		IsCreateEmptyBlocks:         c.Genesis.Consensus.IsCreateEmptyBlocks,
 		CreateEmptyBlocksInterval:   time.Duration(c.Genesis.Consensus.CreateEmptyBlocksInterval) * time.Millisecond,
 		PeerGossipSleepDuration:     time.Duration(c.Genesis.Consensus.PeerGossipSleepDuration) * time.Millisecond,
 		PeerQueryMaj23SleepDuration: time.Duration(c.Genesis.Consensus.PeerQueryMaj23SleepDuration) * time.Millisecond,

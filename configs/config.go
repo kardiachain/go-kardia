@@ -145,10 +145,10 @@ type ConsensusConfig struct {
 	TimeoutCommit         time.Duration `mapstructure:"timeout_commit"`
 
 	// Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
-	SkipTimeoutCommit bool `mapstructure:"skip_timeout_commit"`
+	IsSkipTimeoutCommit bool `mapstructure:"is_skip_timeout_commit"`
 
 	// EmptyBlocks mode and possible interval between empty blocks in seconds
-	CreateEmptyBlocks         bool          `mapstructure:"create_empty_blocks"`
+	IsCreateEmptyBlocks       bool          `mapstructure:"is_create_empty_blocks"`
 	CreateEmptyBlocksInterval time.Duration `mapstructure:"create_empty_blocks_interval"`
 
 	// Reactor sleep duration parameters are in milliseconds
@@ -166,8 +166,8 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		TimeoutPrecommit:            1000 * time.Millisecond,
 		TimeoutPrecommitDelta:       500 * time.Millisecond,
 		TimeoutCommit:               1000 * time.Millisecond,
-		SkipTimeoutCommit:           false,
-		CreateEmptyBlocks:           true,
+		IsSkipTimeoutCommit:         false,
+		IsCreateEmptyBlocks:         true,
 		CreateEmptyBlocksInterval:   1 * time.Second,
 		PeerGossipSleepDuration:     100 * time.Millisecond,
 		PeerQueryMaj23SleepDuration: 2000 * time.Millisecond,
@@ -185,7 +185,7 @@ func TestConsensusConfig() *ConsensusConfig {
 	cfg.TimeoutPrecommitDelta = 1 * time.Millisecond
 	// NOTE: when modifying, make sure to update time_iota_ms (testGenesisFmt) in toml.go
 	cfg.TimeoutCommit = 10 * time.Millisecond
-	cfg.SkipTimeoutCommit = true
+	cfg.IsSkipTimeoutCommit = true
 	cfg.CreateEmptyBlocksInterval = 0
 	cfg.PeerGossipSleepDuration = 5 * time.Millisecond
 	cfg.PeerQueryMaj23SleepDuration = 250 * time.Millisecond
@@ -195,7 +195,7 @@ func TestConsensusConfig() *ConsensusConfig {
 
 // WaitForTxs returns true if the consensus should wait for transactions before entering the propose step
 func (cfg *ConsensusConfig) WaitForTxs() bool {
-	return !cfg.CreateEmptyBlocks || cfg.CreateEmptyBlocksInterval > 0
+	return !cfg.IsCreateEmptyBlocks || cfg.CreateEmptyBlocksInterval > 0
 }
 
 // Commit returns the amount of time to wait for straggler votes after receiving +2/3 precommits for a single block (ie. a commit).
