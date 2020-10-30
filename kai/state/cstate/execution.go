@@ -88,7 +88,9 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	}
 	fail.Fail() // XXX
 
-	commitInfo, byzVals := getBeginBlockValidatorInfo(block, blockExec.db)
+	//@todo thangn Update evpool with the block and state and get any byzantine validators for that block
+	byzVals := []staking.Evidence{}
+	commitInfo := getBeginBlockValidatorInfo(block, blockExec.db)
 
 	valUpdates, appHash, err := blockExec.bc.CommitAndValidateBlockTxs(block, commitInfo, byzVals)
 	if err != nil {
@@ -147,7 +149,7 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 	}, nil
 }
 
-func getBeginBlockValidatorInfo(b *types.Block, stateDB kaidb.Database) (staking.LastCommitInfo, []staking.Evidence) {
+func getBeginBlockValidatorInfo(b *types.Block, stateDB kaidb.Database) staking.LastCommitInfo {
 	lastCommit := b.LastCommit()
 	voteInfos := make([]staking.VoteInfo, lastCommit.Size())
 	// block.Height=1 -> LastCommitInfo.Votes are empty.
@@ -180,30 +182,9 @@ func getBeginBlockValidatorInfo(b *types.Block, stateDB kaidb.Database) (staking
 		}
 	}
 
-	byzVals := make([]staking.Evidence, len(b.Evidence().Evidence))
-	for i, ev := range b.Evidence().Evidence {
-		// We need the validator set. We already did this in validateBlock.
-		// TODO: Should we instead cache the valset in the evidence itself and add
-		// `SetValidatorSet()` and `ToABCI` methods ?
-		valset, err := LoadValidators(stateDB, ev.Height())
-		if err != nil {
-			panic(err)
-		}
-
-		_, val := valset.GetByAddress(ev.Address())
-
-		byzVals[i] = staking.Evidence{
-			Address:          val.Address,
-			Height:           ev.Height(),
-			Time:             ev.Time(),
-			VotingPower:      big.NewInt(int64(val.VotingPower)),
-			TotalVotingPower: valset.TotalVotingPower(),
-		}
-	}
-
 	return staking.LastCommitInfo{
 		Votes: voteInfos,
-	}, byzVals
+	}
 }
 
 func calculateValidatorSetUpdates(lastVals []*types.Validator, vals []*types.Validator) (updates []*types.Validator) {

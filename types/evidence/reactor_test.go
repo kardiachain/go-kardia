@@ -26,15 +26,13 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	NumEvidence = 10
-	Timeout     = 120 * time.Second // ridiculously high because CircleCI is slow
+	Timeout = 120 * time.Second // ridiculously high because CircleCI is slow
 )
 
 // connect N evidence reactors through N switches
@@ -104,10 +102,10 @@ func _waitForEvidence(
 	wg.Done()
 }
 
-func sendEvidence(t *testing.T, evpool *Pool, valAddr common.Address, n int) types.EvidenceList {
+func sendEvidence(t *testing.T, evpool *Pool, privVal types.PrivValidator, n int) types.EvidenceList {
 	evList := make([]types.Evidence, n)
 	for i := 0; i < n; i++ {
-		ev := types.NewMockEvidence(uint64(i+1), time.Now().UTC(), 0, valAddr)
+		ev := types.NewMockDuplicateVoteEvidenceWithValidator(uint64(i+1), time.Now(), privVal, "kai")
 		err := evpool.AddEvidence(ev)
 		assert.Nil(t, err)
 		evList[i] = ev

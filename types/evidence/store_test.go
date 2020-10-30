@@ -22,8 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/stretchr/testify/assert"
@@ -32,13 +30,12 @@ import (
 
 func TestStoreAddDuplicate(t *testing.T) {
 	assert := assert.New(t)
-
+	_, privVals := types.RandValidatorSet(3, 10)
 	db := memorydb.New()
 	store := NewStore(db)
 
 	priority := int64(10)
-	ev := types.NewMockEvidence(2, time.Now().UTC(), 1, common.BytesToAddress([]byte("addr1")))
-
+	ev := types.NewMockDuplicateVoteEvidenceWithValidator(2, time.Now(), privVals[0], "kai")
 	added, err := store.AddNewEvidence(ev, priority)
 	require.NoError(t, err)
 	assert.True(added)
@@ -51,12 +48,12 @@ func TestStoreAddDuplicate(t *testing.T) {
 
 func TestStoreCommitDuplicate(t *testing.T) {
 	assert := assert.New(t)
-
+	_, privVals := types.RandValidatorSet(3, 10)
 	db := memorydb.New()
 	store := NewStore(db)
 
 	priority := int64(10)
-	ev := types.NewMockEvidence(2, time.Now().UTC(), 1, common.BytesToAddress([]byte("addr1")))
+	ev := types.NewMockDuplicateVoteEvidenceWithValidator(2, time.Now(), privVals[0], "kai")
 
 	store.MarkEvidenceAsCommitted(ev)
 
@@ -67,21 +64,20 @@ func TestStoreCommitDuplicate(t *testing.T) {
 
 func TestStorePriority(t *testing.T) {
 	assert := assert.New(t)
-
+	_, privVals := types.RandValidatorSet(3, 10)
 	db := memorydb.New()
 	store := NewStore(db)
-
 	// sorted by priority and then height
 	cases := []struct {
-		ev       types.MockEvidence
+		ev       types.Evidence
 		priority int64
 	}{
-		{types.NewMockEvidence(2, time.Now().UTC(), 1, common.BytesToAddress([]byte("val1"))), 17},
-		{types.NewMockEvidence(5, time.Now().UTC(), 2, common.BytesToAddress([]byte("val2"))), 15},
-		{types.NewMockEvidence(10, time.Now().UTC(), 2, common.BytesToAddress([]byte("val2"))), 13},
-		{types.NewMockEvidence(100, time.Now().UTC(), 2, common.BytesToAddress([]byte("val2"))), 11},
-		{types.NewMockEvidence(90, time.Now().UTC(), 2, common.BytesToAddress([]byte("val2"))), 11},
-		{types.NewMockEvidence(80, time.Now().UTC(), 2, common.BytesToAddress([]byte("val2"))), 11},
+		{types.NewMockDuplicateVoteEvidenceWithValidator(2, time.Now(), privVals[0], "kai"), 17},
+		{types.NewMockDuplicateVoteEvidenceWithValidator(5, time.Now(), privVals[1], "kai"), 15},
+		{types.NewMockDuplicateVoteEvidenceWithValidator(10, time.Now(), privVals[1], "kai"), 13},
+		{types.NewMockDuplicateVoteEvidenceWithValidator(100, time.Now(), privVals[1], "kai"), 11},
+		{types.NewMockDuplicateVoteEvidenceWithValidator(90, time.Now(), privVals[1], "kai"), 11},
+		{types.NewMockDuplicateVoteEvidenceWithValidator(80, time.Now(), privVals[1], "kai"), 11},
 	}
 
 	for _, c := range cases {

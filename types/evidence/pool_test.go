@@ -52,6 +52,7 @@ func initializeValidatorState(valAddr common.Address, height uint64) kaidb.Datab
 		LastBlockTime:               time.Now(),
 		Validators:                  valSet,
 		NextValidators:              nextVal,
+		LastValidators:              valSet,
 		LastHeightValidatorsChanged: 1,
 		ConsensusParams: kproto.ConsensusParams{
 			Evidence: kproto.EvidenceParams{
@@ -70,19 +71,16 @@ func initializeValidatorState(valAddr common.Address, height uint64) kaidb.Datab
 }
 
 func TestEvidencePool(t *testing.T) {
-
+	_, privVals := types.RandValidatorSet(3, 10)
 	var (
-		valAddr      = common.BytesToAddress([]byte("val1"))
 		height       = uint64(100002)
-		stateDB      = initializeValidatorState(valAddr, height)
+		stateDB      = initializeValidatorState(privVals[0].GetAddress(), height)
 		evidenceDB   = memorydb.New()
 		pool         = NewPool(stateDB, evidenceDB)
 		evidenceTime = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 	)
-
-	goodEvidence := types.NewMockEvidence(uint64(height), time.Now(), 0, valAddr)
-	badEvidence := types.NewMockEvidence(1, evidenceTime, 0, valAddr)
-
+	goodEvidence := types.NewMockDuplicateVoteEvidenceWithValidator(height, time.Now(), privVals[0], "kai")
+	badEvidence := types.NewMockDuplicateVoteEvidenceWithValidator(1, evidenceTime, privVals[0], "kai")
 	// bad evidence
 	err := pool.AddEvidence(badEvidence)
 	assert.Error(t, err)
@@ -103,9 +101,10 @@ func TestEvidencePool(t *testing.T) {
 }
 
 func TestEvidencePoolIsCommitted(t *testing.T) {
+	_, privVals := types.RandValidatorSet(3, 10)
 	// Initialization:
 	var (
-		valAddr       = common.BytesToAddress([]byte("validator_address"))
+		valAddr       = privVals[0].GetAddress()
 		height        = uint64(42)
 		lastBlockTime = time.Now()
 		stateDB       = initializeValidatorState(valAddr, height)
@@ -114,7 +113,7 @@ func TestEvidencePoolIsCommitted(t *testing.T) {
 	)
 
 	// evidence not seen yet:
-	evidence := types.NewMockEvidence(uint64(height), time.Now(), 0, valAddr)
+	evidence := types.NewMockDuplicateVoteEvidenceWithValidator(height, time.Now(), privVals[0], "kai")
 	assert.False(t, pool.IsCommitted(evidence))
 
 	// evidence seen but not yet committed:
@@ -127,9 +126,9 @@ func TestEvidencePoolIsCommitted(t *testing.T) {
 }
 
 func TestAddEvidence(t *testing.T) {
-
+	_, privVals := types.RandValidatorSet(3, 10)
 	var (
-		valAddr      = common.BytesToAddress([]byte("val1"))
+		valAddr      = privVals[0].GetAddress()
 		height       = uint64(100002)
 		stateDB      = initializeValidatorState(valAddr, height)
 		evidenceDB   = memorydb.New()
@@ -150,7 +149,7 @@ func TestAddEvidence(t *testing.T) {
 
 	for _, tc := range testCases {
 		tc := tc
-		ev := types.NewMockEvidence(tc.evHeight, tc.evTime, 0, valAddr)
+		ev := types.NewMockDuplicateVoteEvidenceWithValidator(tc.evHeight, tc.evTime, privVals[0], "kai")
 		err := pool.AddEvidence(ev)
 		if tc.expErr {
 			assert.Error(t, err)

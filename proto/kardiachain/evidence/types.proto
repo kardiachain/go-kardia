@@ -5,6 +5,8 @@ option go_package = "github.com/kardiachain/go-kardiamain/proto/kardiachain/evid
 
 import "gogoproto/gogo.proto";
 import "kardiachain/types/evidence.proto";
+import "google/protobuf/timestamp.proto";
+import "kardiachain/types/validator.proto";
 
 message List {
   repeated kardiachain.types.Evidence evidence = 1;
@@ -12,6 +14,7 @@ message List {
 
 message Info {
   kardiachain.types.Evidence          evidence                     = 1 [(gogoproto.nullable) = false];
-  int64                               priority = 2;
-  bool                             committed = 3;
+  google.protobuf.Timestamp time                         = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
+  repeated kardiachain.types.Validator validators         = 3;
+  int64                               total_voting_power = 4;
 }

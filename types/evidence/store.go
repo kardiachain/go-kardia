@@ -21,11 +21,13 @@ package evidence
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	evproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/evidence"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -37,9 +39,11 @@ const (
 
 // Info ...
 type info struct {
-	Committed bool
-	Priority  int64
-	Evidence  types.Evidence
+	Evidence         types.Evidence
+	Time             time.Time
+	Validators       []*types.Validator
+	TotalVotingPower int64
+	ByteSize         int64
 }
 
 // ToProto encodes into protobuf
@@ -49,10 +53,20 @@ func (ei info) ToProto() (*evproto.Info, error) {
 		return nil, err
 	}
 
+	valsProto := make([]*kproto.Validator, len(ei.Validators))
+	for i := 0; i < len(ei.Validators); i++ {
+		valp, err := ei.Validators[i].ToProto()
+		if err != nil {
+			return nil, err
+		}
+		valsProto[i] = valp
+	}
+
 	return &evproto.Info{
-		Evidence:  *evpb,
-		Priority:  ei.Priority,
-		Committed: ei.Committed,
+		Evidence:         *evpb,
+		Time:             ei.Time,
+		Validators:       valsProto,
+		TotalVotingPower: ei.TotalVotingPower,
 	}, nil
 }
 
@@ -67,10 +81,21 @@ func infoFromProto(proto *evproto.Info) (info, error) {
 		return info{}, err
 	}
 
+	vals := make([]*types.Validator, len(proto.Validators))
+	for i := 0; i < len(proto.Validators); i++ {
+		val, err := types.ValidatorFromProto(proto.Validators[i])
+		if err != nil {
+			return info{}, err
+		}
+		vals[i] = val
+	}
+
 	return info{
-		Evidence:  ev,
-		Priority:  proto.Priority,
-		Committed: proto.Committed,
+		Evidence:         ev,
+		Time:             proto.Time,
+		Validators:       vals,
+		TotalVotingPower: proto.TotalVotingPower,
+		ByteSize:         int64(proto.Evidence.Size()),
 	}, nil
 
 }
@@ -166,23 +191,7 @@ func (store *Store) listEvidence(prefixKey string, maxNum int64) (evidence []typ
 
 // AddNewEvidence adds the given evidence to the database.
 // It returns false if the evidence is already stored.
-func (store *Store) AddNewEvidence(evidence types.Evidence, priority int64) (bool, error) {
-	// check if we already have seen it
-	if store.Has(evidence) {
-		return false, nil
-	}
-	var evInfo info
-
-	switch ev := evidence.(type) {
-	case *types.DuplicateVoteEvidence:
-		evInfo = info{
-			Committed: false,
-			Evidence:  ev,
-			Priority:  priority,
-		}
-	default:
-		return false, fmt.Errorf("unrecognized evidence type: %T", evidence)
-	}
+func (store *Store) AddNewEvidence(evInfo *info) (bool, error) {
 
 	evpb, err := evInfo.ToProto()
 	if err != nil {
@@ -194,17 +203,17 @@ func (store *Store) AddNewEvidence(evidence types.Evidence, priority int64) (boo
 	}
 
 	// add it to the store
-	key := keyOutqueue(evidence, priority)
+	key := keyOutqueue(evInfo.Evidence, evInfo.TotalVotingPower)
 	if err = store.db.Put(key, evBytes); err != nil {
 		return false, err
 	}
 
-	key = keyPending(evidence)
+	key = keyPending(evInfo.Evidence)
 	if err = store.db.Put(key, evBytes); err != nil {
 		return false, err
 	}
 
-	key = keyLookup(evidence)
+	key = keyLookup(evInfo.Evidence)
 	if err = store.db.Put(key, evBytes); err != nil {
 		return false, err
 	}
@@ -233,35 +242,22 @@ func (store *Store) GetInfo(height int64, hash []byte) info {
 }
 
 // MarkEvidenceAsBroadcasted removes evidence from Outqueue.
-func (store *Store) MarkEvidenceAsBroadcasted(evidence types.Evidence) {
-	ei := store.getInfo(evidence)
+func (store *Store) MarkEvidenceAsBroadcasted(evInfo info) {
+	ei := store.getInfo(evInfo.Evidence)
 	if ei.Evidence == nil {
 		// nothing to do; we did not store the evidence yet (AddNewEvidence):
 		return
 	}
 	// remove from the outqueue
-	key := keyOutqueue(evidence, int64(ei.Priority))
+	key := keyOutqueue(evInfo.Evidence, int64(evInfo.TotalVotingPower))
 	_ = store.db.Delete(key)
 }
 
 // MarkEvidenceAsCommitted removes evidence from pending and outqueue and sets the state to committed.
-func (store *Store) MarkEvidenceAsCommitted(evidence types.Evidence) {
+func (store *Store) MarkEvidenceAsCommitted(evInfo info) {
 	// if its committed, its been broadcast
-	store.MarkEvidenceAsBroadcasted(evidence)
-
-	pendingKey := keyPending(evidence)
-	_ = store.db.Delete(pendingKey)
-	var evInfo info
-	switch ev := evidence.(type) {
-	case *types.DuplicateVoteEvidence:
-		evInfo = info{
-			Evidence: ev,
-		}
-	default:
-		return
-	}
-
-	lookupKey := keyLookup(evidence)
+	store.MarkEvidenceAsBroadcasted(evInfo)
+	lookupKey := keyLookup(evInfo.Evidence)
 	evpb, err := evInfo.ToProto()
 	if err != nil {
 		panic(err)
