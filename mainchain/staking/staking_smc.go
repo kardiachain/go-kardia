@@ -101,19 +101,22 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 	}
 
 	vp := big.NewInt(votingPower)
-	tokens := vp.Mul(vp, big.NewInt(int64(math.Pow10(12))))
+	tokens := vp.Mul(vp, big.NewInt(int64(math.Pow10(9))))
 
 	msg := types.NewMessage(
 		valAddr,
 		&s.ContractAddress,
 		0,
 		tokens,
-		100000000,
+		10000000,
 		big.NewInt(0),
 		input,
 		false,
 	)
-	_, err = Apply(s.logger, bc, statedb, header, cfg, msg)
+	if _, err = Apply(s.logger, bc, statedb, header, cfg, msg); err != nil {
+		panic(err)
+	}
+
 	return nil
 }
 
