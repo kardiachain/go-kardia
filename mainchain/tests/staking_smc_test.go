@@ -113,7 +113,7 @@ func TestCreateValidator(t *testing.T) {
 	block := types.NewBlock(head, nil, &types.Commit{}, nil)
 
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-	result := util.CreateValidator(stateDB, block.Header(), nil, kvm.Config{}, address, 3999999999)
+	result := util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, 3999999999)
 
 	if err != nil {
 		t.Fatal(err)
