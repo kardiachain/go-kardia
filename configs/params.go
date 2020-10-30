@@ -21,6 +21,7 @@ package configs
 const (
 	GenesisGasLimit uint64 = 50000000  // Gas limit of the Genesis block.
 	BlockGasLimit   uint64 = 200000000 // Gas limit of one block.
+	BlockMaxBytes   int64  = 104857600 // Block max size bytes: 10mbs
 
 	CallValueTransferGas  uint64 = 9000  // Paid for CALL when the value transfer is non-zero.
 	CallNewAccountGas     uint64 = 25000 // Paid for CALL when the destination address didn't exist prior.
