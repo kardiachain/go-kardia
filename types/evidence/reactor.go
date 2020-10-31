@@ -129,7 +129,7 @@ func (evR *Reactor) broadcastEvidenceRoutine(peer p2p.Peer) {
 		}
 
 		ev := next.Value.(types.Evidence)
-		evis, retry := evR.checkSendEvidenceMessage(peer, ev)
+		evis, retry := evR.prepareEvidenceMessage(peer, ev)
 		if evis != nil {
 			msgBytes, err := encodeMsg(evis)
 			if err != nil {
@@ -159,7 +159,7 @@ func (evR *Reactor) broadcastEvidenceRoutine(peer p2p.Peer) {
 
 // Returns the message to send the peer, or nil if the evidence is invalid for the peer.
 // If message is nil, return true if we should sleep and try again.
-func (evR Reactor) checkSendEvidenceMessage(
+func (evR Reactor) prepareEvidenceMessage(
 	peer p2p.Peer,
 	ev types.Evidence,
 ) (evis []types.Evidence, retry bool) {
@@ -181,18 +181,14 @@ func (evR Reactor) checkSendEvidenceMessage(
 	// and
 	// lastBlockTime - maxDuration < evidenceTime
 	var (
-		peerHeight = peerState.GetHeight()
-
-		params = evR.evpool.State().ConsensusParams.Evidence
-
-		ageDuration  = evR.evpool.State().LastBlockTime.Sub(ev.Time())
+		peerHeight   = peerState.GetHeight()
+		params       = evR.evpool.State().ConsensusParams.Evidence
 		ageNumBlocks = int64(peerHeight) - int64(evHeight)
 	)
 
 	if peerHeight < evHeight { // peer is behind. sleep while he catches up
 		return nil, true
-	} else if ageNumBlocks > params.MaxAgeNumBlocks ||
-		ageDuration > time.Duration(params.MaxAgeDuration)*time.Millisecond { // evidence is too old, skip
+	} else if ageNumBlocks > params.MaxAgeNumBlocks { // evidence is too old, skip
 
 		// NOTE: if evidence is too old for an honest peer, then we're behind and
 		// either it already got committed or it never will!
@@ -201,7 +197,6 @@ func (evR Reactor) checkSendEvidenceMessage(
 			"evHeight", evHeight,
 			"maxAgeNumBlocks", params.MaxAgeNumBlocks,
 			"lastBlockTime", evR.evpool.State().LastBlockTime,
-			"evTime", ev.Time(),
 			"maxAgeDuration", params.MaxAgeDuration,
 			"peer", peer,
 		)
