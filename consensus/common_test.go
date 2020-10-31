@@ -333,7 +333,7 @@ func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*Consensu
 		GlobalQueue: 5120000,
 	}
 	txPool := tx_pool.NewTxPool(txConfig, chainConfig, bc)
-	evPool := evidence.NewPool(kaiDb.DB(), kaiDb.DB())
+	evPool, _ := evidence.NewPool(kaiDb.DB(), kaiDb.DB(), bc)
 	bOper := blockchain.NewBlockOperations(logger, bc, txPool, evPool, staking)
 
 	// evReactor := evidence.NewReactor(evPool)
