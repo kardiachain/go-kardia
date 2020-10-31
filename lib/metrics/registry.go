@@ -332,6 +332,10 @@ var (
 	DefaultRegistry    = NewRegistry()
 	EphemeralRegistry  = NewRegistry()
 	AccountingRegistry = NewRegistry() // registry used in swarm
+	SystemRegistry     = NewPrefixedRegistry("system/")
+	ChainRegistry      = NewPrefixedRegistry("chain/")
+	TxPoolRegistry     = NewPrefixedRegistry("tx_pool/")
+	TrieRegistry       = NewPrefixedRegistry("trie/")
 )
 
 // Call the given function for each registered metric.
