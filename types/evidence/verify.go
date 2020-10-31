@@ -18,9 +18,9 @@ import (
 func (evpool *Pool) verify(evidence types.Evidence) (*info, error) {
 	var (
 		state          = evpool.State()
-		height         = state.LastBlockHeight
+		height         = int64(state.LastBlockHeight)
 		evidenceParams = state.ConsensusParams.Evidence
-		ageNumBlocks   = height - evidence.Height()
+		ageNumBlocks   = height - int64(evidence.Height())
 	)
 	// verify the time of the evidence
 	blockMeta := evpool.blockStore.LoadBlockMeta(evidence.Height())
@@ -32,12 +32,12 @@ func (evpool *Pool) verify(evidence types.Evidence) (*info, error) {
 	ageDuration := state.LastBlockTime.Sub(evTime)
 
 	// check that the evidence hasn't expired
-	if ageDuration > evidenceParams.MaxAgeDuration && ageNumBlocks > uint64(evidenceParams.MaxAgeNumBlocks) {
+	if ageDuration > evidenceParams.MaxAgeDuration && ageNumBlocks > evidenceParams.MaxAgeNumBlocks {
 		return nil, fmt.Errorf(
 			"evidence from height %d (created at: %v) is too old; min height is %d and evidence can not be older than %v",
 			evidence.Height(),
 			evTime,
-			height-uint64(evidenceParams.MaxAgeNumBlocks),
+			height-evidenceParams.MaxAgeNumBlocks,
 			state.LastBlockTime.Add(evidenceParams.MaxAgeDuration),
 		)
 	}
@@ -46,6 +46,9 @@ func (evpool *Pool) verify(evidence types.Evidence) (*info, error) {
 	switch ev := evidence.(type) {
 	case *types.DuplicateVoteEvidence:
 		valSet, err := cstate.LoadValidators(evpool.stateDB, evidence.Height())
+		if err != nil {
+			return nil, err
+		}
 		err = VerifyDuplicateVote(ev, state.ChainID, valSet)
 		if err != nil {
 			return nil, fmt.Errorf("verifying duplicate vote evidence: %w", err)

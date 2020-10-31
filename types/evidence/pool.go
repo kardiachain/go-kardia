@@ -66,12 +66,13 @@ type Pool struct {
 
 // NewPool creates an evidence pool. If using an existing evidence store,
 // it will add all pending evidence to the concurrent list.
-func NewPool(stateDB, evidenceDB kaidb.Database) (*Pool, error) {
+func NewPool(stateDB, evidenceDB kaidb.Database, blockStore BlockStore) (*Pool, error) {
 	evpool := &Pool{
 		stateDB:      stateDB,
 		state:        cstate.LoadState(stateDB),
 		logger:       log.New(),
 		evidenceList: clist.New(),
+		blockStore:   blockStore,
 	}
 
 	// if pending evidence already in db, in event of prior failure, then check for expiration,
@@ -127,7 +128,7 @@ func (evpool *Pool) Update(state cstate.LastestBlockState) {
 // VMEvidence processes all the evidence in the block, marking it as committed and removing it
 // from the pending database. It then forms the individual abci evidence that will be passed back to
 // the application.
-func (evpool *Pool) VMEvidence(height int64, evidence []types.Evidence) []staking.Evidence {
+func (evpool *Pool) VMEvidence(height uint64, evidence []types.Evidence) []staking.Evidence {
 	// make a map of committed evidence to remove from the clist
 	blockEvidenceMap := make(map[string]struct{}, len(evidence))
 	vmEvidence := make([]staking.Evidence, 0)
@@ -173,7 +174,7 @@ func (evpool *Pool) VMEvidence(height int64, evidence []types.Evidence) []stakin
 		// As the evidence is stored in the block store we only need to record the height that it was saved at.
 		key := keyCommitted(ev)
 
-		h := gogotypes.Int64Value{Value: height}
+		h := gogotypes.UInt64Value{Value: height}
 		evBytes, err := proto.Marshal(&h)
 		if err != nil {
 			panic(err)
@@ -299,7 +300,6 @@ func (evpool *Pool) listEvidence(prefixKey byte, maxBytes int64) ([]types.Eviden
 
 		evidence = append(evidence, evInfo.Evidence)
 	}
-
 	return evidence, totalSize, nil
 }
 

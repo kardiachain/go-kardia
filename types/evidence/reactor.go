@@ -37,8 +37,8 @@ const (
 
 	maxMsgSize = 1048576 // 1MB TODO make it configurable
 
-	broadcastEvidenceIntervalS = 60  // broadcast uncommitted evidence this often
-	peerCatchupSleepIntervalMS = 100 // If peer is behind, sleep this amount
+	broadcastEvidenceIntervalS = 10 // broadcast uncommitted evidence this often
+	peerRetryMessageIntervalMS = 100
 )
 
 // Reactor handles evpool evidence broadcasting amongst peers.
@@ -122,26 +122,29 @@ func (evR *Reactor) broadcastEvidenceRoutine(peer p2p.Peer) {
 		// collected (removed). That is, .NextWait() returned nil. Go ahead and
 		// start from the beginning.
 		if next == nil {
-			<-evR.evpool.EvidenceWaitChan()
-			if next = evR.evpool.EvidenceFront(); next == nil {
-				continue
+			select {
+			case <-evR.evpool.EvidenceWaitChan(): // Wait until evidence is available
+				if next = evR.evpool.EvidenceFront(); next == nil {
+					continue
+				}
+			case <-peer.Quit():
+				return
+			case <-evR.Quit():
+				return
 			}
 		}
-
 		ev := next.Value.(types.Evidence)
-		evis, retry := evR.prepareEvidenceMessage(peer, ev)
+		evis := evR.prepareEvidenceMessage(peer, ev)
 		if evis != nil {
 			msgBytes, err := encodeMsg(evis)
 			if err != nil {
 				panic(err)
 			}
 			success := peer.Send(EvidenceChannel, msgBytes)
-			retry = !success
-		}
-
-		if retry {
-			time.Sleep(peerCatchupSleepIntervalMS * time.Millisecond)
-			continue
+			if !success {
+				time.Sleep(peerRetryMessageIntervalMS * time.Millisecond)
+				continue
+			}
 		}
 
 		afterCh := time.After(time.Second * broadcastEvidenceIntervalS)
@@ -153,6 +156,10 @@ func (evR *Reactor) broadcastEvidenceRoutine(peer p2p.Peer) {
 		case <-next.NextWaitChan():
 			// see the start of the for loop for nil check
 			next = next.Next()
+		case <-peer.Quit():
+			return
+		case <-evR.Quit():
+			return
 		}
 	}
 }
@@ -162,7 +169,7 @@ func (evR *Reactor) broadcastEvidenceRoutine(peer p2p.Peer) {
 func (evR Reactor) prepareEvidenceMessage(
 	peer p2p.Peer,
 	ev types.Evidence,
-) (evis []types.Evidence, retry bool) {
+) (evis []types.Evidence) {
 
 	// make sure the peer is up to date
 	evHeight := ev.Height()
@@ -173,7 +180,7 @@ func (evR Reactor) prepareEvidenceMessage(
 		// different every time due to us using a map. Sometimes other reactors
 		// will be initialized before the consensus reactor. We should wait a few
 		// milliseconds and retry.
-		return nil, true
+		return nil
 	}
 
 	// NOTE: We only send evidence to peers where
@@ -186,8 +193,8 @@ func (evR Reactor) prepareEvidenceMessage(
 		ageNumBlocks = int64(peerHeight) - int64(evHeight)
 	)
 
-	if peerHeight < evHeight { // peer is behind. sleep while he catches up
-		return nil, true
+	if peerHeight <= evHeight { // peer is behind. sleep while he catches up
+		return nil
 	} else if ageNumBlocks > params.MaxAgeNumBlocks { // evidence is too old, skip
 
 		// NOTE: if evidence is too old for an honest peer, then we're behind and
@@ -201,11 +208,11 @@ func (evR Reactor) prepareEvidenceMessage(
 			"peer", peer,
 		)
 
-		return nil, false
+		return nil
 	}
 
 	// send evidence
-	return []types.Evidence{ev}, false
+	return []types.Evidence{ev}
 }
 
 // PeerState describes the state of a peer.

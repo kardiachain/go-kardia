@@ -190,10 +190,15 @@ func (dve *DuplicateVoteEvidence) Equal(ev Evidence) bool {
 	return bytes.Equal(dveHash.Bytes(), evHash.Bytes())
 }
 
-// Bytes Hash returns the hash of the evidence.
+// Bytes returns the proto-encoded evidence as a byte array.
 func (dve *DuplicateVoteEvidence) Bytes() []byte {
-	b, _ := rlp.EncodeToBytes(dve)
-	return b
+	pbe := dve.ToProto()
+	bz, err := pbe.Marshal()
+	if err != nil {
+		panic(err)
+	}
+
+	return bz
 }
 
 // Hash returns the hash of the evidence.
@@ -331,10 +336,10 @@ func NewMockDuplicateVoteEvidenceWithValidator(height uint64, time time.Time,
 
 func randBlockID() BlockID {
 	return BlockID{
-		Hash: common.BytesToHash(common.RandBytes(5)),
+		Hash: common.BytesToHash(common.RandBytes(32)),
 		PartsHeader: PartSetHeader{
 			Total: 1,
-			Hash:  common.BytesToHash(common.RandBytes(5)),
+			Hash:  common.BytesToHash(common.RandBytes(32)),
 		},
 	}
 }
