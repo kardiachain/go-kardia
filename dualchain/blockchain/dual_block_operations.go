@@ -43,11 +43,7 @@ var (
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.
 // Get/Set/Commit
 type EvidencePool interface {
-	PendingEvidence(int64) []types.Evidence
-	AddEvidence(types.Evidence) error
-	Update(*types.Block, cstate.LastestBlockState)
-	// IsCommitted indicates if this evidence was already marked committed in another block.
-	IsCommitted(types.Evidence) bool
+	PendingEvidence(int64) ([]types.Evidence, int64)
 }
 
 // TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
@@ -94,7 +90,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cst
 	maxBytes := lastState.ConsensusParams.Block.MaxBytes
 	// Fetch a limited amount of valid evidence
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(int64(maxBytes))
-	evidence := dbo.evpool.PendingEvidence(maxNumEvidence)
+	evidence, _ := dbo.evpool.PendingEvidence(maxNumEvidence)
 
 	// Gets all dual's events in pending pools and them to the new block.
 	// TODO(namdoh@): Since there may be a small latency for other dual peers to see the same set of

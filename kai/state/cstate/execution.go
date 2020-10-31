@@ -32,8 +32,8 @@ import (
 
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.
 type EvidencePool interface {
-	PendingEvidence(int64) []types.Evidence
-	Update(*types.Block, LastestBlockState)
+	Update(LastestBlockState)
+	VMEvidence(height uint64, evidence []types.Evidence) []staking.Evidence
 }
 
 // BlockStore ...
@@ -88,8 +88,7 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	}
 	fail.Fail() // XXX
 
-	//@todo thangn Update evpool with the block and state and get any byzantine validators for that block
-	byzVals := []staking.Evidence{}
+	byzVals := blockExec.evpool.VMEvidence(block.Height(), block.Evidence().Evidence)
 	commitInfo := getBeginBlockValidatorInfo(block, blockExec.db)
 
 	valUpdates, appHash, err := blockExec.bc.CommitAndValidateBlockTxs(block, commitInfo, byzVals)
@@ -108,7 +107,7 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	SaveState(blockExec.db, state)
 
 	// Update evpool with the block and state.
-	blockExec.evpool.Update(block, state)
+	blockExec.evpool.Update(state)
 	fail.Fail() // XXX
 	// Events are fired after everything else.
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay

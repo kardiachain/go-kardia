@@ -40,11 +40,7 @@ import (
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.
 // Get/Set/Commit
 type EvidencePool interface {
-	PendingEvidence(int64) []types.Evidence
-	AddEvidence(types.Evidence) error
-	Update(*types.Block, cstate.LastestBlockState)
-	// IsCommitted indicates if this evidence was already marked committed in another block.
-	IsCommitted(types.Evidence) bool
+	PendingEvidence(int64) ([]types.Evidence, int64)
 }
 
 // BlockOperations TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
@@ -89,7 +85,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 	//maxBytes := lastState.ConsensusParams.Block.MaxBytes
 	// Fetch a limited amount of valid evidence
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(lastState.ConsensusParams.Evidence.MaxBytes)
-	evidence := bo.evPool.PendingEvidence(maxNumEvidence)
+	evidence, _ := bo.evPool.PendingEvidence(maxNumEvidence)
 
 	txs := bo.txPool.ProposeTransactions()
 	bo.logger.Debug("Collected transactions", "txs count", len(txs))

@@ -98,7 +98,10 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		return nil, err
 	}
 
-	evPool := evidence.NewPool(groupDb.DB(), groupDb.DB())
+	evPool, err := evidence.NewPool(groupDb.DB(), groupDb.DB(), dualService.blockchain)
+	if err != nil {
+		return nil, err
+	}
 	//evReactor := evidence.NewReactor(evPool)
 
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool, evPool)
