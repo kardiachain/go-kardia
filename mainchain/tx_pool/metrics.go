@@ -33,6 +33,7 @@ var (
 	MetricLockedTxsTime = metricName("time", "locked_txs")
 )
 
+// Setup metrics
 var (
 	//
 	// Metrics for the pending pool
