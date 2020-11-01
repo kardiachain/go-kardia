@@ -54,7 +54,8 @@ type Pool struct {
 
 	// needed to load validators to verify evidence
 	blockStore BlockStore
-	stateDB    kaidb.Database
+	stateDB    cstate.Store
+	evidenceDB kaidb.Database
 
 	// latest state
 	mtx   sync.Mutex
@@ -66,13 +67,14 @@ type Pool struct {
 
 // NewPool creates an evidence pool. If using an existing evidence store,
 // it will add all pending evidence to the concurrent list.
-func NewPool(stateDB, evidenceDB kaidb.Database, blockStore BlockStore) (*Pool, error) {
+func NewPool(stateDB cstate.Store, evidenceDB kaidb.Database, blockStore BlockStore) (*Pool, error) {
 	evpool := &Pool{
 		stateDB:      stateDB,
-		state:        cstate.LoadState(stateDB),
+		state:        stateDB.Load(),
 		logger:       log.New(),
 		evidenceList: clist.New(),
 		blockStore:   blockStore,
+		evidenceDB:   evidenceDB,
 	}
 
 	// if pending evidence already in db, in event of prior failure, then check for expiration,
@@ -135,7 +137,7 @@ func (evpool *Pool) VMEvidence(height uint64, evidence []types.Evidence) []staki
 	for _, ev := range evidence {
 
 		// get entire evidence info from pending list
-		infoBytes, err := evpool.stateDB.Get(keyPending(ev))
+		infoBytes, err := evpool.evidenceDB.Get(keyPending(ev))
 		if err != nil {
 			evpool.logger.Error("Unable to retrieve evidence to pass to VM. "+
 				"Evidence pool should have seen this evidence before",
@@ -180,7 +182,7 @@ func (evpool *Pool) VMEvidence(height uint64, evidence []types.Evidence) []staki
 			panic(err)
 		}
 
-		if err := evpool.stateDB.Put(key, evBytes); err != nil {
+		if err := evpool.evidenceDB.Put(key, evBytes); err != nil {
 			evpool.logger.Error("Unable to add committed evidence", "err", err)
 		}
 	}
@@ -212,7 +214,7 @@ func (evpool *Pool) isExpired(height uint64, time time.Time) bool {
 // IsPending checks whether the evidence is already pending. DB errors are passed to the logger.
 func (evpool *Pool) isPending(evidence types.Evidence) bool {
 	key := keyPending(evidence)
-	ok, err := evpool.stateDB.Has(key)
+	ok, err := evpool.evidenceDB.Has(key)
 	if err != nil {
 		evpool.logger.Error("Unable to find pending evidence", "err", err)
 	}
@@ -222,7 +224,7 @@ func (evpool *Pool) isPending(evidence types.Evidence) bool {
 // IsCommitted returns true if we have already seen this exact evidence and it is already marked as committed.
 func (evpool *Pool) isCommitted(evidence types.Evidence) bool {
 	key := keyCommitted(evidence)
-	ok, err := evpool.stateDB.Has(key)
+	ok, err := evpool.evidenceDB.Has(key)
 	if err != nil {
 		evpool.logger.Error("Unable to find committed evidence", "err", err)
 	}
@@ -272,7 +274,7 @@ func (evpool *Pool) removeEvidenceFromList(
 
 func (evpool *Pool) removePendingEvidence(evidence types.Evidence) {
 	key := keyPending(evidence)
-	if err := evpool.stateDB.Delete(key); err != nil {
+	if err := evpool.evidenceDB.Delete(key); err != nil {
 		evpool.logger.Error("Unable to delete pending evidence", "err", err)
 	} else {
 		atomic.AddUint32(&evpool.evidenceSize, ^uint32(0))
@@ -285,7 +287,7 @@ func (evpool *Pool) removePendingEvidence(evidence types.Evidence) {
 func (evpool *Pool) listEvidence(prefixKey byte, maxBytes int64) ([]types.Evidence, int64, error) {
 	var totalSize int64
 	var evidence []types.Evidence
-	iter := evpool.stateDB.NewIteratorWithPrefix([]byte{prefixKey})
+	iter := evpool.evidenceDB.NewIteratorWithPrefix([]byte{prefixKey})
 	for iter.Next() {
 		evInfo, err := bytesToInfo(iter.Value())
 		if err != nil {
@@ -304,7 +306,7 @@ func (evpool *Pool) listEvidence(prefixKey byte, maxBytes int64) ([]types.Eviden
 }
 
 func (evpool *Pool) removeExpiredPendingEvidence() (uint64, time.Time) {
-	iter := evpool.stateDB.NewIteratorWithPrefix([]byte{baseKeyPending})
+	iter := evpool.evidenceDB.NewIteratorWithPrefix([]byte{baseKeyPending})
 	blockEvidenceMap := make(map[string]struct{})
 	for iter.Next() {
 		evInfo, err := bytesToInfo(iter.Value())
@@ -462,7 +464,7 @@ func (evpool *Pool) addPendingEvidence(evInfo *info) error {
 
 	key := keyPending(evInfo.Evidence)
 
-	err = evpool.stateDB.Put(key, evBytes)
+	err = evpool.evidenceDB.Put(key, evBytes)
 	if err != nil {
 		return fmt.Errorf("can't persist evidence: %w", err)
 	}

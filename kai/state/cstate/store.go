@@ -43,6 +43,14 @@ const (
 	valSetCheckpointInterval = 100000
 )
 
+type Store interface {
+	LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (LastestBlockState, error)
+	Load() LastestBlockState
+	Save(LastestBlockState)
+	LoadValidators(height uint64) (*types.ValidatorSet, error)
+	LoadConsensusParams(height uint64) (kproto.ConsensusParams, error)
+}
+
 //------------------------------------------------------------------------
 
 func calcValidatorsKey(height uint64) []byte {
@@ -53,11 +61,19 @@ func calcConsensusParamsKey(height uint64) []byte {
 	return []byte(fmt.Sprintf("consensusParamsKey:%v", height))
 }
 
+type dbStore struct {
+	db kaidb.Database
+}
+
+func NewStore(db kaidb.Database) Store {
+	return &dbStore{db: db}
+}
+
 // LoadStateFromDBOrGenesisDoc loads the most recent state from the database,
 // or creates a new one from the given genesisDoc and persists the result
 // to the database.
-func LoadStateFromDBOrGenesisDoc(stateDB kaidb.Database, genesisDoc *genesis.Genesis) (LastestBlockState, error) {
-	state := LoadState(stateDB)
+func (s *dbStore) LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (LastestBlockState, error) {
+	state := s.Load()
 
 	if state.IsEmpty() {
 		var err error
@@ -65,15 +81,15 @@ func LoadStateFromDBOrGenesisDoc(stateDB kaidb.Database, genesisDoc *genesis.Gen
 		if err != nil {
 			return state, err
 		}
-		SaveState(stateDB, state)
+		s.Save(state)
 	}
 	return state, nil
 }
 
 // SaveState persists the State, the ValidatorsInfo, and the ConsensusParamsInfo to the database.
 // This flushes the writes (e.g. calls SetSync).
-func SaveState(db kaidb.KeyValueStore, state LastestBlockState) {
-	saveState(db, state, stateKey)
+func (s *dbStore) Save(state LastestBlockState) {
+	saveState(s.db, state, stateKey)
 }
 
 func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
@@ -93,8 +109,8 @@ func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
 }
 
 // LoadState loads the State from the database.
-func LoadState(db kaidb.Database) LastestBlockState {
-	return loadState(db, stateKey)
+func (s *dbStore) Load() LastestBlockState {
+	return loadState(s.db, stateKey)
 }
 
 func loadState(db kaidb.Database, key []byte) (state LastestBlockState) {
@@ -139,14 +155,14 @@ func (valInfo *ValidatorsInfo) Bytes() []byte {
 
 // LoadValidators loads the ValidatorSet for a given height.
 // Returns ErrNoValSetForHeight if the validator set can't be found for this height.
-func LoadValidators(db kaidb.KeyValueStore, height uint64) (*types.ValidatorSet, error) {
-	valInfo := loadValidatorsInfo(db, uint64(height))
+func (s *dbStore) LoadValidators(height uint64) (*types.ValidatorSet, error) {
+	valInfo := loadValidatorsInfo(s.db, uint64(height))
 	if valInfo == nil {
 		return nil, ErrNoValSetForHeight{height}
 	}
 	if valInfo.ValidatorSet == nil {
 		lastStoredHeight := lastStoredHeightFor(height, valInfo.LastHeightChanged)
-		valInfo2 := loadValidatorsInfo(db, uint64(lastStoredHeight))
+		valInfo2 := loadValidatorsInfo(s.db, uint64(lastStoredHeight))
 		if valInfo2 == nil || valInfo2.ValidatorSet == nil {
 			panic(
 				fmt.Sprintf("Couldn't find validators at height %d (height %d was originally requested)",
@@ -234,16 +250,16 @@ func saveValidatorsInfo(db kaidb.Database, height, lastHeightChanged uint64, val
 //-----------------------------------------------------------------------------
 
 // LoadConsensusParams loads the ConsensusParams for a given height.
-func LoadConsensusParams(db kaidb.Database, height uint64) (kproto.ConsensusParams, error) {
+func (s *dbStore) LoadConsensusParams(height uint64) (kproto.ConsensusParams, error) {
 	empty := kproto.ConsensusParams{}
 
-	paramsInfo, err := loadConsensusParamsInfo(db, height)
+	paramsInfo, err := loadConsensusParamsInfo(s.db, height)
 	if err != nil {
 		return empty, fmt.Errorf("could not find consensus params for height #%d: %w", height, err)
 	}
 
 	if paramsInfo.ConsensusParams.Equal(&empty) {
-		paramsInfo2, err := loadConsensusParamsInfo(db, paramsInfo.LastHeightChanged)
+		paramsInfo2, err := loadConsensusParamsInfo(s.db, paramsInfo.LastHeightChanged)
 		if err != nil {
 			return empty, fmt.Errorf(
 				"couldn't find consensus params at height %d as last changed from height %d: %w",

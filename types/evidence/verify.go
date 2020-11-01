@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -45,7 +44,7 @@ func (evpool *Pool) verify(evidence types.Evidence) (*info, error) {
 	// apply the evidence-specific verification logic
 	switch ev := evidence.(type) {
 	case *types.DuplicateVoteEvidence:
-		valSet, err := cstate.LoadValidators(evpool.stateDB, evidence.Height())
+		valSet, err := evpool.stateDB.LoadValidators(evidence.Height())
 		if err != nil {
 			return nil, err
 		}

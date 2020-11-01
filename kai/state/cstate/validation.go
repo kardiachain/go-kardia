@@ -22,11 +22,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-func validateBlock(db kaidb.Database, state LastestBlockState, block *types.Block) error {
+func validateBlock(store Store, state LastestBlockState, block *types.Block) error {
 	// Validate internal consistency
 	if err := block.ValidateBasic(); err != nil {
 		return err

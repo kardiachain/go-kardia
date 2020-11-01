@@ -93,19 +93,19 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	dualService.eventPool = event_pool.NewPool(logger, config.DualEventPool, dualService.blockchain)
 
-	lastBlockState, err := cstate.LoadStateFromDBOrGenesisDoc(groupDb.DB(), config.DualGenesis)
+	lastBlockState, err := ctx.StateDB.LoadStateFromDBOrGenesisDoc(config.DualGenesis)
 	if err != nil {
 		return nil, err
 	}
 
-	evPool, err := evidence.NewPool(groupDb.DB(), groupDb.DB(), dualService.blockchain)
+	evPool, err := evidence.NewPool(ctx.StateDB, groupDb.DB(), dualService.blockchain)
 	if err != nil {
 		return nil, err
 	}
 	//evReactor := evidence.NewReactor(evPool)
 
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool, evPool)
-	blockExec := cstate.NewBlockExecutor(groupDb.DB(), evPool, dualService.dualBlockOperations)
+	blockExec := cstate.NewBlockExecutor(ctx.StateDB, evPool, dualService.dualBlockOperations)
 
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,

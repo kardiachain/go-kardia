@@ -33,6 +33,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	defaultEvidenceTime = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
+)
+
 func initializeValidatorState(prival types.PrivValidator, height uint64) kaidb.Database {
 	stateDB := memorydb.New()
 

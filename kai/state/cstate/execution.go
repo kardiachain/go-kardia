@@ -23,7 +23,6 @@ import (
 	"math/big"
 
 	fail "github.com/ebuchman/fail-test"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/staking"
@@ -48,20 +47,19 @@ type BlockStore interface {
 
 // BlockExecutor provides the context and accessories for properly executing a block.
 type BlockExecutor struct {
-	evpool EvidencePool
-	bc     BlockStore
-	// save state, validators, consensus params, abci responses here
-	db       kaidb.Database
+	evpool   EvidencePool
+	bc       BlockStore
+	store    Store
 	eventBus *types.EventBus
 }
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
 // Call SetEventBus to provide one.
-func NewBlockExecutor(db kaidb.Database, evpool EvidencePool, bc BlockStore) *BlockExecutor {
+func NewBlockExecutor(stateStore Store, evpool EvidencePool, bc BlockStore) *BlockExecutor {
 	return &BlockExecutor{
 		evpool: evpool,
 		bc:     bc,
-		db:     db,
+		store:  stateStore,
 	}
 }
 
@@ -75,7 +73,7 @@ func (blockExec *BlockExecutor) SetEventBus(b *types.EventBus) {
 // Validation does not mutate state, but does require historical information from the stateDB,
 // ie. to verify evidence from a validator at an old height.
 func (blockExec *BlockExecutor) ValidateBlock(state LastestBlockState, block *types.Block) error {
-	return validateBlock(blockExec.db, state, block)
+	return validateBlock(blockExec.store, state, block)
 }
 
 // ApplyBlock Validates the block against the state, and saves the new state.
@@ -89,7 +87,7 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	fail.Fail() // XXX
 
 	byzVals := blockExec.evpool.VMEvidence(block.Height(), block.Evidence().Evidence)
-	commitInfo := getBeginBlockValidatorInfo(block, blockExec.db)
+	commitInfo := getBeginBlockValidatorInfo(block, blockExec.store)
 
 	valUpdates, appHash, err := blockExec.bc.CommitAndValidateBlockTxs(block, commitInfo, byzVals)
 	if err != nil {
@@ -104,7 +102,7 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	}
 
 	state.AppHash = appHash
-	SaveState(blockExec.db, state)
+	blockExec.store.Save(state)
 
 	// Update evpool with the block and state.
 	blockExec.evpool.Update(state)
@@ -148,14 +146,14 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 	}, nil
 }
 
-func getBeginBlockValidatorInfo(b *types.Block, stateDB kaidb.Database) staking.LastCommitInfo {
+func getBeginBlockValidatorInfo(b *types.Block, store Store) staking.LastCommitInfo {
 	lastCommit := b.LastCommit()
 	voteInfos := make([]staking.VoteInfo, lastCommit.Size())
 	// block.Height=1 -> LastCommitInfo.Votes are empty.
 	// Remember that the first LastCommit is intentionally empty, so it makes
 	// sense for LastCommitInfo.Votes to also be empty.
 	if b.Height() > 1 {
-		lastValSet, err := LoadValidators(stateDB, b.Height()-1)
+		lastValSet, err := store.LoadValidators(b.Height() - 1)
 		if err != nil {
 			panic(err)
 		}
