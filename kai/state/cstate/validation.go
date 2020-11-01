@@ -25,7 +25,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-func validateBlock(store Store, state LastestBlockState, block *types.Block) error {
+func validateBlock(evidencePool EvidencePool, store Store, state LastestBlockState, block *types.Block) error {
 	// Validate internal consistency
 	if err := block.ValidateBasic(); err != nil {
 		return err
@@ -117,17 +117,11 @@ func validateBlock(store Store, state LastestBlockState, block *types.Block) err
 
 	}
 
-	// @todo thangn Validate all evidence.
-	// for _, ev := range block.Evidence().Evidence {
-	// 	if err := VerifyEvidence(db, state, ev); err != nil {
-	// 		return types.NewErrEvidenceInvalid(ev, err)
-	// 	}
-	// }
-
 	// Validate proposer is a known validator
 	if !state.Validators.HasAddress(block.ProposerAddress()) {
 		return fmt.Errorf("block proposer is not a validator %X", block.ValidatorHash())
 	}
 
-	return nil
+	// Validate all evidence.
+	return evidencePool.CheckEvidence(block.Evidence().Evidence)
 }

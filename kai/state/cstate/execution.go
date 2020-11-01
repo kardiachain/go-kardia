@@ -33,6 +33,7 @@ import (
 type EvidencePool interface {
 	Update(LastestBlockState)
 	VMEvidence(height uint64, evidence []types.Evidence) []staking.Evidence
+	CheckEvidence(evList types.EvidenceList) error
 }
 
 // BlockStore ...
@@ -73,7 +74,7 @@ func (blockExec *BlockExecutor) SetEventBus(b *types.EventBus) {
 // Validation does not mutate state, but does require historical information from the stateDB,
 // ie. to verify evidence from a validator at an old height.
 func (blockExec *BlockExecutor) ValidateBlock(state LastestBlockState, block *types.Block) error {
-	return validateBlock(blockExec.store, state, block)
+	return validateBlock(blockExec.evpool, blockExec.store, state, block)
 }
 
 // ApplyBlock Validates the block against the state, and saves the new state.
