@@ -40,8 +40,8 @@ import (
 )
 
 const (
-	baseKeyCommitted = byte(0x00)
-	baseKeyPending   = byte(0x01)
+	baseKeyCommitted = "evidence-committed"
+	baseKeyPending   = "evidence-pending"
 )
 
 // Pool maintains a pool of valid evidence
@@ -80,7 +80,7 @@ func NewPool(stateDB cstate.Store, evidenceDB kaidb.Database, blockStore BlockSt
 	// if pending evidence already in db, in event of prior failure, then check for expiration,
 	// update the size and load it back to the evidenceList
 	evpool.pruningHeight, evpool.pruningTime = evpool.removeExpiredPendingEvidence()
-	evList, _, err := evpool.listEvidence(baseKeyPending, -1)
+	evList, _, err := evpool.listEvidence([]byte(baseKeyPending), -1)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +97,7 @@ func (evpool *Pool) PendingEvidence(maxBytes int64) ([]types.Evidence, int64) {
 	if evpool.Size() == 0 {
 		return []types.Evidence{}, 0
 	}
-	evidence, size, err := evpool.listEvidence(baseKeyPending, maxBytes)
+	evidence, size, err := evpool.listEvidence([]byte(baseKeyPending), maxBytes)
 	if err != nil {
 		evpool.logger.Error("Unable to retrieve pending evidence", "err", err)
 	}
@@ -284,10 +284,10 @@ func (evpool *Pool) removePendingEvidence(evidence types.Evidence) {
 
 // listEvidence retrieves lists evidence from oldest to newest within maxBytes.
 // If maxBytes is -1, there's no cap on the size of returned evidence.
-func (evpool *Pool) listEvidence(prefixKey byte, maxBytes int64) ([]types.Evidence, int64, error) {
+func (evpool *Pool) listEvidence(prefixKey []byte, maxBytes int64) ([]types.Evidence, int64, error) {
 	var totalSize int64
 	var evidence []types.Evidence
-	iter := evpool.evidenceDB.NewIteratorWithPrefix([]byte{prefixKey})
+	iter := evpool.evidenceDB.NewIteratorWithPrefix(prefixKey)
 	for iter.Next() {
 		evInfo, err := bytesToInfo(iter.Value())
 		if err != nil {
@@ -306,7 +306,7 @@ func (evpool *Pool) listEvidence(prefixKey byte, maxBytes int64) ([]types.Eviden
 }
 
 func (evpool *Pool) removeExpiredPendingEvidence() (uint64, time.Time) {
-	iter := evpool.evidenceDB.NewIteratorWithPrefix([]byte{baseKeyPending})
+	iter := evpool.evidenceDB.NewIteratorWithPrefix([]byte(baseKeyPending))
 	blockEvidenceMap := make(map[string]struct{})
 	for iter.Next() {
 		evInfo, err := bytesToInfo(iter.Value())
@@ -562,11 +562,11 @@ func bE(h uint64) string {
 }
 
 func keyCommitted(evidence types.Evidence) []byte {
-	return append([]byte{baseKeyCommitted}, keySuffix(evidence)...)
+	return append([]byte(baseKeyCommitted), keySuffix(evidence)...)
 }
 
 func keyPending(evidence types.Evidence) []byte {
-	return append([]byte{baseKeyPending}, keySuffix(evidence)...)
+	return append([]byte(baseKeyPending), keySuffix(evidence)...)
 }
 
 func keySuffix(evidence types.Evidence) []byte {
