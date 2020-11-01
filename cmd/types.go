@@ -27,6 +27,7 @@ type (
 		Node      `yaml:"Node"`
 		MainChain *Chain `yaml:"MainChain"`
 		DualChain *Chain `yaml:"DualChain,omitempty"`
+		Debug     *Debug `yaml:"Debug"` // todo @longnd: Change this config name to profile
 	}
 	Node struct {
 		P2P struct {
@@ -102,5 +103,8 @@ type (
 	BaseAccount struct {
 		Address    string `yaml:"Address"`
 		PrivateKey string `yaml:"PrivateKey"`
+	}
+	Debug struct {
+		Port string `yaml:"Port"`
 	}
 )

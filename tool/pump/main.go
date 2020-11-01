@@ -46,6 +46,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/metrics"
 	"github.com/kardiachain/go-kardiamain/lib/sysutils"
 	kai "github.com/kardiachain/go-kardiamain/mainchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
@@ -390,8 +391,10 @@ func (c *Config) Start() {
 		return
 	}
 
-	if err := c.StartDebug(); err != nil {
-		logger.Error("Failed to start debug", "err", err)
+	if c.Debug != nil {
+		if err := c.StartDebug(); err != nil {
+			logger.Error("Failed to start debug", "err", err)
+		}
 	}
 
 	if err := c.StartPump(kardiaService.TxPool()); err != nil {
@@ -568,8 +571,9 @@ func generateTxs(genTxs *GenTxs, genTool *tool.GeneratorTool, txPool *tx_pool.Tx
 	log.Info("GenTxs Adding new transactions", "num", genTxs.NumTxs, "genType", genTxs.Type)
 }
 
-// StartPump reads dual config and start dual service
+// StartDebug run pprof for profiling
 func (c *Config) StartDebug() error {
+	log.Info("Start pprof debug")
 	if c.Debug != nil {
 		go func() {
 			router := mux.NewRouter()
@@ -583,6 +587,9 @@ func (c *Config) StartDebug() error {
 			router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 			router.Handle("/debug/pprof/block", pprof.Handler("block"))
 			router.Handle("/debug/vars", http.DefaultServeMux)
+
+			// Custom
+			router.HandleFunc("/debug/pprof/pool/", metrics.PoolMetrics)
 
 			if err := http.ListenAndServe(c.Debug.Port, cors.AllowAll().Handler(router)); err != nil {
 				panic(err)

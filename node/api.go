@@ -227,8 +227,12 @@ func (api *PublicAdminAPI) Peers() ([]Peer, error) {
 }
 
 // Metrics return profiling of nodes
-func (api *PublicAdminAPI) Metrics() map[string]map[string]interface{} {
-	return metrics.DefaultRegistry.GetAll()
+func (api *PublicAdminAPI) Metrics(registries []string) map[string]map[string]interface{} {
+	if len(registries) == 0 {
+		return metrics.SystemRegistry.GetAll()
+	}
+
+	return metrics.TxPoolRegistry.GetAll()
 }
 
 // NodeInfo retrieves all the information we know about the host node at the

@@ -24,12 +24,16 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/big"
+	"net/http"
+	"net/http/pprof"
 	"os"
 	"path/filepath"
 	"runtime"
 	"time"
 
+	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
+	"github.com/rs/cors"
 	"gopkg.in/yaml.v2"
 
 	"github.com/kardiachain/go-kardiamain/configs"
@@ -389,6 +393,12 @@ func (c *Config) Start() {
 	if c.DualChain != nil {
 	}
 
+	if c.Debug != nil {
+		if err := c.StartDebug(); err != nil {
+			logger.Error("Failed to start debug", "err", err)
+		}
+	}
+
 	if err := c.StartDual(n); err != nil {
 		logger.Error("error while starting dual", "err", err)
 		return
@@ -452,6 +462,28 @@ func (c *Config) StartDual(n *node.Node) error {
 		dualProxy.Start()
 		kardiaProxy.Start()
 	}
+	return nil
+}
+
+func (c *Config) StartDebug() error {
+	log.Info("Start pprof debug")
+	go func() {
+		router := mux.NewRouter()
+		router.HandleFunc("/debug/pprof/", pprof.Index)
+		router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		router.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		router.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		router.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+		router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+		router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+		router.Handle("/debug/pprof/block", pprof.Handler("block"))
+		router.Handle("/debug/vars", http.DefaultServeMux)
+
+		if err := http.ListenAndServe(c.Debug.Port, cors.AllowAll().Handler(router)); err != nil {
+			panic(err)
+		}
+	}()
 	return nil
 }
 

@@ -65,7 +65,7 @@ var (
 
 	// ErrIntrinsicGas is returned if the transaction is specified to use less gas
 	// than required to start the invocation.
-	ErrIntrinsicGas = errors.New("intrinsic gas too low")
+	//ErrIntrinsicGas = errors.New("intrinsic gas too low")
 
 	// ErrGasLimit is returned if a transaction's requested gas limit exceeds the
 	// maximum allowance of the current block.
@@ -84,31 +84,6 @@ var (
 var (
 	evictionInterval    = time.Minute     // Time interval to check for evictable transactions
 	statsReportInterval = 8 * time.Second // Time interval to report transaction pool stats
-)
-
-var (
-	//
-	// Metrics for the pending pool
-	pendingDiscardMeter   = metrics.NewRegisteredMeter("txpool/pending/discard", metrics.TxPoolRegistry)
-	pendingReplaceMeter   = metrics.NewRegisteredMeter("txpool/pending/replace", metrics.TxPoolRegistry)
-	pendingRateLimitMeter = metrics.NewRegisteredMeter("txpool/pending/ratelimit", metrics.TxPoolRegistry) // Dropped due to rate limiting
-	pendingNofundsMeter   = metrics.NewRegisteredMeter("txpool/pending/nofunds", metrics.TxPoolRegistry)   // Dropped due to out-of-funds
-
-	// Metrics for the queued pool
-	queuedDiscardMeter   = metrics.NewRegisteredMeter("txpool/queued/discard", metrics.TxPoolRegistry)
-	queuedReplaceMeter   = metrics.NewRegisteredMeter("txpool/queued/replace", metrics.TxPoolRegistry)
-	queuedRateLimitMeter = metrics.NewRegisteredMeter("txpool/queued/ratelimit", metrics.TxPoolRegistry) // Dropped due to rate limiting
-	queuedNofundsMeter   = metrics.NewRegisteredMeter("txpool/queued/nofunds", metrics.TxPoolRegistry)   // Dropped due to out-of-funds
-
-	// General tx metrics
-	knownTxMeter       = metrics.NewRegisteredMeter("txpool/known", metrics.TxPoolRegistry)
-	validTxMeter       = metrics.NewRegisteredMeter("txpool/valid", metrics.TxPoolRegistry)
-	invalidTxMeter     = metrics.NewRegisteredMeter("txpool/invalid", metrics.TxPoolRegistry)
-	underpricedTxMeter = metrics.NewRegisteredMeter("txpool/underpriced", metrics.TxPoolRegistry)
-
-	pendingGauge = metrics.NewRegisteredGauge("txpool/pending", metrics.TxPoolRegistry)
-	queuedGauge  = metrics.NewRegisteredGauge("txpool/queued", metrics.TxPoolRegistry)
-	localGauge   = metrics.NewRegisteredGauge("txpool/local", metrics.TxPoolRegistry)
 )
 
 // TxStatus is the current status of a transaction as seen by the pool.
@@ -459,7 +434,7 @@ func (pool *TxPool) Stop() {
 	pool.wg.Wait()
 
 	if pool.journal != nil {
-		pool.journal.close()
+		_ = pool.journal.close()
 	}
 	log.Info("Transaction pool stopped")
 }
@@ -836,11 +811,18 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 
 // addTxs attempts to queue a batch of transactions if they are valid.
 func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
+	// Temp logger for debug, remove when stable
+	logger := log.New()
+	logger.Debug("Txs size", "size", len(txs))
+	defer txsTimer.Stop()
 	// Filter out known ones without obtaining the pool lock or recovering signatures
 	var (
 		errs = make([]error, len(txs))
 		news = make([]*types.Transaction, 0, len(txs))
 	)
+
+	// Look like we can improve this flow
+
 	for i, tx := range txs {
 		// If the transaction is known, pre-set the error slot
 		if pool.all.Get(tx.Hash()) != nil {
@@ -849,7 +831,8 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 			continue
 		}
 		// Cache senders in transactions before obtaining lock (pool.signer is immutable)
-		_, _ = types.Sender(pool.signer, tx)
+		addr, _ := types.Sender(pool.signer, tx)
+		logger.Debug("Sender addr", "addr", addr)
 
 		// Accumulate all unknown transactions for deeper processing
 		news = append(news, tx)
@@ -877,12 +860,15 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 
 	pool.notifyTxsAvailable()
 
+	logger.Debug("ProcessTxTime", "total", metrics.Get(MetricTxsTime))
+
 	return errs
 }
 
 // addTxsLocked attempts to queue a batch of transactions if they are valid.
 // The transaction pool lock must be held.
 func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) ([]error, *accountSet) {
+	defer lockedTxsTimer.Stop()
 	dirty := newAccountSet(pool.signer)
 	errs := make([]error, len(txs))
 	for i, tx := range txs {
@@ -1083,6 +1069,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 	if dirtyAccounts != nil {
 		promoteAddrs = dirtyAccounts.flatten()
 	}
+	//todo @longnd: check if data race
 	pool.mu.Lock()
 	if reset != nil {
 		// Reset from the old head to the new, rescheduling any reorged transactions
@@ -1251,7 +1238,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 			pool.all.Remove(hash)
 			log.Trace("Removed unpayable queued transaction", "hash", hash)
 		}
-		queuedNofundsMeter.Mark(int64(len(drops)))
+		queuedNoFundsMeter.Mark(int64(len(drops)))
 
 		// Gather all executable transactions and promote them
 		readies := list.Ready(pool.pendingNonces.get(addr))
@@ -1444,7 +1431,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			pool.all.Remove(hash)
 		}
 		pool.priced.Removed(len(olds) + len(drops))
-		pendingNofundsMeter.Mark(int64(len(drops)))
+		pendingNoFundsMeter.Mark(int64(len(drops)))
 
 		for _, tx := range invalids {
 			hash := tx.Hash()

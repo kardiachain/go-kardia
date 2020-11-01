@@ -31,7 +31,7 @@ type (
 		MainChain *Chain  `yaml:"MainChain"`
 		DualChain *Chain  `yaml:"DualChain,omitempty"`
 		GenTxs    *GenTxs `yaml:"GenTxs"`
-		Debug     *Debug  `yaml:"Debug"`
+		Debug     *Debug  `yaml:"Debug"` // todo @longnd: move `Debug` to `Profile`
 	}
 	Node struct {
 		P2P              `yaml:"P2P"`

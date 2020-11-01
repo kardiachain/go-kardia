@@ -29,9 +29,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/lib/metrics"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
+
+	"github.com/prometheus/tsdb/fileutil"
+	"github.com/tendermint/tendermint/version"
 
 	cs "github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
@@ -43,8 +47,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/kardiachain/go-kardiamain/types/evidence"
-	"github.com/prometheus/tsdb/fileutil"
-	"github.com/tendermint/tendermint/version"
 )
 
 // Node is a container on which services can be registered.
@@ -225,6 +227,9 @@ func (n *Node) OnStart() error {
 	if err := n.transport.Listen(*addr); err != nil {
 		return err
 	}
+
+	metrics.Enabled = true
+	go metrics.CollectProcessMetrics(3 * time.Second)
 
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)
