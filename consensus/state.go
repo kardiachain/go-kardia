@@ -42,6 +42,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/service"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
+	ktime "github.com/kardiachain/go-kardiamain/types/time"
 )
 
 var (
@@ -78,7 +79,7 @@ type VoteTurn struct {
 
 // interface to the evidence pool
 type evidencePool interface {
-	AddEvidence(types.Evidence) error
+	AddEvidenceFromConsensus(ev types.Evidence, time time.Time, valSet *types.ValidatorSet) error
 }
 
 func EmptyTimeoutInfo() *timeoutInfo {
@@ -460,15 +461,29 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 		} else if voteErr, ok := err.(*types.ErrVoteConflictingVotes); ok {
 			if vote.ValidatorAddress.Equal(cs.privValidator.GetAddress()) {
 				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
-				return false, err
+				return added, err
 			}
-			cs.evpool.AddEvidence(voteErr.DuplicateVoteEvidence)
-			return false, err
+
+			var timestamp time.Time
+			if voteErr.VoteA.Height == 1 {
+				timestamp = cs.state.LastBlockTime // genesis time
+			} else {
+				timestamp = cstate.MedianTime(cs.LastCommit.MakeCommit(), cs.LastValidators)
+			}
+
+			evidence := types.NewDuplicateVoteEvidence(voteErr.VoteA, voteErr.VoteB)
+			evidenceErr := cs.evpool.AddEvidenceFromConsensus(evidence, timestamp, cs.Validators)
+			if evidenceErr != nil {
+				cs.Logger.Error("Failed to add evidence to the evidence pool", "err", evidenceErr)
+			} else {
+				cs.Logger.Debug("Added evidence to the evidence pool", "evidence", evidence)
+			}
+			return added, err
 		}
 		// Probably an invalid signature / Bad peer.
 		// Seems this can also err sometimes with "Unexpected step" - perhaps not from a bad peer ?
 		cs.Logger.Error("Error attempting to add vote", "err", err)
-		return false, ErrAddingVote
+		return added, ErrAddingVote
 	}
 	return added, nil
 }
@@ -662,7 +677,7 @@ func (cs *ConsensusState) signVote(signedMsgType kproto.SignedMsgType, hash cmn.
 }
 
 func (cs *ConsensusState) voteTime() time.Time {
-	now := time.Now()
+	now := ktime.Now()
 	minVoteTime := now
 	// TODO: We should remove next line in case we don't vote for v in case cs.ProposalBlock == nil,
 	// even if cs.LockedBlock != nil. See https://github.com/tendermint/spec.

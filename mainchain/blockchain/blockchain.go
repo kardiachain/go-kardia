@@ -41,8 +41,7 @@ import (
 const (
 	blockCacheLimit = 256
 
-	maxFutureBlocks     = 256
-	maxTimeFutureBlocks = 30
+	maxFutureBlocks = 256
 )
 
 var (
