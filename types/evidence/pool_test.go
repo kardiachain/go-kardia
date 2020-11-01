@@ -22,7 +22,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	cState "github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
@@ -37,8 +36,8 @@ var (
 	defaultEvidenceTime = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
 )
 
-func initializeValidatorState(prival types.PrivValidator, height uint64) kaidb.Database {
-	stateDB := memorydb.New()
+func initializeValidatorState(prival types.PrivValidator, height uint64) cState.Store {
+	stateDB := cState.NewStore(memorydb.New())
 
 	// create validator set and state
 	valSet := &types.ValidatorSet{
@@ -71,7 +70,7 @@ func initializeValidatorState(prival types.PrivValidator, height uint64) kaidb.D
 	// save all states up to height
 	for i := uint64(0); i < height; i++ {
 		state.LastBlockHeight = i
-		cState.SaveState(stateDB, state)
+		stateDB.Save(state)
 	}
 
 	return stateDB

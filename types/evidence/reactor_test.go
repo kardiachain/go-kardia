@@ -29,7 +29,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/types/evidence/mocks"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -53,7 +52,7 @@ func TestReactorBroadcastEvidence(t *testing.T) {
 	N := 7
 
 	// create statedb for everyone
-	stateDBs := make([]kaidb.Database, N)
+	stateDBs := make([]cstate.Store, N)
 	val := types.NewMockPV()
 	// we need validators saved for heights at least as high as we have evidence for
 	height := uint64(numEvidence) + 10
@@ -93,7 +92,7 @@ func TestReactorSelectiveBroadcast(t *testing.T) {
 	stateDB2 := initializeValidatorState(val, height2)
 
 	// make reactors from statedb
-	reactors := makeAndConnectReactors(config, []kaidb.Database{stateDB1, stateDB2})
+	reactors := makeAndConnectReactors(config, []cstate.Store{stateDB1, stateDB2})
 
 	// set the peer height on each reactor
 	for _, r := range reactors {
@@ -135,7 +134,7 @@ func TestReactorsGossipNoCommittedEvidence(t *testing.T) {
 	stateDB2 := initializeValidatorState(val, height-2)
 
 	// make reactors from statedb
-	reactors := makeAndConnectReactors(config, []kaidb.Database{stateDB1, stateDB2})
+	reactors := makeAndConnectReactors(config, []cstate.Store{stateDB1, stateDB2})
 
 	evList := sendEvidence(t, reactors[0].evpool, val, 2)
 	vmEvs := reactors[0].evpool.VMEvidence(height, evList)
@@ -204,7 +203,7 @@ func (ps peerState) GetHeight() uint64 {
 }
 
 // connect N evidence reactors through N switches
-func makeAndConnectReactors(p2pConfig *configs.P2PConfig, stateDBs []kaidb.Database) []*Reactor {
+func makeAndConnectReactors(p2pConfig *configs.P2PConfig, stateDBs []cstate.Store) []*Reactor {
 	N := len(stateDBs)
 	reactors := make([]*Reactor, N)
 	logger := log.New()
