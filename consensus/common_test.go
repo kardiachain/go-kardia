@@ -333,11 +333,12 @@ func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*Consensu
 		GlobalQueue: 5120000,
 	}
 	txPool := tx_pool.NewTxPool(txConfig, chainConfig, bc)
-	evPool, _ := evidence.NewPool(kaiDb.DB(), kaiDb.DB(), bc)
+	stateStore := cstate.NewStore(kaiDb.DB())
+	evPool, _ := evidence.NewPool(stateStore, kaiDb.DB(), bc)
 	bOper := blockchain.NewBlockOperations(logger, bc, txPool, evPool, staking)
 
 	// evReactor := evidence.NewReactor(evPool)
-	blockExec := cstate.NewBlockExecutor(blockDB, evPool, bOper)
+	blockExec := cstate.NewBlockExecutor(stateStore, evPool, bOper)
 
 	csCfg := configs.TestConsensusConfig()
 	// Initialization for consensus.
