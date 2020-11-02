@@ -45,8 +45,8 @@ func IsErrNotEnoughVotingPowerSigned(err error) bool {
 // ErrNotEnoughVotingPowerSigned is returned when not enough validators signed
 // a commit.
 type ErrNotEnoughVotingPowerSigned struct {
-	Got    uint64
-	Needed uint64
+	Got    int64
+	Needed int64
 }
 
 func (e ErrNotEnoughVotingPowerSigned) Error() string {
@@ -56,12 +56,12 @@ func (e ErrNotEnoughVotingPowerSigned) Error() string {
 // Validator state for each Validator
 type Validator struct {
 	Address          common.Address `json:"address"`
-	VotingPower      uint64         `json:"votingPower"`
+	VotingPower      int64          `json:"votingPower"`
 	ProposerPriority int64          `json:"proposerPriority"`
 }
 
 // NewValidator ...
-func NewValidator(addr common.Address, votingPower uint64) *Validator {
+func NewValidator(addr common.Address, votingPower int64) *Validator {
 	return &Validator{
 		Address:          addr,
 		VotingPower:      votingPower,
@@ -169,22 +169,22 @@ func ValidatorFromProto(vp *kproto.Validator) (*Validator, error) {
 // RandValidator returns a randomized validator, useful for testing.
 // UNSTABLE
 // EXPOSED FOR TESTING.
-func RandValidator(randPower bool, minPower uint64) (*Validator, PrivValidator) {
+func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
 	privVal := NewMockPV()
 	votePower := minPower
 	if randPower {
-		votePower += uint64(rand.Uint32())
+		votePower += int64(rand.Int63())
 	}
 	pubKey := privVal.GetPubKey()
 	val := NewValidator(crypto.PubkeyToAddress(pubKey), votePower)
 	return val, privVal
 }
 
-func RandValidatorCS(randPower bool, minPower uint64) (*Validator, *DefaultPrivValidator) {
+func RandValidatorCS(randPower bool, minPower int64) (*Validator, *DefaultPrivValidator) {
 	privKey, _ := crypto.GenerateKey()
 	votePower := minPower
 	if randPower {
-		votePower += uint64(rand.Uint32())
+		votePower += int64(rand.Int63())
 	}
 	privVal := NewDefaultPrivValidator(privKey)
 	val := NewValidator(privVal.GetAddress(), votePower)

@@ -375,7 +375,7 @@ func (evpool *Pool) AddEvidence(ev types.Evidence) error {
 func (evpool *Pool) AddEvidenceFromConsensus(ev types.Evidence, time time.Time, valSet *types.ValidatorSet) error {
 	var (
 		vals       []*types.Validator
-		totalPower uint64
+		totalPower int64
 	)
 
 	// we already have this evidence, log this but don't return an error.

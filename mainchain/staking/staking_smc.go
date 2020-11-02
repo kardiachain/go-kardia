@@ -160,7 +160,7 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 
 	vals := make([]*types.Validator, len(valSet.ValAddrs))
 	for i, valAddr := range valSet.ValAddrs {
-		vals[i] = types.NewValidator(valAddr, valSet.Powers[i].Uint64())
+		vals[i] = types.NewValidator(valAddr, valSet.Powers[i].Int64())
 	}
 	return vals, nil
 }
