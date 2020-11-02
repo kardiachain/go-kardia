@@ -30,13 +30,14 @@ import (
 
 func TestStoreLoadValidators(t *testing.T) {
 	stateDB := memorydb.New()
+	stateStore := cstate.NewStore(stateDB)
 	val, _ := types.RandValidator(true, 10)
 	vals := types.NewValidatorSet([]*types.Validator{val})
 
 	// 1) LoadValidators loads validators using a height where they were last changed
 	cstate.SaveValidatorsInfo(stateDB, 1, 1, vals)
 	cstate.SaveValidatorsInfo(stateDB, 2, 1, vals)
-	loadedVals, err := cstate.LoadValidators(stateDB, 2)
+	loadedVals, err := stateStore.LoadValidators(2)
 	require.NoError(t, err)
 	assert.NotZero(t, loadedVals.Size())
 
@@ -44,7 +45,7 @@ func TestStoreLoadValidators(t *testing.T) {
 
 	cstate.SaveValidatorsInfo(stateDB, cstate.ValSetCheckpointInterval, 1, vals)
 
-	loadedVals, err = cstate.LoadValidators(stateDB, cstate.ValSetCheckpointInterval)
+	loadedVals, err = stateStore.LoadValidators(cstate.ValSetCheckpointInterval)
 	require.NoError(t, err)
 	assert.NotZero(t, loadedVals.Size())
 }

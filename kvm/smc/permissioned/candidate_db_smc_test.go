@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 
 	"encoding/hex"
@@ -273,7 +274,7 @@ func SetupContractAbi() (*state.StateDB, common.Address, *abi.ABI, error) {
 func ApplyTransactionReturnLog(bc base.BaseBlockChain, statedb *state.StateDB, tx *types.Transaction) ([]*types.Log, error) {
 	var (
 		usedGas = new(uint64)
-		header  = &types.Header{Time: uint64(time.Now().Unix()), GasLimit: 10000000}
+		header  = &types.Header{Time: time.Now(), GasLimit: 10000000}
 		gp      = new(types.GasPool).AddGas(10000000)
 		logger  = log.New()
 	)
@@ -298,7 +299,7 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, *tx_pool.TxPool, error
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g, &types.BaseAccount{
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g, &configs.BaseAccount{
 		Address:    address,
 		PrivateKey: *privateKey,
 	})

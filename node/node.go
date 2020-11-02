@@ -79,6 +79,7 @@ type Node struct {
 	stop       chan struct{} // Channel to wait for termination notifications
 	lock       sync.RWMutex
 	blockStore types.StoreDB
+	stateDB    cstate.Store
 	nodeKey    *p2p.NodeKey
 	transport  *p2p.MultiplexTransport
 	addrBook   pex.AddrBook // known peers
@@ -137,8 +138,15 @@ func New(conf *Config) (*Node, error) {
 		return nil, err
 	}
 
+	stateDB := cstate.NewStore(db.DB())
+
 	nodeKey := &p2p.NodeKey{PrivKey: conf.NodeKey()}
-	state, err := cstate.LoadStateFromDBOrGenesisDoc(db.DB(), conf.Genesis)
+	state, err := stateDB.LoadStateFromDBOrGenesisDoc(conf.Genesis)
+
+	if err != nil {
+		return nil, err
+	}
+
 	nodeInfo, err := makeNodeInfo(conf, nodeKey, state)
 	if err != nil {
 		return nil, err
@@ -179,6 +187,7 @@ func New(conf *Config) (*Node, error) {
 	node.addrBook = addrBook
 	node.pexReactor = pexReactor
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
+	node.stateDB = stateDB
 	return node, nil
 }
 
@@ -235,6 +244,7 @@ func (n *Node) OnStart() error {
 			services:   make(map[reflect.Type]Service),
 			EventMux:   n.eventmux,
 			BlockStore: n.blockStore,
+			StateDB:    n.stateDB,
 		}
 		for kind, s := range services { // copy needed for threaded access
 			ctx.services[kind] = s
@@ -257,9 +267,9 @@ func (n *Node) OnStart() error {
 		// Start the next service, stopping all previous upon failure
 		if err := service.Start(n.sw); err != nil {
 			for _, kind := range started {
-				services[kind].Stop()
+				_ = services[kind].Stop()
 			}
-			n.sw.Stop()
+			_ = n.sw.Stop()
 
 			return err
 		}
@@ -270,9 +280,9 @@ func (n *Node) OnStart() error {
 	// Lastly start the configured RPC interfaces
 	if err := n.startRPC(services); err != nil {
 		for _, service := range services {
-			service.Stop()
+			_ = service.Stop()
 		}
-		n.sw.Stop()
+		_ = n.sw.Stop()
 		return err
 	}
 

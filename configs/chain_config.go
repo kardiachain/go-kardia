@@ -32,7 +32,7 @@ import (
 // set of configuration options.
 type ChainConfig struct {
 	// Various consensus engines
-	Kaicon *KaiconConfig `json:"kaicon,omitempty"`
+	Kaicon *KaiconConfig `json:"kaicon,omitempty" yaml:"KaiconConfig"`
 
 	// BaseAccount is used to set default execute account for
 	*BaseAccount `json:"baseAccount,omitempty"`
@@ -47,8 +47,8 @@ type BaseAccount struct {
 // KaiconConfig is the consensus engine configs for Kardia BFT DPoS.
 type KaiconConfig struct {
 	// TODO(huny): implement this
-	Period uint64 `json:"period"` // Number of seconds between blocks to enforce
-	Epoch  uint64 `json:"epoch"`  // Epoch length to reset votes and checkpoint
+	Period uint64 `json:"period" yaml:"Period"` // Number of seconds between blocks to enforce
+	Epoch  uint64 `json:"epoch" yaml:"Epoch"`   // Epoch length to reset votes and checkpoint
 }
 
 // String implements the stringer interface, returning the consensus engine details.

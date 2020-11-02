@@ -28,8 +28,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dev"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/nat"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
@@ -64,16 +62,12 @@ type Config struct {
 }
 
 var DefaultConfig = node.Config{
-	DataDir:          node.DefaultDataDir(),
+	DataDir:          configs.DefaultDataDir(),
 	HTTPPort:         DefaultHTTPPort,
 	HTTPModules:      []string{"node", "kai", "tx", "account"},
 	HTTPVirtualHosts: []string{"0.0.0.0", "localhost"},
 	HTTPCors:         []string{"*"},
-	P2P: p2p.Config{
-		ListenAddr: DefaultListenAddr,
-		MaxPeers:   25,
-		NAT:        nat.Any(),
-	},
+	P2P:              configs.DefaultP2PConfig(),
 	MainChainConfig: node.MainChainConfig{
 		NetworkId: privateNetworkId,
 		DBInfo:    storage.NewLevelDbInfo(MainChainDataDir, DefaultDbCache, DefaultDbHandles),
@@ -91,9 +85,6 @@ func SetUp(config *Config) (nodeConfig *node.Config, err error) {
 	}
 	if config.DataDir != nil {
 		nodeConfig.DataDir = *config.DataDir
-	}
-	if config.ListenAddr != nil {
-		nodeConfig.P2P.ListenAddr = *config.ListenAddr
 	}
 
 	if config.ChainDataDir != nil && config.DbCache != nil && config.DbHandles != nil {
@@ -135,7 +126,7 @@ func SetUp(config *Config) (nodeConfig *node.Config, err error) {
 	nodeIndex := index - 1
 
 	// Get NodeMetadata
-	nodeConfig.NodeMetadata, err = dev.GetNodeMetadataByIndex(nodeIndex)
+	nodeConfig.NodeMetadata, _ = dev.GetNodeMetadataByIndex(nodeIndex)
 
 	nodeDir := filepath.Join(nodeConfig.DataDir, nodeConfig.Name)
 	if config.ClearData {

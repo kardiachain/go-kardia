@@ -28,23 +28,25 @@ const (
 	KardiaPrivKeyToCallSmc = "ae1a52546294bed6e734185775dbc84009de00bdf51b709471e2415c31ceeed7"
 
 	// constants related to rate & addOrder function from smc
-	KAI                                = "KAI"
-	ETH                                = "ETH"
-	NEO                                = "NEO"
+	KAI = "KAI"
+	ETH = "ETH"
+	NEO = "NEO"
 
 	// constants related to candidate exchange, Kardia part
-	KardiaCandidateExchangeSmcIndex    = 6
-	KardiaForwardRequestFunction       = "forwardRequest"
-	KardiaForwardResponseFunction      = "forwardResponse"
-	KardiaForwardResponseFields        = 4
-	KardiaForwardResponseEmailIndex    = 0
-	KardiaForwardResponseResponseIndex = 1
-	KardiaForwardResponseFromOrgIndex  = 2
-	KardiaForwardResponseToOrgIndex    = 3
-	KardiaForwardRequestFields         = 3
-	KardiaForwardRequestEmailIndex     = 0
-	KardiaForwardRequestFromOrgIndex   = 1
-	KardiaForwardRequestToOrgIndex     = 2
+	KardiaCandidateExchangeSmcAddress     = "0x00000000000000000000000000000000736D6338"
+	KardiaPrivateChainCandidateSmcAddress = "0x00000000000000000000000000000000736D6337"
+	KardiaPermissionSmcAddress            = "0x00000000000000000000000000000000736D6336"
+	KardiaForwardRequestFunction          = "forwardRequest"
+	KardiaForwardResponseFunction         = "forwardResponse"
+	KardiaForwardResponseFields           = 4
+	KardiaForwardResponseEmailIndex       = 0
+	KardiaForwardResponseResponseIndex    = 1
+	KardiaForwardResponseFromOrgIndex     = 2
+	KardiaForwardResponseToOrgIndex       = 3
+	KardiaForwardRequestFields            = 3
+	KardiaForwardRequestEmailIndex        = 0
+	KardiaForwardRequestFromOrgIndex      = 1
+	KardiaForwardRequestToOrgIndex        = 2
 
 	// constants related to candidate exchange, private chain part
 	PrivateChainCandidateDBSmcIndex                     = 5
@@ -62,9 +64,9 @@ const (
 
 	// default value for 0mq
 	DefaultSubscribedEndpoint = "tcp://127.0.0.1:5555"
-	DefaultPublishedEndpoint = "tcp://127.0.0.1:5554"
+	DefaultPublishedEndpoint  = "tcp://127.0.0.1:5554"
 )
 
 var (
-	ErrUnsupportedMethod                = errors.New("method is not supported by dual logic")
+	ErrUnsupportedMethod = errors.New("method is not supported by dual logic")
 )

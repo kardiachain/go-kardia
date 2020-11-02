@@ -27,6 +27,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
+	"strings"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/kai/base"
@@ -39,11 +42,10 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/tool"
 	"github.com/kardiachain/go-kardiamain/types"
-	"math/big"
-	"strings"
 )
 
 const PRIVATE_KARDIA = "PRIVATE"
+
 var ErrInsufficientCandidateRequestData = errors.New("insufficient candidate request data")
 var ErrInsufficientCandidateResponseData = errors.New("insufficient candidate response data")
 var ErrUnpackForwardRequestInfo = errors.New("error unpacking info forward request input")
@@ -435,7 +437,7 @@ func (p *PrivateKardiaProxy) UnLock() {
 // CreateForwardRequestTx creates tx call to Kardia candidate exchange contract to forward a candidate request to another
 // external chain
 func CreateForwardRequestTx(email string, fromOrgId string, toOrgId string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
-	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
+	exchangeSmcAbi := configs.GetContractABIByAddress(configs.KardiaCandidateExchangeSmcAddress)
 	if exchangeSmcAbi == "" {
 		return nil, errAbiNotFound
 	}
@@ -447,7 +449,7 @@ func CreateForwardRequestTx(email string, fromOrgId string, toOrgId string, txPo
 	if err != nil {
 		return nil, err
 	}
-	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), exchangeSmcAddr, requestInfoInput, txPool, false), nil
+	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), common.HexToAddress(configs.KardiaCandidateExchangeSmcAddress), requestInfoInput, txPool, false), nil
 }
 
 // CreateForwardResponseTx creates tx call to Kardia candidate exchange contract to fulfill a candidate info request
@@ -455,7 +457,7 @@ func CreateForwardRequestTx(email string, fromOrgId string, toOrgId string, txPo
 // candidate info
 func CreateForwardResponseTx(email string, response string, fromOrgId string, toOrgId string,
 	txPool *tx_pool.TxPool) (*types.Transaction, error) {
-	exchangeSmcAddr, exchangeSmcAbi := configs.GetContractDetailsByIndex(configs.KardiaCandidateExchangeSmcIndex)
+	exchangeSmcAbi := configs.GetContractABIByAddress(configs.KardiaCandidateExchangeSmcAddress)
 	if exchangeSmcAbi == "" {
 		return nil, errAbiNotFound
 	}
@@ -467,9 +469,8 @@ func CreateForwardResponseTx(email string, response string, fromOrgId string, to
 	if err != nil {
 		return nil, err
 	}
-	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), exchangeSmcAddr, requestInfoInput, txPool, false), nil
+	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), common.HexToAddress(configs.KardiaCandidateExchangeSmcAddress), requestInfoInput, txPool, false), nil
 }
-
 
 // Return a common private key to call to Kardia smc from dual node
 func GetPrivateKeyToCallKardiaSmc() *ecdsa.PrivateKey {

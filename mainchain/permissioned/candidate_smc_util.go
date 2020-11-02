@@ -20,6 +20,9 @@ package permissioned
 
 import (
 	"crypto/ecdsa"
+	"math/big"
+	"strings"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/state"
@@ -30,8 +33,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/tool"
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/pkg/errors"
-	"math/big"
-	"strings"
 )
 
 type CandidateSmcUtil struct {
@@ -42,8 +43,6 @@ type CandidateSmcUtil struct {
 	StateDB         *state.StateDB
 	PrivateKey      *ecdsa.PrivateKey
 }
-
-const PrivateChainCandidateSmcIndex = 5
 
 type CandidateInfo struct {
 	Name       string
@@ -59,7 +58,8 @@ func NewCandidateSmcUtil(bc base.BaseBlockChain, key *ecdsa.PrivateKey) (*Candid
 	if err != nil {
 		return nil, err
 	}
-	privateChainSmcAddr, privateChainSmcAbi := configs.GetContractDetailsByIndex(PrivateChainCandidateSmcIndex)
+	privateChainSmcAddr := common.HexToAddress(configs.KardiaPrivateChainCandidateSmcAddress)
+	privateChainSmcAbi := configs.GetContractABIByAddress(configs.KardiaPrivateChainCandidateSmcAddress)
 	if privateChainSmcAbi == "" {
 		return nil, errors.New("Error getting abi by index")
 	}

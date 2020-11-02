@@ -22,15 +22,11 @@ import (
 	"crypto/ecdsa"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"path/filepath"
 	"runtime"
 	"time"
-
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
@@ -56,37 +52,7 @@ const (
 	LevelDb = iota
 )
 
-type flags struct {
-	config string
-}
-
-func initFlag(args *flags) {
-	flag.StringVar(&args.config, "config", "", "path to config file, if config is defined then it is priority used.")
-}
-
 var args flags
-
-func init() {
-	initFlag(&args)
-}
-
-// Load attempts to load the config from given path and filename.
-func LoadConfig(path string) (*Config, error) {
-	configPath := filepath.Join(path)
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return nil, errors.Wrap(err, "Unable to load config")
-	}
-	configData, err := ioutil.ReadFile(configPath)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to read config")
-	}
-	config := Config{}
-	err = yaml.Unmarshal(configData, &config)
-	if err != nil {
-		return nil, errors.Wrap(err, "Problem unmarshaling config json data")
-	}
-	return &config, nil
-}
 
 // getP2P gets p2p's config from config
 func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
@@ -116,36 +82,38 @@ func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
 	if isDual {
 		database = c.DualChain.Database
 	}
-	switch database.Type {
-	case LevelDb:
-		nodeDir := filepath.Join(c.DataDir, c.Name, database.Dir)
-		if database.Drop == 1 {
-			// Clear all contents within data dir
-			if err := removeDirContents(nodeDir); err != nil {
-				panic(err)
-			}
+	nodeDir := filepath.Join(c.DataDir, c.Name, database.Dir)
+	if database.Drop == 1 {
+		// Clear all contents within data dir
+		if err := removeDirContents(nodeDir); err != nil {
+			panic(err)
 		}
-		return storage.NewLevelDbInfo(nodeDir, database.Caches, database.Handles)
-	default:
-		return nil
 	}
+	return storage.NewLevelDbInfo(nodeDir, database.Caches, database.Handles)
 }
 
-// getTxPoolConfig gets txPoolConfig from config
+// getTxPoolConfig gets txPoolConfig from config, based on target network
 func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
-	txPool := c.MainChain.TxPool
+	txPool := c.Genesis.TxPool
+	if args.network == Mainnet {
+		return tx_pool.DefaultTxPoolConfig
+	}
 	return tx_pool.TxPoolConfig{
+		AccountSlots:  txPool.AccountSlots,
+		AccountQueue:  txPool.AccountQueue,
 		GlobalSlots:   txPool.GlobalSlots,
 		GlobalQueue:   txPool.GlobalQueue,
-		MaxBatchBytes: tx_pool.DefaultTxPoolConfig.MaxBatchBytes,
-		Broadcast:     tx_pool.DefaultTxPoolConfig.Broadcast,
+		MaxBatchBytes: txPool.MaxBatchBytes,
+		Broadcast:     txPool.Broadcast,
 	}
 }
 
-// getGenesis gets genesis data from config
-func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
-	var ga genesis.GenesisAlloc
-	var err error
+// getGenesisConfig gets node data from config
+func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
+	var (
+		ga  genesis.GenesisAlloc
+		err error
+	)
 	g := c.MainChain.Genesis
 	if isDual {
 		g = c.DualChain.Genesis
@@ -162,31 +130,24 @@ func (c *Config) getGenesis(isDual bool) (*genesis.Genesis, error) {
 			genesisAccounts[address] = amount
 		}
 
-		for _, contract := range g.Contracts {
-			genesisContracts[contract.Address] = contract.ByteCode
+		for key, contract := range g.Contracts {
+			configs.LoadGenesisContract(key, contract.Address, contract.ByteCode, contract.ABI)
+			if key != configs.StakingContract {
+				genesisContracts[contract.Address] = contract.ByteCode
+			}
 		}
 		ga, err = genesis.GenesisAllocFromAccountAndContract(genesisAccounts, genesisContracts)
 		if err != nil {
 			return nil, err
 		}
-
 	}
 
 	return &genesis.Genesis{
-		Config:     configs.TestnetChainConfig,
-		Alloc:      ga,
-		Validators: g.Validators,
-		ConsensusParams: &kaiproto.ConsensusParams{
-			Block: kaiproto.BlockParams{
-				MaxGas:     configs.BlockGasLimit,
-				TimeIotaMs: 1000,
-			},
-			Evidence: kaiproto.EvidenceParams{
-				MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
-				MaxAgeDuration:  48 * time.Hour,
-				MaxBytes:        1048576, // 1MB
-			},
-		},
+		Config:          c.getChainConfig(),
+		Alloc:           ga,
+		Validators:      g.Validators,
+		ConsensusParams: c.getConsensusParams(),
+		Consensus:       c.getConsensusConfig(),
 	}, nil
 }
 
@@ -197,11 +158,7 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 	if dbInfo == nil {
 		return nil, fmt.Errorf("cannot get dbInfo")
 	}
-	genesisData, err := c.getGenesis(false)
-	if err != nil {
-		return nil, err
-	}
-	baseAccount, err := c.getBaseAccount(false)
+	genesisData, err := c.getGenesisConfig(false)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +171,7 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		NetworkId:   chain.NetworkID,
 		ChainId:     chain.ChainID,
 		ServiceName: chain.ServiceName,
-		BaseAccount: baseAccount,
+		Consensus:   genesisData.Consensus,
 	}
 	return &mainChainConfig, nil
 }
@@ -225,7 +182,7 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 	if dbInfo == nil {
 		return nil, fmt.Errorf("cannot get dbInfo")
 	}
-	genesisData, err := c.getGenesis(true)
+	genesisData, err := c.getGenesisConfig(true)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +192,7 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		BlockSize:   c.DualChain.EventPool.BlockSize,
 	}
 
-	baseAccount, err := c.getBaseAccount(true)
+	baseAccount, err := c.getBaseAccount()
 	if err != nil {
 		return nil, err
 	}
@@ -305,18 +262,14 @@ func (c *Config) newLog() log.Logger {
 }
 
 // getBaseAccount gets base account that is used to execute internal smart contract
-func (c *Config) getBaseAccount(isDual bool) (*configs.BaseAccount, error) {
+func (c *Config) getBaseAccount() (*configs.BaseAccount, error) {
 	var privKey *ecdsa.PrivateKey
 	var err error
 	var address common.Address
 
-	if isDual {
-		address = common.HexToAddress(c.DualChain.BaseAccount.Address)
-		privKey, err = crypto.HexToECDSA(c.DualChain.BaseAccount.PrivateKey)
-	} else {
-		address = common.HexToAddress(c.MainChain.BaseAccount.Address)
-		privKey, err = crypto.HexToECDSA(c.MainChain.BaseAccount.PrivateKey)
-	}
+	address = common.HexToAddress(c.DualChain.BaseAccount.Address)
+	privKey, err = crypto.HexToECDSA(c.DualChain.BaseAccount.PrivateKey)
+
 	if err != nil {
 		return nil, fmt.Errorf("baseAccount: Invalid privatekey: %v", err)
 	}
@@ -324,6 +277,54 @@ func (c *Config) getBaseAccount(isDual bool) (*configs.BaseAccount, error) {
 		Address:    address,
 		PrivateKey: *privKey,
 	}, nil
+}
+
+// getConsensusConfig gets consensus timeout configs
+func (c *Config) getConsensusConfig() *configs.ConsensusConfig {
+	if args.network == Mainnet {
+		return configs.DefaultConsensusConfig()
+	}
+	return &configs.ConsensusConfig{
+		TimeoutPropose:              time.Duration(c.Genesis.Consensus.TimeoutPropose) * time.Millisecond,
+		TimeoutProposeDelta:         time.Duration(c.Genesis.Consensus.TimeoutProposeDelta) * time.Millisecond,
+		TimeoutPrevote:              time.Duration(c.Genesis.Consensus.TimeoutPrevote) * time.Millisecond,
+		TimeoutPrevoteDelta:         time.Duration(c.Genesis.Consensus.TimeoutPrevoteDelta) * time.Millisecond,
+		TimeoutPrecommit:            time.Duration(c.Genesis.Consensus.TimeoutPrecommit) * time.Millisecond,
+		TimeoutPrecommitDelta:       time.Duration(c.Genesis.Consensus.TimeoutPrecommitDelta) * time.Millisecond,
+		TimeoutCommit:               time.Duration(c.Genesis.Consensus.TimeoutCommit) * time.Millisecond,
+		IsSkipTimeoutCommit:         c.Genesis.Consensus.IsSkipTimeoutCommit,
+		IsCreateEmptyBlocks:         c.Genesis.Consensus.IsCreateEmptyBlocks,
+		CreateEmptyBlocksInterval:   time.Duration(c.Genesis.Consensus.CreateEmptyBlocksInterval) * time.Millisecond,
+		PeerGossipSleepDuration:     time.Duration(c.Genesis.Consensus.PeerGossipSleepDuration) * time.Millisecond,
+		PeerQueryMaj23SleepDuration: time.Duration(c.Genesis.Consensus.PeerQueryMaj23SleepDuration) * time.Millisecond,
+	}
+}
+
+// getConsensusConfig gets consensus config params
+func (c *Config) getConsensusParams() *kaiproto.ConsensusParams {
+	defaultCsParams := configs.DefaultConsensusParams()
+	if args.network == Mainnet {
+		return defaultCsParams
+	}
+	return &kaiproto.ConsensusParams{
+		Block: kaiproto.BlockParams{
+			MaxBytes:   c.Genesis.ConsensusParams.Block.MaxBytes,
+			MaxGas:     c.Genesis.ConsensusParams.Block.MaxGas,
+			TimeIotaMs: defaultCsParams.Block.TimeIotaMs,
+		},
+		Evidence: kaiproto.EvidenceParams{
+			MaxAgeNumBlocks: c.Genesis.ConsensusParams.Evidence.MaxAgeNumBlocks,
+			MaxAgeDuration:  time.Duration(c.Genesis.ConsensusParams.Evidence.MaxAgeDuration) * time.Hour,
+			MaxBytes:        c.Genesis.ConsensusParams.Evidence.MaxBytes,
+		},
+	}
+}
+
+func (c *Config) getChainConfig() *configs.ChainConfig {
+	if args.network == Mainnet {
+		return configs.MainnetChainConfig
+	}
+	return c.Genesis.ChainConfig
 }
 
 // Start starts chain with given config
@@ -343,7 +344,7 @@ func (c *Config) Start() {
 		return
 	}
 
-	genesis, err := c.getGenesis(false)
+	genesis, err := c.getGenesisConfig(false)
 	if err != nil {
 		panic(err)
 	}
@@ -360,9 +361,6 @@ func (c *Config) Start() {
 		logger.Error("error while adding kardia service", "err", err)
 		return
 	}
-
-	// TODO:@lew Temporary disable DualChain for testing
-	c.DualChain = nil
 
 	if c.DualChain != nil {
 		if err := n.Register(service.NewDualService); err != nil {
@@ -384,9 +382,6 @@ func (c *Config) Start() {
 		}
 		// save watchers to db
 		c.SaveWatchers(kardiaService, c.MainChain.Events)
-	}
-
-	if c.DualChain != nil {
 	}
 
 	if err := c.StartDual(n); err != nil {
@@ -466,20 +461,11 @@ func (c *Config) SaveWatchers(service node.Service, events []Event) {
 			if event.MasterABI != nil {
 				masterAbi = *event.MasterABI
 			}
-			watchers := make(types.Watchers, 0)
-			for _, action := range event.Watchers {
-				watchers = append(watchers, &types.Watcher{
-					Method:         action.Method,
-					WatcherActions: action.WatcherActions,
-					DualActions:    action.DualActions,
-				})
-			}
 			smc := &types.KardiaSmartcontract{
 				MasterSmc:  event.MasterSmartContract,
 				MasterAbi:  masterAbi,
 				SmcAddress: event.ContractAddress,
 				SmcAbi:     abi,
-				Watchers:   watchers,
 			}
 			service.DB().WriteEvent(smc)
 		}
@@ -543,11 +529,9 @@ func waitForever() {
 
 func main() {
 	flag.Parse()
-	if args.config != "" {
-		config, err := LoadConfig(args.config)
-		if err != nil {
-			panic(err)
-		}
-		config.Start()
+	config, err := LoadConfig(args)
+	if err != nil {
+		panic(err)
 	}
+	config.Start()
 }

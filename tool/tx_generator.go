@@ -266,10 +266,10 @@ func randomTxAddresses(accounts []Account) (senderKey *ecdsa.PrivateKey, toAddr 
 }
 
 func randomGenesisAddress() common.Address {
-	size := len(configs.GenesisAddrKeys)
+	size := len(GenesisAddrKeys)
 	randomI := rand.Intn(size)
 	index := 0
-	for addrS := range configs.GenesisAddrKeys {
+	for addrS := range GenesisAddrKeys {
 		if index == randomI {
 			return common.HexToAddress(addrS)
 		}
@@ -300,10 +300,10 @@ func randomGenesisPrivateKey(accounts []Account) *ecdsa.PrivateKey {
 }
 
 func GetRandomGenesisAccount() common.Address {
-	size := len(configs.GenesisAccounts)
+	size := len(GenesisAccounts)
 	randomI := rand.Intn(size)
 	index := 0
-	for addrS := range configs.GenesisAccounts {
+	for addrS := range GenesisAccounts {
 		if index == randomI {
 			return common.HexToAddress(addrS)
 		}
