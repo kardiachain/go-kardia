@@ -31,9 +31,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"github.com/rs/cors"
-	"gopkg.in/yaml.v2"
 
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
@@ -53,10 +51,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 
 	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-)
-
-const (
-	LevelDb = iota
 )
 
 var args flags
@@ -83,7 +77,7 @@ func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
 	return p2pConfig, nil
 }
 
-// getDbInfo gets database information from config. Currently, it only supports levelDb and Mondodb
+// getDbInfo gets database information from config. Currently, it only supports levelDb
 func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
 	database := c.MainChain.Database
 	if isDual {
@@ -351,12 +345,12 @@ func (c *Config) Start() {
 		return
 	}
 
-	genesis, err := c.getGenesisConfig(false)
+	genesisCfg, err := c.getGenesisConfig(false)
 	if err != nil {
 		panic(err)
 	}
 
-	nodeConfig.Genesis = genesis
+	nodeConfig.Genesis = genesisCfg
 	// init new node from nodeConfig
 	n, err := node.New(nodeConfig)
 	if err != nil {
@@ -405,7 +399,6 @@ func (c *Config) Start() {
 		return
 	}
 
-	go displayKardiaPeers(n)
 	waitForever()
 }
 
@@ -467,7 +460,6 @@ func (c *Config) StartDual(n *node.Node) error {
 }
 
 func (c *Config) StartDebug() error {
-	log.Info("Start pprof debug")
 	go func() {
 		router := mux.NewRouter()
 		router.HandleFunc("/debug/pprof/", pprof.Index)
@@ -555,10 +547,6 @@ func runtimeSystemSettings() error {
 		}
 	}
 	return nil
-}
-
-func displayKardiaPeers(n *node.Node) {
-
 }
 
 func waitForever() {
