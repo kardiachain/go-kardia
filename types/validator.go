@@ -19,6 +19,7 @@
 package types
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -109,11 +110,11 @@ func (v *Validator) CompareProposerPriority(other *Validator) *Validator {
 	case v.ProposerPriority < other.ProposerPriority:
 		return other
 	default:
-		result := v.Address.Equal(other.Address)
+		result := bytes.Compare(v.Address.Bytes(), other.Address.Bytes())
 		switch {
-		case result == false:
+		case result < 0:
 			return v
-		case result == true:
+		case result > 0:
 			return other
 		default:
 			panic("Cannot compare identical validators")
