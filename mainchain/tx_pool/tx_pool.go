@@ -33,7 +33,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/metrics"
 	"github.com/kardiachain/go-kardiamain/lib/prque"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -811,9 +810,6 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 
 // addTxs attempts to queue a batch of transactions if they are valid.
 func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
-	// Temp logger for debug, remove when stable
-	logger := log.New()
-	logger.Debug("Txs size", "size", len(txs))
 	defer txsTimer.Stop()
 	// Filter out known ones without obtaining the pool lock or recovering signatures
 	var (
@@ -831,8 +827,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 			continue
 		}
 		// Cache senders in transactions before obtaining lock (pool.signer is immutable)
-		addr, _ := types.Sender(pool.signer, tx)
-		logger.Debug("Sender addr", "addr", addr)
+		_, _ = types.Sender(pool.signer, tx)
 
 		// Accumulate all unknown transactions for deeper processing
 		news = append(news, tx)
@@ -859,8 +854,6 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 	}
 
 	pool.notifyTxsAvailable()
-
-	logger.Debug("ProcessTxTime", "total", metrics.Get(MetricTxsTime))
 
 	return errs
 }
