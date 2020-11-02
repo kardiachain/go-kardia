@@ -26,6 +26,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -69,16 +70,16 @@ func makeVoteHR(t *testing.T, height uint64, valIndex uint32, round uint32, priv
 		ValidatorIndex:   valIndex,
 		Height:           height,
 		Round:            round,
-		Timestamp:        uint64(time.Now().Unix()),
-		Type:             types.VoteTypePrecommit,
+		Timestamp:        time.Now(),
+		Type:             kproto.PrecommitType,
 		BlockID:          types.BlockID{Hash: blockHash, PartsHeader: blockPartsHeaders},
 	}
 	chainID := "kaicoin"
-
-	err := privVal.SignVote(chainID, vote)
+	kv := vote.ToProto()
+	err := privVal.SignVote(chainID, kv)
 	if err != nil {
 		panic(fmt.Sprintf("Error signing vote: %v", err))
 	}
-
+	vote.Signature = kv.Signature
 	return vote
 }

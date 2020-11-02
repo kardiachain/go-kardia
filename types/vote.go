@@ -45,14 +45,13 @@ type ErrVoteConflictingVotes struct {
 }
 
 func (err *ErrVoteConflictingVotes) Error() string {
-	return fmt.Sprintf("Conflicting votes from validator %v", err.Addr)
+	return fmt.Sprintf("Conflicting votes from validator %v", "val addr")
 }
 
 // NewConflictingVoteError ...
-func NewConflictingVoteError(val *Validator, voteA, voteB *Vote) *ErrVoteConflictingVotes {
+func NewConflictingVoteError(voteA, voteB *Vote) *ErrVoteConflictingVotes {
 	return &ErrVoteConflictingVotes{
 		&DuplicateVoteEvidence{
-			Addr:  val.Address,
 			VoteA: voteA,
 			VoteB: voteB,
 		},

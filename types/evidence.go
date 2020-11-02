@@ -49,18 +49,18 @@ func (err *ErrEvidenceOverflow) Error() string {
 
 // ErrEvidenceInvalid wraps a piece of evidence and the error denoting how or why it is invalid.
 type ErrEvidenceInvalid struct {
-	Evidence   Evidence
-	ErrorValue error
+	Evidence Evidence
+	Reason   error
 }
 
 // NewErrEvidenceInvalid returns a new EvidenceInvalid with the given err.
-func NewErrEvidenceInvalid(ev Evidence, err error) *ErrEvidenceInvalid {
+func NewErrInvalidEvidence(ev Evidence, err error) *ErrEvidenceInvalid {
 	return &ErrEvidenceInvalid{ev, err}
 }
 
 // Error returns a string representation of the error.
 func (err *ErrEvidenceInvalid) Error() string {
-	return fmt.Sprintf("Invalid evidence: %v. Evidence: %v", err.ErrorValue, err.Evidence)
+	return fmt.Sprintf("Invalid evidence: %v. Evidence: %v", err.Reason, err.Evidence)
 }
 
 // EvidenceType enum type
@@ -87,14 +87,9 @@ func MaxEvidencePerBlock(blockMaxBytes int64) (int64, int64) {
 
 // Evidence represents any provable malicious activity by a validator
 type Evidence interface {
-	Height() uint64                                   // height of the equivocation
-	Time() time.Time                                  // time of the equivocation
-	Address() common.Address                          // address of the equivocating validator
-	Bytes() []byte                                    // bytes which comprise the evidence
-	Hash() common.Hash                                // hash of the evidence
-	Verify(chainID string, addr common.Address) error // verify the evidence
-	Equal(Evidence) bool                              // check equality of evidence
-
+	Height() uint64    // height of the equivocation
+	Bytes() []byte     // bytes which comprise the evidence
+	Hash() common.Hash // hash of the evidence
 	ValidateBasic() error
 	String() string
 }
@@ -143,7 +138,6 @@ func EvidenceFromProto(evidence *kproto.Evidence) (Evidence, error) {
 // DuplicateVoteEvidence contains evidence a validator signed two conflicting
 // votes.
 type DuplicateVoteEvidence struct {
-	Addr  common.Address
 	VoteA *Vote
 	VoteB *Vote
 }
@@ -184,11 +178,6 @@ func (dve *DuplicateVoteEvidence) Time() time.Time {
 	return dve.VoteA.Timestamp
 }
 
-// Address returns the address of the validator.
-func (dve *DuplicateVoteEvidence) Address() common.Address {
-	return dve.Addr
-}
-
 // Equal checks if two pieces of evidence are equal.
 func (dve *DuplicateVoteEvidence) Equal(ev Evidence) bool {
 	if _, ok := ev.(*DuplicateVoteEvidence); !ok {
@@ -201,10 +190,15 @@ func (dve *DuplicateVoteEvidence) Equal(ev Evidence) bool {
 	return bytes.Equal(dveHash.Bytes(), evHash.Bytes())
 }
 
-// Bytes Hash returns the hash of the evidence.
+// Bytes returns the proto-encoded evidence as a byte array.
 func (dve *DuplicateVoteEvidence) Bytes() []byte {
-	b, _ := rlp.EncodeToBytes(dve)
-	return b
+	pbe := dve.ToProto()
+	bz, err := pbe.Marshal()
+	if err != nil {
+		panic(err)
+	}
+
+	return bz
 }
 
 // Hash returns the hash of the evidence.
@@ -316,43 +310,51 @@ func DuplicateVoteEvidenceFromProto(pb *kproto.DuplicateVoteEvidence) (*Duplicat
 	return dve, dve.ValidateBasic()
 }
 
-// UNSTABLE
-type MockEvidence struct {
-	EvidenceHeight  uint64
-	EvidenceTime    time.Time
-	EvidenceAddress common.Address
+//-------------------------------------------- MOCKING --------------------------------------
+
+// unstable - use only for testing
+
+// assumes the round to be 0 and the validator index to be 0
+func NewMockDuplicateVoteEvidence(height uint64, time time.Time, chainID string) *DuplicateVoteEvidence {
+	val := NewMockPV()
+	return NewMockDuplicateVoteEvidenceWithValidator(height, time, val, chainID)
 }
 
-var _ Evidence = &MockEvidence{}
-
-// NewMockEvidence UNSTABLE
-func NewMockEvidence(height uint64, eTime time.Time, idx int, address common.Address) MockEvidence {
-	return MockEvidence{
-		EvidenceHeight:  height,
-		EvidenceTime:    eTime,
-		EvidenceAddress: address}
+func NewMockDuplicateVoteEvidenceWithValidator(height uint64, time time.Time,
+	pv PrivValidator, chainID string) *DuplicateVoteEvidence {
+	addr := pv.GetAddress()
+	voteA := makeMockVote(height, 0, 0, addr, randBlockID(), time)
+	vA := voteA.ToProto()
+	_ = pv.SignVote(chainID, vA)
+	voteA.Signature = vA.Signature
+	voteB := makeMockVote(height, 0, 0, addr, randBlockID(), time)
+	vB := voteB.ToProto()
+	_ = pv.SignVote(chainID, vB)
+	voteB.Signature = vB.Signature
+	return NewDuplicateVoteEvidence(voteA, voteB)
 }
 
-func (e MockEvidence) Height() uint64          { return e.EvidenceHeight }
-func (e MockEvidence) Time() time.Time         { return e.EvidenceTime }
-func (e MockEvidence) Address() common.Address { return e.EvidenceAddress }
-func (e MockEvidence) Hash() common.Hash {
-	return rlpHash([]byte(fmt.Sprintf("%d-%x-%s",
-		e.EvidenceHeight, e.EvidenceAddress, e.EvidenceTime)))
+func randBlockID() BlockID {
+	return BlockID{
+		Hash: common.BytesToHash(common.RandBytes(32)),
+		PartsHeader: PartSetHeader{
+			Total: 1,
+			Hash:  common.BytesToHash(common.RandBytes(32)),
+		},
+	}
 }
-func (e MockEvidence) Bytes() []byte {
-	return []byte(fmt.Sprintf("%d-%x-%s",
-		e.EvidenceHeight, e.EvidenceAddress, e.EvidenceTime))
-}
-func (e MockEvidence) Verify(chainID string, addr common.Address) error { return nil }
-func (e MockEvidence) Equal(ev Evidence) bool {
-	e2 := ev.(MockEvidence)
-	return e.EvidenceHeight == e2.EvidenceHeight &&
-		e.EvidenceAddress.Equal(e2.EvidenceAddress)
-}
-func (e MockEvidence) ValidateBasic() error { return nil }
-func (e MockEvidence) String() string {
-	return fmt.Sprintf("Evidence: %d/%s/%d", e.EvidenceHeight, e.Time(), e.EvidenceAddress)
+
+func makeMockVote(height uint64, round, index uint32, addr common.Address,
+	blockID BlockID, time time.Time) *Vote {
+	return &Vote{
+		Type:             kproto.SignedMsgType(2),
+		Height:           height,
+		Round:            round,
+		BlockID:          blockID,
+		Timestamp:        time,
+		ValidatorAddress: addr,
+		ValidatorIndex:   index,
+	}
 }
 
 //-------------------------------------------
@@ -371,16 +373,6 @@ func (evl EvidenceList) String() string {
 		s += fmt.Sprintf("%s\t\t", e)
 	}
 	return s
-}
-
-// Has returns true if the evidence is in the EvidenceList.
-func (evl EvidenceList) Has(evidence Evidence) bool {
-	for _, ev := range evl {
-		if ev.Equal(evidence) {
-			return true
-		}
-	}
-	return false
 }
 
 // GetRlp implements Rlpable and returns the i'th element of s in rlp.

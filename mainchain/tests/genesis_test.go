@@ -98,10 +98,10 @@ func TestGenesisAllocFromData(t *testing.T) {
 	}
 }
 
-func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*types.ChainConfig, common.Hash, error) {
+func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
-	return genesis.SetupGenesisBlock(log.New(), db, g, &types.BaseAccount{
+	return genesis.SetupGenesisBlock(log.New(), db, g, &configs.BaseAccount{
 		Address:    address,
 		PrivateKey: *privateKey,
 	})

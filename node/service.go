@@ -21,6 +21,8 @@ package node
 import (
 	"reflect"
 
+	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
+
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/rpc"
@@ -35,6 +37,7 @@ type ServiceContext struct {
 	services   map[reflect.Type]Service // Index of the already constructed services
 	EventMux   *event.TypeMux           // Event multiplexer used for decoupled notifications
 	BlockStore types.StoreDB
+	StateDB    cstate.Store
 }
 
 // ResolvePath resolves a user path into the data directory if that was relative

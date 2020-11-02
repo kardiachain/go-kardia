@@ -19,7 +19,6 @@
 package blockchain
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
@@ -40,11 +39,7 @@ import (
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.
 // Get/Set/Commit
 type EvidencePool interface {
-	PendingEvidence(int64) []types.Evidence
-	AddEvidence(types.Evidence) error
-	Update(*types.Block, cstate.LastestBlockState)
-	// IsCommitted indicates if this evidence was already marked committed in another block.
-	IsCommitted(types.Evidence) bool
+	PendingEvidence(int64) ([]types.Evidence, int64)
 }
 
 // BlockOperations TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
@@ -89,11 +84,21 @@ func (bo *BlockOperations) CreateProposalBlock(
 	//maxBytes := lastState.ConsensusParams.Block.MaxBytes
 	// Fetch a limited amount of valid evidence
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(lastState.ConsensusParams.Evidence.MaxBytes)
-	evidence := bo.evPool.PendingEvidence(maxNumEvidence)
+	evidence, _ := bo.evPool.PendingEvidence(maxNumEvidence)
 
 	txs := bo.txPool.ProposeTransactions()
 	bo.logger.Debug("Collected transactions", "txs count", len(txs))
-	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(), lastState.NextValidators.Hash(), lastState.AppHash)
+
+	// Set time.
+	var timestamp time.Time
+	if height == 1 {
+		timestamp = lastState.LastBlockTime // genesis time
+	} else {
+		timestamp = cstate.MedianTime(commit, lastState.LastValidators)
+	}
+
+	header := bo.newHeader(timestamp, height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(),
+		lastState.NextValidators.Hash(), lastState.AppHash)
 	header.GasLimit = lastState.ConsensusParams.Block.MaxGas
 	bo.logger.Info("Creates new header", "header", header)
 
@@ -152,7 +157,7 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartS
 	}
 
 	if !blockParts.IsComplete() {
-		panic(fmt.Sprintf("BlockOperations can only save complete block part sets"))
+		panic("BlockOperations can only save complete block part sets")
 	}
 	bo.blockchain.SaveBlock(block, blockParts, seenCommit)
 
@@ -197,12 +202,12 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 
 // newHeader creates new block header from given data.
 // Some header fields are not ready at this point.
-func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types.BlockID,
+func (bo *BlockOperations) newHeader(time time.Time, height uint64, numTxs uint64, blockID types.BlockID,
 	proposer common.Address, validatorsHash common.Hash, nextValidatorHash common.Hash, appHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:             height,
-		Time:               time.Now(),
+		Time:               time,
 		NumTxs:             numTxs,
 		LastBlockID:        blockID,
 		ProposerAddress:    proposer,

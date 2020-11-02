@@ -125,7 +125,10 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	if err != nil {
 		return nil, err
 	}
-	evPool := evidence.NewPool(kaiDb.DB(), kaiDb.DB())
+	evPool, err := evidence.NewPool(ctx.StateDB, kaiDb.DB(), kai.blockchain)
+	if err != nil {
+		return nil, err
+	}
 	// Set zeroFee to blockchain
 	kai.blockchain.IsZeroFee = config.IsZeroFee
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
@@ -136,9 +139,9 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	kai.evR = evidence.NewReactor(evPool)
 	kai.evR.SetLogger(kai.logger)
-	blockExec := cstate.NewBlockExecutor(kai.blockchain.DB().DB(), evPool, bOper)
+	blockExec := cstate.NewBlockExecutor(ctx.StateDB, evPool, bOper)
 
-	state, err := cstate.LoadStateFromDBOrGenesisDoc(kaiDb.DB(), config.Genesis)
+	state, err := ctx.StateDB.LoadStateFromDBOrGenesisDoc(config.Genesis)
 	if err != nil {
 		return nil, err
 	}
