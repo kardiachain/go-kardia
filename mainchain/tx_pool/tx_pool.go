@@ -137,10 +137,10 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	PriceLimit: 1,
 	PriceBump:  10,
 
-	AccountSlots: 512,
-	GlobalSlots:  49152,
-	AccountQueue: 1024,
-	GlobalQueue:  49152,
+	AccountSlots: 128,
+	GlobalSlots:  16384,
+	AccountQueue: 512,
+	GlobalQueue:  4096,
 
 	Lifetime: 1 * time.Hour,
 
@@ -589,13 +589,13 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrInsufficientFunds
 	}
 	// // Ensure the transaction has more gas than the basic tx fee.
-	// intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, true, pool.istanbul)
-	// if err != nil {
-	// 	return err
-	// }
-	// if tx.Gas() < intrGas {
-	// 	return ErrIntrinsicGas
-	// }
+	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil)
+	if err != nil {
+		return err
+	}
+	if tx.Gas() < intrGas {
+		return ErrIntrinsicGas
+	}
 	return nil
 }
 

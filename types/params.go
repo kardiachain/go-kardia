@@ -18,6 +18,12 @@
 
 package types
 
+import (
+	"time"
+
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+)
+
 const (
 	// MaxBlockSizeBytes is the maximum permitted size of the blocks.
 	MaxBlockSizeBytes = 104857600 // 100MB
@@ -28,3 +34,36 @@ const (
 	// MaxBlockPartsCount is the maximum number of block parts.
 	MaxBlockPartsCount = (MaxBlockSizeBytes / BlockPartSizeBytes) + 1
 )
+
+// DefaultConsensusParams returns a default ConsensusParams.
+func DefaultConsensusParams() *kproto.ConsensusParams {
+	return &kproto.ConsensusParams{
+		Block:     DefaultBlockParams(),
+		Evidence:  DefaultEvidenceParams(),
+		Validator: DefaultValidatorParams(),
+	}
+}
+
+// DefaultBlockParams returns a default BlockParams.
+func DefaultBlockParams() kproto.BlockParams {
+	return kproto.BlockParams{
+		MaxBytes:   22020096, // 21MB
+		MaxGas:     0,
+		TimeIotaMs: 1000, // 1s
+	}
+}
+
+// DefaultEvidenceParams returns a default EvidenceParams.
+func DefaultEvidenceParams() kproto.EvidenceParams {
+	return kproto.EvidenceParams{
+		MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
+		MaxAgeDuration:  48 * time.Hour,
+		MaxBytes:        1048576, // 1MB
+	}
+}
+
+// DefaultValidatorParams returns a default ValidatorParams, which allows
+// only ed25519 pubkeys.
+func DefaultValidatorParams() kproto.ValidatorParams {
+	return kproto.ValidatorParams{}
+}

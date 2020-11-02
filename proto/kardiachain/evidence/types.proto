@@ -4,16 +4,16 @@ package kardiachain.evidence;
 option go_package = "github.com/kardiachain/go-kardiamain/proto/kardiachain/evidence";
 
 import "gogoproto/gogo.proto";
+import "kardiachain/types/evidence.proto";
 import "google/protobuf/timestamp.proto";
 import "kardiachain/types/validator.proto";
-import "kardiachain/types/evidence.proto";
 
 message List {
   repeated kardiachain.types.Evidence evidence = 1;
 }
 
 message Info {
-    kardiachain.types.Evidence evidence                     = 1 [(gogoproto.nullable) = false];
+  kardiachain.types.Evidence          evidence                     = 1 [(gogoproto.nullable) = false];
   google.protobuf.Timestamp time                         = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
   repeated kardiachain.types.Validator validators         = 3;
   int64                               total_voting_power = 4;

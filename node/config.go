@@ -76,8 +76,9 @@ type MainChainConfig struct {
 	// ServiceName is used as log's prefix
 	ServiceName string
 
-	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *configs.BaseAccount
+	// Consensus defines the configuration for the Kardia consensus service,
+	// including timeouts and details about the block structure.
+	Consensus *configs.ConsensusConfig
 }
 
 type DualChainConfig struct {
@@ -105,6 +106,10 @@ type DualChainConfig struct {
 
 	// Dual Network ID
 	DualNetworkID uint64
+
+	// Consensus defines the configuration for the Kardia consensus service,
+	// including timeouts and details about the block structure.
+	Consensus *configs.ConsensusConfig
 }
 
 // NodeMetadata contains privateKey and votingPower and function that get coinbase

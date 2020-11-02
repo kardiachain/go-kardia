@@ -24,6 +24,8 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -519,4 +521,37 @@ func (l *txPricedList) Discard(count int, local *accountSet) types.Transactions 
 		heap.Push(l.items, tx)
 	}
 	return drop
+}
+
+// IntrinsicGas computes the 'intrinsic gas' for a message with the given data.
+func IntrinsicGas(data []byte, contractCreation bool) (uint64, error) {
+	// Set the starting gas for the raw transaction
+	var gas uint64
+	if contractCreation {
+		gas = configs.TxGasContractCreation
+	} else {
+		gas = configs.TxGas
+	}
+	// Bump the required gas by the amount of transactional data
+	if len(data) > 0 {
+		// Zero and non-zero bytes are priced differently
+		var nz uint64
+		for _, byt := range data {
+			if byt != 0 {
+				nz++
+			}
+		}
+		// Make sure we don't exceed uint64 for all data combinations
+		if (math.MaxUint64-gas)/configs.TxDataNonZeroGas < nz {
+			return 0, kvm.ErrOutOfGas
+		}
+		gas += nz * configs.TxDataNonZeroGas
+
+		z := uint64(len(data)) - nz
+		if (math.MaxUint64-gas)/configs.TxDataZeroGas < z {
+			return 0, kvm.ErrOutOfGas
+		}
+		gas += z * configs.TxDataZeroGas
+	}
+	return gas, nil
 }

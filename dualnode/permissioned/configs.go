@@ -135,7 +135,7 @@ func SetUp(config *Config) (nodeConfig *node.Config, err error) {
 	nodeIndex := index - 1
 
 	// Get NodeMetadata
-	nodeConfig.NodeMetadata, err = dev.GetNodeMetadataByIndex(nodeIndex)
+	nodeConfig.NodeMetadata, _ = dev.GetNodeMetadataByIndex(nodeIndex)
 
 	nodeDir := filepath.Join(nodeConfig.DataDir, nodeConfig.Name)
 	if config.ClearData {

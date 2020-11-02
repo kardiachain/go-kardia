@@ -93,20 +93,23 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	dualService.eventPool = event_pool.NewPool(logger, config.DualEventPool, dualService.blockchain)
 
-	lastBlockState, err := cstate.LoadStateFromDBOrGenesisDoc(groupDb.DB(), config.DualGenesis)
+	lastBlockState, err := ctx.StateDB.LoadStateFromDBOrGenesisDoc(config.DualGenesis)
 	if err != nil {
 		return nil, err
 	}
 
-	evPool := evidence.NewPool(groupDb.DB(), groupDb.DB())
+	evPool, err := evidence.NewPool(ctx.StateDB, groupDb.DB(), dualService.blockchain)
+	if err != nil {
+		return nil, err
+	}
 	//evReactor := evidence.NewReactor(evPool)
 
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool, evPool)
-	blockExec := cstate.NewBlockExecutor(groupDb.DB(), evPool, dualService.dualBlockOperations)
+	blockExec := cstate.NewBlockExecutor(ctx.StateDB, evPool, dualService.dualBlockOperations)
 
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
-		configs.DefaultConsensusConfig(),
+		config.Consensus,
 		lastBlockState,
 		dualService.dualBlockOperations,
 		blockExec,
@@ -133,6 +136,7 @@ func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 		DualGenesis:   chainConfig.DualGenesis,
 		IsPrivate:     chainConfig.IsPrivate,
 		BaseAccount:   chainConfig.BaseAccount,
+		Consensus:     chainConfig.Consensus,
 	})
 
 	if err != nil {

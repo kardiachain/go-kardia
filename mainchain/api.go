@@ -287,28 +287,14 @@ func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) (*BlockJSON, error) 
 }
 
 // Validator returns node's validator, nil if current node is not a validator
+// TODO @trinhdn: get validators' info from staking smart contract
 func (s *PublicKaiAPI) Validator() map[string]interface{} {
-	if val := s.kaiService.csManager.Validator(); val != nil {
-		return map[string]interface{}{
-			"address":     val.Address.Hex(),
-			"votingPower": val.VotingPower,
-		}
-	}
 	return nil
 }
 
 // Validators returns a list of validator
+// TODO @trinhdn: get validators' info from staking smart contract
 func (s *PublicKaiAPI) Validators() []map[string]interface{} {
-	if vals := s.kaiService.csManager.Validators(); vals != nil && len(vals) > 0 {
-		results := make([]map[string]interface{}, len(vals))
-		for i, val := range vals {
-			results[i] = map[string]interface{}{
-				"address":     val.Address.Hex(),
-				"votingPower": val.VotingPower,
-			}
-		}
-		return results
-	}
 	return nil
 }
 
