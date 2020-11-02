@@ -28,8 +28,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dev"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/nat"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
@@ -64,16 +62,17 @@ type Config struct {
 }
 
 var DefaultConfig = node.Config{
-	DataDir:          node.DefaultDataDir(),
+	// todo: Uncomment and update config when we support dual node
+	//DataDir:          node.DefaultDataDir(),
 	HTTPPort:         DefaultHTTPPort,
 	HTTPModules:      []string{"node", "kai", "tx", "account"},
 	HTTPVirtualHosts: []string{"0.0.0.0", "localhost"},
 	HTTPCors:         []string{"*"},
-	P2P: p2p.Config{
-		ListenAddr: DefaultListenAddr,
-		MaxPeers:   25,
-		NAT:        nat.Any(),
-	},
+	// todo: uncomment update config when we support dual node
+	//P2P: p2p.Config{
+	//	ListenAddr: DefaultListenAddr,
+	//	MaxPeers:   25,
+	//},
 	MainChainConfig: node.MainChainConfig{
 		NetworkId: privateNetworkId,
 		DBInfo:    storage.NewLevelDbInfo(MainChainDataDir, DefaultDbCache, DefaultDbHandles),
@@ -92,9 +91,10 @@ func SetUp(config *Config) (nodeConfig *node.Config, err error) {
 	if config.DataDir != nil {
 		nodeConfig.DataDir = *config.DataDir
 	}
-	if config.ListenAddr != nil {
-		nodeConfig.P2P.ListenAddr = *config.ListenAddr
-	}
+	// todo: uncomment update config when we support dual node
+	//if config.ListenAddr != nil {
+	//	nodeConfig.P2P.ListenAddr = *config.ListenAddr
+	//}
 
 	if config.ChainDataDir != nil && config.DbCache != nil && config.DbHandles != nil {
 		nodeConfig.MainChainConfig.DBInfo = storage.NewLevelDbInfo(*config.ChainDataDir, *config.DbCache, *config.DbHandles)
