@@ -83,7 +83,6 @@ type BlockJSON struct {
 	AppHash           string               `json:"appHash"`           // txs state
 	EvidenceHash      string               `json:"evidenceHash"`      // hash of evidence
 	Txs               []*PublicTransaction `json:"txs"`
-	Receipts          []*BasicReceipt      `json:"receipts"`
 }
 
 // PublicKaiAPI provides APIs to access Kai full node-related
@@ -95,31 +94,6 @@ type PublicKaiAPI struct {
 // NewPublicKaiAPI creates a new Kai protocol API for full nodes.
 func NewPublicKaiAPI(kaiService *KardiaService) *PublicKaiAPI {
 	return &PublicKaiAPI{kaiService}
-}
-
-// getBasicReceipt is used to get simplified receipt. This function is used when loading block info
-func getBasicReceipt(receipt types.Receipt) *BasicReceipt {
-	logs := getReceiptLogs(receipt)
-	basicReceipt := BasicReceipt{
-		TransactionHash:   receipt.TxHash.Hex(),
-		GasUsed:           receipt.GasUsed,
-		CumulativeGasUsed: receipt.CumulativeGasUsed,
-		ContractAddress:   "0x",
-		Logs:              logs,
-	}
-
-	// Assign receipt status or post state.
-	if len(receipt.PostState) > 0 {
-		basicReceipt.Root = common.Bytes(receipt.PostState)
-	} else {
-		basicReceipt.Status = uint(receipt.Status)
-	}
-	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
-	if receipt.ContractAddress != (common.Address{}) {
-		basicReceipt.ContractAddress = receipt.ContractAddress.Hex()
-	}
-
-	return &basicReceipt
 }
 
 // NewBlockHeaderJSON creates a new BlockHeader JSON data from Block
@@ -180,17 +154,18 @@ func NewBasicBlockJSON(block types.Block) *BlockJSON {
 func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 	txs := block.Transactions()
 	transactions := make([]*PublicTransaction, 0, len(txs))
-	basicReceipts := make([]*BasicReceipt, 0)
-
-	for _, receipt := range receipts {
-		basicReceipts = append(basicReceipts, getBasicReceipt(*receipt))
-	}
 
 	for index, transaction := range txs {
 		idx := uint64(index)
 		tx := NewPublicTransaction(transaction, block.Hash(), block.Height(), idx)
 		// add time for tx
 		tx.Time = block.Header().Time
+		// add additional info from corresponding receipt to transaction
+		receipt := getPublicReceipt(*receipts[idx], transaction, block.Hash(), block.Height(), idx)
+		tx.Logs = receipt.Logs
+		tx.LogsBloom = receipt.LogsBloom
+		tx.Root = receipt.Root
+		tx.Status = receipt.Status
 		transactions = append(transactions, tx)
 	}
 
@@ -211,7 +186,6 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		ConsensusHash:     block.Header().ConsensusHash.Hex(),
 		AppHash:           block.Header().AppHash.Hex(),
 		EvidenceHash:      block.Header().EvidenceHash.Hex(),
-		Receipts:          basicReceipts,
 	}
 }
 
@@ -299,18 +273,22 @@ func (s *PublicKaiAPI) Validators() []map[string]interface{} {
 }
 
 type PublicTransaction struct {
-	BlockHash        string    `json:"blockHash"`
-	BlockNumber      uint64    `json:"blockNumber"`
-	Time             time.Time `json:"time"`
-	From             string    `json:"from"`
-	Gas              uint64    `json:"gas"`
-	GasPrice         uint64    `json:"gasPrice"`
-	Hash             string    `json:"hash"`
-	Input            string    `json:"input"`
-	Nonce            uint64    `json:"nonce"`
-	To               string    `json:"to"`
-	TransactionIndex uint      `json:"transactionIndex"`
-	Value            string    `json:"value"`
+	BlockHash        string       `json:"blockHash"`
+	BlockNumber      uint64       `json:"blockNumber"`
+	Time             time.Time    `json:"time"`
+	From             string       `json:"from"`
+	Gas              uint64       `json:"gas"`
+	GasPrice         uint64       `json:"gasPrice"`
+	Hash             string       `json:"hash"`
+	Input            string       `json:"input"`
+	Nonce            uint64       `json:"nonce"`
+	To               string       `json:"to"`
+	TransactionIndex uint         `json:"transactionIndex"`
+	Value            string       `json:"value"`
+	Logs             []Log        `json:"logs,omitempty"`
+	LogsBloom        types.Bloom  `json:"logsBloom,omitempty"`
+	Root             common.Bytes `json:"root,omitempty"`
+	Status           uint         `json:"status"`
 }
 
 type Log struct {
@@ -337,16 +315,6 @@ type PublicReceipt struct {
 	ContractAddress   string       `json:"contractAddress"`
 	Logs              []Log        `json:"logs"`
 	LogsBloom         types.Bloom  `json:"logsBloom"`
-	Root              common.Bytes `json:"root"`
-	Status            uint         `json:"status"`
-}
-
-type BasicReceipt struct {
-	TransactionHash   string       `json:"transactionHash"`
-	GasUsed           uint64       `json:"gasUsed"`
-	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
-	ContractAddress   string       `json:"contractAddress"`
-	Logs              []Log        `json:"logs"`
 	Root              common.Bytes `json:"root"`
 	Status            uint         `json:"status"`
 }
