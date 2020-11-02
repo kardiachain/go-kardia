@@ -25,10 +25,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dev"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
 )
@@ -79,7 +77,8 @@ var DefaultConfig = node.Config{
 		AcceptTxs: 1, // 1 is to allow new transactions, 0 is not
 		IsPrivate: true,
 		IsZeroFee: true,
-		Genesis:   genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts),
+		// todo: uncomment and update config when we support dual node
+		//Genesis:   genesis.DefaultTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts),
 	},
 }
 
