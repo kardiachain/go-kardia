@@ -143,7 +143,7 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 		Alloc:    ga,
 	}
 
-	baseAccount := &types.BaseAccount{
+	baseAccount := &configs.BaseAccount{
 		Address:    common.HexToAddress(genesisAddress),
 		PrivateKey: *privKey,
 	}
