@@ -17,11 +17,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-const (
-	// KardiaSatkingSmcIndex ...
-	KardiaSatkingSmcIndex = 7
-)
-
 // MaximumGasToCallStaticFunction ...
 var MaximumGasToCallStaticFunction = uint(4000000)
 
@@ -56,7 +51,7 @@ type StakingSmcUtil struct {
 
 // NewSmcStakingnUtil ...
 func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
-	_, stakingSmcAbi := configs.GetContractDetailsByIndex(KardiaSatkingSmcIndex)
+	stakingSmcAbi := configs.GetContractABIByAddress(configs.StakingContractAddress.Hex())
 	bytecodeStaking := configs.GetContractByteCodeByAddress(configs.StakingContractAddress.Hex())
 
 	abi, err := abi.JSON(strings.NewReader(stakingSmcAbi))
@@ -106,19 +101,22 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 	}
 
 	vp := big.NewInt(votingPower)
-	tokens := vp.Mul(vp, big.NewInt(int64(math.Pow10(12))))
+	tokens := vp.Mul(vp, big.NewInt(int64(math.Pow10(8))))
 
 	msg := types.NewMessage(
 		valAddr,
 		&s.ContractAddress,
 		0,
 		tokens,
-		100000000,
-		big.NewInt(0),
+		10000000,
+		big.NewInt(70000),
 		input,
 		false,
 	)
-	_, err = Apply(s.logger, bc, statedb, header, cfg, msg)
+	if _, err = Apply(s.logger, bc, statedb, header, cfg, msg); err != nil {
+		panic(err)
+	}
+
 	return nil
 }
 

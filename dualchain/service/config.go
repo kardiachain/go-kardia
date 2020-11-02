@@ -48,4 +48,8 @@ type DualConfig struct {
 
 	// BaseAccount defines account which is used to execute internal smart contracts
 	BaseAccount *configs.BaseAccount
+
+	// Consensus defines the configuration for the Kardia consensus service,
+	// including timeouts and details about the block structure.
+	Consensus *configs.ConsensusConfig
 }

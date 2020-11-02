@@ -109,7 +109,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
-		configs.DefaultConsensusConfig(),
+		config.Consensus,
 		lastBlockState,
 		dualService.dualBlockOperations,
 		blockExec,
@@ -136,6 +136,7 @@ func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 		DualGenesis:   chainConfig.DualGenesis,
 		IsPrivate:     chainConfig.IsPrivate,
 		BaseAccount:   chainConfig.BaseAccount,
+		Consensus:     chainConfig.Consensus,
 	})
 
 	if err != nil {

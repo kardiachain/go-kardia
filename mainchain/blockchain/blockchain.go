@@ -158,10 +158,11 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 	//@huny go bc.update()
 
 	bc.processor = NewStateProcessor(logger, bc)
-	bc.permissioned, err = permissioned.NewSmcPermissionUtil(bc)
-	if err != nil {
-		return nil, err
-	}
+	// TODO @trinhdn: Remove this when clean up repo
+	// bc.permissioned, err = permissioned.NewSmcPermissionUtil(bc)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return bc, nil
 }

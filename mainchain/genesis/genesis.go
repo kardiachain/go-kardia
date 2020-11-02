@@ -69,6 +69,7 @@ type Genesis struct {
 	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
 	Validators           []*GenesisValidator          `json:"validators"`
 	ConsensusParams      *kaiproto.ConsensusParams    `json:"consensus_params,omitempty"`
+	Consensus            *configs.ConsensusConfig     `json:"consensusConfig"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.
@@ -121,6 +122,9 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 			genesis.Config.SetBaseAccount(baseAccount)
 		}
 		block, err := genesis.Commit(logger, db)
+		if err != nil {
+			return nil, common.NewZeroHash(), err
+		}
 		return genesis.Config, block.Hash(), err
 	}
 
@@ -192,15 +196,9 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) (*types.Block, c
 		panic(err)
 	}
 
-	// g.Alloc[stakingUtil.ContractAddress] = GenesisAccount{
-	// 	Balance: ToCell(100),
-	// 	Code:    common.Hex2Bytes(stakingUtil.Bytecode),
-	// 	Nonce:   0,
-	// }
-
 	// Generate genesis deployer address
 	g.Alloc[configs.GenesisDeployerAddr] = GenesisAccount{
-		Balance: big.NewInt(10),
+		Balance: big.NewInt(1000000000000000000), // 1 KAI
 		Nonce:   0,
 	}
 

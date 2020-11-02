@@ -19,6 +19,7 @@
 package main
 
 import (
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 )
 
@@ -42,6 +43,7 @@ type (
 		HTTPVirtualHosts []string `yaml:"HTTPVirtualHosts"`
 		HTTPCors         []string `yaml:"HTTPCors"`
 		Metrics          uint     `yaml:"Metrics"`
+		Genesis          *Genesis `yaml:"Genesis,omitempty"`
 	}
 	Chain struct {
 		ServiceName        string      `yaml:"ServiceName"`
@@ -52,21 +54,24 @@ type (
 		ZeroFee            uint        `yaml:"ZeroFee"`
 		IsDual             uint        `yaml:"IsDual"`
 		Genesis            *Genesis    `yaml:"Genesis,omitempty"`
-		TxPool             *Pool       `yaml:"TxPool,omitempty"`
 		EventPool          *Pool       `yaml:"EventPool,omitempty"`
 		Database           *Database   `yaml:"Database,omitempty"`
 		Seeds              []string    `yaml:"Seeds"`
 		Events             []Event     `yaml:"Events"`
 		PublishedEndpoint  *string     `yaml:"PublishedEndpoint,omitempty"`
 		SubscribedEndpoint *string     `yaml:"SubscribedEndpoint,omitempty"`
-		Validators         []int       `yaml:"Validators"`
-		BaseAccount        BaseAccount `yaml:"BaseAccount"`
+		BaseAccount        BaseAccount `yaml:"BaseAccount,omitempty"`
+		Consensus          *Consensus  `yaml:"Consensus"`
 	}
 	Genesis struct {
-		Addresses     []string                    `yaml:"Addresses"`
-		GenesisAmount string                      `yaml:"GenesisAmount"`
-		Contracts     []Contract                  `yaml:"Contracts"`
-		Validators    []*genesis.GenesisValidator `yaml:"Validators"`
+		Addresses       []string                    `yaml:"Addresses"`
+		GenesisAmount   string                      `yaml:"GenesisAmount"`
+		Contracts       map[string]Contract         `yaml:"Contracts"`
+		Validators      []*genesis.GenesisValidator `yaml:"Validators"`
+		ConsensusParams *ConsensusParams            `yaml:"ConsensusParams"`
+		Consensus       *Consensus                  `yaml:"Consensus"`
+		ChainConfig     *configs.ChainConfig        `yaml:"ChainConfig"`
+		TxPool          *Pool                       `yaml:"TxPool,omitempty"`
 	}
 	Contract struct {
 		Address  string `yaml:"Address"`
@@ -74,9 +79,11 @@ type (
 		ABI      string `yaml:"ABI,omitempty"`
 	}
 	Pool struct {
+		AccountSlots  uint64 `yaml:"AccountSlots"`
+		AccountQueue  uint64 `yaml:"AccountQueue"`
 		GlobalSlots   uint64 `yaml:"GlobalSlots"`
 		GlobalQueue   uint64 `yaml:"GlobalQueue"`
-		BlockSize     int    `yaml:"BlockSize"`
+		BlockSize     int    `yaml:"BlockSize,omitempty"`
 		Broadcast     bool   `yaml:"Broadcast"`
 		MaxBatchBytes int    `yaml:"MaxBatchBytes"`
 	}
@@ -88,19 +95,48 @@ type (
 		Drop    int    `yaml:"Drop"`
 	}
 	Event struct {
-		MasterSmartContract string    `yaml:"MasterSmartContract"`
-		ContractAddress     string    `yaml:"ContractAddress"`
-		MasterABI           *string   `yaml:"MasterABI"`
-		ABI                 *string   `yaml:"ABI,omitempty"`
-		Watchers            []Watcher `yaml:"Watchers"`
-	}
-	Watcher struct {
-		Method         string   `yaml:"Method"`
-		WatcherActions []string `yaml:"WatcherActions,omitempty"`
-		DualActions    []string `yaml:"DualActions"`
+		MasterSmartContract string  `yaml:"MasterSmartContract"`
+		ContractAddress     string  `yaml:"ContractAddress"`
+		MasterABI           *string `yaml:"MasterABI"`
+		ABI                 *string `yaml:"ABI,omitempty"`
 	}
 	BaseAccount struct {
 		Address    string `yaml:"Address"`
 		PrivateKey string `yaml:"PrivateKey"`
+	}
+	Consensus struct {
+		// All timeouts are in milliseconds
+		TimeoutPropose        int `yaml:"TimeoutPropose"`
+		TimeoutProposeDelta   int `yaml:"TimeoutProposeDelta"`
+		TimeoutPrevote        int `yaml:"TimeoutPrevote"`
+		TimeoutPrevoteDelta   int `yaml:"TimeoutPrevoteDelta"`
+		TimeoutPrecommit      int `yaml:"TimeoutPrecommit"`
+		TimeoutPrecommitDelta int `yaml:"TimeoutPrecommitDelta"`
+		TimeoutCommit         int `yaml:"TimeoutCommit"`
+
+		// Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
+		IsSkipTimeoutCommit bool `yaml:"IsSkipTimeoutCommit"`
+
+		// EmptyBlocks mode and possible interval between empty blocks in seconds
+		IsCreateEmptyBlocks       bool `yaml:"IsCreateEmptyBlocks"`
+		CreateEmptyBlocksInterval int  `yaml:"CreateEmptyBlocksInterval"`
+
+		// Reactor sleep duration parameters are in milliseconds
+		PeerGossipSleepDuration     int `yaml:"PeerGossipSleepDuration"`
+		PeerQueryMaj23SleepDuration int `yaml:"PeerQueryMaj23SleepDuration"`
+	}
+	ConsensusParams struct {
+		Block    BlockParams    `yaml:"Block"`
+		Evidence EvidenceParams `yaml:"Evidence"`
+	}
+	BlockParams struct {
+		MaxBytes   int64  `yaml:"MaxBytes"`
+		MaxGas     uint64 `yaml:"MaxGas"`
+		TimeIotaMs int64  `yaml:"TimeIotaMs"`
+	}
+	EvidenceParams struct {
+		MaxAgeNumBlocks int64 `yaml:"MaxAgeNumBlocks"`
+		MaxAgeDuration  int   `yaml:"MaxAgeDuration"`
+		MaxBytes        int64 `yaml:"MaxBytes"`
 	}
 )
