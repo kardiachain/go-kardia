@@ -28,6 +28,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 // ErrEvidenceOverflow is for when there is too much evidence in a block.
@@ -87,7 +88,7 @@ func MaxEvidencePerBlock(blockMaxBytes int64) (int64, int64) {
 // Evidence represents any provable malicious activity by a validator
 type Evidence interface {
 	Height() uint64                                   // height of the equivocation
-	Time() uint64                                     // time of the equivocation
+	Time() time.Time                                  // time of the equivocation
 	Address() common.Address                          // address of the equivocating validator
 	Bytes() []byte                                    // bytes which comprise the evidence
 	Hash() common.Hash                                // hash of the evidence
@@ -99,66 +100,39 @@ type Evidence interface {
 }
 
 //-------------------------------------------
+//------------------------------------------ PROTO --------------------------------------
 
-// EvidenceInfo ...
-type EvidenceInfo struct {
-	Type    EvidenceType
-	Payload []byte
-}
-
-// EvidenceToBytes ...
-func EvidenceToBytes(evidence Evidence) ([]byte, error) {
+// EvidenceToProto is a generalized function for encoding evidence that conforms to the
+// evidence interface to protobuf
+func EvidenceToProto(evidence Evidence) (*kproto.Evidence, error) {
 	if evidence == nil {
 		return nil, errors.New("nil evidence")
 	}
 
-	info := &EvidenceInfo{}
-
 	switch evi := evidence.(type) {
 	case *DuplicateVoteEvidence:
-		info.Type = EvidenceDuplicateVote
-		b, err := rlp.EncodeToBytes(evi)
-		if err != nil {
-			return nil, err
-		}
-		info.Payload = b
-		break
-	case MockEvidence:
-		info.Type = EvidenceMock
-		b, err := rlp.EncodeToBytes(evi)
-		if err != nil {
-			return nil, err
-		}
-		info.Payload = b
-		break
-	default:
-		return nil, fmt.Errorf("evidence is not recognized: %T", evidence)
-	}
+		pbev := evi.ToProto()
+		return &kproto.Evidence{
+			Sum: &kproto.Evidence_DuplicateVoteEvidence{
+				DuplicateVoteEvidence: pbev,
+			},
+		}, nil
 
-	return rlp.EncodeToBytes(info)
+	default:
+		return nil, fmt.Errorf("toproto: evidence is not recognized: %T", evi)
+	}
 }
 
-// EvidenceFromBytes ...
-func EvidenceFromBytes(b []byte) (Evidence, error) {
-	info := &EvidenceInfo{}
-
-	if err := rlp.DecodeBytes(b, info); err != nil {
-		return nil, err
+// EvidenceFromProto is a generalized function for decoding protobuf into the
+// evidence interface
+func EvidenceFromProto(evidence *kproto.Evidence) (Evidence, error) {
+	if evidence == nil {
+		return nil, errors.New("nil evidence")
 	}
 
-	switch info.Type {
-	case EvidenceDuplicateVote:
-		duplicateVoteEvidence := &DuplicateVoteEvidence{}
-		if err := rlp.DecodeBytes(info.Payload, duplicateVoteEvidence); err != nil {
-			return nil, err
-		}
-		return duplicateVoteEvidence, nil
-	case EvidenceMock:
-		ev := MockEvidence{}
-		if err := rlp.DecodeBytes(info.Payload, &ev); err != nil {
-			return nil, err
-		}
-		return ev, nil
+	switch evi := evidence.Sum.(type) {
+	case *kproto.Evidence_DuplicateVoteEvidence:
+		return DuplicateVoteEvidenceFromProto(evi.DuplicateVoteEvidence)
 	default:
 		return nil, errors.New("evidence is not recognized")
 	}
@@ -176,7 +150,7 @@ type DuplicateVoteEvidence struct {
 
 // NewDuplicateVoteEvidence creates DuplicateVoteEvidence with right ordering given
 // two conflicting votes. If one of the votes is nil, evidence returned is nil as well
-func NewDuplicateVoteEvidence(addr common.Address, vote1 *Vote, vote2 *Vote) *DuplicateVoteEvidence {
+func NewDuplicateVoteEvidence(vote1 *Vote, vote2 *Vote) *DuplicateVoteEvidence {
 	var voteA, voteB *Vote
 	if vote1 == nil || vote2 == nil {
 		return nil
@@ -189,7 +163,6 @@ func NewDuplicateVoteEvidence(addr common.Address, vote1 *Vote, vote2 *Vote) *Du
 		voteB = vote1
 	}
 	return &DuplicateVoteEvidence{
-		Addr:  addr,
 		VoteA: voteA,
 		VoteB: voteB,
 	}
@@ -207,7 +180,7 @@ func (dve *DuplicateVoteEvidence) Height() uint64 {
 }
 
 // Time return the time the evidence was created
-func (dve *DuplicateVoteEvidence) Time() uint64 {
+func (dve *DuplicateVoteEvidence) Time() time.Time {
 	return dve.VoteA.Timestamp
 }
 
@@ -281,12 +254,12 @@ func (dve *DuplicateVoteEvidence) Verify(chainID string, addr common.Address) er
 		return fmt.Errorf("duplicateVoteEvidence FAILED SANITY CHECK - address doesn't match validator addr (%v - %X)",
 			vaddr, addr)
 	}
-
-	if !VerifySignature(addr, crypto.Keccak256(dve.VoteA.SignBytes(chainID)), dve.VoteA.Signature) {
+	signBytes := VoteSignBytes(chainID, dve.VoteA.ToProto())
+	if !VerifySignature(addr, crypto.Keccak256(signBytes), dve.VoteA.Signature) {
 		return fmt.Errorf("duplicateVoteEvidence Error verifying VoteA: %v", ErrVoteInvalidSignature)
 	}
-
-	if !VerifySignature(addr, crypto.Keccak256(dve.VoteB.SignBytes(chainID)), dve.VoteB.Signature) {
+	signBytes = VoteSignBytes(chainID, dve.VoteB.ToProto())
+	if !VerifySignature(addr, crypto.Keccak256(signBytes), dve.VoteB.Signature) {
 		return fmt.Errorf("duplicateVoteEvidence Error verifying VoteB: %v", ErrVoteInvalidSignature)
 	}
 
@@ -311,10 +284,42 @@ func (dve *DuplicateVoteEvidence) ValidateBasic() error {
 	return nil
 }
 
+// ToProto encodes DuplicateVoteEvidence to protobuf
+func (dve *DuplicateVoteEvidence) ToProto() *kproto.DuplicateVoteEvidence {
+	voteB := dve.VoteB.ToProto()
+	voteA := dve.VoteA.ToProto()
+	tp := kproto.DuplicateVoteEvidence{
+		VoteA: voteA,
+		VoteB: voteB,
+	}
+	return &tp
+}
+
+// DuplicateVoteEvidenceFromProto decodes protobuf into DuplicateVoteEvidence
+func DuplicateVoteEvidenceFromProto(pb *kproto.DuplicateVoteEvidence) (*DuplicateVoteEvidence, error) {
+	if pb == nil {
+		return nil, errors.New("nil duplicate vote evidence")
+	}
+
+	vA, err := VoteFromProto(pb.VoteA)
+	if err != nil {
+		return nil, err
+	}
+
+	vB, err := VoteFromProto(pb.VoteB)
+	if err != nil {
+		return nil, err
+	}
+
+	dve := NewDuplicateVoteEvidence(vA, vB)
+
+	return dve, dve.ValidateBasic()
+}
+
 // UNSTABLE
 type MockEvidence struct {
 	EvidenceHeight  uint64
-	EvidenceTime    uint64
+	EvidenceTime    time.Time
 	EvidenceAddress common.Address
 }
 
@@ -324,19 +329,19 @@ var _ Evidence = &MockEvidence{}
 func NewMockEvidence(height uint64, eTime time.Time, idx int, address common.Address) MockEvidence {
 	return MockEvidence{
 		EvidenceHeight:  height,
-		EvidenceTime:    uint64(eTime.Unix()),
+		EvidenceTime:    eTime,
 		EvidenceAddress: address}
 }
 
 func (e MockEvidence) Height() uint64          { return e.EvidenceHeight }
-func (e MockEvidence) Time() uint64            { return e.EvidenceTime }
+func (e MockEvidence) Time() time.Time         { return e.EvidenceTime }
 func (e MockEvidence) Address() common.Address { return e.EvidenceAddress }
 func (e MockEvidence) Hash() common.Hash {
-	return rlpHash([]byte(fmt.Sprintf("%d-%x-%d",
+	return rlpHash([]byte(fmt.Sprintf("%d-%x-%s",
 		e.EvidenceHeight, e.EvidenceAddress, e.EvidenceTime)))
 }
 func (e MockEvidence) Bytes() []byte {
-	return []byte(fmt.Sprintf("%d-%x-%d",
+	return []byte(fmt.Sprintf("%d-%x-%s",
 		e.EvidenceHeight, e.EvidenceAddress, e.EvidenceTime))
 }
 func (e MockEvidence) Verify(chainID string, addr common.Address) error { return nil }
@@ -347,7 +352,7 @@ func (e MockEvidence) Equal(ev Evidence) bool {
 }
 func (e MockEvidence) ValidateBasic() error { return nil }
 func (e MockEvidence) String() string {
-	return fmt.Sprintf("Evidence: %d/%d/%d", e.EvidenceHeight, e.Time(), e.EvidenceAddress)
+	return fmt.Sprintf("Evidence: %d/%s/%d", e.EvidenceHeight, e.Time(), e.EvidenceAddress)
 }
 
 //-------------------------------------------

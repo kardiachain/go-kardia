@@ -21,7 +21,6 @@ package node
 import (
 	"reflect"
 
-	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/rpc"
@@ -32,24 +31,10 @@ import (
 // the protocol stack, that is passed to all constructors to be optionally used;
 // as well as utility methods to operate on the service environment.
 type ServiceContext struct {
-	Config   *Config
-	services map[reflect.Type]Service // Index of the already constructed services
-	EventMux *event.TypeMux           // Event multiplexer used for decoupled notifications
-}
-
-// OpenDatabase opens an existing database with the given name (or creates one
-// if no previous can be found) from within the node's data directory. If the
-// node is an ephemeral one, a memory database is returned.
-func (ctx *ServiceContext) OpenDatabase(name string, cache int, handles int, namespace string) (types.StoreDB, error) {
-	if ctx.Config.DataDir == "" {
-		return storage.NewMemoryDatabase(), nil
-	}
-	return storage.NewLevelDBDatabase(ctx.Config.ResolvePath(name), cache, handles, namespace)
-}
-
-// Database starts a new or existed database in the node data directory, or in-memory database.
-func (c *ServiceContext) StartDatabase(dbInfo storage.DbInfo) (types.StoreDB, error) {
-	return dbInfo.Start()
+	Config     *Config
+	services   map[reflect.Type]Service // Index of the already constructed services
+	EventMux   *event.TypeMux           // Event multiplexer used for decoupled notifications
+	BlockStore types.StoreDB
 }
 
 // ResolvePath resolves a user path into the data directory if that was relative
@@ -90,15 +75,13 @@ type ServiceConstructor func(ctx *ServiceContext) (Service, error)
 // • Restart logic is not required as the node will create a fresh instance
 // every time a service is started.
 type Service interface {
-	// Protocols retrieves the P2P protocols the service wishes to start.
-	Protocols() []p2p.Protocol
 
 	// APIs retrieves the list of RPC descriptors the service provides
 	APIs() []rpc.API
 
 	// Start is called after all services have been constructed and the networking
 	// layer was also initialized to spawn any goroutines required by the service.
-	Start(server *p2p.Server) error
+	Start(server *p2p.Switch) error
 
 	// Stop terminates all goroutines belonging to the service, blocking until they
 	// are all terminated.

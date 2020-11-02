@@ -18,7 +18,7 @@ Node:
     - "*"
   P2P:
     PrivateKey: 77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79
-    ListenAddress: :3000
+    ListenAddress: tcp://0.0.0.0:3000
     MaxPeers:   25
   LogLevel: info           # crit, error, warn, info, debug, trace
   Metric: 1
@@ -37,9 +37,9 @@ MainChain:
     Address: 0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5
     PrivateKey: 77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79
   Seeds:
-    - enode://7a86e2b7628c76fcae76a8b37025cba698a289a44102c5c021594b5c9fce33072ee7ef992f5e018dc44b98fa11fec53824d79015747e8ac474f4ee15b7fbe860@172.20.0.2:3000
-    - enode://660889e39b37ade58f789933954123e56d6498986a0cd9ca63d223e866d5521aaedc9e5298e2f4828a5c90f4c58fb24e19613a462ca0210dd962821794f630f0@172.20.0.3:3000
-    - enode://2e61f57201ec804f9d5298c4665844fd077a2516cd33eccea48f7bdf93de5182da4f57dc7b4d8870e5e291c179c05ff04100718b49184f64a7c0d40cc66343da@172.20.0.4:3000
+    - c1fe56e3f58d3244f606306611a5d10c8333f1f6@172.20.0.2:3000
+    - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@172.20.0.3:3000
+    - ff3dac4f04ddbd24de5d6039f90596f0a8bb08fd@172.20.0.4:3000
   Genesis:
     Addresses:
       - 0xc1fe56E3F58D3244F606306611a5d10c8333f1f6

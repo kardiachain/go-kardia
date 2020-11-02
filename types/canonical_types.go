@@ -18,47 +18,56 @@
 
 package types
 
-type CanonicalProposal struct {
-	ChainID    string  `json:"@chain_id"`
-	Type       string  `json:"@type"`
-	Height     uint64  `json:"height"`
-	POLBlockID BlockID `json:"pol_block_id"`
-	POLRound   uint32  `json:"pol_round"`
-	Round      uint32  `json:"round"`
-	Timestamp  uint64  `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
+import (
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+)
+
+//-----------------------------------
+// Canonicalize the structs
+
+func CanonicalizeBlockID(bid kproto.BlockID) *kproto.CanonicalBlockID {
+	rbid, err := BlockIDFromProto(&bid)
+	if err != nil {
+		panic(err)
+	}
+	var cbid *kproto.CanonicalBlockID
+	if rbid == nil || rbid.IsZero() {
+		cbid = nil
+	} else {
+		cbid = &kproto.CanonicalBlockID{
+			Hash:          bid.Hash,
+			PartSetHeader: CanonicalizePartSetHeader(bid.PartSetHeader),
+		}
+	}
+
+	return cbid
 }
 
-type CanonicalVote struct {
-	ChainID   string  `json:"@chain_id"`
-	Type      string  `json:"@type"`
-	BlockID   BlockID `json:"block_id"`
-	Height    uint64  `json:"height"`
-	Round     uint32  `json:"round"`
-	Timestamp uint64  `json:"timestamp"` // TODO(thientn/namdoh): epoch seconds, change to milis.
-	VoteType  byte    `json:"type"`
+// CanonicalizeVote transforms the given PartSetHeader to a CanonicalPartSetHeader.
+func CanonicalizePartSetHeader(psh kproto.PartSetHeader) kproto.CanonicalPartSetHeader {
+	return kproto.CanonicalPartSetHeader(psh)
 }
 
 // ------- Helper functions to create canonical types --------------
-func CreateCanonicalProposal(chainID string, proposal *Proposal) CanonicalProposal {
-	return CanonicalProposal{
-		ChainID:    chainID,
-		Type:       "proposal",
-		Height:     proposal.Height,
-		Timestamp:  proposal.Timestamp,
-		POLBlockID: proposal.POLBlockID,
-		POLRound:   proposal.POLRound,
-		Round:      proposal.Round,
+func CreateCanonicalProposal(chainID string, proposal *kproto.Proposal) kproto.CanonicalProposal {
+	return kproto.CanonicalProposal{
+		Type:      kproto.ProposalType,
+		Height:    proposal.Height, // encoded as sfixed64
+		Round:     proposal.Round,  // encoded as sfixed64
+		POLRound:  proposal.PolRound,
+		BlockID:   CanonicalizeBlockID(proposal.BlockID),
+		Timestamp: proposal.Timestamp,
+		ChainID:   chainID,
 	}
 }
 
-func CreateCanonicalVote(chainID string, vote *Vote) CanonicalVote {
-	return CanonicalVote{
+func CreateCanonicalVote(chainID string, vote *kproto.Vote) kproto.CanonicalVote {
+	return kproto.CanonicalVote{
 		ChainID:   chainID,
-		Type:      "vote",
-		BlockID:   vote.BlockID,
-		Height:    uint64(vote.Height),
+		Type:      kproto.PrevoteType,
+		BlockID:   CanonicalizeBlockID(vote.BlockID),
+		Height:    vote.Height,
 		Round:     vote.Round,
 		Timestamp: vote.Timestamp,
-		VoteType:  vote.Type,
 	}
 }

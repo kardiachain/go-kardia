@@ -2,9 +2,10 @@ package types
 
 import (
 	"time"
+
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
-// MakeCommit ...
 func MakeCommit(blockID BlockID, height uint64, round uint32,
 	voteSet *VoteSet, validators []PrivValidator, now time.Time) (*Commit, error) {
 
@@ -16,9 +17,9 @@ func MakeCommit(blockID BlockID, height uint64, round uint32,
 			ValidatorIndex:   uint32(i),
 			Height:           height,
 			Round:            round,
-			Type:             VoteTypePrecommit,
+			Type:             kproto.PrecommitType,
 			BlockID:          blockID,
-			Timestamp:        uint64(now.Unix()),
+			Timestamp:        now,
 		}
 
 		_, err := signAddVote(validators[i], vote, voteSet)
@@ -31,9 +32,11 @@ func MakeCommit(blockID BlockID, height uint64, round uint32,
 }
 
 func signAddVote(privVal PrivValidator, vote *Vote, voteSet *VoteSet) (signed bool, err error) {
-	err = privVal.SignVote(voteSet.ChainID(), vote)
+	v := vote.ToProto()
+	err = privVal.SignVote(voteSet.ChainID(), v)
 	if err != nil {
 		return false, err
 	}
+	vote.Signature = v.Signature
 	return voteSet.AddVote(vote)
 }

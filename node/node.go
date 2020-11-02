@@ -27,26 +27,35 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
+
+	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
+
+	cs "github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	"github.com/kardiachain/go-kardiamain/lib/p2p/pex"
+	"github.com/kardiachain/go-kardiamain/lib/service"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardiamain/types/evidence"
 	"github.com/prometheus/tsdb/fileutil"
+	"github.com/tendermint/tendermint/version"
 )
 
 // Node is a container on which services can be registered.
 type Node struct {
+	service.BaseService
 	eventmux *event.TypeMux // Event multiplexer used between the services of a stack
 	config   *Config
+	sw       *p2p.Switch // p2p connections
 
 	ephemeralKeystore string            // if non-empty, the key directory that will be removed by Stop
 	instanceDirLock   fileutil.Releaser // prevents concurrent use of instance directory
-
-	serverConfig p2p.Config
-	server       *p2p.Server // Currently running P2P networking layer
 
 	serviceFuncs []ServiceConstructor     // Service constructors (in dependency order)
 	services     map[reflect.Type]Service // Currently running services
@@ -67,10 +76,13 @@ type Node struct {
 	wsListener net.Listener // Websocket RPC listener socket to server API requests
 	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
 
-	stop chan struct{} // Channel to wait for termination notifications
-	lock sync.RWMutex
-
-	log log.Logger
+	stop       chan struct{} // Channel to wait for termination notifications
+	lock       sync.RWMutex
+	blockStore types.StoreDB
+	nodeKey    *p2p.NodeKey
+	transport  *p2p.MultiplexTransport
+	addrBook   pex.AddrBook // known peers
+	pexReactor *pex.Reactor
 }
 
 // New creates a new P2P node, ready for protocol registration.
@@ -97,22 +109,77 @@ func New(conf *Config) (*Node, error) {
 	if strings.HasSuffix(conf.Name, ".ipc") {
 		return nil, errors.New(`Config.Name cannot end in ".ipc"`)
 	}
-
-	if conf.Logger == nil {
-		conf.Logger = log.New()
+	logger := conf.Logger
+	if logger == nil {
+		logger = log.New()
 	}
+
+	// Setup Transport.
+	//transport, peerFilters := createTransport(conf, nodeInfo, nodeKey)
+
 	// Note: any interaction with Config that would create/touch files
 	// in the data directory or instance directory is delayed until Start.
-	return &Node{
-
+	node := &Node{
 		config:       conf,
 		serviceFuncs: []ServiceConstructor{},
 		ipcEndpoint:  conf.IPCEndpoint(),
 		httpEndpoint: conf.HTTPEndpoint(),
 		wsEndpoint:   conf.WSEndpoint(),
 		eventmux:     new(event.TypeMux),
-		log:          conf.Logger,
-	}, nil
+	}
+
+	if err := node.openDataDir(); err != nil {
+		return nil, err
+	}
+
+	db, err := node.OpenDatabase("chaindata", 16, 32, "chaindata")
+	if err != nil {
+		return nil, err
+	}
+
+	nodeKey := &p2p.NodeKey{PrivKey: conf.NodeKey()}
+	state, err := cstate.LoadStateFromDBOrGenesisDoc(db.DB(), conf.Genesis)
+	nodeInfo, err := makeNodeInfo(conf, nodeKey, state)
+	if err != nil {
+		return nil, err
+	}
+
+	// Setup Transport.
+	transport, peerFilters := createTransport(conf, nodeInfo, nodeKey)
+
+	// Setup Switch.
+	sw := createSwitch(
+		conf, transport, peerFilters, nodeInfo, nodeKey, logger,
+	)
+
+	err = sw.AddPersistentPeers(splitAndTrimEmpty(conf.P2P.PersistentPeers, ",", " "))
+	if err != nil {
+		return nil, fmt.Errorf("could not add peers from persistent_peers field: %w", err)
+	}
+
+	err = sw.AddUnconditionalPeerIDs(splitAndTrimEmpty(conf.P2P.UnconditionalPeerIDs, ",", " "))
+	if err != nil {
+		return nil, fmt.Errorf("could not add peer ids from unconditional_peer_ids field: %w", err)
+	}
+
+	addrBook, err := createAddrBookAndSetOnSwitch(conf, sw, logger, nodeKey)
+	if err != nil {
+		return nil, fmt.Errorf("could not create addrbook: %w", err)
+	}
+
+	var pexReactor *pex.Reactor
+	if conf.P2P.PexReactor {
+		pexReactor = createPEXReactorAndAddToSwitch(addrBook, conf, sw, logger)
+	}
+
+	node.sw = sw
+	node.blockStore = db
+	node.nodeKey = nodeKey
+	node.transport = transport
+	node.addrBook = addrBook
+	node.pexReactor = pexReactor
+	node.BaseService = *service.NewBaseService(logger, "Node", node)
+	return node, nil
 }
 
 // Close stops the Node and releases resources acquired in
@@ -141,53 +208,33 @@ func (n *Node) Close() error {
 func (n *Node) Register(constructor ServiceConstructor) error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
-
-	if n.server != nil {
-		return ErrNodeRunning
-	}
 	n.serviceFuncs = append(n.serviceFuncs, constructor)
 	return nil
 }
 
 // Start create a live P2P node and starts running it.
-func (n *Node) Start() error {
+func (n *Node) OnStart() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	// Short circuit if the node's already running
-	if n.server != nil {
-		return ErrNodeRunning
-	}
-	if err := n.openDataDir(); err != nil {
+	// Start the transport.
+	addr, err := p2p.NewNetAddressString(p2p.IDAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress))
+	if err != nil {
 		return err
 	}
-
-	// Initialize the p2p server. This creates the node key and
-	// discovery databases.
-	n.serverConfig = n.config.P2P
-	n.serverConfig.PrivateKey = n.config.NodeKey()
-	n.serverConfig.Name = n.config.NodeName()
-	n.serverConfig.Logger = n.log
-	if n.serverConfig.StaticNodes == nil {
-		n.serverConfig.StaticNodes = n.config.StaticNodes()
+	if err := n.transport.Listen(*addr); err != nil {
+		return err
 	}
-	if n.serverConfig.TrustedNodes == nil {
-		n.serverConfig.TrustedNodes = n.config.TrustedNodes()
-	}
-	if n.serverConfig.NodeDatabase == "" {
-		n.serverConfig.NodeDatabase = n.config.NodeDB()
-	}
-	running := &p2p.Server{Config: n.serverConfig}
-	n.log.Info("Starting peer-to-peer node", "instance", n.serverConfig.Name)
 
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)
 	for _, constructor := range n.serviceFuncs {
 		// Create a new context for the particular service
 		ctx := &ServiceContext{
-			Config:   n.config,
-			services: make(map[reflect.Type]Service),
-			EventMux: n.eventmux,
+			Config:     n.config,
+			services:   make(map[reflect.Type]Service),
+			EventMux:   n.eventmux,
+			BlockStore: n.blockStore,
 		}
 		for kind, s := range services { // copy needed for threaded access
 			ctx.services[kind] = s
@@ -203,40 +250,46 @@ func (n *Node) Start() error {
 		}
 		services[kind] = service
 	}
-	// Gather the protocols and start the freshly assembled P2P server
-	for _, service := range services {
-		running.Protocols = append(running.Protocols, service.Protocols()...)
-	}
-	if err := running.Start(); err != nil {
-		return convertFileLockError(err)
-	}
+
 	// Start each of the services
 	var started []reflect.Type
 	for kind, service := range services {
 		// Start the next service, stopping all previous upon failure
-		if err := service.Start(running); err != nil {
+		if err := service.Start(n.sw); err != nil {
 			for _, kind := range started {
 				services[kind].Stop()
 			}
-			running.Stop()
+			n.sw.Stop()
 
 			return err
 		}
 		// Mark the service started for potential cleanup
 		started = append(started, kind)
 	}
+
 	// Lastly start the configured RPC interfaces
 	if err := n.startRPC(services); err != nil {
 		for _, service := range services {
 			service.Stop()
 		}
-		running.Stop()
+		n.sw.Stop()
 		return err
 	}
+
 	// Finish initializing the startup
 	n.services = services
-	n.server = running
 	n.stop = make(chan struct{})
+
+	// Start the switch (the P2P server).
+	if err := n.sw.Start(); err != nil {
+		return err
+	}
+
+	// Always connect to persistent peers
+	err = n.sw.DialPeersAsync(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
+	if err != nil {
+		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
+	}
 	return nil
 }
 
@@ -330,7 +383,7 @@ func (n *Node) startIPC(apis []rpc.API) error {
 	}
 	n.ipcListener = listener
 	n.ipcHandler = handler
-	n.log.Info("IPC endpoint opened", "url", n.ipcEndpoint)
+	n.Logger.Info("IPC endpoint opened", "url", n.ipcEndpoint)
 	return nil
 }
 
@@ -340,7 +393,7 @@ func (n *Node) stopIPC() {
 		n.ipcListener.Close()
 		n.ipcListener = nil
 
-		n.log.Info("IPC endpoint closed", "url", n.ipcEndpoint)
+		n.Logger.Info("IPC endpoint closed", "url", n.ipcEndpoint)
 	}
 	if n.ipcHandler != nil {
 		n.ipcHandler.Stop()
@@ -358,7 +411,7 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 	if err != nil {
 		return err
 	}
-	n.log.Info("HTTP endpoint opened", "url", fmt.Sprintf("http://%s", endpoint), "cors", strings.Join(cors, ","), "vhosts", strings.Join(vhosts, ","))
+	n.Logger.Info("HTTP endpoint opened", "url", fmt.Sprintf("http://%s", endpoint), "cors", strings.Join(cors, ","), "vhosts", strings.Join(vhosts, ","))
 	// All listeners booted successfully
 	n.httpEndpoint = endpoint
 	n.httpListener = listener
@@ -373,7 +426,7 @@ func (n *Node) stopHTTP() {
 		n.httpListener.Close()
 		n.httpListener = nil
 
-		n.log.Info("HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.httpEndpoint))
+		n.Logger.Info("HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.httpEndpoint))
 	}
 	if n.httpHandler != nil {
 		n.httpHandler.Stop()
@@ -391,7 +444,7 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 	if err != nil {
 		return err
 	}
-	n.log.Info("WebSocket endpoint opened", "url", fmt.Sprintf("ws://%s", listener.Addr()))
+	n.Logger.Info("WebSocket endpoint opened", "url", fmt.Sprintf("ws://%s", listener.Addr()))
 	// All listeners booted successfully
 	n.wsEndpoint = endpoint
 	n.wsListener = listener
@@ -406,7 +459,7 @@ func (n *Node) stopWS() {
 		n.wsListener.Close()
 		n.wsListener = nil
 
-		n.log.Info("WebSocket endpoint closed", "url", fmt.Sprintf("ws://%s", n.wsEndpoint))
+		n.Logger.Info("WebSocket endpoint closed", "url", fmt.Sprintf("ws://%s", n.wsEndpoint))
 	}
 	if n.wsHandler != nil {
 		n.wsHandler.Stop()
@@ -416,14 +469,11 @@ func (n *Node) stopWS() {
 
 // Stop terminates a running node along with all it's services. In the node was
 // not started, an error is returned.
-func (n *Node) Stop() error {
+func (n *Node) OnStop() {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	// Short circuit if the node's not running
-	if n.server == nil {
-		return ErrNodeStopped
-	}
+	n.BaseService.OnStop()
 
 	// Terminate the API, services and the p2p server.
 	n.stopWS()
@@ -438,14 +488,21 @@ func (n *Node) Stop() error {
 			failure.Services[kind] = err
 		}
 	}
-	n.server.Stop()
+
+	if err := n.sw.Stop(); err != nil {
+		n.Logger.Error("Error closing switch", "err", err)
+	}
+
+	if err := n.transport.Close(); err != nil {
+		n.Logger.Error("Error closing transport", "err", err)
+	}
+
 	n.services = nil
-	n.server = nil
 
 	// Release instance directory lock.
 	if n.instanceDirLock != nil {
 		if err := n.instanceDirLock.Release(); err != nil {
-			n.log.Error("Can't release datadir lock", "err", err)
+			n.Logger.Error("Can't release datadir lock", "err", err)
 		}
 		n.instanceDirLock = nil
 	}
@@ -460,19 +517,18 @@ func (n *Node) Stop() error {
 	}
 
 	if len(failure.Services) > 0 {
-		return failure
+		n.Logger.Error("failure", "err", failure)
 	}
 	if keystoreErr != nil {
-		return keystoreErr
+		n.Logger.Error("keystoreErr", "err", failure)
 	}
-	return nil
 }
 
 // Wait blocks the thread until the node is stopped. If the node is not running
 // at the time of invocation, the method immediately returns.
 func (n *Node) Wait() {
 	n.lock.RLock()
-	if n.server == nil {
+	if n.sw == nil {
 		n.lock.RUnlock()
 		return
 	}
@@ -499,7 +555,7 @@ func (n *Node) Attach() (*rpc.Client, error) {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 
-	if n.server == nil {
+	if n.sw == nil {
 		return nil, ErrNodeStopped
 	}
 	return rpc.DialInProc(n.inprocHandler), nil
@@ -516,23 +572,13 @@ func (n *Node) RPCHandler() (*rpc.Server, error) {
 	return n.inprocHandler, nil
 }
 
-// Server retrieves the currently running P2P network layer. This method is meant
-// only to inspect fields of the currently running server, life cycle management
-// should be left to this Node entity.
-func (n *Node) Server() *p2p.Server {
-	n.lock.RLock()
-	defer n.lock.RUnlock()
-
-	return n.server
-}
-
 // Service retrieves a currently running service registered of a specific type.
 func (n *Node) Service(service interface{}) error {
 	n.lock.RLock()
 	defer n.lock.RUnlock()
 
 	// Short circuit if the node's not running
-	if n.server == nil {
+	if n.sw == nil {
 		return ErrNodeStopped
 	}
 	// Otherwise try to find the service to return
@@ -607,11 +653,11 @@ func (n *Node) ResolvePath(x string) string {
 func (n *Node) apis() []rpc.API {
 	return []rpc.API{
 		{
-			Namespace: "admin",
+			Namespace: "node",
 			Version:   "1.0",
 			Service:   NewPrivateAdminAPI(n),
 		}, {
-			Namespace: "admin",
+			Namespace: "node",
 			Version:   "1.0",
 			Service:   NewPublicAdminAPI(n),
 			Public:    true,
@@ -622,4 +668,156 @@ func (n *Node) apis() []rpc.API {
 			Public:    true,
 		},
 	}
+}
+
+func createTransport(
+	config *Config,
+	nodeInfo p2p.NodeInfo,
+	nodeKey *p2p.NodeKey,
+) (
+	*p2p.MultiplexTransport,
+	[]p2p.PeerFilterFunc,
+) {
+	var (
+		mConnConfig = p2p.MConnConfig(config.P2P)
+		transport   = p2p.NewMultiplexTransport(nodeInfo, *nodeKey, mConnConfig)
+		peerFilters = []p2p.PeerFilterFunc{}
+	)
+
+	// Limit the number of incoming connections.
+	max := config.P2P.MaxNumInboundPeers + len(splitAndTrimEmpty(config.P2P.UnconditionalPeerIDs, ",", " "))
+	p2p.MultiplexTransportMaxIncomingConnections(max)(transport)
+
+	return transport, peerFilters
+}
+
+// splitAndTrimEmpty slices s into all subslices separated by sep and returns a
+// slice of the string s with all leading and trailing Unicode code points
+// contained in cutset removed. If sep is empty, SplitAndTrim splits after each
+// UTF-8 sequence. First part is equivalent to strings.SplitN with a count of
+// -1.  also filter out empty strings, only return non-empty strings.
+func splitAndTrimEmpty(s, sep, cutset string) []string {
+	if s == "" {
+		return []string{}
+	}
+
+	spl := strings.Split(s, sep)
+	nonEmptyStrings := make([]string, 0, len(spl))
+	for i := 0; i < len(spl); i++ {
+		element := strings.Trim(spl[i], cutset)
+		if element != "" {
+			nonEmptyStrings = append(nonEmptyStrings, element)
+		}
+	}
+	return nonEmptyStrings
+}
+
+func makeNodeInfo(
+	config *Config,
+	nodeKey *p2p.NodeKey,
+	state cstate.LastestBlockState,
+) (p2p.NodeInfo, error) {
+	txIndexerStatus := "on"
+
+	nodeInfo := p2p.DefaultNodeInfo{
+		ProtocolVersion: p2p.NewProtocolVersion(
+			uint64(1), // global
+			uint64(1),
+			uint64(1),
+		),
+		DefaultNodeID: nodeKey.ID(),
+		Network:       state.ChainID,
+		Version:       version.TMCoreSemVer,
+		Channels: []byte{
+			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
+			evidence.EvidenceChannel, tx_pool.TxpoolChannel,
+		},
+		Other: p2p.DefaultNodeInfoOther{
+			TxIndex: txIndexerStatus,
+		},
+		Moniker: config.Name,
+	}
+
+	if config.P2P.PexReactor {
+		nodeInfo.Channels = append(nodeInfo.Channels, pex.PexChannel)
+	}
+
+	lAddr := config.P2P.ExternalAddress
+
+	if lAddr == "" {
+		lAddr = config.P2P.ListenAddress
+	}
+
+	nodeInfo.ListenAddr = lAddr
+
+	err := nodeInfo.Validate()
+	return nodeInfo, err
+}
+
+func createSwitch(config *Config,
+	transport p2p.Transport,
+	peerFilters []p2p.PeerFilterFunc,
+	nodeInfo p2p.NodeInfo,
+	nodeKey *p2p.NodeKey,
+	p2pLogger log.Logger) *p2p.Switch {
+
+	sw := p2p.NewSwitch(
+		config.P2P,
+		transport,
+	)
+	sw.SetLogger(p2pLogger)
+
+	sw.SetNodeInfo(nodeInfo)
+	sw.SetNodeKey(nodeKey)
+
+	//p2pLogger.Info("P2P Node ID", "ID", nodeKey.ID(), "file", config.NodeKeyFile())
+	return sw
+}
+
+func createAddrBookAndSetOnSwitch(config *Config, sw *p2p.Switch,
+	p2pLogger log.Logger, nodeKey *p2p.NodeKey) (pex.AddrBook, error) {
+
+	addrBook := pex.NewAddrBook(config.P2P.AddrBookFile(), config.P2P.AddrBookStrict)
+	addrBook.SetLogger(p2pLogger)
+
+	// Add ourselves to addrbook to prevent dialing ourselves
+	if config.P2P.ExternalAddress != "" {
+		addr, err := p2p.NewNetAddressString(p2p.IDAddressString(nodeKey.ID(), config.P2P.ExternalAddress))
+		if err != nil {
+			return nil, fmt.Errorf("p2p.external_address is incorrect: %w", err)
+		}
+		addrBook.AddOurAddress(addr)
+	}
+	if config.P2P.ListenAddress != "" {
+		addr, err := p2p.NewNetAddressString(p2p.IDAddressString(nodeKey.ID(), config.P2P.ListenAddress))
+		if err != nil {
+			return nil, fmt.Errorf("p2p.laddr is incorrect: %w", err)
+		}
+		addrBook.AddOurAddress(addr)
+	}
+
+	sw.SetAddrBook(addrBook)
+
+	return addrBook, nil
+}
+
+func createPEXReactorAndAddToSwitch(addrBook pex.AddrBook, config *Config,
+	sw *p2p.Switch, logger log.Logger) *pex.Reactor {
+
+	// TODO persistent peers ? so we can have their DNS addrs saved
+	pexReactor := pex.NewReactor(addrBook,
+		&pex.ReactorConfig{
+			Seeds:    config.P2P.Seeds,
+			SeedMode: config.P2P.SeedMode,
+			// See consensus/reactor.go: blocksToContributeToBecomeGoodPeer 10000
+			// blocks assuming 10s blocks ~ 28 hours.
+			// TODO (melekes): make it dynamic based on the actual block latencies
+			// from the live network.
+			// https://github.com/tendermint/tendermint/issues/3523
+			SeedDisconnectWaitPeriod:     28 * time.Hour,
+			PersistentPeersMaxDialPeriod: config.P2P.PersistentPeersMaxDialPeriod,
+		})
+	pexReactor.SetLogger(logger)
+	sw.AddReactor("PEX", pexReactor)
+	return pexReactor
 }

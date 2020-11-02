@@ -22,8 +22,6 @@ package kai
 import (
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/consensus"
-	"github.com/kardiachain/go-kardiamain/kai/service"
-	serviceconst "github.com/kardiachain/go-kardiamain/kai/service/const"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -43,9 +41,8 @@ const (
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
 type KardiaSubService interface {
-	Start(srvr *p2p.Server)
+	Start(srvr *p2p.Switch)
 	Stop()
-	Protocols() []p2p.Protocol
 }
 
 // KardiaService implements Service for running full Kardia protocol.
@@ -54,7 +51,7 @@ type KardiaService struct {
 	logger log.Logger // Logger for Kardia service
 
 	config      *Config
-	chainConfig *types.ChainConfig
+	chainConfig *configs.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool
@@ -63,14 +60,17 @@ type KardiaService struct {
 	kaiDb types.StoreDB // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
-	txPool          *tx_pool.TxPool
-	protocolManager *service.ProtocolManager
-	blockchain      *blockchain.BlockChain
-	csManager       *consensus.ConsensusManager
+	txPool     *tx_pool.TxPool
+	blockchain *blockchain.BlockChain
+	csManager  *consensus.ConsensusManager
+	txpoolR    *tx_pool.Reactor
+	evR        *evidence.Reactor
 
 	subService KardiaSubService
 
 	networkID uint64
+
+	eventBus *types.EventBus
 }
 
 func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
@@ -80,21 +80,28 @@ func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
 // New creates a new KardiaService object (including the
 // initialisation of the common KardiaService object)
 func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService, error) {
+	var err error
 	// Create a specific logger for KARDIA service.
 	logger := log.New()
 	logger.AddTag(config.ServiceName)
 	logger.Info("newKardiaService", "dbType", config.DBInfo.Name())
 
-	kaiDb, err := ctx.StartDatabase(config.DBInfo)
-	if err != nil {
-		return nil, err
-	}
+	kaiDb := ctx.BlockStore
 
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, config.Genesis, config.BaseAccount)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
 	logger.Info("Initialised Kardia chain configuration", "config", chainConfig)
+
+	// EventBus and IndexerService must be started before the handshake because
+	// we might need to index the txs of the replayed block as this might not have happened
+	// when the node stopped last time (i.e. the node stopped after it saved the block
+	// but before it indexed the txs, or, endblocker panicked)
+	eventBus, err := createAndStartEventBus(logger)
+	if err != nil {
+		return nil, err
+	}
 
 	kai := &KardiaService{
 		logger:       logger,
@@ -103,8 +110,8 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		chainConfig:  chainConfig,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
+		eventBus:     eventBus,
 	}
-	logger.Info("Initialising protocol", "versions", serviceconst.ProtocolVersions, "network", config.NetworkId)
 
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?
 
@@ -122,18 +129,19 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// Set zeroFee to blockchain
 	kai.blockchain.IsZeroFee = config.IsZeroFee
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
+	kai.txpoolR = tx_pool.NewReactor(config.TxPool, kai.txPool)
+	kai.txpoolR.SetLogger(kai.logger)
 
 	bOper := blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool, staking)
 
-	evReactor := evidence.NewReactor(evPool)
+	kai.evR = evidence.NewReactor(evPool)
+	kai.evR.SetLogger(kai.logger)
 	blockExec := cstate.NewBlockExecutor(kai.blockchain.DB().DB(), evPool, bOper)
 
 	state, err := cstate.LoadStateFromDBOrGenesisDoc(kaiDb.DB(), config.Genesis)
 	if err != nil {
 		return nil, err
 	}
-
-	logger.Info("Validators: ", "vals", state.Validators.Validators)
 
 	consensusState := consensus.NewConsensusState(
 		kai.logger,
@@ -143,29 +151,11 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		blockExec,
 		evPool,
 	)
-	kai.csManager = consensus.NewConsensusManager(config.ServiceName, consensusState)
+	kai.csManager = consensus.NewConsensusManager(consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	kai.csManager.SetPrivValidator(privValidator)
-
-	// Initialize protocol manager.
-
-	if kai.protocolManager, err = service.NewProtocolManager(
-		kaiProtocolName,
-		kai.logger,
-		config.NetworkId,
-		config.ChainId,
-		kai.blockchain,
-		kai.chainConfig,
-		kai.txPool,
-		kai.csManager,
-		evReactor); err != nil {
-		return nil, err
-	}
-	kai.protocolManager.SetAcceptTxs(config.AcceptTxs)
-	kai.csManager.SetProtocol(kai.protocolManager)
-	evReactor.SetProtocol(kai.protocolManager)
-
+	kai.csManager.SetEventBus(kai.eventBus)
 	return kai, nil
 }
 
@@ -194,48 +184,34 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 }
 
 func (s *KardiaService) IsListening() bool  { return true } // Always listening
-func (s *KardiaService) KaiVersion() int    { return int(s.protocolManager.SubProtocols[0].Version) }
 func (s *KardiaService) NetVersion() uint64 { return s.networkID }
-
-// Protocols implements Service, returning all the currently configured
-// network protocols to start.
-func (s *KardiaService) Protocols() []p2p.Protocol {
-	if s.subService == nil {
-		return s.protocolManager.SubProtocols
-	}
-	return append(s.protocolManager.SubProtocols, s.subService.Protocols()...)
-}
 
 // Start implements Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
-func (s *KardiaService) Start(srvr *p2p.Server) error {
-	// Figures out a max peers count based on the server limits.
-	maxPeers := srvr.MaxPeers
+func (s *KardiaService) Start(srvr *p2p.Switch) error {
 
-	// Starts the networking layer.
-	s.protocolManager.Start(maxPeers)
-
-	// Start consensus manager.
-	s.csManager.Start()
-
-	// Starts optional subservice.
-	if s.subService != nil {
-		s.subService.Start(srvr)
-	}
+	srvr.AddReactor("CONSENSUS", s.csManager)
+	srvr.AddReactor("TXPOOL", s.txpoolR)
+	srvr.AddReactor("EVIDENCE", s.evR)
 	return nil
+}
+
+func createAndStartEventBus(logger log.Logger) (*types.EventBus, error) {
+	eventBus := types.NewEventBus()
+	eventBus.SetLogger(logger.New("module", "events"))
+	if err := eventBus.Start(); err != nil {
+		return nil, err
+	}
+	return eventBus, nil
 }
 
 // Stop implements Service, terminating all internal goroutines used by the
 // Kardia protocol.
 func (s *KardiaService) Stop() error {
-	s.csManager.Stop()
-	s.protocolManager.Stop()
 	if s.subService != nil {
 		s.subService.Stop()
 	}
-
 	close(s.shutdownChan)
-
 	return nil
 }
 
@@ -264,5 +240,4 @@ func (s *KardiaService) APIs() []rpc.API {
 
 func (s *KardiaService) TxPool() *tx_pool.TxPool            { return s.txPool }
 func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
-func (s *KardiaService) ChainConfig() *types.ChainConfig    { return s.chainConfig }
 func (s *KardiaService) DB() types.StoreDB                  { return s.kaiDb }

@@ -23,7 +23,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
@@ -87,14 +86,15 @@ func (bo *BlockOperations) CreateProposalBlock(
 	// Tx execution can happen in parallel with voting or precommitted.
 	// For simplicity, this code executes & commits txs before sending proposal,
 	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
-	maxBytes := lastState.ConsensusParams.Block.MaxBytes
+	//maxBytes := lastState.ConsensusParams.Block.MaxBytes
 	// Fetch a limited amount of valid evidence
-	maxNumEvidence, _ := types.MaxEvidencePerBlock(int64(maxBytes))
+	maxNumEvidence, _ := types.MaxEvidencePerBlock(lastState.ConsensusParams.Evidence.MaxBytes)
 	evidence := bo.evPool.PendingEvidence(maxNumEvidence)
 
 	txs := bo.txPool.ProposeTransactions()
 	bo.logger.Debug("Collected transactions", "txs count", len(txs))
-	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(), lastState.AppHash)
+	header := bo.newHeader(height, uint64(len(txs)), lastState.LastBlockID, proposerAddr, lastState.Validators.Hash(), lastState.NextValidators.Hash(), lastState.AppHash)
+	header.GasLimit = lastState.ConsensusParams.Block.MaxGas
 	bo.logger.Info("Creates new header", "header", header)
 
 	block = bo.newBlock(header, txs, commit, evidence)
@@ -198,17 +198,17 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 // newHeader creates new block header from given data.
 // Some header fields are not ready at this point.
 func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types.BlockID,
-	validator common.Address, validatorsHash common.Hash, appHash common.Hash) *types.Header {
+	proposer common.Address, validatorsHash common.Hash, nextValidatorHash common.Hash, appHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
-		Height:         height,
-		Time:           uint64(time.Now().Unix()),
-		NumTxs:         numTxs,
-		LastBlockID:    blockID,
-		Validator:      validator,
-		ValidatorsHash: validatorsHash,
-		GasLimit:       configs.BlockGasLimit, // Temporary set for testing
-		AppHash:        appHash,
+		Height:             height,
+		Time:               time.Now(),
+		NumTxs:             numTxs,
+		LastBlockID:        blockID,
+		ProposerAddress:    proposer,
+		ValidatorsHash:     validatorsHash,
+		NextValidatorsHash: nextValidatorHash,
+		AppHash:            appHash,
 	}
 }
 
@@ -216,8 +216,7 @@ func (bo *BlockOperations) newHeader(height uint64, numTxs uint64, blockID types
 func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, commit *types.Commit, ev []types.Evidence) *types.Block {
 	block := types.NewBlock(header, txs, commit, ev)
 
-	// TODO(namdoh): Fill the missing header info: AppHash, ConsensusHash,
-	// LastResultHash.
+	// TODO(@lew): Fill the missing header info: ConsensusHash, LastResultHash.
 
 	return block
 }
@@ -303,6 +302,7 @@ LOOP:
 
 	// Set new GasUsed value for the block header.
 	header.GasUsed = *usedGas
+	// bo.logger.Error("@@@ UsedGas ", *usedGas)
 
 	return vals, root, receipts, newTxs, nil
 }

@@ -21,6 +21,7 @@ package kvstore
 import (
 	"sync"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -69,7 +70,7 @@ func (s *StoreDB) WriteBlock(block *types.Block, blockParts *types.PartSet, seen
 }
 
 // WriteChainConfig writes the chain config settings to the database.
-func (s *StoreDB) WriteChainConfig(hash common.Hash, cfg *types.ChainConfig) {
+func (s *StoreDB) WriteChainConfig(hash common.Hash, cfg *configs.ChainConfig) {
 	CommonWriteChainConfig(s.db, hash, cfg)
 }
 
@@ -129,7 +130,7 @@ func (s *StoreDB) ReadCanonicalHash(height uint64) common.Hash {
 }
 
 // ReadChainConfig retrieves the consensus settings based on the given genesis hash.
-func (s *StoreDB) ReadChainConfig(hash common.Hash) *types.ChainConfig {
+func (s *StoreDB) ReadChainConfig(hash common.Hash) *configs.ChainConfig {
 	return CommonReadChainConfig(s.db, hash)
 }
 
@@ -155,11 +156,6 @@ func (s *StoreDB) ReadHeadBlockHash() common.Hash {
 // ReadHeadHeaderHash retrieves the hash of the current canonical head header.
 func (s *StoreDB) ReadHeadHeaderHash() common.Hash {
 	return CommonReadHeadHeaderHash(s.db)
-}
-
-// ReadCommitRLP retrieves the commit in RLP encoding.
-func (s *StoreDB) ReadCommitRLP(height uint64) rlp.RawValue {
-	return CommonReadCommitRLP(s.db, height)
 }
 
 // ReadBody retrieves the commit at a given height.

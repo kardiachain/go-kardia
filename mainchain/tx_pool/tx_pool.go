@@ -21,11 +21,13 @@ package tx_pool
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"sort"
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -144,6 +146,10 @@ type TxPoolConfig struct {
 	GlobalQueue  uint64 // Maximum number of non-executable transaction slots for all accounts
 
 	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
+
+	// TxReactor
+	Broadcast     bool
+	MaxBatchBytes int
 }
 
 // DefaultTxPoolConfig contains the default configurations for the transaction
@@ -155,12 +161,15 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	PriceLimit: 1,
 	PriceBump:  10,
 
-	AccountSlots: 128,
-	GlobalSlots:  4096,
-	AccountQueue: 256,
-	GlobalQueue:  4096,
+	AccountSlots: 512,
+	GlobalSlots:  49152,
+	AccountQueue: 1024,
+	GlobalQueue:  49152,
 
 	Lifetime: 1 * time.Hour,
+
+	Broadcast:     true,
+	MaxBatchBytes: 10 * 1024 * 1024, // 10MB
 }
 
 // sanitize checks the provided user configurations and changes anything that's
@@ -217,7 +226,7 @@ func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
 // two states over time as they are received and processed.
 type TxPool struct {
 	config      TxPoolConfig
-	chainconfig *types.ChainConfig
+	chainconfig *configs.ChainConfig
 	chain       blockChain
 	gasPrice    *big.Int
 	txFeed      event.Feed
@@ -258,7 +267,7 @@ type txpoolResetRequest struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(config TxPoolConfig, chainconfig *types.ChainConfig, chain blockChain) *TxPool {
+func NewTxPool(config TxPoolConfig, chainconfig *configs.ChainConfig, chain blockChain) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
@@ -604,13 +613,13 @@ func (pool *TxPool) validateTx(tx *types.Transaction, local bool) error {
 		return ErrInsufficientFunds
 	}
 	// // Ensure the transaction has more gas than the basic tx fee.
-	// intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil, true, pool.istanbul)
-	// if err != nil {
-	// 	return err
-	// }
-	// if tx.Gas() < intrGas {
-	// 	return ErrIntrinsicGas
-	// }
+	intrGas, err := IntrinsicGas(tx.Data(), tx.To() == nil)
+	if err != nil {
+		return err
+	}
+	if tx.Gas() < intrGas {
+		return ErrIntrinsicGas
+	}
 	return nil
 }
 
@@ -810,10 +819,10 @@ func (pool *TxPool) AddRemotesSync(txs []*types.Transaction) []error {
 }
 
 // This is like AddRemotes with a single transaction, but waits for pool reorganization. Tests use this method.
-func (pool *TxPool) addRemoteSync(tx *types.Transaction) error {
-	errs := pool.AddRemotesSync([]*types.Transaction{tx})
-	return errs[0]
-}
+// func (pool *TxPool) addRemoteSync(tx *types.Transaction) error {
+// 	errs := pool.AddRemotesSync([]*types.Transaction{tx})
+// 	return errs[0]
+// }
 
 // AddRemote enqueues a single transaction into the pool if it is valid. This is a convenience
 // wrapper around AddRemotes.
@@ -839,7 +848,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 			continue
 		}
 		// Cache senders in transactions before obtaining lock (pool.signer is immutable)
-		types.Sender(pool.signer, tx)
+		_, _ = types.Sender(pool.signer, tx)
 
 		// Accumulate all unknown transactions for deeper processing
 		news = append(news, tx)
@@ -942,7 +951,7 @@ func (pool *TxPool) removeTx(hash common.Hash, outofbound bool) {
 			}
 			// Postpone any invalidated transactions
 			for _, tx := range invalids {
-				pool.enqueueTx(tx.Hash(), tx)
+				_, _ = pool.enqueueTx(tx.Hash(), tx)
 			}
 			// Update the account nonce if needed
 			pool.pendingNonces.setIfLower(addr, tx.Nonce())
@@ -1133,68 +1142,68 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	pool.notifiedTxsAvailable = false
 
 	// If we're reorging an old state, reinject all dropped transactions
-	// var reinject types.Transactions
+	var reinject types.Transactions
 
-	// if oldHead != nil && oldHead.Hash() != newHead.LastCommitHash {
-	// 	// If the reorg is too deep, avoid doing it (will happen during fast sync)
-	// 	oldNum := oldHead.Height
-	// 	newNum := newHead.Height
+	if oldHead != nil && oldHead.Hash() != newHead.LastCommitHash {
+		// If the reorg is too deep, avoid doing it (will happen during fast sync)
+		oldNum := oldHead.Height
+		newNum := newHead.Height
 
-	// 	if depth := uint64(math.Abs(float64(oldNum) - float64(newNum))); depth > 64 {
-	// 		log.Debug("Skipping deep transaction reorg", "depth", depth)
-	// 	} else {
-	// 		// Reorg seems shallow enough to pull in all transactions into memory
-	// 		var discarded, included types.Transactions
-	// 		var (
-	// 			rem = pool.chain.GetBlock(oldHead.Hash(), oldNum)
-	// 			add = pool.chain.GetBlock(newHead.Hash(), newNum)
-	// 		)
-	// 		if rem == nil {
-	// 			// This can happen if a setHead is performed, where we simply discard the old
-	// 			// head from the chain.
-	// 			// If that is the case, we don't have the lost transactions any more, and
-	// 			// there's nothing to add
-	// 			if newNum < oldNum {
-	// 				// If the reorg ended up on a lower number, it's indicative of setHead being the cause
-	// 				log.Debug("Skipping transaction reset caused by setHead",
-	// 					"old", oldHead.Hash(), "oldnum", oldNum, "new", newHead.Hash(), "newnum", newNum)
-	// 			} else {
-	// 				// If we reorged to a same or higher number, then it's not a case of setHead
-	// 				log.Warn("Transaction pool reset with missing oldhead",
-	// 					"old", oldHead.Hash(), "oldnum", oldNum, "new", newHead.Hash(), "newnum", newNum)
-	// 			}
-	// 			return
-	// 		}
-	// 		for rem.Height() > add.Height() {
-	// 			discarded = append(discarded, rem.Transactions()...)
-	// 			if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
-	// 				log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
-	// 				return
-	// 			}
-	// 		}
-	// 		for add.Height() > rem.Height() {
-	// 			included = append(included, add.Transactions()...)
-	// 			fmt.Println(add.Height(), rem.Height())
-	// 			if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
-	// 				log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
-	// 				return
-	// 			}
-	// 		}
-	// 		for rem.Hash() != add.Hash() {
-	// 			discarded = append(discarded, rem.Transactions()...)
-	// 			if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
-	// 				log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
-	// 				return
-	// 			}
-	// 			included = append(included, add.Transactions()...)
-	// 			if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
-	// 				log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
-	// 				return
-	// 			}
-	// 		}
-	// 		reinject = types.TxDifference(discarded, included)
-	// 	}
-	// }
+		if depth := uint64(math.Abs(float64(oldNum) - float64(newNum))); depth > 64 {
+			log.Debug("Skipping deep transaction reorg", "depth", depth)
+		} else {
+			// Reorg seems shallow enough to pull in all transactions into memory
+			var discarded, included types.Transactions
+			var (
+				rem = pool.chain.GetBlock(oldHead.Hash(), oldNum)
+				add = pool.chain.GetBlock(newHead.Hash(), newNum)
+			)
+			if rem == nil {
+				// This can happen if a setHead is performed, where we simply discard the old
+				// head from the chain.
+				// If that is the case, we don't have the lost transactions any more, and
+				// there's nothing to add
+				if newNum < oldNum {
+					// If the reorg ended up on a lower number, it's indicative of setHead being the cause
+					log.Debug("Skipping transaction reset caused by setHead",
+						"old", oldHead.Hash(), "oldnum", oldNum, "new", newHead.Hash(), "newnum", newNum)
+				} else {
+					// If we reorged to a same or higher number, then it's not a case of setHead
+					log.Warn("Transaction pool reset with missing oldhead",
+						"old", oldHead.Hash(), "oldnum", oldNum, "new", newHead.Hash(), "newnum", newNum)
+				}
+				return
+			}
+			for rem.Height() > add.Height() {
+				discarded = append(discarded, rem.Transactions()...)
+				if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
+					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
+					return
+				}
+			}
+			for add.Height() > rem.Height() {
+				included = append(included, add.Transactions()...)
+				//fmt.Println(add.Height(), rem.Height())
+				if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
+					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
+					return
+				}
+			}
+			for rem.Hash() != add.Hash() {
+				discarded = append(discarded, rem.Transactions()...)
+				if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
+					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
+					return
+				}
+				included = append(included, add.Transactions()...)
+				if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
+					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
+					return
+				}
+			}
+			reinject = types.TxDifference(discarded, included)
+		}
+	}
 	// Initialize the internal state to the current head
 	if newHead == nil {
 		newHead = pool.chain.CurrentBlock().Header() // Special case during testing
@@ -1209,9 +1218,9 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 	pool.currentMaxGas = newHead.GasLimit
 
 	// Inject any transactions discarded due to reorgs
-	// log.Debug("Reinjecting stale transactions", "count", len(reinject))
-	// senderCacher.recover(pool.signer, reinject)
-	// pool.addTxsLocked(reinject, false)
+	log.Debug("Reinjecting stale transactions", "count", len(reinject))
+	senderCacher.recover(pool.signer, reinject)
+	pool.addTxsLocked(reinject, false)
 }
 
 // promoteExecutables moves transactions that have become processable from the
@@ -1439,7 +1448,7 @@ func (pool *TxPool) demoteUnexecutables() {
 		for _, tx := range invalids {
 			hash := tx.Hash()
 			log.Trace("Demoting pending transaction", "hash", hash)
-			pool.enqueueTx(hash, tx)
+			_, _ = pool.enqueueTx(hash, tx)
 		}
 		pendingGauge.Dec(int64(len(olds) + len(drops) + len(invalids)))
 		if pool.locals.contains(addr) {
@@ -1451,7 +1460,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			for _, tx := range gapped {
 				hash := tx.Hash()
 				log.Error("Demoting invalidated transaction", "hash", hash)
-				pool.enqueueTx(hash, tx)
+				_, _ = pool.enqueueTx(hash, tx)
 			}
 			pendingGauge.Dec(int64(len(gapped)))
 		}

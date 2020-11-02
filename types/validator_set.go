@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/merkle"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/pkg/errors"
 )
 
@@ -165,8 +166,8 @@ func (vs *ValidatorSet) RescalePriorities(diffMax int64) {
 	ratio := (diff + diffMax - 1) / diffMax
 	if diff > diffMax {
 		for _, val := range vs.Validators {
-			cmpPriority := val.ProposerPriority.GetInt64() / ratio
-			val.ProposerPriority = common.NewBigInt(cmpPriority)
+			cmpPriority := val.ProposerPriority / ratio
+			val.ProposerPriority = cmpPriority
 		}
 	}
 }
@@ -174,13 +175,13 @@ func (vs *ValidatorSet) RescalePriorities(diffMax int64) {
 func (vs *ValidatorSet) incrementProposerPriority() *Validator {
 	for _, val := range vs.Validators {
 		// Check for overflow for sum.
-		newPriority := val.ProposerPriority.Add(common.NewBigInt(int64(val.VotingPower)))
+		newPriority := val.ProposerPriority + int64(val.VotingPower)
 		val.ProposerPriority = newPriority
 	}
 	// Decrement the validator with most ProposerPriority.
 	mostest := vs.getValWithMostPriority()
 	// Mind the underflow.
-	mostest.ProposerPriority = common.NewBigInt(safeSubClip(mostest.ProposerPriority.GetInt64(), int64(vs.TotalVotingPower())))
+	mostest.ProposerPriority = safeSubClip(mostest.ProposerPriority, int64(vs.TotalVotingPower()))
 	return mostest
 }
 
@@ -190,7 +191,7 @@ func (vals *ValidatorSet) computeAvgProposerPriority() int64 {
 
 	sum := big.NewInt(0)
 	for _, val := range vals.Validators {
-		sum.Add(sum, big.NewInt(val.ProposerPriority.GetInt64()))
+		sum.Add(sum, big.NewInt(val.ProposerPriority))
 	}
 	avg := sum.Div(sum, big.NewInt(n))
 	if avg.IsInt64() {
@@ -209,11 +210,11 @@ func computeMaxMinPriorityDiff(vals *ValidatorSet) int64 {
 	max := int64(math.MaxInt64)
 	min := int64(math.MinInt64)
 	for _, v := range vals.Validators {
-		if v.ProposerPriority.GetInt64() < min {
-			min = v.ProposerPriority.GetInt64()
+		if v.ProposerPriority < min {
+			min = v.ProposerPriority
 		}
-		if v.ProposerPriority.GetInt64() > max {
-			max = v.ProposerPriority.GetInt64()
+		if v.ProposerPriority > max {
+			max = v.ProposerPriority
 		}
 	}
 	diff := max - min
@@ -240,8 +241,8 @@ func (vs *ValidatorSet) shiftByAvgProposerPriority() {
 	}
 	avgProposerPriority := vs.computeAvgProposerPriority()
 	for _, val := range vs.Validators {
-		proposerPriority := safeSubClip(val.ProposerPriority.GetInt64(), avgProposerPriority)
-		val.ProposerPriority = common.NewBigInt(proposerPriority)
+		proposerPriority := safeSubClip(val.ProposerPriority, avgProposerPriority)
+		val.ProposerPriority = proposerPriority
 	}
 }
 
@@ -478,7 +479,7 @@ func computeNewPriorities(updates []*Validator, vs *ValidatorSet, updatedTotalVo
 			//
 			// Compute ProposerPriority = -1.125*totalVotingPower == -(updatedVotingPower + (updatedVotingPower >> 3)).
 			proposerPriority := -(updatedTotalVotingPower + (updatedTotalVotingPower >> 3))
-			valUpdate.ProposerPriority = common.NewBigInt(proposerPriority)
+			valUpdate.ProposerPriority = proposerPriority
 		} else {
 			valUpdate.ProposerPriority = val.ProposerPriority
 		}
@@ -675,8 +676,8 @@ func (vs *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height uin
 		val := vs.Validators[idx]
 
 		// Validate signature.
-		voteSignBytes := commit.VoteSignBytes(chainID, uint32(idx))
-		if !VerifySignature(val.Address, crypto.Keccak256(voteSignBytes), commitSig.Signature) {
+		signBytes := commit.VoteSignBytes(chainID, uint32(idx))
+		if !VerifySignature(val.Address, crypto.Keccak256(signBytes), commitSig.Signature) {
 			return errors.Errorf("wrong signature (#%d): %X", idx, commitSig.Signature)
 		}
 		// Good precommit!
@@ -726,6 +727,65 @@ func (vs *ValidatorSet) StringIndented(indent string) string {
 		indent, strings.Join(valStrings, "\n"+indent+"    "),
 		indent)
 
+}
+
+// ToProto converts ValidatorSet to protobuf
+func (vals *ValidatorSet) ToProto() (*kproto.ValidatorSet, error) {
+	if vals.IsNilOrEmpty() {
+		return &kproto.ValidatorSet{}, nil // validator set should never be nil
+	}
+
+	vp := new(kproto.ValidatorSet)
+	valsProto := make([]*kproto.Validator, len(vals.Validators))
+	for i := 0; i < len(vals.Validators); i++ {
+		valp, err := vals.Validators[i].ToProto()
+		if err != nil {
+			return nil, err
+		}
+		valsProto[i] = valp
+	}
+	vp.Validators = valsProto
+
+	valProposer, err := vals.Proposer.ToProto()
+	if err != nil {
+		return nil, fmt.Errorf("toProto: validatorSet proposer error: %w", err)
+	}
+	vp.Proposer = valProposer
+
+	vp.TotalVotingPower = vals.totalVotingPower
+
+	return vp, nil
+}
+
+// ValidatorSetFromProto sets a protobuf ValidatorSet to the given pointer.
+// It returns an error if any of the validators from the set or the proposer
+// is invalid
+func ValidatorSetFromProto(vp *kproto.ValidatorSet) (*ValidatorSet, error) {
+	if vp == nil {
+		return nil, errors.New("nil validator set") // validator set should never be nil, bigger issues are at play if empty
+	}
+	vals := new(ValidatorSet)
+
+	valsProto := make([]*Validator, len(vp.Validators))
+	for i := 0; i < len(vp.Validators); i++ {
+		v, err := ValidatorFromProto(vp.Validators[i])
+		if err != nil {
+			return nil, err
+		}
+		valsProto[i] = v
+	}
+	vals.Validators = valsProto
+
+	p, err := ValidatorFromProto(vp.GetProposer())
+	if err != nil {
+		return nil, fmt.Errorf("fromProto: validatorSet proposer error: %w", err)
+	}
+
+	vals.Proposer = p
+
+	vals.totalVotingPower = vp.GetTotalVotingPower()
+
+	return vals, vals.ValidateBasic()
 }
 
 //-------------------------------------

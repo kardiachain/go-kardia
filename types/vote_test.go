@@ -21,13 +21,15 @@ package types
 import (
 	"bytes"
 	"testing"
+
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 // NOTE: privValidators are in order
 func randVoteSet(
 	height uint64,
 	round uint32,
-	signedMsgType byte,
+	signedMsgType kproto.SignedMsgType,
 	numValidators int,
 	votingPower uint64,
 ) (*VoteSet, *ValidatorSet, []PrivValidator) {
@@ -51,8 +53,8 @@ func TestVoteCreationAndCopy(t *testing.T) {
 func TestVoteByteEncoding(t *testing.T) {
 	firstVote := CreateEmptyVote()
 
-	firstByte := firstVote.SignBytes("KAI")
-	secondByte := firstVote.SignBytes("ETH")
+	firstByte := VoteSignBytes("KAI", firstVote.ToProto())
+	secondByte := VoteSignBytes("ETH", firstVote.ToProto())
 
 	if bytes.Equal(firstByte, secondByte) {
 		t.Fatal("SignBytes expected to be different for different votes")
@@ -62,14 +64,14 @@ func TestVoteByteEncoding(t *testing.T) {
 func TestVoteTypeFunctions(t *testing.T) {
 	firstVote := CreateEmptyVote()
 	secondVote := firstVote.Copy()
-	firstVote.Type = byte(0x01)  //Prevote
-	secondVote.Type = byte(0x02) //Precommit
+	firstVote.Type = kproto.PrevoteType
+	secondVote.Type = kproto.PrecommitType
 
 	if GetReadableVoteTypeString(firstVote.Type) != "Prevote" || GetReadableVoteTypeString(secondVote.Type) != "Precommit" {
 		t.Fatal("Issue translating vote types from bytes to string")
 	}
 
-	if !IsVoteTypeValid(firstVote.Type) || !IsVoteTypeValid(secondVote.Type) || IsVoteTypeValid(byte(0xFF)) {
+	if !IsVoteTypeValid(firstVote.Type) || !IsVoteTypeValid(secondVote.Type) {
 		t.Fatal("Valid vote type not found")
 	}
 

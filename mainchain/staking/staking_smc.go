@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/state"
@@ -19,7 +20,6 @@ import (
 const (
 	// KardiaSatkingSmcIndex ...
 	KardiaSatkingSmcIndex = 7
-	contractAddress       = "0x00000000000000000000000000000000736D1997"
 )
 
 // MaximumGasToCallStaticFunction ...
@@ -42,7 +42,7 @@ type Evidence struct {
 	Address          common.Address
 	VotingPower      *big.Int
 	Height           uint64
-	Time             uint64
+	Time             time.Time
 	TotalVotingPower uint64
 }
 
@@ -57,7 +57,7 @@ type StakingSmcUtil struct {
 // NewSmcStakingnUtil ...
 func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 	_, stakingSmcAbi := configs.GetContractDetailsByIndex(KardiaSatkingSmcIndex)
-	bytecodeStaking := configs.GetContractByteCodeByAddress(contractAddress)
+	bytecodeStaking := configs.GetContractByteCodeByAddress(configs.StakingContractAddress.Hex())
 
 	abi, err := abi.JSON(strings.NewReader(stakingSmcAbi))
 	if err != nil {
@@ -65,7 +65,7 @@ func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 		return nil, err
 	}
 
-	return &StakingSmcUtil{Abi: &abi, ContractAddress: common.HexToAddress("0xF3E77cDEeD0A979be6fb54dEdc50551e84F9C53a"), Bytecode: bytecodeStaking}, nil
+	return &StakingSmcUtil{Abi: &abi, ContractAddress: configs.StakingContractAddress, Bytecode: bytecodeStaking}, nil
 }
 
 //SetParams set params
@@ -99,14 +99,14 @@ func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward
 }
 
 //CreateValidator create validator
-func (s *StakingSmcUtil) CreateValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, votingPower int64) error {
+func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, votingPower int64) error {
 	input, err := s.Abi.Pack("createValidator", big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0))
 	if err != nil {
 		panic(err)
 	}
 
-	tokens := big.NewInt(votingPower)
-	tokens = tokens.Mul(tokens, big.NewInt(int64(math.Pow10(6))))
+	vp := big.NewInt(votingPower)
+	tokens := vp.Mul(vp, big.NewInt(int64(math.Pow10(12))))
 
 	msg := types.NewMessage(
 		valAddr,
@@ -306,7 +306,7 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	cfg kvm.Config) error {
 
 	msg := types.NewMessage(
-		common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"),
+		configs.GenesisDeployerAddr,
 		nil,
 		0,
 		big.NewInt(0),
@@ -320,10 +320,10 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	context := vm.NewKVMContext(msg, header, nil)
 	vmenv := kvm.NewKVM(context, statedb, cfg)
 	sender := kvm.AccountRef(msg.From())
-	_, _, _, vmerr := vmenv.Create(sender, msg.Data(), msg.Gas(), msg.Value())
-	if vmerr != nil {
-		return vmerr
+	if err := vmenv.CreateGenesisContractAddress(sender, msg.Data(), msg.Gas(), msg.Value(), s.ContractAddress); err != nil {
+		return err
 	}
+	log.Info("Created genesis staking smart contract", "Deployer", configs.GenesisDeployerAddr.Hex(), "Address", s.ContractAddress.Hex())
 	// Update the state with pending changes
 	statedb.Finalise(true)
 	return nil

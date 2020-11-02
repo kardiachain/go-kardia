@@ -26,6 +26,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 //-------------------------------------
@@ -46,7 +47,7 @@ const (
 type CommitSig struct {
 	BlockIDFlag      BlockIDFlag    `json:"block_id_flag"`
 	ValidatorAddress common.Address `json:"validator_address"`
-	Timestamp        uint64         `json:"timestamp"`
+	Timestamp        time.Time      `json:"timestamp"`
 	Signature        []byte         `json:"signature"`
 }
 
@@ -55,7 +56,7 @@ func NewCommitSigForBlock(signature []byte, valAddr common.Address, ts time.Time
 	return CommitSig{
 		BlockIDFlag:      BlockIDFlagCommit,
 		ValidatorAddress: valAddr,
-		Timestamp:        uint64(ts.Unix()),
+		Timestamp:        ts,
 		Signature:        signature,
 	}
 }
@@ -79,7 +80,7 @@ func (cs CommitSig) Absent() bool {
 }
 
 func (cs CommitSig) String() string {
-	return fmt.Sprintf("CommitSig{%X by %X on %v @ %d}",
+	return fmt.Sprintf("CommitSig{%X by %X on %v @ %x}",
 		common.Fingerprint(cs.Signature),
 		common.Fingerprint(cs.ValidatorAddress.Bytes()),
 		cs.BlockIDFlag,
@@ -119,7 +120,7 @@ func (cs CommitSig) ValidateBasic() error {
 		if len(cs.ValidatorAddress) != 0 {
 			return errors.New("validator address is present")
 		}
-		if cs.Timestamp != 0 {
+		if !cs.Timestamp.IsZero() {
 			return errors.New("time is present")
 		}
 		if len(cs.Signature) != 0 {
@@ -133,6 +134,32 @@ func (cs CommitSig) ValidateBasic() error {
 	}
 
 	return nil
+}
+
+// ToProto converts CommitSig to protobuf
+func (cs *CommitSig) ToProto() *kproto.CommitSig {
+	if cs == nil {
+		return nil
+	}
+
+	return &kproto.CommitSig{
+		BlockIdFlag:      kproto.BlockIDFlag(cs.BlockIDFlag),
+		ValidatorAddress: cs.ValidatorAddress.Bytes(),
+		Timestamp:        cs.Timestamp,
+		Signature:        cs.Signature,
+	}
+}
+
+// FromProto sets a protobuf CommitSig to the given pointer.
+// It returns an error if the CommitSig is invalid.
+func (cs *CommitSig) FromProto(csp kproto.CommitSig) error {
+
+	cs.BlockIDFlag = BlockIDFlag(csp.BlockIdFlag)
+	cs.ValidatorAddress = common.BytesToAddress(csp.ValidatorAddress)
+	cs.Timestamp = csp.Timestamp
+	cs.Signature = csp.Signature
+
+	return cs.ValidateBasic()
 }
 
 // Commit contains the evidence that a block was committed by a set of validators.
@@ -165,8 +192,8 @@ func NewCommit(height uint64, round uint32, blockID BlockID, commitSigs []Commit
 // Panics if signatures from the commit can't be added to the voteset.
 // Inverse of VoteSet.MakeCommit().
 func CommitToVoteSet(chainID string, commit *Commit, vals *ValidatorSet) *VoteSet {
-	height, round, typ := commit.GetHeight(), commit.GetRound(), VoteTypePrecommit
-	voteSet := NewVoteSet(chainID, height, round, typ, vals)
+	height, round := commit.GetHeight(), commit.GetRound()
+	voteSet := NewVoteSet(chainID, height, round, kproto.PrecommitType, vals)
 	for idx, commitSig := range commit.Signatures {
 		if commitSig.Absent() {
 			continue // OK, some precommits can be missing.
@@ -184,7 +211,8 @@ func CommitToVoteSet(chainID string, commit *Commit, vals *ValidatorSet) *VoteSe
 // signed over are otherwise the same for all validators.
 // Panics if valIdx >= commit.Size().
 func (commit *Commit) VoteSignBytes(chainID string, valIdx uint32) []byte {
-	return commit.GetVote(valIdx).SignBytes(chainID)
+	v := commit.GetVote(valIdx).ToProto()
+	return VoteSignBytes(chainID, v)
 }
 
 // GetVote converts the CommitSig for the given valIdx to a Vote.
@@ -193,7 +221,7 @@ func (commit *Commit) VoteSignBytes(chainID string, valIdx uint32) []byte {
 func (commit *Commit) GetVote(valIdx uint32) *Vote {
 	commitSig := commit.Signatures[valIdx]
 	return &Vote{
-		Type:             VoteTypePrecommit,
+		Type:             kproto.PrecommitType,
 		Height:           commit.Height,
 		Round:            commit.Round,
 		BlockID:          commitSig.BlockID(commit.BlockID),
@@ -222,8 +250,8 @@ func (commit *Commit) GetRound() uint32 {
 }
 
 // Type returns the vote type of the commit, which is always VoteTypePrecommit
-func (commit *Commit) Type() byte {
-	return VoteTypePrecommit
+func (commit *Commit) Type() kproto.SignedMsgType {
+	return kproto.PrecommitType
 }
 
 // Size returns the number of votes in the commit
@@ -313,4 +341,55 @@ func (commit *Commit) String() string {
 		commit.BlockID,
 		strings.Join(commitSigStrings, "\n,"),
 		commit.hash.Fingerprint())
+}
+
+// ToProto converts Commit to protobuf
+func (commit *Commit) ToProto() *kproto.Commit {
+	if commit == nil {
+		return nil
+	}
+
+	c := new(kproto.Commit)
+	sigs := make([]kproto.CommitSig, len(commit.Signatures))
+	for i := range commit.Signatures {
+		sigs[i] = *commit.Signatures[i].ToProto()
+	}
+	c.Signatures = sigs
+
+	c.Height = commit.Height
+	c.Round = commit.Round
+	c.BlockID = commit.BlockID.ToProto()
+
+	return c
+}
+
+// FromProto sets a protobuf Commit to the given pointer.
+// It returns an error if the commit is invalid.
+func CommitFromProto(cp *kproto.Commit) (*Commit, error) {
+	if cp == nil {
+		return nil, errors.New("nil Commit")
+	}
+
+	var (
+		commit = new(Commit)
+	)
+
+	bi, err := BlockIDFromProto(&cp.BlockID)
+	if err != nil {
+		return nil, err
+	}
+
+	sigs := make([]CommitSig, len(cp.Signatures))
+	for i := range cp.Signatures {
+		if err := sigs[i].FromProto(cp.Signatures[i]); err != nil {
+			return nil, err
+		}
+	}
+	commit.Signatures = sigs
+
+	commit.Height = cp.Height
+	commit.Round = cp.Round
+	commit.BlockID = *bi
+
+	return commit, commit.ValidateBasic()
 }

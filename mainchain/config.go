@@ -19,10 +19,10 @@
 package kai
 
 import (
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardiamain/types"
 )
 
 // DefaultConfig contains default settings for use on the Kardia main net.
@@ -64,5 +64,5 @@ type Config struct {
 	ServiceName string
 
 	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *types.BaseAccount
+	BaseAccount *configs.BaseAccount
 }

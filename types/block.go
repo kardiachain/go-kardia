@@ -22,20 +22,22 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unsafe"
 
 	"math/big"
 
+	"github.com/gogo/protobuf/proto"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto/sha3"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/math"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/trie"
 )
 
@@ -49,9 +51,9 @@ var (
 // Header represents a block header in the Kardia blockchain.
 type Header struct {
 	// basic block info
-	Height uint64 `json:"height"       gencodec:"required"`
-	Time   uint64 `json:"time"         gencodec:"required"`
-	NumTxs uint64 `json:"num_txs"      gencodec:"required"`
+	Height uint64    `json:"height"       gencodec:"required"`
+	Time   time.Time `json:"time"         gencodec:"required"`
+	NumTxs uint64    `json:"num_txs"      gencodec:"required"`
 	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
 	NumDualEvents uint64 `json:"num_dual_events" gencodec:"required"`
 
@@ -61,7 +63,7 @@ type Header struct {
 	// prev block info
 	LastBlockID BlockID `json:"last_block_id"`
 
-	Coinbase common.Address `json:"miner"            gencodec:"required"`
+	ProposerAddress common.Address `json:"proposer"            gencodec:"required"`
 
 	// hashes of block data
 	LastCommitHash common.Hash `json:"last_commit_hash"    gencodec:"required"` // commit from validators from the last block
@@ -69,11 +71,11 @@ type Header struct {
 	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
 	DualEventsHash common.Hash `json:"dual_events_hash"    gencodec:"required"` // dual's events
 
-	Validator common.Address `json:"validator"`
 	// hashes from the app output from the prev block
-	ValidatorsHash common.Hash `json:"validators_hash"` // validators for the current block
-	ConsensusHash  common.Hash `json:"consensus_hash"`  // consensus params for current block
-	AppHash        common.Hash `json:"app_hash"`        // state after txs from the previous block
+	ValidatorsHash     common.Hash `json:"validators_hash"`      // validators hash for the current block
+	NextValidatorsHash common.Hash `json:"next_validators_hash"` // next validators hask for next block
+	ConsensusHash      common.Hash `json:"consensus_hash"`       // consensus params for current block
+	AppHash            common.Hash `json:"app_hash"`             // state after txs from the previous block
 	//@huny LastResultsHash common.Hash `json:"last_results_hash"` // root hash of all results from the txs from the previous block
 
 	// consensus info
@@ -112,6 +114,64 @@ func (h *Header) String() string {
 	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  AppHash:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
 		h.Height, h.Time, h.NumTxs, h.LastBlockID, h.LastCommitHash.Fingerprint(),
 		h.TxHash.Fingerprint(), h.AppHash.Fingerprint(), h.ValidatorsHash.Fingerprint(), h.ConsensusHash.Fingerprint(), headerHash.Fingerprint())
+}
+
+// ToProto converts Header to protobuf
+func (h *Header) ToProto() *kproto.Header {
+	if h == nil {
+		return nil
+	}
+
+	return &kproto.Header{
+		Height:             h.Height,
+		Time:               h.Time,
+		LastBlockId:        h.LastBlockID.ToProto(),
+		ValidatorsHash:     h.ValidatorsHash.Bytes(),
+		NextValidatorsHash: h.NextValidatorsHash.Bytes(),
+		ConsensusHash:      h.ConsensusHash.Bytes(),
+		AppHash:            h.AppHash.Bytes(),
+		DataHash:           h.TxHash.Bytes(),
+		GasLimit:           h.GasLimit,
+		EvidenceHash:       h.EvidenceHash.Bytes(),
+		LastCommitHash:     h.LastCommitHash.Bytes(),
+		ProposerAddress:    h.ProposerAddress.Bytes(),
+		NumTxs:             h.NumTxs,
+	}
+}
+
+// FromProto sets a protobuf Header to the given pointer.
+// It returns an error if the header is invalid.
+func HeaderFromProto(ph *kproto.Header) (Header, error) {
+	if ph == nil {
+		return Header{}, errors.New("nil Header")
+	}
+
+	h := new(Header)
+
+	bi, err := BlockIDFromProto(&ph.LastBlockId)
+	if err != nil {
+		return Header{}, err
+	}
+
+	//h.Version = ph.Version
+	//h.ChainID = ph.ChainID
+	h.Height = ph.Height
+	h.Time = ph.Time
+	h.Height = ph.Height
+	h.LastBlockID = *bi
+	h.ValidatorsHash = common.BytesToHash(ph.ValidatorsHash)
+	h.NextValidatorsHash = common.BytesToHash(ph.NextValidatorsHash)
+	h.ConsensusHash = common.BytesToHash(ph.ConsensusHash)
+	h.AppHash = common.BytesToHash(ph.AppHash)
+	h.TxHash = common.BytesToHash(ph.DataHash)
+	h.EvidenceHash = common.BytesToHash(ph.EvidenceHash)
+	h.LastCommitHash = common.BytesToHash(ph.LastCommitHash)
+	h.ValidatorsHash = common.BytesToHash(ph.ValidatorsHash)
+	h.GasLimit = ph.GasLimit
+	h.NumTxs = ph.NumTxs
+	h.ProposerAddress = common.BytesToAddress(ph.ProposerAddress)
+
+	return *h, nil
 }
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
@@ -274,56 +334,6 @@ func CopyCommit(c *Commit) *Commit {
 	return &cpy
 }
 
-//  DecodeRLP implements rlp.Decoder, decodes RLP stream to Block struct.
-func (b *Block) DecodeRLP(s *rlp.Stream) error {
-	var eb extblock
-	_, size, _ := s.Kind()
-	if err := s.Decode(&eb); err != nil {
-		return err
-	}
-	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
-	//eb.LastCommit.MakeEmptyNil()
-
-	b.header, b.transactions, b.dualEvents, b.lastCommit, b.evidence = eb.Header, eb.Txs, eb.DualEvents, eb.LastCommit, eb.Evidence
-	b.size.Store(common.StorageSize(rlp.ListSize(size)))
-	return nil
-}
-
-// EncodeRLP serializes Block into the RLP stream.
-func (b *Block) EncodeRLP(w io.Writer) error {
-	// TODO(namdo,issues#73): Remove this hack, which address one of RLP's diosyncrasies.
-	lastCommitCopy := b.lastCommit.Copy()
-	//lastCommitCopy.MakeNilEmpty()
-	return rlp.Encode(w, extblock{
-		Header:     b.header,
-		Txs:        b.transactions,
-		DualEvents: b.dualEvents,
-		LastCommit: lastCommitCopy,
-		Evidence:   b.evidence,
-	})
-}
-
-//  DecodeRLP implements rlp.Decoder, decodes RLP stream to Body struct.
-// Custom Encode/Decode for Body because of LastCommit RLP issue#73, otherwise Body can use RLP default decoder.
-func (b *Body) DecodeRLP(s *rlp.Stream) error {
-	var eb extblock
-	if err := s.Decode(&eb); err != nil {
-		return err
-	}
-	b.Transactions, b.DualEvents, b.LastCommit = eb.Txs, eb.DualEvents, eb.LastCommit
-	return nil
-}
-
-func (b *Body) EncodeRLP(w io.Writer) error {
-	lastCommitCopy := b.LastCommit.Copy()
-	return rlp.Encode(w, extblock{
-		Header:     &Header{},
-		Txs:        b.Transactions,
-		DualEvents: b.DualEvents,
-		LastCommit: lastCommitCopy,
-	})
-}
-
 func (b *Block) Transactions() Transactions { return b.transactions }
 
 func (b *Block) Transaction(hash common.Hash) *Transaction {
@@ -353,14 +363,17 @@ func (b *Block) WithBody(body *Body) *Block {
 func (b *Block) Height() uint64   { return b.header.Height }
 func (b *Block) GasLimit() uint64 { return b.header.GasLimit }
 func (b *Block) GasUsed() uint64  { return b.header.GasUsed }
-func (b *Block) Time() uint64     { return b.header.Time }
+func (b *Block) Time() time.Time  { return b.header.Time }
 func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
-func (b *Block) LastCommitHash() common.Hash { return b.header.LastCommitHash }
-func (b *Block) TxHash() common.Hash         { return b.header.TxHash }
-func (b *Block) AppHash() common.Hash        { return b.header.AppHash }
-func (b *Block) LastCommit() *Commit         { return b.lastCommit }
-func (b *Block) Evidence() *EvidenceData     { return b.evidence }
+func (b *Block) ProposerAddress() common.Address { return b.header.ProposerAddress }
+func (b *Block) LastCommitHash() common.Hash     { return b.header.LastCommitHash }
+func (b *Block) TxHash() common.Hash             { return b.header.TxHash }
+func (b *Block) ValidatorHash() common.Hash      { return b.header.ValidatorsHash }
+func (b *Block) NextValidatorHash() common.Hash  { return b.header.NextValidatorsHash }
+func (b *Block) AppHash() common.Hash            { return b.header.AppHash }
+func (b *Block) LastCommit() *Commit             { return b.lastCommit }
+func (b *Block) Evidence() *EvidenceData         { return b.evidence }
 
 // TODO(namdoh): This is a hack due to rlp nature of decode both nil or empty
 // struct pointer as nil. After encoding an empty struct and send it over to
@@ -390,11 +403,14 @@ func (b *Block) MakePartSet(partSize uint32) *PartSet {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
-	bz, err := rlp.EncodeToBytes(b)
+	pbb, err := b.ToProto()
 	if err != nil {
 		panic(err)
 	}
-
+	bz, err := proto.Marshal(pbb)
+	if err != nil {
+		panic(err)
+	}
 	return NewPartSetFromData(bz, partSize)
 }
 
@@ -500,6 +516,61 @@ func (b *Block) Hash() common.Hash {
 	return v
 }
 
+// ToProto converts Block to protobuf
+func (b *Block) ToProto() (*kproto.Block, error) {
+	if b == nil {
+		return nil, errors.New("nil Block")
+	}
+
+	pb := new(kproto.Block)
+
+	pb.Header = *b.header.ToProto()
+	pb.LastCommit = b.lastCommit.ToProto()
+	pb.Data = b.transactions.ToProto()
+
+	protoEvidence, err := b.evidence.ToProto()
+	if err != nil {
+		return nil, err
+	}
+	pb.Evidence = *protoEvidence
+
+	return pb, nil
+}
+
+// FromProto sets a protobuf Block to the given pointer.
+// It returns an error if the block is invalid.
+func BlockFromProto(bp *kproto.Block) (*Block, error) {
+	if bp == nil {
+		return nil, errors.New("nil block")
+	}
+
+	b := new(Block)
+	h, err := HeaderFromProto(&bp.Header)
+	if err != nil {
+		return nil, err
+	}
+	b.header = &h
+	data, err := DataFromProto(&bp.Data)
+	if err != nil {
+		return nil, err
+	}
+	b.transactions = data
+	b.evidence = &EvidenceData{}
+	if err := b.evidence.FromProto(&bp.Evidence); err != nil {
+		return nil, err
+	}
+
+	if bp.LastCommit != nil {
+		lc, err := CommitFromProto(bp.LastCommit)
+		if err != nil {
+			return nil, err
+		}
+		b.lastCommit = lc
+	}
+
+	return b, b.ValidateBasic()
+}
+
 type BlockID struct {
 	Hash        common.Hash   `json:"hash"`
 	PartsHeader PartSetHeader `json:"parts"`
@@ -540,9 +611,39 @@ func (blockID BlockID) ValidateBasic() error {
 	return nil
 }
 
+// ToProto converts BlockID to protobuf
+func (blockID *BlockID) ToProto() kproto.BlockID {
+	if blockID == nil {
+		return kproto.BlockID{}
+	}
+
+	return kproto.BlockID{
+		Hash:          blockID.Hash.Bytes(),
+		PartSetHeader: blockID.PartsHeader.ToProto(),
+	}
+}
+
 // IsComplete returns true if this is a valid BlockID of a non-nil block.
 func (blockID BlockID) IsComplete() bool {
 	return !blockID.Hash.IsZero() && !blockID.PartsHeader.IsZero()
+}
+
+// FromProto sets a protobuf BlockID to the given pointer.
+// It returns an error if the block id is invalid.
+func BlockIDFromProto(bID *kproto.BlockID) (*BlockID, error) {
+	if bID == nil {
+		return nil, errors.New("nil BlockID")
+	}
+
+	blockID := new(BlockID)
+	ph, err := PartSetHeaderFromProto(&bID.PartSetHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	blockID.PartsHeader = *ph
+	blockID.Hash = common.BytesToHash(bID.Hash)
+	return blockID, blockID.ValidateBasic()
 }
 
 type Blocks []*Block
@@ -610,7 +711,8 @@ type EvidenceData struct {
 	Evidence EvidenceList `json:"evidence"`
 
 	// Volatile
-	hash common.Hash
+	hash     common.Hash
+	byteSize int64
 }
 
 // Hash returns the hash of the data.
@@ -641,40 +743,42 @@ func (data *EvidenceData) StringIndented(indent string) string {
 		indent, data.hash)
 }
 
-type storageEvidenceData struct {
-	Evidence [][]byte `json:"evidence"`
+// ToProto converts EvidenceData to protobuf
+func (data *EvidenceData) ToProto() (*kproto.EvidenceData, error) {
+	if data == nil {
+		return nil, errors.New("nil evidence data")
+	}
+
+	evi := new(kproto.EvidenceData)
+	eviBzs := make([]kproto.Evidence, len(data.Evidence))
+	for i := range data.Evidence {
+		protoEvi, err := EvidenceToProto(data.Evidence[i])
+		if err != nil {
+			return nil, err
+		}
+		eviBzs[i] = *protoEvi
+	}
+	evi.Evidence = eviBzs
+
+	return evi, nil
 }
 
-// EncodeRLP implement rlp
-func (data *EvidenceData) EncodeRLP(w io.Writer) error {
-	var err error
-	sed := &storageEvidenceData{
-		Evidence: make([][]byte, len(data.Evidence)),
+// FromProto sets a protobuf EvidenceData to the given pointer.
+func (data *EvidenceData) FromProto(eviData *kproto.EvidenceData) error {
+	if eviData == nil {
+		return errors.New("nil evidenceData")
 	}
-	for i, ev := range data.Evidence {
-		sed.Evidence[i], err = EvidenceToBytes(ev)
+
+	eviBzs := make(EvidenceList, len(eviData.Evidence))
+	for i := range eviData.Evidence {
+		evi, err := EvidenceFromProto(&eviData.Evidence[i])
 		if err != nil {
 			return err
 		}
+		eviBzs[i] = evi
 	}
-	return rlp.Encode(w, sed)
-}
+	data.Evidence = eviBzs
+	data.byteSize = int64(eviData.Size())
 
-// DecodeRLP implement rlp
-func (data *EvidenceData) DecodeRLP(s *rlp.Stream) error {
-	var err error
-	sed := &storageEvidenceData{}
-	if err = s.Decode(sed); err != nil {
-		return err
-	}
-	evidence := make([]Evidence, len(sed.Evidence))
-	for i, evBytes := range sed.Evidence {
-		ev, err := EvidenceFromBytes(evBytes)
-		if err != nil {
-			return err
-		}
-		evidence[i] = ev
-	}
-	data.Evidence = evidence
 	return nil
 }

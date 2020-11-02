@@ -28,6 +28,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/clist"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -119,11 +120,11 @@ func (evpool *Pool) Update(block *types.Block, state cstate.LastestBlockState) {
 	evpool.mtx.Unlock()
 
 	// remove evidence from pending and mark committed
-	evpool.MarkEvidenceAsCommitted(block.Height(), uint64(time.Now().Unix()), block.Evidence().Evidence)
+	evpool.MarkEvidenceAsCommitted(block.Height(), time.Now(), block.Evidence().Evidence)
 }
 
 // MarkEvidenceAsCommitted marks all the evidence as committed and removes it from the queue.
-func (evpool *Pool) MarkEvidenceAsCommitted(height uint64, lastBlockTime uint64, evidence []types.Evidence) {
+func (evpool *Pool) MarkEvidenceAsCommitted(height uint64, lastBlockTime time.Time, evidence []types.Evidence) {
 	// make a map of committed evidence to remove from the clist
 	blockEvidenceMap := make(map[string]struct{})
 	for _, ev := range evidence {
@@ -138,20 +139,20 @@ func (evpool *Pool) MarkEvidenceAsCommitted(height uint64, lastBlockTime uint64,
 
 func (evpool *Pool) removeEvidence(
 	height uint64,
-	lastBlockTime uint64,
-	params types.EvidenceParams,
+	lastBlockTime time.Time,
+	params kproto.EvidenceParams,
 	blockEvidenceMap map[string]struct{}) {
 
 	for e := evpool.evidenceList.Front(); e != nil; e = e.Next() {
 		var (
 			ev           = e.Value.(types.Evidence)
-			ageDuration  = lastBlockTime - uint64(ev.Time())
+			ageDuration  = lastBlockTime.Sub(ev.Time())
 			ageNumBlocks = int64(uint64(height) - ev.Height())
 		)
 
 		// Remove the evidence if it's already in a block or if it's now too old.
 		if _, ok := blockEvidenceMap[evMapKey(ev)]; ok ||
-			(uint(ageDuration) > params.MaxAgeDuration && ageNumBlocks > int64(params.MaxAgeNumBlocks)) {
+			(ageDuration > time.Duration(params.MaxAgeDuration)*time.Millisecond && ageNumBlocks > params.MaxAgeNumBlocks) {
 			// remove from clist
 			evpool.evidenceList.Remove(e)
 			e.DetachPrev()

@@ -17,30 +17,3 @@
  */
 
 package types
-
-import (
-	"bytes"
-	message "github.com/kardiachain/go-kardiamain/ksml/proto"
-	"testing"
-
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
-)
-
-func TestDualEventsEncoding(t *testing.T) {
-	firstDualEvent := CreateNewDualEvent(100)
-	secondDualEvent := CreateNewDualEvent(55)
-
-	dualEvents := DualEvents{firstDualEvent, secondDualEvent}
-
-	if returnbytes, err := rlp.EncodeToBytes(firstDualEvent); !bytes.Equal(dualEvents.GetRlp(0), returnbytes) || err != nil {
-		t.Error("Dual Events GetRlp error")
-	}
-	if returnbytes, err := rlp.EncodeToBytes(secondDualEvent); !bytes.Equal(dualEvents.GetRlp(1), returnbytes) || err != nil {
-		t.Error("Dual Events GetRlp error")
-	}
-}
-
-func CreateNewDualEvent(nonce uint64) *DualEvent {
-	return NewDualEvent(nonce, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})
-}

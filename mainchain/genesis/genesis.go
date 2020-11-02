@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/kvm"
 
@@ -35,6 +36,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
+	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -58,13 +60,15 @@ type GenesisValidator struct {
 
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
-	Config    *types.ChainConfig `json:"config"`
-	Timestamp uint64             `json:"timestamp"`
-	GasLimit  uint64             `json:"gasLimit"   gencodec:"required"`
-	Alloc     GenesisAlloc       `json:"alloc"      gencodec:"required"`
+	ChainID   string               `json:"chain_id"`
+	Config    *configs.ChainConfig `json:"config"`
+	Timestamp time.Time            `json:"timestamp"`
+	GasLimit  uint64               `json:"gasLimit"   gencodec:"required"`
+	Alloc     GenesisAlloc         `json:"alloc"      gencodec:"required"`
 
 	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
 	Validators           []*GenesisValidator          `json:"validators"`
+	ConsensusParams      *kaiproto.ConsensusParams    `json:"consensus_params,omitempty"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.
@@ -97,7 +101,7 @@ func (e *GenesisMismatchError) Error() string {
 //     db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, baseAccount *types.BaseAccount) (*types.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, baseAccount *configs.BaseAccount) (*configs.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		// TODO(huny@): should we return another default config?
 		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
@@ -162,7 +166,7 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 	return newcfg, stored, nil
 }
 
-func (g *Genesis) configOrDefault(ghash common.Hash) *types.ChainConfig {
+func (g *Genesis) configOrDefault(ghash common.Hash) *configs.ChainConfig {
 	switch {
 	case g != nil:
 		return g.Config
@@ -194,6 +198,12 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) (*types.Block, c
 	// 	Nonce:   0,
 	// }
 
+	// Generate genesis deployer address
+	g.Alloc[configs.GenesisDeployerAddr] = GenesisAccount{
+		Balance: big.NewInt(10),
+		Nonce:   0,
+	}
+
 	for addr, account := range g.Alloc {
 		statedb.AddBalance(addr, account.Balance)
 		statedb.SetCode(addr, account.Code)
@@ -202,9 +212,9 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) (*types.Block, c
 			statedb.SetState(addr, key, value)
 		}
 	}
+
 	head := &types.Header{
-		//@huny: convert timestamp here
-		// Time:           g.Timestamp,
+		Time:     g.Timestamp,
 		Height:   0,
 		GasLimit: g.GasLimit,
 		AppHash:  common.Hash{},
@@ -352,7 +362,7 @@ func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB
 	}
 
 	for _, val := range validators {
-		if err := staking.CreateValidator(statedb, header, nil, cfg, common.HexToAddress(val.Address), int64(val.Power)); err != nil {
+		if err := staking.CreateGenesisValidator(statedb, header, nil, cfg, common.HexToAddress(val.Address), int64(val.Power)); err != nil {
 			return fmt.Errorf("apply create validator err: %s", err)
 		}
 	}

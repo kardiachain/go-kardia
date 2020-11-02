@@ -5,8 +5,10 @@ package message
 
 import (
 	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
 	math "math"
+	"time"
+
+	proto "github.com/golang/protobuf/proto"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -22,19 +24,19 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // Message is sent from the dual node to kardia when it receive a trigger smart contract transaction.
 type EventMessage struct {
-	TransactionId        string   `protobuf:"bytes,1,opt,name=transactionId,proto3" json:"transactionId,omitempty"`
-	MasterSmartContract  string   `protobuf:"bytes,2,opt,name=masterSmartContract,proto3" json:"masterSmartContract,omitempty"`
-	From                 string   `protobuf:"bytes,3,opt,name=from,proto3" json:"from,omitempty"`
-	To                   string   `protobuf:"bytes,4,opt,name=to,proto3" json:"to,omitempty"`
-	Method               string   `protobuf:"bytes,5,opt,name=method,proto3" json:"method,omitempty"`
-	Params               []string `protobuf:"bytes,6,rep,name=params,proto3" json:"params,omitempty"`
-	Amount               uint64   `protobuf:"varint,7,opt,name=amount,proto3" json:"amount,omitempty"`
-	Sender               string   `protobuf:"bytes,8,opt,name=sender,proto3" json:"sender,omitempty"`
-	BlockNumber          uint64   `protobuf:"varint,9,opt,name=blockNumber,proto3" json:"blockNumber,omitempty"`
-	Timestamp            uint64   `protobuf:"varint,10,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	TransactionId        string    `protobuf:"bytes,1,opt,name=transactionId,proto3" json:"transactionId,omitempty"`
+	MasterSmartContract  string    `protobuf:"bytes,2,opt,name=masterSmartContract,proto3" json:"masterSmartContract,omitempty"`
+	From                 string    `protobuf:"bytes,3,opt,name=from,proto3" json:"from,omitempty"`
+	To                   string    `protobuf:"bytes,4,opt,name=to,proto3" json:"to,omitempty"`
+	Method               string    `protobuf:"bytes,5,opt,name=method,proto3" json:"method,omitempty"`
+	Params               []string  `protobuf:"bytes,6,rep,name=params,proto3" json:"params,omitempty"`
+	Amount               uint64    `protobuf:"varint,7,opt,name=amount,proto3" json:"amount,omitempty"`
+	Sender               string    `protobuf:"bytes,8,opt,name=sender,proto3" json:"sender,omitempty"`
+	BlockNumber          uint64    `protobuf:"varint,9,opt,name=blockNumber,proto3" json:"blockNumber,omitempty"`
+	Timestamp            time.Time `protobuf:"varint,10,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
+	XXX_unrecognized     []byte    `json:"-"`
+	XXX_sizecache        int32     `json:"-"`
 }
 
 func (m *EventMessage) Reset()         { *m = EventMessage{} }
@@ -125,11 +127,8 @@ func (m *EventMessage) GetBlockNumber() uint64 {
 	return 0
 }
 
-func (m *EventMessage) GetTimestamp() uint64 {
-	if m != nil {
-		return m.Timestamp
-	}
-	return 0
+func (m *EventMessage) GetTimestamp() time.Time {
+	return m.Timestamp
 }
 
 func init() {

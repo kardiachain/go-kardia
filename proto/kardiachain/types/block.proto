@@ -1,0 +1,25 @@
+syntax = "proto3";
+package kardiachain.types;
+
+option go_package = "github.com/kardiachain/go-kardiamain/proto/kardiachain/types";
+
+import "gogoproto/gogo.proto";
+import "kardiachain/types/types.proto";
+import "kardiachain/types/evidence.proto";
+
+message Block {
+  Header                        header      = 1 [(gogoproto.nullable) = false];
+  Data                          data        = 2 [(gogoproto.nullable) = false];
+  kardiachain.types.EvidenceData evidence    = 3 [(gogoproto.nullable) = false];
+  Commit                        last_commit = 4;
+}
+
+
+// Data contains the set of transactions included in the block
+message Data {
+    // Txs that will be applied by state @ block.Height+1.
+    // NOTE: not all txs here are valid.  We're just agreeing on the order first.
+    // This means that block.AppHash does not include these txs.
+    repeated bytes txs = 1;
+  }
+  
