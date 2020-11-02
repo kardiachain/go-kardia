@@ -115,7 +115,7 @@ func NewSwitch(
 		peers:                NewPeerSet(),
 		dialing:              cmap.NewCMap(),
 		reconnecting:         cmap.NewCMap(),
-		metrics:              NopMetrics(),
+		metrics:              InitMetrics(),
 		transport:            transport,
 		filterTimeout:        defaultFilterTimeout,
 		persistentPeersAddrs: make([]*NetAddress, 0),
@@ -364,7 +364,7 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 	// RemovePeer is finished.
 	// https://github.com/tendermint/tendermint/issues/3338
 	if sw.peers.Remove(peer) {
-		sw.metrics.Peers.Add(float64(-1))
+		sw.metrics.Peers.Inc(int64(-1))
 	}
 }
 
@@ -821,7 +821,7 @@ func (sw *Switch) addPeer(p Peer) error {
 	if err := sw.peers.Add(p); err != nil {
 		return err
 	}
-	sw.metrics.Peers.Add(float64(1))
+	sw.metrics.Peers.Inc(int64(1))
 
 	// Start all the reactor protocols on the peer.
 	for _, reactor := range sw.reactors {
