@@ -55,9 +55,7 @@ type KeyStore struct {
 	PrivateKey ecdsa.PrivateKey
 }
 
-/*
-	New KeyStoreJSON from auth string
-*/
+// NewKeyStoreJSON from auth string
 func (keyStore *KeyStore) NewKeyStoreJSON(auth string, pk string) (*KeyStoreJson, error) {
 	// Convert auth (password) to byte array
 	authArray := []byte(auth)
@@ -91,7 +89,7 @@ func (keyStore *KeyStore) NewKeyStoreJSON(auth string, pk string) (*KeyStoreJson
 
 	// Get address from private key
 	keyStore.PrivateKey = *privateKey
-	keyStore.Address = common.Address(crypto.PubkeyToAddress(privateKey.PublicKey))
+	keyStore.Address = crypto.PubkeyToAddress(privateKey.PublicKey)
 
 	// Derived key
 	derivedKey, err := scrypt.Key(authArray, salt, scryptN, scryptR, scryptP, scryptDKLen)
