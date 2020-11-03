@@ -21,8 +21,6 @@ package consensus
 import (
 	"context"
 	"fmt"
-	"math"
-	"math/big"
 	"testing"
 	"time"
 
@@ -44,14 +42,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/types/evidence"
 )
 
-const (
-	testSubscriber = "test-client"
-)
-
-var (
-	ensureTimeout = time.Millisecond * 200
-)
-
 //-------------------------------------------------------------------------------
 // validator stub (a kvstore consensus peer we control)
 
@@ -62,8 +52,6 @@ type validatorStub struct {
 	PrivVal     types.PrivValidator
 	VotingPower int64
 }
-
-var testMinPower int64 = 10
 
 func newValidatorStub(privValidator types.PrivValidator, valIndex int64, round uint32) *validatorStub {
 	return &validatorStub{
@@ -82,8 +70,8 @@ func (vs *validatorStub) signVote(
 	vote := &types.Vote{
 		ValidatorIndex:   uint32(vs.Index),
 		ValidatorAddress: privVal.GetAddress(),
-		Height:           uint64(vs.Height),
-		Round:            uint32(vs.Round),
+		Height:           vs.Height,
+		Round:            vs.Round,
 		Timestamp:        time.Now(),
 		Type:             voteType,
 		BlockID:          types.BlockID{Hash: hash, PartsHeader: header},
@@ -128,34 +116,6 @@ func incrementRound(vss ...*validatorStub) {
 		vs.Round++
 	}
 }
-
-type ValidatorStubsByPower []*validatorStub
-
-func (vss ValidatorStubsByPower) Len() int {
-	return len(vss)
-}
-
-func (vss ValidatorStubsByPower) Less(i, j int) bool {
-	vssi := (vss[i].PrivVal).GetAddress()
-	vssj := (vss[j].PrivVal).GetAddress()
-
-	if vss[i].VotingPower == vss[j].VotingPower {
-		return vssi == vssj
-	}
-
-	return vss[i].VotingPower > vss[j].VotingPower
-}
-
-func (vss ValidatorStubsByPower) Swap(i, j int) {
-	it := vss[i]
-	vss[i] = vss[j]
-	vss[i].Index = int64(i)
-	vss[j] = it
-	vss[j].Index = int64(j)
-}
-
-//-------------------------------------------------------------------------------
-// Functions for transitioning the consensus state
 
 func startTestRound(cs *ConsensusState, height uint64, round uint32) {
 	cs.enterNewRound(height, round)
@@ -207,7 +167,7 @@ func signAddVotes(
 	addVotes(to, votes...)
 }
 
-func validatePrevote(t *testing.T, cs *ConsensusState, round uint32, vs *validatorStub, blockHash common.Hash) {
+func validatePrevote(t *testing.T, cs *ConsensusState, round uint32, vs *validatorStub) {
 	prevotes := cs.Votes.Prevotes(round)
 	privVal := vs.PrivVal
 	address := privVal.GetAddress()
@@ -218,16 +178,8 @@ func validatePrevote(t *testing.T, cs *ConsensusState, round uint32, vs *validat
 	}
 }
 
-func validatePrecommit(
-	t *testing.T,
-	cs *ConsensusState,
-	thisRound,
-	lockRound uint32,
-	vs *validatorStub,
-	votedBlockHash,
-	lockedBlockHash common.Hash,
-) {
-	precommits := cs.Votes.Precommits(uint32(thisRound))
+func validatePrecommit(t *testing.T, cs *ConsensusState, thisRound uint32, vs *validatorStub) {
+	precommits := cs.Votes.Precommits(thisRound)
 	privVal := vs.PrivVal
 	address := privVal.GetAddress()
 	var vote *types.Vote
@@ -237,7 +189,7 @@ func validatePrecommit(
 	}
 }
 
-func validateLastPrecommit(t *testing.T, cs *ConsensusState, vs *validatorStub, blockHash common.Hash) {
+func validateLastPrecommit(t *testing.T, cs *ConsensusState, vs *validatorStub) {
 	votes := cs.LastCommit
 	privVal := vs.PrivVal
 	address := privVal.GetAddress()
@@ -284,24 +236,17 @@ func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, c
 }
 
 func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
-	// Start setting up blockchain
-	initValue := g.ToCell(int64(math.Pow10(6)))
-	var genesisAccounts = map[string]*big.Int{
-		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
-		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
-	}
-
-	stakingSmcAddress := configs.GetContractAddressAt(7).String()
+	stakingSmcAddress := common.HexToAddress(configs.StakingSMCAddress).String()
 	var genesisContracts = map[string]string{
 		stakingSmcAddress: configs.GenesisContracts[stakingSmcAddress],
 	}
 
 	blockDB := memorydb.New()
 	kaiDb := kvstore.NewStoreDB(blockDB)
-	genesis := g.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
-	chainConfig, _, genesisErr := setupGenesis(genesis, kaiDb)
+	genesisBlock := g.DefaultTestnetFullGenesisBlock(defaultGenesisAccounts, genesisContracts)
+	chainConfig, _, genesisErr := setupGenesis(genesisBlock, kaiDb)
 	if genesisErr != nil {
-		log.Error("Error setting genesis block", "err", genesisErr)
+		log.Error("Error setting genesisBlock block", "err", genesisErr)
 		return nil, nil, genesisErr
 	}
 
@@ -326,7 +271,7 @@ func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*Consensu
 		return nil, err
 	}
 
-	staking, _ := staking.NewSmcStakingnUtil()
+	staking, _ := staking.NewSmcStakingUtil()
 
 	txConfig := tx_pool.TxPoolConfig{
 		GlobalSlots: 64,
@@ -541,20 +486,12 @@ func ensureProposal(proposalCh <-chan kpubsub.Message, height uint64, round uint
 	}
 }
 
-func validatePrevoteAndPrecommit(
-	t *testing.T,
-	cs *ConsensusState,
-	thisRound,
-	lockRound uint32,
-	privVal *validatorStub,
-	votedBlockHash,
-	lockedBlockHash common.Hash,
-) {
+func validatePrevoteAndPrecommit(t *testing.T, cs *ConsensusState, thisRound uint32, privVal *validatorStub) {
 	// verify the prevote
-	validatePrevote(t, cs, thisRound, privVal, votedBlockHash)
+	validatePrevote(t, cs, thisRound, privVal)
 	// verify precommit
 	cs.mtx.Lock()
-	validatePrecommit(t, cs, thisRound, lockRound, privVal, votedBlockHash, lockedBlockHash)
+	validatePrecommit(t, cs, thisRound, privVal)
 	cs.mtx.Unlock()
 }
 
