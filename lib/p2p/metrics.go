@@ -2,9 +2,12 @@ package p2p
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/metrics"
 )
+
+const metricsTickerDuration = 10 * time.Second
 
 const (
 	metricsPrefix = "p2p/"

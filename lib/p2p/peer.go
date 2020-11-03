@@ -14,8 +14,6 @@ import (
 
 //go:generate mockery --case underscore --name Peer
 
-const metricsTickerDuration = 10 * time.Second
-
 // Peer is an interface representing a peer connected on a reactor.
 type Peer interface {
 	service.Service
