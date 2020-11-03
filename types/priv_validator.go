@@ -37,7 +37,7 @@ type PrivValidator interface {
 	GetAddress() common.Address
 	SignVote(chainID string, vote *kproto.Vote) error
 	SignProposal(chainID string, proposal *kproto.Proposal) error
-	ExtractIntoValidator(votingPower uint64) *Validator
+	ExtractIntoValidator(votingPower int64) *Validator
 }
 
 // PrivValidatorsByAddress ...
@@ -105,7 +105,7 @@ func (privVal *DefaultPrivValidator) SignProposal(chainID string, proposal *kpro
 	return nil
 }
 
-func (privVal DefaultPrivValidator) ExtractIntoValidator(votingPower uint64) *Validator {
+func (privVal DefaultPrivValidator) ExtractIntoValidator(votingPower int64) *Validator {
 	return &Validator{
 		Address:     privVal.GetAddress(),
 		VotingPower: votingPower,
@@ -195,7 +195,7 @@ func (pv *MockPV) DisableChecks() {
 	// as MockPV has no safety checks at all.
 }
 
-func (pv MockPV) ExtractIntoValidator(votingPower uint64) *Validator {
+func (pv MockPV) ExtractIntoValidator(votingPower int64) *Validator {
 	return &Validator{
 		Address:     pv.GetAddress(),
 		VotingPower: votingPower,

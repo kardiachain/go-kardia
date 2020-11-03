@@ -5,11 +5,12 @@ package types
 
 import (
 	fmt "fmt"
-	_ "github.com/gogo/protobuf/gogoproto"
-	proto "github.com/gogo/protobuf/proto"
 	io "io"
 	math "math"
 	math_bits "math/bits"
+
+	_ "github.com/gogo/protobuf/gogoproto"
+	proto "github.com/gogo/protobuf/proto"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -26,7 +27,7 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 type ValidatorSet struct {
 	Validators       []*Validator `protobuf:"bytes,1,rep,name=validators,proto3" json:"validators,omitempty"`
 	Proposer         *Validator   `protobuf:"bytes,2,opt,name=proposer,proto3" json:"proposer,omitempty"`
-	TotalVotingPower uint64       `protobuf:"varint,3,opt,name=total_voting_power,json=totalVotingPower,proto3" json:"total_voting_power,omitempty"`
+	TotalVotingPower int64        `protobuf:"varint,3,opt,name=total_voting_power,json=totalVotingPower,proto3" json:"total_voting_power,omitempty"`
 }
 
 func (m *ValidatorSet) Reset()         { *m = ValidatorSet{} }
@@ -76,7 +77,7 @@ func (m *ValidatorSet) GetProposer() *Validator {
 	return nil
 }
 
-func (m *ValidatorSet) GetTotalVotingPower() uint64 {
+func (m *ValidatorSet) GetTotalVotingPower() int64 {
 	if m != nil {
 		return m.TotalVotingPower
 	}
@@ -85,7 +86,7 @@ func (m *ValidatorSet) GetTotalVotingPower() uint64 {
 
 type Validator struct {
 	Address          []byte `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
-	VotingPower      uint64 `protobuf:"varint,3,opt,name=voting_power,json=votingPower,proto3" json:"voting_power,omitempty"`
+	VotingPower      int64  `protobuf:"varint,3,opt,name=voting_power,json=votingPower,proto3" json:"voting_power,omitempty"`
 	ProposerPriority int64  `protobuf:"varint,4,opt,name=proposer_priority,json=proposerPriority,proto3" json:"proposer_priority,omitempty"`
 }
 
@@ -129,7 +130,7 @@ func (m *Validator) GetAddress() []byte {
 	return nil
 }
 
-func (m *Validator) GetVotingPower() uint64 {
+func (m *Validator) GetVotingPower() int64 {
 	if m != nil {
 		return m.VotingPower
 	}
@@ -438,7 +439,7 @@ func (m *ValidatorSet) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.TotalVotingPower |= uint64(b&0x7F) << shift
+				m.TotalVotingPower |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -544,7 +545,7 @@ func (m *Validator) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.VotingPower |= uint64(b&0x7F) << shift
+				m.VotingPower |= int64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
