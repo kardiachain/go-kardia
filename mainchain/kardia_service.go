@@ -121,7 +121,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
-	staking, err := staking.NewSmcStakingnUtil()
+	staking, err := staking.NewSmcStakingUtil()
 	if err != nil {
 		return nil, err
 	}

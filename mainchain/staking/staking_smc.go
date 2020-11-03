@@ -17,9 +17,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-// MaximumGasToCallStaticFunction ...
-var MaximumGasToCallStaticFunction = uint(4000000)
-
 // VoteInfo ...
 type VoteInfo struct {
 	Address         common.Address
@@ -41,60 +38,30 @@ type Evidence struct {
 	TotalVotingPower uint64
 }
 
-// StakingSmcUtil ...
-type StakingSmcUtil struct {
+// SmcUtil ...
+type SmcUtil struct {
 	Abi             *abi.ABI
 	ContractAddress common.Address
 	Bytecode        string
 	logger          log.Logger
 }
 
-// NewSmcStakingnUtil ...
-func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
+// NewSmcStakingUtil ...
+func NewSmcStakingUtil() (*SmcUtil, error) {
 	stakingSmcAbi := configs.GetContractABIByAddress(configs.StakingContractAddress.Hex())
 	bytecodeStaking := configs.GetContractByteCodeByAddress(configs.StakingContractAddress.Hex())
 
-	abi, err := abi.JSON(strings.NewReader(stakingSmcAbi))
+	stakingAbi, err := abi.JSON(strings.NewReader(stakingSmcAbi))
 	if err != nil {
 		log.Error("Error reading abi", "err", err)
 		return nil, err
 	}
 
-	return &StakingSmcUtil{Abi: &abi, ContractAddress: configs.StakingContractAddress, Bytecode: bytecodeStaking}, nil
-}
-
-//SetParams set params
-func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward int64,
-	slashFractionDowntime int64, slashFractionDoubleSign int64, unBondingTime int64,
-	signedBlockWindow int64, minSignedBlockPerWindow int64,
-	SenderAddress common.Address) ([]byte, error) {
-
-	// stateDb, err := s.bc.State()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// store, err := s.Abi.Pack("setParams", big.NewInt(100), big.NewInt(600), big.NewInt(baseProposerReward),
-	// 	big.NewInt(bonusProposerReward),
-	// 	big.NewInt(slashFractionDowntime), big.NewInt(slashFractionDoubleSign),
-	// 	big.NewInt(unBondingTime), big.NewInt(signedBlockWindow),
-	// 	big.NewInt(minSignedBlockPerWindow))
-
-	// if err != nil {
-	// 	log.Error("Error set params", "err", err)
-	// 	return nil, err
-	// }
-
-	// _, _, err = sample_kvm.Call(s.ContractAddress, store, &sample_kvm.Config{State: stateDb, Origin: SenderAddress})
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return nil, nil
+	return &SmcUtil{Abi: &stakingAbi, ContractAddress: configs.StakingContractAddress, Bytecode: bytecodeStaking}, nil
 }
 
 //CreateValidator create validator
-func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, votingPower int64) error {
+func (s *SmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, votingPower int64) error {
 	input, err := s.Abi.Pack("createValidator", big.NewInt(0), big.NewInt(0), big.NewInt(0), big.NewInt(0))
 	if err != nil {
 		panic(err)
@@ -121,7 +88,7 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 }
 
 //ApplyAndReturnValidatorSets allow appy and return validator set
-func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) ([]*types.Validator, error) {
+func (s *SmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) ([]*types.Validator, error) {
 	payload, err := s.Abi.Pack("applyAndReturnValidatorSets")
 	if err != nil {
 		return nil, err
@@ -166,7 +133,7 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 }
 
 //Mint new tokens for the previous block. Returns fee collected
-func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) error {
+func (s *SmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) error {
 	payload, err := s.Abi.Pack("mint")
 	if err != nil {
 		return err
@@ -201,8 +168,8 @@ func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc v
 	return nil
 }
 
-//FinalizeCommit finalize commitcd
-func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, lastCommit LastCommitInfo) error {
+//FinalizeCommit finalize commit
+func (s *SmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, lastCommit LastCommitInfo) error {
 	vals := make([]common.Address, len(lastCommit.Votes))
 	votingPowers := make([]*big.Int, len(lastCommit.Votes))
 	signed := make([]bool, len(lastCommit.Votes))
@@ -234,7 +201,7 @@ func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.He
 }
 
 //DoubleSign double sign
-func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, byzVals []Evidence) error {
+func (s *SmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, byzVals []Evidence) error {
 	for _, ev := range byzVals {
 		payload, err := s.Abi.Pack("doubleSign", ev.Address, ev.VotingPower, big.NewInt(int64(ev.Height)))
 		if err != nil {
@@ -263,7 +230,7 @@ func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header
 }
 
 // SetRoot set address root
-func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) error {
+func (s *SmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) error {
 	payload, err := s.Abi.Pack("transferOwnership", s.ContractAddress)
 	if err != nil {
 		return err
@@ -299,7 +266,7 @@ func Apply(logger log.Logger, bc vm.ChainContext, statedb *state.StateDB, header
 }
 
 // CreateStakingContract ...
-func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
+func (s *SmcUtil) CreateStakingContract(statedb *state.StateDB,
 	header *types.Header,
 	cfg kvm.Config) error {
 
