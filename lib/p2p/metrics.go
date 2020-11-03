@@ -10,8 +10,6 @@ import (
 const metricsTickerDuration = 10 * time.Second
 
 const (
-	metricsPrefix = "p2p/"
-
 	MetricPeers                 = "peers"
 	MetricPeerReceiveBytesTotal = "total_received"
 	MetricPeerSendBytesTotal    = "total_sent"
@@ -51,7 +49,7 @@ func InitMetrics() *Metrics {
 
 func metricName(group, name string) string {
 	if group != "" {
-		return fmt.Sprintf("%s/%s/%s", metricsPrefix, group, name)
+		return fmt.Sprintf("%s/%s", group, name)
 	}
-	return fmt.Sprintf("%s/%s", metricsPrefix, name)
+	return name
 }

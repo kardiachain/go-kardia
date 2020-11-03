@@ -19,8 +19,6 @@ const (
 )
 
 var (
-	metricsPrefix = "db"
-
 	MetricCompTime               = metricName("compact", "time")
 	MetricCompReadTime           = metricName("compact", "read")
 	MetricCompWriteTime          = metricName("compact", "write")
@@ -55,9 +53,9 @@ var (
 
 func metricName(group, name string) string {
 	if group != "" {
-		return fmt.Sprintf("%s/%s/%s", metricsPrefix, group, name)
+		return fmt.Sprintf("%s/%s", group, name)
 	}
-	return fmt.Sprintf("%s/%s", metricsPrefix, name)
+	return name
 }
 
 type GetProperty func(name string) (value string, err error)

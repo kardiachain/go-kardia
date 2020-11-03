@@ -333,8 +333,7 @@ var (
 	SystemRegistry  = NewPrefixedRegistry("system/")
 	DBRegistry      = NewPrefixedRegistry("db/")
 	TxPoolRegistry  = NewPrefixedRegistry("tx_pool/")
-	TrieRegistry    = NewPrefixedRegistry("trie/")
-	P2PRegistry     = NewPrefixedRegistry("trie/")
+	P2PRegistry     = NewPrefixedRegistry("p2p/")
 )
 
 // Call the given function for each registered metric.

@@ -232,6 +232,8 @@ func (api *PublicAdminAPI) Metrics(registries []string) map[string]interface{} {
 		resp := make(map[string]interface{})
 		resp["tx_pool"] = metrics.TxPoolRegistry.GetAll()
 		resp["system"] = metrics.SystemRegistry.GetAll()
+		resp["db"] = metrics.DBRegistry.GetAll()
+		resp["p2p"] = metrics.P2PRegistry.GetAll()
 		return resp
 	}
 
