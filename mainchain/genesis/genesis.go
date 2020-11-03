@@ -191,7 +191,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) (*types.Block, c
 	}
 	statedb, _ := state.New(logger, common.Hash{}, state.NewDatabase(db))
 
-	stakingUtil, err := staking.NewSmcStakingnUtil()
+	stakingUtil, err := staking.NewSmcStakingUtil()
 	if err != nil {
 		panic(err)
 	}
@@ -270,59 +270,7 @@ func DefaultGenesisBlock() *Genesis {
 	}
 }
 
-// DefaultTestnetGenesisBlock returns the test network genesis block from configs.
-func DefaultTestnetGenesisBlock(allocData map[string]*big.Int) *Genesis {
-
-	ga, err := GenesisAllocFromData(allocData)
-	if err != nil {
-		return nil
-	}
-
-	return &Genesis{
-		Config:   configs.TestnetChainConfig,
-		GasLimit: 16777216,
-		Alloc:    ga,
-	}
-}
-
-// DefaultTestnetFullGenesisBlock return turn the test network genesis block with both account and smc from configs
-func DefaulTestnetFullGenesisBlock(accountData map[string]*big.Int, contractData map[string]string) *Genesis {
-	ga, err := GenesisAllocFromAccountAndContract(accountData, contractData)
-	if err != nil {
-		return nil
-	}
-	return &Genesis{
-		Config:   configs.TestnetChainConfig,
-		GasLimit: 16777216,
-		Alloc:    ga,
-	}
-}
-
-func GenesisAllocFromData(data map[string]*big.Int) (GenesisAlloc, error) {
-	ga := make(GenesisAlloc, len(data))
-
-	for address, balance := range data {
-		ga[common.HexToAddress(address)] = GenesisAccount{Balance: balance}
-	}
-
-	return ga, nil
-}
-
-//same as DefaultTestnetGenesisBlock, but with smart contract data
-func DefaultTestnetGenesisBlockWithContract(allocData map[string]string) *Genesis {
-	ga, err := GenesisAllocFromContractData(allocData)
-	if err != nil {
-		return nil
-	}
-
-	return &Genesis{
-		Config:   configs.TestnetChainConfig,
-		GasLimit: 16777216,
-		Alloc:    ga,
-	}
-}
-
-func GenesisAllocFromContractData(data map[string]string) (GenesisAlloc, error) {
+func AllocFromContractData(data map[string]string) (GenesisAlloc, error) {
 	ga := make(GenesisAlloc, len(data))
 
 	for address, code := range data {
@@ -331,7 +279,7 @@ func GenesisAllocFromContractData(data map[string]string) (GenesisAlloc, error) 
 	return ga, nil
 }
 
-func GenesisAllocFromAccountAndContract(accountData map[string]*big.Int, contractData map[string]string) (GenesisAlloc, error) {
+func AllocFromAccountAndContract(accountData map[string]*big.Int, contractData map[string]string) (GenesisAlloc, error) {
 	ga := make(GenesisAlloc, len(accountData)+len(contractData))
 
 	for address, balance := range accountData {
@@ -350,7 +298,7 @@ func ToCell(amount int64) *big.Int {
 	return cell
 }
 
-func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*GenesisValidator) error {
+func setupGenesisStaking(staking *staking.SmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*GenesisValidator) error {
 	if err := staking.CreateStakingContract(statedb, header, cfg); err != nil {
 		return err
 	}
@@ -360,10 +308,66 @@ func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB
 	}
 
 	for _, val := range validators {
-		if err := staking.CreateGenesisValidator(statedb, header, nil, cfg, common.HexToAddress(val.Address), int64(val.Power)); err != nil {
+		if err := staking.CreateGenesisValidator(statedb, header, nil, cfg, common.HexToAddress(val.Address), val.Power); err != nil {
 			return fmt.Errorf("apply create validator err: %s", err)
 		}
 	}
 
 	return nil
 }
+
+//region Testing
+
+// AllocFromData return list genesis account
+func AllocFromData(data map[string]*big.Int) (GenesisAlloc, error) {
+	ga := make(GenesisAlloc, len(data))
+
+	for address, balance := range data {
+		ga[common.HexToAddress(address)] = GenesisAccount{Balance: balance}
+	}
+
+	return ga, nil
+}
+
+// DefaultTestnetGenesisBlock returns the test network genesis block from configs.
+func DefaultTestnetGenesisBlock(allocData map[string]*big.Int) *Genesis {
+	ga, err := AllocFromData(allocData)
+	if err != nil {
+		return nil
+	}
+
+	return &Genesis{
+		Config:   configs.TestnetChainConfig,
+		GasLimit: 16777216,
+		Alloc:    ga,
+	}
+}
+
+// DefaultTestnetFullGenesisBlock return turn the test network genesis block with both account and smc from configs
+func DefaultTestnetFullGenesisBlock(accountData map[string]*big.Int, contractData map[string]string) *Genesis {
+	ga, err := AllocFromAccountAndContract(accountData, contractData)
+	if err != nil {
+		return nil
+	}
+	return &Genesis{
+		Config:   configs.TestnetChainConfig,
+		GasLimit: 16777216,
+		Alloc:    ga,
+	}
+}
+
+//same as DefaultTestnetGenesisBlock, but with smart contract data
+func DefaultTestnetGenesisBlockWithContract(allocData map[string]string) *Genesis {
+	ga, err := AllocFromContractData(allocData)
+	if err != nil {
+		return nil
+	}
+
+	return &Genesis{
+		Config:   configs.TestnetChainConfig,
+		GasLimit: 16777216,
+		Alloc:    ga,
+	}
+}
+
+//endregion Testing

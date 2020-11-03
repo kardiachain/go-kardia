@@ -53,11 +53,11 @@ type BlockOperations struct {
 	txPool     *tx_pool.TxPool
 	evPool     EvidencePool
 	height     uint64
-	staking    *staking.StakingSmcUtil
+	staking    *staking.SmcUtil
 }
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
-func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool, evpool EvidencePool, staking *staking.StakingSmcUtil) *BlockOperations {
+func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool, evpool EvidencePool, staking *staking.SmcUtil) *BlockOperations {
 	return &BlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
