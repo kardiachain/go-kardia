@@ -74,7 +74,7 @@ var DefaultConfig = node.Config{
 		AcceptTxs: 1, // 1 is to allow new transactions, 0 is not
 		IsPrivate: true,
 		IsZeroFee: true,
-		Genesis:   genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts),
+		Genesis:   genesis.DefaultTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts),
 	},
 }
 
