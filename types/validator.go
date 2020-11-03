@@ -25,6 +25,7 @@ import (
 	"math/rand"
 	"strings"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
@@ -174,7 +175,7 @@ func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
 	privVal := NewMockPV()
 	votePower := minPower
 	if randPower {
-		votePower += int64(rand.Int63())
+		votePower += rand.Int63() % configs.MaxTotalVotingPower
 	}
 	pubKey := privVal.GetPubKey()
 	val := NewValidator(crypto.PubkeyToAddress(pubKey), votePower)

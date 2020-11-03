@@ -26,11 +26,12 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/merkle"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-	"github.com/pkg/errors"
 )
 
 // MaxTotalVotingPower - the maximum allowed total voting power.
@@ -44,6 +45,7 @@ import (
 // the maximum allowed distance between validator priorities.
 
 const (
+	//todo @longnd: should we move this one to configs folder to avoid misconfiguration for test/dev
 	MaxTotalVotingPower      = int64(math.MaxInt64) / 8
 	PriorityWindowSizeFactor = 2
 )
@@ -186,12 +188,12 @@ func (vs *ValidatorSet) incrementProposerPriority() *Validator {
 }
 
 // Should not be called on an empty validator set.
-func (vals *ValidatorSet) computeAvgProposerPriority() int64 {
-	n := int64(len(vals.Validators))
+func (vs *ValidatorSet) computeAvgProposerPriority() int64 {
+	n := int64(len(vs.Validators))
 
 	sum := big.NewInt(0)
-	for _, val := range vals.Validators {
-		sum.Add(sum, big.NewInt(val.ProposerPriority))
+	for _, v := range vs.Validators {
+		sum.Add(sum, big.NewInt(v.ProposerPriority))
 	}
 	avg := sum.Div(sum, big.NewInt(n))
 	if avg.IsInt64() {
@@ -725,15 +727,15 @@ func (vs *ValidatorSet) StringIndented(indent string) string {
 }
 
 // ToProto converts ValidatorSet to protobuf
-func (vals *ValidatorSet) ToProto() (*kproto.ValidatorSet, error) {
-	if vals.IsNilOrEmpty() {
+func (vs *ValidatorSet) ToProto() (*kproto.ValidatorSet, error) {
+	if vs.IsNilOrEmpty() {
 		return &kproto.ValidatorSet{}, nil // validator set should never be nil
 	}
 
 	vp := new(kproto.ValidatorSet)
-	valsProto := make([]*kproto.Validator, len(vals.Validators))
-	for i := 0; i < len(vals.Validators); i++ {
-		valp, err := vals.Validators[i].ToProto()
+	valsProto := make([]*kproto.Validator, len(vs.Validators))
+	for i := 0; i < len(vs.Validators); i++ {
+		valp, err := vs.Validators[i].ToProto()
 		if err != nil {
 			return nil, err
 		}
@@ -741,13 +743,13 @@ func (vals *ValidatorSet) ToProto() (*kproto.ValidatorSet, error) {
 	}
 	vp.Validators = valsProto
 
-	valProposer, err := vals.Proposer.ToProto()
+	valProposer, err := vs.Proposer.ToProto()
 	if err != nil {
 		return nil, fmt.Errorf("toProto: validatorSet proposer error: %w", err)
 	}
 	vp.Proposer = valProposer
 
-	vp.TotalVotingPower = vals.totalVotingPower
+	vp.TotalVotingPower = vs.totalVotingPower
 
 	return vp, nil
 }

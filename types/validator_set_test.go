@@ -29,11 +29,12 @@ import (
 	"testing"
 	"testing/quick"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	kmath "github.com/kardiachain/go-kardiamain/lib/math"
 	krand "github.com/kardiachain/go-kardiamain/lib/rand"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestValidatorSetValidateBasic(t *testing.T) {
@@ -89,8 +90,8 @@ func TestValidatorSetValidateBasic(t *testing.T) {
 func randValidator(totalVotingPower uint64) *Validator {
 	// this modulo limits the ProposerPriority/VotingPower to stay in the
 	// bounds of MaxTotalVotingPower minus the already existing voting power:
-	val := NewValidator(generateAddress(), uint64(rand.Uint64()%uint64(MaxTotalVotingPower-totalVotingPower)))
-	proposerPriority := rand.Uint64() % (MaxTotalVotingPower - totalVotingPower)
+	val := NewValidator(generateAddress(), int64(rand.Uint64()%(uint64(MaxTotalVotingPower)-totalVotingPower)))
+	proposerPriority := rand.Uint64() % (uint64(MaxTotalVotingPower) - totalVotingPower)
 	val.ProposerPriority = int64(proposerPriority)
 	return val
 }
@@ -100,7 +101,7 @@ func randValidatorSet(numValidators int) *ValidatorSet {
 	totalVotingPower := uint64(0)
 	for i := 0; i < numValidators; i++ {
 		validators[i] = randValidator(totalVotingPower)
-		totalVotingPower += validators[i].VotingPower
+		totalVotingPower += uint64(validators[i].VotingPower)
 	}
 	return NewValidatorSet(validators)
 }
@@ -134,7 +135,7 @@ func TestIncrementProposerPriorityPositiveTimes(t *testing.T) {
 }
 
 func newValidator(address common.Address, power uint64) *Validator {
-	return &Validator{Address: address, VotingPower: power}
+	return &Validator{Address: address, VotingPower: int64(power)}
 }
 
 func generateAddress() common.Address {
@@ -376,9 +377,9 @@ func TestAveragingInIncrementProposerPriorityWithVotingPower(t *testing.T) {
 	total := vp0 + vp1 + vp2
 	avg := (vp0 + vp1 + vp2 - total) / 3
 	vals := ValidatorSet{Validators: []*Validator{
-		{Address: addr1, ProposerPriority: 0, VotingPower: uint64(vp0)},
-		{Address: addr2, ProposerPriority: 0, VotingPower: uint64(vp1)},
-		{Address: addr3, ProposerPriority: 0, VotingPower: uint64(vp2)}}}
+		{Address: addr1, ProposerPriority: 0, VotingPower: vp0},
+		{Address: addr2, ProposerPriority: 0, VotingPower: vp1},
+		{Address: addr3, ProposerPriority: 0, VotingPower: vp2}}}
 	tcs := []struct {
 		vals                  *ValidatorSet
 		wantProposerPrioritys []int64
