@@ -21,17 +21,19 @@ package cstate_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStoreLoadValidators(t *testing.T) {
 	stateDB := memorydb.New()
 	stateStore := cstate.NewStore(stateDB)
 	val, _ := types.RandValidator(true, 10)
+
 	vals := types.NewValidatorSet([]*types.Validator{val})
 
 	// 1) LoadValidators loads validators using a height where they were last changed

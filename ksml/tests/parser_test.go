@@ -24,6 +24,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	message2 "github.com/kardiachain/go-kardiamain/dualnode/message"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
@@ -38,7 +40,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/types"
 	kaiType "github.com/kardiachain/go-kardiamain/types"
-	"github.com/stretchr/testify/require"
 )
 
 type MemoryDbInfo struct{}
@@ -132,7 +133,7 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 	amount, _ := big.NewInt(0).SetString("1000000000000000000000000000", 10)
 	genesisAccounts[genesisAddress] = amount
 	genesisContracts["0x0A"] = common.Bytes2Hex(sampleCode)
-	ga, err := genesis.GenesisAllocFromAccountAndContract(genesisAccounts, genesisContracts)
+	ga, err := genesis.AllocFromAccountAndContract(genesisAccounts, genesisContracts)
 	if err != nil {
 		return nil, err
 	}
