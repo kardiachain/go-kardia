@@ -409,7 +409,7 @@ func (dbc *DualBlockChain) WriteBlockWithoutState(block *types.Block) error {
 }
 
 // WriteReceipts writes the transactions receipt from execution of the transactions in the given block.
-func (dbc *DualBlockChain) WriteBlockInfo(blockInfo *types.BlockInfo, block *types.Block) {
+func (dbc *DualBlockChain) WriteBlockInfo(block *types.Block, blockInfo *types.BlockInfo) {
 	dbc.mu.Lock()
 	defer dbc.mu.Unlock()
 
