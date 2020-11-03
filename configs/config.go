@@ -19,14 +19,17 @@
 package configs
 
 import (
+	"fmt"
+	"math"
 	"math/big"
-	"time"
-
 	"strings"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
+
+var MaxTotalVotingPower = int64(math.MaxInt64) / 8
 
 // TODO(huny): Get the proper genesis hash for Kardia when ready
 // Genesis hashes to enforce below configs on.
@@ -39,24 +42,6 @@ var (
 )
 
 var (
-	DefaultChainID  = uint64(1)
-	EthDualChainID  = uint64(2)
-	NeoDualChainID  = uint64(3)
-	TronDualChainID = uint64(4)
-)
-
-var (
-	StakingContract           = "Staking"
-	CounterContract           = "Counter"
-	BallotContract            = "Ballot"
-	ExchangeContract          = "Exchange"
-	ExchangeV2Contract        = "ExchangeV2"
-	PermissionContract        = "Permission"
-	CandidateDBContract       = "CandidateDB"
-	CandidateExchangeContract = "CandidateExchange"
-)
-
-var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &ChainConfig{
 		Kaicon: &KaiconConfig{
@@ -64,33 +49,7 @@ var (
 			Epoch:  30000,
 		},
 	}
-
-	// TestnetChainConfig contains the chain parameters to run a node on the test network.
-	TestnetChainConfig = &ChainConfig{
-		Kaicon: &KaiconConfig{
-			Period: 15,
-			Epoch:  30000,
-		},
-	}
-
-	// TestChainConfig contains the chain parameters to run unit test.
-	TestChainConfig = &ChainConfig{
-		Kaicon: &KaiconConfig{
-			Period: 15,
-			Epoch:  30000,
-		},
-	}
 )
-
-func configNumEqual(x, y *big.Int) bool {
-	if x == nil {
-		return y == nil
-	}
-	if y == nil {
-		return x == nil
-	}
-	return x.Cmp(y) == 0
-}
 
 type Config struct {
 	Consensus *ConsensusConfig
@@ -236,6 +195,32 @@ func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
 
 // ======================= Genesis Utils Functions =======================
 
+var InitValue = big.NewInt(int64(math.Pow10(10))) // Update Genesis Account Values
+var InitValueInCell = InitValue.Mul(InitValue, big.NewInt(int64(math.Pow10(18))))
+
+// GenesisAccounts are used to initialized accounts in genesis block
+var GenesisAccounts = map[string]*big.Int{
+	// TODO(kiendn): These addresses are same of node address. Change to another set.
+	"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": InitValueInCell,
+	"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": InitValueInCell,
+	"0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd": InitValueInCell,
+	"0x071E8F5ddddd9f2D4B4Bdf8Fc970DFe8d9871c28": InitValueInCell,
+	"0x94FD535AAB6C01302147Be7819D07817647f7B63": InitValueInCell,
+	"0xa8073C95521a6Db54f4b5ca31a04773B093e9274": InitValueInCell,
+	"0xe94517a4f6f45e80CbAaFfBb0b845F4c0FDD7547": InitValueInCell,
+	"0xBA30505351c17F4c818d94a990eDeD95e166474b": InitValueInCell,
+	"0x212a83C0D7Db5C526303f873D9CeaA32382b55D0": InitValueInCell,
+	"0x8dB7cF1823fcfa6e9E2063F983b3B96A48EEd5a4": InitValueInCell,
+	"0x66BAB3F68Ff0822B7bA568a58A5CB619C4825Ce5": InitValueInCell,
+	"0x88e1B4289b639C3b7b97899Be32627DCd3e81b7e": InitValueInCell,
+	"0xCE61E95666737E46B2453717Fe1ba0d9A85B9d3E": InitValueInCell,
+	"0x1A5193E85ffa06fde42b2A2A6da7535BA510aE8C": InitValueInCell,
+	"0xb19BC4477ff32EC13872a2A827782DeA8b6E92C0": InitValueInCell,
+	"0x0fFFA18f6c90ce3f02691dc5eC954495EA483046": InitValueInCell,
+	"0x8C10639F908FED884a04C5A49A2735AB726DDaB4": InitValueInCell,
+	"0x2BB7316884C7568F2C6A6aDf2908667C0d241A66": InitValueInCell,
+}
+
 type Contract struct {
 	address  string
 	bytecode string
@@ -245,7 +230,7 @@ type Contract struct {
 var contracts = make(map[string]Contract)
 
 func LoadGenesisContract(contractType string, address string, bytecode string, abi string) {
-	if contractType == StakingContract {
+	if contractType == StakingContractKey {
 		StakingContractAddress = common.HexToAddress(address)
 	}
 	contracts[contractType] = Contract{
@@ -256,7 +241,9 @@ func LoadGenesisContract(contractType string, address string, bytecode string, a
 }
 
 func GetContractABIByAddress(address string) string {
+	fmt.Println("Start get contract with address", address)
 	for _, contract := range contracts {
+		fmt.Println("Contract Address", contract.address)
 		if strings.EqualFold(address, contract.address) {
 			return contract.abi
 		}
