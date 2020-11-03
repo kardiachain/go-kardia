@@ -23,7 +23,9 @@ import (
 	"math/big"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/kvm/sample_kvm"
@@ -32,6 +34,25 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
+)
+
+// todo: consider if any better solutions for preload config without hard code
+func init() {
+	configs.AddContract(configs.StakingContractKey, configs.StakingContract)
+	configs.StakingContractAddress = common.HexToAddress("0x0000000000000000000000000000000000001337")
+}
+
+const (
+	testSubscriber = "test-client"
+)
+
+var (
+	ensureTimeout          = time.Millisecond * 200
+	initValue              = genesis.ToCell(int64(math.Pow10(6)))
+	defaultGenesisAccounts = map[string]*big.Int{
+		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
+		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
+	}
 )
 
 // Runtime_bytecode for ./DPoS_Election.sol
@@ -401,7 +422,7 @@ func SetupBlockchain() (*blockchain.BlockChain, error) {
 	}
 	blockDB := memorydb.New()
 	storeDB := kvstore.NewStoreDB(blockDB)
-	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
+	g := genesis.DefaultTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	chainConfig, _, genesisErr := setupGenesis(g, storeDB)
 	if genesisErr != nil {
 		return nil, genesisErr

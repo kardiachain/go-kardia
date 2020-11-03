@@ -164,7 +164,7 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, error) {
 	}
 	blockDB := memorydb.New()
 	kaiDb := kvstore.NewStoreDB(blockDB)
-	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
+	g := genesis.DefaultTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	chainConfig, _, genesisErr := setupGenesis(g, kaiDb)
 	if genesisErr != nil {
 		return nil, genesisErr
