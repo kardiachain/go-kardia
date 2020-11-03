@@ -6,18 +6,24 @@ Install Docker following the installation guide for Linux OS: [https://docs.dock
 Install docker compose
 * [Docker compose](https://docs.docker.com/compose/install/)
  
-# Test docker environment 
+## Run Kardia network 
 ```
-docker-compose up
+docker-compose build
+docker-compose up -d
 ``` 
 
-# To see container running & tail logs
+### Container running
 
 ```
 docker-compose ps
 ```
 
+### Logging
 ````
 docker logs -f --tail 10 node1
 docker logs -f --tail 10 node2
 docker logs -f --tail 10 node3
+docker logs -f --tail 10 node4
+docker logs -f --tail 10 node5
+docker logs -f --tail 10 node6
+docker logs -f --tail 10 node7
