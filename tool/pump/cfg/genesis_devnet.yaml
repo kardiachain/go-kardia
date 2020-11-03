@@ -1,4 +1,47 @@
 Genesis:
+  Validators:
+    - Name: val1
+      Address: 0xc1fe56E3F58D3244F606306611a5d10c8333f1f6
+      Power: 10000000000000000
+    - Name: val2
+      Address: 0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5
+      Power: 10000000000000000
+    - Name: val3
+      Address: 0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd
+      Power: 10000000000000000
+  GenesisAmount: 1000000000000000000000000000     # Default genesis amount in wei
+  ConsensusParams:
+    Block:
+      MaxBytes: 104857600     # Max block size in bytes. Type: int64
+      MaxGas: 200000000       # Gas limit of one block. Type: uint64
+    Evidence:
+      MaxAgeNumBlocks: 100000 # Max age of evidence, in blocks. Type int64
+      MaxAgeDuration: 48      # Max age of evidence, in time (hour). Type int64
+      MaxBytes: 1048576       # Maximum evidence in bytes. Type int64
+  Consensus:
+    TimeoutPropose: 3000   # In milliseconds. Type int64
+    TimeoutProposeDelta: 500    # In milliseconds. Type int64
+    TimeoutPrevote: 1000   # In milliseconds. Type int64
+    TimeoutPrevoteDelta: 500    # In milliseconds. Type int64
+    TimeoutPrecommit: 1000   # In milliseconds. Type int64
+    TimeoutPrecommitDelta: 500    # In milliseconds. Type int64
+    TimeoutCommit: 1000   # In milliseconds. Type int64
+    IsSkipTimeoutCommit: false  # true/false
+    IsCreateEmptyBlocks: true   # true/false
+    CreateEmptyBlocksInterval: 1000   # In milliseconds. Type int64
+    PeerGossipSleepDuration: 100    # In milliseconds. Type int64
+    PeerQueryMaj23SleepDuration: 2000   # In milliseconds. Type int64
+  ChainConfig:
+    KaiconConfig:
+      Period: 15    # Type uint64
+      Epoch: 30000  # Type uint64
+  TxPool:
+    AccountSlots: 2048      # Type: uint64
+    AccountQueue: 4096      # Type: uint64
+    GlobalSlots: 256        # Type: uint64
+    GlobalQueue: 16384      # Type: uint64
+    MaxBatchBytes: 10485760 # 10MB. Type: int
+    Broadcast: true         # Type: bool
   Addresses:
     - 0xc1fe56E3F58D3244F606306611a5d10c8333f1f6
     - 0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5
@@ -457,17 +500,6 @@ Genesis:
     - 0xCd7b57D1ce9E9f3D5a38Eaa4960803B3eDAE489F
     - 0x886906c1BF89bD5a5265bc3fccC9C4E053F52050
     - 0x7b2A8573243cF7e7F85da21753919DC3d9f38659
-  Validators:
-    - Name: val1
-      Address: 0xc1fe56E3F58D3244F606306611a5d10c8333f1f6
-      Power: 10000000000000000
-    - Name: val2
-      Address: 0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5
-      Power: 10000000000000000
-    - Name: val3
-      Address: 0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd
-      Power: 10000000000000000
-  GenesisAmount: 1000000000000000000000000000     # Default genesis amount in wei
   Contracts:
     Counter:
       Address: "0x00000000000000000000000000000000736d6331" # Counter contract bytecode in genesis block, source code in kvm/smc/SimpleCounter.sol
@@ -1038,35 +1070,3 @@ Genesis:
             "type": "function"
           }
         ]
-  ConsensusParams:
-    Block:
-      MaxBytes: 104857600     # Max block size in bytes. Type: int64
-      MaxGas: 200000000       # Gas limit of one block. Type: uint64
-    Evidence:
-      MaxAgeNumBlocks: 100000 # Max age of evidence, in blocks. Type int64
-      MaxAgeDuration: 48      # Max age of evidence, in time (hour). Type int64
-      MaxBytes: 1048576       # Maximum evidence in bytes. Type int64
-  Consensus:
-    TimeoutPropose: 3000   # In milliseconds. Type int64
-    TimeoutProposeDelta: 500    # In milliseconds. Type int64
-    TimeoutPrevote: 1000   # In milliseconds. Type int64
-    TimeoutPrevoteDelta: 500    # In milliseconds. Type int64
-    TimeoutPrecommit: 1000   # In milliseconds. Type int64
-    TimeoutPrecommitDelta: 500    # In milliseconds. Type int64
-    TimeoutCommit: 1000   # In milliseconds. Type int64
-    IsSkipTimeoutCommit: false  # true/false
-    IsCreateEmptyBlocks: true   # true/false
-    CreateEmptyBlocksInterval: 1000   # In milliseconds. Type int64
-    PeerGossipSleepDuration: 100    # In milliseconds. Type int64
-    PeerQueryMaj23SleepDuration: 2000   # In milliseconds. Type int64
-  ChainConfig:
-    KaiconConfig:
-      Period: 15    # Type uint64
-      Epoch: 30000  # Type uint64
-  TxPool:
-    AccountSlots: 2048      # Type: uint64
-    AccountQueue: 4096      # Type: uint64
-    GlobalSlots: 256        # Type: uint64
-    GlobalQueue: 16384      # Type: uint64
-    MaxBatchBytes: 10485760 # 10MB. Type: int
-    Broadcast: true         # Type: bool
