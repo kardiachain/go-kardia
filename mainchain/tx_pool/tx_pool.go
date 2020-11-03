@@ -200,14 +200,14 @@ func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
 // current state) and future transactions. Transactions move between those
 // two states over time as they are received and processed.
 type TxPool struct {
-	config      TxPoolConfig
-	chainconfig *configs.ChainConfig
-	chain       blockChain
-	gasPrice    *big.Int
-	txFeed      event.Feed
-	scope       event.SubscriptionScope
-	signer      types.Signer
-	mu          sync.RWMutex
+	config   TxPoolConfig
+	chainCfg *configs.ChainConfig
+	chain    blockChain
+	gasPrice *big.Int
+	txFeed   event.Feed
+	scope    event.SubscriptionScope
+	signer   types.Signer
+	mu       sync.RWMutex
 
 	currentState  *state.StateDB // Current state in the blockchain head
 	pendingNonces *txNoncer      // Pending state tracking virtual nonces
@@ -242,14 +242,14 @@ type txpoolResetRequest struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(config TxPoolConfig, chainconfig *configs.ChainConfig, chain blockChain) *TxPool {
+func NewTxPool(config TxPoolConfig, chainCfg *configs.ChainConfig, chain blockChain) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
 	// Create the transaction pool with its initial settings
 	pool := &TxPool{
 		config:          config,
-		chainconfig:     chainconfig,
+		chainCfg:        chainCfg,
 		chain:           chain,
 		signer:          types.HomesteadSigner{},
 		pending:         make(map[common.Address]*txList),
