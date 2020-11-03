@@ -132,11 +132,11 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 
 		for key, contract := range g.Contracts {
 			configs.LoadGenesisContract(key, contract.Address, contract.ByteCode, contract.ABI)
-			if key != configs.StakingContract {
+			if key != configs.StakingContractKey {
 				genesisContracts[contract.Address] = contract.ByteCode
 			}
 		}
-		ga, err = genesis.GenesisAllocFromAccountAndContract(genesisAccounts, genesisContracts)
+		ga, err = genesis.AllocFromAccountAndContract(genesisAccounts, genesisContracts)
 		if err != nil {
 			return nil, err
 		}

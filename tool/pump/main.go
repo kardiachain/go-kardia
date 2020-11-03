@@ -138,11 +138,11 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 
 		for key, contract := range g.Contracts {
 			configs.LoadGenesisContract(key, contract.Address, contract.ByteCode, contract.ABI)
-			if key != configs.StakingContract {
+			if key != configs.StakingContractKey {
 				genesisContracts[contract.Address] = contract.ByteCode
 			}
 		}
-		ga, err = genesis.GenesisAllocFromAccountAndContract(genesisAccounts, genesisContracts)
+		ga, err = genesis.AllocFromAccountAndContract(genesisAccounts, genesisContracts)
 		if err != nil {
 			return nil, err
 		}
@@ -262,12 +262,7 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 // newLog inits new logger for kardia
 func (c *Config) newLog() log.Logger {
 	// Setups log to Stdout.
-	level, err := log.LvlFromString(c.LogLevel)
-	if err != nil {
-		fmt.Printf("invalid log level argument, default to INFO: %v \n", err)
-		level = log.LvlInfo
-	}
-	log.Root().SetHandler(log.LvlFilterHandler(level,
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlDebug,
 		log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
 	return log.New()
 }
