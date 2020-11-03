@@ -293,7 +293,7 @@ func (vs *ValidatorSet) GetByAddress(address common.Address) (index int, val *Va
 // It returns nil values if index is less than 0 or greater or equal to
 // len(ValidatorSet.Validators).
 func (vs *ValidatorSet) GetByIndex(index uint32) (address common.Address, val *Validator) {
-	if index < 0 || index >= uint32(len(vs.Validators)) {
+	if index >= uint32(len(vs.Validators)) {
 		return common.Address{}, nil
 	}
 	val = vs.Validators[index]
@@ -392,15 +392,10 @@ func processChanges(origChanges []*Validator) (updates, removals []*Validator, e
 	removals = make([]*Validator, 0, len(changes))
 	updates = make([]*Validator, 0, len(changes))
 	var prevAddr common.Address
-
 	// Scan changes by address and append valid validators to updates or removals lists.
 	for _, valUpdate := range changes {
 		if valUpdate.Address.Equal(prevAddr) {
 			err = fmt.Errorf("duplicate entry %v in %v", valUpdate, changes)
-			return nil, nil, err
-		}
-		if valUpdate.VotingPower < 0 {
-			err = fmt.Errorf("voting power can't be negative: %v", valUpdate)
 			return nil, nil, err
 		}
 		if valUpdate.VotingPower > MaxTotalVotingPower {
@@ -500,7 +495,7 @@ func (vs *ValidatorSet) applyUpdates(updates []*Validator) {
 	i := 0
 
 	for len(existing) > 0 && len(updates) > 0 {
-		if existing[0].Address.Equal(updates[0].Address) { // unchanged validator
+		if bytes.Compare(existing[0].Address.Bytes(), updates[0].Address.Bytes()) < 0 { // unchanged validator
 			merged[i] = existing[0]
 			existing = existing[1:]
 		} else {
@@ -799,13 +794,11 @@ func (vals ValidatorsByAddress) Len() int {
 }
 
 func (vals ValidatorsByAddress) Less(i, j int) bool {
-	return vals[i].Address.Equal(vals[j].Address)
+	return bytes.Compare(vals[i].Address.Bytes(), vals[j].Address.Bytes()) == -1
 }
 
 func (vals ValidatorsByAddress) Swap(i, j int) {
-	it := vals[i]
-	vals[i] = vals[j]
-	vals[j] = it
+	vals[i], vals[j] = vals[j], vals[i]
 }
 
 //----------------------------------------
