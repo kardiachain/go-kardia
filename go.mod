@@ -1,6 +1,6 @@
 module github.com/kardiachain/go-kardiamain
 
-go 1.13
+go 1.14
 
 require (
 	github.com/allegro/bigcache v1.2.1 // indirect

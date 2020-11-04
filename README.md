@@ -1,14 +1,14 @@
 # Go-Kardia
 
 [![version](https://img.shields.io/github/release/qubyte/rubidium.svg)](https://github.com/kardiachain/go-kardiamain/releases/latest)
-[![Go version](https://img.shields.io/badge/go-1.13-blue.svg)](https://github.com/moovweb/gvm)
+[![Go version](https://img.shields.io/badge/go-1.14-blue.svg)](https://github.com/moovweb/gvm)
 [![License: LGPL v3](https://img.shields.io/badge/License-LGPL%20v3-blue.svg)](https://www.gnu.org/licenses/lgpl-3.0)
 [![CircleCI](https://circleci.com/gh/kardiachain/go-kardiamain.svg?style=shield&circle-token=b35bd6e6d67b307a6bb5966efbfa0297820d6846)](https://circleci.com/gh/kardiachain/go-kardiamain)
 [![codecov](https://codecov.io/gh/kardiachain/go-kardiamain/branch/master/graph/badge.svg?token=VuisziC3mg)](https://codecov.io/gh/kardiachain/go-kardiamain)
 
 Official Golang implementation of Kardia chain following the specs in [Technical Paper](http://dl.kardiachain.io/paper.pdf)
 
-Compatible tested Go version: 1.13.0, 1.13.9, 1.13.15
+Compatible tested Go version: 1.13.0, 1.13.9, 1.13.15, 1.14.10
 
 # Kardia private testnet
 - Block explorer UI: [Kardiascan](http://explorer.kardiachain.io/)
@@ -21,7 +21,7 @@ Compatible tested Go version: 1.13.0, 1.13.9, 1.13.15
 
 # Development
 ### Go environment setup
-Install [Go](https://golang.org/doc/install) v1.13 to $HOME directory. Sets environment vars:  
+Install [Go](https://golang.org/doc/install) v1.14 to $HOME directory. Sets environment vars:  
 > export GOPATH=$HOME/go  
 > export PATH=$PATH:$GOPATH/bin
 
