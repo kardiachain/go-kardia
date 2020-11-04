@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.13.9-stretch
+      - image: circleci/golang:1.14.10-stretch
     working_directory: /go/src/github.com/kardiachain/go-kardiamain
 
     environment:
@@ -38,36 +38,6 @@ jobs:
           command: |
             cd cmd
             go build -v
-
-  #release:
-  #  docker:
-  #    - image: circleci/golang:1.13-stretch
-  #  working_directory: /go/src/github.com/kardiachain/go-kardiamain
-
-  #  steps:
-  #    - checkout
-  #    - restore_cache:
-  #        keys:
-  #          - v1-pkg-cache
-
-  #    - run:
-  #        name: get dependencies
-  #        command: |
-  #          sudo apt-get update && sudo apt-get install -y libzmq3-dev
-
-  #    - run:
-  #        name: Run unit test
-  #        command: |
-  #          bash .circleci/test.sh
-
-  #    - save_cache:
-  #        key: v1-pkg-cache
-  #        paths:
-  #          - "/go/pkg"
-            
-  #    - run:
-  #        name: Run release
-  #        command: curl -sL https://git.io/goreleaser | bash
 
 workflows:
   version: 2

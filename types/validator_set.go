@@ -44,7 +44,7 @@ import (
 // the maximum allowed distance between validator priorities.
 
 const (
-	MaxTotalVotingPower      = uint64(math.MaxUint64) / 8
+	MaxTotalVotingPower      = int64(math.MaxInt64) / 8
 	PriorityWindowSizeFactor = 2
 )
 
@@ -64,7 +64,7 @@ type ValidatorSet struct {
 	Proposer   *Validator   `json:"proposer"`
 
 	// cached (unexported)
-	totalVotingPower uint64
+	totalVotingPower int64
 }
 
 // NewValidatorSet initializes a ValidatorSet by copying over the
@@ -293,7 +293,7 @@ func (vs *ValidatorSet) GetByAddress(address common.Address) (index int, val *Va
 // It returns nil values if index is less than 0 or greater or equal to
 // len(ValidatorSet.Validators).
 func (vs *ValidatorSet) GetByIndex(index uint32) (address common.Address, val *Validator) {
-	if index < 0 || index >= uint32(len(vs.Validators)) {
+	if index >= uint32(len(vs.Validators)) {
 		return common.Address{}, nil
 	}
 	val = vs.Validators[index]
@@ -311,20 +311,20 @@ func (vs *ValidatorSet) updateTotalVotingPower() {
 	sum := int64(0)
 	for _, val := range vs.Validators {
 		// mind overflow
-		sum = safeAddClip(sum, int64(val.VotingPower))
-		if sum > int64(MaxTotalVotingPower) {
+		sum = safeAddClip(sum, val.VotingPower)
+		if sum > MaxTotalVotingPower {
 			panic(fmt.Sprintf(
 				"Total voting power should be guarded to not exceed %v; got: %v",
 				MaxTotalVotingPower,
 				sum))
 		}
 	}
-	vs.totalVotingPower = uint64(sum)
+	vs.totalVotingPower = sum
 }
 
 // TotalVotingPower returns the sum of the voting powers of all validators.
 // It recomputes the total voting power if required.
-func (vs *ValidatorSet) TotalVotingPower() uint64 {
+func (vs *ValidatorSet) TotalVotingPower() int64 {
 	if vs.totalVotingPower == 0 {
 		vs.updateTotalVotingPower()
 	}
@@ -392,15 +392,10 @@ func processChanges(origChanges []*Validator) (updates, removals []*Validator, e
 	removals = make([]*Validator, 0, len(changes))
 	updates = make([]*Validator, 0, len(changes))
 	var prevAddr common.Address
-
 	// Scan changes by address and append valid validators to updates or removals lists.
 	for _, valUpdate := range changes {
 		if valUpdate.Address.Equal(prevAddr) {
 			err = fmt.Errorf("duplicate entry %v in %v", valUpdate, changes)
-			return nil, nil, err
-		}
-		if valUpdate.VotingPower < 0 {
-			err = fmt.Errorf("voting power can't be negative: %v", valUpdate)
 			return nil, nil, err
 		}
 		if valUpdate.VotingPower > MaxTotalVotingPower {
@@ -500,7 +495,7 @@ func (vs *ValidatorSet) applyUpdates(updates []*Validator) {
 	i := 0
 
 	for len(existing) > 0 && len(updates) > 0 {
-		if existing[0].Address.Equal(updates[0].Address) { // unchanged validator
+		if bytes.Compare(existing[0].Address.Bytes(), updates[0].Address.Bytes()) < 0 { // unchanged validator
 			merged[i] = existing[0]
 			existing = existing[1:]
 		} else {
@@ -531,8 +526,8 @@ func (vs *ValidatorSet) applyUpdates(updates []*Validator) {
 
 // Checks that the validators to be removed are part of the validator set.
 // No changes are made to the validator set 'vals'.
-func verifyRemovals(deletes []*Validator, vs *ValidatorSet) (uint64, error) {
-	removedVotingPower := uint64(0)
+func verifyRemovals(deletes []*Validator, vs *ValidatorSet) (int64, error) {
+	removedVotingPower := int64(0)
 	for _, valUpdate := range deletes {
 		address := valUpdate.Address
 		_, val := vs.GetByAddress(address)
@@ -665,7 +660,7 @@ func (vs *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height uin
 			blockID, commit.BlockID)
 	}
 
-	talliedVotingPower := uint64(0)
+	talliedVotingPower := int64(0)
 	votingPowerNeeded := vs.TotalVotingPower() * 2 / 3
 	for idx, commitSig := range commit.Signatures {
 		if commitSig.Absent() {
@@ -682,7 +677,7 @@ func (vs *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height uin
 		}
 		// Good precommit!
 		if blockID.Equal(commitSig.BlockID(commit.BlockID)) {
-			talliedVotingPower += uint64(val.VotingPower)
+			talliedVotingPower += val.VotingPower
 		}
 	}
 
@@ -799,13 +794,11 @@ func (vals ValidatorsByAddress) Len() int {
 }
 
 func (vals ValidatorsByAddress) Less(i, j int) bool {
-	return vals[i].Address.Equal(vals[j].Address)
+	return bytes.Compare(vals[i].Address.Bytes(), vals[j].Address.Bytes()) == -1
 }
 
 func (vals ValidatorsByAddress) Swap(i, j int) {
-	it := vals[i]
-	vals[i] = vals[j]
-	vals[j] = it
+	vals[i], vals[j] = vals[j], vals[i]
 }
 
 //----------------------------------------
@@ -817,7 +810,7 @@ func (vals ValidatorsByAddress) Swap(i, j int) {
 // RandValidatorSet returns a randomized validator set (size: +numValidators+),
 // where each validator has a voting power of +votingPower+.
 //
-func RandValidatorSet(numValidators int, votingPower uint64) (*ValidatorSet, []PrivValidator) {
+func RandValidatorSet(numValidators int, votingPower int64) (*ValidatorSet, []PrivValidator) {
 	var (
 		valz           = make([]*Validator, numValidators)
 		privValidators = make([]PrivValidator, numValidators)
