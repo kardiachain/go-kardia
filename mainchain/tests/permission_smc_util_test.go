@@ -43,11 +43,11 @@ func GetBlockchain() (*blockchain.BlockChain, error) {
 		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
 		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
 	}
-	kardiaPermissionSmcAddress := configs.GetContractAddressAt(permissioned.KardiaPermissionSmcIndex).String()
-	privatechainCandidateSmcAddress := configs.GetContractAddressAt(permissioned.PrivateChainCandidateSmcIndex).String()
+	kardiaPermissionSmcAddress := "0x00000000000000000000000000000000736D6336"
+	//privatechainCandidateSmcAddress := configs.GetContractAddressAt(permissioned.PrivateChainCandidateSmcIndex).String()
 	var genesisContracts = map[string]string{
-		kardiaPermissionSmcAddress:      configs.GenesisContracts[kardiaPermissionSmcAddress],
-		privatechainCandidateSmcAddress: configs.GenesisContracts[privatechainCandidateSmcAddress],
+		kardiaPermissionSmcAddress: configs.GetContractByteCodeByAddress(kardiaPermissionSmcAddress),
+		//privatechainCandidateSmcAddress: configs.GenesisContracts[privatechainCandidateSmcAddress],
 	}
 	blockDB := memorydb.New()
 	kaiDb := kvstore.NewStoreDB(blockDB)

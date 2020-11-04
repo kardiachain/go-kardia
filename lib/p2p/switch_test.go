@@ -414,15 +414,15 @@ func TestSwitchStopPeerForError(t *testing.T) {
 		return f
 	}
 
-	p2pMetrics := PrometheusMetrics(namespace)
+	//p2pMetrics := PrometheusMetrics(namespace)
 
 	// make two connected switches
 	sw1, sw2 := MakeSwitchPair(t, func(i int, sw *Switch) *Switch {
 		// set metrics on sw1
-		if i == 0 {
-			opt := WithMetrics(p2pMetrics)
-			opt(sw)
-		}
+		//if i == 0 {
+		//	opt := WithMetrics(p2pMetrics)
+		//	opt(sw)
+		//}
 		return initSwitchFunc(i, sw)
 	})
 

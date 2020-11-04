@@ -52,10 +52,10 @@ func GetBlockchainStaking() (*blockchain.BlockChain, error, *state.StateDB) {
 		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
 		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
 	}
-	stakingSmcAddress := configs.GetContractAddressAt(KardiaSatkingSmcIndex).String()
+	stakingSmcAddress := "0x0000000000000000000000000000000000001337"
 
 	var genesisContracts = map[string]string{
-		stakingSmcAddress: configs.GenesisContracts[stakingSmcAddress],
+		stakingSmcAddress: configs.GetContractByteCodeByAddress(stakingSmcAddress),
 	}
 	blockDB := memorydb.New()
 	kaiDb := kvstore.NewStoreDB(blockDB)
