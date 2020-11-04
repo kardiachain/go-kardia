@@ -409,11 +409,11 @@ func (dbc *DualBlockChain) WriteBlockWithoutState(block *types.Block) error {
 }
 
 // WriteReceipts writes the transactions receipt from execution of the transactions in the given block.
-func (dbc *DualBlockChain) WriteReceipts(receipts types.Receipts, block *types.Block) {
+func (dbc *DualBlockChain) WriteBlockInfo(block *types.Block, blockInfo *types.BlockInfo) {
 	dbc.mu.Lock()
 	defer dbc.mu.Unlock()
 
-	dbc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
+	dbc.db.WriteBlockInfo(block.Hash(), block.Header().Height, blockInfo)
 }
 
 // WriteBlockWithState writes the block and all associated state to the database.
@@ -431,7 +431,7 @@ func (dbc *DualBlockChain) WriteBlockWithState(block *types.Block, receipts []*t
 	if err := triedb.Commit(root, false); err != nil {
 		return err
 	}
-	dbc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
+	//dbc.db.WriteBlockInfo(block.Hash(), block.Header().Height, receipts)
 	dbc.db.WriteTxLookupEntries(block)
 
 	// Set new head.

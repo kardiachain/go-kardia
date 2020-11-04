@@ -177,12 +177,12 @@ func NewBasicBlockJSON(block types.Block) *BlockJSON {
 }
 
 // NewBlockJSON creates a new Block JSON data from Block
-func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
+func NewBlockJSON(block types.Block, blockInfo types.BlockInfo) *BlockJSON {
 	txs := block.Transactions()
 	transactions := make([]*PublicTransaction, 0, len(txs))
 	basicReceipts := make([]*BasicReceipt, 0)
 
-	for _, receipt := range receipts {
+	for _, receipt := range blockInfo.Receipts {
 		basicReceipts = append(basicReceipts, getBasicReceipt(*receipt))
 	}
 
@@ -203,7 +203,7 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		Time:              block.Header().Time,
 		NumTxs:            block.Header().NumTxs,
 		GasLimit:          block.Header().GasLimit,
-		GasUsed:           block.Header().GasUsed,
+		GasUsed:           blockInfo.GasUsed,
 		ProposerAddress:   block.Header().ProposerAddress.Hex(),
 		TxHash:            block.Header().TxHash.Hex(),
 		ValidatorsHash:    block.Header().ValidatorsHash.Hex(),
@@ -266,11 +266,11 @@ func (s *PublicKaiAPI) GetBlockByHash(blockHash string) (*BlockJSON, error) {
 		return nil, errors.New("block for hash not found")
 	}
 
-	receipts, err := getReceipts(s.kaiService.kaiDb, block.Hash())
+	blockInfo, err := getBlockInfo(s.kaiService.kaiDb, block.Hash())
 	if err != nil {
 		return nil, err
 	}
-	return NewBlockJSON(*block, receipts), nil
+	return NewBlockJSON(*block, *blockInfo), nil
 }
 
 // GetBlockByNumber returns block by block number
@@ -279,11 +279,11 @@ func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) (*BlockJSON, error) 
 	if block == nil {
 		return nil, errors.New("block for height not found")
 	}
-	receipts, err := getReceipts(s.kaiService.kaiDb, block.Hash())
+	blockInfo, err := getBlockInfo(s.kaiService.kaiDb, block.Hash())
 	if err != nil {
 		return nil, err
 	}
-	return NewBlockJSON(*block, receipts), nil
+	return NewBlockJSON(*block, *blockInfo), nil
 }
 
 // Validator returns node's validator, nil if current node is not a validator
@@ -437,12 +437,14 @@ func (a *PublicTransactionAPI) GetTransaction(hash string) (*PublicTransaction, 
 	return publicTx, nil
 }
 
-func getReceipts(kaiDb types.StoreDB, hash common.Hash) (types.Receipts, error) {
+func getBlockInfo(kaiDb types.StoreDB, hash common.Hash) (*types.BlockInfo, error) {
 	height := kaiDb.ReadHeaderNumber(hash)
 	if height == nil {
 		return nil, nil
 	}
-	return kaiDb.ReadReceipts(hash, *height), nil
+
+	return kaiDb.ReadBlockInfo(hash, *height), nil
+
 }
 
 // getReceiptLogs gets logs from receipt
@@ -516,14 +518,14 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 		return nil, nil
 	}
 	// get receipts from db
-	receipts, err := getReceipts(a.s.kaiDb, blockHash)
+	blockInfo, err := getBlockInfo(a.s.kaiDb, blockHash)
 	if err != nil {
 		return nil, err
 	}
-	if len(receipts) <= int(index) {
+	if len(blockInfo.Receipts) <= int(index) {
 		return nil, nil
 	}
-	receipt := receipts[index]
+	receipt := blockInfo.Receipts[index]
 	return getPublicReceipt(*receipt, tx, blockHash, height, index), nil
 }
 

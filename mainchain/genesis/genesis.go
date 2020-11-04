@@ -248,7 +248,8 @@ func (g *Genesis) Commit(logger log.Logger, db types.StoreDB) (*types.Block, err
 	partsSet := block.MakePartSet(types.BlockPartSizeBytes)
 
 	db.WriteBlock(block, partsSet, &types.Commit{})
-	db.WriteReceipts(block.Hash(), block.Height(), nil)
+
+	db.WriteBlockInfo(block.Hash(), block.Height(), nil)
 	db.WriteCanonicalHash(block.Hash(), block.Height())
 	db.WriteHeadBlockHash(block.Hash())
 	kvstore.WriteAppHash(db.DB(), block.Height(), root)

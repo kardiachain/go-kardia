@@ -74,9 +74,9 @@ func (s *StoreDB) WriteChainConfig(hash common.Hash, cfg *configs.ChainConfig) {
 	CommonWriteChainConfig(s.db, hash, cfg)
 }
 
-// WriteReceipts stores all the transaction receipts belonging to a block.
-func (s *StoreDB) WriteReceipts(hash common.Hash, height uint64, receipts types.Receipts) {
-	CommonWriteReceipts(s.db, hash, height, receipts)
+// WriteBlockInfo stores block info belonging to a block.
+func (s *StoreDB) WriteBlockInfo(hash common.Hash, height uint64, blockInfo *types.BlockInfo) {
+	CommonWriteBlockInfo(s.db, hash, height, blockInfo)
 }
 
 // WriteCanonicalHash stores the hash assigned to a canonical block height.
@@ -201,9 +201,9 @@ func (s *StoreDB) ReadHeaderNumber(hash common.Hash) *uint64 {
 	return CommonReadHeaderNumber(s.db, hash)
 }
 
-// ReadReceipts retrieves all the transaction receipts belonging to a block.
-func (s *StoreDB) ReadReceipts(hash common.Hash, number uint64) types.Receipts {
-	return CommonReadReceipts(s.db, hash, number)
+// ReadBlockInfo retrieves block info belonging to a block.
+func (s *StoreDB) ReadBlockInfo(hash common.Hash, number uint64) *types.BlockInfo {
+	return CommonReadBlockInfo(s.db, hash, number)
 }
 
 // ReadTxLookupEntry retrieves the positional metadata associated with a transaction

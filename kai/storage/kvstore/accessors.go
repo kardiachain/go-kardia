@@ -83,19 +83,14 @@ func CommonWriteChainConfig(db kaidb.Writer, hash common.Hash, cfg *configs.Chai
 	}
 }
 
-// WriteReceipts stores all the transaction receipts belonging to a block.
-func CommonWriteReceipts(db kaidb.Writer, hash common.Hash, height uint64, receipts types.Receipts) {
-	// Convert the receipts into their storage form and serialize them
-	storageReceipts := make([]*types.ReceiptForStorage, len(receipts))
-	for i, receipt := range receipts {
-		storageReceipts[i] = (*types.ReceiptForStorage)(receipt)
-	}
-	bytes, err := rlp.EncodeToBytes(storageReceipts)
+// CommonWriteBlockInfo stores block info  belonging to a block.
+func CommonWriteBlockInfo(db kaidb.Writer, hash common.Hash, height uint64, blockInfo *types.BlockInfo) {
+	bytes, err := rlp.EncodeToBytes(blockInfo)
 	if err != nil {
 		log.Crit("Failed to encode block receipts", "err", err)
 	}
 	// Store the flattened receipt slice
-	if err := db.Put(blockReceiptsKey(height, hash), bytes); err != nil {
+	if err := db.Put(blockInfoKey(height, hash), bytes); err != nil {
 		log.Crit("Failed to store block receipts", "err", err)
 	}
 }
@@ -273,23 +268,18 @@ func CommonDeleteCanonicalHash(db kaidb.KeyValueWriter, number uint64) {
 }
 
 // CommonReadReceipts retrieves all the transaction receipts belonging to a block.
-func CommonReadReceipts(db kaidb.Reader, hash common.Hash, number uint64) types.Receipts {
+func CommonReadBlockInfo(db kaidb.Reader, hash common.Hash, number uint64) *types.BlockInfo {
 	// Retrieve the flattened receipt slice
-	data, _ := db.Get(blockReceiptsKey(number, hash))
+	data, _ := db.Get(blockInfoKey(number, hash))
 	if data == nil || len(data) == 0 {
 		return nil
 	}
-	// Convert the revceipts from their storage form to their internal representation
-	storageReceipts := []*types.ReceiptForStorage{}
-	if err := rlp.DecodeBytes(data, &storageReceipts); err != nil {
+	blockInfo := &types.BlockInfo{}
+	if err := rlp.DecodeBytes(data, &blockInfo); err != nil {
 		log.Error("Invalid receipt array RLP", "hash", hash, "err", err)
 		return nil
 	}
-	receipts := make(types.Receipts, len(storageReceipts))
-	for i, receipt := range storageReceipts {
-		receipts[i] = (*types.Receipt)(receipt)
-	}
-	return receipts
+	return blockInfo
 }
 
 // CommonReadTxLookupEntry retrieves the positional metadata associated with a transaction
@@ -384,12 +374,12 @@ func CommonReadReceipt(db kaidb.Reader, hash common.Hash) (*types.Receipt, commo
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
-	receipts := CommonReadReceipts(db, blockHash, blockNumber)
-	if len(receipts) <= int(receiptIndex) {
+	blockInfo := CommonReadBlockInfo(db, blockHash, blockNumber)
+	if len(blockInfo.Receipts) <= int(receiptIndex) {
 		log.Error("Receipt refereced missing", "number", blockNumber, "hash", blockHash, "index", receiptIndex)
 		return nil, common.Hash{}, 0, 0
 	}
-	return receipts[receiptIndex], blockHash, blockNumber, receiptIndex
+	return blockInfo.Receipts[receiptIndex], blockHash, blockNumber, receiptIndex
 }
 
 // CommonReadEventFromDualAction gets KardiaSmartcontract based on dual action, returns smart contract address and its abi (if any)
