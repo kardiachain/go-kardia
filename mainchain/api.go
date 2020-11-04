@@ -34,6 +34,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
+	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/tool"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -97,28 +98,34 @@ func NewPublicKaiAPI(kaiService *KardiaService) *PublicKaiAPI {
 }
 
 // NewBlockHeaderJSON creates a new BlockHeader JSON data from Block
-func NewBlockHeaderJSON(block types.Block) *BlockHeaderJSON {
+func NewBlockHeaderJSON(header *types.Header) *BlockHeaderJSON {
+	if header == nil {
+		return nil
+	}
 	return &BlockHeaderJSON{
-		Hash:              block.Hash().Hex(),
-		Height:            block.Height(),
-		LastBlock:         block.Header().LastBlockID.Hash.Hex(),
-		CommitHash:        block.LastCommitHash().Hex(),
-		Time:              block.Header().Time,
-		NumTxs:            block.Header().NumTxs,
-		GasLimit:          block.Header().GasLimit,
-		GasUsed:           block.Header().GasUsed,
-		ProposerAddress:   block.Header().ProposerAddress.Hex(),
-		TxHash:            block.Header().TxHash.Hex(),
-		ValidatorsHash:    block.Header().ValidatorsHash.Hex(),
-		NextValidatorHash: block.Header().NextValidatorsHash.Hex(),
-		ConsensusHash:     block.Header().ConsensusHash.Hex(),
-		AppHash:           block.Header().AppHash.Hex(),
-		EvidenceHash:      block.Header().EvidenceHash.Hex(),
+		Hash:              header.Hash().Hex(),
+		Height:            header.Height,
+		LastBlock:         header.LastBlockID.Hash.Hex(),
+		CommitHash:        header.LastCommitHash.Hex(),
+		Time:              header.Time,
+		NumTxs:            header.NumTxs,
+		GasLimit:          header.GasLimit,
+		GasUsed:           header.GasUsed,
+		ProposerAddress:   header.ProposerAddress.Hex(),
+		TxHash:            header.TxHash.Hex(),
+		ValidatorsHash:    header.ValidatorsHash.Hex(),
+		NextValidatorHash: header.NextValidatorsHash.Hex(),
+		ConsensusHash:     header.ConsensusHash.Hex(),
+		AppHash:           header.AppHash.Hex(),
+		EvidenceHash:      header.EvidenceHash.Hex(),
 	}
 }
 
 // NewBasicBlockJSON creates a new Block JSON data from Block
-func NewBasicBlockJSON(block types.Block) *BlockJSON {
+func NewBasicBlockJSON(block *types.Block) *BlockJSON {
+	if block == nil {
+		return nil
+	}
 	txs := block.Transactions()
 	transactions := make([]*PublicTransaction, 0, len(txs))
 
@@ -195,69 +202,37 @@ func (s *PublicKaiAPI) BlockNumber() uint64 {
 }
 
 // GetHeaderBlockByNumber returns blockHeader by block number
-func (s *PublicKaiAPI) GetBlockHeaderByNumber(blockNumber uint64) *BlockHeaderJSON {
-	block := s.kaiService.blockchain.GetBlockByHeight(blockNumber)
-	if block == nil {
-		return nil
-	}
-	return NewBlockHeaderJSON(*block)
+func (s *PublicKaiAPI) GetBlockHeaderByNumber(ctx context.Context, blockNumber rpc.BlockNumber) *BlockHeaderJSON {
+	return NewBlockHeaderJSON(s.kaiService.APIBackend.HeaderByNumber(ctx, blockNumber))
 }
 
 // GetBlockHeaderByHash returns block by block hash
-func (s *PublicKaiAPI) GetBlockHeaderByHash(blockHash string) *BlockHeaderJSON {
-	if blockHash[0:2] == "0x" {
-		blockHash = blockHash[2:]
-	}
-	block := s.kaiService.blockchain.GetBlockByHash(common.HexToHash(blockHash))
-	return NewBlockHeaderJSON(*block)
-}
-
-// GetBasicBlockByHash returns block by block hash
-func (s *PublicKaiAPI) GetBasicBlockByHash(blockHash string) *BlockJSON {
-	if blockHash[0:2] == "0x" {
-		blockHash = blockHash[2:]
-	}
-	block := s.kaiService.blockchain.GetBlockByHash(common.HexToHash(blockHash))
-	return NewBasicBlockJSON(*block)
+func (s *PublicKaiAPI) GetBlockHeaderByHash(ctx context.Context, blockHash string) *BlockHeaderJSON {
+	return NewBlockHeaderJSON(s.kaiService.APIBackend.HeaderByHash(ctx, common.HexToHash(blockHash)))
 }
 
 // GetBasicBlockByNumber returns block by block number
-func (s *PublicKaiAPI) GetBasicBlockByNumber(blockNumber uint64) *BlockJSON {
-	block := s.kaiService.blockchain.GetBlockByHeight(blockNumber)
-	if block == nil {
-		return nil
-	}
-	return NewBasicBlockJSON(*block)
+func (s *PublicKaiAPI) GetBasicBlockByNumber(ctx context.Context, blockNumber rpc.BlockNumber) *BlockJSON {
+	return NewBasicBlockJSON(s.kaiService.APIBackend.BlockByNumber(ctx, blockNumber))
 }
 
-// GetBlockByHash returns block by block hash
-func (s *PublicKaiAPI) GetBlockByHash(blockHash string) (*BlockJSON, error) {
-	if blockHash[0:2] == "0x" {
-		blockHash = blockHash[2:]
-	}
-	block := s.kaiService.blockchain.GetBlockByHash(common.HexToHash(blockHash))
-	if block == nil {
-		return nil, errors.New("block for hash not found")
-	}
-
-	receipts, err := getReceipts(s.kaiService.kaiDb, block.Hash())
-	if err != nil {
-		return nil, err
-	}
-	return NewBlockJSON(*block, receipts), nil
+// GetBasicBlockByHash returns block by block hash
+func (s *PublicKaiAPI) GetBasicBlockByHash(ctx context.Context, blockHash string) *BlockJSON {
+	return NewBasicBlockJSON(s.kaiService.APIBackend.BlockByHash(ctx, common.HexToHash(blockHash)))
 }
 
 // GetBlockByNumber returns block by block number
-func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) (*BlockJSON, error) {
-	block := s.kaiService.blockchain.GetBlockByHeight(blockNumber)
-	if block == nil {
-		return nil, errors.New("block for height not found")
-	}
-	receipts, err := getReceipts(s.kaiService.kaiDb, block.Hash())
-	if err != nil {
-		return nil, err
-	}
-	return NewBlockJSON(*block, receipts), nil
+func (s *PublicKaiAPI) GetBlockByNumber(ctx context.Context, blockNumber rpc.BlockNumber) *BlockJSON {
+	block := s.kaiService.APIBackend.BlockByNumber(ctx, blockNumber)
+	receipts := getReceipts(s.kaiService.kaiDb, block.Hash())
+	return NewBlockJSON(*block, receipts)
+}
+
+// GetBlockByHash returns block by block hash
+func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *BlockJSON {
+	block := s.kaiService.APIBackend.BlockByHash(ctx, common.HexToHash(blockHash))
+	receipts := getReceipts(s.kaiService.kaiDb, block.Hash())
+	return NewBlockJSON(*block, receipts)
 }
 
 // Validator returns node's validator, nil if current node is not a validator
@@ -405,12 +380,12 @@ func (a *PublicTransactionAPI) GetTransaction(hash string) (*PublicTransaction, 
 	return publicTx, nil
 }
 
-func getReceipts(kaiDb types.StoreDB, hash common.Hash) (types.Receipts, error) {
+func getReceipts(kaiDb types.StoreDB, hash common.Hash) types.Receipts {
 	height := kaiDb.ReadHeaderNumber(hash)
 	if height == nil {
-		return nil, nil
+		return nil
 	}
-	return kaiDb.ReadReceipts(hash, *height), nil
+	return kaiDb.ReadReceipts(hash, *height)
 }
 
 // getReceiptLogs gets logs from receipt
@@ -484,10 +459,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 		return nil, nil
 	}
 	// get receipts from db
-	receipts, err := getReceipts(a.s.kaiDb, blockHash)
-	if err != nil {
-		return nil, err
-	}
+	receipts := getReceipts(a.s.kaiDb, blockHash)
 	if len(receipts) <= int(index) {
 		return nil, nil
 	}
@@ -506,29 +478,12 @@ func NewPublicAccountAPI(kaiService *KardiaService) *PublicAccountAPI {
 }
 
 // Balance returns address's balance
-func (a *PublicAccountAPI) Balance(address string, hash string, height uint64) (string, error) {
-	addr := common.HexToAddress(address)
-	log.Info("Addr", "addr", addr.Hex(), "hash", hash, "height", height)
-	block := new(types.Block)
-	if len(hash) > 0 && height > 0 {
-		block = a.kaiService.blockchain.GetBlock(common.HexToHash(hash), height)
-	} else if len(hash) > 0 {
-		block = a.kaiService.blockchain.GetBlockByHash(common.HexToHash(hash))
-	} else if height > 0 {
-		block = a.kaiService.blockchain.GetBlockByHeight(height)
-	} else {
-		block = a.kaiService.blockchain.CurrentBlock()
+func (a *PublicAccountAPI) Balance(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (string, error) {
+	state, _, err := a.kaiService.APIBackend.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if state == nil || err != nil {
+		return "", err
 	}
-
-	if block == nil {
-		return "-1", errors.New("block for hash or height not found")
-	}
-
-	state, err := a.kaiService.blockchain.StateAt(block.Height())
-	if err != nil {
-		return "-1", err
-	}
-	return state.GetBalance(addr).String(), nil
+	return state.GetBalance(address).String(), nil
 }
 
 // Nonce return address's nonce
@@ -536,6 +491,28 @@ func (a *PublicAccountAPI) Nonce(address string) (uint64, error) {
 	addr := common.HexToAddress(address)
 	nonce := a.kaiService.txPool.Nonce(addr)
 	return nonce, nil
+}
+
+// GetCode returns the code stored at the given address in the state for the given block number.
+func (a *PublicAccountAPI) GetCode(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (string, error) {
+	state, _, err := a.kaiService.APIBackend.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if state == nil || err != nil {
+		return "", err
+	}
+	code := state.GetCode(address)
+	return "0x" + common.Bytes2Hex(code), state.Error()
+}
+
+// GetStorageAt returns the storage from the state at the given address, key and
+// block number. The rpc.LatestBlockNumber and rpc.PendingBlockNumber meta block
+// numbers are also allowed.
+func (a *PublicAccountAPI) GetStorageAt(ctx context.Context, address common.Address, key string, blockNrOrHash rpc.BlockNumberOrHash) (string, error) {
+	state, _, err := a.kaiService.APIBackend.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if state == nil || err != nil {
+		return "nil", err
+	}
+	res := state.GetState(address, common.HexToHash(key))
+	return res.Hex(), state.Error()
 }
 
 // doCall is an interface to make smart contract call against the state of local node

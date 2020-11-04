@@ -71,6 +71,8 @@ type KardiaService struct {
 	networkID uint64
 
 	eventBus *types.EventBus
+
+	APIBackend *KaiAPIBackend
 }
 
 func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
@@ -111,6 +113,10 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 		eventBus:     eventBus,
+	}
+
+	kai.APIBackend = &KaiAPIBackend{
+		kaiService: kai,
 	}
 
 	// TODO(huny@): Do we need to check for blockchain version mismatch ?

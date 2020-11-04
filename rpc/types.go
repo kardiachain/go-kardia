@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -59,11 +60,11 @@ type jsonWriter interface {
 	RemoteAddr() string
 }
 
-type BlockNumber int64
+type BlockNumber uint64
 
 const (
-	PendingBlockNumber  = BlockNumber(-2)
-	LatestBlockNumber   = BlockNumber(-1)
+	PendingBlockNumber  = BlockNumber(math.MaxUint64 - 1)
+	LatestBlockNumber   = BlockNumber(math.MaxUint64)
 	EarliestBlockNumber = BlockNumber(0)
 )
 
@@ -91,20 +92,17 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	blckNum, err := common.DecodeUint64(input)
+	blckNum, err := strconv.ParseUint(input, 10, 64)
 	if err != nil {
 		return err
-	}
-	if blckNum > math.MaxInt64 {
-		return fmt.Errorf("Blocknumber too high")
 	}
 
 	*bn = BlockNumber(blckNum)
 	return nil
 }
 
-func (bn BlockNumber) Int64() int64 {
-	return (int64)(bn)
+func (bn BlockNumber) Uint64() uint64 {
+	return (uint64)(bn)
 }
 
 type BlockNumberOrHash struct {
@@ -129,7 +127,12 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 	var input string
 	err = json.Unmarshal(data, &input)
 	if err != nil {
-		return err
+		var blockNumber uint64
+		if err = json.Unmarshal(data, &blockNumber); err != nil {
+			return err
+		} else {
+			input = strconv.FormatUint(blockNumber, 10)
+		}
 	}
 	switch input {
 	case "earliest":
@@ -154,12 +157,9 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 			bnh.BlockHash = &hash
 			return nil
 		} else {
-			blckNum, err := common.DecodeUint64(input)
+			blckNum, err := strconv.ParseUint(input, 10, 64)
 			if err != nil {
 				return err
-			}
-			if blckNum > math.MaxInt64 {
-				return fmt.Errorf("blocknumber too high")
 			}
 			bn := BlockNumber(blckNum)
 			bnh.BlockNumber = &bn
