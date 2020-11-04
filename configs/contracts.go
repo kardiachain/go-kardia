@@ -578,3 +578,7 @@ func AddDefaultContract() {
 func AddDefaultStakingContractAddress() {
 	StakingContractAddress = common.HexToAddress(DefaultStakingContractAddress)
 }
+
+func GetContracts() map[string]Contract {
+	return contracts
+}

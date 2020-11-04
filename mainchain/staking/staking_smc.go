@@ -51,9 +51,8 @@ type StakingSmcUtil struct {
 
 // NewSmcStakingnUtil ...
 func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
-	stakingSmcAbi := configs.GetContractABIByAddress(configs.StakingContractAddress.Hex())
-	bytecodeStaking := configs.GetContractByteCodeByAddress(configs.StakingContractAddress.Hex())
-
+	stakingSmcAbi := configs.GetContractABIByAddress(configs.DefaultStakingContractAddress)
+	bytecodeStaking := configs.GetContractByteCodeByAddress(configs.DefaultStakingContractAddress)
 	abi, err := abi.JSON(strings.NewReader(stakingSmcAbi))
 	if err != nil {
 		log.Error("Error reading abi", "err", err)
