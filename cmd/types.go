@@ -28,6 +28,7 @@ type (
 		Node      `yaml:"Node"`
 		MainChain *Chain `yaml:"MainChain"`
 		DualChain *Chain `yaml:"DualChain,omitempty"`
+		Debug     *Debug `yaml:"Debug"` // todo @longnd: Change this config name to profile
 	}
 	Node struct {
 		P2P struct {
@@ -138,5 +139,8 @@ type (
 		MaxAgeNumBlocks int64 `yaml:"MaxAgeNumBlocks"`
 		MaxAgeDuration  int   `yaml:"MaxAgeDuration"`
 		MaxBytes        int64 `yaml:"MaxBytes"`
+	}
+	Debug struct {
+		Port string `yaml:"Port"`
 	}
 )

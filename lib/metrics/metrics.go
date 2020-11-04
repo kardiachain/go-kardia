@@ -37,24 +37,24 @@ func CollectProcessMetrics(refresh time.Duration) {
 	}
 	// Define the various metrics to collect
 	var (
-		cpuSysLoad    = GetOrRegisterGauge("system/cpu/sysload", DefaultRegistry)
-		cpuSysWait    = GetOrRegisterGauge("system/cpu/syswait", DefaultRegistry)
-		cpuProcLoad   = GetOrRegisterGauge("system/cpu/procload", DefaultRegistry)
-		cpuThreads    = GetOrRegisterGauge("system/cpu/threads", DefaultRegistry)
-		cpuGoroutines = GetOrRegisterGauge("system/cpu/goroutines", DefaultRegistry)
+		cpuSysLoad    = NewRegisteredGauge("cpu/sysload", SystemRegistry)
+		cpuSysWait    = NewRegisteredGauge("cpu/syswait", SystemRegistry)
+		cpuProcLoad   = NewRegisteredGauge("cpu/procload", SystemRegistry)
+		cpuThreads    = NewRegisteredGauge("cpu/threads", SystemRegistry)
+		cpuGoroutines = NewRegisteredGauge("cpu/goroutines", SystemRegistry)
 
-		memPauses = GetOrRegisterMeter("system/memory/pauses", DefaultRegistry)
-		memAllocs = GetOrRegisterMeter("system/memory/allocs", DefaultRegistry)
-		memFrees  = GetOrRegisterMeter("system/memory/frees", DefaultRegistry)
-		memHeld   = GetOrRegisterGauge("system/memory/held", DefaultRegistry)
-		memUsed   = GetOrRegisterGauge("system/memory/used", DefaultRegistry)
+		memPauses = NewRegisteredMeter("memory/pauses", SystemRegistry)
+		memAllocs = NewRegisteredMeter("memory/allocs", SystemRegistry)
+		memFrees  = NewRegisteredMeter("memory/frees", SystemRegistry)
+		memHeld   = NewRegisteredGauge("memory/held", SystemRegistry)
+		memUsed   = NewRegisteredGauge("memory/used", SystemRegistry)
 
-		diskReads             = GetOrRegisterMeter("system/disk/readcount", DefaultRegistry)
-		diskReadBytes         = GetOrRegisterMeter("system/disk/readdata", DefaultRegistry)
-		diskReadBytesCounter  = GetOrRegisterCounter("system/disk/readbytes", DefaultRegistry)
-		diskWrites            = GetOrRegisterMeter("system/disk/writecount", DefaultRegistry)
-		diskWriteBytes        = GetOrRegisterMeter("system/disk/writedata", DefaultRegistry)
-		diskWriteBytesCounter = GetOrRegisterCounter("system/disk/writebytes", DefaultRegistry)
+		diskReads             = NewRegisteredMeter("disk/readcount", SystemRegistry)
+		diskReadBytes         = NewRegisteredMeter("disk/readdata", SystemRegistry)
+		diskReadBytesCounter  = NewRegisteredCounter("disk/readbytes", SystemRegistry)
+		diskWrites            = NewRegisteredMeter("disk/writecount", SystemRegistry)
+		diskWriteBytes        = NewRegisteredMeter("disk/writedata", SystemRegistry)
+		diskWriteBytesCounter = NewRegisteredCounter("disk/writebytes", SystemRegistry)
 	)
 	// Iterate loading the different stats and updating the meters
 	for i := 1; ; i++ {
