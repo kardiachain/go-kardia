@@ -23,6 +23,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
+	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -57,6 +58,8 @@ type DualService struct {
 	dualBlockOperations *blockchain.DualBlockOperations
 
 	networkID uint64
+
+	APIBackend base.APIBackend
 }
 
 // New creates a new DualService object (including the
@@ -83,6 +86,10 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		chainConfig:  chainConfig,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
+	}
+
+	dualService.APIBackend = &DualAPIBackend{
+		dualService: dualService,
 	}
 
 	// Create a new blockchain to attach to this GroupService struct
