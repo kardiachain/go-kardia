@@ -19,7 +19,7 @@
 package service
 
 import (
-	"github.com/kardiachain/go-kardiamain/configs"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
@@ -42,7 +42,7 @@ type DualService struct {
 	logger log.Logger // Logger for Dual service
 
 	config      *DualConfig
-	chainConfig *configs.ChainConfig
+	chainConfig *typesCfg.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool

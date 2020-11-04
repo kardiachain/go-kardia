@@ -20,7 +20,7 @@
 package kai
 
 import (
-	"github.com/kardiachain/go-kardiamain/configs"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/log"
@@ -51,7 +51,7 @@ type KardiaService struct {
 	logger log.Logger // Logger for Kardia service
 
 	config      *Config
-	chainConfig *configs.ChainConfig
+	chainConfig *typesCfg.ChainConfig
 
 	// Channel for shutting down the service
 	shutdownChan chan bool

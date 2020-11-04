@@ -29,6 +29,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/configs"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/dualchain/service"
@@ -46,10 +47,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 
 	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-)
-
-const (
-	LevelDb = iota
 )
 
 var args flags
@@ -262,7 +259,7 @@ func (c *Config) newLog() log.Logger {
 }
 
 // getBaseAccount gets base account that is used to execute internal smart contract
-func (c *Config) getBaseAccount() (*configs.BaseAccount, error) {
+func (c *Config) getBaseAccount() (*typesCfg.BaseAccount, error) {
 	var privKey *ecdsa.PrivateKey
 	var err error
 	var address common.Address
@@ -273,7 +270,7 @@ func (c *Config) getBaseAccount() (*configs.BaseAccount, error) {
 	if err != nil {
 		return nil, fmt.Errorf("baseAccount: Invalid privatekey: %v", err)
 	}
-	return &configs.BaseAccount{
+	return &typesCfg.BaseAccount{
 		Address:    address,
 		PrivateKey: *privKey,
 	}, nil
@@ -320,7 +317,7 @@ func (c *Config) getConsensusParams() *kaiproto.ConsensusParams {
 	}
 }
 
-func (c *Config) getChainConfig() *configs.ChainConfig {
+func (c *Config) getChainConfig() *typesCfg.ChainConfig {
 	if args.network == Mainnet {
 		return configs.MainnetChainConfig
 	}

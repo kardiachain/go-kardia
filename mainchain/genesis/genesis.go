@@ -25,6 +25,7 @@ import (
 	"math/big"
 	"time"
 
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/kvm"
 
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
@@ -51,8 +52,8 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 // be reflected in the documentation:
 // docs/tendermint-core/using-tendermint.md
 
-// GenesisValidator is an initial validator.
-type GenesisValidator struct {
+// Validator is an initial validator.
+type Validator struct {
 	Address string `json:"address" yaml:"Address"`
 	Power   uint64 `json:"power" yaml:"Power"`
 	Name    string `json:"name" yaml:"Name"`
@@ -60,14 +61,14 @@ type GenesisValidator struct {
 
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
-	ChainID   string               `json:"chain_id"`
-	Config    *configs.ChainConfig `json:"config"`
-	Timestamp time.Time            `json:"timestamp"`
-	GasLimit  uint64               `json:"gasLimit"   gencodec:"required"`
-	Alloc     GenesisAlloc         `json:"alloc"      gencodec:"required"`
+	ChainID   string                `json:"chain_id"`
+	Config    *typesCfg.ChainConfig `json:"config"`
+	Timestamp time.Time             `json:"timestamp"`
+	GasLimit  uint64                `json:"gasLimit"   gencodec:"required"`
+	Alloc     GenesisAlloc          `json:"alloc"      gencodec:"required"`
 
 	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
-	Validators           []*GenesisValidator          `json:"validators"`
+	Validators           []*Validator                 `json:"validators"`
 	ConsensusParams      *kaiproto.ConsensusParams    `json:"consensus_params,omitempty"`
 	Consensus            *configs.ConsensusConfig     `json:"consensusConfig"`
 }
@@ -102,7 +103,7 @@ func (e *GenesisMismatchError) Error() string {
 //     db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, baseAccount *configs.BaseAccount) (*configs.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, baseAccount *typesCfg.BaseAccount) (*typesCfg.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		// TODO(huny@): should we return another default config?
 		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
@@ -154,7 +155,7 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 		db.WriteChainConfig(stored, newcfg)
 		return newcfg, stored, nil
 	}
-	// Special case: don't change the existing config of a non-mainnet chain if no new
+	// Special case: don't change the existing config of a non-default chain if no new
 	// config is supplied. These chains would get AllProtocolChanges (and a compat error)
 	// if we just continued here.
 	if genesis == nil && stored != configs.MainnetGenesisHash {
@@ -170,7 +171,7 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 	return newcfg, stored, nil
 }
 
-func (g *Genesis) configOrDefault(ghash common.Hash) *configs.ChainConfig {
+func (g *Genesis) configOrDefault(ghash common.Hash) *typesCfg.ChainConfig {
 	switch {
 	case g != nil:
 		return g.Config
@@ -350,7 +351,7 @@ func ToCell(amount int64) *big.Int {
 	return cell
 }
 
-func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*GenesisValidator) error {
+func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*Validator) error {
 	if err := staking.CreateStakingContract(statedb, header, cfg); err != nil {
 		return err
 	}

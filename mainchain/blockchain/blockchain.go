@@ -23,10 +23,11 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardiamain/configs"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 
 	lru "github.com/hashicorp/golang-lru"
+
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
@@ -52,7 +53,7 @@ var (
 type BlockChain struct {
 	logger log.Logger
 
-	chainConfig *configs.ChainConfig // Chain & network configuration
+	chainConfig *typesCfg.ChainConfig // Chain & network configuration
 
 	db types.StoreDB // Blockchain database
 	hc *HeaderChain
@@ -121,11 +122,11 @@ func (bc *BlockChain) DB() types.StoreDB {
 }
 
 // Config retrieves the blockchain's chain configuration.
-func (bc *BlockChain) Config() *configs.ChainConfig { return bc.chainConfig }
+func (bc *BlockChain) Config() *typesCfg.ChainConfig { return bc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.ChainConfig, isPrivate bool) (*BlockChain, error) {
+func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *typesCfg.ChainConfig, isPrivate bool) (*BlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 

@@ -20,6 +20,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -108,6 +109,7 @@ func LoadConfig(args flags) (*Config, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot read kai config")
 	}
+
 	err = yaml.Unmarshal(kaiCfg, &config)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot unmarshal kai config")
@@ -117,6 +119,7 @@ func LoadConfig(args flags) (*Config, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot read node config")
 	}
+
 	err = yaml.Unmarshal(genesisCfg, &config.MainChain)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot unmarshal node config")
@@ -134,6 +137,14 @@ func LoadConfig(args flags) (*Config, error) {
 			return nil, errors.Wrap(err, "cannot unmarshal dual node config")
 		}
 	}
+
+	fmt.Printf("Default config: %+v \n", config)
+	fmt.Println()
+	fmt.Println()
+	fmt.Printf("Default genesis config: %+v \n", config.Genesis)
+	fmt.Println()
+	fmt.Println()
+	fmt.Printf("Default chain config: %+v \n", config.MainChain)
 
 	return &config, nil
 }

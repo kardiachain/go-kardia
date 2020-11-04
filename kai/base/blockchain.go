@@ -19,7 +19,7 @@
 package base
 
 import (
-	"github.com/kardiachain/go-kardiamain/configs"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
@@ -40,7 +40,7 @@ type BaseBlockChain interface {
 	CommitTrie(root common.Hash) error
 	WriteReceipts(receipts types.Receipts, block *types.Block)
 	ReadCommit(height uint64) *types.Commit
-	Config() *configs.ChainConfig
+	Config() *typesCfg.ChainConfig
 	GetHeader(common.Hash, uint64) *types.Header
 	IsPrivate() bool
 	HasPermission(peer *p2p.Peer) bool

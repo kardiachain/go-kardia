@@ -66,14 +66,14 @@ type (
 		Consensus          *Consensus  `yaml:"Consensus"`
 	}
 	Genesis struct {
-		Addresses       []string                    `yaml:"Addresses"`
-		GenesisAmount   string                      `yaml:"GenesisAmount"`
-		Contracts       map[string]Contract         `yaml:"Contracts"`
-		Validators      []*genesis.GenesisValidator `yaml:"Validators"`
-		ConsensusParams *ConsensusParams            `yaml:"ConsensusParams"`
-		Consensus       *Consensus                  `yaml:"Consensus"`
-		ChainConfig     *configs.ChainConfig        `yaml:"ChainConfig"`
-		TxPool          *Pool                       `yaml:"TxPool,omitempty"`
+		Addresses       []string             `yaml:"Addresses"`
+		GenesisAmount   string               `yaml:"GenesisAmount"`
+		Contracts       map[string]Contract  `yaml:"Contracts"`
+		Validators      []*genesis.Validator `yaml:"Validators"`
+		ConsensusParams *ConsensusParams     `yaml:"ConsensusParams"`
+		Consensus       *Consensus           `yaml:"Consensus"`
+		ChainConfig     *configs.ChainConfig `yaml:"ChainConfig"`
+		TxPool          *Pool                `yaml:"TxPool,omitempty"`
 	}
 	Contract struct {
 		Address  string `yaml:"Address"`

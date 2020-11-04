@@ -43,7 +43,7 @@ var args flagArgs
 func init() {
 	flag.StringVar(&args.path, "path", "./", "path to config file")
 	flag.StringVar(&args.name, "name", "config", "config file name")
-	flag.IntVar(&args.ethNetworkId, "ethNetworkId", 4, "run Eth network id, 4: rinkeby, 3: ropsten, 1: mainnet")
+	flag.IntVar(&args.ethNetworkId, "ethNetworkId", 4, "run Eth network id, 4: rinkeby, 3: ropsten, 1: default")
 	flag.BoolVar(&args.ethStat, "ethstat", true, "report eth stats to network")
 	flag.StringVar(&args.ethStatName, "ethstatname", "", "name to use when reporting eth stats")
 	flag.StringVar(&args.publishedEndpoint, "publishedEndpoint", "", "0MQ Endpoint that message will be published to")

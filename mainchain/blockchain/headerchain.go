@@ -22,7 +22,8 @@ import (
 	"sync/atomic"
 
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/kardiachain/go-kardiamain/configs"
+
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -34,7 +35,7 @@ const (
 
 //TODO(huny@): Add detailed description
 type HeaderChain struct {
-	config *configs.ChainConfig
+	config *typesCfg.ChainConfig
 
 	kaiDb types.StoreDB
 
@@ -57,7 +58,7 @@ func (hc *HeaderChain) CurrentHeader() *types.Header {
 //  getValidator should return the parent's validator
 //  procInterrupt points to the parent's interrupt semaphore
 //  wg points to the parent's shutdown wait group
-func NewHeaderChain(kaiDb types.StoreDB, config *configs.ChainConfig) (*HeaderChain, error) {
+func NewHeaderChain(kaiDb types.StoreDB, config *typesCfg.ChainConfig) (*HeaderChain, error) {
 	headerCache, _ := lru.New(headerCacheLimit)
 	heightCache, _ := lru.New(heightCacheLimit)
 

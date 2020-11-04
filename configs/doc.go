@@ -20,4 +20,7 @@
 // Then find configs files with input flag args and override if exist
 // Folder structure
 // ./default contain all mainnet default configuration, which allow network run-able with minimum config (HTTPPort, P2PPrivateKey, P2PPort or Seeds)
+// ./samples is sample configuration for all target network
+// Notes:
+// All configurations extend higher priority config by default. So testnet extends all configuration of mainnet, and devnet extends all configuration of testnet
 package configs

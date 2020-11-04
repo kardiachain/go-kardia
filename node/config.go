@@ -30,6 +30,7 @@ import (
 	"sync"
 
 	"github.com/kardiachain/go-kardiamain/configs"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 
 	"github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
@@ -102,7 +103,7 @@ type DualChainConfig struct {
 	DualProtocolName string
 
 	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *configs.BaseAccount
+	BaseAccount *typesCfg.BaseAccount
 
 	// Dual Network ID
 	DualNetworkID uint64
@@ -282,7 +283,7 @@ type Config struct {
 	PeerProxyIP string
 
 	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *configs.BaseAccount
+	BaseAccount *typesCfg.BaseAccount
 
 	// Metrics defines whether we want to collect and expose metrics of the node
 	Metrics uint

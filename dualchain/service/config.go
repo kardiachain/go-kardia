@@ -20,6 +20,7 @@ package service
 
 import (
 	"github.com/kardiachain/go-kardiamain/configs"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
@@ -47,7 +48,7 @@ type DualConfig struct {
 	ProtocolName string
 
 	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *configs.BaseAccount
+	BaseAccount *typesCfg.BaseAccount
 
 	// Consensus defines the configuration for the Kardia consensus service,
 	// including timeouts and details about the block structure.

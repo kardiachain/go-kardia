@@ -51,11 +51,12 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/gorilla/mux"
+	"github.com/pebbe/zmq4"
+	"github.com/rs/cors"
+
 	message2 "github.com/kardiachain/go-kardiamain/dualnode/message"
 	"github.com/kardiachain/go-kardiamain/dualnode/utils"
 	log "github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/pebbe/zmq4"
-	"github.com/rs/cors"
 )
 
 const (
@@ -134,9 +135,9 @@ func NewEth(config *Config) (*Eth, error) {
 	ethConf.NetworkId = uint64(config.NetworkId)
 
 	switch ethConf.NetworkId {
-	case 1: // mainnet
+	case 1: // default
 		ethConf.Genesis = core.DefaultGenesisBlock()
-		datadir = filepath.Join(datadir, "mainnet", config.Name)
+		datadir = filepath.Join(datadir, "default", config.Name)
 		bootUrls = params.MainnetBootnodes
 	case 3: // ropsten
 		ethConf.Genesis = core.DefaultRopstenGenesisBlock()

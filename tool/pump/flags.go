@@ -36,7 +36,7 @@ type flags struct {
 }
 
 const (
-	Mainnet = "mainnet"
+	Mainnet = "default"
 	Testnet = "testnet"
 	Devnet  = "devnet"
 )
@@ -65,7 +65,7 @@ func initFlag(args *flags) {
 	flag.StringVar(&args.genesis, "genesis", "", "Path to genesis config file. Default: ${wd}../../cmd/cfg/genesis.yaml")
 	flag.StringVar(&args.kardia, "node", "", "Path to Kardia node config file. Default: ${wd}../../cmd/cfg/kai_config.yaml")
 	flag.StringVar(&args.dual, "dual", "", "Path to dual node config file. Default: \"\"")
-	flag.StringVar(&args.network, "network", "mainnet", "Target network, choose one [mainnet, testnet, devnet]. Default: \"mainnet\"")
+	flag.StringVar(&args.network, "network", "default", "Target network, choose one [default, testnet, devnet]. Default: \"default\"")
 }
 
 func init() {

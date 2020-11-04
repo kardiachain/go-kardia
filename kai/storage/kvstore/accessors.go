@@ -25,7 +25,8 @@ import (
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/kardiachain/go-kardiamain/configs"
+
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 
@@ -56,12 +57,12 @@ func CommonReadCanonicalHash(db kaidb.Reader, height uint64) common.Hash {
 }
 
 // CommonReadChainConfig retrieves the consensus settings based on the given genesis hash.
-func CommonReadChainConfig(db kaidb.Reader, hash common.Hash) *configs.ChainConfig {
+func CommonReadChainConfig(db kaidb.Reader, hash common.Hash) *typesCfg.ChainConfig {
 	data, _ := db.Get(configKey(hash))
 	if data == nil || len(data) == 0 {
 		return nil
 	}
-	var config configs.ChainConfig
+	var config typesCfg.ChainConfig
 	if err := json.Unmarshal(data, &config); err != nil {
 		log.Error("Invalid chain config JSON", "hash", hash, "err", err)
 		return nil
@@ -70,7 +71,7 @@ func CommonReadChainConfig(db kaidb.Reader, hash common.Hash) *configs.ChainConf
 }
 
 // CommonWriteChainConfig writes the chain config settings to the database.
-func CommonWriteChainConfig(db kaidb.Writer, hash common.Hash, cfg *configs.ChainConfig) {
+func CommonWriteChainConfig(db kaidb.Writer, hash common.Hash, cfg *typesCfg.ChainConfig) {
 	if cfg == nil {
 		return
 	}

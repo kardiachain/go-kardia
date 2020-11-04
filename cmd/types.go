@@ -19,16 +19,17 @@
 package main
 
 import (
-	"github.com/kardiachain/go-kardiamain/configs"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 )
 
+type Config struct {
+	Node      `yaml:"Node"`
+	MainChain *Chain `yaml:"MainChain"`
+	DualChain *Chain `yaml:"DualChain,omitempty"`
+}
+
 type (
-	Config struct {
-		Node      `yaml:"Node"`
-		MainChain *Chain `yaml:"MainChain"`
-		DualChain *Chain `yaml:"DualChain,omitempty"`
-	}
 	Node struct {
 		P2P struct {
 			ListenAddress string `yaml:"ListenAddress"`
@@ -64,14 +65,14 @@ type (
 		Consensus          *Consensus  `yaml:"Consensus"`
 	}
 	Genesis struct {
-		Addresses       []string                    `yaml:"Addresses"`
-		GenesisAmount   string                      `yaml:"GenesisAmount"`
-		Contracts       map[string]Contract         `yaml:"Contracts"`
-		Validators      []*genesis.GenesisValidator `yaml:"Validators"`
-		ConsensusParams *ConsensusParams            `yaml:"ConsensusParams"`
-		Consensus       *Consensus                  `yaml:"Consensus"`
-		ChainConfig     *configs.ChainConfig        `yaml:"ChainConfig"`
-		TxPool          *Pool                       `yaml:"TxPool,omitempty"`
+		Addresses       []string              `yaml:"Addresses"`
+		GenesisAmount   string                `yaml:"GenesisAmount"`
+		Contracts       map[string]Contract   `yaml:"Contracts"`
+		Validators      []*genesis.Validator  `yaml:"Validators"`
+		ConsensusParams *ConsensusParams      `yaml:"ConsensusParams"`
+		Consensus       *Consensus            `yaml:"Consensus"`
+		ChainConfig     *typesCfg.ChainConfig `yaml:"ChainConfig"`
+		TxPool          *Pool                 `yaml:"TxPool,omitempty"`
 	}
 	Contract struct {
 		Address  string `yaml:"Address"`

@@ -21,10 +21,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
-	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -418,7 +419,7 @@ func opExtCodeCopy(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 // should be zero or emptyCodeHash.
 //
 // It is worth noting that in order to avoid unnecessary create and clean,
-// all precompile accounts on mainnet have been transferred 1 wei, so the return
+// all precompile accounts on default have been transferred 1 wei, so the return
 // here should be emptyCodeHash.
 // If the precompile account is not transferred any amount on a private or
 // customized chain, the return value will be zero.

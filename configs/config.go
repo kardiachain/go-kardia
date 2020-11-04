@@ -20,10 +20,10 @@ package configs
 
 import (
 	"math/big"
+	"strings"
 	"time"
 
-	"strings"
-
+	"github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
@@ -58,24 +58,24 @@ var (
 
 var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
-	MainnetChainConfig = &ChainConfig{
-		Kaicon: &KaiconConfig{
+	MainnetChainConfig = &typesCfg.ChainConfig{
+		Kaicon: &typesCfg.KaiconConfig{
 			Period: 15,
 			Epoch:  30000,
 		},
 	}
 
 	// TestnetChainConfig contains the chain parameters to run a node on the test network.
-	TestnetChainConfig = &ChainConfig{
-		Kaicon: &KaiconConfig{
+	TestnetChainConfig = &typesCfg.ChainConfig{
+		Kaicon: &typesCfg.KaiconConfig{
 			Period: 15,
 			Epoch:  30000,
 		},
 	}
 
 	// TestChainConfig contains the chain parameters to run unit test.
-	TestChainConfig = &ChainConfig{
-		Kaicon: &KaiconConfig{
+	TestChainConfig = &typesCfg.ChainConfig{
+		Kaicon: &typesCfg.KaiconConfig{
 			Period: 15,
 			Epoch:  30000,
 		},
@@ -92,12 +92,7 @@ func configNumEqual(x, y *big.Int) bool {
 	return x.Cmp(y) == 0
 }
 
-type Config struct {
-	Consensus *ConsensusConfig
-}
-
 // -------- Consensus Params ---------
-
 // DefaultConsensusParams returns default param values for the consensus service
 func DefaultConsensusParams() *kaiproto.ConsensusParams {
 	return &kaiproto.ConsensusParams{
@@ -236,29 +231,23 @@ func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
 
 // ======================= Genesis Utils Functions =======================
 
-type Contract struct {
-	address  string
-	bytecode string
-	abi      string
-}
-
-var contracts = make(map[string]Contract)
+var contracts = make(map[string]typesCfg.Contract)
 
 func LoadGenesisContract(contractType string, address string, bytecode string, abi string) {
 	if contractType == StakingContract {
 		StakingContractAddress = common.HexToAddress(address)
 	}
-	contracts[contractType] = Contract{
-		address:  address,
-		bytecode: bytecode,
-		abi:      abi,
+	contracts[contractType] = typesCfg.Contract{
+		Address:  address,
+		ByteCode: bytecode,
+		ABI:      abi,
 	}
 }
 
 func GetContractABIByAddress(address string) string {
 	for _, contract := range contracts {
-		if strings.EqualFold(address, contract.address) {
-			return contract.abi
+		if strings.EqualFold(address, contract.Address) {
+			return contract.ABI
 		}
 	}
 	panic("abi not found")
@@ -266,8 +255,8 @@ func GetContractABIByAddress(address string) string {
 
 func GetContractByteCodeByAddress(address string) string {
 	for _, contract := range contracts {
-		if strings.EqualFold(address, contract.address) {
-			return contract.bytecode
+		if strings.EqualFold(address, contract.Address) {
+			return contract.ByteCode
 		}
 	}
 	panic("bytecode not found")
