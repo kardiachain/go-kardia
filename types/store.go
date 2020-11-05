@@ -31,7 +31,7 @@ type StoreDB interface {
 	//WriteBodyRLP(hash common.Hash, height uint64, rlp rlp.RawValue)
 	WriteChainConfig(hash common.Hash, cfg *configs.ChainConfig)
 	WriteBlock(*Block, *PartSet, *Commit)
-	WriteReceipts(hash common.Hash, height uint64, receipts Receipts)
+	WriteBlockInfo(hash common.Hash, height uint64, blockInfo *BlockInfo)
 	WriteCanonicalHash(hash common.Hash, height uint64)
 	WriteEvent(smartcontract *KardiaSmartcontract)
 	//WriteCommit(height uint64, commit *Commit)
@@ -62,7 +62,7 @@ type StoreDB interface {
 	ReadDualEvent(hash common.Hash) (*DualEvent, common.Hash, uint64, uint64)
 	ReadDualEventLookupEntry(hash common.Hash) (common.Hash, uint64, uint64)
 	ReadHeaderNumber(hash common.Hash) *uint64
-	ReadReceipts(hash common.Hash, number uint64) Receipts
+	ReadBlockInfo(hash common.Hash, number uint64) *BlockInfo
 	ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, uint64)
 	ReadSmartContractAbi(address string) *abi.ABI
 	ReadEvent(address string, method string) *Watcher

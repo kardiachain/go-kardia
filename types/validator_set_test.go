@@ -29,11 +29,12 @@ import (
 	"testing"
 	"testing/quick"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	kmath "github.com/kardiachain/go-kardiamain/lib/math"
 	krand "github.com/kardiachain/go-kardiamain/lib/rand"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestValidatorSetValidateBasic(t *testing.T) {
@@ -86,18 +87,18 @@ func TestValidatorSetValidateBasic(t *testing.T) {
 
 }
 
-func randValidator(totalVotingPower uint64) *Validator {
+func randValidator(totalVotingPower int64) *Validator {
 	// this modulo limits the ProposerPriority/VotingPower to stay in the
 	// bounds of MaxTotalVotingPower minus the already existing voting power:
-	val := NewValidator(generateAddress(), uint64(rand.Uint64()%uint64(MaxTotalVotingPower-totalVotingPower)))
-	proposerPriority := rand.Uint64() % (MaxTotalVotingPower - totalVotingPower)
-	val.ProposerPriority = int64(proposerPriority)
+	val := NewValidator(generateAddress(), rand.Int63()%(MaxTotalVotingPower-totalVotingPower))
+	proposerPriority := rand.Int63() % (MaxTotalVotingPower - totalVotingPower)
+	val.ProposerPriority = proposerPriority
 	return val
 }
 
 func randValidatorSet(numValidators int) *ValidatorSet {
 	validators := make([]*Validator, numValidators)
-	totalVotingPower := uint64(0)
+	totalVotingPower := int64(0)
 	for i := 0; i < numValidators; i++ {
 		validators[i] = randValidator(totalVotingPower)
 		totalVotingPower += validators[i].VotingPower
@@ -133,7 +134,7 @@ func TestIncrementProposerPriorityPositiveTimes(t *testing.T) {
 	vset.IncrementProposerPriority(1)
 }
 
-func newValidator(address common.Address, power uint64) *Validator {
+func newValidator(address common.Address, power int64) *Validator {
 	return &Validator{Address: address, VotingPower: power}
 }
 
@@ -376,9 +377,9 @@ func TestAveragingInIncrementProposerPriorityWithVotingPower(t *testing.T) {
 	total := vp0 + vp1 + vp2
 	avg := (vp0 + vp1 + vp2 - total) / 3
 	vals := ValidatorSet{Validators: []*Validator{
-		{Address: addr1, ProposerPriority: 0, VotingPower: uint64(vp0)},
-		{Address: addr2, ProposerPriority: 0, VotingPower: uint64(vp1)},
-		{Address: addr3, ProposerPriority: 0, VotingPower: uint64(vp2)}}}
+		{Address: addr1, ProposerPriority: 0, VotingPower: vp0},
+		{Address: addr2, ProposerPriority: 0, VotingPower: vp1},
+		{Address: addr3, ProposerPriority: 0, VotingPower: vp2}}}
 	tcs := []struct {
 		vals                  *ValidatorSet
 		wantProposerPrioritys []int64
@@ -544,7 +545,7 @@ func TestUpdatesForNewValidatorSet(t *testing.T) {
 
 	// Verify set including validator with negative voting power cannot be created
 	v1 = newValidator(addr1, 10)
-	v2 = newValidator(addr2, 0)
+	v2 = newValidator(addr2, -20)
 	v3 = newValidator(addr3, 30)
 	valList = []*Validator{v1, v2, v3}
 	assert.Panics(t, func() { NewValidatorSet(valList) })
@@ -928,7 +929,7 @@ func toTestValList(valList []*Validator) []testVal {
 func createNewValidatorList(testValList []testVal) []*Validator {
 	valList := make([]*Validator, 0, len(testValList))
 	for _, val := range testValList {
-		valList = append(valList, newValidator(common.BytesToAddress([]byte(val.name)), uint64(val.power)))
+		valList = append(valList, newValidator(common.BytesToAddress([]byte(val.name)), val.power))
 	}
 	return valList
 }
@@ -940,6 +941,7 @@ func createNewValidatorSet(testValList []testVal) *ValidatorSet {
 func executeValSetErrTestCase(t *testing.T, idx int, tt valSetErrTestCase) {
 	// create a new set and apply updates, keeping copies for the checks
 	valSet := createNewValidatorSet(tt.startVals)
+	fmt.Println(valSet.totalVotingPower)
 	valSetCopy := valSet.Copy()
 	valList := createNewValidatorList(tt.updateVals)
 	valListCopy := validatorListCopy(valList)
@@ -1064,7 +1066,8 @@ func TestValSetUpdatePriorityOrderTests(t *testing.T) {
 		// generate a configuration with 100 validators,
 		// randomly select validators for updates and deletes, and
 		// generate 10 new validators to be added
-		//3: randTestVSetCfg(t, 100, 10),
+
+		// 3: randTestVSetCfg(t, 100, 10),
 
 		// 4: randTestVSetCfg(t, 1000, 100),
 

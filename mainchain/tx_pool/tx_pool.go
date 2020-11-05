@@ -33,7 +33,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/metrics"
 	"github.com/kardiachain/go-kardiamain/lib/prque"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -84,30 +83,6 @@ var (
 var (
 	evictionInterval    = time.Minute     // Time interval to check for evictable transactions
 	statsReportInterval = 8 * time.Second // Time interval to report transaction pool stats
-)
-
-var (
-	// Metrics for the pending pool
-	pendingDiscardMeter   = metrics.NewRegisteredMeter("txpool/pending/discard", nil)
-	pendingReplaceMeter   = metrics.NewRegisteredMeter("txpool/pending/replace", nil)
-	pendingRateLimitMeter = metrics.NewRegisteredMeter("txpool/pending/ratelimit", nil) // Dropped due to rate limiting
-	pendingNofundsMeter   = metrics.NewRegisteredMeter("txpool/pending/nofunds", nil)   // Dropped due to out-of-funds
-
-	// Metrics for the queued pool
-	queuedDiscardMeter   = metrics.NewRegisteredMeter("txpool/queued/discard", nil)
-	queuedReplaceMeter   = metrics.NewRegisteredMeter("txpool/queued/replace", nil)
-	queuedRateLimitMeter = metrics.NewRegisteredMeter("txpool/queued/ratelimit", nil) // Dropped due to rate limiting
-	queuedNofundsMeter   = metrics.NewRegisteredMeter("txpool/queued/nofunds", nil)   // Dropped due to out-of-funds
-
-	// General tx metrics
-	knownTxMeter       = metrics.NewRegisteredMeter("txpool/known", nil)
-	validTxMeter       = metrics.NewRegisteredMeter("txpool/valid", nil)
-	invalidTxMeter     = metrics.NewRegisteredMeter("txpool/invalid", nil)
-	underpricedTxMeter = metrics.NewRegisteredMeter("txpool/underpriced", nil)
-
-	pendingGauge = metrics.NewRegisteredGauge("txpool/pending", nil)
-	queuedGauge  = metrics.NewRegisteredGauge("txpool/queued", nil)
-	localGauge   = metrics.NewRegisteredGauge("txpool/local", nil)
 )
 
 // TxStatus is the current status of a transaction as seen by the pool.
@@ -225,14 +200,14 @@ func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
 // current state) and future transactions. Transactions move between those
 // two states over time as they are received and processed.
 type TxPool struct {
-	config      TxPoolConfig
-	chainconfig *configs.ChainConfig
-	chain       blockChain
-	gasPrice    *big.Int
-	txFeed      event.Feed
-	scope       event.SubscriptionScope
-	signer      types.Signer
-	mu          sync.RWMutex
+	config   TxPoolConfig
+	chainCfg *configs.ChainConfig
+	chain    blockChain
+	gasPrice *big.Int
+	txFeed   event.Feed
+	scope    event.SubscriptionScope
+	signer   types.Signer
+	mu       sync.RWMutex
 
 	currentState  *state.StateDB // Current state in the blockchain head
 	pendingNonces *txNoncer      // Pending state tracking virtual nonces
@@ -267,14 +242,14 @@ type txpoolResetRequest struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(config TxPoolConfig, chainconfig *configs.ChainConfig, chain blockChain) *TxPool {
+func NewTxPool(config TxPoolConfig, chainCfg *configs.ChainConfig, chain blockChain) *TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
 	// Create the transaction pool with its initial settings
 	pool := &TxPool{
 		config:          config,
-		chainconfig:     chainconfig,
+		chainCfg:        chainCfg,
 		chain:           chain,
 		signer:          types.HomesteadSigner{},
 		pending:         make(map[common.Address]*txList),
@@ -458,7 +433,7 @@ func (pool *TxPool) Stop() {
 	pool.wg.Wait()
 
 	if pool.journal != nil {
-		pool.journal.close()
+		_ = pool.journal.close()
 	}
 	log.Info("Transaction pool stopped")
 }
@@ -835,11 +810,15 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 
 // addTxs attempts to queue a batch of transactions if they are valid.
 func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
+	defer txsTimer.Stop()
 	// Filter out known ones without obtaining the pool lock or recovering signatures
 	var (
 		errs = make([]error, len(txs))
 		news = make([]*types.Transaction, 0, len(txs))
 	)
+
+	// Look like we can improve this flow
+
 	for i, tx := range txs {
 		// If the transaction is known, pre-set the error slot
 		if pool.all.Get(tx.Hash()) != nil {
@@ -882,6 +861,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 // addTxsLocked attempts to queue a batch of transactions if they are valid.
 // The transaction pool lock must be held.
 func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) ([]error, *accountSet) {
+	defer lockedTxsTimer.Stop()
 	dirty := newAccountSet(pool.signer)
 	errs := make([]error, len(txs))
 	for i, tx := range txs {
@@ -1082,6 +1062,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 	if dirtyAccounts != nil {
 		promoteAddrs = dirtyAccounts.flatten()
 	}
+	//todo @longnd: check if data race
 	pool.mu.Lock()
 	if reset != nil {
 		// Reset from the old head to the new, rescheduling any reorged transactions
@@ -1250,7 +1231,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 			pool.all.Remove(hash)
 			log.Trace("Removed unpayable queued transaction", "hash", hash)
 		}
-		queuedNofundsMeter.Mark(int64(len(drops)))
+		queuedNoFundsMeter.Mark(int64(len(drops)))
 
 		// Gather all executable transactions and promote them
 		readies := list.Ready(pool.pendingNonces.get(addr))
@@ -1443,7 +1424,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			pool.all.Remove(hash)
 		}
 		pool.priced.Removed(len(olds) + len(drops))
-		pendingNofundsMeter.Mark(int64(len(drops)))
+		pendingNoFundsMeter.Mark(int64(len(drops)))
 
 		for _, tx := range invalids {
 			hash := tx.Hash()

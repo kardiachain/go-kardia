@@ -158,9 +158,13 @@ func NewBasicBlockJSON(block *types.Block) *BlockJSON {
 }
 
 // NewBlockJSON creates a new Block JSON data from Block
-func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
+func NewBlockJSON(block types.Block, blockInfo types.BlockInfo) *BlockJSON {
 	txs := block.Transactions()
 	transactions := make([]*PublicTransaction, 0, len(txs))
+
+	for _, receipt := range blockInfo.Receipts {
+		basicReceipts = append(basicReceipts, getBasicReceipt(*receipt))
+	}
 
 	for index, transaction := range txs {
 		idx := uint64(index)
@@ -185,7 +189,7 @@ func NewBlockJSON(block types.Block, receipts types.Receipts) *BlockJSON {
 		Time:              block.Header().Time,
 		NumTxs:            block.Header().NumTxs,
 		GasLimit:          block.Header().GasLimit,
-		GasUsed:           block.Header().GasUsed,
+		GasUsed:           blockInfo.GasUsed,
 		ProposerAddress:   block.Header().ProposerAddress.Hex(),
 		TxHash:            block.Header().TxHash.Hex(),
 		ValidatorsHash:    block.Header().ValidatorsHash.Hex(),
@@ -380,12 +384,14 @@ func (a *PublicTransactionAPI) GetTransaction(hash string) (*PublicTransaction, 
 	return publicTx, nil
 }
 
-func getReceipts(kaiDb types.StoreDB, hash common.Hash) types.Receipts {
+func getBlockInfo(kaiDb types.StoreDB, hash common.Hash) (*types.BlockInfo, error) {
 	height := kaiDb.ReadHeaderNumber(hash)
 	if height == nil {
 		return nil
 	}
-	return kaiDb.ReadReceipts(hash, *height)
+
+	return kaiDb.ReadBlockInfo(hash, *height), nil
+
 }
 
 // getReceiptLogs gets logs from receipt
@@ -459,11 +465,14 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 		return nil, nil
 	}
 	// get receipts from db
-	receipts := getReceipts(a.s.kaiDb, blockHash)
-	if len(receipts) <= int(index) {
+	blockInfo, err := getBlockInfo(a.s.kaiDb, blockHash)
+	if err != nil {
+		return nil, err
+	}
+	if len(blockInfo.Receipts) <= int(index) {
 		return nil, nil
 	}
-	receipt := receipts[index]
+	receipt := blockInfo.Receipts[index]
 	return getPublicReceipt(*receipt, tx, blockHash, height, index), nil
 }
 
@@ -543,7 +552,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 	addr := args.From
 
 	if addr == (common.Address{}) {
-		addr = tool.GetRandomGenesisAccount()
+		addr = configs.GenesisDeployerAddr
 	}
 
 	// Set default gas & gas price if none were set

@@ -23,10 +23,15 @@ import (
 	"flag"
 	"fmt"
 	"math/big"
+	"net/http"
+	"net/http/pprof"
 	"os"
 	"path/filepath"
 	"runtime"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
@@ -46,10 +51,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 
 	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-)
-
-const (
-	LevelDb = iota
 )
 
 var args flags
@@ -76,7 +77,7 @@ func (c *Config) getP2PConfig() (*configs.P2PConfig, error) {
 	return p2pConfig, nil
 }
 
-// getDbInfo gets database information from config. Currently, it only supports levelDb and Mondodb
+// getDbInfo gets database information from config. Currently, it only supports levelDb
 func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
 	database := c.MainChain.Database
 	if isDual {
@@ -344,12 +345,12 @@ func (c *Config) Start() {
 		return
 	}
 
-	genesis, err := c.getGenesisConfig(false)
+	genesisCfg, err := c.getGenesisConfig(false)
 	if err != nil {
 		panic(err)
 	}
 
-	nodeConfig.Genesis = genesis
+	nodeConfig.Genesis = genesisCfg
 	// init new node from nodeConfig
 	n, err := node.New(nodeConfig)
 	if err != nil {
@@ -384,12 +385,20 @@ func (c *Config) Start() {
 		c.SaveWatchers(kardiaService, c.MainChain.Events)
 	}
 
+	if c.DualChain != nil {
+	}
+
+	if c.Debug != nil {
+		if err := c.StartDebug(); err != nil {
+			logger.Error("Failed to start debug", "err", err)
+		}
+	}
+
 	if err := c.StartDual(n); err != nil {
 		logger.Error("error while starting dual", "err", err)
 		return
 	}
 
-	go displayKardiaPeers(n)
 	waitForever()
 }
 
@@ -447,6 +456,27 @@ func (c *Config) StartDual(n *node.Node) error {
 		dualProxy.Start()
 		kardiaProxy.Start()
 	}
+	return nil
+}
+
+func (c *Config) StartDebug() error {
+	go func() {
+		router := mux.NewRouter()
+		router.HandleFunc("/debug/pprof/", pprof.Index)
+		router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		router.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		router.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		router.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+		router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+		router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+		router.Handle("/debug/pprof/block", pprof.Handler("block"))
+		router.Handle("/debug/vars", http.DefaultServeMux)
+
+		if err := http.ListenAndServe(c.Debug.Port, cors.AllowAll().Handler(router)); err != nil {
+			panic(err)
+		}
+	}()
 	return nil
 }
 
@@ -517,10 +547,6 @@ func runtimeSystemSettings() error {
 		}
 	}
 	return nil
-}
-
-func displayKardiaPeers(n *node.Node) {
-
 }
 
 func waitForever() {
