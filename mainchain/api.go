@@ -130,9 +130,9 @@ func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 		// add additional info from corresponding receipt to transaction
 		receipt := getPublicReceipt(*blockInfo.Receipts[idx], transaction, block.Hash(), block.Height(), idx)
 		tx.Logs = receipt.Logs
-		tx.LogsBloom = receipt.LogsBloom
 		tx.Root = receipt.Root
 		tx.Status = receipt.Status
+		tx.GasUsed = receipt.GasUsed
 		transactions = append(transactions, tx)
 	}
 
@@ -208,6 +208,7 @@ type PublicTransaction struct {
 	From             string       `json:"from"`
 	Gas              uint64       `json:"gas"`
 	GasPrice         uint64       `json:"gasPrice"`
+	GasUsed          uint64       `json:"gasUsed,omitempty"`
 	Hash             string       `json:"hash"`
 	Input            string       `json:"input"`
 	Nonce            uint64       `json:"nonce"`
