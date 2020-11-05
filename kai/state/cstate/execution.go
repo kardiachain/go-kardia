@@ -189,7 +189,7 @@ func calculateValidatorSetUpdates(lastVals []*types.Validator, vals []*types.Val
 	if len(vals) == 0 {
 		return
 	}
-	last := make(map[common.Address]uint64)
+	last := make(map[common.Address]int64)
 	for _, validator := range lastVals {
 		last[validator.Address] = validator.VotingPower
 	}

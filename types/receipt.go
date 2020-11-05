@@ -207,3 +207,39 @@ func (r Receipts) GetRlp(i int) []byte {
 	}
 	return bytes
 }
+
+type BlockInfo struct {
+	GasUsed  uint64
+	Receipts Receipts
+}
+
+// EncodeRLP implements rlp.Encoder, and flattens all content fields of a block info
+// into an RLP stream.
+func (bi *BlockInfo) EncodeRLP(w io.Writer) error {
+	sbi := storageBlockInfo{
+		Receipts: make([]*ReceiptForStorage, len(bi.Receipts)),
+		GasUsed:  bi.GasUsed,
+	}
+	for i, receipt := range bi.Receipts {
+		sbi.Receipts[i] = (*ReceiptForStorage)(receipt)
+	}
+	return rlp.Encode(w, sbi)
+}
+
+func (bi *BlockInfo) DecodeRLP(s *rlp.Stream) error {
+	sbi := storageBlockInfo{}
+	if err := s.Decode(&sbi); err != nil {
+		return err
+	}
+	bi.GasUsed = sbi.GasUsed
+	bi.Receipts = make(Receipts, len(sbi.Receipts))
+	for i, receipt := range sbi.Receipts {
+		bi.Receipts[i] = (*Receipt)(receipt)
+	}
+	return nil
+}
+
+type storageBlockInfo struct {
+	GasUsed  uint64
+	Receipts []*ReceiptForStorage
+}

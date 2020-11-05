@@ -19,7 +19,6 @@
 package tests
 
 import (
-	"math"
 	"math/big"
 	"testing"
 
@@ -47,25 +46,30 @@ func GetBlockchainStaking() (*blockchain.BlockChain, error, *state.StateDB) {
 	logger := log.New()
 	logger.AddTag("test state")
 	// Start setting up blockchain
-	initValue := g.ToCell(int64(math.Pow10(6)))
+	initValue, _ := big.NewInt(0).SetString("10000000000000000", 10)
 	var genesisAccounts = map[string]*big.Int{
 		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
 		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
 	}
-	stakingSmcAddress := configs.GetContractAddressAt(KardiaSatkingSmcIndex).String()
 
-	var genesisContracts = map[string]string{
-		stakingSmcAddress: configs.GenesisContracts[stakingSmcAddress],
+	configs.AddDefaultContract()
+
+	for address, _ := range genesisAccounts {
+		genesisAccounts[address] = initValue
 	}
+
+	genesisContracts := make(map[string]string)
+	for key, contract := range configs.GetContracts() {
+		configs.LoadGenesisContract(key, contract.Address, contract.ByteCode, contract.ABI)
+		if key != configs.StakingContractKey {
+			genesisContracts[contract.Address] = contract.ByteCode
+		}
+	}
+
 	blockDB := memorydb.New()
 	kaiDb := kvstore.NewStoreDB(blockDB)
 	genesis := g.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
-	chainConfig, hash, genesisErr := setupGenesis(genesis, kaiDb)
-
-	// Get block by hash and height
-	block := kaiDb.ReadBlock(hash, 0)
-	stateDB, _ := state.New(log.New(), block.AppHash(), state.NewDatabase(blockDB))
-
+	chainConfig, _, genesisErr := setupGenesis(genesis, kaiDb)
 	if genesisErr != nil {
 		log.Error("Error setting genesis block", "err", genesisErr)
 		return nil, genesisErr, nil
@@ -75,6 +79,10 @@ func GetBlockchainStaking() (*blockchain.BlockChain, error, *state.StateDB) {
 	if err != nil {
 		log.Error("Error creating new blockchain", "err", err)
 		return nil, err, nil
+	}
+	stateDB, err := bc.State()
+	if err != nil {
+		return nil, nil, nil
 	}
 	return bc, nil, stateDB
 }
@@ -112,15 +120,11 @@ func TestCreateValidator(t *testing.T) {
 
 	block := types.NewBlock(head, nil, &types.Commit{}, nil)
 
-	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-	result := util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, 3999999999)
-
+	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+	//err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, 1000001)
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, 39999999)
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if result != nil {
-		t.Log(result)
 	}
 
 	_, err = util.ApplyAndReturnValidatorSets(stateDB, block.Header(), nil, kvm.Config{})

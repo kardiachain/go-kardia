@@ -14,8 +14,6 @@ import (
 
 //go:generate mockery --case underscore --name Peer
 
-const metricsTickerDuration = 10 * time.Second
-
 // Peer is an interface representing a peer connected on a reactor.
 type Peer interface {
 	service.Service
@@ -136,7 +134,7 @@ func newPeer(
 		channels:      nodeInfo.(DefaultNodeInfo).Channels, // TODO
 		Data:          cmap.NewCMap(),
 		metricsTicker: time.NewTicker(metricsTickerDuration),
-		metrics:       NopMetrics(),
+		metrics:       InitMetrics(),
 	}
 
 	p.mconn = createMConnection(
@@ -253,11 +251,7 @@ func (p *peer) Send(chID byte, msgBytes []byte) bool {
 	}
 	res := p.mconn.Send(chID, msgBytes)
 	if res {
-		labels := []string{
-			"peer_id", string(p.ID()),
-			"chID", fmt.Sprintf("%#x", chID),
-		}
-		p.metrics.PeerSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
+		p.metrics.PeerSendBytesTotal.Inc(int64(len(msgBytes)))
 	}
 	return res
 }
@@ -272,11 +266,7 @@ func (p *peer) TrySend(chID byte, msgBytes []byte) bool {
 	}
 	res := p.mconn.TrySend(chID, msgBytes)
 	if res {
-		labels := []string{
-			"peer_id", string(p.ID()),
-			"chID", fmt.Sprintf("%#x", chID),
-		}
-		p.metrics.PeerSendBytesTotal.With(labels...).Add(float64(len(msgBytes)))
+		p.metrics.PeerSendBytesTotal.Inc(int64(len(msgBytes)))
 	}
 	return res
 }
@@ -356,7 +346,7 @@ func (p *peer) metricsReporter() {
 				sendQueueSize += float64(chStatus.SendQueueSize)
 			}
 
-			p.metrics.PeerPendingSendBytes.With("peer_id", string(p.ID())).Set(sendQueueSize)
+			p.metrics.PeerPendingSendBytes.Inc(int64(sendQueueSize))
 		case <-p.Quit():
 			return
 		}
@@ -382,11 +372,7 @@ func createMConnection(
 			// which does onPeerError.
 			panic(fmt.Sprintf("Unknown channel %X", chID))
 		}
-		labels := []string{
-			"peer_id", string(p.ID()),
-			"chID", fmt.Sprintf("%#x", chID),
-		}
-		p.metrics.PeerReceiveBytesTotal.With(labels...).Add(float64(len(msgBytes)))
+		p.metrics.PeerReceiveBytesTotal.Inc(int64(len(msgBytes)))
 		reactor.Receive(chID, p, msgBytes)
 	}
 

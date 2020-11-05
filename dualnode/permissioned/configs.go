@@ -25,10 +25,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dev"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
 )
@@ -62,19 +60,25 @@ type Config struct {
 }
 
 var DefaultConfig = node.Config{
-	DataDir:          configs.DefaultDataDir(),
+	// todo: Uncomment and update config when we support dual node
+	//DataDir:          node.DefaultDataDir(),
 	HTTPPort:         DefaultHTTPPort,
 	HTTPModules:      []string{"node", "kai", "tx", "account"},
 	HTTPVirtualHosts: []string{"0.0.0.0", "localhost"},
 	HTTPCors:         []string{"*"},
-	P2P:              configs.DefaultP2PConfig(),
+	// todo: uncomment update config when we support dual node
+	//P2P: p2p.Config{
+	//	ListenAddr: DefaultListenAddr,
+	//	MaxPeers:   25,
+	//},
 	MainChainConfig: node.MainChainConfig{
 		NetworkId: privateNetworkId,
 		DBInfo:    storage.NewLevelDbInfo(MainChainDataDir, DefaultDbCache, DefaultDbHandles),
 		AcceptTxs: 1, // 1 is to allow new transactions, 0 is not
 		IsPrivate: true,
 		IsZeroFee: true,
-		Genesis:   genesis.DefaulTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts),
+		// todo: uncomment and update config when we support dual node
+		//Genesis:   genesis.DefaultTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts),
 	},
 }
 
@@ -86,6 +90,10 @@ func SetUp(config *Config) (nodeConfig *node.Config, err error) {
 	if config.DataDir != nil {
 		nodeConfig.DataDir = *config.DataDir
 	}
+	// todo: uncomment update config when we support dual node
+	//if config.ListenAddr != nil {
+	//	nodeConfig.P2P.ListenAddr = *config.ListenAddr
+	//}
 
 	if config.ChainDataDir != nil && config.DbCache != nil && config.DbHandles != nil {
 		nodeConfig.MainChainConfig.DBInfo = storage.NewLevelDbInfo(*config.ChainDataDir, *config.DbCache, *config.DbHandles)

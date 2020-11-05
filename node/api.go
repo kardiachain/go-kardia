@@ -25,6 +25,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/metrics"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/rpc"
 )
@@ -223,6 +224,20 @@ func (api *PublicAdminAPI) Peers() ([]Peer, error) {
 		})
 	}
 	return peers, nil
+}
+
+// Metrics return profiling of nodes
+func (api *PublicAdminAPI) Metrics(registries []string) map[string]interface{} {
+	if len(registries) == 0 {
+		resp := make(map[string]interface{})
+		resp["tx_pool"] = metrics.TxPoolRegistry.GetAll()
+		resp["system"] = metrics.SystemRegistry.GetAll()
+		resp["db"] = metrics.DBRegistry.GetAll()
+		resp["p2p"] = metrics.P2PRegistry.GetAll()
+		return resp
+	}
+
+	return nil
 }
 
 // NodeInfo retrieves all the information we know about the host node at the

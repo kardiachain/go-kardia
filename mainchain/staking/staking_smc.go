@@ -51,9 +51,8 @@ type StakingSmcUtil struct {
 
 // NewSmcStakingnUtil ...
 func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
-	stakingSmcAbi := configs.GetContractABIByAddress(configs.StakingContractAddress.Hex())
-	bytecodeStaking := configs.GetContractByteCodeByAddress(configs.StakingContractAddress.Hex())
-
+	stakingSmcAbi := configs.GetContractABIByAddress(configs.DefaultStakingContractAddress)
+	bytecodeStaking := configs.GetContractByteCodeByAddress(configs.DefaultStakingContractAddress)
 	abi, err := abi.JSON(strings.NewReader(stakingSmcAbi))
 	if err != nil {
 		log.Error("Error reading abi", "err", err)
@@ -160,7 +159,7 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 
 	vals := make([]*types.Validator, len(valSet.ValAddrs))
 	for i, valAddr := range valSet.ValAddrs {
-		vals[i] = types.NewValidator(valAddr, valSet.Powers[i].Uint64())
+		vals[i] = types.NewValidator(valAddr, valSet.Powers[i].Int64())
 	}
 	return vals, nil
 }

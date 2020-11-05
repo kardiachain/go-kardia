@@ -38,7 +38,7 @@ type BaseBlockChain interface {
 	GetBlockByHash(hash common.Hash) *types.Block
 	State() (*state.StateDB, error)
 	CommitTrie(root common.Hash) error
-	WriteReceipts(receipts types.Receipts, block *types.Block)
+	WriteBlockInfo(block *types.Block, blockInfo *types.BlockInfo)
 	ReadCommit(height uint64) *types.Commit
 	Config() *typesCfg.ChainConfig
 	GetHeader(common.Hash, uint64) *types.Header

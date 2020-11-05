@@ -31,7 +31,7 @@ func randVoteSet(
 	round uint32,
 	signedMsgType kproto.SignedMsgType,
 	numValidators int,
-	votingPower uint64,
+	votingPower int64,
 ) (*VoteSet, *ValidatorSet, []PrivValidator) {
 	valSet, privValidators := RandValidatorSet(numValidators, votingPower)
 	return NewVoteSet("test_chain_id", height, round, signedMsgType, valSet), valSet, privValidators

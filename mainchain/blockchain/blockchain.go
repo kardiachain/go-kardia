@@ -407,11 +407,11 @@ func (bc *BlockChain) InsertHeadBlock(block *types.Block) {
 }
 
 // WriteReceipts writes the transactions receipt from execution of the transactions in the given block.
-func (bc *BlockChain) WriteReceipts(receipts types.Receipts, block *types.Block) {
+func (bc *BlockChain) WriteBlockInfo(block *types.Block, blockInfo *types.BlockInfo) {
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
-	bc.db.WriteReceipts(block.Hash(), block.Header().Height, receipts)
+	bc.db.WriteBlockInfo(block.Hash(), block.Header().Height, blockInfo)
 }
 
 // CommitTrie commits trie node such as statedb forcefully to disk.

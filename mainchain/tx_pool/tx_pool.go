@@ -33,7 +33,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/metrics"
 	"github.com/kardiachain/go-kardiamain/lib/prque"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -274,7 +273,7 @@ func NewTxPool(config TxPoolConfig, chainconfig *typesCfg.ChainConfig, chain blo
 	// Create the transaction pool with its initial settings
 	pool := &TxPool{
 		config:          config,
-		chainconfig:     chainconfig,
+		chainCfg:        chainCfg,
 		chain:           chain,
 		signer:          types.HomesteadSigner{},
 		pending:         make(map[common.Address]*txList),
@@ -458,7 +457,7 @@ func (pool *TxPool) Stop() {
 	pool.wg.Wait()
 
 	if pool.journal != nil {
-		pool.journal.close()
+		_ = pool.journal.close()
 	}
 	log.Info("Transaction pool stopped")
 }
@@ -835,11 +834,15 @@ func (pool *TxPool) AddRemote(tx *types.Transaction) error {
 
 // addTxs attempts to queue a batch of transactions if they are valid.
 func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
+	defer txsTimer.Stop()
 	// Filter out known ones without obtaining the pool lock or recovering signatures
 	var (
 		errs = make([]error, len(txs))
 		news = make([]*types.Transaction, 0, len(txs))
 	)
+
+	// Look like we can improve this flow
+
 	for i, tx := range txs {
 		// If the transaction is known, pre-set the error slot
 		if pool.all.Get(tx.Hash()) != nil {
@@ -882,6 +885,7 @@ func (pool *TxPool) addTxs(txs []*types.Transaction, local, sync bool) []error {
 // addTxsLocked attempts to queue a batch of transactions if they are valid.
 // The transaction pool lock must be held.
 func (pool *TxPool) addTxsLocked(txs []*types.Transaction, local bool) ([]error, *accountSet) {
+	defer lockedTxsTimer.Stop()
 	dirty := newAccountSet(pool.signer)
 	errs := make([]error, len(txs))
 	for i, tx := range txs {
@@ -1082,6 +1086,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 	if dirtyAccounts != nil {
 		promoteAddrs = dirtyAccounts.flatten()
 	}
+	//todo @longnd: check if data race
 	pool.mu.Lock()
 	if reset != nil {
 		// Reset from the old head to the new, rescheduling any reorged transactions
@@ -1250,7 +1255,7 @@ func (pool *TxPool) promoteExecutables(accounts []common.Address) []*types.Trans
 			pool.all.Remove(hash)
 			log.Trace("Removed unpayable queued transaction", "hash", hash)
 		}
-		queuedNofundsMeter.Mark(int64(len(drops)))
+		queuedNoFundsMeter.Mark(int64(len(drops)))
 
 		// Gather all executable transactions and promote them
 		readies := list.Ready(pool.pendingNonces.get(addr))
@@ -1443,7 +1448,7 @@ func (pool *TxPool) demoteUnexecutables() {
 			pool.all.Remove(hash)
 		}
 		pool.priced.Removed(len(olds) + len(drops))
-		pendingNofundsMeter.Mark(int64(len(drops)))
+		pendingNoFundsMeter.Mark(int64(len(drops)))
 
 		for _, tx := range invalids {
 			hash := tx.Hash()

@@ -45,16 +45,17 @@ var (
 	TronDualChainID = uint64(4)
 )
 
-var (
-	StakingContract           = "Staking"
-	CounterContract           = "Counter"
-	BallotContract            = "Ballot"
-	ExchangeContract          = "Exchange"
-	ExchangeV2Contract        = "ExchangeV2"
-	PermissionContract        = "Permission"
-	CandidateDBContract       = "CandidateDB"
-	CandidateExchangeContract = "CandidateExchange"
-)
+// Remove and group into configs/contracts.go
+//var (
+//	StakingContract           = "Staking"
+//	CounterContract           = "Counter"
+//	BallotContract            = "Ballot"
+//	ExchangeContract          = "Exchange"
+//	ExchangeV2Contract        = "ExchangeV2"
+//	PermissionContract        = "Permission"
+//	CandidateDBContract       = "CandidateDB"
+//	CandidateExchangeContract = "CandidateExchange"
+//)
 
 var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
@@ -234,7 +235,7 @@ func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
 var contracts = make(map[string]typesCfg.Contract)
 
 func LoadGenesisContract(contractType string, address string, bytecode string, abi string) {
-	if contractType == StakingContract {
+	if contractType == StakingContractKey {
 		StakingContractAddress = common.HexToAddress(address)
 	}
 	contracts[contractType] = typesCfg.Contract{
@@ -250,7 +251,7 @@ func GetContractABIByAddress(address string) string {
 			return contract.ABI
 		}
 	}
-	panic("abi not found")
+	panic("ABI not found")
 }
 
 func GetContractByteCodeByAddress(address string) string {
@@ -259,5 +260,5 @@ func GetContractByteCodeByAddress(address string) string {
 			return contract.ByteCode
 		}
 	}
-	panic("bytecode not found")
+	panic("ByteCode not found")
 }

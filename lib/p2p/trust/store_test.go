@@ -23,7 +23,7 @@ func TestTrustMetricStoreSaveLoad(t *testing.T) {
 	require.NoError(t, err)
 	defer os.Remove(dir)
 
-	historyDB, err := leveldb.New(dir, 256, 0, "")
+	historyDB, err := leveldb.New(dir, 256, 0)
 	require.NoError(t, err)
 
 	// 0 peers saved

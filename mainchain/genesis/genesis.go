@@ -55,7 +55,7 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 // Validator is an initial validator.
 type Validator struct {
 	Address string `json:"address" yaml:"Address"`
-	Power   uint64 `json:"power" yaml:"Power"`
+	Power   int64  `json:"power" yaml:"Power"`
 	Name    string `json:"name" yaml:"Name"`
 }
 
@@ -118,10 +118,6 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 		} else {
 			logger.Info("Writing custom genesis block")
 		}
-		// Set baseAccount
-		if baseAccount != nil {
-			genesis.Config.SetBaseAccount(baseAccount)
-		}
 		block, err := genesis.Commit(logger, db)
 		if err != nil {
 			return nil, common.NewZeroHash(), err
@@ -135,10 +131,6 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 		block, _ := genesis.ToBlock(logger, nil)
 		hash := block.Hash()
 		if hash != stored {
-			// Set baseAccount
-			if baseAccount != nil {
-				genesis.Config.SetBaseAccount(baseAccount)
-			}
 			return genesis.Config, hash, &GenesisMismatchError{stored, hash}
 		}
 	}
@@ -148,10 +140,6 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 	storedcfg := db.ReadChainConfig(stored)
 	if storedcfg == nil {
 		logger.Warn("Found genesis block without chain config")
-		// Set baseAccount
-		if baseAccount != nil {
-			newcfg.SetBaseAccount(baseAccount)
-		}
 		db.WriteChainConfig(stored, newcfg)
 		return newcfg, stored, nil
 	}
@@ -160,11 +148,6 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 	// if we just continued here.
 	if genesis == nil && stored != configs.MainnetGenesisHash {
 		return storedcfg, stored, nil
-	}
-
-	// Set baseAccount
-	if baseAccount != nil {
-		newcfg.SetBaseAccount(baseAccount)
 	}
 
 	db.WriteChainConfig(stored, newcfg)
@@ -249,7 +232,8 @@ func (g *Genesis) Commit(logger log.Logger, db types.StoreDB) (*types.Block, err
 	partsSet := block.MakePartSet(types.BlockPartSizeBytes)
 
 	db.WriteBlock(block, partsSet, &types.Commit{})
-	db.WriteReceipts(block.Hash(), block.Height(), nil)
+
+	db.WriteBlockInfo(block.Hash(), block.Height(), nil)
 	db.WriteCanonicalHash(block.Hash(), block.Height())
 	db.WriteHeadBlockHash(block.Hash())
 	kvstore.WriteAppHash(db.DB(), block.Height(), root)
@@ -293,9 +277,11 @@ func DefaulTestnetFullGenesisBlock(accountData map[string]*big.Int, contractData
 		return nil
 	}
 	return &Genesis{
-		Config:   configs.TestnetChainConfig,
-		GasLimit: 16777216,
-		Alloc:    ga,
+		Config:          configs.TestnetChainConfig,
+		GasLimit:        16777216,
+		Alloc:           ga,
+		ConsensusParams: configs.DefaultConsensusParams(),
+		Consensus:       configs.DefaultConsensusConfig(),
 	}
 }
 

@@ -140,4 +140,7 @@ type (
 		MaxAgeDuration  int   `yaml:"MaxAgeDuration"`
 		MaxBytes        int64 `yaml:"MaxBytes"`
 	}
+	Debug struct {
+		Port string `yaml:"Port"`
+	}
 )
