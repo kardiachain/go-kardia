@@ -296,7 +296,7 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 	return tx.Hash().Hex(), a.s.TxPool().AddLocal(tx)
 }
 
-// revertError is an API error that encompassas an EVM revertal with JSON error
+// revertError is an API error that encompassas an KVM revertal with JSON error
 // code and a binary data blob.
 type revertError struct {
 	error

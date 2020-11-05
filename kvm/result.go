@@ -22,7 +22,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
-// ExecutionResult includes all output after executing given evm
+// ExecutionResult includes all output after executing given kvm
 // message no matter the execution itself is successful or not.
 type ExecutionResult struct {
 	UsedGas    uint64 // Total used gas but include the refunded gas
@@ -30,7 +30,7 @@ type ExecutionResult struct {
 	ReturnData []byte // Returned data from kvm (function result or data supplied with revert opcode)
 }
 
-// Unwrap returns the internal evm error which allows us for further
+// Unwrap returns the internal kvm error which allows us for further
 // analysis outside.
 func (result *ExecutionResult) Unwrap() error {
 	return result.Err
