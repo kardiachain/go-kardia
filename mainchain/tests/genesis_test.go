@@ -28,6 +28,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
@@ -100,13 +101,19 @@ func TestGenesisAllocFromData(t *testing.T) {
 }
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
-	return genesis.SetupGenesisBlock(log.New(), db, g, nil)
+	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
+	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
+	return genesis.SetupGenesisBlock(log.New(), db, g, &configs.BaseAccount{
+		Address:    address,
+		PrivateKey: *privateKey,
+	})
 }
 
 func TestCreateGenesisBlock(t *testing.T) {
 	// Test generate genesis block
 	// allocData is get from genesisAccounts in default_node_config
-	initValue, _ := big.NewInt(0).SetString("10000000000000000", 10)
+	InitValue = big.NewInt(int64(math.Pow10(10))) // Update Genesis Account Values
+	initBalance = InitValue.Mul(InitValue, big.NewInt(int64(math.Pow10(18))))
 	var genesisAccounts = map[string]*big.Int{
 		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
 		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
@@ -115,7 +122,6 @@ func TestCreateGenesisBlock(t *testing.T) {
 	// Init kai database
 	blockDB := memorydb.New()
 	db := kvstore.NewStoreDB(blockDB)
-
 	// Create genesis block with state_processor_test.genesisAccounts
 	g := genesis.DefaultTestnetGenesisBlock(genesisAccounts)
 	chainConfig, hash, err := setupGenesis(g, db)
@@ -156,7 +162,8 @@ func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 	blockDB := memorydb.New()
 	db := kvstore.NewStoreDB(blockDB)
 	// Create genesis block with state_processor_test.genesisAccounts
-	initValue, _ := big.NewInt(0).SetString("10000000000000000", 10)
+	InitValue = big.NewInt(int64(math.Pow10(10))) // Update Genesis Account Values
+	initBalance = InitValue.Mul(InitValue, big.NewInt(int64(math.Pow10(18))))
 	var genesisAccounts = map[string]*big.Int{
 		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
 		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,

@@ -172,9 +172,6 @@ func TestGetInitialNodeByIndex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err != nil {
-		t.Fatal(err)
-	}
 	// Get info of a valid node
 	key, address, listenAddress, votingPower, nodeType, err := util.GetAdminNodeByIndex(0)
 	if err != nil {

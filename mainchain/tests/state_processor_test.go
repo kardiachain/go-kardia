@@ -39,7 +39,8 @@ import (
 )
 
 // GenesisAccounts are used to initialized accounts in genesis block
-var initValue = genesis.ToCell(int64(math.Pow10(6)))
+// longnd - update init value to match base config
+var initValue = genesis.ToCell(int64(math.Pow10(10)))
 var genesisAccounts = map[string]*big.Int{
 	"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
 	"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,

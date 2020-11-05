@@ -47,13 +47,13 @@ func GetBlockchainStaking() (*blockchain.BlockChain, error, *state.StateDB) {
 	logger := log.New()
 	logger.AddTag("test state")
 	// Start setting up blockchain
-	initValue := g.ToCell(int64(math.Pow10(6)))
+	InitValue = big.NewInt(int64(math.Pow10(10))) // Update Genesis Account Values
+	initBalance = InitValue.Mul(InitValue, big.NewInt(int64(math.Pow10(18))))
 	var genesisAccounts = map[string]*big.Int{
 		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
 		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
 	}
 	stakingSmcAddress := "0x0000000000000000000000000000000000001337"
-
 	var genesisContracts = map[string]string{
 		stakingSmcAddress: configs.GetContractByteCodeByAddress(stakingSmcAddress),
 	}
