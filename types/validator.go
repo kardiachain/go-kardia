@@ -174,7 +174,7 @@ func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
 	privVal := NewMockPV()
 	votePower := minPower
 	if randPower {
-		votePower += int64(rand.Int63())
+		votePower += int64(rand.Uint32())
 	}
 	pubKey := privVal.GetPubKey()
 	val := NewValidator(crypto.PubkeyToAddress(pubKey), votePower)
@@ -185,7 +185,7 @@ func RandValidatorCS(randPower bool, minPower int64) (*Validator, *DefaultPrivVa
 	privKey, _ := crypto.GenerateKey()
 	votePower := minPower
 	if randPower {
-		votePower += int64(rand.Int63())
+		votePower += int64(rand.Uint32())
 	}
 	privVal := NewDefaultPrivValidator(privKey)
 	val := NewValidator(privVal.GetAddress(), votePower)
