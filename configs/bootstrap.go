@@ -43,7 +43,6 @@ func loadDefaultMainnet() *typesCfg.Config {
 		Events:             nil,
 		PublishedEndpoint:  nil,
 		SubscribedEndpoint: nil,
-		BaseAccount:        typesCfg.BaseAccount{},
 		Consensus:          nil,
 	}
 	cfg := &typesCfg.Config{
@@ -53,7 +52,6 @@ func loadDefaultMainnet() *typesCfg.Config {
 		P2P: typesCfg.P2P{
 			ListenAddress: _default.P2PListenAddress,
 			PrivateKey:    _default.P2PPrivateKey,
-			MaxPeers:      _default.P2PMaxPeers,
 		},
 		Name:             _default.NodeName,
 		LogLevel:         _default.LogLevel,

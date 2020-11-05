@@ -103,7 +103,7 @@ func (e *GenesisMismatchError) Error() string {
 //     db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, baseAccount *typesCfg.BaseAccount) (*typesCfg.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis) (*typesCfg.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		// TODO(huny@): should we return another default config?
 		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
