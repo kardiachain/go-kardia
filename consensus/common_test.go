@@ -30,7 +30,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	kpubsub "github.com/kardiachain/go-kardiamain/lib/pubsub"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
@@ -274,13 +273,7 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 }
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
-	//Remove base account since we do not use anymore
-	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
-	return genesis.SetupGenesisBlock(log.New(), db, g, &configs.BaseAccount{
-		Address:    address,
-		PrivateKey: *privateKey,
-	})
+	return genesis.SetupGenesisBlock(log.New(), db, g)
 }
 
 func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {

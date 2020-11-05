@@ -300,13 +300,8 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, *tx_pool.TxPool, error
 		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
 		"0xBA30505351c17F4c818d94a990eDeD95e166474b": initValue,
 	}
-	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g, &configs.BaseAccount{
-		Address:    address,
-		PrivateKey: *privateKey,
-	})
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g)
 	if genesisErr != nil {
 		return nil, nil, genesisErr
 	}

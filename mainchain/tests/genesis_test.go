@@ -100,7 +100,7 @@ func TestGenesisAllocFromData(t *testing.T) {
 }
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
-	return genesis.SetupGenesisBlock(log.New(), db, g, nil)
+	return genesis.SetupGenesisBlock(log.New(), db, g)
 }
 
 func TestCreateGenesisBlock(t *testing.T) {

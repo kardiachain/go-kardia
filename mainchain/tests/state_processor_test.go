@@ -179,7 +179,7 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, nil)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g)
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
 	}
@@ -247,7 +247,7 @@ func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, nil)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g)
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
 	}
