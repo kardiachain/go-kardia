@@ -102,7 +102,7 @@ func (e *GenesisMismatchError) Error() string {
 //     db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, baseAccount *configs.BaseAccount) (*configs.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis) (*configs.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		// TODO(huny@): should we return another default config?
 		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
@@ -117,10 +117,6 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 		} else {
 			logger.Info("Writing custom genesis block")
 		}
-		// Set baseAccount
-		if baseAccount != nil {
-			genesis.Config.SetBaseAccount(baseAccount)
-		}
 		block, err := genesis.Commit(logger, db)
 		if err != nil {
 			return nil, common.NewZeroHash(), err
@@ -134,10 +130,6 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 		block, _ := genesis.ToBlock(logger, nil)
 		hash := block.Hash()
 		if hash != stored {
-			// Set baseAccount
-			if baseAccount != nil {
-				genesis.Config.SetBaseAccount(baseAccount)
-			}
 			return genesis.Config, hash, &GenesisMismatchError{stored, hash}
 		}
 	}
@@ -147,10 +139,6 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 	storedcfg := db.ReadChainConfig(stored)
 	if storedcfg == nil {
 		logger.Warn("Found genesis block without chain config")
-		// Set baseAccount
-		if baseAccount != nil {
-			newcfg.SetBaseAccount(baseAccount)
-		}
 		db.WriteChainConfig(stored, newcfg)
 		return newcfg, stored, nil
 	}
@@ -159,11 +147,6 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, ba
 	// if we just continued here.
 	if genesis == nil && stored != configs.MainnetGenesisHash {
 		return storedcfg, stored, nil
-	}
-
-	// Set baseAccount
-	if baseAccount != nil {
-		newcfg.SetBaseAccount(baseAccount)
 	}
 
 	db.WriteChainConfig(stored, newcfg)
