@@ -20,9 +20,8 @@ package configs
 
 import (
 	"math/big"
-	"time"
-
 	"strings"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
@@ -45,16 +44,17 @@ var (
 	TronDualChainID = uint64(4)
 )
 
-var (
-	StakingContract           = "Staking"
-	CounterContract           = "Counter"
-	BallotContract            = "Ballot"
-	ExchangeContract          = "Exchange"
-	ExchangeV2Contract        = "ExchangeV2"
-	PermissionContract        = "Permission"
-	CandidateDBContract       = "CandidateDB"
-	CandidateExchangeContract = "CandidateExchange"
-)
+// Remove and group into configs/contracts.go
+//var (
+//	StakingContract           = "Staking"
+//	CounterContract           = "Counter"
+//	BallotContract            = "Ballot"
+//	ExchangeContract          = "Exchange"
+//	ExchangeV2Contract        = "ExchangeV2"
+//	PermissionContract        = "Permission"
+//	CandidateDBContract       = "CandidateDB"
+//	CandidateExchangeContract = "CandidateExchange"
+//)
 
 var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
@@ -237,38 +237,38 @@ func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
 // ======================= Genesis Utils Functions =======================
 
 type Contract struct {
-	address  string
-	bytecode string
-	abi      string
+	Address  string
+	ByteCode string
+	ABI      string
 }
 
 var contracts = make(map[string]Contract)
 
 func LoadGenesisContract(contractType string, address string, bytecode string, abi string) {
-	if contractType == StakingContract {
+	if contractType == StakingContractKey {
 		StakingContractAddress = common.HexToAddress(address)
 	}
 	contracts[contractType] = Contract{
-		address:  address,
-		bytecode: bytecode,
-		abi:      abi,
+		Address:  address,
+		ByteCode: bytecode,
+		ABI:      abi,
 	}
 }
 
 func GetContractABIByAddress(address string) string {
 	for _, contract := range contracts {
-		if strings.EqualFold(address, contract.address) {
-			return contract.abi
+		if strings.EqualFold(address, contract.Address) {
+			return contract.ABI
 		}
 	}
-	panic("abi not found")
+	panic("ABI not found")
 }
 
 func GetContractByteCodeByAddress(address string) string {
 	for _, contract := range contracts {
-		if strings.EqualFold(address, contract.address) {
-			return contract.bytecode
+		if strings.EqualFold(address, contract.Address) {
+			return contract.ByteCode
 		}
 	}
-	panic("bytecode not found")
+	panic("ByteCode not found")
 }

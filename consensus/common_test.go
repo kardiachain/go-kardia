@@ -21,7 +21,6 @@ package consensus
 import (
 	"context"
 	"fmt"
-	"math"
 	"math/big"
 	"testing"
 	"time"
@@ -275,6 +274,7 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 }
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
+	//Remove base account since we do not use anymore
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 	privateKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	return genesis.SetupGenesisBlock(log.New(), db, g, &configs.BaseAccount{
@@ -285,15 +285,25 @@ func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, c
 
 func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 	// Start setting up blockchain
-	initValue := g.ToCell(int64(math.Pow10(6)))
+	//initValue := g.ToCell(int64(math.Pow10(6)))
+	initValue, _ := big.NewInt(0).SetString("10000000000000000", 10)
 	var genesisAccounts = map[string]*big.Int{
 		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
 		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
 	}
 
-	stakingSmcAddress := configs.GetContractAddressAt(7).String()
-	var genesisContracts = map[string]string{
-		stakingSmcAddress: configs.GenesisContracts[stakingSmcAddress],
+	configs.AddDefaultContract()
+
+	for address, _ := range genesisAccounts {
+		genesisAccounts[address] = initValue
+	}
+
+	genesisContracts := make(map[string]string)
+	for key, contract := range configs.GetContracts() {
+		configs.LoadGenesisContract(key, contract.Address, contract.ByteCode, contract.ABI)
+		if key != configs.StakingContractKey {
+			genesisContracts[contract.Address] = contract.ByteCode
+		}
 	}
 
 	blockDB := memorydb.New()

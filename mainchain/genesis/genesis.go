@@ -276,9 +276,11 @@ func DefaulTestnetFullGenesisBlock(accountData map[string]*big.Int, contractData
 		return nil
 	}
 	return &Genesis{
-		Config:   configs.TestnetChainConfig,
-		GasLimit: 16777216,
-		Alloc:    ga,
+		Config:          configs.TestnetChainConfig,
+		GasLimit:        16777216,
+		Alloc:           ga,
+		ConsensusParams: configs.DefaultConsensusParams(),
+		Consensus:       configs.DefaultConsensusConfig(),
 	}
 }
 
