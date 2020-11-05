@@ -106,20 +106,20 @@ func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, 
 	// about the transaction and calling mechanisms.
 	vmenv := kvm.NewKVM(context, statedb, cfg)
 	// Apply the transaction to the current state (included in the env)
-	_, gas, failed, err := ApplyMessage(vmenv, msg, gp)
+	result, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
 		return nil, 0, err
 	}
 	// Update the state with pending changes
 	var root []byte
 	statedb.Finalise(true)
-	*usedGas += gas
+	*usedGas += result.UsedGas
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx,
 	// we're passing whether the root touch-delete accounts.
-	receipt := types.NewReceipt(root, failed, *usedGas)
+	receipt := types.NewReceipt(root, result.Failed(), *usedGas)
 	receipt.TxHash = tx.Hash()
-	receipt.GasUsed = gas
+	receipt.GasUsed = result.UsedGas
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
 		receipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
@@ -128,7 +128,7 @@ func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, 
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 
-	return receipt, gas, err
+	return receipt, result.UsedGas, result.Err
 }
 
 /*
@@ -192,7 +192,7 @@ func NewStateTransition(vm *kvm.KVM, msg Message, gp *types.GasPool) *StateTrans
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
-func ApplyMessage(vm *kvm.KVM, msg Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
+func ApplyMessage(vm *kvm.KVM, msg Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
 	return NewStateTransition(vm, msg, gp).TransitionDb()
 }
 
@@ -249,9 +249,9 @@ func (st *StateTransition) preCheck() error {
 // TransitionDb will transition the state by applying the current message and
 // returning the result including the the used gas. It returns an error if it
 // failed. An error indicates a consensus issue.
-func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bool, err error) {
-	if err = st.preCheck(); err != nil {
-		return
+func (st *StateTransition) TransitionDb() (*kvm.ExecutionResult, error) {
+	if err := st.preCheck(); err != nil {
+		return nil, err
 	}
 	msg := st.msg
 	sender := kvm.AccountRef(msg.From())
@@ -260,10 +260,10 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 	// Pay intrinsic gas
 	gas, err := tx_pool.IntrinsicGas(st.data, contractCreation)
 	if err != nil {
-		return nil, 0, false, err
+		return nil, err
 	}
 	if err = st.useGas(gas); err != nil {
-		return nil, 0, false, err
+		return nil, err
 	}
 
 	var (
@@ -272,14 +272,14 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		// not assigned to err, except for insufficient balance
 		// error.
 		vmerr error
+		ret   []byte
 	)
 	if contractCreation {
 		ret, _, st.gas, vmerr = vm.Create(sender, st.data, st.gas, st.value)
 	} else {
 		// Increment the nonce for the next transaction
-		//st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
-
-		// FIXME(kiendn): set current state to msg nonce input from transaction instead auto increment +1
+		// st.state.SetNonce(msg.From(), st.state.GetNonce(sender.Address())+1)
+		// TODO(trinhdn): set current state to msg nonce input from transaction or auto increment +1?
 		st.state.SetNonce(msg.From(), msg.Nonce())
 		ret, st.gas, vmerr = vm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
@@ -289,7 +289,7 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		// sufficient balance to make the transfer happen. The first
 		// balance transfer may never fail.
 		if vmerr == kvm.ErrInsufficientBalance {
-			return nil, 0, false, vmerr
+			return nil, vmerr
 		}
 	}
 
@@ -301,7 +301,11 @@ func (st *StateTransition) TransitionDb() (ret []byte, usedGas uint64, failed bo
 		st.state.AddBalance(st.vm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 	}
 
-	return ret, st.gasUsed(), vmerr != nil, err
+	return &kvm.ExecutionResult{
+		UsedGas:    st.gasUsed(),
+		Err:        vmerr,
+		ReturnData: ret,
+	}, nil
 }
 
 func (st *StateTransition) refundGas(refundAll bool) {

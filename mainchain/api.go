@@ -27,19 +27,16 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
+	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
+	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
-)
-
-const (
-	defaultTimeOutForStaticCall = 5
 )
 
 // BlockHeaderJSON represents BlockHeader in JSON format
@@ -299,13 +296,32 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 	return tx.Hash().Hex(), a.s.TxPool().AddLocal(tx)
 }
 
+// revertError is an API error that encompassas an EVM revertal with JSON error
+// code and a binary data blob.
+type revertError struct {
+	error
+	reason string // revert reason hex encoded
+}
+
+func newRevertError(result *kvm.ExecutionResult) *revertError {
+	reason, errUnpack := abi.UnpackRevert(result.Revert())
+	err := errors.New("execution reverted")
+	if errUnpack == nil {
+		err = fmt.Errorf("execution reverted: %v", reason)
+	}
+	return &revertError{
+		error:  err,
+		reason: common.Encode(result.Revert()),
+	}
+}
+
 // KardiaCall execute a contract method call only against
 // state on the local node. No tx is generated and submitted
 // onto the blockchain
-func (s *PublicKaiAPI) KardiaCall(ctx context.Context, call types.CallArgsJSON, blockNumber uint64) (string, error) {
+func (s *PublicKaiAPI) KardiaCall(ctx context.Context, call types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash) (string, error) {
 	args := types.NewArgs(call)
-	result, _, _, err := s.doCall(ctx, args, blockNumber, kvm.Config{}, defaultTimeOutForStaticCall*time.Second)
-	return common.Encode(result), err
+	result, err := s.doCall(ctx, args, blockNrOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall*time.Second)
+	return common.Encode(result.ReturnData), err
 }
 
 // PendingTransactions returns pending transactions
@@ -469,28 +485,14 @@ func (a *PublicAccountAPI) GetStorageAt(ctx context.Context, address common.Addr
 
 // doCall is an interface to make smart contract call against the state of local node
 // No tx is generated or submitted to the blockchain
-func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr uint64, vmCfg kvm.Config, timeout time.Duration) ([]byte, uint64, bool, error) {
+func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNrOrHash rpc.BlockNumberOrHash, vmCfg kvm.Config, timeout time.Duration) (*kvm.ExecutionResult, error) {
 	defer func(start time.Time) { log.Debug("Executing KVM call finished", "runtime", time.Since(start)) }(time.Now())
 
-	var (
-		statedb *state.StateDB
-		err     error
-		header  *types.Header
-	)
-	// If blockNr is specified, we used the state and header at the block at height blockNr
-	// otherwise we use the current state and header
-	if blockNr > 0 {
-		block := s.kaiService.BlockChain().GetBlockByHeight(blockNr)
-		statedb, err = s.kaiService.BlockChain().StateAt(block.Height())
-		header = block.Header()
-	} else {
-		statedb, err = s.kaiService.BlockChain().State()
-		header = s.kaiService.BlockChain().CurrentHeader()
+	state, header, err := s.kaiService.APIBackend.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if state == nil || err != nil {
+		return nil, err
 	}
 
-	if statedb == nil || err != nil {
-		return nil, 0, false, err
-	}
 	// Set sender address or use a default if none specified
 	addr := args.From
 
@@ -526,7 +528,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 	context := vm.NewKVMContext(msg, header, s.kaiService.BlockChain())
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	kvm := kvm.NewKVM(context, statedb, vmCfg)
+	kvm := kvm.NewKVM(context, state, vmCfg)
 	// Wait for the context to be done and cancel the KVM. Even if the
 	// KVM has finished, cancelling may be done (repeatedly)
 	go func() {
@@ -535,22 +537,22 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 	}()
 	// Apply the transaction to the current state (included in the env)
 	gp := new(types.GasPool).AddGas(common.MaxUint64)
-	res, gas, failed, err := blockchain.ApplyMessage(kvm, msg, gp)
+	result, err := blockchain.ApplyMessage(kvm, msg, gp)
 	if err != nil {
-		return nil, 0, false, err
+		return nil, err
 	}
 
 	// If the timer caused an abort, return an appropriate error message
 	if kvm.Cancelled() {
-		return nil, 0, false, fmt.Errorf("execution aborted (timeout = %v)", timeout)
+		return nil, fmt.Errorf("execution aborted (timeout = %v)", timeout)
 	}
 
-	return res, gas, failed, err
+	return result, err
 }
 
 // EstimateGas returns an estimate of the amount of gas needed to execute the
 // given transaction against the current pending block.
-func (s *PublicKaiAPI) EstimateGas(ctx context.Context, call types.CallArgsJSON) (uint64, error) {
+func (s *PublicKaiAPI) EstimateGas(ctx context.Context, call types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash) (uint64, error) {
 	// Binary search the gas requirement, as it may be higher than the amount used
 	var (
 		lo  = configs.TxGas - 1
@@ -568,19 +570,26 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, call types.CallArgsJSON)
 	cap = hi
 
 	// Create a helper to check if a gas allowance results in an executable transaction
-	executable := func(gas uint64) bool {
+	executable := func(gas uint64) (bool, *kvm.ExecutionResult, error) {
 		args.Gas = gas
 
-		_, _, failed, err := s.doCall(ctx, args, s.BlockNumber(), kvm.Config{}, 0)
-		if err != nil || failed {
-			return false
+		result, err := s.doCall(ctx, args, blockNrOrHash, kvm.Config{}, 0)
+		if err != nil {
+			if errors.Is(err, tx_pool.ErrIntrinsicGas) {
+				return true, nil, nil // Special case, raise gas limit
+			}
+			return true, nil, err // Bail out
 		}
-		return true
+		return result.Failed(), result, nil
 	}
 	// Execute the binary search and hone in on an executable gas limit
 	for lo+1 < hi {
 		mid := (hi + lo) / 2
-		if !executable(mid) {
+		failed, _, err := executable(mid)
+		if err != nil {
+			return 0, err
+		}
+		if failed {
 			lo = mid
 		} else {
 			hi = mid
@@ -588,8 +597,19 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, call types.CallArgsJSON)
 	}
 	// Reject the transaction as invalid if it still fails at the highest allowance
 	if hi == cap {
-		if !executable(hi) {
-			return 0, fmt.Errorf("gas required exceeds allowance or always failing transaction")
+		failed, result, err := executable(hi)
+		if err != nil {
+			return 0, err
+		}
+		if failed {
+			if result != nil && result.Err != kvm.ErrOutOfGas {
+				if len(result.Revert()) > 0 {
+					return 0, newRevertError(result)
+				}
+				return 0, result.Err
+			}
+			// Otherwise, the specified gas cap is too low
+			return 0, fmt.Errorf("gas required exceeds allowance or always failing transaction (%d)", cap)
 		}
 	}
 	return hi, nil

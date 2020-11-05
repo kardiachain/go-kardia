@@ -51,7 +51,7 @@ type BaseBlockChain interface {
 	StateAt(root uint64) (*state.StateDB, error)
 	DB() types.StoreDB
 	ZeroFee() bool
-	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error)
+	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error)
 }
 
 type APIBackend interface {

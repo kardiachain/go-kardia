@@ -65,6 +65,8 @@ const (
 	// default value for 0mq
 	DefaultSubscribedEndpoint = "tcp://127.0.0.1:5555"
 	DefaultPublishedEndpoint  = "tcp://127.0.0.1:5554"
+
+	DefaultTimeOutForStaticCall = 5
 )
 
 var (

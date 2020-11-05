@@ -337,7 +337,7 @@ func EstimateGas(from common.Address, to common.Address, currentHeader *types.He
 	defer kaiVm.Cancel()
 	// Apply the transaction to the current state (included in the env)
 	gp := new(types.GasPool).AddGas(common.MaxUint64)
-	_, gas, _, err := bc.ApplyMessage(kaiVm, msg, gp)
+	result, err := bc.ApplyMessage(kaiVm, msg, gp)
 	if err != nil {
 		return 0, err
 	}
@@ -345,7 +345,7 @@ func EstimateGas(from common.Address, to common.Address, currentHeader *types.He
 	if kaiVm.Cancelled() {
 		return 0, fmt.Errorf("execution aborted")
 	}
-	return gas + bufferGas, nil // need to add some bufferGas to prevent out of gas
+	return result.UsedGas + bufferGas, nil // need to add some bufferGas to prevent out of gas
 }
 
 // GenerateOutputStructs creates structs for all methods from theirs outputs
