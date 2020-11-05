@@ -95,6 +95,14 @@ func (d *DualAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash 
 	return nil, errors.New("invalid arguments; neither block nor hash specified")
 }
 
+func (d *DualAPIBackend) BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo {
+	height := d.dualService.DB().ReadHeaderNumber(hash)
+	if height == nil {
+		return nil
+	}
+	return d.dualService.DB().ReadBlockInfo(hash, *height)
+}
+
 func (d *DualAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
 	// Return the latest state if rpc.LatestBlockNumber has been passed in
 	header := d.HeaderByNumber(ctx, number)

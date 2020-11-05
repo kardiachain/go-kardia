@@ -62,6 +62,7 @@ type APIBackend interface {
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) *types.Block
 	BlockByHash(ctx context.Context, hash common.Hash) *types.Block
 	BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)
+	BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo
 	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
 	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
 }

@@ -95,6 +95,14 @@ func (k *KaiAPIBackend) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 	return nil, errors.New("invalid arguments; neither block nor hash specified")
 }
 
+func (k *KaiAPIBackend) BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo {
+	height := k.kaiService.DB().ReadHeaderNumber(hash)
+	if height == nil {
+		return nil
+	}
+	return k.kaiService.DB().ReadBlockInfo(hash, *height)
+}
+
 func (k *KaiAPIBackend) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
 	// Return the latest state if rpc.LatestBlockNumber has been passed in
 	header := k.HeaderByNumber(ctx, number)

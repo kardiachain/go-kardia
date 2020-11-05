@@ -35,7 +35,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
 	"github.com/kardiachain/go-kardiamain/rpc"
-	"github.com/kardiachain/go-kardiamain/tool"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -98,7 +97,7 @@ func NewPublicKaiAPI(kaiService *KardiaService) *PublicKaiAPI {
 }
 
 // NewBlockHeaderJSON creates a new BlockHeader JSON data from Block
-func NewBlockHeaderJSON(header *types.Header) *BlockHeaderJSON {
+func NewBlockHeaderJSON(header *types.Header, blockInfo *types.BlockInfo) *BlockHeaderJSON {
 	if header == nil {
 		return nil
 	}
@@ -110,7 +109,7 @@ func NewBlockHeaderJSON(header *types.Header) *BlockHeaderJSON {
 		Time:              header.Time,
 		NumTxs:            header.NumTxs,
 		GasLimit:          header.GasLimit,
-		GasUsed:           header.GasUsed,
+		GasUsed:           blockInfo.GasUsed,
 		ProposerAddress:   header.ProposerAddress.Hex(),
 		TxHash:            header.TxHash.Hex(),
 		ValidatorsHash:    header.ValidatorsHash.Hex(),
@@ -121,50 +120,10 @@ func NewBlockHeaderJSON(header *types.Header) *BlockHeaderJSON {
 	}
 }
 
-// NewBasicBlockJSON creates a new Block JSON data from Block
-func NewBasicBlockJSON(block *types.Block) *BlockJSON {
-	if block == nil {
-		return nil
-	}
-	txs := block.Transactions()
-	transactions := make([]*PublicTransaction, 0, len(txs))
-
-	for index, transaction := range txs {
-		idx := uint64(index)
-		tx := NewPublicTransaction(transaction, block.Hash(), block.Height(), idx)
-		// add time for tx
-		tx.Time = block.Header().Time
-		transactions = append(transactions, tx)
-	}
-
-	return &BlockJSON{
-		Hash:              block.Hash().Hex(),
-		Height:            block.Height(),
-		LastBlock:         block.Header().LastBlockID.Hash.Hex(),
-		Txs:               transactions,
-		CommitHash:        block.LastCommitHash().Hex(),
-		Time:              block.Header().Time,
-		NumTxs:            block.Header().NumTxs,
-		GasLimit:          block.Header().GasLimit,
-		GasUsed:           block.Header().GasUsed,
-		ProposerAddress:   block.Header().ProposerAddress.Hex(),
-		TxHash:            block.Header().TxHash.Hex(),
-		ValidatorsHash:    block.Header().ValidatorsHash.Hex(),
-		NextValidatorHash: block.Header().NextValidatorsHash.Hex(),
-		ConsensusHash:     block.Header().ConsensusHash.Hex(),
-		AppHash:           block.Header().AppHash.Hex(),
-		EvidenceHash:      block.Header().EvidenceHash.Hex(),
-	}
-}
-
 // NewBlockJSON creates a new Block JSON data from Block
-func NewBlockJSON(block types.Block, blockInfo types.BlockInfo) *BlockJSON {
+func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 	txs := block.Transactions()
 	transactions := make([]*PublicTransaction, 0, len(txs))
-
-	for _, receipt := range blockInfo.Receipts {
-		basicReceipts = append(basicReceipts, getBasicReceipt(*receipt))
-	}
 
 	for index, transaction := range txs {
 		idx := uint64(index)
@@ -172,7 +131,7 @@ func NewBlockJSON(block types.Block, blockInfo types.BlockInfo) *BlockJSON {
 		// add time for tx
 		tx.Time = block.Header().Time
 		// add additional info from corresponding receipt to transaction
-		receipt := getPublicReceipt(*receipts[idx], transaction, block.Hash(), block.Height(), idx)
+		receipt := getPublicReceipt(*blockInfo.Receipts[idx], transaction, block.Hash(), block.Height(), idx)
 		tx.Logs = receipt.Logs
 		tx.LogsBloom = receipt.LogsBloom
 		tx.Root = receipt.Root
@@ -207,36 +166,30 @@ func (s *PublicKaiAPI) BlockNumber() uint64 {
 
 // GetHeaderBlockByNumber returns blockHeader by block number
 func (s *PublicKaiAPI) GetBlockHeaderByNumber(ctx context.Context, blockNumber rpc.BlockNumber) *BlockHeaderJSON {
-	return NewBlockHeaderJSON(s.kaiService.APIBackend.HeaderByNumber(ctx, blockNumber))
+	header := s.kaiService.APIBackend.HeaderByNumber(ctx, blockNumber)
+	blockInfo := s.kaiService.APIBackend.BlockInfoByBlockHash(ctx, header.Hash())
+	return NewBlockHeaderJSON(header, blockInfo)
 }
 
 // GetBlockHeaderByHash returns block by block hash
 func (s *PublicKaiAPI) GetBlockHeaderByHash(ctx context.Context, blockHash string) *BlockHeaderJSON {
-	return NewBlockHeaderJSON(s.kaiService.APIBackend.HeaderByHash(ctx, common.HexToHash(blockHash)))
-}
-
-// GetBasicBlockByNumber returns block by block number
-func (s *PublicKaiAPI) GetBasicBlockByNumber(ctx context.Context, blockNumber rpc.BlockNumber) *BlockJSON {
-	return NewBasicBlockJSON(s.kaiService.APIBackend.BlockByNumber(ctx, blockNumber))
-}
-
-// GetBasicBlockByHash returns block by block hash
-func (s *PublicKaiAPI) GetBasicBlockByHash(ctx context.Context, blockHash string) *BlockJSON {
-	return NewBasicBlockJSON(s.kaiService.APIBackend.BlockByHash(ctx, common.HexToHash(blockHash)))
+	header := s.kaiService.APIBackend.HeaderByHash(ctx, common.HexToHash(blockHash))
+	blockInfo := s.kaiService.APIBackend.BlockInfoByBlockHash(ctx, header.Hash())
+	return NewBlockHeaderJSON(header, blockInfo)
 }
 
 // GetBlockByNumber returns block by block number
 func (s *PublicKaiAPI) GetBlockByNumber(ctx context.Context, blockNumber rpc.BlockNumber) *BlockJSON {
 	block := s.kaiService.APIBackend.BlockByNumber(ctx, blockNumber)
-	receipts := getReceipts(s.kaiService.kaiDb, block.Hash())
-	return NewBlockJSON(*block, receipts)
+	blockInfo := s.kaiService.APIBackend.BlockInfoByBlockHash(ctx, block.Hash())
+	return NewBlockJSON(block, blockInfo)
 }
 
 // GetBlockByHash returns block by block hash
 func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *BlockJSON {
 	block := s.kaiService.APIBackend.BlockByHash(ctx, common.HexToHash(blockHash))
-	receipts := getReceipts(s.kaiService.kaiDb, block.Hash())
-	return NewBlockJSON(*block, receipts)
+	blockInfo := s.kaiService.APIBackend.BlockInfoByBlockHash(ctx, block.Hash())
+	return NewBlockJSON(block, blockInfo)
 }
 
 // Validator returns node's validator, nil if current node is not a validator
@@ -384,16 +337,6 @@ func (a *PublicTransactionAPI) GetTransaction(hash string) (*PublicTransaction, 
 	return publicTx, nil
 }
 
-func getBlockInfo(kaiDb types.StoreDB, hash common.Hash) (*types.BlockInfo, error) {
-	height := kaiDb.ReadHeaderNumber(hash)
-	if height == nil {
-		return nil
-	}
-
-	return kaiDb.ReadBlockInfo(hash, *height), nil
-
-}
-
 // getReceiptLogs gets logs from receipt
 func getReceiptLogs(receipt types.Receipt) []Log {
 	if receipt.Logs != nil {
@@ -465,9 +408,9 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 		return nil, nil
 	}
 	// get receipts from db
-	blockInfo, err := getBlockInfo(a.s.kaiDb, blockHash)
-	if err != nil {
-		return nil, err
+	blockInfo := a.s.APIBackend.BlockInfoByBlockHash(ctx, blockHash)
+	if blockInfo == nil {
+		return nil, errors.New("block info not found")
 	}
 	if len(blockInfo.Receipts) <= int(index) {
 		return nil, nil
