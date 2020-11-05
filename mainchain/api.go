@@ -34,7 +34,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
-	"github.com/kardiachain/go-kardiamain/tool"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -600,7 +599,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 	addr := args.From
 
 	if addr == (common.Address{}) {
-		addr = tool.GetRandomGenesisAccount()
+		addr = configs.GenesisDeployerAddr
 	}
 
 	// Set default gas & gas price if none were set
