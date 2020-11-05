@@ -8,11 +8,12 @@
 
 Official Golang implementation of Kardia chain following the specs in [Technical Paper](http://dl.kardiachain.io/paper.pdf)
 
-Compatible tested Go version: 1.13.0, 1.13.9, 1.13.15, 1.14.10
+- Compatible tested `go build` version: 1.13.0, 1.13.9, 1.13.15, 1.14.10
+- Compatible tested `go test ./...` version: 1.14.10
 
 # Kardia private testnet
 - Block explorer UI: [Kardiascan](http://explorer.kardiachain.io/)
-- Release: [kardia-v0.10.2](https://github.com/kardiachain/go-kardiamain/releases/tag/v0.10.2)
+- Release: [kardia-v0.10.3](https://github.com/kardiachain/go-kardiamain/releases/tag/v0.10.3)
 
 
 # Quickstart

@@ -5,12 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
-	"net/http"
 	"net/http/httptest"
-	"regexp"
-	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -398,36 +394,39 @@ func TestSwitchStopPeerForError(t *testing.T) {
 	s := httptest.NewServer(promhttp.Handler())
 	defer s.Close()
 
-	scrapeMetrics := func() string {
-		resp, err := http.Get(s.URL)
-		require.NoError(t, err)
-		defer resp.Body.Close()
-		buf, _ := ioutil.ReadAll(resp.Body)
-		return string(buf)
-	}
+	//scrapeMetrics := func() string {
+	//	resp, err := http.Get(s.URL)
+	//	require.NoError(t, err)
+	//	defer resp.Body.Close()
+	//	buf, _ := ioutil.ReadAll(resp.Body)
+	//	return string(buf)
+	//}
 
-	namespace, subsystem, name := configs.TestInstrumentationConfig().Namespace, MetricsSubsystem, "peers"
-	re := regexp.MustCompile(namespace + `_` + subsystem + `_` + name + ` ([0-9\.]+)`)
-	peersMetricValue := func() float64 {
-		matches := re.FindStringSubmatch(scrapeMetrics())
-		f, _ := strconv.ParseFloat(matches[1], 64)
-		return f
-	}
+	//namespace, subsystem, name := configs.TestInstrumentationConfig().Namespace, MetricsSubsystem, "peers"
+	// Remove metrics
+	//re := regexp.MustCompile(namespace + `_` + subsystem + `_` + name + ` ([0-9\.]+)`)
 
-	p2pMetrics := PrometheusMetrics(namespace)
+	//peersMetricValue := func() float64 {
+	//	matches := re.FindStringSubmatch(scrapeMetrics())
+	//	f, _ := strconv.ParseFloat(matches[1], 64)
+	//	return f
+	//}
+
+	//p2pMetrics := PrometheusMetrics(namespace)
 
 	// make two connected switches
 	sw1, sw2 := MakeSwitchPair(t, func(i int, sw *Switch) *Switch {
 		// set metrics on sw1
-		if i == 0 {
-			opt := WithMetrics(p2pMetrics)
-			opt(sw)
-		}
+		//if i == 0 {
+		//	opt := WithMetrics(p2pMetrics)
+		//	opt(sw)
+		//}
 		return initSwitchFunc(i, sw)
 	})
 
 	assert.Equal(t, len(sw1.Peers().List()), 1)
-	assert.EqualValues(t, 1, peersMetricValue())
+	// Remove metrics assert
+	//assert.EqualValues(t, 1, peersMetricValue())
 
 	// send messages to the peer from sw1
 	p := sw1.Peers().List()[0]
@@ -445,7 +444,8 @@ func TestSwitchStopPeerForError(t *testing.T) {
 	sw1.StopPeerForError(p, fmt.Errorf("some err"))
 
 	assert.Equal(t, len(sw1.Peers().List()), 0)
-	assert.EqualValues(t, 0, peersMetricValue())
+	// Remove peer metrics
+	//assert.EqualValues(t, 0, peersMetricValue())
 }
 
 func TestSwitchReconnectsToOutboundPersistentPeer(t *testing.T) {

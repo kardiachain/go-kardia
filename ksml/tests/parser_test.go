@@ -31,7 +31,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/ksml"
 	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
@@ -118,7 +117,6 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 	genesisAccounts := make(map[string]*big.Int)
 	genesisContracts := make(map[string]string)
 	genesisAddress := "0xc1fe56E3F58D3244F606306611a5d10c8333f1f6"
-	privKey, _ := crypto.HexToECDSA("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	contractAddress := common.HexToAddress("0x0A")
 
 	smc := &kaiType.KardiaSmartcontract{
@@ -143,14 +141,9 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 		Alloc:    ga,
 	}
 
-	baseAccount := &configs.BaseAccount{
-		Address:    common.HexToAddress(genesisAddress),
-		PrivateKey: *privKey,
-	}
-
 	logger := log.New()
 
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, db, g, baseAccount)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, db, g)
 	if genesisErr != nil {
 		return nil, err
 	}

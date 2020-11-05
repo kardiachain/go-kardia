@@ -91,7 +91,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	kaiDb := ctx.BlockStore
 
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, config.Genesis, nil)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, config.Genesis)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}

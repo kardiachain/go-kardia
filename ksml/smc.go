@@ -26,6 +26,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kardiachain/go-kardiamain/configs"
+
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
@@ -47,7 +49,7 @@ func generateInput(p *Parser, extras ...interface{}) (string, *abi.ABI, *common.
 			patterns = append(patterns, pattern.(string))
 		}
 	}
-	caller := p.Bc.Config().BaseAccount.Address
+	caller := configs.GenesisDeployerAddr
 	contractAddress := p.SmartContractAddress
 	currentHeader := p.Bc.CurrentHeader()
 	db := p.Bc.DB()
