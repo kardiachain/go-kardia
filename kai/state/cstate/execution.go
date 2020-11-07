@@ -208,9 +208,6 @@ func calculateValidatorSetUpdates(lastVals []*types.Validator, vals []*types.Val
 			VotingPower: 0,
 		})
 	}
-
-	fmt.Println("last", lastVals, "vals", vals, "updates", updates)
-
 	return updates
 }
 
