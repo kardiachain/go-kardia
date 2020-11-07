@@ -42,4 +42,4 @@ GenTxs: # Devnet config to dynamize txs processing
   Delay: 2
   Index: 1
 Debug: # Devnet config for debugging purposes 
-  Port: ":6000"
+  Port: ":6003"

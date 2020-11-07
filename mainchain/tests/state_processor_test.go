@@ -35,6 +35,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -178,8 +179,8 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 	storeDB := kvstore.NewStoreDB(blockDB)
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g)
+	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, stakingUtil)
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
 	}
@@ -246,8 +247,8 @@ func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	storeDB := kvstore.NewStoreDB(blockDB)
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g)
+	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, stakingUtil)
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
 	}
