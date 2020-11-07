@@ -95,7 +95,7 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 		return state, fmt.Errorf("commit failed for application: %v", err)
 	}
 
-	valUpdates = calculateValidatorSetUpdates(state.Validators.Validators, valUpdates)
+	valUpdates = calculateValidatorSetUpdates(state.NextValidators.Validators, valUpdates)
 	// update the state with the block and responses
 	state, err = updateState(logger, state, blockID, block.Header(), valUpdates)
 	if err != nil {
