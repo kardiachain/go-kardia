@@ -24,6 +24,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
@@ -145,7 +147,8 @@ var pos_smc_definition = `[
 ]`
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
-	return genesis.SetupGenesisBlock(log.New(), db, g)
+	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	return genesis.SetupGenesisBlock(log.New(), db, g, stakingUtil)
 }
 
 func SetupBlockchainForTesting() (*blockchain.BlockChain, error) {
