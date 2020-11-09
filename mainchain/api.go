@@ -72,7 +72,7 @@ type BlockJSON struct {
 	NumTxs            uint64               `json:"numTxs"`
 	GasLimit          uint64               `json:"gasLimit"`
 	GasUsed           uint64               `json:"gasUsed"`
-	Rewards           *big.Int             `json:"rewards"`
+	Rewards           string               `json:"rewards"`
 	ProposerAddress   string               `json:"proposerAddress"`
 	TxHash            string               `json:"dataHash"`     // hash of txs
 	ReceiptHash       string               `json:"receiptsRoot"` // receipt root
@@ -204,7 +204,7 @@ func NewBlockJSON(block types.Block, blockInfo types.BlockInfo) *BlockJSON {
 		NumTxs:            block.Header().NumTxs,
 		GasLimit:          block.Header().GasLimit,
 		GasUsed:           blockInfo.GasUsed,
-		Rewards:           blockInfo.Rewards,
+		Rewards:           blockInfo.Rewards.String(),
 		ProposerAddress:   block.Header().ProposerAddress.Hex(),
 		TxHash:            block.Header().TxHash.Hex(),
 		ValidatorsHash:    block.Header().ValidatorsHash.Hex(),
