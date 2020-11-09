@@ -59,7 +59,7 @@ func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 		return nil, err
 	}
 
-	return &StakingSmcUtil{Abi: &abi, ContractAddress: configs.StakingContractAddress, Bytecode: bytecodeStaking}, nil
+	return &StakingSmcUtil{Abi: &abi, ContractAddress: common.HexToAddress(configs.DefaultStakingContractAddress), Bytecode: bytecodeStaking}, nil
 }
 
 //SetParams set params

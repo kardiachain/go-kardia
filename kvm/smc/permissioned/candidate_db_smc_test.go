@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 
 	"github.com/kardiachain/go-kardiamain/kai/base"
@@ -301,7 +302,9 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, *tx_pool.TxPool, error
 		"0xBA30505351c17F4c818d94a990eDeD95e166474b": initValue,
 	}
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g)
+	stakingUtil, _ := staking.NewSmcStakingnUtil()
+
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g, stakingUtil)
 	if genesisErr != nil {
 		return nil, nil, genesisErr
 	}

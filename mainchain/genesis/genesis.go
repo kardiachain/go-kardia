@@ -102,7 +102,7 @@ func (e *GenesisMismatchError) Error() string {
 //     db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis) (*configs.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, staking *staking.StakingSmcUtil) (*configs.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		// TODO(huny@): should we return another default config?
 		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
@@ -117,7 +117,7 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis) (*
 		} else {
 			logger.Info("Writing custom genesis block")
 		}
-		block, err := genesis.Commit(logger, db)
+		block, err := genesis.Commit(logger, db, staking)
 		if err != nil {
 			return nil, common.NewZeroHash(), err
 		}
@@ -127,7 +127,7 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis) (*
 	// Check whether the genesis block is already written.
 	if genesis != nil {
 		logger.Info("Create new genesis block")
-		block, _ := genesis.ToBlock(logger, nil)
+		block, _ := genesis.ToBlock(logger, db.DB(), staking)
 		hash := block.Hash()
 		if hash != stored {
 			return genesis.Config, hash, &GenesisMismatchError{stored, hash}
@@ -168,16 +168,11 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *configs.ChainConfig {
 
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
-func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) (*types.Block, common.Hash) {
+func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking.StakingSmcUtil) (*types.Block, common.Hash) {
 	if db == nil {
 		db = memorydb.New()
 	}
 	statedb, _ := state.New(logger, common.Hash{}, state.NewDatabase(db))
-
-	stakingUtil, err := staking.NewSmcStakingnUtil()
-	if err != nil {
-		panic(err)
-	}
 
 	// Generate genesis deployer address
 	g.Alloc[configs.GenesisDeployerAddr] = GenesisAccount{
@@ -212,7 +207,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) (*types.Block, c
 	}
 
 	block := types.NewBlock(head, nil, &types.Commit{}, nil)
-	if err := setupGenesisStaking(stakingUtil, statedb, block.Header(), kvm.Config{}, g.Validators); err != nil {
+	if err := setupGenesisStaking(staking, statedb, block.Header(), kvm.Config{}, g.Validators); err != nil {
 		panic(err)
 	}
 	root := statedb.IntermediateRoot(false)
@@ -223,8 +218,8 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database) (*types.Block, c
 
 // Commit writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
-func (g *Genesis) Commit(logger log.Logger, db types.StoreDB) (*types.Block, error) {
-	block, root := g.ToBlock(logger, db.DB())
+func (g *Genesis) Commit(logger log.Logger, db types.StoreDB, staking *staking.StakingSmcUtil) (*types.Block, error) {
+	block, root := g.ToBlock(logger, db.DB(), staking)
 	if block.Height() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with height > 0")
 	}

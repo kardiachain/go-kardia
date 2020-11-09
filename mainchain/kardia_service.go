@@ -90,7 +90,12 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	kaiDb := ctx.BlockStore
 
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, config.Genesis)
+	staking, err := staking.NewSmcStakingnUtil()
+	if err != nil {
+		return nil, err
+	}
+
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, config.Genesis, staking)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
@@ -127,10 +132,6 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
-	staking, err := staking.NewSmcStakingnUtil()
-	if err != nil {
-		return nil, err
-	}
 	evPool, err := evidence.NewPool(ctx.StateDB, kaiDb.DB(), kai.blockchain)
 	if err != nil {
 		return nil, err
