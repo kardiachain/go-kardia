@@ -19,12 +19,10 @@
 package service
 
 import (
-	"context"
 	"fmt"
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -60,9 +58,6 @@ func NewPublicDualAPI(dualService *DualService) *PublicDualAPI {
 
 // NewDualBlockJSON creates a new Block JSON data from Block.
 func NewDualBlockJSON(block *types.Block) *DualBlockJSON {
-	if block == nil {
-		return nil
-	}
 	dualEvents := make([]*PublicDualEvent, 0)
 	for index, dualEvent := range block.DualEvents() {
 		json := NewPublicDualEvent(dualEvent, block.Hash(), block.Height(), uint64(index))
@@ -92,13 +87,23 @@ func (s *PublicDualAPI) BlockNumber() uint64 {
 }
 
 // GetBlockByHash returns block by block hash.
-func (s *PublicDualAPI) GetBlockByHash(ctx context.Context, blockHash string) *DualBlockJSON {
-	return NewDualBlockJSON(s.dualService.APIBackend.BlockByHash(ctx, common.HexToHash(blockHash)))
+func (s *PublicDualAPI) GetBlockByHash(blockHash string) *DualBlockJSON {
+	if blockHash[0:2] == "0x" {
+		blockHash = blockHash[2:]
+	}
+	block := s.dualService.blockchain.GetBlockByHash(common.HexToHash(blockHash))
+
+	return NewDualBlockJSON(block)
 }
 
 // GetBlockByNumber returns block by block number.
-func (s *PublicDualAPI) GetBlockByNumber(ctx context.Context, blockNumber rpc.BlockNumber) *DualBlockJSON {
-	return NewDualBlockJSON(s.dualService.APIBackend.BlockByNumber(ctx, blockNumber))
+func (s *PublicDualAPI) GetBlockByNumber(blockNumber uint64) *DualBlockJSON {
+	block := s.dualService.blockchain.GetBlockByHeight(blockNumber)
+	if block == nil {
+		return nil
+	}
+
+	return NewDualBlockJSON(block)
 }
 
 // Validator returns node's validator, nil if current node is not a validator.
