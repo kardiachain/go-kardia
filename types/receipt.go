@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/big"
 	"unsafe"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -210,6 +211,7 @@ func (r Receipts) GetRlp(i int) []byte {
 
 type BlockInfo struct {
 	GasUsed  uint64
+	Rewards  *big.Int // block reward
 	Receipts Receipts
 }
 
@@ -219,6 +221,7 @@ func (bi *BlockInfo) EncodeRLP(w io.Writer) error {
 	sbi := storageBlockInfo{
 		Receipts: make([]*ReceiptForStorage, len(bi.Receipts)),
 		GasUsed:  bi.GasUsed,
+		Rewards:  bi.Rewards,
 	}
 	for i, receipt := range bi.Receipts {
 		sbi.Receipts[i] = (*ReceiptForStorage)(receipt)
@@ -232,6 +235,7 @@ func (bi *BlockInfo) DecodeRLP(s *rlp.Stream) error {
 		return err
 	}
 	bi.GasUsed = sbi.GasUsed
+	bi.Rewards = sbi.Rewards
 	bi.Receipts = make(Receipts, len(sbi.Receipts))
 	for i, receipt := range sbi.Receipts {
 		bi.Receipts[i] = (*Receipt)(receipt)
@@ -241,5 +245,6 @@ func (bi *BlockInfo) DecodeRLP(s *rlp.Stream) error {
 
 type storageBlockInfo struct {
 	GasUsed  uint64
+	Rewards  *big.Int
 	Receipts []*ReceiptForStorage
 }
