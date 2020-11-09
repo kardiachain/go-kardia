@@ -19,8 +19,6 @@
 package base
 
 import (
-	"context"
-
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/kai/state"
@@ -28,7 +26,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -52,17 +49,4 @@ type BaseBlockChain interface {
 	DB() types.StoreDB
 	ZeroFee() bool
 	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error)
-}
-
-type APIBackend interface {
-	// BLockchain API
-	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header
-	HeaderByHash(ctx context.Context, hash common.Hash) *types.Header
-	HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error)
-	BlockByNumber(ctx context.Context, number rpc.BlockNumber) *types.Block
-	BlockByHash(ctx context.Context, hash common.Hash) *types.Block
-	BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)
-	BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo
-	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
-	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
 }

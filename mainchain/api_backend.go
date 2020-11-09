@@ -32,6 +32,19 @@ type KaiAPIBackend struct {
 	kaiService *KardiaService
 }
 
+type APIBackend interface {
+	// BLockchain API
+	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header
+	HeaderByHash(ctx context.Context, hash common.Hash) *types.Header
+	HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error)
+	BlockByNumber(ctx context.Context, number rpc.BlockNumber) *types.Block
+	BlockByHash(ctx context.Context, hash common.Hash) *types.Block
+	BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)
+	BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo
+	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
+	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
+}
+
 func (k *KaiAPIBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header {
 	// Return the latest block if rpc.LatestBlockNumber has been passed in
 	if number == rpc.LatestBlockNumber {

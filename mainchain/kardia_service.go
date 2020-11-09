@@ -22,7 +22,6 @@ package kai
 import (
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/consensus"
-	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -73,7 +72,7 @@ type KardiaService struct {
 
 	eventBus *types.EventBus
 
-	APIBackend base.APIBackend
+	APIBackend APIBackend
 }
 
 func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
