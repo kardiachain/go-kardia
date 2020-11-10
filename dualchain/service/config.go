@@ -19,7 +19,6 @@
 package service
 
 import (
-	"github.com/kardiachain/go-kardiamain/configs"
 	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
@@ -52,5 +51,5 @@ type DualConfig struct {
 
 	// Consensus defines the configuration for the Kardia consensus service,
 	// including timeouts and details about the block structure.
-	Consensus *configs.ConsensusConfig
+	Consensus *typesCfg.ConsensusConfig
 }
