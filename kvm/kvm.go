@@ -200,7 +200,7 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	// when we're in homestead this also counts for code storage gas errors.
 	if err != nil {
 		kvm.StateDB.RevertToSnapshot(snapshot)
-		if err != errExecutionReverted {
+		if err != ErrExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
 	}
@@ -241,7 +241,7 @@ func (kvm *KVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	ret, err = run(kvm, contract, input, false)
 	if err != nil {
 		kvm.StateDB.RevertToSnapshot(snapshot)
-		if err != errExecutionReverted {
+		if err != ErrExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
 	}
@@ -274,7 +274,7 @@ func (kvm *KVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	ret, err = run(kvm, contract, input, false)
 	if err != nil {
 		kvm.StateDB.RevertToSnapshot(snapshot)
-		if err != errExecutionReverted {
+		if err != ErrExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
 	}
@@ -315,7 +315,7 @@ func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	ret, err = run(kvm, contract, input, true)
 	if err != nil {
 		kvm.StateDB.RevertToSnapshot(snapshot)
-		if err != errExecutionReverted {
+		if err != ErrExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
 	}
@@ -399,13 +399,13 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	// above we revert to the snapshot and consume any gas remaining.
 	if maxCodeSizeExceeded || err != nil {
 		kvm.StateDB.RevertToSnapshot(snapshot)
-		if err != errExecutionReverted {
+		if err != ErrExecutionReverted {
 			contract.UseGas(contract.Gas)
 		}
 	}
 	// Assign err if contract code size exceeds the max while the err is still empty.
 	if maxCodeSizeExceeded && err == nil {
-		err = errMaxCodeSizeExceeded
+		err = ErrMaxCodeSizeExceeded
 	}
 	/* TODO(huny@): Add tracer later
 	if kvm.vmConfig.Debug && kvm.depth == 0 {
