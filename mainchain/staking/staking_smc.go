@@ -165,10 +165,10 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 }
 
 //Mint new tokens for the previous block. Returns fee collected
-func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) error {
+func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) (*big.Int, error) {
 	payload, err := s.Abi.Pack("mint")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	msg := types.NewMessage(
@@ -184,20 +184,21 @@ func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc v
 
 	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
+	var fee *big.Int
 	if len(res) > 0 {
 		result := new(struct {
 			Fee *big.Int
 		})
 
 		if err := s.Abi.Unpack(result, "mint", res); err != nil {
-			return fmt.Errorf("unpack mint result err: %s", err)
+			return nil, fmt.Errorf("unpack mint result err: %s", err)
 		}
-		statedb.AddBalance(s.ContractAddress, result.Fee)
+		fee = result.Fee
+		statedb.AddBalance(s.ContractAddress, fee)
 	}
-	return nil
+	return fee, nil
 }
 
 //FinalizeCommit finalize commitcd
