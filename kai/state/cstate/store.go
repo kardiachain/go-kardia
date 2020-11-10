@@ -19,9 +19,11 @@
 package cstate
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -74,8 +76,10 @@ func NewStore(db kaidb.Database) Store {
 // to the database.
 func (s *dbStore) LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (LastestBlockState, error) {
 	state := s.Load()
-
 	if state.IsEmpty() {
+		if genesisDoc == nil {
+			return state, errors.New("genesis doc nil")
+		}
 		var err error
 		state, err = MakeGenesisState(genesisDoc)
 		if err != nil {
@@ -120,9 +124,7 @@ func loadState(db kaidb.Database, key []byte) (state LastestBlockState) {
 		return state
 	}
 	sp := new(tmstate.State)
-	err := proto.Unmarshal(buf, sp)
-
-	if err != nil {
+	if err := proto.Unmarshal(buf, sp); err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		panic(fmt.Sprintf(`LoadState: Data has been corrupted or its spec has changed:
 		%v\n`, err))

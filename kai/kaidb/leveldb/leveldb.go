@@ -59,13 +59,15 @@ type Database struct {
 // metrics reporting should use for surfacing internal stats.
 func New(file string, cache int, handles int) (*Database, error) {
 	// Ensure we have some minimal caching and file guarantees
+	logger := log.New("database", file)
+	logger.AddTag("StoreDB")
 	if cache < minCache {
 		cache = minCache
 	}
 	if handles < minHandles {
 		handles = minHandles
 	}
-	logger := log.New("database", file)
+
 	logger.Info("Allocated cache and file handles", "cache", common.StorageSize(cache*1024*1024), "handles", handles)
 
 	// Open the db and recover any potential corruptions
