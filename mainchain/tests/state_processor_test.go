@@ -35,6 +35,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -115,14 +116,14 @@ func execute(bc *blockchain.BlockChain, msg types.Message) ([]byte, error) {
 		IsZeroFee: true,
 	})
 
-	ret, usedGas, failed, err := blockchain.NewStateTransition(vmenv, msg, gasPool).TransitionDb()
+	res, err := blockchain.NewStateTransition(vmenv, msg, gasPool).TransitionDb()
 	if err != nil {
 		return nil, fmt.Errorf("%v", err)
 	}
-	if failed {
+	if res.Failed() {
 		return nil, errors.New("transaction failed")
 	}
-	if usedGas != 0 {
+	if res.UsedGas != 0 {
 		return nil, errors.New("usedGas must be zero")
 	}
 
@@ -131,7 +132,7 @@ func execute(bc *blockchain.BlockChain, msg types.Message) ([]byte, error) {
 		return nil, errors.New("originBalance should equal to balance")
 	}
 
-	return ret, nil
+	return res.ReturnData, nil
 }
 
 func executeWithFee(bc *blockchain.BlockChain, msg types.Message) ([]byte, error) {
@@ -152,14 +153,14 @@ func executeWithFee(bc *blockchain.BlockChain, msg types.Message) ([]byte, error
 		IsZeroFee: false,
 	})
 
-	ret, usedGas, failed, err := blockchain.NewStateTransition(vmenv, msg, gasPool).TransitionDb()
+	res, err := blockchain.NewStateTransition(vmenv, msg, gasPool).TransitionDb()
 	if err != nil {
 		return nil, fmt.Errorf("%v", err)
 	}
-	if failed {
+	if res.Failed() {
 		return nil, errors.New("transaction failed")
 	}
-	if usedGas == 0 {
+	if res.UsedGas == 0 {
 		return nil, errors.New("usedGas must not be zero")
 	}
 
@@ -168,7 +169,7 @@ func executeWithFee(bc *blockchain.BlockChain, msg types.Message) ([]byte, error
 		return nil, errors.New("originBalance should not equal to balance")
 	}
 
-	return ret, nil
+	return res.ReturnData, nil
 }
 
 func TestStateTransition_TransitionDb_noFee(t *testing.T) {
@@ -178,8 +179,8 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 	storeDB := kvstore.NewStoreDB(blockDB)
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g)
+	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, stakingUtil)
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
 	}
@@ -246,8 +247,8 @@ func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	storeDB := kvstore.NewStoreDB(blockDB)
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g)
+	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, stakingUtil)
 	if genesisErr != nil {
 		t.Fatal(genesisErr)
 	}

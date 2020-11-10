@@ -268,7 +268,7 @@ func CommonDeleteCanonicalHash(db kaidb.KeyValueWriter, number uint64) {
 	}
 }
 
-// CommonReadReceipts retrieves all the transaction receipts belonging to a block.
+// CommonReadBlockInfo retrieves blockReward, gasUsed and all the transaction receipts belonging to a block.
 func CommonReadBlockInfo(db kaidb.Reader, hash common.Hash, number uint64) *types.BlockInfo {
 	// Retrieve the flattened receipt slice
 	data, _ := db.Get(blockInfoKey(number, hash))

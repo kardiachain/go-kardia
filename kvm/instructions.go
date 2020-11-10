@@ -29,11 +29,11 @@ import (
 )
 
 var (
-	errWriteProtection       = errors.New("kvm: write protection")
-	errReturnDataOutOfBounds = errors.New("kvm: return data out of bounds")
-	errExecutionReverted     = errors.New("kvm: execution reverted")
-	errMaxCodeSizeExceeded   = errors.New("kvm: max code size exceeded")
-	errInvalidJump           = errors.New("kvm: invalid jump destination")
+	ErrWriteProtection       = errors.New("kvm: write protection")
+	ErrReturnDataOutOfBounds = errors.New("kvm: return data out of bounds")
+	ErrExecutionReverted     = errors.New("kvm: execution reverted")
+	ErrMaxCodeSizeExceeded   = errors.New("kvm: max code size exceeded")
+	ErrInvalidJump           = errors.New("kvm: invalid jump destination")
 )
 
 func opAdd(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
@@ -344,14 +344,14 @@ func opReturnDataCopy(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error
 
 	offset64, overflow := dataOffset.Uint64WithOverflow()
 	if overflow {
-		return nil, errReturnDataOutOfBounds
+		return nil, ErrReturnDataOutOfBounds
 	}
 	// we can reuse dataOffset now (aliasing it for clarity)
 	var end = dataOffset
 	end.Add(&dataOffset, &length)
 	end64, overflow := end.Uint64WithOverflow()
 	if overflow || uint64(len(kvm.interpreter.returnData)) < end64 {
-		return nil, errReturnDataOutOfBounds
+		return nil, ErrReturnDataOutOfBounds
 	}
 	callContext.memory.Set(memOffset.Uint64(), length.Uint64(), kvm.interpreter.returnData[offset64:end64])
 	return nil, nil
@@ -534,7 +534,7 @@ func opSstore(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 func opJump(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	pos := callContext.stack.pop()
 	if !callContext.contract.validJumpdest(&pos) {
-		return nil, errInvalidJump
+		return nil, ErrInvalidJump
 	}
 	*pc = pos.Uint64()
 	return nil, nil
@@ -544,7 +544,7 @@ func opJumpi(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	pos, cond := callContext.stack.pop(), callContext.stack.pop()
 	if !cond.IsZero() {
 		if !callContext.contract.validJumpdest(&pos) {
-			return nil, errInvalidJump
+			return nil, ErrInvalidJump
 		}
 		*pc = pos.Uint64()
 	} else {
@@ -603,7 +603,7 @@ func opCreate(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	}
 	callContext.stack.push(&stackvalue)
 	callContext.contract.Gas += returnGas
-	if suberr == errExecutionReverted {
+	if suberr == ErrExecutionReverted {
 		return res, nil
 	}
 	return nil, nil
@@ -639,7 +639,7 @@ func opCreate2(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	callContext.stack.push(&stackvalue)
 	callContext.contract.Gas += returnGas
 
-	if suberr == errExecutionReverted {
+	if suberr == ErrExecutionReverted {
 		return res, nil
 	}
 	return nil, nil
@@ -674,7 +674,7 @@ func opCall(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 		temp.SetOne()
 	}
 	stack.push(&temp)
-	if err == nil || err == errExecutionReverted {
+	if err == nil || err == ErrExecutionReverted {
 		callContext.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	callContext.contract.Gas += returnGas
@@ -708,7 +708,7 @@ func opCallCode(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 		temp.SetOne()
 	}
 	stack.push(&temp)
-	if err == nil || err == errExecutionReverted {
+	if err == nil || err == ErrExecutionReverted {
 		callContext.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	callContext.contract.Gas += returnGas
@@ -735,7 +735,7 @@ func opDelegateCall(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) 
 		temp.SetOne()
 	}
 	stack.push(&temp)
-	if err == nil || err == errExecutionReverted {
+	if err == nil || err == ErrExecutionReverted {
 		callContext.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	callContext.contract.Gas += returnGas
@@ -762,7 +762,7 @@ func opStaticCall(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 		temp.SetOne()
 	}
 	stack.push(&temp)
-	if err == nil || err == errExecutionReverted {
+	if err == nil || err == ErrExecutionReverted {
 		callContext.memory.Set(retOffset.Uint64(), retSize.Uint64(), ret)
 	}
 	callContext.contract.Gas += returnGas

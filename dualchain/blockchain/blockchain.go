@@ -520,6 +520,6 @@ func (dbc *DualBlockChain) ZeroFee() bool {
 	return false
 }
 
-func (dbc *DualBlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
-	return nil, 0, false, fmt.Errorf("this function is not applied for dual blockchain")
+func (dbc *DualBlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
+	return nil, fmt.Errorf("this function is not applied for dual blockchain")
 }

@@ -454,6 +454,6 @@ func (bc *BlockChain) ZeroFee() bool {
 	return bc.IsZeroFee
 }
 
-func (bc *BlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) ([]byte, uint64, bool, error) {
+func (bc *BlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
 	return ApplyMessage(vm, msg, gp)
 }

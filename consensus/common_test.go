@@ -276,7 +276,8 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 }
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*typesCfg.ChainConfig, common.Hash, error) {
-	return genesis.SetupGenesisBlock(log.New(), db, g)
+	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	return genesis.SetupGenesisBlock(log.New(), db, g, stakingUtil)
 }
 
 func GetBlockchain() (*blockchain.BlockChain, *typesCfg.ChainConfig, error) {

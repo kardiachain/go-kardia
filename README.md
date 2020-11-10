@@ -8,11 +8,12 @@
 
 Official Golang implementation of Kardia chain following the specs in [Technical Paper](http://dl.kardiachain.io/paper.pdf)
 
-Compatible tested Go version: 1.13.0, 1.13.9, 1.13.15, 1.14.10
+- Compatible tested `go build` version: 1.13.0, 1.13.9, 1.13.15, 1.14.10
+- Compatible tested `go test ./...` version: 1.14.10
 
 # Kardia private testnet
 - Block explorer UI: [Kardiascan](http://explorer.kardiachain.io/)
-- Release: [kardia-v0.10.2](https://github.com/kardiachain/go-kardiamain/releases/tag/v0.10.2)
+- Release: [kardia-v0.10.4](https://github.com/kardiachain/go-kardiamain/releases/tag/v0.10.4)
 
 
 # Quickstart
@@ -37,13 +38,18 @@ go install
 ### Directory structure
 Most of the top-level directories are self-explanatory. Here are the core directories:
 * consensus - consensus engine
-* dev - configs that can be enabled in dev environment/runtime to mock different behaviors seen in real decentralized nodes, such as: malicious nodes, crashed nodes, etc. It can even mock block generation of external chain to speed up development.
+* config - default network configs
 * dualchain - dual node's blockchain and service
 * dualnode - interface layer to external blockchains, e.g. Ethererum, Neo, etc.
-* kai - shared libraries specific to Kardia
-* kvm - Kardia's virtual machine
-* lib - 3rd party libraries
-* mainchain - main Kardia's blockchain and service
+* kai - shared libraries specific to KardiaChain
+* kvm - Kardia virtual machine
+* lib - third-party libraries
+* node - Node service
+* rpc - RPC server
+* mainchain - Kardia blockchain core and service
+* proto - protobuf messages definition
+* types - Kardia objects types
+
 
 ### Unit tests
 ```

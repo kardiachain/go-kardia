@@ -32,6 +32,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -101,7 +102,8 @@ func TestGenesisAllocFromData(t *testing.T) {
 }
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*typesCfg.ChainConfig, common.Hash, error) {
-	return genesis.SetupGenesisBlock(log.New(), db, g)
+	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	return genesis.SetupGenesisBlock(log.New(), db, g, stakingUtil)
 }
 
 func TestCreateGenesisBlock(t *testing.T) {

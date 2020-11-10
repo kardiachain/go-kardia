@@ -18,7 +18,6 @@ package rpc
 
 import (
 	"encoding/json"
-	"math"
 	"testing"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -31,22 +30,18 @@ func TestBlockNumberJSONUnmarshal(t *testing.T) {
 		expected BlockNumber
 	}{
 		0:  {`"0x"`, true, BlockNumber(0)},
-		1:  {`"0x0"`, false, BlockNumber(0)},
-		2:  {`"0X1"`, false, BlockNumber(1)},
-		3:  {`"0x00"`, true, BlockNumber(0)},
-		4:  {`"0x01"`, true, BlockNumber(0)},
-		5:  {`"0x1"`, false, BlockNumber(1)},
-		6:  {`"0x12"`, false, BlockNumber(18)},
-		7:  {`"0x7fffffffffffffff"`, false, BlockNumber(common.MaxInt64)},
-		8:  {`"0x8000000000000000"`, true, BlockNumber(0)},
-		9:  {"0", true, BlockNumber(0)},
-		10: {`"ff"`, true, BlockNumber(0)},
-		11: {`"pending"`, false, PendingBlockNumber},
-		12: {`"latest"`, false, LatestBlockNumber},
-		13: {`"earliest"`, false, EarliestBlockNumber},
-		14: {`someString`, true, BlockNumber(0)},
-		15: {`""`, true, BlockNumber(0)},
-		16: {``, true, BlockNumber(0)},
+		1:  {`"0x0"`, true, BlockNumber(0)},
+		2:  {`"0X1"`, true, BlockNumber(0)},
+		3:  {`"0x01"`, true, BlockNumber(0)},
+		4:  {`"0x12"`, true, BlockNumber(0)},
+		5:  {`"ff"`, true, BlockNumber(0)},
+		6:  {`0`, false, BlockNumber(0)},
+		7:  {`"pending"`, false, PendingBlockNumber},
+		8:  {`"latest"`, false, LatestBlockNumber},
+		9:  {`"earliest"`, false, EarliestBlockNumber},
+		10: {`someString`, true, BlockNumber(0)},
+		11: {`""`, true, BlockNumber(0)},
+		12: {``, true, BlockNumber(0)},
 	}
 
 	for i, test := range tests {
@@ -73,31 +68,27 @@ func TestBlockNumberOrHash_UnmarshalJSON(t *testing.T) {
 		expected BlockNumberOrHash
 	}{
 		0:  {`"0x"`, true, BlockNumberOrHash{}},
-		1:  {`"0x0"`, false, BlockNumberOrHashWithNumber(0)},
-		2:  {`"0X1"`, false, BlockNumberOrHashWithNumber(1)},
-		3:  {`"0x00"`, true, BlockNumberOrHash{}},
-		4:  {`"0x01"`, true, BlockNumberOrHash{}},
-		5:  {`"0x1"`, false, BlockNumberOrHashWithNumber(1)},
-		6:  {`"0x12"`, false, BlockNumberOrHashWithNumber(18)},
-		7:  {`"0x7fffffffffffffff"`, false, BlockNumberOrHashWithNumber(math.MaxInt64)},
-		8:  {`"0x8000000000000000"`, true, BlockNumberOrHash{}},
-		9:  {"0", true, BlockNumberOrHash{}},
-		10: {`"ff"`, true, BlockNumberOrHash{}},
-		11: {`"pending"`, false, BlockNumberOrHashWithNumber(PendingBlockNumber)},
-		12: {`"latest"`, false, BlockNumberOrHashWithNumber(LatestBlockNumber)},
-		13: {`"earliest"`, false, BlockNumberOrHashWithNumber(EarliestBlockNumber)},
-		14: {`someString`, true, BlockNumberOrHash{}},
-		15: {`""`, true, BlockNumberOrHash{}},
-		16: {``, true, BlockNumberOrHash{}},
-		17: {`"0x0000000000000000000000000000000000000000000000000000000000000000"`, false, BlockNumberOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), false)},
-		18: {`{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}`, false, BlockNumberOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), false)},
-		19: {`{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000","requireCanonical":false}`, false, BlockNumberOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), false)},
-		20: {`{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000","requireCanonical":true}`, false, BlockNumberOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), true)},
-		21: {`{"blockNumber":"0x1"}`, false, BlockNumberOrHashWithNumber(1)},
-		22: {`{"blockNumber":"pending"}`, false, BlockNumberOrHashWithNumber(PendingBlockNumber)},
-		23: {`{"blockNumber":"latest"}`, false, BlockNumberOrHashWithNumber(LatestBlockNumber)},
-		24: {`{"blockNumber":"earliest"}`, false, BlockNumberOrHashWithNumber(EarliestBlockNumber)},
-		25: {`{"blockNumber":"0x1", "blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}`, true, BlockNumberOrHash{}},
+		1:  {`"0x0"`, true, BlockNumberOrHash{}},
+		2:  {`"0X1"`, true, BlockNumberOrHash{}},
+		3:  {`"0x01"`, true, BlockNumberOrHash{}},
+		4:  {`"0x12"`, true, BlockNumberOrHash{}},
+		5:  {`0`, false, BlockNumberOrHashWithNumber(0)},
+		6:  {`"ff"`, true, BlockNumberOrHash{}},
+		7:  {`"pending"`, false, BlockNumberOrHashWithNumber(PendingBlockNumber)},
+		8:  {`"latest"`, false, BlockNumberOrHashWithNumber(LatestBlockNumber)},
+		9:  {`"earliest"`, false, BlockNumberOrHashWithNumber(EarliestBlockNumber)},
+		10: {`someString`, true, BlockNumberOrHash{}},
+		11: {`""`, true, BlockNumberOrHash{}},
+		12: {``, true, BlockNumberOrHash{}},
+		13: {`"0x0000000000000000000000000000000000000000000000000000000000000000"`, false, BlockNumberOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), false)},
+		14: {`{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}`, false, BlockNumberOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), false)},
+		15: {`{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000","requireCanonical":false}`, false, BlockNumberOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), false)},
+		16: {`{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000","requireCanonical":true}`, false, BlockNumberOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), true)},
+		17: {`{"blockNumber":1}`, false, BlockNumberOrHashWithNumber(1)},
+		18: {`{"blockNumber":"pending"}`, false, BlockNumberOrHashWithNumber(PendingBlockNumber)},
+		19: {`{"blockNumber":"latest"}`, false, BlockNumberOrHashWithNumber(LatestBlockNumber)},
+		20: {`{"blockNumber":"earliest"}`, false, BlockNumberOrHashWithNumber(EarliestBlockNumber)},
+		21: {`{"blockNumber":"0x1", "blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}`, true, BlockNumberOrHash{}},
 	}
 
 	for i, test := range tests {
