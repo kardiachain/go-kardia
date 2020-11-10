@@ -25,6 +25,7 @@ import (
 	"math/big"
 	"time"
 
+	_default "github.com/kardiachain/go-kardiamain/configs/default"
 	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/kvm"
 
@@ -70,7 +71,7 @@ type Genesis struct {
 	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
 	Validators           []*Validator                 `json:"validators"`
 	ConsensusParams      *kaiproto.ConsensusParams    `json:"consensus_params,omitempty"`
-	Consensus            *configs.ConsensusConfig     `json:"consensusConfig"`
+	Consensus            *typesCfg.ConsensusConfig    `json:"consensusConfig"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.
@@ -280,8 +281,8 @@ func DefaulTestnetFullGenesisBlock(accountData map[string]*big.Int, contractData
 		Config:          configs.TestnetChainConfig,
 		GasLimit:        16777216,
 		Alloc:           ga,
-		ConsensusParams: configs.DefaultConsensusParams(),
-		Consensus:       configs.DefaultConsensusConfig(),
+		ConsensusParams: _default.ConsensusParams(),
+		Consensus:       _default.ConsensusConfig(),
 	}
 }
 

@@ -24,7 +24,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/configs"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/kvm/sample_kvm"
@@ -144,7 +144,7 @@ var pos_smc_definition = `[
 	}
 ]`
 
-func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
+func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*typesCfg.ChainConfig, common.Hash, error) {
 	return genesis.SetupGenesisBlock(log.New(), db, g)
 }
 

@@ -31,7 +31,7 @@ import (
 	"github.com/ebuchman/fail-test"
 	"github.com/gogo/protobuf/proto"
 
-	cfg "github.com/kardiachain/go-kardiamain/configs"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
@@ -99,7 +99,7 @@ func EmptyTimeoutInfo() *timeoutInfo {
 type ConsensusState struct {
 	service.BaseService
 
-	config          *cfg.ConsensusConfig
+	config          *typesCfg.ConsensusConfig
 	privValidator   types.PrivValidator // for signing votes
 	blockOperations BaseBlockOperations
 	blockExec       *cstate.BlockExecutor
@@ -137,7 +137,7 @@ type ConsensusState struct {
 // NewConsensusState returns a new ConsensusState.
 func NewConsensusState(
 	logger log.Logger,
-	config *cfg.ConsensusConfig,
+	config *typesCfg.ConsensusConfig,
 	state cstate.LastestBlockState,
 	blockOperations BaseBlockOperations,
 	blockExec *cstate.BlockExecutor,
@@ -162,6 +162,7 @@ func NewConsensusState(
 			Round:       1,
 		},
 	}
+
 	cs.SetLogger(logger)
 	cs.updateToState(state)
 

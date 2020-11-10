@@ -26,6 +26,9 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardiamain/configs/contracts"
+	_default "github.com/kardiachain/go-kardiamain/configs/default"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
@@ -272,11 +275,11 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 	return cs, vss
 }
 
-func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
+func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*typesCfg.ChainConfig, common.Hash, error) {
 	return genesis.SetupGenesisBlock(log.New(), db, g)
 }
 
-func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
+func GetBlockchain() (*blockchain.BlockChain, *typesCfg.ChainConfig, error) {
 	// Start setting up blockchain
 	//initValue := g.ToCell(int64(math.Pow10(6)))
 	initValue, _ := big.NewInt(0).SetString("10000000000000000", 10)
@@ -285,14 +288,14 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
 	}
 
-	configs.AddDefaultContract()
+	contracts.AddUnitTestContracts()
 
 	for address, _ := range genesisAccounts {
 		genesisAccounts[address] = initValue
 	}
 
 	genesisContracts := make(map[string]string)
-	for key, contract := range configs.GetContracts() {
+	for key, contract := range contracts.GetUnitTestContracts() {
 		configs.LoadGenesisContract(key, contract.Address, contract.ByteCode, contract.ABI)
 		if key != configs.StakingContractKey {
 			genesisContracts[contract.Address] = contract.ByteCode
@@ -343,7 +346,7 @@ func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*Consensu
 	// evReactor := evidence.NewReactor(evPool)
 	blockExec := cstate.NewBlockExecutor(stateStore, evPool, bOper)
 
-	csCfg := configs.TestConsensusConfig()
+	csCfg := _default.ConsensusConfig()
 	// Initialization for consensus.
 	// block := bc.CurrentBlock()
 	cs := NewConsensusState(

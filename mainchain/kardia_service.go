@@ -121,10 +121,12 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
+	logger.Info("Setup staking utils...")
 	staking, err := staking.NewSmcStakingnUtil()
 	if err != nil {
 		return nil, err
 	}
+
 	evPool, err := evidence.NewPool(ctx.StateDB, kaiDb.DB(), kai.blockchain)
 	if err != nil {
 		return nil, err
@@ -135,12 +137,15 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	kai.txpoolR = tx_pool.NewReactor(config.TxPool, kai.txPool)
 	kai.txpoolR.SetLogger(kai.logger)
 
+	logger.Info("Create new block operations...")
 	bOper := blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool, staking)
 
 	kai.evR = evidence.NewReactor(evPool)
 	kai.evR.SetLogger(kai.logger)
+	logger.Info("Setup block executor...")
 	blockExec := cstate.NewBlockExecutor(ctx.StateDB, evPool, bOper)
 
+	logger.Info("Load state...")
 	state, err := ctx.StateDB.LoadStateFromDBOrGenesisDoc(config.Genesis)
 	if err != nil {
 		return nil, err
@@ -156,6 +161,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	)
 	kai.csManager = consensus.NewConsensusManager(consensusState)
 	// Set private validator for consensus manager.
+	logger.Info("Start setup private validator")
 	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	kai.csManager.SetPrivValidator(privValidator)
 	kai.csManager.SetEventBus(kai.eventBus)
@@ -163,7 +169,6 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 }
 
 // NewKardiaService Implements ServiceConstructor, return a Kardia node service from node service context.
-// TODO: move this outside of kai package to customize kai.Config
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.MainChainConfig
 	kai, err := newKardiaService(ctx, &Config{
@@ -192,7 +197,6 @@ func (s *KardiaService) NetVersion() uint64 { return s.networkID }
 // Start implements Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
 func (s *KardiaService) Start(srvr *p2p.Switch) error {
-
 	srvr.AddReactor("CONSENSUS", s.csManager)
 	srvr.AddReactor("TXPOOL", s.txpoolR)
 	srvr.AddReactor("EVIDENCE", s.evR)

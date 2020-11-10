@@ -19,7 +19,7 @@
 package kai
 
 import (
-	"github.com/kardiachain/go-kardiamain/configs"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
@@ -65,5 +65,5 @@ type Config struct {
 
 	// Consensus defines the configuration for the Kardia consensus service,
 	// including timeouts and details about the block structure.
-	Consensus *configs.ConsensusConfig
+	Consensus *typesCfg.ConsensusConfig
 }

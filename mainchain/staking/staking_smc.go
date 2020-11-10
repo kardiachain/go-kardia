@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardiamain/configs/contracts"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
@@ -51,46 +52,50 @@ type StakingSmcUtil struct {
 
 // NewSmcStakingnUtil ...
 func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
-	stakingSmcAbi := configs.GetContractABIByAddress(configs.DefaultStakingContractAddress)
-	bytecodeStaking := configs.GetContractByteCodeByAddress(configs.DefaultStakingContractAddress)
-	abi, err := abi.JSON(strings.NewReader(stakingSmcAbi))
+	stakingSMC := contracts.StakingContract()
+	address := common.HexToAddress(stakingSMC.Address)
+	stakingSMCABI, err := abi.JSON(strings.NewReader(stakingSMC.ABI))
 	if err != nil {
 		log.Error("Error reading abi", "err", err)
 		return nil, err
 	}
 
-	return &StakingSmcUtil{Abi: &abi, ContractAddress: configs.StakingContractAddress, Bytecode: bytecodeStaking}, nil
+	smcUtil := &StakingSmcUtil{Abi: &stakingSMCABI, ContractAddress: address, Bytecode: stakingSMC.ByteCode}
+	smcUtil.logger = log.New()
+	smcUtil.logger.AddTag("SMCUtil")
+	return smcUtil, nil
 }
 
-//SetParams set params
-func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward int64,
-	slashFractionDowntime int64, slashFractionDoubleSign int64, unBondingTime int64,
-	signedBlockWindow int64, minSignedBlockPerWindow int64,
-	SenderAddress common.Address) ([]byte, error) {
-
-	// stateDb, err := s.bc.State()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// store, err := s.Abi.Pack("setParams", big.NewInt(100), big.NewInt(600), big.NewInt(baseProposerReward),
-	// 	big.NewInt(bonusProposerReward),
-	// 	big.NewInt(slashFractionDowntime), big.NewInt(slashFractionDoubleSign),
-	// 	big.NewInt(unBondingTime), big.NewInt(signedBlockWindow),
-	// 	big.NewInt(minSignedBlockPerWindow))
-
-	// if err != nil {
-	// 	log.Error("Error set params", "err", err)
-	// 	return nil, err
-	// }
-
-	// _, _, err = sample_kvm.Call(s.ContractAddress, store, &sample_kvm.Config{State: stateDb, Origin: SenderAddress})
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return nil, nil
-}
+// longnd: Look like unused, so comment before rm
+////SetParams set params
+//func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward int64,
+//	slashFractionDowntime int64, slashFractionDoubleSign int64, unBondingTime int64,
+//	signedBlockWindow int64, minSignedBlockPerWindow int64,
+//	SenderAddress common.Address) ([]byte, error) {
+//
+//	// stateDb, err := s.bc.State()
+//	// if err != nil {
+//	// 	return nil, err
+//	// }
+//
+//	// store, err := s.Abi.Pack("setParams", big.NewInt(100), big.NewInt(600), big.NewInt(baseProposerReward),
+//	// 	big.NewInt(bonusProposerReward),
+//	// 	big.NewInt(slashFractionDowntime), big.NewInt(slashFractionDoubleSign),
+//	// 	big.NewInt(unBondingTime), big.NewInt(signedBlockWindow),
+//	// 	big.NewInt(minSignedBlockPerWindow))
+//
+//	// if err != nil {
+//	// 	log.Error("Error set params", "err", err)
+//	// 	return nil, err
+//	// }
+//
+//	// _, _, err = sample_kvm.Call(s.ContractAddress, store, &sample_kvm.Config{State: stateDb, Origin: SenderAddress})
+//	// if err != nil {
+//	// 	return nil, err
+//	// }
+//
+//	return nil, nil
+//}
 
 //CreateValidator create validator
 func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, votingPower int64) error {
@@ -320,7 +325,7 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	if err := vmenv.CreateGenesisContractAddress(sender, msg.Data(), msg.Gas(), msg.Value(), s.ContractAddress); err != nil {
 		return err
 	}
-	log.Info("Created genesis staking smart contract", "Deployer", configs.GenesisDeployerAddr.Hex(), "Address", s.ContractAddress.Hex())
+	s.logger.Info("Created genesis staking smart contract", "Deployer", configs.GenesisDeployerAddr.Hex(), "Address", s.ContractAddress.Hex())
 	// Update the state with pending changes
 	statedb.Finalise(true)
 	return nil

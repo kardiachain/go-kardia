@@ -19,9 +19,8 @@
 package types
 
 import (
-	"time"
-
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	_default "github.com/kardiachain/go-kardiamain/configs/default"
+	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 const (
@@ -36,34 +35,22 @@ const (
 )
 
 // DefaultConsensusParams returns a default ConsensusParams.
-func DefaultConsensusParams() *kproto.ConsensusParams {
-	return &kproto.ConsensusParams{
-		Block:     DefaultBlockParams(),
-		Evidence:  DefaultEvidenceParams(),
-		Validator: DefaultValidatorParams(),
-	}
+func DefaultConsensusParams() *kaiproto.ConsensusParams {
+	return _default.ConsensusParams()
 }
 
 // DefaultBlockParams returns a default BlockParams.
-func DefaultBlockParams() kproto.BlockParams {
-	return kproto.BlockParams{
-		MaxBytes:   22020096, // 21MB
-		MaxGas:     0,
-		TimeIotaMs: 1000, // 1s
-	}
+func DefaultBlockParams() kaiproto.BlockParams {
+	return _default.BlockParams()
 }
 
 // DefaultEvidenceParams returns a default EvidenceParams.
-func DefaultEvidenceParams() kproto.EvidenceParams {
-	return kproto.EvidenceParams{
-		MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
-		MaxAgeDuration:  48 * time.Hour,
-		MaxBytes:        1048576, // 1MB
-	}
+func DefaultEvidenceParams() kaiproto.EvidenceParams {
+	return _default.EvidenceParams()
 }
 
 // DefaultValidatorParams returns a default ValidatorParams, which allows
 // only ed25519 pubkeys.
-func DefaultValidatorParams() kproto.ValidatorParams {
-	return kproto.ValidatorParams{}
+func DefaultValidatorParams() kaiproto.ValidatorParams {
+	return kaiproto.ValidatorParams{}
 }

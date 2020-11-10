@@ -128,6 +128,7 @@ func NewBaseService(logger log.Logger, name string, impl Service) *BaseService {
 	if logger == nil {
 		logger = log.New()
 	}
+	logger.AddTag(name)
 
 	return &BaseService{
 		Logger: logger,
