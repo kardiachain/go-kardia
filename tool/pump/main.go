@@ -34,13 +34,14 @@ import (
 	"github.com/rs/cors"
 
 	"github.com/kardiachain/go-kardiamain/configs"
+	_default "github.com/kardiachain/go-kardiamain/configs/default"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/dualchain/service"
 	"github.com/kardiachain/go-kardiamain/dualnode/dual_proxy"
 	"github.com/kardiachain/go-kardiamain/dualnode/kardia"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
-	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/metrics"
@@ -200,10 +201,10 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		BlockSize:   c.DualChain.EventPool.BlockSize,
 	}
 
-	baseAccount, err := c.getBaseAccount()
-	if err != nil {
-		return nil, err
-	}
+	//baseAccount, err := c.getBaseAccount()
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	dualChainConfig := node.DualChainConfig{
 		DBInfo:           dbInfo,
@@ -212,7 +213,7 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		DualNetworkID:    c.DualChain.NetworkID,
 		ChainId:          c.DualChain.ChainID,
 		DualProtocolName: *c.DualChain.Protocol,
-		BaseAccount:      baseAccount,
+		//BaseAccount:      baseAccount,
 	}
 	return &dualChainConfig, nil
 }
@@ -249,7 +250,6 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 
 	// TODO:@lew Temporary disable DualChain for testing
 	c.DualChain = nil
-
 	if c.DualChain != nil {
 		if dualChainConfig, err := c.getDualChainConfig(); err != nil {
 			return nil, err
@@ -274,29 +274,29 @@ func (c *Config) newLog() log.Logger {
 }
 
 // getBaseAccount gets base account that is used to execute internal smart contract
-func (c *Config) getBaseAccount() (*configs.BaseAccount, error) {
-	var privKey *ecdsa.PrivateKey
-	var err error
-	var address common.Address
-
-	address = common.HexToAddress(c.DualChain.BaseAccount.Address)
-	privKey, err = crypto.HexToECDSA(c.DualChain.BaseAccount.PrivateKey)
-
-	if err != nil {
-		return nil, fmt.Errorf("baseAccount: Invalid privatekey: %v", err)
-	}
-	return &configs.BaseAccount{
-		Address:    address,
-		PrivateKey: *privKey,
-	}, nil
-}
+//func (c *Config) getBaseAccount() (*configs.BaseAccount, error) {
+//	var privKey *ecdsa.PrivateKey
+//	var err error
+//	var address common.Address
+//
+//	address = common.HexToAddress(c.DualChain.BaseAccount.Address)
+//	privKey, err = crypto.HexToECDSA(c.DualChain.BaseAccount.PrivateKey)
+//
+//	if err != nil {
+//		return nil, fmt.Errorf("baseAccount: Invalid privatekey: %v", err)
+//	}
+//	return &configs.BaseAccount{
+//		Address:    address,
+//		PrivateKey: *privKey,
+//	}, nil
+//}
 
 // getConsensusConfig gets consensus timeout configs
-func (c *Config) getConsensusConfig() *configs.ConsensusConfig {
+func (c *Config) getConsensusConfig() *typesCfg.ConsensusConfig {
 	if args.network == Mainnet {
 		return configs.DefaultConsensusConfig()
 	}
-	return &configs.ConsensusConfig{
+	return &typesCfg.ConsensusConfig{
 		TimeoutPropose:              time.Duration(c.Genesis.Consensus.TimeoutPropose) * time.Millisecond,
 		TimeoutProposeDelta:         time.Duration(c.Genesis.Consensus.TimeoutProposeDelta) * time.Millisecond,
 		TimeoutPrevote:              time.Duration(c.Genesis.Consensus.TimeoutPrevote) * time.Millisecond,
@@ -314,7 +314,7 @@ func (c *Config) getConsensusConfig() *configs.ConsensusConfig {
 
 // getConsensusConfig gets consensus config params
 func (c *Config) getConsensusParams() *kaiproto.ConsensusParams {
-	defaultCsParams := configs.DefaultConsensusParams()
+	defaultCsParams := _default.ConsensusParams()
 	if args.network == Mainnet {
 		return defaultCsParams
 	}
@@ -332,7 +332,7 @@ func (c *Config) getConsensusParams() *kaiproto.ConsensusParams {
 	}
 }
 
-func (c *Config) getChainConfig() *configs.ChainConfig {
+func (c *Config) getChainConfig() *typesCfg.ChainConfig {
 	if args.network == Mainnet {
 		return configs.MainnetChainConfig
 	}
