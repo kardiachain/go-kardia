@@ -10,11 +10,11 @@ import (
 )
 
 var (
-	mainnetDefaultCfg        = Config{}
-	mainnetCfgWithCustomNode = Config{
-		Node:      typesCfg.Node{},
-		MainChain: nil,
-		DualChain: nil,
+	mainnetDefaultCfg        = loadDefaultMainnet()
+	mainnetCfgWithCustomNode = func() *Config {
+		cfg := loadDefaultMainnet()
+		// Load custom data here
+		return cfg
 	}
 	mainnetCfgWithCustomGenesis = Config{}
 
@@ -42,7 +42,7 @@ type (
 		Expected loadConfigOutput
 	}
 	loadConfigOutput struct {
-		Cfg Config
+		Cfg *Config
 		Err error
 	}
 )
@@ -55,52 +55,57 @@ func TestLoadConfig_Mainnet(t *testing.T) {
 				genesis: "",
 				kardia:  "",
 				dual:    "",
-				network: "",
+				network: DefaultFlagNetwork,
 			},
-		},
-		{
-			Name:  "Flag mainnet with custom genesis",
-			Flags: flags{},
 			Expected: loadConfigOutput{
-				Cfg: Config{},
+				Cfg: mainnetDefaultCfg,
 				Err: nil,
 			},
 		},
-		{
-			Name:  "Flag mainnet with custom & missing genesis file",
-			Flags: flags{},
-			Expected: loadConfigOutput{
-				Cfg: Config{},
-				Err: nil,
-			},
-		},
-		{
-			Name:  "Flag mainnet with custom & wrong genesis format",
-			Flags: flags{},
-			Expected: loadConfigOutput{
-				Cfg: Config{},
-				Err: nil,
-			},
-		},
-		{
-			Name: "Flag mainnet with custom node",
-		},
-		{
-			Name: "Flag mainnet with custom & missing node file",
-		},
-		{
-			Name: "Flag mainnet with custom & wrong node",
-		},
-		{
-			Name: "Flag mainnet with custom node & genesis",
-		},
+		//{
+		//	Name:  "Flag mainnet with custom genesis",
+		//	Flags: flags{},
+		//	Expected: loadConfigOutput{
+		//		Cfg: Config{},
+		//		Err: nil,
+		//	},
+		//},
+		//{
+		//	Name:  "Flag mainnet with custom & missing genesis file",
+		//	Flags: flags{},
+		//	Expected: loadConfigOutput{
+		//		Cfg: Config{},
+		//		Err: nil,
+		//	},
+		//},
+		//{
+		//	Name:  "Flag mainnet with custom & wrong genesis format",
+		//	Flags: flags{},
+		//	Expected: loadConfigOutput{
+		//		Cfg: Config{},
+		//		Err: nil,
+		//	},
+		//},
+		//{
+		//	Name: "Flag mainnet with custom node",
+		//},
+		//{
+		//	Name: "Flag mainnet with custom & missing node file",
+		//},
+		//{
+		//	Name: "Flag mainnet with custom & wrong node",
+		//},
+		//{
+		//	Name: "Flag mainnet with custom node & genesis",
+		//},
 	}
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			cfg, err := LoadConfig(c.Flags)
-			assert.Equal(t, c.Expected.Err, err, "Error not match")
-			assert.Equal(t, c.Expected.Cfg, cfg, "")
+			assert.Equal(t, c.Expected.Err, err, "Error mismatch")
+			assert.Equal(t, c.Expected.Cfg.Node, cfg.Node, "Node config mismatch")
+			assert.Equal(t, c.Expected.Cfg.MainChain, cfg.MainChain, "Mainchain config mismatch")
 		})
 	}
 }
