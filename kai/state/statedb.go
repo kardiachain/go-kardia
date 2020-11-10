@@ -343,6 +343,10 @@ func (sdb *StateDB) setError(err error) {
 	}
 }
 
+func (sdb *StateDB) Error() error {
+	return sdb.dbErr
+}
+
 // Retrieve a state object given by the address. Returns nil if not found.
 func (sdb *StateDB) getStateObject(addr common.Address) (stateObject *stateObject) {
 	// Prefer 'live' objects.

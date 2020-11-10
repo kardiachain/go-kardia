@@ -89,7 +89,7 @@ func NewInterpreter(kvm *KVM, cfg Config) *Interpreter {
 //
 // It's important to note that any errors returned by the interpreter should be
 // considered a revert-and-consume-all-gas operation except for
-// errExecutionReverted which means revert-and-keep-gas-left.
+// ErrExecutionReverted which means revert-and-keep-gas-left.
 func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret []byte, err error) {
 	// Increment the call depth which is restricted to 1024
 	in.kvm.depth++
@@ -187,7 +187,7 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 			// account to the others means the state is modified and should also
 			// return with an error.
 			if operation.writes || (op == CALL && stack.Back(2).Sign() != 0) {
-				return nil, errWriteProtection
+				return nil, ErrWriteProtection
 			}
 		}
 
@@ -246,7 +246,7 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		case err != nil:
 			return nil, err
 		case operation.reverts:
-			return res, errExecutionReverted
+			return res, ErrExecutionReverted
 		case operation.halts:
 			return res, nil
 		case !operation.jumps:
