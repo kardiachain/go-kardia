@@ -780,6 +780,7 @@ func createSwitch(config *Config,
 		config.P2P,
 		transport,
 	)
+	p2pLogger.AddTag("P2P")
 	sw.SetLogger(p2pLogger)
 
 	sw.SetNodeInfo(nodeInfo)
