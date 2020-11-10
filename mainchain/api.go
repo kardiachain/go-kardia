@@ -167,29 +167,29 @@ func (s *PublicKaiAPI) BlockNumber() uint64 {
 
 // GetHeaderBlockByNumber returns blockHeader by block number
 func (s *PublicKaiAPI) GetBlockHeaderByNumber(ctx context.Context, blockNumber rpc.BlockNumber) *BlockHeaderJSON {
-	header := s.kaiService.APIBackend.HeaderByNumber(ctx, blockNumber)
-	blockInfo := s.kaiService.APIBackend.BlockInfoByBlockHash(ctx, header.Hash())
+	header := s.kaiService.HeaderByNumber(ctx, blockNumber)
+	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
 	return NewBlockHeaderJSON(header, blockInfo)
 }
 
 // GetBlockHeaderByHash returns block by block hash
 func (s *PublicKaiAPI) GetBlockHeaderByHash(ctx context.Context, blockHash string) *BlockHeaderJSON {
-	header := s.kaiService.APIBackend.HeaderByHash(ctx, common.HexToHash(blockHash))
-	blockInfo := s.kaiService.APIBackend.BlockInfoByBlockHash(ctx, header.Hash())
+	header := s.kaiService.HeaderByHash(ctx, common.HexToHash(blockHash))
+	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
 	return NewBlockHeaderJSON(header, blockInfo)
 }
 
 // GetBlockByNumber returns block by block number
 func (s *PublicKaiAPI) GetBlockByNumber(ctx context.Context, blockNumber rpc.BlockNumber) *BlockJSON {
-	block := s.kaiService.APIBackend.BlockByNumber(ctx, blockNumber)
-	blockInfo := s.kaiService.APIBackend.BlockInfoByBlockHash(ctx, block.Hash())
+	block := s.kaiService.BlockByNumber(ctx, blockNumber)
+	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
 	return NewBlockJSON(block, blockInfo)
 }
 
 // GetBlockByHash returns block by block hash
 func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *BlockJSON {
-	block := s.kaiService.APIBackend.BlockByHash(ctx, common.HexToHash(blockHash))
-	blockInfo := s.kaiService.APIBackend.BlockInfoByBlockHash(ctx, block.Hash())
+	block := s.kaiService.BlockByHash(ctx, common.HexToHash(blockHash))
+	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
 	return NewBlockJSON(block, blockInfo)
 }
 
@@ -452,7 +452,7 @@ func NewPublicAccountAPI(kaiService *KardiaService) *PublicAccountAPI {
 
 // Balance returns address's balance
 func (a *PublicAccountAPI) Balance(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (string, error) {
-	state, _, err := a.kaiService.APIBackend.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
 		return "", err
 	}
@@ -468,7 +468,7 @@ func (a *PublicAccountAPI) Nonce(address string) (uint64, error) {
 
 // GetCode returns the code stored at the given address in the state for the given block number.
 func (a *PublicAccountAPI) GetCode(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (string, error) {
-	state, _, err := a.kaiService.APIBackend.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
 		return "", err
 	}
@@ -480,7 +480,7 @@ func (a *PublicAccountAPI) GetCode(ctx context.Context, address common.Address, 
 // block number. The rpc.LatestBlockNumber and rpc.PendingBlockNumber meta block
 // numbers are also allowed.
 func (a *PublicAccountAPI) GetStorageAt(ctx context.Context, address common.Address, key string, blockNrOrHash rpc.BlockNumberOrHash) (string, error) {
-	state, _, err := a.kaiService.APIBackend.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
 		return "nil", err
 	}
@@ -493,7 +493,7 @@ func (a *PublicAccountAPI) GetStorageAt(ctx context.Context, address common.Addr
 func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNrOrHash rpc.BlockNumberOrHash, vmCfg kvm.Config, timeout time.Duration) (*kvm.ExecutionResult, error) {
 	defer func(start time.Time) { log.Debug("Executing KVM call finished", "runtime", time.Since(start)) }(time.Now())
 
-	state, header, err := s.kaiService.APIBackend.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	state, header, err := s.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
