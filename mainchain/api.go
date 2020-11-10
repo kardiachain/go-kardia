@@ -289,14 +289,22 @@ func (s *PublicKaiAPI) GetBlockByNumber(blockNumber uint64) (*BlockJSON, error) 
 
 // Validator returns node's validator, nil if current node is not a validator
 // TODO @trinhdn: get validators' info from staking smart contract
-func (s *PublicKaiAPI) Validator() map[string]interface{} {
-	return nil
+func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address) (*types.Validator, error) {
+	val, err := s.kaiService.csManager.GetValidator(valAddr)
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
 }
 
 // Validators returns a list of validator
 // TODO @trinhdn: get validators' info from staking smart contract
-func (s *PublicKaiAPI) Validators() []map[string]interface{} {
-	return nil
+func (s *PublicKaiAPI) Validators(ctx context.Context) ([]*types.Validator, error) {
+	val, err := s.kaiService.csManager.GetValidators()
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
 }
 
 type PublicTransaction struct {
@@ -405,8 +413,9 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 // onto the blockchain
 func (s *PublicKaiAPI) KardiaCall(ctx context.Context, call types.CallArgsJSON, blockNumber uint64) (string, error) {
 	args := types.NewArgs(call)
-	result, _, _, err := s.doCall(ctx, args, blockNumber, kvm.Config{}, defaultTimeOutForStaticCall*time.Second)
-	return common.Encode(result), err
+	log.Info("KardiaCall callargs:", "args", args)
+	result, err := s.doCall(ctx, args, blockNrOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall*time.Second)
+	return common.Encode(result.ReturnData), err
 }
 
 // PendingTransactions returns pending transactions
@@ -577,21 +586,10 @@ func (a *PublicAccountAPI) Nonce(address string) (uint64, error) {
 // No tx is generated or submitted to the blockchain
 func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr uint64, vmCfg kvm.Config, timeout time.Duration) ([]byte, uint64, bool, error) {
 	defer func(start time.Time) { log.Debug("Executing KVM call finished", "runtime", time.Since(start)) }(time.Now())
-
-	var (
-		statedb *state.StateDB
-		err     error
-		header  *types.Header
-	)
-	// If blockNr is specified, we used the state and header at the block at height blockNr
-	// otherwise we use the current state and header
-	if blockNr > 0 {
-		block := s.kaiService.BlockChain().GetBlockByHeight(blockNr)
-		statedb, err = s.kaiService.BlockChain().StateAt(block.Height())
-		header = block.Header()
-	} else {
-		statedb, err = s.kaiService.BlockChain().State()
-		header = s.kaiService.BlockChain().CurrentHeader()
+	log.Info("doCall callargs:", "args", args)
+	state, header, err := s.kaiService.APIBackend.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if state == nil || err != nil {
+		return nil, err
 	}
 
 	if statedb == nil || err != nil {
@@ -616,6 +614,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 
 	// Create new call message
 	msg := types.NewMessage(addr, args.To, 0, args.Value, gas, gasPrice, args.Data, false)
+	log.Info("doCall msg:", "msg", msg)
 	// Setup context so it may be cancelled the call has completed
 	// or, in case of unmetered gas, setup a context with a timeout.
 	var cancel context.CancelFunc
@@ -643,7 +642,8 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args *types.CallArgs, blockNr
 	gp := new(types.GasPool).AddGas(common.MaxUint64)
 	res, gas, failed, err := blockchain.ApplyMessage(kvm, msg, gp)
 	if err != nil {
-		return nil, 0, false, err
+		log.Info("doCall err:", "err", err)
+		return nil, err
 	}
 
 	// If the timer caused an abort, return an appropriate error message

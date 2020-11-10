@@ -164,6 +164,134 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 	return vals, nil
 }
 
+// GetValidators show all validators in network
+func (s *StakingSmcUtil) GetValidators(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) ([]*types.Validator, error) {
+	payload, err := s.Abi.Pack("getValidators")
+	if err != nil {
+		return nil, err
+	}
+
+	msg := types.NewMessage(
+		s.ContractAddress,
+		&s.ContractAddress,
+		0,
+		big.NewInt(0),
+		100000000,
+		big.NewInt(0),
+		payload,
+		false,
+	)
+
+	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	if err != nil {
+		return nil, err
+	}
+	if len(res) == 0 {
+		return nil, nil
+	}
+
+	var valsInfoList struct {
+		ValAddrs          []common.Address
+		Tokens            []*big.Int
+		DelegationsShares []*big.Int
+	}
+	// unpack result
+	err = s.Abi.Unpack(&valsInfoList, "getValidators", res)
+	if err != nil {
+		log.Error("Error unpacking validators list info", "err", err)
+		return nil, err
+	}
+	vals := make([]*types.Validator, len(valsInfoList.ValAddrs))
+	for i := range valsInfoList.ValAddrs {
+		votingPower, err := s.GetValidatorPower(statedb, header, bc, cfg, valsInfoList.ValAddrs[i])
+		if err != nil {
+			return nil, err
+		}
+		vals[i] = types.NewValidator(valsInfoList.ValAddrs[i], votingPower)
+	}
+	return vals, nil
+}
+
+// GetValidator show info of a validator based on address
+func (s *StakingSmcUtil) GetValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address) (*types.Validator, error) {
+	payload, err := s.Abi.Pack("getValidator", valAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := types.NewMessage(
+		s.ContractAddress,
+		&s.ContractAddress,
+		0,
+		big.NewInt(0),
+		100000000,
+		big.NewInt(0),
+		payload,
+		false,
+	)
+
+	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	if err != nil {
+		return nil, err
+	}
+	if len(res) == 0 {
+		return nil, nil
+	}
+
+	var validator struct {
+		Tokens           *big.Int
+		DelegationShares *big.Int
+		Jailed           bool
+	}
+	// unpack result
+	err = s.Abi.Unpack(&validator, "getValidator", res)
+	if err != nil {
+		log.Error("Error unpacking validator info", "err", err)
+		return nil, err
+	}
+	votingPower, err := s.GetValidatorPower(statedb, header, bc, cfg, valAddr)
+	if err != nil {
+		return nil, err
+	}
+	return types.NewValidator(valAddr, votingPower), nil
+}
+
+// GetValidator show info of a validator based on address
+func (s *StakingSmcUtil) GetValidatorPower(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address) (int64, error) {
+	payload, err := s.Abi.Pack("getValidatorPower", valAddr)
+	if err != nil {
+		return 0, err
+	}
+
+	msg := types.NewMessage(
+		s.ContractAddress,
+		&s.ContractAddress,
+		0,
+		big.NewInt(0),
+		100000000,
+		big.NewInt(0),
+		payload,
+		false,
+	)
+
+	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	if err != nil {
+		return 0, err
+	}
+	if len(res) == 0 {
+		return 0, nil
+	}
+
+	var votingPower *big.Int
+	// unpack result
+	err = s.Abi.Unpack(&votingPower, "getValidatorPower", res)
+	if err != nil {
+		log.Error("Error unpacking validators list info", "err", err)
+		return 0, err
+	}
+	return votingPower.Int64(), nil
+}
+
 //Mint new tokens for the previous block. Returns fee collected
 func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) (*big.Int, error) {
 	payload, err := s.Abi.Pack("mint")
