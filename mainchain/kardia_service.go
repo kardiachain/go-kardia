@@ -120,12 +120,6 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		eventBus:     eventBus,
 	}
 
-	kai.APIBackend = &KaiAPIBackend{
-		kaiService: kai,
-	}
-
-	// TODO(huny@): Do we need to check for blockchain version mismatch ?
-
 	// Create a new blockchain to attach to this Kardia object
 	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig, config.IsPrivate)
 	if err != nil {

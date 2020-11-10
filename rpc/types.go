@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
@@ -63,8 +62,8 @@ type jsonWriter interface {
 type BlockNumber uint64
 
 const (
-	PendingBlockNumber  = BlockNumber(math.MaxUint64 - 1)
-	LatestBlockNumber   = BlockNumber(math.MaxUint64)
+	LatestBlockNumber   = BlockNumber(18446744073709551615) // math.MaxUint64
+	PendingBlockNumber  = BlockNumber(18446744073709551614) // math.MaxUint64-1
 	EarliestBlockNumber = BlockNumber(0)
 )
 
@@ -101,9 +100,7 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (bn BlockNumber) Uint64() uint64 {
-	return (uint64)(bn)
-}
+func (bn BlockNumber) Uint64() uint64 { return uint64(bn) }
 
 type BlockNumberOrHash struct {
 	BlockNumber      *BlockNumber `json:"blockNumber,omitempty"`
