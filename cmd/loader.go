@@ -403,44 +403,43 @@ func (c *Config) getChainConfig() *typesCfg.ChainConfig {
 func (c *Config) Start() {
 	logger := c.newLog()
 
+	logger.AddTag("Loader")
 	// System settings
-	fmt.Println("Adjust runtime settings...")
+	logger.Info("Adjust runtime settings...")
 	if err := runtimeSystemSettings(); err != nil {
 		logger.Error("Fail to update system settings", "err", err)
 		return
 	}
 
 	// get nodeConfig from config
-	fmt.Println("Read node config...")
+	logger.Info("Read node config...")
 	nodeConfig, err := c.getNodeConfig()
 	if err != nil {
 		logger.Error("Cannot get node config", "err", err)
 		return
 	}
-	fmt.Println("Node config ---", nodeConfig)
 
 	genesisCfg, err := c.getGenesisConfig(false)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Genesis config", genesisCfg)
 
 	nodeConfig.Genesis = genesisCfg
 	// init new node from nodeConfig
-	fmt.Println("Building node from config...")
+	logger.Info("Building node from config...")
 	n, err := node.New(nodeConfig)
 	if err != nil {
 		logger.Error("Cannot create node", "err", err)
 		return
 	}
 
-	fmt.Println("Register new kai service...")
+	logger.Info("Register new kai service...")
 	if err := n.Register(kai.NewKardiaService); err != nil {
 		logger.Error("error while adding kardia service", "err", err)
 		return
 	}
 
-	fmt.Println("Register dual node service...")
+	logger.Info("Register dual node service...")
 	if c.DualChain != nil {
 		if err := n.Register(service.NewDualService); err != nil {
 			logger.Error("error while adding dual service", "err", err)
@@ -448,14 +447,14 @@ func (c *Config) Start() {
 		}
 	}
 
-	fmt.Println("Start running node...")
+	logger.Info("Start running node...")
 	if err := n.Start(); err != nil {
 		logger.Error("error while starting node", "err", err)
 		return
 	}
 
-	fmt.Println("Register mainchain event...")
 	if c.MainChain.Events != nil {
+		logger.Info("Register mainchain event...")
 		var kardiaService *kai.KardiaService
 		if err := n.Service(&kardiaService); err != nil {
 			logger.Error("cannot get Kardia service", "err", err)
@@ -466,19 +465,18 @@ func (c *Config) Start() {
 	}
 
 	if c.DualChain != nil {
-	}
-
-	fmt.Println("Start debugger...")
-	if c.Debug != nil {
-		if err := c.StartDebug(); err != nil {
-			logger.Error("Failed to start debug", "err", err)
+		logger.Info("Start dual node...")
+		if err := c.StartDual(n); err != nil {
+			logger.Error("error while starting dual", "err", err)
+			return
 		}
 	}
 
-	fmt.Println("Start dual node...")
-	if err := c.StartDual(n); err != nil {
-		logger.Error("error while starting dual", "err", err)
-		return
+	if c.Debug != nil {
+		logger.Info("Start debugger...")
+		if err := c.StartDebug(); err != nil {
+			logger.Error("Failed to start debug", "err", err)
+		}
 	}
 
 	waitForever()

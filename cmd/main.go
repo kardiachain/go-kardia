@@ -29,13 +29,13 @@ import (
 )
 
 var args flags
+var logger = log.New()
 
 // removeDirContents deletes old local node directory
 func removeDirContents(dir string) error {
 	var err error
 	var directory *os.File
-
-	log.Info("Remove directory", "dir", dir)
+	logger.Info("Remove directory", "dir", dir)
 	if _, err = os.Stat(dir); err != nil {
 		if os.IsNotExist(err) {
 			log.Info("Directory does not exist", "dir", dir)
@@ -78,6 +78,7 @@ func runtimeSystemSettings() error {
 }
 
 func main() {
+	logger.AddTag("Loader")
 	flag.Parse()
 	config, err := LoadConfig(args)
 	if err != nil {
