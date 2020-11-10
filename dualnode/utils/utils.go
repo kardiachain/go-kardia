@@ -28,12 +28,13 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 
 	"github.com/golang/protobuf/jsonpb"
+	"github.com/pebbe/zmq4"
+
 	dualMsg "github.com/kardiachain/go-kardiamain/dualnode/message"
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
-	"github.com/pebbe/zmq4"
 )
 
 const (
@@ -85,22 +86,22 @@ func ExecuteKardiaSmartContract(txPool *tx_pool.TxPool, bc base.BaseBlockChain, 
 	for _, v := range params {
 		convertedParam = append(convertedParam, v)
 	}
-	input, err := kAbi.Pack(methodName, convertedParam...)
+	_, err := kAbi.Pack(methodName, convertedParam...)
 	if err != nil {
 		log.Error(fmt.Sprintf("Failed to pack methodName=%v params=%v err=%v", methodName, params, err))
 		return nil, err
 	}
-	if bc.Config().BaseAccount != nil {
-		sender := bc.Config().BaseAccount.Address
-		currentHeader := bc.CurrentHeader()
-		stateDb := txPool.State()
-		gasUsed, err := ksml.EstimateGas(sender, common.HexToAddress(contractAddress), currentHeader, bc, stateDb, input)
-		if err != nil {
-			return nil, err
-		}
-		nonce := txPool.Nonce(sender)
-		return ksml.GenerateSmcCall(nonce, &bc.Config().BaseAccount.PrivateKey, common.HexToAddress(contractAddress), input, gasUsed)
-	}
+	//if bc.Config().BaseAccount != nil {
+	//	sender := bc.Config().BaseAccount.Address
+	//	currentHeader := bc.CurrentHeader()
+	//	stateDb := txPool.State()
+	//	gasUsed, err := ksml.EstimateGas(sender, common.HexToAddress(contractAddress), currentHeader, bc, stateDb, input)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	nonce := txPool.Nonce(sender)
+	//	return ksml.GenerateSmcCall(nonce, &bc.Config().BaseAccount.PrivateKey, common.HexToAddress(contractAddress), input, gasUsed)
+	//}
 	return nil, fmt.Errorf("cannot execute kardia smart contract - base account not found")
 }
 
@@ -247,9 +248,9 @@ func subscribe(subscriber *zmq4.Socket, proxy base.BlockChainAdapter) error {
 
 // NewEvent creates new event and add to eventPool
 func NewEvent(proxy base.BlockChainAdapter, blockHeight uint64, msg *message2.EventMessage, txHash common.Hash, actions []string, fromExternal bool) error {
-	if proxy.DualBlockChain().Config().BaseAccount == nil {
-		return fmt.Errorf("current node does not have base account to create new event")
-	}
+	//if proxy.DualBlockChain().Config().BaseAccount == nil {
+	//	return fmt.Errorf("current node does not have base account to create new event")
+	//}
 
 	privateKey := proxy.DualBlockChain().Config().BaseAccount.PrivateKey
 	dualEvent := types.NewDualEvent(blockHeight, fromExternal /* internalChain */, types.BlockchainSymbol(proxy.Name()), &txHash, msg, actions)
