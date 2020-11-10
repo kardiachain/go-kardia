@@ -90,12 +90,13 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	kaiDb := ctx.BlockStore
 
-	staking, err := staking.NewSmcStakingnUtil()
+	logger.Info("Setup staking utils...")
+	stakingUtil, err := staking.NewSmcStakingnUtil()
 	if err != nil {
 		return nil, err
 	}
 
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, config.Genesis, staking)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, config.Genesis, stakingUtil)
 	if genesisErr != nil {
 		return nil, genesisErr
 	}
@@ -126,12 +127,6 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
-	logger.Info("Setup staking utils...")
-	staking, err := staking.NewSmcStakingnUtil()
-	if err != nil {
-		return nil, err
-	}
-
 	evPool, err := evidence.NewPool(ctx.StateDB, kaiDb.DB(), kai.blockchain)
 	if err != nil {
 		return nil, err
@@ -143,7 +138,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	kai.txpoolR.SetLogger(kai.logger)
 
 	logger.Info("Create new block operations...")
-	bOper := blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool, staking)
+	bOper := blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool, stakingUtil)
 
 	kai.evR = evidence.NewReactor(evPool)
 	kai.evR.SetLogger(kai.logger)
