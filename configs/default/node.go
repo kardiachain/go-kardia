@@ -7,11 +7,11 @@ import (
 
 // Node configuration
 var (
-	NodeName    = "defaultNodeName"
-	DataDir     = "/tmp/.kardia"
-	HTTPHost    = "0.0.0.0"
-	HTTPPort    = 8545
-	HTTPModules = []string{
+	name        = "default"
+	dataDir     = "/tmp/.kardia"
+	httpHost    = "0.0.0.0"
+	httpPort    = 8545
+	httpModules = []string{
 		"node",
 		"kai",
 		"tx",
@@ -19,32 +19,47 @@ var (
 		"dual",
 		"neo",
 	}
-	HTTPVirtualHost = []string{
+	httpVirtualHost = []string{
 		"0.0.0.0",
 		"localhost",
 	}
-	HTTPCors = []string{
+	httpCors = []string{
 		"*",
 	}
-	LogLevel      = "info"
-	Metrics  uint = 0
-
-	// Chain configuration
-	ChainID   uint64 = 1
-	NetworkID uint64 = 100
-	AcceptTxs uint32 = 1
-	ZeroFee   uint   = 0
-	Database         = &typesCfg.Database{
-		Dir:     "chaindata",
-		Caches:  16,
-		Handles: 32,
-		Drop:    1,
-	}
+	logLevel      = "info"
+	metrics  uint = 0
 )
 
 // P2P config
 var (
-	P2PPrivateKey         = "8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2ddefault"
-	P2PListenAddress      = "tcp://0.0.0.0:3000"
-	P2PMaxPeers      uint = 25
+	p2pPrivateKey    = "8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06"
+	p2pListenAddress = "tcp://0.0.0.0:3000"
+	//p2pMaxPeers      uint = 25
 )
+
+var p2p = typesCfg.P2P{
+	ListenAddress: p2pListenAddress,
+	PrivateKey:    p2pPrivateKey,
+}
+
+var node = typesCfg.Node{
+	P2P:              p2p,
+	LogLevel:         logLevel,
+	Name:             name,
+	DataDir:          dataDir,
+	HTTPHost:         httpHost,
+	HTTPPort:         httpPort,
+	HTTPModules:      httpModules,
+	HTTPVirtualHosts: httpVirtualHost,
+	HTTPCors:         httpCors,
+	Metrics:          metrics,
+	Genesis:          Genesis(),
+}
+
+func Node() typesCfg.Node {
+	return node
+}
+
+func P2P() typesCfg.P2P {
+	return p2p
+}
