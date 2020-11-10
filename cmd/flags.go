@@ -20,13 +20,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v2"
 )
 
 type flags struct {
@@ -37,6 +30,11 @@ type flags struct {
 }
 
 const (
+	DefaultFlagNetwork           = "mainnet"
+	DefaultFlagGenesisConfigFile = ""
+	DefaultFlagNodeConfigFile    = ""
+	DefaultFlagDualConfigFile    = ""
+
 	Mainnet = "mainnet"
 	Testnet = "testnet"
 	Devnet  = "devnet"
@@ -44,17 +42,17 @@ const (
 
 var (
 	defaultFlags = map[string]flags{
-		Mainnet: flags{
+		Mainnet: {
 			genesis: "./cfg/genesis.yaml",
 			kardia:  "./cfg/kai_config.yaml",
 			dual:    "",
 		},
-		Testnet: flags{
+		Testnet: {
 			genesis: "./cfg/genesis_testnet.yaml",
 			kardia:  "./cfg/kai_config_testnet.yaml",
 			dual:    "",
 		},
-		Devnet: flags{
+		Devnet: {
 			genesis: "./cfg/genesis_devnet.yaml",
 			kardia:  "./cfg/kai_config_devnet.yaml",
 			dual:    "",
@@ -87,64 +85,4 @@ func finalizeConfigParams(args *flags) {
 	if args.dual == "" {
 		args.dual = defaultFlags[args.network].dual
 	}
-}
-
-// Load attempts to load the config from given path and filename.
-func LoadConfig(args flags) (*Config, error) {
-	finalizeConfigParams(&args)
-	var (
-		wd  string
-		err error
-	)
-	wd, err = os.Getwd()
-	if err != nil {
-		panic(err)
-	}
-
-	config := Config{}
-	genesisCfgFile := filepath.Join(wd, args.genesis)
-	kaiCfgFile := filepath.Join(wd, args.kardia)
-
-	kaiCfg, err := ioutil.ReadFile(kaiCfgFile)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot read kai config")
-	}
-
-	err = yaml.Unmarshal(kaiCfg, &config)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot unmarshal kai config")
-	}
-
-	genesisCfg, err := ioutil.ReadFile(genesisCfgFile)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot read node config")
-	}
-
-	err = yaml.Unmarshal(genesisCfg, &config.MainChain)
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot unmarshal node config")
-	}
-	config.Genesis = config.MainChain.Genesis
-
-	if args.dual != "" {
-		chainCfgFile := filepath.Join(wd, args.dual)
-		chainCfg, err := ioutil.ReadFile(chainCfgFile)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot read dual node config")
-		}
-		err = yaml.Unmarshal(chainCfg, &config.DualChain)
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot unmarshal dual node config")
-		}
-	}
-
-	fmt.Printf("Default config: %+v \n", config)
-	fmt.Println()
-	fmt.Println()
-	fmt.Printf("Default genesis config: %+v \n", config.Genesis)
-	fmt.Println()
-	fmt.Println()
-	fmt.Printf("Default chain config: %+v \n", config.MainChain)
-
-	return &config, nil
 }
