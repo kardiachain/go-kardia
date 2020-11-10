@@ -30,11 +30,6 @@ type flags struct {
 }
 
 const (
-	DefaultFlagNetwork           = "mainnet"
-	DefaultFlagGenesisConfigFile = ""
-	DefaultFlagNodeConfigFile    = ""
-	DefaultFlagDualConfigFile    = ""
-
 	Mainnet = "mainnet"
 	Testnet = "testnet"
 	Devnet  = "devnet"
@@ -85,4 +80,8 @@ func finalizeConfigParams(args *flags) {
 	if args.dual == "" {
 		args.dual = defaultFlags[args.network].dual
 	}
+}
+
+func getDefaultFlag(network string) flags {
+	return defaultFlags[network]
 }

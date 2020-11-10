@@ -24,9 +24,9 @@ import (
 	"strings"
 	"testing"
 
-	typesCfg "github.com/kardiachain/go-kardiamain/mainchain/staking"
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
-	"github.com/kardiachain/go-kardiamain/configs/types"
+	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/kvm/sample_kvm"

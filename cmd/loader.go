@@ -48,23 +48,27 @@ func LoadConfig(args flags) (*Config, error) {
 	// Read custom flag for target network
 	finalizeConfigParams(&args)
 	config := loadDefaultMainnet()
-	if err := loadMainnetConfig(args, config); err != nil {
+	if err := loadMainnetConfig(config); err != nil {
 		return nil, err
 	}
 
 	if args.network == Testnet {
-		if err := loadTestnetConfig(args, config); err != nil {
+		if err := loadTestnetConfig(config); err != nil {
 			return nil, err
 		}
 	}
 
 	if args.network == Devnet {
-		if err := loadTestnetConfig(args, config); err != nil {
+		if err := loadTestnetConfig(config); err != nil {
 			return nil, err
 		}
-		if err := loadDevnetConfig(args, config); err != nil {
+		if err := loadDevnetConfig(config); err != nil {
 			return nil, err
 		}
+	}
+
+	if err := loadConfigFile(args, config); err != nil {
+		return nil, err
 	}
 
 	return config, nil
@@ -78,23 +82,23 @@ func loadDefaultMainnet() *Config {
 	return defaultCfg
 }
 
-func loadMainnetConfig(args flags, cfg *Config) error {
-	args.network = Mainnet
-	return loadConfigFile(args, cfg)
+func loadMainnetConfig(cfg *Config) error {
+	mainnetArgs := getDefaultFlag(Mainnet)
+	return loadConfigFile(mainnetArgs, cfg)
 }
 
-func loadTestnetConfig(args flags, cfg *Config) error {
-	args.network = Testnet
-	return loadConfigFile(args, cfg)
+func loadTestnetConfig(cfg *Config) error {
+	testnetArgs := getDefaultFlag(Testnet)
+	return loadConfigFile(testnetArgs, cfg)
 }
 
-func loadDevnetConfig(args flags, cfg *Config) error {
-	args.network = Devnet
-	return loadConfigFile(args, cfg)
+func loadDevnetConfig(cfg *Config) error {
+	testnetArgs := getDefaultFlag(Devnet)
+	return loadConfigFile(testnetArgs, cfg)
 }
 
 func loadConfigFile(args flags, cfg *Config) error {
-	finalizeConfigParams(&args)
+	fmt.Println("Read config with args", args)
 	var (
 		wd  string
 		err error
@@ -103,7 +107,7 @@ func loadConfigFile(args flags, cfg *Config) error {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("Read config with args", args)
+
 	genesisCfgFilePath := filepath.Join(wd, args.genesis)
 	genesisCfgData, err := ioutil.ReadFile(genesisCfgFilePath)
 	if err == nil { // Read when input files exist, otherwise
@@ -181,17 +185,16 @@ func (c *Config) getDbInfo(isDual bool) storage.DbInfo {
 
 // getTxPoolConfig gets txPoolConfig from config, based on target network
 func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
-	txPool := c.Genesis.TxPool
-	if args.network == Mainnet {
+	if c.Genesis.TxPool == nil {
 		return tx_pool.DefaultTxPoolConfig
 	}
 	return tx_pool.TxPoolConfig{
-		AccountSlots:  txPool.AccountSlots,
-		AccountQueue:  txPool.AccountQueue,
-		GlobalSlots:   txPool.GlobalSlots,
-		GlobalQueue:   txPool.GlobalQueue,
-		MaxBatchBytes: txPool.MaxBatchBytes,
-		Broadcast:     txPool.Broadcast,
+		AccountSlots:  c.Genesis.TxPool.AccountSlots,
+		AccountQueue:  c.Genesis.TxPool.AccountQueue,
+		GlobalSlots:   c.Genesis.TxPool.GlobalSlots,
+		GlobalQueue:   c.Genesis.TxPool.GlobalQueue,
+		MaxBatchBytes: c.Genesis.TxPool.MaxBatchBytes,
+		Broadcast:     c.Genesis.TxPool.Broadcast,
 	}
 }
 
@@ -352,7 +355,8 @@ func (c *Config) newLog() log.Logger {
 
 // getConsensusConfig gets consensus timeout configs
 func (c *Config) getConsensusConfig() *typesCfg.ConsensusConfig {
-	if args.network == Mainnet {
+	fmt.Println("Genesis consensus", c.Genesis.Consensus)
+	if c.Genesis.Consensus == nil {
 		return configs.DefaultConsensusConfig()
 	}
 	return &typesCfg.ConsensusConfig{
@@ -373,15 +377,15 @@ func (c *Config) getConsensusConfig() *typesCfg.ConsensusConfig {
 
 // getConsensusConfig gets consensus config params
 func (c *Config) getConsensusParams() *kaiproto.ConsensusParams {
-	defaultCsParams := _default.ConsensusParams()
-	if args.network == Mainnet {
-		return defaultCsParams
+	fmt.Println("Consensus params", c.Genesis.ConsensusParams)
+	if c.Genesis.ConsensusParams == nil {
+		return _default.ConsensusParams()
 	}
 	return &kaiproto.ConsensusParams{
 		Block: kaiproto.BlockParams{
 			MaxBytes:   c.Genesis.ConsensusParams.Block.MaxBytes,
 			MaxGas:     c.Genesis.ConsensusParams.Block.MaxGas,
-			TimeIotaMs: defaultCsParams.Block.TimeIotaMs,
+			TimeIotaMs: c.Genesis.ConsensusParams.Block.TimeIotaMs,
 		},
 		Evidence: kaiproto.EvidenceParams{
 			MaxAgeNumBlocks: c.Genesis.ConsensusParams.Evidence.MaxAgeNumBlocks,
@@ -392,8 +396,7 @@ func (c *Config) getConsensusParams() *kaiproto.ConsensusParams {
 }
 
 func (c *Config) getChainConfig() *typesCfg.ChainConfig {
-
-	if args.network == Mainnet {
+	if c.Genesis.ChainConfig == nil {
 		return configs.MainnetChainConfig
 	}
 	return c.Genesis.ChainConfig

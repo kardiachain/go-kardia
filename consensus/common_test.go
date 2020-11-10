@@ -50,7 +50,8 @@ const (
 )
 
 var (
-	ensureTimeout = time.Millisecond * 200
+	//todo: Look like some case take more than 3.5s to execute
+	ensureTimeout = time.Millisecond * 4000
 )
 
 //-------------------------------------------------------------------------------

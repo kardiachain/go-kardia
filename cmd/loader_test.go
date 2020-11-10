@@ -9,6 +9,8 @@ import (
 	typesCfg "github.com/kardiachain/go-kardiamain/configs/types"
 )
 
+var DefaultFlagNetwork = "mainnet"
+
 var (
 	mainnetDefaultCfg        = loadDefaultMainnet()
 	mainnetCfgWithCustomNode = func() *Config {
