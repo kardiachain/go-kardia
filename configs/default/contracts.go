@@ -7,9 +7,9 @@ import (
 )
 
 func StakingContracts() typesCfg.Contract {
-	return contracts.Contracts[contracts.StakingSMCKey]
+	return contracts.StakingContract()
 }
 
 func Contracts() map[string]typesCfg.Contract {
-	return contracts.Contracts
+	return contracts.Contracts()
 }
