@@ -47,8 +47,9 @@ type BlockHeaderJSON struct {
 	CommitHash        string    `json:"commitHash"`
 	Time              time.Time `json:"time"`
 	NumTxs            uint64    `json:"numTxs"`
-	GasLimit          uint64    `json:"gasLimit"`
 	GasUsed           uint64    `json:"gasUsed"`
+	GasLimit          uint64    `json:"gasLimit"`
+	Rewards           string    `json:"Rewards"`
 	ProposerAddress   string    `json:"proposerAddress"`
 	TxHash            string    `json:"dataHash"`     // transactions
 	ReceiptHash       string    `json:"receiptsRoot"` // receipt root
@@ -106,8 +107,9 @@ func NewBlockHeaderJSON(header *types.Header, blockInfo *types.BlockInfo) *Block
 		CommitHash:        header.LastCommitHash.Hex(),
 		Time:              header.Time,
 		NumTxs:            header.NumTxs,
-		GasLimit:          header.GasLimit,
+		Rewards:           blockInfo.Rewards.String(),
 		GasUsed:           blockInfo.GasUsed,
+		GasLimit:          header.GasLimit,
 		ProposerAddress:   header.ProposerAddress.Hex(),
 		TxHash:            header.TxHash.Hex(),
 		ValidatorsHash:    header.ValidatorsHash.Hex(),
