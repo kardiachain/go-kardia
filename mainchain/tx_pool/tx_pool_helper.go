@@ -20,6 +20,8 @@ package tx_pool
 
 import (
 	"container/heap"
+	"crypto/ecdsa"
+	"fmt"
 	"math"
 	"math/big"
 	"sort"
@@ -27,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -554,4 +557,27 @@ func IntrinsicGas(data []byte, contractCreation bool) (uint64, error) {
 		gas += z * configs.TxDataZeroGas
 	}
 	return gas, nil
+}
+
+func GenerateSmcCall(senderKey *ecdsa.PrivateKey, address common.Address, input []byte, txPool *TxPool, isIncrement bool) *types.Transaction {
+	senderAddress := crypto.PubkeyToAddress(senderKey.PublicKey)
+	nonce := txPool.Nonce(senderAddress)
+	if isIncrement {
+		nonce++
+	}
+	tx, err := types.SignTx(
+		types.HomesteadSigner{},
+		types.NewTransaction(
+			nonce,
+			address,
+			big.NewInt(0),
+			5000000,
+			big.NewInt(1),
+			input,
+		), senderKey)
+	if err != nil {
+		panic(fmt.Sprintf("Fail to generate smc call: %v", err))
+	}
+	log.Error("GenerateSmcCall", "nonce", tx.Nonce(), "tx", tx.Hash().Hex())
+	return tx
 }
