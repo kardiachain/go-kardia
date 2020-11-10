@@ -26,6 +26,8 @@ import (
 
 // Config are the configuration options for the Interpreter
 type Config struct {
+	Debug  bool   // Enables debugging
+	Tracer Tracer // Opcode logger
 	// NoRecursion disabled Interpreter call, callcode,
 	// delegate call and create.
 	NoRecursion             bool
@@ -112,9 +114,9 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 	}
 
 	var (
-		op    OpCode        // current opcode
-		mem   = NewMemory() // bound memory
-		stack = newstack()  // local stack
+		op          OpCode        // current opcode
+		mem         = NewMemory() // bound memory
+		stack       = newstack()  // local stack
 		callContext = &callCtx{
 			memory:   mem,
 			stack:    stack,
