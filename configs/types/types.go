@@ -18,15 +18,16 @@
 
 package typesCfg
 
-type Config struct {
-	Node      `yaml:"Node"`
-	MainChain *Chain `yaml:"MainChain"`
-	DualChain *Chain `yaml:"DualChain,omitempty"`
-}
+import (
+	"crypto/ecdsa"
+	"time"
+
+	"github.com/kardiachain/go-kardiamain/lib/common"
+)
 
 type (
 	Node struct {
-		P2P              P2P      `yaml:"P2P"`
+		P2P              P2P      `yaml:"P2P" validate:"required"`
 		LogLevel         string   `yaml:"LogLevel"`
 		Name             string   `yaml:"Name"`
 		DataDir          string   `yaml:"DataDir"`
@@ -36,7 +37,8 @@ type (
 		HTTPVirtualHosts []string `yaml:"HTTPVirtualHosts"`
 		HTTPCors         []string `yaml:"HTTPCors"`
 		Metrics          uint     `yaml:"Metrics"`
-		Genesis          *Genesis `yaml:"Genesis,omitempty"`
+		Genesis          *Genesis `yaml:"Genesis,omitempty" validate:"required"`
+		Debug            *Debug   `yaml:"Debug,omitempty" `
 	}
 	Chain struct {
 		ServiceName        string     `yaml:"ServiceName"`
@@ -55,30 +57,6 @@ type (
 		SubscribedEndpoint *string    `yaml:"SubscribedEndpoint,omitempty"`
 		Consensus          *Consensus `yaml:"Consensus"`
 	}
-	Genesis struct {
-		Addresses       []string            `yaml:"Addresses"`
-		GenesisAmount   string              `yaml:"GenesisAmount"`
-		Contracts       map[string]Contract `yaml:"Contracts"`
-		Validators      []*Validator        `yaml:"Validators"`
-		ConsensusParams *ConsensusParams    `yaml:"ConsensusParams"`
-		Consensus       *Consensus          `yaml:"Consensus"`
-		ChainConfig     *ChainConfig        `yaml:"ChainConfig"`
-		TxPool          *Pool               `yaml:"TxPool,omitempty"`
-	}
-	Contract struct {
-		Address  string `yaml:"Address"`
-		ByteCode string `yaml:"ByteCode"`
-		ABI      string `yaml:"ABI,omitempty"`
-	}
-	Pool struct {
-		AccountSlots  uint64 `yaml:"AccountSlots"`
-		AccountQueue  uint64 `yaml:"AccountQueue"`
-		GlobalSlots   uint64 `yaml:"GlobalSlots"`
-		GlobalQueue   uint64 `yaml:"GlobalQueue"`
-		BlockSize     int    `yaml:"BlockSize,omitempty"`
-		Broadcast     bool   `yaml:"Broadcast"`
-		MaxBatchBytes int    `yaml:"MaxBatchBytes"`
-	}
 	Database struct {
 		Type    uint   `yaml:"Type"`
 		Dir     string `yaml:"Dir"`
@@ -91,6 +69,46 @@ type (
 		ContractAddress     string  `yaml:"ContractAddress"`
 		MasterABI           *string `yaml:"MasterABI"`
 		ABI                 *string `yaml:"ABI,omitempty"`
+	}
+	P2P struct {
+		ListenAddress string `yaml:"ListenAddress"`
+		PrivateKey    string `yaml:"PrivateKey"`
+	}
+	Debug struct {
+		Port string `yaml:"Port"`
+	}
+	BaseAccount struct {
+		Address    common.Address `json:"address"`
+		PrivateKey ecdsa.PrivateKey
+	}
+)
+
+//region Genesis
+type Genesis struct {
+	Addresses       []string            `yaml:"Addresses"`
+	GenesisAmount   string              `yaml:"GenesisAmount"`
+	Contracts       map[string]Contract `yaml:"Contracts" `
+	Validators      []*Validator        `yaml:"Validators"`
+	ConsensusParams *ConsensusParams    `yaml:"ConsensusParams"`
+	Consensus       *Consensus          `yaml:"Consensus"`
+	ChainConfig     *ChainConfig        `yaml:"ChainConfig"`
+	TxPool          *Pool               `yaml:"TxPool,omitempty"`
+}
+
+type (
+	Pool struct {
+		AccountSlots  uint64 `yaml:"AccountSlots"`
+		AccountQueue  uint64 `yaml:"AccountQueue"`
+		GlobalSlots   uint64 `yaml:"GlobalSlots"`
+		GlobalQueue   uint64 `yaml:"GlobalQueue"`
+		BlockSize     int    `yaml:"BlockSize,omitempty"`
+		Broadcast     bool   `yaml:"Broadcast"`
+		MaxBatchBytes int    `yaml:"MaxBatchBytes"`
+	}
+	Contract struct {
+		Address  string `yaml:"Address"`
+		ByteCode string `yaml:"ByteCode"`
+		ABI      string `yaml:"ABI,omitempty"`
 	}
 	Consensus struct {
 		// All timeouts are in milliseconds
@@ -127,16 +145,78 @@ type (
 		MaxAgeDuration  int   `yaml:"MaxAgeDuration"`
 		MaxBytes        int64 `yaml:"MaxBytes"`
 	}
-	P2P struct {
-		ListenAddress string `yaml:"ListenAddress"`
-		PrivateKey    string `yaml:"PrivateKey"`
-	}
-	Debug struct {
-		Port string `yaml:"Port"`
-	}
 	Validator struct {
 		Address string `json:"address" yaml:"Address"`
 		Power   int64  `json:"power" yaml:"Power"`
 		Name    string `json:"name" yaml:"Name"`
 	}
 )
+
+// ConsensusConfig defines the configuration for the Kardia consensus service,
+// including timeouts and details about the block structure.
+// All loader should convert to this object despite of which source
+type ConsensusConfig struct {
+	// All timeouts are in milliseconds
+	TimeoutPropose        time.Duration `mapstructure:"timeout_propose"`
+	TimeoutProposeDelta   time.Duration `mapstructure:"timeout_propose_delta"`
+	TimeoutPrevote        time.Duration `mapstructure:"timeout_prevote"`
+	TimeoutPrevoteDelta   time.Duration `mapstructure:"timeout_prevote_delta"`
+	TimeoutPrecommit      time.Duration `mapstructure:"timeout_precommit"`
+	TimeoutPrecommitDelta time.Duration `mapstructure:"timeout_precommit_delta"`
+	TimeoutCommit         time.Duration `mapstructure:"timeout_commit"`
+
+	// Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
+	IsSkipTimeoutCommit bool `mapstructure:"is_skip_timeout_commit"`
+
+	// EmptyBlocks mode and possible interval between empty blocks in seconds
+	IsCreateEmptyBlocks       bool          `mapstructure:"is_create_empty_blocks"`
+	CreateEmptyBlocksInterval time.Duration `mapstructure:"create_empty_blocks_interval"`
+
+	// Reactor sleep duration parameters are in milliseconds
+	PeerGossipSleepDuration     time.Duration `mapstructure:"peer_gossip_sleep_duration"`
+	PeerQueryMaj23SleepDuration time.Duration `mapstructure:"peer_query_maj23_sleep_duration"`
+}
+
+// WaitForTxs returns true if the consensus should wait for transactions before entering the propose step
+func (cfg *ConsensusConfig) WaitForTxs() bool {
+	return !cfg.IsCreateEmptyBlocks || cfg.CreateEmptyBlocksInterval > 0
+}
+
+// Commit returns the amount of time to wait for straggler votes after receiving +2/3 precommits for a single block (ie. a commit).
+func (cfg *ConsensusConfig) Commit(t time.Time) time.Time {
+	return t.Add(cfg.TimeoutCommit)
+}
+
+// Propose returns the amount of time to wait for a proposal
+func (cfg *ConsensusConfig) Propose(round uint32) time.Duration {
+	return time.Duration(
+		cfg.TimeoutPropose.Nanoseconds()+cfg.TimeoutProposeDelta.Nanoseconds()*int64(round),
+	) * time.Nanosecond
+}
+
+// Prevote returns the amount of time to wait for straggler votes after receiving any +2/3 prevotes
+func (cfg *ConsensusConfig) Prevote(round uint32) time.Duration {
+	return time.Duration(
+		cfg.TimeoutPrevote.Nanoseconds()+cfg.TimeoutPrevoteDelta.Nanoseconds()*int64(round),
+	) * time.Nanosecond
+}
+
+// Precommit returns the amount of time to wait for straggler votes after receiving any +2/3 precommits
+func (cfg *ConsensusConfig) Precommit(round uint32) time.Duration {
+	return time.Duration(
+		cfg.TimeoutPrecommit.Nanoseconds()+cfg.TimeoutPrecommitDelta.Nanoseconds()*int64(round),
+	) * time.Nanosecond
+}
+
+// PeerGossipSleep returns the amount of time to sleep if there is nothing to send from the ConsensusReactor
+func (cfg *ConsensusConfig) PeerGossipSleep() time.Duration {
+	return cfg.PeerGossipSleepDuration
+}
+
+// PeerQueryMaj23Sleep returns the amount of time to sleep after each VoteSetMaj23Message is sent in the ConsensusReactor
+func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
+	return cfg.PeerQueryMaj23SleepDuration
+}
+
+// ======================= Genesis Utils Functions =======================
+//endregion Genesis
