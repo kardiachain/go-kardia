@@ -23,7 +23,9 @@ import (
 	"errors"
 
 	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -46,6 +48,7 @@ type APIBackend interface {
 	BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo
 	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
 	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
+	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error)
 }
 
 func (k *KardiaService) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header {
@@ -145,4 +148,11 @@ func (k *KardiaService) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 		return stateDb, header, err
 	}
 	return nil, nil, ErrInvalidArguments
+}
+
+func (k *KardiaService) GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error) {
+	vmError := func() error { return nil }
+
+	context := vm.NewKVMContext(msg, header, k.BlockChain())
+	return kvm.NewKVM(context, state, *k.blockchain.GetVMConfig()), vmError, nil
 }
