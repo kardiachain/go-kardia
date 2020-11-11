@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"sync/atomic"
 
@@ -439,21 +440,42 @@ type CallArgsJSON struct {
 
 // CallArgs represents the arguments for a call.
 type CallArgs struct {
-	From     common.Address  `json:"from"`
+	From     *common.Address `json:"from"`
 	To       *common.Address `json:"to"`
 	Gas      uint64          `json:"gas"`
 	GasPrice *big.Int        `json:"gasPrice"`
 	Value    *big.Int        `json:"value"`
-	Data     common.Bytes    `json:"data"`
+	Data     *common.Bytes   `json:"data"`
 }
 
-func NewArgs(json CallArgsJSON) *CallArgs {
-	callArgs := new(CallArgs)
-	address := common.HexToAddress(json.To)
-	callArgs.To = &address
-	callArgs.Gas = json.Gas
-	callArgs.GasPrice = json.GasPrice
-	callArgs.Data = common.FromHex(json.Data)
-	callArgs.Value = &json.Value
-	return callArgs
+// ToMessage converts CallArgs to the Message type used by the core evm
+func (args *CallArgs) ToMessage() Message {
+	// Set sender address or use zero address if none specified.
+	var addr common.Address
+	if args.From != nil {
+		addr = *args.From
+	}
+
+	gas := uint64(0)
+	// Set default gas & gas price if none were set
+	if args.Gas == 0 {
+		gas = uint64(math.MaxUint64 / 2)
+	}
+	gasPrice := new(big.Int)
+	if args.GasPrice != nil {
+		gasPrice = args.GasPrice
+	}
+
+	value := new(big.Int)
+	if args.Value != nil {
+		value = args.Value
+	}
+
+	var data []byte
+	if args.Data != nil {
+		data = []byte(*args.Data)
+	}
+
+	msg := NewMessage(addr, args.To, 0, value, gas, gasPrice, data, false)
+	return msg
 }

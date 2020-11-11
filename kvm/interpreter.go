@@ -114,9 +114,10 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 	}
 
 	var (
-		op          OpCode        // current opcode
-		mem         = NewMemory() // bound memory
-		stack       = newstack()  // local stack
+		op          OpCode             // current opcode
+		mem         = NewMemory()      // bound memory
+		stack       = newstack()       // local stack
+		returns     = newReturnStack() // local returns stack
 		callContext = &callCtx{
 			memory:   mem,
 			stack:    stack,
@@ -127,30 +128,33 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		// to be uint256. Practically much less so feasible.
 		pc   = uint64(0) // program counter
 		cost uint64
-		/* TODO(huny@): Add tracer later
 		// copies used by tracer
 		pcCopy  uint64 // needed for the deferred Tracer
 		gasCopy uint64 // for Tracer to log gas remaining before execution
 		logged  bool   // deferred Tracer should ignore already logged steps
-		*/
-		res []byte // result of the opcode execution function
+		res     []byte // result of the opcode execution function
 
 	)
+	// Don't move this deferrred function, it's placed before the capturestate-deferred method,
+	// so that it get's executed _after_: the capturestate needs the stacks before
+	// they are returned to the pools
+	defer func() {
+		returnStack(stack)
+		returnRStack(returns)
+	}()
 	contract.Input = input
 
-	/* TODO(huny@): Add tracer later
 	if in.cfg.Debug {
 		defer func() {
 			if err != nil {
 				if !logged {
-					in.cfg.Tracer.CaptureState(in.kvm, pcCopy, op, gasCopy, cost, mem, stack, contract, in.kvm.depth, err)
+					in.cfg.Tracer.CaptureState(in.kvm, pcCopy, op, gasCopy, cost, mem, stack, returns, in.returnData, contract, in.kvm.depth, err)
 				} else {
-					in.cfg.Tracer.CaptureFault(in.kvm, pcCopy, op, gasCopy, cost, mem, stack, contract, in.kvm.depth, err)
+					in.cfg.Tracer.CaptureFault(in.kvm, pcCopy, op, gasCopy, cost, mem, stack, returns, contract, in.kvm.depth, err)
 				}
 			}
 		}()
 	}
-	*/
 
 	// The Interpreter main run loop (contextual). This loop runs until either an
 	// explicit STOP, RETURN or SELFDESTRUCT is executed, an error occurred during

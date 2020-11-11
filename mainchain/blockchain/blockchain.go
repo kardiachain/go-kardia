@@ -73,6 +73,7 @@ type BlockChain struct {
 	quit chan struct{} // blockchain quit channel
 
 	processor *StateProcessor // block processor
+	vmConfig  kvm.Config      // vm configurations
 
 	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
 	IsZeroFee bool
@@ -82,6 +83,11 @@ type BlockChain struct {
 
 	// permissioned is used to call permissioned smartcontract to check whether a node has permission to access chain or not
 	permissioned *permissioned.PermissionSmcUtil
+}
+
+// GetVMConfig returns the block chain VM config.
+func (bc *BlockChain) GetVMConfig() *kvm.Config {
+	return &bc.vmConfig
 }
 
 // IsPrivate returns whether a blockchain is private or not

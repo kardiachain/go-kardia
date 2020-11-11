@@ -19,6 +19,7 @@
 package kvm
 
 import (
+	"fmt"
 	"math/big"
 	"time"
 
@@ -333,6 +334,7 @@ func (c *codeAndHash) Hash() common.Hash {
 func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
+	fmt.Println("new contract address", address.Hex())
 	if kvm.depth > int(configs.CallCreateDepth) {
 		return nil, common.Address{}, gas, ErrDepth
 	}
@@ -382,6 +384,7 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		createDataGas := uint64(len(ret)) * configs.CreateDataGas
 		if contract.UseGas(createDataGas) {
 			kvm.StateDB.SetCode(address, ret)
+			fmt.Println("set code completed")
 		} else {
 			err = ErrCodeStoreOutOfGas
 		}
