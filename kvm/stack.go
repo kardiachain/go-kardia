@@ -25,6 +25,12 @@ import (
 	"github.com/kardiachain/go-kardiamain/configs"
 )
 
+var stackPool = sync.Pool{
+	New: func() interface{} {
+		return &Stack{data: make([]uint256.Int, 0, 16)}
+	},
+}
+
 // Stack is an object for basic stack operations. Items popped to the stack are
 // expected to be changed and modified. stack does not take care of adding newly
 // initialised objects.
@@ -33,7 +39,12 @@ type Stack struct {
 }
 
 func newstack() *Stack {
-	return &Stack{data: make([]uint256.Int, 0, 16)}
+	return stackPool.Get().(*Stack)
+}
+
+func returnStack(s *Stack) {
+	s.data = s.data[:0]
+	stackPool.Put(s)
 }
 
 // Data returns the underlying big.Int array.
