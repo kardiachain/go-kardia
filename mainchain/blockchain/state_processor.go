@@ -128,7 +128,7 @@ func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, 
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 
-	return receipt, result.UsedGas, result.Err
+	return receipt, result.UsedGas, err
 }
 
 /*

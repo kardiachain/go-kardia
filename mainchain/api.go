@@ -558,7 +558,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgs, blockNrO
 		return result, fmt.Errorf("err: %w (supplied gas %d)", err, msg.Gas())
 	}
 
-	return result, err
+	return result, nil
 }
 
 // EstimateGas returns an estimate of the amount of gas needed to execute the
