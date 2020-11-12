@@ -323,7 +323,7 @@ func newRevertError(result *kvm.ExecutionResult) *revertError {
 // KardiaCall execute a contract method call only against
 // state on the local node. No tx is generated and submitted
 // onto the blockchain
-func (s *PublicKaiAPI) KardiaCall(ctx context.Context, args types.CallArgs, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
+func (s *PublicKaiAPI) KardiaCall(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
 	result, err := s.doCall(ctx, args, blockNrOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall*time.Second)
 	if err != nil {
 		return nil, err
@@ -497,7 +497,7 @@ func (a *PublicAccountAPI) GetStorageAt(ctx context.Context, address common.Addr
 
 // doCall is an interface to make smart contract call against the state of local node
 // No tx is generated or submitted to the blockchain
-func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgs, blockNrOrHash rpc.BlockNumberOrHash, vmCfg kvm.Config, timeout time.Duration) (*kvm.ExecutionResult, error) {
+func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash, vmCfg kvm.Config, timeout time.Duration) (*kvm.ExecutionResult, error) {
 	defer func(start time.Time) { log.Debug("Executing KVM call finished", "runtime", time.Since(start)) }(time.Now())
 
 	state, header, err := s.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
@@ -563,7 +563,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgs, blockNrO
 
 // EstimateGas returns an estimate of the amount of gas needed to execute the
 // given transaction against the current pending block.
-func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgs, blockNrOrHash rpc.BlockNumberOrHash) (uint64, error) {
+func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash) (uint64, error) {
 	// Binary search the gas requirement, as it may be higher than the amount used
 	var (
 		lo  = configs.TxGas - 1
@@ -571,9 +571,10 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgs, blo
 		cap uint64
 	)
 	// Use zero address if sender unspecified.
-	if args.From == nil {
-		args.From = new(common.Address)
+	if args.From == "" {
+		args.From = configs.GenesisDeployerAddr.Hex()
 	}
+
 	if args.Gas >= params.TxGas {
 		hi = args.Gas
 	} else {

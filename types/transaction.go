@@ -429,6 +429,16 @@ func (m Message) Nonce() uint64        { return m.nonce }
 func (m Message) Data() []byte         { return m.data }
 func (m Message) CheckNonce() bool     { return m.checkNonce }
 
+// CallArgs represents the arguments for a call.
+type CallArgs struct {
+	From     *common.Address `json:"from"`
+	To       *common.Address `json:"to"`
+	Gas      uint64          `json:"gas"`
+	GasPrice *big.Int        `json:"gasPrice"`
+	Value    *big.Int        `json:"value"`
+	Data     common.Bytes    `json:"data"`
+}
+
 type CallArgsJSON struct {
 	From     string   `json:"from"`     // the sender of the 'transaction'
 	To       string   `json:"to"`       // the destination contract (nil for contract creation)
@@ -438,44 +448,40 @@ type CallArgsJSON struct {
 	Data     string   `json:"data"`     // input data, usually an ABI-encoded contract method invocation
 }
 
-// CallArgs represents the arguments for a call.
-type CallArgs struct {
-	From     *common.Address `json:"from"`
-	To       *common.Address `json:"to"`
-	Gas      uint64          `json:"gas"`
-	GasPrice *big.Int        `json:"gasPrice"`
-	Value    *big.Int        `json:"value"`
-	Data     *common.Bytes   `json:"data"`
-}
-
 // ToMessage converts CallArgs to the Message type used by the core evm
-func (args *CallArgs) ToMessage() Message {
+func (args *CallArgsJSON) ToMessage() Message {
+	callArgs := new(CallArgs)
+	address := common.HexToAddress(args.To)
+	callArgs.To = &address
+	callArgs.Gas = args.Gas
+	callArgs.GasPrice = args.GasPrice
+	callArgs.Data = common.FromHex(args.Data)
+	callArgs.Value = &args.Value
+
 	// Set sender address or use zero address if none specified.
 	var addr common.Address
-	if args.From != nil {
-		addr = *args.From
+	if callArgs.From != nil {
+		addr = *callArgs.From
 	}
-
 	gas := uint64(0)
 	// Set default gas & gas price if none were set
-	if args.Gas == 0 {
+	if callArgs.Gas == 0 {
 		gas = uint64(math.MaxUint64 / 2)
 	}
 	gasPrice := new(big.Int)
-	if args.GasPrice != nil {
-		gasPrice = args.GasPrice
+	if callArgs.GasPrice != nil {
+		gasPrice = callArgs.GasPrice
 	}
-
 	value := new(big.Int)
-	if args.Value != nil {
-		value = args.Value
+	if callArgs.Value != nil {
+		value = callArgs.Value
 	}
 
-	var data []byte
-	if args.Data != nil {
-		data = []byte(*args.Data)
+	var data common.Bytes
+	if callArgs.Data != nil {
+		data = callArgs.Data
 	}
 
-	msg := NewMessage(addr, args.To, 0, value, gas, gasPrice, data, false)
+	msg := NewMessage(addr, callArgs.To, 0, value, gas, gasPrice, data, false)
 	return msg
 }
