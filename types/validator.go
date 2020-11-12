@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
@@ -168,9 +169,8 @@ func ValidatorFromProto(vp *kproto.Validator) (*Validator, error) {
 // RandValidator
 
 // RandValidator returns a randomized validator, useful for testing.
-// UNSTABLE
-// EXPOSED FOR TESTING.
 func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
+	rand.Seed(time.Now().UnixNano())
 	privVal := NewMockPV()
 	votePower := minPower
 	if randPower {
@@ -181,7 +181,9 @@ func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
 	return val, privVal
 }
 
+// RandValidatorCS return a random validator for unit test
 func RandValidatorCS(randPower bool, minPower int64) (*Validator, *DefaultPrivValidator) {
+	rand.Seed(time.Now().UnixNano())
 	privKey, _ := crypto.GenerateKey()
 	votePower := minPower
 	if randPower {

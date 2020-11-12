@@ -27,6 +27,7 @@ import (
 	"reflect"
 	"testing"
 	"testing/quick"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 
@@ -383,6 +384,7 @@ const (
 )
 
 func (randTest) Generate(r *rand.Rand, size int) reflect.Value {
+	r.Seed(time.Now().UnixNano())
 	var allKeys [][]byte
 	genKey := func() []byte {
 		if len(allKeys) < 2 || r.Intn(100) < 10 {
@@ -648,7 +650,7 @@ func TestCommitAfterHash(t *testing.T) {
 
 func makeAccounts(size int) (addresses [][20]byte, accounts [][]byte) {
 	// Make the random benchmark deterministic
-	random := rand.New(rand.NewSource(0))
+	random := rand.New(rand.NewSource(time.Now().UnixNano()))
 	// Create a realistic account trie to hash
 	addresses = make([][20]byte, size)
 	for i := 0; i < len(addresses); i++ {

@@ -26,8 +26,10 @@ import (
 	"math/rand"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+
 	"github.com/kardiachain/go-kardiamain/lib/crypto/sha3"
 )
 
@@ -137,6 +139,7 @@ func (h *Hash) SetBytes(b []byte) {
 
 // Generate implements testing/quick.Generator.
 func (h Hash) Generate(rand *rand.Rand, size int) reflect.Value {
+	rand.Seed(time.Now().UnixNano())
 	m := rand.Intn(len(h))
 	for i := len(h) - 1; i > m; i-- {
 		h[i] = byte(rand.Uint32())

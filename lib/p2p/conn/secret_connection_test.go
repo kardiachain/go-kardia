@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -108,6 +109,7 @@ func (drw kvstoreConn) Close() (err error) {
 // }
 
 func TestSecretConnectionReadWrite(t *testing.T) {
+	tmrand.Seed(time.Now().UnixNano())
 	fooConn, barConn := makeKVStoreConnPair()
 	fooWrites, barWrites := []string{}, []string{}
 	fooReads, barReads := []string{}, []string{}
