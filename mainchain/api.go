@@ -436,7 +436,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 		return nil, nil
 	}
 	// get receipts from db
-	blockInfo := a.s.APIBackend.BlockInfoByBlockHash(ctx, blockHash)
+	blockInfo := a.s.BlockInfoByBlockHash(ctx, blockHash)
 	if blockInfo == nil {
 		return nil, errors.New("block info not found")
 	}
@@ -474,25 +474,25 @@ func (a *PublicAccountAPI) Nonce(address string) (uint64, error) {
 }
 
 // GetCode returns the code stored at the given address in the state for the given block number.
-func (a *PublicAccountAPI) GetCode(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (string, error) {
+func (a *PublicAccountAPI) GetCode(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
 	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
-		return "", err
+		return nil, err
 	}
 	code := state.GetCode(address)
-	return "0x" + common.Bytes2Hex(code), state.Error()
+	return code, state.Error()
 }
 
 // GetStorageAt returns the storage from the state at the given address, key and
 // block number. The rpc.LatestBlockNumber and rpc.PendingBlockNumber meta block
 // numbers are also allowed.
-func (a *PublicAccountAPI) GetStorageAt(ctx context.Context, address common.Address, key string, blockNrOrHash rpc.BlockNumberOrHash) (string, error) {
+func (a *PublicAccountAPI) GetStorageAt(ctx context.Context, address common.Address, key string, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
 	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
-		return "nil", err
+		return nil, err
 	}
 	res := state.GetState(address, common.HexToHash(key))
-	return res.Hex(), state.Error()
+	return res[:], state.Error()
 }
 
 // doCall is an interface to make smart contract call against the state of local node
@@ -558,7 +558,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgs, blockNrO
 		return result, fmt.Errorf("err: %w (supplied gas %d)", err, msg.Gas())
 	}
 
-	return result, err
+	return result, nil
 }
 
 // EstimateGas returns an estimate of the amount of gas needed to execute the

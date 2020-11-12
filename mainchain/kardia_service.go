@@ -71,8 +71,6 @@ type KardiaService struct {
 	networkID uint64
 
 	eventBus *types.EventBus
-
-	APIBackend APIBackend
 }
 
 func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
