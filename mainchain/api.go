@@ -436,7 +436,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 		return nil, nil
 	}
 	// get receipts from db
-	blockInfo := a.s.APIBackend.BlockInfoByBlockHash(ctx, blockHash)
+	blockInfo := a.s.BlockInfoByBlockHash(ctx, blockHash)
 	if blockInfo == nil {
 		return nil, errors.New("block info not found")
 	}
