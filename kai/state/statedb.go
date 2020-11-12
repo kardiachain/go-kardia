@@ -39,8 +39,8 @@ type revision struct {
 }
 
 var (
-	// emptyState is the known hash of an empty state trie entry.
-	emptyState = crypto.Keccak256Hash(nil)
+	// emptyRoot is the known root hash of an empty trie.
+	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 
 	// emptyCode is the known hash of the empty EVM bytecode.
 	emptyCode = crypto.Keccak256Hash(nil)
@@ -105,53 +105,12 @@ func New(logger log.Logger, root common.Hash, db Database) (*StateDB, error) {
 	}, nil
 }
 
-// Retrieve a state object or create a new state object if nil.
-func (sdb *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
-	stateObject := sdb.getStateObject(addr)
-	if stateObject == nil || stateObject.deleted {
-		stateObject, _ = sdb.createObject(addr)
-	}
-	return stateObject
-}
-
 // Prepare sets the current transaction hash and index and block hash which is
 // used when the KVM emits new state logs.
 func (sdb *StateDB) Prepare(thash, bhash common.Hash, ti int) {
 	sdb.thash = thash
 	sdb.bhash = bhash
 	sdb.txIndex = ti
-}
-
-// CreateAccount explicitly creates a state object. If a state object with the address
-// already exists the balance is carried over to the new account.
-//
-// CreateAccount is called during the KVM CREATE operation. The situation might arise that
-// a contract does the following:
-//
-//   1. sends funds to sha(account ++ (nonce + 1))
-//   2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
-//
-// Carrying over the balance ensures that Kai doesn't disappear.
-func (sdb *StateDB) CreateAccount(addr common.Address) {
-	newState, prev := sdb.createObject(addr)
-	if prev != nil {
-		newState.setBalance(prev.data.Balance)
-	}
-}
-
-// createObject creates a new state object. If there is an existing account with
-// the given address, it is overwritten and returned as the second return value.
-func (sdb *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) {
-	prev = sdb.getStateObject(addr)
-	newobj = newObject(sdb, addr, Account{})
-	newobj.setNonce(0) // sets the object to dirty
-	if prev == nil {
-		sdb.journal.append(createObjectChange{account: &addr})
-	} else {
-		sdb.journal.append(resetObjectChange{prev: prev})
-	}
-	sdb.setStateObject(newobj)
-	return newobj, prev
 }
 
 // Copy creates a deep, independent copy of the state.
@@ -347,29 +306,42 @@ func (sdb *StateDB) Error() error {
 	return sdb.dbErr
 }
 
-// Retrieve a state object given by the address. Returns nil if not found.
+// getStateObject retrieves a state object given by the address, returning nil if
+// the object is not found or was deleted in this execution context. If you need
+// to differentiate between non-existent/just-deleted, use getDeletedStateObject.
 func (sdb *StateDB) getStateObject(addr common.Address) (stateObject *stateObject) {
-	// Prefer 'live' objects.
+	if obj := sdb.getDeletedStateObject(addr); obj != nil && !obj.deleted {
+		return obj
+	}
+	return nil
+}
+
+// getDeletedStateObject is similar to getStateObject, but instead of returning
+// nil for a deleted state object, it returns the actual object with the deleted
+// flag set. This is needed by the state journal to revert to the correct s-
+// destructed object instead of wiping all knowledge about the state object.
+func (sdb *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
+	// Prefer live objects if any is available
 	if obj := sdb.stateObjects[addr]; obj != nil {
-		if obj.deleted {
-			return nil
-		}
 		return obj
 	}
 
-	// Load the object from the database.
-	enc, err := sdb.trie.TryGet(addr[:])
+	var data *Account
+	enc, err := sdb.trie.TryGet(addr.Bytes())
+	if err != nil {
+		sdb.setError(fmt.Errorf("getDeleteStateObject (%x) error: %v", addr.Bytes(), err))
+		return nil
+	}
 	if len(enc) == 0 {
-		sdb.setError(err)
 		return nil
 	}
-	var data Account
-	if err := rlp.DecodeBytes(enc, &data); err != nil {
-		sdb.logger.Error("Failed to decode state object", "addr", addr, "err", err)
+	data = new(Account)
+	if err := rlp.DecodeBytes(enc, data); err != nil {
+		log.Error("Failed to decode state object", "addr", addr, "err", err)
 		return nil
 	}
-	// Insert into the live set.
-	obj := newObject(sdb, addr, data)
+	// Insert into the live set
+	obj := newObject(sdb, addr, *data)
 	sdb.setStateObject(obj)
 	return obj
 }
@@ -378,6 +350,31 @@ func (sdb *StateDB) setStateObject(object *stateObject) {
 	sdb.lock.Lock()
 	sdb.stateObjects[object.Address()] = object
 	sdb.lock.Unlock()
+}
+
+// Retrieve a state object or create a new state object if nil.
+func (s *StateDB) GetOrNewStateObject(addr common.Address) *stateObject {
+	stateObject := s.getStateObject(addr)
+	if stateObject == nil {
+		stateObject, _ = s.createObject(addr)
+	}
+	return stateObject
+}
+
+// createObject creates a new state object. If there is an existing account with
+// the given address, it is overwritten and returned as the second return value.
+func (s *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) {
+	prev = s.getDeletedStateObject(addr) // Note, prev might have been deleted, we need that!
+
+	newobj = newObject(s, addr, Account{})
+	newobj.setNonce(0) // sets the object to dirty
+	if prev == nil {
+		s.journal.append(createObjectChange{account: &addr})
+	} else {
+		s.journal.append(resetObjectChange{prev: prev})
+	}
+	s.setStateObject(newobj)
+	return newobj, prev
 }
 
 // deleteStateObject removes the given object from the state trie.
@@ -395,6 +392,23 @@ func (sdb *StateDB) updateStateObject(stateObject *stateObject) {
 		panic(fmt.Errorf("can't encode object at %x: %v", addr[:], err))
 	}
 	sdb.setError(sdb.trie.TryUpdate(addr[:], data))
+}
+
+// CreateAccount explicitly creates a state object. If a state object with the address
+// already exists the balance is carried over to the new account.
+//
+// CreateAccount is called during the EVM CREATE operation. The situation might arise that
+// a contract does the following:
+//
+//   1. sends funds to sha(account ++ (nonce + 1))
+//   2. tx_create(sha(account ++ nonce)) (note that this gets the address of 1)
+//
+// Carrying over the balance ensures that Ether doesn't disappear.
+func (sdb *StateDB) CreateAccount(addr common.Address) {
+	newObj, prev := sdb.createObject(addr)
+	if prev != nil {
+		newObj.setBalance(prev.data.Balance)
+	}
 }
 
 // GetRefund returns the current value of the refund counter.
@@ -444,7 +458,7 @@ func (sdb *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error
 		if err := rlp.DecodeBytes(leaf, &account); err != nil {
 			return nil
 		}
-		if account.Root != emptyState {
+		if account.Root != emptyRoot {
 			sdb.db.TrieDB().Reference(account.Root, parent)
 		}
 		code := common.BytesToHash(account.CodeHash)

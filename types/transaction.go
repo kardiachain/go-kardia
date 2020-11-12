@@ -459,10 +459,17 @@ func (args *CallArgsJSON) ToMessage() Message {
 	callArgs.Value = &args.Value
 
 	// Set sender address or use zero address if none specified.
-	var addr common.Address
+	var fromAddr common.Address
 	if callArgs.From != nil {
-		addr = *callArgs.From
+		fromAddr = *callArgs.From
 	}
+
+	// Set receiver address or use zero address if none specified.
+	var toAddr *common.Address
+	if callArgs.To.Equal(common.Address{}) {
+		toAddr = nil
+	}
+
 	gas := uint64(0)
 	// Set default gas & gas price if none were set
 	if callArgs.Gas == 0 {
@@ -482,6 +489,6 @@ func (args *CallArgsJSON) ToMessage() Message {
 		data = callArgs.Data
 	}
 
-	msg := NewMessage(addr, callArgs.To, 0, value, gas, gasPrice, data, false)
+	msg := NewMessage(fromAddr, toAddr, 0, value, gas, gasPrice, data, false)
 	return msg
 }

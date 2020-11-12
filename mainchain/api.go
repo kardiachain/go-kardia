@@ -572,7 +572,7 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 	)
 	// Use zero address if sender unspecified.
 	if args.From == "" {
-		args.From = configs.GenesisDeployerAddr.Hex()
+		args.From = new(common.Address).String()
 	}
 
 	if args.Gas >= params.TxGas {
@@ -585,7 +585,6 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 		}
 		hi = block.GasLimit()
 	}
-
 	cap = hi
 
 	// Create a helper to check if a gas allowance results in an executable transactioEstimateGas(cn

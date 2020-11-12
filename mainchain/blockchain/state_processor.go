@@ -265,6 +265,7 @@ func (st *StateTransition) TransitionDb() (*kvm.ExecutionResult, error) {
 	}
 	msg := st.msg
 	sender := kvm.AccountRef(msg.From())
+
 	contractCreation := msg.To() == nil
 
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
