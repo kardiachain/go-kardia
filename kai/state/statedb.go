@@ -183,7 +183,7 @@ func (sdb *StateDB) GetLogs(hash common.Hash) []*types.Log {
 func (sdb *StateDB) GetNonce(addr common.Address) uint64 {
 	stateObject := sdb.getStateObject(addr)
 	if stateObject != nil {
-		return stateObject.Nonce() + 1
+		return stateObject.Nonce()
 	}
 
 	return 0
