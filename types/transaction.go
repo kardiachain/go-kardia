@@ -27,6 +27,7 @@ import (
 	"math/big"
 	"sync/atomic"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
@@ -441,54 +442,37 @@ type CallArgs struct {
 
 type CallArgsJSON struct {
 	From     string   `json:"from"`     // the sender of the 'transaction'
-	To       string   `json:"to"`       // the destination contract (nil for contract creation)
+	To       *string  `json:"to"`       // the destination contract (nil for contract creation)
 	Gas      uint64   `json:"gas"`      // if 0, the call executes with near-infinite gas
 	GasPrice *big.Int `json:"gasPrice"` // wei <-> gas exchange ratio
-	Value    big.Int  `json:"value"`    // amount of wei sent along with the call
+	Value    *big.Int `json:"value"`    // amount of wei sent along with the call
 	Data     string   `json:"data"`     // input data, usually an ABI-encoded contract method invocation
 }
 
 // ToMessage converts CallArgs to the Message type used by the core evm
 func (args *CallArgsJSON) ToMessage() Message {
 	callArgs := new(CallArgs)
-	address := common.HexToAddress(args.To)
-	callArgs.To = &address
-	callArgs.Gas = args.Gas
-	callArgs.GasPrice = args.GasPrice
-	callArgs.Data = common.FromHex(args.Data)
-	callArgs.Value = &args.Value
 
-	// Set sender address or use zero address if none specified.
-	var fromAddr common.Address
-	if callArgs.From != nil {
-		fromAddr = *callArgs.From
+	// Set receiver address or use zero address if none specified.
+	fromAddr := common.HexToAddress(args.From)
+	if fromAddr.Equal(common.Address{}) {
+		fromAddr = configs.GenesisDeployerAddr
 	}
 
 	// Set receiver address or use zero address if none specified.
-	var toAddr *common.Address
-	if callArgs.To.Equal(common.Address{}) {
-		toAddr = nil
+	toAddr := common.HexToAddress(*args.To)
+	if args.To != nil {
+		callArgs.To = &toAddr
 	}
 
-	gas := uint64(0)
-	// Set default gas & gas price if none were set
-	if callArgs.Gas == 0 {
-		gas = uint64(math.MaxUint64 / 2)
-	}
-	gasPrice := new(big.Int)
-	if callArgs.GasPrice != nil {
-		gasPrice = callArgs.GasPrice
-	}
-	value := new(big.Int)
-	if callArgs.Value != nil {
-		value = callArgs.Value
+	callArgs.Gas = args.Gas
+	// Set default gas if none were set
+	if args.Gas == 0 {
+		callArgs.Gas = uint64(math.MaxUint64 / 2)
 	}
 
-	var data common.Bytes
-	if callArgs.Data != nil {
-		data = callArgs.Data
-	}
+	callArgs.Data = common.FromHex(args.Data)
 
-	msg := NewMessage(fromAddr, toAddr, 0, value, gas, gasPrice, data, false)
+	msg := NewMessage(fromAddr, &toAddr, 0, args.Value, callArgs.Gas, args.GasPrice, callArgs.Data, false)
 	return msg
 }

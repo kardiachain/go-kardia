@@ -23,7 +23,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/params"
@@ -505,16 +504,6 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, bloc
 		return nil, err
 	}
 
-	// Set default gas & gas price if none were set
-	gas, gasPrice := uint64(args.Gas), args.GasPrice
-
-	if gas == 0 {
-		gas = common.MaxInt64 / 2
-	}
-	if gasPrice.Sign() == 0 {
-		gasPrice = new(big.Int).SetUint64(configs.TxGas)
-	}
-
 	// Setup context so it may be cancelled the call has completed
 	// or, in case of unmetered gas, setup a context with a timeout.
 	var cancel context.CancelFunc
@@ -535,6 +524,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, bloc
 	if err != nil {
 		return nil, err
 	}
+
 	// Wait for the context to be done and cancel the evm. Even if the
 	// EVM has finished, cancelling may be done (repeatedly)
 	go func() {
@@ -571,8 +561,8 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 		cap uint64
 	)
 	// Use zero address if sender unspecified.
-	if args.From == "" {
-		args.From = new(common.Address).String()
+	if (args.From == "") || (common.HexToAddress(args.From) == common.Address{}) {
+		args.From = configs.GenesisDeployerAddr.Hex()
 	}
 
 	if args.Gas >= params.TxGas {

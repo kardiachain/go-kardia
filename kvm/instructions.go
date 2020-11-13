@@ -595,13 +595,17 @@ func opCreate(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	res, addr, returnGas, suberr := kvm.Create(callContext.contract, input, gas, bigVal)
 	// All returned errors including CodeStoreOutOfGasError are treated as error.
 	// KVM run similar to EVM from Homestead ruleset.
-	if suberr != nil {
+	if suberr == ErrCodeStoreOutOfGas {
+		stackvalue.Clear()
+	} else if suberr != nil && suberr != ErrCodeStoreOutOfGas {
 		stackvalue.Clear()
 	} else {
 		stackvalue.SetBytes(addr.Bytes())
 	}
+
 	callContext.stack.push(&stackvalue)
 	callContext.contract.Gas += returnGas
+
 	if suberr == ErrExecutionReverted {
 		return res, nil
 	}
