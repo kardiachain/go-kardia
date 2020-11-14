@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	kevents "github.com/kardiachain/go-kardiamain/lib/events"
@@ -90,12 +91,12 @@ func (conR *ConsensusManager) Validators() []*types.Validator {
 func (conR *ConsensusManager) OnStart() error {
 	conR.Logger.Trace("Consensus manager starts!")
 	conR.subscribeToBroadcastEvents()
-	conR.conS.Start()
-	return nil
+	// Return error in case failed
+	return conR.conS.Start()
 }
 
 func (conR *ConsensusManager) OnStop() {
-	conR.conS.Stop()
+	_ = conR.conS.Stop()
 	conR.unsubscribeFromBroadcastEvents()
 }
 
@@ -314,17 +315,17 @@ func (conR *ConsensusManager) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 // them to peers upon receiving.
 func (conR *ConsensusManager) subscribeToBroadcastEvents() {
 	const subscriber = "consensus-manager"
-	conR.conS.evsw.AddListenerForEvent(subscriber, types.EventNewRoundStep,
+	_ = conR.conS.evsw.AddListenerForEvent(subscriber, types.EventNewRoundStep,
 		func(data kevents.EventData) {
 			conR.broadcastNewRoundStepMessages(data.(*cstypes.RoundState))
 		})
 
-	conR.conS.evsw.AddListenerForEvent(subscriber, types.EventVote,
+	_ = conR.conS.evsw.AddListenerForEvent(subscriber, types.EventVote,
 		func(data kevents.EventData) {
 			conR.broadcastHasVoteMessage(data.(*types.Vote))
 		})
 
-	conR.conS.evsw.AddListenerForEvent(subscriber, types.EventValidBlock,
+	_ = conR.conS.evsw.AddListenerForEvent(subscriber, types.EventValidBlock,
 		func(data kevents.EventData) {
 			conR.broadcastNewValidBlockMessage(data.(*cstypes.RoundState))
 		})
@@ -1313,13 +1314,13 @@ type BlockPartMessage struct {
 // ValidateBasic performs basic validation.
 func (m *BlockPartMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("Negative Height")
+		return errors.New("negative Height")
 	}
 	if m.Round < 0 {
-		return errors.New("Negative Round")
+		return errors.New("negative Round")
 	}
 	if err := m.Part.ValidateBasic(); err != nil {
-		return fmt.Errorf("Wrong Part: %v", err)
+		return fmt.Errorf("wrong Part: %v", err)
 	}
 	return nil
 }
@@ -1345,16 +1346,16 @@ type NewValidBlockMessage struct {
 // ValidateBasic performs basic validation.
 func (m *NewValidBlockMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("Negative Height")
+		return errors.New("negative Height")
 	}
 	if m.Round < 0 {
-		return errors.New("Negative Round")
+		return errors.New("negative Round")
 	}
 	if err := m.BlockPartsHeader.ValidateBasic(); err != nil {
-		return fmt.Errorf("Wrong BlockPartsHeader: %v", err)
+		return fmt.Errorf("wrong BlockPartsHeader: %v", err)
 	}
 	if m.BlockParts.Size() == 0 {
-		return errors.New("Empty BlockParts")
+		return errors.New("empty BlockParts")
 	}
 	if m.BlockParts.Size() != int(m.BlockPartsHeader.Total) {
 		return fmt.Errorf("BlockParts bit array size %d not equal to BlockPartsHeader.Total %d",

@@ -302,8 +302,8 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 
 	blockDB := memorydb.New()
 	kaiDb := kvstore.NewStoreDB(blockDB)
-	genesis := g.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
-	chainConfig, _, genesisErr := setupGenesis(genesis, kaiDb)
+	genesisBlock := g.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
+	chainConfig, _, genesisErr := setupGenesis(genesisBlock, kaiDb)
 	if genesisErr != nil {
 		log.Error("Error setting genesis block", "err", genesisErr)
 		return nil, nil, genesisErr
@@ -330,7 +330,7 @@ func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*Consensu
 		return nil, err
 	}
 
-	staking, _ := staking.NewSmcStakingnUtil()
+	stakingUtil, _ := staking.NewSmcStakingnUtil()
 
 	txConfig := tx_pool.TxPoolConfig{
 		GlobalSlots: 64,
@@ -339,7 +339,7 @@ func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*Consensu
 	txPool := tx_pool.NewTxPool(txConfig, chainConfig, bc)
 	stateStore := cstate.NewStore(kaiDb.DB())
 	evPool, _ := evidence.NewPool(stateStore, kaiDb.DB(), bc)
-	bOper := blockchain.NewBlockOperations(logger, bc, txPool, evPool, staking)
+	bOper := blockchain.NewBlockOperations(logger, bc, txPool, evPool, stakingUtil)
 
 	// evReactor := evidence.NewReactor(evPool)
 	blockExec := cstate.NewBlockExecutor(stateStore, evPool, bOper)
