@@ -19,7 +19,6 @@
 package configs
 
 import (
-	"math/big"
 	"strings"
 	"time"
 
@@ -37,12 +36,12 @@ var (
 	StakingContractAddress common.Address
 )
 
-var (
-	DefaultChainID  = uint64(1)
-	EthDualChainID  = uint64(2)
-	NeoDualChainID  = uint64(3)
-	TronDualChainID = uint64(4)
-)
+//var (
+//	DefaultChainID  = uint64(1)
+//	EthDualChainID  = uint64(2)
+//	NeoDualChainID  = uint64(3)
+//	TronDualChainID = uint64(4)
+//)
 
 // Remove and group into configs/contracts.go
 //var (
@@ -74,23 +73,23 @@ var (
 	}
 
 	// TestChainConfig contains the chain parameters to run unit test.
-	TestChainConfig = &ChainConfig{
-		Kaicon: &KaiconConfig{
-			Period: 15,
-			Epoch:  30000,
-		},
-	}
+	//TestChainConfig = &ChainConfig{
+	//	Kaicon: &KaiconConfig{
+	//		Period: 15,
+	//		Epoch:  30000,
+	//	},
+	//}
 )
 
-func configNumEqual(x, y *big.Int) bool {
-	if x == nil {
-		return y == nil
-	}
-	if y == nil {
-		return x == nil
-	}
-	return x.Cmp(y) == 0
-}
+//func configNumEqual(x, y *big.Int) bool {
+//	if x == nil {
+//		return y == nil
+//	}
+//	if y == nil {
+//		return x == nil
+//	}
+//	return x.Cmp(y) == 0
+//}
 
 type Config struct {
 	Consensus *ConsensusConfig
@@ -115,20 +114,20 @@ func DefaultConsensusParams() *kaiproto.ConsensusParams {
 }
 
 // TestConsensusParams returns a configuration for testing the consensus service
-func TestConsensusParams() *kaiproto.ConsensusParams {
-	csParams := DefaultConsensusParams()
-	csParams.Block = kaiproto.BlockParams{
-		MaxBytes:   104857600,
-		MaxGas:     20000000,
-		TimeIotaMs: 1000,
-	}
-	csParams.Evidence = kaiproto.EvidenceParams{
-		MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
-		MaxAgeDuration:  48 * time.Hour,
-		MaxBytes:        1048576, // 1MB
-	}
-	return csParams
-}
+//func TestConsensusParams() *kaiproto.ConsensusParams {
+//	csParams := DefaultConsensusParams()
+//	csParams.Block = kaiproto.BlockParams{
+//		MaxBytes:   104857600,
+//		MaxGas:     20000000,
+//		TimeIotaMs: 1000,
+//	}
+//	csParams.Evidence = kaiproto.EvidenceParams{
+//		MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
+//		MaxAgeDuration:  48 * time.Hour,
+//		MaxBytes:        1048576, // 1MB
+//	}
+//	return csParams
+//}
 
 // -------- Consensus Config ---------
 
