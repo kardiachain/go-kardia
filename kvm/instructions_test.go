@@ -278,22 +278,6 @@ func getResult(args []*twoOperandParams, opFn executionFunc) []TwoOperandTestcas
 	return result
 }
 
-// utility function to fill the json-file with testcases
-// Enable this test to generate the 'testcases_xx.json' files
-func xTestWriteExpectedValues(t *testing.T) {
-	for name, method := range twoOpMethods {
-		data, err := json.Marshal(getResult(commonParams, method))
-		if err != nil {
-			t.Fatal(err)
-		}
-		_ = ioutil.WriteFile(fmt.Sprintf("testdata/testcases_%v.json", name), data, 0644)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Fatal("This test should not be activated")
-}
-
 // TestJsonTestcases runs through all the testcases defined as json-files
 func TestJsonTestcases(t *testing.T) {
 	for name := range twoOpMethods {

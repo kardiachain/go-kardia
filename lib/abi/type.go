@@ -489,113 +489,6 @@ func reflectIntKindAndType(unsigned bool, size int) (reflect.Kind, reflect.Type)
 	return reflect.Ptr, bigT
 }
 
-// requireAssignable assures that `dest` is a pointer and it's not an interface.
-func requireAssignable(dst, src reflect.Value) error {
-	if dst.Kind() != reflect.Ptr && dst.Kind() != reflect.Interface {
-		return fmt.Errorf("abi: cannot unmarshal %v into %v", src.Type(), dst.Type())
-	}
-	return nil
-}
-
-// mapAbiToStringField maps abi to struct fields.
-// first round: for each Exportable field that contains a `abi:""` tag
-//   and this field name exists in the arguments, pair them together.
-// second round: for each argument field that has not been already linked,
-//   find what variable is expected to be mapped into, if it exists and has not been
-//   used, pair them.
-func mapAbiToStructFields(args Arguments, value reflect.Value) (map[string]string, error) {
-
-	typ := value.Type()
-
-	abi2struct := make(map[string]string)
-	struct2abi := make(map[string]string)
-
-	// first round ~~~
-	for i := 0; i < typ.NumField(); i++ {
-		structFieldName := typ.Field(i).Name
-
-		// skip private struct fields.
-		if structFieldName[:1] != strings.ToUpper(structFieldName[:1]) {
-			continue
-		}
-
-		// skip fields that have no abi:"" tag.
-		var ok bool
-		var tagName string
-		if tagName, ok = typ.Field(i).Tag.Lookup("abi"); !ok {
-			continue
-		}
-
-		// check if tag is empty.
-		if tagName == "" {
-			return nil, fmt.Errorf("struct: abi tag in '%s' is empty", structFieldName)
-		}
-
-		// check which argument field matches with the abi tag.
-		found := false
-		for _, abiField := range args.NonIndexed() {
-			if abiField.Name == tagName {
-				if abi2struct[abiField.Name] != "" {
-					return nil, fmt.Errorf("struct: abi tag in '%s' already mapped", structFieldName)
-				}
-				// pair them
-				abi2struct[abiField.Name] = structFieldName
-				struct2abi[structFieldName] = abiField.Name
-				found = true
-			}
-		}
-
-		// check if this tag has been mapped.
-		if !found {
-			return nil, fmt.Errorf("struct: abi tag '%s' defined but not found in abi", tagName)
-		}
-
-	}
-
-	// second round ~~~
-	for _, arg := range args {
-
-		abiFieldName := arg.Name
-		structFieldName := capitalise(abiFieldName)
-
-		if structFieldName == "" {
-			return nil, fmt.Errorf("abi: purely underscored output cannot unpack to struct")
-		}
-
-		// this abi has already been paired, skip it... unless there exists another, yet unassigned
-		// struct field with the same field name. If so, raise an error:
-		//    abi: [ { "name": "value" } ]
-		//    struct { Value  *big.Int , Value1 *big.Int `abi:"value"`}
-		if abi2struct[abiFieldName] != "" {
-			if abi2struct[abiFieldName] != structFieldName &&
-				struct2abi[structFieldName] == "" &&
-				value.FieldByName(structFieldName).IsValid() {
-				return nil, fmt.Errorf("abi: multiple variables maps to the same abi field '%s'", abiFieldName)
-			}
-			continue
-		}
-
-		// return an error if this struct field has already been paired.
-		if struct2abi[structFieldName] != "" {
-			return nil, fmt.Errorf("abi: multiple outputs mapping to the same struct field '%s'", structFieldName)
-		}
-
-		if value.FieldByName(structFieldName).IsValid() {
-			// pair them
-			abi2struct[abiFieldName] = structFieldName
-			struct2abi[structFieldName] = abiFieldName
-		} else {
-			// not paired, but annotate as used, to detect cases like
-			//   abi : [ { "name": "value" }, { "name": "_value" } ]
-			//   struct { Value *big.Int }
-			struct2abi[structFieldName] = abiFieldName
-		}
-
-	}
-
-	return abi2struct, nil
-}
-
 // set attempts to assign src to dst by either setting, copying or otherwise.
 //
 // set is a bit more lenient when it comes to assignment and doesn't force an as
@@ -674,23 +567,6 @@ func setStruct(dst, src reflect.Value) error {
 		if err := set(dstField, srcField); err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-// requireUnpackKind verifies preconditions for unpacking `args` into `kind`
-func requireUnpackKind(v reflect.Value, t reflect.Type, k reflect.Kind,
-	args Arguments) error {
-
-	switch k {
-	case reflect.Struct:
-	case reflect.Slice, reflect.Array:
-		if minLen := args.LengthNonIndexed(); v.Len() < minLen {
-			return fmt.Errorf("abi: insufficient number of elements in the list/array for unpack, want %d, got %d",
-				minLen, v.Len())
-		}
-	default:
-		return fmt.Errorf("abi: cannot unmarshal tuple into %v", t)
 	}
 	return nil
 }

@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -227,7 +226,7 @@ func TestDeriveSecretsAndChallengeGolden(t *testing.T) {
 	goldenFilepath := filepath.Join("testdata", t.Name()+".golden")
 	if *update {
 		t.Logf("Updating golden test vector file %s", goldenFilepath)
-		data := createGoldenTestVectors(t)
+		data := createGoldenTestVectors()
 		err := tmos.WriteFile(goldenFilepath, []byte(data), 0644)
 		require.NoError(t, err)
 	}
@@ -257,30 +256,10 @@ func TestDeriveSecretsAndChallengeGolden(t *testing.T) {
 	}
 }
 
-func writeLots(t *testing.T, wg *sync.WaitGroup, conn io.Writer, txt string, n int) {
-	defer wg.Done()
-	for i := 0; i < n; i++ {
-		_, err := conn.Write([]byte(txt))
-		if err != nil {
-			t.Errorf("failed to write to fooSecConn: %v", err)
-			return
-		}
-	}
-}
-
-func readLots(t *testing.T, wg *sync.WaitGroup, conn io.Reader, n int) {
-	readBuffer := make([]byte, dataMaxSize)
-	for i := 0; i < n; i++ {
-		_, err := conn.Read(readBuffer)
-		assert.NoError(t, err)
-	}
-	wg.Done()
-}
-
 // Creates the data for a test vector file.
 // The file format is:
 // Hex(diffie_hellman_secret), loc_is_least, Hex(recvSecret), Hex(sendSecret), Hex(challenge)
-func createGoldenTestVectors(t *testing.T) string {
+func createGoldenTestVectors() string {
 	data := ""
 	for i := 0; i < 32; i++ {
 		randSecretVector := tmrand.Bytes(32)

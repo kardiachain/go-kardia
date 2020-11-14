@@ -208,16 +208,6 @@ func testJson(name, addr string, t *testing.T) {
 	}
 }
 
-func testJsonFail(name, addr string, t *testing.T) {
-	tests, err := loadJsonFail(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, test := range tests {
-		testPrecompiledFailure(addr, test, t)
-	}
-}
-
 func benchJson(name, addr string, b *testing.B) {
 	tests, err := loadJson(name)
 	if err != nil {

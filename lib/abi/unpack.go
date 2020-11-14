@@ -114,17 +114,6 @@ func readFixedBytes(t Type, word []byte) (interface{}, error) {
 	return array.Interface(), nil
 }
 
-func getFullElemSize(elem *Type) int {
-	//all other should be counted as 32 (slices have pointers to respective elements)
-	size := 32
-	//arrays wrap it, each element being the same size
-	for elem.T == ArrayTy {
-		size *= elem.Size
-		elem = elem.Elem
-	}
-	return size
-}
-
 // iteratively unpack elements
 func forEachUnpack(t Type, output []byte, start, size int) (interface{}, error) {
 	if size < 0 {

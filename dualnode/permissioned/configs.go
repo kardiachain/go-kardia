@@ -22,8 +22,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 
 	"github.com/kardiachain/go-kardiamain/dev"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
@@ -146,27 +144,6 @@ func SetUp(config *Config) (nodeConfig *node.Config, err error) {
 
 	nodeConfig.MainChainConfig.TxPool = *tx_pool.GetDefaultTxPoolConfig(nodeDir)
 	return nodeConfig, nil
-}
-
-// getIntArray converts string array to int array
-func getIntArray(valIndex string) ([]int, error) {
-	valIndexArray := strings.Split(valIndex, ",")
-	var a []int
-
-	// keys - hashmap used to check duplicate inputs
-	keys := make(map[string]bool)
-	for _, stringVal := range valIndexArray {
-		// if input is not seen yet
-		if _, seen := keys[stringVal]; !seen {
-			keys[stringVal] = true
-			intVal, err := strconv.Atoi(stringVal)
-			if err != nil {
-				return nil, fmt.Errorf("failed to convert string to int: %v", err)
-			}
-			a = append(a, intVal-1)
-		}
-	}
-	return a, nil
 }
 
 // removeDirContents deletes old local node directory

@@ -600,7 +600,7 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 
 	var buf []byte
 	for i := 0; i < int(blockMeta.BlockID.PartsHeader.Total); i++ {
-		part := ReadBlockPart(db, hash, height, i)
+		part := ReadBlockPart(db, height, i)
 		buf = append(buf, part.Bytes...)
 	}
 	pbb := new(kproto.Block)
@@ -620,13 +620,13 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 }
 
 // CommonReadHeader retrieves the block header corresponding to the hash.
-func CommonReadHeader(db kaidb.Reader, hash common.Hash, height uint64) *types.Header {
+func CommonReadHeader(db kaidb.Reader, height uint64) *types.Header {
 	blockMeta := ReadBlockMeta(db, height)
 	return blockMeta.Header
 }
 
 // ReadBlockPart returns the block part fo the given height and index
-func ReadBlockPart(db kaidb.Reader, hash common.Hash, height uint64, index int) *types.Part {
+func ReadBlockPart(db kaidb.Reader, height uint64, index int) *types.Part {
 	var pbpart = new(kproto.Part)
 	partBytes, _ := db.Get(blockPartKey(height, index))
 
@@ -707,7 +707,7 @@ func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part)
 }
 
 // DeleteBlockMeta delete block meta
-func DeleteBlockMeta(db kaidb.Writer, hash common.Hash, height uint64) {
+func DeleteBlockMeta(db kaidb.Writer, height uint64) {
 	_ = db.Delete(blockMetaKey(height))
 }
 

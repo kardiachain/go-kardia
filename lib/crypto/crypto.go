@@ -212,12 +212,6 @@ func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	return common.BytesToAddress(Keccak256(pubBytes[1:])[12:])
 }
 
-func zeroBytes(bytes []byte) {
-	for i := range bytes {
-		bytes[i] = 0
-	}
-}
-
 // StringToPubKey parses a string into public key
 func StringToPublicKey(pubString string) (*ecdsa.PublicKey, error) {
 

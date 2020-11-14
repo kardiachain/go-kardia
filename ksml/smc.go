@@ -406,15 +406,6 @@ func GenerateOutputStruct(smcABI abi.ABI, method string, result []byte) (interfa
 	return nil, methodNotFound
 }
 
-func findOutputs(smcABI abi.ABI, method string) abi.Arguments {
-	for k, v := range smcABI.Methods {
-		if k == method {
-			return v.Outputs
-		}
-	}
-	return nil
-}
-
 func getInputs(smcABI abi.ABI, method string) *abi.Arguments {
 	for k, v := range smcABI.Methods {
 		if k == method {

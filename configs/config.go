@@ -19,7 +19,6 @@
 package configs
 
 import (
-	"math/big"
 	"strings"
 	"time"
 
@@ -81,16 +80,6 @@ var (
 		},
 	}
 )
-
-func configNumEqual(x, y *big.Int) bool {
-	if x == nil {
-		return y == nil
-	}
-	if y == nil {
-		return x == nil
-	}
-	return x.Cmp(y) == 0
-}
 
 type Config struct {
 	Consensus *ConsensusConfig
