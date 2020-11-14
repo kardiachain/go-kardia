@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 
 	tmstate "github.com/kardiachain/go-kardiamain/proto/kardiachain/state"

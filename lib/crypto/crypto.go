@@ -42,12 +42,6 @@ var (
 
 var errInvalidPubkey = errors.New("invalid secp256k1 public key")
 
-//SignatureLength indicates the byte length required to carry a signature with recovery id.
-const SignatureLength = 64 + 1 // 64 bytes ECDSA signature + 1 byte recovery id
-
-// RecoveryIDOffset points to the byte offset within the signature that contains the recovery id.
-const RecoveryIDOffset = 64
-
 // Keccak256 calculates and returns the Keccak256 hash of the input data.
 func Keccak256(data ...[]byte) []byte {
 	d := sha3.NewKeccak256()
@@ -66,15 +60,6 @@ func Keccak256Hash(data ...[]byte) (h common.Hash) {
 	}
 	d.Sum(h[:0])
 	return h
-}
-
-// Keccak512 calculates and returns the Keccak512 hash of the input data.
-func Keccak512(data ...[]byte) []byte {
-	d := sha3.NewKeccak512()
-	for _, b := range data {
-		d.Write(b)
-	}
-	return d.Sum(nil)
 }
 
 // CreateAddress creates an ethereum address given the bytes and the nonce
@@ -210,12 +195,6 @@ func ValidateSignatureValues(v byte, r, s *big.Int) bool {
 func PubkeyToAddress(p ecdsa.PublicKey) common.Address {
 	pubBytes := FromECDSAPub(&p)
 	return common.BytesToAddress(Keccak256(pubBytes[1:])[12:])
-}
-
-func zeroBytes(bytes []byte) {
-	for i := range bytes {
-		bytes[i] = 0
-	}
 }
 
 // StringToPubKey parses a string into public key

@@ -20,10 +20,11 @@ package ksml
 
 import (
 	"fmt"
-	"github.com/kardiachain/go-kardiamain/dualnode/message"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/kardiachain/go-kardiamain/dualnode/message"
 )
 
 // BuiltInFunc defines common function that is used in BuiltInFuncMap.
@@ -33,33 +34,33 @@ type BuiltInFunc func(p *Parser, extras ...interface{}) ([]interface{}, error)
 
 func init() {
 	BuiltInFuncMap = map[string]BuiltInFunc{
-		ping: pong, // this map is used for testing purpose.
-		currentTimeStamp: getCurrentTimeStamp,
+		ping:               pong, // this map is used for testing purpose.
+		currentTimeStamp:   getCurrentTimeStamp,
 		currentBlockHeight: getCurrentBlockHeight,
-		validate: validateFunc,
-		ifFunc: executeIf,
-		endIf: emptyFunc,
-		elif: emptyFunc,
-		el: emptyFunc,
-		endForEach: emptyFunc,
-		addVarFunc: addVar,
-		forEachFunc: forEach,
-		splitFunc: split,
-		defineFunc: defineFunction,
-		endDefineFunc: emptyFunc,
-		callFunc: callFunction,
-		getData: GetDataFromSmc,
-		trigger: triggerSmc,
-		publish: publishFunc,
-		compare: cmpFunc,
-		mul: Mul,
-		div: Div,
-		toInt: SetInt,
-		toFloat: SetFloat,
-		exp: Exp,
-		format: FormatFloat,
-		round: Round,
-		replaceFunc: Replace,
+		validate:           validateFunc,
+		ifFunc:             executeIf,
+		endIf:              emptyFunc,
+		elif:               emptyFunc,
+		el:                 emptyFunc,
+		endForEach:         emptyFunc,
+		addVarFunc:         addVar,
+		forEachFunc:        forEach,
+		splitFunc:          split,
+		defineFunc:         defineFunction,
+		endDefineFunc:      emptyFunc,
+		callFunc:           callFunction,
+		getData:            GetDataFromSmc,
+		trigger:            triggerSmc,
+		publish:            publishFunc,
+		compare:            cmpFunc,
+		mul:                Mul,
+		div:                Div,
+		toInt:              SetInt,
+		toFloat:            SetFloat,
+		exp:                Exp,
+		format:             FormatFloat,
+		round:              Round,
+		replaceFunc:        Replace,
 	}
 }
 
@@ -280,14 +281,14 @@ func forEach(p *Parser, extras ...interface{}) ([]interface{}, error) {
 		return nil, err
 	}
 
-	for i, _ := range convertedArr {
+	for i := range convertedArr {
 		val, err := parseBlockPatterns(p, newPatterns, map[string]interface{}{
 			index: i,
 		})
 		if err != nil {
 			return nil, err
 		}
-		if val != nil && len(val) > 0{
+		if val != nil && len(val) > 0 {
 			results = append(results, val...)
 		}
 	}
@@ -315,7 +316,7 @@ func split(p *Parser, extras ...interface{}) ([]interface{}, error) {
 		return nil, err
 	}
 	if val != nil && len(val) > 0 && reflect.TypeOf(val[0]).Kind() == reflect.String &&
-		str != nil && len(str) >0 && reflect.TypeOf(str[0]).Kind() == reflect.String {
+		str != nil && len(str) > 0 && reflect.TypeOf(str[0]).Kind() == reflect.String {
 		separator := val[0].(string)
 		splitStr := strings.Split(str[0].(string), separator)
 		return []interface{}{splitStr}, nil
@@ -360,8 +361,8 @@ func defineFunction(p *Parser, extras ...interface{}) ([]interface{}, error) {
 		}
 	}
 	f := &function{
-		name: method,
-		args: args,
+		name:     method,
+		args:     args,
 		patterns: make([]string, 0),
 	}
 	startPos := p.Pc
@@ -426,7 +427,7 @@ func callFunction(p *Parser, extras ...interface{}) ([]interface{}, error) {
 	return results, nil
 }
 
-func getTriggerMessage(p *Parser, input []interface{}) (*message.TriggerMessage, error){
+func getTriggerMessage(p *Parser, input []interface{}) (*message.TriggerMessage, error) {
 	if len(input) != 3 {
 		return nil, fmt.Errorf("invalid input in getTriggerMessage")
 	}
@@ -497,10 +498,10 @@ func getTriggerMessage(p *Parser, input []interface{}) (*message.TriggerMessage,
 		params = append(params, str)
 	}
 	return &message.TriggerMessage{
-		ContractAddress:      contractAddress,
-		MethodName:           method,
-		Params:               params,
-		CallBacks:            nil,
+		ContractAddress: contractAddress,
+		MethodName:      method,
+		Params:          params,
+		CallBacks:       nil,
 	}, nil
 }
 

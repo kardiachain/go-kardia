@@ -103,16 +103,6 @@ func DecodeUint64(input string) (uint64, error) {
 	return dec, err
 }
 
-// MustDecodeUint64 decodes a hex string with 0x prefix as a quantity.
-// It panics for invalid input.
-func MustDecodeUint64(input string) uint64 {
-	dec, err := DecodeUint64(input)
-	if err != nil {
-		panic(err)
-	}
-	return dec
-}
-
 // EncodeUint64 encodes i as a hex string with 0x prefix.
 func EncodeUint64(i uint64) string {
 	enc := make([]byte, 2, 10)
@@ -165,16 +155,6 @@ func DecodeBig(input string) (*big.Int, error) {
 	}
 	dec := new(big.Int).SetBits(words)
 	return dec, nil
-}
-
-// MustDecodeBig decodes a hex string with 0x prefix as a quantity.
-// It panics for invalid input.
-func MustDecodeBig(input string) *big.Int {
-	dec, err := DecodeBig(input)
-	if err != nil {
-		panic(err)
-	}
-	return dec
 }
 
 // EncodeBig encodes bigint as a hex string with 0x prefix.

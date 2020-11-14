@@ -66,10 +66,7 @@ func (err *ErrEvidenceInvalid) Error() string {
 // EvidenceType enum type
 type EvidenceType uint8
 
-// EvidenceType
 const (
-	EvidenceDuplicateVote       = EvidenceType(0x01)
-	EvidenceMock                = EvidenceType(0x02)
 	MaxEvidenceBytesDenominator = 10
 	// MaxEvidenceBytes is a maximum size of any evidence
 	MaxEvidenceBytes int64 = 484
@@ -313,13 +310,6 @@ func DuplicateVoteEvidenceFromProto(pb *kproto.DuplicateVoteEvidence) (*Duplicat
 //-------------------------------------------- MOCKING --------------------------------------
 
 // unstable - use only for testing
-
-// assumes the round to be 0 and the validator index to be 0
-func NewMockDuplicateVoteEvidence(height uint64, time time.Time, chainID string) *DuplicateVoteEvidence {
-	val := NewMockPV()
-	return NewMockDuplicateVoteEvidenceWithValidator(height, time, val, chainID)
-}
-
 func NewMockDuplicateVoteEvidenceWithValidator(height uint64, time time.Time,
 	pv PrivValidator, chainID string) *DuplicateVoteEvidence {
 	addr := pv.GetAddress()

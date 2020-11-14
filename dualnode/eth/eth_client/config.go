@@ -24,9 +24,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
+
+	"github.com/kardiachain/go-kardiamain/lib/log"
 )
 
 type (

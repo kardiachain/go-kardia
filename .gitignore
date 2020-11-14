@@ -24,3 +24,4 @@ go-kardia
 cmd/cmd
 tool/pump/pump
 run.sh
+/cmd/cfg/local_genesis.yaml

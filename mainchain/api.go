@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/params"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
@@ -327,7 +328,7 @@ func newRevertError(result *kvm.ExecutionResult) *revertError {
 // state on the local node. No tx is generated and submitted
 // onto the blockchain
 func (s *PublicKaiAPI) KardiaCall(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
-	result, err := s.doCall(ctx, args, blockNrOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall*time.Second)
+	result, err := s.doCall(ctx, args, blockNrOrHash, configs.DefaultTimeOutForStaticCall*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -500,7 +501,7 @@ func (a *PublicAccountAPI) GetStorageAt(ctx context.Context, address common.Addr
 
 // doCall is an interface to make smart contract call against the state of local node
 // No tx is generated or submitted to the blockchain
-func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash, vmCfg kvm.Config, timeout time.Duration) (*kvm.ExecutionResult, error) {
+func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash, timeout time.Duration) (*kvm.ExecutionResult, error) {
 	defer func(start time.Time) { log.Debug("Executing KVM call finished", "runtime", time.Since(start)) }(time.Now())
 
 	state, header, err := s.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
@@ -585,7 +586,7 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 	executable := func(gas uint64) (bool, *kvm.ExecutionResult, error) {
 		args.Gas = gas
 
-		result, err := s.doCall(ctx, args, blockNrOrHash, kvm.Config{}, 0)
+		result, err := s.doCall(ctx, args, blockNrOrHash, 0)
 		if err != nil {
 			if errors.Is(err, tx_pool.ErrIntrinsicGas) {
 				return true, nil, nil // Special case, raise gas limit

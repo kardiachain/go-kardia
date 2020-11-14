@@ -126,21 +126,6 @@ func (arguments Arguments) NonIndexed() Arguments {
 	return ret
 }
 
-// Computes the full size of an array;
-// i.e. counting nested arrays, which count towards size for unpacking.
-func getArraySize(arr *Type) int {
-	size := arr.Size
-	// Arrays can be nested, with each element being the same size
-	arr = arr.Elem
-	for arr.T == ArrayTy {
-		// Keep multiplying by elem.Size while the elem is an array.
-		size *= arr.Size
-		arr = arr.Elem
-	}
-	// Now we have the full array size, including its children.
-	return size
-}
-
 // isTuple returns true for non-atomic constructs, like (uint,uint) or uint[]
 func (arguments Arguments) isTuple() bool {
 	return len(arguments) > 1
@@ -277,18 +262,6 @@ func (arguments Arguments) UnpackValues(data []byte) ([]interface{}, error) {
 		retval = append(retval, marshalledValue)
 	}
 	return retval, nil
-}
-
-// capitalise makes the first character of a string upper case, also removing any
-// prefixing underscores from the variable names.
-func capitalise(input string) string {
-	for len(input) > 0 && input[0] == '_' {
-		input = input[1:]
-	}
-	if len(input) == 0 {
-		return ""
-	}
-	return strings.ToUpper(input[:1]) + input[1:]
 }
 
 // ToCamelCase converts an under-score string to a camel-case string

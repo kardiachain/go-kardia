@@ -26,28 +26,25 @@ import (
 	kquery "github.com/kardiachain/go-kardiamain/lib/pubsub/query"
 )
 
-// Reserved event types
 const (
-	EventBond                = "Bond"
-	EventCompleteProposal    = "CompleteProposal"
-	EventDupeout             = "Dupeout"
-	EventFork                = "Fork"
-	EventLock                = "Lock"
-	EventNewBlock            = "NewBlock"
-	EventNewBlockHeader      = "NewBlockHeader"
-	EventValidBlock          = "EventValidBlock"
-	EventNewRound            = "NewRound"
-	EventNewRoundStep        = "NewRoundStep"
-	EventPolka               = "Polka"
-	EventRebond              = "Rebond"
-	EventRelock              = "Relock"
-	EventTimeoutPropose      = "TimeoutPropose"
-	EventTimeoutWait         = "TimeoutWait"
-	EventTx                  = "Tx"
-	EventUnbond              = "Unbond"
-	EventUnlock              = "Unlock"
-	EventVote                = "Vote"
-	EventProposalHeartbeat   = "ProposalHeartbeat"
+	EventCompleteProposal = "CompleteProposal"
+
+	EventLock           = "Lock"
+	EventNewBlock       = "NewBlock"
+	EventNewBlockHeader = "NewBlockHeader"
+	EventValidBlock     = "EventValidBlock"
+	EventNewRound       = "NewRound"
+	EventNewRoundStep   = "NewRoundStep"
+	EventPolka          = "Polka"
+
+	EventRelock         = "Relock"
+	EventTimeoutPropose = "TimeoutPropose"
+	EventTimeoutWait    = "TimeoutWait"
+	EventTx             = "Tx"
+
+	EventUnlock = "Unlock"
+	EventVote   = "Vote"
+
 	EventTypeKey             = "kai.event"
 	EventValidatorSetUpdates = "ValidatorSetUpdates"
 )

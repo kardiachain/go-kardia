@@ -20,10 +20,11 @@ import (
 	"crypto/sha256"
 	"math/big"
 
+	"golang.org/x/crypto/ripemd160"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"golang.org/x/crypto/ripemd160"
 )
 
 // PrecompiledContract is the basic interface for native Go contracts. The implementation

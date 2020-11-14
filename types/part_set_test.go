@@ -22,9 +22,10 @@ import (
 	"io/ioutil"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestEncodeDecodePart(t *testing.T) {

@@ -56,12 +56,12 @@ func (s *StoreDB) ReadBlockMeta(hash common.Hash, height uint64) *types.BlockMet
 
 // ReadBlock returns the Block for the given height
 func (s *StoreDB) ReadBlock(hash common.Hash, height uint64) *types.Block {
-	return ReadBlock(s.db, hash, height)
+	return ReadBlock(s.db, height)
 }
 
 // ReadBlockPart returns the block part fo the given height and index
 func (s *StoreDB) ReadBlockPart(hash common.Hash, height uint64, index int) *types.Part {
-	return ReadBlockPart(s.db, hash, height, index)
+	return ReadBlockPart(s.db, height, index)
 }
 
 // WriteBlock write block to database
@@ -170,7 +170,7 @@ func (s *StoreDB) ReadSeenCommit(height uint64) *types.Commit {
 
 // ReadHeader retrieves the block header corresponding to the hash.
 func (s *StoreDB) ReadHeader(hash common.Hash, height uint64) *types.Header {
-	return CommonReadHeader(s.db, hash, height)
+	return CommonReadHeader(s.db, height)
 }
 
 // ReadHeaderheight returns the header height assigned to a hash.

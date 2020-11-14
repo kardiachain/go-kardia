@@ -28,12 +28,13 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 
 	"github.com/golang/protobuf/jsonpb"
+	"github.com/pebbe/zmq4"
+
 	dualMsg "github.com/kardiachain/go-kardiamain/dualnode/message"
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
-	"github.com/pebbe/zmq4"
 )
 
 const (

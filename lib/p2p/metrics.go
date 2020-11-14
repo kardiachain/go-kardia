@@ -17,12 +17,6 @@ const (
 	MetricNumTxs                = "num_txs"
 )
 
-const (
-	// MetricsSubsystem is a subsystem shared by all metrics exposed by this
-	// package.
-	MetricsSubsystem = "p2p"
-)
-
 // Metrics contains metrics exposed by this package.
 type Metrics struct {
 	// Number of peers.

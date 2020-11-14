@@ -31,8 +31,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/rs/cors"
+
+	"github.com/kardiachain/go-kardiamain/lib/log"
 )
 
 const (

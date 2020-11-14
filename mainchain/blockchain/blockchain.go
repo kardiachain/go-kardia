@@ -27,6 +27,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 
 	lru "github.com/hashicorp/golang-lru"
+
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
@@ -341,7 +342,7 @@ func (bc *BlockChain) repair(head **types.Block) error {
 			return nil
 		}
 		// Otherwise rewind one block and recheck state availability there
-		(*head) = bc.GetBlock((*head).LastCommitHash(), (*head).Height()-1)
+		*head = bc.GetBlock((*head).LastCommitHash(), (*head).Height()-1)
 	}
 }
 

@@ -21,27 +21,6 @@ package common
 
 import "encoding/hex"
 
-// ToHex returns the hex representation of b, prefixed with '0x'.
-// For empty slices, the return value is "0x0".
-//
-// Deprecated: use hexutil.Encode instead.
-func ToHex(b []byte) string {
-	hex := Bytes2Hex(b)
-	if len(hex) == 0 {
-		hex = "0"
-	}
-	return "0x" + hex
-}
-
-// ToHexArray creates a array of hex-string based on []byte
-func ToHexArray(b [][]byte) []string {
-	r := make([]string, len(b))
-	for i := range b {
-		r[i] = ToHex(b[i])
-	}
-	return r
-}
-
 // FromHex returns the bytes represented by the hexadecimal string s.
 // s may be prefixed with "0x".
 func FromHex(s string) []byte {
@@ -99,20 +78,6 @@ func Hex2Bytes(str string) []byte {
 	return h
 }
 
-// Hex2BytesFixed returns bytes of a specified fixed length flen.
-func Hex2BytesFixed(str string, flen int) []byte {
-	h, _ := hex.DecodeString(str)
-	if len(h) == flen {
-		return h
-	}
-	if len(h) > flen {
-		return h[len(h)-flen:]
-	}
-	hh := make([]byte, flen)
-	copy(hh[flen-len(h):flen], h)
-	return hh
-}
-
 // RightPadBytes zero-pads slice to the right up to length l.
 func RightPadBytes(slice []byte, l int) []byte {
 	if l <= len(slice) {
@@ -135,26 +100,4 @@ func LeftPadBytes(slice []byte, l int) []byte {
 	copy(padded[l-len(slice):], slice)
 
 	return padded
-}
-
-// TrimLeftZeroes returns a subslice of s without leading zeroes
-func TrimLeftZeroes(s []byte) []byte {
-	idx := 0
-	for ; idx < len(s); idx++ {
-		if s[idx] != 0 {
-			break
-		}
-	}
-	return s[idx:]
-}
-
-// TrimRightZeroes returns a subslice of s without trailing zeroes
-func TrimRightZeroes(s []byte) []byte {
-	idx := len(s)
-	for ; idx > 0; idx-- {
-		if s[idx-1] != 0 {
-			break
-		}
-	}
-	return s[:idx]
 }

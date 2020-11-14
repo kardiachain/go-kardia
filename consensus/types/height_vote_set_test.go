@@ -42,14 +42,14 @@ func TestPeerCatchupRounds(t *testing.T) {
 	peer32 := p2p.ID("peer1")
 	peer = peer32
 	hvs := NewHeightVoteSet(logger, "kaicoin", 1, valSet)
-	vote999_0 := makeVoteHR(t, 1, 0, 999, privSet)
+	vote999_0 := makeVoteHR(1, 0, 999, privSet)
 	added, err := hvs.AddVote(vote999_0, peer)
 
 	if !added || err != nil {
 		t.Error("Expected to successfully add vote from peer", added, err)
 	}
 
-	vote1000_0 := makeVoteHR(t, 1, 0, 1000, privSet)
+	vote1000_0 := makeVoteHR(1, 0, 1000, privSet)
 	added, err = hvs.AddVote(vote1000_0, peer)
 	if !added || err != nil {
 		t.Error("Expected to successfully add vote from peer", added, err)
@@ -57,7 +57,7 @@ func TestPeerCatchupRounds(t *testing.T) {
 
 }
 
-func makeVoteHR(t *testing.T, height uint64, valIndex uint32, round uint32, privVals []types.PrivValidator) *types.Vote {
+func makeVoteHR(height uint64, valIndex uint32, round uint32, privVals []types.PrivValidator) *types.Vote {
 	privVal := privVals[valIndex]
 	// pubKey := privVal.GetPubKey()
 

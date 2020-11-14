@@ -182,17 +182,6 @@ func parseStructTag(typ reflect.Type, fi, lastPublic int) (tags, error) {
 	return ts, nil
 }
 
-func genTypeInfo(typ reflect.Type, tags tags) (info *typeinfo, err error) {
-	info = new(typeinfo)
-	if info.decoder, err = makeDecoder(typ, tags); err != nil {
-		return nil, err
-	}
-	if info.writer, err = makeWriter(typ, tags); err != nil {
-		return nil, err
-	}
-	return info, nil
-}
-
 func lastPublicField(typ reflect.Type) int {
 	last := 0
 	for i := 0; i < typ.NumField(); i++ {

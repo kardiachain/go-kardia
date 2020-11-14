@@ -20,11 +20,11 @@ package kvm
 
 import (
 	"math/big"
+	"sync/atomic"
 	"time"
 
-	"sync/atomic"
-
 	"github.com/holiman/uint256"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"

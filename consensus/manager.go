@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	kevents "github.com/kardiachain/go-kardiamain/lib/events"
@@ -44,8 +45,9 @@ const (
 
 	maxMsgSize = 1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
 
-	blocksToContributeToBecomeGoodPeer = 10000
-	votesToContributeToBecomeGoodPeer  = 10000
+	// Comment since unused
+	//blocksToContributeToBecomeGoodPeer = 10000
+	//votesToContributeToBecomeGoodPeer  = 10000
 )
 
 // ConsensusManager defines a manager for the consensus service.
@@ -702,7 +704,8 @@ OUTER_LOOP:
 		{
 			rs := conR.conS.GetRoundState()
 			prs := ps.GetRoundState()
-			if (rs.Height == prs.Height) && (prs.ProposalPOLRound >= 0) {
+			// Remove conditions since always true //&& (prs.ProposalPOLRound >= 0)
+			if rs.Height == prs.Height {
 				if maj23, ok := rs.Votes.Prevotes(prs.ProposalPOLRound).TwoThirdsMajority(); ok {
 					peer.TrySend(StateChannel, MustEncode(&VoteSetMaj23Message{
 						Height:  prs.Height,

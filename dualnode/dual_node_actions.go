@@ -17,11 +17,3 @@
  */
 
 package dualnode
-
-// List of APIs that KSML's contract can invoke to perform actions on Kardia chain.
-const (
-	CreateDualEventFromEthTxAndEnqueue = "CreateDualEventFromEthTxAndEnqueue"
-	CreateDualEventFromKaiTxAndEnqueue = "CreateDualEventFromKaiTxAndEnqueue"
-	CreateKardiaMatchAmountTx          = "CreateKardiaMatchAmountTx"
-	EnqueueTxPool                      = "EnqueueTxPool"
-)

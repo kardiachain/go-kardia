@@ -30,6 +30,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kvm"
 
 	lru "github.com/hashicorp/golang-lru"
+
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -43,8 +44,7 @@ import (
 const (
 	blockCacheLimit = 256
 
-	maxFutureBlocks     = 256
-	maxTimeFutureBlocks = 30
+	maxFutureBlocks = 256
 )
 
 var (
@@ -327,7 +327,7 @@ func (dbc *DualBlockChain) repair(head **types.Block) error {
 			return nil
 		}
 		// Otherwise rewind one block and recheck state availability there
-		(*head) = dbc.GetBlock((*head).LastCommitHash(), (*head).Height()-1)
+		*head = dbc.GetBlock((*head).LastCommitHash(), (*head).Height()-1)
 	}
 }
 

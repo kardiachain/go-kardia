@@ -39,10 +39,6 @@ type Heap struct {
 	pq priorityQueue
 }
 
-func NewHeap() *Heap {
-	return &Heap{pq: make([]*pqItem, 0)}
-}
-
 func (h *Heap) Len() int64 {
 	return int64(len(h.pq))
 }

@@ -22,8 +22,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/tendermint/tendermint/abci/types"
+
+	"github.com/kardiachain/go-kardiamain/lib/log"
 
 	kpubsub "github.com/kardiachain/go-kardiamain/lib/pubsub"
 	"github.com/kardiachain/go-kardiamain/lib/service"

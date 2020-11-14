@@ -21,8 +21,9 @@ package crypto
 import (
 	"bytes"
 	"encoding/hex"
-	"github.com/kardiachain/go-kardiamain/lib/common"
 	"testing"
+
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 func TestKeccak256Hash(t *testing.T) {

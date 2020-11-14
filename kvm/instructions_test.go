@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/holiman/uint256"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
@@ -255,42 +256,6 @@ func TestSLT(t *testing.T) {
 		{"fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd", "fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffb", "0000000000000000000000000000000000000000000000000000000000000001"},
 	}
 	testTwoOperandOp(t, tests, opSlt, "slt")
-}
-
-// getResult is a convenience function to generate the expected values
-func getResult(args []*twoOperandParams, opFn executionFunc) []TwoOperandTestcase {
-	var (
-		env   = NewKVM(Context{}, nil, Config{})
-		stack = newstack()
-		pc    = uint64(0)
-	)
-	result := make([]TwoOperandTestcase, len(args))
-	for i, param := range args {
-		x := new(uint256.Int).SetBytes(common.Hex2Bytes(param.x))
-		y := new(uint256.Int).SetBytes(common.Hex2Bytes(param.y))
-		stack.push(x)
-		stack.push(y)
-		opFn(&pc, env, &callCtx{nil, stack, nil})
-		actual := stack.pop()
-		result[i] = TwoOperandTestcase{param.x, param.y, fmt.Sprintf("%064x", actual)}
-	}
-	return result
-}
-
-// utility function to fill the json-file with testcases
-// Enable this test to generate the 'testcases_xx.json' files
-func xTestWriteExpectedValues(t *testing.T) {
-	for name, method := range twoOpMethods {
-		data, err := json.Marshal(getResult(commonParams, method))
-		if err != nil {
-			t.Fatal(err)
-		}
-		_ = ioutil.WriteFile(fmt.Sprintf("testdata/testcases_%v.json", name), data, 0644)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Fatal("This test should not be activated")
 }
 
 // TestJsonTestcases runs through all the testcases defined as json-files

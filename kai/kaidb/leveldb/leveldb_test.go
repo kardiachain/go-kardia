@@ -21,10 +21,11 @@ package leveldb
 import (
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/dbtest"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/storage"
+
+	"github.com/kardiachain/go-kardiamain/kai/kaidb"
+	"github.com/kardiachain/go-kardiamain/kai/kaidb/dbtest"
 )
 
 func TestLevelDB(t *testing.T) {

@@ -28,6 +28,8 @@ import (
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
 	"github.com/google/cel-go/common/types"
+	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
+
 	dualMsg "github.com/kardiachain/go-kardiamain/dualnode/message"
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/state"
@@ -35,7 +37,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 )
 
 type Parser struct {

@@ -327,18 +327,6 @@ func (c *Config) NodeDB() string {
 	return c.ResolvePath(datadirNodeDatabase)
 }
 
-// DefaultIPCEndpoint returns the IPC path used by default.
-func DefaultIPCEndpoint(clientIdentifier string) string {
-	if clientIdentifier == "" {
-		clientIdentifier = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
-		if clientIdentifier == "" {
-			panic("empty executable name")
-		}
-	}
-	config := &Config{DataDir: configs.DefaultDataDir(), IPCPath: clientIdentifier + ".ipc"}
-	return config.IPCEndpoint()
-}
-
 // HTTPEndpoint resolves an HTTP endpoint based on the configured host interface
 // and port parameters.
 func (c *Config) HTTPEndpoint() string {
@@ -357,12 +345,6 @@ func (c *Config) GraphQLEndpoint() string {
 	return fmt.Sprintf("%s:%d", c.GraphQLHost, c.GraphQLPort)
 }
 
-// DefaultHTTPEndpoint returns the HTTP endpoint used by default.
-func DefaultHTTPEndpoint() string {
-	config := &Config{HTTPHost: DefaultHTTPHost, HTTPPort: DefaultHTTPPort}
-	return config.HTTPEndpoint()
-}
-
 // WSEndpoint resolves a websocket endpoint based on the configured host interface
 // and port parameters.
 func (c *Config) WSEndpoint() string {
@@ -370,12 +352,6 @@ func (c *Config) WSEndpoint() string {
 		return ""
 	}
 	return fmt.Sprintf("%s:%d", c.WSHost, c.WSPort)
-}
-
-// DefaultWSEndpoint returns the websocket endpoint used by default.
-func DefaultWSEndpoint() string {
-	config := &Config{WSHost: DefaultWSHost, WSPort: DefaultWSPort}
-	return config.WSEndpoint()
 }
 
 // ExtRPCEnabled returns the indicator whether node enables the external

@@ -33,14 +33,6 @@ type GlogHandler struct {
 	lock      sync.RWMutex    // Lock protecting the override pattern list
 }
 
-// NewGlogHandler creates a new log handler with filtering functionality similar
-// to Google's glog logger. The returned handler implements Handler.
-func NewGlogHandler(h Handler) *GlogHandler {
-	return &GlogHandler{
-		origin: h,
-	}
-}
-
 // SetHandler updates the handler to write records to the specified sub-handler.
 func (h *GlogHandler) SetHandler(nh Handler) {
 	h.origin = nh

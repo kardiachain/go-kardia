@@ -51,16 +51,6 @@ type CommitSig struct {
 	Signature        []byte         `json:"signature"`
 }
 
-// NewCommitSigForBlock returns new CommitSig with BlockIDFlagCommit.
-func NewCommitSigForBlock(signature []byte, valAddr common.Address, ts time.Time) CommitSig {
-	return CommitSig{
-		BlockIDFlag:      BlockIDFlagCommit,
-		ValidatorAddress: valAddr,
-		Timestamp:        ts,
-		Signature:        signature,
-	}
-}
-
 // ForBlock returns true if CommitSig is for the block.
 func (cs CommitSig) ForBlock() bool {
 	return cs.BlockIDFlag == BlockIDFlagCommit

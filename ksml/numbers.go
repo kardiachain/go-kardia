@@ -54,7 +54,7 @@ func Mul(p *Parser, extras ...interface{}) ([]interface{}, error) {
 	}
 
 	// convert to big.Int or big.Float if returned vals are float64 or int64
-	for i, _ := range vals {
+	for i := range vals {
 		if reflect.ValueOf(vals[i]).Kind() == reflect.Float64 {
 			vals[i] = big.NewFloat(reflect.ValueOf(vals[i]).Float())
 		} else if reflect.ValueOf(vals[i]).Kind() == reflect.Int64 {
@@ -81,7 +81,7 @@ func Div(p *Parser, extras ...interface{}) ([]interface{}, error) {
 	}
 
 	// convert to big.Int or big.Float if returned vals are float64 or int64
-	for i, _ := range vals {
+	for i := range vals {
 		if reflect.ValueOf(vals[i]).Kind() == reflect.Float64 {
 			vals[i] = big.NewFloat(reflect.ValueOf(vals[i]).Float())
 		} else if reflect.ValueOf(vals[i]).Kind() == reflect.Int64 {

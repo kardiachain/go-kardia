@@ -21,10 +21,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
-	"golang.org/x/crypto/sha3"
 )
 
 var (

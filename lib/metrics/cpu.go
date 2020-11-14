@@ -17,8 +17,9 @@
 package metrics
 
 import (
-	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/shirou/gopsutil/cpu"
+
+	"github.com/kardiachain/go-kardiamain/lib/log"
 )
 
 type CPUStats struct {

@@ -20,8 +20,9 @@ package crypto
 
 import (
 	"bytes"
-	"github.com/kardiachain/go-kardiamain/lib/common"
 	"testing"
+
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 func TestEcrecover(t *testing.T) {
