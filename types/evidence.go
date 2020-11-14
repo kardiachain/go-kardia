@@ -66,10 +66,7 @@ func (err *ErrEvidenceInvalid) Error() string {
 // EvidenceType enum type
 type EvidenceType uint8
 
-// EvidenceType
 const (
-	EvidenceDuplicateVote       = EvidenceType(0x01)
-	EvidenceMock                = EvidenceType(0x02)
 	MaxEvidenceBytesDenominator = 10
 	// MaxEvidenceBytes is a maximum size of any evidence
 	MaxEvidenceBytes int64 = 484

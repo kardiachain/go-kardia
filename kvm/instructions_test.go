@@ -258,26 +258,6 @@ func TestSLT(t *testing.T) {
 	testTwoOperandOp(t, tests, opSlt, "slt")
 }
 
-// getResult is a convenience function to generate the expected values
-func getResult(args []*twoOperandParams, opFn executionFunc) []TwoOperandTestcase {
-	var (
-		env   = NewKVM(Context{}, nil, Config{})
-		stack = newstack()
-		pc    = uint64(0)
-	)
-	result := make([]TwoOperandTestcase, len(args))
-	for i, param := range args {
-		x := new(uint256.Int).SetBytes(common.Hex2Bytes(param.x))
-		y := new(uint256.Int).SetBytes(common.Hex2Bytes(param.y))
-		stack.push(x)
-		stack.push(y)
-		opFn(&pc, env, &callCtx{nil, stack, nil})
-		actual := stack.pop()
-		result[i] = TwoOperandTestcase{param.x, param.y, fmt.Sprintf("%064x", actual)}
-	}
-	return result
-}
-
 // TestJsonTestcases runs through all the testcases defined as json-files
 func TestJsonTestcases(t *testing.T) {
 	for name := range twoOpMethods {

@@ -86,26 +86,6 @@ func testPrecompiledOOG(addr string, test precompiledTest, t *testing.T) {
 	})
 }
 
-func testPrecompiledFailure(addr string, test precompiledFailureTest, t *testing.T) {
-	p := allPrecompiles[common.HexToAddress(addr)]
-	in := common.Hex2Bytes(test.Input)
-	gas := p.RequiredGas(in)
-	contract := NewContract(AccountRef(common.HexToAddress("1337")),
-		nil, new(big.Int), gas)
-
-	t.Run(test.Name, func(t *testing.T) {
-		_, err := RunPrecompiledContract(p, in, contract)
-		if err.Error() != test.ExpectedError {
-			t.Errorf("Expected error [%v], got [%v]", test.ExpectedError, err)
-		}
-		// Verify that the precompile did not touch the input buffer
-		exp := common.Hex2Bytes(test.Input)
-		if !bytes.Equal(in, exp) {
-			t.Errorf("Precompiled %v modified input data", addr)
-		}
-	})
-}
-
 func benchmarkPrecompiled(addr string, test precompiledTest, bench *testing.B) {
 	if test.NoBenchmark {
 		return
@@ -224,16 +204,6 @@ func loadJson(name string) ([]precompiledTest, error) {
 		return nil, err
 	}
 	var testcases []precompiledTest
-	err = json.Unmarshal(data, &testcases)
-	return testcases, err
-}
-
-func loadJsonFail(name string) ([]precompiledFailureTest, error) {
-	data, err := ioutil.ReadFile(fmt.Sprintf("testdata/precompiles/fail-%v.json", name))
-	if err != nil {
-		return nil, err
-	}
-	var testcases []precompiledFailureTest
 	err = json.Unmarshal(data, &testcases)
 	return testcases, err
 }

@@ -41,12 +41,11 @@ import (
 )
 
 const (
-	kdfHeader     = "scrypt"
-	scryptN       = 1 << 18
-	scryptR       = 1 << 3
-	scryptP       = 1
-	scryptDKLen   = 1 << 5
-	AddressLength = 20
+	kdfHeader   = "scrypt"
+	scryptN     = 1 << 18
+	scryptR     = 1 << 3
+	scryptP     = 1
+	scryptDKLen = 1 << 5
 )
 
 type KeyStore struct {

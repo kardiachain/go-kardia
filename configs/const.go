@@ -20,8 +20,6 @@ package configs
 
 import "errors"
 
-// All const related to cross-chain demos including coin exchange and candidate exchange
-// this will be dynamic and removed when run on production
 const (
 	// constants related to account to call smc
 	KardiaAccountToCallSmc = "0xBA30505351c17F4c818d94a990eDeD95e166474b"
@@ -29,8 +27,6 @@ const (
 
 	// constants related to rate & addOrder function from smc
 	KAI = "KAI"
-	ETH = "ETH"
-	NEO = "NEO"
 
 	// constants related to candidate exchange, Kardia part
 	KardiaCandidateExchangeSmcAddress     = "0x00000000000000000000000000000000736D6338"
@@ -48,8 +44,6 @@ const (
 	KardiaForwardRequestFromOrgIndex      = 1
 	KardiaForwardRequestToOrgIndex        = 2
 
-	// constants related to candidate exchange, private chain part
-	PrivateChainCandidateDBSmcIndex                     = 5
 	PrivateChainCandidateRequestCompletedFields         = 4
 	PrivateChainCandidateRequestCompletedFromOrgIDIndex = 0
 	PrivateChainCandidateRequestCompletedToOrgIDIndex   = 1

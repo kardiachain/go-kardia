@@ -164,16 +164,6 @@ func dualEventLookupKey(hash common.Hash) []byte {
 	return append(dualEventLookupPrefix, hash.Bytes()...)
 }
 
-// bloomBitsKey = bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash
-func bloomBitsKey(bit uint, section uint64, hash common.Hash) []byte {
-	key := append(append(bloomBitsPrefix, make([]byte, 10)...), hash.Bytes()...)
-
-	binary.BigEndian.PutUint16(key[1:], uint16(bit))
-	binary.BigEndian.PutUint64(key[3:], section)
-
-	return key
-}
-
 // hashKey = hashPrefix + hash
 func hashKey(hash *common.Hash) []byte {
 	return append(hashPrefix, hash.Bytes()...)
@@ -190,10 +180,6 @@ func eventKey(smartContractAddress string, method string) []byte {
 
 func eventsKey(smartContractAddress string) []byte {
 	return append(eventsPrefix, []byte(smartContractAddress)...)
-}
-
-func dualActionKey(action string) []byte {
-	return append(dualActionPrefix, []byte(action)...)
 }
 
 func contractAbiKey(smartContractAddress string) []byte {

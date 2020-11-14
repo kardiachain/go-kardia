@@ -127,31 +127,6 @@ func incrementRound(vss ...*validatorStub) {
 	}
 }
 
-type ValidatorStubsByPower []*validatorStub
-
-func (vss ValidatorStubsByPower) Len() int {
-	return len(vss)
-}
-
-func (vss ValidatorStubsByPower) Less(i, j int) bool {
-	vssi := (vss[i].PrivVal).GetAddress()
-	vssj := (vss[j].PrivVal).GetAddress()
-
-	if vss[i].VotingPower == vss[j].VotingPower {
-		return vssi == vssj
-	}
-
-	return vss[i].VotingPower > vss[j].VotingPower
-}
-
-func (vss ValidatorStubsByPower) Swap(i, j int) {
-	it := vss[i]
-	vss[i] = vss[j]
-	vss[i].Index = int64(i)
-	vss[j] = it
-	vss[j].Index = int64(j)
-}
-
 //-------------------------------------------------------------------------------
 // Functions for transitioning the consensus state
 

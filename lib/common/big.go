@@ -23,14 +23,11 @@ import (
 	"math/big"
 )
 
-// Various big integer limit values.
 var (
-	tt255     = BigPow(2, 255)
-	tt256     = BigPow(2, 256)
-	tt256m1   = new(big.Int).Sub(tt256, big.NewInt(1))
-	tt63      = BigPow(2, 63)
-	MaxBig256 = new(big.Int).Set(tt256m1)
-	MaxBig63  = new(big.Int).Sub(tt63, big.NewInt(1))
+	tt255   = BigPow(2, 255)
+	tt256   = BigPow(2, 256)
+	tt256m1 = new(big.Int).Sub(tt256, big.NewInt(1))
+	tt63    = BigPow(2, 63)
 )
 
 const (
@@ -42,13 +39,6 @@ const (
 
 // HexOrDecimal256 marshals big.Int as hex or decimal.
 type HexOrDecimal256 big.Int
-
-// NewHexOrDecimal256 creates a new HexOrDecimal256
-func NewHexOrDecimal256(x int64) *HexOrDecimal256 {
-	b := big.NewInt(x)
-	h := HexOrDecimal256(*b)
-	return &h
-}
 
 // UnmarshalText implements encoding.TextUnmarshaler.
 func (i *HexOrDecimal256) UnmarshalText(input []byte) error {

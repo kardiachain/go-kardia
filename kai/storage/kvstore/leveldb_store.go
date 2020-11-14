@@ -56,7 +56,7 @@ func (s *StoreDB) ReadBlockMeta(hash common.Hash, height uint64) *types.BlockMet
 
 // ReadBlock returns the Block for the given height
 func (s *StoreDB) ReadBlock(hash common.Hash, height uint64) *types.Block {
-	return ReadBlock(s.db, hash, height)
+	return ReadBlock(s.db, height)
 }
 
 // ReadBlockPart returns the block part fo the given height and index

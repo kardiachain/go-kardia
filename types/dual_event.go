@@ -35,10 +35,9 @@ import (
 
 type BlockchainSymbol string
 
-// Enum for
 const (
 	KARDIA = BlockchainSymbol("KAI")
-	SMC    = iota
+
 	PUBLISH
 )
 

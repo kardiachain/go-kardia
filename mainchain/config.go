@@ -25,14 +25,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 )
 
-// DefaultConfig contains default settings for use on the Kardia main net.
-var DefaultConfig = Config{
-
-	NetworkId: 1,
-
-	TxPool: tx_pool.DefaultTxPoolConfig,
-}
-
 //go:generate gencodec -type Config -field-override configMarshaling -formats toml -out gen_config.go
 
 type Config struct {

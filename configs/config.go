@@ -103,22 +103,6 @@ func DefaultConsensusParams() *kaiproto.ConsensusParams {
 	}
 }
 
-// TestConsensusParams returns a configuration for testing the consensus service
-func TestConsensusParams() *kaiproto.ConsensusParams {
-	csParams := DefaultConsensusParams()
-	csParams.Block = kaiproto.BlockParams{
-		MaxBytes:   104857600,
-		MaxGas:     20000000,
-		TimeIotaMs: 1000,
-	}
-	csParams.Evidence = kaiproto.EvidenceParams{
-		MaxAgeNumBlocks: 100000, // 27.8 hrs at 1block/s
-		MaxAgeDuration:  48 * time.Hour,
-		MaxBytes:        1048576, // 1MB
-	}
-	return csParams
-}
-
 // -------- Consensus Config ---------
 
 // ConsensusConfig defines the configuration for the Kardia consensus service,

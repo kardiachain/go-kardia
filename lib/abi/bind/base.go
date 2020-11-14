@@ -27,7 +27,6 @@ import (
 	kardia "github.com/kardiachain/go-kardiamain"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -95,24 +94,6 @@ func NewBoundContract(address common.Address, abi abi.ABI, caller ContractCaller
 		transactor: transactor,
 		filterer:   filterer,
 	}
-}
-
-// DeployContract deploys a contract onto the Kardia blockchain and binds the
-// deployment address with a Go wrapper.
-func DeployContract(opts *TransactOpts, abi abi.ABI, bytecode []byte, backend ContractBackend, params ...interface{}) (common.Address, *types.Transaction, *BoundContract, error) {
-	// Otherwise try to deploy the contract
-	c := NewBoundContract(common.Address{}, abi, backend, backend, backend)
-
-	input, err := c.abi.Pack("", params...)
-	if err != nil {
-		return common.Address{}, nil, nil, err
-	}
-	tx, err := c.transact(opts, nil, append(bytecode, input...))
-	if err != nil {
-		return common.Address{}, nil, nil, err
-	}
-	c.address = crypto.CreateAddress(opts.From, tx.Nonce())
-	return c.address, tx, c, nil
 }
 
 // Call invokes the (constant) contract method with params as input values and

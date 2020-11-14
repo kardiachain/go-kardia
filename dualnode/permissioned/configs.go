@@ -30,12 +30,12 @@ import (
 )
 
 const (
-	DefaultHTTPPort   = 8000
-	DefaultListenAddr = ":5000"
-	MainChainDataDir  = "privatechain"
-	DefaultDbCache    = 16 // 16MB memory allocated for leveldb cache, for each chains
-	DefaultDbHandles  = 32 // 32 file handlers allocated for leveldb, for each chains
-	privateNetworkId  = 110
+	DefaultHTTPPort = 8000
+
+	MainChainDataDir = "privatechain"
+	DefaultDbCache   = 16 // 16MB memory allocated for leveldb cache, for each chains
+	DefaultDbHandles = 32 // 32 file handlers allocated for leveldb, for each chains
+	privateNetworkId = 110
 )
 
 type Config struct {

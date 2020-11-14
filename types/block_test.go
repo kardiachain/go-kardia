@@ -25,8 +25,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	message "github.com/kardiachain/go-kardiamain/ksml/proto"
-
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
@@ -40,17 +38,6 @@ func CreateBlockIDRandom() BlockID {
 		Hash:        blockHash,
 		PartsHeader: blockPartsHeaders,
 	}
-}
-
-func CreateBlockID(hash common.Hash, partSetSize uint32, partSetHash common.Hash) BlockID {
-	return BlockID{
-		Hash: hash,
-		PartsHeader: PartSetHeader{
-			Total: partSetSize,
-			Hash:  partSetHash,
-		},
-	}
-
 }
 
 func TestBlockCreation(t *testing.T) {
@@ -153,25 +140,4 @@ func CreateNewBlock(height uint64) *Block {
 	}
 	evidence := []Evidence{}
 	return NewBlock(&header, txns, lastCommit, evidence)
-}
-
-func CreateNewDualBlock() *Block {
-	header := Header{
-		Height: 1,
-		Time:   time.Now(),
-	}
-	vote := &Vote{
-		ValidatorIndex: 1,
-		Height:         2,
-		Round:          1,
-		Timestamp:      time.Now(),
-		Type:           kproto.PrecommitType,
-	}
-	lastCommit := &Commit{
-		Signatures: []CommitSig{vote.CommitSig(), vote.CommitSig()},
-	}
-	header.LastCommitHash = lastCommit.Hash()
-	de := NewDualEvent(100, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})
-	evidence := []Evidence{}
-	return NewDualBlock(&header, []*DualEvent{de, nil}, lastCommit, evidence)
 }

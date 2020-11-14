@@ -34,9 +34,6 @@ const (
 	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
 	chainHeadChanSize = 10
 
-	// promotableQueueSize is the size for promotableQueue
-	promotableQueueSize = 1000000
-
 	// TEMPORARY
 	// Spawn workers and its capcacity to collect dual events
 	numberOfWorker = 2
