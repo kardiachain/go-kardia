@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
- package dbtest
+package dbtest
 
 import (
 	"bytes"
@@ -108,7 +108,7 @@ func TestDatabaseSuite(t *testing.T, New func() kaidb.KeyValueStore) {
 			if idx != len(tt.order) {
 				t.Errorf("test %d: iteration terminated prematurely: have %d, want %d", i, idx, len(tt.order))
 			}
-			db.Close()
+			_ = db.Close()
 		}
 	})
 
@@ -258,11 +258,11 @@ func TestDatabaseSuite(t *testing.T, New func() kaidb.KeyValueStore) {
 		b.Reset()
 
 		// Mix writes and deletes in batch
-		b.Put([]byte("5"), nil)
-		b.Delete([]byte("1"))
-		b.Put([]byte("6"), nil)
-		b.Delete([]byte("3"))
-		b.Put([]byte("3"), nil)
+		_ = b.Put([]byte("5"), nil)
+		_ = b.Delete([]byte("1"))
+		_ = b.Put([]byte("6"), nil)
+		_ = b.Delete([]byte("3"))
+		_ = b.Put([]byte("3"), nil)
 
 		if err := b.Write(); err != nil {
 			t.Fatal(err)

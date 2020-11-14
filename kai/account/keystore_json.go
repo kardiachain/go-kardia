@@ -20,7 +20,6 @@ package account
 
 import (
 	"bytes"
-	"crypto/aes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
@@ -112,17 +111,15 @@ func (keystore *KeyStoreJson) StoreKey(filename string) error {
 	return keystore.writeKeyFile(filename, content)
 }
 
-/*
-	Get private key from derivedKey, cipherText, iv
-*/
-func GetPrivateKey(derivedKey, cipherText, iv []byte) (*ecdsa.PrivateKey, error) {
-
-	key := derivedKey[:16]
-	privateKey, err := aesCTRXOR(key, cipherText[aes.BlockSize:], iv)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return crypto.ToECDSAUnsafe(privateKey), nil
-}
+//GetPrivateKey from derivedKey, cipherText, iv
+//func GetPrivateKey(derivedKey, cipherText, iv []byte) (*ecdsa.PrivateKey, error) {
+//
+//	key := derivedKey[:16]
+//	privateKey, err := aesCTRXOR(key, cipherText[aes.BlockSize:], iv)
+//
+//	if err != nil {
+//		return nil, err
+//	}
+//
+//	return crypto.ToECDSAUnsafe(privateKey), nil
+//}

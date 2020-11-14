@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 
 	tmstate "github.com/kardiachain/go-kardiamain/proto/kardiachain/state"
@@ -34,9 +35,9 @@ import (
 
 // TODO(namdoh): Move to a common config file.
 var (
-	RefreshBackoffHeightStep = int64(200)
-	RefreshHeightDelta       = int64(20)
-	stateKey                 = []byte("stateKey")
+	//RefreshBackoffHeightStep = int64(200)
+	//RefreshHeightDelta       = int64(20)
+	stateKey = []byte("stateKey")
 )
 
 // LastestBlockState It keeps all information necessary to validate new blocks,

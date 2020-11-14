@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
@@ -175,15 +176,15 @@ func CommonWriteEvent(db kaidb.Writer, smc *types.KardiaSmartcontract) {
 }
 
 // CommonWriteCommit stores a commit into the database.
-func CommonWriteCommit(db kaidb.Writer, height uint64, commit *types.Commit) {
-	data, err := rlp.EncodeToBytes(commit)
-	if err != nil {
-		log.Crit("Failed to RLP encode commit", "err", err)
-	}
-	if err := db.Put(commitKey(height), data); err != nil {
-		log.Crit("Failed to store commit", "err", err)
-	}
-}
+//func CommonWriteCommit(db kaidb.Writer, height uint64, commit *types.Commit) {
+//	data, err := rlp.EncodeToBytes(commit)
+//	if err != nil {
+//		log.Crit("Failed to RLP encode commit", "err", err)
+//	}
+//	if err := db.Put(commitKey(height), data); err != nil {
+//		log.Crit("Failed to store commit", "err", err)
+//	}
+//}
 
 // CommonReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
 func CommonReadBodyRLP(db kaidb.Reader, hash common.Hash, height uint64) rlp.RawValue {
@@ -317,9 +318,9 @@ func CommonWriteTxLookupEntries(db kaidb.Writer, block *types.Block) {
 }
 
 // CommonDeleteTxLookupEntry removes all transaction data associated with a hash.
-func CommonDeleteTxLookupEntry(db kaidb.KeyValueWriter, hash common.Hash) {
-	db.Delete(txLookupKey(hash))
-}
+//func CommonDeleteTxLookupEntry(db kaidb.KeyValueWriter, hash common.Hash) {
+//	db.Delete(txLookupKey(hash))
+//}
 
 // CommonReadTransaction retrieves a specific transaction from the database, along with
 // its added positional metadata.
@@ -369,51 +370,51 @@ func CommonReadDualEvent(db kaidb.Reader, hash common.Hash) (*types.DualEvent, c
 
 // CommonReadReceipt retrieves a specific transaction receipt from the database, along with
 // its added positional metadata.
-func CommonReadReceipt(db kaidb.Reader, hash common.Hash) (*types.Receipt, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, receiptIndex := CommonReadTxLookupEntry(db, hash)
-	if blockHash == (common.Hash{}) {
-		return nil, common.Hash{}, 0, 0
-	}
-	blockInfo := CommonReadBlockInfo(db, blockHash, blockNumber)
-	if len(blockInfo.Receipts) <= int(receiptIndex) {
-		log.Error("Receipt refereced missing", "number", blockNumber, "hash", blockHash, "index", receiptIndex)
-		return nil, common.Hash{}, 0, 0
-	}
-	return blockInfo.Receipts[receiptIndex], blockHash, blockNumber, receiptIndex
-}
+//func CommonReadReceipt(db kaidb.Reader, hash common.Hash) (*types.Receipt, common.Hash, uint64, uint64) {
+//	blockHash, blockNumber, receiptIndex := CommonReadTxLookupEntry(db, hash)
+//	if blockHash == (common.Hash{}) {
+//		return nil, common.Hash{}, 0, 0
+//	}
+//	blockInfo := CommonReadBlockInfo(db, blockHash, blockNumber)
+//	if len(blockInfo.Receipts) <= int(receiptIndex) {
+//		log.Error("Receipt refereced missing", "number", blockNumber, "hash", blockHash, "index", receiptIndex)
+//		return nil, common.Hash{}, 0, 0
+//	}
+//	return blockInfo.Receipts[receiptIndex], blockHash, blockNumber, receiptIndex
+//}
 
 // CommonReadEventFromDualAction gets KardiaSmartcontract based on dual action, returns smart contract address and its abi (if any)
 // Note: there are chains which do not use same standard as ETH and may not have abi.
 // Therefore, smart contract address is stored as string and abi may be nil.
-func CommonReadEventFromDualAction(db kaidb.Reader, action string) (string, *abi.ABI) {
-	key, err := db.Get(dualActionKey(action))
-	if err != nil || key == nil {
-		return "", nil
-	}
-
-	data, err := db.Get(key)
-	if err != nil || data == nil {
-		return "", nil
-	}
-
-	var entry SmartContract
-	if err := rlp.DecodeBytes(data, &entry); err != nil {
-		log.Error("Invalid event lookup rlp", "err", err)
-		return "", nil
-	}
-
-	// replace ' to "
-	if entry.ABI != "" {
-		abiStr := strings.Replace(entry.ABI, "'", "\"", -1)
-		a, err := abi.JSON(strings.NewReader(abiStr))
-		if err != nil {
-			log.Error("error while decoding abi", "err", err, "abi", entry.ABI)
-			return entry.Address, nil
-		}
-		return entry.Address, &a
-	}
-	return entry.Address, nil
-}
+//func CommonReadEventFromDualAction(db kaidb.Reader, action string) (string, *abi.ABI) {
+//	key, err := db.Get(dualActionKey(action))
+//	if err != nil || key == nil {
+//		return "", nil
+//	}
+//
+//	data, err := db.Get(key)
+//	if err != nil || data == nil {
+//		return "", nil
+//	}
+//
+//	var entry SmartContract
+//	if err := rlp.DecodeBytes(data, &entry); err != nil {
+//		log.Error("Invalid event lookup rlp", "err", err)
+//		return "", nil
+//	}
+//
+//	// replace ' to "
+//	if entry.ABI != "" {
+//		abiStr := strings.Replace(entry.ABI, "'", "\"", -1)
+//		a, err := abi.JSON(strings.NewReader(abiStr))
+//		if err != nil {
+//			log.Error("error while decoding abi", "err", err, "abi", entry.ABI)
+//			return entry.Address, nil
+//		}
+//		return entry.Address, &a
+//	}
+//	return entry.Address, nil
+//}
 
 // CommonReadEvent gets a watcher action from contract address and method
 func CommonReadEvent(db kaidb.Reader, address string, method string) *types.Watcher {
@@ -490,21 +491,21 @@ func CommonReadSmartContractAbi(db kaidb.Reader, address string) *abi.ABI {
 
 // CommonReadBloomBits retrieves the compressed bloom bit vector belonging to the given
 // section and bit index from the.
-func CommonReadBloomBits(db kaidb.Reader, bit uint, section uint64, head common.Hash) ([]byte, error) {
-	data, err := db.Get(bloomBitsKey(bit, section, head))
-	if err != nil || data == nil || len(data) == 0 {
-		return nil, err
-	}
-	return data, err
-}
+//func CommonReadBloomBits(db kaidb.Reader, bit uint, section uint64, head common.Hash) ([]byte, error) {
+//	data, err := db.Get(bloomBitsKey(bit, section, head))
+//	if err != nil || data == nil || len(data) == 0 {
+//		return nil, err
+//	}
+//	return data, err
+//}
 
 // CommonWriteBloomBits stores the compressed bloom bits vector belonging to the given
 // section and bit index.
-func CommonWriteBloomBits(db kaidb.Writer, bit uint, section uint64, head common.Hash, bits []byte) {
-	if err := db.Put(bloomBitsKey(bit, section, head), bits); err != nil {
-		log.Crit("Failed to store bloom bits", "err", err)
-	}
-}
+//func CommonWriteBloomBits(db kaidb.Writer, bit uint, section uint64, head common.Hash, bits []byte) {
+//	if err := db.Put(bloomBitsKey(bit, section, head), bits); err != nil {
+//		log.Crit("Failed to store bloom bits", "err", err)
+//	}
+//}
 
 // CommonReadHeaderNumber returns the header number assigned to a hash.
 func CommonReadHeaderNumber(db kaidb.Reader, hash common.Hash) *uint64 {
@@ -706,9 +707,9 @@ func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part)
 }
 
 // DeleteBlockMeta delete block meta
-func DeleteBlockMeta(db kaidb.Writer, hash common.Hash, height uint64) {
-	_ = db.Delete(blockMetaKey(height))
-}
+//func DeleteBlockMeta(db kaidb.Writer, hash common.Hash, height uint64) {
+//	_ = db.Delete(blockMetaKey(height))
+//}
 
 // ReadAppHash ...
 func ReadAppHash(db kaidb.KeyValueReader, height uint64) common.Hash {

@@ -238,12 +238,12 @@ func (s *StoreDB) DeleteCanonicalHash(number uint64) {
 }
 
 func (s *StoreDB) DeleteBlockMeta(hash common.Hash, height uint64) {
-	s.db.Delete(blockMetaKey(height))
+	_ = s.db.Delete(blockMetaKey(height))
 }
 
 func (s *StoreDB) DeleteBlockPart(hash common.Hash, height uint64) {
 	blockMeta := s.ReadBlockMeta(hash, height)
 	for i := 0; i < int(blockMeta.BlockID.PartsHeader.Total); i++ {
-		s.db.Delete(blockPartKey(height, i))
+		_ = s.db.Delete(blockPartKey(height, i))
 	}
 }

@@ -134,7 +134,7 @@ func (keyStore *KeyStore) createKeyStore(auth string, privateKey string) error {
 		return err
 	}
 
-	ks.StoreKey(keyStore.joinPath())
+	_ = ks.StoreKey(keyStore.joinPath())
 	return nil
 }
 
@@ -235,7 +235,7 @@ func (keystore *KeyStoreJson) writeKeyFile(file string, content []byte) error {
 	}
 	if _, err := f.Write(content); err != nil {
 		f.Close()
-		os.Remove(f.Name())
+		_ = os.Remove(f.Name())
 		return err
 	}
 	f.Close()

@@ -39,12 +39,12 @@ type ManagedState struct {
 }
 
 // ManagedState returns a new managed state with the statedb as it's backing layer
-func ManageState(statedb *StateDB) *ManagedState {
-	return &ManagedState{
-		StateDB:  statedb.Copy(),
-		accounts: make(map[common.Address]*account),
-	}
-}
+//func ManageState(statedb *StateDB) *ManagedState {
+//	return &ManagedState{
+//		StateDB:  statedb.Copy(),
+//		accounts: make(map[common.Address]*account),
+//	}
+//}
 
 // SetState sets the backing layer of the managed state
 func (ms *ManagedState) SetState(statedb *StateDB) {
