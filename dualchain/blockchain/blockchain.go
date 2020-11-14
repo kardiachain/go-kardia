@@ -48,7 +48,7 @@ const (
 )
 
 var (
-	ErrNoGenesis = errors.New("Genesis not found in chain")
+	ErrNoGenesis = errors.New("genesis not found in chain")
 )
 
 // A blockchain to store events from external blockchains (e.g. Ether, Neo, etc.) or internal Karida's blockchain and
@@ -90,7 +90,6 @@ func (dbc *DualBlockChain) IsPrivate() bool {
 
 // HasPermission return true if peer has permission otherwise false
 func (dbc *DualBlockChain) HasPermission(peer *p2p.Peer) bool {
-
 	return true
 }
 
@@ -174,27 +173,27 @@ func (dbc *DualBlockChain) GetBlockByHeight(height uint64) *types.Block {
 	return dbc.GetBlock(hash, height)
 }
 
-func (bc *DualBlockChain) LoadBlockPart(height uint64, index int) *types.Part {
-	hash := bc.db.ReadCanonicalHash(height)
-	part := bc.db.ReadBlockPart(hash, height, index)
+func (dbc *DualBlockChain) LoadBlockPart(height uint64, index int) *types.Part {
+	hash := dbc.db.ReadCanonicalHash(height)
+	part := dbc.db.ReadBlockPart(hash, height, index)
 	if hash == (common.Hash{}) {
 		return nil
 	}
 	return part
 }
 
-func (bc *DualBlockChain) LoadBlockCommit(height uint64) *types.Commit {
-	return bc.db.ReadCommit(height)
+func (dbc *DualBlockChain) LoadBlockCommit(height uint64) *types.Commit {
+	return dbc.db.ReadCommit(height)
 }
 
-func (bc *DualBlockChain) LoadSeenCommit(height uint64) *types.Commit {
-	return bc.db.ReadSeenCommit(height)
+func (dbc *DualBlockChain) LoadSeenCommit(height uint64) *types.Commit {
+	return dbc.db.ReadSeenCommit(height)
 }
 
 //
-func (bc *DualBlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
-	hash := bc.db.ReadCanonicalHash(height)
-	return bc.db.ReadBlockMeta(hash, height)
+func (dbc *DualBlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
+	hash := dbc.db.ReadCanonicalHash(height)
+	return dbc.db.ReadBlockMeta(hash, height)
 }
 
 // GetBlock retrieves a block from the database by hash and number,

@@ -163,7 +163,7 @@ func (s *DualService) Start(srvr *p2p.Switch) error {
 // Stop implements Service, terminating all internal goroutines used by the
 // Kardia protocol.
 func (s *DualService) Stop() error {
-	s.csManager.Stop()
+	_ = s.csManager.Stop()
 
 	close(s.shutdownChan)
 

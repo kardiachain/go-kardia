@@ -89,7 +89,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cst
 	// so statedb of proposal node already contains the new state and txs receipts of this proposal block.
 	maxBytes := lastState.ConsensusParams.Block.MaxBytes
 	// Fetch a limited amount of valid evidence
-	maxNumEvidence, _ := types.MaxEvidencePerBlock(int64(maxBytes))
+	maxNumEvidence, _ := types.MaxEvidencePerBlock(maxBytes)
 	evidence, _ := dbo.evpool.PendingEvidence(maxNumEvidence)
 
 	// Gets all dual's events in pending pools and them to the new block.
@@ -110,7 +110,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cst
 	//header.Root = stateRoot
 
 	if height > 0 {
-		previousBlock := dbo.blockchain.GetBlockByHeight(uint64(height) - 1)
+		previousBlock := dbo.blockchain.GetBlockByHeight(height - 1)
 		if previousBlock == nil {
 			dbo.logger.Error("Get previous block N-1 failed", "proposedHeight", height)
 			return nil, nil
@@ -160,7 +160,9 @@ func (dbo *DualBlockOperations) CommitBlockTxsIfNotFound(block *types.Block, las
 func (dbo *DualBlockOperations) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	if block == nil {
 		common.PanicSanity("DualBlockOperations try to save a nil block")
+		return
 	}
+
 	height := block.Height()
 	if g, w := height, dbo.Height()+1; g != w {
 		common.PanicSanity(common.Fmt("DualBlockOperations can only save contiguous blocks. Wanted %v, got %v", w, g))
@@ -171,7 +173,6 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, blockParts *types.
 		common.PanicSanity(common.Fmt("DualBlockOperations can only save contiguous blocks. Wanted %v, got %v", dbo.Height()+1, height))
 	}
 
-	// TODO(kiendn): WriteBlockWithoutState returns an error, write logic check if error appears
 	if err := dbo.blockchain.WriteBlockWithoutState(block); err != nil {
 		common.PanicSanity(common.Fmt("WriteBlockWithoutState fails with error %v", err))
 	}
@@ -194,12 +195,12 @@ func (dbo *DualBlockOperations) LoadBlock(height uint64) *types.Block {
 }
 
 // Return blockpart by given height and part's index
-func (bo *DualBlockOperations) LoadBlockPart(height uint64, index int) *types.Part {
-	return bo.blockchain.LoadBlockPart(height, index)
+func (dbo *DualBlockOperations) LoadBlockPart(height uint64, index int) *types.Part {
+	return dbo.blockchain.LoadBlockPart(height, index)
 }
 
-func (bo *DualBlockOperations) LoadBlockMeta(height uint64) *types.BlockMeta {
-	return bo.blockchain.LoadBlockMeta(height)
+func (dbo *DualBlockOperations) LoadBlockMeta(height uint64) *types.BlockMeta {
+	return dbo.blockchain.LoadBlockMeta(height)
 }
 
 // Returns the Block for the given height.
