@@ -102,9 +102,9 @@ type function struct {
 }
 
 var (
-	sourceIsEmpty                  = fmt.Errorf("source is empty")
-	invalidExpression              = fmt.Errorf("invalid expression")
-	invalidMethodFormat            = fmt.Errorf("invalid method format")
+	sourceIsEmpty = fmt.Errorf("source is empty")
+	//invalidExpression              = fmt.Errorf("invalid expression")
+	//invalidMethodFormat            = fmt.Errorf("invalid method format")
 	abiNotFound                    = fmt.Errorf("abi is not found")
 	methodNotFound                 = fmt.Errorf("method is not found")
 	paramsArgumentsNotMatch        = fmt.Errorf("params and arguments are not matched")
@@ -120,12 +120,12 @@ var (
 	invalidForEachParam            = fmt.Errorf("invalid for each param")
 	invalidForEachStatement        = fmt.Errorf("invalid for each statement")
 	notEnoughArgsForSplit          = fmt.Errorf("not enough arguments for split function")
-	notEnoughArgsForFunc           = fmt.Errorf("not enough arguments for create/call Func function")
-	invalidSplitArgs               = fmt.Errorf("invalid split arguments")
-	invalidDefineFunc              = fmt.Errorf("invalid define function")
+	//notEnoughArgsForFunc           = fmt.Errorf("not enough arguments for create/call Func function")
+	invalidSplitArgs  = fmt.Errorf("invalid split arguments")
+	invalidDefineFunc = fmt.Errorf("invalid define function")
 
-	predefinedPrefix = []string{builtInFn, builtInSmc}
-	globalVars       = map[string]*expr.Decl{
+	//predefinedPrefix = []string{builtInFn, builtInSmc}
+	globalVars = map[string]*expr.Decl{
 		globalMessage:         decls.NewIdent(globalMessage, decls.NewObjectType(messagePackage), nil),
 		globalParams:          decls.NewIdent(globalParams, decls.Dyn, nil),
 		globalContractAddress: decls.NewIdent(globalContractAddress, decls.String, nil),
