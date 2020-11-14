@@ -24,19 +24,11 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"math/rand"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
-)
-
-var (
-	// ErrNotificationsUnsupported is returned when the connection doesn't support notifications
-	ErrNotificationsUnsupported = errors.New("notifications not supported")
-	// ErrNotificationNotFound is returned when the notification for the given id is not found
-	ErrSubscriptionNotFound = errors.New("subscription not found")
 )
 
 var globalGen = randomIDGenerator()

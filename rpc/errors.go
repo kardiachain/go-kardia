@@ -16,7 +16,27 @@
 
 package rpc
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var (
+	ErrClientQuit                = errors.New("client is closed")
+	ErrNoResult                  = errors.New("no result in JSON-RPC response")
+	ErrSubscriptionQueueOverflow = errors.New("subscription queue overflow")
+	errClientReconnected         = errors.New("client reconnected")
+	errDead                      = errors.New("connection lost")
+)
+
+var (
+	// ErrNotificationsUnsupported is returned when the connection doesn't support notifications
+	ErrNotificationsUnsupported = errors.New("notifications not supported")
+	// ErrNotificationNotFound is returned when the notification for the given id is not found
+	ErrSubscriptionNotFound = errors.New("subscription not found")
+)
+
+var errNotSupported = errors.New("rpc: not supported")
 
 const defaultErrorCode = -32000
 
