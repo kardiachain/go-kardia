@@ -32,11 +32,6 @@ import (
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
-var (
-	ErrPartSetUnexpectedIndex = errors.New("Error part set unexpected index")
-	ErrPartSetInvalidProof    = errors.New("Error part set invalid proof")
-)
-
 type Part struct {
 	Index uint32             `json:"index"`
 	Bytes []byte             `json:"bytes"`
