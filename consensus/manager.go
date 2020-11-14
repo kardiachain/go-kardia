@@ -45,8 +45,8 @@ const (
 
 	maxMsgSize = 1048576 // 1MB; NOTE/TODO: keep in sync with types.PartSet sizes.
 
-	blocksToContributeToBecomeGoodPeer = 10000
-	votesToContributeToBecomeGoodPeer  = 10000
+	//blocksToContributeToBecomeGoodPeer = 10000
+	//votesToContributeToBecomeGoodPeer  = 10000
 )
 
 // ConsensusManager defines a manager for the consensus service.
@@ -1181,7 +1181,7 @@ func (ps *PeerState) SetHasVote(vote *types.Vote) {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
-	ps.setHasVote(uint64(vote.Height), vote.Round, vote.Type, vote.ValidatorIndex)
+	ps.setHasVote(vote.Height, vote.Round, vote.Type, vote.ValidatorIndex)
 }
 
 func (ps *PeerState) setHasVote(height uint64, round uint32, signedMsgType kproto.SignedMsgType, index uint32) {

@@ -50,10 +50,10 @@ var (
 )
 
 var (
-	ErrInvalidProposalSignature = errors.New("error invalid proposal signature")
-	ErrInvalidProposalPOLRound  = errors.New("error invalid proposal POL round")
-	ErrAddingVote               = errors.New("error adding vote")
-	ErrVoteHeightMismatch       = errors.New("error vote height mismatch")
+	//ErrInvalidProposalSignature = errors.New("error invalid proposal signature")
+	ErrInvalidProposalPOLRound = errors.New("error invalid proposal POL round")
+	ErrAddingVote              = errors.New("error adding vote")
+	ErrVoteHeightMismatch      = errors.New("error vote height mismatch")
 )
 
 // msgs from the manager which may update the state
@@ -542,7 +542,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 		return
 	}
 
-	cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote})
+	_ = cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote})
 	cs.evsw.FireEvent(types.EventVote, vote)
 
 	switch vote.Type {
@@ -568,7 +568,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 				cs.LockedRound = 0
 				cs.LockedBlock = nil
 				cs.LockedBlockParts = nil
-				cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
+				_ = cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 			}
 
 			// Update Valid* if we can.
@@ -594,7 +594,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 				}
 
 				cs.evsw.FireEvent(types.EventValidBlock, &cs.RoundState)
-				cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent())
+				_ = cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent())
 			}
 		}
 
@@ -664,7 +664,7 @@ func (cs *ConsensusState) signVote(signedMsgType kproto.SignedMsgType, hash cmn.
 	vote := &types.Vote{
 		ValidatorAddress: addr,
 		ValidatorIndex:   uint32(valIndex),
-		Height:           uint64(cs.Height),
+		Height:           cs.Height,
 		Round:            cs.Round,
 		Timestamp:        cs.voteTime(),
 		Type:             signedMsgType,
@@ -827,7 +827,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 		cs.ProposalBlock = block
 		// NOTE: it's possible to receive complete proposal blocks for future rounds without having the proposal
 		cs.Logger.Info("Received complete proposal block", "height", cs.ProposalBlock.Height(), "hash", cs.ProposalBlock.Hash())
-		cs.eventBus.PublishEventCompleteProposal(cs.CompleteProposalEvent())
+		_ = cs.eventBus.PublishEventCompleteProposal(cs.CompleteProposalEvent())
 
 		// Update Valid* if we can.
 		prevotes := cs.Votes.Prevotes(cs.Round)
@@ -925,7 +925,7 @@ func (cs *ConsensusState) enterNewRound(height uint64, round uint32) {
 	}
 	cs.Votes.SetRound(round + 1) // also track next round (round+1) to allow round-skipping
 	cs.TriggeredTimeoutPrecommit = false
-	cs.eventBus.PublishEventNewRound(cs.NewRoundEvent())
+	_ = cs.eventBus.PublishEventNewRound(cs.NewRoundEvent())
 
 	// Wait for txs to be available in the mempool
 	// before we enterPropose in round 0. If the last block changed the app hash,
@@ -1112,7 +1112,7 @@ func (cs *ConsensusState) enterPrecommit(height uint64, round uint32) {
 	}
 
 	// At this point +2/3 prevoted for a particular block or nil.
-	cs.eventBus.PublishEventPolka(cs.RoundStateEvent())
+	_ = cs.eventBus.PublishEventPolka(cs.RoundStateEvent())
 
 	// the latest POLRound should be this round.
 	polRound, _ := cs.Votes.POLInfo()
@@ -1129,7 +1129,7 @@ func (cs *ConsensusState) enterPrecommit(height uint64, round uint32) {
 			cs.LockedRound = 0
 			cs.LockedBlock = nil
 			cs.LockedBlockParts = nil
-			cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
+			_ = cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 		}
 		cs.signAddVote(kproto.PrecommitType, cmn.Hash{}, types.PartSetHeader{})
 		return
@@ -1141,7 +1141,7 @@ func (cs *ConsensusState) enterPrecommit(height uint64, round uint32) {
 	if cs.LockedBlock.HashesTo(blockID.Hash) {
 		logger.Info("enterPrecommit: +2/3 prevoted locked block. Relocking")
 		cs.LockedRound = round
-		cs.eventBus.PublishEventRelock(cs.RoundStateEvent())
+		_ = cs.eventBus.PublishEventRelock(cs.RoundStateEvent())
 		cs.signAddVote(kproto.PrecommitType, blockID.Hash, blockID.PartsHeader)
 		return
 	}
@@ -1152,7 +1152,7 @@ func (cs *ConsensusState) enterPrecommit(height uint64, round uint32) {
 		cs.LockedRound = round
 		cs.LockedBlock = cs.ProposalBlock
 		cs.LockedBlockParts = cs.ProposalBlockParts
-		cs.eventBus.PublishEventLock(cs.RoundStateEvent())
+		_ = cs.eventBus.PublishEventLock(cs.RoundStateEvent())
 		cs.signAddVote(kproto.PrecommitType, blockID.Hash, blockID.PartsHeader)
 		return
 	}
@@ -1168,7 +1168,7 @@ func (cs *ConsensusState) enterPrecommit(height uint64, round uint32) {
 		cs.ProposalBlock = nil
 		cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
 	}
-	cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
+	_ = cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
 	cs.signAddVote(kproto.PrecommitType, cmn.Hash{}, types.PartSetHeader{})
 }
 
@@ -1244,7 +1244,7 @@ func (cs *ConsensusState) enterCommit(height uint64, commitRound uint32) {
 			// Set up ProposalBlockParts and keep waiting.
 			cs.ProposalBlock = nil
 			cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
-			cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent())
+			_ = cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent())
 			cs.evsw.FireEvent(types.EventValidBlock, &cs.RoundState)
 		}
 	}

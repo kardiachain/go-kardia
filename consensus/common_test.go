@@ -80,8 +80,8 @@ func (vs *validatorStub) signVote(
 	vote := &types.Vote{
 		ValidatorIndex:   uint32(vs.Index),
 		ValidatorAddress: privVal.GetAddress(),
-		Height:           uint64(vs.Height),
-		Round:            uint32(vs.Round),
+		Height:           vs.Height,
+		Round:            vs.Round,
 		Timestamp:        time.Now(),
 		Type:             voteType,
 		BlockID:          types.BlockID{Hash: hash, PartsHeader: header},
@@ -225,7 +225,7 @@ func validatePrecommit(
 	votedBlockHash,
 	lockedBlockHash common.Hash,
 ) {
-	precommits := cs.Votes.Precommits(uint32(thisRound))
+	precommits := cs.Votes.Precommits(thisRound)
 	privVal := vs.PrivVal
 	address := privVal.GetAddress()
 	var vote *types.Vote
@@ -288,7 +288,7 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 
 	configs.AddDefaultContract()
 
-	for address, _ := range genesisAccounts {
+	for address := range genesisAccounts {
 		genesisAccounts[address] = initValue
 	}
 
