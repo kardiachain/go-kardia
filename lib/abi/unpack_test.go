@@ -26,8 +26,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/stretchr/testify/require"
+
+	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
 // TestUnpack tests the general pack/unpack tests in packing_test.go

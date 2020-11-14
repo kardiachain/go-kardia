@@ -24,10 +24,11 @@ import (
 	"testing"
 
 	abi2 "github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/stretchr/testify/require"
+
 	message2 "github.com/kardiachain/go-kardiamain/dualnode/message"
 	"github.com/kardiachain/go-kardiamain/dualnode/utils"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/stretchr/testify/require"
 )
 
 const (

@@ -22,14 +22,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	cState "github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/kardiachain/go-kardiamain/types/evidence/mocks"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 var (

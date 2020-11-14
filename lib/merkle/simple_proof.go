@@ -23,8 +23,9 @@ import (
 	"errors"
 	"fmt"
 
-	tmcrypto "github.com/kardiachain/go-kardiamain/proto/kardiachain/crypto"
 	"github.com/tendermint/tendermint/crypto/tmhash"
+
+	tmcrypto "github.com/kardiachain/go-kardiamain/proto/kardiachain/crypto"
 )
 
 // SimpleProof represents a simple Merkle proof.

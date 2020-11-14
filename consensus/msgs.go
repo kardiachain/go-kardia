@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
+
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	kcons "github.com/kardiachain/go-kardiamain/proto/kardiachain/consensus"

@@ -23,11 +23,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/kardiachain/go-kardiamain/ksml"
 	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/stretchr/testify/require"
 )
 
 var (

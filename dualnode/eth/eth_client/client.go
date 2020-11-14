@@ -51,11 +51,12 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/gorilla/mux"
+	"github.com/pebbe/zmq4"
+	"github.com/rs/cors"
+
 	message2 "github.com/kardiachain/go-kardiamain/dualnode/message"
 	"github.com/kardiachain/go-kardiamain/dualnode/utils"
 	log "github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/pebbe/zmq4"
-	"github.com/rs/cors"
 )
 
 const (

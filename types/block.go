@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
 	"sort"
 	"strings"
 	"sync"
@@ -29,9 +30,8 @@ import (
 	"time"
 	"unsafe"
 
-	"math/big"
-
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto/sha3"
 	"github.com/kardiachain/go-kardiamain/lib/log"

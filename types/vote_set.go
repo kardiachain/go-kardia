@@ -23,10 +23,11 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/pkg/errors"
+
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-	"github.com/pkg/errors"
 )
 
 const (

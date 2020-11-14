@@ -19,6 +19,8 @@
 package dual_proxy
 
 import (
+	"sync"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/dualnode/utils"
@@ -30,18 +32,17 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/types"
-	"sync"
 )
 
 type Proxy struct {
 
 	// name is name of proxy, or type that proxy connects to (eg: NEO, TRX, ETH, KARDIA)
-	name   string
+	name string
 
 	logger log.Logger // Logger for proxy service
 
-	kardiaBc   base.BaseBlockChain
-	txPool     *tx_pool.TxPool
+	kardiaBc base.BaseBlockChain
+	txPool   *tx_pool.TxPool
 
 	// Dual blockchain related fields
 	dualBc    base.BaseBlockChain
@@ -55,7 +56,7 @@ type Proxy struct {
 	chainHeadSub event.Subscription
 
 	// Queue configuration
-	publishedEndpoint string
+	publishedEndpoint  string
 	subscribedEndpoint string
 
 	mtx sync.Mutex
@@ -123,12 +124,12 @@ func NewProxy(
 	logger.AddTag(serviceName)
 
 	processor := &Proxy{
-		name:       serviceName,
-		logger:     logger,
-		kardiaBc:   kardiaBc,
-		txPool:     txPool,
-		dualBc:     dualBc,
-		eventPool:  dualEventPool,
+		name:        serviceName,
+		logger:      logger,
+		kardiaBc:    kardiaBc,
+		txPool:      txPool,
+		dualBc:      dualBc,
+		eventPool:   dualEventPool,
 		chainHeadCh: make(chan events.ChainHeadEvent, 5),
 	}
 

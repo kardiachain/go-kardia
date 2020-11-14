@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/holiman/uint256"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 

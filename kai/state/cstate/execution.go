@@ -23,6 +23,7 @@ import (
 	"math/big"
 
 	fail "github.com/ebuchman/fail-test"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/staking"

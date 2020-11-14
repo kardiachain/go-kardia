@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/lib/abi"

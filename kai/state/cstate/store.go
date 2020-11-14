@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"

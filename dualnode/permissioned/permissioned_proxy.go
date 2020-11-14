@@ -26,6 +26,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/kai/base"
@@ -40,7 +42,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/types"
-	"github.com/pkg/errors"
 )
 
 const SERVICE_NAME = "PRIVATE_DUAL"
