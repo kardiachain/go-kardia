@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	testing "testing"
+	"testing"
 
 	"github.com/stretchr/testify/require"
 

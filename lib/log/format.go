@@ -26,16 +26,6 @@ var locationTrims = []string{
 	"github.com/kardiachain/go-kardiamain/",
 }
 
-// PrintOrigins sets or unsets log location (file:line) printing for terminal
-// format output.
-func PrintOrigins(print bool) {
-	if print {
-		atomic.StoreUint32(&locationEnabled, 1)
-	} else {
-		atomic.StoreUint32(&locationEnabled, 0)
-	}
-}
-
 // locationEnabled is an atomic flag controlling whether the terminal formatter
 // should append the log locations too when printing entries.
 var locationEnabled uint32
@@ -199,54 +189,6 @@ func logfmt(buf *bytes.Buffer, ctx []interface{}, color int, term bool) {
 		}
 	}
 	buf.WriteByte('\n')
-}
-
-// JSONFormat formats log records as JSON objects separated by newlines.
-// It is the equivalent of JSONFormatEx(false, true).
-func JSONFormat() Format {
-	return JSONFormatEx(false, true)
-}
-
-// JSONFormatOrderedEx formats log records as JSON arrays. If pretty is true,
-// records will be pretty-printed. If lineSeparated is true, records
-// will be logged with a new line between each record.
-func JSONFormatOrderedEx(pretty, lineSeparated bool) Format {
-	jsonMarshal := json.Marshal
-	if pretty {
-		jsonMarshal = func(v interface{}) ([]byte, error) {
-			return json.MarshalIndent(v, "", "    ")
-		}
-	}
-	return FormatFunc(func(r *Record) []byte {
-		props := make(map[string]interface{})
-
-		props[r.KeyNames.Time] = r.Time
-		props[r.KeyNames.Lvl] = r.Lvl.String()
-		props[r.KeyNames.Msg] = r.Msg
-
-		ctx := make([]string, len(r.Ctx))
-		for i := 0; i < len(r.Ctx); i += 2 {
-			k, ok := r.Ctx[i].(string)
-			if !ok {
-				props[errorKey] = fmt.Sprintf("%+v is not a string key,", r.Ctx[i])
-			}
-			ctx[i] = k
-			ctx[i+1] = formatLogfmtValue(r.Ctx[i+1], true)
-		}
-		props[r.KeyNames.Ctx] = ctx
-
-		b, err := jsonMarshal(props)
-		if err != nil {
-			b, _ = jsonMarshal(map[string]string{
-				errorKey: err.Error(),
-			})
-			return b
-		}
-		if lineSeparated {
-			b = append(b, '\n')
-		}
-		return b
-	})
 }
 
 // JSONFormatEx formats log records as JSON objects. If pretty is true,

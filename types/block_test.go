@@ -136,7 +136,7 @@ func CreateNewBlock(height uint64) *Block {
 		Type:           kproto.PrecommitType,
 	}
 	lastCommit := &Commit{
-		Signatures: []CommitSig{vote.CommitSig(), CommitSig{}},
+		Signatures: []CommitSig{vote.CommitSig(), {}},
 	}
 	evidence := []Evidence{}
 	return NewBlock(&header, txns, lastCommit, evidence)

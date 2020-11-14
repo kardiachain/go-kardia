@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"math/big"
 
-	fail "github.com/ebuchman/fail-test"
+	"github.com/ebuchman/fail-test"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"

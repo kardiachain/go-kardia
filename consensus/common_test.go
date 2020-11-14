@@ -263,7 +263,7 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 
 	configs.AddDefaultContract()
 
-	for address, _ := range genesisAccounts {
+	for address := range genesisAccounts {
 		genesisAccounts[address] = initValue
 	}
 

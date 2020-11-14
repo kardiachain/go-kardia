@@ -144,7 +144,7 @@ func convertOutputToNative(o reflect.Value, outputs abi.Arguments) ([]interface{
 		}
 		args = append(args, v)
 	} else { // otherwise, loop it through outputs and add every field into nestedArgs
-		for i, _ := range outputs {
+		for i := range outputs {
 			val := o.Elem().Field(i)
 			v, err := convertToNative(val)
 			if err != nil {
@@ -448,7 +448,7 @@ func GetMethodAndParams(smcABI abi.ABI, input []byte) (string, []string, error) 
 	}
 	obj := reflect.ValueOf(str)
 	inputs := getInputs(smcABI, method.Name)
-	for i, _ := range *inputs {
+	for i := range *inputs {
 		v, err := InterfaceToString(obj.Elem().Field(i).Interface())
 		if err != nil {
 			return "", nil, err

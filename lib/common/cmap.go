@@ -26,12 +26,6 @@ type CMap struct {
 	l sync.Mutex
 }
 
-func NewCMap() *CMap {
-	return &CMap{
-		m: make(map[string]interface{}),
-	}
-}
-
 func (cm *CMap) Set(key string, value interface{}) {
 	cm.l.Lock()
 	defer cm.l.Unlock()

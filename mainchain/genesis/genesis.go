@@ -289,29 +289,6 @@ func GenesisAllocFromData(data map[string]*big.Int) (GenesisAlloc, error) {
 	return ga, nil
 }
 
-//same as DefaultTestnetGenesisBlock, but with smart contract data
-func DefaultTestnetGenesisBlockWithContract(allocData map[string]string) *Genesis {
-	ga, err := GenesisAllocFromContractData(allocData)
-	if err != nil {
-		return nil
-	}
-
-	return &Genesis{
-		Config:   configs.TestnetChainConfig,
-		GasLimit: 16777216,
-		Alloc:    ga,
-	}
-}
-
-func GenesisAllocFromContractData(data map[string]string) (GenesisAlloc, error) {
-	ga := make(GenesisAlloc, len(data))
-
-	for address, code := range data {
-		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: ToCell(100)}
-	}
-	return ga, nil
-}
-
 func GenesisAllocFromAccountAndContract(accountData map[string]*big.Int, contractData map[string]string) (GenesisAlloc, error) {
 	ga := make(GenesisAlloc, len(accountData)+len(contractData))
 

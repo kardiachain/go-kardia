@@ -281,7 +281,7 @@ func forEach(p *Parser, extras ...interface{}) ([]interface{}, error) {
 		return nil, err
 	}
 
-	for i, _ := range convertedArr {
+	for i := range convertedArr {
 		val, err := parseBlockPatterns(p, newPatterns, map[string]interface{}{
 			index: i,
 		})

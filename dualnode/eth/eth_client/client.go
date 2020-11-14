@@ -56,7 +56,7 @@ import (
 
 	message2 "github.com/kardiachain/go-kardiamain/dualnode/message"
 	"github.com/kardiachain/go-kardiamain/dualnode/utils"
-	log "github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardiamain/lib/log"
 )
 
 const (

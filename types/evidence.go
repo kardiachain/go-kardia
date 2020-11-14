@@ -310,13 +310,6 @@ func DuplicateVoteEvidenceFromProto(pb *kproto.DuplicateVoteEvidence) (*Duplicat
 //-------------------------------------------- MOCKING --------------------------------------
 
 // unstable - use only for testing
-
-// assumes the round to be 0 and the validator index to be 0
-func NewMockDuplicateVoteEvidence(height uint64, time time.Time, chainID string) *DuplicateVoteEvidence {
-	val := NewMockPV()
-	return NewMockDuplicateVoteEvidenceWithValidator(height, time, val, chainID)
-}
-
 func NewMockDuplicateVoteEvidenceWithValidator(height uint64, time time.Time,
 	pv PrivValidator, chainID string) *DuplicateVoteEvidence {
 	addr := pv.GetAddress()

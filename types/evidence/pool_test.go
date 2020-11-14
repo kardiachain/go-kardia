@@ -43,7 +43,7 @@ func initializeValidatorState(prival types.PrivValidator, height uint64) cState.
 	// create validator set and state
 	valSet := &types.ValidatorSet{
 		Validators: []*types.Validator{
-			&types.Validator{
+			{
 				Address:          prival.GetAddress(),
 				VotingPower:      100,
 				ProposerPriority: 1,

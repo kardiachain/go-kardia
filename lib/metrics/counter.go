@@ -46,12 +46,6 @@ func NewCounter() Counter {
 	return &StandardCounter{0}
 }
 
-// NewCounterForced constructs a new StandardCounter and returns it no matter if
-// the global switch is enabled or not.
-func NewCounterForced() Counter {
-	return &StandardCounter{0}
-}
-
 // NewRegisteredCounter constructs and registers a new StandardCounter.
 func NewRegisteredCounter(name string, r Registry) Counter {
 	c := NewCounter()
