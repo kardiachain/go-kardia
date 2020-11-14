@@ -239,20 +239,20 @@ type InstrumentationConfig struct {
 
 // DefaultInstrumentationConfig returns a default configuration for metrics
 // reporting.
-func DefaultInstrumentationConfig() *InstrumentationConfig {
-	return &InstrumentationConfig{
-		Prometheus:           false,
-		PrometheusListenAddr: ":26660",
-		MaxOpenConnections:   3,
-		Namespace:            "tendermint",
-	}
-}
+//func DefaultInstrumentationConfig() *InstrumentationConfig {
+//	return &InstrumentationConfig{
+//		Prometheus:           false,
+//		PrometheusListenAddr: ":26660",
+//		MaxOpenConnections:   3,
+//		Namespace:            "tendermint",
+//	}
+//}
 
 // TestInstrumentationConfig returns a default configuration for metrics
 // reporting.
-func TestInstrumentationConfig() *InstrumentationConfig {
-	return DefaultInstrumentationConfig()
-}
+//func TestInstrumentationConfig() *InstrumentationConfig {
+//	return DefaultInstrumentationConfig()
+//}
 
 // ValidateBasic performs basic validation (checking param bounds, etc.) and
 // returns an error if any check fails.

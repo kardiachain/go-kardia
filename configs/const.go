@@ -29,8 +29,6 @@ const (
 
 	// constants related to rate & addOrder function from smc
 	KAI = "KAI"
-	ETH = "ETH"
-	NEO = "NEO"
 
 	// constants related to candidate exchange, Kardia part
 	KardiaCandidateExchangeSmcAddress     = "0x00000000000000000000000000000000736D6338"
@@ -49,7 +47,6 @@ const (
 	KardiaForwardRequestToOrgIndex        = 2
 
 	// constants related to candidate exchange, private chain part
-	PrivateChainCandidateDBSmcIndex                     = 5
 	PrivateChainCandidateRequestCompletedFields         = 4
 	PrivateChainCandidateRequestCompletedFromOrgIDIndex = 0
 	PrivateChainCandidateRequestCompletedToOrgIDIndex   = 1
