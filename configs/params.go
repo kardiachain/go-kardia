@@ -60,13 +60,14 @@ const (
 	MemoryGas             uint64 = 3     // Times the address of the (highest referenced byte in memory + 1). NOTE: referencing happens on read, write and in instructions such as RETURN and CALL.
 	TxDataNonZeroGas      uint64 = 68    // Per byte of data attached to a transaction that is not equal to zero. NOTE: Not payable on data of calls between transactions.
 
-	CallGas                 uint64 = 700 // Once per CALL operation & message call transaction.
-	BalanceGas              uint64 = 400 // The cost of a BALANCE operation
-	ExtcodeSizeGas          uint64 = 700 // Cost of EXTCODESIZE before EIP 150 (Tangerine)
-	ExpByte                 uint64 = 50
-	ExtcodeCopyBase         uint64 = 700
-	CreateBySelfdestructGas uint64 = 5000
-	ExtcodeHashGas          uint64 = 400 // Cost of EXTCODEHASH
+	CallGas                 uint64 = 40    // Once per CALL operation & message call transaction.
+	CallGasStatic           uint64 = 700   // Once per CALL operation & message call transaction.
+	BalanceGas              uint64 = 400   // The cost of a BALANCE operation
+	ExtcodeSizeGas          uint64 = 700   // Cost of EXTCODESIZE before EIP 150 (Tangerine)
+	ExpByte                 uint64 = 50    // EXP has a dynamic portion depending on the size of the exponent
+	ExtcodeCopyBase         uint64 = 700   // Extcodecopy has a dynamic AND a static cost. This represents only the static portion of the gas
+	CreateBySelfdestructGas uint64 = 25000 // CreateBySelfdestructGas is used when the refunded account is one that does not exist. This logic is similar to call.
+	ExtcodeHashGas          uint64 = 400   // Cost of EXTCODEHASH
 
 	MaxCodeSize = 39231 // Maximum bytecode to permit for a contract
 
@@ -78,4 +79,18 @@ const (
 	Ripemd160PerWordGas uint64 = 120  // Per-word price for a RIPEMD160 operation
 	IdentityBaseGas     uint64 = 15   // Base price for a data copy operation
 	IdentityPerWordGas  uint64 = 3    // Per-work price for a data copy operation
+	ModExpQuadCoeffDiv  uint64 = 20   // Divisor for the quadratic particle of the big int modular exponentiation
+
+	Bn256AddGas             uint64 = 500    // Byzantium gas needed for an elliptic curve addition
+	Bn256ScalarMulGas       uint64 = 40000  // Byzantium gas needed for an elliptic curve scalar multiplication
+	Bn256PairingBaseGas     uint64 = 100000 // Byzantium base price for an elliptic curve pairing check
+	Bn256PairingPerPointGas uint64 = 80000  // Byzantium per-point price for an elliptic curve pairing check
+
+	// Call Gas cost
+	GasQuickStep   uint64 = 2
+	GasFastestStep uint64 = 3
+	GasFastStep    uint64 = 5
+	GasMidStep     uint64 = 8
+	GasSlowStep    uint64 = 10
+	GasExtStep     uint64 = 20
 )
