@@ -54,8 +54,6 @@ func (st *Stack) Data() []uint256.Int {
 
 func (st *Stack) push(d *uint256.Int) {
 	// NOTE push limit (1024) is checked in baseCheck
-	//stackItem := new(big.Int).Set(d)
-	//st.data = append(st.data, stackItem)
 	st.data = append(st.data, *d)
 }
 func (st *Stack) pushN(ds ...uint256.Int) {
@@ -90,13 +88,6 @@ func (st *Stack) Back(n int) *uint256.Int {
 	return &st.data[st.len()-n-1]
 }
 
-func (st *Stack) require(n int) error {
-	if st.len() < n {
-		return fmt.Errorf("stack underflow (%d <=> %d)", len(st.data), n)
-	}
-	return nil
-}
-
 // Print dumps the content of the stack
 func (st *Stack) Print() {
 	fmt.Println("### stack ###")
@@ -108,6 +99,12 @@ func (st *Stack) Print() {
 		fmt.Println("-- empty --")
 	}
 	fmt.Println("#############")
+}
+
+var rStackPool = sync.Pool{
+	New: func() interface{} {
+		return &ReturnStack{data: make([]uint32, 0, 10)}
+	},
 }
 
 // #######################################################
@@ -133,12 +130,6 @@ func maxStack(pop, push int) int {
 }
 func minStack(pops, push int) int {
 	return pops
-}
-
-var rStackPool = sync.Pool{
-	New: func() interface{} {
-		return &ReturnStack{data: make([]uint32, 0, 10)}
-	},
 }
 
 // ReturnStack is an object for basic return stack operations.
