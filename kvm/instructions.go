@@ -814,6 +814,20 @@ func opSuicide(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	return nil, nil
 }
 
+// NOT SUPPPORT ChainID yet
+// opChainID implements CHAINID opcode
+// func opChainID(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+// 	chainId, _ := uint256.FromBig(kvm.vmConfig.ChainID)
+// 	callContext.stack.push(chainId)
+// 	return nil, nil
+// }
+
+func opSelfBalance(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	balance, _ := uint256.FromBig(kvm.StateDB.GetBalance(callContext.contract.Address()))
+	callContext.stack.push(balance)
+	return nil, nil
+}
+
 // make log instruction function
 func makeLog(size int) executionFunc {
 	return func(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
