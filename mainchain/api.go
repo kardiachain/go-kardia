@@ -135,6 +135,9 @@ func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 		tx.Root = receipt.Root
 		tx.Status = receipt.Status
 		tx.GasUsed = receipt.GasUsed
+		if receipt.ContractAddress != "0x" {
+			tx.ContractAddress = receipt.ContractAddress
+		}
 		transactions = append(transactions, tx)
 	}
 
@@ -212,6 +215,7 @@ type PublicTransaction struct {
 	Gas              uint64       `json:"gas"`
 	GasPrice         uint64       `json:"gasPrice"`
 	GasUsed          uint64       `json:"gasUsed,omitempty"`
+	ContractAddress  string       `json:"contractAddress,omitempty"`
 	Hash             string       `json:"hash"`
 	Input            string       `json:"input"`
 	Nonce            uint64       `json:"nonce"`
