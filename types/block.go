@@ -441,7 +441,7 @@ func (b *Block) ValidateBasic() error {
 	}
 
 	if err := b.header.LastBlockID.ValidateBasic(); err != nil {
-		return fmt.Errorf("Wrong Header.LastBlockID: %v", err)
+		return fmt.Errorf("wrong Header.LastBlockID: %v", err)
 	}
 
 	// Validate the last commit and its hash.
@@ -606,7 +606,7 @@ func (blockID BlockID) StringLong() string {
 func (blockID BlockID) ValidateBasic() error {
 
 	if err := blockID.PartsHeader.ValidateBasic(); err != nil {
-		return fmt.Errorf("Wrong PartsHeader: %v", err)
+		return fmt.Errorf("wrong PartsHeader: %v", err)
 	}
 	return nil
 }

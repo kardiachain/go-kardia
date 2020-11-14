@@ -414,9 +414,9 @@ func matchValue(value string, op Operator, operand reflect.Value) (bool, error) 
 
 		switch op {
 		case OpLessEqual:
-			return (v.Before(operandAsTime) || v.Equal(operandAsTime)), nil
+			return v.Before(operandAsTime) || v.Equal(operandAsTime), nil
 		case OpGreaterEqual:
-			return (v.Equal(operandAsTime) || v.After(operandAsTime)), nil
+			return v.Equal(operandAsTime) || v.After(operandAsTime), nil
 		case OpLess:
 			return v.Before(operandAsTime), nil
 		case OpGreater:

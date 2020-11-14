@@ -328,7 +328,7 @@ func (dbc *DualBlockChain) repair(head **types.Block) error {
 			return nil
 		}
 		// Otherwise rewind one block and recheck state availability there
-		(*head) = dbc.GetBlock((*head).LastCommitHash(), (*head).Height()-1)
+		*head = dbc.GetBlock((*head).LastCommitHash(), (*head).Height()-1)
 	}
 }
 

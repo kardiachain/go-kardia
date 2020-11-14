@@ -247,7 +247,8 @@ func (cs *ConsensusState) OnStop() {
 // Updates ConsensusState and increments height to match that of state.
 // The round becomes 0 and cs.Step becomes cstypes.RoundStepNewHeight.
 func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
-	if (cs.CommitRound >= 0) && (cs.Height > 0) && cs.Height != state.LastBlockHeight {
+	// Remove conditions since always true //(cs.CommitRound >= 0) &&
+	if (cs.Height > 0) && cs.Height != state.LastBlockHeight {
 		cmn.PanicSanity(cmn.Fmt("updateToState() expected state height of %v but found %v",
 			cs.Height, state.LastBlockHeight))
 	}
@@ -272,7 +273,8 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 	// Reset fields based on state.
 	validators := state.Validators
 	lastPrecommits := (*types.VoteSet)(nil)
-	if (cs.CommitRound >= 0) && cs.Votes != nil {
+	// Remove conditions since always true // (cs.CommitRound >= 0)
+	if cs.Votes != nil {
 		if !cs.Votes.Precommits(cs.CommitRound).HasTwoThirdsMajority() {
 			cmn.PanicSanity("updateToState(state) called but last Precommit round didn't have +2/3")
 		}

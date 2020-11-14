@@ -827,7 +827,7 @@ func (a *addrBook) addBadPeer(addr *p2p.NetAddress, banTime time.Duration) bool 
 
 // hash(key + sourcegroup + int64(hash(key + group + sourcegroup)) % bucket_per_group) % num_new_buckets
 func (a *addrBook) calcNewBucket(addr, src *p2p.NetAddress) (int, error) {
-	data1 := []byte{}
+	var data1 []byte
 	data1 = append(data1, []byte(a.key)...)
 	data1 = append(data1, []byte(a.groupKey(addr))...)
 	data1 = append(data1, []byte(a.groupKey(src))...)

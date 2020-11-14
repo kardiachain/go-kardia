@@ -96,9 +96,9 @@ func MakePoWTarget(difficulty, targetBits uint) []byte {
 		panic(fmt.Sprintf("difficulty (%d) >= targetBits (%d)", difficulty, targetBits))
 	}
 	targetBytes := targetBits / 8
-	zeroPrefixLen := (int(difficulty) / 8)
+	zeroPrefixLen := int(difficulty) / 8
 	prefix := bytes.Repeat([]byte{0}, zeroPrefixLen)
-	mod := (difficulty % 8)
+	mod := difficulty % 8
 	if mod > 0 {
 		nonZeroPrefix := byte(1<<(8-mod) - 1)
 		prefix = append(prefix, nonZeroPrefix)

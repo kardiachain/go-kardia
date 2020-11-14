@@ -598,7 +598,7 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 		return nil
 	}
 
-	buf := []byte{}
+	var buf []byte
 	for i := 0; i < int(blockMeta.BlockID.PartsHeader.Total); i++ {
 		part := ReadBlockPart(db, hash, height, i)
 		buf = append(buf, part.Bytes...)
@@ -688,12 +688,12 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 
 	key := headerHeightKey(hash)
 	if err := batch.Put(key, encodeBlockHeight(height)); err != nil {
-		panic(fmt.Errorf("Failed to store hash to height mapping err: %s", err))
+		panic(fmt.Errorf("failed to store hash to height mapping err: %s", err))
 	}
 
 	CommonWriteCanonicalHash(batch, hash, height)
 	if err := batch.Write(); err != nil {
-		panic(fmt.Errorf("Failed to store block error: %s", err))
+		panic(fmt.Errorf("failed to store block error: %s", err))
 	}
 }
 
