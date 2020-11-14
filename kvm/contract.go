@@ -17,21 +17,11 @@
 package kvm
 
 import (
-	"errors"
 	"math/big"
 
 	"github.com/holiman/uint256"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
-)
-
-// List execution errors
-var (
-	ErrOutOfGas                 = errors.New("out of gas")
-	ErrCodeStoreOutOfGas        = errors.New("contract creation code storage out of gas")
-	ErrDepth                    = errors.New("max call depth exceeded")
-	ErrInsufficientBalance      = errors.New("insufficient balance for transfer")
-	ErrContractAddressCollision = errors.New("contract address collision")
 )
 
 // ContractRef is a reference to the contract's backing object

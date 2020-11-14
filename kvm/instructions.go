@@ -17,22 +17,13 @@
 package kvm
 
 import (
-	"errors"
-
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
-	"golang.org/x/crypto/sha3"
-)
-
-var (
-	ErrWriteProtection       = errors.New("kvm: write protection")
-	ErrReturnDataOutOfBounds = errors.New("kvm: return data out of bounds")
-	ErrExecutionReverted     = errors.New("kvm: execution reverted")
-	ErrMaxCodeSizeExceeded   = errors.New("kvm: max code size exceeded")
-	ErrInvalidJump           = errors.New("kvm: invalid jump destination")
 )
 
 func opAdd(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {

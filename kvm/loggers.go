@@ -20,7 +20,6 @@ package kvm
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -30,8 +29,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
 )
-
-var errTraceLimitReached = errors.New("the number of logs reached the specified limit")
 
 // Storage represents a contract's storage.
 type Storage map[common.Hash]common.Hash
