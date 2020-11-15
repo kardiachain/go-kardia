@@ -525,7 +525,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, bloc
 	msg := args.ToMessage()
 
 	// Get a new instance of the KVM.
-	kvm, vmError, err := s.kaiService.GetKVM(ctx, msg, state, header)
+	kvmInstance, vmError, err := s.kaiService.GetKVM(ctx, msg, state, header)
 	if err != nil {
 		return nil, err
 	}
@@ -534,19 +534,19 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, bloc
 	// EVM has finished, cancelling may be done (repeatedly)
 	go func() {
 		<-ctx.Done()
-		kvm.Cancel()
+		kvmInstance.Cancel()
 	}()
 
 	// Setup the gas pool (also for unmetered requests)
 	// and apply the message.
 	gp := new(types.GasPool).AddGas(common.MaxUint64)
-	result, err := blockchain.ApplyMessage(kvm, msg, gp)
+	result, err := blockchain.ApplyMessage(kvmInstance, msg, gp)
 	if err := vmError(); err != nil {
 		return nil, err
 	}
 
 	// If the timer caused an abort, return an appropriate error message
-	if kvm.Cancelled() {
+	if kvmInstance.Cancelled() {
 		return nil, fmt.Errorf("execution aborted (timeout = %v)", timeout)
 	}
 	if err != nil {

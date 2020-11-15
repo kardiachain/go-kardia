@@ -36,11 +36,11 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-const (
-	// KardiaSatkingSmcIndex ...
-	KardiaSatkingSmcIndex = 7
-	contractAddress       = "0x00000000000000000000000000000000736D1997"
-)
+//const (
+//	// KardiaSatkingSmcIndex ...
+//	KardiaSatkingSmcIndex = 7
+//	contractAddress       = "0x00000000000000000000000000000000736D1997"
+//)
 
 func GetBlockchainStaking() (*blockchain.BlockChain, error, *state.StateDB) {
 	logger := log.New()

@@ -56,7 +56,7 @@ var (
 
 	// ErrGasLimitReached is returned by the gas pool if the amount of gas required
 	// by a transaction is higher than what's left in the block.
-	ErrGasLimitReached = errors.New("gas limit reached")
+	//ErrGasLimitReached = errors.New("gas limit reached")
 
 	// ErrUnderpriced is returned if a transaction's gas price is below the minimum
 	// configured for the transaction pool.
@@ -100,11 +100,12 @@ var (
 // TxStatus is the current status of a transaction as seen by the pool.
 type TxStatus uint
 
+//goland:noinspection GoUnusedConst
 const (
 	TxStatusUnknown TxStatus = iota
 	TxStatusQueued
 	TxStatusPending
-	TxStatusIncluded
+	//TxStatusIncluded
 )
 
 // blockChain provides the state of blockchain and current gas limit to do

@@ -35,9 +35,9 @@ import (
 	"github.com/kardiachain/go-kardiamain/types/evidence"
 )
 
-const (
-	kaiProtocolName = "KAI"
-)
+//const (
+//	kaiProtocolName = "KAI"
+//)
 
 // TODO: evaluates using this subservice as dual mode or light subprotocol.
 type KardiaSubService interface {

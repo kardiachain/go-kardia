@@ -18,7 +18,7 @@ import (
 )
 
 // MaximumGasToCallStaticFunction ...
-var MaximumGasToCallStaticFunction = uint(4000000)
+//var MaximumGasToCallStaticFunction = uint(4000000)
 
 // VoteInfo ...
 type VoteInfo struct {
