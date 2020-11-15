@@ -28,6 +28,7 @@ return sizeof(s.sun_path);
 */
 import "C"
 
+//noinspection GoSnakeCaseUsage
 var (
 	max_path_size = C.max_socket_path_size()
 )
