@@ -26,7 +26,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-	kvm "github.com/kardiachain/go-kardiamain/kvm"
+	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
@@ -54,7 +54,7 @@ func GetBlockchainStaking() (*blockchain.BlockChain, error, *state.StateDB) {
 
 	configs.AddDefaultContract()
 
-	for address, _ := range genesisAccounts {
+	for address := range genesisAccounts {
 		genesisAccounts[address] = initValue
 	}
 

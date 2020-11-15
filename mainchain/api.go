@@ -402,13 +402,13 @@ func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash co
 
 	publicReceipt := &PublicReceipt{
 		BlockHash:         blockHash.Hex(),
-		BlockHeight:       uint64(blockNumber),
+		BlockHeight:       blockNumber,
 		TransactionHash:   tx.Hash().Hex(),
 		TransactionIndex:  index,
 		From:              from.Hex(),
 		To:                "0x",
-		GasUsed:           uint64(receipt.GasUsed),
-		CumulativeGasUsed: uint64(receipt.CumulativeGasUsed),
+		GasUsed:           receipt.GasUsed,
+		CumulativeGasUsed: receipt.CumulativeGasUsed,
 		ContractAddress:   "0x",
 		Logs:              logs,
 		LogsBloom:         receipt.Bloom,
@@ -420,7 +420,7 @@ func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash co
 	}
 	// Assign receipt status or post state.
 	if len(receipt.PostState) > 0 {
-		publicReceipt.Root = common.Bytes(receipt.PostState)
+		publicReceipt.Root = receipt.PostState
 	} else {
 		publicReceipt.Status = uint(receipt.Status)
 	}

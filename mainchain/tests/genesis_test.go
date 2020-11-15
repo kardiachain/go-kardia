@@ -189,10 +189,10 @@ func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 	} else {
 		// Get code from addresses
 		for address, code := range genesisContracts {
-			smc_code := common.Encode(s.GetCode(common.HexToAddress(address)))
+			smcCode := common.Encode(s.GetCode(common.HexToAddress(address)))
 
-			if smc_code != "0x"+code {
-				t.Errorf("Code does not match, expected %v \n got %v", smc_code, code)
+			if smcCode != "0x"+code {
+				t.Errorf("Code does not match, expected %v \n got %v", smcCode, code)
 			}
 		}
 		// Get balance from addresses
