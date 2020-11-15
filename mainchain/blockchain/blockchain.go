@@ -27,6 +27,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 
 	lru "github.com/hashicorp/golang-lru"
+
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
@@ -45,10 +46,9 @@ const (
 )
 
 var (
-	ErrNoGenesis = errors.New("Genesis not found in chain")
+	ErrNoGenesis = errors.New("genesis not found in chain")
 )
 
-// TODO(huny@): Add detailed description for Kardia blockchain
 type BlockChain struct {
 	logger log.Logger
 
