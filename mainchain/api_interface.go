@@ -51,6 +51,7 @@ type APIBackend interface {
 	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error)
 }
 
+//noinspection GoUnusedParameter
 func (s *KardiaService) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header {
 	// Return the latest block if rpc.LatestBlockNumber has been passed in
 	if number == rpc.LatestBlockNumber {
@@ -59,6 +60,7 @@ func (s *KardiaService) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 	return s.blockchain.GetHeader(common.Hash{}, number.Uint64())
 }
 
+//noinspection GoUnusedParameter
 func (s *KardiaService) HeaderByHash(ctx context.Context, hash common.Hash) *types.Header {
 	return s.blockchain.GetHeaderByHash(hash)
 }
@@ -80,6 +82,7 @@ func (s *KardiaService) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash 
 	return nil, ErrInvalidArguments
 }
 
+//noinspection GoUnusedParameter
 func (s *KardiaService) BlockByNumber(ctx context.Context, number rpc.BlockNumber) *types.Block {
 	// Return the latest block if rpc.LatestBlockNumber has been passed in
 	if number == rpc.LatestBlockNumber {
@@ -88,6 +91,7 @@ func (s *KardiaService) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 	return s.blockchain.GetBlockByHeight(number.Uint64())
 }
 
+//noinspection GoUnusedParameter
 func (s *KardiaService) BlockByHash(ctx context.Context, hash common.Hash) *types.Block {
 	return s.blockchain.GetBlockByHash(hash)
 }
@@ -114,6 +118,7 @@ func (s *KardiaService) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 	return nil, ErrInvalidArguments
 }
 
+//noinspection GoUnusedParameter
 func (s *KardiaService) BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo {
 	height := s.DB().ReadHeaderNumber(hash)
 	if height == nil {
@@ -150,9 +155,10 @@ func (s *KardiaService) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 	return nil, nil, ErrInvalidArguments
 }
 
+//noinspection GoUnusedParameter
 func (s *KardiaService) GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error) {
 	vmError := func() error { return nil }
 
-	context := vm.NewKVMContext(msg, header, s.BlockChain())
-	return kvm.NewKVM(context, state, *s.blockchain.GetVMConfig()), vmError, nil
+	kvmCtx := vm.NewKVMContext(msg, header, s.BlockChain())
+	return kvm.NewKVM(kvmCtx, state, *s.blockchain.GetVMConfig()), vmError, nil
 }

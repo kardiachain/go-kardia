@@ -565,6 +565,7 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 		hi  uint64
 		cap uint64
 	)
+
 	// Use zero address if sender unspecified.
 	if (args.From == "") || (common.HexToAddress(args.From) == common.Address{}) {
 		args.From = configs.GenesisDeployerAddr.Hex()

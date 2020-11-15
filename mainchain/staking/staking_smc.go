@@ -63,34 +63,12 @@ func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
 }
 
 //SetParams set params
-func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward int64,
-	slashFractionDowntime int64, slashFractionDoubleSign int64, unBondingTime int64,
-	signedBlockWindow int64, minSignedBlockPerWindow int64,
-	SenderAddress common.Address) ([]byte, error) {
-
-	// stateDb, err := s.bc.State()
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// store, err := s.Abi.Pack("setParams", big.NewInt(100), big.NewInt(600), big.NewInt(baseProposerReward),
-	// 	big.NewInt(bonusProposerReward),
-	// 	big.NewInt(slashFractionDowntime), big.NewInt(slashFractionDoubleSign),
-	// 	big.NewInt(unBondingTime), big.NewInt(signedBlockWindow),
-	// 	big.NewInt(minSignedBlockPerWindow))
-
-	// if err != nil {
-	// 	log.Error("Error set params", "err", err)
-	// 	return nil, err
-	// }
-
-	// _, _, err = sample_kvm.Call(s.ContractAddress, store, &sample_kvm.Config{State: stateDb, Origin: SenderAddress})
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	return nil, nil
-}
+//func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward int64,
+//	slashFractionDowntime int64, slashFractionDoubleSign int64, unBondingTime int64,
+//	signedBlockWindow int64, minSignedBlockPerWindow int64,
+//	SenderAddress common.Address) ([]byte, error) {
+//	return nil, nil
+//}
 
 //CreateValidator create validator
 func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, votingPower int64) error {
@@ -112,7 +90,7 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 		input,
 		false,
 	)
-	if _, err = Apply(s.logger, bc, statedb, header, cfg, msg); err != nil {
+	if _, err = Apply(bc, statedb, header, cfg, msg); err != nil {
 		panic(err)
 	}
 
@@ -137,7 +115,7 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 		false,
 	)
 
-	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	res, err := Apply(bc, statedb, header, cfg, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +160,7 @@ func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc v
 		false,
 	)
 
-	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	res, err := Apply(bc, statedb, header, cfg, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +207,7 @@ func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.He
 		false,
 	)
 
-	_, err = Apply(s.logger, bc, statedb, header, cfg, msg)
+	_, err = Apply(bc, statedb, header, cfg, msg)
 	return err
 }
 
@@ -252,7 +230,7 @@ func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header
 			false,
 		)
 
-		_, err = Apply(s.logger, bc, statedb, header, cfg, msg)
+		_, err = Apply(bc, statedb, header, cfg, msg)
 		if err != nil {
 			return err
 		}
@@ -279,12 +257,12 @@ func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, b
 		payload,
 		false,
 	)
-	_, err = Apply(s.logger, bc, statedb, header, cfg, msg)
+	_, err = Apply(bc, statedb, header, cfg, msg)
 	return err
 }
 
 // Apply ...
-func Apply(logger log.Logger, bc vm.ChainContext, statedb *state.StateDB, header *types.Header, cfg kvm.Config, msg types.Message) ([]byte, error) {
+func Apply(bc vm.ChainContext, statedb *state.StateDB, header *types.Header, cfg kvm.Config, msg types.Message) ([]byte, error) {
 	// Create a new context to be used in the EVM environment
 	context := vm.NewKVMContext(msg, header, bc)
 	vmenv := kvm.NewKVM(context, statedb, cfg)

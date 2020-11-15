@@ -96,8 +96,8 @@ func (bc *BlockChain) IsPrivate() bool {
 }
 
 // HasPermission return true if peer has permission otherwise false
+//noinspection GoUnusedParameter
 func (bc *BlockChain) HasPermission(peer *p2p.Peer) bool {
-
 	return true
 }
 
@@ -420,7 +420,8 @@ func (bc *BlockChain) WriteBlockInfo(block *types.Block, blockInfo *types.BlockI
 }
 
 // CommitTrie commits trie node such as statedb forcefully to disk.
-func (bc BlockChain) CommitTrie(root common.Hash) error {
+// This one should pass by ref since contain mutex
+func (bc *BlockChain) CommitTrie(root common.Hash) error {
 	triedb := bc.stateCache.TrieDB()
 	return triedb.Commit(root, false)
 }

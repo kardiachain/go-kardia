@@ -145,6 +145,7 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartS
 	if block == nil {
 		common.PanicSanity("BlockOperations try to save a nil block")
 	}
+	//noinspection GoNilness
 	height := block.Height()
 	if g, w := height, bo.Height()+1; g != w {
 		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", w, g))

@@ -135,6 +135,7 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, st
 	}
 
 	// Get the existing chain configuration.
+	//noinspection GoNilness
 	newcfg := genesis.configOrDefault(stored)
 	storedcfg := db.ReadChainConfig(stored)
 	if storedcfg == nil {
@@ -211,8 +212,10 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking
 		panic(err)
 	}
 	root := statedb.IntermediateRoot(false)
-	statedb.Commit(false)
-	statedb.Database().TrieDB().Commit(root, true)
+	// todo @longnd handle response
+	// Ingore error check for now
+	_, _ = statedb.Commit(false)
+	_ = statedb.Database().TrieDB().Commit(root, true)
 	return block, root
 }
 
@@ -289,6 +292,7 @@ func GenesisAllocFromData(data map[string]*big.Int) (GenesisAlloc, error) {
 	return ga, nil
 }
 
+// longnd Look like unused
 //same as DefaultTestnetGenesisBlock, but with smart contract data
 //func DefaultTestnetGenesisBlockWithContract(allocData map[string]string) *Genesis {
 //	ga, err := GenesisAllocFromContractData(allocData)
@@ -303,14 +307,15 @@ func GenesisAllocFromData(data map[string]*big.Int) (GenesisAlloc, error) {
 //	}
 //}
 
-func GenesisAllocFromContractData(data map[string]string) (GenesisAlloc, error) {
-	ga := make(GenesisAlloc, len(data))
-
-	for address, code := range data {
-		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: ToCell(100)}
-	}
-	return ga, nil
-}
+// longnd Look like unused
+//func GenesisAllocFromContractData(data map[string]string) (GenesisAlloc, error) {
+//	ga := make(GenesisAlloc, len(data))
+//
+//	for address, code := range data {
+//		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: ToCell(100)}
+//	}
+//	return ga, nil
+//}
 
 func GenesisAllocFromAccountAndContract(accountData map[string]*big.Int, contractData map[string]string) (GenesisAlloc, error) {
 	ga := make(GenesisAlloc, len(accountData)+len(contractData))

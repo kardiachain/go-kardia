@@ -78,6 +78,7 @@ func (txR *Reactor) AddPeer(peer p2p.Peer) {
 }
 
 // RemovePeer implements Reactor.
+//noinspection GoUnusedParameter
 func (txR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	if err := txR.peers.Unregister(peer.ID()); err != nil {
 		txR.Logger.Error("unregister peer err: %s", err)

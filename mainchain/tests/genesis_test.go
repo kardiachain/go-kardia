@@ -23,6 +23,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/account"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
@@ -75,16 +77,11 @@ var (
 )
 
 func TestGenesisAllocFromData(t *testing.T) {
-
 	var data = make(map[string]*big.Int, len(privKeys))
 	for _, pk := range privKeys {
 		keystore := account.KeyStore{Path: ""}
 		keystoreJson, err := keystore.NewKeyStoreJSON(password, pk)
-
-		if err != nil {
-			t.Error("Cannot create new keystore")
-		}
-
+		assert.Nil(t, err)
 		data[keystoreJson.Address] = initBalance
 	}
 
