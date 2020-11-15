@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	kquery "github.com/kardiachain/go-kardiamain/lib/pubsub/query"
 	"github.com/stretchr/testify/require"
+
+	kquery "github.com/kardiachain/go-kardiamain/lib/pubsub/query"
 )
 
 func TestEventBusPublish(t *testing.T) {

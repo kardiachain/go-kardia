@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 
 	"github.com/golang/protobuf/proto"
+
 	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 
