@@ -26,6 +26,8 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 
 	"github.com/kardiachain/go-kardiamain/configs"
@@ -41,7 +43,10 @@ func TestDatadirCreation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create manual data dir: %v", err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() {
+		err := os.RemoveAll(dir)
+		assert.Nil(t, err, "cannot remove dir content")
+	}()
 
 	cfg := &Config{
 		Name:    "demo",
@@ -53,9 +58,7 @@ func TestDatadirCreation(t *testing.T) {
 	}
 
 	_, err = New(cfg)
-	if err != nil {
-		t.Fatalf("failed to create stack with existing datadir: %v", err)
-	}
+	assert.Nil(t, err, "cannot create new node from config", cfg)
 
 	// Generate a long non-existing datadir path and check that it gets created by a node
 	dir = filepath.Join(dir, "a", "b", "c", "d", "e", "f")
@@ -69,7 +72,10 @@ func TestDatadirCreation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temporary file: %v", err)
 	}
-	defer os.Remove(file.Name())
+	defer func() {
+		err := os.Remove(file.Name())
+		assert.Nil(t, err, "cannot remove file", file.Name())
+	}()
 }
 
 // Tests that IPC paths are correctly resolved to valid endpoints of different
@@ -111,7 +117,10 @@ func TestNodeKeyPersistency(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temporary data directory: %v", err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() {
+		err := os.RemoveAll(dir)
+		assert.Nil(t, err, "cannot remove files in folder", dir)
+	}()
 
 	keyfile := filepath.Join(dir, "unit-test", datadirPrivateKey)
 

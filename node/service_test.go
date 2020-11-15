@@ -56,5 +56,6 @@ func TestContextServices(t *testing.T) {
 	if err := stack.Start(); err != nil {
 		t.Fatalf("failed to start stack: %v", err)
 	}
+	//noinspection GoUnhandledErrorResult
 	defer stack.Stop()
 }

@@ -327,17 +327,18 @@ func (c *Config) NodeDB() string {
 	return c.ResolvePath(datadirNodeDatabase)
 }
 
+// Look like unused
 // DefaultIPCEndpoint returns the IPC path used by default.
-func DefaultIPCEndpoint(clientIdentifier string) string {
-	if clientIdentifier == "" {
-		clientIdentifier = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
-		if clientIdentifier == "" {
-			panic("empty executable name")
-		}
-	}
-	config := &Config{DataDir: configs.DefaultDataDir(), IPCPath: clientIdentifier + ".ipc"}
-	return config.IPCEndpoint()
-}
+//func DefaultIPCEndpoint(clientIdentifier string) string {
+//	if clientIdentifier == "" {
+//		clientIdentifier = strings.TrimSuffix(filepath.Base(os.Args[0]), ".exe")
+//		if clientIdentifier == "" {
+//			panic("empty executable name")
+//		}
+//	}
+//	config := &Config{DataDir: configs.DefaultDataDir(), IPCPath: clientIdentifier + ".ipc"}
+//	return config.IPCEndpoint()
+//}
 
 // HTTPEndpoint resolves an HTTP endpoint based on the configured host interface
 // and port parameters.
@@ -357,11 +358,12 @@ func (c *Config) GraphQLEndpoint() string {
 	return fmt.Sprintf("%s:%d", c.GraphQLHost, c.GraphQLPort)
 }
 
+// Look like unused
 // DefaultHTTPEndpoint returns the HTTP endpoint used by default.
-func DefaultHTTPEndpoint() string {
-	config := &Config{HTTPHost: DefaultHTTPHost, HTTPPort: DefaultHTTPPort}
-	return config.HTTPEndpoint()
-}
+//func DefaultHTTPEndpoint() string {
+//	config := &Config{HTTPHost: DefaultHTTPHost, HTTPPort: DefaultHTTPPort}
+//	return config.HTTPEndpoint()
+//}
 
 // WSEndpoint resolves a websocket endpoint based on the configured host interface
 // and port parameters.
@@ -372,11 +374,12 @@ func (c *Config) WSEndpoint() string {
 	return fmt.Sprintf("%s:%d", c.WSHost, c.WSPort)
 }
 
+// Look like unused
 // DefaultWSEndpoint returns the websocket endpoint used by default.
-func DefaultWSEndpoint() string {
-	config := &Config{WSHost: DefaultWSHost, WSPort: DefaultWSPort}
-	return config.WSEndpoint()
-}
+//func DefaultWSEndpoint() string {
+//	config := &Config{WSHost: DefaultWSHost, WSPort: DefaultWSPort}
+//	return config.WSEndpoint()
+//}
 
 // ExtRPCEnabled returns the indicator whether node enables the external
 // RPC(http, ws or graphql).

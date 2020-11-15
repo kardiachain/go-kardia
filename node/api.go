@@ -44,28 +44,33 @@ func NewPrivateAdminAPI(node *Node) *PrivateAdminAPI {
 
 // AddPeer requests connecting to a remote node, and also maintaining the new
 // connection at all times, even reconnecting if it is lost.
+//noinspection GoUnusedParameter
 func (api *PrivateAdminAPI) AddPeer(url string) (bool, error) {
 	return true, nil
 }
 
 // RemovePeer disconnects from a remote node if the connection exists
+//noinspection GoUnusedParameter
 func (api *PrivateAdminAPI) RemovePeer(url string) (bool, error) {
 	return true, nil
 }
 
 // AddTrustedPeer allows a remote node to always connect, even if slots are full
+//noinspection GoUnusedParameter
 func (api *PrivateAdminAPI) AddTrustedPeer(url string) (bool, error) {
 	return true, nil
 }
 
 // RemoveTrustedPeer removes a remote node from the trusted peer set, but it
 // does not disconnect it automatically.
+//noinspection GoUnusedParameter
 func (api *PrivateAdminAPI) RemoveTrustedPeer(url string) (bool, error) {
 	return true, nil
 }
 
 // PeerEvents creates an RPC subscription which receives peer events from the
 // node's p2p.Server
+//noinspection GoUnusedParameter
 func (api *PrivateAdminAPI) PeerEvents(ctx context.Context) (*rpc.Subscription, error) {
 	return nil, nil
 }

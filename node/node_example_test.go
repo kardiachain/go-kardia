@@ -56,6 +56,7 @@ func ExampleService() {
 	if err != nil {
 		log.Fatalf("Failed to create network node: %v", err)
 	}
+	//noinspection GoUnhandledErrorResult
 	defer stack.Close()
 
 	// Create and register a simple network service. This is done through the definition

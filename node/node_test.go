@@ -29,16 +29,15 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/configs"
 
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/service"
 	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/rpc"
 )
 
-var (
-	testNodeKey, _ = crypto.GenerateKey()
-)
+//var (
+//	testNodeKey, _ = crypto.GenerateKey()
+//)
 
 func testNodeConfig() *Config {
 	return &Config{
@@ -56,6 +55,7 @@ func TestNodeLifeCycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}
+	//noinspection GoUnhandledErrorResult
 	defer stack.Close()
 
 	// Ensure that a stopped node can be stopped again
@@ -93,6 +93,7 @@ func TestNodeUsedDataDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temporary data directory: %v", err)
 	}
+	//noinspection GoUnhandledErrorResult
 	defer os.RemoveAll(dir)
 
 	// Create a new node based on the data directory
@@ -102,6 +103,7 @@ func TestNodeUsedDataDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create original protocol stack: %v", err)
 	}
+	//noinspection GoUnhandledErrorResult
 	defer original.Close()
 
 	if err := original.Start(); err != nil {
@@ -224,6 +226,7 @@ func TestServiceRestarts(t *testing.T) {
 	if err := stack.Start(); err != nil {
 		t.Fatalf("failed to start protocol stack: %v", err)
 	}
+	//noinspection GoUnhandledErrorResult
 	defer stack.Stop()
 
 	if !running || started != 1 {
@@ -376,6 +379,7 @@ func TestServiceRetrieval(t *testing.T) {
 	if err := stack.Start(); err != nil {
 		t.Fatalf("failed to start stack: %v", err)
 	}
+	//noinspection GoUnhandledErrorResult
 	defer stack.Stop()
 
 }
@@ -410,6 +414,7 @@ func TestProtocolGather(t *testing.T) {
 	if err := stack.Start(); err != nil {
 		t.Fatalf("failed to start protocol stack: %v", err)
 	}
+	//noinspection GoUnhandledErrorResult
 	defer stack.Stop()
 
 }
@@ -458,6 +463,7 @@ func TestAPIGather(t *testing.T) {
 	if err := stack.Start(); err != nil {
 		t.Fatalf("failed to start protocol stack: %v", err)
 	}
+	//noinspection GoUnhandledErrorResult
 	defer stack.Stop()
 
 	// Connect to the RPC server and verify the various registered endpoints

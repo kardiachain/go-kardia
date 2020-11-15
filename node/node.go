@@ -255,6 +255,7 @@ func (n *Node) OnStart() error {
 			ctx.services[kind] = s
 		}
 		// Construct and save the service
+		//noinspection GoImportUsedAsName
 		service, err := constructor(ctx)
 		if err != nil {
 			return err
@@ -268,6 +269,7 @@ func (n *Node) OnStart() error {
 
 	// Start each of the services
 	var started []reflect.Type
+	//noinspection GoImportUsedAsName
 	for kind, service := range services {
 		// Start the next service, stopping all previous upon failure
 		if err := service.Start(n.sw); err != nil {
@@ -284,6 +286,7 @@ func (n *Node) OnStart() error {
 
 	// Lastly start the configured RPC interfaces
 	if err := n.startRPC(services); err != nil {
+		//noinspection GoImportUsedAsName
 		for _, service := range services {
 			_ = service.Stop()
 		}
@@ -338,6 +341,7 @@ func (n *Node) openDataDir() error {
 func (n *Node) startRPC(services map[reflect.Type]Service) error {
 	// Gather all the possible APIs to surface
 	apis := n.apis()
+	//noinspection GoImportUsedAsName
 	for _, service := range services {
 		apis = append(apis, service.APIs()...)
 	}
@@ -405,7 +409,7 @@ func (n *Node) startIPC(apis []rpc.API) error {
 // stopIPC terminates the IPC RPC endpoint.
 func (n *Node) stopIPC() {
 	if n.ipcListener != nil {
-		n.ipcListener.Close()
+		_ = n.ipcListener.Close()
 		n.ipcListener = nil
 
 		n.Logger.Info("IPC endpoint closed", "url", n.ipcEndpoint)
@@ -438,7 +442,7 @@ func (n *Node) startHTTP(endpoint string, apis []rpc.API, modules []string, cors
 // stopHTTP terminates the HTTP RPC endpoint.
 func (n *Node) stopHTTP() {
 	if n.httpListener != nil {
-		n.httpListener.Close()
+		_ = n.httpListener.Close()
 		n.httpListener = nil
 
 		n.Logger.Info("HTTP endpoint closed", "url", fmt.Sprintf("http://%s", n.httpEndpoint))
@@ -471,7 +475,7 @@ func (n *Node) startWS(endpoint string, apis []rpc.API, modules []string, wsOrig
 // stopWS terminates the websocket RPC endpoint.
 func (n *Node) stopWS() {
 	if n.wsListener != nil {
-		n.wsListener.Close()
+		_ = n.wsListener.Close()
 		n.wsListener = nil
 
 		n.Logger.Info("WebSocket endpoint closed", "url", fmt.Sprintf("ws://%s", n.wsEndpoint))
@@ -498,6 +502,7 @@ func (n *Node) OnStop() {
 	failure := &StopError{
 		Services: make(map[reflect.Type]error),
 	}
+	//noinspection GoImportUsedAsName
 	for kind, service := range n.services {
 		if err := service.Stop(); err != nil {
 			failure.Services[kind] = err
@@ -769,6 +774,7 @@ func makeNodeInfo(
 	return nodeInfo, err
 }
 
+//noinspection GoUnusedParameter
 func createSwitch(config *Config,
 	transport p2p.Transport,
 	peerFilters []p2p.PeerFilterFunc,
