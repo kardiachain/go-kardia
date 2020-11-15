@@ -17,7 +17,6 @@
 package kvm
 
 import (
-	"fmt"
 	"hash"
 	"sync/atomic"
 
@@ -35,7 +34,7 @@ type Config struct {
 	// JumpTable contains the KVM instruction table. This
 	// may be left uninitialised and will be set to the default
 	// table.
-	JumpTable [256]operation
+	JumpTable [256]*operation
 
 	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
 	IsZeroFee bool
@@ -69,6 +68,7 @@ type Interpreter struct {
 type callCtx struct {
 	memory   *Memory
 	stack    *Stack
+	rstack   *ReturnStack
 	contract *Contract
 }
 
@@ -77,7 +77,7 @@ func NewInterpreter(kvm *KVM, cfg Config) *Interpreter {
 	// We use the STOP instruction whether to see
 	// the jump table was initialised. If it was not
 	// we'll set the default jump table.
-	if !cfg.JumpTable[STOP].valid {
+	if cfg.JumpTable[STOP] == nil {
 		cfg.JumpTable = newKardiaInstructionSet()
 	}
 	return &Interpreter{
@@ -166,24 +166,22 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		if steps%1000 == 0 && atomic.LoadInt32(&in.kvm.abort) != 0 {
 			break
 		}
-		/* TODO(huny@): Add tracer later
 		if in.cfg.Debug {
 			// Capture pre-execution values for tracing.
 			logged, pcCopy, gasCopy = false, pc, contract.Gas
 		}
-		*/
 		// Get the operation from the jump table and validate the stack to ensure there are
 		// enough stack items available to perform the operation.
 		op = contract.GetOp(pc)
 		operation := in.cfg.JumpTable[op]
-		if !operation.valid {
-			return nil, fmt.Errorf("invalid opcode 0x%x", int(op))
+		if operation == nil {
+			return nil, &ErrInvalidOpCode{opcode: op}
 		}
 		// Validate stack
 		if sLen := stack.len(); sLen < operation.minStack {
-			return nil, fmt.Errorf("stack underflow (%d <=> %d)", sLen, operation.minStack)
+			return nil, &ErrStackUnderflow{stackLen: sLen, required: operation.minStack}
 		} else if sLen > operation.maxStack {
-			return nil, fmt.Errorf("stack limit reached %d (%d)", sLen, operation.maxStack)
+			return nil, &ErrStackOverflow{stackLen: sLen, limit: operation.maxStack}
 		}
 		// If the operation is valid, enforce and write restrictions
 		if in.readOnly {
@@ -211,12 +209,12 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		if operation.memorySize != nil {
 			memSize, overflow := operation.memorySize(stack)
 			if overflow {
-				return nil, errGasUintOverflow
+				return nil, ErrGasUintOverflow
 			}
 			// memory is expanded in words of 32 bytes. Gas
 			// is also calculated in words.
 			if memorySize, overflow = common.SafeMul(toWordSize(memSize), 32); overflow {
-				return nil, errGasUintOverflow
+				return nil, ErrGasUintOverflow
 			}
 		}
 		// Dynamic portion of gas
@@ -260,4 +258,10 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		}
 	}
 	return nil, nil
+}
+
+// CanRun tells if the contract, passed as an argument, can be
+// run by the current interpreter.
+func (in *Interpreter) CanRun(code []byte) bool {
+	return true
 }

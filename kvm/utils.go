@@ -19,39 +19,23 @@
 package kvm
 
 import (
-	"math/big"
-
 	"github.com/holiman/uint256"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
-var (
-	big0      = big.NewInt(0)
-	big1      = big.NewInt(1)
-	big4      = big.NewInt(4)
-	big8      = big.NewInt(8)
-	big16     = big.NewInt(16)
-	big32     = big.NewInt(32)
-	big64     = big.NewInt(64)
-	big96     = big.NewInt(96)
-	big480    = big.NewInt(480)
-	big1024   = big.NewInt(1024)
-	big3072   = big.NewInt(3072)
-	big199680 = big.NewInt(199680)
-)
-
-// calculates the memory size required for a step
-func calcMemSize(off, l *uint256.Int) (uint64, bool) {
+// calcMemSize64 calculates the required memory size, and returns
+// the size and whether the result overflowed uint64
+func calcMemSize64(off, l *uint256.Int) (uint64, bool) {
 	if !l.IsUint64() {
 		return 0, true
 	}
-	return calcMemSizeWithUint(off, l.Uint64())
+	return calcMemSize64WithUint(off, l.Uint64())
 }
 
 // calcMemSize64WithUint calculates the required memory size, and returns
 // the size and whether the result overflowed uint64
 // Identical to calcMemSize64, but length is a uint64
-func calcMemSizeWithUint(off *uint256.Int, length64 uint64) (uint64, bool) {
+func calcMemSize64WithUint(off *uint256.Int, length64 uint64) (uint64, bool) {
 	// if length is zero, memsize is always zero, regardless of offset
 	if length64 == 0 {
 		return 0, false

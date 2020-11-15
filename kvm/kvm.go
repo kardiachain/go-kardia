@@ -45,15 +45,20 @@ type (
 	GetHashFunc func(uint64) common.Hash
 )
 
+func (kvm *KVM) precompile(addr common.Address) (PrecompiledContract, bool) {
+	var precompiles map[common.Address]PrecompiledContract
+	precompiles = PrecompiledContractsV0
+	p, ok := precompiles[addr]
+	return p, ok
+}
+
 // run runs the given contract and takes care of running precompiles with a fallback to the byte code interpreter.
 func run(kvm *KVM, contract *Contract, input []byte, readOnly bool) ([]byte, error) {
-	if contract.CodeAddr != nil {
-		precompiles := PrecompiledContractsV0
-		if p := precompiles[*contract.CodeAddr]; p != nil {
-			return RunPrecompiledContract(p, input, contract)
-		}
+	if kvm.interpreter.CanRun(contract.Code) {
+		return kvm.interpreter.Run(contract, input, readOnly)
 	}
-	return kvm.interpreter.Run(contract, input, readOnly)
+
+	return nil, ErrInterpreterNotCompatible
 }
 
 // Context provides the KVM with auxiliary information. Once provided
@@ -157,10 +162,9 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		return nil, gas, ErrInsufficientBalance
 	}
 
-	var (
-		to       = AccountRef(addr)
-		snapshot = kvm.StateDB.Snapshot()
-	)
+	snapshot := kvm.StateDB.Snapshot()
+	p, isPrecompile := kvm.precompile(addr)
+
 	if !kvm.StateDB.Exist(addr) {
 		precompiles := PrecompiledContractsV0
 		if precompiles[addr] == nil && value.Sign() == 0 {
@@ -173,7 +177,7 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}
 		kvm.StateDB.CreateAccount(addr)
 	}
-	kvm.Transfer(kvm.StateDB, caller.Address(), to.Address(), value)
+	kvm.Transfer(kvm.StateDB, caller.Address(), addr, value)
 
 	// Capture the tracer start/end events in debug mode
 	if kvm.vmConfig.Debug && kvm.depth == 0 {
@@ -183,14 +187,25 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}(gas, time.Now())
 	}
 
-	// Initialise a new contract and set the code that is to be used by the KVM.
-	// The contract is a scoped environment for this execution context only.
-	contract := NewContract(caller, to, value, gas)
-	contract.SetCallCode(&addr, kvm.StateDB.GetCodeHash(addr), kvm.StateDB.GetCode(addr))
-
-	ret, err = run(kvm, contract, input, false)
-
-	// When an error was returned by the KVM or when setting the creation code
+	if isPrecompile {
+		ret, gas, err = RunPrecompiledContract(p, input, gas)
+	} else {
+		// Initialise a new contract and set the code that is to be used by the EVM.
+		// The contract is a scoped environment for this execution context only.
+		code := kvm.StateDB.GetCode(addr)
+		if len(code) == 0 {
+			ret, err = nil, nil // gas is unchanged
+		} else {
+			addrCopy := addr
+			// If the account has no code, we can abort here
+			// The depth-check is already done, and precompiles handled above
+			contract := NewContract(caller, AccountRef(addrCopy), value, gas)
+			contract.SetCallCode(&addrCopy, kvm.StateDB.GetCodeHash(addrCopy), code)
+			ret, err = run(kvm, contract, input, false)
+			gas = contract.Gas
+		}
+	}
+	// When an error was returned by the EVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
 	if err != nil {
@@ -198,6 +213,9 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		if err != ErrExecutionReverted {
 			gas = 0
 		}
+		// TODO: consider clearing up unused snapshots:
+		//} else {
+		//	evm.StateDB.DiscardSnapshot(snapshot)
 	}
 	return ret, gas, err
 }
@@ -219,21 +237,26 @@ func (kvm *KVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
+	// Note although it's noop to transfer X ether to caller itself. But
+	// if caller doesn't have enough balance, it would be an error to allow
+	// over-charging itself. So the check here is necessary.
 	if !kvm.CanTransfer(kvm.StateDB, caller.Address(), value) {
 		return nil, gas, ErrInsufficientBalance
 	}
 
-	var (
-		snapshot = kvm.StateDB.Snapshot()
-		to       = AccountRef(caller.Address())
-	)
-	// initialise a new contract and set the code that is to be used by the
-	// KVM. The contract is a scoped environment for this execution context
-	// only.
-	contract := NewContract(caller, to, value, gas)
-	contract.SetCallCode(&addr, kvm.StateDB.GetCodeHash(addr), kvm.StateDB.GetCode(addr))
-
-	ret, err = run(kvm, contract, input, false)
+	var snapshot = kvm.StateDB.Snapshot()
+	// It is allowed to call precompiles, even via delegatecall
+	if p, isPrecompile := kvm.precompile(addr); isPrecompile {
+		ret, gas, err = RunPrecompiledContract(p, input, gas)
+	} else {
+		addrCopy := addr
+		// Initialise a new contract and set the code that is to be used by the EVM.
+		// The contract is a scoped environment for this execution context only.
+		contract := NewContract(caller, AccountRef(caller.Address()), value, gas)
+		contract.SetCallCode(&addrCopy, kvm.StateDB.GetCodeHash(addrCopy), kvm.StateDB.GetCode(addrCopy))
+		ret, err = run(kvm, contract, input, false)
+		gas = contract.Gas
+	}
 	if err != nil {
 		kvm.StateDB.RevertToSnapshot(snapshot)
 		if err != ErrExecutionReverted {
@@ -257,16 +280,19 @@ func (kvm *KVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 		return nil, gas, ErrDepth
 	}
 
-	var (
-		snapshot = kvm.StateDB.Snapshot()
-		to       = AccountRef(caller.Address())
-	)
+	var snapshot = kvm.StateDB.Snapshot()
 
-	// Initialise a new contract and make initialise the delegate values
-	contract := NewContract(caller, to, nil, gas).AsDelegate()
-	contract.SetCallCode(&addr, kvm.StateDB.GetCodeHash(addr), kvm.StateDB.GetCode(addr))
-
-	ret, err = run(kvm, contract, input, false)
+	// It is allowed to call precompiles, even via delegatecall
+	if p, isPrecompile := kvm.precompile(addr); isPrecompile {
+		ret, gas, err = RunPrecompiledContract(p, input, gas)
+	} else {
+		addrCopy := addr
+		// Initialise a new contract and make initialise the delegate values
+		contract := NewContract(caller, AccountRef(caller.Address()), nil, gas).AsDelegate()
+		contract.SetCallCode(&addrCopy, kvm.StateDB.GetCodeHash(addrCopy), kvm.StateDB.GetCode(addrCopy))
+		ret, err = run(kvm, contract, input, false)
+		gas = contract.Gas
+	}
 	if err != nil {
 		kvm.StateDB.RevertToSnapshot(snapshot)
 		if err != ErrExecutionReverted {
@@ -288,16 +314,12 @@ func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	if kvm.depth > int(configs.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
-
-	var (
-		to       = AccountRef(addr)
-		snapshot = kvm.StateDB.Snapshot()
-	)
-	// Initialise a new contract and set the code that is to be used by the
-	// KVM. The contract is a scoped environment for this execution context
-	// only.
-	contract := NewContract(caller, to, new(big.Int), gas)
-	contract.SetCallCode(&addr, kvm.StateDB.GetCodeHash(addr), kvm.StateDB.GetCode(addr))
+	// We take a snapshot here. This is a bit counter-intuitive, and could probably be skipped.
+	// However, even a staticcall is considered a 'touch'. On mainnet, static calls were introduced
+	// after all empty accounts were deleted, so this is not required. However, if we omit this,
+	// then certain tests start failing; stRevertTest/RevertPrecompiledTouchExactOOG.json.
+	// We could change this, but for now it's left for legacy reasons
+	var snapshot = kvm.StateDB.Snapshot()
 
 	// We do an AddBalance of zero here, just in order to trigger a touch.
 	// This doesn't matter on Mainnet, where all empties are gone at the time of Byzantium,
@@ -305,9 +327,23 @@ func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// future scenarios
 	kvm.StateDB.AddBalance(addr, big0)
 
-	// When an error was returned by the KVM or when setting the creation code
-	// above we revert to the snapshot and consume any gas remaining.
-	ret, err = run(kvm, contract, input, true)
+	if p, isPrecompile := kvm.precompile(addr); isPrecompile {
+		ret, gas, err = RunPrecompiledContract(p, input, gas)
+	} else {
+		// At this point, we use a copy of address. If we don't, the go compiler will
+		// leak the 'contract' to the outer scope, and make allocation for 'contract'
+		// even if the actual execution ends on RunPrecompiled above.
+		addrCopy := addr
+		// Initialise a new contract and set the code that is to be used by the EVM.
+		// The contract is a scoped environment for this execution context only.
+		contract := NewContract(caller, AccountRef(addrCopy), new(big.Int), gas)
+		contract.SetCallCode(&addrCopy, kvm.StateDB.GetCodeHash(addrCopy), kvm.StateDB.GetCode(addrCopy))
+		// When an error was returned by the EVM or when setting the creation code
+		// above we revert to the snapshot and consume any gas remaining. Additionally
+		// when we're in Homestead this also counts for code storage gas errors.
+		ret, err = run(kvm, contract, input, true)
+		gas = contract.Gas
+	}
 	if err != nil {
 		kvm.StateDB.RevertToSnapshot(snapshot)
 		if err != ErrExecutionReverted {
@@ -414,11 +450,11 @@ func (kvm *KVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 
 // Create2 creates a new contract using code as deployment code.
 //
-// The different between Create2 with Create is Create2 uses sha3(msg.sender ++ salt ++ init_code)[12:]
+// The different between Create2 with Create is Create2 uses sha3(0xff ++ msg.sender ++ salt ++ sha3(init_code))[12:]
 // instead of the usual sender-and-nonce-hash as the address where the contract is initialized at.
 func (kvm *KVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	codeAndHash := &codeAndHash{code: code}
-	contractAddr = crypto.CreateAddress2(caller.Address(), common.Hash(salt.Bytes32()), code)
+	contractAddr = crypto.CreateAddress2(caller.Address(), common.Hash(salt.Bytes32()), codeAndHash.Hash().Bytes())
 	return kvm.create(caller, codeAndHash, gas, endowment, contractAddr)
 }
 
