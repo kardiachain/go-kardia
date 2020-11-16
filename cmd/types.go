@@ -73,6 +73,7 @@ type (
 		Consensus       *Consensus                  `yaml:"Consensus"`
 		ChainConfig     *configs.ChainConfig        `yaml:"ChainConfig"`
 		TxPool          *Pool                       `yaml:"TxPool,omitempty"`
+		Timestamp       int64                       `yaml:"Timestamp,omitempty"`
 	}
 	Contract struct {
 		Address  string `yaml:"Address"`

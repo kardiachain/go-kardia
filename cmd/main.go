@@ -149,6 +149,7 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 		Validators:      g.Validators,
 		ConsensusParams: c.getConsensusParams(),
 		Consensus:       c.getConsensusConfig(),
+		Timestamp:       time.Unix(g.Timestamp, 0),
 	}, nil
 }
 
