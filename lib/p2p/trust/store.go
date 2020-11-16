@@ -11,7 +11,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 
 	"github.com/kardiachain/go-kardiamain/lib/service"
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 const defaultStorePeriodicSaveInterval = 1 * time.Minute
@@ -26,7 +26,7 @@ type MetricStore struct {
 	peerMetrics map[string]*Metric
 
 	// Mutex that protects the map and history data file
-	mtx tmsync.Mutex
+	mtx ksync.Mutex
 
 	// The db where peer trust metric history data will be stored
 	db kaidb.Database

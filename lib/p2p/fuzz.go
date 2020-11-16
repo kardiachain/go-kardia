@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/configs"
-	tmrand "github.com/kardiachain/go-kardiamain/lib/rand"
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	krand "github.com/kardiachain/go-kardiamain/lib/rand"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 // FuzzedConnection wraps any net.Conn and depending on the mode either delays
@@ -14,7 +14,7 @@ import (
 type FuzzedConnection struct {
 	conn net.Conn
 
-	mtx    tmsync.Mutex
+	mtx    ksync.Mutex
 	start  <-chan time.Time
 	active bool
 
@@ -103,7 +103,7 @@ func (fc *FuzzedConnection) SetWriteDeadline(t time.Time) error {
 
 func (fc *FuzzedConnection) randomDuration() time.Duration {
 	maxDelayMillis := int(fc.config.MaxDelay.Nanoseconds() / 1000)
-	return time.Millisecond * time.Duration(tmrand.Int()%maxDelayMillis) // nolint: gas
+	return time.Millisecond * time.Duration(krand.Int()%maxDelayMillis) // nolint: gas
 }
 
 // implements the fuzz (delay, kill conn)
@@ -116,7 +116,7 @@ func (fc *FuzzedConnection) fuzz() bool {
 	switch fc.config.Mode {
 	case configs.FuzzModeDrop:
 		// randomly drop the r/w, drop the conn, or sleep
-		r := tmrand.Float64()
+		r := krand.Float64()
 		switch {
 		case r <= fc.config.ProbDropRW:
 			return true

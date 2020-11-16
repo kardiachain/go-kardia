@@ -6,8 +6,8 @@ import (
 	"reflect"
 
 	"github.com/kardiachain/go-kardiamain/lib/bytes"
-	tmstrings "github.com/kardiachain/go-kardiamain/lib/strings"
-	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	kstrings "github.com/kardiachain/go-kardiamain/lib/strings"
+	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
 )
 
 const (
@@ -131,7 +131,7 @@ func (info DefaultNodeInfo) Validate() error {
 
 	// Validate Version
 	if len(info.Version) > 0 &&
-		(!tmstrings.IsASCIIText(info.Version) || tmstrings.ASCIITrim(info.Version) == "") {
+		(!kstrings.IsASCIIText(info.Version) || kstrings.ASCIITrim(info.Version) == "") {
 
 		return fmt.Errorf("info.Version must be valid ASCII text without tabs, but got %v", info.Version)
 	}
@@ -150,7 +150,7 @@ func (info DefaultNodeInfo) Validate() error {
 	}
 
 	// Validate Moniker.
-	if !tmstrings.IsASCIIText(info.Moniker) || tmstrings.ASCIITrim(info.Moniker) == "" {
+	if !kstrings.IsASCIIText(info.Moniker) || kstrings.ASCIITrim(info.Moniker) == "" {
 		return fmt.Errorf("info.Moniker must be valid non-empty ASCII text without tabs, but got %v", info.Moniker)
 	}
 
@@ -164,7 +164,7 @@ func (info DefaultNodeInfo) Validate() error {
 	}
 	// XXX: Should we be more strict about address formats?
 	rpcAddr := other.RPCAddress
-	if len(rpcAddr) > 0 && (!tmstrings.IsASCIIText(rpcAddr) || tmstrings.ASCIITrim(rpcAddr) == "") {
+	if len(rpcAddr) > 0 && (!kstrings.IsASCIIText(rpcAddr) || kstrings.ASCIITrim(rpcAddr) == "") {
 		return fmt.Errorf("info.Other.RPCAddress=%v must be valid ASCII text without tabs", rpcAddr)
 	}
 
@@ -221,10 +221,10 @@ func (info DefaultNodeInfo) NetAddress() (*NetAddress, error) {
 	return NewNetAddressString(idAddr)
 }
 
-func (info DefaultNodeInfo) ToProto() *tmp2p.DefaultNodeInfo {
+func (info DefaultNodeInfo) ToProto() *kp2p.DefaultNodeInfo {
 
-	dni := new(tmp2p.DefaultNodeInfo)
-	dni.ProtocolVersion = tmp2p.ProtocolVersion{
+	dni := new(kp2p.DefaultNodeInfo)
+	dni.ProtocolVersion = kp2p.ProtocolVersion{
 		P2P:   info.ProtocolVersion.P2P,
 		Block: info.ProtocolVersion.Block,
 		App:   info.ProtocolVersion.App,
@@ -236,7 +236,7 @@ func (info DefaultNodeInfo) ToProto() *tmp2p.DefaultNodeInfo {
 	dni.Version = info.Version
 	dni.Channels = info.Channels
 	dni.Moniker = info.Moniker
-	dni.Other = tmp2p.DefaultNodeInfoOther{
+	dni.Other = kp2p.DefaultNodeInfoOther{
 		TxIndex:    info.Other.TxIndex,
 		RPCAddress: info.Other.RPCAddress,
 	}
@@ -244,7 +244,7 @@ func (info DefaultNodeInfo) ToProto() *tmp2p.DefaultNodeInfo {
 	return dni
 }
 
-func DefaultNodeInfoFromToProto(pb *tmp2p.DefaultNodeInfo) (DefaultNodeInfo, error) {
+func DefaultNodeInfoFromToProto(pb *kp2p.DefaultNodeInfo) (DefaultNodeInfo, error) {
 	if pb == nil {
 		return DefaultNodeInfo{}, errors.New("nil node info")
 	}

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"reflect"
 
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 var (
@@ -39,7 +39,7 @@ type typeInfo struct {
 
 // types is a type registry. It is safe for concurrent use.
 type types struct {
-	tmsync.RWMutex
+	ksync.RWMutex
 	byType map[reflect.Type]*typeInfo
 	byName map[string]*typeInfo
 }

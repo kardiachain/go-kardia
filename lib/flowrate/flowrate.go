@@ -10,12 +10,12 @@ import (
 	"math"
 	"time"
 
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 // Monitor monitors and limits the transfer rate of a data stream.
 type Monitor struct {
-	mu      tmsync.Mutex  // Mutex guarding access to all internal fields
+	mu      ksync.Mutex   // Mutex guarding access to all internal fields
 	active  bool          // Flag indicating an active transfer
 	start   time.Duration // Transfer start time (clock() value)
 	bytes   int64         // Total number of bytes transferred

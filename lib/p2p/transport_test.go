@@ -13,7 +13,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
 	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
 )
 
 var defaultNodeName = "host_peer"
@@ -30,7 +30,7 @@ func newMultiplexTransport(
 	nodeKey NodeKey,
 ) *MultiplexTransport {
 	return NewMultiplexTransport(
-		nodeInfo, nodeKey, conn.DefaultMConnConfig(),
+		nodeInfo, nodeKey, conn.DefaulKAIConnConfig(),
 	)
 }
 
@@ -591,7 +591,7 @@ func TestTransportHandshake(t *testing.T) {
 		go func(c net.Conn) {
 			var (
 				// ni   DefaultNodeInfo
-				pbni tmp2p.DefaultNodeInfo
+				pbni kp2p.DefaultNodeInfo
 			)
 
 			protoReader := protoio.NewDelimitedReader(c, MaxNodeInfoSize())

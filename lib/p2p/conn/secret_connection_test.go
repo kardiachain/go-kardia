@@ -20,8 +20,8 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/async"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	tmos "github.com/kardiachain/go-kardiamain/lib/os"
-	tmrand "github.com/kardiachain/go-kardiamain/lib/rand"
+	kos "github.com/kardiachain/go-kardiamain/lib/os"
+	krand "github.com/kardiachain/go-kardiamain/lib/rand"
 )
 
 // Run go test -update from within this module
@@ -66,7 +66,7 @@ func (drw kvstoreConn) Close() (err error) {
 
 // func TestConcurrentWrite(t *testing.T) {
 // 	fooSecConn, barSecConn := makeSecretConnPair(t)
-// 	fooWriteText := tmrand.Str(dataMaxSize)
+// 	fooWriteText := krand.Str(dataMaxSize)
 
 // 	// write from two routines.
 // 	// should be safe from race according to net.Conn:
@@ -88,7 +88,7 @@ func (drw kvstoreConn) Close() (err error) {
 
 // func TestConcurrentRead(t *testing.T) {
 // 	fooSecConn, barSecConn := makeSecretConnPair(t)
-// 	fooWriteText := tmrand.Str(dataMaxSize)
+// 	fooWriteText := krand.Str(dataMaxSize)
 // 	n := 100
 
 // 	// read from two routines.
@@ -109,15 +109,15 @@ func (drw kvstoreConn) Close() (err error) {
 // }
 
 func TestSecretConnectionReadWrite(t *testing.T) {
-	tmrand.Seed(time.Now().UnixNano())
+	krand.Seed(time.Now().UnixNano())
 	fooConn, barConn := makeKVStoreConnPair()
 	fooWrites, barWrites := []string{}, []string{}
 	fooReads, barReads := []string{}, []string{}
 
 	// Pre-generate the things to write (for foo & bar)
 	for i := 0; i < 100; i++ {
-		fooWrites = append(fooWrites, tmrand.Str((tmrand.Int()%(dataMaxSize*5))+1))
-		barWrites = append(barWrites, tmrand.Str((tmrand.Int()%(dataMaxSize*5))+1))
+		fooWrites = append(fooWrites, krand.Str((krand.Int()%(dataMaxSize*5))+1))
+		barWrites = append(barWrites, krand.Str((krand.Int()%(dataMaxSize*5))+1))
 	}
 
 	// A helper that will run with (fooConn, fooWrites, fooReads) and vice versa
@@ -230,7 +230,7 @@ func TestDeriveSecretsAndChallengeGolden(t *testing.T) {
 	if *update {
 		t.Logf("Updating golden test vector file %s", goldenFilepath)
 		data := createGoldenTestVectors(t)
-		err := tmos.WriteFile(goldenFilepath, []byte(data), 0644)
+		err := kos.WriteFile(goldenFilepath, []byte(data), 0644)
 		require.NoError(t, err)
 	}
 	f, err := os.Open(goldenFilepath)
@@ -285,11 +285,11 @@ func readLots(t *testing.T, wg *sync.WaitGroup, conn io.Reader, n int) {
 func createGoldenTestVectors(t *testing.T) string {
 	data := ""
 	for i := 0; i < 32; i++ {
-		randSecretVector := tmrand.Bytes(32)
+		randSecretVector := krand.Bytes(32)
 		randSecret := new([32]byte)
 		copy((*randSecret)[:], randSecretVector)
 		data += hex.EncodeToString((*randSecret)[:]) + ","
-		locIsLeast := tmrand.Bool()
+		locIsLeast := krand.Bool()
 		data += strconv.FormatBool(locIsLeast) + ","
 		recvSecret, sendSecret := deriveSecrets(randSecret, locIsLeast)
 		data += hex.EncodeToString((*recvSecret)[:]) + ","
@@ -372,7 +372,7 @@ func makeKVStoreConnPair() (fooConn, barConn kvstoreConn) {
 // 	}
 // 	fooWriteBytes := make([][]byte, 0, len(randomMsgSizes))
 // 	for _, size := range randomMsgSizes {
-// 		fooWriteBytes = append(fooWriteBytes, tmrand.Bytes(size))
+// 		fooWriteBytes = append(fooWriteBytes, krand.Bytes(size))
 // 	}
 // 	// Consume reads from bar's reader
 // 	go func() {
@@ -390,7 +390,7 @@ func makeKVStoreConnPair() (fooConn, barConn kvstoreConn) {
 
 // 	b.StartTimer()
 // 	for i := 0; i < b.N; i++ {
-// 		idx := tmrand.Intn(len(fooWriteBytes))
+// 		idx := krand.Intn(len(fooWriteBytes))
 // 		_, err := fooSecConn.Write(fooWriteBytes[idx])
 // 		if err != nil {
 // 			b.Errorf("failed to write to fooSecConn: %v", err)
@@ -420,11 +420,11 @@ func makeKVStoreConnPair() (fooConn, barConn kvstoreConn) {
 // 	}
 // 	fooWriteBytes := make([][]byte, 0, len(randomMsgSizes))
 // 	for _, size := range randomMsgSizes {
-// 		fooWriteBytes = append(fooWriteBytes, tmrand.Bytes(size))
+// 		fooWriteBytes = append(fooWriteBytes, krand.Bytes(size))
 // 	}
 // 	go func() {
 // 		for i := 0; i < b.N; i++ {
-// 			idx := tmrand.Intn(len(fooWriteBytes))
+// 			idx := krand.Intn(len(fooWriteBytes))
 // 			_, err := fooSecConn.Write(fooWriteBytes[idx])
 // 			if err != nil {
 // 				b.Errorf("failed to write to fooSecConn: %v, %v,%v", err, i, b.N)

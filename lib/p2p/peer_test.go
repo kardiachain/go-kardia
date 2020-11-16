@@ -16,7 +16,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 
-	tmconn "github.com/kardiachain/go-kardiamain/lib/p2p/conn"
+	kconn "github.com/kardiachain/go-kardiamain/lib/p2p/conn"
 )
 
 func TestPeerBasic(t *testing.T) {
@@ -27,7 +27,7 @@ func TestPeerBasic(t *testing.T) {
 	rp.Start()
 	t.Cleanup(rp.Stop)
 
-	p, err := createOutboundPeerAndPerformHandshake(rp.Addr(), cfg, tmconn.DefaultMConnConfig())
+	p, err := createOutboundPeerAndPerformHandshake(rp.Addr(), cfg, kconn.DefaulKAIConnConfig())
 	require.Nil(err)
 
 	err = p.Start()
@@ -57,7 +57,7 @@ func TestPeerSend(t *testing.T) {
 	rp.Start()
 	t.Cleanup(rp.Stop)
 
-	p, err := createOutboundPeerAndPerformHandshake(rp.Addr(), config, tmconn.DefaultMConnConfig())
+	p, err := createOutboundPeerAndPerformHandshake(rp.Addr(), config, kconn.DefaulKAIConnConfig())
 	require.Nil(err)
 
 	err = p.Start()
@@ -76,9 +76,9 @@ func TestPeerSend(t *testing.T) {
 func createOutboundPeerAndPerformHandshake(
 	addr *NetAddress,
 	config *configs.P2PConfig,
-	mConfig tmconn.MConnConfig,
+	mConfig kconn.MConnConfig,
 ) (*peer, error) {
-	chDescs := []*tmconn.ChannelDescriptor{
+	chDescs := []*kconn.ChannelDescriptor{
 		{ID: testCh, Priority: 1},
 	}
 	reactorsByCh := map[byte]Reactor{testCh: NewTestReactor(chDescs, true)}

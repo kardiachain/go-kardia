@@ -10,8 +10,8 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	tmnet "github.com/kardiachain/go-kardiamain/lib/net"
-	tmrand "github.com/kardiachain/go-kardiamain/lib/rand"
+	knet "github.com/kardiachain/go-kardiamain/lib/net"
+	krand "github.com/kardiachain/go-kardiamain/lib/rand"
 
 	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
 )
@@ -52,11 +52,11 @@ func CreateRoutableAddr() (addr string, netAddr *NetAddress) {
 	for {
 		var err error
 		addr = fmt.Sprintf("%X@%v.%v.%v.%v:26656",
-			tmrand.Bytes(20),
-			tmrand.Int()%256,
-			tmrand.Int()%256,
-			tmrand.Int()%256,
-			tmrand.Int()%256)
+			krand.Bytes(20),
+			krand.Int()%256,
+			krand.Int()%256,
+			krand.Int()%256,
+			krand.Int()%256)
 		netAddr, err = NewNetAddressString(addr)
 		if err != nil {
 			panic(err)
@@ -275,7 +275,7 @@ func testNodeInfoWithNetwork(id ID, name, network string) NodeInfo {
 }
 
 func getFreePort() int {
-	port, err := tmnet.GetFreePort()
+	port, err := knet.GetFreePort()
 	if err != nil {
 		panic(err)
 	}

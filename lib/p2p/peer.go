@@ -9,7 +9,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/service"
 
-	tmconn "github.com/kardiachain/go-kardiamain/lib/p2p/conn"
+	kconn "github.com/kardiachain/go-kardiamain/lib/p2p/conn"
 )
 
 //go:generate mockery --case underscore --name Peer
@@ -29,7 +29,7 @@ type Peer interface {
 	CloseConn() error // close original connection
 
 	NodeInfo() NodeInfo // peer's info
-	Status() tmconn.ConnectionStatus
+	Status() kconn.ConnectionStatus
 	SocketAddr() *NetAddress // actual address of the socket
 
 	Send(byte, []byte) bool
@@ -70,7 +70,7 @@ func newPeerConn(
 // ID only exists for SecretConnection.
 // NOTE: Will panic if conn is not *SecretConnection.
 func (pc peerConn) ID() ID {
-	return PubKeyToID(pc.conn.(*tmconn.SecretConnection).RemotePubKey())
+	return PubKeyToID(pc.conn.(*kconn.SecretConnection).RemotePubKey())
 }
 
 // Return the IP from the connection RemoteAddr
@@ -102,7 +102,7 @@ type peer struct {
 
 	// raw peerConn and the multiplex connection
 	peerConn
-	mconn *tmconn.MConnection
+	mconn *kconn.MConnection
 
 	// peer's node info and the channel it knows about
 	// channels = nodeInfo.Channels
@@ -121,10 +121,10 @@ type PeerOption func(*peer)
 
 func newPeer(
 	pc peerConn,
-	mConfig tmconn.MConnConfig,
+	mConfig kconn.MConnConfig,
 	nodeInfo NodeInfo,
 	reactorsByCh map[byte]Reactor,
-	chDescs []*tmconn.ChannelDescriptor,
+	chDescs []*kconn.ChannelDescriptor,
 	onPeerError func(Peer, interface{}),
 	options ...PeerOption,
 ) *peer {
@@ -235,7 +235,7 @@ func (p *peer) SocketAddr() *NetAddress {
 }
 
 // Status returns the peer's ConnectionStatus.
-func (p *peer) Status() tmconn.ConnectionStatus {
+func (p *peer) Status() kconn.ConnectionStatus {
 	return p.mconn.Status()
 }
 
@@ -360,10 +360,10 @@ func createMConnection(
 	conn net.Conn,
 	p *peer,
 	reactorsByCh map[byte]Reactor,
-	chDescs []*tmconn.ChannelDescriptor,
+	chDescs []*kconn.ChannelDescriptor,
 	onPeerError func(Peer, interface{}),
-	config tmconn.MConnConfig,
-) *tmconn.MConnection {
+	config kconn.MConnConfig,
+) *kconn.MConnection {
 
 	onReceive := func(chID byte, msgBytes []byte) {
 		reactor := reactorsByCh[chID]
@@ -380,7 +380,7 @@ func createMConnection(
 		onPeerError(p, r)
 	}
 
-	return tmconn.NewMConnectionWithConfig(
+	return kconn.NewMConnectionWithConfig(
 		conn,
 		chDescs,
 		onReceive,

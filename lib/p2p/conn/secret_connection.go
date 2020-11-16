@@ -26,8 +26,8 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	cryptoenc "github.com/kardiachain/go-kardiamain/lib/crypto/encoding"
 	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
-	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
+	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
 )
 
 // 4 + 1024 == 1028 total frame size
@@ -76,11 +76,11 @@ type SecretConnection struct {
 	// are independent, so we can use two mtxs.
 	// All .Read are covered by recvMtx,
 	// all .Write are covered by sendMtx.
-	recvMtx    tmsync.Mutex
+	recvMtx    ksync.Mutex
 	recvBuffer []byte
 	recvNonce  *[aeadNonceSize]byte
 
-	sendMtx   tmsync.Mutex
+	sendMtx   ksync.Mutex
 	sendNonce *[aeadNonceSize]byte
 }
 
@@ -409,14 +409,14 @@ func shareAuthSignature(sc io.ReadWriter, pubKey ecdsa.PublicKey, signature []by
 			if err != nil {
 				return nil, true, err
 			}
-			_, err = protoio.NewDelimitedWriter(sc).WriteMsg(&tmp2p.AuthSigMessage{PubKey: pbpk, Sig: signature})
+			_, err = protoio.NewDelimitedWriter(sc).WriteMsg(&kp2p.AuthSigMessage{PubKey: pbpk, Sig: signature})
 			if err != nil {
 				return nil, true, err // abort
 			}
 			return nil, false, nil
 		},
 		func(_ int) (val interface{}, abort bool, err error) {
-			var pba tmp2p.AuthSigMessage
+			var pba kp2p.AuthSigMessage
 			err = protoio.NewDelimitedReader(sc, 1024*1024).ReadMsg(&pba)
 			if err != nil {
 				return nil, true, err // abort
