@@ -169,7 +169,6 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		Genesis:     genesisData,
 		TxPool:      c.getTxPoolConfig(),
 		AcceptTxs:   chain.AcceptTxs,
-		IsZeroFee:   chain.ZeroFee == 1,
 		NetworkId:   chain.NetworkID,
 		ChainId:     chain.ChainID,
 		ServiceName: chain.ServiceName,

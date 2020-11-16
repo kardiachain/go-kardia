@@ -35,9 +35,6 @@ type Config struct {
 	// may be left uninitialised and will be set to the default
 	// table.
 	JumpTable [256]*operation
-
-	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
-	IsZeroFee bool
 }
 
 // keccakState wraps sha3.state. In addition to the usual hash methods, it also supports

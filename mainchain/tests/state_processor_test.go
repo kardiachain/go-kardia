@@ -112,9 +112,7 @@ func execute(bc *blockchain.BlockChain, msg types.Message) ([]byte, error) {
 
 	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, bc.CurrentBlock().Header(), bc)
-	vmenv := kvm.NewKVM(context, stateDb, kvm.Config{
-		IsZeroFee: true,
-	})
+	vmenv := kvm.NewKVM(context, stateDb, kvm.Config{})
 
 	res, err := blockchain.NewStateTransition(vmenv, msg, gasPool).TransitionDb()
 	if err != nil {
@@ -149,9 +147,7 @@ func executeWithFee(bc *blockchain.BlockChain, msg types.Message) ([]byte, error
 
 	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, bc.CurrentBlock().Header(), bc)
-	vmenv := kvm.NewKVM(context, stateDb, kvm.Config{
-		IsZeroFee: false,
-	})
+	vmenv := kvm.NewKVM(context, stateDb, kvm.Config{})
 
 	res, err := blockchain.NewStateTransition(vmenv, msg, gasPool).TransitionDb()
 	if err != nil {
@@ -173,72 +169,72 @@ func executeWithFee(bc *blockchain.BlockChain, msg types.Message) ([]byte, error
 }
 
 func TestStateTransition_TransitionDb_noFee(t *testing.T) {
+	// Temporary unsupported
+	// // Start setting up blockchain
+	// blockDB := memorydb.New()
+	// storeDB := kvstore.NewStoreDB(blockDB)
+	// g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
+	// address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
+	// stakingUtil, _ := staking.NewSmcStakingnUtil()
+	// chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, stakingUtil)
+	// if genesisErr != nil {
+	// 	t.Fatal(genesisErr)
+	// }
 
-	// Start setting up blockchain
-	blockDB := memorydb.New()
-	storeDB := kvstore.NewStoreDB(blockDB)
-	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
-	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-	stakingUtil, _ := staking.NewSmcStakingnUtil()
-	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, stakingUtil)
-	if genesisErr != nil {
-		t.Fatal(genesisErr)
-	}
+	// bc, err := blockchain.NewBlockChain(log.New(), storeDB, chainConfig, false)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
 
-	bc, err := blockchain.NewBlockChain(log.New(), storeDB, chainConfig, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// // Create new contract message
+	// msg := types.NewMessage(
+	// 	address,
+	// 	nil,
+	// 	0,
+	// 	big.NewInt(0),
+	// 	300000,
+	// 	big.NewInt(100),
+	// 	contractCode,
+	// 	true,
+	// )
 
-	// Create new contract message
-	msg := types.NewMessage(
-		address,
-		nil,
-		0,
-		big.NewInt(0),
-		300000,
-		big.NewInt(100),
-		contractCode,
-		true,
-	)
+	// // Create contract without fee
+	// result, err := execute(bc, msg)
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
 
-	// Create contract without fee
-	result, err := execute(bc, msg)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// // Get contractAddress from []byte
+	// contractAddress := common.BytesToAddress(result)
 
-	// Get contractAddress from []byte
-	contractAddress := common.BytesToAddress(result)
+	// // Call set function
+	// definition, err := abi.JSON(strings.NewReader(abiInterface))
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
 
-	// Call set function
-	definition, err := abi.JSON(strings.NewReader(abiInterface))
-	if err != nil {
-		t.Fatal(err)
-	}
+	// // Set 1 to counter
+	// set, err := definition.Pack("set", uint8(1))
+	// if err != nil {
+	// 	t.Fatal(err)
+	// }
 
-	// Set 1 to counter
-	set, err := definition.Pack("set", uint8(1))
-	if err != nil {
-		t.Fatal(err)
-	}
+	// // Create call set function message
+	// msg = types.NewMessage(
+	// 	address,
+	// 	&contractAddress,
+	// 	0,
+	// 	big.NewInt(0),
+	// 	300000,
+	// 	big.NewInt(100),
+	// 	set,
+	// 	true,
+	// )
 
-	// Create call set function message
-	msg = types.NewMessage(
-		address,
-		&contractAddress,
-		0,
-		big.NewInt(0),
-		300000,
-		big.NewInt(100),
-		set,
-		true,
-	)
-
-	// Execute the message
-	if _, err := execute(bc, msg); err != nil {
-		t.Fatal(err)
-	}
+	// // Execute the message
+	// if _, err := execute(bc, msg); err != nil {
+	// 	t.Fatal(err)
+	// }
 }
 
 func TestStateTransition_TransitionDb_withFee(t *testing.T) {

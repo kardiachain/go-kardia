@@ -128,8 +128,6 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	if err != nil {
 		return nil, err
 	}
-	// Set zeroFee to blockchain
-	kai.blockchain.IsZeroFee = config.IsZeroFee
 	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
 	kai.txpoolR = tx_pool.NewReactor(config.TxPool, kai.txPool)
 	kai.txpoolR.SetLogger(kai.logger)
@@ -173,7 +171,6 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		Genesis:     chainConfig.Genesis,
 		TxPool:      chainConfig.TxPool,
 		AcceptTxs:   chainConfig.AcceptTxs,
-		IsZeroFee:   chainConfig.IsZeroFee,
 		IsPrivate:   chainConfig.IsPrivate,
 		Consensus:   chainConfig.Consensus,
 	})

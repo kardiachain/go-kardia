@@ -52,7 +52,6 @@ type (
 		ChainID            uint64      `yaml:"ChainID"`
 		NetworkID          uint64      `yaml:"NetworkID"`
 		AcceptTxs          uint32      `yaml:"AcceptTxs"`
-		ZeroFee            uint        `yaml:"ZeroFee"`
 		IsDual             uint        `yaml:"IsDual"`
 		Genesis            *Genesis    `yaml:"Genesis,omitempty"`
 		EventPool          *Pool       `yaml:"EventPool,omitempty"`
