@@ -8,12 +8,12 @@ import (
 
 	asrt "github.com/stretchr/testify/assert"
 
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 type thCounter struct {
 	input chan struct{}
-	mtx   tmsync.Mutex
+	mtx   ksync.Mutex
 	count int
 }
 

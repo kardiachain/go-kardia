@@ -7,7 +7,7 @@ import (
 	"fmt"
 
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	tmos "github.com/kardiachain/go-kardiamain/lib/os"
+	kos "github.com/kardiachain/go-kardiamain/lib/os"
 )
 
 // ID is a hex-encoded crypto.Address
@@ -46,7 +46,7 @@ func PubKeyToID(pubKey ecdsa.PublicKey) ID {
 // LoadOrGenNodeKey attempts to load the NodeKey from the given filePath. If
 // the file does not exist, it generates and saves a new NodeKey.
 func LoadOrGenNodeKey(filePath string) (*NodeKey, error) {
-	if tmos.FileExists(filePath) {
+	if kos.FileExists(filePath) {
 		nodeKey, err := LoadNodeKey(filePath)
 		if err != nil {
 			return nil, err

@@ -31,7 +31,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/lib/math"
-	tmstate "github.com/kardiachain/go-kardiamain/proto/kardiachain/state"
+	kstate "github.com/kardiachain/go-kardiamain/proto/kardiachain/state"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
@@ -119,7 +119,7 @@ func loadState(db kaidb.Database, key []byte) (state LastestBlockState) {
 	if len(buf) == 0 {
 		return state
 	}
-	sp := new(tmstate.State)
+	sp := new(kstate.State)
 	err := proto.Unmarshal(buf, sp)
 
 	if err != nil {
@@ -197,7 +197,7 @@ func lastStoredHeightFor(height, lastHeightChanged uint64) int64 {
 }
 
 // CONTRACT: Returned ValidatorsInfo can be mutated.
-func loadValidatorsInfo(db kaidb.Database, height uint64) *tmstate.ValidatorsInfo {
+func loadValidatorsInfo(db kaidb.Database, height uint64) *kstate.ValidatorsInfo {
 	buf, err := db.Get(calcValidatorsKey(height))
 	if err != nil {
 		panic(err)
@@ -206,7 +206,7 @@ func loadValidatorsInfo(db kaidb.Database, height uint64) *tmstate.ValidatorsInf
 		return nil
 	}
 
-	v := new(tmstate.ValidatorsInfo)
+	v := new(kstate.ValidatorsInfo)
 	err = v.Unmarshal(buf)
 	if err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
@@ -226,7 +226,7 @@ func saveValidatorsInfo(db kaidb.Database, height, lastHeightChanged uint64, val
 	if lastHeightChanged > height {
 		panic("LastHeightChanged cannot be greater than ValidatorsInfo height")
 	}
-	valInfo := &tmstate.ValidatorsInfo{
+	valInfo := &kstate.ValidatorsInfo{
 		LastHeightChanged: lastHeightChanged,
 	}
 
@@ -275,7 +275,7 @@ func (s *dbStore) LoadConsensusParams(height uint64) (kproto.ConsensusParams, er
 	return paramsInfo.ConsensusParams, nil
 }
 
-func loadConsensusParamsInfo(db kaidb.Database, height uint64) (*tmstate.ConsensusParamsInfo, error) {
+func loadConsensusParamsInfo(db kaidb.Database, height uint64) (*kstate.ConsensusParamsInfo, error) {
 	buf, err := db.Get(calcConsensusParamsKey(uint64(height)))
 	if err != nil {
 		return nil, err
@@ -284,7 +284,7 @@ func loadConsensusParamsInfo(db kaidb.Database, height uint64) (*tmstate.Consens
 		return nil, nil
 	}
 
-	paramsInfo := new(tmstate.ConsensusParamsInfo)
+	paramsInfo := new(kstate.ConsensusParamsInfo)
 	if err = paramsInfo.Unmarshal(buf); err != nil {
 		return nil, err
 	}
@@ -298,7 +298,7 @@ func loadConsensusParamsInfo(db kaidb.Database, height uint64) (*tmstate.Consens
 // If the consensus params did not change after processing the latest block,
 // only the last height for which they changed is persisted.
 func saveConsensusParamsInfo(db kaidb.Database, nextHeight, changeHeight uint64, params kproto.ConsensusParams) {
-	paramsInfo := &tmstate.ConsensusParamsInfo{
+	paramsInfo := &kstate.ConsensusParamsInfo{
 		LastHeightChanged: changeHeight,
 	}
 

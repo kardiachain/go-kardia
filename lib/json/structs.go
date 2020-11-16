@@ -6,7 +6,7 @@ import (
 	"strings"
 	"unicode"
 
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 var (
@@ -16,7 +16,7 @@ var (
 
 // structCache is a cache of struct info.
 type structInfoCache struct {
-	tmsync.RWMutex
+	ksync.RWMutex
 	structInfos map[reflect.Type]*structInfo
 }
 

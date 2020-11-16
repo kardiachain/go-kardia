@@ -17,7 +17,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/mock"
-	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
 )
 
 var (
@@ -132,11 +132,11 @@ func TestPEXReactorReceive(t *testing.T) {
 	r.RequestAddrs(peer)
 
 	size := book.Size()
-	msg := mustEncode(&tmp2p.PexAddrs{Addrs: []tmp2p.NetAddress{peer.SocketAddr().ToProto()}})
+	msg := mustEncode(&kp2p.PexAddrs{Addrs: []kp2p.NetAddress{peer.SocketAddr().ToProto()}})
 	r.Receive(PexChannel, peer, msg)
 	assert.Equal(t, size+1, book.Size())
 
-	msg = mustEncode(&tmp2p.PexRequest{})
+	msg = mustEncode(&kp2p.PexRequest{})
 	r.Receive(PexChannel, peer, msg) // should not panic.
 }
 
@@ -156,7 +156,7 @@ func TestPEXReactorRequestMessageAbuse(t *testing.T) {
 	require.True(t, book.HasAddress(peerAddr))
 
 	id := string(peer.ID())
-	msg := mustEncode(&tmp2p.PexRequest{})
+	msg := mustEncode(&kp2p.PexRequest{})
 
 	// first time creates the entry
 	r.Receive(PexChannel, peer, msg)
@@ -193,7 +193,7 @@ func TestPEXReactorAddrsMessageAbuse(t *testing.T) {
 	assert.True(t, r.requestsSent.Has(id))
 	assert.True(t, sw.Peers().Has(peer.ID()))
 
-	msg := mustEncode(&tmp2p.PexAddrs{Addrs: []tmp2p.NetAddress{peer.SocketAddr().ToProto()}})
+	msg := mustEncode(&kp2p.PexAddrs{Addrs: []kp2p.NetAddress{peer.SocketAddr().ToProto()}})
 
 	// receive some addrs. should clear the request
 	r.Receive(PexChannel, peer, msg)
@@ -487,7 +487,7 @@ func TestPEXReactorDoesNotAddPrivatePeersToAddrBook(t *testing.T) {
 	pexR.RequestAddrs(peer)
 
 	size := book.Size()
-	msg := mustEncode(&tmp2p.PexAddrs{Addrs: []tmp2p.NetAddress{peer.SocketAddr().ToProto()}})
+	msg := mustEncode(&kp2p.PexAddrs{Addrs: []kp2p.NetAddress{peer.SocketAddr().ToProto()}})
 	pexR.Receive(PexChannel, peer, msg)
 	assert.Equal(t, size, book.Size())
 
@@ -678,7 +678,7 @@ func createSwitchAndAddReactors(reactors ...p2p.Reactor) *p2p.Switch {
 
 func TestPexVectors(t *testing.T) {
 
-	addr := tmp2p.NetAddress{
+	addr := kp2p.NetAddress{
 		ID:   "1",
 		IP:   "127.0.0.1",
 		Port: 9090,
@@ -689,8 +689,8 @@ func TestPexVectors(t *testing.T) {
 		msg      proto.Message
 		expBytes string
 	}{
-		{"PexRequest", &tmp2p.PexRequest{}, "0a00"},
-		{"PexAddrs", &tmp2p.PexAddrs{Addrs: []tmp2p.NetAddress{addr}}, "12130a110a013112093132372e302e302e31188247"},
+		{"PexRequest", &kp2p.PexRequest{}, "0a00"},
+		{"PexAddrs", &kp2p.PexAddrs{Addrs: []kp2p.NetAddress{addr}}, "12130a110a013112093132372e302e302e31188247"},
 	}
 
 	for _, tc := range testCases {

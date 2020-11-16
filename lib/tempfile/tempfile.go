@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 const (
@@ -32,7 +32,7 @@ const (
 
 var (
 	atomicWriteFileRand   uint64
-	atomicWriteFileRandMu tmsync.Mutex
+	atomicWriteFileRandMu ksync.Mutex
 )
 
 func writeFileRandReseed() uint64 {

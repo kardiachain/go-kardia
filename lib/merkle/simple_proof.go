@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 
-	tmcrypto "github.com/kardiachain/go-kardiamain/proto/kardiachain/crypto"
+	kcrypto "github.com/kardiachain/go-kardiamain/proto/kardiachain/crypto"
 	"github.com/tendermint/tendermint/crypto/tmhash"
 )
 
@@ -113,11 +113,11 @@ func (sp *SimpleProof) ComputeRootHash() []byte {
 	)
 }
 
-func (sp *SimpleProof) ToProto() *tmcrypto.Proof {
+func (sp *SimpleProof) ToProto() *kcrypto.Proof {
 	if sp == nil {
 		return nil
 	}
-	pb := new(tmcrypto.Proof)
+	pb := new(kcrypto.Proof)
 
 	pb.Total = sp.Total
 	pb.Index = sp.Index
@@ -127,7 +127,7 @@ func (sp *SimpleProof) ToProto() *tmcrypto.Proof {
 	return pb
 }
 
-func ProofFromProto(pb *tmcrypto.Proof) (*SimpleProof, error) {
+func ProofFromProto(pb *kcrypto.Proof) (*SimpleProof, error) {
 	if pb == nil {
 		return nil, errors.New("nil proof")
 	}

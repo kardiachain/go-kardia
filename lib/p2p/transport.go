@@ -11,7 +11,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
 	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
 )
 
 const (
@@ -525,7 +525,7 @@ func handshake(
 	var (
 		errc = make(chan error, 2)
 
-		pbpeerNodeInfo tmp2p.DefaultNodeInfo
+		pbpeerNodeInfo kp2p.DefaultNodeInfo
 		peerNodeInfo   DefaultNodeInfo
 		ourNodeInfo    = nodeInfo.(DefaultNodeInfo)
 	)

@@ -20,7 +20,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 var (
@@ -42,7 +42,7 @@ type PeerMessage struct {
 type TestReactor struct {
 	BaseReactor
 
-	mtx          tmsync.Mutex
+	mtx          ksync.Mutex
 	channels     []*conn.ChannelDescriptor
 	logMessages  bool
 	msgsCounter  int

@@ -23,7 +23,7 @@ import (
 	mrand "math/rand"
 	"time"
 
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 const (
@@ -38,7 +38,7 @@ const (
 // All of the methods here are suitable for concurrent use.
 // This is achieved by using a mutex lock on all of the provided methods.
 type Rand struct {
-	tmsync.Mutex
+	ksync.Mutex
 	rand *mrand.Rand
 }
 

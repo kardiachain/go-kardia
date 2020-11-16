@@ -20,7 +20,6 @@ package types
 
 import (
 	"math/big"
-	"math/rand"
 	"testing"
 	"time"
 
@@ -28,16 +27,14 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardiamain/lib/rand"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
 func makeBlockIDRandom() BlockID {
-	var (
-		blockHash   = make([]byte, 32)
-		partSetHash = make([]byte, 32)
-	)
-	rand.Read(blockHash)   //nolint: gosec
-	rand.Read(partSetHash) //nolint: gosec
+	// Using crypto random bytes for better random
+	blockHash, _ := rand.GenerateRandomBytes(32)   //nolint: gosec
+	partSetHash, _ := rand.GenerateRandomBytes(32) //nolint: gosec
 	return BlockID{common.BytesToHash(blockHash), PartSetHeader{123, common.BytesToHash(partSetHash)}}
 }
 
