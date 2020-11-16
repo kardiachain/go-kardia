@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
 )
 
 // EmptyNetAddress defines the string representation of an empty NetAddress
@@ -136,7 +136,7 @@ func NewNetAddressIPPort(ip net.IP, port uint16) *NetAddress {
 }
 
 // NetAddressFromProto converts a Protobuf NetAddress into a native struct.
-func NetAddressFromProto(pb tmp2p.NetAddress) (*NetAddress, error) {
+func NetAddressFromProto(pb kp2p.NetAddress) (*NetAddress, error) {
 	ip := net.ParseIP(pb.IP)
 	if ip == nil {
 		return nil, fmt.Errorf("invalid IP address %v", pb.IP)
@@ -152,7 +152,7 @@ func NetAddressFromProto(pb tmp2p.NetAddress) (*NetAddress, error) {
 }
 
 // NetAddressesFromProto converts a slice of Protobuf NetAddresses into a native slice.
-func NetAddressesFromProto(pbs []tmp2p.NetAddress) ([]*NetAddress, error) {
+func NetAddressesFromProto(pbs []kp2p.NetAddress) ([]*NetAddress, error) {
 	nas := make([]*NetAddress, 0, len(pbs))
 	for _, pb := range pbs {
 		na, err := NetAddressFromProto(pb)
@@ -165,8 +165,8 @@ func NetAddressesFromProto(pbs []tmp2p.NetAddress) ([]*NetAddress, error) {
 }
 
 // NetAddressesToProto converts a slice of NetAddresses into a Protobuf slice.
-func NetAddressesToProto(nas []*NetAddress) []tmp2p.NetAddress {
-	pbs := make([]tmp2p.NetAddress, 0, len(nas))
+func NetAddressesToProto(nas []*NetAddress) []kp2p.NetAddress {
+	pbs := make([]kp2p.NetAddress, 0, len(nas))
 	for _, na := range nas {
 		if na != nil {
 			pbs = append(pbs, na.ToProto())
@@ -176,8 +176,8 @@ func NetAddressesToProto(nas []*NetAddress) []tmp2p.NetAddress {
 }
 
 // ToProto converts a NetAddress to Protobuf.
-func (na *NetAddress) ToProto() tmp2p.NetAddress {
-	return tmp2p.NetAddress{
+func (na *NetAddress) ToProto() kp2p.NetAddress {
+	return kp2p.NetAddress{
 		ID:   string(na.ID),
 		IP:   na.IP.String(),
 		Port: uint32(na.Port),

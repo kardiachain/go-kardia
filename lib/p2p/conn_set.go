@@ -3,7 +3,7 @@ package p2p
 import (
 	"net"
 
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 // ConnSet is a lookup table for connections and all their ips.
@@ -21,7 +21,7 @@ type connSetItem struct {
 }
 
 type connSet struct {
-	tmsync.RWMutex
+	ksync.RWMutex
 
 	conns map[string]connSetItem
 }

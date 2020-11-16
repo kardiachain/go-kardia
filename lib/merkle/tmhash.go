@@ -23,7 +23,7 @@ import (
 )
 
 const (
-	TmHashSize = sha256.Size
+	KaiHashSize = sha256.Size
 )
 
 // Sum returns the SHA256 of the bz.

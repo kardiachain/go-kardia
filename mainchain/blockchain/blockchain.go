@@ -75,9 +75,6 @@ type BlockChain struct {
 	processor *StateProcessor // block processor
 	vmConfig  kvm.Config      // vm configurations
 
-	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
-	IsZeroFee bool
-
 	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	isPrivate bool
 
@@ -453,10 +450,6 @@ func (bc *BlockChain) ReadCommit(height uint64) *types.Commit {
 
 func (bc *BlockChain) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	bc.db.WriteBlock(block, blockParts, seenCommit)
-}
-
-func (bc *BlockChain) ZeroFee() bool {
-	return bc.IsZeroFee
 }
 
 func (bc *BlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {

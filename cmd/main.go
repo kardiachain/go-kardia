@@ -149,6 +149,7 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 		Validators:      g.Validators,
 		ConsensusParams: c.getConsensusParams(),
 		Consensus:       c.getConsensusConfig(),
+		Timestamp:       time.Unix(g.Timestamp, 0),
 	}, nil
 }
 
@@ -168,7 +169,6 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		Genesis:     genesisData,
 		TxPool:      c.getTxPoolConfig(),
 		AcceptTxs:   chain.AcceptTxs,
-		IsZeroFee:   chain.ZeroFee == 1,
 		NetworkId:   chain.NetworkID,
 		ChainId:     chain.ChainID,
 		ServiceName: chain.ServiceName,

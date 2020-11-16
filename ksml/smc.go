@@ -333,9 +333,7 @@ func EstimateGas(from common.Address, to common.Address, currentHeader *types.He
 	vmContext := vm.NewKVMContext(msg, currentHeader, bc)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	kaiVm := kvm.NewKVM(vmContext, stateDb, kvm.Config{
-		IsZeroFee: bc.ZeroFee(),
-	})
+	kaiVm := kvm.NewKVM(vmContext, stateDb, kvm.Config{})
 	defer kaiVm.Cancel()
 	// Apply the transaction to the current state (included in the env)
 	gp := new(types.GasPool).AddGas(common.MaxUint64)

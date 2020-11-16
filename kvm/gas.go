@@ -23,16 +23,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
-// Gas costs
-const (
-	GasQuickStep   uint64 = 2
-	GasFastestStep uint64 = 3
-	GasFastStep    uint64 = 5
-	GasMidStep     uint64 = 8
-	GasSlowStep    uint64 = 10
-	GasExtStep     uint64 = 20
-)
-
 // calcGas returns the actual gas cost of the call.
 //
 func callGas(availableGas, base uint64, callCost *uint256.Int) (uint64, error) {
@@ -45,7 +35,7 @@ func callGas(availableGas, base uint64, callCost *uint256.Int) (uint64, error) {
 		return gas, nil
 	}
 	if !callCost.IsUint64() {
-		return 0, errGasUintOverflow
+		return 0, ErrGasUintOverflow
 	}
 
 	return callCost.Uint64(), nil
@@ -63,7 +53,7 @@ func memoryGasCost(mem *Memory, newMemSize uint64) (uint64, error) {
 	// overflow. The constant 0x1FFFFFFFE0 is the highest number that can be used
 	// without overflowing the gas calculation.
 	if newMemSize > 0x1FFFFFFFE0 {
-		return 0, errGasUintOverflow
+		return 0, ErrGasUintOverflow
 	}
 	newMemSizeWords := toWordSize(newMemSize)
 	newMemSize = newMemSizeWords * 32
@@ -99,15 +89,15 @@ func memoryCopierGas(stackpos int) gasFunc {
 		// And gas for copying data, charged per word at param.CopyGas
 		words, overflow := stack.Back(stackpos).Uint64WithOverflow()
 		if overflow {
-			return 0, errGasUintOverflow
+			return 0, ErrGasUintOverflow
 		}
 
 		if words, overflow = common.SafeMul(toWordSize(words), configs.CopyGas); overflow {
-			return 0, errGasUintOverflow
+			return 0, ErrGasUintOverflow
 		}
 
 		if gas, overflow = common.SafeAdd(gas, words); overflow {
-			return 0, errGasUintOverflow
+			return 0, ErrGasUintOverflow
 		}
 		return gas, nil
 	}
@@ -141,7 +131,7 @@ func makeGasLog(n uint64) gasFunc {
 	return func(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 		requestedSize, overflow := stack.Back(1).Uint64WithOverflow()
 		if overflow {
-			return 0, errGasUintOverflow
+			return 0, ErrGasUintOverflow
 		}
 
 		gas, err := memoryGasCost(mem, memorySize)
@@ -150,18 +140,18 @@ func makeGasLog(n uint64) gasFunc {
 		}
 
 		if gas, overflow = common.SafeAdd(gas, configs.LogGas); overflow {
-			return 0, errGasUintOverflow
+			return 0, ErrGasUintOverflow
 		}
 		if gas, overflow = common.SafeAdd(gas, n*configs.LogTopicGas); overflow {
-			return 0, errGasUintOverflow
+			return 0, ErrGasUintOverflow
 		}
 
 		var memorySizeGas uint64
 		if memorySizeGas, overflow = common.SafeMul(requestedSize, configs.LogDataGas); overflow {
-			return 0, errGasUintOverflow
+			return 0, ErrGasUintOverflow
 		}
 		if gas, overflow = common.SafeAdd(gas, memorySizeGas); overflow {
-			return 0, errGasUintOverflow
+			return 0, ErrGasUintOverflow
 		}
 		return gas, nil
 	}
@@ -175,13 +165,13 @@ func gasSha3(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 
 	wordGas, overflow := stack.Back(1).Uint64WithOverflow()
 	if overflow {
-		return 0, errGasUintOverflow
+		return 0, ErrGasUintOverflow
 	}
 	if wordGas, overflow = common.SafeMul(toWordSize(wordGas), configs.Sha3WordGas); overflow {
-		return 0, errGasUintOverflow
+		return 0, ErrGasUintOverflow
 	}
 	if gas, overflow = common.SafeAdd(gas, wordGas); overflow {
-		return 0, errGasUintOverflow
+		return 0, ErrGasUintOverflow
 	}
 	return gas, nil
 }
@@ -211,7 +201,7 @@ func gasExp(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize 
 		overflow bool
 	)
 	if gas, overflow = common.SafeAdd(gas, configs.ExpGas); overflow {
-		return 0, errGasUintOverflow
+		return 0, ErrGasUintOverflow
 	}
 	return gas, nil
 }
@@ -225,6 +215,9 @@ func gasCall(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 	if transfersValue && kvm.StateDB.Empty(address) {
 		gas += configs.CallNewAccountGas
 	}
+	if !kvm.StateDB.Exist(address) {
+		gas += configs.CallNewAccountGas
+	}
 	if transfersValue {
 		gas += configs.CallValueTransferGas
 	}
@@ -234,7 +227,7 @@ func gasCall(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 	}
 	var overflow bool
 	if gas, overflow = common.SafeAdd(gas, memoryGas); overflow {
-		return 0, errGasUintOverflow
+		return 0, ErrGasUintOverflow
 	}
 
 	kvm.callGasTemp, err = callGas(contract.Gas, gas, stack.Back(0))
@@ -242,7 +235,7 @@ func gasCall(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize
 		return 0, err
 	}
 	if gas, overflow = common.SafeAdd(gas, kvm.callGasTemp); overflow {
-		return 0, errGasUintOverflow
+		return 0, ErrGasUintOverflow
 	}
 	return gas, nil
 }
@@ -260,7 +253,7 @@ func gasCallCode(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memory
 		gas += configs.CallValueTransferGas
 	}
 	if gas, overflow = common.SafeAdd(gas, memoryGas); overflow {
-		return 0, errGasUintOverflow
+		return 0, ErrGasUintOverflow
 	}
 
 	kvm.callGasTemp, err = callGas(contract.Gas, gas, stack.Back(0))
@@ -268,7 +261,7 @@ func gasCallCode(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memory
 		return 0, err
 	}
 	if gas, overflow = common.SafeAdd(gas, kvm.callGasTemp); overflow {
-		return 0, errGasUintOverflow
+		return 0, ErrGasUintOverflow
 	}
 	return gas, nil
 }
@@ -284,7 +277,7 @@ func gasDelegateCall(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, me
 	}
 	var overflow bool
 	if gas, overflow = common.SafeAdd(gas, kvm.callGasTemp); overflow {
-		return 0, errGasUintOverflow
+		return 0, ErrGasUintOverflow
 	}
 	return gas, nil
 }
@@ -301,14 +294,14 @@ func gasStaticCall(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memo
 	}
 	var overflow bool
 	if gas, overflow = common.SafeAdd(gas, kvm.callGasTemp); overflow {
-		return 0, errGasUintOverflow
+		return 0, ErrGasUintOverflow
 	}
 	return gas, nil
 }
 
 func gasSelfdestruct(kvm *KVM, contract *Contract, stack *Stack, mem *Memory, memorySize uint64) (uint64, error) {
 	var gas uint64
-	var address =  common.Address(stack.Back(0).Bytes20())
+	var address = common.Address(stack.Back(0).Bytes20())
 
 	if kvm.StateDB.Empty(address) && kvm.StateDB.GetBalance(contract.Address()).Sign() != 0 {
 		gas += configs.CreateBySelfdestructGas

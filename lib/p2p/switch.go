@@ -32,7 +32,7 @@ const (
 // MConnConfig returns an MConnConfig with fields updated
 // from the P2PConfig.
 func MConnConfig(cfg *configs.P2PConfig) conn.MConnConfig {
-	mConfig := conn.DefaultMConnConfig()
+	mConfig := conn.DefaulKAIConnConfig()
 	mConfig.FlushThrottle = cfg.FlushThrottleTimeout
 	mConfig.SendRate = cfg.SendRate
 	mConfig.RecvRate = cfg.RecvRate

@@ -31,25 +31,25 @@ func DefaultConfig() MetricConfig {
 }
 
 // Ensures that all configuration elements have valid values
-func customConfig(tmc MetricConfig) MetricConfig {
+func customConfig(mc MetricConfig) MetricConfig {
 	config := DefaultConfig()
 
 	// Check the config for set values, and setup appropriately
-	if tmc.ProportionalWeight > 0 {
-		config.ProportionalWeight = tmc.ProportionalWeight
+	if mc.ProportionalWeight > 0 {
+		config.ProportionalWeight = mc.ProportionalWeight
 	}
 
-	if tmc.IntegralWeight > 0 {
-		config.IntegralWeight = tmc.IntegralWeight
+	if mc.IntegralWeight > 0 {
+		config.IntegralWeight = mc.IntegralWeight
 	}
 
-	if tmc.IntervalLength > time.Duration(0) {
-		config.IntervalLength = tmc.IntervalLength
+	if mc.IntervalLength > time.Duration(0) {
+		config.IntervalLength = mc.IntervalLength
 	}
 
-	if tmc.TrackingWindow > time.Duration(0) &&
-		tmc.TrackingWindow >= config.IntervalLength {
-		config.TrackingWindow = tmc.TrackingWindow
+	if mc.TrackingWindow > time.Duration(0) &&
+		mc.TrackingWindow >= config.IntervalLength {
+		config.TrackingWindow = mc.TrackingWindow
 	}
 	return config
 }
