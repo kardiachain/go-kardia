@@ -32,6 +32,11 @@ import (
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
+var (
+	ErrNilPart          = errors.New("nil Part")
+	ErrNilPartSetHeader = errors.New("nil PartSetHeader")
+)
+
 type Part struct {
 	Index uint32             `json:"index"`
 	Bytes []byte             `json:"bytes"`
@@ -66,7 +71,7 @@ func (part *Part) StringIndented(indent string) string {
 
 func (part *Part) ToProto() (*kproto.Part, error) {
 	if part == nil {
-		return nil, errors.New("nil part")
+		return nil, ErrNilPart
 	}
 	pb := new(kproto.Part)
 	proof := part.Proof.ToProto()
@@ -80,7 +85,7 @@ func (part *Part) ToProto() (*kproto.Part, error) {
 
 func PartFromProto(pb *kproto.Part) (*Part, error) {
 	if pb == nil {
-		return nil, errors.New("nil part")
+		return nil, ErrNilPart
 	}
 
 	part := new(Part)
@@ -136,7 +141,7 @@ func (psh *PartSetHeader) ToProto() kproto.PartSetHeader {
 // FromProto sets a protobuf PartSetHeader to the given pointer
 func PartSetHeaderFromProto(ppsh *kproto.PartSetHeader) (*PartSetHeader, error) {
 	if ppsh == nil {
-		return nil, errors.New("nil PartSetHeader")
+		return nil, ErrNilPartSetHeader
 	}
 	psh := new(PartSetHeader)
 	psh.Total = ppsh.Total

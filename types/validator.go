@@ -31,6 +31,10 @@ import (
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
+var (
+	ErrNilValidator = errors.New("nil Validator")
+)
+
 // Validator state for each Validator
 type Validator struct {
 	Address          common.Address `json:"address"`
@@ -50,7 +54,7 @@ func NewValidator(addr common.Address, votingPower int64) *Validator {
 // ValidateBasic performs basic validation.
 func (v *Validator) ValidateBasic() error {
 	if v == nil {
-		return errors.New("nil validator")
+		return ErrNilValidator
 	}
 
 	if v.VotingPower < 0 {
@@ -130,7 +134,7 @@ func ValidatorListString(vals []*Validator) string {
 // It returns an error if the public key is invalid.
 func ValidatorFromProto(vp *kproto.Validator) (*Validator, error) {
 	if vp == nil {
-		return nil, errors.New("nil validator")
+		return nil, ErrNilValidator
 	}
 
 	v := new(Validator)
@@ -181,7 +185,7 @@ func (v *Validator) GetProposerPriority() int64 {
 // ToProto converts Valiator to protobuf
 func (v *Validator) ToProto() (*kproto.Validator, error) {
 	if v == nil {
-		return nil, errors.New("nil validator")
+		return nil, ErrNilValidator
 	}
 
 	vp := kproto.Validator{
