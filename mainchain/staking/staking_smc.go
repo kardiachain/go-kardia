@@ -94,18 +94,18 @@ func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward
 
 //CreateValidator create validator
 func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, votingPower int64) error {
-	input, err := s.Abi.Pack("createValidator", 
+	input, err := s.Abi.Pack("createValidator",
 		big.NewInt(10), // Commission rate
 		big.NewInt(20), // Max commission rate
-		big.NewInt(5), // Max change rate
-		big.NewInt(0) // Min Self Delegation
+		big.NewInt(5),  // Max change rate
+		big.NewInt(0),  // Min Self Delegation
 	)
 	if err != nil {
 		panic(err)
 	}
 
 	vp := big.NewInt(votingPower)
-	tokens := vp.Mul(vp, big.NewInt(int64(math.Pow10(8))))
+	tokens := vp.Mul(vp, big.NewInt(int64(math.Pow10(9))))
 
 	msg := types.NewMessage(
 		valAddr,

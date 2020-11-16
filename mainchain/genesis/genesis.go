@@ -176,7 +176,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking
 
 	// Generate genesis deployer address
 	g.Alloc[configs.GenesisDeployerAddr] = GenesisAccount{
-		Balance: big.NewInt(0),
+		Balance: big.NewInt(1000000000000000000), // 1 KAI
 		Nonce:   0,
 	}
 
