@@ -22,6 +22,8 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/state"
@@ -34,12 +36,6 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 	"github.com/kardiachain/go-kardiamain/types"
-)
-
-const (
-	// KardiaSatkingSmcIndex ...
-	KardiaSatkingSmcIndex = 7
-	contractAddress       = "0x00000000000000000000000000000000736D1997"
 )
 
 func GetBlockchainStaking() (*blockchain.BlockChain, error, *state.StateDB) {
@@ -99,12 +95,11 @@ func GetSmcStakingUtil() (*staking.StakingSmcUtil, error, *state.StateDB) {
 	return util, nil, stateDB
 }
 
-func TestCreateValidator(t *testing.T) {
+func setup() (*state.StateDB, *staking.StakingSmcUtil, *types.Block, error) {
 	util, err, stateDB := GetSmcStakingUtil()
 	if err != nil {
-		t.Fatal(err)
+		return nil, nil, nil, err
 	}
-
 	head := &types.Header{
 		Height:   0,
 		GasLimit: uint64(100000000000),
@@ -117,34 +112,125 @@ func TestCreateValidator(t *testing.T) {
 			},
 		},
 	}
-
 	block := types.NewBlock(head, nil, &types.Commit{}, nil)
+	return stateDB, util, block, nil
+}
+
+func finalizeTest(stateDB *state.StateDB, util *staking.StakingSmcUtil, block *types.Block) error {
+	//test finalizeCommit finalize commit
+	err := util.FinalizeCommit(stateDB, block.Header(), nil, kvm.Config{}, staking.LastCommitInfo{})
+	if err != nil {
+		return err
+	}
+
+	//test double sign
+	err = util.DoubleSign(stateDB, block.Header(), nil, kvm.Config{}, []staking.Evidence{})
+	if err != nil {
+		return err
+	}
+
+	//test set address root
+	err = util.SetRoot(stateDB, block.Header(), nil, kvm.Config{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func TestCreateValidator(t *testing.T) {
+	stateDB, util, block, err := setup()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
 	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, 1000000)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	_, err = util.ApplyAndReturnValidatorSets(stateDB, block.Header(), nil, kvm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	//test finalizeCommit finalize commit
-	err = util.FinalizeCommit(stateDB, block.Header(), nil, kvm.Config{}, staking.LastCommitInfo{})
+	err = finalizeTest(stateDB, util, block)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetValidators(t *testing.T) {
+	stateDB, util, block, err := setup()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	//test double sign
-	err = util.DoubleSign(stateDB, block.Header(), nil, kvm.Config{}, []staking.Evidence{})
+	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+	var votingPower int64 = 1000000
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, votingPower)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newValidator := types.NewValidator(address, votingPower)
+
+	validators, err := util.GetValidators(stateDB, block.Header(), nil, kvm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.EqualValuesf(t, validators[0], newValidator, "Validators fetched from staking SMC must be the same with created one")
+
+	err = finalizeTest(stateDB, util, block)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetValidator(t *testing.T) {
+	stateDB, util, block, err := setup()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	//test set address root
-	err = util.SetRoot(stateDB, block.Header(), nil, kvm.Config{})
+	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+	var votingPower int64 = 1000000
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, votingPower)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newValidator := types.NewValidator(address, votingPower)
+
+	validator, err := util.GetValidator(stateDB, block.Header(), nil, kvm.Config{}, address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.EqualValuesf(t, validator, newValidator, "Validator fetched from staking SMC must be the same with created one")
+
+	err = finalizeTest(stateDB, util, block)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetValidatorPower(t *testing.T) {
+	stateDB, util, block, err := setup()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+	var votingPower int64 = 1000000
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, votingPower)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validatorPower, err := util.GetValidatorPower(stateDB, block.Header(), nil, kvm.Config{}, address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.EqualValuesf(t, validatorPower, votingPower, "Validator power fetched from staking SMC must be the same with created one")
+
+	err = finalizeTest(stateDB, util, block)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -196,15 +196,23 @@ func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *Bl
 }
 
 // Validator returns node's validator, nil if current node is not a validator
-// TODO @trinhdn: get validators' info from staking smart contract
-func (s *PublicKaiAPI) Validator() map[string]interface{} {
-	return nil
+func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address) (*types.Validator, error) {
+	return nil, errors.New("not implemented")
+	// val, err := s.kaiService.csManager.GetValidator(valAddr)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return val, nil
 }
 
 // Validators returns a list of validator
-// TODO @trinhdn: get validators' info from staking smart contract
-func (s *PublicKaiAPI) Validators() []map[string]interface{} {
-	return nil
+func (s *PublicKaiAPI) Validators(ctx context.Context) ([]*types.Validator, error) {
+	return nil, errors.New("not implemented")
+	// val, err := s.kaiService.csManager.GetValidators()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return val, nil
 }
 
 type PublicTransaction struct {
@@ -313,6 +321,7 @@ type revertError struct {
 
 func newRevertError(result *kvm.ExecutionResult) *revertError {
 	reason, errUnpack := abi.UnpackRevert(result.Revert())
+	log.Info("@@@@@@@@@@@@@@@@@@@@@@@@ newRevertError", "reason", reason, "errUnpack", errUnpack)
 	err := errors.New("execution reverted")
 	if errUnpack == nil {
 		err = fmt.Errorf("execution reverted: %v", reason)
@@ -329,13 +338,15 @@ func newRevertError(result *kvm.ExecutionResult) *revertError {
 func (s *PublicKaiAPI) KardiaCall(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
 	result, err := s.doCall(ctx, args, blockNrOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall*time.Second)
 	if err != nil {
+		log.Info("@@@@@@@@@@@@@@@@@@@@@@@@ KardiaCall", "doCall error", err)
 		return nil, err
 	}
 	// If the result contains a revert reason, try to unpack and return it.
 	if len(result.Revert()) > 0 {
+		log.Info("@@@@@@@@@@@@@@@@@@@@@@@@ KardiaCall", "newRevertError", newRevertError(result))
 		return nil, newRevertError(result)
 	}
-
+	log.Info("@@@@@@@@@@@@@@@@@@@@@@@@ KardiaCall result", "result.Return()", result.Return(), "result.Err", result.Err)
 	return result.Return(), result.Err
 }
 

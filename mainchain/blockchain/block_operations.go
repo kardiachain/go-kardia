@@ -25,6 +25,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
+	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -197,6 +198,42 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 	}
 
 	return commit
+}
+
+// ValidatorsListFromStakingContract returns all validators on staking
+// contract at the moment
+func (bo *BlockOperations) GetValidators() ([]*types.Validator, error) {
+	block := bo.blockchain.GetBlockByHeight(bo.height)
+	state, header, kvmConfig, err := bo.getValidatorInfoParams(block)
+	if err != nil {
+		return nil, err
+	}
+	return bo.staking.GetValidators(state, header, bo.blockchain, kvmConfig)
+}
+
+// ValidatorsListFromStakingContract returns info of one validator on staking
+// contract based on his address
+func (bo *BlockOperations) GetValidator(valAddr common.Address) (*types.Validator, error) {
+	block := bo.blockchain.GetBlockByHeight(bo.height)
+	state, header, kvmConfig, err := bo.getValidatorInfoParams(block)
+	if err != nil {
+		return nil, err
+	}
+	return bo.staking.GetValidator(state, header, bo.blockchain, kvmConfig, valAddr)
+}
+
+// getValidatorInfoParams returns params for getting validators info on
+// staking contract
+func (bo *BlockOperations) getValidatorInfoParams(block *types.Block) (*state.StateDB, *types.Header, kvm.Config, error) {
+	// Blockchain state at head block.
+	state, err := bo.blockchain.State()
+	if err != nil {
+		bo.logger.Error("Fail to get blockchain head state", "err", err)
+		return nil, nil, kvm.Config{}, err
+	}
+	kvmConfig := kvm.Config{}
+
+	return state, block.Header(), kvmConfig, nil
 }
 
 // newHeader creates new block header from given data.
