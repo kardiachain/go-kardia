@@ -1,20 +1,18 @@
-/*
- *  Copyright 2020 KardiaChain
- *  This file is part of the go-kardia library.
- *
- *  The go-kardia library is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  The go-kardia library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public License
- *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
- */
+// Copyright 2016 The go-ethereum Authors
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
 package abi
 
@@ -25,6 +23,29 @@ import (
 	"reflect"
 	"strings"
 )
+
+// ConvertType converts an interface of a runtime type into a interface of the
+// given type
+// e.g. turn
+// var fields []reflect.StructField
+// fields = append(fields, reflect.StructField{
+// 		Name: "X",
+//		Type: reflect.TypeOf(new(big.Int)),
+//		Tag:  reflect.StructTag("json:\"" + "x" + "\""),
+// }
+// into
+// type TupleT struct { X *big.Int }
+func ConvertType(in interface{}, proto interface{}) interface{} {
+	protoType := reflect.TypeOf(proto)
+	if reflect.TypeOf(in).ConvertibleTo(protoType) {
+		return reflect.ValueOf(in).Convert(protoType).Interface()
+	}
+	// Use set as a last ditch effort
+	if err := set(reflect.ValueOf(proto), reflect.ValueOf(in)); err != nil {
+		panic(err)
+	}
+	return proto
+}
 
 // indirect recursively dereferences the value until it either gets the value
 // or finds a big.Int
@@ -63,7 +84,7 @@ func reflectIntType(unsigned bool, size int) reflect.Type {
 	return reflect.TypeOf(&big.Int{})
 }
 
-// mustArrayToBytesSlice creates a new byte slice with the exact same size as value
+// mustArrayToByteSlice creates a new byte slice with the exact same size as value
 // and copies the bytes in value to the new slice.
 func mustArrayToByteSlice(value reflect.Value) reflect.Value {
 	slice := reflect.MakeSlice(reflect.TypeOf([]byte{}), value.Len(), value.Len())
@@ -102,15 +123,8 @@ func set(dst, src reflect.Value) error {
 func setSlice(dst, src reflect.Value) error {
 	slice := reflect.MakeSlice(dst.Type(), src.Len(), src.Len())
 	for i := 0; i < src.Len(); i++ {
-		if src.Index(i).Kind() == reflect.Struct {
-			if err := set(slice.Index(i), src.Index(i)); err != nil {
-				return err
-			}
-		} else {
-			// e.g. [][32]uint8 to []common.Hash
-			if err := set(slice.Index(i), src.Index(i)); err != nil {
-				return err
-			}
+		if err := set(slice.Index(i), src.Index(i)); err != nil {
+			return err
 		}
 	}
 	if dst.CanSet() {
@@ -121,6 +135,9 @@ func setSlice(dst, src reflect.Value) error {
 }
 
 func setArray(dst, src reflect.Value) error {
+	if src.Kind() == reflect.Ptr {
+		return set(dst, indirect(src))
+	}
 	array := reflect.New(dst.Type()).Elem()
 	min := src.Len()
 	if src.Len() > dst.Len() {
