@@ -321,7 +321,6 @@ type revertError struct {
 
 func newRevertError(result *kvm.ExecutionResult) *revertError {
 	reason, errUnpack := abi.UnpackRevert(result.Revert())
-	log.Info("@@@@@@@@@@@@@@@@@@@@@@@@ newRevertError", "reason", reason, "errUnpack", errUnpack)
 	err := errors.New("execution reverted")
 	if errUnpack == nil {
 		err = fmt.Errorf("execution reverted: %v", reason)
@@ -338,15 +337,12 @@ func newRevertError(result *kvm.ExecutionResult) *revertError {
 func (s *PublicKaiAPI) KardiaCall(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
 	result, err := s.doCall(ctx, args, blockNrOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall*time.Second)
 	if err != nil {
-		log.Info("@@@@@@@@@@@@@@@@@@@@@@@@ KardiaCall", "doCall error", err)
 		return nil, err
 	}
 	// If the result contains a revert reason, try to unpack and return it.
 	if len(result.Revert()) > 0 {
-		log.Info("@@@@@@@@@@@@@@@@@@@@@@@@ KardiaCall", "newRevertError", newRevertError(result))
 		return nil, newRevertError(result)
 	}
-	log.Info("@@@@@@@@@@@@@@@@@@@@@@@@ KardiaCall result", "result.Return()", result.Return(), "result.Err", result.Err)
 	return result.Return(), result.Err
 }
 
