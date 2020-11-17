@@ -615,6 +615,77 @@ Genesis:
             "outputs": [],
             "stateMutability": "nonpayable",
             "type": "function"
+          },
+          {
+            "inputs": [],
+            "name": "getValidators",
+            "outputs": [
+              {
+                "internalType": "address[]",
+                "name": "valAddrs",
+                "type": "address[]"
+              },
+              {
+                "internalType": "uint256[]",
+                "name": "tokens",
+                "type": "uint256[]"
+              },
+              {
+                "internalType": "uint256[]",
+                "name": "delegationsShares",
+                "type": "uint256[]"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [
+              {
+                "internalType": "address",
+                "name": "valAddr",
+                "type": "address"
+              }
+            ],
+            "name": "getValidator",
+            "outputs": [
+              {
+                "internalType": "uint256",
+                "name": "tokens",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "delegationShares",
+                "type": "uint256"
+              },
+              {
+                "internalType": "bool",
+                "name": "jailed",
+                "type": "bool"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [
+              {
+                "internalType": "address",
+                "name": "valAddr",
+                "type": "address"
+              }
+            ],
+            "name": "getValidatorPower",
+            "outputs": [
+              {
+                "internalType": "uint256",
+                "name": "votingPower",
+                "type": "uint256"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
           }
         ]
   ConsensusParams:
