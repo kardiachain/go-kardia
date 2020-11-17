@@ -27,7 +27,6 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
-	"github.com/kardiachain/go-kardiamain/lib/common"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	kevents "github.com/kardiachain/go-kardiamain/lib/events"
 	"github.com/kardiachain/go-kardiamain/lib/log"
@@ -94,7 +93,7 @@ func (conR *ConsensusManager) GetValidators() ([]*types.Validator, error) {
 	return conR.conS.GetValidators()
 }
 
-func (conR *ConsensusManager) GetValidator(valAddr common.Address) (*types.Validator, error) {
+func (conR *ConsensusManager) GetValidator(valAddr cmn.Address) (*types.Validator, error) {
 	return conR.conS.GetValidator(valAddr)
 }
 

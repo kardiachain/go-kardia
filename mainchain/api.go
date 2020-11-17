@@ -197,22 +197,20 @@ func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *Bl
 
 // Validator returns node's validator, nil if current node is not a validator
 func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address) (*types.Validator, error) {
-	return nil, errors.New("not implemented")
-	// val, err := s.kaiService.csManager.GetValidator(valAddr)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return val, nil
+	val, err := s.kaiService.csManager.GetValidator(valAddr)
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
 }
 
 // Validators returns a list of validator
 func (s *PublicKaiAPI) Validators(ctx context.Context) ([]*types.Validator, error) {
-	return nil, errors.New("not implemented")
-	// val, err := s.kaiService.csManager.GetValidators()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return val, nil
+	val, err := s.kaiService.csManager.GetValidators()
+	if err != nil {
+		return nil, err
+	}
+	return val, nil
 }
 
 type PublicTransaction struct {
