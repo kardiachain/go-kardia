@@ -180,9 +180,10 @@ func (cell *eventCell) AddListener(listenerID string, cb EventCallback) {
 
 func (cell *eventCell) RemoveListener(listenerID string) int {
 	cell.mtx.Lock()
+	defer cell.mtx.Unlock()
+
 	delete(cell.listeners, listenerID)
 	numListeners := len(cell.listeners)
-	cell.mtx.Unlock()
 	return numListeners
 }
 
