@@ -47,6 +47,8 @@ const (
 
 	blocksToContributeToBecomeGoodPeer = 10000
 	votesToContributeToBecomeGoodPeer  = 10000
+
+	subscriber = "consensus-manager"
 )
 
 // ConsensusManager defines a manager for the consensus service.
@@ -322,7 +324,6 @@ func (conR *ConsensusManager) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 // proposal heartbeats using internal pubsub defined on state to broadcast
 // them to peers upon receiving.
 func (conR *ConsensusManager) subscribeToBroadcastEvents() {
-	const subscriber = "consensus-manager"
 	conR.conS.evsw.AddListenerForEvent(subscriber, types.EventNewRoundStep,
 		func(data kevents.EventData) {
 			conR.broadcastNewRoundStepMessages(data.(*cstypes.RoundState))
@@ -340,7 +341,6 @@ func (conR *ConsensusManager) subscribeToBroadcastEvents() {
 }
 
 func (conR *ConsensusManager) unsubscribeFromBroadcastEvents() {
-	const subscriber = "consensus-manager"
 	conR.conS.evsw.RemoveListener(subscriber)
 }
 
