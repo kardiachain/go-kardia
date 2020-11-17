@@ -104,7 +104,7 @@ func (s *PermissionSmcUtil) GetNodeInfo(pubkey string) (common.Address, *big.Int
 		NodeType      *big.Int
 		ListenAddress string
 	}
-	err = s.Abi.Unpack(&nodeInfo, "getNodeInfo", getNodeInfoResult)
+	err = s.Abi.UnpackIntoInterface(&nodeInfo, "getNodeInfo", getNodeInfoResult)
 	if err != nil {
 		log.Error("Error unpacking node info", "err", err)
 		return common.Address{}, nil, nil, "", err
@@ -174,7 +174,7 @@ func (s *PermissionSmcUtil) GetAdminNodeByIndex(index int64) (string, common.Add
 		VotingPower *big.Int
 		NodeType    *big.Int
 	}
-	err = s.Abi.Unpack(&initialNodeInfo, "getInitialNodeByIndex", getInitialNodeResult)
+	err = s.Abi.UnpackIntoInterface(&initialNodeInfo, "getInitialNodeByIndex", getInitialNodeResult)
 	if err != nil {
 		log.Error("Error calling permission contract", "err", err)
 		return "", common.Address{}, "", nil, nil, err

@@ -156,7 +156,7 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 	}
 
 	//unpack result
-	err = s.Abi.Unpack(&valSet, "applyAndReturnValidatorSets", res)
+	err = s.Abi.UnpackIntoInterface(&valSet, "applyAndReturnValidatorSets", res)
 	if err != nil {
 		log.Error("Error unpacking val set info", "err", err)
 		return nil, err
@@ -197,7 +197,7 @@ func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc v
 			Fee *big.Int
 		})
 
-		if err := s.Abi.Unpack(result, "mint", res); err != nil {
+		if err := s.Abi.UnpackIntoInterface(result, "mint", res); err != nil {
 			return nil, fmt.Errorf("unpack mint result err: %s", err)
 		}
 		fee = result.Fee
