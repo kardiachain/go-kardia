@@ -161,7 +161,7 @@ func TestEventMultiValueWithArrayUnpack(t *testing.T) {
 		b.Write(packNum(reflect.ValueOf(i)))
 	}
 	var rst testStruct
-	require.NoError(t, abi.Unpack(&rst, "test", b.Bytes()))
+	require.NoError(t, abi.UnpackIntoInterface(&rst, "test", b.Bytes()))
 	require.Equal(t, [2]uint8{1, 2}, rst.Value1)
 	require.Equal(t, uint8(3), rst.Value2)
 }
@@ -357,7 +357,7 @@ func unpackTestEventData(dest interface{}, hexData string, jsonEvent []byte, ass
 	var e Event
 	assert.NoError(json.Unmarshal(jsonEvent, &e), "Should be able to unmarshal event ABI")
 	a := ABI{Events: map[string]Event{"e": e}}
-	return a.Unpack(dest, "e", data)
+	return a.UnpackIntoInterface(dest, "e", data)
 }
 
 // TestEventUnpackIndexed verifies that indexed field will be skipped by event decoder.
@@ -372,7 +372,7 @@ func TestEventUnpackIndexed(t *testing.T) {
 	var b bytes.Buffer
 	b.Write(packNum(reflect.ValueOf(uint8(8))))
 	var rst testStruct
-	require.NoError(t, abi.Unpack(&rst, "test", b.Bytes()))
+	require.NoError(t, abi.UnpackIntoInterface(&rst, "test", b.Bytes()))
 	require.Equal(t, uint8(0), rst.Value1)
 	require.Equal(t, uint8(8), rst.Value2)
 }
@@ -394,7 +394,7 @@ func TestEventIndexedWithArrayUnpack(t *testing.T) {
 	b.Write(common.RightPadBytes([]byte(stringOut), 32))
 
 	var rst testStruct
-	require.NoError(t, abi.Unpack(&rst, "test", b.Bytes()))
+	require.NoError(t, abi.UnpackIntoInterface(&rst, "test", b.Bytes()))
 	require.Equal(t, [2]uint8{0, 0}, rst.Value1)
 	require.Equal(t, stringOut, rst.Value2)
 }

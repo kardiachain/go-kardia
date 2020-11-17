@@ -511,7 +511,7 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 		Sale    *big.Int `abi:"sale"`
 		Receive *big.Int `abi:"receive"`
 	}
-	err = abi.Unpack(&rateStruct, "getRatePublic", rateResult)
+	err = abi.UnpackIntoInterface(&rateStruct, "getRatePublic", rateResult)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -533,7 +533,7 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 		SaleAmount    *big.Int
 		ReceiveAmount *big.Int
 	}
-	e := abi.UnpackInput(&decodeInput, "addRate", setRateInput[4:])
+	e := abi.UnpackIntoInterface(&decodeInput, "addRate", setRateInput[4:])
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -544,7 +544,7 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 	}
 
 	// Call get rate for ETH-NEO again to check if we set it correctly
-	err = abi.Unpack(&rateStruct, "getRatePublic", rateResult)
+	err = abi.UnpackIntoInterface(&rateStruct, "getRatePublic", rateResult)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -582,7 +582,7 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 		t.Fatal(errCallRate)
 	}
 
-	err = abi.Unpack(&rateStruct, "getRatePublic", rateResult)
+	err = abi.UnpackIntoInterface(&rateStruct, "getRatePublic", rateResult)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -614,7 +614,7 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 		DestAddress      string   `abi:"destAddress"`
 		SendAmount       *big.Int `abi:"sendAmount"`
 	}
-	unpackErr := abi.Unpack(&decodedMatchResult, "getMatchingRequestInfo", matchingResult1)
+	unpackErr := abi.UnpackIntoInterface(&decodedMatchResult, "getMatchingRequestInfo", matchingResult1)
 	if unpackErr != nil {
 		t.Fatal(unpackErr)
 	}
@@ -658,7 +658,7 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 		t.Fatal(e6)
 	}
 
-	unpackErr = abi.Unpack(&decodedMatchResult, "getMatchingRequestInfo", matchingResult1)
+	unpackErr = abi.UnpackIntoInterface(&decodedMatchResult, "getMatchingRequestInfo", matchingResult1)
 	if unpackErr != nil {
 		t.Fatal(unpackErr)
 	}
@@ -683,7 +683,7 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 		t.Fatal(e6)
 	}
 
-	unpackErr = abi.Unpack(&decodedMatchResult, "getMatchingRequestInfo", matchingResult1)
+	unpackErr = abi.UnpackIntoInterface(&decodedMatchResult, "getMatchingRequestInfo", matchingResult1)
 	if unpackErr != nil {
 		t.Fatal(unpackErr)
 	}
@@ -741,7 +741,7 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 	if e6 != nil {
 		t.Fatal(e6)
 	}
-	err = abi.Unpack(&matchableAmounts, "getMatchableAmount", matchAmountsResult)
+	err = abi.UnpackIntoInterface(&matchableAmounts, "getMatchableAmount", matchAmountsResult)
 	if len(matchableAmounts.Amounts) == 0 {
 		t.Fatal("Invalid matchable amount")
 	}
@@ -764,7 +764,7 @@ func TestDecentralizedExchangeContract(t *testing.T) {
 	if e6 != nil {
 		t.Fatal(e6)
 	}
-	err = abi.Unpack(&matchableAmounts, "getMatchableAmount", matchAmountsResult)
+	err = abi.UnpackIntoInterface(&matchableAmounts, "getMatchableAmount", matchAmountsResult)
 	if len(matchableAmounts.Amounts) == 0 {
 		t.Fatal("Invalid matchable amount")
 	}
