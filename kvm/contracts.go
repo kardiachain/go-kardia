@@ -24,7 +24,6 @@ import (
 	"golang.org/x/crypto/ripemd160"
 
 	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/configs/types"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/crypto/bn256"
@@ -221,7 +220,7 @@ func (c *bigModExp) RequiredGas(input []byte) uint64 {
 		)
 	}
 	gas.Mul(gas, common.BigMax(adjExpLen, big1))
-	gas.Div(gas, new(big.Int).SetUint64(typesCfg.ModExpQuadCoeffDiv))
+	gas.Div(gas, new(big.Int).SetUint64(configs.ModExpQuadCoeffDiv))
 
 	if gas.BitLen() > 64 {
 		return common.MaxUint64
@@ -299,7 +298,7 @@ type bn256Add struct{}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
 func (c *bn256Add) RequiredGas(input []byte) uint64 {
-	return typesCfg.Bn256AddGas
+	return configs.Bn256AddGas
 }
 
 func (c *bn256Add) Run(input []byte) ([]byte, error) {
@@ -324,7 +323,7 @@ type bn256ScalarMul struct{}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
 func (c *bn256ScalarMul) RequiredGas(input []byte) uint64 {
-	return typesCfg.Bn256ScalarMulGas
+	return configs.Bn256ScalarMulGas
 }
 
 func (c *bn256ScalarMul) Run(input []byte) ([]byte, error) {
@@ -379,7 +378,7 @@ type bn256Pairing struct{}
 
 // RequiredGas returns the gas required to execute the pre-compiled contract.
 func (c *bn256Pairing) RequiredGas(input []byte) uint64 {
-	return typesCfg.Bn256PairingBaseGas + uint64(len(input)/192)*typesCfg.Bn256PairingPerPointGas
+	return configs.Bn256PairingBaseGas + uint64(len(input)/192)*configs.Bn256PairingPerPointGas
 }
 
 func (c *bn256Pairing) Run(input []byte) ([]byte, error) {

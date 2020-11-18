@@ -123,7 +123,7 @@ func loadState(db kaidb.Database, key []byte) (state LastestBlockState) {
 	if len(buf) == 0 {
 		return state
 	}
-	sp := new(tmstate.State)
+	sp := new(kstate.State)
 	if err := proto.Unmarshal(buf, sp); err != nil {
 		// DATA HAS BEEN CORRUPTED OR THE SPEC HAS CHANGED
 		panic(fmt.Sprintf(`LoadState: Data has been corrupted or its spec has changed:
