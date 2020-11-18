@@ -319,7 +319,7 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 // TODO: should these return anything or let callers just use events?
 
 // AddVote inputs a vote.
-func (cs *ConsensusState) AddVote(vote *types.Vote, peerID p2p.ID) (added bool, err error) {
+func (cs *ConsensusState) AddVote(vote *types.Vote, peerID p2p.ID) (bool, error) {
 	if peerID != "" {
 		cs.internalMsgQueue <- msgInfo{&VoteMessage{vote}, ""}
 	} else {
@@ -480,8 +480,11 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 	return added, nil
 }
 
-func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, err error) {
-
+func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error) {
+	var (
+		added bool
+		err   error
+	)
 	cs.Logger.Debug(
 		"addVote",
 		"voteHeight",
@@ -491,14 +494,16 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 		"valIndex",
 		vote.ValidatorIndex,
 		"csHeight",
-		cs.Height)
+		cs.Height,
+	)
+
 	// A precommit for the previous height?
 	// These come in while we wait timeoutCommit
 	if vote.Height+1 == cs.Height {
-
 		if !(cs.Step == cstypes.RoundStepNewHeight && vote.Type == kproto.PrecommitType) {
 			return added, ErrVoteHeightMismatch
 		}
+
 		added, err = cs.LastCommit.AddVote(vote)
 		if !added {
 			return added, err
@@ -515,32 +520,31 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 			cs.enterNewRound(cs.Height, 1)
 		}
 
-		return
+		return added, err
 	}
 
 	// Height mismatch is ignored.
 	// Not necessarily a bad peer, but not favourable behaviour.
 	if vote.Height != cs.Height {
-		err = ErrVoteHeightMismatch
-		cs.Logger.Info("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", cs.Height, "err", err)
-		return
+		cs.Logger.Info("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", cs.Height)
+		return added, ErrVoteHeightMismatch
 	}
 
 	height := cs.Height
 	added, err = cs.Votes.AddVote(vote, peerID)
-
 	if !added {
 		// Either duplicate, or error upon cs.Votes.AddByIndex()
-		return
+		return added, err
 	}
 
-	cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote})
+	if err := cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote}); err != nil {
+		return added, err
+	}
 	cs.evsw.FireEvent(types.EventVote, vote)
 
 	switch vote.Type {
 	case kproto.PrevoteType:
 		prevotes := cs.Votes.Prevotes(vote.Round)
-
 		cs.Logger.Info("Added to prevote", "vote", vote, "prevotes", prevotes.StringShort())
 
 		// If +2/3 prevotes for a block or nil for *any* round:
@@ -560,7 +564,9 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 				cs.LockedRound = 0
 				cs.LockedBlock = nil
 				cs.LockedBlockParts = nil
-				cs.eventBus.PublishEventUnlock(cs.RoundStateEvent())
+				if err := cs.eventBus.PublishEventUnlock(cs.RoundStateEvent()); err != nil {
+					return added, err
+				}
 			}
 
 			// Update Valid* if we can.
@@ -586,7 +592,9 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 				}
 
 				cs.evsw.FireEvent(types.EventValidBlock, &cs.RoundState)
-				cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent())
+				if err := cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent()); err != nil {
+					return added, err
+				}
 			}
 		}
 
@@ -637,7 +645,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 		panic(cmn.Fmt("Unexpected vote type %X", vote.Type)) // go-wire should prevent this.
 	}
 
-	return
+	return added, err
 }
 
 // Get script vote
@@ -778,7 +786,7 @@ func (cs *ConsensusState) updateHeight(height uint64) {
 // NOTE: block is not necessarily valid.
 // Asynchronously triggers either enterPrevote (before we timeout of propose) or tryFinalizeCommit,
 // once we have the full block.
-func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p.ID) (added bool, err error) {
+func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p.ID) (bool, error) {
 	height, round, part := msg.Height, msg.Round, msg.Part
 	// Blocks might be reused, so round mismatch is OK
 	if cs.Height != height {
@@ -795,7 +803,7 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 		return false, nil
 	}
 
-	added, err = cs.ProposalBlockParts.AddPart(part)
+	added, err := cs.ProposalBlockParts.AddPart(part)
 	if err != nil {
 		return added, err
 	}
@@ -1347,7 +1355,7 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 
 // Creates the next block to propose and returns it. Returns nil block upon
 // error.
-func (cs *ConsensusState) createProposalBlock() (block *types.Block, blockParts *types.PartSet) {
+func (cs *ConsensusState) createProposalBlock() (*types.Block, *types.PartSet) {
 	cs.Logger.Trace("createProposalBlock")
 	var commit *types.Commit
 	if cs.Height == 1 {
