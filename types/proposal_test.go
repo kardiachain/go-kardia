@@ -23,7 +23,7 @@ import (
 )
 
 func TestProposalCreation(t *testing.T) {
-	proposal := NewProposal(1, 2, 3, CreateBlockIDRandom())
+	proposal := NewProposal(1, 2, 3, createBlockIDRandom())
 
 	if proposal.Height != 1 ||
 		proposal.Round != 2 ||
@@ -34,7 +34,7 @@ func TestProposalCreation(t *testing.T) {
 }
 
 func TestProposalSignBytes(t *testing.T) {
-	proposal := NewProposal(1, 2, 3, CreateBlockIDRandom())
+	proposal := NewProposal(1, 2, 3, createBlockIDRandom())
 	signedByte := ProposalSignBytes("KAI", proposal.ToProto())
 	if signedByte == nil {
 		t.Error("Proposal's SignBytes returned nil")

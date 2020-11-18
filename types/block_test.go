@@ -32,17 +32,17 @@ import (
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
-func CreateBlockIDRandom() BlockID {
-	blockHash := common.BytesToHash(common.RandBytes(32))
-	partSetHash := common.BytesToHash(common.RandBytes(32))
-	blockPartsHeaders := PartSetHeader{Total: 123, Hash: partSetHash}
+func createBlockIDRandom() BlockID {
 	return BlockID{
-		Hash:        blockHash,
-		PartsHeader: blockPartsHeaders,
+		Hash: common.BytesToHash(common.RandBytes(32)),
+		PartsHeader: PartSetHeader{
+			Total: 1,
+			Hash:  common.BytesToHash(common.RandBytes(32)),
+		},
 	}
 }
 
-func CreateBlockID(hash common.Hash, partSetSize uint32, partSetHash common.Hash) BlockID {
+func createBlockID(hash common.Hash, partSetSize uint32, partSetHash common.Hash) BlockID {
 	return BlockID{
 		Hash: hash,
 		PartsHeader: PartSetHeader{
