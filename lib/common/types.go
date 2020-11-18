@@ -28,8 +28,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-
 	"github.com/kardiachain/go-kardiamain/lib/crypto/sha3"
 )
 
@@ -114,17 +112,17 @@ func (h Hash) Format(s fmt.State, c rune) {
 
 // UnmarshalText parses a hash in hex syntax.
 func (h *Hash) UnmarshalText(input []byte) error {
-	return hexutil.UnmarshalFixedText("Hash", input, h[:])
+	return UnmarshalFixedText("Hash", input, h[:])
 }
 
 // UnmarshalJSON parses a hash in hex syntax.
 func (h *Hash) UnmarshalJSON(input []byte) error {
-	return hexutil.UnmarshalFixedJSON(hashT, input, h[:])
+	return UnmarshalFixedJSON(hashT, input, h[:])
 }
 
 // MarshalText returns the hex representation of h.
 func (h Hash) MarshalText() ([]byte, error) {
-	return hexutil.Bytes(h[:]).MarshalText()
+	return Bytes(h[:]).MarshalText()
 }
 
 // SetBytes sets the hash to the value of b.
@@ -185,7 +183,7 @@ type UnprefixedHash Hash
 
 // UnmarshalText decodes the hash from hex. The 0x prefix is optional.
 func (h *UnprefixedHash) UnmarshalText(input []byte) error {
-	return hexutil.UnmarshalFixedUnprefixedText("UnprefixedHash", input, h[:])
+	return UnmarshalFixedUnprefixedText("UnprefixedHash", input, h[:])
 }
 
 // MarshalText encodes the hash as hex.
@@ -280,17 +278,17 @@ func (a *Address) SetBytes(b []byte) {
 
 // MarshalText returns the hex representation of a.
 func (a Address) MarshalText() ([]byte, error) {
-	return hexutil.Bytes(a[:]).MarshalText()
+	return Bytes(a[:]).MarshalText()
 }
 
 // UnmarshalText parses a hash in hex syntax.
 func (a *Address) UnmarshalText(input []byte) error {
-	return hexutil.UnmarshalFixedText("Address", input, a[:])
+	return UnmarshalFixedText("Address", input, a[:])
 }
 
 // UnmarshalJSON parses a hash in hex syntax.
 func (a *Address) UnmarshalJSON(input []byte) error {
-	return hexutil.UnmarshalFixedJSON(addressT, input, a[:])
+	return UnmarshalFixedJSON(addressT, input, a[:])
 }
 
 // Scan implements Scanner for database/sql.
@@ -331,7 +329,7 @@ type UnprefixedAddress Address
 
 // UnmarshalText decodes the address from hex. The 0x prefix is optional.
 func (a *UnprefixedAddress) UnmarshalText(input []byte) error {
-	return hexutil.UnmarshalFixedUnprefixedText("UnprefixedAddress", input, a[:])
+	return UnmarshalFixedUnprefixedText("UnprefixedAddress", input, a[:])
 }
 
 // MarshalText encodes the address as hex.
@@ -362,7 +360,7 @@ func NewMixedcaseAddressFromString(hexaddr string) (*MixedcaseAddress, error) {
 
 // UnmarshalJSON parses MixedcaseAddress
 func (ma *MixedcaseAddress) UnmarshalJSON(input []byte) error {
-	if err := hexutil.UnmarshalFixedJSON(addressT, input, ma.addr[:]); err != nil {
+	if err := UnmarshalFixedJSON(addressT, input, ma.addr[:]); err != nil {
 		return err
 	}
 	return json.Unmarshal(input, &ma.original)

@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
@@ -569,7 +568,7 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 		args.From = configs.GenesisDeployerAddr.Hex()
 	}
 
-	if args.Gas >= params.TxGas {
+	if args.Gas >= configs.TxGas {
 		hi = args.Gas
 	} else {
 		// Retrieve the block to act as the gas ceiling

@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	KaiHashSize = sha256.Size
+	Size = sha256.Size
 )
 
 // New returns a new hash.Hash.

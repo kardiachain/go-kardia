@@ -24,11 +24,11 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/merkle"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tendermint/tendermint/crypto"
 )
 
 var defaultVoteTime = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -186,12 +186,12 @@ func makeHeaderRandom() *Header {
 		Height:             uint64(common.RandUint16()) + 1,
 		Time:               time.Now(),
 		LastBlockID:        makeBlockIDRandom(),
-		LastCommitHash:     common.BytesToHash(crypto.CRandBytes(merkle.KaiHashSize)),
-		ValidatorsHash:     common.BytesToHash(crypto.CRandBytes(merkle.KaiHashSize)),
-		NextValidatorsHash: common.BytesToHash(crypto.CRandBytes(merkle.KaiHashSize)),
-		ConsensusHash:      common.BytesToHash(crypto.CRandBytes(merkle.KaiHashSize)),
-		AppHash:            common.BytesToHash(crypto.CRandBytes(merkle.KaiHashSize)),
-		EvidenceHash:       common.BytesToHash(crypto.CRandBytes(merkle.KaiHashSize)),
-		ProposerAddress:    common.BytesToAddress(crypto.CRandBytes(crypto.AddressSize)),
+		LastCommitHash:     common.BytesToHash(crypto.CRandBytes(merkle.Size)),
+		ValidatorsHash:     common.BytesToHash(crypto.CRandBytes(merkle.Size)),
+		NextValidatorsHash: common.BytesToHash(crypto.CRandBytes(merkle.Size)),
+		ConsensusHash:      common.BytesToHash(crypto.CRandBytes(merkle.Size)),
+		AppHash:            common.BytesToHash(crypto.CRandBytes(merkle.Size)),
+		EvidenceHash:       common.BytesToHash(crypto.CRandBytes(merkle.Size)),
+		ProposerAddress:    common.BytesToAddress(crypto.CRandBytes(20)),
 	}
 }

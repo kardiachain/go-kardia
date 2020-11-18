@@ -28,7 +28,6 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 )
 
@@ -106,7 +105,7 @@ func S256() elliptic.Curve {
 // The public key should be in compressed (33 bytes) or uncompressed (65 bytes) format.
 // The signature should have the 64 byte [R || S] format.
 func VerifySignature(addr common.Address, hash, signature []byte) bool {
-	signPubKey, _ := crypto.SigToPub(hash, signature)
+	signPubKey, _ := SigToPub(hash, signature)
 	if signPubKey == nil {
 		return false
 	}
