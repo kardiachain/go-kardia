@@ -121,26 +121,31 @@ func (b *EventBus) Publish(eventType string, eventData KaiEventData) error {
 // map of stringified events where each key is composed of the event
 // type and each of the event's attributes keys in the form of
 // "{event.Type}.{attribute.Key}" and the value is each attribute's value.
+// func (b *EventBus) validateAndStringifyEvents(events []types.Event, logger log.Logger) map[string][]string {
+// 	result := make(map[string][]string)
+// 	for _, event := range events {
+// 		if len(event.Type) == 0 {
+// 			logger.Debug("Got an event with an empty type (skipping)", "event", event)
+// 			continue
+// 		}
+
+// 		for _, attr := range event.Attributes {
+// 			if len(attr.Key) == 0 {
+// 				logger.Debug("Got an event attribute with an empty key(skipping)", "event", event)
+// 				continue
+// 			}
+
+// 			compositeTag := fmt.Sprintf("%s.%s", event.Type, string(attr.Key))
+// 			result[compositeTag] = append(result[compositeTag], string(attr.Value))
+// 		}
+// 	}
+
+// 	return result
+// }
+
 func (b *EventBus) validateAndStringifyEvents(events []types.Event, logger log.Logger) map[string][]string {
-	result := make(map[string][]string)
-	for _, event := range events {
-		if len(event.Type) == 0 {
-			logger.Debug("Got an event with an empty type (skipping)", "event", event)
-			continue
-		}
-
-		for _, attr := range event.Attributes {
-			if len(attr.Key) == 0 {
-				logger.Debug("Got an event attribute with an empty key(skipping)", "event", event)
-				continue
-			}
-
-			compositeTag := fmt.Sprintf("%s.%s", event.Type, string(attr.Key))
-			result[compositeTag] = append(result[compositeTag], string(attr.Value))
-		}
-	}
-
-	return result
+	fmt.Println("not yet implement")
+	return nil
 }
 
 //--- EventDataRoundState events

@@ -103,7 +103,7 @@ func TestCommitGetByIndex(t *testing.T) {
 
 func CreateNewCommit() *Commit {
 	block := CreateNewBlockWithTwoVotes(1)
-	block.lastCommit.BlockID = CreateBlockIDRandom()
+	block.lastCommit.BlockID = createBlockIDRandom()
 	return block.lastCommit
 }
 

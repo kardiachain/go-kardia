@@ -35,7 +35,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 
 	"github.com/prometheus/tsdb/fileutil"
-	"github.com/tendermint/tendermint/version"
 
 	cs "github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
@@ -47,6 +46,10 @@ import (
 	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
 	"github.com/kardiachain/go-kardiamain/types/evidence"
+)
+
+var (
+	nodeVersion = "1.0.0"
 )
 
 // Node is a container on which services can be registered.
@@ -742,7 +745,7 @@ func makeNodeInfo(
 		),
 		DefaultNodeID: nodeKey.ID(),
 		Network:       state.ChainID,
-		Version:       version.TMCoreSemVer,
+		Version:       nodeVersion,
 		Channels: []byte{
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
 			evidence.EvidenceChannel, tx_pool.TxpoolChannel,

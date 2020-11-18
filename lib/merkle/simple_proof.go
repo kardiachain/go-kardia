@@ -24,7 +24,6 @@ import (
 	"fmt"
 
 	kcrypto "github.com/kardiachain/go-kardiamain/proto/kardiachain/crypto"
-	"github.com/tendermint/tendermint/crypto/tmhash"
 )
 
 // SimpleProof represents a simple Merkle proof.
@@ -149,16 +148,16 @@ func (sp *SimpleProof) String() string {
 }
 
 // ValidateBasic performs basic validation.
-// NOTE: it expects the LeafHash and the elements of Aunts to be of size tmhash.Size,
+// NOTE: it expects the LeafHash and the elements of Aunts to be of size merkle.Size,
 // and it expects at most MaxAunts elements in Aunts.
 func (sp *SimpleProof) ValidateBasic() error {
-	if len(sp.LeafHash) != tmhash.Size {
-		return fmt.Errorf("expected LeafHash size to be %d, got %d", tmhash.Size, len(sp.LeafHash))
+	if len(sp.LeafHash) != Size {
+		return fmt.Errorf("expected LeafHash size to be %d, got %d", Size, len(sp.LeafHash))
 	}
 
 	for i, auntHash := range sp.Aunts {
-		if len(auntHash) != tmhash.Size {
-			return fmt.Errorf("expected Aunts#%d size to be %d, got %d", i, tmhash.Size, len(auntHash))
+		if len(auntHash) != Size {
+			return fmt.Errorf("expected Aunts#%d size to be %d, got %d", i, Size, len(auntHash))
 		}
 	}
 	return nil

@@ -5,10 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/tendermint/tendermint/libs/rand"
 )
 
 // TestAddListenerForEventFireOnce sets up an EventSwitch, subscribes a single
@@ -413,7 +412,7 @@ func TestRemoveListenersAsync(t *testing.T) {
 	// collect received events for event2
 	go sumReceivedNumbers(numbers2, doneSum2)
 	addListenersStress := func() {
-		r1 := rand.NewRand()
+		r1 := common.NewRand()
 		r1.Seed(time.Now().UnixNano())
 		for k := uint16(0); k < 400; k++ {
 			listenerNumber := r1.Intn(100) + 3
@@ -424,7 +423,7 @@ func TestRemoveListenersAsync(t *testing.T) {
 		}
 	}
 	removeListenersStress := func() {
-		r2 := rand.NewRand()
+		r2 := common.NewRand()
 		r2.Seed(time.Now().UnixNano())
 		for k := uint16(0); k < 80; k++ {
 			listenerNumber := r2.Intn(100) + 3

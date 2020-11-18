@@ -288,21 +288,21 @@ func NewMockDuplicateVoteEvidence(height uint64, time time.Time, chainID string)
 	return NewMockDuplicateVoteEvidenceWithValidator(height, time, val, chainID)
 }
 
-func NewMockDuplicateVoteEvidenceWithValidator(height uint64, time time.Time,
-	pv PrivValidator, chainID string) *DuplicateVoteEvidence {
+func NewMockDuplicateVoteEvidenceWithValidator(height uint64, time time.Time, pv PrivValidator, chainID string) *DuplicateVoteEvidence {
 	addr := pv.GetAddress()
-	voteA := makeMockVote(height, 0, 0, addr, randBlockID(), time)
+	voteA := makeMockVote(height, 0, 0, addr, createRandBlockID(), time)
 	vA := voteA.ToProto()
 	_ = pv.SignVote(chainID, vA)
 	voteA.Signature = vA.Signature
-	voteB := makeMockVote(height, 0, 0, addr, randBlockID(), time)
+	voteB := makeMockVote(height, 0, 0, addr, createRandBlockID(), time)
 	vB := voteB.ToProto()
 	_ = pv.SignVote(chainID, vB)
 	voteB.Signature = vB.Signature
 	return NewDuplicateVoteEvidence(voteA, voteB)
 }
 
-func randBlockID() BlockID {
+// @FIXME, can't import block_test createBlockIDRandom()
+func createRandBlockID() BlockID {
 	return BlockID{
 		Hash: common.BytesToHash(common.RandBytes(32)),
 		PartsHeader: PartSetHeader{
@@ -349,7 +349,17 @@ func (evl EvidenceList) GetRlp(i int) []byte {
 	return enc
 }
 
-// Len ...
+// Len return evidence length
 func (evl EvidenceList) Len() int {
 	return len(evl)
+}
+
+// Has returns true if the evidence is in the EvidenceList.
+func (evl EvidenceList) Has(evidence Evidence) bool {
+	for _, ev := range evl {
+		if evidence.Hash().Equal(ev.Hash()) {
+			return true
+		}
+	}
+	return false
 }
