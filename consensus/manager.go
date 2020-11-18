@@ -88,14 +88,6 @@ func (conR *ConsensusManager) Validators() []*types.Validator {
 	return conR.conS.Validators.CurrentValidators()
 }
 
-func (conR *ConsensusManager) GetValidators() ([]*types.Validator, error) {
-	return conR.conS.GetValidators()
-}
-
-func (conR *ConsensusManager) GetValidator(valAddr cmn.Address) (*types.Validator, error) {
-	return conR.conS.GetValidator(valAddr)
-}
-
 func (conR *ConsensusManager) OnStart() error {
 	conR.Logger.Trace("Consensus manager starts!")
 	conR.subscribeToBroadcastEvents()

@@ -41,6 +41,8 @@ type APIBackend interface {
 	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
 	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
 	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error)
+	GetValidators() ([]*types.Validator, error)
+	GetValidator(valAddr common.Address) (*types.Validator, error)
 }
 
 func (k *KardiaService) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header {
@@ -147,4 +149,40 @@ func (k *KardiaService) GetKVM(ctx context.Context, msg types.Message, state *st
 
 	context := vm.NewKVMContext(msg, header, k.BlockChain())
 	return kvm.NewKVM(context, state, *k.blockchain.GetVMConfig()), vmError, nil
+}
+
+// ValidatorsListFromStakingContract returns all validators on staking
+// contract at the moment
+func (k *KardiaService) GetValidators() ([]*types.Validator, error) {
+	block := k.blockchain.CurrentBlock()
+	state, header, kvmConfig, err := k.getValidatorInfoParams(block)
+	if err != nil {
+		return nil, err
+	}
+	return k.staking.GetValidators(state, header, k.blockchain, kvmConfig)
+}
+
+// ValidatorsListFromStakingContract returns info of one validator on staking
+// contract based on his address
+func (k *KardiaService) GetValidator(valAddr common.Address) (*types.Validator, error) {
+	block := k.blockchain.CurrentBlock()
+	state, header, kvmConfig, err := k.getValidatorInfoParams(block)
+	if err != nil {
+		return nil, err
+	}
+	return k.staking.GetValidator(state, header, k.blockchain, kvmConfig, valAddr)
+}
+
+// getValidatorInfoParams returns params for getting validators info on
+// staking contract
+func (k *KardiaService) getValidatorInfoParams(block *types.Block) (*state.StateDB, *types.Header, kvm.Config, error) {
+	// Blockchain state at head block.
+	kvmConfig := kvm.Config{}
+	state, err := k.blockchain.State()
+	if err != nil {
+		k.logger.Error("Fail to get blockchain head state", "err", err)
+		return nil, nil, kvmConfig, err
+	}
+
+	return state, block.Header(), kvmConfig, nil
 }

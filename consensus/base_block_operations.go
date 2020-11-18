@@ -36,6 +36,4 @@ type BaseBlockOperations interface {
 	SaveBlock(block *types.Block, partSet *types.PartSet, seenCommit *types.Commit)
 	LoadBlockPart(height uint64, index int) *types.Part
 	LoadBlockMeta(height uint64) *types.BlockMeta
-	GetValidators() ([]*types.Validator, error)
-	GetValidator(valAddr common.Address) (*types.Validator, error)
 }

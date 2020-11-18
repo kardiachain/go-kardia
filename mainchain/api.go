@@ -195,9 +195,23 @@ func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *Bl
 	return NewBlockJSON(block, blockInfo)
 }
 
+type Validator struct {
+	Address      common.Address `json:"address"`
+	VotingPower  int64          `json:"votingPower"`
+	StakedAmount uint64         `json:"stakedAmount"`
+	Commission   uint64         `json:"commission"`
+	Delegators   []Delegator    `json:"delegators"`
+}
+
+type Delegator struct {
+	Address      common.Address `json:"address"`
+	StakedAmount uint64         `json:"stakedAmount"`
+	Reward       uint64         `json:"reward"`
+}
+
 // Validator returns node's validator, nil if current node is not a validator
 func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address) (*types.Validator, error) {
-	val, err := s.kaiService.csManager.GetValidator(valAddr)
+	val, err := s.kaiService.GetValidator(valAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +220,7 @@ func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address) (*
 
 // Validators returns a list of validator
 func (s *PublicKaiAPI) Validators(ctx context.Context) ([]*types.Validator, error) {
-	val, err := s.kaiService.csManager.GetValidators()
+	val, err := s.kaiService.GetValidators()
 	if err != nil {
 		return nil, err
 	}

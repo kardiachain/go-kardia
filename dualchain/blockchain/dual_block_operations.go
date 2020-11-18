@@ -20,7 +20,6 @@ package blockchain
 
 import (
 	"errors"
-	"fmt"
 	"sync"
 	"time"
 
@@ -219,18 +218,6 @@ func (dbo *DualBlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 	}
 
 	return commit
-}
-
-// ValidatorsListFromStakingContract returns all validators on staking
-// contract at the moment
-func (dbo *DualBlockOperations) GetValidators() ([]*types.Validator, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-// ValidatorsListFromStakingContract returns info of one validator on staking
-// contract based on his address
-func (dbo *DualBlockOperations) GetValidator(valAddr common.Address) (*types.Validator, error) {
-	return nil, fmt.Errorf("not implemented")
 }
 
 // Creates new block header from given data.

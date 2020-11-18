@@ -1541,13 +1541,3 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 		panic(cmn.Fmt("Invalid timeout step: %v", ti.Step))
 	}
 }
-
-// GetValidators get validators list from staking contract
-func (cs *ConsensusState) GetValidators() ([]*types.Validator, error) {
-	return cs.blockOperations.GetValidators()
-}
-
-// GetValidator get a single validator info from staking contract
-func (cs *ConsensusState) GetValidator(valAddr cmn.Address) (*types.Validator, error) {
-	return cs.blockOperations.GetValidator(valAddr)
-}
