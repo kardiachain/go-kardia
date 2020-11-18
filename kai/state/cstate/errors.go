@@ -18,7 +18,10 @@
 
 package cstate
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 type (
 	ErrInvalidBlock      error
@@ -37,3 +40,7 @@ func (e ErrNoValSetForHeight) Error() string {
 func (e ErrNoConsensusParamsForHeight) Error() string {
 	return fmt.Sprintf("could not find consensus params for height #%d", e.Height)
 }
+
+var (
+	ErrNilState = errors.New("nil state")
+)

@@ -18,10 +18,11 @@ package kvm
 
 import (
 	"github.com/holiman/uint256"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
-	"golang.org/x/crypto/sha3"
 )
 
 func opAdd(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {

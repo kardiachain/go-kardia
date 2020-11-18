@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/url"
 	"reflect"
@@ -29,14 +28,6 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/log"
-)
-
-var (
-	ErrClientQuit                = errors.New("client is closed")
-	ErrNoResult                  = errors.New("no result in JSON-RPC response")
-	ErrSubscriptionQueueOverflow = errors.New("subscription queue overflow")
-	errClientReconnected         = errors.New("client reconnected")
-	errDead                      = errors.New("connection lost")
 )
 
 const (

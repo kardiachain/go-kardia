@@ -20,7 +20,6 @@ package kai
 
 import (
 	"context"
-	"errors"
 
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
@@ -28,13 +27,6 @@ import (
 	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
-)
-
-var (
-	ErrHeaderNotFound   = errors.New("header for hash not found")
-	ErrInvalidArguments = errors.New("invalid arguments; neither block nor hash specified")
-	ErrHashNotCanonical = errors.New("hash is not currently canonical")
-	ErrMissingBlockBody = errors.New("block body is missing")
 )
 
 type APIBackend interface {

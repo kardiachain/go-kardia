@@ -107,7 +107,7 @@ func NewVoteSet(chainID string, height uint64, round uint32, signedMsgType kprot
 // NOTE: vote should not be mutated after adding.
 // NOTE: VoteSet must not be nil
 // NOTE: Vote must not be nil
-func (voteSet *VoteSet) AddVote(vote *Vote) (added bool, err error) {
+func (voteSet *VoteSet) AddVote(vote *Vote) (bool, error) {
 	if voteSet == nil {
 		cmn.PanicSanity("AddVote() on nil VoteSet")
 	}
@@ -118,7 +118,7 @@ func (voteSet *VoteSet) AddVote(vote *Vote) (added bool, err error) {
 }
 
 // NOTE: Validates as much as possible before attempting to verify the signature.
-func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
+func (voteSet *VoteSet) addVote(vote *Vote) (bool, error) {
 	if vote == nil {
 		return false, ErrVoteNil
 	}
@@ -174,7 +174,7 @@ func (voteSet *VoteSet) addVote(vote *Vote) (added bool, err error) {
 }
 
 // Returns (vote, true) if vote exists for valIndex and blockKey
-func (voteSet *VoteSet) getVote(valIndex uint32, blockKey string) (vote *Vote, ok bool) {
+func (voteSet *VoteSet) getVote(valIndex uint32, blockKey string) (*Vote, bool) {
 	if existing := voteSet.votes[valIndex]; existing != nil && existing.BlockID.Key() == blockKey {
 		return existing, true
 	}
@@ -186,7 +186,8 @@ func (voteSet *VoteSet) getVote(valIndex uint32, blockKey string) (vote *Vote, o
 
 // Assumes signature is valid.
 // If conflicting vote exists, returns it.
-func (voteSet *VoteSet) addVerifiedVote(vote *Vote, blockKey string, votingPower int64) (added bool, conflicting *Vote) {
+func (voteSet *VoteSet) addVerifiedVote(vote *Vote, blockKey string, votingPower int64) (bool, *Vote) {
+	var conflicting *Vote
 	valIndex := vote.ValidatorIndex
 
 	// Already exists in voteSet.votes?
@@ -412,7 +413,7 @@ func (voteSet *VoteSet) HasAll() bool {
 
 // If there was a +2/3 majority for blockID, return blockID and true.
 // Else, return the empty BlockID{} and false.
-func (voteSet *VoteSet) TwoThirdsMajority() (blockID BlockID, ok bool) {
+func (voteSet *VoteSet) TwoThirdsMajority() (BlockID, bool) {
 	if voteSet == nil {
 		return NewZeroBlockID(), false
 	}

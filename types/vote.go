@@ -30,34 +30,6 @@ import (
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
-var (
-	ErrVoteUnexpectedStep            = errors.New("Unexpected step")
-	ErrVoteInvalidValidatorIndex     = errors.New("Invalid validator index")
-	ErrVoteInvalidValidatorAddress   = errors.New("Invalid validator address")
-	ErrVoteInvalidSignature          = errors.New("Invalid signature")
-	ErrVoteInvalidBlockHash          = errors.New("Invalid block hash")
-	ErrVoteNonDeterministicSignature = errors.New("Non-deterministic signature")
-	ErrVoteNil                       = errors.New("Nil vote")
-)
-
-type ErrVoteConflictingVotes struct {
-	*DuplicateVoteEvidence
-}
-
-func (err *ErrVoteConflictingVotes) Error() string {
-	return fmt.Sprintf("Conflicting votes from validator %v", "val addr")
-}
-
-// NewConflictingVoteError ...
-func NewConflictingVoteError(voteA, voteB *Vote) *ErrVoteConflictingVotes {
-	return &ErrVoteConflictingVotes{
-		&DuplicateVoteEvidence{
-			VoteA: voteA,
-			VoteB: voteB,
-		},
-	}
-}
-
 // IsVoteTypeValid returns true if t is a valid vote type.
 func IsVoteTypeValid(t kproto.SignedMsgType) bool {
 	switch t {

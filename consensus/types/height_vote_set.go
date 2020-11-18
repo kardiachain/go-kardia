@@ -19,7 +19,6 @@
 package types
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 
@@ -34,10 +33,6 @@ type RoundVoteSet struct {
 	Prevotes   *types.VoteSet
 	Precommits *types.VoteSet
 }
-
-var (
-	GotVoteFromUnwantedRoundError = errors.New("Peer has sent a vote that does not match our round for more than one round")
-)
 
 /*
 Keeps track of all VoteSets from round 0 to round 'round'.
@@ -115,11 +110,11 @@ func (hvs *HeightVoteSet) SetRound(round uint32) {
 
 // Duplicate votes return added=false, err=nil.
 // By convention, peerID is "" if origin is self.
-func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID p2p.ID) (added bool, err error) {
+func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID p2p.ID) (bool, error) {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
 	if !types.IsVoteTypeValid(vote.Type) {
-		return
+		return false, ErrNilVoteType
 	}
 	voteSet := hvs.getVoteSet(vote.Round, vote.Type)
 	if voteSet == nil {
@@ -130,13 +125,10 @@ func (hvs *HeightVoteSet) AddVote(vote *types.Vote, peerID p2p.ID) (added bool, 
 			hvs.peerCatchupRounds[peerID] = append(rndz, vote.Round)
 		} else {
 			// punish peer
-			err = GotVoteFromUnwantedRoundError
-			return
+			return false, ErrGotVoteFromUnwantedRound
 		}
 	}
-
-	added, err = voteSet.AddVote(vote)
-	return
+	return voteSet.AddVote(vote)
 }
 
 // Get all prevotes of the specified round.

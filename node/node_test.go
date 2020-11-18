@@ -25,6 +25,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 
 	"github.com/kardiachain/go-kardiamain/configs"
@@ -274,9 +276,7 @@ func TestServiceConstructionAbortion(t *testing.T) {
 // shut down.
 func TestServiceStartupAbortion(t *testing.T) {
 	stack, err := New(testNodeConfig())
-	if err != nil {
-		t.Fatalf("failed to create protocol stack: %v", err)
-	}
+	assert.Nil(t, err, "failed to create protocol stack")
 	defer stack.Close()
 
 	// Register a batch of good services
@@ -296,9 +296,7 @@ func TestServiceStartupAbortion(t *testing.T) {
 				stopHook:  func() { stopped[id] = true },
 			}, nil
 		}
-		if err := stack.Register(maker(constructor)); err != nil {
-			t.Fatalf("service %s: registration failed: %v", id, err)
-		}
+		assert.Nil(t, stack.Register(maker(constructor)), "service %s: registration failed", id)
 	}
 	// Register a service that fails to start
 	failure := errors.New("fail")

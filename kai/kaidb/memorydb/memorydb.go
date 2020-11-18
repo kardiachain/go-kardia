@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
- package memorydb
+package memorydb
 
 import (
 	"errors"
@@ -26,16 +26,6 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-)
-
-var (
-	// errMemorydbClosed is returned if a memory database was already closed at the
-	// invocation of a data access operation.
-	errMemorydbClosed = errors.New("database closed")
-
-	// errMemorydbNotFound is returned if a key is requested that is not found in
-	// the provided memory database.
-	errMemorydbNotFound = errors.New("not found")
 )
 
 // Database is an ephemeral key-value store. Apart from basic data storage
