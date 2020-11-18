@@ -20,11 +20,17 @@ package merkle
 
 import (
 	"crypto/sha256"
+	"hash"
 )
 
 const (
 	KaiHashSize = sha256.Size
 )
+
+// New returns a new hash.Hash.
+func New() hash.Hash {
+	return sha256.New()
+}
 
 // Sum returns the SHA256 of the bz.
 func Sum(bz []byte) []byte {
