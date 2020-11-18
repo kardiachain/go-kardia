@@ -1154,3 +1154,9 @@ func (valz validatorsByPriority) Less(i, j int) bool {
 func (valz validatorsByPriority) Swap(i, j int) {
 	valz[i], valz[j] = valz[j], valz[i]
 }
+
+func TestValidatorSet_getValWithMostPriority(t *testing.T) {
+	vs := randValidatorSet(5)
+	val := vs.getValWithMostPriority()
+	fmt.Println("Val", val)
+}

@@ -65,9 +65,7 @@ func TestTrustMetricConfig(t *testing.T) {
 
 func TestTrustMetricCopyNilPointer(t *testing.T) {
 	var tm *Metric
-
 	ctm := tm.Copy()
-
 	assert.Nil(t, ctm)
 }
 
