@@ -232,6 +232,135 @@ var (
             ],
             "stateMutability": "view",
             "type": "function"
+          },
+          {
+            "inputs": [
+              {
+                "internalType": "address",
+                "name": "valAddr",
+                "type": "address"
+              }
+            ],
+            "name": "getDelegationsByValidator",
+            "outputs": [
+              {
+                "internalType": "address[]",
+                "name": "delAddrs",
+                "type": "address[]"
+              },
+              {
+                "internalType": "uint256[]",
+                "name": "shares",
+                "type": "uint256[]"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [
+              {
+                "internalType": "address",
+                "name": "valAddr",
+                "type": "address"
+              }
+            ],
+            "name": "getValidatorCommission",
+            "outputs": [
+              {
+                "internalType": "uint256",
+                "name": "rewards",
+                "type": "uint256"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [
+              {
+                "internalType": "address",
+                "name": "valAddr",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "delAddr",
+                "type": "address"
+              }
+            ],
+            "name": "getDelegatorStake",
+            "outputs": [
+              {
+                "internalType": "uint256",
+                "name": "stake",
+                "type": "uint256"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [
+              {
+                "internalType": "address",
+                "name": "delAddr",
+                "type": "address"
+              }
+            ],
+            "name": "getAllDelegatorStake",
+            "outputs": [
+              {
+                "internalType": "uint256",
+                "name": "stake",
+                "type": "uint256"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [
+              {
+                "internalType": "address",
+                "name": "valAddr",
+                "type": "address"
+              },
+              {
+                "internalType": "address",
+                "name": "delAddr",
+                "type": "address"
+              }
+            ],
+            "name": "getDelegationRewards",
+            "outputs": [
+              {
+                "internalType": "uint256",
+                "name": "rewards",
+                "type": "uint256"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+          },
+          {
+            "inputs": [
+              {
+                "internalType": "address",
+                "name": "delAddr",
+                "type": "address"
+              }
+            ],
+            "name": "getValidatorsByDelegator",
+            "outputs": [
+              {
+                "internalType": "address[]",
+                "name": "addrs",
+                "type": "address[]"
+              }
+            ],
+            "stateMutability": "view",
+            "type": "function"
           }
         ]`,
 	}
