@@ -23,9 +23,9 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
@@ -198,33 +198,68 @@ func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *Bl
 type Validator struct {
 	Address      common.Address `json:"address"`
 	VotingPower  int64          `json:"votingPower"`
-	StakedAmount uint64         `json:"stakedAmount"`
+	StakedAmount string         `json:"stakedAmount"`
 	Commission   uint64         `json:"commission"`
-	Delegators   []Delegator    `json:"delegators"`
+	Delegators   []*Delegator   `json:"delegators"`
 }
 
 type Delegator struct {
 	Address      common.Address `json:"address"`
-	StakedAmount uint64         `json:"stakedAmount"`
-	Reward       uint64         `json:"reward"`
+	StakedAmount string         `json:"stakedAmount"`
+	Reward       string         `json:"reward"`
 }
 
 // Validator returns node's validator, nil if current node is not a validator
-func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address) (*types.Validator, error) {
+func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address) (*Validator, error) {
 	val, err := s.kaiService.GetValidator(valAddr)
 	if err != nil {
 		return nil, err
 	}
-	return val, nil
-}
-
-// Validators returns a list of validator
-func (s *PublicKaiAPI) Validators(ctx context.Context) ([]*types.Validator, error) {
-	val, err := s.kaiService.GetValidators()
+	commission, err := s.kaiService.GetValidatorCommission(valAddr)
 	if err != nil {
 		return nil, err
 	}
-	return val, nil
+	delegationsList, err := s.kaiService.GetDelegationsByValidator(valAddr)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		stakedAmount   = new(big.Int).SetUint64(0)
+		delegatorsList []*Delegator
+	)
+	for _, del := range delegationsList {
+		stakedAmount = new(big.Int).Add(stakedAmount, del.StakedAmount)
+		delegatorsList = append(delegatorsList, &Delegator{
+			Address:      del.Address,
+			StakedAmount: del.StakedAmount.String(),
+			Reward:       del.Reward.String(),
+		})
+	}
+
+	return &Validator{
+		Address:      val.Address,
+		VotingPower:  val.VotingPower,
+		StakedAmount: stakedAmount.String(),
+		Commission:   commission,
+		Delegators:   delegatorsList,
+	}, nil
+}
+
+// Validators returns a list of validator
+func (s *PublicKaiAPI) Validators(ctx context.Context) ([]*Validator, error) {
+	var validators []*Validator
+	valList, err := s.kaiService.GetValidators()
+	if err != nil {
+		return nil, err
+	}
+	for _, val := range valList {
+		validator, err := s.Validator(ctx, val.Address)
+		if err != nil {
+			return nil, err
+		}
+		validators = append(validators, validator)
+	}
+	return validators, nil
 }
 
 type PublicTransaction struct {
@@ -588,7 +623,7 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 		args.From = configs.GenesisDeployerAddr.Hex()
 	}
 
-	if args.Gas >= params.TxGas {
+	if args.Gas >= configs.TxGas {
 		hi = args.Gas
 	} else {
 		// Retrieve the block to act as the gas ceiling

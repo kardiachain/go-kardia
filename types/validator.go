@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
 	"math/rand"
 	"strings"
 	"time"
@@ -34,6 +35,12 @@ import (
 var (
 	ErrNilValidator = errors.New("nil Validator")
 )
+
+type Delegator struct {
+	Address      common.Address `json:"address"`
+	StakedAmount *big.Int       `json:"stakedAmount"`
+	Reward       *big.Int       `json:"reward"`
+}
 
 // Validator state for each Validator
 type Validator struct {

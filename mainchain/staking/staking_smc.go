@@ -261,7 +261,7 @@ func (s *StakingSmcUtil) GetValidator(statedb *state.StateDB, header *types.Head
 	return types.NewValidator(valAddr, votingPower), nil
 }
 
-// GetValidator show info of a validator based on address
+// GetValidator returns voting power of a validator based on address
 func (s *StakingSmcUtil) GetValidatorPower(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address) (int64, error) {
 	payload, err := s.Abi.Pack("getValidatorPower", valAddr)
 	if err != nil {
@@ -291,10 +291,133 @@ func (s *StakingSmcUtil) GetValidatorPower(statedb *state.StateDB, header *types
 	// unpack result
 	err = s.Abi.UnpackIntoInterface(&votingPower, "getValidatorPower", res)
 	if err != nil {
-		log.Error("Error unpacking validators list info", "err", err)
+		log.Error("Error unpacking validator power", "err", err)
 		return 0, err
 	}
 	return votingPower.Int64(), nil
+}
+
+// GetValidatorCommission returns commission of a validator based on address
+func (s *StakingSmcUtil) GetValidatorCommission(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address) (uint64, error) {
+	payload, err := s.Abi.Pack("getValidatorCommission", valAddr)
+	if err != nil {
+		return 0, err
+	}
+
+	msg := types.NewMessage(
+		s.ContractAddress,
+		&s.ContractAddress,
+		0,
+		big.NewInt(0),
+		100000000,
+		big.NewInt(0),
+		payload,
+		false,
+	)
+
+	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	if err != nil {
+		return 0, err
+	}
+	if len(res) == 0 {
+		return 0, nil
+	}
+
+	var validatorCommission *big.Int
+	// unpack result
+	err = s.Abi.UnpackIntoInterface(&validatorCommission, "getValidatorCommission", res)
+	if err != nil {
+		log.Error("Error unpacking validator commission", "err", err)
+		return 0, err
+	}
+	return validatorCommission.Uint64(), nil
+}
+
+// GetDelegationsByValidator returns all delegations to a specified validator address
+func (s *StakingSmcUtil) GetDelegationsByValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address) ([]*types.Delegator, error) {
+	payload, err := s.Abi.Pack("getDelegationsByValidator", valAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := types.NewMessage(
+		s.ContractAddress,
+		&s.ContractAddress,
+		0,
+		big.NewInt(0),
+		100000000,
+		big.NewInt(0),
+		payload,
+		false,
+	)
+
+	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	if err != nil {
+		return nil, err
+	}
+	if len(res) == 0 {
+		return nil, nil
+	}
+
+	var delegationsList struct {
+		DelAddrs []common.Address
+		Shares   []*big.Int
+	}
+	// unpack result
+	err = s.Abi.UnpackIntoInterface(&delegationsList, "getDelegationsByValidator", res)
+	if err != nil {
+		log.Error("Error unpacking delegations list info", "err", err)
+		return nil, err
+	}
+	dels := make([]*types.Delegator, len(delegationsList.DelAddrs))
+	for i := range delegationsList.DelAddrs {
+		reward, err := s.GetDelegationRewards(statedb, header, bc, cfg, valAddr, delegationsList.DelAddrs[i])
+		if err != nil {
+			return nil, err
+		}
+		dels[i] = &types.Delegator{
+			Address:      delegationsList.DelAddrs[i],
+			StakedAmount: delegationsList.Shares[i],
+			Reward:       reward,
+		}
+	}
+	return dels, nil
+}
+
+// GetDelegationRewards returns reward of a delegation
+func (s *StakingSmcUtil) GetDelegationRewards(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, delAddr common.Address) (*big.Int, error) {
+	payload, err := s.Abi.Pack("getDelegationRewards", valAddr, delAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := types.NewMessage(
+		s.ContractAddress,
+		&s.ContractAddress,
+		0,
+		big.NewInt(0),
+		100000000,
+		big.NewInt(0),
+		payload,
+		false,
+	)
+
+	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	if err != nil {
+		return nil, err
+	}
+	if len(res) == 0 {
+		return nil, nil
+	}
+
+	var delegationReward *big.Int
+	// unpack result
+	err = s.Abi.UnpackIntoInterface(&delegationReward, "getDelegationRewards", res)
+	if err != nil {
+		log.Error("Error unpacking delegation reward", "err", err)
+		return nil, err
+	}
+	return delegationReward, nil
 }
 
 //Mint new tokens for the previous block. Returns fee collected
