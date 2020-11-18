@@ -246,7 +246,7 @@ func (g *Genesis) Commit(logger log.Logger, db types.StoreDB, staking *staking.S
 func DefaultGenesisBlock() *Genesis {
 	return &Genesis{
 		Config:   configs.MainnetChainConfig,
-		GasLimit: 5000,
+		GasLimit: configs.BlockGasLimit,
 		//@huny Alloc:    decodePrealloc(mainnetAllocData),
 	}
 }
@@ -261,7 +261,7 @@ func DefaultTestnetGenesisBlock(allocData map[string]*big.Int) *Genesis {
 
 	return &Genesis{
 		Config:   configs.TestnetChainConfig,
-		GasLimit: 16777216,
+		GasLimit: configs.BlockGasLimit,
 		Alloc:    ga,
 	}
 }
@@ -274,7 +274,7 @@ func DefaulTestnetFullGenesisBlock(accountData map[string]*big.Int, contractData
 	}
 	return &Genesis{
 		Config:          configs.TestnetChainConfig,
-		GasLimit:        16777216,
+		GasLimit:        configs.BlockGasLimit,
 		Alloc:           ga,
 		ConsensusParams: _default.ConsensusParams(),
 		Consensus:       _default.ConsensusConfig(),
@@ -300,7 +300,7 @@ func DefaultTestnetGenesisBlockWithContract(allocData map[string]string) *Genesi
 
 	return &Genesis{
 		Config:   configs.TestnetChainConfig,
-		GasLimit: 16777216,
+		GasLimit: configs.BlockGasLimit,
 		Alloc:    ga,
 	}
 }

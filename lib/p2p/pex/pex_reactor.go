@@ -9,12 +9,12 @@ import (
 	"github.com/gogo/protobuf/proto"
 
 	"github.com/kardiachain/go-kardiamain/lib/cmap"
-	tmmath "github.com/kardiachain/go-kardiamain/lib/math"
+	kmath "github.com/kardiachain/go-kardiamain/lib/math"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
-	tmrand "github.com/kardiachain/go-kardiamain/lib/rand"
+	krand "github.com/kardiachain/go-kardiamain/lib/rand"
 	"github.com/kardiachain/go-kardiamain/lib/service"
-	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
 )
 
 type Peer = p2p.Peer
@@ -246,7 +246,7 @@ func (r *Reactor) Receive(chID byte, src Peer, msgBytes []byte) {
 	r.Logger.Debug("Received message", "src", src, "chId", chID, "msg", msg)
 
 	switch msg := msg.(type) {
-	case *tmp2p.PexRequest:
+	case *kp2p.PexRequest:
 
 		// NOTE: this is a prime candidate for amplification attacks,
 		// so it's important we
@@ -283,7 +283,7 @@ func (r *Reactor) Receive(chID byte, src Peer, msgBytes []byte) {
 			r.SendAddrs(src, r.book.GetSelection())
 		}
 
-	case *tmp2p.PexAddrs:
+	case *kp2p.PexAddrs:
 		// If we asked for addresses, add them to the book
 		addrs, err := p2p.NetAddressesFromProto(msg.Addrs)
 		if err != nil {
@@ -348,7 +348,7 @@ func (r *Reactor) RequestAddrs(p Peer) {
 	}
 	r.Logger.Debug("Request addrs", "from", p)
 	r.requestsSent.Set(id, struct{}{})
-	p.Send(PexChannel, mustEncode(&tmp2p.PexRequest{}))
+	p.Send(PexChannel, mustEncode(&kp2p.PexRequest{}))
 }
 
 // ReceiveAddrs adds the given addrs to the addrbook if theres an open
@@ -407,7 +407,7 @@ func (r *Reactor) ReceiveAddrs(addrs []*p2p.NetAddress, src Peer) error {
 
 // SendAddrs sends addrs to the peer.
 func (r *Reactor) SendAddrs(p Peer, netAddrs []*p2p.NetAddress) {
-	p.Send(PexChannel, mustEncode(&tmp2p.PexAddrs{Addrs: p2p.NetAddressesToProto(netAddrs)}))
+	p.Send(PexChannel, mustEncode(&kp2p.PexAddrs{Addrs: p2p.NetAddressesToProto(netAddrs)}))
 }
 
 // SetEnsurePeersPeriod sets period to ensure peers connected.
@@ -418,7 +418,7 @@ func (r *Reactor) SetEnsurePeersPeriod(d time.Duration) {
 // Ensures that sufficient peers are connected. (continuous)
 func (r *Reactor) ensurePeersRoutine() {
 	var (
-		seed   = tmrand.NewRand()
+		seed   = krand.NewRand()
 		jitter = seed.Int63n(r.ensurePeersPeriod.Nanoseconds())
 	)
 
@@ -471,7 +471,7 @@ func (r *Reactor) ensurePeers() {
 	// bias to prefer more vetted peers when we have fewer connections.
 	// not perfect, but somewhate ensures that we prioritize connecting to more-vetted
 	// NOTE: range here is [10, 90]. Too high ?
-	newBias := tmmath.MinInt(out, 8)*10 + 10
+	newBias := kmath.MinInt(out, 8)*10 + 10
 
 	toDial := make(map[p2p.ID]*p2p.NetAddress)
 	// Try maxAttempts times to pick numToDial addresses to dial
@@ -521,7 +521,7 @@ func (r *Reactor) ensurePeers() {
 		peers := r.Switch.Peers().List()
 		peersCount := len(peers)
 		if peersCount > 0 {
-			peer := peers[tmrand.Int()%peersCount]
+			peer := peers[krand.Int()%peersCount]
 			r.Logger.Info("We need more addresses. Sending pexRequest to random peer", "peer", peer)
 			r.RequestAddrs(peer)
 		}
@@ -554,7 +554,7 @@ func (r *Reactor) dialPeer(addr *p2p.NetAddress) error {
 
 	// exponential backoff if it's not our first attempt to dial given address
 	if attempts > 0 {
-		jitter := time.Duration(tmrand.Float64() * float64(time.Second)) // 1s == (1e9 ns)
+		jitter := time.Duration(krand.Float64() * float64(time.Second)) // 1s == (1e9 ns)
 		backoffDuration := jitter + ((1 << uint(attempts)) * time.Second)
 		backoffDuration = r.maxBackoffDurationForPeer(addr, backoffDuration)
 		sinceLastDialed := time.Since(lastDialed)
@@ -620,7 +620,7 @@ func (r *Reactor) checkSeeds() (numOnline int, netAddrs []*p2p.NetAddress, err e
 
 // randomly dial seeds until we connect to one or exhaust them
 func (r *Reactor) dialSeeds() {
-	perm := tmrand.Perm(len(r.seedAddrs))
+	perm := krand.Perm(len(r.seedAddrs))
 	// perm := r.Switch.rng.Perm(lSeeds)
 	for _, i := range perm {
 		// dial a random seed
@@ -769,14 +769,14 @@ func markAddrInBookBasedOnErr(addr *p2p.NetAddress, book AddrBook, err error) {
 //-----------------------------------------------------------------------------
 // Messages
 
-// mustEncode proto encodes a tmp2p.Message
+// mustEncode proto encodes a kp2p.Message
 func mustEncode(pb proto.Message) []byte {
-	msg := tmp2p.Message{}
+	msg := kp2p.Message{}
 	switch pb := pb.(type) {
-	case *tmp2p.PexRequest:
-		msg.Sum = &tmp2p.Message_PexRequest{PexRequest: pb}
-	case *tmp2p.PexAddrs:
-		msg.Sum = &tmp2p.Message_PexAddrs{PexAddrs: pb}
+	case *kp2p.PexRequest:
+		msg.Sum = &kp2p.Message_PexRequest{PexRequest: pb}
+	case *kp2p.PexAddrs:
+		msg.Sum = &kp2p.Message_PexAddrs{PexAddrs: pb}
 	default:
 		panic(fmt.Sprintf("Unknown message type %T", pb))
 	}
@@ -789,7 +789,7 @@ func mustEncode(pb proto.Message) []byte {
 }
 
 func decodeMsg(bz []byte) (proto.Message, error) {
-	pb := &tmp2p.Message{}
+	pb := &kp2p.Message{}
 
 	err := pb.Unmarshal(bz)
 	if err != nil {
@@ -797,9 +797,9 @@ func decodeMsg(bz []byte) (proto.Message, error) {
 	}
 
 	switch msg := pb.Sum.(type) {
-	case *tmp2p.Message_PexRequest:
+	case *kp2p.Message_PexRequest:
 		return msg.PexRequest, nil
-	case *tmp2p.Message_PexAddrs:
+	case *kp2p.Message_PexAddrs:
 		return msg.PexAddrs, nil
 	default:
 		return nil, fmt.Errorf("unknown message: %T", msg)

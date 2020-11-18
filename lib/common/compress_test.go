@@ -22,6 +22,8 @@ import (
 	"bytes"
 	"math/rand"
 	"testing"
+
+	"github.com/kardiachain/go-kardiamain/types/time"
 )
 
 // Tests that data bitset encoding and decoding works and is bijective.
@@ -162,7 +164,8 @@ func BenchmarkEncoding4KBSaturated(b *testing.B) { benchmarkEncoding(b, 4096, 0.
 
 func benchmarkEncoding(b *testing.B, bytes int, fill float64) {
 	// Generate a random slice of bytes to compress
-	random := rand.NewSource(0) // reproducible and comparable
+	// Using unix nano time as seed since rand.Source return same result with same seed
+	random := rand.NewSource(time.Now().UnixNano()) // reproducible and comparable
 
 	data := make([]byte, bytes)
 	bits := int(float64(bytes) * 8 * fill)

@@ -17,23 +17,12 @@
 package kvm
 
 import (
-	"errors"
-
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/holiman/uint256"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/types"
-)
-
-var (
-	ErrWriteProtection       = errors.New("kvm: write protection")
-	ErrReturnDataOutOfBounds = errors.New("kvm: return data out of bounds")
-	ErrExecutionReverted     = errors.New("kvm: execution reverted")
-	ErrMaxCodeSizeExceeded   = errors.New("kvm: max code size exceeded")
-	ErrInvalidJump           = errors.New("kvm: invalid jump destination")
 )
 
 func opAdd(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
@@ -271,12 +260,6 @@ func opBalance(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	slot := callContext.stack.peek()
 	address := common.Address(slot.Bytes20())
 	slot.SetFromBig(kvm.StateDB.GetBalance(address))
-	return nil, nil
-}
-
-func opSelfBalance(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
-	balance, _ := uint256.FromBig(kvm.StateDB.GetBalance(callContext.contract.Address()))
-	callContext.stack.push(balance)
 	return nil, nil
 }
 
@@ -558,6 +541,38 @@ func opJumpdest(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	return nil, nil
 }
 
+func opBeginSub(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	return nil, ErrInvalidSubroutineEntry
+}
+
+func opJumpSub(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	if len(callContext.rstack.data) >= 1023 {
+		return nil, ErrReturnStackExceeded
+	}
+	pos := callContext.stack.pop()
+	if !pos.IsUint64() {
+		return nil, ErrInvalidJump
+	}
+	posU64 := pos.Uint64()
+	if !callContext.contract.validJumpSubdest(posU64) {
+		return nil, ErrInvalidJump
+	}
+	callContext.rstack.push(uint32(*pc))
+	*pc = posU64 + 1
+	return nil, nil
+}
+
+func opReturnSub(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	if len(callContext.rstack.data) == 0 {
+		return nil, ErrInvalidRetsub
+	}
+	// Other than the check that the return stack is not empty, there is no
+	// need to validate the pc from 'returns', since we only ever push valid
+	//values onto it via jumpsub.
+	*pc = uint64(callContext.rstack.pop()) + 1
+	return nil, nil
+}
+
 func opPc(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	callContext.stack.push(new(uint256.Int).SetUint64(*pc))
 	return nil, nil
@@ -581,7 +596,7 @@ func opCreate(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 		gas          = callContext.contract.Gas
 	)
 	// TODO: potentially use "all but one 64th" gas rule here
-	// gas -= gas / 64
+	gas -= gas / 64
 
 	// reuse size int for stackvalue
 	stackvalue := size
@@ -596,13 +611,17 @@ func opCreate(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	res, addr, returnGas, suberr := kvm.Create(callContext.contract, input, gas, bigVal)
 	// All returned errors including CodeStoreOutOfGasError are treated as error.
 	// KVM run similar to EVM from Homestead ruleset.
-	if suberr != nil {
+	if suberr == ErrCodeStoreOutOfGas {
+		stackvalue.Clear()
+	} else if suberr != nil && suberr != ErrCodeStoreOutOfGas {
 		stackvalue.Clear()
 	} else {
 		stackvalue.SetBytes(addr.Bytes())
 	}
+
 	callContext.stack.push(&stackvalue)
 	callContext.contract.Gas += returnGas
+
 	if suberr == ErrExecutionReverted {
 		return res, nil
 	}
@@ -697,7 +716,7 @@ func opCallCode(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	//TODO: use uint256.Int instead of converting with toBig()
 	var bigVal = big0
 	if !value.IsZero() {
-		gas += params.CallStipend
+		gas += configs.CallStipend
 		bigVal = value.ToBig()
 	}
 
@@ -796,6 +815,45 @@ func opSuicide(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	return nil, nil
 }
 
+// NOT SUPPPORT ChainID yet
+// opChainID implements CHAINID opcode
+// func opChainID(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+// 	chainId, _ := uint256.FromBig(kvm.vmConfig.ChainID)
+// 	callContext.stack.push(chainId)
+// 	return nil, nil
+// }
+
+func opSelfBalance(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+	balance, _ := uint256.FromBig(kvm.StateDB.GetBalance(callContext.contract.Address()))
+	callContext.stack.push(balance)
+	return nil, nil
+}
+
+// make log instruction function
+func makeLog(size int) executionFunc {
+	return func(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
+		topics := make([]common.Hash, size)
+		stack := callContext.stack
+		mStart, mSize := stack.pop(), stack.pop()
+		for i := 0; i < size; i++ {
+			addr := stack.pop()
+			topics[i] = common.Hash(addr.Bytes32())
+		}
+
+		d := callContext.memory.GetCopy(int64(mStart.Uint64()), int64(mSize.Uint64()))
+		kvm.StateDB.AddLog(&types.Log{
+			Address: callContext.contract.Address(),
+			Topics:  topics,
+			Data:    d,
+			// This is a non-consensus field, but assigned here because
+			// core/state doesn't know the current block number.
+			BlockHeight: kvm.BlockHeight.Uint64(),
+		})
+
+		return nil, nil
+	}
+}
+
 // opPush1 is a specialized version of pushN
 func opPush1(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 	var (
@@ -849,31 +907,6 @@ func makeSwap(size int64) executionFunc {
 	size++
 	return func(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
 		callContext.stack.swap(int(size))
-		return nil, nil
-	}
-}
-
-// make log instruction function
-func makeLog(size int) executionFunc {
-	return func(pc *uint64, kvm *KVM, callContext *callCtx) ([]byte, error) {
-		topics := make([]common.Hash, size)
-		stack := callContext.stack
-		mStart, mSize := stack.pop(), stack.pop()
-		for i := 0; i < size; i++ {
-			addr := stack.pop()
-			topics[i] = common.Hash(addr.Bytes32())
-		}
-
-		d := callContext.memory.GetCopy(int64(mStart.Uint64()), int64(mSize.Uint64()))
-		kvm.StateDB.AddLog(&types.Log{
-			Address: callContext.contract.Address(),
-			Topics:  topics,
-			Data:    d,
-			// This is a non-consensus field, but assigned here because
-			// core/state doesn't know the current block number.
-			BlockHeight: kvm.BlockHeight.Uint64(),
-		})
-
 		return nil, nil
 	}
 }

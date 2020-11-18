@@ -1,7 +1,6 @@
 package consensus
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
@@ -14,7 +13,7 @@ import (
 // MsgToProto takes a consensus message type and returns the proto defined consensus message
 func MsgToProto(msg Message) (*kcons.Message, error) {
 	if msg == nil {
-		return nil, errors.New("consensus: message is nil")
+		return nil, ErrNilMsg
 	}
 
 	var pb kcons.Message
@@ -143,7 +142,7 @@ func MsgToProto(msg Message) (*kcons.Message, error) {
 // MsgFromProto takes a consensus proto message and returns the native go type
 func MsgFromProto(msg *kcons.Message) (Message, error) {
 	if msg == nil {
-		return nil, errors.New("consensus: nil message")
+		return nil, ErrNilMsg
 	}
 	var pb Message
 

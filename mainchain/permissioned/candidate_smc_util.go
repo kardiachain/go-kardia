@@ -23,6 +23,8 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/state"
@@ -30,9 +32,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardiamain/tool"
 	"github.com/kardiachain/go-kardiamain/types"
-	"github.com/pkg/errors"
 )
 
 type CandidateSmcUtil struct {
@@ -79,7 +79,7 @@ func (cs *CandidateSmcUtil) AddRequest(email string, fromOrgID string, txPool *t
 	if err != nil {
 		return nil, err
 	}
-	return tool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, txPool, false), nil
+	return tx_pool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, txPool, false), nil
 }
 
 // AddResponse returns a tx to add an external response for a candidate into private chain candidate smart contract
@@ -88,5 +88,5 @@ func (cs *CandidateSmcUtil) AddExternalResponse(email string, content string, fr
 	if err != nil {
 		return nil, err
 	}
-	return tool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, txPool, false), nil
+	return tx_pool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, txPool, false), nil
 }

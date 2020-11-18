@@ -19,14 +19,14 @@
 package cstate
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 
-	tmstate "github.com/kardiachain/go-kardiamain/proto/kardiachain/state"
+	kstate "github.com/kardiachain/go-kardiamain/proto/kardiachain/state"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardiamain/types"
 	ktime "github.com/kardiachain/go-kardiamain/types/time"
@@ -120,12 +120,12 @@ func (state *LastestBlockState) Bytes() []byte {
 }
 
 // ToProto takes the local state type and returns the equivalent proto type
-func (state *LastestBlockState) ToProto() (*tmstate.State, error) {
+func (state *LastestBlockState) ToProto() (*kstate.State, error) {
 	if state == nil {
-		return nil, errors.New("state is nil")
+		return nil, ErrNilState
 	}
 
-	sm := new(tmstate.State)
+	sm := new(kstate.State)
 
 	//sm.Version = state.Version
 	sm.ChainID = state.ChainID
@@ -164,9 +164,9 @@ func (state *LastestBlockState) ToProto() (*tmstate.State, error) {
 }
 
 // StateFromProto takes a state proto message & returns the local state type
-func StateFromProto(pb *tmstate.State) (*LastestBlockState, error) { //nolint:golint
+func StateFromProto(pb *kstate.State) (*LastestBlockState, error) { //nolint:golint
 	if pb == nil {
-		return nil, errors.New("nil State")
+		return nil, ErrNilState
 	}
 
 	state := new(LastestBlockState)

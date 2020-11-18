@@ -16,7 +16,7 @@ import (
 
 	cryptoenc "github.com/kardiachain/go-kardiamain/lib/crypto/encoding"
 	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
 )
 
 type buffer struct {
@@ -118,7 +118,7 @@ func (c *evilConn) Read(data []byte) (n int, err error) {
 			if err != nil {
 				panic(err)
 			}
-			bz, err := protoio.MarshalDelimited(&tmp2p.AuthSigMessage{PubKey: pkpb, Sig: signature})
+			bz, err := protoio.MarshalDelimited(&kp2p.AuthSigMessage{PubKey: pkpb, Sig: signature})
 			if err != nil {
 				panic(err)
 			}

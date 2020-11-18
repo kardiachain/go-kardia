@@ -247,9 +247,7 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	bo.logger.Info("header gas limit", "limit", header.GasLimit)
 	gasPool := new(types.GasPool).AddGas(header.GasLimit)
 
-	kvmConfig := kvm.Config{
-		IsZeroFee: bo.blockchain.IsZeroFee,
-	}
+	kvmConfig := kvm.Config{}
 
 	blockReward, err := bo.staking.Mint(state, header, bo.blockchain, kvmConfig)
 	if err != nil {

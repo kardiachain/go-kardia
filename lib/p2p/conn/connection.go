@@ -16,12 +16,12 @@ import (
 
 	flow "github.com/kardiachain/go-kardiamain/lib/flowrate"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	tmmath "github.com/kardiachain/go-kardiamain/lib/math"
+	kmath "github.com/kardiachain/go-kardiamain/lib/math"
 	"github.com/kardiachain/go-kardiamain/lib/protoio"
 	"github.com/kardiachain/go-kardiamain/lib/service"
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 	"github.com/kardiachain/go-kardiamain/lib/timer"
-	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
 )
 
 const (
@@ -101,7 +101,7 @@ type MConnection struct {
 
 	// used to ensure FlushStop and OnStop
 	// are safe to call concurrently.
-	stopMtx tmsync.Mutex
+	stopMtx ksync.Mutex
 
 	flushTimer *timer.ThrottleTimer // flush writes as necessary but throttled.
 	pingTimer  *time.Ticker         // send pings periodically
@@ -136,7 +136,7 @@ type MConnConfig struct {
 }
 
 // DefaultMConnConfig returns the default config.
-func DefaultMConnConfig() MConnConfig {
+func DefaulKAIConnConfig() MConnConfig {
 	return MConnConfig{
 		SendRate:                defaultSendRate,
 		RecvRate:                defaultRecvRate,
@@ -159,7 +159,7 @@ func NewMConnection(
 		chDescs,
 		onReceive,
 		onError,
-		DefaultMConnConfig())
+		DefaulKAIConnConfig())
 }
 
 // NewMConnectionWithConfig wraps net.Conn and creates multiplex connection with a config
@@ -439,7 +439,7 @@ FOR_LOOP:
 			}
 		case <-c.pingTimer.C:
 			c.Logger.Debug("Send Ping")
-			_n, err = protoWriter.WriteMsg(mustWrapPacket(&tmp2p.PacketPing{}))
+			_n, err = protoWriter.WriteMsg(mustWrapPacket(&kp2p.PacketPing{}))
 			if err != nil {
 				c.Logger.Error("Failed to send PacketPing", "err", err)
 				break SELECTION
@@ -462,7 +462,7 @@ FOR_LOOP:
 			}
 		case <-c.pong:
 			c.Logger.Debug("Send Pong")
-			_n, err = protoWriter.WriteMsg(mustWrapPacket(&tmp2p.PacketPong{}))
+			_n, err = protoWriter.WriteMsg(mustWrapPacket(&kp2p.PacketPong{}))
 			if err != nil {
 				c.Logger.Error("Failed to send PacketPong", "err", err)
 				break SELECTION
@@ -569,7 +569,7 @@ FOR_LOOP:
 		// Peek into bufConnReader for debugging
 		/*
 			if numBytes := c.bufConnReader.Buffered(); numBytes > 0 {
-				bz, err := c.bufConnReader.Peek(tmmath.MinInt(numBytes, 100))
+				bz, err := c.bufConnReader.Peek(kmath.MinInt(numBytes, 100))
 				if err == nil {
 					// return
 				} else {
@@ -581,7 +581,7 @@ FOR_LOOP:
 		*/
 
 		// Read packet type
-		var packet tmp2p.Packet
+		var packet kp2p.Packet
 
 		err := protoReader.ReadMsg(&packet)
 		if err != nil {
@@ -606,7 +606,7 @@ FOR_LOOP:
 
 		// Read more depending on packet type.
 		switch pkt := packet.Sum.(type) {
-		case *tmp2p.Packet_PacketPing:
+		case *kp2p.Packet_PacketPing:
 			// TODO: prevent abuse, as they cause flush()'s.
 			// https://github.com/tendermint/tendermint/issues/1190
 			c.Logger.Debug("Receive Ping")
@@ -615,14 +615,14 @@ FOR_LOOP:
 			default:
 				// never block
 			}
-		case *tmp2p.Packet_PacketPong:
+		case *kp2p.Packet_PacketPong:
 			c.Logger.Debug("Receive Pong")
 			select {
 			case c.pongTimeoutCh <- false:
 			default:
 				// never block
 			}
-		case *tmp2p.Packet_PacketMsg:
+		case *kp2p.Packet_PacketMsg:
 			channel, ok := c.channelsIdx[byte(pkt.PacketMsg.ChannelID)]
 			if !ok || channel == nil {
 				err := fmt.Errorf("unknown channel %X", pkt.PacketMsg.ChannelID)
@@ -669,7 +669,7 @@ func (c *MConnection) stopPongTimer() {
 
 // maxPacketMsgSize returns a maximum size of PacketMsg
 func (c *MConnection) maxPacketMsgSize() int {
-	bz, err := proto.Marshal(mustWrapPacket(&tmp2p.PacketMsg{
+	bz, err := proto.Marshal(mustWrapPacket(&kp2p.PacketMsg{
 		ChannelID: 0x01,
 		EOF:       true,
 		Data:      make([]byte, c.config.MaxPacketMsgPayloadSize),
@@ -823,17 +823,17 @@ func (ch *Channel) isSendPending() bool {
 
 // Creates a new PacketMsg to send.
 // Not goroutine-safe
-func (ch *Channel) nextPacketMsg() tmp2p.PacketMsg {
-	packet := tmp2p.PacketMsg{ChannelID: int32(ch.desc.ID)}
+func (ch *Channel) nextPacketMsg() kp2p.PacketMsg {
+	packet := kp2p.PacketMsg{ChannelID: int32(ch.desc.ID)}
 	maxSize := ch.maxPacketMsgPayloadSize
-	packet.Data = ch.sending[:tmmath.MinInt(maxSize, len(ch.sending))]
+	packet.Data = ch.sending[:kmath.MinInt(maxSize, len(ch.sending))]
 	if len(ch.sending) <= maxSize {
 		packet.EOF = true
 		ch.sending = nil
 		atomic.AddInt32(&ch.sendQueueSize, -1) // decrement sendQueueSize
 	} else {
 		packet.EOF = false
-		ch.sending = ch.sending[tmmath.MinInt(maxSize, len(ch.sending)):]
+		ch.sending = ch.sending[kmath.MinInt(maxSize, len(ch.sending)):]
 	}
 	return packet
 }
@@ -850,7 +850,7 @@ func (ch *Channel) writePacketMsgTo(w io.Writer) (n int, err error) {
 // Handles incoming PacketMsgs. It returns a message bytes if message is
 // complete. NOTE message bytes may change on next call to recvPacketMsg.
 // Not goroutine-safe
-func (ch *Channel) recvPacketMsg(packet tmp2p.PacketMsg) ([]byte, error) {
+func (ch *Channel) recvPacketMsg(packet kp2p.PacketMsg) ([]byte, error) {
 	ch.Logger.Debug("Read PacketMsg", "conn", ch.conn, "packet", packet)
 	var recvCap, recvReceived = ch.desc.RecvMessageCapacity, len(ch.recving) + len(packet.Data)
 	if recvCap < recvReceived {
@@ -881,28 +881,28 @@ func (ch *Channel) updateStats() {
 //----------------------------------------
 // Packet
 
-// mustWrapPacket takes a packet kind (oneof) and wraps it in a tmp2p.Packet message.
-func mustWrapPacket(pb proto.Message) *tmp2p.Packet {
-	var msg tmp2p.Packet
+// mustWrapPacket takes a packet kind (oneof) and wraps it in a kp2p.Packet message.
+func mustWrapPacket(pb proto.Message) *kp2p.Packet {
+	var msg kp2p.Packet
 
 	switch pb := pb.(type) {
-	case *tmp2p.Packet: // already a packet
+	case *kp2p.Packet: // already a packet
 		msg = *pb
-	case *tmp2p.PacketPing:
-		msg = tmp2p.Packet{
-			Sum: &tmp2p.Packet_PacketPing{
+	case *kp2p.PacketPing:
+		msg = kp2p.Packet{
+			Sum: &kp2p.Packet_PacketPing{
 				PacketPing: pb,
 			},
 		}
-	case *tmp2p.PacketPong:
-		msg = tmp2p.Packet{
-			Sum: &tmp2p.Packet_PacketPong{
+	case *kp2p.PacketPong:
+		msg = kp2p.Packet{
+			Sum: &kp2p.Packet_PacketPong{
 				PacketPong: pb,
 			},
 		}
-	case *tmp2p.PacketMsg:
-		msg = tmp2p.Packet{
-			Sum: &tmp2p.Packet_PacketMsg{
+	case *kp2p.PacketMsg:
+		msg = kp2p.Packet{
+			Sum: &kp2p.Packet_PacketMsg{
 				PacketMsg: pb,
 			},
 		}

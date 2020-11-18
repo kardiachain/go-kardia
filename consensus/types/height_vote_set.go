@@ -19,7 +19,6 @@
 package types
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 
@@ -34,10 +33,6 @@ type RoundVoteSet struct {
 	Prevotes   *types.VoteSet
 	Precommits *types.VoteSet
 }
-
-var (
-	GotVoteFromUnwantedRoundError = errors.New("Peer has sent a vote that does not match our round for more than one round")
-)
 
 /*
 Keeps track of all VoteSets from round 0 to round 'round'.
@@ -68,11 +63,8 @@ func NewHeightVoteSet(logger log.Logger, chainID string, height uint64, valSet *
 		logger:  logger,
 		chainID: chainID,
 	}
-	hvs.Reset(height, valSet)
-	return hvs
-}
 
-func (hvs *HeightVoteSet) Reset(height uint64, valSet *types.ValidatorSet) {
+	// Reset HVS
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
 
@@ -80,9 +72,10 @@ func (hvs *HeightVoteSet) Reset(height uint64, valSet *types.ValidatorSet) {
 	hvs.valSet = valSet
 	hvs.roundVoteSets = make(map[uint32]RoundVoteSet)
 	hvs.peerCatchupRounds = make(map[p2p.ID][]uint32)
-
 	hvs.addRound(1)
 	hvs.round = 1
+
+	return hvs
 }
 
 func (hvs *HeightVoteSet) addRound(round uint32) {

@@ -47,6 +47,5 @@ type BaseBlockChain interface {
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StateAt(root uint64) (*state.StateDB, error)
 	DB() types.StoreDB
-	ZeroFee() bool
 	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error)
 }

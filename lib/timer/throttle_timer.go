@@ -3,7 +3,7 @@ package timer
 import (
 	"time"
 
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 /*
@@ -18,7 +18,7 @@ type ThrottleTimer struct {
 	quit chan struct{}
 	dur  time.Duration
 
-	mtx   tmsync.Mutex
+	mtx   ksync.Mutex
 	timer *time.Timer
 	isSet bool
 }

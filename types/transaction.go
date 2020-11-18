@@ -23,9 +23,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"sync/atomic"
 
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
@@ -428,18 +430,9 @@ func (m Message) Nonce() uint64        { return m.nonce }
 func (m Message) Data() []byte         { return m.data }
 func (m Message) CheckNonce() bool     { return m.checkNonce }
 
-type CallArgsJSON struct {
-	From     string   `json:"from"`     // the sender of the 'transaction'
-	To       string   `json:"to"`       // the destination contract (nil for contract creation)
-	Gas      uint64   `json:"gas"`      // if 0, the call executes with near-infinite gas
-	GasPrice *big.Int `json:"gasPrice"` // wei <-> gas exchange ratio
-	Value    big.Int  `json:"value"`    // amount of wei sent along with the call
-	Data     string   `json:"data"`     // input data, usually an ABI-encoded contract method invocation
-}
-
 // CallArgs represents the arguments for a call.
 type CallArgs struct {
-	From     common.Address  `json:"from"`
+	From     *common.Address `json:"from"`
 	To       *common.Address `json:"to"`
 	Gas      uint64          `json:"gas"`
 	GasPrice *big.Int        `json:"gasPrice"`
@@ -447,13 +440,39 @@ type CallArgs struct {
 	Data     common.Bytes    `json:"data"`
 }
 
-func NewArgs(json CallArgsJSON) *CallArgs {
+type CallArgsJSON struct {
+	From     string   `json:"from"`     // the sender of the 'transaction'
+	To       *string  `json:"to"`       // the destination contract (nil for contract creation)
+	Gas      uint64   `json:"gas"`      // if 0, the call executes with near-infinite gas
+	GasPrice *big.Int `json:"gasPrice"` // wei <-> gas exchange ratio
+	Value    *big.Int `json:"value"`    // amount of wei sent along with the call
+	Data     string   `json:"data"`     // input data, usually an ABI-encoded contract method invocation
+}
+
+// ToMessage converts CallArgs to the Message type used by the core evm
+func (args *CallArgsJSON) ToMessage() Message {
 	callArgs := new(CallArgs)
-	address := common.HexToAddress(json.To)
-	callArgs.To = &address
-	callArgs.Gas = json.Gas
-	callArgs.GasPrice = json.GasPrice
-	callArgs.Data = common.FromHex(json.Data)
-	callArgs.Value = &json.Value
-	return callArgs
+
+	// Set receiver address or use zero address if none specified.
+	fromAddr := common.HexToAddress(args.From)
+	if fromAddr.Equal(common.Address{}) {
+		fromAddr = configs.GenesisDeployerAddr
+	}
+
+	// Set receiver address or use zero address if none specified.
+	toAddr := common.HexToAddress(*args.To)
+	if args.To != nil {
+		callArgs.To = &toAddr
+	}
+
+	callArgs.Gas = args.Gas
+	// Set default gas if none were set
+	if args.Gas == 0 {
+		callArgs.Gas = uint64(math.MaxUint64 / 2)
+	}
+
+	callArgs.Data = common.FromHex(args.Data)
+
+	msg := NewMessage(fromAddr, &toAddr, 0, args.Value, callArgs.Gas, args.GasPrice, callArgs.Data, false)
+	return msg
 }

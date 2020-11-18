@@ -13,7 +13,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	tmp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
 	"github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
@@ -34,7 +34,7 @@ func createMConnectionWithCallbacks(
 	onReceive func(chID byte, msgBytes []byte),
 	onError func(r interface{}),
 ) *MConnection {
-	cfg := DefaultMConnConfig()
+	cfg := DefaulKAIConnConfig()
 	cfg.PingInterval = 90 * time.Millisecond
 	cfg.PongTimeout = 45 * time.Millisecond
 	chDescs := []*ChannelDescriptor{{ID: 0x01, Priority: 1, SendQueueCapacity: 1}}
@@ -184,7 +184,7 @@ func TestMConnectionPongTimeoutResultsInError(t *testing.T) {
 	serverGotPing := make(chan struct{})
 	go func() {
 		// read ping
-		var pkt tmp2p.Packet
+		var pkt kp2p.Packet
 		err := protoio.NewDelimitedReader(server, maxPingPongPacketSize).ReadMsg(&pkt)
 		require.NoError(t, err)
 		serverGotPing <- struct{}{}
@@ -223,25 +223,25 @@ func TestMConnectionMultiplePongsInTheBeginning(t *testing.T) {
 	// sending 3 pongs in a row (abuse)
 	protoWriter := protoio.NewDelimitedWriter(server)
 
-	_, err = protoWriter.WriteMsg(mustWrapPacket(&tmp2p.PacketPong{}))
+	_, err = protoWriter.WriteMsg(mustWrapPacket(&kp2p.PacketPong{}))
 	require.NoError(t, err)
 
-	_, err = protoWriter.WriteMsg(mustWrapPacket(&tmp2p.PacketPong{}))
+	_, err = protoWriter.WriteMsg(mustWrapPacket(&kp2p.PacketPong{}))
 	require.NoError(t, err)
 
-	_, err = protoWriter.WriteMsg(mustWrapPacket(&tmp2p.PacketPong{}))
+	_, err = protoWriter.WriteMsg(mustWrapPacket(&kp2p.PacketPong{}))
 	require.NoError(t, err)
 
 	serverGotPing := make(chan struct{})
 	go func() {
 		// read ping (one byte)
-		var packet tmp2p.Packet
+		var packet kp2p.Packet
 		err := protoio.NewDelimitedReader(server, maxPingPongPacketSize).ReadMsg(&packet)
 		require.NoError(t, err)
 		serverGotPing <- struct{}{}
 
 		// respond with pong
-		_, err = protoWriter.WriteMsg(mustWrapPacket(&tmp2p.PacketPong{}))
+		_, err = protoWriter.WriteMsg(mustWrapPacket(&kp2p.PacketPong{}))
 		require.NoError(t, err)
 	}()
 	<-serverGotPing
@@ -279,21 +279,21 @@ func TestMConnectionMultiplePings(t *testing.T) {
 	// see https://github.com/tendermint/tendermint/issues/1190
 	protoReader := protoio.NewDelimitedReader(server, maxPingPongPacketSize)
 	protoWriter := protoio.NewDelimitedWriter(server)
-	var pkt tmp2p.Packet
+	var pkt kp2p.Packet
 
-	_, err = protoWriter.WriteMsg(mustWrapPacket(&tmp2p.PacketPing{}))
+	_, err = protoWriter.WriteMsg(mustWrapPacket(&kp2p.PacketPing{}))
 	require.NoError(t, err)
 
 	err = protoReader.ReadMsg(&pkt)
 	require.NoError(t, err)
 
-	_, err = protoWriter.WriteMsg(mustWrapPacket(&tmp2p.PacketPing{}))
+	_, err = protoWriter.WriteMsg(mustWrapPacket(&kp2p.PacketPing{}))
 	require.NoError(t, err)
 
 	err = protoReader.ReadMsg(&pkt)
 	require.NoError(t, err)
 
-	_, err = protoWriter.WriteMsg(mustWrapPacket(&tmp2p.PacketPing{}))
+	_, err = protoWriter.WriteMsg(mustWrapPacket(&kp2p.PacketPing{}))
 	require.NoError(t, err)
 
 	err = protoReader.ReadMsg(&pkt)
@@ -328,7 +328,7 @@ func TestMConnectionPingPongs(t *testing.T) {
 	go func() {
 		protoReader := protoio.NewDelimitedReader(server, maxPingPongPacketSize)
 		protoWriter := protoio.NewDelimitedWriter(server)
-		var pkt tmp2p.PacketPing
+		var pkt kp2p.PacketPing
 
 		// read ping
 		err = protoReader.ReadMsg(&pkt)
@@ -336,7 +336,7 @@ func TestMConnectionPingPongs(t *testing.T) {
 		serverGotPing <- struct{}{}
 
 		// respond with pong
-		_, err = protoWriter.WriteMsg(mustWrapPacket(&tmp2p.PacketPong{}))
+		_, err = protoWriter.WriteMsg(mustWrapPacket(&kp2p.PacketPong{}))
 		require.NoError(t, err)
 
 		time.Sleep(mconn.config.PingInterval)
@@ -347,7 +347,7 @@ func TestMConnectionPingPongs(t *testing.T) {
 		serverGotPing <- struct{}{}
 
 		// respond with pong
-		_, err = protoWriter.WriteMsg(mustWrapPacket(&tmp2p.PacketPong{}))
+		_, err = protoWriter.WriteMsg(mustWrapPacket(&kp2p.PacketPong{}))
 		require.NoError(t, err)
 	}()
 	<-serverGotPing
@@ -503,7 +503,7 @@ func TestMConnectionReadErrorLongMessage(t *testing.T) {
 	protoWriter := protoio.NewDelimitedWriter(client)
 
 	// send msg thats just right
-	var packet = tmp2p.PacketMsg{
+	var packet = kp2p.PacketMsg{
 		ChannelID: 0x01,
 		EOF:       true,
 		Data:      make([]byte, mconnClient.config.MaxPacketMsgPayloadSize),
@@ -514,7 +514,7 @@ func TestMConnectionReadErrorLongMessage(t *testing.T) {
 	assert.True(t, expectSend(chOnRcv), "msg just right")
 
 	// send msg thats too long
-	packet = tmp2p.PacketMsg{
+	packet = kp2p.PacketMsg{
 		ChannelID: 0x01,
 		EOF:       true,
 		Data:      make([]byte, mconnClient.config.MaxPacketMsgPayloadSize+100),
@@ -572,9 +572,9 @@ func TestConnVectors(t *testing.T) {
 		msg      proto.Message
 		expBytes string
 	}{
-		{"PacketPing", &tmp2p.PacketPing{}, "0a00"},
-		{"PacketPong", &tmp2p.PacketPong{}, "1200"},
-		{"PacketMsg", &tmp2p.PacketMsg{ChannelID: 1, EOF: false, Data: []byte("data transmitted over the wire")}, "1a2208011a1e64617461207472616e736d6974746564206f766572207468652077697265"},
+		{"PacketPing", &kp2p.PacketPing{}, "0a00"},
+		{"PacketPong", &kp2p.PacketPong{}, "1200"},
+		{"PacketMsg", &kp2p.PacketMsg{ChannelID: 1, EOF: false, Data: []byte("data transmitted over the wire")}, "1a2208011a1e64617461207472616e736d6974746564206f766572207468652077697265"},
 	}
 
 	for _, tc := range testCases {

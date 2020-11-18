@@ -11,13 +11,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	tmrand "github.com/kardiachain/go-kardiamain/lib/rand"
+	krand "github.com/kardiachain/go-kardiamain/lib/rand"
 )
 
 func TestWriteFileAtomic(t *testing.T) {
 	var (
-		data             = []byte(tmrand.Str(tmrand.Intn(2048)))
-		old              = tmrand.Bytes(tmrand.Intn(2048))
+		data             = []byte(krand.Str(krand.Intn(2048)))
+		old              = krand.Bytes(krand.Intn(2048))
 		perm os.FileMode = 0600
 	)
 

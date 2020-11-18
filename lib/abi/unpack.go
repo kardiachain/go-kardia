@@ -90,6 +90,8 @@ func readBool(word []byte) (bool, error) {
 	}
 }
 
+// A function type is simply the address with the function selection signature at the end.
+// This enforces that standard by always presenting it as a 24-array (address + sig = 24 bytes)
 func readFunctionType(t Type, word []byte) (funcTy [24]byte, err error) {
 	if t.T != FunctionTy {
 		return [24]byte{}, fmt.Errorf("abi: invalid type in call to make function type byte array")
@@ -165,6 +167,36 @@ func forEachUnpack(t Type, output []byte, start, size int) (interface{}, error) 
 	return refSlice.Interface(), nil
 }
 
+func forTupleUnpack(t Type, output []byte) (interface{}, error) {
+	retval := reflect.New(t.GetType()).Elem()
+	virtualArgs := 0
+	for index, elem := range t.TupleElems {
+		marshalledValue, err := toGoType((index+virtualArgs)*32, *elem, output)
+		if elem.T == ArrayTy && !isDynamicType(*elem) {
+			// If we have a static array, like [3]uint256, these are coded as
+			// just like uint256,uint256,uint256.
+			// This means that we need to add two 'virtual' arguments when
+			// we count the index from now on.
+			//
+			// Array values nested multiple levels deep are also encoded inline:
+			// [2][3]uint256: uint256,uint256,uint256,uint256,uint256,uint256
+			//
+			// Calculate the full array size to get the correct offset for the next argument.
+			// Decrement it by 1, as the normal index increment is still applied.
+			virtualArgs += getTypeSize(*elem)/32 - 1
+		} else if elem.T == TupleTy && !isDynamicType(*elem) {
+			// If we have  a static tuple, like (uint256, bool, uint256), these are
+			// coded as just like uint256,bool,uint256
+			virtualArgs += getTypeSize(*elem)/32 - 1
+		}
+		if err != nil {
+			return nil, err
+		}
+		retval.Field(index).Set(reflect.ValueOf(marshalledValue))
+	}
+	return retval.Interface(), nil
+}
+
 // toGoType parses the output bytes and recursively assigns the value of these bytes
 // into a go type with accordance with the ABI spec.
 func toGoType(index int, t Type, output []byte) (interface{}, error) {
@@ -225,36 +257,6 @@ func toGoType(index int, t Type, output []byte) (interface{}, error) {
 	default:
 		return nil, fmt.Errorf("abi: unknown type %v", t.T)
 	}
-}
-
-func forTupleUnpack(t Type, output []byte) (interface{}, error) {
-	retval := reflect.New(t.GetType()).Elem()
-	virtualArgs := 0
-	for index, elem := range t.TupleElems {
-		marshalledValue, err := toGoType((index+virtualArgs)*32, *elem, output)
-		if elem.T == ArrayTy && !isDynamicType(*elem) {
-			// If we have a static array, like [3]uint256, these are coded as
-			// just like uint256,uint256,uint256.
-			// This means that we need to add two 'virtual' arguments when
-			// we count the index from now on.
-			//
-			// Array values nested multiple levels deep are also encoded inline:
-			// [2][3]uint256: uint256,uint256,uint256,uint256,uint256,uint256
-			//
-			// Calculate the full array size to get the correct offset for the next argument.
-			// Decrement it by 1, as the normal index increment is still applied.
-			virtualArgs += getTypeSize(*elem)/32 - 1
-		} else if elem.T == TupleTy && !isDynamicType(*elem) {
-			// If we have  a static tuple, like (uint256, bool, uint256), these are
-			// coded as just like uint256,bool,uint256
-			virtualArgs += getTypeSize(*elem)/32 - 1
-		}
-		if err != nil {
-			return nil, err
-		}
-		retval.Field(index).Set(reflect.ValueOf(marshalledValue))
-	}
-	return retval.Interface(), nil
 }
 
 // interprets a 32 byte slice as an offset and then determines which indice to look to decode the type.

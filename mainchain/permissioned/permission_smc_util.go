@@ -32,7 +32,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	kvm2 "github.com/kardiachain/go-kardiamain/mainchain/kvm"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardiamain/tool"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -139,7 +138,7 @@ func (s *PermissionSmcUtil) AddNodeForPrivateChain(pubkey string, nodeType int64
 		log.Error("Error packing add node input", "err", err)
 		return nil, err
 	}
-	return tool.GenerateSmcCall(s.SenderPrivateKey, *s.ContractAddress, addNodeInput,
+	return tx_pool.GenerateSmcCall(s.SenderPrivateKey, *s.ContractAddress, addNodeInput,
 		txPool, false), nil
 }
 
@@ -151,7 +150,7 @@ func (s *PermissionSmcUtil) RemoveNodeForPrivateChain(pubkey string, txPool *tx_
 		log.Error("Error packing remove node input", "err", err)
 		return nil, err
 	}
-	return tool.GenerateSmcCall(s.SenderPrivateKey, *s.ContractAddress, removeNodeInput, txPool, false), nil
+	return tx_pool.GenerateSmcCall(s.SenderPrivateKey, *s.ContractAddress, removeNodeInput, txPool, false), nil
 }
 
 // GetAdminNodeByIndex executes smart contract to get info of an initial node, including public key, address, listen address,

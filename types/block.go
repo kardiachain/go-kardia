@@ -459,16 +459,6 @@ func (b *Block) ValidateBasic() error {
 	} else if b.lastCommit != nil && !b.header.LastCommitHash.Equal(b.lastCommit.Hash()) {
 		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v.  Last commit %v", b.header.LastCommitHash, b.lastCommit.Hash(), b.lastCommit)
 	}
-	// TODO(namdoh): Re-enable check for Data hash.
-	//b.logger.Info("Block.ValidateBasic() - not yet implement validating data hash.")
-	//if !bytes.Equal(b.DataHash, b.Data.Hash()) {
-	//	return fmt.Errorf("Wrong Block.Header.DataHash.  Expected %v, got %v", b.DataHash, b.Data.Hash())
-	//}
-	//if !bytes.Equal(b.EvidenceHash, b.Evidence.Hash()) {
-	//	return errors.New(cmn.Fmt("Wrong Block.Header.EvidenceHash.  Expected %v, got %v", b.EvidenceHash, b.Evidence.Hash()))
-	//}
-
-	//b.logger.Info("Block.ValidateBasic() - implement validate DualEvents.")
 
 	return nil
 }

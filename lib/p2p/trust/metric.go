@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/service"
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 //---------------------------------------------------------------------------------------
@@ -36,7 +36,7 @@ type Metric struct {
 	service.BaseService
 
 	// Mutex that protects the metric from concurrent access
-	mtx tmsync.Mutex
+	mtx ksync.Mutex
 
 	// Determines the percentage given to current behavior
 	proportionalWeight float64

@@ -17,11 +17,11 @@ import (
 	"github.com/minio/highwayhash"
 
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	tmmath "github.com/kardiachain/go-kardiamain/lib/math"
+	kmath "github.com/kardiachain/go-kardiamain/lib/math"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	tmrand "github.com/kardiachain/go-kardiamain/lib/rand"
+	krand "github.com/kardiachain/go-kardiamain/lib/rand"
 	"github.com/kardiachain/go-kardiamain/lib/service"
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 const (
@@ -88,8 +88,8 @@ type addrBook struct {
 	service.BaseService
 
 	// accessed concurrently
-	mtx        tmsync.Mutex
-	rand       *tmrand.Rand
+	mtx        ksync.Mutex
+	rand       *krand.Rand
 	ourAddrs   map[string]struct{}
 	privateIDs map[p2p.ID]struct{}
 	addrLookup map[p2p.ID]*knownAddress // new & old
@@ -118,7 +118,7 @@ func newHashKey() []byte {
 // Use Start to begin processing asynchronous address updates.
 func NewAddrBook(filePath string, routabilityStrict bool) AddrBook {
 	am := &addrBook{
-		rand:              tmrand.NewRand(),
+		rand:              krand.NewRand(),
 		ourAddrs:          make(map[string]struct{}),
 		privateIDs:        make(map[p2p.ID]struct{}),
 		addrLookup:        make(map[p2p.ID]*knownAddress),
@@ -399,10 +399,10 @@ func (a *addrBook) GetSelection() []*p2p.NetAddress {
 		return nil
 	}
 
-	numAddresses := tmmath.MaxInt(
-		tmmath.MinInt(minGetSelection, bookSize),
+	numAddresses := kmath.MaxInt(
+		kmath.MinInt(minGetSelection, bookSize),
 		bookSize*getSelectionPercent/100)
-	numAddresses = tmmath.MinInt(maxGetSelection, numAddresses)
+	numAddresses = kmath.MinInt(maxGetSelection, numAddresses)
 
 	// XXX: instead of making a list of all addresses, shuffling, and slicing a random chunk,
 	// could we just select a random numAddresses of indexes?
@@ -417,7 +417,7 @@ func (a *addrBook) GetSelection() []*p2p.NetAddress {
 	// `numAddresses' since we are throwing the rest.
 	for i := 0; i < numAddresses; i++ {
 		// pick a number between current index and the end
-		j := tmrand.Intn(len(allAddr)-i) + i
+		j := krand.Intn(len(allAddr)-i) + i
 		allAddr[i], allAddr[j] = allAddr[j], allAddr[i]
 	}
 
@@ -456,14 +456,14 @@ func (a *addrBook) GetSelectionWithBias(biasTowardsNewAddrs int) []*p2p.NetAddre
 		biasTowardsNewAddrs = 0
 	}
 
-	numAddresses := tmmath.MaxInt(
-		tmmath.MinInt(minGetSelection, bookSize),
+	numAddresses := kmath.MaxInt(
+		kmath.MinInt(minGetSelection, bookSize),
 		bookSize*getSelectionPercent/100)
-	numAddresses = tmmath.MinInt(maxGetSelection, numAddresses)
+	numAddresses = kmath.MinInt(maxGetSelection, numAddresses)
 
 	// number of new addresses that, if possible, should be in the beginning of the selection
 	// if there are no enough old addrs, will choose new addr instead.
-	numRequiredNewAdd := tmmath.MaxInt(percentageOfNum(biasTowardsNewAddrs, numAddresses), numAddresses-a.nOld)
+	numRequiredNewAdd := kmath.MaxInt(percentageOfNum(biasTowardsNewAddrs, numAddresses), numAddresses-a.nOld)
 	selection := a.randomPickAddresses(bucketTypeNew, numRequiredNewAdd)
 	selection = append(selection, a.randomPickAddresses(bucketTypeOld, numAddresses-len(selection))...)
 	return selection

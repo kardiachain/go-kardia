@@ -54,9 +54,6 @@ type Config struct {
 	// acceptTxs accept tx sync processes
 	AcceptTxs uint32
 
-	// IsZeroFee is true then sender will be refunded all gas spent for a transaction
-	IsZeroFee bool
-
 	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	IsPrivate bool
 

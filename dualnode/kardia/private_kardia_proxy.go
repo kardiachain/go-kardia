@@ -40,7 +40,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardiamain/tool"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -449,7 +448,7 @@ func CreateForwardRequestTx(email string, fromOrgId string, toOrgId string, txPo
 	if err != nil {
 		return nil, err
 	}
-	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), common.HexToAddress(configs.KardiaCandidateExchangeSmcAddress), requestInfoInput, txPool, false), nil
+	return tx_pool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), common.HexToAddress(configs.KardiaCandidateExchangeSmcAddress), requestInfoInput, txPool, false), nil
 }
 
 // CreateForwardResponseTx creates tx call to Kardia candidate exchange contract to fulfill a candidate info request
@@ -469,7 +468,7 @@ func CreateForwardResponseTx(email string, response string, fromOrgId string, to
 	if err != nil {
 		return nil, err
 	}
-	return tool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), common.HexToAddress(configs.KardiaCandidateExchangeSmcAddress), requestInfoInput, txPool, false), nil
+	return tx_pool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), common.HexToAddress(configs.KardiaCandidateExchangeSmcAddress), requestInfoInput, txPool, false), nil
 }
 
 // Return a common private key to call to Kardia smc from dual node

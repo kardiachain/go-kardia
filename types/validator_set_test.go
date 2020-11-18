@@ -62,7 +62,7 @@ func TestValidatorSetValidateBasic(t *testing.T) {
 				Validators: []*Validator{val},
 			},
 			err: true,
-			msg: "proposer failed validate basic, error: nil validator",
+			msg: "proposer failed validate basic, error: nil Validator",
 		},
 		{
 			vals: ValidatorSet{

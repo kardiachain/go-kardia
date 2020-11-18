@@ -1,13 +1,13 @@
 package cmap
 
 import (
-	tmsync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
 )
 
 // CMap is a goroutine-safe map
 type CMap struct {
 	m map[string]interface{}
-	l tmsync.Mutex
+	l ksync.Mutex
 }
 
 func NewCMap() *CMap {

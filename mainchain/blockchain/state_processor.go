@@ -19,8 +19,6 @@
 package blockchain
 
 import (
-	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/kardiachain/go-kardiamain/kai/state"
@@ -31,18 +29,6 @@ import (
 	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/types"
-)
-
-var (
-	// ErrGasLimitReached is returned by the gas pool if the amount of gas required
-	// by a transaction is higher than what's left in the block.
-	ErrGasLimitReached = errors.New("gas limit reached")
-
-	// ErrNonceTooHigh is returned if the nonce of a transaction is higher than the
-	// next one expected based on the local chain.
-	ErrNonceTooHigh = errors.New("nonce too high")
-
-	errInsufficientBalanceForGas = errors.New("insufficient balance to pay for gas")
 )
 
 // StateProcessor is a basic Processor, which takes care of transitioning
@@ -128,7 +114,7 @@ func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, 
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 
-	return receipt, result.UsedGas, result.Err
+	return receipt, result.UsedGas, err
 }
 
 /*
@@ -173,15 +159,15 @@ type Message interface {
 }
 
 // NewStateTransition initialises and returns a new state transition object.
-func NewStateTransition(vm *kvm.KVM, msg Message, gp *types.GasPool) *StateTransition {
+func NewStateTransition(kvm *kvm.KVM, msg Message, gp *types.GasPool) *StateTransition {
 	return &StateTransition{
 		gp:       gp,
-		vm:       vm,
+		vm:       kvm,
 		msg:      msg,
 		gasPrice: msg.GasPrice(),
 		value:    msg.Value(),
 		data:     msg.Data(),
-		state:    vm.StateDB,
+		state:    kvm.StateDB,
 	}
 }
 
@@ -192,8 +178,8 @@ func NewStateTransition(vm *kvm.KVM, msg Message, gp *types.GasPool) *StateTrans
 // the gas used (which includes gas refunds) and an error if it failed. An error always
 // indicates a core error meaning that the message would always fail for that particular
 // state and would never be accepted within a block.
-func ApplyMessage(vm *kvm.KVM, msg Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
-	return NewStateTransition(vm, msg, gp).TransitionDb()
+func ApplyMessage(kvm *kvm.KVM, msg Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
+	return NewStateTransition(kvm, msg, gp).TransitionDb()
 }
 
 // to returns the recipient of the message.
@@ -204,19 +190,10 @@ func (st *StateTransition) to() common.Address {
 	return *st.msg.To()
 }
 
-func (st *StateTransition) useGas(amount uint64) error {
-	if st.gas < amount {
-		return kvm.ErrOutOfGas
-	}
-	st.gas -= amount
-
-	return nil
-}
-
 func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).Mul(new(big.Int).SetUint64(st.msg.Gas()), st.gasPrice)
 	if st.state.GetBalance(st.msg.From()).Cmp(mgval) < 0 {
-		return errInsufficientBalanceForGas
+		return tx_pool.ErrInsufficientFunds
 	}
 	if err := st.gp.SubGas(st.msg.Gas()); err != nil {
 		return err
@@ -232,15 +209,10 @@ func (st *StateTransition) preCheck() error {
 	// Make sure this transaction's nonce is correct.
 	if st.msg.CheckNonce() {
 		nonce := st.state.GetNonce(st.msg.From())
-		// FIXME(kiendn): nonce does not need to check too high, it can be depended on what user input
-		// as long as nonce is not less than or equals current state then it wil be fined.
-
-		//if nonce < st.msg.Nonce() {
-		//	return ErrNonceTooHigh
-		//} else
-		if nonce > st.msg.Nonce() {
-			//return tx_pool.ErrNonceTooLow
-			return fmt.Errorf("nonce too low - current nonce is %v sender %v sender's nonce %v", nonce, st.msg.From().Hex(), st.msg.Nonce())
+		if nonce < st.msg.Nonce() {
+			return tx_pool.ErrNonceTooHigh
+		} else if nonce > st.msg.Nonce() {
+			return tx_pool.ErrNonceTooLow
 		}
 	}
 	return st.buyGas()
@@ -260,11 +232,13 @@ func (st *StateTransition) TransitionDb() (*kvm.ExecutionResult, error) {
 	// 5. there is no overflow when calculating intrinsic gas
 	// 6. caller has enough balance to cover asset transfer for **topmost** call
 
+	// Check clauses 1-3, buy gas if everything is correct
 	if err := st.preCheck(); err != nil {
 		return nil, err
 	}
 	msg := st.msg
 	sender := kvm.AccountRef(msg.From())
+
 	contractCreation := msg.To() == nil
 
 	// Check clauses 4-5, subtract intrinsic gas if everything is correct
@@ -283,8 +257,8 @@ func (st *StateTransition) TransitionDb() (*kvm.ExecutionResult, error) {
 	}
 
 	var (
-		vmerr error
 		ret   []byte
+		vmerr error
 	)
 	if contractCreation {
 		ret, _, st.gas, vmerr = st.vm.Create(sender, st.data, st.gas, st.value)
@@ -294,24 +268,8 @@ func (st *StateTransition) TransitionDb() (*kvm.ExecutionResult, error) {
 		ret, st.gas, vmerr = st.vm.Call(sender, st.to(), st.data, st.gas, st.value)
 	}
 
-	// For logging purpose
-	if vmerr != nil {
-		log.Error("VM returned with error", "err", vmerr)
-		// The only possible consensus-error would be if there wasn't
-		// sufficient balance to make the transfer happen. The first
-		// balance transfer may never fail.
-		if vmerr == kvm.ErrInsufficientBalance {
-			return nil, vmerr
-		}
-	}
-
-	// If IsZeroFee is true then refund all gas that sender spend in current transaction
-	if st.vm.GetVmConfig().IsZeroFee {
-		st.refundGas(true) // refundAll
-	} else {
-		st.refundGas(false) // !refundAll
-		st.state.AddBalance(st.vm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
-	}
+	st.refundGas()
+	st.state.AddBalance(st.vm.Coinbase, new(big.Int).Mul(new(big.Int).SetUint64(st.gasUsed()), st.gasPrice))
 
 	return &kvm.ExecutionResult{
 		UsedGas:    st.gasUsed(),
@@ -320,17 +278,14 @@ func (st *StateTransition) TransitionDb() (*kvm.ExecutionResult, error) {
 	}, nil
 }
 
-func (st *StateTransition) refundGas(refundAll bool) {
-	if refundAll {
-		st.gas = st.initialGas
-	} else {
-		// Apply refund counter, capped to half of the used gas.
-		refund := st.gasUsed() / 2
-		if refund > st.state.GetRefund() {
-			refund = st.state.GetRefund()
-		}
-		st.gas += refund
+func (st *StateTransition) refundGas() {
+	// Apply refund counter, capped to half of the used gas.
+	refund := st.gasUsed() / 2
+	if refund > st.state.GetRefund() {
+		refund = st.state.GetRefund()
 	}
+	st.gas += refund
+
 	// Return KAI for remaining gas, exchanged at the original rate.
 	remaining := new(big.Int).Mul(new(big.Int).SetUint64(st.gas), st.gasPrice)
 	st.state.AddBalance(st.msg.From(), remaining)

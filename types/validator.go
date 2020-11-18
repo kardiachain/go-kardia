@@ -24,35 +24,16 @@ import (
 	"fmt"
 	"math/rand"
 	"strings"
+	"time"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
-// ErrTotalVotingPowerOverflow is returned if the total voting power of the
-// resulting validator set exceeds MaxTotalVotingPower.
-var ErrTotalVotingPowerOverflow = fmt.Errorf("total voting power of resulting valset exceeds max %d",
-	MaxTotalVotingPower)
-
-//-----------------
-
-// IsErrNotEnoughVotingPowerSigned returns true if err is
-// ErrNotEnoughVotingPowerSigned.
-func IsErrNotEnoughVotingPowerSigned(err error) bool {
-	return errors.As(err, &ErrNotEnoughVotingPowerSigned{})
-}
-
-// ErrNotEnoughVotingPowerSigned is returned when not enough validators signed
-// a commit.
-type ErrNotEnoughVotingPowerSigned struct {
-	Got    int64
-	Needed int64
-}
-
-func (e ErrNotEnoughVotingPowerSigned) Error() string {
-	return fmt.Sprintf("invalid commit -- insufficient voting power: got %d, needed more than %d", e.Got, e.Needed)
-}
+var (
+	ErrNilValidator = errors.New("nil Validator")
+)
 
 // Validator state for each Validator
 type Validator struct {
@@ -73,7 +54,7 @@ func NewValidator(addr common.Address, votingPower int64) *Validator {
 // ValidateBasic performs basic validation.
 func (v *Validator) ValidateBasic() error {
 	if v == nil {
-		return errors.New("nil validator")
+		return ErrNilValidator
 	}
 
 	if v.VotingPower < 0 {
@@ -153,7 +134,7 @@ func ValidatorListString(vals []*Validator) string {
 // It returns an error if the public key is invalid.
 func ValidatorFromProto(vp *kproto.Validator) (*Validator, error) {
 	if vp == nil {
-		return nil, errors.New("nil validator")
+		return nil, ErrNilValidator
 	}
 
 	v := new(Validator)
@@ -168,9 +149,8 @@ func ValidatorFromProto(vp *kproto.Validator) (*Validator, error) {
 // RandValidator
 
 // RandValidator returns a randomized validator, useful for testing.
-// UNSTABLE
-// EXPOSED FOR TESTING.
 func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
+	rand.Seed(time.Now().UnixNano())
 	privVal := NewMockPV()
 	votePower := minPower
 	if randPower {
@@ -181,7 +161,9 @@ func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
 	return val, privVal
 }
 
+// RandValidatorCS return a random validator for unit test
 func RandValidatorCS(randPower bool, minPower int64) (*Validator, *DefaultPrivValidator) {
+	rand.Seed(time.Now().UnixNano())
 	privKey, _ := crypto.GenerateKey()
 	votePower := minPower
 	if randPower {
@@ -203,7 +185,7 @@ func (v *Validator) GetProposerPriority() int64 {
 // ToProto converts Valiator to protobuf
 func (v *Validator) ToProto() (*kproto.Validator, error) {
 	if v == nil {
-		return nil, errors.New("nil validator")
+		return nil, ErrNilValidator
 	}
 
 	vp := kproto.Validator{

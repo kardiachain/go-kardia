@@ -42,7 +42,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	"github.com/kardiachain/go-kardiamain/tool"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -346,7 +345,7 @@ func TestEmitEvent(t *testing.T) {
 	}
 	addrKeyBytes, _ := hex.DecodeString("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-	tx := tool.GenerateSmcCall(addrKey, address, requestCandidateInfoInput, txPool, false)
+	tx := tx_pool.GenerateSmcCall(addrKey, address, requestCandidateInfoInput, txPool, false)
 	// Apply tx and get returned logs from that tx
 	logs, err := ApplyTransactionReturnLog(bc, statedb, tx)
 	if err != nil {
@@ -440,7 +439,7 @@ func TestInfoRequest(t *testing.T) {
 	// Complete above request again, should succeed and emit log this time
 	addrKeyBytes, _ := hex.DecodeString("8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06")
 	addrKey := crypto.ToECDSAUnsafe(addrKeyBytes)
-	tx := tool.GenerateSmcCall(addrKey, address, completeInput, txPool, false)
+	tx := tx_pool.GenerateSmcCall(addrKey, address, completeInput, txPool, false)
 	// Apply tx and get returned logs from that tx
 	logs, err := ApplyTransactionReturnLog(bc, statedb, tx)
 	if err != nil {
