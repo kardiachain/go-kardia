@@ -20,7 +20,6 @@ package consensus
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"reflect"
@@ -47,13 +46,6 @@ import (
 
 var (
 	msgQueueSize = 1000
-)
-
-var (
-	ErrInvalidProposalSignature = errors.New("Error invalid proposal signature")
-	ErrInvalidProposalPOLRound  = errors.New("Error invalid proposal POL round")
-	ErrAddingVote               = errors.New("Error adding vote")
-	ErrVoteHeightMismatch       = errors.New("Error vote height mismatch")
 )
 
 // msgs from the manager which may update the state

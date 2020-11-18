@@ -19,11 +19,11 @@
 package cstate
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 
 	kstate "github.com/kardiachain/go-kardiamain/proto/kardiachain/state"
@@ -122,7 +122,7 @@ func (state *LastestBlockState) Bytes() []byte {
 // ToProto takes the local state type and returns the equivalent proto type
 func (state *LastestBlockState) ToProto() (*kstate.State, error) {
 	if state == nil {
-		return nil, errors.New("state is nil")
+		return nil, ErrNilState
 	}
 
 	sm := new(kstate.State)
@@ -166,7 +166,7 @@ func (state *LastestBlockState) ToProto() (*kstate.State, error) {
 // StateFromProto takes a state proto message & returns the local state type
 func StateFromProto(pb *kstate.State) (*LastestBlockState, error) { //nolint:golint
 	if pb == nil {
-		return nil, errors.New("nil State")
+		return nil, ErrNilState
 	}
 
 	state := new(LastestBlockState)

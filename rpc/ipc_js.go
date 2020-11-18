@@ -20,11 +20,8 @@ package rpc
 
 import (
 	"context"
-	"errors"
 	"net"
 )
-
-var errNotSupported = errors.New("rpc: not supported")
 
 // ipcListen will create a named pipe on the given endpoint.
 func ipcListen(endpoint string) (net.Listener, error) {
