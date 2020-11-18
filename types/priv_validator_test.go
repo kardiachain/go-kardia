@@ -46,7 +46,7 @@ func TestPrivValidatorSignVote(t *testing.T) {
 }
 
 func TestPrivValidatorSignProposal(t *testing.T) {
-	proposal := NewProposal(1, 2, 3, CreateBlockIDRandom())
+	proposal := NewProposal(1, 2, 3, createBlockIDRandom())
 	privValidator, _, _ := CreateNewPrivValidator()
 	if err := privValidator.SignProposal("KAI", proposal.ToProto()); err != nil {
 		t.Fatal("PV Sign Proposal issue", err)

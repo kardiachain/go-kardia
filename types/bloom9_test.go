@@ -1,5 +1,5 @@
 /*
- *  Copyright 2018 KardiaChain
+ *  Copyright 2020 KardiaChain
  *  This file is part of the go-kardia library.
  *
  *  The go-kardia library is free software: you can redistribute it and/or modify
@@ -19,24 +19,35 @@
 package types
 
 import (
+	"math/big"
 	"testing"
 )
 
-func TestProposalCreation(t *testing.T) {
-	proposal := NewProposal(1, 2, 3, createBlockIDRandom())
-
-	if proposal.Height != 1 ||
-		proposal.Round != 2 ||
-		proposal.POLRound != 3 {
-		t.Error("Proposal Creation Error")
+func TestBloom(t *testing.T) {
+	positive := []string{
+		"testtest",
+		"test",
+		"hallo",
+		"other",
+	}
+	negative := []string{
+		"tes",
+		"lo",
 	}
 
-}
+	var bloom Bloom
+	for _, data := range positive {
+		bloom.Add(new(big.Int).SetBytes([]byte(data)))
+	}
 
-func TestProposalSignBytes(t *testing.T) {
-	proposal := NewProposal(1, 2, 3, createBlockIDRandom())
-	signedByte := ProposalSignBytes("KAI", proposal.ToProto())
-	if signedByte == nil {
-		t.Error("Proposal's SignBytes returned nil")
+	for _, data := range positive {
+		if !bloom.TestBytes([]byte(data)) {
+			t.Error("expected", data, "to test true")
+		}
+	}
+	for _, data := range negative {
+		if bloom.TestBytes([]byte(data)) {
+			t.Error("did not expect", data, "to test true")
+		}
 	}
 }
