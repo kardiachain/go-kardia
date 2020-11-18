@@ -19,7 +19,6 @@
 package consensus
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -795,13 +794,13 @@ func (m *ProposalPOLMessage) String() string {
 // ValidateBasic performs basic validation.
 func (m *ProposalPOLMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("negative Height")
+		return ErrNegativeHeight
 	}
 	if m.ProposalPOLRound < 0 {
-		return errors.New("negative ProposalPOLRound")
+		return ErrNegativeProposalPOLRound
 	}
 	if m.ProposalPOL.Size() == 0 {
-		return errors.New("empty ProposalPOL bit array")
+		return ErrEmptyProposalPOL
 	}
 	return nil
 }
@@ -819,13 +818,13 @@ type NewRoundStepMessage struct {
 // ValidateBasic performs basic validation.
 func (m *NewRoundStepMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("negative Height")
+		return ErrNegativeHeight
 	}
 	if m.Round < 0 {
-		return errors.New("negative Round")
+		return ErrNegativeRound
 	}
 	// if !m.Step.IsValid() {
-	// 	return errors.New("invalid Step")
+	// 	return ErrInvalidStep
 	// }
 
 	// NOTE: SecondsSinceStartTime may be negative
@@ -834,7 +833,7 @@ func (m *NewRoundStepMessage) ValidateBasic() error {
 	// since it can be specified in genesis. The reactor will have to validate this via
 	// ValidateHeight().
 	// if m.LastCommitRound < -1 {
-	// 	return errors.New("invalid LastCommitRound (cannot be < -1)")
+	// 	return ErrNegativeLastCommitRound
 	// }
 
 	return nil
@@ -851,16 +850,16 @@ type HasVoteMessage struct {
 // ValidateBasic performs basic validation.
 func (m *HasVoteMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("negative Height")
+		return ErrNegativeHeight
 	}
 	if m.Round < 0 {
-		return errors.New("negative Round")
+		return ErrNegativeRound
 	}
 	if !types.IsVoteTypeValid(m.Type) {
-		return errors.New("invalid Type")
+		return ErrInvalidMsgType
 	}
 	if m.Index < 0 {
-		return errors.New("negative Index")
+		return ErrNegativeIndex
 	}
 	return nil
 }
@@ -886,13 +885,13 @@ func (m *VoteSetMaj23Message) String() string {
 // ValidateBasic performs basic validation.
 func (m *VoteSetMaj23Message) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("negative Height")
+		return ErrNegativeHeight
 	}
 	if m.Round < 0 {
-		return errors.New("negative Round")
+		return ErrNegativeRound
 	}
 	if !types.IsVoteTypeValid(m.Type) {
-		return errors.New("invalid Type")
+		return ErrInvalidMsgType
 	}
 	if err := m.BlockID.ValidateBasic(); err != nil {
 		return fmt.Errorf("wrong BlockID: %v", err)
@@ -912,10 +911,10 @@ type VoteSetBitsMessage struct {
 // ValidateBasic performs basic validation.
 func (m *VoteSetBitsMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("negative Height")
+		return ErrNegativeHeight
 	}
 	if !types.IsVoteTypeValid(m.Type) {
-		return errors.New("invalid Type")
+		return ErrInvalidMsgType
 	}
 	if err := m.BlockID.ValidateBasic(); err != nil {
 		return fmt.Errorf("wrong BlockID: %v", err)
@@ -1321,10 +1320,10 @@ type BlockPartMessage struct {
 // ValidateBasic performs basic validation.
 func (m *BlockPartMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("Negative Height")
+		return ErrNegativeHeight
 	}
 	if m.Round < 0 {
-		return errors.New("Negative Round")
+		return ErrNegativeRound
 	}
 	if err := m.Part.ValidateBasic(); err != nil {
 		return fmt.Errorf("Wrong Part: %v", err)
@@ -1353,16 +1352,16 @@ type NewValidBlockMessage struct {
 // ValidateBasic performs basic validation.
 func (m *NewValidBlockMessage) ValidateBasic() error {
 	if m.Height < 0 {
-		return errors.New("Negative Height")
+		return ErrNegativeHeight
 	}
 	if m.Round < 0 {
-		return errors.New("Negative Round")
+		return ErrNegativeRound
 	}
 	if err := m.BlockPartsHeader.ValidateBasic(); err != nil {
 		return fmt.Errorf("Wrong BlockPartsHeader: %v", err)
 	}
 	if m.BlockParts.Size() == 0 {
-		return errors.New("Empty BlockParts")
+		return ErrEmptyBlockPart
 	}
 	if m.BlockParts.Size() != int(m.BlockPartsHeader.Total) {
 		return fmt.Errorf("BlockParts bit array size %d not equal to BlockPartsHeader.Total %d",

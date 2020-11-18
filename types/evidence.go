@@ -31,38 +31,6 @@ import (
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
-// ErrEvidenceOverflow is for when there is too much evidence in a block.
-type ErrEvidenceOverflow struct {
-	MaxNum int64
-	GotNum int64
-}
-
-// NewErrEvidenceOverflow returns a new ErrEvidenceOverflow where got > max.
-func NewErrEvidenceOverflow(max, got int64) *ErrEvidenceOverflow {
-	return &ErrEvidenceOverflow{max, got}
-}
-
-// Error returns a string representation of the error.
-func (err *ErrEvidenceOverflow) Error() string {
-	return fmt.Sprintf("Too much evidence: Max %d, got %d", err.MaxNum, err.GotNum)
-}
-
-// ErrEvidenceInvalid wraps a piece of evidence and the error denoting how or why it is invalid.
-type ErrEvidenceInvalid struct {
-	Evidence Evidence
-	Reason   error
-}
-
-// NewErrEvidenceInvalid returns a new EvidenceInvalid with the given err.
-func NewErrInvalidEvidence(ev Evidence, err error) *ErrEvidenceInvalid {
-	return &ErrEvidenceInvalid{ev, err}
-}
-
-// Error returns a string representation of the error.
-func (err *ErrEvidenceInvalid) Error() string {
-	return fmt.Sprintf("Invalid evidence: %v. Evidence: %v", err.Reason, err.Evidence)
-}
-
 // EvidenceType enum type
 type EvidenceType uint8
 

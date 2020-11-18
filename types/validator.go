@@ -31,29 +31,9 @@ import (
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
-// ErrTotalVotingPowerOverflow is returned if the total voting power of the
-// resulting validator set exceeds MaxTotalVotingPower.
-var ErrTotalVotingPowerOverflow = fmt.Errorf("total voting power of resulting valset exceeds max %d",
-	MaxTotalVotingPower)
-
-//-----------------
-
-// IsErrNotEnoughVotingPowerSigned returns true if err is
-// ErrNotEnoughVotingPowerSigned.
-func IsErrNotEnoughVotingPowerSigned(err error) bool {
-	return errors.As(err, &ErrNotEnoughVotingPowerSigned{})
-}
-
-// ErrNotEnoughVotingPowerSigned is returned when not enough validators signed
-// a commit.
-type ErrNotEnoughVotingPowerSigned struct {
-	Got    int64
-	Needed int64
-}
-
-func (e ErrNotEnoughVotingPowerSigned) Error() string {
-	return fmt.Sprintf("invalid commit -- insufficient voting power: got %d, needed more than %d", e.Got, e.Needed)
-}
+var (
+	ErrNilValidator = errors.New("nil Validator")
+)
 
 // Validator state for each Validator
 type Validator struct {
@@ -74,7 +54,7 @@ func NewValidator(addr common.Address, votingPower int64) *Validator {
 // ValidateBasic performs basic validation.
 func (v *Validator) ValidateBasic() error {
 	if v == nil {
-		return errors.New("nil validator")
+		return ErrNilValidator
 	}
 
 	if v.VotingPower < 0 {
@@ -154,7 +134,7 @@ func ValidatorListString(vals []*Validator) string {
 // It returns an error if the public key is invalid.
 func ValidatorFromProto(vp *kproto.Validator) (*Validator, error) {
 	if vp == nil {
-		return nil, errors.New("nil validator")
+		return nil, ErrNilValidator
 	}
 
 	v := new(Validator)
@@ -205,7 +185,7 @@ func (v *Validator) GetProposerPriority() int64 {
 // ToProto converts Valiator to protobuf
 func (v *Validator) ToProto() (*kproto.Validator, error) {
 	if v == nil {
-		return nil, errors.New("nil validator")
+		return nil, ErrNilValidator
 	}
 
 	vp := kproto.Validator{

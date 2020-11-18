@@ -42,6 +42,7 @@ var (
 	ErrInvalidRetsub            = errors.New("invalid retsub")
 	ErrReturnStackExceeded      = errors.New("return stack limit reached")
 	ErrInterpreterNotCompatible = errors.New("interpreter not compatible")
+	ErrTraceLimitReached        = errors.New("the number of logs reached the specified limit")
 )
 
 // ErrStackUnderflow wraps an evm error when the items on the stack less
