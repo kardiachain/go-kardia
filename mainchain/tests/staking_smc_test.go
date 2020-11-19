@@ -178,7 +178,7 @@ func TestGetValidators(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.EqualValuesf(t, validators[0], newValidator, "Validators fetched from staking SMC must be the same with created one")
+	assert.EqualValuesf(t, newValidator, validators[0], "Validators fetched from staking SMC must be the same with created one")
 
 	err = finalizeTest(stateDB, util, block)
 	if err != nil {
@@ -193,18 +193,27 @@ func TestGetValidator(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	var votingPower int64 = 1000000
+	var (
+		votingPower            int64 = 1000000
+		expectedVotingPower    int64 = 1000000000000000
+		expectedCommissionRate int64 = 10
+	)
 	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, votingPower)
 	if err != nil {
 		t.Fatal(err)
 	}
-	newValidator := types.NewValidator(address, votingPower)
+	newValidator := &types.Validator{
+		Address:        address,
+		VotingPower:    votingPower,
+		StakedAmount:   big.NewInt(expectedVotingPower),
+		CommissionRate: big.NewInt(expectedCommissionRate),
+	}
 
 	validator, err := util.GetValidator(stateDB, block.Header(), nil, kvm.Config{}, address)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.EqualValuesf(t, validator, newValidator, "Validator fetched from staking SMC must be the same with created one")
+	assert.EqualValuesf(t, newValidator, validator, "Validator fetched from staking SMC must be the same with created one")
 
 	err = finalizeTest(stateDB, util, block)
 	if err != nil {
@@ -228,7 +237,108 @@ func TestGetValidatorPower(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.EqualValuesf(t, validatorPower, votingPower, "Validator power fetched from staking SMC must be the same with created one")
+	assert.EqualValuesf(t, votingPower, validatorPower, "Validator power fetched from staking SMC must be the same with created one")
+
+	err = finalizeTest(stateDB, util, block)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// ---------------------------------------------- new test ----------------------------------------------------------------------------------
+
+func TestGetValidatorCommission(t *testing.T) {
+	stateDB, util, block, err := setup()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	valAddr := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+	var votingPower int64 = 1000000
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, valAddr, votingPower)
+	if err != nil {
+		t.Fatal(err)
+	}
+	validatorCommission, err := util.GetValidatorCommission(stateDB, block.Header(), nil, kvm.Config{}, valAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.NotNilf(t, validatorCommission, "Validator commission must not be nil")
+	assert.IsTypef(t, uint64(0), validatorCommission, "Validator power fetched from staking SMC must be the same with created one")
+
+	err = finalizeTest(stateDB, util, block)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetDelegationsByValidator(t *testing.T) {
+	stateDB, util, block, err := setup()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+	var votingPower int64 = 1000000
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, votingPower)
+	if err != nil {
+		t.Fatal(err)
+	}
+	delegations, err := util.GetDelegationsByValidator(stateDB, block.Header(), nil, kvm.Config{}, address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.NotNilf(t, delegations, "A validator must have at least 1 delegation")
+
+	err = finalizeTest(stateDB, util, block)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetDelegationRewards(t *testing.T) {
+	stateDB, util, block, err := setup()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+	var votingPower int64 = 1000000
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, votingPower)
+	if err != nil {
+		t.Fatal(err)
+	}
+	delegationRewards, err := util.GetDelegationRewards(stateDB, block.Header(), nil, kvm.Config{}, address, address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.NotNilf(t, delegationRewards, "Delegator's reward must not be nil")
+	assert.IsTypef(t, big.NewInt(0), delegationRewards, "Delegator's reward fetched from staking SMC must be a *big.Int")
+
+	err = finalizeTest(stateDB, util, block)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetDelegatorStake(t *testing.T) {
+	stateDB, util, block, err := setup()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+	var votingPower int64 = 1000000
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, votingPower)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stake, err := util.GetDelegatorStake(stateDB, block.Header(), nil, kvm.Config{}, address, address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.NotNilf(t, stake, "Delegator's stake must not be nil")
+	assert.IsTypef(t, big.NewInt(0), stake, "Delegator's stake fetched from staking SMC must be a *big.Int")
 
 	err = finalizeTest(stateDB, util, block)
 	if err != nil {

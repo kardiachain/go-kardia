@@ -186,6 +186,8 @@ func (k *KardiaService) GetValidatorCommission(valAddr common.Address) (uint64, 
 	return k.staking.GetValidatorCommission(state, header, k.blockchain, kvmConfig, valAddr)
 }
 
+// GetDelegationsByValidator returns delegation info of one delegator
+// for a validator on staking contract based on their addresses
 func (k *KardiaService) GetDelegationsByValidator(valAddr common.Address) ([]*types.Delegator, error) {
 	block := k.blockchain.CurrentBlock()
 	state, header, kvmConfig, err := k.getValidatorInfoParams(block)

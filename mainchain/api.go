@@ -122,14 +122,19 @@ func NewBlockHeaderJSON(header *types.Header, blockInfo *types.BlockInfo) *Block
 func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 	txs := block.Transactions()
 	transactions := make([]*PublicTransaction, 0, len(txs))
-
+	var receiptIndex = 0
 	for index, transaction := range txs {
 		idx := uint64(index)
 		tx := NewPublicTransaction(transaction, block.Hash(), block.Height(), idx)
 		// add time for tx
 		tx.Time = block.Header().Time
 		// add additional info from corresponding receipt to transaction
-		receipt := getPublicReceipt(*blockInfo.Receipts[idx], transaction, block.Hash(), block.Height(), idx)
+		if (receiptIndex > len(blockInfo.Receipts)-1) || (!blockInfo.Receipts[receiptIndex].TxHash.Equal(transaction.Hash())) {
+			tx.Status = 0
+			transactions = append(transactions, tx)
+			continue
+		}
+		receipt := getPublicReceipt(*blockInfo.Receipts[receiptIndex], transaction, block.Hash(), block.Height(), uint64(receiptIndex))
 		tx.Logs = receipt.Logs
 		tx.Root = receipt.Root
 		tx.Status = receipt.Status
@@ -137,6 +142,7 @@ func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 		if receipt.ContractAddress != "0x" {
 			tx.ContractAddress = receipt.ContractAddress
 		}
+		receiptIndex++
 		transactions = append(transactions, tx)
 	}
 
