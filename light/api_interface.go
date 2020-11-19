@@ -37,21 +37,22 @@ var (
 	ErrMissingBlockBody = errors.New("block body is missing")
 )
 
-type APIBackend interface {
-	// Blockchain API
-	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header
-	HeaderByHash(ctx context.Context, hash common.Hash) *types.Header
-	HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error)
-	BlockByNumber(ctx context.Context, number rpc.BlockNumber) *types.Block
-	BlockByHash(ctx context.Context, hash common.Hash) *types.Block
-	BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)
-	BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo
-	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
-	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
-	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error)
-}
+//
+//type APIBackend interface {
+//	// Blockchain API
+//	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header
+//	HeaderByHash(ctx context.Context, hash common.Hash) *types.Header
+//	HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error)
+//	BlockByNumber(ctx context.Context, number rpc.BlockNumber) *types.Block
+//	BlockByHash(ctx context.Context, hash common.Hash) *types.Block
+//	BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)
+//	BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo
+//	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
+//	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
+//	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error)
+//}
 
-func (s *KardiaService) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header {
+func (s *nodeService) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header {
 	// Return the latest block if rpc.LatestBlockNumber has been passed in
 	if number == rpc.LatestBlockNumber {
 		return s.blockchain.CurrentBlock().Header()
@@ -59,11 +60,11 @@ func (s *KardiaService) HeaderByNumber(ctx context.Context, number rpc.BlockNumb
 	return s.blockchain.GetHeader(common.Hash{}, number.Uint64())
 }
 
-func (s *KardiaService) HeaderByHash(ctx context.Context, hash common.Hash) *types.Header {
+func (s *nodeService) HeaderByHash(ctx context.Context, hash common.Hash) *types.Header {
 	return s.blockchain.GetHeaderByHash(hash)
 }
 
-func (s *KardiaService) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error) {
+func (s *nodeService) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return s.HeaderByNumber(ctx, blockNr), nil
 	}
@@ -80,7 +81,7 @@ func (s *KardiaService) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash 
 	return nil, ErrInvalidArguments
 }
 
-func (s *KardiaService) BlockByNumber(ctx context.Context, number rpc.BlockNumber) *types.Block {
+func (s *nodeService) BlockByNumber(ctx context.Context, number rpc.BlockNumber) *types.Block {
 	// Return the latest block if rpc.LatestBlockNumber has been passed in
 	if number == rpc.LatestBlockNumber {
 		return s.blockchain.CurrentBlock()
@@ -88,11 +89,11 @@ func (s *KardiaService) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 	return s.blockchain.GetBlockByHeight(number.Uint64())
 }
 
-func (s *KardiaService) BlockByHash(ctx context.Context, hash common.Hash) *types.Block {
+func (s *nodeService) BlockByHash(ctx context.Context, hash common.Hash) *types.Block {
 	return s.blockchain.GetBlockByHash(hash)
 }
 
-func (s *KardiaService) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
+func (s *nodeService) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return s.BlockByNumber(ctx, blockNr), nil
 	}
@@ -114,7 +115,7 @@ func (s *KardiaService) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 	return nil, ErrInvalidArguments
 }
 
-func (s *KardiaService) BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo {
+func (s *nodeService) BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo {
 	height := s.DB().ReadHeaderNumber(hash)
 	if height == nil {
 		return nil
@@ -122,7 +123,7 @@ func (s *KardiaService) BlockInfoByBlockHash(ctx context.Context, hash common.Ha
 	return s.DB().ReadBlockInfo(hash, *height)
 }
 
-func (s *KardiaService) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
+func (s *nodeService) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
 	// Return the latest state if rpc.LatestBlockNumber has been passed in
 	header := s.HeaderByNumber(ctx, number)
 	if header == nil {
@@ -132,7 +133,7 @@ func (s *KardiaService) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 	return stateDb, header, err
 }
 
-func (s *KardiaService) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error) {
+func (s *nodeService) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
 		return s.StateAndHeaderByNumber(ctx, blockNr)
 	}
@@ -150,7 +151,7 @@ func (s *KardiaService) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 	return nil, nil, ErrInvalidArguments
 }
 
-func (s *KardiaService) GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error) {
+func (s *nodeService) GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error) {
 	vmError := func() error { return nil }
 
 	context := vm.NewKVMContext(msg, header, s.BlockChain())

@@ -1,0 +1,2 @@
+// Package staking
+package staking

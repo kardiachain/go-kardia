@@ -22,10 +22,11 @@ import (
 	"fmt"
 	"math/big"
 
-	fail "github.com/ebuchman/fail-test"
+	"github.com/ebuchman/fail-test"
+
+	"github.com/kardiachain/go-kardiamain/kai/staking"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -99,7 +100,7 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	// update the state with the block and responses
 	state, err = updateState(logger, state, blockID, block.Header(), valUpdates)
 	if err != nil {
-		return state, fmt.Errorf("Commit failed for application: %v", err)
+		return state, fmt.Errorf("commit failed for application: %v", err)
 	}
 
 	state.AppHash = appHash
@@ -110,7 +111,7 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	fail.Fail() // XXX
 	// Events are fired after everything else.
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay
-	fireEvents(logger, blockExec.eventBus, block, valUpdates)
+	fireEvents(logger, blockExec.eventBus, block)
 	return state, nil
 }
 
@@ -174,7 +175,7 @@ func getBeginBlockValidatorInfo(b *types.Block, store Store) staking.LastCommitI
 			commitSig := lastCommit.Signatures[i]
 			voteInfos[i] = staking.VoteInfo{
 				Address:         val.Address,
-				VotingPower:     big.NewInt(int64(val.VotingPower)),
+				VotingPower:     big.NewInt(val.VotingPower),
 				SignedLastBlock: commitSig.Signature != nil,
 			}
 		}
@@ -214,12 +215,7 @@ func calculateValidatorSetUpdates(lastVals []*types.Validator, vals []*types.Val
 // Fire NewBlock, NewBlockHeader.
 // Fire TxEvent for every tx.
 // NOTE: if Tendermint crashes before commit, some or all of these events may be published again.
-func fireEvents(
-	logger log.Logger,
-	eventBus types.BlockEventPublisher,
-	block *types.Block,
-	validatorUpdates []*types.Validator,
-) {
+func fireEvents(logger log.Logger, eventBus types.BlockEventPublisher, block *types.Block) {
 	if err := eventBus.PublishEventNewBlock(types.EventDataNewBlock{
 		Block: block,
 	}); err != nil {

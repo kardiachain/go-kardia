@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/kardiachain/go-kardiamain/kai"
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -26,7 +27,7 @@ const (
 type Reactor struct {
 	p2p.BaseReactor
 	config TxPoolConfig
-	txpool *TxPool
+	pool   kai.TxPool
 
 	// transaction channel and subscriptions
 	txsCh  chan events.NewTxsEvent
@@ -36,10 +37,10 @@ type Reactor struct {
 }
 
 // NewReactor returns a new Reactor with the given config and txpool.
-func NewReactor(config TxPoolConfig, txpool *TxPool) *Reactor {
+func NewReactor(config TxPoolConfig, txpool kai.TxPool) *Reactor {
 	txR := &Reactor{
 		config: config,
-		txpool: txpool,
+		pool:   txpool,
 		peers:  newPeerSet(),
 	}
 	txR.BaseReactor = *p2p.NewBaseReactor("txpool", txR)
@@ -95,7 +96,7 @@ func (txR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 		return
 	}
 	txR.Logger.Debug("Receive", "src", src, "chId", chID, "msg", msg)
-	txR.txpool.AddRemotes(msg.Txs)
+	txR.pool.AddRemotes(msg.Txs)
 }
 
 // PeerState describes the state of a peer.
@@ -106,7 +107,7 @@ type PeerState interface {
 // Send new txpool txs to peer.
 func (txR *Reactor) broadcastTxRoutine() {
 	txR.txsCh = make(chan events.NewTxsEvent, txChanSize)
-	txR.txsSub = txR.txpool.SubscribeNewTxsEvent(txR.txsCh)
+	txR.txsSub = txR.pool.SubscribeNewTxsEvent(txR.txsCh)
 	for {
 		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
 		if !txR.IsRunning() {

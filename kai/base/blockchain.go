@@ -49,3 +49,6 @@ type BaseBlockChain interface {
 	DB() types.StoreDB
 	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error)
 }
+
+type Service interface {
+}

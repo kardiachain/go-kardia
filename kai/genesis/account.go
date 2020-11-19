@@ -1,0 +1,2 @@
+// Package genesis
+package genesis

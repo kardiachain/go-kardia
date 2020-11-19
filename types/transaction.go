@@ -149,7 +149,9 @@ func (tx *Transaction) Size() common.StorageSize {
 		return size.(common.StorageSize)
 	}
 	c := writeCounter(0)
-	rlp.Encode(&c, &tx.data)
+	if err := rlp.Encode(&c, &tx.data); err != nil {
+		return 0
+	}
 	tx.size.Store(common.StorageSize(c))
 	return common.StorageSize(c)
 }

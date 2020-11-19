@@ -19,7 +19,6 @@
 package genesis
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -27,8 +26,8 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/kvm"
 
+	"github.com/kardiachain/go-kardiamain/kai/staking"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
@@ -43,8 +42,6 @@ import (
 //go:generate gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go
 //go:generate gencodec -type GenesisAccount -field-override genesisAccountMarshaling -out gen_genesis_account.go
 
-var errGenesisNoConfig = errors.New("genesis has no chain configuration")
-
 //------------------------------------------------------------
 // core types for a genesis definition
 // NOTE: any changes to the genesis definition should
@@ -52,7 +49,7 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 // docs/tendermint-core/using-tendermint.md
 
 // GenesisValidator is an initial validator.
-type GenesisValidator struct {
+type Validator struct {
 	Address string `json:"address" yaml:"Address"`
 	Power   int64  `json:"power" yaml:"Power"`
 	Name    string `json:"name" yaml:"Name"`
@@ -64,33 +61,23 @@ type Genesis struct {
 	Config    *configs.ChainConfig `json:"config"`
 	Timestamp time.Time            `json:"timestamp"`
 	GasLimit  uint64               `json:"gasLimit"   gencodec:"required"`
-	Alloc     GenesisAlloc         `json:"alloc"      gencodec:"required"`
+	Alloc     Alloc                `json:"alloc"      gencodec:"required"`
 
 	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
-	Validators           []*GenesisValidator          `json:"validators"`
+	Validators           []*Validator                 `json:"validators"`
 	ConsensusParams      *kaiproto.ConsensusParams    `json:"consensus_params,omitempty"`
 	Consensus            *configs.ConsensusConfig     `json:"consensusConfig"`
 }
 
 // GenesisAlloc specifies the initial state that is part of the genesis block.
-type GenesisAlloc map[common.Address]GenesisAccount
+type Alloc map[common.Address]Account
 
 // GenesisAccount is an account in the state of the genesis block.
-type GenesisAccount struct {
+type Account struct {
 	Code    []byte                      `json:"code,omitempty"`
 	Storage map[common.Hash]common.Hash `json:"storage,omitempty"`
 	Balance *big.Int                    `json:"balance" gencodec:"required"`
 	Nonce   uint64                      `json:"nonce,omitempty"`
-}
-
-// GenesisMismatchError is raised when trying to overwrite an existing
-// genesis block with an incompatible one.
-type GenesisMismatchError struct {
-	Stored, New common.Hash
-}
-
-func (e *GenesisMismatchError) Error() string {
-	return fmt.Sprintf("database already contains an incompatible genesis block (have %x, new %x)", e.Stored[:8], e.New[:8])
 }
 
 // SetupGenesisBlock writes or updates the genesis block in db.
@@ -102,7 +89,7 @@ func (e *GenesisMismatchError) Error() string {
 //     db has genesis    |  from DB           |  genesis (if compatible)
 //
 // The returned chain configuration is never nil.
-func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, staking *staking.StakingSmcUtil) (*configs.ChainConfig, common.Hash, error) {
+func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, staking *staking.SmcUtil) (*configs.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
 		// TODO(huny@): should we return another default config?
 		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
@@ -130,7 +117,7 @@ func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, st
 		block, _ := genesis.ToBlock(logger, db.DB(), staking)
 		hash := block.Hash()
 		if hash != stored {
-			return genesis.Config, hash, &GenesisMismatchError{stored, hash}
+			return genesis.Config, hash, &ErrMismatch{stored, hash}
 		}
 	}
 
@@ -168,14 +155,14 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *configs.ChainConfig {
 
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
-func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking.StakingSmcUtil) (*types.Block, common.Hash) {
+func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking.SmcUtil) (*types.Block, common.Hash) {
 	if db == nil {
 		db = memorydb.New()
 	}
 	statedb, _ := state.New(logger, common.Hash{}, state.NewDatabase(db))
 
 	// Generate genesis deployer address
-	g.Alloc[configs.GenesisDeployerAddr] = GenesisAccount{
+	g.Alloc[configs.GenesisDeployerAddr] = Account{
 		Balance: big.NewInt(1000000000000000000), // 1 KAI
 		Nonce:   0,
 	}
@@ -218,7 +205,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking
 
 // Commit writes the block and state of a genesis specification to the database.
 // The block is committed as the canonical head block.
-func (g *Genesis) Commit(logger log.Logger, db types.StoreDB, staking *staking.StakingSmcUtil) (*types.Block, error) {
+func (g *Genesis) Commit(logger log.Logger, db types.StoreDB, staking *staking.SmcUtil) (*types.Block, error) {
 	block, root := g.ToBlock(logger, db.DB(), staking)
 	if block.Height() != 0 {
 		return nil, fmt.Errorf("can't commit genesis block with height > 0")
@@ -252,7 +239,7 @@ func DefaultGenesisBlock() *Genesis {
 // DefaultTestnetGenesisBlock returns the test network genesis block from configs.
 func DefaultTestnetGenesisBlock(allocData map[string]*big.Int) *Genesis {
 
-	ga, err := GenesisAllocFromData(allocData)
+	ga, err := AllocFromData(allocData)
 	if err != nil {
 		return nil
 	}
@@ -266,7 +253,7 @@ func DefaultTestnetGenesisBlock(allocData map[string]*big.Int) *Genesis {
 
 // DefaultTestnetFullGenesisBlock return turn the test network genesis block with both account and smc from configs
 func DefaulTestnetFullGenesisBlock(accountData map[string]*big.Int, contractData map[string]string) *Genesis {
-	ga, err := GenesisAllocFromAccountAndContract(accountData, contractData)
+	ga, err := AllocFromAccountAndContract(accountData, contractData)
 	if err != nil {
 		return nil
 	}
@@ -279,11 +266,11 @@ func DefaulTestnetFullGenesisBlock(accountData map[string]*big.Int, contractData
 	}
 }
 
-func GenesisAllocFromData(data map[string]*big.Int) (GenesisAlloc, error) {
-	ga := make(GenesisAlloc, len(data))
+func AllocFromData(data map[string]*big.Int) (Alloc, error) {
+	ga := make(Alloc, len(data))
 
 	for address, balance := range data {
-		ga[common.HexToAddress(address)] = GenesisAccount{Balance: balance}
+		ga[common.HexToAddress(address)] = Account{Balance: balance}
 	}
 
 	return ga, nil
@@ -291,7 +278,7 @@ func GenesisAllocFromData(data map[string]*big.Int) (GenesisAlloc, error) {
 
 //same as DefaultTestnetGenesisBlock, but with smart contract data
 func DefaultTestnetGenesisBlockWithContract(allocData map[string]string) *Genesis {
-	ga, err := GenesisAllocFromContractData(allocData)
+	ga, err := AllocFromContractData(allocData)
 	if err != nil {
 		return nil
 	}
@@ -303,23 +290,23 @@ func DefaultTestnetGenesisBlockWithContract(allocData map[string]string) *Genesi
 	}
 }
 
-func GenesisAllocFromContractData(data map[string]string) (GenesisAlloc, error) {
-	ga := make(GenesisAlloc, len(data))
+func AllocFromContractData(data map[string]string) (Alloc, error) {
+	ga := make(Alloc, len(data))
 
 	for address, code := range data {
-		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: ToCell(100)}
+		ga[common.HexToAddress(address)] = Account{Code: common.Hex2Bytes(code), Balance: ToCell(100)}
 	}
 	return ga, nil
 }
 
-func GenesisAllocFromAccountAndContract(accountData map[string]*big.Int, contractData map[string]string) (GenesisAlloc, error) {
-	ga := make(GenesisAlloc, len(accountData)+len(contractData))
+func AllocFromAccountAndContract(accountData map[string]*big.Int, contractData map[string]string) (Alloc, error) {
+	ga := make(Alloc, len(accountData)+len(contractData))
 
 	for address, balance := range accountData {
-		ga[common.HexToAddress(address)] = GenesisAccount{Balance: balance}
+		ga[common.HexToAddress(address)] = Account{Balance: balance}
 	}
 	for address, code := range contractData {
-		ga[common.HexToAddress(address)] = GenesisAccount{Code: common.Hex2Bytes(code), Balance: ToCell(100)}
+		ga[common.HexToAddress(address)] = Account{Code: common.Hex2Bytes(code), Balance: ToCell(100)}
 	}
 	return ga, nil
 }
@@ -331,7 +318,7 @@ func ToCell(amount int64) *big.Int {
 	return cell
 }
 
-func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*GenesisValidator) error {
+func setupGenesisStaking(staking *staking.SmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*Validator) error {
 	if err := staking.CreateStakingContract(statedb, header, cfg); err != nil {
 		return err
 	}
@@ -341,7 +328,7 @@ func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB
 	}
 
 	for _, val := range validators {
-		if err := staking.CreateGenesisValidator(statedb, header, nil, cfg, common.HexToAddress(val.Address), int64(val.Power)); err != nil {
+		if err := staking.CreateGenesisValidator(statedb, header, nil, cfg, common.HexToAddress(val.Address), val.Power); err != nil {
 			return fmt.Errorf("apply create validator err: %s", err)
 		}
 	}

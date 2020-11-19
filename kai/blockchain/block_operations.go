@@ -22,43 +22,34 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/kai"
+	"github.com/kardiachain/go-kardiamain/kai/staking"
 	"github.com/kardiachain/go-kardiamain/kvm"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-//-----------------------------------------------------------------------------
-// evidence pool
-
-// EvidencePool defines the EvidencePool interface used by the ConsensusState.
-// Get/Set/Commit
-type EvidencePool interface {
-	PendingEvidence(int64) ([]types.Evidence, int64)
-}
-
-// BlockOperations TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
+// BlockOperations
 // These files should be consolidated in the future.
-type BlockOperations struct {
+type blockOperations struct {
 	logger log.Logger
 
 	mtx sync.RWMutex
 
-	blockchain *BlockChain
-	txPool     *tx_pool.TxPool
-	evPool     EvidencePool
+	blockchain Blockchain
+	txPool     kai.TxPool
+	evPool     kai.EvidencePool
 	height     uint64
-	staking    *staking.StakingSmcUtil
+	staking    *staking.SmcUtil
 }
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
-func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool, evpool EvidencePool, staking *staking.StakingSmcUtil) *BlockOperations {
-	return &BlockOperations{
+func NewBlockOperations(logger log.Logger, blockchain Blockchain, txPool kai.TxPool, evpool kai.EvidencePool, staking *staking.SmcUtil) kai.BlockOperations {
+	return &blockOperations{
 		logger:     logger,
 		blockchain: blockchain,
 		txPool:     txPool,
@@ -69,12 +60,12 @@ func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_po
 }
 
 // Height returns latest height of blockchain.
-func (bo *BlockOperations) Height() uint64 {
+func (bo *blockOperations) Height() uint64 {
 	return bo.height
 }
 
 // CreateProposalBlock creates a new proposal block with all current pending txs in pool.
-func (bo *BlockOperations) CreateProposalBlock(
+func (bo *blockOperations) CreateProposalBlock(
 	height uint64, lastState cstate.LastestBlockState,
 	proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all transactions in pending pools and execute them to get new account states.
@@ -110,7 +101,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
-func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
+func (bo *blockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
 
 	vals, root, blockInfo, _, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {
@@ -126,7 +117,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 
 // CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
 // Proposer and validators should already commit the block txs, so this function prevents double tx execution.
-func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
+func (bo *blockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
 	root := kvstore.ReadAppHash(bo.blockchain.DB().DB(), block.Height())
 	if !bo.blockchain.CheckCommittedStateRoot(root) {
 		bo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
@@ -141,7 +132,7 @@ func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastComm
 //             If all the nodes restart after committing a block,
 //             we need this to reload the precommits to catch-up nodes to the
 //             most recent height.  Otherwise they'd stall at H-1.
-func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
+func (bo *blockOperations) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	if block == nil {
 		common.PanicSanity("BlockOperations try to save a nil block")
 	}
@@ -167,30 +158,30 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartS
 
 // LoadBlock returns the Block for the given height.
 // If no block is found for the given height, it returns nil.
-func (bo *BlockOperations) LoadBlock(height uint64) *types.Block {
+func (bo *blockOperations) LoadBlock(height uint64) *types.Block {
 	return bo.blockchain.GetBlockByHeight(height)
 }
 
 // LoadBlockPart load block part
-func (bo *BlockOperations) LoadBlockPart(height uint64, index int) *types.Part {
+func (bo *blockOperations) LoadBlockPart(height uint64, index int) *types.Part {
 	return bo.blockchain.LoadBlockPart(height, index)
 }
 
 // LoadBlockMeta load block meta
-func (bo *BlockOperations) LoadBlockMeta(height uint64) *types.BlockMeta {
+func (bo *blockOperations) LoadBlockMeta(height uint64) *types.BlockMeta {
 	return bo.blockchain.LoadBlockMeta(height)
 }
 
 // LoadBlockCommit returns the Commit for the given height.
 // If no block is found for the given height, it returns nil.
-func (bo *BlockOperations) LoadBlockCommit(height uint64) *types.Commit {
+func (bo *blockOperations) LoadBlockCommit(height uint64) *types.Commit {
 	return bo.blockchain.LoadBlockCommit(height)
 }
 
 // LoadSeenCommit returns the locally seen Commit for the given height.
 // This is useful when we've seen a commit, but there has not yet been
 // a new block at `height + 1` that includes this commit in its block.LastCommit.
-func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
+func (bo *blockOperations) LoadSeenCommit(height uint64) *types.Commit {
 	commit := bo.blockchain.LoadSeenCommit(height)
 	if commit == nil {
 		bo.logger.Error("LoadSeenCommit return nothing", "height", height)
@@ -201,7 +192,7 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 
 // newHeader creates new block header from given data.
 // Some header fields are not ready at this point.
-func (bo *BlockOperations) newHeader(time time.Time, height uint64, numTxs uint64, blockID types.BlockID,
+func (bo *blockOperations) newHeader(time time.Time, height uint64, numTxs uint64, blockID types.BlockID,
 	proposer common.Address, validatorsHash common.Hash, nextValidatorHash common.Hash, appHash common.Hash) *types.Header {
 	return &types.Header{
 		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
@@ -217,7 +208,7 @@ func (bo *BlockOperations) newHeader(time time.Time, height uint64, numTxs uint6
 }
 
 // newBlock creates new block from given data.
-func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, commit *types.Commit, ev []types.Evidence) *types.Block {
+func (bo *blockOperations) newBlock(header *types.Header, txs []*types.Transaction, commit *types.Commit, ev []types.Evidence) *types.Block {
 	block := types.NewBlock(header, txs, commit, ev)
 
 	// TODO(@lew): Fill the missing header info: ConsensusHash, LastResultHash.
@@ -226,7 +217,7 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 }
 
 // commitTransactions executes the given transactions and commits the result stateDB to disk.
-func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *types.Header,
+func (bo *blockOperations) commitTransactions(txs types.Transactions, header *types.Header,
 	lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, *types.BlockInfo,
 	types.Transactions, error) {
 	var (
@@ -312,6 +303,6 @@ LOOP:
 }
 
 // saveReceipts saves receipts of block transactions to storage.
-func (bo *BlockOperations) saveBlockInfo(blockInfo *types.BlockInfo, block *types.Block) {
+func (bo *blockOperations) saveBlockInfo(blockInfo *types.BlockInfo, block *types.Block) {
 	bo.blockchain.WriteBlockInfo(block, blockInfo)
 }

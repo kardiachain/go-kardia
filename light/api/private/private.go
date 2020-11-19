@@ -16,26 +16,39 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package public
+package private
 
 //
-//// PublicKaiAPI provides APIs to access Kai full node-related
-//// information.
-//type PublicKaiAPI struct {
-//	kaiService *KardiaService
-//}
+//import (
+//	"context"
+//	"encoding/hex"
+//	"errors"
+//	"fmt"
+//	"time"
 //
-//// NewPublicKaiAPI creates a new Kai protocol API for full nodes.
-//func NewPublicKaiAPI(kaiService *KardiaService) *PublicKaiAPI {
-//	return &PublicKaiAPI{kaiService}
-//}
+//	"github.com/ethereum/go-ethereum/params"
+//
+//	"github.com/kardiachain/go-kardiamain/configs"
+//	"github.com/kardiachain/go-kardiamain/kvm"
+//	"github.com/kardiachain/go-kardiamain/lib/abi"
+//	"github.com/kardiachain/go-kardiamain/lib/common"
+//	"github.com/kardiachain/go-kardiamain/lib/log"
+//	"github.com/kardiachain/go-kardiamain/lib/rlp"
+//	"github.com/kardiachain/go-kardiamain/light/api"
+//	"github.com/kardiachain/go-kardiamain/light/api/public"
+//	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
+//	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
+//	"github.com/kardiachain/go-kardiamain/rpc"
+//	"github.com/kardiachain/go-kardiamain/types"
+//)
+//
 //
 //// NewBlockHeaderJSON creates a new BlockHeader JSON data from Block
-//func NewBlockHeaderJSON(header *types.Header, blockInfo *types.BlockInfo) *BlockHeaderJSON {
+//func NewBlockHeaderJSON(header *types.Header, blockInfo *types.BlockInfo) *api.BlockHeaderJSON {
 //	if header == nil {
 //		return nil
 //	}
-//	return &BlockHeaderJSON{
+//	return &api.BlockHeaderJSON{
 //		Hash:              header.Hash().Hex(),
 //		Height:            header.Height,
 //		LastBlock:         header.LastBlockID.Hash.Hex(),
@@ -56,7 +69,7 @@ package public
 //}
 //
 //// NewBlockJSON creates a new Block JSON data from Block
-//func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
+//func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *api.BlockJSON {
 //	txs := block.Transactions()
 //	transactions := make([]*PublicTransaction, 0, len(txs))
 //
@@ -77,7 +90,7 @@ package public
 //		transactions = append(transactions, tx)
 //	}
 //
-//	return &BlockJSON{
+//	return &api.BlockJSON{
 //		Hash:              block.Hash().Hex(),
 //		Height:            block.Height(),
 //		LastBlock:         block.Header().LastBlockID.Hash.Hex(),
@@ -98,106 +111,12 @@ package public
 //	}
 //}
 //
-//// BlockNumber returns current block number
-//func (s *PublicKaiAPI) BlockNumber() uint64 {
-//	return s.kaiService.blockchain.CurrentBlock().Height()
-//}
-//
-//// GetHeaderBlockByNumber returns blockHeader by block number
-//func (s *PublicKaiAPI) GetBlockHeaderByNumber(ctx context.Context, blockNumber rpc.BlockNumber) *BlockHeaderJSON {
-//	header := s.kaiService.HeaderByNumber(ctx, blockNumber)
-//	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
-//	return NewBlockHeaderJSON(header, blockInfo)
-//}
-//
-//// GetBlockHeaderByHash returns block by block hash
-//func (s *PublicKaiAPI) GetBlockHeaderByHash(ctx context.Context, blockHash string) *BlockHeaderJSON {
-//	header := s.kaiService.HeaderByHash(ctx, common.HexToHash(blockHash))
-//	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
-//	return NewBlockHeaderJSON(header, blockInfo)
-//}
-//
-//// GetBlockByNumber returns block by block number
-//func (s *PublicKaiAPI) GetBlockByNumber(ctx context.Context, blockNumber rpc.BlockNumber) *BlockJSON {
-//	block := s.kaiService.BlockByNumber(ctx, blockNumber)
-//	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
-//	return NewBlockJSON(block, blockInfo)
-//}
-//
-//// GetBlockByHash returns block by block hash
-//func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *BlockJSON {
-//	block := s.kaiService.BlockByHash(ctx, common.HexToHash(blockHash))
-//	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
-//	return NewBlockJSON(block, blockInfo)
-//}
-//
-//// Validator returns node's validator, nil if current node is not a validator
-//// TODO @trinhdn: get validators' info from staking smart contract
-//func (s *PublicKaiAPI) Validator() map[string]interface{} {
-//	return nil
-//}
-//
-//// Validators returns a list of validator
-//// TODO @trinhdn: get validators' info from staking smart contract
-//func (s *PublicKaiAPI) Validators() []map[string]interface{} {
-//	return nil
-//}
-//
-//type PublicTransaction struct {
-//	BlockHash        string       `json:"blockHash"`
-//	BlockNumber      uint64       `json:"blockNumber"`
-//	Time             time.Time    `json:"time"`
-//	From             string       `json:"from"`
-//	Gas              uint64       `json:"gas"`
-//	GasPrice         uint64       `json:"gasPrice"`
-//	GasUsed          uint64       `json:"gasUsed,omitempty"`
-//	ContractAddress  string       `json:"contractAddress,omitempty"`
-//	Hash             string       `json:"hash"`
-//	Input            string       `json:"input"`
-//	Nonce            uint64       `json:"nonce"`
-//	To               string       `json:"to"`
-//	TransactionIndex uint         `json:"transactionIndex"`
-//	Value            string       `json:"value"`
-//	Logs             []Log        `json:"logs,omitempty"`
-//	LogsBloom        types.Bloom  `json:"logsBloom,omitempty"`
-//	Root             common.Bytes `json:"root,omitempty"`
-//	Status           uint         `json:"status"`
-//}
-//
-//type Log struct {
-//	Address     string   `json:"address"`
-//	Topics      []string `json:"topics"`
-//	Data        string   `json:"data"`
-//	BlockHeight uint64   `json:"blockHeight"`
-//	TxHash      string   `json:"transactionHash"`
-//	TxIndex     uint     `json:"transactionIndex"`
-//	BlockHash   string   `json:"blockHash"`
-//	Index       uint     `json:"logIndex"`
-//	Removed     bool     `json:"removed"`
-//}
-//
-//type PublicReceipt struct {
-//	BlockHash         string       `json:"blockHash"`
-//	BlockHeight       uint64       `json:"blockHeight"`
-//	TransactionHash   string       `json:"transactionHash"`
-//	TransactionIndex  uint64       `json:"transactionIndex"`
-//	From              string       `json:"from"`
-//	To                string       `json:"to"`
-//	GasUsed           uint64       `json:"gasUsed"`
-//	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
-//	ContractAddress   string       `json:"contractAddress"`
-//	Logs              []Log        `json:"logs"`
-//	LogsBloom         types.Bloom  `json:"logsBloom"`
-//	Root              common.Bytes `json:"root"`
-//	Status            uint         `json:"status"`
-//}
-//
 //// NewPublicTransaction returns a transaction that will serialize to the RPC
 //// representation, with the given location metadata set (if available).
-//func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64) *PublicTransaction {
+//func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64) *api.PublicTransaction {
 //	from, _ := types.Sender(types.FrontierSigner{}, tx)
 //
-//	result := &PublicTransaction{
+//	result := &api.PublicTransaction{
 //		From:     from.Hex(),
 //		Gas:      tx.Gas(),
 //		GasPrice: tx.GasPrice().Uint64(),
@@ -262,7 +181,7 @@ package public
 //// KardiaCall execute a contract method call only against
 //// state on the local node. No tx is generated and submitted
 //// onto the blockchain
-//func (s *PublicKaiAPI) KardiaCall(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
+//func (s *public.PublicKaiAPI) KardiaCall(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
 //	result, err := s.doCall(ctx, args, blockNrOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall*time.Second)
 //	if err != nil {
 //		return nil, err
@@ -386,9 +305,57 @@ package public
 //	return getPublicReceipt(*receipt, tx, blockHash, height, index), nil
 //}
 //
+//// PublicAccountAPI provides APIs support getting account's info
+//type PublicAccountAPI struct {
+//	kaiService *KardiaService
+//}
+//
+//// NewPublicAccountAPI is a constructor that init new PublicAccountAPI
+//func NewPublicAccountAPI(kaiService *KardiaService) *PublicAccountAPI {
+//	return &PublicAccountAPI{kaiService}
+//}
+//
+//// Balance returns address's balance
+//func (a *PublicAccountAPI) Balance(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (string, error) {
+//	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+//	if state == nil || err != nil {
+//		return "", err
+//	}
+//	return state.GetBalance(address).String(), nil
+//}
+//
+//// Nonce return address's nonce
+//func (a *PublicAccountAPI) Nonce(address string) (uint64, error) {
+//	addr := common.HexToAddress(address)
+//	nonce := a.kaiService.txPool.Nonce(addr)
+//	return nonce, nil
+//}
+//
+//// GetCode returns the code stored at the given address in the state for the given block number.
+//func (a *PublicAccountAPI) GetCode(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
+//	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+//	if state == nil || err != nil {
+//		return nil, err
+//	}
+//	code := state.GetCode(address)
+//	return code, state.Error()
+//}
+//
+//// GetStorageAt returns the storage from the state at the given address, key and
+//// block number. The rpc.LatestBlockNumber and rpc.PendingBlockNumber meta block
+//// numbers are also allowed.
+//func (a *PublicAccountAPI) GetStorageAt(ctx context.Context, address common.Address, key string, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
+//	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+//	if state == nil || err != nil {
+//		return nil, err
+//	}
+//	res := state.GetState(address, common.HexToHash(key))
+//	return res[:], state.Error()
+//}
+//
 //// doCall is an interface to make smart contract call against the state of local node
 //// No tx is generated or submitted to the blockchain
-//func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash, vmCfg kvm.Config, timeout time.Duration) (*kvm.ExecutionResult, error) {
+//func (s *public.PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash, vmCfg kvm.Config, timeout time.Duration) (*kvm.ExecutionResult, error) {
 //	defer func(start time.Time) { log.Debug("Executing KVM call finished", "runtime", time.Since(start)) }(time.Now())
 //
 //	state, header, err := s.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
@@ -445,7 +412,7 @@ package public
 //
 //// EstimateGas returns an estimate of the amount of gas needed to execute the
 //// given transaction against the current pending block.
-//func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash) (uint64, error) {
+//func (s *public.PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash) (uint64, error) {
 //	// Binary search the gas requirement, as it may be higher than the amount used
 //	var (
 //		lo  = configs.TxGas - 1
