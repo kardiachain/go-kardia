@@ -3,8 +3,8 @@
 package mocks
 
 import (
+	genesis "github.com/kardiachain/go-kardiamain/kai/genesis"
 	cstate "github.com/kardiachain/go-kardiamain/kai/state/cstate"
-	genesis "github.com/kardiachain/go-kardiamain/mainchain/genesis"
 
 	go_kardiamaintypes "github.com/kardiachain/go-kardiamain/types"
 

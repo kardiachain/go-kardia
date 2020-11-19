@@ -27,13 +27,13 @@ import (
 	"github.com/kardiachain/go-kardiamain/dualnode/utils"
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/events"
+	"github.com/kardiachain/go-kardiamain/kai/tx_pool"
 	"github.com/kardiachain/go-kardiamain/ksml"
 	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -47,13 +47,13 @@ type KardiaProxy struct {
 	logger log.Logger
 
 	// Kardia's mainchain stuffs.
-	kardiaBc     base.BaseBlockChain
-	txPool       *tx_pool.TxPool
+	kardiaBc     base.BlockChain
+	txPool       tx_pool.TxPool
 	chainHeadCh  chan events.ChainHeadEvent // Used to subscribe for new blocks.
 	chainHeadSub event.Subscription
 
 	// Dual blockchain related fields
-	dualBc    base.BaseBlockChain
+	dualBc    base.BlockChain
 	eventPool *event_pool.Pool
 
 	// The external blockchain that this dual node's interacting with.
@@ -81,7 +81,7 @@ type CompleteRequestInput struct {
 	Pair string
 }
 
-func (p *KardiaProxy) Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.Pool,
+func (p *KardiaProxy) Init(kardiaBc base.BlockChain, txPool tx_pool.TxPool, dualBc base.BlockChain, dualEventPool *event_pool.Pool,
 	publishedEndpoint, subscribedEndpoint *string) error {
 	// Create a specific logger for Kardia Proxy.
 	logger := log.New()
@@ -125,17 +125,17 @@ func (p *KardiaProxy) DualEventPool() *event_pool.Pool {
 }
 
 // KardiaTxPool returns Kardia Blockchain's tx pool
-func (p *KardiaProxy) KardiaTxPool() *tx_pool.TxPool {
+func (p *KardiaProxy) KardiaTxPool() tx_pool.TxPool {
 	return p.txPool
 }
 
 // DualBlockChain returns dual blockchain
-func (p *KardiaProxy) DualBlockChain() base.BaseBlockChain {
+func (p *KardiaProxy) DualBlockChain() base.BlockChain {
 	return p.dualBc
 }
 
 // KardiaBlockChain returns kardia blockchain
-func (p *KardiaProxy) KardiaBlockChain() base.BaseBlockChain {
+func (p *KardiaProxy) KardiaBlockChain() base.BlockChain {
 	return p.kardiaBc
 }
 

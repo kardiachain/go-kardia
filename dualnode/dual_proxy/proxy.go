@@ -19,32 +19,33 @@
 package dual_proxy
 
 import (
+	"sync"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/dualnode/utils"
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/events"
+	"github.com/kardiachain/go-kardiamain/kai/tx_pool"
 	"github.com/kardiachain/go-kardiamain/ksml"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/types"
-	"sync"
 )
 
 type Proxy struct {
 
 	// name is name of proxy, or type that proxy connects to (eg: NEO, TRX, ETH, KARDIA)
-	name   string
+	name string
 
 	logger log.Logger // Logger for proxy service
 
-	kardiaBc   base.BaseBlockChain
-	txPool     *tx_pool.TxPool
+	kardiaBc base.BlockChain
+	txPool   tx_pool.TxPool
 
 	// Dual blockchain related fields
-	dualBc    base.BaseBlockChain
+	dualBc    base.BlockChain
 	eventPool *event_pool.Pool // Event pool of DUAL service.
 
 	// The internal blockchain (i.e. Kardia's mainchain) that this dual node's interacting with.
@@ -55,7 +56,7 @@ type Proxy struct {
 	chainHeadSub event.Subscription
 
 	// Queue configuration
-	publishedEndpoint string
+	publishedEndpoint  string
 	subscribedEndpoint string
 
 	mtx sync.Mutex
@@ -86,17 +87,17 @@ func (p *Proxy) DualEventPool() *event_pool.Pool {
 }
 
 // DualBlockChain returns dual blockchain
-func (p *Proxy) DualBlockChain() base.BaseBlockChain {
+func (p *Proxy) DualBlockChain() base.BlockChain {
 	return p.dualBc
 }
 
 // KardiaBlockChain returns kardia blockchain
-func (p *Proxy) KardiaBlockChain() base.BaseBlockChain {
+func (p *Proxy) KardiaBlockChain() base.BlockChain {
 	return p.kardiaBc
 }
 
 // KardiaTxPool returns Kardia Blockchain's tx pool
-func (p *Proxy) KardiaTxPool() *tx_pool.TxPool {
+func (p *Proxy) KardiaTxPool() tx_pool.TxPool {
 	return p.txPool
 }
 
@@ -110,9 +111,9 @@ func (p *Proxy) Name() string {
 
 func NewProxy(
 	serviceName string,
-	kardiaBc base.BaseBlockChain,
-	txPool *tx_pool.TxPool,
-	dualBc base.BaseBlockChain,
+	kardiaBc base.BlockChain,
+	txPool tx_pool.TxPool,
+	dualBc base.BlockChain,
 	dualEventPool *event_pool.Pool,
 	publishedEndpoint string,
 	subscribedEndpoint string,
@@ -123,12 +124,12 @@ func NewProxy(
 	logger.AddTag(serviceName)
 
 	processor := &Proxy{
-		name:       serviceName,
-		logger:     logger,
-		kardiaBc:   kardiaBc,
-		txPool:     txPool,
-		dualBc:     dualBc,
-		eventPool:  dualEventPool,
+		name:        serviceName,
+		logger:      logger,
+		kardiaBc:    kardiaBc,
+		txPool:      txPool,
+		dualBc:      dualBc,
+		eventPool:   dualEventPool,
 		chainHeadCh: make(chan events.ChainHeadEvent, 5),
 	}
 

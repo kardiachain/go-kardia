@@ -22,18 +22,42 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/kai"
 	"github.com/kardiachain/go-kardiamain/kai/staking"
 	"github.com/kardiachain/go-kardiamain/kvm"
 
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardiamain/kai/tx_pool"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-// BlockOperations
+//-----------------------------------------------------------------------------
+// evidence pool
+
+// EvidencePool defines the EvidencePool interface used by the ConsensusState.
+// Get/Set/Commit
+type EvidencePool interface {
+	PendingEvidence(int64) ([]types.Evidence, int64)
+}
+
+type BlockOperations interface {
+	Height() uint64
+	CreateProposalBlock(
+		height uint64, lastState cstate.LastestBlockState,
+		proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet)
+	CommitAndValidateBlockTxs(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error)
+	CommitBlockTxsIfNotFound(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error)
+	SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit)
+	LoadBlock(height uint64) *types.Block
+	LoadBlockPart(height uint64, index int) *types.Part
+	LoadBlockMeta(height uint64) *types.BlockMeta
+	LoadBlockCommit(height uint64) *types.Commit
+	LoadSeenCommit(height uint64) *types.Commit
+}
+
+// BlockOperations TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
 // These files should be consolidated in the future.
 type blockOperations struct {
 	logger log.Logger
@@ -41,14 +65,14 @@ type blockOperations struct {
 	mtx sync.RWMutex
 
 	blockchain Blockchain
-	txPool     kai.TxPool
-	evPool     kai.EvidencePool
+	txPool     tx_pool.TxPool
+	evPool     EvidencePool
 	height     uint64
 	staking    *staking.SmcUtil
 }
 
-// NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
-func NewBlockOperations(logger log.Logger, blockchain Blockchain, txPool kai.TxPool, evpool kai.EvidencePool, staking *staking.SmcUtil) kai.BlockOperations {
+// NewblockOperations returns a new blockOperations with reference to the latest state of blockchain.
+func NewBlockOperations(logger log.Logger, blockchain Blockchain, txPool tx_pool.TxPool, evpool EvidencePool, staking *staking.SmcUtil) BlockOperations {
 	return &blockOperations{
 		logger:     logger,
 		blockchain: blockchain,
@@ -134,20 +158,20 @@ func (bo *blockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastComm
 //             most recent height.  Otherwise they'd stall at H-1.
 func (bo *blockOperations) SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	if block == nil {
-		common.PanicSanity("BlockOperations try to save a nil block")
+		common.PanicSanity("blockOperations try to save a nil block")
 	}
 	height := block.Height()
 	if g, w := height, bo.Height()+1; g != w {
-		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", w, g))
+		common.PanicSanity(common.Fmt("blockOperations can only save contiguous blocks. Wanted %v, got %v", w, g))
 	}
 
 	// Save block
 	if height != bo.Height()+1 {
-		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", bo.Height()+1, height))
+		common.PanicSanity(common.Fmt("blockOperations can only save contiguous blocks. Wanted %v, got %v", bo.Height()+1, height))
 	}
 
 	if !blockParts.IsComplete() {
-		panic("BlockOperations can only save complete block part sets")
+		panic("blockOperations can only save complete block part sets")
 	}
 	bo.blockchain.SaveBlock(block, blockParts, seenCommit)
 

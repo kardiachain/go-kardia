@@ -29,8 +29,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/kai/tx_pool"
 	"github.com/kardiachain/go-kardiamain/lib/metrics"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 

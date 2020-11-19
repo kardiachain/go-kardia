@@ -19,43 +19,58 @@
 package blockchain
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
 
 	"github.com/kardiachain/go-kardiamain/configs"
+	permissioned2 "github.com/kardiachain/go-kardiamain/dualnode/permissioned"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 
 	"github.com/kardiachain/go-kardiamain/kvm"
 
 	lru "github.com/hashicorp/golang-lru"
+
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-const (
-	blockCacheLimit = 256
-
-	maxFutureBlocks     = 256
-	maxTimeFutureBlocks = 30
-)
-
-var (
-	ErrNoGenesis = errors.New("Genesis not found in chain")
-)
+/*
+	Processor() *StateProcessor
+	LoadBlockMeta(height uint64) *types.BlockMeta
+	LoadBlockCommit(height uint64) *types.Commit
+	InsertHeadBlock(block *types.Block)
+	CheckCommittedStateRoot(root common.Hash) bool
+	LoadSeenCommit(height uint64) *types.Commit
+	SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit)
+	LoadBlockPart(height uint64, index int) *types.Part
+*/
+type DualBlockChain interface {
+	Blockchain
+	Reset() error
+	ResetWithGenesisBlock(genesis *types.Block) error
+	GetHeaderByHash(hash common.Hash) *types.Header
+	SetHead(head uint64) error
+	WriteBlockWithoutState(block *types.Block) error
+	WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) error
+	WriteBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit)
+	StoreHash(hash *common.Hash)
+	CheckHash(hash *common.Hash) bool
+	StoreTxHash(hash *common.Hash)
+	CheckTxHash(hash *common.Hash) bool
+}
 
 // A blockchain to store events from external blockchains (e.g. Ether, Neo, etc.) or internal Karida's blockchain and
 // associating transactions to be submitted to other blockchains.
-type DualBlockChain struct {
-	logger log.Logger
-
+type dualBlockChain struct {
+	// Try to reuse function of blockchain if able
+	blockChain
+	logger      log.Logger
 	chainConfig *configs.ChainConfig // Chain & network configuration
 
 	db types.StoreDB // Kai's database
@@ -80,34 +95,34 @@ type DualBlockChain struct {
 	isPrivate bool
 
 	// permissioned is used to call permissioned smartcontract to check whether a node has permission to access chain or not
-	permissioned *permissioned.PermissionSmcUtil
+	permissioned *permissioned2.PermissionSmcUtil
 }
 
 // IsPrivate returns whether a blockchain is private or not
-func (dbc *DualBlockChain) IsPrivate() bool {
+func (dbc *dualBlockChain) IsPrivate() bool {
 	return dbc.isPrivate
 }
 
 // HasPermission return true if peer has permission otherwise false
-func (dbc *DualBlockChain) HasPermission(peer *p2p.Peer) bool {
+func (dbc *dualBlockChain) HasPermission(peer *p2p.Peer) bool {
 
 	return true
 }
 
 // Genesis retrieves the chain's genesis block.
-func (dbc *DualBlockChain) Genesis() *types.Block {
+func (dbc *dualBlockChain) Genesis() *types.Block {
 	return dbc.genesisBlock
 }
 
 // CurrentHeader retrieves the current head header of the canonical chain. The
 // header is retrieved from the HeaderChain's internal cache.
-func (dbc *DualBlockChain) CurrentHeader() *types.Header {
+func (dbc *dualBlockChain) CurrentHeader() *types.Header {
 	return dbc.hc.CurrentHeader()
 }
 
 // CurrentBlock retrieves the current head block of the canonical chain. The
 // block is retrieved from the blockchain's internal cache.
-func (dbc *DualBlockChain) CurrentBlock() *types.Block {
+func (dbc *dualBlockChain) CurrentBlock() *types.Block {
 	return dbc.currentBlock.Load().(*types.Block)
 }
 
@@ -115,20 +130,20 @@ func (dbc *DualBlockChain) CurrentBlock() *types.Block {
 //	return dbc.processor
 //}
 
-func (dbc *DualBlockChain) DB() types.StoreDB {
+func (dbc *dualBlockChain) DB() types.StoreDB {
 	return dbc.db
 }
 
 // Config retrieves the blockchain's chain configuration.
-func (dbc *DualBlockChain) Config() *configs.ChainConfig { return dbc.chainConfig }
+func (dbc *dualBlockChain) Config() *configs.ChainConfig { return dbc.chainConfig }
 
-// NewBlockChain returns a fully initialised block chain using information
+// NewDualBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.ChainConfig, isPrivate bool) (*DualBlockChain, error) {
+func NewDualBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.ChainConfig, isPrivate bool) (DualBlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 
-	dbc := &DualBlockChain{
+	dbc := &dualBlockChain{
 		logger:       logger,
 		chainConfig:  chainConfig,
 		db:           db,
@@ -140,7 +155,7 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 	}
 	var err error
 
-	dbc.hc, err = NewHeaderChain(db, chainConfig)
+	dbc.hc, err = NewDualHeaderChain(db, chainConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +168,7 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 		return nil, err
 	}
 
-	dbc.permissioned, err = permissioned.NewSmcPermissionUtil(dbc)
+	dbc.permissioned, err = permissioned2.NewSmcPermissionUtil(dbc)
 	if err != nil {
 		return nil, err
 	}
@@ -166,7 +181,7 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 
 // GetBlockByNumber retrieves a block from the database by number, caching it
 // (associated with its hash) if found.
-func (dbc *DualBlockChain) GetBlockByHeight(height uint64) *types.Block {
+func (dbc *dualBlockChain) GetBlockByHeight(height uint64) *types.Block {
 	hash := dbc.db.ReadCanonicalHash(height)
 	if hash == (common.Hash{}) {
 		return nil
@@ -174,7 +189,7 @@ func (dbc *DualBlockChain) GetBlockByHeight(height uint64) *types.Block {
 	return dbc.GetBlock(hash, height)
 }
 
-func (bc *DualBlockChain) LoadBlockPart(height uint64, index int) *types.Part {
+func (bc *dualBlockChain) LoadBlockPart(height uint64, index int) *types.Part {
 	hash := bc.db.ReadCanonicalHash(height)
 	part := bc.db.ReadBlockPart(hash, height, index)
 	if hash == (common.Hash{}) {
@@ -183,23 +198,23 @@ func (bc *DualBlockChain) LoadBlockPart(height uint64, index int) *types.Part {
 	return part
 }
 
-func (bc *DualBlockChain) LoadBlockCommit(height uint64) *types.Commit {
+func (bc *dualBlockChain) LoadBlockCommit(height uint64) *types.Commit {
 	return bc.db.ReadCommit(height)
 }
 
-func (bc *DualBlockChain) LoadSeenCommit(height uint64) *types.Commit {
+func (bc *dualBlockChain) LoadSeenCommit(height uint64) *types.Commit {
 	return bc.db.ReadSeenCommit(height)
 }
 
 //
-func (bc *DualBlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
+func (bc *dualBlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
 	hash := bc.db.ReadCanonicalHash(height)
 	return bc.db.ReadBlockMeta(hash, height)
 }
 
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
-func (dbc *DualBlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
+func (dbc *dualBlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	// Short circuit if the block's already in the cache, retrieve otherwise
 	if block, ok := dbc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
@@ -215,35 +230,35 @@ func (dbc *DualBlockChain) GetBlock(hash common.Hash, number uint64) *types.Bloc
 
 // GetHeader retrieves a block header from the database by hash and height,
 // caching it if found.
-func (dbc *DualBlockChain) GetHeader(hash common.Hash, height uint64) *types.Header {
+func (dbc *dualBlockChain) GetHeader(hash common.Hash, height uint64) *types.Header {
 	return dbc.hc.GetHeader(hash, height)
 }
 
 // State returns a new mutatable state at head block.
-func (dbc *DualBlockChain) State() (*state.StateDB, error) {
+func (dbc *dualBlockChain) State() (*state.StateDB, error) {
 	return dbc.StateAt(dbc.CurrentBlock().Height())
 }
 
 // StateAt returns a new mutable state based on a particular point in time.
-func (dbc *DualBlockChain) StateAt(height uint64) (*state.StateDB, error) {
+func (dbc *dualBlockChain) StateAt(height uint64) (*state.StateDB, error) {
 	root := kvstore.ReadAppHash(dbc.db.DB(), height)
 	return state.New(dbc.logger, root, dbc.stateCache)
 }
 
 // CheckCommittedStateRoot returns true if the given state root is already committed and existed on trie database.
-func (dbc *DualBlockChain) CheckCommittedStateRoot(root common.Hash) bool {
+func (dbc *dualBlockChain) CheckCommittedStateRoot(root common.Hash) bool {
 	_, err := dbc.stateCache.OpenTrie(root)
 	return err == nil
 }
 
 // SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
-func (dbc *DualBlockChain) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription {
+func (dbc *dualBlockChain) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription {
 	return dbc.scope.Track(dbc.chainHeadFeed.Subscribe(ch))
 }
 
 // loadLastState loads the last known chain state from the database. This method
 // assumes that the chain manager mutex is held.
-func (dbc *DualBlockChain) loadLastState() error {
+func (dbc *dualBlockChain) loadLastState() error {
 	// Restore the last known head block
 	head := dbc.db.ReadHeadBlockHash()
 	if head == (common.Hash{}) {
@@ -286,13 +301,13 @@ func (dbc *DualBlockChain) loadLastState() error {
 }
 
 // Reset purges the entire blockchain, restoring it to its genesis state.
-func (dbc *DualBlockChain) Reset() error {
+func (dbc *dualBlockChain) Reset() error {
 	return dbc.ResetWithGenesisBlock(dbc.genesisBlock)
 }
 
 // ResetWithGenesisBlock purges the entire blockchain, restoring it to the
 // specified genesis state.
-func (dbc *DualBlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
+func (dbc *dualBlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 	// Dump the entire block chain and purge the caches
 	if err := dbc.SetHead(0); err != nil {
 		return err
@@ -317,7 +332,7 @@ func (dbc *DualBlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 //
 // This method only rolls back the current block. The current header and current
 // fast block are left intact.
-func (dbc *DualBlockChain) repair(head **types.Block) error {
+func (dbc *dualBlockChain) repair(head **types.Block) error {
 	for {
 
 		root := kvstore.ReadAppHash(dbc.db.DB(), (*head).Height())
@@ -332,7 +347,7 @@ func (dbc *DualBlockChain) repair(head **types.Block) error {
 }
 
 // GetBlockByHash retrieves a block from the database by hash, caching it if found.
-func (dbc *DualBlockChain) GetBlockByHash(hash common.Hash) *types.Block {
+func (dbc *dualBlockChain) GetBlockByHash(hash common.Hash) *types.Block {
 	height := dbc.hc.GetBlockHeight(hash)
 	if height == nil {
 		return nil
@@ -342,7 +357,7 @@ func (dbc *DualBlockChain) GetBlockByHash(hash common.Hash) *types.Block {
 
 // GetHeaderByHash retrieves a block header from the database by hash, caching it if
 // found.
-func (dbc *DualBlockChain) GetHeaderByHash(hash common.Hash) *types.Header {
+func (dbc *dualBlockChain) GetHeaderByHash(hash common.Hash) *types.Header {
 	return dbc.hc.GetHeaderByHash(hash)
 }
 
@@ -350,7 +365,7 @@ func (dbc *DualBlockChain) GetHeaderByHash(hash common.Hash) *types.Header {
 // above the new head will be deleted and the new one set. In the case of blocks
 // though, the head may be further rewound if block bodies are missing (non-archive
 // nodes after a fast sync).
-func (dbc *DualBlockChain) SetHead(head uint64) error {
+func (dbc *dualBlockChain) SetHead(head uint64) error {
 	dbc.logger.Warn("Rewinding blockchain", "target", head)
 
 	dbc.mu.Lock()
@@ -388,7 +403,7 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 }
 
 // WriteBlockWithoutState writes only new block to database.
-func (dbc *DualBlockChain) WriteBlockWithoutState(block *types.Block) error {
+func (dbc *dualBlockChain) WriteBlockWithoutState(block *types.Block) error {
 	// Makes sure no inconsistent state is leaked during insertion
 	dbc.mu.Lock()
 	defer dbc.mu.Unlock()
@@ -409,7 +424,7 @@ func (dbc *DualBlockChain) WriteBlockWithoutState(block *types.Block) error {
 }
 
 // WriteReceipts writes the transactions receipt from execution of the transactions in the given block.
-func (dbc *DualBlockChain) WriteBlockInfo(block *types.Block, blockInfo *types.BlockInfo) {
+func (dbc *dualBlockChain) WriteBlockInfo(block *types.Block, blockInfo *types.BlockInfo) {
 	dbc.mu.Lock()
 	defer dbc.mu.Unlock()
 
@@ -417,7 +432,7 @@ func (dbc *DualBlockChain) WriteBlockInfo(block *types.Block, blockInfo *types.B
 }
 
 // WriteBlockWithState writes the block and all associated state to the database.
-func (dbc *DualBlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) error {
+func (dbc *dualBlockChain) WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) error {
 	// Makes sure no inconsistent state is leaked during insertion
 	dbc.mu.Lock()
 	defer dbc.mu.Unlock()
@@ -444,7 +459,7 @@ func (dbc *DualBlockChain) WriteBlockWithState(block *types.Block, receipts []*t
 }
 
 // CommitTrie commits trie node such as statedb forcefully to disk.
-func (dbc *DualBlockChain) CommitTrie(root common.Hash) error {
+func (dbc *dualBlockChain) CommitTrie(root common.Hash) error {
 	triedb := dbc.stateCache.TrieDB()
 	return triedb.Commit(root, false)
 }
@@ -455,7 +470,7 @@ func (dbc *DualBlockChain) CommitTrie(root common.Hash) error {
 // or if they are on a different side chain.
 //
 // Note, this function assumes that the `mu` mutex is held!
-func (dbc *DualBlockChain) insert(block *types.Block) {
+func (dbc *dualBlockChain) insert(block *types.Block) {
 	// If the block is on a side chain or an unknown one, force other heads onto it too
 	updateHeads := dbc.db.ReadCanonicalHash(block.Height()) != block.Hash()
 
@@ -470,12 +485,12 @@ func (dbc *DualBlockChain) insert(block *types.Block) {
 	}
 }
 
-func (dbc *DualBlockChain) WriteBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
+func (dbc *dualBlockChain) WriteBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit) {
 	dbc.db.WriteBlock(block, blockParts, seenCommit)
 }
 
 // Reads commit from db.
-func (dbc *DualBlockChain) ReadCommit(height uint64) *types.Commit {
+func (dbc *dualBlockChain) ReadCommit(height uint64) *types.Commit {
 	return dbc.db.ReadCommit(height)
 }
 
@@ -484,7 +499,7 @@ func (dbc *DualBlockChain) ReadCommit(height uint64) *types.Commit {
 // quickly check if a tx has been seen in the past. When the scope of this key extends beyond
 // tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
 // it under chaindb).
-func (dbc *DualBlockChain) StoreHash(hash *common.Hash) {
+func (dbc *dualBlockChain) StoreHash(hash *common.Hash) {
 	dbc.db.StoreHash(hash)
 }
 
@@ -493,7 +508,7 @@ func (dbc *DualBlockChain) StoreHash(hash *common.Hash) {
 // quickly check if a tx has been seen in the past. When the scope of this key extends beyond
 // tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
 // it under chaindb).
-func (dbc *DualBlockChain) CheckHash(hash *common.Hash) bool {
+func (dbc *dualBlockChain) CheckHash(hash *common.Hash) bool {
 	return dbc.db.CheckHash(hash)
 }
 
@@ -502,7 +517,7 @@ func (dbc *DualBlockChain) CheckHash(hash *common.Hash) bool {
 // quickly check if a tx has been seen in the past. When the scope of this key extends beyond
 // tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
 // it under chaindb).
-func (dbc *DualBlockChain) StoreTxHash(hash *common.Hash) {
+func (dbc *dualBlockChain) StoreTxHash(hash *common.Hash) {
 	dbc.db.StoreTxHash(hash)
 }
 
@@ -511,10 +526,10 @@ func (dbc *DualBlockChain) StoreTxHash(hash *common.Hash) {
 // quickly check if a tx has been seen in the past. When the scope of this key extends beyond
 // tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
 // it under chaindb).
-func (dbc *DualBlockChain) CheckTxHash(hash *common.Hash) bool {
+func (dbc *dualBlockChain) CheckTxHash(hash *common.Hash) bool {
 	return dbc.db.CheckTxHash(hash)
 }
 
-func (dbc *DualBlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
+func (dbc *dualBlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
 	return nil, fmt.Errorf("this function is not applied for dual blockchain")
 }

@@ -21,12 +21,12 @@ package service
 import (
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/consensus"
-	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
+	"github.com/kardiachain/go-kardiamain/kai/blockchain"
+	"github.com/kardiachain/go-kardiamain/kai/genesis"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -86,7 +86,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	}
 
 	// Create a new blockchain to attach to this GroupService struct
-	dualService.blockchain, err = blockchain.NewBlockChain(logger, groupDb, dualService.chainConfig, config.IsPrivate)
+	dualService.blockchain, err = blockchain.NewDualBlockChain(logger, groupDb, dualService.chainConfig, config.IsPrivate)
 	if err != nil {
 		return nil, err
 	}

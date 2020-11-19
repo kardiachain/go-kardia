@@ -23,17 +23,18 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/kai/tx_pool"
 	"github.com/kardiachain/go-kardiamain/ksml"
 	message2 "github.com/kardiachain/go-kardiamain/ksml/proto"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 
 	"github.com/golang/protobuf/jsonpb"
+	"github.com/pebbe/zmq4"
+
 	dualMsg "github.com/kardiachain/go-kardiamain/dualnode/message"
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/types"
-	"github.com/pebbe/zmq4"
 )
 
 const (
@@ -69,7 +70,7 @@ func PublishMessage(endpoint, topic string, message dualMsg.TriggerMessage) erro
 }
 
 // ExecuteKardiaSmartContract executes smart contract based on address, method and list of params
-func ExecuteKardiaSmartContract(txPool *tx_pool.TxPool, bc base.BaseBlockChain, contractAddress, methodName string, params []string) (*types.Transaction, error) {
+func ExecuteKardiaSmartContract(txPool tx_pool.TxPool, bc base.BlockChain, contractAddress, methodName string, params []string) (*types.Transaction, error) {
 	// find contractAddress, to see if it is saved in chain or not.
 	db := bc.DB()
 

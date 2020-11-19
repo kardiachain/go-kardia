@@ -22,13 +22,13 @@ package kai
 import (
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/consensus"
+	"github.com/kardiachain/go-kardiamain/kai/blockchain"
+	"github.com/kardiachain/go-kardiamain/kai/genesis"
+	"github.com/kardiachain/go-kardiamain/kai/staking"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
+	"github.com/kardiachain/go-kardiamain/kai/tx_pool"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/rpc"
 	"github.com/kardiachain/go-kardiamain/types"
@@ -60,8 +60,8 @@ type KardiaService struct {
 	kaiDb types.StoreDB // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
-	txPool     *tx_pool.TxPool
-	blockchain *blockchain.BlockChain
+	txPool     tx_pool.TxPool
+	blockchain blockchain.Blockchain
 	csManager  *consensus.ConsensusManager
 	txpoolR    *tx_pool.Reactor
 	evR        *evidence.Reactor
@@ -88,7 +88,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	kaiDb := ctx.BlockStore
 
-	staking, err := staking.NewSmcStakingnUtil()
+	staking, err := staking.NewSmcStakingUtil()
 	if err != nil {
 		return nil, err
 	}
@@ -237,6 +237,6 @@ func (s *KardiaService) APIs() []rpc.API {
 	}
 }
 
-func (s *KardiaService) TxPool() *tx_pool.TxPool            { return s.txPool }
-func (s *KardiaService) BlockChain() *blockchain.BlockChain { return s.blockchain }
-func (s *KardiaService) DB() types.StoreDB                  { return s.kaiDb }
+func (s *KardiaService) TxPool() tx_pool.TxPool            { return s.txPool }
+func (s *KardiaService) BlockChain() blockchain.Blockchain { return s.blockchain }
+func (s *KardiaService) DB() types.StoreDB                 { return s.kaiDb }

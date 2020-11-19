@@ -29,7 +29,11 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-type BaseBlockChain interface {
+/*
+
+ */
+type BlockChain interface {
+	IsPrivate() bool
 	Genesis() *types.Block
 	CurrentHeader() *types.Header
 	CurrentBlock() *types.Block
@@ -42,13 +46,9 @@ type BaseBlockChain interface {
 	ReadCommit(height uint64) *types.Commit
 	Config() *configs.ChainConfig
 	GetHeader(common.Hash, uint64) *types.Header
-	IsPrivate() bool
 	HasPermission(peer *p2p.Peer) bool
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StateAt(root uint64) (*state.StateDB, error)
 	DB() types.StoreDB
 	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error)
-}
-
-type Service interface {
 }

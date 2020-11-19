@@ -24,17 +24,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
+	"github.com/kardiachain/go-kardiamain/kai/staking"
 
 	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardiamain/kai/blockchain"
+	"github.com/kardiachain/go-kardiamain/kai/genesis"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -147,11 +147,11 @@ var pos_smc_definition = `[
 ]`
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
-	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	stakingUtil, _ := staking.NewSmcStakingUtil()
 	return genesis.SetupGenesisBlock(log.New(), db, g, stakingUtil)
 }
 
-func SetupBlockchainForTesting() (*blockchain.BlockChain, error) {
+func SetupBlockchainForTesting() (blockchain.Blockchain, error) {
 	initValue := genesis.ToCell(int64(math.Pow10(6)))
 
 	var genesisAccounts = map[string]*big.Int{

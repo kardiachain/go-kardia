@@ -23,12 +23,12 @@ import (
 	"sync/atomic"
 
 	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 
 	lru "github.com/hashicorp/golang-lru"
 
 	"github.com/kardiachain/go-kardiamain/kai/events"
-	"github.com/kardiachain/go-kardiamain/kai/permissioned"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -45,30 +45,16 @@ const (
 
 // Blockchain
 type Blockchain interface {
+	base.BlockChain
 	GetVMConfig() *kvm.Config
-	IsPrivate() bool
-	HasPermission(peer *p2p.Peer) bool
-	Genesis() *types.Block
-	CurrentHeader() *types.Header
-	CurrentBlock() *types.Block
 	Processor() *StateProcessor
-	DB() types.StoreDB
-	Config() *configs.ChainConfig
-	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
-	GetBlock(hash common.Hash, number uint64) *types.Block
-	StateAt(height uint64) (*state.StateDB, error)
 	LoadBlockMeta(height uint64) *types.BlockMeta
 	LoadBlockCommit(height uint64) *types.Commit
 	InsertHeadBlock(block *types.Block)
 	CheckCommittedStateRoot(root common.Hash) bool
 	LoadSeenCommit(height uint64) *types.Commit
 	SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit)
-	GetBlockByHeight(height uint64) *types.Block
 	LoadBlockPart(height uint64, index int) *types.Part
-	State() (*state.StateDB, error)
-	GetHeader(hash common.Hash, height uint64) *types.Header
-	CommitTrie(root common.Hash) error
-	WriteBlockInfo(block *types.Block, blockInfo *types.BlockInfo)
 }
 
 type blockChain struct {
@@ -99,9 +85,6 @@ type blockChain struct {
 
 	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
 	isPrivate bool
-
-	// permissioned is used to call permissioned smartcontract to check whether a node has permission to access chain or not
-	permissioned *permissioned.PermissionSmcUtil
 }
 
 // NewBlockChain returns a fully initialised block chain using information

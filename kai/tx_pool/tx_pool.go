@@ -37,6 +37,31 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
+type TxPool interface {
+	TxsAvailable() <-chan struct{}
+	GetBlockChain() blockchain.Blockchain
+	PendingSize() int
+	State() *state.StateDB
+	ProposeTransactions() []*types.Transaction
+	GetPendingData() []*types.Transaction
+	Stop()
+	SubscribeNewTxsEvent(ch chan<- events.NewTxsEvent) event.Subscription
+	GasPrice() *big.Int
+	SetGasPrice(price *big.Int)
+	Nonce(addr common.Address) uint64
+	Stats() (int, int)
+	Content() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
+	Pending() (map[common.Address]types.Transactions, error)
+	Locals() []common.Address
+	AddLocals(txs []*types.Transaction) []error
+	AddLocal(tx *types.Transaction) error
+	AddRemotes(txs []*types.Transaction) []error
+	AddRemotesSync(txs []*types.Transaction) []error
+	AddRemote(tx *types.Transaction) error
+	Status(hashes []common.Hash) []TxStatus
+	Get(hash common.Hash) *types.Transaction
+}
+
 // txPool contains all currently known transactions. Transactions
 // enter the pool when they are received from the network or submitted
 // locally. They exit the pool when they are included in the blockchain.
@@ -87,7 +112,7 @@ type txPoolResetRequest struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(config TxPoolConfig, chainCfg *configs.ChainConfig, chain blockchain.Blockchain) *txPool {
+func NewTxPool(config TxPoolConfig, chainCfg *configs.ChainConfig, chain blockchain.Blockchain) TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
@@ -303,7 +328,7 @@ func (pool *txPool) AddLocal(tx *types.Transaction) error {
 //
 // This method is used to add transactions from the p2p network and does not wait for pool
 // reorganization and internal event propagation.
-func (pool *txPool) AddRemotes(txs ...*types.Transaction) []error {
+func (pool *txPool) AddRemotes(txs []*types.Transaction) []error {
 	return pool.addTxs(txs, false, false)
 }
 
@@ -317,7 +342,7 @@ func (pool *txPool) AddRemotesSync(txs []*types.Transaction) []error {
 //
 // Deprecated: use AddRemotes
 func (pool *txPool) AddRemote(tx *types.Transaction) error {
-	errs := pool.AddRemotes(tx)
+	errs := pool.AddRemotes([]*types.Transaction{tx})
 	return errs[0]
 }
 

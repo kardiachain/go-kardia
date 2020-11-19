@@ -24,21 +24,22 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	message2 "github.com/kardiachain/go-kardiamain/dualnode/message"
+	"github.com/kardiachain/go-kardiamain/kai/blockchain"
+	"github.com/kardiachain/go-kardiamain/kai/genesis"
 	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardiamain/kai/staking"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardiamain/kai/tx_pool"
 	"github.com/kardiachain/go-kardiamain/ksml"
 	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/types"
 	kaiType "github.com/kardiachain/go-kardiamain/types"
-	"github.com/stretchr/testify/require"
 )
 
 type MemoryDbInfo struct{}

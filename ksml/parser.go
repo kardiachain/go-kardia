@@ -28,22 +28,23 @@ import (
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
 	"github.com/google/cel-go/common/types"
+	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
+
 	dualMsg "github.com/kardiachain/go-kardiamain/dualnode/message"
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/state"
+	"github.com/kardiachain/go-kardiamain/kai/tx_pool"
 	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 )
 
 type Parser struct {
 	ProxyName            string                                                                // name of proxy that is using parser (NEO, ETH, TRX)
 	PublishEndpoint      string                                                                // endpoint that message will be published to, in case publish action is used
 	PublishFunction      func(endpoint string, topic string, msg dualMsg.TriggerMessage) error // function is used for publish message to client chain
-	Bc                   base.BaseBlockChain                                                   // kardia blockchain
-	TxPool               *tx_pool.TxPool                                                       // kardia tx pool is used when smc:trigger is called.
+	Bc                   base.BlockChain                                                       // kardia blockchain
+	TxPool               tx_pool.TxPool                                                        // kardia tx pool is used when smc:trigger is called.
 	StateDb              *state.StateDB
 	SmartContractAddress *common.Address        // master smart contract
 	GlobalPatterns       []string               // globalPatterns is a list of actions that parser will read through
@@ -58,7 +59,7 @@ type Parser struct {
 }
 
 func NewParser(proxyName, publishedEndpoint string, publishFunction func(endpoint string, topic string, msg dualMsg.TriggerMessage) error,
-	bc base.BaseBlockChain, txPool *tx_pool.TxPool,
+	bc base.BlockChain, txPool tx_pool.TxPool,
 	smartContractAddress *common.Address, globalPatterns []string, globalMessage *message.EventMessage, canTrigger bool) *Parser {
 	stateDb := txPool.State()
 	return &Parser{

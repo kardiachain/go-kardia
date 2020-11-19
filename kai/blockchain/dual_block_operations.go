@@ -23,8 +23,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardiamain/kai/staking"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
@@ -39,14 +39,6 @@ var (
 
 //-----------------------------------------------------------------------------
 // evidence pool
-
-// EvidencePool defines the EvidencePool interface used by the ConsensusState.
-// Get/Set/Commit
-type EvidencePool interface {
-	PendingEvidence(int64) ([]types.Evidence, int64)
-}
-
-// TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
 // These files should be consolidated in the future.
 type DualBlockOperations struct {
 	logger log.Logger

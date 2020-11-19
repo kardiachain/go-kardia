@@ -31,15 +31,13 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardiamain/types"
 )
 
 type CandidateSmcUtil struct {
 	Abi             *abi.ABI
 	ContractAddress *common.Address
 	SenderAddress   *common.Address
-	Bc              *base.BaseBlockChain
+	Bc              *base.BlockChain
 	StateDB         *state.StateDB
 	PrivateKey      *ecdsa.PrivateKey
 }
@@ -53,7 +51,7 @@ type CandidateInfo struct {
 	Source     string
 }
 
-func NewCandidateSmcUtil(bc base.BaseBlockChain, key *ecdsa.PrivateKey) (*CandidateSmcUtil, error) {
+func NewCandidateSmcUtil(bc base.BlockChain, key *ecdsa.PrivateKey) (*CandidateSmcUtil, error) {
 	stateDb, err := bc.State()
 	if err != nil {
 		return nil, err
@@ -73,20 +71,21 @@ func NewCandidateSmcUtil(bc base.BaseBlockChain, key *ecdsa.PrivateKey) (*Candid
 		Bc: &bc, StateDB: stateDb, PrivateKey: key}, nil
 }
 
-// AddRequest returns a tx to add a request to request list of private chain candidate smart contract
-func (cs *CandidateSmcUtil) AddRequest(email string, fromOrgID string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
-	addRequestInput, err := cs.Abi.Pack("addRequest", email, fromOrgID)
-	if err != nil {
-		return nil, err
-	}
-	return tx_pool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, txPool, false), nil
-}
-
-// AddResponse returns a tx to add an external response for a candidate into private chain candidate smart contract
-func (cs *CandidateSmcUtil) AddExternalResponse(email string, content string, fromOrgID string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
-	addRequestInput, err := cs.Abi.Pack("addExternalResponse", email, fromOrgID, content)
-	if err != nil {
-		return nil, err
-	}
-	return tx_pool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, txPool, false), nil
-}
+//
+//// AddRequest returns a tx to add a request to request list of private chain candidate smart contract
+//func (cs *CandidateSmcUtil) AddRequest(email string, fromOrgID string, txPool tx_pool.TxPool) (*types.Transaction, error) {
+//	addRequestInput, err := cs.Abi.Pack("addRequest", email, fromOrgID)
+//	if err != nil {
+//		return nil, err
+//	}
+//	return tx_pool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, txPool, false), nil
+//}
+//
+//// AddResponse returns a tx to add an external response for a candidate into private chain candidate smart contract
+//func (cs *CandidateSmcUtil) AddExternalResponse(email string, content string, fromOrgID string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
+//	addRequestInput, err := cs.Abi.Pack("addExternalResponse", email, fromOrgID, content)
+//	if err != nil {
+//		return nil, err
+//	}
+//	return tx_pool.GenerateSmcCall(cs.PrivateKey, *cs.ContractAddress, addRequestInput, txPool, false), nil
+//}

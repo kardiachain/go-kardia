@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/kai"
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -27,7 +26,7 @@ const (
 type Reactor struct {
 	p2p.BaseReactor
 	config TxPoolConfig
-	pool   kai.TxPool
+	pool   TxPool
 
 	// transaction channel and subscriptions
 	txsCh  chan events.NewTxsEvent
@@ -37,7 +36,7 @@ type Reactor struct {
 }
 
 // NewReactor returns a new Reactor with the given config and txpool.
-func NewReactor(config TxPoolConfig, txpool kai.TxPool) *Reactor {
+func NewReactor(config TxPoolConfig, txpool TxPool) *Reactor {
 	txR := &Reactor{
 		config: config,
 		pool:   txpool,

@@ -36,8 +36,8 @@ package private
 //	"github.com/kardiachain/go-kardiamain/lib/rlp"
 //	"github.com/kardiachain/go-kardiamain/light/api"
 //	"github.com/kardiachain/go-kardiamain/light/api/public"
-//	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
-//	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
+//	"github.com/kardiachain/go-kardiamain/kai/blockchain"
+//	"github.com/kardiachain/go-kardiamain/kai/tx_pool"
 //	"github.com/kardiachain/go-kardiamain/rpc"
 //	"github.com/kardiachain/go-kardiamain/types"
 //)

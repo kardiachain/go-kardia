@@ -26,21 +26,21 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/events"
+	"github.com/kardiachain/go-kardiamain/kai/tx_pool"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	kai "github.com/kardiachain/go-kardiamain/mainchain"
-	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
 	"github.com/kardiachain/go-kardiamain/types"
-	"github.com/pkg/errors"
 )
 
 const SERVICE_NAME = "PRIVATE_DUAL"
@@ -78,14 +78,14 @@ type PermissionedProxy struct {
 	// name is name of proxy, or type that proxy connects to (eg: NEO, TRX, ETH, KARDIA)
 	name string
 
-	permissionBc base.BaseBlockChain
-	txPool       *tx_pool.TxPool
+	permissionBc base.BlockChain
+	txPool       tx_pool.TxPool
 	// TODO: uncomment these lines when we have specific watched smartcontract
 	smcAddress *common.Address
 	smcABI     *abi.ABI
 
 	// Dual blockchain related fields
-	dualBc    base.BaseBlockChain
+	dualBc    base.BlockChain
 	eventPool *event_pool.Pool // Event pool of DUAL service.
 
 	privateService *kai.KardiaService
@@ -99,12 +99,12 @@ type PermissionedProxy struct {
 
 	privateChainID   *uint64
 	logger           log.Logger
-	candidateSmcUtil *permissioned.CandidateSmcUtil
+	candidateSmcUtil *CandidateSmcUtil
 }
 
 // NewPermissionedProxy initiates a new private proxy
-func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain,
-	txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, eventPool *event_pool.Pool,
+func NewPermissionedProxy(config *Config, internalBlockchain base.BlockChain,
+	txPool tx_pool.TxPool, dualBc base.BlockChain, eventPool *event_pool.Pool,
 	address *common.Address, smcABIStr string) (*PermissionedProxy, error) {
 
 	logger := log.New()
@@ -139,7 +139,7 @@ func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain
 		return nil, fmt.Errorf("cannot get privateService: %v", err)
 	}
 
-	candidateSmcUtil, err := permissioned.NewCandidateSmcUtil(internalBlockchain, GetPrivateKeyToCallKardiaSmc())
+	candidateSmcUtil, err := NewCandidateSmcUtil(internalBlockchain, GetPrivateKeyToCallKardiaSmc())
 	if err != nil {
 		logger.Info("Cannot create candidate smc util", "err", err)
 		return nil, err
@@ -164,7 +164,7 @@ func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain
 }
 
 // TODO(kiendn): permissionedProxy is special case, will implement this function later or separate this case to another code.
-func (p *PermissionedProxy) Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.Pool, publishedEndpoint, subscribedEndpoint *string) error {
+func (p *PermissionedProxy) Init(kardiaBc base.BlockChain, txPool *tx_pool.TxPool, dualBc base.BlockChain, dualEventPool *event_pool.Pool, publishedEndpoint, subscribedEndpoint *string) error {
 	panic("this function has not been implemented yet")
 }
 
@@ -193,17 +193,17 @@ func (p *PermissionedProxy) DualEventPool() *event_pool.Pool {
 }
 
 // KardiaTxPool returns Kardia Blockchain's tx pool
-func (p *PermissionedProxy) KardiaTxPool() *tx_pool.TxPool {
+func (p *PermissionedProxy) KardiaTxPool() tx_pool.TxPool {
 	return p.txPool
 }
 
 // DualBlockChain returns dual blockchain
-func (p *PermissionedProxy) DualBlockChain() base.BaseBlockChain {
+func (p *PermissionedProxy) DualBlockChain() base.BlockChain {
 	return p.dualBc
 }
 
 // KardiaBlockChain returns kardia blockchain
-func (p *PermissionedProxy) KardiaBlockChain() base.BaseBlockChain {
+func (p *PermissionedProxy) KardiaBlockChain() base.BlockChain {
 	return nil
 }
 

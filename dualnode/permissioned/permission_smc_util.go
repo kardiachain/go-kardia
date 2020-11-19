@@ -23,6 +23,9 @@ import (
 	"math/big"
 	"strings"
 
+	kvm2 "github.com/kardiachain/go-kardiamain/kai/kvm"
+	"github.com/kardiachain/go-kardiamain/kai/tx_pool"
+
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/state"
@@ -30,8 +33,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	kvm2 "github.com/kardiachain/go-kardiamain/mainchain/kvm"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -44,10 +45,10 @@ type PermissionSmcUtil struct {
 	ContractAddress  *common.Address
 	SenderAddress    *common.Address
 	SenderPrivateKey *ecdsa.PrivateKey
-	bc               base.BaseBlockChain
+	bc               base.BlockChain
 }
 
-func NewSmcPermissionUtil(bc base.BaseBlockChain) (*PermissionSmcUtil, error) {
+func NewSmcPermissionUtil(bc base.BlockChain) (*PermissionSmcUtil, error) {
 	stateDb, err := bc.State()
 	if err != nil {
 		log.Error("Error get state", "err", err)
@@ -133,24 +134,26 @@ func (s *PermissionSmcUtil) IsValidator(pubkey string) (bool, error) {
 // of a private chain. If votingPower > 0, added node is validator. Only admins can call this function
 func (s *PermissionSmcUtil) AddNodeForPrivateChain(pubkey string, nodeType int64, address common.Address,
 	votingPower *big.Int, listenAddr string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
-	addNodeInput, err := s.Abi.Pack("addNode", pubkey, address, big.NewInt(nodeType), votingPower, listenAddr)
-	if err != nil {
-		log.Error("Error packing add node input", "err", err)
-		return nil, err
-	}
-	return tx_pool.GenerateSmcCall(s.SenderPrivateKey, *s.ContractAddress, addNodeInput,
-		txPool, false), nil
+	return nil, nil
+	//addNodeInput, err := s.Abi.Pack("addNode", pubkey, address, big.NewInt(nodeType), votingPower, listenAddr)
+	//if err != nil {
+	//	log.Error("Error packing add node input", "err", err)
+	//	return nil, err
+	//}
+	//return tx_pool.GenerateSmcCall(s.SenderPrivateKey, *s.ContractAddress, addNodeInput,
+	//	txPool, false), nil
 }
 
 // RemoveNodeForPrivateChain returns tx to remove a node with specified pubkey and nodeType from a private chain
 // Only admins can call this function
 func (s *PermissionSmcUtil) RemoveNodeForPrivateChain(pubkey string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
-	removeNodeInput, err := s.Abi.Pack("removeNode", pubkey)
-	if err != nil {
-		log.Error("Error packing remove node input", "err", err)
-		return nil, err
-	}
-	return tx_pool.GenerateSmcCall(s.SenderPrivateKey, *s.ContractAddress, removeNodeInput, txPool, false), nil
+	return nil, nil
+	//removeNodeInput, err := s.Abi.Pack("removeNode", pubkey)
+	//if err != nil {
+	//	log.Error("Error packing remove node input", "err", err)
+	//	return nil, err
+	//}
+	//return tx_pool.GenerateSmcCall(s.SenderPrivateKey, *s.ContractAddress, removeNodeInput, txPool, false), nil
 }
 
 // GetAdminNodeByIndex executes smart contract to get info of an initial node, including public key, address, listen address,
@@ -183,7 +186,7 @@ func (s *PermissionSmcUtil) GetAdminNodeByIndex(index int64) (string, common.Add
 }
 
 // The following function is just call the master smc and return result in bytes format
-func CallStaticKardiaMasterSmc(from common.Address, to common.Address, bc base.BaseBlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
+func CallStaticKardiaMasterSmc(from common.Address, to common.Address, bc base.BlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
 	context := kvm2.NewKVMContextFromDualNodeCall(from, bc.CurrentHeader(), bc)
 	vmenv := kvm.NewKVM(context, statedb, kvm.Config{})
 	sender := kvm.AccountRef(from)

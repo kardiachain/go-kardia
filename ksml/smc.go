@@ -29,11 +29,11 @@ import (
 	"github.com/kardiachain/go-kardiamain/configs"
 
 	"github.com/kardiachain/go-kardiamain/kai/base"
+	vm "github.com/kardiachain/go-kardiamain/kai/kvm"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/abi"
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -326,7 +326,7 @@ func callStaticKardiaMasterSmc(from common.Address, to common.Address, currentHe
 }
 
 // EstimateGas estimates spent in order to
-func EstimateGas(from common.Address, to common.Address, currentHeader *types.Header, bc base.BaseBlockChain, stateDb *state.StateDB, input []byte) (uint64, error) {
+func EstimateGas(from common.Address, to common.Address, currentHeader *types.Header, bc base.BlockChain, stateDb *state.StateDB, input []byte) (uint64, error) {
 	// Create new call message
 	msg := types.NewMessage(from, &to, 0, big.NewInt(0), uint64(MaximumGasToCallFunction), big.NewInt(1), input, false)
 	// Create a new context to be used in the KVM environment
