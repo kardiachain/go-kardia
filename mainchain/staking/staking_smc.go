@@ -230,6 +230,8 @@ func (s *StakingSmcUtil) GetValidator(statedb *state.StateDB, header *types.Head
 		VotingPower:    votingPower,
 		StakedAmount:   validator.Tokens,
 		CommissionRate: validator.Rate,
+		MaxRate:        validator.MaxRate,
+		MaxChangeRate:  validator.MaxChangeRate,
 	}
 	val.StakedAmount = validator.Tokens
 	return val, nil
@@ -260,18 +262,18 @@ func (s *StakingSmcUtil) GetValidatorPower(statedb *state.StateDB, header *types
 }
 
 // GetValidatorCommission returns commission of a validator based on address
-func (s *StakingSmcUtil) GetValidatorCommission(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address) (uint64, error) {
+func (s *StakingSmcUtil) GetValidatorCommission(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address) (*big.Int, error) {
 	payload, err := s.Abi.Pack("getValidatorCommission", valAddr)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if len(res) == 0 {
-		return 0, nil
+		return nil, nil
 	}
 
 	var validatorCommission *big.Int
@@ -279,9 +281,9 @@ func (s *StakingSmcUtil) GetValidatorCommission(statedb *state.StateDB, header *
 	err = s.Abi.UnpackIntoInterface(&validatorCommission, "getValidatorCommission", res)
 	if err != nil {
 		log.Error("Error unpacking validator commission", "err", err)
-		return 0, err
+		return nil, err
 	}
-	return validatorCommission.Uint64(), nil
+	return validatorCommission, nil
 }
 
 // GetDelegationsByValidator returns all delegations to a specified validator address

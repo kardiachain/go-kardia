@@ -20,6 +20,7 @@ package kai
 
 import (
 	"context"
+	"math/big"
 
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
@@ -177,11 +178,11 @@ func (k *KardiaService) GetValidator(valAddr common.Address) (*types.Validator, 
 
 // GetValidatorCommission returns commission of one validator on staking
 // contract based on his address
-func (k *KardiaService) GetValidatorCommission(valAddr common.Address) (uint64, error) {
+func (k *KardiaService) GetValidatorCommission(valAddr common.Address) (*big.Int, error) {
 	block := k.blockchain.CurrentBlock()
 	state, header, kvmConfig, err := k.getValidatorInfoParams(block)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	return k.staking.GetValidatorCommission(state, header, k.blockchain, kvmConfig, valAddr)
 }

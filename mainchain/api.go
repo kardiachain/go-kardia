@@ -204,8 +204,11 @@ type Validator struct {
 	Address         common.Address `json:"address"`
 	VotingPower     int64          `json:"votingPower"`
 	StakedAmount    string         `json:"stakedAmount"`
+	Commission      string         `json:"commission"`
 	CommissionRate  string         `json:"commissionRate"`
 	TotalDelegators int            `json:"totalDelegators"`
+	MaxRate         string         `json:"maxRate"`
+	MaxChangeRate   string         `json:"maxChangeRate"`
 	Delegators      []*Delegator   `json:"delegators,omitempty"`
 }
 
@@ -222,6 +225,10 @@ func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, is
 		return nil, err
 	}
 	delegationsList, err := s.kaiService.GetDelegationsByValidator(valAddr)
+	if err != nil {
+		return nil, err
+	}
+	commission, err := s.kaiService.GetValidatorCommission(valAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -242,8 +249,11 @@ func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, is
 		Address:         val.Address,
 		VotingPower:     val.VotingPower,
 		StakedAmount:    val.StakedAmount.String(),
+		Commission:      commission.String(),
 		CommissionRate:  val.CommissionRate.String(),
 		TotalDelegators: len(delegationsList),
+		MaxRate:         val.MaxRate.String(),
+		MaxChangeRate:   val.MaxChangeRate.String(),
 		Delegators:      delegatorsList,
 	}, nil
 }
