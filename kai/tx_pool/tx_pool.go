@@ -26,8 +26,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/blockchain"
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/lib/common"
@@ -37,9 +35,15 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
+type Chain interface {
+	CurrentBlock() *types.Block
+	GetBlock(hash common.Hash, number uint64) *types.Block
+	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
+	StateAt(root uint64) (*state.StateDB, error)
+}
+
 type TxPool interface {
 	TxsAvailable() <-chan struct{}
-	GetBlockChain() blockchain.Blockchain
 	PendingSize() int
 	State() *state.StateDB
 	ProposeTransactions() []*types.Transaction
@@ -71,8 +75,7 @@ type TxPool interface {
 // two states over time as they are received and processed.
 type txPool struct {
 	config   TxPoolConfig
-	chainCfg *configs.ChainConfig
-	chain    blockchain.Blockchain
+	chain    Chain
 	gasPrice *big.Int
 	txFeed   event.Feed
 	scope    event.SubscriptionScope
@@ -112,14 +115,13 @@ type txPoolResetRequest struct {
 
 // NewTxPool creates a new transaction pool to gather, sort and filter inbound
 // transactions from the network.
-func NewTxPool(config TxPoolConfig, chainCfg *configs.ChainConfig, chain blockchain.Blockchain) TxPool {
+func NewTxPool(config TxPoolConfig, chain Chain) TxPool {
 	// Sanitize the input to ensure no vulnerable gas prices are set
 	config = (&config).sanitize()
 
 	// Create the transaction pool with its initial settings
 	pool := &txPool{
 		config:          config,
-		chainCfg:        chainCfg,
 		chain:           chain,
 		signer:          types.HomesteadSigner{},
 		pending:         make(map[common.Address]*txList),
@@ -174,10 +176,6 @@ func (pool *txPool) EnableTxsAvailable() {
 
 func (pool *txPool) TxsAvailable() <-chan struct{} {
 	return pool.txsAvailable
-}
-
-func (pool *txPool) GetBlockChain() blockchain.Blockchain {
-	return pool.chain
 }
 
 func (pool *txPool) PendingSize() int {

@@ -60,11 +60,13 @@ type KardiaService struct {
 	kaiDb types.StoreDB // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
 
 	// Handlers
-	txPool     tx_pool.TxPool
+	txPool tx_pool.TxPool
+
 	blockchain blockchain.Blockchain
-	csManager  *consensus.ConsensusManager
-	txpoolR    *tx_pool.Reactor
-	evR        *evidence.Reactor
+
+	csManager *consensus.ConsensusManager
+	txpoolR   *tx_pool.Reactor
+	evR       *evidence.Reactor
 
 	subService KardiaSubService
 
@@ -128,7 +130,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	if err != nil {
 		return nil, err
 	}
-	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.chainConfig, kai.blockchain)
+	kai.txPool = tx_pool.NewTxPool(config.TxPool, kai.blockchain)
 	kai.txpoolR = tx_pool.NewReactor(config.TxPool, kai.txPool)
 	kai.txpoolR.SetLogger(kai.logger)
 
