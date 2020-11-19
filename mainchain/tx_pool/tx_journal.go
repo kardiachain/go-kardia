@@ -19,7 +19,6 @@
 package tx_pool
 
 import (
-	"errors"
 	"io"
 	"os"
 
@@ -28,10 +27,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
 	"github.com/kardiachain/go-kardiamain/types"
 )
-
-// errNoActiveJournal is returned if a transaction is attempted to be inserted
-// into the journal, but no such file is currently open.
-var errNoActiveJournal = errors.New("no active journal")
 
 // devNull is a WriteCloser that just discards anything written into it. Its
 // goal is to allow the transaction journal to write into a fake journal when
