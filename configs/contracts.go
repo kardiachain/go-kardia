@@ -209,6 +209,21 @@ var (
                 "internalType": "bool",
                 "name": "jailed",
                 "type": "bool"
+              },
+              {
+                "internalType": "uint256",
+                "name": "rate",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxRate",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "maxChangeRate",
+                "type": "uint256"
               }
             ],
             "stateMutability": "view",
