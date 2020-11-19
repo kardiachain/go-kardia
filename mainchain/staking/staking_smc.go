@@ -130,19 +130,7 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 	if err != nil {
 		return nil, err
 	}
-
-	msg := types.NewMessage(
-		s.ContractAddress,
-		&s.ContractAddress,
-		0,
-		big.NewInt(0),
-		100000000,
-		big.NewInt(0),
-		payload,
-		false,
-	)
-
-	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -175,19 +163,7 @@ func (s *StakingSmcUtil) GetValidators(statedb *state.StateDB, header *types.Hea
 	if err != nil {
 		return nil, err
 	}
-
-	msg := types.NewMessage(
-		s.ContractAddress,
-		&s.ContractAddress,
-		0,
-		big.NewInt(0),
-		100000000,
-		big.NewInt(0),
-		payload,
-		false,
-	)
-
-	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -223,19 +199,7 @@ func (s *StakingSmcUtil) GetValidator(statedb *state.StateDB, header *types.Head
 	if err != nil {
 		return nil, err
 	}
-
-	msg := types.NewMessage(
-		s.ContractAddress,
-		&s.ContractAddress,
-		0,
-		big.NewInt(0),
-		100000000,
-		big.NewInt(0),
-		payload,
-		false,
-	)
-
-	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -247,6 +211,9 @@ func (s *StakingSmcUtil) GetValidator(statedb *state.StateDB, header *types.Head
 		Tokens           *big.Int
 		DelegationShares *big.Int
 		Jailed           bool
+		Rate             *big.Int
+		MaxRate          *big.Int
+		MaxChangeRate    *big.Int
 	}
 	// unpack result
 	err = s.Abi.UnpackIntoInterface(&validator, "getValidator", res)
@@ -258,7 +225,14 @@ func (s *StakingSmcUtil) GetValidator(statedb *state.StateDB, header *types.Head
 	if err != nil {
 		return nil, err
 	}
-	return types.NewValidator(valAddr, votingPower), nil
+	val := &types.Validator{
+		Address:        valAddr,
+		VotingPower:    votingPower,
+		StakedAmount:   validator.Tokens,
+		CommissionRate: validator.Rate,
+	}
+	val.StakedAmount = validator.Tokens
+	return val, nil
 }
 
 // GetValidator returns voting power of a validator based on address
@@ -267,19 +241,7 @@ func (s *StakingSmcUtil) GetValidatorPower(statedb *state.StateDB, header *types
 	if err != nil {
 		return 0, err
 	}
-
-	msg := types.NewMessage(
-		s.ContractAddress,
-		&s.ContractAddress,
-		0,
-		big.NewInt(0),
-		100000000,
-		big.NewInt(0),
-		payload,
-		false,
-	)
-
-	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return 0, err
 	}
@@ -304,18 +266,7 @@ func (s *StakingSmcUtil) GetValidatorCommission(statedb *state.StateDB, header *
 		return 0, err
 	}
 
-	msg := types.NewMessage(
-		s.ContractAddress,
-		&s.ContractAddress,
-		0,
-		big.NewInt(0),
-		100000000,
-		big.NewInt(0),
-		payload,
-		false,
-	)
-
-	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return 0, err
 	}
@@ -340,18 +291,7 @@ func (s *StakingSmcUtil) GetDelegationsByValidator(statedb *state.StateDB, heade
 		return nil, err
 	}
 
-	msg := types.NewMessage(
-		s.ContractAddress,
-		&s.ContractAddress,
-		0,
-		big.NewInt(0),
-		100000000,
-		big.NewInt(0),
-		payload,
-		false,
-	)
-
-	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -375,9 +315,13 @@ func (s *StakingSmcUtil) GetDelegationsByValidator(statedb *state.StateDB, heade
 		if err != nil {
 			return nil, err
 		}
+		stake, err := s.GetDelegatorStake(statedb, header, bc, cfg, valAddr, delegationsList.DelAddrs[i])
+		if err != nil {
+			return nil, err
+		}
 		dels[i] = &types.Delegator{
 			Address:      delegationsList.DelAddrs[i],
-			StakedAmount: delegationsList.Shares[i],
+			StakedAmount: stake,
 			Reward:       reward,
 		}
 	}
@@ -391,18 +335,7 @@ func (s *StakingSmcUtil) GetDelegationRewards(statedb *state.StateDB, header *ty
 		return nil, err
 	}
 
-	msg := types.NewMessage(
-		s.ContractAddress,
-		&s.ContractAddress,
-		0,
-		big.NewInt(0),
-		100000000,
-		big.NewInt(0),
-		payload,
-		false,
-	)
-
-	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -420,13 +353,31 @@ func (s *StakingSmcUtil) GetDelegationRewards(statedb *state.StateDB, header *ty
 	return delegationReward, nil
 }
 
-//Mint new tokens for the previous block. Returns fee collected
-func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) (*big.Int, error) {
-	payload, err := s.Abi.Pack("mint")
+// GetDelegatorStake returns number of token staked by delegator
+func (s *StakingSmcUtil) GetDelegatorStake(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, delAddr common.Address) (*big.Int, error) {
+	payload, err := s.Abi.Pack("getDelegatorStake", valAddr, delAddr)
 	if err != nil {
 		return nil, err
 	}
+	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	if err != nil {
+		return nil, err
+	}
+	if len(res) == 0 {
+		return nil, nil
+	}
 
+	var delegatorStake *big.Int
+	// unpack result
+	err = s.Abi.UnpackIntoInterface(&delegatorStake, "getDelegatorStake", res)
+	if err != nil {
+		log.Error("Error unpacking delegator stake", "err", err)
+		return nil, err
+	}
+	return delegatorStake, nil
+}
+
+func (s *StakingSmcUtil) constructAndApplySmcCallMsg(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, payload []byte) ([]byte, error) {
 	msg := types.NewMessage(
 		s.ContractAddress,
 		&s.ContractAddress,
@@ -437,8 +388,17 @@ func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc v
 		payload,
 		false,
 	)
+	return Apply(s.logger, bc, statedb, header, cfg, msg)
+}
 
-	res, err := Apply(s.logger, bc, statedb, header, cfg, msg)
+//Mint new tokens for the previous block. Returns fee collected
+func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) (*big.Int, error) {
+	payload, err := s.Abi.Pack("mint")
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -473,19 +433,7 @@ func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.He
 	if err != nil {
 		return err
 	}
-
-	msg := types.NewMessage(
-		s.ContractAddress,
-		&s.ContractAddress,
-		0,
-		big.NewInt(0),
-		100000000,
-		big.NewInt(0),
-		payload,
-		false,
-	)
-
-	_, err = Apply(s.logger, bc, statedb, header, cfg, msg)
+	_, err = s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	return err
 }
 
@@ -496,25 +444,11 @@ func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header
 		if err != nil {
 			return err
 		}
-
-		msg := types.NewMessage(
-			s.ContractAddress,
-			&s.ContractAddress,
-			0,
-			big.NewInt(0),
-			100000000,
-			big.NewInt(0),
-			payload,
-			false,
-		)
-
-		_, err = Apply(s.logger, bc, statedb, header, cfg, msg)
+		_, err = s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 		if err != nil {
 			return err
 		}
-
 	}
-
 	return nil
 }
 
@@ -524,18 +458,7 @@ func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, b
 	if err != nil {
 		return err
 	}
-
-	msg := types.NewMessage(
-		s.ContractAddress,
-		&s.ContractAddress,
-		0,
-		big.NewInt(0),
-		1000000,
-		big.NewInt(0),
-		payload,
-		false,
-	)
-	_, err = Apply(s.logger, bc, statedb, header, cfg, msg)
+	_, err = s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	return err
 }
 

@@ -47,6 +47,9 @@ type Validator struct {
 	Address          common.Address `json:"address"`
 	VotingPower      int64          `json:"votingPower"`
 	ProposerPriority int64          `json:"proposerPriority"`
+	StakedAmount     *big.Int       `json:"stakedAmount,omitempty"`
+	CommissionRate   *big.Int       `json:"commissionRate,omitempty"`
+	Delegators       []*Delegator   `json:"delegators,omitempty"`
 }
 
 // NewValidator ...

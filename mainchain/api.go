@@ -23,7 +23,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/kardiachain/go-kardiamain/configs"
@@ -196,11 +195,12 @@ func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *Bl
 }
 
 type Validator struct {
-	Address      common.Address `json:"address"`
-	VotingPower  int64          `json:"votingPower"`
-	StakedAmount string         `json:"stakedAmount"`
-	Commission   uint64         `json:"commission"`
-	Delegators   []*Delegator   `json:"delegators"`
+	Address         common.Address `json:"address"`
+	VotingPower     int64          `json:"votingPower"`
+	StakedAmount    string         `json:"stakedAmount"`
+	CommissionRate  string         `json:"commissionRate"`
+	TotalDelegators int            `json:"totalDelegators"`
+	Delegators      []*Delegator   `json:"delegators,omitempty"`
 }
 
 type Delegator struct {
@@ -210,12 +210,8 @@ type Delegator struct {
 }
 
 // Validator returns node's validator, nil if current node is not a validator
-func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address) (*Validator, error) {
+func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, isGetDelegators bool) (*Validator, error) {
 	val, err := s.kaiService.GetValidator(valAddr)
-	if err != nil {
-		return nil, err
-	}
-	commission, err := s.kaiService.GetValidatorCommission(valAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -223,37 +219,38 @@ func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address) (*
 	if err != nil {
 		return nil, err
 	}
-	var (
-		stakedAmount   = new(big.Int).SetUint64(0)
-		delegatorsList []*Delegator
-	)
-	for _, del := range delegationsList {
-		stakedAmount = new(big.Int).Add(stakedAmount, del.StakedAmount)
-		delegatorsList = append(delegatorsList, &Delegator{
-			Address:      del.Address,
-			StakedAmount: del.StakedAmount.String(),
-			Reward:       del.Reward.String(),
-		})
+	var delegatorsList []*Delegator
+	if isGetDelegators {
+		for _, del := range delegationsList {
+			delegatorsList = append(delegatorsList, &Delegator{
+				Address:      del.Address,
+				StakedAmount: del.StakedAmount.String(),
+				Reward:       del.Reward.String(),
+			})
+		}
+	} else {
+		delegatorsList = nil
 	}
 
 	return &Validator{
-		Address:      val.Address,
-		VotingPower:  val.VotingPower,
-		StakedAmount: stakedAmount.String(),
-		Commission:   commission,
-		Delegators:   delegatorsList,
+		Address:         val.Address,
+		VotingPower:     val.VotingPower,
+		StakedAmount:    val.StakedAmount.String(),
+		CommissionRate:  val.CommissionRate.String(),
+		TotalDelegators: len(delegationsList),
+		Delegators:      delegatorsList,
 	}, nil
 }
 
 // Validators returns a list of validator
-func (s *PublicKaiAPI) Validators(ctx context.Context) ([]*Validator, error) {
+func (s *PublicKaiAPI) Validators(ctx context.Context, isGetDelegators bool) ([]*Validator, error) {
 	var validators []*Validator
 	valList, err := s.kaiService.GetValidators()
 	if err != nil {
 		return nil, err
 	}
 	for _, val := range valList {
-		validator, err := s.Validator(ctx, val.Address)
+		validator, err := s.Validator(ctx, val.Address, isGetDelegators)
 		if err != nil {
 			return nil, err
 		}
