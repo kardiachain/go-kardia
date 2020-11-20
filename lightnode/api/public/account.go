@@ -5,17 +5,17 @@ import (
 	"context"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/light"
+	"github.com/kardiachain/go-kardiamain/lightnode"
 	"github.com/kardiachain/go-kardiamain/rpc"
 )
 
 // PublicAccountAPI provides APIs support getting account's info
 type AccountAPI struct {
-	service light.NodeService
+	service lightnode.NodeService
 }
 
 // NewPublicAccountAPI is a constructor that init new PublicAccountAPI
-func NewPublicAccountAPI(kaiService light.NodeService) *AccountAPI {
+func NewPublicAccountAPI(kaiService lightnode.NodeService) *AccountAPI {
 	return &AccountAPI{kaiService}
 }
 

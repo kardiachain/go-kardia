@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/light"
+	"github.com/kardiachain/go-kardiamain/lightnode"
 	"github.com/kardiachain/go-kardiamain/rpc"
 )
 
@@ -17,7 +17,7 @@ func TestAccountAPI_Balance(t *testing.T) {
 
 func TestAccountAPI_GetCode(t *testing.T) {
 	type fields struct {
-		service light.NodeService
+		service lightnode.NodeService
 	}
 	type args struct {
 		ctx           context.Context
@@ -52,7 +52,7 @@ func TestAccountAPI_GetCode(t *testing.T) {
 
 func TestAccountAPI_GetStorageAt(t *testing.T) {
 	type fields struct {
-		service light.NodeService
+		service lightnode.NodeService
 	}
 	type args struct {
 		ctx           context.Context
@@ -88,7 +88,7 @@ func TestAccountAPI_GetStorageAt(t *testing.T) {
 
 func TestAccountAPI_Nonce(t *testing.T) {
 	type fields struct {
-		service light.NodeService
+		service lightnode.NodeService
 	}
 	type args struct {
 		address string
@@ -121,7 +121,7 @@ func TestAccountAPI_Nonce(t *testing.T) {
 
 func TestNewPublicAccountAPI(t *testing.T) {
 	type args struct {
-		kaiService light.NodeService
+		kaiService lightnode.NodeService
 	}
 	tests := []struct {
 		name string

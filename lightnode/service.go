@@ -17,12 +17,13 @@
  */
 
 // Package kai implements the Kardia protocol.
-package light
+package lightnode
 
 import (
 	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/consensus"
 	"github.com/kardiachain/go-kardiamain/kai/api"
+	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/blockchain"
 	"github.com/kardiachain/go-kardiamain/kai/genesis"
 	"github.com/kardiachain/go-kardiamain/kai/staking"
@@ -37,6 +38,7 @@ import (
 
 // NodeService implement Service
 type NodeService interface {
+	base.Service
 	api.LightNodeAPI
 }
 
@@ -118,7 +120,7 @@ func buildService(ctx *node.ServiceContext, config *Config) (node.Service, error
 	if err != nil {
 		return nil, err
 	}
-	nodeService.txPool = tx_pool.NewTxPool(config.TxPool, nodeService.chainConfig, nodeService.blockchain)
+	nodeService.txPool = tx_pool.NewTxPool(config.TxPool, nodeService.blockchain)
 	nodeService.txpoolR = tx_pool.NewReactor(config.TxPool, nodeService.txPool)
 	nodeService.txpoolR.SetLogger(nodeService.logger)
 
@@ -199,36 +201,33 @@ func createAndStartEventBus(logger log.Logger) (*types.EventBus, error) {
 // Stop implements Service, terminating all internal goroutines used by the
 // Kardia protocol.
 func (s *nodeService) Stop() error {
-	if s.subService != nil {
-		s.subService.Stop()
-	}
 	close(s.shutdownChan)
 	return nil
 }
 
 func (s *nodeService) APIs() []rpc.API {
 	return []rpc.API{
-		{
-			Namespace: "kai",
-			Version:   "1.0",
-			Service:   NewPublicKaiAPI(s),
-			Public:    true,
-		},
-		{
-			Namespace: "tx",
-			Version:   "1.0",
-			Service:   NewPublicTransactionAPI(s),
-			Public:    true,
-		},
-		{
-			Namespace: "account",
-			Version:   "1.0",
-			Service:   NewPublicAccountAPI(s),
-			Public:    true,
-		},
+		//{
+		//	Namespace: "kai",
+		//	Version:   "1.0",
+		//	Service:   NewPublicKaiAPI(s),
+		//	Public:    true,
+		//},
+		//{
+		//	Namespace: "tx",
+		//	Version:   "1.0",
+		//	Service:   NewPublicTransactionAPI(s),
+		//	Public:    true,
+		//},
+		//{
+		//	Namespace: "account",
+		//	Version:   "1.0",
+		//	Service:   NewPublicAccountAPI(s),
+		//	Public:    true,
+		//},
 	}
 }
 
-func (s *nodeService) TxPool() *tx_pool.TxPool           { return s.txPool }
+func (s *nodeService) TxPool() tx_pool.TxPool            { return s.txPool }
 func (s *nodeService) BlockChain() blockchain.Blockchain { return s.blockchain }
 func (s *nodeService) DB() types.StoreDB                 { return s.kaiDb }
