@@ -18,8 +18,9 @@ import (
 // peeking into the pool in TxPool.Get without having to acquire the widely scoped
 // TxPool.mu mutex.
 type txLookup struct {
-	all  map[common.Hash]*types.Transaction
-	lock sync.RWMutex
+	all   map[common.Hash]*types.Transaction
+	slots int
+	lock  sync.RWMutex
 }
 
 // newTxLookup returns a new txLookup structure.
@@ -57,10 +58,21 @@ func (t *txLookup) Count() int {
 	return len(t.all)
 }
 
+// Slots returns the current number of slots used in the lookup.
+func (t *txLookup) Slots() int {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	return t.slots
+}
+
 // Add adds a transaction to the lookup.
 func (t *txLookup) Add(tx *types.Transaction) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
+
+	t.slots += numSlots(tx)
+	slotsGauge.Update(int64(t.slots))
 
 	t.all[tx.Hash()] = tx
 }
@@ -70,5 +82,13 @@ func (t *txLookup) Remove(hash common.Hash) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
+	t.slots -= numSlots(t.all[hash])
+	slotsGauge.Update(int64(t.slots))
+
 	delete(t.all, hash)
+}
+
+// numSlots calculates the number of slots needed for a single transaction.
+func numSlots(tx *types.Transaction) int {
+	return int((tx.Size() + txSlotSize - 1) / txSlotSize)
 }
