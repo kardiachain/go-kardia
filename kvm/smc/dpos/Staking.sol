@@ -9,7 +9,7 @@ contract Staking is IStaking, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     uint256 oneDec = 1 * 10**18;
-    uint256 powerReduction = 1 * 10**8;
+    uint256 powerReduction = 1 * 10**9;
 
     struct Delegation {
         uint256 shares;
