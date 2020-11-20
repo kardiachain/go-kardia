@@ -1,16 +1,15 @@
-pragma solidity ^0.6.0;
+pragma solidity 0.6.0;
 import {SafeMath} from "./Safemath.sol";
 import {IStaking} from "./IStaking.sol";
 import "./EnumerableSet.sol";
 import {Ownable} from "./Ownable.sol";
-
 
 contract Staking is IStaking, Ownable {
     using SafeMath for uint256;
     using EnumerableSet for EnumerableSet.AddressSet;
 
     uint256 oneDec = 1 * 10**18;
-    uint256 powerReduction = 1 * 10**6;
+    uint256 powerReduction = 1 * 10**8;
 
     struct Delegation {
         uint256 shares;
@@ -115,11 +114,11 @@ contract Staking is IStaking, Ownable {
     bool _needSort;
 
     // supply
-    uint256 public totalSupply = 5000000000 * 10**18;
+    uint256 public totalSupply = 5000000000 * 10**18; // 5B
     uint256 public totalBonded;
     uint256 public inflation;
     uint256 public annualProvision;
-    uint256 _feesCollected;
+    uint256 public _feesCollected;
     // mint
 
     Params _params;
@@ -127,20 +126,20 @@ contract Staking is IStaking, Ownable {
 
     constructor() public {
         _params = Params({
-            maxValidators: 100,
-            downtimeJailDuration: 600,
-            baseProposerReward: 1 * 10**16,
-            bonusProposerReward: 4 * 10**16,
-            slashFractionDowntime: 1 * 10**14,
-            unbondingTime: 1814400,
-            slashFractionDoubleSign: 5 * 10**16,
+            maxValidators: 21,
+            downtimeJailDuration: 259200, // 3 days
+            baseProposerReward: 1 * 10**16, // 1%
+            bonusProposerReward: 4 * 10**16, // 4%
+            slashFractionDowntime: 10 * 10**14, // 10%
+            unbondingTime: 86400, // 1 day
+            slashFractionDoubleSign: 50 * 10**16, // 50%
             signedBlockWindow: 100,
             minSignedPerWindow: 5 * 10**16,
-            inflationRateChange: 13 * 10**16,
-            goalBonded: 67 * 10**16,
-            blocksPerYear: 6311520,
-            inflationMax: 20 * 10**16,
-            inflationMin: 7 * 10**16
+            goalBonded: 10 * 10**16, // 10%
+            blocksPerYear: 6307200, // assumption 5s per block
+            inflationMax: 7 * 10**16, // 20%
+            inflationMin: 189216 * 10**11, // 1,89216%
+            inflationRateChange: 2 * 10**16 // 4%
         });
     }
 
@@ -254,7 +253,7 @@ contract Staking is IStaking, Ownable {
         require(amount > 0, "invalid delegation amount");
         require(amount > minSelfDelegation, "self delegation below minimum");
         require(
-            maxRate <= 1 * 10**18,
+            maxRate <= oneDec,
             "commission max rate cannot be more than 100%"
         );
         require(
@@ -344,9 +343,11 @@ contract Staking is IStaking, Ownable {
         _initializeDelegation(valAddr, delAddr);
     }
 
-    function _delegate(address payable delAddr, address valAddr, uint256 amount)
-        private
-    {
+    function _delegate(
+        address payable delAddr,
+        address valAddr,
+        uint256 amount
+    ) private {
         // add delegation if not exists;
         if (!dels[valAddr].contains(delAddr)) {
             dels[valAddr].add(delAddr);
@@ -376,7 +377,7 @@ contract Staking is IStaking, Ownable {
         Validator storage val = valByAddr[valAddr];
         uint256 issuedShares = 0;
         if (val.tokens == 0) {
-            issuedShares = 1 * 10**18;
+            issuedShares = oneDec;
         } else {
             issuedShares = _shareFromToken(valAddr, amount);
         }
@@ -789,11 +790,27 @@ contract Staking is IStaking, Ownable {
     function getValidator(address valAddr)
         public
         view
-        returns (uint256, uint256, bool)
+        returns (
+            uint256,
+            uint256,
+            bool,
+            uint256,
+            uint256,
+            uint256
+        )
     {
         require(vals.contains(valAddr), "validator not found");
         Validator memory val = valByAddr[valAddr];
-        return (val.tokens, val.delegationShares, val.jailed);
+        Commission memory commission = val.commission;
+
+        return (
+            val.tokens,
+            val.delegationShares,
+            val.jailed,
+            commission.rate,
+            commission.maxRate,
+            commission.maxChangeRate
+        );
     }
 
     function getDelegationsByValidator(address valAddr)
@@ -1099,7 +1116,11 @@ contract Staking is IStaking, Ownable {
     function getValidators()
         public
         view
-        returns (address[] memory, uint256[] memory, uint256[] memory)
+        returns (
+            address[] memory,
+            uint256[] memory,
+            uint256[] memory
+        )
     {
         uint256 total = vals.length();
         address[] memory valAddrs = new address[](total);
@@ -1130,7 +1151,7 @@ contract Staking is IStaking, Ownable {
     // Mint
     //  --------------------------------------------------
 
-    // @dev mints new tokens for the previous block. Returns fee collected
+    // Mints new tokens for the previous block. Returns fee collected
     function mint() public onlyOwner returns (uint256) {
         // recalculate inflation rate
         inflation = nextInflationRate();
@@ -1256,7 +1277,7 @@ contract Staking is IStaking, Ownable {
     }
 
     function _clearValRank() private {
-        for (uint256 i = valRanks.length; i > 300; i --) {
+        for (uint256 i = valRanks.length; i > 300; i--) {
             delete valRankIndexes[valRanks[i - 1]];
             valRanks.pop();
         }
@@ -1295,7 +1316,7 @@ contract Staking is IStaking, Ownable {
     }
 
     function getValidatorPower(address valAddr) public view returns (uint256) {
-        return valByAddr[valAddr].tokens.div(1 * 10**6);
+        return valByAddr[valAddr].tokens.div(powerReduction);
     }
 
     // slashing
