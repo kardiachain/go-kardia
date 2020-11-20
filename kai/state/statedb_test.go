@@ -49,7 +49,7 @@ func TestUpdateLeaks(t *testing.T) {
 		state.IntermediateRoot(false)
 	}
 	// Ensure that no data was leaked into the database
-	iteractor := db.NewIterator()
+	iteractor := db.NewIterator(nil, nil)
 	for iteractor.Next() {
 		t.Errorf("State leaked into database: %x -> %x", iteractor.Key(), iteractor.Value())
 	}
@@ -97,14 +97,14 @@ func TestIntermediateLeaks(t *testing.T) {
 		t.Fatalf("failed to commit final state: %v", err)
 	}
 
-	iterator := finalDb.NewIterator()
+	iterator := finalDb.NewIterator(nil, nil)
 	for iterator.Next() {
 		if _, err := transDb.Get(iterator.Key()); err != nil {
 			t.Errorf("entry missing from the transition database: %x -> %x", iterator.Key(), iterator.Value())
 		}
 	}
 
-	iterator = transDb.NewIterator()
+	iterator = transDb.NewIterator(nil, nil)
 	for iterator.Next() {
 		if _, err := finalDb.Get(iterator.Key()); err != nil {
 			t.Errorf("extra entry in the transition database: %x -> %x", iterator.Key(), iterator.Value())
