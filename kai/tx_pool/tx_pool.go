@@ -35,28 +35,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-const (
-	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
-	chainHeadChanSize = 10
-
-	// txSlotSize is used to calculate how many data slots a single transaction
-	// takes up based on its size. The slots are used as DoS protection, ensuring
-	// that validating a new transaction remains a constant operation (in reality
-	// O(maxslots), where max slots are 4 currently).
-	txSlotSize = 32 * 1024
-
-	// txMaxSize is the maximum size a single transaction can have. This field has
-	// non-trivial consequences: larger transactions are significantly harder and
-	// more expensive to propagate; larger transactions also take more resources
-	// to validate whether they fit into the pool or not.
-	txMaxSize = 4 * txSlotSize // 128KB
-)
-
-var (
-	evictionInterval    = time.Minute     // Time interval to check for evictable transactions
-	statsReportInterval = 8 * time.Second // Time interval to report transaction pool stats
-)
-
 // blockChain provides the state of blockchain and current gas limit to do
 // some pre checks in tx pool and event subscribers.
 type Chain interface {
@@ -330,31 +308,6 @@ func (pool *txPool) Locals() []common.Address {
 	return pool.locals.flatten()
 }
 
-// AddLocals enqueues a batch of transactions into the pool if they are valid, marking the
-// senders as a local ones, ensuring they go around the local pricing constraints.
-//
-// This method is used to add transactions from the RPC API and performs synchronous pool
-// reorganization and event propagation.
-func (pool *txPool) AddLocals(txs []*types.Transaction) []error {
-	return pool.addTxs(txs, !pool.config.NoLocals, true)
-}
-
-// AddLocal enqueues a single local transaction into the pool if it is valid. This is
-// a convenience wrapper aroundd AddLocals.
-func (pool *txPool) AddLocal(tx *types.Transaction) error {
-	errs := pool.AddLocals([]*types.Transaction{tx})
-	return errs[0]
-}
-
-// AddRemotes enqueues a batch of transactions into the pool if they are valid. If the
-// senders are not among the locally tracked ones, full pricing constraints will apply.
-//
-// This method is used to add transactions from the p2p network and does not wait for pool
-// reorganization and internal event propagation.
-func (pool *txPool) AddRemotes(txs []*types.Transaction) []error {
-	return pool.addTxs(txs, false, false)
-}
-
 // This is like AddRemotes, but waits for pool reorganization. Tests use this method.
 func (pool *txPool) AddRemotesSync(txs []*types.Transaction) []error {
 	return pool.addTxs(txs, false, true)
@@ -367,34 +320,6 @@ func (pool *txPool) AddRemotesSync(txs []*types.Transaction) []error {
 func (pool *txPool) AddRemote(tx *types.Transaction) error {
 	errs := pool.AddRemotes([]*types.Transaction{tx})
 	return errs[0]
-}
-
-// Status returns the status (unknown/pending/queued) of a batch of transactions
-// identified by their hashes.
-func (pool *txPool) Status(hashes []common.Hash) []TxStatus {
-	status := make([]TxStatus, len(hashes))
-	for i, hash := range hashes {
-		tx := pool.Get(hash)
-		if tx == nil {
-			continue
-		}
-		from, _ := types.Sender(pool.signer, tx) // already validated
-		pool.mu.RLock()
-		if txList := pool.pending[from]; txList != nil && txList.txs.items[tx.Nonce()] != nil {
-			status[i] = TxStatusPending
-		} else if txList := pool.queue[from]; txList != nil && txList.txs.items[tx.Nonce()] != nil {
-			status[i] = TxStatusQueued
-		}
-		// implicit else: the tx may have been included into a block between
-		// checking pool.Get and obtaining the lock. In that case, TxStatusUnknown is correct
-		pool.mu.RUnlock()
-	}
-	return status
-}
-
-// Get returns a transaction if it is contained in the pool and nil otherwise.
-func (pool *txPool) Get(hash common.Hash) *types.Transaction {
-	return pool.all.Get(hash)
 }
 
 func (pool *txPool) notifyTxsAvailable() {
@@ -741,13 +666,13 @@ func (pool *txPool) promoteTx(addr common.Address, hash common.Hash, tx *types.T
 //
 // This method is used to add transactions from the RPC API and performs synchronous pool
 // reorganization and event propagation.
-func (pool *TxPool) AddLocals(txs []*types.Transaction) []error {
+func (pool *txPool) AddLocals(txs []*types.Transaction) []error {
 	return pool.addTxs(txs, !pool.config.NoLocals, true)
 }
 
 // AddLocal enqueues a single local transaction into the pool if it is valid. This is
 // a convenience wrapper aroundd AddLocals.
-func (pool *TxPool) AddLocal(tx *types.Transaction) error {
+func (pool *txPool) AddLocal(tx *types.Transaction) error {
 	errs := pool.AddLocals([]*types.Transaction{tx})
 	return errs[0]
 }
@@ -757,27 +682,13 @@ func (pool *TxPool) AddLocal(tx *types.Transaction) error {
 //
 // This method is used to add transactions from the p2p network and does not wait for pool
 // reorganization and internal event propagation.
-func (pool *TxPool) AddRemotes(txs []*types.Transaction) []error {
+func (pool *txPool) AddRemotes(txs []*types.Transaction) []error {
 	return pool.addTxs(txs, false, false)
 }
 
-// This is like AddRemotes, but waits for pool reorganization. Tests use this method.
-func (pool *TxPool) AddRemotesSync(txs []*types.Transaction) []error {
-	return pool.addTxs(txs, false, true)
-}
-
 // This is like AddRemotes with a single transaction, but waits for pool reorganization. Tests use this method.
-func (pool *TxPool) addRemoteSync(tx *types.Transaction) error {
+func (pool *txPool) addRemoteSync(tx *types.Transaction) error {
 	errs := pool.AddRemotesSync([]*types.Transaction{tx})
-	return errs[0]
-}
-
-// AddRemote enqueues a single transaction into the pool if it is valid. This is a convenience
-// wrapper around AddRemotes.
-//
-// Deprecated: use AddRemotes
-func (pool *TxPool) AddRemote(tx *types.Transaction) error {
-	errs := pool.AddRemotes([]*types.Transaction{tx})
 	return errs[0]
 }
 
@@ -877,13 +788,13 @@ func (pool *txPool) Status(hashes []common.Hash) []TxStatus {
 }
 
 // Get returns a transaction if it is contained in the pool and nil otherwise.
-func (pool *TxPool) Get(hash common.Hash) *types.Transaction {
+func (pool *txPool) Get(hash common.Hash) *types.Transaction {
 	return pool.all.Get(hash)
 }
 
 // Has returns an indicator whether txpool has a transaction cached with the
 // given hash.
-func (pool *TxPool) Has(hash common.Hash) bool {
+func (pool *txPool) Has(hash common.Hash) bool {
 	return pool.all.Get(hash) != nil
 }
 
@@ -1100,7 +1011,7 @@ func (pool *txPool) runReorg(done chan struct{}, reset *txPoolResetRequest, dirt
 		for _, set := range eventsPool {
 			txs = append(txs, set.Flatten()...)
 		}
-		pool.txFeed.Send(events.NewTxsEvent{txs})
+		pool.txFeed.Send(events.NewTxsEvent{Txs: txs})
 	}
 }
 
@@ -1438,175 +1349,4 @@ func (pool *txPool) demoteUnexecutables() {
 			delete(pool.beats, addr)
 		}
 	}
-}
-
-// addressByHeartbeat is an account address tagged with its last activity timestamp.
-type addressByHeartbeat struct {
-	address   common.Address
-	heartbeat time.Time
-}
-
-type addressesByHeartbeat []addressByHeartbeat
-
-func (a addressesByHeartbeat) Len() int           { return len(a) }
-func (a addressesByHeartbeat) Less(i, j int) bool { return a[i].heartbeat.Before(a[j].heartbeat) }
-func (a addressesByHeartbeat) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-
-// accountSet is simply a set of addresses to check for existence, and a signer
-// capable of deriving addresses from transactions.
-type accountSet struct {
-	accounts map[common.Address]struct{}
-	signer   types.Signer
-	cache    *[]common.Address
-}
-
-// newAccountSet creates a new address set with an associated signer for sender
-// derivations.
-func newAccountSet(signer types.Signer, addrs ...common.Address) *accountSet {
-	as := &accountSet{
-		accounts: make(map[common.Address]struct{}),
-		signer:   signer,
-	}
-	for _, addr := range addrs {
-		as.add(addr)
-	}
-	return as
-}
-
-// contains checks if a given address is contained within the set.
-func (as *accountSet) contains(addr common.Address) bool {
-	_, exist := as.accounts[addr]
-	return exist
-}
-
-func (as *accountSet) empty() bool {
-	return len(as.accounts) == 0
-}
-
-// containsTx checks if the sender of a given tx is within the set. If the sender
-// cannot be derived, this method returns false.
-func (as *accountSet) containsTx(tx *types.Transaction) bool {
-	if addr, err := types.Sender(as.signer, tx); err == nil {
-		return as.contains(addr)
-	}
-	return false
-}
-
-// add inserts a new address into the set to track.
-func (as *accountSet) add(addr common.Address) {
-	as.accounts[addr] = struct{}{}
-	as.cache = nil
-}
-
-// addTx adds the sender of tx into the set.
-func (as *accountSet) addTx(tx *types.Transaction) {
-	if addr, err := types.Sender(as.signer, tx); err == nil {
-		as.add(addr)
-	}
-}
-
-// flatten returns the list of addresses within this set, also caching it for later
-// reuse. The returned slice should not be changed!
-func (as *accountSet) flatten() []common.Address {
-	if as.cache == nil {
-		accounts := make([]common.Address, 0, len(as.accounts))
-		for account := range as.accounts {
-			accounts = append(accounts, account)
-		}
-		as.cache = &accounts
-	}
-	return *as.cache
-}
-
-// merge adds all addresses from the 'other' set into 'as'.
-func (as *accountSet) merge(other *accountSet) {
-	for addr := range other.accounts {
-		as.accounts[addr] = struct{}{}
-	}
-	as.cache = nil
-}
-
-// txLookup is used internally by TxPool to track transactions while allowing lookup without
-// mutex contention.
-//
-// Note, although this type is properly protected against concurrent access, it
-// is **not** a type that should ever be mutated or even exposed outside of the
-// transaction pool, since its internal state is tightly coupled with the pools
-// internal mechanisms. The sole purpose of the type is to permit out-of-bound
-// peeking into the pool in TxPool.Get without having to acquire the widely scoped
-// TxPool.mu mutex.
-type txLookup struct {
-	all   map[common.Hash]*types.Transaction
-	slots int
-	lock  sync.RWMutex
-}
-
-// newTxLookup returns a new txLookup structure.
-func newTxLookup() *txLookup {
-	return &txLookup{
-		all: make(map[common.Hash]*types.Transaction),
-	}
-}
-
-// Range calls f on each key and value present in the map.
-func (t *txLookup) Range(f func(hash common.Hash, tx *types.Transaction) bool) {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-
-	for key, value := range t.all {
-		if !f(key, value) {
-			break
-		}
-	}
-}
-
-// Get returns a transaction if it exists in the lookup, or nil if not found.
-func (t *txLookup) Get(hash common.Hash) *types.Transaction {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-
-	return t.all[hash]
-}
-
-// Count returns the current number of items in the lookup.
-func (t *txLookup) Count() int {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-
-	return len(t.all)
-}
-
-// Slots returns the current number of slots used in the lookup.
-func (t *txLookup) Slots() int {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-
-	return t.slots
-}
-
-// Add adds a transaction to the lookup.
-func (t *txLookup) Add(tx *types.Transaction) {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-
-	t.slots += numSlots(tx)
-	slotsGauge.Update(int64(t.slots))
-
-	t.all[tx.Hash()] = tx
-}
-
-// Remove removes a transaction from the lookup.
-func (t *txLookup) Remove(hash common.Hash) {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-
-	t.slots -= numSlots(t.all[hash])
-	slotsGauge.Update(int64(t.slots))
-
-	delete(t.all, hash)
-}
-
-// numSlots calculates the number of slots needed for a single transaction.
-func numSlots(tx *types.Transaction) int {
-	return int((tx.Size() + txSlotSize - 1) / txSlotSize)
 }
