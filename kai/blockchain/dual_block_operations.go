@@ -45,7 +45,7 @@ type DualBlockOperations struct {
 
 	mtx sync.RWMutex
 
-	blockchain *DualBlockChain
+	blockchain DualBlockChain
 	eventPool  *event_pool.Pool
 
 	bcManager *DualBlockChainManager
@@ -55,7 +55,7 @@ type DualBlockOperations struct {
 
 // Returns a new DualBlockOperations with latest chain & ,
 // initialized to the last height that was committed to the DB.
-func NewDualBlockOperations(logger log.Logger, blockchain *DualBlockChain, eventPool *event_pool.Pool, evpool EvidencePool) *DualBlockOperations {
+func NewDualBlockOperations(logger log.Logger, blockchain DualBlockChain, eventPool *event_pool.Pool, evpool EvidencePool) *DualBlockOperations {
 	return &DualBlockOperations{
 		logger:     logger,
 		blockchain: blockchain,
@@ -128,7 +128,7 @@ func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cst
 // This also validate the new state root against the block root.
 func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
 	root, err := dbo.commitDualEvents(block.DualEvents())
-	kvstore.WriteAppHash(dbo.blockchain.db.DB(), block.Height(), root)
+	///kvstore.WriteAppHash(dbo.blockchain.db.DB(), block.Height(), root)
 	return nil, root, err
 }
 

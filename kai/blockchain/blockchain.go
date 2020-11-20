@@ -55,15 +55,15 @@ type Blockchain interface {
 	LoadSeenCommit(height uint64) *types.Commit
 	SaveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit)
 	LoadBlockPart(height uint64, index int) *types.Part
+	GetHeaderByHash(hash common.Hash) *types.Header
 }
 
 type blockChain struct {
 	logger log.Logger
 
 	chainConfig *configs.ChainConfig // Chain & network configuration
-
-	db types.StoreDB // Blockchain database
-	hc *HeaderChain
+	db          types.StoreDB        // Blockchain database
+	hc          *HeaderChain
 
 	chainHeadFeed event.Feed
 	scope         event.SubscriptionScope

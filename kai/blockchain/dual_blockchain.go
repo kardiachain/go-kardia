@@ -24,7 +24,6 @@ import (
 	"sync/atomic"
 
 	"github.com/kardiachain/go-kardiamain/configs"
-	permissioned2 "github.com/kardiachain/go-kardiamain/dualnode/permissioned"
 	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 
 	"github.com/kardiachain/go-kardiamain/kvm"
@@ -54,7 +53,6 @@ type DualBlockChain interface {
 	Blockchain
 	Reset() error
 	ResetWithGenesisBlock(genesis *types.Block) error
-	GetHeaderByHash(hash common.Hash) *types.Header
 	SetHead(head uint64) error
 	WriteBlockWithoutState(block *types.Block) error
 	WriteBlockWithState(block *types.Block, receipts []*types.Receipt, state *state.StateDB) error
@@ -95,7 +93,7 @@ type dualBlockChain struct {
 	isPrivate bool
 
 	// permissioned is used to call permissioned smartcontract to check whether a node has permission to access chain or not
-	permissioned *permissioned2.PermissionSmcUtil
+	//permissioned *permissioned2.PermissionSmcUtil
 }
 
 // IsPrivate returns whether a blockchain is private or not
@@ -168,10 +166,10 @@ func NewDualBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs
 		return nil, err
 	}
 
-	dbc.permissioned, err = permissioned2.NewSmcPermissionUtil(dbc)
-	if err != nil {
-		return nil, err
-	}
+	//dbc.permissioned, err = permissioned2.NewSmcPermissionUtil(dbc)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	// Take ownership of this particular state
 	//@huny go dbc.update()

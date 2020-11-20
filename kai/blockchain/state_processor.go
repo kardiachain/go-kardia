@@ -37,11 +37,11 @@ import (
 // StateProcessor implements Processor.
 type StateProcessor struct {
 	logger log.Logger
-	bc     *BlockChain // Canonical block chain
+	bc     Blockchain // Canonical block chain
 }
 
 // NewStateProcessor initialises a new StateProcessor.
-func NewStateProcessor(logger log.Logger, bc *BlockChain) *StateProcessor {
+func NewStateProcessor(logger log.Logger, bc Blockchain) *StateProcessor {
 	return &StateProcessor{
 		logger: logger,
 		bc:     bc,
