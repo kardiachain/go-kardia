@@ -73,13 +73,13 @@ type PrivateKardiaProxy struct {
 	logger log.Logger
 
 	// Kardia's mainchain stuffs.
-	kardiaBc     base.BaseBlockChain
-	txPool       *tx_pool.TxPool
+	kardiaBc     base.BlockChain
+	txPool       tx_pool.TxPool
 	chainHeadCh  chan events.ChainHeadEvent // Used to subscribe for new blocks.
 	chainHeadSub event.Subscription
 
 	// Dual blockchain related fields
-	dualBc    base.BaseBlockChain
+	dualBc    base.BlockChain
 	eventPool *event_pool.Pool
 
 	// The external blockchain that this dual node's interacting with.
@@ -115,17 +115,17 @@ func (p *PrivateKardiaProxy) DualEventPool() *event_pool.Pool {
 }
 
 // KardiaTxPool returns Kardia Blockchain's tx pool
-func (p *PrivateKardiaProxy) KardiaTxPool() *tx_pool.TxPool {
+func (p *PrivateKardiaProxy) KardiaTxPool() tx_pool.TxPool {
 	return p.txPool
 }
 
 // DualBlockChain returns dual blockchain
-func (p *PrivateKardiaProxy) DualBlockChain() base.BaseBlockChain {
+func (p *PrivateKardiaProxy) DualBlockChain() base.BlockChain {
 	return p.dualBc
 }
 
 // KardiaBlockChain returns kardia blockchain
-func (p *PrivateKardiaProxy) KardiaBlockChain() base.BaseBlockChain {
+func (p *PrivateKardiaProxy) KardiaBlockChain() base.BlockChain {
 	return p.kardiaBc
 }
 
@@ -137,7 +137,7 @@ func (p *PrivateKardiaProxy) Name() string {
 	return p.name
 }
 
-func NewPrivateKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.Pool, smcAddr *common.Address, smcABIStr string) (*PrivateKardiaProxy, error) {
+func NewPrivateKardiaProxy(kardiaBc base.BlockChain, txPool tx_pool.TxPool, dualBc base.BlockChain, dualEventPool *event_pool.Pool, smcAddr *common.Address, smcABIStr string) (*PrivateKardiaProxy, error) {
 	var err error
 	smcABI, err := abi.JSON(strings.NewReader(smcABIStr))
 	if err != nil {
@@ -165,7 +165,7 @@ func NewPrivateKardiaProxy(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool,
 	return processor, nil
 }
 
-func (p *PrivateKardiaProxy) Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool, dualBc base.BaseBlockChain, dualEventPool *event_pool.Pool, publishedEndpoint, subscribedEndpoint *string) error {
+func (p *PrivateKardiaProxy) Init(kardiaBc base.BlockChain, txPool tx_pool.TxPool, dualBc base.BlockChain, dualEventPool *event_pool.Pool, publishedEndpoint, subscribedEndpoint *string) error {
 	// Create a specific logger for DUAL service.
 	logger := log.New()
 	logger.AddTag(PRIVATE_KARDIA)
@@ -436,19 +436,20 @@ func (p *PrivateKardiaProxy) UnLock() {
 // CreateForwardRequestTx creates tx call to Kardia candidate exchange contract to forward a candidate request to another
 // external chain
 func CreateForwardRequestTx(email string, fromOrgId string, toOrgId string, txPool *tx_pool.TxPool) (*types.Transaction, error) {
-	exchangeSmcAbi := configs.GetContractABIByAddress(configs.KardiaCandidateExchangeSmcAddress)
-	if exchangeSmcAbi == "" {
-		return nil, errAbiNotFound
-	}
-	kAbi, err := abi.JSON(strings.NewReader(exchangeSmcAbi))
-	if err != nil {
-		return nil, err
-	}
-	requestInfoInput, err := kAbi.Pack(configs.KardiaForwardRequestFunction, email, fromOrgId, toOrgId)
-	if err != nil {
-		return nil, err
-	}
-	return tx_pool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), common.HexToAddress(configs.KardiaCandidateExchangeSmcAddress), requestInfoInput, txPool, false), nil
+	return nil, nil
+	//exchangeSmcAbi := configs.GetContractABIByAddress(configs.KardiaCandidateExchangeSmcAddress)
+	//if exchangeSmcAbi == "" {
+	//	return nil, errAbiNotFound
+	//}
+	//kAbi, err := abi.JSON(strings.NewReader(exchangeSmcAbi))
+	//if err != nil {
+	//	return nil, err
+	//}
+	//requestInfoInput, err := kAbi.Pack(configs.KardiaForwardRequestFunction, email, fromOrgId, toOrgId)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return tx_pool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), common.HexToAddress(configs.KardiaCandidateExchangeSmcAddress), requestInfoInput, txPool, false), nil
 }
 
 // CreateForwardResponseTx creates tx call to Kardia candidate exchange contract to fulfill a candidate info request
@@ -456,19 +457,20 @@ func CreateForwardRequestTx(email string, fromOrgId string, toOrgId string, txPo
 // candidate info
 func CreateForwardResponseTx(email string, response string, fromOrgId string, toOrgId string,
 	txPool *tx_pool.TxPool) (*types.Transaction, error) {
-	exchangeSmcAbi := configs.GetContractABIByAddress(configs.KardiaCandidateExchangeSmcAddress)
-	if exchangeSmcAbi == "" {
-		return nil, errAbiNotFound
-	}
-	kAbi, err := abi.JSON(strings.NewReader(exchangeSmcAbi))
-	if err != nil {
-		return nil, err
-	}
-	requestInfoInput, err := kAbi.Pack(configs.KardiaForwardResponseFunction, email, response, fromOrgId, toOrgId)
-	if err != nil {
-		return nil, err
-	}
-	return tx_pool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), common.HexToAddress(configs.KardiaCandidateExchangeSmcAddress), requestInfoInput, txPool, false), nil
+	return nil, nil
+	//exchangeSmcAbi := configs.GetContractABIByAddress(configs.KardiaCandidateExchangeSmcAddress)
+	//if exchangeSmcAbi == "" {
+	//	return nil, errAbiNotFound
+	//}
+	//kAbi, err := abi.JSON(strings.NewReader(exchangeSmcAbi))
+	//if err != nil {
+	//	return nil, err
+	//}
+	//requestInfoInput, err := kAbi.Pack(configs.KardiaForwardResponseFunction, email, response, fromOrgId, toOrgId)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//return tx_pool.GenerateSmcCall(GetPrivateKeyToCallKardiaSmc(), common.HexToAddress(configs.KardiaCandidateExchangeSmcAddress), requestInfoInput, txPool, false), nil
 }
 
 // Return a common private key to call to Kardia smc from dual node
