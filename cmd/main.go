@@ -34,6 +34,11 @@ import (
 	"github.com/rs/cors"
 
 	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardiamain/dualchain"
+	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
+	"github.com/kardiachain/go-kardiamain/dualnode/dual_proxy"
+	"github.com/kardiachain/go-kardiamain/dualnode/kardia"
+	"github.com/kardiachain/go-kardiamain/kai/blockchain"
 	"github.com/kardiachain/go-kardiamain/kai/genesis"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"github.com/kardiachain/go-kardiamain/kai/tx_pool"
@@ -111,9 +116,9 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 		err error
 	)
 	g := c.MainChain.Genesis
-	//if isDual {
-	//	g = c.DualChain.Genesis
-	//}
+	if isDual {
+		g = c.DualChain.Genesis
+	}
 
 	if g == nil {
 		ga = make(genesis.Alloc, 0)
@@ -174,36 +179,35 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 
 // getMainChainConfig gets mainchain's config from config
 func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
-	return nil, nil
-	//dbInfo := c.getDbInfo(true)
-	//if dbInfo == nil {
-	//	return nil, fmt.Errorf("cannot get dbInfo")
-	//}
-	//genesisData, err := c.getGenesisConfig(true)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//eventPool := event_pool.Config{
-	//	GlobalSlots: c.DualChain.EventPool.GlobalSlots,
-	//	GlobalQueue: c.DualChain.EventPool.GlobalQueue,
-	//	BlockSize:   c.DualChain.EventPool.BlockSize,
-	//}
-	//
-	//baseAccount, err := c.getBaseAccount()
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//dualChainConfig := node.DualChainConfig{
-	//	DBInfo:           dbInfo,
-	//	DualGenesis:      genesisData,
-	//	DualEventPool:    eventPool,
-	//	DualNetworkID:    c.DualChain.NetworkID,
-	//	ChainId:          c.DualChain.ChainID,
-	//	DualProtocolName: *c.DualChain.Protocol,
-	//	BaseAccount:      baseAccount,
-	//}
-	//return &dualChainConfig, nil
+	dbInfo := c.getDbInfo(true)
+	if dbInfo == nil {
+		return nil, fmt.Errorf("cannot get dbInfo")
+	}
+	genesisData, err := c.getGenesisConfig(true)
+	if err != nil {
+		return nil, err
+	}
+	eventPool := event_pool.Config{
+		GlobalSlots: c.DualChain.EventPool.GlobalSlots,
+		GlobalQueue: c.DualChain.EventPool.GlobalQueue,
+		BlockSize:   c.DualChain.EventPool.BlockSize,
+	}
+
+	baseAccount, err := c.getBaseAccount()
+	if err != nil {
+		return nil, err
+	}
+
+	dualChainConfig := node.DualChainConfig{
+		DBInfo:           dbInfo,
+		DualGenesis:      genesisData,
+		DualEventPool:    eventPool,
+		DualNetworkID:    c.DualChain.NetworkID,
+		ChainId:          c.DualChain.ChainID,
+		DualProtocolName: *c.DualChain.Protocol,
+		BaseAccount:      baseAccount,
+	}
+	return &dualChainConfig, nil
 }
 
 // getNodeConfig gets NodeConfig from config
@@ -400,58 +404,58 @@ func (c *Config) Start() {
 
 // StartDual reads dual config and start dual service
 func (c *Config) StartDual(n *node.Node) error {
-	//if c.DualChain != nil {
-	//	var kardiaService *kai.KardiaService
-	//	var dualService *service.DualService
-	//	var dualProxy *dual_proxy.Proxy
-	//	var err error
-	//
-	//	if err = n.Service(&kardiaService); err != nil {
-	//		return fmt.Errorf("cannot get Kardia service: %v", err)
-	//	}
-	//
-	//	if err = n.Service(&dualService); err != nil {
-	//		return fmt.Errorf("cannot get Dual service: %v", err)
-	//	}
-	//
-	//	// save watchers to db
-	//	if c.DualChain.Events != nil {
-	//		c.SaveWatchers(dualService, c.DualChain.Events)
-	//	}
-	//
-	//	// init kardia proxy
-	//	kardiaProxy := &kardia.KardiaProxy{}
-	//	if err = kardiaProxy.Init(kardiaService.BlockChain(), kardiaService.TxPool(),
-	//		dualService.BlockChain(), dualService.EventPool(), nil, nil); err != nil {
-	//		panic(err)
-	//	}
-	//
-	//	if dualProxy, err = dual_proxy.NewProxy(
-	//		c.DualChain.ServiceName,
-	//		kardiaService.BlockChain(),
-	//		kardiaService.TxPool(),
-	//		dualService.BlockChain(),
-	//		dualService.EventPool(),
-	//		*c.DualChain.PublishedEndpoint,
-	//		*c.DualChain.SubscribedEndpoint,
-	//	); err != nil {
-	//		log.Error("Fail to initialize proxy", "error", err, "proxy", c.DualChain.ServiceName)
-	//		return err
-	//	}
-	//
-	//	// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
-	//	// submit tx to either internal or external blockchain.
-	//	bcManager := blockchain.NewDualBlockChainManager(kardiaProxy, dualProxy)
-	//	dualService.SetDualBlockChainManager(bcManager)
-	//
-	//	// Register the 'other' blockchain to each internal/external blockchain. This is needed
-	//	// for generate Tx to submit to the other blockchain.
-	//	kardiaProxy.RegisterExternalChain(dualProxy)
-	//	dualProxy.RegisterInternalChain(kardiaProxy)
-	//
-	//	dualProxy.Start()
-	//	kardiaProxy.Start()
-	//}
+	if c.DualChain != nil {
+		var kardiaService *kai.KardiaService
+		var dualService *dualchain.DualService
+		var dualProxy *dual_proxy.Proxy
+		var err error
+
+		if err = n.Service(&kardiaService); err != nil {
+			return fmt.Errorf("cannot get Kardia service: %v", err)
+		}
+
+		if err = n.Service(&dualService); err != nil {
+			return fmt.Errorf("cannot get Dual service: %v", err)
+		}
+
+		// save watchers to db
+		if c.DualChain.Events != nil {
+			c.SaveWatchers(dualService, c.DualChain.Events)
+		}
+
+		// init kardia proxy
+		kardiaProxy := &kardia.KardiaProxy{}
+		if err = kardiaProxy.Init(kardiaService.BlockChain(), kardiaService.TxPool(),
+			dualService.BlockChain(), dualService.EventPool(), nil, nil); err != nil {
+			panic(err)
+		}
+
+		if dualProxy, err = dual_proxy.NewProxy(
+			c.DualChain.ServiceName,
+			kardiaService.BlockChain(),
+			kardiaService.TxPool(),
+			dualService.BlockChain(),
+			dualService.EventPool(),
+			*c.DualChain.PublishedEndpoint,
+			*c.DualChain.SubscribedEndpoint,
+		); err != nil {
+			log.Error("Fail to initialize proxy", "error", err, "proxy", c.DualChain.ServiceName)
+			return err
+		}
+
+		// Create and pass a dual's blockchain manager to dual service, enabling dual consensus to
+		// submit tx to either internal or external blockchain.
+		bcManager := blockchain.NewDualBlockChainManager(kardiaProxy, dualProxy)
+		dualService.SetDualBlockChainManager(bcManager)
+
+		// Register the 'other' blockchain to each internal/external blockchain. This is needed
+		// for generate Tx to submit to the other blockchain.
+		kardiaProxy.RegisterExternalChain(dualProxy)
+		dualProxy.RegisterInternalChain(kardiaProxy)
+
+		dualProxy.Start()
+		kardiaProxy.Start()
+	}
 	return nil
 }
 
