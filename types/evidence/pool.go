@@ -287,7 +287,7 @@ func (evpool *Pool) removePendingEvidence(evidence types.Evidence) {
 func (evpool *Pool) listEvidence(prefixKey []byte, maxBytes int64) ([]types.Evidence, int64, error) {
 	var totalSize int64
 	var evidence []types.Evidence
-	iter := evpool.evidenceDB.NewIteratorWithPrefix(prefixKey)
+	iter := evpool.evidenceDB.NewIterator(prefixKey, nil)
 	for iter.Next() {
 		evInfo, err := bytesToInfo(iter.Value())
 		if err != nil {
@@ -306,7 +306,7 @@ func (evpool *Pool) listEvidence(prefixKey []byte, maxBytes int64) ([]types.Evid
 }
 
 func (evpool *Pool) removeExpiredPendingEvidence() (uint64, time.Time) {
-	iter := evpool.evidenceDB.NewIteratorWithPrefix([]byte(baseKeyPending))
+	iter := evpool.evidenceDB.NewIterator([]byte(baseKeyPending), nil)
 	blockEvidenceMap := make(map[string]struct{})
 	for iter.Next() {
 		evInfo, err := bytesToInfo(iter.Value())

@@ -65,24 +65,31 @@ func NewKVMContextFromDualNodeCall(from common.Address, header *types.Header, ch
 
 // GetHashFn returns a GetHashFunc which retrieves header hashes by height
 func GetHashFn(ref *types.Header, chain ChainContext) func(n uint64) common.Hash {
-	var cache map[uint64]common.Hash
+	var cache []common.Hash
 
 	return func(n uint64) common.Hash {
 		// If there's no hash cache yet, make one
-		if cache == nil {
-			cache = map[uint64]common.Hash{
-				ref.Height - 1: ref.LastCommitHash,
-			}
+		if len(cache) == 0 {
+			cache = append(cache, ref.LastCommitHash)
 		}
-		// Try to fulfill the request from the cache
-		if hash, ok := cache[n]; ok {
-			return hash
+		if idx := ref.Height - n - 1; idx < uint64(len(cache)) {
+			return cache[idx]
 		}
+		// No luck in the cache, but we can start iterating from the last element we already know
+		lastKnownHash := cache[len(cache)-1]
+		lastKnownHeight := ref.Height - uint64(len(cache))
+
 		// Not cached, iterate the blocks and cache the hashes
-		for header := chain.GetHeader(ref.LastCommitHash, ref.Height-1); header != nil; header = chain.GetHeader(header.LastCommitHash, header.Height-1) {
-			cache[header.Height-1] = header.LastCommitHash
-			if n == header.Height-1 {
-				return header.LastCommitHash
+		for {
+			header := chain.GetHeader(lastKnownHash, lastKnownHeight)
+			if header == nil {
+				break
+			}
+			cache = append(cache, header.LastCommitHash)
+			lastKnownHash = header.LastCommitHash
+			lastKnownHeight = header.Height - 1
+			if n == lastKnownHeight {
+				return lastKnownHash
 			}
 		}
 		return common.Hash{}

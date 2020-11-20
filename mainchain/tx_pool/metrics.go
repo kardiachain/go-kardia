@@ -28,6 +28,7 @@ var (
 	MetricPending = metricName("", "pending")
 	MetricQueued  = metricName("", "queued")
 	MetricLocal   = metricName("", "local")
+	MetricSlot    = metricName("", "slot")
 
 	MetricTxsTime       = metricName("time", "txs")
 	MetricLockedTxsTime = metricName("time", "locked_txs")
@@ -57,6 +58,7 @@ var (
 	pendingGauge = metrics.NewRegisteredGauge(MetricPending, metrics.TxPoolRegistry)
 	queuedGauge  = metrics.NewRegisteredGauge(MetricQueued, metrics.TxPoolRegistry)
 	localGauge   = metrics.NewRegisteredGauge(MetricLocal, metrics.TxPoolRegistry)
+	slotsGauge   = metrics.NewRegisteredGauge(MetricSlot, metrics.TxPoolRegistry)
 
 	txsTimer       = metrics.NewRegisteredTimer(MetricTxsTime, metrics.TxPoolRegistry)
 	lockedTxsTimer = metrics.NewRegisteredTimer(MetricLockedTxsTime, metrics.TxPoolRegistry)
