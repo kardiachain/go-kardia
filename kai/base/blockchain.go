@@ -29,26 +29,33 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-/*
-
- */
 type BlockChain interface {
 	IsPrivate() bool
 	Genesis() *types.Block
+	DB() types.StoreDB
+	Config() *configs.ChainConfig
+	HasPermission(peer *p2p.Peer) bool
+
 	CurrentHeader() *types.Header
-	CurrentBlock() *types.Block
-	GetBlock(hash common.Hash, number uint64) *types.Block
 	GetBlockByHeight(height uint64) *types.Block
 	GetBlockByHash(hash common.Hash) *types.Block
 	State() (*state.StateDB, error)
 	CommitTrie(root common.Hash) error
 	WriteBlockInfo(block *types.Block, blockInfo *types.BlockInfo)
 	ReadCommit(height uint64) *types.Commit
-	Config() *configs.ChainConfig
-	GetHeader(common.Hash, uint64) *types.Header
-	HasPermission(peer *p2p.Peer) bool
-	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StateAt(root uint64) (*state.StateDB, error)
-	DB() types.StoreDB
 	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error)
+
+	// TxPool extend
+	CurrentBlock() *types.Block
+	GetBlock(hash common.Hash, number uint64) *types.Block
+	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
+
+	// BlockContext
+	GetHeader(common.Hash, uint64) *types.Header
+}
+
+// Dualchain defined all required function to running dual chain
+type Dualchain interface {
+	BlockChain
 }

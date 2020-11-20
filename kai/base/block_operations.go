@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package consensus
+package base
 
 import (
 	"github.com/kardiachain/go-kardiamain/kai/staking"
@@ -25,7 +25,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-type BaseBlockOperations interface {
+type BlockOperations interface {
 	Height() uint64
 	LoadBlock(height uint64) *types.Block
 	LoadBlockCommit(height uint64) *types.Commit

@@ -132,7 +132,7 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 	amount, _ := big.NewInt(0).SetString("1000000000000000000000000000", 10)
 	genesisAccounts[genesisAddress] = amount
 	genesisContracts["0x0A"] = common.Bytes2Hex(sampleCode)
-	ga, err := genesis.GenesisAllocFromAccountAndContract(genesisAccounts, genesisContracts)
+	ga, err := genesis.AllocFromAccountAndContract(genesisAccounts, genesisContracts)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 	}
 
 	logger := log.New()
-	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	stakingUtil, _ := staking.NewSmcStakingUtil()
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, db, g, stakingUtil)
 	if genesisErr != nil {
 		return nil, err
@@ -159,7 +159,7 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 		GlobalSlots: 64,
 		GlobalQueue: 5120000,
 	}
-	txPool := tx_pool.NewTxPool(txConfig, chainConfig, bc)
+	txPool := tx_pool.NewTxPool(txConfig, bc)
 
 	// mock function stimulates publish function
 	publishFunc := func(endpoint string, topic string, msg message2.TriggerMessage) error {

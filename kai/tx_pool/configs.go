@@ -43,7 +43,6 @@ const (
 
 // DefaultTxPoolConfig contains the default configurations for the transaction
 // pool.
-// todo: Move this outside
 var DefaultTxPoolConfig = TxPoolConfig{
 	Journal:   "transactions.rlp",
 	Rejournal: time.Hour,

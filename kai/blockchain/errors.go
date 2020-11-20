@@ -6,5 +6,5 @@ import (
 )
 
 var (
-	ErrNoGenesis = errors.New("Genesis not found in chain")
+	ErrNoGenesis = errors.New("genesis not found in chain")
 )

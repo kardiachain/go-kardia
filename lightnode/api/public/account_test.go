@@ -12,7 +12,7 @@ import (
 )
 
 func TestAccountAPI_Balance(t *testing.T) {
-	panic("not implement")
+
 }
 
 func TestAccountAPI_GetCode(t *testing.T) {

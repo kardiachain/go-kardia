@@ -32,6 +32,7 @@ import (
 
 	cfg "github.com/kardiachain/go-kardiamain/configs"
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
+	"github.com/kardiachain/go-kardiamain/kai/base"
 	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
@@ -93,7 +94,7 @@ type ConsensusState struct {
 
 	config          *cfg.ConsensusConfig
 	privValidator   types.PrivValidator // for signing votes
-	blockOperations BaseBlockOperations
+	blockOperations base.BlockOperations
 	blockExec       *cstate.BlockExecutor
 	evpool          evidencePool // TODO(namdoh): Add mem pool.
 
@@ -131,7 +132,7 @@ func NewConsensusState(
 	logger log.Logger,
 	config *cfg.ConsensusConfig,
 	state cstate.LastestBlockState,
-	blockOperations BaseBlockOperations,
+	blockOperations base.BlockOperations,
 	blockExec *cstate.BlockExecutor,
 	evpool evidencePool,
 ) *ConsensusState {

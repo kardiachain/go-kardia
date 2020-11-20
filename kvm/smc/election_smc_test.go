@@ -386,7 +386,7 @@ var election_smc_definition = `[
 	}
 ]`
 
-func SetupBlockchain() (*blockchain.BlockChain, error) {
+func SetupBlockchain() (blockchain.Blockchain, error) {
 
 	initValue := genesis.ToCell(int64(math.Pow10(6)))
 

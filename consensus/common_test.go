@@ -273,11 +273,11 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 }
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
-	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	stakingUtil, _ := staking.NewSmcStakingUtil()
 	return genesis.SetupGenesisBlock(log.New(), db, g, stakingUtil)
 }
 
-func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
+func GetBlockchain() (blockchain.Blockchain, *configs.ChainConfig, error) {
 	// Start setting up blockchain
 	//initValue := g.ToCell(int64(math.Pow10(6)))
 	initValue, _ := big.NewInt(0).SetString("10000000000000000", 10)
@@ -323,20 +323,20 @@ func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*Consensu
 	logger := log.New()
 	logger.AddTag("test state")
 
-	bc, chainConfig, err := GetBlockchain()
+	bc, _, err := GetBlockchain()
 	blockDB := memorydb.New()
 	kaiDb := kvstore.NewStoreDB(blockDB)
 	if err != nil {
 		return nil, err
 	}
 
-	staking, _ := staking.NewSmcStakingnUtil()
+	staking, _ := staking.NewSmcStakingUtil()
 
 	txConfig := tx_pool.TxPoolConfig{
 		GlobalSlots: 64,
 		GlobalQueue: 5120000,
 	}
-	txPool := tx_pool.NewTxPool(txConfig, chainConfig, bc)
+	txPool := tx_pool.NewTxPool(txConfig, bc)
 	stateStore := cstate.NewStore(kaiDb.DB())
 	evPool, _ := evidence.NewPool(stateStore, kaiDb.DB(), bc)
 	bOper := blockchain.NewBlockOperations(logger, bc, txPool, evPool, staking)
