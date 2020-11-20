@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package service
+package dualchain
 
 import (
 	"github.com/kardiachain/go-kardiamain/configs"
@@ -52,7 +52,7 @@ type DualService struct {
 
 	// Handlers
 	eventPool           *event_pool.Pool
-	blockchain          *blockchain.DualBlockChain
+	blockchain          blockchain.DualBlockChain
 	csManager           *consensus.ConsensusManager
 	dualBlockOperations *blockchain.DualBlockOperations
 
@@ -181,5 +181,5 @@ func (s *DualService) APIs() []rpc.API {
 	}
 }
 
-func (s *DualService) EventPool() *event_pool.Pool            { return s.eventPool }
-func (s *DualService) BlockChain() *blockchain.DualBlockChain { return s.blockchain }
+func (s *DualService) EventPool() *event_pool.Pool           { return s.eventPool }
+func (s *DualService) BlockChain() blockchain.DualBlockChain { return s.blockchain }
