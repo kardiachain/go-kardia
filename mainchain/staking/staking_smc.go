@@ -92,7 +92,7 @@ func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward
 	return nil, nil
 }
 
-//CreateValidator create validator
+// CreateGenesisValidator creates a genesis validator
 func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, votingPower int64) error {
 	input, err := s.Abi.Pack("createValidator",
 		big.NewInt(10), // Commission rate
@@ -130,7 +130,7 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func (s *StakingSmcUtil) GetValidators(statedb *state.StateDB, header *types.Hea
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +199,7 @@ func (s *StakingSmcUtil) GetValidator(statedb *state.StateDB, header *types.Head
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +243,7 @@ func (s *StakingSmcUtil) GetValidatorPower(statedb *state.StateDB, header *types
 	if err != nil {
 		return 0, err
 	}
-	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return 0, err
 	}
@@ -268,7 +268,7 @@ func (s *StakingSmcUtil) GetValidatorCommission(statedb *state.StateDB, header *
 		return nil, err
 	}
 
-	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +293,7 @@ func (s *StakingSmcUtil) GetDelegationsByValidator(statedb *state.StateDB, heade
 		return nil, err
 	}
 
-	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +337,7 @@ func (s *StakingSmcUtil) GetDelegationRewards(statedb *state.StateDB, header *ty
 		return nil, err
 	}
 
-	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -361,7 +361,7 @@ func (s *StakingSmcUtil) GetDelegatorStake(statedb *state.StateDB, header *types
 	if err != nil {
 		return nil, err
 	}
-	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -379,7 +379,7 @@ func (s *StakingSmcUtil) GetDelegatorStake(statedb *state.StateDB, header *types
 	return delegatorStake, nil
 }
 
-func (s *StakingSmcUtil) constructAndApplySmcCallMsg(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, payload []byte) ([]byte, error) {
+func (s *StakingSmcUtil) ConstructAndApplySmcCallMsg(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, payload []byte) ([]byte, error) {
 	msg := types.NewMessage(
 		s.ContractAddress,
 		&s.ContractAddress,
@@ -400,7 +400,7 @@ func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc v
 		return nil, err
 	}
 
-	res, err := s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	if err != nil {
 		return nil, err
 	}
@@ -435,7 +435,7 @@ func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.He
 	if err != nil {
 		return err
 	}
-	_, err = s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	_, err = s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	return err
 }
 
@@ -446,7 +446,7 @@ func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header
 		if err != nil {
 			return err
 		}
-		_, err = s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+		_, err = s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 		if err != nil {
 			return err
 		}
@@ -460,7 +460,7 @@ func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, b
 	if err != nil {
 		return err
 	}
-	_, err = s.constructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	_, err = s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 	return err
 }
 
