@@ -117,10 +117,11 @@ func (vs *ValidatorSet) CurrentValidators() []*Validator {
 }
 
 // CopyIncrementProposerPriority Increment ProposerPriority and update the proposer on a copy, and return it.
+// Use when create genesis state, so its should panic if vs nil before make this call
 func (vs *ValidatorSet) CopyIncrementProposerPriority(times int64) *ValidatorSet {
-	copy := vs.Copy()
-	copy.IncrementProposerPriority(times)
-	return copy
+	vsCopy := vs.Copy()
+	vsCopy.IncrementProposerPriority(times)
+	return vsCopy
 }
 
 // IncrementProposerPriority increments ProposerPriority of each validator and updates the
@@ -650,7 +651,12 @@ func (vs *ValidatorSet) UpdateWithChangeSet(changes []*Validator) error {
 
 // VerifyCommit verify that +2/3 of the set had signed the given signBytes.
 func (vs *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height uint64, commit *Commit) error {
-
+	if vs == nil {
+		return ErrNilValidatorSet
+	}
+	if commit == nil {
+		return ErrNilCommit
+	}
 	if err := commit.ValidateBasic(); err != nil {
 		return err
 	}

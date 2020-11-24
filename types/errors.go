@@ -99,3 +99,9 @@ func NewConflictingVoteError(voteA, voteB *Vote) *ErrVoteConflictingVotes {
 		},
 	}
 }
+
+// Validator set error
+var (
+	ErrNilValidatorSet = errors.New("nil validator set")
+	ErrNilCommit       = errors.New("nil commit")
+)
