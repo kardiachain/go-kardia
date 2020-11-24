@@ -319,7 +319,6 @@ func (dbc *DualBlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 // fast block are left intact.
 func (dbc *DualBlockChain) repair(head **types.Block) error {
 	for {
-
 		root := kvstore.ReadAppHash(dbc.db.DB(), (*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
 		if _, err := state.New(dbc.logger, root, dbc.stateCache); err == nil {
@@ -327,7 +326,13 @@ func (dbc *DualBlockChain) repair(head **types.Block) error {
 			return nil
 		}
 		// Otherwise rewind one block and recheck state availability there
-		(*head) = dbc.GetBlock((*head).LastCommitHash(), (*head).Height()-1)
+		lastCommitHash := (*head).LastCommitHash()
+		lastHeight := (*head).Height() - 1
+		block := dbc.GetBlock(lastCommitHash, lastHeight)
+		if block == nil {
+			return fmt.Errorf("Missing block height: %d [%x]", lastHeight, lastCommitHash)
+		}
+		*head = block
 	}
 }
 

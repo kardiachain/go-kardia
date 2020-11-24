@@ -20,6 +20,7 @@ package blockchain
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -330,7 +331,6 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 // fast block are left intact.
 func (bc *BlockChain) repair(head **types.Block) error {
 	for {
-
 		root := kvstore.ReadAppHash(bc.DB().DB(), (*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
 		if _, err := state.New(bc.logger, root, bc.stateCache); err == nil {
@@ -338,7 +338,13 @@ func (bc *BlockChain) repair(head **types.Block) error {
 			return nil
 		}
 		// Otherwise rewind one block and recheck state availability there
-		(*head) = bc.GetBlock((*head).LastCommitHash(), (*head).Height()-1)
+		lastCommitHash := (*head).LastCommitHash()
+		lastHeight := (*head).Height() - 1
+		block := bc.GetBlock(lastCommitHash, lastHeight)
+		if block == nil {
+			return fmt.Errorf("Missing block height: %d [%x]", lastHeight, lastCommitHash)
+		}
+		*head = block
 	}
 }
 
