@@ -74,10 +74,17 @@ func (v *Validator) Hash() common.Hash {
 }
 
 // Copy Creates a new copy of the validator.
-// Panics if the validator is nil.
 func (v *Validator) Copy() *Validator {
-	vCopy := *v
-	return &vCopy
+	// Return empty object when v nil
+	if v == nil {
+		return &Validator{}
+	}
+	vCopy := &Validator{
+		Address:          v.Address,
+		VotingPower:      v.VotingPower,
+		ProposerPriority: v.ProposerPriority,
+	}
+	return vCopy
 }
 
 // CompareProposerPriority Returns the one with higher ProposerPriority.
