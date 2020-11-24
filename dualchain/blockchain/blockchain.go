@@ -35,7 +35,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -86,12 +85,6 @@ type DualBlockChain struct {
 // IsPrivate returns whether a blockchain is private or not
 func (dbc *DualBlockChain) IsPrivate() bool {
 	return dbc.isPrivate
-}
-
-// HasPermission return true if peer has permission otherwise false
-func (dbc *DualBlockChain) HasPermission(peer *p2p.Peer) bool {
-
-	return true
 }
 
 // Genesis retrieves the chain's genesis block.

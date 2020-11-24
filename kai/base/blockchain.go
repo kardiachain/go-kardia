@@ -25,7 +25,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -43,7 +42,6 @@ type BaseBlockChain interface {
 	Config() *configs.ChainConfig
 	GetHeader(common.Hash, uint64) *types.Header
 	IsPrivate() bool
-	HasPermission(peer *p2p.Peer) bool
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StateAt(root uint64) (*state.StateDB, error)
 	DB() types.StoreDB
