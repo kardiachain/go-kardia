@@ -2,7 +2,6 @@ package staking
 
 import (
 	"fmt"
-	"math"
 	"math/big"
 	"strings"
 	"time"
@@ -93,27 +92,41 @@ func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward
 }
 
 //CreateValidator create validator
-func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, votingPower int64) error {
+func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config,
+	valAddr common.Address,
+	_commission string,
+	_maxRate string,
+	_maxChangeRate string,
+	_minSelfDelegate string,
+	_selfDelegate string) error {
+
+	commission, k1 := big.NewInt(0).SetString(_commission, 10)
+	maxRate, k2 := big.NewInt(0).SetString(_maxRate, 10)
+	maxChangeRate, k3 := big.NewInt(0).SetString(_maxChangeRate, 10)
+	minSelfDelegate, k4 := big.NewInt(0).SetString(_minSelfDelegate, 10)
+	selfDelegate, k5 := big.NewInt(0).SetString(_selfDelegate, 10)
+
+	if !k1 || !k2 || !k3 || !k4 || !k5 {
+		panic("Error while parsing genesis validator params")
+	}
+
 	input, err := s.Abi.Pack("createValidator",
-		big.NewInt(10), // Commission rate
-		big.NewInt(20), // Max commission rate
-		big.NewInt(5),  // Max change rate
-		big.NewInt(0),  // Min Self Delegation
+		commission,      // Commission rate
+		maxRate,         // Maximum commission rate
+		maxChangeRate,   // Maximum commission change rate
+		minSelfDelegate, // Minimum self delegate amount
 	)
 	if err != nil {
 		panic(err)
 	}
 
-	vp := big.NewInt(votingPower)
-	tokens := vp.Mul(vp, big.NewInt(int64(math.Pow10(9))))
-
 	msg := types.NewMessage(
 		valAddr,
 		&s.ContractAddress,
 		0,
-		tokens,
-		10000000,
-		big.NewInt(70000),
+		selfDelegate,  // Self delegate amount
+		3000000,       // Gas limit
+		big.NewInt(1), // Gas price
 		input,
 		false,
 	)
@@ -326,7 +339,6 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	if err := vmenv.CreateGenesisContractAddress(sender, msg.Data(), msg.Gas(), msg.Value(), s.ContractAddress); err != nil {
 		return err
 	}
-	log.Info("Created genesis staking smart contract", "Deployer", configs.GenesisDeployerAddr.Hex(), "Address", s.ContractAddress.Hex())
 	// Update the state with pending changes
 	statedb.Finalise(true)
 	return nil

@@ -20,6 +20,8 @@ package cstate
 
 import (
 	"fmt"
+	"math"
+	"math/big"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
@@ -30,7 +32,7 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 
 	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/lib/math"
+	kmath "github.com/kardiachain/go-kardiamain/lib/math"
 	kstate "github.com/kardiachain/go-kardiamain/proto/kardiachain/state"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
@@ -193,7 +195,7 @@ func (s *dbStore) LoadValidators(height uint64) (*types.ValidatorSet, error) {
 
 func lastStoredHeightFor(height, lastHeightChanged uint64) int64 {
 	checkpointHeight := height - height%valSetCheckpointInterval
-	return math.MaxInt64(int64(checkpointHeight), int64(lastHeightChanged))
+	return kmath.MaxInt64(int64(checkpointHeight), int64(lastHeightChanged))
 }
 
 // CONTRACT: Returned ValidatorsInfo can be mutated.
@@ -325,7 +327,9 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
 	} else {
 		validators := make([]*types.Validator, len(genDoc.Validators))
 		for i, val := range genDoc.Validators {
-			validators[i] = types.NewValidator(common.HexToAddress(val.Address), val.Power)
+			tokens, _ := big.NewInt(0).SetString(val.SelfDelegate, 10)
+			power := tokens.Div(tokens, big.NewInt(int64(math.Pow10(9))))
+			validators[i] = types.NewValidator(common.HexToAddress(val.Address), power.Int64())
 		}
 		validatorSet = types.NewValidatorSet(validators)
 		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
