@@ -53,9 +53,13 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 // GenesisValidator is an initial validator.
 type GenesisValidator struct {
-	Address string `json:"address" yaml:"Address"`
-	Power   int64  `json:"power" yaml:"Power"`
-	Name    string `json:"name" yaml:"Name"`
+	Name            string `json:"name" yaml:"Name"`
+	Address         string `json:"address" yaml:"Address"`
+	CommissionRate  string `json:"comission" yaml:"CommissionRate"`
+	MaxRate         string `json:"maxRate" yaml:"MaxRate"`
+	MaxChangeRate   string `json:"maxChangeRate" yaml:"MaxChangeRate"`
+	MinSelfDelegate string `json:"minSelfDelegate" yaml:"MinSelfDelegate"`
+	SelfDelegate    string `json:"selfDelegate" yaml:"SelfDelegate"`
 }
 
 // Genesis specifies the header fields, state of a genesis block.
@@ -341,7 +345,13 @@ func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB
 	}
 
 	for _, val := range validators {
-		if err := staking.CreateGenesisValidator(statedb, header, nil, cfg, common.HexToAddress(val.Address), int64(val.Power)); err != nil {
+		if err := staking.CreateGenesisValidator(statedb, header, nil, cfg,
+			common.HexToAddress(val.Address),
+			val.CommissionRate,
+			val.MaxRate,
+			val.MaxChangeRate,
+			val.MinSelfDelegate,
+			val.SelfDelegate); err != nil {
 			return fmt.Errorf("apply create validator err: %s", err)
 		}
 	}
