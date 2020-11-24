@@ -119,9 +119,9 @@ func (vs *ValidatorSet) CurrentValidators() []*Validator {
 // CopyIncrementProposerPriority Increment ProposerPriority and update the proposer on a copy, and return it.
 // Use when create genesis state, so its should panic if vs nil before make this call
 func (vs *ValidatorSet) CopyIncrementProposerPriority(times int64) *ValidatorSet {
-	cloneVS := vs.Copy()
-	cloneVS.IncrementProposerPriority(times)
-	return cloneVS
+	vsCopy := vs.Copy()
+	vsCopy.IncrementProposerPriority(times)
+	return vsCopy
 }
 
 // IncrementProposerPriority increments ProposerPriority of each validator and updates the
@@ -654,11 +654,9 @@ func (vs *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height uin
 	if vs == nil {
 		return ErrNilValidatorSet
 	}
-
 	if commit == nil {
 		return ErrNilCommit
 	}
-
 	if err := commit.ValidateBasic(); err != nil {
 		return err
 	}
