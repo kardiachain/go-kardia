@@ -20,6 +20,7 @@ package blockchain
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -33,7 +34,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -90,12 +90,6 @@ func (bc *BlockChain) GetVMConfig() *kvm.Config {
 // IsPrivate returns whether a blockchain is private or not
 func (bc *BlockChain) IsPrivate() bool {
 	return bc.isPrivate
-}
-
-// HasPermission return true if peer has permission otherwise false
-func (bc *BlockChain) HasPermission(peer *p2p.Peer) bool {
-
-	return true
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -330,7 +324,6 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 // fast block are left intact.
 func (bc *BlockChain) repair(head **types.Block) error {
 	for {
-
 		root := kvstore.ReadAppHash(bc.DB().DB(), (*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
 		if _, err := state.New(bc.logger, root, bc.stateCache); err == nil {
@@ -338,7 +331,13 @@ func (bc *BlockChain) repair(head **types.Block) error {
 			return nil
 		}
 		// Otherwise rewind one block and recheck state availability there
-		(*head) = bc.GetBlock((*head).LastCommitHash(), (*head).Height()-1)
+		lastCommitHash := (*head).LastCommitHash()
+		lastHeight := (*head).Height() - 1
+		block := bc.GetBlock(lastCommitHash, lastHeight)
+		if block == nil {
+			return fmt.Errorf("Missing block height: %d [%x]", lastHeight, lastCommitHash)
+		}
+		*head = block
 	}
 }
 
