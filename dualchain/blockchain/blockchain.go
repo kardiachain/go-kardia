@@ -35,7 +35,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
 	"github.com/kardiachain/go-kardiamain/types"
 )
@@ -86,12 +85,6 @@ type DualBlockChain struct {
 // IsPrivate returns whether a blockchain is private or not
 func (dbc *DualBlockChain) IsPrivate() bool {
 	return dbc.isPrivate
-}
-
-// HasPermission return true if peer has permission otherwise false
-func (dbc *DualBlockChain) HasPermission(peer *p2p.Peer) bool {
-
-	return true
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -319,7 +312,6 @@ func (dbc *DualBlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 // fast block are left intact.
 func (dbc *DualBlockChain) repair(head **types.Block) error {
 	for {
-
 		root := kvstore.ReadAppHash(dbc.db.DB(), (*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
 		if _, err := state.New(dbc.logger, root, dbc.stateCache); err == nil {
@@ -327,7 +319,13 @@ func (dbc *DualBlockChain) repair(head **types.Block) error {
 			return nil
 		}
 		// Otherwise rewind one block and recheck state availability there
-		(*head) = dbc.GetBlock((*head).LastCommitHash(), (*head).Height()-1)
+		lastCommitHash := (*head).LastCommitHash()
+		lastHeight := (*head).Height() - 1
+		block := dbc.GetBlock(lastCommitHash, lastHeight)
+		if block == nil {
+			return fmt.Errorf("Missing block height: %d [%x]", lastHeight, lastCommitHash)
+		}
+		*head = block
 	}
 }
 
