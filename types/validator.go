@@ -77,7 +77,7 @@ func (v *Validator) Hash() common.Hash {
 func (v *Validator) Copy() *Validator {
 	// Return empty object when v nil
 	if v == nil {
-		return &Validator{}
+		return nil
 	}
 	vCopy := &Validator{
 		Address:          v.Address,
