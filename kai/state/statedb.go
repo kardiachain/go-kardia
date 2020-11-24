@@ -215,6 +215,13 @@ func (sdb *StateDB) SubBalance(addr common.Address, amount *big.Int) {
 	}
 }
 
+func (s *StateDB) SetBalance(addr common.Address, amount *big.Int) {
+	stateObject := s.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SetBalance(amount)
+	}
+}
+
 func (sdb *StateDB) SetCode(addr common.Address, code []byte) {
 	stateObject := sdb.GetOrNewStateObject(addr)
 	if stateObject != nil {
