@@ -117,10 +117,11 @@ func (vs *ValidatorSet) CurrentValidators() []*Validator {
 }
 
 // CopyIncrementProposerPriority Increment ProposerPriority and update the proposer on a copy, and return it.
+// Use when create genesis state, so its should panic if vs nil before make this call
 func (vs *ValidatorSet) CopyIncrementProposerPriority(times int64) *ValidatorSet {
-	copy := vs.Copy()
-	copy.IncrementProposerPriority(times)
-	return copy
+	cloneVS := vs.Copy()
+	cloneVS.IncrementProposerPriority(times)
+	return cloneVS
 }
 
 // IncrementProposerPriority increments ProposerPriority of each validator and updates the
