@@ -19,12 +19,14 @@
 package consensus
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sync"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+
 	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
 	kevents "github.com/kardiachain/go-kardiamain/lib/events"
@@ -143,11 +145,11 @@ func (conR *ConsensusManager) InitPeer(peer p2p.Peer) p2p.Peer {
 }
 
 // AddPeer implements manager
-func (conR *ConsensusManager) AddPeer(peer p2p.Peer) {
+func (conR *ConsensusManager) AddPeer(peer p2p.Peer) error {
 	conR.Logger.Info("Add peer to manager", "peer", peer)
 
 	if !conR.IsRunning() {
-		return
+		return errors.New("consensus manager is not running")
 	}
 
 	peerState, ok := peer.Get(types.PeerStateKey).(*PeerState)
@@ -163,7 +165,7 @@ func (conR *ConsensusManager) AddPeer(peer p2p.Peer) {
 	// Send our state to peer.
 	// If we're fast_syncing, broadcast a RoundStepMessage later upon SwitchToConsensus().
 	conR.sendNewRoundStepMessage(peer)
-
+	return nil
 }
 
 // RemovePeer is a noop.
