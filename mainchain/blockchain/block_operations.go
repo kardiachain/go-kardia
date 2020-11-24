@@ -149,12 +149,6 @@ func (bo *BlockOperations) SaveBlock(block *types.Block, blockParts *types.PartS
 	if g, w := height, bo.Height()+1; g != w {
 		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", w, g))
 	}
-
-	// Save block
-	if height != bo.Height()+1 {
-		common.PanicSanity(common.Fmt("BlockOperations can only save contiguous blocks. Wanted %v, got %v", bo.Height()+1, height))
-	}
-
 	if !blockParts.IsComplete() {
 		panic("BlockOperations can only save complete block part sets")
 	}

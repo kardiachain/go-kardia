@@ -165,12 +165,6 @@ func (dbo *DualBlockOperations) SaveBlock(block *types.Block, blockParts *types.
 	if g, w := height, dbo.Height()+1; g != w {
 		common.PanicSanity(common.Fmt("DualBlockOperations can only save contiguous blocks. Wanted %v, got %v", w, g))
 	}
-
-	// Save block
-	if height != dbo.Height()+1 {
-		common.PanicSanity(common.Fmt("DualBlockOperations can only save contiguous blocks. Wanted %v, got %v", dbo.Height()+1, height))
-	}
-
 	// TODO(kiendn): WriteBlockWithoutState returns an error, write logic check if error appears
 	if err := dbo.blockchain.WriteBlockWithoutState(block); err != nil {
 		common.PanicSanity(common.Fmt("WriteBlockWithoutState fails with error %v", err))
