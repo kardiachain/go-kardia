@@ -650,6 +650,13 @@ func (vs *ValidatorSet) UpdateWithChangeSet(changes []*Validator) error {
 
 // VerifyCommit verify that +2/3 of the set had signed the given signBytes.
 func (vs *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height uint64, commit *Commit) error {
+	if vs == nil {
+		return ErrNilValidatorSet
+	}
+
+	if commit == nil {
+		return ErrNilCommit
+	}
 
 	if err := commit.ValidateBasic(); err != nil {
 		return err
