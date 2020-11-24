@@ -88,7 +88,7 @@ func (p *KardiaProxy) Init(kardiaBc base.BaseBlockChain, txPool *tx_pool.TxPool,
 	logger.AddTag(KARDIA_PROXY)
 
 	p.logger = logger
-	p.name = configs.KAI
+	p.name = configs.KAISymbol
 	p.kardiaBc = kardiaBc
 	p.txPool = txPool
 	p.dualBc = dualBc
