@@ -228,7 +228,6 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 		receipts = types.Receipts{}
 		usedGas  = new(uint64)
 	)
-	counter := 0
 
 	// Blockchain state at head block.
 	state, err := bo.blockchain.State()
@@ -261,8 +260,8 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
 LOOP:
-	for _, tx := range txs {
-		state.Prepare(tx.Hash(), common.Hash{}, counter)
+	for i, tx := range txs {
+		state.Prepare(tx.Hash(), common.Hash{}, i)
 		snap := state.Snapshot()
 		// TODO(thientn): confirms nil coinbase is acceptable.
 		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
@@ -274,7 +273,7 @@ LOOP:
 			//return common.Hash{}, nil, nil, err
 			continue LOOP
 		}
-		counter++
+		i++
 		receipts = append(receipts, receipt)
 		newTxs = append(newTxs, tx)
 	}
