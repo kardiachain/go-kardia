@@ -361,7 +361,7 @@ func TestEmitEvent(t *testing.T) {
 		ToOrgId   string
 	}
 	var requestEvent ExternalCandidateInfoRequested
-	err = abi.Unpack(&requestEvent, "ExternalCandidateInfoRequested", logs[0].Data)
+	err = abi.UnpackIntoInterface(&requestEvent, "ExternalCandidateInfoRequested", logs[0].Data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -403,7 +403,7 @@ func TestInfoRequest(t *testing.T) {
 	var list struct {
 		RequestList string
 	}
-	err = abi.Unpack(&list, "getRequests", getRequestResult)
+	err = abi.UnpackIntoInterface(&list, "getRequests", getRequestResult)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -424,7 +424,7 @@ func TestInfoRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = abi.Unpack(&list, "getRequests", getRequestResult)
+	err = abi.UnpackIntoInterface(&list, "getRequests", getRequestResult)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -455,7 +455,7 @@ func TestInfoRequest(t *testing.T) {
 		Answer  string
 		ToOrgId string
 	}
-	err = abi.Unpack(&requestCompleted, "RequestCompleted", logs[0].Data)
+	err = abi.UnpackIntoInterface(&requestCompleted, "RequestCompleted", logs[0].Data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -473,7 +473,7 @@ func TestInfoRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = abi.Unpack(&list, "getRequests", getRequestResult)
+	err = abi.UnpackIntoInterface(&list, "getRequests", getRequestResult)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -489,7 +489,7 @@ func TestInfoRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = abi.Unpack(&list, "getCompletedRequests", getRequestResult)
+	err = abi.UnpackIntoInterface(&list, "getCompletedRequests", getRequestResult)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -528,7 +528,7 @@ func TestGetAddExternalResponse(t *testing.T) {
 	var externalResult struct {
 		Content string
 	}
-	err = abi.Unpack(&externalResult, "getExternalResponse", getResponseResultl)
+	err = abi.UnpackIntoInterface(&externalResult, "getExternalResponse", getResponseResultl)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -549,7 +549,7 @@ func TestGetAddExternalResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = abi.Unpack(&externalResult, "getExternalResponse", getResponseResultl)
+	err = abi.UnpackIntoInterface(&externalResult, "getExternalResponse", getResponseResultl)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -563,7 +563,7 @@ func TestGetAddExternalResponse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = abi.Unpack(&externalResult, "getExternalResponse", getResponseResultl)
+	err = abi.UnpackIntoInterface(&externalResult, "getExternalResponse", getResponseResultl)
 	if err != nil {
 		t.Fatal(err)
 	}
