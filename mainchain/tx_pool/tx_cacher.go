@@ -56,7 +56,7 @@ type txSenderCacher struct {
 // as many processing goroutines as allowed by the GOMAXPROCS on construction.
 func newTxSenderCacher(threads int) *txSenderCacher {
 	if threads > MaxWorker {
-		threads = MaxWorker
+		threads = MaxWorker / 2
 	}
 	cacher := &txSenderCacher{
 		tasks:   make(chan *txSenderCacherRequest, threads),
