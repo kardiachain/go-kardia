@@ -87,10 +87,17 @@ func (v *Validator) Hash() common.Hash {
 }
 
 // Copy Creates a new copy of the validator.
-// Panics if the validator is nil.
 func (v *Validator) Copy() *Validator {
-	vCopy := *v
-	return &vCopy
+	// Return empty object when v nil
+	if v == nil {
+		return nil
+	}
+	vCopy := &Validator{
+		Address:          v.Address,
+		VotingPower:      v.VotingPower,
+		ProposerPriority: v.ProposerPriority,
+	}
+	return vCopy
 }
 
 // CompareProposerPriority Returns the one with higher ProposerPriority.
@@ -116,13 +123,10 @@ func (v *Validator) CompareProposerPriority(other *Validator) *Validator {
 	}
 }
 
-// String
-// String returns a string representation of String.
-//
+// String impl String interface and return validator object with
 // 1. address
-// 2. public key
-// 3. voting power
-// 4. proposer priority
+// 2. voting power
+// 3. proposer priority
 func (v *Validator) String() string {
 	if v == nil {
 		return "nil-Validator"

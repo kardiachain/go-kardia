@@ -6,23 +6,23 @@
 [![CircleCI](https://circleci.com/gh/kardiachain/go-kardiamain.svg?style=shield&circle-token=b35bd6e6d67b307a6bb5966efbfa0297820d6846)](https://circleci.com/gh/kardiachain/go-kardiamain)
 [![codecov](https://codecov.io/gh/kardiachain/go-kardiamain/branch/master/graph/badge.svg?token=VuisziC3mg)](https://codecov.io/gh/kardiachain/go-kardiamain)
 
-Official Golang implementation of Kardia chain following the specs in [Technical Paper](http://dl.kardiachain.io/paper.pdf)
+Official Golang implementation of KardiaChain following the specs in [Technical Paper](http://dl.kardiachain.io/paper.pdf)
 
-- Compatible tested `go build` version: 1.13.0, 1.13.9, 1.13.15, 1.14.12
-- Compatible tested `go test ./...` version: 1.14.12
+- Recommend `go build` version: 1.14.12 (stable), 1.15.5 (unstable)
+- Recommend `go test ./...` >= version: 1.14.12
 
-# Kardia private testnet
-- Block explorer UI: [Kardiascan](http://explorer.kardiachain.io/)
+# Kardia Public Testnet [Fengari 3.0]
+- Network Explorer: [Kardiascan](http://explorer.kardiachain.io/)
 - Release: [kardia-v0.10.4](https://github.com/kardiachain/go-kardiamain/releases/tag/v0.10.4)
 
 
 # Quickstart
-### Run local testnet with docker
+### Run Local Testnet with docker
 - See [docker](https://github.com/kardiachain/go-kardiamain/tree/master/docker) for more details.
 
 # Development
 ### Go environment setup
-Install [Go](https://golang.org/doc/install) v1.14 to $HOME directory. Sets environment vars:  
+Install [Go](https://golang.org/doc/install) to $HOME directory. Sets environment vars:  
 > export GOPATH=$HOME/go  
 > export PATH=$PATH:$GOPATH/bin
 
@@ -74,6 +74,6 @@ go test ./...
 ./cmd --network devnet --node <path/to/kai_config_devnet_node3.yaml>
 ```
 
-### Monitor blocks with Kardiascan
+### Monitor network with KardiaChain Explorer
 - Setup [JSON-RPC](https://github.com/kardiachain/go-kardiamain/tree/master/rpc) request
 - Launch [Explorer backend](https://github.com/kardiachain/explorer-backend)

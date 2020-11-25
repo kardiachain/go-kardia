@@ -42,6 +42,15 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
+var (
+	votingPower     int64 = 15000000000000000
+	commissionRate        = "100000000000000000"
+	maxRate               = "250000000000000000"
+	maxChangeRate         = "50000000000000000"
+	minSelfDelegate       = "10000000000000000000000000"
+	selfDelegate          = "15000000000000000000000000"
+)
+
 func GetBlockchainStaking() (*blockchain.BlockChain, error, *state.StateDB) {
 	logger := log.New()
 	logger.AddTag("test state")
@@ -157,7 +166,7 @@ func TestCreateValidator(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, 1000000)
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "10", "20", "1", "10", "11")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,10 +188,9 @@ func TestGetValidators(t *testing.T) {
 	}
 
 	var (
-		votingPower int64 = 1000000
-		address           = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+		address = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
 	)
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, votingPower)
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, commissionRate, maxRate, maxChangeRate, minSelfDelegate, selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -207,24 +215,26 @@ func TestGetValidator(t *testing.T) {
 	}
 
 	var (
-		votingPower            int64 = 1000000
-		expectedVotingPower    int64 = 1000000000000000
-		expectedCommissionRate int64 = 10
-		expectedMaxRate        int64 = 20
-		expectedMaxChangeRate  int64 = 5
-		address                      = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+		address = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
 	)
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, votingPower)
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, commissionRate, maxRate, maxChangeRate, minSelfDelegate, selfDelegate)
 	if err != nil {
 		t.Fatal(err)
+	}
+	expectedCommissionRate, ok1 := new(big.Int).SetString(commissionRate, 10)
+	expectedMaxRate, ok2 := new(big.Int).SetString(maxRate, 10)
+	expectedMaxChangeRate, ok3 := new(big.Int).SetString(maxChangeRate, 10)
+	expectedSelfDelegate, ok4 := new(big.Int).SetString(selfDelegate, 10)
+	if !ok1 || !ok2 || !ok3 || !ok4 {
+		t.Fatal("Error while parsing genesis validator params")
 	}
 	newValidator := &types.Validator{
 		Address:        address,
 		VotingPower:    votingPower,
-		StakedAmount:   big.NewInt(expectedVotingPower),
-		CommissionRate: big.NewInt(expectedCommissionRate),
-		MaxRate:        big.NewInt(expectedMaxRate),
-		MaxChangeRate:  big.NewInt(expectedMaxChangeRate),
+		StakedAmount:   expectedSelfDelegate,
+		CommissionRate: expectedCommissionRate,
+		MaxRate:        expectedMaxRate,
+		MaxChangeRate:  expectedMaxChangeRate,
 	}
 
 	validator, err := util.GetValidator(stateDB, block.Header(), nil, kvm.Config{}, address)
@@ -246,10 +256,9 @@ func TestGetValidatorPower(t *testing.T) {
 	}
 
 	var (
-		votingPower int64 = 1000000
-		address           = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+		address = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
 	)
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, votingPower)
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, commissionRate, maxRate, maxChangeRate, minSelfDelegate, selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -272,10 +281,9 @@ func TestGetValidatorCommission(t *testing.T) {
 	}
 
 	var (
-		votingPower int64 = 1000000
-		valAddr           = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+		valAddr = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
 	)
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, valAddr, votingPower)
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, commissionRate, maxRate, maxChangeRate, minSelfDelegate, selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -299,10 +307,9 @@ func TestGetDelegationsByValidator(t *testing.T) {
 	}
 
 	var (
-		votingPower int64 = 1000000
-		address           = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+		address = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
 	)
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, votingPower)
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, commissionRate, maxRate, maxChangeRate, minSelfDelegate, selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -325,10 +332,9 @@ func TestGetDelegationRewards(t *testing.T) {
 	}
 
 	var (
-		votingPower int64 = 1000000
-		address           = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+		address = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
 	)
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, votingPower)
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, commissionRate, maxRate, maxChangeRate, minSelfDelegate, selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -352,10 +358,9 @@ func TestGetDelegatorStake(t *testing.T) {
 	}
 
 	var (
-		votingPower int64 = 1000000
-		address           = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+		address = common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
 	)
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, votingPower)
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, commissionRate, maxRate, maxChangeRate, minSelfDelegate, selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,10 +471,9 @@ func TestCreateValidator2(t *testing.T) {
 	}
 
 	var (
-		votingPower int64 = 1000000
-		validator1        = common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
+		validator1 = common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 	)
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, validator1, votingPower)
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, commissionRate, maxRate, maxChangeRate, minSelfDelegate, selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -526,8 +530,12 @@ func TestCreateValidator2(t *testing.T) {
 
 	//check bond
 	num = new(big.Int).SetBytes(res[:32])
-	if num.Cmp(big.NewInt(1000000000000000)) != 0 {
-		t.Error("Expected delegation 1000000000000000, got #", num)
+	expectedDelegation, ok := new(big.Int).SetString("15000000000000000000000000", 10)
+	if !ok {
+		t.Fatal("Cannot parse string to big.Int")
+	}
+	if num.Cmp(expectedDelegation) != 0 {
+		t.Error("Expected delegation 15000000000000000000000000, got #", num)
 	}
 	//check delegation shares
 	num = new(big.Int).SetBytes(res[32:64])
@@ -573,8 +581,12 @@ func TestCreateValidator2(t *testing.T) {
 		t.Fatal(err)
 	}
 	num = new(big.Int).SetBytes(res)
-	if num.Cmp(big.NewInt(1000000000000000)) != 0 {
-		t.Error("Expected delegation 1000000000000000, got #", num)
+	expectedDelegation, ok = new(big.Int).SetString("15000000000000000000000000", 10)
+	if !ok {
+		t.Fatal("Cannot parse string to big.Int")
+	}
+	if num.Cmp(expectedDelegation) != 0 {
+		t.Error("Expected delegation 15000000000000000000000000, got #", num)
 	}
 
 }
@@ -606,10 +618,9 @@ func TestDelegate(t *testing.T) {
 
 	//create validator
 	var (
-		votingPower int64 = 1000000
-		validator1        = common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
+		validator1 = common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 	)
-	err = util.CreateGenesisValidator(stateDB, block.Header(), bc, kvm.Config{}, validator1, votingPower)
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, validator1, commissionRate, maxRate, maxChangeRate, minSelfDelegate, selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -651,8 +662,8 @@ func TestDelegate(t *testing.T) {
 		t.Fatal(err)
 	}
 	num := new(big.Int).SetBytes(result)
-	if num.Cmp(big.NewInt(20000000)) != 0 {
-		t.Error("Expected delegation 20000000, got #", num)
+	if num.Cmp(big.NewInt(0)) != 0 {
+		t.Error("Expected delegation 0, got #", num)
 	}
 
 	//check get delegation by validator
@@ -699,8 +710,8 @@ func TestDelegate(t *testing.T) {
 		t.Fatal(err)
 	}
 	num = new(big.Int).SetBytes(result)
-	if num.Cmp(big.NewInt(19500)) != 0 {
-		t.Error("Expected delegation 19500, got #", num)
+	if num.Cmp(big.NewInt(0)) != 0 {
+		t.Error("Expected delegation 0, got #", num)
 	}
 
 	//check get getAllDelegatorStake
@@ -713,8 +724,8 @@ func TestDelegate(t *testing.T) {
 		t.Fatal(err)
 	}
 	num = new(big.Int).SetBytes(result[96:128])
-	if num.Cmp(big.NewInt(500)) != 0 {
-		t.Error("Expected delegation 500, got #", num)
+	if num.Cmp(big.NewInt(0)) != 0 {
+		t.Error("Expected delegation 0, got #", num)
 	}
 
 	//check apply and return validator sets
@@ -728,16 +739,15 @@ func TestDelegate(t *testing.T) {
 }
 
 func TestDoubleSign(t *testing.T) {
-	bc, stateDB, util, block, err := setup()
+	_, stateDB, util, block, err := setup()
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var (
-		votingPower int64 = 1000000
-		validator1        = common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-		owner             = common.HexToAddress("0x1234")
-		abi               = util.Abi
+		validator1 = common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
+		owner      = common.HexToAddress("0x1234")
+		abi        = util.Abi
 	)
 
 	baseProposerReward := big.NewInt(1)
@@ -758,7 +768,7 @@ func TestDoubleSign(t *testing.T) {
 	}
 
 	// create validator
-	err = util.CreateGenesisValidator(stateDB, block.Header(), bc, kvm.Config{}, validator1, votingPower)
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, validator1, commissionRate, maxRate, maxChangeRate, minSelfDelegate, selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
