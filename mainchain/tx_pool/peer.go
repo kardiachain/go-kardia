@@ -174,30 +174,30 @@ func (p *peer) broadcastTransactions() {
 		if done == nil && len(queue) > 0 {
 			// Pile transaction until we reach our allowed network limit
 			var (
-				hashes  []common.Hash
-				pending []common.Hash
-				size    common.StorageSize
+				hashes []common.Hash
+				txs    []*types.Transaction
+				size   common.StorageSize
 			)
 			for i := 0; i < len(queue) && size < txsyncPackSize; i++ {
-				if p.getPooledTx(queue[i]) != nil {
-					pending = append(pending, queue[i])
-					size += common.HashLength
+				if tx := p.getPooledTx(queue[i]); tx != nil {
+					txs = append(txs, tx)
+					size += tx.Size()
 				}
 				hashes = append(hashes, queue[i])
 			}
 			queue = queue[:copy(queue, queue[len(hashes):])]
 
 			// If there's anything available to transfer, fire up an async writer
-			if len(pending) > 0 {
+			if len(txs) > 0 {
 				done = make(chan struct{})
 				go func() {
-					if err := p.sendTransactions(pending); err != nil {
-						p.logger.Error("Send txs failed", "err", err, "count", len(pending), "peer", p.id)
+					if err := p.sendTransactions(txs); err != nil {
+						p.logger.Error("Send txs failed", "err", err, "count", len(txs), "peer", p.id)
 						fail <- err
 						return
 					}
 					close(done)
-					p.logger.Trace("Sent transactions", "count", len(pending))
+					p.logger.Trace("Sent transactions", "count", len(txs))
 				}()
 			}
 		}
@@ -238,14 +238,14 @@ func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
 }
 
 // SendTransactions sends transactions to the peer, adds the txn hashes to known txn set.
-func (p *peer) sendTransactions(hashes []common.Hash) error {
+func (p *peer) sendTransactions(txs types.Transactions) error {
 	// If we reached the memory allowance, drop a previously known transaction hash
-	for p.knownTxs.Cardinality() > max(0, maxKnownTxs-len(hashes)) {
+	for p.knownTxs.Cardinality() > max(0, maxKnownTxs-len(txs)) {
 		p.knownTxs.Pop()
 	}
 
-	encoded := make([][]byte, len(hashes))
-	for idx, tx := range hashes {
+	encoded := make([][]byte, len(txs))
+	for idx, tx := range txs {
 		txBytes, err := rlp.EncodeToBytes(tx)
 		if err != nil {
 			panic(err)
