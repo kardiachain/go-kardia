@@ -1110,7 +1110,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 		for _, set := range eventsPool {
 			txs = append(txs, set.Flatten()...)
 		}
-		pool.txFeed.Send(events.NewTxsEvent{txs})
+		pool.txFeed.Send(events.NewTxsEvent{Txs: txs})
 	}
 }
 
