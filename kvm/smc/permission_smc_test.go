@@ -234,7 +234,7 @@ func TestExecutePermissionContract(t *testing.T) {
 		ListenAddress string
 	}
 
-	err = abi.Unpack(&nodeInfo, "getNodeInfo", getNodeResult)
+	err = abi.UnpackIntoInterface(&nodeInfo, "getNodeInfo", getNodeResult)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -316,7 +316,7 @@ func TestExecutePermissionContract(t *testing.T) {
 
 	// Get NodeInfo of removed node
 	getNodeResult, _, err = sample_kvm.Call(address, getNodeInput, &sample_kvm.Config{State: state, Origin: common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")})
-	err = abi.Unpack(&nodeInfo, "getNodeInfo", getNodeResult)
+	err = abi.UnpackIntoInterface(&nodeInfo, "getNodeInfo", getNodeResult)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -370,7 +370,7 @@ func TestExecutePermissionContract(t *testing.T) {
 		VotingPower *big.Int
 		NodeType    *big.Int
 	}
-	err = abi.Unpack(&initialNodeInfo, "getInitialNodeByIndex", getInitialNodeResult)
+	err = abi.UnpackIntoInterface(&initialNodeInfo, "getInitialNodeByIndex", getInitialNodeResult)
 	if err != nil {
 		t.Fatal(err)
 	}

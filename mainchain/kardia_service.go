@@ -71,6 +71,8 @@ type KardiaService struct {
 	networkID uint64
 
 	eventBus *types.EventBus
+
+	staking *staking.StakingSmcUtil
 }
 
 func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
@@ -116,6 +118,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		shutdownChan: make(chan bool),
 		networkID:    config.NetworkId,
 		eventBus:     eventBus,
+		staking:      staking,
 	}
 
 	// Create a new blockchain to attach to this Kardia object

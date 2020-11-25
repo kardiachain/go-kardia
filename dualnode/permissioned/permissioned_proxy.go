@@ -287,7 +287,7 @@ func (p *PermissionedProxy) extractPrivateChainTxSummary(input []byte, method st
 	case configs.PrivateChainRequestInfoFunction:
 		extraData := make([][]byte, configs.PrivateChainCandidateRequestFields)
 		var candidateInfoRequestInput ExternalCandidateInfoRequestInput
-		unpackErr := p.smcABI.UnpackInput(&candidateInfoRequestInput,
+		unpackErr := p.smcABI.UnpackIntoInterface(&candidateInfoRequestInput,
 			configs.PrivateChainRequestInfoFunction, input[4:])
 		if unpackErr != nil {
 			p.logger.Error("Error unpacking event", "err", unpackErr)
@@ -304,7 +304,7 @@ func (p *PermissionedProxy) extractPrivateChainTxSummary(input []byte, method st
 	case configs.PrivateChainCompleteRequestFunction:
 		extraData := make([][]byte, configs.PrivateChainCandidateRequestCompletedFields)
 		var completeRequestInput CompleteRequestInput
-		unpackErr := p.smcABI.UnpackInput(&completeRequestInput,
+		unpackErr := p.smcABI.UnpackIntoInterface(&completeRequestInput,
 			configs.PrivateChainCompleteRequestFunction, input[4:])
 		if unpackErr != nil {
 			p.logger.Error("Error unpacking event", "data", input, "err", unpackErr)

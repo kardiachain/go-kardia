@@ -194,16 +194,79 @@ func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *Bl
 	return NewBlockJSON(block, blockInfo)
 }
 
+type Validator struct {
+	Address         common.Address `json:"address"`
+	VotingPower     int64          `json:"votingPower"`
+	StakedAmount    string         `json:"stakedAmount"`
+	Commission      string         `json:"commission"`
+	CommissionRate  string         `json:"commissionRate"`
+	TotalDelegators int            `json:"totalDelegators"`
+	MaxRate         string         `json:"maxRate"`
+	MaxChangeRate   string         `json:"maxChangeRate"`
+	Delegators      []*Delegator   `json:"delegators,omitempty"`
+}
+
+type Delegator struct {
+	Address      common.Address `json:"address"`
+	StakedAmount string         `json:"stakedAmount"`
+	Reward       string         `json:"reward"`
+}
+
 // Validator returns node's validator, nil if current node is not a validator
-// TODO @trinhdn: get validators' info from staking smart contract
-func (s *PublicKaiAPI) Validator() map[string]interface{} {
-	return nil
+func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, isGetDelegators bool) (*Validator, error) {
+	val, err := s.kaiService.GetValidator(valAddr)
+	if err != nil {
+		return nil, err
+	}
+	delegationsList, err := s.kaiService.GetDelegationsByValidator(valAddr)
+	if err != nil {
+		return nil, err
+	}
+	commission, err := s.kaiService.GetValidatorCommission(valAddr)
+	if err != nil {
+		return nil, err
+	}
+	var delegatorsList []*Delegator
+	if isGetDelegators {
+		for _, del := range delegationsList {
+			delegatorsList = append(delegatorsList, &Delegator{
+				Address:      del.Address,
+				StakedAmount: del.StakedAmount.String(),
+				Reward:       del.Reward.String(),
+			})
+		}
+	} else {
+		delegatorsList = nil
+	}
+
+	return &Validator{
+		Address:         val.Address,
+		VotingPower:     val.VotingPower,
+		StakedAmount:    val.StakedAmount.String(),
+		Commission:      commission.String(),
+		CommissionRate:  val.CommissionRate.String(),
+		TotalDelegators: len(delegationsList),
+		MaxRate:         val.MaxRate.String(),
+		MaxChangeRate:   val.MaxChangeRate.String(),
+		Delegators:      delegatorsList,
+	}, nil
 }
 
 // Validators returns a list of validator
-// TODO @trinhdn: get validators' info from staking smart contract
-func (s *PublicKaiAPI) Validators() []map[string]interface{} {
-	return nil
+func (s *PublicKaiAPI) Validators(ctx context.Context, isGetDelegators bool) ([]*Validator, error) {
+	var validators []*Validator
+	valList, err := s.kaiService.GetValidators()
+	if err != nil {
+		return nil, err
+	}
+	for _, val := range valList {
+		validator, err := s.Validator(ctx, val.Address, isGetDelegators)
+		if err != nil {
+			return nil, err
+		}
+		validators = append(validators, validator)
+	}
+	return validators, nil
 }
 
 type PublicTransaction struct {
@@ -334,7 +397,6 @@ func (s *PublicKaiAPI) KardiaCall(ctx context.Context, args types.CallArgsJSON, 
 	if len(result.Revert()) > 0 {
 		return nil, newRevertError(result)
 	}
-
 	return result.Return(), result.Err
 }
 

@@ -389,13 +389,13 @@ func GenerateOutputStruct(smcABI abi.ABI, method string, result []byte) (interfa
 				default:
 					return "", fmt.Errorf("unsupported value type %v", v.Outputs[0].Type.GetType().Kind().String())
 				}
-				if err := smcABI.Unpack(&obj, method, result); err != nil {
+				if err := smcABI.UnpackIntoInterface(&obj, method, result); err != nil {
 					return nil, err
 				}
 				return obj, nil
 			}
 			obj = makeStruct(v.Outputs)
-			if err := smcABI.Unpack(obj, method, result); err != nil {
+			if err := smcABI.UnpackIntoInterface(obj, method, result); err != nil {
 				return nil, err
 			}
 			return obj, nil
@@ -450,7 +450,7 @@ func GetMethodAndParams(smcABI abi.ABI, input []byte) (string, []string, error) 
 		return "", nil, err
 	}
 
-	if err := method.Inputs.Unpack(str, input[4:]); err != nil {
+	if err := smcABI.UnpackIntoInterface(str, method.Name, input[4:]); err != nil {
 		return "", nil, err
 	}
 	obj := reflect.ValueOf(str)

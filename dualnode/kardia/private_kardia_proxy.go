@@ -292,7 +292,7 @@ func (p *PrivateKardiaProxy) ExtractKardiaTxSummary(tx *types.Transaction) (type
 	case configs.KardiaForwardRequestFunction:
 		candidateRequestData := make([][]byte, configs.KardiaForwardRequestFields)
 		var incomingRequest KardiaForwardRequestInput
-		err = p.smcABI.UnpackInput(&incomingRequest, configs.KardiaForwardRequestFunction, input[4:])
+		err = p.smcABI.UnpackIntoInterface(&incomingRequest, configs.KardiaForwardRequestFunction, input[4:])
 		if err != nil {
 			log.Error("Error unpack forward request input,", "tx", tx, "err", err)
 			return types.EventSummary{}, ErrUnpackForwardRequestInfo
@@ -308,7 +308,7 @@ func (p *PrivateKardiaProxy) ExtractKardiaTxSummary(tx *types.Transaction) (type
 	case configs.KardiaForwardResponseFunction:
 		forwardedResponseData := make([][]byte, configs.KardiaForwardResponseFields)
 		var forwardResponseInput KardiaForwardResponseInput
-		err = p.smcABI.UnpackInput(&forwardResponseInput, configs.KardiaForwardResponseFunction, input[4:])
+		err = p.smcABI.UnpackIntoInterface(&forwardResponseInput, configs.KardiaForwardResponseFunction, input[4:])
 		if err != nil {
 			log.Error("Error unpack forward request input,", "tx", tx, "err", err)
 			return types.EventSummary{}, ErrUnpackForwardResponseInfo

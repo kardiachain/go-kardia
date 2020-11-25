@@ -3,8 +3,10 @@ package tx_pool
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/kardiachain/go-kardiamain/kai/events"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 	"github.com/kardiachain/go-kardiamain/lib/rlp"
@@ -72,7 +74,7 @@ func (txR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 // AddPeer implements Reactor.
 // It starts a broadcast routine ensuring all txs are forwarded to the given peer.
 func (txR *Reactor) AddPeer(peer p2p.Peer) error {
-	if err := txR.peers.Register(newPeer(txR.Logger, peer)); err != nil {
+	if err := txR.peers.Register(newPeer(txR.Logger, peer, txR.txpool.Get)); err != nil {
 		txR.Logger.Error("register peer err: %s", err)
 		return err
 	}
@@ -107,6 +109,7 @@ type PeerState interface {
 
 // Send new txpool txs to peer.
 func (txR *Reactor) broadcastTxRoutine() {
+	txset := make(map[*peer][]common.Hash)
 	txR.txsCh = make(chan events.NewTxsEvent, txChanSize)
 	txR.txsSub = txR.txpool.SubscribeNewTxsEvent(txR.txsCh)
 	for {
@@ -117,10 +120,21 @@ func (txR *Reactor) broadcastTxRoutine() {
 
 		select {
 		case txEvent := <-txR.txsCh:
-			for peer, txs := range txR.peers.PeersWithoutTxs(txEvent.Txs) {
-				// only send to validators
-				peer.AsyncSendTransactions(txs)
+			for _, tx := range txEvent.Txs {
+				peers := txR.peers.PeersWithoutTx(tx.Hash())
+
+				// Send the txset to a subset of our peers
+				subset := peers[:int(math.Sqrt(float64(len(peers))))]
+				for _, peer := range subset {
+					txset[peer] = append(txset[peer], tx.Hash())
+				}
+				txR.Logger.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
 			}
+			for peer, hashes := range txset {
+				// only send to validators
+				peer.AsyncSendTransactions(hashes)
+			}
+			return
 		case <-txR.txsSub.Err():
 			return
 		}
