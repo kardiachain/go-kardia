@@ -132,7 +132,6 @@ func (txR *Reactor) broadcastTxRoutine() {
 				// only send to validators
 				peer.AsyncSendTransactions(hashes)
 			}
-			return
 		case <-txR.txsSub.Err():
 			return
 		}

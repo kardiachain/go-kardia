@@ -49,7 +49,7 @@ type peer struct {
 	version int // Protocol version negotiated
 
 	knownTxs    mapset.Set                           // Set of transaction hashes known to be known by this peer
-	queuedTxs   chan []common.Hash                   // Queue of transactions to broadcast to the peer
+	txBroadcast chan []common.Hash                   // Channel used to queue transaction propagation requests
 	getPooledTx func(common.Hash) *types.Transaction // Callback used to retrieve transaction from txpool
 
 	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
@@ -61,8 +61,8 @@ func newPeer(logger log.Logger, p p2p.Peer, getPooledTx func(hash common.Hash) *
 		logger:      logger,
 		id:          p.ID(),
 		peer:        p,
-		queuedTxs:   make(chan []common.Hash),
 		knownTxs:    mapset.NewSet(),
+		txBroadcast: make(chan []common.Hash),
 		getPooledTx: getPooledTx,
 		terminated:  make(chan struct{}),
 	}
@@ -165,42 +165,45 @@ func (ps *peerSet) Close() {
 // broadcastTransactions is a async write loop that broadcast txs to remote peers.
 func (p *peer) broadcastTransactions() {
 	var (
-		queue []common.Hash // Queue of hashes to broadcast as full transactions
-		done  chan struct{} // Non-nil if background broadcaster is running
+		queue []common.Hash         // Queue of hashes to broadcast as full transactions
+		done  chan struct{}         // Non-nil if background broadcaster is running
+		fail  = make(chan error, 1) // Channel used to receive network error
 	)
 	for {
 		// If there's no in-flight broadcast running, check if a new one is needed
 		if done == nil && len(queue) > 0 {
 			// Pile transaction until we reach our allowed network limit
 			var (
-				hashes []common.Hash
-				txs    []*types.Transaction
-				size   common.StorageSize
+				hashes  []common.Hash
+				pending []common.Hash
+				size    common.StorageSize
 			)
 			for i := 0; i < len(queue) && size < txsyncPackSize; i++ {
-				if tx := p.getPooledTx(queue[i]); tx != nil {
-					txs = append(txs, tx)
-					size += tx.Size()
+				if p.getPooledTx(queue[i]) != nil {
+					pending = append(pending, queue[i])
+					size += common.HashLength
 				}
 				hashes = append(hashes, queue[i])
 			}
 			queue = queue[:copy(queue, queue[len(hashes):])]
 
 			// If there's anything available to transfer, fire up an async writer
-			if len(txs) > 0 {
+			if len(pending) > 0 {
 				done = make(chan struct{})
 				go func() {
-					if err := p.sendTransactions(txs); err != nil {
+					if err := p.sendTransactions(pending); err != nil {
+						p.logger.Error("Send txs failed", "err", err, "count", len(pending), "peer", p.id)
+						fail <- err
 						return
 					}
 					close(done)
-					p.logger.Trace("Sent transactions", "count", len(txs))
+					p.logger.Trace("Sent transactions", "count", len(pending))
 				}()
 			}
 		}
 		// Transfer goroutine may or may not have been started, listen for events
 		select {
-		case hashes := <-p.queuedTxs:
+		case hashes := <-p.txBroadcast:
 			// New batch of transactions to be broadcast, queue them (with capped capcacity)
 			queue = append(queue, hashes...)
 			if len(queue) > maxQueuedTxs {
@@ -209,6 +212,9 @@ func (p *peer) broadcastTransactions() {
 			}
 		case <-done:
 			done = nil
+		case <-fail:
+			// Consider remove peers here. Not yet implementation
+			return
 		case <-p.terminated:
 			return
 		}
@@ -232,14 +238,14 @@ func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
 }
 
 // SendTransactions sends transactions to the peer, adds the txn hashes to known txn set.
-func (p *peer) sendTransactions(txs types.Transactions) error {
+func (p *peer) sendTransactions(hashes []common.Hash) error {
 	// If we reached the memory allowance, drop a previously known transaction hash
-	for p.knownTxs.Cardinality() > max(0, maxKnownTxs-len(txs)) {
+	for p.knownTxs.Cardinality() > max(0, maxKnownTxs-len(hashes)) {
 		p.knownTxs.Pop()
 	}
 
-	encoded := make([][]byte, len(txs))
-	for idx, tx := range txs {
+	encoded := make([][]byte, len(hashes))
+	for idx, tx := range hashes {
 		txBytes, err := rlp.EncodeToBytes(tx)
 		if err != nil {
 			panic(err)
@@ -265,7 +271,7 @@ func (p *peer) sendTransactions(txs types.Transactions) error {
 func (p *peer) AsyncSendTransactions(hashes []common.Hash) {
 	// Tx will be actually sent in SendTransactions() trigger by broadcast() routine
 	select {
-	case p.queuedTxs <- hashes:
+	case p.txBroadcast <- hashes:
 		// Mark all the transactions as known, but ensure we don't overflow our limits
 		for p.knownTxs.Cardinality() > max(0, maxKnownTxs-len(hashes)) {
 			p.knownTxs.Pop()
