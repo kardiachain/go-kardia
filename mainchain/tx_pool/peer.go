@@ -1,10 +1,10 @@
 package tx_pool
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 
+	mapset "github.com/deckarep/golang-set"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
@@ -13,29 +13,33 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-var (
-	errClosed            = errors.New("peer set is closed")
-	errAlreadyRegistered = errors.New("peer is already registered")
-	errNotRegistered     = errors.New("peer is not registered")
-)
-
 const (
 	maxKnownTxs = 32768 // Maximum transactions hashes to keep in the known list (prevent DOS)
 
-	// maxQueuedTxs is the maximum number of transaction lists to queue up before
-	// dropping broadcasts. This is a sensitive number as a transaction list might
-	// contain a single transaction, or thousands.
-	maxQueuedTxs = 8192
+	// maxQueuedTxs is the maximum number of transactions to queue up before dropping
+	// older broadcasts.
+	maxQueuedTxs = 4096
+
+	// This is the target size for the packs of transactions sent while broadcasting transactions.
+	// A pack can get larger than this if a single transactions exceeds this size.
+	txsyncPackSize = 100 * 1024
 )
 
-// PeerInfo represents a short summary of the Kai sub-protocol metadata known
+// max is a helper function which returns the larger of the two given integers.
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// PeerInfo represents a short summary of the Kardia sub-protocol metadata known
 // about a connected peer.
 type PeerInfo struct {
-	Version int `json:"version"` // Kai protocol version negotiated
+	Version int `json:"version"` // Kardia protocol version negotiated
 }
 
 type peer struct {
-	// TODO(namdoh): De-dup this logger duplicates with the log in p2p.Peer
 	logger log.Logger
 
 	id p2p.ID
@@ -44,45 +48,23 @@ type peer struct {
 
 	version int // Protocol version negotiated
 
-	knownTxs  *common.Set             // Set of transaction hashes known to be known by this peer
-	queuedTxs chan types.Transactions // Queue of transactions to broadcast to the peer
+	knownTxs    mapset.Set                           // Set of transaction hashes known to be known by this peer
+	queuedTxs   chan []common.Hash                   // Queue of transactions to broadcast to the peer
+	getPooledTx func(common.Hash) *types.Transaction // Callback used to retrieve transaction from txpool
 
 	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
 	Protocol   string
 }
 
-func newPeer(logger log.Logger, p p2p.Peer) *peer {
-	// isValidator := false
-	// validators := csReactor.Validators()
-	// pubKey, err := crypto.StringToPublicKey(hex.EncodeToString(p.ID().Bytes()))
-	// fmt.Println("!!!", p.ID(), pubKey)
-	// if err != nil {
-	// 	logger.Error("invalid peer", "id", p.ID().String())
-	// 	return nil
-	// }
-	// address := crypto.PubkeyToAddress(*pubKey)
-
-	// for _, val := range validators {
-	// 	if val.Address.Equal(address) {
-	// 		isValidator = true
-	// 		break
-	// 	}
-	// }
-
-	// TODO(Lew):
-	// We shouldn't check if a peer is a validator here,
-	// we should check it when the consensus starts and collect
-	// all the actives node then filter whom is a validator from
-	// staking smartcontract.
-	// Now we treat all node as a validator for testing purpose
-
+func newPeer(logger log.Logger, p p2p.Peer, getPooledTx func(hash common.Hash) *types.Transaction) *peer {
 	return &peer{
-		id:         p.ID(),
-		queuedTxs:  make(chan types.Transactions, maxQueuedTxs),
-		knownTxs:   common.NewSet(maxKnownTxs),
-		terminated: make(chan struct{}),
-		peer:       p,
-		logger:     logger,
+		logger:      logger,
+		id:          p.ID(),
+		peer:        p,
+		queuedTxs:   make(chan []common.Hash),
+		knownTxs:    mapset.NewSet(),
+		getPooledTx: getPooledTx,
+		terminated:  make(chan struct{}),
 	}
 }
 
@@ -135,7 +117,7 @@ func (ps *peerSet) Register(p *peer) error {
 		return errAlreadyRegistered
 	}
 	ps.peers[p.id] = p
-	go p.broadcast()
+	go p.broadcastTransactions()
 
 	return nil
 }
@@ -180,89 +162,79 @@ func (ps *peerSet) Close() {
 	ps.closed = true
 }
 
-// broadcast is a async write loop that send messages to remote peers.
-func (p *peer) broadcast() {
+// broadcastTransactions is a async write loop that broadcast txs to remote peers.
+func (p *peer) broadcastTransactions() {
+	var (
+		queue []common.Hash // Queue of hashes to broadcast as full transactions
+		done  chan struct{} // Non-nil if background broadcaster is running
+	)
 	for {
-		select {
-		case txs := <-p.queuedTxs:
-			if err := p.SendTransactions(txs); err != nil {
-				p.logger.Error("Send txs failed", "err", err, "count", len(txs), "peer", p.id)
-				return
+		// If there's no in-flight broadcast running, check if a new one is needed
+		if done == nil && len(queue) > 0 {
+			// Pile transaction until we reach our allowed network limit
+			var (
+				hashes []common.Hash
+				txs    []*types.Transaction
+				size   common.StorageSize
+			)
+			for i := 0; i < len(queue) && size < txsyncPackSize; i++ {
+				if tx := p.getPooledTx(queue[i]); tx != nil {
+					txs = append(txs, tx)
+					size += tx.Size()
+				}
+				hashes = append(hashes, queue[i])
 			}
-			p.logger.Trace("Broadcast transactions", "count", len(txs))
+			queue = queue[:copy(queue, queue[len(hashes):])]
+
+			// If there's anything available to transfer, fire up an async writer
+			if len(txs) > 0 {
+				done = make(chan struct{})
+				go func() {
+					if err := p.sendTransactions(txs); err != nil {
+						return
+					}
+					close(done)
+					p.logger.Trace("Sent transactions", "count", len(txs))
+				}()
+			}
+		}
+		// Transfer goroutine may or may not have been started, listen for events
+		select {
+		case hashes := <-p.queuedTxs:
+			// New batch of transactions to be broadcast, queue them (with capped capcacity)
+			queue = append(queue, hashes...)
+			if len(queue) > maxQueuedTxs {
+				// Copy and resize queue to ensure buffer doesn't grow indefinitely
+				queue = queue[:copy(queue, queue[len(queue)-maxQueuedTxs:])]
+			}
+		case <-done:
+			done = nil
 		case <-p.terminated:
 			return
 		}
 	}
 }
 
-// MarkTransactions marks a list of transaction as known for the peer, ensuring that it
-// will never be propagated to this particular peer.
-func (p *peer) MarkTransactions(txs types.Transactions) []*types.Transaction {
-	queueTxs := make([]*types.Transaction, 0)
-	txHashes := make([]interface{}, 0)
-	for _, tx := range txs {
-		if p.knownTxs.Has(tx.Hash()) {
-			continue
-		}
-		queueTxs = append(queueTxs, tx)
-		txHashes = append(txHashes, tx.Hash())
-	}
-
-	// If we reached the memory allowance, drop a previously known transaction hash
-	for p.knownTxs.Size() >= maxKnownTxs {
-		p.knownTxs.Pop()
-	}
-
-	if len(queueTxs) > 0 {
-		p.knownTxs.Add(txHashes...)
-	}
-	return queueTxs
-}
-
 // PeersWithoutTx retrieves a list of peers that do not have a given transaction
 // in their set of known hashes.
-func (ps *peerSet) PeersWithoutTx(tx *types.Transaction) []*peer {
+func (ps *peerSet) PeersWithoutTx(hash common.Hash) []*peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
 	peers := ps.peers
 	list := make([]*peer, 0, len(ps.peers))
 	for _, p := range peers {
-		if !p.knownTxs.Has(tx.Hash()) {
+		if !p.knownTxs.Contains(hash) {
 			list = append(list, p)
 		}
 	}
 	return list
 }
 
-// PeersWithoutTxs retrieves a list of peers that do not have a given transaction
-// in their set of known hashes.
-func (ps *peerSet) PeersWithoutTxs(txs types.Transactions) map[*peer]types.Transactions {
-	ps.lock.RLock()
-	defer ps.lock.RUnlock()
-
-	peers := ps.peers
-	set := make(map[*peer]types.Transactions)
-	for _, tx := range txs {
-		for _, p := range peers {
-
-			if _, ok := set[p]; !ok {
-				set[p] = make(types.Transactions, 0)
-			}
-
-			if !p.knownTxs.Has(tx.Hash()) {
-				set[p] = append(set[p], tx)
-			}
-		}
-	}
-	return set
-}
-
 // SendTransactions sends transactions to the peer, adds the txn hashes to known txn set.
-func (p *peer) SendTransactions(txs types.Transactions) error {
+func (p *peer) sendTransactions(txs types.Transactions) error {
 	// If we reached the memory allowance, drop a previously known transaction hash
-	for p.knownTxs.Size() >= maxKnownTxs {
+	for p.knownTxs.Cardinality() > max(0, maxKnownTxs-len(txs)) {
 		p.knownTxs.Pop()
 	}
 
@@ -290,12 +262,18 @@ func (p *peer) SendTransactions(txs types.Transactions) error {
 
 // AsyncSendTransactions queues list of transactions propagation to a remote
 // peer. If the peer's broadcast queue is full, the event is silently dropped.
-func (p *peer) AsyncSendTransactions(txs types.Transactions) {
+func (p *peer) AsyncSendTransactions(hashes []common.Hash) {
 	// Tx will be actually sent in SendTransactions() trigger by broadcast() routine
 	select {
-	case p.queuedTxs <- txs:
-		p.MarkTransactions(txs)
-	default:
-		p.logger.Debug("Dropping transaction propagation", "count", len(txs))
+	case p.queuedTxs <- hashes:
+		// Mark all the transactions as known, but ensure we don't overflow our limits
+		for p.knownTxs.Cardinality() > max(0, maxKnownTxs-len(hashes)) {
+			p.knownTxs.Pop()
+		}
+		for _, hash := range hashes {
+			p.knownTxs.Add(hash)
+		}
+	case <-p.terminated:
+		p.logger.Debug("Dropping transaction propagation", "count", len(hashes))
 	}
 }

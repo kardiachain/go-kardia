@@ -108,9 +108,9 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	PriceLimit: 1,
 	PriceBump:  10,
 
-	AccountSlots: 64,
+	AccountSlots: 32,
 	GlobalSlots:  8192,
-	AccountQueue: 256,
+	AccountQueue: 128,
 	GlobalQueue:  2048,
 
 	Lifetime: 1 * time.Hour,
@@ -1110,7 +1110,7 @@ func (pool *TxPool) runReorg(done chan struct{}, reset *txpoolResetRequest, dirt
 		for _, set := range eventsPool {
 			txs = append(txs, set.Flatten()...)
 		}
-		pool.txFeed.Send(events.NewTxsEvent{txs})
+		pool.txFeed.Send(events.NewTxsEvent{Txs: txs})
 	}
 }
 

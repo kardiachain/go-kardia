@@ -79,4 +79,9 @@ var (
 	// errNoActiveJournal is returned if a transaction is attempted to be inserted
 	// into the journal, but no such file is currently open.
 	errNoActiveJournal = errors.New("no active journal")
+
+	// peer errors messages
+	errClosed            = errors.New("peer set is closed")
+	errAlreadyRegistered = errors.New("peer is already registered")
+	errNotRegistered     = errors.New("peer is not registered")
 )
