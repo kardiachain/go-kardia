@@ -24,6 +24,12 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
+// Add MaxWorker = 4
+// todo: Monitor and adjust MaxWorker for better result then
+const (
+	MaxWorker = 4
+)
+
 // senderCacher is a concurrent transaction sender recoverer and cacher.
 var senderCacher = newTxSenderCacher(runtime.NumCPU())
 
@@ -49,6 +55,9 @@ type txSenderCacher struct {
 // newTxSenderCacher creates a new transaction sender background cacher and starts
 // as many processing goroutines as allowed by the GOMAXPROCS on construction.
 func newTxSenderCacher(threads int) *txSenderCacher {
+	if threads > MaxWorker {
+		threads = MaxWorker
+	}
 	cacher := &txSenderCacher{
 		tasks:   make(chan *txSenderCacherRequest, threads),
 		threads: threads,
