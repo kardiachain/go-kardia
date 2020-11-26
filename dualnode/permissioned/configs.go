@@ -25,7 +25,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kardiachain/go-kardiamain/dev"
 	"github.com/kardiachain/go-kardiamain/kai/storage"
 	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardiamain/node"
@@ -126,14 +125,14 @@ func SetUp(config *Config) (nodeConfig *node.Config, err error) {
 	}
 	nodeConfig.Name = *config.Name
 
-	index, err := node.GetNodeIndex(*config.Name)
-	if err != nil {
-		return nil, fmt.Errorf("node name must be formatted as \"\\c*\\d{1,2}\"")
-	}
-	nodeIndex := index - 1
+	// index, err := node.GetNodeIndex(*config.Name)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("node name must be formatted as \"\\c*\\d{1,2}\"")
+	// }
+	// nodeIndex := index - 1
 
 	// Get NodeMetadata
-	nodeConfig.NodeMetadata, _ = dev.GetNodeMetadataByIndex(nodeIndex)
+	// nodeConfig.NodeMetadata, _ = dev.GetNodeMetadataByIndex(nodeIndex)
 
 	nodeDir := filepath.Join(nodeConfig.DataDir, nodeConfig.Name)
 	if config.ClearData {
