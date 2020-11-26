@@ -82,11 +82,13 @@ func (txR *Reactor) AddPeer(peer p2p.Peer) error {
 }
 
 // RemovePeer implements Reactor.
-func (txR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
+func (txR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) error {
 	if err := txR.peers.Unregister(peer.ID()); err != nil {
 		txR.Logger.Error("unregister peer err: %s", err)
+		return err
 	}
 	// broadcast routine checks if peer is gone and returns
+	return nil
 }
 
 // Receive implements Reactor.

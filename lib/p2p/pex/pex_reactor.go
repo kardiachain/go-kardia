@@ -218,10 +218,14 @@ func (r *Reactor) AddPeer(p Peer) error {
 }
 
 // RemovePeer implements Reactor by resetting peer's requests info.
-func (r *Reactor) RemovePeer(p Peer, reason interface{}) {
+func (r *Reactor) RemovePeer(p Peer, reason interface{}) error {
 	id := string(p.ID())
-	r.requestsSent.Delete(id)
-	r.lastReceivedRequests.Delete(id)
+	if len(id) > 0 {
+		r.requestsSent.Delete(id)
+		r.lastReceivedRequests.Delete(id)
+		return nil
+	}
+	return errEmptyPeerID
 }
 
 func (r *Reactor) logErrAddrBook(err error) {

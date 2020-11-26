@@ -168,8 +168,9 @@ func (conR *ConsensusManager) AddPeer(peer p2p.Peer) error {
 }
 
 // RemovePeer is a noop.
-func (conR *ConsensusManager) RemovePeer(p p2p.Peer, reason interface{}) {
+func (conR *ConsensusManager) RemovePeer(p p2p.Peer, reason interface{}) error {
 	conR.Logger.Warn("ConsensusManager.RemovePeer - not yet implemented")
+	return nil
 }
 
 // Receive implements Reactor
