@@ -24,11 +24,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
-const (
-	// number of maximum running threads
-	maxThreads = 4
-)
-
 // senderCacher is a concurrent transaction sender recoverer and cacher.
 var senderCacher = newTxSenderCacher(runtime.NumCPU())
 
@@ -67,12 +62,12 @@ func newTxSenderCacher(threads int) *txSenderCacher {
 }
 
 func adjustWorker(threads int) int {
-	if threads > maxThreads {
-		return maxThreads
-	} else if threads <= 2 {
-		return 1
+	if threads > 2 {
+		// Only use 2/3 resources
+		return threads * 2 / 3
 	}
-	return threads / 2
+	// Else use only 1 thread for low specs hardware
+	return 1
 }
 
 // cache is an infinite loop, caching transaction senders from various forms of
