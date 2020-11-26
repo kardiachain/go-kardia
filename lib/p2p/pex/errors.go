@@ -7,6 +7,10 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/p2p"
 )
 
+var (
+	errEmptyPeerID = errors.New("empty peer id")
+)
+
 type ErrAddrBookNonRoutable struct {
 	Addr *p2p.NetAddress
 }

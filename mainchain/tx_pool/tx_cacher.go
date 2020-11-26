@@ -46,9 +46,11 @@ type txSenderCacher struct {
 	tasks   chan *txSenderCacherRequest
 }
 
-// newTxSenderCacher creates a new transaction sender background cacher and starts
-// as many processing goroutines as allowed by the GOMAXPROCS on construction.
+// newTxSenderCacher creates a new transaction sender background cacher
+// If GOMAXPROCS > MaxWorker then using MaxWorker
+// Else use half of GOMAXPROCS
 func newTxSenderCacher(threads int) *txSenderCacher {
+	threads = adjustWorker(threads)
 	cacher := &txSenderCacher{
 		tasks:   make(chan *txSenderCacherRequest, threads),
 		threads: threads,
@@ -57,6 +59,15 @@ func newTxSenderCacher(threads int) *txSenderCacher {
 		go cacher.cache()
 	}
 	return cacher
+}
+
+func adjustWorker(threads int) int {
+	if threads > 2 {
+		// Only use 2/3 resources
+		return threads * 2 / 3
+	}
+	// Else use only 1 thread for low specs hardware
+	return 1
 }
 
 // cache is an infinite loop, caching transaction senders from various forms of
