@@ -17,4 +17,5 @@ var (
 	ErrInvalidMsgType           = errors.New("invalid message Type")
 	ErrEmptyBlockPart           = errors.New("empty BlockParts")
 	ErrNilMsg                   = errors.New("message is Nil")
+	ErrConsensusMgrNotRunning   = errors.New("consensus manager is not running")
 )

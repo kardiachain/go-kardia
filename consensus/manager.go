@@ -19,7 +19,6 @@
 package consensus
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"sync"
@@ -149,7 +148,7 @@ func (conR *ConsensusManager) AddPeer(peer p2p.Peer) error {
 	conR.Logger.Info("Add peer to manager", "peer", peer)
 
 	if !conR.IsRunning() {
-		return errors.New("consensus manager is not running")
+		return ErrConsensusMgrNotRunning
 	}
 
 	peerState, ok := peer.Get(types.PeerStateKey).(*PeerState)
