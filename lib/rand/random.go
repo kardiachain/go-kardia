@@ -20,6 +20,7 @@ package rand
 
 import (
 	crand "crypto/rand"
+	"github.com/kardiachain/go-kardiamain/lib/common"
 	mrand "math/rand"
 	"time"
 
@@ -146,6 +147,10 @@ func Time() time.Time {
 
 func Bytes(n int) []byte {
 	return grand.Bytes(n)
+}
+
+func Hash(n int) common.Hash {
+	return common.BytesToHash(Bytes(n))
 }
 
 func Intn(n int) int {
