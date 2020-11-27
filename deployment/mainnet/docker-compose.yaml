@@ -1,0 +1,20 @@
+version: '3.4'
+
+services:
+  mainnet-node:
+    container_name: mainnet-node
+    build: ../..
+    image: kardiachain/go-kardiamain
+    ports:
+      - 3000:3000
+      - 3000:3000/udp
+      - 8545:8545
+    volumes:
+      - ./node_mainnet.yaml:/go/bin/node_mainnet.yaml
+      - ./genesis.yaml:/go/bin/cfg/genesis.yaml # mainnet coming soon, so genesis.yaml will be updated
+      - .:/root/.kardia
+    command: ["--network", "mainnet", "--node","node_mainnet.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m
