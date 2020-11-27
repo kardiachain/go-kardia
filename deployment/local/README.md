@@ -4,9 +4,10 @@ Install Docker following the installation guide for Linux OS: [https://docs.dock
 * [Ubuntu](https://docs.docker.com/install/linux/docker-ce/ubuntu)
 
 Install docker compose
+
 * [Docker compose](https://docs.docker.com/compose/install/)
  
-## Run Kardia network 
+## Run Local network 
 ```
 docker-compose build
 docker-compose up -d
@@ -23,7 +24,3 @@ docker-compose ps
 docker logs -f --tail 10 node1
 docker logs -f --tail 10 node2
 docker logs -f --tail 10 node3
-docker logs -f --tail 10 node4
-docker logs -f --tail 10 node5
-docker logs -f --tail 10 node6
-docker logs -f --tail 10 node7

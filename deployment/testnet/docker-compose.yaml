@@ -1,0 +1,20 @@
+version: '3.4'
+
+services:
+  testnet-node:
+    container_name: testnet-node
+    build: ../..
+    image: kardiachain/go-kardiamain
+    ports:
+      - 3000:3000
+      - 3000:3000/udp
+      - 8545:8545
+    volumes:
+      - ./node_testnet.yaml:/go/bin/node_testnet.yaml
+      - ./genesis_testnet.yaml:/go/bin/cfg/genesis_testnet.yaml
+      - .:/root/.kardia
+    command: ["--network", "testnet", "--node","node_testnet.yaml"]
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 300m

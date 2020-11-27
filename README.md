@@ -13,12 +13,18 @@ Official Golang implementation of KardiaChain following the specs in [Technical 
 
 # Kardia Public Testnet [Fengari 3.0]
 - Network Explorer: [Kardiascan](http://explorer.kardiachain.io/)
-- Release: [kardia-v0.10.4](https://github.com/kardiachain/go-kardiamain/releases/tag/v0.10.4)
+- Release: [kardia-v0.10.5](https://github.com/kardiachain/go-kardiamain/releases/tag/v0.10.5)
 
 
 # Quickstart
 ### Run Local Testnet with docker
-- See [docker](https://github.com/kardiachain/go-kardiamain/tree/master/docker) for more details.
+- See [deplopyment/local](https://github.com/kardiachain/go-kardiamain/tree/master/deployment/local) for more details.
+
+### Join Public Testnet
+- See [deplopyment/testnet](https://github.com/kardiachain/go-kardiamain/tree/master/deployment/testnet) for more details.
+
+### Join Mainnet (coming soon)
+- See [deplopyment/mainnet](https://github.com/kardiachain/go-kardiamain/tree/master/deployment/mainnet) for more details.
 
 # Development
 ### Go environment setup
