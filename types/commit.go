@@ -26,6 +26,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/merkle"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
@@ -288,8 +289,23 @@ func (commit *Commit) IsCommit() bool {
 
 // Hash returns the hash of the commit
 func (commit *Commit) Hash() cmn.Hash {
-	// TODO(namdoh): Cache hash so we don't have to re-hash all the time.
-	return rlpHash(commit)
+	if commit == nil {
+		return cmn.Hash{}
+	}
+	if commit.hash == cmn.NewZeroHash() {
+		bs := make([][]byte, len(commit.Signatures))
+		for i, commitSig := range commit.Signatures {
+			pbcs := commitSig.ToProto()
+			bz, err := pbcs.Marshal()
+			if err != nil {
+				panic(err)
+			}
+
+			bs[i] = bz
+		}
+		commit.hash = common.BytesToHash(merkle.SimpleHashFromByteSlices(bs))
+	}
+	return commit.hash
 }
 
 // ValidateBasic performs basic validation that doesn't involve state data.

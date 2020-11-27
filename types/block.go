@@ -85,7 +85,12 @@ type Header struct {
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
 func (h *Header) Hash() common.Hash {
-	return rlpHash(h)
+	pbh := h.ToProto()
+	bz, err := pbh.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return hash(bz)
 }
 
 // Size returns the approximate memory used by all internal contents. It is used
@@ -200,6 +205,13 @@ func (b *Block) Body() *Body {
 func rlpHash(x interface{}) (h common.Hash) {
 	hw := sha3.NewKeccak256()
 	rlp.Encode(hw, x)
+	hw.Sum(h[:0])
+	return h
+}
+
+func hash(b []byte) (h common.Hash) {
+	hw := sha3.NewKeccak256()
+	hw.Write(b)
 	hw.Sum(h[:0])
 	return h
 }

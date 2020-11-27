@@ -27,7 +27,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	"github.com/kardiachain/go-kardiamain/lib/merkle"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 )
 
@@ -171,7 +171,7 @@ func (dve *DuplicateVoteEvidence) Bytes() []byte {
 
 // Hash returns the hash of the evidence.
 func (dve *DuplicateVoteEvidence) Hash() common.Hash {
-	return rlpHash(dve.Bytes())
+	return hash(dve.Bytes())
 }
 
 // Verify returns an error if the two votes aren't conflicting.
@@ -332,7 +332,16 @@ type EvidenceList []Evidence
 
 // Hash returns the simple merkle root hash of the EvidenceList.
 func (evl EvidenceList) Hash() common.Hash {
-	return DeriveSha(evl)
+	if len(evl) == 0 {
+		return common.NewZeroHash()
+	}
+
+	bze := make([][]byte, len(evl))
+	for i, ev := range evl {
+		bze[i] = ev.Hash().Bytes()
+	}
+	proof := merkle.SimpleHashFromByteSlices(bze)
+	return common.BytesToHash(proof)
 }
 
 func (evl EvidenceList) String() string {
@@ -341,17 +350,6 @@ func (evl EvidenceList) String() string {
 		s += fmt.Sprintf("%s\t\t", e)
 	}
 	return s
-}
-
-// GetRlp implements Rlpable and returns the i'th element of s in rlp.
-func (evl EvidenceList) GetRlp(i int) []byte {
-	enc, _ := rlp.EncodeToBytes(evl[i])
-	return enc
-}
-
-// Len return evidence length
-func (evl EvidenceList) Len() int {
-	return len(evl)
 }
 
 // Has returns true if the evidence is in the EvidenceList.
