@@ -19,10 +19,11 @@
 package types
 
 import (
+	"testing"
+
 	"github.com/kardiachain/go-kardiamain/lib/merkle"
 	krand "github.com/kardiachain/go-kardiamain/lib/rand"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestBlockMeta_ToProto(t *testing.T) {

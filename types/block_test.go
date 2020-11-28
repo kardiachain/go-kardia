@@ -19,6 +19,10 @@
 package types
 
 import (
+	"math/big"
+	"testing"
+	"time"
+
 	message "github.com/kardiachain/go-kardiamain/ksml/proto"
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
@@ -26,9 +30,6 @@ import (
 	krand "github.com/kardiachain/go-kardiamain/lib/rand"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"testing"
-	"time"
 )
 
 func createBlockIDRandom() BlockID {
@@ -58,14 +59,11 @@ func createHeaderRandom() *Header {
 		Height:             krand.Uint64(),
 		Time:               time.Now(),
 		NumTxs:             krand.Uint64(),
-		NumDualEvents:      krand.Uint64(),
 		GasLimit:           krand.Uint64(),
-		GasUsed:            krand.Uint64(),
 		LastBlockID:        BlockID{},
 		ProposerAddress:    randAddress,
 		LastCommitHash:     krand.Hash(merkle.Size),
 		TxHash:             krand.Hash(merkle.Size),
-		DualEventsHash:     krand.Hash(merkle.Size),
 		ValidatorsHash:     krand.Hash(merkle.Size),
 		NextValidatorsHash: krand.Hash(merkle.Size),
 		ConsensusHash:      krand.Hash(merkle.Size),
