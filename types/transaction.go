@@ -234,6 +234,10 @@ func (s Transactions) GetRlp(i int) []byte {
 	return enc
 }
 
+func (s Transactions) Hash() common.Hash {
+	return DeriveSha(s)
+}
+
 // Contains tells whether contains hash.
 func (s Transactions) Contains(x common.Hash) bool {
 	for _, tx := range s {

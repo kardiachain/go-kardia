@@ -116,6 +116,37 @@ func (h *Header) String() string {
 		h.TxHash.Fingerprint(), h.AppHash.Fingerprint(), h.ValidatorsHash.Fingerprint(), h.ConsensusHash.Fingerprint(), headerHash.Fingerprint())
 }
 
+// ValidateBasic performs stateless validation on a Header returning an error
+// if any validation fails.
+//
+// NOTE: Timestamp validation is subtle and handled elsewhere.
+func (h Header) ValidateBasic() error {
+	if err := h.LastBlockID.ValidateBasic(); err != nil {
+		return fmt.Errorf("wrong LastBlockID: %w", err)
+	}
+	if err := ValidateHash(h.LastCommitHash); err != nil {
+		return fmt.Errorf("wrong LastCommitHash: %v", err)
+	}
+	if err := ValidateHash(h.TxHash); err != nil {
+		return fmt.Errorf("wrong DataHash: %v", err)
+	}
+	if err := ValidateHash(h.EvidenceHash); err != nil {
+		return fmt.Errorf("wrong EvidenceHash: %v", err)
+	}
+	// Basic validation of hashes related to application data.
+	// Will validate fully against state in state#ValidateBlock.
+	if err := ValidateHash(h.ValidatorsHash); err != nil {
+		return fmt.Errorf("wrong ValidatorsHash: %v", err)
+	}
+	if err := ValidateHash(h.NextValidatorsHash); err != nil {
+		return fmt.Errorf("wrong NextValidatorsHash: %v", err)
+	}
+	if err := ValidateHash(h.ConsensusHash); err != nil {
+		return fmt.Errorf("wrong ConsensusHash: %v", err)
+	}
+	return nil
+}
+
 // ToProto converts Header to protobuf
 func (h *Header) ToProto() *kproto.Header {
 	if h == nil {
@@ -170,7 +201,7 @@ func HeaderFromProto(ph *kproto.Header) (Header, error) {
 	h.NumTxs = ph.NumTxs
 	h.ProposerAddress = common.BytesToAddress(ph.ProposerAddress)
 
-	return *h, nil
+	return *h, h.ValidateBasic()
 }
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
@@ -429,13 +460,8 @@ func (b *Block) ValidateBasic() error {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
-	newTxs := uint64(len(b.transactions))
-	if b.header.NumTxs != newTxs {
-		return fmt.Errorf("wrong Block.Header.NumTxs. Expected %v, got %v", newTxs, b.header.NumTxs)
-	}
-
-	if err := b.header.LastBlockID.ValidateBasic(); err != nil {
-		return fmt.Errorf("Wrong Header.LastBlockID: %v", err)
+	if err := b.header.ValidateBasic(); err != nil {
+		return fmt.Errorf("invalid header: %w", err)
 	}
 
 	// Validate the last commit and its hash.
@@ -452,6 +478,20 @@ func (b *Block) ValidateBasic() error {
 		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  lastCommit is nil, but expect zero hash, but got: %v", b.header.LastCommitHash)
 	} else if b.lastCommit != nil && !b.header.LastCommitHash.Equal(b.lastCommit.Hash()) {
 		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v.  Last commit %v", b.header.LastCommitHash, b.lastCommit.Hash(), b.lastCommit)
+	}
+
+	if w, g := b.transactions.Hash(), b.header.TxHash; !w.Equal(g) {
+		return fmt.Errorf("wrong Header.DataHash. Expected %X, got %X", w, g)
+	}
+
+	for i, ev := range b.evidence.Evidence {
+		if err := ev.ValidateBasic(); err != nil {
+			return fmt.Errorf("invalid evidence (#%d): %v", i, err)
+		}
+	}
+
+	if w, g := b.evidence.Hash(), b.header.EvidenceHash; !w.Equal(g) {
+		return fmt.Errorf("wrong Header.EvidenceHash. Expected %X, got %X", w, g)
 	}
 
 	return nil
