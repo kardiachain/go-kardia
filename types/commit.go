@@ -292,7 +292,7 @@ func (commit *Commit) Hash() cmn.Hash {
 	if commit == nil {
 		return cmn.Hash{}
 	}
-	if commit.hash == cmn.NewZeroHash() {
+	if commit.hash.IsZero() {
 		bs := make([][]byte, len(commit.Signatures))
 		for i, commitSig := range commit.Signatures {
 			pbcs := commitSig.ToProto()
