@@ -239,3 +239,60 @@ func TestBlockValidateBasic(t *testing.T) {
 		})
 	}
 }
+
+func TestBlockHash(t *testing.T) {
+	assert.Equal(t, common.Hash{}, (*Block)(nil).Hash())
+	assert.Equal(t, common.Hash{}, NewBlock(&Header{Height: 3}, []*Transaction{}, nil, nil).Hash())
+}
+
+func TestBlockMakePartSet(t *testing.T) {
+	assert.Nil(t, (*Block)(nil).MakePartSet(2))
+
+	partSet := NewBlock(&Header{Height: 3}, []*Transaction{}, nil, nil).MakePartSet(1024)
+	assert.NotNil(t, partSet)
+	assert.EqualValues(t, 1, partSet.Total())
+}
+
+func TestBlockMakePartSetWithEvidence(t *testing.T) {
+	assert.Nil(t, (*Block)(nil).MakePartSet(2))
+
+	lastID := makeBlockIDRandom()
+	h := uint64(3)
+
+	voteSet, _, vals := randVoteSet(h-1, 1, kproto.PrecommitType, 10, 1)
+	commit, err := MakeCommit(lastID, h-1, 1, voteSet, vals, time.Now())
+	require.NoError(t, err)
+
+	ev := NewMockDuplicateVoteEvidenceWithValidator(h, time.Now(), vals[0], "block-test-chain")
+	evList := []Evidence{ev}
+
+	partSet := NewBlock(&Header{Height: 3}, []*Transaction{}, commit, evList).MakePartSet(512)
+	assert.NotNil(t, partSet)
+	assert.EqualValues(t, 4, partSet.Total())
+}
+
+func TestBlockHashesTo(t *testing.T) {
+	assert.False(t, (*Block)(nil).HashesTo(common.Hash{}))
+
+	lastID := makeBlockIDRandom()
+	h := uint64(3)
+	voteSet, valSet, vals := randVoteSet(h-1, 1, kproto.PrecommitType, 10, 1)
+	commit, err := MakeCommit(lastID, h-1, 1, voteSet, vals, time.Now())
+	require.NoError(t, err)
+
+	ev := NewMockDuplicateVoteEvidenceWithValidator(h, time.Now(), vals[0], "block-test-chain")
+	evList := []Evidence{ev}
+
+	block := NewBlock(&Header{Height: 3}, []*Transaction{}, commit, evList)
+	block.header.ValidatorsHash = valSet.Hash()
+	assert.False(t, block.HashesTo(common.Hash{}))
+	assert.False(t, block.HashesTo(common.BytesToHash([]byte("something else"))))
+	assert.True(t, block.HashesTo(block.Hash()))
+}
+
+func TestBlockSize(t *testing.T) {
+	size := NewBlock(&Header{Height: 3}, []*Transaction{}, nil, nil).Size()
+	if size <= 0 {
+		t.Fatal("Size of the block is zero or negative")
+	}
+}
