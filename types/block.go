@@ -54,11 +54,8 @@ type Header struct {
 	Height uint64    `json:"height"       gencodec:"required"`
 	Time   time.Time `json:"time"         gencodec:"required"`
 	NumTxs uint64    `json:"num_txs"      gencodec:"required"`
-	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
-	NumDualEvents uint64 `json:"num_dual_events" gencodec:"required"`
 
 	GasLimit uint64 `json:"gasLimit"         gencodec:"required"`
-	GasUsed  uint64 `json:"gasUsed"          gencodec:"required"`
 
 	// prev block info
 	LastBlockID BlockID `json:"last_block_id"`
@@ -68,8 +65,6 @@ type Header struct {
 	// hashes of block data
 	LastCommitHash common.Hash `json:"last_commit_hash"    gencodec:"required"` // commit from validators from the last block
 	TxHash         common.Hash `json:"data_hash"           gencodec:"required"` // transactions
-	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
-	DualEventsHash common.Hash `json:"dual_events_hash"    gencodec:"required"` // dual's events
 
 	// hashes from the app output from the prev block
 	ValidatorsHash     common.Hash `json:"validators_hash"`      // validators hash for the current block
@@ -162,7 +157,6 @@ func HeaderFromProto(ph *kproto.Header) (Header, error) {
 	//h.ChainID = ph.ChainID
 	h.Height = ph.Height
 	h.Time = ph.Time
-	h.Height = ph.Height
 	h.LastBlockID = *bi
 	h.ValidatorsHash = common.BytesToHash(ph.ValidatorsHash)
 	h.NextValidatorsHash = common.BytesToHash(ph.NextValidatorsHash)
@@ -295,23 +289,12 @@ func NewDualBlock(header *Header, events DualEvents, commit *Commit, evidence []
 		evidence:   &EvidenceData{Evidence: evidence},
 	}
 
-	b.header.DualEventsHash = EmptyRootHash
-
 	if b.header.LastCommitHash.IsZero() {
 		if commit == nil {
 			b.header.LastCommitHash = common.NewZeroHash()
 		} else {
 			b.header.LastCommitHash = commit.Hash()
 		}
-	}
-
-	if len(events) == 0 {
-		b.header.DualEventsHash = EmptyRootHash
-	} else {
-		b.header.DualEventsHash = DeriveSha(events)
-		b.header.NumDualEvents = uint64(len(events))
-		b.dualEvents = make(DualEvents, len(events))
-		copy(b.dualEvents, events)
 	}
 
 	if len(evidence) > 0 {
@@ -374,7 +357,6 @@ func (b *Block) WithBody(body *Body) *Block {
 
 func (b *Block) Height() uint64   { return b.header.Height }
 func (b *Block) GasLimit() uint64 { return b.header.GasLimit }
-func (b *Block) GasUsed() uint64  { return b.header.GasUsed }
 func (b *Block) Time() time.Time  { return b.header.Time }
 func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
