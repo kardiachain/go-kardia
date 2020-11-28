@@ -71,8 +71,6 @@ type Header struct {
 	NextValidatorsHash common.Hash `json:"next_validators_hash"` // next validators hask for next block
 	ConsensusHash      common.Hash `json:"consensus_hash"`       // consensus params for current block
 	AppHash            common.Hash `json:"app_hash"`             // state after txs from the previous block
-	//@huny LastResultsHash common.Hash `json:"last_results_hash"` // root hash of all results from the txs from the previous block
-
 	// consensus info
 	EvidenceHash common.Hash `json:"evidence_hash"` // evidence included in the block
 }

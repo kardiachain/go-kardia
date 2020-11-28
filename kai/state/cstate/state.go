@@ -68,10 +68,6 @@ type LastestBlockState struct {
 	LastHeightConsensusParamsChanged uint64
 	AppHash                          common.Hash
 	ConsensusParams                  kproto.ConsensusParams
-	// TODO(namdoh): Add consensus parameters used for validating blocks.
-
-	// Merkle root of the results from executing prev block
-	//namdoh@ LastResultsHash []byte
 }
 
 // Copy makes a copy of the State for mutating.
@@ -90,7 +86,6 @@ func (state LastestBlockState) Copy() LastestBlockState {
 		LastHeightValidatorsChanged: state.LastHeightValidatorsChanged,
 		AppHash:                     state.AppHash,
 		ConsensusParams:             state.ConsensusParams,
-		//namdoh@ LastResultsHash: state.LastResultsHash,
 	}
 }
 
@@ -157,7 +152,6 @@ func (state *LastestBlockState) ToProto() (*kstate.State, error) {
 	sm.LastHeightValidatorsChanged = state.LastHeightValidatorsChanged
 	sm.ConsensusParams = state.ConsensusParams
 	sm.LastHeightConsensusParamsChanged = state.LastHeightConsensusParamsChanged
-	//sm.LastResultsHash = state.LastResultsHash
 	sm.AppHash = state.AppHash.Bytes()
 
 	return sm, nil
