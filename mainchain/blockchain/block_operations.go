@@ -42,8 +42,7 @@ type EvidencePool interface {
 	PendingEvidence(int64) ([]types.Evidence, int64)
 }
 
-// BlockOperations TODO(thientn/namdoh): this is similar to execution.go & validation.go in state/
-// These files should be consolidated in the future.
+// BlockOperations
 type BlockOperations struct {
 	logger log.Logger
 
