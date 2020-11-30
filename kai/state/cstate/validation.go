@@ -62,10 +62,6 @@ func validateBlock(evidencePool EvidencePool, store Store, state LastestBlockSta
 		)
 	}
 
-	//if !bytes.Equal(block.LastResultsHash, state.LastResultsHash) {
-	//	return fmt.Errorf("Wrong Block.Header.LastResultsHash.  Expected %X, got %v", state.LastResultsHash, block.LastResultsHash)
-	//}
-
 	// Validate block LastCommit.
 	if block.Height() == 1 {
 		if len(block.LastCommit().Signatures) != 0 {

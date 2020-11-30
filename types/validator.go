@@ -81,9 +81,19 @@ func (v *Validator) ValidateBasic() error {
 	return nil
 }
 
-// Hash computes the unique ID of a validator with a given voting power.
-func (v *Validator) Hash() common.Hash {
-	return rlpHash(v)
+// Bytes computes the unique encoding of a validator with a given voting power.
+// These are the bytes that gets hashed in consensus.
+func (v *Validator) Bytes() []byte {
+	pbv := kproto.SimpleValidator{
+		Address:     v.Address.Bytes(),
+		VotingPower: v.VotingPower,
+	}
+
+	bz, err := pbv.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return bz
 }
 
 // Copy Creates a new copy of the validator.

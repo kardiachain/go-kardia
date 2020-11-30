@@ -364,7 +364,7 @@ func (vs *ValidatorSet) Hash() common.Hash {
 	}
 	bzs := make([][]byte, len(vs.Validators))
 	for i, val := range vs.Validators {
-		bzs[i] = val.Hash().Bytes()
+		bzs[i] = val.Bytes()
 	}
 	proof := merkle.SimpleHashFromByteSlices(bzs)
 	return common.BytesToHash(proof)

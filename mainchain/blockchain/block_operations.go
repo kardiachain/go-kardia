@@ -213,9 +213,6 @@ func (bo *BlockOperations) newHeader(time time.Time, height uint64, numTxs uint6
 // newBlock creates new block from given data.
 func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transaction, commit *types.Commit, ev []types.Evidence) *types.Block {
 	block := types.NewBlock(header, txs, commit, ev)
-
-	// TODO(@lew): Fill the missing header info: ConsensusHash, LastResultHash.
-
 	return block
 }
 

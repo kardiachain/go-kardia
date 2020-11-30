@@ -54,11 +54,8 @@ type Header struct {
 	Height uint64    `json:"height"       gencodec:"required"`
 	Time   time.Time `json:"time"         gencodec:"required"`
 	NumTxs uint64    `json:"num_txs"      gencodec:"required"`
-	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
-	NumDualEvents uint64 `json:"num_dual_events" gencodec:"required"`
 
 	GasLimit uint64 `json:"gasLimit"         gencodec:"required"`
-	GasUsed  uint64 `json:"gasUsed"          gencodec:"required"`
 
 	// prev block info
 	LastBlockID BlockID `json:"last_block_id"`
@@ -68,16 +65,12 @@ type Header struct {
 	// hashes of block data
 	LastCommitHash common.Hash `json:"last_commit_hash"    gencodec:"required"` // commit from validators from the last block
 	TxHash         common.Hash `json:"data_hash"           gencodec:"required"` // transactions
-	// TODO(namdoh@): Create a separate block type for Dual's blockchain.
-	DualEventsHash common.Hash `json:"dual_events_hash"    gencodec:"required"` // dual's events
 
 	// hashes from the app output from the prev block
 	ValidatorsHash     common.Hash `json:"validators_hash"`      // validators hash for the current block
 	NextValidatorsHash common.Hash `json:"next_validators_hash"` // next validators hask for next block
 	ConsensusHash      common.Hash `json:"consensus_hash"`       // consensus params for current block
 	AppHash            common.Hash `json:"app_hash"`             // state after txs from the previous block
-	//@huny LastResultsHash common.Hash `json:"last_results_hash"` // root hash of all results from the txs from the previous block
-
 	// consensus info
 	EvidenceHash common.Hash `json:"evidence_hash"` // evidence included in the block
 }
@@ -85,7 +78,16 @@ type Header struct {
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
 // RLP encoding.
 func (h *Header) Hash() common.Hash {
-	return rlpHash(h)
+	if h == nil {
+		return common.Hash{}
+	}
+
+	pbh := h.ToProto()
+	bz, err := pbh.Marshal()
+	if err != nil {
+		panic(err)
+	}
+	return hash(bz)
 }
 
 // Size returns the approximate memory used by all internal contents. It is used
@@ -114,6 +116,37 @@ func (h *Header) String() string {
 	return fmt.Sprintf("Header{Height:%v  Time:%v  NumTxs:%v  LastBlockID:%v  LastCommitHash:%v  TxHash:%v  AppHash:%v  ValidatorsHash:%v  ConsensusHash:%v}#%v",
 		h.Height, h.Time, h.NumTxs, h.LastBlockID, h.LastCommitHash.Fingerprint(),
 		h.TxHash.Fingerprint(), h.AppHash.Fingerprint(), h.ValidatorsHash.Fingerprint(), h.ConsensusHash.Fingerprint(), headerHash.Fingerprint())
+}
+
+// ValidateBasic performs stateless validation on a Header returning an error
+// if any validation fails.
+//
+// NOTE: Timestamp validation is subtle and handled elsewhere.
+func (h Header) ValidateBasic() error {
+	if err := h.LastBlockID.ValidateBasic(); err != nil {
+		return fmt.Errorf("wrong LastBlockID: %w", err)
+	}
+	if err := ValidateHash(h.LastCommitHash); err != nil {
+		return fmt.Errorf("wrong LastCommitHash: %v", err)
+	}
+	if err := ValidateHash(h.TxHash); err != nil {
+		return fmt.Errorf("wrong DataHash: %v", err)
+	}
+	if err := ValidateHash(h.EvidenceHash); err != nil {
+		return fmt.Errorf("wrong EvidenceHash: %v", err)
+	}
+	// Basic validation of hashes related to application data.
+	// Will validate fully against state in state#ValidateBlock.
+	if err := ValidateHash(h.ValidatorsHash); err != nil {
+		return fmt.Errorf("wrong ValidatorsHash: %v", err)
+	}
+	if err := ValidateHash(h.NextValidatorsHash); err != nil {
+		return fmt.Errorf("wrong NextValidatorsHash: %v", err)
+	}
+	if err := ValidateHash(h.ConsensusHash); err != nil {
+		return fmt.Errorf("wrong ConsensusHash: %v", err)
+	}
+	return nil
 }
 
 // ToProto converts Header to protobuf
@@ -157,7 +190,6 @@ func HeaderFromProto(ph *kproto.Header) (Header, error) {
 	//h.ChainID = ph.ChainID
 	h.Height = ph.Height
 	h.Time = ph.Time
-	h.Height = ph.Height
 	h.LastBlockID = *bi
 	h.ValidatorsHash = common.BytesToHash(ph.ValidatorsHash)
 	h.NextValidatorsHash = common.BytesToHash(ph.NextValidatorsHash)
@@ -171,7 +203,7 @@ func HeaderFromProto(ph *kproto.Header) (Header, error) {
 	h.NumTxs = ph.NumTxs
 	h.ProposerAddress = common.BytesToAddress(ph.ProposerAddress)
 
-	return *h, nil
+	return *h, h.ValidateBasic()
 }
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
@@ -200,6 +232,13 @@ func (b *Block) Body() *Body {
 func rlpHash(x interface{}) (h common.Hash) {
 	hw := sha3.NewKeccak256()
 	rlp.Encode(hw, x)
+	hw.Sum(h[:0])
+	return h
+}
+
+func hash(b []byte) (h common.Hash) {
+	hw := sha3.NewKeccak256()
+	hw.Write(b)
 	hw.Sum(h[:0])
 	return h
 }
@@ -283,23 +322,12 @@ func NewDualBlock(header *Header, events DualEvents, commit *Commit, evidence []
 		evidence:   &EvidenceData{Evidence: evidence},
 	}
 
-	b.header.DualEventsHash = EmptyRootHash
-
 	if b.header.LastCommitHash.IsZero() {
 		if commit == nil {
 			b.header.LastCommitHash = common.NewZeroHash()
 		} else {
 			b.header.LastCommitHash = commit.Hash()
 		}
-	}
-
-	if len(events) == 0 {
-		b.header.DualEventsHash = EmptyRootHash
-	} else {
-		b.header.DualEventsHash = DeriveSha(events)
-		b.header.NumDualEvents = uint64(len(events))
-		b.dualEvents = make(DualEvents, len(events))
-		copy(b.dualEvents, events)
 	}
 
 	if len(evidence) > 0 {
@@ -362,7 +390,6 @@ func (b *Block) WithBody(body *Body) *Block {
 
 func (b *Block) Height() uint64   { return b.header.Height }
 func (b *Block) GasLimit() uint64 { return b.header.GasLimit }
-func (b *Block) GasUsed() uint64  { return b.header.GasUsed }
 func (b *Block) Time() time.Time  { return b.header.Time }
 func (b *Block) NumTxs() uint64   { return b.header.NumTxs }
 
@@ -435,13 +462,8 @@ func (b *Block) ValidateBasic() error {
 	b.mtx.Lock()
 	defer b.mtx.Unlock()
 
-	newTxs := uint64(len(b.transactions))
-	if b.header.NumTxs != newTxs {
-		return fmt.Errorf("wrong Block.Header.NumTxs. Expected %v, got %v", newTxs, b.header.NumTxs)
-	}
-
-	if err := b.header.LastBlockID.ValidateBasic(); err != nil {
-		return fmt.Errorf("Wrong Header.LastBlockID: %v", err)
+	if err := b.header.ValidateBasic(); err != nil {
+		return fmt.Errorf("invalid header: %w", err)
 	}
 
 	// Validate the last commit and its hash.
@@ -458,6 +480,20 @@ func (b *Block) ValidateBasic() error {
 		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  lastCommit is nil, but expect zero hash, but got: %v", b.header.LastCommitHash)
 	} else if b.lastCommit != nil && !b.header.LastCommitHash.Equal(b.lastCommit.Hash()) {
 		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v.  Last commit %v", b.header.LastCommitHash, b.lastCommit.Hash(), b.lastCommit)
+	}
+
+	if w, g := b.transactions.Hash(), b.header.TxHash; !w.Equal(g) {
+		return fmt.Errorf("wrong Header.DataHash. Expected %X, got %X", w, g)
+	}
+
+	for i, ev := range b.evidence.Evidence {
+		if err := ev.ValidateBasic(); err != nil {
+			return fmt.Errorf("invalid evidence (#%d): %v", i, err)
+		}
+	}
+
+	if w, g := b.evidence.Hash(), b.header.EvidenceHash; !w.Equal(g) {
+		return fmt.Errorf("wrong Header.EvidenceHash. Expected %X, got %X", w, g)
 	}
 
 	return nil

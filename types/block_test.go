@@ -19,16 +19,17 @@
 package types
 
 import (
-	message "github.com/kardiachain/go-kardiamain/ksml/proto"
+	"math/big"
+	"testing"
+	"time"
+
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"github.com/kardiachain/go-kardiamain/lib/merkle"
 	krand "github.com/kardiachain/go-kardiamain/lib/rand"
 	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"testing"
-	"time"
+	"github.com/stretchr/testify/require"
 )
 
 func createBlockIDRandom() BlockID {
@@ -58,14 +59,11 @@ func createHeaderRandom() *Header {
 		Height:             krand.Uint64(),
 		Time:               time.Now(),
 		NumTxs:             krand.Uint64(),
-		NumDualEvents:      krand.Uint64(),
 		GasLimit:           krand.Uint64(),
-		GasUsed:            krand.Uint64(),
 		LastBlockID:        BlockID{},
 		ProposerAddress:    randAddress,
 		LastCommitHash:     krand.Hash(merkle.Size),
 		TxHash:             krand.Hash(merkle.Size),
-		DualEventsHash:     krand.Hash(merkle.Size),
 		ValidatorsHash:     krand.Hash(merkle.Size),
 		NextValidatorsHash: krand.Hash(merkle.Size),
 		ConsensusHash:      krand.Hash(merkle.Size),
@@ -177,23 +175,124 @@ func CreateNewBlock(height uint64) *Block {
 	return NewBlock(&header, txns, lastCommit, evidence)
 }
 
-func CreateNewDualBlock() *Block {
-	header := Header{
-		Height: 1,
-		Time:   time.Now(),
+func TestBlockValidateBasic(t *testing.T) {
+	require.Error(t, (*Block)(nil).ValidateBasic())
+
+	addr1 := common.BytesToAddress([]byte("0x01"))
+	txs := []*Transaction{
+		NewTransaction(1, addr1, big.NewInt(1), 1, big.NewInt(1), []byte("tx")),
 	}
-	vote := &Vote{
-		ValidatorIndex: 1,
-		Height:         2,
-		Round:          1,
-		Timestamp:      time.Now(),
-		Type:           kproto.PrecommitType,
+
+	lastID := makeBlockIDRandom()
+	h := uint64(3)
+
+	voteSet, valSet, vals := randVoteSet(h-1, 1, kproto.PrecommitType, 10, 1)
+	commit, err := MakeCommit(lastID, h-1, 1, voteSet, vals, time.Now())
+	require.NoError(t, err)
+
+	testCases := []struct {
+		testName      string
+		malleateBlock func(*Block)
+		expErr        bool
+	}{
+		{"Make Block", func(blk *Block) {}, false},
+		{"Make Block w/ proposer Addr", func(blk *Block) { blk.header.ProposerAddress = valSet.GetProposer().Address }, false},
+		{"Remove 1/2 the commits", func(blk *Block) {
+			blk.lastCommit.Signatures = commit.Signatures[:commit.Size()/2]
+			blk.lastCommit.hash = common.Hash{}
+		}, true},
+		{"Remove LastCommitHash", func(blk *Block) { blk.header.LastCommitHash = common.BytesToHash([]byte("something else")) }, true},
+		{"Tampered Data", func(blk *Block) {
+			blk.transactions[0] = NewTransaction(1, addr1, big.NewInt(1), 1, big.NewInt(1), []byte("something else"))
+		}, true},
+		{"Tampered DataHash", func(blk *Block) {
+			blk.header.TxHash = common.BytesToHash([]byte("txhash"))
+		}, true},
+		{"Tampered EvidenceHash", func(blk *Block) {
+			blk.header.EvidenceHash = common.BytesToHash([]byte("EvidenceHash"))
+		}, true},
+		{"Missing LastCommit", func(blk *Block) {
+			blk.header.LastCommitHash = common.Hash{}
+		}, true},
+		{"Invalid LastCommit", func(blk *Block) {
+			blk.lastCommit = NewCommit(0, 0, *voteSet.maj23, nil)
+		}, true},
+		{"Invalid Evidence", func(blk *Block) {
+			emptyEv := &DuplicateVoteEvidence{}
+			blk.evidence = &EvidenceData{Evidence: []Evidence{emptyEv}}
+		}, true},
 	}
-	lastCommit := &Commit{
-		Signatures: []CommitSig{vote.CommitSig(), vote.CommitSig()},
+
+	ev := NewMockDuplicateVoteEvidenceWithValidator(h, time.Now(), vals[0], "block-test-chain")
+	evList := []Evidence{ev}
+
+	for i, tc := range testCases {
+		tc := tc
+		i := i
+		t.Run(tc.testName, func(t *testing.T) {
+			block := NewBlock(&Header{Height: h}, txs, commit, evList)
+			block.header.ProposerAddress = valSet.GetProposer().Address
+			tc.malleateBlock(block)
+			err := block.ValidateBasic()
+			t.Log(err)
+			assert.Equal(t, tc.expErr, err != nil, "#%d: %v", i, err)
+		})
 	}
-	header.LastCommitHash = lastCommit.Hash()
-	de := NewDualEvent(100, false, "KAI", new(common.Hash), &message.EventMessage{}, []string{})
-	evidence := []Evidence{}
-	return NewDualBlock(&header, []*DualEvent{de, nil}, lastCommit, evidence)
+}
+
+func TestBlockHash(t *testing.T) {
+	assert.Equal(t, common.Hash{}, (*Block)(nil).Hash())
+	//assert.Equal(t, common.Hash{}, NewBlock(&Header{}, []*Transaction{}, nil, nil).Hash())
+}
+
+func TestBlockMakePartSet(t *testing.T) {
+	assert.Nil(t, (*Block)(nil).MakePartSet(2))
+
+	partSet := NewBlock(&Header{Height: 3}, []*Transaction{}, nil, nil).MakePartSet(1024)
+	assert.NotNil(t, partSet)
+	assert.EqualValues(t, 1, partSet.Total())
+}
+
+func TestBlockMakePartSetWithEvidence(t *testing.T) {
+	assert.Nil(t, (*Block)(nil).MakePartSet(2))
+
+	lastID := makeBlockIDRandom()
+	h := uint64(3)
+
+	voteSet, _, vals := randVoteSet(h-1, 1, kproto.PrecommitType, 10, 1)
+	commit, err := MakeCommit(lastID, h-1, 1, voteSet, vals, time.Now())
+	require.NoError(t, err)
+
+	ev := NewMockDuplicateVoteEvidenceWithValidator(h, time.Now(), vals[0], "block-test-chain")
+	evList := []Evidence{ev}
+
+	partSet := NewBlock(&Header{Height: 3}, []*Transaction{}, commit, evList).MakePartSet(512)
+	assert.NotNil(t, partSet)
+	assert.EqualValues(t, 4, partSet.Total())
+}
+
+func TestBlockHashesTo(t *testing.T) {
+	assert.False(t, (*Block)(nil).HashesTo(common.Hash{}))
+
+	lastID := makeBlockIDRandom()
+	h := uint64(3)
+	voteSet, valSet, vals := randVoteSet(h-1, 1, kproto.PrecommitType, 10, 1)
+	commit, err := MakeCommit(lastID, h-1, 1, voteSet, vals, time.Now())
+	require.NoError(t, err)
+
+	ev := NewMockDuplicateVoteEvidenceWithValidator(h, time.Now(), vals[0], "block-test-chain")
+	evList := []Evidence{ev}
+
+	block := NewBlock(&Header{Height: 3}, []*Transaction{}, commit, evList)
+	block.header.ValidatorsHash = valSet.Hash()
+	assert.False(t, block.HashesTo(common.Hash{}))
+	assert.False(t, block.HashesTo(common.BytesToHash([]byte("something else"))))
+	assert.True(t, block.HashesTo(block.Hash()))
+}
+
+func TestBlockSize(t *testing.T) {
+	size := NewBlock(&Header{Height: 3}, []*Transaction{}, nil, nil).Size()
+	if size <= 0 {
+		t.Fatal("Size of the block is zero or negative")
+	}
 }

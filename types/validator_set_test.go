@@ -37,6 +37,58 @@ import (
 	krand "github.com/kardiachain/go-kardiamain/lib/rand"
 )
 
+func TestValidatorSetBasic(t *testing.T) {
+	// empty or nil validator lists are allowed,
+	// but attempting to IncrementProposerPriority on them will panic.
+	vset := NewValidatorSet([]*Validator{})
+	assert.Panics(t, func() { vset.IncrementProposerPriority(1) })
+
+	vset = NewValidatorSet(nil)
+	assert.Panics(t, func() { vset.IncrementProposerPriority(1) })
+
+	assert.EqualValues(t, vset, vset.Copy())
+	assert.False(t, vset.HasAddress(common.BytesToAddress([]byte("some val"))))
+	idx, val := vset.GetByAddress(common.BytesToAddress([]byte("some val")))
+	assert.EqualValues(t, -1, idx)
+	assert.Nil(t, val)
+	addr, val := vset.GetByIndex(0)
+	assert.True(t, addr.Equal(common.Address{}))
+	assert.Nil(t, val)
+	addr, val = vset.GetByIndex(100)
+	assert.True(t, addr.Equal(common.Address{}))
+	assert.Nil(t, val)
+	assert.Zero(t, vset.Size())
+	assert.Equal(t, int64(0), vset.TotalVotingPower())
+	assert.Nil(t, vset.GetProposer())
+	assert.Equal(t, common.Hash{}, vset.Hash())
+
+	// add
+	val = randValidator(vset.TotalVotingPower())
+	assert.NoError(t, vset.UpdateWithChangeSet([]*Validator{val}))
+	assert.True(t, vset.HasAddress(val.Address))
+	idx, _ = vset.GetByAddress(val.Address)
+	assert.EqualValues(t, 0, idx)
+	addr, _ = vset.GetByIndex(0)
+	assert.Equal(t, val.Address, addr)
+	assert.Equal(t, 1, vset.Size())
+	assert.Equal(t, val.VotingPower, vset.TotalVotingPower())
+	assert.NotNil(t, vset.Hash())
+	assert.NotPanics(t, func() { vset.IncrementProposerPriority(1) })
+	assert.Equal(t, val.Address, vset.GetProposer().Address)
+
+	// update
+	val = randValidator(vset.TotalVotingPower())
+	assert.NoError(t, vset.UpdateWithChangeSet([]*Validator{val}))
+	_, val = vset.GetByAddress(val.Address)
+	val.VotingPower += 100
+	proposerPriority := val.ProposerPriority
+
+	val.ProposerPriority = 0
+	assert.NoError(t, vset.UpdateWithChangeSet([]*Validator{val}))
+	_, val = vset.GetByAddress(val.Address)
+	assert.Equal(t, proposerPriority, val.ProposerPriority)
+}
+
 func TestValidatorSetValidateBasic(t *testing.T) {
 	val, _ := RandValidator(false, 1)
 
