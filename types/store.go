@@ -71,7 +71,7 @@ type StoreDB interface {
 	CheckTxHash(hash *common.Hash) bool
 
 	// Delete
-	DeleteBlockMeta(hash common.Hash, height uint64)
-	DeleteBlockPart(hash common.Hash, height uint64)
+	DeleteBlockMeta(hash common.Hash, height uint64) error
+	DeleteBlockPart(hash common.Hash, height uint64) error
 	DeleteCanonicalHash(height uint64)
 }
