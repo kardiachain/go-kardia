@@ -71,77 +71,77 @@ func (s *StoreDB) WriteBlock(block *types.Block, blockParts *types.PartSet, seen
 
 // WriteChainConfig writes the chain config settings to the database.
 func (s *StoreDB) WriteChainConfig(hash common.Hash, cfg *configs.ChainConfig) {
-	CommonWriteChainConfig(s.db, hash, cfg)
+	WriteChainConfig(s.db, hash, cfg)
 }
 
 // WriteBlockInfo stores block info belonging to a block.
 func (s *StoreDB) WriteBlockInfo(hash common.Hash, height uint64, blockInfo *types.BlockInfo) {
-	CommonWriteBlockInfo(s.db, hash, height, blockInfo)
+	WriteBlockInfo(s.db, hash, height, blockInfo)
 }
 
 // WriteCanonicalHash stores the hash assigned to a canonical block height.
 func (s *StoreDB) WriteCanonicalHash(hash common.Hash, height uint64) {
-	CommonWriteCanonicalHash(s.db, hash, height)
+	WriteCanonicalHash(s.db, hash, height)
 }
 
 // WriteEvent stores KardiaSmartContract to db
 func (s *StoreDB) WriteEvent(smc *types.KardiaSmartcontract) {
-	CommonWriteEvent(s.db, smc)
+	WriteEvent(s.db, smc)
 }
 
 // WriteTxLookupEntries stores a positional metadata for every transaction from
 // a block, enabling hash based transaction and receipt lookups.
 func (s *StoreDB) WriteTxLookupEntries(block *types.Block) {
-	CommonWriteTxLookupEntries(s.db, block)
+	WriteTxLookupEntries(s.db, block)
 }
 
 // Stores a hash into the database.
 func (s *StoreDB) StoreHash(hash *common.Hash) {
-	CommonStoreHash(s.db, hash)
+	StoreHash(s.db, hash)
 }
 
 // Stores a tx hash into the database.
 func (s *StoreDB) StoreTxHash(hash *common.Hash) {
-	CommonStoreTxHash(s.db, hash)
+	StoreTxHash(s.db, hash)
 }
 
 func (s *StoreDB) WriteHeadBlockHash(hash common.Hash) {
-	CommonWriteHeadBlockHash(s.db, hash)
+	WriteHeadBlockHash(s.db, hash)
 }
 
 // ReadSmartContractAbi gets smart contract abi by smart contract address
 func (s *StoreDB) ReadSmartContractAbi(address string) *abi.ABI {
-	return CommonReadSmartContractAbi(s.db, address)
+	return ReadSmartContractAbi(s.db, address)
 }
 
 // ReadEvent gets watcher action by smart contract address and method
 func (s *StoreDB) ReadEvent(address string, method string) *types.Watcher {
-	return CommonReadEvent(s.db, address, method)
+	return ReadEvent(s.db, address, method)
 }
 
 // ReadEvents returns a list of watcher action by smart contract address
 func (s *StoreDB) ReadEvents(address string) (string, []*types.Watcher) {
-	return CommonReadEvents(s.db, address)
+	return ReadEvents(s.db, address)
 }
 
 // ReadCanonicalHash retrieves the hash assigned to a canonical block height.
 func (s *StoreDB) ReadCanonicalHash(height uint64) common.Hash {
-	return CommonReadCanonicalHash(s.db, height)
+	return ReadCanonicalHash(s.db, height)
 }
 
 // ReadChainConfig retrieves the consensus settings based on the given genesis hash.
 func (s *StoreDB) ReadChainConfig(hash common.Hash) *configs.ChainConfig {
-	return CommonReadChainConfig(s.db, hash)
+	return ReadChainConfig(s.db, hash)
 }
 
 // ReadBody retrieves the block body corresponding to the hash.
 func (s *StoreDB) ReadBody(hash common.Hash, height uint64) *types.Body {
-	return CommonReadBody(s.db, hash, height)
+	return ReadBody(s.db, hash, height)
 }
 
 // ReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
 func (s *StoreDB) ReadBodyRLP(hash common.Hash, height uint64) rlp.RawValue {
-	return CommonReadBodyRLP(s.db, hash, height)
+	return ReadBodyRLP(s.db, hash, height)
 }
 
 func (s *StoreDB) DB() kaidb.Database {
@@ -150,17 +150,17 @@ func (s *StoreDB) DB() kaidb.Database {
 
 // ReadHeadBlockHash retrieves the hash of the current canonical head block.
 func (s *StoreDB) ReadHeadBlockHash() common.Hash {
-	return CommonReadHeadBlockHash(s.db)
+	return ReadHeadBlockHash(s.db)
 }
 
 // ReadHeadHeaderHash retrieves the hash of the current canonical head header.
 func (s *StoreDB) ReadHeadHeaderHash() common.Hash {
-	return CommonReadHeadHeaderHash(s.db)
+	return ReadHeadHeaderHash(s.db)
 }
 
 // ReadBody retrieves the commit at a given height.
 func (s *StoreDB) ReadCommit(height uint64) *types.Commit {
-	return CommonReadCommit(s.db, height)
+	return ReadCommit(s.db, height)
 }
 
 // ReadBody retrieves the commit at a given height.
@@ -170,80 +170,86 @@ func (s *StoreDB) ReadSeenCommit(height uint64) *types.Commit {
 
 // ReadHeader retrieves the block header corresponding to the hash.
 func (s *StoreDB) ReadHeader(hash common.Hash, height uint64) *types.Header {
-	return CommonReadHeader(s.db, hash, height)
+	return ReadHeader(s.db, hash, height)
 }
 
 // ReadHeaderheight returns the header height assigned to a hash.
 func (s *StoreDB) ReadHeaderHeight(hash common.Hash) *uint64 {
-	return CommonReadHeaderHeight(s.db, hash)
+	return ReadHeaderHeight(s.db, hash)
 }
 
 // ReadTransaction retrieves a specific transaction from the database, along with
 // its added positional metadata.
 func (s *StoreDB) ReadTransaction(hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
-	return CommonReadTransaction(s.db, hash)
+	return ReadTransaction(s.db, hash)
 }
 
 // Retrieves the positional metadata associated with a dual's event
 // hash to allow retrieving the event by hash.
 func (s *StoreDB) ReadDualEventLookupEntry(hash common.Hash) (common.Hash, uint64, uint64) {
-	return CommonReadDualEventLookupEntry(s.db, hash)
+	return ReadDualEventLookupEntry(s.db, hash)
 }
 
 // Retrieves a specific dual's event from the database, along with
 // its added positional metadata.
 func (s *StoreDB) ReadDualEvent(hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
-	return CommonReadDualEvent(s.db, hash)
+	return ReadDualEvent(s.db, hash)
 }
 
 // ReadHeaderNumber returns the header number assigned to a hash.
 func (s *StoreDB) ReadHeaderNumber(hash common.Hash) *uint64 {
-	return CommonReadHeaderNumber(s.db, hash)
+	return ReadHeaderNumber(s.db, hash)
 }
 
 // ReadBlockInfo retrieves block info belonging to a block.
 func (s *StoreDB) ReadBlockInfo(hash common.Hash, number uint64) *types.BlockInfo {
-	return CommonReadBlockInfo(s.db, hash, number)
+	return ReadBlockInfo(s.db, hash, number)
 }
 
 // ReadTxLookupEntry retrieves the positional metadata associated with a transaction
 // hash to allow retrieving the transaction or receipt by hash.
 func (s *StoreDB) ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, uint64) {
-	return CommonReadTxLookupEntry(s.db, hash)
+	return ReadTxLookupEntry(s.db, hash)
 }
 
 // Returns true if a hash already exists in the database.
 func (s *StoreDB) CheckHash(hash *common.Hash) bool {
-	return CommonCheckHash(s.db, hash)
+	return CheckHash(s.db, hash)
 }
 
 // Returns true if a tx hash already exists in the database.
 func (s *StoreDB) CheckTxHash(hash *common.Hash) bool {
-	return CommonCheckTxHash(s.db, hash)
+	return CheckTxHash(s.db, hash)
 }
 
 // DeleteBody removes all block body data associated with a hash.
 func (s *StoreDB) DeleteBody(hash common.Hash, height uint64) {
-	CommonDeleteBody(s.db, hash, height)
+	DeleteBody(s.db, hash, height)
 }
 
 // DeleteHeader removes all block header data associated with a hash.
 func (s *StoreDB) DeleteHeader(hash common.Hash, height uint64) {
-	CommonDeleteHeader(s.db, hash, height)
+	DeleteHeader(s.db, hash, height)
 }
 
 // DeleteCanonicalHash removes the number to hash canonical mapping.
 func (s *StoreDB) DeleteCanonicalHash(number uint64) {
-	CommonDeleteCanonicalHash(s.db, number)
+	DeleteCanonicalHash(s.db, number)
 }
 
-func (s *StoreDB) DeleteBlockMeta(hash common.Hash, height uint64) {
-	s.db.Delete(blockMetaKey(height))
+func (s *StoreDB) DeleteBlockMeta(hash common.Hash, height uint64) error {
+	if err := s.db.Delete(blockMetaKey(height)); err != nil {
+		return err
+	}
+	return nil
 }
 
-func (s *StoreDB) DeleteBlockPart(hash common.Hash, height uint64) {
+func (s *StoreDB) DeleteBlockPart(hash common.Hash, height uint64) error {
 	blockMeta := s.ReadBlockMeta(hash, height)
 	for i := 0; i < int(blockMeta.BlockID.PartsHeader.Total); i++ {
-		s.db.Delete(blockPartKey(height, i))
+		if err := s.db.Delete(blockPartKey(height, i)); err != nil {
+			return err
+		}
 	}
+	return nil
 }

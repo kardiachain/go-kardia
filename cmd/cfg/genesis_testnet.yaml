@@ -853,17 +853,17 @@ Genesis:
       MaxAgeDuration: 48      # Max age of evidence, in time (hour). Type int64
       MaxBytes: 1048576       # Maximum evidence in bytes. Type int64
   Consensus:
-    TimeoutPropose:              3000   # In milliseconds. Type int64
-    TimeoutProposeDelta:         500    # In milliseconds. Type int64
-    TimeoutPrevote:              1000   # In milliseconds. Type int64
-    TimeoutPrevoteDelta:         500    # In milliseconds. Type int64
-    TimeoutPrecommit:            1000   # In milliseconds. Type int64
-    TimeoutPrecommitDelta:       500    # In milliseconds. Type int64
-    TimeoutCommit:               1000   # In milliseconds. Type int64
-    IsSkipTimeoutCommit:         false  # true/false
-    IsCreateEmptyBlocks:         true   # true/false
-    CreateEmptyBlocksInterval:   1000   # In milliseconds. Type int64
-    PeerGossipSleepDuration:     100    # In milliseconds. Type int64
+    TimeoutPropose: 3000   # In milliseconds. Type int64
+    TimeoutProposeDelta: 500    # In milliseconds. Type int64
+    TimeoutPrevote: 1000   # In milliseconds. Type int64
+    TimeoutPrevoteDelta: 500    # In milliseconds. Type int64
+    TimeoutPrecommit: 1000   # In milliseconds. Type int64
+    TimeoutPrecommitDelta: 500    # In milliseconds. Type int64
+    TimeoutCommit: 1000   # In milliseconds. Type int64
+    IsSkipTimeoutCommit: false  # true/false
+    IsCreateEmptyBlocks: true   # true/false
+    CreateEmptyBlocksInterval: 1000   # In milliseconds. Type int64
+    PeerGossipSleepDuration: 100    # In milliseconds. Type int64
     PeerQueryMaj23SleepDuration: 2000   # In milliseconds. Type int64
   ChainConfig:
     KaiconConfig:

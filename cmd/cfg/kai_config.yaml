@@ -35,5 +35,5 @@ MainChain:
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
     Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
-Debug: 
+Debug:
   Port: ":6000"

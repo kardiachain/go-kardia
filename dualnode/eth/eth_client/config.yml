@@ -15,10 +15,10 @@ ContractAbis:
 HTTPHost: 0.0.0.0
 HTTPPort: 8546
 HTTPVirtualHosts:
- - "0.0.0.0"
- - "localhost"
+  - "0.0.0.0"
+  - "localhost"
 HTTPCors:
- - "*"
+  - "*"
 CacheSize: 16
 DBHandle: 16
 LogLvl: 3

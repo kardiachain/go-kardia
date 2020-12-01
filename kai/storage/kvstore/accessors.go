@@ -46,8 +46,8 @@ type KardiaEvents struct {
 	MasterSmc string
 }
 
-// CommonReadCanonicalHash retrieves the hash assigned to a canonical block height.
-func CommonReadCanonicalHash(db kaidb.Reader, height uint64) common.Hash {
+// ReadCanonicalHash retrieves the hash assigned to a canonical block height.
+func ReadCanonicalHash(db kaidb.Reader, height uint64) common.Hash {
 	data, _ := db.Get(headerHashKey(height))
 	if data == nil || len(data) == 0 {
 		return common.Hash{}
@@ -55,8 +55,8 @@ func CommonReadCanonicalHash(db kaidb.Reader, height uint64) common.Hash {
 	return common.BytesToHash(data)
 }
 
-// CommonReadChainConfig retrieves the consensus settings based on the given genesis hash.
-func CommonReadChainConfig(db kaidb.Reader, hash common.Hash) *configs.ChainConfig {
+// ReadChainConfig retrieves the consensus settings based on the given genesis hash.
+func ReadChainConfig(db kaidb.Reader, hash common.Hash) *configs.ChainConfig {
 	data, _ := db.Get(configKey(hash))
 	if data == nil || len(data) == 0 {
 		return nil
@@ -69,8 +69,8 @@ func CommonReadChainConfig(db kaidb.Reader, hash common.Hash) *configs.ChainConf
 	return &config
 }
 
-// CommonWriteChainConfig writes the chain config settings to the database.
-func CommonWriteChainConfig(db kaidb.Writer, hash common.Hash, cfg *configs.ChainConfig) {
+// WriteChainConfig writes the chain config settings to the database.
+func WriteChainConfig(db kaidb.Writer, hash common.Hash, cfg *configs.ChainConfig) {
 	if cfg == nil {
 		return
 	}
@@ -83,8 +83,8 @@ func CommonWriteChainConfig(db kaidb.Writer, hash common.Hash, cfg *configs.Chai
 	}
 }
 
-// CommonWriteBlockInfo stores block info  belonging to a block.
-func CommonWriteBlockInfo(db kaidb.Writer, hash common.Hash, height uint64, blockInfo *types.BlockInfo) {
+// WriteBlockInfo stores block info  belonging to a block.
+func WriteBlockInfo(db kaidb.Writer, hash common.Hash, height uint64, blockInfo *types.BlockInfo) {
 	bytes, err := rlp.EncodeToBytes(blockInfo)
 	if err != nil {
 		log.Crit("Failed to encode block receipts", "err", err)
@@ -95,22 +95,22 @@ func CommonWriteBlockInfo(db kaidb.Writer, hash common.Hash, height uint64, bloc
 	}
 }
 
-// CommonWriteCanonicalHash stores the hash assigned to a canonical block height.
-func CommonWriteCanonicalHash(db kaidb.Writer, hash common.Hash, height uint64) {
+// WriteCanonicalHash stores the hash assigned to a canonical block height.
+func WriteCanonicalHash(db kaidb.Writer, hash common.Hash, height uint64) {
 	if err := db.Put(headerHashKey(height), hash.Bytes()); err != nil {
 		log.Crit("Failed to store height to hash mapping", "err", err)
 	}
 }
 
-// CommonWriteHeadBlockHash stores the hash of the current canonical head header.
-func CommonWriteHeadBlockHash(db kaidb.Writer, hash common.Hash) {
+// WriteHeadBlockHash stores the hash of the current canonical head header.
+func WriteHeadBlockHash(db kaidb.Writer, hash common.Hash) {
 	if err := db.Put(headBlockKey, hash.Bytes()); err != nil {
 		panic(fmt.Sprintln("Failed to store last header's hash", "err", err))
 	}
 }
 
-// CommonWriteEvent stores all events from watched smart contract to db.
-func CommonWriteEvent(db kaidb.Writer, smc *types.KardiaSmartcontract) {
+// WriteEvent stores all events from watched smart contract to db.
+func WriteEvent(db kaidb.Writer, smc *types.KardiaSmartcontract) {
 	if smc.SmcAbi != "" {
 		// Write contract abi
 		smartContract := SmartContract{
@@ -174,8 +174,8 @@ func CommonWriteEvent(db kaidb.Writer, smc *types.KardiaSmartcontract) {
 	}
 }
 
-// CommonWriteCommit stores a commit into the database.
-func CommonWriteCommit(db kaidb.Writer, height uint64, commit *types.Commit) {
+// WriteCommit stores a commit into the database.
+func WriteCommit(db kaidb.Writer, height uint64, commit *types.Commit) {
 	data, err := rlp.EncodeToBytes(commit)
 	if err != nil {
 		log.Crit("Failed to RLP encode commit", "err", err)
@@ -185,19 +185,19 @@ func CommonWriteCommit(db kaidb.Writer, height uint64, commit *types.Commit) {
 	}
 }
 
-// CommonReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
-func CommonReadBodyRLP(db kaidb.Reader, hash common.Hash, height uint64) rlp.RawValue {
+// ReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
+func ReadBodyRLP(db kaidb.Reader, hash common.Hash, height uint64) rlp.RawValue {
 	data, _ := db.Get(blockBodyKey(height, hash))
 	return data
 }
 
-// CommonReadBody retrieves the block body corresponding to the hash.
-func CommonReadBody(db kaidb.Reader, hash common.Hash, height uint64) *types.Body {
+// ReadBody retrieves the block body corresponding to the hash.
+func ReadBody(db kaidb.Reader, hash common.Hash, height uint64) *types.Body {
 	return ReadBlock(db, hash, height).Body()
 }
 
-// CommonReadHeadBlockHash retrieves the hash of the current canonical head block.
-func CommonReadHeadBlockHash(db kaidb.Reader) common.Hash {
+// ReadHeadBlockHash retrieves the hash of the current canonical head block.
+func ReadHeadBlockHash(db kaidb.Reader) common.Hash {
 	data, _ := db.Get(headBlockKey)
 	if data == nil || len(data) == 0 {
 		return common.Hash{}
@@ -205,8 +205,8 @@ func CommonReadHeadBlockHash(db kaidb.Reader) common.Hash {
 	return common.BytesToHash(data)
 }
 
-// CommonReadHeaderheight returns the header height assigned to a hash.
-func CommonReadHeaderHeight(db kaidb.Reader, hash common.Hash) *uint64 {
+// ReadHeaderHeight returns the header height assigned to a hash.
+func ReadHeaderHeight(db kaidb.Reader, hash common.Hash) *uint64 {
 	data, _ := db.Get(headerHeightKey(hash))
 	if data == nil || len(data) == 0 || len(data) != 8 {
 		return nil
@@ -215,8 +215,8 @@ func CommonReadHeaderHeight(db kaidb.Reader, hash common.Hash) *uint64 {
 	return &height
 }
 
-// CommonReadHeadHeaderHash retrieves the hash of the current canonical head header.
-func CommonReadHeadHeaderHash(db kaidb.Reader) common.Hash {
+// ReadHeadHeaderHash retrieves the hash of the current canonical head header.
+func ReadHeadHeaderHash(db kaidb.Reader) common.Hash {
 	data, _ := db.Get(headHeaderKey)
 	if data == nil || len(data) == 0 {
 		return common.Hash{}
@@ -224,8 +224,8 @@ func CommonReadHeadHeaderHash(db kaidb.Reader) common.Hash {
 	return common.BytesToHash(data)
 }
 
-// CommonReadBody retrieves the commit at a given height.
-func CommonReadCommit(db kaidb.Reader, height uint64) *types.Commit {
+// ReadBody retrieves the commit at a given height.
+func ReadCommit(db kaidb.Reader, height uint64) *types.Commit {
 	var pbc = new(kproto.Commit)
 	bz, _ := db.Get(commitKey(height))
 	if len(bz) == 0 {
@@ -243,15 +243,15 @@ func CommonReadCommit(db kaidb.Reader, height uint64) *types.Commit {
 	return commit
 }
 
-// CommonDeleteBody removes all block body data associated with a hash.
-func CommonDeleteBody(db kaidb.KeyValueWriter, hash common.Hash, height uint64) {
+// DeleteBody removes all block body data associated with a hash.
+func DeleteBody(db kaidb.KeyValueWriter, hash common.Hash, height uint64) {
 	if err := db.Delete(blockBodyKey(height, hash)); err != nil {
 		log.Crit("Failed to delete block body", "err", err)
 	}
 }
 
-// CommonDeleteHeader removes all block header data associated with a hash.
-func CommonDeleteHeader(db kaidb.KeyValueWriter, hash common.Hash, height uint64) {
+// DeleteHeader removes all block header data associated with a hash.
+func DeleteHeader(db kaidb.KeyValueWriter, hash common.Hash, height uint64) {
 	if err := db.Delete(headerKey(height, hash)); err != nil {
 		log.Crit("Failed to delete header", "err", err)
 	}
@@ -260,15 +260,15 @@ func CommonDeleteHeader(db kaidb.KeyValueWriter, hash common.Hash, height uint64
 	}
 }
 
-// CommonDeleteCanonicalHash removes the number to hash canonical mapping.
-func CommonDeleteCanonicalHash(db kaidb.KeyValueWriter, number uint64) {
+// DeleteCanonicalHash removes the number to hash canonical mapping.
+func DeleteCanonicalHash(db kaidb.KeyValueWriter, number uint64) {
 	if err := db.Delete(headerHashKey(number)); err != nil {
 		log.Crit("Failed to delete number to hash mapping", "err", err)
 	}
 }
 
-// CommonReadBlockInfo retrieves blockReward, gasUsed and all the transaction receipts belonging to a block.
-func CommonReadBlockInfo(db kaidb.Reader, hash common.Hash, number uint64) *types.BlockInfo {
+// ReadBlockInfo retrieves blockReward, gasUsed and all the transaction receipts belonging to a block.
+func ReadBlockInfo(db kaidb.Reader, hash common.Hash, number uint64) *types.BlockInfo {
 	// Retrieve the flattened receipt slice
 	data, _ := db.Get(blockInfoKey(number, hash))
 	if data == nil || len(data) == 0 {
@@ -282,9 +282,9 @@ func CommonReadBlockInfo(db kaidb.Reader, hash common.Hash, number uint64) *type
 	return blockInfo
 }
 
-// CommonReadTxLookupEntry retrieves the positional metadata associated with a transaction
+// ReadTxLookupEntry retrieves the positional metadata associated with a transaction
 // hash to allow retrieving the transaction or receipt by hash.
-func CommonReadTxLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, uint64, uint64) {
+func ReadTxLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, uint64, uint64) {
 	data, _ := db.Get(txLookupKey(hash))
 	if data == nil || len(data) == 0 {
 		return common.Hash{}, 0, 0
@@ -297,9 +297,9 @@ func CommonReadTxLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, ui
 	return entry.BlockHash, entry.BlockIndex, entry.Index
 }
 
-// CommonWriteTxLookupEntries stores a positional metadata for every transaction from
+// WriteTxLookupEntries stores a positional metadata for every transaction from
 // a block, enabling hash based transaction and receipt lookups.
-func CommonWriteTxLookupEntries(db kaidb.Writer, block *types.Block) {
+func WriteTxLookupEntries(db kaidb.Writer, block *types.Block) {
 	for i, tx := range block.Transactions() {
 		entry := TxLookupEntry{
 			BlockHash:  block.Hash(),
@@ -316,20 +316,23 @@ func CommonWriteTxLookupEntries(db kaidb.Writer, block *types.Block) {
 	}
 }
 
-// CommonDeleteTxLookupEntry removes all transaction data associated with a hash.
-func CommonDeleteTxLookupEntry(db kaidb.KeyValueWriter, hash common.Hash) {
-	db.Delete(txLookupKey(hash))
+// DeleteTxLookupEntry removes all transaction data associated with a hash.
+func DeleteTxLookupEntry(db kaidb.KeyValueWriter, hash common.Hash) error {
+	if err := db.Delete(txLookupKey(hash)); err != nil {
+		return err
+	}
+	return nil
 }
 
-// CommonReadTransaction retrieves a specific transaction from the database, along with
+// ReadTransaction retrieves a specific transaction from the database, along with
 // its added positional metadata.
-func CommonReadTransaction(db kaidb.Reader, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, txIndex := CommonReadTxLookupEntry(db, hash)
+func ReadTransaction(db kaidb.Reader, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
+	blockHash, blockNumber, txIndex := ReadTxLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
 
-	body := CommonReadBody(db, blockHash, blockNumber)
+	body := ReadBody(db, blockHash, blockNumber)
 	if body == nil || len(body.Transactions) <= int(txIndex) {
 		log.Error("Transaction referenced missing", "number", blockNumber, "hash", blockHash, "index", txIndex)
 		return nil, common.Hash{}, 0, 0
@@ -337,9 +340,9 @@ func CommonReadTransaction(db kaidb.Reader, hash common.Hash) (*types.Transactio
 	return body.Transactions[txIndex], blockHash, blockNumber, txIndex
 }
 
-// CommonReadDualEventLookupEntry Retrieves the positional metadata associated with a dual's event
+// ReadDualEventLookupEntry Retrieves the positional metadata associated with a dual's event
 // hash to allow retrieving the event by hash.
-func CommonReadDualEventLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, uint64, uint64) {
+func ReadDualEventLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, uint64, uint64) {
 	data, _ := db.Get(dualEventLookupKey(hash))
 	if data == nil || len(data) == 0 {
 		return common.Hash{}, 0, 0
@@ -354,12 +357,12 @@ func CommonReadDualEventLookupEntry(db kaidb.Reader, hash common.Hash) (common.H
 
 // Retrieves a specific dual's event from the database, along with
 // its added positional metadata.
-func CommonReadDualEvent(db kaidb.Reader, hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, eventIndex := CommonReadDualEventLookupEntry(db, hash)
+func ReadDualEvent(db kaidb.Reader, hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
+	blockHash, blockNumber, eventIndex := ReadDualEventLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
-	body := CommonReadBody(db, blockHash, blockNumber)
+	body := ReadBody(db, blockHash, blockNumber)
 	if body == nil || len(body.DualEvents) <= int(eventIndex) {
 		log.Error("Dual event referenced missing", "number", blockNumber, "hash", blockHash, "index", eventIndex)
 		return nil, common.Hash{}, 0, 0
@@ -367,14 +370,14 @@ func CommonReadDualEvent(db kaidb.Reader, hash common.Hash) (*types.DualEvent, c
 	return body.DualEvents[eventIndex], blockHash, blockNumber, eventIndex
 }
 
-// CommonReadReceipt retrieves a specific transaction receipt from the database, along with
+// ReadReceipt retrieves a specific transaction receipt from the database, along with
 // its added positional metadata.
-func CommonReadReceipt(db kaidb.Reader, hash common.Hash) (*types.Receipt, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, receiptIndex := CommonReadTxLookupEntry(db, hash)
+func ReadReceipt(db kaidb.Reader, hash common.Hash) (*types.Receipt, common.Hash, uint64, uint64) {
+	blockHash, blockNumber, receiptIndex := ReadTxLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
-	blockInfo := CommonReadBlockInfo(db, blockHash, blockNumber)
+	blockInfo := ReadBlockInfo(db, blockHash, blockNumber)
 	if len(blockInfo.Receipts) <= int(receiptIndex) {
 		log.Error("Receipt refereced missing", "number", blockNumber, "hash", blockHash, "index", receiptIndex)
 		return nil, common.Hash{}, 0, 0
@@ -382,10 +385,10 @@ func CommonReadReceipt(db kaidb.Reader, hash common.Hash) (*types.Receipt, commo
 	return blockInfo.Receipts[receiptIndex], blockHash, blockNumber, receiptIndex
 }
 
-// CommonReadEventFromDualAction gets KardiaSmartcontract based on dual action, returns smart contract address and its abi (if any)
+// ReadEventFromDualAction gets KardiaSmartcontract based on dual action, returns smart contract address and its abi (if any)
 // Note: there are chains which do not use same standard as ETH and may not have abi.
 // Therefore, smart contract address is stored as string and abi may be nil.
-func CommonReadEventFromDualAction(db kaidb.Reader, action string) (string, *abi.ABI) {
+func ReadEventFromDualAction(db kaidb.Reader, action string) (string, *abi.ABI) {
 	key, err := db.Get(dualActionKey(action))
 	if err != nil || key == nil {
 		return "", nil
@@ -415,8 +418,8 @@ func CommonReadEventFromDualAction(db kaidb.Reader, action string) (string, *abi
 	return entry.Address, nil
 }
 
-// CommonReadEvent gets a watcher action from contract address and method
-func CommonReadEvent(db kaidb.Reader, address string, method string) *types.Watcher {
+// ReadEvent gets a watcher action from contract address and method
+func ReadEvent(db kaidb.Reader, address string, method string) *types.Watcher {
 	data, err := db.Get(eventKey(address, method))
 	if err != nil {
 		log.Trace("event not found", "err", err, "address", address, "method", method)
@@ -430,8 +433,8 @@ func CommonReadEvent(db kaidb.Reader, address string, method string) *types.Watc
 	return &entry
 }
 
-// CommonReadEvents gets events data from contract address
-func CommonReadEvents(db kaidb.Reader, address string) (string, []*types.Watcher) {
+// ReadEvents gets events data from contract address
+func ReadEvents(db kaidb.Reader, address string) (string, []*types.Watcher) {
 	data, err := db.Get(eventsKey(address))
 	if err != nil {
 		log.Trace("event not found", "err", err, "address", address)
@@ -463,8 +466,8 @@ func CommonReadEvents(db kaidb.Reader, address string) (string, []*types.Watcher
 	return events.MasterSmc, watcherActions
 }
 
-// CommonReadSmartContractAbi gets watched smart contract abi
-func CommonReadSmartContractAbi(db kaidb.Reader, address string) *abi.ABI {
+// ReadSmartContractAbi gets watched smart contract abi
+func ReadSmartContractAbi(db kaidb.Reader, address string) *abi.ABI {
 	data, err := db.Get(contractAbiKey(address))
 	if err != nil || data == nil {
 		log.Debug("error while get abi from contract address", "err", err, "address", address)
@@ -488,9 +491,9 @@ func CommonReadSmartContractAbi(db kaidb.Reader, address string) *abi.ABI {
 	return nil
 }
 
-// CommonReadBloomBits retrieves the compressed bloom bit vector belonging to the given
+// ReadBloomBits retrieves the compressed bloom bit vector belonging to the given
 // section and bit index from the.
-func CommonReadBloomBits(db kaidb.Reader, bit uint, section uint64, head common.Hash) ([]byte, error) {
+func ReadBloomBits(db kaidb.Reader, bit uint, section uint64, head common.Hash) ([]byte, error) {
 	data, err := db.Get(bloomBitsKey(bit, section, head))
 	if err != nil || data == nil || len(data) == 0 {
 		return nil, err
@@ -498,16 +501,16 @@ func CommonReadBloomBits(db kaidb.Reader, bit uint, section uint64, head common.
 	return data, err
 }
 
-// CommonWriteBloomBits stores the compressed bloom bits vector belonging to the given
+// WriteBloomBits stores the compressed bloom bits vector belonging to the given
 // section and bit index.
-func CommonWriteBloomBits(db kaidb.Writer, bit uint, section uint64, head common.Hash, bits []byte) {
+func WriteBloomBits(db kaidb.Writer, bit uint, section uint64, head common.Hash, bits []byte) {
 	if err := db.Put(bloomBitsKey(bit, section, head), bits); err != nil {
 		log.Crit("Failed to store bloom bits", "err", err)
 	}
 }
 
-// CommonReadHeaderNumber returns the header number assigned to a hash.
-func CommonReadHeaderNumber(db kaidb.Reader, hash common.Hash) *uint64 {
+// ReadHeaderNumber returns the header number assigned to a hash.
+func ReadHeaderNumber(db kaidb.Reader, hash common.Hash) *uint64 {
 	data, _ := db.Get(headerHeightKey(hash))
 	if data == nil || len(data) == 0 || len(data) != 8 {
 		return nil
@@ -516,15 +519,15 @@ func CommonReadHeaderNumber(db kaidb.Reader, hash common.Hash) *uint64 {
 	return &number
 }
 
-// CommonStoreHash store a hash into the database.
-func CommonStoreHash(db kaidb.Writer, hash *common.Hash) {
+// StoreHash store a hash into the database.
+func StoreHash(db kaidb.Writer, hash *common.Hash) {
 	if err := db.Put(hashKey(hash), encodeBoolean(true)); err != nil {
 		log.Crit("Failed to store hash", "err", err)
 	}
 }
 
-// CommonCheckHash returns true if a hash already exists in the database.
-func CommonCheckHash(db kaidb.Reader, hash *common.Hash) bool {
+// CheckHash returns true if a hash already exists in the database.
+func CheckHash(db kaidb.Reader, hash *common.Hash) bool {
 	data, _ := db.Get(hashKey(hash))
 	if data == nil {
 		return false
@@ -532,15 +535,15 @@ func CommonCheckHash(db kaidb.Reader, hash *common.Hash) bool {
 	return decodeBoolean(data)
 }
 
-// CommonStoreTxHash stores a tx hash into the database.
-func CommonStoreTxHash(db kaidb.Writer, hash *common.Hash) {
+// StoreTxHash stores a tx hash into the database.
+func StoreTxHash(db kaidb.Writer, hash *common.Hash) {
 	if err := db.Put(txHashKey(hash), encodeBoolean(true)); err != nil {
 		log.Crit("Failed to store hash", "err", err)
 	}
 }
 
 // Returns true if a tx hash already exists in the database.
-func CommonCheckTxHash(db kaidb.Reader, hash *common.Hash) bool {
+func CheckTxHash(db kaidb.Reader, hash *common.Hash) bool {
 	data, _ := db.Get(txHashKey(hash))
 	if data == nil {
 		return false
@@ -618,8 +621,8 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 	return block
 }
 
-// CommonReadHeader retrieves the block header corresponding to the hash.
-func CommonReadHeader(db kaidb.Reader, hash common.Hash, height uint64) *types.Header {
+// ReadHeader retrieves the block header corresponding to the hash.
+func ReadHeader(db kaidb.Reader, hash common.Hash, height uint64) *types.Header {
 	blockMeta := ReadBlockMeta(db, height)
 	return blockMeta.Header
 }
@@ -690,7 +693,7 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 		panic(fmt.Errorf("Failed to store hash to height mapping err: %s", err))
 	}
 
-	CommonWriteCanonicalHash(batch, hash, height)
+	WriteCanonicalHash(batch, hash, height)
 	if err := batch.Write(); err != nil {
 		panic(fmt.Errorf("Failed to store block error: %s", err))
 	}

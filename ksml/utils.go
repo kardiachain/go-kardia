@@ -29,118 +29,118 @@ import (
 )
 
 const (
-	KARDIA_CALL = "KARDIA_CALL"
-	currentTimeStamp = "currentTimeStamp"
+	KARDIA_CALL        = "KARDIA_CALL"
+	currentTimeStamp   = "currentTimeStamp"
 	currentBlockHeight = "currentBlockHeight"
-	validate = "validate"
-	endIf = "endif"
-	elif = "elif"
-	el = "else"
-	ping = "ping"
-	addVarFunc = "var"
-	ifFunc = "if"
-	forEachFunc = "forEach"
-	endForEach = "endForEach"
-	splitFunc = "split"
-	replaceFunc = "replace"
-	defineFunc = "defineFunc"
-	endDefineFunc = "endDefineFunc"
-	callFunc = "call"
-	getData = "getData"
-	trigger = "trigger"
-	publish = "publish"
-	compare = "cmp"
-	mul = "mul"
-	div = "div"
-	toInt = "int"
-	toFloat = "float"
-	exp = "exp"
-	format = "format"
-	round = "round"
+	validate           = "validate"
+	endIf              = "endif"
+	elif               = "elif"
+	el                 = "else"
+	ping               = "ping"
+	addVarFunc         = "var"
+	ifFunc             = "if"
+	forEachFunc        = "forEach"
+	endForEach         = "endForEach"
+	splitFunc          = "split"
+	replaceFunc        = "replace"
+	defineFunc         = "defineFunc"
+	endDefineFunc      = "endDefineFunc"
+	callFunc           = "call"
+	getData            = "getData"
+	trigger            = "trigger"
+	publish            = "publish"
+	compare            = "cmp"
+	mul                = "mul"
+	div                = "div"
+	toInt              = "int"
+	toFloat            = "float"
+	exp                = "exp"
+	format             = "format"
+	round              = "round"
 
 	MaximumGasToCallFunction = uint(5000000)
-	intType = "int"
-	int8Type = "int8"
-	int16Type = "int16"
-	int32Type = "int32"
-	int64Type = "int64"
-	uintType = "uint"
-	uint8Type = "uint8"
-	uint16Type = "uint16"
-	uint32Type = "uint32"
-	uint64Type = "uint64"
-	bigIntType = "bigInt"
-	bigFloatType = "bigFloat"
-	float64Type = "float64"
-	stringType = "string"
-	boolType = "bool"
-	listType = "list"
-	invalidTypeMsg = "invalid variable, expect %v got %v"
+	intType                  = "int"
+	int8Type                 = "int8"
+	int16Type                = "int16"
+	int32Type                = "int32"
+	int64Type                = "int64"
+	uintType                 = "uint"
+	uint8Type                = "uint8"
+	uint16Type               = "uint16"
+	uint32Type               = "uint32"
+	uint64Type               = "uint64"
+	bigIntType               = "bigInt"
+	bigFloatType             = "bigFloat"
+	float64Type              = "float64"
+	stringType               = "string"
+	boolType                 = "bool"
+	listType                 = "list"
+	invalidTypeMsg           = "invalid variable, expect %v got %v"
 
-	elMinLength = 8
-	builtInSmc = "smc"
-	builtInFn = "fn"
-	globalMessage = "message"
-	globalParams = "params"
+	elMinLength           = 8
+	builtInSmc            = "smc"
+	builtInFn             = "fn"
+	globalMessage         = "message"
+	globalParams          = "params"
 	globalContractAddress = "contractAddress"
-	globalProxyName = "proxyName"
-	prefixSeparator = ":"
-	messagePackage = "protocol.EventMessage"
+	globalProxyName       = "proxyName"
+	prefixSeparator       = ":"
+	messagePackage        = "protocol.EventMessage"
 
 	signalContinue = "SIGNAL_CONTINUE"
-	signalStop = "SIGNAL_STOP"                   // stop: do nothing after signal is returned
-	signalReturn = "SIGNAL_RETURN"               // return: quit params execution but keep processed params and start another process.
+	signalStop     = "SIGNAL_STOP"   // stop: do nothing after signal is returned
+	signalReturn   = "SIGNAL_RETURN" // return: quit params execution but keep processed params and start another process.
 
 	bufferGas = 210000
 )
 
 type function struct {
-	name string
-	args []string
+	name     string
+	args     []string
 	patterns []string
 }
 
 var (
-	sourceIsEmpty = fmt.Errorf("source is empty")
-	invalidExpression = fmt.Errorf("invalid expression")
-	invalidMethodFormat = fmt.Errorf("invalid method format")
-	abiNotFound = fmt.Errorf("abi is not found")
-	methodNotFound = fmt.Errorf("method is not found")
-	paramsArgumentsNotMatch = fmt.Errorf("params and arguments are not matched")
-	paramValueNotCorrect = fmt.Errorf("param's value is not correct")
-	unsupportedType = fmt.Errorf("unsupported type")
-	invalidIfParams = fmt.Errorf("not enough arguments for If function")
-	invalidIfStatement = fmt.Errorf("invalid if statement")
+	sourceIsEmpty                  = fmt.Errorf("source is empty")
+	invalidExpression              = fmt.Errorf("invalid expression")
+	invalidMethodFormat            = fmt.Errorf("invalid method format")
+	abiNotFound                    = fmt.Errorf("abi is not found")
+	methodNotFound                 = fmt.Errorf("method is not found")
+	paramsArgumentsNotMatch        = fmt.Errorf("params and arguments are not matched")
+	paramValueNotCorrect           = fmt.Errorf("param's value is not correct")
+	unsupportedType                = fmt.Errorf("unsupported type")
+	invalidIfParams                = fmt.Errorf("not enough arguments for If function")
+	invalidIfStatement             = fmt.Errorf("invalid if statement")
 	incorrectReturnedValueInIFFunc = fmt.Errorf("IF func must returns only 1 bool value")
-	invalidSignal = fmt.Errorf("invalid signal")
-	stopSignal = fmt.Errorf("signal stop has been applied")
-	invalidVariables = fmt.Errorf("invalid variables")
-	variableNotFound = fmt.Errorf("variable not found")
-	invalidForEachParam = fmt.Errorf("invalid for each param")
-	invalidForEachStatement = fmt.Errorf("invalid for each statement")
-	notEnoughArgsForSplit = fmt.Errorf("not enough arguments for split function")
-	notEnoughArgsForFunc = fmt.Errorf("not enough arguments for create/call Func function")
-	invalidSplitArgs = fmt.Errorf("invalid split arguments")
-	invalidDefineFunc = fmt.Errorf("invalid define function")
+	invalidSignal                  = fmt.Errorf("invalid signal")
+	stopSignal                     = fmt.Errorf("signal stop has been applied")
+	invalidVariables               = fmt.Errorf("invalid variables")
+	variableNotFound               = fmt.Errorf("variable not found")
+	invalidForEachParam            = fmt.Errorf("invalid for each param")
+	invalidForEachStatement        = fmt.Errorf("invalid for each statement")
+	notEnoughArgsForSplit          = fmt.Errorf("not enough arguments for split function")
+	notEnoughArgsForFunc           = fmt.Errorf("not enough arguments for create/call Func function")
+	invalidSplitArgs               = fmt.Errorf("invalid split arguments")
+	invalidDefineFunc              = fmt.Errorf("invalid define function")
 
 	predefinedPrefix = []string{builtInFn, builtInSmc}
-	globalVars = map[string]*expr.Decl{
-		globalMessage: decls.NewIdent(globalMessage, decls.NewObjectType(messagePackage), nil),
-		globalParams: decls.NewIdent(globalParams, decls.Dyn, nil),
+	globalVars       = map[string]*expr.Decl{
+		globalMessage:         decls.NewIdent(globalMessage, decls.NewObjectType(messagePackage), nil),
+		globalParams:          decls.NewIdent(globalParams, decls.Dyn, nil),
 		globalContractAddress: decls.NewIdent(globalContractAddress, decls.String, nil),
-		globalProxyName: decls.NewIdent(globalProxyName, decls.String, nil),
+		globalProxyName:       decls.NewIdent(globalProxyName, decls.String, nil),
 	}
 	signals = map[string]struct{}{
 		signalContinue: {},
-		signalReturn: {},
-		signalStop: {},
+		signalReturn:   {},
+		signalStop:     {},
 	}
 )
 
 var (
 	BuiltInFuncMap map[string]BuiltInFunc
 	supportedTypes = map[string]func(val interface{}) (interface{}, error){
-		intType: func(val interface{}) (interface{}, error){
+		intType: func(val interface{}) (interface{}, error) {
 			kind := reflect.TypeOf(val).Kind()
 			if kind != reflect.String {
 				if kind == reflect.Int {
@@ -154,7 +154,7 @@ var (
 			}
 			return int(v), nil
 		},
-		int8Type: func(val interface{}) (interface{}, error){
+		int8Type: func(val interface{}) (interface{}, error) {
 			kind := reflect.TypeOf(val).Kind()
 			if kind != reflect.String {
 				if kind == reflect.Int8 {
@@ -168,7 +168,7 @@ var (
 			}
 			return int8(v), nil
 		},
-		int16Type: func(val interface{}) (interface{}, error){
+		int16Type: func(val interface{}) (interface{}, error) {
 			kind := reflect.TypeOf(val).Kind()
 			if kind != reflect.String {
 				if kind == reflect.Int16 {
@@ -182,7 +182,7 @@ var (
 			}
 			return int16(v), nil
 		},
-		int32Type: func(val interface{}) (interface{}, error){
+		int32Type: func(val interface{}) (interface{}, error) {
 			kind := reflect.TypeOf(val).Kind()
 			if kind != reflect.String {
 				if kind == reflect.Int32 {
@@ -196,7 +196,7 @@ var (
 			}
 			return int32(v), nil
 		},
-		int64Type: func(val interface{}) (interface{}, error){
+		int64Type: func(val interface{}) (interface{}, error) {
 			kind := reflect.TypeOf(val).Kind()
 			if kind != reflect.String {
 				if kind == reflect.Int64 {
@@ -208,7 +208,7 @@ var (
 			}
 			return strconv.ParseInt(val.(string), 10, 64)
 		},
-		uintType: func(val interface{}) (interface{}, error){
+		uintType: func(val interface{}) (interface{}, error) {
 			kind := reflect.TypeOf(val).Kind()
 			if kind != reflect.String {
 				if kind == reflect.Uint {
@@ -222,7 +222,7 @@ var (
 			}
 			return uint(v), nil
 		},
-		uint8Type: func(val interface{}) (interface{}, error){
+		uint8Type: func(val interface{}) (interface{}, error) {
 			kind := reflect.TypeOf(val).Kind()
 			if kind != reflect.String {
 				if kind == reflect.Uint8 {
@@ -236,7 +236,7 @@ var (
 			}
 			return uint8(v), nil
 		},
-		uint16Type: func(val interface{}) (interface{}, error){
+		uint16Type: func(val interface{}) (interface{}, error) {
 			kind := reflect.TypeOf(val).Kind()
 			if kind != reflect.String {
 				if kind == reflect.Uint16 {
@@ -250,7 +250,7 @@ var (
 			}
 			return uint16(v), nil
 		},
-		uint32Type: func(val interface{}) (interface{}, error){
+		uint32Type: func(val interface{}) (interface{}, error) {
 			kind := reflect.TypeOf(val).Kind()
 			if kind != reflect.String {
 				if kind == reflect.Uint32 {
@@ -264,7 +264,7 @@ var (
 			}
 			return uint32(v), nil
 		},
-		uint64Type: func(val interface{}) (interface{}, error){
+		uint64Type: func(val interface{}) (interface{}, error) {
 			kind := reflect.TypeOf(val).Kind()
 			if kind != reflect.String {
 				if kind == reflect.Uint64 {
@@ -290,7 +290,7 @@ var (
 				}
 				return nil, fmt.Errorf(invalidTypeMsg, bigIntType, reflect.ValueOf(val).Type().String())
 			}
-			v, _ := big.NewInt(0).SetString(val.(string),10)
+			v, _ := big.NewInt(0).SetString(val.(string), 10)
 			return v, nil
 		},
 		bigFloatType: func(val interface{}) (interface{}, error) {
@@ -306,7 +306,7 @@ var (
 			v, _ := big.NewFloat(0).SetString(val.(string))
 			return v, nil
 		},
-		float64Type: func(val interface{}) (interface{}, error){
+		float64Type: func(val interface{}) (interface{}, error) {
 			kind := reflect.TypeOf(val).Kind()
 			if kind != reflect.String {
 				if kind == reflect.Float64 {

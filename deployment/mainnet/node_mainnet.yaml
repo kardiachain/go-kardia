@@ -18,7 +18,7 @@ Node:
     - "*"
   P2P:
     ListenAddress: tcp://0.0.0.0:3000
-    MaxPeers:   25
+    MaxPeers: 25
   LogLevel: info           # crit, error, warn, info, debug, trace
   Metrics: 1
 MainChain:

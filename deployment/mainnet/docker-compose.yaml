@@ -13,7 +13,7 @@ services:
       - ./node_mainnet.yaml:/go/bin/node_mainnet.yaml
       - ./genesis.yaml:/go/bin/cfg/genesis.yaml # mainnet coming soon, so genesis.yaml will be updated
       - .:/root/.kardia
-    command: ["--network", "mainnet", "--node","node_mainnet.yaml"]
+    command: [ "--network", "mainnet", "--node","node_mainnet.yaml" ]
     logging:
       driver: "json-file"
       options:

@@ -13,7 +13,7 @@ services:
       - ./node_testnet.yaml:/go/bin/node_testnet.yaml
       - ./genesis_testnet.yaml:/go/bin/cfg/genesis_testnet.yaml
       - .:/root/.kardia
-    command: ["--network", "testnet", "--node","node_testnet.yaml"]
+    command: [ "--network", "testnet", "--node","node_testnet.yaml" ]
     logging:
       driver: "json-file"
       options:
