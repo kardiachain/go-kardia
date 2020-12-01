@@ -92,22 +92,22 @@ func (dhc *DualHeaderChain) GetHeaderByHeight(height uint64) *types.Header {
 	if hash == (common.Hash{}) {
 		return nil
 	}
-	return dhc.GetHeader(hash, height)
+	return dhc.GetHeader(height)
 }
 
 // GetHeader retrieves a block header from the database by hash and height,
 // caching it if found.
-func (dhc *DualHeaderChain) GetHeader(hash common.Hash, height uint64) *types.Header {
+func (dhc *DualHeaderChain) GetHeader(height uint64) *types.Header {
 	// Short circuit if the header's already in the cache, retrieve otherwise
-	if header, ok := dhc.headerCache.Get(hash); ok {
+	if header, ok := dhc.headerCache.Get(height); ok {
 		return header.(*types.Header)
 	}
-	header := dhc.kaiDb.ReadHeader(hash, height)
+	header := dhc.kaiDb.ReadHeader(height)
 	if header == nil {
 		return nil
 	}
 	// Cache the found header for next time and return
-	dhc.headerCache.Add(hash, header)
+	dhc.headerCache.Add(height, header)
 	return header
 }
 
@@ -118,7 +118,7 @@ func (dhc *DualHeaderChain) GetHeaderByHash(hash common.Hash) *types.Header {
 	if height == nil {
 		return nil
 	}
-	return dhc.GetHeader(hash, *height)
+	return dhc.GetHeader(*height)
 }
 
 // GetBlockHeight retrieves the block height belonging to the given hash
@@ -148,7 +148,7 @@ func (dhc *DualHeaderChain) SetGenesis(head *types.Header) {
 
 // DeleteCallback is a callback function that is called by SetHead before
 // each header is deleted.
-type DeleteCallback func(types.StoreDB, common.Hash, uint64)
+type DeleteCallback func(types.StoreDB, uint64)
 
 // SetHead rewinds the local chain to a new head. Everything above the new head
 // will be deleted and the new one set.
@@ -160,14 +160,13 @@ func (dhc *DualHeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	}
 
 	for hdr := dhc.CurrentHeader(); hdr != nil && hdr.Height > head; hdr = dhc.CurrentHeader() {
-		hash := hdr.Hash()
 		height := hdr.Height
 		if delFn != nil {
-			delFn(dhc.kaiDb, hash, height)
+			delFn(dhc.kaiDb, height)
 		}
-		dhc.kaiDb.DeleteBlockMeta(hash, height)
+		dhc.kaiDb.DeleteBlockMeta(height)
 
-		dhc.currentHeader.Store(dhc.GetHeader(hdr.LastCommitHash, hdr.Height-1))
+		dhc.currentHeader.Store(dhc.GetHeader(hdr.Height - 1))
 	}
 	// Roll back the canonical chain numbering
 	for i := height; i > head; i-- {

@@ -125,15 +125,6 @@ func SetUp(config *Config) (nodeConfig *node.Config, err error) {
 	}
 	nodeConfig.Name = *config.Name
 
-	// index, err := node.GetNodeIndex(*config.Name)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("node name must be formatted as \"\\c*\\d{1,2}\"")
-	// }
-	// nodeIndex := index - 1
-
-	// Get NodeMetadata
-	// nodeConfig.NodeMetadata, _ = dev.GetNodeMetadataByIndex(nodeIndex)
-
 	nodeDir := filepath.Join(nodeConfig.DataDir, nodeConfig.Name)
 	if config.ClearData {
 		err := removeDirContents(nodeDir)
@@ -142,7 +133,7 @@ func SetUp(config *Config) (nodeConfig *node.Config, err error) {
 		}
 	}
 
-	nodeConfig.MainChainConfig.TxPool = *tx_pool.GetDefaultTxPoolConfig(nodeDir)
+	nodeConfig.MainChainConfig.TxPool = *tx_pool.GetDefaultTxPoolConfig()
 	return nodeConfig, nil
 }
 

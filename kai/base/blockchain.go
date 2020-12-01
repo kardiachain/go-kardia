@@ -32,7 +32,7 @@ type BaseBlockChain interface {
 	Genesis() *types.Block
 	CurrentHeader() *types.Header
 	CurrentBlock() *types.Block
-	GetBlock(hash common.Hash, number uint64) *types.Block
+	GetBlock(number uint64) *types.Block
 	GetBlockByHeight(height uint64) *types.Block
 	GetBlockByHash(hash common.Hash) *types.Block
 	State() (*state.StateDB, error)
@@ -40,7 +40,7 @@ type BaseBlockChain interface {
 	WriteBlockInfo(block *types.Block, blockInfo *types.BlockInfo)
 	ReadCommit(height uint64) *types.Commit
 	Config() *configs.ChainConfig
-	GetHeader(common.Hash, uint64) *types.Header
+	GetHeader(uint64) *types.Header
 	IsPrivate() bool
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StateAt(root uint64) (*state.StateDB, error)

@@ -171,14 +171,13 @@ func (bc *BlockChain) GetBlockByHeight(height uint64) *types.Block {
 	if hash == (common.Hash{}) {
 		return nil
 	}
-	return bc.GetBlock(hash, height)
+	return bc.GetBlock(height)
 }
 
 // LoadBlockPart ...
 func (bc *BlockChain) LoadBlockPart(height uint64, index int) *types.Part {
-	hash := bc.db.ReadCanonicalHash(height)
-	part := bc.db.ReadBlockPart(hash, height, index)
-	if hash == (common.Hash{}) {
+	part := bc.db.ReadBlockPart(height, index)
+	if part == nil {
 		return nil
 	}
 	return part
@@ -186,8 +185,7 @@ func (bc *BlockChain) LoadBlockPart(height uint64, index int) *types.Part {
 
 // LoadBlockMeta ...
 func (bc *BlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
-	hash := bc.db.ReadCanonicalHash(height)
-	return bc.db.ReadBlockMeta(hash, height)
+	return bc.db.ReadBlockMeta(height)
 }
 
 // LoadBlockCommit ...
@@ -202,12 +200,12 @@ func (bc *BlockChain) LoadSeenCommit(height uint64) *types.Commit {
 
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
-func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
+func (bc *BlockChain) GetBlock(number uint64) *types.Block {
 	// Short circuit if the block's already in the cache, retrieve otherwise
-	if block, ok := bc.blockCache.Get(hash); ok {
+	if block, ok := bc.blockCache.Get(number); ok {
 		return block.(*types.Block)
 	}
-	block := bc.db.ReadBlock(hash, number)
+	block := bc.db.ReadBlock(number)
 	if block == nil {
 		return nil
 	}
@@ -218,8 +216,8 @@ func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 
 // GetHeader retrieves a block header from the database by hash and height,
 // caching it if found.
-func (bc *BlockChain) GetHeader(hash common.Hash, height uint64) *types.Header {
-	return bc.hc.GetHeader(hash, height)
+func (bc *BlockChain) GetHeader(height uint64) *types.Header {
+	return bc.hc.GetHeader(height)
 }
 
 // State returns a new mutatable state at head block.
@@ -330,12 +328,10 @@ func (bc *BlockChain) repair(head **types.Block) error {
 			bc.logger.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
 			return nil
 		}
-		// Otherwise rewind one block and recheck state availability there
-		lastCommitHash := (*head).LastCommitHash()
 		lastHeight := (*head).Height() - 1
-		block := bc.GetBlock(lastCommitHash, lastHeight)
+		block := bc.GetBlock(lastHeight)
 		if block == nil {
-			return fmt.Errorf("Missing block height: %d [%x]", lastHeight, lastCommitHash)
+			return fmt.Errorf("Missing block height: %d", lastHeight)
 		}
 		*head = block
 	}
@@ -347,7 +343,7 @@ func (bc *BlockChain) GetBlockByHash(hash common.Hash) *types.Block {
 	if height == nil {
 		return nil
 	}
-	return bc.GetBlock(hash, *height)
+	return bc.GetBlock(*height)
 }
 
 // GetHeaderByHash retrieves a block header from the database by hash, caching it if
@@ -368,7 +364,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db types.StoreDB, hash common.Hash, height uint64) {
-		db.DeleteBlockPart(hash, height)
+		db.DeleteBlockPart(height)
 	}
 	bc.hc.SetHead(head, delFn)
 	currentHeader := bc.hc.CurrentHeader()
@@ -379,7 +375,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 
 	// Rewind the block chain, ensuring we don't end up with a stateless head block
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil && currentHeader.Height < currentBlock.Height() {
-		bc.currentBlock.Store(bc.GetBlock(currentHeader.Hash(), currentHeader.Height))
+		bc.currentBlock.Store(bc.GetBlock(currentHeader.Height))
 	}
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil {
 		root := kvstore.ReadAppHash(bc.DB().DB(), currentBlock.Height())

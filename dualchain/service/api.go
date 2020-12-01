@@ -166,14 +166,15 @@ func (s *PublicDualAPI) TypeDualEvent(hash string) map[string]interface{} {
 	if hash[0:2] == "0x" {
 		hash = hash[2:]
 	}
-	dualEventHash := common.HexToHash(hash)
-	if dualEvent, _, _, _ :=
-		s.dualService.groupDb.ReadDualEvent(dualEventHash); dualEvent != nil {
-		return map[string]interface{}{
-			"TxSource": dualEvent.TriggeredEvent.TxSource,
-			"Target":   dualEvent.PendingTxMetadata.Target,
-		}
-	}
+	// NOT YET IMPLEMENT
+	//dualEventHash := common.HexToHash(hash)
+	//if dualEvent, _, _, _ :=
+	//	s.dualService.groupDb.ReadDualEvent(dualEventHash); dualEvent != nil {
+	//	return map[string]interface{}{
+	//		"TxSource": dualEvent.TriggeredEvent.TxSource,
+	//		"Target":   dualEvent.PendingTxMetadata.Target,
+	//	}
+	//}
 
 	return nil
 }
@@ -184,11 +185,12 @@ func (s *PublicDualAPI) GetDualEvent(hash string) *PublicDualEvent {
 	if hash[0:2] == "0x" {
 		hash = hash[2:]
 	}
-	dualEventHash := common.HexToHash(hash)
-	if dualEvent, blockHash, blockNumber, eventIndex :=
-		s.dualService.groupDb.ReadDualEvent(dualEventHash); dualEvent != nil {
-		return NewPublicDualEvent(dualEvent, blockHash, blockNumber, eventIndex)
-	}
+	// NOT YET IMPLEMENT
+	//dualEventHash := common.HexToHash(hash)
+	//if dualEvent, blockHash, blockNumber, eventIndex :=
+	//	s.dualService.groupDb.ReadDualEvent(dualEventHash); dualEvent != nil {
+	//	return NewPublicDualEvent(dualEvent, blockHash, blockNumber, eventIndex)
+	//}
 
 	return nil
 }

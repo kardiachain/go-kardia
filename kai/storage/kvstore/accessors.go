@@ -49,7 +49,7 @@ type KardiaEvents struct {
 // ReadCanonicalHash retrieves the hash assigned to a canonical block height.
 func ReadCanonicalHash(db kaidb.Reader, height uint64) common.Hash {
 	data, _ := db.Get(headerHashKey(height))
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return common.Hash{}
 	}
 	return common.BytesToHash(data)
@@ -192,8 +192,8 @@ func ReadBodyRLP(db kaidb.Reader, hash common.Hash, height uint64) rlp.RawValue 
 }
 
 // ReadBody retrieves the block body corresponding to the hash.
-func ReadBody(db kaidb.Reader, hash common.Hash, height uint64) *types.Body {
-	return ReadBlock(db, hash, height).Body()
+func ReadBody(db kaidb.Reader, height uint64) *types.Body {
+	return ReadBlock(db, height).Body()
 }
 
 // ReadHeadBlockHash retrieves the hash of the current canonical head block.
@@ -332,7 +332,7 @@ func ReadTransaction(db kaidb.Reader, hash common.Hash) (*types.Transaction, com
 		return nil, common.Hash{}, 0, 0
 	}
 
-	body := ReadBody(db, blockHash, blockNumber)
+	body := ReadBody(db, blockNumber)
 	if body == nil || len(body.Transactions) <= int(txIndex) {
 		log.Error("Transaction referenced missing", "number", blockNumber, "hash", blockHash, "index", txIndex)
 		return nil, common.Hash{}, 0, 0
@@ -357,18 +357,19 @@ func ReadDualEventLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, u
 
 // Retrieves a specific dual's event from the database, along with
 // its added positional metadata.
-func ReadDualEvent(db kaidb.Reader, hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, eventIndex := ReadDualEventLookupEntry(db, hash)
-	if blockHash == (common.Hash{}) {
-		return nil, common.Hash{}, 0, 0
-	}
-	body := ReadBody(db, blockHash, blockNumber)
-	if body == nil || len(body.DualEvents) <= int(eventIndex) {
-		log.Error("Dual event referenced missing", "number", blockNumber, "hash", blockHash, "index", eventIndex)
-		return nil, common.Hash{}, 0, 0
-	}
-	return body.DualEvents[eventIndex], blockHash, blockNumber, eventIndex
-}
+// NOT YET IMPLEMENT
+//func ReadDualEvent(db kaidb.Reader, hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
+//	blockHash, blockNumber, eventIndex := ReadDualEventLookupEntry(db, hash)
+//	if blockHash == (common.Hash{}) {
+//		return nil, common.Hash{}, 0, 0
+//	}
+//	body := ReadBody(db, blockHash, blockNumber)
+//	if body == nil || len(body.DualEvents) <= int(eventIndex) {
+//		log.Error("Dual event referenced missing", "number", blockNumber, "hash", blockHash, "index", eventIndex)
+//		return nil, common.Hash{}, 0, 0
+//	}
+//	return body.DualEvents[eventIndex], blockHash, blockNumber, eventIndex
+//}
 
 // ReadReceipt retrieves a specific transaction receipt from the database, along with
 // its added positional metadata.
@@ -593,7 +594,7 @@ func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
 }
 
 // ReadBlock returns the Block for the given height
-func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
+func ReadBlock(db kaidb.Reader, height uint64) *types.Block {
 	blockMeta := ReadBlockMeta(db, height)
 
 	if blockMeta == nil {
@@ -602,7 +603,7 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 
 	buf := []byte{}
 	for i := 0; i < int(blockMeta.BlockID.PartsHeader.Total); i++ {
-		part := ReadBlockPart(db, hash, height, i)
+		part := ReadBlockPart(db, height, i)
 		buf = append(buf, part.Bytes...)
 	}
 	pbb := new(kproto.Block)
@@ -622,13 +623,13 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 }
 
 // ReadHeader retrieves the block header corresponding to the hash.
-func ReadHeader(db kaidb.Reader, hash common.Hash, height uint64) *types.Header {
+func ReadHeader(db kaidb.Reader, height uint64) *types.Header {
 	blockMeta := ReadBlockMeta(db, height)
 	return blockMeta.Header
 }
 
 // ReadBlockPart returns the block part fo the given height and index
-func ReadBlockPart(db kaidb.Reader, hash common.Hash, height uint64, index int) *types.Part {
+func ReadBlockPart(db kaidb.Reader, height uint64, index int) *types.Part {
 	var pbpart = new(kproto.Part)
 	partBytes, _ := db.Get(blockPartKey(height, index))
 
@@ -709,7 +710,7 @@ func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part)
 }
 
 // DeleteBlockMeta delete block meta
-func DeleteBlockMeta(db kaidb.Writer, hash common.Hash, height uint64) {
+func DeleteBlockMeta(db kaidb.Writer, height uint64) {
 	_ = db.Delete(blockMetaKey(height))
 }
 

@@ -61,7 +61,7 @@ func (bc *testBlockChain) CurrentBlock() *types.Block {
 	}, nil, nil, nil)
 }
 
-func (bc *testBlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
+func (bc *testBlockChain) GetBlock(height uint64) *types.Block {
 	return bc.CurrentBlock()
 }
 

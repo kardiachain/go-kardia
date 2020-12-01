@@ -91,22 +91,22 @@ func (hc *HeaderChain) GetHeaderByHeight(height uint64) *types.Header {
 	if hash == (common.Hash{}) {
 		return nil
 	}
-	return hc.GetHeader(hash, height)
+	return hc.GetHeader(height)
 }
 
 // GetHeader retrieves a block header from the database by hash and height,
 // caching it if found.
-func (hc *HeaderChain) GetHeader(hash common.Hash, height uint64) *types.Header {
+func (hc *HeaderChain) GetHeader(height uint64) *types.Header {
 	// Short circuit if the header's already in the cache, retrieve otherwise
-	if header, ok := hc.headerCache.Get(hash); ok {
+	if header, ok := hc.headerCache.Get(height); ok {
 		return header.(*types.Header)
 	}
-	header := hc.kaiDb.ReadHeader(hash, height)
+	header := hc.kaiDb.ReadHeader(height)
 	if header == nil {
 		return nil
 	}
 	// Cache the found header for next time and return
-	hc.headerCache.Add(hash, header)
+	hc.headerCache.Add(height, header)
 	return header
 }
 
@@ -117,7 +117,7 @@ func (hc *HeaderChain) GetHeaderByHash(hash common.Hash) *types.Header {
 	if height == nil {
 		return nil
 	}
-	return hc.GetHeader(hash, *height)
+	return hc.GetHeader(*height)
 }
 
 // GetBlockHeight retrieves the block height belonging to the given hash
@@ -163,9 +163,9 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 		if delFn != nil {
 			delFn(hc.kaiDb, hash, height)
 		}
-		hc.kaiDb.DeleteBlockPart(hash, height)
+		hc.kaiDb.DeleteBlockPart(height)
 
-		hc.currentHeader.Store(hc.GetHeader(hdr.LastCommitHash, hdr.Height-1))
+		hc.currentHeader.Store(hc.GetHeader(hdr.Height - 1))
 	}
 	// Roll back the canonical chain numbering
 	for i := height; i > head; i-- {

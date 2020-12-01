@@ -32,8 +32,8 @@ import (
 
 type APIBackend interface {
 	// Blockchain API
-	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header
-	HeaderByHash(ctx context.Context, hash common.Hash) *types.Header
+	HeaderByNumber(number rpc.BlockNumber) *types.Header
+	HeaderByHash(hash common.Hash) *types.Header
 	HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error)
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) *types.Block
 	BlockByHash(ctx context.Context, hash common.Hash) *types.Block
@@ -48,21 +48,21 @@ type APIBackend interface {
 	GetDelegationsByValidator(valAddr common.Address) ([]*types.Delegator, error)
 }
 
-func (k *KardiaService) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header {
+func (k *KardiaService) HeaderByNumber(number rpc.BlockNumber) *types.Header {
 	// Return the latest block if rpc.LatestBlockNumber has been passed in
 	if number == rpc.LatestBlockNumber {
 		return k.blockchain.CurrentBlock().Header()
 	}
-	return k.blockchain.GetHeader(common.Hash{}, number.Uint64())
+	return k.blockchain.GetHeader(number.Uint64())
 }
 
-func (k *KardiaService) HeaderByHash(ctx context.Context, hash common.Hash) *types.Header {
+func (k *KardiaService) HeaderByHash(hash common.Hash) *types.Header {
 	return k.blockchain.GetHeaderByHash(hash)
 }
 
-func (k *KardiaService) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error) {
+func (k *KardiaService) HeaderByNumberOrHash(blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
-		return k.HeaderByNumber(ctx, blockNr), nil
+		return k.HeaderByNumber(blockNr), nil
 	}
 	if hash, ok := blockNrOrHash.Hash(); ok {
 		header := k.blockchain.GetHeaderByHash(hash)
@@ -77,7 +77,7 @@ func (k *KardiaService) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash 
 	return nil, ErrInvalidArguments
 }
 
-func (k *KardiaService) BlockByNumber(ctx context.Context, number rpc.BlockNumber) *types.Block {
+func (k *KardiaService) BlockByNumber(number rpc.BlockNumber) *types.Block {
 	// Return the latest block if rpc.LatestBlockNumber has been passed in
 	if number == rpc.LatestBlockNumber {
 		return k.blockchain.CurrentBlock()
@@ -85,13 +85,13 @@ func (k *KardiaService) BlockByNumber(ctx context.Context, number rpc.BlockNumbe
 	return k.blockchain.GetBlockByHeight(number.Uint64())
 }
 
-func (k *KardiaService) BlockByHash(ctx context.Context, hash common.Hash) *types.Block {
+func (k *KardiaService) BlockByHash(hash common.Hash) *types.Block {
 	return k.blockchain.GetBlockByHash(hash)
 }
 
-func (k *KardiaService) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
+func (k *KardiaService) BlockByNumberOrHash(blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
-		return k.BlockByNumber(ctx, blockNr), nil
+		return k.BlockByNumber(blockNr), nil
 	}
 	if hash, ok := blockNrOrHash.Hash(); ok {
 		// get block header in order to get height of the block
@@ -102,7 +102,7 @@ func (k *KardiaService) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 		if blockNrOrHash.RequireCanonical && k.blockchain.DB().ReadCanonicalHash(header.Height) != hash {
 			return nil, ErrHashNotCanonical
 		}
-		block := k.blockchain.GetBlock(hash, header.Height)
+		block := k.blockchain.GetBlock(header.Height)
 		if block == nil {
 			return nil, ErrMissingBlockBody
 		}
@@ -111,7 +111,7 @@ func (k *KardiaService) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 	return nil, ErrInvalidArguments
 }
 
-func (k *KardiaService) BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo {
+func (k *KardiaService) BlockInfoByBlockHash(hash common.Hash) *types.BlockInfo {
 	height := k.DB().ReadHeaderNumber(hash)
 	if height == nil {
 		return nil
@@ -119,9 +119,9 @@ func (k *KardiaService) BlockInfoByBlockHash(ctx context.Context, hash common.Ha
 	return k.DB().ReadBlockInfo(hash, *height)
 }
 
-func (k *KardiaService) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
+func (k *KardiaService) StateAndHeaderByNumber(number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
 	// Return the latest state if rpc.LatestBlockNumber has been passed in
-	header := k.HeaderByNumber(ctx, number)
+	header := k.HeaderByNumber(number)
 	if header == nil {
 		return nil, nil, ErrHeaderNotFound
 	}
@@ -129,12 +129,12 @@ func (k *KardiaService) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 	return stateDb, header, err
 }
 
-func (k *KardiaService) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error) {
+func (k *KardiaService) StateAndHeaderByNumberOrHash(blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error) {
 	if blockNr, ok := blockNrOrHash.Number(); ok {
-		return k.StateAndHeaderByNumber(ctx, blockNr)
+		return k.StateAndHeaderByNumber(blockNr)
 	}
 	if hash, ok := blockNrOrHash.Hash(); ok {
-		header := k.HeaderByHash(ctx, hash)
+		header := k.HeaderByHash(hash)
 		if header == nil {
 			return nil, nil, ErrHeaderNotFound
 		}
@@ -147,7 +147,7 @@ func (k *KardiaService) StateAndHeaderByNumberOrHash(ctx context.Context, blockN
 	return nil, nil, ErrInvalidArguments
 }
 
-func (k *KardiaService) GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error) {
+func (k *KardiaService) GetKVM(msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error) {
 	vmError := func() error { return nil }
 
 	context := vm.NewKVMContext(msg, header, k.BlockChain())

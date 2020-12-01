@@ -35,7 +35,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/common"
 	"github.com/kardiachain/go-kardiamain/lib/event"
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -79,7 +78,7 @@ type DualBlockChain struct {
 	isPrivate bool
 
 	// permissioned is used to call permissioned smartcontract to check whether a node has permission to access chain or not
-	permissioned *permissioned.PermissionSmcUtil
+	//permissioned *permissioned.PermissionSmcUtil
 }
 
 // IsPrivate returns whether a blockchain is private or not
@@ -146,11 +145,6 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 		return nil, err
 	}
 
-	dbc.permissioned, err = permissioned.NewSmcPermissionUtil(dbc)
-	if err != nil {
-		return nil, err
-	}
-
 	// Take ownership of this particular state
 	//@huny go dbc.update()
 
@@ -160,17 +154,12 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 // GetBlockByNumber retrieves a block from the database by number, caching it
 // (associated with its hash) if found.
 func (dbc *DualBlockChain) GetBlockByHeight(height uint64) *types.Block {
-	hash := dbc.db.ReadCanonicalHash(height)
-	if hash == (common.Hash{}) {
-		return nil
-	}
-	return dbc.GetBlock(hash, height)
+	return dbc.GetBlock(height)
 }
 
 func (bc *DualBlockChain) LoadBlockPart(height uint64, index int) *types.Part {
-	hash := bc.db.ReadCanonicalHash(height)
-	part := bc.db.ReadBlockPart(hash, height, index)
-	if hash == (common.Hash{}) {
+	part := bc.db.ReadBlockPart(height, index)
+	if part == nil {
 		return nil
 	}
 	return part
@@ -186,18 +175,17 @@ func (bc *DualBlockChain) LoadSeenCommit(height uint64) *types.Commit {
 
 //
 func (bc *DualBlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
-	hash := bc.db.ReadCanonicalHash(height)
-	return bc.db.ReadBlockMeta(hash, height)
+	return bc.db.ReadBlockMeta(height)
 }
 
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
-func (dbc *DualBlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
+func (dbc *DualBlockChain) GetBlock(number uint64) *types.Block {
 	// Short circuit if the block's already in the cache, retrieve otherwise
-	if block, ok := dbc.blockCache.Get(hash); ok {
+	if block, ok := dbc.blockCache.Get(number); ok {
 		return block.(*types.Block)
 	}
-	block := dbc.db.ReadBlock(hash, number)
+	block := dbc.db.ReadBlock(number)
 	if block == nil {
 		return nil
 	}
@@ -208,8 +196,8 @@ func (dbc *DualBlockChain) GetBlock(hash common.Hash, number uint64) *types.Bloc
 
 // GetHeader retrieves a block header from the database by hash and height,
 // caching it if found.
-func (dbc *DualBlockChain) GetHeader(hash common.Hash, height uint64) *types.Header {
-	return dbc.hc.GetHeader(hash, height)
+func (dbc *DualBlockChain) GetHeader(height uint64) *types.Header {
+	return dbc.hc.GetHeader(height)
 }
 
 // State returns a new mutatable state at head block.
@@ -319,11 +307,10 @@ func (dbc *DualBlockChain) repair(head **types.Block) error {
 			return nil
 		}
 		// Otherwise rewind one block and recheck state availability there
-		lastCommitHash := (*head).LastCommitHash()
 		lastHeight := (*head).Height() - 1
-		block := dbc.GetBlock(lastCommitHash, lastHeight)
+		block := dbc.GetBlock(lastHeight)
 		if block == nil {
-			return fmt.Errorf("Missing block height: %d [%x]", lastHeight, lastCommitHash)
+			return fmt.Errorf("Missing block height: %d", lastHeight)
 		}
 		*head = block
 	}
@@ -335,7 +322,7 @@ func (dbc *DualBlockChain) GetBlockByHash(hash common.Hash) *types.Block {
 	if height == nil {
 		return nil
 	}
-	return dbc.GetBlock(hash, *height)
+	return dbc.GetBlock(*height)
 }
 
 // GetHeaderByHash retrieves a block header from the database by hash, caching it if
@@ -355,8 +342,8 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 	defer dbc.mu.Unlock()
 
 	// Rewind the header chain, deleting all block bodies until then
-	delFn := func(db types.StoreDB, hash common.Hash, height uint64) {
-		db.DeleteBlockPart(hash, height)
+	delFn := func(db types.StoreDB, height uint64) {
+		db.DeleteBlockPart(height)
 	}
 	dbc.hc.SetHead(head, delFn)
 	currentHeader := dbc.hc.CurrentHeader()
@@ -367,7 +354,7 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 
 	// Rewind the block chain, ensuring we don't end up with a stateless head block
 	if currentBlock := dbc.CurrentBlock(); currentBlock != nil && currentHeader.Height < currentBlock.Height() {
-		dbc.currentBlock.Store(dbc.GetBlock(currentHeader.Hash(), currentHeader.Height))
+		dbc.currentBlock.Store(dbc.GetBlock(currentHeader.Height))
 	}
 	if currentBlock := dbc.CurrentBlock(); currentBlock != nil {
 		root := kvstore.ReadAppHash(dbc.db.DB(), currentBlock.Height())

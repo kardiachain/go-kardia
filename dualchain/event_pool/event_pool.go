@@ -34,9 +34,6 @@ const (
 	// chainHeadChanSize is the size of channel listening to ChainHeadEvent.
 	chainHeadChanSize = 10
 
-	// promotableQueueSize is the size for promotableQueue
-	promotableQueueSize = 1000000
-
 	// TEMPORARY
 	// Spawn workers and its capcacity to collect dual events
 	numberOfWorker = 2
@@ -47,7 +44,7 @@ const (
 // some pre checks in tx pool and event subscribers.
 type blockChain interface {
 	CurrentBlock() *types.Block
-	GetBlock(hash common.Hash, number uint64) *types.Block
+	GetBlock(number uint64) *types.Block
 	DB() types.StoreDB
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 }

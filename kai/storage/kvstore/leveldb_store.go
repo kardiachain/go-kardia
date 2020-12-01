@@ -50,18 +50,18 @@ func NewStoreDB(db kaidb.Database) *StoreDB {
 
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
-func (s *StoreDB) ReadBlockMeta(hash common.Hash, height uint64) *types.BlockMeta {
+func (s *StoreDB) ReadBlockMeta(height uint64) *types.BlockMeta {
 	return ReadBlockMeta(s.db, height)
 }
 
 // ReadBlock returns the Block for the given height
-func (s *StoreDB) ReadBlock(hash common.Hash, height uint64) *types.Block {
-	return ReadBlock(s.db, hash, height)
+func (s *StoreDB) ReadBlock(height uint64) *types.Block {
+	return ReadBlock(s.db, height)
 }
 
 // ReadBlockPart returns the block part fo the given height and index
-func (s *StoreDB) ReadBlockPart(hash common.Hash, height uint64, index int) *types.Part {
-	return ReadBlockPart(s.db, hash, height, index)
+func (s *StoreDB) ReadBlockPart(height uint64, index int) *types.Part {
+	return ReadBlockPart(s.db, height, index)
 }
 
 // WriteBlock write block to database
@@ -135,8 +135,8 @@ func (s *StoreDB) ReadChainConfig(hash common.Hash) *configs.ChainConfig {
 }
 
 // ReadBody retrieves the block body corresponding to the hash.
-func (s *StoreDB) ReadBody(hash common.Hash, height uint64) *types.Body {
-	return ReadBody(s.db, hash, height)
+func (s *StoreDB) ReadBody(height uint64) *types.Body {
+	return ReadBody(s.db, height)
 }
 
 // ReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
@@ -169,8 +169,8 @@ func (s *StoreDB) ReadSeenCommit(height uint64) *types.Commit {
 }
 
 // ReadHeader retrieves the block header corresponding to the hash.
-func (s *StoreDB) ReadHeader(hash common.Hash, height uint64) *types.Header {
-	return ReadHeader(s.db, hash, height)
+func (s *StoreDB) ReadHeader(height uint64) *types.Header {
+	return ReadHeader(s.db, height)
 }
 
 // ReadHeaderheight returns the header height assigned to a hash.
@@ -192,9 +192,10 @@ func (s *StoreDB) ReadDualEventLookupEntry(hash common.Hash) (common.Hash, uint6
 
 // Retrieves a specific dual's event from the database, along with
 // its added positional metadata.
-func (s *StoreDB) ReadDualEvent(hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
-	return ReadDualEvent(s.db, hash)
-}
+// NOT YET IMPLEMENT
+//func (s *StoreDB) ReadDualEvent(hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
+//	return ReadDualEvent(s.db, hash)
+//}
 
 // ReadHeaderNumber returns the header number assigned to a hash.
 func (s *StoreDB) ReadHeaderNumber(hash common.Hash) *uint64 {
@@ -237,15 +238,15 @@ func (s *StoreDB) DeleteCanonicalHash(number uint64) {
 	DeleteCanonicalHash(s.db, number)
 }
 
-func (s *StoreDB) DeleteBlockMeta(hash common.Hash, height uint64) error {
+func (s *StoreDB) DeleteBlockMeta(height uint64) error {
 	if err := s.db.Delete(blockMetaKey(height)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *StoreDB) DeleteBlockPart(hash common.Hash, height uint64) error {
-	blockMeta := s.ReadBlockMeta(hash, height)
+func (s *StoreDB) DeleteBlockPart(height uint64) error {
+	blockMeta := s.ReadBlockMeta(height)
 	for i := 0; i < int(blockMeta.BlockID.PartsHeader.Total); i++ {
 		if err := s.db.Delete(blockPartKey(height, i)); err != nil {
 			return err

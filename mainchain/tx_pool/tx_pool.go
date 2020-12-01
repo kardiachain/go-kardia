@@ -72,7 +72,7 @@ const (
 // some pre checks in tx pool and event subscribers.
 type blockChain interface {
 	CurrentBlock() *types.Block
-	GetBlock(hash common.Hash, number uint64) *types.Block
+	GetBlock(number uint64) *types.Block
 	StateAt(height uint64) (*state.StateDB, error)
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 }
@@ -159,7 +159,7 @@ func (config *TxPoolConfig) sanitize() TxPoolConfig {
 }
 
 // GetDefaultTxPoolConfig returns default txPoolConfig with given dir path
-func GetDefaultTxPoolConfig(path string) *TxPoolConfig {
+func GetDefaultTxPoolConfig() *TxPoolConfig {
 	conf := DefaultTxPoolConfig
 	return &conf
 }
@@ -292,8 +292,8 @@ func (pool *TxPool) State() *state.StateDB {
 	return pool.currentState
 }
 
-func (pool *TxPool) GetBlockChain() blockChain {
-	return pool.chain
+func (pool *TxPool) GetBlockChain() *blockChain {
+	return &pool.chain
 }
 
 func (pool *TxPool) PendingSize() int {
@@ -1133,8 +1133,8 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 			// Reorg seems shallow enough to pull in all transactions into memory
 			var discarded, included types.Transactions
 			var (
-				rem = pool.chain.GetBlock(oldHead.Hash(), oldNum)
-				add = pool.chain.GetBlock(newHead.Hash(), newNum)
+				rem = pool.chain.GetBlock(oldNum)
+				add = pool.chain.GetBlock(newNum)
 			)
 			if rem == nil {
 				// This can happen if a setHead is performed, where we simply discard the old
@@ -1154,7 +1154,7 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 			}
 			for rem.Height() > add.Height() {
 				discarded = append(discarded, rem.Transactions()...)
-				if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
+				if rem = pool.chain.GetBlock(rem.Height() - 1); rem == nil {
 					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
 					return
 				}
@@ -1162,19 +1162,19 @@ func (pool *TxPool) reset(oldHead, newHead *types.Header) {
 			for add.Height() > rem.Height() {
 				included = append(included, add.Transactions()...)
 				//fmt.Println(add.Height(), rem.Height())
-				if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
+				if add = pool.chain.GetBlock(add.Height() - 1); add == nil {
 					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
 					return
 				}
 			}
 			for rem.Hash() != add.Hash() {
 				discarded = append(discarded, rem.Transactions()...)
-				if rem = pool.chain.GetBlock(rem.LastCommitHash(), rem.Height()-1); rem == nil {
+				if rem = pool.chain.GetBlock(rem.Height() - 1); rem == nil {
 					log.Error("Unrooted old chain seen by tx pool", "block", oldHead.Height, "hash", oldHead.Hash())
 					return
 				}
 				included = append(included, add.Transactions()...)
-				if add = pool.chain.GetBlock(add.LastCommitHash(), add.Height()-1); add == nil {
+				if add = pool.chain.GetBlock(add.Height() - 1); add == nil {
 					log.Error("Unrooted new chain seen by tx pool", "block", newHead.Height, "hash", newHead.Hash())
 					return
 				}

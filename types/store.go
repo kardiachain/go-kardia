@@ -26,16 +26,12 @@ import (
 )
 
 type StoreDB interface {
-	//WriteBody(hash common.Hash, height uint64, body *Body)
-	//WriteHeader(header *Header)
-	//WriteBodyRLP(hash common.Hash, height uint64, rlp rlp.RawValue)
 	WriteChainConfig(hash common.Hash, cfg *configs.ChainConfig)
 	WriteBlock(*Block, *PartSet, *Commit)
 	WriteBlockInfo(hash common.Hash, height uint64, blockInfo *BlockInfo)
 	WriteCanonicalHash(hash common.Hash, height uint64)
+	WriteHeadBlockHash(common.Hash)
 	WriteEvent(smartcontract *KardiaSmartcontract)
-	//WriteCommit(height uint64, commit *Commit)
-	//WriteCommitRLP(height uint64, rlp rlp.RawValue)
 	WriteTxLookupEntries(block *Block)
 	StoreTxHash(hash *common.Hash)
 	StoreHash(hash *common.Hash)
@@ -44,23 +40,19 @@ type StoreDB interface {
 
 	ReadCanonicalHash(height uint64) common.Hash
 	ReadChainConfig(hash common.Hash) *configs.ChainConfig
-	ReadBlock(hash common.Hash, height uint64) *Block
-	ReadHeader(hash common.Hash, height uint64) *Header
-	ReadBody(hash common.Hash, height uint64) *Body
-	ReadBlockPart(hash common.Hash, height uint64, index int) *Part
-
-	//ReadBodyRLP(hash common.Hash, height uint64) rlp.RawValue
-	//ReadHeaderRLP(hash common.Hash, height uint64) rlp.RawValue
-	ReadBlockMeta(common.Hash, uint64) *BlockMeta
+	ReadBlock(height uint64) *Block
+	ReadHeader(height uint64) *Header
+	ReadBody(height uint64) *Body
+	ReadBlockMeta(uint64) *BlockMeta
+	ReadBlockPart(height uint64, index int) *Part
 	ReadHeadBlockHash() common.Hash
 	ReadHeaderHeight(hash common.Hash) *uint64
 	ReadHeadHeaderHash() common.Hash
-	WriteHeadBlockHash(common.Hash)
 	ReadCommit(height uint64) *Commit
 	ReadSeenCommit(height uint64) *Commit
 	ReadTransaction(hash common.Hash) (*Transaction, common.Hash, uint64, uint64)
-	ReadDualEvent(hash common.Hash) (*DualEvent, common.Hash, uint64, uint64)
-	ReadDualEventLookupEntry(hash common.Hash) (common.Hash, uint64, uint64)
+	//ReadDualEvent(hash common.Hash) (*DualEvent, common.Hash, uint64, uint64)
+	//ReadDualEventLookupEntry(hash common.Hash) (common.Hash, uint64, uint64)
 	ReadHeaderNumber(hash common.Hash) *uint64
 	ReadBlockInfo(hash common.Hash, number uint64) *BlockInfo
 	ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, uint64)
@@ -71,7 +63,7 @@ type StoreDB interface {
 	CheckTxHash(hash *common.Hash) bool
 
 	// Delete
-	DeleteBlockMeta(hash common.Hash, height uint64) error
-	DeleteBlockPart(hash common.Hash, height uint64) error
+	DeleteBlockMeta(height uint64) error
+	DeleteBlockPart(height uint64) error
 	DeleteCanonicalHash(height uint64)
 }

@@ -30,7 +30,7 @@ import (
 // current blockchain to be used during transaction processing.
 type ChainContext interface {
 	// GetHeader returns the hash corresponding to their hash.
-	GetHeader(common.Hash, uint64) *types.Header
+	GetHeader(uint64) *types.Header
 }
 
 // NewKVMContext creates a new context for use in the KVM.
@@ -81,7 +81,7 @@ func GetHashFn(ref *types.Header, chain ChainContext) func(n uint64) common.Hash
 
 		// Not cached, iterate the blocks and cache the hashes
 		for {
-			header := chain.GetHeader(lastKnownHash, lastKnownHeight)
+			header := chain.GetHeader(lastKnownHeight)
 			if header == nil {
 				break
 			}

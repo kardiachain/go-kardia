@@ -190,30 +190,30 @@ func (s *PublicKaiAPI) BlockNumber() uint64 {
 }
 
 // GetHeaderBlockByNumber returns blockHeader by block number
-func (s *PublicKaiAPI) GetBlockHeaderByNumber(ctx context.Context, blockNumber rpc.BlockNumber) *BlockHeaderJSON {
-	header := s.kaiService.HeaderByNumber(ctx, blockNumber)
-	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
+func (s *PublicKaiAPI) GetBlockHeaderByNumber(blockNumber rpc.BlockNumber) *BlockHeaderJSON {
+	header := s.kaiService.HeaderByNumber(blockNumber)
+	blockInfo := s.kaiService.BlockInfoByBlockHash(header.Hash())
 	return NewBlockHeaderJSON(header, blockInfo)
 }
 
 // GetBlockHeaderByHash returns block by block hash
-func (s *PublicKaiAPI) GetBlockHeaderByHash(ctx context.Context, blockHash string) *BlockHeaderJSON {
-	header := s.kaiService.HeaderByHash(ctx, common.HexToHash(blockHash))
-	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
+func (s *PublicKaiAPI) GetBlockHeaderByHash(blockHash string) *BlockHeaderJSON {
+	header := s.kaiService.HeaderByHash(common.HexToHash(blockHash))
+	blockInfo := s.kaiService.BlockInfoByBlockHash(header.Hash())
 	return NewBlockHeaderJSON(header, blockInfo)
 }
 
 // GetBlockByNumber returns block by block number
-func (s *PublicKaiAPI) GetBlockByNumber(ctx context.Context, blockNumber rpc.BlockNumber) *BlockJSON {
-	block := s.kaiService.BlockByNumber(ctx, blockNumber)
-	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
+func (s *PublicKaiAPI) GetBlockByNumber(blockNumber rpc.BlockNumber) *BlockJSON {
+	block := s.kaiService.BlockByNumber(blockNumber)
+	blockInfo := s.kaiService.BlockInfoByBlockHash(block.Hash())
 	return NewBlockJSON(block, blockInfo)
 }
 
 // GetBlockByHash returns block by block hash
-func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *BlockJSON {
-	block := s.kaiService.BlockByHash(ctx, common.HexToHash(blockHash))
-	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
+func (s *PublicKaiAPI) GetBlockByHash(blockHash string) *BlockJSON {
+	block := s.kaiService.BlockByHash(common.HexToHash(blockHash))
+	blockInfo := s.kaiService.BlockInfoByBlockHash(block.Hash())
 	return NewBlockJSON(block, blockInfo)
 }
 
@@ -236,7 +236,7 @@ type Delegator struct {
 }
 
 // Validator returns node's validator, nil if current node is not a validator
-func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, isGetDelegators bool) (*Validator, error) {
+func (s *PublicKaiAPI) Validator(valAddr common.Address, isGetDelegators bool) (*Validator, error) {
 	val, err := s.kaiService.GetValidator(valAddr)
 	if err != nil {
 		return nil, err
@@ -276,14 +276,14 @@ func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, is
 }
 
 // Validators returns a list of validator
-func (s *PublicKaiAPI) Validators(ctx context.Context, isGetDelegators bool) ([]*Validator, error) {
+func (s *PublicKaiAPI) Validators(isGetDelegators bool) ([]*Validator, error) {
 	var validators []*Validator
 	valList, err := s.kaiService.GetValidators()
 	if err != nil {
 		return nil, err
 	}
 	for _, val := range valList {
-		validator, err := s.Validator(ctx, val.Address, isGetDelegators)
+		validator, err := s.Validator(val.Address, isGetDelegators)
 		if err != nil {
 			return nil, err
 		}
@@ -389,7 +389,7 @@ func NewPublicTransactionAPI(service *KardiaService) *PublicTransactionAPI {
 }
 
 // SendRawTransaction decode encoded data into tx and then add tx into pool
-func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs string) (string, error) {
+func (a *PublicTransactionAPI) SendRawTransaction(txs string) (string, error) {
 	log.Info("SendRawTransaction", "data", txs)
 	tx := new(types.Transaction)
 	encodedTx := common.FromHex(txs)
@@ -533,7 +533,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 		return nil, nil
 	}
 	// get receipts from db
-	blockInfo := a.s.BlockInfoByBlockHash(ctx, blockHash)
+	blockInfo := a.s.BlockInfoByBlockHash(blockHash)
 	if blockInfo == nil {
 		return nil, errors.New("block info not found")
 	}
@@ -567,7 +567,7 @@ func NewPublicAccountAPI(kaiService *KardiaService) *PublicAccountAPI {
 
 // Balance returns address's balance
 func (a *PublicAccountAPI) Balance(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (string, error) {
-	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(blockNrOrHash)
 	if state == nil || err != nil {
 		return "", err
 	}
@@ -582,8 +582,8 @@ func (a *PublicAccountAPI) Nonce(address string) (uint64, error) {
 }
 
 // GetCode returns the code stored at the given address in the state for the given block number.
-func (a *PublicAccountAPI) GetCode(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
-	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+func (a *PublicAccountAPI) GetCode(address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
+	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(blockNrOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
@@ -594,8 +594,8 @@ func (a *PublicAccountAPI) GetCode(ctx context.Context, address common.Address, 
 // GetStorageAt returns the storage from the state at the given address, key and
 // block number. The rpc.LatestBlockNumber and rpc.PendingBlockNumber meta block
 // numbers are also allowed.
-func (a *PublicAccountAPI) GetStorageAt(ctx context.Context, address common.Address, key string, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
-	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+func (a *PublicAccountAPI) GetStorageAt(address common.Address, key string, blockNrOrHash rpc.BlockNumberOrHash) (common.Bytes, error) {
+	state, _, err := a.kaiService.StateAndHeaderByNumberOrHash(blockNrOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
@@ -608,7 +608,7 @@ func (a *PublicAccountAPI) GetStorageAt(ctx context.Context, address common.Addr
 func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, blockNrOrHash rpc.BlockNumberOrHash, vmCfg kvm.Config, timeout time.Duration) (*kvm.ExecutionResult, error) {
 	defer func(start time.Time) { log.Debug("Executing KVM call finished", "runtime", time.Since(start)) }(time.Now())
 
-	state, header, err := s.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	state, header, err := s.kaiService.StateAndHeaderByNumberOrHash(blockNrOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
@@ -629,7 +629,7 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, bloc
 	msg := args.ToMessage()
 
 	// Get a new instance of the KVM.
-	kvm, vmError, err := s.kaiService.GetKVM(ctx, msg, state, header)
+	kvm, vmError, err := s.kaiService.GetKVM(msg, state, header)
 	if err != nil {
 		return nil, err
 	}
@@ -678,7 +678,7 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 		hi = args.Gas
 	} else {
 		// Retrieve the block to act as the gas ceiling
-		block, err := s.kaiService.BlockByNumberOrHash(ctx, blockNrOrHash)
+		block, err := s.kaiService.BlockByNumberOrHash(blockNrOrHash)
 		if err != nil {
 			return 0, err
 		}
