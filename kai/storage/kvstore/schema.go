@@ -200,13 +200,14 @@ func contractAbiKey(smartContractAddress string) []byte {
 	return append(contractAbiPrefix, []byte(smartContractAddress)...)
 }
 
-func blockMetaKey(height uint64) []byte {
-	return append(blockMetaPrefix, encodeBlockHeight(height)...)
+func blockMetaKey(hash common.Hash, height uint64) []byte {
+	return append(blockMetaPrefix,
+		append(encodeBlockHeight(height), hash.Bytes()...)...)
 }
 
-func blockPartKey(height uint64, index int) []byte {
+func blockPartKey(hash common.Hash, height uint64, index int) []byte {
 	return append(blockPartPrefix,
-		append(encodeBlockHeight(height), encodeIndex(uint32(index))...)...)
+		append(append(encodeBlockHeight(height), hash.Bytes()...), encodeIndex(uint32(index))...)...)
 }
 
 func seenCommitKey(height uint64) []byte {

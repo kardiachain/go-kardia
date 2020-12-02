@@ -26,16 +26,11 @@ import (
 )
 
 type StoreDB interface {
-	//WriteBody(hash common.Hash, height uint64, body *Body)
-	//WriteHeader(header *Header)
-	//WriteBodyRLP(hash common.Hash, height uint64, rlp rlp.RawValue)
 	WriteChainConfig(hash common.Hash, cfg *configs.ChainConfig)
 	WriteBlock(*Block, *PartSet, *Commit)
 	WriteBlockInfo(hash common.Hash, height uint64, blockInfo *BlockInfo)
 	WriteCanonicalHash(hash common.Hash, height uint64)
 	WriteEvent(smartcontract *KardiaSmartcontract)
-	//WriteCommit(height uint64, commit *Commit)
-	//WriteCommitRLP(height uint64, rlp rlp.RawValue)
 	WriteTxLookupEntries(block *Block)
 	StoreTxHash(hash *common.Hash)
 	StoreHash(hash *common.Hash)
@@ -49,8 +44,6 @@ type StoreDB interface {
 	ReadBody(hash common.Hash, height uint64) *Body
 	ReadBlockPart(hash common.Hash, height uint64, index int) *Part
 
-	//ReadBodyRLP(hash common.Hash, height uint64) rlp.RawValue
-	//ReadHeaderRLP(hash common.Hash, height uint64) rlp.RawValue
 	ReadBlockMeta(common.Hash, uint64) *BlockMeta
 	ReadHeadBlockHash() common.Hash
 	ReadHeaderHeight(hash common.Hash) *uint64
@@ -70,7 +63,6 @@ type StoreDB interface {
 	CheckHash(hash *common.Hash) bool
 	CheckTxHash(hash *common.Hash) bool
 
-	// Delete
 	DeleteBlockMeta(hash common.Hash, height uint64) error
 	DeleteBlockPart(hash common.Hash, height uint64) error
 	DeleteCanonicalHash(height uint64)
