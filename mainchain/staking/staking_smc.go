@@ -94,23 +94,29 @@ func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward
 //CreateValidator create validator
 func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config,
 	valAddr common.Address,
+	_name string,
 	_commission string,
 	_maxRate string,
 	_maxChangeRate string,
-	_minSelfDelegate string,
-	_selfDelegate string) error {
+	_minSelfDelegate string) error {
 
 	commission, k1 := big.NewInt(0).SetString(_commission, 10)
 	maxRate, k2 := big.NewInt(0).SetString(_maxRate, 10)
 	maxChangeRate, k3 := big.NewInt(0).SetString(_maxChangeRate, 10)
 	minSelfDelegate, k4 := big.NewInt(0).SetString(_minSelfDelegate, 10)
-	selfDelegate, k5 := big.NewInt(0).SetString(_selfDelegate, 10)
+	// selfDelegate, k5 := big.NewInt(0).SetString(_selfDelegate, 10)
+	name := []byte(_name)
+	var arr [32]byte
 
-	if !k1 || !k2 || !k3 || !k4 || !k5 {
+	copy(arr[:], name[:32])
+	fmt.Println(_commission)
+
+	if !k1 || !k2 || !k3 || !k4 {
 		panic("Error while parsing genesis validator params")
 	}
 
 	input, err := s.Abi.Pack("createValidator",
+		arr,
 		commission,      // Commission rate
 		maxRate,         // Maximum commission rate
 		maxChangeRate,   // Maximum commission change rate
@@ -124,8 +130,8 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 		valAddr,
 		&s.ContractAddress,
 		0,
-		selfDelegate,  // Self delegate amount
-		3000000,       // Gas limit
+		big.NewInt(0), // Self delegate amount
+		5000000,       // Gas limit
 		big.NewInt(1), // Gas price
 		input,
 		false,
@@ -139,7 +145,7 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 
 //ApplyAndReturnValidatorSets allow appy and return validator set
 func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) ([]*types.Validator, error) {
-	payload, err := s.Abi.Pack("applyAndReturnValidatorSets")
+	payload, err := s.Abi.Pack("valSets")
 	if err != nil {
 		return nil, err
 	}
@@ -153,11 +159,10 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 
 	var valSet struct {
 		ValAddrs []common.Address
-		Powers   []*big.Int
 	}
 
 	//unpack result
-	err = s.Abi.UnpackIntoInterface(&valSet, "applyAndReturnValidatorSets", res)
+	err = s.Abi.UnpackIntoInterface(&valSet, "valSets", res)
 	if err != nil {
 		log.Error("Error unpacking val set info", "err", err)
 		return nil, err
@@ -165,7 +170,7 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 
 	vals := make([]*types.Validator, len(valSet.ValAddrs))
 	for i, valAddr := range valSet.ValAddrs {
-		vals[i] = types.NewValidator(valAddr, valSet.Powers[i].Int64())
+		vals[i] = types.NewValidator(valAddr, int64(0))
 	}
 	return vals, nil
 }
@@ -444,7 +449,7 @@ func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.He
 		signed[idx] = voteInfo.SignedLastBlock
 	}
 
-	payload, err := s.Abi.Pack("finalizeCommit", vals, votingPowers, signed)
+	payload, err := s.Abi.Pack("finalize", vals, votingPowers, signed)
 	if err != nil {
 		return err
 	}
@@ -465,6 +470,63 @@ func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header
 		}
 	}
 	return nil
+}
+
+// GetAllValsLength returns number of validators
+func (s *StakingSmcUtil) GetAllValsLength(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) (*big.Int, error) {
+	payload, err := s.Abi.Pack("allValsLength")
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	if err != nil {
+		return nil, err
+	}
+	if len(res) == 0 {
+		return nil, nil
+	}
+
+	var numberVals *big.Int
+	// unpack result
+	err = s.Abi.UnpackIntoInterface(&numberVals, "allValsLength", res)
+	if err != nil {
+		log.Error("Error unpacking delegation reward", "err", err)
+		return nil, err
+	}
+	return numberVals, nil
+}
+
+// GetValFromOwner returns address validator smc of validator
+func (s *StakingSmcUtil) GetValFromOwner(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address) (common.Address, error) {
+	payload, err := s.Abi.Pack("ownerOf", valAddr)
+
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+
+	var valSmc struct {
+		addrValSmc common.Address
+	}
+	err = s.Abi.UnpackIntoInterface(&valSmc, "ownerOf", res)
+	if err != nil {
+		log.Error("Error unpacking delegation reward", "err", err)
+	}
+
+	return valSmc.addrValSmc, nil
+}
+
+func (s *StakingSmcUtil) GetValSmcAddr(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, index *big.Int) (common.Address, error) {
+	payload, err := s.Abi.Pack("allVals", index)
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+
+	var valSmc struct {
+		addrValSmc common.Address
+	}
+
+	err = s.Abi.UnpackIntoInterface(&valSmc, "allVals", res)
+	if err != nil {
+		log.Error("Error unpacking delegation reward", "err", err)
+	}
+	return valSmc.addrValSmc, nil
 }
 
 // SetRoot set address root
