@@ -235,62 +235,62 @@ type Delegator struct {
 	Reward       string         `json:"reward"`
 }
 
-// Validator returns node's validator, nil if current node is not a validator
-func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, isGetDelegators bool) (*Validator, error) {
-	val, err := s.kaiService.GetValidator(valAddr)
-	if err != nil {
-		return nil, err
-	}
-	delegationsList, err := s.kaiService.GetDelegationsByValidator(valAddr)
-	if err != nil {
-		return nil, err
-	}
-	commission, err := s.kaiService.GetValidatorCommission(valAddr)
-	if err != nil {
-		return nil, err
-	}
-	var delegatorsList []*Delegator
-	if isGetDelegators {
-		for _, del := range delegationsList {
-			delegatorsList = append(delegatorsList, &Delegator{
-				Address:      del.Address,
-				StakedAmount: del.StakedAmount.String(),
-				Reward:       del.Reward.String(),
-			})
-		}
-	} else {
-		delegatorsList = nil
-	}
+// // Validator returns node's validator, nil if current node is not a validator
+// func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, isGetDelegators bool) (*Validator, error) {
+// 	val, err := s.kaiService.GetValidator(valAddr)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	delegationsList, err := s.kaiService.GetDelegationsByValidator(valAddr)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	commission, err := s.kaiService.GetValidatorCommission(valAddr)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	var delegatorsList []*Delegator
+// 	if isGetDelegators {
+// 		for _, del := range delegationsList {
+// 			delegatorsList = append(delegatorsList, &Delegator{
+// 				Address:      del.Address,
+// 				StakedAmount: del.StakedAmount.String(),
+// 				Reward:       del.Reward.String(),
+// 			})
+// 		}
+// 	} else {
+// 		delegatorsList = nil
+// 	}
 
-	return &Validator{
-		Address:         val.Address,
-		VotingPower:     val.VotingPower,
-		StakedAmount:    val.StakedAmount.String(),
-		Commission:      commission.String(),
-		CommissionRate:  val.CommissionRate.String(),
-		TotalDelegators: len(delegationsList),
-		MaxRate:         val.MaxRate.String(),
-		MaxChangeRate:   val.MaxChangeRate.String(),
-		Delegators:      delegatorsList,
-	}, nil
-}
+// 	return &Validator{
+// 		Address:         val.Address,
+// 		VotingPower:     val.VotingPower,
+// 		StakedAmount:    val.StakedAmount.String(),
+// 		Commission:      commission.String(),
+// 		CommissionRate:  val.CommissionRate.String(),
+// 		TotalDelegators: len(delegationsList),
+// 		MaxRate:         val.MaxRate.String(),
+// 		MaxChangeRate:   val.MaxChangeRate.String(),
+// 		Delegators:      delegatorsList,
+// 	}, nil
+// }
 
-// Validators returns a list of validator
-func (s *PublicKaiAPI) Validators(ctx context.Context, isGetDelegators bool) ([]*Validator, error) {
-	var validators []*Validator
-	valList, err := s.kaiService.GetValidators()
-	if err != nil {
-		return nil, err
-	}
-	for _, val := range valList {
-		validator, err := s.Validator(ctx, val.Address, isGetDelegators)
-		if err != nil {
-			return nil, err
-		}
-		validators = append(validators, validator)
-	}
-	return validators, nil
-}
+// // Validators returns a list of validator
+// func (s *PublicKaiAPI) Validators(ctx context.Context, isGetDelegators bool) ([]*Validator, error) {
+// 	var validators []*Validator
+// 	valList, err := s.kaiService.GetValidators()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	for _, val := range valList {
+// 		validator, err := s.Validator(ctx, val.Address, isGetDelegators)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		validators = append(validators, validator)
+// 	}
+// 	return validators, nil
+// }
 
 type PublicTransaction struct {
 	BlockHash        string       `json:"blockHash"`

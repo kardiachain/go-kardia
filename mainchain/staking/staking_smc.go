@@ -106,17 +106,15 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 	minSelfDelegate, k4 := big.NewInt(0).SetString(_minSelfDelegate, 10)
 	// selfDelegate, k5 := big.NewInt(0).SetString(_selfDelegate, 10)
 	name := []byte(_name)
-	var arr [32]byte
-
-	copy(arr[:], name[:32])
-	fmt.Println(_commission)
+	var arrName [32]byte
+	copy(arrName[:], name[:32])
 
 	if !k1 || !k2 || !k3 || !k4 {
 		panic("Error while parsing genesis validator params")
 	}
 
 	input, err := s.Abi.Pack("createValidator",
-		arr,
+		arrName,
 		commission,      // Commission rate
 		maxRate,         // Maximum commission rate
 		maxChangeRate,   // Maximum commission change rate
@@ -138,6 +136,32 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 	)
 	if _, err = Apply(s.logger, bc, statedb, header, cfg, msg); err != nil {
 		panic(err)
+	}
+
+	return nil
+}
+
+//SetPreviousProposer
+func (s *StakingSmcUtil) StartGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, selfDelegate string) error {
+	validator, err := NewSmcValidatorUtil()
+	if err != nil {
+		return err
+	}
+
+	valSmcAddr, err := s.GetValFromOwner(statedb, header, bc, cfg, valAddr)
+	if err != nil {
+		return err
+	}
+
+	amountDelegate, _ := big.NewInt(0).SetString(selfDelegate, 10)
+	err = validator.Delegate(statedb, header, bc, cfg, valSmcAddr, valAddr, amountDelegate)
+	if err != nil {
+		return err
+	}
+
+	err = validator.StartValidator(statedb, header, bc, cfg, valSmcAddr, valAddr)
+	if err != nil {
+		return err
 	}
 
 	return nil
