@@ -584,7 +584,6 @@ func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
 // ReadBlock returns the Block for the given height
 func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 	blockMeta := ReadBlockMeta(db, hash, height)
-
 	if blockMeta == nil {
 		return nil
 	}
@@ -612,8 +611,10 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 
 // ReadHeader retrieves the block header corresponding to the hash.
 func ReadHeader(db kaidb.Reader, hash common.Hash, height uint64) *types.Header {
-	blockMeta := ReadBlockMeta(db, hash, height)
-	return blockMeta.Header
+	if blockMeta := ReadBlockMeta(db, hash, height); blockMeta != nil {
+		return blockMeta.Header
+	}
+	return nil
 }
 
 // ReadBlockPart returns the block part fo the given height and index
@@ -661,7 +662,6 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 	for i := 0; i < int(blockParts.Total()); i++ {
 		part := blockParts.GetPart(i)
 		writeBlockPart(batch, hash, height, i, part)
-
 	}
 
 	// Save block commit (duplicate and separate from the Block)
@@ -677,8 +677,10 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 		panic(fmt.Errorf("failed to store seen commit err: %s", err))
 	}
 
-	key := headerHeightKey(hash)
-	if err := batch.Put(key, encodeBlockHeight(height)); err != nil {
+	// Save header hash -> height mapping
+	hkey := headerHeightKey(hash)
+	enchkey := encodeBlockHeight(height)
+	if err := batch.Put(hkey, enchkey); err != nil {
 		panic(fmt.Errorf("Failed to store hash to height mapping err: %s", err))
 	}
 

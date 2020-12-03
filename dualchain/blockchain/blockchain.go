@@ -265,11 +265,6 @@ func (dbc *DualBlockChain) loadLastState() error {
 
 	// Restore the last known head header
 	currentHeader := currentBlock.Header()
-	if head := dbc.db.ReadHeadHeaderHash(); head != (common.Hash{}) {
-		if header := dbc.GetHeaderByHash(head); header != nil {
-			currentHeader = header
-		}
-	}
 	dbc.hc.SetCurrentHeader(currentHeader)
 
 	dbc.logger.Info("Loaded most recent local header", "height", currentHeader.Height, "hash", currentHeader.Hash())

@@ -277,11 +277,6 @@ func (bc *BlockChain) loadLastState() error {
 
 	// Restore the last known head header
 	currentHeader := currentBlock.Header()
-	if head := bc.db.ReadHeadHeaderHash(); head != (common.Hash{}) {
-		if header := bc.GetHeaderByHash(head); header != nil {
-			currentHeader = header
-		}
-	}
 	bc.hc.SetCurrentHeader(currentHeader)
 
 	bc.logger.Info("Loaded most recent local header", "height", currentHeader.Height, "hash", currentHeader.Hash())
@@ -368,7 +363,9 @@ func (bc *BlockChain) SetHead(head uint64) error {
 
 	// Rewind the header chain, deleting all block bodies until then
 	delFn := func(db types.StoreDB, hash common.Hash, height uint64) {
-		db.DeleteBlockPart(hash, height)
+		if err := db.DeleteBlockPart(hash, height); err != nil {
+			log.Error("error while deleting blockparts", err)
+		}
 	}
 	bc.hc.SetHead(head, delFn)
 	currentHeader := bc.hc.CurrentHeader()

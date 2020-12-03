@@ -119,14 +119,14 @@ func decodeBoolean(data []byte) bool {
 	return true
 }
 
+// headerKey = headerPrefix + hash + num (uint64 big endian)
+func headerKey(height uint64, hash common.Hash) []byte {
+	return append(append(headerPrefix, encodeBlockHeight(height)...), hash.Bytes()...)
+}
+
 // headerHashKey = headerPrefix + num (uint64 big endian) + headerHashSuffix
 func headerHashKey(height uint64) []byte {
 	return append(append(headerPrefix, encodeBlockHeight(height)...), headerHashSuffix...)
-}
-
-// headerKey = headerPrefix + num (uint64 big endian) + hash
-func headerKey(height uint64, hash common.Hash) []byte {
-	return append(append(headerPrefix, encodeBlockHeight(height)...), hash.Bytes()...)
 }
 
 // headerheightKey = headerheightPrefix + hash

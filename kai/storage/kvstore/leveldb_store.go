@@ -153,11 +153,6 @@ func (s *StoreDB) ReadHeadBlockHash() common.Hash {
 	return ReadHeadBlockHash(s.db)
 }
 
-// ReadHeadHeaderHash retrieves the hash of the current canonical head header.
-func (s *StoreDB) ReadHeadHeaderHash() common.Hash {
-	return ReadHeadHeaderHash(s.db)
-}
-
 // ReadBody retrieves the commit at a given height.
 func (s *StoreDB) ReadCommit(height uint64) *types.Commit {
 	return ReadCommit(s.db, height)
