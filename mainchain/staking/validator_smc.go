@@ -19,14 +19,13 @@ import (
 
 // StakingSmcUtil ...
 type ValidatorSmcUtil struct {
-	Abi             *abi.ABI
-	ContractAddress common.Address
-	Bytecode        string
-	logger          log.Logger
+	Abi      *abi.ABI
+	Bytecode string
+	logger   log.Logger
 }
 
 // NewSmcStakingnUtil ...
-func NewSmcValidatorUtil(valAddr common.Address) (*ValidatorSmcUtil, error) {
+func NewSmcValidatorUtil() (*ValidatorSmcUtil, error) {
 	validatorSmcAbi := configs.ValidatorContractABI
 	bytecodeValidator := configs.ValidatorContractBytecode
 	abi, err := abi.JSON(strings.NewReader(validatorSmcAbi))
@@ -35,16 +34,16 @@ func NewSmcValidatorUtil(valAddr common.Address) (*ValidatorSmcUtil, error) {
 		return nil, err
 	}
 
-	return &ValidatorSmcUtil{Abi: &abi, ContractAddress: valAddr, Bytecode: bytecodeValidator}, nil
+	return &ValidatorSmcUtil{Abi: &abi, Bytecode: bytecodeValidator}, nil
 }
 
 //StartValidator start validator
-func (s *ValidatorSmcUtil) StartValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) error {
+func (s *ValidatorSmcUtil) StartValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address, valAddr common.Address) error {
 	payload, err := s.Abi.Pack("start")
 	if err != nil {
 		return err
 	}
-	_, err = s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	_, err = s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload, valSmcAddr, valAddr)
 	if err != nil {
 		return err
 	}
@@ -53,7 +52,7 @@ func (s *ValidatorSmcUtil) StartValidator(statedb *state.StateDB, header *types.
 }
 
 //Delegate
-func (s *ValidatorSmcUtil) Delegate(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, delAddr common.Address, amount *big.Int) error {
+func (s *ValidatorSmcUtil) Delegate(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address, delAddr common.Address, amount *big.Int) error {
 	payload, err := s.Abi.Pack("delegate")
 	if err != nil {
 		return err
@@ -61,7 +60,7 @@ func (s *ValidatorSmcUtil) Delegate(statedb *state.StateDB, header *types.Header
 
 	msg := types.NewMessage(
 		delAddr,
-		&s.ContractAddress,
+		&valSmcAddr,
 		0,
 		amount,        // Self delegate amount
 		5000000,       // Gas limit
@@ -76,10 +75,55 @@ func (s *ValidatorSmcUtil) Delegate(statedb *state.StateDB, header *types.Header
 	return nil
 }
 
-func (s *ValidatorSmcUtil) ConstructAndApplySmcCallMsg(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, payload []byte) ([]byte, error) {
+// GetValidator show info of a validator based on address
+func (s *ValidatorSmcUtil) GetInforValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address) (*big.Int, uint8, bool, error) {
+	payload, err := s.Abi.Pack("inforValidator")
+	if err != nil {
+		return nil, 0, false, err
+	}
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload, valSmcAddr, valSmcAddr)
+	if err != nil {
+		return nil, 0, false, err
+	}
+
+	var validator struct {
+		Name                  [32]byte
+		ValAddr               common.Address
+		Tokens                *big.Int
+		Jailed                bool
+		MinSelfDelegation     *big.Int
+		DelegationShares      *big.Int
+		AccumulatedCommission *big.Int
+		UbdEntryCount         *big.Int
+		UpdateTime            *big.Int
+		Status                uint8
+		UnbondingTime         *big.Int
+		UnbondingHeight       *big.Int
+	}
+	// unpack result
+	err = s.Abi.UnpackIntoInterface(&validator, "inforValidator", res)
+	if err != nil {
+		log.Error("Error unpacking validator info", "err", err)
+		return nil, 0, false, err
+	}
+
+	// val := &types.Validator{
+	// 	Address:        valSmcAddr,
+	// 	VotingPower:    votingPower,
+	// 	StakedAmount:   validator.Tokens,
+	// 	CommissionRate: validator.Rate,
+	// 	MaxRate:        validator.MaxRate,
+	// 	MaxChangeRate:  validator.MaxChangeRate,
+	// }
+	// val.StakedAmount = validator.Tokens
+
+	return validator.Tokens, validator.Status, validator.Jailed, nil
+}
+
+func (s *ValidatorSmcUtil) ConstructAndApplySmcCallMsg(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, payload []byte, valSmcAddr common.Address, valAddr common.Address) ([]byte, error) {
 	msg := types.NewMessage(
-		s.ContractAddress,
-		&s.ContractAddress,
+		valAddr,
+		&valSmcAddr,
 		0,
 		big.NewInt(0),
 		100000000,

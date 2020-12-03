@@ -102,7 +102,7 @@ var (
         "outputs": [
           {
             "internalType": "address",
-            "name": "",
+            "name": "AddrValSmc",
             "type": "address"
           }
         ],
@@ -174,7 +174,7 @@ var (
         "outputs": [
           {
             "internalType": "address",
-            "name": "",
+            "name": "AddrValSmc",
             "type": "address"
           }
         ],
@@ -294,9 +294,9 @@ var (
         "name": "valSets",
         "outputs": [
           {
-            "internalType": "address",
-            "name": "",
-            "type": "address"
+            "internalType": "address[]",
+            "name": "ValAddrs",
+            "type": "address[]"
           }
         ],
         "payable": false,
@@ -630,12 +630,12 @@ var (
         "outputs": [
           {
             "internalType": "address[]",
-            "name": "",
+            "name": "ValAddrs",
             "type": "address[]"
           },
           {
             "internalType": "uint256[]",
-            "name": "",
+            "name": "Powers",
             "type": "uint256[]"
           }
         ],
@@ -1306,62 +1306,62 @@ var (
       "outputs": [
         {
           "internalType": "bytes32",
-          "name": "name",
+          "name": "Name",
           "type": "bytes32"
         },
         {
           "internalType": "address",
-          "name": "valAddr",
+          "name": "ValAddr",
           "type": "address"
         },
         {
           "internalType": "uint256",
-          "name": "tokens",
+          "name": "Tokens",
           "type": "uint256"
         },
         {
           "internalType": "bool",
-          "name": "jailed",
+          "name": "Jailed",
           "type": "bool"
         },
         {
           "internalType": "uint256",
-          "name": "minSelfDelegation",
+          "name": "MinSelfDelegation",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
-          "name": "delegationShares",
+          "name": "DelegationShares",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
-          "name": "accumulatedCommission",
+          "name": "AccumulatedCommission",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
-          "name": "ubdEntryCount",
+          "name": "UbdEntryCount",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
-          "name": "updateTime",
+          "name": "UpdateTime",
           "type": "uint256"
         },
         {
           "internalType": "enum Validator.Status",
-          "name": "status",
+          "name": "Status",
           "type": "uint8"
         },
         {
           "internalType": "uint256",
-          "name": "unbondingTime",
+          "name": "UnbondingTime",
           "type": "uint256"
         },
         {
           "internalType": "uint256",
-          "name": "unbondingHeight",
+          "name": "UnbondingHeight",
           "type": "uint256"
         }
       ],
