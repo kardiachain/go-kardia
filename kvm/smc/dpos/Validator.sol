@@ -164,7 +164,7 @@ contract Validator is IValidator, Ownable {
             slashFractionDoubleSign: 5 * 10**16,
             signedBlockWindow: 100,
             minSignedPerWindow: 5 * 10**16,
-            minStake: 1 * 10**17 // 10 000 kai
+            minStake: 10000 * 10**18 // 10 000 kai
         });
     }
     
