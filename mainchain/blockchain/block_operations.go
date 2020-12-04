@@ -110,7 +110,6 @@ func (bo *BlockOperations) CreateProposalBlock(
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
 func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
-
 	vals, root, blockInfo, _, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {
 		return nil, common.Hash{}, err
@@ -120,6 +119,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 	bo.blockchain.DB().WriteHeadBlockHash(block.Hash())
 	bo.blockchain.DB().WriteTxLookupEntries(block)
 	bo.blockchain.InsertHeadBlock(block)
+
 	return vals, root, nil
 }
 

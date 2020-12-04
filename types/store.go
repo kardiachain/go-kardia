@@ -26,6 +26,8 @@ import (
 )
 
 type StoreDB interface {
+	DB() kaidb.Database
+
 	WriteChainConfig(hash common.Hash, cfg *configs.ChainConfig)
 	WriteBlock(*Block, *PartSet, *Commit)
 	WriteBlockInfo(hash common.Hash, height uint64, blockInfo *BlockInfo)
@@ -35,14 +37,12 @@ type StoreDB interface {
 	StoreTxHash(hash *common.Hash)
 	StoreHash(hash *common.Hash)
 
-	DB() kaidb.Database
-
 	ReadCanonicalHash(height uint64) common.Hash
 	ReadChainConfig(hash common.Hash) *configs.ChainConfig
 	ReadBlock(hash common.Hash, height uint64) *Block
 	ReadHeader(hash common.Hash, height uint64) *Header
 	ReadBody(hash common.Hash, height uint64) *Body
-	ReadBlockPart(height uint64, index int) *Part
+	ReadBlockPart(hash common.Hash, height uint64, index int) *Part
 
 	ReadBlockMeta(uint64) *BlockMeta
 	ReadHeadBlockHash() common.Hash
