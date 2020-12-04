@@ -204,15 +204,6 @@ func ReadHeaderHeight(db kaidb.Reader, hash common.Hash) *uint64 {
 	return &height
 }
 
-// ReadHeadHeaderHash retrieves the hash of the current canonical head header.
-func ReadHeadHeaderHash(db kaidb.Reader) common.Hash {
-	data, _ := db.Get(headHeaderKey)
-	if data == nil || len(data) == 0 {
-		return common.Hash{}
-	}
-	return common.BytesToHash(data)
-}
-
 // ReadBody retrieves the commit at a given height.
 func ReadCommit(db kaidb.Reader, height uint64) *types.Commit {
 	var pbc = new(kproto.Commit)
@@ -542,9 +533,9 @@ func CheckTxHash(db kaidb.Reader, hash *common.Hash) bool {
 
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
-func ReadBlockMeta(db kaidb.Reader, hash common.Hash, height uint64) *types.BlockMeta {
+func ReadBlockMeta(db kaidb.Reader, height uint64) *types.BlockMeta {
 	var pbbm = new(kproto.BlockMeta)
-	metaBytes, _ := db.Get(blockMetaKey(hash, height))
+	metaBytes, _ := db.Get(blockMetaKey(height))
 
 	if len(metaBytes) == 0 {
 		return nil
@@ -583,7 +574,7 @@ func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
 
 // ReadBlock returns the Block for the given height
 func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
-	blockMeta := ReadBlockMeta(db, hash, height)
+	blockMeta := ReadBlockMeta(db, height)
 
 	if blockMeta == nil {
 		return nil
@@ -591,7 +582,7 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 
 	buf := []byte{}
 	for i := 0; i < int(blockMeta.BlockID.PartsHeader.Total); i++ {
-		part := ReadBlockPart(db, hash, height, i)
+		part := ReadBlockPart(db, height, i)
 		buf = append(buf, part.Bytes...)
 	}
 	pbb := new(kproto.Block)
@@ -612,14 +603,14 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 
 // ReadHeader retrieves the block header corresponding to the hash.
 func ReadHeader(db kaidb.Reader, hash common.Hash, height uint64) *types.Header {
-	blockMeta := ReadBlockMeta(db, hash, height)
+	blockMeta := ReadBlockMeta(db, height)
 	return blockMeta.Header
 }
 
 // ReadBlockPart returns the block part fo the given height and index
-func ReadBlockPart(db kaidb.Reader, hash common.Hash, height uint64, index int) *types.Part {
+func ReadBlockPart(db kaidb.Reader, height uint64, index int) *types.Part {
 	var pbpart = new(kproto.Part)
-	partBytes, _ := db.Get(blockPartKey(hash, height, index))
+	partBytes, _ := db.Get(blockPartKey(height, index))
 
 	if len(partBytes) == 0 {
 		return nil
@@ -655,12 +646,12 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 		panic("nil blockmeta")
 	}
 	metaBytes := mustEncode(pbm)
-	_ = batch.Put(blockMetaKey(hash, height), metaBytes)
+	_ = batch.Put(blockMetaKey(height), metaBytes)
 
 	// Save block part
 	for i := 0; i < int(blockParts.Total()); i++ {
 		part := blockParts.GetPart(i)
-		writeBlockPart(batch, hash, height, i, part)
+		writeBlockPart(batch, height, i, part)
 
 	}
 
@@ -688,18 +679,18 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 	}
 }
 
-func writeBlockPart(db kaidb.Writer, hash common.Hash, height uint64, index int, part *types.Part) {
+func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part) {
 	pbp, err := part.ToProto()
 	if err != nil {
 		panic(fmt.Errorf("unable to make part into proto: %w", err))
 	}
 	partBytes := mustEncode(pbp)
-	_ = db.Put(blockPartKey(hash, height, index), partBytes)
+	_ = db.Put(blockPartKey(height, index), partBytes)
 }
 
 // DeleteBlockMeta delete block meta
 func DeleteBlockMeta(db kaidb.Writer, hash common.Hash, height uint64) {
-	_ = db.Delete(blockMetaKey(hash, height))
+	_ = db.Delete(blockMetaKey(height))
 }
 
 // ReadAppHash ...

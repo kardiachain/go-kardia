@@ -27,9 +27,6 @@ import (
 
 // The fields below define the low level database schema prefixing.
 var (
-	// headHeaderKey tracks the latest know header's hash.
-	headHeaderKey = []byte("LastHeader")
-
 	// headBlockKey tracks the latest know full block's hash.
 	headBlockKey = []byte("LastBlock")
 
@@ -200,14 +197,12 @@ func contractAbiKey(smartContractAddress string) []byte {
 	return append(contractAbiPrefix, []byte(smartContractAddress)...)
 }
 
-func blockMetaKey(hash common.Hash, height uint64) []byte {
-	return append(blockMetaPrefix,
-		append(encodeBlockHeight(height), hash.Bytes()...)...)
+func blockMetaKey(height uint64) []byte {
+	return append(blockMetaPrefix, encodeBlockHeight(height)...)
 }
 
-func blockPartKey(hash common.Hash, height uint64, index int) []byte {
-	return append(blockPartPrefix,
-		append(append(encodeBlockHeight(height), hash.Bytes()...), encodeIndex(uint32(index))...)...)
+func blockPartKey(height uint64, index int) []byte {
+	return append(blockPartPrefix, append(encodeBlockHeight(height), encodeIndex(uint32(index))...)...)
 }
 
 func seenCommitKey(height uint64) []byte {

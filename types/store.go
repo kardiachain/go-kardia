@@ -42,12 +42,11 @@ type StoreDB interface {
 	ReadBlock(hash common.Hash, height uint64) *Block
 	ReadHeader(hash common.Hash, height uint64) *Header
 	ReadBody(hash common.Hash, height uint64) *Body
-	ReadBlockPart(hash common.Hash, height uint64, index int) *Part
+	ReadBlockPart(height uint64, index int) *Part
 
-	ReadBlockMeta(common.Hash, uint64) *BlockMeta
+	ReadBlockMeta(uint64) *BlockMeta
 	ReadHeadBlockHash() common.Hash
 	ReadHeaderHeight(hash common.Hash) *uint64
-	ReadHeadHeaderHash() common.Hash
 	WriteHeadBlockHash(common.Hash)
 	ReadCommit(height uint64) *Commit
 	ReadSeenCommit(height uint64) *Commit
@@ -63,7 +62,7 @@ type StoreDB interface {
 	CheckHash(hash *common.Hash) bool
 	CheckTxHash(hash *common.Hash) bool
 
-	DeleteBlockMeta(hash common.Hash, height uint64) error
-	DeleteBlockPart(hash common.Hash, height uint64) error
+	DeleteBlockMeta(height uint64) error
+	DeleteBlockPart(height uint64) error
 	DeleteCanonicalHash(height uint64)
 }

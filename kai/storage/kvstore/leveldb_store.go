@@ -50,8 +50,8 @@ func NewStoreDB(db kaidb.Database) *StoreDB {
 
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
-func (s *StoreDB) ReadBlockMeta(hash common.Hash, height uint64) *types.BlockMeta {
-	return ReadBlockMeta(s.db, hash, height)
+func (s *StoreDB) ReadBlockMeta(height uint64) *types.BlockMeta {
+	return ReadBlockMeta(s.db, height)
 }
 
 // ReadBlock returns the Block for the given height
@@ -60,8 +60,8 @@ func (s *StoreDB) ReadBlock(hash common.Hash, height uint64) *types.Block {
 }
 
 // ReadBlockPart returns the block part fo the given height and index
-func (s *StoreDB) ReadBlockPart(hash common.Hash, height uint64, index int) *types.Part {
-	return ReadBlockPart(s.db, hash, height, index)
+func (s *StoreDB) ReadBlockPart(height uint64, index int) *types.Part {
+	return ReadBlockPart(s.db, height, index)
 }
 
 // WriteBlock write block to database
@@ -153,11 +153,6 @@ func (s *StoreDB) ReadHeadBlockHash() common.Hash {
 	return ReadHeadBlockHash(s.db)
 }
 
-// ReadHeadHeaderHash retrieves the hash of the current canonical head header.
-func (s *StoreDB) ReadHeadHeaderHash() common.Hash {
-	return ReadHeadHeaderHash(s.db)
-}
-
 // ReadBody retrieves the commit at a given height.
 func (s *StoreDB) ReadCommit(height uint64) *types.Commit {
 	return ReadCommit(s.db, height)
@@ -237,17 +232,17 @@ func (s *StoreDB) DeleteCanonicalHash(number uint64) {
 	DeleteCanonicalHash(s.db, number)
 }
 
-func (s *StoreDB) DeleteBlockMeta(hash common.Hash, height uint64) error {
-	if err := s.db.Delete(blockMetaKey(hash, height)); err != nil {
+func (s *StoreDB) DeleteBlockMeta(height uint64) error {
+	if err := s.db.Delete(blockMetaKey(height)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *StoreDB) DeleteBlockPart(hash common.Hash, height uint64) error {
-	blockMeta := s.ReadBlockMeta(hash, height)
+func (s *StoreDB) DeleteBlockPart(height uint64) error {
+	blockMeta := s.ReadBlockMeta(height)
 	for i := 0; i < int(blockMeta.BlockID.PartsHeader.Total); i++ {
-		if err := s.db.Delete(blockPartKey(hash, height, i)); err != nil {
+		if err := s.db.Delete(blockPartKey(height, i)); err != nil {
 			return err
 		}
 	}
