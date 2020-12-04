@@ -42,7 +42,7 @@ type StoreDB interface {
 	ReadBlock(hash common.Hash, height uint64) *Block
 	ReadHeader(hash common.Hash, height uint64) *Header
 	ReadBody(hash common.Hash, height uint64) *Body
-	ReadBlockPart(hash common.Hash, height uint64, index int) *Part
+	ReadBlockPart(height uint64, index int) *Part
 
 	ReadBlockMeta(uint64) *BlockMeta
 	ReadHeadBlockHash() common.Hash
