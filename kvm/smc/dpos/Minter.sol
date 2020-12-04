@@ -6,11 +6,11 @@ import {SafeMath} from "./Safemath.sol";
 contract Minter is Ownable {
     using SafeMath for uint256;
     uint256 private _oneDec = 1 * 10**18;
-    uint256 public inflationRateChange = 5 * 10**16; // 4%
-    uint256 public goalBonded = 20 * 10**16;// 20%;
+    uint256 public inflationRateChange = 2 * 10**16; // 4%
+    uint256 public goalBonded = 10 * 10**16;// 10%;
     uint256 public blocksPerYear = 6307200; // assumption 5s per block
-    uint256 public inflationMax = 20 * 10**16;// 20%
-    uint256 public inflationMin = 5 * 10**16; // 5%
+    uint256 public inflationMax = 7 * 10**16;// 7%
+    uint256 public inflationMin = 189216 * 10**11; // 1,89216%
 
     uint256 public inflation;
     uint256 public annualProvision;

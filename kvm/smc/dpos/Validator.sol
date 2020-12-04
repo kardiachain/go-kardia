@@ -127,6 +127,7 @@ contract Validator is IValidator, Ownable {
         uint256 slashFractionDoubleSign;
         uint256 signedBlockWindow;
         uint256 minSignedPerWindow;
+        uint256 minStake;
     }
 
     uint256 constant public UNBONDING_TiME = 10; // 7 days
@@ -162,7 +163,8 @@ contract Validator is IValidator, Ownable {
             unbondingTime: 1814400,
             slashFractionDoubleSign: 5 * 10**16,
             signedBlockWindow: 100,
-            minSignedPerWindow: 5 * 10**16
+            minSignedPerWindow: 5 * 10**16,
+            minStake: 1 * 10**17 // 10 000 kai
         });
     }
     
@@ -296,13 +298,13 @@ contract Validator is IValidator, Ownable {
         _slash(_infrationHeight, _power, _slashFactor);
     }
 
-
     function undelegate(uint256 _amount) external {
         _undelegate(msg.sender, _amount);
         _staking.undelegate(_amount);
     }
 
     function _undelegate(address payable from, uint256 _amount) private {
+        require(_checkUndelegateAmount(from, _amount) == true, "Undelegate amount invalid");
         require(ubdEntries[from].length < 7, "too many unbonding delegation entries");
         require(delegations.contains(from), "delegation not found");
         
@@ -347,6 +349,17 @@ contract Validator is IValidator, Ownable {
             _staking.removeFromSets();
             _stop();
         }
+    }
+
+    function _checkUndelegateAmount(address _delAddr, uint256 _amount) private view returns (bool) {
+         Delegation storage del = delegationByAddr[_delAddr];
+         if (del.stake.sub(_amount) == 0) {
+             return true;
+         }
+        if (del.stake.sub(_amount) >= params.minStake) {
+            return true;
+        }
+        return false;
     }
     
     // withdraw rewards from a delegation
@@ -507,6 +520,7 @@ contract Validator is IValidator, Ownable {
     }
     
     function _delegate(address payable _delAddr, uint256 _amount) private {
+        require(_amount >= params.minStake, "Amount must greater than min stake amount");
         // add delegation if not exists;
         if (!delegations.contains(_delAddr)) {
             delegations.add(_delAddr);
