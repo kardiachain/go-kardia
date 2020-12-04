@@ -197,7 +197,8 @@ func TestCreateValidator(t *testing.T) {
 	assert.Equal(t, valSmcAddr, addr)
 	valUtil, _ := staking.NewSmcValidatorUtil()
 
-	err = valUtil.Delegate(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr, address, big.NewInt(100000000000))
+	delAmount, _ := new(big.Int).SetString(selfDelegate, 10)
+	err = valUtil.Delegate(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr, address, delAmount)
 	if err != nil {
 		fmt.Println("errr", err)
 		t.Fatal(err)
@@ -208,7 +209,7 @@ func TestCreateValidator(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, tokens, big.NewInt(100000000000))
+	assert.Equal(t, tokens, delAmount)
 	assert.Equal(t, status, uint8(1)) // status is unbond
 	assert.Equal(t, jailed, false)
 
