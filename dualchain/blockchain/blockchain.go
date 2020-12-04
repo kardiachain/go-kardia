@@ -169,7 +169,7 @@ func (dbc *DualBlockChain) GetBlockByHeight(height uint64) *types.Block {
 
 func (bc *DualBlockChain) LoadBlockPart(height uint64, index int) *types.Part {
 	hash := bc.db.ReadCanonicalHash(height)
-	part := bc.db.ReadBlockPart(hash, height, index)
+	part := bc.db.ReadBlockPart(height, index)
 	if hash == (common.Hash{}) {
 		return nil
 	}
@@ -186,8 +186,7 @@ func (bc *DualBlockChain) LoadSeenCommit(height uint64) *types.Commit {
 
 //
 func (bc *DualBlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
-	hash := bc.db.ReadCanonicalHash(height)
-	return bc.db.ReadBlockMeta(hash, height)
+	return bc.db.ReadBlockMeta(height)
 }
 
 // GetBlock retrieves a block from the database by hash and number,
@@ -350,8 +349,8 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 	defer dbc.mu.Unlock()
 
 	// Rewind the header chain, deleting all block bodies until then
-	delFn := func(db types.StoreDB, hash common.Hash, height uint64) {
-		db.DeleteBlockPart(hash, height)
+	delFn := func(db types.StoreDB, height uint64) {
+		db.DeleteBlockPart(height)
 	}
 	dbc.hc.SetHead(head, delFn)
 	currentHeader := dbc.hc.CurrentHeader()

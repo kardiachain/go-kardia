@@ -147,7 +147,7 @@ func (hc *HeaderChain) SetGenesis(head *types.Header) {
 
 // DeleteCallback is a callback function that is called by SetHead before
 // each header is deleted.
-type DeleteCallback func(types.StoreDB, common.Hash, uint64)
+type DeleteCallback func(types.StoreDB, uint64)
 
 // SetHead rewinds the local chain to a new head. Everything above the new head
 // will be deleted and the new one set.
@@ -158,12 +158,11 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 		height = hdr.Height
 	}
 	for hdr := hc.CurrentHeader(); hdr != nil && hdr.Height > head; hdr = hc.CurrentHeader() {
-		hash := hdr.Hash()
 		height := hdr.Height
 		if delFn != nil {
-			delFn(hc.kaiDb, hash, height)
+			delFn(hc.kaiDb, height)
 		}
-		hc.kaiDb.DeleteBlockPart(hash, height)
+		hc.kaiDb.DeleteBlockPart(height)
 
 		hc.currentHeader.Store(hc.GetHeader(hdr.LastCommitHash, hdr.Height-1))
 	}
