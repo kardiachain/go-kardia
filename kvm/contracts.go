@@ -240,7 +240,7 @@ func (c *bigModExp) Run(input []byte) ([]byte, error) {
 	}
 	// Handle a special case when both the base and mod length is zero
 	if baseLen == 0 && modLen == 0 {
-		return []byte{}, nil
+		return nil, nil
 	}
 	// Retrieve the operands and execute the exponentiation
 	var (
