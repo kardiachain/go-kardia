@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.5.0;
+pragma solidity ^0.5.0;
 
 interface IValidator {
     function initialize (
@@ -13,16 +13,15 @@ interface IValidator {
     function update(bytes32 _name, uint256 _commissionRate, uint256 _minSelfDelegation) external;
     function unjail() external;
     function allocateToken(uint256 _rewards) external;
-    function slash(uint256 _infrationHeight, uint256 _power, uint256 _slashFactor) external;
-    function jail(uint256 _jailedUntil, bool _tombstoned) external;
     function delegate() external payable;
     function withdrawRewards() external;
     function withdrawCommission()external;
     function withdraw() external;
-    function undelegate(uint256 _amount) external;
+    function undelegate() external;
+    function undelegateWithAmount(uint256 _amount) external;
     function getCommissionRewards() external view returns (uint256);
     function getDelegationRewards(address _delAddr) external view returns (uint256);
-    function validateSignature(uint256 _votingPower, bool _signed) external returns (bool);
+    function validateSignature(uint256 _votingPower, bool _signed) external;
     function doubleSign(
         uint256 votingPower,
         uint256 distributionHeight
@@ -52,4 +51,5 @@ interface IValidator {
     event Withdraw(address _delAddr, uint256 _amount);
     event Slashed(uint256 _power, uint256 _reason);
     event Liveness(uint256 _missedBlocks, uint256 _blockHeight);
+    event UpdatedSigner(address previousSigner, address newSigner);
 }

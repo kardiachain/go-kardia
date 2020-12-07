@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.5.16;
+pragma solidity ^0.5.0;
 import "./EnumerableSet.sol";
 import "./interfaces/IValidator.sol";
 import "./interfaces/IStaking.sol";
@@ -13,8 +13,8 @@ contract Validator is IValidator, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeMath for uint256;
 
-    uint256 oneDec = 1 * 10**18;
-    uint256 powerReduction = 1 * 10**8;
+    uint256 oneDec = 1 * 10 ** 18;
+    uint256 powerReduction = 1 * 10 ** 8;
 
     enum Status { Unbonding, Unbonded, Bonded}
 
@@ -92,22 +92,18 @@ contract Validator is IValidator, Ownable {
         // height at which validator was first a candidate OR was unjailed
         uint256 startHeight;
         // index offset into signed block bit array
-        uint256 indexOffset;
+        uint indexOffset;
         // whether or not a validator has been tombstoned (killed out of validator set)
         bool tombstoned;
         // missed blocks counter 
-        uint256 missedBlockCounter;
+        uint missedBlockCounter;
         // time for which the validator is jailed until.
         uint256 jailedUntil;
     }
     
-    struct MissedBlock {
-        mapping(uint256 => bool) items;
-    }
-    
     struct InforValidator {
         bytes32 name;  // validator name
-        address valAddr; // address of the validator
+        address signer; // address of the validator
         uint256 tokens; // all token stake
         bool jailed;
         uint256 minSelfDelegation;
@@ -125,12 +121,10 @@ contract Validator is IValidator, Ownable {
         uint256 slashFractionDowntime;
         uint256 unbondingTime;
         uint256 slashFractionDoubleSign;
-        uint256 signedBlockWindow;
+        uint signedBlockWindow;
         uint256 minSignedPerWindow;
         uint256 minStake;
     }
-
-    uint256 constant public UNBONDING_TiME = 10; // 7 days
     
     EnumerableSet.AddressSet private delegations; // all delegations
     mapping(address => Delegation) public delegationByAddr; // delegation by address
@@ -143,13 +137,18 @@ contract Validator is IValidator, Ownable {
     HistoricalReward private historicalRewards; // historical rewards
     SlashEvent[] public slashEvents; // slash events
     SigningInfo public signingInfo; // signing info
-    MissedBlock private missedBlock; // missed block
+    mapping(uint => bool) private missedBlock; // missed block
     Params public params;
     IStaking private _staking;
 
      // Functions with this modifier can only be executed by the validator
     modifier onlyValidator() {
-        require(inforValidator.valAddr == msg.sender, "Ownable: caller is not the validator");
+        require(inforValidator.signer == msg.sender, "Ownable: caller is not the validator");
+        _;
+    }
+
+    modifier onlyDelegator() {
+        require(delegations.contains(msg.sender), "delegation not found");
         _;
     }
 
@@ -160,9 +159,9 @@ contract Validator is IValidator, Ownable {
         params = Params({
             downtimeJailDuration: 259200,
             slashFractionDowntime: 1 * 10**14,
-            unbondingTime: 1814400,
+            unbondingTime: 1814400, 
             slashFractionDoubleSign: 5 * 10**16,
-            signedBlockWindow: 100,
+            signedBlockWindow: 10000,
             minSignedPerWindow: 5 * 10**16,
             minStake: 10000 * 10**18 // 10 000 kai
         });
@@ -171,29 +170,15 @@ contract Validator is IValidator, Ownable {
     // called one by the staking at time of deployment  
     function initialize (
         bytes32 _name, 
-        address _owner,
+        address _signer,
         uint256 _rate, 
         uint256 _maxRate, 
         uint256 _maxChangeRate, 
         uint256 _minSelfDelegation
     ) external onlyOwner {
-            
-        require(
-            _maxRate <= oneDec,
-            "commission max rate cannot be more than 100%"
-        );
-        require(
-            _maxChangeRate <= _maxRate,
-            "commission max change rate can not be more than the max rate"
-        );
-        require(
-            _rate <= _maxRate,
-            "commission rate cannot be more than the max rate"
-        );
-
         inforValidator.name = _name;
         inforValidator.minSelfDelegation = _minSelfDelegation;
-        inforValidator.valAddr = _owner;
+        inforValidator.signer = _signer;
         inforValidator.updateTime = block.timestamp;
         inforValidator.status = Status.Unbonded;
         
@@ -204,12 +189,13 @@ contract Validator is IValidator, Ownable {
         });
         
         _initializeValidator();
-        signingInfo.startHeight = block.number;
     }
 
     // update signer address
     function updateSigner(address signerAddr) external onlyValidator {
-        inforValidator.valAddr = signerAddr;
+        require(signerAddr != msg.sender);
+        emit UpdatedSigner(inforValidator.signer, signerAddr);
+        inforValidator.signer = signerAddr;
         _staking.updateSigner(signerAddr);
     }
     
@@ -220,8 +206,27 @@ contract Validator is IValidator, Ownable {
         _staking.addDelegation(msg.sender);
     }
 
-    // update validate info
-    function update(bytes32 _name, uint256 _commissionRate, uint256 _minSelfDelegation) external onlyValidator {
+    function _updateName(bytes32 _name) private {
+        if (_name[0] != 0) {
+            inforValidator.name = _name;
+        }
+    }
+
+    function _updateMinSelfDelegation(uint256 _minSelfDelegation) private {
+        if (_minSelfDelegation > 0) {
+            require(
+                _minSelfDelegation > inforValidator.minSelfDelegation,
+                "minimum self delegation cannot be decrease"
+            );
+            require(
+                _minSelfDelegation <= inforValidator.tokens,
+                "self delegation below minimum"
+            );
+            inforValidator.minSelfDelegation = _minSelfDelegation;
+        }
+    }
+
+    function _updateCommissionRate(uint256 _commissionRate) private {
         if (_commissionRate > 0) {
             require(
                 // solhint-disable-next-line not-rely-on-time
@@ -239,23 +244,13 @@ contract Validator is IValidator, Ownable {
             commission.rate = _commissionRate;
             inforValidator.updateTime = block.timestamp;
         }
+    }
 
-        if (_minSelfDelegation > 0) {
-            require(
-                _minSelfDelegation > inforValidator.minSelfDelegation,
-                "minimum self delegation cannot be decrease"
-            );
-            require(
-                _minSelfDelegation <= inforValidator.tokens,
-                "self delegation below minimum"
-            );
-            inforValidator.minSelfDelegation = _minSelfDelegation;
-        }
-        
-        if (_name[0] != 0) {
-            inforValidator.name = _name;
-        }
-
+    // update validate info
+    function update(bytes32 _name, uint256 _commissionRate, uint256 _minSelfDelegation) external onlyValidator {
+        _updateCommissionRate(_commissionRate);
+        _updateMinSelfDelegation(_minSelfDelegation);
+        _updateName(_name);
         emit UpdateValidator(_name, _commissionRate, _minSelfDelegation);
     }
     
@@ -266,11 +261,6 @@ contract Validator is IValidator, Ownable {
         inforValidator.accumulatedCommission += _commission;
         currentRewards.reward += shared;
     }
-    
-    // validator is jailed when the validator operation misbehave
-    function jail(uint256 _jailedUntil, bool _tombstoned) external onlyOwner {
-        _jail(_jailedUntil, _tombstoned);
-    }
 
     // Unjail is used for unjailing a jailed validator, thus returning
     // them into the bonded validator set, so they can begin receiving provisions
@@ -279,10 +269,8 @@ contract Validator is IValidator, Ownable {
         require(inforValidator.jailed, "validator not jailed");
         // cannot be unjailed if tombstoned
         require(signingInfo.tombstoned == false, "validator jailed");
-        uint256 jailedUntil = signingInfo.jailedUntil;
-
-        require(jailedUntil < block.timestamp, "validator jailed");
-        Delegation storage del = delegationByAddr[inforValidator.valAddr];
+        require(signingInfo.jailedUntil < block.timestamp, "validator jailed");
+        Delegation storage del = delegationByAddr[inforValidator.signer];
         uint256 tokens = _tokenFromShare(del.shares);
         require(
             tokens > inforValidator.minSelfDelegation,
@@ -292,29 +280,29 @@ contract Validator is IValidator, Ownable {
         signingInfo.jailedUntil = 0;
         inforValidator.jailed = false;
     }
-    
-    // Validator is slashed when the Validator operation misbehave 
-    function slash(uint256 _infrationHeight, uint256 _power, uint256 _slashFactor) external onlyOwner {
-        _slash(_infrationHeight, _power, _slashFactor);
+
+    function undelegate() external onlyDelegator{
+        Delegation storage del = delegationByAddr[msg.sender];
+        uint256 amount = del.stake;
+        _undelegate(msg.sender, amount);
+        _staking.undelegate(amount);
     }
 
-    function undelegate(uint256 _amount) external {
+    function undelegateWithAmount(uint256 _amount) external onlyDelegator{
+        require(_checkUndelegateAmount(msg.sender, _amount) == true, "Undelegate amount invalid");
+        require(ubdEntries[msg.sender].length < 7, "too many unbonding delegation entries");
         _undelegate(msg.sender, _amount);
         _staking.undelegate(_amount);
     }
 
     function _undelegate(address payable from, uint256 _amount) private {
-        require(_checkUndelegateAmount(from, _amount) == true, "Undelegate amount invalid");
-        require(ubdEntries[from].length < 7, "too many unbonding delegation entries");
-        require(delegations.contains(from), "delegation not found");
-        
         _withdrawRewards(from);
         Delegation storage del = delegationByAddr[from];
         uint256 shares = _shareFromToken(_amount);
         require(del.shares >= shares, "not enough delegation shares");
-        del.shares -= shares;
+        del.shares = del.shares.sub(shares);
         _initializeDelegation(from);
-        bool isValidatorOperator = inforValidator.valAddr == from;
+        bool isValidatorOperator = inforValidator.signer == from;
         if (
             isValidatorOperator &&
             !inforValidator.jailed &&
@@ -325,15 +313,14 @@ contract Validator is IValidator, Ownable {
 
         uint256 amountRemoved = _removeDelShares(shares);
 
-        if (inforValidator.status == Status.Unbonding && inforValidator.unbondingTime < block.timestamp) {
-            msg.sender.transfer(amountRemoved);
-            if (del.shares == 0) {
-                _removeDelegation(msg.sender);
-            }
-            emit Withdraw(msg.sender, amountRemoved);
+        if (_isUnbonding() && _isUnbondingComplete()) {
+            _withdraw(msg.sender, amountRemoved);
         } else {
             inforValidator.ubdEntryCount++;
-            uint256 completionTime = block.timestamp.add(UNBONDING_TiME);
+            uint256 completionTime = block.timestamp.add(params.unbondingTime);
+            if (_isUnbonding()) {
+                completionTime = inforValidator.unbondingTime;
+            }
             ubdEntries[from].push(
                 UBDEntry({
                     completionTime: completionTime,
@@ -343,12 +330,19 @@ contract Validator is IValidator, Ownable {
             );
             emit Undelegate(from, _amount, completionTime);
         }
+        _stopIfZeroPowerOrJailed();
+    }
 
-        if (inforValidator.status == Status.Bonded && 
-            inforValidator.tokens.div(powerReduction) == 0) {
-            _staking.removeFromSets();
-            _stop();
-        }
+    function _isUnbonding() private view returns (bool) {
+        return inforValidator.status == Status.Unbonding;
+    }
+
+    function _isUnbondingComplete() private view returns (bool) {
+        return inforValidator.unbondingTime < block.timestamp;
+    }
+
+    function _isBonded() private view returns (bool) {
+        return inforValidator.status == Status.Bonded;
     }
 
     function _checkUndelegateAmount(address _delAddr, uint256 _amount) private view returns (bool) {
@@ -363,8 +357,7 @@ contract Validator is IValidator, Ownable {
     }
     
     // withdraw rewards from a delegation
-    function withdrawRewards() external {
-        require(delegations.contains(msg.sender), "delegator not found");
+    function withdrawRewards() external onlyDelegator {
         _withdrawRewards(msg.sender);
         _initializeDelegation(msg.sender);
     }
@@ -379,13 +372,9 @@ contract Validator is IValidator, Ownable {
     }
     
     // withdraw token delegator's
-    function withdraw() external {
-        require(delegations.contains(msg.sender), "delegation not found");
-        Delegation memory del = delegationByAddr[msg.sender];
+    function withdraw() external onlyDelegator {
         UBDEntry[] storage entries = ubdEntries[msg.sender];
         uint256 amount = 0;
-        uint256 entryCount = 0;
-
         for (uint256 i = 0; i < entries.length; i++) {
             // solhint-disable-next-line not-rely-on-time
             if (entries[i].completionTime < block.timestamp) {
@@ -393,19 +382,18 @@ contract Validator is IValidator, Ownable {
                 entries[i] = entries[entries.length - 1];
                 entries.pop();
                 i--;
-                entryCount++;
+                inforValidator.ubdEntryCount--;
             }
         }
-    
+        _withdraw(msg.sender, amount);
+    }
+
+    function _withdraw(address payable to, uint256 amount) private {
         require(amount > 0, "no unbonding amount to withdraw");
-        msg.sender.transfer(amount);
-
-        if (del.shares == 0 && entries.length == 0) {
-            _removeDelegation(msg.sender);
+        if (delegationByAddr[to].shares <= 5 && ubdEntries[to].length == 0) {
+            _removeDelegation(to);
         }
-
-        inforValidator.ubdEntryCount = inforValidator.ubdEntryCount.sub(entryCount);
-        emit Withdraw(msg.sender, amount);
+        emit Withdraw(to, amount);
     }
     
     function getCommissionRewards() external view returns(uint256) {
@@ -433,49 +421,39 @@ contract Validator is IValidator, Ownable {
     function validateSignature(
         uint256 _votingPower,
         bool _signed
-    ) external onlyOwner returns (bool) {
+    ) external onlyOwner{
         // counts blocks the validator should have signed
-        uint256 index = signingInfo.indexOffset % params.signedBlockWindow;
+        uint index = signingInfo.indexOffset % params.signedBlockWindow;
         signingInfo.indexOffset++;
-        bool previous = missedBlock.items[index];
+        bool previous = missedBlock[index];
         bool missed = !_signed;
         if (!previous && missed) { // value has changed from not missed to missed, increment counter
             signingInfo.missedBlockCounter++;
-            missedBlock.items[index] = true;
+            missedBlock[index] = true;
         } else if (previous && !missed) { // value has changed from missed to not missed, decrement counter
             signingInfo.missedBlockCounter--;
-            missedBlock.items[index] = false;
+            missedBlock[index] = false;
         }
 
-        if (missed) {
-            emit Liveness(signingInfo.missedBlockCounter, block.number);
-        }
-        
-        uint256 minHeight = signingInfo.startHeight + params.signedBlockWindow;
-        uint256 minSignedPerWindow = params.signedBlockWindow.mulTrun(params.minSignedPerWindow);
-        uint256 maxMissed = params.signedBlockWindow - minSignedPerWindow;
-        
+        uint256 minHeight = signingInfo.startHeight.add(params.signedBlockWindow);
+        uint minSignedPerWindow = params.signedBlockWindow.mulTrun(params.minSignedPerWindow);
+        uint maxMissed = params.signedBlockWindow.sub(minSignedPerWindow);
         // if past the minimum height and the validator has missed too many blocks, punish them
         if (block.number > minHeight && signingInfo.missedBlockCounter > maxMissed) {
             if (!inforValidator.jailed) {
-                _slash(block.number - 2, _votingPower, params.slashFractionDowntime);
-                inforValidator.jailed = true; // jail validator
-
-                signingInfo.jailedUntil = block.timestamp.add(params.downtimeJailDuration);
+                _slash(block.number.sub(2), _votingPower, params.slashFractionDowntime);
+                _jail(block.timestamp.add(params.downtimeJailDuration), false);
                 signingInfo.missedBlockCounter = 0;
                 _resetMissedBlock(signingInfo.indexOffset);
                 signingInfo.indexOffset = 0;
-                // delete missedBlock;
-                
-                return true;
+                emit Slashed(_votingPower, 1);       
             }
         }
-        return false;
-     }
+    }
 
     function _resetMissedBlock(uint256 _indexOffset) private {
         for (uint i = 0; i < _indexOffset; i++) {
-            missedBlock.items[i] = false;
+            missedBlock[i] = false;
         }
     }
 
@@ -664,7 +642,7 @@ contract Validator is IValidator, Ownable {
     // initialize starting info for a new delegation
     function _initializeDelegation(address _delAddr) private {
         Delegation storage del = delegationByAddr[_delAddr];
-        uint256 previousPeriod = currentRewards.period - 1;
+        uint256 previousPeriod = currentRewards.period.sub(1);
         _incrementReferenceCount(previousPeriod);
         delegationByAddr[_delAddr].height = block.number;
         delegationByAddr[_delAddr].previousPeriod = previousPeriod;
@@ -730,6 +708,17 @@ contract Validator is IValidator, Ownable {
         _stop();
     }
 
+    function _stopIfZeroPowerOrJailed() private {
+        if (!_isBonded()) return;
+        if (inforValidator.jailed || _isZeroPower()) {
+            _stop();
+        }
+    }
+
+    function _isZeroPower() private view returns (bool) {
+        return inforValidator.tokens.div(powerReduction) == 0;
+    }
+
    function doubleSign(
         uint256 votingPower,
         uint256 distributionHeight
@@ -740,16 +729,16 @@ contract Validator is IValidator, Ownable {
             params.slashFractionDoubleSign
         );
         // // (Dec 31, 9999 - 23:59:59 GMT).
-        _jail(253402300799, true);
+        _jail(253402300799, false);
 
         emit Slashed(votingPower, 2);
     }
 
     // start start validator
     function start() external onlyValidator {
-        require(inforValidator.status != Status.Bonded);
-        require(!inforValidator.jailed);
-        require(inforValidator.tokens.div(powerReduction) > 0);
+        require(inforValidator.status != Status.Bonded, "validator bonded");
+        require(!inforValidator.jailed, "validator jailed");
+        require(inforValidator.tokens.div(powerReduction) > 0, "zero voting power");
         _staking.startValidator();
         inforValidator.status = Status.Bonded;
         signingInfo.startHeight = block.number;
@@ -763,6 +752,35 @@ contract Validator is IValidator, Ownable {
     function _stop() private {
         inforValidator.status = Status.Unbonding;
         inforValidator.unbondingHeight = block.number;
-        inforValidator.unbondingTime = block.timestamp.add(UNBONDING_TiME);
+        inforValidator.unbondingTime = block.timestamp.add(params.unbondingTime);
+    }
+
+    function getUBDEntries(address delAddr)
+        external
+        view
+        returns (uint256[] memory, uint256[] memory)
+    {
+        uint256 total = ubdEntries[delAddr].length;
+        uint256[] memory balances = new uint256[](total);
+        uint256[] memory completionTime = new uint256[](total);
+
+        for (uint256 i = 0; i < total; i++) {
+            completionTime[i] = ubdEntries[delAddr][i].completionTime;
+            balances[i] = ubdEntries[delAddr][i].amount;
+        }
+        return (balances, completionTime);
+    }
+
+    function getMissedBlock()
+        public
+        view
+        returns (bool[] memory)
+    {
+        bool[] memory _missedBlock = new bool[](params.signedBlockWindow);
+        for (uint i = 0; i < params.signedBlockWindow; i++) {
+            _missedBlock[i] = missedBlock[i];
+        }
+
+        return _missedBlock;
     }
 }

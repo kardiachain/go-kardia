@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.5.16;
+pragma solidity ^0.5.0;
 import "./interfaces/IStaking.sol";
 import "./interfaces/IValidator.sol";
 import "./Minter.sol";
@@ -18,7 +18,7 @@ contract Staking is IStaking, Ownable {
         uint256 maxValidator;
     }
 
-    address private _previousProposer; // last proposer address
+    address internal _previousProposer; // last proposer address
     Params public  params; // staking params
     address[] public allVals; // list all validators
     mapping(address => address) public ownerOf; // Owner of the validator
@@ -47,11 +47,6 @@ contract Staking is IStaking, Ownable {
         minter = new Minter();
     }
 
-    function setParams(uint256 baseProposerReward, uint256 bonusProposerReward) external onlyOwner {
-        params.baseProposerReward = baseProposerReward;
-        params.bonusProposerReward = bonusProposerReward;
-    }
-
     // create new validator
     function createValidator(
         bytes32 name,
@@ -61,6 +56,20 @@ contract Staking is IStaking, Ownable {
         uint256 minSelfDelegation
     ) external returns (address val) {
         require(ownerOf[msg.sender] == address(0x0), "Valdiator owner exists");
+        require(
+            maxRate <= 1 * 10 ** 18,
+            "commission max rate cannot be more than 100%"
+        );
+        require(
+            maxChangeRate <= maxRate,
+            "commission max change rate can not be more than the max rate"
+        );
+        require(
+            rate <= maxRate,
+            "commission rate cannot be more than the max rate"
+        );
+
+
         bytes memory bytecode = type(Validator).creationCode;
         bytes32 salt = keccak256(abi.encodePacked(name, rate, maxRate, 
             maxChangeRate, minSelfDelegation, msg.sender));
@@ -70,13 +79,9 @@ contract Staking is IStaking, Ownable {
         IValidator(val).initialize(name, msg.sender, rate, maxRate, 
             maxChangeRate, minSelfDelegation);
         
-        emit CreateValidator(
-            name,
-            msg.sender,
-            rate,
-            maxRate,
-            maxChangeRate,
-            minSelfDelegation
+        emit CreatedValidator(
+            name,msg.sender,rate,
+            maxRate,maxChangeRate,minSelfDelegation
         );
 
         allVals.push(val);
@@ -96,15 +101,7 @@ contract Staking is IStaking, Ownable {
     function allValsLength() external view returns(uint) {
         return allVals.length;
     }
-
-    function setPreviousProposer(address previousProposer) public onlyOwner {
-        _previousProposer = previousProposer;
-    }
     
-    function setMaxValidator(uint256 _maxValidator) public onlyOwner {
-        params.maxValidator = _maxValidator;
-    }
-
     function finalize(
         address[] calldata _signers, 
         uint256[] calldata _votingPower, 
@@ -205,6 +202,7 @@ contract Staking is IStaking, Ownable {
         totalBonded = totalBonded.sub(amount);
         totalSupply = totalSupply.sub(amount);
         balanceOf[from] = balanceOf[from].sub(amount);
+        emit Burn(from, amount);
     }
 
     // slash and jail validator forever
@@ -219,6 +217,7 @@ contract Staking is IStaking, Ownable {
     function mint() external onlyOwner returns (uint256) {
         uint256 fees =  minter.mint(); 
         totalSupply = totalSupply.add(fees);
+        emit Mint(fees);
         return fees;
     }
 
@@ -277,7 +276,7 @@ contract Staking is IStaking, Ownable {
         for (uint i = 0; i < total; i++) {
             address valAddr = valSets[i];
             signerAddrs[i] = valOf[valAddr];
-            votingPowers[i] = balanceOf[valAddr].div(1 * 10**8);
+            votingPowers[i] = balanceOf[valAddr].div(1 * 10 ** 8);
         }
         return (signerAddrs, votingPowers);
     }
