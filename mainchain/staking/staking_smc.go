@@ -240,19 +240,6 @@ func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc v
 	return fee, nil
 }
 
-//SetPreviousProposer
-func (s *StakingSmcUtil) SetPreviousProposer(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, proposerAddr common.Address) error {
-	payload, err := s.Abi.Pack("setPreviousProposer", proposerAddr)
-	if err != nil {
-		return err
-	}
-	_, err = s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 //FinalizeCommit finalize commitcd
 func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, lastCommit LastCommitInfo) error {
 	vals := make([]common.Address, len(lastCommit.Votes))

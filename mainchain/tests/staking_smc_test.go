@@ -205,15 +205,15 @@ func TestCreateValidator(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	name, tokens, status, jailed, err := valUtil.GetInforValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
+	inforVal, err := valUtil.GetInforValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
 	if err != nil {
 		t.Fatal(err)
 	}
-	name = strings.Replace(name, "\x00", "", -1)
+	name := strings.Replace(string(inforVal.Name[:]), "\x00", "", -1)
 	assert.Equal(t, name, "Val1")
-	assert.Equal(t, tokens, delAmount)
-	assert.Equal(t, status, uint8(1)) // status is unbond
-	assert.Equal(t, jailed, false)
+	assert.Equal(t, inforVal.Tokens, delAmount)
+	assert.Equal(t, inforVal.Status, uint8(1)) // status is unbond
+	assert.Equal(t, inforVal.Jailed, false)
 
 	err = valUtil.StartValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr, address)
 	if err != nil {
@@ -221,11 +221,11 @@ func TestCreateValidator(t *testing.T) {
 	}
 
 	// check status validator after start
-	_, _, status, _, err = valUtil.GetInforValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
+	inforVal, err = valUtil.GetInforValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, status, uint8(2)) // status is bonded
+	assert.Equal(t, inforVal.Status, uint8(2)) // status is bonded
 
 	// check valset
 	valSets, err := util.ApplyAndReturnValidatorSets(stateDB, block.Header(), nil, kvm.Config{})
@@ -233,4 +233,29 @@ func TestCreateValidator(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, 1, len(valSets))
+}
+
+func TestGetCommissionValidator(t *testing.T) {
+	_, stateDB, util, block, err := setup()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", "10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	valSmcAddr, err := util.GetValFromOwner(stateDB, block.Header(), nil, kvm.Config{}, common.HexToAddress("0x7cefc13b6e2aedeedfb7cb6c32457240746baee5"))
+	valUtil, _ := staking.NewSmcValidatorUtil()
+
+	// get infor commission of validator
+	rate, maxRate, maxChangeRate, err := valUtil.GetCommissionValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, rate, big.NewInt(10))
+	assert.Equal(t, maxRate, big.NewInt(20))
+	assert.Equal(t, maxChangeRate, big.NewInt(1))
 }
