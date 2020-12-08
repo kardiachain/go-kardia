@@ -102,7 +102,7 @@ func triggerSmc(p *Parser, extras ...interface{}) ([]interface{}, error) {
 		return nil, err
 	}
 	// otherwise use gas to create new transaction and add to txPool
-	tx, err := GenerateSmcCall(p.GetNonce(), &p.Bc.Config().BaseAccount.PrivateKey, *p.SmartContractAddress, input, gas)
+	tx, err := GenerateSmcCall(p.GetNonce(), p.Bc.P2P().PrivKey(), *p.SmartContractAddress, input, gas)
 	if err != nil {
 		return nil, err
 	}

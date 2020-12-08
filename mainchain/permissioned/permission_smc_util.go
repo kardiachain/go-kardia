@@ -65,7 +65,7 @@ func NewSmcPermissionUtil(bc base.BaseBlockChain) (*PermissionSmcUtil, error) {
 		return nil, err
 	}
 	return &PermissionSmcUtil{Abi: &abi, StateDb: stateDb, ContractAddress: &permissionSmcAddr,
-		SenderAddress: &bc.Config().BaseAccount.Address, bc: bc, SenderPrivateKey: &bc.Config().BaseAccount.PrivateKey}, nil
+		SenderAddress: bc.P2P().Address(), bc: bc, SenderPrivateKey: bc.P2P().PrivKey()}, nil
 }
 
 // IsValidNode executes smart contract to check if a node with specified pubkey and nodeType is valid

@@ -499,38 +499,6 @@ func ReadHeaderNumber(db kaidb.Reader, hash common.Hash) *uint64 {
 	return &number
 }
 
-// StoreHash store a hash into the database.
-func StoreHash(db kaidb.Writer, hash *common.Hash) {
-	if err := db.Put(hashKey(hash), encodeBoolean(true)); err != nil {
-		log.Crit("Failed to store hash", "err", err)
-	}
-}
-
-// CheckHash returns true if a hash already exists in the database.
-func CheckHash(db kaidb.Reader, hash *common.Hash) bool {
-	data, _ := db.Get(hashKey(hash))
-	if data == nil {
-		return false
-	}
-	return decodeBoolean(data)
-}
-
-// StoreTxHash stores a tx hash into the database.
-func StoreTxHash(db kaidb.Writer, hash *common.Hash) {
-	if err := db.Put(txHashKey(hash), encodeBoolean(true)); err != nil {
-		log.Crit("Failed to store hash", "err", err)
-	}
-}
-
-// Returns true if a tx hash already exists in the database.
-func CheckTxHash(db kaidb.Reader, hash *common.Hash) bool {
-	data, _ := db.Get(txHashKey(hash))
-	if data == nil {
-		return false
-	}
-	return decodeBoolean(data)
-}
-
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
 func ReadBlockMeta(db kaidb.Reader, height uint64) *types.BlockMeta {

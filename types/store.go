@@ -34,8 +34,6 @@ type StoreDB interface {
 	WriteCanonicalHash(hash common.Hash, height uint64)
 	WriteEvent(smartcontract *KardiaSmartcontract)
 	WriteTxLookupEntries(block *Block)
-	StoreTxHash(hash *common.Hash)
-	StoreHash(hash *common.Hash)
 
 	ReadCanonicalHash(height uint64) common.Hash
 	ReadChainConfig(hash common.Hash) *configs.ChainConfig
@@ -59,8 +57,6 @@ type StoreDB interface {
 	ReadSmartContractAbi(address string) *abi.ABI
 	ReadEvent(address string, method string) *Watcher
 	ReadEvents(address string) (string, []*Watcher)
-	CheckHash(hash *common.Hash) bool
-	CheckTxHash(hash *common.Hash) bool
 
 	DeleteBlockMeta(height uint64) error
 	DeleteBlockPart(height uint64) error

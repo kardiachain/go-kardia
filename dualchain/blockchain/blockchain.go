@@ -112,6 +112,11 @@ func (dbc *DualBlockChain) DB() types.StoreDB {
 	return dbc.db
 }
 
+// P2P return p2p configs of the node
+func (dbc *DualBlockChain) P2P() *configs.P2PConfig {
+	return dbc.P2P()
+}
+
 // Config retrieves the blockchain's chain configuration.
 func (dbc *DualBlockChain) Config() *configs.ChainConfig { return dbc.chainConfig }
 
@@ -469,42 +474,6 @@ func (dbc *DualBlockChain) WriteBlock(block *types.Block, blockParts *types.Part
 // Reads commit from db.
 func (dbc *DualBlockChain) ReadCommit(height uint64) *types.Commit {
 	return dbc.db.ReadCommit(height)
-}
-
-// Writes a hash into db.
-// TODO(namdoh@): The hashKey is primarily used for persistently store a tx hash in db, so we
-// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
-// tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
-// it under chaindb).
-func (dbc *DualBlockChain) StoreHash(hash *common.Hash) {
-	dbc.db.StoreHash(hash)
-}
-
-// Returns true if a hash already exists.
-// TODO(namdoh@): The hashKey is primarily used for persistently store a tx hash in db, so we
-// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
-// tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
-// it under chaindb).
-func (dbc *DualBlockChain) CheckHash(hash *common.Hash) bool {
-	return dbc.db.CheckHash(hash)
-}
-
-// Writes a tx hash into db.
-// TODO(namdoh@): The hashKey is primarily used for persistently store a tx hash in db, so we
-// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
-// tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
-// it under chaindb).
-func (dbc *DualBlockChain) StoreTxHash(hash *common.Hash) {
-	dbc.db.StoreTxHash(hash)
-}
-
-// Returns true if a tx hash already exists.
-// TODO(namdoh@): The hashKey is primarily used for persistently store a tx hash in db, so we
-// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
-// tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
-// it under chaindb).
-func (dbc *DualBlockChain) CheckTxHash(hash *common.Hash) bool {
-	return dbc.db.CheckTxHash(hash)
 }
 
 func (dbc *DualBlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {

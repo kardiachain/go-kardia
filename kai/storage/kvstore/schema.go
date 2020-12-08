@@ -45,13 +45,6 @@ var (
 	seenCommitPrefix = []byte("sm") // seenCommitPrefix + num -> seen commit
 	appHashPrefix    = []byte("ah") // appHashPrefix + num -> app hash
 
-	// TODO(namdoh@): The hashKey is primarily used for persistently store a tx hash in db, so we
-	// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
-	// tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
-	// it under chaindb).
-	hashPrefix   = []byte("hash")   // hashPrefix + hash -> hash key
-	txHashPrefix = []byte("txHash") // txHashPrefix + hash -> hash key
-
 	configPrefix          = []byte("kardia-config-") // config prefix for the db
 	txLookupPrefix        = []byte("l")              // txLookupPrefix + hash -> transaction/receipt lookup metadata
 	dualEventLookupPrefix = []byte("de")             // dualEventLookupPrefix + hash -> dual's event lookup metadata
@@ -169,16 +162,6 @@ func bloomBitsKey(bit uint, section uint64, hash common.Hash) []byte {
 	binary.BigEndian.PutUint64(key[3:], section)
 
 	return key
-}
-
-// hashKey = hashPrefix + hash
-func hashKey(hash *common.Hash) []byte {
-	return append(hashPrefix, hash.Bytes()...)
-}
-
-// txHashKey = txHashPrefix + hash
-func txHashKey(hash *common.Hash) []byte {
-	return append(txHashPrefix, hash.Bytes()...)
 }
 
 func eventKey(smartContractAddress string, method string) []byte {

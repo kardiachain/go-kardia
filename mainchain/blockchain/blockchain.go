@@ -82,6 +82,10 @@ type BlockChain struct {
 	permissioned *permissioned.PermissionSmcUtil
 }
 
+func (bc *BlockChain) P2P() *configs.P2PConfig {
+	return bc.P2P()
+}
+
 // GetVMConfig returns the block chain VM config.
 func (bc *BlockChain) GetVMConfig() *kvm.Config {
 	return &bc.vmConfig

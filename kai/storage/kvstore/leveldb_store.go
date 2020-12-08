@@ -95,16 +95,6 @@ func (s *StoreDB) WriteTxLookupEntries(block *types.Block) {
 	WriteTxLookupEntries(s.db, block)
 }
 
-// Stores a hash into the database.
-func (s *StoreDB) StoreHash(hash *common.Hash) {
-	StoreHash(s.db, hash)
-}
-
-// Stores a tx hash into the database.
-func (s *StoreDB) StoreTxHash(hash *common.Hash) {
-	StoreTxHash(s.db, hash)
-}
-
 func (s *StoreDB) WriteHeadBlockHash(hash common.Hash) {
 	WriteHeadBlockHash(s.db, hash)
 }
@@ -205,16 +195,6 @@ func (s *StoreDB) ReadBlockInfo(hash common.Hash, number uint64) *types.BlockInf
 // hash to allow retrieving the transaction or receipt by hash.
 func (s *StoreDB) ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, uint64) {
 	return ReadTxLookupEntry(s.db, hash)
-}
-
-// Returns true if a hash already exists in the database.
-func (s *StoreDB) CheckHash(hash *common.Hash) bool {
-	return CheckHash(s.db, hash)
-}
-
-// Returns true if a tx hash already exists in the database.
-func (s *StoreDB) CheckTxHash(hash *common.Hash) bool {
-	return CheckTxHash(s.db, hash)
 }
 
 // DeleteBody removes all block body data associated with a hash.

@@ -242,7 +242,6 @@ func (p *PermissionedProxy) handlePrivateBlock(block *types.Block) {
 	//	method, err := p.smcABI.MethodById(tx.Data()[0:4])
 	//	if err != nil {
 	//		p.logger.Error("Error unpacking method", "tx", tx.Hash(), "err", err)
-	//		// TODO(@sontranrad): add a counter to track how many errors we encountered
 	//		continue
 	//	}
 	//	// We process candidate info requests and their responses from private chain to forward to smart contract on Kardia
@@ -262,7 +261,6 @@ func (p *PermissionedProxy) handlePrivateBlock(block *types.Block) {
 	//	privateChainTxHash := tx.Hash()
 	//	txHash := common.BytesToHash(privateChainTxHash[:])
 	//	// Compose dual event and tx metadata from emitted event from private chain smart contract
-	//	// TODO(namdoh@): Pass smartcontract actions here.
 	//	dualEvent := types.NewDualEvent(height, true, /* externalChain */
 	//		types.BlockchainSymbol(string(*p.privateChainID)), &txHash, &eventSummary, nil)
 	//	txMetaData, err := p.internalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)
