@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -204,11 +205,12 @@ func TestCreateValidator(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tokens, status, jailed, err := valUtil.GetInforValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
+	name, tokens, status, jailed, err := valUtil.GetInforValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	name = strings.Replace(name, "\x00", "", -1)
+	assert.Equal(t, name, "Val1")
 	assert.Equal(t, tokens, delAmount)
 	assert.Equal(t, status, uint8(1)) // status is unbond
 	assert.Equal(t, jailed, false)
@@ -219,7 +221,7 @@ func TestCreateValidator(t *testing.T) {
 	}
 
 	// check status validator after start
-	_, status, _, err = valUtil.GetInforValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
+	_, _, status, _, err = valUtil.GetInforValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
 	if err != nil {
 		t.Fatal(err)
 	}

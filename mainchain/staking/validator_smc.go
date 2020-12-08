@@ -76,14 +76,14 @@ func (s *ValidatorSmcUtil) Delegate(statedb *state.StateDB, header *types.Header
 }
 
 // GetValidator show info of a validator based on address
-func (s *ValidatorSmcUtil) GetInforValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address) (*big.Int, uint8, bool, error) {
+func (s *ValidatorSmcUtil) GetInforValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address) (string, *big.Int, uint8, bool, error) {
 	payload, err := s.Abi.Pack("inforValidator")
 	if err != nil {
-		return nil, 0, false, err
+		return "", nil, 0, false, err
 	}
 	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload, valSmcAddr, valSmcAddr)
 	if err != nil {
-		return nil, 0, false, err
+		return "", nil, 0, false, err
 	}
 
 	var validator struct {
@@ -104,7 +104,7 @@ func (s *ValidatorSmcUtil) GetInforValidator(statedb *state.StateDB, header *typ
 	err = s.Abi.UnpackIntoInterface(&validator, "inforValidator", res)
 	if err != nil {
 		log.Error("Error unpacking validator info", "err", err)
-		return nil, 0, false, err
+		return "", nil, 0, false, err
 	}
 
 	// val := &types.Validator{
@@ -116,8 +116,8 @@ func (s *ValidatorSmcUtil) GetInforValidator(statedb *state.StateDB, header *typ
 	// 	MaxChangeRate:  validator.MaxChangeRate,
 	// }
 	// val.StakedAmount = validator.Tokens
-
-	return validator.Tokens, validator.Status, validator.Jailed, nil
+	// stringName := string(validator.Name[:])
+	return string(validator.Name[:]), validator.Tokens, validator.Status, validator.Jailed, nil
 }
 
 func (s *ValidatorSmcUtil) ConstructAndApplySmcCallMsg(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, payload []byte, valSmcAddr common.Address, valAddr common.Address) ([]byte, error) {
