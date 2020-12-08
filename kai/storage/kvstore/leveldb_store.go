@@ -95,8 +95,14 @@ func (s *StoreDB) WriteTxLookupEntries(block *types.Block) {
 	WriteTxLookupEntries(s.db, block)
 }
 
+// WriteHeadBlockHash stores head blockhash to db
 func (s *StoreDB) WriteHeadBlockHash(hash common.Hash) {
 	WriteHeadBlockHash(s.db, hash)
+}
+
+// WriteAppHash stores app hash to db
+func (s *StoreDB) WriteAppHash(height uint64, hash common.Hash) {
+	WriteAppHash(s.db, height, hash)
 }
 
 // ReadSmartContractAbi gets smart contract abi by smart contract address
@@ -195,6 +201,12 @@ func (s *StoreDB) ReadBlockInfo(hash common.Hash, number uint64) *types.BlockInf
 // hash to allow retrieving the transaction or receipt by hash.
 func (s *StoreDB) ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, uint64) {
 	return ReadTxLookupEntry(s.db, hash)
+}
+
+// ReadTxLookupEntry retrieves the positional metadata associated with a transaction
+// hash to allow retrieving the transaction or receipt by hash.
+func (s *StoreDB) ReadAppHash(height uint64) common.Hash {
+	return ReadAppHash(s.db, height)
 }
 
 // DeleteBody removes all block body data associated with a hash.

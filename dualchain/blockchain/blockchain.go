@@ -25,8 +25,6 @@ import (
 	"sync/atomic"
 
 	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-
 	"github.com/kardiachain/go-kardiamain/kvm"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -223,7 +221,7 @@ func (dbc *DualBlockChain) State() (*state.StateDB, error) {
 
 // StateAt returns a new mutable state based on a particular point in time.
 func (dbc *DualBlockChain) StateAt(height uint64) (*state.StateDB, error) {
-	root := kvstore.ReadAppHash(dbc.db.DB(), height)
+	root := dbc.DB().ReadAppHash(height)
 	return state.New(dbc.logger, root, dbc.stateCache)
 }
 
@@ -256,7 +254,7 @@ func (dbc *DualBlockChain) loadLastState() error {
 		return dbc.Reset()
 	}
 	// Make sure the state associated with the block is available
-	root := kvstore.ReadAppHash(dbc.db.DB(), currentBlock.Height())
+	root := dbc.db.ReadAppHash(currentBlock.Height())
 	if _, err := state.New(dbc.logger, root, dbc.stateCache); err != nil {
 		// Dangling block without a state associated, init from scratch
 		dbc.logger.Warn("Head state missing, repairing chain", "height", currentBlock.Height(), "hash", currentBlock.Hash())
@@ -311,7 +309,7 @@ func (dbc *DualBlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 // fast block are left intact.
 func (dbc *DualBlockChain) repair(head **types.Block) error {
 	for {
-		root := kvstore.ReadAppHash(dbc.db.DB(), (*head).Height())
+		root := dbc.db.ReadAppHash((*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
 		if _, err := state.New(dbc.logger, root, dbc.stateCache); err == nil {
 			dbc.logger.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
@@ -369,7 +367,7 @@ func (dbc *DualBlockChain) SetHead(head uint64) error {
 		dbc.currentBlock.Store(dbc.GetBlock(currentHeader.Hash(), currentHeader.Height))
 	}
 	if currentBlock := dbc.CurrentBlock(); currentBlock != nil {
-		root := kvstore.ReadAppHash(dbc.db.DB(), currentBlock.Height())
+		root := dbc.db.ReadAppHash(currentBlock.Height())
 		if _, err := state.New(dbc.logger, root, dbc.stateCache); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			dbc.currentBlock.Store(dbc.genesisBlock)

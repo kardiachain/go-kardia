@@ -27,7 +27,6 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/kvm"
 
-	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 
 	"github.com/kardiachain/go-kardiamain/configs"
@@ -234,7 +233,7 @@ func (g *Genesis) Commit(logger log.Logger, db types.StoreDB, staking *staking.S
 	db.WriteBlockInfo(block.Hash(), block.Height(), nil)
 	db.WriteCanonicalHash(block.Hash(), block.Height())
 	db.WriteHeadBlockHash(block.Hash())
-	kvstore.WriteAppHash(db.DB(), block.Height(), root)
+	db.WriteAppHash(block.Height(), root)
 	config := g.Config
 	if config == nil {
 		config = configs.TestnetChainConfig

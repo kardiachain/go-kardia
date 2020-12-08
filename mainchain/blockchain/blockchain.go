@@ -24,10 +24,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-
 	lru "github.com/hashicorp/golang-lru"
+	"github.com/kardiachain/go-kardiamain/configs"
 	"github.com/kardiachain/go-kardiamain/kai/events"
 	"github.com/kardiachain/go-kardiamain/kai/state"
 	"github.com/kardiachain/go-kardiamain/kvm"
@@ -227,7 +225,7 @@ func (bc *BlockChain) State() (*state.StateDB, error) {
 
 // StateAt returns a new mutable state based on a particular point in time.
 func (bc *BlockChain) StateAt(height uint64) (*state.StateDB, error) {
-	root := kvstore.ReadAppHash(bc.DB().DB(), height)
+	root := bc.DB().ReadAppHash(height)
 	return state.New(bc.logger, root, bc.stateCache)
 }
 
@@ -261,7 +259,7 @@ func (bc *BlockChain) loadLastState() error {
 		bc.logger.Warn("Head block missing, resetting chain", "hash", hash)
 		return bc.Reset()
 	}
-	root := kvstore.ReadAppHash(bc.DB().DB(), currentBlock.Height())
+	root := bc.DB().ReadAppHash(currentBlock.Height())
 	// Make sure the state associated with the block is available
 	if _, err := state.New(bc.logger, root, bc.stateCache); err != nil {
 		// Dangling block without a state associated, init from scratch
@@ -317,7 +315,7 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 // fast block are left intact.
 func (bc *BlockChain) repair(head **types.Block) error {
 	for {
-		root := kvstore.ReadAppHash(bc.DB().DB(), (*head).Height())
+		root := bc.DB().ReadAppHash((*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
 		if _, err := state.New(bc.logger, root, bc.stateCache); err == nil {
 			bc.logger.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
@@ -375,7 +373,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 		bc.currentBlock.Store(bc.GetBlock(currentHeader.Hash(), currentHeader.Height))
 	}
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil {
-		root := kvstore.ReadAppHash(bc.DB().DB(), currentBlock.Height())
+		root := bc.DB().ReadAppHash(currentBlock.Height())
 		if _, err := state.New(bc.logger, root, bc.stateCache); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			bc.currentBlock.Store(bc.genesisBlock)

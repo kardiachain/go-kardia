@@ -34,6 +34,8 @@ type StoreDB interface {
 	WriteCanonicalHash(hash common.Hash, height uint64)
 	WriteEvent(smartcontract *KardiaSmartcontract)
 	WriteTxLookupEntries(block *Block)
+	WriteHeadBlockHash(common.Hash)
+	WriteAppHash(uint64, common.Hash)
 
 	ReadCanonicalHash(height uint64) common.Hash
 	ReadChainConfig(hash common.Hash) *configs.ChainConfig
@@ -41,11 +43,11 @@ type StoreDB interface {
 	ReadHeader(hash common.Hash, height uint64) *Header
 	ReadBody(hash common.Hash, height uint64) *Body
 	ReadBlockPart(height uint64, index int) *Part
+	ReadAppHash(uint64) common.Hash
 
 	ReadBlockMeta(uint64) *BlockMeta
 	ReadHeadBlockHash() common.Hash
 	ReadHeaderHeight(hash common.Hash) *uint64
-	WriteHeadBlockHash(common.Hash)
 	ReadCommit(height uint64) *Commit
 	ReadSeenCommit(height uint64) *Commit
 	ReadTransaction(hash common.Hash) (*Transaction, common.Hash, uint64, uint64)
