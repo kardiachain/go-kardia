@@ -272,3 +272,17 @@ func GetContractByteCodeByAddress(address string) string {
 	}
 	panic("ByteCode not found")
 }
+
+func GetContractABIByType(contractType string) string {
+	if contracts[contractType].ABI != "" {
+		return contracts[contractType].ABI
+	}
+	panic("ABI not found")
+}
+
+func GetContractByteCodeByType(contractType string) string {
+	if contracts[contractType].ByteCode != "" {
+		return contracts[contractType].ByteCode
+	}
+	panic("ABI not found")
+}

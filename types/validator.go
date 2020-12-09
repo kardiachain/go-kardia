@@ -48,11 +48,28 @@ type Validator struct {
 	VotingPower      int64          `json:"votingPower"`
 	ProposerPriority int64          `json:"proposerPriority"`
 	StakedAmount     *big.Int       `json:"stakedAmount,omitempty"`
-	Commission       *big.Int       `json:"commission,omitempty"`
 	CommissionRate   *big.Int       `json:"commissionRate,omitempty"`
 	MaxRate          *big.Int       `json:"maxRate,omitempty"`
 	MaxChangeRate    *big.Int       `json:"maxChangeRate,omitempty"`
-	Delegators       []*Delegator   `json:"delegators,omitempty"`
+}
+
+type InforValidator struct {
+	Name                  [32]uint8      `json:"name"`
+	ValAddr               common.Address `json:"validatorAddress"`
+	Tokens                *big.Int       `json:"tokens"`
+	Jailed                bool           `json:"jailed"`
+	MinSelfDelegation     *big.Int       `json:"minSelfDelegation"`
+	DelegationShares      *big.Int       `json:"delegationShares"`
+	AccumulatedCommission *big.Int       `json:"accumulatedCommission"`
+	UbdEntryCount         *big.Int       `json:"ubdEntryCount"`
+	UpdateTime            *big.Int       `json:"updateTime"`
+	Status                uint8          `json:"status"`
+	UnbondingTime         *big.Int       `json:"unbondingTime"`
+	UnbondingHeight       *big.Int       `json:"unbondingHeight"`
+	CommissionRate        *big.Int       `json:"commissionRate,omitempty"`
+	MaxRate               *big.Int       `json:"maxRate,omitempty"`
+	MaxChangeRate         *big.Int       `json:"maxChangeRate,omitempty"`
+	Delegators            []*Delegator   `json:"delegators,omitempty"`
 }
 
 // NewValidator ...
