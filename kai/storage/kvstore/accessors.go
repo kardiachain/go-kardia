@@ -182,7 +182,10 @@ func ReadBodyRLP(db kaidb.Reader, hash common.Hash, height uint64) rlp.RawValue 
 
 // ReadBody retrieves the block body corresponding to the hash.
 func ReadBody(db kaidb.Reader, hash common.Hash, height uint64) *types.Body {
-	return ReadBlock(db, hash, height).Body()
+	if block := ReadBlock(db, hash, height); block != nil {
+		ReadBlock(db, hash, height).Body()
+	}
+	return nil
 }
 
 // ReadHeadBlockHash retrieves the hash of the current canonical head block.
@@ -571,8 +574,10 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 
 // ReadHeader retrieves the block header corresponding to the hash.
 func ReadHeader(db kaidb.Reader, hash common.Hash, height uint64) *types.Header {
-	blockMeta := ReadBlockMeta(db, height)
-	return blockMeta.Header
+	if blockMeta := ReadBlockMeta(db, height); blockMeta != nil {
+		return blockMeta.Header
+	}
+	return nil
 }
 
 // ReadBlockPart returns the block part fo the given height and index
