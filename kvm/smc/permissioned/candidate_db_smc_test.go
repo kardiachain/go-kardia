@@ -301,7 +301,7 @@ func SetupBlockchainForTesting() (*blockchain.BlockChain, *tx_pool.TxPool, error
 		"0xBA30505351c17F4c818d94a990eDeD95e166474b": initValue,
 	}
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
-	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	stakingUtil, _ := staking.NewSmcStakingUtil()
 
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), kaiDb, g, stakingUtil)
 	if genesisErr != nil {

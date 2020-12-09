@@ -108,7 +108,7 @@ func GetSmcStakingUtil() (*blockchain.BlockChain, *staking.StakingSmcUtil, error
 	if err != nil {
 		return nil, nil, err, nil
 	}
-	util, err := staking.NewSmcStakingnUtil()
+	util, err := staking.NewSmcStakingUtil()
 	if err != nil {
 		return nil, nil, err, nil
 	}

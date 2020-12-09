@@ -48,8 +48,8 @@ type StakingSmcUtil struct {
 	logger          log.Logger
 }
 
-// NewSmcStakingnUtil ...
-func NewSmcStakingnUtil() (*StakingSmcUtil, error) {
+// NewSmcStakingUtil ...
+func NewSmcStakingUtil() (*StakingSmcUtil, error) {
 	stakingSmcAbi := configs.GetContractABIByAddress(configs.DefaultStakingContractAddress)
 	bytecodeStaking := configs.GetContractByteCodeByAddress(configs.DefaultStakingContractAddress)
 	abi, err := abi.JSON(strings.NewReader(stakingSmcAbi))

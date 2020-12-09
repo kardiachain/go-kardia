@@ -273,7 +273,7 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 }
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
-	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	stakingUtil, _ := staking.NewSmcStakingUtil()
 	return genesis.SetupGenesisBlock(log.New(), db, g, stakingUtil)
 }
 
@@ -330,7 +330,7 @@ func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*Consensu
 		return nil, err
 	}
 
-	staking, _ := staking.NewSmcStakingnUtil()
+	staking, _ := staking.NewSmcStakingUtil()
 
 	txConfig := tx_pool.TxPoolConfig{
 		GlobalSlots: 64,
