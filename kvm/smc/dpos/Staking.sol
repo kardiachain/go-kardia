@@ -30,7 +30,6 @@ contract Staking is IStaking, Ownable {
     mapping(address => EnumerableSet.AddressSet) private valOfDel; // validators of delegator
     Minter public minter; // minter contract
 
-
     // Functions with this modifier can only be executed by the validator
     modifier onlyValidator() {
         require(valOf[msg.sender] != address(0x0), "Ownable: caller is not the validator");
@@ -41,7 +40,7 @@ contract Staking is IStaking, Ownable {
         params = Params({
             baseProposerReward: 1 * 10**16,
             bonusProposerReward: 4 * 10**16,
-            maxValidator: 21
+            maxValidator: 20
         });
 
         minter = new Minter();
@@ -68,8 +67,6 @@ contract Staking is IStaking, Ownable {
             rate <= maxRate,
             "commission rate cannot be more than the max rate"
         );
-
-
         bytes memory bytecode = type(Validator).creationCode;
         bytes32 salt = keccak256(abi.encodePacked(name, rate, maxRate, 
             maxChangeRate, minSelfDelegation, msg.sender));
@@ -91,7 +88,7 @@ contract Staking is IStaking, Ownable {
 
     // Update signer address
     function updateSigner(address signerAddr) external onlyValidator {
-        require(ownerOf[signerAddr] == address(0x0));
+        require(ownerOf[signerAddr] == address(0x0), "user already exists");
         address oldSignerAddr = valOf[msg.sender];
         valOf[msg.sender] = signerAddr;
         ownerOf[oldSignerAddr] = address(0x0);
