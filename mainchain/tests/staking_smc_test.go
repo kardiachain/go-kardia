@@ -115,10 +115,14 @@ func GetSmcStakingUtil() (*blockchain.BlockChain, *staking.StakingSmcUtil, error
 	return bc, util, nil, stateDB
 }
 
-func setup() (*blockchain.BlockChain, *state.StateDB, *staking.StakingSmcUtil, *types.Block, error) {
+func setup() (*blockchain.BlockChain, *state.StateDB, *staking.StakingSmcUtil, *staking.ValidatorSmcUtil, *types.Block, error) {
 	bc, util, err, stateDB := GetSmcStakingUtil()
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, nil, err
+	}
+	valUtil, err := staking.NewSmcValidatorUtil()
+	if err != nil {
+		return nil, nil, nil, nil, nil, err
 	}
 	head := &types.Header{
 		Height:   0,
@@ -133,7 +137,7 @@ func setup() (*blockchain.BlockChain, *state.StateDB, *staking.StakingSmcUtil, *
 		},
 	}
 	block := types.NewBlock(head, nil, &types.Commit{}, nil)
-	return bc, stateDB, util, block, nil
+	return bc, stateDB, util, valUtil, block, nil
 }
 
 func getSmcValidatorUtil(valSmcAddr common.Address) (*staking.ValidatorSmcUtil, error) {
@@ -167,7 +171,7 @@ func finalizeTest(stateDB *state.StateDB, util *staking.StakingSmcUtil, block *t
 }
 
 func TestCreateValidator(t *testing.T) {
-	_, stateDB, util, block, err := setup()
+	_, stateDB, util, _, block, err := setup()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,7 +240,7 @@ func TestCreateValidator(t *testing.T) {
 }
 
 func TestGetCommissionValidator(t *testing.T) {
-	_, stateDB, util, block, err := setup()
+	_, stateDB, util, _, block, err := setup()
 	if err != nil {
 		t.Fatal(err)
 	}
