@@ -45,5 +45,6 @@ type BaseBlockChain interface {
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StateAt(root uint64) (*state.StateDB, error)
 	DB() types.StoreDB
+	P2P() *configs.P2PConfig
 	ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error)
 }

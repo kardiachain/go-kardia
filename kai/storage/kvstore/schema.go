@@ -27,10 +27,7 @@ import (
 
 // The fields below define the low level database schema prefixing.
 var (
-	// headHeaderKey tracks the latest know header's hash.
-	headHeaderKey = []byte("LastHeader")
-
-	// headBlockKey tracks the latest know full block's hash.
+	// headBlockKey tracks the latest known full block's hash.
 	headBlockKey = []byte("LastBlock")
 
 	// Data item prefixes (use single byte to avoid mixing data types, avoid `i`, used for indexes).
@@ -47,13 +44,6 @@ var (
 	commitPrefix     = []byte("c")  // commitPrefix + num (uint64 big endian) -> commit
 	seenCommitPrefix = []byte("sm") // seenCommitPrefix + num -> seen commit
 	appHashPrefix    = []byte("ah") // appHashPrefix + num -> app hash
-
-	// TODO(namdoh@): The hashKey is primarily used for persistently store a tx hash in db, so we
-	// quickly check if a tx has been seen in the past. When the scope of this key extends beyond
-	// tx hash, it's probably cleaner to refactor this into a separate API (instead of grouping
-	// it under chaindb).
-	hashPrefix   = []byte("hash")   // hashPrefix + hash -> hash key
-	txHashPrefix = []byte("txHash") // txHashPrefix + hash -> hash key
 
 	configPrefix          = []byte("kardia-config-") // config prefix for the db
 	txLookupPrefix        = []byte("l")              // txLookupPrefix + hash -> transaction/receipt lookup metadata
@@ -174,16 +164,6 @@ func bloomBitsKey(bit uint, section uint64, hash common.Hash) []byte {
 	return key
 }
 
-// hashKey = hashPrefix + hash
-func hashKey(hash *common.Hash) []byte {
-	return append(hashPrefix, hash.Bytes()...)
-}
-
-// txHashKey = txHashPrefix + hash
-func txHashKey(hash *common.Hash) []byte {
-	return append(txHashPrefix, hash.Bytes()...)
-}
-
 func eventKey(smartContractAddress string, method string) []byte {
 	return append(append(eventPrefix, []byte(smartContractAddress)...), []byte(method)...)
 }
@@ -200,14 +180,12 @@ func contractAbiKey(smartContractAddress string) []byte {
 	return append(contractAbiPrefix, []byte(smartContractAddress)...)
 }
 
-func blockMetaKey(hash common.Hash, height uint64) []byte {
-	return append(blockMetaPrefix,
-		append(encodeBlockHeight(height), hash.Bytes()...)...)
+func blockMetaKey(height uint64) []byte {
+	return append(blockMetaPrefix, encodeBlockHeight(height)...)
 }
 
-func blockPartKey(hash common.Hash, height uint64, index int) []byte {
-	return append(blockPartPrefix,
-		append(append(encodeBlockHeight(height), hash.Bytes()...), encodeIndex(uint32(index))...)...)
+func blockPartKey(height uint64, index int) []byte {
+	return append(blockPartPrefix, append(encodeBlockHeight(height), encodeIndex(uint32(index))...)...)
 }
 
 func seenCommitKey(height uint64) []byte {

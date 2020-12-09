@@ -196,7 +196,7 @@ func (p *Parser) CEL(src string) ([]interface{}, error) {
 }
 
 func (p *Parser) GetNonce() uint64 {
-	nonce := p.TxPool.Nonce(p.Bc.Config().BaseAccount.Address)
+	nonce := p.TxPool.Nonce(*p.Bc.P2P().Address())
 
 	p.mtx.Lock()
 	defer p.mtx.Unlock()

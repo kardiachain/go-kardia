@@ -50,8 +50,8 @@ func NewStoreDB(db kaidb.Database) *StoreDB {
 
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
-func (s *StoreDB) ReadBlockMeta(hash common.Hash, height uint64) *types.BlockMeta {
-	return ReadBlockMeta(s.db, hash, height)
+func (s *StoreDB) ReadBlockMeta(height uint64) *types.BlockMeta {
+	return ReadBlockMeta(s.db, height)
 }
 
 // ReadBlock returns the Block for the given height
@@ -60,8 +60,8 @@ func (s *StoreDB) ReadBlock(hash common.Hash, height uint64) *types.Block {
 }
 
 // ReadBlockPart returns the block part fo the given height and index
-func (s *StoreDB) ReadBlockPart(hash common.Hash, height uint64, index int) *types.Part {
-	return ReadBlockPart(s.db, hash, height, index)
+func (s *StoreDB) ReadBlockPart(height uint64, index int) *types.Part {
+	return ReadBlockPart(s.db, height, index)
 }
 
 // WriteBlock write block to database
@@ -95,18 +95,14 @@ func (s *StoreDB) WriteTxLookupEntries(block *types.Block) {
 	WriteTxLookupEntries(s.db, block)
 }
 
-// Stores a hash into the database.
-func (s *StoreDB) StoreHash(hash *common.Hash) {
-	StoreHash(s.db, hash)
-}
-
-// Stores a tx hash into the database.
-func (s *StoreDB) StoreTxHash(hash *common.Hash) {
-	StoreTxHash(s.db, hash)
-}
-
+// WriteHeadBlockHash stores head blockhash to db
 func (s *StoreDB) WriteHeadBlockHash(hash common.Hash) {
 	WriteHeadBlockHash(s.db, hash)
+}
+
+// WriteAppHash stores app hash to db
+func (s *StoreDB) WriteAppHash(height uint64, hash common.Hash) {
+	WriteAppHash(s.db, height, hash)
 }
 
 // ReadSmartContractAbi gets smart contract abi by smart contract address
@@ -207,14 +203,10 @@ func (s *StoreDB) ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, uint
 	return ReadTxLookupEntry(s.db, hash)
 }
 
-// Returns true if a hash already exists in the database.
-func (s *StoreDB) CheckHash(hash *common.Hash) bool {
-	return CheckHash(s.db, hash)
-}
-
-// Returns true if a tx hash already exists in the database.
-func (s *StoreDB) CheckTxHash(hash *common.Hash) bool {
-	return CheckTxHash(s.db, hash)
+// ReadTxLookupEntry retrieves the positional metadata associated with a transaction
+// hash to allow retrieving the transaction or receipt by hash.
+func (s *StoreDB) ReadAppHash(height uint64) common.Hash {
+	return ReadAppHash(s.db, height)
 }
 
 // DeleteBody removes all block body data associated with a hash.
@@ -232,17 +224,17 @@ func (s *StoreDB) DeleteCanonicalHash(number uint64) {
 	DeleteCanonicalHash(s.db, number)
 }
 
-func (s *StoreDB) DeleteBlockMeta(hash common.Hash, height uint64) error {
-	if err := s.db.Delete(blockMetaKey(hash, height)); err != nil {
+func (s *StoreDB) DeleteBlockMeta(height uint64) error {
+	if err := s.db.Delete(blockMetaKey(height)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *StoreDB) DeleteBlockPart(hash common.Hash, height uint64) error {
-	blockMeta := s.ReadBlockMeta(hash, height)
+func (s *StoreDB) DeleteBlockPart(height uint64) error {
+	blockMeta := s.ReadBlockMeta(height)
 	for i := 0; i < int(blockMeta.BlockID.PartsHeader.Total); i++ {
-		if err := s.db.Delete(blockPartKey(hash, height, i)); err != nil {
+		if err := s.db.Delete(blockPartKey(height, i)); err != nil {
 			return err
 		}
 	}

@@ -3,6 +3,8 @@ package configs
 import (
 	"crypto/ecdsa"
 	"errors"
+	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/lib/crypto"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -134,6 +136,19 @@ func DefaultP2PConfig() *P2PConfig {
 // AddrBookFile returns the full path to the address book
 func (cfg *P2PConfig) AddrBookFile() string {
 	return rootify(cfg.AddrBook, cfg.RootDir)
+}
+
+// Address return the main address
+func (cfg *P2PConfig) Address() *common.Address {
+	if address := crypto.PubkeyToAddress(cfg.PrivateKey.PublicKey); !address.Equal(common.Address{}) {
+		return &address
+	}
+	return nil
+}
+
+// PrivKey return the main address's private key
+func (cfg *P2PConfig) PrivKey() *ecdsa.PrivateKey {
+	return cfg.PrivateKey
 }
 
 // FuzzConnConfig is a FuzzedConnection configuration.

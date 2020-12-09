@@ -281,7 +281,7 @@ func (p *KardiaProxy) executeAction(block *types.Block, tx *types.Transaction, a
 		return err
 	}
 	dualEvent.PendingTxMetadata = txMetadata
-	signedEvent, err := types.SignEvent(dualEvent, &p.dualBc.Config().BaseAccount.PrivateKey)
+	signedEvent, err := types.SignEvent(dualEvent, p.dualBc.P2P().PrivKey())
 	if err != nil {
 		return err
 	}

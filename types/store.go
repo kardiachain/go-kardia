@@ -35,17 +35,17 @@ type StoreDB interface {
 	WriteEvent(smartcontract *KardiaSmartcontract)
 	WriteTxLookupEntries(block *Block)
 	WriteHeadBlockHash(common.Hash)
-	StoreTxHash(hash *common.Hash)
-	StoreHash(hash *common.Hash)
+	WriteAppHash(uint64, common.Hash)
 
 	ReadCanonicalHash(height uint64) common.Hash
 	ReadChainConfig(hash common.Hash) *configs.ChainConfig
 	ReadBlock(hash common.Hash, height uint64) *Block
 	ReadHeader(hash common.Hash, height uint64) *Header
 	ReadBody(hash common.Hash, height uint64) *Body
-	ReadBlockPart(hash common.Hash, height uint64, index int) *Part
+	ReadBlockPart(height uint64, index int) *Part
+	ReadAppHash(uint64) common.Hash
 
-	ReadBlockMeta(common.Hash, uint64) *BlockMeta
+	ReadBlockMeta(uint64) *BlockMeta
 	ReadHeadBlockHash() common.Hash
 	ReadHeaderHeight(hash common.Hash) *uint64
 	ReadCommit(height uint64) *Commit
@@ -59,10 +59,8 @@ type StoreDB interface {
 	ReadSmartContractAbi(address string) *abi.ABI
 	ReadEvent(address string, method string) *Watcher
 	ReadEvents(address string) (string, []*Watcher)
-	CheckHash(hash *common.Hash) bool
-	CheckTxHash(hash *common.Hash) bool
 
-	DeleteBlockMeta(hash common.Hash, height uint64) error
-	DeleteBlockPart(hash common.Hash, height uint64) error
+	DeleteBlockMeta(height uint64) error
+	DeleteBlockPart(height uint64) error
 	DeleteCanonicalHash(height uint64)
 }

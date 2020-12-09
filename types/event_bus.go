@@ -20,10 +20,7 @@ package types
 
 import (
 	"context"
-	"fmt"
-
 	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/tendermint/tendermint/abci/types"
 
 	kpubsub "github.com/kardiachain/go-kardiamain/lib/pubsub"
 	"github.com/kardiachain/go-kardiamain/lib/service"
@@ -143,10 +140,10 @@ func (b *EventBus) Publish(eventType string, eventData KaiEventData) error {
 // 	return result
 // }
 
-func (b *EventBus) validateAndStringifyEvents(events []types.Event, logger log.Logger) map[string][]string {
-	fmt.Println("not yet implement")
-	return nil
-}
+//func (b *EventBus) validateAndStringifyEvents(events []types.Event, logger log.Logger) map[string][]string {
+//	fmt.Println("not yet implement")
+//	return nil
+//}
 
 //--- EventDataRoundState events
 func (b *EventBus) PublishEventNewRoundStep(event EventDataRoundState) error {

@@ -143,7 +143,7 @@ func (dbo *DualBlockOperations) CommitAndValidateBlockTxs(block *types.Block, la
 // CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
 // Proposer and validators should already commit the block txs, so this function prevents double tx execution.
 func (dbo *DualBlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
-	root := kvstore.ReadAppHash(dbo.blockchain.DB().DB(), block.Height())
+	root := dbo.blockchain.DB().ReadAppHash(block.Height())
 	if !dbo.blockchain.CheckCommittedStateRoot(root) {
 		dbo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
 		return dbo.CommitAndValidateBlockTxs(block, lastCommit, byzVals)

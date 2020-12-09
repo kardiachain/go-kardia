@@ -95,7 +95,7 @@ func NewPool(stateDB cstate.Store, evidenceDB kaidb.Database, blockStore BlockSt
 // PendingEvidence is used primarily as part of block proposal and returns up to maxNum of uncommitted evidence.
 func (evpool *Pool) PendingEvidence(maxBytes int64) ([]types.Evidence, int64) {
 	if evpool.Size() == 0 {
-		return []types.Evidence{}, 0
+		return nil, 0
 	}
 	evidence, size, err := evpool.listEvidence([]byte(baseKeyPending), maxBytes)
 	if err != nil {

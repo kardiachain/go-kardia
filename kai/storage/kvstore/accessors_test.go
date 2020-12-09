@@ -44,6 +44,24 @@ func TestHeadStorage(t *testing.T) {
 	}
 }
 
+func TestAppHashStorage(t *testing.T) {
+	db := memorydb.New()
+	height := uint64(1337)
+	block := types.NewBlockWithHeader(&types.Header{Height: height})
+
+	// Check that no head entries are in a pristine database
+	if entry := ReadAppHash(db, height); entry != (common.Hash{}) {
+		t.Fatalf("Non app hash entry returned: %v", entry)
+	}
+	// Assign separate entries for the head header and block
+	WriteAppHash(db, height, block.Hash())
+
+	// Check that both heads are present, and different (i.e. two heads maintained)
+	if entry := ReadAppHash(db, height); entry.Equal(common.Hash{}) {
+		t.Fatalf("App hash mismatch: have %v, want %v", entry, block.Hash())
+	}
+}
+
 // Tests that canonical numbers can be mapped to hashes and retrieved.
 func TestCanonicalMappingStorage(t *testing.T) {
 	db := memorydb.New()
