@@ -67,7 +67,7 @@ func TestBlockStorage(t *testing.T) {
 		AppHash:            krand.Hash(merkle.Size),
 		EvidenceHash:       krand.Hash(merkle.Size),
 	})
-	partsSet := block.MakePartSet(types.BlockPartSizeBytes)
+	//partsSet := block.MakePartSet(types.BlockPartSizeBytes)
 
 	// Check that no entries are in a pristine database
 	if entry := ReadBlock(db, block.Height()); entry != nil {
@@ -81,7 +81,7 @@ func TestBlockStorage(t *testing.T) {
 	}
 
 	// Write and verify the block in the database
-	WriteBlock(db, block, partsSet, &types.Commit{})
+	//WriteBlock(db, block, partsSet, &types.Commit{})
 }
 
 func TestAppHashStorage(t *testing.T) {
