@@ -1,22 +1,5 @@
-/*
- *  Copyright 2018 KardiaChain
- *  This file is part of the go-kardia library.
- *
- *  The go-kardia library is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  The go-kardia library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public License
- *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
- */
-
-package tests
+// Package staking
+package staking
 
 import (
 	"encoding/hex"
@@ -37,8 +20,6 @@ import (
 	"github.com/kardiachain/go-kardiamain/lib/log"
 	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
 	g "github.com/kardiachain/go-kardiamain/mainchain/genesis"
-
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 	"github.com/kardiachain/go-kardiamain/types"
 )
 
@@ -49,7 +30,13 @@ var (
 	maxChangeRate         = "50000000000000000"
 	minSelfDelegate       = "10000000000000000000000000"
 	selfDelegate          = "15000000000000000000000000"
+	address               = common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
 )
+
+func setupGenesis(genesis *g.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
+	stakingUtil, _ := NewSmcStakingnUtil()
+	return g.SetupGenesisBlock(log.New(), db, genesis, stakingUtil)
+}
 
 func GetBlockchainStaking() (*blockchain.BlockChain, error, *state.StateDB) {
 	logger := log.New()
@@ -104,19 +91,19 @@ func GetBlockchainStaking() (*blockchain.BlockChain, error, *state.StateDB) {
 	return bc, nil, stateDB
 }
 
-func GetSmcStakingUtil() (*blockchain.BlockChain, *staking.StakingSmcUtil, error, *state.StateDB) {
+func GetSmcStakingUtil() (*blockchain.BlockChain, *StakingSmcUtil, error, *state.StateDB) {
 	bc, err, stateDB := GetBlockchainStaking()
 	if err != nil {
 		return nil, nil, err, nil
 	}
-	util, err := staking.NewSmcStakingnUtil()
+	util, err := NewSmcStakingnUtil()
 	if err != nil {
 		return nil, nil, err, nil
 	}
 	return bc, util, nil, stateDB
 }
 
-func setup() (*blockchain.BlockChain, *state.StateDB, *staking.StakingSmcUtil, *types.Block, error) {
+func setup() (*blockchain.BlockChain, *state.StateDB, *StakingSmcUtil, *types.Block, error) {
 	bc, util, err, stateDB := GetSmcStakingUtil()
 	if err != nil {
 		return nil, nil, nil, nil, err
@@ -137,15 +124,15 @@ func setup() (*blockchain.BlockChain, *state.StateDB, *staking.StakingSmcUtil, *
 	return bc, stateDB, util, block, nil
 }
 
-func finalizeTest(stateDB *state.StateDB, util *staking.StakingSmcUtil, block *types.Block) error {
+func finalizeTest(stateDB *state.StateDB, util *StakingSmcUtil, block *types.Block) error {
 	//test finalizeCommit finalize commit
-	err := util.FinalizeCommit(stateDB, block.Header(), nil, kvm.Config{}, staking.LastCommitInfo{})
+	err := util.FinalizeCommit(stateDB, block.Header(), nil, kvm.Config{}, LastCommitInfo{})
 	if err != nil {
 		return err
 	}
 
 	//test double sign
-	err = util.DoubleSign(stateDB, block.Header(), nil, kvm.Config{}, []staking.Evidence{})
+	err = util.DoubleSign(stateDB, block.Header(), nil, kvm.Config{}, []Evidence{})
 	if err != nil {
 		return err
 	}
@@ -494,7 +481,7 @@ func TestCreateValidator2(t *testing.T) {
 		getDelegation,
 		false,
 	)
-	res, err := staking.Apply(log.New(), bc, stateDB, block.Header(), kvm.Config{}, msg)
+	res, err := Apply(log.New(), bc, stateDB, block.Header(), kvm.Config{}, msg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -521,7 +508,7 @@ func TestCreateValidator2(t *testing.T) {
 		getValidator,
 		false,
 	)
-	res, err = staking.Apply(log.New(), bc, stateDB, block.Header(), kvm.Config{}, msg)
+	res, err = Apply(log.New(), bc, stateDB, block.Header(), kvm.Config{}, msg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -574,7 +561,7 @@ func TestCreateValidator2(t *testing.T) {
 		getAllDelegatorStake,
 		false,
 	)
-	res, err = staking.Apply(log.New(), bc, stateDB, block.Header(), kvm.Config{}, msg)
+	res, err = Apply(log.New(), bc, stateDB, block.Header(), kvm.Config{}, msg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -759,6 +746,7 @@ func TestDoubleSign(t *testing.T) {
 	unBondingTime := big.NewInt(1)
 	signedBlockWindow := big.NewInt(2)
 	minSignedBlockPerWindow := big.NewInt(1)
+
 	// set params
 	setParams, err := abi.Pack("setParams", big.NewInt(100), big.NewInt(600), baseProposerReward, bonusProposerReward, slashFractionDowntime, slashFractionDoubleSign, unBondingTime, signedBlockWindow, minSignedBlockPerWindow)
 	if err != nil {
