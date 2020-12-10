@@ -6,7 +6,7 @@ jobs:
     working_directory: /go/src/github.com/kardiachain/go-kardia
 
     environment:
-      CODECOV_TOKEN: 7b55d1cf-771a-4787-8f11-c234e1f21ace
+      CODECOV_TOKEN: 85b61679-b8d5-409e-80c2-21b20ee5ad01
 
     steps:
       - checkout
@@ -48,10 +48,3 @@ workflows:
             branches:
               only:
                 - master
-      #- release:
-      #    filters:
-      #      branches:
-      #        ignore: /.*/
-      #      tags:
-      #        only: /v[0-9]+(\.[0-9]+)*(-.*)*/
-
