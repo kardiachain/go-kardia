@@ -4,7 +4,7 @@ services:
   testnet-node:
     container_name: testnet-node
     build: ../..
-    image: kardiachain/go-kardiamain
+    image: kardiachain/go-kardia
     ports:
       - 3000:3000
       - 3000:3000/udp

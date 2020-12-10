@@ -11,7 +11,7 @@ services:
   node1:
     container_name: node1
     build: ../..
-    image: kardiachain/go-kardiamain
+    image: kardiachain/go-kardia
     ports:
       - 3000:3000
       - 3000:3000/udp
@@ -29,7 +29,7 @@ services:
         max-size: 300m
   node2:
     container_name: node2
-    image: kardiachain/go-kardiamain
+    image: kardiachain/go-kardia
     ports:
       - 3001:3000
       - 3001:3000/udp
@@ -47,7 +47,7 @@ services:
         max-size: 300m
   node3:
     container_name: node3
-    image: kardiachain/go-kardiamain
+    image: kardiachain/go-kardia
     ports:
       - 3002:3000
       - 3002:3000/udp

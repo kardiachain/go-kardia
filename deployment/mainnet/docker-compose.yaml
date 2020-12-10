@@ -4,7 +4,7 @@ services:
   mainnet-node:
     container_name: mainnet-node
     build: ../..
-    image: kardiachain/go-kardiamain
+    image: kardiachain/go-kardia
     ports:
       - 3000:3000
       - 3000:3000/udp
