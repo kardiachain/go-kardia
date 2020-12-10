@@ -26,6 +26,7 @@ import (
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 )
