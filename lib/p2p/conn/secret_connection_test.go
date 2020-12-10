@@ -18,10 +18,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kardiachain/go-kardiamain/lib/async"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	kos "github.com/kardiachain/go-kardiamain/lib/os"
-	krand "github.com/kardiachain/go-kardiamain/lib/rand"
+	"github.com/kardiachain/go-kardia/lib/async"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	kos "github.com/kardiachain/go-kardia/lib/os"
+	krand "github.com/kardiachain/go-kardia/lib/rand"
 )
 
 // Run go test -update from within this module

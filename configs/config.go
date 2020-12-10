@@ -23,8 +23,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 // TODO(huny): Get the proper genesis hash for Kardia when ready

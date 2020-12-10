@@ -26,20 +26,20 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
-	"github.com/kardiachain/go-kardiamain/kai/base"
-	"github.com/kardiachain/go-kardiamain/kai/events"
-	"github.com/kardiachain/go-kardiamain/lib/abi"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/event"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	kai "github.com/kardiachain/go-kardiamain/mainchain"
-	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardiamain/node"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/lib/log"
+	kai "github.com/kardiachain/go-kardia/mainchain"
+	"github.com/kardiachain/go-kardia/mainchain/permissioned"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardia/types"
 	"github.com/pkg/errors"
 )
 
@@ -242,7 +242,6 @@ func (p *PermissionedProxy) handlePrivateBlock(block *types.Block) {
 	//	method, err := p.smcABI.MethodById(tx.Data()[0:4])
 	//	if err != nil {
 	//		p.logger.Error("Error unpacking method", "tx", tx.Hash(), "err", err)
-	//		// TODO(@sontranrad): add a counter to track how many errors we encountered
 	//		continue
 	//	}
 	//	// We process candidate info requests and their responses from private chain to forward to smart contract on Kardia
@@ -262,7 +261,6 @@ func (p *PermissionedProxy) handlePrivateBlock(block *types.Block) {
 	//	privateChainTxHash := tx.Hash()
 	//	txHash := common.BytesToHash(privateChainTxHash[:])
 	//	// Compose dual event and tx metadata from emitted event from private chain smart contract
-	//	// TODO(namdoh@): Pass smartcontract actions here.
 	//	dualEvent := types.NewDualEvent(height, true, /* externalChain */
 	//		types.BlockchainSymbol(string(*p.privateChainID)), &txHash, &eventSummary, nil)
 	//	txMetaData, err := p.internalChain.ComputeTxMetadata(dualEvent.TriggeredEvent)

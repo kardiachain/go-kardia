@@ -23,10 +23,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/merkle"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/merkle"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

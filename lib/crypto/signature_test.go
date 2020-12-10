@@ -20,7 +20,7 @@ package crypto
 
 import (
 	"bytes"
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"testing"
 )
 

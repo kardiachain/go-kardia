@@ -5,11 +5,11 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/kardiachain/go-kardiamain/lib/service"
+	"github.com/kardiachain/go-kardia/lib/service"
 )
 
 // mockPeer for testing the PeerSet

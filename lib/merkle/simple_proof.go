@@ -23,7 +23,7 @@ import (
 	"errors"
 	"fmt"
 
-	kcrypto "github.com/kardiachain/go-kardiamain/proto/kardiachain/crypto"
+	kcrypto "github.com/kardiachain/go-kardia/proto/kardiachain/crypto"
 )
 
 // SimpleProof represents a simple Merkle proof.

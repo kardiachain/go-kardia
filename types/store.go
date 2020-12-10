@@ -19,43 +19,35 @@
 package types
 
 import (
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/lib/abi"
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 type StoreDB interface {
-	//WriteBody(hash common.Hash, height uint64, body *Body)
-	//WriteHeader(header *Header)
-	//WriteBodyRLP(hash common.Hash, height uint64, rlp rlp.RawValue)
+	DB() kaidb.Database
+
 	WriteChainConfig(hash common.Hash, cfg *configs.ChainConfig)
 	WriteBlock(*Block, *PartSet, *Commit)
 	WriteBlockInfo(hash common.Hash, height uint64, blockInfo *BlockInfo)
 	WriteCanonicalHash(hash common.Hash, height uint64)
 	WriteEvent(smartcontract *KardiaSmartcontract)
-	//WriteCommit(height uint64, commit *Commit)
-	//WriteCommitRLP(height uint64, rlp rlp.RawValue)
 	WriteTxLookupEntries(block *Block)
-	StoreTxHash(hash *common.Hash)
-	StoreHash(hash *common.Hash)
-
-	DB() kaidb.Database
+	WriteHeadBlockHash(common.Hash)
+	WriteAppHash(uint64, common.Hash)
 
 	ReadCanonicalHash(height uint64) common.Hash
 	ReadChainConfig(hash common.Hash) *configs.ChainConfig
-	ReadBlock(hash common.Hash, height uint64) *Block
-	ReadHeader(hash common.Hash, height uint64) *Header
-	ReadBody(hash common.Hash, height uint64) *Body
-	ReadBlockPart(hash common.Hash, height uint64, index int) *Part
+	ReadBlock(height uint64) *Block
+	ReadHeader(height uint64) *Header
+	ReadBody(height uint64) *Body
+	ReadBlockPart(height uint64, index int) *Part
+	ReadAppHash(uint64) common.Hash
 
-	//ReadBodyRLP(hash common.Hash, height uint64) rlp.RawValue
-	//ReadHeaderRLP(hash common.Hash, height uint64) rlp.RawValue
-	ReadBlockMeta(common.Hash, uint64) *BlockMeta
+	ReadBlockMeta(uint64) *BlockMeta
 	ReadHeadBlockHash() common.Hash
 	ReadHeaderHeight(hash common.Hash) *uint64
-	ReadHeadHeaderHash() common.Hash
-	WriteHeadBlockHash(common.Hash)
 	ReadCommit(height uint64) *Commit
 	ReadSeenCommit(height uint64) *Commit
 	ReadTransaction(hash common.Hash) (*Transaction, common.Hash, uint64, uint64)
@@ -67,11 +59,8 @@ type StoreDB interface {
 	ReadSmartContractAbi(address string) *abi.ABI
 	ReadEvent(address string, method string) *Watcher
 	ReadEvents(address string) (string, []*Watcher)
-	CheckHash(hash *common.Hash) bool
-	CheckTxHash(hash *common.Hash) bool
 
-	// Delete
-	DeleteBlockMeta(hash common.Hash, height uint64) error
-	DeleteBlockPart(hash common.Hash, height uint64) error
+	DeleteBlockMeta(height uint64) error
+	DeleteBlockPart(height uint64) error
 	DeleteCanonicalHash(height uint64)
 }

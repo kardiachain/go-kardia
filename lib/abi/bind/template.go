@@ -18,7 +18,7 @@
 
 package bind
 
-import "github.com/kardiachain/go-kardiamain/lib/abi"
+import "github.com/kardiachain/go-kardia/lib/abi"
 
 // tmplData is the data structure required to fill the binding template.
 type tmplData struct {
@@ -93,11 +93,11 @@ import (
 	"strings"
 
 	kardia "github.com/kardiachain/go-kardiamain"
-	"github.com/kardiachain/go-kardiamain/lib/abi"
-	"github.com/kardiachain/go-kardiamain/lib/abi/bind"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/types"
-	"github.com/kardiachain/go-kardiamain/lib/event"
+	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/abi/bind"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/lib/event"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.

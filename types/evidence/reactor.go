@@ -22,14 +22,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/clist"
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/lib/clist"
+	"github.com/kardiachain/go-kardia/lib/log"
 
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/types"
 
-	ep "github.com/kardiachain/go-kardiamain/proto/kardiachain/evidence"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	ep "github.com/kardiachain/go-kardia/proto/kardiachain/evidence"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 const (

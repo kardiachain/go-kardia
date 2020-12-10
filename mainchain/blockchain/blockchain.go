@@ -24,18 +24,16 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/kardiachain/go-kardiamain/kai/events"
-	"github.com/kardiachain/go-kardiamain/kai/state"
-	"github.com/kardiachain/go-kardiamain/kvm"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/event"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kvm"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/permissioned"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
@@ -80,6 +78,10 @@ type BlockChain struct {
 
 	// permissioned is used to call permissioned smartcontract to check whether a node has permission to access chain or not
 	permissioned *permissioned.PermissionSmcUtil
+}
+
+func (bc *BlockChain) P2P() *configs.P2PConfig {
+	return bc.P2P()
 }
 
 // GetVMConfig returns the block chain VM config.
@@ -176,18 +178,12 @@ func (bc *BlockChain) GetBlockByHeight(height uint64) *types.Block {
 
 // LoadBlockPart ...
 func (bc *BlockChain) LoadBlockPart(height uint64, index int) *types.Part {
-	hash := bc.db.ReadCanonicalHash(height)
-	part := bc.db.ReadBlockPart(hash, height, index)
-	if hash == (common.Hash{}) {
-		return nil
-	}
-	return part
+	return bc.db.ReadBlockPart(height, index)
 }
 
 // LoadBlockMeta ...
 func (bc *BlockChain) LoadBlockMeta(height uint64) *types.BlockMeta {
-	hash := bc.db.ReadCanonicalHash(height)
-	return bc.db.ReadBlockMeta(hash, height)
+	return bc.db.ReadBlockMeta(height)
 }
 
 // LoadBlockCommit ...
@@ -207,7 +203,7 @@ func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	if block, ok := bc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
 	}
-	block := bc.db.ReadBlock(hash, number)
+	block := bc.db.ReadBlock(number)
 	if block == nil {
 		return nil
 	}
@@ -229,7 +225,7 @@ func (bc *BlockChain) State() (*state.StateDB, error) {
 
 // StateAt returns a new mutable state based on a particular point in time.
 func (bc *BlockChain) StateAt(height uint64) (*state.StateDB, error) {
-	root := kvstore.ReadAppHash(bc.DB().DB(), height)
+	root := bc.DB().ReadAppHash(height)
 	return state.New(bc.logger, root, bc.stateCache)
 }
 
@@ -263,7 +259,7 @@ func (bc *BlockChain) loadLastState() error {
 		bc.logger.Warn("Head block missing, resetting chain", "hash", hash)
 		return bc.Reset()
 	}
-	root := kvstore.ReadAppHash(bc.DB().DB(), currentBlock.Height())
+	root := bc.DB().ReadAppHash(currentBlock.Height())
 	// Make sure the state associated with the block is available
 	if _, err := state.New(bc.logger, root, bc.stateCache); err != nil {
 		// Dangling block without a state associated, init from scratch
@@ -277,11 +273,6 @@ func (bc *BlockChain) loadLastState() error {
 
 	// Restore the last known head header
 	currentHeader := currentBlock.Header()
-	if head := bc.db.ReadHeadHeaderHash(); head != (common.Hash{}) {
-		if header := bc.GetHeaderByHash(head); header != nil {
-			currentHeader = header
-		}
-	}
 	bc.hc.SetCurrentHeader(currentHeader)
 
 	bc.logger.Info("Loaded most recent local header", "height", currentHeader.Height, "hash", currentHeader.Hash())
@@ -324,7 +315,7 @@ func (bc *BlockChain) ResetWithGenesisBlock(genesis *types.Block) error {
 // fast block are left intact.
 func (bc *BlockChain) repair(head **types.Block) error {
 	for {
-		root := kvstore.ReadAppHash(bc.DB().DB(), (*head).Height())
+		root := bc.DB().ReadAppHash((*head).Height())
 		// Abort if we've rewound to a head block that does have associated state
 		if _, err := state.New(bc.logger, root, bc.stateCache); err == nil {
 			bc.logger.Info("Rewound blockchain to past state", "height", (*head).Height(), "hash", (*head).Hash())
@@ -367,8 +358,8 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	defer bc.mu.Unlock()
 
 	// Rewind the header chain, deleting all block bodies until then
-	delFn := func(db types.StoreDB, hash common.Hash, height uint64) {
-		db.DeleteBlockPart(hash, height)
+	delFn := func(db types.StoreDB, height uint64) {
+		db.DeleteBlockPart(height)
 	}
 	bc.hc.SetHead(head, delFn)
 	currentHeader := bc.hc.CurrentHeader()
@@ -382,7 +373,7 @@ func (bc *BlockChain) SetHead(head uint64) error {
 		bc.currentBlock.Store(bc.GetBlock(currentHeader.Hash(), currentHeader.Height))
 	}
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil {
-		root := kvstore.ReadAppHash(bc.DB().DB(), currentBlock.Height())
+		root := bc.DB().ReadAppHash(currentBlock.Height())
 		if _, err := state.New(bc.logger, root, bc.stateCache); err != nil {
 			// Rewound state missing, rolled back to before pivot, reset to genesis
 			bc.currentBlock.Store(bc.genesisBlock)

@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	kmath "github.com/kardiachain/go-kardiamain/lib/math"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	krand "github.com/kardiachain/go-kardiamain/lib/rand"
+	"github.com/kardiachain/go-kardia/lib/log"
+	kmath "github.com/kardiachain/go-kardia/lib/math"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	krand "github.com/kardiachain/go-kardia/lib/rand"
 )
 
 // FIXME These tests should not rely on .(*addrBook) assertions

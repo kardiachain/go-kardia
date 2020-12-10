@@ -22,14 +22,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	krand "github.com/kardiachain/go-kardia/lib/rand"
 	"math/big"
 	"math/rand"
 	"strings"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 var (
@@ -169,7 +170,7 @@ func ValidatorFromProto(vp *kproto.Validator) (*Validator, error) {
 
 // RandValidator returns a randomized validator, useful for testing.
 func RandValidator(randPower bool, minPower int64) (*Validator, PrivValidator) {
-	rand.Seed(time.Now().UnixNano())
+	krand.Seed(time.Now().UnixNano())
 	privVal := NewMockPV()
 	votePower := minPower
 	if randPower {

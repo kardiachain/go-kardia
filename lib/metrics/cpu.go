@@ -17,7 +17,7 @@
 package metrics
 
 import (
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/shirou/gopsutil/cpu"
 )
 

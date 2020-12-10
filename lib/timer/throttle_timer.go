@@ -3,7 +3,7 @@ package timer
 import (
 	"time"
 
-	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardia/lib/sync"
 )
 
 /*

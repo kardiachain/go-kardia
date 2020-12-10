@@ -22,19 +22,19 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
-	"github.com/kardiachain/go-kardiamain/dualnode/utils"
-	"github.com/kardiachain/go-kardiamain/kai/base"
-	"github.com/kardiachain/go-kardiamain/kai/events"
-	"github.com/kardiachain/go-kardiamain/ksml"
-	message "github.com/kardiachain/go-kardiamain/ksml/proto"
-	"github.com/kardiachain/go-kardiamain/lib/abi"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/event"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/dualnode/utils"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/ksml"
+	message "github.com/kardiachain/go-kardia/ksml/proto"
+	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const KARDIA_PROXY = "KARDIA_PROXY"
@@ -281,7 +281,7 @@ func (p *KardiaProxy) executeAction(block *types.Block, tx *types.Transaction, a
 		return err
 	}
 	dualEvent.PendingTxMetadata = txMetadata
-	signedEvent, err := types.SignEvent(dualEvent, &p.dualBc.Config().BaseAccount.PrivateKey)
+	signedEvent, err := types.SignEvent(dualEvent, p.dualBc.P2P().PrivKey())
 	if err != nil {
 		return err
 	}

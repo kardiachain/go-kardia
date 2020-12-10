@@ -6,14 +6,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/state"
-	"github.com/kardiachain/go-kardiamain/kvm"
-	"github.com/kardiachain/go-kardiamain/lib/abi"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kvm"
+	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // MaximumGasToCallStaticFunction ...

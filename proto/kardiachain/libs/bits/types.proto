@@ -1,7 +1,7 @@
 syntax = "proto3";
 package kardiachain.libs.bits;
 
-option go_package = "github.com/kardiachain/go-kardiamain/proto/kardiachain/libs/bits";
+option go_package = "github.com/kardiachain/go-kardia/proto/kardiachain/libs/bits";
 
 message BitArray {
   int64           bits  = 1;

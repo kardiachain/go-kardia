@@ -26,15 +26,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardia/configs"
 
-	"github.com/kardiachain/go-kardiamain/kai/base"
-	"github.com/kardiachain/go-kardiamain/kai/state"
-	"github.com/kardiachain/go-kardiamain/kvm"
-	"github.com/kardiachain/go-kardiamain/lib/abi"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kvm"
+	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/common"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 func generateInput(p *Parser, extras ...interface{}) (string, *abi.ABI, *common.Address, *types.Header, []byte, error) {
@@ -102,7 +102,7 @@ func triggerSmc(p *Parser, extras ...interface{}) ([]interface{}, error) {
 		return nil, err
 	}
 	// otherwise use gas to create new transaction and add to txPool
-	tx, err := GenerateSmcCall(p.GetNonce(), &p.Bc.Config().BaseAccount.PrivateKey, *p.SmartContractAddress, input, gas)
+	tx, err := GenerateSmcCall(p.GetNonce(), p.Bc.P2P().PrivKey(), *p.SmartContractAddress, input, gas)
 	if err != nil {
 		return nil, err
 	}

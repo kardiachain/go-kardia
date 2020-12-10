@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 //-----------------------------------------------------------------------------

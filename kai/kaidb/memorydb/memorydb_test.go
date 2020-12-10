@@ -21,8 +21,8 @@ package memorydb
 import (
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/dbtest"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/kai/kaidb/dbtest"
 )
 
 func TestMemoryDB(t *testing.T) {

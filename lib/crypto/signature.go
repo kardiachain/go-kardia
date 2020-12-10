@@ -28,7 +28,7 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcec"
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // Ecrecover returns the uncompressed public key that created the given signature.

@@ -25,19 +25,18 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/kvm"
+	"github.com/kardiachain/go-kardia/kvm"
 
-	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/kai/state"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 //go:generate gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go
@@ -234,7 +233,7 @@ func (g *Genesis) Commit(logger log.Logger, db types.StoreDB, staking *staking.S
 	db.WriteBlockInfo(block.Hash(), block.Height(), nil)
 	db.WriteCanonicalHash(block.Hash(), block.Height())
 	db.WriteHeadBlockHash(block.Hash())
-	kvstore.WriteAppHash(db.DB(), block.Height(), root)
+	db.WriteAppHash(block.Height(), root)
 	config := g.Config
 	if config == nil {
 		config = configs.TestnetChainConfig

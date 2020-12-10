@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 func validateBlock(evidencePool EvidencePool, store Store, state LastestBlockState, block *types.Block) error {

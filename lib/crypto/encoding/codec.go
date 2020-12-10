@@ -4,8 +4,8 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	pc "github.com/kardiachain/go-kardiamain/proto/kardiachain/crypto"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	pc "github.com/kardiachain/go-kardia/proto/kardiachain/crypto"
 )
 
 // PubKeyToProto takes crypto.PubKey and transforms it to a protobuf Pubkey

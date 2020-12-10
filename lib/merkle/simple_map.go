@@ -23,7 +23,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
 )
 
 // Merkle tree from a map.

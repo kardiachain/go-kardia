@@ -16,12 +16,12 @@ import (
 
 	"github.com/minio/highwayhash"
 
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	kmath "github.com/kardiachain/go-kardiamain/lib/math"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	krand "github.com/kardiachain/go-kardiamain/lib/rand"
-	"github.com/kardiachain/go-kardiamain/lib/service"
-	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	kmath "github.com/kardiachain/go-kardia/lib/math"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	krand "github.com/kardiachain/go-kardia/lib/rand"
+	"github.com/kardiachain/go-kardia/lib/service"
+	ksync "github.com/kardiachain/go-kardia/lib/sync"
 )
 
 const (

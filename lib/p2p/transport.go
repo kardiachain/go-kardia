@@ -9,9 +9,9 @@ import (
 
 	"golang.org/x/net/netutil"
 
-	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
-	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	"github.com/kardiachain/go-kardia/lib/p2p/conn"
+	"github.com/kardiachain/go-kardia/lib/protoio"
+	kp2p "github.com/kardiachain/go-kardia/proto/kardiachain/p2p"
 )
 
 const (

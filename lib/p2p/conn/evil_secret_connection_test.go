@@ -7,16 +7,16 @@ import (
 	"io"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/gtank/merlin"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/chacha20poly1305"
 
-	cryptoenc "github.com/kardiachain/go-kardiamain/lib/crypto/encoding"
-	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	cryptoenc "github.com/kardiachain/go-kardia/lib/crypto/encoding"
+	"github.com/kardiachain/go-kardia/lib/protoio"
+	kp2p "github.com/kardiachain/go-kardia/proto/kardiachain/p2p"
 )
 
 type buffer struct {

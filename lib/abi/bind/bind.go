@@ -28,8 +28,8 @@ import (
 	"text/template"
 	"unicode"
 
-	"github.com/kardiachain/go-kardiamain/lib/abi"
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // Lang is a target programming language selector to generate bindings for.

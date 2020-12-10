@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/sysutils"
+	"github.com/kardiachain/go-kardia/lib/sysutils"
 )
 
 // Subscription represents a stream of events. The carrier of the events is typically a

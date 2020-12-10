@@ -26,9 +26,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 // The values in those tests are from the Transaction Tests

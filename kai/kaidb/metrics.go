@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/metrics"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/metrics"
 )
 
 const (

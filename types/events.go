@@ -21,9 +21,9 @@ package types
 import (
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	kpubsub "github.com/kardiachain/go-kardiamain/lib/pubsub"
-	kquery "github.com/kardiachain/go-kardiamain/lib/pubsub/query"
+	"github.com/kardiachain/go-kardia/lib/common"
+	kpubsub "github.com/kardiachain/go-kardia/lib/pubsub"
+	kquery "github.com/kardiachain/go-kardia/lib/pubsub/query"
 )
 
 // Reserved event types

@@ -1,9 +1,9 @@
 package mock
 
 import (
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/lib/p2p/conn"
 )
 
 type Reactor struct {

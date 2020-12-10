@@ -27,16 +27,16 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	gogotypes "github.com/gogo/protobuf/types"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
 
-	"github.com/kardiachain/go-kardiamain/lib/clist"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	evproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/evidence"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/lib/clist"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	evproto "github.com/kardiachain/go-kardia/proto/kardiachain/evidence"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
@@ -95,7 +95,7 @@ func NewPool(stateDB cstate.Store, evidenceDB kaidb.Database, blockStore BlockSt
 // PendingEvidence is used primarily as part of block proposal and returns up to maxNum of uncommitted evidence.
 func (evpool *Pool) PendingEvidence(maxBytes int64) ([]types.Evidence, int64) {
 	if evpool.Size() == 0 {
-		return []types.Evidence{}, 0
+		return nil, 0
 	}
 	evidence, size, err := evpool.listEvidence([]byte(baseKeyPending), maxBytes)
 	if err != nil {

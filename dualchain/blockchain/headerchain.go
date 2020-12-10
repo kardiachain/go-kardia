@@ -23,9 +23,9 @@ import (
 
 	lru "github.com/hashicorp/golang-lru"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
@@ -102,7 +102,7 @@ func (dhc *DualHeaderChain) GetHeader(hash common.Hash, height uint64) *types.He
 	if header, ok := dhc.headerCache.Get(hash); ok {
 		return header.(*types.Header)
 	}
-	header := dhc.kaiDb.ReadHeader(hash, height)
+	header := dhc.kaiDb.ReadHeader(height)
 	if header == nil {
 		return nil
 	}
@@ -148,7 +148,7 @@ func (dhc *DualHeaderChain) SetGenesis(head *types.Header) {
 
 // DeleteCallback is a callback function that is called by SetHead before
 // each header is deleted.
-type DeleteCallback func(types.StoreDB, common.Hash, uint64)
+type DeleteCallback func(types.StoreDB, uint64)
 
 // SetHead rewinds the local chain to a new head. Everything above the new head
 // will be deleted and the new one set.
@@ -160,12 +160,11 @@ func (dhc *DualHeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 	}
 
 	for hdr := dhc.CurrentHeader(); hdr != nil && hdr.Height > head; hdr = dhc.CurrentHeader() {
-		hash := hdr.Hash()
 		height := hdr.Height
 		if delFn != nil {
-			delFn(dhc.kaiDb, hash, height)
+			delFn(dhc.kaiDb, height)
 		}
-		dhc.kaiDb.DeleteBlockMeta(hash, height)
+		dhc.kaiDb.DeleteBlockMeta(height)
 
 		dhc.currentHeader.Store(dhc.GetHeader(hdr.LastCommitHash, hdr.Height-1))
 	}

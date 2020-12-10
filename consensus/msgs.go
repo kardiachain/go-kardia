@@ -4,10 +4,10 @@ import (
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
-	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	kcons "github.com/kardiachain/go-kardiamain/proto/kardiachain/consensus"
-	"github.com/kardiachain/go-kardiamain/types"
+	cstypes "github.com/kardiachain/go-kardia/consensus/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	kcons "github.com/kardiachain/go-kardia/proto/kardiachain/consensus"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // MsgToProto takes a consensus message type and returns the proto defined consensus message

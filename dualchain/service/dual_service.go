@@ -19,18 +19,18 @@
 package service
 
 import (
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/consensus"
-	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
-	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
-	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	"github.com/kardiachain/go-kardiamain/node"
-	"github.com/kardiachain/go-kardiamain/rpc"
-	"github.com/kardiachain/go-kardiamain/types"
-	"github.com/kardiachain/go-kardiamain/types/evidence"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/dualchain/blockchain"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardia/rpc"
+	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/types/evidence"
 )
 
 const DualServiceName = "DUAL"

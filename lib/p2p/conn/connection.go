@@ -14,14 +14,14 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
-	flow "github.com/kardiachain/go-kardiamain/lib/flowrate"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	kmath "github.com/kardiachain/go-kardiamain/lib/math"
-	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	"github.com/kardiachain/go-kardiamain/lib/service"
-	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
-	"github.com/kardiachain/go-kardiamain/lib/timer"
-	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	flow "github.com/kardiachain/go-kardia/lib/flowrate"
+	"github.com/kardiachain/go-kardia/lib/log"
+	kmath "github.com/kardiachain/go-kardia/lib/math"
+	"github.com/kardiachain/go-kardia/lib/protoio"
+	"github.com/kardiachain/go-kardia/lib/service"
+	ksync "github.com/kardiachain/go-kardia/lib/sync"
+	"github.com/kardiachain/go-kardia/lib/timer"
+	kp2p "github.com/kardiachain/go-kardia/proto/kardiachain/p2p"
 )
 
 const (

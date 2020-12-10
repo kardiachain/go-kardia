@@ -22,12 +22,12 @@ import (
 	"golang.org/x/crypto/hkdf"
 	"golang.org/x/crypto/nacl/box"
 
-	"github.com/kardiachain/go-kardiamain/lib/async"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	cryptoenc "github.com/kardiachain/go-kardiamain/lib/crypto/encoding"
-	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
-	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	"github.com/kardiachain/go-kardia/lib/async"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	cryptoenc "github.com/kardiachain/go-kardia/lib/crypto/encoding"
+	"github.com/kardiachain/go-kardia/lib/protoio"
+	ksync "github.com/kardiachain/go-kardia/lib/sync"
+	kp2p "github.com/kardiachain/go-kardia/proto/kardiachain/p2p"
 )
 
 // 4 + 1024 == 1028 total frame size

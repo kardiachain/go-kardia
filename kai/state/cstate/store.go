@@ -24,17 +24,17 @@ import (
 	"math/big"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardia/types"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	kmath "github.com/kardiachain/go-kardiamain/lib/math"
-	kstate "github.com/kardiachain/go-kardiamain/proto/kardiachain/state"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	kmath "github.com/kardiachain/go-kardia/lib/math"
+	kstate "github.com/kardiachain/go-kardia/proto/kardiachain/state"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 const (
@@ -329,7 +329,7 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
 		for i, val := range genDoc.Validators {
 			tokens, _ := big.NewInt(0).SetString(val.SelfDelegate, 10)
 			// This calculation MUST sync up with power/token reduction in the staking smart contract
-			// https://github.com/kardiachain/go-kardiamain/kvm/smc/dpos/Staking.sol#12
+			// https://github.com/kardiachain/go-kardia/kvm/smc/dpos/Staking.sol#12
 			// This reduction is used for speed up the kvm computing and lower fees
 			// power = (amount of kai * 10^18)/ power reduction
 			power := tokens.Div(tokens, big.NewInt(int64(math.Pow10(9))))

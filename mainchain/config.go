@@ -19,10 +19,10 @@
 package kai
 
 import (
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/storage"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 )
 
 // DefaultConfig contains default settings for use on the Kardia main net.

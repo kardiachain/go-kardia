@@ -23,11 +23,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/metrics"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/rpc"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/metrics"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/rpc"
 )
 
 // PrivateAdminAPI is the collection of administrative API methods exposed only

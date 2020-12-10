@@ -22,7 +22,7 @@ import (
 	"errors"
 	"math/big"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // NotFound is returned by API methods if the requested item does not exist.

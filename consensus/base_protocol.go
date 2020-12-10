@@ -19,7 +19,7 @@
 package consensus
 
 import (
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	"github.com/kardiachain/go-kardia/lib/p2p"
 )
 
 type BaseProtocol interface {

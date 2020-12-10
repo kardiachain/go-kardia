@@ -23,13 +23,13 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/kai/state"
-	"github.com/kardiachain/go-kardiamain/kvm"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kvm"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 )
 
 // Config is a basic type specifying certain configuration flags for running

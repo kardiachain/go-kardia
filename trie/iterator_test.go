@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 func interfaceToHash(v interface{}) common.Hash {

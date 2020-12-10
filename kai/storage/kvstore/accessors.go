@@ -25,15 +25,15 @@ import (
 	"strings"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/lib/abi"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/lib/abi"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/rlp"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 type SmartContract struct {
@@ -174,26 +174,18 @@ func WriteEvent(db kaidb.Writer, smc *types.KardiaSmartcontract) {
 	}
 }
 
-// WriteCommit stores a commit into the database.
-func WriteCommit(db kaidb.Writer, height uint64, commit *types.Commit) {
-	data, err := rlp.EncodeToBytes(commit)
-	if err != nil {
-		log.Crit("Failed to RLP encode commit", "err", err)
-	}
-	if err := db.Put(commitKey(height), data); err != nil {
-		log.Crit("Failed to store commit", "err", err)
-	}
-}
-
 // ReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
 func ReadBodyRLP(db kaidb.Reader, hash common.Hash, height uint64) rlp.RawValue {
 	data, _ := db.Get(blockBodyKey(height, hash))
 	return data
 }
 
-// ReadBody retrieves the block body corresponding to the hash.
-func ReadBody(db kaidb.Reader, hash common.Hash, height uint64) *types.Body {
-	return ReadBlock(db, hash, height).Body()
+// ReadBody retrieves the block body corresponding to the height.
+func ReadBody(db kaidb.Reader, height uint64) *types.Body {
+	if block := ReadBlock(db, height); block != nil {
+		ReadBlock(db, height).Body()
+	}
+	return nil
 }
 
 // ReadHeadBlockHash retrieves the hash of the current canonical head block.
@@ -213,15 +205,6 @@ func ReadHeaderHeight(db kaidb.Reader, hash common.Hash) *uint64 {
 	}
 	height := binary.BigEndian.Uint64(data)
 	return &height
-}
-
-// ReadHeadHeaderHash retrieves the hash of the current canonical head header.
-func ReadHeadHeaderHash(db kaidb.Reader) common.Hash {
-	data, _ := db.Get(headHeaderKey)
-	if data == nil || len(data) == 0 {
-		return common.Hash{}
-	}
-	return common.BytesToHash(data)
 }
 
 // ReadBody retrieves the commit at a given height.
@@ -332,7 +315,7 @@ func ReadTransaction(db kaidb.Reader, hash common.Hash) (*types.Transaction, com
 		return nil, common.Hash{}, 0, 0
 	}
 
-	body := ReadBody(db, blockHash, blockNumber)
+	body := ReadBody(db, blockNumber)
 	if body == nil || len(body.Transactions) <= int(txIndex) {
 		log.Error("Transaction referenced missing", "number", blockNumber, "hash", blockHash, "index", txIndex)
 		return nil, common.Hash{}, 0, 0
@@ -362,7 +345,7 @@ func ReadDualEvent(db kaidb.Reader, hash common.Hash) (*types.DualEvent, common.
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
-	body := ReadBody(db, blockHash, blockNumber)
+	body := ReadBody(db, blockNumber)
 	if body == nil || len(body.DualEvents) <= int(eventIndex) {
 		log.Error("Dual event referenced missing", "number", blockNumber, "hash", blockHash, "index", eventIndex)
 		return nil, common.Hash{}, 0, 0
@@ -519,38 +502,6 @@ func ReadHeaderNumber(db kaidb.Reader, hash common.Hash) *uint64 {
 	return &number
 }
 
-// StoreHash store a hash into the database.
-func StoreHash(db kaidb.Writer, hash *common.Hash) {
-	if err := db.Put(hashKey(hash), encodeBoolean(true)); err != nil {
-		log.Crit("Failed to store hash", "err", err)
-	}
-}
-
-// CheckHash returns true if a hash already exists in the database.
-func CheckHash(db kaidb.Reader, hash *common.Hash) bool {
-	data, _ := db.Get(hashKey(hash))
-	if data == nil {
-		return false
-	}
-	return decodeBoolean(data)
-}
-
-// StoreTxHash stores a tx hash into the database.
-func StoreTxHash(db kaidb.Writer, hash *common.Hash) {
-	if err := db.Put(txHashKey(hash), encodeBoolean(true)); err != nil {
-		log.Crit("Failed to store hash", "err", err)
-	}
-}
-
-// Returns true if a tx hash already exists in the database.
-func CheckTxHash(db kaidb.Reader, hash *common.Hash) bool {
-	data, _ := db.Get(txHashKey(hash))
-	if data == nil {
-		return false
-	}
-	return decodeBoolean(data)
-}
-
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
 func ReadBlockMeta(db kaidb.Reader, height uint64) *types.BlockMeta {
@@ -593,7 +544,7 @@ func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
 }
 
 // ReadBlock returns the Block for the given height
-func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
+func ReadBlock(db kaidb.Reader, height uint64) *types.Block {
 	blockMeta := ReadBlockMeta(db, height)
 
 	if blockMeta == nil {
@@ -602,7 +553,7 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 
 	buf := []byte{}
 	for i := 0; i < int(blockMeta.BlockID.PartsHeader.Total); i++ {
-		part := ReadBlockPart(db, hash, height, i)
+		part := ReadBlockPart(db, height, i)
 		buf = append(buf, part.Bytes...)
 	}
 	pbb := new(kproto.Block)
@@ -622,13 +573,15 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 }
 
 // ReadHeader retrieves the block header corresponding to the hash.
-func ReadHeader(db kaidb.Reader, hash common.Hash, height uint64) *types.Header {
-	blockMeta := ReadBlockMeta(db, height)
-	return blockMeta.Header
+func ReadHeader(db kaidb.Reader, height uint64) *types.Header {
+	if blockMeta := ReadBlockMeta(db, height); blockMeta != nil {
+		return blockMeta.Header
+	}
+	return nil
 }
 
 // ReadBlockPart returns the block part fo the given height and index
-func ReadBlockPart(db kaidb.Reader, hash common.Hash, height uint64, index int) *types.Part {
+func ReadBlockPart(db kaidb.Reader, height uint64, index int) *types.Part {
 	var pbpart = new(kproto.Part)
 	partBytes, _ := db.Get(blockPartKey(height, index))
 
@@ -666,19 +619,22 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 		panic("nil blockmeta")
 	}
 	metaBytes := mustEncode(pbm)
-	_ = batch.Put(blockMetaKey(height), metaBytes)
+	if err := batch.Put(blockMetaKey(height), metaBytes); err != nil {
+		panic(fmt.Errorf("failed to store block meta err: %s", err))
+	}
 
 	// Save block part
 	for i := 0; i < int(blockParts.Total()); i++ {
 		part := blockParts.GetPart(i)
 		writeBlockPart(batch, height, i, part)
-
 	}
 
 	// Save block commit (duplicate and separate from the Block)
 	pbc := block.LastCommit().ToProto()
 	blockCommitBytes := mustEncode(pbc)
-	_ = batch.Put(commitKey(height-1), blockCommitBytes)
+	if err := batch.Put(commitKey(height-1), blockCommitBytes); err != nil {
+		panic(fmt.Errorf("failed to store block commit err: %s", err))
+	}
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
@@ -700,16 +656,19 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 }
 
 func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part) {
+	var err error
 	pbp, err := part.ToProto()
 	if err != nil {
 		panic(fmt.Errorf("unable to make part into proto: %w", err))
 	}
 	partBytes := mustEncode(pbp)
-	_ = db.Put(blockPartKey(height, index), partBytes)
+	if err = db.Put(blockPartKey(height, index), partBytes); err != nil {
+		panic(fmt.Errorf("failed to store block part key: %w", err))
+	}
 }
 
 // DeleteBlockMeta delete block meta
-func DeleteBlockMeta(db kaidb.Writer, hash common.Hash, height uint64) {
+func DeleteBlockMeta(db kaidb.Writer, height uint64) {
 	_ = db.Delete(blockMetaKey(height))
 }
 

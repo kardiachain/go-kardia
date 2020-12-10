@@ -19,10 +19,10 @@
 package base
 
 import (
-	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // An adapter that provide a unified interface for dual node to interact with external (or

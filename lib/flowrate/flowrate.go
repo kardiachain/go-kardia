@@ -10,7 +10,7 @@ import (
 	"math"
 	"time"
 
-	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardia/lib/sync"
 )
 
 // Monitor monitors and limits the transfer rate of a data stream.

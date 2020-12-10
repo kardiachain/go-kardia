@@ -6,8 +6,8 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	kos "github.com/kardiachain/go-kardiamain/lib/os"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	kos "github.com/kardiachain/go-kardia/lib/os"
 )
 
 // ID is a hex-encoded crypto.Address

@@ -28,7 +28,7 @@ import (
 
 	"golang.org/x/crypto/scrypt"
 
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 )
 
 type KeyStoreJson struct {

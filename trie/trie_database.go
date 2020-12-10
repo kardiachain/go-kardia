@@ -22,11 +22,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/metrics"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/metrics"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 var (
@@ -115,9 +115,11 @@ type rawShortNode struct {
 	Val node
 }
 
-func (n rawShortNode) canUnload(uint16, uint16) bool { panic("this should never end up in a live trie") }
-func (n rawShortNode) cache() (hashNode, bool)       { panic("this should never end up in a live trie") }
-func (n rawShortNode) fstring(ind string) string     { panic("this should never end up in a live trie") }
+func (n rawShortNode) canUnload(uint16, uint16) bool {
+	panic("this should never end up in a live trie")
+}
+func (n rawShortNode) cache() (hashNode, bool)   { panic("this should never end up in a live trie") }
+func (n rawShortNode) fstring(ind string) string { panic("this should never end up in a live trie") }
 
 // cachedNode is all the information we know about a single cached node in the
 // memory database write layer.

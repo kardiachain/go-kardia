@@ -25,13 +25,13 @@ import (
 	"strings"
 	"testing"
 
-	kardia "github.com/kardiachain/go-kardiamain"
-	"github.com/kardiachain/go-kardiamain/lib/abi"
-	"github.com/kardiachain/go-kardiamain/lib/abi/bind"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia"
+	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/abi/bind"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 type mockCaller struct {

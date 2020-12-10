@@ -19,10 +19,10 @@
 package consensus
 
 import (
-	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 type BaseBlockOperations interface {

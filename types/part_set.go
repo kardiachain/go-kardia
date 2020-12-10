@@ -26,10 +26,10 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/merkle"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/merkle"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 var (

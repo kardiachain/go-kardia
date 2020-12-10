@@ -25,7 +25,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // ipcListen will create a Unix socket on the given endpoint.

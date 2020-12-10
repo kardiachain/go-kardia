@@ -23,24 +23,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/merkle"
-	krand "github.com/kardiachain/go-kardiamain/lib/rand"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/merkle"
+	krand "github.com/kardiachain/go-kardia/lib/rand"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-func createBlockIDRandom() BlockID {
-	return BlockID{
-		Hash: common.BytesToHash(common.RandBytes(32)),
-		PartsHeader: PartSetHeader{
-			Total: 1,
-			Hash:  common.BytesToHash(common.RandBytes(32)),
-		},
-	}
-}
 
 func createBlockID(hash common.Hash, partSetSize uint32, partSetHash common.Hash) BlockID {
 	return BlockID{

@@ -23,9 +23,9 @@ import (
 	"fmt"
 	"sync"
 
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 	"github.com/pkg/errors"
 )
 

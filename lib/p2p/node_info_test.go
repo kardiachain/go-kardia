@@ -3,7 +3,7 @@ package p2p
 import (
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 
 	"github.com/stretchr/testify/assert"
 )

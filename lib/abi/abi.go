@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 )
 
 // The ABI holds information about a contract's context and available
