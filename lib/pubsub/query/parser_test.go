@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/kardiachain/go-kardiamain/lib/pubsub/query"
+	"github.com/kardiachain/go-kardia/lib/pubsub/query"
 )
 
 // TODO: fuzzy testing?

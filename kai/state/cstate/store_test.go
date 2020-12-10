@@ -21,9 +21,9 @@ package cstate_test
 import (
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

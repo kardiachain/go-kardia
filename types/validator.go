@@ -22,15 +22,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	krand "github.com/kardiachain/go-kardiamain/lib/rand"
+	krand "github.com/kardiachain/go-kardia/lib/rand"
 	"math/big"
 	"math/rand"
 	"strings"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 var (

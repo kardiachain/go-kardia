@@ -19,7 +19,7 @@ package abi
 import (
 	"math/big"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 type packUnpackTest struct {

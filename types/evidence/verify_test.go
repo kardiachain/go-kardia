@@ -4,14 +4,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 
-	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
-	smocks "github.com/kardiachain/go-kardiamain/kai/state/cstate/mocks"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardiamain/types"
-	"github.com/kardiachain/go-kardiamain/types/evidence/mocks"
+	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	smocks "github.com/kardiachain/go-kardia/kai/state/cstate/mocks"
+	"github.com/kardiachain/go-kardia/lib/common"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/types/evidence/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -11,12 +11,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/lib/bytes"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/lib/bytes"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
 
-	kconn "github.com/kardiachain/go-kardiamain/lib/p2p/conn"
+	kconn "github.com/kardiachain/go-kardia/lib/p2p/conn"
 )
 
 func TestPeerBasic(t *testing.T) {

@@ -21,8 +21,8 @@ package kvm
 import (
 	"github.com/holiman/uint256"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // calcGas returns the actual gas cost of the call.

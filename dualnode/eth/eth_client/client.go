@@ -51,9 +51,9 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/gorilla/mux"
-	message2 "github.com/kardiachain/go-kardiamain/dualnode/message"
-	"github.com/kardiachain/go-kardiamain/dualnode/utils"
-	log "github.com/kardiachain/go-kardiamain/lib/log"
+	message2 "github.com/kardiachain/go-kardia/dualnode/message"
+	"github.com/kardiachain/go-kardia/dualnode/utils"
+	log "github.com/kardiachain/go-kardia/lib/log"
 	"github.com/pebbe/zmq4"
 	"github.com/rs/cors"
 )

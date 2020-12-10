@@ -22,15 +22,15 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 
-	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardia/configs"
 
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/node"
-	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardiamain/rpc"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/node"
+	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/rpc"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // SampleService is a trivial network service that can be attached to a node for

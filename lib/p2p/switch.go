@@ -6,11 +6,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/lib/cmap"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
-	"github.com/kardiachain/go-kardiamain/lib/rand"
-	"github.com/kardiachain/go-kardiamain/lib/service"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/lib/cmap"
+	"github.com/kardiachain/go-kardia/lib/p2p/conn"
+	"github.com/kardiachain/go-kardia/lib/rand"
+	"github.com/kardiachain/go-kardia/lib/service"
 )
 
 const (

@@ -24,7 +24,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
 )
 
 // TestDatabaseSuite runs a suite of tests against a KeyValueStore database

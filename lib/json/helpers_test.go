@@ -3,7 +3,7 @@ package json_test
 import (
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/json"
+	"github.com/kardiachain/go-kardia/lib/json"
 )
 
 // Register Car, an instance of the Vehicle interface.

@@ -25,7 +25,7 @@ import (
 	"testing"
 
 	"github.com/holiman/uint256"
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 type TwoOperandTestcase struct {

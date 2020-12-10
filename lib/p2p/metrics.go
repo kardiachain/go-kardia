@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/metrics"
+	"github.com/kardiachain/go-kardia/lib/metrics"
 )
 
 const metricsTickerDuration = 10 * time.Second

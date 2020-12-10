@@ -20,10 +20,10 @@ package types
 
 import (
 	"context"
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 
-	kpubsub "github.com/kardiachain/go-kardiamain/lib/pubsub"
-	"github.com/kardiachain/go-kardiamain/lib/service"
+	kpubsub "github.com/kardiachain/go-kardia/lib/pubsub"
+	"github.com/kardiachain/go-kardia/lib/service"
 )
 
 const defaultCapacity = 0

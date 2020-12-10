@@ -19,7 +19,7 @@
 package types
 
 import (
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 //-----------------------------------

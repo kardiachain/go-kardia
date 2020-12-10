@@ -21,7 +21,7 @@ import (
 	"hash"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // Config are the configuration options for the Interpreter

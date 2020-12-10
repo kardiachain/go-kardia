@@ -22,8 +22,8 @@ import (
 	"io/ioutil"
 	"testing"
 
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/stretchr/testify/assert"
 )
 

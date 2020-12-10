@@ -4,7 +4,7 @@ package tx_pool
 import (
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/lib/metrics"
+	"github.com/kardiachain/go-kardia/lib/metrics"
 )
 
 var (

@@ -21,8 +21,8 @@ package types
 import (
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/merkle"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/merkle"
 )
 
 // ValidateHash returns an error if the hash is not empty, but its

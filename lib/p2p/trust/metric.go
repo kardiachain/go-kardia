@@ -7,8 +7,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/service"
-	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
+	"github.com/kardiachain/go-kardia/lib/service"
+	ksync "github.com/kardiachain/go-kardia/lib/sync"
 )
 
 //---------------------------------------------------------------------------------------

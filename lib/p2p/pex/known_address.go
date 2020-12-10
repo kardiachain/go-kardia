@@ -3,7 +3,7 @@ package pex
 import (
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
+	"github.com/kardiachain/go-kardia/lib/p2p"
 )
 
 // knownAddress tracks information about a known network address

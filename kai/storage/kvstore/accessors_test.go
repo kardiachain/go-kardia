@@ -19,12 +19,12 @@
 package kvstore
 
 import (
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/merkle"
-	krand "github.com/kardiachain/go-kardiamain/lib/rand"
-	"github.com/kardiachain/go-kardiamain/types"
-	ktime "github.com/kardiachain/go-kardiamain/types/time"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/merkle"
+	krand "github.com/kardiachain/go-kardia/lib/rand"
+	"github.com/kardiachain/go-kardia/types"
+	ktime "github.com/kardiachain/go-kardia/types/time"
 	"testing"
 )
 

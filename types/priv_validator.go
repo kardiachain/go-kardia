@@ -23,10 +23,10 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 // PrivValidator defines the functionality of a local KAI validator

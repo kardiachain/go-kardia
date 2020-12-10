@@ -3,8 +3,8 @@ package configs
 import (
 	"crypto/ecdsa"
 	"errors"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"os"
 	"os/user"
 	"path/filepath"

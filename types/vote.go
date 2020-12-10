@@ -23,11 +23,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/protoio"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 // IsVoteTypeValid returns true if t is a valid vote type.

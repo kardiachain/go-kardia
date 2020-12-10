@@ -6,14 +6,14 @@ import (
 	"net"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	knet "github.com/kardiachain/go-kardiamain/lib/net"
-	krand "github.com/kardiachain/go-kardiamain/lib/rand"
+	"github.com/kardiachain/go-kardia/lib/log"
+	knet "github.com/kardiachain/go-kardia/lib/net"
+	krand "github.com/kardiachain/go-kardia/lib/rand"
 
-	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
+	"github.com/kardiachain/go-kardia/lib/p2p/conn"
 )
 
 const testCh = 0x01

@@ -5,11 +5,11 @@ import (
 	"net"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/cmap"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/service"
+	"github.com/kardiachain/go-kardia/lib/cmap"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/service"
 
-	kconn "github.com/kardiachain/go-kardiamain/lib/p2p/conn"
+	kconn "github.com/kardiachain/go-kardia/lib/p2p/conn"
 )
 
 //go:generate mockery --case underscore --name Peer

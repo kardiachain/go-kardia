@@ -24,12 +24,12 @@ import (
 	"fmt"
 	"testing"
 
-	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	kpubsub "github.com/kardiachain/go-kardiamain/lib/pubsub"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardiamain/types"
+	cstypes "github.com/kardiachain/go-kardia/consensus/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	kpubsub "github.com/kardiachain/go-kardia/lib/pubsub"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

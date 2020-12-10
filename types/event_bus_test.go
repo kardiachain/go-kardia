@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	kquery "github.com/kardiachain/go-kardiamain/lib/pubsub/query"
+	kquery "github.com/kardiachain/go-kardia/lib/pubsub/query"
 	"github.com/stretchr/testify/require"
 )
 

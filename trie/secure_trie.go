@@ -19,8 +19,8 @@ package trie
 import (
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // SecureTrie wraps a trie with key hashing. In a secure trie, all

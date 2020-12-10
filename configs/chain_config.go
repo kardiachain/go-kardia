@@ -22,7 +22,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // ChainConfig is the core config which determines the blockchain settings.

@@ -22,7 +22,7 @@ import (
 	"container/heap"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/mclock"
+	"github.com/kardiachain/go-kardia/lib/mclock"
 )
 
 // LazyQueue is a priority queue data structure where priorities can change over

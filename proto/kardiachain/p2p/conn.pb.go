@@ -7,7 +7,7 @@ import (
 	fmt "fmt"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
-	crypto "github.com/kardiachain/go-kardiamain/proto/kardiachain/crypto"
+	crypto "github.com/kardiachain/go-kardia/proto/kardiachain/crypto"
 	io "io"
 	math "math"
 	math_bits "math/bits"

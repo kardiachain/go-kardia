@@ -23,9 +23,9 @@ import (
 	"fmt"
 	"time"
 
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/protoio"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 // Proposal defines a block proposal for the consensus.

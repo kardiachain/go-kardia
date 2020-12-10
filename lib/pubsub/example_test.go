@@ -6,10 +6,10 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 
-	"github.com/kardiachain/go-kardiamain/lib/pubsub"
-	"github.com/kardiachain/go-kardiamain/lib/pubsub/query"
+	"github.com/kardiachain/go-kardia/lib/pubsub"
+	"github.com/kardiachain/go-kardia/lib/pubsub/query"
 )
 
 func TestExample(t *testing.T) {

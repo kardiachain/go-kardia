@@ -1,7 +1,7 @@
 syntax = "proto3";
 package kardiachain.p2p;
 
-option go_package = "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p";
+option go_package = "github.com/kardiachain/go-kardia/proto/kardiachain/p2p";
 
 import "kardiachain/p2p/types.proto";
 import "gogoproto/gogo.proto";

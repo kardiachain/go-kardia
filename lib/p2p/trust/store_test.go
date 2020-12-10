@@ -9,13 +9,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/leveldb"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/kaidb/leveldb"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 func TestTrustMetricStoreSaveLoad(t *testing.T) {

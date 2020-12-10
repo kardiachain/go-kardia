@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/rpc"
+	"github.com/kardiachain/go-kardia/rpc"
 )
 
 // In this example, our client wishes to track the latest 'block number'

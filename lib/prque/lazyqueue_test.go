@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/mclock"
+	"github.com/kardiachain/go-kardia/lib/mclock"
 )
 
 const (

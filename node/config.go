@@ -29,17 +29,17 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardia/configs"
 
-	"github.com/kardiachain/go-kardiamain/consensus"
-	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
-	"github.com/kardiachain/go-kardiamain/kai/storage"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardiamain/rpc"
+	"github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/rpc"
 )
 
 const (

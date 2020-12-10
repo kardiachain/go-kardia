@@ -27,19 +27,19 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/kai/state"
-	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-	kvm "github.com/kardiachain/go-kardiamain/kvm"
-	"github.com/kardiachain/go-kardiamain/kvm/sample_kvm"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
-	g "github.com/kardiachain/go-kardiamain/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	kvm "github.com/kardiachain/go-kardia/kvm"
+	"github.com/kardiachain/go-kardia/kvm/sample_kvm"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	g "github.com/kardiachain/go-kardia/mainchain/genesis"
 
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 var (

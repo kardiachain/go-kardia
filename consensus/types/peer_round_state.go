@@ -21,8 +21,8 @@ package types
 import (
 	"fmt"
 
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/types"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // PeerRoundState contains the known state of a peer.

@@ -27,7 +27,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	krand "github.com/kardiachain/go-kardiamain/lib/rand"
+	krand "github.com/kardiachain/go-kardia/lib/rand"
 )
 
 func TestPanicOnMaxLength(t *testing.T) {

@@ -23,7 +23,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/types/time"
+	"github.com/kardiachain/go-kardia/types/time"
 )
 
 // Tests that data bitset encoding and decoding works and is bijective.

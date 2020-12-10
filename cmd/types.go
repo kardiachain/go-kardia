@@ -19,8 +19,8 @@
 package main
 
 import (
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 )
 
 type (

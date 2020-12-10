@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // precompiledTest defines the input/output pairs for precompiled contract tests.

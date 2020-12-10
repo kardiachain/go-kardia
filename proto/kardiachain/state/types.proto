@@ -8,7 +8,7 @@ import "kardiachain/types/validator.proto";
 import "kardiachain/types/params.proto";
 
 
-option go_package = "github.com/kardiachain/go-kardiamain/proto/kardiachain/state";
+option go_package = "github.com/kardiachain/go-kardia/proto/kardiachain/state";
 
 
 // ValidatorsInfo represents the latest validator set, or the last height it changed

@@ -23,7 +23,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // API describes the set of methods offered over the RPC interface

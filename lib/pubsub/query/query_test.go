@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kardiachain/go-kardiamain/lib/pubsub/query"
+	"github.com/kardiachain/go-kardia/lib/pubsub/query"
 )
 
 func TestMatches(t *testing.T) {

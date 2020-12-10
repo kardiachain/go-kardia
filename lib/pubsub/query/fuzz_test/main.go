@@ -3,7 +3,7 @@ package fuzz_test
 import (
 	"fmt"
 
-	"github.com/kardiachain/go-kardiamain/lib/pubsub/query"
+	"github.com/kardiachain/go-kardia/lib/pubsub/query"
 )
 
 func Fuzz(data []byte) int {

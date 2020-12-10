@@ -4,9 +4,9 @@ import (
 	"net"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	krand "github.com/kardiachain/go-kardiamain/lib/rand"
-	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
+	"github.com/kardiachain/go-kardia/configs"
+	krand "github.com/kardiachain/go-kardia/lib/rand"
+	ksync "github.com/kardiachain/go-kardia/lib/sync"
 )
 
 // FuzzedConnection wraps any net.Conn and depending on the mode either delays

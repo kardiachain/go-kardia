@@ -24,7 +24,7 @@ import (
 
 	"github.com/holiman/uint256"
 
-	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardia/configs"
 )
 
 var stackPool = sync.Pool{

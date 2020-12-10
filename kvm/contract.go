@@ -23,7 +23,7 @@ import (
 
 	"github.com/holiman/uint256"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // ContractRef is a reference to the contract's backing object

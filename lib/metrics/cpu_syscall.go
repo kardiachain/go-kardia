@@ -21,7 +21,7 @@ package metrics
 import (
 	"syscall"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // getProcessCPUTime retrieves the process' CPU time since program startup.

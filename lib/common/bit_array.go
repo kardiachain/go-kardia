@@ -24,7 +24,7 @@ import (
 	"strings"
 	"sync"
 
-	kprotobits "github.com/kardiachain/go-kardiamain/proto/kardiachain/libs/bits"
+	kprotobits "github.com/kardiachain/go-kardia/proto/kardiachain/libs/bits"
 )
 
 type BitArray struct {

@@ -26,14 +26,14 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
-	cstypes "github.com/kardiachain/go-kardiamain/consensus/types"
-	cmn "github.com/kardiachain/go-kardiamain/lib/common"
-	kevents "github.com/kardiachain/go-kardiamain/lib/events"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	kcons "github.com/kardiachain/go-kardiamain/proto/kardiachain/consensus"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardiamain/types"
+	cstypes "github.com/kardiachain/go-kardia/consensus/types"
+	cmn "github.com/kardiachain/go-kardia/lib/common"
+	kevents "github.com/kardiachain/go-kardia/lib/events"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	kcons "github.com/kardiachain/go-kardia/proto/kardiachain/consensus"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
