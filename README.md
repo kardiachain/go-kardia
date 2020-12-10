@@ -87,17 +87,17 @@ go test ./...
 
 ### Start Kardia network
 
-####Mainnet
+###Mainnet
 ```
 (Coming soon)
 ```
 
-#### Testnet Fengari 3.0
+### Testnet Fengari 3.0
 ```
 ./cmd --network testnet --node <path/to/kai_config_testnet.yaml>
 ```
 
-#### Devnet
+### Devnet
 ```
 ./cmd --network devnet --node <path/to/kai_config_devnet_node1.yaml>
 ./cmd --network devnet --node <path/to/kai_config_devnet_node2.yaml>
