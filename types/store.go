@@ -39,9 +39,9 @@ type StoreDB interface {
 
 	ReadCanonicalHash(height uint64) common.Hash
 	ReadChainConfig(hash common.Hash) *configs.ChainConfig
-	ReadBlock(hash common.Hash, height uint64) *Block
-	ReadHeader(hash common.Hash, height uint64) *Header
-	ReadBody(hash common.Hash, height uint64) *Body
+	ReadBlock(height uint64) *Block
+	ReadHeader(height uint64) *Header
+	ReadBody(height uint64) *Body
 	ReadBlockPart(height uint64, index int) *Part
 	ReadAppHash(uint64) common.Hash
 

@@ -101,7 +101,7 @@ func (hc *HeaderChain) GetHeader(hash common.Hash, height uint64) *types.Header 
 	if header, ok := hc.headerCache.Get(hash); ok {
 		return header.(*types.Header)
 	}
-	header := hc.kaiDb.ReadHeader(hash, height)
+	header := hc.kaiDb.ReadHeader(height)
 	if header == nil {
 		return nil
 	}
