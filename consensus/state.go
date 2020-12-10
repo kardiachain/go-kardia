@@ -50,8 +50,8 @@ var (
 
 // msgs from the manager which may update the state
 type msgInfo struct {
-	Msg    ConsensusMessage `json:"msg"`
-	PeerID p2p.ID           `json:"peer_key"`
+	Msg    Message `json:"msg"`
+	PeerID p2p.ID  `json:"peer_key"`
 }
 
 // internally generated messages which may update the state
@@ -114,6 +114,10 @@ type ConsensusState struct {
 
 	// For tests where we want to limit the number of transitions the state makes
 	nSteps int
+
+	// a Write-Ahead Log ensures we can recover from any kind of crash
+	// and helps us avoid signing conflicting votes
+	wal WAL
 
 	// Synchronous pubsub between consensus state and manager.
 	// State only emits EventNewRoundStep, EventVote and EventProposalHeartbeat

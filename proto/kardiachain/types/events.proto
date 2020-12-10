@@ -1,0 +1,10 @@
+syntax = "proto3";
+package kardiachain.types;
+
+option go_package = "github.com/kardiachain/go-kardia/proto/kardiachain/types";
+
+message EventDataRoundState {
+  uint64  height = 1;
+  uint32  round  = 2;
+  string step   = 3;
+}
