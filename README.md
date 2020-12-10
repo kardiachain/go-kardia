@@ -7,7 +7,7 @@
 [![codecov](https://codecov.io/gh/kardiachain/go-kardia/branch/master/graph/badge.svg?token=VuisziC3mg)](https://codecov.io/gh/kardiachain/go-kardia)
 
 Official Golang implementation of KardiaChain following the specs
-in [Technical Paper](http://dl.kardiachain.io/paper.pdf)
+in [Technical Paper](https://dl.kardiachain.io/KardiaChain-WhitePaper-English.pdf)
 
 ![alt text](statics/kardiachain.png)
 
