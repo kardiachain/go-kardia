@@ -133,7 +133,7 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 
 		for key, contract := range g.Contracts {
 			configs.LoadGenesisContract(key, contract.Address, contract.ByteCode, contract.ABI)
-			if key != configs.StakingContractKey {
+			if key != configs.StakingContractKey && contract.Address != "" {
 				genesisContracts[contract.Address] = contract.ByteCode
 			}
 		}

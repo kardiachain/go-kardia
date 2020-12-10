@@ -218,21 +218,29 @@ func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *Bl
 }
 
 type Validator struct {
-	Address         common.Address `json:"address"`
-	VotingPower     int64          `json:"votingPower"`
-	StakedAmount    string         `json:"stakedAmount"`
-	Commission      string         `json:"commission"`
-	CommissionRate  string         `json:"commissionRate"`
-	TotalDelegators int            `json:"totalDelegators"`
-	MaxRate         string         `json:"maxRate"`
-	MaxChangeRate   string         `json:"maxChangeRate"`
-	Delegators      []*Delegator   `json:"delegators,omitempty"`
+	Name                  string       `json:"name"`
+	Address               string       `json:"address"`
+	StakedAmount          string       `json:"stakedAmount"`
+	CommissionRate        string       `json:"commissionRate"`
+	TotalDelegators       int          `json:"totalDelegators"`
+	MaxRate               string       `json:"maxRate"`
+	MaxChangeRate         string       `json:"maxChangeRate"`
+	Jailed                bool         `json:"jailed"`
+	MinSelfDelegation     string       `json:"minSelfDelegation"`
+	DelegationShares      string       `json:"delegationShares"`
+	AccumulatedCommission string       `json:"accumulatedCommission"`
+	UbdEntryCount         string       `json:"ubdEntryCount"`
+	UpdateTime            string       `json:"updateTime"`
+	Status                uint8        `json:"status"`
+	UnbondingTime         string       `json:"unbondingTime"`
+	UnbondingHeight       string       `json:"unbondingHeight"`
+	Delegators            []*Delegator `json:"delegators,omitempty"`
 }
 
 type Delegator struct {
-	Address      common.Address `json:"address"`
-	StakedAmount string         `json:"stakedAmount"`
-	Reward       string         `json:"reward"`
+	Address      string `json:"address"`
+	StakedAmount string `json:"stakedAmount"`
+	Reward       string `json:"reward"`
 }
 
 // Validator returns node's validator, nil if current node is not a validator
@@ -241,19 +249,11 @@ func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, is
 	if err != nil {
 		return nil, err
 	}
-	delegationsList, err := s.kaiService.GetDelegationsByValidator(valAddr)
-	if err != nil {
-		return nil, err
-	}
-	commission, err := s.kaiService.GetValidatorCommission(valAddr)
-	if err != nil {
-		return nil, err
-	}
 	var delegatorsList []*Delegator
 	if isGetDelegators {
-		for _, del := range delegationsList {
+		for _, del := range val.Delegators {
 			delegatorsList = append(delegatorsList, &Delegator{
-				Address:      del.Address,
+				Address:      del.Address.Hex(),
 				StakedAmount: del.StakedAmount.String(),
 				Reward:       del.Reward.String(),
 			})
@@ -262,16 +262,31 @@ func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, is
 		delegatorsList = nil
 	}
 
+	var name []byte
+	for _, b := range val.Name {
+		if b != 0 {
+			name = append(name, byte(b))
+		}
+	}
+
 	return &Validator{
-		Address:         val.Address,
-		VotingPower:     val.VotingPower,
-		StakedAmount:    val.StakedAmount.String(),
-		Commission:      commission.String(),
-		CommissionRate:  val.CommissionRate.String(),
-		TotalDelegators: len(delegationsList),
-		MaxRate:         val.MaxRate.String(),
-		MaxChangeRate:   val.MaxChangeRate.String(),
-		Delegators:      delegatorsList,
+		Name:                  string(name),
+		Address:               val.ValAddr.String(),
+		StakedAmount:          val.Tokens.String(),
+		CommissionRate:        val.CommissionRate.String(),
+		TotalDelegators:       len(val.Delegators),
+		MaxRate:               val.MaxRate.String(),
+		MaxChangeRate:         val.MaxChangeRate.String(),
+		Jailed:                val.Jailed,
+		MinSelfDelegation:     val.MinSelfDelegation.String(),
+		DelegationShares:      val.DelegationShares.String(),
+		AccumulatedCommission: val.AccumulatedCommission.String(),
+		UbdEntryCount:         val.UbdEntryCount.String(),
+		UpdateTime:            val.UpdateTime.String(),
+		Status:                val.Status,
+		UnbondingTime:         val.UnbondingTime.String(),
+		UnbondingHeight:       val.UnbondingHeight.String(),
+		Delegators:            delegatorsList,
 	}, nil
 }
 
@@ -283,7 +298,7 @@ func (s *PublicKaiAPI) Validators(ctx context.Context, isGetDelegators bool) ([]
 		return nil, err
 	}
 	for _, val := range valList {
-		validator, err := s.Validator(ctx, val.Address, isGetDelegators)
+		validator, err := s.Validator(ctx, val.ValAddr, isGetDelegators)
 		if err != nil {
 			return nil, err
 		}

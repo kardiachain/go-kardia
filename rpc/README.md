@@ -5,7 +5,7 @@ containers/hosts.
 The JSON RPC endpoints are exposed on top of HTTP. WebSocket and/or IPC transports will be supported in the future
 
 Use the following `Postman collection` to test
-https://www.getpostman.com/collections/24f2f4a58ad6b0c7a958
+https://documenter.getpostman.com/view/8826990/TVRhcpMT
 
 Start Kardia network [README](https://github.com/kardiachain/go-kardia/tree/master/README.md)
 

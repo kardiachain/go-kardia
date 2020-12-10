@@ -101,7 +101,7 @@ func TestGenesisAllocFromData(t *testing.T) {
 }
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
-	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	stakingUtil, _ := staking.NewSmcStakingUtil()
 	return genesis.SetupGenesisBlock(log.New(), db, g, stakingUtil)
 }
 

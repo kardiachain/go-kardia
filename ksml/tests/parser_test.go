@@ -143,7 +143,7 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 	}
 
 	logger := log.New()
-	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	stakingUtil, _ := staking.NewSmcStakingUtil()
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, db, g, stakingUtil)
 	if genesisErr != nil {
 		return nil, err

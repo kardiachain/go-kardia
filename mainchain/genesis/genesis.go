@@ -54,7 +54,7 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 type GenesisValidator struct {
 	Name            string `json:"name" yaml:"Name"`
 	Address         string `json:"address" yaml:"Address"`
-	CommissionRate  string `json:"comission" yaml:"CommissionRate"`
+	CommissionRate  string `json:"commissionRate" yaml:"CommissionRate"`
 	MaxRate         string `json:"maxRate" yaml:"MaxRate"`
 	MaxChangeRate   string `json:"maxChangeRate" yaml:"MaxChangeRate"`
 	MinSelfDelegate string `json:"minSelfDelegate" yaml:"MinSelfDelegate"`
@@ -346,12 +346,18 @@ func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB
 	for _, val := range validators {
 		if err := staking.CreateGenesisValidator(statedb, header, nil, cfg,
 			common.HexToAddress(val.Address),
+			val.Name,
 			val.CommissionRate,
 			val.MaxRate,
 			val.MaxChangeRate,
-			val.MinSelfDelegate,
-			val.SelfDelegate); err != nil {
+			val.MinSelfDelegate); err != nil {
 			return fmt.Errorf("apply create validator err: %s", err)
+		}
+
+		if err := staking.StartGenesisValidator(statedb, header, nil, cfg,
+			common.HexToAddress(val.Address),
+			val.SelfDelegate); err != nil {
+			return fmt.Errorf("apply start validator err: %s", err)
 		}
 	}
 
