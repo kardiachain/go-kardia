@@ -598,7 +598,7 @@ var (
         "outputs": [
           {
             "internalType": "address[]",
-            "name": "",
+            "name": "valAddrs",
             "type": "address[]"
           }
         ],

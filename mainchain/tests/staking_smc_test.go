@@ -137,6 +137,9 @@ func setup() (*blockchain.BlockChain, *state.StateDB, *staking.StakingSmcUtil, *
 		},
 	}
 	block := types.NewBlock(head, nil, &types.Commit{}, nil)
+	if err := util.SetRoot(stateDB, block.Header(), nil, kvm.Config{}); err != nil {
+		return nil, nil, nil, nil, nil, err
+	}
 	return bc, stateDB, util, valUtil, block, nil
 }
 
@@ -262,4 +265,70 @@ func TestGetCommissionValidator(t *testing.T) {
 	assert.Equal(t, rate, big.NewInt(10))
 	assert.Equal(t, maxRate, big.NewInt(20))
 	assert.Equal(t, maxChangeRate, big.NewInt(1))
+}
+
+func TestGetValidatorsByDelegator(t *testing.T) {
+	_, stateDB, util, valUtil, block, err := setup()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", "10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	valSmcAddr, err := util.GetValSmcAddr(stateDB, block.Header(), nil, kvm.Config{}, big.NewInt(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	delegatorAddr := common.HexToAddress("0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd")
+	valsAddrs, err := util.GetValidatorsByDelegator(stateDB, block.Header(), nil, kvm.Config{}, delegatorAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.EqualValuesf(t, []common.Address{}, valsAddrs, "Validators list of this delegator must be empty")
+	// delegate for this validator
+	delAmount, _ := new(big.Int).SetString(selfDelegate, 10)
+	err = valUtil.Delegate(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr, delegatorAddr, delAmount)
+	if err != nil {
+		t.Fatal(err)
+	}
+	valsAddrs, err = util.GetValidatorsByDelegator(stateDB, block.Header(), nil, kvm.Config{}, delegatorAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.EqualValues(t, []common.Address{valSmcAddr}, valsAddrs)
+}
+
+func TestDoubleSign(t *testing.T) {
+	_, stateDB, util, valUtil, block, err := setup()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", "10")
+	if err != nil {
+		t.Fatal(err)
+	}
+	valSmcAddr, err := util.GetValSmcAddr(stateDB, block.Header(), nil, kvm.Config{}, big.NewInt(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	val, err := valUtil.GetInforValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
+	assert.EqualValuesf(t, false, val.Jailed, "Created validator must not be jailed")
+
+	if err = util.DoubleSign(stateDB, block.Header(), nil, kvm.Config{}, []staking.Evidence{
+		{
+			Address:     address,
+			VotingPower: big.NewInt(1),
+			Height:      1,
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	val, err = valUtil.GetInforValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
+	assert.EqualValuesf(t, true, val.Jailed, "Double signed validator must be jailed")
 }

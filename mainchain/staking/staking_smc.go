@@ -48,6 +48,31 @@ type StakingSmcUtil struct {
 	logger          log.Logger
 }
 
+type Validator struct {
+	Name                  [32]uint8      `json:"name"`
+	ValAddr               common.Address `json:"validatorAddress"`
+	Tokens                *big.Int       `json:"tokens"`
+	Jailed                bool           `json:"jailed"`
+	MinSelfDelegation     *big.Int       `json:"minSelfDelegation"`
+	DelegationShares      *big.Int       `json:"delegationShares"`
+	AccumulatedCommission *big.Int       `json:"accumulatedCommission"`
+	UbdEntryCount         *big.Int       `json:"ubdEntryCount"`
+	UpdateTime            *big.Int       `json:"updateTime"`
+	Status                uint8          `json:"status"`
+	UnbondingTime         *big.Int       `json:"unbondingTime"`
+	UnbondingHeight       *big.Int       `json:"unbondingHeight"`
+	CommissionRate        *big.Int       `json:"commissionRate,omitempty"`
+	MaxRate               *big.Int       `json:"maxRate,omitempty"`
+	MaxChangeRate         *big.Int       `json:"maxChangeRate,omitempty"`
+	Delegators            []*Delegator   `json:"delegators,omitempty"`
+}
+
+type Delegator struct {
+	Address      common.Address `json:"address"`
+	StakedAmount *big.Int       `json:"stakedAmount"`
+	Reward       *big.Int       `json:"reward"`
+}
+
 // NewSmcStakingUtil ...
 func NewSmcStakingUtil() (*StakingSmcUtil, error) {
 	stakingSmcAbi := configs.GetContractABIByAddress(configs.DefaultStakingContractAddress)
@@ -331,6 +356,29 @@ func (s *StakingSmcUtil) GetValSmcAddr(statedb *state.StateDB, header *types.Hea
 	}
 
 	return valSmc.AddrValSmc, nil
+}
+
+// GetValidatorsByDelegator returns all validators to whom this delegator delegated
+func (s *StakingSmcUtil) GetValidatorsByDelegator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, delAddr common.Address) ([]common.Address, error) {
+	payload, err := s.Abi.Pack("getValidatorsByDelegator", delAddr)
+	if err != nil {
+		return nil, err
+	}
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	if err != nil {
+		return nil, err
+	}
+
+	var valsAddr struct {
+		ValAddrs []common.Address
+	}
+	// unpack result
+	err = s.Abi.UnpackIntoInterface(&valsAddr, "getValidatorsByDelegator", res)
+	if err != nil {
+		log.Error("Error unpacking validators by delegator", "err", err)
+		return nil, err
+	}
+	return valsAddr.ValAddrs, nil
 }
 
 // SetRoot set address root

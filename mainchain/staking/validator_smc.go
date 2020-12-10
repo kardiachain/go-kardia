@@ -76,7 +76,7 @@ func (s *ValidatorSmcUtil) Delegate(statedb *state.StateDB, header *types.Header
 }
 
 // GetValidator show info of a validator based on address
-func (s *ValidatorSmcUtil) GetInforValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address) (*types.InforValidator, error) {
+func (s *ValidatorSmcUtil) GetInforValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address) (*Validator, error) {
 	payload, err := s.Abi.Pack("inforValidator")
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func (s *ValidatorSmcUtil) GetInforValidator(statedb *state.StateDB, header *typ
 		return nil, err
 	}
 
-	var validator types.InforValidator
+	var validator Validator
 	// unpack result
 	err = s.Abi.UnpackIntoInterface(&validator, "inforValidator", res)
 	if err != nil {
@@ -129,7 +129,7 @@ func (s *ValidatorSmcUtil) GetCommissionValidator(statedb *state.StateDB, header
 }
 
 // GetDelegators returns all delegators of a validator
-func (s *ValidatorSmcUtil) GetDelegators(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address) ([]*types.Delegator, error) {
+func (s *ValidatorSmcUtil) GetDelegators(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address) ([]*Delegator, error) {
 	payload, err := s.Abi.Pack("getDelegations")
 	if err != nil {
 		return nil, err
@@ -149,7 +149,7 @@ func (s *ValidatorSmcUtil) GetDelegators(statedb *state.StateDB, header *types.H
 		log.Error("Error unpacking delegation details", "err", err)
 		return nil, err
 	}
-	var delegators []*types.Delegator
+	var delegators []*Delegator
 	for _, delAddr := range delegations.DelAddrs {
 		reward, err := s.GetDelegationRewards(statedb, header, bc, cfg, valSmcAddr, delAddr)
 		if err != nil {
@@ -159,7 +159,7 @@ func (s *ValidatorSmcUtil) GetDelegators(statedb *state.StateDB, header *types.H
 		if err != nil {
 			return nil, err
 		}
-		delegators = append(delegators, &types.Delegator{
+		delegators = append(delegators, &Delegator{
 			Address:      delAddr,
 			StakedAmount: stakedAmount,
 			Reward:       reward,

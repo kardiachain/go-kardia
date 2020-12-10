@@ -26,6 +26,7 @@ import (
 
 	"github.com/kardiachain/go-kardiamain/kvm"
 	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardiamain/mainchain/staking"
 )
 
 func TestGetDelegators(t *testing.T) {
@@ -45,13 +46,19 @@ func TestGetDelegators(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	delegators, err := valUtil.GetDelegators(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, []*staking.Delegator(nil), delegators)
+
 	// delegate for this validator
 	delAmount, _ := new(big.Int).SetString(selfDelegate, 10)
 	err = valUtil.Delegate(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr, address, delAmount)
 	if err != nil {
 		t.Fatal(err)
 	}
-	delegators, err := valUtil.GetDelegators(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
+	delegators, err = valUtil.GetDelegators(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
 	if err != nil {
 		t.Fatal(err)
 	}

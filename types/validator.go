@@ -36,12 +36,6 @@ var (
 	ErrNilValidator = errors.New("nil Validator")
 )
 
-type Delegator struct {
-	Address      common.Address `json:"address"`
-	StakedAmount *big.Int       `json:"stakedAmount"`
-	Reward       *big.Int       `json:"reward"`
-}
-
 // Validator state for each Validator
 type Validator struct {
 	Address          common.Address `json:"address"`
@@ -51,25 +45,6 @@ type Validator struct {
 	CommissionRate   *big.Int       `json:"commissionRate,omitempty"`
 	MaxRate          *big.Int       `json:"maxRate,omitempty"`
 	MaxChangeRate    *big.Int       `json:"maxChangeRate,omitempty"`
-}
-
-type InforValidator struct {
-	Name                  [32]uint8      `json:"name"`
-	ValAddr               common.Address `json:"validatorAddress"`
-	Tokens                *big.Int       `json:"tokens"`
-	Jailed                bool           `json:"jailed"`
-	MinSelfDelegation     *big.Int       `json:"minSelfDelegation"`
-	DelegationShares      *big.Int       `json:"delegationShares"`
-	AccumulatedCommission *big.Int       `json:"accumulatedCommission"`
-	UbdEntryCount         *big.Int       `json:"ubdEntryCount"`
-	UpdateTime            *big.Int       `json:"updateTime"`
-	Status                uint8          `json:"status"`
-	UnbondingTime         *big.Int       `json:"unbondingTime"`
-	UnbondingHeight       *big.Int       `json:"unbondingHeight"`
-	CommissionRate        *big.Int       `json:"commissionRate,omitempty"`
-	MaxRate               *big.Int       `json:"maxRate,omitempty"`
-	MaxChangeRate         *big.Int       `json:"maxChangeRate,omitempty"`
-	Delegators            []*Delegator   `json:"delegators,omitempty"`
 }
 
 // NewValidator ...
