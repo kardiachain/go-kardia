@@ -102,7 +102,7 @@ func (dhc *DualHeaderChain) GetHeader(hash common.Hash, height uint64) *types.He
 	if header, ok := dhc.headerCache.Get(hash); ok {
 		return header.(*types.Header)
 	}
-	header := dhc.kaiDb.ReadHeader(hash, height)
+	header := dhc.kaiDb.ReadHeader(height)
 	if header == nil {
 		return nil
 	}

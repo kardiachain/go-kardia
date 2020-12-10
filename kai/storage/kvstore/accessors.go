@@ -180,10 +180,10 @@ func ReadBodyRLP(db kaidb.Reader, hash common.Hash, height uint64) rlp.RawValue 
 	return data
 }
 
-// ReadBody retrieves the block body corresponding to the hash.
-func ReadBody(db kaidb.Reader, hash common.Hash, height uint64) *types.Body {
-	if block := ReadBlock(db, hash, height); block != nil {
-		ReadBlock(db, hash, height).Body()
+// ReadBody retrieves the block body corresponding to the height.
+func ReadBody(db kaidb.Reader, height uint64) *types.Body {
+	if block := ReadBlock(db, height); block != nil {
+		ReadBlock(db, height).Body()
 	}
 	return nil
 }
@@ -315,7 +315,7 @@ func ReadTransaction(db kaidb.Reader, hash common.Hash) (*types.Transaction, com
 		return nil, common.Hash{}, 0, 0
 	}
 
-	body := ReadBody(db, blockHash, blockNumber)
+	body := ReadBody(db, blockNumber)
 	if body == nil || len(body.Transactions) <= int(txIndex) {
 		log.Error("Transaction referenced missing", "number", blockNumber, "hash", blockHash, "index", txIndex)
 		return nil, common.Hash{}, 0, 0
@@ -345,7 +345,7 @@ func ReadDualEvent(db kaidb.Reader, hash common.Hash) (*types.DualEvent, common.
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
-	body := ReadBody(db, blockHash, blockNumber)
+	body := ReadBody(db, blockNumber)
 	if body == nil || len(body.DualEvents) <= int(eventIndex) {
 		log.Error("Dual event referenced missing", "number", blockNumber, "hash", blockHash, "index", eventIndex)
 		return nil, common.Hash{}, 0, 0
@@ -544,7 +544,7 @@ func ReadSeenCommit(db kaidb.Reader, height uint64) *types.Commit {
 }
 
 // ReadBlock returns the Block for the given height
-func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
+func ReadBlock(db kaidb.Reader, height uint64) *types.Block {
 	blockMeta := ReadBlockMeta(db, height)
 
 	if blockMeta == nil {
@@ -573,7 +573,7 @@ func ReadBlock(db kaidb.Reader, hash common.Hash, height uint64) *types.Block {
 }
 
 // ReadHeader retrieves the block header corresponding to the hash.
-func ReadHeader(db kaidb.Reader, hash common.Hash, height uint64) *types.Header {
+func ReadHeader(db kaidb.Reader, height uint64) *types.Header {
 	if blockMeta := ReadBlockMeta(db, height); blockMeta != nil {
 		return blockMeta.Header
 	}
@@ -619,19 +619,22 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 		panic("nil blockmeta")
 	}
 	metaBytes := mustEncode(pbm)
-	_ = batch.Put(blockMetaKey(height), metaBytes)
+	if err := batch.Put(blockMetaKey(height), metaBytes); err != nil {
+		panic(fmt.Errorf("failed to store block meta err: %s", err))
+	}
 
 	// Save block part
 	for i := 0; i < int(blockParts.Total()); i++ {
 		part := blockParts.GetPart(i)
 		writeBlockPart(batch, height, i, part)
-
 	}
 
 	// Save block commit (duplicate and separate from the Block)
 	pbc := block.LastCommit().ToProto()
 	blockCommitBytes := mustEncode(pbc)
-	_ = batch.Put(commitKey(height-1), blockCommitBytes)
+	if err := batch.Put(commitKey(height-1), blockCommitBytes); err != nil {
+		panic(fmt.Errorf("failed to store block commit err: %s", err))
+	}
 
 	// Save seen commit (seen +2/3 precommits for block)
 	// NOTE: we can delete this at a later height
@@ -653,16 +656,19 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 }
 
 func writeBlockPart(db kaidb.Writer, height uint64, index int, part *types.Part) {
+	var err error
 	pbp, err := part.ToProto()
 	if err != nil {
 		panic(fmt.Errorf("unable to make part into proto: %w", err))
 	}
 	partBytes := mustEncode(pbp)
-	_ = db.Put(blockPartKey(height, index), partBytes)
+	if err = db.Put(blockPartKey(height, index), partBytes); err != nil {
+		panic(fmt.Errorf("failed to store block part key: %w", err))
+	}
 }
 
 // DeleteBlockMeta delete block meta
-func DeleteBlockMeta(db kaidb.Writer, hash common.Hash, height uint64) {
+func DeleteBlockMeta(db kaidb.Writer, height uint64) {
 	_ = db.Delete(blockMetaKey(height))
 }
 

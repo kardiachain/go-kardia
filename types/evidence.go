@@ -282,36 +282,6 @@ func DuplicateVoteEvidenceFromProto(pb *kproto.DuplicateVoteEvidence) (*Duplicat
 
 // unstable - use only for testing
 
-// assumes the round to be 0 and the validator index to be 0
-func NewMockDuplicateVoteEvidence(height uint64, time time.Time, chainID string) *DuplicateVoteEvidence {
-	val := NewMockPV()
-	return NewMockDuplicateVoteEvidenceWithValidator(height, time, val, chainID)
-}
-
-func NewMockDuplicateVoteEvidenceWithValidator(height uint64, time time.Time, pv PrivValidator, chainID string) *DuplicateVoteEvidence {
-	addr := pv.GetAddress()
-	voteA := makeMockVote(height, 0, 0, addr, createRandBlockID(), time)
-	vA := voteA.ToProto()
-	_ = pv.SignVote(chainID, vA)
-	voteA.Signature = vA.Signature
-	voteB := makeMockVote(height, 0, 0, addr, createRandBlockID(), time)
-	vB := voteB.ToProto()
-	_ = pv.SignVote(chainID, vB)
-	voteB.Signature = vB.Signature
-	return NewDuplicateVoteEvidence(voteA, voteB)
-}
-
-// @FIXME, can't import block_test createBlockIDRandom()
-func createRandBlockID() BlockID {
-	return BlockID{
-		Hash: common.BytesToHash(common.RandBytes(32)),
-		PartsHeader: PartSetHeader{
-			Total: 1,
-			Hash:  common.BytesToHash(common.RandBytes(32)),
-		},
-	}
-}
-
 func makeMockVote(height uint64, round, index uint32, addr common.Address,
 	blockID BlockID, time time.Time) *Vote {
 	return &Vote{
@@ -323,6 +293,35 @@ func makeMockVote(height uint64, round, index uint32, addr common.Address,
 		ValidatorAddress: addr,
 		ValidatorIndex:   index,
 	}
+}
+
+func createBlockIDRandom() BlockID {
+	return BlockID{
+		Hash: common.BytesToHash(common.RandBytes(32)),
+		PartsHeader: PartSetHeader{
+			Total: 1,
+			Hash:  common.BytesToHash(common.RandBytes(32)),
+		},
+	}
+}
+
+// assumes the round to be 0 and the validator index to be 0
+func NewMockDuplicateVoteEvidence(height uint64, time time.Time, chainID string) *DuplicateVoteEvidence {
+	val := NewMockPV()
+	return NewMockDuplicateVoteEvidenceWithValidator(height, time, val, chainID)
+}
+
+func NewMockDuplicateVoteEvidenceWithValidator(height uint64, time time.Time, pv PrivValidator, chainID string) *DuplicateVoteEvidence {
+	addr := pv.GetAddress()
+	voteA := makeMockVote(height, 0, 0, addr, createBlockIDRandom(), time)
+	vA := voteA.ToProto()
+	_ = pv.SignVote(chainID, vA)
+	voteA.Signature = vA.Signature
+	voteB := makeMockVote(height, 0, 0, addr, createBlockIDRandom(), time)
+	vB := voteB.ToProto()
+	_ = pv.SignVote(chainID, vB)
+	voteB.Signature = vB.Signature
+	return NewDuplicateVoteEvidence(voteA, voteB)
 }
 
 //-------------------------------------------

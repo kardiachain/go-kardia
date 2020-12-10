@@ -55,8 +55,8 @@ func (s *StoreDB) ReadBlockMeta(height uint64) *types.BlockMeta {
 }
 
 // ReadBlock returns the Block for the given height
-func (s *StoreDB) ReadBlock(hash common.Hash, height uint64) *types.Block {
-	return ReadBlock(s.db, hash, height)
+func (s *StoreDB) ReadBlock(height uint64) *types.Block {
+	return ReadBlock(s.db, height)
 }
 
 // ReadBlockPart returns the block part fo the given height and index
@@ -131,8 +131,8 @@ func (s *StoreDB) ReadChainConfig(hash common.Hash) *configs.ChainConfig {
 }
 
 // ReadBody retrieves the block body corresponding to the hash.
-func (s *StoreDB) ReadBody(hash common.Hash, height uint64) *types.Body {
-	return ReadBody(s.db, hash, height)
+func (s *StoreDB) ReadBody(height uint64) *types.Body {
+	return ReadBody(s.db, height)
 }
 
 // ReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
@@ -160,8 +160,8 @@ func (s *StoreDB) ReadSeenCommit(height uint64) *types.Commit {
 }
 
 // ReadHeader retrieves the block header corresponding to the hash.
-func (s *StoreDB) ReadHeader(hash common.Hash, height uint64) *types.Header {
-	return ReadHeader(s.db, hash, height)
+func (s *StoreDB) ReadHeader(height uint64) *types.Header {
+	return ReadHeader(s.db, height)
 }
 
 // ReadHeaderheight returns the header height assigned to a hash.

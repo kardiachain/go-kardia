@@ -199,7 +199,7 @@ func (dbc *DualBlockChain) GetBlock(hash common.Hash, number uint64) *types.Bloc
 	if block, ok := dbc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
 	}
-	block := dbc.db.ReadBlock(hash, number)
+	block := dbc.db.ReadBlock(number)
 	if block == nil {
 		return nil
 	}

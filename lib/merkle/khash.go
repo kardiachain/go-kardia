@@ -24,7 +24,8 @@ import (
 )
 
 const (
-	Size = sha256.Size
+	Size        = sha256.Size
+	AddressSize = 20
 )
 
 // New returns a new hash.Hash.

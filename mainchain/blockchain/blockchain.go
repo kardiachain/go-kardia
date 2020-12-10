@@ -203,7 +203,7 @@ func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	if block, ok := bc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
 	}
-	block := bc.db.ReadBlock(hash, number)
+	block := bc.db.ReadBlock(number)
 	if block == nil {
 		return nil
 	}
