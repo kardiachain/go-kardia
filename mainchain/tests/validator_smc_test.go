@@ -24,9 +24,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/kardiachain/go-kardiamain/kvm"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
+	"github.com/kardiachain/go-kardia/kvm"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
 )
 
 func TestGetDelegators(t *testing.T) {

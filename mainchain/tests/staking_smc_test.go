@@ -32,7 +32,6 @@ import (
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	kvm "github.com/kardiachain/go-kardia/kvm"
-	"github.com/kardiachain/go-kardia/kvm/sample_kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"

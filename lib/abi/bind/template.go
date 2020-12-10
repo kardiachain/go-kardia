@@ -92,7 +92,7 @@ import (
 	"math/big"
 	"strings"
 
-	kardia "github.com/kardiachain/go-kardiamain"
+	kardia "github.com/kardiachain/go-kardia"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/abi/bind"
 	"github.com/kardiachain/go-kardia/lib/common"
