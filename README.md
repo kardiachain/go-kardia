@@ -21,7 +21,7 @@ by [Certik](https://certik.foundation/) ([view article](https://kardiachain.medi
 ## Kardia Public Testnet [Fengari 3.0]
 
 - Network Explorer: [Fengari Explorer](http://explorer.kardiachain.io/)
-- Release: [kardia-v0.10.5](https://github.com/kardiachain/go-kardia/releases/tag/v0.10.5)
+- Release: [kardia-v0.11.0](https://github.com/kardiachain/go-kardia/releases/tag/v0.11.0)
 
 ## Quickstart
 
