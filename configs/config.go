@@ -20,6 +20,7 @@ package configs
 
 import (
 	"math/big"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -135,6 +136,10 @@ func TestConsensusParams() *kaiproto.ConsensusParams {
 // ConsensusConfig defines the configuration for the Kardia consensus service,
 // including timeouts and details about the block structure.
 type ConsensusConfig struct {
+	RootDir string `mapstructure:"home"`
+	WalPath string `mapstructure:"wal_file"`
+	walFile string // overrides WalPath if set
+
 	// All timeouts are in milliseconds
 	TimeoutPropose        time.Duration `mapstructure:"timeout_propose"`
 	TimeoutProposeDelta   time.Duration `mapstructure:"timeout_propose_delta"`
@@ -159,6 +164,7 @@ type ConsensusConfig struct {
 // DefaultConsensusConfig returns a default configuration for the consensus service
 func DefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
+		WalPath:                     filepath.Join(DefaultDataDir(), "cs.wal", "wal"),
 		TimeoutPropose:              3000 * time.Millisecond,
 		TimeoutProposeDelta:         500 * time.Millisecond,
 		TimeoutPrevote:              1000 * time.Millisecond,
@@ -191,6 +197,19 @@ func TestConsensusConfig() *ConsensusConfig {
 	cfg.PeerQueryMaj23SleepDuration = 250 * time.Millisecond
 	//cfg.DoubleSignCheckHeight = int64(0)
 	return cfg
+}
+
+// WalFile returns the full path to the write-ahead log file
+func (cfg *ConsensusConfig) WalFile() string {
+	if cfg.walFile != "" {
+		return cfg.walFile
+	}
+	return rootify(cfg.WalPath, cfg.RootDir)
+}
+
+// SetWalFile sets the path to the write-ahead log file
+func (cfg *ConsensusConfig) SetWalFile(walFile string) {
+	cfg.walFile = walFile
 }
 
 // WaitForTxs returns true if the consensus should wait for transactions before entering the propose step

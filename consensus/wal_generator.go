@@ -29,7 +29,16 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	blockStoreDB := memorydb.New()
 	stateDB := blockStoreDB
 	stateStore := cstate.NewStore(stateDB)
-	state, err := cstate.MakeGenesisState(&genesis.Genesis{})
+
+	genesisObj := &genesis.Genesis{
+		ChainID:         "kai",
+		Consensus:       configs.DefaultConsensusConfig(),
+		ConsensusParams: types.DefaultConsensusParams(),
+	}
+
+	_, privValidator := types.RandValidator(true, 1)
+
+	state, err := cstate.MakeGenesisState(genesisObj)
 	if err != nil {
 		return fmt.Errorf("failed to make genesis state: %w", err)
 	}
@@ -37,7 +46,12 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 
 	blockStore := kvstore.NewStoreDB(blockStoreDB)
 
-	bc, err := blockchain.NewBlockChain(log.New("blockchain"), blockStore, &configs.ChainConfig{}, false)
+	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, blockStore, genesisObj, nil)
+	if genesisErr != nil {
+		return err
+	}
+
+	bc, err := blockchain.NewBlockChain(log.New("blockchain"), blockStore, chainConfig, false)
 
 	if err != nil {
 		return fmt.Errorf("failed to new blockchain: %w", err)
@@ -61,6 +75,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	//blockExec := cstate.NewBlockExecutor(stateStore, nil, nil)
 	consensusState := NewConsensusState(log.New("consensus state"), configs.DefaultConsensusConfig(), state, blockOperator, nil, nil)
 	consensusState.SetEventBus(eventBus)
+	consensusState.SetPrivValidator(privValidator)
 
 	// set consensus wal to buffered WAL, which will write all incoming msgs to buffer
 	numBlocksWritten := make(chan struct{})

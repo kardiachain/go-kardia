@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"reflect"
 	"runtime/debug"
 	"sync"
@@ -37,6 +38,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	kevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
+	kos "github.com/kardiachain/go-kardia/lib/os"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/lib/service"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
@@ -117,7 +119,9 @@ type ConsensusState struct {
 
 	// a Write-Ahead Log ensures we can recover from any kind of crash
 	// and helps us avoid signing conflicting votes
-	wal WAL
+	wal          WAL
+	replayMode   bool // so we don't log signing errors during replay
+	doWALCatchup bool // determines if we even try to do the catchup
 
 	// Synchronous pubsub between consensus state and manager.
 	// State only emits EventNewRoundStep, EventVote and EventProposalHeartbeat
@@ -150,6 +154,8 @@ func NewConsensusState(
 		evsw:             kevents.NewEventSwitch(),
 		blockExec:        blockExec,
 		evpool:           evpool,
+		doWALCatchup:     true,
+		wal:              nilWAL{},
 		RoundState: cstypes.RoundState{
 			CommitRound: 1,
 			Height:      0,
@@ -198,9 +204,90 @@ func (cs *ConsensusState) SetPrivValidator(priv types.PrivValidator) {
 	cs.privValidator = priv
 }
 
+// loadWalFile loads WAL data from file. It overwrites cs.wal.
+func (cs *ConsensusState) loadWalFile() error {
+	wal, err := cs.OpenWAL(cs.config.WalFile())
+	if err != nil {
+		cs.Logger.Error("Error loading State wal", "err", err)
+		return err
+	}
+	cs.wal = wal
+	return nil
+}
+
+// OpenWAL opens a file to log all consensus messages and timeouts for
+// deterministic accountability.
+func (cs *ConsensusState) OpenWAL(walFile string) (WAL, error) {
+	wal, err := NewWAL(walFile)
+	if err != nil {
+		cs.Logger.Error("Failed to open WAL", "file", walFile, "err", err)
+		return nil, err
+	}
+	wal.SetLogger(cs.Logger.New("wal", walFile))
+	if err := wal.Start(); err != nil {
+		cs.Logger.Error("Failed to start WAL", "err", err)
+		return nil, err
+	}
+	return wal, nil
+}
+
 // It loads the latest state via the WAL, and starts the timeout and receive routines.
 func (cs *ConsensusState) OnStart() error {
 	cs.Logger.Info("Consensus state starts!")
+
+	// We may set the WAL in testing before calling Start, so only OpenWAL if its
+	// still the nilWAL.
+	if _, ok := cs.wal.(nilWAL); ok {
+		if err := cs.loadWalFile(); err != nil {
+			return err
+		}
+	}
+
+	// We may have lost some votes if the process crashed reload from consensus
+	// log to catchup.
+	if cs.doWALCatchup {
+		repairAttempted := false
+	LOOP:
+		for {
+			err := cs.catchupReplay(cs.Height)
+			switch {
+			case err == nil:
+				break LOOP
+			case !IsDataCorruptionError(err):
+				cs.Logger.Error("Error on catchup replay. Proceeding to start State anyway", "err", err)
+				break LOOP
+			case repairAttempted:
+				return err
+			}
+
+			cs.Logger.Error("WAL file is corrupted, attempting repair", "err", err)
+
+			// 1) prep work
+			if err := cs.wal.Stop(); err != nil {
+				return err
+			}
+			repairAttempted = true
+
+			// 2) backup original WAL file
+			corruptedFile := fmt.Sprintf("%s.CORRUPTED", cs.config.WalFile())
+			if err := kos.CopyFile(cs.config.WalFile(), corruptedFile); err != nil {
+				return err
+			}
+			cs.Logger.Info("Backed up WAL file", "src", cs.config.WalFile(), "dst", corruptedFile)
+
+			// 3) try to repair (WAL file will be overwritten!)
+			if err := repairWalFile(corruptedFile, cs.config.WalFile()); err != nil {
+				cs.Logger.Error("WAL repair failed", "err", err)
+				return err
+			}
+			cs.Logger.Info("Successful repair")
+
+			// reload WAL file
+			if err := cs.loadWalFile(); err != nil {
+				return err
+			}
+		}
+	}
 
 	if err := cs.evsw.Start(); err != nil {
 		return err
@@ -352,6 +439,12 @@ func (cs *ConsensusState) decideProposal(height uint64, round uint32) {
 		}
 	}
 
+	// Flush the WAL. Otherwise, we may not recompute the same proposal to sign,
+	// and the privValidator will refuse to sign anything.
+	if err := cs.wal.FlushAndSync(); err != nil {
+		cs.Logger.Error("Error flushing to disk")
+	}
+
 	// Make proposal
 	propBlockID := types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()}
 	proposal := types.NewProposal(height, round, cs.ValidRound, propBlockID)
@@ -366,6 +459,8 @@ func (cs *ConsensusState) decideProposal(height uint64, round uint32) {
 		}
 		cs.Logger.Info("Signed proposal", "height", height, "round", round, "proposal", proposal)
 		cs.Logger.Debug(fmt.Sprintf("Signed proposal block: %s", block.Hash()))
+	} else if !cs.replayMode {
+		cs.Logger.Error("enterPropose: Error signing proposal", "height", height, "round", round, "err", err)
 	}
 }
 
@@ -1320,6 +1415,27 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 
 	fail.Fail() // XXX
 
+	// Write EndHeightMessage{} for this height, implying that the blockstore
+	// has saved the block.
+	//
+	// If we crash before writing this EndHeightMessage{}, we will recover by
+	// running ApplyBlock during the ABCI handshake when we restart.  If we
+	// didn't save the block to the blockstore before writing
+	// EndHeightMessage{}, we'd have to change WAL replay -- currently it
+	// complains about replaying for heights where an #ENDHEIGHT entry already
+	// exists.
+	//
+	// Either way, the State should not be resumed until we
+	// successfully call ApplyBlock (ie. later here, or in Handshake after
+	// restart).
+	endMsg := EndHeightMessage{Height: int64(height)}
+	if err := cs.wal.WriteSync(endMsg); err != nil { // NOTE: fsync
+		panic(fmt.Sprintf("Failed to write %v msg to consensus wal due to %v. Check your FS and restart the node",
+			endMsg, err))
+	}
+
+	fail.Fail() // XXX
+
 	// Create a copy of the state for staging and an event cache for txs.
 	stateCopy := cs.state.Copy()
 
@@ -1430,9 +1546,32 @@ func CompareHRS(h1 uint64, r1 uint32, s1 cstypes.RoundStepType, h2 uint64, r2 ui
 // Updates (state transitions) happen on timeouts, complete proposals, and 2/3 majorities.
 // ConsensusState must be locked before any internal state is updated.
 func (cs *ConsensusState) receiveRoutine(maxSteps int) {
+	onExit := func(cs *ConsensusState) {
+		// NOTE: the internalMsgQueue may have signed messages from our
+		// priv_val that haven't hit the WAL, but its ok because
+		// priv_val tracks LastSig
+
+		// close wal now that we're done writing to it
+		if err := cs.wal.Stop(); err != nil {
+			cs.Logger.Error("error trying to stop wal", "error", err)
+		}
+		cs.wal.Wait()
+
+		close(cs.done)
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			cs.Logger.Error("CONSENSUS FAILURE!!!", "err", r, "stack", string(debug.Stack()))
+			// stop gracefully
+			//
+			// NOTE: We most probably shouldn't be running any further when there is
+			// some unexpected panic. Some unknown error happened, and so we don't
+			// know if that will result in the validator signing an invalid thing. It
+			// might be worthwhile to explore a mechanism for manual resuming via
+			// some console or secure RPC system, but for now, halting the chain upon
+			// unexpected consensus bugs sounds like the better option.
+			onExit(cs)
 		}
 	}()
 	for {
@@ -1447,6 +1586,17 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 		var mi msgInfo
 		select {
 		case mi = <-cs.peerMsgQueue:
+			if err := cs.wal.Write(mi); err != nil {
+				cs.Logger.Error("Error writing to wal", "err", err)
+			}
+			// handles proposals, block parts, votes
+			// may generate internal events (votes, complete proposals, 2/3 majorities)
+			cs.handleMsg(mi)
+		case mi = <-cs.internalMsgQueue:
+			err := cs.wal.WriteSync(mi) // NOTE: fsync
+			if err != nil {
+				panic(fmt.Sprintf("Failed to write %v msg to consensus wal due to %v. Check your FS and restart the node", mi, err))
+			}
 			// handles proposals, votes
 			// may generate internal events (votes, complete proposals, 2/3 majorities)
 
@@ -1459,13 +1609,17 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 			}
 
 			cs.handleMsg(mi)
-		case mi = <-cs.internalMsgQueue:
-			// handles proposals, votes
-			cs.handleMsg(mi)
 		case ti := <-cs.timeoutTicker.Chan(): // tockChan:
+			if err := cs.wal.Write(ti); err != nil {
+				cs.Logger.Error("Error writing to wal", "err", err)
+			}
+
 			// if the timeout is relevant to the rs
 			// go to the next step
 			cs.handleTimeout(ti, rs)
+		case <-cs.Quit():
+			onExit(cs)
+			return
 		}
 	}
 }
@@ -1552,4 +1706,40 @@ func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 	default:
 		panic(cmn.Fmt("Invalid timeout step: %v", ti.Step))
 	}
+}
+
+// repairWalFile decodes messages from src (until the decoder errors) and
+// writes them to dst.
+func repairWalFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	var (
+		dec = NewWALDecoder(in)
+		enc = NewWALEncoder(out)
+	)
+
+	// best-case repair (until first error is encountered)
+	for {
+		msg, err := dec.Decode()
+		if err != nil {
+			break
+		}
+
+		err = enc.Encode(msg)
+		if err != nil {
+			return fmt.Errorf("failed to encode msg: %w", err)
+		}
+	}
+
+	return nil
 }
