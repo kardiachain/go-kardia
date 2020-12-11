@@ -20,6 +20,7 @@ package main
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"flag"
 	"fmt"
 	"math/big"
@@ -126,9 +127,12 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 		genesisAccounts := make(map[string]*big.Int)
 		genesisContracts := make(map[string]string)
 
-		amount, _ := big.NewInt(0).SetString(g.GenesisAmount, 10)
-		for _, address := range g.Addresses {
-			genesisAccounts[address] = amount
+		for _, account := range g.Accounts {
+			amount, ok := new(big.Int).SetString(account.Amount, 10)
+			if !ok {
+				return nil, errors.New("cannot convert genesis amount")
+			}
+			genesisAccounts[account.Address] = amount
 		}
 
 		for key, contract := range g.Contracts {
