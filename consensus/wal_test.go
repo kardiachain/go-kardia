@@ -50,16 +50,15 @@ func TestWALTruncate(t *testing.T) {
 	// 60 block's size nearly 70K, greater than group's headBuf size(4096 * 10),
 	// when headBuf is full, truncate content will Flush to the file. at this
 	// time, RotateFile is called, truncate content exist in each file.
-	err = WALGenerateNBlocks(t, wal.Group(), 60)
+	err = WALGenerateNBlocks(t, wal.Group(), 2)
 	require.NoError(t, err)
-
 	time.Sleep(1 * time.Millisecond) // wait groupCheckDuration, make sure RotateFile run
 
 	if err := wal.FlushAndSync(); err != nil {
 		t.Error(err)
 	}
 
-	h := int64(50)
+	h := int64(1)
 	gr, found, err := wal.SearchForEndHeight(h, &WALSearchOptions{})
 	assert.NoError(t, err, "expected not to err on height %d", h)
 	assert.True(t, found, "expected to find end height for %d", h)
@@ -71,5 +70,5 @@ func TestWALTruncate(t *testing.T) {
 	assert.NoError(t, err, "expected to decode a message")
 	rs, ok := msg.Msg.(ktypes.EventDataRoundState)
 	assert.True(t, ok, "expected message of type EventDataRoundState")
-	assert.Equal(t, rs.Height, h+1, "wrong height")
+	assert.Equal(t, rs.Height, uint64(h+1), "wrong height")
 }

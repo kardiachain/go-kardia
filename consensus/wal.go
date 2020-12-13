@@ -406,7 +406,6 @@ func (dec *WALDecoder) Decode() (*TimedWALMessage, error) {
 		Time: res.Time,
 		Msg:  walMsg,
 	}
-
 	return tMsgWal, err
 }
 

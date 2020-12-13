@@ -595,7 +595,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 		"csHeight",
 		cs.Height,
 	)
-
 	// A precommit for the previous height?
 	// These come in while we wait timeoutCommit
 	if vote.Height+1 == cs.Height {
@@ -611,7 +610,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 		cs.Logger.Info(cmn.Fmt("Added to lastPrecommits: %v", cs.LastCommit.StringShort()))
 		cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote})
 		cs.evsw.FireEvent(types.EventVote, vote)
-
 		// if we can skip timeoutCommit and have all the votes now,
 		if cs.config.IsSkipTimeoutCommit && cs.LastCommit.HasAll() {
 			// go straight to new round (skip timeout commit)
@@ -724,7 +722,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 			// Executed as TwoThirdsMajority could be from a higher round
 			cs.enterNewRound(height, vote.Round)
 			cs.enterPrecommit(height, vote.Round)
-
 			if !blockID.Hash.IsZero() {
 				cs.enterCommit(height, vote.Round)
 				if cs.config.IsSkipTimeoutCommit && precommits.HasAll() {
@@ -822,6 +819,11 @@ func (cs *ConsensusState) updateRoundStep(round uint32, step cstypes.RoundStepTy
 func (cs *ConsensusState) newStep() {
 	rs := cs.RoundStateEvent()
 	cs.Logger.Trace("enter newStep()")
+
+	if err := cs.wal.Write(rs); err != nil {
+		cs.Logger.Error("Error writing to wal", "err", err)
+	}
+
 	cs.nSteps++
 
 	if cs.eventBus != nil {
@@ -1315,7 +1317,6 @@ func (cs *ConsensusState) enterCommit(height uint64, commitRound uint32) {
 		cs.CommitRound = commitRound
 		cs.CommitTime = uint64(time.Now().Unix())
 		cs.newStep()
-
 		// Maybe finalize immediately.
 		cs.tryFinalizeCommit(height)
 	}()
@@ -1343,7 +1344,7 @@ func (cs *ConsensusState) enterCommit(height uint64, commitRound uint32) {
 			// Set up ProposalBlockParts and keep waiting.
 			cs.ProposalBlock = nil
 			cs.ProposalBlockParts = types.NewPartSetFromHeader(blockID.PartsHeader)
-			cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent())
+			_ = cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent())
 			cs.evsw.FireEvent(types.EventValidBlock, &cs.RoundState)
 		}
 	}
@@ -1457,7 +1458,6 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 	}
 
 	fail.Fail() // XXX
-
 	// NewHeightStep!
 	cs.updateToState(stateCopy)
 

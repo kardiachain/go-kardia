@@ -318,7 +318,6 @@ func WALToProto(msg WALMessage) (*kcons.WALMessage, error) {
 	default:
 		return nil, fmt.Errorf("to proto: wal message not recognized: %T", msg)
 	}
-
 	return &pb, nil
 }
 
