@@ -220,6 +220,7 @@ func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *Bl
 type Validator struct {
 	Name                  string       `json:"name"`
 	Address               string       `json:"address"`
+	SmcAddress            string       `json:"smcAddress"`
 	StakedAmount          string       `json:"stakedAmount"`
 	CommissionRate        string       `json:"commissionRate"`
 	TotalDelegators       int          `json:"totalDelegators"`
@@ -272,6 +273,7 @@ func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, is
 	return &Validator{
 		Name:                  string(name),
 		Address:               val.ValAddr.String(),
+		SmcAddress:            val.ValStakingSmc.String(),
 		StakedAmount:          val.Tokens.String(),
 		CommissionRate:        val.CommissionRate.String(),
 		TotalDelegators:       len(val.Delegators),
