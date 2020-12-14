@@ -1,18 +1,21 @@
 package consensus
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"math/big"
 	"testing"
 	"time"
 
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/types"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
@@ -27,31 +30,19 @@ import (
 // If the node fails to produce given numBlocks, it returns an error.
 func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	logger := log.New("wal_generator")
-
+	validatorSet, privSet := types.RandValidatorSet(1, 1000000)
 	db := memorydb.New()
 	storeDB := kvstore.NewStoreDB(db)
 	stateStore := cstate.NewStore(db)
-	initValue, _ := big.NewInt(0).SetString("10000000000000000", 10)
-	var genesisAccounts = map[string]*big.Int{
-		"0xc1fe56E3F58D3244F606306611a5d10c8333f1f6": initValue,
-		"0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5": initValue,
+	initValue, _ := big.NewInt(0).SetString("15000000000000000000000000", 10)
+	var alloc = genesis.GenesisAlloc{
+		privSet[0].GetAddress(): genesis.GenesisAccount{
+			Balance: initValue,
+		},
 	}
 
 	configs.AddDefaultContract()
 
-	for address, _ := range genesisAccounts {
-		genesisAccounts[address] = initValue
-	}
-
-	genesisContracts := make(map[string]string)
-	for key, contract := range configs.GetContracts() {
-		configs.LoadGenesisContract(key, contract.Address, contract.ByteCode, contract.ABI)
-		if key != configs.StakingContractKey {
-			genesisContracts[contract.Address] = contract.ByteCode
-		}
-	}
-
-	validatorSet, privSet := types.RandValidatorSet(1, 1000000)
 	state := cstate.LastestBlockState{
 		ChainID:                     "kaicon",
 		LastBlockHeight:             0,
@@ -68,9 +59,20 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	gs := &genesis.Genesis{
 		Config:          configs.TestnetChainConfig,
 		GasLimit:        configs.BlockGasLimit,
-		Alloc:           genesis.GenesisAlloc{},
+		Alloc:           alloc,
 		ConsensusParams: configs.DefaultConsensusParams(),
 		Consensus:       configs.TestConsensusConfig(),
+		Validators: []*genesis.GenesisValidator{
+			&genesis.GenesisValidator{
+				Address:         privSet[0].GetAddress().Hex(),
+				SelfDelegate:    "13000000000000000000000000",
+				CommissionRate:  "100000000000000000",
+				MaxChangeRate:   "50000000000000000",
+				MaxRate:         "250000000000000000",
+				Name:            "val1",
+				MinSelfDelegate: "100",
+			},
+		},
 	}
 
 	stakingUtil, _ := staking.NewSmcStakingUtil()
@@ -136,6 +138,19 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 		}
 		return fmt.Errorf("waited too long for kardiachain to produce %d blocks (grep logs for `wal_generator`)", numBlocks)
 	}
+}
+
+// WALWithNBlocks returns a WAL content with numBlocks.
+func WALWithNBlocks(t *testing.T, numBlocks int) (data []byte, err error) {
+	var b bytes.Buffer
+	wr := bufio.NewWriter(&b)
+
+	if err := WALGenerateNBlocks(t, wr, numBlocks); err != nil {
+		return []byte{}, err
+	}
+
+	wr.Flush()
+	return b.Bytes(), nil
 }
 
 var fixedTime, _ = time.Parse(time.RFC3339, "2017-01-02T15:04:05Z")
