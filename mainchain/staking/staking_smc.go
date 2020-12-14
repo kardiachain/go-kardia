@@ -51,6 +51,7 @@ type StakingSmcUtil struct {
 type Validator struct {
 	Name                  [32]uint8      `json:"name"`
 	ValAddr               common.Address `json:"validatorAddress"`
+	ValSmcAddress         common.Address `json:"valSmcAddress"`
 	Tokens                *big.Int       `json:"tokens"`
 	Jailed                bool           `json:"jailed"`
 	MinSelfDelegation     *big.Int       `json:"minSelfDelegation"`

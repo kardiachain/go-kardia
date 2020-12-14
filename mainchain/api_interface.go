@@ -20,6 +20,7 @@ package kai
 
 import (
 	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -43,8 +44,8 @@ type APIBackend interface {
 	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
 	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
 	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error)
-	GetValidators() ([]*types.Validator, error)
-	GetValidator(valAddr common.Address) (*types.Validator, error)
+	GetValidators() ([]*staking.Validator, error)
+	GetValidator(valAddr common.Address) (*staking.Validator, error)
 	GetValidatorCommission(valAddr common.Address) (uint64, error)
 	GetDelegationsByValidator(valAddr common.Address) ([]*staking.Delegator, error)
 }
@@ -173,6 +174,7 @@ func (k *KardiaService) GetValidators() ([]*staking.Validator, error) {
 	)
 	for i := new(big.Int).SetInt64(0); i.Cmp(allValsLen) < 0; i.Add(i, one) {
 		valContractAddr, err := k.staking.GetValSmcAddr(st, header, k.blockchain, kvmConfig, i)
+		fmt.Println(valContractAddr.String())
 		if err != nil {
 			return nil, err
 		}
@@ -184,6 +186,7 @@ func (k *KardiaService) GetValidators() ([]*staking.Validator, error) {
 		if err != nil {
 			return nil, err
 		}
+		valInfo.ValSmcAddress = valContractAddr
 		valsInfo = append(valsInfo, valInfo)
 	}
 	return valsInfo, nil
@@ -209,6 +212,7 @@ func (k *KardiaService) GetValidator(valAddr common.Address) (*staking.Validator
 	if err != nil {
 		return nil, err
 	}
+	val.ValSmcAddress = valContractAddr
 	return val, nil
 }
 
