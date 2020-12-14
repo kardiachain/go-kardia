@@ -186,7 +186,7 @@ func (k *KardiaService) GetValidators() ([]*staking.Validator, error) {
 		if err != nil {
 			return nil, err
 		}
-		valInfo.ValSmcAddress = valContractAddr
+		valInfo.ValStakingSmc = valContractAddr
 		valsInfo = append(valsInfo, valInfo)
 	}
 	return valsInfo, nil
@@ -212,7 +212,7 @@ func (k *KardiaService) GetValidator(valAddr common.Address) (*staking.Validator
 	if err != nil {
 		return nil, err
 	}
-	val.ValSmcAddress = valContractAddr
+	val.ValStakingSmc = valContractAddr
 	return val, nil
 }
 

@@ -273,7 +273,7 @@ func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, is
 	return &Validator{
 		Name:                  string(name),
 		Address:               val.ValAddr.String(),
-		SmcAddress:            val.ValSmcAddress.String(),
+		SmcAddress:            val.ValStakingSmc.String(),
 		StakedAmount:          val.Tokens.String(),
 		CommissionRate:        val.CommissionRate.String(),
 		TotalDelegators:       len(val.Delegators),
