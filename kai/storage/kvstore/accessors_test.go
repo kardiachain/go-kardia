@@ -19,13 +19,14 @@
 package kvstore
 
 import (
+	"testing"
+	"time"
+
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/lib/merkle"
-	krand "github.com/kardiachain/go-kardia/lib/rand"
 	"github.com/kardiachain/go-kardia/types"
-	ktime "github.com/kardiachain/go-kardia/types/time"
-	"testing"
 )
 
 // Tests that head headers and head blocks can be assigned, individually.
@@ -51,23 +52,27 @@ func TestHeadStorage(t *testing.T) {
 func TestBlockStorage(t *testing.T) {
 	db := memorydb.New()
 
-	// Create a test block to move around the database and make sure it's really new
-	block := types.NewBlockWithHeader(&types.Header{
-		Height:             krand.Uint64(),
-		Time:               ktime.Now(),
-		NumTxs:             krand.Uint64(),
-		GasLimit:           krand.Uint64(),
-		LastBlockID:        types.BlockID{},
-		ProposerAddress:    common.HexToAddress(krand.Hash(merkle.AddressSize).String()),
-		LastCommitHash:     krand.Hash(merkle.Size),
-		TxHash:             krand.Hash(merkle.Size),
-		ValidatorsHash:     krand.Hash(merkle.Size),
-		NextValidatorsHash: krand.Hash(merkle.Size),
-		ConsensusHash:      krand.Hash(merkle.Size),
-		AppHash:            krand.Hash(merkle.Size),
-		EvidenceHash:       krand.Hash(merkle.Size),
-	})
-	//partsSet := block.MakePartSet(types.BlockPartSizeBytes)
+	vote := &types.Vote{
+		ValidatorIndex: 1,
+		Height:         1336,
+		Round:          1,
+		Timestamp:      time.Now(),
+		Type:           kproto.PrecommitType,
+		BlockID:        types.BlockID{},
+	}
+	lastCommit := &types.Commit{
+		Height:     1336,
+		Round:      1,
+		Signatures: []types.CommitSig{vote.CommitSig(), types.NewCommitSigAbsent()},
+	}
+	header := &types.Header{
+		Height:         1337,
+		Time:           time.Now(),
+		TxHash:         types.EmptyRootHash,
+		LastCommitHash: lastCommit.Hash(),
+	}
+	block := types.NewBlock(header, nil, lastCommit, nil)
+	partsSet := block.MakePartSet(types.BlockPartSizeBytes)
 
 	// Check that no entries are in a pristine database
 	if entry := ReadBlock(db, block.Height()); entry != nil {
@@ -81,7 +86,29 @@ func TestBlockStorage(t *testing.T) {
 	}
 
 	// Write and verify the block in the database
-	//WriteBlock(db, block, partsSet, &types.Commit{})
+	WriteBlock(db, block, partsSet, lastCommit)
+
+	// Check that header height are present
+	if entry := ReadHeaderHeight(db, block.Hash()); *entry != block.Height() {
+		t.Fatalf("Block height mismatch: have %v, want %v", *entry, block.Height())
+	}
+
+	// Check that header are present
+	if entry := ReadHeader(db, block.Height()); entry == nil {
+		t.Fatalf("Header not found")
+	}
+
+	// Check block meta are present
+	if entry := ReadBlockMeta(db, block.Height()); entry == nil {
+		t.Fatalf("Block Meta not found")
+	}
+
+	// Check block parts are present
+	for i := uint32(0); i < partsSet.Total(); i++ {
+		if entry := ReadBlockPart(db, block.Height(), int(i)); entry == nil {
+			t.Fatalf("Block part not found index: %v", i)
+		}
+	}
 }
 
 func TestAppHashStorage(t *testing.T) {

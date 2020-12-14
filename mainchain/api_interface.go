@@ -114,7 +114,7 @@ func (k *KardiaService) BlockByNumberOrHash(ctx context.Context, blockNrOrHash r
 }
 
 func (k *KardiaService) BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo {
-	height := k.DB().ReadHeaderNumber(hash)
+	height := k.DB().ReadHeaderHeight(hash)
 	if height == nil {
 		return nil
 	}
