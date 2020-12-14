@@ -109,16 +109,6 @@ func TestBlockStorage(t *testing.T) {
 			t.Fatalf("Block part not found index: %v", i)
 		}
 	}
-
-	// Check block commit are present
-	if entry := ReadCommit(db, block.Height()-1); entry == nil {
-		t.Fatalf("Block commit not found")
-	}
-
-	// Check last commit are present
-	//if entry := ReadSeenCommit(db, lastCommit.Height); entry != block.LastCommit() {
-	//	t.Fatalf("Read commit mismatch: have %v, want %v", entry, block.LastCommit())
-	//}
 }
 
 func TestAppHashStorage(t *testing.T) {
