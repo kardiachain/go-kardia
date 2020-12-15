@@ -183,7 +183,7 @@ func ReadBodyRLP(db kaidb.Reader, hash common.Hash, height uint64) rlp.RawValue 
 // ReadBody retrieves the block body corresponding to the height.
 func ReadBody(db kaidb.Reader, height uint64) *types.Body {
 	if block := ReadBlock(db, height); block != nil {
-		ReadBlock(db, height).Body()
+		return ReadBlock(db, height).Body()
 	}
 	return nil
 }
