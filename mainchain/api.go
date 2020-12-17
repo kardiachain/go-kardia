@@ -227,7 +227,6 @@ type Validator struct {
 	MaxRate               string       `json:"maxRate"`
 	MaxChangeRate         string       `json:"maxChangeRate"`
 	Jailed                bool         `json:"jailed"`
-	MinSelfDelegation     string       `json:"minSelfDelegation"`
 	DelegationShares      string       `json:"delegationShares"`
 	AccumulatedCommission string       `json:"accumulatedCommission"`
 	UbdEntryCount         string       `json:"ubdEntryCount"`
