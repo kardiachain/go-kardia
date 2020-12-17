@@ -180,13 +180,13 @@ func TestCreateValidator(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", "10")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	address1 := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address1, "Val2", "10", "20", "1", "10")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address1, "Val2", "10", "20", "1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func TestGetCommissionValidator(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", "10")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +274,7 @@ func TestGetValidatorsByDelegator(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", "10")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,11 +308,11 @@ func TestDoubleSign(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", "10")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	valSmcAddr, err := util.GetValSmcAddr(stateDB, block.Header(), nil, kvm.Config{}, big.NewInt(0))
+	valSmcAddr, err := util.GetValFromOwner(stateDB, block.Header(), nil, kvm.Config{}, common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -280,7 +280,6 @@ func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, is
 		MaxRate:               val.MaxRate.String(),
 		MaxChangeRate:         val.MaxChangeRate.String(),
 		Jailed:                val.Jailed,
-		MinSelfDelegation:     val.MinSelfDelegation.String(),
 		DelegationShares:      val.DelegationShares.String(),
 		AccumulatedCommission: val.AccumulatedCommission.String(),
 		UbdEntryCount:         val.UbdEntryCount.String(),

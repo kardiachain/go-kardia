@@ -349,8 +349,7 @@ func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB
 			val.Name,
 			val.CommissionRate,
 			val.MaxRate,
-			val.MaxChangeRate,
-			val.MinSelfDelegate); err != nil {
+			val.MaxChangeRate); err != nil {
 			return fmt.Errorf("apply create validator err: %s", err)
 		}
 

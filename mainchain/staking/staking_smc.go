@@ -54,7 +54,6 @@ type Validator struct {
 	ValStakingSmc         common.Address `json:"valStakingSmc"`
 	Tokens                *big.Int       `json:"tokens"`
 	Jailed                bool           `json:"jailed"`
-	MinSelfDelegation     *big.Int       `json:"minSelfDelegation"`
 	DelegationShares      *big.Int       `json:"delegationShares"`
 	AccumulatedCommission *big.Int       `json:"accumulatedCommission"`
 	UbdEntryCount         *big.Int       `json:"ubdEntryCount"`
@@ -123,28 +122,24 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 	_name string,
 	_commission string,
 	_maxRate string,
-	_maxChangeRate string,
-	_minSelfDelegate string) error {
+	_maxChangeRate string) error {
 
 	commission, k1 := big.NewInt(0).SetString(_commission, 10)
 	maxRate, k2 := big.NewInt(0).SetString(_maxRate, 10)
 	maxChangeRate, k3 := big.NewInt(0).SetString(_maxChangeRate, 10)
-	minSelfDelegate, k4 := big.NewInt(0).SetString(_minSelfDelegate, 10)
-	// selfDelegate, k5 := big.NewInt(0).SetString(_selfDelegate, 10)
 	name := []byte(_name)
 	var arrName [32]byte
 	copy(arrName[:], name[:32])
 
-	if !k1 || !k2 || !k3 || !k4 {
+	if !k1 || !k2 || !k3 {
 		panic("Error while parsing genesis validator params")
 	}
 
 	input, err := s.Abi.Pack("createValidator",
 		arrName,
-		commission,      // Commission rate
-		maxRate,         // Maximum commission rate
-		maxChangeRate,   // Maximum commission change rate
-		minSelfDelegate, // Minimum self delegate amount
+		commission,    // Commission rate
+		maxRate,       // Maximum commission rate
+		maxChangeRate, // Maximum commission change rate
 	)
 	if err != nil {
 		panic(err)
