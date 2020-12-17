@@ -52,13 +52,12 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 // GenesisValidator is an initial validator.
 type GenesisValidator struct {
-	Name            string `json:"name" yaml:"Name"`
-	Address         string `json:"address" yaml:"Address"`
-	CommissionRate  string `json:"commissionRate" yaml:"CommissionRate"`
-	MaxRate         string `json:"maxRate" yaml:"MaxRate"`
-	MaxChangeRate   string `json:"maxChangeRate" yaml:"MaxChangeRate"`
-	MinSelfDelegate string `json:"minSelfDelegate" yaml:"MinSelfDelegate"`
-	SelfDelegate    string `json:"selfDelegate" yaml:"SelfDelegate"`
+	Name           string `json:"name" yaml:"Name"`
+	Address        string `json:"address" yaml:"Address"`
+	CommissionRate string `json:"commissionRate" yaml:"CommissionRate"`
+	MaxRate        string `json:"maxRate" yaml:"MaxRate"`
+	MaxChangeRate  string `json:"maxChangeRate" yaml:"MaxChangeRate"`
+	SelfDelegate   string `json:"selfDelegate" yaml:"SelfDelegate"`
 }
 
 // Genesis specifies the header fields, state of a genesis block.
