@@ -2,23 +2,20 @@ pragma solidity ^0.5.0;
 import {Ownable} from "./Ownable.sol";
 import {IStaking} from "./interfaces/IStaking.sol";
 import {SafeMath} from "./Safemath.sol";
+import {IParams} from "./interfaces/IParams.sol";
 
-contract Minter is Ownable {
+contract Minter is Ownable{
     using SafeMath for uint256;
     uint256 private _oneDec = 1 * 10**18;
-    uint256 public inflationRateChange = 5 * 10**16; // 5%
-    uint256 public goalBonded = 35 * 10**16;// 20%;
-    uint256 public blocksPerYear = 6307200; // assumption 5s per block
-    uint256 public inflationMax = 7 * 10**16;// 7%
-    uint256 public inflationMin = 2 * 10**16; // 2%
-
     uint256 public inflation;
     uint256 public annualProvision;
     uint256 public feesCollected;
 
-    IStaking private _staking; 
+    IStaking private _staking;
+    address public params;
 
-    constructor() public {
+    constructor(address _params) public {
+        params = _params;
         transferOwnership(msg.sender);
         _staking = IStaking(msg.sender);
     }
@@ -48,7 +45,7 @@ contract Minter is Ownable {
     }
 
     function getBlockProvision() public view returns (uint256) {
-        return annualProvision.div(blocksPerYear);
+        return annualProvision.div(IParams(params).getBlocksPerYear());
     }
 
     function getNextInflationRate() private view returns (uint256) {
@@ -58,21 +55,21 @@ contract Minter is Ownable {
         uint256 inflationRateChangePerYear;
         uint256 _inflationRateChange;
         uint256 inflationRate;
-        if (bondedRatio < goalBonded) {
+        if (bondedRatio < IParams(params).getGoalBonded()) {
             inflationRateChangePerYear = _oneDec
-                .sub(bondedRatio.divTrun(goalBonded))
-                .mulTrun(inflationRateChange);
+                .sub(bondedRatio.divTrun(IParams(params).getGoalBonded()))
+                .mulTrun(IParams(params).getInflationRateChange());
             _inflationRateChange = inflationRateChangePerYear.div(
-                blocksPerYear
+               IParams(params).getBlocksPerYear()
             );
             inflationRate = inflation.add(_inflationRateChange);
         } else {
             inflationRateChangePerYear = bondedRatio
-                .divTrun(goalBonded)
+                .divTrun(IParams(params).getGoalBonded())
                 .sub(_oneDec)
-                .mulTrun(inflationRateChange);
+                .mulTrun(IParams(params).getInflationRateChange());
             _inflationRateChange = inflationRateChangePerYear.div(
-                blocksPerYear
+                IParams(params).getBlocksPerYear()
             );
             if (inflation > _inflationRateChange) {
                 inflationRate = inflation.sub(_inflationRateChange);
@@ -80,11 +77,11 @@ contract Minter is Ownable {
                 inflationRate = 0;
             }
         }
-        if (inflationRate > inflationMax) {
-            inflationRate = inflationMax;
+        if (inflationRate > IParams(params).getInflationMax()) {
+            inflationRate = IParams(params).getInflationMax();
         }
-        if (inflationRate < inflationMin) {
-            inflationRate = inflationMin;
+        if (inflationRate < IParams(params).getInflationMin()) {
+            inflationRate = IParams(params).getInflationMin();
         }
         return inflationRate;
     }
