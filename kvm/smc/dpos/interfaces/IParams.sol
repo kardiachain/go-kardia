@@ -18,7 +18,7 @@ interface IParams {
         uint256 _inflationMin) external;
     function getBaseProposerReward() external view returns (uint256);
     function getBonusProposerReward() external view returns (uint256);
-    function getMaxValidators() external view returns (uint256);
+    function getMaxProposers() external view returns (uint256);
     function getInflationRateChange() external view returns (uint256);
     function getGoalBonded() external view returns (uint256);
     function getBlocksPerYear() external view returns (uint256);
@@ -31,5 +31,5 @@ interface IParams {
     function getSignedBlockWindow() external view returns (uint256);
     function getMinSignedPerWindow() external view returns (uint256);
     function getMinStake() external view returns (uint256);
-    function getMinValidatorBalance() external view returns (uint256);
+    function getMinValidatorStake() external view returns (uint256);
 }

@@ -231,7 +231,7 @@ contract Staking is IStaking, Ownable {
     }
 
     function startValidator() external onlyValidator {
-        if (valSets.length < IParams(params).getMaxValidators()) {
+        if (valSets.length < IParams(params).getMaxProposers()) {
             valSets.push(msg.sender);
             return;
         }
@@ -346,7 +346,7 @@ contract Staking is IStaking, Ownable {
         uint256 _signedBlockWindow,
         uint256 _minSignedPerWindow,
         uint256 _minStake,
-        uint256 _minValidatorBalance
+        uint256 _minValidatorStake
     ) external onlyOwner {
         IParams(params).updateValidatorParams(
             _downtimeJailDuration,
@@ -356,7 +356,7 @@ contract Staking is IStaking, Ownable {
             _signedBlockWindow,
             _minSignedPerWindow,
             _minStake,
-            _minValidatorBalance
+            _minValidatorStake
         );
     }
 

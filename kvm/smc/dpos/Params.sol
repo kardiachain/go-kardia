@@ -12,7 +12,7 @@ contract Params is Ownable {
     struct StakingParams {
         uint256 baseProposerReward;
         uint256 bonusProposerReward;
-        uint256 maxValidators;
+        uint256 maxProposers;
     }
 
     struct ValidatorParams {
@@ -23,7 +23,7 @@ contract Params is Ownable {
         uint256 signedBlockWindow;
         uint256 minSignedPerWindow;
         uint256 minStake;
-        uint256 minValidatorBalance;
+        uint256 minValidatorStake;
     }
 
     struct MintParams {
@@ -46,26 +46,26 @@ contract Params is Ownable {
         stakingParams = StakingParams({
             baseProposerReward: 1 * 10**16,
             bonusProposerReward: 4 * 10**16,
-            maxValidators: 20
+            maxProposers: 20
         });
 
         validatorParams = ValidatorParams({
-            downtimeJailDuration: 259200,
-            slashFractionDowntime: 1 * 10**14,
-            unbondingTime: 1814400, 
-            slashFractionDoubleSign: 5 * 10**16,
+            downtimeJailDuration: 259200, // 3 days
+            slashFractionDowntime: 5 * 10**16, // 5%
+            unbondingTime: 604800, // 7 days
+            slashFractionDoubleSign: 25 * 10**16, //25%
             signedBlockWindow: 10000,
-            minSignedPerWindow: 5 * 10**16,
+            minSignedPerWindow: 50 * 10**16, //50%
             minStake: 25000 * 10**18, // 25 000 KAI
-            minValidatorBalance: 12500000 * 10**18 // 12500000 KAI
+            minValidatorStake: 12500000 * 10**18 // 12500000 KAI
         });
 
         mintParams = MintParams({
-            inflationRateChange: 2 * 10**16, // 2%
-            goalBonded: 35 * 10**16,
+            inflationRateChange: 1 * 10**16, // 1%
+            goalBonded: 50 * 10**16, // 50%
             blocksPerYear: 6307200,
-            inflationMax: 7 * 10**16,
-            inflationMin: 189216 * 10**11 // 1,89216%
+            inflationMax: 5 * 10**16, // 5%
+            inflationMin: 1 * 10**16 // 1%
         });
 
     }
@@ -75,8 +75,8 @@ contract Params is Ownable {
         stakingParams.bonusProposerReward = _bonusProposerReward;
     }
 
-    function updateMaxValidator(uint256 _maxValidators) external onlyOwner {
-        stakingParams.maxValidators = _maxValidators;
+    function updateMaxValidator(uint256 _maxProposers) external onlyOwner {
+        stakingParams.maxProposers = _maxProposers;
     }
 
     function updateValidatorParams(
@@ -87,7 +87,7 @@ contract Params is Ownable {
         uint256 _signedBlockWindow,
         uint256 _minSignedPerWindow,
         uint256 _minStake,
-        uint256 _minValidatorBalance) 
+        uint256 _minValidatorStake) 
         external onlyOwner {
         
         validatorParams = ValidatorParams({
@@ -98,7 +98,7 @@ contract Params is Ownable {
             signedBlockWindow: _signedBlockWindow,
             minSignedPerWindow: _minSignedPerWindow,
             minStake: _minStake, // 10 000 kai
-            minValidatorBalance: _minValidatorBalance
+            minValidatorStake: _minValidatorStake
         });
     }
 
@@ -127,8 +127,8 @@ contract Params is Ownable {
         return stakingParams.bonusProposerReward;
     }
 
-    function getMaxValidators() external view returns (uint256) {
-        return stakingParams.maxValidators;
+    function getMaxProposers() external view returns (uint256) {
+        return stakingParams.maxProposers;
     }
 
     function getInflationRateChange() external view returns (uint256) {
@@ -179,7 +179,7 @@ contract Params is Ownable {
         return validatorParams.minStake;
     }
 
-    function getMinValidatorBalance() external view returns (uint256) {
-        return validatorParams.minValidatorBalance;
+    function getMinValidatorStake() external view returns (uint256) {
+        return validatorParams.minValidatorStake;
     }
 }

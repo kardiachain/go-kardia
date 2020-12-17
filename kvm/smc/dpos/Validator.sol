@@ -16,7 +16,7 @@ contract Validator is IValidator, Ownable {
     using SafeMath for uint256;
 
     uint256 oneDec = 1 * 10 ** 18;
-    uint256 powerReduction = 1 * 10 **10;
+    uint256 powerReduction = 1 * 10 ** 10;
 
     enum Status { Unbonding, Unbonded, Bonded}
 
@@ -671,7 +671,7 @@ contract Validator is IValidator, Ownable {
     function _stopIfNeeded() private {
         if (!_isBonded()) return;
         if (inforValidator.jailed || 
-            inforValidator.tokens < IParams(params).getMinValidatorBalance()) {
+            inforValidator.tokens < IParams(params).getMinValidatorStake()) {
             _stop();
         }
     }
@@ -697,7 +697,7 @@ contract Validator is IValidator, Ownable {
         require(inforValidator.status != Status.Bonded, "validator bonded");
         require(!inforValidator.jailed, "validator jailed");
         require(inforValidator.tokens.div(powerReduction) > 0, "zero voting power");
-        require(inforValidator.tokens >= IParams(params).getMinValidatorBalance(), "Address balance must greater or equal minimum validator balance");
+        require(inforValidator.tokens >= IParams(params).getMinValidatorStake(), "Address balance must greater or equal minimum validator balance");
 
         _staking.startValidator();
         inforValidator.status = Status.Bonded;
