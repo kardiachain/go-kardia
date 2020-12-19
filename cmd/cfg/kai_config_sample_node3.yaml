@@ -34,7 +34,7 @@ MainChain:
     Dir: chaindata                           # directory stores leveldb
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
-    Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
+    Drop: 0                                  # Specify whether drop database or not (0 is no, 1 is yes)
 GenTxs: # Devnet config to dynamize txs processing
   Type: 1
   NumTxs: 500
