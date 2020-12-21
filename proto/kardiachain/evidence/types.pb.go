@@ -9,7 +9,7 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	_ "github.com/gogo/protobuf/types"
 	github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
-	types "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	types "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 	io "io"
 	math "math"
 	math_bits "math/bits"

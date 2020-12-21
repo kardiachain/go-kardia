@@ -22,7 +22,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 func TestReceiptEncodeRLP(t *testing.T) {

@@ -23,16 +23,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/ksml"
-	message2 "github.com/kardiachain/go-kardiamain/ksml/proto"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/ksml"
+	message2 "github.com/kardiachain/go-kardia/ksml/proto"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 
 	"github.com/golang/protobuf/jsonpb"
-	dualMsg "github.com/kardiachain/go-kardiamain/dualnode/message"
-	"github.com/kardiachain/go-kardiamain/kai/base"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/types"
+	dualMsg "github.com/kardiachain/go-kardia/dualnode/message"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/types"
 	"github.com/pebbe/zmq4"
 )
 

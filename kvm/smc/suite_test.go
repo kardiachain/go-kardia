@@ -2,7 +2,7 @@
 package kvm
 
 import (
-	"github.com/kardiachain/go-kardiamain/configs"
+	"github.com/kardiachain/go-kardia/configs"
 )
 
 func init() {

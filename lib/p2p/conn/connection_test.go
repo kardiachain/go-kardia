@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/protoio"
-	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
-	"github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/protoio"
+	kp2p "github.com/kardiachain/go-kardia/proto/kardiachain/p2p"
+	"github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 const maxPingPongPacketSize = 1024 // bytes

@@ -27,7 +27,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // TestPack tests the general pack/unpack tests in packing_test.go

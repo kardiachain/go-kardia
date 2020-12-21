@@ -21,7 +21,7 @@ package types
 import (
 	"time"
 
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 const (

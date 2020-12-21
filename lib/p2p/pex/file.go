@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kardiachain/go-kardiamain/lib/tempfile"
+	"github.com/kardiachain/go-kardia/lib/tempfile"
 )
 
 /* Loading & Saving */

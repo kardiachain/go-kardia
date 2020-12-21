@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	types "github.com/kardiachain/go-kardiamain/types"
+	types "github.com/kardiachain/go-kardia/types"
 	mock "github.com/stretchr/testify/mock"
 )
 

@@ -22,7 +22,7 @@ import (
 	"bytes"
 	"testing"
 
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 // NOTE: privValidators are in order

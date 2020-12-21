@@ -25,21 +25,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
-	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	kpubsub "github.com/kardiachain/go-kardiamain/lib/pubsub"
-	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	g "github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardiamain/types"
-	"github.com/kardiachain/go-kardiamain/types/evidence"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	kpubsub "github.com/kardiachain/go-kardia/lib/pubsub"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	g "github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/types"
+	"github.com/kardiachain/go-kardia/types/evidence"
 )
 
 const (
@@ -273,7 +273,7 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 }
 
 func setupGenesis(g *genesis.Genesis, db types.StoreDB) (*configs.ChainConfig, common.Hash, error) {
-	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	stakingUtil, _ := staking.NewSmcStakingUtil()
 	return genesis.SetupGenesisBlock(log.New(), db, g, stakingUtil)
 }
 
@@ -330,7 +330,7 @@ func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*Consensu
 		return nil, err
 	}
 
-	staking, _ := staking.NewSmcStakingnUtil()
+	staking, _ := staking.NewSmcStakingUtil()
 
 	txConfig := tx_pool.TxPoolConfig{
 		GlobalSlots: 64,

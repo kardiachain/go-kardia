@@ -19,7 +19,7 @@
 package kvm
 
 import (
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // ExecutionResult includes all output after executing given kvm

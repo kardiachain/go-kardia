@@ -8,13 +8,13 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
-	"github.com/kardiachain/go-kardiamain/lib/cmap"
-	kmath "github.com/kardiachain/go-kardiamain/lib/math"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
-	krand "github.com/kardiachain/go-kardiamain/lib/rand"
-	"github.com/kardiachain/go-kardiamain/lib/service"
-	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	"github.com/kardiachain/go-kardia/lib/cmap"
+	kmath "github.com/kardiachain/go-kardia/lib/math"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/lib/p2p/conn"
+	krand "github.com/kardiachain/go-kardia/lib/rand"
+	"github.com/kardiachain/go-kardia/lib/service"
+	kp2p "github.com/kardiachain/go-kardia/proto/kardiachain/p2p"
 )
 
 type Peer = p2p.Peer

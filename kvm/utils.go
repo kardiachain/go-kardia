@@ -20,7 +20,7 @@ package kvm
 
 import (
 	"github.com/holiman/uint256"
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // calcMemSize64 calculates the required memory size, and returns

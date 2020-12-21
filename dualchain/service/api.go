@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // DualBlockJSON represents Block in JSON format

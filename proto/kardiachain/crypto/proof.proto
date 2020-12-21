@@ -1,7 +1,7 @@
 syntax = "proto3";
 package kardiachain.crypto;
 
-option go_package = "github.com/kardiachain/go-kardiamain/proto/kardiachain/crypto";
+option go_package = "github.com/kardiachain/go-kardia/proto/kardiachain/crypto";
 
 import "gogoproto/gogo.proto";
 

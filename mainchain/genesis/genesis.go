@@ -25,18 +25,18 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/kvm"
+	"github.com/kardiachain/go-kardia/kvm"
 
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/kai/state"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 //go:generate gencodec -type Genesis -field-override genesisSpecMarshaling -out gen_genesis.go
@@ -54,7 +54,7 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 type GenesisValidator struct {
 	Name            string `json:"name" yaml:"Name"`
 	Address         string `json:"address" yaml:"Address"`
-	CommissionRate  string `json:"comission" yaml:"CommissionRate"`
+	CommissionRate  string `json:"commissionRate" yaml:"CommissionRate"`
 	MaxRate         string `json:"maxRate" yaml:"MaxRate"`
 	MaxChangeRate   string `json:"maxChangeRate" yaml:"MaxChangeRate"`
 	MinSelfDelegate string `json:"minSelfDelegate" yaml:"MinSelfDelegate"`
@@ -346,12 +346,18 @@ func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB
 	for _, val := range validators {
 		if err := staking.CreateGenesisValidator(statedb, header, nil, cfg,
 			common.HexToAddress(val.Address),
+			val.Name,
 			val.CommissionRate,
 			val.MaxRate,
 			val.MaxChangeRate,
-			val.MinSelfDelegate,
-			val.SelfDelegate); err != nil {
+			val.MinSelfDelegate); err != nil {
 			return fmt.Errorf("apply create validator err: %s", err)
+		}
+
+		if err := staking.StartGenesisValidator(statedb, header, nil, cfg,
+			common.HexToAddress(val.Address),
+			val.SelfDelegate); err != nil {
+			return fmt.Errorf("apply start validator err: %s", err)
 		}
 	}
 

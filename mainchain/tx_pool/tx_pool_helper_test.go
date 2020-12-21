@@ -19,9 +19,9 @@
 package tx_pool
 
 import (
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/rand"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/rand"
+	"github.com/kardiachain/go-kardia/types"
 	"testing"
 )
 

@@ -23,10 +23,10 @@ import (
 	"math/big"
 
 	fail "github.com/ebuchman/fail-test"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.

@@ -3,7 +3,7 @@ package p2p
 import (
 	"net"
 
-	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardia/lib/sync"
 )
 
 // IPeerSet has a (immutable) subset of the methods of PeerSet.

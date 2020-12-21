@@ -19,8 +19,8 @@
 package blockchain
 
 import (
-	"github.com/kardiachain/go-kardiamain/kai/base"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/kai/base"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // Manages the internal blockchain (i.e Kardia) and one of the external blockchain (e.g. Ethereum,

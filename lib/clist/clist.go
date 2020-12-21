@@ -33,7 +33,7 @@ import (
 	"fmt"
 	"sync"
 
-	ksync "github.com/kardiachain/go-kardiamain/lib/sync"
+	ksync "github.com/kardiachain/go-kardia/lib/sync"
 )
 
 // MaxLength is the max allowed number of elements a linked list is

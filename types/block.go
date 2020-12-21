@@ -32,13 +32,13 @@ import (
 	"math/big"
 
 	"github.com/gogo/protobuf/proto"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto/sha3"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/math"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardiamain/trie"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto/sha3"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/math"
+	"github.com/kardiachain/go-kardia/lib/rlp"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/trie"
 )
 
 var (
@@ -342,7 +342,9 @@ func NewDualBlock(header *Header, events DualEvents, commit *Commit, evidence []
 // header data is copied, changes to header and to the field values
 // will not affect the block.
 func NewBlockWithHeader(header *Header) *Block {
-	return &Block{header: CopyHeader(header)}
+	return &Block{
+		header: CopyHeader(header),
+	}
 }
 
 // CopyHeader creates a deep copy of a block header to prevent side effects from

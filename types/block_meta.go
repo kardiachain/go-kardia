@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 
-	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 func (bm *BlockMeta) ToProto() *kaiproto.BlockMeta {

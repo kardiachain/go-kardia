@@ -19,42 +19,34 @@
 package configs
 
 import (
+	"math"
 	"math/big"
 	"strings"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 // TODO(huny): Get the proper genesis hash for Kardia when ready
 // Genesis hashes to enforce below configs on.
 var (
+	DefaultChainID  = uint64(1)
+	EthDualChainID  = uint64(2)
+	NeoDualChainID  = uint64(3)
+	TronDualChainID = uint64(4)
+
 	MainnetGenesisHash = common.HexToHash("0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3")
 	TestnetGenesisHash = common.HexToHash("0x41941023680923e0fe4d74a34bdac8141f2540e3ae90623718e47d66d1ca4a2d")
 
 	GenesisDeployerAddr    = common.BytesToAddress([]byte{0x1})
 	StakingContractAddress common.Address
-)
 
-var (
-	DefaultChainID  = uint64(1)
-	EthDualChainID  = uint64(2)
-	NeoDualChainID  = uint64(3)
-	TronDualChainID = uint64(4)
+	// PowerReduction calculation MUST sync up with power/token reduction in the staking smart contract
+	// This reduction is used for speed up the kvm computing and computing fees
+	// power = (amount of kai * 10^18)/ power reduction
+	PowerReduction = big.NewInt(int64(math.Pow10(10)))
 )
-
-// Remove and group into configs/contracts.go
-//var (
-//	StakingContract           = "Staking"
-//	CounterContract           = "Counter"
-//	BallotContract            = "Ballot"
-//	ExchangeContract          = "Exchange"
-//	ExchangeV2Contract        = "ExchangeV2"
-//	PermissionContract        = "Permission"
-//	CandidateDBContract       = "CandidateDB"
-//	CandidateExchangeContract = "CandidateExchange"
-//)
 
 var (
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
@@ -271,4 +263,18 @@ func GetContractByteCodeByAddress(address string) string {
 		}
 	}
 	panic("ByteCode not found")
+}
+
+func GetContractABIByType(contractType string) string {
+	if contracts[contractType].ABI != "" {
+		return contracts[contractType].ABI
+	}
+	panic("ABI not found")
+}
+
+func GetContractByteCodeByType(contractType string) string {
+	if contracts[contractType].ByteCode != "" {
+		return contracts[contractType].ByteCode
+	}
+	panic("ABI not found")
 }

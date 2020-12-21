@@ -19,10 +19,14 @@
 package kvstore
 
 import (
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/types"
 	"testing"
+	"time"
+
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // Tests that head headers and head blocks can be assigned, individually.
@@ -44,19 +48,82 @@ func TestHeadStorage(t *testing.T) {
 	}
 }
 
+// Tests block storage and retrieval operations.
+func TestBlockStorage(t *testing.T) {
+	db := memorydb.New()
+
+	vote := &types.Vote{
+		ValidatorIndex: 1,
+		Height:         1336,
+		Round:          1,
+		Timestamp:      time.Now(),
+		Type:           kproto.PrecommitType,
+		BlockID:        types.BlockID{},
+	}
+	lastCommit := &types.Commit{
+		Height:     1336,
+		Round:      1,
+		Signatures: []types.CommitSig{vote.CommitSig(), types.NewCommitSigAbsent()},
+	}
+	header := &types.Header{
+		Height:         1337,
+		Time:           time.Now(),
+		TxHash:         types.EmptyRootHash,
+		LastCommitHash: lastCommit.Hash(),
+	}
+	block := types.NewBlock(header, nil, lastCommit, nil)
+	partsSet := block.MakePartSet(types.BlockPartSizeBytes)
+
+	// Check that no entries are in a pristine database
+	if entry := ReadBlock(db, block.Height()); entry != nil {
+		t.Fatalf("Non existent block returned: %v", entry)
+	}
+	if entry := ReadHeader(db, block.Height()); entry != nil {
+		t.Fatalf("Non existent header returned: %v", entry)
+	}
+	if entry := ReadBody(db, block.Height()); entry != nil {
+		t.Fatalf("Non existent body returned: %v", entry)
+	}
+
+	// Write and verify the block in the database
+	WriteBlock(db, block, partsSet, lastCommit)
+
+	// Check that header height are present
+	if entry := ReadHeaderHeight(db, block.Hash()); *entry != block.Height() {
+		t.Fatalf("Block height mismatch: have %v, want %v", *entry, block.Height())
+	}
+
+	// Check that header are present
+	if entry := ReadHeader(db, block.Height()); entry == nil {
+		t.Fatalf("Header not found")
+	}
+
+	// Check block meta are present
+	if entry := ReadBlockMeta(db, block.Height()); entry == nil {
+		t.Fatalf("Block Meta not found")
+	}
+
+	// Check block parts are present
+	for i := uint32(0); i < partsSet.Total(); i++ {
+		if entry := ReadBlockPart(db, block.Height(), int(i)); entry == nil {
+			t.Fatalf("Block part not found index: %v", i)
+		}
+	}
+}
+
 func TestAppHashStorage(t *testing.T) {
 	db := memorydb.New()
 	height := uint64(1337)
 	block := types.NewBlockWithHeader(&types.Header{Height: height})
 
-	// Check that no head entries are in a pristine database
+	// Check that no entries are in a pristine database
 	if entry := ReadAppHash(db, height); entry != (common.Hash{}) {
 		t.Fatalf("Non app hash entry returned: %v", entry)
 	}
 	// Assign separate entries for the head header and block
 	WriteAppHash(db, height, block.Hash())
 
-	// Check that both heads are present, and different (i.e. two heads maintained)
+	// Check that entries are present
 	if entry := ReadAppHash(db, height); entry.Equal(common.Hash{}) {
 		t.Fatalf("App hash mismatch: have %v, want %v", entry, block.Hash())
 	}
@@ -71,14 +138,14 @@ func TestCanonicalMappingStorage(t *testing.T) {
 	if entry := ReadCanonicalHash(db, number); entry != (common.Hash{}) {
 		t.Fatalf("Non existent canonical mapping returned: %v", entry)
 	}
-	// Write and verify the TD in the database
+	// Write and verify the entries in the database
 	WriteCanonicalHash(db, hash, number)
 	if entry := ReadCanonicalHash(db, number); entry == (common.Hash{}) {
 		t.Fatalf("Stored canonical mapping not found")
 	} else if entry != hash {
 		t.Fatalf("Retrieved canonical mapping mismatch: have %v, want %v", entry, hash)
 	}
-	// Delete the TD and verify the execution
+	// Delete the entries and verify the execution
 	DeleteCanonicalHash(db, number)
 	if entry := ReadCanonicalHash(db, number); entry != (common.Hash{}) {
 		t.Fatalf("Deleted canonical mapping returned: %v", entry)

@@ -1,8 +1,8 @@
 package p2p
 
 import (
-	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
-	"github.com/kardiachain/go-kardiamain/lib/service"
+	"github.com/kardiachain/go-kardia/lib/p2p/conn"
+	"github.com/kardiachain/go-kardia/lib/service"
 )
 
 // Reactor is responsible for handling incoming messages on one or more

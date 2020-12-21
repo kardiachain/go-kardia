@@ -2,7 +2,7 @@
 syntax = "proto3";
 package kardiachain.crypto;
 
-option go_package = "github.com/kardiachain/go-kardiamain/proto/kardiachain/crypto";
+option go_package = "github.com/kardiachain/go-kardia/proto/kardiachain/crypto";
 
 
 // PublicKey defines the keys available for use with Kardiachain Validators

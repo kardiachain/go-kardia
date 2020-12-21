@@ -1,6 +1,6 @@
 syntax = "proto3";
 package kardiachain.types;
-option go_package = "github.com/kardiachain/go-kardiamain/proto/kardiachain/types";
+option go_package = "github.com/kardiachain/go-kardia/proto/kardiachain/types";
 
 import "gogoproto/gogo.proto";
 import "google/protobuf/duration.proto";

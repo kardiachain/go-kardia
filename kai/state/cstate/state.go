@@ -24,12 +24,12 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 
-	kstate "github.com/kardiachain/go-kardiamain/proto/kardiachain/state"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
-	"github.com/kardiachain/go-kardiamain/types"
-	ktime "github.com/kardiachain/go-kardiamain/types/time"
+	kstate "github.com/kardiachain/go-kardia/proto/kardiachain/state"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/types"
+	ktime "github.com/kardiachain/go-kardia/types/time"
 )
 
 // TODO(namdoh): Move to a common config file.

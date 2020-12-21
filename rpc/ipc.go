@@ -20,7 +20,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // ServeListener accepts connections on l, serving JSON-RPC on them.

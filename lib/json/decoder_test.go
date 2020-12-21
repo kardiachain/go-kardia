@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/kardiachain/go-kardiamain/lib/json"
+	"github.com/kardiachain/go-kardia/lib/json"
 )
 
 func TestUnmarshal(t *testing.T) {

@@ -22,26 +22,20 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	krand "github.com/kardiachain/go-kardiamain/lib/rand"
+	krand "github.com/kardiachain/go-kardia/lib/rand"
 	"math/big"
 	"math/rand"
 	"strings"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	kproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 var (
 	ErrNilValidator = errors.New("nil Validator")
 )
-
-type Delegator struct {
-	Address      common.Address `json:"address"`
-	StakedAmount *big.Int       `json:"stakedAmount"`
-	Reward       *big.Int       `json:"reward"`
-}
 
 // Validator state for each Validator
 type Validator struct {
@@ -49,11 +43,9 @@ type Validator struct {
 	VotingPower      int64          `json:"votingPower"`
 	ProposerPriority int64          `json:"proposerPriority"`
 	StakedAmount     *big.Int       `json:"stakedAmount,omitempty"`
-	Commission       *big.Int       `json:"commission,omitempty"`
 	CommissionRate   *big.Int       `json:"commissionRate,omitempty"`
 	MaxRate          *big.Int       `json:"maxRate,omitempty"`
 	MaxChangeRate    *big.Int       `json:"maxChangeRate,omitempty"`
-	Delegators       []*Delegator   `json:"delegators,omitempty"`
 }
 
 // NewValidator ...

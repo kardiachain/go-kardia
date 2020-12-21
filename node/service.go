@@ -21,12 +21,12 @@ package node
 import (
 	"reflect"
 
-	"github.com/kardiachain/go-kardiamain/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/kai/state/cstate"
 
-	"github.com/kardiachain/go-kardiamain/lib/event"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/rpc"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/rpc"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // ServiceContext is a collection of service independent options inherited from

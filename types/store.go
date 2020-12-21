@@ -19,10 +19,10 @@
 package types
 
 import (
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/lib/abi"
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 type StoreDB interface {
@@ -39,9 +39,9 @@ type StoreDB interface {
 
 	ReadCanonicalHash(height uint64) common.Hash
 	ReadChainConfig(hash common.Hash) *configs.ChainConfig
-	ReadBlock(hash common.Hash, height uint64) *Block
-	ReadHeader(hash common.Hash, height uint64) *Header
-	ReadBody(hash common.Hash, height uint64) *Body
+	ReadBlock(height uint64) *Block
+	ReadHeader(height uint64) *Header
+	ReadBody(height uint64) *Body
 	ReadBlockPart(height uint64, index int) *Part
 	ReadAppHash(uint64) common.Hash
 
@@ -53,7 +53,6 @@ type StoreDB interface {
 	ReadTransaction(hash common.Hash) (*Transaction, common.Hash, uint64, uint64)
 	ReadDualEvent(hash common.Hash) (*DualEvent, common.Hash, uint64, uint64)
 	ReadDualEventLookupEntry(hash common.Hash) (common.Hash, uint64, uint64)
-	ReadHeaderNumber(hash common.Hash) *uint64
 	ReadBlockInfo(hash common.Hash, number uint64) *BlockInfo
 	ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, uint64)
 	ReadSmartContractAbi(address string) *abi.ABI

@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // handler handles JSON-RPC messages. There is one handler per connection. Note that

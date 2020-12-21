@@ -24,17 +24,17 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kvm"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kvm"
 
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/kardiachain/go-kardiamain/kai/events"
-	"github.com/kardiachain/go-kardiamain/kai/state"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/event"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/permissioned"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/permissioned"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
@@ -199,7 +199,7 @@ func (dbc *DualBlockChain) GetBlock(hash common.Hash, number uint64) *types.Bloc
 	if block, ok := dbc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
 	}
-	block := dbc.db.ReadBlock(hash, number)
+	block := dbc.db.ReadBlock(number)
 	if block == nil {
 		return nil
 	}

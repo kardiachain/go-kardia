@@ -22,10 +22,10 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 // Tests that updating a state trie does not leak any database writes prior to

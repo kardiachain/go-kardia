@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/kardiachain/go-kardiamain/kai/events"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/event"
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
-	prototx "github.com/kardiachain/go-kardiamain/proto/kardiachain/txpool"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/lib/rlp"
+	prototx "github.com/kardiachain/go-kardia/proto/kardiachain/txpool"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (

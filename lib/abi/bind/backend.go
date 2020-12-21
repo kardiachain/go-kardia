@@ -21,11 +21,10 @@ package bind
 import (
 	"context"
 	"errors"
-
-	kardia "github.com/kardiachain/go-kardiamain"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/event"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 var (

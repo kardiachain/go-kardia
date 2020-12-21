@@ -21,14 +21,14 @@ package kvstore
 import (
 	"sync"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/lib/abi"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/rlp"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/rlp"
+	"github.com/kardiachain/go-kardia/types"
 
-	"github.com/kardiachain/go-kardiamain/lib/log"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 type StoreDB struct {
@@ -55,8 +55,8 @@ func (s *StoreDB) ReadBlockMeta(height uint64) *types.BlockMeta {
 }
 
 // ReadBlock returns the Block for the given height
-func (s *StoreDB) ReadBlock(hash common.Hash, height uint64) *types.Block {
-	return ReadBlock(s.db, hash, height)
+func (s *StoreDB) ReadBlock(height uint64) *types.Block {
+	return ReadBlock(s.db, height)
 }
 
 // ReadBlockPart returns the block part fo the given height and index
@@ -131,8 +131,8 @@ func (s *StoreDB) ReadChainConfig(hash common.Hash) *configs.ChainConfig {
 }
 
 // ReadBody retrieves the block body corresponding to the hash.
-func (s *StoreDB) ReadBody(hash common.Hash, height uint64) *types.Body {
-	return ReadBody(s.db, hash, height)
+func (s *StoreDB) ReadBody(height uint64) *types.Body {
+	return ReadBody(s.db, height)
 }
 
 // ReadBodyRLP retrieves the block body (transactions and uncles) in RLP encoding.
@@ -160,8 +160,8 @@ func (s *StoreDB) ReadSeenCommit(height uint64) *types.Commit {
 }
 
 // ReadHeader retrieves the block header corresponding to the hash.
-func (s *StoreDB) ReadHeader(hash common.Hash, height uint64) *types.Header {
-	return ReadHeader(s.db, hash, height)
+func (s *StoreDB) ReadHeader(height uint64) *types.Header {
+	return ReadHeader(s.db, height)
 }
 
 // ReadHeaderheight returns the header height assigned to a hash.
@@ -185,11 +185,6 @@ func (s *StoreDB) ReadDualEventLookupEntry(hash common.Hash) (common.Hash, uint6
 // its added positional metadata.
 func (s *StoreDB) ReadDualEvent(hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
 	return ReadDualEvent(s.db, hash)
-}
-
-// ReadHeaderNumber returns the header number assigned to a hash.
-func (s *StoreDB) ReadHeaderNumber(hash common.Hash) *uint64 {
-	return ReadHeaderNumber(s.db, hash)
 }
 
 // ReadBlockInfo retrieves block info belonging to a block.

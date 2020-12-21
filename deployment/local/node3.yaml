@@ -8,8 +8,6 @@ Node:
     - kai
     - tx
     - account
-    - dual
-    - neo
   HTTPVirtualHosts:
     - 0.0.0.0
     - localhost
@@ -31,7 +29,6 @@ MainChain:
     - c1fe56e3f58d3244f606306611a5d10c8333f1f6@172.20.0.2:3000
     - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@172.20.0.3:3000
     - ff3dac4f04ddbd24de5d6039f90596f0a8bb08fd@172.20.0.4:3000
-  ZeroFee: 0          # 0 is no, 1 is yes
   Database:
     Dir: chaindata                           # directory stores leveldb
     Cache: 16                                # cache is used in leveldb

@@ -19,8 +19,8 @@
 package cstate
 
 import (
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const ValSetCheckpointInterval = valSetCheckpointInterval

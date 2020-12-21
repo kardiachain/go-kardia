@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	kp2p "github.com/kardiachain/go-kardia/proto/kardiachain/p2p"
 )
 
 // EmptyNetAddress defines the string representation of an empty NetAddress

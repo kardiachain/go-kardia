@@ -22,9 +22,9 @@ import (
 	"sync/atomic"
 
 	lru "github.com/hashicorp/golang-lru"
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 const (
@@ -101,7 +101,7 @@ func (hc *HeaderChain) GetHeader(hash common.Hash, height uint64) *types.Header 
 	if header, ok := hc.headerCache.Get(hash); ok {
 		return header.(*types.Header)
 	}
-	header := hc.kaiDb.ReadHeader(hash, height)
+	header := hc.kaiDb.ReadHeader(height)
 	if header == nil {
 		return nil
 	}

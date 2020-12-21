@@ -22,7 +22,7 @@ package kvstore
 import (
 	"encoding/binary"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // The fields below define the low level database schema prefixing.

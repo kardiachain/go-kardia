@@ -20,6 +20,7 @@ package main
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"flag"
 	"fmt"
 	"math/big"
@@ -33,24 +34,24 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/dualchain/blockchain"
-	"github.com/kardiachain/go-kardiamain/dualchain/event_pool"
-	"github.com/kardiachain/go-kardiamain/dualchain/service"
-	"github.com/kardiachain/go-kardiamain/dualnode/dual_proxy"
-	"github.com/kardiachain/go-kardiamain/dualnode/kardia"
-	"github.com/kardiachain/go-kardiamain/kai/storage"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/lib/sysutils"
-	kai "github.com/kardiachain/go-kardiamain/mainchain"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardiamain/node"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/dualchain/blockchain"
+	"github.com/kardiachain/go-kardia/dualchain/event_pool"
+	"github.com/kardiachain/go-kardia/dualchain/service"
+	"github.com/kardiachain/go-kardia/dualnode/dual_proxy"
+	"github.com/kardiachain/go-kardia/dualnode/kardia"
+	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/sysutils"
+	kai "github.com/kardiachain/go-kardia/mainchain"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardia/types"
 
-	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 var args flags
@@ -126,14 +127,17 @@ func (c *Config) getGenesisConfig(isDual bool) (*genesis.Genesis, error) {
 		genesisAccounts := make(map[string]*big.Int)
 		genesisContracts := make(map[string]string)
 
-		amount, _ := big.NewInt(0).SetString(g.GenesisAmount, 10)
-		for _, address := range g.Addresses {
-			genesisAccounts[address] = amount
+		for _, account := range g.Accounts {
+			amount, ok := new(big.Int).SetString(account.Amount, 10)
+			if !ok {
+				return nil, errors.New("cannot convert genesis amount")
+			}
+			genesisAccounts[account.Address] = amount
 		}
 
 		for key, contract := range g.Contracts {
 			configs.LoadGenesisContract(key, contract.Address, contract.ByteCode, contract.ABI)
-			if key != configs.StakingContractKey {
+			if key != configs.StakingContractKey && contract.Address != "" {
 				genesisContracts[contract.Address] = contract.ByteCode
 			}
 		}

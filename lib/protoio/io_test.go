@@ -40,7 +40,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/test"
 
-	"github.com/kardiachain/go-kardiamain/lib/protoio"
+	"github.com/kardiachain/go-kardia/lib/protoio"
 )
 
 func iotest(writer protoio.WriteCloser, reader protoio.ReadCloser) error {

@@ -3,11 +3,11 @@ package mock
 import (
 	"net"
 
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 
-	"github.com/kardiachain/go-kardiamain/lib/p2p"
-	"github.com/kardiachain/go-kardiamain/lib/p2p/conn"
-	"github.com/kardiachain/go-kardiamain/lib/service"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/lib/p2p/conn"
+	"github.com/kardiachain/go-kardia/lib/service"
 )
 
 type Peer struct {

@@ -24,20 +24,20 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	message2 "github.com/kardiachain/go-kardiamain/dualnode/message"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-	"github.com/kardiachain/go-kardiamain/ksml"
-	message "github.com/kardiachain/go-kardiamain/ksml/proto"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
-	"github.com/kardiachain/go-kardiamain/mainchain/tx_pool"
-	"github.com/kardiachain/go-kardiamain/types"
-	kaiType "github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/configs"
+	message2 "github.com/kardiachain/go-kardia/dualnode/message"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/ksml"
+	message "github.com/kardiachain/go-kardia/ksml/proto"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/types"
+	kaiType "github.com/kardiachain/go-kardia/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -143,7 +143,7 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 	}
 
 	logger := log.New()
-	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	stakingUtil, _ := staking.NewSmcStakingUtil()
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, db, g, stakingUtil)
 	if genesisErr != nil {
 		return nil, err

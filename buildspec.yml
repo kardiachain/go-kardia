@@ -9,7 +9,7 @@ phases:
       - echo Logging in to Amazon ECR...
       - aws --version
       - $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email)
-      - REPOSITORY_URI=610975626884.dkr.ecr.ap-southeast-1.amazonaws.com/go-kardiamain
+      - REPOSITORY_URI=610975626884.dkr.ecr.ap-southeast-1.amazonaws.com/go-kardia
       - COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-40)
       - IMAGE_TAG=${COMMIT_HASH:=latest}
       - docker pull $REPOSITORY_URI:latest || true

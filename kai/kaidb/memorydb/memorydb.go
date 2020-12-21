@@ -24,8 +24,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb"
-	"github.com/kardiachain/go-kardiamain/lib/common"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // Database is an ephemeral key-value store. Apart from basic data storage

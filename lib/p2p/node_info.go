@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/kardiachain/go-kardiamain/lib/bytes"
-	kstrings "github.com/kardiachain/go-kardiamain/lib/strings"
-	kp2p "github.com/kardiachain/go-kardiamain/proto/kardiachain/p2p"
+	"github.com/kardiachain/go-kardia/lib/bytes"
+	kstrings "github.com/kardiachain/go-kardia/lib/strings"
+	kp2p "github.com/kardiachain/go-kardia/proto/kardiachain/p2p"
 )
 
 const (

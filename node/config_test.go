@@ -26,11 +26,11 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 
-	"github.com/kardiachain/go-kardiamain/configs"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	kaiproto "github.com/kardiachain/go-kardiamain/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
 // Tests that datadirs can be successfully created, be them manually configured

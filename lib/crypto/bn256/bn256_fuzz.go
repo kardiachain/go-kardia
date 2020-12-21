@@ -10,8 +10,8 @@ import (
 	"bytes"
 	"math/big"
 
-	cloudflare "github.com/kardiachain/go-kardiamain/lib/crypto/bn256/cloudflare"
-	google "github.com/kardiachain/go-kardiamain/lib/crypto/bn256/google"
+	cloudflare "github.com/kardiachain/go-kardia/lib/crypto/bn256/cloudflare"
+	google "github.com/kardiachain/go-kardia/lib/crypto/bn256/google"
 )
 
 // FuzzAdd fuzzez bn256 addition between the Google and Cloudflare libraries.

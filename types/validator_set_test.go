@@ -31,10 +31,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
-	kmath "github.com/kardiachain/go-kardiamain/lib/math"
-	krand "github.com/kardiachain/go-kardiamain/lib/rand"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	kmath "github.com/kardiachain/go-kardia/lib/math"
+	krand "github.com/kardiachain/go-kardia/lib/rand"
 )
 
 func TestValidatorSetBasic(t *testing.T) {

@@ -26,17 +26,17 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-	"github.com/kardiachain/go-kardiamain/kvm"
-	"github.com/kardiachain/go-kardiamain/lib/abi"
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/log"
-	"github.com/kardiachain/go-kardiamain/mainchain/blockchain"
-	"github.com/kardiachain/go-kardiamain/mainchain/genesis"
-	vm "github.com/kardiachain/go-kardiamain/mainchain/kvm"
-	"github.com/kardiachain/go-kardiamain/mainchain/staking"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/kvm"
+	"github.com/kardiachain/go-kardia/lib/abi"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // GenesisAccounts are used to initialized accounts in genesis block
@@ -175,7 +175,7 @@ func TestStateTransition_TransitionDb_noFee(t *testing.T) {
 	// storeDB := kvstore.NewStoreDB(blockDB)
 	// g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	// address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-	// stakingUtil, _ := staking.NewSmcStakingnUtil()
+	// stakingUtil, _ := staking.NewSmcStakingUtil()
 	// chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, stakingUtil)
 	// if genesisErr != nil {
 	// 	t.Fatal(genesisErr)
@@ -243,7 +243,7 @@ func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 	storeDB := kvstore.NewStoreDB(blockDB)
 	g := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, map[string]string{})
 	address := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-	stakingUtil, _ := staking.NewSmcStakingnUtil()
+	stakingUtil, _ := staking.NewSmcStakingUtil()
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(log.New(), storeDB, g, stakingUtil)
 	if genesisErr != nil {
 		t.Fatal(genesisErr)

@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/kardiachain/go-kardiamain/lib/common"
-	"github.com/kardiachain/go-kardiamain/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 )
 
 // Event is an event potentially triggered by the EVM's LOG mechanism. The Event

@@ -19,10 +19,10 @@
 package storage
 
 import (
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/leveldb"
-	"github.com/kardiachain/go-kardiamain/kai/kaidb/memorydb"
-	"github.com/kardiachain/go-kardiamain/kai/storage/kvstore"
-	"github.com/kardiachain/go-kardiamain/types"
+	"github.com/kardiachain/go-kardia/kai/kaidb/leveldb"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 // DbInfo is used to start new database
