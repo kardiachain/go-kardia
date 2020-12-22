@@ -60,6 +60,7 @@ type Evidence interface {
 	Hash() common.Hash // hash of the evidence
 	ValidateBasic() error
 	String() string
+	Time() time.Time
 }
 
 //-------------------------------------------
@@ -106,17 +107,26 @@ func EvidenceFromProto(evidence *kproto.Evidence) (Evidence, error) {
 // DuplicateVoteEvidence contains evidence a validator signed two conflicting
 // votes.
 type DuplicateVoteEvidence struct {
-	VoteA *Vote
-	VoteB *Vote
+	VoteA            *Vote
+	VoteB            *Vote
+	TotalVotingPower int64
+	ValidatorPower   int64
+	Timestamp        time.Time
 }
 
 // NewDuplicateVoteEvidence creates DuplicateVoteEvidence with right ordering given
 // two conflicting votes. If one of the votes is nil, evidence returned is nil as well
-func NewDuplicateVoteEvidence(vote1 *Vote, vote2 *Vote) *DuplicateVoteEvidence {
+func NewDuplicateVoteEvidence(vote1 *Vote, vote2 *Vote, blockTime time.Time, valSet *ValidatorSet) *DuplicateVoteEvidence {
 	var voteA, voteB *Vote
-	if vote1 == nil || vote2 == nil {
+	if vote1 == nil || vote2 == nil || valSet == nil {
 		return nil
 	}
+
+	idx, val := valSet.GetByAddress(vote1.ValidatorAddress)
+	if idx == -1 {
+		return nil
+	}
+
 	if strings.Compare(vote1.BlockID.Key(), vote2.BlockID.Key()) == -1 {
 		voteA = vote1
 		voteB = vote2
@@ -125,8 +135,11 @@ func NewDuplicateVoteEvidence(vote1 *Vote, vote2 *Vote) *DuplicateVoteEvidence {
 		voteB = vote1
 	}
 	return &DuplicateVoteEvidence{
-		VoteA: voteA,
-		VoteB: voteB,
+		VoteA:            voteA,
+		VoteB:            voteB,
+		TotalVotingPower: valSet.TotalVotingPower(),
+		ValidatorPower:   val.VotingPower,
+		Timestamp:        blockTime,
 	}
 }
 
@@ -143,7 +156,7 @@ func (dve *DuplicateVoteEvidence) Height() uint64 {
 
 // Time return the time the evidence was created
 func (dve *DuplicateVoteEvidence) Time() time.Time {
-	return dve.VoteA.Timestamp
+	return dve.Timestamp
 }
 
 // Equal checks if two pieces of evidence are equal.
@@ -230,6 +243,9 @@ func (dve *DuplicateVoteEvidence) Verify(chainID string, addr common.Address) er
 
 // ValidateBasic performs basic validation.
 func (dve *DuplicateVoteEvidence) ValidateBasic() error {
+	if dve == nil {
+		return errors.New("empty duplicate vote evidence")
+	}
 	if dve.VoteA == nil || dve.VoteB == nil {
 		return fmt.Errorf("one or both of the votes are empty %v, %v", dve.VoteA, dve.VoteB)
 	}
@@ -251,8 +267,11 @@ func (dve *DuplicateVoteEvidence) ToProto() *kproto.DuplicateVoteEvidence {
 	voteB := dve.VoteB.ToProto()
 	voteA := dve.VoteA.ToProto()
 	tp := kproto.DuplicateVoteEvidence{
-		VoteA: voteA,
-		VoteB: voteB,
+		VoteA:            voteA,
+		VoteB:            voteB,
+		TotalVotingPower: dve.TotalVotingPower,
+		ValidatorPower:   dve.ValidatorPower,
+		Timestamp:        dve.Timestamp,
 	}
 	return &tp
 }
@@ -273,7 +292,13 @@ func DuplicateVoteEvidenceFromProto(pb *kproto.DuplicateVoteEvidence) (*Duplicat
 		return nil, err
 	}
 
-	dve := NewDuplicateVoteEvidence(vA, vB)
+	dve := &DuplicateVoteEvidence{
+		VoteA:            vA,
+		VoteB:            vB,
+		TotalVotingPower: pb.TotalVotingPower,
+		ValidatorPower:   pb.ValidatorPower,
+		Timestamp:        pb.Timestamp,
+	}
 
 	return dve, dve.ValidateBasic()
 }
@@ -313,6 +338,7 @@ func NewMockDuplicateVoteEvidence(height uint64, time time.Time, chainID string)
 
 func NewMockDuplicateVoteEvidenceWithValidator(height uint64, time time.Time, pv PrivValidator, chainID string) *DuplicateVoteEvidence {
 	addr := pv.GetAddress()
+	val := NewValidator(addr, 10)
 	voteA := makeMockVote(height, 0, 0, addr, createBlockIDRandom(), time)
 	vA := voteA.ToProto()
 	_ = pv.SignVote(chainID, vA)
@@ -321,7 +347,7 @@ func NewMockDuplicateVoteEvidenceWithValidator(height uint64, time time.Time, pv
 	vB := voteB.ToProto()
 	_ = pv.SignVote(chainID, vB)
 	voteB.Signature = vB.Signature
-	return NewDuplicateVoteEvidence(voteA, voteB)
+	return NewDuplicateVoteEvidence(voteA, voteB, time, NewValidatorSet([]*Validator{val}))
 }
 
 //-------------------------------------------

@@ -64,8 +64,11 @@ func TestVerifyDuplicateVoteEvidence(t *testing.T) {
 	require.NoError(t, err)
 	for _, c := range cases {
 		ev := &types.DuplicateVoteEvidence{
-			VoteA: c.vote1,
-			VoteB: c.vote2,
+			VoteA:            c.vote1,
+			VoteB:            c.vote2,
+			ValidatorPower:   1,
+			TotalVotingPower: 1,
+			Timestamp:        defaultEvidenceTime,
 		}
 		if c.valid {
 			assert.Nil(t, VerifyDuplicateVote(ev, chainID, valSet), "evidence should be valid")
@@ -75,6 +78,13 @@ func TestVerifyDuplicateVoteEvidence(t *testing.T) {
 	}
 
 	goodEv := types.NewMockDuplicateVoteEvidenceWithValidator(10, defaultEvidenceTime, val, chainID)
+	goodEv.ValidatorPower = 1
+	goodEv.TotalVotingPower = 1
+	badEv := types.NewMockDuplicateVoteEvidenceWithValidator(10, defaultEvidenceTime, val, chainID)
+	badTimeEv := types.NewMockDuplicateVoteEvidenceWithValidator(10, defaultEvidenceTime.Add(1*time.Minute), val, chainID)
+	badTimeEv.ValidatorPower = 1
+	badTimeEv.TotalVotingPower = 1
+
 	state := cstate.LastestBlockState{
 		ChainID:         chainID,
 		LastBlockTime:   defaultEvidenceTime.Add(1 * time.Minute),
@@ -93,6 +103,16 @@ func TestVerifyDuplicateVoteEvidence(t *testing.T) {
 	evList := types.EvidenceList{goodEv}
 	err = pool.CheckEvidence(evList)
 	assert.NoError(t, err)
+
+	// evidence with a different validator power should fail
+	evList = types.EvidenceList{badEv}
+	err = pool.CheckEvidence(evList)
+	assert.Error(t, err)
+
+	// evidence with a different timestamp should fail
+	evList = types.EvidenceList{badTimeEv}
+	err = pool.CheckEvidence(evList)
+	assert.Error(t, err)
 }
 
 func makeVote(

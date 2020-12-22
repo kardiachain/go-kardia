@@ -132,13 +132,14 @@ func TestReactorsGossipNoCommittedEvidence(t *testing.T) {
 	// DB1 is ahead of DB2
 	stateDB1 := initializeValidatorState(val, height)
 	stateDB2 := initializeValidatorState(val, height-2)
+	state := stateDB1.Load()
+	state.LastBlockHeight++
 
 	// make reactors from statedb
 	reactors := makeAndConnectReactors(config, []cstate.Store{stateDB1, stateDB2})
 
 	evList := sendEvidence(t, reactors[0].evpool, val, 2)
-	vmEvs := reactors[0].evpool.VMEvidence(height, evList)
-	require.EqualValues(t, 2, len(vmEvs))
+	reactors[0].evpool.Update(state, evList)
 	require.EqualValues(t, uint32(0), reactors[0].evpool.Size())
 
 	time.Sleep(100 * time.Millisecond)
@@ -177,12 +178,13 @@ func TestReactorsGossipNoCommittedEvidence(t *testing.T) {
 	// the last evidence is committed and the second reactor catches up in state to the first
 	// reactor. We therefore expect that the second reactor only receives one more evidence, the
 	// one that is still pending and not the evidence that has already been committed.
-	_ = reactors[0].evpool.VMEvidence(height, []types.Evidence{evList[2]})
+	state.LastBlockHeight++
+	reactors[0].evpool.Update(state, []types.Evidence{evList[2]})
 	// the first reactor should have the two remaining pending evidence
 	require.EqualValues(t, uint32(2), reactors[0].evpool.Size())
 
 	// now update the state of the second reactor
-	reactors[1].evpool.Update(cstate.LastestBlockState{LastBlockHeight: height})
+	reactors[1].evpool.Update(state, types.EvidenceList{})
 	peer = reactors[0].Switch.Peers().List()[0]
 	ps = peerState{height}
 	peer.Set(types.PeerStateKey, ps)
@@ -191,7 +193,7 @@ func TestReactorsGossipNoCommittedEvidence(t *testing.T) {
 	time.Sleep(300 * time.Millisecond)
 
 	peerEv, _ = reactors[1].evpool.PendingEvidence(1000)
-	assert.EqualValues(t, evList[0:1], peerEv)
+	assert.EqualValues(t, []types.Evidence{evList[0], evList[1]}, peerEv)
 }
 
 type peerState struct {
