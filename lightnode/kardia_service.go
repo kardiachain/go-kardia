@@ -22,13 +22,13 @@ package kai
 import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
-	"github.com/kardiachain/go-kardia/kai/state/cstate"
+
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
-	"github.com/kardiachain/go-kardia/mainchain/genesis"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/lightnode/blockchain"
+	"github.com/kardiachain/go-kardia/lightnode/genesis"
+	"github.com/kardiachain/go-kardia/lightnode/staking"
+	"github.com/kardiachain/go-kardia/lightnode/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
@@ -141,26 +141,26 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	kai.txpoolR = tx_pool.NewReactor(config.TxPool, kai.txPool)
 	kai.txpoolR.SetLogger(kai.logger)
 
-	bOper := blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool, stakingUtil)
+	//bOper := blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool, stakingUtil)
 
 	kai.evR = evidence.NewReactor(evPool)
 	kai.evR.SetLogger(kai.logger)
-	blockExec := cstate.NewBlockExecutor(ctx.StateDB, evPool, bOper)
+	//blockExec := cstate.NewBlockExecutor(ctx.StateDB, evPool, bOper)
 
-	state, err := ctx.StateDB.LoadStateFromDBOrGenesisDoc(config.Genesis)
-	if err != nil {
-		return nil, err
-	}
+	//state, err := ctx.StateDB.LoadStateFromDBOrGenesisDoc(config.Genesis)
+	//if err != nil {
+	//	return nil, err
+	//}
 
-	consensusState := consensus.NewConsensusState(
-		kai.logger,
-		config.Consensus,
-		state,
-		bOper,
-		blockExec,
-		evPool,
-	)
-	kai.csManager = consensus.NewConsensusManager(consensusState)
+	//consensusState := consensus.NewConsensusState(
+	//	kai.logger,
+	//	config.Consensus,
+	//	state,
+	//	bOper,
+	//	blockExec,
+	//	evPool,
+	//)
+	//kai.csManager = consensus.NewConsensusManager(consensusState)
 	// Set private validator for consensus manager.
 	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	kai.csManager.SetPrivValidator(privValidator)
@@ -169,9 +169,8 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 }
 
 // NewKardiaService Implements ServiceConstructor, return a Kardia node service from node service context.
-// TODO: move this outside of kai package to customize kai.Config
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
-	chainConfig := ctx.Config.MainChainConfig
+	chainConfig := ctx.Config.LightNodeConfig
 	kai, err := newKardiaService(ctx, &Config{
 		NetworkId:   chainConfig.NetworkId,
 		ServiceName: chainConfig.ServiceName,
@@ -181,7 +180,6 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		TxPool:      chainConfig.TxPool,
 		AcceptTxs:   chainConfig.AcceptTxs,
 		IsPrivate:   chainConfig.IsPrivate,
-		Consensus:   chainConfig.Consensus,
 	})
 
 	if err != nil {

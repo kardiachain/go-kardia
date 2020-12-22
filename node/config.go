@@ -37,6 +37,8 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
+	lGenesis "github.com/kardiachain/go-kardia/lightnode/genesis"
+	lTxPool "github.com/kardiachain/go-kardia/lightnode/tx_pool"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/rpc"
@@ -47,6 +49,32 @@ const (
 	datadirDefaultKeyStore = "keystore" // Path within the datadir to the keystore
 	datadirNodeDatabase    = "nodes"    // Path within the datadir to store the node infos
 )
+
+// Mainchain
+type LightNodeConfig struct {
+
+	// DbInfo stores configuration information to setup database
+	DBInfo storage.DbInfo
+
+	// Genesis is genesis block which contain initial Block and accounts
+	Genesis *lGenesis.Genesis
+
+	// Transaction pool options
+	TxPool lTxPool.TxPoolConfig
+
+	// AcceptTxs accept tx sync process or not (1 is yes and 0 is no)
+	AcceptTxs uint32
+
+	// IsPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
+	IsPrivate bool
+
+	NetworkId uint64
+
+	ChainId uint64
+
+	// ServiceName is used as log's prefix
+	ServiceName string
+}
 
 type MainChainConfig struct {
 	// Mainchain
@@ -268,6 +296,9 @@ type Config struct {
 	staticNodesWarning     bool
 	trustedNodesWarning    bool
 	oldGethResourceWarning bool
+
+	// Configuration of the Kardia's blockchain (or main chain).
+	LightNodeConfig LightNodeConfig
 
 	// Configuration of the Kardia's blockchain (or main chain).
 	MainChainConfig MainChainConfig

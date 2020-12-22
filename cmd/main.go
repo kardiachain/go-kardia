@@ -356,6 +356,7 @@ func (c *Config) Start() {
 
 	nodeConfig.Genesis = genesisCfg
 	// init new node from nodeConfig
+	logger.Error("NodeCOnfig", "cfg", nodeConfig)
 	n, err := node.New(nodeConfig)
 	if err != nil {
 		logger.Error("Cannot create node", "err", err)

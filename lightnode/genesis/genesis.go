@@ -27,7 +27,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/kvm"
 
-	"github.com/kardiachain/go-kardia/mainchain/staking"
+	"github.com/kardiachain/go-kardia/lightnode/staking"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb"

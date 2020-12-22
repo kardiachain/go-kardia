@@ -23,12 +23,12 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/kvm"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
+	"github.com/kardiachain/go-kardia/lightnode/staking"
 
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/lightnode/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
 
