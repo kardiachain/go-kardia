@@ -22,12 +22,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/merkle"
+	"github.com/kardiachain/go-kardia/mainchain/staking/types"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
 
@@ -61,6 +63,7 @@ type Evidence interface {
 	ValidateBasic() error
 	String() string
 	Time() time.Time
+	VM() []types.Evidence
 }
 
 //-------------------------------------------
@@ -185,6 +188,16 @@ func (dve *DuplicateVoteEvidence) Bytes() []byte {
 // Hash returns the hash of the evidence.
 func (dve *DuplicateVoteEvidence) Hash() common.Hash {
 	return hash(dve.Bytes())
+}
+
+func (dve *DuplicateVoteEvidence) VM() []types.Evidence {
+	return []types.Evidence{{
+		Address:          dve.VoteA.ValidatorAddress,
+		Height:           dve.VoteA.Height,
+		Time:             dve.Timestamp,
+		TotalVotingPower: uint64(dve.TotalVotingPower),
+		VotingPower:      big.NewInt(dve.ValidatorPower),
+	}}
 }
 
 // Verify returns an error if the two votes aren't conflicting.
