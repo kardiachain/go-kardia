@@ -183,7 +183,7 @@ func ReadBodyRLP(db kaidb.Reader, hash common.Hash, height uint64) rlp.RawValue 
 // ReadBody retrieves the block body corresponding to the height.
 func ReadBody(db kaidb.Reader, height uint64) *types.Body {
 	if block := ReadBlock(db, height); block != nil {
-		ReadBlock(db, height).Body()
+		return ReadBlock(db, height).Body()
 	}
 	return nil
 }
@@ -219,6 +219,7 @@ func ReadCommit(db kaidb.Reader, height uint64) *types.Commit {
 	if err != nil {
 		panic(fmt.Errorf("error reading block commit: %w", err))
 	}
+
 	commit, err := types.CommitFromProto(pbc)
 	if err != nil {
 		panic(fmt.Sprintf("Error reading block commit: %v", err))
@@ -492,16 +493,6 @@ func WriteBloomBits(db kaidb.Writer, bit uint, section uint64, head common.Hash,
 	}
 }
 
-// ReadHeaderNumber returns the header number assigned to a hash.
-func ReadHeaderNumber(db kaidb.Reader, hash common.Hash) *uint64 {
-	data, _ := db.Get(headerHeightKey(hash))
-	if data == nil || len(data) == 0 || len(data) != 8 {
-		return nil
-	}
-	number := binary.BigEndian.Uint64(data)
-	return &number
-}
-
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
 func ReadBlockMeta(db kaidb.Reader, height uint64) *types.BlockMeta {
@@ -644,6 +635,7 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 		panic(fmt.Errorf("failed to store seen commit err: %s", err))
 	}
 
+	// Save header height
 	key := headerHeightKey(hash)
 	if err := batch.Put(key, encodeBlockHeight(height)); err != nil {
 		panic(fmt.Errorf("Failed to store hash to height mapping err: %s", err))

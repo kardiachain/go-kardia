@@ -342,7 +342,9 @@ func NewDualBlock(header *Header, events DualEvents, commit *Commit, evidence []
 // header data is copied, changes to header and to the field values
 // will not affect the block.
 func NewBlockWithHeader(header *Header) *Block {
-	return &Block{header: CopyHeader(header)}
+	return &Block{
+		header: CopyHeader(header),
+	}
 }
 
 // CopyHeader creates a deep copy of a block header to prevent side effects from

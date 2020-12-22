@@ -187,11 +187,6 @@ func (s *StoreDB) ReadDualEvent(hash common.Hash) (*types.DualEvent, common.Hash
 	return ReadDualEvent(s.db, hash)
 }
 
-// ReadHeaderNumber returns the header number assigned to a hash.
-func (s *StoreDB) ReadHeaderNumber(hash common.Hash) *uint64 {
-	return ReadHeaderNumber(s.db, hash)
-}
-
 // ReadBlockInfo retrieves block info belonging to a block.
 func (s *StoreDB) ReadBlockInfo(hash common.Hash, number uint64) *types.BlockInfo {
 	return ReadBlockInfo(s.db, hash, number)

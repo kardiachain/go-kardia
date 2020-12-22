@@ -20,8 +20,9 @@ package cstate
 
 import (
 	"fmt"
-	"math"
 	"math/big"
+
+	"github.com/kardiachain/go-kardia/configs"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
@@ -328,11 +329,7 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
 		validators := make([]*types.Validator, len(genDoc.Validators))
 		for i, val := range genDoc.Validators {
 			tokens, _ := big.NewInt(0).SetString(val.SelfDelegate, 10)
-			// This calculation MUST sync up with power/token reduction in the staking smart contract
-			// https://github.com/kardiachain/go-kardia/kvm/smc/dpos/Staking.sol#12
-			// This reduction is used for speed up the kvm computing and lower fees
-			// power = (amount of kai * 10^18)/ power reduction
-			power := tokens.Div(tokens, big.NewInt(int64(math.Pow10(9))))
+			power := tokens.Div(tokens, configs.PowerReduction)
 			validators[i] = types.NewValidator(common.HexToAddress(val.Address), power.Int64())
 		}
 		validatorSet = types.NewValidatorSet(validators)
