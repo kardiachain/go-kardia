@@ -230,7 +230,7 @@ type Validator struct {
 	DelegationShares      string       `json:"delegationShares"`
 	AccumulatedCommission string       `json:"accumulatedCommission"`
 	UbdEntryCount         string       `json:"ubdEntryCount"`
-	UpdateTime            string       `json:"updateTime"`
+	UpdateTime            uint64       `json:"updateTime"`
 	Status                uint8        `json:"status"`
 	UnbondingTime         string       `json:"unbondingTime"`
 	UnbondingHeight       string       `json:"unbondingHeight"`
@@ -291,7 +291,7 @@ func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, is
 		DelegationShares:      val.DelegationShares.String(),
 		AccumulatedCommission: val.AccumulatedCommission.String(),
 		UbdEntryCount:         val.UbdEntryCount.String(),
-		UpdateTime:            val.UpdateTime.String(),
+		UpdateTime:            val.UpdateTime.Uint64(),
 		Status:                val.Status,
 		UnbondingTime:         val.UnbondingTime.String(),
 		UnbondingHeight:       val.UnbondingHeight.String(),
