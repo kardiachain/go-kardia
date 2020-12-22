@@ -20,7 +20,6 @@ package kai
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -175,7 +174,6 @@ func (k *KardiaService) GetValidators() ([]*staking.Validator, error) {
 	zero := new(big.Int).SetInt64(0)
 	for i := new(big.Int).SetInt64(0); i.Cmp(allValsLen) < 0; i.Add(i, one) {
 		valContractAddr, err := k.staking.GetValSmcAddr(st, header, k.blockchain, kvmConfig, i)
-		fmt.Println(valContractAddr.String())
 		if err != nil {
 			return nil, err
 		}
