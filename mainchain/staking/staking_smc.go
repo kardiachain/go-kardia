@@ -64,7 +64,16 @@ type Validator struct {
 	CommissionRate        *big.Int       `json:"commissionRate,omitempty"`
 	MaxRate               *big.Int       `json:"maxRate,omitempty"`
 	MaxChangeRate         *big.Int       `json:"maxChangeRate,omitempty"`
+	SigningInfo           *SigningInfo   `json:"signingInfo"`
 	Delegators            []*Delegator   `json:"delegators,omitempty"`
+}
+
+type SigningInfo struct {
+	StartHeight        *big.Int `json:"startHeight"`
+	IndexOffset        *big.Int `json:"indexOffset"`
+	Tombstoned         bool     `json:"tombstoned"`
+	MissedBlockCounter *big.Int `json:"missedBlockCounter"`
+	JailedUntil        *big.Int `json:"jailedUntil"`
 }
 
 type Delegator struct {
