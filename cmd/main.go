@@ -287,9 +287,12 @@ func (c *Config) getBaseAccount() (*configs.BaseAccount, error) {
 // getConsensusConfig gets consensus timeout configs
 func (c *Config) getConsensusConfig() *configs.ConsensusConfig {
 	if args.network == Mainnet {
-		return configs.DefaultConsensusConfig()
+		consensusConfig := configs.DefaultConsensusConfig()
+		consensusConfig.WalPath = filepath.Join(c.DataDir, "cs.wal", "wal")
+		return consensusConfig
 	}
 	return &configs.ConsensusConfig{
+		WalPath:                     filepath.Join(c.DataDir, "cs.wal", "wal"),
 		TimeoutPropose:              time.Duration(c.Genesis.Consensus.TimeoutPropose) * time.Millisecond,
 		TimeoutProposeDelta:         time.Duration(c.Genesis.Consensus.TimeoutProposeDelta) * time.Millisecond,
 		TimeoutPrevote:              time.Duration(c.Genesis.Consensus.TimeoutPrevote) * time.Millisecond,

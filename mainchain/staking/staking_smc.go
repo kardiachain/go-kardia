@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -13,32 +12,12 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 	"github.com/kardiachain/go-kardia/types"
 )
 
 // MaximumGasToCallStaticFunction ...
 var MaximumGasToCallStaticFunction = uint(4000000)
-
-// VoteInfo ...
-type VoteInfo struct {
-	Address         common.Address
-	VotingPower     *big.Int
-	SignedLastBlock bool
-}
-
-// LastCommitInfo ...
-type LastCommitInfo struct {
-	Votes []VoteInfo
-}
-
-// Evidence ...
-type Evidence struct {
-	Address          common.Address
-	VotingPower      *big.Int
-	Height           uint64
-	Time             time.Time
-	TotalVotingPower uint64
-}
 
 // StakingSmcUtil ...
 type StakingSmcUtil struct {
@@ -271,7 +250,7 @@ func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc v
 }
 
 //FinalizeCommit finalize commitcd
-func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, lastCommit LastCommitInfo) error {
+func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, lastCommit stypes.LastCommitInfo) error {
 	vals := make([]common.Address, len(lastCommit.Votes))
 	votingPowers := make([]*big.Int, len(lastCommit.Votes))
 	signed := make([]bool, len(lastCommit.Votes))
@@ -291,7 +270,7 @@ func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.He
 }
 
 //DoubleSign double sign
-func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, byzVals []Evidence) error {
+func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, byzVals []stypes.Evidence) error {
 	for _, ev := range byzVals {
 		payload, err := s.Abi.Pack("doubleSign", ev.Address, ev.VotingPower, big.NewInt(int64(ev.Height)))
 		if err != nil {

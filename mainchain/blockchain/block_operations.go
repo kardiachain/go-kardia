@@ -24,6 +24,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
+	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -108,7 +109,7 @@ func (bo *BlockOperations) CreateProposalBlock(
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
-func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
+func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
 	vals, root, blockInfo, _, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {
 		return nil, common.Hash{}, err
@@ -124,7 +125,7 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 
 // CommitBlockTxsIfNotFound executes and commits block txs if the block state root is not found in storage.
 // Proposer and validators should already commit the block txs, so this function prevents double tx execution.
-func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, error) {
+func (bo *BlockOperations) CommitBlockTxsIfNotFound(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
 	root := bo.blockchain.DB().ReadAppHash(block.Height())
 	if !bo.blockchain.CheckCommittedStateRoot(root) {
 		bo.logger.Trace("Block has unseen state root, execute & commit block txs", "height", block.Height())
@@ -216,7 +217,7 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 
 // commitTransactions executes the given transactions and commits the result stateDB to disk.
 func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *types.Header,
-	lastCommit staking.LastCommitInfo, byzVals []staking.Evidence) ([]*types.Validator, common.Hash, *types.BlockInfo,
+	lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, *types.BlockInfo,
 	types.Transactions, error) {
 	var (
 		newTxs   = types.Transactions{}

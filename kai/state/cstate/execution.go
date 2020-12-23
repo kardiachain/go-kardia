@@ -25,20 +25,20 @@ import (
 	fail "github.com/ebuchman/fail-test"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/types"
+
+	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 )
 
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.
 type EvidencePool interface {
-	Update(LastestBlockState)
-	VMEvidence(height uint64, evidence []types.Evidence) []staking.Evidence
+	Update(lastestBlockState LastestBlockState, ev types.EvidenceList)
 	CheckEvidence(evList types.EvidenceList) error
 }
 
 // BlockStore ...
 type BlockStore interface {
-	CommitAndValidateBlockTxs(*types.Block, staking.LastCommitInfo, []staking.Evidence) ([]*types.Validator, common.Hash, error)
+	CommitAndValidateBlockTxs(*types.Block, stypes.LastCommitInfo, []stypes.Evidence) ([]*types.Validator, common.Hash, error)
 }
 
 //-----------------------------------------------------------------------------
@@ -87,7 +87,11 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	}
 	fail.Fail() // XXX
 
-	byzVals := blockExec.evpool.VMEvidence(block.Height(), block.Evidence().Evidence)
+	byzVals := []stypes.Evidence{}
+	for _, ev := range block.Evidence().Evidence {
+		byzVals = append(byzVals, ev.VM()...)
+	}
+
 	commitInfo := getBeginBlockValidatorInfo(block, blockExec.store)
 
 	valUpdates, appHash, err := blockExec.bc.CommitAndValidateBlockTxs(block, commitInfo, byzVals)
@@ -106,7 +110,7 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	blockExec.store.Save(state)
 
 	// Update evpool with the block and state.
-	blockExec.evpool.Update(state)
+	blockExec.evpool.Update(state, block.Evidence().Evidence)
 	fail.Fail() // XXX
 	// Events are fired after everything else.
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay
@@ -147,9 +151,9 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 	}, nil
 }
 
-func getBeginBlockValidatorInfo(b *types.Block, store Store) staking.LastCommitInfo {
+func getBeginBlockValidatorInfo(b *types.Block, store Store) stypes.LastCommitInfo {
 	lastCommit := b.LastCommit()
-	voteInfos := make([]staking.VoteInfo, lastCommit.Size())
+	voteInfos := make([]stypes.VoteInfo, lastCommit.Size())
 	// block.Height=1 -> LastCommitInfo.Votes are empty.
 	// Remember that the first LastCommit is intentionally empty, so it makes
 	// sense for LastCommitInfo.Votes to also be empty.
@@ -172,7 +176,7 @@ func getBeginBlockValidatorInfo(b *types.Block, store Store) staking.LastCommitI
 
 		for i, val := range lastValSet.Validators {
 			commitSig := lastCommit.Signatures[i]
-			voteInfos[i] = staking.VoteInfo{
+			voteInfos[i] = stypes.VoteInfo{
 				Address:         val.Address,
 				VotingPower:     big.NewInt(int64(val.VotingPower)),
 				SignedLastBlock: commitSig.Signature != nil,
@@ -180,7 +184,7 @@ func getBeginBlockValidatorInfo(b *types.Block, store Store) staking.LastCommitI
 		}
 	}
 
-	return staking.LastCommitInfo{
+	return stypes.LastCommitInfo{
 		Votes: voteInfos,
 	}
 }

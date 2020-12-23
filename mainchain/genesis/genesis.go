@@ -213,8 +213,9 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking
 		panic(err)
 	}
 	root := statedb.IntermediateRoot(false)
-	statedb.Commit(false)
-	statedb.Database().TrieDB().Commit(root, true)
+	_, _ = statedb.Commit(false)
+	_ = statedb.Database().TrieDB().Commit(root, true)
+
 	return block, root
 }
 

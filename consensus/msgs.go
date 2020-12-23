@@ -1,12 +1,16 @@
 package consensus
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gogo/protobuf/proto"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 	"github.com/kardiachain/go-kardia/lib/common"
+	kmath "github.com/kardiachain/go-kardia/lib/math"
+	"github.com/kardiachain/go-kardia/lib/p2p"
 	kcons "github.com/kardiachain/go-kardia/proto/kardiachain/consensus"
+	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -262,4 +266,105 @@ func MustEncode(msg Message) []byte {
 		panic(err)
 	}
 	return enc
+}
+
+// WALToProto takes a WAL message and return a proto walMessage and error
+func WALToProto(msg WALMessage) (*kcons.WALMessage, error) {
+	var pb kcons.WALMessage
+
+	switch msg := msg.(type) {
+	case types.EventDataRoundState:
+		pb = kcons.WALMessage{
+			Sum: &kcons.WALMessage_EventDataRoundState{
+				EventDataRoundState: &kproto.EventDataRoundState{
+					Height: msg.Height,
+					Round:  msg.Round,
+					Step:   msg.Step,
+				},
+			},
+		}
+	case msgInfo:
+		consMsg, err := MsgToProto(msg.Msg)
+		if err != nil {
+			return nil, err
+		}
+		pb = kcons.WALMessage{
+			Sum: &kcons.WALMessage_MsgInfo{
+				MsgInfo: &kcons.MsgInfo{
+					Msg:    *consMsg,
+					PeerID: string(msg.PeerID),
+				},
+			},
+		}
+	case timeoutInfo:
+		pb = kcons.WALMessage{
+			Sum: &kcons.WALMessage_TimeoutInfo{
+				TimeoutInfo: &kcons.TimeoutInfo{
+					Duration: msg.Duration,
+					Height:   msg.Height,
+					Round:    msg.Round,
+					Step:     uint32(msg.Step),
+				},
+			},
+		}
+	case EndHeightMessage:
+		pb = kcons.WALMessage{
+			Sum: &kcons.WALMessage_EndHeight{
+				EndHeight: &kcons.EndHeight{
+					Height: msg.Height,
+				},
+			},
+		}
+	default:
+		return nil, fmt.Errorf("to proto: wal message not recognized: %T", msg)
+	}
+	return &pb, nil
+}
+
+// WALFromProto takes a proto wal message and return a consensus walMessage and error
+func WALFromProto(msg *kcons.WALMessage) (WALMessage, error) {
+	if msg == nil {
+		return nil, errors.New("nil WAL message")
+	}
+	var pb WALMessage
+
+	switch msg := msg.Sum.(type) {
+	case *kcons.WALMessage_EventDataRoundState:
+		pb = types.EventDataRoundState{
+			Height: msg.EventDataRoundState.Height,
+			Round:  msg.EventDataRoundState.Round,
+			Step:   msg.EventDataRoundState.Step,
+		}
+	case *kcons.WALMessage_MsgInfo:
+		walMsg, err := MsgFromProto(&msg.MsgInfo.Msg)
+		if err != nil {
+			return nil, fmt.Errorf("msgInfo from proto error: %w", err)
+		}
+		pb = msgInfo{
+			Msg:    walMsg,
+			PeerID: p2p.ID(msg.MsgInfo.PeerID),
+		}
+
+	case *kcons.WALMessage_TimeoutInfo:
+		tis, err := kmath.SafeConvertUint8(int64(msg.TimeoutInfo.Step))
+		// deny message based on possible overflow
+		if err != nil {
+			return nil, fmt.Errorf("denying message due to possible overflow: %w", err)
+		}
+		pb = timeoutInfo{
+			Duration: msg.TimeoutInfo.Duration,
+			Height:   msg.TimeoutInfo.Height,
+			Round:    msg.TimeoutInfo.Round,
+			Step:     cstypes.RoundStepType(tis),
+		}
+		return pb, nil
+	case *kcons.WALMessage_EndHeight:
+		pb := EndHeightMessage{
+			Height: msg.EndHeight.Height,
+		}
+		return pb, nil
+	default:
+		return nil, fmt.Errorf("from proto: wal message not recognized: %T", msg)
+	}
+	return pb, nil
 }

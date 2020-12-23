@@ -44,7 +44,7 @@ func initializeValidatorState(prival types.PrivValidator, height uint64) cState.
 		Validators: []*types.Validator{
 			&types.Validator{
 				Address:          prival.GetAddress(),
-				VotingPower:      100,
+				VotingPower:      10,
 				ProposerPriority: 1,
 			},
 		},
@@ -80,6 +80,7 @@ func TestEvidencePool(t *testing.T) {
 	_, privVals := types.RandValidatorSet(3, 10)
 	var (
 		height       = uint64(100002)
+		chainid      = "kai"
 		stateDB      = initializeValidatorState(privVals[0], height)
 		evidenceDB   = memorydb.New()
 		evidenceTime = time.Date(2019, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -93,8 +94,8 @@ func TestEvidencePool(t *testing.T) {
 	pool, err := NewPool(stateDB, evidenceDB, blockStore)
 	require.NoError(t, err)
 
-	goodEvidence := types.NewMockDuplicateVoteEvidenceWithValidator(height, time.Now(), privVals[0], "kai")
-	badEvidence := types.NewMockDuplicateVoteEvidenceWithValidator(1, evidenceTime, privVals[0], "kai")
+	goodEvidence := types.NewMockDuplicateVoteEvidenceWithValidator(height, evidenceTime, privVals[0], chainid)
+	badEvidence := types.NewMockDuplicateVoteEvidenceWithValidator(1, evidenceTime, privVals[0], chainid) // wrong height
 	// bad evidence
 	err = pool.AddEvidence(badEvidence)
 	assert.Error(t, err)
@@ -104,7 +105,11 @@ func TestEvidencePool(t *testing.T) {
 		t.Fatal("Fail to add goodEvidence:", err)
 	}
 
-	<-pool.EvidenceWaitChan()
+	addedEv := make(chan struct{})
+	go func() {
+		<-pool.EvidenceWaitChan()
+		close(addedEv)
+	}()
 
 	assert.Equal(t, 1, pool.evidenceList.Len())
 
