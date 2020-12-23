@@ -25,6 +25,8 @@ import (
 	"strings"
 	"testing"
 
+	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -153,13 +155,13 @@ func getSmcValidatorUtil(valSmcAddr common.Address) (*staking.ValidatorSmcUtil, 
 
 func finalizeTest(stateDB *state.StateDB, util *staking.StakingSmcUtil, block *types.Block) error {
 	//test finalizeCommit finalize commit
-	err := util.FinalizeCommit(stateDB, block.Header(), nil, kvm.Config{}, staking.LastCommitInfo{})
+	err := util.FinalizeCommit(stateDB, block.Header(), nil, kvm.Config{}, stypes.LastCommitInfo{})
 	if err != nil {
 		return err
 	}
 
 	//test double sign
-	err = util.DoubleSign(stateDB, block.Header(), nil, kvm.Config{}, []staking.Evidence{})
+	err = util.DoubleSign(stateDB, block.Header(), nil, kvm.Config{}, []stypes.Evidence{})
 	if err != nil {
 		return err
 	}
@@ -180,13 +182,13 @@ func TestCreateValidator(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", "10")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	address1 := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address1, "Val2", "10", "20", "1", "10")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address1, "Val2", "10", "20", "1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +251,7 @@ func TestGetCommissionValidator(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", "10")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +276,7 @@ func TestGetValidatorsByDelegator(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", "10")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,18 +310,18 @@ func TestDoubleSign(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", "10")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	valSmcAddr, err := util.GetValSmcAddr(stateDB, block.Header(), nil, kvm.Config{}, big.NewInt(0))
+	valSmcAddr, err := util.GetValFromOwner(stateDB, block.Header(), nil, kvm.Config{}, common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	val, err := valUtil.GetInforValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
 	assert.EqualValuesf(t, false, val.Jailed, "Created validator must not be jailed")
 
-	if err = util.DoubleSign(stateDB, block.Header(), nil, kvm.Config{}, []staking.Evidence{
+	if err = util.DoubleSign(stateDB, block.Header(), nil, kvm.Config{}, []stypes.Evidence{
 		{
 			Address:     address,
 			VotingPower: big.NewInt(1),

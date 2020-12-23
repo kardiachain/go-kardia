@@ -73,7 +73,7 @@ type VoteTurn struct {
 
 // interface to the evidence pool
 type evidencePool interface {
-	AddEvidenceFromConsensus(ev types.Evidence, time time.Time, valSet *types.ValidatorSet) error
+	AddEvidenceFromConsensus(ev types.Evidence) error
 }
 
 func EmptyTimeoutInfo() *timeoutInfo {
@@ -562,8 +562,8 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 				timestamp = cstate.MedianTime(cs.LastCommit.MakeCommit(), cs.LastValidators)
 			}
 
-			evidence := types.NewDuplicateVoteEvidence(voteErr.VoteA, voteErr.VoteB)
-			evidenceErr := cs.evpool.AddEvidenceFromConsensus(evidence, timestamp, cs.Validators)
+			evidence := types.NewDuplicateVoteEvidence(voteErr.VoteA, voteErr.VoteB, timestamp, cs.Validators)
+			evidenceErr := cs.evpool.AddEvidenceFromConsensus(evidence)
 			if evidenceErr != nil {
 				cs.Logger.Error("Failed to add evidence to the evidence pool", "err", evidenceErr)
 			} else {

@@ -7,15 +7,19 @@ import (
 	fmt "fmt"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
+	_ "github.com/gogo/protobuf/types"
+	github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
 	io "io"
 	math "math"
 	math_bits "math/bits"
+	time "time"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
+var _ = time.Kitchen
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the proto package it is being compiled against.
@@ -26,8 +30,11 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 // DuplicateVoteEvidence contains evidence a validator signed two conflicting
 // votes.
 type DuplicateVoteEvidence struct {
-	VoteA *Vote `protobuf:"bytes,1,opt,name=vote_a,json=voteA,proto3" json:"vote_a,omitempty"`
-	VoteB *Vote `protobuf:"bytes,2,opt,name=vote_b,json=voteB,proto3" json:"vote_b,omitempty"`
+	VoteA            *Vote     `protobuf:"bytes,1,opt,name=vote_a,json=voteA,proto3" json:"vote_a,omitempty"`
+	VoteB            *Vote     `protobuf:"bytes,2,opt,name=vote_b,json=voteB,proto3" json:"vote_b,omitempty"`
+	TotalVotingPower int64     `protobuf:"varint,3,opt,name=total_voting_power,json=totalVotingPower,proto3" json:"total_voting_power,omitempty"`
+	ValidatorPower   int64     `protobuf:"varint,4,opt,name=validator_power,json=validatorPower,proto3" json:"validator_power,omitempty"`
+	Timestamp        time.Time `protobuf:"bytes,5,opt,name=timestamp,proto3,stdtime" json:"timestamp"`
 }
 
 func (m *DuplicateVoteEvidence) Reset()         { *m = DuplicateVoteEvidence{} }
@@ -75,6 +82,27 @@ func (m *DuplicateVoteEvidence) GetVoteB() *Vote {
 		return m.VoteB
 	}
 	return nil
+}
+
+func (m *DuplicateVoteEvidence) GetTotalVotingPower() int64 {
+	if m != nil {
+		return m.TotalVotingPower
+	}
+	return 0
+}
+
+func (m *DuplicateVoteEvidence) GetValidatorPower() int64 {
+	if m != nil {
+		return m.ValidatorPower
+	}
+	return 0
+}
+
+func (m *DuplicateVoteEvidence) GetTimestamp() time.Time {
+	if m != nil {
+		return m.Timestamp
+	}
+	return time.Time{}
 }
 
 type Evidence struct {
@@ -203,7 +231,7 @@ func init() {
 func init() { proto.RegisterFile("kardiachain/types/evidence.proto", fileDescriptor_9916f59e043142ef) }
 
 var fileDescriptor_9916f59e043142ef = []byte{
-	// 276 bytes of a gzipped FileDescriptorProto
+	// 277 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x52, 0xc8, 0x4e, 0x2c, 0x4a,
 	0xc9, 0x4c, 0x4c, 0xce, 0x48, 0xcc, 0xcc, 0xd3, 0x2f, 0xa9, 0x2c, 0x48, 0x2d, 0xd6, 0x4f, 0x2d,
 	0xcb, 0x4c, 0x49, 0xcd, 0x4b, 0x4e, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x12, 0x44, 0x52,
@@ -216,12 +244,12 @@ var fileDescriptor_9916f59e043142ef = []byte{
 	0x53, 0x60, 0xbe, 0x85, 0x5a, 0xae, 0x81, 0xc5, 0x30, 0xac, 0xce, 0xf6, 0x60, 0x08, 0x12, 0x4d,
 	0xc1, 0x26, 0xe1, 0xc4, 0xca, 0xc5, 0x5c, 0x5c, 0x9a, 0xab, 0xe4, 0xcb, 0xc5, 0x03, 0x13, 0x72,
 	0x49, 0x2c, 0x49, 0x14, 0xb2, 0xe5, 0xe2, 0x40, 0xb2, 0x8b, 0x59, 0x83, 0xdb, 0x48, 0x1a, 0x8b,
-	0x5d, 0x70, 0x53, 0x58, 0x4e, 0xdc, 0x93, 0x67, 0x08, 0x82, 0x6b, 0x71, 0x0a, 0x3a, 0xf1, 0x48,
+	0x5d, 0x70, 0x53, 0x58, 0x4e, 0xdc, 0x93, 0x67, 0x08, 0x82, 0x6b, 0x71, 0x0a, 0x3b, 0xf1, 0x48,
 	0x8e, 0xf1, 0xc2, 0x23, 0x39, 0xc6, 0x07, 0x8f, 0xe4, 0x18, 0x27, 0x3c, 0x96, 0x63, 0xb8, 0xf0,
-	0x58, 0x8e, 0xe1, 0xc6, 0x63, 0x39, 0x86, 0x28, 0x8b, 0xf4, 0xcc, 0x92, 0x8c, 0xd2, 0x24, 0xbd,
-	0xe4, 0xfc, 0x5c, 0x7d, 0xe4, 0x28, 0x48, 0xcf, 0xd7, 0x85, 0x70, 0xf5, 0x21, 0x51, 0x85, 0x11,
-	0x3d, 0x49, 0x6c, 0x60, 0x09, 0x63, 0x40, 0x00, 0x00, 0x00, 0xff, 0xff, 0xb4, 0x57, 0x0e, 0xde,
-	0x05, 0x02, 0x00, 0x00,
+	0x58, 0x8e, 0xe1, 0xc6, 0x63, 0x39, 0x86, 0x28, 0x9b, 0xf4, 0xcc, 0x92, 0x8c, 0xd2, 0x24, 0xbd,
+	0xe4, 0xfc, 0x5c, 0x7d, 0xe4, 0x28, 0x48, 0xcf, 0xd7, 0x85, 0x70, 0x73, 0x41, 0x3c, 0x48, 0x74,
+	0x61, 0x44, 0x51, 0x12, 0x1b, 0x58, 0xc2, 0x18, 0x10, 0x00, 0x00, 0xff, 0xff, 0x57, 0x08, 0x5e,
+	0x4d, 0x09, 0x02, 0x00, 0x00,
 }
 
 func (m *DuplicateVoteEvidence) Marshal() (dAtA []byte, err error) {
@@ -244,6 +272,24 @@ func (m *DuplicateVoteEvidence) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	n1, err1 := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.Timestamp, dAtA[i-github_com_gogo_protobuf_types.SizeOfStdTime(m.Timestamp):])
+	if err1 != nil {
+		return 0, err1
+	}
+	i -= n1
+	i = encodeVarintEvidence(dAtA, i, uint64(n1))
+	i--
+	dAtA[i] = 0x2a
+	if m.ValidatorPower != 0 {
+		i = encodeVarintEvidence(dAtA, i, uint64(m.ValidatorPower))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.TotalVotingPower != 0 {
+		i = encodeVarintEvidence(dAtA, i, uint64(m.TotalVotingPower))
+		i--
+		dAtA[i] = 0x18
+	}
 	if m.VoteB != nil {
 		{
 			size, err := m.VoteB.MarshalToSizedBuffer(dAtA[:i])
@@ -386,6 +432,14 @@ func (m *DuplicateVoteEvidence) Size() (n int) {
 		l = m.VoteB.Size()
 		n += 1 + l + sovEvidence(uint64(l))
 	}
+	if m.TotalVotingPower != 0 {
+		n += 1 + sovEvidence(uint64(m.TotalVotingPower))
+	}
+	if m.ValidatorPower != 0 {
+		n += 1 + sovEvidence(uint64(m.ValidatorPower))
+	}
+	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.Timestamp)
+	n += 1 + l + sovEvidence(uint64(l))
 	return n
 }
 
@@ -532,6 +586,77 @@ func (m *DuplicateVoteEvidence) Unmarshal(dAtA []byte) error {
 				m.VoteB = &Vote{}
 			}
 			if err := m.VoteB.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TotalVotingPower", wireType)
+			}
+			m.TotalVotingPower = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.TotalVotingPower |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorPower", wireType)
+			}
+			m.ValidatorPower = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ValidatorPower |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Timestamp", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvidence
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvidence
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.Timestamp, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

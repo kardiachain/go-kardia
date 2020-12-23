@@ -14,7 +14,7 @@ import (
 // - it is from a key who was a validator at the given height
 // - it is internally consistent with state
 // - it was properly signed by the alleged equivocator and meets the individual evidence verification requirements
-func (evpool *Pool) verify(evidence types.Evidence) (*info, error) {
+func (evpool *Pool) verify(evidence types.Evidence) error {
 	var (
 		state          = evpool.State()
 		height         = int64(state.LastBlockHeight)
@@ -24,15 +24,21 @@ func (evpool *Pool) verify(evidence types.Evidence) (*info, error) {
 	// verify the time of the evidence
 	blockMeta := evpool.blockStore.LoadBlockMeta(evidence.Height())
 	if blockMeta == nil {
-		return nil, fmt.Errorf("don't have header at height #%d", evidence.Height())
+		return fmt.Errorf("don't have header at height #%d", evidence.Height())
 	}
 
 	evTime := blockMeta.Header.Time
+
+	if evidence.Time() != evTime {
+		return fmt.Errorf("evidence has a different time to the block it is associated with (%v != %v)",
+			evidence.Time(), evTime)
+	}
+
 	ageDuration := state.LastBlockTime.Sub(evTime)
 
 	// check that the evidence hasn't expired
 	if ageDuration > evidenceParams.MaxAgeDuration && ageNumBlocks > evidenceParams.MaxAgeNumBlocks {
-		return nil, fmt.Errorf(
+		return fmt.Errorf(
 			"evidence from height %d (created at: %v) is too old; min height is %d and evidence can not be older than %v",
 			evidence.Height(),
 			evTime,
@@ -46,24 +52,11 @@ func (evpool *Pool) verify(evidence types.Evidence) (*info, error) {
 	case *types.DuplicateVoteEvidence:
 		valSet, err := evpool.stateDB.LoadValidators(evidence.Height())
 		if err != nil {
-			return nil, err
+			return err
 		}
-		err = VerifyDuplicateVote(ev, state.ChainID, valSet)
-		if err != nil {
-			return nil, fmt.Errorf("verifying duplicate vote evidence: %w", err)
-		}
-
-		_, val := valSet.GetByAddress(ev.VoteA.ValidatorAddress)
-
-		return &info{
-			Evidence:         evidence,
-			Time:             evTime,
-			Validators:       []*types.Validator{val}, // just a single validator for duplicate vote evidence
-			TotalVotingPower: int64(valSet.TotalVotingPower()),
-		}, nil
-
+		return VerifyDuplicateVote(ev, state.ChainID, valSet)
 	default:
-		return nil, fmt.Errorf("unrecognized evidence type: %T", evidence)
+		return fmt.Errorf("unrecognized evidence type: %T", evidence)
 	}
 }
 
@@ -102,6 +95,16 @@ func VerifyDuplicateVote(e *types.DuplicateVoteEvidence, chainID string, valSet 
 			"block IDs are the same (%v) - not a real duplicate vote",
 			e.VoteA.BlockID,
 		)
+	}
+
+	// validator voting power and total voting power must match
+	if val.VotingPower != e.ValidatorPower {
+		return fmt.Errorf("validator power from evidence and our validator set does not match (%d != %d)",
+			e.ValidatorPower, val.VotingPower)
+	}
+	if valSet.TotalVotingPower() != e.TotalVotingPower {
+		return fmt.Errorf("total voting power from the evidence and our validator set does not match (%d != %d)",
+			e.TotalVotingPower, valSet.TotalVotingPower())
 	}
 
 	va := e.VoteA.ToProto()

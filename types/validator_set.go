@@ -139,7 +139,7 @@ func (vs *ValidatorSet) IncrementProposerPriority(times int64) {
 	// re-normalizing priorities, i.e., rescale all priorities by multiplying with:
 	//  2*totalVotingPower/(maxPriority - minPriority)
 	diffMax := PriorityWindowSizeFactor * vs.TotalVotingPower()
-	vs.RescalePriorities(int64(diffMax))
+	vs.RescalePriorities(diffMax)
 	vs.shiftByAvgProposerPriority()
 
 	var proposer *Validator
@@ -151,6 +151,7 @@ func (vs *ValidatorSet) IncrementProposerPriority(times int64) {
 	vs.Proposer = proposer
 }
 
+// RescalePriorities rescale validator priority
 func (vs *ValidatorSet) RescalePriorities(diffMax int64) {
 	if vs.IsNilOrEmpty() {
 		panic("empty validator set")
@@ -178,13 +179,13 @@ func (vs *ValidatorSet) RescalePriorities(diffMax int64) {
 func (vs *ValidatorSet) incrementProposerPriority() *Validator {
 	for _, val := range vs.Validators {
 		// Check for overflow for sum.
-		newPriority := val.ProposerPriority + int64(val.VotingPower)
+		newPriority := val.ProposerPriority + val.VotingPower
 		val.ProposerPriority = newPriority
 	}
 	// Decrement the validator with most ProposerPriority.
 	mostest := vs.getValWithMostPriority()
 	// Mind the underflow.
-	mostest.ProposerPriority = safeSubClip(mostest.ProposerPriority, int64(vs.TotalVotingPower()))
+	mostest.ProposerPriority = safeSubClip(mostest.ProposerPriority, vs.TotalVotingPower())
 	return mostest
 }
 
@@ -441,7 +442,7 @@ func verifyUpdates(
 		if val != nil {
 			return int64(update.VotingPower) - int64(val.VotingPower)
 		}
-		return int64(update.VotingPower)
+		return update.VotingPower
 	}
 
 	updatesCopy := validatorListCopy(updates)
@@ -449,12 +450,11 @@ func verifyUpdates(
 		return delta(updatesCopy[i], vals) < delta(updatesCopy[j], vals)
 	})
 
-	tvpAfterRemovals := int64(vals.TotalVotingPower()) - removedPower
+	tvpAfterRemovals := vals.TotalVotingPower() - removedPower
 	for _, upd := range updatesCopy {
 		tvpAfterRemovals += delta(upd, vals)
-		if tvpAfterRemovals > int64(MaxTotalVotingPower) {
-			return 0, fmt.Errorf("total voting power of resulting valset exceeds max %d",
-				MaxTotalVotingPower)
+		if tvpAfterRemovals > MaxTotalVotingPower {
+			return 0, ErrTotalVotingPowerOverflow
 		}
 	}
 	return tvpAfterRemovals + removedPower, nil
@@ -604,7 +604,7 @@ func (vs *ValidatorSet) updateWithChangeSet(changes []*Validator, allowDeletes b
 	}
 
 	// Verify that applying the 'updates' against 'vals' will not result in error.
-	updatedTotalVotingPower, err := verifyUpdates(updates, vs, int64(removedVotingPower))
+	updatedTotalVotingPower, err := verifyUpdates(updates, vs, removedVotingPower)
 	if err != nil {
 		return err
 	}
@@ -616,7 +616,7 @@ func (vs *ValidatorSet) updateWithChangeSet(changes []*Validator, allowDeletes b
 	}
 
 	// Compute the priorities for updates.
-	computeNewPriorities(updates, vs, int64(updatedTotalVotingPower))
+	computeNewPriorities(updates, vs, updatedTotalVotingPower)
 	// Apply updates and removals.
 	vs.applyUpdates(updates)
 	// vs.Proposer = updates[0]
@@ -625,7 +625,7 @@ func (vs *ValidatorSet) updateWithChangeSet(changes []*Validator, allowDeletes b
 	vs.updateTotalVotingPower()
 
 	// Scale and center.
-	vs.RescalePriorities(PriorityWindowSizeFactor * int64(vs.TotalVotingPower()))
+	vs.RescalePriorities(PriorityWindowSizeFactor * vs.TotalVotingPower())
 
 	vs.shiftByAvgProposerPriority()
 	sort.Sort(ValidatorsByVotingPower(vs.Validators))

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
-	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -13,32 +12,12 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 	"github.com/kardiachain/go-kardia/types"
 )
 
 // MaximumGasToCallStaticFunction ...
 var MaximumGasToCallStaticFunction = uint(4000000)
-
-// VoteInfo ...
-type VoteInfo struct {
-	Address         common.Address
-	VotingPower     *big.Int
-	SignedLastBlock bool
-}
-
-// LastCommitInfo ...
-type LastCommitInfo struct {
-	Votes []VoteInfo
-}
-
-// Evidence ...
-type Evidence struct {
-	Address          common.Address
-	VotingPower      *big.Int
-	Height           uint64
-	Time             time.Time
-	TotalVotingPower uint64
-}
 
 // StakingSmcUtil ...
 type StakingSmcUtil struct {
@@ -54,7 +33,6 @@ type Validator struct {
 	ValStakingSmc         common.Address `json:"valStakingSmc"`
 	Tokens                *big.Int       `json:"tokens"`
 	Jailed                bool           `json:"jailed"`
-	MinSelfDelegation     *big.Int       `json:"minSelfDelegation"`
 	DelegationShares      *big.Int       `json:"delegationShares"`
 	AccumulatedCommission *big.Int       `json:"accumulatedCommission"`
 	UbdEntryCount         *big.Int       `json:"ubdEntryCount"`
@@ -123,28 +101,24 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 	_name string,
 	_commission string,
 	_maxRate string,
-	_maxChangeRate string,
-	_minSelfDelegate string) error {
+	_maxChangeRate string) error {
 
 	commission, k1 := big.NewInt(0).SetString(_commission, 10)
 	maxRate, k2 := big.NewInt(0).SetString(_maxRate, 10)
 	maxChangeRate, k3 := big.NewInt(0).SetString(_maxChangeRate, 10)
-	minSelfDelegate, k4 := big.NewInt(0).SetString(_minSelfDelegate, 10)
-	// selfDelegate, k5 := big.NewInt(0).SetString(_selfDelegate, 10)
 	name := []byte(_name)
 	var arrName [32]byte
 	copy(arrName[:], name[:32])
 
-	if !k1 || !k2 || !k3 || !k4 {
+	if !k1 || !k2 || !k3 {
 		panic("Error while parsing genesis validator params")
 	}
 
 	input, err := s.Abi.Pack("createValidator",
 		arrName,
-		commission,      // Commission rate
-		maxRate,         // Maximum commission rate
-		maxChangeRate,   // Maximum commission change rate
-		minSelfDelegate, // Minimum self delegate amount
+		commission,    // Commission rate
+		maxRate,       // Maximum commission rate
+		maxChangeRate, // Maximum commission change rate
 	)
 	if err != nil {
 		panic(err)
@@ -267,7 +241,7 @@ func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc v
 }
 
 //FinalizeCommit finalize commitcd
-func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, lastCommit LastCommitInfo) error {
+func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, lastCommit stypes.LastCommitInfo) error {
 	vals := make([]common.Address, len(lastCommit.Votes))
 	votingPowers := make([]*big.Int, len(lastCommit.Votes))
 	signed := make([]bool, len(lastCommit.Votes))
@@ -287,7 +261,7 @@ func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.He
 }
 
 //DoubleSign double sign
-func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, byzVals []Evidence) error {
+func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, byzVals []stypes.Evidence) error {
 	for _, ev := range byzVals {
 		payload, err := s.Abi.Pack("doubleSign", ev.Address, ev.VotingPower, big.NewInt(int64(ev.Height)))
 		if err != nil {

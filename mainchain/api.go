@@ -227,7 +227,6 @@ type Validator struct {
 	MaxRate               string       `json:"maxRate"`
 	MaxChangeRate         string       `json:"maxChangeRate"`
 	Jailed                bool         `json:"jailed"`
-	MinSelfDelegation     string       `json:"minSelfDelegation"`
 	DelegationShares      string       `json:"delegationShares"`
 	AccumulatedCommission string       `json:"accumulatedCommission"`
 	UbdEntryCount         string       `json:"ubdEntryCount"`
@@ -280,7 +279,6 @@ func (s *PublicKaiAPI) Validator(ctx context.Context, valAddr common.Address, is
 		MaxRate:               val.MaxRate.String(),
 		MaxChangeRate:         val.MaxChangeRate.String(),
 		Jailed:                val.Jailed,
-		MinSelfDelegation:     val.MinSelfDelegation.String(),
 		DelegationShares:      val.DelegationShares.String(),
 		AccumulatedCommission: val.AccumulatedCommission.String(),
 		UbdEntryCount:         val.UbdEntryCount.String(),
