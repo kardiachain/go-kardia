@@ -25,6 +25,8 @@ import (
 	"strings"
 	"testing"
 
+	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
+
 	"github.com/stretchr/testify/assert"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -153,13 +155,13 @@ func getSmcValidatorUtil(valSmcAddr common.Address) (*staking.ValidatorSmcUtil, 
 
 func finalizeTest(stateDB *state.StateDB, util *staking.StakingSmcUtil, block *types.Block) error {
 	//test finalizeCommit finalize commit
-	err := util.FinalizeCommit(stateDB, block.Header(), nil, kvm.Config{}, staking.LastCommitInfo{})
+	err := util.FinalizeCommit(stateDB, block.Header(), nil, kvm.Config{}, stypes.LastCommitInfo{})
 	if err != nil {
 		return err
 	}
 
 	//test double sign
-	err = util.DoubleSign(stateDB, block.Header(), nil, kvm.Config{}, []staking.Evidence{})
+	err = util.DoubleSign(stateDB, block.Header(), nil, kvm.Config{}, []stypes.Evidence{})
 	if err != nil {
 		return err
 	}
@@ -319,7 +321,7 @@ func TestDoubleSign(t *testing.T) {
 	val, err := valUtil.GetInforValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
 	assert.EqualValuesf(t, false, val.Jailed, "Created validator must not be jailed")
 
-	if err = util.DoubleSign(stateDB, block.Header(), nil, kvm.Config{}, []staking.Evidence{
+	if err = util.DoubleSign(stateDB, block.Header(), nil, kvm.Config{}, []stypes.Evidence{
 		{
 			Address:     address,
 			VotingPower: big.NewInt(1),
