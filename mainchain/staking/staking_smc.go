@@ -110,16 +110,19 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 	_name string,
 	_commission string,
 	_maxRate string,
-	_maxChangeRate string) error {
+	_maxChangeRate string,
+	_selfDelegate string) error {
 
 	commission, k1 := big.NewInt(0).SetString(_commission, 10)
 	maxRate, k2 := big.NewInt(0).SetString(_maxRate, 10)
 	maxChangeRate, k3 := big.NewInt(0).SetString(_maxChangeRate, 10)
+	selfDelegate, k4 := big.NewInt(0).SetString(_selfDelegate, 10)
+
 	name := []byte(_name)
 	var arrName [32]byte
 	copy(arrName[:], name[:32])
 
-	if !k1 || !k2 || !k3 {
+	if !k1 || !k2 || !k3 || !k4 {
 		panic("Error while parsing genesis validator params")
 	}
 
@@ -137,7 +140,7 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 		valAddr,
 		&s.ContractAddress,
 		0,
-		big.NewInt(0), // Self delegate amount
+		selfDelegate,  // Self delegate amount
 		5000000,       // Gas limit
 		big.NewInt(1), // Gas price
 		input,

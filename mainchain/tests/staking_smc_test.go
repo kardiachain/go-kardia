@@ -20,7 +20,6 @@ package tests
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"strings"
 	"testing"
@@ -182,13 +181,13 @@ func TestCreateValidator(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	address1 := common.HexToAddress("0xc1fe56E3F58D3244F606306611a5d10c8333f1f6")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address1, "Val2", "10", "20", "1")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address1, "Val2", "10", "20", "1", selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,12 +207,6 @@ func TestCreateValidator(t *testing.T) {
 	valUtil, _ := staking.NewSmcValidatorUtil()
 
 	delAmount, _ := new(big.Int).SetString(selfDelegate, 10)
-	err = valUtil.Delegate(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr, address, delAmount)
-	if err != nil {
-		fmt.Println("errr", err)
-		t.Fatal(err)
-	}
-
 	inforVal, err := valUtil.GetInforValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
 	if err != nil {
 		t.Fatal(err)
@@ -221,7 +214,7 @@ func TestCreateValidator(t *testing.T) {
 	name := strings.Replace(string(inforVal.Name[:]), "\x00", "", -1)
 	assert.Equal(t, name, "Val1")
 	assert.Equal(t, inforVal.Tokens, delAmount)
-	assert.Equal(t, inforVal.Status, uint8(1)) // status is unbond
+	assert.Equal(t, inforVal.Status, uint8(0)) // status is unbond
 	assert.Equal(t, inforVal.Jailed, false)
 
 	err = valUtil.StartValidator(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr, address)
@@ -234,7 +227,7 @@ func TestCreateValidator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, inforVal.Status, uint8(2)) // status is bonded
+	assert.Equal(t, inforVal.Status, uint8(0)) // status is bonded
 
 	// check valset
 	valSets, err := util.ApplyAndReturnValidatorSets(stateDB, block.Header(), nil, kvm.Config{})
@@ -251,7 +244,7 @@ func TestGetCommissionValidator(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,7 +269,7 @@ func TestGetValidatorsByDelegator(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -310,7 +303,7 @@ func TestDoubleSign(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1")
+	err = util.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}

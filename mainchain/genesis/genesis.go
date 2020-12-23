@@ -349,16 +349,10 @@ func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB
 			val.Name,
 			val.CommissionRate,
 			val.MaxRate,
-			val.MaxChangeRate); err != nil {
+			val.MaxChangeRate,
+			val.SelfDelegate); err != nil {
 			return fmt.Errorf("apply create validator err: %s", err)
 		}
-
-		if err := staking.StartGenesisValidator(statedb, header, nil, cfg,
-			common.HexToAddress(val.Address),
-			val.SelfDelegate); err != nil {
-			return fmt.Errorf("apply start validator err: %s", err)
-		}
 	}
-
 	return nil
 }
