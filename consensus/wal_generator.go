@@ -64,13 +64,12 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 		Consensus:       configs.TestConsensusConfig(),
 		Validators: []*genesis.GenesisValidator{
 			&genesis.GenesisValidator{
-				Address:         privSet[0].GetAddress().Hex(),
-				SelfDelegate:    "13000000000000000000000000",
-				CommissionRate:  "100000000000000000",
-				MaxChangeRate:   "50000000000000000",
-				MaxRate:         "250000000000000000",
-				Name:            "val1",
-				MinSelfDelegate: "100",
+				Name:           "val1",
+				Address:        privSet[0].GetAddress().Hex(),
+				CommissionRate: "100000000000000000",
+				MaxRate:        "250000000000000000",
+				MaxChangeRate:  "50000000000000000",
+				SelfDelegate:   "13000000000000000000000000",
 			},
 		},
 	}

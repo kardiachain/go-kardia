@@ -1,9 +1,6 @@
 package cstate
 
 import (
-	"time"
-
-	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -20,11 +17,11 @@ func (EmptyEvidencePool) PendingEvidence(maxBytes int64) (ev []types.Evidence, s
 	return nil, 0
 }
 func (EmptyEvidencePool) AddEvidence(types.Evidence) error              { return nil }
-func (EmptyEvidencePool) Update(LastestBlockState)                      {}
+func (EmptyEvidencePool) Update(LastestBlockState, types.EvidenceList)  {}
 func (EmptyEvidencePool) CheckEvidence(evList types.EvidenceList) error { return nil }
-func (EmptyEvidencePool) AddEvidenceFromConsensus(ev types.Evidence, time time.Time, valSet *types.ValidatorSet) error {
+func (EmptyEvidencePool) AddEvidenceFromConsensus(ev types.Evidence) error {
 	return nil
 }
-func (EmptyEvidencePool) VMEvidence(height uint64, evidence []types.Evidence) []staking.Evidence {
-	return []staking.Evidence{}
+func (EmptyEvidencePool) VMEvidence(height uint64, evidence []types.Evidence) []types.Evidence {
+	return []types.Evidence{}
 }
