@@ -154,19 +154,13 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 }
 
 //SetPreviousProposer
-func (s *StakingSmcUtil) StartGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, selfDelegate string) error {
+func (s *StakingSmcUtil) StartGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address) error {
 	validator, err := NewSmcValidatorUtil()
 	if err != nil {
 		return err
 	}
 
 	valSmcAddr, err := s.GetValFromOwner(statedb, header, bc, cfg, valAddr)
-	if err != nil {
-		return err
-	}
-
-	amountDelegate, _ := big.NewInt(0).SetString(selfDelegate, 10)
-	err = validator.Delegate(statedb, header, bc, cfg, valSmcAddr, valAddr, amountDelegate)
 	if err != nil {
 		return err
 	}

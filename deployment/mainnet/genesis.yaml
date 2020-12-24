@@ -54,126 +54,147 @@ Genesis:
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 50000000000000000000000000
+      StartWithGenesis: true
     - Name: val2
       Address: 0xD97E7BCe3fc1C0f248Cd5f87479e173DFEC7D2B1
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 45000000000000000000000000
+      StartWithGenesis: true
     - Name: val3
       Address: 0xc60de907fd861b0f9936b74bff9d1c7f693da099
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 35000000000000000000000000
+      StartWithGenesis: true
     - Name: val4
       Address: 0xdd8b713e656919d1a643c71f1e271c55ca3fb7bc
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 30000000000000000000000000
+      StartWithGenesis: true
     - Name: val5
       Address: 0x31e865160c245b378fe46d6b410da53168d6c1b0
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 25000000000000000000000000
+      StartWithGenesis: true
     - Name: val6
       Address: 0xe09913f6ecf7b64c6a14a8145b4ac2b51111774c
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 25000000000000000000000000
+      StartWithGenesis: true
     - Name: val7
       Address: 0x5a66d7aae43a71a42064dd4a371f0454f0138ea5
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 25000000000000000000000000
+      StartWithGenesis: true
     - Name: val8
       Address: 0xcc6339d5e1c60f30fedd5d4c0e3d6addaca23f83
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 25000000000000000000000000
+      StartWithGenesis: true
     - Name: val9
       Address: 0x2923391187b3cc2c0453501d2c6b793982db66a3
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 25000000000000000000000000
+      StartWithGenesis: true
     - Name: val10
       Address: 0xcaaac49e1de8338f87e81e1611d40821590ea661
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 20000000000000000000000000
+      StartWithGenesis: true
     - Name: val11
       Address: 0x29611e28c943540b95c942746d5f058b2fd343f0
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 20000000000000000000000000
+      StartWithGenesis: true
     - Name: val12
       Address: 0x633846a52779c6a4c91c24d74f7e8fe233179bca
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 20000000000000000000000000
+      StartWithGenesis: true
     - Name: val13
       Address: 0xb7cb37d1d77a15a524ee62f8ef4a7fb7747c2e79
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 20000000000000000000000000
+      StartWithGenesis: true
     - Name: val14
       Address: 0xa5c4e2d7d550db48339d97ebbbc0a48876f6f61b
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 20000000000000000000000000
+      StartWithGenesis: true
     - Name: val15
       Address: 0x5cdf7e0bbf0c53b5f4e612fa66f0e60169e3a006
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 20000000000000000000000000
+      StartWithGenesis: true
     - Name: val16
       Address: 0x902b2cba2a734af504c34cf17ac27f5828275516
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 20000000000000000000000000
+      StartWithGenesis: true
     - Name: val17
       Address: 0xb64ba7a6e9c2c3a6c547a0eb2cc3d5e59178284e
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 15000000000000000000000000
+      StartWithGenesis: true
     - Name: val18
       Address: 0xa64ef3a99e11385e0f8cdd2b6ce803a43afa8fb5
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 15000000000000000000000000
+      StartWithGenesis: true
     - Name: val19
       Address: 0x8ce0d99cbbd41bed912b69ad5e0d4b02df6ea7f0
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 15000000000000000000000000
+      StartWithGenesis: true
     - Name: val20
       Address: 0xb6d8a74dd0769f9e3b0dc14322c915ec3a762f4d
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 15000000000000000000000000
+      StartWithGenesis: true
     - Name: val21
       Address: 0x8ecc53b27d27339cf4520fc86690cca70e14b768
       CommissionRate: 10
       MaxRate: 20
       MaxChangeRate: 5
       SelfDelegate: 15000000000000000000000000
+      StartWithGenesis: true
   Contracts:
     Staking:
       Address: "0x0000000000000000000000000000000000001337" # Staking SMC address

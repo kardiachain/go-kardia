@@ -328,9 +328,12 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
 	} else {
 		validators := make([]*types.Validator, len(genDoc.Validators))
 		for i, val := range genDoc.Validators {
-			tokens, _ := big.NewInt(0).SetString(val.SelfDelegate, 10)
-			power := tokens.Div(tokens, configs.PowerReduction)
-			validators[i] = types.NewValidator(common.HexToAddress(val.Address), power.Int64())
+			// in genesis state, only start those validators whose StartWithGenesis flag is true
+			if val.StartWithGenesis {
+				tokens, _ := big.NewInt(0).SetString(val.SelfDelegate, 10)
+				power := tokens.Div(tokens, configs.PowerReduction)
+				validators[i] = types.NewValidator(common.HexToAddress(val.Address), power.Int64())
+			}
 		}
 		validatorSet = types.NewValidatorSet(validators)
 		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)

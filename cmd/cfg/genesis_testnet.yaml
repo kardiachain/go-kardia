@@ -922,18 +922,21 @@ Genesis:
       MaxRate: 250000000000000000
       MaxChangeRate: 50000000000000000
       SelfDelegate: 12500000000000000000000000
+      StartWithGenesis: true
     - Name: val2
       Address: 0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5
       CommissionRate: 100000000000000000
       MaxRate: 250000000000000000
       MaxChangeRate: 50000000000000000
       SelfDelegate: 12500000000000000000000000
+      StartWithGenesis: true
     - Name: val3
       Address: 0xfF3dac4f04dDbD24dE5D6039F90596F0a8bb08fd
       CommissionRate: 100000000000000000
       MaxRate: 250000000000000000
       MaxChangeRate: 50000000000000000
       SelfDelegate: 12500000000000000000000000
+      StartWithGenesis: true
   GenesisAmount: 1000000000000000000000000000     # Default genesis amount in wei
   Contracts:
     Staking:
