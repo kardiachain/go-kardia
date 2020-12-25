@@ -95,11 +95,12 @@ func (hvs *HeightVoteSet) addRound(round uint32) {
 func (hvs *HeightVoteSet) SetRound(round uint32) {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
+
 	hvs.logger.Trace("Set round", "hvs.round", hvs.round, "round", round)
-	if (hvs.round == 0) && (hvs.round+1 > round) {
+	if (hvs.round == 0) && (round < hvs.round-1) {
 		cmn.PanicSanity("SetRound() must increment hvs.round")
 	}
-	for r := hvs.round + 1; r <= round; r++ {
+	for r := hvs.round - 1; r <= round; r++ {
 		if _, ok := hvs.roundVoteSets[r]; ok {
 			continue // Already exists because peerCatchupRounds.
 		}
@@ -177,7 +178,7 @@ func (hvs *HeightVoteSet) SetPeerMaj23(round uint32, signedMsgType kproto.Signed
 func (hvs *HeightVoteSet) POLInfo() (polRound uint32, polBlockID types.BlockID) {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
-	for r := hvs.round; r >= 0; r-- {
+	for r := hvs.round; r >= 1; r-- {
 		rvs := hvs.getVoteSet(r, kproto.PrevoteType)
 		polBlockID, ok := rvs.TwoThirdsMajority()
 		if ok {
