@@ -129,9 +129,6 @@ type ConsensusState struct {
 
 	// closed when we finish shutting down
 	done chan struct{}
-
-	// Simulate voting strategy
-	votingStrategy map[VoteTurn]int
 }
 
 // NewConsensusState returns a new ConsensusState.
@@ -144,25 +141,17 @@ func NewConsensusState(
 	evpool evidencePool,
 ) *ConsensusState {
 	cs := &ConsensusState{
-		config: config,
-		//namdoh@ blockExec:        blockExec,
+		config:           config,
+		blockExec:        blockExec,
 		blockOperations:  blockOperations,
 		peerMsgQueue:     make(chan msgInfo, msgQueueSize),
 		internalMsgQueue: make(chan msgInfo, msgQueueSize),
 		timeoutTicker:    NewTimeoutTicker(),
 		done:             make(chan struct{}),
-		evsw:             kevents.NewEventSwitch(),
-		blockExec:        blockExec,
 		evpool:           evpool,
 		doWALCatchup:     true,
 		wal:              nilWAL{},
-		RoundState: cstypes.RoundState{
-			CommitRound: 1,
-			Height:      0,
-			StartTime:   0,
-			CommitTime:  0,
-			Round:       1,
-		},
+		evsw:             kevents.NewEventSwitch(),
 	}
 	cs.SetLogger(logger)
 	cs.updateToState(state)
@@ -547,11 +536,12 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 		// If the vote height is off, we'll just ignore it,
 		// But if it's a conflicting sig, add it to the cs.evpool.
 		// If it's otherwise invalid, punish peer.
-		if err == ErrVoteHeightMismatch {
-			return added, err
-		} else if voteErr, ok := err.(*types.ErrVoteConflictingVotes); ok {
+		if voteErr, ok := err.(*types.ErrVoteConflictingVotes); ok {
 			if vote.ValidatorAddress.Equal(cs.privValidator.GetAddress()) {
-				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?", "height", vote.Height, "round", vote.Round, "type", vote.Type)
+				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?",
+					"height", vote.Height,
+					"round", vote.Round,
+					"type", vote.Type)
 				return added, err
 			}
 
@@ -570,11 +560,16 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 				cs.Logger.Debug("Added evidence to the evidence pool", "evidence", evidence)
 			}
 			return added, err
+		} else if err == types.ErrVoteNonDeterministicSignature {
+			cs.Logger.Debug("Vote has non-deterministic signature", "err", err)
+		} else {
+			// Either
+			// 1) bad peer OR
+			// 2) not a bad peer? this can also err sometimes with "Unexpected step" OR
+			// 3) use with multiple validators connecting to a single instance
+			cs.Logger.Info("Error attempting to add vote", "err", err)
+			return added, ErrAddingVote
 		}
-		// Probably an invalid signature / Bad peer.
-		// Seems this can also err sometimes with "Unexpected step" - perhaps not from a bad peer ?
-		cs.Logger.Error("Error attempting to add vote", "err", err)
-		return added, ErrAddingVote
 	}
 	return added, nil
 }
@@ -597,18 +592,23 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 	)
 	// A precommit for the previous height?
 	// These come in while we wait timeoutCommit
-	if vote.Height+1 == cs.Height {
-		if !(cs.Step == cstypes.RoundStepNewHeight && vote.Type == kproto.PrecommitType) {
-			return added, ErrVoteHeightMismatch
+	if vote.Height+1 == cs.Height && vote.Type == kproto.PrecommitType {
+		if cs.Step != cstypes.RoundStepNewHeight {
+			// Late precommit at prior height is ignored
+			cs.Logger.Debug("Precommit vote came in after commit timeout and has been ignored", "vote", vote)
+			return false, nil
 		}
 
 		added, err = cs.LastCommit.AddVote(vote)
 		if !added {
-			return added, err
+			return false, nil
 		}
 
 		cs.Logger.Info(cmn.Fmt("Added to lastPrecommits: %v", cs.LastCommit.StringShort()))
-		cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote})
+		if err2 := cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote}); err2 != nil {
+			return added, err2
+		}
+
 		cs.evsw.FireEvent(types.EventVote, vote)
 		// if we can skip timeoutCommit and have all the votes now,
 		if cs.config.IsSkipTimeoutCommit && cs.LastCommit.HasAll() {
@@ -617,25 +617,25 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 			cs.enterNewRound(cs.Height, 1)
 		}
 
-		return added, err
+		return !added, err
 	}
 
 	// Height mismatch is ignored.
 	// Not necessarily a bad peer, but not favourable behaviour.
 	if vote.Height != cs.Height {
 		cs.Logger.Info("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", cs.Height)
-		return added, ErrVoteHeightMismatch
+		return false, ErrVoteHeightMismatch
 	}
 
 	height := cs.Height
 	added, err = cs.Votes.AddVote(vote, peerID)
 	if !added {
 		// Either duplicate, or error upon cs.Votes.AddByIndex()
-		return added, err
+		return false, nil
 	}
 
-	if err := cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote}); err != nil {
-		return added, err
+	if err3 := cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote}); err3 != nil {
+		return added, err3
 	}
 	cs.evsw.FireEvent(types.EventVote, vote)
 
@@ -661,16 +661,17 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 				cs.LockedRound = 0
 				cs.LockedBlock = nil
 				cs.LockedBlockParts = nil
-				if err := cs.eventBus.PublishEventUnlock(cs.RoundStateEvent()); err != nil {
-					return added, err
+				if err4 := cs.eventBus.PublishEventUnlock(cs.RoundStateEvent()); err4 != nil {
+					return added, err4
 				}
 			}
 
 			// Update Valid* if we can.
 			// NOTE: our proposal block may be nil or not what received a polka..
-			if !blockID.IsZero() &&
+			if !blockID.Hash.IsZero() &&
 				(cs.ValidRound < vote.Round) &&
 				(vote.Round == cs.Round) {
+
 				if cs.ProposalBlock.HashesTo(blockID.Hash) {
 					cs.Logger.Info("Updating ValidBlock because of POL.", "validRound", cs.ValidRound, "POLRound", vote.Round)
 					cs.ValidRound = vote.Round
@@ -689,7 +690,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 				}
 
 				cs.evsw.FireEvent(types.EventValidBlock, &cs.RoundState)
-				if err := cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent()); err != nil {
+				if err5 := cs.eventBus.PublishEventValidBlock(cs.RoundStateEvent()); err5 != nil {
 					return added, err
 				}
 			}
@@ -698,8 +699,9 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 		// If +2/3 prevotes for *anything* for future round:
 		switch {
 		case (cs.Round < vote.Round) && prevotes.HasTwoThirdsAny():
+			// Round-skip if there is any 2/3+ of votes ahead of us
 			cs.enterNewRound(height, vote.Round)
-		case (cs.Round == vote.Round) && cstypes.RoundStepPrevote <= cs.Step:
+		case (cs.Round == vote.Round) && (cstypes.RoundStepPrevote <= cs.Step):
 			blockID, ok := prevotes.TwoThirdsMajority()
 			if ok && (cs.isProposalComplete() || blockID.Hash.IsZero()) {
 				cs.enterPrecommit(height, vote.Round)
@@ -728,9 +730,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 					cs.enterNewRound(cs.Height, 1)
 				}
 			} else {
-				// if we have all the votes now,
-				// go straight to new round (skip timeout commit)
-				// cs.scheduleTimeout(time.Duration(0), cs.Height, 0, cstypes.RoundStepNewHeight)
 				cs.enterPrecommitWait(height, vote.Round)
 			}
 		} else if (cs.Round <= vote.Round) && precommits.HasTwoThirdsAny() {
@@ -742,14 +741,6 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 	}
 
 	return added, err
-}
-
-// Get script vote
-func (cs *ConsensusState) scriptedVote(height int, round int, voteType int) (int, bool) {
-	if val, ok := cs.votingStrategy[VoteTurn{Height: height, Round: round, VoteType: voteType}]; ok {
-		return val, ok
-	}
-	return 0, false
 }
 
 // Signs vote.
@@ -1671,7 +1662,7 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 func (cs *ConsensusState) handleTimeout(ti timeoutInfo, rs cstypes.RoundState) {
 	cs.Logger.Debug("Received tock", "timeout", ti.Duration, "height", ti.Height, "round", ti.Round, "step", ti.Step)
 
-	//// timeouts must be for current height, round, step
+	// timeouts must be for current height, round, step
 	if (ti.Height != rs.Height) || (ti.Round < rs.Round) || (ti.Round == rs.Round && ti.Step < rs.Step) {
 		cs.Logger.Debug("Ignoring tick because we're ahead", "height", rs.Height, "round", rs.Round, "step", rs.Step)
 		return

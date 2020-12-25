@@ -620,7 +620,7 @@ func (conR *ConsensusManager) gossipVotesForHeight(logger log.Logger, rs *cstype
 		}
 	}
 	// If there are prevotes to send...
-	if (prs.Step <= cstypes.RoundStepPrevoteWait) && (prs.Round != 0) && (prs.Round <= rs.Round) {
+	if (prs.Step <= cstypes.RoundStepPrevoteWait) && (prs.Round <= rs.Round) {
 		if ps.PickSendVote(rs.Votes.Prevotes(prs.Round)) {
 			logger.Debug("Picked rs.Prevotes(prs.Round) to send", "round", prs.Round)
 			return true
