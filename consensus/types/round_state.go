@@ -77,9 +77,9 @@ type RoundState struct {
 	Height    uint64        `json:"height"` // Height we are working on
 	Round     uint32        `json:"round"`
 	Step      RoundStepType `json:"step"`
-	StartTime uint64        `json:"start_time"`
+	StartTime time.Time     `json:"start_time"`
 
-	CommitTime                uint64              `json:"commit_time"` // Subjective time when +2/3 precommits for Block at Round were found
+	CommitTime                time.Time           `json:"commit_time"` // Subjective time when +2/3 precommits for Block at Round were found
 	Validators                *types.ValidatorSet `json:"validators"`  // TODO(huny@): Assume static validator set for now
 	Proposal                  *types.Proposal     `json:"proposal"`
 	ProposalBlock             *types.Block        `json:"proposal_block"` // Simply cache the block from Proposal
@@ -130,8 +130,8 @@ func (rs *RoundState) NewRoundEvent() types.EventDataNewRound {
 func (rs *RoundState) String() string {
 	return fmt.Sprintf("RoundState{H:%v R:%v S:%v  StartTime:%v  CommitTime:%v  Validators:%v   Proposal:%v  ProposalBlock:%v  LockedRound:%v  LockedBlock:%v  ValidRound:%v  ValidBlock:%v  Votes:%v  LastCommit:%v  LastValidators:%v}",
 		rs.Height, rs.Round, rs.Step,
-		time.Unix(int64(rs.StartTime), 0),
-		time.Unix(int64(rs.CommitTime), 0),
+		rs.StartTime,
+		rs.CommitTime,
 		rs.Validators,
 		rs.Proposal,
 		rs.ProposalBlock,

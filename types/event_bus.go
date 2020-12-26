@@ -20,6 +20,7 @@ package types
 
 import (
 	"context"
+
 	"github.com/kardiachain/go-kardia/lib/log"
 
 	kpubsub "github.com/kardiachain/go-kardia/lib/pubsub"

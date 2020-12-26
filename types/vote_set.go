@@ -79,7 +79,8 @@ type VoteSet struct {
 }
 
 // Constructs a new VoteSet struct used to accumulate votes for given height/round.
-func NewVoteSet(chainID string, height uint64, round uint32, signedMsgType kproto.SignedMsgType, valSet *ValidatorSet) *VoteSet {
+func NewVoteSet(chainID string, height uint64, round uint32,
+	signedMsgType kproto.SignedMsgType, valSet *ValidatorSet) *VoteSet {
 	if height == 0 {
 		panic("Cannot make VoteSet for height == 0, doesn't make sense.")
 	}
@@ -126,7 +127,14 @@ func (voteSet *VoteSet) addVote(vote *Vote) (bool, error) {
 	valAddr := vote.ValidatorAddress
 	blockKey := vote.BlockID.Key()
 
-	// Make sure the step matches.
+	// Ensure that validator index was set
+	if valIndex < 0 {
+		return false, fmt.Errorf("index < 0: %w", ErrVoteInvalidValidatorIndex)
+	} else if valAddr.Equal(cmn.Address{}) {
+		return false, fmt.Errorf("empty address: %w", ErrVoteInvalidValidatorAddress)
+	}
+
+	// Ensure the step matches.
 	if vote.Height != voteSet.height ||
 		vote.Round != voteSet.round ||
 		vote.Type != voteSet.signedMsgType {

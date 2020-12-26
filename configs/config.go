@@ -183,7 +183,7 @@ func TestConsensusConfig() *ConsensusConfig {
 	cfg.TimeoutPrecommitDelta = 1 * time.Millisecond
 	// NOTE: when modifying, make sure to update time_iota_ms (testGenesisFmt) in toml.go
 	cfg.TimeoutCommit = 10 * time.Millisecond
-	cfg.IsSkipTimeoutCommit = true
+	cfg.IsSkipTimeoutCommit = false
 	cfg.CreateEmptyBlocksInterval = 0
 	cfg.PeerGossipSleepDuration = 5 * time.Millisecond
 	cfg.PeerQueryMaj23SleepDuration = 250 * time.Millisecond
