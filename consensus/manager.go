@@ -382,7 +382,7 @@ func makeRoundStepMessage(rs *cstypes.RoundState) (nrsMsg *NewRoundStepMessage) 
 		Height:                rs.Height,
 		Round:                 rs.Round,
 		Step:                  rs.Step,
-		SecondsSinceStartTime: uint64(time.Since(time.Unix(int64(rs.StartTime), 0)).Seconds()),
+		SecondsSinceStartTime: uint64(time.Since(rs.StartTime).Seconds()),
 		LastCommitRound:       rs.LastCommit.GetRound(),
 	}
 	return

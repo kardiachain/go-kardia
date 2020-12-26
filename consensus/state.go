@@ -375,17 +375,16 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 	// RoundState fields
 	cs.updateHeight(height)
 	cs.updateRoundStep(1, cstypes.RoundStepNewHeight)
-	if cs.CommitTime == 0 {
+	if cs.CommitTime.IsZero() {
 		// "Now" makes it easier to sync up dev nodes.
 		// We add timeoutCommit to allow transactions
 		// to be gathered for the first block.
 		// And alternative solution that relies on clocks:
 		//  cs.StartTime = state.LastBlockTime.Add(timeoutCommit)
 		//cs.Logger.Trace("cs.CommitTime is 0")
-		cs.StartTime = uint64(cs.config.Commit(time.Now()).Unix())
+		cs.StartTime = cs.config.Commit(ktime.Now())
 	} else {
-		commitTime := time.Unix(int64(cs.CommitTime), 0)
-		cs.StartTime = uint64(cs.config.Commit(commitTime).Unix())
+		cs.StartTime = cs.config.Commit(cs.CommitTime)
 	}
 	cs.Validators = validators
 	cs.Proposal = nil
@@ -510,8 +509,8 @@ func (cs *ConsensusState) setProposal(proposal *types.Proposal) error {
 
 // enterNewRound(height, 0) at cs.StartTime.
 func (cs *ConsensusState) scheduleRound0(rs *cstypes.RoundState) {
-	cs.Logger.Info("scheduleRound0", "now", time.Now(), "startTime", time.Unix(int64(cs.StartTime), 0))
-	sleepDuration := time.Duration(int64(rs.StartTime) - time.Now().Unix()) // nolint: gotype, gosimple
+	cs.Logger.Info("scheduleRound0", "now", time.Now(), "startTime", cs.StartTime)
+	sleepDuration := rs.StartTime.Sub(ktime.Now())
 	cs.scheduleTimeout(sleepDuration, rs.Height, 1, cstypes.RoundStepNewHeight)
 }
 
@@ -1002,8 +1001,8 @@ func (cs *ConsensusState) enterNewRound(height uint64, round uint32) {
 		return
 	}
 
-	if now := time.Now().Unix(); cs.StartTime > uint64(now) {
-		logger.Info("Need to set a buffer and log message here for sanity.", "startTime", time.Unix(int64(cs.StartTime), 0), "now", time.Unix(now, 0))
+	if now := time.Now(); cs.StartTime.After(now) {
+		logger.Info("Need to set a buffer and log message here for sanity.", "startTime", cs.StartTime, "now", now)
 	}
 
 	logger.Info(cmn.Fmt("enterNewRound(%v/%v). Current: %v/%v/%v", height, round, cs.Height, cs.Round, cs.Step))
@@ -1334,7 +1333,7 @@ func (cs *ConsensusState) enterCommit(height uint64, commitRound uint32) {
 		// keep cs.Round the same, commitRound points to the right Precommits set.
 		cs.updateRoundStep(cs.Round, cstypes.RoundStepCommit)
 		cs.CommitRound = commitRound
-		cs.CommitTime = uint64(time.Now().Unix())
+		cs.CommitTime = ktime.Now()
 		cs.newStep()
 		// Maybe finalize immediately.
 		cs.tryFinalizeCommit(height)
