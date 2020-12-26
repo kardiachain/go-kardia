@@ -26,7 +26,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
 )
 
 func TestGetDelegators(t *testing.T) {
@@ -36,7 +35,7 @@ func TestGetDelegators(t *testing.T) {
 	}
 
 	address := common.HexToAddress("0x7cefC13B6E2aedEeDFB7Cb6c32457240746BAEe5")
-	err = stakingUtil.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1")
+	err = stakingUtil.CreateGenesisValidator(stateDB, block.Header(), nil, kvm.Config{}, address, "Val1", "10", "20", "1", selfDelegate)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,18 +46,6 @@ func TestGetDelegators(t *testing.T) {
 	}
 
 	delegators, err := valUtil.GetDelegators(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, []*staking.Delegator(nil), delegators)
-
-	// delegate for this validator
-	delAmount, _ := new(big.Int).SetString(selfDelegate, 10)
-	err = valUtil.Delegate(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr, address, delAmount)
-	if err != nil {
-		t.Fatal(err)
-	}
-	delegators, err = valUtil.GetDelegators(stateDB, block.Header(), nil, kvm.Config{}, valSmcAddr)
 	if err != nil {
 		t.Fatal(err)
 	}

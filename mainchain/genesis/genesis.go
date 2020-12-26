@@ -52,12 +52,13 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 // GenesisValidator is an initial validator.
 type GenesisValidator struct {
-	Name           string `json:"name" yaml:"Name"`
-	Address        string `json:"address" yaml:"Address"`
-	CommissionRate string `json:"commissionRate" yaml:"CommissionRate"`
-	MaxRate        string `json:"maxRate" yaml:"MaxRate"`
-	MaxChangeRate  string `json:"maxChangeRate" yaml:"MaxChangeRate"`
-	SelfDelegate   string `json:"selfDelegate" yaml:"SelfDelegate"`
+	Name             string `json:"name" yaml:"Name"`
+	Address          string `json:"address" yaml:"Address"`
+	CommissionRate   string `json:"commissionRate" yaml:"CommissionRate"`
+	MaxRate          string `json:"maxRate" yaml:"MaxRate"`
+	MaxChangeRate    string `json:"maxChangeRate" yaml:"MaxChangeRate"`
+	SelfDelegate     string `json:"selfDelegate" yaml:"SelfDelegate"`
+	StartWithGenesis bool   `json:"startWithGenesis" yaml:"StartWithGenesis"`
 }
 
 // Genesis specifies the header fields, state of a genesis block.
@@ -349,16 +350,15 @@ func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB
 			val.Name,
 			val.CommissionRate,
 			val.MaxRate,
-			val.MaxChangeRate); err != nil {
+			val.MaxChangeRate,
+			val.SelfDelegate); err != nil {
 			return fmt.Errorf("apply create validator err: %s", err)
 		}
 
 		if err := staking.StartGenesisValidator(statedb, header, nil, cfg,
-			common.HexToAddress(val.Address),
-			val.SelfDelegate); err != nil {
+			common.HexToAddress(val.Address)); err != nil {
 			return fmt.Errorf("apply start validator err: %s", err)
 		}
 	}
-
 	return nil
 }

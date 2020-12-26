@@ -100,6 +100,11 @@ func (s *ValidatorSmcUtil) GetInforValidator(statedb *state.StateDB, header *typ
 	validator.CommissionRate = rate
 	validator.MaxRate = maxRate
 	validator.MaxChangeRate = maxChangeRate
+	signingInfo, err := s.GetSigningInfo(statedb, header, bc, cfg, valSmcAddr)
+	if err != nil {
+		return nil, err
+	}
+	validator.SigningInfo = signingInfo
 	return &validator, nil
 }
 
@@ -216,6 +221,26 @@ func (s *ValidatorSmcUtil) GetDelegatorStakedAmount(statedb *state.StateDB, head
 		return nil, err
 	}
 	return delegation.Stake, nil
+}
+
+// GetSigningInfo returns signing info of this validator
+func (s *ValidatorSmcUtil) GetSigningInfo(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address) (*SigningInfo, error) {
+	payload, err := s.Abi.Pack("signingInfo")
+	if err != nil {
+		return nil, err
+	}
+	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload, valSmcAddr, valSmcAddr)
+	if err != nil {
+		return nil, err
+	}
+	var result SigningInfo
+	// unpack result
+	err = s.Abi.UnpackIntoInterface(&result, "signingInfo", res)
+	if err != nil {
+		log.Error("Error unpacking signing info of validator: ", "err", err)
+		return nil, err
+	}
+	return &result, nil
 }
 
 func (s *ValidatorSmcUtil) ConstructAndApplySmcCallMsg(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, payload []byte, valSmcAddr common.Address, valAddr common.Address) ([]byte, error) {

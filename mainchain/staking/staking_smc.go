@@ -43,7 +43,16 @@ type Validator struct {
 	CommissionRate        *big.Int       `json:"commissionRate,omitempty"`
 	MaxRate               *big.Int       `json:"maxRate,omitempty"`
 	MaxChangeRate         *big.Int       `json:"maxChangeRate,omitempty"`
+	SigningInfo           *SigningInfo   `json:"signingInfo"`
 	Delegators            []*Delegator   `json:"delegators,omitempty"`
+}
+
+type SigningInfo struct {
+	StartHeight        *big.Int `json:"startHeight"`
+	IndexOffset        *big.Int `json:"indexOffset"`
+	Tombstoned         bool     `json:"tombstoned"`
+	MissedBlockCounter *big.Int `json:"missedBlockCounter"`
+	JailedUntil        *big.Int `json:"jailedUntil"`
 }
 
 type Delegator struct {
@@ -101,16 +110,19 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 	_name string,
 	_commission string,
 	_maxRate string,
-	_maxChangeRate string) error {
+	_maxChangeRate string,
+	_selfDelegate string) error {
 
 	commission, k1 := big.NewInt(0).SetString(_commission, 10)
 	maxRate, k2 := big.NewInt(0).SetString(_maxRate, 10)
 	maxChangeRate, k3 := big.NewInt(0).SetString(_maxChangeRate, 10)
+	selfDelegate, k4 := big.NewInt(0).SetString(_selfDelegate, 10)
+
 	name := []byte(_name)
 	var arrName [32]byte
 	copy(arrName[:], name[:32])
 
-	if !k1 || !k2 || !k3 {
+	if !k1 || !k2 || !k3 || !k4 {
 		panic("Error while parsing genesis validator params")
 	}
 
@@ -128,7 +140,7 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 		valAddr,
 		&s.ContractAddress,
 		0,
-		big.NewInt(0), // Self delegate amount
+		selfDelegate,  // Self delegate amount
 		5000000,       // Gas limit
 		big.NewInt(1), // Gas price
 		input,
@@ -142,19 +154,13 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 }
 
 //SetPreviousProposer
-func (s *StakingSmcUtil) StartGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address, selfDelegate string) error {
+func (s *StakingSmcUtil) StartGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address) error {
 	validator, err := NewSmcValidatorUtil()
 	if err != nil {
 		return err
 	}
 
 	valSmcAddr, err := s.GetValFromOwner(statedb, header, bc, cfg, valAddr)
-	if err != nil {
-		return err
-	}
-
-	amountDelegate, _ := big.NewInt(0).SetString(selfDelegate, 10)
-	err = validator.Delegate(statedb, header, bc, cfg, valSmcAddr, valAddr, amountDelegate)
 	if err != nil {
 		return err
 	}
