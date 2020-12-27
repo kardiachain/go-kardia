@@ -88,7 +88,7 @@ contract Validator is IValidator, Ownable {
         uint256 referenceCount;
     }
 
-    // SigningInfo defines a validator's signing info for monitoring their
+    // SigningInfo defines a validator's signing info for monitoring their+
     // liveness activity.
     struct SigningInfo {
         // height at which validator was first a candidate OR was unjailed
@@ -112,6 +112,7 @@ contract Validator is IValidator, Ownable {
         uint256 accumulatedCommission;
         uint256 ubdEntryCount; // unbonding delegation entries
         uint256 updateTime; // last update time
+        uint256 minSelfDelegation;
         Status status; // validator status
         uint256 unbondingTime; // unbonding time
         uint256 unbondingHeight; // unbonding height
@@ -130,6 +131,7 @@ contract Validator is IValidator, Ownable {
     SigningInfo public signingInfo; // signing info
     mapping(uint => bool) private missedBlock; // missed block
     address public params;
+    address public treasury;
     IStaking private _staking;
 
      // Functions with this modifier can only be executed by the validator
@@ -170,8 +172,12 @@ contract Validator is IValidator, Ownable {
         _initializeValidator();
     }
 
-    function setParams(address _params) external {
+    function setParams(address _params) external onlyOwner {
         params = _params;
+    }
+
+    function setTreasury(address _treasury) external onlyOwner {
+        treasury = _treasury;
     }
     
     // update signer address
@@ -189,10 +195,14 @@ contract Validator is IValidator, Ownable {
         _staking.addDelegation(msg.sender);
     }
 
+    function selfDelegate(address payable val, uint256 amount) external onlyOwner {
+         _delegate(val, amount);
+        _staking.delegate(amount);
+        _staking.addDelegation(val);
+    }
+
     function _updateName(bytes32 _name) private {
-        if (_name[0] != 0) {
-            inforValidator.name = _name;
-        }
+        inforValidator.name = _name;
     }
 
     function _updateCommissionRate(uint256 _commissionRate) private {
@@ -216,10 +226,17 @@ contract Validator is IValidator, Ownable {
     }
 
     // update validate info
-    function update(bytes32 _name, uint256 _commissionRate) external onlyValidator {
+    function updateCommissionRate(uint256 _commissionRate) external onlyValidator {
         _updateCommissionRate(_commissionRate);
+        emit UpdateCommissionRate(_commissionRate);
+    }
+
+    function updateName(bytes32 _name) external payable onlyValidator {
+        require(msg.value >= IParams(params).getMinAmountChangeName(), "Min amount is 10000 KAI");
         _updateName(_name);
-        emit UpdateValidator(_name, _commissionRate);
+        emit UpdateName(_name);
+         _staking.burn(msg.value, 1);
+        address(uint160(address(treasury))).transfer(msg.value);
     }
     
     // _allocateTokens allocate tokens to a particular validator, splitting according to commission
@@ -251,7 +268,7 @@ contract Validator is IValidator, Ownable {
 
     function undelegate() external onlyDelegator{
         Delegation storage del = delegationByAddr[msg.sender];
-        uint256 amount = del.stake;
+        uint256 amount = _tokenFromShare(del.shares);
         _undelegate(msg.sender, amount);
         _staking.undelegate(amount);
     }
@@ -276,7 +293,7 @@ contract Validator is IValidator, Ownable {
         uint256 amountRemoved = _removeDelShares(shares);
 
         if (_isUnbonding() && _isUnbondingComplete()) {
-            _withdraw(msg.sender, amountRemoved);
+            _withdraw(from, amountRemoved);
         } else {
             inforValidator.ubdEntryCount++;
             uint256 completionTime = block.timestamp.add(IParams(params).getUnbondingTime());
@@ -404,7 +421,8 @@ contract Validator is IValidator, Ownable {
         if (!previous && missed) { // value has changed from not missed to missed, increment counter
             signingInfo.missedBlockCounter++;
             missedBlock[index] = true;
-        } else if (previous && !missed) { // value has changed from missed to not missed, decrement counter
+        }
+        if (previous && !missed) { // value has changed from missed to not missed, decrement counter
             signingInfo.missedBlockCounter--;
             missedBlock[index] = false;
         }
@@ -657,7 +675,8 @@ contract Validator is IValidator, Ownable {
         }
 
         inforValidator.tokens = inforValidator.tokens.sub(tokensToBurn);
-        _staking.burn(tokensToBurn);
+        address(uint160(address(treasury))).transfer(tokensToBurn);
+        _staking.burn(tokensToBurn, 0);
     }
     
     function _jail(uint256 _jailedUntil, bool _tombstoned) private {
@@ -670,12 +689,12 @@ contract Validator is IValidator, Ownable {
 
     function _stopIfNeeded() private {
         if (!_isBonded()) return;
-        if (inforValidator.jailed || 
-            inforValidator.tokens < IParams(params).getMinValidatorStake()) {
+        uint256 minStake = IParams(params).getMinValidatorStake();
+        if (inforValidator.jailed || inforValidator.tokens < minStake) {
             _stop();
+           _staking.removeFromSets();
         }
     }
-
 
    function doubleSign(
         uint256 votingPower,
@@ -744,5 +763,22 @@ contract Validator is IValidator, Ownable {
         }
 
         return _missedBlock;
+    }
+
+    function getDelegatorStake(address _delAddr)
+        public
+        view
+        returns (uint256)
+    {
+        require(delegations.contains(_delAddr), "delegation not found");
+        Delegation memory del = delegationByAddr[_delAddr];
+        return _tokenFromShare(del.shares);
+    }
+
+    function getSlashEventsLength() public view returns(uint256) {
+        return slashEvents.length;
+    }
+
+    function () external payable {
     }
 }
