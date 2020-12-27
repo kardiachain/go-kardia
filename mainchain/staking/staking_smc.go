@@ -154,18 +154,8 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 }
 
 //SetPreviousProposer
-func (s *StakingSmcUtil) StartGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address) error {
-	validator, err := NewSmcValidatorUtil()
-	if err != nil {
-		return err
-	}
-
-	valSmcAddr, err := s.GetValFromOwner(statedb, header, bc, cfg, valAddr)
-	if err != nil {
-		return err
-	}
-
-	err = validator.StartValidator(statedb, header, bc, cfg, valSmcAddr, valAddr)
+func (s *StakingSmcUtil) StartGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, validatorUtil *ValidatorSmcUtil, valSmcAddr common.Address, valAddr common.Address) error {
+	err := validatorUtil.StartValidator(statedb, header, bc, cfg, valSmcAddr, valAddr)
 	if err != nil {
 		return err
 	}
