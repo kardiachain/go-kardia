@@ -10,6 +10,8 @@ var (
 
 	StakingContractKey           = "Staking"
 	ValidatorContractKey         = "Validator"
+	ParamsContractKey            = "Params"
+	TreasuryContractKey          = "Treasury"
 	CounterContractKey           = "Counter"
 	BallotContractKey            = "Ballot"
 	ExchangeContractKey          = "Exchange"
