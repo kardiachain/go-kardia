@@ -198,7 +198,7 @@ func (s *ValidatorSmcUtil) GetDelegationRewards(statedb *state.StateDB, header *
 
 // GetDelegatorStakedAmount returns staked amount of a delegator to current validator
 func (s *ValidatorSmcUtil) GetDelegatorStakedAmount(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address, delegatorAddr common.Address) (*big.Int, error) {
-	payload, err := s.Abi.Pack("delegationByAddr", delegatorAddr)
+	payload, err := s.Abi.Pack("getDelegatorStake", delegatorAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -208,19 +208,15 @@ func (s *ValidatorSmcUtil) GetDelegatorStakedAmount(statedb *state.StateDB, head
 	}
 
 	var delegation struct {
-		Stake          *big.Int
-		PreviousPeriod *big.Int
-		Height         *big.Int
-		Shares         *big.Int
-		Owner          common.Address
+		DelStake *big.Int
 	}
 	// unpack result
-	err = s.Abi.UnpackIntoInterface(&delegation, "delegationByAddr", res)
+	err = s.Abi.UnpackIntoInterface(&delegation, "getDelegatorStake", res)
 	if err != nil {
 		log.Error("Error unpacking delegator's staked amount", "err", err)
 		return nil, err
 	}
-	return delegation.Stake, nil
+	return delegation.DelStake, nil
 }
 
 // GetSigningInfo returns signing info of this validator
