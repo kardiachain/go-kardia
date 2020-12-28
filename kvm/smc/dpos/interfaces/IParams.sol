@@ -10,7 +10,9 @@ interface IParams {
         uint256 _signedBlockWindow,
         uint256 _minSignedPerWindow,
         uint256 _minStake,
-        uint256 _minValidatorBalance) external;
+        uint256 _minValidatorBalance,
+        uint256 _minAmountChangeName,
+        uint256 _minSelfDelegation) external;
     function updateMintParams(uint256 _inflationRateChange,
         uint256 _goalBonded,
         uint256 _blocksPerYear,
@@ -32,4 +34,7 @@ interface IParams {
     function getMinSignedPerWindow() external view returns (uint256);
     function getMinStake() external view returns (uint256);
     function getMinValidatorStake() external view returns (uint256);
+    function getMinAmountChangeName() external view returns (uint256);
+    function getMinSelfDelegation() external view returns (uint256);
+
 }
