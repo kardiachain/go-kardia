@@ -19,7 +19,7 @@ Node:
   P2P:
     PrivateKey:      # private key without 0x prefix, eg: 8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06
     ListenAddress: tcp://0.0.0.0:3000 # IP and Port for P2P connection
-    MaxPeers: 25     # maximum accpeted peers
+    MaxPeers: 25     # maximum accepted peers
   LogLevel: info     # crit, error, warn, info, debug, trace
   Metrics: 1
 MainChain:

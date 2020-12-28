@@ -1,6 +1,249 @@
 Genesis:
-  Timestamp: 1605524400
+  Timestamp: 1609243200
+  Validators:
+    # Genesis validators
+    - Name: Thai Son Foundation
+      Address: 0x428C19caa9077EE72A3D162D43A5470Ff87208F9
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0x1E9B29fD9BeEd72Ec9d3A5de1d9c06750cE51A4d
+          Amount: 1250000000000000000000000
+    - Name: Geleximco
+      Address: 0x0b8B917FBa7CC8A9Ad56548C50fe682D02a9BA68
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0x1E9B29fD9BeEd72Ec9d3A5de1d9c06750cE51A4d
+          Amount: 1250000000000000000000000
+    - Name: Youth Union
+      Address: 0x3F2CEb9fD34921e756f1f896f7F39AA04A293b6D
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0x1E9B29fD9BeEd72Ec9d3A5de1d9c06750cE51A4d
+          Amount: 1250000000000000000000000
+    - Name: Phu Long
+      Address: 0x79B598b9AD8f0C1ed987014FE644Cc73C7b72035
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0xCc6Ba28721d799727544bc215B8fBEABAFCC1f4C
+          Amount: 1250000000000000000000000
+    - Name: HPT
+      Address: 0xC2F86CF2b6d20205353300B6e2C5994A5A7E5eBa
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0xCc6Ba28721d799727544bc215B8fBEABAFCC1f4C
+          Amount: 1250000000000000000000000
+    - Name: CoinPlug
+      Address: 0x1e1087D92078B2118ADae6230fa44A781422B884
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0xCc6Ba28721d799727544bc215B8fBEABAFCC1f4C
+          Amount: 1250000000000000000000000
+    - Name: Ankr
+      Address: 0xb3289DB82C8Fcd317832A8dDd6a87cE6e2aA68eB
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0xbdF05De3f6d762eE8ED7DB82752093f71b075a15
+          Amount: 1250000000000000000000000
+    - Name: Big Cat
+      Address: 0x09c1426C2fdd2eA6650C85639272cA35160821e0
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0xbdF05De3f6d762eE8ED7DB82752093f71b075a15
+          Amount: 1250000000000000000000000
+    - Name: Viet Football
+      Address: 0x91bD677AF97914E495a7fC1CeA7C4399a2B6B519
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0xbdF05De3f6d762eE8ED7DB82752093f71b075a15
+          Amount: 1250000000000000000000000
+    - Name: Mai Linh
+      Address: 0x73650CF6f434a1d5EA37D2a8b1b9eCfD3713aE8D
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0x29F3c390601998A951c0BDfae142C47188812F38
+          Amount: 1250000000000000000000000
+    - Name: VNDC
+      Address: 0x419B2ca33E058F22B52621bD7C4ee1C7b7Ba3E74
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0x29F3c390601998A951c0BDfae142C47188812F38
+          Amount: 1250000000000000000000000
+    - Name: Bitis
+      Address: 0xD7A26051908B959592560B1964065A49626CF392
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0x29F3c390601998A951c0BDfae142C47188812F38
+          Amount: 1250000000000000000000000
+    - Name: LG CNS
+      Address: 0x416dAadf88692d93Bdc0d89aB0bb149e3FFaF8bd
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0x7f94905293369d32Ef5ee088f2506125aC8ebc68
+          Amount: 1250000000000000000000000
+    - Name: Oraichain
+      Address: 0x7eCC22C7e2C05f41cbB5A7611846e38dBc8910a6
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: false
+      Delegators:
+        - Address: 0x8a3c152b39F98942a7017d5F91027A2c49D094A2
+          Amount: 6250000000000000000000000
+        - Address: 0x7f94905293369d32Ef5ee088f2506125aC8ebc68
+          Amount: 6250000000000000000000000
+    - Name: MantraDao
+      Address: 0x6d401b419a710174539519cfd002cfed27a991d4
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: false
+      Delegators:
+        - Address: 0x7f94905293369d32Ef5ee088f2506125aC8ebc68
+          Amount: 6250000000000000000000000
+        - Address: 0x6d401b419a710174539519cfd002cfed27a991d4
+          Amount: 5750000000000000000000000
+        - Address: 0x3c9F443e09c592017A2095b2dA83AbBB892e14c5
+          Amount: 500000000000000000000000
+    # Community validators
+    - Name: GenesisBeat
+      Address: 0x60dBCD34707923986613c64E5a373094fbf911B7
+      CommissionRate: 30000000000000000
+      MaxRate: 160000000000000000
+      MaxChangeRate: 20000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: false
+      Delegators:
+        - Address: 0x681858d670061cbEA9DB24434F6F76339E671278
+          Amount: 12500000000000000000000000
+    - Name: Mitch:NET
+      Address: 0xD57Fc28fFaB2FCE4D6417EfE5016c9C7B077967F
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: false
+      Delegators:
+        - Address: 0xD7725f3b891d1F0B6f75a27C276A3B6EF873E728
+          Amount: 6250000000000000000000000
+        - Address: 0x732f537Fc58877E2c780F18d0D06a348DCD58c33
+          Amount: 6250000000000000000000000
+    - Name: KardiaChain Ambassadors
+      Address: 0xCab195fd9ac7f92c2d6757C188D6A021baBf4556
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: true
+      Delegators:
+        - Address: 0x6f85D3CB1990CECAe9f91c164e7a851937969314
+          Amount: 1250000000000000000000000
+#    - Name: Provisn
+#      Address: 0xa2e414815F895A2737d9d291988E028018702490
+#      CommissionRate: 50000000000000000
+#      MaxRate: 200000000000000000
+#      MaxChangeRate: 50000000000000000
+#      SelfDelegate: 25000000000000000000000
+#      StartWithGenesis: false
+#      Delegators:
+#        - Address:
+#          Amount:
+#    - Name: KAI Hodlers
+#      Address: 0x86Ef1fBC191BeBA78ed32ff60fb8EA667A815977
+#      CommissionRate: 25000000000000000
+#      MaxRate: 75000000000000000
+#      MaxChangeRate: 25000000000000000
+#      SelfDelegate: 25000000000000000000000
+#      StartWithGenesis: false
+#      Delegators:
+#        - Address:
+#          Amount:
   Accounts:
+    # Validator nodes
+    - Address: 0x1E9B29fD9BeEd72Ec9d3A5de1d9c06750cE51A4d
+      Amount: 37500000000000000000000000
+    - Address: 0xCc6Ba28721d799727544bc215B8fBEABAFCC1f4C
+      Amount: 37500000000000000000000000
+    - Address: 0xbdF05De3f6d762eE8ED7DB82752093f71b075a15
+      Amount: 37500000000000000000000000
+    - Address: 0x29F3c390601998A951c0BDfae142C47188812F38
+      Amount: 37500000000000000000000000
+    - Address: 0x7f94905293369d32Ef5ee088f2506125aC8ebc68
+      Amount: 25000000000000000000000000
+    - Address: 0x6f85D3CB1990CECAe9f91c164e7a851937969314
+      Amount: 12500000000000000000000000
+    - Address: 0x7eCC22C7e2C05f41cbB5A7611846e38dBc8910a6
+      Amount: 25001000000000000000000
+    - Address: 0x8a3c152b39F98942a7017d5F91027A2c49D094A2
+      Amount: 6250000000000000000000000
+    - Address: 0x6d401b419a710174539519cfd002cfed27a991d4
+      Amount: 5775001000000000000000000
+    - Address: 0x3c9F443e09c592017A2095b2dA83AbBB892e14c5
+      Amount: 500000000000000000000000
+    - Address: 0x681858d670061cbEA9DB24434F6F76339E671278
+      Amount: 12500000000000000000000000
+    - Address: 0xD57Fc28fFaB2FCE4D6417EfE5016c9C7B077967F
+      Amount: 25001000000000000000000
+    - Address: 0xD7725f3b891d1F0B6f75a27C276A3B6EF873E728
+      Amount: 6250000000000000000000000
+    - Address: 0xa2e414815F895A2737d9d291988E028018702490
+      Amount: 12500000000000000000000000
+    - Address: 0x86Ef1fBC191BeBA78ed32ff60fb8EA667A815977
+      Amount: 18222000000000000000000000
+    # Early swap
     - Address: 0x014b4d87077831d6aA1370166383571F91ABADf9
       Amount: 270000000000000000000000
     - Address: 0x07514a0467F38b1FAB308630751BB5E7Ab2CaEe0
@@ -58,7 +301,7 @@ Genesis:
     - Address: 0x0bfDA7aed9D996F7dF0d023d7627c7Cb3Ac4Af01
       Amount: 500973870475307000000000
     - Address: 0x732f537Fc58877E2c780F18d0D06a348DCD58c33
-      Amount: 844169000000000000000000
+      Amount: 7094169000000000000000000
     - Address: 0x34d79ac362A199B3756538732E7c0b3f599Cd442
       Amount: 1000000000000000000000000
     - Address: 0x60Cec6fa60A6880B518f9B78B9422740130ECf9A
@@ -305,154 +548,6 @@ Genesis:
       Amount: 49535147716752800000000
     - Address: 0x00ECEab9520E6B9fFB2bC801ddeAd8c45F1B3764
       Amount: 200000000000000000000000
-  Validators:
-    - Name: val1
-      Address: 0xFBD5e2aFB7C0a7862b06964e29E676bf02183256
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 50000000000000000000000000
-      StartWithGenesis: true
-    - Name: val2
-      Address: 0xD97E7BCe3fc1C0f248Cd5f87479e173DFEC7D2B1
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 45000000000000000000000000
-      StartWithGenesis: true
-    - Name: val3
-      Address: 0xc60de907fd861b0f9936b74bff9d1c7f693da099
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 35000000000000000000000000
-      StartWithGenesis: true
-    - Name: val4
-      Address: 0xdd8b713e656919d1a643c71f1e271c55ca3fb7bc
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 30000000000000000000000000
-      StartWithGenesis: true
-    - Name: val5
-      Address: 0x31e865160c245b378fe46d6b410da53168d6c1b0
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 25000000000000000000000000
-      StartWithGenesis: true
-    - Name: val6
-      Address: 0xe09913f6ecf7b64c6a14a8145b4ac2b51111774c
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 25000000000000000000000000
-      StartWithGenesis: true
-    - Name: val7
-      Address: 0x5a66d7aae43a71a42064dd4a371f0454f0138ea5
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 25000000000000000000000000
-      StartWithGenesis: true
-    - Name: val8
-      Address: 0xcc6339d5e1c60f30fedd5d4c0e3d6addaca23f83
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 25000000000000000000000000
-      StartWithGenesis: true
-    - Name: val9
-      Address: 0x2923391187b3cc2c0453501d2c6b793982db66a3
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 25000000000000000000000000
-      StartWithGenesis: true
-    - Name: val10
-      Address: 0xcaaac49e1de8338f87e81e1611d40821590ea661
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 20000000000000000000000000
-      StartWithGenesis: true
-    - Name: val11
-      Address: 0x29611e28c943540b95c942746d5f058b2fd343f0
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 20000000000000000000000000
-      StartWithGenesis: true
-    - Name: val12
-      Address: 0x633846a52779c6a4c91c24d74f7e8fe233179bca
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 20000000000000000000000000
-      StartWithGenesis: true
-    - Name: val13
-      Address: 0xb7cb37d1d77a15a524ee62f8ef4a7fb7747c2e79
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 20000000000000000000000000
-      StartWithGenesis: true
-    - Name: val14
-      Address: 0xa5c4e2d7d550db48339d97ebbbc0a48876f6f61b
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 20000000000000000000000000
-      StartWithGenesis: true
-    - Name: val15
-      Address: 0x5cdf7e0bbf0c53b5f4e612fa66f0e60169e3a006
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 20000000000000000000000000
-      StartWithGenesis: true
-    - Name: val16
-      Address: 0x902b2cba2a734af504c34cf17ac27f5828275516
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 20000000000000000000000000
-      StartWithGenesis: true
-    - Name: val17
-      Address: 0xb64ba7a6e9c2c3a6c547a0eb2cc3d5e59178284e
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 15000000000000000000000000
-      StartWithGenesis: true
-    - Name: val18
-      Address: 0xa64ef3a99e11385e0f8cdd2b6ce803a43afa8fb5
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 15000000000000000000000000
-      StartWithGenesis: true
-    - Name: val19
-      Address: 0x8ce0d99cbbd41bed912b69ad5e0d4b02df6ea7f0
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 15000000000000000000000000
-      StartWithGenesis: true
-    - Name: val20
-      Address: 0xb6d8a74dd0769f9e3b0dc14322c915ec3a762f4d
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 15000000000000000000000000
-      StartWithGenesis: true
-    - Name: val21
-      Address: 0x8ecc53b27d27339cf4520fc86690cca70e14b768
-      CommissionRate: 10
-      MaxRate: 20
-      MaxChangeRate: 5
-      SelfDelegate: 15000000000000000000000000
-      StartWithGenesis: true
   Contracts:
     Staking:
       Address: "0x0000000000000000000000000000000000001337" # Staking SMC address
