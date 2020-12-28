@@ -1879,7 +1879,28 @@ var (
 		"payable": false,
 		"stateMutability": "view",
 		"type": "function"
-	}
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_delAddr",
+				"type": "address"
+			}
+		],
+		"name": "getDelegatorStake",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "delStake",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
 ]`,
 	}
 )
