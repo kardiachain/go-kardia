@@ -191,16 +191,16 @@ Genesis:
       Delegators:
         - Address: 0x6f85D3CB1990CECAe9f91c164e7a851937969314
           Amount: 12499999000000000000000000
-#    - Name: Provisn
-#      Address: 0xa2e414815F895A2737d9d291988E028018702490
-#      CommissionRate: 50000000000000000
-#      MaxRate: 200000000000000000
-#      MaxChangeRate: 50000000000000000
-#      SelfDelegate: 25000000000000000000000
-#      StartWithGenesis: false
-#      Delegators:
-#        - Address:
-#          Amount:
+    - Name: Provision
+      Address: 0xD728E9D048F644771D6d7f2354d6C9526F176495
+      CommissionRate: 50000000000000000
+      MaxRate: 200000000000000000
+      MaxChangeRate: 50000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: false
+      Delegators:
+        - Address: 0xa2e414815F895A2737d9d291988E028018702490
+          Amount: 12499999000000000000000000
     - Name: KAI Hodlers
       Address: 0x7aB09cc447D31117C6C248a08C46332B41a25154
       CommissionRate: 25000000000000000
@@ -214,7 +214,7 @@ Genesis:
   Accounts:
     # Genesis Account for distribution
     - Address: 0x14191195F9BB6e54465a341CeC6cce4491599ccC
-      Amount: 4140130995018000000000000000
+      Amount: 4140105994018000000000000000
     # Validator
     - Address: 0x1E9B29fD9BeEd72Ec9d3A5de1d9c06750cE51A4d
       Amount: 37500000000000000000000000
@@ -248,6 +248,8 @@ Genesis:
       Amount: 12500000000000000000000000
     - Address: 0x86Ef1fBC191BeBA78ed32ff60fb8EA667A815977
       Amount: 18222000000000000000000000
+    - Address: 0xD728E9D048F644771D6d7f2354d6C9526F176495
+      Amount: 25001000000000000000000
     # Early swap
     - Address: 0xa6Aa70Bb011b21ADB77fB8734a4DEbd848E14cf3
       Amount: 3821000000000000000000000
