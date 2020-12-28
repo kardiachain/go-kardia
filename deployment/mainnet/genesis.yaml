@@ -11,7 +11,7 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0x1E9B29fD9BeEd72Ec9d3A5de1d9c06750cE51A4d
-          Amount: 1250000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: Geleximco
       Address: 0x0b8B917FBa7CC8A9Ad56548C50fe682D02a9BA68
       CommissionRate: 50000000000000000
@@ -21,7 +21,7 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0x1E9B29fD9BeEd72Ec9d3A5de1d9c06750cE51A4d
-          Amount: 1250000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: Youth Union
       Address: 0x3F2CEb9fD34921e756f1f896f7F39AA04A293b6D
       CommissionRate: 50000000000000000
@@ -31,7 +31,7 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0x1E9B29fD9BeEd72Ec9d3A5de1d9c06750cE51A4d
-          Amount: 1250000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: Phu Long
       Address: 0x79B598b9AD8f0C1ed987014FE644Cc73C7b72035
       CommissionRate: 50000000000000000
@@ -41,7 +41,7 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0xCc6Ba28721d799727544bc215B8fBEABAFCC1f4C
-          Amount: 1250000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: HPT
       Address: 0xC2F86CF2b6d20205353300B6e2C5994A5A7E5eBa
       CommissionRate: 50000000000000000
@@ -51,7 +51,7 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0xCc6Ba28721d799727544bc215B8fBEABAFCC1f4C
-          Amount: 1250000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: CoinPlug
       Address: 0x1e1087D92078B2118ADae6230fa44A781422B884
       CommissionRate: 50000000000000000
@@ -61,7 +61,7 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0xCc6Ba28721d799727544bc215B8fBEABAFCC1f4C
-          Amount: 1250000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: Ankr
       Address: 0xb3289DB82C8Fcd317832A8dDd6a87cE6e2aA68eB
       CommissionRate: 50000000000000000
@@ -71,7 +71,7 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0xbdF05De3f6d762eE8ED7DB82752093f71b075a15
-          Amount: 1250000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: Big Cat
       Address: 0x09c1426C2fdd2eA6650C85639272cA35160821e0
       CommissionRate: 50000000000000000
@@ -81,7 +81,7 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0xbdF05De3f6d762eE8ED7DB82752093f71b075a15
-          Amount: 1250000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: Viet Football
       Address: 0x91bD677AF97914E495a7fC1CeA7C4399a2B6B519
       CommissionRate: 50000000000000000
@@ -91,7 +91,7 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0xbdF05De3f6d762eE8ED7DB82752093f71b075a15
-          Amount: 1250000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: Mai Linh
       Address: 0x73650CF6f434a1d5EA37D2a8b1b9eCfD3713aE8D
       CommissionRate: 50000000000000000
@@ -101,7 +101,7 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0x29F3c390601998A951c0BDfae142C47188812F38
-          Amount: 1250000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: VNDC
       Address: 0x419B2ca33E058F22B52621bD7C4ee1C7b7Ba3E74
       CommissionRate: 50000000000000000
@@ -111,7 +111,7 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0x29F3c390601998A951c0BDfae142C47188812F38
-          Amount: 1250000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: Bitis
       Address: 0xD7A26051908B959592560B1964065A49626CF392
       CommissionRate: 50000000000000000
@@ -121,7 +121,7 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0x29F3c390601998A951c0BDfae142C47188812F38
-          Amount: 1250000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: LG CNS
       Address: 0x416dAadf88692d93Bdc0d89aB0bb149e3FFaF8bd
       CommissionRate: 50000000000000000
@@ -131,7 +131,7 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0x7f94905293369d32Ef5ee088f2506125aC8ebc68
-          Amount: 1250000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: Oraichain
       Address: 0x7eCC22C7e2C05f41cbB5A7611846e38dBc8910a6
       CommissionRate: 50000000000000000
@@ -141,9 +141,9 @@ Genesis:
       StartWithGenesis: false
       Delegators:
         - Address: 0x8a3c152b39F98942a7017d5F91027A2c49D094A2
-          Amount: 6250000000000000000000000
+          Amount: 6249999000000000000000000
         - Address: 0x7f94905293369d32Ef5ee088f2506125aC8ebc68
-          Amount: 6250000000000000000000000
+          Amount: 6249999000000000000000000
     - Name: MantraDao
       Address: 0x6d401b419a710174539519cfd002cfed27a991d4
       CommissionRate: 50000000000000000
@@ -153,11 +153,11 @@ Genesis:
       StartWithGenesis: false
       Delegators:
         - Address: 0x7f94905293369d32Ef5ee088f2506125aC8ebc68
-          Amount: 6250000000000000000000000
+          Amount: 6249999000000000000000000
         - Address: 0x6d401b419a710174539519cfd002cfed27a991d4
-          Amount: 5750000000000000000000000
+          Amount: 5749999000000000000000000
         - Address: 0x3c9F443e09c592017A2095b2dA83AbBB892e14c5
-          Amount: 500000000000000000000000
+          Amount: 499999000000000000000000
     # Community validators
     - Name: GenesisBeat
       Address: 0x60dBCD34707923986613c64E5a373094fbf911B7
@@ -168,7 +168,7 @@ Genesis:
       StartWithGenesis: false
       Delegators:
         - Address: 0x681858d670061cbEA9DB24434F6F76339E671278
-          Amount: 12500000000000000000000000
+          Amount: 12499999000000000000000000
     - Name: Mitch:NET
       Address: 0xD57Fc28fFaB2FCE4D6417EfE5016c9C7B077967F
       CommissionRate: 50000000000000000
@@ -178,9 +178,9 @@ Genesis:
       StartWithGenesis: false
       Delegators:
         - Address: 0xD7725f3b891d1F0B6f75a27C276A3B6EF873E728
-          Amount: 6250000000000000000000000
+          Amount: 6249999000000000000000000
         - Address: 0x732f537Fc58877E2c780F18d0D06a348DCD58c33
-          Amount: 6250000000000000000000000
+          Amount: 6249999000000000000000000
     - Name: KardiaChain Ambassadors
       Address: 0xCab195fd9ac7f92c2d6757C188D6A021baBf4556
       CommissionRate: 50000000000000000
@@ -190,29 +190,32 @@ Genesis:
       StartWithGenesis: true
       Delegators:
         - Address: 0x6f85D3CB1990CECAe9f91c164e7a851937969314
-          Amount: 1250000000000000000000000
-#    - Name: Provisn
-#      Address: 0xa2e414815F895A2737d9d291988E028018702490
-#      CommissionRate: 50000000000000000
-#      MaxRate: 200000000000000000
-#      MaxChangeRate: 50000000000000000
-#      SelfDelegate: 25000000000000000000000
-#      StartWithGenesis: false
-#      Delegators:
-#        - Address:
-#          Amount:
-#    - Name: KAI Hodlers
-#      Address: 0x86Ef1fBC191BeBA78ed32ff60fb8EA667A815977
-#      CommissionRate: 25000000000000000
-#      MaxRate: 75000000000000000
-#      MaxChangeRate: 25000000000000000
-#      SelfDelegate: 25000000000000000000000
-#      StartWithGenesis: false
-#      Delegators:
-#        - Address:
-#          Amount:
+          Amount: 12499999000000000000000000
+    #    - Name: Provisn
+    #      Address: 0xa2e414815F895A2737d9d291988E028018702490
+    #      CommissionRate: 50000000000000000
+    #      MaxRate: 200000000000000000
+    #      MaxChangeRate: 50000000000000000
+    #      SelfDelegate: 25000000000000000000000
+    #      StartWithGenesis: false
+    #      Delegators:
+    #        - Address:
+    #          Amount:
+    - Name: KAI Hodlers
+      Address: 0x7aB09cc447D31117C6C248a08C46332B41a25154
+      CommissionRate: 25000000000000000
+      MaxRate: 75000000000000000
+      MaxChangeRate: 25000000000000000
+      SelfDelegate: 25000000000000000000000
+      StartWithGenesis: false
+      Delegators:
+        - Address: 0x86Ef1fBC191BeBA78ed32ff60fb8EA667A815977
+          Amount: 18221999000000000000000000
   Accounts:
-    # Validator nodes
+    # Genesis Account for distribution
+    - Address: 0x14191195F9BB6e54465a341CeC6cce4491599ccC
+      Amount: 4140130995018000000000000000
+    # Validator
     - Address: 0x1E9B29fD9BeEd72Ec9d3A5de1d9c06750cE51A4d
       Amount: 37500000000000000000000000
     - Address: 0xCc6Ba28721d799727544bc215B8fBEABAFCC1f4C
@@ -233,6 +236,8 @@ Genesis:
       Amount: 5775001000000000000000000
     - Address: 0x3c9F443e09c592017A2095b2dA83AbBB892e14c5
       Amount: 500000000000000000000000
+    - Address: 0x60dBCD34707923986613c64E5a373094fbf911B7
+      Amount: 25001000000000000000000
     - Address: 0x681858d670061cbEA9DB24434F6F76339E671278
       Amount: 12500000000000000000000000
     - Address: 0xD57Fc28fFaB2FCE4D6417EfE5016c9C7B077967F
@@ -244,6 +249,10 @@ Genesis:
     - Address: 0x86Ef1fBC191BeBA78ed32ff60fb8EA667A815977
       Amount: 18222000000000000000000000
     # Early swap
+    - Address: 0xa6Aa70Bb011b21ADB77fB8734a4DEbd848E14cf3
+      Amount: 3821000000000000000000000
+    - Address: 0xd0cf250519Eb82AA28e84dEBCeD6bdb035D1422b
+      Amount: 26000982000000000000000
     - Address: 0x014b4d87077831d6aA1370166383571F91ABADf9
       Amount: 270000000000000000000000
     - Address: 0x07514a0467F38b1FAB308630751BB5E7Ab2CaEe0
