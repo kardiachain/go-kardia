@@ -1,29 +1,32 @@
 Node:
-  Name: node1
-  DataDir: /tmp/.kardia
-  HTTPHost: 0.0.0.0
-  HTTPPort: 8545
-  HTTPModules:
+  Name: node1             # node name
+  DataDir: /tmp/.kardia   # database data directory
+  HTTPHost: 0.0.0.0       # RPC address
+  HTTPPort: 8545          # RPC port
+  HTTPModules:            # accepted API modules
     - node
     - kai
     - tx
     - account
-  HTTPVirtualHosts:
+  HTTPVirtualHosts:       # virtual hosts connection
     - 0.0.0.0
+    - 127.0.0.1
     - localhost
-  HTTPCors:
-    - "*"
+  HTTPCors:               # cors, use "*" to accept all
+    - 0.0.0.0
+    - 127.0.0.1
+    - localhost
   P2P:
     PrivateKey:      # private key without 0x prefix, eg: 8843ebcb1021b00ae9a644db6617f9c6d870e5fd53624cefe374c1d2d710fd06
-    ListenAddress: tcp://0.0.0.0:3000
-    MaxPeers: 25
+    ListenAddress: tcp://0.0.0.0:3000 # IP and Port for P2P connection
+    MaxPeers: 25     # maximum accpeted peers
   LogLevel: info     # crit, error, warn, info, debug, trace
   Metrics: 1
 MainChain:
-  ServiceName: KARDIA
-  ChainId: 1
-  NetworkId: 100
-  AcceptTxs: 1       # accept tx sync process or not (1 is yes, 0 is no)
+  ServiceName: KARDIA #
+  ChainId: 1          # 1 = Mainnet, 10 = Testnet
+  NetworkId: 100      # 100 = Mainnet, 1000 = Testnet
+  AcceptTxs: 1        # accept tx sync process or not (1 is yes, 0 is no)
   Seeds:
     - c1fe56e3f58d3244f606306611a5d10c8333f1f6@127.0.0.1:3000
     - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@127.0.0.1:3001
