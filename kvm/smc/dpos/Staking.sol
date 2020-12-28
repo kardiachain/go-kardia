@@ -88,6 +88,8 @@ contract Staking is IStaking, Ownable {
         IValidator(val).setParams(params);
         IValidator(val).setTreasury(treasury);
         IValidator(val).selfDelegate(msg.sender, msg.value);
+        address(uint160(address(val))).transfer(msg.value);
+        emit Transfer(address(this), val, msg.value);
     }
 
     function setParams(address _params) external onlyOwner {
@@ -188,6 +190,9 @@ contract Staking is IStaking, Ownable {
     function _undelegate(address from, uint256 amount) private {
         totalBonded = totalBonded.sub(amount);
         balanceOf[from] = balanceOf[from].sub(amount);
+        if (balanceOf[from] <= 100) {
+            removeVal(from);
+        }
     }
 
     function removeDelegation(address delAddr) external onlyValidator{
@@ -280,6 +285,17 @@ contract Staking is IStaking, Ownable {
             }
         }
     } 
+
+    function removeVal(address valAddr) private {
+        for (uint i = 0; i < allVals.length; i ++) {
+            if (allVals[i] == valAddr) {
+                allVals[i] = allVals[allVals.length - 1];
+                allVals.pop();
+            }
+        }
+
+        delete ownerOf[valOf[valAddr]];
+    }
 
     // get current validator sets
     function getValidatorSets() external view returns (address[] memory, uint256[] memory) {

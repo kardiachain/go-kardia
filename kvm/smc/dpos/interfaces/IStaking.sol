@@ -41,4 +41,5 @@ interface IStaking {
 
     event Burn(address from, uint256 amount, uint reason);
     event Mint(uint256 amount);
+    event Transfer(address from, address to, uint256 amount);
 }

@@ -36,4 +36,5 @@ interface IParams {
     function getMinValidatorStake() external view returns (uint256);
     function getMinAmountChangeName() external view returns (uint256);
     function getMinSelfDelegation() external view returns (uint256);
+
 }

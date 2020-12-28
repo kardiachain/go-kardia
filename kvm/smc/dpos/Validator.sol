@@ -237,6 +237,7 @@ contract Validator is IValidator, Ownable {
         emit UpdateName(_name);
          _staking.burn(msg.value, 1);
         address(uint160(address(treasury))).transfer(msg.value);
+        emit Transfer(address(this), treasury, msg.value);
     }
     
     // _allocateTokens allocate tokens to a particular validator, splitting according to commission
@@ -677,6 +678,7 @@ contract Validator is IValidator, Ownable {
         inforValidator.tokens = inforValidator.tokens.sub(tokensToBurn);
         address(uint160(address(treasury))).transfer(tokensToBurn);
         _staking.burn(tokensToBurn, 0);
+        emit Transfer(address(this), treasury, tokensToBurn);
     }
     
     function _jail(uint256 _jailedUntil, bool _tombstoned) private {

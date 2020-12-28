@@ -80,7 +80,7 @@ contract Params is Ownable {
         // validator params 
         _setParam(ParamKey.downtimeJailDuration, 3600); // 1h
         _setParam(ParamKey.slashFractionDowntime, 1 * 10**15); // 0.1%
-        _setParam(ParamKey.unbondingTime, 1814400); // 21 days
+        _setParam(ParamKey.unbondingTime, 604800); // 7 days
         _setParam(ParamKey.slashFractionDoubleSign, 25 * 10**16); //25%
         _setParam(ParamKey.signedBlockWindow, 10000);
         _setParam(ParamKey.minSignedPerWindow, 5 * 10**17); // 50%
