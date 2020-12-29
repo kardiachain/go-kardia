@@ -639,8 +639,8 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 	// Height mismatch is ignored.
 	// Not necessarily a bad peer, but not favourable behaviour.
 	if vote.Height != cs.Height {
-		cs.Logger.Info("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", cs.Height, "peerID", peerID)
-		return false, ErrVoteHeightMismatch
+		cs.Logger.Debug("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", cs.Height, "peerID", peerID)
+		return false, nil
 	}
 
 	height := cs.Height
@@ -721,7 +721,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 			} else if prevotes.HasTwoThirdsAny() {
 				cs.enterPrevoteWait(height, vote.Round)
 			}
-		case cs.Proposal != nil && (cs.Proposal.POLRound >= 1) && (cs.Proposal.POLRound == vote.Round):
+		case cs.Proposal != nil && (1 <= cs.Proposal.POLRound) && (cs.Proposal.POLRound == vote.Round):
 			// If the proposal is now complete, enter prevote of cs.Round.
 			if cs.isProposalComplete() {
 				cs.enterPrevote(height, cs.Round)
@@ -798,9 +798,14 @@ func (cs *ConsensusState) voteTime() time.Time {
 // Signs the vote and publish on internalMsgQueue
 func (cs *ConsensusState) signAddVote(signedMsgType kproto.SignedMsgType, hash cmn.Hash, header types.PartSetHeader) *types.Vote {
 	// if we don't have a key or we're not in the validator set, do nothing
-	if cs.privValidator == nil || !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
+	if cs.privValidator == nil {
 		return nil
 	}
+
+	if !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
+		return nil
+	}
+
 	vote, err := cs.signVote(signedMsgType, hash, header)
 	if err == nil {
 		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, ""})
