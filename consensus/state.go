@@ -154,11 +154,14 @@ func NewConsensusState(
 		evsw:             kevents.NewEventSwitch(),
 	}
 	cs.SetLogger(logger)
+	// We have no votes, so reconstruct LastCommit from SeenCommit.
+	if state.LastBlockHeight > 0 {
+		cs.reconstructLastCommit(state)
+	}
+
 	cs.updateToState(state)
 
-	// Reconstruct LastCommit from db after a crash.
-	cs.reconstructLastCommit(state)
-	//set round should be 1
+	// Set first round
 	cs.Round = 1
 
 	cs.BaseService = *service.NewBaseService(nil, "State", cs)
