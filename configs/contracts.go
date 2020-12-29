@@ -1900,7 +1900,7 @@ var (
 		"payable": false,
 		"stateMutability": "view",
 		"type": "function"
-	},
+	}
 ]`,
 	}
 )
