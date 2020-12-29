@@ -95,12 +95,13 @@ func (hvs *HeightVoteSet) addRound(round uint32) {
 func (hvs *HeightVoteSet) SetRound(round uint32) {
 	hvs.mtx.Lock()
 	defer hvs.mtx.Unlock()
-
 	hvs.logger.Trace("Set round", "hvs.round", hvs.round, "round", round)
-	if (hvs.round == 0) && (round < hvs.round-1) {
+
+	newRound := hvs.round - 1
+	if (hvs.round != 1) && (round < newRound) {
 		cmn.PanicSanity("SetRound() must increment hvs.round")
 	}
-	for r := hvs.round - 1; r <= round; r++ {
+	for r := newRound; r <= round; r++ {
 		if _, ok := hvs.roundVoteSets[r]; ok {
 			continue // Already exists because peerCatchupRounds.
 		}

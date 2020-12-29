@@ -154,11 +154,14 @@ func NewConsensusState(
 		evsw:             kevents.NewEventSwitch(),
 	}
 	cs.SetLogger(logger)
+	// We have no votes, so reconstruct LastCommit from SeenCommit.
+	if state.LastBlockHeight > 0 {
+		cs.reconstructLastCommit(state)
+	}
+
 	cs.updateToState(state)
 
-	// Reconstruct LastCommit from db after a crash.
-	cs.reconstructLastCommit(state)
-	//set round should be 1
+	// Set first round
 	cs.Round = 1
 
 	cs.BaseService = *service.NewBaseService(nil, "State", cs)
@@ -364,9 +367,10 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 	case cs.LastCommit == nil:
 		// NOTE: when Tendermint starts, it has no votes. reconstructLastCommit
 		// must be called to reconstruct LastCommit from SeenCommit.
-		panic(fmt.Sprintf("LastCommit cannot be empty after initial block (H:%d)",
-			state.LastBlockHeight+1,
-		))
+		// @lew: Uncomment after implement switchToConsensus
+		//panic(fmt.Sprintf("LastCommit cannot be empty after initial block (H:%d)",
+		//	state.LastBlockHeight+1,
+		//))
 	}
 
 	// Next desired block height
@@ -538,10 +542,12 @@ func (cs *ConsensusState) reconstructLastCommit(state cstate.LastestBlockState) 
 		return
 	}
 	seenCommit := cs.blockOperations.LoadSeenCommit(state.LastBlockHeight)
+
 	lastPrecommits := types.CommitToVoteSet(state.ChainID, seenCommit, state.LastValidators)
 	if !lastPrecommits.HasTwoThirdsMajority() {
 		cmn.PanicSanity("Failed to reconstruct LastCommit: Does not have +2/3 maj")
 	}
+
 	cs.LastCommit = lastPrecommits
 }
 
@@ -639,8 +645,8 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 	// Height mismatch is ignored.
 	// Not necessarily a bad peer, but not favourable behaviour.
 	if vote.Height != cs.Height {
-		cs.Logger.Info("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", cs.Height)
-		return false, ErrVoteHeightMismatch
+		cs.Logger.Debug("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", cs.Height, "peerID", peerID)
+		return false, nil
 	}
 
 	height := cs.Height
@@ -721,7 +727,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 			} else if prevotes.HasTwoThirdsAny() {
 				cs.enterPrevoteWait(height, vote.Round)
 			}
-		case cs.Proposal != nil && (cs.Proposal.POLRound >= 1) && (cs.Proposal.POLRound == vote.Round):
+		case cs.Proposal != nil && (1 <= cs.Proposal.POLRound) && (cs.Proposal.POLRound == vote.Round):
 			// If the proposal is now complete, enter prevote of cs.Round.
 			if cs.isProposalComplete() {
 				cs.enterPrevote(height, cs.Round)
@@ -798,9 +804,14 @@ func (cs *ConsensusState) voteTime() time.Time {
 // Signs the vote and publish on internalMsgQueue
 func (cs *ConsensusState) signAddVote(signedMsgType kproto.SignedMsgType, hash cmn.Hash, header types.PartSetHeader) *types.Vote {
 	// if we don't have a key or we're not in the validator set, do nothing
-	if cs.privValidator == nil || !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
+	if cs.privValidator == nil {
 		return nil
 	}
+
+	if !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
+		return nil
+	}
+
 	vote, err := cs.signVote(signedMsgType, hash, header)
 	if err == nil {
 		cs.sendInternalMessage(msgInfo{&VoteMessage{vote}, ""})

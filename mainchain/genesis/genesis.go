@@ -59,6 +59,10 @@ type GenesisValidator struct {
 	MaxChangeRate    string `json:"maxChangeRate" yaml:"MaxChangeRate"`
 	SelfDelegate     string `json:"selfDelegate" yaml:"SelfDelegate"`
 	StartWithGenesis bool   `json:"startWithGenesis" yaml:"StartWithGenesis"`
+	Delegators       []*struct {
+		Address string `json:"address" yaml:"Address"`
+		Amount  string `json:"amount" yaml:"Amount"`
+	} `json:"delegators" yaml:"Delegators"`
 }
 
 // Genesis specifies the header fields, state of a genesis block.
@@ -335,17 +339,20 @@ func ToCell(amount int64) *big.Int {
 	return cell
 }
 
-func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*GenesisValidator) error {
-	if err := staking.CreateStakingContract(statedb, header, cfg); err != nil {
+func setupGenesisStaking(stakingUtil *staking.StakingSmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*GenesisValidator) error {
+	if err := stakingUtil.CreateStakingContract(statedb, header, cfg); err != nil {
 		return err
 	}
-
-	if err := staking.SetRoot(statedb, header, nil, cfg); err != nil {
+	if err := stakingUtil.SetRoot(statedb, header, nil, cfg); err != nil {
 		return err
 	}
-
+	// init a validator SMC util to delegate genesis amounts to corresponding validators
+	validatorUtil, err := staking.NewSmcValidatorUtil()
+	if err != nil {
+		return err
+	}
 	for _, val := range validators {
-		if err := staking.CreateGenesisValidator(statedb, header, nil, cfg,
+		if err := stakingUtil.CreateGenesisValidator(statedb, header, nil, cfg,
 			common.HexToAddress(val.Address),
 			val.Name,
 			val.CommissionRate,
@@ -354,12 +361,26 @@ func setupGenesisStaking(staking *staking.StakingSmcUtil, statedb *state.StateDB
 			val.SelfDelegate); err != nil {
 			return fmt.Errorf("apply create validator err: %s", err)
 		}
+		// delegate genesis amount, if any
+		valSmcAddr, err := stakingUtil.GetValFromOwner(statedb, header, nil, cfg, common.HexToAddress(val.Address))
+		if err != nil {
+			return err
+		}
+		for _, del := range val.Delegators {
+			amount, ok := new(big.Int).SetString(del.Amount, 10)
+			if !ok {
+				return err
+			}
+			if err := validatorUtil.Delegate(statedb, header, nil, cfg, valSmcAddr, common.HexToAddress(del.Address), amount); err != nil {
+				return err
+			}
+		}
 		if !val.StartWithGenesis {
 			continue
 		}
-		if err := staking.StartGenesisValidator(statedb, header, nil, cfg,
+		if err := stakingUtil.StartGenesisValidator(statedb, header, nil, cfg, validatorUtil, valSmcAddr,
 			common.HexToAddress(val.Address)); err != nil {
-			return fmt.Errorf("apply start validator err: %s", err)
+			return fmt.Errorf("apply start validator err: %s  Validator info: %+v", err, val)
 		}
 	}
 	return nil
