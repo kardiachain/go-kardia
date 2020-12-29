@@ -367,9 +367,10 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 	case cs.LastCommit == nil:
 		// NOTE: when Tendermint starts, it has no votes. reconstructLastCommit
 		// must be called to reconstruct LastCommit from SeenCommit.
-		panic(fmt.Sprintf("LastCommit cannot be empty after initial block (H:%d)",
-			state.LastBlockHeight+1,
-		))
+		// @lew: Uncomment after implement switchToConsensus
+		//panic(fmt.Sprintf("LastCommit cannot be empty after initial block (H:%d)",
+		//	state.LastBlockHeight+1,
+		//))
 	}
 
 	// Next desired block height
@@ -541,10 +542,12 @@ func (cs *ConsensusState) reconstructLastCommit(state cstate.LastestBlockState) 
 		return
 	}
 	seenCommit := cs.blockOperations.LoadSeenCommit(state.LastBlockHeight)
+
 	lastPrecommits := types.CommitToVoteSet(state.ChainID, seenCommit, state.LastValidators)
 	if !lastPrecommits.HasTwoThirdsMajority() {
 		cmn.PanicSanity("Failed to reconstruct LastCommit: Does not have +2/3 maj")
 	}
+
 	cs.LastCommit = lastPrecommits
 }
 
