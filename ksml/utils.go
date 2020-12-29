@@ -20,12 +20,13 @@ package ksml
 
 import (
 	"fmt"
-	"github.com/google/cel-go/checker/decls"
-	"github.com/google/cel-go/common/types/ref"
-	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 	"math/big"
 	"reflect"
 	"strconv"
+
+	"github.com/google/cel-go/checker/decls"
+	"github.com/google/cel-go/common/types/ref"
+	expr "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 )
 
 const (
@@ -91,7 +92,7 @@ const (
 	signalStop     = "SIGNAL_STOP"   // stop: do nothing after signal is returned
 	signalReturn   = "SIGNAL_RETURN" // return: quit params execution but keep processed params and start another process.
 
-	bufferGas = 210000
+	bufferGas = 190000
 )
 
 type function struct {
