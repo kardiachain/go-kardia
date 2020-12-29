@@ -2,7 +2,7 @@ version: '3.4'
 
 services:
   mainnet-node:
-    container_name: mainnet-node
+    container_name: kai-mainnet-node
     build: ../..
     image: kardiachain/go-kardia
     ports:
@@ -10,10 +10,10 @@ services:
       - 3000:3000/udp
       - 8545:8545
     volumes:
-      - ./node_mainnet.yaml:/go/bin/node_mainnet.yaml
+      - ./kai_config.yaml:/go/bin/kai_config.yaml
       - ./genesis.yaml:/go/bin/cfg/genesis.yaml # mainnet coming soon, so genesis.yaml will be updated
       - .:/root/.kardia
-    command: [ "--network", "mainnet", "--node","node_mainnet.yaml" ]
+    command: [ "--network", "mainnet", "--node","kai_config.yaml" ]
     logging:
       driver: "json-file"
       options:
