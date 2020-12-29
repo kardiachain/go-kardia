@@ -639,7 +639,7 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 	// Height mismatch is ignored.
 	// Not necessarily a bad peer, but not favourable behaviour.
 	if vote.Height != cs.Height {
-		cs.Logger.Info("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", cs.Height)
+		cs.Logger.Info("Vote ignored and not added", "voteHeight", vote.Height, "csHeight", cs.Height, "peerID", peerID)
 		return false, ErrVoteHeightMismatch
 	}
 
