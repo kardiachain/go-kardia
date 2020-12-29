@@ -28,13 +28,14 @@ MainChain:
   NetworkId: 100      # 100 = Mainnet, 1000 = Testnet
   AcceptTxs: 1        # accept tx sync process or not (1 is yes, 0 is no)
   Seeds:
-    - c1fe56e3f58d3244f606306611a5d10c8333f1f6@127.0.0.1:3000
-    - 7cefc13b6e2aedeedfb7cb6c32457240746baee5@127.0.0.1:3001
-    - ff3dac4f04ddbd24de5d6039f90596f0a8bb08fd@127.0.0.1:3002
+    - faf0b7cbd8003dbef341a263cb9e1dd2a41e8acd@13.251.223.247:3000
+    - fd4a31e03175e5871f84e9f8aa35ded0a691fec9@13.228.186.253:3000
+    - 8e1d7fabfbc61182670db6fe40e196e0d0115b6d@13.250.168.234:3000
+    - 3494b209080f42139e35e8958f2e5646fab4f7e3@13.251.195.141:3000
+    - b653443811115c3be4f50186536361780b1cd6ec@46.137.215.229:3000
+    - f1135bc1f710275ec1f85bc0fd88c5ca0a9a6090@54.251.108.202:3000
   Database:
     Dir: chaindata                           # directory stores leveldb
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
     Drop: 1                                  # Specify whether drop database or not (0 is no, 1 is yes)
-Debug:
-  Port: ":6000"
