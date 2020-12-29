@@ -166,7 +166,7 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		TimeoutCommit:               1000 * time.Millisecond,
 		IsSkipTimeoutCommit:         false,
 		IsCreateEmptyBlocks:         true,
-		CreateEmptyBlocksInterval:   1 * time.Second,
+		CreateEmptyBlocksInterval:   3500 * time.Millisecond,
 		PeerGossipSleepDuration:     100 * time.Millisecond,
 		PeerQueryMaj23SleepDuration: 2000 * time.Millisecond,
 	}
