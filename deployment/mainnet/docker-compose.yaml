@@ -3,8 +3,7 @@ version: '3.4'
 services:
   mainnet-node:
     container_name: kai-mainnet-node
-    build: ../..
-    image: kardiachain/go-kardia
+    image: gcr.io/indigo-history-235904/go-kardia:stable
     ports:
       - 3000:3000
       - 3000:3000/udp
