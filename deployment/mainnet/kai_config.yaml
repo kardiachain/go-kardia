@@ -1,6 +1,6 @@
 Node:
-  Name: node1             # node name
-  DataDir: /tmp/.kardia   # database data directory
+  Name: KAI-NODE          # node name in the network
+  DataDir: /root/.kardia  # database data directory
   HTTPHost: 0.0.0.0       # RPC address
   HTTPPort: 8545          # RPC port
   HTTPModules:            # accepted API modules
