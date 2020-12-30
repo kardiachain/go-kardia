@@ -154,7 +154,15 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 			bnh.BlockHash = &hash
 			return nil
 		} else {
-			blckNum, err := strconv.ParseUint(input, 10, 64)
+			var (
+				blckNum uint64
+				err     error
+			)
+			if strings.HasPrefix(input, "0x") {
+				blckNum, err = strconv.ParseUint(strings.TrimLeft(input, "0x"), 16, 64)
+			} else {
+				blckNum, err = strconv.ParseUint(input, 10, 64)
+			}
 			if err != nil {
 				return err
 			}

@@ -21,6 +21,7 @@ package kai
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"strconv"
 	"time"
 
@@ -48,8 +49,8 @@ type NetAPI struct {
 }
 
 // NewPublicWalletAPI creates a new Kai protocol API for full nodes.
-func NewNetAPI(kaiService *KardiaService) *WalletAPI {
-	return &WalletAPI{kaiService}
+func NewNetAPI(kaiService *KardiaService) *NetAPI {
+	return &NetAPI{kaiService}
 }
 
 func (w *NetAPI) Version() (string, error) {
@@ -61,8 +62,8 @@ func NewPublicWalletAPI(kaiService *KardiaService) *WalletAPI {
 	return &WalletAPI{kaiService}
 }
 
-func (w *WalletAPI) ChainId() (string, error) {
-	return strconv.FormatInt(node.MainChainID, 10), nil
+func (w *WalletAPI) ChainId() (*common.Big, error) {
+	return (*common.Big)(new(big.Int).SetInt64(int64(node.MainChainID))), nil
 }
 
 // BlockNumber returns current block number
@@ -81,12 +82,12 @@ func (w *WalletAPI) GetBlockByNumber(ctx context.Context, blockNumber rpc.BlockN
 }
 
 // GetBalance returns address's balance
-func (w *WalletAPI) GetBalance(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (string, error) {
+func (w *WalletAPI) GetBalance(ctx context.Context, address common.Address, blockNrOrHash rpc.BlockNumberOrHash) (*common.Big, error) {
 	state, _, err := w.kaiService.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
 	if state == nil || err != nil {
-		return "", err
+		return nil, err
 	}
-	return state.GetBalance(address).String(), nil
+	return (*common.Big)(state.GetBalance(address)), nil
 }
 
 // Call execute a contract method call only against
