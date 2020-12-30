@@ -420,8 +420,8 @@ func NewPublicTransactionAPI(service *KardiaService) *PublicTransactionAPI {
 }
 
 // SendRawTransaction decode encoded data into tx and then add tx into pool
-func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs string) (string, error) {
-	log.Info("SendRawTransaction", "data", txs)
+func (a *PublicTransactionAPI) SendRawTransaction(txs string) (string, error) {
+	log.Debug("SendRawTransaction", "data", txs)
 	tx := new(types.Transaction)
 	encodedTx := common.FromHex(txs)
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {

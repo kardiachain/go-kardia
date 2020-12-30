@@ -223,6 +223,7 @@ func (s *KardiaService) Stop() error {
 	return nil
 }
 
+// APIs serve api interface via rpc
 func (s *KardiaService) APIs() []rpc.API {
 	return []rpc.API{
 		{
@@ -241,6 +242,19 @@ func (s *KardiaService) APIs() []rpc.API {
 			Namespace: "account",
 			Version:   "1.0",
 			Service:   NewPublicAccountAPI(s),
+			Public:    true,
+		},
+		// Emergency support for external wallet
+		{
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   NewPublicWalletAPI(s),
+			Public:    true,
+		},
+		{
+			Namespace: "net",
+			Version:   "1.0",
+			Service:   NewNetAPI(s),
 			Public:    true,
 		},
 	}
