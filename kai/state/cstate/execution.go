@@ -182,9 +182,9 @@ func getBeginBlockValidatorInfo(b *types.Block, store Store) stypes.LastCommitIn
 				SignedLastBlock: commitSig.Signature != nil,
 			}
 
-			if b.Height() > 63004 {
-				voteInfos[i].SignedLastBlock = true
-			}
+			//if b.Height() > 63004 {
+			//	voteInfos[i].SignedLastBlock = true
+			//}
 		}
 	}
 
