@@ -17,7 +17,14 @@ import (
 )
 
 // MaximumGasToCallStaticFunction ...
-var MaximumGasToCallStaticFunction = uint(4000000)
+var (
+	MaximumGasToCallStaticFunction = uint(4000000)
+	ToExecResult                   = func(err error) *kvm.ExecutionResult {
+		return &kvm.ExecutionResult{
+			Err: err,
+		}
+	}
+)
 
 // StakingSmcUtil ...
 type StakingSmcUtil struct {
@@ -78,7 +85,7 @@ func NewSmcStakingUtil() (*StakingSmcUtil, error) {
 func (s *StakingSmcUtil) SetParams(baseProposerReward int64, bonusProposerReward int64,
 	slashFractionDowntime int64, slashFractionDoubleSign int64, unBondingTime int64,
 	signedBlockWindow int64, minSignedBlockPerWindow int64,
-	SenderAddress common.Address) ([]byte, error) {
+	SenderAddress common.Address) ([]byte, *kvm.ExecutionResult) {
 
 	// stateDb, err := s.bc.State()
 	// if err != nil {
@@ -111,7 +118,7 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 	_commission string,
 	_maxRate string,
 	_maxChangeRate string,
-	_selfDelegate string) error {
+	_selfDelegate string) *kvm.ExecutionResult {
 
 	commission, k1 := big.NewInt(0).SetString(_commission, 10)
 	maxRate, k2 := big.NewInt(0).SetString(_maxRate, 10)
@@ -146,35 +153,26 @@ func (s *StakingSmcUtil) CreateGenesisValidator(statedb *state.StateDB, header *
 		input,
 		false,
 	)
-	if _, err = Apply(s.logger, bc, statedb, header, cfg, msg); err != nil {
-		panic(err)
+	if result := Apply(s.logger, bc, statedb, header, cfg, msg); result.Failed() {
+		reason, unpackErr := result.UnpackRevertReason()
+		panic(fmt.Errorf("%v %s %v", result.Unwrap(), reason, unpackErr))
 	}
 
-	return nil
-}
-
-//SetPreviousProposer
-func (s *StakingSmcUtil) StartGenesisValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, validatorUtil *ValidatorSmcUtil, valSmcAddr common.Address, valAddr common.Address) error {
-	err := validatorUtil.StartValidator(statedb, header, bc, cfg, valSmcAddr, valAddr)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return ToExecResult(nil)
 }
 
 //ApplyAndReturnValidatorSets allow appy and return validator set
-func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) ([]*types.Validator, error) {
+func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) ([]*types.Validator, *kvm.ExecutionResult) {
 	payload, err := s.Abi.Pack("getValidatorSets")
 	if err != nil {
-		return nil, err
+		return nil, ToExecResult(err)
 	}
-	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
-	if err != nil {
-		return nil, err
+	result := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	if result.Failed() {
+		return nil, result
 	}
-	if len(res) == 0 {
-		return nil, nil
+	if len(result.Return()) == 0 {
+		return nil, ToExecResult(nil)
 	}
 
 	var valSet struct {
@@ -183,20 +181,20 @@ func (s *StakingSmcUtil) ApplyAndReturnValidatorSets(statedb *state.StateDB, hea
 	}
 
 	//unpack result
-	err = s.Abi.UnpackIntoInterface(&valSet, "getValidatorSets", res)
+	err = s.Abi.UnpackIntoInterface(&valSet, "getValidatorSets", result.Return())
 	if err != nil {
 		log.Error("Error unpacking val set info", "err", err)
-		return nil, err
+		return nil, ToExecResult(err)
 	}
 
 	vals := make([]*types.Validator, len(valSet.ValAddrs))
 	for i, valAddr := range valSet.ValAddrs {
 		vals[i] = types.NewValidator(valAddr, valSet.Powers[i].Int64())
 	}
-	return vals, nil
+	return vals, ToExecResult(nil)
 }
 
-func (s *StakingSmcUtil) ConstructAndApplySmcCallMsg(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, payload []byte) ([]byte, error) {
+func (s *StakingSmcUtil) ConstructAndApplySmcCallMsg(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, payload []byte) *kvm.ExecutionResult {
 	msg := types.NewMessage(
 		s.ContractAddress,
 		&s.ContractAddress,
@@ -211,33 +209,32 @@ func (s *StakingSmcUtil) ConstructAndApplySmcCallMsg(statedb *state.StateDB, hea
 }
 
 //Mint new tokens for the previous block. Returns fee collected
-func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) (*big.Int, error) {
+func (s *StakingSmcUtil) Mint(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) (*big.Int, *kvm.ExecutionResult) {
 	payload, err := s.Abi.Pack("mint")
 	if err != nil {
-		return nil, err
+		return nil, ToExecResult(err)
 	}
 
-	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
-	if err != nil {
-		return nil, err
+	result := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	if result.Failed() {
+		return nil, result
 	}
-	var fee *big.Int
-	if len(res) > 0 {
-		result := new(struct {
-			Fee *big.Int
-		})
+	if len(result.Return()) == 0 {
+		return nil, ToExecResult(nil)
+	}
+	fee := new(struct {
+		Fee *big.Int
+	})
 
-		if err := s.Abi.UnpackIntoInterface(result, "mint", res); err != nil {
-			return nil, fmt.Errorf("unpack mint result err: %s", err)
-		}
-		fee = result.Fee
-		statedb.AddBalance(s.ContractAddress, fee)
+	if err := s.Abi.UnpackIntoInterface(fee, "mint", result.Return()); err != nil {
+		return nil, ToExecResult(fmt.Errorf("unpack mint result err: %s", err))
 	}
-	return fee, nil
+	statedb.AddBalance(s.ContractAddress, fee.Fee)
+	return fee.Fee, ToExecResult(nil)
 }
 
-//FinalizeCommit finalize commitcd
-func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, lastCommit stypes.LastCommitInfo) error {
+//FinalizeCommit finalize commit
+func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, lastCommit stypes.LastCommitInfo) *kvm.ExecutionResult {
 	vals := make([]common.Address, len(lastCommit.Votes))
 	votingPowers := make([]*big.Int, len(lastCommit.Votes))
 	signed := make([]bool, len(lastCommit.Votes))
@@ -250,137 +247,146 @@ func (s *StakingSmcUtil) FinalizeCommit(statedb *state.StateDB, header *types.He
 
 	payload, err := s.Abi.Pack("finalize", vals, votingPowers, signed)
 	if err != nil {
-		return err
+		return ToExecResult(err)
 	}
-	_, err = s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
-	return err
+	return s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
 }
 
 //DoubleSign double sign
-func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, byzVals []stypes.Evidence) error {
+func (s *StakingSmcUtil) DoubleSign(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, byzVals []stypes.Evidence) *kvm.ExecutionResult {
+	var result *kvm.ExecutionResult
 	for _, ev := range byzVals {
 		payload, err := s.Abi.Pack("doubleSign", ev.Address, ev.VotingPower, big.NewInt(int64(ev.Height)))
 		if err != nil {
-			return err
+			return ToExecResult(err)
 		}
-		_, err = s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
-		if err != nil {
-			return err
+		result = s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+		if result.Failed() {
+			return result
 		}
 	}
-	return nil
+	return ToExecResult(nil)
 }
 
 // GetAllValsLength returns number of validators
-func (s *StakingSmcUtil) GetAllValsLength(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) (*big.Int, error) {
+func (s *StakingSmcUtil) GetAllValsLength(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) (*big.Int, *kvm.ExecutionResult) {
 	payload, err := s.Abi.Pack("allValsLength")
 	if err != nil {
-		return nil, err
+		return nil, ToExecResult(err)
 	}
 
-	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
-	if err != nil {
-		return nil, err
+	result := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	if result.Failed() {
+		return nil, result
 	}
-	if len(res) == 0 {
-		return nil, nil
+	if len(result.Return()) == 0 {
+		return nil, ToExecResult(nil)
 	}
 
 	var numberVals *big.Int
 	// unpack result
-	err = s.Abi.UnpackIntoInterface(&numberVals, "allValsLength", res)
+	err = s.Abi.UnpackIntoInterface(&numberVals, "allValsLength", result.Return())
 	if err != nil {
 		log.Error("Error unpacking delegation reward", "err", err)
-		return nil, err
+		return nil, ToExecResult(err)
 	}
-	return numberVals, nil
+	return numberVals, ToExecResult(nil)
 }
 
 // GetValFromOwner returns address validator smc of validator
-func (s *StakingSmcUtil) GetValFromOwner(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address) (common.Address, error) {
+func (s *StakingSmcUtil) GetValFromOwner(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valAddr common.Address) (common.Address, *kvm.ExecutionResult) {
 	payload, err := s.Abi.Pack("ownerOf", valAddr)
-
-	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
-
+	result := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	if result.Failed() {
+		return common.Address{}, result
+	}
 	var valSmc struct {
 		AddrValSmc common.Address
 	}
-	err = s.Abi.UnpackIntoInterface(&valSmc, "ownerOf", res)
+	err = s.Abi.UnpackIntoInterface(&valSmc, "ownerOf", result.Return())
 	if err != nil {
 		log.Error("Error unpacking delegation reward", "err", err)
 	}
 
-	return valSmc.AddrValSmc, nil
+	return valSmc.AddrValSmc, ToExecResult(nil)
 }
 
-func (s *StakingSmcUtil) GetValSmcAddr(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, index *big.Int) (common.Address, error) {
+func (s *StakingSmcUtil) GetValSmcAddr(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, index *big.Int) (common.Address, *kvm.ExecutionResult) {
 	payload, err := s.Abi.Pack("allVals", index)
-	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
-
+	result := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	if result.Failed() {
+		return common.Address{}, result
+	}
 	var valSmc struct {
 		AddrValSmc common.Address
 	}
-
-	err = s.Abi.UnpackIntoInterface(&valSmc, "allVals", res)
+	err = s.Abi.UnpackIntoInterface(&valSmc, "allVals", result.Return())
 	if err != nil {
 		log.Error("Error unpacking delegation reward", "err", err)
 	}
 
-	return valSmc.AddrValSmc, nil
+	return valSmc.AddrValSmc, ToExecResult(nil)
 }
 
 // GetValidatorsByDelegator returns all validators to whom this delegator delegated
-func (s *StakingSmcUtil) GetValidatorsByDelegator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, delAddr common.Address) ([]common.Address, error) {
+func (s *StakingSmcUtil) GetValidatorsByDelegator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, delAddr common.Address) ([]common.Address, *kvm.ExecutionResult) {
 	payload, err := s.Abi.Pack("getValidatorsByDelegator", delAddr)
 	if err != nil {
-		return nil, err
+		return nil, ToExecResult(err)
 	}
-	res, err := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
-	if err != nil {
-		return nil, err
+	result := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	if result.Failed() {
+		return nil, result
 	}
-
 	var valsAddr struct {
 		ValAddrs []common.Address
 	}
 	// unpack result
-	err = s.Abi.UnpackIntoInterface(&valsAddr, "getValidatorsByDelegator", res)
+	err = s.Abi.UnpackIntoInterface(&valsAddr, "getValidatorsByDelegator", result.Return())
 	if err != nil {
 		log.Error("Error unpacking validators by delegator", "err", err)
-		return nil, err
+		return nil, ToExecResult(err)
 	}
-	return valsAddr.ValAddrs, nil
+	return valsAddr.ValAddrs, ToExecResult(nil)
 }
 
 // SetRoot set address root
-func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) error {
+func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config) *kvm.ExecutionResult {
 	payload, err := s.Abi.Pack("transferOwnership", s.ContractAddress)
 	if err != nil {
-		return err
+		return ToExecResult(err)
 	}
-	_, err = s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
-	return err
+	result := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload)
+	return result
 }
 
 // Apply ...
-func Apply(logger log.Logger, bc vm.ChainContext, statedb *state.StateDB, header *types.Header, cfg kvm.Config, msg types.Message) ([]byte, error) {
+func Apply(logger log.Logger, bc vm.ChainContext, statedb *state.StateDB, header *types.Header, cfg kvm.Config, msg types.Message) *kvm.ExecutionResult {
 	// Create a new context to be used in the EVM environment
 	context := vm.NewKVMContext(msg, header, bc)
 	vmenv := kvm.NewKVM(context, statedb, cfg)
 	sender := kvm.AccountRef(msg.From())
 	ret, _, vmerr := vmenv.Call(sender, *msg.To(), msg.Data(), msg.Gas(), msg.Value())
 	if vmerr != nil {
-		return nil, vmerr
+		return &kvm.ExecutionResult{
+			UsedGas:    0,
+			Err:        vmerr,
+			ReturnData: ret,
+		}
 	}
 	// Update the state with pending changes
 	statedb.Finalise(true)
-	return ret, nil
+	return &kvm.ExecutionResult{
+		UsedGas:    0,
+		Err:        nil,
+		ReturnData: ret,
+	}
 }
 
 // CreateStakingContract ...
 func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	header *types.Header,
-	cfg kvm.Config) error {
+	cfg kvm.Config) *kvm.ExecutionResult {
 
 	msg := types.NewMessage(
 		configs.GenesisDeployerAddr,
@@ -398,9 +404,9 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 	vmenv := kvm.NewKVM(context, statedb, cfg)
 	sender := kvm.AccountRef(msg.From())
 	if err := vmenv.CreateGenesisContractAddress(sender, msg.Data(), msg.Gas(), msg.Value(), s.ContractAddress); err != nil {
-		return err
+		return ToExecResult(err)
 	}
 	// Update the state with pending changes
 	statedb.Finalise(true)
-	return nil
+	return ToExecResult(nil)
 }

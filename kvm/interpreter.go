@@ -119,6 +119,7 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		callContext = &callCtx{
 			memory:   mem,
 			stack:    stack,
+			rstack:   returns,
 			contract: contract,
 		}
 		// For optimisation reason we're using uint64 as the program counter.
@@ -222,7 +223,7 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 			var dynamicCost uint64
 			dynamicCost, err = operation.dynamicGas(in.kvm, contract, stack, mem, memorySize)
 			cost += dynamicCost
-			if err != nil || !contract.UseGas(cost) {
+			if err != nil || !contract.UseGas(dynamicCost) {
 				return nil, ErrOutOfGas
 			}
 		}

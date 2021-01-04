@@ -163,9 +163,9 @@ func (k *KardiaService) GetValidators() ([]*staking.Validator, error) {
 	if err != nil {
 		return nil, err
 	}
-	allValsLen, err := k.staking.GetAllValsLength(st, header, k.blockchain, kvmConfig)
-	if err != nil {
-		return nil, err
+	allValsLen, result := k.staking.GetAllValsLength(st, header, k.blockchain, kvmConfig)
+	if result.Failed() {
+		return nil, result.Unwrap()
 	}
 	var (
 		one      = big.NewInt(1)
@@ -173,18 +173,18 @@ func (k *KardiaService) GetValidators() ([]*staking.Validator, error) {
 	)
 	zero := new(big.Int).SetInt64(0)
 	for i := new(big.Int).SetInt64(0); i.Cmp(allValsLen) < 0; i.Add(i, one) {
-		valContractAddr, err := k.staking.GetValSmcAddr(st, header, k.blockchain, kvmConfig, i)
-		if err != nil {
-			return nil, err
+		valContractAddr, result := k.staking.GetValSmcAddr(st, header, k.blockchain, kvmConfig, i)
+		if result.Failed() {
+			return nil, result.Unwrap()
 		}
-		valInfo, err := k.validator.GetInforValidator(st, header, k.blockchain, kvmConfig, valContractAddr)
-		if err != nil {
-			return nil, err
+		valInfo, result := k.validator.GetInforValidator(st, header, k.blockchain, kvmConfig, valContractAddr)
+		if result.Failed() {
+			return nil, result.Unwrap()
 		}
 		if valInfo.Tokens.Cmp(zero) == 1 {
-			valInfo.Delegators, err = k.GetDelegationsByValidator(valContractAddr)
-			if err != nil {
-				return nil, err
+			valInfo.Delegators, result = k.GetDelegationsByValidator(valContractAddr)
+			if result.Failed() {
+				return nil, result.Unwrap()
 			}
 		}
 		valInfo.ValStakingSmc = valContractAddr
@@ -201,19 +201,19 @@ func (k *KardiaService) GetValidator(valAddr common.Address) (*staking.Validator
 	if err != nil {
 		return nil, err
 	}
-	valContractAddr, err := k.staking.GetValFromOwner(st, header, k.blockchain, kvmConfig, valAddr)
-	if err != nil {
-		return nil, err
+	valContractAddr, result := k.staking.GetValFromOwner(st, header, k.blockchain, kvmConfig, valAddr)
+	if result.Failed() {
+		return nil, result.Unwrap()
 	}
-	val, err := k.validator.GetInforValidator(st, header, k.blockchain, kvmConfig, valContractAddr)
-	if err != nil {
-		return nil, err
+	val, result := k.validator.GetInforValidator(st, header, k.blockchain, kvmConfig, valContractAddr)
+	if result.Failed() {
+		return nil, result.Unwrap()
 	}
 	zero := new(big.Int).SetInt64(0)
 	if val.Tokens.Cmp(zero) == 1 {
-		val.Delegators, err = k.GetDelegationsByValidator(valContractAddr)
-		if err != nil {
-			return nil, err
+		val.Delegators, result = k.GetDelegationsByValidator(valContractAddr)
+		if result.Failed() {
+			return nil, result.Unwrap()
 		}
 	}
 	val.ValStakingSmc = valContractAddr
@@ -221,11 +221,11 @@ func (k *KardiaService) GetValidator(valAddr common.Address) (*staking.Validator
 }
 
 // GetDelegationsByValidator returns delegations info of one validator on staking contract based on their contract addresses
-func (k *KardiaService) GetDelegationsByValidator(valContractAddr common.Address) ([]*staking.Delegator, error) {
+func (k *KardiaService) GetDelegationsByValidator(valContractAddr common.Address) ([]*staking.Delegator, *kvm.ExecutionResult) {
 	block := k.blockchain.CurrentBlock()
 	st, header, kvmConfig, err := k.getValidatorInfoParams(block)
 	if err != nil {
-		return nil, err
+		return nil, staking.ToExecResult(err)
 	}
 	return k.validator.GetDelegators(st, header, k.blockchain, kvmConfig, valContractAddr)
 }

@@ -340,11 +340,13 @@ func ToCell(amount int64) *big.Int {
 }
 
 func setupGenesisStaking(stakingUtil *staking.StakingSmcUtil, statedb *state.StateDB, header *types.Header, cfg kvm.Config, validators []*GenesisValidator) error {
-	if err := stakingUtil.CreateStakingContract(statedb, header, cfg); err != nil {
-		return err
+	if result := stakingUtil.CreateStakingContract(statedb, header, cfg); result.Failed() {
+		reason, unpackErr := result.UnpackRevertReason()
+		return fmt.Errorf("failed to create staking contract: %v : %s %v", result.Unwrap(), reason, unpackErr)
 	}
-	if err := stakingUtil.SetRoot(statedb, header, nil, cfg); err != nil {
-		return err
+	if result := stakingUtil.SetRoot(statedb, header, nil, cfg); result.Failed() {
+		reason, unpackErr := result.UnpackRevertReason()
+		return fmt.Errorf("failed to set address root: %v : %s %v", result.Unwrap(), reason, unpackErr)
 	}
 	// init a validator SMC util to delegate genesis amounts to corresponding validators
 	validatorUtil, err := staking.NewSmcValidatorUtil()
@@ -352,35 +354,39 @@ func setupGenesisStaking(stakingUtil *staking.StakingSmcUtil, statedb *state.Sta
 		return err
 	}
 	for _, val := range validators {
-		if err := stakingUtil.CreateGenesisValidator(statedb, header, nil, cfg,
+		if result := stakingUtil.CreateGenesisValidator(statedb, header, nil, cfg,
 			common.HexToAddress(val.Address),
 			val.Name,
 			val.CommissionRate,
 			val.MaxRate,
 			val.MaxChangeRate,
-			val.SelfDelegate); err != nil {
-			return fmt.Errorf("apply create validator err: %s", err)
+			val.SelfDelegate); result.Failed() {
+			reason, unpackErr := result.UnpackRevertReason()
+			return fmt.Errorf("failed to create validator: %v , reason: %s %v", result.Unwrap(), reason, unpackErr)
 		}
 		// delegate genesis amount, if any
-		valSmcAddr, err := stakingUtil.GetValFromOwner(statedb, header, nil, cfg, common.HexToAddress(val.Address))
-		if err != nil {
-			return err
+		valSmcAddr, result := stakingUtil.GetValFromOwner(statedb, header, nil, cfg, common.HexToAddress(val.Address))
+		if result.Failed() {
+			reason, unpackErr := result.UnpackRevertReason()
+			return fmt.Errorf("failed to get validator contract address from owner: %v : %s %v", result.Unwrap(), reason, unpackErr)
 		}
 		for _, del := range val.Delegators {
 			amount, ok := new(big.Int).SetString(del.Amount, 10)
 			if !ok {
 				return err
 			}
-			if err := validatorUtil.Delegate(statedb, header, nil, cfg, valSmcAddr, common.HexToAddress(del.Address), amount); err != nil {
-				return err
+			if result := validatorUtil.Delegate(statedb, header, nil, cfg, valSmcAddr, common.HexToAddress(del.Address), amount); result.Failed() {
+				reason, unpackErr := result.UnpackRevertReason()
+				return fmt.Errorf("failed to delegate: %v : %s %v", result.Unwrap(), reason, unpackErr)
 			}
 		}
 		if !val.StartWithGenesis {
 			continue
 		}
-		if err := stakingUtil.StartGenesisValidator(statedb, header, nil, cfg, validatorUtil, valSmcAddr,
-			common.HexToAddress(val.Address)); err != nil {
-			return fmt.Errorf("apply start validator err: %s  Validator info: %+v", err, val)
+		if result := validatorUtil.StartValidator(statedb, header, nil, cfg, valSmcAddr,
+			common.HexToAddress(val.Address)); result.Failed() {
+			reason, unpackErr := result.UnpackRevertReason()
+			return fmt.Errorf("fail to start validator: %v : %s %v Validator info: %+v", result.Unwrap(), reason, unpackErr, val)
 		}
 	}
 	return nil

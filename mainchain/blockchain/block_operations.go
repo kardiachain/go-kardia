@@ -238,20 +238,23 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 
 	kvmConfig := kvm.Config{}
 
-	blockReward, err := bo.staking.Mint(state, header, bo.blockchain, kvmConfig)
-	if err != nil {
-		bo.logger.Error("Fail to mint", "err", err)
-		return nil, common.Hash{}, nil, nil, err
+	blockReward, result := bo.staking.Mint(state, header, bo.blockchain, kvmConfig)
+	if result.Failed() {
+		reason, unpackErr := result.UnpackRevertReason()
+		bo.logger.Error("Failed to mint", "err", result.Unwrap(), "revert reason", reason, "unpacking revert reason error", unpackErr)
+		return nil, common.Hash{}, nil, nil, result.Unwrap()
 	}
 
-	if err := bo.staking.FinalizeCommit(state, header, bo.blockchain, kvmConfig, lastCommit); err != nil {
-		bo.logger.Error("Fail to finalize commit", "err", err)
-		return nil, common.Hash{}, nil, nil, err
+	if result := bo.staking.FinalizeCommit(state, header, bo.blockchain, kvmConfig, lastCommit); result.Failed() {
+		reason, unpackErr := result.UnpackRevertReason()
+		bo.logger.Error("Failed to finalize commit", "err", result.Unwrap(), "revert reason", reason, "unpacking revert reason error", unpackErr)
+		return nil, common.Hash{}, nil, nil, result.Unwrap()
 	}
 
-	if err := bo.staking.DoubleSign(state, header, bo.blockchain, kvmConfig, byzVals); err != nil {
-		bo.logger.Error("Fail to apply double sign", "err", err)
-		return nil, common.Hash{}, nil, nil, err
+	if result := bo.staking.DoubleSign(state, header, bo.blockchain, kvmConfig, byzVals); result.Failed() {
+		reason, unpackErr := result.UnpackRevertReason()
+		bo.logger.Error("Failed to apply double sign", "err", result.Unwrap(), "revert reason", reason, "unpacking revert reason error", unpackErr)
+		return nil, common.Hash{}, nil, nil, result.Unwrap()
 	}
 
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
@@ -274,9 +277,11 @@ LOOP:
 		newTxs = append(newTxs, tx)
 	}
 
-	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
-	if err != nil {
-		return nil, common.Hash{}, nil, nil, err
+	vals, result := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
+	if result.Failed() {
+		reason, unpackErr := result.UnpackRevertReason()
+		bo.logger.Error("Failed to get validators set", "err", result.Unwrap(), "revert reason", reason, "unpacking revert reason error", unpackErr)
+		return nil, common.Hash{}, nil, nil, result.Unwrap()
 	}
 
 	root, err := state.Commit(true)
