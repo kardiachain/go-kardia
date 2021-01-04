@@ -90,30 +90,30 @@ func (s *ValidatorSmcUtil) GetInforValidator(statedb *state.StateDB, header *typ
 		log.Error("Error unpacking validator info", "err", err)
 		return nil, ToExecResult(err)
 	}
-	rate, maxRate, maxChangeRate, err := s.GetCommissionValidator(statedb, header, bc, cfg, valSmcAddr)
-	if err != nil {
-		return nil, ToExecResult(err)
+	rate, maxRate, maxChangeRate, result := s.GetCommissionValidator(statedb, header, bc, cfg, valSmcAddr)
+	if result.Failed() {
+		return nil, result
 	}
 	validator.CommissionRate = rate
 	validator.MaxRate = maxRate
 	validator.MaxChangeRate = maxChangeRate
-	signingInfo, err := s.GetSigningInfo(statedb, header, bc, cfg, valSmcAddr)
-	if err != nil {
-		return nil, ToExecResult(err)
+	signingInfo, result := s.GetSigningInfo(statedb, header, bc, cfg, valSmcAddr)
+	if result.Failed() {
+		return nil, result
 	}
 	validator.SigningInfo = signingInfo
 	return &validator, ToExecResult(nil)
 }
 
 // GetValidator show info of a validator based on address
-func (s *ValidatorSmcUtil) GetCommissionValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address) (*big.Int, *big.Int, *big.Int, error) {
+func (s *ValidatorSmcUtil) GetCommissionValidator(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address) (*big.Int, *big.Int, *big.Int, *kvm.ExecutionResult) {
 	payload, err := s.Abi.Pack("commission")
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, ToExecResult(err)
 	}
 	result := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload, valSmcAddr, valSmcAddr)
 	if result.Failed() {
-		return nil, nil, nil, result.Unwrap()
+		return nil, nil, nil, result
 	}
 
 	var commission struct {
@@ -125,9 +125,9 @@ func (s *ValidatorSmcUtil) GetCommissionValidator(statedb *state.StateDB, header
 	err = s.Abi.UnpackIntoInterface(&commission, "commission", result.Return())
 	if err != nil {
 		log.Error("Error unpacking validator commission info", "err", err)
-		return nil, nil, nil, err
+		return nil, nil, nil, ToExecResult(err)
 	}
-	return commission.Rate, commission.MaxRate, commission.MaxChangeRate, nil
+	return commission.Rate, commission.MaxRate, commission.MaxChangeRate, ToExecResult(nil)
 }
 
 // GetDelegators returns all delegators of a validator
@@ -153,13 +153,13 @@ func (s *ValidatorSmcUtil) GetDelegators(statedb *state.StateDB, header *types.H
 	}
 	var delegators []*Delegator
 	for _, delAddr := range delegations.DelAddrs {
-		reward, err := s.GetDelegationRewards(statedb, header, bc, cfg, valSmcAddr, delAddr)
-		if err != nil {
-			return nil, err
+		reward, result := s.GetDelegationRewards(statedb, header, bc, cfg, valSmcAddr, delAddr)
+		if result.Failed() {
+			return nil, ToExecResult(result.Unwrap())
 		}
-		stakedAmount, err := s.GetDelegatorStakedAmount(statedb, header, bc, cfg, valSmcAddr, delAddr)
-		if err != nil {
-			return nil, err
+		stakedAmount, result := s.GetDelegatorStakedAmount(statedb, header, bc, cfg, valSmcAddr, delAddr)
+		if result.Failed() {
+			return nil, ToExecResult(result.Unwrap())
 		}
 		delegators = append(delegators, &Delegator{
 			Address:      delAddr,
@@ -217,23 +217,23 @@ func (s *ValidatorSmcUtil) GetDelegatorStakedAmount(statedb *state.StateDB, head
 }
 
 // GetSigningInfo returns signing info of this validator
-func (s *ValidatorSmcUtil) GetSigningInfo(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address) (*SigningInfo, error) {
+func (s *ValidatorSmcUtil) GetSigningInfo(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, valSmcAddr common.Address) (*SigningInfo, *kvm.ExecutionResult) {
 	payload, err := s.Abi.Pack("signingInfo")
 	if err != nil {
-		return nil, err
+		return nil, ToExecResult(err)
 	}
 	result := s.ConstructAndApplySmcCallMsg(statedb, header, bc, cfg, payload, valSmcAddr, valSmcAddr)
 	if result.Failed() {
-		return nil, result.Unwrap()
+		return nil, result
 	}
 	var signingInfo SigningInfo
 	// unpack result
 	err = s.Abi.UnpackIntoInterface(&signingInfo, "signingInfo", result.Return())
 	if err != nil {
 		log.Error("Error unpacking signing info of validator: ", "err", err)
-		return nil, err
+		return nil, ToExecResult(err)
 	}
-	return &signingInfo, nil
+	return &signingInfo, ToExecResult(nil)
 }
 
 func (s *ValidatorSmcUtil) ConstructAndApplySmcCallMsg(statedb *state.StateDB, header *types.Header, bc vm.ChainContext, cfg kvm.Config, payload []byte, valSmcAddr common.Address, valAddr common.Address) *kvm.ExecutionResult {
