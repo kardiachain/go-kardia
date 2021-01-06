@@ -18,4 +18,5 @@ var (
 	ErrNilMsg                     = errors.New("message is Nil")
 	ErrConsensusMgrNotRunning     = errors.New("consensus manager is not running")
 	ErrSignatureFoundInPastBlocks = errors.New("found signature from the same key")
+	errAddressIsNotSet            = errors.New("private validator address is not set")
 )

@@ -4,6 +4,8 @@
 *.dll
 *.so
 *.dylib
+cmd/*.fuse_hidden*
+cmd/*.rlp
 
 # Test binary, build with `go test -c`
 *.test

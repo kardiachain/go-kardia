@@ -19,7 +19,6 @@
 package consensus
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -103,8 +102,11 @@ type ConsensusState struct {
 	// internal state
 	mtx sync.RWMutex
 	cstypes.RoundState
-	state         cstate.LastestBlockState // State until height-1.
-	timeoutTicker TimeoutTicker
+	state cstate.LastestBlockState // State until height-1.
+	// privValidator address, memoized for the duration of one block
+	// to avoid extra requests to HSM
+	privValidatorAddress *common.Address
+	timeoutTicker        TimeoutTicker
 
 	// State changes may be triggered by: msgs from peers,
 	// msgs from ourself, or by timeouts
@@ -195,6 +197,7 @@ func (cs *ConsensusState) SetPrivValidator(priv types.PrivValidator) {
 	cs.mtx.Lock()
 	defer cs.mtx.Unlock()
 	cs.privValidator = priv
+	cs.updatePrivValidatorAddress()
 }
 
 // loadWalFile loads WAL data from file. It overwrites cs.wal.
@@ -566,7 +569,10 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 		// But if it's a conflicting sig, add it to the cs.evpool.
 		// If it's otherwise invalid, punish peer.
 		if voteErr, ok := err.(*types.ErrVoteConflictingVotes); ok {
-			if vote.ValidatorAddress.Equal(cs.privValidator.GetAddress()) {
+			if cs.privValidatorAddress == nil {
+				return false, errAddressIsNotSet
+			}
+			if vote.ValidatorAddress.Equal(*cs.privValidatorAddress) {
 				cs.Logger.Error("Found conflicting vote from ourselves. Did you unsafe_reset a validator?",
 					"height", vote.Height,
 					"round", vote.Round,
@@ -771,13 +777,19 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 
 // Signs vote.
 func (cs *ConsensusState) signVote(signedMsgType kproto.SignedMsgType, hash cmn.Hash, header types.PartSetHeader) (*types.Vote, error) {
-	addr := cs.privValidator.GetAddress()
-	valIndex, _ := cs.Validators.GetByAddress(addr)
+	// Flush the WAL. Otherwise, we may not recompute the same vote to sign,
+	// and the privValidator will refuse to sign anything.
+	if err := cs.wal.FlushAndSync(); err != nil {
+		return nil, err
+	}
+
+	addr := cs.privValidatorAddress
+	valIndex, _ := cs.Validators.GetByAddress(*addr)
 
 	vote := &types.Vote{
-		ValidatorAddress: addr,
+		ValidatorAddress: *addr,
 		ValidatorIndex:   uint32(valIndex),
-		Height:           uint64(cs.Height),
+		Height:           cs.Height,
 		Round:            cs.Round,
 		Timestamp:        cs.voteTime(),
 		Type:             signedMsgType,
@@ -810,12 +822,18 @@ func (cs *ConsensusState) voteTime() time.Time {
 
 // Signs the vote and publish on internalMsgQueue
 func (cs *ConsensusState) signAddVote(signedMsgType kproto.SignedMsgType, hash cmn.Hash, header types.PartSetHeader) *types.Vote {
-	// if we don't have a key or we're not in the validator set, do nothing
-	if cs.privValidator == nil {
+	if cs.privValidator == nil { // the node does not have a key
 		return nil
 	}
 
-	if !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
+	if cs.privValidatorAddress == nil {
+		// Vote won't be signed, but it's not critical.
+		cs.Logger.Error(fmt.Sprintf("signAddVote: %v", errAddressIsNotSet))
+		return nil
+	}
+
+	// if we don't have a key or we're not in the validator set, do nothing
+	if !cs.Validators.HasAddress(*cs.privValidatorAddress) {
 		return nil
 	}
 
@@ -1103,20 +1121,33 @@ func (cs *ConsensusState) enterPropose(height uint64, round uint32) {
 		logger.Debug("This node is not a validator")
 		return
 	}
+	logger.Debug("This node is a validator")
+
+	if cs.privValidatorAddress == nil {
+		// If this node is a validator & proposer in the current round, it will
+		// miss the opportunity to create a block.
+		logger.Error(fmt.Sprintf("enterPropose: %v", errAddressIsNotSet))
+		return
+	}
 	// if not a validator, we're done
-	if !cs.Validators.HasAddress(cs.privValidator.GetAddress()) {
-		logger.Debug("This node is not a validator", "addr", cs.privValidator.GetAddress(), "vals", cs.Validators)
+	if !cs.Validators.HasAddress(*cs.privValidatorAddress) {
+		logger.Debug("This node is not a validator", "addr", *cs.privValidatorAddress, "vals", cs.Validators)
 		return
 	}
 
-	logger.Debug("This node is a validator")
 	if cs.isProposer() {
-		logger.Trace("Our turn to propose")
-		//namdoh@ logger.Info("enterPropose: Our turn to propose", "proposer", cs.Validators.GetProposer().Address, "privValidator", cs.privValidator)
+		logger.Info("enterPropose: Our turn to propose",
+			"proposer",
+			*cs.privValidatorAddress,
+			"privValidator",
+			cs.privValidator)
 		cs.decideProposal(height, round)
 	} else {
-		logger.Trace("Not our turn to propose")
-		//namdoh@ logger.Info("enterPropose: Not our turn to propose", "proposer", cs.Validators.GetProposer().Address, "privValidator", cs.privValidator)
+		logger.Trace("enterPropose: Not our turn to propose",
+			"proposer",
+			cs.Validators.GetProposer().Address,
+			"privValidator",
+			cs.privValidator)
 	}
 }
 
@@ -1499,6 +1530,9 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 
 	fail.Fail() // XXX
 
+	// Private validator might have changed it's key pair => refetch address
+	cs.updatePrivValidatorAddress()
+
 	// cs.StartTime is already set.
 	// Schedule Round0 to start soon.
 	cs.scheduleRound0(&cs.RoundState)
@@ -1512,6 +1546,9 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 // Creates the next block to propose and returns it. Returns nil block upon
 // error.
 func (cs *ConsensusState) createProposalBlock() (*types.Block, *types.PartSet) {
+	if cs.privValidator == nil {
+		panic("entered createProposalBlock with privValidator being nil")
+	}
 	cs.Logger.Trace("createProposalBlock")
 	var commit *types.Commit
 	if cs.Height == 1 {
@@ -1527,10 +1564,16 @@ func (cs *ConsensusState) createProposalBlock() (*types.Block, *types.PartSet) {
 		cs.Logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
 		return nil, nil
 	}
+	if cs.privValidatorAddress == nil {
+		// If this node is a validator & proposer in the current round, it will
+		// miss the opportunity to create a block.
+		cs.Logger.Error(fmt.Sprintf("enterPropose: %v", errAddressIsNotSet))
+		return nil, nil
+	}
 	return cs.blockOperations.CreateProposalBlock(
 		cs.Height,
 		cs.state,
-		cs.privValidator.GetAddress(),
+		*cs.privValidatorAddress,
 		commit,
 	)
 }
@@ -1551,14 +1594,24 @@ func (cs *ConsensusState) isProposalComplete() bool {
 }
 
 func (cs *ConsensusState) isProposer() bool {
+	return cs.Validators.GetProposer().Address.Equal(*cs.privValidatorAddress)
+}
+
+// updatePrivValidatorAddress get's the private validator public key and
+// memoizes it. This func returns an error if the private validator is not
+// responding or responds with an error.
+func (cs *ConsensusState) updatePrivValidatorAddress() {
+	if cs.privValidator == nil {
+		return
+	}
 	privValidatorAddress := cs.privValidator.GetAddress()
-	return bytes.Equal(cs.Validators.GetProposer().Address[:], privValidatorAddress[:])
+	cs.privValidatorAddress = &privValidatorAddress
+	cs.Logger.Info("Private validator address updated", "privValidatorAddress", privValidatorAddress.Hex())
 }
 
 // look back to check existence of the node's consensus votes before joining consensus
 func (cs *ConsensusState) checkDoubleSigningRisk(height uint64) error {
-	if cs.privValidator != nil && cs.privValidator.GetAddress().Equal(common.Address{}) && cs.config.DoubleSignCheckHeight > 0 {
-		valAddr := cs.privValidator.GetAddress()
+	if cs.privValidator != nil && cs.privValidatorAddress != nil && cs.config.DoubleSignCheckHeight > 0 && height > 0 {
 		doubleSignCheckHeight := cs.config.DoubleSignCheckHeight
 		if doubleSignCheckHeight > height {
 			doubleSignCheckHeight = height
@@ -1567,7 +1620,7 @@ func (cs *ConsensusState) checkDoubleSigningRisk(height uint64) error {
 			lastCommit := cs.blockOperations.LoadSeenCommit(height - i)
 			if lastCommit != nil {
 				for sigIdx, s := range lastCommit.Signatures {
-					if s.BlockIDFlag == types.BlockIDFlagCommit && s.ValidatorAddress.Equal(valAddr) {
+					if s.BlockIDFlag == types.BlockIDFlagCommit && s.ValidatorAddress.Equal(*cs.privValidatorAddress) {
 						cs.Logger.Info("Found signature from the same key", "sig", s, "idx", sigIdx, "height", height-i)
 						return ErrSignatureFoundInPastBlocks
 					}
@@ -1714,9 +1767,11 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
 		cs.Logger.Trace("handling AddVote", "VoteMessage", msg.Vote)
 		_, err := cs.tryAddVote(msg.Vote, peerID)
-		if err == ErrAddingVote {
+		if err != nil {
 			cs.Logger.Trace("trying to add vote failed", "err", err)
-			cs.Logger.Warn("TODO - punish peer.")
+			if err == ErrAddingVote {
+				cs.Logger.Warn("TODO - punish peer.")
+			}
 		}
 
 	default:

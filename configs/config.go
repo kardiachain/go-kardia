@@ -153,6 +153,10 @@ type ConsensusConfig struct {
 	PeerGossipSleepDuration     time.Duration `mapstructure:"peer_gossip_sleep_duration"`
 	PeerQueryMaj23SleepDuration time.Duration `mapstructure:"peer_query_maj23_sleep_duration"`
 
+	// How many blocks to look back to check existence of the node's consensus votes before joining consensus
+	// When non-zero, the node will panic upon restart
+	// if the same consensus key was used to sign {`DoubleSignCheckHeight`} last blocks.
+	// So, validators should stop the state machine, wait for some blocks, and then restart the state machine to avoid panic.
 	DoubleSignCheckHeight uint64 `mapstructure:"double-sign-check-height"`
 }
 
