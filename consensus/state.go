@@ -34,6 +34,7 @@ import (
 	cfg "github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/lib/common"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	kevents "github.com/kardiachain/go-kardia/lib/events"
@@ -293,6 +294,12 @@ func (cs *ConsensusState) OnStart() error {
 	if err := cs.timeoutTicker.Start(); err != nil {
 		return err
 	}
+
+	// Double Signing Risk Reduction
+	if err := cs.checkDoubleSigningRisk(cs.Height); err != nil {
+		return err
+	}
+
 	// now start the receiveRoutine
 	go cs.receiveRoutine(0)
 
@@ -1546,6 +1553,29 @@ func (cs *ConsensusState) isProposalComplete() bool {
 func (cs *ConsensusState) isProposer() bool {
 	privValidatorAddress := cs.privValidator.GetAddress()
 	return bytes.Equal(cs.Validators.GetProposer().Address[:], privValidatorAddress[:])
+}
+
+// look back to check existence of the node's consensus votes before joining consensus
+func (cs *ConsensusState) checkDoubleSigningRisk(height uint64) error {
+	if cs.privValidator != nil && cs.privValidator.GetAddress().Equal(common.Address{}) && cs.config.DoubleSignCheckHeight > 0 {
+		valAddr := cs.privValidator.GetAddress()
+		doubleSignCheckHeight := cs.config.DoubleSignCheckHeight
+		if doubleSignCheckHeight > height {
+			doubleSignCheckHeight = height
+		}
+		for i := uint64(1); i < doubleSignCheckHeight; i++ {
+			lastCommit := cs.blockOperations.LoadSeenCommit(height - i)
+			if lastCommit != nil {
+				for sigIdx, s := range lastCommit.Signatures {
+					if s.BlockIDFlag == types.BlockIDFlagCommit && s.ValidatorAddress.Equal(valAddr) {
+						cs.Logger.Info("Found signature from the same key", "sig", s, "idx", sigIdx, "height", height-i)
+						return ErrSignatureFoundInPastBlocks
+					}
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // ----------- Other helpers -----------

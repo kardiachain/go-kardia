@@ -305,6 +305,7 @@ func (c *Config) getConsensusConfig() *configs.ConsensusConfig {
 		CreateEmptyBlocksInterval:   time.Duration(c.Genesis.Consensus.CreateEmptyBlocksInterval) * time.Millisecond,
 		PeerGossipSleepDuration:     time.Duration(c.Genesis.Consensus.PeerGossipSleepDuration) * time.Millisecond,
 		PeerQueryMaj23SleepDuration: time.Duration(c.Genesis.Consensus.PeerQueryMaj23SleepDuration) * time.Millisecond,
+		DoubleSignCheckHeight:       c.Genesis.Consensus.DoubleSignCheckHeight,
 	}
 }
 

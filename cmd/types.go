@@ -128,6 +128,12 @@ type (
 		// Reactor sleep duration parameters are in milliseconds
 		PeerGossipSleepDuration     int `yaml:"PeerGossipSleepDuration"`
 		PeerQueryMaj23SleepDuration int `yaml:"PeerQueryMaj23SleepDuration"`
+
+		// How many blocks to look back to check existence of the node's consensus votes before joining consensus
+		// When non-zero, the node will panic upon restart
+		// if the same consensus key was used to sign {`DoubleSignCheckHeight`} last blocks.
+		// So, validators should stop the state machine, wait for some blocks, and then restart the state machine to avoid panic.
+		DoubleSignCheckHeight uint64 `yaml:"DoubleSignCheckHeight"`
 	}
 	ConsensusParams struct {
 		Block    BlockParams    `yaml:"Block"`

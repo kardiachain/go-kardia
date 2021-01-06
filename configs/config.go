@@ -19,6 +19,7 @@
 package configs
 
 import (
+	"errors"
 	"math"
 	"math/big"
 	"path/filepath"
@@ -151,6 +152,8 @@ type ConsensusConfig struct {
 	// Reactor sleep duration parameters are in milliseconds
 	PeerGossipSleepDuration     time.Duration `mapstructure:"peer_gossip_sleep_duration"`
 	PeerQueryMaj23SleepDuration time.Duration `mapstructure:"peer_query_maj23_sleep_duration"`
+
+	DoubleSignCheckHeight uint64 `mapstructure:"double-sign-check-height"`
 }
 
 // DefaultConsensusConfig returns a default configuration for the consensus service
@@ -169,6 +172,7 @@ func DefaultConsensusConfig() *ConsensusConfig {
 		CreateEmptyBlocksInterval:   3500 * time.Millisecond,
 		PeerGossipSleepDuration:     100 * time.Millisecond,
 		PeerQueryMaj23SleepDuration: 2000 * time.Millisecond,
+		DoubleSignCheckHeight:       0,
 	}
 }
 
@@ -243,6 +247,45 @@ func (cfg *ConsensusConfig) PeerGossipSleep() time.Duration {
 // PeerQueryMaj23Sleep returns the amount of time to sleep after each VoteSetMaj23Message is sent in the ConsensusReactor
 func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
 	return cfg.PeerQueryMaj23SleepDuration
+}
+
+// ValidateBasic performs basic validation (checking param bounds, etc.) and
+// returns an error if any check fails.
+func (cfg *ConsensusConfig) ValidateBasic() error {
+	if cfg.TimeoutPropose < 0 {
+		return errors.New("timeout-propose can't be negative")
+	}
+	if cfg.TimeoutProposeDelta < 0 {
+		return errors.New("timeout-propose-delta can't be negative")
+	}
+	if cfg.TimeoutPrevote < 0 {
+		return errors.New("timeout-prevote can't be negative")
+	}
+	if cfg.TimeoutPrevoteDelta < 0 {
+		return errors.New("timeout-prevote-delta can't be negative")
+	}
+	if cfg.TimeoutPrecommit < 0 {
+		return errors.New("timeout-precommit can't be negative")
+	}
+	if cfg.TimeoutPrecommitDelta < 0 {
+		return errors.New("timeout-precommit-delta can't be negative")
+	}
+	if cfg.TimeoutCommit < 0 {
+		return errors.New("timeout-commit can't be negative")
+	}
+	if cfg.CreateEmptyBlocksInterval < 0 {
+		return errors.New("create-empty-blocks-interval can't be negative")
+	}
+	if cfg.PeerGossipSleepDuration < 0 {
+		return errors.New("peer-gossip-sleep-duration can't be negative")
+	}
+	if cfg.PeerQueryMaj23SleepDuration < 0 {
+		return errors.New("peer-query-maj23-sleep-duration can't be negative")
+	}
+	if cfg.DoubleSignCheckHeight < 0 {
+		return errors.New("double-sign-check-height can't be negative")
+	}
+	return nil
 }
 
 // ======================= Genesis Utils Functions =======================
