@@ -243,6 +243,12 @@ func (s *KardiaService) APIs() []rpc.API {
 			Service:   NewPublicAccountAPI(s),
 			Public:    true,
 		},
+		{
+			Namespace: "kai",
+			Version:   "1.0",
+			Service:   NewPublicFilterAPI(s),
+			Public:    true,
+		},
 	}
 }
 
