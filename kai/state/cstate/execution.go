@@ -52,15 +52,18 @@ type BlockExecutor struct {
 	bc       BlockStore
 	store    Store
 	eventBus *types.EventBus
+
+	logger log.Logger
 }
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
 // Call SetEventBus to provide one.
-func NewBlockExecutor(stateStore Store, evpool EvidencePool, bc BlockStore) *BlockExecutor {
+func NewBlockExecutor(stateStore Store, logger log.Logger, evpool EvidencePool, bc BlockStore) *BlockExecutor {
 	return &BlockExecutor{
 		evpool: evpool,
 		bc:     bc,
 		store:  stateStore,
+		logger: logger,
 	}
 }
 
@@ -73,7 +76,7 @@ func (blockExec *BlockExecutor) SetEventBus(b *types.EventBus) {
 // If the block is invalid, it returns an error.
 // Validation does not mutate state, but does require historical information from the stateDB,
 // ie. to verify evidence from a validator at an old height.
-func (blockExec *BlockExecutor) ValidateBlock(state LastestBlockState, block *types.Block) error {
+func (blockExec *BlockExecutor) ValidateBlock(state LatestBlockState, block *types.Block) error {
 	return validateBlock(blockExec.evpool, blockExec.store, state, block)
 }
 
@@ -81,9 +84,9 @@ func (blockExec *BlockExecutor) ValidateBlock(state LastestBlockState, block *ty
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
-func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlockState, blockID types.BlockID, block *types.Block) (LastestBlockState, error) {
+func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types.BlockID, block *types.Block) (LatestBlockState, uint64, error) {
 	if err := blockExec.ValidateBlock(state, block); err != nil {
-		return state, ErrInvalidBlock(err)
+		return state, block.Height(), ErrInvalidBlock(err)
 	}
 	fail.Fail() // XXX
 
@@ -96,14 +99,14 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 
 	valUpdates, appHash, err := blockExec.bc.CommitAndValidateBlockTxs(block, commitInfo, byzVals)
 	if err != nil {
-		return state, fmt.Errorf("commit failed for application: %v", err)
+		return state, block.Height(), fmt.Errorf("commit failed for application: %v", err)
 	}
 
 	valUpdates = calculateValidatorSetUpdates(state.NextValidators.Validators, valUpdates)
 	// update the state with the block and responses
-	state, err = updateState(logger, state, blockID, block.Header(), valUpdates)
+	state, err = updateState(blockExec.logger, state, blockID, block.Header(), valUpdates)
 	if err != nil {
-		return state, fmt.Errorf("Commit failed for application: %v", err)
+		return state, block.Height(), fmt.Errorf("Commit failed for application: %v", err)
 	}
 
 	state.AppHash = appHash
@@ -114,12 +117,12 @@ func (blockExec *BlockExecutor) ApplyBlock(logger log.Logger, state LastestBlock
 	fail.Fail() // XXX
 	// Events are fired after everything else.
 	// NOTE: if we crash between Commit and Save, events wont be fired during replay
-	fireEvents(logger, blockExec.eventBus, block, valUpdates)
-	return state, nil
+	fireEvents(blockExec.logger, blockExec.eventBus, block, valUpdates)
+	return state, block.Height(), nil
 }
 
 // updateState returns a new State updated according to the header and responses.
-func updateState(logger log.Logger, state LastestBlockState, blockID types.BlockID, header *types.Header, validatorUpdates []*types.Validator) (LastestBlockState, error) {
+func updateState(logger log.Logger, state LatestBlockState, blockID types.BlockID, header *types.Header, validatorUpdates []*types.Validator) (LatestBlockState, error) {
 	logger.Trace("updateState", "state", state, "blockID", blockID, "header", header)
 	// Copy the valset so we can apply changes from EndBlock
 	// and update s.LastValidators and s.Validators.
