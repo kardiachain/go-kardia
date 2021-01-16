@@ -249,7 +249,7 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 	// var validatorSet *types.ValidatorSet
 	validatorSet, privSet := types.RandValidatorSet(nValidators, 10)
 	// state, err := cstate.LoadStateFromDBOrGenesisDoc(kaiDb.DB(), config.Genesis)
-	state := cstate.LastestBlockState{
+	state := cstate.LatestBlockState{
 		ChainID:                     "kaicon",
 		LastBlockHeight:             0,
 		LastBlockID:                 types.NewZeroBlockID(),
@@ -318,7 +318,7 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 	return bc, chainConfig, nil
 }
 
-func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*ConsensusState, error) {
+func newState(vs types.PrivValidator, state cstate.LatestBlockState) (*ConsensusState, error) {
 	// Create a specific logger for KARDIA service.
 	logger := log.New()
 	logger.AddTag("test state")
@@ -342,7 +342,7 @@ func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*Consensu
 	bOper := blockchain.NewBlockOperations(logger, bc, txPool, evPool, staking)
 
 	// evReactor := evidence.NewReactor(evPool)
-	blockExec := cstate.NewBlockExecutor(stateStore, evPool, bOper)
+	blockExec := cstate.NewBlockExecutor(stateStore, logger, evPool, bOper)
 
 	csCfg := configs.TestConsensusConfig()
 	// Initialization for consensus.

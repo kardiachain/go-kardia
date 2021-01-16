@@ -32,7 +32,7 @@ import (
 
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.
 type EvidencePool interface {
-	Update(lastestBlockState LastestBlockState, ev types.EvidenceList)
+	Update(lastestBlockState LatestBlockState, ev types.EvidenceList)
 	CheckEvidence(evList types.EvidenceList) error
 }
 
@@ -138,7 +138,7 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 
 	}
 	nValSet.IncrementProposerPriority(1)
-	return LastestBlockState{
+	return LatestBlockState{
 		ChainID:                     state.ChainID,
 		LastBlockHeight:             header.Height,
 		LastBlockID:                 blockID,

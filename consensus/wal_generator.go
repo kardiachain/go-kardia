@@ -43,7 +43,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 
 	configs.AddDefaultContract()
 
-	state := cstate.LastestBlockState{
+	state := cstate.LatestBlockState{
 		ChainID:                     "kaicon",
 		LastBlockHeight:             0,
 		LastBlockID:                 types.NewZeroBlockID(),
@@ -91,7 +91,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 	txPool := tx_pool.NewTxPool(txConfig, chainConfig, bc)
 	evPool := cstate.EmptyEvidencePool{}
 	bOper := blockchain.NewBlockOperations(log.New("block_operations"), bc, txPool, evPool, stakingUtil)
-	blockExec := cstate.NewBlockExecutor(stateStore, evPool, bOper)
+	blockExec := cstate.NewBlockExecutor(stateStore, logger, evPool, bOper)
 
 	csCfg := configs.TestConsensusConfig()
 	cs := NewConsensusState(

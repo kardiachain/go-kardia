@@ -102,7 +102,7 @@ type ConsensusState struct {
 	// internal state
 	mtx sync.RWMutex
 	cstypes.RoundState
-	state         cstate.LastestBlockState // State until height-1.
+	state         cstate.LatestBlockState // State until height-1.
 	timeoutTicker TimeoutTicker
 
 	// State changes may be triggered by: msgs from peers,
@@ -135,7 +135,7 @@ type ConsensusState struct {
 func NewConsensusState(
 	logger log.Logger,
 	config *cfg.ConsensusConfig,
-	state cstate.LastestBlockState,
+	state cstate.LatestBlockState,
 	blockOperations BaseBlockOperations,
 	blockExec *cstate.BlockExecutor,
 	evpool evidencePool,
@@ -321,7 +321,7 @@ func (cs *ConsensusState) OnStop() {
 
 // Updates ConsensusState and increments height to match that of state.
 // The round becomes 0 and cs.Step becomes cstypes.RoundStepNewHeight.
-func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
+func (cs *ConsensusState) updateToState(state cstate.LatestBlockState) {
 	if (cs.CommitRound >= 1) && (cs.Height > 0) && cs.Height != state.LastBlockHeight {
 		cmn.PanicSanity(cmn.Fmt("updateToState() expected state height of %v but found %v",
 			cs.Height, state.LastBlockHeight))
@@ -537,7 +537,7 @@ func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 
 // Reconstruct LastCommit from SeenCommit, which we saved along with the block,
 // (which happens even before saving the state)
-func (cs *ConsensusState) reconstructLastCommit(state cstate.LastestBlockState) {
+func (cs *ConsensusState) reconstructLastCommit(state cstate.LatestBlockState) {
 	if state.LastBlockHeight == 0 {
 		return
 	}
@@ -1472,8 +1472,8 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 	// Execute and commit the block, update and save the state, and update the mempool.
 	// NOTE The block.AppHash wont reflect these txs until the next block.
 	var err error
-	stateCopy, err = cs.blockExec.ApplyBlock(
-		cs.Logger, stateCopy,
+	stateCopy, _, err = cs.blockExec.ApplyBlock(
+		stateCopy,
 		types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()},
 		block,
 	)
