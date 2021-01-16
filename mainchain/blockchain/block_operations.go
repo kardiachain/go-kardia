@@ -51,6 +51,7 @@ type BlockOperations struct {
 	blockchain *BlockChain
 	txPool     *tx_pool.TxPool
 	evPool     EvidencePool
+	base       uint64
 	height     uint64
 	staking    *staking.StakingSmcUtil
 }
@@ -68,13 +69,22 @@ func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_po
 }
 
 // Height returns latest height of blockchain.
+func (bo *BlockOperations) Base() uint64 {
+	bo.mtx.RLock()
+	defer bo.mtx.RUnlock()
+	return bo.base
+}
+
+// Height returns latest height of blockchain.
 func (bo *BlockOperations) Height() uint64 {
+	bo.mtx.RLock()
+	defer bo.mtx.RUnlock()
 	return bo.height
 }
 
 // CreateProposalBlock creates a new proposal block with all current pending txs in pool.
 func (bo *BlockOperations) CreateProposalBlock(
-	height uint64, lastState cstate.LastestBlockState,
+	height uint64, lastState cstate.LatestBlockState,
 	proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.

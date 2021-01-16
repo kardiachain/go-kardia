@@ -59,6 +59,7 @@ type DualBlockOperations struct {
 
 	bcManager *DualBlockChainManager
 	evpool    EvidencePool
+	base      uint64
 	height    uint64
 }
 
@@ -78,12 +79,22 @@ func (dbo *DualBlockOperations) SetDualBlockChainManager(bcManager *DualBlockCha
 	dbo.bcManager = bcManager
 }
 
+// Height returns latest height of blockchain.
+func (dbo *DualBlockOperations) Base() uint64 {
+	dbo.mtx.RLock()
+	defer dbo.mtx.RUnlock()
+	return dbo.base
+}
+
+// Height returns latest height of blockchain.
 func (dbo *DualBlockOperations) Height() uint64 {
+	dbo.mtx.RLock()
+	defer dbo.mtx.RUnlock()
 	return dbo.height
 }
 
 // Proposes a new block for dual's blockchain.
-func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cstate.LastestBlockState, proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
+func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cstate.LatestBlockState, proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.
 	// For simplicity, this code executes & commits txs before sending proposal,
