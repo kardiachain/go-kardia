@@ -284,6 +284,11 @@ type Config struct {
 	// Metrics defines whether we want to collect and expose metrics of the node
 	Metrics uint
 
+	// If this node is many blocks behind the tip of the chain, FastSync
+	// allows them to catchup quickly by downloading blocks in parallel
+	// and verifying their commits
+	FastSyncMode bool
+
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
 	NodeMetadata *NodeMetadata
