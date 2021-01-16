@@ -52,4 +52,7 @@ type DualConfig struct {
 	// Consensus defines the configuration for the Kardia consensus service,
 	// including timeouts and details about the block structure.
 	Consensus *configs.ConsensusConfig
+
+	FastSyncMode bool
+	StateSync    *configs.StateSyncConfig
 }

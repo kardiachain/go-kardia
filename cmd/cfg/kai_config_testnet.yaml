@@ -21,6 +21,7 @@ Node:
     MaxPeers: 25
   LogLevel: info     # crit, error, warn, info, debug, trace
   Metrics: 1
+  FastSyncMode: true
 MainChain:
   ServiceName: KARDIA
   ChainId: 1

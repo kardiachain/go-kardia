@@ -19,6 +19,9 @@
 package configs
 
 import (
+	"encoding/hex"
+	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"path/filepath"
@@ -243,6 +246,71 @@ func (cfg *ConsensusConfig) PeerGossipSleep() time.Duration {
 // PeerQueryMaj23Sleep returns the amount of time to sleep after each VoteSetMaj23Message is sent in the ConsensusReactor
 func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
 	return cfg.PeerQueryMaj23SleepDuration
+}
+
+// ======================= State configs =================================
+// StateSyncConfig defines the configuration for the Tendermint state sync service
+type StateSyncConfig struct {
+	Enable        bool          `mapstructure:"enable"`
+	TempDir       string        `mapstructure:"temp_dir"`
+	RPCServers    []string      `mapstructure:"rpc_servers"`
+	TrustPeriod   time.Duration `mapstructure:"trust_period"`
+	TrustHeight   int64         `mapstructure:"trust_height"`
+	TrustHash     string        `mapstructure:"trust_hash"`
+	DiscoveryTime time.Duration `mapstructure:"discovery_time"`
+}
+
+func (cfg *StateSyncConfig) TrustHashBytes() []byte {
+	// validated in ValidateBasic, so we can safely panic here
+	bytes, err := hex.DecodeString(cfg.TrustHash)
+	if err != nil {
+		panic(err)
+	}
+	return bytes
+}
+
+// DefaultStateSyncConfig returns a default configuration for the state sync service
+func DefaultStateSyncConfig() *StateSyncConfig {
+	return &StateSyncConfig{
+		TrustPeriod:   168 * time.Hour,
+		DiscoveryTime: 15 * time.Second,
+	}
+}
+
+// TestFastSyncConfig returns a testing configuration for the state sync service
+func TestStateSyncConfig() *StateSyncConfig {
+	return DefaultStateSyncConfig()
+}
+
+// ValidateBasic performs basic validation.
+func (cfg *StateSyncConfig) ValidateBasic() error {
+	if cfg.Enable {
+		if len(cfg.RPCServers) == 0 {
+			return errors.New("rpc_servers is required")
+		}
+		if len(cfg.RPCServers) < 2 {
+			return errors.New("at least two rpc_servers entries is required")
+		}
+		for _, server := range cfg.RPCServers {
+			if len(server) == 0 {
+				return errors.New("found empty rpc_servers entry")
+			}
+		}
+		if cfg.TrustPeriod <= 0 {
+			return errors.New("trusted_period is required")
+		}
+		if cfg.TrustHeight <= 0 {
+			return errors.New("trusted_height is required")
+		}
+		if len(cfg.TrustHash) == 0 {
+			return errors.New("trusted_hash is required")
+		}
+		_, err := hex.DecodeString(cfg.TrustHash)
+		if err != nil {
+			return fmt.Errorf("invalid trusted_hash: %w", err)
+		}
+	}
+	return nil
 }
 
 // ======================= Genesis Utils Functions =======================

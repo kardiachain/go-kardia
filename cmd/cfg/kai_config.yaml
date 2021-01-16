@@ -22,6 +22,7 @@ Node:
     MaxPeers: 25     # maximum accepted peers
   LogLevel: info     # crit, error, warn, info, debug, trace
   Metrics: 1
+  FastSyncMode: true
 MainChain:
   ServiceName: KARDIA #
   ChainId: 1          # 1 = Mainnet, 10 = Testnet

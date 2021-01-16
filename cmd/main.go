@@ -234,6 +234,7 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		DualChainConfig:  node.DualChainConfig{},
 		PeerProxyIP:      "",
 		Metrics:          n.Metrics,
+		FastSyncMode:     n.FastSyncMode,
 	}
 	mainChainConfig, err := c.getMainChainConfig()
 	if err != nil {

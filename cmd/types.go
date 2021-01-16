@@ -44,6 +44,7 @@ type (
 		HTTPVirtualHosts []string `yaml:"HTTPVirtualHosts"`
 		HTTPCors         []string `yaml:"HTTPCors"`
 		Metrics          uint     `yaml:"Metrics"`
+		FastSyncMode     bool     `yaml:"FastSync"`
 		Genesis          *Genesis `yaml:"Genesis,omitempty"`
 	}
 	Chain struct {
