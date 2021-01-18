@@ -169,14 +169,16 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		return nil, err
 	}
 	mainChainConfig := node.MainChainConfig{
-		DBInfo:      dbInfo,
-		Genesis:     genesisData,
-		TxPool:      c.getTxPoolConfig(),
-		AcceptTxs:   chain.AcceptTxs,
-		NetworkId:   chain.NetworkID,
-		ChainId:     chain.ChainID,
-		ServiceName: chain.ServiceName,
-		Consensus:   genesisData.Consensus,
+		DBInfo:       dbInfo,
+		Genesis:      genesisData,
+		TxPool:       c.getTxPoolConfig(),
+		AcceptTxs:    chain.AcceptTxs,
+		NetworkId:    chain.NetworkID,
+		ChainId:      chain.ChainID,
+		ServiceName:  chain.ServiceName,
+		Consensus:    genesisData.Consensus,
+		FastSyncMode: c.Node.FastSyncMode,
+		StateSync:    configs.DefaultStateSyncConfig(),
 	}
 	return &mainChainConfig, nil
 }
@@ -210,6 +212,8 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		ChainId:          c.DualChain.ChainID,
 		DualProtocolName: *c.DualChain.Protocol,
 		BaseAccount:      baseAccount,
+		FastSyncMode:     c.Node.FastSyncMode,
+		StateSync:        configs.DefaultStateSyncConfig(),
 	}
 	return &dualChainConfig, nil
 }
@@ -235,6 +239,7 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		PeerProxyIP:      "",
 		Metrics:          n.Metrics,
 		FastSyncMode:     n.FastSyncMode,
+		StateSyncCfg:     configs.DefaultStateSyncConfig(),
 	}
 	mainChainConfig, err := c.getMainChainConfig()
 	if err != nil {

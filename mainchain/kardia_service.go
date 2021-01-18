@@ -196,15 +196,17 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.MainChainConfig
 	kai, err := newKardiaService(ctx, &Config{
-		NetworkId:   chainConfig.NetworkId,
-		ServiceName: chainConfig.ServiceName,
-		ChainId:     chainConfig.ChainId,
-		DBInfo:      chainConfig.DBInfo,
-		Genesis:     chainConfig.Genesis,
-		TxPool:      chainConfig.TxPool,
-		AcceptTxs:   chainConfig.AcceptTxs,
-		IsPrivate:   chainConfig.IsPrivate,
-		Consensus:   chainConfig.Consensus,
+		NetworkId:    chainConfig.NetworkId,
+		ServiceName:  chainConfig.ServiceName,
+		ChainId:      chainConfig.ChainId,
+		DBInfo:       chainConfig.DBInfo,
+		Genesis:      chainConfig.Genesis,
+		TxPool:       chainConfig.TxPool,
+		AcceptTxs:    chainConfig.AcceptTxs,
+		IsPrivate:    chainConfig.IsPrivate,
+		Consensus:    chainConfig.Consensus,
+		FastSyncMode: chainConfig.FastSyncMode,
+		StateSync:    chainConfig.StateSync,
 	})
 
 	if err != nil {
@@ -227,7 +229,7 @@ func onlyValidatorIsUs(state cstate.LatestBlockState, privValAddress common.Addr
 // Start implements Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
 func (s *KardiaService) Start(srvr *p2p.Switch) error {
-	srvr.AddReactor("BLOCKCHAIN", s.csManager)
+	srvr.AddReactor("BLOCKCHAIN", s.bcR)
 	srvr.AddReactor("CONSENSUS", s.csManager)
 	srvr.AddReactor("TXPOOL", s.txpoolR)
 	srvr.AddReactor("EVIDENCE", s.evR)

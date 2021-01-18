@@ -272,6 +272,7 @@ func (cfg *StateSyncConfig) TrustHashBytes() []byte {
 // DefaultStateSyncConfig returns a default configuration for the state sync service
 func DefaultStateSyncConfig() *StateSyncConfig {
 	return &StateSyncConfig{
+		Enable:        true,
 		TrustPeriod:   168 * time.Hour,
 		DiscoveryTime: 15 * time.Second,
 	}
