@@ -26,9 +26,11 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
@@ -765,4 +767,49 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 		}
 	}
 	return hi, nil
+}
+
+type PublicFilterAPI struct {
+	service      *KardiaService
+	chain        *blockchain.BlockChain
+	chainHeadCh  chan events.ChainHeadEvent
+	chainHeadSub event.Subscription
+}
+
+func NewPublicFilterAPI(s *KardiaService) *PublicFilterAPI {
+	api := &PublicFilterAPI{
+		service: s,
+	}
+	api.chain = api.service.BlockChain()
+	api.chainHeadCh = make(chan events.ChainHeadEvent, 10) // Buffer 10 blocks
+
+	return api
+}
+
+func (api *PublicFilterAPI) NewHeads(ctx context.Context) (*rpc.Subscription, error) {
+	notifier, supported := rpc.NotifierFromContext(ctx)
+	if !supported {
+		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported
+	}
+
+	rpcSub := notifier.CreateSubscription()
+	api.chainHeadSub = api.chain.SubscribeChainHeadEvent(api.chainHeadCh)
+	go func() {
+		for {
+			select {
+			case ev := <-api.chainHeadCh:
+				if ev.Block != nil {
+					notifier.Notify(rpcSub.ID, ev.Block.Header())
+				}
+			case <-rpcSub.Err():
+				api.chainHeadSub.Unsubscribe()
+				return
+			case <-notifier.Closed():
+				api.chainHeadSub.Unsubscribe()
+				return
+			}
+		}
+	}()
+
+	return rpcSub, nil
 }

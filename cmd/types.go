@@ -43,6 +43,8 @@ type (
 		HTTPModules      []string `yaml:"HTTPModules"`
 		HTTPVirtualHosts []string `yaml:"HTTPVirtualHosts"`
 		HTTPCors         []string `yaml:"HTTPCors"`
+		WSHost           string   `yaml:"WSHost"`
+		WSPort           int      `yaml:"WSPort"`
 		Metrics          uint     `yaml:"Metrics"`
 		Genesis          *Genesis `yaml:"Genesis,omitempty"`
 	}
