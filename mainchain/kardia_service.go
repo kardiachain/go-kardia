@@ -160,9 +160,9 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	// Determine whether we should do fast sync. This must happen after the handshake, since the
 	// app may modify the validator set, specifying ourself as the only validator.
-	fastSync := config.FastSync.Enable && !onlyValidatorIsUs(state, privValidator.GetAddress())
+	config.FastSync.Enable = config.FastSync.Enable && !onlyValidatorIsUs(state, privValidator.GetAddress())
 	// Make BlockchainReactor. Don't start fast sync if we're doing a state sync first.
-	bcR := bcReactor.NewBlockchainReactor(state, blockExec, bOper, fastSync)
+	bcR := bcReactor.NewBlockchainReactor(state, blockExec, bOper, config.FastSync)
 	kai.bcR = bcR
 	consensusState := consensus.NewConsensusState(
 		kai.logger,
@@ -172,7 +172,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		blockExec,
 		evPool,
 	)
-	kai.csManager = consensus.NewConsensusManager(consensusState, fastSync)
+	kai.csManager = consensus.NewConsensusManager(consensusState, config.FastSync.Enable)
 	// Set private validator for consensus manager.
 	kai.csManager.SetPrivValidator(privValidator)
 	kai.csManager.SetEventBus(kai.eventBus)

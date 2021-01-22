@@ -115,9 +115,9 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	// Determine whether we should do fast sync. This must happen after the handshake, since the
 	// app may modify the validator set, specifying ourself as the only validator.
-	fastSync := config.FastSync.Enable && !onlyValidatorIsUs(state, privValidator.GetAddress())
+	config.FastSync.Enable = config.FastSync.Enable && !onlyValidatorIsUs(state, privValidator.GetAddress())
 	// Make BlockchainReactor. Don't start fast sync if we're doing a state sync first.
-	bcR := bcReactor.NewBlockchainReactor(state, blockExec, dualService.dualBlockOperations, fastSync)
+	bcR := bcReactor.NewBlockchainReactor(state, blockExec, dualService.dualBlockOperations, config.FastSync)
 	dualService.bcR = bcR
 
 	consensusState := consensus.NewConsensusState(
@@ -128,7 +128,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		blockExec,
 		evPool,
 	)
-	dualService.csManager = consensus.NewConsensusManager(consensusState, fastSync)
+	dualService.csManager = consensus.NewConsensusManager(consensusState, config.FastSync.Enable)
 	dualService.csManager.SetPrivValidator(privValidator)
 
 	//namdoh@ dualService.protocolManager.acceptTxs = config.AcceptTxs
