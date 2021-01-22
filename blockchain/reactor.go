@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/behaviour"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
@@ -30,11 +31,10 @@ type blockStore interface {
 type BlockchainReactor struct {
 	p2p.BaseReactor
 
-	fastSync    bool // if true, enable fast sync on start
-	stateSynced bool // set to true when SwitchToFastSync is called by state sync
-	scheduler   *Routine
-	processor   *Routine
-	logger      log.Logger
+	fastSync  bool // if true, enable fast sync on start
+	scheduler *Routine
+	processor *Routine
+	logger    log.Logger
 
 	mtx           ksync.RWMutex
 	maxPeerHeight uint64
@@ -55,27 +55,28 @@ type blockApplier interface {
 	ApplyBlock(state cstate.LatestBlockState, blockID types.BlockID, block *types.Block) (cstate.LatestBlockState, uint64, error)
 }
 
-// XXX: unify naming in this package around tmState
+// XXX: unify naming in this package around kaiState
 func newReactor(state cstate.LatestBlockState, store blockStore, reporter behaviour.Reporter,
-	blockApplier blockApplier, fastSync bool) *BlockchainReactor {
+	blockApplier blockApplier, fastSync *configs.FastSyncConfig) *BlockchainReactor {
 	initHeight := state.LastBlockHeight + 1
 	if initHeight == 1 {
 		initHeight = state.InitialHeight
 	}
-	scheduler := newScheduler(initHeight, time.Now())
+	scheduler := newScheduler(initHeight, time.Now(), fastSync)
 	pContext := newProcessorContext(store, blockApplier, state)
 	// TODO: Fix naming to just newProcesssor
 	// newPcState requires a processorContext
 	processor := newPcState(pContext)
-
-	return &BlockchainReactor{
+	bcR := &BlockchainReactor{
 		scheduler: newRoutine("scheduler", scheduler.handle, chBufferSize),
 		processor: newRoutine("processor", processor.handle, chBufferSize),
 		store:     store,
 		reporter:  reporter,
 		logger:    log.NewNopLogger(),
-		fastSync:  fastSync,
+		fastSync:  fastSync.Enable,
 	}
+	bcR.BaseReactor = *p2p.NewBaseReactor("Blockchain", bcR)
+	return bcR
 }
 
 // NewBlockchainReactor creates a new reactor instance.
@@ -83,7 +84,7 @@ func NewBlockchainReactor(
 	state cstate.LatestBlockState,
 	blockApplier blockApplier,
 	store blockStore,
-	fastSync bool) *BlockchainReactor {
+	fastSync *configs.FastSyncConfig) *BlockchainReactor {
 	reporter := behaviour.NewMockReporter()
 	return newReactor(state, store, reporter, blockApplier, fastSync)
 }
@@ -171,9 +172,9 @@ func (r *BlockchainReactor) endSync() {
 	r.processor.stop()
 }
 
-// SwitchToFastSync is called by the state sync reactor when switching to fast sync.
+// TODO(trinhdn): call SwitchToFastSync after caught up
+// SwitchToFastSync is called when switching to fast sync.
 func (r *BlockchainReactor) SwitchToFastSync(state cstate.LatestBlockState) error {
-	r.stateSynced = true
 	state = state.Copy()
 	return r.startSync(&state)
 }
@@ -414,7 +415,7 @@ func (r *BlockchainReactor) demux(events <-chan Event) {
 				r.scheduler.send(event)
 			case pcFinished:
 				r.logger.Info("Fast sync complete, switching to consensus")
-				if !r.io.trySwitchToConsensus(event.kaiState, event.blocksSynced > 0 || r.stateSynced) {
+				if !r.io.trySwitchToConsensus(event.kaiState, event.blocksSynced > 0) {
 					r.logger.Error("Failed to switch to consensus reactor")
 				}
 				r.endSync()

@@ -80,8 +80,7 @@ type MainChainConfig struct {
 	// If this node is many blocks behind the tip of the chain, FastSync
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
-	FastSyncMode bool
-	StateSync    *configs.StateSyncConfig
+	FastSync *configs.FastSyncConfig
 }
 
 type DualChainConfig struct {
@@ -117,8 +116,7 @@ type DualChainConfig struct {
 	// If this node is many blocks behind the tip of the chain, FastSync
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
-	FastSyncMode bool
-	StateSync    *configs.StateSyncConfig
+	FastSync *configs.FastSyncConfig
 }
 
 // NodeMetadata contains privateKey and votingPower and function that get coinbase
@@ -299,8 +297,7 @@ type Config struct {
 	// If this node is many blocks behind the tip of the chain, FastSync
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
-	FastSyncMode bool
-	StateSyncCfg *configs.StateSyncConfig
+	FastSync *configs.FastSyncConfig
 
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.

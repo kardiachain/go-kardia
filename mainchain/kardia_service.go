@@ -158,23 +158,11 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// state starting configs
 	// Set private validator for consensus manager.
 	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
-	// Determine whether we should attempt state sync.
-	stateSync := config.StateSync.Enable && !onlyValidatorIsUs(state, privValidator.GetAddress())
-	if stateSync && state.LastBlockHeight > 0 {
-		logger.Info("Found local state with non-zero height, skipping state sync")
-		stateSync = false
-	}
-	if !stateSync {
-		// Reload the state. It will have the Version.Consensus.App set by the
-		// Handshake, and may have other modifications as well (ie. depending on
-		// what happened during block replay).
-		state = ctx.StateDB.Load()
-	}
 	// Determine whether we should do fast sync. This must happen after the handshake, since the
 	// app may modify the validator set, specifying ourself as the only validator.
-	fastSync := config.FastSyncMode && !onlyValidatorIsUs(state, privValidator.GetAddress())
+	fastSync := config.FastSync.Enable && !onlyValidatorIsUs(state, privValidator.GetAddress())
 	// Make BlockchainReactor. Don't start fast sync if we're doing a state sync first.
-	bcR := bcReactor.NewBlockchainReactor(state, blockExec, bOper, fastSync && !stateSync)
+	bcR := bcReactor.NewBlockchainReactor(state, blockExec, bOper, fastSync)
 	kai.bcR = bcR
 	consensusState := consensus.NewConsensusState(
 		kai.logger,
@@ -184,7 +172,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		blockExec,
 		evPool,
 	)
-	kai.csManager = consensus.NewConsensusManager(consensusState, stateSync || fastSync)
+	kai.csManager = consensus.NewConsensusManager(consensusState, fastSync)
 	// Set private validator for consensus manager.
 	kai.csManager.SetPrivValidator(privValidator)
 	kai.csManager.SetEventBus(kai.eventBus)
@@ -196,17 +184,16 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.MainChainConfig
 	kai, err := newKardiaService(ctx, &Config{
-		NetworkId:    chainConfig.NetworkId,
-		ServiceName:  chainConfig.ServiceName,
-		ChainId:      chainConfig.ChainId,
-		DBInfo:       chainConfig.DBInfo,
-		Genesis:      chainConfig.Genesis,
-		TxPool:       chainConfig.TxPool,
-		AcceptTxs:    chainConfig.AcceptTxs,
-		IsPrivate:    chainConfig.IsPrivate,
-		Consensus:    chainConfig.Consensus,
-		FastSyncMode: chainConfig.FastSyncMode,
-		StateSync:    chainConfig.StateSync,
+		NetworkId:   chainConfig.NetworkId,
+		ServiceName: chainConfig.ServiceName,
+		ChainId:     chainConfig.ChainId,
+		DBInfo:      chainConfig.DBInfo,
+		Genesis:     chainConfig.Genesis,
+		TxPool:      chainConfig.TxPool,
+		AcceptTxs:   chainConfig.AcceptTxs,
+		IsPrivate:   chainConfig.IsPrivate,
+		Consensus:   chainConfig.Consensus,
+		FastSync:    chainConfig.FastSync,
 	})
 
 	if err != nil {

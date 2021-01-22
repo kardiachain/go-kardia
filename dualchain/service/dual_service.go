@@ -113,23 +113,11 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	// state starting configs
 	// Set private validator for consensus manager.
 	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
-	// Determine whether we should attempt state sync.
-	stateSync := config.StateSync.Enable && !onlyValidatorIsUs(state, privValidator.GetAddress())
-	if stateSync && state.LastBlockHeight > 0 {
-		logger.Info("Found local state with non-zero height, skipping state sync")
-		stateSync = false
-	}
-	if !stateSync {
-		// Reload the state. It will have the Version.Consensus.App set by the
-		// Handshake, and may have other modifications as well (ie. depending on
-		// what happened during block replay).
-		state = ctx.StateDB.Load()
-	}
 	// Determine whether we should do fast sync. This must happen after the handshake, since the
 	// app may modify the validator set, specifying ourself as the only validator.
-	fastSync := config.FastSyncMode && !onlyValidatorIsUs(state, privValidator.GetAddress())
+	fastSync := config.FastSync.Enable && !onlyValidatorIsUs(state, privValidator.GetAddress())
 	// Make BlockchainReactor. Don't start fast sync if we're doing a state sync first.
-	bcR := bcReactor.NewBlockchainReactor(state, blockExec, dualService.dualBlockOperations, fastSync && !stateSync)
+	bcR := bcReactor.NewBlockchainReactor(state, blockExec, dualService.dualBlockOperations, fastSync)
 	dualService.bcR = bcR
 
 	consensusState := consensus.NewConsensusState(
@@ -140,7 +128,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		blockExec,
 		evPool,
 	)
-	dualService.csManager = consensus.NewConsensusManager(consensusState, stateSync || fastSync)
+	dualService.csManager = consensus.NewConsensusManager(consensusState, fastSync)
 	dualService.csManager.SetPrivValidator(privValidator)
 
 	//namdoh@ dualService.protocolManager.acceptTxs = config.AcceptTxs
@@ -160,6 +148,7 @@ func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 		IsPrivate:     chainConfig.IsPrivate,
 		BaseAccount:   chainConfig.BaseAccount,
 		Consensus:     chainConfig.Consensus,
+		FastSync:      chainConfig.FastSync,
 	})
 
 	if err != nil {

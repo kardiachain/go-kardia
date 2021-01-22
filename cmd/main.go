@@ -169,16 +169,15 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		return nil, err
 	}
 	mainChainConfig := node.MainChainConfig{
-		DBInfo:       dbInfo,
-		Genesis:      genesisData,
-		TxPool:       c.getTxPoolConfig(),
-		AcceptTxs:    chain.AcceptTxs,
-		NetworkId:    chain.NetworkID,
-		ChainId:      chain.ChainID,
-		ServiceName:  chain.ServiceName,
-		Consensus:    genesisData.Consensus,
-		FastSyncMode: c.Node.FastSyncMode,
-		StateSync:    configs.DefaultStateSyncConfig(),
+		DBInfo:      dbInfo,
+		Genesis:     genesisData,
+		TxPool:      c.getTxPoolConfig(),
+		AcceptTxs:   chain.AcceptTxs,
+		NetworkId:   chain.NetworkID,
+		ChainId:     chain.ChainID,
+		ServiceName: chain.ServiceName,
+		Consensus:   genesisData.Consensus,
+		FastSync:    c.getFastSyncConfig(),
 	}
 	return &mainChainConfig, nil
 }
@@ -212,8 +211,7 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		ChainId:          c.DualChain.ChainID,
 		DualProtocolName: *c.DualChain.Protocol,
 		BaseAccount:      baseAccount,
-		FastSyncMode:     c.Node.FastSyncMode,
-		StateSync:        configs.DefaultStateSyncConfig(),
+		FastSync:         c.getFastSyncConfig(),
 	}
 	return &dualChainConfig, nil
 }
@@ -238,8 +236,7 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		DualChainConfig:  node.DualChainConfig{},
 		PeerProxyIP:      "",
 		Metrics:          n.Metrics,
-		FastSyncMode:     n.FastSyncMode,
-		StateSyncCfg:     configs.DefaultStateSyncConfig(),
+		FastSync:         c.getFastSyncConfig(),
 	}
 	mainChainConfig, err := c.getMainChainConfig()
 	if err != nil {
@@ -257,6 +254,19 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		}
 	}
 	return &nodeConfig, nil
+}
+
+func (c *Config) getFastSyncConfig() *configs.FastSyncConfig {
+	if c.FastSync == nil {
+		return configs.DefaultFastSyncConfig()
+	}
+	return &configs.FastSyncConfig{
+		Enable:        c.FastSync.Enable,
+		MaxPeers:      c.FastSync.MaxPeers,
+		TargetPending: c.FastSync.TargetPending,
+		PeerTimeout:   time.Duration(c.FastSync.PeerTimeout) * time.Second,
+		MinRecvRate:   c.FastSync.MinRecvRate,
+	}
 }
 
 // newLog inits new logger for kardia

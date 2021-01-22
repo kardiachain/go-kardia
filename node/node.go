@@ -29,6 +29,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/lib/metrics"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 
@@ -758,6 +759,9 @@ func makeNodeInfo(
 
 	if config.P2P.PexReactor {
 		nodeInfo.Channels = append(nodeInfo.Channels, pex.PexChannel)
+	}
+	if config.FastSync.Enable {
+		nodeInfo.Channels = append(nodeInfo.Channels, blockchain.BlockchainChannel)
 	}
 
 	lAddr := config.P2P.ExternalAddress

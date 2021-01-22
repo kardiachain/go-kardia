@@ -64,6 +64,5 @@ type Config struct {
 	// including timeouts and details about the block structure.
 	Consensus *configs.ConsensusConfig
 
-	FastSyncMode bool
-	StateSync    *configs.StateSyncConfig
+	FastSync *configs.FastSyncConfig
 }

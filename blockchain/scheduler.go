@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -197,7 +198,7 @@ func (sc scheduler) String() string {
 		sc.initHeight, sc.blockStates, sc.peers, sc.pendingBlocks, sc.pendingTime, sc.receivedBlocks)
 }
 
-func newScheduler(initHeight uint64, startTime time.Time) *scheduler {
+func newScheduler(initHeight uint64, startTime time.Time, fastSync *configs.FastSyncConfig) *scheduler {
 	sc := scheduler{
 		initHeight:     initHeight,
 		lastAdvance:    startTime,
@@ -208,9 +209,9 @@ func newScheduler(initHeight uint64, startTime time.Time) *scheduler {
 		pendingBlocks:  make(map[uint64]p2p.ID),
 		pendingTime:    make(map[uint64]time.Time),
 		receivedBlocks: make(map[uint64]p2p.ID),
-		targetPending:  10,               // TODO - pass as param
-		peerTimeout:    15 * time.Second, // TODO - pass as param
-		minRecvRate:    0,                // int64(7680), TODO - pass as param
+		targetPending:  fastSync.TargetPending,
+		peerTimeout:    fastSync.PeerTimeout,
+		minRecvRate:    fastSync.MinRecvRate,
 	}
 
 	return &sc
