@@ -26,6 +26,7 @@ func MaxNodeInfoSize() int {
 // and determines if we're compatible.
 type NodeInfo interface {
 	ID() ID
+	UpdateCurrentBlockHeight(uint64)
 	nodeInfoAddress
 	nodeInfoTransport
 }
@@ -95,7 +96,8 @@ type DefaultNodeInfo struct {
 	// If this node is many blocks behind the tip of the chain, FastSync
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
-	FastSyncMode bool `json:"fast_sync"`
+	FastSyncMode       bool   `json:"fast_sync"`
+	CurrentBlockHeight uint64 `json:"current_block_height"` // current block height of node
 }
 
 // DefaultNodeInfoOther is the misc. applcation specific data
@@ -107,6 +109,11 @@ type DefaultNodeInfoOther struct {
 // ID returns the node's peer ID.
 func (info DefaultNodeInfo) ID() ID {
 	return info.DefaultNodeID
+}
+
+// UpdateCurrentBlockHeight returns the current block height of this node.
+func (info DefaultNodeInfo) UpdateCurrentBlockHeight(height uint64) {
+	info.CurrentBlockHeight = height
 }
 
 // Validate checks the self-reported DefaultNodeInfo is safe.

@@ -15,18 +15,18 @@ import (
 
 	abci "github.com/kardiachain/go-kardia/abci/types"
 	"github.com/kardiachain/go-kardia/behaviour"
-	cfg "github.com/kardiachain/go-kardia/config"
-	"github.com/kardiachain/go-kardia/libs/log"
-	"github.com/kardiachain/go-kardia/libs/service"
+	cfg "github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/p2p"
+	"github.com/kardiachain/go-kardia/lib/p2p/conn"
+	"github.com/kardiachain/go-kardia/lib/service"
 	"github.com/kardiachain/go-kardia/mempool/mock"
-	"github.com/kardiachain/go-kardia/p2p"
-	"github.com/kardiachain/go-kardia/p2p/conn"
 	bcproto "github.com/kardiachain/go-kardia/proto/kardiachain/blockchain"
 	"github.com/kardiachain/go-kardia/proxy"
-	sm "github.com/kardiachain/go-kardia/state"
 	"github.com/kardiachain/go-kardia/store"
 	"github.com/kardiachain/go-kardia/types"
-	tmtime "github.com/kardiachain/go-kardia/types/time"
+	kaitime "github.com/kardiachain/go-kardia/types/time"
 )
 
 type mockPeer struct {
@@ -80,8 +80,8 @@ type mockBlockApplier struct {
 
 // XXX: Add whitelist/blacklist?
 func (mba *mockBlockApplier) ApplyBlock(
-	state sm.State, blockID types.BlockID, block *types.Block,
-) (sm.State, int64, error) {
+	state cstate.LatestBlockState, blockID types.BlockID, block *types.Block,
+) (cstate.LatestBlockState, int64, error) {
 	state.LastBlockHeight++
 	return state, 0, nil
 }
@@ -119,7 +119,7 @@ func (sio *mockSwitchIo) sendBlockNotFound(height int64, peerID p2p.ID) error {
 	return nil
 }
 
-func (sio *mockSwitchIo) trySwitchToConsensus(state sm.State, skipWAL bool) bool {
+func (sio *mockSwitchIo) trySwitchToConsensus(state cstate.LatestBlockState, skipWAL bool) bool {
 	sio.mtx.Lock()
 	defer sio.mtx.Unlock()
 	sio.switchedToConsensus = true
@@ -155,8 +155,8 @@ func newTestReactor(p testReactorParams) *BlockchainReactor {
 			panic(fmt.Errorf("error start app: %w", err))
 		}
 		db := dbm.NewMemDB()
-		stateStore := sm.NewStore(db)
-		appl = sm.NewBlockExecutor(stateStore, p.logger, proxyApp.Consensus(), mock.Mempool{}, sm.EmptyEvidencePool{})
+		stateStore := cstate.NewStore(db)
+		appl = cstate.NewBlockExecutor(stateStore, p.logger, proxyApp.Consensus(), mock.Mempool{}, cstate.EmptyEvidencePool{})
 		if err = stateStore.Save(state); err != nil {
 			panic(err)
 		}
@@ -451,7 +451,7 @@ func makeTxs(height int64) (txs []types.Tx) {
 	return txs
 }
 
-func makeBlock(height int64, state sm.State, lastCommit *types.Commit) *types.Block {
+func makeBlock(height int64, state cstate.LatestBlockState, lastCommit *types.Commit) *types.Block {
 	block, _ := state.MakeBlock(height, makeTxs(height), lastCommit, nil, state.Validators.GetProposer().Address)
 	return block
 }
@@ -475,7 +475,7 @@ func randGenesisDoc(chainID string, numValidators int, randPower bool, minPower 
 	sort.Sort(types.PrivValidatorsByAddress(privValidators))
 
 	return &types.GenesisDoc{
-		GenesisTime: tmtime.Now(),
+		GenesisTime: kaitime.Now(),
 		ChainID:     chainID,
 		Validators:  validators,
 	}, privValidators
@@ -486,7 +486,7 @@ func randGenesisDoc(chainID string, numValidators int, randPower bool, minPower 
 func newReactorStore(
 	genDoc *types.GenesisDoc,
 	privVals []types.PrivValidator,
-	maxBlockHeight int64) (*store.BlockStore, sm.State, *sm.BlockExecutor) {
+	maxBlockHeight int64) (*store.BlockStore, cstate.LatestBlockState, *cstate.BlockExecutor) {
 	if len(privVals) != 1 {
 		panic("only support one validator")
 	}
@@ -500,16 +500,16 @@ func newReactorStore(
 
 	stateDB := dbm.NewMemDB()
 	blockStore := store.NewBlockStore(dbm.NewMemDB())
-	stateStore := sm.NewStore(stateDB)
+	stateStore := cstate.NewStore(stateDB)
 	state, err := stateStore.LoadFromDBOrGenesisDoc(genDoc)
 	if err != nil {
 		panic(fmt.Errorf("error constructing state from genesis file: %w", err))
 	}
 
 	db := dbm.NewMemDB()
-	stateStore = sm.NewStore(db)
-	blockExec := sm.NewBlockExecutor(stateStore, log.TestingLogger(), proxyApp.Consensus(),
-		mock.Mempool{}, sm.EmptyEvidencePool{})
+	stateStore = cstate.NewStore(db)
+	blockExec := cstate.NewBlockExecutor(stateStore, log.TestingLogger(), proxyApp.Consensus(),
+		mock.Mempool{}, cstate.EmptyEvidencePool{})
 	if err = stateStore.Save(state); err != nil {
 		panic(err)
 	}

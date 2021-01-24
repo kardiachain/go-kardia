@@ -672,6 +672,13 @@ func (sc *scheduler) handleStatusResponse(event bcStatusResponse) (Event, error)
 	if err != nil {
 		return scPeerError{peerID: event.peerID, reason: err}, nil
 	}
+	// TODO(trinhdn): watchout for untrusted peers
+	if sc.height >= event.height {
+		return scFinishedEv{
+			priorityNormal: priorityNormal{},
+			reason:         "@@@@@@@@@@@@@@@@@@@@@@",
+		}, nil
+	}
 	return noOp, nil
 }
 

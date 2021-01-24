@@ -172,7 +172,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		blockExec,
 		evPool,
 	)
-	kai.csManager = consensus.NewConsensusManager(consensusState, config.FastSync.Enable)
+	kai.csManager = consensus.NewConsensusManager(consensusState, config.FastSync)
 	// Set private validator for consensus manager.
 	kai.csManager.SetPrivValidator(privValidator)
 	kai.csManager.SetEventBus(kai.eventBus)

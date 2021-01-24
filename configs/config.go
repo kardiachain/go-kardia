@@ -247,11 +247,11 @@ func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
 
 // ------------------------- Consensus Params ----------------------------
 type FastSyncConfig struct {
-	Enable        bool
-	MaxPeers      int
-	TargetPending int
-	PeerTimeout   time.Duration
-	MinRecvRate   int64
+	Enable        bool          // true if this node allow and be able to fastsync, otherwise false.
+	MaxPeers      int           // maximum peer is allowed to receive fastsync blocks from this node at a time.
+	TargetPending int           // maximum number of blocks in a batch sync.
+	PeerTimeout   time.Duration // maximum response time from a peer.
+	MinRecvRate   int64         // minimum receive rate from peer, otherwise prune.
 }
 
 func DefaultFastSyncConfig() *FastSyncConfig {

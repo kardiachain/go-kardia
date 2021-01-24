@@ -128,7 +128,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		blockExec,
 		evPool,
 	)
-	dualService.csManager = consensus.NewConsensusManager(consensusState, config.FastSync.Enable)
+	dualService.csManager = consensus.NewConsensusManager(consensusState, config.FastSync)
 	dualService.csManager.SetPrivValidator(privValidator)
 
 	//namdoh@ dualService.protocolManager.acceptTxs = config.AcceptTxs

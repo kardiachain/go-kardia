@@ -175,6 +175,7 @@ func (r *BlockchainReactor) endSync() {
 // TODO(trinhdn): call SwitchToFastSync after caught up
 // SwitchToFastSync is called when switching to fast sync.
 func (r *BlockchainReactor) SwitchToFastSync(state cstate.LatestBlockState) error {
+	r.fastSync = true
 	state = state.Copy()
 	return r.startSync(&state)
 }
