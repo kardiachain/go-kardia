@@ -698,57 +698,6 @@ func (vs *ValidatorSet) VerifyCommit(chainID string, blockID BlockID, height uin
 	return nil
 }
 
-// LIGHT CLIENT VERIFICATION METHODS
-
-// VerifyCommitLight verifies +2/3 of the set had signed the given commit.
-//
-// This method is primarily used by the light client and does not check all the
-// signatures.
-func (vals *ValidatorSet) VerifyCommitLight(chainID string, blockID BlockID,
-	height uint64, commit *Commit) error {
-
-	if vals.Size() != len(commit.Signatures) {
-		return NewErrInvalidCommitSignatures(uint64(vals.Size()), uint64(len(commit.Signatures)))
-	}
-
-	// Validate Height and BlockID.
-	if height != commit.Height {
-		return NewErrInvalidCommitHeight(height, commit.Height)
-	}
-	if !blockID.Equal(commit.BlockID) {
-		return fmt.Errorf("invalid commit -- wrong block ID: want %v, got %v",
-			blockID, commit.BlockID)
-	}
-
-	talliedVotingPower := int64(0)
-	votingPowerNeeded := vals.TotalVotingPower() * 2 / 3
-	for idx, commitSig := range commit.Signatures {
-		// No need to verify absent or nil votes.
-		if !commitSig.ForBlock() {
-			continue
-		}
-
-		// The vals and commit have a 1-to-1 correspondance.
-		// This means we don't need the validator address or to do any lookup.
-		val := vals.Validators[idx]
-
-		// Validate signature.
-		voteSignBytes := commit.VoteSignBytes(chainID, uint32(idx))
-		if !VerifySignature(val.Address, voteSignBytes, commitSig.Signature) {
-			return fmt.Errorf("wrong signature (#%d): %X", idx, commitSig.Signature)
-		}
-
-		talliedVotingPower += val.VotingPower
-
-		// return as soon as +2/3 of the signatures are verified
-		if talliedVotingPower > votingPowerNeeded {
-			return nil
-		}
-	}
-
-	return ErrNotEnoughVotingPowerSigned{Got: talliedVotingPower, Needed: votingPowerNeeded}
-}
-
 // IsErrTooMuchChange returns too much change error
 func IsErrTooMuchChange(err error) bool {
 	_, ok := errors.Cause(err).(errTooMuchChange)

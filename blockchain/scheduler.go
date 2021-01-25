@@ -653,6 +653,9 @@ func (sc *scheduler) handleTrySchedule(event rTrySchedule) (Event, error) {
 
 	nextHeight := sc.nextHeightToSchedule()
 	if nextHeight == 0 {
+		if len(sc.peers) == 0 {
+			return scFinishedEv{reason: "next block is 0, whether node at genesis state or no peer connected"}, nil
+		}
 		return noOp, nil
 	}
 
@@ -671,13 +674,6 @@ func (sc *scheduler) handleStatusResponse(event bcStatusResponse) (Event, error)
 	err := sc.setPeerRange(event.peerID, event.base, event.height)
 	if err != nil {
 		return scPeerError{peerID: event.peerID, reason: err}, nil
-	}
-	// TODO(trinhdn): watchout for untrusted peers
-	if sc.height >= event.height {
-		return scFinishedEv{
-			priorityNormal: priorityNormal{},
-			reason:         "@@@@@@@@@@@@@@@@@@@@@@",
-		}, nil
 	}
 	return noOp, nil
 }
