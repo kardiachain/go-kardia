@@ -67,11 +67,12 @@ type GenesisValidator struct {
 
 // Genesis specifies the header fields, state of a genesis block.
 type Genesis struct {
-	ChainID   string               `json:"chain_id"`
-	Config    *configs.ChainConfig `json:"config"`
-	Timestamp time.Time            `json:"timestamp"`
-	GasLimit  uint64               `json:"gasLimit"   gencodec:"required"`
-	Alloc     GenesisAlloc         `json:"alloc"      gencodec:"required"`
+	ChainID       string               `json:"chain_id"`
+	InitialHeight uint64               `json:"initial_height"`
+	Config        *configs.ChainConfig `json:"config"`
+	Timestamp     time.Time            `json:"timestamp"`
+	GasLimit      uint64               `json:"gasLimit"   gencodec:"required"`
+	Alloc         GenesisAlloc         `json:"alloc"      gencodec:"required"`
 
 	KardiaSmartContracts []*types.KardiaSmartcontract `json:"kardiaSmartContracts"`
 	Validators           []*GenesisValidator          `json:"validators"`

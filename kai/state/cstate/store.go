@@ -135,7 +135,9 @@ func loadState(db kaidb.Database, key []byte) (state LatestBlockState) {
 	if err != nil {
 		panic(err)
 	}
-
+	if sm.InitialHeight == 0 {
+		sm.InitialHeight = 1
+	}
 	return *sm
 }
 
@@ -340,6 +342,7 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LatestBlockState, error) {
 	}
 	return LatestBlockState{
 		LastBlockHeight: 0,
+		InitialHeight:   genDoc.InitialHeight,
 		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.Timestamp,
 
