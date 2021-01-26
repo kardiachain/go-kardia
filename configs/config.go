@@ -247,6 +247,7 @@ func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
 
 // ------------------------- Consensus Params ----------------------------
 type FastSyncConfig struct {
+	ServiceName   string        // log tag of blockchain reactor logs
 	Enable        bool          // true if this node allow and be able to fastsync, otherwise false.
 	MaxPeers      int           // maximum peer is allowed to receive fastsync blocks from this node at a time.
 	TargetPending int           // maximum number of blocks in a batch sync.
@@ -256,6 +257,7 @@ type FastSyncConfig struct {
 
 func DefaultFastSyncConfig() *FastSyncConfig {
 	return &FastSyncConfig{
+		ServiceName:   DefaultBcReactorServiceName,
 		Enable:        true,
 		MaxPeers:      10,
 		TargetPending: 10,

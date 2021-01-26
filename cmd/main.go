@@ -261,6 +261,7 @@ func (c *Config) getFastSyncConfig() *configs.FastSyncConfig {
 		return configs.DefaultFastSyncConfig()
 	}
 	return &configs.FastSyncConfig{
+		ServiceName:   c.FastSync.ServiceName,
 		Enable:        c.FastSync.Enable,
 		MaxPeers:      c.FastSync.MaxPeers,
 		TargetPending: c.FastSync.TargetPending,

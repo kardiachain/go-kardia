@@ -760,7 +760,7 @@ func makeNodeInfo(
 	if config.P2P.PexReactor {
 		nodeInfo.Channels = append(nodeInfo.Channels, pex.PexChannel)
 	}
-	if config.FastSync.Enable {
+	if config.FastSync != nil {
 		nodeInfo.Channels = append(nodeInfo.Channels, blockchain.BlockchainChannel)
 	}
 

@@ -132,7 +132,7 @@ func (sio *switchIO) broadcastStatusRequest() error {
 		return err
 	}
 
-	// XXX: maybe we should use an io specific peer list here
+	// TODO(trinhdn): maybe we should use an io specific peer list here
 	sio.sw.Broadcast(BlockchainChannel, msgBytes)
 
 	return nil

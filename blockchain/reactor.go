@@ -67,15 +67,19 @@ func newReactor(state cstate.LatestBlockState, store blockStore, reporter behavi
 	// TODO: Fix naming to just newProcesssor
 	// newPcState requires a processorContext
 	processor := newPcState(pContext)
+	// Create a specific logger for blockchain reactor.
+	logger := log.New()
+	logger.AddTag(fastSync.ServiceName)
 	bcR := &BlockchainReactor{
 		scheduler: newRoutine("scheduler", scheduler.handle, chBufferSize),
 		processor: newRoutine("processor", processor.handle, chBufferSize),
 		store:     store,
 		reporter:  reporter,
-		logger:    log.NewNopLogger(),
+		logger:    logger,
 		fastSync:  fastSync.Enable,
 	}
 	bcR.BaseReactor = *p2p.NewBaseReactor("Blockchain", bcR)
+	logger.Info("New blockchain reactor created")
 	return bcR
 }
 
@@ -385,6 +389,7 @@ func (r *BlockchainReactor) demux(events <-chan Event) {
 					r.logger.Error("Error sending block request", "err", err)
 				}
 			case scFinishedEv:
+				r.logger.Info("Scheduler finish", "reason", event.reason)
 				r.processor.send(event)
 				r.scheduler.stop()
 			case scSchedulerFail:
@@ -415,7 +420,7 @@ func (r *BlockchainReactor) demux(events <-chan Event) {
 			case pcBlockVerificationFailure:
 				r.scheduler.send(event)
 			case pcFinished:
-				r.logger.Info("Fast sync complete, switching to consensus")
+				r.logger.Info("Fast sync complete, switching to consensus", "blockSynced", event.blocksSynced)
 				if !r.io.trySwitchToConsensus(event.kaiState, event.blocksSynced > 0) {
 					r.logger.Error("Failed to switch to consensus reactor")
 				}

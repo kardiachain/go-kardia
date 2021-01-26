@@ -66,7 +66,11 @@ const (
 	DefaultSubscribedEndpoint = "tcp://127.0.0.1:5555"
 	DefaultPublishedEndpoint  = "tcp://127.0.0.1:5554"
 
+	// default params for blockchain APIs
 	DefaultTimeOutForStaticCall = 5
+
+	// default params for configs
+	DefaultBcReactorServiceName = "BCREACTOR"
 )
 
 var (

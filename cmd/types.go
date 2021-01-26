@@ -48,11 +48,12 @@ type (
 		Genesis          *Genesis  `yaml:"Genesis,omitempty"`
 	}
 	FastSync struct {
-		Enable        bool  `yaml:"Enable"`
-		MaxPeers      int   `yaml:"MaxPeers"`
-		TargetPending int   `yaml:"TargetPending"`
-		PeerTimeout   int   `yaml:"PeerTimeout"`
-		MinRecvRate   int64 `yaml:"MinRecvRate"`
+		ServiceName   string `yaml:"ServiceName"`
+		Enable        bool   `yaml:"Enable"`
+		MaxPeers      int    `yaml:"MaxPeers"`
+		TargetPending int    `yaml:"TargetPending"`
+		PeerTimeout   int    `yaml:"PeerTimeout"`
+		MinRecvRate   int64  `yaml:"MinRecvRate"`
 	}
 	Chain struct {
 		ServiceName        string      `yaml:"ServiceName"`

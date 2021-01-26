@@ -347,19 +347,30 @@ func (sc *scheduler) getPeersWithHeight(height uint64) []p2p.ID {
 	return peers
 }
 
-func (sc *scheduler) prunablePeers(peerTimout time.Duration, minRecvRate int64, now time.Time) []p2p.ID {
+func (sc *scheduler) prunablePeers(peerTimeout time.Duration, minRecvRate int64, now time.Time) []p2p.ID {
 	prunable := make([]p2p.ID, 0)
 	for peerID, peer := range sc.peers {
 		if peer.state != peerStateReady {
 			continue
 		}
-		if now.Sub(peer.lastTouched) > peerTimout || peer.lastRate < minRecvRate {
+		if (now.Sub(peer.lastTouched) > peerTimeout || peer.lastRate < minRecvRate) && sc.IsAtGenesisState() {
 			prunable = append(prunable, peerID)
 		}
 	}
 	// Tests for handleTryPrunePeer() may fail without sort due to range non-determinism
 	sort.Sort(PeerByID(prunable))
 	return prunable
+}
+
+// IsAtGenesisState returns true if all peers of scheduler is at height 0, otherwise false.
+// If true, this means network is at genesis state. We need to prune reactor peers to switch to consensus.
+func (sc *scheduler) IsAtGenesisState() bool {
+	for _, peer := range sc.peers {
+		if peer.height > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (sc *scheduler) setStateAtHeight(height uint64, state blockState) {
