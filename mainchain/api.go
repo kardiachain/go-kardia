@@ -152,8 +152,12 @@ func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 	transactions := make([]*PublicTransaction, 0, len(txs))
 	basicReceipts := make([]*BasicReceipt, 0)
 
-	for _, receipt := range blockInfo.Receipts {
-		basicReceipts = append(basicReceipts, getBasicReceipt(*receipt))
+	if blockInfo != nil {
+		for _, receipt := range blockInfo.Receipts {
+			basicReceipts = append(basicReceipts, getBasicReceipt(*receipt))
+		}
+	} else {
+		blockInfo = &types.BlockInfo{}
 	}
 
 	for index, transaction := range txs {
@@ -343,7 +347,6 @@ type PublicTransaction struct {
 	Logs             []Log        `json:"logs,omitempty"`
 	LogsBloom        types.Bloom  `json:"logsBloom,omitempty"`
 	Root             common.Bytes `json:"root,omitempty"`
-	Status           uint         `json:"status"`
 }
 
 type Log struct {
