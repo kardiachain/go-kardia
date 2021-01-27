@@ -25,7 +25,7 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
-func validateBlock(evidencePool EvidencePool, store Store, state LatestBlockState, block *types.Block) error {
+func validateBlock(evidencePool EvidencePool, store Store, state LastestBlockState, block *types.Block) error {
 	// Validate internal consistency
 	if err := block.ValidateBasic(); err != nil {
 		return err

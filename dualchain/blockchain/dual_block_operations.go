@@ -94,7 +94,7 @@ func (dbo *DualBlockOperations) Height() uint64 {
 }
 
 // Proposes a new block for dual's blockchain.
-func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cstate.LatestBlockState, proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
+func (dbo *DualBlockOperations) CreateProposalBlock(height uint64, lastState cstate.LastestBlockState, proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.
 	// For simplicity, this code executes & commits txs before sending proposal,

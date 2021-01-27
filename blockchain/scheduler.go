@@ -664,9 +664,6 @@ func (sc *scheduler) handleTrySchedule(event rTrySchedule) (Event, error) {
 
 	nextHeight := sc.nextHeightToSchedule()
 	if nextHeight == 0 {
-		if len(sc.peers) == 0 {
-			return scFinishedEv{reason: "next block is 0, whether node at genesis state or no peer connected"}, nil
-		}
 		return noOp, nil
 	}
 
@@ -678,7 +675,6 @@ func (sc *scheduler) handleTrySchedule(event rTrySchedule) (Event, error) {
 		return scSchedulerFail{reason: err}, nil // XXX: peerError might be more appropriate
 	}
 	return scBlockRequest{peerID: bestPeerID, height: nextHeight}, nil
-
 }
 
 func (sc *scheduler) handleStatusResponse(event bcStatusResponse) (Event, error) {

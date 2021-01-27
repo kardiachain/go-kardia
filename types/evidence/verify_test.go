@@ -85,7 +85,7 @@ func TestVerifyDuplicateVoteEvidence(t *testing.T) {
 	badTimeEv.ValidatorPower = 1
 	badTimeEv.TotalVotingPower = 1
 
-	state := cstate.LatestBlockState{
+	state := cstate.LastestBlockState{
 		ChainID:         chainID,
 		LastBlockTime:   defaultEvidenceTime.Add(1 * time.Minute),
 		LastBlockHeight: 11,

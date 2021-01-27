@@ -24,11 +24,10 @@ type mockNodeInfo struct {
 	addr *NetAddress
 }
 
-func (ni mockNodeInfo) ID() ID                                 { return ni.addr.ID }
-func (ni mockNodeInfo) UpdateCurrentBlockHeight(height uint64) {}
-func (ni mockNodeInfo) NetAddress() (*NetAddress, error)       { return ni.addr, nil }
-func (ni mockNodeInfo) Validate() error                        { return nil }
-func (ni mockNodeInfo) CompatibleWith(other NodeInfo) error    { return nil }
+func (ni mockNodeInfo) ID() ID                              { return ni.addr.ID }
+func (ni mockNodeInfo) NetAddress() (*NetAddress, error)    { return ni.addr, nil }
+func (ni mockNodeInfo) Validate() error                     { return nil }
+func (ni mockNodeInfo) CompatibleWith(other NodeInfo) error { return nil }
 
 func AddPeerToSwitchPeerSet(sw *Switch, peer Peer) {
 	sw.peers.Add(peer) //nolint:errcheck // ignore error

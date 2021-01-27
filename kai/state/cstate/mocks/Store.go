@@ -19,14 +19,14 @@ type Store struct {
 }
 
 // Load provides a mock function with given fields:
-func (_m *Store) Load() cstate.LatestBlockState {
+func (_m *Store) Load() cstate.LastestBlockState {
 	ret := _m.Called()
 
-	var r0 cstate.LatestBlockState
-	if rf, ok := ret.Get(0).(func() cstate.LatestBlockState); ok {
+	var r0 cstate.LastestBlockState
+	if rf, ok := ret.Get(0).(func() cstate.LastestBlockState); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(cstate.LatestBlockState)
+		r0 = ret.Get(0).(cstate.LastestBlockState)
 	}
 
 	return r0
@@ -54,14 +54,14 @@ func (_m *Store) LoadConsensusParams(height uint64) (types.ConsensusParams, erro
 }
 
 // LoadStateFromDBOrGenesisDoc provides a mock function with given fields: genesisDoc
-func (_m *Store) LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (cstate.LatestBlockState, error) {
+func (_m *Store) LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (cstate.LastestBlockState, error) {
 	ret := _m.Called(genesisDoc)
 
-	var r0 cstate.LatestBlockState
-	if rf, ok := ret.Get(0).(func(*genesis.Genesis) cstate.LatestBlockState); ok {
+	var r0 cstate.LastestBlockState
+	if rf, ok := ret.Get(0).(func(*genesis.Genesis) cstate.LastestBlockState); ok {
 		r0 = rf(genesisDoc)
 	} else {
-		r0 = ret.Get(0).(cstate.LatestBlockState)
+		r0 = ret.Get(0).(cstate.LastestBlockState)
 	}
 
 	var r1 error
@@ -98,6 +98,6 @@ func (_m *Store) LoadValidators(height uint64) (*go_kardiamaintypes.ValidatorSet
 }
 
 // Save provides a mock function with given fields: _a0
-func (_m *Store) Save(_a0 cstate.LatestBlockState) {
+func (_m *Store) Save(_a0 cstate.LastestBlockState) {
 	_m.Called(_a0)
 }

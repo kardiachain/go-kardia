@@ -26,7 +26,6 @@ func MaxNodeInfoSize() int {
 // and determines if we're compatible.
 type NodeInfo interface {
 	ID() ID
-	UpdateCurrentBlockHeight(uint64)
 	nodeInfoAddress
 	nodeInfoTransport
 }
@@ -109,11 +108,6 @@ type DefaultNodeInfoOther struct {
 // ID returns the node's peer ID.
 func (info DefaultNodeInfo) ID() ID {
 	return info.DefaultNodeID
-}
-
-// UpdateCurrentBlockHeight returns the current block height of this node.
-func (info DefaultNodeInfo) UpdateCurrentBlockHeight(height uint64) {
-	info.CurrentBlockHeight = height
 }
 
 // Validate checks the self-reported DefaultNodeInfo is safe.

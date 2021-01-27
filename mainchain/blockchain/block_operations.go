@@ -84,7 +84,7 @@ func (bo *BlockOperations) Height() uint64 {
 
 // CreateProposalBlock creates a new proposal block with all current pending txs in pool.
 func (bo *BlockOperations) CreateProposalBlock(
-	height uint64, lastState cstate.LatestBlockState,
+	height uint64, lastState cstate.LastestBlockState,
 	proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.

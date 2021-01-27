@@ -11,17 +11,17 @@ type processorContext interface {
 	applyBlock(blockID types.BlockID, block *types.Block) error
 	verifyCommit(chainID string, blockID types.BlockID, height uint64, commit *types.Commit) error
 	saveBlock(block *types.Block, blockParts *types.PartSet, seenCommit *types.Commit)
-	kaiState() cstate.LatestBlockState
-	setState(cstate.LatestBlockState)
+	kaiState() cstate.LastestBlockState
+	setState(cstate.LastestBlockState)
 }
 
 type pContext struct {
 	store   blockStore
 	applier blockApplier
-	state   cstate.LatestBlockState
+	state   cstate.LastestBlockState
 }
 
-func newProcessorContext(st blockStore, ex blockApplier, s cstate.LatestBlockState) *pContext {
+func newProcessorContext(st blockStore, ex blockApplier, s cstate.LastestBlockState) *pContext {
 	return &pContext{
 		store:   st,
 		applier: ex,
@@ -35,11 +35,11 @@ func (pc *pContext) applyBlock(blockID types.BlockID, block *types.Block) error 
 	return err
 }
 
-func (pc pContext) kaiState() cstate.LatestBlockState {
+func (pc pContext) kaiState() cstate.LastestBlockState {
 	return pc.state
 }
 
-func (pc *pContext) setState(state cstate.LatestBlockState) {
+func (pc *pContext) setState(state cstate.LastestBlockState) {
 	pc.state = state
 }
 
@@ -54,11 +54,11 @@ func (pc *pContext) saveBlock(block *types.Block, blockParts *types.PartSet, see
 type mockPContext struct {
 	applicationBL  []uint64
 	verificationBL []uint64
-	state          cstate.LatestBlockState
+	state          cstate.LastestBlockState
 }
 
 func newMockProcessorContext(
-	state cstate.LatestBlockState,
+	state cstate.LastestBlockState,
 	verificationBlackList []uint64,
 	applicationBlackList []uint64) *mockPContext {
 	return &mockPContext{
@@ -91,10 +91,10 @@ func (mpc *mockPContext) saveBlock(block *types.Block, blockParts *types.PartSet
 
 }
 
-func (mpc *mockPContext) setState(state cstate.LatestBlockState) {
+func (mpc *mockPContext) setState(state cstate.LastestBlockState) {
 	mpc.state = state
 }
 
-func (mpc *mockPContext) kaiState() cstate.LatestBlockState {
+func (mpc *mockPContext) kaiState() cstate.LastestBlockState {
 	return mpc.state
 }

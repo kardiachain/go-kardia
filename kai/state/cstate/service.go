@@ -17,7 +17,7 @@ func (EmptyEvidencePool) PendingEvidence(maxBytes int64) (ev []types.Evidence, s
 	return nil, 0
 }
 func (EmptyEvidencePool) AddEvidence(types.Evidence) error              { return nil }
-func (EmptyEvidencePool) Update(LatestBlockState, types.EvidenceList)   {}
+func (EmptyEvidencePool) Update(LastestBlockState, types.EvidenceList)  {}
 func (EmptyEvidencePool) CheckEvidence(evList types.EvidenceList) error { return nil }
 func (EmptyEvidencePool) AddEvidenceFromConsensus(ev types.Evidence) error {
 	return nil

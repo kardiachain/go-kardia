@@ -17,7 +17,7 @@ type iIO interface {
 
 	broadcastStatusRequest() error
 
-	trySwitchToConsensus(state cstate.LatestBlockState, skipWAL bool) bool
+	trySwitchToConsensus(state cstate.LastestBlockState, skipWAL bool) bool
 }
 
 type switchIO struct {
@@ -38,7 +38,7 @@ const (
 type consensusReactor interface {
 	// for when we switch from blockchain reactor and fast sync to
 	// the consensus machine
-	SwitchToConsensus(state cstate.LatestBlockState, skipWAL bool)
+	SwitchToConsensus(state cstate.LastestBlockState, skipWAL bool)
 }
 
 func (sio *switchIO) sendBlockRequest(peerID p2p.ID, height uint64) error {
@@ -118,7 +118,7 @@ func (sio *switchIO) sendBlockNotFound(height uint64, peerID p2p.ID) error {
 	return nil
 }
 
-func (sio *switchIO) trySwitchToConsensus(state cstate.LatestBlockState, skipWAL bool) bool {
+func (sio *switchIO) trySwitchToConsensus(state cstate.LastestBlockState, skipWAL bool) bool {
 	conR, ok := sio.sw.Reactor("CONSENSUS").(consensusReactor)
 	if ok {
 		conR.SwitchToConsensus(state, skipWAL)

@@ -80,8 +80,8 @@ type mockBlockApplier struct {
 
 // XXX: Add whitelist/blacklist?
 func (mba *mockBlockApplier) ApplyBlock(
-	state cstate.LatestBlockState, blockID types.BlockID, block *types.Block,
-) (cstate.LatestBlockState, int64, error) {
+	state cstate.LastestBlockState, blockID types.BlockID, block *types.Block,
+) (cstate.LastestBlockState, int64, error) {
 	state.LastBlockHeight++
 	return state, 0, nil
 }
@@ -119,7 +119,7 @@ func (sio *mockSwitchIo) sendBlockNotFound(height int64, peerID p2p.ID) error {
 	return nil
 }
 
-func (sio *mockSwitchIo) trySwitchToConsensus(state cstate.LatestBlockState, skipWAL bool) bool {
+func (sio *mockSwitchIo) trySwitchToConsensus(state cstate.LastestBlockState, skipWAL bool) bool {
 	sio.mtx.Lock()
 	defer sio.mtx.Unlock()
 	sio.switchedToConsensus = true
@@ -451,7 +451,7 @@ func makeTxs(height int64) (txs []types.Tx) {
 	return txs
 }
 
-func makeBlock(height int64, state cstate.LatestBlockState, lastCommit *types.Commit) *types.Block {
+func makeBlock(height int64, state cstate.LastestBlockState, lastCommit *types.Commit) *types.Block {
 	block, _ := state.MakeBlock(height, makeTxs(height), lastCommit, nil, state.Validators.GetProposer().Address)
 	return block
 }
@@ -486,7 +486,7 @@ func randGenesisDoc(chainID string, numValidators int, randPower bool, minPower 
 func newReactorStore(
 	genDoc *types.GenesisDoc,
 	privVals []types.PrivValidator,
-	maxBlockHeight int64) (*store.BlockStore, cstate.LatestBlockState, *cstate.BlockExecutor) {
+	maxBlockHeight int64) (*store.BlockStore, cstate.LastestBlockState, *cstate.BlockExecutor) {
 	if len(privVals) != 1 {
 		panic("only support one validator")
 	}

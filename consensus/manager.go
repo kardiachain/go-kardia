@@ -26,7 +26,6 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
-	"github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
@@ -128,7 +127,7 @@ func (conR *ConsensusManager) OnStop() {
 
 // SwitchToConsensus switches from fast_sync mode to consensus mode.
 // It resets the state, turns off fast_sync, and starts the consensus state-machine
-func (conR *ConsensusManager) SwitchToConsensus(state cstate.LatestBlockState, skipWAL bool) {
+func (conR *ConsensusManager) SwitchToConsensus(state cstate.LastestBlockState, skipWAL bool) {
 	conR.Logger.Info("Switching to consensus", "block height", state.LastBlockHeight, "skipWAL", skipWAL)
 
 	// We have no votes, so reconstruct LastCommit from SeenCommit.
@@ -272,27 +271,6 @@ func (conR *ConsensusManager) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			ps.ApplyNewRoundStepMessage(msg)
 		case *NewValidBlockMessage:
 			ps.ApplyNewValidBlockMessage(msg)
-			conR.Switch.NodeInfo().UpdateCurrentBlockHeight(msg.Height)
-			if msg.Height%uint64(conR.targetPending) == 0 {
-				if conR.CheckOtherPeersHeight(msg.Height) {
-					// switch to fastsync
-					bcR, ok := conR.Switch.Reactors()["Blockchain"].(*blockchain.BlockchainReactor)
-					if !ok {
-						conR.Logger.Warn("conR.Switch.Reactors()[\"Blockchain\"] is not BlockchainReactor", "height", msg.Height)
-					} else {
-						conR.waitSync = true
-						err := bcR.SwitchToFastSync(conR.conS.state)
-						if err != nil {
-							conR.Logger.Warn("Cannot switch to fast sync", "err", err)
-						}
-						err = conR.conS.Stop()
-						if err != nil {
-							conR.Logger.Warn("Cannot stop consensus after switched to fast sync", "err", err)
-						}
-						return
-					}
-				}
-			}
 		case *HasVoteMessage:
 			ps.ApplyHasVoteMessage(msg)
 		case *VoteSetMaj23Message:
@@ -818,22 +796,6 @@ OUTER_LOOP:
 
 		continue OUTER_LOOP
 	}
-}
-
-// CheckOtherPeersHeight return true if this node is behind
-func (conR *ConsensusManager) CheckOtherPeersHeight(currentHeight uint64) bool {
-	peersList := conR.Switch.Peers().List()
-	for _, peer := range peersList {
-		nodeInfo, ok := peer.NodeInfo().(p2p.DefaultNodeInfo)
-		if !ok {
-			conR.Logger.Warn("peer.NodeInfo() is not DefaultNodeInfo", "peerID", peer.ID())
-			continue
-		}
-		if nodeInfo.CurrentBlockHeight-currentHeight >= uint64(conR.targetPending) {
-			return true
-		}
-	}
-	return false
 }
 
 //-----------------------------------------------------------------------------

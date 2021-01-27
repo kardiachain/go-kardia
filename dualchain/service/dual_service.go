@@ -96,7 +96,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 
 	dualService.eventPool = event_pool.NewPool(logger, config.DualEventPool, dualService.blockchain)
 
-	state, err := ctx.StateDB.LoadStateFromDBOrGenesisDoc(config.DualGenesis)
+	lastBlockState, err := ctx.StateDB.LoadStateFromDBOrGenesisDoc(config.DualGenesis)
 	if err != nil {
 		return nil, err
 	}
@@ -115,15 +115,15 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	// Determine whether we should do fast sync. This must happen after the handshake, since the
 	// app may modify the validator set, specifying ourself as the only validator.
-	config.FastSync.Enable = config.FastSync.Enable && !onlyValidatorIsUs(state, privValidator.GetAddress())
+	config.FastSync.Enable = config.FastSync.Enable && !onlyValidatorIsUs(lastBlockState, privValidator.GetAddress())
 	// Make BlockchainReactor. Don't start fast sync if we're doing a state sync first.
-	bcR := bcReactor.NewBlockchainReactor(state, blockExec, dualService.dualBlockOperations, config.FastSync)
+	bcR := bcReactor.NewBlockchainReactor(lastBlockState, blockExec, dualService.dualBlockOperations, config.FastSync)
 	dualService.bcR = bcR
 
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
 		config.Consensus,
-		state,
+		lastBlockState,
 		dualService.dualBlockOperations,
 		blockExec,
 		evPool,
@@ -165,7 +165,7 @@ func (s *DualService) SetDualBlockChainManager(bcManager *blockchain.DualBlockCh
 func (s *DualService) IsListening() bool  { return true } // Always listening
 func (s *DualService) NetVersion() uint64 { return s.networkID }
 func (s *DualService) DB() types.StoreDB  { return s.groupDb }
-func onlyValidatorIsUs(state cstate.LatestBlockState, privValAddress common.Address) bool {
+func onlyValidatorIsUs(state cstate.LastestBlockState, privValAddress common.Address) bool {
 	if state.Validators.Size() > 1 {
 		return false
 	}

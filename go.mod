@@ -3,6 +3,7 @@ module github.com/kardiachain/go-kardia
 go 1.14
 
 require (
+	github.com/Workiva/go-datastructures v1.0.52
 	github.com/allegro/bigcache v1.2.1 // indirect
 	github.com/aristanetworks/goarista v0.0.0-20190712234253-ed1100a1c015
 	github.com/btcsuite/btcd v0.21.0-beta
