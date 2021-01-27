@@ -233,6 +233,8 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		HTTPCors:         n.HTTPCors,
 		HTTPVirtualHosts: n.HTTPVirtualHosts,
 		HTTPModules:      n.HTTPModules,
+		WSHost:           n.WSHost,
+		WSPort:           n.WSPort,
 		MainChainConfig:  node.MainChainConfig{},
 		DualChainConfig:  node.DualChainConfig{},
 		PeerProxyIP:      "",

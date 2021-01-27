@@ -179,8 +179,7 @@ func (state *pcState) handle(event Event) (Event, error) {
 		state.context.saveBlock(first, firstParts, second.LastCommit())
 
 		if err := state.context.applyBlock(firstID, first); err != nil {
-			// TODO(trinhdn): handle panic after apply block here
-			panic(fmt.Sprintf("failed to process committed block (%d:%X): %v", first.Height, first.Hash(), err))
+			panic(fmt.Sprintf("failed to process committed block (%d:%X): %v", first.Height(), first.Hash(), err))
 		}
 
 		delete(state.queue, first.Height())

@@ -3,7 +3,10 @@ package blockchain
 import (
 	"encoding/hex"
 	"math"
+	"math/big"
 	"testing"
+
+	"github.com/kardiachain/go-kardia/lib/common"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
@@ -13,15 +16,16 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
+var TestTx = types.NewTransaction(69, common.Address{69}, new(big.Int).SetInt64(69), 69, new(big.Int).SetInt64(69), []byte("Hello World!"))
+
 func TestBcBlockRequestMessageValidateBasic(t *testing.T) {
 	testCases := []struct {
 		testName      string
-		requestHeight int64
+		requestHeight uint64
 		expectErr     bool
 	}{
 		{"Valid Request Message", 0, false},
 		{"Valid Request Message", 1, false},
-		{"Invalid Request Message", -1, true},
 	}
 
 	for _, tc := range testCases {
@@ -36,12 +40,11 @@ func TestBcBlockRequestMessageValidateBasic(t *testing.T) {
 func TestBcNoBlockResponseMessageValidateBasic(t *testing.T) {
 	testCases := []struct {
 		testName          string
-		nonResponseHeight int64
+		nonResponseHeight uint64
 		expectErr         bool
 	}{
 		{"Valid Non-Response Message", 0, false},
 		{"Valid Non-Response Message", 1, false},
-		{"Invalid Non-Response Message", -1, true},
 	}
 
 	for _, tc := range testCases {
@@ -61,12 +64,11 @@ func TestBcStatusRequestMessageValidateBasic(t *testing.T) {
 func TestBcStatusResponseMessageValidateBasic(t *testing.T) {
 	testCases := []struct {
 		testName       string
-		responseHeight int64
+		responseHeight uint64
 		expectErr      bool
 	}{
 		{"Valid Response Message", 0, false},
 		{"Valid Response Message", 1, false},
-		{"Invalid Response Message", -1, true},
 	}
 
 	for _, tc := range testCases {
@@ -80,8 +82,8 @@ func TestBcStatusResponseMessageValidateBasic(t *testing.T) {
 
 // nolint:lll // ignore line length in tests
 func TestBlockchainMessageVectors(t *testing.T) {
-	block := types.MakeBlock(int64(3), []types.Tx{types.Tx("Hello World")}, nil, nil)
-	block.Version.Block = 11 // overwrite updated protocol version
+	block := types.NewBlock(&types.Header{Height: 3}, []*types.Transaction{TestTx}, nil, nil)
+	//block.Version.Block = 11 // overwrite updated protocol version
 
 	bpb, err := block.ToProto()
 	require.NoError(t, err)
@@ -97,7 +99,7 @@ func TestBlockchainMessageVectors(t *testing.T) {
 			BlockRequest: &bcproto.BlockRequest{Height: math.MaxInt64}}},
 			"0a0a08ffffffffffffffff7f"},
 		{"BlockResponseMessage", &bcproto.Message{Sum: &bcproto.Message_BlockResponse{
-			BlockResponse: &bcproto.BlockResponse{Block: bpb}}}, "1a700a6e0a5b0a02080b1803220b088092b8c398feffffff012a0212003a20c4da88e876062aa1543400d50d0eaa0dac88096057949cfb7bca7f3a48c04bf96a20e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855120d0a0b48656c6c6f20576f726c641a00"},
+			BlockResponse: &bcproto.BlockResponse{Block: bpb}}}, "1a94030a91030ade021803220b088092b8c398feffffff012a460a200000000000000000000000000000000000000000000000000000000000000000122212200000000000000000000000000000000000000000000000000000000000000000322000000000000000000000000000000000000000000000000000000000000000003a20f558b4339cf2863da4f236fafb9bb585b8fc0b8f24959c9d330982fa78fc79ab422000000000000000000000000000000000000000000000000000000000000000004a200000000000000000000000000000000000000000000000000000000000000000522000000000000000000000000000000000000000000000000000000000000000005a2000000000000000000000000000000000000000000000000000000000000000006a20000000000000000000000000000000000000000000000000000000000000000072140000000000000000000000000000000000000000800101122c0a2ae9454545944500000000000000000000000000000000000000458c48656c6c6f20576f726c64218080801a00"},
 		{"NoBlockResponseMessage", &bcproto.Message{Sum: &bcproto.Message_NoBlockResponse{
 			NoBlockResponse: &bcproto.NoBlockResponse{Height: 1}}}, "12020801"},
 		{"NoBlockResponseMessage", &bcproto.Message{Sum: &bcproto.Message_NoBlockResponse{

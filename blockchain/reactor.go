@@ -48,7 +48,7 @@ type BlockchainReactor struct {
 
 //nolint:unused,deadcode
 type blockVerifier interface {
-	VerifyCommit(chainID string, blockID types.BlockID, height int64, commit *types.Commit) error
+	VerifyCommit(chainID string, blockID types.BlockID, height uint64, commit *types.Commit) error
 }
 
 type blockApplier interface {
@@ -64,7 +64,6 @@ func newReactor(state cstate.LastestBlockState, store blockStore, reporter behav
 	}
 	scheduler := newScheduler(initHeight, time.Now(), fastSync)
 	pContext := newProcessorContext(store, blockApplier, state)
-	// TODO: Fix naming to just newProcesssor
 	// newPcState requires a processorContext
 	processor := newPcState(pContext)
 	// Create a specific logger for blockchain reactor.
@@ -226,7 +225,7 @@ type bcBlockResponse struct {
 
 func (resp bcBlockResponse) String() string {
 	return fmt.Sprintf("bcBlockResponse{%d#%X (size: %d bytes) from %v at %v}",
-		resp.block.Height, resp.block.Hash(), resp.size, resp.peerID, resp.time)
+		resp.block.Height(), resp.block.Hash(), resp.size, resp.peerID, resp.time)
 }
 
 // blockNoResponse message received from a peer

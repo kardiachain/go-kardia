@@ -43,7 +43,7 @@ type scBlockReceived struct {
 }
 
 func (e scBlockReceived) String() string {
-	return fmt.Sprintf("scBlockReceived{%d#%X from %v}", e.block.Height, e.block.Hash(), e.peerID)
+	return fmt.Sprintf("scBlockReceived{%d#%X from %v}", e.block.Height(), e.block.Hash(), e.peerID)
 }
 
 // scheduler detected a peer error

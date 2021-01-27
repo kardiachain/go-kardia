@@ -268,10 +268,11 @@ func DefaultFastSyncConfig() *FastSyncConfig {
 
 func TestFastSyncConfig() *FastSyncConfig {
 	return &FastSyncConfig{
+		ServiceName:   DefaultBcReactorServiceName,
 		Enable:        true,
 		MaxPeers:      2,
 		TargetPending: 5,
-		PeerTimeout:   5 * time.Second,
+		PeerTimeout:   2 * time.Second,
 		MinRecvRate:   0,
 	}
 }

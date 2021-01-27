@@ -309,6 +309,7 @@ func NewBlock(header *Header, txs []*Transaction, lastCommit *Commit, evidence [
 		b.header.EvidenceHash = common.NewZeroHash()
 	}
 
+	b.Hash()
 	return b
 }
 
