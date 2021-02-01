@@ -152,8 +152,12 @@ func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 	transactions := make([]*PublicTransaction, 0, len(txs))
 	basicReceipts := make([]*BasicReceipt, 0)
 
-	for _, receipt := range blockInfo.Receipts {
-		basicReceipts = append(basicReceipts, getBasicReceipt(*receipt))
+	if blockInfo != nil {
+		for _, receipt := range blockInfo.Receipts {
+			basicReceipts = append(basicReceipts, getBasicReceipt(*receipt))
+		}
+	} else {
+		blockInfo = &types.BlockInfo{}
 	}
 
 	for index, transaction := range txs {
@@ -343,7 +347,6 @@ type PublicTransaction struct {
 	Logs             []Log        `json:"logs,omitempty"`
 	LogsBloom        types.Bloom  `json:"logsBloom,omitempty"`
 	Root             common.Bytes `json:"root,omitempty"`
-	Status           uint         `json:"status"`
 }
 
 type Log struct {
@@ -714,6 +717,9 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 		block, err := s.kaiService.BlockByNumberOrHash(ctx, blockNrOrHash)
 		if err != nil {
 			return 0, err
+		}
+		if block == nil {
+			return 0, errors.New("block not found")
 		}
 		hi = block.GasLimit()
 	}
