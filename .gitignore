@@ -25,4 +25,4 @@ cmd/cmd
 tool/pump/pump
 run.sh
 cmd/*.fuse_hidden*
-cmd/*.rlp
+**/*.rlp

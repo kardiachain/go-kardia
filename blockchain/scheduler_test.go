@@ -1356,6 +1356,8 @@ func checkScResults(t *testing.T, wantErr bool, err error, wantEvent Event, even
 		assert.Equal(t, wantEvent.reason != nil, event.(scPeerError).reason != nil)
 	case scBlockReceived:
 		assert.Equal(t, wantEvent.peerID, event.(scBlockReceived).peerID)
+		wantEvent.block.Hash()
+		event.(scBlockReceived).block.Hash()
 		assert.Equal(t, wantEvent.block, event.(scBlockReceived).block)
 	case scSchedulerFail:
 		assert.Equal(t, wantEvent.reason != nil, event.(scSchedulerFail).reason != nil)
