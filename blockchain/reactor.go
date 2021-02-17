@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kardiachain/go-kardia/behaviour"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/lib/behaviour"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	ksync "github.com/kardiachain/go-kardia/lib/sync"

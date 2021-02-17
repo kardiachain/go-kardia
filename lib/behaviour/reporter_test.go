@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	bh "github.com/kardiachain/go-kardia/behaviour"
+	bh "github.com/kardiachain/go-kardia/lib/behaviour"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 )
 
