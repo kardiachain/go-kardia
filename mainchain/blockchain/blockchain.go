@@ -56,6 +56,7 @@ type BlockChain struct {
 	hc *HeaderChain
 
 	chainHeadFeed event.Feed
+	logsFeed      event.Feed
 	scope         event.SubscriptionScope
 
 	genesisBlock *types.Block
@@ -444,4 +445,9 @@ func (bc *BlockChain) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 
 func (bc *BlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
 	return ApplyMessage(vm, msg, gp)
+}
+
+// SubscribeLogsEvent registers a subscription of []*types.Log.
+func (bc *BlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	return bc.scope.Track(bc.logsFeed.Subscribe(ch))
 }

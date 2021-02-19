@@ -22,9 +22,12 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
+	"github.com/kardiachain/go-kardia/lib/bloombits"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/rpc"
@@ -33,20 +36,33 @@ import (
 
 type APIBackend interface {
 	// Blockchain API
-	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header
-	HeaderByHash(ctx context.Context, hash common.Hash) *types.Header
-	HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error)
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) *types.Block
 	BlockByHash(ctx context.Context, hash common.Hash) *types.Block
 	BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)
 	BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo
-	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
-	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
+
 	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error)
 	GetValidators() ([]*staking.Validator, error)
 	GetValidator(valAddr common.Address) (*staking.Validator, error)
 	GetValidatorCommission(valAddr common.Address) (uint64, error)
 	GetDelegationsByValidator(valAddr common.Address) ([]*staking.Delegator, error)
+
+	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header
+	HeaderByHash(ctx context.Context, hash common.Hash) *types.Header
+	HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error)
+
+	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
+	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
+
+	SubscribeChainEvent(ch chan<- events.ChainEvent) event.Subscription
+
+	// Filter API
+	BloomStatus() (uint64, uint64)
+	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
+	ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
+	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
+	SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription
+	SubscribeRemovedLogsEvent(ch chan<- events.RemovedLogsEvent) event.Subscription
 }
 
 func (k *KardiaService) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header {
@@ -242,4 +258,8 @@ func (k *KardiaService) getValidatorInfoParams(block *types.Block) (*state.State
 	}
 
 	return st, block.Header(), kvmConfig, nil
+}
+
+func (k *KardiaService) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	return k.blockchain.SubscribeLogsEvent(ch)
 }

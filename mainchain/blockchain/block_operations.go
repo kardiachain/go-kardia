@@ -272,6 +272,10 @@ LOOP:
 		i++
 		receipts = append(receipts, receipt)
 		newTxs = append(newTxs, tx)
+		// send logs of emitted events to logs feed for collecting
+		if len(receipt.Logs) > 0 {
+			bo.blockchain.logsFeed.Send(receipt.Logs)
+		}
 	}
 
 	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
