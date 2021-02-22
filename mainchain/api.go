@@ -41,24 +41,23 @@ import (
 
 // BlockHeaderJSON represents BlockHeader in JSON format
 type BlockHeaderJSON struct {
-	Hash              string    `json:"hash"`
-	Height            uint64    `json:"height"`
-	LastBlock         string    `json:"lastBlock"`
-	CommitHash        string    `json:"commitHash"`
-	Time              time.Time `json:"time"`
-	NumTxs            uint64    `json:"numTxs"`
-	GasUsed           uint64    `json:"gasUsed"`
-	GasLimit          uint64    `json:"gasLimit"`
-	Rewards           string    `json:"Rewards"`
-	ProposerAddress   string    `json:"proposerAddress"`
-	TxHash            string    `json:"dataHash"`     // transactions
-	ReceiptHash       string    `json:"receiptsRoot"` // receipt root
-	Bloom             string    `json:"logsBloom"`
-	ValidatorsHash    string    `json:"validatorHash"`     // current block validators hash
-	NextValidatorHash string    `json:"nextValidatorHash"` // next block validators hash
-	ConsensusHash     string    `json:"consensusHash"`     // current consensus hash
-	AppHash           string    `json:"appHash"`           // state of transactions
-	EvidenceHash      string    `json:"evidenceHash"`      // hash of evidence
+	Hash              string      `json:"hash"`
+	Height            uint64      `json:"height"`
+	LastBlock         string      `json:"lastBlock"`
+	CommitHash        string      `json:"commitHash"`
+	Time              time.Time   `json:"time"`
+	NumTxs            uint64      `json:"numTxs"`
+	GasUsed           uint64      `json:"gasUsed"`
+	GasLimit          uint64      `json:"gasLimit"`
+	Rewards           string      `json:"Rewards"`
+	ProposerAddress   string      `json:"proposerAddress"`
+	TxHash            string      `json:"dataHash"` // transactions
+	Bloom             types.Bloom `json:"logsBloom"`
+	ValidatorsHash    string      `json:"validatorHash"`     // current block validators hash
+	NextValidatorHash string      `json:"nextValidatorHash"` // next block validators hash
+	ConsensusHash     string      `json:"consensusHash"`     // current consensus hash
+	AppHash           string      `json:"appHash"`           // state of transactions
+	EvidenceHash      string      `json:"evidenceHash"`      // hash of evidence
 }
 
 // BlockJSON represents Block in JSON format
@@ -73,9 +72,8 @@ type BlockJSON struct {
 	GasUsed           uint64               `json:"gasUsed"`
 	Rewards           string               `json:"rewards"`
 	ProposerAddress   string               `json:"proposerAddress"`
-	TxHash            string               `json:"dataHash"`     // hash of txs
-	ReceiptHash       string               `json:"receiptsRoot"` // receipt root
-	Bloom             string               `json:"logsBloom"`
+	TxHash            string               `json:"dataHash"` // hash of txs
+	Bloom             types.Bloom          `json:"logsBloom"`
 	ValidatorsHash    string               `json:"validatorHash"`     // validators for the current block
 	NextValidatorHash string               `json:"nextValidatorHash"` // validators for the current block
 	ConsensusHash     string               `json:"consensusHash"`     // hash of current consensus
@@ -138,6 +136,7 @@ func NewBlockHeaderJSON(header *types.Header, blockInfo *types.BlockInfo) *Block
 		GasLimit:          header.GasLimit,
 		ProposerAddress:   header.ProposerAddress.Hex(),
 		TxHash:            header.TxHash.Hex(),
+		Bloom:             blockInfo.Bloom,
 		ValidatorsHash:    header.ValidatorsHash.Hex(),
 		NextValidatorHash: header.NextValidatorsHash.Hex(),
 		ConsensusHash:     header.ConsensusHash.Hex(),
@@ -180,6 +179,7 @@ func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 		GasUsed:           blockInfo.GasUsed,
 		Rewards:           blockInfo.Rewards.String(),
 		ProposerAddress:   block.Header().ProposerAddress.Hex(),
+		Bloom:             blockInfo.Bloom,
 		TxHash:            block.Header().TxHash.Hex(),
 		ValidatorsHash:    block.Header().ValidatorsHash.Hex(),
 		NextValidatorHash: block.Header().NextValidatorsHash.Hex(),
@@ -793,6 +793,7 @@ func NewPublicFilterAPI(s *KardiaService) *PublicFilterAPI {
 }
 
 func (api *PublicFilterAPI) NewHeads(ctx context.Context) (*rpc.Subscription, error) {
+	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@ newheads")
 	notifier, supported := rpc.NotifierFromContext(ctx)
 	if !supported {
 		return &rpc.Subscription{}, rpc.ErrNotificationsUnsupported

@@ -25,22 +25,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
+
 	"github.com/ethereum/go-ethereum"
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus/ethash"
-	"github.com/kardiachain/go-kardia/core"
-	"github.com/kardiachain/go-kardia/core/bloombits"
-	"github.com/kardiachain/go-kardia/core/rawdb"
-	"github.com/kardiachain/go-kardia/core/types"
-	"github.com/kardiachain/go-kardia/ethdb"
-	"github.com/kardiachain/go-kardia/event"
-	"github.com/kardiachain/go-kardia/params"
+	"github.com/kardiachain/go-kardia/kai/events"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/lib/bloombits"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/rpc"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 type testBackend struct {
 	mux             *event.TypeMux
-	db              ethdb.Database
+	db              kaidb.Database
 	sections        uint64
 	txFeed          event.Feed
 	logsFeed        event.Feed
@@ -49,7 +50,7 @@ type testBackend struct {
 	chainFeed       event.Feed
 }
 
-func (b *testBackend) ChainDb() ethdb.Database {
+func (b *testBackend) ChainDb() kaidb.Database {
 	return b.db
 }
 
@@ -59,40 +60,40 @@ func (b *testBackend) HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumbe
 		num  uint64
 	)
 	if blockNr == rpc.LatestBlockNumber {
-		hash = rawdb.ReadHeadBlockHash(b.db)
-		number := rawdb.ReadHeaderNumber(b.db, hash)
+		hash = kaidb.ReadHeadBlockHash(b.db)
+		number := kaidb.ReadHeaderNumber(b.db, hash)
 		if number == nil {
 			return nil, nil
 		}
 		num = *number
 	} else {
 		num = uint64(blockNr)
-		hash = rawdb.ReadCanonicalHash(b.db, num)
+		hash = kaidb.ReadCanonicalHash(b.db, num)
 	}
-	return rawdb.ReadHeader(b.db, hash, num), nil
+	return kaidb.ReadHeader(b.db, hash, num), nil
 }
 
 func (b *testBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error) {
-	number := rawdb.ReadHeaderNumber(b.db, hash)
+	number := kaidb.ReadHeaderNumber(b.db, hash)
 	if number == nil {
 		return nil, nil
 	}
-	return rawdb.ReadHeader(b.db, hash, *number), nil
+	return kaidb.ReadHeader(b.db, hash, *number), nil
 }
 
 func (b *testBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
-	if number := rawdb.ReadHeaderNumber(b.db, hash); number != nil {
-		return rawdb.ReadReceipts(b.db, hash, *number, params.TestChainConfig), nil
+	if number := kaidb.ReadHeaderNumber(b.db, hash); number != nil {
+		return kaidb.ReadReceipts(b.db, hash, *number, configs.TestChainConfig), nil
 	}
 	return nil, nil
 }
 
 func (b *testBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types.Log, error) {
-	number := rawdb.ReadHeaderNumber(b.db, hash)
+	number := kaidb.ReadHeaderNumber(b.db, hash)
 	if number == nil {
 		return nil, nil
 	}
-	receipts := rawdb.ReadReceipts(b.db, hash, *number, params.TestChainConfig)
+	receipts := kaidb.ReadReceipts(b.db, hash, *number, configs.TestChainConfig)
 
 	logs := make([][]*types.Log, len(receipts))
 	for i, receipt := range receipts {
@@ -101,11 +102,11 @@ func (b *testBackend) GetLogs(ctx context.Context, hash common.Hash) ([][]*types
 	return logs, nil
 }
 
-func (b *testBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
+func (b *testBackend) SubscribeNewTxsEvent(ch chan<- events.NewTxsEvent) event.Subscription {
 	return b.txFeed.Subscribe(ch)
 }
 
-func (b *testBackend) SubscribeRemovedLogsEvent(ch chan<- core.RemovedLogsEvent) event.Subscription {
+func (b *testBackend) SubscribeRemovedLogsEvent(ch chan<- events.RemovedLogsEvent) event.Subscription {
 	return b.rmLogsFeed.Subscribe(ch)
 }
 
@@ -117,12 +118,12 @@ func (b *testBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Su
 	return b.pendingLogsFeed.Subscribe(ch)
 }
 
-func (b *testBackend) SubscribeChainEvent(ch chan<- core.ChainEvent) event.Subscription {
+func (b *testBackend) SubscribeChainEvent(ch chan<- events.ChainEvent) event.Subscription {
 	return b.chainFeed.Subscribe(ch)
 }
 
 func (b *testBackend) BloomStatus() (uint64, uint64) {
-	return params.BloomBitsBlocks, b.sections
+	return configs.BloomBitsBlocks, b.sections
 }
 
 func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.MatcherSession) {
@@ -142,8 +143,8 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 				task.Bitsets = make([][]byte, len(task.Sections))
 				for i, section := range task.Sections {
 					if rand.Int()%4 != 0 { // Handle occasional missing deliveries
-						head := rawdb.ReadCanonicalHash(b.db, (section+1)*params.BloomBitsBlocks-1)
-						task.Bitsets[i], _ = rawdb.ReadBloomBits(b.db, task.Bit, section, head)
+						head := kaidb.ReadCanonicalHash(b.db, (section+1)*configs.BloomBitsBlocks-1)
+						task.Bitsets[i], _ = kaidb.ReadBloomBits(b.db, task.Bit, section, head)
 					}
 				}
 				request <- task
@@ -161,16 +162,16 @@ func TestBlockSubscription(t *testing.T) {
 	t.Parallel()
 
 	var (
-		db          = rawdb.NewMemoryDatabase()
+		db          = kaidb.NewMemoryDatabase()
 		backend     = &testBackend{db: db}
-		api         = NewPublicFilterAPI(backend, false)
-		genesis     = new(core.Genesis).MustCommit(db)
-		chain, _    = core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), db, 10, func(i int, gen *core.BlockGen) {})
-		chainEvents = []core.ChainEvent{}
+		api         = NewPublicFilterAPI(backend)
+		genesis     = new(genesis.Genesis).MustCommit(db)
+		chain, _    = events.GenerateChain(configs.TestChainConfig, genesis, ethash.NewFaker(), db, 10, func(i int, gen *events.BlockGen) {})
+		chainEvents = []events.ChainEvent{}
 	)
 
 	for _, blk := range chain {
-		chainEvents = append(chainEvents, core.ChainEvent{Hash: blk.Hash(), Block: blk})
+		chainEvents = append(chainEvents, events.ChainEvent{Hash: blk.Hash(), Block: blk})
 	}
 
 	chan0 := make(chan *types.Header)
@@ -213,9 +214,9 @@ func TestPendingTxFilter(t *testing.T) {
 	t.Parallel()
 
 	var (
-		db      = rawdb.NewMemoryDatabase()
+		db      = kaidb.NewMemoryDatabase()
 		backend = &testBackend{db: db}
-		api     = NewPublicFilterAPI(backend, false)
+		api     = NewPublicFilterAPI(backend)
 
 		transactions = []*types.Transaction{
 			types.NewTransaction(0, common.HexToAddress("0xb794f5ea0ba39494ce83a213fffba74279579268"), new(big.Int), 0, new(big.Int), nil),
@@ -231,7 +232,7 @@ func TestPendingTxFilter(t *testing.T) {
 	fid0 := api.NewPendingTransactionFilter()
 
 	time.Sleep(1 * time.Second)
-	backend.txFeed.Send(core.NewTxsEvent{Txs: transactions})
+	backend.txFeed.Send(events.NewTxsEvent{Txs: transactions})
 
 	timeout := time.Now().Add(1 * time.Second)
 	for {
@@ -268,7 +269,7 @@ func TestPendingTxFilter(t *testing.T) {
 // If not it must return an error.
 func TestLogFilterCreation(t *testing.T) {
 	var (
-		db      = rawdb.NewMemoryDatabase()
+		db      = kaidb.NewMemoryDatabase()
 		backend = &testBackend{db: db}
 		api     = NewPublicFilterAPI(backend, false)
 
@@ -312,7 +313,7 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 	t.Parallel()
 
 	var (
-		db      = rawdb.NewMemoryDatabase()
+		db      = kaidb.NewMemoryDatabase()
 		backend = &testBackend{db: db}
 		api     = NewPublicFilterAPI(backend, false)
 	)
@@ -334,17 +335,17 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 
 func TestInvalidGetLogsRequest(t *testing.T) {
 	var (
-		db        = rawdb.NewMemoryDatabase()
+		db        = kaidb.NewMemoryDatabase()
 		backend   = &testBackend{db: db}
-		api       = NewPublicFilterAPI(backend, false)
+		api       = NewPublicFilterAPI(backend)
 		blockHash = common.HexToHash("0x1111111111111111111111111111111111111111111111111111111111111111")
 	)
 
 	// Reason: Cannot specify both BlockHash and FromBlock/ToBlock)
 	testCases := []FilterCriteria{
-		0: {BlockHash: &blockHash, FromBlock: big.NewInt(100)},
-		1: {BlockHash: &blockHash, ToBlock: big.NewInt(500)},
-		2: {BlockHash: &blockHash, FromBlock: big.NewInt(rpc.LatestBlockNumber.Int64())},
+		0: {BlockHash: &blockHash, FromBlock: 100},
+		1: {BlockHash: &blockHash, ToBlock: 500},
+		2: {BlockHash: &blockHash, FromBlock: rpc.LatestBlockNumber.Uint64()},
 	}
 
 	for i, test := range testCases {
@@ -359,7 +360,7 @@ func TestLogFilter(t *testing.T) {
 	t.Parallel()
 
 	var (
-		db      = rawdb.NewMemoryDatabase()
+		db      = kaidb.NewMemoryDatabase()
 		backend = &testBackend{db: db}
 		api     = NewPublicFilterAPI(backend, false)
 
@@ -473,7 +474,7 @@ func TestPendingLogsSubscription(t *testing.T) {
 	t.Parallel()
 
 	var (
-		db      = rawdb.NewMemoryDatabase()
+		db      = kaidb.NewMemoryDatabase()
 		backend = &testBackend{db: db}
 		api     = NewPublicFilterAPI(backend, false)
 

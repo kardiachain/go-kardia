@@ -213,6 +213,7 @@ type BlockInfo struct {
 	GasUsed  uint64
 	Rewards  *big.Int // block reward
 	Receipts Receipts
+	Bloom    Bloom
 }
 
 // EncodeRLP implements rlp.Encoder, and flattens all content fields of a block info
@@ -222,6 +223,7 @@ func (bi *BlockInfo) EncodeRLP(w io.Writer) error {
 		Receipts: make([]*ReceiptForStorage, len(bi.Receipts)),
 		GasUsed:  bi.GasUsed,
 		Rewards:  bi.Rewards,
+		Bloom:    bi.Bloom,
 	}
 	for i, receipt := range bi.Receipts {
 		sbi.Receipts[i] = (*ReceiptForStorage)(receipt)
@@ -236,6 +238,7 @@ func (bi *BlockInfo) DecodeRLP(s *rlp.Stream) error {
 	}
 	bi.GasUsed = sbi.GasUsed
 	bi.Rewards = sbi.Rewards
+	bi.Bloom = sbi.Bloom
 	bi.Receipts = make(Receipts, len(sbi.Receipts))
 	for i, receipt := range sbi.Receipts {
 		bi.Receipts[i] = (*Receipt)(receipt)
@@ -247,4 +250,5 @@ type storageBlockInfo struct {
 	GasUsed  uint64
 	Rewards  *big.Int
 	Receipts []*ReceiptForStorage
+	Bloom    Bloom
 }

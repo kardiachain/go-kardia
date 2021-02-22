@@ -299,6 +299,7 @@ LOOP:
 		GasUsed:  *usedGas,
 		Receipts: receipts,
 		Rewards:  blockReward,
+		Bloom:    types.CreateBloom(receipts),
 	}
 
 	return vals, root, blockInfo, newTxs, nil

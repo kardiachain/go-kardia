@@ -93,4 +93,8 @@ const (
 	GasMidStep     uint64 = 8
 	GasSlowStep    uint64 = 10
 	GasExtStep     uint64 = 20
+
+	// BloomBitsBlocks is the number of blocks a single bloom bit section vector
+	// contains on the server side.
+	BloomBitsBlocks uint64 = 4096
 )
