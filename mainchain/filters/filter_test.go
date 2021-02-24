@@ -23,13 +23,13 @@ import (
 	"os"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus/ethash"
 	"github.com/kardiachain/go-kardia/core"
 	"github.com/kardiachain/go-kardia/core/rawdb"
-	"github.com/kardiachain/go-kardia/core/types"
-	"github.com/kardiachain/go-kardia/crypto"
-	"github.com/kardiachain/go-kardia/params"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 func makeReceipt(addr common.Address) *types.Receipt {
@@ -60,7 +60,7 @@ func BenchmarkFilters(b *testing.B) {
 	defer db.Close()
 
 	genesis := core.GenesisBlockForTesting(db, addr1, big.NewInt(1000000))
-	chain, receipts := core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), db, 100010, func(i int, gen *core.BlockGen) {
+	chain, receipts := core.GenerateChain(configs.TestChainConfig, genesis, ethash.NewFaker(), db, 100010, func(i int, gen *core.BlockGen) {
 		switch i {
 		case 2403:
 			receipt := makeReceipt(addr1)
@@ -116,7 +116,7 @@ func TestFilters(t *testing.T) {
 	defer db.Close()
 
 	genesis := core.GenesisBlockForTesting(db, addr, big.NewInt(1000000))
-	chain, receipts := core.GenerateChain(params.TestChainConfig, genesis, ethash.NewFaker(), db, 1000, func(i int, gen *core.BlockGen) {
+	chain, receipts := core.GenerateChain(configs.TestChainConfig, genesis, ethash.NewFaker(), db, 1000, func(i int, gen *core.BlockGen) {
 		switch i {
 		case 1:
 			receipt := types.NewReceipt(nil, false, 0)

@@ -54,6 +54,9 @@ var (
 	eventsPrefix      = []byte("events") // event prefix + smart contract address
 	dualActionPrefix  = []byte("dualAction")
 	contractAbiPrefix = []byte("abi")
+
+	// Chain index prefixes (use `i` + single byte to avoid mixing data types).
+	BloomBitsIndexPrefix = []byte("iB") // BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
 )
 
 // A positional metadata to help looking up the data content of
@@ -154,8 +157,8 @@ func dualEventLookupKey(hash common.Hash) []byte {
 	return append(dualEventLookupPrefix, hash.Bytes()...)
 }
 
-// bloomBitsKey = bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash
-func bloomBitsKey(bit uint, section uint64, hash common.Hash) []byte {
+// BloomBitsKey = bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash
+func BloomBitsKey(bit uint, section uint64, hash common.Hash) []byte {
 	key := append(append(bloomBitsPrefix, make([]byte, 10)...), hash.Bytes()...)
 
 	binary.BigEndian.PutUint16(key[1:], uint16(bit))

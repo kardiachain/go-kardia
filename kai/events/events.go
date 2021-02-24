@@ -29,9 +29,6 @@ type NewDualEventsEvent struct{ Events []*types.DualEvent }
 // NewTxsEvent is posted when a batch of transactions enter the transaction pool.
 type NewTxsEvent struct{ Txs []*types.Transaction }
 
-// RemovedLogsEvent is posted when a reorg happens
-type RemovedLogsEvent struct{ Logs []*types.Log }
-
 // ChainHeadEvent is posted when a new head block is saved to the block chain.
 type ChainHeadEvent struct{ Block *types.Block }
 

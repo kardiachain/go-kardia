@@ -92,13 +92,11 @@ type EventSystem struct {
 	chainSub       event.Subscription // Subscription for new chain event
 
 	// Channels
-	install       chan *subscription           // install filter for event notification
-	uninstall     chan *subscription           // remove filter for event notification
-	txsCh         chan events.NewTxsEvent      // Channel to receive new transactions event
-	logsCh        chan []*types.Log            // Channel to receive new log event
-	rmLogsCh      chan events.RemovedLogsEvent // Channel to receive removed log event
-	pendingLogsCh chan []*types.Log            // Channel to receive new log event
-	chainCh       chan events.ChainEvent       // Channel to receive new chain event
+	install   chan *subscription      // install filter for event notification
+	uninstall chan *subscription      // remove filter for event notification
+	txsCh     chan events.NewTxsEvent // Channel to receive new transactions event
+	logsCh    chan []*types.Log       // Channel to receive new log event
+	chainCh   chan events.ChainEvent  // Channel to receive new chain event
 }
 
 // NewEventSystem creates a new manager that listens for event on the given mux,
@@ -109,25 +107,21 @@ type EventSystem struct {
 // or by stopping the given mux.
 func NewEventSystem(backend Backend) *EventSystem {
 	m := &EventSystem{
-		backend:       backend,
-		install:       make(chan *subscription),
-		uninstall:     make(chan *subscription),
-		txsCh:         make(chan events.NewTxsEvent, txChanSize),
-		logsCh:        make(chan []*types.Log, logsChanSize),
-		rmLogsCh:      make(chan events.RemovedLogsEvent, rmLogsChanSize),
-		pendingLogsCh: make(chan []*types.Log, logsChanSize),
-		chainCh:       make(chan events.ChainEvent, chainEvChanSize),
+		backend:   backend,
+		install:   make(chan *subscription),
+		uninstall: make(chan *subscription),
+		txsCh:     make(chan events.NewTxsEvent, txChanSize),
+		logsCh:    make(chan []*types.Log, logsChanSize),
+		chainCh:   make(chan events.ChainEvent, chainEvChanSize),
 	}
 
 	// Subscribe events
 	m.txsSub = m.backend.SubscribeNewTxsEvent(m.txsCh)
 	m.logsSub = m.backend.SubscribeLogsEvent(m.logsCh)
 	m.chainSub = m.backend.SubscribeChainEvent(m.chainCh)
-	m.rmLogsSub = m.backend.SubscribeRemovedLogsEvent(m.rmLogsCh)
-	m.pendingLogsSub = m.backend.SubscribePendingLogsEvent(m.pendingLogsCh)
 
 	// Make sure none of the subscriptions are empty
-	if m.txsSub == nil || m.logsSub == nil || m.rmLogsSub == nil || m.chainSub == nil || m.pendingLogsSub == nil {
+	if m.txsSub == nil || m.logsSub == nil || m.chainSub == nil {
 		log.Crit("Subscribe for event system failed")
 	}
 
@@ -328,15 +322,6 @@ func (es *EventSystem) handlePendingLogs(filters filterIndex, ev []*types.Log) {
 	}
 }
 
-func (es *EventSystem) handleRemovedLogs(filters filterIndex, ev events.RemovedLogsEvent) {
-	for _, f := range filters[LogsSubscription] {
-		matchedLogs := filterLogs(ev.Logs, f.logsCrit.FromBlock, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics)
-		if len(matchedLogs) > 0 {
-			f.logs <- matchedLogs
-		}
-	}
-}
-
 func (es *EventSystem) handleTxsEvent(filters filterIndex, ev events.NewTxsEvent) {
 	hashes := make([]common.Hash, 0, len(ev.Txs))
 	for _, tx := range ev.Txs {
@@ -359,8 +344,6 @@ func (es *EventSystem) eventLoop() {
 	defer func() {
 		es.txsSub.Unsubscribe()
 		es.logsSub.Unsubscribe()
-		es.rmLogsSub.Unsubscribe()
-		es.pendingLogsSub.Unsubscribe()
 		es.chainSub.Unsubscribe()
 	}()
 
@@ -375,10 +358,6 @@ func (es *EventSystem) eventLoop() {
 			es.handleTxsEvent(index, ev)
 		case ev := <-es.logsCh:
 			es.handleLogs(index, ev)
-		case ev := <-es.rmLogsCh:
-			es.handleRemovedLogs(index, ev)
-		case ev := <-es.pendingLogsCh:
-			es.handlePendingLogs(index, ev)
 		case ev := <-es.chainCh:
 			es.handleChainEvent(index, ev)
 
@@ -386,7 +365,6 @@ func (es *EventSystem) eventLoop() {
 			if f.typ == MinedAndPendingLogsSubscription {
 				// the type are logs and pending logs subscriptions
 				index[LogsSubscription][f.id] = f
-				index[PendingLogsSubscription][f.id] = f
 			} else {
 				index[f.typ][f.id] = f
 			}
@@ -396,7 +374,6 @@ func (es *EventSystem) eventLoop() {
 			if f.typ == MinedAndPendingLogsSubscription {
 				// the type are logs and pending logs subscriptions
 				delete(index[LogsSubscription], f.id)
-				delete(index[PendingLogsSubscription], f.id)
 			} else {
 				delete(index[f.typ], f.id)
 			}
@@ -406,8 +383,6 @@ func (es *EventSystem) eventLoop() {
 		case <-es.txsSub.Err():
 			return
 		case <-es.logsSub.Err():
-			return
-		case <-es.rmLogsSub.Err():
 			return
 		case <-es.chainSub.Err():
 			return

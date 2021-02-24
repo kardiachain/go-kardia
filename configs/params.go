@@ -97,4 +97,12 @@ const (
 	// BloomBitsBlocks is the number of blocks a single bloom bit section vector
 	// contains on the server side.
 	BloomBitsBlocks uint64 = 4096
+
+	// BloomBitsBlocksClient is the number of blocks a single bloom bit section vector
+	// contains on the light client side
+	BloomBitsBlocksClient uint64 = 32768
+
+	// HelperTrieConfirmations is the number of confirmations before a client is expected
+	// to have the given HelperTrie available.
+	HelperTrieConfirmations = 2048
 )

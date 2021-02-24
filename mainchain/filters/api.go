@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia"
-	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/rpc"
@@ -53,7 +52,7 @@ type PublicFilterAPI struct {
 	backend   Backend
 	mux       *event.TypeMux
 	quit      chan struct{}
-	chainDb   kaidb.Database
+	chainDb   types.StoreDB
 	events    *EventSystem
 	filtersMu sync.Mutex
 	filters   map[rpc.ID]*filter
@@ -270,7 +269,7 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit FilterCriteria) (*rpc
 }
 
 // FilterCriteria represents a request to create a new filter.
-// Same as ethereum.FilterQuery but with UnmarshalJSON() method.
+// Same as kardia.FilterQuery but with UnmarshalJSON() method.
 type FilterCriteria kardia.FilterQuery
 
 // NewFilter creates a new filter and returns the filter id. It can be

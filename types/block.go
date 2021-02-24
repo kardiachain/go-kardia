@@ -73,8 +73,6 @@ type Header struct {
 	AppHash            common.Hash `json:"app_hash"`             // state after txs from the previous block
 	// consensus info
 	EvidenceHash common.Hash `json:"evidence_hash"` // evidence included in the block
-
-	Bloom Bloom `json:"logsBloom"        gencodec:"required"`
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
