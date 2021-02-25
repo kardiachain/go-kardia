@@ -133,14 +133,13 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 	if header == nil {
 		return nil, nil
 	}
-	head := header.Height
-
+	fmt.Printf("@@@@@@@@@@@@@@@@@@@@ k.blockchain.CurrentBlock().Header(): %+v height: %v\n", header, header.Height)
 	if f.begin == 0 {
-		f.begin = head
+		f.begin = header.Height
 	}
 	end := f.end
 	if f.end == 0 {
-		end = head
+		end = header.Height - 1
 	}
 	fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ begin: %v end: %v\n", f.begin, f.end)
 	// Gather all indexed logs, and finish with non indexed ones
@@ -217,7 +216,7 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 	var logs []*types.Log
 
 	for ; f.begin <= end; f.begin++ {
-		fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@ f.begin", f.begin)
+		fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@@@ f.begin: %v f.end: %v\n", f.begin, f.end)
 		header := f.backend.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
 		if header == nil {
 			return logs, ErrHeaderNotFound

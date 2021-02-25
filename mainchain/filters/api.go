@@ -326,17 +326,8 @@ func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([
 		// Block filter requested, construct a single-shot filter
 		filter = NewBlockFilter(api.backend, *crit.BlockHash, crit.Addresses, crit.Topics)
 	} else {
-		// Convert the RPC block numbers into internal representations
-		begin := rpc.LatestBlockNumber.Uint64()
-		if crit.FromBlock != 0 {
-			begin = crit.FromBlock
-		}
-		end := rpc.LatestBlockNumber.Uint64()
-		if crit.ToBlock != 0 {
-			end = crit.ToBlock
-		}
 		// Construct the range filter
-		filter = NewRangeFilter(api.backend, begin, end, crit.Addresses, crit.Topics)
+		filter = NewRangeFilter(api.backend, crit.FromBlock, crit.ToBlock, crit.Addresses, crit.Topics)
 	}
 	// Run the filter and return all the logs
 	logs, err := filter.Logs(ctx)
@@ -381,17 +372,8 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 		// Block filter requested, construct a single-shot filter
 		filter = NewBlockFilter(api.backend, *f.crit.BlockHash, f.crit.Addresses, f.crit.Topics)
 	} else {
-		// Convert the RPC block numbers into internal representations
-		begin := rpc.LatestBlockNumber.Uint64()
-		if f.crit.FromBlock != 0 {
-			begin = f.crit.FromBlock
-		}
-		end := rpc.LatestBlockNumber.Uint64()
-		if f.crit.ToBlock != 0 {
-			end = f.crit.ToBlock
-		}
 		// Construct the range filter
-		filter = NewRangeFilter(api.backend, begin, end, f.crit.Addresses, f.crit.Topics)
+		filter = NewRangeFilter(api.backend, f.crit.FromBlock, f.crit.ToBlock, f.crit.Addresses, f.crit.Topics)
 	}
 	// Run the filter and return all the logs
 	logs, err := filter.Logs(ctx)
