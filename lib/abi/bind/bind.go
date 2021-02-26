@@ -371,7 +371,7 @@ var bindTopicType = map[Lang]func(kind abi.Type, structs map[string]*tmplStruct)
 func bindTopicTypeGo(kind abi.Type, structs map[string]*tmplStruct) string {
 	bound := bindTypeGo(kind, structs)
 
-	// todo(rjl493456442) according solidity documentation, indexed event
+	// TODO(trinhdn): according solidity documentation, indexed event
 	// parameters that are not value types i.e. arrays and structs are not
 	// stored directly but instead a keccak256-hash of an encoding is stored.
 	//
@@ -388,7 +388,7 @@ func bindTopicTypeGo(kind abi.Type, structs map[string]*tmplStruct) string {
 func bindTopicTypeJava(kind abi.Type, structs map[string]*tmplStruct) string {
 	bound := bindTypeJava(kind, structs)
 
-	// todo(rjl493456442) according solidity documentation, indexed event
+	// TODO(trinhdn): according solidity documentation, indexed event
 	// parameters that are not value types i.e. arrays and structs are not
 	// stored directly but instead a keccak256-hash of an encoding is stored.
 	//
@@ -484,7 +484,7 @@ func bindStructTypeJava(kind abi.Type, structs map[string]*tmplStruct) string {
 }
 
 // namedType is a set of functions that transform language specific types to
-// named versions that my be used inside method names.
+// named versions that may be used inside method names.
 var namedType = map[Lang]func(string, abi.Type) string{
 	LangGo:   func(string, abi.Type) string { panic("this shouldn't be needed") },
 	LangJava: namedTypeJava,
