@@ -1472,8 +1472,8 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 	// Execute and commit the block, update and save the state, and update the mempool.
 	// NOTE The block.AppHash wont reflect these txs until the next block.
 	var err error
-	stateCopy, err = cs.blockExec.ApplyBlock(
-		cs.Logger, stateCopy,
+	stateCopy, _, err = cs.blockExec.ApplyBlock(
+		stateCopy,
 		types.BlockID{Hash: block.Hash(), PartsHeader: blockParts.Header()},
 		block,
 	)

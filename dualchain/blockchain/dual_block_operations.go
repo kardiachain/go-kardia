@@ -59,6 +59,7 @@ type DualBlockOperations struct {
 
 	bcManager *DualBlockChainManager
 	evpool    EvidencePool
+	base      uint64
 	height    uint64
 }
 
@@ -78,7 +79,17 @@ func (dbo *DualBlockOperations) SetDualBlockChainManager(bcManager *DualBlockCha
 	dbo.bcManager = bcManager
 }
 
+// Height returns latest height of blockchain.
+func (dbo *DualBlockOperations) Base() uint64 {
+	dbo.mtx.RLock()
+	defer dbo.mtx.RUnlock()
+	return dbo.base
+}
+
+// Height returns latest height of blockchain.
 func (dbo *DualBlockOperations) Height() uint64 {
+	dbo.mtx.RLock()
+	defer dbo.mtx.RUnlock()
 	return dbo.height
 }
 

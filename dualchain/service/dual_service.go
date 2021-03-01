@@ -19,11 +19,13 @@
 package service
 
 import (
+	bcReactor "github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/dualchain/blockchain"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
@@ -55,6 +57,7 @@ type DualService struct {
 	blockchain          *blockchain.DualBlockChain
 	csManager           *consensus.ConsensusManager
 	dualBlockOperations *blockchain.DualBlockOperations
+	bcR                 p2p.Reactor // for fast-syncing
 
 	networkID uint64
 }
@@ -105,7 +108,17 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	//evReactor := evidence.NewReactor(evPool)
 
 	dualService.dualBlockOperations = blockchain.NewDualBlockOperations(dualService.logger, dualService.blockchain, dualService.eventPool, evPool)
-	blockExec := cstate.NewBlockExecutor(ctx.StateDB, evPool, dualService.dualBlockOperations)
+	blockExec := cstate.NewBlockExecutor(ctx.StateDB, logger, evPool, dualService.dualBlockOperations)
+
+	// state starting configs
+	// Set private validator for consensus manager.
+	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
+	// Determine whether we should do fast sync. This must happen after the handshake, since the
+	// app may modify the validator set, specifying ourself as the only validator.
+	config.FastSync.Enable = config.FastSync.Enable && !onlyValidatorIsUs(lastBlockState, privValidator.GetAddress())
+	// Make BlockchainReactor. Don't start fast sync if we're doing a state sync first.
+	bcR := bcReactor.NewBlockchainReactor(lastBlockState, blockExec, dualService.dualBlockOperations, config.FastSync)
+	dualService.bcR = bcR
 
 	consensusState := consensus.NewConsensusState(
 		dualService.logger,
@@ -115,9 +128,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 		blockExec,
 		evPool,
 	)
-	dualService.csManager = consensus.NewConsensusManager(consensusState)
-	// Set private validator for consensus manager.
-	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
+	dualService.csManager = consensus.NewConsensusManager(consensusState, config.FastSync)
 	dualService.csManager.SetPrivValidator(privValidator)
 
 	//namdoh@ dualService.protocolManager.acceptTxs = config.AcceptTxs
@@ -137,6 +148,7 @@ func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 		IsPrivate:     chainConfig.IsPrivate,
 		BaseAccount:   chainConfig.BaseAccount,
 		Consensus:     chainConfig.Consensus,
+		FastSync:      chainConfig.FastSync,
 	})
 
 	if err != nil {
@@ -153,6 +165,13 @@ func (s *DualService) SetDualBlockChainManager(bcManager *blockchain.DualBlockCh
 func (s *DualService) IsListening() bool  { return true } // Always listening
 func (s *DualService) NetVersion() uint64 { return s.networkID }
 func (s *DualService) DB() types.StoreDB  { return s.groupDb }
+func onlyValidatorIsUs(state cstate.LastestBlockState, privValAddress common.Address) bool {
+	if state.Validators.Size() > 1 {
+		return false
+	}
+	addr, _ := state.Validators.GetByIndex(0)
+	return privValAddress.Equal(addr)
+}
 
 // Start implements Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
