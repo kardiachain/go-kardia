@@ -24,7 +24,6 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/crypto/sha3"
 )
@@ -99,16 +98,6 @@ func (b Bloom) Test(topic []byte) bool {
 	return v1 == v1&b[i1] &&
 		v2 == v2&b[i2] &&
 		v3 == v3&b[i3]
-}
-
-// MarshalText encodes b as a hex string with 0x prefix.
-func (b Bloom) MarshalText() ([]byte, error) {
-	return common.Bytes(b[:]).MarshalText()
-}
-
-// UnmarshalText b as a hex string with 0x prefix.
-func (b *Bloom) UnmarshalText(input []byte) error {
-	return common.UnmarshalFixedText("Bloom", input, b[:])
 }
 
 // CreateBloom creates a bloom filter out of the give Receipts (+Logs)

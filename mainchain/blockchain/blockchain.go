@@ -349,7 +349,7 @@ func (bc *BlockChain) GetHeaderByHash(hash common.Hash) *types.Header {
 	return bc.hc.GetHeaderByHash(hash)
 }
 
-// GetHeaderByHash retrieves a block header from the database by hash, caching it if
+// GetHeaderByHash retrieves a block header from the database by height, caching it if
 // found.
 func (bc *BlockChain) GetHeaderByHeight(height uint64) *types.Header {
 	return bc.hc.GetHeaderByHeight(height)

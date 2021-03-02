@@ -157,8 +157,8 @@ func dualEventLookupKey(hash common.Hash) []byte {
 	return append(dualEventLookupPrefix, hash.Bytes()...)
 }
 
-// BloomBitsKey = bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash
-func BloomBitsKey(bit uint, section uint64, hash common.Hash) []byte {
+// bloomBitsKey = bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash
+func bloomBitsKey(bit uint, section uint64, hash common.Hash) []byte {
 	key := append(append(bloomBitsPrefix, make([]byte, 10)...), hash.Bytes()...)
 
 	binary.BigEndian.PutUint16(key[1:], uint16(bit))

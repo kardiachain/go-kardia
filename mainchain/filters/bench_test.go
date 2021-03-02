@@ -24,6 +24,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/kai/storage"
@@ -112,7 +114,7 @@ func benchmarkBloomBits(b *testing.B, sectionSize uint64) {
 			comp := common.CompressBytes(data)
 			dataSize += uint64(len(data))
 			compSize += uint64(len(comp))
-			db.WriteBloomBits(uint(i), sectionIdx, sectionHead, comp)
+			kvstore.WriteBloomBits(db.DB(), uint(i), sectionIdx, sectionHead, comp)
 		}
 		if sectionIdx%50 == 0 {
 			b.Log(" section", sectionIdx, "/", cnt)

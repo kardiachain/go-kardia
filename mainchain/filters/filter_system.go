@@ -43,10 +43,6 @@ const (
 	UnknownSubscription Type = iota
 	// LogsSubscription queries for new or removed (chain reorg) logs
 	LogsSubscription
-	// PendingLogsSubscription queries for logs in pending blocks
-	PendingLogsSubscription
-	// MinedAndPendingLogsSubscription queries for logs in mined and pending blocks.
-	MinedAndPendingLogsSubscription
 	// PendingTransactionsSubscription queries tx hashes for pending
 	// transactions entering the pending state
 	PendingTransactionsSubscription
@@ -59,9 +55,7 @@ const (
 const (
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
-	txChanSize = 4096
-	// rmLogsChanSize is the size of channel listening to RemovedLogsEvent.
-	rmLogsChanSize = 10
+	txChanSize = 8192
 	// logsChanSize is the size of channel listening to LogsEvent.
 	logsChanSize = 10
 	// chainEvChanSize is the size of channel listening to ChainEvent.
@@ -87,11 +81,9 @@ type EventSystem struct {
 	lastHead *types.Header
 
 	// Subscriptions
-	txsSub         event.Subscription // Subscription for new transaction event
-	logsSub        event.Subscription // Subscription for new log event
-	rmLogsSub      event.Subscription // Subscription for removed log event
-	pendingLogsSub event.Subscription // Subscription for pending log event
-	chainSub       event.Subscription // Subscription for new chain event
+	txsSub   event.Subscription // Subscription for new transaction event
+	logsSub  event.Subscription // Subscription for new log event
+	chainSub event.Subscription // Subscription for new chain event
 
 	// Channels
 	install   chan *subscription      // install filter for event notification
@@ -180,56 +172,25 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 // given criteria to the given logs channel. Default value for the from and to
 // block is "latest". If the fromBlock > toBlock an error is returned.
 func (es *EventSystem) SubscribeLogs(crit kardia.FilterQuery, logs chan []*types.Log) (*Subscription, error) {
-	var from, to uint64
-	if crit.FromBlock == 0 {
+	var (
+		pending  = rpc.PendingBlockNumber.Uint64()
+		from, to uint64
+	)
+	if crit.FromBlock == 0 || crit.FromBlock == pending {
 		from = rpc.LatestBlockNumber.Uint64()
 	} else {
 		from = crit.FromBlock
 	}
-	if crit.ToBlock == 0 {
+	if crit.ToBlock == 0 || crit.ToBlock == pending {
 		to = rpc.LatestBlockNumber.Uint64()
 	} else {
 		to = crit.ToBlock
 	}
 
-	// only interested in pending logs
-	if from == rpc.PendingBlockNumber.Uint64() && to == rpc.PendingBlockNumber.Uint64() {
-		return es.subscribePendingLogs(crit, logs), nil
-	}
-	// only interested in new mined logs
-	if from == rpc.LatestBlockNumber.Uint64() && to == rpc.LatestBlockNumber.Uint64() {
-		return es.subscribeLogs(crit, logs), nil
-	}
-	// only interested in mined logs within a specific block range
-	if to < rpc.PendingBlockNumber.Uint64() && to >= from {
-		return es.subscribeLogs(crit, logs), nil
-	}
-	// interested in mined logs from a specific block number, new logs and pending logs
-	if from >= rpc.LatestBlockNumber.Uint64() && to == rpc.PendingBlockNumber.Uint64() {
-		return es.subscribeMinedPendingLogs(crit, logs), nil
-	}
-	// interested in logs from a specific block number to new mined blocks
-	if from < rpc.PendingBlockNumber.Uint64() && to == rpc.LatestBlockNumber.Uint64() {
+	if to >= from {
 		return es.subscribeLogs(crit, logs), nil
 	}
 	return nil, fmt.Errorf("invalid from and to block combination: from > to")
-}
-
-// subscribeMinedPendingLogs creates a subscription that returned mined and
-// pending logs that match the given criteria.
-func (es *EventSystem) subscribeMinedPendingLogs(crit kardia.FilterQuery, logs chan []*types.Log) *Subscription {
-	sub := &subscription{
-		id:        rpc.NewID(),
-		typ:       MinedAndPendingLogsSubscription,
-		logsCrit:  crit,
-		created:   time.Now(),
-		logs:      logs,
-		hashes:    make(chan []common.Hash),
-		headers:   make(chan *types.Header),
-		installed: make(chan struct{}),
-		err:       make(chan error),
-	}
-	return es.subscribe(sub)
 }
 
 // subscribeLogs creates a subscription that will write all logs matching the
@@ -238,23 +199,6 @@ func (es *EventSystem) subscribeLogs(crit kardia.FilterQuery, logs chan []*types
 	sub := &subscription{
 		id:        rpc.NewID(),
 		typ:       LogsSubscription,
-		logsCrit:  crit,
-		created:   time.Now(),
-		logs:      logs,
-		hashes:    make(chan []common.Hash),
-		headers:   make(chan *types.Header),
-		installed: make(chan struct{}),
-		err:       make(chan error),
-	}
-	return es.subscribe(sub)
-}
-
-// subscribePendingLogs creates a subscription that writes transaction hashes for
-// transactions that enter the transaction pool.
-func (es *EventSystem) subscribePendingLogs(crit kardia.FilterQuery, logs chan []*types.Log) *Subscription {
-	sub := &subscription{
-		id:        rpc.NewID(),
-		typ:       PendingLogsSubscription,
 		logsCrit:  crit,
 		created:   time.Now(),
 		logs:      logs,
@@ -312,18 +256,6 @@ func (es *EventSystem) handleLogs(filters filterIndex, ev []*types.Log) {
 	}
 }
 
-func (es *EventSystem) handlePendingLogs(filters filterIndex, ev []*types.Log) {
-	if len(ev) == 0 {
-		return
-	}
-	for _, f := range filters[PendingLogsSubscription] {
-		matchedLogs := filterLogs(ev, 0, f.logsCrit.ToBlock, f.logsCrit.Addresses, f.logsCrit.Topics)
-		if len(matchedLogs) > 0 {
-			f.logs <- matchedLogs
-		}
-	}
-}
-
 func (es *EventSystem) handleTxsEvent(filters filterIndex, ev events.NewTxsEvent) {
 	hashes := make([]common.Hash, 0, len(ev.Txs))
 	for _, tx := range ev.Txs {
@@ -364,7 +296,7 @@ func (es *EventSystem) eventLoop() {
 			es.handleChainEvent(index, ev)
 
 		case f := <-es.install:
-			if f.typ == MinedAndPendingLogsSubscription {
+			if f.typ == LogsSubscription {
 				// the type are logs and pending logs subscriptions
 				index[LogsSubscription][f.id] = f
 			} else {
@@ -373,7 +305,7 @@ func (es *EventSystem) eventLoop() {
 			close(f.installed)
 
 		case f := <-es.uninstall:
-			if f.typ == MinedAndPendingLogsSubscription {
+			if f.typ == LogsSubscription {
 				// the type are logs and pending logs subscriptions
 				delete(index[LogsSubscription], f.id)
 			} else {

@@ -19,7 +19,6 @@
 package blockchain
 
 import (
-	"fmt"
 	"sync/atomic"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -98,10 +97,8 @@ func (hc *HeaderChain) GetHeaderByHeight(height uint64) *types.Header {
 // GetHeader retrieves a block header from the database by hash and height,
 // caching it if found.
 func (hc *HeaderChain) GetHeader(hash common.Hash, height uint64) *types.Header {
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@ GetHeader params: hash %+v height %+v\n", hash, height)
 	// Short circuit if the header's already in the cache, retrieve otherwise
 	if header, ok := hc.headerCache.Get(hash); ok {
-		fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@ GetHeader return 1: header %+v\n", header)
 		return header.(*types.Header)
 	}
 	header := hc.kaiDb.ReadHeader(height)
@@ -110,7 +107,6 @@ func (hc *HeaderChain) GetHeader(hash common.Hash, height uint64) *types.Header 
 	}
 	// Cache the found header for next time and return
 	hc.headerCache.Add(hash, header)
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@ GetHeader return 2: header %+v\n", header)
 	return header
 }
 

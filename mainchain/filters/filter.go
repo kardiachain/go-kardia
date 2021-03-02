@@ -1,24 +1,25 @@
-// Copyright 2014 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+/*
+ *  Copyright 2021 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 package filters
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/lib/bloombits"
@@ -114,9 +115,7 @@ func newFilter(backend Backend, addresses []common.Address, topics [][]common.Ha
 // first block that contains matches, updating the start of the filter accordingly.
 func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 	// If we're doing singleton block filtering, execute and return
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@ Logs, filter: %+v\n", f)
 	if !f.block.Equal(common.Hash{}) {
-		fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ co' block hash")
 		header := f.backend.HeaderByHash(ctx, f.block)
 		if header == nil {
 			return nil, ErrHeaderNotFound
@@ -127,13 +126,11 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 		}
 		return f.blockLogs(ctx, header, blockInfo)
 	}
-	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ ko co' block hash")
 	// Figure out the limits of the filter range
 	header := f.backend.HeaderByNumber(ctx, rpc.LatestBlockNumber)
 	if header == nil {
 		return nil, nil
 	}
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@@ k.blockchain.CurrentBlock().Header(): %+v height: %v\n", header, header.Height)
 	if f.begin == 0 {
 		f.begin = header.Height
 	}
@@ -141,7 +138,6 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 	if f.end == 0 {
 		end = header.Height - 1
 	}
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ begin: %v end: %v\n", f.begin, f.end)
 	// Gather all indexed logs, and finish with non indexed ones
 	var (
 		logs []*types.Log
@@ -216,7 +212,6 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 	var logs []*types.Log
 
 	for ; f.begin <= end; f.begin++ {
-		fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@@@ f.begin: %v f.end: %v\n", f.begin, f.end)
 		header := f.backend.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
 		if header == nil {
 			return logs, ErrHeaderNotFound
@@ -225,7 +220,6 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 		if blockInfo == nil {
 			return nil, ErrBlockInfoNotFound
 		}
-		fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@@@ header: %+v blockInfo: %+v\n", header, blockInfo)
 		found, err := f.blockLogs(ctx, header, blockInfo)
 		if err != nil {
 			return logs, err
@@ -237,7 +231,6 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 
 // blockLogs returns the logs matching the filter criteria within a single block.
 func (f *Filter) blockLogs(ctx context.Context, header *types.Header, blockInfo *types.BlockInfo) (logs []*types.Log, err error) {
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@ blockLogs params, height: %v bloom: %+v\n", header.Height, blockInfo.Bloom)
 	if bloomFilter(blockInfo.Bloom, f.addresses, f.topics) {
 		found, err := f.checkMatches(ctx, header)
 		if err != nil {
@@ -245,7 +238,6 @@ func (f *Filter) blockLogs(ctx context.Context, header *types.Header, blockInfo 
 		}
 		logs = append(logs, found...)
 	}
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@@ blockLogs: %+v\n", logs)
 	return logs, nil
 }
 
@@ -262,9 +254,7 @@ func (f *Filter) checkMatches(ctx context.Context, header *types.Header) (logs [
 		unfiltered = append(unfiltered, logs...)
 	}
 	logs = filterLogs(unfiltered, 0, 0, f.addresses, f.topics)
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@ logsList after filtering: %+v \n", logs[0])
 	if len(logs) > 0 {
-		fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@ logsList of checkMatches: %+v \n", logsList[0])
 		return logs, nil
 	}
 	return nil, nil
@@ -282,33 +272,26 @@ func includes(addresses []common.Address, a common.Address) bool {
 
 // filterLogs creates a slice of logs matching the given criteria.
 func filterLogs(logs []*types.Log, fromBlock, toBlock uint64, addresses []common.Address, topics [][]common.Hash) []*types.Log {
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@ filterLogs params: %+v %+v %+v %+v \n", fromBlock, toBlock, addresses, topics)
 	var ret []*types.Log
 Logs:
 	for _, log := range logs {
-		fmt.Printf("@@@@@@@@@@@@@@@@@@@ inside each log: %+v \n", log)
 		if fromBlock > log.BlockHeight {
-			fmt.Println("@@@@@@@@@@@@@@@@@@@ fromBlock continue")
 			continue
 		}
 		if toBlock != 0 && toBlock < log.BlockHeight {
-			fmt.Println("@@@@@@@@@@@@@@@@@@@ toBlock continue")
 			continue
 		}
 
 		if len(addresses) > 0 && !includes(addresses, log.Address) {
-			fmt.Println("@@@@@@@@@@@@@@@@@@@ addresses continue")
 			continue
 		}
 		// If the to filtered topics is greater than the amount of topics in logs, skip.
 		if len(topics) > len(log.Topics) {
-			fmt.Println("@@@@@@@@@@@@@@@@@@@ topics continue")
 			continue Logs
 		}
 		for i, sub := range topics {
 			match := len(sub) == 0 // empty rule set == wildcard
 			for _, topic := range sub {
-				fmt.Printf("@@@@@@@@@@@@@@@@@@@ sub: %+v , topic: %+v\n", sub, topic)
 				if log.Topics[i] == topic {
 					match = true
 					break
@@ -333,25 +316,20 @@ func bloomFilter(bloom types.Bloom, addresses []common.Address, topics [][]commo
 			}
 		}
 		if !included {
-			fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@ bloomFilter 1 returned: ", false)
 			return false
 		}
 	}
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@@@ bloomFilter topics: %+v\n", topics)
 	for _, sub := range topics {
 		included := len(sub) == 0 // empty rule set == wildcard
 		for _, topic := range sub {
-			fmt.Printf("@@@@@@@@@@@@@@@@@@@@@@@@ bloomFilter sub: %+v bloom: %+v topic: %+v\n", sub, bloom, topic)
 			if types.BloomLookup(bloom, topic) {
 				included = true
 				break
 			}
 		}
 		if !included {
-			fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@ bloomFilter 2 returned: ", false)
 			return false
 		}
 	}
-	fmt.Println("@@@@@@@@@@@@@@@@@@@@@@@@ bloomFilter 3 returned: ", true)
 	return true
 }

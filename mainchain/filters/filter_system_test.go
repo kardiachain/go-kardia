@@ -20,14 +20,13 @@ package filters
 
 import (
 	"context"
-	"fmt"
-	"math/big"
 	"math/rand"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardia"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/storage"
@@ -39,14 +38,13 @@ import (
 )
 
 type testBackend struct {
-	mux             *event.TypeMux
-	db              types.StoreDB
-	sections        uint64
-	txFeed          event.Feed
-	logsFeed        event.Feed
-	rmLogsFeed      event.Feed
-	pendingLogsFeed event.Feed
-	chainFeed       event.Feed
+	mux        *event.TypeMux
+	db         types.StoreDB
+	sections   uint64
+	txFeed     event.Feed
+	logsFeed   event.Feed
+	rmLogsFeed event.Feed
+	chainFeed  event.Feed
 }
 
 func (b *testBackend) ChainDb() types.StoreDB {
@@ -120,10 +118,6 @@ func (b *testBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscript
 	return b.logsFeed.Subscribe(ch)
 }
 
-func (b *testBackend) SubscribePendingLogsEvent(ch chan<- []*types.Log) event.Subscription {
-	return b.pendingLogsFeed.Subscribe(ch)
-}
-
 func (b *testBackend) SubscribeChainEvent(ch chan<- events.ChainEvent) event.Subscription {
 	return b.chainFeed.Subscribe(ch)
 }
@@ -150,7 +144,7 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 				for i, section := range task.Sections {
 					if rand.Int()%4 != 0 { // Handle occasional missing deliveries
 						head := b.db.ReadCanonicalHash((section+1)*configs.BloomBitsBlocks - 1)
-						task.Bitsets[i], _ = b.db.ReadBloomBits(task.Bit, section, head)
+						task.Bitsets[i], _ = kvstore.ReadBloomBits(b.db.DB(), task.Bit, section, head)
 					}
 				}
 				request <- task
@@ -215,62 +209,6 @@ func (b *testBackend) ServiceFilter(ctx context.Context, session *bloombits.Matc
 //	<-sub1.Err()
 //}
 
-// TestPendingTxFilter tests whether pending tx filters retrieve all pending transactions that are posted to the event mux.
-func TestPendingTxFilter(t *testing.T) {
-	t.Parallel()
-
-	var (
-		db      = storage.NewMemoryDatabase()
-		backend = &testBackend{db: db}
-		api     = NewPublicFilterAPI(backend)
-
-		transactions = []*types.Transaction{
-			types.NewTransaction(0, common.HexToAddress("0xb794f5ea0ba39494ce83a213fffba74279579268"), new(big.Int), 0, new(big.Int), nil),
-			types.NewTransaction(1, common.HexToAddress("0xb794f5ea0ba39494ce83a213fffba74279579268"), new(big.Int), 0, new(big.Int), nil),
-			types.NewTransaction(2, common.HexToAddress("0xb794f5ea0ba39494ce83a213fffba74279579268"), new(big.Int), 0, new(big.Int), nil),
-			types.NewTransaction(3, common.HexToAddress("0xb794f5ea0ba39494ce83a213fffba74279579268"), new(big.Int), 0, new(big.Int), nil),
-			types.NewTransaction(4, common.HexToAddress("0xb794f5ea0ba39494ce83a213fffba74279579268"), new(big.Int), 0, new(big.Int), nil),
-		}
-
-		hashes []common.Hash
-	)
-
-	fid0 := api.NewPendingTransactionFilter()
-
-	time.Sleep(1 * time.Second)
-	backend.txFeed.Send(events.NewTxsEvent{Txs: transactions})
-
-	timeout := time.Now().Add(1 * time.Second)
-	for {
-		results, err := api.GetFilterChanges(fid0)
-		if err != nil {
-			t.Fatalf("Unable to retrieve logs: %v", err)
-		}
-
-		h := results.([]common.Hash)
-		hashes = append(hashes, h...)
-		if len(hashes) >= len(transactions) {
-			break
-		}
-		// check timeout
-		if time.Now().After(timeout) {
-			break
-		}
-
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	if len(hashes) != len(transactions) {
-		t.Errorf("invalid number of transactions, want %d transactions(s), got %d", len(transactions), len(hashes))
-		return
-	}
-	for i := range hashes {
-		if hashes[i] != transactions[i].Hash() {
-			t.Errorf("hashes[%d] invalid, want %x, got %x", i, transactions[i].Hash(), hashes[i])
-		}
-	}
-}
-
 // TestLogFilterCreation test whether a given filter criteria makes sense.
 // If not it must return an error.
 func TestLogFilterCreation(t *testing.T) {
@@ -298,7 +236,7 @@ func TestLogFilterCreation(t *testing.T) {
 			// from block "higher" than to block
 			{FilterCriteria{FromBlock: rpc.PendingBlockNumber.Uint64(), ToBlock: 100}, false},
 			// from block "higher" than to block
-			{FilterCriteria{FromBlock: rpc.PendingBlockNumber.Uint64(), ToBlock: rpc.LatestBlockNumber.Uint64()}, false},
+			{FilterCriteria{FromBlock: rpc.PendingBlockNumber.Uint64(), ToBlock: rpc.LatestBlockNumber.Uint64()}, true},
 		}
 	)
 
@@ -327,9 +265,8 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 	// different situations where log filter creation should fail.
 	// Reason: fromBlock > toBlock
 	testCases := []FilterCriteria{
-		0: {FromBlock: rpc.PendingBlockNumber.Uint64(), ToBlock: rpc.LatestBlockNumber.Uint64()},
-		1: {FromBlock: rpc.PendingBlockNumber.Uint64(), ToBlock: 100},
-		2: {FromBlock: rpc.LatestBlockNumber.Uint64(), ToBlock: 100},
+		0: {FromBlock: rpc.PendingBlockNumber.Uint64(), ToBlock: 100},
+		1: {FromBlock: rpc.LatestBlockNumber.Uint64(), ToBlock: 100},
 	}
 
 	for i, test := range testCases {
@@ -387,9 +324,6 @@ func TestLogFilter(t *testing.T) {
 			{Address: thirdAddress, Topics: []common.Hash{secondTopic}, BlockHeight: 3},
 		}
 
-		expectedCase7  = []*types.Log{allLogs[3], allLogs[4], allLogs[0], allLogs[1], allLogs[2], allLogs[3], allLogs[4]}
-		expectedCase11 = []*types.Log{allLogs[1], allLogs[2], allLogs[1], allLogs[2]}
-
 		testCases = []struct {
 			crit     FilterCriteria
 			expected []*types.Log
@@ -407,20 +341,16 @@ func TestLogFilter(t *testing.T) {
 			4: {FilterCriteria{Addresses: []common.Address{thirdAddress}, Topics: [][]common.Hash{{firstTopic, secondTopic}}}, allLogs[3:5], ""},
 			// match logs based on multiple addresses and "or" topics
 			5: {FilterCriteria{Addresses: []common.Address{secondAddr, thirdAddress}, Topics: [][]common.Hash{{firstTopic, secondTopic}}}, allLogs[2:5], ""},
-			// logs in the pending block
-			6: {FilterCriteria{Addresses: []common.Address{firstAddr}, FromBlock: rpc.PendingBlockNumber.Uint64(), ToBlock: rpc.PendingBlockNumber.Uint64()}, allLogs[:2], ""},
-			// mined logs with block num >= 2 or pending logs
-			7: {FilterCriteria{FromBlock: 2, ToBlock: rpc.PendingBlockNumber.Uint64()}, expectedCase7, ""},
 			// all "mined" logs with block num >= 2
-			8: {FilterCriteria{FromBlock: 2, ToBlock: rpc.LatestBlockNumber.Uint64()}, allLogs[3:], ""},
+			6: {FilterCriteria{FromBlock: 2, ToBlock: rpc.LatestBlockNumber.Uint64()}, allLogs[3:], ""},
 			// all "mined" logs
-			9: {FilterCriteria{ToBlock: rpc.LatestBlockNumber.Uint64()}, allLogs, ""},
+			7: {FilterCriteria{ToBlock: rpc.LatestBlockNumber.Uint64()}, allLogs, ""},
 			// all "mined" logs with 1>= block num <=2 and topic secondTopic
-			10: {FilterCriteria{FromBlock: 1, ToBlock: 2, Topics: [][]common.Hash{{secondTopic}}}, allLogs[3:4], ""},
+			8: {FilterCriteria{FromBlock: 1, ToBlock: 2, Topics: [][]common.Hash{{secondTopic}}}, allLogs[3:4], ""},
 			// all "mined" and pending logs with topic firstTopic
-			11: {FilterCriteria{FromBlock: rpc.LatestBlockNumber.Uint64(), ToBlock: rpc.PendingBlockNumber.Uint64(), Topics: [][]common.Hash{{firstTopic}}}, expectedCase11, ""},
+			9: {FilterCriteria{FromBlock: rpc.LatestBlockNumber.Uint64(), ToBlock: rpc.PendingBlockNumber.Uint64(), Topics: [][]common.Hash{{firstTopic}}}, []*types.Log{}, ""},
 			// match all logs due to wildcard topic
-			12: {FilterCriteria{Topics: [][]common.Hash{nil}}, allLogs[1:], ""},
+			10: {FilterCriteria{Topics: [][]common.Hash{nil}}, allLogs[1:], ""},
 		}
 	)
 
@@ -433,9 +363,6 @@ func TestLogFilter(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	if nsend := backend.logsFeed.Send(allLogs); nsend == 0 {
 		t.Fatal("Logs event not delivered")
-	}
-	if nsend := backend.pendingLogsFeed.Send(allLogs); nsend == 0 {
-		t.Fatal("Pending logs event not delivered")
 	}
 
 	for i, tt := range testCases {
@@ -473,145 +400,4 @@ func TestLogFilter(t *testing.T) {
 			}
 		}
 	}
-}
-
-// TestPendingLogsSubscription tests if a subscription receives the correct pending logs that are posted to the event feed.
-func TestPendingLogsSubscription(t *testing.T) {
-	t.Parallel()
-
-	var (
-		db      = storage.NewMemoryDatabase()
-		backend = &testBackend{db: db}
-		api     = NewPublicFilterAPI(backend)
-
-		firstAddr      = common.HexToAddress("0x1111111111111111111111111111111111111111")
-		secondAddr     = common.HexToAddress("0x2222222222222222222222222222222222222222")
-		thirdAddress   = common.HexToAddress("0x3333333333333333333333333333333333333333")
-		notUsedAddress = common.HexToAddress("0x9999999999999999999999999999999999999999")
-		firstTopic     = common.HexToHash("0x1111111111111111111111111111111111111111111111111111111111111111")
-		secondTopic    = common.HexToHash("0x2222222222222222222222222222222222222222222222222222222222222222")
-		thirdTopic     = common.HexToHash("0x3333333333333333333333333333333333333333333333333333333333333333")
-		fourthTopic    = common.HexToHash("0x4444444444444444444444444444444444444444444444444444444444444444")
-		notUsedTopic   = common.HexToHash("0x9999999999999999999999999999999999999999999999999999999999999999")
-
-		allLogs = [][]*types.Log{
-			{{Address: firstAddr, Topics: []common.Hash{}, BlockHeight: 0}},
-			{{Address: firstAddr, Topics: []common.Hash{firstTopic}, BlockHeight: 1}},
-			{{Address: secondAddr, Topics: []common.Hash{firstTopic}, BlockHeight: 2}},
-			{{Address: thirdAddress, Topics: []common.Hash{secondTopic}, BlockHeight: 3}},
-			{{Address: thirdAddress, Topics: []common.Hash{secondTopic}, BlockHeight: 4}},
-			{
-				{Address: thirdAddress, Topics: []common.Hash{firstTopic}, BlockHeight: 5},
-				{Address: thirdAddress, Topics: []common.Hash{thirdTopic}, BlockHeight: 5},
-				{Address: thirdAddress, Topics: []common.Hash{fourthTopic}, BlockHeight: 5},
-				{Address: firstAddr, Topics: []common.Hash{firstTopic}, BlockHeight: 5},
-			},
-		}
-
-		testCases = []struct {
-			crit     kardia.FilterQuery
-			expected []*types.Log
-			c        chan []*types.Log
-			sub      *Subscription
-		}{
-			// match all
-			{
-				kardia.FilterQuery{}, flattenLogs(allLogs),
-				nil, nil,
-			},
-			// match none due to no matching addresses
-			{
-				kardia.FilterQuery{Addresses: []common.Address{{}, notUsedAddress}, Topics: [][]common.Hash{nil}},
-				nil,
-				nil, nil,
-			},
-			// match logs based on addresses, ignore topics
-			{
-				kardia.FilterQuery{Addresses: []common.Address{firstAddr}},
-				append(flattenLogs(allLogs[:2]), allLogs[5][3]),
-				nil, nil,
-			},
-			// match none due to no matching topics (match with address)
-			{
-				kardia.FilterQuery{Addresses: []common.Address{secondAddr}, Topics: [][]common.Hash{{notUsedTopic}}},
-				nil, nil, nil,
-			},
-			// match logs based on addresses and topics
-			{
-				kardia.FilterQuery{Addresses: []common.Address{thirdAddress}, Topics: [][]common.Hash{{firstTopic, secondTopic}}},
-				append(flattenLogs(allLogs[3:5]), allLogs[5][0]),
-				nil, nil,
-			},
-			// match logs based on multiple addresses and "or" topics
-			{
-				kardia.FilterQuery{Addresses: []common.Address{secondAddr, thirdAddress}, Topics: [][]common.Hash{{firstTopic, secondTopic}}},
-				append(flattenLogs(allLogs[2:5]), allLogs[5][0]),
-				nil,
-				nil,
-			},
-			// block numbers are ignored for filters created with New***Filter, these return all logs that match the given criteria when the state changes
-			{
-				kardia.FilterQuery{Addresses: []common.Address{firstAddr}, FromBlock: 2, ToBlock: 3},
-				append(flattenLogs(allLogs[:2]), allLogs[5][3]),
-				nil, nil,
-			},
-			// multiple pending logs, should match only 2 topics from the logs in block 5
-			{
-				kardia.FilterQuery{Addresses: []common.Address{thirdAddress}, Topics: [][]common.Hash{{firstTopic, fourthTopic}}},
-				[]*types.Log{allLogs[5][0], allLogs[5][2]},
-				nil, nil,
-			},
-		}
-	)
-
-	// create all subscriptions, this ensures all subscriptions are created before the events are posted.
-	// on slow machines this could otherwise lead to missing events when the subscription is created after
-	// (some) events are posted.
-	for i := range testCases {
-		testCases[i].c = make(chan []*types.Log)
-		testCases[i].sub, _ = api.events.SubscribeLogs(testCases[i].crit, testCases[i].c)
-	}
-
-	for n, test := range testCases {
-		i := n
-		tt := test
-		go func() {
-			var fetched []*types.Log
-		fetchLoop:
-			for {
-				logs := <-tt.c
-				fetched = append(fetched, logs...)
-				if len(fetched) >= len(tt.expected) {
-					break fetchLoop
-				}
-			}
-
-			if len(fetched) != len(tt.expected) {
-				panic(fmt.Sprintf("invalid number of logs for case %d, want %d log(s), got %d", i, len(tt.expected), len(fetched)))
-			}
-
-			for l := range fetched {
-				if fetched[l].Removed {
-					panic(fmt.Sprintf("expected log not to be removed for log %d in case %d", l, i))
-				}
-				if !reflect.DeepEqual(fetched[l], tt.expected[l]) {
-					panic(fmt.Sprintf("invalid log on index %d for case %d", l, i))
-				}
-			}
-		}()
-	}
-
-	// raise events
-	time.Sleep(1 * time.Second)
-	for _, ev := range allLogs {
-		backend.pendingLogsFeed.Send(ev)
-	}
-}
-
-func flattenLogs(pl [][]*types.Log) []*types.Log {
-	var logs []*types.Log
-	for _, l := range pl {
-		logs = append(logs, l...)
-	}
-	return logs
 }

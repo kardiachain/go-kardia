@@ -1,18 +1,20 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+/*
+ *  Copyright 2021 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 package filters
 
@@ -98,7 +100,8 @@ func (api *PublicFilterAPI) timeoutLoop() {
 // It is part of the filter package because this filter can be used through the
 // `eth_getFilterChanges` polling method that is also used for log filters.
 //
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newpendingtransactionfilter
+// https://github.com/ethereum/wiki/wiki/JSON-RPC#kai_newpendingtransactionfilter
+// TODO(trinhdn): will be available in the future
 func (api *PublicFilterAPI) NewPendingTransactionFilter() rpc.ID {
 	var (
 		pendingTxs   = make(chan []common.Hash)
@@ -166,9 +169,9 @@ func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context) (*rpc.Su
 }
 
 // NewBlockFilter creates a filter that fetches blocks that are imported into the chain.
-// It is part of the filter package since polling goes with eth_getFilterChanges.
+// It is part of the filter package since polling goes with kai_getFilterChanges.
 //
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newblockfilter
+// https://github.com/kardiachain/go-kardia/wiki/Kardia-JSON-RPC-API#kai_newBlockFilter
 func (api *PublicFilterAPI) NewBlockFilter() rpc.ID {
 	var (
 		headers   = make(chan *types.Header)
@@ -284,7 +287,7 @@ type FilterCriteria kardia.FilterQuery
 //
 // In case "fromBlock" > "toBlock" an error is returned.
 //
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_newfilter
+// https://github.com/kardiachain/go-kardia/wiki/Kardia-JSON-RPC-API#kai_newFilter
 func (api *PublicFilterAPI) NewFilter(crit FilterCriteria) (rpc.ID, error) {
 	logs := make(chan []*types.Log)
 	logsSub, err := api.events.SubscribeLogs(kardia.FilterQuery(crit), logs)
@@ -319,7 +322,7 @@ func (api *PublicFilterAPI) NewFilter(crit FilterCriteria) (rpc.ID, error) {
 
 // GetLogs returns logs matching the given argument that are stored within the state.
 //
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getlogs
+// https://github.com/kardiachain/go-kardia/wiki/Kardia-JSON-RPC-API#kai_getLogs
 func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([]*types.Log, error) {
 	var filter *Filter
 	if crit.BlockHash != nil {
@@ -339,7 +342,7 @@ func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([
 
 // UninstallFilter removes the filter with the given filter id.
 //
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_uninstallfilter
+// https://github.com/kardiachain/go-kardia/wiki/Kardia-JSON-RPC-API#kai_uninstallFilter
 func (api *PublicFilterAPI) UninstallFilter(id rpc.ID) bool {
 	api.filtersMu.Lock()
 	f, found := api.filters[id]
@@ -357,7 +360,7 @@ func (api *PublicFilterAPI) UninstallFilter(id rpc.ID) bool {
 // GetFilterLogs returns the logs for the filter with the given id.
 // If the filter could not be found an empty array of logs is returned.
 //
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterlogs
+// https://github.com/kardiachain/go-kardia/wiki/Kardia-JSON-RPC-API#kai_getFilterLogs
 func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*types.Log, error) {
 	api.filtersMu.Lock()
 	f, found := api.filters[id]
@@ -389,7 +392,7 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 // For pending transaction and block filters the result is []common.Hash.
 // (pending)Log filters return []Log.
 //
-// https://github.com/ethereum/wiki/wiki/JSON-RPC#eth_getfilterchanges
+// https://github.com/kardiachain/go-kardia/wiki/Kardia-JSON-RPC-API#kai_getFilterChanges
 func (api *PublicFilterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
 	api.filtersMu.Lock()
 	defer api.filtersMu.Unlock()
@@ -407,7 +410,7 @@ func (api *PublicFilterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
 			hashes := f.hashes
 			f.hashes = nil
 			return returnHashes(hashes), nil
-		case LogsSubscription, MinedAndPendingLogsSubscription:
+		case LogsSubscription:
 			logs := f.logs
 			f.logs = nil
 			return returnLogs(logs), nil

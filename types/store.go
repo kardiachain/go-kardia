@@ -36,7 +36,6 @@ type StoreDB interface {
 	WriteTxLookupEntries(block *Block)
 	WriteHeadBlockHash(common.Hash)
 	WriteAppHash(uint64, common.Hash)
-	WriteBloomBits(bit uint, section uint64, head common.Hash, bits []byte)
 
 	ReadCanonicalHash(height uint64) common.Hash
 	ReadChainConfig(hash common.Hash) *configs.ChainConfig
@@ -59,7 +58,6 @@ type StoreDB interface {
 	ReadSmartContractAbi(address string) *abi.ABI
 	ReadEvent(address string, method string) *Watcher
 	ReadEvents(address string) (string, []*Watcher)
-	ReadBloomBits(bit uint, section uint64, head common.Hash) ([]byte, error)
 
 	DeleteBlockMeta(height uint64) error
 	DeleteBlockPart(height uint64) error

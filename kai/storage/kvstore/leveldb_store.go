@@ -48,24 +48,6 @@ func NewStoreDB(db kaidb.Database) *StoreDB {
 	}
 }
 
-// ReadBloomBits retrieves the compressed bloom bit vector belonging to the given
-// section and bit index from the.
-func (s *StoreDB) ReadBloomBits(bit uint, section uint64, head common.Hash) ([]byte, error) {
-	data, err := s.db.Get(BloomBitsKey(bit, section, head))
-	if err != nil || data == nil || len(data) == 0 {
-		return nil, err
-	}
-	return data, err
-}
-
-// WriteBloomBits stores the compressed bloom bits vector belonging to the given
-// section and bit index.
-func (s *StoreDB) WriteBloomBits(bit uint, section uint64, head common.Hash, bits []byte) {
-	if err := s.db.Put(BloomBitsKey(bit, section, head), bits); err != nil {
-		log.Crit("Failed to store bloom bits", "err", err)
-	}
-}
-
 // ReadBlockMeta returns the BlockMeta for the given height.
 // If no block is found for the given height, it returns nil.
 func (s *StoreDB) ReadBlockMeta(height uint64) *types.BlockMeta {

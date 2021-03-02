@@ -478,7 +478,7 @@ func ReadSmartContractAbi(db kaidb.Reader, address string) *abi.ABI {
 // ReadBloomBits retrieves the compressed bloom bit vector belonging to the given
 // section and bit index from the.
 func ReadBloomBits(db kaidb.Reader, bit uint, section uint64, head common.Hash) ([]byte, error) {
-	data, err := db.Get(BloomBitsKey(bit, section, head))
+	data, err := db.Get(bloomBitsKey(bit, section, head))
 	if err != nil || data == nil || len(data) == 0 {
 		return nil, err
 	}
@@ -488,7 +488,7 @@ func ReadBloomBits(db kaidb.Reader, bit uint, section uint64, head common.Hash) 
 // WriteBloomBits stores the compressed bloom bits vector belonging to the given
 // section and bit index.
 func WriteBloomBits(db kaidb.Writer, bit uint, section uint64, head common.Hash, bits []byte) {
-	if err := db.Put(BloomBitsKey(bit, section, head), bits); err != nil {
+	if err := db.Put(bloomBitsKey(bit, section, head), bits); err != nil {
 		log.Crit("Failed to store bloom bits", "err", err)
 	}
 }

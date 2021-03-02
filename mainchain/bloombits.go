@@ -78,7 +78,7 @@ func (k *KardiaService) startBloomHandlers(sectionSize uint64) {
 					db := k.blockchain.DB()
 					for i, section := range task.Sections {
 						head := db.ReadCanonicalHash((section+1)*sectionSize - 1)
-						if compVector, err := db.ReadBloomBits(task.Bit, section, head); err == nil {
+						if compVector, err := kvstore.ReadBloomBits(db.DB(), task.Bit, section, head); err == nil {
 							if blob, err := common.DecompressBytes(compVector, int(sectionSize/8)); err == nil {
 								task.Bitsets[i] = blob
 							} else {
@@ -160,9 +160,7 @@ func (b *BloomIndexer) Commit() error {
 		if err != nil {
 			return err
 		}
-		if err := batch.Put(kvstore.BloomBitsKey(uint(i), b.section, b.head), common.CompressBytes(bits)); err != nil {
-			b.log.Info("@@@@@@@@@@@@@@@@@@@@@ Add bloom bits to batch failed", "err", err)
-		}
+		kvstore.WriteBloomBits(batch, uint(i), b.section, b.head, common.CompressBytes(bits))
 	}
 	return batch.Write()
 }
