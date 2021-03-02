@@ -245,6 +245,38 @@ func (cfg *ConsensusConfig) PeerQueryMaj23Sleep() time.Duration {
 	return cfg.PeerQueryMaj23SleepDuration
 }
 
+// ------------------------- Consensus Params ----------------------------
+type FastSyncConfig struct {
+	ServiceName   string        // log tag of blockchain reactor logs
+	Enable        bool          // true if this node allow and be able to fastsync, otherwise false.
+	MaxPeers      int           // maximum peer is allowed to receive fastsync blocks from this node at a time.
+	TargetPending int           // maximum number of blocks in a batch sync.
+	PeerTimeout   time.Duration // maximum response time from a peer.
+	MinRecvRate   int64         // minimum receive rate from peer, otherwise prune.
+}
+
+func DefaultFastSyncConfig() *FastSyncConfig {
+	return &FastSyncConfig{
+		ServiceName:   DefaultBcReactorServiceName,
+		Enable:        true,
+		MaxPeers:      10,
+		TargetPending: 10,
+		PeerTimeout:   15 * time.Second,
+		MinRecvRate:   0, // int64(7680)
+	}
+}
+
+func TestFastSyncConfig() *FastSyncConfig {
+	return &FastSyncConfig{
+		ServiceName:   DefaultBcReactorServiceName,
+		Enable:        true,
+		MaxPeers:      2,
+		TargetPending: 5,
+		PeerTimeout:   2 * time.Second,
+		MinRecvRate:   0,
+	}
+}
+
 // ======================= Genesis Utils Functions =======================
 
 type Contract struct {

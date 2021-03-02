@@ -26,7 +26,9 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 
+	"github.com/kardiachain/go-kardia/configs"
 	cstypes "github.com/kardiachain/go-kardia/consensus/types"
+	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	cmn "github.com/kardiachain/go-kardia/lib/common"
 	kevents "github.com/kardiachain/go-kardia/lib/events"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -54,15 +56,19 @@ const (
 type ConsensusManager struct {
 	p2p.BaseReactor // BaseService + p2p.Switch
 	conS            *ConsensusState
+	waitSync        bool
+	targetPending   int
 	mtx             sync.RWMutex
 	eventBus        *types.EventBus
 }
 
 // NewConsensusManager returns a new ConsensusManager with the given
 // consensusState.
-func NewConsensusManager(consensusState *ConsensusState) *ConsensusManager {
+func NewConsensusManager(consensusState *ConsensusState, fastSync *configs.FastSyncConfig) *ConsensusManager {
 	conR := &ConsensusManager{
-		conS: consensusState,
+		conS:          consensusState,
+		waitSync:      fastSync.Enable,
+		targetPending: fastSync.TargetPending,
 	}
 	conR.BaseReactor = *p2p.NewBaseReactor("Consensus", conR)
 	return conR
@@ -72,6 +78,13 @@ func NewConsensusManager(consensusState *ConsensusState) *ConsensusManager {
 func (conR *ConsensusManager) SetEventBus(b *types.EventBus) {
 	conR.eventBus = b
 	conR.conS.SetEventBus(b)
+}
+
+// WaitSync returns whether the consensus reactor is waiting for state/fast sync.
+func (conR *ConsensusManager) WaitSync() bool {
+	conR.mtx.RLock()
+	defer conR.mtx.RUnlock()
+	return conR.waitSync
 }
 
 func (conR *ConsensusManager) SetPrivValidator(priv types.PrivValidator) {
@@ -90,15 +103,60 @@ func (conR *ConsensusManager) Validators() []*types.Validator {
 }
 
 func (conR *ConsensusManager) OnStart() error {
-	conR.Logger.Trace("Consensus manager starts!")
+	conR.Logger.Info("Consensus manager ", "waitSync", conR.WaitSync())
 	conR.subscribeToBroadcastEvents()
-	conR.conS.Start()
+	if !conR.WaitSync() {
+		err := conR.conS.Start()
+		if err != nil {
+			return err
+		}
+	}
+	conR.Logger.Trace("Consensus manager starts!")
 	return nil
 }
 
 func (conR *ConsensusManager) OnStop() {
-	conR.conS.Stop()
 	conR.unsubscribeFromBroadcastEvents()
+	if err := conR.conS.Stop(); err != nil {
+		conR.Logger.Error("Error stopping consensus state", "err", err)
+	}
+	if !conR.WaitSync() {
+		conR.conS.Wait()
+	}
+}
+
+// SwitchToConsensus switches from fast_sync mode to consensus mode.
+// It resets the state, turns off fast_sync, and starts the consensus state-machine
+func (conR *ConsensusManager) SwitchToConsensus(state cstate.LastestBlockState, skipWAL bool) {
+	conR.Logger.Info("Switching to consensus", "block height", state.LastBlockHeight, "skipWAL", skipWAL)
+
+	// We have no votes, so reconstruct LastCommit from SeenCommit.
+	if state.LastBlockHeight > 0 {
+		conR.conS.reconstructLastCommit(state)
+	}
+
+	// NOTE: The line below causes broadcastNewRoundStepRoutine() to broadcast a
+	// NewRoundStepMessage.
+	conR.conS.updateToState(state)
+
+	conR.mtx.Lock()
+	conR.waitSync = false
+	conR.mtx.Unlock()
+
+	if skipWAL {
+		conR.conS.doWALCatchup = false
+	}
+	err := conR.conS.Start()
+	if err != nil {
+		panic(fmt.Sprintf(`Failed to start consensus state: %v
+
+conS:
+%+v
+
+conR:
+%+v`, err, conR.conS, conR))
+	}
+	conR.Logger.Info("Switched to consensus", "skipWAL", skipWAL)
 }
 
 // GetChannels implements Reactor

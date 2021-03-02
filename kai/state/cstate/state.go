@@ -47,7 +47,8 @@ var (
 // NOTE: not goroutine-safe.
 type LastestBlockState struct {
 	// Immutable
-	ChainID string
+	ChainID       string
+	InitialHeight uint64 // should be 1, not 0, when starting from height 1
 
 	// LastBlockHeight=0 at genesis (ie. block(H=0) does not exist)
 	LastBlockHeight  uint64

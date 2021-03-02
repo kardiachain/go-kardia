@@ -342,7 +342,7 @@ func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*Consensu
 	bOper := blockchain.NewBlockOperations(logger, bc, txPool, evPool, staking)
 
 	// evReactor := evidence.NewReactor(evPool)
-	blockExec := cstate.NewBlockExecutor(stateStore, evPool, bOper)
+	blockExec := cstate.NewBlockExecutor(stateStore, logger, evPool, bOper)
 
 	csCfg := configs.TestConsensusConfig()
 	// Initialization for consensus.

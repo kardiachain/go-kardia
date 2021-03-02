@@ -20,9 +20,11 @@
 package kai
 
 import (
+	bcReactor "github.com/kardiachain/go-kardia/blockchain"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/bloombits"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
@@ -63,6 +65,7 @@ type KardiaService struct {
 	csManager  *consensus.ConsensusManager
 	txpoolR    *tx_pool.Reactor
 	evR        *evidence.Reactor
+	bcR        p2p.Reactor // for fast-syncing
 
 	subService KardiaSubService
 
@@ -148,13 +151,22 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 
 	kai.evR = evidence.NewReactor(evPool)
 	kai.evR.SetLogger(kai.logger)
-	blockExec := cstate.NewBlockExecutor(ctx.StateDB, evPool, bOper)
+	blockExec := cstate.NewBlockExecutor(ctx.StateDB, logger, evPool, bOper)
 
 	state, err := ctx.StateDB.LoadStateFromDBOrGenesisDoc(config.Genesis)
 	if err != nil {
 		return nil, err
 	}
 
+	// state starting configs
+	// Set private validator for consensus manager.
+	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
+	// Determine whether we should do fast sync. This must happen after the handshake, since the
+	// app may modify the validator set, specifying ourself as the only validator.
+	config.FastSync.Enable = config.FastSync.Enable && !onlyValidatorIsUs(state, privValidator.GetAddress())
+	// Make BlockchainReactor. Don't start fast sync if we're doing a state sync first.
+	bcR := bcReactor.NewBlockchainReactor(state, blockExec, bOper, config.FastSync)
+	kai.bcR = bcR
 	consensusState := consensus.NewConsensusState(
 		kai.logger,
 		config.Consensus,
@@ -163,9 +175,8 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		blockExec,
 		evPool,
 	)
-	kai.csManager = consensus.NewConsensusManager(consensusState)
+	kai.csManager = consensus.NewConsensusManager(consensusState, config.FastSync)
 	// Set private validator for consensus manager.
-	privValidator := types.NewDefaultPrivValidator(ctx.Config.NodeKey())
 	kai.csManager.SetPrivValidator(privValidator)
 	kai.csManager.SetEventBus(kai.eventBus)
 	return kai, nil
@@ -185,6 +196,7 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		AcceptTxs:   chainConfig.AcceptTxs,
 		IsPrivate:   chainConfig.IsPrivate,
 		Consensus:   chainConfig.Consensus,
+		FastSync:    chainConfig.FastSync,
 	})
 
 	if err != nil {
@@ -196,11 +208,18 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 
 func (s *KardiaService) IsListening() bool  { return true } // Always listening
 func (s *KardiaService) NetVersion() uint64 { return s.networkID }
+func onlyValidatorIsUs(state cstate.LastestBlockState, privValAddress common.Address) bool {
+	if state.Validators.Size() > 1 {
+		return false
+	}
+	addr, _ := state.Validators.GetByIndex(0)
+	return privValAddress.Equal(addr)
+}
 
 // Start implements Service, starting all internal goroutines needed by the
 // Kardia protocol implementation.
 func (s *KardiaService) Start(srvr *p2p.Switch) error {
-
+	srvr.AddReactor("BLOCKCHAIN", s.bcR)
 	srvr.AddReactor("CONSENSUS", s.csManager)
 	srvr.AddReactor("TXPOOL", s.txpoolR)
 	srvr.AddReactor("EVIDENCE", s.evR)

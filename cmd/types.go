@@ -35,18 +35,27 @@ type (
 			ListenAddress string `yaml:"ListenAddress"`
 			PrivateKey    string `yaml:"PrivateKey"`
 		} `yaml:"P2P"`
-		LogLevel         string   `yaml:"LogLevel"`
-		Name             string   `yaml:"Name"`
-		DataDir          string   `yaml:"DataDir"`
-		HTTPHost         string   `yaml:"HTTPHost"`
-		HTTPPort         int      `yaml:"HTTPPort"`
-		HTTPModules      []string `yaml:"HTTPModules"`
-		HTTPVirtualHosts []string `yaml:"HTTPVirtualHosts"`
-		HTTPCors         []string `yaml:"HTTPCors"`
-		WSHost           string   `yaml:"WSHost"`
-		WSPort           int      `yaml:"WSPort"`
-		Metrics          uint     `yaml:"Metrics"`
-		Genesis          *Genesis `yaml:"Genesis,omitempty"`
+		LogLevel         string    `yaml:"LogLevel"`
+		Name             string    `yaml:"Name"`
+		DataDir          string    `yaml:"DataDir"`
+		HTTPHost         string    `yaml:"HTTPHost"`
+		HTTPPort         int       `yaml:"HTTPPort"`
+		HTTPModules      []string  `yaml:"HTTPModules"`
+		HTTPVirtualHosts []string  `yaml:"HTTPVirtualHosts"`
+		HTTPCors         []string  `yaml:"HTTPCors"`
+		WSHost           string    `yaml:"WSHost"`
+		WSPort           int       `yaml:"WSPort"`
+		Metrics          uint      `yaml:"Metrics"`
+		FastSync         *FastSync `yaml:"FastSync"`
+		Genesis          *Genesis  `yaml:"Genesis,omitempty"`
+	}
+	FastSync struct {
+		ServiceName   string `yaml:"ServiceName"`
+		Enable        bool   `yaml:"Enable"`
+		MaxPeers      int    `yaml:"MaxPeers"`
+		TargetPending int    `yaml:"TargetPending"`
+		PeerTimeout   int    `yaml:"PeerTimeout"`
+		MinRecvRate   int64  `yaml:"MinRecvRate"`
 	}
 	Chain struct {
 		ServiceName        string      `yaml:"ServiceName"`
