@@ -1,18 +1,20 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+/*
+ *  Copyright 2021 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 // Package filters implements an ethereum filtering system for block,
 // transactions and log events.
@@ -178,36 +180,36 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 // given criteria to the given logs channel. Default value for the from and to
 // block is "latest". If the fromBlock > toBlock an error is returned.
 func (es *EventSystem) SubscribeLogs(crit kardia.FilterQuery, logs chan []*types.Log) (*Subscription, error) {
-	var from, to rpc.BlockNumber
+	var from, to uint64
 	if crit.FromBlock == 0 {
-		from = rpc.LatestBlockNumber
+		from = rpc.LatestBlockNumber.Uint64()
 	} else {
-		from = rpc.BlockNumber(crit.FromBlock)
+		from = crit.FromBlock
 	}
 	if crit.ToBlock == 0 {
-		to = rpc.LatestBlockNumber
+		to = rpc.LatestBlockNumber.Uint64()
 	} else {
-		to = rpc.BlockNumber(crit.ToBlock)
+		to = crit.ToBlock
 	}
 
 	// only interested in pending logs
-	if from == rpc.PendingBlockNumber && to == rpc.PendingBlockNumber {
+	if from == rpc.PendingBlockNumber.Uint64() && to == rpc.PendingBlockNumber.Uint64() {
 		return es.subscribePendingLogs(crit, logs), nil
 	}
 	// only interested in new mined logs
-	if from == rpc.LatestBlockNumber && to == rpc.LatestBlockNumber {
+	if from == rpc.LatestBlockNumber.Uint64() && to == rpc.LatestBlockNumber.Uint64() {
 		return es.subscribeLogs(crit, logs), nil
 	}
 	// only interested in mined logs within a specific block range
-	if from >= 0 && to >= 0 && to >= from {
+	if to < rpc.PendingBlockNumber.Uint64() && to >= from {
 		return es.subscribeLogs(crit, logs), nil
 	}
 	// interested in mined logs from a specific block number, new logs and pending logs
-	if from >= rpc.LatestBlockNumber && to == rpc.PendingBlockNumber {
+	if from >= rpc.LatestBlockNumber.Uint64() && to == rpc.PendingBlockNumber.Uint64() {
 		return es.subscribeMinedPendingLogs(crit, logs), nil
 	}
 	// interested in logs from a specific block number to new mined blocks
-	if from >= 0 && to == rpc.LatestBlockNumber {
+	if from < rpc.PendingBlockNumber.Uint64() && to == rpc.LatestBlockNumber.Uint64() {
 		return es.subscribeLogs(crit, logs), nil
 	}
 	return nil, fmt.Errorf("invalid from and to block combination: from > to")

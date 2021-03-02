@@ -1,18 +1,20 @@
-// Copyright 2016 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+/*
+ *  Copyright 2021 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 package filters
 
@@ -21,14 +23,14 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/kardiachain/go-kardia/common"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/rpc"
 )
 
 func TestUnmarshalJSONNewFilterArgs(t *testing.T) {
 	var (
-		fromBlock rpc.BlockNumber = 0x123435
-		toBlock   rpc.BlockNumber = 0xabcdef
+		fromBlock rpc.BlockNumber = 12345
+		toBlock   rpc.BlockNumber = 678910
 		address0                  = common.HexToAddress("70c87d191324e6712a591f304b4eedef6ad9bb9d")
 		address1                  = common.HexToAddress("9b2055d370f73ec7d8a03e965129118dc8f5bf83")
 		topic0                    = common.HexToHash("3ac225168df54212a25c1c01fd35bebfea408fdac2e31ddd6f80a4bbf9a5f1ca")
@@ -41,10 +43,10 @@ func TestUnmarshalJSONNewFilterArgs(t *testing.T) {
 	if err := json.Unmarshal([]byte("{}"), &test0); err != nil {
 		t.Fatal(err)
 	}
-	if test0.FromBlock != nil {
+	if test0.FromBlock != 0 {
 		t.Fatalf("expected nil, got %d", test0.FromBlock)
 	}
-	if test0.ToBlock != nil {
+	if test0.ToBlock != 0 {
 		t.Fatalf("expected nil, got %d", test0.ToBlock)
 	}
 	if len(test0.Addresses) != 0 {
@@ -56,14 +58,14 @@ func TestUnmarshalJSONNewFilterArgs(t *testing.T) {
 
 	// from, to block number
 	var test1 FilterCriteria
-	vector := fmt.Sprintf(`{"fromBlock":"0x%x","toBlock":"0x%x"}`, fromBlock, toBlock)
+	vector := fmt.Sprintf(`{"fromBlock":%d,"toBlock":%d}`, fromBlock, toBlock)
 	if err := json.Unmarshal([]byte(vector), &test1); err != nil {
 		t.Fatal(err)
 	}
-	if test1.FromBlock.Int64() != fromBlock.Int64() {
+	if test1.FromBlock != fromBlock.Uint64() {
 		t.Fatalf("expected FromBlock %d, got %d", fromBlock, test1.FromBlock)
 	}
-	if test1.ToBlock.Int64() != toBlock.Int64() {
+	if test1.ToBlock != toBlock.Uint64() {
 		t.Fatalf("expected ToBlock %d, got %d", toBlock, test1.ToBlock)
 	}
 

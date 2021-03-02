@@ -1,18 +1,20 @@
-// Copyright 2017 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+/*
+ *  Copyright 2021 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 package filters
 
@@ -22,13 +24,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kardiachain/go-kardia/common"
-	"github.com/kardiachain/go-kardia/common/bitutil"
-	"github.com/kardiachain/go-kardia/core/bloombits"
-	"github.com/kardiachain/go-kardia/core/rawdb"
-	"github.com/kardiachain/go-kardia/core/types"
-	"github.com/kardiachain/go-kardia/ethdb"
-	"github.com/kardiachain/go-kardia/node"
+	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/lib/bloombits"
+	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 func BenchmarkBloomBits512(b *testing.B) {
@@ -62,21 +63,21 @@ func BenchmarkBloomBits32k(b *testing.B) {
 const benchFilterCnt = 2000
 
 func benchmarkBloomBits(b *testing.B, sectionSize uint64) {
-	benchDataDir := node.DefaultDataDir() + "/geth/chaindata"
+	benchDataDir := configs.DefaultDataDir() + "/chaindata"
 	b.Log("Running bloombits benchmark   section size:", sectionSize)
 
-	db, err := rawdb.NewLevelDBDatabase(benchDataDir, 128, 1024, "")
+	db, err := storage.NewLevelDBDatabase(benchDataDir, 128, 1024, "")
 	if err != nil {
 		b.Fatalf("error opening database at %v: %v", benchDataDir, err)
 	}
-	head := rawdb.ReadHeadBlockHash(db)
+	head := db.ReadHeadBlockHash()
 	if head == (common.Hash{}) {
 		b.Fatalf("chain data not found at %v", benchDataDir)
 	}
 
-	clearBloomBits(db)
+	clearBloomBits(db.DB())
 	b.Log("Generating bloombits data...")
-	headNum := rawdb.ReadHeaderNumber(db, head)
+	headNum := db.ReadHeaderHeight(head)
 	if headNum == nil || *headNum < sectionSize+512 {
 		b.Fatalf("not enough blocks for running a benchmark")
 	}
@@ -91,27 +92,31 @@ func benchmarkBloomBits(b *testing.B, sectionSize uint64) {
 		}
 		var header *types.Header
 		for i := sectionIdx * sectionSize; i < (sectionIdx+1)*sectionSize; i++ {
-			hash := rawdb.ReadCanonicalHash(db, i)
-			header = rawdb.ReadHeader(db, hash, i)
+			hash := db.ReadCanonicalHash(i)
+			header = db.ReadHeader(i)
 			if header == nil {
 				b.Fatalf("Error creating bloomBits data")
 			}
-			bc.AddBloom(uint(i-sectionIdx*sectionSize), header.Bloom)
+			blockInfo := db.ReadBlockInfo(hash, i)
+			if blockInfo == nil {
+				b.Fatalf("Error getting block info")
+			}
+			bc.AddBloom(uint(i-sectionIdx*sectionSize), blockInfo.Bloom)
 		}
-		sectionHead := rawdb.ReadCanonicalHash(db, (sectionIdx+1)*sectionSize-1)
+		sectionHead := db.ReadCanonicalHash((sectionIdx+1)*sectionSize - 1)
 		for i := 0; i < types.BloomBitLength; i++ {
 			data, err := bc.Bitset(uint(i))
 			if err != nil {
 				b.Fatalf("failed to retrieve bitset: %v", err)
 			}
-			comp := bitutil.CompressBytes(data)
+			comp := common.CompressBytes(data)
 			dataSize += uint64(len(data))
 			compSize += uint64(len(comp))
-			rawdb.WriteBloomBits(db, uint(i), sectionIdx, sectionHead, comp)
+			db.WriteBloomBits(uint(i), sectionIdx, sectionHead, comp)
 		}
-		//if sectionIdx%50 == 0 {
-		//	b.Log(" section", sectionIdx, "/", cnt)
-		//}
+		if sectionIdx%50 == 0 {
+			b.Log(" section", sectionIdx, "/", cnt)
+		}
 	}
 
 	d := time.Since(start)
@@ -125,14 +130,14 @@ func benchmarkBloomBits(b *testing.B, sectionSize uint64) {
 
 	for i := 0; i < benchFilterCnt; i++ {
 		if i%20 == 0 {
-			db.Close()
-			db, _ = rawdb.NewLevelDBDatabase(benchDataDir, 128, 1024, "")
+			db.DB().Close()
+			db, _ = storage.NewLevelDBDatabase(benchDataDir, 128, 1024, "")
 			backend = &testBackend{db: db, sections: cnt}
 		}
 		var addr common.Address
 		addr[0] = byte(i)
 		addr[1] = byte(i / 256)
-		filter := NewRangeFilter(backend, 0, int64(cnt*sectionSize-1), []common.Address{addr}, nil)
+		filter := NewRangeFilter(backend, 0, cnt*sectionSize-1, []common.Address{addr}, nil)
 		if _, err := filter.Logs(context.Background()); err != nil {
 			b.Error("filter.Find error:", err)
 		}
@@ -140,12 +145,12 @@ func benchmarkBloomBits(b *testing.B, sectionSize uint64) {
 	d = time.Since(start)
 	b.Log("Finished running filter benchmarks")
 	b.Log(" ", d, "total  ", d/time.Duration(benchFilterCnt), "per address", d*time.Duration(1000000)/time.Duration(benchFilterCnt*cnt*sectionSize), "per million blocks")
-	db.Close()
+	db.DB().Close()
 }
 
 var bloomBitsPrefix = []byte("bloomBits-")
 
-func clearBloomBits(db ethdb.Database) {
+func clearBloomBits(db kaidb.Database) {
 	fmt.Println("Clearing bloombits data...")
 	it := db.NewIterator(bloomBitsPrefix, nil)
 	for it.Next() {
@@ -155,27 +160,27 @@ func clearBloomBits(db ethdb.Database) {
 }
 
 func BenchmarkNoBloomBits(b *testing.B) {
-	benchDataDir := node.DefaultDataDir() + "/geth/chaindata"
+	benchDataDir := configs.DefaultDataDir() + "/chaindata"
 	b.Log("Running benchmark without bloombits")
-	db, err := rawdb.NewLevelDBDatabase(benchDataDir, 128, 1024, "")
+	db, err := storage.NewLevelDBDatabase(benchDataDir, 128, 1024, "")
 	if err != nil {
 		b.Fatalf("error opening database at %v: %v", benchDataDir, err)
 	}
-	head := rawdb.ReadHeadBlockHash(db)
+	head := db.ReadHeadBlockHash()
 	if head == (common.Hash{}) {
 		b.Fatalf("chain data not found at %v", benchDataDir)
 	}
-	headNum := rawdb.ReadHeaderNumber(db, head)
+	headNum := db.ReadHeaderHeight(head)
 
-	clearBloomBits(db)
+	clearBloomBits(db.DB())
 
 	b.Log("Running filter benchmarks...")
 	start := time.Now()
 	backend := &testBackend{db: db}
-	filter := NewRangeFilter(backend, 0, int64(*headNum), []common.Address{{}}, nil)
+	filter := NewRangeFilter(backend, 0, *headNum, []common.Address{{}}, nil)
 	filter.Logs(context.Background())
 	d := time.Since(start)
 	b.Log("Finished running filter benchmarks")
 	b.Log(" ", d, "total  ", d*time.Duration(1000000)/time.Duration(*headNum+1), "per million blocks")
-	db.Close()
+	db.DB().Close()
 }
