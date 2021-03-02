@@ -84,7 +84,7 @@ func NewHeaderChain(kaiDb types.StoreDB, config *configs.ChainConfig) (*HeaderCh
 	return hc, nil
 }
 
-// GetHeaderByheight retrieves a block header from the database by height,
+// GetHeaderByHeight retrieves a block header from the database by height,
 // caching it (associated with its hash) if found.
 func (hc *HeaderChain) GetHeaderByHeight(height uint64) *types.Header {
 	hash := hc.kaiDb.ReadCanonicalHash(height)

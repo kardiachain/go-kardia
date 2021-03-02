@@ -25,9 +25,11 @@ import (
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/bloombits"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	"github.com/kardiachain/go-kardia/mainchain/filters"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
@@ -37,11 +39,7 @@ import (
 	"github.com/kardiachain/go-kardia/types/evidence"
 )
 
-const (
-	kaiProtocolName = "KAI"
-)
-
-// TODO: evaluates using this subservice as dual mode or light subprotocol.
+// TODO: evaluates using this sub-service as dual mode or light sub-protocol.
 type KardiaSubService interface {
 	Start(srvr *p2p.Switch)
 	Stop()
@@ -77,6 +75,10 @@ type KardiaService struct {
 
 	staking   *staking.StakingSmcUtil
 	validator *staking.ValidatorSmcUtil
+
+	bloomRequests     chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
+	bloomIndexer      *BloomIndexer                  // Bloom indexer operating during block imports
+	closeBloomHandler chan struct{}
 }
 
 func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
@@ -128,6 +130,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		eventBus:     eventBus,
 		staking:      stakingUtil,
 		validator:    validator,
+		bloomIndexer: NewBloomIndexer(kaiDb.DB(), configs.BloomBitsBlocksClient, configs.HelperTrieConfirmations),
 	}
 
 	// Create a new blockchain to attach to this Kardia object
@@ -253,7 +256,7 @@ func (s *KardiaService) APIs() []rpc.API {
 		{
 			Namespace: "kai",
 			Version:   "1.0",
-			Service:   NewPublicFilterAPI(s),
+			Service:   filters.NewPublicFilterAPI(s),
 			Public:    true,
 		},
 		{

@@ -1,5 +1,5 @@
 /*
- *  Copyright 2018 KardiaChain
+ *  Copyright 2021 KardiaChain
  *  This file is part of the go-kardia library.
  *
  *  The go-kardia library is free software: you can redistribute it and/or modify
@@ -16,24 +16,14 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package events
+package filters
 
 import (
-	"github.com/kardiachain/go-kardia/lib/common"
-	"github.com/kardiachain/go-kardia/types"
+	"errors"
 )
 
-// Posted when a batch of transactions enter the dual's event pool.
-type NewDualEventsEvent struct{ Events []*types.DualEvent }
-
-// NewTxsEvent is posted when a batch of transactions enter the transaction pool.
-type NewTxsEvent struct{ Txs []*types.Transaction }
-
-// ChainHeadEvent is posted when a new head block is saved to the block chain.
-type ChainHeadEvent struct{ Block *types.Block }
-
-type ChainEvent struct {
-	Block *types.Block
-	Hash  common.Hash
-	Logs  []*types.Log
-}
+// API Err
+var (
+	ErrHeaderNotFound    = errors.New("header for hash not found")
+	ErrBlockInfoNotFound = errors.New("block info is missing")
+)
