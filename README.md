@@ -14,18 +14,13 @@ in [Technical Paper](https://dl.kardiachain.io/KardiaChain-WhitePaper-English.pd
 The codebase has been audited
 by [Certik](https://certik.foundation/) ([view article](https://kardiachain.medium.com/kardiachain-mainnet-launch-audited-by-certik-636c51154948))
 
-### KardiaChain Mainnet 1.0
+### KardiaChain Aris Mainnet 1.0
 
-- Coming soon (follow our progress [here](https://mainnet.kardiachain.io/))
-
-### KardiaChain Public Testnet [Fengari 3.0]
-
-- Network Explorer: [Fengari Explorer](http://explorer.kardiachain.io/)
-- Release: [kardia-v0.10.5](https://github.com/kardiachain/go-kardia/releases/tag/v0.10.5)
+- Network Explorer: [Aris Explorer](http://explorer.kardiachain.io/)
 
 ### KardiaChain Private Devnet
-- Network Explorer: [Devnet Explorer](http://explorer-beta-dev.kardiachain.io/)
-- Release: [kardia-v0.11.0](https://github.com/kardiachain/go-kardia/releases/tag/v0.11.0)
+- Network Explorer: [Devnet Explorer](http://explorer-dev.kardiachain.io/)
+- Release: [kardia-v1.0.1](https://github.com/kardiachain/go-kardia/releases/tag/v1.0.1)
 
 ## Quickstart
 
