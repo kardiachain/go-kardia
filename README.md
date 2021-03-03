@@ -32,7 +32,7 @@ by [Certik](https://certik.foundation/) ([view article](https://kardiachain.medi
 
 - See [deplopyment/testnet](https://github.com/kardiachain/go-kardia/tree/master/deployment/testnet) for more details.
 
-### Join Mainnet (coming soon)
+### Join Mainnet
 
 - See [deplopyment/mainnet](https://github.com/kardiachain/go-kardia/tree/master/deployment/mainnet) for more details.
 
@@ -83,9 +83,8 @@ go test ./...
 ### Start Kardia network
 
 #### Mainnet
-```
-(Coming soon)
-```
+
+- See [deplopyment/mainnet](https://github.com/kardiachain/go-kardia/tree/master/deployment/mainnet) for more details.
 
 #### Testnet Fengari 3.0
 ```
