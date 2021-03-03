@@ -45,7 +45,7 @@ const (
 )
 
 var (
-	ErrNoGenesis = errors.New("Genesis not found in chain")
+	ErrNoGenesis = errors.New("genesis not found in chain")
 )
 
 // A blockchain to store events from external blockchains (e.g. Ether, Neo, etc.) or internal Karida's blockchain and

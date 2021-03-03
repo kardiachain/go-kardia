@@ -129,9 +129,15 @@ func LoadConfig(args flags) (*Config, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot read dual node config")
 		}
-		err = yaml.Unmarshal(chainCfg, &config.DualChain)
+
+		err = yaml.Unmarshal(chainCfg, &config)
 		if err != nil {
 			return nil, errors.Wrap(err, "cannot unmarshal dual node config")
+		}
+
+		//todo @longnd: update correct genesis info for dual node
+		if err := yaml.Unmarshal(genesisCfg, &config.DualChain); err != nil {
+			return nil, err
 		}
 	}
 

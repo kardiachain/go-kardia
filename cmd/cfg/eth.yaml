@@ -1,0 +1,43 @@
+DualChain:
+  ServiceName: KARDIA-ETH
+  ChainId: 1
+  NetworkId: 100
+  AcceptTxs: 1       # accept tx sync process or not (1 is yes, 0 is no)
+  Seeds:
+    - fbd5e2afb7c0a7862b06964e29e676bf02183256@10.10.0.251:3000
+    - d97e7bce3fc1c0f248cd5f87479e173dfec7d2b1@10.10.0.251:3001
+    - c60de907fd861b0f9936b74bff9d1c7f693da099@10.10.0.251:3002
+    - dd8b713e656919d1a643c71f1e271c55ca3fb7bc@10.10.0.251:3003
+    - 31e865160c245b378fe46d6b410da53168d6c1b0@10.10.0.251:3004
+    - e09913f6ecf7b64c6a14a8145b4ac2b51111774c@10.10.0.251:3005
+    - 5a66d7aae43a71a42064dd4a371f0454f0138ea5@10.10.0.251:3006
+    - cc6339d5e1c60f30fedd5d4c0e3d6addaca23f83@10.10.0.251:3007
+    - 2923391187b3cc2c0453501d2c6b793982db66a3@10.10.0.251:3008
+    - caaac49e1de8338f87e81e1611d40821590ea661@10.10.0.251:3009
+    - 29611e28c943540b95c942746d5f058b2fd343f0@10.10.0.251:3010
+    - 633846a52779c6a4c91c24d74f7e8fe233179bca@10.10.0.251:3011
+    - b7cb37d1d77a15a524ee62f8ef4a7fb7747c2e79@10.10.0.251:3012
+    - a5c4e2d7d550db48339d97ebbbc0a48876f6f61b@10.10.0.251:3013
+    - 5cdf7e0bbf0c53b5f4e612fa66f0e60169e3a006@10.10.0.251:3014
+    - 902b2cba2a734af504c34cf17ac27f5828275516@10.10.0.251:3015
+    - b64ba7a6e9c2c3a6c547a0eb2cc3d5e59178284e@10.10.0.251:3016
+    - a64ef3a99e11385e0f8cdd2b6ce803a43afa8fb5@10.10.0.251:3017
+    - 8ce0d99cbbd41bed912b69ad5e0d4b02df6ea7f0@10.10.0.251:3018
+    - b6d8a74dd0769f9e3b0dc14322c915ec3a762f4d@10.10.0.251:3019
+    - 8ecc53b27d27339cf4520fc86690cca70e14b768@10.10.0.251:3020
+  ZeroFee: 0          # 0 is no, 1 is yes
+  Database:
+    Dir: dual-chaindata                           # directory stores leveldb
+    Cache: 16                                # cache is used in leveldb
+    Handles: 32                              # handles is used in leveldb
+    Drop: 0                                  # Specify whether drop database or not (0 is no, 1 is yes)
+  EventPool:
+#    AccountSlots: 1
+#    AccountQueue: 1
+    GlobalSlots: 128
+    GlobalQueue: 128
+#    BlockSize: 1
+#    Broadcast: 1
+#    MaxBatchBytes: 1
+Debug:
+  Port: ":6000"

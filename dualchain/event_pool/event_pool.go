@@ -38,7 +38,7 @@ const (
 	promotableQueueSize = 1000000
 
 	// TEMPORARY
-	// Spawn workers and its capcacity to collect dual events
+	// Spawn workers and its capacity to collect dual events
 	numberOfWorker = 2
 	workerCap      = 1024
 )
