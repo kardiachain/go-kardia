@@ -56,7 +56,6 @@ type BlockChain struct {
 	hc *HeaderChain
 
 	chainHeadFeed event.Feed
-	chainFeed     event.Feed
 	logsFeed      event.Feed
 	scope         event.SubscriptionScope
 
@@ -237,11 +236,6 @@ func (bc *BlockChain) CheckCommittedStateRoot(root common.Hash) bool {
 	// Currently OpenTrie tries to load a trie obj from the memory cache and then trie db, return error if not found.
 	_, err := bc.stateCache.OpenTrie(root)
 	return err == nil
-}
-
-// SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
-func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription {
-	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
 }
 
 // loadLastState loads the last known chain state from the database. This method
@@ -459,7 +453,7 @@ func (bc *BlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscript
 	return bc.scope.Track(bc.logsFeed.Subscribe(ch))
 }
 
-// SubscribeChainEvent registers a subscription of ChainEvent.
-func (bc *BlockChain) SubscribeChainEvent(ch chan<- events.ChainEvent) event.Subscription {
-	return bc.scope.Track(bc.chainFeed.Subscribe(ch))
+// SubscribeChainEvent registers a subscription of ChainHeadEvent.
+func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription {
+	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
 }

@@ -19,7 +19,6 @@
 package events
 
 import (
-	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -31,9 +30,3 @@ type NewTxsEvent struct{ Txs []*types.Transaction }
 
 // ChainHeadEvent is posted when a new head block is saved to the block chain.
 type ChainHeadEvent struct{ Block *types.Block }
-
-type ChainEvent struct {
-	Block *types.Block
-	Hash  common.Hash
-	Logs  []*types.Log
-}

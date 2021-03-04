@@ -55,7 +55,7 @@ type APIBackend interface {
 	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
 	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
 
-	SubscribeChainEvent(ch chan<- events.ChainEvent) event.Subscription
+	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 
 	// Filter API
 	BloomStatus() (uint64, uint64)
@@ -265,8 +265,8 @@ func (k *KardiaService) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscri
 	return k.blockchain.SubscribeLogsEvent(ch)
 }
 
-func (k *KardiaService) SubscribeChainEvent(ch chan<- events.ChainEvent) event.Subscription {
-	return k.blockchain.SubscribeChainEvent(ch)
+func (k *KardiaService) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription {
+	return k.blockchain.SubscribeChainHeadEvent(ch)
 }
 
 func (k *KardiaService) SubscribeNewTxsEvent(ch chan<- events.NewTxsEvent) event.Subscription {

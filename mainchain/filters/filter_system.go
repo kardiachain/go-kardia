@@ -81,16 +81,16 @@ type EventSystem struct {
 	lastHead *types.Header
 
 	// Subscriptions
-	txsSub   event.Subscription // Subscription for new transaction event
-	logsSub  event.Subscription // Subscription for new log event
-	chainSub event.Subscription // Subscription for new chain event
+	txsSub       event.Subscription // Subscription for new transaction event
+	logsSub      event.Subscription // Subscription for new log event
+	chainHeadSub event.Subscription // Subscription for new chain event
 
 	// Channels
-	install   chan *subscription      // install filter for event notification
-	uninstall chan *subscription      // remove filter for event notification
-	txsCh     chan events.NewTxsEvent // Channel to receive new transactions event
-	logsCh    chan []*types.Log       // Channel to receive new log event
-	chainCh   chan events.ChainEvent  // Channel to receive new chain event
+	install     chan *subscription         // install filter for event notification
+	uninstall   chan *subscription         // remove filter for event notification
+	txsCh       chan events.NewTxsEvent    // Channel to receive new transactions event
+	logsCh      chan []*types.Log          // Channel to receive new log event
+	chainHeadCh chan events.ChainHeadEvent // Channel to receive new chain head event
 }
 
 // NewEventSystem creates a new manager that listens for event on the given mux,
@@ -101,21 +101,21 @@ type EventSystem struct {
 // or by stopping the given mux.
 func NewEventSystem(backend Backend) *EventSystem {
 	m := &EventSystem{
-		backend:   backend,
-		install:   make(chan *subscription),
-		uninstall: make(chan *subscription),
-		txsCh:     make(chan events.NewTxsEvent, txChanSize),
-		logsCh:    make(chan []*types.Log, logsChanSize),
-		chainCh:   make(chan events.ChainEvent, chainEvChanSize),
+		backend:     backend,
+		install:     make(chan *subscription),
+		uninstall:   make(chan *subscription),
+		txsCh:       make(chan events.NewTxsEvent, txChanSize),
+		logsCh:      make(chan []*types.Log, logsChanSize),
+		chainHeadCh: make(chan events.ChainHeadEvent, chainEvChanSize),
 	}
 
 	// Subscribe events
 	m.txsSub = m.backend.SubscribeNewTxsEvent(m.txsCh)
 	m.logsSub = m.backend.SubscribeLogsEvent(m.logsCh)
-	m.chainSub = m.backend.SubscribeChainEvent(m.chainCh)
+	m.chainHeadSub = m.backend.SubscribeChainHeadEvent(m.chainHeadCh)
 
 	// Make sure none of the subscriptions are empty
-	if m.txsSub == nil || m.logsSub == nil || m.chainSub == nil {
+	if m.txsSub == nil || m.logsSub == nil || m.chainHeadSub == nil {
 		log.Crit("Subscribe for event system failed")
 	}
 
@@ -266,7 +266,7 @@ func (es *EventSystem) handleTxsEvent(filters filterIndex, ev events.NewTxsEvent
 	}
 }
 
-func (es *EventSystem) handleChainEvent(filters filterIndex, ev events.ChainEvent) {
+func (es *EventSystem) handleChainHeadEvent(filters filterIndex, ev events.ChainHeadEvent) {
 	for _, f := range filters[BlocksSubscription] {
 		f.headers <- ev.Block.Header()
 	}
@@ -278,7 +278,7 @@ func (es *EventSystem) eventLoop() {
 	defer func() {
 		es.txsSub.Unsubscribe()
 		es.logsSub.Unsubscribe()
-		es.chainSub.Unsubscribe()
+		es.chainHeadSub.Unsubscribe()
 	}()
 
 	index := make(filterIndex)
@@ -292,8 +292,8 @@ func (es *EventSystem) eventLoop() {
 			es.handleTxsEvent(index, ev)
 		case ev := <-es.logsCh:
 			es.handleLogs(index, ev)
-		case ev := <-es.chainCh:
-			es.handleChainEvent(index, ev)
+		case ev := <-es.chainHeadCh:
+			es.handleChainHeadEvent(index, ev)
 
 		case f := <-es.install:
 			if f.typ == LogsSubscription {
@@ -318,7 +318,7 @@ func (es *EventSystem) eventLoop() {
 			return
 		case <-es.logsSub.Err():
 			return
-		case <-es.chainSub.Err():
+		case <-es.chainHeadSub.Err():
 			return
 		}
 	}
