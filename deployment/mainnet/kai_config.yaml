@@ -16,12 +16,21 @@ Node:
     - 0.0.0.0
     - 127.0.0.1
     - localhost
+  WSHost: 0.0.0.0
+  WSPort: 8546
   P2P:
     PrivateKey:      # private key without 0x prefix, leave blank for joining as non-validator node
     ListenAddress: tcp://0.0.0.0:3000 # IP and Port for P2P connection
     MaxPeers: 25     # maximum accepted peers
   LogLevel: info     # crit, error, warn, info, debug, trace
   Metrics: 1
+  FastSync:
+    ServiceName: BCREACTOR # log tag of blockchain reactor logs. Type string
+    Enable: true        # true if this node allow and be able to fastsync, otherwise false
+    MaxPeers: 2         # maximum peer is allowed to receive fastsync blocks from this node at a time. Type int
+    TargetPending: 20   # maximum number of blocks in a batch sync. Type int
+    PeerTimeout: 15     # maximum response time from a peer in second. Type int
+    MinRecvRate: 0      # minimum receive rate from peer, otherwise prune. Type int64
 MainChain:
   ServiceName: KARDIA #
   ChainId: 1          # 1 = Mainnet, 10 = Testnet
