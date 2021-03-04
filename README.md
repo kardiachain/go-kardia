@@ -20,7 +20,7 @@ by [Certik](https://certik.foundation/) ([view article](https://kardiachain.medi
 
 ### KardiaChain Private Devnet
 - Network Explorer: [Devnet Explorer](http://explorer-dev.kardiachain.io/)
-- Release: [kardia-v1.0.1](https://github.com/kardiachain/go-kardia/releases/tag/v1.0.1)
+- Release: [kardia-v1.1.0](https://github.com/kardiachain/go-kardia/releases/tag/v1.1.0)
 
 ## Quickstart
 
