@@ -17,28 +17,20 @@
 package trie
 
 import (
-	"hash"
 	"sync"
 
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/crypto/sha3"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 )
 
 type hasher struct {
 	tmp        sliceBuffer
-	sha        keccakState
+	sha        crypto.KeccakState
 	cachegen   uint16
 	cachelimit uint16
 	onleaf     LeafCallback
-}
-
-// keccakState wraps sha3.state. In addition to the usual hash methods, it also supports
-// Read to get a variable amount of data from the hash state. Read is faster than Sum
-// because it doesn't copy the internal state, but also modifies the internal state.
-type keccakState interface {
-	hash.Hash
-	Read([]byte) (int, error)
 }
 
 type sliceBuffer []byte
@@ -57,7 +49,7 @@ var hasherPool = sync.Pool{
 	New: func() interface{} {
 		return &hasher{
 			tmp: make(sliceBuffer, 0, 550), // cap is as large as a full fullNode.
-			sha: sha3.NewKeccak256().(keccakState),
+			sha: sha3.NewKeccak256().(crypto.KeccakState),
 		}
 	},
 }

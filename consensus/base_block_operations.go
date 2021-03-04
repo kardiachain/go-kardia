@@ -26,6 +26,7 @@ import (
 )
 
 type BaseBlockOperations interface {
+	Base() uint64
 	Height() uint64
 	LoadBlock(height uint64) *types.Block
 	LoadBlockCommit(height uint64) *types.Commit

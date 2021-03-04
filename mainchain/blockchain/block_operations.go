@@ -51,6 +51,7 @@ type BlockOperations struct {
 	blockchain *BlockChain
 	txPool     *tx_pool.TxPool
 	evPool     EvidencePool
+	base       uint64
 	height     uint64
 	staking    *staking.StakingSmcUtil
 }
@@ -67,8 +68,17 @@ func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_po
 	}
 }
 
+// Base returns the first known contiguous block height, or 0 for empty block stores.
+func (bo *BlockOperations) Base() uint64 {
+	bo.mtx.RLock()
+	defer bo.mtx.RUnlock()
+	return bo.base
+}
+
 // Height returns latest height of blockchain.
 func (bo *BlockOperations) Height() uint64 {
+	bo.mtx.RLock()
+	defer bo.mtx.RUnlock()
 	return bo.height
 }
 
@@ -272,6 +282,10 @@ LOOP:
 		i++
 		receipts = append(receipts, receipt)
 		newTxs = append(newTxs, tx)
+		// send logs of emitted events to logs feed for collecting
+		if len(receipt.Logs) > 0 {
+			bo.blockchain.logsFeed.Send(receipt.Logs)
+		}
 	}
 
 	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
@@ -295,6 +309,7 @@ LOOP:
 		GasUsed:  *usedGas,
 		Receipts: receipts,
 		Rewards:  blockReward,
+		Bloom:    types.CreateBloom(receipts),
 	}
 
 	return vals, root, blockInfo, newTxs, nil

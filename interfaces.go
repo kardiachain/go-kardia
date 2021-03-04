@@ -40,7 +40,7 @@ type CallMsg struct {
 
 // FilterQuery contains options for contract log filtering.
 type FilterQuery struct {
-	BlockHash *common.Hash     // used by eth_getLogs, return logs only from block with this hash
+	BlockHash *common.Hash     // used by kai_getLogs, return logs only from block with this hash
 	FromBlock uint64           // beginning of the queried range, nil means genesis block
 	ToBlock   uint64           // end of the range, nil means latest block
 	Addresses []common.Address // restricts matches to events created by specific contracts

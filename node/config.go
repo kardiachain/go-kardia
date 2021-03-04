@@ -76,6 +76,11 @@ type MainChainConfig struct {
 	// Consensus defines the configuration for the Kardia consensus service,
 	// including timeouts and details about the block structure.
 	Consensus *configs.ConsensusConfig
+
+	// If this node is many blocks behind the tip of the chain, FastSync
+	// allows them to catchup quickly by downloading blocks in parallel
+	// and verifying their commits
+	FastSync *configs.FastSyncConfig
 }
 
 type DualChainConfig struct {
@@ -107,6 +112,11 @@ type DualChainConfig struct {
 	// Consensus defines the configuration for the Kardia consensus service,
 	// including timeouts and details about the block structure.
 	Consensus *configs.ConsensusConfig
+
+	// If this node is many blocks behind the tip of the chain, FastSync
+	// allows them to catchup quickly by downloading blocks in parallel
+	// and verifying their commits
+	FastSync *configs.FastSyncConfig
 }
 
 // NodeMetadata contains privateKey and votingPower and function that get coinbase
@@ -283,6 +293,11 @@ type Config struct {
 
 	// Metrics defines whether we want to collect and expose metrics of the node
 	Metrics uint
+
+	// If this node is many blocks behind the tip of the chain, FastSync
+	// allows them to catchup quickly by downloading blocks in parallel
+	// and verifying their commits
+	FastSync *configs.FastSyncConfig
 
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.

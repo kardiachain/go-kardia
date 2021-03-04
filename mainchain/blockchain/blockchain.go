@@ -56,6 +56,7 @@ type BlockChain struct {
 	hc *HeaderChain
 
 	chainHeadFeed event.Feed
+	logsFeed      event.Feed
 	scope         event.SubscriptionScope
 
 	genesisBlock *types.Block
@@ -237,11 +238,6 @@ func (bc *BlockChain) CheckCommittedStateRoot(root common.Hash) bool {
 	return err == nil
 }
 
-// SubscribeChainHeadEvent registers a subscription of ChainHeadEvent.
-func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription {
-	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
-}
-
 // loadLastState loads the last known chain state from the database. This method
 // assumes that the chain manager mutex is held.
 func (bc *BlockChain) loadLastState() error {
@@ -347,6 +343,12 @@ func (bc *BlockChain) GetHeaderByHash(hash common.Hash) *types.Header {
 	return bc.hc.GetHeaderByHash(hash)
 }
 
+// GetHeaderByHash retrieves a block header from the database by height, caching it if
+// found.
+func (bc *BlockChain) GetHeaderByHeight(height uint64) *types.Header {
+	return bc.hc.GetHeaderByHeight(height)
+}
+
 // SetHead rewinds the local chain to a new head. In the case of headers, everything
 // above the new head will be deleted and the new one set. In the case of blocks
 // though, the head may be further rewound if block bodies are missing (non-archive
@@ -444,4 +446,14 @@ func (bc *BlockChain) SaveBlock(block *types.Block, blockParts *types.PartSet, s
 
 func (bc *BlockChain) ApplyMessage(vm *kvm.KVM, msg types.Message, gp *types.GasPool) (*kvm.ExecutionResult, error) {
 	return ApplyMessage(vm, msg, gp)
+}
+
+// SubscribeLogsEvent registers a subscription of []*types.Log.
+func (bc *BlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription {
+	return bc.scope.Track(bc.logsFeed.Subscribe(ch))
+}
+
+// SubscribeChainEvent registers a subscription of ChainHeadEvent.
+func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription {
+	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
 }

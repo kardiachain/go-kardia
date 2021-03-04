@@ -54,6 +54,9 @@ var (
 	eventsPrefix      = []byte("events") // event prefix + smart contract address
 	dualActionPrefix  = []byte("dualAction")
 	contractAbiPrefix = []byte("abi")
+
+	// Chain index prefixes (use `i` + single byte to avoid mixing data types).
+	BloomBitsIndexPrefix = []byte("iB") // BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
 )
 
 // A positional metadata to help looking up the data content of
