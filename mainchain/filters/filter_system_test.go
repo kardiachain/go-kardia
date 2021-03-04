@@ -38,13 +38,13 @@ import (
 )
 
 type testBackend struct {
-	mux        *event.TypeMux
-	db         types.StoreDB
-	sections   uint64
-	txFeed     event.Feed
-	logsFeed   event.Feed
-	rmLogsFeed event.Feed
-	chainFeed  event.Feed
+	mux           *event.TypeMux
+	db            types.StoreDB
+	sections      uint64
+	txFeed        event.Feed
+	logsFeed      event.Feed
+	rmLogsFeed    event.Feed
+	chainHeadFeed event.Feed
 }
 
 func (b *testBackend) ChainDb() types.StoreDB {
@@ -118,8 +118,8 @@ func (b *testBackend) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscript
 	return b.logsFeed.Subscribe(ch)
 }
 
-func (b *testBackend) SubscribeChainEvent(ch chan<- events.ChainEvent) event.Subscription {
-	return b.chainFeed.Subscribe(ch)
+func (b *testBackend) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription {
+	return b.chainHeadFeed.Subscribe(ch)
 }
 
 func (b *testBackend) BloomStatus() (uint64, uint64) {
