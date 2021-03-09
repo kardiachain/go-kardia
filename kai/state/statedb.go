@@ -424,57 +424,62 @@ func (sdb *StateDB) GetRefund() uint64 {
 }
 
 func (sdb *StateDB) clearJournalAndRefund() {
-	sdb.journal = newJournal()
-	sdb.validRevisions = sdb.validRevisions[:0]
-	sdb.refund = 0
+	if len(sdb.journal.entries) > 0 {
+		sdb.journal = newJournal()
+		sdb.refund = 0
+	}
+	sdb.validRevisions = sdb.validRevisions[:0] // Snapshots can be created without journal entires
 }
 
 // Commit writes the state to the underlying in-memory trie database.
-func (sdb *StateDB) Commit(deleteEmptyObjects bool) (root common.Hash, err error) {
-	defer sdb.clearJournalAndRefund()
+func (sdb *StateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
+	if sdb.dbErr != nil {
+		return common.Hash{}, fmt.Errorf("commit aborted due to earlier error: %v", sdb.dbErr)
+	}
+
+	// Finalize any pending changes and merge everything into the tries
+	sdb.IntermediateRoot(deleteEmptyObjects)
 
 	for addr := range sdb.journal.dirties {
 		sdb.stateObjectsDirty[addr] = struct{}{}
 	}
-	// Commit objects to the trie.
-	for addr, stateObject := range sdb.stateObjects {
-		_, isDirty := sdb.stateObjectsDirty[addr]
-		switch {
-		case stateObject.suicided || (isDirty && deleteEmptyObjects && stateObject.empty()):
-			// If the object has been removed, don't bother syncing it
-			// and just mark it for deletion in the trie.
-			sdb.deleteStateObject(stateObject)
-		case isDirty:
+	// Commit objects to the trie, measuring the elapsed time
+	codeWriter := sdb.db.TrieDB().DiskDB().NewBatch()
+	for addr := range sdb.stateObjectsDirty {
+		if obj := sdb.stateObjects[addr]; !obj.deleted {
 			// Write any contract code associated with the state object
-			if stateObject.code != nil && stateObject.dirtyCode {
-				sdb.db.TrieDB().InsertBlob(common.BytesToHash(stateObject.CodeHash()), stateObject.code)
-				stateObject.dirtyCode = false
+			if obj.code != nil && obj.dirtyCode {
+				trie.WriteCode(codeWriter, common.BytesToHash(obj.CodeHash()), obj.code)
+				obj.dirtyCode = false
 			}
-			// Write any storage changes in the state object to its storage trie.
-			if err := stateObject.CommitTrie(sdb.db); err != nil {
+			// Write any storage changes in the state object to its storage trie
+			if err := obj.CommitTrie(sdb.db); err != nil {
 				return common.Hash{}, err
 			}
-			// Update the object in the main account trie.
-			sdb.updateStateObject(stateObject)
 		}
-		delete(sdb.stateObjectsDirty, addr)
 	}
-	// Write trie changes.
-	root, err = sdb.trie.Commit(func(leaf []byte, parent common.Hash) error {
-		var account Account
+	if len(sdb.stateObjectsDirty) > 0 {
+		sdb.stateObjectsDirty = make(map[common.Address]struct{})
+	}
+	if codeWriter.ValueSize() > 0 {
+		if err := codeWriter.Write(); err != nil {
+			log.Crit("Failed to commit dirty codes", "error", err)
+		}
+	}
+
+	// The onleaf func is called _serially_, so we can reuse the same account
+	// for unmarshalling every time.
+	var account Account
+	root, err := sdb.trie.Commit(func(path []byte, leaf []byte, parent common.Hash) error {
 		if err := rlp.DecodeBytes(leaf, &account); err != nil {
 			return nil
 		}
 		if account.Root != emptyRoot {
 			sdb.db.TrieDB().Reference(account.Root, parent)
 		}
-		code := common.BytesToHash(account.CodeHash)
-		if code != emptyCode {
-			sdb.db.TrieDB().Reference(code, parent)
-		}
 		return nil
 	})
-	sdb.logger.Debug("Trie cache stats after commit", "misses", trie.CacheMisses(), "unloads", trie.CacheUnloads())
+
 	return root, err
 }
 
