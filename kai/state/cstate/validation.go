@@ -80,30 +80,30 @@ func validateBlock(evidencePool EvidencePool, store Store, state LastestBlockSta
 	}
 
 	// Validate block Time
-	// if block.Height() > 1 {
-	// 	if !block.Time().After(state.LastBlockTime) {
-	// 		return fmt.Errorf("block time %v not greater than last block time %v",
-	// 			block.Time,
-	// 			state.LastBlockTime,
-	// 		)
-	// 	}
+	if block.Height() > 1 {
+		if !block.Time().After(state.LastBlockTime) {
+			return fmt.Errorf("block time %v not greater than last block time %v",
+				block.Time(),
+				state.LastBlockTime,
+			)
+		}
 
-	// 	medianTime := MedianTime(block.LastCommit(), state.LastValidators())
-	// 	if !block.Time().Equal(medianTime) {
-	// 		return fmt.Errorf("invalid block time. Expected %v, got %v",
-	// 			medianTime,
-	// 			block.Time,
-	// 		)
-	// 	}
-	// } else if block.Height() == 1 {
-	// 	genesisTime := state.LastBlockTime
-	// 	if !block.Time().Equal(genesisTime) {
-	// 		return fmt.Errorf("block time %v is not equal to genesis time %v",
-	// 			block.Time,
-	// 			genesisTime,
-	// 		)
-	// 	}
-	// }
+		medianTime := MedianTime(block.LastCommit(), state.LastValidators)
+		if !block.Time().Equal(medianTime) {
+			return fmt.Errorf("invalid block time. Expected %v, got %v",
+				medianTime,
+				block.Time(),
+			)
+		}
+	} else if block.Height() == 1 {
+		genesisTime := state.LastBlockTime
+		if !block.Time().Equal(genesisTime) {
+			return fmt.Errorf("block time %v is not equal to genesis time %v",
+				block.Time(),
+				genesisTime,
+			)
+		}
+	}
 
 	// Limit the amount of evidence
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(int64(state.ConsensusParams.Block.MaxBytes))
