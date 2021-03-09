@@ -423,7 +423,7 @@ func (dbc *DualBlockChain) WriteBlockWithState(block *types.Block, receipts []*t
 		return err
 	}
 	triedb := dbc.stateCache.TrieDB()
-	if err := triedb.Commit(root, false); err != nil {
+	if err := triedb.Commit(root, false, nil); err != nil {
 		return err
 	}
 	//dbc.db.WriteBlockInfo(block.Hash(), block.Header().Height, receipts)
@@ -441,7 +441,7 @@ func (dbc *DualBlockChain) WriteBlockWithState(block *types.Block, receipts []*t
 // CommitTrie commits trie node such as statedb forcefully to disk.
 func (dbc *DualBlockChain) CommitTrie(root common.Hash) error {
 	triedb := dbc.stateCache.TrieDB()
-	return triedb.Commit(root, false)
+	return triedb.Commit(root, false, nil)
 }
 
 // insert injects a new head block into the current block chain. This method

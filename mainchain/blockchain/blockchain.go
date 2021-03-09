@@ -409,9 +409,9 @@ func (bc *BlockChain) WriteBlockInfo(block *types.Block, blockInfo *types.BlockI
 }
 
 // CommitTrie commits trie node such as statedb forcefully to disk.
-func (bc BlockChain) CommitTrie(root common.Hash) error {
+func (bc *BlockChain) CommitTrie(root common.Hash) error {
 	triedb := bc.stateCache.TrieDB()
-	return triedb.Commit(root, false)
+	return triedb.Commit(root, false, nil)
 }
 
 // insert injects a new head block into the current block chain. This method
