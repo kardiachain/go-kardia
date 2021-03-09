@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-// Package rawdb contains a collection of low level database accessors.
+// Package kvstore contains a collection of low level database accessors.
 package kvstore
 
 import (
