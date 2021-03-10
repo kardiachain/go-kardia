@@ -27,6 +27,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/gtank/merlin v0.1.1
 	github.com/hashicorp/golang-lru v0.5.4
+	github.com/holiman/bloomfilter/v2 v2.0.3
 	github.com/holiman/uint256 v1.1.1
 	github.com/julienschmidt/httprouter v1.3.0 // indirect
 	github.com/libp2p/go-buffer-pool v0.0.2
