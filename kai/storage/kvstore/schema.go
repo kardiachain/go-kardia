@@ -57,6 +57,15 @@ var (
 
 	// Chain index prefixes (use `i` + single byte to avoid mixing data types).
 	BloomBitsIndexPrefix = []byte("iB") // BloomBitsIndexPrefix is the data table of a chain indexer to track its progress
+
+	SnapshotAccountPrefix = []byte("a") // SnapshotAccountPrefix + account hash -> account trie value
+	SnapshotStoragePrefix = []byte("o") // SnapshotStoragePrefix + account hash + storage hash -> storage trie value
+
+	snapshotRootKey       = []byte("SnapshotRoot")       // snapshotRootKey tracks the hash of the last snapshot.
+	snapshotJournalKey    = []byte("SnapshotJournal")    // snapshotJournalKey tracks the in-memory diff layers across restarts.
+	snapshotGeneratorKey  = []byte("SnapshotGenerator")  // snapshotGeneratorKey tracks the snapshot generation marker across restarts.
+	snapshotRecoveryKey   = []byte("SnapshotRecovery")   // snapshotRecoveryKey tracks the snapshot recovery marker across restarts.
+	snapshotSyncStatusKey = []byte("SnapshotSyncStatus") // snapshotSyncStatusKey tracks the snapshot sync status across restarts.
 )
 
 // A positional metadata to help looking up the data content of
@@ -197,4 +206,16 @@ func seenCommitKey(height uint64) []byte {
 
 func calcAppHashKey(height uint64) []byte {
 	return append(appHashPrefix, encodeBlockHeight(height)...)
+}
+
+func accountSnapshotKey(hash common.Hash) []byte {
+	return append(SnapshotAccountPrefix, hash.Bytes()...)
+}
+
+func storageSnapshotKey(accountHash, storageHash common.Hash) []byte {
+	return append(append(SnapshotStoragePrefix, accountHash.Bytes()...), storageHash.Bytes()...)
+}
+
+func storageSnapshotsKey(accountHash common.Hash) []byte {
+	return append(SnapshotStoragePrefix, accountHash.Bytes()...)
 }
