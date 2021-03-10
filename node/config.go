@@ -63,9 +63,6 @@ type MainChainConfig struct {
 	// AcceptTxs accept tx sync process or not (1 is yes and 0 is no)
 	AcceptTxs uint32
 
-	// IsPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
-	IsPrivate bool
-
 	NetworkId uint64
 
 	ChainId uint64
@@ -96,9 +93,6 @@ type DualChainConfig struct {
 
 	// Dual's event pool options
 	DualEventPool event_pool.Config
-
-	// IsPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
-	IsPrivate bool
 
 	// Dual protocol name, this name is used if the node is setup as dual node
 	DualProtocolName string

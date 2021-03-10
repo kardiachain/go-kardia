@@ -32,7 +32,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -46,7 +45,20 @@ var (
 	ErrNoGenesis = errors.New("Genesis not found in chain")
 )
 
-// TODO(huny@): Add detailed description for Kardia blockchain
+// BlockChain represents the canonical chain given a database with a genesis
+// block. The Blockchain manages chain imports, reverts, chain reorganisations.
+//
+// Importing blocks in to the block chain happens according to the set of rules
+// defined by the two stage Validator. Processing of blocks is done using the
+// Processor which processes the included transaction. The validation of the state
+// is done in the second part of the Validator. Failing results in aborting of
+// the import.
+//
+// The BlockChain also helps in returning blocks from **any** chain included
+// in the database as well as blocks that represents the canonical chain. It's
+// important to note that GetBlock can return any block and does not need to be
+// included in the canonical one where as GetBlockByNumber always represents the
+// canonical chain.
 type BlockChain struct {
 	logger log.Logger
 
@@ -73,12 +85,6 @@ type BlockChain struct {
 
 	processor *StateProcessor // block processor
 	vmConfig  kvm.Config      // vm configurations
-
-	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
-	isPrivate bool
-
-	// permissioned is used to call permissioned smartcontract to check whether a node has permission to access chain or not
-	permissioned *permissioned.PermissionSmcUtil
 }
 
 func (bc *BlockChain) P2P() *configs.P2PConfig {
@@ -88,11 +94,6 @@ func (bc *BlockChain) P2P() *configs.P2PConfig {
 // GetVMConfig returns the block chain VM config.
 func (bc *BlockChain) GetVMConfig() *kvm.Config {
 	return &bc.vmConfig
-}
-
-// IsPrivate returns whether a blockchain is private or not
-func (bc *BlockChain) IsPrivate() bool {
-	return bc.isPrivate
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -125,7 +126,7 @@ func (bc *BlockChain) Config() *configs.ChainConfig { return bc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.ChainConfig, isPrivate bool) (*BlockChain, error) {
+func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.ChainConfig) (*BlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 
@@ -137,7 +138,6 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 		blockCache:   blockCache,
 		futureBlocks: futureBlocks,
 		quit:         make(chan struct{}),
-		isPrivate:    isPrivate,
 	}
 
 	var err error
@@ -158,11 +158,6 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 	//@huny go bc.update()
 
 	bc.processor = NewStateProcessor(logger, bc)
-	// TODO @trinhdn: Remove this when clean up repo
-	// bc.permissioned, err = permissioned.NewSmcPermissionUtil(bc)
-	// if err != nil {
-	// 	return nil, err
-	// }
 
 	return bc, nil
 }

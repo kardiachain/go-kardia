@@ -33,7 +33,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -72,17 +71,6 @@ type DualBlockChain struct {
 	futureBlocks *lru.Cache     // future blocks are blocks added for later processing
 
 	quit chan struct{} // blockchain quit channel
-
-	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
-	isPrivate bool
-
-	// permissioned is used to call permissioned smartcontract to check whether a node has permission to access chain or not
-	permissioned *permissioned.PermissionSmcUtil
-}
-
-// IsPrivate returns whether a blockchain is private or not
-func (dbc *DualBlockChain) IsPrivate() bool {
-	return dbc.isPrivate
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -120,7 +108,7 @@ func (dbc *DualBlockChain) Config() *configs.ChainConfig { return dbc.chainConfi
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.ChainConfig, isPrivate bool) (*DualBlockChain, error) {
+func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.ChainConfig) (*DualBlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 
@@ -132,7 +120,6 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 		blockCache:   blockCache,
 		futureBlocks: futureBlocks,
 		quit:         make(chan struct{}),
-		isPrivate:    isPrivate,
 	}
 	var err error
 
@@ -149,7 +136,6 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 		return nil, err
 	}
 
-	dbc.permissioned, err = permissioned.NewSmcPermissionUtil(dbc)
 	if err != nil {
 		return nil, err
 	}

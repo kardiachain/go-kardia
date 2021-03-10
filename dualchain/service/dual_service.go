@@ -89,7 +89,7 @@ func newDualService(ctx *node.ServiceContext, config *DualConfig) (*DualService,
 	}
 
 	// Create a new blockchain to attach to this GroupService struct
-	dualService.blockchain, err = blockchain.NewBlockChain(logger, groupDb, dualService.chainConfig, config.IsPrivate)
+	dualService.blockchain, err = blockchain.NewBlockChain(logger, groupDb, dualService.chainConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +145,6 @@ func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 		DBInfo:        chainConfig.DBInfo,
 		DualEventPool: chainConfig.DualEventPool,
 		DualGenesis:   chainConfig.DualGenesis,
-		IsPrivate:     chainConfig.IsPrivate,
 		BaseAccount:   chainConfig.BaseAccount,
 		Consensus:     chainConfig.Consensus,
 		FastSync:      chainConfig.FastSync,
