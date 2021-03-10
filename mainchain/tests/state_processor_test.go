@@ -249,7 +249,7 @@ func TestStateTransition_TransitionDb_withFee(t *testing.T) {
 		t.Fatal(genesisErr)
 	}
 
-	bc, err := blockchain.NewBlockChain(log.New(), storeDB, chainConfig, false)
+	bc, err := blockchain.NewBlockChain(log.New(), storeDB, chainConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
