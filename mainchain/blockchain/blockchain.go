@@ -74,9 +74,6 @@ type BlockChain struct {
 	processor *StateProcessor // block processor
 	vmConfig  kvm.Config      // vm configurations
 
-	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
-	isPrivate bool
-
 	// permissioned is used to call permissioned smartcontract to check whether a node has permission to access chain or not
 	permissioned *permissioned.PermissionSmcUtil
 }
@@ -88,11 +85,6 @@ func (bc *BlockChain) P2P() *configs.P2PConfig {
 // GetVMConfig returns the block chain VM config.
 func (bc *BlockChain) GetVMConfig() *kvm.Config {
 	return &bc.vmConfig
-}
-
-// IsPrivate returns whether a blockchain is private or not
-func (bc *BlockChain) IsPrivate() bool {
-	return bc.isPrivate
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -125,7 +117,7 @@ func (bc *BlockChain) Config() *configs.ChainConfig { return bc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.ChainConfig, isPrivate bool) (*BlockChain, error) {
+func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.ChainConfig) (*BlockChain, error) {
 	blockCache, _ := lru.New(blockCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 
@@ -137,7 +129,6 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 		blockCache:   blockCache,
 		futureBlocks: futureBlocks,
 		quit:         make(chan struct{}),
-		isPrivate:    isPrivate,
 	}
 
 	var err error

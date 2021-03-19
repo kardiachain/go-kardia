@@ -74,7 +74,6 @@ var DefaultConfig = node.Config{
 		NetworkId: privateNetworkId,
 		DBInfo:    storage.NewLevelDbInfo(MainChainDataDir, DefaultDbCache, DefaultDbHandles),
 		AcceptTxs: 1, // 1 is to allow new transactions, 0 is not
-		IsPrivate: true,
 		// todo: uncomment and update config when we support dual node
 		//Genesis:   genesis.DefaultTestnetFullGenesisBlock(configs.GenesisAccounts, configs.GenesisContracts),
 	},

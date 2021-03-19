@@ -149,7 +149,7 @@ func setup(sampleCode []byte, sampleDefinition string, globalPatterns []string, 
 		return nil, err
 	}
 
-	bc, err := blockchain.NewBlockChain(logger, db, chainConfig, false)
+	bc, err := blockchain.NewBlockChain(logger, db, chainConfig)
 	if err != nil {
 		return nil, err
 	}

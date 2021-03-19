@@ -41,9 +41,6 @@ type DualConfig struct {
 	// DbInfo stores configuration information to setup database
 	DBInfo storage.DbInfo
 
-	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
-	IsPrivate bool
-
 	ProtocolName string
 
 	// BaseAccount defines account which is used to execute internal smart contracts
