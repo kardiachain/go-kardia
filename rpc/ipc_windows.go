@@ -20,29 +20,35 @@ package rpc
 
 import (
 	"context"
+	"fmt"
 	"net"
-	"time"
+	"os"
+	"path/filepath"
 
-	"gopkg.in/natefinch/npipe.v2"
+	"github.com/kardiachain/go-kardia/lib/log"
 )
 
-// This is used if the dialing context has no deadline. It is much smaller than the
-// defaultDialTimeout because named pipes are local and there is no need to wait so long.
-const defaultPipeDialTimeout = 2 * time.Second
-
-// ipcListen will create a named pipe on the given endpoint.
+// ipcListen will create a Unix socket on the given endpoint.
 func ipcListen(endpoint string) (net.Listener, error) {
-	return npipe.Listen(endpoint)
+	if len(endpoint) > int(max_path_size) {
+		log.Warn(fmt.Sprintf("The ipc endpoint is longer than %d characters. ", max_path_size),
+			"endpoint", endpoint)
+	}
+
+	// Ensure the IPC path exists and remove any previous leftover
+	if err := os.MkdirAll(filepath.Dir(endpoint), 0751); err != nil {
+		return nil, err
+	}
+	os.Remove(endpoint)
+	l, err := net.Listen("unix", endpoint)
+	if err != nil {
+		return nil, err
+	}
+	os.Chmod(endpoint, 0600)
+	return l, nil
 }
 
-// newIPCConnection will connect to a named pipe with the given endpoint as name.
+// newIPCConnection will connect to a Unix socket on the given endpoint.
 func newIPCConnection(ctx context.Context, endpoint string) (net.Conn, error) {
-	timeout := defaultPipeDialTimeout
-	if deadline, ok := ctx.Deadline(); ok {
-		timeout = deadline.Sub(time.Now())
-		if timeout < 0 {
-			timeout = 0
-		}
-	}
-	return npipe.DialTimeout(endpoint, timeout)
+	return new(net.Dialer).DialContext(ctx, "unix", endpoint)
 }

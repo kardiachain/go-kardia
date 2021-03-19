@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 )
@@ -53,34 +54,46 @@ func sequentialIDGenerator() func() ID {
 
 type testService struct{}
 
-type Args struct {
+type echoArgs struct {
 	S string
 }
 
-type Result struct {
+type echoResult struct {
 	String string
 	Int    int
-	Args   *Args
+	Args   *echoArgs
 }
+
+type testError struct{}
+
+func (testError) Error() string          { return "testError" }
+func (testError) ErrorCode() int         { return 444 }
+func (testError) ErrorData() interface{} { return "testError data" }
 
 func (s *testService) NoArgsRets() {}
 
-func (s *testService) Echo(str string, i int, args *Args) Result {
-	return Result{str, i, args}
+func (s *testService) Echo(str string, i int, args *echoArgs) echoResult {
+	return echoResult{str, i, args}
 }
 
-func (s *testService) EchoWithCtx(ctx context.Context, str string, i int, args *Args) Result {
-	return Result{str, i, args}
+func (s *testService) EchoWithCtx(ctx context.Context, str string, i int, args *echoArgs) echoResult {
+	return echoResult{str, i, args}
 }
 
 func (s *testService) Sleep(ctx context.Context, duration time.Duration) {
 	time.Sleep(duration)
 }
 
+func (s *testService) Block(ctx context.Context) error {
+	<-ctx.Done()
+	return errors.New("context canceled in testservice_block")
+}
+
 func (s *testService) Rets() (string, error) {
 	return "", nil
 }
 
+//lint:ignore ST1008 returns error first on purpose.
 func (s *testService) InvalidRets1() (error, string) {
 	return nil, ""
 }
@@ -93,10 +106,14 @@ func (s *testService) InvalidRets3() (string, string, error) {
 	return "", "", nil
 }
 
+func (s *testService) ReturnError() error {
+	return testError{}
+}
+
 func (s *testService) CallMeBack(ctx context.Context, method string, args []interface{}) (interface{}, error) {
 	c, ok := ClientFromContext(ctx)
 	if !ok {
-		return nil, errors.New("no client")
+		return nil, errNoClient
 	}
 	var result interface{}
 	err := c.Call(&result, method, args...)
@@ -106,7 +123,7 @@ func (s *testService) CallMeBack(ctx context.Context, method string, args []inte
 func (s *testService) CallMeBackLater(ctx context.Context, method string, args []interface{}) error {
 	c, ok := ClientFromContext(ctx)
 	if !ok {
-		return errors.New("no client")
+		return errNoClient
 	}
 	go func() {
 		<-ctx.Done()
@@ -177,4 +194,13 @@ func (s *notificationTestService) HangSubscription(ctx context.Context, val int)
 		notifier.Notify(subscription.ID, val)
 	}()
 	return subscription, nil
+}
+
+// largeRespService generates arbitrary-size JSON responses.
+type largeRespService struct {
+	length int
+}
+
+func (x largeRespService) LargeResp() string {
+	return strings.Repeat("x", x.length)
 }
