@@ -27,13 +27,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/kardiachain/go-kardia/mainchain/genesis"
-
 	"github.com/kardiachain/go-kardia/configs"
-
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/lib/service"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardia/rpc"
 )
@@ -52,39 +49,41 @@ func testNodeConfig() *Config {
 	}
 }
 
-// Tests that an empty protocol stack can be started, restarted and stopped.
-func TestNodeLifeCycle(t *testing.T) {
+// Tests that an empty protocol stack can be closed more than once.
+// func TestNodeCloseMultipleTimes(t *testing.T) {
+// 	stack, err := New(testNodeConfig())
+// 	if err != nil {
+// 		t.Fatalf("failed to create protocol stack: %v", err)
+// 	}
+// 	stack.Close()
+
+// 	// Ensure that a stopped node can be stopped again
+// 	for i := 0; i < 3; i++ {
+// 		if err := stack.Close(); err != ErrNodeStopped {
+// 			t.Fatalf("iter %d: stop failure mismatch: have %v, want %v", i, err, ErrNodeStopped)
+// 		}
+// 	}
+// }
+
+func TestNodeStartMultipleTimes(t *testing.T) {
 	stack, err := New(testNodeConfig())
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}
-	defer stack.Close()
 
-	// Ensure that a stopped node can be stopped again
-	for i := 0; i < 3; i++ {
-		if err := stack.Stop(); err != service.ErrNotStarted {
-			t.Fatalf("iter %d: stop failure mismatch: have %v, want %v", i, err, service.ErrNotStarted)
-		}
-	}
 	// Ensure that a node can be successfully started, but only once
 	if err := stack.Start(); err != nil {
 		t.Fatalf("failed to start node: %v", err)
 	}
-	if err := stack.Start(); err != service.ErrAlreadyStarted {
-		t.Fatalf("start failure mismatch: have %v, want %v ", err, service.ErrAlreadyStarted)
+	if err := stack.Start(); err != ErrNodeRunning {
+		t.Fatalf("start failure mismatch: have %v, want %v ", err, ErrNodeRunning)
 	}
-	// Ensure that a node can be restarted arbitrarily many times
-	// for i := 0; i < 3; i++ {
-	// 	if err := stack.Restart(); err != nil {
-	// 		t.Fatalf("iter %d: failed to restart node: %v", i, err)
-	// 	}
-	// }
 	// Ensure that a node can be stopped, but only once
-	if err := stack.Stop(); err != nil {
+	if err := stack.Close(); err != nil {
 		t.Fatalf("failed to stop node: %v", err)
 	}
-	if err := stack.Stop(); err != service.ErrAlreadyStopped {
-		t.Fatalf("stop failure mismatch: have %v, want %v ", err, service.ErrAlreadyStopped)
+	if err := stack.Close(); err != ErrNodeStopped {
+		t.Fatalf("stop failure mismatch: have %v, want %v ", err, ErrNodeStopped)
 	}
 }
 
@@ -98,20 +97,17 @@ func TestNodeUsedDataDir(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	// Create a new node based on the data directory
-	cfg := testNodeConfig()
-	cfg.DataDir = dir
-	original, err := New(cfg)
+	original, err := New(&Config{DataDir: dir})
 	if err != nil {
 		t.Fatalf("failed to create original protocol stack: %v", err)
 	}
 	defer original.Close()
-
 	if err := original.Start(); err != nil {
 		t.Fatalf("failed to start original protocol stack: %v", err)
 	}
 
 	// Create a second node based on the same data directory and ensure failure
-	_, err = New(cfg)
+	_, err = New(&Config{DataDir: dir})
 	if err != ErrDatadirUsed {
 		t.Fatalf("duplicate datadir failure mismatch: have %v, want %v", err, ErrDatadirUsed)
 	}
@@ -458,13 +454,6 @@ func TestAPIGather(t *testing.T) {
 	}
 	defer stack.Stop()
 
-	// Connect to the RPC server and verify the various registered endpoints
-	client, err := stack.Attach()
-	if err != nil {
-		t.Fatalf("failed to connect to the inproc API server: %v", err)
-	}
-	defer client.Close()
-
 	tests := []struct {
 		Method string
 		Result string
@@ -475,9 +464,6 @@ func TestAPIGather(t *testing.T) {
 		{"multi.v2.nested_theOneMethod", "multi.v2.nested"},
 	}
 	for i, test := range tests {
-		if err := client.Call(nil, test.Method); err != nil {
-			t.Errorf("test %d: API request failed: %v", i, err)
-		}
 		select {
 		case result := <-calls:
 			if result != test.Result {

@@ -57,12 +57,6 @@ func (ctx *ServiceContext) Service(service interface{}) error {
 	return ErrServiceUnknown
 }
 
-// ExtRPCEnabled returns the indicator whether node enables the external
-// RPC(http, ws or graphql).
-func (ctx *ServiceContext) ExtRPCEnabled() bool {
-	return ctx.Config.ExtRPCEnabled()
-}
-
 // ServiceConstructor is the function signature of the constructors needed to be
 // registered for service instantiation.
 type ServiceConstructor func(ctx *ServiceContext) (Service, error)
