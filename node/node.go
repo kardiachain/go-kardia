@@ -299,6 +299,12 @@ func (n *Node) OnStart() error {
 	n.services = services
 	n.stop = make(chan struct{})
 
+	// start RPC endpoints
+	err = n.startRPC()
+	if err != nil {
+		n.stopRPC()
+	}
+
 	// Start the switch (the P2P server).
 	if err := n.sw.Start(); err != nil {
 		return err
@@ -340,6 +346,12 @@ func (n *Node) openDataDir() error {
 // startup. It's not meant to be called at any time afterwards as it makes certain
 // assumptions about the state of the node.
 func (n *Node) startRPC() error {
+	// Gather all the possible APIs to surface
+	apis := n.apis()
+	for _, s := range n.services {
+		apis = append(apis, s.APIs()...)
+	}
+	n.rpcAPIs = apis
 	// Configure IPC.
 	if n.ipc.endpoint != "" {
 		if err := n.ipc.start(n.rpcAPIs); err != nil {

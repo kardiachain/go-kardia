@@ -75,14 +75,14 @@ func TestNodeStartMultipleTimes(t *testing.T) {
 	if err := stack.Start(); err != nil {
 		t.Fatalf("failed to start node: %v", err)
 	}
-	if err := stack.Start(); err != ErrNodeRunning {
+	if err := stack.Start(); err != service.ErrAlreadyStarted {
 		t.Fatalf("start failure mismatch: have %v, want %v ", err, ErrNodeRunning)
 	}
 	// Ensure that a node can be stopped, but only once
 	if err := stack.Close(); err != nil {
 		t.Fatalf("failed to stop node: %v", err)
 	}
-	if err := stack.Close(); err != ErrNodeStopped {
+	if err := stack.Close(); err != service.ErrAlreadyStopped {
 		t.Fatalf("stop failure mismatch: have %v, want %v ", err, ErrNodeStopped)
 	}
 }
