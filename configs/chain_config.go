@@ -19,10 +19,7 @@
 package configs
 
 import (
-	"crypto/ecdsa"
 	"fmt"
-
-	"github.com/kardiachain/go-kardia/lib/common"
 )
 
 // ChainConfig is the core config which determines the blockchain settings.
@@ -33,12 +30,6 @@ import (
 type ChainConfig struct {
 	// Various consensus engines
 	Kaicon *KaiconConfig `json:"kaicon,omitempty" yaml:"KaiconConfig"`
-}
-
-// BaseAccount defines information for base (root) account that is used to execute internal smart contract
-type BaseAccount struct {
-	Address    common.Address `json:"address"`
-	PrivateKey ecdsa.PrivateKey
 }
 
 // KaiconConfig is the consensus engine configs for Kardia BFT DPoS.
