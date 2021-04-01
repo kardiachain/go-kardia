@@ -47,7 +47,6 @@ type KardiaSubService interface {
 
 // KardiaService implements Service for running full Kardia protocol.
 type KardiaService struct {
-	// TODO(namdoh): Refactor out logger to a based Service type.
 	logger log.Logger // Logger for Kardia service
 
 	config      *Config

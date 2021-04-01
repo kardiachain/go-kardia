@@ -97,9 +97,6 @@ type DualChainConfig struct {
 	// Dual protocol name, this name is used if the node is setup as dual node
 	DualProtocolName string
 
-	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *configs.BaseAccount
-
 	// Dual Network ID
 	DualNetworkID uint64
 
@@ -137,9 +134,6 @@ type Config struct {
 	// value is specified, the basename of the current executable is used.
 	Name string `toml:"-"`
 
-	// UserIdent, if set, is used as an additional component in the devp2p node identifier.
-	UserIdent string `toml:",omitempty"`
-
 	// Version should be set to the version number of the program. It is used
 	// in the devp2p node identifier.
 	Version string `toml:"-"`
@@ -154,40 +148,15 @@ type Config struct {
 	// Configuration of peer-to-peer networking.
 	P2P *configs.P2PConfig
 
-	// KeyStoreDir is the file system folder that contains private keys. The directory can
-	// be specified as a relative path, in which case it is resolved relative to the
-	// current directory.
-	//
-	// If KeyStoreDir is empty, the default location is the "keystore" subdirectory of
-	// DataDir. If DataDir is unspecified and KeyStoreDir is empty, an ephemeral directory
-	// is created by New and destroyed when the node is stopped.
-	KeyStoreDir string `toml:",omitempty"`
-
-	// ExternalSigner specifies an external URI for a clef-type signer
-	ExternalSigner string `toml:"omitempty"`
-
-	// UseLightweightKDF lowers the memory and CPU requirements of the key store
-	// scrypt KDF at the expense of security.
-	UseLightweightKDF bool `toml:",omitempty"`
-
-	// InsecureUnlockAllowed allows user to unlock accounts in unsafe http environment.
-	InsecureUnlockAllowed bool `toml:",omitempty"`
-
-	// NoUSB disables hardware wallet monitoring and connectivity.
-	NoUSB bool `toml:",omitempty"`
-
-	// SmartCardDaemonPath is the path to the smartcard daemon's socket
-	SmartCardDaemonPath string `toml:",omitempty"`
-
 	// IPCPath is the requested location to place the IPC endpoint. If the path is
 	// a simple file name, it is placed inside the data directory (or on the root
 	// pipe path on Windows), whereas if it's a resolvable path name (absolute or
 	// relative), then that specific path is enforced. An empty path disables IPC.
-	IPCPath string `toml:",omitempty"`
+	IPCPath string
 
 	// HTTPHost is the host interface on which to start the HTTP RPC server. If this
 	// field is empty, no HTTP API endpoint will be started.
-	HTTPHost string `toml:",omitempty"`
+	HTTPHost string
 
 	// HTTPPort is the TCP port number on which to start the HTTP RPC server. The
 	// default zero value is/ valid and will pick a port number randomly (useful
@@ -222,12 +191,12 @@ type Config struct {
 
 	// WSHost is the host interface on which to start the websocket RPC server. If
 	// this field is empty, no websocket API endpoint will be started.
-	WSHost string `toml:",omitempty"`
+	WSHost string
 
 	// WSPort is the TCP port number on which to start the websocket RPC server. The
 	// default zero value is/ valid and will pick a port number randomly (useful for
 	// ephemeral nodes).
-	WSPort int
+	WSPort int `toml:",omitempty"`
 
 	// WSPathPrefix specifies a path prefix on which ws-rpc is to be served.
 	WSPathPrefix string `toml:",omitempty"`
@@ -261,12 +230,6 @@ type Config struct {
 
 	// Configuration of the dual's blockchain.
 	DualChainConfig DualChainConfig
-
-	// PeerProxyIP is IP of the network peer proxy, when participates in network with peer proxy for discovery.
-	PeerProxyIP string
-
-	// BaseAccount defines account which is used to execute internal smart contracts
-	BaseAccount *configs.BaseAccount
 
 	// Metrics defines whether we want to collect and expose metrics of the node
 	Metrics uint
@@ -361,13 +324,6 @@ func DefaultWSEndpoint() string {
 // NodeName returns the devp2p node identifier.
 func (c *Config) NodeName() string {
 	name := c.name()
-	// Backwards compatibility: previous versions used title-cased "Geth", keep that.
-	if name == "geth" || name == "geth-testnet" {
-		name = "Geth"
-	}
-	if c.UserIdent != "" {
-		name += "/" + c.UserIdent
-	}
 	if c.Version != "" {
 		name += "/v" + c.Version
 	}

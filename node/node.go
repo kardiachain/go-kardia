@@ -21,6 +21,7 @@ package node
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -28,21 +29,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/blockchain"
-	"github.com/kardiachain/go-kardia/lib/metrics"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
-
-	"github.com/kardiachain/go-kardia/kai/state/cstate"
-
 	"github.com/prometheus/tsdb/fileutil"
 
+	"github.com/kardiachain/go-kardia/blockchain"
 	cs "github.com/kardiachain/go-kardia/consensus"
+	"github.com/kardiachain/go-kardia/kai/state/cstate"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/lib/p2p/pex"
 	"github.com/kardiachain/go-kardia/lib/service"
+	bs "github.com/kardiachain/go-kardia/lib/service"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 	"github.com/kardiachain/go-kardia/types/evidence"
@@ -118,9 +117,6 @@ func New(conf *Config) (*Node, error) {
 		logger = log.New()
 	}
 
-	// Setup Transport.
-	//transport, peerFilters := createTransport(conf, nodeInfo, nodeKey)
-
 	// Note: any interaction with Config that would create/touch files
 	// in the data directory or instance directory is delayed until Start.
 	node := &Node{
@@ -132,20 +128,19 @@ func New(conf *Config) (*Node, error) {
 		stop:          make(chan struct{}),
 	}
 
+	// Acquire the instance directory lock.
 	if err := node.openDataDir(); err != nil {
 		return nil, err
 	}
-
 	db, err := node.OpenDatabase("chaindata", 16, 32, "chaindata")
 	if err != nil {
 		return nil, err
 	}
-
 	stateDB := cstate.NewStore(db.DB())
 
+	// Setting up the p2p server
 	nodeKey := &p2p.NodeKey{PrivKey: conf.NodeKey()}
 	state, err := stateDB.LoadStateFromDBOrGenesisDoc(conf.Genesis)
-
 	if err != nil {
 		return nil, err
 	}
@@ -192,33 +187,20 @@ func New(conf *Config) (*Node, error) {
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 	node.stateDB = stateDB
 
+	// Check HTTP/WS prefixes are valid.
+	if err := validatePrefix("HTTP", conf.HTTPPathPrefix); err != nil {
+		return nil, err
+	}
+	if err := validatePrefix("WebSocket", conf.WSPathPrefix); err != nil {
+		return nil, err
+	}
+
 	// Configure RPC servers.
 	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
 	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
 	node.ipc = newIPCServer(node.log, conf.IPCEndpoint())
 
 	return node, nil
-}
-
-// Close stops the Node and releases resources acquired in
-// Node constructor New.
-func (n *Node) Close() error {
-	var errs []error
-
-	// Terminate all subsystems and collect any errors
-	if err := n.Stop(); err != nil && err != ErrNodeStopped {
-		errs = append(errs, err)
-	}
-
-	// Report any errors that might have occurred
-	switch len(errs) {
-	case 0:
-		return nil
-	case 1:
-		return errs[0]
-	default:
-		return fmt.Errorf("%v", errs)
-	}
 }
 
 // Register injects a new service into the node's stack. The service created by
@@ -244,13 +226,14 @@ func (n *Node) OnStart() error {
 		return err
 	}
 
-	metrics.Enabled = true
-	go metrics.CollectProcessMetrics(3 * time.Second)
+	// metrics.Enabled = true
+	// go metrics.CollectProcessMetrics(3 * time.Second)
 
 	// start RPC endpoints
 	err = n.startRPC()
 	if err != nil {
 		n.stopRPC()
+		n.Stop()
 	}
 
 	// Otherwise copy and specialize the P2P configuration
@@ -274,7 +257,7 @@ func (n *Node) OnStart() error {
 		}
 		kind := reflect.TypeOf(service)
 		if _, exists := services[kind]; exists {
-			return &DuplicateServiceError{Kind: kind}
+			return &bs.DuplicateServiceError{Kind: kind}
 		}
 		services[kind] = service
 	}
@@ -336,7 +319,7 @@ func (n *Node) openDataDir() error {
 	// accidental use of the instance directory as a database.
 	release, _, err := fileutil.Flock(filepath.Join(instdir, "LOCK"))
 	if err != nil {
-		return convertFileLockError(err)
+		return bs.ConvertFileLockError(err)
 	}
 	n.instanceDirLock = release
 	return nil
@@ -346,12 +329,16 @@ func (n *Node) openDataDir() error {
 // startup. It's not meant to be called at any time afterwards as it makes certain
 // assumptions about the state of the node.
 func (n *Node) startRPC() error {
-	// Gather all the possible APIs to surface
-	apis := n.apis()
-	for _, s := range n.services {
-		apis = append(apis, s.APIs()...)
+	if err := n.startInProc(); err != nil {
+		return err
 	}
-	n.rpcAPIs = apis
+	// Gather all the possible APIs to surface
+	// apis := n.apis()
+	// for _, s := range n.services {
+	// 	apis = append(apis, s.APIs()...)
+	// }
+	// n.rpcAPIs = apis
+
 	// Configure IPC.
 	if n.ipc.endpoint != "" {
 		if err := n.ipc.start(n.rpcAPIs); err != nil {
@@ -403,6 +390,16 @@ func (n *Node) stopRPC() {
 	n.ipc.stop()
 }
 
+// startInProc registers all RPC APIs on the inproc server.
+func (n *Node) startInProc() error {
+	for _, api := range n.rpcAPIs {
+		if err := n.inprocHandler.RegisterName(api.Namespace, api.Service); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (n *Node) wsServerForPort(port int) *httpServer {
 	if n.config.HTTPHost == "" || n.http.port == port {
 		return n.http
@@ -416,12 +413,10 @@ func (n *Node) OnStop() {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
-	n.BaseService.OnStop()
-
 	// Terminate the API, services and the p2p server.
 	n.stopRPC()
 	n.rpcAPIs = nil
-	failure := &StopError{
+	failure := &bs.StopError{
 		Services: make(map[reflect.Type]error),
 	}
 	for kind, service := range n.services {
@@ -465,18 +460,15 @@ func (n *Node) OnStop() {
 	}
 }
 
+// stopInProc terminates the in-process RPC endpoint.
+func (n *Node) stopInProc() {
+	n.inprocHandler.Stop()
+}
+
 // Wait blocks the thread until the node is stopped. If the node is not running
 // at the time of invocation, the method immediately returns.
 func (n *Node) Wait() {
-	n.lock.RLock()
-	if n.sw == nil {
-		n.lock.RUnlock()
-		return
-	}
-	stop := n.stop
-	n.lock.RUnlock()
-
-	<-stop
+	<-n.stop
 }
 
 // Restart terminates a running node and boots up a new one in its place. If the
@@ -498,7 +490,7 @@ func (n *Node) Service(service interface{}) error {
 
 	// Short circuit if the node's not running
 	if n.sw == nil {
-		return ErrNodeStopped
+		return bs.ErrNodeStopped
 	}
 	// Otherwise try to find the service to return
 	element := reflect.ValueOf(service).Elem()
@@ -506,7 +498,19 @@ func (n *Node) Service(service interface{}) error {
 		element.Set(reflect.ValueOf(running))
 		return nil
 	}
-	return ErrServiceUnknown
+	return bs.ErrServiceUnknown
+}
+
+// RegisterHandler mounts a handler on the given path on the canonical HTTP server.
+//
+// The name of the handler is shown in a log message when the HTTP server starts
+// and should be a descriptive term for the service provided by the handler.
+func (n *Node) RegisterHandler(name, path string, handler http.Handler) {
+	n.lock.Lock()
+	defer n.lock.Unlock()
+
+	n.http.mux.Handle(path, handler)
+	n.http.handlerNames[path] = name
 }
 
 // DataDir retrieves the current datadir used by the protocol stack.
@@ -518,6 +522,25 @@ func (n *Node) DataDir() string {
 // InstanceDir retrieves the instance directory used by the protocol stack.
 func (n *Node) InstanceDir() string {
 	return n.config.instanceDir()
+}
+
+// IPCEndpoint retrieves the current IPC endpoint used by the protocol stack.
+func (n *Node) IPCEndpoint() string {
+	return n.ipc.endpoint
+}
+
+// HTTPEndpoint returns the URL of the HTTP server. Note that this URL does not
+// contain the JSON-RPC path prefix set by HTTPPathPrefix.
+func (n *Node) HTTPEndpoint() string {
+	return "http://" + n.http.listenAddr()
+}
+
+// WSEndpoint returns the current JSON-RPC over WebSocket endpoint.
+func (n *Node) WSEndpoint() string {
+	if n.http.wsAllowed() {
+		return "ws://" + n.http.listenAddr() + n.http.wsConfig.prefix
+	}
+	return "ws://" + n.ws.listenAddr() + n.ws.wsConfig.prefix
 }
 
 // EventMux retrieves the event multiplexer used by all the network services in
@@ -539,27 +562,6 @@ func (n *Node) OpenDatabase(name string, cache, handles int, namespace string) (
 // ResolvePath returns the absolute path of a resource in the instance directory.
 func (n *Node) ResolvePath(x string) string {
 	return n.config.ResolvePath(x)
-}
-
-// apis returns the collection of RPC descriptors this node offers.
-func (n *Node) apis() []rpc.API {
-	return []rpc.API{
-		{
-			Namespace: "node",
-			Version:   "1.0",
-			Service:   NewPrivateAdminAPI(n),
-		}, {
-			Namespace: "node",
-			Version:   "1.0",
-			Service:   NewPublicAdminAPI(n),
-			Public:    true,
-		}, {
-			Namespace: "web3",
-			Version:   "1.0",
-			Service:   NewPublicWeb3API(n),
-			Public:    true,
-		},
-	}
 }
 
 func createTransport(
@@ -665,7 +667,6 @@ func createSwitch(config *Config,
 	sw.SetNodeInfo(nodeInfo)
 	sw.SetNodeKey(nodeKey)
 
-	//p2pLogger.Info("P2P Node ID", "ID", nodeKey.ID(), "file", config.NodeKeyFile())
 	return sw
 }
 

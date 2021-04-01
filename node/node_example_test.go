@@ -56,7 +56,7 @@ func ExampleService() {
 	if err != nil {
 		log.Fatalf("Failed to create network node: %v", err)
 	}
-	defer stack.Close()
+	defer stack.Stop()
 
 	// Create and register a simple network service. This is done through the definition
 	// of a node.ServiceConstructor that will instantiate a node.Service. The reason for

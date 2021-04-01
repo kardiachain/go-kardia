@@ -25,6 +25,7 @@ import (
 
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/p2p"
+	bs "github.com/kardiachain/go-kardia/lib/service"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -54,7 +55,7 @@ func (ctx *ServiceContext) Service(service interface{}) error {
 		element.Set(reflect.ValueOf(running))
 		return nil
 	}
-	return ErrServiceUnknown
+	return bs.ErrServiceUnknown
 }
 
 // ServiceConstructor is the function signature of the constructors needed to be
