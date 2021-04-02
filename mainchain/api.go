@@ -20,7 +20,6 @@ package kai
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -201,8 +200,11 @@ func (s *PublicKaiAPI) GetBlockHeaderByNumber(ctx context.Context, blockNumber r
 }
 
 // GetBlockHeaderByHash returns block by block hash
-func (s *PublicKaiAPI) GetBlockHeaderByHash(ctx context.Context, blockHash string) *BlockHeaderJSON {
-	header := s.kaiService.HeaderByHash(ctx, common.HexToHash(blockHash))
+func (s *PublicKaiAPI) GetBlockHeaderByHash(ctx context.Context, blockHash rpc.BlockNumberOrHash) *BlockHeaderJSON {
+	header, _ := s.kaiService.HeaderByNumberOrHash(ctx, blockHash)
+	if header == nil {
+		return nil
+	}
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
 	return NewBlockHeaderJSON(header, blockInfo)
 }
@@ -215,8 +217,11 @@ func (s *PublicKaiAPI) GetBlockByNumber(ctx context.Context, blockNumber rpc.Blo
 }
 
 // GetBlockByHash returns block by block hash
-func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *BlockJSON {
-	block := s.kaiService.BlockByHash(ctx, common.HexToHash(blockHash))
+func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash rpc.BlockNumberOrHash) *BlockJSON {
+	block, _ := s.kaiService.BlockByNumberOrHash(ctx, blockHash)
+	if block == nil {
+		return nil
+	}
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
 	return NewBlockJSON(block, blockInfo)
 }
@@ -508,7 +513,7 @@ func getReceiptLogs(receipt types.Receipt) []Log {
 			logs = append(logs, Log{
 				Address:     l.Address.Hex(),
 				Topics:      topics,
-				Data:        hex.EncodeToString(l.Data),
+				Data:        l.Data.String(),
 				BlockHeight: l.BlockHeight,
 				TxHash:      l.TxHash.Hex(),
 				TxIndex:     l.TxIndex,
