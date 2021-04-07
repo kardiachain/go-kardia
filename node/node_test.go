@@ -20,7 +20,6 @@ package node
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -49,8 +48,6 @@ func testNodeConfig() *Config {
 		Genesis: &genesis.Genesis{
 			ConsensusParams: &kaiproto.ConsensusParams{},
 		},
-		HTTPHost: "127.0.0.1",
-		WSHost:   "127.0.0.1",
 	}
 }
 
@@ -414,112 +411,6 @@ func TestProtocolGather(t *testing.T) {
 	}
 	defer stack.Stop()
 
-}
-
-// RPC Prefix struct for testing
-type rpcPrefixTest struct {
-	httpPrefix, wsPrefix string
-	// These lists paths on which JSON-RPC should be served / not served.
-	wantHTTP   []string
-	wantNoHTTP []string
-	wantWS     []string
-	wantNoWS   []string
-}
-
-// Test node with RPC Prefix
-func TestNodeRPCPrefix(t *testing.T) {
-	t.Parallel()
-
-	tests := []rpcPrefixTest{
-		// both off
-		{
-			httpPrefix: "", wsPrefix: "",
-			wantHTTP:   []string{"/", "/?p=1"},
-			wantNoHTTP: []string{"/test", "/test?p=1"},
-			wantWS:     []string{"/", "/?p=1"},
-			wantNoWS:   []string{"/test", "/test?p=1"},
-		},
-		// only http prefix
-		{
-			httpPrefix: "/testprefix", wsPrefix: "",
-			wantHTTP:   []string{"/testprefix", "/testprefix?p=1", "/testprefix/x", "/testprefix/x?p=1"},
-			wantNoHTTP: []string{"/", "/?p=1", "/test", "/test?p=1"},
-			wantWS:     []string{"/", "/?p=1"},
-			wantNoWS:   []string{"/testprefix", "/testprefix?p=1", "/test", "/test?p=1"},
-		},
-		// only ws prefix
-		{
-			httpPrefix: "", wsPrefix: "/testprefix",
-			wantHTTP:   []string{"/", "/?p=1"},
-			wantNoHTTP: []string{"/testprefix", "/testprefix?p=1", "/test", "/test?p=1"},
-			wantWS:     []string{"/testprefix", "/testprefix?p=1", "/testprefix/x", "/testprefix/x?p=1"},
-			wantNoWS:   []string{"/", "/?p=1", "/test", "/test?p=1"},
-		},
-		// both set
-		{
-			httpPrefix: "/testprefix", wsPrefix: "/testprefix",
-			wantHTTP:   []string{"/testprefix", "/testprefix?p=1", "/testprefix/x", "/testprefix/x?p=1"},
-			wantNoHTTP: []string{"/", "/?p=1", "/test", "/test?p=1"},
-			wantWS:     []string{"/testprefix", "/testprefix?p=1", "/testprefix/x", "/testprefix/x?p=1"},
-			wantNoWS:   []string{"/", "/?p=1", "/test", "/test?p=1"},
-		},
-	}
-
-	for _, test := range tests {
-		test := test
-		name := fmt.Sprintf("http=%s ws=%s", test.httpPrefix, test.wsPrefix)
-		t.Run(name, func(t *testing.T) {
-			// Create a new node based on the data directory
-			cfg := testNodeConfig()
-			cfg.HTTPPathPrefix = test.httpPrefix
-			cfg.WSPathPrefix = test.wsPrefix
-			node, err := New(cfg)
-			if err != nil {
-				t.Fatal("can't create node:", err)
-			}
-			defer node.Stop()
-			if err := node.Start(); err != nil {
-				t.Fatal("can't start node:", err)
-			}
-			test.testCheck(t, node)
-		})
-	}
-}
-
-func (test rpcPrefixTest) testCheck(t *testing.T, node *Node) {
-	t.Helper()
-	httpBase := "http://" + node.http.listenAddr()
-	wsBase := "ws://" + node.http.listenAddr()
-
-	if node.WSEndpoint() != wsBase+test.wsPrefix {
-		t.Errorf("Error: node has wrong WSEndpoint %q", node.WSEndpoint())
-	}
-
-	for _, path := range test.wantHTTP {
-		resp := rpcRequest(t, httpBase+path)
-		if resp.StatusCode != 200 {
-			t.Errorf("Error: %s: bad status code %d, want 200", path, resp.StatusCode)
-		}
-	}
-	for _, path := range test.wantNoHTTP {
-		resp := rpcRequest(t, httpBase+path)
-		if resp.StatusCode != 404 {
-			t.Errorf("Error: %s: bad status code %d, want 404", path, resp.StatusCode)
-		}
-	}
-	for _, path := range test.wantWS {
-		err := wsRequest(t, wsBase+path, "")
-		if err != nil {
-			t.Errorf("Error: %s: WebSocket connection failed: %v", path, err)
-		}
-	}
-	for _, path := range test.wantNoWS {
-		err := wsRequest(t, wsBase+path, "")
-		if err == nil {
-			t.Errorf("Error: %s: WebSocket connection succeeded for path in wantNoWS", path)
-		}
-
-	}
 }
 
 // Test helper functions

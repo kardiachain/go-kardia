@@ -128,7 +128,7 @@ func (h *httpServer) start() error {
 	// Initialize the server.
 	h.server = &http.Server{Handler: h}
 	if h.timeouts != (rpc.HTTPTimeouts{}) {
-		CheckTimeouts(&h.timeouts)
+		checkTimeouts(&h.timeouts)
 		h.server.ReadTimeout = h.timeouts.ReadTimeout
 		h.server.WriteTimeout = h.timeouts.WriteTimeout
 		h.server.IdleTimeout = h.timeouts.IdleTimeout
@@ -137,8 +137,8 @@ func (h *httpServer) start() error {
 	// Start the server.
 	listener, err := net.Listen("tcp", h.endpoint)
 	if err != nil {
-		// If the server fails to start, we need to clear out the RPC and WS
-		// configuration so they can be configured another time.
+		// If the server fails to start, stop the RPC and WS services
+		// to avoid memory leaks
 		h.disableRPC()
 		h.disableWS()
 		return err
@@ -220,23 +220,6 @@ func checkPath(r *http.Request, path string) bool {
 	}
 	// otherwise, check to make sure prefix matches
 	return len(r.URL.Path) >= len(path) && r.URL.Path[:len(path)] == path
-}
-
-// validatePrefix checks if 'path' is a valid configuration value for the RPC prefix option.
-func validatePrefix(what, path string) error {
-	if path == "" {
-		return nil
-	}
-	if path[0] != '/' {
-		return fmt.Errorf(`%s RPC path prefix %q does not contain leading "/"`, what, path)
-	}
-	if strings.ContainsAny(path, "?#") {
-		// This is just to avoid confusion. While these would match correctly (i.e. they'd
-		// match if URL-escaped into path), it's not easy to understand for users when
-		// setting that on the command line.
-		return fmt.Errorf("%s RPC path prefix %q contains URL meta-characters", what, path)
-	}
-	return nil
 }
 
 // stop shuts down the HTTP server.

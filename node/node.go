@@ -97,8 +97,9 @@ func New(conf *Config) (*Node, error) {
 	}
 
 	// Config logger
-	if conf.Logger == nil {
-		conf.Logger = log.New()
+	logger := conf.Logger
+	if logger == nil {
+		logger = log.New()
 	}
 
 	// Ensure that the instance name doesn't cause weird conflicts with
@@ -112,10 +113,6 @@ func New(conf *Config) (*Node, error) {
 	if strings.HasSuffix(conf.Name, ".ipc") {
 		return nil, errors.New(`Config.Name cannot end in ".ipc"`)
 	}
-	logger := conf.Logger
-	if logger == nil {
-		logger = log.New()
-	}
 
 	// Note: any interaction with Config that would create/touch files
 	// in the data directory or instance directory is delayed until Start.
@@ -124,7 +121,7 @@ func New(conf *Config) (*Node, error) {
 		inprocHandler: rpc.NewServer(),
 		serviceFuncs:  []ServiceConstructor{},
 		eventmux:      new(event.TypeMux),
-		log:           conf.Logger,
+		log:           logger,
 		stop:          make(chan struct{}),
 	}
 
@@ -187,14 +184,6 @@ func New(conf *Config) (*Node, error) {
 	node.BaseService = *service.NewBaseService(logger, "Node", node)
 	node.stateDB = stateDB
 
-	// Check HTTP/WS prefixes are valid.
-	if err := validatePrefix("HTTP", conf.HTTPPathPrefix); err != nil {
-		return nil, err
-	}
-	if err := validatePrefix("WebSocket", conf.WSPathPrefix); err != nil {
-		return nil, err
-	}
-
 	// Configure RPC servers.
 	node.http = newHTTPServer(node.log, conf.HTTPTimeouts)
 	node.ws = newHTTPServer(node.log, rpc.DefaultHTTPTimeouts)
@@ -230,10 +219,9 @@ func (n *Node) OnStart() error {
 	// go metrics.CollectProcessMetrics(3 * time.Second)
 
 	// start RPC endpoints
-	err = n.startRPC()
-	if err != nil {
-		n.stopRPC()
+	if err := n.openRPCEndpoints(); err != nil {
 		n.Stop()
+		return err
 	}
 
 	// Otherwise copy and specialize the P2P configuration
@@ -282,12 +270,6 @@ func (n *Node) OnStart() error {
 	n.services = services
 	n.stop = make(chan struct{})
 
-	// start RPC endpoints
-	err = n.startRPC()
-	if err != nil {
-		n.stopRPC()
-	}
-
 	// Start the switch (the P2P server).
 	if err := n.sw.Start(); err != nil {
 		return err
@@ -325,6 +307,15 @@ func (n *Node) openDataDir() error {
 	return nil
 }
 
+// startRPCEndpoints start RPC or return its error handler
+func (n *Node) openRPCEndpoints() error {
+	n.log.Info("Starting RPC Endpoints")
+	if err := n.startRPC(); err != nil {
+		n.stopRPC()
+	}
+	return nil
+}
+
 // startRPC is a helper method to start all the various RPC endpoint during node
 // startup. It's not meant to be called at any time afterwards as it makes certain
 // assumptions about the state of the node.
@@ -332,12 +323,6 @@ func (n *Node) startRPC() error {
 	if err := n.startInProc(); err != nil {
 		return err
 	}
-	// Gather all the possible APIs to surface
-	// apis := n.apis()
-	// for _, s := range n.services {
-	// 	apis = append(apis, s.APIs()...)
-	// }
-	// n.rpcAPIs = apis
 
 	// Configure IPC.
 	if n.ipc.endpoint != "" {
@@ -352,7 +337,6 @@ func (n *Node) startRPC() error {
 			CorsAllowedOrigins: n.config.HTTPCors,
 			Vhosts:             n.config.HTTPVirtualHosts,
 			Modules:            n.config.HTTPModules,
-			prefix:             n.config.HTTPPathPrefix,
 		}
 		if err := n.http.setListenAddr(n.config.HTTPHost, n.config.HTTPPort); err != nil {
 			return err
@@ -368,7 +352,6 @@ func (n *Node) startRPC() error {
 		config := wsConfig{
 			Modules: n.config.WSModules,
 			Origins: n.config.WSOrigins,
-			prefix:  n.config.WSPathPrefix,
 		}
 		if err := server.setListenAddr(n.config.WSHost, n.config.WSPort); err != nil {
 			return err
@@ -388,6 +371,7 @@ func (n *Node) stopRPC() {
 	n.http.stop()
 	n.ws.stop()
 	n.ipc.stop()
+	n.stopInProc()
 }
 
 // startInProc registers all RPC APIs on the inproc server.
@@ -400,11 +384,9 @@ func (n *Node) startInProc() error {
 	return nil
 }
 
-func (n *Node) wsServerForPort(port int) *httpServer {
-	if n.config.HTTPHost == "" || n.http.port == port {
-		return n.http
-	}
-	return n.ws
+// stopInProc terminates the in-process RPC endpoint.
+func (n *Node) stopInProc() {
+	n.inprocHandler.Stop()
 }
 
 // Stop terminates a running node along with all it's services. In the node was
@@ -458,11 +440,6 @@ func (n *Node) OnStop() {
 	if keystoreErr != nil {
 		n.Logger.Error("keystoreErr", "err", failure)
 	}
-}
-
-// stopInProc terminates the in-process RPC endpoint.
-func (n *Node) stopInProc() {
-	n.inprocHandler.Stop()
 }
 
 // Wait blocks the thread until the node is stopped. If the node is not running
@@ -529,8 +506,7 @@ func (n *Node) IPCEndpoint() string {
 	return n.ipc.endpoint
 }
 
-// HTTPEndpoint returns the URL of the HTTP server. Note that this URL does not
-// contain the JSON-RPC path prefix set by HTTPPathPrefix.
+// HTTPEndpoint returns the URL of the HTTP server.
 func (n *Node) HTTPEndpoint() string {
 	return "http://" + n.http.listenAddr()
 }
@@ -541,6 +517,13 @@ func (n *Node) WSEndpoint() string {
 		return "ws://" + n.http.listenAddr() + n.http.wsConfig.prefix
 	}
 	return "ws://" + n.ws.listenAddr() + n.ws.wsConfig.prefix
+}
+
+func (n *Node) wsServerForPort(port int) *httpServer {
+	if n.config.HTTPHost == "" || n.http.port == port {
+		return n.http
+	}
+	return n.ws
 }
 
 // EventMux retrieves the event multiplexer used by all the network services in
@@ -705,12 +688,9 @@ func createPEXReactorAndAddToSwitch(addrBook pex.AddrBook, config *Config,
 		&pex.ReactorConfig{
 			Seeds:    config.P2P.Seeds,
 			SeedMode: config.P2P.SeedMode,
-			// See consensus/reactor.go: blocksToContributeToBecomeGoodPeer 10000
-			// blocks assuming 10s blocks ~ 28 hours.
-			// TODO (melekes): make it dynamic based on the actual block latencies
-			// from the live network.
-			// https://github.com/tendermint/tendermint/issues/3523
-			SeedDisconnectWaitPeriod:     28 * time.Hour,
+			// blocksToContributeToBecomeGoodPeer 10000
+			// blocks assuming 5s+ blocks ~ 14 hours.
+			SeedDisconnectWaitPeriod:     14 * time.Hour,
 			PersistentPeersMaxDialPeriod: config.P2P.PersistentPeersMaxDialPeriod,
 		})
 	pexReactor.SetLogger(logger)
