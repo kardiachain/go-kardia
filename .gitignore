@@ -26,3 +26,4 @@ tool/pump/pump
 run.sh
 cmd/*.fuse_hidden*
 **/*.rlp
+cmd/abigen/abigen
