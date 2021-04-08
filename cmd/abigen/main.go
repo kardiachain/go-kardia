@@ -23,12 +23,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 
 	"github.com/kardiachain/go-kardia/cmd/flags"
-	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/abi/bind"
 	"github.com/kardiachain/go-kardia/lib/compiler"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -46,11 +44,11 @@ var (
 	// Flags needed by abigen
 	abiFlag = cli.StringFlag{
 		Name:  "abi",
-		Usage: "Path to the Ethereum contract ABI json to bind, - for STDIN",
+		Usage: "Path to the KardiaChain contract ABI json to bind, - for STDIN",
 	}
 	binFlag = cli.StringFlag{
 		Name:  "bin",
-		Usage: "Path to the Ethereum contract bytecode (generate deploy method)",
+		Usage: "Path to the KardiaChain contract bytecode (generate deploy method)",
 	}
 	typeFlag = cli.StringFlag{
 		Name:  "type",
@@ -62,21 +60,12 @@ var (
 	}
 	solFlag = cli.StringFlag{
 		Name:  "sol",
-		Usage: "Path to the Ethereum contract Solidity source to build and bind",
+		Usage: "Path to the KardiaChain contract Solidity source to build and bind",
 	}
 	solcFlag = cli.StringFlag{
 		Name:  "solc",
 		Usage: "Solidity compiler to use if source builds are requested",
 		Value: "solc",
-	}
-	vyFlag = cli.StringFlag{
-		Name:  "vy",
-		Usage: "Path to the Ethereum contract Vyper source to build and bind",
-	}
-	vyperFlag = cli.StringFlag{
-		Name:  "vyper",
-		Usage: "Vyper compiler to use if source builds are requested",
-		Value: "vyper",
 	}
 	excFlag = cli.StringFlag{
 		Name:  "exc",
@@ -110,8 +99,6 @@ func init() {
 		jsonFlag,
 		solFlag,
 		solcFlag,
-		vyFlag,
-		vyperFlag,
 		excFlag,
 		pkgFlag,
 		outFlag,
@@ -123,7 +110,7 @@ func init() {
 }
 
 func abigen(c *cli.Context) error {
-	flags.CheckExclusive(c, abiFlag, jsonFlag, solFlag, vyFlag) // Only one source can be selected.
+	flags.CheckExclusive(c, abiFlag, jsonFlag, solFlag) // Only one source can be selected.
 	if c.GlobalString(pkgFlag.Name) == "" {
 		flags.Fatalf("No destination package specified (--pkg)")
 	}
@@ -195,22 +182,6 @@ func abigen(c *cli.Context) error {
 			contracts, err = compiler.CompileSolidity(c.GlobalString(solcFlag.Name), c.GlobalString(solFlag.Name))
 			if err != nil {
 				flags.Fatalf("Failed to build Solidity contract: %v", err)
-			}
-		case c.GlobalIsSet(vyFlag.Name):
-			output, err := compiler.CompileVyper(c.GlobalString(vyperFlag.Name), c.GlobalString(vyFlag.Name))
-			if err != nil {
-				flags.Fatalf("Failed to build Vyper contract: %v", err)
-			}
-			contracts = make(map[string]*compiler.Contract)
-			for n, contract := range output {
-				name := n
-				// Sanitize the combined json names to match the
-				// format expected by solidity.
-				if !strings.Contains(n, ":") {
-					// Remove extra path components
-					name = abi.ToCamelCase(strings.TrimSuffix(filepath.Base(name), ".vy"))
-				}
-				contracts[name] = contract
 			}
 
 		case c.GlobalIsSet(jsonFlag.Name):
