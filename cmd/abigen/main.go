@@ -27,11 +27,10 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common/compiler"
-
 	"github.com/kardiachain/go-kardia/cmd/flags"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/abi/bind"
+	"github.com/kardiachain/go-kardia/lib/compiler"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"gopkg.in/urfave/cli.v1"
