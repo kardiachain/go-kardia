@@ -221,12 +221,6 @@ func (n *Node) OnStart() error {
 	// metrics.Enabled = true
 	// go metrics.CollectProcessMetrics(3 * time.Second)
 
-	// start RPC endpoints
-	if err := n.openRPCEndpoints(); err != nil {
-		n.Stop()
-		return err
-	}
-
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)
 	for _, constructor := range n.serviceFuncs {
@@ -267,6 +261,19 @@ func (n *Node) OnStart() error {
 		}
 		// Mark the service started for potential cleanup
 		started = append(started, kind)
+	}
+
+	// Assign all enabled APIs to the service
+	apis := n.apis()
+	for _, service := range services {
+		apis = append(apis, service.APIs()...)
+	}
+	n.rpcAPIs = apis
+
+	// start RPC endpoints
+	if err := n.openRPCEndpoints(); err != nil {
+		n.Stop()
+		return err
 	}
 
 	// Finish initializing the startup
@@ -326,7 +333,6 @@ func (n *Node) openRPCEndpoints() error {
 func (n *Node) startRPC() error {
 	if err := n.startInProc(); err != nil {
 		return err
-
 	}
 
 	// Configure IPC.
