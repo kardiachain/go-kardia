@@ -48,6 +48,7 @@ require (
 	google.golang.org/genproto v0.0.0-20201111145450-ac7456db90a6
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
+	gopkg.in/urfave/cli.v1 v1.20.0
 	gopkg.in/yaml.v2 v2.3.0
 
 )

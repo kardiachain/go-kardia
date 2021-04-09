@@ -218,7 +218,7 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 		}
 		blockInfo := f.backend.BlockInfoByBlockHash(ctx, header.Hash())
 		if blockInfo == nil {
-			return nil, ErrBlockInfoNotFound
+			continue
 		}
 		found, err := f.blockLogs(ctx, header, blockInfo)
 		if err != nil {
