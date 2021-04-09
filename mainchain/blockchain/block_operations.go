@@ -267,7 +267,7 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
 LOOP:
 	for i, tx := range txs {
-		state.Prepare(tx.Hash(), common.Hash{}, i)
+		state.Prepare(tx.Hash(), header.Hash(), i)
 		snap := state.Snapshot()
 		// TODO(thientn): confirms nil coinbase is acceptable.
 		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
