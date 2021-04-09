@@ -125,6 +125,9 @@ func New(conf *Config) (*Node, error) {
 		stop:          make(chan struct{}),
 	}
 
+	// Register built-in APIs.
+	node.rpcAPIs = append(node.rpcAPIs, node.apis()...)
+
 	// Acquire the instance directory lock.
 	if err := node.openDataDir(); err != nil {
 		return nil, err
@@ -307,11 +310,12 @@ func (n *Node) openDataDir() error {
 	return nil
 }
 
-// startRPCEndpoints start RPC or return its error handler
+// openRPCEndpoints start RPC or return its error handler
 func (n *Node) openRPCEndpoints() error {
 	n.log.Info("Starting RPC Endpoints")
 	if err := n.startRPC(); err != nil {
 		n.stopRPC()
+		n.Stop()
 	}
 	return nil
 }
@@ -322,6 +326,7 @@ func (n *Node) openRPCEndpoints() error {
 func (n *Node) startRPC() error {
 	if err := n.startInProc(); err != nil {
 		return err
+
 	}
 
 	// Configure IPC.
