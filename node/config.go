@@ -226,7 +226,7 @@ type Config struct {
 	DualChainConfig DualChainConfig
 
 	// Metrics defines whether we want to collect and expose metrics of the node
-	Metrics uint
+	Metrics bool
 
 	// If this node is many blocks behind the tip of the chain, FastSync
 	// allows them to catchup quickly by downloading blocks in parallel

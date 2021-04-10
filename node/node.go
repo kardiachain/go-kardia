@@ -37,6 +37,7 @@ import (
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/metrics"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/lib/p2p/pex"
 	"github.com/kardiachain/go-kardia/lib/service"
@@ -209,6 +210,9 @@ func (n *Node) OnStart() error {
 	n.lock.Lock()
 	defer n.lock.Unlock()
 
+	// Start collecting metrics
+	go metrics.CollectProcessMetrics(3 * time.Second)
+
 	// Start the transport.
 	addr, err := p2p.NewNetAddressString(p2p.IDAddressString(n.nodeKey.ID(), n.config.P2P.ListenAddress))
 	if err != nil {
@@ -217,9 +221,6 @@ func (n *Node) OnStart() error {
 	if err := n.transport.Listen(*addr); err != nil {
 		return err
 	}
-
-	// metrics.Enabled = true
-	// go metrics.CollectProcessMetrics(3 * time.Second)
 
 	// Otherwise copy and specialize the P2P configuration
 	services := make(map[reflect.Type]Service)

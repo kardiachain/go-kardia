@@ -45,7 +45,7 @@ type (
 		HTTPCors         []string  `yaml:"HTTPCors"`
 		WSHost           string    `yaml:"WSHost"`
 		WSPort           int       `yaml:"WSPort"`
-		Metrics          uint      `yaml:"Metrics"`
+		Metrics          bool      `yaml:"Metrics"`
 		FastSync         *FastSync `yaml:"FastSync"`
 		Genesis          *Genesis  `yaml:"Genesis,omitempty"`
 	}
