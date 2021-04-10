@@ -23,7 +23,7 @@ Node:
     ListenAddress: tcp://0.0.0.0:3000 # IP and Port for P2P connection
     MaxPeers: 25          # maximum accepted peers
   LogLevel: info          # crit, error, warn, info, debug, trace
-  Metrics: true
+  Metrics: false
   FastSync:
     ServiceName: BCR      # log tag of blockchain reactor logs. Type string
     Enable: false         # true if this node allow and be able to fastsync, otherwise false
@@ -47,4 +47,4 @@ MainChain:
     Dir: chaindata                           # directory stores leveldb
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
-    Drop: 1                                  # specify whether drop database or not (0 is no, 1 is yes)
+    Drop: 0                                  # specify whether drop database or not (0 is no, 1 is yes)
