@@ -20,10 +20,14 @@ package node
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -190,6 +194,26 @@ func TestServiceLifeCycle(t *testing.T) {
 	for id := range services {
 		if !stopped[id] {
 			t.Fatalf("service %s: freshly terminated service still running", id)
+		}
+	}
+}
+
+// Tests whether a service's api can be registered properly on the node server.
+func TestRegisterAPIs(t *testing.T) {
+	stack, err := New(testNodeConfig())
+	if err != nil {
+		t.Fatalf("failed to create protocol stack: %v", err)
+	}
+	defer stack.Stop()
+
+	fs, err := NewAPIService(stack)
+	if err != nil {
+		t.Fatalf("could not create full service: %v", err)
+	}
+
+	for _, api := range fs.APIs() {
+		if !containsAPI(stack.rpcAPIs, api) {
+			t.Fatalf("api %v was not successfully registered", api)
 		}
 	}
 }
@@ -413,14 +437,110 @@ func TestProtocolGather(t *testing.T) {
 
 }
 
+// Tests whether a handler can be successfully mounted on the canonical HTTP server
+// on the given prefix
+func TestRegisterHandler_Successful(t *testing.T) {
+	node := createNode(t, 7878, 7979)
+
+	// create and mount handler
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("success"))
+	})
+	node.RegisterHandler("test", "/test", handler)
+
+	// start node
+	if err := node.Start(); err != nil {
+		t.Fatalf("could not start node: %v", err)
+	}
+	defer node.Stop()
+
+	// create HTTP request
+	httpReq, err := http.NewRequest(http.MethodGet, "http://127.0.0.1:7878/test", nil)
+	if err != nil {
+		t.Error("could not issue new http request ", err)
+	}
+
+	// check response
+	resp := doHTTPRequest(t, httpReq)
+	buf := make([]byte, 7)
+	_, err = io.ReadFull(resp.Body, buf)
+	if err != nil {
+		t.Fatalf("could not read response: %v", err)
+	}
+	assert.Equal(t, "success", string(buf))
+}
+
+// Tests that the given handler will not be successfully mounted since no HTTP server
+// is enabled for RPC
+func TestRegisterHandler_Unsuccessful(t *testing.T) {
+	node, err := New(testNodeConfig())
+	if err != nil {
+		t.Fatalf("could not create new node: %v", err)
+	}
+
+	// create and mount handler
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("success"))
+	})
+	node.RegisterHandler("test", "/test", handler)
+}
+
+// Tests whether websocket requests can be handled on the same port as a regular http server.
+func TestWebsocketHTTPOnSamePort_WebsocketRequest(t *testing.T) {
+	node := startHTTP(t, 0, 0)
+	defer node.Stop()
+
+	ws := strings.Replace(node.HTTPEndpoint(), "http://", "ws://", 1)
+
+	if node.WSEndpoint() != ws {
+		t.Fatalf("endpoints should be the same")
+	}
+	if !checkRPC(ws) {
+		t.Fatalf("ws request failed")
+	}
+	if !checkRPC(node.HTTPEndpoint()) {
+		t.Fatalf("http request failed")
+	}
+}
+
+func TestWebsocketHTTPOnSeparatePort_WSRequest(t *testing.T) {
+	// try and get a free port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal("can't listen:", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	listener.Close()
+
+	node := startHTTP(t, 0, port)
+	defer node.Stop()
+
+	wsOnHTTP := strings.Replace(node.HTTPEndpoint(), "http://", "ws://", 1)
+	ws := fmt.Sprintf("ws://127.0.0.1:%d", port)
+
+	if node.WSEndpoint() == wsOnHTTP {
+		t.Fatalf("endpoints should not be the same")
+	}
+	// ensure ws endpoint matches the expected endpoint
+	if node.WSEndpoint() != ws {
+		t.Fatalf("ws endpoint is incorrect: expected %s, got %s", ws, node.WSEndpoint())
+	}
+
+	if !checkRPC(ws) {
+		t.Fatalf("ws request failed")
+	}
+	if !checkRPC(node.HTTPEndpoint()) {
+		t.Fatalf("http request failed")
+	}
+}
+
 // Test helper functions
 func createNode(t *testing.T, httpPort, wsPort int) *Node {
-	conf := &Config{
-		HTTPHost: "127.0.0.1",
-		HTTPPort: httpPort,
-		WSHost:   "127.0.0.1",
-		WSPort:   wsPort,
-	}
+	conf := testNodeConfig()
+	conf.HTTPHost = "127.0.0.1"
+	conf.HTTPPort = httpPort
+	conf.WSHost = "127.0.0.1"
+	conf.WSPort = wsPort
 	node, err := New(conf)
 	if err != nil {
 		t.Fatalf("could not create a new node: %v", err)

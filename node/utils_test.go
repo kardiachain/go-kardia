@@ -125,3 +125,34 @@ func (api *OneMethodAPI) TheOneMethod() {
 		api.fun()
 	}
 }
+
+type TestAPIService struct{}
+
+func NewAPIService(stack *Node) (*TestAPIService, error) {
+	fs := new(TestAPIService)
+	stack.rpcAPIs = append(stack.rpcAPIs, fs.APIs()...)
+	return fs, nil
+}
+
+func (f *TestAPIService) Start() error { return nil }
+
+func (f *TestAPIService) Stop() error { return nil }
+
+func (f *TestAPIService) APIs() []rpc.API {
+	return []rpc.API{
+		{
+			Namespace: "test",
+			Version:   "1.0",
+		},
+		{
+			Namespace: "public",
+			Version:   "1.0",
+			Public:    true,
+		},
+		{
+			Namespace: "private",
+			Version:   "1.0",
+			Public:    false,
+		},
+	}
+}
