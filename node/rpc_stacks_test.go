@@ -22,8 +22,6 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -175,61 +173,6 @@ func TestIsWebsocket(t *testing.T) {
 	assert.True(t, isWebsocket(r))
 	r.Header.Set("connection", " UPGRADE,keep-alive")
 	assert.True(t, isWebsocket(r))
-}
-
-func Test_checkPath(t *testing.T) {
-	tests := []struct {
-		req      *http.Request
-		prefix   string
-		expected bool
-	}{
-		{
-			req:      &http.Request{URL: &url.URL{Path: "/test"}},
-			prefix:   "/test",
-			expected: true,
-		},
-		{
-			req:      &http.Request{URL: &url.URL{Path: "/testing"}},
-			prefix:   "/test",
-			expected: true,
-		},
-		{
-			req:      &http.Request{URL: &url.URL{Path: "/"}},
-			prefix:   "/test",
-			expected: false,
-		},
-		{
-			req:      &http.Request{URL: &url.URL{Path: "/fail"}},
-			prefix:   "/test",
-			expected: false,
-		},
-		{
-			req:      &http.Request{URL: &url.URL{Path: "/"}},
-			prefix:   "",
-			expected: true,
-		},
-		{
-			req:      &http.Request{URL: &url.URL{Path: "/fail"}},
-			prefix:   "",
-			expected: false,
-		},
-		{
-			req:      &http.Request{URL: &url.URL{Path: "/"}},
-			prefix:   "/",
-			expected: true,
-		},
-		{
-			req:      &http.Request{URL: &url.URL{Path: "/testing"}},
-			prefix:   "/",
-			expected: true,
-		},
-	}
-
-	for i, tt := range tests {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			assert.Equal(t, tt.expected, checkPath(tt.req, tt.prefix))
-		})
-	}
 }
 
 func createAndStartServer(t *testing.T, conf *httpConfig, ws bool, wsConf *wsConfig) *httpServer {

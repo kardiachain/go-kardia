@@ -526,9 +526,9 @@ func (n *Node) HTTPEndpoint() string {
 // WSEndpoint returns the current JSON-RPC over WebSocket endpoint.
 func (n *Node) WSEndpoint() string {
 	if n.http.wsAllowed() {
-		return "ws://" + n.http.listenAddr() + n.http.wsConfig.prefix
+		return "ws://" + n.http.listenAddr()
 	}
-	return "ws://" + n.ws.listenAddr() + n.ws.wsConfig.prefix
+	return "ws://" + n.ws.listenAddr()
 }
 
 func (n *Node) wsServerForPort(port int) *httpServer {

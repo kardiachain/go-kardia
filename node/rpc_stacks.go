@@ -41,14 +41,12 @@ type httpConfig struct {
 	Modules            []string
 	CorsAllowedOrigins []string
 	Vhosts             []string
-	prefix             string // path prefix on which to mount http handler
 }
 
 // wsConfig is the JSON-RPC/Websocket configuration
 type wsConfig struct {
 	Origins []string
 	Modules []string
-	prefix  string // path prefix on which to mount ws handler
 }
 
 type rpcHandler struct {
@@ -148,9 +146,6 @@ func (h *httpServer) start() error {
 
 	if h.wsAllowed() {
 		url := fmt.Sprintf("ws://%v", listener.Addr())
-		if h.wsConfig.prefix != "" {
-			url += h.wsConfig.prefix
-		}
 		h.log.Info("WebSocket enabled", "url", url)
 	}
 	// if server is websocket only, return after logging
@@ -160,7 +155,6 @@ func (h *httpServer) start() error {
 	// Log http endpoint.
 	h.log.Info("HTTP server started",
 		"endpoint", listener.Addr(),
-		"prefix", h.httpConfig.prefix,
 		"cors", strings.Join(h.httpConfig.CorsAllowedOrigins, ","),
 		"vhosts", strings.Join(h.httpConfig.Vhosts, ","),
 	)
@@ -186,9 +180,7 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// check if ws request and serve if ws enabled
 	ws := h.wsHandler.Load().(*rpcHandler)
 	if ws != nil && isWebsocket(r) {
-		if checkPath(r, h.wsConfig.prefix) {
-			ws.ServeHTTP(w, r)
-		}
+		ws.ServeHTTP(w, r)
 		return
 	}
 	// if http-rpc is enabled, try to serve request
@@ -203,23 +195,10 @@ func (h *httpServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			muxHandler.ServeHTTP(w, r)
 			return
 		}
-
-		if checkPath(r, h.httpConfig.prefix) {
-			rpc.ServeHTTP(w, r)
-			return
-		}
+		rpc.ServeHTTP(w, r)
+		return
 	}
 	w.WriteHeader(http.StatusNotFound)
-}
-
-// checkPath checks whether a given request URL matches a given path prefix.
-func checkPath(r *http.Request, path string) bool {
-	// if no prefix has been specified, request URL must be on root
-	if path == "" {
-		return r.URL.Path == "/"
-	}
-	// otherwise, check to make sure prefix matches
-	return len(r.URL.Path) >= len(path) && r.URL.Path[:len(path)] == path
 }
 
 // stop shuts down the HTTP server.
