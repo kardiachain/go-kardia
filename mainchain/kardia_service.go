@@ -24,8 +24,8 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
-	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/bloombits"
+	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
@@ -47,7 +47,6 @@ type KardiaSubService interface {
 
 // KardiaService implements Service for running full Kardia protocol.
 type KardiaService struct {
-	// TODO(namdoh): Refactor out logger to a based Service type.
 	logger log.Logger // Logger for Kardia service
 
 	config      *Config
@@ -134,7 +133,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	}
 
 	// Create a new blockchain to attach to this Kardia object
-	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig, config.IsPrivate)
+	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +193,6 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		Genesis:     chainConfig.Genesis,
 		TxPool:      chainConfig.TxPool,
 		AcceptTxs:   chainConfig.AcceptTxs,
-		IsPrivate:   chainConfig.IsPrivate,
 		Consensus:   chainConfig.Consensus,
 		FastSync:    chainConfig.FastSync,
 	})

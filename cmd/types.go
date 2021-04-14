@@ -45,7 +45,7 @@ type (
 		HTTPCors         []string  `yaml:"HTTPCors"`
 		WSHost           string    `yaml:"WSHost"`
 		WSPort           int       `yaml:"WSPort"`
-		Metrics          uint      `yaml:"Metrics"`
+		Metrics          bool      `yaml:"Metrics"`
 		FastSync         *FastSync `yaml:"FastSync"`
 		Genesis          *Genesis  `yaml:"Genesis,omitempty"`
 	}
@@ -58,21 +58,20 @@ type (
 		MinRecvRate   int64  `yaml:"MinRecvRate"`
 	}
 	Chain struct {
-		ServiceName        string      `yaml:"ServiceName"`
-		Protocol           *string     `yaml:"Protocol,omitempty"`
-		ChainID            uint64      `yaml:"ChainID"`
-		NetworkID          uint64      `yaml:"NetworkID"`
-		AcceptTxs          uint32      `yaml:"AcceptTxs"`
-		IsDual             uint        `yaml:"IsDual"`
-		Genesis            *Genesis    `yaml:"Genesis,omitempty"`
-		EventPool          *Pool       `yaml:"EventPool,omitempty"`
-		Database           *Database   `yaml:"Database,omitempty"`
-		Seeds              []string    `yaml:"Seeds"`
-		Events             []Event     `yaml:"Events"`
-		PublishedEndpoint  *string     `yaml:"PublishedEndpoint,omitempty"`
-		SubscribedEndpoint *string     `yaml:"SubscribedEndpoint,omitempty"`
-		BaseAccount        BaseAccount `yaml:"BaseAccount,omitempty"`
-		Consensus          *Consensus  `yaml:"Consensus"`
+		ServiceName        string     `yaml:"ServiceName"`
+		Protocol           *string    `yaml:"Protocol,omitempty"`
+		ChainID            uint64     `yaml:"ChainID"`
+		NetworkID          uint64     `yaml:"NetworkID"`
+		AcceptTxs          uint32     `yaml:"AcceptTxs"`
+		IsDual             uint       `yaml:"IsDual"`
+		Genesis            *Genesis   `yaml:"Genesis,omitempty"`
+		EventPool          *Pool      `yaml:"EventPool,omitempty"`
+		Database           *Database  `yaml:"Database,omitempty"`
+		Seeds              []string   `yaml:"Seeds"`
+		Events             []Event    `yaml:"Events"`
+		PublishedEndpoint  *string    `yaml:"PublishedEndpoint,omitempty"`
+		SubscribedEndpoint *string    `yaml:"SubscribedEndpoint,omitempty"`
+		Consensus          *Consensus `yaml:"Consensus"`
 	}
 	Genesis struct {
 		Accounts        []Account                   `yaml:"Accounts"`
@@ -114,10 +113,6 @@ type (
 		ContractAddress     string  `yaml:"ContractAddress"`
 		MasterABI           *string `yaml:"MasterABI"`
 		ABI                 *string `yaml:"ABI,omitempty"`
-	}
-	BaseAccount struct {
-		Address    string `yaml:"Address"`
-		PrivateKey string `yaml:"PrivateKey"`
 	}
 	Consensus struct {
 		// All timeouts are in milliseconds

@@ -19,23 +19,10 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"sync/atomic"
 
 	"github.com/kardiachain/go-kardia/lib/log"
-)
-
-var (
-	// ErrAlreadyStarted is returned when somebody tries to start an already
-	// running service.
-	ErrAlreadyStarted = errors.New("already started")
-	// ErrAlreadyStopped is returned when somebody tries to stop an already
-	// stopped service (without resetting it).
-	ErrAlreadyStopped = errors.New("already stopped")
-	// ErrNotStarted is returned when somebody tries to stop a not running
-	// service.
-	ErrNotStarted = errors.New("not started")
 )
 
 // Service defines a service that can be started, stopped, and reset.
@@ -152,11 +139,10 @@ func (bs *BaseService) Start() error {
 				"impl", bs.impl)
 			// revert flag
 			atomic.StoreUint32(&bs.started, 0)
-			return ErrAlreadyStopped
+			return ErrNodeStopped
 		}
 		bs.Logger.Info(fmt.Sprintf("Starting %v service", bs.name), "impl", bs.impl)
-		err := bs.impl.OnStart()
-		if err != nil {
+		if err := bs.impl.OnStart(); err != nil {
 			// revert flag
 			atomic.StoreUint32(&bs.started, 0)
 			return err
@@ -164,7 +150,7 @@ func (bs *BaseService) Start() error {
 		return nil
 	}
 	bs.Logger.Debug(fmt.Sprintf("Not starting %v service -- already started", bs.name), "impl", bs.impl)
-	return ErrAlreadyStarted
+	return ErrNodeRunning
 }
 
 // OnStart implements Service by doing nothing.
@@ -181,7 +167,7 @@ func (bs *BaseService) Stop() error {
 				"impl", bs.impl)
 			// revert flag
 			atomic.StoreUint32(&bs.stopped, 0)
-			return ErrNotStarted
+			return ErrNodeStopped
 		}
 		bs.Logger.Info(fmt.Sprintf("Stopping %v service", bs.name), "impl", bs.impl)
 		bs.impl.OnStop()
@@ -189,7 +175,7 @@ func (bs *BaseService) Stop() error {
 		return nil
 	}
 	bs.Logger.Debug(fmt.Sprintf("Stopping %v service (already stopped)", bs.name), "impl", bs.impl)
-	return ErrAlreadyStopped
+	return ErrNodeStopped
 }
 
 // OnStop implements Service by doing nothing.

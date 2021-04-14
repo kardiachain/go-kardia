@@ -41,7 +41,6 @@ type BaseBlockChain interface {
 	ReadCommit(height uint64) *types.Commit
 	Config() *configs.ChainConfig
 	GetHeader(common.Hash, uint64) *types.Header
-	IsPrivate() bool
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 	StateAt(root uint64) (*state.StateDB, error)
 	DB() types.StoreDB

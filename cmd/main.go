@@ -41,9 +41,9 @@ import (
 	"github.com/kardiachain/go-kardia/dualnode/dual_proxy"
 	"github.com/kardiachain/go-kardia/dualnode/kardia"
 	"github.com/kardiachain/go-kardia/kai/storage"
-	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/metrics"
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	kai "github.com/kardiachain/go-kardia/mainchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
@@ -199,7 +199,6 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		BlockSize:   c.DualChain.EventPool.BlockSize,
 	}
 
-	baseAccount, err := c.getBaseAccount()
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +210,6 @@ func (c *Config) getDualChainConfig() (*node.DualChainConfig, error) {
 		DualNetworkID:    c.DualChain.NetworkID,
 		ChainId:          c.DualChain.ChainID,
 		DualProtocolName: *c.DualChain.Protocol,
-		BaseAccount:      baseAccount,
 		FastSync:         c.getFastSyncConfig(),
 	}
 	return &dualChainConfig, nil
@@ -237,7 +235,6 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		WSPort:           n.WSPort,
 		MainChainConfig:  node.MainChainConfig{},
 		DualChainConfig:  node.DualChainConfig{},
-		PeerProxyIP:      "",
 		Metrics:          n.Metrics,
 		FastSync:         c.getFastSyncConfig(),
 	}
@@ -284,24 +281,6 @@ func (c *Config) newLog() log.Logger {
 	log.Root().SetHandler(log.LvlFilterHandler(level,
 		log.StreamHandler(os.Stdout, log.TerminalFormat(true))))
 	return log.New()
-}
-
-// getBaseAccount gets base account that is used to execute internal smart contract
-func (c *Config) getBaseAccount() (*configs.BaseAccount, error) {
-	var privKey *ecdsa.PrivateKey
-	var err error
-	var address common.Address
-
-	address = common.HexToAddress(c.DualChain.BaseAccount.Address)
-	privKey, err = crypto.HexToECDSA(c.DualChain.BaseAccount.PrivateKey)
-
-	if err != nil {
-		return nil, fmt.Errorf("baseAccount: Invalid privatekey: %v", err)
-	}
-	return &configs.BaseAccount{
-		Address:    address,
-		PrivateKey: *privKey,
-	}, nil
 }
 
 // getConsensusConfig gets consensus timeout configs
@@ -413,6 +392,11 @@ func (c *Config) Start() {
 	}
 
 	if c.DualChain != nil {
+	}
+
+	if c.Metrics {
+		logger.Warn("Collect metrics enabled")
+		metrics.Enabled = true
 	}
 
 	if c.Debug != nil {

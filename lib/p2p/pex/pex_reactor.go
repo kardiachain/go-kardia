@@ -146,7 +146,7 @@ func NewReactor(b AddrBook, config *ReactorConfig) *Reactor {
 // OnStart implements BaseService
 func (r *Reactor) OnStart() error {
 	err := r.book.Start()
-	if err != nil && err != service.ErrAlreadyStarted {
+	if err != nil && err != service.ErrNodeRunning {
 		return err
 	}
 

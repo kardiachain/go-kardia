@@ -126,7 +126,7 @@ func TestCreateGenesisBlock(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	bc, err := blockchain.NewBlockChain(log.New(), db, chainConfig, false)
+	bc, err := blockchain.NewBlockChain(log.New(), db, chainConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +171,7 @@ func TestGenesisAllocFromAccountAndContract(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	bc, err := blockchain.NewBlockChain(log.New(), db, chainConfig, false)
+	bc, err := blockchain.NewBlockChain(log.New(), db, chainConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

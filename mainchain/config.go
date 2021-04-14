@@ -54,9 +54,6 @@ type Config struct {
 	// acceptTxs accept tx sync processes
 	AcceptTxs uint32
 
-	// isPrivate is true then peerId will be checked through smc to make sure that it has permission to access the chain
-	IsPrivate bool
-
 	// ServiceName is used to display as log's prefix
 	ServiceName string
 

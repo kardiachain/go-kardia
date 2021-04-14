@@ -20,20 +20,23 @@ package node
 
 import (
 	"errors"
+	"fmt"
+	"io"
 	"io/ioutil"
+	"net"
+	"net/http"
 	"os"
+	"reflect"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/kardiachain/go-kardia/mainchain/genesis"
-
 	"github.com/kardiachain/go-kardia/configs"
-
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/lib/service"
+	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 	"github.com/kardiachain/go-kardia/rpc"
 )
@@ -52,39 +55,42 @@ func testNodeConfig() *Config {
 	}
 }
 
-// Tests that an empty protocol stack can be started, restarted and stopped.
-func TestNodeLifeCycle(t *testing.T) {
+// Tests that an empty protocol stack can be closed more than once.
+func TestNodeCloseMultipleTimes(t *testing.T) {
 	stack, err := New(testNodeConfig())
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}
-	defer stack.Close()
+	stack.Stop()
 
 	// Ensure that a stopped node can be stopped again
 	for i := 0; i < 3; i++ {
-		if err := stack.Stop(); err != service.ErrNotStarted {
-			t.Fatalf("iter %d: stop failure mismatch: have %v, want %v", i, err, service.ErrNotStarted)
+		if err := stack.Stop(); err != service.ErrNodeStopped {
+			t.Fatalf("iter %d: stop failure mismatch: have %v, want %v", i, err, service.ErrNodeStopped)
 		}
 	}
+}
+
+// Tests that a node can only started and closed once
+func TestNodeStartMultipleTimes(t *testing.T) {
+	stack, err := New(testNodeConfig())
+	if err != nil {
+		t.Fatalf("failed to create protocol stack: %v", err)
+	}
+
 	// Ensure that a node can be successfully started, but only once
 	if err := stack.Start(); err != nil {
 		t.Fatalf("failed to start node: %v", err)
 	}
-	if err := stack.Start(); err != service.ErrAlreadyStarted {
-		t.Fatalf("start failure mismatch: have %v, want %v ", err, service.ErrAlreadyStarted)
+	if err := stack.Start(); err != service.ErrNodeRunning {
+		t.Fatalf("start failure mismatch: have %v, want %v ", err, service.ErrNodeRunning)
 	}
-	// Ensure that a node can be restarted arbitrarily many times
-	// for i := 0; i < 3; i++ {
-	// 	if err := stack.Restart(); err != nil {
-	// 		t.Fatalf("iter %d: failed to restart node: %v", i, err)
-	// 	}
-	// }
 	// Ensure that a node can be stopped, but only once
 	if err := stack.Stop(); err != nil {
 		t.Fatalf("failed to stop node: %v", err)
 	}
-	if err := stack.Stop(); err != service.ErrAlreadyStopped {
-		t.Fatalf("stop failure mismatch: have %v, want %v ", err, service.ErrAlreadyStopped)
+	if err := stack.Stop(); err != service.ErrNodeStopped {
+		t.Fatalf("stop failure mismatch: have %v, want %v ", err, service.ErrNodeStopped)
 	}
 }
 
@@ -104,16 +110,15 @@ func TestNodeUsedDataDir(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create original protocol stack: %v", err)
 	}
-	defer original.Close()
-
+	defer original.Stop()
 	if err := original.Start(); err != nil {
 		t.Fatalf("failed to start original protocol stack: %v", err)
 	}
 
 	// Create a second node based on the same data directory and ensure failure
 	_, err = New(cfg)
-	if err != ErrDatadirUsed {
-		t.Fatalf("duplicate datadir failure mismatch: have %v, want %v", err, ErrDatadirUsed)
+	if err != service.ErrDatadirUsed {
+		t.Fatalf("duplicate datadir failure mismatch: have %v, want %v", err, service.ErrDatadirUsed)
 	}
 }
 
@@ -123,7 +128,7 @@ func TestServiceRegistry(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}
-	defer stack.Close()
+	defer stack.Stop()
 
 	// Register a batch of unique services and ensure they start successfully
 	services := []ServiceConstructor{NewNoopServiceA, NewNoopServiceB, NewNoopServiceC}
@@ -147,7 +152,7 @@ func TestServiceLifeCycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}
-	defer stack.Close()
+	defer stack.Stop()
 
 	// Register a batch of life-cycle instrumented services
 	services := map[string]InstrumentingWrapper{
@@ -193,13 +198,33 @@ func TestServiceLifeCycle(t *testing.T) {
 	}
 }
 
+// Tests whether a service's api can be registered properly on the node server.
+func TestRegisterAPIs(t *testing.T) {
+	stack, err := New(testNodeConfig())
+	if err != nil {
+		t.Fatalf("failed to create protocol stack: %v", err)
+	}
+	defer stack.Stop()
+
+	fs, err := NewAPIService(stack)
+	if err != nil {
+		t.Fatalf("could not create full service: %v", err)
+	}
+
+	for _, api := range fs.APIs() {
+		if !containsAPI(stack.rpcAPIs, api) {
+			t.Fatalf("api %v was not successfully registered", api)
+		}
+	}
+}
+
 // Tests that services are restarted cleanly as new instances.
 func TestServiceRestarts(t *testing.T) {
 	stack, err := New(testNodeConfig())
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}
-	defer stack.Close()
+	defer stack.Stop()
 
 	// Define a service that does not support restarts
 	var (
@@ -241,7 +266,7 @@ func TestServiceConstructionAbortion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}
-	defer stack.Close()
+	defer stack.Stop()
 
 	// Define a batch of good services
 	services := map[string]InstrumentingWrapper{
@@ -277,7 +302,7 @@ func TestServiceConstructionAbortion(t *testing.T) {
 func TestServiceStartupAbortion(t *testing.T) {
 	stack, err := New(testNodeConfig())
 	assert.Nil(t, err, "failed to create protocol stack")
-	defer stack.Close()
+	defer stack.Stop()
 
 	// Register a batch of good services
 	services := map[string]InstrumentingWrapper{
@@ -318,7 +343,7 @@ func TestServiceTerminationGuarantee(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}
-	defer stack.Close()
+	defer stack.Stop()
 
 	// Register a batch of good services
 	services := map[string]InstrumentingWrapper{
@@ -361,7 +386,7 @@ func TestServiceRetrieval(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}
-	defer stack.Close()
+	defer stack.Stop()
 
 	if err := stack.Register(NewNoopService); err != nil {
 		t.Fatalf("noop service registration failed: %v", err)
@@ -384,7 +409,7 @@ func TestProtocolGather(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create protocol stack: %v", err)
 	}
-	defer stack.Close()
+	defer stack.Stop()
 
 	// Register a batch of services with some configured number of protocols
 	services := map[string]struct {
@@ -412,79 +437,142 @@ func TestProtocolGather(t *testing.T) {
 
 }
 
-// Tests that all APIs defined by individual services get exposed.
-func TestAPIGather(t *testing.T) {
-	stack, err := New(testNodeConfig())
+// Tests whether a handler can be successfully mounted on the canonical HTTP server
+// on the given prefix
+func TestRegisterHandler_Successful(t *testing.T) {
+	node := createNode(t, 7878, 7979)
+
+	// create and mount handler
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("success"))
+	})
+	node.RegisterHandler("test", "/test", handler)
+
+	// start node
+	if err := node.Start(); err != nil {
+		t.Fatalf("could not start node: %v", err)
+	}
+	defer node.Stop()
+
+	// create HTTP request
+	httpReq, err := http.NewRequest(http.MethodGet, "http://127.0.0.1:7878/test", nil)
 	if err != nil {
-		t.Fatalf("failed to create protocol stack: %v", err)
-	}
-	defer stack.Close()
-
-	// Register a batch of services with some configured APIs
-	calls := make(chan string, 1)
-	makeAPI := func(result string) *OneMethodAPI {
-		return &OneMethodAPI{fun: func() { calls <- result }}
-	}
-	services := map[string]struct {
-		APIs  []rpc.API
-		Maker InstrumentingWrapper
-	}{
-		"Zero APIs": {
-			[]rpc.API{}, InstrumentedServiceMakerA},
-		"Single API": {
-			[]rpc.API{
-				{Namespace: "single", Version: "1", Service: makeAPI("single.v1"), Public: true},
-			}, InstrumentedServiceMakerB},
-		"Many APIs": {
-			[]rpc.API{
-				{Namespace: "multi", Version: "1", Service: makeAPI("multi.v1"), Public: true},
-				{Namespace: "multi.v2", Version: "2", Service: makeAPI("multi.v2"), Public: true},
-				{Namespace: "multi.v2.nested", Version: "2", Service: makeAPI("multi.v2.nested"), Public: true},
-			}, InstrumentedServiceMakerC},
+		t.Error("could not issue new http request ", err)
 	}
 
-	for id, config := range services {
-		config := config
-		constructor := func(*ServiceContext) (Service, error) {
-			return &InstrumentedService{apis: config.APIs}, nil
-		}
-		if err := stack.Register(config.Maker(constructor)); err != nil {
-			t.Fatalf("service %s: registration failed: %v", id, err)
-		}
-	}
-	// Start the services and ensure all API start successfully
-	if err := stack.Start(); err != nil {
-		t.Fatalf("failed to start protocol stack: %v", err)
-	}
-	defer stack.Stop()
-
-	// Connect to the RPC server and verify the various registered endpoints
-	client, err := stack.Attach()
+	// check response
+	resp := doHTTPRequest(t, httpReq)
+	buf := make([]byte, 7)
+	_, err = io.ReadFull(resp.Body, buf)
 	if err != nil {
-		t.Fatalf("failed to connect to the inproc API server: %v", err)
+		t.Fatalf("could not read response: %v", err)
 	}
-	defer client.Close()
+	assert.Equal(t, "success", string(buf))
+}
 
-	tests := []struct {
-		Method string
-		Result string
-	}{
-		{"single_theOneMethod", "single.v1"},
-		{"multi_theOneMethod", "multi.v1"},
-		{"multi.v2_theOneMethod", "multi.v2"},
-		{"multi.v2.nested_theOneMethod", "multi.v2.nested"},
+// Tests that the given handler will not be successfully mounted since no HTTP server
+// is enabled for RPC
+func TestRegisterHandler_Unsuccessful(t *testing.T) {
+	node, err := New(testNodeConfig())
+	if err != nil {
+		t.Fatalf("could not create new node: %v", err)
 	}
-	for i, test := range tests {
-		if err := client.Call(nil, test.Method); err != nil {
-			t.Errorf("test %d: API request failed: %v", i, err)
-		}
-		select {
-		case result := <-calls:
-			if result != test.Result {
-				t.Errorf("test %d: result mismatch: have %s, want %s", i, result, test.Result)
-			}
-		case <-time.After(time.Second):
-			t.Fatalf("test %d: rpc execution timeout", i)
+
+	// create and mount handler
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("success"))
+	})
+	node.RegisterHandler("test", "/test", handler)
+}
+
+// Tests whether websocket requests can be handled on the same port as a regular http server.
+func TestWebsocketHTTPOnSamePort_WebsocketRequest(t *testing.T) {
+	node := startHTTP(t, 0, 0)
+	defer node.Stop()
+
+	ws := strings.Replace(node.HTTPEndpoint(), "http://", "ws://", 1)
+
+	if node.WSEndpoint() != ws {
+		t.Fatalf("endpoints should be the same")
+	}
+	if !checkRPC(ws) {
+		t.Fatalf("ws request failed")
+	}
+	if !checkRPC(node.HTTPEndpoint()) {
+		t.Fatalf("http request failed")
+	}
+}
+
+func TestWebsocketHTTPOnSeparatePort_WSRequest(t *testing.T) {
+	// try and get a free port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal("can't listen:", err)
+	}
+	port := listener.Addr().(*net.TCPAddr).Port
+	listener.Close()
+
+	node := startHTTP(t, 0, port)
+	defer node.Stop()
+
+	wsOnHTTP := strings.Replace(node.HTTPEndpoint(), "http://", "ws://", 1)
+	ws := fmt.Sprintf("ws://127.0.0.1:%d", port)
+
+	if node.WSEndpoint() == wsOnHTTP {
+		t.Fatalf("endpoints should not be the same")
+	}
+	// ensure ws endpoint matches the expected endpoint
+	if node.WSEndpoint() != ws {
+		t.Fatalf("ws endpoint is incorrect: expected %s, got %s", ws, node.WSEndpoint())
+	}
+
+	if !checkRPC(ws) {
+		t.Fatalf("ws request failed")
+	}
+	if !checkRPC(node.HTTPEndpoint()) {
+		t.Fatalf("http request failed")
+	}
+}
+
+// Test helper functions
+func createNode(t *testing.T, httpPort, wsPort int) *Node {
+	conf := testNodeConfig()
+	conf.HTTPHost = "127.0.0.1"
+	conf.HTTPPort = httpPort
+	conf.WSHost = "127.0.0.1"
+	conf.WSPort = wsPort
+	node, err := New(conf)
+	if err != nil {
+		t.Fatalf("could not create a new node: %v", err)
+	}
+	return node
+}
+
+func startHTTP(t *testing.T, httpPort, wsPort int) *Node {
+	node := createNode(t, httpPort, wsPort)
+	err := node.Start()
+	if err != nil {
+		t.Fatalf("could not start http service on node: %v", err)
+	}
+
+	return node
+}
+
+func doHTTPRequest(t *testing.T, req *http.Request) *http.Response {
+	client := http.DefaultClient
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("could not issue a GET request to the given endpoint: %v", err)
+
+	}
+	return resp
+}
+
+func containsAPI(stackAPIs []rpc.API, api rpc.API) bool {
+	for _, a := range stackAPIs {
+		if reflect.DeepEqual(a, api) {
+			return true
 		}
 	}
+	return false
 }
