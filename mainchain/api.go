@@ -435,6 +435,11 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}.Hex(), err
 	}
+	// Drop tx exceeds gas cap (DDoS protection)
+	if tx.Gas() > configs.GasCap {
+		return common.Hash{}.Hex(), errors.New("gas limit exceeds gas cap")
+	}
+
 	return tx.Hash().Hex(), a.s.TxPool().AddLocal(tx)
 }
 
@@ -775,5 +780,12 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 			return 0, fmt.Errorf("gas required exceeds allowance (%d)", cap)
 		}
 	}
+
+	// Recap gas to highest gas cap
+	gasCap := configs.GasCap
+	if gasCap != 0 && hi > gasCap {
+		hi = gasCap
+	}
+
 	return hi, nil
 }

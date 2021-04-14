@@ -94,6 +94,9 @@ const (
 	GasSlowStep    uint64 = 10
 	GasExtStep     uint64 = 20
 
+	// Gas cap per transaction
+	GasCap uint64 = 20000000
+
 	// BloomBitsBlocks is the number of blocks a single bloom bit section vector
 	// contains on the server side.
 	BloomBitsBlocks uint64 = 4096

@@ -481,6 +481,10 @@ func (args *CallArgsJSON) ToMessage() Message {
 		callArgs.Gas = uint64(math.MaxUint64 / 2)
 	}
 
+	if args.Gas > configs.GasCap {
+		args.Gas = configs.GasCap
+	}
+
 	callArgs.Data = common.FromHex(args.Data)
 
 	msg := NewMessage(fromAddr, &toAddr, 0, args.Value, callArgs.Gas, args.GasPrice, callArgs.Data, false)
