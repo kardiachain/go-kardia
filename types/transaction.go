@@ -454,8 +454,8 @@ type CallArgsJSON struct {
 	From     string   `json:"from"`     // the sender of the 'transaction'
 	To       *string  `json:"to"`       // the destination contract (nil for contract creation)
 	Gas      uint64   `json:"gas"`      // if 0, the call executes with near-infinite gas
-	GasPrice *big.Int `json:"gasPrice"` // wei <-> gas exchange ratio
-	Value    *big.Int `json:"value"`    // amount of wei sent along with the call
+	GasPrice *big.Int `json:"gasPrice"` // HYDRO <-> gas exchange ratio
+	Value    *big.Int `json:"value"`    // amount of HYDRO sent along with the call
 	Data     string   `json:"data"`     // input data, usually an ABI-encoded contract method invocation
 }
 
@@ -481,8 +481,8 @@ func (args *CallArgsJSON) ToMessage() Message {
 		callArgs.Gas = uint64(math.MaxUint64 / 2)
 	}
 
-	if args.Gas > configs.GasCap {
-		args.Gas = configs.GasCap
+	if args.Gas > configs.GasLimitCap {
+		args.Gas = configs.GasLimitCap
 	}
 
 	callArgs.Data = common.FromHex(args.Data)
