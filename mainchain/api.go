@@ -101,13 +101,7 @@ func getBasicReceipt(receipt types.Receipt) *BasicReceipt {
 		ContractAddress:   "0x",
 		Logs:              logs,
 	}
-
-	// Assign receipt status or post state.
-	if len(receipt.PostState) > 0 {
-		basicReceipt.Root = common.Bytes(receipt.PostState)
-	} else {
-		basicReceipt.Status = uint(receipt.Status)
-	}
+	basicReceipt.Status = uint(receipt.Status)
 	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
 	if receipt.ContractAddress != (common.Address{}) {
 		basicReceipt.ContractAddress = receipt.ContractAddress.Hex()
@@ -365,29 +359,27 @@ type Log struct {
 }
 
 type PublicReceipt struct {
-	BlockHash         string       `json:"blockHash"`
-	BlockHeight       uint64       `json:"blockHeight"`
-	TransactionHash   string       `json:"transactionHash"`
-	TransactionIndex  uint64       `json:"transactionIndex"`
-	From              string       `json:"from"`
-	To                string       `json:"to"`
-	GasUsed           uint64       `json:"gasUsed"`
-	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
-	ContractAddress   string       `json:"contractAddress"`
-	Logs              []Log        `json:"logs"`
-	LogsBloom         types.Bloom  `json:"logsBloom"`
-	Root              common.Bytes `json:"root"`
-	Status            uint         `json:"status"`
+	BlockHash         string      `json:"blockHash"`
+	BlockHeight       uint64      `json:"blockHeight"`
+	TransactionHash   string      `json:"transactionHash"`
+	TransactionIndex  uint64      `json:"transactionIndex"`
+	From              string      `json:"from"`
+	To                string      `json:"to"`
+	GasUsed           uint64      `json:"gasUsed"`
+	CumulativeGasUsed uint64      `json:"cumulativeGasUsed"`
+	ContractAddress   string      `json:"contractAddress"`
+	Logs              []Log       `json:"logs"`
+	LogsBloom         types.Bloom `json:"logsBloom"`
+	Status            uint        `json:"status"`
 }
 
 type BasicReceipt struct {
-	TransactionHash   string       `json:"transactionHash"`
-	GasUsed           uint64       `json:"gasUsed"`
-	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
-	ContractAddress   string       `json:"contractAddress"`
-	Logs              []Log        `json:"logs"`
-	Root              common.Bytes `json:"root"`
-	Status            uint         `json:"status"`
+	TransactionHash   string `json:"transactionHash"`
+	GasUsed           uint64 `json:"gasUsed"`
+	CumulativeGasUsed uint64 `json:"cumulativeGasUsed"`
+	ContractAddress   string `json:"contractAddress"`
+	Logs              []Log  `json:"logs"`
+	Status            uint   `json:"status"`
 }
 
 // NewPublicTransaction returns a transaction that will serialize to the RPC
@@ -550,12 +542,7 @@ func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash co
 	if tx.To() != nil {
 		publicReceipt.To = tx.To().Hex()
 	}
-	// Assign receipt status or post state.
-	if len(receipt.PostState) > 0 {
-		publicReceipt.Root = common.Bytes(receipt.PostState)
-	} else {
-		publicReceipt.Status = uint(receipt.Status)
-	}
+	publicReceipt.Status = uint(receipt.Status)
 	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
 	if receipt.ContractAddress != (common.Address{}) {
 		publicReceipt.ContractAddress = receipt.ContractAddress.Hex()

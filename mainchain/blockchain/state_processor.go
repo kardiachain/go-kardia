@@ -97,13 +97,12 @@ func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, 
 		return nil, 0, err
 	}
 	// Update the state with pending changes
-	var root []byte
 	statedb.Finalise(true)
 	*usedGas += result.UsedGas
 
 	// Create a new receipt for the transaction, storing the intermediate root and gas used by the tx,
 	// we're passing whether the root touch-delete accounts.
-	receipt := types.NewReceipt(root, result.Failed(), *usedGas)
+	receipt := types.NewReceipt(result.Failed(), *usedGas)
 	receipt.TxHash = tx.Hash()
 	receipt.GasUsed = result.UsedGas
 	// if the transaction created a contract, store the creation address in the receipt.
