@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -427,6 +428,11 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}.Hex(), err
 	}
+	// Drop tx exceeds gas requirements (DDoS protection)
+	if err := checkGas(tx.GasPrice(), tx.Gas()); err != nil {
+		return common.Hash{}.Hex(), err
+	}
+
 	return tx.Hash().Hex(), a.s.TxPool().AddLocal(tx)
 }
 
@@ -709,7 +715,7 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 			return 0, err
 		}
 		if block == nil {
-			return 0, errors.New("block not found")
+			return 0, ErrBlockNotFound
 		}
 		hi = block.GasLimit()
 	}
@@ -762,5 +768,27 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 			return 0, fmt.Errorf("gas required exceeds allowance (%d)", cap)
 		}
 	}
+
+	// Recap gas to highest gas cap
+	gasCap := configs.GasLimitCap
+	if gasCap != 0 && hi > gasCap {
+		hi = gasCap
+	}
+
 	return hi, nil
+}
+
+// checkGas is a function used to check whether the fee of
+// a transaction meets the requirements.
+func checkGas(gasPrice *big.Int, gas uint64) error {
+	if gasPrice == nil {
+		return ErrNilGasPrice
+	}
+	if gasPrice.Cmp(configs.GasPriceCap) < 0 {
+		return ErrNotEnoughGasPrice
+	}
+	if gas > configs.GasLimitCap {
+		return ErrExceedGasLimit
+	}
+	return nil
 }

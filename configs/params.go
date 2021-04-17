@@ -18,6 +18,8 @@
 
 package configs
 
+import "math/big"
+
 const (
 	GenesisGasLimit uint64 = 50000000  // Gas limit of the Genesis block.
 	BlockGasLimit   uint64 = 200000000 // Gas limit of one block.
@@ -105,4 +107,11 @@ const (
 	// HelperTrieConfirmations is the number of confirmations before a client is expected
 	// to have the given HelperTrie available.
 	HelperTrieConfirmations = 2048
+)
+
+var (
+	// Gas limit cap per transaction
+	GasLimitCap = uint64(20000000)
+	// Minimum gas price cap
+	GasPriceCap = new(big.Int).Exp(big.NewInt(10), big.NewInt(9), nil) // Minimum accepted gas price 1 OXY = 1e9
 )
