@@ -56,7 +56,7 @@ require (
 	google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55
 	google.golang.org/grpc v1.27.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b
-	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
+	gopkg.in/urfave/cli.v1 v1.20.0
 	gopkg.in/yaml.v2 v2.3.0
 
 )

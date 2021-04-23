@@ -131,12 +131,12 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 	if header == nil {
 		return nil, nil
 	}
-	if f.begin == 0 {
+	if f.begin == 0 || f.begin >= rpc.PendingBlockNumber.Uint64() {
 		f.begin = header.Height
 	}
 	end := f.end
-	if f.end == 0 {
-		end = header.Height - 1
+	if f.end == 0 || end >= rpc.PendingBlockNumber.Uint64() {
+		end = header.Height
 	}
 	// Gather all indexed logs, and finish with non indexed ones
 	var (
@@ -218,7 +218,7 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 		}
 		blockInfo := f.backend.BlockInfoByBlockHash(ctx, header.Hash())
 		if blockInfo == nil {
-			return nil, ErrBlockInfoNotFound
+			continue
 		}
 		found, err := f.blockLogs(ctx, header, blockInfo)
 		if err != nil {

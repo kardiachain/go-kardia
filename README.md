@@ -11,9 +11,6 @@ in [Technical Paper](https://dl.kardiachain.io/KardiaChain-WhitePaper-English.pd
 
 ![alt text](statics/kardiachain.png)
 
-The codebase has been audited
-by [Certik](https://certik.foundation/) ([view article](https://kardiachain.medium.com/kardiachain-mainnet-launch-audited-by-certik-636c51154948))
-
 ### KardiaChain Aris Mainnet 1.0
 
 - Network Explorer: [Aris Explorer](http://explorer.kardiachain.io/)

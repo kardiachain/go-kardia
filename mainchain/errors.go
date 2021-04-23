@@ -12,4 +12,8 @@ var (
 	ErrHashNotCanonical  = errors.New("hash is not currently canonical")
 	ErrMissingBlockBody  = errors.New("block body is missing")
 	ErrBlockInfoNotFound = errors.New("block info is missing")
+	ErrExceedGasLimit    = errors.New("gas limit exceeds gas cap")
+	ErrNotEnoughGasPrice = errors.New("not enough gas price")
+	ErrNilGasPrice       = errors.New("nil gas price")
+	ErrBlockNotFound     = errors.New("block not found")
 )

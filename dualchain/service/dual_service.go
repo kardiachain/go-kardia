@@ -145,7 +145,6 @@ func NewDualService(ctx *node.ServiceContext) (node.Service, error) {
 		DBInfo:        chainConfig.DBInfo,
 		DualEventPool: chainConfig.DualEventPool,
 		DualGenesis:   chainConfig.DualGenesis,
-		BaseAccount:   chainConfig.BaseAccount,
 		Consensus:     chainConfig.Consensus,
 		FastSync:      chainConfig.FastSync,
 	})

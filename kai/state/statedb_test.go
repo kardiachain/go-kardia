@@ -113,8 +113,7 @@ func TestIntermediateLeaks(t *testing.T) {
 }
 
 // TestCopy tests that copying a statedb object indeed makes the original and
-// the copy independent of each other. This test is a regression test against
-// https://github.com/ethereum/go-ethereum/pull/15549.
+// the copy independent of each other.
 func TestCopy(t *testing.T) {
 	// Create a random state test to copy and modify "independently"
 	orig, _ := New(log.New(), common.Hash{}, NewDatabase(memorydb.New()))
@@ -163,7 +162,6 @@ func TestCopy(t *testing.T) {
 }
 
 // TestCopyOfCopy tests that modified objects are carried over to the copy, and the copy of the copy.
-// See https://github.com/ethereum/go-ethereum/pull/15225#issuecomment-380191512
 func TestCopyOfCopy(t *testing.T) {
 	sdb, _ := New(log.New(), common.Hash{}, NewDatabase(memorydb.New()))
 	addr := common.HexToAddress("aaaa")

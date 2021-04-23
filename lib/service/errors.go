@@ -1,5 +1,5 @@
 /*
- *  Copyright 2018 KardiaChain
+ *  Copyright 2021 KardiaChain
  *  This file is part of the go-kardia library.
  *
  *  The go-kardia library is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package node
+package service
 
 import (
 	"errors"
@@ -34,7 +34,7 @@ var (
 	datadirInUseErrnos = map[uint]bool{11: true, 32: true, 35: true}
 )
 
-func convertFileLockError(err error) error {
+func ConvertFileLockError(err error) error {
 	if errno, ok := err.(syscall.Errno); ok && datadirInUseErrnos[uint(errno)] {
 		return ErrDatadirUsed
 	}

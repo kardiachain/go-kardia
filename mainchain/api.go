@@ -20,9 +20,9 @@ package kai
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -102,13 +102,7 @@ func getBasicReceipt(receipt types.Receipt) *BasicReceipt {
 		ContractAddress:   "0x",
 		Logs:              logs,
 	}
-
-	// Assign receipt status or post state.
-	if len(receipt.PostState) > 0 {
-		basicReceipt.Root = common.Bytes(receipt.PostState)
-	} else {
-		basicReceipt.Status = uint(receipt.Status)
-	}
+	basicReceipt.Status = uint(receipt.Status)
 	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
 	if receipt.ContractAddress != (common.Address{}) {
 		basicReceipt.ContractAddress = receipt.ContractAddress.Hex()
@@ -201,8 +195,11 @@ func (s *PublicKaiAPI) GetBlockHeaderByNumber(ctx context.Context, blockNumber r
 }
 
 // GetBlockHeaderByHash returns block by block hash
-func (s *PublicKaiAPI) GetBlockHeaderByHash(ctx context.Context, blockHash string) *BlockHeaderJSON {
-	header := s.kaiService.HeaderByHash(ctx, common.HexToHash(blockHash))
+func (s *PublicKaiAPI) GetBlockHeaderByHash(ctx context.Context, blockHash rpc.BlockNumberOrHash) *BlockHeaderJSON {
+	header, _ := s.kaiService.HeaderByNumberOrHash(ctx, blockHash)
+	if header == nil {
+		return nil
+	}
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
 	return NewBlockHeaderJSON(header, blockInfo)
 }
@@ -215,8 +212,11 @@ func (s *PublicKaiAPI) GetBlockByNumber(ctx context.Context, blockNumber rpc.Blo
 }
 
 // GetBlockByHash returns block by block hash
-func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash string) *BlockJSON {
-	block := s.kaiService.BlockByHash(ctx, common.HexToHash(blockHash))
+func (s *PublicKaiAPI) GetBlockByHash(ctx context.Context, blockHash rpc.BlockNumberOrHash) *BlockJSON {
+	block, _ := s.kaiService.BlockByNumberOrHash(ctx, blockHash)
+	if block == nil {
+		return nil
+	}
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
 	return NewBlockJSON(block, blockInfo)
 }
@@ -360,29 +360,27 @@ type Log struct {
 }
 
 type PublicReceipt struct {
-	BlockHash         string       `json:"blockHash"`
-	BlockHeight       uint64       `json:"blockHeight"`
-	TransactionHash   string       `json:"transactionHash"`
-	TransactionIndex  uint64       `json:"transactionIndex"`
-	From              string       `json:"from"`
-	To                string       `json:"to"`
-	GasUsed           uint64       `json:"gasUsed"`
-	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
-	ContractAddress   string       `json:"contractAddress"`
-	Logs              []Log        `json:"logs"`
-	LogsBloom         types.Bloom  `json:"logsBloom"`
-	Root              common.Bytes `json:"root"`
-	Status            uint         `json:"status"`
+	BlockHash         string      `json:"blockHash"`
+	BlockHeight       uint64      `json:"blockHeight"`
+	TransactionHash   string      `json:"transactionHash"`
+	TransactionIndex  uint64      `json:"transactionIndex"`
+	From              string      `json:"from"`
+	To                string      `json:"to"`
+	GasUsed           uint64      `json:"gasUsed"`
+	CumulativeGasUsed uint64      `json:"cumulativeGasUsed"`
+	ContractAddress   string      `json:"contractAddress"`
+	Logs              []Log       `json:"logs"`
+	LogsBloom         types.Bloom `json:"logsBloom"`
+	Status            uint        `json:"status"`
 }
 
 type BasicReceipt struct {
-	TransactionHash   string       `json:"transactionHash"`
-	GasUsed           uint64       `json:"gasUsed"`
-	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
-	ContractAddress   string       `json:"contractAddress"`
-	Logs              []Log        `json:"logs"`
-	Root              common.Bytes `json:"root"`
-	Status            uint         `json:"status"`
+	TransactionHash   string `json:"transactionHash"`
+	GasUsed           uint64 `json:"gasUsed"`
+	CumulativeGasUsed uint64 `json:"cumulativeGasUsed"`
+	ContractAddress   string `json:"contractAddress"`
+	Logs              []Log  `json:"logs"`
+	Status            uint   `json:"status"`
 }
 
 // NewPublicTransaction returns a transaction that will serialize to the RPC
@@ -430,6 +428,11 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 	if err := rlp.DecodeBytes(encodedTx, tx); err != nil {
 		return common.Hash{}.Hex(), err
 	}
+	// Drop tx exceeds gas requirements (DDoS protection)
+	if err := checkGas(tx.GasPrice(), tx.Gas()); err != nil {
+		return common.Hash{}.Hex(), err
+	}
+
 	return tx.Hash().Hex(), a.s.TxPool().AddLocal(tx)
 }
 
@@ -508,7 +511,7 @@ func getReceiptLogs(receipt types.Receipt) []Log {
 			logs = append(logs, Log{
 				Address:     l.Address.Hex(),
 				Topics:      topics,
-				Data:        hex.EncodeToString(l.Data),
+				Data:        l.Data.String(),
 				BlockHeight: l.BlockHeight,
 				TxHash:      l.TxHash.Hex(),
 				TxIndex:     l.TxIndex,
@@ -545,12 +548,7 @@ func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash co
 	if tx.To() != nil {
 		publicReceipt.To = tx.To().Hex()
 	}
-	// Assign receipt status or post state.
-	if len(receipt.PostState) > 0 {
-		publicReceipt.Root = common.Bytes(receipt.PostState)
-	} else {
-		publicReceipt.Status = uint(receipt.Status)
-	}
+	publicReceipt.Status = uint(receipt.Status)
 	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
 	if receipt.ContractAddress != (common.Address{}) {
 		publicReceipt.ContractAddress = receipt.ContractAddress.Hex()
@@ -717,7 +715,7 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 			return 0, err
 		}
 		if block == nil {
-			return 0, errors.New("block not found")
+			return 0, ErrBlockNotFound
 		}
 		hi = block.GasLimit()
 	}
@@ -770,5 +768,27 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 			return 0, fmt.Errorf("gas required exceeds allowance (%d)", cap)
 		}
 	}
+
+	// Recap gas to highest gas cap
+	gasCap := configs.GasLimitCap
+	if gasCap != 0 && hi > gasCap {
+		hi = gasCap
+	}
+
 	return hi, nil
+}
+
+// checkGas is a function used to check whether the fee of
+// a transaction meets the requirements.
+func checkGas(gasPrice *big.Int, gas uint64) error {
+	if gasPrice == nil {
+		return ErrNilGasPrice
+	}
+	if gasPrice.Cmp(configs.GasPriceCap) < 0 {
+		return ErrNotEnoughGasPrice
+	}
+	if gas > configs.GasLimitCap {
+		return ErrExceedGasLimit
+	}
+	return nil
 }
