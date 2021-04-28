@@ -99,7 +99,6 @@ func getBasicReceipt(receipt types.Receipt) *BasicReceipt {
 		TransactionHash:   receipt.TxHash.Hex(),
 		GasUsed:           receipt.GasUsed,
 		CumulativeGasUsed: receipt.CumulativeGasUsed,
-		ContractAddress:   "0x",
 		Logs:              logs,
 	}
 	basicReceipt.Status = uint(receipt.Status)
@@ -139,6 +138,9 @@ func NewBlockHeaderJSON(header *types.Header, blockInfo *types.BlockInfo) *Block
 
 // NewBlockJSON creates a new Block JSON data from Block
 func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
+	if block == nil {
+		return nil
+	}
 	txs := block.Transactions()
 	transactions := make([]*PublicTransaction, 0, len(txs))
 	basicReceipts := make([]*BasicReceipt, 0)

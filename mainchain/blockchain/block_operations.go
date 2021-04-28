@@ -130,6 +130,13 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 	bo.blockchain.DB().WriteAppHash(block.Height(), root)
 	bo.blockchain.InsertHeadBlock(block)
 
+	// send logs of emitted events to logs feed for collecting
+	for _, r := range blockInfo.Receipts {
+		if len(r.Logs) > 0 {
+			bo.blockchain.logsFeed.Send(r.Logs)
+		}
+	}
+
 	return vals, root, nil
 }
 
@@ -282,10 +289,6 @@ LOOP:
 		i++
 		receipts = append(receipts, receipt)
 		newTxs = append(newTxs, tx)
-		// send logs of emitted events to logs feed for collecting
-		if len(receipt.Logs) > 0 {
-			bo.blockchain.logsFeed.Send(receipt.Logs)
-		}
 	}
 
 	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
