@@ -347,6 +347,9 @@ type PublicTransaction struct {
 	Logs             []Log        `json:"logs,omitempty"`
 	LogsBloom        types.Bloom  `json:"logsBloom,omitempty"`
 	Root             common.Bytes `json:"root,omitempty"`
+	V                *common.Big  `json:"v"`
+	R                *common.Big  `json:"r"`
+	S                *common.Big  `json:"s"`
 }
 
 type Log struct {
@@ -389,7 +392,7 @@ type BasicReceipt struct {
 // representation, with the given location metadata set (if available).
 func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64) *PublicTransaction {
 	from, _ := types.Sender(types.FrontierSigner{}, tx)
-
+	v, r, s := tx.RawSignatureValues()
 	result := &PublicTransaction{
 		From:     from.Hex(),
 		Gas:      tx.Gas(),
@@ -398,6 +401,9 @@ func NewPublicTransaction(tx *types.Transaction, blockHash common.Hash, blockNum
 		Input:    common.Encode(tx.Data()),
 		Nonce:    tx.Nonce(),
 		Value:    tx.Value().String(),
+		V:        (*common.Big)(v),
+		R:        (*common.Big)(r),
+		S:        (*common.Big)(s),
 	}
 	if tx.To() != nil {
 		result.To = tx.To().Hex()
