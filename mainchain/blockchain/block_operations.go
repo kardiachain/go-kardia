@@ -131,11 +131,11 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 	bo.blockchain.InsertHeadBlock(block)
 
 	// send logs of emitted events to logs feed for collecting
+	var logs []*types.Log
 	for _, r := range blockInfo.Receipts {
-		if len(r.Logs) > 0 {
-			bo.blockchain.logsFeed.Send(r.Logs)
-		}
+		logs = append(logs, r.Logs...)
 	}
+	bo.blockchain.logsFeed.Send(logs)
 
 	return vals, root, nil
 }
