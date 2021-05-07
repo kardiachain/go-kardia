@@ -49,7 +49,7 @@ type KardiaEvents struct {
 // ReadCanonicalHash retrieves the hash assigned to a canonical block height.
 func ReadCanonicalHash(db kaidb.Reader, height uint64) common.Hash {
 	data, _ := db.Get(headerHashKey(height))
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return common.Hash{}
 	}
 	return common.BytesToHash(data)
@@ -58,7 +58,7 @@ func ReadCanonicalHash(db kaidb.Reader, height uint64) common.Hash {
 // ReadChainConfig retrieves the consensus settings based on the given genesis hash.
 func ReadChainConfig(db kaidb.Reader, hash common.Hash) *configs.ChainConfig {
 	data, _ := db.Get(configKey(hash))
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return nil
 	}
 	var config configs.ChainConfig
@@ -298,14 +298,6 @@ func WriteTxLookupEntries(db kaidb.Writer, block *types.Block) {
 			log.Crit("Failed to store transaction lookup entry", "err", err)
 		}
 	}
-}
-
-// DeleteTxLookupEntry removes all transaction data associated with a hash.
-func DeleteTxLookupEntry(db kaidb.KeyValueWriter, hash common.Hash) error {
-	if err := db.Delete(txLookupKey(hash)); err != nil {
-		return err
-	}
-	return nil
 }
 
 // ReadTransaction retrieves a specific transaction from the database, along with
