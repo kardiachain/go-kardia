@@ -407,7 +407,7 @@ func SetupBlockchain() (*blockchain.BlockChain, error) {
 		return nil, genesisErr
 	}
 
-	bc, err := blockchain.NewBlockChain(log.New(), storeDB, chainConfig)
+	bc, err := blockchain.NewBlockChain(log.New(), storeDB, chainConfig, nil, nil)
 	return bc, err
 }
 

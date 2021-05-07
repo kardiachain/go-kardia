@@ -92,7 +92,7 @@ func GetBlockchainStaking() (*blockchain.BlockChain, error, *state.StateDB) {
 		return nil, genesisErr, nil
 	}
 
-	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig)
+	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig, nil, nil)
 	if err != nil {
 		log.Error("Error creating new blockchain", "err", err)
 		return nil, err, nil

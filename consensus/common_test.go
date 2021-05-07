@@ -309,7 +309,7 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 		return nil, nil, genesisErr
 	}
 
-	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig)
+	bc, err := blockchain.NewBlockChain(log.New(), kaiDb, chainConfig, nil, nil)
 	if err != nil {
 		log.Error("Error creating new blockchain", "err", err)
 		return nil, nil, err
