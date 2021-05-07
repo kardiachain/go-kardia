@@ -53,7 +53,7 @@ func TestDefaults(t *testing.T) {
 		t.Error("expected time to be non nil")
 	}
 	if cfg.BlockHeight != 0 {
-		t.Error("expected block number to be 0")
+		t.Error("expected block height to be 0")
 	}
 }
 

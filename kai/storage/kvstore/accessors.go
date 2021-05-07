@@ -311,17 +311,17 @@ func DeleteTxLookupEntry(db kaidb.KeyValueWriter, hash common.Hash) error {
 // ReadTransaction retrieves a specific transaction from the database, along with
 // its added positional metadata.
 func ReadTransaction(db kaidb.Reader, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, txIndex := ReadTxLookupEntry(db, hash)
+	blockHash, blockHeight, txIndex := ReadTxLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
 
-	body := ReadBody(db, blockNumber)
+	body := ReadBody(db, blockHeight)
 	if body == nil || len(body.Transactions) <= int(txIndex) {
-		log.Error("Transaction referenced missing", "number", blockNumber, "hash", blockHash, "index", txIndex)
+		log.Error("Transaction referenced missing", "number", blockHeight, "hash", blockHash, "index", txIndex)
 		return nil, common.Hash{}, 0, 0
 	}
-	return body.Transactions[txIndex], blockHash, blockNumber, txIndex
+	return body.Transactions[txIndex], blockHash, blockHeight, txIndex
 }
 
 // ReadDualEventLookupEntry Retrieves the positional metadata associated with a dual's event
@@ -342,31 +342,31 @@ func ReadDualEventLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, u
 // Retrieves a specific dual's event from the database, along with
 // its added positional metadata.
 func ReadDualEvent(db kaidb.Reader, hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, eventIndex := ReadDualEventLookupEntry(db, hash)
+	blockHash, blockHeight, eventIndex := ReadDualEventLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
-	body := ReadBody(db, blockNumber)
+	body := ReadBody(db, blockHeight)
 	if body == nil || len(body.DualEvents) <= int(eventIndex) {
-		log.Error("Dual event referenced missing", "number", blockNumber, "hash", blockHash, "index", eventIndex)
+		log.Error("Dual event referenced missing", "number", blockHeight, "hash", blockHash, "index", eventIndex)
 		return nil, common.Hash{}, 0, 0
 	}
-	return body.DualEvents[eventIndex], blockHash, blockNumber, eventIndex
+	return body.DualEvents[eventIndex], blockHash, blockHeight, eventIndex
 }
 
 // ReadReceipt retrieves a specific transaction receipt from the database, along with
 // its added positional metadata.
 func ReadReceipt(db kaidb.Reader, hash common.Hash) (*types.Receipt, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, receiptIndex := ReadTxLookupEntry(db, hash)
+	blockHash, blockHeight, receiptIndex := ReadTxLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
-	blockInfo := ReadBlockInfo(db, blockHash, blockNumber)
+	blockInfo := ReadBlockInfo(db, blockHash, blockHeight)
 	if len(blockInfo.Receipts) <= int(receiptIndex) {
-		log.Error("Receipt refereced missing", "number", blockNumber, "hash", blockHash, "index", receiptIndex)
+		log.Error("Receipt refereced missing", "number", blockHeight, "hash", blockHash, "index", receiptIndex)
 		return nil, common.Hash{}, 0, 0
 	}
-	return blockInfo.Receipts[receiptIndex], blockHash, blockNumber, receiptIndex
+	return blockInfo.Receipts[receiptIndex], blockHash, blockHeight, receiptIndex
 }
 
 // ReadEventFromDualAction gets KardiaSmartcontract based on dual action, returns smart contract address and its abi (if any)
