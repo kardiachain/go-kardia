@@ -184,13 +184,13 @@ func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 	}
 }
 
-// BlockHeight returns current block height
-func (s *PublicKaiAPI) BlockHeight() uint64 {
+// BlockNumber returns current block height
+func (s *PublicKaiAPI) BlockNumber() uint64 {
 	return s.kaiService.blockchain.CurrentBlock().Height()
 }
 
-// GetHeaderBlockByHeight returns blockHeader by block height
-func (s *PublicKaiAPI) GetBlockHeaderByHeight(ctx context.Context, blockHeight rpc.BlockHeight) *BlockHeaderJSON {
+// GetHeaderBlockByNumber returns blockHeader by block height
+func (s *PublicKaiAPI) GetBlockHeaderByNumber(ctx context.Context, blockHeight rpc.BlockHeight) *BlockHeaderJSON {
 	header := s.kaiService.HeaderByHeight(ctx, blockHeight)
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
 	return NewBlockHeaderJSON(header, blockInfo)
@@ -206,8 +206,8 @@ func (s *PublicKaiAPI) GetBlockHeaderByHash(ctx context.Context, blockHash rpc.B
 	return NewBlockHeaderJSON(header, blockInfo)
 }
 
-// GetBlockByHeight returns block by block height
-func (s *PublicKaiAPI) GetBlockByHeight(ctx context.Context, blockHeight rpc.BlockHeight) *BlockJSON {
+// GetBlockByNumber returns block by block height
+func (s *PublicKaiAPI) GetBlockByNumber(ctx context.Context, blockHeight rpc.BlockHeight) *BlockJSON {
 	block := s.kaiService.BlockByHeight(ctx, blockHeight)
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
 	return NewBlockJSON(block, blockInfo)
