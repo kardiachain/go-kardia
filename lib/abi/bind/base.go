@@ -40,7 +40,7 @@ type SignerFn func(types.Signer, common.Address, *types.Transaction) (*types.Tra
 type CallOpts struct {
 	Pending     bool            // Whether to operate on the pending state or the last known one
 	From        common.Address  // Optional the sender address, otherwise the first account is used
-	BlockNumber uint64          // Optional the block number on which the call should be performed
+	BlockHeight uint64          // Optional the block height on which the call should be performed
 	Context     context.Context // Network context to support cancellation and timeouts (nil = no timeout)
 }
 
@@ -150,10 +150,10 @@ func (c *BoundContract) Call(opts *CallOpts, result interface{}, method string, 
 			}
 		}
 	} else {
-		output, err = c.caller.CallContract(ctx, msg, opts.BlockNumber)
+		output, err = c.caller.CallContract(ctx, msg, opts.BlockHeight)
 		if err == nil && len(output) == 0 {
 			// Make sure we have a contract to operate on, and bail out otherwise.
-			if code, err = c.caller.CodeAt(ctx, c.address, opts.BlockNumber); err != nil {
+			if code, err = c.caller.CodeAt(ctx, c.address, opts.BlockHeight); err != nil {
 				return err
 			} else if len(code) == 0 {
 				return ErrNoCode

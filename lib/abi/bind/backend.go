@@ -21,6 +21,7 @@ package bind
 import (
 	"context"
 	"errors"
+
 	"github.com/kardiachain/go-kardia"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
@@ -47,10 +48,10 @@ var (
 type ContractCaller interface {
 	// CodeAt returns the code of the given account. This is needed to differentiate
 	// between contract internal errors and the local chain being out of sync.
-	CodeAt(ctx context.Context, contract common.Address, blockNumber uint64) ([]byte, error)
+	CodeAt(ctx context.Context, contract common.Address, blockHeight uint64) ([]byte, error)
 	// ContractCall executes an contract call with the specified data as the
 	// input.
-	CallContract(ctx context.Context, call kardia.CallMsg, blockNumber uint64) ([]byte, error)
+	CallContract(ctx context.Context, call kardia.CallMsg, blockHeight uint64) ([]byte, error)
 }
 
 // PendingContractCaller defines methods to perform contract calls on the pending state.
@@ -100,7 +101,7 @@ type ContractFilterer interface {
 // DeployBackend wraps the operations needed by WaitMined and WaitDeployed.
 type DeployBackend interface {
 	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
-	CodeAt(ctx context.Context, account common.Address, blockNumber uint64) ([]byte, error)
+	CodeAt(ctx context.Context, account common.Address, blockHeight uint64) ([]byte, error)
 }
 
 // ContractBackend defines the methods needed to work with contracts on a read-write basis.
