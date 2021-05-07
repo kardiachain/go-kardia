@@ -848,7 +848,7 @@ func makeLog(size int) executionFunc {
 			Topics:  topics,
 			Data:    d,
 			// This is a non-consensus field, but assigned here because
-			// core/state doesn't know the current block number.
+			// core/state doesn't know the current block height.
 			BlockHeight: kvm.BlockHeight.Uint64(),
 		})
 

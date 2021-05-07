@@ -35,19 +35,19 @@ import (
 )
 
 type mockCaller struct {
-	codeAtBlockNumber         uint64
-	callContractBlockNumber   uint64
+	codeAtBlockHeight         uint64
+	callContractBlockHeight   uint64
 	pendingCodeAtCalled       bool
 	pendingCallContractCalled bool
 }
 
-func (mc *mockCaller) CodeAt(ctx context.Context, contract common.Address, blockNumber uint64) ([]byte, error) {
-	mc.codeAtBlockNumber = blockNumber
+func (mc *mockCaller) CodeAt(ctx context.Context, contract common.Address, blockHeight uint64) ([]byte, error) {
+	mc.codeAtBlockHeight = blockHeight
 	return []byte{1, 2, 3}, nil
 }
 
-func (mc *mockCaller) CallContract(ctx context.Context, call kardia.CallMsg, blockNumber uint64) ([]byte, error) {
-	mc.callContractBlockNumber = blockNumber
+func (mc *mockCaller) CallContract(ctx context.Context, call kardia.CallMsg, blockHeight uint64) ([]byte, error) {
+	mc.callContractBlockHeight = blockHeight
 	return nil, nil
 }
 
@@ -60,7 +60,7 @@ func (mc *mockCaller) PendingCallContract(ctx context.Context, call kardia.CallM
 	mc.pendingCallContractCalled = true
 	return nil, nil
 }
-func TestPassingBlockNumber(t *testing.T) {
+func TestPassingBlockHeight(t *testing.T) {
 
 	mc := &mockCaller{}
 
@@ -74,36 +74,36 @@ func TestPassingBlockNumber(t *testing.T) {
 	}, mc, nil, nil)
 	var ret string
 
-	blockNumber := uint64(42)
+	blockHeight := uint64(42)
 
-	bc.Call(&bind.CallOpts{BlockNumber: blockNumber}, &ret, "something")
+	bc.Call(&bind.CallOpts{BlockHeight: blockHeight}, &ret, "something")
 
-	if mc.callContractBlockNumber != blockNumber {
-		t.Fatalf("CallContract() was not passed the block number")
+	if mc.callContractBlockHeight != blockHeight {
+		t.Fatalf("CallContract() was not passed the block height")
 	}
 
-	if mc.codeAtBlockNumber != blockNumber {
-		t.Fatalf("CodeAt() was not passed the block number")
+	if mc.codeAtBlockHeight != blockHeight {
+		t.Fatalf("CodeAt() was not passed the block height")
 	}
 
 	bc.Call(&bind.CallOpts{}, &ret, "something")
 
-	if mc.callContractBlockNumber != 0 {
-		t.Fatalf("CallContract() was passed a block number when it should not have been")
+	if mc.callContractBlockHeight != 0 {
+		t.Fatalf("CallContract() was passed a block height when it should not have been")
 	}
 
-	if mc.codeAtBlockNumber != 0 {
-		t.Fatalf("CodeAt() was passed a block number when it should not have been")
+	if mc.codeAtBlockHeight != 0 {
+		t.Fatalf("CodeAt() was passed a block height when it should not have been")
 	}
 
-	bc.Call(&bind.CallOpts{BlockNumber: blockNumber, Pending: true}, &ret, "something")
+	bc.Call(&bind.CallOpts{BlockHeight: blockHeight, Pending: true}, &ret, "something")
 
 	if !mc.pendingCallContractCalled {
-		t.Fatalf("CallContract() was not passed the block number")
+		t.Fatalf("CallContract() was not passed the block height")
 	}
 
 	if !mc.pendingCodeAtCalled {
-		t.Fatalf("CodeAt() was not passed the block number")
+		t.Fatalf("CodeAt() was not passed the block height")
 	}
 }
 

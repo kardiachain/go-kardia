@@ -23,29 +23,29 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
-func TestBlockNumberJSONUnmarshal(t *testing.T) {
+func TestBlockHeightJSONUnmarshal(t *testing.T) {
 	tests := []struct {
 		input    string
 		mustFail bool
-		expected BlockNumber
+		expected BlockHeight
 	}{
-		0:  {`"0x"`, true, BlockNumber(0)},
-		1:  {`"0x0"`, true, BlockNumber(0)},
-		2:  {`"0X1"`, true, BlockNumber(0)},
-		3:  {`"0x01"`, true, BlockNumber(0)},
-		4:  {`"0x12"`, true, BlockNumber(0)},
-		5:  {`"ff"`, true, BlockNumber(0)},
-		6:  {`0`, false, BlockNumber(0)},
-		7:  {`"pending"`, false, PendingBlockNumber},
-		8:  {`"latest"`, false, LatestBlockNumber},
-		9:  {`"earliest"`, false, EarliestBlockNumber},
-		10: {`someString`, true, BlockNumber(0)},
-		11: {`""`, true, BlockNumber(0)},
-		12: {``, true, BlockNumber(0)},
+		0:  {`"0x"`, true, BlockHeight(0)},
+		1:  {`"0x0"`, true, BlockHeight(0)},
+		2:  {`"0X1"`, true, BlockHeight(0)},
+		3:  {`"0x01"`, true, BlockHeight(0)},
+		4:  {`"0x12"`, true, BlockHeight(0)},
+		5:  {`"ff"`, true, BlockHeight(0)},
+		6:  {`0`, false, BlockHeight(0)},
+		7:  {`"pending"`, false, PendingBlockHeight},
+		8:  {`"latest"`, false, LatestBlockHeight},
+		9:  {`"earliest"`, false, EarliestBlockHeight},
+		10: {`someString`, true, BlockHeight(0)},
+		11: {`""`, true, BlockHeight(0)},
+		12: {``, true, BlockHeight(0)},
 	}
 
 	for i, test := range tests {
-		var num BlockNumber
+		var num BlockHeight
 		err := json.Unmarshal([]byte(test.input), &num)
 		if test.mustFail && err == nil {
 			t.Errorf("Test %d should fail", i)
@@ -61,38 +61,38 @@ func TestBlockNumberJSONUnmarshal(t *testing.T) {
 	}
 }
 
-func TestBlockNumberOrHash_UnmarshalJSON(t *testing.T) {
+func TestBlockHeightOrHash_UnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		input    string
 		mustFail bool
-		expected BlockNumberOrHash
+		expected BlockHeightOrHash
 	}{
-		0:  {`"0x"`, true, BlockNumberOrHash{}},
-		1:  {`"0x0"`, true, BlockNumberOrHash{}},
-		2:  {`"0X1"`, true, BlockNumberOrHash{}},
-		3:  {`"0x01"`, true, BlockNumberOrHash{}},
-		4:  {`"0x12"`, true, BlockNumberOrHash{}},
-		5:  {`0`, false, BlockNumberOrHashWithNumber(0)},
-		6:  {`"ff"`, true, BlockNumberOrHash{}},
-		7:  {`"pending"`, false, BlockNumberOrHashWithNumber(PendingBlockNumber)},
-		8:  {`"latest"`, false, BlockNumberOrHashWithNumber(LatestBlockNumber)},
-		9:  {`"earliest"`, false, BlockNumberOrHashWithNumber(EarliestBlockNumber)},
-		10: {`someString`, true, BlockNumberOrHash{}},
-		11: {`""`, true, BlockNumberOrHash{}},
-		12: {``, true, BlockNumberOrHash{}},
-		13: {`"0x0000000000000000000000000000000000000000000000000000000000000000"`, false, BlockNumberOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), false)},
-		14: {`{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}`, false, BlockNumberOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), false)},
-		15: {`{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000","requireCanonical":false}`, false, BlockNumberOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), false)},
-		16: {`{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000","requireCanonical":true}`, false, BlockNumberOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), true)},
-		17: {`{"blockNumber":1}`, false, BlockNumberOrHashWithNumber(1)},
-		18: {`{"blockNumber":"pending"}`, false, BlockNumberOrHashWithNumber(PendingBlockNumber)},
-		19: {`{"blockNumber":"latest"}`, false, BlockNumberOrHashWithNumber(LatestBlockNumber)},
-		20: {`{"blockNumber":"earliest"}`, false, BlockNumberOrHashWithNumber(EarliestBlockNumber)},
-		21: {`{"blockNumber":"0x1", "blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}`, true, BlockNumberOrHash{}},
+		0:  {`"0x"`, true, BlockHeightOrHash{}},
+		1:  {`"0x0"`, true, BlockHeightOrHash{}},
+		2:  {`"0X1"`, true, BlockHeightOrHash{}},
+		3:  {`"0x01"`, true, BlockHeightOrHash{}},
+		4:  {`"0x12"`, true, BlockHeightOrHash{}},
+		5:  {`0`, false, BlockHeightOrHashWithNumber(0)},
+		6:  {`"ff"`, true, BlockHeightOrHash{}},
+		7:  {`"pending"`, false, BlockHeightOrHashWithNumber(PendingBlockHeight)},
+		8:  {`"latest"`, false, BlockHeightOrHashWithNumber(LatestBlockHeight)},
+		9:  {`"earliest"`, false, BlockHeightOrHashWithNumber(EarliestBlockHeight)},
+		10: {`someString`, true, BlockHeightOrHash{}},
+		11: {`""`, true, BlockHeightOrHash{}},
+		12: {``, true, BlockHeightOrHash{}},
+		13: {`"0x0000000000000000000000000000000000000000000000000000000000000000"`, false, BlockHeightOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), false)},
+		14: {`{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}`, false, BlockHeightOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), false)},
+		15: {`{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000","requireCanonical":false}`, false, BlockHeightOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), false)},
+		16: {`{"blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000","requireCanonical":true}`, false, BlockHeightOrHashWithHash(common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000000"), true)},
+		17: {`{"BlockHeight":1}`, false, BlockHeightOrHashWithNumber(1)},
+		18: {`{"BlockHeight":"pending"}`, false, BlockHeightOrHashWithNumber(PendingBlockHeight)},
+		19: {`{"BlockHeight":"latest"}`, false, BlockHeightOrHashWithNumber(LatestBlockHeight)},
+		20: {`{"BlockHeight":"earliest"}`, false, BlockHeightOrHashWithNumber(EarliestBlockHeight)},
+		21: {`{"BlockHeight":"0x1", "blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000"}`, true, BlockHeightOrHash{}},
 	}
 
 	for i, test := range tests {
-		var bnh BlockNumberOrHash
+		var bnh BlockHeightOrHash
 		err := json.Unmarshal([]byte(test.input), &bnh)
 		if test.mustFail && err == nil {
 			t.Errorf("Test %d should fail", i)
@@ -104,8 +104,8 @@ func TestBlockNumberOrHash_UnmarshalJSON(t *testing.T) {
 		}
 		hash, hashOk := bnh.Hash()
 		expectedHash, expectedHashOk := test.expected.Hash()
-		num, numOk := bnh.Number()
-		expectedNum, expectedNumOk := test.expected.Number()
+		num, numOk := bnh.Height()
+		expectedNum, expectedNumOk := test.expected.Height()
 		if bnh.RequireCanonical != test.expected.RequireCanonical ||
 			hash != expectedHash || hashOk != expectedHashOk ||
 			num != expectedNum || numOk != expectedNumOk {

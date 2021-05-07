@@ -29,8 +29,8 @@ import (
 
 func TestUnmarshalJSONNewFilterArgs(t *testing.T) {
 	var (
-		fromBlock rpc.BlockNumber = 12345
-		toBlock   rpc.BlockNumber = 678910
+		fromBlock rpc.BlockHeight = 12345
+		toBlock   rpc.BlockHeight = 678910
 		address0                  = common.HexToAddress("70c87d191324e6712a591f304b4eedef6ad9bb9d")
 		address1                  = common.HexToAddress("9b2055d370f73ec7d8a03e965129118dc8f5bf83")
 		topic0                    = common.HexToHash("3ac225168df54212a25c1c01fd35bebfea408fdac2e31ddd6f80a4bbf9a5f1ca")
@@ -56,7 +56,7 @@ func TestUnmarshalJSONNewFilterArgs(t *testing.T) {
 		t.Fatalf("expected 0 topics, got %d topics", len(test0.Topics))
 	}
 
-	// from, to block number
+	// from, to block height
 	var test1 FilterCriteria
 	vector := fmt.Sprintf(`{"fromBlock":%d,"toBlock":%d}`, fromBlock, toBlock)
 	if err := json.Unmarshal([]byte(vector), &test1); err != nil {
