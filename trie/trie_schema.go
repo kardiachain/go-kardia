@@ -113,10 +113,3 @@ func WriteTrieNode(db kaidb.KeyValueWriter, hash common.Hash, node []byte) {
 		log.Crit("Failed to store trie node", "err", err)
 	}
 }
-
-// DeleteTrieNode deletes the specified trie node from the database.
-func DeleteTrieNode(db kaidb.KeyValueWriter, hash common.Hash) {
-	if err := db.Delete(hash.Bytes()); err != nil {
-		log.Crit("Failed to delete trie node", "err", err)
-	}
-}
