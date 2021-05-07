@@ -133,7 +133,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	}
 
 	// Create a new blockchain to attach to this Kardia object
-	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig)
+	kai.blockchain, err = blockchain.NewBlockChain(logger, kaiDb, kai.chainConfig, nil, nil)
 	if err != nil {
 		return nil, err
 	}

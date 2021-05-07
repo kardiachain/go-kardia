@@ -19,15 +19,16 @@
 package blockchain
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
@@ -36,14 +37,35 @@ import (
 )
 
 const (
-	blockCacheLimit = 256
-
-	maxFutureBlocks = 256
+	blockCacheLimit    = 256
+	receiptsCacheLimit = 32
+	txLookupCacheLimit = 1
+	maxFutureBlocks    = 256
+	TriesInMemory      = 128
 )
 
-var (
-	ErrNoGenesis = errors.New("Genesis not found in chain")
-)
+var ()
+
+// CacheConfig contains the configuration values for the trie caching/pruning
+// that's resident in a blockchain.
+type CacheConfig struct {
+	TrieCleanLimit      int           // Memory allowance (MB) to use for caching trie nodes in memory
+	TrieCleanJournal    string        // Disk journal for saving clean cache entries.
+	TrieCleanRejournal  time.Duration // Time interval to dump clean cache to disk periodically
+	TrieCleanNoPrefetch bool          // Whether to disable heuristic state prefetching for followup blocks
+	TrieDirtyLimit      int           // Memory limit (MB) at which to start flushing dirty trie nodes to disk
+	TrieDirtyDisabled   bool          // Whether to disable trie write caching and GC altogether (archive node)
+	TrieTimeLimit       time.Duration // Time limit after which to flush the current in-memory trie to disk
+	Preimages           bool          // Whether to store preimage of trie key to the disk
+}
+
+// defaultCacheConfig are the default caching values if none are specified by the
+// user (also used during testing).
+var defaultCacheConfig = &CacheConfig{
+	TrieCleanLimit: 256,
+	TrieDirtyLimit: 256,
+	TrieTimeLimit:  5 * time.Minute,
+}
 
 // BlockChain represents the canonical chain given a database with a genesis
 // block. The Blockchain manages chain imports, reverts, chain reorganisations.
@@ -63,6 +85,14 @@ type BlockChain struct {
 	logger log.Logger
 
 	chainConfig *configs.ChainConfig // Chain & network configuration
+	cacheConfig *CacheConfig         // Cache configuration for pruning
+
+	// txLookupLimit is the maximum number of blocks from head whose tx indices
+	// are reserved:
+	//  * 0:   means no limit and regenerate any missing indexes
+	//  * N:   means N block limit [HEAD-N+1, HEAD] and delete extra indexes
+	//  * nil: disable tx reindexer/deleter, but still index new blocks
+	txLookupLimit uint64
 
 	db types.StoreDB // Blockchain database
 	hc *HeaderChain
@@ -77,11 +107,14 @@ type BlockChain struct {
 
 	currentBlock atomic.Value // Current head of the block chain
 
-	stateCache   state.Database // State database to reuse between imports (contains state cache)
-	blockCache   *lru.Cache     // Cache for the most recent entire blocks
-	futureBlocks *lru.Cache     // future blocks are blocks added for later processing
+	stateCache    state.Database // State database to reuse between imports (contains state cache)
+	receiptsCache *lru.Cache     // Cache for the most recent receipts per block
+	blockCache    *lru.Cache     // Cache for the most recent entire blocks
+	txLookupCache *lru.Cache     // Cache for the most recent transaction lookup data.
+	futureBlocks  *lru.Cache     // future blocks are blocks added for later processing
 
-	quit chan struct{} // blockchain quit channel
+	quit chan struct{}  // blockchain quit channel
+	wg   sync.WaitGroup // chain processing wait group for shutting down
 
 	processor *StateProcessor // block processor
 	vmConfig  kvm.Config      // vm configurations
@@ -126,18 +159,26 @@ func (bc *BlockChain) Config() *configs.ChainConfig { return bc.chainConfig }
 
 // NewBlockChain returns a fully initialised block chain using information
 // available in the database. It initialises the default Kardia Validator and Processor.
-func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.ChainConfig) (*BlockChain, error) {
+func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.ChainConfig, cacheConfig *CacheConfig, txLookupLimit *uint64) (*BlockChain, error) {
+	if cacheConfig == nil {
+		cacheConfig = defaultCacheConfig
+	}
 	blockCache, _ := lru.New(blockCacheLimit)
+	receiptsCache, _ := lru.New(receiptsCacheLimit)
+	txLookupCache, _ := lru.New(txLookupCacheLimit)
 	futureBlocks, _ := lru.New(maxFutureBlocks)
 
 	bc := &BlockChain{
-		logger:       logger,
-		chainConfig:  chainConfig,
-		db:           db,
-		stateCache:   state.NewDatabase(db.DB()),
-		blockCache:   blockCache,
-		futureBlocks: futureBlocks,
-		quit:         make(chan struct{}),
+		logger:        logger,
+		chainConfig:   chainConfig,
+		cacheConfig:   cacheConfig,
+		db:            db,
+		stateCache:    state.NewDatabase(db.DB()),
+		receiptsCache: receiptsCache,
+		blockCache:    blockCache,
+		futureBlocks:  futureBlocks,
+		txLookupCache: txLookupCache,
+		quit:          make(chan struct{}),
 	}
 
 	var err error
@@ -154,8 +195,30 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 		return nil, err
 	}
 
+	// Initialize the chain with ancient data if it isn't empty.
+	var txIndexBlock uint64
+
 	// Take ownership of this particular state
-	//@huny go bc.update()
+	// go bc.update()
+	if txLookupLimit != nil {
+		bc.txLookupLimit = *txLookupLimit
+
+		bc.wg.Add(1)
+		go bc.maintainTxIndex(txIndexBlock)
+	}
+	// If periodic cache journal is required, spin it up.
+	if bc.cacheConfig.TrieCleanRejournal > 0 {
+		if bc.cacheConfig.TrieCleanRejournal < time.Minute {
+			log.Warn("Sanitizing invalid trie cache journal time", "provided", bc.cacheConfig.TrieCleanRejournal, "updated", time.Minute)
+			bc.cacheConfig.TrieCleanRejournal = time.Minute
+		}
+		triedb := bc.stateCache.TrieDB()
+		bc.wg.Add(1)
+		go func() {
+			defer bc.wg.Done()
+			triedb.SaveCachePeriodically(bc.cacheConfig.TrieCleanJournal, bc.cacheConfig.TrieCleanRejournal, bc.quit)
+		}()
+	}
 
 	bc.processor = NewStateProcessor(logger, bc)
 
@@ -362,7 +425,9 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	currentHeader := bc.hc.CurrentHeader()
 
 	// Clear out any stale content from the caches
+	bc.receiptsCache.Purge()
 	bc.blockCache.Purge()
+	bc.txLookupCache.Purge()
 	bc.futureBlocks.Purge()
 
 	// Rewind the block chain, ensuring we don't end up with a stateless head block
@@ -451,4 +516,90 @@ func (bc *BlockChain) SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscript
 // SubscribeChainEvent registers a subscription of ChainHeadEvent.
 func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription {
 	return bc.scope.Track(bc.chainHeadFeed.Subscribe(ch))
+}
+
+// maintainTxIndex is responsible for the construction and deletion of the
+// transaction index.
+//
+// User can use flag `txlookuplimit` to specify a "recentness" block, below
+// which ancient tx indices get deleted. If `txlookuplimit` is 0, it means
+// all tx indices will be reserved.
+//
+// The user can adjust the txlookuplimit value for each launch after fast
+// sync, Geth will automatically construct the missing indices and delete
+// the extra indices.
+func (bc *BlockChain) maintainTxIndex(ancients uint64) {
+	defer bc.wg.Done()
+
+	// Before starting the actual maintenance, we need to handle a special case,
+	// where user might init Geth with an external ancient database. If so, we
+	// need to reindex all necessary transactions before starting to process any
+	// pruning requests.
+	if ancients > 0 {
+		var from = uint64(0)
+		if bc.txLookupLimit != 0 && ancients > bc.txLookupLimit {
+			from = ancients - bc.txLookupLimit
+		}
+		kvstore.IndexTransactions(bc.db.DB(), from, ancients, bc.quit)
+	}
+	// indexBlocks reindexes or unindexes transactions depending on user configuration
+	indexBlocks := func(tail *uint64, head uint64, done chan struct{}) {
+		defer func() { done <- struct{}{} }()
+
+		// If the user just upgraded Geth to a new version which supports transaction
+		// index pruning, write the new tail and remove anything older.
+		if tail == nil {
+			if bc.txLookupLimit == 0 || head < bc.txLookupLimit {
+				// Nothing to delete, write the tail and return
+				kvstore.WriteTxIndexTail(bc.db.DB(), 0)
+			} else {
+				// Prune all stale tx indices and record the tx index tail
+				kvstore.UnindexTransactions(bc.db.DB(), 0, head-bc.txLookupLimit+1, bc.quit)
+			}
+			return
+		}
+		// If a previous indexing existed, make sure that we fill in any missing entries
+		if bc.txLookupLimit == 0 || head < bc.txLookupLimit {
+			if *tail > 0 {
+				kvstore.IndexTransactions(bc.db.DB(), 0, *tail, bc.quit)
+			}
+			return
+		}
+		// Update the transaction index to the new chain state
+		if head-bc.txLookupLimit+1 < *tail {
+			// Reindex a part of missing indices and rewind index tail to HEAD-limit
+			kvstore.IndexTransactions(bc.db.DB(), head-bc.txLookupLimit+1, *tail, bc.quit)
+		} else {
+			// Unindex a part of stale indices and forward index tail to HEAD-limit
+			kvstore.UnindexTransactions(bc.db.DB(), *tail, head-bc.txLookupLimit+1, bc.quit)
+		}
+	}
+	// Any reindexing done, start listening to chain events and moving the index window
+	var (
+		done   chan struct{}                         // Non-nil if background unindexing or reindexing routine is active.
+		headCh = make(chan events.ChainHeadEvent, 1) // Buffered to avoid locking up the event feed
+	)
+	sub := bc.SubscribeChainHeadEvent(headCh)
+	if sub == nil {
+		return
+	}
+	defer sub.Unsubscribe()
+
+	for {
+		select {
+		case head := <-headCh:
+			if done == nil {
+				done = make(chan struct{})
+				go indexBlocks(kvstore.ReadTxIndexTail(bc.db.DB()), head.Block.Height(), done)
+			}
+		case <-done:
+			done = nil
+		case <-bc.quit:
+			if done != nil {
+				log.Info("Waiting background transaction indexer to exit")
+				<-done
+			}
+			return
+		}
+	}
 }
