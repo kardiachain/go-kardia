@@ -31,7 +31,7 @@ import (
 
 type Backend interface {
 	ChainDb() types.StoreDB
-	HeaderByNumber(ctx context.Context, blockNr rpc.BlockNumber) *types.Header
+	HeaderByHeight(ctx context.Context, blockHeight rpc.BlockHeight) *types.Header
 	HeaderByHash(ctx context.Context, blockHash common.Hash) *types.Header
 	BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
@@ -127,15 +127,15 @@ func (f *Filter) Logs(ctx context.Context) ([]*types.Log, error) {
 		return f.blockLogs(ctx, header, blockInfo)
 	}
 	// Figure out the limits of the filter range
-	header := f.backend.HeaderByNumber(ctx, rpc.LatestBlockNumber)
+	header := f.backend.HeaderByHeight(ctx, rpc.LatestBlockHeight)
 	if header == nil {
 		return nil, nil
 	}
-	if f.begin == 0 || f.begin >= rpc.PendingBlockNumber.Uint64() {
+	if f.begin == 0 || f.begin >= rpc.PendingBlockHeight.Uint64() {
 		f.begin = header.Height
 	}
 	end := f.end
-	if f.end == 0 || end >= rpc.PendingBlockNumber.Uint64() {
+	if f.end == 0 || end >= rpc.PendingBlockHeight.Uint64() {
 		end = header.Height
 	}
 	// Gather all indexed logs, and finish with non indexed ones
@@ -190,7 +190,7 @@ func (f *Filter) indexedLogs(ctx context.Context, end uint64) ([]*types.Log, err
 			f.begin = number + 1
 
 			// Retrieve the suggested block and pull any truly matching logs
-			header := f.backend.HeaderByNumber(ctx, rpc.BlockNumber(number))
+			header := f.backend.HeaderByHeight(ctx, rpc.BlockHeight(number))
 			if header == nil {
 				return logs, err
 			}
@@ -212,7 +212,7 @@ func (f *Filter) unindexedLogs(ctx context.Context, end uint64) ([]*types.Log, e
 	var logs []*types.Log
 
 	for ; f.begin <= end; f.begin++ {
-		header := f.backend.HeaderByNumber(ctx, rpc.BlockNumber(f.begin))
+		header := f.backend.HeaderByHeight(ctx, rpc.BlockHeight(f.begin))
 		if header == nil {
 			return logs, ErrHeaderNotFound
 		}

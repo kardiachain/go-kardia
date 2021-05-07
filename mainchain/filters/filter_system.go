@@ -173,16 +173,16 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 // block is "latest". If the fromBlock > toBlock an error is returned.
 func (es *EventSystem) SubscribeLogs(crit kardia.FilterQuery, logs chan []*types.Log) (*Subscription, error) {
 	var (
-		pending  = rpc.PendingBlockNumber.Uint64()
+		pending  = rpc.PendingBlockHeight.Uint64()
 		from, to uint64
 	)
 	if crit.FromBlock == 0 || crit.FromBlock == pending {
-		from = rpc.LatestBlockNumber.Uint64()
+		from = rpc.LatestBlockHeight.Uint64()
 	} else {
 		from = crit.FromBlock
 	}
 	if crit.ToBlock == 0 || crit.ToBlock == pending {
-		to = rpc.LatestBlockNumber.Uint64()
+		to = rpc.LatestBlockHeight.Uint64()
 	} else {
 		to = crit.ToBlock
 	}
