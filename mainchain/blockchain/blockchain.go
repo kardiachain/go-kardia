@@ -120,9 +120,8 @@ type BlockChain struct {
 	vmConfig  kvm.Config      // vm configurations
 }
 
-func (bc *BlockChain) P2P() *configs.P2PConfig {
-	return bc.P2P()
-}
+// P2P implement interface
+func (bc *BlockChain) P2P() *configs.P2PConfig { return nil }
 
 // GetVMConfig returns the block chain VM config.
 func (bc *BlockChain) GetVMConfig() *kvm.Config {
@@ -195,17 +194,15 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 		return nil, err
 	}
 
-	// Initialize the chain with ancient data if it isn't empty.
-	var txIndexBlock uint64
-
 	// Take ownership of this particular state
 	// go bc.update()
 	if txLookupLimit != nil {
 		bc.txLookupLimit = *txLookupLimit
 
 		bc.wg.Add(1)
-		go bc.maintainTxIndex(txIndexBlock)
+		go bc.maintainTxIndex()
 	}
+
 	// If periodic cache journal is required, spin it up.
 	if bc.cacheConfig.TrieCleanRejournal > 0 {
 		if bc.cacheConfig.TrieCleanRejournal < time.Minute {
@@ -528,20 +525,9 @@ func (bc *BlockChain) SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) e
 // The user can adjust the txlookuplimit value for each launch after fast
 // sync, Geth will automatically construct the missing indices and delete
 // the extra indices.
-func (bc *BlockChain) maintainTxIndex(ancients uint64) {
+func (bc *BlockChain) maintainTxIndex() {
 	defer bc.wg.Done()
 
-	// Before starting the actual maintenance, we need to handle a special case,
-	// where user might init Geth with an external ancient database. If so, we
-	// need to reindex all necessary transactions before starting to process any
-	// pruning requests.
-	if ancients > 0 {
-		var from = uint64(0)
-		if bc.txLookupLimit != 0 && ancients > bc.txLookupLimit {
-			from = ancients - bc.txLookupLimit
-		}
-		kvstore.IndexTransactions(bc.db.DB(), from, ancients, bc.quit)
-	}
 	// indexBlocks reindexes or unindexes transactions depending on user configuration
 	indexBlocks := func(tail *uint64, head uint64, done chan struct{}) {
 		defer func() { done <- struct{}{} }()
@@ -554,6 +540,7 @@ func (bc *BlockChain) maintainTxIndex(ancients uint64) {
 				kvstore.WriteTxIndexTail(bc.db.DB(), 0)
 			} else {
 				// Prune all stale tx indices and record the tx index tail
+				log.Error("UNINDEXING TRANSACTIONS")
 				kvstore.UnindexTransactions(bc.db.DB(), 0, head-bc.txLookupLimit+1, bc.quit)
 			}
 			return
