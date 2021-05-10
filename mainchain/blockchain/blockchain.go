@@ -39,12 +39,10 @@ import (
 const (
 	blockCacheLimit    = 256
 	receiptsCacheLimit = 32
-	txLookupCacheLimit = 1
+	txLookupCacheLimit = 1024
 	maxFutureBlocks    = 256
 	TriesInMemory      = 128
 )
-
-var ()
 
 // CacheConfig contains the configuration values for the trie caching/pruning
 // that's resident in a blockchain.
@@ -56,7 +54,6 @@ type CacheConfig struct {
 	TrieDirtyLimit      int           // Memory limit (MB) at which to start flushing dirty trie nodes to disk
 	TrieDirtyDisabled   bool          // Whether to disable trie write caching and GC altogether (archive node)
 	TrieTimeLimit       time.Duration // Time limit after which to flush the current in-memory trie to disk
-	Preimages           bool          // Whether to store preimage of trie key to the disk
 }
 
 // defaultCacheConfig are the default caching values if none are specified by the
