@@ -30,6 +30,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/filters"
+	"github.com/kardiachain/go-kardia/mainchain/gasprice"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
@@ -78,6 +79,8 @@ type KardiaService struct {
 	bloomRequests     chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
 	bloomIndexer      *BloomIndexer                  // Bloom indexer operating during block imports
 	closeBloomHandler chan struct{}
+
+	gpo *gasprice.Oracle
 }
 
 func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
@@ -178,6 +181,9 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// Set private validator for consensus manager.
 	kai.csManager.SetPrivValidator(privValidator)
 	kai.csManager.SetEventBus(kai.eventBus)
+
+	// init gas price oracle
+	kai.gpo = gasprice.NewOracle(kai, gasprice.DefaultOracleConfig())
 	return kai, nil
 }
 
