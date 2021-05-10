@@ -353,8 +353,7 @@ func TestClientSubscribeClose(t *testing.T) {
 	}
 }
 
-// This test reproduces https://github.com/ethereum/go-ethereum/issues/17837 where the
-// client hangs during shutdown when Unsubscribe races with Client.Close.
+// This test client hangs during shutdown when Unsubscribe races with Client.Close.
 func TestClientCloseUnsubscribeRace(t *testing.T) {
 	server := newTestServer()
 	defer server.Stop()
