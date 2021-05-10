@@ -345,7 +345,7 @@ func EstimateGas(from common.Address, to common.Address, currentHeader *types.He
 	if kaiVm.Cancelled() {
 		return 0, fmt.Errorf("execution aborted")
 	}
-	return result.UsedGas + bufferGas, nil // need to add some bufferGas to prevent out of gas
+	return result.UsedGas, nil
 }
 
 // GenerateOutputStructs creates structs for all methods from theirs outputs

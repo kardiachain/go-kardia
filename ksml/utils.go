@@ -91,8 +91,6 @@ const (
 	signalContinue = "SIGNAL_CONTINUE"
 	signalStop     = "SIGNAL_STOP"   // stop: do nothing after signal is returned
 	signalReturn   = "SIGNAL_RETURN" // return: quit params execution but keep processed params and start another process.
-
-	bufferGas = 190000
 )
 
 type function struct {
