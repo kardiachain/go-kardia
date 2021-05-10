@@ -16,7 +16,7 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package gasprice
+package oracles
 
 import (
 	"context"
@@ -73,9 +73,9 @@ type Oracle struct {
 	percentile  int
 }
 
-// NewOracle returns a new gasprice oracle which can recommend suitable
-// gasprice for newly created transaction.
-func NewOracle(backend OracleBackend, params Config) *Oracle {
+// NewGasPriceOracle returns a new gasprice oracle which can recommend suitable
+// oracles for newly created transaction.
+func NewGasPriceOracle(backend OracleBackend, params Config) *Oracle {
 	blocks := params.Blocks
 	if blocks < 1 {
 		blocks = 1
