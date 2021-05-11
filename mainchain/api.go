@@ -701,9 +701,9 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, bloc
 }
 
 // GasPrice returns a suggestion for a gas price.
-func (s *PublicKaiAPI) GasPrice(ctx context.Context) (*common.Big, error) {
+func (s *PublicKaiAPI) GasPrice(ctx context.Context) (string, error) {
 	price, err := s.kaiService.SuggestPrice(ctx)
-	return (*common.Big)(price), err
+	return price.String(), err
 }
 
 // EstimateGas returns an estimate of the amount of gas needed to execute the
