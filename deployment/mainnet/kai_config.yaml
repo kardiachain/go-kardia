@@ -33,7 +33,7 @@ Node:
     MinRecvRate: 0        # minimum receive rate from peer, otherwise prune. Type int64
   GasOracle:
     Blocks: 10              # number of recent blocks used to suggest gas price. Type int
-    Percentile: 5           # percent of gas price increasing based on highest gas of recent transactions. Type int
+    Percentile: 10          # percent of gas price increasing based on highest gas of recent transactions. Type int
     Default: 1000000000     # default gas price. Type string
     MaxPrice: 500000000000  # maximum gas price this node will accept. Type string
 MainChain:

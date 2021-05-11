@@ -34,7 +34,7 @@ import (
 
 const sampleNumber = 3 // Number of transactions sampled in a block
 
-var DefaultMaxPrice = big.NewInt(500 * configs.OXY)
+var DefaultMaxPrice = big.NewInt(500 * configs.OXY) // max acceptable gas price is 500 OXY
 
 type Config struct {
 	Blocks     int
@@ -46,7 +46,7 @@ type Config struct {
 func DefaultOracleConfig() *Config {
 	return &Config{
 		Blocks:     10,
-		Percentile: 5,
+		Percentile: 10,
 		Default:    big.NewInt(1 * configs.OXY),
 		MaxPrice:   DefaultMaxPrice,
 	}
