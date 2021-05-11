@@ -29,6 +29,11 @@ Node:
     TargetPending: 20   # maximum number of blocks in a batch sync. Type int
     PeerTimeout: 15     # maximum response time from a peer in second. Type int
     MinRecvRate: 0      # minimum receive rate from peer, otherwise prune. Type int64
+  GasOracle:
+    Blocks: 10              # number of recent blocks used to suggest gas price. Type int
+    Percentile: 5           # percent of gas price increasing based on highest gas of recent transactions. Type int
+    Default: 1000000000     # default gas price. Type string
+    MaxPrice: 500000000000  # maximum gas price this node will accept. Type string
 MainChain:
   ServiceName: KARDIA
   ChainId: 1

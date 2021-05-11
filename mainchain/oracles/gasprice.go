@@ -43,8 +43,8 @@ type Config struct {
 	MaxPrice   *big.Int `toml:",omitempty"`
 }
 
-func DefaultOracleConfig() Config {
-	return Config{
+func DefaultOracleConfig() *Config {
+	return &Config{
 		Blocks:     10,
 		Percentile: 5,
 		Default:    big.NewInt(1 * configs.OXY),
@@ -56,7 +56,6 @@ func DefaultOracleConfig() Config {
 type OracleBackend interface {
 	HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header
 	BlockByHeight(ctx context.Context, height rpc.BlockHeight) *types.Block
-	//ChainConfig() *configs.ChainConfig
 }
 
 // Oracle recommends gas prices based on the content of recent
@@ -75,7 +74,7 @@ type Oracle struct {
 
 // NewGasPriceOracle returns a new gasprice oracle which can recommend suitable
 // oracles for newly created transaction.
-func NewGasPriceOracle(backend OracleBackend, params Config) *Oracle {
+func NewGasPriceOracle(backend OracleBackend, params *Config) *Oracle {
 	blocks := params.Blocks
 	if blocks < 1 {
 		blocks = 1

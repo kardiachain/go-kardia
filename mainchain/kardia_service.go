@@ -183,7 +183,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	kai.csManager.SetEventBus(kai.eventBus)
 
 	// init gas price oracle
-	kai.gpo = oracles.NewGasPriceOracle(kai, oracles.DefaultOracleConfig())
+	kai.gpo = oracles.NewGasPriceOracle(kai, config.GasOracle)
 	return kai, nil
 }
 
@@ -201,6 +201,7 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		AcceptTxs:   chainConfig.AcceptTxs,
 		Consensus:   chainConfig.Consensus,
 		FastSync:    chainConfig.FastSync,
+		GasOracle:   chainConfig.GasOracle,
 	})
 
 	if err != nil {
