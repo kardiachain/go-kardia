@@ -30,7 +30,6 @@ import (
 	"sync"
 
 	"github.com/kardiachain/go-kardia/configs"
-
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/kai/storage"
@@ -38,6 +37,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/oracles"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/rpc"
 )
@@ -78,6 +78,8 @@ type MainChainConfig struct {
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
 	FastSync *configs.FastSyncConfig
+
+	GasOracle *oracles.Config
 }
 
 type DualChainConfig struct {
@@ -232,6 +234,8 @@ type Config struct {
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
 	FastSync *configs.FastSyncConfig
+
+	GasOracle *oracles.Config
 
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.

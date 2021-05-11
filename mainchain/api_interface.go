@@ -55,6 +55,8 @@ type APIBackend interface {
 	StateAndHeaderByHeight(ctx context.Context, height rpc.BlockHeight) (*state.StateDB, *types.Header, error)
 	StateAndHeaderByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*state.StateDB, *types.Header, error)
 
+	SuggestPrice(ctx context.Context) (*big.Int, error)
+
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 
 	// Filter API
@@ -298,4 +300,8 @@ func (k *KardiaService) ServiceFilter(ctx context.Context, session *bloombits.Ma
 	for i := 0; i < bloomFilterThreads; i++ {
 		go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, k.bloomRequests)
 	}
+}
+
+func (k *KardiaService) SuggestPrice(ctx context.Context) (*big.Int, error) {
+	return k.gpo.SuggestPrice(ctx)
 }

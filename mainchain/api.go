@@ -700,6 +700,12 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, bloc
 	return result, nil
 }
 
+// GasPrice returns a suggestion for a gas price.
+func (s *PublicKaiAPI) GasPrice(ctx context.Context) (string, error) {
+	price, err := s.kaiService.SuggestPrice(ctx)
+	return price.String(), err
+}
+
 // EstimateGas returns an estimate of the amount of gas needed to execute the
 // given transaction against the current pending block.
 func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON, blockHeightOrHash rpc.BlockHeightOrHash) (uint64, error) {
