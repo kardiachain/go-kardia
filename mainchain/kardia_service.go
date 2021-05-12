@@ -57,7 +57,8 @@ type KardiaService struct {
 	shutdownChan chan bool
 
 	// DB interfaces
-	kaiDb types.StoreDB // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
+	kaiDb   types.StoreDB // Local key-value store endpoint. Each use types should use wrapper layer with unique prefixes.
+	stateDB cstate.Store
 
 	// Handlers
 	txPool     *tx_pool.TxPool
@@ -141,6 +142,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 		return nil, err
 	}
 
+	kai.stateDB = ctx.StateDB
 	evPool, err := evidence.NewPool(ctx.StateDB, kaiDb.DB(), kai.blockchain)
 	if err != nil {
 		return nil, err
@@ -262,6 +264,12 @@ func (s *KardiaService) APIs() []rpc.API {
 			Namespace: "kai",
 			Version:   "1.0",
 			Service:   filters.NewPublicFilterAPI(s),
+			Public:    true,
+		},
+		{
+			Namespace: "kai",
+			Version:   "1.0",
+			Service:   NewVerifyKaiAPI(s),
 			Public:    true,
 		},
 		{
