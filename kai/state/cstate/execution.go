@@ -106,7 +106,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state LastestBlockState, blockID type
 	// update the state with the block and responses
 	state, err = updateState(blockExec.logger, state, blockID, block.Header(), valUpdates)
 	if err != nil {
-		return state, block.Height(), fmt.Errorf("Commit failed for application: %v", err)
+		return state, block.Height(), fmt.Errorf("commit failed for application: %v", err)
 	}
 
 	state.AppHash = appHash

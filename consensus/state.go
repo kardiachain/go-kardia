@@ -623,12 +623,12 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 
 		added, err = cs.LastCommit.AddVote(vote)
 		if !added {
-			return false, nil
+			return false, err
 		}
 
 		cs.Logger.Info(cmn.Fmt("Added to lastPrecommits: %v", cs.LastCommit.StringShort()))
-		if err2 := cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote}); err2 != nil {
-			return added, err2
+		if err := cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote}); err != nil {
+			return added, err
 		}
 
 		cs.evsw.FireEvent(types.EventVote, vote)
@@ -653,11 +653,11 @@ func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (bool, error)
 	added, err = cs.Votes.AddVote(vote, peerID)
 	if !added {
 		// Either duplicate, or error upon cs.Votes.AddByIndex()
-		return false, nil
+		return false, err
 	}
 
-	if err3 := cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote}); err3 != nil {
-		return added, err3
+	if err := cs.eventBus.PublishEventVote(types.EventDataVote{Vote: vote}); err != nil {
+		return added, err
 	}
 	cs.evsw.FireEvent(types.EventVote, vote)
 
@@ -787,12 +787,11 @@ func (cs *ConsensusState) voteTime() time.Time {
 	minVoteTime := now
 	// TODO: We should remove next line in case we don't vote for v in case cs.ProposalBlock == nil,
 	// even if cs.LockedBlock != nil. See https://github.com/tendermint/spec.
-	timeIotaMs := time.Duration(cs.state.ConsensusParams.Block.TimeIotaMs) * time.Millisecond
+	timeIota := time.Duration(cs.state.ConsensusParams.Block.TimeIotaMs)
 	if cs.LockedBlock != nil {
-		// See the BFT time spec https://tendermint.com/docs/spec/consensus/bft-time.html
-		minVoteTime = cs.LockedBlock.Time().Add(timeIotaMs)
+		minVoteTime = cs.LockedBlock.Time().Add(timeIota)
 	} else if cs.ProposalBlock != nil {
-		minVoteTime = cs.ProposalBlock.Time().Add(timeIotaMs)
+		minVoteTime = cs.ProposalBlock.Time().Add(timeIota)
 	}
 
 	if now.After(minVoteTime) {

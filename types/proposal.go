@@ -82,13 +82,6 @@ func (p *Proposal) String() string {
 
 // ValidateBasic performs basic validation.
 func (p *Proposal) ValidateBasic() error {
-	if p.Height < 0 {
-		return errors.New("negative Height")
-	}
-	if p.Round < 0 {
-		return errors.New("negative Round")
-	}
-
 	if err := p.POLBlockID.ValidateBasic(); err != nil {
 		return fmt.Errorf("wrong BlockID: %v", err)
 	}

@@ -27,7 +27,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/kardiachain/go-kardia/lib/common"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/merkle"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
@@ -45,9 +44,6 @@ type Part struct {
 
 // ValidateBasic performs basic validation.
 func (part *Part) ValidateBasic() error {
-	if part.Index < 0 {
-		return errors.New("Negative Index")
-	}
 	if len(part.Bytes) > BlockPartSizeBytes {
 		return fmt.Errorf("Too big (max: %d)", BlockPartSizeBytes)
 	}
@@ -64,7 +60,7 @@ func (part *Part) StringIndented(indent string) string {
 %s  Proof: %v
 %s}`,
 		part.Index,
-		indent, cmn.Fingerprint(part.Bytes),
+		indent, common.Fingerprint(part.Bytes),
 		indent, part.Proof.StringIndented(indent+"  "),
 		indent)
 }
@@ -101,8 +97,8 @@ func PartFromProto(pb *kproto.Part) (*Part, error) {
 }
 
 type PartSetHeader struct {
-	Total uint32   `json:"total"`
-	Hash  cmn.Hash `json:"hash"`
+	Total uint32      `json:"total"`
+	Hash  common.Hash `json:"hash"`
 }
 
 func (psh PartSetHeader) String() string {
@@ -156,7 +152,7 @@ type PartSet struct {
 
 	mtx           sync.Mutex
 	parts         []*Part
-	partsBitArray *cmn.BitArray
+	partsBitArray *common.BitArray
 	count         uint32
 }
 
@@ -167,11 +163,11 @@ func NewPartSetFromData(data []byte, partSize uint32) *PartSet {
 	total := (uint32(len(data)) + partSize - 1) / partSize
 	parts := make([]*Part, total)
 	partsBytes := make([][]byte, total)
-	partsBitArray := cmn.NewBitArray(int(total))
+	partsBitArray := common.NewBitArray(int(total))
 	for i := uint32(0); i < total; i++ {
 		part := &Part{
 			Index: i,
-			Bytes: data[i*partSize : cmn.MinInt(len(data), int((i+1)*partSize))],
+			Bytes: data[i*partSize : common.MinInt(len(data), int((i+1)*partSize))],
 		}
 		parts[i] = part
 		partsBytes[i] = part.Bytes
@@ -197,7 +193,7 @@ func NewPartSetFromHeader(header PartSetHeader) *PartSet {
 		total:         header.Total,
 		hash:          header.Hash,
 		parts:         make([]*Part, header.Total),
-		partsBitArray: cmn.NewBitArray(int(header.Total)),
+		partsBitArray: common.NewBitArray(int(header.Total)),
 		count:         0,
 	}
 }
@@ -219,7 +215,7 @@ func (ps *PartSet) HasHeader(header PartSetHeader) bool {
 	return ps.Header().Equals(header)
 }
 
-func (ps *PartSet) BitArray() *cmn.BitArray {
+func (ps *PartSet) BitArray() *common.BitArray {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 	return ps.partsBitArray.Copy()
@@ -294,7 +290,7 @@ func (ps *PartSet) IsComplete() bool {
 
 func (ps *PartSet) GetReader() io.Reader {
 	if !ps.IsComplete() {
-		cmn.PanicSanity("Cannot GetReader() on incomplete PartSet")
+		common.PanicSanity("Cannot GetReader() on incomplete PartSet")
 	}
 	return NewPartSetReader(ps.parts)
 }

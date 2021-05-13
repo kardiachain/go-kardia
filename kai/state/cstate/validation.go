@@ -38,7 +38,7 @@ func validateBlock(evidencePool EvidencePool, store Store, state LastestBlockSta
 
 	// Validate prev block info
 	if !block.Header().LastBlockID.Equal(state.LastBlockID) {
-		return fmt.Errorf("Wrong Block.Header.LastBlockID. Expected %v, got %v", state.LastBlockID, block.Header().LastBlockID)
+		return fmt.Errorf("wrong Block.Header.LastBlockID. Expected %v, got %v", state.LastBlockID, block.Header().LastBlockID)
 	}
 	// Validate app info
 	if !block.AppHash().Equal(state.AppHash) {

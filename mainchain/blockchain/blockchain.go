@@ -32,7 +32,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -73,9 +72,6 @@ type BlockChain struct {
 
 	processor *StateProcessor // block processor
 	vmConfig  kvm.Config      // vm configurations
-
-	// permissioned is used to call permissioned smartcontract to check whether a node has permission to access chain or not
-	permissioned *permissioned.PermissionSmcUtil
 }
 
 func (bc *BlockChain) P2P() *configs.P2PConfig {
