@@ -34,7 +34,6 @@ import (
 	kpubsub "github.com/kardiachain/go-kardia/lib/pubsub"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
-	g "github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
@@ -288,7 +287,7 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 
 	configs.AddDefaultContract()
 
-	for address, _ := range genesisAccounts {
+	for address := range genesisAccounts {
 		genesisAccounts[address] = initValue
 	}
 
@@ -302,7 +301,7 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 
 	blockDB := memorydb.New()
 	kaiDb := kvstore.NewStoreDB(blockDB)
-	genesis := g.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
+	genesis := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
 	chainConfig, _, genesisErr := setupGenesis(genesis, kaiDb)
 	if genesisErr != nil {
 		log.Error("Error setting genesis block", "err", genesisErr)

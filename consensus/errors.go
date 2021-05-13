@@ -17,4 +17,6 @@ var (
 	ErrEmptyBlockPart           = errors.New("empty BlockParts")
 	ErrNilMsg                   = errors.New("message is Nil")
 	ErrConsensusMgrNotRunning   = errors.New("consensus manager is not running")
+	ErrInvalidStep              = errors.New("invalid step")
+	ErrWrongLastCommitRound     = errors.New("invalid last commit round")
 )
