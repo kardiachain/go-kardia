@@ -130,11 +130,16 @@ func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txc
 	if err != nil {
 		return nil, fmt.Errorf("tracing failed: %w", err)
 	}
-
-	return &kvm.ExecutionResult{
-		UsedGas:    result.UsedGas,
-		Err:        result.Err,
-		ReturnData: common.CopyBytes(result.ReturnData),
+	reason, _ := result.UnpackRevertReason()
+	return struct {
+		UsedGas      uint64 `json:"usedGas"`
+		Err          error  `json:"err"`
+		ReturnData   string `json:"returnData"`
+		RevertReason string `json:"revertReason"`
+	}{
+		UsedGas:      result.UsedGas,
+		Err:          result.Err,
+		ReturnData:   common.Encode(result.ReturnData),
+		RevertReason: reason,
 	}, nil
-
 }
