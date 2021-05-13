@@ -108,9 +108,7 @@ type (
 	}
 
 	touchChange struct {
-		account   *common.Address
-		prev      bool
-		prevDirty bool
+		account *common.Address
 	}
 
 	storageChange struct {

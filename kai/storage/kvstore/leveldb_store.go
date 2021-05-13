@@ -19,26 +19,16 @@
 package kvstore
 
 import (
-	"sync"
-
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/types"
-
-	"github.com/kardiachain/go-kardia/lib/log"
 )
 
 type StoreDB struct {
-	fn string         // filename for reporting
 	db kaidb.Database // LevelDB instance
-
-	quitLock sync.Mutex      // Mutex protecting the quit channel access
-	quitChan chan chan error // Quit channel to stop the metrics collection before closing the database
-
-	log log.Logger // Contextual logger tracking the database path
 }
 
 // NewLDBStore returns a LevelDB wrapped object.

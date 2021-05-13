@@ -49,7 +49,7 @@ type KardiaEvents struct {
 // ReadCanonicalHash retrieves the hash assigned to a canonical block height.
 func ReadCanonicalHash(db kaidb.Reader, height uint64) common.Hash {
 	data, _ := db.Get(headerHashKey(height))
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return common.Hash{}
 	}
 	return common.BytesToHash(data)
@@ -58,7 +58,7 @@ func ReadCanonicalHash(db kaidb.Reader, height uint64) common.Hash {
 // ReadChainConfig retrieves the consensus settings based on the given genesis hash.
 func ReadChainConfig(db kaidb.Reader, hash common.Hash) *configs.ChainConfig {
 	data, _ := db.Get(configKey(hash))
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return nil
 	}
 	var config configs.ChainConfig
@@ -191,7 +191,7 @@ func ReadBody(db kaidb.Reader, height uint64) *types.Body {
 // ReadHeadBlockHash retrieves the hash of the current canonical head block.
 func ReadHeadBlockHash(db kaidb.Reader) common.Hash {
 	data, _ := db.Get(headBlockKey)
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return common.Hash{}
 	}
 	return common.BytesToHash(data)
@@ -200,7 +200,7 @@ func ReadHeadBlockHash(db kaidb.Reader) common.Hash {
 // ReadHeaderHeight returns the header height assigned to a hash.
 func ReadHeaderHeight(db kaidb.Reader, hash common.Hash) *uint64 {
 	data, _ := db.Get(headerHeightKey(hash))
-	if data == nil || len(data) == 0 || len(data) != 8 {
+	if len(data) == 0 || len(data) != 8 {
 		return nil
 	}
 	height := binary.BigEndian.Uint64(data)
@@ -255,7 +255,7 @@ func DeleteCanonicalHash(db kaidb.KeyValueWriter, number uint64) {
 func ReadBlockInfo(db kaidb.Reader, hash common.Hash, number uint64) *types.BlockInfo {
 	// Retrieve the flattened receipt slice
 	data, _ := db.Get(blockInfoKey(number, hash))
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return nil
 	}
 	blockInfo := &types.BlockInfo{}
@@ -270,7 +270,7 @@ func ReadBlockInfo(db kaidb.Reader, hash common.Hash, number uint64) *types.Bloc
 // hash to allow retrieving the transaction or receipt by hash.
 func ReadTxLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, uint64, uint64) {
 	data, _ := db.Get(txLookupKey(hash))
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return common.Hash{}, 0, 0
 	}
 	var entry TxLookupEntry
@@ -328,7 +328,7 @@ func ReadTransaction(db kaidb.Reader, hash common.Hash) (*types.Transaction, com
 // hash to allow retrieving the event by hash.
 func ReadDualEventLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, uint64, uint64) {
 	data, _ := db.Get(dualEventLookupKey(hash))
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return common.Hash{}, 0, 0
 	}
 	var entry DualEventLookupEntry
@@ -638,12 +638,12 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 	// Save header height
 	key := headerHeightKey(hash)
 	if err := batch.Put(key, encodeBlockHeight(height)); err != nil {
-		panic(fmt.Errorf("Failed to store hash to height mapping err: %s", err))
+		panic(fmt.Errorf("failed to store hash to height mapping err: %s", err))
 	}
 
 	WriteCanonicalHash(batch, hash, height)
 	if err := batch.Write(); err != nil {
-		panic(fmt.Errorf("Failed to store block error: %s", err))
+		panic(fmt.Errorf("failed to store block error: %s", err))
 	}
 }
 
