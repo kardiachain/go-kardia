@@ -111,7 +111,7 @@ func VerifyProof(rootHash common.Hash, key []byte, proofDb kaidb.KeyValueReader)
 		if buf == nil {
 			return nil, fmt.Errorf("proof node %d (hash %064x) missing", i, wantHash)
 		}
-		n, err := decodeNode(wantHash[:], buf)
+		n, err := decodeNode(wantHash[:], buf, 0)
 		if err != nil {
 			return nil, fmt.Errorf("bad proof node %d: %v", i, err)
 		}
@@ -141,7 +141,7 @@ func proofToPath(rootHash common.Hash, root node, key []byte, proofDb kaidb.KeyV
 		if buf == nil {
 			return nil, fmt.Errorf("proof node (hash %064x) missing", hash)
 		}
-		n, err := decodeNode(hash[:], buf)
+		n, err := decodeNode(hash[:], buf, 0)
 		if err != nil {
 			return nil, fmt.Errorf("bad proof node %v", err)
 		}

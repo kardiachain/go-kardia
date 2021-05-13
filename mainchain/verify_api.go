@@ -22,8 +22,6 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/rpc"
@@ -32,7 +30,7 @@ import (
 
 // VerifyKaiAPI provides APIs to access Kai full node-related information.
 type VerifyKaiAPI struct {
-	kaiService *KardiaService
+	k *KardiaService
 }
 
 // NewVerifyKaiAPI creates a new Kai protocol API for full nodes.
@@ -41,11 +39,11 @@ func NewVerifyKaiAPI(kaiService *KardiaService) *PublicKaiAPI {
 }
 
 func (v *VerifyKaiAPI) GetValidatorSet(blockHeight rpc.BlockHeight) (*types.ValidatorSet, error) {
-	return v.kaiService.stateDB.LoadValidators(blockHeight.Uint64())
+	return v.k.stateDB.LoadValidators(blockHeight.Uint64())
 }
 
 func (v *VerifyKaiAPI) GetCommit(blockHeight rpc.BlockHeight) *types.Commit {
-	return v.kaiService.kaiDb.ReadCommit(blockHeight.Uint64())
+	return v.k.kaiDb.ReadCommit(blockHeight.Uint64())
 }
 
 // Result structs for GetProof
@@ -65,7 +63,7 @@ type StorageResult struct {
 }
 
 func (v *VerifyKaiAPI) GetProof(ctx context.Context, address common.Address, storageKeys []string, blockHeightOrHash rpc.BlockHeightOrHash) (*AccountResult, error) {
-	state, _, err := v.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
+	state, _, err := v.k.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
@@ -117,7 +115,7 @@ func (v *VerifyKaiAPI) GetProof(ctx context.Context, address common.Address, sto
 func toHexSlice(b [][]byte) []string {
 	r := make([]string, len(b))
 	for i := range b {
-		r[i] = hexutil.Encode(b[i])
+		r[i] = common.Encode(b[i])
 	}
 	return r
 }
