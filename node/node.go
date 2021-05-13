@@ -40,7 +40,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/metrics"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/lib/p2p/pex"
-	"github.com/kardiachain/go-kardia/lib/service"
 	bs "github.com/kardiachain/go-kardia/lib/service"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/rpc"
@@ -54,7 +53,7 @@ var (
 
 // Node is a container on which services can be registered.
 type Node struct {
-	service.BaseService
+	bs.BaseService
 	sw *p2p.Switch // p2p connections
 
 	eventmux *event.TypeMux // Event multiplexer used between the services of a stack
@@ -185,7 +184,7 @@ func New(conf *Config) (*Node, error) {
 	node.transport = transport
 	node.addrBook = addrBook
 	node.pexReactor = pexReactor
-	node.BaseService = *service.NewBaseService(logger, "Node", node)
+	node.BaseService = *bs.NewBaseService(logger, "Node", node)
 	node.stateDB = stateDB
 
 	// Configure RPC servers.
