@@ -614,11 +614,19 @@ func (a *PublicAccountAPI) Balance(ctx context.Context, address common.Address, 
 	return state.GetBalance(address).String(), nil
 }
 
-// Nonce return address's nonce
-func (a *PublicAccountAPI) Nonce(address string) (uint64, error) {
-	addr := common.HexToAddress(address)
-	nonce := a.kaiService.txPool.Nonce(addr)
-	return nonce, nil
+// Nonce the number of transactions the given address has sent for the given block number
+func (a *PublicTransactionAPI) Nonce(ctx context.Context, address common.Address, blockHeightOrHash rpc.BlockHeightOrHash) (uint64, error) {
+	// Ask transaction pool for the nonce which includes pending transactions
+	if blockHeight, ok := blockHeightOrHash.Height(); ok && blockHeight == rpc.PendingBlockHeight {
+		return a.s.txPool.Nonce(address), nil
+	}
+	// Resolve block number and use its state to ask for the nonce
+	state, _, err := a.s.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
+	if state == nil || err != nil {
+		return 0, err
+	}
+	nonce := state.GetNonce(address)
+	return nonce, state.Error()
 }
 
 // GetCode returns the code stored at the given address in the state for the given block height.
