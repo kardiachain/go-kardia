@@ -61,13 +61,13 @@ type Interpreter struct {
 	returnData []byte // Last CALL's return data for subsequent reuse
 }
 
-// callCtx contains the things that are per-call, such as stack and memory,
+// ScopeContext contains the things that are per-call, such as stack and memory,
 // but not transients like pc and gas
-type callCtx struct {
-	memory   *Memory
-	stack    *Stack
-	rstack   *ReturnStack
-	contract *Contract
+type ScopeContext struct {
+	Memory   *Memory
+	Stack    *Stack
+	Rstack   *ReturnStack
+	Contract *Contract
 }
 
 // NewInterpreter returns a new instance of the Interpreter.
@@ -116,10 +116,10 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		mem         = NewMemory()      // bound memory
 		stack       = newstack()       // local stack
 		returns     = newReturnStack() // local returns stack
-		callContext = &callCtx{
-			memory:   mem,
-			stack:    stack,
-			contract: contract,
+		callContext = &ScopeContext{
+			Memory:   mem,
+			Stack:    stack,
+			Contract: contract,
 		}
 		// For optimisation reason we're using uint64 as the program counter.
 		// It's theoretically possible to go above 2^64. The YP defines the PC
@@ -146,9 +146,19 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		defer func() {
 			if err != nil {
 				if !logged {
-					in.cfg.Tracer.CaptureState(in.kvm, pcCopy, op, gasCopy, cost, mem, stack, returns, in.returnData, contract, in.kvm.depth, err)
+					in.cfg.Tracer.CaptureState(in.kvm, pcCopy, op, gasCopy, cost, &ScopeContext{
+						Memory:   mem,
+						Stack:    stack,
+						Rstack:   returns,
+						Contract: contract,
+					}, in.returnData, in.kvm.depth, err)
 				} else {
-					in.cfg.Tracer.CaptureFault(in.kvm, pcCopy, op, gasCopy, cost, mem, stack, returns, contract, in.kvm.depth, err)
+					in.cfg.Tracer.CaptureFault(in.kvm, pcCopy, op, gasCopy, cost, &ScopeContext{
+						Memory:   mem,
+						Stack:    stack,
+						Rstack:   returns,
+						Contract: contract,
+					}, in.kvm.depth, err)
 				}
 			}
 		}()
@@ -231,7 +241,11 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		}
 		/* TODO(huny@): Add tracer later
 		if in.cfg.Debug {
-			in.cfg.Tracer.CaptureState(in.kvm, pc, op, gasCopy, cost, mem, stack, contract, in.kvm.depth, err)
+			in.cfg.Tracer.CaptureState(in.kvm, pc, op, gasCopy, cost, &ScopeContext{
+						Memory:   mem,
+						Stack:    stack,
+						Contract: contract,
+					}, in.kvm.depth, err)
 			logged = true
 		}
 		*/

@@ -316,7 +316,7 @@ func getPackedInput(p *Parser, kaiAbi *abi.ABI, method string, patterns []string
 // callStaticKardiaMasterSmc calls smc and return result in bytes format
 func callStaticKardiaMasterSmc(from common.Address, to common.Address, currentHeader *types.Header, chain vm.ChainContext, input []byte, statedb *state.StateDB) (result []byte, err error) {
 	ctx := vm.NewKVMContextFromDualNodeCall(from, currentHeader, chain)
-	vmenv := kvm.NewKVM(ctx, statedb, kvm.Config{})
+	vmenv := kvm.NewKVM(ctx, kvm.TxContext{}, statedb, kvm.Config{})
 	sender := kvm.AccountRef(from)
 	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(MaximumGasToCallFunction))
 	if err != nil {
@@ -333,7 +333,7 @@ func EstimateGas(from common.Address, to common.Address, currentHeader *types.He
 	vmContext := vm.NewKVMContext(msg, currentHeader, bc)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	kaiVm := kvm.NewKVM(vmContext, stateDb, kvm.Config{})
+	kaiVm := kvm.NewKVM(vmContext, kvm.TxContext{}, stateDb, kvm.Config{})
 	defer kaiVm.Cancel()
 	// Apply the transaction to the current state (included in the env)
 	gp := new(types.GasPool).AddGas(common.MaxUint64)

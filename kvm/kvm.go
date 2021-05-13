@@ -20,14 +20,15 @@ package kvm
 
 import (
 	"math/big"
+	"sync/atomic"
 	"time"
 
-	"sync/atomic"
-
 	"github.com/holiman/uint256"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -83,6 +84,22 @@ type Context struct {
 	Time        *big.Int       // Provides information for TIME
 }
 
+// TxContext provides the KVM with information about a transaction.
+// All fields can change between transactions.
+type TxContext struct {
+	// Message information
+	Origin   common.Address // Provides information for ORIGIN
+	GasPrice *big.Int       // Provides information for GASPRICE
+}
+
+// NewKVMTxContext creates a new transaction context for a single transaction.
+func NewKVMTxContext(msg blockchain.Message) TxContext {
+	return TxContext{
+		Origin:   msg.From(),
+		GasPrice: new(big.Int).Set(msg.GasPrice()),
+	}
+}
+
 // KVM is the Kardia Virtual Machine base object and provides
 // the necessary tools to run a contract on the given state with
 // the provided context. It should be noted that any error
@@ -117,7 +134,7 @@ type KVM struct {
 
 // NewKVM returns a new KVM. The returned KVM is not thread safe and should
 // only ever be used *once*.
-func NewKVM(ctx Context, statedb StateDB, vmConfig Config) *KVM {
+func NewKVM(ctx Context, txCtx TxContext, statedb StateDB, vmConfig Config) *KVM {
 	kvm := &KVM{
 		Context:  ctx,
 		StateDB:  statedb,
@@ -137,6 +154,11 @@ func (kvm *KVM) Cancel() {
 // Cancelled returns true if Cancel has been called
 func (kvm *KVM) Cancelled() bool {
 	return atomic.LoadInt32(&kvm.abort) == 1
+}
+
+// Interpreter returns the current interpreter
+func (kvm *KVM) Interpreter() *Interpreter {
+	return kvm.interpreter
 }
 
 // GetVmConfig returns kvm's config
@@ -168,9 +190,9 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	if !kvm.StateDB.Exist(addr) {
 		precompiles := PrecompiledContractsV0
 		if precompiles[addr] == nil && value.Sign() == 0 {
-			// Calling a non existing account, don't do antything, but ping the tracer
+			// Calling a non existing account, don't do anything, but ping the tracer
 			if kvm.vmConfig.Debug && kvm.depth == 0 {
-				kvm.vmConfig.Tracer.CaptureStart(caller.Address(), addr, false, input, gas, value)
+				kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), addr, false, input, gas, value)
 				kvm.vmConfig.Tracer.CaptureEnd(ret, 0, 0, nil)
 			}
 			return nil, gas, nil
@@ -181,7 +203,7 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 
 	// Capture the tracer start/end events in debug mode
 	if kvm.vmConfig.Debug && kvm.depth == 0 {
-		kvm.vmConfig.Tracer.CaptureStart(caller.Address(), addr, false, input, gas, value)
+		kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), addr, false, input, gas, value)
 		defer func(startGas uint64, startTime time.Time) { // Lazy evaluation of the parameters
 			kvm.vmConfig.Tracer.CaptureEnd(ret, startGas-gas, time.Since(startTime), err)
 		}(gas, time.Now())
@@ -402,7 +424,7 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	}
 
 	if kvm.vmConfig.Debug && kvm.depth == 0 {
-		kvm.vmConfig.Tracer.CaptureStart(caller.Address(), contractAddr, true, codeAndHash.code, gas, value)
+		kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), contractAddr, true, codeAndHash.code, gas, value)
 	}
 	start := time.Now()
 
