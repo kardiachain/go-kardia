@@ -479,9 +479,9 @@ func (b *Block) ValidateBasic() error {
 	}
 
 	if b.lastCommit == nil && !b.header.LastCommitHash.IsZero() {
-		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  lastCommit is nil, but expect zero hash, but got: %v", b.header.LastCommitHash)
+		return fmt.Errorf("wrong Block.Header.LastCommitHash.  lastCommit is nil, but expect zero hash, but got: %v", b.header.LastCommitHash)
 	} else if b.lastCommit != nil && !b.header.LastCommitHash.Equal(b.lastCommit.Hash()) {
-		return fmt.Errorf("Wrong Block.Header.LastCommitHash.  Expected %v, got %v.  Last commit %v", b.header.LastCommitHash, b.lastCommit.Hash(), b.lastCommit)
+		return fmt.Errorf("wrong Block.Header.LastCommitHash.  Expected %v, got %v.  Last commit %v", b.header.LastCommitHash, b.lastCommit.Hash(), b.lastCommit)
 	}
 
 	if w, g := b.transactions.Hash(), b.header.TxHash; !w.Equal(g) {
@@ -634,7 +634,7 @@ func (blockID BlockID) StringLong() string {
 func (blockID BlockID) ValidateBasic() error {
 
 	if err := blockID.PartsHeader.ValidateBasic(); err != nil {
-		return fmt.Errorf("Wrong PartsHeader: %v", err)
+		return fmt.Errorf("wrong PartsHeader: %v", err)
 	}
 	return nil
 }
@@ -692,10 +692,10 @@ func NewBlockMeta(block *Block, blockParts *PartSet) *BlockMeta {
 
 type BlockBy func(b1, b2 *Block) bool
 
-func (self BlockBy) Sort(blocks Blocks) {
+func (b BlockBy) Sort(blocks Blocks) {
 	bs := blockSorter{
 		blocks: blocks,
-		by:     self,
+		by:     b,
 	}
 	sort.Sort(bs)
 }
@@ -705,11 +705,11 @@ type blockSorter struct {
 	by     func(b1, b2 *Block) bool
 }
 
-func (self blockSorter) Len() int { return len(self.blocks) }
-func (self blockSorter) Swap(i, j int) {
-	self.blocks[i], self.blocks[j] = self.blocks[j], self.blocks[i]
+func (bs blockSorter) Len() int { return len(bs.blocks) }
+func (bs blockSorter) Swap(i, j int) {
+	bs.blocks[i], bs.blocks[j] = bs.blocks[j], bs.blocks[i]
 }
-func (self blockSorter) Less(i, j int) bool { return self.by(self.blocks[i], self.blocks[j]) }
+func (bs blockSorter) Less(i, j int) bool { return bs.by(bs.blocks[i], bs.blocks[j]) }
 
 func Height(b1, b2 *Block) bool { return b1.header.Height < b2.header.Height }
 
@@ -724,12 +724,12 @@ func DeriveSha(list DerivableList) common.Hash {
 	t := new(trie.Trie)
 	for i := 0; i < list.Len(); i++ {
 		keybuf.Reset()
-		rlp.Encode(keybuf, uint(i))
+		if err := rlp.Encode(keybuf, uint(i)); err != nil {
+			return common.Hash{}
+		}
 		t.Update(keybuf.Bytes(), list.GetRlp(i))
 	}
 	return t.Hash()
-
-	//return common.BytesToHash([]byte(""))
 }
 
 //-----------------------------------------------------------------------------

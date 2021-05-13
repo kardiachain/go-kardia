@@ -1008,13 +1008,11 @@ func executeValSetErrTestCase(t *testing.T, idx int, tt valSetErrTestCase) {
 }
 
 type testVSetCfg struct {
-	name         string
 	startVals    []testVal
 	deletedVals  []testVal
 	updatedVals  []testVal
 	addedVals    []testVal
 	expectedVals []testVal
-	expErr       error
 }
 
 func randTestVSetCfg(t *testing.T, nBase, nAddMax int) testVSetCfg {

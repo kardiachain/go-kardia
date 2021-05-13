@@ -25,7 +25,6 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/lib/common"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/merkle"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
 )
@@ -175,8 +174,8 @@ type Commit struct {
 	Round      uint32      `json:"round"`
 
 	// Volatile
-	hash     cmn.Hash
-	bitArray *cmn.BitArray
+	hash     common.Hash
+	bitArray *common.BitArray
 }
 
 // NewCommit returns a new Commit.
@@ -264,9 +263,9 @@ func (commit *Commit) Size() int {
 }
 
 // BitArray returns a BitArray of which validators voted in this commit
-func (commit *Commit) BitArray() *cmn.BitArray {
+func (commit *Commit) BitArray() *common.BitArray {
 	if commit.bitArray == nil {
-		commit.bitArray = cmn.NewBitArray(len(commit.Signatures))
+		commit.bitArray = common.NewBitArray(len(commit.Signatures))
 		for i, commitSig := range commit.Signatures {
 			// TODO: need to check the BlockID otherwise we could be counting conflicts,
 			// not just the one with +2/3 !
@@ -288,9 +287,9 @@ func (commit *Commit) IsCommit() bool {
 }
 
 // Hash returns the hash of the commit
-func (commit *Commit) Hash() cmn.Hash {
+func (commit *Commit) Hash() common.Hash {
 	if commit == nil {
-		return cmn.Hash{}
+		return common.Hash{}
 	}
 	if commit.hash.IsZero() {
 		bs := make([][]byte, len(commit.Signatures))
