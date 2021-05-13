@@ -87,7 +87,7 @@ func NewEnv(cfg *Config) *kvm.KVM {
 		GasPrice:    cfg.GasPrice,
 	}
 
-	return kvm.NewKVM(context, kvm.TxContext{}, cfg.State, cfg.KVMConfig)
+	return kvm.NewKVM(context, cfg.State, cfg.KVMConfig)
 }
 
 // Execute executes the code using the input as call data during the execution.

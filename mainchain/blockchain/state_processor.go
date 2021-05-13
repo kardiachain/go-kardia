@@ -90,7 +90,7 @@ func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, 
 	context := vm.NewKVMContext(msg, header, bc)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	vmenv := kvm.NewKVM(context, kvm.TxContext{}, statedb, cfg)
+	vmenv := kvm.NewKVM(context, statedb, cfg)
 	// Apply the transaction to the current state (included in the env)
 	result, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {

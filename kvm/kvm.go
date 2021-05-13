@@ -83,14 +83,6 @@ type Context struct {
 	Time        *big.Int       // Provides information for TIME
 }
 
-// TxContext provides the KVM with information about a transaction.
-// All fields can change between transactions.
-type TxContext struct {
-	// Message information
-	Origin   common.Address // Provides information for ORIGIN
-	GasPrice *big.Int       // Provides information for GASPRICE
-}
-
 // KVM is the Kardia Virtual Machine base object and provides
 // the necessary tools to run a contract on the given state with
 // the provided context. It should be noted that any error
@@ -125,7 +117,7 @@ type KVM struct {
 
 // NewKVM returns a new KVM. The returned KVM is not thread safe and should
 // only ever be used *once*.
-func NewKVM(ctx Context, txCtx TxContext, statedb StateDB, vmConfig Config) *KVM {
+func NewKVM(ctx Context, statedb StateDB, vmConfig Config) *KVM {
 	kvm := &KVM{
 		Context:  ctx,
 		StateDB:  statedb,

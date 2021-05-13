@@ -107,11 +107,3 @@ func Transfer(db kvm.StateDB, sender, recipient common.Address, amount *big.Int)
 	db.SubBalance(sender, amount)
 	db.AddBalance(recipient, amount)
 }
-
-// NewKVMTxContext creates a new transaction context for a single transaction.
-func NewKVMTxContext(origin common.Address, gasPrice *big.Int) kvm.TxContext {
-	return kvm.TxContext{
-		Origin:   origin,
-		GasPrice: new(big.Int).Set(gasPrice),
-	}
-}

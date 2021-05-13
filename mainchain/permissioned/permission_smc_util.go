@@ -185,7 +185,7 @@ func (s *PermissionSmcUtil) GetAdminNodeByIndex(index int64) (string, common.Add
 // The following function is just call the master smc and return result in bytes format
 func CallStaticKardiaMasterSmc(from common.Address, to common.Address, bc base.BaseBlockChain, input []byte, statedb *state.StateDB) (result []byte, err error) {
 	context := kvm2.NewKVMContextFromDualNodeCall(from, bc.CurrentHeader(), bc)
-	vmenv := kvm.NewKVM(context, kvm.TxContext{}, statedb, kvm.Config{})
+	vmenv := kvm.NewKVM(context, statedb, kvm.Config{})
 	sender := kvm.AccountRef(from)
 	ret, _, err := vmenv.StaticCall(sender, to, input, uint64(MaximumGasToCallStaticFunction))
 	if err != nil {
