@@ -28,7 +28,6 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -90,14 +89,6 @@ type TxContext struct {
 	// Message information
 	Origin   common.Address // Provides information for ORIGIN
 	GasPrice *big.Int       // Provides information for GASPRICE
-}
-
-// NewKVMTxContext creates a new transaction context for a single transaction.
-func NewKVMTxContext(msg blockchain.Message) TxContext {
-	return TxContext{
-		Origin:   msg.From(),
-		GasPrice: new(big.Int).Set(msg.GasPrice()),
-	}
 }
 
 // KVM is the Kardia Virtual Machine base object and provides

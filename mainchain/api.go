@@ -491,9 +491,9 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, erro
 }
 
 // GetTransaction gets transaction by transaction hash
-func (a *PublicTransactionAPI) GetTransaction(hash string) (*PublicTransaction, error) {
+func (a *PublicTransactionAPI) GetTransaction(ctx context.Context, hash string) (*PublicTransaction, error) {
 	txHash := common.HexToHash(hash)
-	tx, blockHash, height, index := a.s.kaiDb.ReadTransaction(txHash)
+	tx, blockHash, height, index := a.s.GetTransaction(ctx, txHash)
 
 	if tx == nil {
 		return nil, errors.New("tx for hash not found")
@@ -568,7 +568,7 @@ func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash co
 // GetTransactionReceipt gets transaction receipt from transaction, blockHash, blockHeight and index.
 func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash string) (*PublicReceipt, error) {
 	txHash := common.HexToHash(hash)
-	tx, blockHash, height, index := a.s.kaiDb.ReadTransaction(txHash)
+	tx, blockHash, height, index := a.s.GetTransaction(ctx, txHash)
 	if tx == nil {
 		return nil, nil
 	}

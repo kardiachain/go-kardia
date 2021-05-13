@@ -26,6 +26,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	mkvm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -163,8 +164,8 @@ func (k *KardiaService) stateAtTransaction(block *types.Block, txIndex int, reex
 	for idx, tx := range block.Transactions() {
 		// Assemble the transaction call message and return if the requested offset
 		msg, _ := tx.AsMessage(signer)
-		txContext := kvm.NewKVMTxContext(msg)
-		context := kvm.NewKVMContext(block.Header(), k.blockchain, nil)
+		txContext := mkvm.NewKVMTxContext(msg.From(), msg.GasPrice())
+		context := mkvm.NewKVMContext(msg, block.Header(), k.blockchain)
 		if idx == txIndex {
 			return msg, context, statedb, nil
 		}

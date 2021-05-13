@@ -22,6 +22,8 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -64,6 +66,11 @@ type APIBackend interface {
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
 	ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
 	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
+
+	// Tracer API
+	GetTransaction(ctx context.Context, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
+	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (*state.StateDB, error)
+	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error)
 }
 
 func (k *KardiaService) HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header {
@@ -169,7 +176,7 @@ func (k *KardiaService) GetKVM(ctx context.Context, msg types.Message, state *st
 	vmError := func() error { return nil }
 
 	context := vm.NewKVMContext(msg, header, k.BlockChain())
-	return kvm.NewKVM(context, state, *k.blockchain.GetVMConfig()), vmError, nil
+	return kvm.NewKVM(context, kvm.TxContext{}, state, *k.blockchain.GetVMConfig()), vmError, nil
 }
 
 // ValidatorsListFromStakingContract returns all validators on staking
@@ -304,4 +311,16 @@ func (k *KardiaService) ServiceFilter(ctx context.Context, session *bloombits.Ma
 
 func (k *KardiaService) SuggestPrice(ctx context.Context) (*big.Int, error) {
 	return k.gpo.SuggestPrice(ctx)
+}
+
+func (k *KardiaService) GetTransaction(ctx context.Context, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
+	return k.kaiDb.ReadTransaction(hash)
+}
+
+func (k *KardiaService) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (*state.StateDB, error) {
+	return k.stateAtBlock(block, reexec, base, checkLive)
+}
+
+func (k *KardiaService) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error) {
+	return k.stateAtTransaction(block, txIndex, reexec)
 }

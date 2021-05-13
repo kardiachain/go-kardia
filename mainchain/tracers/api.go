@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	mkvm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -44,13 +44,13 @@ const (
 // Backend interface provides the common API services (that are provided by
 // both full and light clients) with access to necessary functions.
 type Backend interface {
-	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
-	HeaderByHeight(ctx context.Context, height rpc.BlockHeight) (*types.Header, error)
-	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
-	BlockByHeight(ctx context.Context, height rpc.BlockHeight) (*types.Block, error)
+	HeaderByHash(ctx context.Context, hash common.Hash) *types.Header
+	HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header
+	BlockByHash(ctx context.Context, hash common.Hash) *types.Block
+	BlockByHeight(ctx context.Context, height rpc.BlockHeight) *types.Block
 	BlockByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Block, error)
-	GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error)
-	ChainDb() kaidb.Database
+	GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
+	ChainDb() types.StoreDB
 	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (*state.StateDB, error)
 	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error)
 }
@@ -60,12 +60,17 @@ type TracerAPI struct {
 	b Backend
 }
 
+// NewTracerAPI creates a new API definition for the tracing methods of the KardiaChain service.
+func NewTracerAPI(backend Backend) *TracerAPI {
+	return &TracerAPI{b: backend}
+}
+
 // TraceTransaction returns the structured logs created during the execution of EVM
 // and returns them as a JSON object.
 func (t *TracerAPI) TraceTransaction(ctx context.Context, hash common.Hash, config *TraceConfig) (interface{}, error) {
-	_, blockHash, blockHeight, index, err := t.b.GetTransaction(ctx, hash)
-	if err != nil {
-		return nil, err
+	tx, blockHash, blockHeight, index := t.b.GetTransaction(ctx, hash)
+	if tx == nil {
+		return nil, errors.New("tx for hash not found")
 	}
 	// It shouldn't happen in practice.
 	if blockHeight == 0 {
@@ -104,7 +109,7 @@ func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txc
 	var (
 		tracer    kvm.Tracer
 		err       error
-		txContext = kvm.NewKVMTxContext(message)
+		txContext = mkvm.NewKVMTxContext(message.From(), message.GasPrice())
 	)
 	switch {
 	case config != nil && config.Tracer != nil:
