@@ -267,12 +267,6 @@ func (s *KardiaService) APIs() []rpc.API {
 			Public:    true,
 		},
 		{
-			Namespace: "kai",
-			Version:   "1.0",
-			Service:   NewVerifyKaiAPI(s),
-			Public:    true,
-		},
-		{
 			Namespace: "tx",
 			Version:   "1.0",
 			Service:   NewPublicTransactionAPI(s),
