@@ -125,7 +125,7 @@ func (state *LastestBlockState) ToProto() (*kstate.State, error) {
 
 	//sm.Version = state.Version
 	sm.ChainID = state.ChainID
-	//sm.InitialHeight = state.InitialHeight
+	sm.InitialHeight = state.InitialHeight
 	sm.LastBlockHeight = state.LastBlockHeight
 
 	sm.LastBlockID = state.LastBlockID.ToProto()
@@ -168,7 +168,7 @@ func StateFromProto(pb *kstate.State) (*LastestBlockState, error) { //nolint:gol
 
 	//state.Version = pb.Version
 	state.ChainID = pb.ChainID
-	//state.InitialHeight = pb.InitialHeight
+	state.InitialHeight = pb.InitialHeight
 
 	bi, err := types.BlockIDFromProto(&pb.LastBlockID)
 	if err != nil {
