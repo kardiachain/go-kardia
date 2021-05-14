@@ -34,8 +34,8 @@ type VerifyKaiAPI struct {
 }
 
 // NewVerifyKaiAPI creates a new Kai protocol API for full nodes.
-func NewVerifyKaiAPI(kaiService *KardiaService) *PublicKaiAPI {
-	return &PublicKaiAPI{kaiService}
+func NewVerifyKaiAPI(kaiService *KardiaService) *VerifyKaiAPI {
+	return &VerifyKaiAPI{kaiService}
 }
 
 func (v *VerifyKaiAPI) GetValidatorSet(blockHeight rpc.BlockHeight) (*types.ValidatorSet, error) {
