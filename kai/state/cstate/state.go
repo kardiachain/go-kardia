@@ -74,7 +74,8 @@ type LastestBlockState struct {
 // Copy makes a copy of the State for mutating.
 func (state LastestBlockState) Copy() LastestBlockState {
 	return LastestBlockState{
-		ChainID: state.ChainID,
+		ChainID:       state.ChainID,
+		InitialHeight: state.InitialHeight,
 
 		LastBlockHeight:  state.LastBlockHeight,
 		LastBlockTotalTx: state.LastBlockTotalTx,
