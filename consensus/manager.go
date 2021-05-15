@@ -127,7 +127,7 @@ func (conR *ConsensusManager) OnStop() {
 
 // SwitchToConsensus switches from fast_sync mode to consensus mode.
 // It resets the state, turns off fast_sync, and starts the consensus state-machine
-func (conR *ConsensusManager) SwitchToConsensus(state cstate.LastestBlockState, skipWAL bool) {
+func (conR *ConsensusManager) SwitchToConsensus(state cstate.LatestBlockState, skipWAL bool) {
 	conR.Logger.Info("Switching to consensus", "block height", state.LastBlockHeight, "skipWAL", skipWAL)
 
 	// We have no votes, so reconstruct LastCommit from SeenCommit.
@@ -251,7 +251,7 @@ func (conR *ConsensusManager) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 	}
 
 	if err = msg.ValidateBasic(); err != nil {
-		conR.Logger.Error("Peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
+		conR.Logger.Error("peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
 		conR.Switch.StopPeerForError(src, err)
 		return
 	}
@@ -273,7 +273,7 @@ func (conR *ConsensusManager) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 			conR.conS.mtx.Unlock()
 
 			if err := msg.ValidateHeight(initialHeight); err != nil {
-				conR.Logger.Error("peer sent us an invalid msg", "msg", msg, "err", err)
+				conR.Logger.Warn("peer sent us an invalid msg", "msg", msg, "err", err)
 				return
 			}
 

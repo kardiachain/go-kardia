@@ -603,7 +603,7 @@ func splitAndTrimEmpty(s, sep, cutset string) []string {
 func makeNodeInfo(
 	config *Config,
 	nodeKey *p2p.NodeKey,
-	state cstate.LastestBlockState,
+	state cstate.LatestBlockState,
 ) (p2p.NodeInfo, error) {
 	txIndexerStatus := "on"
 

@@ -83,8 +83,8 @@ type mockBlockApplier struct {
 
 // XXX: Add whitelist/blacklist?
 func (mba *mockBlockApplier) ApplyBlock(
-	state cstate.LastestBlockState, blockID types.BlockID, block *types.Block,
-) (cstate.LastestBlockState, uint64, error) {
+	state cstate.LatestBlockState, blockID types.BlockID, block *types.Block,
+) (cstate.LatestBlockState, uint64, error) {
 	state.LastBlockHeight++
 	return state, 0, nil
 }
@@ -122,7 +122,7 @@ func (sio *mockSwitchIo) sendBlockNotFound(height uint64, peerID p2p.ID) error {
 	return nil
 }
 
-func (sio *mockSwitchIo) trySwitchToConsensus(state cstate.LastestBlockState, skipWAL bool) bool {
+func (sio *mockSwitchIo) trySwitchToConsensus(state cstate.LatestBlockState, skipWAL bool) bool {
 	sio.mtx.Lock()
 	defer sio.mtx.Unlock()
 	sio.switchedToConsensus = true
@@ -460,7 +460,7 @@ func makeTxs(height uint64) (txs []*types.Transaction) {
 	return txs
 }
 
-func makeBlock(height uint64, state cstate.LastestBlockState, lastCommit *types.Commit) *types.Block {
+func makeBlock(height uint64, state cstate.LatestBlockState, lastCommit *types.Commit) *types.Block {
 	block := types.NewBlock(&types.Header{
 		Height:             height,
 		ValidatorsHash:     state.Validators.Hash(),
@@ -470,7 +470,7 @@ func makeBlock(height uint64, state cstate.LastestBlockState, lastCommit *types.
 	return block
 }
 
-//func makeBlock(height uint64, state cstate.LastestBlockState, lastCommit *types.Commit) *types.Block {
+//func makeBlock(height uint64, state cstate.LatestBlockState, lastCommit *types.Commit) *types.Block {
 //	block := types.NewBlock(&types.Header{
 //		Height: height,
 //	}, makeTxs(height), lastCommit, nil)
@@ -517,7 +517,7 @@ func randGenesisDoc(chainID string, numValidators int, randPower bool, minPower 
 func newReactorStore(
 	genDoc *genesis.Genesis,
 	privVals []types.PrivValidator,
-	maxBlockHeight uint64) (blockStore, cstate.LastestBlockState, *cstate.BlockExecutor) {
+	maxBlockHeight uint64) (blockStore, cstate.LatestBlockState, *cstate.BlockExecutor) {
 	if len(privVals) != 1 {
 		panic("only support one validator")
 	}
@@ -527,20 +527,20 @@ func newReactorStore(
 	stakingUtil, err := staking.NewSmcStakingUtil()
 	if err != nil {
 		fmt.Println(err)
-		return nil, cstate.LastestBlockState{}, nil
+		return nil, cstate.LatestBlockState{}, nil
 	}
 	stateDB := memorydb.New()
 	kaiDb := kvstore.NewStoreDB(stateDB)
 	chainConfig, _, genesisErr := genesis.SetupGenesisBlock(logger, kaiDb, genDoc, stakingUtil)
 	if genesisErr != nil {
 		fmt.Println(genesisErr)
-		return nil, cstate.LastestBlockState{}, nil
+		return nil, cstate.LatestBlockState{}, nil
 	}
 	stateStore := cstate.NewStore(kaiDb.DB())
 	bc, err := blockchain.NewBlockChain(logger, kaiDb, chainConfig)
 	if err != nil {
 		fmt.Println(err)
-		return nil, cstate.LastestBlockState{}, nil
+		return nil, cstate.LatestBlockState{}, nil
 	}
 	txPool := tx_pool.NewTxPool(tx_pool.DefaultTxPoolConfig, chainConfig, bc)
 	bOper := blockchain.NewBlockOperations(logger, bc, txPool, nil, stakingUtil)
@@ -551,7 +551,7 @@ func newReactorStore(
 	}
 	eventBus, err := createAndStartEventBus(logger)
 	if err != nil {
-		return nil, cstate.LastestBlockState{}, nil
+		return nil, cstate.LatestBlockState{}, nil
 	}
 	blockExec := cstate.NewBlockExecutor(stateStore, logger, cstate.EmptyEvidencePool{}, bOper)
 	blockExec.SetEventBus(eventBus)

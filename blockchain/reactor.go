@@ -52,11 +52,11 @@ type blockVerifier interface {
 }
 
 type blockApplier interface {
-	ApplyBlock(state cstate.LastestBlockState, blockID types.BlockID, block *types.Block) (cstate.LastestBlockState, uint64, error)
+	ApplyBlock(state cstate.LatestBlockState, blockID types.BlockID, block *types.Block) (cstate.LatestBlockState, uint64, error)
 }
 
 // XXX: unify naming in this package around kaiState
-func newReactor(state cstate.LastestBlockState, store blockStore, reporter behaviour.Reporter,
+func newReactor(state cstate.LatestBlockState, store blockStore, reporter behaviour.Reporter,
 	blockApplier blockApplier, fastSync *configs.FastSyncConfig) *BlockchainReactor {
 	initHeight := state.LastBlockHeight + 1
 	if initHeight == 1 {
@@ -84,7 +84,7 @@ func newReactor(state cstate.LastestBlockState, store blockStore, reporter behav
 
 // NewBlockchainReactor creates a new reactor instance.
 func NewBlockchainReactor(
-	state cstate.LastestBlockState,
+	state cstate.LatestBlockState,
 	blockApplier blockApplier,
 	store blockStore,
 	fastSync *configs.FastSyncConfig) *BlockchainReactor {
@@ -144,7 +144,7 @@ func (r *BlockchainReactor) Start() error {
 
 // startSync begins a fast sync, signalled by r.events being non-nil. If state is non-nil,
 // the scheduler and processor is updated with this state on startup.
-func (r *BlockchainReactor) startSync(state *cstate.LastestBlockState) error {
+func (r *BlockchainReactor) startSync(state *cstate.LatestBlockState) error {
 	r.mtx.Lock()
 	defer r.mtx.Unlock()
 	if r.events != nil {
@@ -177,7 +177,7 @@ func (r *BlockchainReactor) endSync() {
 
 // TODO(trinhdn): call SwitchToFastSync after caught up
 // SwitchToFastSync is called when switching to fast sync.
-func (r *BlockchainReactor) SwitchToFastSync(state cstate.LastestBlockState) error {
+func (r *BlockchainReactor) SwitchToFastSync(state cstate.LatestBlockState) error {
 	r.fastSync = true
 	state = state.Copy()
 	return r.startSync(&state)
@@ -279,7 +279,7 @@ func (resp bcRemovePeer) String() string {
 // resets the scheduler and processor state, e.g. following a switch from state syncing
 type bcResetState struct {
 	priorityHigh
-	state cstate.LastestBlockState
+	state cstate.LatestBlockState
 }
 
 func (e bcResetState) String() string {

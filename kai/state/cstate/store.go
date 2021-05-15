@@ -45,9 +45,9 @@ const (
 )
 
 type Store interface {
-	LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (LastestBlockState, error)
-	Load() LastestBlockState
-	Save(LastestBlockState)
+	LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (LatestBlockState, error)
+	Load() LatestBlockState
+	Save(LatestBlockState)
 	LoadValidators(height uint64) (*types.ValidatorSet, error)
 	LoadConsensusParams(height uint64) (kproto.ConsensusParams, error)
 }
@@ -73,7 +73,7 @@ func NewStore(db kaidb.Database) Store {
 // LoadStateFromDBOrGenesisDoc loads the most recent state from the database,
 // or creates a new one from the given genesisDoc and persists the result
 // to the database.
-func (s *dbStore) LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (LastestBlockState, error) {
+func (s *dbStore) LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (LatestBlockState, error) {
 	state := s.Load()
 
 	if state.IsEmpty() {
@@ -89,11 +89,11 @@ func (s *dbStore) LoadStateFromDBOrGenesisDoc(genesisDoc *genesis.Genesis) (Last
 
 // SaveState persists the State, the ValidatorsInfo, and the ConsensusParamsInfo to the database.
 // This flushes the writes (e.g. calls SetSync).
-func (s *dbStore) Save(state LastestBlockState) {
+func (s *dbStore) Save(state LatestBlockState) {
 	saveState(s.db, state, stateKey)
 }
 
-func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
+func saveState(db kaidb.KeyValueStore, state LatestBlockState, key []byte) {
 	nextHeight := state.LastBlockHeight + 1
 	// If first block, save validators for block 1.
 	if nextHeight == 1 {
@@ -110,11 +110,11 @@ func saveState(db kaidb.KeyValueStore, state LastestBlockState, key []byte) {
 }
 
 // LoadState loads the State from the database.
-func (s *dbStore) Load() LastestBlockState {
+func (s *dbStore) Load() LatestBlockState {
 	return loadState(s.db, stateKey)
 }
 
-func loadState(db kaidb.Database, key []byte) (state LastestBlockState) {
+func loadState(db kaidb.Database, key []byte) (state LatestBlockState) {
 	buf, _ := db.Get(key)
 
 	if len(buf) == 0 {
@@ -320,7 +320,7 @@ func saveConsensusParamsInfo(db kaidb.Database, nextHeight, changeHeight uint64,
 }
 
 // MakeGenesisState creates state from types.GenesisDoc.
-func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
+func MakeGenesisState(genDoc *genesis.Genesis) (LatestBlockState, error) {
 	var validatorSet, nextValidatorSet *types.ValidatorSet
 	if genDoc.Validators == nil {
 		validatorSet = nil
@@ -338,7 +338,7 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LastestBlockState, error) {
 		validatorSet = types.NewValidatorSet(validators)
 		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
 	}
-	return LastestBlockState{
+	return LatestBlockState{
 		LastBlockHeight: 0,
 		InitialHeight:   genDoc.InitialHeight,
 		LastBlockID:     types.BlockID{},

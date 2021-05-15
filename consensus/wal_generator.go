@@ -43,7 +43,7 @@ func WALGenerateNBlocks(t *testing.T, wr io.Writer, numBlocks int) (err error) {
 
 	configs.AddDefaultContract()
 
-	state := cstate.LastestBlockState{
+	state := cstate.LatestBlockState{
 		ChainID:                     "kaicon",
 		LastBlockHeight:             0,
 		LastBlockID:                 types.NewZeroBlockID(),
