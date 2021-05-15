@@ -333,6 +333,11 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 			panic(fmt.Sprintf("Inconsistent cs.state.LastBlockHeight+1 %v vs cs.Height %v",
 				cs.state.LastBlockHeight+1, cs.Height))
 		}
+
+		if cs.state.LastBlockHeight > 0 && cs.Height == cs.state.InitialHeight {
+			panic(fmt.Sprintf("Inconsistent cs.state.LastBlockHeight %v, expected 1 for initial height %v",
+				cs.state.LastBlockHeight, cs.state.InitialHeight))
+		}
 		// If state isn't further out than cs.state, just ignore.
 		// This happens when SwitchToConsensus() is called in the reactor.
 		// We don't want to reset e.g. the Votes, but we still want to
@@ -365,16 +370,19 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 		}
 		cs.LastCommit = cs.Votes.Precommits(cs.CommitRound)
 	case cs.LastCommit == nil:
-		// NOTE: when Tendermint starts, it has no votes. reconstructLastCommit
+		// NOTE: when consensus starts, it has no votes. reconstructLastCommit
 		// must be called to reconstruct LastCommit from SeenCommit.
 		// @lew: Uncomment after implement switchToConsensus
-		//panic(fmt.Sprintf("LastCommit cannot be empty after initial block (H:%d)",
-		//	state.LastBlockHeight+1,
-		//))
+		panic(fmt.Sprintf("LastCommit cannot be empty after initial block (H:%d)",
+			state.LastBlockHeight+1,
+		))
 	}
 
 	// Next desired block height
 	height := state.LastBlockHeight + 1
+	if height == 1 {
+		height = state.InitialHeight
+	}
 
 	// RoundState fields
 	cs.updateHeight(height)
@@ -568,7 +576,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 			}
 
 			var timestamp time.Time
-			if voteErr.VoteA.Height == 1 {
+			if voteErr.VoteA.Height == cs.state.InitialHeight {
 				timestamp = cs.state.LastBlockTime // genesis time
 			} else {
 				timestamp = cstate.MedianTime(cs.LastCommit.MakeCommit(), cs.LastValidators)
@@ -1505,20 +1513,28 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 // error.
 func (cs *ConsensusState) createProposalBlock() (*types.Block, *types.PartSet) {
 	cs.Logger.Trace("createProposalBlock")
+
+	if cs.privValidator == nil {
+		panic("entered createProposalBlock with privValidator being nil")
+	}
+
 	var commit *types.Commit
-	if cs.Height == 1 {
+
+	switch {
+	case cs.Height == cs.state.InitialHeight:
 		// We're creating a proposal for the first block.
-		commit = &types.Commit{}
+		// The commit is empty, but not nil.
+		commit = types.NewCommit(0, 0, types.BlockID{}, nil)
 		cs.Logger.Trace("enterPropose: First height, use empty Commit.")
-	} else if cs.LastCommit.HasTwoThirdsMajority() {
+	case cs.LastCommit.HasTwoThirdsMajority():
 		// Make the commit from LastCommit
 		commit = cs.LastCommit.MakeCommit()
 		cs.Logger.Trace("enterPropose: Subsequent height, use last commit.", "commit", commit)
-	} else {
-		// This shouldn't happen.
-		cs.Logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
+	default: // This shouldn't happen.
+		cs.Logger.Error("enterPropose: Cannot propose anything: No commit for the previous block")
 		return nil, nil
 	}
+
 	return cs.blockOperations.CreateProposalBlock(
 		cs.Height,
 		cs.state,
@@ -1678,7 +1694,6 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 			err = nil
 		}
 	case *VoteMessage:
-
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
 		cs.Logger.Trace("handling AddVote", "VoteMessage", msg.Vote)

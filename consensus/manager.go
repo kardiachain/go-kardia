@@ -881,9 +881,7 @@ func (m *NewRoundStepMessage) ValidateBasic() error {
 	// LastCommitRound will be 0 for the initial height, but we don't know what height this is
 	// since it can be specified in genesis. The reactor will have to validate this via
 	// ValidateHeight().
-	if m.LastCommitRound < 1 {
-		return ErrWrongLastCommitRound
-	}
+	// No need to check negative LastCommitRound here
 
 	return nil
 }
@@ -899,7 +897,7 @@ func (m *NewRoundStepMessage) ValidateHeight(initialHeight uint64) error {
 			m.LastCommitRound, initialHeight)
 	}
 	if m.Height > initialHeight {
-		return fmt.Errorf("lastCommitRound can only be 0 for initial height %v", // nolint
+		return fmt.Errorf("lastCommitRound can only be 1 for initial height %v", // nolint
 			initialHeight)
 	}
 	return nil
