@@ -794,7 +794,7 @@ func (cs *ConsensusState) voteTime() time.Time {
 	now := ktime.Now()
 	minVoteTime := now
 	// TODO: We should remove next line in case we don't vote for v in case cs.ProposalBlock == nil,
-	// even if cs.LockedBlock != nil. See https://github.com/tendermint/spec.
+	// even if cs.LockedBlock != nil
 	timeIota := time.Duration(cs.state.ConsensusParams.Block.TimeIotaMs)
 	if cs.LockedBlock != nil {
 		minVoteTime = cs.LockedBlock.Time().Add(timeIota)

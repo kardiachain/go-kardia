@@ -260,7 +260,7 @@ func (m *BlockID) GetPartSetHeader() PartSetHeader {
 	return PartSetHeader{}
 }
 
-// Header defines the structure of a Tendermint block header.
+// Header defines the structure of a block header.
 type Header struct {
 	// basic block info
 	ChainID  string    `protobuf:"bytes,2,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
