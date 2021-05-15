@@ -42,7 +42,7 @@ func (s Storage) Copy() Storage {
 	return cpy
 }
 
-// LogConfig are the configuration options for structured logger the EVM
+// LogConfig are the configuration options for structured logger the KVM
 type LogConfig struct {
 	DisableMemory     bool // disable memory capture
 	DisableStack      bool // disable stack capture
@@ -54,7 +54,7 @@ type LogConfig struct {
 
 //go:generate gencodec -type StructLog -field-override structLogMarshaling -out gen_structlog.go
 
-// StructLog is emitted to the EVM each cycle and lists information about the current internal state
+// StructLog is emitted to the KVM each cycle and lists information about the current internal state
 // prior to the execution of the statement.
 type StructLog struct {
 	Pc            uint64                      `json:"pc"`
@@ -108,7 +108,7 @@ type Tracer interface {
 	CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error)
 }
 
-// StructLogger is an EVM state logger and implements Tracer.
+// StructLogger is an KVM state logger and implements Tracer.
 //
 // StructLogger can capture state based on the given Log configuration and also keeps
 // a track record of modified storage which is used in reporting snapshots of the
@@ -196,7 +196,7 @@ func (l *StructLogger) CaptureState(env *KVM, pc uint64, op OpCode, gas, cost ui
 		rdata = make([]byte, len(rData))
 		copy(rdata, rData)
 	}
-	// create a new snapshot of the EVM.
+	// create a new snapshot of the KVM.
 	log := StructLog{pc, op, gas, cost, mem, scope.Memory.Len(), stck, rstack, rdata, storage, depth, env.StateDB.GetRefund(), err}
 	l.logs = append(l.logs, log)
 }
@@ -315,7 +315,7 @@ func (t *mdLogger) CaptureStart(env *KVM, from common.Address, to common.Address
 func (t *mdLogger) CaptureState(env *KVM, pc uint64, op OpCode, gas, cost uint64, scope *ScopeContext, rData []byte, depth int, err error) {
 	fmt.Fprintf(t.out, "| %4d  | %10v  |  %3d |", pc, op, cost)
 
-	if !t.cfg.DisableStack { // format Stack
+	if !t.cfg.DisableStack { // format stack
 		var a []string
 		for _, elem := range scope.Stack.data {
 			a = append(a, fmt.Sprintf("%d", elem))
@@ -323,7 +323,7 @@ func (t *mdLogger) CaptureState(env *KVM, pc uint64, op OpCode, gas, cost uint64
 		b := fmt.Sprintf("[%v]", strings.Join(a, ","))
 		fmt.Fprintf(t.out, "%10v |", b)
 	}
-	if !t.cfg.DisableStack { // format return Stack
+	if !t.cfg.DisableStack { // format return stack
 		var a []string
 		for _, elem := range scope.Rstack.data {
 			a = append(a, fmt.Sprintf("%2d", elem))

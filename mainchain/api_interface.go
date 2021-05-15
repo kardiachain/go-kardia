@@ -22,8 +22,6 @@ import (
 	"context"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
-
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -31,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/bloombits"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/rpc"

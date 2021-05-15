@@ -76,7 +76,7 @@ func NewTracerAPI(backend Backend) *TracerAPI {
 	return &TracerAPI{b: backend}
 }
 
-// TraceTransaction returns the structured logs created during the execution of EVM
+// TraceTransaction returns the structured logs created during the execution of KVM
 // and returns them as a JSON object.
 func (t *TracerAPI) TraceTransaction(ctx context.Context, hash common.Hash) (interface{}, error) {
 	tx, blockHash, blockHeight, index := t.b.GetTransaction(ctx, hash)

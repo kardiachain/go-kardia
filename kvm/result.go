@@ -26,9 +26,9 @@ import (
 // ExecutionResult includes all output after executing given kvm
 // message no matter the execution itself is successful or not.
 type ExecutionResult struct {
-	UsedGas    uint64 `json:"usedGas"`    // Total used gas but include the refunded gas
-	Err        error  `json:"err"`        // Any error encountered during the execution(listed in kvm/errors.go)
-	ReturnData []byte `json:"returnData"` // Returned data from kvm (function result or data supplied with revert opcode)
+	UsedGas    uint64 // Total used gas but include the refunded gas
+	Err        error  // Any error encountered during the execution(listed in kvm/errors.go)
+	ReturnData []byte // Returned data from kvm (function result or data supplied with revert opcode)
 }
 
 // Unwrap returns the internal kvm error which allows us for further

@@ -188,8 +188,8 @@ func opMulmod(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 }
 
 // opSHL implements Shift Left
-// The SHL instruction (shift left) pops 2 values from the Stack, first arg1 and then arg2,
-// and pushes on the Stack arg2 shifted to the left by arg1 number of bits.
+// The SHL instruction (shift left) pops 2 values from the stack, first arg1 and then arg2,
+// and pushes on the stack arg2 shifted to the left by arg1 number of bits.
 func opSHL(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 	// Note, second operand is left in the Stack; accumulate result into it, and no need to push it afterwards
 	shift, value := callContext.Stack.pop(), callContext.Stack.peek()
@@ -202,8 +202,8 @@ func opSHL(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 }
 
 // opSHR implements Logical Shift Right
-// The SHR instruction (logical shift right) pops 2 values from the Stack, first arg1 and then arg2,
-// and pushes on the Stack arg2 shifted to the right by arg1 number of bits with zero fill.
+// The SHR instruction (logical shift right) pops 2 values from the stack, first arg1 and then arg2,
+// and pushes on the stack arg2 shifted to the right by arg1 number of bits with zero fill.
 func opSHR(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 	// Note, second operand is left in the Stack; accumulate result into it, and no need to push it afterwards
 	shift, value := callContext.Stack.pop(), callContext.Stack.peek()
@@ -216,8 +216,8 @@ func opSHR(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 }
 
 // opSAR implements Arithmetic Shift Right
-// The SAR instruction (arithmetic shift right) pops 2 values from the Stack, first arg1 and then arg2,
-// and pushes on the Stack arg2 shifted to the right by arg1 number of bits with sign extension.
+// The SAR instruction (arithmetic shift right) pops 2 values from the stack, first arg1 and then arg2,
+// and pushes on the stack arg2 shifted to the right by arg1 number of bits with sign extension.
 func opSAR(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 	shift, value := callContext.Stack.pop(), callContext.Stack.peek()
 	if shift.GtUint64(256) {
@@ -391,13 +391,13 @@ func opExtCodeCopy(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, err
 // opExtCodeHash returns the code hash of a specified account.
 // There are several cases when the function is called, while we can relay everything
 // to `state.GetCodeHash` function to ensure the correctness.
-//   (1) Caller tries to get the code hash of a normal Contract account, state
+//   (1) Caller tries to get the code hash of a normal contract account, state
 // should return the relative code hash and set it as the result.
 //
 //   (2) Caller tries to get the code hash of a non-existent account, state should
 // return common.Hash{} and zero will be set as the result.
 //
-//   (3) Caller tries to get the code hash for an account without Contract code,
+//   (3) Caller tries to get the code hash for an account without contract code,
 // state should return emptyCodeHash(0xc5d246...) as the result.
 //
 //   (4) Caller tries to get the code hash of a precompiled account, the result
@@ -568,7 +568,7 @@ func opReturnSub(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error
 	if len(callContext.Rstack.data) == 0 {
 		return nil, ErrInvalidRetsub
 	}
-	// Other than the check that the return Stack is not empty, there is no
+	// Other than the check that the return stack is not empty, there is no
 	// need to validate the pc from 'returns', since we only ever push valid
 	//values onto it via jumpsub.
 	*pc = uint64(callContext.Rstack.pop()) + 1
@@ -651,7 +651,7 @@ func opCreate2(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) 
 	}
 	res, addr, returnGas, suberr := kvm.Create2(callContext.Contract, input, gas,
 		bigEndowment, &salt)
-	// Push item on the Stack based on the returned error.
+	// Push item on the stack based on the returned error.
 	if suberr != nil {
 		stackvalue.Clear()
 	} else {
@@ -675,12 +675,12 @@ func opCall(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) {
 	// Pop other call parameters.
 	addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
 	toAddr := common.Address(addr.Bytes20())
-	// Get the arguments from the Memory.
+	// Get the arguments from the memory.
 	args := callContext.Memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
 	var bigVal = big0
 	//TODO: use uint256.Int instead of converting with toBig()
-	// By using big0 here, we save an alloc for the most common case (non-ether-transferring Contract calls),
+	// By using big0 here, we save an alloc for the most common case (non-ether-transferring contract calls),
 	// but it would make more sense to extend the usage of uint256.Int
 	if !value.IsZero() {
 		gas += configs.CallStipend
@@ -712,7 +712,7 @@ func opCallCode(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error)
 	// Pop other call parameters.
 	addr, value, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
 	toAddr := common.Address(addr.Bytes20())
-	// Get arguments from the Memory.
+	// Get arguments from the memory.
 	args := callContext.Memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
 	//TODO: use uint256.Int instead of converting with toBig()
@@ -746,7 +746,7 @@ func opDelegateCall(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, er
 	// Pop other call parameters.
 	addr, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
 	toAddr := common.Address(addr.Bytes20())
-	// Get arguments from the Memory.
+	// Get arguments from the memory.
 	args := callContext.Memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
 	ret, returnGas, err := kvm.DelegateCall(callContext.Contract, toAddr, args, gas)
@@ -773,7 +773,7 @@ func opStaticCall(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, erro
 	// Pop other call parameters.
 	addr, inOffset, inSize, retOffset, retSize := stack.pop(), stack.pop(), stack.pop(), stack.pop(), stack.pop()
 	toAddr := common.Address(addr.Bytes20())
-	// Get arguments from the Memory.
+	// Get arguments from the memory.
 	args := callContext.Memory.GetPtr(int64(inOffset.Uint64()), int64(inSize.Uint64()))
 
 	ret, returnGas, err := kvm.StaticCall(callContext.Contract, toAddr, args, gas)
