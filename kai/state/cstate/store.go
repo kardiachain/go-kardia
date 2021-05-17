@@ -343,15 +343,15 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LatestBlockState, error) {
 		nextValidatorSet = types.NewValidatorSet(validators).CopyIncrementProposerPriority(1)
 	}
 	return LatestBlockState{
-		LastBlockHeight: 0,
 		InitialHeight:   genDoc.InitialHeight,
+		LastBlockHeight: 0,
 		LastBlockID:     types.BlockID{},
 		LastBlockTime:   genDoc.Timestamp,
 
 		NextValidators:              nextValidatorSet,
 		Validators:                  validatorSet,
 		LastValidators:              nil,
-		LastHeightValidatorsChanged: genDoc.InitialHeight,
+		LastHeightValidatorsChanged: 0,
 
 		ConsensusParams:                  *genDoc.ConsensusParams,
 		LastHeightConsensusParamsChanged: 1,

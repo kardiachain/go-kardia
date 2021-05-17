@@ -502,6 +502,7 @@ func randGenesisDoc(chainID string, numValidators int, randPower bool, minPower 
 	}
 	sort.Sort(types.PrivValidatorsByAddress(privValidators))
 	g := &genesis.Genesis{
+		InitialHeight:   1,
 		Timestamp:       kaitime.Now(),
 		ChainID:         chainID,
 		Validators:      validators,
@@ -585,9 +586,8 @@ func newReactorStore(
 
 		state, _, err = blockExec.ApplyBlock(state, blockID, thisBlock)
 		if err != nil {
-			fmt.Printf("%+v\n%+v\n%+v\n%+v\n\n", lastCommit, state, blockID, thisBlock)
 			// TODO: need to fix unit test for successfully apply block here
-			//panic(fmt.Errorf("error apply block: %w", err))
+			// panic(fmt.Errorf("error apply block: %w", err))
 		}
 
 		bOper.SaveBlock(thisBlock, thisParts, lastCommit)

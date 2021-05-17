@@ -89,14 +89,14 @@ func ValidateMsg(pb proto.Message) error {
 		}
 	case *bcproto.NoBlockResponse:
 		if msg.Height < 1 {
-			return errors.New("negative Height")
+			return errors.New("invalid Height")
 		}
 	case *bcproto.StatusResponse:
 		if msg.Base < 1 {
-			return errors.New("negative Base")
+			return errors.New("invalid Base")
 		}
 		if msg.Height < 1 {
-			return errors.New("negative Height")
+			return errors.New("invalid Height")
 		}
 		if msg.Base > msg.Height {
 			return fmt.Errorf("base %v cannot be greater than height %v", msg.Base, msg.Height)

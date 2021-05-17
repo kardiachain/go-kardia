@@ -53,8 +53,8 @@ func initializeValidatorState(prival types.PrivValidator, height uint64) cState.
 	nextVal := valSet.Copy()
 	nextVal.IncrementProposerPriority(1)
 	state := cState.LatestBlockState{
-		LastBlockHeight:             0,
 		InitialHeight:               1,
+		LastBlockHeight:             0,
 		LastBlockTime:               time.Now(),
 		Validators:                  valSet,
 		NextValidators:              nextVal,
