@@ -250,6 +250,7 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 	// state, err := cstate.LoadStateFromDBOrGenesisDoc(kaiDb.DB(), config.Genesis)
 	state := cstate.LatestBlockState{
 		ChainID:                     "kaicon",
+		InitialHeight:               1,
 		LastBlockHeight:             0,
 		LastBlockID:                 types.NewZeroBlockID(),
 		LastBlockTime:               time.Now(),

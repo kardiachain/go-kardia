@@ -87,6 +87,7 @@ func TestVerifyDuplicateVoteEvidence(t *testing.T) {
 
 	state := cstate.LatestBlockState{
 		ChainID:         chainID,
+		InitialHeight:   1,
 		LastBlockTime:   defaultEvidenceTime.Add(1 * time.Minute),
 		LastBlockHeight: 11,
 		ConsensusParams: *types.DefaultConsensusParams(),
