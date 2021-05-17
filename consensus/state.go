@@ -322,7 +322,7 @@ func (cs *ConsensusState) OnStop() {
 // Updates ConsensusState and increments height to match that of state.
 // The round becomes 0 and cs.Step becomes cstypes.RoundStepNewHeight.
 func (cs *ConsensusState) updateToState(state cstate.LatestBlockState) {
-	if (cs.CommitRound >= 1) && (cs.Height > 0) && cs.Height != state.LastBlockHeight {
+	if (cs.CommitRound > 0) && (cs.Height > 0) && cs.Height != state.LastBlockHeight {
 		cmn.PanicSanity(cmn.Fmt("updateToState() expected state height of %v but found %v",
 			cs.Height, state.LastBlockHeight))
 	}
@@ -333,7 +333,6 @@ func (cs *ConsensusState) updateToState(state cstate.LatestBlockState) {
 			panic(fmt.Sprintf("Inconsistent cs.state.LastBlockHeight+1 %v vs cs.Height %v",
 				cs.state.LastBlockHeight+1, cs.Height))
 		}
-
 		if cs.state.LastBlockHeight > 0 && cs.Height == cs.state.InitialHeight {
 			panic(fmt.Sprintf("Inconsistent cs.state.LastBlockHeight %v, expected 1 for initial height %v",
 				cs.state.LastBlockHeight, cs.state.InitialHeight))

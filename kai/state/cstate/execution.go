@@ -143,6 +143,7 @@ func updateState(logger log.Logger, state LatestBlockState, blockID types.BlockI
 	nValSet.IncrementProposerPriority(1)
 	return LatestBlockState{
 		ChainID:                     state.ChainID,
+		InitialHeight:               state.InitialHeight,
 		LastBlockHeight:             header.Height,
 		LastBlockID:                 blockID,
 		LastBlockTime:               header.Time,

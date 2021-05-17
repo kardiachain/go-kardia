@@ -268,9 +268,10 @@ func (conR *ConsensusManager) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 	case StateChannel:
 		switch msg := msg.(type) {
 		case *NewRoundStepMessage:
-			conR.conS.mtx.Lock()
-			initialHeight := conR.conS.state.InitialHeight
-			conR.conS.mtx.Unlock()
+			cs := conR.conS
+			cs.mtx.Lock()
+			initialHeight := cs.state.InitialHeight
+			cs.mtx.Unlock()
 
 			if err := msg.ValidateHeight(initialHeight); err != nil {
 				conR.Logger.Warn("peer sent us an invalid msg", "msg", msg, "err", err)
@@ -896,7 +897,7 @@ func (m *NewRoundStepMessage) ValidateHeight(initialHeight uint64) error {
 		return fmt.Errorf("invalid LastCommitRound %v (must be 0 for initial height %v)",
 			m.LastCommitRound, initialHeight)
 	}
-	if m.Height > initialHeight {
+	if m.Height > initialHeight && m.LastCommitRound < 1 {
 		return fmt.Errorf("lastCommitRound can only be 1 for initial height %v", // nolint
 			initialHeight)
 	}

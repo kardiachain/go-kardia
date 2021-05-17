@@ -167,7 +167,6 @@ func StateFromProto(pb *kstate.State) (*LatestBlockState, error) { //nolint:goli
 
 	state := new(LatestBlockState)
 
-	//state.Version = pb.Version
 	state.ChainID = pb.ChainID
 	state.InitialHeight = pb.InitialHeight
 

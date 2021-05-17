@@ -321,6 +321,10 @@ func saveConsensusParamsInfo(db kaidb.Database, nextHeight, changeHeight uint64,
 
 // MakeGenesisState creates state from types.GenesisDoc.
 func MakeGenesisState(genDoc *genesis.Genesis) (LatestBlockState, error) {
+	if genDoc.InitialHeight == 0 {
+		genDoc.InitialHeight = 1
+	}
+
 	var validatorSet, nextValidatorSet *types.ValidatorSet
 	if genDoc.Validators == nil {
 		validatorSet = nil
@@ -347,7 +351,7 @@ func MakeGenesisState(genDoc *genesis.Genesis) (LatestBlockState, error) {
 		NextValidators:              nextValidatorSet,
 		Validators:                  validatorSet,
 		LastValidators:              nil,
-		LastHeightValidatorsChanged: 0,
+		LastHeightValidatorsChanged: genDoc.InitialHeight,
 
 		ConsensusParams:                  *genDoc.ConsensusParams,
 		LastHeightConsensusParamsChanged: 1,
