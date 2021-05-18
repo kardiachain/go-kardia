@@ -12,7 +12,7 @@ require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200531234253-77e06fda0c94+incompatible // indirect
 	github.com/ebuchman/fail-test v0.0.0-20170303061230-95f809107225
-	github.com/ethereum/go-ethereum v1.9.18
+	github.com/ethereum/go-ethereum v1.9.15
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5 // indirect
 	github.com/fortytw2/leaktest v1.3.0
 	github.com/go-stack/stack v1.8.0
