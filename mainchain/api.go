@@ -40,44 +40,46 @@ import (
 
 // BlockHeaderJSON represents BlockHeader in JSON format
 type BlockHeaderJSON struct {
-	Hash              string      `json:"hash"`
-	Height            uint64      `json:"height"`
-	LastBlock         string      `json:"lastBlock"`
-	CommitHash        string      `json:"commitHash"`
-	Time              time.Time   `json:"time"`
-	NumTxs            uint64      `json:"numTxs"`
-	GasUsed           uint64      `json:"gasUsed"`
-	GasLimit          uint64      `json:"gasLimit"`
-	Rewards           string      `json:"Rewards"`
-	ProposerAddress   string      `json:"proposerAddress"`
-	TxHash            string      `json:"dataHash"` // transactions
-	Bloom             types.Bloom `json:"logsBloom"`
-	ValidatorsHash    string      `json:"validatorHash"`     // current block validators hash
-	NextValidatorHash string      `json:"nextValidatorHash"` // next block validators hash
-	ConsensusHash     string      `json:"consensusHash"`     // current consensus hash
-	AppHash           string      `json:"appHash"`           // state of transactions
-	EvidenceHash      string      `json:"evidenceHash"`      // hash of evidence
+	Hash              common.Hash    `json:"hash"`
+	Height            uint64         `json:"height"`
+	LastBlock         common.Hash    `json:"lastBlock"`
+	LastBlockID       *types.BlockID `json:"lastBlockID"`
+	CommitHash        common.Hash    `json:"commitHash"`
+	Time              time.Time      `json:"time"`
+	NumTxs            uint64         `json:"numTxs"`
+	GasUsed           uint64         `json:"gasUsed"`
+	GasLimit          uint64         `json:"gasLimit"`
+	Rewards           *big.Int       `json:"Rewards"`
+	ProposerAddress   common.Address `json:"proposerAddress"`
+	TxHash            common.Hash    `json:"dataHash"` // transactions
+	Bloom             types.Bloom    `json:"logsBloom"`
+	ValidatorsHash    common.Hash    `json:"validatorHash"`     // current block validators hash
+	NextValidatorHash common.Hash    `json:"nextValidatorHash"` // next block validators hash
+	ConsensusHash     common.Hash    `json:"consensusHash"`     // current consensus hash
+	AppHash           common.Hash    `json:"appHash"`           // state of transactions
+	EvidenceHash      common.Hash    `json:"evidenceHash"`      // hash of evidence
 }
 
 // BlockJSON represents Block in JSON format
 type BlockJSON struct {
-	Hash              string               `json:"hash"`
+	Hash              common.Hash          `json:"hash"`
 	Height            uint64               `json:"height"`
-	LastBlock         string               `json:"lastBlock"`
-	CommitHash        string               `json:"commitHash"`
+	LastBlock         common.Hash          `json:"lastBlock"`
+	LastBlockID       *types.BlockID       `json:"lastBlockID"`
+	CommitHash        common.Hash          `json:"commitHash"`
 	Time              time.Time            `json:"time"`
 	NumTxs            uint64               `json:"numTxs"`
 	GasLimit          uint64               `json:"gasLimit"`
 	GasUsed           uint64               `json:"gasUsed"`
-	Rewards           string               `json:"rewards"`
-	ProposerAddress   string               `json:"proposerAddress"`
-	TxHash            string               `json:"dataHash"` // hash of txs
+	Rewards           *big.Int             `json:"rewards"`
+	ProposerAddress   common.Address       `json:"proposerAddress"`
+	TxHash            common.Hash          `json:"dataHash"` // hash of txs
 	Bloom             types.Bloom          `json:"logsBloom"`
-	ValidatorsHash    string               `json:"validatorHash"`     // validators for the current block
-	NextValidatorHash string               `json:"nextValidatorHash"` // validators for the current block
-	ConsensusHash     string               `json:"consensusHash"`     // hash of current consensus
-	AppHash           string               `json:"appHash"`           // txs state
-	EvidenceHash      string               `json:"evidenceHash"`      // hash of evidence
+	ValidatorsHash    common.Hash          `json:"validatorHash"`     // validators for the current block
+	NextValidatorHash common.Hash          `json:"nextValidatorHash"` // validators for the current block
+	ConsensusHash     common.Hash          `json:"consensusHash"`     // hash of current consensus
+	AppHash           common.Hash          `json:"appHash"`           // txs state
+	EvidenceHash      common.Hash          `json:"evidenceHash"`      // hash of evidence
 	Txs               []*PublicTransaction `json:"txs"`
 	Receipts          []*BasicReceipt      `json:"receipts"`
 }
@@ -117,23 +119,24 @@ func NewBlockHeaderJSON(header *types.Header, blockInfo *types.BlockInfo) *Block
 		return nil
 	}
 	return &BlockHeaderJSON{
-		Hash:              header.Hash().Hex(),
+		Hash:              header.Hash(),
 		Height:            header.Height,
-		LastBlock:         header.LastBlockID.Hash.Hex(),
-		CommitHash:        header.LastCommitHash.Hex(),
+		LastBlock:         header.LastBlockID.Hash,
+		LastBlockID:       &header.LastBlockID,
+		CommitHash:        header.LastCommitHash,
 		Time:              header.Time,
 		NumTxs:            header.NumTxs,
-		Rewards:           blockInfo.Rewards.String(),
+		Rewards:           blockInfo.Rewards,
 		GasUsed:           blockInfo.GasUsed,
 		GasLimit:          header.GasLimit,
-		ProposerAddress:   header.ProposerAddress.Hex(),
-		TxHash:            header.TxHash.Hex(),
+		ProposerAddress:   header.ProposerAddress,
+		TxHash:            header.TxHash,
 		Bloom:             blockInfo.Bloom,
-		ValidatorsHash:    header.ValidatorsHash.Hex(),
-		NextValidatorHash: header.NextValidatorsHash.Hex(),
-		ConsensusHash:     header.ConsensusHash.Hex(),
-		AppHash:           header.AppHash.Hex(),
-		EvidenceHash:      header.EvidenceHash.Hex(),
+		ValidatorsHash:    header.ValidatorsHash,
+		NextValidatorHash: header.NextValidatorsHash,
+		ConsensusHash:     header.ConsensusHash,
+		AppHash:           header.AppHash,
+		EvidenceHash:      header.EvidenceHash,
 	}
 }
 
@@ -163,24 +166,25 @@ func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 	}
 
 	return &BlockJSON{
-		Hash:              block.Hash().Hex(),
+		Hash:              block.Hash(),
 		Height:            block.Height(),
-		LastBlock:         block.Header().LastBlockID.Hash.Hex(),
+		LastBlock:         block.Header().LastBlockID.Hash,
+		LastBlockID:       &block.Header().LastBlockID,
 		Txs:               transactions,
-		CommitHash:        block.LastCommitHash().Hex(),
+		CommitHash:        block.LastCommitHash(),
 		Time:              block.Header().Time,
 		NumTxs:            block.Header().NumTxs,
 		GasLimit:          block.Header().GasLimit,
 		GasUsed:           blockInfo.GasUsed,
-		Rewards:           blockInfo.Rewards.String(),
-		ProposerAddress:   block.Header().ProposerAddress.Hex(),
+		Rewards:           blockInfo.Rewards,
+		ProposerAddress:   block.Header().ProposerAddress,
 		Bloom:             blockInfo.Bloom,
-		TxHash:            block.Header().TxHash.Hex(),
-		ValidatorsHash:    block.Header().ValidatorsHash.Hex(),
-		NextValidatorHash: block.Header().NextValidatorsHash.Hex(),
-		ConsensusHash:     block.Header().ConsensusHash.Hex(),
-		AppHash:           block.Header().AppHash.Hex(),
-		EvidenceHash:      block.Header().EvidenceHash.Hex(),
+		TxHash:            block.Header().TxHash,
+		ValidatorsHash:    block.Header().ValidatorsHash,
+		NextValidatorHash: block.Header().NextValidatorsHash,
+		ConsensusHash:     block.Header().ConsensusHash,
+		AppHash:           block.Header().AppHash,
+		EvidenceHash:      block.Header().EvidenceHash,
 		Receipts:          basicReceipts,
 	}
 }
