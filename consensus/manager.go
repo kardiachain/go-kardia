@@ -489,16 +489,17 @@ OuterLoop:
 		}
 
 		// If the peer is on a previous height, help catch up.
-		if prs.Height > 0 && prs.Height < rs.Height {
-
+		if prs.Height > 0 && prs.Height < rs.Height && (prs.Height >= conR.conS.blockOperations.Base()) {
 			// if we never received the commit message from the peer, the block parts wont be initialized
 			if prs.ProposalBlockParts == nil {
 				blockMeta := conR.conS.blockOperations.LoadBlockMeta(prs.Height)
 				if blockMeta == nil {
-					panic(fmt.Sprintf("Failed to load block %d when blockOperations is at %d",
-						prs.Height, conR.conS.blockOperations.Height()))
+					logger.Error("Failed to load block meta",
+						"blockstoreBase", conR.conS.blockOperations.Base(), "blockstoreHeight", conR.conS.blockOperations.Height())
+					time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+				} else {
+					ps.InitProposalBlockParts(blockMeta.BlockID.PartsHeader)
 				}
-				ps.InitProposalBlockParts(blockMeta.BlockID.PartsHeader)
 				continue OuterLoop
 			}
 			conR.gossipDataForCatchup(rs, prs, ps, peer)
@@ -695,7 +696,7 @@ func (conR *ConsensusManager) gossipVotesForHeight(logger log.Logger, rs *cstype
 		}
 	}
 	// If there are precommits to send...
-	if prs.Step <= cstypes.RoundStepPrecommitWait && (prs.Round != 0) && (prs.Round <= rs.Round) {
+	if (prs.Step <= cstypes.RoundStepPrecommitWait) && (prs.Round != 0) && (prs.Round <= rs.Round) {
 		if ps.PickSendVote(rs.Votes.Precommits(prs.Round)) {
 			logger.Debug("Picked rs.Precommits(prs.Round) to send", "round", prs.Round)
 			return true
