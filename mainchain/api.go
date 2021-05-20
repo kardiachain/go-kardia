@@ -189,7 +189,7 @@ func (s *PublicKaiAPI) BlockNumber() uint64 {
 	return s.kaiService.blockchain.CurrentBlock().Height()
 }
 
-// GetHeaderBlockByNumber returns blockHeader by block height
+// GetBlockHeaderByNumber returns blockHeader by block height
 func (s *PublicKaiAPI) GetBlockHeaderByNumber(ctx context.Context, blockHeight rpc.BlockHeight) *BlockHeaderJSON {
 	header := s.kaiService.HeaderByHeight(ctx, blockHeight)
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
@@ -331,7 +331,7 @@ func (s *PublicKaiAPI) Validators(ctx context.Context, isGetDelegators bool) ([]
 
 type PublicTransaction struct {
 	BlockHash        string       `json:"blockHash"`
-	BlockHeight      uint64       `json:"blockHeight"`
+	BlockHeight      uint64       `json:"blockNumber"`
 	Time             time.Time    `json:"time"`
 	From             string       `json:"from"`
 	Gas              uint64       `json:"gas"`
@@ -491,9 +491,9 @@ func (a *PublicTransactionAPI) PendingTransactions() ([]*PublicTransaction, erro
 }
 
 // GetTransaction gets transaction by transaction hash
-func (a *PublicTransactionAPI) GetTransaction(ctx context.Context, hash string) (*PublicTransaction, error) {
+func (a *PublicTransactionAPI) GetTransaction(hash string) (*PublicTransaction, error) {
 	txHash := common.HexToHash(hash)
-	tx, blockHash, height, index := a.s.GetTransaction(ctx, txHash)
+	tx, blockHash, height, index := a.s.kaiDb.ReadTransaction(txHash)
 
 	if tx == nil {
 		return nil, errors.New("tx for hash not found")
@@ -540,7 +540,7 @@ func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash co
 
 	publicReceipt := &PublicReceipt{
 		BlockHash:         blockHash.Hex(),
-		BlockHeight:       uint64(blockHeight),
+		BlockHeight:       blockHeight,
 		TransactionHash:   tx.Hash().Hex(),
 		TransactionIndex:  index,
 		From:              from.Hex(),
@@ -568,7 +568,7 @@ func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash co
 // GetTransactionReceipt gets transaction receipt from transaction, blockHash, blockHeight and index.
 func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash string) (*PublicReceipt, error) {
 	txHash := common.HexToHash(hash)
-	tx, blockHash, height, index := a.s.GetTransaction(ctx, txHash)
+	tx, blockHash, height, index := a.s.kaiDb.ReadTransaction(txHash)
 	if tx == nil {
 		return nil, nil
 	}
@@ -674,8 +674,8 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, bloc
 		return nil, err
 	}
 
-	// Wait for the context to be done and cancel the KVM. Even if the
-	// KVM has finished, cancelling may be done (repeatedly)
+	// Wait for the context to be done and cancel the evm. Even if the
+	// EVM has finished, cancelling may be done (repeatedly)
 	go func() {
 		<-ctx.Done()
 		kvm.Cancel()
@@ -735,7 +735,7 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 	}
 	cap = hi
 
-	// Create a helper to check if a gas allowance results in an executable transactioEstimateGas(cn
+	// Create a helper to check if a gas allowance results in an executable transaction
 	executable := func(gas uint64) (bool, *kvm.ExecutionResult, error) {
 		args.Gas = gas
 
