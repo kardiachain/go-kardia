@@ -123,11 +123,6 @@ func (h *Header) String() string {
 //
 // NOTE: Timestamp validation is subtle and handled elsewhere.
 func (h Header) ValidateBasic() error {
-	height := h.Height
-	if height == 0 {
-		return ErrZeroHeight
-	}
-
 	if err := h.LastBlockID.ValidateBasic(); err != nil {
 		return fmt.Errorf("wrong LastBlockID: %w", err)
 	}

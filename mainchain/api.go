@@ -189,7 +189,7 @@ func (s *PublicKaiAPI) BlockNumber() uint64 {
 	return s.kaiService.blockchain.CurrentBlock().Height()
 }
 
-// GetHeaderBlockByNumber returns blockHeader by block height
+// GetBlockHeaderByNumber returns blockHeader by block height
 func (s *PublicKaiAPI) GetBlockHeaderByNumber(ctx context.Context, blockHeight rpc.BlockHeight) *BlockHeaderJSON {
 	header := s.kaiService.HeaderByHeight(ctx, blockHeight)
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
@@ -331,7 +331,7 @@ func (s *PublicKaiAPI) Validators(ctx context.Context, isGetDelegators bool) ([]
 
 type PublicTransaction struct {
 	BlockHash        string       `json:"blockHash"`
-	BlockHeight      uint64       `json:"blockHeight"`
+	BlockHeight      uint64       `json:"blockNumber"`
 	Time             time.Time    `json:"time"`
 	From             string       `json:"from"`
 	Gas              uint64       `json:"gas"`
@@ -540,7 +540,7 @@ func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash co
 
 	publicReceipt := &PublicReceipt{
 		BlockHash:         blockHash.Hex(),
-		BlockHeight:       uint64(blockHeight),
+		BlockHeight:       blockHeight,
 		TransactionHash:   tx.Hash().Hex(),
 		TransactionIndex:  index,
 		From:              from.Hex(),
@@ -735,7 +735,7 @@ func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON,
 	}
 	cap = hi
 
-	// Create a helper to check if a gas allowance results in an executable transactioEstimateGas(cn
+	// Create a helper to check if a gas allowance results in an executable transaction
 	executable := func(gas uint64) (bool, *kvm.ExecutionResult, error) {
 		args.Gas = gas
 

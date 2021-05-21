@@ -898,8 +898,8 @@ func (m *NewRoundStepMessage) ValidateHeight(initialHeight uint64) error {
 		return fmt.Errorf("invalid LastCommitRound %v (must be 0 for initial height %v)",
 			m.LastCommitRound, initialHeight)
 	}
-	if m.Height > initialHeight && m.LastCommitRound < 1 {
-		return fmt.Errorf("lastCommitRound can only be 1 for initial height %v", // nolint
+	if m.Height > initialHeight && m.LastCommitRound == 0 {
+		return fmt.Errorf("LastCommitRound can only be 0 for initial height %v", // nolint
 			initialHeight)
 	}
 	return nil
