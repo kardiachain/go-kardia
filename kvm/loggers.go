@@ -42,7 +42,7 @@ func (s Storage) Copy() Storage {
 	return cpy
 }
 
-// LogConfig are the configuration options for structured logger the EVM
+// LogConfig are the configuration options for structured logger the KVM
 type LogConfig struct {
 	DisableMemory     bool // disable memory capture
 	DisableStack      bool // disable stack capture
@@ -54,7 +54,7 @@ type LogConfig struct {
 
 //go:generate gencodec -type StructLog -field-override structLogMarshaling -out gen_structlog.go
 
-// StructLog is emitted to the EVM each cycle and lists information about the current internal state
+// StructLog is emitted to the KVM each cycle and lists information about the current internal state
 // prior to the execution of the statement.
 type StructLog struct {
 	Pc            uint64                      `json:"pc"`
@@ -96,19 +96,19 @@ func (s *StructLog) ErrorString() string {
 	return ""
 }
 
-// Tracer is used to collect execution traces from an EVM transaction
+// Tracer is used to collect execution traces from an KVM transaction
 // execution. CaptureState is called for each step of the VM with the
 // current VM state.
 // Note that reference types are actual VM data structures; make copies
 // if you need to retain them beyond the current call.
 type Tracer interface {
-	CaptureStart(from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) error
-	CaptureState(env *KVM, pc uint64, op OpCode, gas, cost uint64, memory *Memory, stack *Stack, rStack *ReturnStack, rData []byte, contract *Contract, depth int, err error) error
-	CaptureFault(env *KVM, pc uint64, op OpCode, gas, cost uint64, memory *Memory, stack *Stack, rStack *ReturnStack, contract *Contract, depth int, err error) error
-	CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error) error
+	CaptureStart(env *KVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int)
+	CaptureState(env *KVM, pc uint64, op OpCode, gas, cost uint64, scope *ScopeContext, rData []byte, depth int, err error)
+	CaptureFault(env *KVM, pc uint64, op OpCode, gas, cost uint64, scope *ScopeContext, depth int, err error)
+	CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error)
 }
 
-// StructLogger is an EVM state logger and implements Tracer.
+// StructLogger is an KVM state logger and implements Tracer.
 //
 // StructLogger can capture state based on the given Log configuration and also keeps
 // a track record of modified storage which is used in reporting snapshots of the
@@ -134,82 +134,80 @@ func NewStructLogger(cfg *LogConfig) *StructLogger {
 }
 
 // CaptureStart implements the Tracer interface to initialize the tracing operation.
-func (l *StructLogger) CaptureStart(from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) error {
-	return nil
+func (l *StructLogger) CaptureStart(env *KVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+
 }
 
 // CaptureState logs a new structured log message and pushes it out to the environment
 //
 // CaptureState also tracks SLOAD/SSTORE ops to track storage change.
-func (l *StructLogger) CaptureState(env *KVM, pc uint64, op OpCode, gas, cost uint64, memory *Memory, stack *Stack, rStack *ReturnStack, rData []byte, contract *Contract, depth int, err error) error {
+func (l *StructLogger) CaptureState(env *KVM, pc uint64, op OpCode, gas, cost uint64, scope *ScopeContext, rData []byte, depth int, err error) {
 	// check if already accumulated the specified number of logs
 	if l.cfg.Limit != 0 && l.cfg.Limit <= len(l.logs) {
-		return ErrTraceLimitReached
+		return
 	}
 	// Copy a snapshot of the current memory state to a new buffer
 	var mem []byte
 	if !l.cfg.DisableMemory {
-		mem = make([]byte, len(memory.Data()))
-		copy(mem, memory.Data())
+		mem = make([]byte, len(scope.Memory.Data()))
+		copy(mem, scope.Memory.Data())
 	}
 	// Copy a snapshot of the current stack state to a new buffer
 	var stck []*big.Int
 	if !l.cfg.DisableStack {
-		stck = make([]*big.Int, len(stack.Data()))
-		for i, item := range stack.Data() {
+		stck = make([]*big.Int, len(scope.Stack.Data()))
+		for i, item := range scope.Stack.Data() {
 			stck[i] = new(big.Int).Set(item.ToBig())
 		}
 	}
 	var rstack []uint32
-	if !l.cfg.DisableStack && rStack != nil {
-		rstck := make([]uint32, len(rStack.data))
-		copy(rstck, rStack.data)
+	if !l.cfg.DisableStack && scope.Rstack != nil {
+		rstck := make([]uint32, len(scope.Rstack.data))
+		copy(rstck, scope.Rstack.data)
 	}
 	// Copy a snapshot of the current storage to a new container
 	var storage Storage
 	if !l.cfg.DisableStorage {
 		// initialise new changed values storage container for this contract
 		// if not present.
-		if l.storage[contract.Address()] == nil {
-			l.storage[contract.Address()] = make(Storage)
+		if l.storage[scope.Contract.Address()] == nil {
+			l.storage[scope.Contract.Address()] = make(Storage)
 		}
 		// capture SLOAD opcodes and record the read entry in the local storage
-		if op == SLOAD && stack.len() >= 1 {
+		if op == SLOAD && scope.Stack.len() >= 1 {
 			var (
-				address = common.Hash(stack.data[stack.len()-1].Bytes32())
-				value   = env.StateDB.GetState(contract.Address(), address)
+				address = common.Hash(scope.Stack.data[scope.Stack.len()-1].Bytes32())
+				value   = env.StateDB.GetState(scope.Contract.Address(), address)
 			)
-			l.storage[contract.Address()][address] = value
+			l.storage[scope.Contract.Address()][address] = value
 		}
 		// capture SSTORE opcodes and record the written entry in the local storage.
-		if op == SSTORE && stack.len() >= 2 {
+		if op == SSTORE && scope.Stack.len() >= 2 {
 			var (
-				value   = common.Hash(stack.data[stack.len()-2].Bytes32())
-				address = common.Hash(stack.data[stack.len()-1].Bytes32())
+				value   = common.Hash(scope.Stack.data[scope.Stack.len()-2].Bytes32())
+				address = common.Hash(scope.Stack.data[scope.Stack.len()-1].Bytes32())
 			)
-			l.storage[contract.Address()][address] = value
+			l.storage[scope.Contract.Address()][address] = value
 		}
-		storage = l.storage[contract.Address()].Copy()
+		storage = l.storage[scope.Contract.Address()].Copy()
 	}
 	var rdata []byte
 	if !l.cfg.DisableReturnData {
 		rdata = make([]byte, len(rData))
 		copy(rdata, rData)
 	}
-	// create a new snapshot of the EVM.
-	log := StructLog{pc, op, gas, cost, mem, memory.Len(), stck, rstack, rdata, storage, depth, env.StateDB.GetRefund(), err}
+	// create a new snapshot of the KVM.
+	log := StructLog{pc, op, gas, cost, mem, scope.Memory.Len(), stck, rstack, rdata, storage, depth, env.StateDB.GetRefund(), err}
 	l.logs = append(l.logs, log)
-	return nil
 }
 
 // CaptureFault implements the Tracer interface to trace an execution fault
 // while running an opcode.
-func (l *StructLogger) CaptureFault(env *KVM, pc uint64, op OpCode, gas, cost uint64, memory *Memory, stack *Stack, rStack *ReturnStack, contract *Contract, depth int, err error) error {
-	return nil
+func (l *StructLogger) CaptureFault(env *KVM, pc uint64, op OpCode, gas, cost uint64, scope *ScopeContext, depth int, err error) {
 }
 
 // CaptureEnd is called after the call finishes to finalize the tracing.
-func (l *StructLogger) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error) error {
+func (l *StructLogger) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error) {
 	l.output = output
 	l.err = err
 	if l.cfg.Debug {
@@ -218,7 +216,6 @@ func (l *StructLogger) CaptureEnd(output []byte, gasUsed uint64, t time.Duration
 			fmt.Printf(" error: %v\n", err)
 		}
 	}
-	return nil
 }
 
 // StructLogs returns the captured log entries.
@@ -298,7 +295,7 @@ func NewMarkdownLogger(cfg *LogConfig, writer io.Writer) *mdLogger {
 	return l
 }
 
-func (t *mdLogger) CaptureStart(from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) error {
+func (t *mdLogger) CaptureStart(env *KVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
 	if !create {
 		fmt.Fprintf(t.out, "From: `%v`\nTo: `%v`\nData: `0x%x`\nGas: `%d`\nValue `%v` wei\n",
 			from.String(), to.String(),
@@ -313,15 +310,14 @@ func (t *mdLogger) CaptureStart(from common.Address, to common.Address, create b
 |  Pc   |      Op     | Cost |   Stack   |   RStack  |
 |-------|-------------|------|-----------|-----------|
 `)
-	return nil
 }
 
-func (t *mdLogger) CaptureState(env *KVM, pc uint64, op OpCode, gas, cost uint64, memory *Memory, stack *Stack, rStack *ReturnStack, rData []byte, contract *Contract, depth int, err error) error {
+func (t *mdLogger) CaptureState(env *KVM, pc uint64, op OpCode, gas, cost uint64, scope *ScopeContext, rData []byte, depth int, err error) {
 	fmt.Fprintf(t.out, "| %4d  | %10v  |  %3d |", pc, op, cost)
 
 	if !t.cfg.DisableStack { // format stack
 		var a []string
-		for _, elem := range stack.data {
+		for _, elem := range scope.Stack.data {
 			a = append(a, fmt.Sprintf("%d", elem))
 		}
 		b := fmt.Sprintf("[%v]", strings.Join(a, ","))
@@ -329,7 +325,7 @@ func (t *mdLogger) CaptureState(env *KVM, pc uint64, op OpCode, gas, cost uint64
 	}
 	if !t.cfg.DisableStack { // format return stack
 		var a []string
-		for _, elem := range rStack.data {
+		for _, elem := range scope.Rstack.data {
 			a = append(a, fmt.Sprintf("%2d", elem))
 		}
 		b := fmt.Sprintf("[%v]", strings.Join(a, ","))
@@ -339,22 +335,17 @@ func (t *mdLogger) CaptureState(env *KVM, pc uint64, op OpCode, gas, cost uint64
 	if err != nil {
 		fmt.Fprintf(t.out, "Error: %v\n", err)
 	}
-	return nil
 }
 
-func (t *mdLogger) CaptureFault(env *KVM, pc uint64, op OpCode, gas, cost uint64, memory *Memory, stack *Stack, rStack *ReturnStack, contract *Contract, depth int, err error) error {
-
+func (t *mdLogger) CaptureFault(env *KVM, pc uint64, op OpCode, gas, cost uint64, scope *ScopeContext, depth int, err error) {
 	fmt.Fprintf(t.out, "\nError: at pc=%d, op=%v: %v\n", pc, op, err)
-
-	return nil
 }
 
-func (t *mdLogger) CaptureEnd(output []byte, gasUsed uint64, tm time.Duration, err error) error {
+func (t *mdLogger) CaptureEnd(output []byte, gasUsed uint64, tm time.Duration, err error) {
 	fmt.Fprintf(t.out, `
 Output: 0x%x
 Consumed gas: %d
 Error: %v
 `,
 		output, gasUsed, err)
-	return nil
 }
