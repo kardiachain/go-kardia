@@ -20,11 +20,11 @@ package kvm
 
 import (
 	"math/big"
+	"sync/atomic"
 	"time"
 
-	"sync/atomic"
-
 	"github.com/holiman/uint256"
+
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
@@ -139,6 +139,11 @@ func (kvm *KVM) Cancelled() bool {
 	return atomic.LoadInt32(&kvm.abort) == 1
 }
 
+// Interpreter returns the current interpreter
+func (kvm *KVM) Interpreter() *Interpreter {
+	return kvm.interpreter
+}
+
 // GetVmConfig returns kvm's config
 func (kvm *KVM) GetVmConfig() Config {
 	return kvm.vmConfig
@@ -168,9 +173,9 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	if !kvm.StateDB.Exist(addr) {
 		precompiles := PrecompiledContractsV0
 		if precompiles[addr] == nil && value.Sign() == 0 {
-			// Calling a non existing account, don't do antything, but ping the tracer
+			// Calling a non existing account, don't do anything, but ping the tracer
 			if kvm.vmConfig.Debug && kvm.depth == 0 {
-				kvm.vmConfig.Tracer.CaptureStart(caller.Address(), addr, false, input, gas, value)
+				kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), addr, false, input, gas, value)
 				kvm.vmConfig.Tracer.CaptureEnd(ret, 0, 0, nil)
 			}
 			return nil, gas, nil
@@ -181,7 +186,7 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 
 	// Capture the tracer start/end events in debug mode
 	if kvm.vmConfig.Debug && kvm.depth == 0 {
-		kvm.vmConfig.Tracer.CaptureStart(caller.Address(), addr, false, input, gas, value)
+		kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), addr, false, input, gas, value)
 		defer func(startGas uint64, startTime time.Time) { // Lazy evaluation of the parameters
 			kvm.vmConfig.Tracer.CaptureEnd(ret, startGas-gas, time.Since(startTime), err)
 		}(gas, time.Now())
@@ -402,7 +407,7 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	}
 
 	if kvm.vmConfig.Debug && kvm.depth == 0 {
-		kvm.vmConfig.Tracer.CaptureStart(caller.Address(), contractAddr, true, codeAndHash.code, gas, value)
+		kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), contractAddr, true, codeAndHash.code, gas, value)
 	}
 	start := time.Now()
 
