@@ -199,7 +199,7 @@ func (sdb *StateDB) GetBalance(addr common.Address) *big.Int {
 	if stateObject != nil {
 		return stateObject.Balance()
 	}
-	sdb.logger.Error("StateDB addr not found", "addr", addr)
+	sdb.logger.Debug("StateDB addr not found", "addr", addr)
 	return common.Big0
 }
 

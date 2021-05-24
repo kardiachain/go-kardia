@@ -214,7 +214,7 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 
 func (s *KardiaService) IsListening() bool  { return true } // Always listening
 func (s *KardiaService) NetVersion() uint64 { return s.networkID }
-func onlyValidatorIsUs(state cstate.LastestBlockState, privValAddress common.Address) bool {
+func onlyValidatorIsUs(state cstate.LatestBlockState, privValAddress common.Address) bool {
 	if state.Validators.Size() > 1 {
 		return false
 	}

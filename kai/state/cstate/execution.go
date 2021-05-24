@@ -32,7 +32,7 @@ import (
 
 // EvidencePool defines the EvidencePool interface used by the ConsensusState.
 type EvidencePool interface {
-	Update(lastestBlockState LastestBlockState, ev types.EvidenceList)
+	Update(LatestBlockState LatestBlockState, ev types.EvidenceList)
 	CheckEvidence(evList types.EvidenceList) error
 }
 
@@ -76,7 +76,7 @@ func (blockExec *BlockExecutor) SetEventBus(b *types.EventBus) {
 // If the block is invalid, it returns an error.
 // Validation does not mutate state, but does require historical information from the stateDB,
 // ie. to verify evidence from a validator at an old height.
-func (blockExec *BlockExecutor) ValidateBlock(state LastestBlockState, block *types.Block) error {
+func (blockExec *BlockExecutor) ValidateBlock(state LatestBlockState, block *types.Block) error {
 	return validateBlock(blockExec.evpool, blockExec.store, state, block)
 }
 
@@ -84,7 +84,7 @@ func (blockExec *BlockExecutor) ValidateBlock(state LastestBlockState, block *ty
 // It's the only function that needs to be called
 // from outside this package to process and commit an entire block.
 // It takes a blockID to avoid recomputing the parts hash.
-func (blockExec *BlockExecutor) ApplyBlock(state LastestBlockState, blockID types.BlockID, block *types.Block) (LastestBlockState, uint64, error) {
+func (blockExec *BlockExecutor) ApplyBlock(state LatestBlockState, blockID types.BlockID, block *types.Block) (LatestBlockState, uint64, error) {
 	if err := blockExec.ValidateBlock(state, block); err != nil {
 		return state, block.Height(), ErrInvalidBlock(err)
 	}
@@ -122,7 +122,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state LastestBlockState, blockID type
 }
 
 // updateState returns a new State updated according to the header and responses.
-func updateState(logger log.Logger, state LastestBlockState, blockID types.BlockID, header *types.Header, validatorUpdates []*types.Validator) (LastestBlockState, error) {
+func updateState(logger log.Logger, state LatestBlockState, blockID types.BlockID, header *types.Header, validatorUpdates []*types.Validator) (LatestBlockState, error) {
 	logger.Trace("updateState", "state", state, "blockID", blockID, "header", header)
 	// Copy the valset so we can apply changes from EndBlock
 	// and update s.LastValidators and s.Validators.
@@ -141,8 +141,9 @@ func updateState(logger log.Logger, state LastestBlockState, blockID types.Block
 
 	}
 	nValSet.IncrementProposerPriority(1)
-	return LastestBlockState{
+	return LatestBlockState{
 		ChainID:                     state.ChainID,
+		InitialHeight:               state.InitialHeight,
 		LastBlockHeight:             header.Height,
 		LastBlockID:                 blockID,
 		LastBlockTime:               header.Time,
@@ -224,7 +225,7 @@ func calculateValidatorSetUpdates(lastVals []*types.Validator, vals []*types.Val
 
 // Fire NewBlock, NewBlockHeader.
 // Fire TxEvent for every tx.
-// NOTE: if Tendermint crashes before commit, some or all of these events may be published again.
+// NOTE: if node crashes before commit, some or all of these events may be published again.
 func fireEvents(
 	logger log.Logger,
 	eventBus types.BlockEventPublisher,

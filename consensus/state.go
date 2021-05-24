@@ -102,7 +102,7 @@ type ConsensusState struct {
 	// internal state
 	mtx sync.RWMutex
 	cstypes.RoundState
-	state         cstate.LastestBlockState // State until height-1.
+	state         cstate.LatestBlockState // State until height-1.
 	timeoutTicker TimeoutTicker
 
 	// State changes may be triggered by: msgs from peers,
@@ -135,7 +135,7 @@ type ConsensusState struct {
 func NewConsensusState(
 	logger log.Logger,
 	config *cfg.ConsensusConfig,
-	state cstate.LastestBlockState,
+	state cstate.LatestBlockState,
 	blockOperations BaseBlockOperations,
 	blockExec *cstate.BlockExecutor,
 	evpool evidencePool,
@@ -321,8 +321,8 @@ func (cs *ConsensusState) OnStop() {
 
 // Updates ConsensusState and increments height to match that of state.
 // The round becomes 0 and cs.Step becomes cstypes.RoundStepNewHeight.
-func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
-	if (cs.CommitRound >= 1) && (cs.Height > 0) && cs.Height != state.LastBlockHeight {
+func (cs *ConsensusState) updateToState(state cstate.LatestBlockState) {
+	if (cs.CommitRound > 0) && (cs.Height > 0) && cs.Height != state.LastBlockHeight {
 		cmn.PanicSanity(cmn.Fmt("updateToState() expected state height of %v but found %v",
 			cs.Height, state.LastBlockHeight))
 	}
@@ -332,6 +332,10 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 			// Someone forgot to pass in state.Copy() somewhere?!
 			panic(fmt.Sprintf("Inconsistent cs.state.LastBlockHeight+1 %v vs cs.Height %v",
 				cs.state.LastBlockHeight+1, cs.Height))
+		}
+		if cs.state.LastBlockHeight > 0 && cs.Height == cs.state.InitialHeight {
+			panic(fmt.Sprintf("Inconsistent cs.state.LastBlockHeight %v, expected 1 for initial height %v",
+				cs.state.LastBlockHeight, cs.state.InitialHeight))
 		}
 		// If state isn't further out than cs.state, just ignore.
 		// This happens when SwitchToConsensus() is called in the reactor.
@@ -365,16 +369,19 @@ func (cs *ConsensusState) updateToState(state cstate.LastestBlockState) {
 		}
 		cs.LastCommit = cs.Votes.Precommits(cs.CommitRound)
 	case cs.LastCommit == nil:
-		// NOTE: when Tendermint starts, it has no votes. reconstructLastCommit
+		// NOTE: when consensus starts, it has no votes. reconstructLastCommit
 		// must be called to reconstruct LastCommit from SeenCommit.
 		// @lew: Uncomment after implement switchToConsensus
-		//panic(fmt.Sprintf("LastCommit cannot be empty after initial block (H:%d)",
-		//	state.LastBlockHeight+1,
-		//))
+		panic(fmt.Sprintf("LastCommit cannot be empty after initial block (H:%d)",
+			state.LastBlockHeight+1,
+		))
 	}
 
 	// Next desired block height
 	height := state.LastBlockHeight + 1
+	if height == 1 {
+		height = state.InitialHeight
+	}
 
 	// RoundState fields
 	cs.updateHeight(height)
@@ -537,7 +544,7 @@ func (cs *ConsensusState) sendInternalMessage(mi msgInfo) {
 
 // Reconstruct LastCommit from SeenCommit, which we saved along with the block,
 // (which happens even before saving the state)
-func (cs *ConsensusState) reconstructLastCommit(state cstate.LastestBlockState) {
+func (cs *ConsensusState) reconstructLastCommit(state cstate.LatestBlockState) {
 	if state.LastBlockHeight == 0 {
 		return
 	}
@@ -568,7 +575,7 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 			}
 
 			var timestamp time.Time
-			if voteErr.VoteA.Height == 1 {
+			if voteErr.VoteA.Height == cs.state.InitialHeight {
 				timestamp = cs.state.LastBlockTime // genesis time
 			} else {
 				timestamp = cstate.MedianTime(cs.LastCommit.MakeCommit(), cs.LastValidators)
@@ -786,7 +793,7 @@ func (cs *ConsensusState) voteTime() time.Time {
 	now := ktime.Now()
 	minVoteTime := now
 	// TODO: We should remove next line in case we don't vote for v in case cs.ProposalBlock == nil,
-	// even if cs.LockedBlock != nil. See https://github.com/tendermint/spec.
+	// even if cs.LockedBlock != nil
 	timeIota := time.Duration(cs.state.ConsensusParams.Block.TimeIotaMs)
 	if cs.LockedBlock != nil {
 		minVoteTime = cs.LockedBlock.Time().Add(timeIota)
@@ -1505,20 +1512,28 @@ func (cs *ConsensusState) finalizeCommit(height uint64) {
 // error.
 func (cs *ConsensusState) createProposalBlock() (*types.Block, *types.PartSet) {
 	cs.Logger.Trace("createProposalBlock")
+
+	if cs.privValidator == nil {
+		panic("entered createProposalBlock with privValidator being nil")
+	}
+
 	var commit *types.Commit
-	if cs.Height == 1 {
+
+	switch {
+	case cs.Height == cs.state.InitialHeight:
 		// We're creating a proposal for the first block.
-		commit = &types.Commit{}
+		// The commit is empty, but not nil.
+		commit = types.NewCommit(0, 0, types.BlockID{}, nil)
 		cs.Logger.Trace("enterPropose: First height, use empty Commit.")
-	} else if cs.LastCommit.HasTwoThirdsMajority() {
+	case cs.LastCommit.HasTwoThirdsMajority():
 		// Make the commit from LastCommit
 		commit = cs.LastCommit.MakeCommit()
 		cs.Logger.Trace("enterPropose: Subsequent height, use last commit.", "commit", commit)
-	} else {
-		// This shouldn't happen.
-		cs.Logger.Error("enterPropose: Cannot propose anything: No commit for the previous block.")
+	default: // This shouldn't happen.
+		cs.Logger.Error("enterPropose: Cannot propose anything: No commit for the previous block")
 		return nil, nil
 	}
+
 	return cs.blockOperations.CreateProposalBlock(
 		cs.Height,
 		cs.state,
@@ -1678,7 +1693,6 @@ func (cs *ConsensusState) handleMsg(mi msgInfo) {
 			err = nil
 		}
 	case *VoteMessage:
-
 		// attempt to add the vote and dupeout the validator if its a duplicate signature
 		// if the vote gives us a 2/3-any or 2/3-one, we transition
 		cs.Logger.Trace("handling AddVote", "VoteMessage", msg.Vote)

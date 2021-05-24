@@ -57,7 +57,7 @@ type Pool struct {
 
 	// latest state
 	mtx   sync.Mutex
-	state cstate.LastestBlockState
+	state cstate.LatestBlockState
 
 	pruningHeight uint64
 	pruningTime   time.Time
@@ -103,7 +103,7 @@ func (evpool *Pool) PendingEvidence(maxBytes int64) ([]types.Evidence, int64) {
 }
 
 // Update pulls the latest state to be used for expiration and evidence params and then prunes all expired evidence
-func (evpool *Pool) Update(state cstate.LastestBlockState, ev types.EvidenceList) {
+func (evpool *Pool) Update(state cstate.LatestBlockState, ev types.EvidenceList) {
 	// sanity check
 	if state.LastBlockHeight <= evpool.state.LastBlockHeight {
 		panic(fmt.Sprintf(
@@ -210,14 +210,14 @@ func (evpool *Pool) SetLogger(l log.Logger) {
 	evpool.logger = l
 }
 
-func (evpool *Pool) updateState(state cstate.LastestBlockState) {
+func (evpool *Pool) updateState(state cstate.LatestBlockState) {
 	evpool.mtx.Lock()
 	defer evpool.mtx.Unlock()
 	evpool.state = state
 }
 
 // State returns the current state of the evpool.
-func (evpool *Pool) State() cstate.LastestBlockState {
+func (evpool *Pool) State() cstate.LatestBlockState {
 	evpool.mtx.Lock()
 	defer evpool.mtx.Unlock()
 	return evpool.state

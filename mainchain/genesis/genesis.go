@@ -46,9 +46,6 @@ var errGenesisNoConfig = errors.New("genesis has no chain configuration")
 
 //------------------------------------------------------------
 // core types for a genesis definition
-// NOTE: any changes to the genesis definition should
-// be reflected in the documentation:
-// docs/tendermint-core/using-tendermint.md
 
 // GenesisValidator is an initial validator.
 type GenesisValidator struct {
@@ -112,7 +109,6 @@ func (e *GenesisMismatchError) Error() string {
 // The returned chain configuration is never nil.
 func SetupGenesisBlock(logger log.Logger, db types.StoreDB, genesis *Genesis, staking *staking.StakingSmcUtil) (*configs.ChainConfig, common.Hash, error) {
 	if genesis != nil && genesis.Config == nil {
-		// TODO(huny@): should we return another default config?
 		return configs.TestnetChainConfig, common.Hash{}, errGenesisNoConfig
 	}
 
@@ -229,7 +225,7 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking
 // The block is committed as the canonical head block.
 func (g *Genesis) Commit(logger log.Logger, db types.StoreDB, staking *staking.StakingSmcUtil) (*types.Block, error) {
 	block, root := g.ToBlock(logger, db.DB(), staking)
-	if block.Height() != 0 {
+	if block.Height() > 0 {
 		return nil, fmt.Errorf("can't commit genesis block with height > 0")
 	}
 	partsSet := block.MakePartSet(types.BlockPartSizeBytes)

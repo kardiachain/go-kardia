@@ -163,7 +163,7 @@ func (s *DualService) SetDualBlockChainManager(bcManager *blockchain.DualBlockCh
 func (s *DualService) IsListening() bool  { return true } // Always listening
 func (s *DualService) NetVersion() uint64 { return s.networkID }
 func (s *DualService) DB() types.StoreDB  { return s.groupDb }
-func onlyValidatorIsUs(state cstate.LastestBlockState, privValAddress common.Address) bool {
+func onlyValidatorIsUs(state cstate.LatestBlockState, privValAddress common.Address) bool {
 	if state.Validators.Size() > 1 {
 		return false
 	}
