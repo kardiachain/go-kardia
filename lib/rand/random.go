@@ -20,10 +20,10 @@ package rand
 
 import (
 	crand "crypto/rand"
-	"github.com/kardiachain/go-kardia/lib/common"
 	mrand "math/rand"
 	"time"
 
+	"github.com/kardiachain/go-kardia/lib/common"
 	ksync "github.com/kardiachain/go-kardia/lib/sync"
 )
 
@@ -323,7 +323,6 @@ func (r *Rand) Perm(n int) []int {
 
 // NOTE: This relies on the os's random number generator.
 // For real security, we should salt that with some seed.
-// See github.com/tendermint/tendermint/crypto for a more secure reader.
 func cRandBytes(numBytes int) []byte {
 	b := make([]byte, numBytes)
 	_, err := crand.Read(b)

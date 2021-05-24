@@ -24,7 +24,7 @@ func TestBcBlockRequestMessageValidateBasic(t *testing.T) {
 		requestHeight uint64
 		expectErr     bool
 	}{
-		{"Valid Request Message", 0, false},
+		{"Invalid Request Message", 0, true},
 		{"Valid Request Message", 1, false},
 	}
 
@@ -43,7 +43,7 @@ func TestBcNoBlockResponseMessageValidateBasic(t *testing.T) {
 		nonResponseHeight uint64
 		expectErr         bool
 	}{
-		{"Valid Non-Response Message", 0, false},
+		{"Invalid Non-Response Message", 0, true},
 		{"Valid Non-Response Message", 1, false},
 	}
 

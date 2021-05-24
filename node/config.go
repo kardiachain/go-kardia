@@ -23,9 +23,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -466,10 +464,4 @@ func NewNodeMetadata(privateKey *string, publicKey *string, votingPower uint64, 
 		node.PublicKey = pubKey
 	}
 	return node, nil
-}
-
-// GetNodeIndex returns the index of node based on last digits in string
-func GetNodeIndex(nodeName string) (int, error) {
-	reg, _ := regexp.Compile("[0-9]+\\z")
-	return strconv.Atoi(reg.FindString(nodeName))
 }

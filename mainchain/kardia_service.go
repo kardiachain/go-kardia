@@ -33,6 +33,7 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/oracles"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
+	"github.com/kardiachain/go-kardia/mainchain/tracers"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
@@ -215,7 +216,7 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 
 func (s *KardiaService) IsListening() bool  { return true } // Always listening
 func (s *KardiaService) NetVersion() uint64 { return s.networkID }
-func onlyValidatorIsUs(state cstate.LastestBlockState, privValAddress common.Address) bool {
+func onlyValidatorIsUs(state cstate.LatestBlockState, privValAddress common.Address) bool {
 	if state.Validators.Size() > 1 {
 		return false
 	}
@@ -276,6 +277,12 @@ func (s *KardiaService) APIs() []rpc.API {
 			Namespace: "account",
 			Version:   "1.0",
 			Service:   NewPublicAccountAPI(s),
+			Public:    true,
+		},
+		{
+			Namespace: "debug",
+			Version:   "1.0",
+			Service:   tracers.NewTracerAPI(s),
 			Public:    true,
 		},
 	}

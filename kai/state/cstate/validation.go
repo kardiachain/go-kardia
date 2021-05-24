@@ -19,13 +19,12 @@
 package cstate
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/kardiachain/go-kardia/types"
 )
 
-func validateBlock(evidencePool EvidencePool, store Store, state LastestBlockState, block *types.Block) error {
+func validateBlock(evidencePool EvidencePool, store Store, state LatestBlockState, block *types.Block) error {
 	// Validate internal consistency
 	if err := block.ValidateBasic(); err != nil {
 		return err
@@ -35,10 +34,20 @@ func validateBlock(evidencePool EvidencePool, store Store, state LastestBlockSta
 	if block.Height() != state.LastBlockHeight+1 {
 		return fmt.Errorf("wrong Block.Header.Height. Expected %v, got %v", state.LastBlockHeight+1, block.Height())
 	}
+	if state.LastBlockHeight == 0 && block.Height() != state.InitialHeight {
+		return fmt.Errorf("wrong Block.Header.Height. Expected %v for initial block, got %v",
+			block.Height(), state.InitialHeight)
+	}
+	if state.LastBlockHeight > 0 && block.Height() != state.LastBlockHeight+1 {
+		return fmt.Errorf("wrong Block.Header.Height. Expected %v, got %v",
+			state.LastBlockHeight+1,
+			block.Height(),
+		)
+	}
 
 	// Validate prev block info
 	if !block.Header().LastBlockID.Equal(state.LastBlockID) {
-		return fmt.Errorf("Wrong Block.Header.LastBlockID. Expected %v, got %v", state.LastBlockID, block.Header().LastBlockID)
+		return fmt.Errorf("wrong Block.Header.LastBlockID. Expected %v, got %v", state.LastBlockID, block.Header().LastBlockID)
 	}
 	// Validate app info
 	if !block.AppHash().Equal(state.AppHash) {
@@ -62,15 +71,16 @@ func validateBlock(evidencePool EvidencePool, store Store, state LastestBlockSta
 		)
 	}
 
-	// Validate block LastCommit.
-	if block.Height() == 1 {
+	// Validate block LastCommit
+	if block.Height() == state.InitialHeight {
 		if len(block.LastCommit().Signatures) != 0 {
-			return errors.New("block at height 1 does not have LastCommit signatures")
+			return ErrLastCommitSig
 		}
 	} else {
-		if len(block.LastCommit().Signatures) != state.LastValidators.Size() {
-			return fmt.Errorf("invalid block commit size. Expected %v, got %v",
-				state.LastValidators.Size(), len(block.LastCommit().Signatures))
+		// LastCommit.Signatures length is checked in VerifyCommit.
+		if err := state.LastValidators.VerifyCommit(
+			state.ChainID, state.LastBlockID, block.Height()-1, block.LastCommit()); err != nil {
+			return err
 		}
 		err := state.LastValidators.VerifyCommit(
 			state.ChainID, state.LastBlockID, uint64(block.Height()-1), block.LastCommit())
@@ -80,30 +90,34 @@ func validateBlock(evidencePool EvidencePool, store Store, state LastestBlockSta
 	}
 
 	// Validate block Time
-	// if block.Height() > 1 {
-	// 	if !block.Time().After(state.LastBlockTime) {
-	// 		return fmt.Errorf("block time %v not greater than last block time %v",
-	// 			block.Time,
-	// 			state.LastBlockTime,
-	// 		)
-	// 	}
+	switch {
+	case block.Height() > state.InitialHeight:
+		if !block.Time().After(state.LastBlockTime) {
+			return fmt.Errorf("block time %v not greater than last block time %v",
+				block.Time(),
+				state.LastBlockTime,
+			)
+		}
+		medianTime := MedianTime(block.LastCommit(), state.LastValidators)
+		if !block.Time().Equal(medianTime) {
+			return fmt.Errorf("invalid block time. Expected %v, got %v",
+				medianTime,
+				block.Time(),
+			)
+		}
 
-	// 	medianTime := MedianTime(block.LastCommit(), state.LastValidators())
-	// 	if !block.Time().Equal(medianTime) {
-	// 		return fmt.Errorf("invalid block time. Expected %v, got %v",
-	// 			medianTime,
-	// 			block.Time,
-	// 		)
-	// 	}
-	// } else if block.Height() == 1 {
-	// 	genesisTime := state.LastBlockTime
-	// 	if !block.Time().Equal(genesisTime) {
-	// 		return fmt.Errorf("block time %v is not equal to genesis time %v",
-	// 			block.Time,
-	// 			genesisTime,
-	// 		)
-	// 	}
-	// }
+	case block.Height() == state.InitialHeight:
+		genesisTime := state.LastBlockTime
+		if !block.Time().Equal(genesisTime) {
+			return fmt.Errorf("block time %v is not equal to genesis time %v",
+				block.Time(),
+				genesisTime,
+			)
+		}
+	default:
+		return fmt.Errorf("block height %v lower than initial height %v",
+			block.Height(), state.InitialHeight)
+	}
 
 	// Limit the amount of evidence
 	maxNumEvidence, _ := types.MaxEvidencePerBlock(int64(state.ConsensusParams.Block.MaxBytes))

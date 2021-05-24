@@ -57,7 +57,7 @@ message BlockID {
 // Header defines the structure of a Kardiachain block header.
 // --------------------------------
 
-// Header defines the structure of a Tendermint block header.
+// Header defines the structure of a block header.
 message Header {
   // basic block info
   string                       chain_id = 2 [(gogoproto.customname) = "ChainID"];

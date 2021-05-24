@@ -1022,7 +1022,7 @@ func TestScResetState(t *testing.T) {
 	tests := []struct {
 		name       string
 		fields     scTestParams
-		state      cstate.LastestBlockState
+		state      cstate.LatestBlockState
 		wantFields scTestParams
 	}{
 		{
@@ -1031,7 +1031,7 @@ func TestScResetState(t *testing.T) {
 				height:     0,
 				initHeight: 0,
 			},
-			state: cstate.LastestBlockState{LastBlockHeight: 7},
+			state: cstate.LatestBlockState{LastBlockHeight: 7},
 			wantFields: scTestParams{
 				height:     8,
 				initHeight: 8,

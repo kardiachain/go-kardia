@@ -200,23 +200,34 @@ type ClientSubscription struct {
 	channel   reflect.Value
 	namespace string
 	subid     string
-	in        chan json.RawMessage
 
-	quitOnce sync.Once     // ensures quit is closed once
-	quit     chan struct{} // quit is closed when the subscription exits
-	errOnce  sync.Once     // ensures err is closed once
-	err      chan error
+	// The in channel receives notification values from client dispatcher.
+	in chan json.RawMessage
+
+	// The error channel receives the error from the forwarding loop.
+	// It is closed by Unsubscribe.
+	errOnce sync.Once // ensures err is closed once
+	err     chan error
+
+	// Closing of the subscription is requested by sending on 'quit'. This is handled by
+	// the forwarding loop, which closes 'forwardDone' when it has stopped sending to
+	// sub.channel. Finally, 'unsubDone' is closed after unsubscribing on the server side.
+	quit        chan error // quit is closed when the subscription exits
+	forwardDone chan struct{}
+	unsubDone   chan struct{}
 }
 
 func newClientSubscription(c *Client, namespace string, channel reflect.Value) *ClientSubscription {
 	sub := &ClientSubscription{
-		client:    c,
-		namespace: namespace,
-		etype:     channel.Type().Elem(),
-		channel:   channel,
-		quit:      make(chan struct{}),
-		err:       make(chan error, 1),
-		in:        make(chan json.RawMessage),
+		client:      c,
+		namespace:   namespace,
+		etype:       channel.Type().Elem(),
+		channel:     channel,
+		in:          make(chan json.RawMessage),
+		quit:        make(chan error),
+		forwardDone: make(chan struct{}),
+		unsubDone:   make(chan struct{}),
+		err:         make(chan error, 1),
 	}
 	return sub
 }
@@ -236,39 +247,59 @@ func (sub *ClientSubscription) Err() <-chan error {
 // Unsubscribe unsubscribes the notification and closes the error channel.
 // It can safely be called more than once.
 func (sub *ClientSubscription) Unsubscribe() {
-	sub.quitWithError(true, nil)
-	sub.errOnce.Do(func() { close(sub.err) })
-}
-
-func (sub *ClientSubscription) quitWithError(unsubscribeServer bool, err error) {
-	sub.quitOnce.Do(func() {
-		// The dispatch loop won't be able to execute the unsubscribe call
-		// if it is blocked on deliver. Close sub.quit first because it
-		// unblocks deliver.
-		close(sub.quit)
-		if unsubscribeServer {
-			sub.requestUnsubscribe()
+	sub.errOnce.Do(func() {
+		select {
+		case sub.quit <- errUnsubscribed:
+			<-sub.unsubDone
+		case <-sub.unsubDone:
 		}
-		if err != nil {
-			if err == ErrClientQuit {
-				err = nil // Adhere to subscription semantics.
-			}
-			sub.err <- err
-		}
+		close(sub.err)
 	})
 }
 
+// deliver is called by the client's message dispatcher to send a notification value.
 func (sub *ClientSubscription) deliver(result json.RawMessage) (ok bool) {
 	select {
 	case sub.in <- result:
 		return true
-	case <-sub.quit:
+	case <-sub.forwardDone:
 		return false
 	}
 }
 
-func (sub *ClientSubscription) start() {
-	sub.quitWithError(sub.forward())
+// close is called by the client's message dispatcher when the connection is closed.
+func (sub *ClientSubscription) close(err error) {
+	select {
+	case sub.quit <- err:
+	case <-sub.forwardDone:
+	}
+}
+
+// run is the forwarding loop of the subscription. It runs in its own goroutine and
+// is launched by the client's handler after the subscription has been created.
+func (sub *ClientSubscription) run() {
+	defer close(sub.unsubDone)
+
+	unsubscribe, err := sub.forward()
+
+	// The client's dispatch loop won't be able to execute the unsubscribe call if it is
+	// blocked in sub.deliver() or sub.close(). Closing forwardDone unblocks them.
+	close(sub.forwardDone)
+
+	// Call the unsubscribe method on the server.
+	if unsubscribe {
+		sub.requestUnsubscribe()
+	}
+
+	// Send the error.
+	if err != nil {
+		if err == ErrClientQuit {
+			// ErrClientQuit gets here when Client.Close is called. This is reported as a
+			// nil error because it's not an error, but we can't close sub.err here.
+			err = nil
+		}
+		sub.err <- err
+	}
 }
 
 func (sub *ClientSubscription) forward() (unsubscribeServer bool, err error) {
@@ -278,7 +309,7 @@ func (sub *ClientSubscription) forward() (unsubscribeServer bool, err error) {
 		{Dir: reflect.SelectSend, Chan: sub.channel},
 	}
 	buffer := list.New()
-	defer buffer.Init()
+
 	for {
 		var chosen int
 		var recv reflect.Value
@@ -293,7 +324,15 @@ func (sub *ClientSubscription) forward() (unsubscribeServer bool, err error) {
 
 		switch chosen {
 		case 0: // <-sub.quit
-			return false, nil
+			if !recv.IsNil() {
+				err = recv.Interface().(error)
+			}
+			if err == errUnsubscribed {
+				// Exiting because Unsubscribe was called, unsubscribe on server.
+				return true, nil
+			}
+			return false, err
+
 		case 1: // <-sub.in
 			val, err := sub.unmarshal(recv.Interface().(json.RawMessage))
 			if err != nil {
@@ -303,6 +342,7 @@ func (sub *ClientSubscription) forward() (unsubscribeServer bool, err error) {
 				return true, ErrSubscriptionQueueOverflow
 			}
 			buffer.PushBack(val)
+
 		case 2: // sub.channel<-
 			cases[2].Send = reflect.Value{} // Don't hold onto the value.
 			buffer.Remove(buffer.Front())

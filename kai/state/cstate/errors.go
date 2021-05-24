@@ -42,5 +42,6 @@ func (e ErrNoConsensusParamsForHeight) Error() string {
 }
 
 var (
-	ErrNilState = errors.New("nil state")
+	ErrNilState      = errors.New("nil state")
+	ErrLastCommitSig = errors.New("initial block can't have LastCommit signatures")
 )

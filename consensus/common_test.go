@@ -34,7 +34,6 @@ import (
 	kpubsub "github.com/kardiachain/go-kardia/lib/pubsub"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
-	g "github.com/kardiachain/go-kardia/mainchain/genesis"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
@@ -249,8 +248,9 @@ func randState(nValidators int) (*ConsensusState, []*validatorStub) {
 	// var validatorSet *types.ValidatorSet
 	validatorSet, privSet := types.RandValidatorSet(nValidators, 10)
 	// state, err := cstate.LoadStateFromDBOrGenesisDoc(kaiDb.DB(), config.Genesis)
-	state := cstate.LastestBlockState{
+	state := cstate.LatestBlockState{
 		ChainID:                     "kaicon",
+		InitialHeight:               1,
 		LastBlockHeight:             0,
 		LastBlockID:                 types.NewZeroBlockID(),
 		LastBlockTime:               time.Now(),
@@ -288,7 +288,7 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 
 	configs.AddDefaultContract()
 
-	for address, _ := range genesisAccounts {
+	for address := range genesisAccounts {
 		genesisAccounts[address] = initValue
 	}
 
@@ -302,7 +302,7 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 
 	blockDB := memorydb.New()
 	kaiDb := kvstore.NewStoreDB(blockDB)
-	genesis := g.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
+	genesis := genesis.DefaulTestnetFullGenesisBlock(genesisAccounts, genesisContracts)
 	chainConfig, _, genesisErr := setupGenesis(genesis, kaiDb)
 	if genesisErr != nil {
 		log.Error("Error setting genesis block", "err", genesisErr)
@@ -318,7 +318,7 @@ func GetBlockchain() (*blockchain.BlockChain, *configs.ChainConfig, error) {
 	return bc, chainConfig, nil
 }
 
-func newState(vs types.PrivValidator, state cstate.LastestBlockState) (*ConsensusState, error) {
+func newState(vs types.PrivValidator, state cstate.LatestBlockState) (*ConsensusState, error) {
 	// Create a specific logger for KARDIA service.
 	logger := log.New()
 	logger.AddTag("test state")

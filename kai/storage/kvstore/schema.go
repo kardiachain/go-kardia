@@ -89,29 +89,6 @@ func encodeIndex(index uint32) []byte {
 	return enc
 }
 
-// Encodes a boolean value as big endian uint16
-func encodeBoolean(val bool) []byte {
-	encoded := make([]byte, 2)
-	if val {
-		binary.BigEndian.PutUint16(encoded, 1)
-	} else {
-		binary.BigEndian.PutUint16(encoded, 0)
-	}
-	return encoded
-}
-
-// Decodes a big endian uint16 as boolean value
-func decodeBoolean(data []byte) bool {
-	if len(data) != 2 {
-		return false
-	}
-	decoded := binary.BigEndian.Uint16(data)
-	if decoded == 0 {
-		return false
-	}
-	return true
-}
-
 // headerKey = headerPrefix + hash + num (uint64 big endian)
 func headerKey(height uint64, hash common.Hash) []byte {
 	return append(append(headerPrefix, encodeBlockHeight(height)...), hash.Bytes()...)
