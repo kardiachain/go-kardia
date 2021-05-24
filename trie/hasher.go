@@ -201,10 +201,58 @@ func (h *hasher) store(n node, db *TrieDatabase, force bool) (node, error) {
 	return hNode, nil
 }
 
+// shortnodeToHash creates a hashNode from a shortNode. The supplied shortnode
+// should have hex-type Key, which will be converted (without modification)
+// into compact form for RLP encoding.
+// If the rlp data is smaller than 32 bytes, `nil` is returned.
+func (h *hasher) shortnodeToHash(n *shortNode, force bool) node {
+	h.tmp.Reset()
+	if err := rlp.Encode(&h.tmp, n); err != nil {
+		panic("encode error: " + err.Error())
+	}
+
+	if len(h.tmp) < 32 && !force {
+		return n // Nodes smaller than 32 bytes are stored inside their parent
+	}
+	return h.makeHashNode(h.tmp)
+}
+
+// shortnodeToHash is used to creates a hashNode from a set of hashNodes, (which
+// may contain nil values)
+func (h *hasher) fullnodeToHash(n *fullNode, force bool) node {
+	h.tmp.Reset()
+	// Generate the RLP encoding of the node
+	if err := n.EncodeRLP(&h.tmp); err != nil {
+		panic("encode error: " + err.Error())
+	}
+
+	if len(h.tmp) < 32 && !force {
+		return n // Nodes smaller than 32 bytes are stored inside their parent
+	}
+	return h.makeHashNode(h.tmp)
+}
+
 func (h *hasher) makeHashNode(data []byte) hashNode {
 	n := make(hashNode, h.sha.Size())
 	h.sha.Reset()
 	h.sha.Write(data)
 	h.sha.Read(n)
 	return n
+}
+
+// proofHash is used to construct trie proofs, and returns the 'collapsed'
+// node (for later RLP encoding) aswell as the hashed node -- unless the
+// node is smaller than 32 bytes, in which case it will be returned as is.
+// This method does not do anything on value- or hash-nodes.
+func (h *hasher) proofHash(original node, db *TrieDatabase) (collapsed, hashed node) {
+	collapsed, _, _ = h.hashChildren(original, db)
+	switch n := collapsed.(type) {
+	case *shortNode:
+		return collapsed, h.shortnodeToHash(n, false)
+	case *fullNode:
+		return collapsed, h.fullnodeToHash(n, false)
+	default:
+		// Value and hash nodes don't have children so they're left as were
+		return n, n
+	}
 }

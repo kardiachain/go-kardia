@@ -20,6 +20,7 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -45,6 +46,17 @@ var (
 	// emptyCode is the known hash of the empty EVM bytecode.
 	emptyCode = crypto.Keccak256Hash(nil)
 )
+
+type proofList [][]byte
+
+func (n *proofList) Put(key []byte, value []byte) error {
+	*n = append(*n, value)
+	return nil
+}
+
+func (n *proofList) Delete(key []byte) error {
+	panic("not supported")
+}
 
 // StateDBs within the Kardia protocol are used to store anything
 // within the merkle trie. StateDBs take care of caching and storing
@@ -560,6 +572,40 @@ func (sdb *StateDB) GetState(addr common.Address, bhash common.Hash) common.Hash
 	return common.Hash{}
 }
 
+// GetProof returns the Merkle proof for a given account.
+func (s *StateDB) GetProof(addr common.Address) ([][]byte, error) {
+	return s.GetProofByHash(crypto.Keccak256Hash(addr.Bytes()))
+}
+
+// GetProofByHash returns the Merkle proof for a given account.
+func (s *StateDB) GetProofByHash(addrHash common.Hash) ([][]byte, error) {
+	var proof proofList
+	err := s.trie.Prove(addrHash[:], 0, &proof)
+	return proof, err
+}
+
+// GetStorageProof returns the Merkle proof for given storage slot.
+func (s *StateDB) GetStorageProof(a common.Address, key common.Hash) ([][]byte, error) {
+	var proof proofList
+	trie := s.StorageTrie(a)
+	if trie == nil {
+		return proof, errors.New("storage trie for requested address does not exist")
+	}
+	err := trie.Prove(crypto.Keccak256(key.Bytes()), 0, &proof)
+	return proof, err
+}
+
+// GetStorageProofByHash returns the Merkle proof for given storage slot.
+func (s *StateDB) GetStorageProofByHash(a common.Address, key common.Hash) ([][]byte, error) {
+	var proof proofList
+	trie := s.StorageTrie(a)
+	if trie == nil {
+		return proof, errors.New("storage trie for requested address does not exist")
+	}
+	err := trie.Prove(crypto.Keccak256(key.Bytes()), 0, &proof)
+	return proof, err
+}
+
 // Suicide marks the given account as suicided.
 // This clears the account balance.
 //
@@ -587,6 +633,18 @@ func (sdb *StateDB) HasSuicided(addr common.Address) bool {
 		return stateObject.suicided
 	}
 	return false
+}
+
+// StorageTrie returns the storage trie of an account.
+// The return value is a copy and is nil for non-existent accounts.
+func (s *StateDB) StorageTrie(addr common.Address) Trie {
+	stateObject := s.getStateObject(addr)
+	if stateObject == nil {
+		return nil
+	}
+	cpy := stateObject.deepCopy(s)
+	cpy.updateTrie(s.db)
+	return cpy.getTrie(s.db)
 }
 
 // RevertToSnapshot reverts all state changes made since the given revision.

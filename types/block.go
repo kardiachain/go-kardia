@@ -53,26 +53,26 @@ type Header struct {
 	// basic block info
 	Height uint64    `json:"height"       gencodec:"required"`
 	Time   time.Time `json:"time"         gencodec:"required"`
-	NumTxs uint64    `json:"num_txs"      gencodec:"required"`
+	NumTxs uint64    `json:"numTxs"      gencodec:"required"`
 
 	GasLimit uint64 `json:"gasLimit"         gencodec:"required"`
 
 	// prev block info
-	LastBlockID BlockID `json:"last_block_id"`
+	LastBlockID BlockID `json:"lastBlockID"`
 
-	ProposerAddress common.Address `json:"proposer"            gencodec:"required"`
+	ProposerAddress common.Address `json:"proposerAddress"            gencodec:"required"`
 
 	// hashes of block data
-	LastCommitHash common.Hash `json:"last_commit_hash"    gencodec:"required"` // commit from validators from the last block
-	TxHash         common.Hash `json:"data_hash"           gencodec:"required"` // transactions
+	LastCommitHash common.Hash `json:"commitHash"    gencodec:"required"`      // commit from validators from the last block
+	TxHash         common.Hash `json:"dataHash"           gencodec:"required"` // transactions
 
 	// hashes from the app output from the prev block
-	ValidatorsHash     common.Hash `json:"validators_hash"`      // validators hash for the current block
-	NextValidatorsHash common.Hash `json:"next_validators_hash"` // next validators hask for next block
-	ConsensusHash      common.Hash `json:"consensus_hash"`       // consensus params for current block
-	AppHash            common.Hash `json:"app_hash"`             // state after txs from the previous block
+	ValidatorsHash     common.Hash `json:"validatorHash"`     // validators hash for the current block
+	NextValidatorsHash common.Hash `json:"nextValidatorHash"` // next validators hash for next block
+	ConsensusHash      common.Hash `json:"consensusHash"`     // consensus params for current block
+	AppHash            common.Hash `json:"appHash"`           // state after txs from the previous block
 	// consensus info
-	EvidenceHash common.Hash `json:"evidence_hash"` // evidence included in the block
+	EvidenceHash common.Hash `json:"evidenceHash"` // evidence included in the block
 }
 
 // Hash returns the block hash of the header, which is simply the keccak256 hash of its
