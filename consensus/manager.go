@@ -127,7 +127,7 @@ func (conR *ConsensusManager) OnStop() {
 
 // SwitchToConsensus switches from fast_sync mode to consensus mode.
 // It resets the state, turns off fast_sync, and starts the consensus state-machine
-func (conR *ConsensusManager) SwitchToConsensus(state cstate.LastestBlockState, skipWAL bool) {
+func (conR *ConsensusManager) SwitchToConsensus(state cstate.LatestBlockState, skipWAL bool) {
 	conR.Logger.Info("Switching to consensus", "block height", state.LastBlockHeight, "skipWAL", skipWAL)
 
 	// We have no votes, so reconstruct LastCommit from SeenCommit.
@@ -251,7 +251,7 @@ func (conR *ConsensusManager) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 	}
 
 	if err = msg.ValidateBasic(); err != nil {
-		conR.Logger.Error("Peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
+		conR.Logger.Error("peer sent us invalid msg", "peer", src, "msg", msg, "err", err)
 		conR.Switch.StopPeerForError(src, err)
 		return
 	}
@@ -268,6 +268,16 @@ func (conR *ConsensusManager) Receive(chID byte, src p2p.Peer, msgBytes []byte) 
 	case StateChannel:
 		switch msg := msg.(type) {
 		case *NewRoundStepMessage:
+			cs := conR.conS
+			cs.mtx.Lock()
+			initialHeight := cs.state.InitialHeight
+			cs.mtx.Unlock()
+
+			if err := msg.ValidateHeight(initialHeight); err != nil {
+				conR.Logger.Warn("peer sent us an invalid msg", "msg", msg, "err", err)
+				return
+			}
+
 			ps.ApplyNewRoundStepMessage(msg)
 		case *NewValidBlockMessage:
 			ps.ApplyNewValidBlockMessage(msg)
@@ -479,16 +489,17 @@ OuterLoop:
 		}
 
 		// If the peer is on a previous height, help catch up.
-		if prs.Height > 0 && prs.Height < rs.Height {
-
+		if prs.Height > 0 && prs.Height < rs.Height && (prs.Height >= conR.conS.blockOperations.Base()) {
 			// if we never received the commit message from the peer, the block parts wont be initialized
 			if prs.ProposalBlockParts == nil {
 				blockMeta := conR.conS.blockOperations.LoadBlockMeta(prs.Height)
 				if blockMeta == nil {
-					panic(fmt.Sprintf("Failed to load block %d when blockOperations is at %d",
-						prs.Height, conR.conS.blockOperations.Height()))
+					logger.Error("Failed to load block meta",
+						"blockstoreBase", conR.conS.blockOperations.Base(), "blockstoreHeight", conR.conS.blockOperations.Height())
+					time.Sleep(conR.conS.config.PeerGossipSleepDuration)
+				} else {
+					ps.InitProposalBlockParts(blockMeta.BlockID.PartsHeader)
 				}
-				ps.InitProposalBlockParts(blockMeta.BlockID.PartsHeader)
 				continue OuterLoop
 			}
 			conR.gossipDataForCatchup(rs, prs, ps, peer)
@@ -685,7 +696,7 @@ func (conR *ConsensusManager) gossipVotesForHeight(logger log.Logger, rs *cstype
 		}
 	}
 	// If there are precommits to send...
-	if prs.Step <= cstypes.RoundStepPrecommitWait && (prs.Round != 0) && (prs.Round <= rs.Round) {
+	if (prs.Step <= cstypes.RoundStepPrecommitWait) && (prs.Round != 0) && (prs.Round <= rs.Round) {
 		if ps.PickSendVote(rs.Votes.Precommits(prs.Round)) {
 			logger.Debug("Picked rs.Precommits(prs.Round) to send", "round", prs.Round)
 			return true
@@ -761,7 +772,7 @@ OUTER_LOOP:
 		{
 			rs := conR.conS.GetRoundState()
 			prs := ps.GetRoundState()
-			if (rs.Height == prs.Height) && (prs.ProposalPOLRound >= 0) {
+			if rs.Height == prs.Height {
 				if maj23, ok := rs.Votes.Prevotes(prs.ProposalPOLRound).TwoThirdsMajority(); ok {
 					peer.TrySend(StateChannel, MustEncode(&VoteSetMaj23Message{
 						Height:  prs.Height,
@@ -845,12 +856,6 @@ func (m *ProposalPOLMessage) String() string {
 
 // ValidateBasic performs basic validation.
 func (m *ProposalPOLMessage) ValidateBasic() error {
-	if m.Height < 0 {
-		return ErrNegativeHeight
-	}
-	if m.ProposalPOLRound < 0 {
-		return ErrNegativeProposalPOLRound
-	}
 	if m.ProposalPOL.Size() == 0 {
 		return ErrEmptyProposalPOL
 	}
@@ -869,25 +874,34 @@ type NewRoundStepMessage struct {
 
 // ValidateBasic performs basic validation.
 func (m *NewRoundStepMessage) ValidateBasic() error {
-	if m.Height < 0 {
-		return ErrNegativeHeight
+	if !m.Step.IsValid() {
+		return ErrInvalidStep
 	}
-	if m.Round < 0 {
-		return ErrNegativeRound
-	}
-	// if !m.Step.IsValid() {
-	// 	return ErrInvalidStep
-	// }
 
 	// NOTE: SecondsSinceStartTime may be negative
 
-	// LastCommitRound will be -1 for the initial height, but we don't know what height this is
+	// LastCommitRound will be 0 for the initial height, but we don't know what height this is
 	// since it can be specified in genesis. The reactor will have to validate this via
 	// ValidateHeight().
-	// if m.LastCommitRound < -1 {
-	// 	return ErrNegativeLastCommitRound
-	// }
+	// No need to check negative LastCommitRound here
 
+	return nil
+}
+
+// ValidateHeight validates the height given the chain's initial height.
+func (m *NewRoundStepMessage) ValidateHeight(initialHeight uint64) error {
+	if m.Height < initialHeight {
+		return fmt.Errorf("invalid Height %v (lower than initial height %v)",
+			m.Height, initialHeight)
+	}
+	if m.Height == initialHeight && m.LastCommitRound != 0 {
+		return fmt.Errorf("invalid LastCommitRound %v (must be 0 for initial height %v)",
+			m.LastCommitRound, initialHeight)
+	}
+	if m.Height > initialHeight && m.LastCommitRound == 0 {
+		return fmt.Errorf("LastCommitRound can only be 0 for initial height %v", // nolint
+			initialHeight)
+	}
 	return nil
 }
 
@@ -901,17 +915,8 @@ type HasVoteMessage struct {
 
 // ValidateBasic performs basic validation.
 func (m *HasVoteMessage) ValidateBasic() error {
-	if m.Height < 0 {
-		return ErrNegativeHeight
-	}
-	if m.Round < 0 {
-		return ErrNegativeRound
-	}
 	if !types.IsVoteTypeValid(m.Type) {
 		return ErrInvalidMsgType
-	}
-	if m.Index < 0 {
-		return ErrNegativeIndex
 	}
 	return nil
 }
@@ -936,12 +941,6 @@ func (m *VoteSetMaj23Message) String() string {
 
 // ValidateBasic performs basic validation.
 func (m *VoteSetMaj23Message) ValidateBasic() error {
-	if m.Height < 0 {
-		return ErrNegativeHeight
-	}
-	if m.Round < 0 {
-		return ErrNegativeRound
-	}
 	if !types.IsVoteTypeValid(m.Type) {
 		return ErrInvalidMsgType
 	}
@@ -962,9 +961,6 @@ type VoteSetBitsMessage struct {
 
 // ValidateBasic performs basic validation.
 func (m *VoteSetBitsMessage) ValidateBasic() error {
-	if m.Height < 0 {
-		return ErrNegativeHeight
-	}
 	if !types.IsVoteTypeValid(m.Type) {
 		return ErrInvalidMsgType
 	}
@@ -1371,14 +1367,8 @@ type BlockPartMessage struct {
 
 // ValidateBasic performs basic validation.
 func (m *BlockPartMessage) ValidateBasic() error {
-	if m.Height < 0 {
-		return ErrNegativeHeight
-	}
-	if m.Round < 0 {
-		return ErrNegativeRound
-	}
 	if err := m.Part.ValidateBasic(); err != nil {
-		return fmt.Errorf("Wrong Part: %v", err)
+		return fmt.Errorf("wrong BlockPart: %v", err)
 	}
 	return nil
 }
@@ -1403,14 +1393,8 @@ type NewValidBlockMessage struct {
 
 // ValidateBasic performs basic validation.
 func (m *NewValidBlockMessage) ValidateBasic() error {
-	if m.Height < 0 {
-		return ErrNegativeHeight
-	}
-	if m.Round < 0 {
-		return ErrNegativeRound
-	}
 	if err := m.BlockPartsHeader.ValidateBasic(); err != nil {
-		return fmt.Errorf("Wrong BlockPartsHeader: %v", err)
+		return fmt.Errorf("wrong BlockPartsHeader: %v", err)
 	}
 	if m.BlockParts.Size() == 0 {
 		return ErrEmptyBlockPart

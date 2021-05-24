@@ -91,7 +91,7 @@ func TestMatcherShifted(t *testing.T) {
 	// To keep the second bitset byte zero, the filter must only match for the first
 	// time in block 16, so doing an all-16 bit filter should suffice.
 
-	// To keep the starting block non divisible by 8, block number 9 is the first
+	// To keep the starting block non divisible by 8, block height 9 is the first
 	// that would introduce a shift and not match block 0.
 	testMatcherBothModes(t, [][]bloomIndexes{{{16, 16, 16}}}, 9, 64, 0)
 }

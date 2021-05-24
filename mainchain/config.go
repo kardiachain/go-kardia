@@ -22,6 +22,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/storage"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/oracles"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 )
 
@@ -62,4 +63,6 @@ type Config struct {
 	Consensus *configs.ConsensusConfig
 
 	FastSync *configs.FastSyncConfig
+
+	GasOracle *oracles.Config
 }

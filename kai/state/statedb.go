@@ -199,7 +199,7 @@ func (sdb *StateDB) GetBalance(addr common.Address) *big.Int {
 	if stateObject != nil {
 		return stateObject.Balance()
 	}
-	sdb.logger.Error("StateDB addr not found", "addr", addr)
+	sdb.logger.Debug("StateDB addr not found", "addr", addr)
 	return common.Big0
 }
 
@@ -491,18 +491,18 @@ func (sdb *StateDB) AddLog(log *types.Log) {
 }
 
 // AddPreimage records a SHA3 preimage seen by the VM.
-func (self *StateDB) AddPreimage(hash common.Hash, preimage []byte) {
-	if _, ok := self.preimages[hash]; !ok {
-		self.journal.append(addPreimageChange{hash: hash})
+func (sdb *StateDB) AddPreimage(hash common.Hash, preimage []byte) {
+	if _, ok := sdb.preimages[hash]; !ok {
+		sdb.journal.append(addPreimageChange{hash: hash})
 		pi := make([]byte, len(preimage))
 		copy(pi, preimage)
-		self.preimages[hash] = pi
+		sdb.preimages[hash] = pi
 	}
 }
 
 // Preimages returns a list of SHA3 preimages that have been submitted.
-func (self *StateDB) Preimages() map[common.Hash][]byte {
-	return self.preimages
+func (sdb *StateDB) Preimages() map[common.Hash][]byte {
+	return sdb.preimages
 }
 
 func (sdb *StateDB) AddRefund(gas uint64) {
@@ -512,12 +512,12 @@ func (sdb *StateDB) AddRefund(gas uint64) {
 
 // SubRefund removes gas from the refund counter.
 // This method will panic if the refund counter goes below zero
-func (self *StateDB) SubRefund(gas uint64) {
-	self.journal.append(refundChange{prev: self.refund})
-	if gas > self.refund {
+func (sdb *StateDB) SubRefund(gas uint64) {
+	sdb.journal.append(refundChange{prev: sdb.refund})
+	if gas > sdb.refund {
 		panic("Refund counter below zero")
 	}
-	self.refund -= gas
+	sdb.refund -= gas
 }
 
 // Exist reports whether the given account address exists in the state.

@@ -191,7 +191,7 @@ func ReadBody(db kaidb.Reader, height uint64) *types.Body {
 // ReadHeadBlockHash retrieves the hash of the current canonical head block.
 func ReadHeadBlockHash(db kaidb.Reader) common.Hash {
 	data, _ := db.Get(headBlockKey)
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return common.Hash{}
 	}
 	return common.BytesToHash(data)
@@ -200,7 +200,7 @@ func ReadHeadBlockHash(db kaidb.Reader) common.Hash {
 // ReadHeaderHeight returns the header height assigned to a hash.
 func ReadHeaderHeight(db kaidb.Reader, hash common.Hash) *uint64 {
 	data, _ := db.Get(headerHeightKey(hash))
-	if data == nil || len(data) == 0 || len(data) != 8 {
+	if len(data) == 0 || len(data) != 8 {
 		return nil
 	}
 	height := binary.BigEndian.Uint64(data)
@@ -255,7 +255,7 @@ func DeleteCanonicalHash(db kaidb.KeyValueWriter, number uint64) {
 func ReadBlockInfo(db kaidb.Reader, hash common.Hash, number uint64) *types.BlockInfo {
 	// Retrieve the flattened receipt slice
 	data, _ := db.Get(blockInfoKey(number, hash))
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return nil
 	}
 	blockInfo := &types.BlockInfo{}
@@ -270,7 +270,7 @@ func ReadBlockInfo(db kaidb.Reader, hash common.Hash, number uint64) *types.Bloc
 // hash to allow retrieving the transaction or receipt by hash.
 func ReadTxLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, uint64, uint64) {
 	data, _ := db.Get(txLookupKey(hash))
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return common.Hash{}, 0, 0
 	}
 	var entry TxLookupEntry
@@ -303,24 +303,24 @@ func WriteTxLookupEntries(db kaidb.Writer, block *types.Block) {
 // ReadTransaction retrieves a specific transaction from the database, along with
 // its added positional metadata.
 func ReadTransaction(db kaidb.Reader, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, txIndex := ReadTxLookupEntry(db, hash)
+	blockHash, blockHeight, txIndex := ReadTxLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
 
-	body := ReadBody(db, blockNumber)
+	body := ReadBody(db, blockHeight)
 	if body == nil || len(body.Transactions) <= int(txIndex) {
-		log.Error("Transaction referenced missing", "number", blockNumber, "hash", blockHash, "index", txIndex)
+		log.Error("Transaction referenced missing", "number", blockHeight, "hash", blockHash, "index", txIndex)
 		return nil, common.Hash{}, 0, 0
 	}
-	return body.Transactions[txIndex], blockHash, blockNumber, txIndex
+	return body.Transactions[txIndex], blockHash, blockHeight, txIndex
 }
 
 // ReadDualEventLookupEntry Retrieves the positional metadata associated with a dual's event
 // hash to allow retrieving the event by hash.
 func ReadDualEventLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, uint64, uint64) {
 	data, _ := db.Get(dualEventLookupKey(hash))
-	if data == nil || len(data) == 0 {
+	if len(data) == 0 {
 		return common.Hash{}, 0, 0
 	}
 	var entry DualEventLookupEntry
@@ -334,31 +334,31 @@ func ReadDualEventLookupEntry(db kaidb.Reader, hash common.Hash) (common.Hash, u
 // Retrieves a specific dual's event from the database, along with
 // its added positional metadata.
 func ReadDualEvent(db kaidb.Reader, hash common.Hash) (*types.DualEvent, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, eventIndex := ReadDualEventLookupEntry(db, hash)
+	blockHash, blockHeight, eventIndex := ReadDualEventLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
-	body := ReadBody(db, blockNumber)
+	body := ReadBody(db, blockHeight)
 	if body == nil || len(body.DualEvents) <= int(eventIndex) {
-		log.Error("Dual event referenced missing", "number", blockNumber, "hash", blockHash, "index", eventIndex)
+		log.Error("Dual event referenced missing", "number", blockHeight, "hash", blockHash, "index", eventIndex)
 		return nil, common.Hash{}, 0, 0
 	}
-	return body.DualEvents[eventIndex], blockHash, blockNumber, eventIndex
+	return body.DualEvents[eventIndex], blockHash, blockHeight, eventIndex
 }
 
 // ReadReceipt retrieves a specific transaction receipt from the database, along with
 // its added positional metadata.
 func ReadReceipt(db kaidb.Reader, hash common.Hash) (*types.Receipt, common.Hash, uint64, uint64) {
-	blockHash, blockNumber, receiptIndex := ReadTxLookupEntry(db, hash)
+	blockHash, blockHeight, receiptIndex := ReadTxLookupEntry(db, hash)
 	if blockHash == (common.Hash{}) {
 		return nil, common.Hash{}, 0, 0
 	}
-	blockInfo := ReadBlockInfo(db, blockHash, blockNumber)
+	blockInfo := ReadBlockInfo(db, blockHash, blockHeight)
 	if len(blockInfo.Receipts) <= int(receiptIndex) {
-		log.Error("Receipt refereced missing", "number", blockNumber, "hash", blockHash, "index", receiptIndex)
+		log.Error("Receipt refereced missing", "number", blockHeight, "hash", blockHash, "index", receiptIndex)
 		return nil, common.Hash{}, 0, 0
 	}
-	return blockInfo.Receipts[receiptIndex], blockHash, blockNumber, receiptIndex
+	return blockInfo.Receipts[receiptIndex], blockHash, blockHeight, receiptIndex
 }
 
 // ReadEventFromDualAction gets KardiaSmartcontract based on dual action, returns smart contract address and its abi (if any)
@@ -630,12 +630,12 @@ func WriteBlock(db kaidb.Database, block *types.Block, blockParts *types.PartSet
 	// Save header height
 	key := headerHeightKey(hash)
 	if err := batch.Put(key, encodeBlockHeight(height)); err != nil {
-		panic(fmt.Errorf("Failed to store hash to height mapping err: %s", err))
+		panic(fmt.Errorf("failed to store hash to height mapping err: %s", err))
 	}
 
 	WriteCanonicalHash(batch, hash, height)
 	if err := batch.Write(); err != nil {
-		panic(fmt.Errorf("Failed to store block error: %s", err))
+		panic(fmt.Errorf("failed to store block error: %s", err))
 	}
 }
 

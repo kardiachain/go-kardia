@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/lib/common"
-	cmn "github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/protoio"
 	kproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
@@ -47,7 +46,7 @@ func GetReadableVoteTypeString(type_ kproto.SignedMsgType) string {
 	case kproto.PrecommitType:
 		typeString = "Precommit"
 	default:
-		cmn.PanicSanity("Unknown vote type")
+		common.PanicSanity("Unknown vote type")
 	}
 
 	return typeString
@@ -55,7 +54,7 @@ func GetReadableVoteTypeString(type_ kproto.SignedMsgType) string {
 
 // Vote Represents a prevote, precommit, or commit vote from validators for consensus.
 type Vote struct {
-	ValidatorAddress cmn.Address          `json:"validator_address"`
+	ValidatorAddress common.Address       `json:"validator_address"`
 	ValidatorIndex   uint32               `json:"validator_index"`
 	Height           uint64               `json:"height"`
 	Round            uint32               `json:"round"`
@@ -128,7 +127,7 @@ func (vote *Vote) StringLong() string {
 	}
 
 	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %X , %v @ %v}",
-		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
+		vote.ValidatorIndex, common.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
 		vote.BlockID.Hash.Fingerprint(), vote.Signature,
 		vote.Timestamp)
@@ -140,9 +139,9 @@ func (vote *Vote) String() string {
 		return "nil-vote"
 	}
 	return fmt.Sprintf("Vote{%v:%X %v/%v/%v(%v) %v , %X @%v}",
-		vote.ValidatorIndex, cmn.Fingerprint(vote.ValidatorAddress[:]),
+		vote.ValidatorIndex, common.Fingerprint(vote.ValidatorAddress[:]),
 		vote.Height, vote.Round, vote.Type, GetReadableVoteTypeString(vote.Type),
-		vote.BlockID, cmn.Fingerprint(vote.Signature[:]),
+		vote.BlockID, common.Fingerprint(vote.Signature[:]),
 		vote.Timestamp)
 }
 

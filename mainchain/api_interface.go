@@ -29,6 +29,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/bloombits"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
+	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	"github.com/kardiachain/go-kardia/rpc"
@@ -37,9 +38,9 @@ import (
 
 type APIBackend interface {
 	// Blockchain API
-	BlockByNumber(ctx context.Context, number rpc.BlockNumber) *types.Block
+	BlockByHeight(ctx context.Context, height rpc.BlockHeight) *types.Block
 	BlockByHash(ctx context.Context, hash common.Hash) *types.Block
-	BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error)
+	BlockByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Block, error)
 	BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo
 
 	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error)
@@ -48,12 +49,14 @@ type APIBackend interface {
 	GetValidatorCommission(valAddr common.Address) (uint64, error)
 	GetDelegationsByValidator(valAddr common.Address) ([]*staking.Delegator, error)
 
-	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header
+	HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header
 	HeaderByHash(ctx context.Context, hash common.Hash) *types.Header
-	HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error)
+	HeaderByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Header, error)
 
-	StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error)
-	StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error)
+	StateAndHeaderByHeight(ctx context.Context, height rpc.BlockHeight) (*state.StateDB, *types.Header, error)
+	StateAndHeaderByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*state.StateDB, *types.Header, error)
+
+	SuggestPrice(ctx context.Context) (*big.Int, error)
 
 	SubscribeChainHeadEvent(ch chan<- events.ChainHeadEvent) event.Subscription
 
@@ -62,30 +65,34 @@ type APIBackend interface {
 	GetLogs(ctx context.Context, blockHash common.Hash) ([][]*types.Log, error)
 	ServiceFilter(ctx context.Context, session *bloombits.MatcherSession)
 	SubscribeLogsEvent(ch chan<- []*types.Log) event.Subscription
+
+	// Tracer API
+	GetTransaction(ctx context.Context, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
+	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error)
 }
 
-func (k *KardiaService) HeaderByNumber(ctx context.Context, number rpc.BlockNumber) *types.Header {
-	// Return the latest block if rpc.LatestBlockNumber or rpc.PendingBlockNumber has been passed in
-	if number.Uint64() >= rpc.PendingBlockNumber.Uint64() {
-		return k.blockchain.GetHeaderByHeight(k.blockchain.CurrentBlock().Header().Height - 1)
+func (k *KardiaService) HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header {
+	// Return the latest block if rpc.LatestBlockHeight or rpc.PendingBlockHeight has been passed in
+	if height.Uint64() >= rpc.PendingBlockHeight.Uint64() {
+		return k.blockchain.CurrentBlock().Header()
 	}
-	return k.blockchain.GetHeaderByHeight(number.Uint64())
+	return k.blockchain.GetHeaderByHeight(height.Uint64())
 }
 
 func (k *KardiaService) HeaderByHash(ctx context.Context, hash common.Hash) *types.Header {
 	return k.blockchain.GetHeaderByHash(hash)
 }
 
-func (k *KardiaService) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Header, error) {
-	if blockNr, ok := blockNrOrHash.Number(); ok {
-		return k.HeaderByNumber(ctx, blockNr), nil
+func (k *KardiaService) HeaderByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Header, error) {
+	if blockHeight, ok := blockHeightOrHash.Height(); ok {
+		return k.HeaderByHeight(ctx, blockHeight), nil
 	}
-	if hash, ok := blockNrOrHash.Hash(); ok {
+	if hash, ok := blockHeightOrHash.Hash(); ok {
 		header := k.blockchain.GetHeaderByHash(hash)
 		if header == nil {
 			return nil, ErrHeaderNotFound
 		}
-		if blockNrOrHash.RequireCanonical && k.blockchain.DB().ReadCanonicalHash(header.Height) != hash {
+		if blockHeightOrHash.RequireCanonical && k.blockchain.DB().ReadCanonicalHash(header.Height) != hash {
 			return nil, ErrHashNotCanonical
 		}
 		return header, nil
@@ -93,29 +100,29 @@ func (k *KardiaService) HeaderByNumberOrHash(ctx context.Context, blockNrOrHash 
 	return nil, ErrInvalidArguments
 }
 
-func (k *KardiaService) BlockByNumber(ctx context.Context, number rpc.BlockNumber) *types.Block {
-	// Return the latest block if rpc.LatestBlockNumber has been passed in
-	if number == rpc.LatestBlockNumber {
-		return k.blockchain.GetBlockByHeight(k.blockchain.CurrentBlock().Height() - 1)
+func (k *KardiaService) BlockByHeight(ctx context.Context, height rpc.BlockHeight) *types.Block {
+	// Return the latest block if rpc.LatestBlockHeight has been passed in
+	if height.Uint64() >= rpc.PendingBlockHeight.Uint64() {
+		return k.blockchain.CurrentBlock()
 	}
-	return k.blockchain.GetBlockByHeight(number.Uint64())
+	return k.blockchain.GetBlockByHeight(height.Uint64())
 }
 
 func (k *KardiaService) BlockByHash(ctx context.Context, hash common.Hash) *types.Block {
 	return k.blockchain.GetBlockByHash(hash)
 }
 
-func (k *KardiaService) BlockByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*types.Block, error) {
-	if blockNr, ok := blockNrOrHash.Number(); ok {
-		return k.BlockByNumber(ctx, blockNr), nil
+func (k *KardiaService) BlockByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Block, error) {
+	if blockHeight, ok := blockHeightOrHash.Height(); ok {
+		return k.BlockByHeight(ctx, blockHeight), nil
 	}
-	if hash, ok := blockNrOrHash.Hash(); ok {
+	if hash, ok := blockHeightOrHash.Hash(); ok {
 		// get block header in order to get height of the block
 		header := k.blockchain.GetHeaderByHash(hash)
 		if header == nil {
 			return nil, ErrHeaderNotFound
 		}
-		if blockNrOrHash.RequireCanonical && k.blockchain.DB().ReadCanonicalHash(header.Height) != hash {
+		if blockHeightOrHash.RequireCanonical && k.blockchain.DB().ReadCanonicalHash(header.Height) != hash {
 			return nil, ErrHashNotCanonical
 		}
 		block := k.blockchain.GetBlock(hash, header.Height)
@@ -135,9 +142,9 @@ func (k *KardiaService) BlockInfoByBlockHash(ctx context.Context, hash common.Ha
 	return k.DB().ReadBlockInfo(hash, *height)
 }
 
-func (k *KardiaService) StateAndHeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*state.StateDB, *types.Header, error) {
-	// Return the latest state if rpc.LatestBlockNumber has been passed in
-	header := k.HeaderByNumber(ctx, number)
+func (k *KardiaService) StateAndHeaderByHeight(ctx context.Context, height rpc.BlockHeight) (*state.StateDB, *types.Header, error) {
+	// Return the latest state if rpc.LatestBlockHeight has been passed in
+	header := k.HeaderByHeight(ctx, height)
 	if header == nil {
 		return nil, nil, ErrHeaderNotFound
 	}
@@ -145,16 +152,16 @@ func (k *KardiaService) StateAndHeaderByNumber(ctx context.Context, number rpc.B
 	return stateDb, header, err
 }
 
-func (k *KardiaService) StateAndHeaderByNumberOrHash(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) (*state.StateDB, *types.Header, error) {
-	if blockNr, ok := blockNrOrHash.Number(); ok {
-		return k.StateAndHeaderByNumber(ctx, blockNr)
+func (k *KardiaService) StateAndHeaderByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*state.StateDB, *types.Header, error) {
+	if blockHeight, ok := blockHeightOrHash.Height(); ok {
+		return k.StateAndHeaderByHeight(ctx, blockHeight)
 	}
-	if hash, ok := blockNrOrHash.Hash(); ok {
+	if hash, ok := blockHeightOrHash.Hash(); ok {
 		header := k.HeaderByHash(ctx, hash)
 		if header == nil {
 			return nil, nil, ErrHeaderNotFound
 		}
-		if blockNrOrHash.RequireCanonical && k.blockchain.DB().ReadCanonicalHash(header.Height) != hash {
+		if blockHeightOrHash.RequireCanonical && k.blockchain.DB().ReadCanonicalHash(header.Height) != hash {
 			return nil, nil, ErrHashNotCanonical
 		}
 		stateDb, err := k.BlockChain().StateAt(header.Height)
@@ -298,4 +305,16 @@ func (k *KardiaService) ServiceFilter(ctx context.Context, session *bloombits.Ma
 	for i := 0; i < bloomFilterThreads; i++ {
 		go session.Multiplex(bloomRetrievalBatch, bloomRetrievalWait, k.bloomRequests)
 	}
+}
+
+func (k *KardiaService) SuggestPrice(ctx context.Context) (*big.Int, error) {
+	return k.gpo.SuggestPrice(ctx)
+}
+
+func (k *KardiaService) GetTransaction(ctx context.Context, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64) {
+	return k.kaiDb.ReadTransaction(hash)
+}
+
+func (k *KardiaService) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error) {
+	return k.stateAtTransaction(block, txIndex, reexec)
 }

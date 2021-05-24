@@ -23,14 +23,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/kardiachain/go-kardia/configs"
-
 	"github.com/kardiachain/go-kardia/consensus"
 	"github.com/kardiachain/go-kardia/dualchain/event_pool"
 	"github.com/kardiachain/go-kardia/kai/storage"
@@ -38,6 +35,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/oracles"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/rpc"
 )
@@ -78,6 +76,8 @@ type MainChainConfig struct {
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
 	FastSync *configs.FastSyncConfig
+
+	GasOracle *oracles.Config
 }
 
 type DualChainConfig struct {
@@ -232,6 +232,8 @@ type Config struct {
 	// allows them to catchup quickly by downloading blocks in parallel
 	// and verifying their commits
 	FastSync *configs.FastSyncConfig
+
+	GasOracle *oracles.Config
 
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.
@@ -462,10 +464,4 @@ func NewNodeMetadata(privateKey *string, publicKey *string, votingPower uint64, 
 		node.PublicKey = pubKey
 	}
 	return node, nil
-}
-
-// GetNodeIndex returns the index of node based on last digits in string
-func GetNodeIndex(nodeName string) (int, error) {
-	reg, _ := regexp.Compile("[0-9]+\\z")
-	return strconv.Atoi(reg.FindString(nodeName))
 }

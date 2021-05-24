@@ -112,11 +112,11 @@ func (cs *ConsensusState) catchupReplay(csHeight uint64) error {
 	// Search for last height marker.
 	//
 	// Ignore data corruption errors in previous heights because we only care about last height
-	if csHeight < 1 {
-		return fmt.Errorf("cannot replay height %v, below initial height %v", csHeight, 1)
+	if csHeight < cs.state.InitialHeight {
+		return fmt.Errorf("cannot replay height %v, below initial height %v", csHeight, cs.state.InitialHeight)
 	}
 	endHeight := csHeight - 1
-	if csHeight == 1 {
+	if csHeight == cs.state.InitialHeight {
 		endHeight = 0
 	}
 	gr, found, err = cs.wal.SearchForEndHeight(int64(endHeight), &WALSearchOptions{IgnoreDataCorruptionErrors: true})

@@ -19,6 +19,7 @@
 package kvm
 
 import (
+	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
@@ -26,7 +27,7 @@ import (
 // message no matter the execution itself is successful or not.
 type ExecutionResult struct {
 	UsedGas    uint64 // Total used gas but include the refunded gas
-	Err        error  // Any error encountered during the execution(listed in core/vm/errors.go)
+	Err        error  // Any error encountered during the execution(listed in kvm/errors.go)
 	ReturnData []byte // Returned data from kvm (function result or data supplied with revert opcode)
 }
 
@@ -55,4 +56,12 @@ func (result *ExecutionResult) Revert() []byte {
 		return nil
 	}
 	return common.CopyBytes(result.ReturnData)
+}
+
+// UnpackRevertReason returns the reason why a KVM call is reverted
+func (result *ExecutionResult) UnpackRevertReason() (string, error) {
+	if result.Err != ErrExecutionReverted {
+		return "", nil
+	}
+	return abi.UnpackRevert(result.ReturnData)
 }

@@ -47,11 +47,11 @@ import (
 	"github.com/kardiachain/go-kardia/lib/sysutils"
 	kai "github.com/kardiachain/go-kardia/mainchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/oracles"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
-	"github.com/kardiachain/go-kardia/types"
-
 	kaiproto "github.com/kardiachain/go-kardia/proto/kardiachain/types"
+	"github.com/kardiachain/go-kardia/types"
 )
 
 var args flags
@@ -179,6 +179,7 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		ServiceName: chain.ServiceName,
 		Consensus:   genesisData.Consensus,
 		FastSync:    c.getFastSyncConfig(),
+		GasOracle:   c.getGasOracleConfig(),
 	}
 	return &mainChainConfig, nil
 }
@@ -237,6 +238,7 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		DualChainConfig:  node.DualChainConfig{},
 		Metrics:          n.Metrics,
 		FastSync:         c.getFastSyncConfig(),
+		GasOracle:        c.getGasOracleConfig(),
 	}
 	mainChainConfig, err := c.getMainChainConfig()
 	if err != nil {
@@ -267,6 +269,26 @@ func (c *Config) getFastSyncConfig() *configs.FastSyncConfig {
 		TargetPending: c.FastSync.TargetPending,
 		PeerTimeout:   time.Duration(c.FastSync.PeerTimeout) * time.Second,
 		MinRecvRate:   c.FastSync.MinRecvRate,
+	}
+}
+
+func (c *Config) getGasOracleConfig() *oracles.Config {
+	if c.GasOracle == nil {
+		return oracles.DefaultOracleConfig()
+	}
+	defaultGasPrice, ok := new(big.Int).SetString(c.GasOracle.Default, 10)
+	if !ok {
+		defaultGasPrice = oracles.DefaultOracleConfig().Default
+	}
+	maxGasPrice, ok := new(big.Int).SetString(c.GasOracle.MaxPrice, 10)
+	if !ok {
+		maxGasPrice = oracles.DefaultOracleConfig().MaxPrice
+	}
+	return &oracles.Config{
+		Blocks:     c.GasOracle.Blocks,
+		Percentile: c.GasOracle.Percentile,
+		Default:    defaultGasPrice,
+		MaxPrice:   maxGasPrice,
 	}
 }
 

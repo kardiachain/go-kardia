@@ -43,6 +43,7 @@ const (
 )
 
 func TestGetMethodAndParams(t *testing.T) {
+	t.SkipNow()
 	abi, err := abi2.JSON(strings.NewReader(EthExchangeAbi))
 	if err != nil {
 		t.Fatal(err)

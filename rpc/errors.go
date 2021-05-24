@@ -29,6 +29,7 @@ var (
 	errDead                      = errors.New("connection lost")
 	errNonArrayArgs              = errors.New("non-array args")
 	errNoClient                  = errors.New("no client")
+	errUnsubscribed              = errors.New("unsubscribed")
 )
 
 var (

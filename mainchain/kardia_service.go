@@ -31,7 +31,9 @@ import (
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/filters"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
+	"github.com/kardiachain/go-kardia/mainchain/oracles"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
+	"github.com/kardiachain/go-kardia/mainchain/tracers"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
@@ -78,6 +80,8 @@ type KardiaService struct {
 	bloomRequests     chan chan *bloombits.Retrieval // Channel receiving bloom data retrieval requests
 	bloomIndexer      *BloomIndexer                  // Bloom indexer operating during block imports
 	closeBloomHandler chan struct{}
+
+	gpo *oracles.Oracle
 }
 
 func (s *KardiaService) AddKaiServer(ks KardiaSubService) {
@@ -178,6 +182,9 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	// Set private validator for consensus manager.
 	kai.csManager.SetPrivValidator(privValidator)
 	kai.csManager.SetEventBus(kai.eventBus)
+
+	// init gas price oracle
+	kai.gpo = oracles.NewGasPriceOracle(kai, config.GasOracle)
 	return kai, nil
 }
 
@@ -195,6 +202,7 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 		AcceptTxs:   chainConfig.AcceptTxs,
 		Consensus:   chainConfig.Consensus,
 		FastSync:    chainConfig.FastSync,
+		GasOracle:   chainConfig.GasOracle,
 	})
 
 	if err != nil {
@@ -206,7 +214,7 @@ func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 
 func (s *KardiaService) IsListening() bool  { return true } // Always listening
 func (s *KardiaService) NetVersion() uint64 { return s.networkID }
-func onlyValidatorIsUs(state cstate.LastestBlockState, privValAddress common.Address) bool {
+func onlyValidatorIsUs(state cstate.LatestBlockState, privValAddress common.Address) bool {
 	if state.Validators.Size() > 1 {
 		return false
 	}
@@ -267,6 +275,12 @@ func (s *KardiaService) APIs() []rpc.API {
 			Namespace: "account",
 			Version:   "1.0",
 			Service:   NewPublicAccountAPI(s),
+			Public:    true,
+		},
+		{
+			Namespace: "debug",
+			Version:   "1.0",
+			Service:   tracers.NewTracerAPI(s),
 			Public:    true,
 		},
 	}

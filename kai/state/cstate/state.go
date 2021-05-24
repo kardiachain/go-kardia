@@ -39,13 +39,13 @@ var (
 	stateKey                 = []byte("stateKey")
 )
 
-// LastestBlockState It keeps all information necessary to validate new blocks,
+// LatestBlockState It keeps all information necessary to validate new blocks,
 // including the last validator set and the consensus params.
 // All fields are exposed so the struct can be easily serialized,
 // but none of them should be mutated directly.
 // Instead, use state.Copy() or state.NextState(...).
 // NOTE: not goroutine-safe.
-type LastestBlockState struct {
+type LatestBlockState struct {
 	// Immutable
 	ChainID       string
 	InitialHeight uint64 // should be 1, not 0, when starting from height 1
@@ -72,9 +72,10 @@ type LastestBlockState struct {
 }
 
 // Copy makes a copy of the State for mutating.
-func (state LastestBlockState) Copy() LastestBlockState {
-	return LastestBlockState{
-		ChainID: state.ChainID,
+func (state LatestBlockState) Copy() LatestBlockState {
+	return LatestBlockState{
+		ChainID:       state.ChainID,
+		InitialHeight: state.InitialHeight,
 
 		LastBlockHeight:  state.LastBlockHeight,
 		LastBlockTotalTx: state.LastBlockTotalTx,
@@ -91,19 +92,19 @@ func (state LastestBlockState) Copy() LastestBlockState {
 }
 
 // IsEmpty returns true if the State is equal to the empty State.
-func (state LastestBlockState) IsEmpty() bool {
+func (state LatestBlockState) IsEmpty() bool {
 	return state.Validators == nil // XXX can't compare to Empty
 }
 
 // Stringshort returns a short string representing State
-func (state LastestBlockState) String() string {
+func (state LatestBlockState) String() string {
 	return fmt.Sprintf("{ChainID:%v LastBlockHeight:%v LastBlockTotalTx:%v LastBlockID:%v LastBlockTime:%v Validators:%v LastValidators:%v LastHeightValidatorsChanged:%v",
 		state.ChainID, state.LastBlockHeight, state.LastBlockTotalTx, state.LastBlockID, state.LastBlockTime,
 		state.Validators, state.LastValidators, state.LastHeightValidatorsChanged)
 }
 
 // Bytes ...
-func (state *LastestBlockState) Bytes() []byte {
+func (state *LatestBlockState) Bytes() []byte {
 	sm, err := state.ToProto()
 	if err != nil {
 		panic(err)
@@ -116,7 +117,7 @@ func (state *LastestBlockState) Bytes() []byte {
 }
 
 // ToProto takes the local state type and returns the equivalent proto type
-func (state *LastestBlockState) ToProto() (*kstate.State, error) {
+func (state *LatestBlockState) ToProto() (*kstate.State, error) {
 	if state == nil {
 		return nil, ErrNilState
 	}
@@ -125,7 +126,7 @@ func (state *LastestBlockState) ToProto() (*kstate.State, error) {
 
 	//sm.Version = state.Version
 	sm.ChainID = state.ChainID
-	//sm.InitialHeight = state.InitialHeight
+	sm.InitialHeight = state.InitialHeight
 	sm.LastBlockHeight = state.LastBlockHeight
 
 	sm.LastBlockID = state.LastBlockID.ToProto()
@@ -159,16 +160,15 @@ func (state *LastestBlockState) ToProto() (*kstate.State, error) {
 }
 
 // StateFromProto takes a state proto message & returns the local state type
-func StateFromProto(pb *kstate.State) (*LastestBlockState, error) { //nolint:golint
+func StateFromProto(pb *kstate.State) (*LatestBlockState, error) { //nolint:golint
 	if pb == nil {
 		return nil, ErrNilState
 	}
 
-	state := new(LastestBlockState)
+	state := new(LatestBlockState)
 
-	//state.Version = pb.Version
 	state.ChainID = pb.ChainID
-	//state.InitialHeight = pb.InitialHeight
+	state.InitialHeight = pb.InitialHeight
 
 	bi, err := types.BlockIDFromProto(&pb.LastBlockID)
 	if err != nil {

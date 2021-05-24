@@ -84,7 +84,7 @@ func (bo *BlockOperations) Height() uint64 {
 
 // CreateProposalBlock creates a new proposal block with all current pending txs in pool.
 func (bo *BlockOperations) CreateProposalBlock(
-	height uint64, lastState cstate.LastestBlockState,
+	height uint64, lastState cstate.LatestBlockState,
 	proposerAddr common.Address, commit *types.Commit) (block *types.Block, blockParts *types.PartSet) {
 	// Gets all transactions in pending pools and execute them to get new account states.
 	// Tx execution can happen in parallel with voting or precommitted.
@@ -129,6 +129,13 @@ func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCom
 	bo.blockchain.DB().WriteTxLookupEntries(block)
 	bo.blockchain.DB().WriteAppHash(block.Height(), root)
 	bo.blockchain.InsertHeadBlock(block)
+
+	// send logs of emitted events to logs feed for collecting
+	var logs []*types.Log
+	for _, r := range blockInfo.Receipts {
+		logs = append(logs, r.Logs...)
+	}
+	bo.blockchain.logsFeed.Send(logs)
 
 	return vals, root, nil
 }
@@ -282,10 +289,6 @@ LOOP:
 		i++
 		receipts = append(receipts, receipt)
 		newTxs = append(newTxs, tx)
-		// send logs of emitted events to logs feed for collecting
-		if len(receipt.Logs) > 0 {
-			bo.blockchain.logsFeed.Send(receipt.Logs)
-		}
 	}
 
 	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)

@@ -65,21 +65,21 @@ type jsonWriter interface {
 	remoteAddr() string
 }
 
-type BlockNumber uint64
+type BlockHeight uint64
 
 const (
-	LatestBlockNumber   = BlockNumber(18446744073709551615) // math.MaxUint64
-	PendingBlockNumber  = BlockNumber(18446744073709551614) // math.MaxUint64-1
-	EarliestBlockNumber = BlockNumber(0)
+	LatestBlockHeight   = BlockHeight(18446744073709551615) // math.MaxUint64
+	PendingBlockHeight  = BlockHeight(18446744073709551614) // math.MaxUint64-1
+	EarliestBlockHeight = BlockHeight(0)
 )
 
-// UnmarshalJSON parses the given JSON fragment into a BlockNumber. It supports:
+// UnmarshalJSON parses the given JSON fragment into a BlockHeight. It supports:
 // - "latest", "earliest" or "pending" as string arguments
-// - the block number
+// - the block height
 // Returned errors:
-// - an invalid block number error when the given argument isn't a known strings
-// - an out of range error when the given block number is either too little or too large
-func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
+// - an invalid block height error when the given argument isn't a known strings
+// - an out of range error when the given block height is either too little or too large
+func (bn *BlockHeight) UnmarshalJSON(data []byte) error {
 	input := strings.TrimSpace(string(data))
 	if len(input) >= 2 && input[0] == '"' && input[len(input)-1] == '"' {
 		input = input[1 : len(input)-1]
@@ -87,13 +87,13 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 
 	switch input {
 	case "earliest":
-		*bn = EarliestBlockNumber
+		*bn = EarliestBlockHeight
 		return nil
 	case "latest":
-		*bn = LatestBlockNumber
+		*bn = LatestBlockHeight
 		return nil
 	case "pending":
-		*bn = PendingBlockNumber
+		*bn = PendingBlockHeight
 		return nil
 	}
 
@@ -102,29 +102,29 @@ func (bn *BlockNumber) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	*bn = BlockNumber(blckNum)
+	*bn = BlockHeight(blckNum)
 	return nil
 }
 
-func (bn BlockNumber) Uint64() uint64 {
+func (bn BlockHeight) Uint64() uint64 {
 	return uint64(bn)
 }
 
-type BlockNumberOrHash struct {
-	BlockNumber      *BlockNumber `json:"blockNumber,omitempty"`
+type BlockHeightOrHash struct {
+	BlockHeight      *BlockHeight `json:"BlockHeight,omitempty"`
 	BlockHash        *common.Hash `json:"blockHash,omitempty"`
 	RequireCanonical bool         `json:"requireCanonical,omitempty"`
 }
 
-func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
-	type erased BlockNumberOrHash
+func (bnh *BlockHeightOrHash) UnmarshalJSON(data []byte) error {
+	type erased BlockHeightOrHash
 	e := erased{}
 	err := json.Unmarshal(data, &e)
 	if err == nil {
-		if e.BlockNumber != nil && e.BlockHash != nil {
-			return fmt.Errorf("cannot specify both BlockHash and BlockNumber, choose one or the other")
+		if e.BlockHeight != nil && e.BlockHash != nil {
+			return fmt.Errorf("cannot specify both BlockHash and BlockHeight, choose one or the other")
 		}
-		bnh.BlockNumber = e.BlockNumber
+		bnh.BlockHeight = e.BlockHeight
 		bnh.BlockHash = e.BlockHash
 		bnh.RequireCanonical = e.RequireCanonical
 		return nil
@@ -132,25 +132,25 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 	var input string
 	err = json.Unmarshal(data, &input)
 	if err != nil {
-		var blockNumber uint64
-		if err = json.Unmarshal(data, &blockNumber); err != nil {
+		var BlockHeight uint64
+		if err = json.Unmarshal(data, &BlockHeight); err != nil {
 			return err
 		} else {
-			input = strconv.FormatUint(blockNumber, 10)
+			input = strconv.FormatUint(BlockHeight, 10)
 		}
 	}
 	switch input {
 	case "earliest":
-		bn := EarliestBlockNumber
-		bnh.BlockNumber = &bn
+		bn := EarliestBlockHeight
+		bnh.BlockHeight = &bn
 		return nil
 	case "latest":
-		bn := LatestBlockNumber
-		bnh.BlockNumber = &bn
+		bn := LatestBlockHeight
+		bnh.BlockHeight = &bn
 		return nil
 	case "pending":
-		bn := PendingBlockNumber
-		bnh.BlockNumber = &bn
+		bn := PendingBlockHeight
+		bnh.BlockHeight = &bn
 		return nil
 	default:
 		if len(input) == 66 {
@@ -166,38 +166,38 @@ func (bnh *BlockNumberOrHash) UnmarshalJSON(data []byte) error {
 			if err != nil {
 				return err
 			}
-			bn := BlockNumber(blckNum)
-			bnh.BlockNumber = &bn
+			bn := BlockHeight(blckNum)
+			bnh.BlockHeight = &bn
 			return nil
 		}
 	}
 }
 
-func (bnh *BlockNumberOrHash) Number() (BlockNumber, bool) {
-	if bnh.BlockNumber != nil {
-		return *bnh.BlockNumber, true
+func (bnh *BlockHeightOrHash) Height() (BlockHeight, bool) {
+	if bnh.BlockHeight != nil {
+		return *bnh.BlockHeight, true
 	}
-	return BlockNumber(0), false
+	return BlockHeight(0), false
 }
 
-func (bnh *BlockNumberOrHash) Hash() (common.Hash, bool) {
+func (bnh *BlockHeightOrHash) Hash() (common.Hash, bool) {
 	if bnh.BlockHash != nil {
 		return *bnh.BlockHash, true
 	}
 	return common.Hash{}, false
 }
 
-func BlockNumberOrHashWithNumber(blockNr BlockNumber) BlockNumberOrHash {
-	return BlockNumberOrHash{
-		BlockNumber:      &blockNr,
+func BlockHeightOrHashWithNumber(blockHeight BlockHeight) BlockHeightOrHash {
+	return BlockHeightOrHash{
+		BlockHeight:      &blockHeight,
 		BlockHash:        nil,
 		RequireCanonical: false,
 	}
 }
 
-func BlockNumberOrHashWithHash(hash common.Hash, canonical bool) BlockNumberOrHash {
-	return BlockNumberOrHash{
-		BlockNumber:      nil,
+func BlockHeightOrHashWithHash(hash common.Hash, canonical bool) BlockHeightOrHash {
+	return BlockHeightOrHash{
+		BlockHeight:      nil,
 		BlockHash:        &hash,
 		RequireCanonical: canonical,
 	}

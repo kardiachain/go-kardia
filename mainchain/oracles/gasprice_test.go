@@ -1,5 +1,5 @@
 /*
- *  Copyright 2018 KardiaChain
+ *  Copyright 2021 KardiaChain
  *  This file is part of the go-kardia library.
  *
  *  The go-kardia library is free software: you can redistribute it and/or modify
@@ -16,32 +16,4 @@
  *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-package cstate
-
-import (
-	"errors"
-	"fmt"
-)
-
-type (
-	ErrInvalidBlock      error
-	ErrNoValSetForHeight struct {
-		Height uint64
-	}
-	ErrNoConsensusParamsForHeight struct {
-		Height uint64
-	}
-)
-
-func (e ErrNoValSetForHeight) Error() string {
-	return fmt.Sprintf("could not find validator set for height #%d", e.Height)
-}
-
-func (e ErrNoConsensusParamsForHeight) Error() string {
-	return fmt.Sprintf("could not find consensus params for height #%d", e.Height)
-}
-
-var (
-	ErrNilState      = errors.New("nil state")
-	ErrLastCommitSig = errors.New("initial block can't have LastCommit signatures")
-)
+package oracles
