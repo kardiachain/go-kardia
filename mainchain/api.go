@@ -49,7 +49,7 @@ type BlockHeaderJSON struct {
 	NumTxs            uint64         `json:"numTxs"`
 	GasUsed           uint64         `json:"gasUsed"`
 	GasLimit          uint64         `json:"gasLimit"`
-	Rewards           *big.Int       `json:"Rewards"`
+	Rewards           string         `json:"Rewards"`
 	ProposerAddress   common.Address `json:"proposerAddress"`
 	TxHash            common.Hash    `json:"dataHash"` // transactions
 	Bloom             types.Bloom    `json:"logsBloom"`
@@ -71,7 +71,7 @@ type BlockJSON struct {
 	NumTxs            uint64               `json:"numTxs"`
 	GasLimit          uint64               `json:"gasLimit"`
 	GasUsed           uint64               `json:"gasUsed"`
-	Rewards           *big.Int             `json:"rewards"`
+	Rewards           string               `json:"rewards"`
 	ProposerAddress   common.Address       `json:"proposerAddress"`
 	TxHash            common.Hash          `json:"dataHash"` // hash of txs
 	Bloom             types.Bloom          `json:"logsBloom"`
@@ -126,7 +126,7 @@ func NewBlockHeaderJSON(header *types.Header, blockInfo *types.BlockInfo) *Block
 		CommitHash:        header.LastCommitHash,
 		Time:              header.Time,
 		NumTxs:            header.NumTxs,
-		Rewards:           blockInfo.Rewards,
+		Rewards:           blockInfo.Rewards.String(),
 		GasUsed:           blockInfo.GasUsed,
 		GasLimit:          header.GasLimit,
 		ProposerAddress:   header.ProposerAddress,
@@ -176,7 +176,7 @@ func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 		NumTxs:            block.Header().NumTxs,
 		GasLimit:          block.Header().GasLimit,
 		GasUsed:           blockInfo.GasUsed,
-		Rewards:           blockInfo.Rewards,
+		Rewards:           blockInfo.Rewards.String(),
 		ProposerAddress:   block.Header().ProposerAddress,
 		Bloom:             blockInfo.Bloom,
 		TxHash:            block.Header().TxHash,
