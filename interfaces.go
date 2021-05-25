@@ -26,7 +26,7 @@ import (
 )
 
 // NotFound is returned by API methods if the requested item does not exist.
-var ErrNotFound = errors.New("not found")
+var NotFound = errors.New("not found")
 
 // CallMsg contains parameters for contract calls.
 type CallMsg struct {
