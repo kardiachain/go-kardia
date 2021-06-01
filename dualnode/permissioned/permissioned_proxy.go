@@ -36,7 +36,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
 	kai "github.com/kardiachain/go-kardia/mainchain"
-	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/types"
@@ -97,9 +96,8 @@ type PermissionedProxy struct {
 	chainHeadCh  chan events.ChainHeadEvent
 	chainHeadSub event.Subscription
 
-	privateChainID   *uint64
-	logger           log.Logger
-	candidateSmcUtil *permissioned.CandidateSmcUtil
+	privateChainID *uint64
+	logger         log.Logger
 }
 
 // NewPermissionedProxy initiates a new private proxy
@@ -139,24 +137,18 @@ func NewPermissionedProxy(config *Config, internalBlockchain base.BaseBlockChain
 		return nil, fmt.Errorf("cannot get privateService: %v", err)
 	}
 
-	candidateSmcUtil, err := permissioned.NewCandidateSmcUtil(internalBlockchain, GetPrivateKeyToCallKardiaSmc())
-	if err != nil {
-		logger.Info("Cannot create candidate smc util", "err", err)
-		return nil, err
-	}
 	processor := &PermissionedProxy{
-		name:             SERVICE_NAME,
-		permissionBc:     internalBlockchain,
-		dualBc:           dualBc,
-		eventPool:        eventPool,
-		txPool:           txPool,
-		privateService:   kardiaService,
-		chainHeadCh:      make(chan events.ChainHeadEvent, 5),
-		logger:           logger,
-		smcAddress:       address,
-		smcABI:           &smcABI,
-		privateChainID:   config.ChainID,
-		candidateSmcUtil: candidateSmcUtil,
+		name:           SERVICE_NAME,
+		permissionBc:   internalBlockchain,
+		dualBc:         dualBc,
+		eventPool:      eventPool,
+		txPool:         txPool,
+		privateService: kardiaService,
+		chainHeadCh:    make(chan events.ChainHeadEvent, 5),
+		logger:         logger,
+		smcAddress:     address,
+		smcABI:         &smcABI,
+		privateChainID: config.ChainID,
 	}
 
 	processor.chainHeadSub = kardiaService.BlockChain().SubscribeChainHeadEvent(processor.chainHeadCh)

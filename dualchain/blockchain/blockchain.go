@@ -33,7 +33,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/log"
-	"github.com/kardiachain/go-kardia/mainchain/permissioned"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -48,7 +47,7 @@ var (
 	ErrNoGenesis = errors.New("Genesis not found in chain")
 )
 
-// A blockchain to store events from external blockchains (e.g. Ether, Neo, etc.) or internal Karida's blockchain and
+// DualBlockChain is a blockchain to store events from external blockchains (e.g. Ether, Neo, etc.) or internal Kardia's blockchain and
 // associating transactions to be submitted to other blockchains.
 type DualBlockChain struct {
 	logger log.Logger
@@ -72,9 +71,6 @@ type DualBlockChain struct {
 	futureBlocks *lru.Cache     // future blocks are blocks added for later processing
 
 	quit chan struct{} // blockchain quit channel
-
-	// permissioned is used to call permissioned smartcontract to check whether a node has permission to access chain or not
-	permissioned *permissioned.PermissionSmcUtil
 }
 
 // Genesis retrieves the chain's genesis block.
@@ -137,11 +133,6 @@ func NewBlockChain(logger log.Logger, db types.StoreDB, chainConfig *configs.Cha
 	}
 
 	if err := dbc.loadLastState(); err != nil {
-		return nil, err
-	}
-
-	dbc.permissioned, err = permissioned.NewSmcPermissionUtil(dbc)
-	if err != nil {
 		return nil, err
 	}
 
