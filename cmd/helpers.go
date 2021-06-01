@@ -22,7 +22,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ethereum/go-ethereum/params"
+	"github.com/kardiachain/go-kardia/configs"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -53,7 +53,7 @@ OPTIONS:
 	AppHelpTemplate = `NAME:
    {{.App.Name}} - {{.App.Usage}}
 
-   Copyright 2013-2021 The go-ethereum Authors
+   Copyright 2018-2021 The go-kardia Authors
 
 USAGE:
    {{.App.HelpName}} [options]{{if .App.Commands}} [command] [command options]{{end}} {{if .App.ArgsUsage}}{{.App.ArgsUsage}}{{else}}[arguments...]{{end}}
@@ -79,7 +79,7 @@ COPYRIGHT:
 	ClefAppHelpTemplate = `NAME:
    {{.App.Name}} - {{.App.Usage}}
 
-   Copyright 2013-2021 The go-ethereum Authors
+   Copyright 2018-2021 The go-kardia Authors
 
 USAGE:
    {{.App.HelpName}} [options]{{if .App.Commands}} command [command options]{{end}} {{if .App.ArgsUsage}}{{.App.ArgsUsage}}{{else}}[arguments...]{{end}}
@@ -148,7 +148,7 @@ func NewApp(gitCommit, gitDate, usage string) *cli.App {
 	app.Name = filepath.Base(os.Args[0])
 	app.Author = ""
 	app.Email = ""
-	app.Version = params.VersionWithCommit(gitCommit, gitDate)
+	app.Version = configs.VersionWithCommit(gitCommit, gitDate)
 	app.Usage = usage
 	return app
 }
