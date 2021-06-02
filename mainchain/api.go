@@ -189,6 +189,11 @@ func NewBlockJSON(block *types.Block, blockInfo *types.BlockInfo) *BlockJSON {
 	}
 }
 
+// ChainId returns chain id for the current KardiaChain config.
+func (s *PublicKaiAPI) ChainId() *common.Big {
+	return (*common.Big)(new(big.Int).SetUint64(s.kaiService.config.ChainId))
+}
+
 // BlockNumber returns current block height
 func (s *PublicKaiAPI) BlockNumber() uint64 {
 	return s.kaiService.blockchain.CurrentBlock().Height()

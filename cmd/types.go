@@ -67,8 +67,8 @@ type (
 	Chain struct {
 		ServiceName        string     `yaml:"ServiceName"`
 		Protocol           *string    `yaml:"Protocol,omitempty"`
-		ChainID            uint64     `yaml:"ChainID"`
-		NetworkID          uint64     `yaml:"NetworkID"`
+		ChainID            uint64     `yaml:"ChainId"`
+		NetworkID          uint64     `yaml:"NetworkId"`
 		AcceptTxs          uint32     `yaml:"AcceptTxs"`
 		IsDual             uint       `yaml:"IsDual"`
 		Genesis            *Genesis   `yaml:"Genesis,omitempty"`

@@ -99,7 +99,11 @@ func (bn *BlockHeight) UnmarshalJSON(data []byte) error {
 
 	blckNum, err := strconv.ParseUint(input, 10, 64)
 	if err != nil {
-		return err
+		// try parsing block number as hex to adapt web3 api calls
+		blckNum, err = strconv.ParseUint(input, 16, 64)
+		if err != nil {
+			return err
+		}
 	}
 
 	*bn = BlockHeight(blckNum)
@@ -164,7 +168,11 @@ func (bnh *BlockHeightOrHash) UnmarshalJSON(data []byte) error {
 		} else {
 			blckNum, err := strconv.ParseUint(input, 10, 64)
 			if err != nil {
-				return err
+				// try parsing block number as hex to adapt web3 api calls
+				blckNum, err = strconv.ParseUint(input, 16, 64)
+				if err != nil {
+					return err
+				}
 			}
 			bn := BlockHeight(blckNum)
 			bnh.BlockHeight = &bn
