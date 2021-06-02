@@ -285,6 +285,19 @@ func (s *KardiaService) APIs() []rpc.API {
 			Service:   tracers.NewTracerAPI(s),
 			Public:    true,
 		},
+		// Web3 endpoints support
+		{
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   NewPublicWeb3API(s),
+			Public:    true,
+		},
+		{
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   filters.NewPublicFilterAPI(s),
+			Public:    true,
+		},
 	}
 }
 
