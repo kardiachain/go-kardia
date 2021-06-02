@@ -57,6 +57,10 @@ func NewPublicWeb3API(k *KardiaService) *PublicWeb3API {
 	return &PublicWeb3API{k}
 }
 
+func (s *PublicWeb3API) Dummy() {
+
+}
+
 // GetBalance returns the amount of wei for the given address in the state of the
 // given block number. The rpc.LatestBlockNumber and rpc.PendingBlockNumber meta
 // block numbers are also allowed.
@@ -81,16 +85,8 @@ type CallArgs struct {
 // Call executes the given transaction on the state for the given block height.
 // Note, this function doesn't make and changes in the state/blockchain and is
 // useful to execute and retrieve values.
-func (s *PublicKaiAPI) Call(ctx context.Context, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash, overrides interface{}) (hexutil.Bytes, error) {
-	to := args.To.Hex()
-	result, err := s.doCall(ctx, types.CallArgsJSON{
-		From:     args.From.Hex(),
-		To:       &to,
-		Gas:      uint64(*args.Gas),
-		GasPrice: args.GasPrice.ToInt(),
-		Value:    args.Value.ToInt(),
-		Data:     args.Data.String(),
-	}, blockHeightOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall)
+func (s *PublicKaiAPI) Call(ctx context.Context, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash) (hexutil.Bytes, error) {
+	result, err := s.doCall(ctx, toCallArg(args), blockHeightOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall)
 	if err != nil {
 		return nil, err
 	}
@@ -99,4 +95,22 @@ func (s *PublicKaiAPI) Call(ctx context.Context, args CallArgs, blockHeightOrHas
 		return nil, newRevertError(result)
 	}
 	return result.Return(), result.Err
+}
+
+func toCallArg(msg CallArgs) (result types.CallArgsJSON) {
+	if msg.From != nil {
+		result.From = msg.From.Hex()
+	}
+	if msg.To != nil {
+		to := msg.To.Hex()
+		result.To = &to
+	}
+	result.Data = msg.Data.String()
+	// add default params to avoid eth_call crashing
+	result.Value = msg.Value.ToInt()
+	if msg.Gas != nil {
+		result.Gas = uint64(*msg.Gas)
+	}
+	result.GasPrice = msg.GasPrice.ToInt()
+	return result
 }
