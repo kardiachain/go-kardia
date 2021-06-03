@@ -70,7 +70,7 @@ func (s *PublicWeb3API) GasPrice(ctx context.Context) (*hexutil.Big, error) {
 
 // ChainId returns chain ID for the current KardiaChain config.
 func (s *PublicWeb3API) ChainId() *common.Big {
-	return (*common.Big)(new(big.Int).SetUint64(s.kaiService.config.ChainId))
+	return (*common.Big)(new(big.Int).SetUint64(0))
 }
 
 // BlockNumber returns the block height of the chain head.
