@@ -302,7 +302,6 @@ func (s *PublicWeb3API) GetTransactionReceipt(ctx context.Context, hash common.H
 
 	// Derive the sender
 	from, _ := types.Sender(types.HomesteadSigner{}, tx)
-
 	fields := map[string]interface{}{
 		"blockHash":         blockHash,
 		"blockNumber":       hexutil.Uint64(blockHeight),
@@ -314,7 +313,10 @@ func (s *PublicWeb3API) GetTransactionReceipt(ctx context.Context, hash common.H
 		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
 		"contractAddress":   nil,
 		"logs":              receipt.Logs,
-		"logsBloom":         receipt.Bloom,
+	}
+	bloom, err := UnmarshalLogsBloom(&blockInfo.Bloom)
+	if err == nil {
+		fields["logsBloom"] = bloom
 	}
 
 	// Assign receipt status or post state.

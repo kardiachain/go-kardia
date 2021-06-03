@@ -23,13 +23,17 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/kardiachain/go-kardia/lib/log"
-
 	"github.com/ethereum/go-ethereum/common/hexutil"
 
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
 )
+
+// UnmarshalLogsBloom encodes bloom as a hex string with 0x prefix.
+func UnmarshalLogsBloom(b *types.Bloom) (string, error) {
+	return "0x" + common.Bytes2Hex(b[:]), nil
+}
 
 // rpcMarshalHeader uses the generalized output filler, then adds additional fields, which requires
 // a `blockInfo`.
@@ -37,8 +41,11 @@ func (s *PublicWeb3API) rpcMarshalHeader(ctx context.Context, header *types.Head
 	fields := RPCMarshalHeader(header)
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
 	if blockInfo != nil {
+		bloom, err := UnmarshalLogsBloom(&blockInfo.Bloom)
+		if err == nil {
+			fields["logsBloom"] = bloom
+		}
 		fields["gasUsed"] = hexutil.Uint64(blockInfo.GasUsed)
-		fields["logsBloom"] = blockInfo.Bloom
 		fields["rewards"] = blockInfo.Rewards
 	}
 	return fields
@@ -74,10 +81,12 @@ func (s *PublicWeb3API) rpcMarshalBlock(ctx context.Context, b *types.Block, inc
 	}
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, b.Hash())
 	if blockInfo != nil {
+		bloom, err := UnmarshalLogsBloom(&blockInfo.Bloom)
+		if err == nil {
+			fields["logsBloom"] = bloom
+		}
 		fields["gasUsed"] = hexutil.Uint64(blockInfo.GasUsed)
-		fields["logsBloom"] = blockInfo.Bloom
 		fields["rewards"] = blockInfo.Rewards
-		fields["receipts"] = blockInfo.Receipts // TODO(trinhdn97)
 	}
 	return fields, nil
 }
