@@ -24,8 +24,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -63,9 +61,9 @@ func NewPublicWeb3API(k *KardiaService) *PublicWeb3API {
 }
 
 // GasPrice returns a suggestion for a gas price.
-func (s *PublicWeb3API) GasPrice(ctx context.Context) (*hexutil.Big, error) {
+func (s *PublicWeb3API) GasPrice(ctx context.Context) (*common.Big, error) {
 	price, err := s.kaiService.SuggestPrice(ctx)
-	return (*hexutil.Big)(price), err
+	return (*common.Big)(price), err
 }
 
 // ChainId returns chain ID for the current KardiaChain config.
@@ -74,9 +72,9 @@ func (s *PublicWeb3API) ChainId() *common.Big {
 }
 
 // BlockNumber returns the block height of the chain head.
-func (s *PublicWeb3API) BlockNumber() hexutil.Uint64 {
+func (s *PublicWeb3API) BlockNumber() common.Uint64 {
 	header := s.kaiService.HeaderByHeight(context.Background(), rpc.LatestBlockHeight) // latest header should always be available
-	return hexutil.Uint64(header.Height)
+	return common.Uint64(header.Height)
 }
 
 // GetHeaderByNumber returns the requested canonical block header.
@@ -148,7 +146,7 @@ func (s *PublicWeb3API) GetBalance(ctx context.Context, address common.Address, 
 }
 
 // GetCode returns the code stored at the given address in the state for the given block height.
-func (s *PublicWeb3API) GetCode(ctx context.Context, address common.Address, blockHeightOrHash rpc.BlockHeightOrHash) (hexutil.Bytes, error) {
+func (s *PublicWeb3API) GetCode(ctx context.Context, address common.Address, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
 	state, _, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
 	if state == nil || err != nil {
 		return nil, err
@@ -161,16 +159,16 @@ func (s *PublicWeb3API) GetCode(ctx context.Context, address common.Address, blo
 type CallArgs struct {
 	From     *common.Address `json:"from"`
 	To       *common.Address `json:"to"`
-	Gas      *hexutil.Uint64 `json:"gas"`
-	GasPrice *hexutil.Big    `json:"gasPrice"`
-	Value    *hexutil.Big    `json:"value"`
-	Data     *hexutil.Bytes  `json:"data"`
+	Gas      *common.Uint64  `json:"gas"`
+	GasPrice *common.Big     `json:"gasPrice"`
+	Value    *common.Big     `json:"value"`
+	Data     *common.Bytes   `json:"data"`
 }
 
 // Call executes the given transaction on the state for the given block height.
 // Note, this function doesn't make and changes in the state/blockchain and is
 // useful to execute and retrieve values.
-func (s *PublicWeb3API) Call(ctx context.Context, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash) (hexutil.Bytes, error) {
+func (s *PublicWeb3API) Call(ctx context.Context, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
 	result, err := s.DoCall(ctx, args, blockHeightOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall, configs.GasLimitCap)
 	if err != nil {
 		return nil, err
@@ -237,21 +235,21 @@ func (s *PublicWeb3API) DoCall(ctx context.Context, args CallArgs, blockHeightOr
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
 type RPCTransaction struct {
 	BlockHash        *common.Hash    `json:"blockHash"`
-	BlockHeight      *hexutil.Big    `json:"blockNumber"`
+	BlockHeight      *common.Big     `json:"blockNumber"`
 	From             common.Address  `json:"from"`
-	Gas              hexutil.Uint64  `json:"gas"`
-	GasPrice         *hexutil.Big    `json:"gasPrice"`
+	Gas              common.Uint64   `json:"gas"`
+	GasPrice         *common.Big     `json:"gasPrice"`
 	Hash             common.Hash     `json:"hash"`
-	Input            hexutil.Bytes   `json:"input"`
-	Nonce            hexutil.Uint64  `json:"nonce"`
+	Input            common.Bytes    `json:"input"`
+	Nonce            common.Uint64   `json:"nonce"`
 	To               *common.Address `json:"to"`
-	TransactionIndex *hexutil.Uint64 `json:"transactionIndex"`
-	Value            *hexutil.Big    `json:"value"`
-	Type             hexutil.Uint64  `json:"type"`
-	ChainID          *hexutil.Big    `json:"chainId,omitempty"`
-	V                *hexutil.Big    `json:"v"`
-	R                *hexutil.Big    `json:"r"`
-	S                *hexutil.Big    `json:"s"`
+	TransactionIndex *common.Uint64  `json:"transactionIndex"`
+	Value            *common.Big     `json:"value"`
+	Type             common.Uint64   `json:"type"`
+	ChainID          *common.Big     `json:"chainId,omitempty"`
+	V                *common.Big     `json:"v"`
+	R                *common.Big     `json:"r"`
+	S                *common.Big     `json:"s"`
 }
 
 // GetTransactionByHash returns the transaction for the given hash
@@ -271,7 +269,7 @@ func (s *PublicWeb3API) GetTransactionByHash(ctx context.Context, hash common.Ha
 }
 
 // GetRawTransactionByHash returns the bytes of the transaction for the given hash.
-func (s *PublicWeb3API) GetRawTransactionByHash(ctx context.Context, hash common.Hash) (hexutil.Bytes, error) {
+func (s *PublicWeb3API) GetRawTransactionByHash(ctx context.Context, hash common.Hash) (common.Bytes, error) {
 	// Retrieve a finalized transaction, or a pooled otherwise
 	tx, _, _, _ := s.kaiService.GetTransaction(ctx, hash)
 	if tx == nil {
@@ -304,13 +302,13 @@ func (s *PublicWeb3API) GetTransactionReceipt(ctx context.Context, hash common.H
 	from, _ := types.Sender(types.HomesteadSigner{}, tx)
 	fields := map[string]interface{}{
 		"blockHash":         blockHash,
-		"blockNumber":       hexutil.Uint64(blockHeight),
+		"blockNumber":       common.Uint64(blockHeight),
 		"transactionHash":   hash,
-		"transactionIndex":  hexutil.Uint64(index),
+		"transactionIndex":  common.Uint64(index),
 		"from":              from,
 		"to":                tx.To(),
-		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
-		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
+		"gasUsed":           common.Uint64(receipt.GasUsed),
+		"cumulativeGasUsed": common.Uint64(receipt.CumulativeGasUsed),
 		"contractAddress":   nil,
 		"logs":              receipt.Logs,
 	}
@@ -321,9 +319,9 @@ func (s *PublicWeb3API) GetTransactionReceipt(ctx context.Context, hash common.H
 
 	// Assign receipt status or post state.
 	if len(receipt.PostState) > 0 {
-		fields["root"] = hexutil.Bytes(receipt.PostState)
+		fields["root"] = common.Bytes(receipt.PostState)
 	} else {
-		fields["status"] = hexutil.Uint(receipt.Status)
+		fields["status"] = common.Uint(receipt.Status)
 	}
 	if receipt.Logs == nil {
 		fields["logs"] = [][]*types.Log{}

@@ -23,8 +23,6 @@ import (
 	"math"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/types"
@@ -39,13 +37,14 @@ func UnmarshalLogsBloom(b *types.Bloom) (string, error) {
 // a `blockInfo`.
 func (s *PublicWeb3API) rpcMarshalHeader(ctx context.Context, header *types.Header) map[string]interface{} {
 	fields := RPCMarshalHeader(header)
+	fields["gasUsed"] = "0x0"
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, header.Hash())
 	if blockInfo != nil {
 		bloom, err := UnmarshalLogsBloom(&blockInfo.Bloom)
 		if err == nil {
 			fields["logsBloom"] = bloom
 		}
-		fields["gasUsed"] = hexutil.Uint64(blockInfo.GasUsed)
+		fields["gasUsed"] = common.Uint64(blockInfo.GasUsed)
 		fields["rewards"] = blockInfo.Rewards
 	}
 	return fields
@@ -53,22 +52,23 @@ func (s *PublicWeb3API) rpcMarshalHeader(ctx context.Context, header *types.Head
 
 // RPCMarshalHeader converts the given header to the RPC output.
 func RPCMarshalHeader(head *types.Header) map[string]interface{} {
+	// TODO(trinhdn): remove hardcode
 	return map[string]interface{}{
-		"number":           (*hexutil.Big)(new(big.Int).SetUint64(head.Height)),
+		"number":           (*common.Big)(new(big.Int).SetUint64(head.Height)),
 		"hash":             head.Hash(),
 		"parentHash":       head.LastBlockID.Hash,
-		"nonce":            nil,
-		"mixHash":          nil,
-		"sha3Uncles":       nil,
+		"nonce":            "0x689056015818adbe",
+		"mixHash":          common.NewZeroHash(),
+		"sha3Uncles":       common.NewZeroHash(),
 		"stateRoot":        head.AppHash,
 		"miner":            head.ProposerAddress,
-		"difficulty":       nil,
-		"extraData":        nil,
-		"size":             nil,
-		"gasLimit":         hexutil.Uint64(head.GasLimit),
-		"timestamp":        hexutil.Uint64(head.Time.Unix()),
+		"difficulty":       "0x000001",
+		"extraData":        common.NewZeroHash(),
+		"size":             "0x000001",
+		"gasLimit":         common.Uint64(head.GasLimit),
+		"timestamp":        common.Uint64(head.Time.Unix()),
 		"transactionsRoot": head.TxHash,
-		"receiptsRoot":     nil,
+		"receiptsRoot":     common.NewZeroHash(),
 	}
 }
 
@@ -79,13 +79,14 @@ func (s *PublicWeb3API) rpcMarshalBlock(ctx context.Context, b *types.Block, inc
 	if err != nil {
 		return nil, err
 	}
+	fields["gasUsed"] = "0x0"
 	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, b.Hash())
 	if blockInfo != nil {
 		bloom, err := UnmarshalLogsBloom(&blockInfo.Bloom)
 		if err == nil {
 			fields["logsBloom"] = bloom
 		}
-		fields["gasUsed"] = hexutil.Uint64(blockInfo.GasUsed)
+		fields["gasUsed"] = common.Uint64(blockInfo.GasUsed)
 		fields["rewards"] = blockInfo.Rewards
 	}
 	return fields, nil
@@ -154,21 +155,21 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockHeight
 	v, r, s := tx.RawSignatureValues()
 	result := &RPCTransaction{
 		From:     from,
-		Gas:      hexutil.Uint64(tx.Gas()),
-		GasPrice: (*hexutil.Big)(tx.GasPrice()),
+		Gas:      common.Uint64(tx.Gas()),
+		GasPrice: (*common.Big)(tx.GasPrice()),
 		Hash:     tx.Hash(),
-		Input:    hexutil.Bytes(tx.Data()),
-		Nonce:    hexutil.Uint64(tx.Nonce()),
+		Input:    common.Bytes(tx.Data()),
+		Nonce:    common.Uint64(tx.Nonce()),
 		To:       tx.To(),
-		Value:    (*hexutil.Big)(tx.Value()),
-		V:        (*hexutil.Big)(v),
-		R:        (*hexutil.Big)(r),
-		S:        (*hexutil.Big)(s),
+		Value:    (*common.Big)(tx.Value()),
+		V:        (*common.Big)(v),
+		R:        (*common.Big)(r),
+		S:        (*common.Big)(s),
 	}
 	if blockHash != (common.Hash{}) {
 		result.BlockHash = &blockHash
-		result.BlockHeight = (*hexutil.Big)(new(big.Int).SetUint64(blockHeight))
-		result.TransactionIndex = (*hexutil.Uint64)(&index)
+		result.BlockHeight = (*common.Big)(new(big.Int).SetUint64(blockHeight))
+		result.TransactionIndex = (*common.Uint64)(&index)
 	}
 	return result
 }

@@ -23,8 +23,6 @@ import (
 	"errors"
 
 	"github.com/kardiachain/go-kardia/lib/common"
-
-	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 
 // MarshalJSON marshals as JSON.
@@ -32,23 +30,23 @@ func (l LogForWeb3) MarshalJSON() ([]byte, error) {
 	type Log struct {
 		Address     common.Address `json:"address" gencodec:"required"`
 		Topics      []common.Hash  `json:"topics" gencodec:"required"`
-		Data        hexutil.Bytes  `json:"data" gencodec:"required"`
-		BlockHeight hexutil.Uint64 `json:"blockNumber"`
+		Data        common.Bytes   `json:"data" gencodec:"required"`
+		BlockHeight common.Uint64  `json:"blockNumber"`
 		TxHash      common.Hash    `json:"transactionHash" gencodec:"required"`
-		TxIndex     hexutil.Uint   `json:"transactionIndex"`
+		TxIndex     common.Uint    `json:"transactionIndex"`
 		BlockHash   common.Hash    `json:"blockHash"`
-		Index       hexutil.Uint   `json:"logIndex"`
+		Index       common.Uint    `json:"logIndex"`
 		Removed     bool           `json:"removed"`
 	}
 	var enc Log
 	enc.Address = l.Address
 	enc.Topics = l.Topics
-	enc.Data = hexutil.Bytes(l.Data)
-	enc.BlockHeight = hexutil.Uint64(l.BlockHeight)
+	enc.Data = common.Bytes(l.Data)
+	enc.BlockHeight = common.Uint64(l.BlockHeight)
 	enc.TxHash = l.TxHash
-	enc.TxIndex = hexutil.Uint(l.TxIndex)
+	enc.TxIndex = common.Uint(l.TxIndex)
 	enc.BlockHash = l.BlockHash
-	enc.Index = hexutil.Uint(l.Index)
+	enc.Index = common.Uint(l.Index)
 	enc.Removed = l.Removed
 	return json.Marshal(&enc)
 }
@@ -58,12 +56,12 @@ func (l *LogForWeb3) UnmarshalJSON(input []byte) error {
 	type Log struct {
 		Address     *common.Address `json:"address" gencodec:"required"`
 		Topics      []common.Hash   `json:"topics" gencodec:"required"`
-		Data        *hexutil.Bytes  `json:"data" gencodec:"required"`
-		BlockHeight *hexutil.Uint64 `json:"blockNumber"`
+		Data        *common.Bytes   `json:"data" gencodec:"required"`
+		BlockHeight *common.Uint64  `json:"blockNumber"`
 		TxHash      *common.Hash    `json:"transactionHash" gencodec:"required"`
-		TxIndex     *hexutil.Uint   `json:"transactionIndex"`
+		TxIndex     *common.Uint    `json:"transactionIndex"`
 		BlockHash   *common.Hash    `json:"blockHash"`
-		Index       *hexutil.Uint   `json:"logIndex"`
+		Index       *common.Uint    `json:"logIndex"`
 		Removed     *bool           `json:"removed"`
 	}
 	var dec Log
