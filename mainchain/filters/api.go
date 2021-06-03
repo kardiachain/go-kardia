@@ -58,15 +58,17 @@ type PublicFilterAPI struct {
 	events    *EventSystem
 	filtersMu sync.Mutex
 	filters   map[rpc.ID]*filter
+	isNative  bool
 }
 
 // NewPublicFilterAPI returns a new PublicFilterAPI instance.
-func NewPublicFilterAPI(backend Backend) *PublicFilterAPI {
+func NewPublicFilterAPI(backend Backend, isNative bool) *PublicFilterAPI {
 	api := &PublicFilterAPI{
-		backend: backend,
-		chainDb: backend.ChainDb(),
-		events:  NewEventSystem(backend),
-		filters: make(map[rpc.ID]*filter),
+		backend:  backend,
+		chainDb:  backend.ChainDb(),
+		events:   NewEventSystem(backend),
+		filters:  make(map[rpc.ID]*filter),
+		isNative: isNative,
 	}
 	go api.timeoutLoop()
 
@@ -323,7 +325,7 @@ func (api *PublicFilterAPI) NewFilter(crit FilterCriteria) (rpc.ID, error) {
 // GetLogs returns logs matching the given argument that are stored within the state.
 //
 // https://github.com/kardiachain/go-kardia/wiki/Kardia-JSON-RPC-API#kai_getLogs
-func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([]*types.Log, error) {
+func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) (interface{}, error) {
 	var filter *Filter
 	if crit.BlockHash != nil {
 		// Block filter requested, construct a single-shot filter
@@ -337,7 +339,7 @@ func (api *PublicFilterAPI) GetLogs(ctx context.Context, crit FilterCriteria) ([
 	if err != nil {
 		return nil, err
 	}
-	return returnLogs(logs), err
+	return returnLogs(logs, api.isNative), err
 }
 
 // UninstallFilter removes the filter with the given filter id.
@@ -361,7 +363,7 @@ func (api *PublicFilterAPI) UninstallFilter(id rpc.ID) bool {
 // If the filter could not be found an empty array of logs is returned.
 //
 // https://github.com/kardiachain/go-kardia/wiki/Kardia-JSON-RPC-API#kai_getFilterLogs
-func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*types.Log, error) {
+func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) (interface{}, error) {
 	api.filtersMu.Lock()
 	f, found := api.filters[id]
 	api.filtersMu.Unlock()
@@ -383,7 +385,7 @@ func (api *PublicFilterAPI) GetFilterLogs(ctx context.Context, id rpc.ID) ([]*ty
 	if err != nil {
 		return nil, err
 	}
-	return returnLogs(logs), nil
+	return returnLogs(logs, api.isNative), nil
 }
 
 // GetFilterChanges returns the logs for the filter with the given id since
@@ -413,7 +415,7 @@ func (api *PublicFilterAPI) GetFilterChanges(id rpc.ID) (interface{}, error) {
 		case LogsSubscription:
 			logs := f.logs
 			f.logs = nil
-			return returnLogs(logs), nil
+			return returnLogs(logs, api.isNative), nil
 		}
 	}
 
@@ -431,11 +433,20 @@ func returnHashes(hashes []common.Hash) []common.Hash {
 
 // returnLogs is a helper that will return an empty log array in case the given logs array is nil,
 // otherwise the given logs array is returned.
-func returnLogs(logs []*types.Log) []*types.Log {
+func returnLogs(logs []*types.Log, isNative bool) interface{} {
 	if logs == nil {
 		return []*types.Log{}
 	}
-	return logs
+	if isNative {
+		return logs
+	}
+	web3Logs := make([]*types.LogForWeb3, len(logs))
+	for i := range logs {
+		web3Logs[i] = &types.LogForWeb3{
+			Log: *logs[i],
+		}
+	}
+	return web3Logs
 }
 
 // UnmarshalJSON sets *args fields with given data.

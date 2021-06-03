@@ -264,7 +264,7 @@ func (s *KardiaService) APIs() []rpc.API {
 		{
 			Namespace: "kai",
 			Version:   "1.0",
-			Service:   filters.NewPublicFilterAPI(s),
+			Service:   filters.NewPublicFilterAPI(s, true),
 			Public:    true,
 		},
 		{
@@ -295,7 +295,7 @@ func (s *KardiaService) APIs() []rpc.API {
 		{
 			Namespace: "eth",
 			Version:   "1.0",
-			Service:   filters.NewPublicFilterAPI(s),
+			Service:   filters.NewPublicFilterAPI(s, false),
 			Public:    true,
 		},
 		{
