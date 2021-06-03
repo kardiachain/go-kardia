@@ -169,7 +169,7 @@ type CallArgs struct {
 // Note, this function doesn't make and changes in the state/blockchain and is
 // useful to execute and retrieve values.
 func (s *PublicWeb3API) Call(ctx context.Context, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
-	result, err := s.DoCall(ctx, args, blockHeightOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall, configs.GasLimitCap)
+	result, err := s.DoCall(ctx, args, blockHeightOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall*time.Second, configs.GasLimitCap)
 	if err != nil {
 		return nil, err
 	}
