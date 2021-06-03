@@ -9,6 +9,8 @@ Node:
     - tx
     - account
     - debug
+    - net
+    - eth
   HTTPVirtualHosts:
     - 0.0.0.0
     - 127.0.0.1

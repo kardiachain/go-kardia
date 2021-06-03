@@ -97,13 +97,17 @@ func (bn *BlockHeight) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	blckNum, err := strconv.ParseUint(input, 10, 64)
+	var (
+		blckNum uint64
+		err     error
+	)
+	if strings.HasPrefix(input, "0x") { // try parsing block number as hex to adapt web3 api calls
+		blckNum, err = strconv.ParseUint(strings.TrimPrefix(input, "0x"), 16, 64)
+	} else {
+		blckNum, err = strconv.ParseUint(input, 10, 64)
+	}
 	if err != nil {
-		// try parsing block number as hex to adapt web3 api calls
-		blckNum, err = strconv.ParseUint(input, 16, 64)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	*bn = BlockHeight(blckNum)
@@ -166,13 +170,17 @@ func (bnh *BlockHeightOrHash) UnmarshalJSON(data []byte) error {
 			bnh.BlockHash = &hash
 			return nil
 		} else {
-			blckNum, err := strconv.ParseUint(input, 10, 64)
+			var (
+				blckNum uint64
+				err     error
+			)
+			if strings.HasPrefix(input, "0x") { // try parsing block number as hex to adapt web3 api calls
+				blckNum, err = strconv.ParseUint(strings.TrimPrefix(input, "0x"), 16, 64)
+			} else {
+				blckNum, err = strconv.ParseUint(input, 10, 64)
+			}
 			if err != nil {
-				// try parsing block number as hex to adapt web3 api calls
-				blckNum, err = strconv.ParseUint(input, 16, 64)
-				if err != nil {
-					return err
-				}
+				return err
 			}
 			bn := BlockHeight(blckNum)
 			bnh.BlockHeight = &bn

@@ -656,7 +656,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 	// get receipts from db
 	blockInfo := a.s.BlockInfoByBlockHash(ctx, blockHash)
 	if blockInfo == nil {
-		return nil, errors.New("block info not found")
+		return nil, ErrBlockInfoNotFound
 	}
 	// return the receipt if tx and receipt hashes at index are the same
 	if len(blockInfo.Receipts) > int(index) && blockInfo.Receipts[index].TxHash.Equal(txHash) {

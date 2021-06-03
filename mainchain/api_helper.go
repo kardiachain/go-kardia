@@ -130,9 +130,14 @@ func newRPCTransactionFromBlockIndex(b *types.Block, index uint64) *RPCTransacti
 	return newRPCTransaction(txs[index], b.Hash(), b.Height(), index)
 }
 
+// newRPCPendingTransaction returns a pending transaction that will serialize to the RPC representation
+func newRPCPendingTransaction(tx *types.Transaction) *RPCTransaction {
+	return newRPCTransaction(tx, common.Hash{}, 0, 0)
+}
+
 // newRPCTransaction returns a transaction that will serialize to the RPC
 // representation, with the given location metadata set (if available).
-func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber uint64, index uint64) *RPCTransaction {
+func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockHeight uint64, index uint64) *RPCTransaction {
 	// For non-protected transactions, the homestead signer signer is used
 	// because the return value of ChainId is zero for those transactions.
 	signer := types.HomesteadSigner{}
@@ -153,7 +158,7 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 	}
 	if blockHash != (common.Hash{}) {
 		result.BlockHash = &blockHash
-		result.BlockNumber = (*hexutil.Big)(new(big.Int).SetUint64(blockNumber))
+		result.BlockHeight = (*hexutil.Big)(new(big.Int).SetUint64(blockHeight))
 		result.TransactionIndex = (*hexutil.Uint64)(&index)
 	}
 	return result

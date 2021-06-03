@@ -30,6 +30,7 @@ import (
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
@@ -72,7 +73,7 @@ func (s *PublicWeb3API) ChainId() *common.Big {
 	return (*common.Big)(new(big.Int).SetUint64(s.kaiService.config.ChainId))
 }
 
-// BlockNumber returns the block number of the chain head.
+// BlockNumber returns the block height of the chain head.
 func (s *PublicWeb3API) BlockNumber() hexutil.Uint64 {
 	header := s.kaiService.HeaderByHeight(context.Background(), rpc.LatestBlockHeight) // latest header should always be available
 	return hexutil.Uint64(header.Height)
@@ -136,14 +137,24 @@ func (s *PublicWeb3API) GetBlockByHash(ctx context.Context, hash common.Hash, fu
 }
 
 // GetBalance returns the amount of wei for the given address in the state of the
-// given block number. The rpc.LatestBlockHeight and rpc.PendingBlockHeight meta
-// block numbers are also allowed.
+// given block height. The rpc.LatestBlockHeight and rpc.PendingBlockHeight meta
+// block heights are also allowed.
 func (s *PublicWeb3API) GetBalance(ctx context.Context, address common.Address, blockHeightOrHash rpc.BlockHeightOrHash) (*common.Big, error) {
 	state, _, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
 	return (*common.Big)(state.GetBalance(address)), state.Error()
+}
+
+// GetCode returns the code stored at the given address in the state for the given block height.
+func (s *PublicWeb3API) GetCode(ctx context.Context, address common.Address, blockHeightOrHash rpc.BlockHeightOrHash) (hexutil.Bytes, error) {
+	state, _, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
+	if state == nil || err != nil {
+		return nil, err
+	}
+	code := state.GetCode(address)
+	return code, state.Error()
 }
 
 // CallArgs represents the arguments for a call.
@@ -226,7 +237,7 @@ func (s *PublicWeb3API) DoCall(ctx context.Context, args CallArgs, blockHeightOr
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
 type RPCTransaction struct {
 	BlockHash        *common.Hash    `json:"blockHash"`
-	BlockNumber      *hexutil.Big    `json:"blockNumber"`
+	BlockHeight      *hexutil.Big    `json:"blockNumber"`
 	From             common.Address  `json:"from"`
 	Gas              hexutil.Uint64  `json:"gas"`
 	GasPrice         *hexutil.Big    `json:"gasPrice"`
@@ -241,4 +252,83 @@ type RPCTransaction struct {
 	V                *hexutil.Big    `json:"v"`
 	R                *hexutil.Big    `json:"r"`
 	S                *hexutil.Big    `json:"s"`
+}
+
+// GetTransactionByHash returns the transaction for the given hash
+func (s *PublicWeb3API) GetTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {
+	// Try to return an already finalized transaction
+	tx, blockHash, blockHeight, index := s.kaiService.GetTransaction(ctx, hash)
+	if tx != nil {
+		return newRPCTransaction(tx, blockHash, blockHeight, index), nil
+	}
+	// No finalized transaction, try to retrieve it from the pool
+	if tx := s.kaiService.TxPool().Get(hash); tx != nil {
+		return newRPCPendingTransaction(tx), nil
+	}
+
+	// Transaction unknown, return as such
+	return nil, nil
+}
+
+// GetRawTransactionByHash returns the bytes of the transaction for the given hash.
+func (s *PublicWeb3API) GetRawTransactionByHash(ctx context.Context, hash common.Hash) (hexutil.Bytes, error) {
+	// Retrieve a finalized transaction, or a pooled otherwise
+	tx, _, _, _ := s.kaiService.GetTransaction(ctx, hash)
+	if tx == nil {
+		if tx = s.kaiService.TxPool().Get(hash); tx == nil {
+			// Transaction not found anywhere, abort
+			return nil, ErrTransactionHashNotFound
+		}
+	}
+	// Serialize to RLP and return
+	return rlp.EncodeToBytes(tx)
+}
+
+// GetTransactionReceipt returns the transaction receipt for the given transaction hash.
+func (s *PublicWeb3API) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
+	tx, blockHash, blockHeight, index := s.kaiService.GetTransaction(ctx, hash)
+	if tx == nil {
+		return nil, ErrTransactionHashNotFound
+	}
+	// get receipts from db
+	blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, blockHash)
+	if blockInfo == nil {
+		return nil, ErrBlockInfoNotFound
+	}
+	if len(blockInfo.Receipts) <= int(index) {
+		return nil, nil
+	}
+	receipt := blockInfo.Receipts[index]
+
+	// Derive the sender
+	from, _ := types.Sender(types.HomesteadSigner{}, tx)
+
+	fields := map[string]interface{}{
+		"blockHash":         blockHash,
+		"blockNumber":       hexutil.Uint64(blockHeight),
+		"transactionHash":   hash,
+		"transactionIndex":  hexutil.Uint64(index),
+		"from":              from,
+		"to":                tx.To(),
+		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
+		"cumulativeGasUsed": hexutil.Uint64(receipt.CumulativeGasUsed),
+		"contractAddress":   nil,
+		"logs":              receipt.Logs,
+		"logsBloom":         receipt.Bloom,
+	}
+
+	// Assign receipt status or post state.
+	if len(receipt.PostState) > 0 {
+		fields["root"] = hexutil.Bytes(receipt.PostState)
+	} else {
+		fields["status"] = hexutil.Uint(receipt.Status)
+	}
+	if receipt.Logs == nil {
+		fields["logs"] = [][]*types.Log{}
+	}
+	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
+	if receipt.ContractAddress != (common.Address{}) {
+		fields["contractAddress"] = receipt.ContractAddress
+	}
+	return fields, nil
 }
