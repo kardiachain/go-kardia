@@ -310,12 +310,18 @@ func (s *PublicWeb3API) GetTransactionReceipt(ctx context.Context, hash common.H
 		"gasUsed":           common.Uint64(receipt.GasUsed),
 		"cumulativeGasUsed": common.Uint64(receipt.CumulativeGasUsed),
 		"contractAddress":   nil,
-		"logs":              receipt.Logs,
 	}
 	bloom, err := UnmarshalLogsBloom(&blockInfo.Bloom)
 	if err == nil {
 		fields["logsBloom"] = bloom
 	}
+	web3Logs := make([]*types.LogForWeb3, len(receipt.Logs))
+	for i := range receipt.Logs {
+		web3Logs[i] = &types.LogForWeb3{
+			Log: *receipt.Logs[i],
+		}
+	}
+	fields["logs"] = web3Logs
 
 	// Assign receipt status or post state.
 	if len(receipt.PostState) > 0 {
