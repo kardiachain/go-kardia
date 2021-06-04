@@ -301,7 +301,7 @@ func (s *KardiaService) APIs() []rpc.API {
 		{
 			Namespace: "net",
 			Version:   "1.0",
-			Service:   NewPublicNetAPI(s.networkID),
+			Service:   NewPublicNetAPI(0),
 			Public:    true,
 		},
 	}
