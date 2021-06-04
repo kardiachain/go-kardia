@@ -295,6 +295,12 @@ func (s *KardiaService) APIs() []rpc.API {
 		{
 			Namespace: "eth",
 			Version:   "1.0",
+			Service:   NewPublicTransactionPoolAPI(s),
+			Public:    true,
+		},
+		{
+			Namespace: "eth",
+			Version:   "1.0",
 			Service:   filters.NewPublicFilterAPI(s, false),
 			Public:    true,
 		},

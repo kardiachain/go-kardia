@@ -20,6 +20,7 @@ package kai
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -30,6 +31,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -169,7 +171,7 @@ type CallArgs struct {
 // Note, this function doesn't make and changes in the state/blockchain and is
 // useful to execute and retrieve values.
 func (s *PublicWeb3API) Call(ctx context.Context, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
-	result, err := s.DoCall(ctx, args, blockHeightOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall*time.Second, configs.GasLimitCap)
+	result, err := DoCall(ctx, s.kaiService, args, blockHeightOrHash, kvm.Config{}, configs.DefaultTimeOutForStaticCall*time.Second, configs.GasLimitCap)
 	if err != nil {
 		return nil, err
 	}
@@ -180,11 +182,11 @@ func (s *PublicWeb3API) Call(ctx context.Context, args CallArgs, blockHeightOrHa
 	return result.Return(), result.Err
 }
 
-func (s *PublicWeb3API) DoCall(ctx context.Context, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash, kvmCfg kvm.Config,
+func DoCall(ctx context.Context, s APIBackend, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash, kvmCfg kvm.Config,
 	timeout time.Duration, globalGasCap uint64) (*kvm.ExecutionResult, error) {
 	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
 
-	state, header, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
+	state, header, err := s.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
 	if state == nil || err != nil {
 		return nil, err
 	}
@@ -203,7 +205,7 @@ func (s *PublicWeb3API) DoCall(ctx context.Context, args CallArgs, blockHeightOr
 
 	// Get a new instance of the KVM.
 	msg := args.ToMessage(globalGasCap)
-	kvm, vmError, err := s.kaiService.GetKVM(ctx, msg, state, header)
+	kvm, vmError, err := s.GetKVM(ctx, msg, state, header)
 	if err != nil {
 		return nil, err
 	}
@@ -232,6 +234,125 @@ func (s *PublicWeb3API) DoCall(ctx context.Context, args CallArgs, blockHeightOr
 	return result, nil
 }
 
+// EstimateGas returns an estimate of the amount of gas needed to execute the
+// given transaction against the current pending block.
+func (s *PublicWeb3API) EstimateGas(ctx context.Context, args CallArgs, blockHeightOrHash *rpc.BlockHeightOrHash) (common.Uint64, error) {
+	bHeightOrHash := rpc.BlockHeightOrHashWithHeight(rpc.PendingBlockHeight)
+	if blockHeightOrHash != nil {
+		bHeightOrHash = *blockHeightOrHash
+	}
+	return DoEstimateGas(ctx, s.kaiService, args, bHeightOrHash, configs.GasLimitCap)
+}
+
+func DoEstimateGas(ctx context.Context, b APIBackend, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash, gasCap uint64) (common.Uint64, error) {
+	// Binary search the gas requirement, as it may be higher than the amount used
+	var (
+		lo  uint64 = configs.TxGas - 1
+		hi  uint64
+		cap uint64
+	)
+	// Use zero address if sender unspecified.
+	if args.From == nil {
+		args.From = new(common.Address)
+	}
+	// Determine the highest gas limit can be used during the estimation.
+	if args.Gas != nil && uint64(*args.Gas) >= configs.TxGas {
+		hi = uint64(*args.Gas)
+	} else {
+		// Retrieve the block to act as the gas ceiling
+		block, err := b.BlockByHeightOrHash(ctx, blockHeightOrHash)
+		if err != nil {
+			return 0, err
+		}
+		if block == nil {
+			return 0, errors.New("block not found")
+		}
+		hi = block.GasLimit()
+	}
+	// Recap the highest gas limit with account's available balance.
+	if args.GasPrice != nil && args.GasPrice.ToInt().BitLen() != 0 {
+		state, _, err := b.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
+		if err != nil {
+			return 0, err
+		}
+		balance := state.GetBalance(*args.From) // from can't be nil
+		available := new(big.Int).Set(balance)
+		if args.Value != nil {
+			if args.Value.ToInt().Cmp(available) >= 0 {
+				return 0, errors.New("insufficient funds for transfer")
+			}
+			available.Sub(available, args.Value.ToInt())
+		}
+		allowance := new(big.Int).Div(available, args.GasPrice.ToInt())
+
+		// If the allowance is larger than maximum uint64, skip checking
+		if allowance.IsUint64() && hi > allowance.Uint64() {
+			transfer := args.Value
+			if transfer == nil {
+				transfer = new(common.Big)
+			}
+			log.Warn("Gas estimation capped by limited funds", "original", hi, "balance", balance,
+				"sent", transfer.ToInt(), "gasprice", args.GasPrice.ToInt(), "fundable", allowance)
+			hi = allowance.Uint64()
+		}
+	}
+	// Recap the highest gas allowance with specified gascap.
+	if gasCap != 0 && hi > gasCap {
+		log.Warn("Caller gas above allowance, capping", "requested", hi, "cap", gasCap)
+		hi = gasCap
+	}
+	cap = hi
+
+	// Create a helper to check if a gas allowance results in an executable transaction
+	executable := func(gas uint64) (bool, *kvm.ExecutionResult, error) {
+		args.Gas = (*common.Uint64)(&gas)
+
+		result, err := DoCall(ctx, b, args, blockHeightOrHash, kvm.Config{}, 0, gasCap)
+		if err != nil {
+			if errors.Is(err, tx_pool.ErrIntrinsicGas) {
+				return true, nil, nil // Special case, raise gas limit
+			}
+			return true, nil, err // Bail out
+		}
+		return result.Failed(), result, nil
+	}
+	// Execute the binary search and hone in on an executable gas limit
+	for lo+1 < hi {
+		mid := (hi + lo) / 2
+		failed, _, err := executable(mid)
+
+		// If the error is not nil(consensus error), it means the provided message
+		// call or transaction will never be accepted no matter how much gas it is
+		// assigned. Return the error directly, don't struggle any more.
+		if err != nil {
+			return 0, err
+		}
+		if failed {
+			lo = mid
+		} else {
+			hi = mid
+		}
+	}
+	// Reject the transaction as invalid if it still fails at the highest allowance
+	if hi == cap {
+		failed, result, err := executable(hi)
+		if err != nil {
+			return 0, err
+		}
+		if failed {
+			if result != nil && result.Err != kvm.ErrOutOfGas {
+				if len(result.Revert()) > 0 {
+					return 0, newRevertError(result)
+				}
+				return 0, result.Err
+			}
+			// Otherwise, the specified gas cap is too low
+			return 0, fmt.Errorf("gas required exceeds allowance (%d)", cap)
+		}
+	}
+	return common.Uint64(hi), nil
+}
+
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
 type RPCTransaction struct {
 	BlockHash        *common.Hash    `json:"blockHash"`
@@ -252,8 +373,20 @@ type RPCTransaction struct {
 	S                *common.Big     `json:"s"`
 }
 
+// PublicTransactionPoolAPI exposes methods for the RPC interface
+type PublicTransactionPoolAPI struct {
+	kaiService *KardiaService
+}
+
+// NewPublicTransactionPoolAPI creates a new RPC service with methods specific for the transaction pool.
+func NewPublicTransactionPoolAPI(k *KardiaService) *PublicTransactionPoolAPI {
+	// The signer used by the API should always be the 'latest' known one because we expect
+	// signers to be backwards-compatible with old transactions.
+	return &PublicTransactionPoolAPI{k}
+}
+
 // GetTransactionByHash returns the transaction for the given hash
-func (s *PublicWeb3API) GetTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {
+func (s *PublicTransactionPoolAPI) GetTransactionByHash(ctx context.Context, hash common.Hash) (*RPCTransaction, error) {
 	// Try to return an already finalized transaction
 	tx, blockHash, blockHeight, index := s.kaiService.GetTransaction(ctx, hash)
 	if tx != nil {
@@ -269,7 +402,7 @@ func (s *PublicWeb3API) GetTransactionByHash(ctx context.Context, hash common.Ha
 }
 
 // GetRawTransactionByHash returns the bytes of the transaction for the given hash.
-func (s *PublicWeb3API) GetRawTransactionByHash(ctx context.Context, hash common.Hash) (common.Bytes, error) {
+func (s *PublicTransactionPoolAPI) GetRawTransactionByHash(ctx context.Context, hash common.Hash) (common.Bytes, error) {
 	// Retrieve a finalized transaction, or a pooled otherwise
 	tx, _, _, _ := s.kaiService.GetTransaction(ctx, hash)
 	if tx == nil {
@@ -283,7 +416,7 @@ func (s *PublicWeb3API) GetRawTransactionByHash(ctx context.Context, hash common
 }
 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
-func (s *PublicWeb3API) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
+func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
 	tx, blockHash, blockHeight, index := s.kaiService.GetTransaction(ctx, hash)
 	if tx == nil {
 		return nil, ErrTransactionHashNotFound
@@ -337,4 +470,30 @@ func (s *PublicWeb3API) GetTransactionReceipt(ctx context.Context, hash common.H
 		fields["contractAddress"] = receipt.ContractAddress
 	}
 	return fields, nil
+}
+
+// GetTransactionCount returns the number of transactions the given address has sent for the given block number
+func (s *PublicTransactionPoolAPI) GetTransactionCount(ctx context.Context, address common.Address, blockHeightOrHash rpc.BlockHeightOrHash) (*common.Uint64, error) {
+	// Ask transaction pool for the nonce which includes pending transactions
+	if blockHeight, ok := blockHeightOrHash.Height(); ok && blockHeight == rpc.PendingBlockHeight {
+		nonce := s.kaiService.txPool.Nonce(address)
+		return (*common.Uint64)(&nonce), nil
+	}
+	// Resolve block number and use its state to ask for the nonce
+	state, _, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
+	if state == nil || err != nil {
+		return nil, err
+	}
+	nonce := state.GetNonce(address)
+	return (*common.Uint64)(&nonce), state.Error()
+}
+
+// SendRawTransaction will add the signed transaction to the transaction pool.
+// The sender is responsible for signing the transaction and using the correct nonce.
+func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, input common.Bytes) (common.Hash, error) {
+	tx := new(types.Transaction)
+	if err := rlp.DecodeBytes(input, &tx); err != nil {
+		return common.Hash{}, err
+	}
+	return tx.Hash(), s.kaiService.TxPool().AddLocal(tx)
 }

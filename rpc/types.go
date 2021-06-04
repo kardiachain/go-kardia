@@ -203,7 +203,7 @@ func (bnh *BlockHeightOrHash) Hash() (common.Hash, bool) {
 	return common.Hash{}, false
 }
 
-func BlockHeightOrHashWithNumber(blockHeight BlockHeight) BlockHeightOrHash {
+func BlockHeightOrHashWithHeight(blockHeight BlockHeight) BlockHeightOrHash {
 	return BlockHeightOrHash{
 		BlockHeight:      &blockHeight,
 		BlockHash:        nil,
