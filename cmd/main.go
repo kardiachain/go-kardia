@@ -181,6 +181,11 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		FastSync:    c.getFastSyncConfig(),
 		GasOracle:   c.getGasOracleConfig(),
 	}
+	if args.network == Mainnet {
+		mainChainConfig.NetworkId = configs.MainnetNetworkID
+	} else {
+		mainChainConfig.NetworkId = configs.TestnetNetworkID
+	}
 	return &mainChainConfig, nil
 }
 

@@ -52,6 +52,10 @@ const (
 
 	// default params for configs
 	DefaultBcReactorServiceName = "BCR"
+
+	// default networkID
+	MainnetNetworkID = 0
+	TestnetNetworkID = 69
 )
 
 var (
