@@ -52,19 +52,19 @@ func (s *PublicWeb3API) rpcMarshalHeader(ctx context.Context, header *types.Head
 
 // RPCMarshalHeader converts the given header to the RPC output.
 func RPCMarshalHeader(head *types.Header) map[string]interface{} {
-	// TODO(trinhdn): remove hardcode
+	// TODO(trinhdn97): remove hardcode
 	return map[string]interface{}{
 		"number":           (*common.Big)(new(big.Int).SetUint64(head.Height)),
 		"hash":             head.Hash(),
 		"parentHash":       head.LastBlockID.Hash,
-		"nonce":            "0x689056015818adbe",
+		"nonce":            "0x0000000000000000",
 		"mixHash":          common.NewZeroHash(),
 		"sha3Uncles":       common.NewZeroHash(),
 		"stateRoot":        head.AppHash,
 		"miner":            head.ProposerAddress,
-		"difficulty":       "0x000001",
+		"difficulty":       "0x000000",
 		"extraData":        common.NewZeroHash(),
-		"size":             "0x000001",
+		"size":             "0x000000",
 		"gasLimit":         common.Uint64(head.GasLimit),
 		"timestamp":        common.Uint64(head.Time.Unix()),
 		"transactionsRoot": head.TxHash,

@@ -770,8 +770,8 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, bloc
 		return nil, err
 	}
 
-	// Wait for the context to be done and cancel the evm. Even if the
-	// EVM has finished, cancelling may be done (repeatedly)
+	// Wait for the context to be done and cancel the KVM. Even if the
+	// KVM has finished, cancelling may be done (repeatedly)
 	go func() {
 		<-ctx.Done()
 		kvm.Cancel()

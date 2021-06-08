@@ -184,7 +184,7 @@ func (s *PublicWeb3API) Call(ctx context.Context, args CallArgs, blockHeightOrHa
 
 func DoCall(ctx context.Context, s APIBackend, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash, kvmCfg kvm.Config,
 	timeout time.Duration, globalGasCap uint64) (*kvm.ExecutionResult, error) {
-	defer func(start time.Time) { log.Debug("Executing EVM call finished", "runtime", time.Since(start)) }(time.Now())
+	defer func(start time.Time) { log.Debug("Executing KVM call finished", "runtime", time.Since(start)) }(time.Now())
 
 	state, header, err := s.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
 	if state == nil || err != nil {

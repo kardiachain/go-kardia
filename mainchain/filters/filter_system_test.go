@@ -215,7 +215,7 @@ func TestLogFilterCreation(t *testing.T) {
 	var (
 		db      = storage.NewMemoryDatabase()
 		backend = &testBackend{db: db}
-		api     = NewPublicFilterAPI(backend)
+		api     = NewPublicFilterAPI(backend, true)
 
 		testCases = []struct {
 			crit    FilterCriteria
@@ -259,7 +259,7 @@ func TestInvalidLogFilterCreation(t *testing.T) {
 	var (
 		db      = storage.NewMemoryDatabase()
 		backend = &testBackend{db: db}
-		api     = NewPublicFilterAPI(backend)
+		api     = NewPublicFilterAPI(backend, true)
 	)
 
 	// different situations where log filter creation should fail.
@@ -280,7 +280,7 @@ func TestInvalidGetLogsRequest(t *testing.T) {
 	var (
 		db        = storage.NewMemoryDatabase()
 		backend   = &testBackend{db: db}
-		api       = NewPublicFilterAPI(backend)
+		api       = NewPublicFilterAPI(backend, true)
 		blockHash = common.HexToHash("0x1111111111111111111111111111111111111111111111111111111111111111")
 	)
 
@@ -305,7 +305,7 @@ func TestLogFilter(t *testing.T) {
 	var (
 		db      = storage.NewMemoryDatabase()
 		backend = &testBackend{db: db}
-		api     = NewPublicFilterAPI(backend)
+		api     = NewPublicFilterAPI(backend, true)
 
 		firstAddr      = common.HexToAddress("0x1111111111111111111111111111111111111111")
 		secondAddr     = common.HexToAddress("0x2222222222222222222222222222222222222222")

@@ -30,10 +30,10 @@ func TestBlockHeightJSONUnmarshal(t *testing.T) {
 		expected BlockHeight
 	}{
 		0:  {`"0x"`, true, BlockHeight(0)},
-		1:  {`"0x0"`, true, BlockHeight(0)},
+		1:  {`"0x0"`, false, BlockHeight(0)},
 		2:  {`"0X1"`, true, BlockHeight(0)},
-		3:  {`"0x01"`, true, BlockHeight(0)},
-		4:  {`"0x12"`, true, BlockHeight(0)},
+		3:  {`"0x01"`, false, BlockHeight(1)},
+		4:  {`"0x12"`, false, BlockHeight(18)},
 		5:  {`"ff"`, true, BlockHeight(0)},
 		6:  {`0`, false, BlockHeight(0)},
 		7:  {`"pending"`, false, PendingBlockHeight},
@@ -68,10 +68,10 @@ func TestBlockHeightOrHash_UnmarshalJSON(t *testing.T) {
 		expected BlockHeightOrHash
 	}{
 		0:  {`"0x"`, true, BlockHeightOrHash{}},
-		1:  {`"0x0"`, true, BlockHeightOrHash{}},
+		1:  {`"0x0"`, false, BlockHeightOrHashWithHeight(0)},
 		2:  {`"0X1"`, true, BlockHeightOrHash{}},
-		3:  {`"0x01"`, true, BlockHeightOrHash{}},
-		4:  {`"0x12"`, true, BlockHeightOrHash{}},
+		3:  {`"0x01"`, false, BlockHeightOrHashWithHeight(1)},
+		4:  {`"0x12"`, false, BlockHeightOrHashWithHeight(18)},
 		5:  {`0`, false, BlockHeightOrHashWithHeight(0)},
 		6:  {`"ff"`, true, BlockHeightOrHash{}},
 		7:  {`"pending"`, false, BlockHeightOrHashWithHeight(PendingBlockHeight)},
