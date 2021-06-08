@@ -79,6 +79,7 @@ type subscription struct {
 type EventSystem struct {
 	backend  Backend
 	lastHead *types.Header
+	isNative bool
 
 	// Subscriptions
 	txsSub       event.Subscription // Subscription for new transaction event
@@ -99,9 +100,10 @@ type EventSystem struct {
 //
 // The returned manager has a loop that needs to be stopped with the Stop function
 // or by stopping the given mux.
-func NewEventSystem(backend Backend) *EventSystem {
+func NewEventSystem(backend Backend, isNative bool) *EventSystem {
 	m := &EventSystem{
 		backend:     backend,
+		isNative:    isNative,
 		install:     make(chan *subscription),
 		uninstall:   make(chan *subscription),
 		txsCh:       make(chan events.NewTxsEvent, txChanSize),

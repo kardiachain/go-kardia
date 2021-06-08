@@ -66,7 +66,7 @@ func NewPublicFilterAPI(backend Backend, isNative bool) *PublicFilterAPI {
 	api := &PublicFilterAPI{
 		backend:  backend,
 		chainDb:  backend.ChainDb(),
-		events:   NewEventSystem(backend),
+		events:   NewEventSystem(backend, isNative),
 		filters:  make(map[rpc.ID]*filter),
 		isNative: isNative,
 	}
@@ -103,7 +103,7 @@ func (api *PublicFilterAPI) timeoutLoop() {
 // `eth_getFilterChanges` polling method that is also used for log filters.
 //
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#kai_newpendingtransactionfilter
-// TODO(trinhdn): will be available in the future
+// TODO(trinhdn97): will be available in the future
 func (api *PublicFilterAPI) NewPendingTransactionFilter() rpc.ID {
 	var (
 		pendingTxs   = make(chan []common.Hash)
@@ -153,7 +153,7 @@ func (api *PublicFilterAPI) NewPendingTransactions(ctx context.Context) (*rpc.Su
 			select {
 			case hashes := <-txHashes:
 				// To keep the original behaviour, send a single tx hash in one notification.
-				// TODO(rjl493456442) Send a batch of tx hashes in one notification
+				// TODO(trinhdn97): Send a batch of tx hashes in one notification
 				for _, h := range hashes {
 					notifier.Notify(rpcSub.ID, h)
 				}
@@ -221,7 +221,11 @@ func (api *PublicFilterAPI) NewHeads(ctx context.Context) (*rpc.Subscription, er
 		for {
 			select {
 			case h := <-headers:
-				notifier.Notify(rpcSub.ID, h)
+				if api.isNative { // fire native headers for native subscription
+					notifier.Notify(rpcSub.ID, h)
+				} else { // fire Ethereum-compatible headers for web3 subscription
+					notifier.Notify(rpcSub.ID, api.rpcMarshalHeader(ctx, h))
+				}
 			case <-rpcSub.Err():
 				headersSub.Unsubscribe()
 				return
@@ -257,8 +261,16 @@ func (api *PublicFilterAPI) Logs(ctx context.Context, crit FilterCriteria) (*rpc
 		for {
 			select {
 			case logs := <-matchedLogs:
-				for _, log := range logs {
-					notifier.Notify(rpcSub.ID, &log)
+				if api.isNative { // fire native logs for native subscription
+					for _, log := range logs {
+						notifier.Notify(rpcSub.ID, &log)
+					}
+				} else { // fire Ethereum-compatible logs for web3 subscription
+					for _, log := range logs {
+						notifier.Notify(rpcSub.ID, &types.LogForWeb3{
+							Log: *log,
+						})
+					}
 				}
 			case <-rpcSub.Err(): // client send an unsubscribe request
 				logsSub.Unsubscribe()
