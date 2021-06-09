@@ -493,20 +493,20 @@ func (s *PublicKaiAPI) GetCommit(blockHeight rpc.BlockHeight) *types.Commit {
 	return s.kaiService.kaiDb.ReadCommit(blockHeight.Uint64())
 }
 
-// Result structs for GetProof
+// AccountResult is the result structs for GetProof
 type AccountResult struct {
 	Address      common.Address  `json:"address"`
 	AccountProof []string        `json:"accountProof"`
-	Balance      *big.Int        `json:"balance"`
+	Balance      *common.Big     `json:"balance"`
 	CodeHash     common.Hash     `json:"codeHash"`
-	Nonce        uint64          `json:"nonce"`
+	Nonce        common.Uint64   `json:"nonce"`
 	StorageHash  common.Hash     `json:"storageHash"`
 	StorageProof []StorageResult `json:"storageProof"`
 }
 type StorageResult struct {
-	Key   string   `json:"key"`
-	Value *big.Int `json:"value"`
-	Proof []string `json:"proof"`
+	Key   string      `json:"key"`
+	Value *common.Big `json:"value"`
+	Proof []string    `json:"proof"`
 }
 
 // GetProof returns the Merkle-proof for a given account and optionally some storage keys.
@@ -536,9 +536,9 @@ func (s *PublicKaiAPI) GetProof(ctx context.Context, address common.Address, sto
 			if storageError != nil {
 				return nil, storageError
 			}
-			storageProof[i] = StorageResult{key, state.GetState(address, common.HexToHash(key)).Big(), toHexSlice(proof)}
+			storageProof[i] = StorageResult{key, (*common.Big)(state.GetState(address, common.HexToHash(key)).Big()), toHexSlice(proof)}
 		} else {
-			storageProof[i] = StorageResult{key, new(big.Int), []string{}}
+			storageProof[i] = StorageResult{key, &common.Big{}, []string{}}
 		}
 	}
 
@@ -551,9 +551,9 @@ func (s *PublicKaiAPI) GetProof(ctx context.Context, address common.Address, sto
 	return &AccountResult{
 		Address:      address,
 		AccountProof: toHexSlice(accountProof),
-		Balance:      state.GetBalance(address),
+		Balance:      (*common.Big)(state.GetBalance(address)),
 		CodeHash:     codeHash,
-		Nonce:        state.GetNonce(address),
+		Nonce:        common.Uint64(state.GetNonce(address)),
 		StorageHash:  storageHash,
 		StorageProof: storageProof,
 	}, state.Error()

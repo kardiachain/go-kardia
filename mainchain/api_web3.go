@@ -28,6 +28,7 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
@@ -155,6 +156,56 @@ func (s *PublicWeb3API) GetCode(ctx context.Context, address common.Address, blo
 	}
 	code := state.GetCode(address)
 	return code, state.Error()
+}
+
+// GetProof returns the Merkle-proof for a given account and optionally some storage keys.
+func (s *PublicWeb3API) GetProof(ctx context.Context, address common.Address, storageKeys []string, blockHeightOrHash rpc.BlockHeightOrHash) (*AccountResult, error) {
+	state, _, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
+	if state == nil || err != nil {
+		return nil, err
+	}
+
+	storageTrie := state.StorageTrie(address)
+	storageHash := types.EmptyRootHash
+	codeHash := state.GetCodeHash(address)
+	storageProof := make([]StorageResult, len(storageKeys))
+
+	// if we have a storageTrie, (which means the account exists), we can update the storagehash
+	if storageTrie != nil {
+		storageHash = storageTrie.Hash()
+	} else {
+		// no storageTrie means the account does not exist, so the codeHash is the hash of an empty bytearray.
+		codeHash = crypto.Keccak256Hash(nil)
+	}
+
+	// create the proof for the storageKeys
+	for i, key := range storageKeys {
+		if storageTrie != nil {
+			proof, storageError := state.GetStorageProof(address, common.HexToHash(key))
+			if storageError != nil {
+				return nil, storageError
+			}
+			storageProof[i] = StorageResult{key, (*common.Big)(state.GetState(address, common.HexToHash(key)).Big()), toHexSlice(proof)}
+		} else {
+			storageProof[i] = StorageResult{key, &common.Big{}, []string{}}
+		}
+	}
+
+	// create the accountProof
+	accountProof, proofErr := state.GetProof(address)
+	if proofErr != nil {
+		return nil, proofErr
+	}
+
+	return &AccountResult{
+		Address:      address,
+		AccountProof: toHexSlice(accountProof),
+		Balance:      (*common.Big)(state.GetBalance(address)),
+		CodeHash:     codeHash,
+		Nonce:        common.Uint64(state.GetNonce(address)),
+		StorageHash:  storageHash,
+		StorageProof: storageProof,
+	}, state.Error()
 }
 
 // CallArgs represents the arguments for a call.
