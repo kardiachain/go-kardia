@@ -65,5 +65,12 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 		"timestamp":        common.Uint64(head.Time.Unix()),
 		"transactionsRoot": head.TxHash,
 		"receiptsRoot":     common.NewZeroHash(),
+		// additional KardiaChain network fields
+		"numTxs":            common.Uint64(head.NumTxs),
+		"commitHash":        head.LastCommitHash,
+		"validatorHash":     head.ValidatorsHash,
+		"nextValidatorHash": head.NextValidatorsHash,
+		"consensusHash":     head.ConsensusHash,
+		"evidenceHash":      head.EvidenceHash,
 	}
 }

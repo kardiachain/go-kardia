@@ -495,17 +495,22 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 		"cumulativeGasUsed": common.Uint64(receipt.CumulativeGasUsed),
 		"contractAddress":   nil,
 	}
+	// convert bloom and logs
 	bloom, err := UnmarshalLogsBloom(&blockInfo.Bloom)
 	if err == nil {
 		fields["logsBloom"] = bloom
 	}
-	web3Logs := make([]*types.LogForWeb3, len(receipt.Logs))
-	for i := range receipt.Logs {
-		web3Logs[i] = &types.LogForWeb3{
-			Log: *receipt.Logs[i],
+	if receipt.Logs == nil {
+		fields["logs"] = [][]*types.Log{}
+	} else {
+		web3Logs := make([]*types.LogForWeb3, len(receipt.Logs))
+		for i := range receipt.Logs {
+			web3Logs[i] = &types.LogForWeb3{
+				Log: *receipt.Logs[i],
+			}
 		}
+		fields["logs"] = web3Logs
 	}
-	fields["logs"] = web3Logs
 
 	// Assign receipt status or post state.
 	if len(receipt.PostState) > 0 {
@@ -513,10 +518,8 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	} else {
 		fields["status"] = common.Uint(receipt.Status)
 	}
-	if receipt.Logs == nil {
-		fields["logs"] = [][]*types.Log{}
-	}
-	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
+
+	// If the ContractAddress field is 20 0x0 bytes, assume it is not a contract creation
 	if receipt.ContractAddress != (common.Address{}) {
 		fields["contractAddress"] = receipt.ContractAddress
 	}
