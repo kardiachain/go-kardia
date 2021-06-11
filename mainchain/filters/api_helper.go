@@ -43,7 +43,7 @@ func (api *PublicFilterAPI) rpcMarshalHeader(ctx context.Context, header *types.
 			fields["logsBloom"] = bloom
 		}
 		fields["gasUsed"] = common.Uint64(blockInfo.GasUsed)
-		fields["rewards"] = blockInfo.Rewards
+		fields["rewards"] = (*common.Big)(blockInfo.Rewards)
 	}
 	return fields
 }

@@ -45,7 +45,7 @@ func (s *PublicWeb3API) rpcMarshalHeader(ctx context.Context, header *types.Head
 			fields["logsBloom"] = bloom
 		}
 		fields["gasUsed"] = common.Uint64(blockInfo.GasUsed)
-		fields["rewards"] = blockInfo.Rewards
+		fields["rewards"] = (*common.Big)(blockInfo.Rewards)
 	}
 	return fields
 }
@@ -94,7 +94,7 @@ func (s *PublicWeb3API) rpcMarshalBlock(ctx context.Context, b *types.Block, inc
 			fields["logsBloom"] = bloom
 		}
 		fields["gasUsed"] = common.Uint64(blockInfo.GasUsed)
-		fields["rewards"] = blockInfo.Rewards
+		fields["rewards"] = (*common.Big)(blockInfo.Rewards)
 	}
 	return fields, nil
 }
