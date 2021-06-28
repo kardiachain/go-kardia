@@ -53,6 +53,8 @@ MainChain:
     - abb20582e80f64235dd03b67a3e12d334dd26489@18.136.72.15:3000
     - 2e6d694bd9d30ad165881dc009ff02d9489971ae@54.255.107.221:3000
     - a9ff8a45117c973ecbb639328fdd474790128476@18.140.17.87:3000
+    - 60ac5d7afb954e437aacd42566d7bcfef616cf3e@52.74.41.175:3000
+    - 5611c55846cba0dac1dbec92936bd4bdc36b21eb@13.213.159.248:3000
   Database:
     Dir: chaindata                           # directory stores leveldb
     Cache: 16                                # cache is used in leveldb
