@@ -30,6 +30,8 @@ import (
 type ChainConfig struct {
 	// Various consensus engines
 	Kaicon *KaiconConfig `json:"kaicon,omitempty" yaml:"KaiconConfig"`
+
+	MainnetV2Block *uint64 `json:"mainnetV2Block,omitempty" yaml:"MainnetV2Block"`
 }
 
 // KaiconConfig is the consensus engine configs for Kardia BFT DPoS.

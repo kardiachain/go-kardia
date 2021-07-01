@@ -21,6 +21,7 @@ package blockchain
 import (
 	"math/big"
 
+	"github.com/kardiachain/go-kardia/consensus/misc"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -62,6 +63,12 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		allLogs  []*types.Log
 		gp       = new(types.GasPool).AddGas(block.GasLimit())
 	)
+
+	// Mutate the block and state according to any hard-fork specs
+	if p.bc.chainConfig.MainnetV2Block != nil && *p.bc.chainConfig.MainnetV2Block == block.Height() {
+		misc.ApplyMainnetV2HardFork(statedb)
+	}
+
 	// Iterate over and process the individual transactions
 	for i, tx := range block.Transactions() {
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
