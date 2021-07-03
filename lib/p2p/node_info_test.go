@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/kardiachain/go-kardia/lib/crypto"
-
 	"github.com/stretchr/testify/assert"
 )
 

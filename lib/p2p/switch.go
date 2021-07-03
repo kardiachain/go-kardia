@@ -363,7 +363,7 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 	// reconnect to our node and the switch calls InitPeer before
 	// RemovePeer is finished.
 	if sw.peers.Remove(peer) {
-		sw.metrics.Peers.Inc(int64(-1))
+		sw.metrics.Peers.Add(float64(-1))
 	}
 }
 
@@ -820,7 +820,7 @@ func (sw *Switch) addPeer(p Peer) error {
 	if err := sw.peers.Add(p); err != nil {
 		return err
 	}
-	sw.metrics.Peers.Inc(int64(1))
+	sw.metrics.Peers.Add(float64(1))
 
 	// Start all the reactor protocols on the peer.
 	for _, reactor := range sw.reactors {
