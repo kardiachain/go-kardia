@@ -61,7 +61,7 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 		"mixHash":          common.NewZeroHash(),
 		"sha3Uncles":       common.NewZeroHash(),
 		"stateRoot":        head.AppHash,
-		"miner":            head.ProposerAddress,
+		"miner":            head.ProposerAddress.Hex(),
 		"difficulty":       "0x000000",
 		"extraData":        common.NewZeroHash(),
 		"size":             "0x000000",

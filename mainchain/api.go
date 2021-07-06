@@ -50,7 +50,7 @@ type BlockHeaderJSON struct {
 	GasUsed           uint64         `json:"gasUsed"`
 	GasLimit          uint64         `json:"gasLimit"`
 	Rewards           string         `json:"Rewards"`
-	ProposerAddress   common.Address `json:"proposerAddress"`
+	ProposerAddress   string         `json:"proposerAddress"`
 	TxHash            common.Hash    `json:"dataHash"` // transactions
 	Bloom             types.Bloom    `json:"logsBloom"`
 	ValidatorsHash    common.Hash    `json:"validatorHash"`     // current block validators hash
@@ -129,7 +129,7 @@ func NewBlockHeaderJSON(header *types.Header, blockInfo *types.BlockInfo) *Block
 		Rewards:           blockInfo.Rewards.String(),
 		GasUsed:           blockInfo.GasUsed,
 		GasLimit:          header.GasLimit,
-		ProposerAddress:   header.ProposerAddress,
+		ProposerAddress:   header.ProposerAddress.Hex(),
 		TxHash:            header.TxHash,
 		Bloom:             blockInfo.Bloom,
 		ValidatorsHash:    header.ValidatorsHash,
