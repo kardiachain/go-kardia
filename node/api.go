@@ -48,7 +48,7 @@ func NewPublicAdminAPI(node *Node) *publicAdminAPI {
 	return &publicAdminAPI{node: node}
 }
 
-// A peer
+// Peer return info or a peer
 type Peer struct {
 	NodeInfo         p2p.DefaultNodeInfo  `json:"node_info"`
 	IsOutbound       bool                 `json:"is_outbound"`

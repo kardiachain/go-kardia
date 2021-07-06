@@ -620,10 +620,10 @@ func makeNodeInfo(
 			cs.StateChannel, cs.DataChannel, cs.VoteChannel, cs.VoteSetBitsChannel,
 			evidence.EvidenceChannel, tx_pool.TxpoolChannel,
 		},
+		Moniker: config.Name,
 		Other: p2p.DefaultNodeInfoOther{
 			TxIndex: txIndexerStatus,
 		},
-		Moniker: config.Name,
 	}
 
 	if config.P2P.PexReactor {

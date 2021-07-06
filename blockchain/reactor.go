@@ -21,10 +21,10 @@ const (
 )
 
 type blockStore interface {
-	LoadBlock(height uint64) *types.Block
-	SaveBlock(*types.Block, *types.PartSet, *types.Commit)
 	Base() uint64
 	Height() uint64
+	LoadBlock(height uint64) *types.Block
+	SaveBlock(*types.Block, *types.PartSet, *types.Commit)
 }
 
 // BlockchainReactor handles fast sync protocol.

@@ -91,12 +91,6 @@ type DefaultNodeInfo struct {
 	// ASCIIText fields
 	Moniker string               `json:"moniker"` // arbitrary moniker
 	Other   DefaultNodeInfoOther `json:"other"`   // other application specific data
-
-	// If this node is many blocks behind the tip of the chain, FastSync
-	// allows them to catchup quickly by downloading blocks in parallel
-	// and verifying their commits
-	FastSyncMode       bool   `json:"fast_sync"`
-	CurrentBlockHeight uint64 `json:"current_block_height"` // current block height of node
 }
 
 // DefaultNodeInfoOther is the misc. applcation specific data
