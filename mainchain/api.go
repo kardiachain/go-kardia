@@ -50,7 +50,7 @@ type BlockHeaderJSON struct {
 	GasUsed           uint64         `json:"gasUsed"`
 	GasLimit          uint64         `json:"gasLimit"`
 	Rewards           string         `json:"Rewards"`
-	ProposerAddress   common.Address `json:"proposerAddress"`
+	ProposerAddress   string         `json:"proposerAddress"`
 	TxHash            common.Hash    `json:"dataHash"` // transactions
 	Bloom             types.Bloom    `json:"logsBloom"`
 	ValidatorsHash    common.Hash    `json:"validatorHash"`     // current block validators hash
@@ -129,7 +129,7 @@ func NewBlockHeaderJSON(header *types.Header, blockInfo *types.BlockInfo) *Block
 		Rewards:           blockInfo.Rewards.String(),
 		GasUsed:           blockInfo.GasUsed,
 		GasLimit:          header.GasLimit,
-		ProposerAddress:   header.ProposerAddress,
+		ProposerAddress:   header.ProposerAddress.Hex(),
 		TxHash:            header.TxHash,
 		Bloom:             blockInfo.Bloom,
 		ValidatorsHash:    header.ValidatorsHash,
@@ -493,20 +493,20 @@ func (s *PublicKaiAPI) GetCommit(blockHeight rpc.BlockHeight) *types.Commit {
 	return s.kaiService.kaiDb.ReadCommit(blockHeight.Uint64())
 }
 
-// Result structs for GetProof
+// AccountResult is the result structs for GetProof
 type AccountResult struct {
 	Address      common.Address  `json:"address"`
 	AccountProof []string        `json:"accountProof"`
-	Balance      *big.Int        `json:"balance"`
+	Balance      *common.Big     `json:"balance"`
 	CodeHash     common.Hash     `json:"codeHash"`
-	Nonce        uint64          `json:"nonce"`
+	Nonce        common.Uint64   `json:"nonce"`
 	StorageHash  common.Hash     `json:"storageHash"`
 	StorageProof []StorageResult `json:"storageProof"`
 }
 type StorageResult struct {
-	Key   string   `json:"key"`
-	Value *big.Int `json:"value"`
-	Proof []string `json:"proof"`
+	Key   string      `json:"key"`
+	Value *common.Big `json:"value"`
+	Proof []string    `json:"proof"`
 }
 
 // GetProof returns the Merkle-proof for a given account and optionally some storage keys.
@@ -536,9 +536,9 @@ func (s *PublicKaiAPI) GetProof(ctx context.Context, address common.Address, sto
 			if storageError != nil {
 				return nil, storageError
 			}
-			storageProof[i] = StorageResult{key, state.GetState(address, common.HexToHash(key)).Big(), toHexSlice(proof)}
+			storageProof[i] = StorageResult{key, (*common.Big)(state.GetState(address, common.HexToHash(key)).Big()), toHexSlice(proof)}
 		} else {
-			storageProof[i] = StorageResult{key, new(big.Int), []string{}}
+			storageProof[i] = StorageResult{key, &common.Big{}, []string{}}
 		}
 	}
 
@@ -551,9 +551,9 @@ func (s *PublicKaiAPI) GetProof(ctx context.Context, address common.Address, sto
 	return &AccountResult{
 		Address:      address,
 		AccountProof: toHexSlice(accountProof),
-		Balance:      state.GetBalance(address),
+		Balance:      (*common.Big)(state.GetBalance(address)),
 		CodeHash:     codeHash,
-		Nonce:        state.GetNonce(address),
+		Nonce:        common.Uint64(state.GetNonce(address)),
 		StorageHash:  storageHash,
 		StorageProof: storageProof,
 	}, state.Error()
@@ -656,7 +656,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 	// get receipts from db
 	blockInfo := a.s.BlockInfoByBlockHash(ctx, blockHash)
 	if blockInfo == nil {
-		return nil, errors.New("block info not found")
+		return nil, ErrBlockInfoNotFound
 	}
 	// return the receipt if tx and receipt hashes at index are the same
 	if len(blockInfo.Receipts) > int(index) && blockInfo.Receipts[index].TxHash.Equal(txHash) {
@@ -770,8 +770,8 @@ func (s *PublicKaiAPI) doCall(ctx context.Context, args types.CallArgsJSON, bloc
 		return nil, err
 	}
 
-	// Wait for the context to be done and cancel the evm. Even if the
-	// EVM has finished, cancelling may be done (repeatedly)
+	// Wait for the context to be done and cancel the KVM. Even if the
+	// KVM has finished, cancelling may be done (repeatedly)
 	go func() {
 		<-ctx.Done()
 		kvm.Cancel()

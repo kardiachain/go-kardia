@@ -364,7 +364,7 @@ func (s *StakingSmcUtil) SetRoot(statedb *state.StateDB, header *types.Header, b
 
 // Apply ...
 func Apply(logger log.Logger, bc vm.ChainContext, statedb *state.StateDB, header *types.Header, cfg kvm.Config, msg types.Message) ([]byte, error) {
-	// Create a new context to be used in the EVM environment
+	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, header, bc)
 	vmenv := kvm.NewKVM(context, statedb, cfg)
 	sender := kvm.AccountRef(msg.From())
@@ -393,7 +393,7 @@ func (s *StakingSmcUtil) CreateStakingContract(statedb *state.StateDB,
 		false,
 	)
 
-	// Create a new context to be used in the EVM environment
+	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, header, nil)
 	vmenv := kvm.NewKVM(context, statedb, cfg)
 	sender := kvm.AccountRef(msg.From())

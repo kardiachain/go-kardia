@@ -264,7 +264,7 @@ func (s *KardiaService) APIs() []rpc.API {
 		{
 			Namespace: "kai",
 			Version:   "1.0",
-			Service:   filters.NewPublicFilterAPI(s),
+			Service:   filters.NewPublicFilterAPI(s, true),
 			Public:    true,
 		},
 		{
@@ -283,6 +283,31 @@ func (s *KardiaService) APIs() []rpc.API {
 			Namespace: "debug",
 			Version:   "1.0",
 			Service:   tracers.NewTracerAPI(s),
+			Public:    true,
+		},
+		// Web3 endpoints support
+		{
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   NewPublicWeb3API(s),
+			Public:    true,
+		},
+		{
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   NewPublicTransactionPoolAPI(s),
+			Public:    true,
+		},
+		{
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   filters.NewPublicFilterAPI(s, false),
+			Public:    true,
+		},
+		{
+			Namespace: "net",
+			Version:   "1.0",
+			Service:   NewPublicNetAPI(s.networkID),
 			Public:    true,
 		},
 	}

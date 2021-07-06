@@ -46,7 +46,6 @@ type APIBackend interface {
 	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error)
 	GetValidators() ([]*staking.Validator, error)
 	GetValidator(valAddr common.Address) (*staking.Validator, error)
-	GetValidatorCommission(valAddr common.Address) (uint64, error)
 	GetDelegationsByValidator(valAddr common.Address) ([]*staking.Delegator, error)
 
 	HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header

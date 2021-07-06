@@ -124,3 +124,7 @@ func (l *LogForStorage) DecodeRLP(s *rlp.Stream) error {
 	}
 	return err
 }
+
+type LogForWeb3 struct {
+	Log
+}
