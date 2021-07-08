@@ -20,9 +20,9 @@ const (
 	// older broadcasts.
 	maxQueuedTxs = 4096
 
-	// This is the target size for the packs of transactions sent while broadcasting transactions.
-	// A pack can get larger than this if a single transactions exceeds this size.
-	txsyncPackSize = 100 * 1024
+	// This is the target size for the packs of transactions or announcements. A
+	// pack can get larger than this if a single transactions exceeds this size.
+	maxTxPacketSize = 100 * 1024
 )
 
 // max is a helper function which returns the larger of the two given integers.
@@ -48,28 +48,29 @@ type peer struct {
 
 	version int // Protocol version negotiated
 
-	knownTxs    mapset.Set                           // Set of transaction hashes known to be known by this peer
-	txBroadcast chan []common.Hash                   // Channel used to queue transaction propagation requests
-	getPooledTx func(common.Hash) *types.Transaction // Callback used to retrieve transaction from txpool
+	txpool      *TxPool            // Transaction pool used by the broadcasters for liveness checks
+	knownTxs    mapset.Set         // Set of transaction hashes known to be known by this peer
+	txBroadcast chan []common.Hash // Channel used to queue transaction propagation requests
 
 	terminated chan struct{} // Termination channel, close when peer close to stop the broadcast loop routine.
 	Protocol   string
 }
 
-func newPeer(logger log.Logger, p p2p.Peer, getPooledTx func(hash common.Hash) *types.Transaction) *peer {
+func newPeer(logger log.Logger, p p2p.Peer, txpool *TxPool) *peer {
 	return &peer{
 		logger:      logger,
 		id:          p.ID(),
 		peer:        p,
 		knownTxs:    mapset.NewSet(),
 		txBroadcast: make(chan []common.Hash),
-		getPooledTx: getPooledTx,
+		txpool:      txpool,
 		terminated:  make(chan struct{}),
 	}
 }
 
 // close signals the broadcast goroutine to terminate.
 func (p *peer) close() {
+	close(p.terminated)
 }
 
 // Info gathers and returns a collection of metadata known about a peer.
@@ -165,9 +166,10 @@ func (ps *peerSet) Close() {
 // broadcastTransactions is a async write loop that broadcast txs to remote peers.
 func (p *peer) broadcastTransactions() {
 	var (
-		queue []common.Hash         // Queue of hashes to broadcast as full transactions
-		done  chan struct{}         // Non-nil if background broadcaster is running
-		fail  = make(chan error, 1) // Channel used to receive network error
+		queue  []common.Hash         // Queue of hashes to broadcast as full transactions
+		done   chan struct{}         // Non-nil if background broadcaster is running
+		fail   = make(chan error, 1) // Channel used to receive network error
+		failed bool                  // Flag whether a send failed, discard everything onward
 	)
 	for {
 		// If there's no in-flight broadcast running, check if a new one is needed
@@ -178,8 +180,8 @@ func (p *peer) broadcastTransactions() {
 				txs    []*types.Transaction
 				size   common.StorageSize
 			)
-			for i := 0; i < len(queue) && size < txsyncPackSize; i++ {
-				if tx := p.getPooledTx(queue[i]); tx != nil {
+			for i := 0; i < len(queue) && size < maxTxPacketSize; i++ {
+				if tx := p.txpool.Get(queue[i]); tx != nil {
 					txs = append(txs, tx)
 					size += tx.Size()
 				}
@@ -192,7 +194,6 @@ func (p *peer) broadcastTransactions() {
 				done = make(chan struct{})
 				go func() {
 					if err := p.sendTransactions(txs); err != nil {
-						p.logger.Error("Send txs failed", "err", err, "count", len(txs), "peer", p.id)
 						fail <- err
 						return
 					}
@@ -204,17 +205,23 @@ func (p *peer) broadcastTransactions() {
 		// Transfer goroutine may or may not have been started, listen for events
 		select {
 		case hashes := <-p.txBroadcast:
-			// New batch of transactions to be broadcast, queue them (with capped capcacity)
+			// If the connection failed, discard all transaction events
+			if failed {
+				continue
+			}
+			// New batch of transactions to be broadcast, queue them (with cap)
 			queue = append(queue, hashes...)
 			if len(queue) > maxQueuedTxs {
-				// Copy and resize queue to ensure buffer doesn't grow indefinitely
+				// Fancy copy and resize to ensure buffer doesn't grow indefinitely
 				queue = queue[:copy(queue, queue[len(queue)-maxQueuedTxs:])]
 			}
+
 		case <-done:
 			done = nil
+
 		case <-fail:
-			// Consider remove peers here. Not yet implementation
-			return
+			failed = true
+
 		case <-p.terminated:
 			return
 		}
