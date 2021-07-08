@@ -20,11 +20,13 @@ package types
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"math"
 	"math/big"
+	"strconv"
 	"sync/atomic"
 
 	"github.com/kardiachain/go-kardia/configs"
@@ -38,6 +40,7 @@ import (
 
 var (
 	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
+	ErrParseError = errors.New("parse error")
 )
 
 type Transaction struct {
@@ -457,6 +460,67 @@ type CallArgsJSON struct {
 	GasPrice *big.Int `json:"gasPrice"` // HYDRO <-> gas exchange ratio
 	Value    *big.Int `json:"value"`    // amount of HYDRO sent along with the call
 	Data     string   `json:"data"`     // input data, usually an ABI-encoded contract method invocation
+}
+
+// UnmarshalJSON parses request response to a CallArgsJSON
+func (args *CallArgsJSON) UnmarshalJSON(data []byte) error {
+	params := make(map[string]interface{})
+	err := json.Unmarshal(data, &params)
+	if err != nil {
+		return err
+	}
+
+	toAddress, ok := params["to"].(string)
+	if !ok {
+		return ErrParseError
+	}
+	args.To = &toAddress
+	args.From, ok = params["from"].(string)
+	if !ok {
+		return ErrParseError
+	}
+	args.Data, ok = params["data"].(string)
+	if !ok {
+		return ErrParseError
+	}
+
+	if gas, ok := params["gas"].(float64); ok {
+		args.Gas = uint64(gas)
+	} else {
+		gasStr, ok := params["gas"].(string)
+		if !ok {
+			return ErrParseError
+		}
+		args.Gas, err = strconv.ParseUint(gasStr, 10, 64)
+		if err != nil {
+			return err
+		}
+	}
+	if gasPrice, ok := params["gasPrice"].(float64); ok {
+		args.GasPrice = new(big.Int).SetUint64(uint64(gasPrice))
+	} else {
+		gasPriceStr, ok := params["gasPrice"].(string)
+		if !ok {
+			return ErrParseError
+		}
+		args.GasPrice, ok = new(big.Int).SetString(gasPriceStr, 10)
+		if !ok {
+			return err
+		}
+	}
+	if value, ok := params["value"].(float64); ok {
+		args.Value = new(big.Int).SetUint64(uint64(value))
+	} else {
+		valueStr, ok := params["value"].(string)
+		if !ok {
+			return ErrParseError
+		}
+		args.Value, ok = new(big.Int).SetString(valueStr, 10)
+		if !ok {
+			return err
+		}
+	}
+	return nil
 }
 
 // ToMessage converts CallArgs to the Message type used by the core evm
