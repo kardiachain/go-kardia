@@ -446,7 +446,7 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 		return common.Hash{}.Hex(), err
 	}
 	// If the transaction fee cap is already specified, ensure the
-	// fee of the given transaction is _reasonable_.
+	// fee of the given transaction is reasonable.
 	if err := checkTxFee(tx.GasPrice(), tx.Gas(), configs.TxFeeCap); err != nil {
 		return common.Hash{}.Hex(), err
 	}
@@ -914,7 +914,7 @@ func checkTxFee(gasPrice *big.Int, gas uint64, cap float64) error {
 	feeKAI := new(big.Float).Quo(new(big.Float).SetInt(new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(gas))), new(big.Float).SetInt(big.NewInt(configs.KAI)))
 	feeFloat, _ := feeKAI.Float64()
 	if feeFloat > cap {
-		return fmt.Errorf("tx fee (%.2f ether) exceeds the configured cap (%.2f ether)", feeFloat, cap)
+		return ErrTxFeeCap
 	}
 	return nil
 }
