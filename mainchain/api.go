@@ -445,6 +445,11 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 	if err := checkGas(tx.GasPrice(), tx.Gas()); err != nil {
 		return common.Hash{}.Hex(), err
 	}
+	// If the transaction fee cap is already specified, ensure the
+	// fee of the given transaction is reasonable.
+	if err := checkTxFee(tx.GasPrice(), tx.Gas(), configs.TxFeeCap); err != nil {
+		return common.Hash{}.Hex(), err
+	}
 
 	return tx.Hash().Hex(), a.s.TxPool().AddLocal(tx)
 }
@@ -899,6 +904,17 @@ func checkGas(gasPrice *big.Int, gas uint64) error {
 	}
 	if gas > configs.GasLimitCap {
 		return ErrExceedGasLimit
+	}
+	return nil
+}
+
+// checkTxFee is an internal function used to check whether the fee of
+// the given transaction is reasonable.
+func checkTxFee(gasPrice *big.Int, gas uint64, cap float64) error {
+	feeKAI := new(big.Float).Quo(new(big.Float).SetInt(new(big.Int).Mul(gasPrice, new(big.Int).SetUint64(gas))), new(big.Float).SetInt(big.NewInt(configs.KAI)))
+	feeFloat, _ := feeKAI.Float64()
+	if feeFloat > cap {
+		return ErrTxFeeCap
 	}
 	return nil
 }

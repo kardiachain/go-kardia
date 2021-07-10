@@ -114,4 +114,6 @@ var (
 	GasLimitCap = uint64(20000000)
 	// Minimum gas price cap
 	GasPriceCap = new(big.Int).Exp(big.NewInt(10), big.NewInt(9), nil) // Minimum accepted gas price 1 OXY = 1e9
+	// Maximum transaction fee cap in KAI
+	TxFeeCap float64 = 100
 )
