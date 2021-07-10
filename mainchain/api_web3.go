@@ -549,5 +549,14 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, input
 	if err := rlp.DecodeBytes(input, &tx); err != nil {
 		return common.Hash{}, err
 	}
+	// Drop tx exceeds gas requirements (DDoS protection)
+	if err := checkGas(tx.GasPrice(), tx.Gas()); err != nil {
+		return common.Hash{}, err
+	}
+	// If the transaction fee cap is already specified, ensure the
+	// fee of the given transaction is reasonable.
+	if err := checkTxFee(tx.GasPrice(), tx.Gas(), configs.TxFeeCap); err != nil {
+		return common.Hash{}, err
+	}
 	return tx.Hash(), s.kaiService.TxPool().AddLocal(tx)
 }
