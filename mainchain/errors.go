@@ -15,6 +15,7 @@ var (
 	ErrExceedGasLimit          = errors.New("gas limit exceeds gas cap")
 	ErrNotEnoughGasPrice       = errors.New("not enough gas price")
 	ErrNilGasPrice             = errors.New("nil gas price")
+	ErrTxFeeCap                = errors.New("dropped due to high transaction fee")
 	ErrBlockNotFound           = errors.New("block not found")
 	ErrTransactionHashNotFound = errors.New("transaction hash not found")
 )
