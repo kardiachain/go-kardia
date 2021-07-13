@@ -660,6 +660,7 @@ func (sdb *StateDB) RevertToSnapshot(revid int) {
 
 	// Replay the journal to undo changes and remove invalidated snapshots
 	sdb.journal.revert(sdb, snapshot)
+	sdb.validRevisions = sdb.validRevisions[:idx]
 }
 
 // Snapshot returns an identifier for the current revision of the state.
