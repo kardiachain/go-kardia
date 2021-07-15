@@ -19,9 +19,11 @@
 package blockchain
 
 import (
+	"errors"
 	"sync"
 	"time"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
 	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
@@ -255,12 +257,14 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 
 	kvmConfig := kvm.Config{}
 
+	// Mint block rewards
 	blockReward, err := bo.staking.Mint(state, header, bo.blockchain, kvmConfig)
 	if err != nil {
 		bo.logger.Error("Fail to mint", "err", err)
 		return nil, common.Hash{}, nil, nil, err
 	}
 
+	// Finalize block commit
 	if err := bo.staking.FinalizeCommit(state, header, bo.blockchain, kvmConfig, lastCommit); err != nil {
 		bo.logger.Error("Fail to finalize commit", "err", err)
 		return nil, common.Hash{}, nil, nil, err
@@ -271,26 +275,76 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 		return nil, common.Hash{}, nil, nil, err
 	}
 
-	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
+	txMap := make(map[common.Address]types.Transactions)
+	for _, tx := range txs {
+		acc, _ := types.Sender(types.HomesteadSigner{}, tx)
+		txMap[acc] = append(txMap[acc], tx)
+	}
+	txSet := types.NewTransactionsByPriceAndNonce(types.HomesteadSigner{}, txMap)
+
 LOOP:
-	for i, tx := range txs {
-		state.Prepare(tx.Hash(), header.Hash(), i)
-		snap := state.Snapshot()
-		// TODO(thientn): confirms nil coinbase is acceptable.
-		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
-		if err != nil {
-			bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
-			state.RevertToSnapshot(snap)
-			// TODO(thientn): check error type and jump to next tx if possible
-			// kiendn: instead of return nil and err, jump to next tx
-			//return common.Hash{}, nil, nil, err
-			continue LOOP
+	for {
+		i := 0
+		// Retrieve the next transaction and abort if all done
+		tx := txSet.Peek()
+		if tx == nil {
+			break
 		}
-		i++
+
+		// If we don't have enough gas for any further transactions then we're done
+		if gasPool.Gas() < configs.TxGas {
+			log.Trace("Not enough gas for further transactions", "have", gasPool, "want", configs.TxGas)
+			break
+		}
+
+		// Error may be ignored here. The error has already been checked
+		// during transaction acceptance is the transaction pool.
+		from, _ := types.Sender(types.HomesteadSigner{}, tx)
+
+		// Current state snapshot
+		snap := state.Snapshot()
+
+		// Start executing the transaction
+		state.Prepare(tx.Hash(), header.Hash(), i)
+		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
+		switch {
+		case errors.Is(err, tx_pool.ErrGasLimitReached):
+			// Pop the current out-of-gas transaction without shifting in the next from the account
+			log.Trace("Gas limit exceeded for current block", "sender", from)
+			txSet.Pop()
+			state.RevertToSnapshot(snap)
+			continue LOOP
+
+		case errors.Is(err, tx_pool.ErrNonceTooLow):
+			// New head notification data race between the transaction pool and miner, shift
+			log.Trace("Skipping transaction with low nonce", "sender", from, "nonce", tx.Nonce())
+			txSet.Shift()
+			state.RevertToSnapshot(snap)
+			continue LOOP
+
+		case errors.Is(err, tx_pool.ErrNonceTooHigh):
+			// Reorg notification data race between the transaction pool and miner, skip account =
+			log.Trace("Skipping account with hight nonce", "sender", from, "nonce", tx.Nonce())
+			txSet.Pop()
+			state.RevertToSnapshot(snap)
+			continue LOOP
+
+		case errors.Is(err, nil):
+			txSet.Shift()
+			i++
+		default:
+			// Strange error, discard the transaction and get the next in line (note, the
+			// nonce-too-high clause will prevent us from executing in vain).
+			log.Debug("Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
+			state.RevertToSnapshot(snap)
+			txSet.Shift()
+		}
+
 		receipts = append(receipts, receipt)
 		newTxs = append(newTxs, tx)
 	}
 
+	// Apply validators set
 	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
 	if err != nil {
 		return nil, common.Hash{}, nil, nil, err
