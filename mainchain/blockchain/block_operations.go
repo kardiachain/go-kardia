@@ -113,18 +113,113 @@ func (bo *BlockOperations) CreateProposalBlock(
 	header.GasLimit = lastState.ConsensusParams.Block.MaxGas
 	bo.logger.Info("Creates new header", "header", header)
 
+	txs = bo.checkTxs(txs, header)
+
 	block = bo.newBlock(header, txs, commit, evidence)
 	bo.logger.Trace("Make block to propose", "block", block)
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
+}
+
+func (bo *BlockOperations) checkTxs(txs []*types.Transaction, header *types.Header) []*types.Transaction {
+	var usedGas = new(uint64)
+
+	newTxs := []*types.Transaction{}
+	// Blockchain state at head block.
+	state, err := bo.blockchain.State()
+	if err != nil {
+		bo.logger.Error("Fail to get blockchain head state", "err", err)
+		return newTxs
+	}
+
+	kvmConfig := kvm.Config{}
+	// GasPool
+	bo.logger.Info("header gas limit", "limit", header.GasLimit)
+	gasPool := new(types.GasPool).AddGas(header.GasLimit)
+
+	txMap := make(map[common.Address]types.Transactions)
+	for _, tx := range txs {
+		acc, _ := types.Sender(types.HomesteadSigner{}, tx)
+		txMap[acc] = append(txMap[acc], tx)
+	}
+	txSet := types.NewTransactionsByPriceAndNonce(types.HomesteadSigner{}, txMap)
+
+	for {
+		i := 0
+		// Retrieve the next transaction and abort if all done
+		tx := txSet.Peek()
+		if tx == nil {
+			break
+		}
+
+		// If we don't have enough gas for any further transactions then we're done
+		if gasPool.Gas() < configs.TxGas {
+			log.Trace("Not enough gas for further transactions", "have", gasPool, "want", configs.TxGas)
+			break
+		}
+
+		// Error may be ignored here. The error has already been checked
+		// during transaction acceptance is the transaction pool.
+		from, _ := types.Sender(types.HomesteadSigner{}, tx)
+
+		// Current state snapshot
+		snap := state.Snapshot()
+
+		// Start executing the transaction
+		state.Prepare(tx.Hash(), header.Hash(), i)
+		_, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
+
+		if err != nil {
+			state.RevertToSnapshot(snap)
+		} else {
+			newTxs = append(newTxs, tx)
+		}
+
+		switch {
+		case errors.Is(err, tx_pool.ErrGasLimitReached):
+			// Pop the current out-of-gas transaction without shifting in the next from the account
+			log.Trace("Gas limit exceeded for current block", "sender", from)
+			txSet.Pop()
+			continue
+
+		case errors.Is(err, tx_pool.ErrNonceTooLow):
+			// New head notification data race between the transaction pool and miner, shift
+			log.Trace("Skipping transaction with low nonce", "sender", from, "nonce", tx.Nonce())
+			txSet.Shift()
+			continue
+
+		case errors.Is(err, tx_pool.ErrNonceTooHigh):
+			// Reorg notification data race between the transaction pool and miner, skip account =
+			log.Trace("Skipping account with hight nonce", "sender", from, "nonce", tx.Nonce())
+			txSet.Pop()
+			continue
+
+		case errors.Is(err, nil):
+			txSet.Shift()
+			i++
+		default:
+			// Strange error, discard the transaction and get the next in line (note, the
+			// nonce-too-high clause will prevent us from executing in vain).
+			log.Debug("Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
+			txSet.Shift()
+		}
+
+	}
+
+	return newTxs
 }
 
 // CommitAndValidateBlockTxs executes and commits the transactions in the given block.
 // New calculated state root is validated against the root field in block.
 // Transactions, new state and receipts are saved to storage.
 func (bo *BlockOperations) CommitAndValidateBlockTxs(block *types.Block, lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, error) {
-	vals, root, blockInfo, _, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
+	vals, root, blockInfo, err := bo.commitTransactions(block.Transactions(), block.Header(), lastCommit, byzVals)
 	if err != nil {
-		return nil, common.Hash{}, err
+		root = block.AppHash()
+		bo.saveBlockInfo(blockInfo, block)
+		bo.blockchain.DB().WriteHeadBlockHash(block.Hash())
+		bo.blockchain.DB().WriteAppHash(block.Height(), root)
+		bo.blockchain.InsertHeadBlock(block)
+		return nil, root, nil
 	}
 	bo.saveBlockInfo(blockInfo, block)
 	bo.blockchain.DB().WriteHeadBlockHash(block.Hash())
@@ -236,10 +331,8 @@ func (bo *BlockOperations) newBlock(header *types.Header, txs []*types.Transacti
 
 // commitTransactions executes the given transactions and commits the result stateDB to disk.
 func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *types.Header,
-	lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, *types.BlockInfo,
-	types.Transactions, error) {
+	lastCommit stypes.LastCommitInfo, byzVals []stypes.Evidence) ([]*types.Validator, common.Hash, *types.BlockInfo, error) {
 	var (
-		newTxs   = types.Transactions{}
 		receipts = types.Receipts{}
 		usedGas  = new(uint64)
 	)
@@ -248,7 +341,7 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	state, err := bo.blockchain.State()
 	if err != nil {
 		bo.logger.Error("Fail to get blockchain head state", "err", err)
-		return nil, common.Hash{}, nil, nil, err
+		return nil, common.Hash{}, nil, err
 	}
 
 	// GasPool
@@ -257,109 +350,49 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 
 	kvmConfig := kvm.Config{}
 
-	// Mint block rewards
 	blockReward, err := bo.staking.Mint(state, header, bo.blockchain, kvmConfig)
 	if err != nil {
 		bo.logger.Error("Fail to mint", "err", err)
-		return nil, common.Hash{}, nil, nil, err
+		return nil, common.Hash{}, nil, err
 	}
 
-	// Finalize block commit
 	if err := bo.staking.FinalizeCommit(state, header, bo.blockchain, kvmConfig, lastCommit); err != nil {
 		bo.logger.Error("Fail to finalize commit", "err", err)
-		return nil, common.Hash{}, nil, nil, err
+		return nil, common.Hash{}, nil, err
 	}
 
 	if err := bo.staking.DoubleSign(state, header, bo.blockchain, kvmConfig, byzVals); err != nil {
 		bo.logger.Error("Fail to apply double sign", "err", err)
-		return nil, common.Hash{}, nil, nil, err
+		return nil, common.Hash{}, nil, err
 	}
 
-	txMap := make(map[common.Address]types.Transactions)
-	for _, tx := range txs {
-		acc, _ := types.Sender(types.HomesteadSigner{}, tx)
-		txMap[acc] = append(txMap[acc], tx)
-	}
-	txSet := types.NewTransactionsByPriceAndNonce(types.HomesteadSigner{}, txMap)
-
-LOOP:
-	for {
-		i := 0
-		// Retrieve the next transaction and abort if all done
-		tx := txSet.Peek()
-		if tx == nil {
-			break
-		}
-
-		// If we don't have enough gas for any further transactions then we're done
-		if gasPool.Gas() < configs.TxGas {
-			log.Trace("Not enough gas for further transactions", "have", gasPool, "want", configs.TxGas)
-			break
-		}
-
-		// Error may be ignored here. The error has already been checked
-		// during transaction acceptance is the transaction pool.
-		from, _ := types.Sender(types.HomesteadSigner{}, tx)
-
-		// Current state snapshot
-		snap := state.Snapshot()
-
-		// Start executing the transaction
+	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
+	for i, tx := range txs {
 		state.Prepare(tx.Hash(), header.Hash(), i)
+		// TODO(thientn): confirms nil coinbase is acceptable.
 		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
-		switch {
-		case errors.Is(err, tx_pool.ErrGasLimitReached):
-			// Pop the current out-of-gas transaction without shifting in the next from the account
-			log.Trace("Gas limit exceeded for current block", "sender", from)
-			txSet.Pop()
-			state.RevertToSnapshot(snap)
-			continue LOOP
-
-		case errors.Is(err, tx_pool.ErrNonceTooLow):
-			// New head notification data race between the transaction pool and miner, shift
-			log.Trace("Skipping transaction with low nonce", "sender", from, "nonce", tx.Nonce())
-			txSet.Shift()
-			state.RevertToSnapshot(snap)
-			continue LOOP
-
-		case errors.Is(err, tx_pool.ErrNonceTooHigh):
-			// Reorg notification data race between the transaction pool and miner, skip account =
-			log.Trace("Skipping account with hight nonce", "sender", from, "nonce", tx.Nonce())
-			txSet.Pop()
-			state.RevertToSnapshot(snap)
-			continue LOOP
-
-		case errors.Is(err, nil):
-			txSet.Shift()
-			i++
-		default:
-			// Strange error, discard the transaction and get the next in line (note, the
-			// nonce-too-high clause will prevent us from executing in vain).
-			log.Debug("Transaction failed, account skipped", "hash", tx.Hash(), "err", err)
-			state.RevertToSnapshot(snap)
-			txSet.Shift()
+		if err != nil {
+			bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
+			return nil, common.Hash{}, nil, err
 		}
-
 		receipts = append(receipts, receipt)
-		newTxs = append(newTxs, tx)
 	}
 
-	// Apply validators set
 	vals, err := bo.staking.ApplyAndReturnValidatorSets(state, header, bo.blockchain, kvmConfig)
 	if err != nil {
-		return nil, common.Hash{}, nil, nil, err
+		return nil, common.Hash{}, nil, err
 	}
 
 	root, err := state.Commit(true)
 
 	if err != nil {
 		bo.logger.Error("Fail to commit new statedb after txs", "err", err)
-		return nil, common.Hash{}, nil, nil, err
+		return nil, common.Hash{}, nil, err
 	}
 	err = bo.blockchain.CommitTrie(root)
 	if err != nil {
 		bo.logger.Error("Fail to write statedb trie to disk", "err", err)
-		return nil, common.Hash{}, nil, nil, err
+		return nil, common.Hash{}, nil, err
 	}
 
 	blockInfo := &types.BlockInfo{
@@ -369,7 +402,7 @@ LOOP:
 		Bloom:    types.CreateBloom(receipts),
 	}
 
-	return vals, root, blockInfo, newTxs, nil
+	return vals, root, blockInfo, nil
 }
 
 // saveReceipts saves receipts of block transactions to storage.
