@@ -48,7 +48,7 @@ import (
 )
 
 var (
-	nodeVersion = "1.0.0"
+	nodeVersion = "1.5.1"
 )
 
 // Node is a container on which services can be registered.
