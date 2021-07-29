@@ -113,14 +113,14 @@ func (bo *BlockOperations) CreateProposalBlock(
 	header.GasLimit = lastState.ConsensusParams.Block.MaxGas
 	bo.logger.Info("Creates new header", "header", header)
 
-	txs = bo.checkTxs(txs, header)
+	txs = bo.sortAndValidateTxs(txs, header)
 
 	block = bo.newBlock(header, txs, commit, evidence)
 	bo.logger.Trace("Make block to propose", "block", block)
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
 }
 
-func (bo *BlockOperations) checkTxs(txs []*types.Transaction, header *types.Header) []*types.Transaction {
+func (bo *BlockOperations) sortAndValidateTxs(txs []*types.Transaction, header *types.Header) []*types.Transaction {
 	var usedGas = new(uint64)
 
 	newTxs := []*types.Transaction{}
@@ -311,7 +311,6 @@ func (bo *BlockOperations) LoadSeenCommit(height uint64) *types.Commit {
 func (bo *BlockOperations) newHeader(time time.Time, height uint64, numTxs uint64, blockID types.BlockID,
 	proposer common.Address, validatorsHash common.Hash, nextValidatorHash common.Hash, appHash common.Hash) *types.Header {
 	return &types.Header{
-		// ChainID: state.ChainID, TODO(huny/namdoh): confims that ChainID is replaced by network id.
 		Height:             height,
 		Time:               time,
 		NumTxs:             numTxs,
