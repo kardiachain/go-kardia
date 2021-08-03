@@ -477,7 +477,7 @@ func (args *CallArgsJSON) UnmarshalJSON(data []byte) error {
 	args.To = &toAddress
 	args.From, ok = params["from"].(string)
 	if !ok {
-		return ErrParseError
+		args.From = configs.GenesisDeployerAddr.Hex() // default to Genesis Deployer address if nil
 	}
 	args.Data, ok = params["data"].(string)
 	if !ok {
@@ -489,11 +489,12 @@ func (args *CallArgsJSON) UnmarshalJSON(data []byte) error {
 	} else {
 		gasStr, ok := params["gas"].(string)
 		if !ok {
-			return ErrParseError
-		}
-		args.Gas, err = strconv.ParseUint(gasStr, 10, 64)
-		if err != nil {
-			return err
+			args.Gas = configs.GasLimitCap // default to gas limit cap of node
+		} else {
+			args.Gas, err = strconv.ParseUint(gasStr, 10, 64)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	if gasPrice, ok := params["gasPrice"].(float64); ok {
@@ -501,11 +502,12 @@ func (args *CallArgsJSON) UnmarshalJSON(data []byte) error {
 	} else {
 		gasPriceStr, ok := params["gasPrice"].(string)
 		if !ok {
-			return ErrParseError
-		}
-		args.GasPrice, ok = new(big.Int).SetString(gasPriceStr, 10)
-		if !ok {
-			return err
+			args.GasPrice = new(big.Int).SetUint64(0) // default to 0 OXY gas price
+		} else {
+			args.GasPrice, ok = new(big.Int).SetString(gasPriceStr, 10)
+			if !ok {
+				return ErrParseError
+			}
 		}
 	}
 	if value, ok := params["value"].(float64); ok {
@@ -513,11 +515,12 @@ func (args *CallArgsJSON) UnmarshalJSON(data []byte) error {
 	} else {
 		valueStr, ok := params["value"].(string)
 		if !ok {
-			return ErrParseError
-		}
-		args.Value, ok = new(big.Int).SetString(valueStr, 10)
-		if !ok {
-			return err
+			args.Value = new(big.Int).SetUint64(0) // default to 0 KAI in value
+		} else {
+			args.Value, ok = new(big.Int).SetString(valueStr, 10)
+			if !ok {
+				return ErrParseError
+			}
 		}
 	}
 	return nil
