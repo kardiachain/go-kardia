@@ -32,11 +32,11 @@ type Reactor interface {
 
 	// AddPeer is called by the switch after the peer is added and successfully
 	// started. Use it to start goroutines communicating with the peer.
-	AddPeer(peer Peer) error
+	AddPeer(peer Peer)
 
 	// RemovePeer is called by the switch when the peer is stopped (due to error
 	// or other reason).
-	RemovePeer(peer Peer, reason interface{}) error
+	RemovePeer(peer Peer, reason interface{})
 
 	// Receive is called by the switch when msgBytes is received from the peer.
 	//
@@ -64,8 +64,8 @@ func NewBaseReactor(name string, impl Reactor) *BaseReactor {
 func (br *BaseReactor) SetSwitch(sw *Switch) {
 	br.Switch = sw
 }
-func (*BaseReactor) GetChannels() []*conn.ChannelDescriptor         { return nil }
-func (*BaseReactor) AddPeer(peer Peer) error                        { return nil }
-func (*BaseReactor) RemovePeer(peer Peer, reason interface{}) error { return nil }
-func (*BaseReactor) Receive(chID byte, peer Peer, msgBytes []byte)  {}
-func (*BaseReactor) InitPeer(peer Peer) Peer                        { return peer }
+func (*BaseReactor) GetChannels() []*conn.ChannelDescriptor        { return nil }
+func (*BaseReactor) AddPeer(peer Peer)                             {}
+func (*BaseReactor) RemovePeer(peer Peer, reason interface{})      {}
+func (*BaseReactor) Receive(chID byte, peer Peer, msgBytes []byte) {}
+func (*BaseReactor) InitPeer(peer Peer) Peer                       { return peer }

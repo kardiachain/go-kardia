@@ -73,22 +73,19 @@ func (txR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 
 // AddPeer implements Reactor.
 // It starts a broadcast routine ensuring all txs are forwarded to the given peer.
-func (txR *Reactor) AddPeer(peer p2p.Peer) error {
+func (txR *Reactor) AddPeer(peer p2p.Peer) {
 	if err := txR.peers.Register(newPeer(txR.Logger, peer, txR.txpool)); err != nil {
 		txR.Logger.Error("register peer err: %s", err)
-		return err
+		return
 	}
-	return nil
 }
 
 // RemovePeer implements Reactor.
-func (txR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) error {
+func (txR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	if err := txR.peers.Unregister(peer.ID()); err != nil {
 		txR.Logger.Error("unregister peer err: %s", err)
-		return err
+		return
 	}
-	// broadcast routine checks if peer is gone and returns
-	return nil
 }
 
 // Receive implements Reactor.

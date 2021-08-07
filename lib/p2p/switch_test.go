@@ -64,9 +64,9 @@ func (tr *TestReactor) GetChannels() []*conn.ChannelDescriptor {
 	return tr.channels
 }
 
-func (tr *TestReactor) AddPeer(peer Peer) error { return nil }
+func (tr *TestReactor) AddPeer(peer Peer) {}
 
-func (tr *TestReactor) RemovePeer(peer Peer, reason interface{}) error { return nil }
+func (tr *TestReactor) RemovePeer(peer Peer, reason interface{}) {}
 
 func (tr *TestReactor) Receive(chID byte, peer Peer, msgBytes []byte) {
 	if tr.logMessages {
@@ -733,11 +733,10 @@ type mockReactor struct {
 	initCalledBeforeRemoveFinished uint32
 }
 
-func (r *mockReactor) RemovePeer(peer Peer, reason interface{}) error {
+func (r *mockReactor) RemovePeer(peer Peer, reason interface{}) {
 	atomic.StoreUint32(&r.removePeerInProgress, 1)
 	defer atomic.StoreUint32(&r.removePeerInProgress, 0)
 	time.Sleep(100 * time.Millisecond)
-	return nil
 }
 
 func (r *mockReactor) InitPeer(peer Peer) Peer {
