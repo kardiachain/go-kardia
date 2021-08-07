@@ -80,6 +80,9 @@ type Node struct {
 	transport  *p2p.MultiplexTransport
 	addrBook   pex.AddrBook // known peers
 	pexReactor *pex.Reactor
+
+	bcReactor p2p.Reactor // for fast-syncing
+	stateSync bool        // whether the node should state sync on startup
 }
 
 // New creates a new P2P node, ready for protocol registration.
@@ -272,7 +275,9 @@ func (n *Node) OnStart() error {
 
 	// start RPC endpoints
 	if err := n.openRPCEndpoints(); err != nil {
-		n.Stop()
+		if err := n.Stop(); err != nil {
+			return err
+		}
 		return err
 	}
 
@@ -290,6 +295,7 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
 	}
+
 	return nil
 }
 
@@ -707,4 +713,9 @@ func createPEXReactorAndAddToSwitch(addrBook pex.AddrBook, config *Config,
 	pexReactor.SetLogger(logger)
 	sw.AddReactor("PEX", pexReactor)
 	return pexReactor
+}
+
+// Interface for switching to fast sync
+type fastSyncReactor interface {
+	SwitchToFastSync(cstate.LatestBlockState) error
 }

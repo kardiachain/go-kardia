@@ -31,10 +31,11 @@ type blockStore interface {
 type BlockchainReactor struct {
 	p2p.BaseReactor
 
-	fastSync  bool // if true, enable fast sync on start
-	scheduler *Routine
-	processor *Routine
-	logger    log.Logger
+	fastSync    bool // if true, enable fast sync on start
+	stateSynced bool // set to true when SwitchToFastSync is called by state sync
+	scheduler   *Routine
+	processor   *Routine
+	logger      log.Logger
 
 	mtx           ksync.RWMutex
 	maxPeerHeight uint64
@@ -44,11 +45,6 @@ type BlockchainReactor struct {
 	reporter behaviour.Reporter
 	io       iIO
 	store    blockStore
-}
-
-//nolint:unused,deadcode
-type blockVerifier interface {
-	VerifyCommit(chainID string, blockID types.BlockID, height uint64, commit *types.Commit) error
 }
 
 type blockApplier interface {
@@ -175,10 +171,9 @@ func (r *BlockchainReactor) endSync() {
 	r.processor.stop()
 }
 
-// TODO(trinhdn): call SwitchToFastSync after caught up
-// SwitchToFastSync is called when switching to fast sync.
+// SwitchToFastSync is called by the state sync reactor when switching to fast sync.
 func (r *BlockchainReactor) SwitchToFastSync(state cstate.LatestBlockState) error {
-	r.fastSync = true
+	r.stateSynced = true
 	state = state.Copy()
 	return r.startSync(&state)
 }
@@ -420,7 +415,7 @@ func (r *BlockchainReactor) demux(events <-chan Event) {
 				r.scheduler.send(event)
 			case pcFinished:
 				r.logger.Info("Fast sync complete, switching to consensus", "blockSynced", event.blocksSynced)
-				if !r.io.trySwitchToConsensus(event.kaiState, event.blocksSynced > 0) {
+				if !r.io.trySwitchToConsensus(event.kaiState, event.blocksSynced > 0 || r.stateSynced) {
 					r.logger.Error("Failed to switch to consensus reactor")
 				}
 				r.endSync()
@@ -464,7 +459,7 @@ func (r *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	msg, err := DecodeMsg(msgBytes)
 	if err != nil {
 		r.logger.Error("error decoding message",
-			"src", src.ID(), "chId", chID, "msg", msg, "err", err)
+			"src", src.ID(), "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
 		_ = r.reporter.Report(behaviour.BadMessage(src.ID(), err.Error()))
 		return
 	}
@@ -531,22 +526,20 @@ func (r *BlockchainReactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 }
 
 // AddPeer implements Reactor interface
-func (r *BlockchainReactor) AddPeer(peer p2p.Peer) error {
+func (r *BlockchainReactor) AddPeer(peer p2p.Peer) {
 	err := r.io.sendStatusResponse(r.store.Base(), r.store.Height(), peer.ID())
 	if err != nil {
 		r.logger.Error("Could not send status message to peer new", "src", peer.ID, "height", r.SyncHeight())
-		return err
 	}
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
 	if r.events != nil {
 		r.events <- bcAddNewPeer{peerID: peer.ID()}
 	}
-	return nil
 }
 
 // RemovePeer implements Reactor interface.
-func (r *BlockchainReactor) RemovePeer(peer p2p.Peer, reason interface{}) error {
+func (r *BlockchainReactor) RemovePeer(peer p2p.Peer, reason interface{}) {
 	r.mtx.RLock()
 	defer r.mtx.RUnlock()
 	if r.events != nil {
@@ -555,7 +548,6 @@ func (r *BlockchainReactor) RemovePeer(peer p2p.Peer, reason interface{}) error 
 			reason: reason,
 		}
 	}
-	return nil
 }
 
 // GetChannels implements Reactor
@@ -563,7 +555,7 @@ func (r *BlockchainReactor) GetChannels() []*p2p.ChannelDescriptor {
 	return []*p2p.ChannelDescriptor{
 		{
 			ID:                  BlockchainChannel,
-			Priority:            5,
+			Priority:            10,
 			SendQueueCapacity:   2000,
 			RecvBufferCapacity:  50 * 4096,
 			RecvMessageCapacity: MaxMsgSize,
