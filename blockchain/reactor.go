@@ -31,11 +31,10 @@ type blockStore interface {
 type BlockchainReactor struct {
 	p2p.BaseReactor
 
-	fastSync    bool // if true, enable fast sync on start
-	stateSynced bool // set to true when SwitchToFastSync is called by state sync
-	scheduler   *Routine
-	processor   *Routine
-	logger      log.Logger
+	fastSync  bool // if true, enable fast sync on start
+	scheduler *Routine
+	processor *Routine
+	logger    log.Logger
 
 	mtx           ksync.RWMutex
 	maxPeerHeight uint64
@@ -169,13 +168,6 @@ func (r *BlockchainReactor) endSync() {
 	r.events = nil
 	r.scheduler.stop()
 	r.processor.stop()
-}
-
-// SwitchToFastSync is called by the state sync reactor when switching to fast sync.
-func (r *BlockchainReactor) SwitchToFastSync(state cstate.LatestBlockState) error {
-	r.stateSynced = true
-	state = state.Copy()
-	return r.startSync(&state)
 }
 
 // reactor generated ticker events:
@@ -415,7 +407,7 @@ func (r *BlockchainReactor) demux(events <-chan Event) {
 				r.scheduler.send(event)
 			case pcFinished:
 				r.logger.Info("Fast sync complete, switching to consensus", "blockSynced", event.blocksSynced)
-				if !r.io.trySwitchToConsensus(event.kaiState, event.blocksSynced > 0 || r.stateSynced) {
+				if !r.io.trySwitchToConsensus(event.kaiState, event.blocksSynced > 0) {
 					r.logger.Error("Failed to switch to consensus reactor")
 				}
 				r.endSync()

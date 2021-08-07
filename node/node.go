@@ -80,9 +80,6 @@ type Node struct {
 	transport  *p2p.MultiplexTransport
 	addrBook   pex.AddrBook // known peers
 	pexReactor *pex.Reactor
-
-	bcReactor p2p.Reactor // for fast-syncing
-	stateSync bool        // whether the node should state sync on startup
 }
 
 // New creates a new P2P node, ready for protocol registration.
@@ -713,9 +710,4 @@ func createPEXReactorAndAddToSwitch(addrBook pex.AddrBook, config *Config,
 	pexReactor.SetLogger(logger)
 	sw.AddReactor("PEX", pexReactor)
 	return pexReactor
-}
-
-// Interface for switching to fast sync
-type fastSyncReactor interface {
-	SwitchToFastSync(cstate.LatestBlockState) error
 }
