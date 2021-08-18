@@ -50,12 +50,14 @@ var (
 )
 
 var (
+	MainnetV2Block uint64 = 5
 	// MainnetChainConfig is the chain parameters to run a node on the main network.
 	MainnetChainConfig = &ChainConfig{
 		Kaicon: &KaiconConfig{
 			Period: 15,
 			Epoch:  30000,
 		},
+		MainnetV2Block: &MainnetV2Block,
 	}
 
 	// TestnetChainConfig contains the chain parameters to run a node on the test network.

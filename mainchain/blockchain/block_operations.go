@@ -22,13 +22,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kardiachain/go-kardia/kvm"
-	"github.com/kardiachain/go-kardia/mainchain/staking"
-	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
-
+	"github.com/kardiachain/go-kardia/consensus/misc"
 	"github.com/kardiachain/go-kardia/kai/state/cstate"
+	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
+	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -247,6 +247,11 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	if err != nil {
 		bo.logger.Error("Fail to get blockchain head state", "err", err)
 		return nil, common.Hash{}, nil, nil, err
+	}
+
+	// Mutate the block and state according to any hard-fork specs
+	if bo.blockchain.chainConfig.MainnetV2Block != nil && *bo.blockchain.chainConfig.MainnetV2Block == header.Height {
+		misc.ApplyMainnetV2HardFork(state)
 	}
 
 	// GasPool
