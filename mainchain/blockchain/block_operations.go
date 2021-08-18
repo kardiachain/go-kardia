@@ -252,6 +252,7 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 	// Mutate the block and state according to any hard-fork specs
 	if bo.blockchain.chainConfig.MainnetV2Block != nil && *bo.blockchain.chainConfig.MainnetV2Block == header.Height {
 		misc.ApplyMainnetV2HardFork(state)
+		bo.logger.Info("CHECKPOINT: Apply Mainnet V2 fork successfully at", "block", header.Height)
 	}
 
 	// GasPool
