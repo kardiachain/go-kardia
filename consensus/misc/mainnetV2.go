@@ -26,9 +26,11 @@ import (
 
 // ApplyMainnetV2HardFork modifies the state database according to the Mainnet V2.0 hard-fork rules:
 // - Apply new staking, params, treasury, validator contracts' bytecode
-func ApplyMainnetV2HardFork(statedb *state.StateDB) {
-	// Apply new SMC bytecode
+func ApplyMainnetV2HardFork(statedb *state.StateDB, valsList []common.Address) {
 	statedb.SetCode(configs.StakingContractAddress, common.FromHex(configs.MainnetV2StakingSMCBytecode))
 	statedb.SetCode(configs.ParamsSMCAddress, common.FromHex(configs.MainnetV2ParamsSMCBytecode))
 	statedb.SetCode(configs.TreasurySMCAddress, common.FromHex(configs.MainnetV2TreasurySMCBytecode))
+	for i := range valsList {
+		statedb.SetCode(valsList[i], common.FromHex(configs.MainnetV2ValidatorsSMCBytecode))
+	}
 }

@@ -19,6 +19,7 @@
 package blockchain
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -249,10 +250,14 @@ func (bo *BlockOperations) commitTransactions(txs types.Transactions, header *ty
 		return nil, common.Hash{}, nil, nil, err
 	}
 
-	// Mutate the block and state according to any hard-fork specs
 	if bo.blockchain.chainConfig.MainnetV2Block != nil && *bo.blockchain.chainConfig.MainnetV2Block == header.Height {
-		misc.ApplyMainnetV2HardFork(state)
-		bo.logger.Info("CHECKPOINT: Apply Mainnet V2 fork successfully at", "block", header.Height)
+		// Mutate the block and state according to any hard-fork specs
+		valsList, err := bo.staking.GetAllVals(state, header, bo.blockchain, bo.blockchain.vmConfig)
+		if err != nil {
+			panic(fmt.Sprintf("CHECKPOINT: Failed to apply Mainnet V2 hardfork, err: %v", err))
+		}
+		misc.ApplyMainnetV2HardFork(state, valsList)
+		bo.logger.Info("CHECKPOINT: Apply Mainnet V2 hardfork successfully at", "block", header.Height)
 	}
 
 	// GasPool
