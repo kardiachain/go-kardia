@@ -251,6 +251,10 @@ func (p *peer) sendTransactions(txs types.Transactions) error {
 		p.knownTxs.Pop()
 	}
 
+	for _, tx := range txs {
+		p.knownTxs.Add(tx.Hash())
+	}
+
 	encoded := make([][]byte, len(txs))
 	for idx, tx := range txs {
 		txBytes, err := rlp.EncodeToBytes(tx)
