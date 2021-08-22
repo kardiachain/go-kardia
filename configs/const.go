@@ -48,7 +48,7 @@ const (
 	DefaultPublishedEndpoint  = "tcp://127.0.0.1:5554"
 
 	// default params for blockchain APIs
-	DefaultTimeOutForStaticCall = 20
+	DefaultTimeOutForStaticCall = 5
 
 	// default params for configs
 	DefaultBcReactorServiceName = "BCR"
