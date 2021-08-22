@@ -190,7 +190,7 @@ func (r *Reactor) GetChannels() []*conn.ChannelDescriptor {
 
 // AddPeer implements Reactor by adding peer to the address book (if inbound)
 // or by requesting more addresses (if outbound).
-func (r *Reactor) AddPeer(p Peer) error {
+func (r *Reactor) AddPeer(p Peer) {
 	if p.IsOutbound() {
 		// For outbound peers, the address is already in the books -
 		// either via DialPeersAsync or r.Receive.
@@ -203,7 +203,7 @@ func (r *Reactor) AddPeer(p Peer) error {
 		addr, err := p.NodeInfo().NetAddress()
 		if err != nil {
 			r.Logger.Error("Failed to get peer NetAddress", "err", err, "peer", p)
-			return err
+			return
 		}
 
 		// Make it explicit that addr and src are the same for an inbound peer.
@@ -214,18 +214,15 @@ func (r *Reactor) AddPeer(p Peer) error {
 		err = r.book.AddAddress(addr, src)
 		r.logErrAddrBook(err)
 	}
-	return nil
 }
 
 // RemovePeer implements Reactor by resetting peer's requests info.
-func (r *Reactor) RemovePeer(p Peer, reason interface{}) error {
+func (r *Reactor) RemovePeer(p Peer, reason interface{}) {
 	id := string(p.ID())
 	if len(id) > 0 {
 		r.requestsSent.Delete(id)
 		r.lastReceivedRequests.Delete(id)
-		return nil
 	}
-	return errEmptyPeerID
 }
 
 func (r *Reactor) logErrAddrBook(err error) {

@@ -64,11 +64,11 @@ type ConsensusManager struct {
 
 // NewConsensusManager returns a new ConsensusManager with the given
 // consensusState.
-func NewConsensusManager(consensusState *ConsensusState, fastSync *configs.FastSyncConfig) *ConsensusManager {
+func NewConsensusManager(consensusState *ConsensusState, waitSync *configs.FastSyncConfig) *ConsensusManager {
 	conR := &ConsensusManager{
 		conS:          consensusState,
-		waitSync:      fastSync.Enable,
-		targetPending: fastSync.TargetPending,
+		waitSync:      waitSync.Enable,
+		targetPending: waitSync.TargetPending,
 	}
 	conR.BaseReactor = *p2p.NewBaseReactor("Consensus", conR)
 	return conR
@@ -80,7 +80,7 @@ func (conR *ConsensusManager) SetEventBus(b *types.EventBus) {
 	conR.conS.SetEventBus(b)
 }
 
-// WaitSync returns whether the consensus reactor is waiting for state/fast sync.
+// WaitSync returns whether the consensus reactor is in fast-sync mode.
 func (conR *ConsensusManager) WaitSync() bool {
 	conR.mtx.RLock()
 	defer conR.mtx.RUnlock()
@@ -105,12 +105,14 @@ func (conR *ConsensusManager) Validators() []*types.Validator {
 func (conR *ConsensusManager) OnStart() error {
 	conR.Logger.Info("Consensus manager ", "waitSync", conR.WaitSync())
 	conR.subscribeToBroadcastEvents()
+
 	if !conR.WaitSync() {
 		err := conR.conS.Start()
 		if err != nil {
 			return err
 		}
 	}
+
 	conR.Logger.Trace("Consensus manager starts!")
 	return nil
 }
@@ -202,11 +204,11 @@ func (conR *ConsensusManager) InitPeer(peer p2p.Peer) p2p.Peer {
 }
 
 // AddPeer implements manager
-func (conR *ConsensusManager) AddPeer(peer p2p.Peer) error {
+func (conR *ConsensusManager) AddPeer(peer p2p.Peer) {
 	conR.Logger.Info("Add peer to manager", "peer", peer)
 
 	if !conR.IsRunning() {
-		return ErrConsensusMgrNotRunning
+		return
 	}
 
 	peerState, ok := peer.Get(types.PeerStateKey).(*PeerState)
@@ -221,14 +223,14 @@ func (conR *ConsensusManager) AddPeer(peer p2p.Peer) error {
 
 	// Send our state to peer.
 	// If we're fast_syncing, broadcast a RoundStepMessage later upon SwitchToConsensus().
-	conR.sendNewRoundStepMessage(peer)
-	return nil
+	if !conR.WaitSync() {
+		conR.sendNewRoundStepMessage(peer)
+	}
 }
 
 // RemovePeer is a noop.
-func (conR *ConsensusManager) RemovePeer(p p2p.Peer, reason interface{}) error {
+func (conR *ConsensusManager) RemovePeer(p p2p.Peer, reason interface{}) {
 	conR.Logger.Warn("ConsensusManager.RemovePeer - not yet implemented")
-	return nil
 }
 
 // Receive implements Reactor

@@ -360,7 +360,7 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 	}
 
 	for _, reactor := range sw.reactors {
-		_ = reactor.RemovePeer(peer, reason)
+		reactor.RemovePeer(peer, reason)
 	}
 
 	// Removing a peer should go last to avoid a situation where a peer

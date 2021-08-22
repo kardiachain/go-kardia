@@ -469,7 +469,7 @@ func (s *PublicTransactionPoolAPI) GetRawTransactionByHash(ctx context.Context, 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
 	tx, blockHash, blockHeight, index := s.kaiService.GetTransaction(ctx, hash)
-	if tx == nil {
+	if tx == nil || blockHeight == 0  {
 		return nil, ErrTransactionHashNotFound
 	}
 	// get receipts from db
@@ -477,17 +477,50 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	if blockInfo == nil {
 		return nil, ErrBlockInfoNotFound
 	}
-	if len(blockInfo.Receipts) <= int(index) {
-		return nil, nil
+	// return the receipt if tx and receipt hashes at index are the same
+	if len(blockInfo.Receipts) > int(index) && blockInfo.Receipts[index].TxHash.Equal(hash) {
+		receipt := blockInfo.Receipts[index]
+		return getWeb3Receipt(receipt, tx, blockHash, blockHeight, index, blockInfo), nil
 	}
-	receipt := blockInfo.Receipts[index]
+	// else traverse receipts list to find the corresponding receipt of txHash
+	for _, r := range blockInfo.Receipts {
+		if !r.TxHash.Equal(hash) {
+			continue
+		} else {
+			receipt := r
+			return getWeb3Receipt(receipt, tx, blockHash, blockHeight, index, blockInfo), nil
+		}
+	}
 
+	// dirty hack searching receipt in the few previous block
+	for i := uint64(1); i <= 2; i++ {
+		block := s.kaiService.BlockByHeight(ctx, rpc.BlockHeight(blockHeight-i))
+		// get receipts from db
+		blockInfo := s.kaiService.BlockInfoByBlockHash(ctx, block.Hash())
+		if blockInfo == nil {
+			return nil, ErrBlockInfoNotFound
+		}
+		for _, r := range blockInfo.Receipts {
+			if !r.TxHash.Equal(hash) {
+				continue
+			} else {
+				// update the correct lookup entry and try again
+				s.kaiService.kaiDb.WriteTxLookupEntries(block)
+				return s.GetTransactionReceipt(ctx, hash)
+			}
+		}
+	}
+	// return nil if not found
+	return nil, nil
+}
+
+func getWeb3Receipt(receipt *types.Receipt, tx *types.Transaction, blockHash common.Hash, blockHeight, index uint64, blockInfo *types.BlockInfo) map[string]interface{} {
 	// Derive the sender
 	from, _ := types.Sender(types.HomesteadSigner{}, tx)
 	fields := map[string]interface{}{
 		"blockHash":         blockHash,
 		"blockNumber":       common.Uint64(blockHeight),
-		"transactionHash":   hash,
+		"transactionHash":   tx.Hash(),
 		"transactionIndex":  common.Uint64(index),
 		"from":              from,
 		"to":                tx.To(),
@@ -523,7 +556,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	if receipt.ContractAddress != (common.Address{}) {
 		fields["contractAddress"] = receipt.ContractAddress
 	}
-	return fields, nil
+	return fields
 }
 
 // GetTransactionCount returns the number of transactions the given address has sent for the given block number

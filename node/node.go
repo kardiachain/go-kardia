@@ -48,7 +48,7 @@ import (
 )
 
 var (
-	nodeVersion = "1.0.0"
+	nodeVersion = "1.5.1"
 )
 
 // Node is a container on which services can be registered.
@@ -272,7 +272,9 @@ func (n *Node) OnStart() error {
 
 	// start RPC endpoints
 	if err := n.openRPCEndpoints(); err != nil {
-		n.Stop()
+		if err := n.Stop(); err != nil {
+			return err
+		}
 		return err
 	}
 
@@ -290,6 +292,7 @@ func (n *Node) OnStart() error {
 	if err != nil {
 		return fmt.Errorf("could not dial peers from persistent_peers field: %w", err)
 	}
+
 	return nil
 }
 
