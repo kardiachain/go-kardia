@@ -620,8 +620,8 @@ func getReceiptLogs(receipt types.Receipt) []Log {
 }
 
 // getTransactionReceipt gets transaction receipt from transaction, blockHash, blockHeight and index.
-func getPublicReceipt(receipt types.Receipt, tx *types.Transaction, blockHash common.Hash, blockHeight, index uint64) *PublicReceipt {
-	from, _ := types.Sender(types.HomesteadSigner{}, tx)
+func getPublicReceipt(config *configs.ChainConfig, receipt types.Receipt, tx *types.Transaction, blockHash common.Hash, blockHeight, index uint64) *PublicReceipt {
+	from, _ := types.Sender(types.LatestSigner(config), tx)
 	logs := getReceiptLogs(receipt)
 
 	publicReceipt := &PublicReceipt{
@@ -666,7 +666,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 	// return the receipt if tx and receipt hashes at index are the same
 	if len(blockInfo.Receipts) > int(index) && blockInfo.Receipts[index].TxHash.Equal(txHash) {
 		receipt := blockInfo.Receipts[index]
-		return getPublicReceipt(*receipt, tx, blockHash, height, index), nil
+		return getPublicReceipt(a.s.chainConfig, *receipt, tx, blockHash, height, index), nil
 	}
 	// else traverse receipts list to find the corresponding receipt of txHash
 	for _, r := range blockInfo.Receipts {
@@ -674,7 +674,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 			continue
 		} else {
 			receipt := r
-			return getPublicReceipt(*receipt, tx, blockHash, height, index), nil
+			return getPublicReceipt(a.s.chainConfig, *receipt, tx, blockHash, height, index), nil
 		}
 	}
 

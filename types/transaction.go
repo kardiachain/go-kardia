@@ -65,6 +65,8 @@ type txdata struct {
 	Hash *common.Hash `json:"hash" rlp:"-"`
 }
 
+func (tx *txdata) chainID() *big.Int { return deriveChainId(tx.V) }
+
 func NewTransaction(nonce uint64, to common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
 	return newTransaction(nonce, &to, amount, gasLimit, gasPrice, data)
 }
@@ -123,6 +125,8 @@ func (tx *Transaction) GasPriceCmp(other *Transaction) int {
 func (tx *Transaction) GasPriceIntCmp(other *big.Int) int {
 	return tx.data.Price.Cmp(other)
 }
+func (tx *Transaction) ChainId() *big.Int { return tx.data.chainID() }
+
 func (tx *Transaction) Value() *big.Int  { return new(big.Int).Set(tx.data.Amount) }
 func (tx *Transaction) Nonce() uint64    { return tx.data.AccountNonce }
 func (tx *Transaction) CheckNonce() bool { return true }
@@ -146,6 +150,20 @@ func (tx *Transaction) Hash() common.Hash {
 	v := rlpHash(tx)
 	tx.hash.Store(v)
 	return v
+}
+
+func isProtectedV(V *big.Int) bool {
+	if V.BitLen() <= 8 {
+		v := V.Uint64()
+		return v != 27 && v != 28 && v != 1 && v != 0
+	}
+	// anything not 27 or 28 is considered protected
+	return true
+}
+
+// Protected says whether the transaction is replay-protected.
+func (tx *Transaction) Protected() bool {
+	return tx.data.V != nil && isProtectedV(tx.data.V)
 }
 
 // Size returns the true RLP encoded storage size of the transaction, either by
@@ -377,21 +395,21 @@ func sigHash(tx *Transaction) common.Hash {
 	})
 }
 
-func recoverPlain(sighash common.Hash, R, S, Vb *big.Int) (common.Address, error) {
+func recoverPlain(sighash common.Hash, R, S, Vb *big.Int, homestead bool) (common.Address, error) {
 	if Vb.BitLen() > 8 {
 		return common.Address{}, ErrInvalidSig
 	}
 	V := byte(Vb.Uint64() - 27)
-	if !crypto.ValidateSignatureValues(V, R, S) {
+	if !crypto.ValidateSignatureValues(V, R, S, homestead) {
 		return common.Address{}, ErrInvalidSig
 	}
-	// encode the snature in uncompressed format
+	// encode the signature in uncompressed format
 	r, s := R.Bytes(), S.Bytes()
-	sig := make([]byte, 65)
+	sig := make([]byte, crypto.SignatureLength)
 	copy(sig[32-len(r):32], r)
 	copy(sig[64-len(s):64], s)
 	sig[64] = V
-	// recover the public key from the snature
+	// recover the public key from the signature
 	pub, err := crypto.Ecrecover(sighash[:], sig)
 	if err != nil {
 		return common.Address{}, err

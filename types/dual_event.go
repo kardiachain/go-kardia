@@ -281,7 +281,7 @@ func EventSender(de *DualEvent) (common.Address, error) {
 		return sigCache.from, nil
 	}
 
-	addr, err := recoverPlain(sigEventHash(de), de.R, de.S, de.V)
+	addr, err := recoverPlain(sigEventHash(de), de.R, de.S, de.V, true)
 	if err != nil {
 		return common.Address{}, err
 	}

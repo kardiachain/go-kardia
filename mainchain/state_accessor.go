@@ -21,6 +21,7 @@ package kai
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/kardiachain/go-kardia/kai/state"
@@ -162,7 +163,7 @@ func (k *KardiaService) stateAtTransaction(block *types.Block, txIndex int, reex
 		return nil, kvm.Context{}, statedb, nil
 	}
 	// Recompute transactions up to the target index.
-	signer := types.HomesteadSigner{}
+	signer := types.MakeSigner(k.blockchain.Config(), big.NewInt(int64(block.Height())))
 	for idx, tx := range block.Transactions() {
 		// Assemble the transaction call message and return if the requested offset
 		msg, _ := tx.AsMessage(signer)

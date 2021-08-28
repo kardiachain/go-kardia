@@ -19,11 +19,16 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/crypto"
 )
+
+var ErrInvalidChainId = errors.New("invalid chain id for signer")
 
 // Signer encapsulates transaction signature handling. Note that this interface is not a
 // stable API and may change at any time to accommodate new protocol rules.
@@ -37,6 +42,40 @@ type Signer interface {
 	Hash(tx *Transaction) common.Hash
 	// Equal returns true if the given signer is the same as the receiver.
 	Equal(Signer) bool
+}
+
+// MakeSigner returns a Signer based on the given chain config and block number.
+func MakeSigner(config *configs.ChainConfig, blockNumber *big.Int) Signer {
+	var signer Signer
+	switch {
+	case config.IsV2(blockNumber):
+	default:
+		signer = FrontierSigner{}
+	}
+	return signer
+}
+
+func LatestSigner(config *configs.ChainConfig) Signer {
+	if config.ChainID != nil {
+		if config.V2Block != nil {
+			return NewEIP155Signer(config.ChainID)
+		}
+	}
+	return HomesteadSigner{}
+}
+
+// LatestSignerForChainID returns the 'most permissive' Signer available. Specifically,
+// this enables support for EIP-155 replay protection and all implemented EIP-2718
+// transaction types if chainID is non-nil.
+//
+// Use this in transaction-handling code where the current block number and fork
+// configuration are unknown. If you have a ChainConfig, use LatestSigner instead.
+// If you have a ChainConfig and know the current block number, use MakeSigner instead.
+func LatestSignerForChainID(chainID *big.Int) Signer {
+	if chainID == nil {
+		return HomesteadSigner{}
+	}
+	return NewEIP155Signer(chainID)
 }
 
 // Sender returns the address derived from the signature (V, R, S) using secp256k1
@@ -75,7 +114,7 @@ func (hs HomesteadSigner) SignatureValues(tx *Transaction, sig []byte) (r, s, v 
 }
 
 func (hs HomesteadSigner) Sender(tx *Transaction) (common.Address, error) {
-	return recoverPlain(hs.Hash(tx), tx.data.R, tx.data.S, tx.data.V)
+	return recoverPlain(hs.Hash(tx), tx.data.R, tx.data.S, tx.data.V, true)
 }
 
 type FrontierSigner struct{}
@@ -111,5 +150,93 @@ func (fs FrontierSigner) Hash(tx *Transaction) common.Hash {
 }
 
 func (fs FrontierSigner) Sender(tx *Transaction) (common.Address, error) {
-	return recoverPlain(fs.Hash(tx), tx.data.R, tx.data.S, tx.data.V)
+	return recoverPlain(fs.Hash(tx), tx.data.R, tx.data.S, tx.data.V, true)
+}
+
+// EIP155Signer implements Signer using the EIP-155 rules. This accepts transactions which
+// are replay-protected as well as unprotected homestead transactions.
+type EIP155Signer struct {
+	chainId, chainIdMul *big.Int
+}
+
+func NewEIP155Signer(chainId *big.Int) EIP155Signer {
+	if chainId == nil {
+		chainId = new(big.Int)
+	}
+	return EIP155Signer{
+		chainId:    chainId,
+		chainIdMul: new(big.Int).Mul(chainId, big.NewInt(2)),
+	}
+}
+
+func (s EIP155Signer) ChainID() *big.Int {
+	return s.chainId
+}
+
+func (s EIP155Signer) Equal(s2 Signer) bool {
+	eip155, ok := s2.(EIP155Signer)
+	return ok && eip155.chainId.Cmp(s.chainId) == 0
+}
+
+var big8 = big.NewInt(8)
+
+func (s EIP155Signer) Sender(tx *Transaction) (common.Address, error) {
+	if !tx.Protected() {
+		return HomesteadSigner{}.Sender(tx)
+	}
+	if tx.ChainId().Cmp(s.chainId) != 0 {
+		return common.Address{}, ErrInvalidChainId
+	}
+	V, R, S := tx.RawSignatureValues()
+	V = new(big.Int).Sub(V, s.chainIdMul)
+	V.Sub(V, big8)
+	return recoverPlain(s.Hash(tx), R, S, V, true)
+}
+
+// SignatureValues returns signature values. This signature
+// needs to be in the [R || S || V] format where V is 0 or 1.
+func (s EIP155Signer) SignatureValues(tx *Transaction, sig []byte) (R, S, V *big.Int, err error) {
+	R, S, V = decodeSignature(sig)
+	if s.chainId.Sign() != 0 {
+		V = big.NewInt(int64(sig[64] + 35))
+		V.Add(V, s.chainIdMul)
+	}
+	return R, S, V, nil
+}
+
+// Hash returns the hash to be signed by the sender.
+// It does not uniquely identify the transaction.
+func (s EIP155Signer) Hash(tx *Transaction) common.Hash {
+	return rlpHash([]interface{}{
+		tx.Nonce(),
+		tx.GasPrice(),
+		tx.Gas(),
+		tx.To(),
+		tx.Value(),
+		tx.Data(),
+		s.chainId, uint(0), uint(0),
+	})
+}
+
+// deriveChainId derives the chain id from the given v parameter
+func deriveChainId(v *big.Int) *big.Int {
+	if v.BitLen() <= 64 {
+		v := v.Uint64()
+		if v == 27 || v == 28 {
+			return new(big.Int)
+		}
+		return new(big.Int).SetUint64((v - 35) / 2)
+	}
+	v = new(big.Int).Sub(v, big.NewInt(35))
+	return v.Div(v, big.NewInt(2))
+}
+
+func decodeSignature(sig []byte) (r, s, v *big.Int) {
+	if len(sig) != crypto.SignatureLength {
+		panic(fmt.Sprintf("wrong size for signature: got %d, want %d", len(sig), crypto.SignatureLength))
+	}
+	r = new(big.Int).SetBytes(sig[:32])
+	s = new(big.Int).SetBytes(sig[32:64])
+	v = new(big.Int).SetBytes([]byte{sig[64] + 27})
+	return r, s, v
 }

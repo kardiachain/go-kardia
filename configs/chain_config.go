@@ -20,6 +20,7 @@ package configs
 
 import (
 	"fmt"
+	"math/big"
 )
 
 // ChainConfig is the core config which determines the blockchain settings.
@@ -29,7 +30,9 @@ import (
 // set of configuration options.
 type ChainConfig struct {
 	// Various consensus engines
-	Kaicon *KaiconConfig `json:"kaicon,omitempty" yaml:"KaiconConfig"`
+	Kaicon  *KaiconConfig `json:"kaicon,omitempty" yaml:"KaiconConfig"`
+	V2Block *big.Int      `json:"v2Block,omitempty" yaml:"V2Block"`
+	ChainID *big.Int      `json:"chainId,omitempty" yaml:"ChainID"`
 }
 
 // KaiconConfig is the consensus engine configs for Kardia BFT DPoS.
@@ -56,4 +59,15 @@ func (c *ChainConfig) String() string {
 	return fmt.Sprintf("{Engine: %v}",
 		engine,
 	)
+}
+func (c *ChainConfig) IsV2(num *big.Int) bool {
+	return isForked(c.V2Block, num)
+}
+
+// isForked returns whether a fork scheduled at block s is active at the given head block.
+func isForked(s, head *big.Int) bool {
+	if s == nil || head == nil {
+		return false
+	}
+	return s.Cmp(head) <= 0
 }

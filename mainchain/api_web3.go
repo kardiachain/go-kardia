@@ -71,7 +71,7 @@ func (s *PublicWeb3API) GasPrice(ctx context.Context) (*common.Big, error) {
 
 // ChainId returns chain ID for the current KardiaChain config.
 func (s *PublicWeb3API) ChainId() *common.Big {
-	return (*common.Big)(new(big.Int).SetUint64(0))
+	return (*common.Big)(s.kaiService.chainConfig.ChainID)
 }
 
 // BlockNumber returns the block height of the chain head.
@@ -469,7 +469,7 @@ func (s *PublicTransactionPoolAPI) GetRawTransactionByHash(ctx context.Context, 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
 	tx, blockHash, blockHeight, index := s.kaiService.GetTransaction(ctx, hash)
-	if tx == nil || blockHeight == 0  {
+	if tx == nil || blockHeight == 0 {
 		return nil, ErrTransactionHashNotFound
 	}
 	// get receipts from db
@@ -480,7 +480,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	// return the receipt if tx and receipt hashes at index are the same
 	if len(blockInfo.Receipts) > int(index) && blockInfo.Receipts[index].TxHash.Equal(hash) {
 		receipt := blockInfo.Receipts[index]
-		return getWeb3Receipt(receipt, tx, blockHash, blockHeight, index, blockInfo), nil
+		return getWeb3Receipt(s.kaiService.chainConfig, receipt, tx, blockHash, blockHeight, index, blockInfo), nil
 	}
 	// else traverse receipts list to find the corresponding receipt of txHash
 	for _, r := range blockInfo.Receipts {
@@ -488,7 +488,7 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 			continue
 		} else {
 			receipt := r
-			return getWeb3Receipt(receipt, tx, blockHash, blockHeight, index, blockInfo), nil
+			return getWeb3Receipt(s.kaiService.chainConfig, receipt, tx, blockHash, blockHeight, index, blockInfo), nil
 		}
 	}
 
@@ -514,9 +514,9 @@ func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, ha
 	return nil, nil
 }
 
-func getWeb3Receipt(receipt *types.Receipt, tx *types.Transaction, blockHash common.Hash, blockHeight, index uint64, blockInfo *types.BlockInfo) map[string]interface{} {
+func getWeb3Receipt(config *configs.ChainConfig, receipt *types.Receipt, tx *types.Transaction, blockHash common.Hash, blockHeight, index uint64, blockInfo *types.BlockInfo) map[string]interface{} {
 	// Derive the sender
-	from, _ := types.Sender(types.HomesteadSigner{}, tx)
+	from, _ := types.Sender(types.LatestSigner(config), tx)
 	fields := map[string]interface{}{
 		"blockHash":         blockHash,
 		"blockNumber":       common.Uint64(blockHeight),
