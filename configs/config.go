@@ -56,6 +56,8 @@ var (
 			Period: 15,
 			Epoch:  30000,
 		},
+		V2Block: big.NewInt(5000000),
+		ChainID: big.NewInt(4292020),
 	}
 
 	// TestnetChainConfig contains the chain parameters to run a node on the test network.
@@ -64,6 +66,8 @@ var (
 			Period: 15,
 			Epoch:  30000,
 		},
+		V2Block: big.NewInt(5000000),
+		ChainID: big.NewInt(42920202),
 	}
 
 	// TestChainConfig contains the chain parameters to run unit test.
@@ -72,6 +76,8 @@ var (
 			Period: 15,
 			Epoch:  30000,
 		},
+		V2Block: big.NewInt(5000000),
+		ChainID: big.NewInt(42920201),
 	}
 )
 
