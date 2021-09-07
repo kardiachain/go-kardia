@@ -469,7 +469,7 @@ func (s *PublicTransactionPoolAPI) GetRawTransactionByHash(ctx context.Context, 
 // GetTransactionReceipt returns the transaction receipt for the given transaction hash.
 func (s *PublicTransactionPoolAPI) GetTransactionReceipt(ctx context.Context, hash common.Hash) (map[string]interface{}, error) {
 	tx, blockHash, blockHeight, index := s.kaiService.GetTransaction(ctx, hash)
-	if tx == nil || blockHeight == 0  {
+	if tx == nil || blockHeight == 0 {
 		return nil, ErrTransactionHashNotFound
 	}
 	// get receipts from db
