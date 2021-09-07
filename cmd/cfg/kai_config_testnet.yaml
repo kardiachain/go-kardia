@@ -8,6 +8,9 @@ Node:
     - kai
     - tx
     - account
+    - net
+    - eth
+    - txpool
   HTTPVirtualHosts:       # virtual hosts connection
     - 0.0.0.0
     - localhost

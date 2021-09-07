@@ -68,6 +68,11 @@ type APIBackend interface {
 	// Tracer API
 	GetTransaction(ctx context.Context, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
 	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error)
+
+	// Txpool API
+	TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
+	TxPoolContentFrom(addr common.Address) (types.Transactions, types.Transactions)
+	Stats() (pending int, queued int)
 }
 
 func (k *KardiaService) HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header {
@@ -316,4 +321,16 @@ func (k *KardiaService) GetTransaction(ctx context.Context, hash common.Hash) (*
 
 func (k *KardiaService) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error) {
 	return k.stateAtTransaction(block, txIndex, reexec)
+}
+
+func (k *KardiaService) TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions) {
+	return k.txPool.Content()
+}
+
+func (k *KardiaService) TxPoolContentFrom(addr common.Address) (types.Transactions, types.Transactions) {
+	return k.txPool.ContentFrom(addr)
+}
+
+func (k *KardiaService) Stats() (pending int, queued int) {
+	return k.txPool.Stats()
 }
