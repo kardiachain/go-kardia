@@ -113,7 +113,9 @@ func (bo *BlockOperations) CreateProposalBlock(
 	header.GasLimit = lastState.ConsensusParams.Block.MaxGas
 	bo.logger.Info("Creates new header", "header", header)
 
-	txs = bo.sortAndValidateTxs(txs, header)
+	if len(txs) != 0 {
+		txs = bo.sortAndValidateTxs(txs, header)
+	}
 
 	block = bo.newBlock(header, txs, commit, evidence)
 	bo.logger.Trace("Make block to propose", "block", block)
