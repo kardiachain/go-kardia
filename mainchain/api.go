@@ -656,7 +656,7 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 	txHash := common.HexToHash(hash)
 	tx, blockHash, height, index := a.s.kaiDb.ReadTransaction(txHash)
 	if tx == nil || height == 0 {
-		return nil, ErrTransactionHashNotFound
+		return nil, nil
 	}
 	// get receipts from db
 	blockInfo := a.s.BlockInfoByBlockHash(ctx, blockHash)
