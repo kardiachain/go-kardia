@@ -53,6 +53,7 @@ type KardiaService struct {
 
 	config      *Config
 	chainConfig *configs.ChainConfig
+	nodeConfig  *node.Config
 
 	// Channel for shutting down the service
 	shutdownChan chan bool
@@ -127,6 +128,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	kai := &KardiaService{
 		logger:       logger,
 		config:       config,
+		nodeConfig:   ctx.Config,
 		kaiDb:        kaiDb,
 		chainConfig:  chainConfig,
 		shutdownChan: make(chan bool),
@@ -305,9 +307,21 @@ func (s *KardiaService) APIs() []rpc.API {
 			Public:    true,
 		},
 		{
+			Namespace: "eth",
+			Version:   "1.0",
+			Service:   &publicWeb3API{s.nodeConfig},
+			Public:    true,
+		},
+		{
 			Namespace: "net",
 			Version:   "1.0",
 			Service:   NewPublicNetAPI(s.networkID),
+			Public:    true,
+		},
+		{
+			Namespace: "web3",
+			Version:   "1.0",
+			Service:   &publicWeb3API{s.nodeConfig},
 			Public:    true,
 		},
 	}
