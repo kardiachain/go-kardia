@@ -230,6 +230,7 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 	}
 	nodeConfig := node.Config{
 		Name:             n.Name,
+		Version:          configs.Version,
 		DataDir:          n.DataDir,
 		P2P:              p2pConfig,
 		HTTPHost:         n.HTTPHost,
