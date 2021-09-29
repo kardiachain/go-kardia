@@ -8,6 +8,9 @@ Node:
     - kai
     - tx
     - account
+    - net
+    - eth
+    - web3
   HTTPVirtualHosts:       # virtual hosts connection
     - 0.0.0.0
     - localhost
