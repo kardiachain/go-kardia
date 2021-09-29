@@ -33,6 +33,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
+	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -592,4 +593,20 @@ func (s *PublicTransactionPoolAPI) SendRawTransaction(ctx context.Context, input
 		return common.Hash{}, err
 	}
 	return tx.Hash(), s.kaiService.TxPool().AddLocal(tx)
+}
+
+// publicWeb3API offers helper utils
+type publicWeb3API struct {
+	nodeConfig *node.Config
+}
+
+// ClientVersion returns the node name
+func (s *publicWeb3API) ClientVersion() string {
+	return s.nodeConfig.NodeName()
+}
+
+// Sha3 applies the sha3 implementation on the input.
+// It assumes the input is hex encoded.
+func (s *publicWeb3API) Sha3(input common.Bytes) common.Bytes {
+	return crypto.Keccak256(input)
 }
