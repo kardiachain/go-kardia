@@ -29,10 +29,11 @@ import (
 // that any network, identified by its genesis block, can have its own
 // set of configuration options.
 type ChainConfig struct {
+	ChainID *big.Int `json:"chainId,omitempty" yaml:"ChainID"` // chainId identifies the current chain and is used for replay protection
+	V2Block *big.Int `json:"v2Block,omitempty" yaml:"V2Block"` // Mainnet V2 switch block (nil = no fork, 0 = already V2)
+
 	// Various consensus engines
-	Kaicon  *KaiconConfig `json:"kaicon,omitempty" yaml:"KaiconConfig"`
-	V2Block *big.Int      `json:"v2Block,omitempty" yaml:"V2Block"`
-	ChainID *big.Int      `json:"chainId,omitempty" yaml:"ChainID"`
+	Kaicon *KaiconConfig `json:"kaicon,omitempty" yaml:"KaiconConfig"`
 }
 
 // KaiconConfig is the consensus engine configs for Kardia BFT DPoS.
