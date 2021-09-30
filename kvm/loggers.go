@@ -63,7 +63,7 @@ type StructLog struct {
 	GasCost       uint64                      `json:"gasCost"`
 	Memory        []byte                      `json:"memory"`
 	MemorySize    int                         `json:"memSize"`
-	Stack         []*big.Int                  `json:"stack"`
+	Stack         []*big.Int                  `json:"stack"` // TODO(trinhdn97): consider to use uint256.Int instead of big.Int
 	ReturnStack   []uint32                    `json:"returnStack"`
 	ReturnData    []byte                      `json:"returnData"`
 	Storage       map[common.Hash]common.Hash `json:"-"`

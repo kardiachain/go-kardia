@@ -78,7 +78,7 @@ func NewTracerAPI(backend Backend) *TracerAPI {
 
 // TraceTransaction returns the structured logs created during the execution of KVM
 // and returns them as a JSON object.
-func (t *TracerAPI) TraceTransaction(ctx context.Context, hash common.Hash) (interface{}, error) {
+func (t *TracerAPI) TraceTransaction(ctx context.Context, hash common.Hash, config *TraceConfig) (interface{}, error) {
 	tx, blockHash, blockHeight, index := t.b.GetTransaction(ctx, hash)
 	if tx == nil {
 		return nil, errors.New("tx for hash not found")
@@ -88,6 +88,9 @@ func (t *TracerAPI) TraceTransaction(ctx context.Context, hash common.Hash) (int
 		return nil, errors.New("genesis is not traceable")
 	}
 	reexec := defaultTraceReexec
+	if config != nil && config.Reexec != nil {
+		reexec = *config.Reexec
+	}
 	height := rpc.BlockHeight(blockHeight)
 	block, err := t.b.BlockByHeightOrHash(ctx, rpc.BlockHeightOrHash{
 		BlockHeight:      &height,
@@ -106,20 +109,15 @@ func (t *TracerAPI) TraceTransaction(ctx context.Context, hash common.Hash) (int
 		hash:  hash,
 		block: blockHash,
 	}
-	return t.traceTx(ctx, msg, txctx, vmctx, statedb)
+	return t.traceTx(ctx, msg, txctx, vmctx, statedb, config)
 }
 
 // traceTx configures a new tracer according to the provided configuration, and
 // executes the given message in the provided environment. The return value will
 // be tracer dependent.
-func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txctx *txTraceContext, vmctx kvm.Context, statedb *state.StateDB) (interface{}, error) {
+func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txctx *txTraceContext, vmctx kvm.Context, statedb *state.StateDB, config *TraceConfig) (interface{}, error) {
 	// Assemble the structured logger or the JavaScript tracer
-	var (
-		tracer kvm.Tracer
-		err    error
-	)
-
-	tracer = kvm.NewStructLogger(nil)
+	tracer := kvm.NewStructLogger(nil)
 	// Run the transaction with tracing enabled.
 	vmenv := kvm.NewKVM(vmctx, statedb, kvm.Config{Debug: true, Tracer: tracer})
 
@@ -132,14 +130,16 @@ func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txc
 	}
 	reason, _ := result.UnpackRevertReason()
 	return struct {
-		UsedGas      uint64 `json:"usedGas"`
-		Err          error  `json:"err"`
-		ReturnData   string `json:"returnData"`
-		RevertReason string `json:"revertReason"`
+		UsedGas      uint64         `json:"usedGas"`
+		Err          error          `json:"err"`
+		ReturnData   string         `json:"returnData"`
+		RevertReason string         `json:"revertReason"`
+		StructLogs   []StructLogRes `json:"structLogs"`
 	}{
 		UsedGas:      result.UsedGas,
 		Err:          result.Err,
 		ReturnData:   common.Encode(result.ReturnData),
 		RevertReason: reason,
+		StructLogs:   FormatLogs(tracer.StructLogs()),
 	}, nil
 }
