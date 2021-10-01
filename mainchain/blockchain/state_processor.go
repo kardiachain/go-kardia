@@ -67,7 +67,7 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 	// TODO(trinhdn97): make sure if we need to mutate the SMCs' bytecode here
 	// Mutate the block and state according to any hard-fork specs
 	if p.bc.chainConfig.MainnetV2Block != nil && *p.bc.chainConfig.MainnetV2Block == block.Height() {
-		misc.ApplyMainnetV2HardFork(statedb, []common.Address{})
+		misc.ApplyMainnetV2HardFork(statedb, nil)
 	}
 
 	// Iterate over and process the individual transactions

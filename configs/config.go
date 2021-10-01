@@ -74,6 +74,7 @@ var (
 			Period: 15,
 			Epoch:  30000,
 		},
+		MainnetV2Block: &MainnetV2Block,
 	}
 )
 

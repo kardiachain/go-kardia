@@ -30,6 +30,9 @@ func ApplyMainnetV2HardFork(statedb *state.StateDB, valsList []common.Address) {
 	statedb.SetCode(configs.StakingContractAddress, common.FromHex(configs.MainnetV2StakingSMCBytecode))
 	statedb.SetCode(configs.ParamsSMCAddress, common.FromHex(configs.MainnetV2ParamsSMCBytecode))
 	statedb.SetCode(configs.TreasurySMCAddress, common.FromHex(configs.MainnetV2TreasurySMCBytecode))
+	if valsList == nil {
+		return
+	}
 	for i := range valsList {
 		statedb.SetCode(valsList[i], common.FromHex(configs.MainnetV2ValidatorsSMCBytecode))
 	}
