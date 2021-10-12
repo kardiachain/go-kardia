@@ -69,7 +69,7 @@ type APIBackend interface {
 
 	// Tracer API
 	GetTransaction(ctx context.Context, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
-	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error)
+	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error)
 
 	// Txpool API
 	TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
@@ -321,7 +321,7 @@ func (k *KardiaService) GetTransaction(ctx context.Context, hash common.Hash) (*
 	return k.kaiDb.ReadTransaction(hash)
 }
 
-func (k *KardiaService) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error) {
+func (k *KardiaService) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error) {
 	return k.stateAtTransaction(block, txIndex, reexec)
 }
 

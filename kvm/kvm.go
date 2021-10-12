@@ -61,9 +61,9 @@ func run(kvm *KVM, contract *Contract, input []byte, readOnly bool) ([]byte, err
 	return nil, ErrInterpreterNotCompatible
 }
 
-// Context provides the KVM with auxiliary information. Once provided
+// BlockContext provides the KVM with auxiliary information. Once provided
 // it shouldn't be modified.
-type Context struct {
+type BlockContext struct {
 	// CanTransfer returns whether the account contains
 	// sufficient kai to transfer the value
 	CanTransfer CanTransferFunc
@@ -97,8 +97,8 @@ type TxContext struct {
 //
 // The KVM should never be reused and is not thread safe.
 type KVM struct {
-	// Context provides auxiliary blockchain related information
-	Context
+	// BlockContext provides auxiliary blockchain related information
+	BlockContext
 	TxContext
 	// StateDB gives access to the underlying state
 	StateDB StateDB
@@ -124,13 +124,13 @@ type KVM struct {
 
 // NewKVM returns a new KVM. The returned KVM is not thread safe and should
 // only ever be used *once*.
-func NewKVM(ctx Context, txCtx TxContext, statedb StateDB, chainConfig *configs.ChainConfig, vmConfig Config) *KVM {
+func NewKVM(ctx BlockContext, txCtx TxContext, statedb StateDB, chainConfig *configs.ChainConfig, vmConfig Config) *KVM {
 	kvm := &KVM{
-		Context:     ctx,
-		TxContext:   txCtx,
-		StateDB:     statedb,
-		vmConfig:    vmConfig,
-		chainConfig: chainConfig,
+		BlockContext: ctx,
+		TxContext:    txCtx,
+		StateDB:      statedb,
+		vmConfig:     vmConfig,
+		chainConfig:  chainConfig,
 	}
 	kvm.interpreter = NewInterpreter(kvm, vmConfig)
 
@@ -179,7 +179,7 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		return nil, gas, ErrDepth
 	}
 	// Fail if we're trying to transfer more than the available balance
-	if value.Sign() != 0 && !kvm.Context.CanTransfer(kvm.StateDB, caller.Address(), value) {
+	if value.Sign() != 0 && !kvm.BlockContext.CanTransfer(kvm.StateDB, caller.Address(), value) {
 		return nil, gas, ErrInsufficientBalance
 	}
 

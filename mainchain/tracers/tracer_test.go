@@ -53,12 +53,12 @@ func (*dummyStatedb) GetRefund() uint64                       { return 1337 }
 func (*dummyStatedb) GetBalance(addr common.Address) *big.Int { return new(big.Int) }
 
 type vmContext struct {
-	blockCtx kvm.Context
+	blockCtx kvm.BlockContext
 	txCtx    kvm.TxContext
 }
 
 func testCtx() *vmContext {
-	return &vmContext{blockCtx: kvm.Context{BlockHeight: big.NewInt(1)}, txCtx: kvm.TxContext{GasPrice: big.NewInt(100000)}}
+	return &vmContext{blockCtx: kvm.BlockContext{BlockHeight: big.NewInt(1)}, txCtx: kvm.TxContext{GasPrice: big.NewInt(100000)}}
 }
 
 func runTrace(tracer *Tracer, vmctx *vmContext, chaincfg *configs.ChainConfig) (json.RawMessage, error) {
@@ -87,7 +87,7 @@ func TestTracer(t *testing.T) {
 			t.Fatal(err)
 		}
 		ret, err := runTrace(tracer, &vmContext{
-			blockCtx: kvm.Context{BlockHeight: big.NewInt(1)},
+			blockCtx: kvm.BlockContext{BlockHeight: big.NewInt(1)},
 			txCtx:    kvm.TxContext{GasPrice: big.NewInt(100000)},
 		}, configs.TestChainConfig)
 		if err != nil {
@@ -154,7 +154,7 @@ func TestHaltBetweenSteps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	env := kvm.NewKVM(kvm.Context{BlockHeight: big.NewInt(1)}, kvm.TxContext{}, &dummyStatedb{}, configs.TestChainConfig, kvm.Config{Debug: true, Tracer: tracer})
+	env := kvm.NewKVM(kvm.BlockContext{BlockHeight: big.NewInt(1)}, kvm.TxContext{}, &dummyStatedb{}, configs.TestChainConfig, kvm.Config{Debug: true, Tracer: tracer})
 	scope := &kvm.ScopeContext{
 		Contract: kvm.NewContract(&account{}, &account{}, big.NewInt(0), 0),
 	}
@@ -186,7 +186,7 @@ func TestNoStepExec(t *testing.T) {
 			t.Fatal(err)
 		}
 		ret, err := runEmptyTrace(tracer, &vmContext{
-			blockCtx: kvm.Context{BlockHeight: big.NewInt(1)},
+			blockCtx: kvm.BlockContext{BlockHeight: big.NewInt(1)},
 			txCtx:    kvm.TxContext{GasPrice: big.NewInt(100000)},
 		})
 		if err != nil {

@@ -684,7 +684,7 @@ func (jst *Tracer) CaptureStart(env *kvm.KVM, from common.Address, to common.Add
 	jst.ctx["value"] = value
 
 	// Initialize the context
-	jst.ctx["block"] = env.Context.BlockHeight.Uint64()
+	jst.ctx["block"] = env.BlockContext.BlockHeight.Uint64()
 	jst.dbWrapper.db = env.StateDB
 
 	// Compute intrinsic gas

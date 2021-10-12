@@ -143,24 +143,24 @@ func (k *KardiaService) stateAtBlock(block *types.Block, reexec uint64, base *st
 }
 
 // stateAtTransaction returns the execution environment of a certain transaction.
-func (k *KardiaService) stateAtTransaction(block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error) {
+func (k *KardiaService) stateAtTransaction(block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error) {
 	// Short circuit if it's genesis block.
 	if block.Height() == 0 {
-		return nil, kvm.Context{}, nil, errors.New("no transaction in genesis")
+		return nil, kvm.BlockContext{}, nil, errors.New("no transaction in genesis")
 	}
 	// Create the parent state database
 	parent := k.blockchain.GetBlockByHeight(block.Height() - 1)
 	if parent == nil {
-		return nil, kvm.Context{}, nil, fmt.Errorf("parent %#x not found", block.Height()-1)
+		return nil, kvm.BlockContext{}, nil, fmt.Errorf("parent %#x not found", block.Height()-1)
 	}
 	// Lookup the statedb of parent block from the live database,
 	// otherwise regenerate it on the flight.
 	statedb, err := k.stateAtBlock(parent, reexec, nil, true)
 	if err != nil {
-		return nil, kvm.Context{}, nil, err
+		return nil, kvm.BlockContext{}, nil, err
 	}
 	if txIndex == 0 && len(block.Transactions()) == 0 {
-		return nil, kvm.Context{}, statedb, nil
+		return nil, kvm.BlockContext{}, statedb, nil
 	}
 	// Recompute transactions up to the target index.
 	signer := types.HomesteadSigner{}
@@ -176,11 +176,11 @@ func (k *KardiaService) stateAtTransaction(block *types.Block, txIndex int, reex
 		vmenv := kvm.NewKVM(context, txContext, statedb, configs.MainnetChainConfig, kvm.Config{})
 		statedb.Prepare(tx.Hash(), block.Hash(), idx)
 		if _, err := blockchain.ApplyMessage(vmenv, msg, new(types.GasPool).AddGas(tx.Gas())); err != nil {
-			return nil, kvm.Context{}, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
+			return nil, kvm.BlockContext{}, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)
 		}
 		// Ensure any modifications are committed to the state
 		// Only delete empty objects if EIP158/161 (a.k.a Spurious Dragon) is in effect
 		statedb.Finalise(true)
 	}
-	return nil, kvm.Context{}, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
+	return nil, kvm.BlockContext{}, nil, fmt.Errorf("transaction index %d out of range for block %#x", txIndex, block.Hash())
 }

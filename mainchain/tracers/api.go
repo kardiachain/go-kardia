@@ -65,7 +65,7 @@ type Backend interface {
 	BlockByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Block, error)
 	ChainConfig() *configs.ChainConfig
 	GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
-	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error)
+	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error)
 }
 
 // TracerAPI provides APIs to access Kai full node-related information.
@@ -117,7 +117,7 @@ func (t *TracerAPI) TraceTransaction(ctx context.Context, hash common.Hash, conf
 // traceTx configures a new tracer according to the provided configuration, and
 // executes the given message in the provided environment. The return value will
 // be tracer dependent.
-func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txctx *txTraceContext, vmctx kvm.Context, statedb *state.StateDB, config *TraceConfig) (interface{}, error) {
+func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txctx *txTraceContext, vmctx kvm.BlockContext, statedb *state.StateDB, config *TraceConfig) (interface{}, error) {
 	// Assemble the structured logger or the JavaScript tracer
 	tracer := kvm.NewStructLogger(nil)
 	// Run the transaction with tracing enabled.

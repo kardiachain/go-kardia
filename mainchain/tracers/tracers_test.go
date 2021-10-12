@@ -150,7 +150,7 @@ func TestPrestateTracerCreate2(t *testing.T) {
 		Origin:   origin,
 		GasPrice: big.NewInt(1),
 	}
-	context := kvm.Context{
+	context := kvm.BlockContext{
 		CanTransfer: vm.CanTransfer,
 		Transfer:    vm.Transfer,
 		Coinbase:    common.Address{},
@@ -248,17 +248,17 @@ func TestPrestateTracerCreate2(t *testing.T) {
 //				Origin:   origin,
 //				GasPrice: tx.GasPrice(),
 //			}
-//			context := kvm.Context{
+//			context := kvm.BlockContext{
 //				CanTransfer: vm.CanTransfer,
 //				Transfer:    vm.Transfer,
-//				Coinbase:    test.Context.Miner,
-//				BlockHeight: new(big.Int).SetUint64(uint64(test.Context.Number)),
-//				Time:        new(big.Int).SetUint64(uint64(test.Context.Time)),
-//				GasLimit:    uint64(test.Context.GasLimit),
+//				Coinbase:    test.BlockContext.Miner,
+//				BlockHeight: new(big.Int).SetUint64(uint64(test.BlockContext.Number)),
+//				Time:        new(big.Int).SetUint64(uint64(test.BlockContext.Time)),
+//				GasLimit:    uint64(test.BlockContext.GasLimit),
 //			}
 //
-//			// Create the tracer, the EVM environment and run it
-//			tracer, err := New(tracer, new(Context))
+//			// Create the tracer, the KVM environment and run it
+//			tracer, err := New(tracer, new(BlockContext))
 //			if err != nil {
 //				t.Fatalf("failed to create call tracer: %v", err)
 //			}
@@ -329,7 +329,7 @@ func BenchmarkTransactionTrace(b *testing.B) {
 		Origin:   from,
 		GasPrice: tx.GasPrice(),
 	}
-	context := kvm.Context{
+	context := kvm.BlockContext{
 		CanTransfer: vm.CanTransfer,
 		Transfer:    vm.Transfer,
 		Coinbase:    common.Address{},
@@ -355,7 +355,7 @@ func BenchmarkTransactionTrace(b *testing.B) {
 		Code:    []byte{},
 		Balance: big.NewInt(500000000000000),
 	}
-	// Create the tracer, the EVM environment and run it
+	// Create the tracer, the KVM environment and run it
 	tracer := kvm.NewStructLogger(&kvm.LogConfig{
 		Debug: false,
 		//DisableStorage: true,
@@ -427,7 +427,7 @@ func benchTracer(tracerName string, test *callTracerTest, b *testing.B) {
 		Origin:   origin,
 		GasPrice: tx.GasPrice(),
 	}
-	context := kvm.Context{
+	context := kvm.BlockContext{
 		CanTransfer: vm.CanTransfer,
 		Transfer:    vm.Transfer,
 		Coinbase:    test.Context.Miner,
@@ -438,7 +438,7 @@ func benchTracer(tracerName string, test *callTracerTest, b *testing.B) {
 
 	db := storage.NewMemoryDatabase()
 	statedb, err := state.New(nil, common.Hash{}, state.NewDatabase(db.DB()))
-	// Create the tracer, the EVM environment and run it
+	// Create the tracer, the KVM environment and run it
 	tracer, err := New(tracerName, new(Context))
 	if err != nil {
 		b.Fatalf("failed to create call tracer: %v", err)

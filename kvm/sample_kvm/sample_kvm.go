@@ -75,7 +75,7 @@ func setDefaults(cfg *Config) {
 }
 
 func NewEnv(cfg *Config) *kvm.KVM {
-	context := kvm.Context{
+	context := kvm.BlockContext{
 		CanTransfer: vm.CanTransfer,
 		Transfer:    vm.Transfer,
 		GetHash:     func(uint64) common.Hash { return common.Hash{} },
