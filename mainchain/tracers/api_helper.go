@@ -24,6 +24,17 @@ import (
 	"github.com/kardiachain/go-kardia/kvm"
 )
 
+// ExecutionResult groups all structured logs emitted by the EVM
+// while replaying a transaction in debug mode as well as transaction
+// execution status, the amount of gas used and the return value
+type ExecutionResult struct {
+	Gas          uint64         `json:"gas"`
+	Failed       bool           `json:"failed"`
+	ReturnValue  string         `json:"returnValue"`
+	RevertReason string         `json:"revertReason"`
+	StructLogs   []StructLogRes `json:"structLogs"`
+}
+
 // StructLogRes stores a structured log emitted by the EVM while replaying a
 // transaction in debug mode
 type StructLogRes struct {

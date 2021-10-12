@@ -131,16 +131,10 @@ func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txc
 		return nil, fmt.Errorf("tracing failed: %w", err)
 	}
 	reason, _ := result.UnpackRevertReason()
-	return struct {
-		UsedGas      uint64         `json:"usedGas"`
-		Err          error          `json:"err"`
-		ReturnData   string         `json:"returnData"`
-		RevertReason string         `json:"revertReason"`
-		StructLogs   []StructLogRes `json:"structLogs"`
-	}{
-		UsedGas:      result.UsedGas,
-		Err:          result.Err,
-		ReturnData:   common.Encode(result.ReturnData),
+	return &ExecutionResult{
+		Gas:          result.UsedGas,
+		Failed:       result.Failed(),
+		ReturnValue:  common.Encode(result.ReturnData),
 		RevertReason: reason,
 		StructLogs:   FormatLogs(tracer.StructLogs()),
 	}, nil
