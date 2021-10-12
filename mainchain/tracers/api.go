@@ -165,6 +165,54 @@ func (t *TracerAPI) TraceTransaction(ctx context.Context, hash common.Hash, conf
 	return t.traceTx(ctx, msg, txctx, vmctx, statedb, config)
 }
 
+// TraceCall lets you trace a given kai_kardiaCall. It collects the structured logs
+// created during the execution of KVM if the given transaction was added on
+// top of the provided block and returns them as a JSON object.
+// You can provide rpc.PendingBlockHeight as a block number to trace on top of the pending block.
+func (t *TracerAPI) TraceCall(ctx context.Context, args kaiapi.TransactionArgs, blockHeightOrHash rpc.BlockHeightOrHash, config *TraceCallConfig) (interface{}, error) {
+	// Try to retrieve the specified block
+	block, err := t.b.BlockByHeightOrHash(ctx, blockHeightOrHash)
+	if err != nil {
+		return nil, errors.New("invalid arguments; neither block nor hash specified")
+	}
+	if err != nil {
+		return nil, err
+	}
+	// try to recompute the state
+	reexec := defaultTraceReexec
+	if config != nil && config.Reexec != nil {
+		reexec = *config.Reexec
+	}
+	statedb, err := t.b.StateAtBlock(ctx, block, reexec, nil, true)
+	if err != nil {
+		return nil, err
+	}
+	// Apply the customized state rules if required.
+	//if config != nil {
+	//	if err := config.StateOverrides.Apply(statedb); err != nil {
+	//		return nil, err
+	//	}
+	//}
+	// Execute the trace
+	msg, err := args.ToMessage(t.b.RPCGasCap())
+	if err != nil {
+		return nil, err
+	}
+	kvm, _, _ := t.b.GetKVM(ctx, msg, statedb, block.Header())
+	vmctx := kvm.BlockContext
+
+	var traceConfig *TraceConfig
+	if config != nil {
+		traceConfig = &TraceConfig{
+			LogConfig: config.LogConfig,
+			Tracer:    config.Tracer,
+			Timeout:   config.Timeout,
+			Reexec:    config.Reexec,
+		}
+	}
+	return t.traceTx(ctx, msg, new(Context), vmctx, statedb, traceConfig)
+}
+
 // traceTx configures a new tracer according to the provided configuration, and
 // executes the given message in the provided environment. The return value will
 // be tracer dependent.
