@@ -146,19 +146,9 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		defer func() {
 			if err != nil {
 				if !logged {
-					in.cfg.Tracer.CaptureState(in.kvm, pcCopy, op, gasCopy, cost, &ScopeContext{
-						Memory:   mem,
-						Stack:    stack,
-						Rstack:   returns,
-						Contract: contract,
-					}, in.returnData, in.kvm.depth, err)
+					in.cfg.Tracer.CaptureState(in.kvm, pcCopy, op, gasCopy, cost, callContext, in.returnData, in.kvm.depth, err)
 				} else {
-					in.cfg.Tracer.CaptureFault(in.kvm, pcCopy, op, gasCopy, cost, &ScopeContext{
-						Memory:   mem,
-						Stack:    stack,
-						Rstack:   returns,
-						Contract: contract,
-					}, in.kvm.depth, err)
+					in.cfg.Tracer.CaptureFault(in.kvm, pcCopy, op, gasCopy, cost, callContext, in.kvm.depth, err)
 				}
 			}
 		}()
@@ -239,16 +229,12 @@ func (in *Interpreter) Run(contract *Contract, input []byte, readOnly bool) (ret
 		if memorySize > 0 {
 			mem.Resize(memorySize)
 		}
-		/* TODO(huny@): Add tracer later
+
 		if in.cfg.Debug {
-			in.cfg.Tracer.CaptureState(in.kvm, pc, op, gasCopy, cost, &ScopeContext{
-						Memory:   mem,
-						Stack:    stack,
-						Contract: contract,
-					}, in.kvm.depth, err)
+			in.cfg.Tracer.CaptureState(in.kvm, pc, op, gasCopy, cost, callContext, in.returnData, in.kvm.depth, err)
 			logged = true
 		}
-		*/
+
 		// execute the operation
 		res, err = operation.execute(&pc, in.kvm, callContext)
 

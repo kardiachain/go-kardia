@@ -110,7 +110,7 @@
 			if (log.getDepth() >= this.callstack.length) {
 				this.callstack[this.callstack.length - 1].gas = log.getGas();
 			} else {
-				// TODO(karalabe): The call was made to a plain account. We currently don't
+				// TODO(trinhdn97): The call was made to a plain account. We currently don't
 				// have access to the true gas amount inside the call and so any amount will
 				// mostly be wrong since it depends on a lot of input args. Skip gas for now.
 			}
@@ -135,7 +135,7 @@
 					call.to     = toHex(toAddress(ret.toString(16)));
 					call.output = toHex(db.getCode(toAddress(ret.toString(16))));
 				} else if (call.error === undefined) {
-					call.error = "internal failure"; // TODO(karalabe): surface these faults somehow
+					call.error = "internal failure"; // TODO(trinhdn97): surface these faults somehow
 				}
 			} else {
 				// If the call was a contract call, retrieve the gas usage and output
@@ -146,7 +146,7 @@
 				if (!ret.equals(0)) {
 					call.output = toHex(log.memory.slice(call.outOff, call.outOff + call.outLen));
 				} else if (call.error === undefined) {
-					call.error = "internal failure"; // TODO(karalabe): surface these faults somehow
+					call.error = "internal failure"; // TODO(trinhdn97): surface these faults somehow
 				}
 				delete call.gasIn; delete call.gasCost;
 				delete call.outOff; delete call.outLen;

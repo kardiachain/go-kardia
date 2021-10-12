@@ -35,6 +35,7 @@ import (
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
+	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/math"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
@@ -124,7 +125,7 @@ type callTracerTest struct {
 }
 
 func TestPrestateTracerCreate2(t *testing.T) {
-	unsignedTx := types.NewTransaction(0, common.HexToAddress("0x00000000000000000000000000000000deadbeef"),
+	unsignedTx := types.NewTransaction(1, common.HexToAddress("0x00000000000000000000000000000000deadbeef"),
 		new(big.Int), 5000000, big.NewInt(1), []byte{})
 
 	privateKeyECDSA, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
@@ -173,13 +174,18 @@ func TestPrestateTracerCreate2(t *testing.T) {
 		Balance: big.NewInt(500000000000000),
 	}
 
-	// Create the tracer, the EVM environment and run it
+	db := storage.NewMemoryDatabase()
+	statedb, err := state.New(log.New(), common.Hash{}, state.NewDatabase(db.DB()))
+	for addr, account := range alloc {
+		statedb.AddBalance(addr, account.Balance)
+		statedb.SetCode(addr, account.Code)
+		statedb.SetNonce(addr, account.Nonce)
+	}
+	// Create the tracer, the KVM environment and run it
 	tracer, err := New("prestateTracer", new(Context))
 	if err != nil {
 		t.Fatalf("failed to create call tracer: %v", err)
 	}
-	db := storage.NewMemoryDatabase()
-	statedb, err := state.New(nil, common.Hash{}, state.NewDatabase(db.DB()))
 	evm := kvm.NewKVM(context, txContext, statedb, configs.TestChainConfig, kvm.Config{Debug: true, Tracer: tracer})
 
 	msg, err := tx.AsMessage(signer)
