@@ -68,7 +68,7 @@ type Backend interface {
 	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error)
 }
 
-// VerifyKaiAPI provides APIs to access Kai full node-related information.
+// TracerAPI provides APIs to access Kai full node-related information.
 type TracerAPI struct {
 	b Backend
 }

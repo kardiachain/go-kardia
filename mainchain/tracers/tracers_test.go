@@ -124,7 +124,7 @@ type callTracerTest struct {
 }
 
 func TestPrestateTracerCreate2(t *testing.T) {
-	unsignedTx := types.NewTransaction(1, common.HexToAddress("0x00000000000000000000000000000000deadbeef"),
+	unsignedTx := types.NewTransaction(0, common.HexToAddress("0x00000000000000000000000000000000deadbeef"),
 		new(big.Int), 5000000, big.NewInt(1), []byte{})
 
 	privateKeyECDSA, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
@@ -178,7 +178,9 @@ func TestPrestateTracerCreate2(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create call tracer: %v", err)
 	}
-	evm := kvm.NewKVM(context, txContext, nil, configs.MainnetChainConfig, kvm.Config{Debug: true, Tracer: tracer})
+	db := storage.NewMemoryDatabase()
+	statedb, err := state.New(nil, common.Hash{}, state.NewDatabase(db.DB()))
+	evm := kvm.NewKVM(context, txContext, statedb, configs.TestChainConfig, kvm.Config{Debug: true, Tracer: tracer})
 
 	msg, err := tx.AsMessage(signer)
 	if err != nil {
