@@ -69,9 +69,12 @@ type APIBackend interface {
 
 	// Tracer API
 	GetTransaction(ctx context.Context, hash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
+	RPCGasCap() uint64
+	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (*state.StateDB, error)
 	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error)
 
 	// Txpool API
+	GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error)
 	TxPoolContent() (map[common.Address]types.Transactions, map[common.Address]types.Transactions)
 	TxPoolContentFrom(addr common.Address) (types.Transactions, types.Transactions)
 	Stats() (pending int, queued int)
@@ -339,4 +342,16 @@ func (k *KardiaService) Stats() (pending int, queued int) {
 
 func (k *KardiaService) ChainConfig() *configs.ChainConfig {
 	return k.chainConfig
+}
+
+func (k *KardiaService) RPCGasCap() uint64 {
+	return configs.GasLimitCap
+}
+
+func (k *KardiaService) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (*state.StateDB, error) {
+	return k.stateAtBlock(block, reexec, base, checkLive)
+}
+
+func (k *KardiaService) GetPoolNonce(ctx context.Context, addr common.Address) (uint64, error) {
+	return k.txPool.Nonce(addr), nil
 }
