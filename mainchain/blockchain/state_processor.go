@@ -21,6 +21,7 @@ package blockchain
 import (
 	"math/big"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -37,7 +38,7 @@ import (
 // StateProcessor implements Processor.
 type StateProcessor struct {
 	logger log.Logger
-	bc     *BlockChain // Canonical block chain
+	bc     *BlockChain // Canonical blockchain
 }
 
 // NewStateProcessor initialises a new StateProcessor.
@@ -88,9 +89,11 @@ func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, 
 	logger.Trace("Apply transaction", "hash", tx.Hash().Hex(), "nonce", msg.Nonce(), "from", msg.From().Hex())
 	// Create a new context to be used in the KVM environment
 	context := vm.NewKVMContext(msg, header, bc)
+	txContext := NewKVMTxContext(msg)
 	// Create a new environment which holds all relevant information
 	// about the transaction and calling mechanisms.
-	vmenv := kvm.NewKVM(context, statedb, cfg)
+	vmenv := kvm.NewKVM(context, txContext, statedb, configs.MainnetChainConfig, cfg)
+	vmenv.Reset(txContext, statedb)
 	// Apply the transaction to the current state (included in the env)
 	result, err := ApplyMessage(vmenv, msg, gp)
 	if err != nil {
@@ -107,7 +110,7 @@ func ApplyTransaction(logger log.Logger, bc vm.ChainContext, gp *types.GasPool, 
 	receipt.GasUsed = result.UsedGas
 	// if the transaction created a contract, store the creation address in the receipt.
 	if msg.To() == nil {
-		receipt.ContractAddress = crypto.CreateAddress(vmenv.Context.Origin, tx.Nonce())
+		receipt.ContractAddress = crypto.CreateAddress(vmenv.TxContext.Origin, tx.Nonce())
 	}
 	// Set the receipt logs and create a bloom for filtering
 	receipt.Logs = statedb.GetLogs(tx.Hash())
@@ -297,4 +300,12 @@ func (st *StateTransition) refundGas() {
 // gasUsed returns the amount of gas used up by the state transition.
 func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gas
+}
+
+// NewKVMTxContext creates a new transaction context for a single transaction.
+func NewKVMTxContext(msg Message) kvm.TxContext {
+	return kvm.TxContext{
+		Origin:   msg.From(),
+		GasPrice: new(big.Int).Set(msg.GasPrice()),
+	}
 }

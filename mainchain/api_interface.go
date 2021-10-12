@@ -43,6 +43,8 @@ type APIBackend interface {
 	BlockByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Block, error)
 	BlockInfoByBlockHash(ctx context.Context, hash common.Hash) *types.BlockInfo
 
+	ChainConfig() *configs.ChainConfig
+
 	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error)
 	GetValidators() ([]*staking.Validator, error)
 	GetValidator(valAddr common.Address) (*staking.Validator, error)
@@ -178,7 +180,7 @@ func (k *KardiaService) GetKVM(ctx context.Context, msg types.Message, state *st
 	vmError := func() error { return nil }
 
 	context := vm.NewKVMContext(msg, header, k.BlockChain())
-	return kvm.NewKVM(context, state, *k.blockchain.GetVMConfig()), vmError, nil
+	return kvm.NewKVM(context, blockchain.NewKVMTxContext(msg), state, configs.MainnetChainConfig, *k.blockchain.GetVMConfig()), vmError, nil
 }
 
 // ValidatorsListFromStakingContract returns all validators on staking
@@ -333,4 +335,8 @@ func (k *KardiaService) TxPoolContentFrom(addr common.Address) (types.Transactio
 
 func (k *KardiaService) Stats() (pending int, queued int) {
 	return k.txPool.Stats()
+}
+
+func (k *KardiaService) ChainConfig() *configs.ChainConfig {
+	return k.chainConfig
 }

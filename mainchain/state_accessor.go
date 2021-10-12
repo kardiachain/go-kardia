@@ -23,12 +23,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
-	mkvm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/trie"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -166,12 +167,13 @@ func (k *KardiaService) stateAtTransaction(block *types.Block, txIndex int, reex
 	for idx, tx := range block.Transactions() {
 		// Assemble the transaction call message and return if the requested offset
 		msg, _ := tx.AsMessage(signer)
-		context := mkvm.NewKVMContext(msg, block.Header(), k.blockchain)
+		txContext := blockchain.NewKVMTxContext(msg)
+		context := vm.NewKVMContext(msg, block.Header(), k.blockchain)
 		if idx == txIndex {
 			return msg, context, statedb, nil
 		}
 		// Not yet the searched for transaction, execute on top of the current state
-		vmenv := kvm.NewKVM(context, statedb, kvm.Config{})
+		vmenv := kvm.NewKVM(context, txContext, statedb, configs.MainnetChainConfig, kvm.Config{})
 		statedb.Prepare(tx.Hash(), block.Hash(), idx)
 		if _, err := blockchain.ApplyMessage(vmenv, msg, new(types.GasPool).AddGas(tx.Gas())); err != nil {
 			return nil, kvm.Context{}, nil, fmt.Errorf("transaction %#x failed: %v", tx.Hash(), err)

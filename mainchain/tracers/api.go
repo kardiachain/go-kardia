@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -62,6 +63,7 @@ const (
 // both full and light clients) with access to necessary functions.
 type Backend interface {
 	BlockByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Block, error)
+	ChainConfig() *configs.ChainConfig
 	GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
 	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.Context, *state.StateDB, error)
 }
@@ -119,7 +121,7 @@ func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txc
 	// Assemble the structured logger or the JavaScript tracer
 	tracer := kvm.NewStructLogger(nil)
 	// Run the transaction with tracing enabled.
-	vmenv := kvm.NewKVM(vmctx, statedb, kvm.Config{Debug: true, Tracer: tracer})
+	vmenv := kvm.NewKVM(vmctx, blockchain.NewKVMTxContext(message), statedb, t.b.ChainConfig(), kvm.Config{Debug: true, Tracer: tracer})
 
 	// Call Prepare to clear out the statedb access list
 	statedb.Prepare(txctx.hash, txctx.block, txctx.index)

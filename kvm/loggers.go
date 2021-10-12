@@ -280,6 +280,14 @@ func WriteLogs(writer io.Writer, logs []*types.Log) {
 	}
 }
 
+// Reset clears the data held by the logger.
+func (l *StructLogger) Reset() {
+	l.storage = make(map[common.Address]Storage)
+	l.output = make([]byte, 0)
+	l.logs = l.logs[:0]
+	l.err = nil
+}
+
 type mdLogger struct {
 	out io.Writer
 	cfg *LogConfig

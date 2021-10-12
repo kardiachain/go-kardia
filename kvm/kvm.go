@@ -72,15 +72,19 @@ type Context struct {
 	// GetHash returns the hash corresponding to n
 	GetHash GetHashFunc
 
-	// Message information
-	Origin   common.Address // Provides information for ORIGIN
-	GasPrice *big.Int       // Provides information for GASPRICE
-
 	// Block information
 	Coinbase    common.Address // Provides information for COINBASE
 	GasLimit    uint64         // Provides information for GASLIMIT
 	BlockHeight *big.Int       // Provides information for HEIGHT
 	Time        *big.Int       // Provides information for TIME
+}
+
+// TxContext provides the KVM with information about a transaction.
+// All fields can change between transactions.
+type TxContext struct {
+	// Message information
+	Origin   common.Address // Provides information for ORIGIN
+	GasPrice *big.Int       // Provides information for GASPRICE
 }
 
 // KVM is the Kardia Virtual Machine base object and provides
@@ -95,11 +99,14 @@ type Context struct {
 type KVM struct {
 	// Context provides auxiliary blockchain related information
 	Context
+	TxContext
 	// StateDB gives access to the underlying state
 	StateDB StateDB
 	// Depth is the current call stack
 	depth int
 
+	// chainConfig contains information about the current chain
+	chainConfig *configs.ChainConfig
 	// virtual machine configuration options used to initialise the
 	// kvm.
 	vmConfig Config
@@ -117,15 +124,24 @@ type KVM struct {
 
 // NewKVM returns a new KVM. The returned KVM is not thread safe and should
 // only ever be used *once*.
-func NewKVM(ctx Context, statedb StateDB, vmConfig Config) *KVM {
+func NewKVM(ctx Context, txCtx TxContext, statedb StateDB, chainConfig *configs.ChainConfig, vmConfig Config) *KVM {
 	kvm := &KVM{
-		Context:  ctx,
-		StateDB:  statedb,
-		vmConfig: vmConfig,
+		Context:     ctx,
+		TxContext:   txCtx,
+		StateDB:     statedb,
+		vmConfig:    vmConfig,
+		chainConfig: chainConfig,
 	}
 	kvm.interpreter = NewInterpreter(kvm, vmConfig)
 
 	return kvm
+}
+
+// Reset resets the KVM with a new transaction context.Reset
+// This is not threadsafe and should only be done very cautiously.
+func (kvm *KVM) Reset(txCtx TxContext, statedb StateDB) {
+	kvm.TxContext = txCtx
+	kvm.StateDB = statedb
 }
 
 // Cancel cancels any running KVM operation. This may be called concurrently and
@@ -471,6 +487,9 @@ func (kvm *KVM) CreateGenesisContractAddress(caller ContractRef, code []byte, ga
 	}
 	return nil
 }
+
+// ChainConfig returns the environment's chain configuration
+func (kvm *KVM) ChainConfig() *configs.ChainConfig { return kvm.chainConfig }
 
 //================================================================================================
 // Interfaces

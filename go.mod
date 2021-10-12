@@ -48,6 +48,7 @@ require (
 	golang.org/x/sys v0.0.0-20210510120138-977fb7262007
 	google.golang.org/genproto v0.0.0-20201111145450-ac7456db90a6
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b
+	gopkg.in/olebedev/go-duktape.v3 v3.0.0-20200603215123-a4a8cb9d2cbc // indirect
 	gopkg.in/urfave/cli.v1 v1.20.0
 	gopkg.in/yaml.v2 v2.3.0
 

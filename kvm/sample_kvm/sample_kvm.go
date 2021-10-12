@@ -23,6 +23,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
@@ -79,15 +80,17 @@ func NewEnv(cfg *Config) *kvm.KVM {
 		Transfer:    vm.Transfer,
 		GetHash:     func(uint64) common.Hash { return common.Hash{} },
 
-		Origin:      cfg.Origin,
 		Coinbase:    cfg.Coinbase,
 		BlockHeight: new(big.Int).SetUint64(cfg.BlockHeight),
 		Time:        cfg.Time,
 		GasLimit:    cfg.GasLimit,
-		GasPrice:    cfg.GasPrice,
+	}
+	txContext := kvm.TxContext{
+		Origin:   cfg.Origin,
+		GasPrice: cfg.GasPrice,
 	}
 
-	return kvm.NewKVM(context, cfg.State, cfg.KVMConfig)
+	return kvm.NewKVM(context, txContext, cfg.State, configs.MainnetChainConfig, cfg.KVMConfig)
 }
 
 // Execute executes the code using the input as call data during the execution.
