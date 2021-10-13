@@ -240,6 +240,7 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 		HTTPModules:      n.HTTPModules,
 		WSHost:           n.WSHost,
 		WSPort:           n.WSPort,
+		WSOrigins:        n.WSOrigins,
 		MainChainConfig:  node.MainChainConfig{},
 		DualChainConfig:  node.DualChainConfig{},
 		Metrics:          n.Metrics,

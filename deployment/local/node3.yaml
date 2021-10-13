@@ -21,6 +21,8 @@ Node:
     - "*"
   WSHost: 0.0.0.0
   WSPort: 8546
+  WSOrigins:
+    - "*"
   P2P:
     PrivateKey: 98de1df1e242afb02bd5dc01fbcacddcc9a4d41df95a66f629139560ca6e4dbb
     ListenAddress: tcp://0.0.0.0:3000

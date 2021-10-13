@@ -19,6 +19,8 @@ Node:
     - "*"
   WSHost: 0.0.0.0
   WSPort: 8546
+  WSOrigins:              # cors, use "*" to accept all
+    - "*"
   P2P:
     PrivateKey:          # private key without 0x prefix, leave blank for joining as non-validator node
     ListenAddress: tcp://0.0.0.0:3000

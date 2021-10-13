@@ -21,6 +21,8 @@ Node:
     - "*"
   WSHost: 0.0.0.0
   WSPort: 8546
+  WSOrigins: # cors, use "*" to accept all
+    - "*"
   P2P:
     PrivateKey: 77cfc693f7861a6e1ea817c593c04fbc9b63d4d3146c5753c008cfc67cffca79
     ListenAddress: tcp://0.0.0.0:3000

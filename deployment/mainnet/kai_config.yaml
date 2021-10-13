@@ -23,6 +23,10 @@ Node:
     - localhost
   WSHost: 0.0.0.0
   WSPort: 8546
+  WSOrigins:
+    - 0.0.0.0
+    - 127.0.0.1
+    - localhost
   P2P:
     PrivateKey:           # private key without 0x prefix, leave blank for joining as non-validator node
     ListenAddress: tcp://0.0.0.0:3000 # IP and Port for P2P connection
