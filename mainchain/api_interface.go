@@ -148,6 +148,14 @@ func (k *KardiaService) BlockInfoByBlockHash(ctx context.Context, hash common.Ha
 	if height == nil {
 		return nil
 	}
+	if *height == 0 {
+		return &types.BlockInfo{
+			GasUsed:  0,
+			Rewards:  new(big.Int).SetInt64(0),
+			Receipts: types.Receipts{},
+			Bloom:    types.Bloom{},
+		}
+	}
 	return k.DB().ReadBlockInfo(hash, *height)
 }
 
