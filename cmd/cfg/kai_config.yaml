@@ -39,6 +39,7 @@ Node:
     TargetPending: 10     # maximum number of blocks in a batch sync. Type int
     PeerTimeout: 15       # maximum response time from a peer in second. Type int
     MinRecvRate: 0        # minimum receive rate from peer, otherwise prune. Type int64
+  TimeOutForStaticCall: 5
 MainChain:
   ServiceName: KARDIA     # mainchain service name
   ChainId: 0              # default chainid

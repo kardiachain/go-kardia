@@ -60,4 +60,6 @@ const (
 
 var (
 	ErrUnsupportedMethod = errors.New("method is not supported by dual logic")
+	// default params for blockchain APIs
+	TimeOutForStaticCall int
 )

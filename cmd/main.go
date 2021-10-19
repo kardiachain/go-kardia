@@ -262,6 +262,11 @@ func (c *Config) getNodeConfig() (*node.Config, error) {
 			nodeConfig.DualChainConfig = *dualChainConfig
 		}
 	}
+	if c.TimeOutForStaticCall > 0 {
+		configs.TimeOutForStaticCall = c.TimeOutForStaticCall
+	} else {
+		configs.TimeOutForStaticCall = configs.DefaultTimeOutForStaticCall
+	}
 	return &nodeConfig, nil
 }
 
