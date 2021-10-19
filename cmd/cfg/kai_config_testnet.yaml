@@ -11,6 +11,7 @@ Node:
     - net
     - eth
     - txpool
+    - web3
   HTTPVirtualHosts:       # virtual hosts connection
     - 0.0.0.0
     - localhost
