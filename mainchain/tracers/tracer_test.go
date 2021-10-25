@@ -21,7 +21,6 @@ package tracers
 import (
 	"encoding/json"
 	"errors"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"math/big"
 	"testing"
 	"time"
@@ -57,10 +56,6 @@ type vmContext struct {
 	txCtx    kvm.TxContext
 }
 
-func testCtx() *vmContext {
-	return &vmContext{blockCtx: kvm.BlockContext{BlockHeight: big.NewInt(1)}, txCtx: kvm.TxContext{GasPrice: big.NewInt(100000)}}
-}
-
 func runTrace(tracer *Tracer, vmctx *vmContext, chaincfg *configs.ChainConfig) (json.RawMessage, error) {
 	env := kvm.NewKVM(vmctx.blockCtx, vmctx.txCtx, &dummyStatedb{}, chaincfg, kvm.Config{Debug: true, Tracer: tracer})
 	var (
@@ -68,7 +63,7 @@ func runTrace(tracer *Tracer, vmctx *vmContext, chaincfg *configs.ChainConfig) (
 		value           = big.NewInt(0)
 	)
 	contract := kvm.NewContract(account{}, account{}, value, startGas)
-	contract.Code = []byte{byte(vm.PUSH1), 0x1, byte(vm.PUSH1), 0x1, 0x0}
+	contract.Code = []byte{byte(kvm.PUSH1), 0x1, byte(kvm.PUSH1), 0x1, 0x0}
 
 	tracer.CaptureStart(env, contract.Caller(), contract.Address(), false, []byte{}, startGas, value)
 	ret, err := env.Interpreter().Run(contract, []byte{}, false)
@@ -144,7 +139,8 @@ func TestHalt(t *testing.T) {
 		time.Sleep(1 * time.Second)
 		tracer.Stop(timeout)
 	}()
-	if _, err = runTrace(tracer, testCtx(), configs.TestChainConfig); err.Error() != "stahp    in server-side tracer function 'step'" {
+	vmTest := &vmContext{blockCtx: kvm.BlockContext{BlockHeight: big.NewInt(1)}, txCtx: kvm.TxContext{GasPrice: big.NewInt(100000)}}
+	if _, err = runTrace(tracer, vmTest, configs.TestChainConfig); err.Error() != "stahp    in server-side tracer function 'step'" {
 		t.Errorf("Expected timeout error, got %v", err)
 	}
 }
@@ -206,6 +202,27 @@ func TestNoStepExec(t *testing.T) {
 		if have := execTracer(tt.code); tt.want != string(have) {
 			t.Errorf("testcase %d: expected return value to be %s got %s\n\tcode: %v", i, tt.want, string(have), tt.code)
 		}
+	}
+}
+
+func TestIsPrecompile(t *testing.T) {
+	chaincfg := &configs.ChainConfig{
+		Kaicon:  configs.MainnetChainConfig.Kaicon,
+		ChainID: big.NewInt(0),
+	}
+	txCtx := kvm.TxContext{GasPrice: big.NewInt(100000)}
+	tracer, err := New("{addr: toAddress('0000000000000000000000000000000000000009'), res: null, step: function() { this.res = isPrecompiled(this.addr); }, fault: function() {}, result: function() { return this.res; }}", new(Context))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	blockCtx := kvm.BlockContext{BlockHeight: big.NewInt(1)}
+	res, err := runTrace(tracer, &vmContext{blockCtx, txCtx}, chaincfg)
+	if err != nil {
+		t.Error(err)
+	}
+	if string(res) != "false" {
+		t.Errorf("Tracer should not consider as precompile")
 	}
 }
 

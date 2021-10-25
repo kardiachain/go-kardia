@@ -25,26 +25,25 @@ import (
 	"io/ioutil"
 	"math/big"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/kardiachain/go-kardia/configs"
-	"github.com/kardiachain/go-kardia/kai/state"
-	"github.com/kardiachain/go-kardia/kai/storage"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/math"
 	"github.com/kardiachain/go-kardia/lib/rlp"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/mainchain/genesis"
 	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
+	"github.com/kardiachain/go-kardia/tests"
 	"github.com/kardiachain/go-kardia/types"
 )
 
-// For generating a new callTracer test
+// To generate a new callTracer test, copy paste the makeTest method below into
+// a Geth console and call it with a transaction hash you which to export.
 
 /*
 // makeTest generates a callTracer test by running a prestate reassembled and a
@@ -172,26 +171,20 @@ func TestPrestateTracerCreate2(t *testing.T) {
 		Code:    []byte{},
 		Balance: big.NewInt(500000000000000),
 	}
+	statedb := tests.MakePreState(memorydb.New(), alloc)
 
-	db := storage.NewMemoryDatabase()
-	statedb, err := state.New(log.New(), common.Hash{}, state.NewDatabase(db.DB()))
-	for addr, account := range alloc {
-		statedb.AddBalance(addr, account.Balance)
-		statedb.SetCode(addr, account.Code)
-		statedb.SetNonce(addr, account.Nonce)
-	}
 	// Create the tracer, the KVM environment and run it
 	tracer, err := New("prestateTracer", new(Context))
 	if err != nil {
 		t.Fatalf("failed to create call tracer: %v", err)
 	}
-	evm := kvm.NewKVM(context, txContext, statedb, configs.TestChainConfig, kvm.Config{Debug: true, Tracer: tracer})
+	kvm := kvm.NewKVM(context, txContext, statedb, configs.TestChainConfig, kvm.Config{Debug: true, Tracer: tracer})
 
 	msg, err := tx.AsMessage(signer)
 	if err != nil {
 		t.Fatalf("failed to prepare transaction for tracing: %v", err)
 	}
-	st := blockchain.NewStateTransition(evm, msg, new(types.GasPool).AddGas(tx.Gas()))
+	st := blockchain.NewStateTransition(kvm, msg, new(types.GasPool).AddGas(tx.Gas()))
 	if _, err = st.TransitionDb(); err != nil {
 		t.Fatalf("failed to execute transaction: %v", err)
 	}
@@ -211,109 +204,110 @@ func TestPrestateTracerCreate2(t *testing.T) {
 
 // Iterates over all the input-output datasets in the tracer test harness and
 // runs the JavaScript tracers against them.
-//func TestCallTracerLegacy(t *testing.T) {
-//	testCallTracer("callTracerLegacy", "call_tracer_legacy", t)
-//}
+// func TestCallTracerLegacy(t *testing.T) {
+// 	testCallTracer("callTracerLegacy", "call_tracer_legacy", t)
+// }
 
-//func testCallTracer(tracer string, dirPath string, t *testing.T) {
-//	files, err := ioutil.ReadDir(filepath.Join("testdata", dirPath))
-//	if err != nil {
-//		t.Fatalf("failed to retrieve tracer test suite: %v", err)
-//	}
-//	for _, file := range files {
-//		if !strings.HasSuffix(file.Name(), ".json") {
-//			continue
-//		}
-//		file := file // capture range variable
-//		t.Run(camel(strings.TrimSuffix(file.Name(), ".json")), func(t *testing.T) {
-//			t.Parallel()
-//
-//			// Call tracer test found, read if from disk
-//			blob, err := ioutil.ReadFile(filepath.Join("testdata", dirPath, file.Name()))
-//			if err != nil {
-//				t.Fatalf("failed to read testcase: %v", err)
-//			}
-//			test := new(callTracerTest)
-//			if err := json.Unmarshal(blob, test); err != nil {
-//				t.Fatalf("failed to parse testcase %v: %v", file.Name(), err)
-//			}
-//			// Configure a blockchain with the given prestate
-//			tx := new(types.Transaction)
-//			if err := rlp.DecodeBytes(common.FromHex(test.Input), tx); err != nil {
-//				t.Fatalf("failed to parse testcase input: %v", err)
-//			}
-//			signer := types.HomesteadSigner{}
-//			origin, _ := signer.Sender(tx)
-//			txContext := kvm.TxContext{
-//				Origin:   origin,
-//				GasPrice: tx.GasPrice(),
-//			}
-//			context := kvm.BlockContext{
-//				CanTransfer: vm.CanTransfer,
-//				Transfer:    vm.Transfer,
-//				Coinbase:    test.BlockContext.Miner,
-//				BlockHeight: new(big.Int).SetUint64(uint64(test.BlockContext.Number)),
-//				Time:        new(big.Int).SetUint64(uint64(test.BlockContext.Time)),
-//				GasLimit:    uint64(test.BlockContext.GasLimit),
-//			}
-//
-//			// Create the tracer, the KVM environment and run it
-//			tracer, err := New(tracer, new(BlockContext))
-//			if err != nil {
-//				t.Fatalf("failed to create call tracer: %v", err)
-//			}
-//			evm := kvm.NewKVM(context, txContext, nil, test.Genesis.Config, kvm.Config{Debug: true, Tracer: tracer})
-//
-//			msg, err := tx.AsMessage(signer)
-//			if err != nil {
-//				t.Fatalf("failed to prepare transaction for tracing: %v", err)
-//			}
-//			st := blockchain.NewStateTransition(evm, msg, new(types.GasPool).AddGas(tx.Gas()))
-//			if _, err = st.TransitionDb(); err != nil {
-//				t.Fatalf("failed to execute transaction: %v", err)
-//			}
-//			// Retrieve the trace result and compare against the etalon
-//			res, err := tracer.GetResult()
-//			if err != nil {
-//				t.Fatalf("failed to retrieve trace result: %v", err)
-//			}
-//			ret := new(callTrace)
-//			if err := json.Unmarshal(res, ret); err != nil {
-//				t.Fatalf("failed to unmarshal trace result: %v", err)
-//			}
-//
-//			if !jsonEqual(ret, test.Result) {
-//				// uncomment this for easier debugging
-//				//have, _ := json.MarshalIndent(ret, "", " ")
-//				//want, _ := json.MarshalIndent(test.Result, "", " ")
-//				//t.Fatalf("trace mismatch: \nhave %+v\nwant %+v", string(have), string(want))
-//				t.Fatalf("trace mismatch: \nhave %+v\nwant %+v", ret, test.Result)
-//			}
-//		})
-//	}
-//}
+// func testCallTracer(tracer string, dirPath string, t *testing.T) {
+// 	files, err := ioutil.ReadDir(filepath.Join("testdata", dirPath))
+// 	if err != nil {
+// 		t.Fatalf("failed to retrieve tracer test suite: %v", err)
+// 	}
+// 	for _, file := range files {
+// 		if !strings.HasSuffix(file.Name(), ".json") {
+// 			continue
+// 		}
+// 		file := file // capture range variable
+// 		t.Run(camel(strings.TrimSuffix(file.Name(), ".json")), func(t *testing.T) {
+// 			t.Parallel()
 
-//func TestCallTracer(t *testing.T) {
-//	testCallTracer("callTracer", "call_tracer", t)
-//}
+// 			// Call tracer test found, read if from disk
+// 			blob, err := ioutil.ReadFile(filepath.Join("testdata", dirPath, file.Name()))
+// 			if err != nil {
+// 				t.Fatalf("failed to read testcase: %v", err)
+// 			}
+// 			test := new(callTracerTest)
+// 			if err := json.Unmarshal(blob, test); err != nil {
+// 				t.Fatalf("failed to parse testcase: %v", err)
+// 			}
+// 			// Configure a blockchain with the given prestate
+// 			tx := new(types.Transaction)
+// 			if err := rlp.DecodeBytes(common.FromHex(test.Input), tx); err != nil {
+// 				t.Fatalf("failed to parse testcase input: %v", err)
+// 			}
+// 			signer := types.HomesteadSigner{}
+// 			origin, _ := signer.Sender(tx)
+// 			txContext := kvm.TxContext{
+// 				Origin:   origin,
+// 				GasPrice: tx.GasPrice(),
+// 			}
+// 			context := kvm.BlockContext{
+// 				CanTransfer: vm.CanTransfer,
+// 				Transfer:    vm.Transfer,
+// 				Coinbase:    test.Context.Miner,
+// 				BlockHeight: new(big.Int).SetUint64(uint64(test.Context.Number)),
+// 				Time:        new(big.Int).SetUint64(uint64(test.Context.Time)),
+// 				GasLimit:    uint64(test.Context.GasLimit),
+// 			}
+// 			_, statedb := tests.MakePreState(kaidb.NewMemoryDatabase(), test.Genesis.Alloc, false)
+
+// 			// Create the tracer, the kvm environment and run it
+// 			tracer, err := New(tracer, new(Context))
+// 			if err != nil {
+// 				t.Fatalf("failed to create call tracer: %v", err)
+// 			}
+// 			kvm := kvm.NewKVM(context, txContext, statedb, test.Genesis.Config, kvm.Config{Debug: true, Tracer: tracer})
+
+// 			msg, err := tx.AsMessage(signer)
+// 			if err != nil {
+// 				t.Fatalf("failed to prepare transaction for tracing: %v", err)
+// 			}
+// 			st := blockchain.NewStateTransition(kvm, msg, new(types.GasPool).AddGas(tx.Gas()))
+// 			if _, err = st.TransitionDb(); err != nil {
+// 				t.Fatalf("failed to execute transaction: %v", err)
+// 			}
+// 			// Retrieve the trace result and compare against the etalon
+// 			res, err := tracer.GetResult()
+// 			if err != nil {
+// 				t.Fatalf("failed to retrieve trace result: %v", err)
+// 			}
+// 			ret := new(callTrace)
+// 			if err := json.Unmarshal(res, ret); err != nil {
+// 				t.Fatalf("failed to unmarshal trace result: %v", err)
+// 			}
+
+// 			if !jsonEqual(ret, test.Result) {
+// 				// uncomment this for easier debugging
+// 				//have, _ := json.MarshalIndent(ret, "", " ")
+// 				//want, _ := json.MarshalIndent(test.Result, "", " ")
+// 				//t.Fatalf("trace mismatch: \nhave %+v\nwant %+v", string(have), string(want))
+// 				t.Fatalf("trace mismatch: \nhave %+v\nwant %+v", ret, test.Result)
+// 			}
+// 		})
+// 	}
+// }
+
+// func TestCallTracer(t *testing.T) {
+// 	testCallTracer("callTracer", "call_tracer", t)
+// }
 
 // jsonEqual is similar to reflect.DeepEqual, but does a 'bounce' via json prior to
 // comparison
-func jsonEqual(x, y interface{}) bool {
-	xTrace := new(callTrace)
-	yTrace := new(callTrace)
-	if xj, err := json.Marshal(x); err == nil {
-		json.Unmarshal(xj, xTrace)
-	} else {
-		return false
-	}
-	if yj, err := json.Marshal(y); err == nil {
-		json.Unmarshal(yj, yTrace)
-	} else {
-		return false
-	}
-	return reflect.DeepEqual(xTrace, yTrace)
-}
+// func jsonEqual(x, y interface{}) bool {
+// 	xTrace := new(callTrace)
+// 	yTrace := new(callTrace)
+// 	if xj, err := json.Marshal(x); err == nil {
+// 		json.Unmarshal(xj, xTrace)
+// 	} else {
+// 		return false
+// 	}
+// 	if yj, err := json.Marshal(y); err == nil {
+// 		json.Unmarshal(yj, yTrace)
+// 	} else {
+// 		return false
+// 	}
+// 	return reflect.DeepEqual(xTrace, yTrace)
+// }
 
 func BenchmarkTransactionTrace(b *testing.B) {
 	key, _ := crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
@@ -321,7 +315,9 @@ func BenchmarkTransactionTrace(b *testing.B) {
 	gas := uint64(1000000) // 1M gas
 	to := common.HexToAddress("0x00000000000000000000000000000000deadbeef")
 	signer := types.HomesteadSigner{}
-	tx, err := types.SignTx(signer, types.NewTransaction(1, to, new(big.Int).SetUint64(0), gas, big.NewInt(500), []byte{}), key)
+	tx, err := types.SignTx(
+		signer,
+		types.NewTransaction(1, to, new(big.Int).SetUint64(0), gas, big.NewInt(500), []byte{}), key)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -355,16 +351,15 @@ func BenchmarkTransactionTrace(b *testing.B) {
 		Code:    []byte{},
 		Balance: big.NewInt(500000000000000),
 	}
-	// Create the tracer, the KVM environment and run it
+	statedb := tests.MakePreState(memorydb.New(), alloc)
+	// Create the tracer, the kvm environment and run it
 	tracer := kvm.NewStructLogger(&kvm.LogConfig{
 		Debug: false,
 		//DisableStorage: true,
 		//EnableMemory: false,
 		//EnableReturnData: false,
 	})
-	db := storage.NewMemoryDatabase()
-	statedb, err := state.New(nil, common.Hash{}, state.NewDatabase(db.DB()))
-	evm := kvm.NewKVM(context, txContext, statedb, configs.TestChainConfig, kvm.Config{Debug: true, Tracer: tracer})
+	kvm := kvm.NewKVM(context, txContext, statedb, configs.MainnetChainConfig, kvm.Config{Debug: true, Tracer: tracer})
 	msg, err := tx.AsMessage(signer)
 	if err != nil {
 		b.Fatalf("failed to prepare transaction for tracing: %v", err)
@@ -374,7 +369,7 @@ func BenchmarkTransactionTrace(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		snap := statedb.Snapshot()
-		st := blockchain.NewStateTransition(evm, msg, new(types.GasPool).AddGas(tx.Gas()))
+		st := blockchain.NewStateTransition(kvm, msg, new(types.GasPool).AddGas(tx.Gas()))
 		_, err = st.TransitionDb()
 		if err != nil {
 			b.Fatal(err)
@@ -435,21 +430,20 @@ func benchTracer(tracerName string, test *callTracerTest, b *testing.B) {
 		Time:        new(big.Int).SetUint64(uint64(test.Context.Time)),
 		GasLimit:    uint64(test.Context.GasLimit),
 	}
+	statedb := tests.MakePreState(memorydb.New(), test.Genesis.Alloc)
 
-	db := storage.NewMemoryDatabase()
-	statedb, err := state.New(nil, common.Hash{}, state.NewDatabase(db.DB()))
-	// Create the tracer, the KVM environment and run it
+	// Create the tracer, the kvm environment and run it
 	tracer, err := New(tracerName, new(Context))
 	if err != nil {
 		b.Fatalf("failed to create call tracer: %v", err)
 	}
-	evm := kvm.NewKVM(context, txContext, statedb, test.Genesis.Config, kvm.Config{Debug: true, Tracer: tracer})
+	kvm := kvm.NewKVM(context, txContext, statedb, test.Genesis.Config, kvm.Config{Debug: true, Tracer: tracer})
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		snap := statedb.Snapshot()
-		st := blockchain.NewStateTransition(evm, msg, new(types.GasPool).AddGas(tx.Gas()))
+		st := blockchain.NewStateTransition(kvm, msg, new(types.GasPool).AddGas(tx.Gas()))
 		if _, err = st.TransitionDb(); err != nil {
 			b.Fatalf("failed to execute transaction: %v", err)
 		}
