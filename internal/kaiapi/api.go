@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
+	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/abi"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -34,6 +35,41 @@ type OverrideAccount struct {
 
 // StateOverride is the collection of overridden accounts.
 type StateOverride map[common.Address]OverrideAccount
+
+// Apply overrides the fields of specified accounts into the given state.
+func (diff *StateOverride) Apply(state *state.StateDB) error {
+	if diff == nil {
+		return nil
+	}
+	for addr, account := range *diff {
+		// Override account nonce.
+		if account.Nonce != nil {
+			state.SetNonce(addr, uint64(*account.Nonce))
+		}
+		// Override account(contract) code.
+		if account.Code != nil {
+			state.SetCode(addr, *account.Code)
+		}
+		// Override account balance.
+		if account.Balance != nil {
+			state.SetBalance(addr, (*big.Int)(*account.Balance))
+		}
+		if account.State != nil && account.StateDiff != nil {
+			return fmt.Errorf("account %s has both 'state' and 'stateDiff'", addr.Hex())
+		}
+		// Replace entire state if caller requires.
+		if account.State != nil {
+			state.SetStorage(addr, *account.State)
+		}
+		// Apply state diff into specified accounts.
+		if account.StateDiff != nil {
+			for key, value := range *account.StateDiff {
+				state.SetState(addr, key, value)
+			}
+		}
+	}
+	return nil
+}
 
 func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockHeightOrHash rpc.BlockHeightOrHash, gasCap uint64) (common.Uint64, error) {
 	// Binary search the gas requirement, as it may be higher than the amount used

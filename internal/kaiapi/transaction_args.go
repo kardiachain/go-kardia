@@ -23,9 +23,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/kardiachain/go-kardia/kvm"
 	"math/big"
 
+	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/math"
@@ -119,7 +119,7 @@ func (args *TransactionArgs) setDefaults(ctx context.Context, b Backend) error {
 // ToMessage converts the transaction arguments to the Message type used by the
 // core kvm. This method is used in calls and traces that do not require a real
 // live transaction.
-func (args *TransactionArgs) ToMessage(globalGasCap uint64) (types.Message, error) {
+func (args *TransactionArgs) ToMessage(globalGasCap uint64) types.Message {
 	// Set sender address or use zero address if none specified.
 	addr := args.from()
 
@@ -152,7 +152,7 @@ func (args *TransactionArgs) ToMessage(globalGasCap uint64) (types.Message, erro
 	}
 	data := args.data()
 	msg := types.NewMessage(addr, args.To, 0, value, gas, gasPrice, data, true)
-	return msg, nil
+	return msg
 }
 
 // ExecutionResult groups all structured logs emitted by the EVM

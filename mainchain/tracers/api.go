@@ -26,13 +26,57 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/internal/kaiapi"
+	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/mainchain/blockchain"
+	vm "github.com/kardiachain/go-kardia/mainchain/kvm"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 )
+
+// blockByNumberAndHash is the wrapper of the chain access function offered by
+// the backend. It will return an error if the block is not found.
+//
+// Note this function is friendly for the light client which can only retrieve the
+// historical(before the CHT) header/block by number.
+func (t *TracerAPI) blockByNumberAndHash(ctx context.Context, number rpc.BlockHeight, hash common.Hash) (*types.Block, error) {
+	block, err := t.blockByNumber(ctx, number)
+	if err != nil {
+		return nil, err
+	}
+	if block.Hash() == hash {
+		return block, nil
+	}
+	return t.blockByHash(ctx, hash)
+}
+
+// blockByNumber is the wrapper of the chain access function offered by the backend.
+// It will return an error if the block is not found.
+func (t *TracerAPI) blockByNumber(ctx context.Context, number rpc.BlockHeight) (*types.Block, error) {
+	block, err := t.b.BlockByNumber(ctx, number)
+	if err != nil {
+		return nil, err
+	}
+	if block == nil {
+		return nil, fmt.Errorf("block #%d not found", number)
+	}
+	return block, nil
+}
+
+// blockByHash is the wrapper of the chain access function offered by the backend.
+// It will return an error if the block is not found.
+func (t *TracerAPI) blockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
+	block, err := t.b.BlockByHash(ctx, hash)
+	if err != nil {
+		return nil, err
+	}
+	if block == nil {
+		return nil, fmt.Errorf("block %s not found", hash.Hex())
+	}
+	return block, nil
+}
 
 // TraceConfig holds extra parameters to trace functions.
 type TraceConfig struct {
@@ -59,42 +103,42 @@ type StdTraceConfig struct {
 	TxHash common.Hash
 }
 
-// txTraceResult is the result of a single transaction trace.
-type txTraceResult struct {
-	Result interface{} `json:"result,omitempty"` // Trace results produced by the tracer
-	Error  string      `json:"error,omitempty"`  // Trace failure produced by the tracer
-}
+// // txTraceResult is the result of a single transaction trace.
+// type txTraceResult struct {
+// 	Result interface{} `json:"result,omitempty"` // Trace results produced by the tracer
+// 	Error  string      `json:"error,omitempty"`  // Trace failure produced by the tracer
+// }
 
-// blockTraceTask represents a single block trace task when an entire chain is
-// being traced.
-type blockTraceTask struct {
-	statedb *state.StateDB   // Intermediate state prepped for tracing
-	block   *types.Block     // Block to trace the transactions from
-	rootref common.Hash      // Trie root reference held for this task
-	results []*txTraceResult // Trace results procudes by the task
-}
+// // blockTraceTask represents a single block trace task when an entire chain is
+// // being traced.
+// type blockTraceTask struct {
+// 	statedb *state.StateDB   // Intermediate state prepped for tracing
+// 	block   *types.Block     // Block to trace the transactions from
+// 	rootref common.Hash      // Trie root reference held for this task
+// 	results []*txTraceResult // Trace results procudes by the task
+// }
 
-// blockTraceResult represets the results of tracing a single block when an entire
-// chain is being traced.
-type blockTraceResult struct {
-	Block  common.Uint64    `json:"block"`  // Block number corresponding to this trace
-	Hash   common.Hash      `json:"hash"`   // Block hash corresponding to this trace
-	Traces []*txTraceResult `json:"traces"` // Trace results produced by the task
-}
+// // blockTraceResult represets the results of tracing a single block when an entire
+// // chain is being traced.
+// type blockTraceResult struct {
+// 	Block  common.Uint64    `json:"block"`  // Block number corresponding to this trace
+// 	Hash   common.Hash      `json:"hash"`   // Block hash corresponding to this trace
+// 	Traces []*txTraceResult `json:"traces"` // Trace results produced by the task
+// }
 
-// txTraceTask represents a single transaction trace task when an entire block
-// is being traced.
-type txTraceTask struct {
-	statedb *state.StateDB // Intermediate state prepped for tracing
-	index   int            // Transaction offset in the block
-}
+// // txTraceTask represents a single transaction trace task when an entire block
+// // is being traced.
+// type txTraceTask struct {
+// 	statedb *state.StateDB // Intermediate state prepped for tracing
+// 	index   int            // Transaction offset in the block
+// }
 
-// txTraceContext is the contextual infos about a transaction before it gets run.
-type txTraceContext struct {
-	index int         // Index of the transaction within the block
-	hash  common.Hash // Hash of the transaction
-	block common.Hash // Hash of the block containing the transaction
-}
+// // txTraceContext is the contextual infos about a transaction before it gets run.
+// type txTraceContext struct {
+// 	index int         // Index of the transaction within the block
+// 	hash  common.Hash // Hash of the transaction
+// 	block common.Hash // Hash of the block containing the transaction
+// }
 
 const (
 	// defaultTraceTimeout is the amount of time a single transaction can execute
@@ -110,13 +154,16 @@ const (
 // Backend interface provides the common API services (that are provided by
 // both full and light clients) with access to necessary functions.
 type Backend interface {
-	BlockByHeightOrHash(ctx context.Context, blockHeightOrHash rpc.BlockHeightOrHash) (*types.Block, error)
-	ChainConfig() *configs.ChainConfig
+	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
+	HeaderByNumber(ctx context.Context, number rpc.BlockHeight) (*types.Header, error)
+	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
+	BlockByNumber(ctx context.Context, number rpc.BlockHeight) (*types.Block, error)
 	GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
+	RPCGasCap() uint64
+	ChainConfig() *configs.ChainConfig
+	ChainDb() kaidb.Database
 	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (*state.StateDB, error)
 	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error)
-	GetKVM(ctx context.Context, msg types.Message, state *state.StateDB, header *types.Header) (*kvm.KVM, func() error, error)
-	RPCGasCap() uint64
 }
 
 // TracerAPI provides APIs to access Kai full node-related information.
@@ -129,27 +176,46 @@ func NewTracerAPI(backend Backend) *TracerAPI {
 	return &TracerAPI{b: backend}
 }
 
+type chainContext struct {
+	api *TracerAPI
+	ctx context.Context
+}
+
+func (context *chainContext) GetHeader(hash common.Hash, number uint64) *types.Header {
+	header, err := context.api.b.HeaderByNumber(context.ctx, rpc.BlockHeight(number))
+	if err != nil {
+		return nil
+	}
+	if header.Hash() == hash {
+		return header
+	}
+	header, err = context.api.b.HeaderByHash(context.ctx, hash)
+	if err != nil {
+		return nil
+	}
+	return header
+}
+
+// chainContext construts the context reader which is used by the KVM for reading
+// the necessary chain context.
+func (t *TracerAPI) chainContext(ctx context.Context) vm.ChainContext {
+	return &chainContext{api: t, ctx: ctx}
+}
+
 // TraceTransaction returns the structured logs created during the execution of KVM
 // and returns them as a JSON object.
 func (t *TracerAPI) TraceTransaction(ctx context.Context, hash common.Hash, config *TraceConfig) (interface{}, error) {
-	tx, blockHash, blockHeight, index := t.b.GetTransaction(ctx, hash)
-	if tx == nil {
-		return nil, errors.New("tx for hash not found")
-	}
+	_, blockHash, blockNumber, index := t.b.GetTransaction(ctx, hash)
+
 	// It shouldn't happen in practice.
-	if blockHeight == 0 {
+	if blockNumber == 0 {
 		return nil, errors.New("genesis is not traceable")
 	}
 	reexec := defaultTraceReexec
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	height := rpc.BlockHeight(blockHeight)
-	block, err := t.b.BlockByHeightOrHash(ctx, rpc.BlockHeightOrHash{
-		BlockHeight:      &height,
-		BlockHash:        &blockHash,
-		RequireCanonical: false,
-	})
+	block, err := t.blockByNumberAndHash(ctx, rpc.BlockHeight(blockNumber), blockHash)
 	if err != nil {
 		return nil, err
 	}
@@ -165,14 +231,21 @@ func (t *TracerAPI) TraceTransaction(ctx context.Context, hash common.Hash, conf
 	return t.traceTx(ctx, msg, txctx, vmctx, statedb, config)
 }
 
-// TraceCall lets you trace a given kai_kardiaCall. It collects the structured logs
+// TraceCall lets you trace a given eth_call. It collects the structured logs
 // created during the execution of KVM if the given transaction was added on
 // top of the provided block and returns them as a JSON object.
-// You can provide rpc.PendingBlockHeight as a block number to trace on top of the pending block.
-func (t *TracerAPI) TraceCall(ctx context.Context, args kaiapi.TransactionArgs, blockHeightOrHash rpc.BlockHeightOrHash, config *TraceCallConfig) (interface{}, error) {
+// You can provide -2 as a block number to trace on top of the pending block.
+func (t *TracerAPI) TraceCall(ctx context.Context, args kaiapi.TransactionArgs, blockNrOrHash rpc.BlockHeightOrHash, config *TraceCallConfig) (interface{}, error) {
 	// Try to retrieve the specified block
-	block, err := t.b.BlockByHeightOrHash(ctx, blockHeightOrHash)
-	if err != nil {
+	var (
+		err   error
+		block *types.Block
+	)
+	if hash, ok := blockNrOrHash.Hash(); ok {
+		block, err = t.blockByHash(ctx, hash)
+	} else if number, ok := blockNrOrHash.Height(); ok {
+		block, err = t.blockByNumber(ctx, number)
+	} else {
 		return nil, errors.New("invalid arguments; neither block nor hash specified")
 	}
 	if err != nil {
@@ -188,18 +261,14 @@ func (t *TracerAPI) TraceCall(ctx context.Context, args kaiapi.TransactionArgs, 
 		return nil, err
 	}
 	// Apply the customized state rules if required.
-	//if config != nil {
-	//	if err := config.StateOverrides.Apply(statedb); err != nil {
-	//		return nil, err
-	//	}
-	//}
-	// Execute the trace
-	msg, err := args.ToMessage(t.b.RPCGasCap())
-	if err != nil {
-		return nil, err
+	if config != nil {
+		if err := config.StateOverrides.Apply(statedb); err != nil {
+			return nil, err
+		}
 	}
-	kvm, _, _ := t.b.GetKVM(ctx, msg, statedb, block.Header())
-	vmctx := kvm.BlockContext
+	// Execute the trace
+	msg := args.ToMessage(t.b.RPCGasCap())
+	vmctx := blockchain.NewKVMBlockContext(block.Header(), t.chainContext(ctx), nil)
 
 	var traceConfig *TraceConfig
 	if config != nil {
@@ -223,7 +292,6 @@ func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txc
 		err       error
 		txContext = blockchain.NewKVMTxContext(message)
 	)
-
 	switch {
 	case config != nil && config.Tracer != nil:
 		// Define a meaningful timeout of a single transaction trace
@@ -253,7 +321,6 @@ func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txc
 	default:
 		tracer = kvm.NewStructLogger(config.LogConfig)
 	}
-
 	// Run the transaction with tracing enabled.
 	vmenv := kvm.NewKVM(vmctx, txContext, statedb, t.b.ChainConfig(), kvm.Config{Debug: true, Tracer: tracer})
 
@@ -273,13 +340,11 @@ func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txc
 		if len(result.Revert()) > 0 {
 			returnVal = fmt.Sprintf("%x", result.Revert())
 		}
-		reason, _ := result.UnpackRevertReason()
 		return &kaiapi.ExecutionResult{
-			Gas:          result.UsedGas,
-			Failed:       result.Failed(),
-			ReturnValue:  returnVal,
-			RevertReason: reason,
-			StructLogs:   kaiapi.FormatLogs(tracer.StructLogs()),
+			Gas:         result.UsedGas,
+			Failed:      result.Failed(),
+			ReturnValue: returnVal,
+			StructLogs:  kaiapi.FormatLogs(tracer.StructLogs()),
 		}, nil
 
 	case *Tracer:

@@ -251,6 +251,15 @@ func (sdb *StateDB) SetState(addr common.Address, key, value common.Hash) {
 	}
 }
 
+// SetStorage replaces the entire storage for the specified account with given
+// storage. This function should only be used for debugging.
+func (sdb *StateDB) SetStorage(addr common.Address, storage map[common.Hash]common.Hash) {
+	stateObject := sdb.GetOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SetStorage(storage)
+	}
+}
+
 // Reset clears out all ephemeral state objects from the state db, but keeps
 // the underlying state trie to avoid reloading data for the next operations.
 func (sdb *StateDB) Reset(root common.Hash) error {
