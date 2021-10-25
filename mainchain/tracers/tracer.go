@@ -68,24 +68,24 @@ func pushBigInt(n *big.Int, ctx *duktape.Context) {
 	ctx.Call(1)
 }
 
-// opWrapper provides a JavaScript wrapper around kvm.OpCode.
+// opWrapper provides a JavaScript wrapper around OpCode.
 type opWrapper struct {
 	op kvm.OpCode
 }
 
 // pushObject assembles a JSVM object wrapping a swappable opcode and pushes it
 // onto the VM stack.
-func (ow *opWrapper) pushObject(vm *duktape.Context) {
-	obj := vm.PushObject()
+func (ow *opWrapper) pushObject(kvm *duktape.Context) {
+	obj := kvm.PushObject()
 
-	vm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushInt(int(ow.op)); return 1 })
-	vm.PutPropString(obj, "toNumber")
+	kvm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushInt(int(ow.op)); return 1 })
+	kvm.PutPropString(obj, "toNumber")
 
-	vm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushString(ow.op.String()); return 1 })
-	vm.PutPropString(obj, "toString")
+	kvm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushString(ow.op.String()); return 1 })
+	kvm.PutPropString(obj, "toString")
 
-	vm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushBoolean(ow.op.IsPush()); return 1 })
-	vm.PutPropString(obj, "isPush")
+	kvm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushBoolean(ow.op.IsPush()); return 1 })
+	kvm.PutPropString(obj, "isPush")
 }
 
 // memoryWrapper provides a JavaScript wrapper around kvm.Memory.
@@ -99,14 +99,10 @@ func (mw *memoryWrapper) slice(begin, end int64) []byte {
 		return []byte{}
 	}
 	if end < begin || begin < 0 {
-		// TODO(trinhdn97): We can't js-throw from Go inside duktape inside Go. The Go
-		// runtime goes belly up https://github.com/golang/go/issues/15639.
 		log.Warn("Tracer accessed out of bound memory", "offset", begin, "end", end)
 		return nil
 	}
 	if mw.memory.Len() < int(end) {
-		// TODO(trinhdn97): We can't js-throw from Go inside duktape inside Go. The Go
-		// runtime goes belly up https://github.com/golang/go/issues/15639.
 		log.Warn("Tracer accessed out of bound memory", "available", mw.memory.Len(), "offset", begin, "size", end-begin)
 		return nil
 	}
@@ -116,8 +112,6 @@ func (mw *memoryWrapper) slice(begin, end int64) []byte {
 // getUint returns the 32 bytes at the specified address interpreted as a uint.
 func (mw *memoryWrapper) getUint(addr int64) *big.Int {
 	if mw.memory.Len() < int(addr)+32 || addr < 0 {
-		// TODO(trinhdn97): We can't js-throw from Go inside duktape inside Go. The Go
-		// runtime goes belly up https://github.com/golang/go/issues/15639.
 		log.Warn("Tracer accessed out of bound memory", "available", mw.memory.Len(), "offset", addr, "size", 32)
 		return new(big.Int)
 	}
@@ -126,11 +120,11 @@ func (mw *memoryWrapper) getUint(addr int64) *big.Int {
 
 // pushObject assembles a JSVM object wrapping a swappable memory and pushes it
 // onto the VM stack.
-func (mw *memoryWrapper) pushObject(vm *duktape.Context) {
-	obj := vm.PushObject()
+func (mw *memoryWrapper) pushObject(kvm *duktape.Context) {
+	obj := kvm.PushObject()
 
 	// Generate the `slice` method which takes two ints and returns a buffer
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		blob := mw.slice(int64(ctx.GetInt(-2)), int64(ctx.GetInt(-1)))
 		ctx.Pop2()
 
@@ -138,17 +132,17 @@ func (mw *memoryWrapper) pushObject(vm *duktape.Context) {
 		copy(makeSlice(ptr, uint(len(blob))), blob)
 		return 1
 	})
-	vm.PutPropString(obj, "slice")
+	kvm.PutPropString(obj, "slice")
 
 	// Generate the `getUint` method which takes an int and returns a bigint
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		offset := int64(ctx.GetInt(-1))
 		ctx.Pop()
 
 		pushBigInt(mw.getUint(offset), ctx)
 		return 1
 	})
-	vm.PutPropString(obj, "getUint")
+	kvm.PutPropString(obj, "getUint")
 }
 
 // stackWrapper provides a JavaScript wrapper around kvm.Stack.
@@ -159,8 +153,6 @@ type stackWrapper struct {
 // peek returns the nth-from-the-top element of the stack.
 func (sw *stackWrapper) peek(idx int) *big.Int {
 	if len(sw.stack.Data()) <= idx || idx < 0 {
-		// TODO(trinhdn97): We can't js-throw from Go inside duktape inside Go. The Go
-		// runtime goes belly up https://github.com/golang/go/issues/15639.
 		log.Warn("Tracer accessed out of bound stack", "size", len(sw.stack.Data()), "index", idx)
 		return new(big.Int)
 	}
@@ -169,21 +161,21 @@ func (sw *stackWrapper) peek(idx int) *big.Int {
 
 // pushObject assembles a JSVM object wrapping a swappable stack and pushes it
 // onto the VM stack.
-func (sw *stackWrapper) pushObject(vm *duktape.Context) {
-	obj := vm.PushObject()
+func (sw *stackWrapper) pushObject(kvm *duktape.Context) {
+	obj := kvm.PushObject()
 
-	vm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushInt(len(sw.stack.Data())); return 1 })
-	vm.PutPropString(obj, "length")
+	kvm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushInt(len(sw.stack.Data())); return 1 })
+	kvm.PutPropString(obj, "length")
 
 	// Generate the `peek` method which takes an int and returns a bigint
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		offset := ctx.GetInt(-1)
 		ctx.Pop()
 
 		pushBigInt(sw.peek(offset), ctx)
 		return 1
 	})
-	vm.PutPropString(obj, "peek")
+	kvm.PutPropString(obj, "peek")
 }
 
 // dbWrapper provides a JavaScript wrapper around kvm.Database.
@@ -193,35 +185,35 @@ type dbWrapper struct {
 
 // pushObject assembles a JSVM object wrapping a swappable database and pushes it
 // onto the VM stack.
-func (dw *dbWrapper) pushObject(vm *duktape.Context) {
-	obj := vm.PushObject()
+func (dw *dbWrapper) pushObject(kvm *duktape.Context) {
+	obj := kvm.PushObject()
 
 	// Push the wrapper for statedb.GetBalance
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		pushBigInt(dw.db.GetBalance(common.BytesToAddress(popSlice(ctx))), ctx)
 		return 1
 	})
-	vm.PutPropString(obj, "getBalance")
+	kvm.PutPropString(obj, "getBalance")
 
 	// Push the wrapper for statedb.GetNonce
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		ctx.PushInt(int(dw.db.GetNonce(common.BytesToAddress(popSlice(ctx)))))
 		return 1
 	})
-	vm.PutPropString(obj, "getNonce")
+	kvm.PutPropString(obj, "getNonce")
 
 	// Push the wrapper for statedb.GetCode
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		code := dw.db.GetCode(common.BytesToAddress(popSlice(ctx)))
 
 		ptr := ctx.PushFixedBuffer(len(code))
 		copy(makeSlice(ptr, uint(len(code))), code)
 		return 1
 	})
-	vm.PutPropString(obj, "getCode")
+	kvm.PutPropString(obj, "getCode")
 
 	// Push the wrapper for statedb.GetState
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		hash := popSlice(ctx)
 		addr := popSlice(ctx)
 
@@ -231,14 +223,14 @@ func (dw *dbWrapper) pushObject(vm *duktape.Context) {
 		copy(makeSlice(ptr, uint(len(state))), state[:])
 		return 1
 	})
-	vm.PutPropString(obj, "getState")
+	kvm.PutPropString(obj, "getState")
 
 	// Push the wrapper for statedb.Exists
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		ctx.PushBoolean(dw.db.Exist(common.BytesToAddress(popSlice(ctx))))
 		return 1
 	})
-	vm.PutPropString(obj, "exists")
+	kvm.PutPropString(obj, "exists")
 }
 
 // contractWrapper provides a JavaScript wrapper around kvm.Contract
@@ -248,41 +240,41 @@ type contractWrapper struct {
 
 // pushObject assembles a JSVM object wrapping a swappable contract and pushes it
 // onto the VM stack.
-func (cw *contractWrapper) pushObject(vm *duktape.Context) {
-	obj := vm.PushObject()
+func (cw *contractWrapper) pushObject(kvm *duktape.Context) {
+	obj := kvm.PushObject()
 
 	// Push the wrapper for contract.Caller
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		ptr := ctx.PushFixedBuffer(20)
 		copy(makeSlice(ptr, 20), cw.contract.Caller().Bytes())
 		return 1
 	})
-	vm.PutPropString(obj, "getCaller")
+	kvm.PutPropString(obj, "getCaller")
 
 	// Push the wrapper for contract.Address
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		ptr := ctx.PushFixedBuffer(20)
 		copy(makeSlice(ptr, 20), cw.contract.Address().Bytes())
 		return 1
 	})
-	vm.PutPropString(obj, "getAddress")
+	kvm.PutPropString(obj, "getAddress")
 
 	// Push the wrapper for contract.Value
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		pushBigInt(cw.contract.Value(), ctx)
 		return 1
 	})
-	vm.PutPropString(obj, "getValue")
+	kvm.PutPropString(obj, "getValue")
 
 	// Push the wrapper for contract.Input
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		blob := cw.contract.Input
 
 		ptr := ctx.PushFixedBuffer(len(blob))
 		copy(makeSlice(ptr, uint(len(blob))), blob)
 		return 1
 	})
-	vm.PutPropString(obj, "getInput")
+	kvm.PutPropString(obj, "getInput")
 }
 
 type frame struct {
@@ -303,25 +295,25 @@ func newFrame() *frame {
 	}
 }
 
-func (f *frame) pushObject(vm *duktape.Context) {
-	obj := vm.PushObject()
+func (f *frame) pushObject(kvm *duktape.Context) {
+	obj := kvm.PushObject()
 
-	vm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, *f.typ); return 1 })
-	vm.PutPropString(obj, "getType")
+	kvm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, *f.typ); return 1 })
+	kvm.PutPropString(obj, "getType")
 
-	vm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, *f.from); return 1 })
-	vm.PutPropString(obj, "getFrom")
+	kvm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, *f.from); return 1 })
+	kvm.PutPropString(obj, "getFrom")
 
-	vm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, *f.to); return 1 })
-	vm.PutPropString(obj, "getTo")
+	kvm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, *f.to); return 1 })
+	kvm.PutPropString(obj, "getTo")
 
-	vm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, f.input); return 1 })
-	vm.PutPropString(obj, "getInput")
+	kvm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, f.input); return 1 })
+	kvm.PutPropString(obj, "getInput")
 
-	vm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, *f.gas); return 1 })
-	vm.PutPropString(obj, "getGas")
+	kvm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, *f.gas); return 1 })
+	kvm.PutPropString(obj, "getGas")
 
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		if f.value != nil {
 			pushValue(ctx, f.value)
 		} else {
@@ -329,7 +321,7 @@ func (f *frame) pushObject(vm *duktape.Context) {
 		}
 		return 1
 	})
-	vm.PutPropString(obj, "getValue")
+	kvm.PutPropString(obj, "getValue")
 }
 
 type frameResult struct {
@@ -344,16 +336,16 @@ func newFrameResult() *frameResult {
 	}
 }
 
-func (r *frameResult) pushObject(vm *duktape.Context) {
-	obj := vm.PushObject()
+func (r *frameResult) pushObject(kvm *duktape.Context) {
+	obj := kvm.PushObject()
 
-	vm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, *r.gasUsed); return 1 })
-	vm.PutPropString(obj, "getGasUsed")
+	kvm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, *r.gasUsed); return 1 })
+	kvm.PutPropString(obj, "getGasUsed")
 
-	vm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, r.output); return 1 })
-	vm.PutPropString(obj, "getOutput")
+	kvm.PushGoFunction(func(ctx *duktape.Context) int { pushValue(ctx, r.output); return 1 })
+	kvm.PutPropString(obj, "getOutput")
 
-	vm.PushGoFunction(func(ctx *duktape.Context) int {
+	kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		if r.errorValue != nil {
 			pushValue(ctx, *r.errorValue)
 		} else {
@@ -361,13 +353,13 @@ func (r *frameResult) pushObject(vm *duktape.Context) {
 		}
 		return 1
 	})
-	vm.PutPropString(obj, "getError")
+	kvm.PutPropString(obj, "getError")
 }
 
 // Tracer provides an implementation of Tracer that evaluates a Javascript
 // function for each VM execution step.
 type Tracer struct {
-	vm *duktape.Context // Javascript VM instance
+	kvm *duktape.Context // Javascript VM instance
 
 	tracerObject int // Stack index of the tracer JavaScript object
 	stateObject  int // Stack index of the global state to pull arguments from
@@ -394,13 +386,13 @@ type Tracer struct {
 	interrupt uint32 // Atomic flag to signal execution interruption
 	reason    error  // Textual reason for the interruption
 
-	activePrecompiles []common.Address // Updated on CaptureStart based on given rules
+	activePrecompiles []common.Address // Updated on CaptureStart
 	traceSteps        bool             // When true, will invoke step() on each opcode
 	traceCallFrames   bool             // When true, will invoke enter() and exit() js funcs
 }
 
 // Context contains some contextual infos for a transaction execution that is not
-// available from within the EVM object.
+// available from within the KVM object.
 type Context struct {
 	BlockHash common.Hash // Hash of the block the tx is contained within (zero if dangling tx or call)
 	TxIndex   int         // Index of the transaction within a block (zero if dangling tx or call)
@@ -416,7 +408,7 @@ func New(code string, ctx *Context) (*Tracer, error) {
 		code = tracer
 	}
 	tracer := &Tracer{
-		vm:              duktape.New(),
+		kvm:             duktape.New(),
 		ctx:             make(map[string]interface{}),
 		opWrapper:       new(opWrapper),
 		stackWrapper:    new(stackWrapper),
@@ -440,11 +432,11 @@ func New(code string, ctx *Context) (*Tracer, error) {
 		}
 	}
 	// Set up builtins for this environment
-	tracer.vm.PushGlobalGoFunction("toHex", func(ctx *duktape.Context) int {
+	tracer.kvm.PushGlobalGoFunction("toHex", func(ctx *duktape.Context) int {
 		ctx.PushString(common.Encode(popSlice(ctx)))
 		return 1
 	})
-	tracer.vm.PushGlobalGoFunction("toWord", func(ctx *duktape.Context) int {
+	tracer.kvm.PushGlobalGoFunction("toWord", func(ctx *duktape.Context) int {
 		var word common.Hash
 		if ptr, size := ctx.GetBuffer(-1); ptr != nil {
 			word = common.BytesToHash(makeSlice(ptr, size))
@@ -455,7 +447,7 @@ func New(code string, ctx *Context) (*Tracer, error) {
 		copy(makeSlice(ctx.PushFixedBuffer(32), 32), word[:])
 		return 1
 	})
-	tracer.vm.PushGlobalGoFunction("toAddress", func(ctx *duktape.Context) int {
+	tracer.kvm.PushGlobalGoFunction("toAddress", func(ctx *duktape.Context) int {
 		var addr common.Address
 		if ptr, size := ctx.GetBuffer(-1); ptr != nil {
 			addr = common.BytesToAddress(makeSlice(ptr, size))
@@ -466,7 +458,7 @@ func New(code string, ctx *Context) (*Tracer, error) {
 		copy(makeSlice(ctx.PushFixedBuffer(20), 20), addr[:])
 		return 1
 	})
-	tracer.vm.PushGlobalGoFunction("toContract", func(ctx *duktape.Context) int {
+	tracer.kvm.PushGlobalGoFunction("toContract", func(ctx *duktape.Context) int {
 		var from common.Address
 		if ptr, size := ctx.GetBuffer(-2); ptr != nil {
 			from = common.BytesToAddress(makeSlice(ptr, size))
@@ -480,7 +472,7 @@ func New(code string, ctx *Context) (*Tracer, error) {
 		copy(makeSlice(ctx.PushFixedBuffer(20), 20), contract[:])
 		return 1
 	})
-	tracer.vm.PushGlobalGoFunction("toContract2", func(ctx *duktape.Context) int {
+	tracer.kvm.PushGlobalGoFunction("toContract2", func(ctx *duktape.Context) int {
 		var from common.Address
 		if ptr, size := ctx.GetBuffer(-3); ptr != nil {
 			from = common.BytesToAddress(makeSlice(ptr, size))
@@ -502,7 +494,7 @@ func New(code string, ctx *Context) (*Tracer, error) {
 		copy(makeSlice(ctx.PushFixedBuffer(20), 20), contract[:])
 		return 1
 	})
-	tracer.vm.PushGlobalGoFunction("isPrecompiled", func(ctx *duktape.Context) int {
+	tracer.kvm.PushGlobalGoFunction("isPrecompiled", func(ctx *duktape.Context) int {
 		addr := common.BytesToAddress(popSlice(ctx))
 		for _, p := range tracer.activePrecompiles {
 			if p == addr {
@@ -513,7 +505,7 @@ func New(code string, ctx *Context) (*Tracer, error) {
 		ctx.PushBoolean(false)
 		return 1
 	})
-	tracer.vm.PushGlobalGoFunction("slice", func(ctx *duktape.Context) int {
+	tracer.kvm.PushGlobalGoFunction("slice", func(ctx *duktape.Context) int {
 		start, end := ctx.GetInt(-2), ctx.GetInt(-1)
 		ctx.Pop2()
 
@@ -521,8 +513,6 @@ func New(code string, ctx *Context) (*Tracer, error) {
 		size := end - start
 
 		if start < 0 || start > end || end > len(blob) {
-			// TODO(trinhdn97): We can't js-throw from Go inside duktape inside Go. The Go
-			// runtime goes belly up https://github.com/golang/go/issues/15639.
 			log.Warn("Tracer accessed out of bound memory", "available", len(blob), "offset", start, "size", size)
 			ctx.PushFixedBuffer(0)
 			return 1
@@ -531,29 +521,29 @@ func New(code string, ctx *Context) (*Tracer, error) {
 		return 1
 	})
 	// Push the JavaScript tracer as object #0 onto the JSVM stack and validate it
-	if err := tracer.vm.PevalString("(" + code + ")"); err != nil {
+	if err := tracer.kvm.PevalString("(" + code + ")"); err != nil {
 		log.Warn("Failed to compile tracer", "err", err)
 		return nil, err
 	}
 	tracer.tracerObject = 0 // yeah, nice, eval can't return the index itself
 
-	hasStep := tracer.vm.GetPropString(tracer.tracerObject, "step")
-	tracer.vm.Pop()
+	hasStep := tracer.kvm.GetPropString(tracer.tracerObject, "step")
+	tracer.kvm.Pop()
 
-	if !tracer.vm.GetPropString(tracer.tracerObject, "fault") {
+	if !tracer.kvm.GetPropString(tracer.tracerObject, "fault") {
 		return nil, fmt.Errorf("trace object must expose a function fault()")
 	}
-	tracer.vm.Pop()
+	tracer.kvm.Pop()
 
-	if !tracer.vm.GetPropString(tracer.tracerObject, "result") {
+	if !tracer.kvm.GetPropString(tracer.tracerObject, "result") {
 		return nil, fmt.Errorf("trace object must expose a function result()")
 	}
-	tracer.vm.Pop()
+	tracer.kvm.Pop()
 
-	hasEnter := tracer.vm.GetPropString(tracer.tracerObject, "enter")
-	tracer.vm.Pop()
-	hasExit := tracer.vm.GetPropString(tracer.tracerObject, "exit")
-	tracer.vm.Pop()
+	hasEnter := tracer.kvm.GetPropString(tracer.tracerObject, "enter")
+	tracer.kvm.Pop()
+	hasExit := tracer.kvm.GetPropString(tracer.tracerObject, "exit")
+	tracer.kvm.Pop()
 
 	if hasEnter != hasExit {
 		return nil, fmt.Errorf("trace object must expose either both or none of enter() and exit()")
@@ -568,42 +558,42 @@ func New(code string, ctx *Context) (*Tracer, error) {
 	tracer.traceSteps = hasStep
 
 	// Tracer is valid, inject the big int library to access large numbers
-	tracer.vm.EvalString(bigIntegerJS)
-	tracer.vm.PutGlobalString("bigInt")
+	tracer.kvm.EvalString(bigIntegerJS)
+	tracer.kvm.PutGlobalString("bigInt")
 
 	// Push the global environment state as object #1 into the JSVM stack
-	tracer.stateObject = tracer.vm.PushObject()
+	tracer.stateObject = tracer.kvm.PushObject()
 
-	logObject := tracer.vm.PushObject()
+	logObject := tracer.kvm.PushObject()
 
-	tracer.opWrapper.pushObject(tracer.vm)
-	tracer.vm.PutPropString(logObject, "op")
+	tracer.opWrapper.pushObject(tracer.kvm)
+	tracer.kvm.PutPropString(logObject, "op")
 
-	tracer.stackWrapper.pushObject(tracer.vm)
-	tracer.vm.PutPropString(logObject, "stack")
+	tracer.stackWrapper.pushObject(tracer.kvm)
+	tracer.kvm.PutPropString(logObject, "stack")
 
-	tracer.memoryWrapper.pushObject(tracer.vm)
-	tracer.vm.PutPropString(logObject, "memory")
+	tracer.memoryWrapper.pushObject(tracer.kvm)
+	tracer.kvm.PutPropString(logObject, "memory")
 
-	tracer.contractWrapper.pushObject(tracer.vm)
-	tracer.vm.PutPropString(logObject, "contract")
+	tracer.contractWrapper.pushObject(tracer.kvm)
+	tracer.kvm.PutPropString(logObject, "contract")
 
-	tracer.vm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushUint(*tracer.pcValue); return 1 })
-	tracer.vm.PutPropString(logObject, "getPC")
+	tracer.kvm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushUint(*tracer.pcValue); return 1 })
+	tracer.kvm.PutPropString(logObject, "getPC")
 
-	tracer.vm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushUint(*tracer.gasValue); return 1 })
-	tracer.vm.PutPropString(logObject, "getGas")
+	tracer.kvm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushUint(*tracer.gasValue); return 1 })
+	tracer.kvm.PutPropString(logObject, "getGas")
 
-	tracer.vm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushUint(*tracer.costValue); return 1 })
-	tracer.vm.PutPropString(logObject, "getCost")
+	tracer.kvm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushUint(*tracer.costValue); return 1 })
+	tracer.kvm.PutPropString(logObject, "getCost")
 
-	tracer.vm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushUint(*tracer.depthValue); return 1 })
-	tracer.vm.PutPropString(logObject, "getDepth")
+	tracer.kvm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushUint(*tracer.depthValue); return 1 })
+	tracer.kvm.PutPropString(logObject, "getDepth")
 
-	tracer.vm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushUint(*tracer.refundValue); return 1 })
-	tracer.vm.PutPropString(logObject, "getRefund")
+	tracer.kvm.PushGoFunction(func(ctx *duktape.Context) int { ctx.PushUint(*tracer.refundValue); return 1 })
+	tracer.kvm.PutPropString(logObject, "getRefund")
 
-	tracer.vm.PushGoFunction(func(ctx *duktape.Context) int {
+	tracer.kvm.PushGoFunction(func(ctx *duktape.Context) int {
 		if tracer.errorValue != nil {
 			ctx.PushString(*tracer.errorValue)
 		} else {
@@ -611,18 +601,18 @@ func New(code string, ctx *Context) (*Tracer, error) {
 		}
 		return 1
 	})
-	tracer.vm.PutPropString(logObject, "getError")
+	tracer.kvm.PutPropString(logObject, "getError")
 
-	tracer.vm.PutPropString(tracer.stateObject, "log")
+	tracer.kvm.PutPropString(tracer.stateObject, "log")
 
-	tracer.frame.pushObject(tracer.vm)
-	tracer.vm.PutPropString(tracer.stateObject, "frame")
+	tracer.frame.pushObject(tracer.kvm)
+	tracer.kvm.PutPropString(tracer.stateObject, "frame")
 
-	tracer.frameResult.pushObject(tracer.vm)
-	tracer.vm.PutPropString(tracer.stateObject, "frameResult")
+	tracer.frameResult.pushObject(tracer.kvm)
+	tracer.kvm.PutPropString(tracer.stateObject, "frameResult")
 
-	tracer.dbWrapper.pushObject(tracer.vm)
-	tracer.vm.PutPropString(tracer.stateObject, "db")
+	tracer.dbWrapper.pushObject(tracer.kvm)
+	tracer.kvm.PutPropString(tracer.stateObject, "db")
 
 	return tracer, nil
 }
@@ -637,15 +627,15 @@ func (jst *Tracer) Stop(err error) {
 // returning them as error objects.
 func (jst *Tracer) call(noret bool, method string, args ...string) (json.RawMessage, error) {
 	// Execute the JavaScript call and return any error
-	jst.vm.PushString(method)
+	jst.kvm.PushString(method)
 	for _, arg := range args {
-		jst.vm.GetPropString(jst.stateObject, arg)
+		jst.kvm.GetPropString(jst.stateObject, arg)
 	}
-	code := jst.vm.PcallProp(jst.tracerObject, len(args))
-	defer jst.vm.Pop()
+	code := jst.kvm.PcallProp(jst.tracerObject, len(args))
+	defer jst.kvm.Pop()
 
 	if code != 0 {
-		err := jst.vm.SafeToString(-1)
+		err := jst.kvm.SafeToString(-1)
 		return nil, errors.New(err)
 	}
 	// No error occurred, extract return value and return
@@ -654,16 +644,16 @@ func (jst *Tracer) call(noret bool, method string, args ...string) (json.RawMess
 	}
 	// Push a JSON marshaller onto the stack. We can't marshal from the out-
 	// side because duktape can crash on large nestings and we can't catch
-	// C++ exceptions ourselves from Go.
-	jst.vm.PushString("(JSON.stringify)")
-	jst.vm.Eval()
+	// C++ exceptions ourselves from Go. TODO(karalabe): Yuck, why wrap?!
+	jst.kvm.PushString("(JSON.stringify)")
+	jst.kvm.Eval()
 
-	jst.vm.Swap(-1, -2)
-	if code = jst.vm.Pcall(1); code != 0 {
-		err := jst.vm.SafeToString(-1)
+	jst.kvm.Swap(-1, -2)
+	if code = jst.kvm.Pcall(1); code != 0 {
+		err := jst.kvm.SafeToString(-1)
 		return nil, errors.New(err)
 	}
-	return json.RawMessage(jst.vm.SafeToString(-1)), nil
+	return json.RawMessage(jst.kvm.SafeToString(-1)), nil
 }
 
 func wrapError(context string, err error) error {
@@ -684,8 +674,9 @@ func (jst *Tracer) CaptureStart(env *kvm.KVM, from common.Address, to common.Add
 	jst.ctx["value"] = value
 
 	// Initialize the context
-	jst.ctx["block"] = env.BlockContext.BlockHeight.Uint64()
+	jst.ctx["block"] = env.BlockContext.BlockHeight
 	jst.dbWrapper.db = env.StateDB
+	jst.activePrecompiles = kvm.ActivePrecompiles()
 
 	// Compute intrinsic gas
 	intrinsicGas, err := tx_pool.IntrinsicGas(input, jst.ctx["type"] == "CREATE")
@@ -756,7 +747,7 @@ func (jst *Tracer) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, er
 	}
 }
 
-// CaptureEnter is called when EVM enters a new scope (via call, create or selfdestruct).
+// CaptureEnter is called when KVM enters a new scope (via call, create or selfdestruct).
 func (jst *Tracer) CaptureEnter(typ kvm.OpCode, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {
 	if !jst.traceCallFrames {
 		return
@@ -785,13 +776,10 @@ func (jst *Tracer) CaptureEnter(typ kvm.OpCode, from common.Address, to common.A
 	}
 }
 
-// CaptureExit is called when EVM exits a scope, even if the scope didn't
+// CaptureExit is called when KVM exits a scope, even if the scope didn't
 // execute any code.
 func (jst *Tracer) CaptureExit(output []byte, gasUsed uint64, err error) {
 	if !jst.traceCallFrames {
-		return
-	}
-	if jst.err != nil {
 		return
 	}
 	// If tracing was interrupted, set the error and stop
@@ -816,12 +804,12 @@ func (jst *Tracer) CaptureExit(output []byte, gasUsed uint64, err error) {
 // GetResult calls the Javascript 'result' function and returns its value, or any accumulated error
 func (jst *Tracer) GetResult() (json.RawMessage, error) {
 	// Transform the context into a JavaScript object and inject into the state
-	obj := jst.vm.PushObject()
+	obj := jst.kvm.PushObject()
 
 	for key, val := range jst.ctx {
 		jst.addToObj(obj, key, val)
 	}
-	jst.vm.PutPropString(jst.stateObject, "ctx")
+	jst.kvm.PutPropString(jst.stateObject, "ctx")
 
 	// Finalize the trace and return the results
 	result, err := jst.call(false, "result", "ctx", "db")
@@ -829,16 +817,16 @@ func (jst *Tracer) GetResult() (json.RawMessage, error) {
 		jst.err = wrapError("result", err)
 	}
 	// Clean up the JavaScript environment
-	jst.vm.DestroyHeap()
-	jst.vm.Destroy()
+	jst.kvm.DestroyHeap()
+	jst.kvm.Destroy()
 
 	return result, jst.err
 }
 
 // addToObj pushes a field to a JS object.
 func (jst *Tracer) addToObj(obj int, key string, val interface{}) {
-	pushValue(jst.vm, val)
-	jst.vm.PutPropString(obj, key)
+	pushValue(jst.kvm, val)
+	jst.kvm.PutPropString(obj, key)
 }
 
 func pushValue(ctx *duktape.Context, val interface{}) {
