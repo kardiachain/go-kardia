@@ -26,7 +26,6 @@ import (
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/internal/kaiapi"
-	"github.com/kardiachain/go-kardia/kai/kaidb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
@@ -36,13 +35,13 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
-// blockByNumberAndHash is the wrapper of the chain access function offered by
+// blockByHeightAndHash is the wrapper of the chain access function offered by
 // the backend. It will return an error if the block is not found.
 //
 // Note this function is friendly for the light client which can only retrieve the
 // historical(before the CHT) header/block by number.
-func (t *TracerAPI) blockByNumberAndHash(ctx context.Context, number rpc.BlockHeight, hash common.Hash) (*types.Block, error) {
-	block, err := t.blockByNumber(ctx, number)
+func (t *TracerAPI) blockByHeightAndHash(ctx context.Context, number rpc.BlockHeight, hash common.Hash) (*types.Block, error) {
+	block, err := t.blockByHeight(ctx, number)
 	if err != nil {
 		return nil, err
 	}
@@ -52,13 +51,10 @@ func (t *TracerAPI) blockByNumberAndHash(ctx context.Context, number rpc.BlockHe
 	return t.blockByHash(ctx, hash)
 }
 
-// blockByNumber is the wrapper of the chain access function offered by the backend.
+// blockByHeight is the wrapper of the chain access function offered by the backend.
 // It will return an error if the block is not found.
-func (t *TracerAPI) blockByNumber(ctx context.Context, number rpc.BlockHeight) (*types.Block, error) {
-	block, err := t.b.BlockByNumber(ctx, number)
-	if err != nil {
-		return nil, err
-	}
+func (t *TracerAPI) blockByHeight(ctx context.Context, number rpc.BlockHeight) (*types.Block, error) {
+	block := t.b.BlockByHeight(ctx, number)
 	if block == nil {
 		return nil, fmt.Errorf("block #%d not found", number)
 	}
@@ -68,10 +64,7 @@ func (t *TracerAPI) blockByNumber(ctx context.Context, number rpc.BlockHeight) (
 // blockByHash is the wrapper of the chain access function offered by the backend.
 // It will return an error if the block is not found.
 func (t *TracerAPI) blockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
-	block, err := t.b.BlockByHash(ctx, hash)
-	if err != nil {
-		return nil, err
-	}
+	block := t.b.BlockByHash(ctx, hash)
 	if block == nil {
 		return nil, fmt.Errorf("block %s not found", hash.Hex())
 	}
@@ -154,14 +147,14 @@ const (
 // Backend interface provides the common API services (that are provided by
 // both full and light clients) with access to necessary functions.
 type Backend interface {
-	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
-	HeaderByNumber(ctx context.Context, number rpc.BlockHeight) (*types.Header, error)
-	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
-	BlockByNumber(ctx context.Context, number rpc.BlockHeight) (*types.Block, error)
+	HeaderByHash(ctx context.Context, hash common.Hash) *types.Header
+	HeaderByHeight(ctx context.Context, height rpc.BlockHeight) *types.Header
+	BlockByHash(ctx context.Context, hash common.Hash) *types.Block
+	BlockByHeight(ctx context.Context, height rpc.BlockHeight) *types.Block
 	GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64)
 	RPCGasCap() uint64
 	ChainConfig() *configs.ChainConfig
-	ChainDb() kaidb.Database
+	ChainDb() types.StoreDB
 	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive bool) (*state.StateDB, error)
 	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (blockchain.Message, kvm.BlockContext, *state.StateDB, error)
 }
@@ -181,18 +174,12 @@ type chainContext struct {
 	ctx context.Context
 }
 
-func (context *chainContext) GetHeader(hash common.Hash, number uint64) *types.Header {
-	header, err := context.api.b.HeaderByNumber(context.ctx, rpc.BlockHeight(number))
-	if err != nil {
-		return nil
-	}
+func (context *chainContext) GetHeader(hash common.Hash, height uint64) *types.Header {
+	header := context.api.b.HeaderByHeight(context.ctx, rpc.BlockHeight(height))
 	if header.Hash() == hash {
 		return header
 	}
-	header, err = context.api.b.HeaderByHash(context.ctx, hash)
-	if err != nil {
-		return nil
-	}
+	header = context.api.b.HeaderByHash(context.ctx, hash)
 	return header
 }
 
@@ -205,17 +192,17 @@ func (t *TracerAPI) chainContext(ctx context.Context) vm.ChainContext {
 // TraceTransaction returns the structured logs created during the execution of KVM
 // and returns them as a JSON object.
 func (t *TracerAPI) TraceTransaction(ctx context.Context, hash common.Hash, config *TraceConfig) (interface{}, error) {
-	_, blockHash, blockNumber, index := t.b.GetTransaction(ctx, hash)
+	_, blockHash, blockHeight, index := t.b.GetTransaction(ctx, hash)
 
 	// It shouldn't happen in practice.
-	if blockNumber == 0 {
+	if blockHeight == 0 {
 		return nil, errors.New("genesis is not traceable")
 	}
 	reexec := defaultTraceReexec
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	block, err := t.blockByNumberAndHash(ctx, rpc.BlockHeight(blockNumber), blockHash)
+	block, err := t.blockByHeightAndHash(ctx, rpc.BlockHeight(blockHeight), blockHash)
 	if err != nil {
 		return nil, err
 	}
@@ -243,8 +230,8 @@ func (t *TracerAPI) TraceCall(ctx context.Context, args kaiapi.TransactionArgs, 
 	)
 	if hash, ok := blockNrOrHash.Hash(); ok {
 		block, err = t.blockByHash(ctx, hash)
-	} else if number, ok := blockNrOrHash.Height(); ok {
-		block, err = t.blockByNumber(ctx, number)
+	} else if height, ok := blockNrOrHash.Height(); ok {
+		block, err = t.blockByHeight(ctx, height)
 	} else {
 		return nil, errors.New("invalid arguments; neither block nor hash specified")
 	}
