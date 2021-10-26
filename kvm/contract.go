@@ -44,10 +44,10 @@ type AccountRef common.Address
 func (ar AccountRef) Address() common.Address { return (common.Address)(ar) }
 
 // Contract represents a Kardia contract in the state database. It contains
-// the the contract code, calling arguments. Contract implements ContractRef
+// the contract code, calling arguments. Contract implements ContractRef
 type Contract struct {
 	// CallerAddress is the result of the caller which initialised this
-	// contract. However when the "call method" is delegated this value
+	// contract. However, when the "call method" is delegated this value
 	// needs to be initialised to that of the caller's caller.
 	CallerAddress common.Address
 	caller        ContractRef

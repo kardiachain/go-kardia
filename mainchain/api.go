@@ -680,6 +680,20 @@ func (a *PublicTransactionAPI) GetTransactionReceipt(ctx context.Context, hash s
 	return nil, nil
 }
 
+// GetRawTransactionByHash returns the bytes of the transaction for the given hash.
+func (a *PublicTransactionAPI) GetRawTransactionByHash(ctx context.Context, hash common.Hash) (common.Bytes, error) {
+	// Retrieve a finalized transaction, or a pooled otherwise
+	tx, _, _, _ := a.s.GetTransaction(ctx, hash)
+	if tx == nil {
+		if tx = a.s.TxPool().Get(hash); tx == nil {
+			// Transaction not found anywhere, abort
+			return nil, nil
+		}
+	}
+	// Serialize to RLP and return
+	return tx.MarshalBinary()
+}
+
 // PublicAccountAPI provides APIs support getting account's info
 type PublicAccountAPI struct {
 	kaiService *KardiaService

@@ -644,7 +644,7 @@ func (jst *Tracer) call(noret bool, method string, args ...string) (json.RawMess
 	}
 	// Push a JSON marshaller onto the stack. We can't marshal from the out-
 	// side because duktape can crash on large nestings and we can't catch
-	// C++ exceptions ourselves from Go. TODO(karalabe): Yuck, why wrap?!
+	// C++ exceptions ourselves from Go.
 	jst.kvm.PushString("(JSON.stringify)")
 	jst.kvm.Eval()
 
