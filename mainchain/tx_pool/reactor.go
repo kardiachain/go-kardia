@@ -62,6 +62,7 @@ func (txR *Reactor) OnStart() error {
 		txR.Logger.Info("Tx broadcasting is disabled")
 		return nil
 	}
+	txR.txFetcher.Start()
 	go txR.broadcastTxRoutine()
 	return nil
 }
@@ -135,14 +136,12 @@ func (txR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	msg, err := decodeMsg(msgBytes)
 	if err != nil {
 		txR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
-		txR.Switch.StopPeerForError(src, err)
+		// txR.Switch.StopPeerForError(src, err)
 		return
 	}
 
 	peerID := string(src.ID())
-
 	p := txR.peers.Peer(src.ID())
-
 	switch m := msg.(type) {
 	case TxsMessage:
 		for _, tx := range m.Txs {
@@ -155,12 +154,13 @@ func (txR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 		}
 		_ = txR.txFetcher.Enqueue(peerID, m, true)
 	case NewPooledTransactionHashes:
+
 		// Schedule all the unknown hashes for retrieval
 		for _, hash := range m {
 			p.markTransaction(hash)
 		}
 		_ = txR.txFetcher.Notify(peerID, m)
-	case GetPooledTransactionsMsgs:
+	case RequestPooledTransactionHashes:
 		txR.handleRequestPooledTransactions(src, m)
 	default:
 		// txR.Switch.StopPeerForError(src, err)
@@ -169,7 +169,7 @@ func (txR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 
 }
 
-func (txR *Reactor) handleRequestPooledTransactions(src p2p.Peer, msg GetPooledTransactionsMsgs) {
+func (txR *Reactor) handleRequestPooledTransactions(src p2p.Peer, msg RequestPooledTransactionHashes) {
 	var (
 		bytes int
 		txs   []*types.Transaction
@@ -211,7 +211,6 @@ func (txR *Reactor) broadcastTxRoutine() {
 		case txEvent := <-txR.txsCh:
 			for _, tx := range txEvent.Txs {
 				peers := txR.peers.PeersWithoutTx(tx.Hash())
-
 				// Send the txset to a subset of our peers
 				subset := peers[:int(math.Sqrt(float64(len(peers))))]
 				for _, peer := range subset {
@@ -219,6 +218,7 @@ func (txR *Reactor) broadcastTxRoutine() {
 				}
 				txR.Logger.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
 			}
+
 			for peer, hashes := range txset {
 				// only send to validators
 				peer.AsyncSendTransactions(hashes)
@@ -234,4 +234,5 @@ func (txR *Reactor) OnStop() {
 	if txR.txsSub != nil {
 		txR.txsSub.Unsubscribe()
 	}
+	txR.txFetcher.Stop()
 }

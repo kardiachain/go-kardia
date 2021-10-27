@@ -50,7 +50,7 @@ func decodeMsg(bz []byte) (interface{}, error) {
 			return message, errors.New("empty PooledTransactionHashes")
 		}
 
-		decoded := make([]common.Hash, len(hashes))
+		decoded := make(NewPooledTransactionHashes, len(hashes))
 		for j, hashBytes := range hashes {
 			decoded[j] = common.BytesToHash(hashBytes)
 		}
@@ -72,6 +72,17 @@ func decodeMsg(bz []byte) (interface{}, error) {
 			pooledTransactions[j] = tx
 		}
 		message = pooledTransactions
+	case *prototx.Message_RequestPooledTransactions:
+		hashes := msg.RequestPooledTransactions.Hashes
+		if len(hashes) == 0 {
+			return message, errors.New("empty PooledTransactionHashes")
+		}
+
+		decoded := make(RequestPooledTransactionHashes, len(hashes))
+		for j, hashBytes := range hashes {
+			decoded[j] = common.BytesToHash(hashBytes)
+		}
+		message = decoded
 	default:
 		return nil, fmt.Errorf("txpool: message not recognized: %T", msg)
 	}
@@ -98,10 +109,9 @@ func (m NewPooledTransactionHashes) ValidateBasic() error {
 	return nil
 }
 
-// NewPooledTransactionHashes represents a transaction announcement packet.
-type GetPooledTransactionsMsgs []common.Hash
+type RequestPooledTransactionHashes []common.Hash
 
-func (m GetPooledTransactionsMsgs) ValidateBasic() error {
+func (m RequestPooledTransactionHashes) ValidateBasic() error {
 	return nil
 }
 
@@ -152,7 +162,7 @@ func MsgToProto(msg Message) (*prototx.Message, error) {
 				},
 			},
 		}
-	case GetPooledTransactionsMsgs:
+	case RequestPooledTransactionHashes:
 		hashesBytes := make([][]byte, len(msg))
 		for idx, tx := range msg {
 			txBytes, err := rlp.EncodeToBytes(tx)

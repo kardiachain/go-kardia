@@ -69,6 +69,7 @@ func newPeer(logger log.Logger, p p2p.Peer, txpool *TxPool) *peer {
 		peer:        p,
 		knownTxs:    mapset.NewSet(),
 		txBroadcast: make(chan []common.Hash),
+		txAnnounce:  make(chan []common.Hash),
 		txpool:      txpool,
 		terminated:  make(chan struct{}),
 	}
@@ -336,7 +337,6 @@ func (p *peer) AsyncSendPooledTransactionHashes(hashes []common.Hash) {
 	select {
 	case p.txAnnounce <- hashes:
 		// Mark all the transactions as known, but ensure we don't overflow our limits
-
 		for _, hash := range hashes {
 			p.knownTxs.Add(hash)
 		}
@@ -349,7 +349,7 @@ func (p *peer) AsyncSendPooledTransactionHashes(hashes []common.Hash) {
 // RequestTxs fetches a batch of transactions from a remote node.
 func (p *peer) RequestTxs(hashes []common.Hash) error {
 	p.logger.Debug("Fetching batch of transactions", "count", len(hashes))
-	p.peer.Send(TxpoolChannel, MustEncode(GetPooledTransactionsMsgs(hashes)))
+	p.peer.Send(TxpoolChannel, MustEncode(RequestPooledTransactionHashes(hashes)))
 	return nil
 }
 
@@ -363,6 +363,7 @@ func (p *peer) announceTransactions() {
 		fail   = make(chan error, 1) // Channel used to receive network error
 		failed bool                  // Flag whether a send failed, discard everything onward
 	)
+
 	for {
 		// If there's no in-flight announce running, check if a new one is needed
 		if done == nil && len(queue) > 0 {
@@ -397,6 +398,7 @@ func (p *peer) announceTransactions() {
 		// Transfer goroutine may or may not have been started, listen for events
 		select {
 		case hashes := <-p.txAnnounce:
+
 			// If the connection failed, discard all transaction events
 			if failed {
 				continue
