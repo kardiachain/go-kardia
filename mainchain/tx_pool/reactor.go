@@ -1,16 +1,13 @@
 package tx_pool
 
 import (
-	"errors"
-	"fmt"
 	"math"
 
 	"github.com/kardiachain/go-kardia/kai/events"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/p2p"
-	"github.com/kardiachain/go-kardia/lib/rlp"
-	prototx "github.com/kardiachain/go-kardia/proto/kardiachain/txpool"
+	"github.com/kardiachain/go-kardia/mainchain/fetcher"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -20,6 +17,9 @@ const (
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
 	txChanSize = 8192
+
+	// softResponseLimit is the target maximum size of replies to data retrievals.
+	softResponseLimit = 2 * 1024 * 1024
 )
 
 // Reactor handles mempool tx broadcasting amongst peers.
@@ -31,8 +31,9 @@ type Reactor struct {
 	txpool *TxPool
 
 	// transaction channel and subscriptions
-	txsCh  chan events.NewTxsEvent
-	txsSub event.Subscription
+	txsCh     chan events.NewTxsEvent
+	txsSub    event.Subscription
+	txFetcher *fetcher.TxFetcher
 
 	peers *peerSet
 }
@@ -44,8 +45,15 @@ func NewReactor(config TxPoolConfig, txpool *TxPool) *Reactor {
 		txpool: txpool,
 		peers:  newPeerSet(),
 	}
+
+	txR.txFetcher = fetcher.NewTxFetcher(txpool.Has, txpool.AddRemotes, txR.fetchTx)
 	txR.BaseReactor = *p2p.NewBaseReactor("txpool", txR)
 	return txR
+}
+
+func (txR *Reactor) fetchTx(peer string, hashes []common.Hash) error {
+	p := txR.peers.Peer(p2p.ID(peer))
+	return p.RequestTxs(hashes)
 }
 
 // OnStart implements p2p.BaseReactor.
@@ -54,6 +62,7 @@ func (txR *Reactor) OnStart() error {
 		txR.Logger.Info("Tx broadcasting is disabled")
 		return nil
 	}
+	txR.txFetcher.Start()
 	go txR.broadcastTxRoutine()
 	return nil
 }
@@ -78,6 +87,39 @@ func (txR *Reactor) AddPeer(peer p2p.Peer) {
 		txR.Logger.Error("register peer err: %s", err)
 		return
 	}
+
+	// Propagate existing transactions. new transactions appearing
+	// after this will be sent via broadcasts.
+	txR.syncTransactions(peer)
+
+}
+
+// syncTransactions starts sending all currently pending transactions to the given peer.
+func (txR *Reactor) syncTransactions(peer p2p.Peer) {
+	// Assemble the set of transaction to broadcast or announce to the remote
+	// peer. Fun fact, this is quite an expensive operation as it needs to sort
+	// the transactions if the sorting is not cached yet. However, with a random
+	// order, insertions could overflow the non-executable queues and get dropped.
+	//
+	// TODO(karalabe): Figure out if we could get away with random order somehow
+	var txs types.Transactions
+	pending, _ := txR.txpool.Pending()
+	for _, batch := range pending {
+		txs = append(txs, batch...)
+	}
+	if len(txs) == 0 {
+		return
+	}
+	// The eth/65 protocol introduces proper transaction announcements, so instead
+	// of dripping transactions across multiple peers, just send the entire list as
+	// an announcement and let the remote side decide what they need (likely nothing).
+	hashes := make([]common.Hash, len(txs))
+	for i, tx := range txs {
+		hashes[i] = tx.Hash()
+	}
+
+	p := txR.peers.Peer(peer.ID())
+	p.AsyncSendPooledTransactionHashes(hashes)
 }
 
 // RemovePeer implements Reactor.
@@ -94,11 +136,59 @@ func (txR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	msg, err := decodeMsg(msgBytes)
 	if err != nil {
 		txR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
-		txR.Switch.StopPeerForError(src, err)
+		// txR.Switch.StopPeerForError(src, err)
 		return
 	}
-	txR.Logger.Debug("Receive", "src", src, "chId", chID, "msg", msg)
-	txR.txpool.AddRemotes(msg.Txs)
+
+	peerID := string(src.ID())
+	p := txR.peers.Peer(src.ID())
+	switch m := msg.(type) {
+	case TxsMessage:
+		for _, tx := range m.Txs {
+			p.markTransaction(tx.Hash())
+		}
+		_ = txR.txFetcher.Enqueue(peerID, m.Txs, false)
+	case PooledTransactions:
+		for _, tx := range m {
+			p.markTransaction(tx.Hash())
+		}
+		_ = txR.txFetcher.Enqueue(peerID, m, true)
+	case NewPooledTransactionHashes:
+
+		// Schedule all the unknown hashes for retrieval
+		for _, hash := range m {
+			p.markTransaction(hash)
+		}
+		_ = txR.txFetcher.Notify(peerID, m)
+	case RequestPooledTransactionHashes:
+		txR.handleRequestPooledTransactions(src, m)
+	default:
+		// txR.Switch.StopPeerForError(src, err)
+		return
+	}
+
+}
+
+func (txR *Reactor) handleRequestPooledTransactions(src p2p.Peer, msg RequestPooledTransactionHashes) {
+	var (
+		bytes int
+		txs   []*types.Transaction
+	)
+	for _, hash := range msg {
+		if bytes >= softResponseLimit {
+			break
+		}
+		tx := txR.txpool.Get(hash)
+		if tx == nil {
+			continue
+		}
+
+		bytes += int(tx.Size())
+		txs = append(txs, tx)
+	}
+
+	p := txR.peers.Peer(src.ID())
+	p.peer.TrySend(TxpoolChannel, MustEncode(PooledTransactions(txs)))
 }
 
 // PeerState describes the state of a peer.
@@ -121,7 +211,6 @@ func (txR *Reactor) broadcastTxRoutine() {
 		case txEvent := <-txR.txsCh:
 			for _, tx := range txEvent.Txs {
 				peers := txR.peers.PeersWithoutTx(tx.Hash())
-
 				// Send the txset to a subset of our peers
 				subset := peers[:int(math.Sqrt(float64(len(peers))))]
 				for _, peer := range subset {
@@ -129,6 +218,7 @@ func (txR *Reactor) broadcastTxRoutine() {
 				}
 				txR.Logger.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
 			}
+
 			for peer, hashes := range txset {
 				// only send to validators
 				peer.AsyncSendTransactions(hashes)
@@ -144,53 +234,5 @@ func (txR *Reactor) OnStop() {
 	if txR.txsSub != nil {
 		txR.txsSub.Unsubscribe()
 	}
-}
-
-//-----------------------------------------------------------------------------
-// Messages
-
-func decodeMsg(bz []byte) (TxsMessage, error) {
-	msg := prototx.Message{}
-	err := msg.Unmarshal(bz)
-	if err != nil {
-		return TxsMessage{}, err
-	}
-
-	var message TxsMessage
-
-	if i, ok := msg.Sum.(*prototx.Message_Txs); ok {
-		txs := i.Txs.GetTxs()
-
-		if len(txs) == 0 {
-			return message, errors.New("empty TxsMessage")
-		}
-
-		decoded := make([]*types.Transaction, len(txs))
-		for j, txBytes := range txs {
-			tx := &types.Transaction{}
-			if err := rlp.DecodeBytes(txBytes, tx); err != nil {
-				return message, err
-			}
-
-			decoded[j] = tx
-		}
-
-		message = TxsMessage{
-			Txs: decoded,
-		}
-		return message, nil
-	}
-	return message, fmt.Errorf("msg type: %T is not supported", msg)
-}
-
-//-------------------------------------
-
-// TxsMessage is a Message containing transactions.
-type TxsMessage struct {
-	Txs []*types.Transaction
-}
-
-// String returns a string representation of the TxsMessage.
-func (m *TxsMessage) String() string {
-	return fmt.Sprintf("[TxsMessage %v]", m.Txs)
+	txR.txFetcher.Stop()
 }

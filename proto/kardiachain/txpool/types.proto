@@ -5,11 +5,27 @@ option go_package = "github.com/kardiachain/go-kardia/proto/kardiachain/state";
 
 
 message Txs {
-    repeated bytes txs = 1;
-  }
+  repeated bytes txs = 1;
+}
+
+message PooledTransactions {
+  repeated bytes txs = 1;
+}
+
+
+message PooledTransactionHashes {
+  repeated bytes hashes = 1;
+}
+
+message RequestPooledTransactions {
+  repeated bytes hashes = 1;
+}
   
-  message Message {
-    oneof sum {
-      Txs txs = 1;
-    }
+message Message {
+  oneof sum {
+    Txs txs = 1;
+    PooledTransactionHashes pooledTransactionHashes = 2;
+    PooledTransactions pooledTransactions = 3;
+    RequestPooledTransactions requestPooledTransactions = 4;
   }
+}
