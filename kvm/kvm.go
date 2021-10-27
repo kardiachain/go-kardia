@@ -113,7 +113,7 @@ type KVM struct {
 	// global (to this context) ethereum virtual machine
 	// used throughout the execution of the tx.
 	interpreter *Interpreter
-	// abort is used to abort the EVM calling operations
+	// abort is used to abort the KVM calling operations
 	// NOTE: must be set atomically
 	abort int32
 	// callGasTemp holds the gas available for the current call. This is needed because the
@@ -201,17 +201,25 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	kvm.Transfer(kvm.StateDB, caller.Address(), addr, value)
 
 	// Capture the tracer start/end events in debug mode
-	if kvm.vmConfig.Debug && kvm.depth == 0 {
-		kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), addr, false, input, gas, value)
-		defer func(startGas uint64, startTime time.Time) { // Lazy evaluation of the parameters
-			kvm.vmConfig.Tracer.CaptureEnd(ret, startGas-gas, time.Since(startTime), err)
-		}(gas, time.Now())
+	if kvm.vmConfig.Debug {
+		if kvm.depth == 0 {
+			kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), addr, false, input, gas, value)
+			defer func(startGas uint64, startTime time.Time) { // Lazy evaluation of the parameters
+				kvm.vmConfig.Tracer.CaptureEnd(ret, startGas-gas, time.Since(startTime), err)
+			}(gas, time.Now())
+		} else {
+			// Handle tracer events for entering and exiting a call frame
+			kvm.vmConfig.Tracer.CaptureEnter(CALL, caller.Address(), addr, input, gas, value)
+			defer func(startGas uint64) {
+				kvm.vmConfig.Tracer.CaptureExit(ret, startGas-gas, err)
+			}(gas)
+		}
 	}
 
 	if isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
-		// Initialise a new contract and set the code that is to be used by the EVM.
+		// Initialise a new contract and set the code that is to be used by the KVM.
 		// The contract is a scoped environment for this execution context only.
 		code := kvm.StateDB.GetCode(addr)
 		if len(code) == 0 {
@@ -226,7 +234,7 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 			gas = contract.Gas
 		}
 	}
-	// When an error was returned by the EVM or when setting the creation code
+	// When an error was returned by the KVM or when setting the creation code
 	// above we revert to the snapshot and consume any gas remaining. Additionally
 	// when we're in homestead this also counts for code storage gas errors.
 	if err != nil {
@@ -236,7 +244,7 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 		}
 		// TODO: consider clearing up unused snapshots:
 		//} else {
-		//	evm.StateDB.DiscardSnapshot(snapshot)
+		//	kvm.StateDB.DiscardSnapshot(snapshot)
 	}
 	return ret, gas, err
 }
@@ -266,12 +274,21 @@ func (kvm *KVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	}
 
 	var snapshot = kvm.StateDB.Snapshot()
-	// It is allowed to call precompiles, even via delegatecall
+
+	// Invoke tracer hooks that signal entering/exiting a call frame
+	if kvm.vmConfig.Debug {
+		kvm.vmConfig.Tracer.CaptureEnter(CALLCODE, caller.Address(), addr, input, gas, value)
+		defer func(startGas uint64) {
+			kvm.vmConfig.Tracer.CaptureExit(ret, startGas-gas, err)
+		}(gas)
+	}
+
+	// It is allowed to call precompiles, even via DELEGATECALL
 	if p, isPrecompile := kvm.precompile(addr); isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
 		addrCopy := addr
-		// Initialise a new contract and set the code that is to be used by the EVM.
+		// Initialise a new contract and set the code that is to be used by the KVM.
 		// The contract is a scoped environment for this execution context only.
 		contract := NewContract(caller, AccountRef(caller.Address()), value, gas)
 		contract.SetCallCode(&addrCopy, kvm.StateDB.GetCodeHash(addrCopy), kvm.StateDB.GetCode(addrCopy))
@@ -303,7 +320,15 @@ func (kvm *KVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 
 	var snapshot = kvm.StateDB.Snapshot()
 
-	// It is allowed to call precompiles, even via delegatecall
+	// Invoke tracer hooks that signal entering/exiting a call frame
+	if kvm.vmConfig.Debug {
+		kvm.vmConfig.Tracer.CaptureEnter(DELEGATECALL, caller.Address(), addr, input, gas, nil)
+		defer func(startGas uint64) {
+			kvm.vmConfig.Tracer.CaptureExit(ret, startGas-gas, err)
+		}(gas)
+	}
+
+	// It is allowed to call precompiles, even via DELEGATECALL
 	if p, isPrecompile := kvm.precompile(addr); isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
@@ -348,6 +373,14 @@ func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	// future scenarios
 	kvm.StateDB.AddBalance(addr, big0)
 
+	// Invoke tracer hooks that signal entering/exiting a call frame
+	if kvm.vmConfig.Debug {
+		kvm.vmConfig.Tracer.CaptureEnter(STATICCALL, caller.Address(), addr, input, gas, nil)
+		defer func(startGas uint64) {
+			kvm.vmConfig.Tracer.CaptureExit(ret, startGas-gas, err)
+		}(gas)
+	}
+
 	if p, isPrecompile := kvm.precompile(addr); isPrecompile {
 		ret, gas, err = RunPrecompiledContract(p, input, gas)
 	} else {
@@ -355,11 +388,11 @@ func (kvm *KVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 		// leak the 'contract' to the outer scope, and make allocation for 'contract'
 		// even if the actual execution ends on RunPrecompiled above.
 		addrCopy := addr
-		// Initialise a new contract and set the code that is to be used by the EVM.
+		// Initialise a new contract and set the code that is to be used by the KVM.
 		// The contract is a scoped environment for this execution context only.
 		contract := NewContract(caller, AccountRef(addrCopy), new(big.Int), gas)
 		contract.SetCallCode(&addrCopy, kvm.StateDB.GetCodeHash(addrCopy), kvm.StateDB.GetCode(addrCopy))
-		// When an error was returned by the EVM or when setting the creation code
+		// When an error was returned by the KVM or when setting the creation code
 		// above we revert to the snapshot and consume any gas remaining. Additionally
 		// when we're in Homestead this also counts for code storage gas errors.
 		ret, err = run(kvm, contract, input, true)
@@ -387,7 +420,7 @@ func (c *codeAndHash) Hash() common.Hash {
 }
 
 // Create creates a new contract using code as deployment code.
-func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address, typ OpCode) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
 	if kvm.depth > int(configs.CallCreateDepth) {
@@ -422,9 +455,14 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		return nil, address, gas, nil
 	}
 
-	if kvm.vmConfig.Debug && kvm.depth == 0 {
-		kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), contractAddr, true, codeAndHash.code, gas, value)
+	if kvm.vmConfig.Debug {
+		if kvm.depth == 0 {
+			kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), contractAddr, true, codeAndHash.code, gas, value)
+		} else {
+			kvm.vmConfig.Tracer.CaptureEnter(typ, caller.Address(), address, codeAndHash.code, gas, value)
+		}
 	}
+
 	start := time.Now()
 
 	ret, err = run(kvm, contract, nil, false)
@@ -457,8 +495,12 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 		err = ErrMaxCodeSizeExceeded
 	}
 
-	if kvm.vmConfig.Debug && kvm.depth == 0 {
-		kvm.vmConfig.Tracer.CaptureEnd(ret, gas-contract.Gas, time.Since(start), err)
+	if kvm.vmConfig.Debug {
+		if kvm.depth == 0 {
+			kvm.vmConfig.Tracer.CaptureEnd(ret, gas-contract.Gas, time.Since(start), err)
+		} else {
+			kvm.vmConfig.Tracer.CaptureExit(ret, gas-contract.Gas, err)
+		}
 	}
 	return ret, address, contract.Gas, err
 }
@@ -466,7 +508,7 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 // Create creates a new contract using code as deployment code.
 func (kvm *KVM) Create(caller ContractRef, code []byte, gas uint64, value *big.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	contractAddr = crypto.CreateAddress(caller.Address(), kvm.StateDB.GetNonce(caller.Address()))
-	return kvm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr)
+	return kvm.create(caller, &codeAndHash{code: code}, gas, value, contractAddr, CREATE)
 }
 
 // Create2 creates a new contract using code as deployment code.
@@ -476,12 +518,12 @@ func (kvm *KVM) Create(caller ContractRef, code []byte, gas uint64, value *big.I
 func (kvm *KVM) Create2(caller ContractRef, code []byte, gas uint64, endowment *big.Int, salt *uint256.Int) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
 	codeAndHash := &codeAndHash{code: code}
 	contractAddr = crypto.CreateAddress2(caller.Address(), common.Hash(salt.Bytes32()), codeAndHash.Hash().Bytes())
-	return kvm.create(caller, codeAndHash, gas, endowment, contractAddr)
+	return kvm.create(caller, codeAndHash, gas, endowment, contractAddr, CREATE2)
 }
 
 // CreateGenesisContractAddress creates a new contract using Genesis Deployer address.
 func (kvm *KVM) CreateGenesisContractAddress(caller ContractRef, code []byte, gas uint64, value *big.Int, genesisContractAddr common.Address) (err error) {
-	_, _, _, vmerr := kvm.create(caller, &codeAndHash{code: code}, gas, value, genesisContractAddr)
+	_, _, _, vmerr := kvm.create(caller, &codeAndHash{code: code}, gas, value, genesisContractAddr, CREATE)
 	if vmerr != nil {
 		return vmerr
 	}

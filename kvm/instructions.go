@@ -814,6 +814,10 @@ func opSuicide(pc *uint64, kvm *KVM, callContext *ScopeContext) ([]byte, error) 
 	balance := kvm.StateDB.GetBalance(callContext.Contract.Address())
 	kvm.StateDB.AddBalance(common.Address(beneficiary.Bytes20()), balance)
 	kvm.StateDB.Suicide(callContext.Contract.Address())
+	if kvm.interpreter.cfg.Debug {
+		kvm.interpreter.cfg.Tracer.CaptureEnter(SELFDESTRUCT, callContext.Contract.Address(), beneficiary.Bytes20(), []byte{}, 0, balance)
+		kvm.interpreter.cfg.Tracer.CaptureExit([]byte{}, 0, nil)
+	}
 	return nil, nil
 }
 
