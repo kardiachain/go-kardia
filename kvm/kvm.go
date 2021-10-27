@@ -187,8 +187,7 @@ func (kvm *KVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	p, isPrecompile := kvm.precompile(addr)
 
 	if !kvm.StateDB.Exist(addr) {
-		precompiles := PrecompiledContractsV0
-		if precompiles[addr] == nil && value.Sign() == 0 {
+		if !isPrecompile && value.Sign() == 0 {
 			// Calling a non existing account, don't do anything, but ping the tracer
 			if kvm.vmConfig.Debug && kvm.depth == 0 {
 				kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), addr, false, input, gas, value)
@@ -420,7 +419,7 @@ func (c *codeAndHash) Hash() common.Hash {
 }
 
 // Create creates a new contract using code as deployment code.
-func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address, typ OpCode) (ret []byte, contractAddr common.Address, leftOverGas uint64, err error) {
+func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64, value *big.Int, address common.Address, typ OpCode) ([]byte, common.Address, uint64, error) {
 	// Depth check execution. Fail if we're trying to execute above the
 	// limit.
 	if kvm.depth > int(configs.CallCreateDepth) {
@@ -457,7 +456,7 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 
 	if kvm.vmConfig.Debug {
 		if kvm.depth == 0 {
-			kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), contractAddr, true, codeAndHash.code, gas, value)
+			kvm.vmConfig.Tracer.CaptureStart(kvm, caller.Address(), address, true, codeAndHash.code, gas, value)
 		} else {
 			kvm.vmConfig.Tracer.CaptureEnter(typ, caller.Address(), address, codeAndHash.code, gas, value)
 		}
@@ -465,7 +464,7 @@ func (kvm *KVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 
 	start := time.Now()
 
-	ret, err = run(kvm, contract, nil, false)
+	ret, err := run(kvm, contract, nil, false)
 
 	// check whether the max code size has been exceeded
 	maxCodeSizeExceeded := len(ret) > configs.MaxCodeSize
