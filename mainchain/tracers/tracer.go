@@ -720,6 +720,13 @@ func (jst *Tracer) CaptureState(env *kvm.KVM, pc uint64, op kvm.OpCode, gas, cos
 	if _, err := jst.call(true, "step", "log", "db"); err != nil {
 		jst.err = wrapError("step", err)
 	}
+
+	if op == 0xf0 {
+		fmt.Printf("CaptureEnter CREATE, frame: %+v\nframeResult: %+v\n", jst.frame, jst.frameResult)
+	}
+	if op == 0xf5 {
+		fmt.Printf("CaptureEnter CREATE, frame: %+v\nframeResult: %+v\n", jst.frame, jst.frameResult)
+	}
 }
 
 // CaptureFault implements the Tracer interface to trace an execution fault
@@ -745,6 +752,8 @@ func (jst *Tracer) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, er
 	if err != nil {
 		jst.ctx["error"] = err.Error()
 	}
+
+	fmt.Printf("CaptureEnd, ctx: %+v\n", jst.ctx)
 }
 
 // CaptureEnter is called when KVM enters a new scope (via call, create or selfdestruct).
@@ -773,6 +782,13 @@ func (jst *Tracer) CaptureEnter(typ kvm.OpCode, from common.Address, to common.A
 
 	if _, err := jst.call(true, "enter", "frame"); err != nil {
 		jst.err = wrapError("enter", err)
+	}
+
+	if typ == 0xf0 {
+		fmt.Printf("CaptureEnter CREATE, frame: %+v\nframeResult: %+v\n", jst.frame, jst.frameResult)
+	}
+	if typ == 0xf5 {
+		fmt.Printf("CaptureEnter CREATE, frame: %+v\nframeResult: %+v\n", jst.frame, jst.frameResult)
 	}
 }
 
