@@ -1,24 +1,29 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+/*
+ *  Copyright 2021 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 package blockchain
 
 import (
 	"fmt"
 	"math/big"
+	"testing"
+
+	"github.com/kardiachain/go-kardia/mainchain/staking"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kai/storage"
@@ -28,7 +33,7 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
-func ExampleGenerateChain() {
+func TestGenerateChain(t *testing.T) {
 	var (
 		key1, _ = crypto.HexToECDSA("b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291")
 		key2, _ = crypto.HexToECDSA("8a1f9a8f95be41cd7ccb6168179afb4504aefe388d1e14474d32c45c72ce7b7a")
@@ -40,15 +45,23 @@ func ExampleGenerateChain() {
 		logger  = log.New()
 	)
 
+	configs.AddDefaultContract()
+	stakingUtil, err := staking.NewSmcStakingUtil()
+	if err != nil {
+		t.Fatalf("Init staking util failed: %v", err)
+	}
+
 	// Ensure that key1 has some funds in the genesis block.
 	gspec := &genesis.Genesis{
-		Config: configs.TestChainConfig,
-		Alloc:  genesis.GenesisAlloc{addr1: {Balance: big.NewInt(1000000)}},
+		Config:   configs.TestChainConfig,
+		GasLimit: configs.BlockGasLimit,
+		Alloc:    genesis.GenesisAlloc{addr1: {Balance: big.NewInt(1000000)}},
 	}
-	genesisBlock, err := genesis.DefaultGenesisBlock().Commit(logger, db, nil)
+	genesisBlock, err := gspec.Commit(logger, db, stakingUtil)
 	if err != nil {
-
+		t.Fatalf("Commit genesis failed: %v", err)
 	}
+	t.Logf("%+v\n%v", genesisBlock, genesisBlock.AppHash())
 
 	// This call generates a chain of 5 blocks. The function runs for
 	// each block and adds different features to gen based on the
@@ -56,18 +69,18 @@ func ExampleGenerateChain() {
 	signer := types.HomesteadSigner{}
 	_, _ = GenerateChain(gspec.Config, genesisBlock, db.DB(), 5, func(i int, gen *BlockGen) {
 		switch i {
-		case 0:
+		case 1:
 			// In block 1, addr1 sends addr2 some ether.
 			tx, _ := types.SignTx(signer, types.NewTransaction(gen.TxNonce(addr1), addr2, big.NewInt(10000), configs.TxGas, nil, nil), key1)
 			gen.AddTx(tx)
-		case 1:
+		case 2:
 			// In block 2, addr1 sends some more ether to addr2.
 			// addr2 passes it on to addr3.
 			tx1, _ := types.SignTx(signer, types.NewTransaction(gen.TxNonce(addr1), addr2, big.NewInt(1000), configs.TxGas, nil, nil), key1)
 			tx2, _ := types.SignTx(signer, types.NewTransaction(gen.TxNonce(addr2), addr3, big.NewInt(1000), configs.TxGas, nil, nil), key2)
 			gen.AddTx(tx1)
 			gen.AddTx(tx2)
-		case 2:
+		case 3:
 			// Block 3 is empty but was mined by addr3.
 			gen.SetProposer(addr3)
 		}
@@ -77,7 +90,7 @@ func ExampleGenerateChain() {
 	blockchain, _ := NewBlockChain(logger, db, nil)
 
 	state, _ := blockchain.State()
-	fmt.Printf("last block: #%d\n", blockchain.CurrentBlock().Height())
+	t.Logf("last block: #%d\n", blockchain.CurrentBlock().Height())
 	fmt.Println("balance of addr1:", state.GetBalance(addr1))
 	fmt.Println("balance of addr2:", state.GetBalance(addr2))
 	fmt.Println("balance of addr3:", state.GetBalance(addr3))

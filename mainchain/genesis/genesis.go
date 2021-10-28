@@ -210,13 +210,14 @@ func (g *Genesis) ToBlock(logger log.Logger, db kaidb.Database, staking *staking
 		head.GasLimit = configs.GenesisGasLimit
 	}
 
-	block := types.NewBlock(head, nil, &types.Commit{}, nil)
-	if err := setupGenesisStaking(staking, statedb, block.Header(), kvm.Config{}, g.Validators); err != nil {
+	if err := setupGenesisStaking(staking, statedb, head, kvm.Config{}, g.Validators); err != nil {
 		panic(err)
 	}
 	root := statedb.IntermediateRoot(false)
 	_, _ = statedb.Commit(false)
 	_ = statedb.Database().TrieDB().Commit(root, true)
+	head.AppHash = root
+	block := types.NewBlock(head, nil, &types.Commit{}, nil)
 
 	return block, root
 }

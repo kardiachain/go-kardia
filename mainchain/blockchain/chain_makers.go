@@ -1,34 +1,40 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+/*
+ *  Copyright 2021 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
 
 package blockchain
 
 import (
 	"fmt"
-	"github.com/kardiachain/go-kardia/lib/log"
-	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 	"math/big"
 	"time"
 
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus/misc"
 	"github.com/kardiachain/go-kardia/kai/kaidb"
+	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/state"
+	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
+	"github.com/kardiachain/go-kardia/lib/log"
+	"github.com/kardiachain/go-kardia/mainchain/staking"
+	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
+	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -62,6 +68,15 @@ func (b *BlockGen) SetProposer(addr common.Address) {
 	}
 	b.header.ProposerAddress = addr
 	b.gasPool = new(types.GasPool).AddGas(b.header.GasLimit)
+}
+
+// SetBlockOperations sets the block operator.
+// It can be called at most once.
+func (b *BlockGen) SetBlockOperations(blockOp *BlockOperations) {
+	if b.blockOp != nil {
+		panic("block operator can only be set once")
+	}
+	b.blockOp = blockOp
 }
 
 // AddTx adds a transaction to the generated block. If no coinbase has
@@ -152,20 +167,23 @@ func (b *BlockGen) PrevBlock(index int) *types.Block {
 // intermediate states and should contain the parent's state trie.
 //
 // The generator function is called with a new block generator for
-// every block. Any transactions and uncles added to the generator
+// every block. Any transactions added to the generator
 // become part of the block. If gen is nil, the blocks will be empty
-// and their coinbase will be the zero address.
+// and their proposers will be the zero address.
 //
-// Blocks created by GenerateChain do not contain valid proof of work
-// values. Inserting them into BlockChain requires use of FakePow or
-// a similar non-validating proof of work implementation.
+// Blocks created by GenerateChain do not contain valid proof of stake
+// values.
 func GenerateChain(config *configs.ChainConfig, parent *types.Block, db kaidb.Database, n int, gen func(int, *BlockGen)) ([]*types.Block, []types.Receipts) {
 	if config == nil {
 		config = configs.TestChainConfig
 	}
 	blocks, receipts := make(types.Blocks, n), make([]types.Receipts, n)
+	blockOp, err := initBlockOperations()
+	if err != nil {
+		return nil, nil
+	}
 	genblock := func(i int, parent *types.Block, statedb *state.StateDB) (*types.Block, types.Receipts) {
-		b := &BlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, config: config}
+		b := &BlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, config: config, blockOp: blockOp}
 		b.header = makeHeader(parent, statedb)
 
 		// Mutate the state and block according to any hard-fork specs
@@ -177,21 +195,11 @@ func GenerateChain(config *configs.ChainConfig, parent *types.Block, db kaidb.Da
 			gen(i, b)
 		}
 		if b.blockOp != nil {
-			// construct the block
-			newBlock := types.NewBlock(b.header, b.txs, &types.Commit{
-				BlockID: types.BlockID{
-					Hash: b.header.Hash(),
-				},
-				Signatures: nil,
-				Height:     b.Height(),
-				Round:      0,
-			}, []types.Evidence{})
 			// Finalize and seal the block
 			_, root, blockInfo, _, err := b.blockOp.commitTransactions(b.txs, b.header, stypes.LastCommitInfo{}, []stypes.Evidence{})
 			if err != nil {
 				panic(fmt.Sprintf("commit transactions failed: %v", err))
 			}
-			b.blockOp.saveBlockInfo(blockInfo, newBlock)
 			// Write state changes to db
 			root, err = statedb.Commit(false)
 			if err != nil {
@@ -200,6 +208,17 @@ func GenerateChain(config *configs.ChainConfig, parent *types.Block, db kaidb.Da
 			if err := statedb.Database().TrieDB().Commit(root, false); err != nil {
 				panic(fmt.Sprintf("trie write error: %v", err))
 			}
+			// construct the block with pre-determined AppHash
+			b.header.AppHash = root
+			newBlock := types.NewBlock(b.header, b.txs, &types.Commit{
+				BlockID: types.BlockID{
+					Hash: b.header.Hash(),
+				},
+				Signatures: nil,
+				Height:     b.Height(),
+				Round:      0,
+			}, []types.Evidence{})
+			b.blockOp.saveBlockInfo(blockInfo, newBlock)
 			return newBlock, b.receipts
 		}
 		return nil, nil
@@ -215,6 +234,20 @@ func GenerateChain(config *configs.ChainConfig, parent *types.Block, db kaidb.Da
 		parent = block
 	}
 	return blocks, receipts
+}
+
+func initBlockOperations() (*BlockOperations, error) {
+	logger := log.New()
+	configs.AddDefaultContract()
+	stakingUtil, err := staking.NewSmcStakingUtil()
+	if err != nil {
+		return nil, err
+	}
+	stateDB := memorydb.New()
+	kaiDb := kvstore.NewStoreDB(stateDB)
+	bc, err := NewBlockChain(logger, kaiDb, configs.TestChainConfig)
+
+	return NewBlockOperations(logger, bc, tx_pool.NewTxPool(tx_pool.DefaultTxPoolConfig, configs.TestChainConfig, bc), nil, stakingUtil), nil
 }
 
 func makeHeader(parent *types.Block, state *state.StateDB) *types.Header {
