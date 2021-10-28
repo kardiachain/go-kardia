@@ -136,7 +136,7 @@ func (txR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	msg, err := decodeMsg(msgBytes)
 	if err != nil {
 		txR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
-		// txR.Switch.StopPeerForError(src, err)
+		txR.Switch.StopPeerForError(src, err)
 		return
 	}
 
@@ -163,7 +163,7 @@ func (txR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	case RequestPooledTransactionHashes:
 		txR.handleRequestPooledTransactions(src, m)
 	default:
-		// txR.Switch.StopPeerForError(src, err)
+		txR.Switch.StopPeerForError(src, err)
 		return
 	}
 
