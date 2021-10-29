@@ -333,3 +333,83 @@ LOOP:
 func (bo *BlockOperations) saveBlockInfo(blockInfo *types.BlockInfo, block *types.Block) {
 	bo.blockchain.WriteBlockInfo(block, blockInfo)
 }
+
+// commitUnverifiedTransactions executes the given transactions and commits the result stateDB to disk.
+func (bo *BlockOperations) commitUnverifiedTransactions(txs types.Transactions, header *types.Header) ([]*types.Validator, common.Hash, *types.BlockInfo,
+	types.Transactions, error) {
+	var (
+		newTxs   = types.Transactions{}
+		receipts = types.Receipts{}
+		usedGas  = new(uint64)
+	)
+
+	// Blockchain state at head block.
+	state, err := bo.blockchain.State()
+	if err != nil {
+		bo.logger.Error("Fail to get blockchain head state", "err", err)
+		return nil, common.Hash{}, nil, nil, err
+	}
+
+	if bo.blockchain.chainConfig.MainnetV2Block != nil && *bo.blockchain.chainConfig.MainnetV2Block == header.Height {
+		// Mutate the block and state according to any hard-fork specs
+		valsList, err := bo.staking.GetAllVals(state, header, bo.blockchain, bo.blockchain.vmConfig)
+		if err != nil {
+			panic(fmt.Sprintf("CHECKPOINT: Failed to apply Mainnet V2 hardfork, err: %v", err))
+		}
+		misc.ApplyMainnetV2HardFork(state, valsList)
+		bo.logger.Info("CHECKPOINT: Apply Mainnet V2 hardfork successfully at", "block", header.Height)
+	}
+
+	// GasPool
+	bo.logger.Info("header gas limit", "limit", header.GasLimit)
+	gasPool := new(types.GasPool).AddGas(header.GasLimit)
+
+	kvmConfig := kvm.Config{}
+
+	blockReward, err := bo.staking.Mint(state, header, bo.blockchain, kvmConfig)
+	if err != nil {
+		bo.logger.Error("Fail to mint", "err", err)
+		return nil, common.Hash{}, nil, nil, err
+	}
+
+	// TODO(thientn): verifies the list is sorted by nonce so tx with lower nonce is execute first.
+LOOP:
+	for i, tx := range txs {
+		state.Prepare(tx.Hash(), header.Hash(), i)
+		snap := state.Snapshot()
+		// TODO(thientn): confirms nil coinbase is acceptable.
+		receipt, _, err := ApplyTransaction(bo.logger, bo.blockchain, gasPool, state, header, tx, usedGas, kvmConfig)
+		if err != nil {
+			bo.logger.Error("ApplyTransaction failed", "tx", tx.Hash().Hex(), "nonce", tx.Nonce(), "err", err)
+			state.RevertToSnapshot(snap)
+			// TODO(thientn): check error type and jump to next tx if possible
+			// kiendn: instead of return nil and err, jump to next tx
+			//return common.Hash{}, nil, nil, err
+			continue LOOP
+		}
+		i++
+		receipts = append(receipts, receipt)
+		newTxs = append(newTxs, tx)
+	}
+
+	root, err := state.Commit(true)
+
+	if err != nil {
+		bo.logger.Error("Fail to commit new statedb after txs", "err", err)
+		return nil, common.Hash{}, nil, nil, err
+	}
+	err = bo.blockchain.CommitTrie(root)
+	if err != nil {
+		bo.logger.Error("Fail to write statedb trie to disk", "err", err)
+		return nil, common.Hash{}, nil, nil, err
+	}
+
+	blockInfo := &types.BlockInfo{
+		GasUsed:  *usedGas,
+		Receipts: receipts,
+		Rewards:  blockReward,
+		Bloom:    types.CreateBloom(receipts),
+	}
+
+	return nil, root, blockInfo, newTxs, nil
+}

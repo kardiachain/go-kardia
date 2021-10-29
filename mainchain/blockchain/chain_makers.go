@@ -26,14 +26,12 @@ import (
 	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/consensus/misc"
 	"github.com/kardiachain/go-kardia/kai/kaidb"
-	"github.com/kardiachain/go-kardia/kai/kaidb/memorydb"
 	"github.com/kardiachain/go-kardia/kai/state"
 	"github.com/kardiachain/go-kardia/kai/storage/kvstore"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/mainchain/staking"
-	stypes "github.com/kardiachain/go-kardia/mainchain/staking/types"
 	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -88,7 +86,7 @@ func (b *BlockGen) SetBlockOperations(blockOp *BlockOperations) {
 // added. Notably, contract code relying on the BLOCKHASH instruction
 // will panic during execution.
 func (b *BlockGen) AddTx(tx *types.Transaction) {
-	b.AddTxWithChain(nil, tx)
+	b.AddTxWithChain(b.blockOp.blockchain, tx)
 }
 
 // AddTxWithChain adds a transaction to the generated block. If no proposer has
@@ -144,7 +142,7 @@ func (b *BlockGen) AddUncheckedReceipt(receipt *types.Receipt) {
 // account at addr. It panics if the account does not exist.
 func (b *BlockGen) TxNonce(addr common.Address) uint64 {
 	if !b.statedb.Exist(addr) {
-		panic("account does not exist")
+		panic(fmt.Sprintf("account does not exist: %v", addr.Hex()))
 	}
 	return b.statedb.GetNonce(addr)
 }
@@ -178,7 +176,7 @@ func GenerateChain(config *configs.ChainConfig, parent *types.Block, db kaidb.Da
 		config = configs.TestChainConfig
 	}
 	blocks, receipts := make(types.Blocks, n), make([]types.Receipts, n)
-	blockOp, err := initBlockOperations()
+	blockOp, err := initBlockOperations(db, parent)
 	if err != nil {
 		return nil, nil
 	}
@@ -196,18 +194,18 @@ func GenerateChain(config *configs.ChainConfig, parent *types.Block, db kaidb.Da
 		}
 		if b.blockOp != nil {
 			// Finalize and seal the block
-			_, root, blockInfo, _, err := b.blockOp.commitTransactions(b.txs, b.header, stypes.LastCommitInfo{}, []stypes.Evidence{})
+			_, root, blockInfo, _, err := b.blockOp.commitUnverifiedTransactions(b.txs, b.header)
 			if err != nil {
 				panic(fmt.Sprintf("commit transactions failed: %v", err))
 			}
 			// Write state changes to db
-			root, err = statedb.Commit(false)
-			if err != nil {
-				panic(fmt.Sprintf("state write error: %v", err))
-			}
-			if err := statedb.Database().TrieDB().Commit(root, false); err != nil {
-				panic(fmt.Sprintf("trie write error: %v", err))
-			}
+			//root, err = statedb.Commit(false)
+			//if err != nil {
+			//	panic(fmt.Sprintf("state write error: %v", err))
+			//}
+			//if err := statedb.Database().TrieDB().Commit(root, false); err != nil {
+			//	panic(fmt.Sprintf("trie write error: %v", err))
+			//}
 			// construct the block with pre-determined AppHash
 			b.header.AppHash = root
 			newBlock := types.NewBlock(b.header, b.txs, &types.Commit{
@@ -218,12 +216,17 @@ func GenerateChain(config *configs.ChainConfig, parent *types.Block, db kaidb.Da
 				Height:     b.Height(),
 				Round:      0,
 			}, []types.Evidence{})
-			b.blockOp.saveBlockInfo(blockInfo, newBlock)
+			newBlock.Hash()
+			blockOp.saveBlockInfo(blockInfo, newBlock)
+			blockOp.blockchain.DB().WriteHeadBlockHash(newBlock.Hash())
+			blockOp.blockchain.DB().WriteTxLookupEntries(newBlock)
+			blockOp.blockchain.DB().WriteAppHash(newBlock.Height(), root)
+			blockOp.blockchain.InsertHeadBlock(newBlock)
 			return newBlock, b.receipts
 		}
 		return nil, nil
 	}
-	for i := 0; i < n; i++ {
+	for i := 1; i < n; i++ {
 		statedb, err := state.New(log.New(), parent.AppHash(), state.NewDatabase(db))
 		if err != nil {
 			panic(err)
@@ -236,16 +239,17 @@ func GenerateChain(config *configs.ChainConfig, parent *types.Block, db kaidb.Da
 	return blocks, receipts
 }
 
-func initBlockOperations() (*BlockOperations, error) {
+func initBlockOperations(db kaidb.Database, genesisBlock *types.Block) (*BlockOperations, error) {
 	logger := log.New()
 	configs.AddDefaultContract()
 	stakingUtil, err := staking.NewSmcStakingUtil()
 	if err != nil {
 		return nil, err
 	}
-	stateDB := memorydb.New()
-	kaiDb := kvstore.NewStoreDB(stateDB)
-	bc, err := NewBlockChain(logger, kaiDb, configs.TestChainConfig)
+	bc, err := NewBlockChain(logger, kvstore.NewStoreDB(db), configs.TestChainConfig)
+	if err != nil {
+		return nil, err
+	}
 
 	return NewBlockOperations(logger, bc, tx_pool.NewTxPool(tx_pool.DefaultTxPoolConfig, configs.TestChainConfig, bc), nil, stakingUtil), nil
 }

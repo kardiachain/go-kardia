@@ -61,7 +61,6 @@ func TestGenerateChain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Commit genesis failed: %v", err)
 	}
-	t.Logf("%+v\n%v", genesisBlock, genesisBlock.AppHash())
 
 	// This call generates a chain of 5 blocks. The function runs for
 	// each block and adds different features to gen based on the
