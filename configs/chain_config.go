@@ -20,6 +20,7 @@ package configs
 
 import (
 	"fmt"
+	"math/big"
 )
 
 // ChainConfig is the core config which determines the blockchain settings.
@@ -31,7 +32,8 @@ type ChainConfig struct {
 	// Various consensus engines
 	Kaicon *KaiconConfig `json:"kaicon,omitempty" yaml:"KaiconConfig"`
 
-	MainnetV2Block *uint64 `json:"mainnetV2Block,omitempty" yaml:"MainnetV2Block"`
+	MainnetV2Block *uint64  `json:"mainnetV2Block,omitempty" yaml:"MainnetV2Block"`
+	ChainID        *big.Int `json:"chainId,omitempty" yaml:"ChainID"`
 }
 
 // KaiconConfig is the consensus engine configs for Kardia BFT DPoS.

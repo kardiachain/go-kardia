@@ -115,7 +115,7 @@ func (k *KardiaService) stateAtBlock(block *types.Block, reexec uint64, base *st
 		if current = k.blockchain.GetBlockByHeight(next); current == nil {
 			return nil, fmt.Errorf("block #%d not found", next)
 		}
-		_, _, _, err := k.blockchain.Processor().Process(current, statedb, kvm.Config{})
+		_, _, err := k.blockchain.Processor().Process(current, statedb, kvm.Config{})
 		if err != nil {
 			return nil, fmt.Errorf("processing block %d failed: %v", current.Height(), err)
 		}

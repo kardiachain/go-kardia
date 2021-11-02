@@ -171,16 +171,16 @@ func (b *BlockGen) PrevBlock(index int) *types.Block {
 //
 // Blocks created by GenerateChain do not contain valid proof of stake
 // values.
-func GenerateChain(config *configs.ChainConfig, parent *types.Block, db kaidb.Database, n int, gen func(int, *BlockGen)) ([]*types.Block, []types.Receipts) {
+func GenerateChain(config *configs.ChainConfig, parent *types.Block, db kaidb.Database, n int, gen func(int, *BlockGen)) ([]*types.Block, []*types.BlockInfo) {
 	if config == nil {
 		config = configs.TestChainConfig
 	}
-	blocks, receipts := make(types.Blocks, n), make([]types.Receipts, n)
+	blocks, blockInfos := make(types.Blocks, n), make([]*types.BlockInfo, n)
 	blockOp, err := initBlockOperations(db, parent)
 	if err != nil {
 		return nil, nil
 	}
-	genblock := func(i int, parent *types.Block, statedb *state.StateDB) (*types.Block, types.Receipts) {
+	genblock := func(i int, parent *types.Block, statedb *state.StateDB) (*types.Block, *types.BlockInfo) {
 		b := &BlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, config: config, blockOp: blockOp}
 		b.header = makeHeader(parent, statedb)
 
@@ -222,7 +222,7 @@ func GenerateChain(config *configs.ChainConfig, parent *types.Block, db kaidb.Da
 			blockOp.blockchain.DB().WriteTxLookupEntries(newBlock)
 			blockOp.blockchain.DB().WriteAppHash(newBlock.Height(), root)
 			blockOp.blockchain.InsertHeadBlock(newBlock)
-			return newBlock, b.receipts
+			return newBlock, blockInfo
 		}
 		return nil, nil
 	}
@@ -231,12 +231,12 @@ func GenerateChain(config *configs.ChainConfig, parent *types.Block, db kaidb.Da
 		if err != nil {
 			panic(err)
 		}
-		block, receipt := genblock(i, parent, statedb)
+		block, blockInfo := genblock(i, parent, statedb)
 		blocks[i] = block
-		receipts[i] = receipt
+		blockInfos[i] = blockInfo
 		parent = block
 	}
-	return blocks, receipts
+	return blocks, blockInfos
 }
 
 func initBlockOperations(db kaidb.Database, genesisBlock *types.Block) (*BlockOperations, error) {

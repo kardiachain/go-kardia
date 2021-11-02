@@ -24,8 +24,8 @@ import (
 	"github.com/kardiachain/go-kardia/types"
 )
 
-// senderCacher is a concurrent transaction sender recoverer and cacher.
-var senderCacher = newTxSenderCacher(runtime.NumCPU())
+// SenderCacher is a concurrent transaction sender recoverer and cacher.
+var SenderCacher = newTxSenderCacher(runtime.NumCPU())
 
 // txSenderCacherRequest is a request for recovering transaction senders with a
 // specific signature scheme and caching it into the transactions themselves.
@@ -100,4 +100,19 @@ func (cacher *txSenderCacher) recover(signer types.Signer, txs []*types.Transact
 			inc:    tasks,
 		}
 	}
+}
+
+// RecoverFromBlocks recovers the senders from a batch of blocks and caches them
+// back into the same data structures. There is no validation being done, nor
+// any reaction to invalid signatures. That is up to calling code later.
+func (cacher *txSenderCacher) RecoverFromBlocks(signer types.Signer, blocks []*types.Block) {
+	count := 0
+	for _, block := range blocks {
+		count += len(block.Transactions())
+	}
+	txs := make([]*types.Transaction, 0, count)
+	for _, block := range blocks {
+		txs = append(txs, block.Transactions()...)
+	}
+	cacher.recover(signer, txs)
 }

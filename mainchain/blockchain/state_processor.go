@@ -55,7 +55,7 @@ func NewStateProcessor(logger log.Logger, bc *BlockChain) *StateProcessor {
 // Process returns the receipts and logs accumulated during the process and
 // returns the amount of gas that was used in the process. If any of the
 // transactions failed to execute due to insufficient gas it will return an error.
-func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg kvm.Config) (types.Receipts, []*types.Log, uint64, error) {
+func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg kvm.Config) (*types.BlockInfo, []*types.Log, error) {
 	var (
 		receipts types.Receipts
 		usedGas  = new(uint64)
@@ -75,13 +75,18 @@ func (p *StateProcessor) Process(block *types.Block, statedb *state.StateDB, cfg
 		statedb.Prepare(tx.Hash(), block.Hash(), i)
 		receipt, _, err := ApplyTransaction(p.logger, p.bc, gp, statedb, header, tx, usedGas, cfg)
 		if err != nil {
-			return nil, nil, 0, err
+			return nil, nil, err
 		}
 		receipts = append(receipts, receipt)
 		allLogs = append(allLogs, receipt.Logs...)
 	}
 
-	return receipts, allLogs, *usedGas, nil
+	return &types.BlockInfo{
+		GasUsed:  *usedGas,
+		Rewards:  nil,
+		Receipts: receipts,
+		Bloom:    types.CreateBloom(receipts),
+	}, allLogs, nil
 }
 
 // ApplyTransaction attempts to apply a transaction to the given state database

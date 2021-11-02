@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/lib/common"
 )
 
@@ -112,4 +113,10 @@ func (fs FrontierSigner) Hash(tx *Transaction) common.Hash {
 
 func (fs FrontierSigner) Sender(tx *Transaction) (common.Address, error) {
 	return recoverPlain(fs.Hash(tx), tx.data.R, tx.data.S, tx.data.V)
+}
+
+// MakeSigner returns a Signer based on the given chain config and block height.
+func MakeSigner(config *configs.ChainConfig, blockHeight uint64) Signer {
+	signer := HomesteadSigner{}
+	return signer
 }
