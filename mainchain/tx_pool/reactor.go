@@ -110,9 +110,8 @@ func (txR *Reactor) syncTransactions(peer p2p.Peer) {
 	if len(txs) == 0 {
 		return
 	}
-	// The eth/65 protocol introduces proper transaction announcements, so instead
-	// of dripping transactions across multiple peers, just send the entire list as
-	// an announcement and let the remote side decide what they need (likely nothing).
+	// Send the entire transactions list as an announcement and let the remote side
+	// decide what they need (likely nothing).
 	hashes := make([]common.Hash, len(txs))
 	for i, tx := range txs {
 		hashes[i] = tx.Hash()
@@ -157,19 +156,24 @@ func (txR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 		for _, tx := range m.Txs {
 			p.markTransaction(tx.Hash())
 		}
-		_ = txR.txFetcher.Enqueue(peerID, m.Txs, false)
+		if err := txR.txFetcher.Enqueue(peerID, m.Txs, false); err != nil {
+			txR.Logger.Info("Receive TxsMessage error", err)
+		}
 	case PooledTransactions:
 		for _, tx := range m {
 			p.markTransaction(tx.Hash())
 		}
-		_ = txR.txFetcher.Enqueue(peerID, m, true)
+		if err := txR.txFetcher.Enqueue(peerID, m, true); err != nil {
+			txR.Logger.Info("Receive PooledTransactions error", err)
+		}
 	case NewPooledTransactionHashes:
-
 		// Schedule all the unknown hashes for retrieval
 		for _, hash := range m {
 			p.markTransaction(hash)
 		}
-		_ = txR.txFetcher.Notify(peerID, m)
+		if err := txR.txFetcher.Notify(peerID, m); err != nil {
+			txR.Logger.Info("Receive NewPooledTransactionHashes error", err)
+		}
 	case RequestPooledTransactionHashes:
 		txR.handleRequestPooledTransactions(src, m)
 	default:
