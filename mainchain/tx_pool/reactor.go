@@ -119,7 +119,9 @@ func (txR *Reactor) syncTransactions(peer p2p.Peer) {
 	}
 
 	p := txR.peers.Peer(peer.ID())
-	p.AsyncSendPooledTransactionHashes(hashes)
+	if p != nil && len(hashes) > 0 {
+		p.AsyncSendPooledTransactionHashes(hashes)
+	}
 }
 
 // RemovePeer implements Reactor.
@@ -146,6 +148,10 @@ func (txR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 
 	peerID := string(src.ID())
 	p := txR.peers.Peer(src.ID())
+	if p == nil {
+		return
+	}
+
 	switch m := msg.(type) {
 	case TxsMessage:
 		for _, tx := range m.Txs {
@@ -191,8 +197,9 @@ func (txR *Reactor) handleRequestPooledTransactions(src p2p.Peer, msg RequestPoo
 		txs = append(txs, tx)
 	}
 
-	p := txR.peers.Peer(src.ID())
-	p.peer.TrySend(TxpoolChannel, MustEncode(PooledTransactions(txs)))
+	if len(txs) > 0 {
+		src.Send(TxpoolChannel, MustEncode(PooledTransactions(txs)))
+	}
 }
 
 // PeerState describes the state of a peer.
