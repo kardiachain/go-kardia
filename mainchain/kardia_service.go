@@ -154,7 +154,7 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 	kai.txpoolR = tx_pool.NewReactor(config.TxPool, kai.txPool)
 	kai.txpoolR.SetLogger(kai.logger)
 
-	bOper := blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool, stakingUtil)
+	bOper := blockchain.NewBlockOperations(kai.logger, kai.blockchain, kai.txPool, evPool, stakingUtil, config.DisableBloomStoring)
 
 	kai.evR = evidence.NewReactor(evPool)
 	kai.evR.SetLogger(kai.logger)
@@ -197,16 +197,17 @@ func newKardiaService(ctx *node.ServiceContext, config *Config) (*KardiaService,
 func NewKardiaService(ctx *node.ServiceContext) (node.Service, error) {
 	chainConfig := ctx.Config.MainChainConfig
 	kai, err := newKardiaService(ctx, &Config{
-		NetworkId:   chainConfig.NetworkId,
-		ServiceName: chainConfig.ServiceName,
-		ChainId:     chainConfig.ChainId,
-		DBInfo:      chainConfig.DBInfo,
-		Genesis:     chainConfig.Genesis,
-		TxPool:      chainConfig.TxPool,
-		AcceptTxs:   chainConfig.AcceptTxs,
-		Consensus:   chainConfig.Consensus,
-		FastSync:    chainConfig.FastSync,
-		GasOracle:   chainConfig.GasOracle,
+		NetworkId:           chainConfig.NetworkId,
+		ServiceName:         chainConfig.ServiceName,
+		ChainId:             chainConfig.ChainId,
+		DBInfo:              chainConfig.DBInfo,
+		Genesis:             chainConfig.Genesis,
+		TxPool:              chainConfig.TxPool,
+		AcceptTxs:           chainConfig.AcceptTxs,
+		Consensus:           chainConfig.Consensus,
+		FastSync:            chainConfig.FastSync,
+		GasOracle:           chainConfig.GasOracle,
+		DisableBloomStoring: chainConfig.DisableBloomStoring,
 	})
 
 	if err != nil {

@@ -65,4 +65,6 @@ type Config struct {
 	FastSync *configs.FastSyncConfig
 
 	GasOracle *oracles.Config
+
+	DisableBloomStoring bool
 }

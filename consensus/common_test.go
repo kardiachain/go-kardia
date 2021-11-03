@@ -339,7 +339,7 @@ func newState(vs types.PrivValidator, state cstate.LatestBlockState) (*Consensus
 	txPool := tx_pool.NewTxPool(txConfig, chainConfig, bc)
 	stateStore := cstate.NewStore(kaiDb.DB())
 	evPool, _ := evidence.NewPool(stateStore, kaiDb.DB(), bc)
-	bOper := blockchain.NewBlockOperations(logger, bc, txPool, evPool, staking)
+	bOper := blockchain.NewBlockOperations(logger, bc, txPool, evPool, staking, false)
 
 	// evReactor := evidence.NewReactor(evPool)
 	blockExec := cstate.NewBlockExecutor(stateStore, logger, evPool, bOper)

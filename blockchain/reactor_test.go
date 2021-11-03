@@ -174,7 +174,7 @@ func newTestReactor(p testReactorParams) *BlockchainReactor {
 			return nil
 		}
 		txPool := tx_pool.NewTxPool(tx_pool.DefaultTxPoolConfig, chainConfig, bc)
-		bOper := blockchain.NewBlockOperations(logger, bc, txPool, nil, stakingUtil)
+		bOper := blockchain.NewBlockOperations(logger, bc, txPool, nil, stakingUtil, false)
 		appl = cstate.NewBlockExecutor(stateStore, p.logger, cstate.EmptyEvidencePool{}, bOper)
 		stateStore.Save(state)
 	}
@@ -544,7 +544,7 @@ func newReactorStore(
 		return nil, cstate.LatestBlockState{}, nil
 	}
 	txPool := tx_pool.NewTxPool(tx_pool.DefaultTxPoolConfig, chainConfig, bc)
-	bOper := blockchain.NewBlockOperations(logger, bc, txPool, nil, stakingUtil)
+	bOper := blockchain.NewBlockOperations(logger, bc, txPool, nil, stakingUtil, false)
 
 	state, err := stateStore.LoadStateFromDBOrGenesisDoc(genDoc)
 	if err != nil {

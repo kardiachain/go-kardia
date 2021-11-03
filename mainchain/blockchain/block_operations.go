@@ -54,17 +54,20 @@ type BlockOperations struct {
 	base       uint64
 	height     uint64
 	staking    *staking.StakingSmcUtil
+
+	DisableBloomStoring bool
 }
 
 // NewBlockOperations returns a new BlockOperations with reference to the latest state of blockchain.
-func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool, evpool EvidencePool, staking *staking.StakingSmcUtil) *BlockOperations {
+func NewBlockOperations(logger log.Logger, blockchain *BlockChain, txPool *tx_pool.TxPool, evpool EvidencePool, staking *staking.StakingSmcUtil, disableBloomStoring bool) *BlockOperations {
 	return &BlockOperations{
-		logger:     logger,
-		blockchain: blockchain,
-		txPool:     txPool,
-		height:     blockchain.CurrentBlock().Height(),
-		evPool:     evpool,
-		staking:    staking,
+		logger:              logger,
+		blockchain:          blockchain,
+		txPool:              txPool,
+		height:              blockchain.CurrentBlock().Height(),
+		evPool:              evpool,
+		staking:             staking,
+		DisableBloomStoring: disableBloomStoring,
 	}
 }
 
@@ -312,7 +315,9 @@ LOOP:
 		GasUsed:  *usedGas,
 		Receipts: receipts,
 		Rewards:  blockReward,
-		Bloom:    types.CreateBloom(receipts),
+	}
+	if !bo.DisableBloomStoring {
+		blockInfo.Bloom = types.CreateBloom(receipts)
 	}
 
 	return vals, root, blockInfo, newTxs, nil

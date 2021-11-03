@@ -77,6 +77,8 @@ type MainChainConfig struct {
 	FastSync *configs.FastSyncConfig
 
 	GasOracle *oracles.Config
+
+	DisableBloomStoring bool
 }
 
 type DualChainConfig struct {
@@ -232,6 +234,8 @@ type Config struct {
 	FastSync *configs.FastSyncConfig
 
 	GasOracle *oracles.Config
+
+	DisableBloomStoring bool
 
 	// ======== DEV ENVIRONMENT CONFIG =========
 	// Configuration of this node when running in dev environment.

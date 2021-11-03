@@ -35,20 +35,21 @@ type (
 			ListenAddress string `yaml:"ListenAddress"`
 			PrivateKey    string `yaml:"PrivateKey"`
 		} `yaml:"P2P"`
-		LogLevel         string     `yaml:"LogLevel"`
-		Name             string     `yaml:"Name"`
-		DataDir          string     `yaml:"DataDir"`
-		HTTPHost         string     `yaml:"HTTPHost"`
-		HTTPPort         int        `yaml:"HTTPPort"`
-		HTTPModules      []string   `yaml:"HTTPModules"`
-		HTTPVirtualHosts []string   `yaml:"HTTPVirtualHosts"`
-		HTTPCors         []string   `yaml:"HTTPCors"`
-		WSHost           string     `yaml:"WSHost"`
-		WSPort           int        `yaml:"WSPort"`
-		Metrics          bool       `yaml:"Metrics"`
-		FastSync         *FastSync  `yaml:"FastSync"`
-		GasOracle        *GasOracle `yaml:"GasOracle"`
-		Genesis          *Genesis   `yaml:"Genesis,omitempty"`
+		LogLevel            string     `yaml:"LogLevel"`
+		Name                string     `yaml:"Name"`
+		DataDir             string     `yaml:"DataDir"`
+		HTTPHost            string     `yaml:"HTTPHost"`
+		HTTPPort            int        `yaml:"HTTPPort"`
+		HTTPModules         []string   `yaml:"HTTPModules"`
+		HTTPVirtualHosts    []string   `yaml:"HTTPVirtualHosts"`
+		HTTPCors            []string   `yaml:"HTTPCors"`
+		WSHost              string     `yaml:"WSHost"`
+		WSPort              int        `yaml:"WSPort"`
+		Metrics             bool       `yaml:"Metrics"`
+		FastSync            *FastSync  `yaml:"FastSync"`
+		GasOracle           *GasOracle `yaml:"GasOracle"`
+		DisableBloomStoring bool       `yaml:"DisableBloomStoring"`
+		Genesis             *Genesis   `yaml:"Genesis,omitempty"`
 	}
 	GasOracle struct {
 		Blocks     int    `yaml:"Blocks"`
