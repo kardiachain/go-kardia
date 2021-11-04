@@ -451,9 +451,10 @@ func (b *Block) Size() common.StorageSize {
 		return size.(common.StorageSize)
 	}
 	c := writeCounter(0)
-	if err := rlp.Encode(&c, b); err != nil {
-		return 0
-	}
+	_ = rlp.Encode(&c, b.header)
+	_ = rlp.Encode(&c, b.transactions)
+	_ = rlp.Encode(&c, b.lastCommit)
+	_ = rlp.Encode(&c, b.evidence)
 	b.size.Store(common.StorageSize(c))
 	return common.StorageSize(c)
 }
