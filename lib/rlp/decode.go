@@ -210,6 +210,7 @@ var (
 
 func makeDecoder(typ reflect.Type, tags tags) (dec decoder, err error) {
 	kind := typ.Kind()
+	fmt.Printf("@@@@@@@@@@@@@@@@@@@ makeDecoder typ: %v, kind: %v, tag: %+v\n", typ, kind, tags)
 	switch {
 	case typ == rawValueType:
 		return decodeRawValue, nil
@@ -305,7 +306,7 @@ func makeListDecoder(typ reflect.Type, tag tags) (decoder, error) {
 		}
 		return decodeByteSlice, nil
 	}
-	etypeinfo := cachedTypeInfo1(etype, tags{})
+	etypeinfo := theTC.infoWhileGenerating(etype, tags{})
 	if etypeinfo.decoderErr != nil {
 		return nil, etypeinfo.decoderErr
 	}
@@ -467,11 +468,10 @@ func makeStructDecoder(typ reflect.Type) (decoder, error) {
 	return dec, nil
 }
 
-// makePtrDecoder creates a decoder that decodes into
-// the pointer's element type.
+// makePtrDecoder creates a decoder that decodes into the pointer's element type.
 func makePtrDecoder(typ reflect.Type, tag tags) (decoder, error) {
 	etype := typ.Elem()
-	etypeinfo := cachedTypeInfo1(etype, tags{})
+	etypeinfo := theTC.infoWhileGenerating(etype, tags{})
 	switch {
 	case etypeinfo.decoderErr != nil:
 		return nil, etypeinfo.decoderErr
@@ -823,6 +823,7 @@ func (s *Stream) Decode(val interface{}) error {
 	}
 
 	err = decoder(s, rval.Elem())
+	fmt.Printf("@@@@@@@@@@@@@@@@@@@ Decode rval: %+v, rTyp: %v, err: %+v\n", rval, rtyp, err)
 	if decErr, ok := err.(*decodeError); ok && len(decErr.ctx) > 0 {
 		// add decode target type to error so context has more meaning
 		decErr.ctx = append(decErr.ctx, fmt.Sprint("(", rtyp.Elem(), ")"))

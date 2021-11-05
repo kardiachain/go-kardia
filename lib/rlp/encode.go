@@ -547,23 +547,43 @@ func writeInterface(val reflect.Value, w *encbuf) error {
 }
 
 func makeSliceWriter(typ reflect.Type, ts tags) (writer, error) {
-	etypeinfo := cachedTypeInfo1(typ.Elem(), tags{})
+	etypeinfo := theTC.infoWhileGenerating(typ.Elem(), tags{})
 	if etypeinfo.writerErr != nil {
 		return nil, etypeinfo.writerErr
 	}
-	writer := func(val reflect.Value, w *encbuf) error {
-		if !ts.tail {
-			defer w.listEnd(w.list())
-		}
-		vlen := val.Len()
-		for i := 0; i < vlen; i++ {
-			if err := etypeinfo.writer(val.Index(i), w); err != nil {
-				return err
+
+	var wfn writer
+	if ts.tail {
+		// This is for struct tail slices.
+		// w.list is not called for them.
+		wfn = func(val reflect.Value, w *encbuf) error {
+			vlen := val.Len()
+			for i := 0; i < vlen; i++ {
+				if err := etypeinfo.writer(val.Index(i), w); err != nil {
+					return err
+				}
 			}
+			return nil
 		}
-		return nil
+	} else {
+		// This is for regular slices and arrays.
+		wfn = func(val reflect.Value, w *encbuf) error {
+			vlen := val.Len()
+			if vlen == 0 {
+				w.str = append(w.str, 0xC0)
+				return nil
+			}
+			listOffset := w.list()
+			for i := 0; i < vlen; i++ {
+				if err := etypeinfo.writer(val.Index(i), w); err != nil {
+					return err
+				}
+			}
+			w.listEnd(listOffset)
+			return nil
+		}
 	}
-	return writer, nil
+	return wfn, nil
 }
 
 func makeStructWriter(typ reflect.Type) (writer, error) {
@@ -591,13 +611,8 @@ func makeStructWriter(typ reflect.Type) (writer, error) {
 	return writer, nil
 }
 
-func makePtrWriter(typ reflect.Type, ts tags) (writer, error) {
-	etypeinfo := cachedTypeInfo1(typ.Elem(), tags{})
-	if etypeinfo.writerErr != nil {
-		return nil, etypeinfo.writerErr
-	}
-
-	// determine nil pointer handler
+// nilEncoding returns the encoded value of a nil pointer.
+func nilEncoding(typ reflect.Type, ts tags) uint8 {
 	var nilKind Kind
 	if ts.nilOK {
 		nilKind = ts.nilKind // use struct tag if provided
@@ -605,16 +620,29 @@ func makePtrWriter(typ reflect.Type, ts tags) (writer, error) {
 		nilKind = defaultNilKind(typ.Elem())
 	}
 
+	switch nilKind {
+	case String:
+		return 0x80
+	case List:
+		return 0xC0
+	default:
+		panic(fmt.Errorf("rlp: invalid nil kind %d", nilKind))
+	}
+}
+
+func makePtrWriter(typ reflect.Type, ts tags) (writer, error) {
+	etypeinfo := theTC.infoWhileGenerating(typ.Elem(), tags{})
+	if etypeinfo.writerErr != nil {
+		return nil, etypeinfo.writerErr
+	}
+	nilEncoding := nilEncoding(typ, ts)
+
 	writer := func(val reflect.Value, w *encbuf) error {
-		if val.IsNil() {
-			if nilKind == String {
-				w.str = append(w.str, 0x80)
-			} else {
-				w.listEnd(w.list())
-			}
-			return nil
+		if ev := val.Elem(); ev.IsValid() {
+			return etypeinfo.writer(ev, w)
 		}
-		return etypeinfo.writer(val.Elem(), w)
+		w.str = append(w.str, nilEncoding)
+		return nil
 	}
 	return writer, nil
 }
