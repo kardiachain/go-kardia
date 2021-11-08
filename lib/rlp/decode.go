@@ -210,7 +210,6 @@ var (
 
 func makeDecoder(typ reflect.Type, tags tags) (dec decoder, err error) {
 	kind := typ.Kind()
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@ makeDecoder typ: %v, kind: %v, tag: %+v\n", typ, kind, tags)
 	switch {
 	case typ == rawValueType:
 		return decodeRawValue, nil
@@ -823,7 +822,6 @@ func (s *Stream) Decode(val interface{}) error {
 	}
 
 	err = decoder(s, rval.Elem())
-	fmt.Printf("@@@@@@@@@@@@@@@@@@@ Decode rval: %+v, rTyp: %v, err: %+v\n", rval, rtyp, err)
 	if decErr, ok := err.(*decodeError); ok && len(decErr.ctx) > 0 {
 		// add decode target type to error so context has more meaning
 		decErr.ctx = append(decErr.ctx, fmt.Sprint("(", rtyp.Elem(), ")"))

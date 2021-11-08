@@ -146,7 +146,7 @@ func (b *BloomIndexer) Reset(ctx context.Context, section uint64, lastSectionHea
 // Process implements core.ChainIndexerBackend, adding a new header's bloom into
 // the index.
 func (b *BloomIndexer) Process(ctx context.Context, header *types.Header, blockInfo *types.BlockInfo) error {
-	b.gen.AddBloom(uint(header.Height-b.section*b.sectionSize), blockInfo.Bloom)
+	b.gen.AddBloom(uint(header.Height-b.section*b.sectionSize), *blockInfo.Bloom)
 	b.head = header.Hash()
 	return nil
 }

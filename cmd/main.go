@@ -170,16 +170,17 @@ func (c *Config) getMainChainConfig() (*node.MainChainConfig, error) {
 		return nil, err
 	}
 	mainChainConfig := node.MainChainConfig{
-		DBInfo:      dbInfo,
-		Genesis:     genesisData,
-		TxPool:      c.getTxPoolConfig(),
-		AcceptTxs:   chain.AcceptTxs,
-		NetworkId:   chain.NetworkID,
-		ChainId:     chain.ChainID,
-		ServiceName: chain.ServiceName,
-		Consensus:   genesisData.Consensus,
-		FastSync:    c.getFastSyncConfig(),
-		GasOracle:   c.getGasOracleConfig(),
+		DBInfo:              dbInfo,
+		Genesis:             genesisData,
+		TxPool:              c.getTxPoolConfig(),
+		AcceptTxs:           chain.AcceptTxs,
+		NetworkId:           chain.NetworkID,
+		ChainId:             chain.ChainID,
+		ServiceName:         chain.ServiceName,
+		Consensus:           genesisData.Consensus,
+		FastSync:            c.getFastSyncConfig(),
+		GasOracle:           c.getGasOracleConfig(),
+		DisableBloomStoring: c.DisableBloomStoring,
 	}
 	if args.network == Mainnet {
 		mainChainConfig.NetworkId = configs.MainnetNetworkID

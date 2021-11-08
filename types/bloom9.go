@@ -101,7 +101,7 @@ func (b Bloom) Test(topic []byte) bool {
 }
 
 // CreateBloom creates a bloom filter out of the give Receipts (+Logs)
-func CreateBloom(receipts Receipts) Bloom {
+func CreateBloom(receipts Receipts) *Bloom {
 	buf := make([]byte, 6)
 	var bin Bloom
 	for _, receipt := range receipts {
@@ -112,7 +112,7 @@ func CreateBloom(receipts Receipts) Bloom {
 			}
 		}
 	}
-	return bin
+	return &bin
 }
 
 // LogsBloom returns the bloom bytes for the given logs

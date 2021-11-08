@@ -52,7 +52,7 @@ type BlockHeaderJSON struct {
 	Rewards           string         `json:"Rewards"`
 	ProposerAddress   string         `json:"proposerAddress"`
 	TxHash            common.Hash    `json:"dataHash"` // transactions
-	Bloom             types.Bloom    `json:"logsBloom"`
+	Bloom             *types.Bloom   `json:"logsBloom"`
 	ValidatorsHash    common.Hash    `json:"validatorHash"`     // current block validators hash
 	NextValidatorHash common.Hash    `json:"nextValidatorHash"` // next block validators hash
 	ConsensusHash     common.Hash    `json:"consensusHash"`     // current consensus hash
@@ -74,7 +74,7 @@ type BlockJSON struct {
 	Rewards           string               `json:"rewards"`
 	ProposerAddress   common.Address       `json:"proposerAddress"`
 	TxHash            common.Hash          `json:"dataHash"` // hash of txs
-	Bloom             types.Bloom          `json:"logsBloom"`
+	Bloom             *types.Bloom         `json:"logsBloom"`
 	ValidatorsHash    common.Hash          `json:"validatorHash"`     // validators for the current block
 	NextValidatorHash common.Hash          `json:"nextValidatorHash"` // validators for the current block
 	ConsensusHash     common.Hash          `json:"consensusHash"`     // hash of current consensus
@@ -370,18 +370,18 @@ type Log struct {
 }
 
 type PublicReceipt struct {
-	BlockHash         string      `json:"blockHash"`
-	BlockHeight       uint64      `json:"blockHeight"`
-	TransactionHash   string      `json:"transactionHash"`
-	TransactionIndex  uint64      `json:"transactionIndex"`
-	From              string      `json:"from"`
-	To                string      `json:"to"`
-	GasUsed           uint64      `json:"gasUsed"`
-	CumulativeGasUsed uint64      `json:"cumulativeGasUsed"`
-	ContractAddress   string      `json:"contractAddress"`
-	Logs              []Log       `json:"logs"`
-	LogsBloom         types.Bloom `json:"logsBloom"`
-	Status            uint        `json:"status"`
+	BlockHash         string       `json:"blockHash"`
+	BlockHeight       uint64       `json:"blockHeight"`
+	TransactionHash   string       `json:"transactionHash"`
+	TransactionIndex  uint64       `json:"transactionIndex"`
+	From              string       `json:"from"`
+	To                string       `json:"to"`
+	GasUsed           uint64       `json:"gasUsed"`
+	CumulativeGasUsed uint64       `json:"cumulativeGasUsed"`
+	ContractAddress   string       `json:"contractAddress"`
+	Logs              []Log        `json:"logs"`
+	LogsBloom         *types.Bloom `json:"logsBloom"`
+	Status            uint         `json:"status"`
 }
 
 type BasicReceipt struct {

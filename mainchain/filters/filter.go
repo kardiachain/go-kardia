@@ -306,11 +306,11 @@ Logs:
 	return ret
 }
 
-func bloomFilter(bloom types.Bloom, addresses []common.Address, topics [][]common.Hash) bool {
+func bloomFilter(bloom *types.Bloom, addresses []common.Address, topics [][]common.Hash) bool {
 	if len(addresses) > 0 {
 		var included bool
 		for _, addr := range addresses {
-			if types.BloomLookup(bloom, addr) {
+			if types.BloomLookup(*bloom, addr) {
 				included = true
 				break
 			}
@@ -322,7 +322,7 @@ func bloomFilter(bloom types.Bloom, addresses []common.Address, topics [][]commo
 	for _, sub := range topics {
 		included := len(sub) == 0 // empty rule set == wildcard
 		for _, topic := range sub {
-			if types.BloomLookup(bloom, topic) {
+			if types.BloomLookup(*bloom, topic) {
 				included = true
 				break
 			}

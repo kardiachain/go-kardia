@@ -51,7 +51,7 @@ type Receipt struct {
 	PostState         []byte `json:"root"`
 	Status            uint64 `json:"status"`
 	CumulativeGasUsed uint64 `json:"cumulativeGasUsed" gencodec:"required"`
-	Bloom             Bloom  `json:"logsBloom"         gencodec:"required"`
+	Bloom             *Bloom `json:"logsBloom"         gencodec:"required" rlp:"optional"`
 	Logs              []*Log `json:"logs"              gencodec:"required"`
 
 	// Implementation fields (don't reorder!)
@@ -71,14 +71,14 @@ type receiptMarshaling struct {
 type receiptRLP struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
-	Bloom             Bloom
+	Bloom             *Bloom `rlp:"nil"`
 	Logs              []*Log
 }
 
 type receiptStorageRLP struct {
 	PostStateOrStatus []byte
 	CumulativeGasUsed uint64
-	Bloom             Bloom
+	Bloom             *Bloom `rlp:"nil"`
 	TxHash            common.Hash
 	ContractAddress   common.Address
 	Logs              []*LogForStorage
@@ -214,7 +214,7 @@ type BlockInfo struct {
 	GasUsed  uint64
 	Rewards  *big.Int // block reward
 	Receipts Receipts
-	Bloom    Bloom
+	Bloom    *Bloom `rlp:"nil"`
 
 	size atomic.Value
 }
@@ -267,5 +267,5 @@ type storageBlockInfo struct {
 	GasUsed  uint64
 	Rewards  *big.Int
 	Receipts []*ReceiptForStorage
-	Bloom    Bloom
+	Bloom    *Bloom `rlp:"nil"`
 }

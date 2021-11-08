@@ -38,7 +38,7 @@ func (api *PublicFilterAPI) rpcMarshalHeader(ctx context.Context, header *types.
 	fields["gasUsed"] = "0x0"
 	blockInfo := api.backend.BlockInfoByBlockHash(ctx, header.Hash())
 	if blockInfo != nil {
-		bloom, err := UnmarshalLogsBloom(&blockInfo.Bloom)
+		bloom, err := UnmarshalLogsBloom(blockInfo.Bloom)
 		if err == nil {
 			fields["logsBloom"] = bloom
 		}

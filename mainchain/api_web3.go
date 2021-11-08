@@ -530,7 +530,7 @@ func getWeb3Receipt(receipt *types.Receipt, tx *types.Transaction, blockHash com
 		"contractAddress":   nil,
 	}
 	// convert bloom and logs
-	bloom, err := UnmarshalLogsBloom(&blockInfo.Bloom)
+	bloom, err := UnmarshalLogsBloom(blockInfo.Bloom)
 	if err == nil {
 		fields["logsBloom"] = bloom
 	}
