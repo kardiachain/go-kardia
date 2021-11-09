@@ -25,7 +25,8 @@ Node:
   P2P:
     PrivateKey:           # private key without 0x prefix, leave blank for joining as non-validator node
     ListenAddress: tcp://0.0.0.0:3000 # IP and Port for P2P connection
-    MaxPeers: 25          # maximum accepted peers
+    InboundPeers: 15
+    OutboundPeers: 15
   LogLevel: info          # crit, error, warn, info, debug, trace
   Metrics: false
   FastSync:
