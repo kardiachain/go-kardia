@@ -74,8 +74,9 @@ func (txR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 	return []*p2p.ChannelDescriptor{
 		{
 			ID:                  TxpoolChannel,
-			Priority:            10,
+			Priority:            5,
 			RecvMessageCapacity: maxMsgSize,
+			RecvBufferCapacity:  128,
 		},
 	}
 }
