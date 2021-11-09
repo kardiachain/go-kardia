@@ -116,8 +116,8 @@ func DefaultP2PConfig() *P2PConfig {
 		UPNP:                         false,
 		AddrBook:                     filepath.Join(DefaultDataDir(), defaultAddrBookName),
 		AddrBookStrict:               true,
-		MaxNumInboundPeers:           40,
-		MaxNumOutboundPeers:          10,
+		MaxNumInboundPeers:           15,
+		MaxNumOutboundPeers:          15,
 		PersistentPeersMaxDialPeriod: 0 * time.Second,
 		FlushThrottleTimeout:         100 * time.Millisecond,
 		MaxPacketMsgPayloadSize:      1024,    // 1 kB
