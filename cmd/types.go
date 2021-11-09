@@ -34,6 +34,8 @@ type (
 		P2P struct {
 			ListenAddress string `yaml:"ListenAddress"`
 			PrivateKey    string `yaml:"PrivateKey"`
+			InboundPeers  int    `yaml:"InboundPeers"`
+			OutboundPeers int    `yaml:"OutboundPeers"`
 		} `yaml:"P2P"`
 		LogLevel         string     `yaml:"LogLevel"`
 		Name             string     `yaml:"Name"`
