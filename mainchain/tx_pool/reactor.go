@@ -1,3 +1,21 @@
+/*
+ *  Copyright 2020 KardiaChain
+ *  This file is part of the go-kardia library.
+ *
+ *  The go-kardia library is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Lesser General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  The go-kardia library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *  GNU Lesser General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Lesser General Public License
+ *  along with the go-kardia library. If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package tx_pool
 
 import (
@@ -74,8 +92,9 @@ func (txR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 	return []*p2p.ChannelDescriptor{
 		{
 			ID:                  TxpoolChannel,
-			Priority:            10,
+			Priority:            5,
 			RecvMessageCapacity: maxMsgSize,
+			RecvBufferCapacity:  128,
 		},
 	}
 }
@@ -110,23 +129,28 @@ func (txR *Reactor) syncTransactions(peer p2p.Peer) {
 	if len(txs) == 0 {
 		return
 	}
-	// The eth/65 protocol introduces proper transaction announcements, so instead
-	// of dripping transactions across multiple peers, just send the entire list as
-	// an announcement and let the remote side decide what they need (likely nothing).
+	// Send the entire transactions list as an announcement and let the remote side
+	// decide what they need (likely nothing).
 	hashes := make([]common.Hash, len(txs))
 	for i, tx := range txs {
 		hashes[i] = tx.Hash()
 	}
 
 	p := txR.peers.Peer(peer.ID())
-	p.AsyncSendPooledTransactionHashes(hashes)
+	if p != nil && len(hashes) > 0 {
+		p.AsyncSendPooledTransactionHashes(hashes)
+	}
 }
 
 // RemovePeer implements Reactor.
 func (txR *Reactor) RemovePeer(peer p2p.Peer, reason interface{}) {
+
 	if err := txR.peers.Unregister(peer.ID()); err != nil {
 		txR.Logger.Error("unregister peer err: %s", err)
-		return
+	}
+
+	if err := txR.txFetcher.Drop(string(peer.ID())); err != nil {
+		txR.Logger.Error("txFetcher drop err: %s", err)
 	}
 }
 
@@ -136,34 +160,43 @@ func (txR *Reactor) Receive(chID byte, src p2p.Peer, msgBytes []byte) {
 	msg, err := decodeMsg(msgBytes)
 	if err != nil {
 		txR.Logger.Error("Error decoding message", "src", src, "chId", chID, "msg", msg, "err", err, "bytes", msgBytes)
-		// txR.Switch.StopPeerForError(src, err)
+		txR.Switch.StopPeerForError(src, err)
 		return
 	}
 
 	peerID := string(src.ID())
 	p := txR.peers.Peer(src.ID())
+	if p == nil {
+		return
+	}
+
 	switch m := msg.(type) {
 	case TxsMessage:
 		for _, tx := range m.Txs {
 			p.markTransaction(tx.Hash())
 		}
-		_ = txR.txFetcher.Enqueue(peerID, m.Txs, false)
+		if err := txR.txFetcher.Enqueue(peerID, m.Txs, false); err != nil {
+			txR.Logger.Info("Receive TxsMessage error", err)
+		}
 	case PooledTransactions:
 		for _, tx := range m {
 			p.markTransaction(tx.Hash())
 		}
-		_ = txR.txFetcher.Enqueue(peerID, m, true)
+		if err := txR.txFetcher.Enqueue(peerID, m, true); err != nil {
+			txR.Logger.Info("Receive PooledTransactions error", err)
+		}
 	case NewPooledTransactionHashes:
-
 		// Schedule all the unknown hashes for retrieval
 		for _, hash := range m {
 			p.markTransaction(hash)
 		}
-		_ = txR.txFetcher.Notify(peerID, m)
+		if err := txR.txFetcher.Notify(peerID, m); err != nil {
+			txR.Logger.Info("Receive NewPooledTransactionHashes error", err)
+		}
 	case RequestPooledTransactionHashes:
 		txR.handleRequestPooledTransactions(src, m)
 	default:
-		// txR.Switch.StopPeerForError(src, err)
+		txR.Switch.StopPeerForError(src, err)
 		return
 	}
 
@@ -187,8 +220,9 @@ func (txR *Reactor) handleRequestPooledTransactions(src p2p.Peer, msg RequestPoo
 		txs = append(txs, tx)
 	}
 
-	p := txR.peers.Peer(src.ID())
-	p.peer.TrySend(TxpoolChannel, MustEncode(PooledTransactions(txs)))
+	if len(txs) > 0 {
+		src.Send(TxpoolChannel, MustEncode(PooledTransactions(txs)))
+	}
 }
 
 // PeerState describes the state of a peer.
