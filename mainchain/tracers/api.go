@@ -327,11 +327,13 @@ func (t *TracerAPI) traceTx(ctx context.Context, message blockchain.Message, txc
 		if len(result.Revert()) > 0 {
 			returnVal = fmt.Sprintf("%x", result.Revert())
 		}
+		reason, _ := result.UnpackRevertReason()
 		return &kaiapi.ExecutionResult{
-			Gas:         result.UsedGas,
-			Failed:      result.Failed(),
-			ReturnValue: returnVal,
-			StructLogs:  kaiapi.FormatLogs(tracer.StructLogs()),
+			Gas:          result.UsedGas,
+			Failed:       result.Failed(),
+			ReturnValue:  returnVal,
+			RevertReason: reason,
+			StructLogs:   kaiapi.FormatLogs(tracer.StructLogs()),
 		}, nil
 
 	case *Tracer:
