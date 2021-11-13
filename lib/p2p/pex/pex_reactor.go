@@ -184,6 +184,8 @@ func (r *Reactor) GetChannels() []*conn.ChannelDescriptor {
 			Priority:            1,
 			SendQueueCapacity:   10,
 			RecvMessageCapacity: maxMsgSize,
+			RecvBufferCapacity:  32,
+			MaxSendBytes:        200,
 		},
 	}
 }
@@ -345,11 +347,10 @@ func (r *Reactor) receiveRequest(src Peer) error {
 // request out for this peer.
 func (r *Reactor) RequestAddrs(p Peer) {
 	id := string(p.ID())
-	if r.requestsSent.Has(id) {
+	if _, exists := r.requestsSent.GetOrSet(id, struct{}{}); exists {
 		return
 	}
 	r.Logger.Debug("Request addrs", "from", p)
-	r.requestsSent.Set(id, struct{}{})
 	p.Send(PexChannel, mustEncode(&kp2p.PexRequest{}))
 }
 
@@ -523,7 +524,7 @@ func (r *Reactor) ensurePeers() {
 		peers := r.Switch.Peers().List()
 		peersCount := len(peers)
 		if peersCount > 0 {
-			peer := peers[krand.Int()%peersCount]
+			peer := peers[krand.NewRand().Int()%peersCount]
 			r.Logger.Info("We need more addresses. Sending pexRequest to random peer", "peer", peer)
 			r.RequestAddrs(peer)
 		}
@@ -556,7 +557,7 @@ func (r *Reactor) dialPeer(addr *p2p.NetAddress) error {
 
 	// exponential backoff if it's not our first attempt to dial given address
 	if attempts > 0 {
-		jitter := time.Duration(krand.Float64() * float64(time.Second)) // 1s == (1e9 ns)
+		jitter := time.Duration(krand.NewRand().Float64() * float64(time.Second)) // 1s == (1e9 ns)
 		backoffDuration := jitter + ((1 << uint(attempts)) * time.Second)
 		backoffDuration = r.maxBackoffDurationForPeer(addr, backoffDuration)
 		sinceLastDialed := time.Since(lastDialed)
@@ -622,7 +623,7 @@ func (r *Reactor) checkSeeds() (numOnline int, netAddrs []*p2p.NetAddress, err e
 
 // randomly dial seeds until we connect to one or exhaust them
 func (r *Reactor) dialSeeds() {
-	perm := krand.Perm(len(r.seedAddrs))
+	perm := krand.NewRand().Perm(len(r.seedAddrs))
 	// perm := r.Switch.rng.Perm(lSeeds)
 	for _, i := range perm {
 		// dial a random seed
