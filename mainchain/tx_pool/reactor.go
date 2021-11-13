@@ -26,6 +26,7 @@ import (
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/mainchain/fetcher"
+	txpoolproto "github.com/kardiachain/go-kardia/proto/kardiachain/txpool"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -88,13 +89,20 @@ func (txR *Reactor) OnStart() error {
 // GetChannels implements Reactor by returning the list of channels for this
 // reactor.
 func (txR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
-	maxMsgSize := txR.config.MaxBatchBytes
+	largestTx := make([]byte, DefaultTxPoolConfig.MaxTxBytes)
+	batchMsg := txpoolproto.Message{
+		Sum: &txpoolproto.Message_Txs{
+			Txs: &txpoolproto.Txs{Txs: [][]byte{largestTx}},
+		},
+	}
+
 	return []*p2p.ChannelDescriptor{
 		{
 			ID:                  TxpoolChannel,
 			Priority:            5,
-			RecvMessageCapacity: maxMsgSize,
+			RecvMessageCapacity: batchMsg.Size(),
 			RecvBufferCapacity:  128,
+			MaxSendBytes:        5000,
 		},
 	}
 }

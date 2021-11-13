@@ -95,8 +95,9 @@ type TxPoolConfig struct {
 	Lifetime time.Duration // Maximum amount of time non-executable transaction are queued
 
 	// TxReactor
-	Broadcast     bool
-	MaxBatchBytes int
+	Broadcast bool
+	// Maximum size of a transaction
+	MaxTxBytes int
 }
 
 // DefaultTxPoolConfig contains the default configurations for the transaction
@@ -115,8 +116,8 @@ var DefaultTxPoolConfig = TxPoolConfig{
 
 	Lifetime: 1 * time.Hour,
 
-	Broadcast:     true,
-	MaxBatchBytes: 10 * 1024 * 1024, // 10MB
+	Broadcast:  true,
+	MaxTxBytes: 1024 * 1024, // 1MB
 }
 
 // sanitize checks the provided user configurations and changes anything that's
