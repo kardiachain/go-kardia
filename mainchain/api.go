@@ -455,7 +455,7 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 // state on the local node. No tx is generated and submitted
 // onto the blockchain
 func (s *PublicKaiAPI) KardiaCall(ctx context.Context, args kaiapi.TransactionArgs, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
-	result, err := kaiapi.DoCall(ctx, s.kaiService, args, blockHeightOrHash, kvm.Config{}, time.Duration(configs.TimeOutForStaticCall)*time.Second)
+	result, err := kaiapi.DoCall(ctx, s.kaiService, args, blockHeightOrHash, kvm.Config{}, time.Duration(configs.TimeOutForStaticCall)*time.Millisecond)
 	if err != nil {
 		return nil, err
 	}
