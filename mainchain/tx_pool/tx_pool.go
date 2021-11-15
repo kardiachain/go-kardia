@@ -95,8 +95,9 @@ type TxPoolConfig struct {
 
 	// TxReactor
 	Broadcast bool
-	// Maximum size of a transaction
-	MaxTxBytes int
+	// Maximum size of a batch transactions
+	MaxTxsBatchSize    int
+	RecvBufferCapacity int
 }
 
 // DefaultTxPoolConfig contains the default configurations for the transaction
@@ -116,8 +117,9 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	Lifetime: 1 * time.Hour,
 
 	Broadcast: true,
-	// Maximum bytes for a transaction, this must syncup with the proto txpool reactor
-	MaxTxBytes: txMaxSize, // 131072 Bytes
+	// Maximum bytes for batch of transactions, this must syncup with the proto txpool reactor
+	MaxTxsBatchSize:    10485760, // 10 Mbs, equal to 80 max size txs
+	RecvBufferCapacity: 2097152,  // 2 Mbs
 }
 
 // sanitize checks the provided user configurations and changes anything that's

@@ -184,8 +184,7 @@ func (r *Reactor) GetChannels() []*conn.ChannelDescriptor {
 			Priority:            1,
 			SendQueueCapacity:   10,
 			RecvMessageCapacity: maxMsgSize,
-			RecvBufferCapacity:  32,
-			MaxSendBytes:        200,
+			RecvBufferCapacity:  4096,
 		},
 	}
 }
