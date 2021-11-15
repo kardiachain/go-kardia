@@ -119,7 +119,7 @@ var DefaultTxPoolConfig = TxPoolConfig{
 	Broadcast: true,
 	// Maximum bytes for batch of transactions, this must syncup with the proto txpool reactor
 	MaxTxsBatchSize:    10485760, // 10 Mbs, equal to 80 max size txs
-	RecvBufferCapacity: 1310720,
+	RecvBufferCapacity: 2097152,  // 2 Mbs
 }
 
 // sanitize checks the provided user configurations and changes anything that's
