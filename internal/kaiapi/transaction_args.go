@@ -21,10 +21,14 @@ package kaiapi
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
+	"strings"
 
+	"github.com/kardiachain/go-kardia/configs"
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/log"
@@ -32,6 +36,12 @@ import (
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 )
+
+type parseError struct {
+	param string
+}
+
+func (e *parseError) Error() string { return "parse error, param: " + e.param }
 
 // TransactionArgs represents the arguments to construct a new transaction
 // or a message call.
@@ -48,7 +58,6 @@ type TransactionArgs struct {
 	Data  *common.Bytes `json:"data"`
 	Input *common.Bytes `json:"input"`
 
-	// Introduced by AccessListTxType transaction.
 	ChainID *common.Big `json:"chainId,omitempty"`
 }
 
@@ -112,6 +121,132 @@ func (args *TransactionArgs) setDefaults(ctx context.Context, b Backend) error {
 	if args.ChainID == nil {
 		id := (*common.Big)(b.ChainConfig().ChainID)
 		args.ChainID = id
+	}
+	return nil
+}
+
+// UnmarshalJSON parses request response to a TransactionArgs
+func (args *TransactionArgs) UnmarshalJSON(data []byte) error {
+	params := make(map[string]interface{})
+	err := json.Unmarshal(data, &params)
+	if err != nil {
+		return err
+	}
+
+	toAddressStr, ok := params["to"].(string)
+	if !ok {
+		return &parseError{param: "to"}
+	}
+	toAddress := common.HexToAddress(toAddressStr)
+	args.To = &toAddress
+
+	fromAddressStr, ok := params["from"].(string)
+	if !ok {
+		args.From = &configs.GenesisDeployerAddr // default to Genesis Deployer address if nil
+	}
+	fromAddress := common.HexToAddress(fromAddressStr)
+	args.From = &fromAddress
+
+	inputStr, ok := params["input"].(string)
+	if !ok {
+		inputStr, ok = params["data"].(string)
+		if !ok {
+			return &parseError{param: "input (data)"}
+		}
+		inputField := (common.Bytes)(common.FromHex(inputStr))
+		args.Input = &inputField
+		args.Data = &inputField
+	}
+
+	if gas, ok := params["gas"].(float64); ok {
+		gasLimit := uint64(gas)
+		args.Gas = (*common.Uint64)(&gasLimit)
+	} else {
+		gasStr, ok := params["gas"].(string)
+		if !ok {
+			args.Gas = (*common.Uint64)(&configs.GasLimitCap) // default to gas limit cap of node
+		} else {
+			var (
+				gasLimit uint64
+				err      error
+			)
+			if strings.HasPrefix(gasStr, "0x") { // try parsing gasPrice as hex to adapt web3 api calls
+				gasLimit, err = strconv.ParseUint(strings.TrimPrefix(gasStr, "0x"), 16, 64)
+			} else {
+				gasLimit, err = strconv.ParseUint(gasStr, 10, 64)
+			}
+			if err != nil {
+				return err
+			}
+			args.Gas = (*common.Uint64)(&gasLimit)
+		}
+	}
+	if gasPrice, ok := params["gasPrice"].(float64); ok {
+		args.GasPrice = (*common.Big)(new(big.Int).SetUint64(uint64(gasPrice)))
+	} else {
+		gasPriceStr, ok := params["gasPrice"].(string)
+		if !ok {
+			args.GasPrice = (*common.Big)(new(big.Int).SetUint64(0)) // default to 0 OXY gas price
+		} else {
+			var (
+				gasPrice *big.Int
+				ok       bool
+			)
+			if strings.HasPrefix(gasPriceStr, "0x") { // try parsing gasPrice as hex to adapt web3 api calls
+				gasPrice, ok = new(big.Int).SetString(strings.TrimPrefix(gasPriceStr, "0x"), 16)
+			} else {
+				gasPrice, ok = new(big.Int).SetString(gasPriceStr, 10)
+			}
+			if !ok {
+				return &parseError{param: "gasPrice"}
+			}
+			args.GasPrice = (*common.Big)(gasPrice)
+		}
+	}
+	if value, ok := params["value"].(float64); ok {
+		args.Value = (*common.Big)(new(big.Int).SetUint64(uint64(value)))
+	} else {
+		valueStr, ok := params["value"].(string)
+		if !ok {
+			args.Value = (*common.Big)(new(big.Int).SetUint64(0)) // default to 0 KAI in value
+		} else {
+			var (
+				value *big.Int
+				ok    bool
+			)
+			if strings.HasPrefix(valueStr, "0x") { // try parsing value as hex to adapt web3 api calls
+				value, ok = new(big.Int).SetString(strings.TrimPrefix(valueStr, "0x"), 16)
+			} else {
+				value, ok = new(big.Int).SetString(valueStr, 10)
+			}
+			if !ok {
+				return &parseError{param: "value"}
+			}
+			args.Value = (*common.Big)(value)
+		}
+	}
+
+	if chainId, ok := params["chainId"].(float64); ok {
+		args.ChainID = (*common.Big)(new(big.Int).SetUint64(uint64(chainId)))
+	} else {
+		chainIdStr, ok := params["chainId"].(string)
+		if !ok {
+			args.ChainID = (*common.Big)(new(big.Int).SetUint64(0)) // default to Aris mainnet with chainID = 0
+		} else {
+			var (
+				chainId *big.Int
+				ok      bool
+			)
+			if strings.HasPrefix(chainIdStr, "0x") { // try parsing chainID as hex to adapt web3 api calls
+				chainId, ok = new(big.Int).SetString(strings.TrimPrefix(chainIdStr, "0x"), 16)
+			} else {
+				chainId, ok = new(big.Int).SetString(chainIdStr, 10)
+			}
+			if !ok {
+				return &parseError{param: "chainId"}
+			}
+			args.ChainID = (*common.Big)(chainId)
+		}
 	}
 	return nil
 }
@@ -215,16 +350,4 @@ func FormatLogs(logs []kvm.StructLog) []StructLogRes {
 		}
 	}
 	return formatted
-}
-
-func toTransactionArgs(args TransactionArgs, b Backend) types.CallArgsJSON {
-	to := args.To.Hex()
-	return types.CallArgsJSON{
-		From:     args.From.Hex(),
-		To:       &to,
-		Gas:      uint64(*args.Gas),
-		GasPrice: args.GasPrice.ToInt(),
-		Value:    args.Value.ToInt(),
-		Data:     args.Data.String(),
-	}
 }

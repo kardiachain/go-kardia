@@ -134,7 +134,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockHe
 	executable := func(gas uint64) (bool, *kvm.ExecutionResult, error) {
 		args.Gas = (*common.Uint64)(&gas)
 
-		result, err := DoCall(ctx, b, toTransactionArgs(args, b), blockHeightOrHash, kvm.Config{}, 0)
+		result, err := DoCall(ctx, b, args, blockHeightOrHash, kvm.Config{}, 0)
 		if err != nil {
 			if errors.Is(err, tx_pool.ErrIntrinsicGas) {
 				return true, nil, nil // Special case, raise gas limit
@@ -182,7 +182,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockHe
 
 // DoCall is an interface to make smart contract call against the state of local node
 // No tx is generated or submitted to the blockchain
-func DoCall(ctx context.Context, s Backend, args types.CallArgsJSON, blockHeightOrHash rpc.BlockHeightOrHash, vmCfg kvm.Config, timeout time.Duration) (*kvm.ExecutionResult, error) {
+func DoCall(ctx context.Context, s Backend, args TransactionArgs, blockHeightOrHash rpc.BlockHeightOrHash, vmCfg kvm.Config, timeout time.Duration) (*kvm.ExecutionResult, error) {
 	defer func(start time.Time) { log.Debug("Executing KVM call finished", "runtime", time.Since(start)) }(time.Now())
 
 	state, header, err := s.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
@@ -203,7 +203,7 @@ func DoCall(ctx context.Context, s Backend, args types.CallArgsJSON, blockHeight
 	defer cancel()
 
 	// Create new call message
-	msg := args.ToMessage()
+	msg := args.ToMessage(configs.GasLimitCap)
 
 	// Get a new instance of the KVM.
 	kvm, vmError, err := s.GetKVM(ctx, msg, state, header)

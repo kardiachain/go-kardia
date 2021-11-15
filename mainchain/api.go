@@ -21,7 +21,6 @@ package kai
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -32,7 +31,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/crypto"
 	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/mainchain/tx_pool"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
 )
@@ -456,7 +454,7 @@ func (a *PublicTransactionAPI) SendRawTransaction(ctx context.Context, txs strin
 // KardiaCall execute a contract method call only against
 // state on the local node. No tx is generated and submitted
 // onto the blockchain
-func (s *PublicKaiAPI) KardiaCall(ctx context.Context, args types.CallArgsJSON, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
+func (s *PublicKaiAPI) KardiaCall(ctx context.Context, args kaiapi.TransactionArgs, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
 	result, err := kaiapi.DoCall(ctx, s.kaiService, args, blockHeightOrHash, kvm.Config{}, time.Duration(configs.TimeOutForStaticCall)*time.Second)
 	if err != nil {
 		return nil, err
@@ -765,88 +763,13 @@ func (s *PublicKaiAPI) GasPrice(ctx context.Context) (string, error) {
 
 // EstimateGas returns an estimate of the amount of gas needed to execute the
 // given transaction against the current pending block.
-func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args types.CallArgsJSON, blockHeightOrHash rpc.BlockHeightOrHash) (uint64, error) {
-	// Binary search the gas requirement, as it may be higher than the amount used
-	var (
-		lo  = configs.TxGas - 1
-		hi  uint64
-		cap uint64
-	)
-	// Use zero address if sender unspecified.
-	if (args.From == "") || (common.HexToAddress(args.From) == common.Address{}) {
-		args.From = configs.GenesisDeployerAddr.Hex()
+func (s *PublicKaiAPI) EstimateGas(ctx context.Context, args kaiapi.TransactionArgs, blockHeightOrHash *rpc.BlockHeightOrHash) (uint64, error) {
+	bHeightOrHash := rpc.BlockHeightOrHashWithHeight(rpc.PendingBlockHeight)
+	if blockHeightOrHash != nil {
+		bHeightOrHash = *blockHeightOrHash
 	}
-
-	if args.Gas >= configs.TxGas {
-		hi = args.Gas
-	} else {
-		// Retrieve the block to act as the gas ceiling
-		block, err := s.kaiService.BlockByHeightOrHash(ctx, blockHeightOrHash)
-		if err != nil {
-			return 0, err
-		}
-		if block == nil {
-			return 0, ErrBlockNotFound
-		}
-		hi = block.GasLimit()
-	}
-	cap = hi
-
-	// Create a helper to check if a gas allowance results in an executable transaction
-	executable := func(gas uint64) (bool, *kvm.ExecutionResult, error) {
-		args.Gas = gas
-
-		result, err := kaiapi.DoCall(ctx, s.kaiService, args, blockHeightOrHash, kvm.Config{}, 0)
-		if err != nil {
-			if errors.Is(err, tx_pool.ErrIntrinsicGas) {
-				return true, nil, nil // Special case, raise gas limit
-			}
-			return true, nil, err // Bail out
-		}
-		return result.Failed(), result, nil
-	}
-	// Execute the binary search and hone in on an executable gas limit
-	for lo+1 < hi {
-		mid := (hi + lo) / 2
-		failed, _, err := executable(mid)
-
-		// If the error is not nil(consensus error), it means the provided message
-		// call or transaction will never be accepted no matter how much gas it is
-		// assigned. Return the error directly, don't struggle any more.
-		if err != nil {
-			return 0, err
-		}
-		if failed {
-			lo = mid
-		} else {
-			hi = mid
-		}
-	}
-	// Reject the transaction as invalid if it still fails at the highest allowance
-	if hi == cap {
-		failed, result, err := executable(hi)
-		if err != nil {
-			return 0, err
-		}
-		if failed {
-			if result != nil && result.Err != kvm.ErrOutOfGas {
-				if len(result.Revert()) > 0 {
-					return 0, kaiapi.NewRevertError(result)
-				}
-				return 0, result.Err
-			}
-			// Otherwise, the specified gas cap is too low
-			return 0, fmt.Errorf("gas required exceeds allowance (%d)", cap)
-		}
-	}
-
-	// Recap gas to highest gas cap
-	gasCap := configs.GasLimitCap
-	if gasCap != 0 && hi > gasCap {
-		hi = gasCap
-	}
-
-	return hi, nil
+	estimatedGas, err := kaiapi.DoEstimateGas(ctx, s.kaiService, args, bHeightOrHash, configs.GasLimitCap)
+	return uint64(estimatedGas), err
 }
 
 // checkGas is a function used to check whether the fee of

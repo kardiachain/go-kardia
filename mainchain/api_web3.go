@@ -29,9 +29,7 @@ import (
 	"github.com/kardiachain/go-kardia/kvm"
 	"github.com/kardiachain/go-kardia/lib/common"
 	"github.com/kardiachain/go-kardia/lib/crypto"
-	"github.com/kardiachain/go-kardia/lib/log"
 	"github.com/kardiachain/go-kardia/lib/rlp"
-	"github.com/kardiachain/go-kardia/mainchain/blockchain"
 	"github.com/kardiachain/go-kardia/node"
 	"github.com/kardiachain/go-kardia/rpc"
 	"github.com/kardiachain/go-kardia/types"
@@ -228,8 +226,8 @@ type CallArgs struct {
 // Call executes the given transaction on the state for the given block height.
 // Note, this function doesn't make and changes in the state/blockchain and is
 // useful to execute and retrieve values.
-func (s *PublicWeb3API) Call(ctx context.Context, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
-	result, err := DoCall(ctx, s.kaiService, args, blockHeightOrHash, kvm.Config{}, time.Duration(configs.TimeOutForStaticCall)*time.Second, configs.GasLimitCap)
+func (s *PublicWeb3API) Call(ctx context.Context, args kaiapi.TransactionArgs, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
+	result, err := kaiapi.DoCall(ctx, s.kaiService, args, blockHeightOrHash, kvm.Config{}, time.Duration(configs.TimeOutForStaticCall)*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -238,58 +236,6 @@ func (s *PublicWeb3API) Call(ctx context.Context, args CallArgs, blockHeightOrHa
 		return nil, kaiapi.NewRevertError(result)
 	}
 	return result.Return(), result.Err
-}
-
-func DoCall(ctx context.Context, s APIBackend, args CallArgs, blockHeightOrHash rpc.BlockHeightOrHash, kvmCfg kvm.Config,
-	timeout time.Duration, globalGasCap uint64) (*kvm.ExecutionResult, error) {
-	defer func(start time.Time) { log.Debug("Executing KVM call finished", "runtime", time.Since(start)) }(time.Now())
-
-	state, header, err := s.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
-	if state == nil || err != nil {
-		return nil, err
-	}
-
-	// Setup context so it may be cancelled the call has completed
-	// or, in case of unmetered gas, setup a context with a timeout.
-	var cancel context.CancelFunc
-	if timeout > 0 {
-		ctx, cancel = context.WithTimeout(ctx, timeout)
-	} else {
-		ctx, cancel = context.WithCancel(ctx)
-	}
-	// Make sure the context is cancelled when the call has completed
-	// this makes sure resources are cleaned up.
-	defer cancel()
-
-	// Get a new instance of the KVM.
-	msg := args.ToMessage(globalGasCap)
-	kvm, vmError, err := s.GetKVM(ctx, msg, state, header)
-	if err != nil {
-		return nil, err
-	}
-	// Wait for the context to be done and cancel the KVM. Even if the
-	// KVM has finished, cancelling may be done (repeatedly)
-	go func() {
-		<-ctx.Done()
-		kvm.Cancel()
-	}()
-
-	// Setup the gas pool (also for unmetered requests)
-	// and apply the message.
-	gp := new(types.GasPool).AddGas(common.MaxUint64)
-	result, err := blockchain.ApplyMessage(kvm, msg, gp)
-	if err := vmError(); err != nil {
-		return nil, err
-	}
-
-	// If the timer caused an abort, return an appropriate error message
-	if kvm.Cancelled() {
-		return nil, fmt.Errorf("execution aborted (timeout = %v)", timeout)
-	}
-	if err != nil {
-		return result, fmt.Errorf("err: %w (supplied gas %d)", err, msg.Gas())
-	}
-	return result, nil
 }
 
 // EstimateGas returns an estimate of the amount of gas needed to execute the
