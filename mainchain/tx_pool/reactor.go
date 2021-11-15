@@ -26,7 +26,6 @@ import (
 	"github.com/kardiachain/go-kardia/lib/event"
 	"github.com/kardiachain/go-kardia/lib/p2p"
 	"github.com/kardiachain/go-kardia/mainchain/fetcher"
-	txpoolproto "github.com/kardiachain/go-kardia/proto/kardiachain/txpool"
 	"github.com/kardiachain/go-kardia/types"
 )
 
@@ -35,7 +34,7 @@ const (
 
 	// txChanSize is the size of channel listening to NewTxsEvent.
 	// The number is referenced from the size of tx pool.
-	txChanSize = 8192
+	txChanSize = 4096
 
 	// softResponseLimit is the target maximum size of replies to data retrievals.
 	softResponseLimit = 2 * 1024 * 1024
@@ -89,18 +88,11 @@ func (txR *Reactor) OnStart() error {
 // GetChannels implements Reactor by returning the list of channels for this
 // reactor.
 func (txR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
-	largestTx := make([]byte, DefaultTxPoolConfig.MaxTxBytes)
-	batchMsg := txpoolproto.Message{
-		Sum: &txpoolproto.Message_Txs{
-			Txs: &txpoolproto.Txs{Txs: [][]byte{largestTx}},
-		},
-	}
-
 	return []*p2p.ChannelDescriptor{
 		{
 			ID:                  TxpoolChannel,
 			Priority:            5,
-			RecvMessageCapacity: batchMsg.Size(),
+			RecvMessageCapacity: 22020096, // 21mbs
 			RecvBufferCapacity:  128,
 			MaxSendBytes:        5000,
 		},
@@ -226,7 +218,7 @@ func (txR *Reactor) handleRequestPooledTransactions(src p2p.Peer, msg RequestPoo
 	}
 
 	if len(txs) > 0 {
-		src.Send(TxpoolChannel, MustEncode(PooledTransactions(txs)))
+		src.TrySend(TxpoolChannel, MustEncode(PooledTransactions(txs)))
 	}
 }
 
@@ -235,7 +227,7 @@ type PeerState interface {
 	GetHeight() int64
 }
 
-// Send new txpool txs to peer.
+// broadcastTxRoutine send new txs to peer.
 func (txR *Reactor) broadcastTxRoutine() {
 	txset := make(map[*peer][]common.Hash)
 	txR.txsCh = make(chan events.NewTxsEvent, txChanSize)
