@@ -313,6 +313,10 @@ func (p *peer) sendTransactions(txs types.Transactions) error {
 // not be managed directly.
 func (p *peer) sendPooledTransactionHashes(hashes []common.Hash) error {
 	// Mark all the transactions as known, but ensure we don't overflow our limits
+	for p.knownTxs.Cardinality() > max(0, maxKnownTxs-len(hashes)) {
+		p.knownTxs.Pop()
+	}
+	// Mark all the transactions as known, but ensure we don't overflow our limits
 	for _, hash := range hashes {
 		p.knownTxs.Add(hash)
 	}
@@ -327,6 +331,9 @@ func (p *peer) sendPooledTransactionHashes(hashes []common.Hash) error {
 // will never be propagated to this particular peer.
 func (p *peer) markTransaction(hash common.Hash) {
 	// If we reached the memory allowance, drop a previously known transaction hash
+	for p.knownTxs.Cardinality() >= maxKnownTxs {
+		p.knownTxs.Pop()
+	}
 	p.knownTxs.Add(hash)
 }
 
@@ -355,10 +362,13 @@ func (p *peer) AsyncSendPooledTransactionHashes(hashes []common.Hash) {
 	select {
 	case p.txAnnounce <- hashes:
 		// Mark all the transactions as known, but ensure we don't overflow our limits
+		for p.knownTxs.Cardinality() > max(0, maxKnownTxs-len(hashes)) {
+			p.knownTxs.Pop()
+		}
+		// Mark all the transactions as known, but ensure we don't overflow our limits
 		for _, hash := range hashes {
 			p.knownTxs.Add(hash)
 		}
-
 	case <-p.terminated:
 		p.logger.Debug("Dropping transaction announcement", "count", len(hashes))
 	}

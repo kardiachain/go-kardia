@@ -118,7 +118,6 @@ func (txR *Reactor) AddPeer(peer p2p.Peer) {
 	// Propagate existing transactions. new transactions appearing
 	// after this will be sent via broadcasts.
 	txR.syncTransactions(peer)
-
 }
 
 // syncTransactions starts sending all currently pending transactions to the given peer.
@@ -127,8 +126,6 @@ func (txR *Reactor) syncTransactions(peer p2p.Peer) {
 	// peer. Fun fact, this is quite an expensive operation as it needs to sort
 	// the transactions if the sorting is not cached yet. However, with a random
 	// order, insertions could overflow the non-executable queues and get dropped.
-	//
-	// TODO(karalabe): Figure out if we could get away with random order somehow
 	var txs types.Transactions
 	pending, _ := txR.txpool.Pending()
 	for _, batch := range pending {
