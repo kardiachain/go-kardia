@@ -80,8 +80,11 @@ func (txR *Reactor) OnStart() error {
 		txR.Logger.Info("Tx broadcasting is disabled")
 		return nil
 	}
+	txR.txsCh = make(chan events.NewTxsEvent, txChanSize)
+	txR.txsSub = txR.txpool.SubscribeNewTxsEvent(txR.txsCh)
+
 	txR.txFetcher.Start()
-	go txR.broadcastTxRoutine()
+	go txR.broadcastTransactionsRoutine()
 	return nil
 }
 
@@ -93,8 +96,7 @@ func (txR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 			ID:                  TxpoolChannel,
 			Priority:            5,
 			RecvMessageCapacity: DefaultTxPoolConfig.MaxTxsBatchSize,
-			RecvBufferCapacity:  128,
-			MaxSendBytes:        5000,
+			RecvBufferCapacity:  50 * 4096,
 		},
 	}
 }
@@ -227,11 +229,51 @@ type PeerState interface {
 	GetHeight() int64
 }
 
-// broadcastTxRoutine send new txs to peer.
-func (txR *Reactor) broadcastTxRoutine() {
-	txset := make(map[*peer][]common.Hash)
-	txR.txsCh = make(chan events.NewTxsEvent, txChanSize)
-	txR.txsSub = txR.txpool.SubscribeNewTxsEvent(txR.txsCh)
+// BroadcastTransactions will propagate a batch of transactions
+// - To a square root of all peers
+// - And, separately, as announcements to all peers which are not known to
+// already have the given transaction.
+func (txR *Reactor) BroadcastTransactions(txs types.Transactions) {
+	var (
+		annoCount   int // Count of announcements made
+		annoPeers   int
+		directCount int // Count of the txs sent directly to peers
+		directPeers int // Count of the peers that were sent transactions directly
+
+		txset = make(map[*peer][]common.Hash) // Set peer->hash to transfer directly
+		annos = make(map[*peer][]common.Hash) // Set peer->hash to announce
+
+	)
+	// Broadcast transactions to a batch of peers not knowing about it
+	for _, tx := range txs {
+		peers := txR.peers.peersWithoutTx(tx.Hash())
+		// Send the tx unconditionally to a subset of our peers
+		numDirect := int(math.Sqrt(float64(len(peers))))
+		for _, peer := range peers[:numDirect] {
+			txset[peer] = append(txset[peer], tx.Hash())
+		}
+		// For the remaining peers, send announcement only
+		for _, peer := range peers[numDirect:] {
+			annos[peer] = append(annos[peer], tx.Hash())
+		}
+	}
+	for peer, hashes := range txset {
+		directPeers++
+		directCount += len(hashes)
+		peer.AsyncSendTransactions(hashes)
+	}
+	for peer, hashes := range annos {
+		annoPeers++
+		annoCount += len(hashes)
+		peer.AsyncSendPooledTransactionHashes(hashes)
+	}
+	txR.Logger.Info("Broadcast transaction", "txs", len(txs),
+		"announce packs", annoPeers, "announced hashes", annoCount,
+		"tx packs", directPeers, "broadcast txs", directCount)
+}
+
+// broadcastTransactionsRoutine broadcast new txs to peer.
+func (txR *Reactor) broadcastTransactionsRoutine() {
 	for {
 		// In case of both next.NextWaitChan() and peer.Quit() are variable at the same time
 		if !txR.IsRunning() {
@@ -240,25 +282,11 @@ func (txR *Reactor) broadcastTxRoutine() {
 
 		select {
 		case txEvent := <-txR.txsCh:
-			for _, tx := range txEvent.Txs {
-				peers := txR.peers.PeersWithoutTx(tx.Hash())
-				// Send the txset to a subset of our peers
-				subset := peers[:int(math.Sqrt(float64(len(peers))))]
-				for _, peer := range subset {
-					txset[peer] = append(txset[peer], tx.Hash())
-				}
-				txR.Logger.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
-			}
-
-			for peer, hashes := range txset {
-				// only send to validators
-				peer.AsyncSendTransactions(hashes)
-			}
+			txR.BroadcastTransactions(txEvent.Txs)
 		case <-txR.txsSub.Err():
 			return
 		}
 	}
-
 }
 
 func (txR *Reactor) OnStop() {
