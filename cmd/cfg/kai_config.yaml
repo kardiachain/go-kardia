@@ -8,6 +8,7 @@ Node:
     - kai
     - tx
     - account
+    - debug
     - net
     - eth
     - web3
@@ -35,6 +36,11 @@ Node:
     TargetPending: 10     # maximum number of blocks in a batch sync. Type int
     PeerTimeout: 15       # maximum response time from a peer in second. Type int
     MinRecvRate: 0        # minimum receive rate from peer, otherwise prune. Type int64
+  GasOracle:
+    Blocks: 10              # number of recent blocks used to suggest gas price. Type int
+    Percentile: 10          # percent of gas price increasing based on highest gas of recent transactions. Type int
+    Default: 1000000000     # default gas price. Type string
+    MaxPrice: 500000000000  # maximum gas price this node will accept. Type string
 MainChain:
   ServiceName: KARDIA     # mainchain service name
   ChainId: 0              # default chainid
@@ -44,11 +50,17 @@ MainChain:
     - faf0b7cbd8003dbef341a263cb9e1dd2a41e8acd@13.251.223.247:3000
     - fd4a31e03175e5871f84e9f8aa35ded0a691fec9@13.228.186.253:3000
     - 8e1d7fabfbc61182670db6fe40e196e0d0115b6d@13.250.168.234:3000
+    - 3494b209080f42139e35e8958f2e5646fab4f7e3@13.251.195.141:3000
+    - b653443811115c3be4f50186536361780b1cd6ec@46.137.215.229:3000
+    - f1135bc1f710275ec1f85bc0fd88c5ca0a9a6090@54.251.108.202:3000
     - 47c229a200880d74b9a6bd430224b0c127e202d5@13.228.239.244:3000
     - abb20582e80f64235dd03b67a3e12d334dd26489@18.136.72.15:3000
     - 2e6d694bd9d30ad165881dc009ff02d9489971ae@54.255.107.221:3000
+    - 60ac5d7afb954e437aacd42566d7bcfef616cf3e@52.74.41.175:3000
+    - 5611c55846cba0dac1dbec92936bd4bdc36b21eb@13.213.159.248:3000
+    - 4269e8f376e57fc055af00014a020b1510c1d873@52.77.249.228:3000
   Database:
     Dir: chaindata                           # directory stores leveldb
     Cache: 16                                # cache is used in leveldb
     Handles: 32                              # handles is used in leveldb
-    Drop: 1                                  # specify whether drop database or not (0 is no, 1 is yes)
+    Drop: 0                                  # specify whether drop database or not (0 is no, 1 is yes)
