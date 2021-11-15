@@ -42,6 +42,7 @@ var (
 	MetricValid       = metricName("", "valid")
 	MetricInvalid     = metricName("", "invalid")
 	MetricUnderPriced = metricName("", "under_priced")
+	MetricOveflowedTx = metricName("", "overflowed")
 
 	MetricPending = metricName("", "pending")
 	MetricQueued  = metricName("", "queued")
@@ -72,6 +73,7 @@ var (
 	validTxMeter       = metrics.NewRegisteredMeter(MetricValid, metrics.TxPoolRegistry)
 	invalidTxMeter     = metrics.NewRegisteredMeter(MetricInvalid, metrics.TxPoolRegistry)
 	underpricedTxMeter = metrics.NewRegisteredMeter(MetricUnderPriced, metrics.TxPoolRegistry)
+	overflowedTxMeter  = metrics.NewRegisteredMeter(MetricOveflowedTx, metrics.TxPoolRegistry)
 
 	pendingGauge = metrics.NewRegisteredGauge(MetricPending, metrics.TxPoolRegistry)
 	queuedGauge  = metrics.NewRegisteredGauge(MetricQueued, metrics.TxPoolRegistry)

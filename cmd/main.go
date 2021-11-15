@@ -108,7 +108,6 @@ func (c *Config) getTxPoolConfig() tx_pool.TxPoolConfig {
 		GlobalSlots:  txPool.GlobalSlots,
 		GlobalQueue:  txPool.GlobalQueue,
 		Broadcast:    txPool.Broadcast,
-		MaxTxBytes:   txPool.MaxTxBytes,
 	}
 }
 
