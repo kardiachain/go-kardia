@@ -92,7 +92,7 @@ func (txR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 		{
 			ID:                  TxpoolChannel,
 			Priority:            5,
-			RecvMessageCapacity: 22020096, // 21mbs
+			RecvMessageCapacity: DefaultTxPoolConfig.MaxTxsBatchSize,
 			RecvBufferCapacity:  128,
 			MaxSendBytes:        5000,
 		},
