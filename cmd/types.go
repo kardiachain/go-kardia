@@ -108,7 +108,6 @@ type (
 		GlobalQueue  uint64 `yaml:"GlobalQueue"`
 		BlockSize    int    `yaml:"BlockSize,omitempty"`
 		Broadcast    bool   `yaml:"Broadcast"`
-		MaxTxBytes   int    `yaml:"MaxBatchBytes"`
 	}
 	Database struct {
 		Type    uint   `yaml:"Type"`
