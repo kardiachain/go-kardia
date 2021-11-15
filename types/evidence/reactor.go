@@ -70,8 +70,7 @@ func (evR *Reactor) GetChannels() []*p2p.ChannelDescriptor {
 			ID:                  EvidenceChannel,
 			Priority:            6,
 			RecvMessageCapacity: maxMsgSize,
-			RecvBufferCapacity:  32,
-			MaxSendBytes:        400,
+			RecvBufferCapacity:  4096,
 		},
 	}
 }
