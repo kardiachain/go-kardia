@@ -176,14 +176,14 @@ func (conR *ConsensusManager) GetChannels() []*p2p.ChannelDescriptor {
 			ID:                  DataChannel,
 			Priority:            12,
 			SendQueueCapacity:   64,
-			RecvBufferCapacity:  4096,
+			RecvBufferCapacity:  8388608, // 8 Mbs
 			RecvMessageCapacity: maxMsgSize,
 		},
 		{
 			ID:                  VoteChannel,
 			Priority:            10,
 			SendQueueCapacity:   64,
-			RecvBufferCapacity:  4096,
+			RecvBufferCapacity:  524288, // 512 Kbs
 			RecvMessageCapacity: maxMsgSize,
 		},
 		{
