@@ -36,8 +36,7 @@ const (
 type HeaderChain struct {
 	config *configs.ChainConfig
 
-	kaiDb types.StoreDB
-
+	kaiDb         types.StoreDB
 	genesisHeader *types.Header
 
 	currentHeader     atomic.Value // Current head of the header chain (may be above the block chain!)
@@ -163,7 +162,6 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 			delFn(hc.kaiDb, height)
 		}
 		hc.kaiDb.DeleteBlockPart(height)
-
 		hc.currentHeader.Store(hc.GetHeader(hdr.LastCommitHash, hdr.Height-1))
 	}
 	// Roll back the canonical chain numbering
@@ -171,13 +169,13 @@ func (hc *HeaderChain) SetHead(head uint64, delFn DeleteCallback) {
 		hc.kaiDb.DeleteCanonicalHash(i)
 	}
 
+	if hc.CurrentHeader() == nil {
+		hc.currentHeader.Store(hc.genesisHeader)
+	}
+
 	// Clear out any stale content from the caches
 	hc.headerCache.Purge()
 	hc.heightCache.Purge()
 
-	if hc.CurrentHeader() == nil {
-		hc.currentHeader.Store(hc.genesisHeader)
-	}
 	hc.currentHeaderHash = hc.CurrentHeader().Hash()
-
 }

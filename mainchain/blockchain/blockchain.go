@@ -75,7 +75,7 @@ type BlockChain struct {
 }
 
 func (bc *BlockChain) P2P() *configs.P2PConfig {
-	return bc.P2P()
+	return nil
 }
 
 // GetVMConfig returns the block chain VM config.
@@ -304,7 +304,7 @@ func (bc *BlockChain) repair(head **types.Block) error {
 		lastHeight := (*head).Height() - 1
 		block := bc.GetBlock(lastCommitHash, lastHeight)
 		if block == nil {
-			return fmt.Errorf("Missing block height: %d [%x]", lastHeight, lastCommitHash)
+			return fmt.Errorf("missing block height: %d [%x]", lastHeight, lastCommitHash)
 		}
 		*head = block
 	}
@@ -348,10 +348,6 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	bc.hc.SetHead(head, delFn)
 	currentHeader := bc.hc.CurrentHeader()
 
-	// Clear out any stale content from the caches
-	bc.blockCache.Purge()
-	bc.futureBlocks.Purge()
-
 	// Rewind the block chain, ensuring we don't end up with a stateless head block
 	if currentBlock := bc.CurrentBlock(); currentBlock != nil && currentHeader.Height < currentBlock.Height() {
 		bc.currentBlock.Store(bc.GetBlock(currentHeader.Hash(), currentHeader.Height))
@@ -368,6 +364,10 @@ func (bc *BlockChain) SetHead(head uint64) error {
 	if currentBlock := bc.CurrentBlock(); currentBlock == nil {
 		bc.currentBlock.Store(bc.genesisBlock)
 	}
+
+	// Clear out any stale content from the caches
+	bc.blockCache.Purge()
+	bc.futureBlocks.Purge()
 
 	return bc.loadLastState()
 }
@@ -391,7 +391,7 @@ func (bc *BlockChain) WriteBlockInfo(block *types.Block, blockInfo *types.BlockI
 }
 
 // CommitTrie commits trie node such as statedb forcefully to disk.
-func (bc BlockChain) CommitTrie(root common.Hash) error {
+func (bc *BlockChain) CommitTrie(root common.Hash) error {
 	triedb := bc.stateCache.TrieDB()
 	return triedb.Commit(root, false)
 }
