@@ -52,6 +52,10 @@ var (
 	// within the pool.
 	ErrAlreadyKnown = errors.New("already known")
 
+	// ErrTxPoolOverflow is returned if the transaction pool is full and can't accpet
+	// another remote transaction.
+	ErrTxPoolOverflow = errors.New("txpool is full")
+
 	// ErrInvalidSender is returned if the transaction contains an invalid signature.
 	ErrInvalidSender = errors.New("invalid sender")
 

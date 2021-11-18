@@ -167,30 +167,30 @@ func (conR *ConsensusManager) GetChannels() []*p2p.ChannelDescriptor {
 	return []*p2p.ChannelDescriptor{
 		{
 			ID:                  StateChannel,
-			Priority:            5,
-			SendQueueCapacity:   100,
+			Priority:            8,
+			SendQueueCapacity:   64,
 			RecvMessageCapacity: maxMsgSize,
+			RecvBufferCapacity:  4096,
 		},
 		{
-			ID: DataChannel, // maybe split between gossiping current block and catchup stuff
-			// once we gossip the whole block there's nothing left to send until next height or round
-			Priority:            10,
-			SendQueueCapacity:   100,
-			RecvBufferCapacity:  50 * 4096,
+			ID:                  DataChannel,
+			Priority:            12,
+			SendQueueCapacity:   64,
+			RecvBufferCapacity:  8388608, // 8 Mbs
 			RecvMessageCapacity: maxMsgSize,
 		},
 		{
 			ID:                  VoteChannel,
-			Priority:            5,
-			SendQueueCapacity:   100,
-			RecvBufferCapacity:  100 * 100,
+			Priority:            10,
+			SendQueueCapacity:   64,
+			RecvBufferCapacity:  524288, // 512 Kbs
 			RecvMessageCapacity: maxMsgSize,
 		},
 		{
 			ID:                  VoteSetBitsChannel,
-			Priority:            1,
-			SendQueueCapacity:   2,
-			RecvBufferCapacity:  1024,
+			Priority:            5,
+			SendQueueCapacity:   8,
+			RecvBufferCapacity:  4096,
 			RecvMessageCapacity: maxMsgSize,
 		},
 	}

@@ -29,6 +29,20 @@ func (cm *CMap) Get(key string) interface{} {
 	return val
 }
 
+// GetOrSet returns the existing value if present. Othewise, it stores `newValue` and returns it.
+func (cm *CMap) GetOrSet(key string, newValue interface{}) (value interface{}, alreadyExists bool) {
+
+	cm.l.Lock()
+	defer cm.l.Unlock()
+
+	if v, ok := cm.m[key]; ok {
+		return v, true
+	}
+
+	cm.m[key] = newValue
+	return newValue, false
+}
+
 func (cm *CMap) Has(key string) bool {
 	cm.l.Lock()
 	_, ok := cm.m[key]

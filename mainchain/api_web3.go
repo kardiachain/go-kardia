@@ -158,6 +158,18 @@ func (s *PublicWeb3API) GetCode(ctx context.Context, address common.Address, blo
 	return code, state.Error()
 }
 
+// GetStorageAt returns the storage from the state at the given address, key and
+// block number. The rpc.LatestBlockHeight and rpc.PendingBlockHeight meta block
+// heights are also allowed.
+func (s *PublicWeb3API) GetStorageAt(ctx context.Context, address common.Address, key string, blockHeightOrHash rpc.BlockHeightOrHash) (common.Bytes, error) {
+	state, _, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
+	if state == nil || err != nil {
+		return nil, err
+	}
+	res := state.GetState(address, common.HexToHash(key))
+	return res[:], state.Error()
+}
+
 // GetProof returns the Merkle-proof for a given account and optionally some storage keys.
 func (s *PublicWeb3API) GetProof(ctx context.Context, address common.Address, storageKeys []string, blockHeightOrHash rpc.BlockHeightOrHash) (*AccountResult, error) {
 	state, _, err := s.kaiService.StateAndHeaderByHeightOrHash(ctx, blockHeightOrHash)
